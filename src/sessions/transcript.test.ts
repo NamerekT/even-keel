@@ -193,6 +193,17 @@ describe('TranscriptFold', () => {
     expect(summary.lastActivityAt).toBe(new Date(Date.UTC(2026, 0, 1, 12, 0, 0) + clock).toISOString())
   })
 
+  it('follows the git branch the session is on', () => {
+    const summary = fold([
+      assistant('m1', [text('a')], {}, { gitBranch: 'main' }),
+      JSON.stringify({ type: 'user', timestamp: at(), gitBranch: 'abc-3/panel' }),
+      assistant('m2', [text('b')], {}, { gitBranch: 'abc-3/panel', isSidechain: true }),
+      assistant('m3', [text('c')]),
+    ]).summary()
+    expect(summary.gitBranch).toBe('abc-3/panel')
+    expect(fold([assistant('m1', [text('a')])]).summary().gitBranch).toBeNull()
+  })
+
   it('skips blank and broken lines', () => {
     const summary = fold(['', '{not json', assistant('m1', [text('ok')], { input: 1 })]).summary()
     expect(summary.contextTokens).toBe(1)

@@ -1,6 +1,7 @@
 import { chainOrder } from '../../src/chain/order.js'
 import { isOpen, type HulyTask } from '../../src/huly/model.js'
 import type { Lamp } from '../../src/sessions/agents.js'
+import type { TokenTotals } from '../../src/sessions/transcript.js'
 import type { BatonState, ContextScale, SessionView } from '../../src/state.js'
 
 export type CardLamp = Lamp | 'idle'
@@ -116,6 +117,20 @@ export function queuedAfter(chain: BatonState['chain'], project: string): string
   const index = chain.queue.indexOf(project)
   if (index < 0) return null
   return index === 0 ? (chain.active?.project ?? null) : chain.queue[index - 1]!
+}
+
+export function sessionElapsed(view: SessionView, now: Date): number {
+  const start = Date.parse(view.startedAt)
+  const end = view.lamp === 'finished' ? Date.parse(view.lastActivityAt ?? view.startedAt) : now.getTime()
+  return Math.max(0, end - start)
+}
+
+export function tokenTotal(tokens: TokenTotals): number {
+  return tokens.input + tokens.output + tokens.cacheRead + tokens.cacheWrite
+}
+
+export function issueLink(trackerUrl: string | null, task: string): string | null {
+  return trackerUrl === null ? null : trackerUrl + task
 }
 
 function taskSession(sessions: SessionView[], task: string): SessionView | undefined {

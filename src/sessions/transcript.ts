@@ -23,6 +23,7 @@ export interface TranscriptSummary {
   remoteUrl: string | null
   apiError: { kind: ApiErrorKind; text: string; at: string } | null
   lastActivityAt: string | null
+  gitBranch: string | null
 }
 
 interface Usage {
@@ -46,6 +47,7 @@ interface Entry {
   error?: string
   timestamp?: string
   cwd?: string
+  gitBranch?: string
   bridgeSessionId?: string
   message?: { id?: string; model?: string; content?: unknown; usage?: Usage }
 }
@@ -67,10 +69,12 @@ export class TranscriptFold {
   private remoteUrl: string | null = null
   private apiError: TranscriptSummary['apiError'] = null
   private lastActivityAt: string | null = null
+  private gitBranch: string | null = null
 
   push(line: string): void {
     const entry = parse(line)
     if (entry === undefined || entry.isSidechain === true) return
+    if (typeof entry.gitBranch === 'string' && entry.gitBranch !== '') this.gitBranch = entry.gitBranch
 
     if (entry.type === 'bridge-session' && typeof entry.bridgeSessionId === 'string') {
       this.remoteUrl = REMOTE_BASE + entry.bridgeSessionId.replace(/^cse_/, 'session_')
@@ -100,6 +104,7 @@ export class TranscriptFold {
       remoteUrl: this.remoteUrl,
       apiError: this.apiError,
       lastActivityAt: this.lastActivityAt,
+      gitBranch: this.gitBranch,
     }
   }
 

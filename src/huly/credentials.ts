@@ -18,3 +18,7 @@ export function readHulyCredentials(env: Record<string, string | undefined>): Hu
     password: env.HULY_PASSWORD!,
   }
 }
+
+export function issueUrlBase({ url, workspace }: HulyCredentials): string {
+  return `${url.replace(/\/+$/, '')}/workbench/${encodeURIComponent(workspace)}/tracker/`
+}

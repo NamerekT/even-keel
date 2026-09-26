@@ -34,16 +34,44 @@ function isAgentEntry(value: unknown): value is AgentEntry {
   )
 }
 
-export function sessionsByTask(agents: AgentEntry[], projectKeys: string[]): Map<string, AgentEntry> {
+export function sessionsByTask(
+  agents: AgentEntry[],
+  projectKeys: string[],
+  branchOf: (agent: AgentEntry) => string | null = () => null,
+): Map<string, AgentEntry> {
   const keys = new Set(projectKeys)
-  const byTask = new Map<string, AgentEntry>()
+  const byTask = new Map<string, Candidate>()
   for (const agent of agents) {
-    const match = /^([A-Z][A-Z0-9_]*)-\d+$/.exec(agent.name ?? '')
-    if (match === null || !keys.has(match[1] ?? '')) continue
-    const known = byTask.get(match[0])
-    if (known === undefined || agent.startedAt > known.startedAt) byTask.set(match[0], agent)
+    const named = taskOfName(agent.name)
+    const task = named ?? taskOfBranch(branchOf(agent))
+    if (task === undefined || !keys.has(task.replace(/-\d+$/, ''))) continue
+    const candidate = { agent, named: named !== undefined }
+    const known = byTask.get(task)
+    if (known === undefined || outranks(candidate, known)) byTask.set(task, candidate)
   }
-  return new Map([...byTask].sort(([a], [b]) => a.localeCompare(b, 'en', { numeric: true })))
+  return new Map(
+    [...byTask]
+      .map(([task, { agent }]) => [task, agent] as const)
+      .sort(([a], [b]) => a.localeCompare(b, 'en', { numeric: true })),
+  )
+}
+
+interface Candidate {
+  agent: AgentEntry
+  named: boolean
+}
+
+function outranks(candidate: Candidate, known: Candidate): boolean {
+  if (candidate.named !== known.named) return candidate.named
+  return candidate.agent.startedAt > known.agent.startedAt
+}
+
+function taskOfName(name: string | undefined): string | undefined {
+  return /^[A-Z][A-Z0-9_]*-\d+$/.exec(name ?? '')?.[0]
+}
+
+function taskOfBranch(branch: string | null): string | undefined {
+  return /^[a-z][a-z0-9_]*-\d+(?=\/|$)/.exec(branch ?? '')?.[0].toUpperCase()
 }
 
 export function lampOf(agent: AgentEntry | undefined, apiError: ApiErrorKind | null): Lamp {

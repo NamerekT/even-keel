@@ -1,15 +1,19 @@
-import { useEffect } from 'react'
-import { useLocation, useParams } from 'react-router'
+import { useCallback, useEffect } from 'react'
+import { useLocation, useNavigate, useParams } from 'react-router'
 import type { BatonState } from '../../../src/state.js'
 import { useCommand } from '../live/useCommand.js'
 import { chainBlocks, chainStatus, queuedAfter } from '../state.js'
 import { StatusChip } from '../ui/StatusChip.js'
 import { ChainSnake } from './ChainSnake.js'
 import { NotFound } from './NotFound.js'
+import { SessionPanel } from './SessionPanel.js'
 
 export function Project({ state }: { state: BatonState }) {
   const key = useParams().key ?? ''
-  const focus = decodeURIComponent(useLocation().hash.slice(1))
+  const location = useLocation()
+  const navigate = useNavigate()
+  const focus = decodeURIComponent(location.hash.slice(1))
+  const close = useCallback(() => navigate({ search: location.search, hash: '' }), [navigate, location.search])
   useEffect(() => {
     if (focus !== '') document.getElementById(focus)?.scrollIntoView({ block: 'nearest' })
   }, [focus])
@@ -17,19 +21,25 @@ export function Project({ state }: { state: BatonState }) {
 
   const order = state.chain.projects[key]
   const blocks = chainBlocks(state, key)
+  const selected = blocks.find((block) => block.id === focus)
 
   return (
-    <section className="page">
-      <header className="project__head">
-        <h1 className="page__title project__title">{key}</h1>
-        <StatusChip status={chainStatus(state.chain, key)} />
-        <ChainControls state={state} project={key} />
-      </header>
-      {order?.error && <p className="notice notice--error">{order.error}</p>}
-      {blocks.length === 0 ? (
-        <p className="placeholder">{order === undefined ? 'Задачи ещё не загружены.' : 'Задач в цепочке нет.'}</p>
-      ) : (
-        <ChainSnake blocks={blocks} scale={state.context} focus={focus} />
+    <section className={selected === undefined ? 'project' : 'project project--panel'}>
+      <div className="page">
+        <header className="project__head">
+          <h1 className="page__title project__title">{key}</h1>
+          <StatusChip status={chainStatus(state.chain, key)} />
+          <ChainControls state={state} project={key} />
+        </header>
+        {order?.error && <p className="notice notice--error">{order.error}</p>}
+        {blocks.length === 0 ? (
+          <p className="placeholder">{order === undefined ? 'Задачи ещё не загружены.' : 'Задач в цепочке нет.'}</p>
+        ) : (
+          <ChainSnake blocks={blocks} scale={state.context} focus={focus} />
+        )}
+      </div>
+      {selected !== undefined && (
+        <SessionPanel key={selected.id} block={selected} scale={state.context} trackerUrl={state.trackerUrl} onClose={close} />
       )}
     </section>
   )

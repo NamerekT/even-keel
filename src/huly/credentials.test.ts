@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { readHulyCredentials } from './credentials.js'
+import { issueUrlBase, readHulyCredentials } from './credentials.js'
 
 const full = {
   HULY_URL: 'https://huly.example.com',
@@ -25,6 +25,20 @@ describe('readHulyCredentials', () => {
   it('names every missing variable when the set is incomplete', () => {
     expect(() => readHulyCredentials({ HULY_URL: full.HULY_URL, HULY_EMAIL: '' })).toThrow(
       /HULY_WORKSPACE, HULY_EMAIL, HULY_PASSWORD/,
+    )
+  })
+})
+
+describe('issueUrlBase', () => {
+  const credentials = { url: 'https://huly.example.com', workspace: 'example', email: '', password: '' }
+
+  it('points at the tracker of the workspace so an issue key completes the link', () => {
+    expect(issueUrlBase(credentials)).toBe('https://huly.example.com/workbench/example/tracker/')
+  })
+
+  it('drops a trailing slash of the server address and escapes the workspace', () => {
+    expect(issueUrlBase({ ...credentials, url: 'https://huly.example.com/', workspace: 'my space' })).toBe(
+      'https://huly.example.com/workbench/my%20space/tracker/',
     )
   })
 })

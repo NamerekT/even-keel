@@ -35,6 +35,18 @@ export function formatTokens(tokens: number): string {
   return `${Number((tokens / 1_000_000).toFixed(1))}M`
 }
 
+export function formatClock(ms: number): string {
+  const seconds = Math.max(0, Math.floor(ms / 1000))
+  const days = Math.floor(seconds / 86_400)
+  const hours = Math.floor((seconds % 86_400) / 3_600)
+  const minutes = Math.floor((seconds % 3_600) / 60)
+  const two = (value: number) => String(value).padStart(2, '0')
+  const tail = two(seconds % 60)
+  if (days > 0) return `${days} д ${hours}:${two(minutes)}:${tail}`
+  if (hours > 0) return `${hours}:${two(minutes)}:${tail}`
+  return `${minutes}:${tail}`
+}
+
 function pair(major: number, majorUnit: string, minor: number, minorUnit: string): string {
   return minor === 0 ? `${major} ${majorUnit}` : `${major} ${majorUnit} ${minor} ${minorUnit}`
 }

@@ -1,8 +1,8 @@
 import { useCallback, useLayoutEffect, useRef, useState } from 'react'
 import { Link } from 'react-router'
 import type { ContextScale } from '../../../src/state.js'
-import { formatTokens } from '../format.js'
-import { contextFill, type BlockLamp, type ChainBlock } from '../state.js'
+import type { BlockLamp, ChainBlock } from '../state.js'
+import { ContextMeter } from '../ui/ContextMeter.js'
 import { Lamp } from '../ui/Lamp.js'
 import { arrowPath, snakeCell, snakeColumns, snakeStep } from '../ui/snake.js'
 
@@ -112,7 +112,6 @@ function Block({ block, scale, focused, row, column }: BlockProps) {
   const classes = ['block', `block--${block.lamp}`]
   if (block.current) classes.push('block--current')
   if (focused) classes.push('block--focus')
-  const context = block.current && block.session !== null ? contextFill(block.session.contextTokens, scale) : null
 
   return (
     <li id={block.id} className={classes.join(' ')} style={{ gridRow: row + 1, gridColumn: column + 1 }}>
@@ -125,23 +124,7 @@ function Block({ block, scale, focused, row, column }: BlockProps) {
       </div>
       {block.title !== null && <p className="block__title">{block.title}</p>}
       {block.status !== null && <p className="block__status">{block.status}</p>}
-      {context !== null && block.session !== null && (
-        <div className={`context-meter context-meter--${context.level}`}>
-          <span
-            className="context-meter__track"
-            role="meter"
-            aria-label="Заполнение контекста"
-            aria-valuemin={0}
-            aria-valuemax={100}
-            aria-valuenow={Math.round(context.percent)}
-          >
-            <span className="context-meter__fill" style={{ width: `${context.percent}%` }} />
-          </span>
-          <span className="context-meter__value">
-            {Math.round(context.percent)}% · {formatTokens(block.session.contextTokens)}
-          </span>
-        </div>
-      )}
+      {block.current && block.session !== null && <ContextMeter tokens={block.session.contextTokens} scale={scale} />}
     </li>
   )
 }

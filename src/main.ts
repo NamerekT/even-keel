@@ -5,7 +5,7 @@ import { launchDays } from './chain/launches.js'
 import { appendLaunch, loadChainState, readLaunches, saveChainState } from './chain/store.js'
 import { loadConfig } from './config.js'
 import { EventHub } from './events.js'
-import { readHulyCredentials } from './huly/credentials.js'
+import { issueUrlBase, readHulyCredentials } from './huly/credentials.js'
 import type { HulyHealth } from './huly/health.js'
 import { HulyLink } from './huly/link.js'
 import type { HulyTask } from './huly/model.js'
@@ -76,6 +76,7 @@ const getState = (): BatonState => ({
   sessions,
   limits: limits.limits,
   huly,
+  trackerUrl: credentials === undefined ? null : issueUrlBase(credentials),
   launches: launchDays(launches, new Date(), LAUNCH_CHART_DAYS),
   context: config.context,
 })

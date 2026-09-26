@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { formatAgo, formatSpan, formatTokens, plural } from './format.js'
+import { formatAgo, formatClock, formatSpan, formatTokens, plural } from './format.js'
 
 const now = new Date('2026-01-01T12:00:00.000Z')
 const later = (ms: number) => new Date(now.getTime() + ms).toISOString()
@@ -80,5 +80,22 @@ describe('formatTokens', () => {
     expect(formatTokens(599_600)).toBe('600k')
     expect(formatTokens(1_240_000)).toBe('1.2M')
     expect(formatTokens(2_000_000)).toBe('2M')
+  })
+})
+
+describe('formatClock', () => {
+  it('shows minutes and seconds under an hour', () => {
+    expect(formatClock(0)).toBe('0:00')
+    expect(formatClock(7_900)).toBe('0:07')
+    expect(formatClock(42 * MIN + 13_000)).toBe('42:13')
+  })
+
+  it('adds hours past an hour and days past a day', () => {
+    expect(formatClock(HOUR + 2 * MIN + 5_000)).toBe('1:02:05')
+    expect(formatClock(2 * DAY + 3 * HOUR + 4 * MIN)).toBe('2 д 3:04:00')
+  })
+
+  it('never goes below zero when the clocks disagree', () => {
+    expect(formatClock(-3_000)).toBe('0:00')
   })
 })

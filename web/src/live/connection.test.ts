@@ -44,6 +44,7 @@ function state(startedAt: string): BatonState {
     sessions: [],
     limits: null,
     huly: { state: 'off', lastOkAt: null, error: null },
+    trackerUrl: null,
     launches: [],
     context: { window: 600_000, warn: 50, danger: 80 },
   }

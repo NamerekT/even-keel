@@ -37,6 +37,7 @@ export interface BatonState {
   sessions: SessionView[]
   limits: RateLimits | null
   huly: HulyHealth
+  trackerUrl: string | null
   launches: LaunchDay[]
   context: ContextScale
 }

@@ -2,6 +2,7 @@ import type { LaunchEntry } from '../../../src/chain/dispatcher.js'
 import { launchDays } from '../../../src/chain/launches.js'
 import type { HulyHealth, HulyLinkState } from '../../../src/huly/health.js'
 import type { HulyTask, StatusCategory } from '../../../src/huly/model.js'
+import type { FeedLine } from '../../../src/sessions/transcript.js'
 import type { BatonState, SessionView } from '../../../src/state.js'
 import type { Link, LiveSnapshot, LiveSource } from './connection.js'
 
@@ -30,13 +31,29 @@ function session(task: string, contextTokens: number, lamp: SessionView['lamp'] 
     tokens: { input: 18_400, output: 9_200, cacheRead: 1_240_000, cacheWrite: 96_000 },
     stage: 'edit',
     action: { at: ago(0), kind: 'tool', text: 'Edit src/example.ts' },
-    feed: [
-      { at: ago(3), kind: 'text', text: 'Читаю описание задачи и вложения.' },
-      { at: ago(2), kind: 'tool', text: 'Read src/example.ts' },
-      { at: ago(0), kind: 'tool', text: 'Edit src/example.ts' },
-    ],
-    remoteUrl: null,
+    feed: fakeFeed(),
+    remoteUrl: lamp === 'working' || lamp === 'waiting' ? 'https://claude.ai/code/session_example' : null,
   }
+}
+
+const FEED_STEPS: [FeedLine['kind'], string][] = [
+  ['text', 'Читаю описание задачи и вложения.'],
+  ['tool', 'huly get_issue ABC-5'],
+  ['tool', 'Bash git checkout -b abc-5/chain-order'],
+  ['tool', 'Read src/chain/order.ts'],
+  ['tool', 'Grep blockedBy'],
+  ['text', 'Порядок строится топологической сортировкой, цикл сейчас роняет сервер. Сначала тест на цикл.'],
+  ['tool', 'Edit src/chain/order.test.ts'],
+  ['tool', 'Bash npx vitest run src/chain'],
+  ['tool', 'Edit src/chain/order.ts'],
+  ['error', 'API Error: 529 overloaded, повтор через 4 с'],
+]
+
+function fakeFeed(): FeedLine[] {
+  return Array.from({ length: 30 }, (_, index) => {
+    const [kind, text] = FEED_STEPS[index % FEED_STEPS.length]!
+    return { at: new Date(Date.now() - (30 - index) * 25_000).toISOString(), kind, text }
+  })
 }
 
 function fakeHuly(state: HulyLinkState): HulyHealth {
@@ -122,6 +139,7 @@ function fakeState(huly: HulyLinkState, idle: boolean, contextTokens: number, la
       updatedAt: ago(0),
     },
     huly: fakeHuly(huly),
+    trackerUrl: 'https://huly.example.com/workbench/example/tracker/',
     launches: launchDays(launches, new Date(), LAUNCH_DAYS),
     context: { window: 600_000, warn: 50, danger: 80 },
   }
@@ -180,7 +198,14 @@ export function createFakeSource(search: string): LiveSource {
     setInterval(() => {
       const state = current.state!
       const sessions = state.sessions.map((view) =>
-        view.lamp === 'working' ? { ...view, contextTokens: view.contextTokens + 800, lastActivityAt: ago(0) } : view,
+        view.lamp === 'working'
+          ? {
+              ...view,
+              contextTokens: view.contextTokens + 800,
+              lastActivityAt: ago(0),
+              feed: [...view.feed.slice(1), { at: ago(0), kind: 'tool' as const, text: `Read src/example-${Date.now() % 1000}.ts` }],
+            }
+          : view,
       )
       const hulyNow = state.huly.state === 'live' ? { ...state.huly, lastOkAt: ago(0) } : state.huly
       current = { ...current, state: { ...state, sessions, huly: hulyNow } }

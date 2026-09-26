@@ -23,6 +23,7 @@ interface Tracked {
 
 export class SessionMonitor {
   private readonly tracked = new Map<string, Tracked>()
+  private readonly tails = new Map<string, TranscriptTail>()
   private lastSnapshot = ''
   private timer: NodeJS.Timeout | undefined
   private running: Promise<void> | undefined
@@ -56,19 +57,21 @@ export class SessionMonitor {
 
   private async tick(): Promise<void> {
     try {
-      const byTask = sessionsByTask(await this.options.cli.agents(), this.options.projectKeys())
-      for (const [task, agent] of byTask) {
-        const known = this.tracked.get(task)
-        if (known === undefined || known.agent.sessionId !== agent.sessionId) {
-          this.tracked.set(task, { agent, present: true, transcript: new TranscriptTail(this.options.projectsDir, agent) })
-        } else {
-          known.agent = agent
-          known.present = true
-        }
+      const agents = await this.options.cli.agents()
+      for (const agent of agents) {
+        if (!this.tails.has(agent.sessionId)) this.tails.set(agent.sessionId, new TranscriptTail(this.options.projectsDir, agent))
       }
-      for (const [task, tracked] of this.tracked) if (!byTask.has(task)) tracked.present = false
+      const tracked = new Set([...this.tracked.values()].map(({ agent }) => agent.sessionId))
+      const live = new Set(agents.map((agent) => agent.sessionId))
+      for (const id of this.tails.keys()) if (!live.has(id) && !tracked.has(id)) this.tails.delete(id)
+      await Promise.all([...this.tails.values()].map((tail) => tail.read()))
 
-      await Promise.all([...this.tracked.values()].map((tracked) => tracked.transcript.read()))
+      const branchOf = (agent: AgentEntry) => this.tails.get(agent.sessionId)?.fold.summary().gitBranch ?? null
+      const byTask = sessionsByTask(agents, this.options.projectKeys(), branchOf)
+      for (const [task, agent] of byTask) {
+        this.tracked.set(task, { agent, present: true, transcript: this.tails.get(agent.sessionId)! })
+      }
+      for (const [task, known] of this.tracked) if (!byTask.has(task)) known.present = false
 
       const views = this.views()
       const snapshot = JSON.stringify(views)

@@ -7,9 +7,12 @@ import {
   chainProgress,
   chainStatus,
   contextFill,
+  issueLink,
   projectSlot,
   queuedAfter,
+  sessionElapsed,
   taskProject,
+  tokenTotal,
   waitingSessions,
 } from './state.js'
 
@@ -45,6 +48,7 @@ function baton(patch: Partial<BatonState>): BatonState {
     sessions: [],
     limits: null,
     huly: { state: 'live', lastOkAt: null, error: null },
+    trackerUrl: null,
     launches: [],
     context: { window: 600_000, warn: 50, danger: 80 },
     ...patch,
@@ -305,5 +309,41 @@ describe('queuedAfter', () => {
   it('is empty for a chain that is not queued', () => {
     expect(queuedAfter(chain({ active, queue: ['DEMO'] }), 'ABC')).toBeNull()
     expect(queuedAfter(chain({ active, queue: ['DEMO'] }), 'XYZ')).toBeNull()
+  })
+})
+
+describe('sessionElapsed', () => {
+  const now = new Date('2026-01-01T10:30:00.000Z')
+
+  it('counts from the launch to now while the session is alive', () => {
+    expect(sessionElapsed(view('ABC-1', 'working', '2026-01-01T10:29:00.000Z'), now)).toBe(90 * 60_000)
+    expect(sessionElapsed(view('ABC-1', 'waiting', '2026-01-01T09:10:00.000Z'), now)).toBe(90 * 60_000)
+  })
+
+  it('stops at the last activity once the session has finished', () => {
+    expect(sessionElapsed(view('ABC-1', 'finished', '2026-01-01T09:45:00.000Z'), now)).toBe(45 * 60_000)
+    expect(sessionElapsed(view('ABC-1', 'finished', null), now)).toBe(0)
+  })
+
+  it('is zero when the launch is ahead of the clock', () => {
+    expect(sessionElapsed(view('ABC-1', 'working', null), new Date('2026-01-01T08:59:00.000Z'))).toBe(0)
+  })
+})
+
+describe('tokenTotal', () => {
+  it('adds input, output and both cache directions', () => {
+    expect(tokenTotal({ input: 10, output: 20, cacheRead: 300, cacheWrite: 4_000 })).toBe(4_330)
+  })
+})
+
+describe('issueLink', () => {
+  it('appends the issue key to the tracker address', () => {
+    expect(issueLink('https://huly.example.com/workbench/example/tracker/', 'ABC-12')).toBe(
+      'https://huly.example.com/workbench/example/tracker/ABC-12',
+    )
+  })
+
+  it('is empty when Huly is not configured', () => {
+    expect(issueLink(null, 'ABC-12')).toBeNull()
   })
 })

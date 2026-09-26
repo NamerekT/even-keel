@@ -48,6 +48,39 @@ describe('sessionsByTask', () => {
     expect([...byTask.keys()]).toEqual(['ABC-1', 'ABC-2'])
     expect(byTask.get('ABC-1')?.sessionId).toBe('newer')
   })
+
+  it('falls back to the issue branch the session works on when its name is free', () => {
+    const branches: Record<string, string> = {
+      manual: 'abc-3/session-panel',
+      bare: 'abc-4',
+      named: 'abc-5/other',
+      main: 'main',
+      foreign: 'xyz-6/fix',
+      nested: 'feature/abc-7',
+    }
+    const agents = Object.keys(branches).map((sessionId) => ({
+      ...interactive,
+      sessionId,
+      name: sessionId === 'named' ? 'ABC-2' : 'baton-2b',
+    }))
+
+    const byTask = sessionsByTask(agents, ['ABC'], (agent) => branches[agent.sessionId] ?? null)
+
+    expect([...byTask].map(([task, agent]) => `${task}=${agent.sessionId}`)).toEqual([
+      'ABC-2=named',
+      'ABC-3=manual',
+      'ABC-4=bare',
+    ])
+  })
+
+  it('prefers the session named after the issue to a later one that only sits on its branch', () => {
+    const named = { ...interactive, sessionId: 'named', startedAt: 1 }
+    const onBranch = { ...interactive, sessionId: 'on-branch', name: 'Check ABC-2', startedAt: 2 }
+
+    const byTask = sessionsByTask([onBranch, named], ['ABC'], (agent) => (agent === onBranch ? 'abc-1/fix' : null))
+
+    expect(byTask.get('ABC-1')?.sessionId).toBe('named')
+  })
 })
 
 describe('lampOf', () => {
