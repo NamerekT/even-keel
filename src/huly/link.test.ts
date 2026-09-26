@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import type { HulyHealth } from './health.js'
 import { HulyLink } from './link.js'
 import type { HulySource } from './source.js'
 
@@ -61,6 +62,53 @@ describe('HulyLink', () => {
     await vi.advanceTimersByTimeAsync(1000)
     await assertion
     expect(source.closed).toBe(true)
+  })
+
+  it('reports connecting before the first answer, then live with the time of the last success', async () => {
+    const health: HulyHealth[] = []
+    let now = new Date('2026-01-01T10:00:00.000Z')
+    const link = new HulyLink({
+      connect: async () => fakeSource(),
+      timeoutMs: 1000,
+      now: () => now,
+      onHealth: (value) => health.push(value),
+    })
+    expect(link.health).toEqual({ state: 'connecting', lastOkAt: null, error: null })
+
+    await link.run(async () => 1)
+    now = new Date('2026-01-01T10:00:05.000Z')
+    await link.run(async () => 2)
+
+    expect(link.health).toEqual({ state: 'live', lastOkAt: '2026-01-01T10:00:05.000Z', error: null })
+    expect(health.map((value) => value.lastOkAt)).toEqual(['2026-01-01T10:00:00.000Z', '2026-01-01T10:00:05.000Z'])
+  })
+
+  it('reports down with the error and keeps the last success until a call goes through again', async () => {
+    let now = new Date('2026-01-01T10:00:00.000Z')
+    const link = new HulyLink({ connect: async () => fakeSource(), timeoutMs: 1000, now: () => now })
+    await link.run(async () => 1)
+
+    now = new Date('2026-01-01T10:01:00.000Z')
+    await expect(link.run(async () => Promise.reject(new Error('socket closed')))).rejects.toThrow()
+    expect(link.health).toEqual({ state: 'down', lastOkAt: '2026-01-01T10:00:00.000Z', error: 'socket closed' })
+
+    now = new Date('2026-01-01T10:02:00.000Z')
+    await link.run(async () => 2)
+    expect(link.health).toEqual({ state: 'live', lastOkAt: '2026-01-01T10:02:00.000Z', error: null })
+  })
+
+  it('reports down when the connect itself fails before any success', async () => {
+    const link = new HulyLink({ connect: async () => Promise.reject(new Error('refused')), timeoutMs: 1000 })
+    await expect(link.run(async () => 1)).rejects.toThrow()
+    expect(link.health).toEqual({ state: 'down', lastOkAt: null, error: 'refused' })
+  })
+
+  it('does not report a change when a failure repeats with the same error', async () => {
+    const onHealth = vi.fn()
+    const link = new HulyLink({ connect: async () => Promise.reject(new Error('refused')), timeoutMs: 1000, onHealth })
+    await expect(link.run(async () => 1)).rejects.toThrow()
+    await expect(link.run(async () => 1)).rejects.toThrow()
+    expect(onHealth).toHaveBeenCalledTimes(1)
   })
 
   it('closes the live connection and refuses further calls', async () => {

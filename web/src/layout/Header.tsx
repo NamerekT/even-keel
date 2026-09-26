@@ -1,16 +1,15 @@
 import { Link, useMatch } from 'react-router'
-import type { Link as LinkState } from '../live/connection.js'
 import { useLive } from '../live/context.js'
+import { Limits } from './Limits.js'
+import { HulyState, ServerState, Waiting } from './Status.js'
+import { useNow } from './useNow.js'
 
-const LINK_LABELS: Record<LinkState, string> = {
-  connecting: 'Подключение',
-  live: 'На связи',
-  stale: 'Нет связи',
-}
+const CLOCK_MS = 5_000
 
 export function Header() {
-  const { link } = useLive()
+  const { state, link } = useLive()
   const project = useMatch('/p/:key')?.params.key
+  const now = useNow(CLOCK_MS)
 
   return (
     <header className="header">
@@ -29,11 +28,15 @@ export function Header() {
           )}
         </nav>
         <div className="header__aside">
-          <span className={`link-state link-state--${link}`} role="status">
-            <span className="link-state__dot" aria-hidden="true" />
-            {LINK_LABELS[link]}
-          </span>
+          {state !== null && <Waiting sessions={state.sessions} tasks={state.tasks} />}
+          {state !== null && <HulyState health={state.huly} now={now} />}
+          <ServerState link={link} />
         </div>
+        {state !== null && (
+          <div className="header__limits">
+            <Limits limits={state.limits} now={now} />
+          </div>
+        )}
       </div>
     </header>
   )

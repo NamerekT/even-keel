@@ -43,6 +43,7 @@ function state(startedAt: string): BatonState {
     tasks: [],
     sessions: [],
     limits: null,
+    huly: { state: 'off', lastOkAt: null, error: null },
   }
 }
 

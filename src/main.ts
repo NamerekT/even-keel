@@ -5,6 +5,7 @@ import { appendLaunch, loadChainState, readLaunches, saveChainState } from './ch
 import { loadConfig } from './config.js'
 import { EventHub } from './events.js'
 import { readHulyCredentials } from './huly/credentials.js'
+import type { HulyHealth } from './huly/health.js'
 import { HulyLink } from './huly/link.js'
 import type { HulyTask } from './huly/model.js'
 import { StatusPoller } from './huly/poller.js'
@@ -40,6 +41,7 @@ const cli = new ClaudeCli(() => resolveClaudeBinary(process.env), CLAUDE_TIMEOUT
 const startedAt = new Date().toISOString()
 const tasksByProject = new Map<string, HulyTask[]>()
 let sessions: SessionView[] = []
+let huly: HulyHealth = { state: 'off', lastOkAt: null, error: null }
 
 const limits = new LimitsWatcher({
   file: limitsFile,
@@ -67,6 +69,7 @@ const getState = (): BatonState => ({
   tasks: [...tasksByProject.values()].flat(),
   sessions,
   limits: limits.limits,
+  huly,
 })
 
 const server = createBatonServer({
@@ -100,7 +103,15 @@ server.listen(config.port, config.host, () => {
 if (credentials === undefined) {
   console.log('huly: HULY_* variables are not set, tracker is off')
 } else {
-  const link = new HulyLink({ connect: () => connectHuly(credentials, HULY_TIMEOUT_MS), timeoutMs: HULY_TIMEOUT_MS })
+  const link = new HulyLink({
+    connect: () => connectHuly(credentials, HULY_TIMEOUT_MS),
+    timeoutMs: HULY_TIMEOUT_MS,
+    onHealth: (health) => {
+      huly = health
+      hub.broadcast('state', getState())
+    },
+  })
+  huly = link.health
   const report = (error: unknown) => console.error(`huly: ${error instanceof Error ? error.message : String(error)}`)
 
   const poller = new StatusPoller({

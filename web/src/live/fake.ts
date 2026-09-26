@@ -1,3 +1,4 @@
+import type { HulyHealth, HulyLinkState } from '../../../src/huly/health.js'
 import type { HulyTask, StatusCategory } from '../../../src/huly/model.js'
 import type { BatonState, SessionView } from '../../../src/state.js'
 import type { Link, LiveSnapshot, LiveSource } from './connection.js'
@@ -12,13 +13,13 @@ function ago(minutes: number): string {
   return new Date(Date.now() - minutes * 60_000).toISOString()
 }
 
-function session(task: string, contextTokens: number): SessionView {
+function session(task: string, contextTokens: number, lamp: SessionView['lamp'] = 'working'): SessionView {
   return {
     task,
     sessionId: `00000000-0000-4000-8000-${task.replace(/\D/g, '').padStart(12, '0')}`,
     cwd: 'C:\\repos\\example-project',
-    lamp: 'working',
-    waitingFor: null,
+    lamp,
+    waitingFor: lamp === 'waiting' ? 'permission' : null,
     apiError: null,
     startedAt: ago(42),
     lastActivityAt: ago(0),
@@ -35,7 +36,13 @@ function session(task: string, contextTokens: number): SessionView {
   }
 }
 
-function fakeState(): BatonState {
+function fakeHuly(state: HulyLinkState): HulyHealth {
+  if (state === 'off' || state === 'connecting') return { state, lastOkAt: null, error: null }
+  if (state === 'down') return { state, lastOkAt: ago(4), error: 'huly: call timed out after 15000 ms' }
+  return { state, lastOkAt: ago(0), error: null }
+}
+
+function fakeState(huly: HulyLinkState): BatonState {
   const tasks = [
     task('ABC-1', 'Каркас сервера', 'Done', 'Won'),
     task('ABC-2', 'Чтение задач из трекера', 'Done', 'Won', ['ABC-1']),
@@ -63,12 +70,13 @@ function fakeState(): BatonState {
       },
     },
     tasks,
-    sessions: [session('ABC-3', 61_000)],
+    sessions: [session('ABC-3', 61_000), session('DEMO-7', 142_000, 'waiting')],
     limits: {
       fiveHour: { usedPercentage: 37, resetsAt: new Date(Date.now() + 2 * 3_600_000).toISOString() },
       sevenDay: { usedPercentage: 64, resetsAt: new Date(Date.now() + 3 * 86_400_000).toISOString() },
       updatedAt: ago(0),
     },
+    huly: fakeHuly(huly),
   }
 }
 
@@ -76,21 +84,27 @@ function isLink(value: string | null): value is Link {
   return value === 'connecting' || value === 'live' || value === 'stale'
 }
 
+function isHulyState(value: string | null): value is HulyLinkState {
+  return value === 'off' || value === 'connecting' || value === 'live' || value === 'down'
+}
+
 export function createFakeSource(search: string): LiveSource {
-  const requested = new URLSearchParams(search).get('link')
+  const params = new URLSearchParams(search)
+  const requested = params.get('link')
   const link: Link = isLink(requested) ? requested : 'live'
+  const requestedHuly = params.get('huly')
+  const huly: HulyLinkState = isHulyState(requestedHuly) ? requestedHuly : 'live'
   const listeners = new Set<() => void>()
-  let current: LiveSnapshot = { state: link === 'connecting' ? null : fakeState(), link }
+  let current: LiveSnapshot = { state: link === 'connecting' ? null : fakeState(huly), link }
 
   if (link === 'live') {
     setInterval(() => {
       const state = current.state!
-      const sessions = state.sessions.map((view) => ({
-        ...view,
-        contextTokens: view.contextTokens + 800,
-        lastActivityAt: ago(0),
-      }))
-      current = { ...current, state: { ...state, sessions } }
+      const sessions = state.sessions.map((view) =>
+        view.lamp === 'working' ? { ...view, contextTokens: view.contextTokens + 800, lastActivityAt: ago(0) } : view,
+      )
+      const hulyNow = state.huly.state === 'live' ? { ...state.huly, lastOkAt: ago(0) } : state.huly
+      current = { ...current, state: { ...state, sessions, huly: hulyNow } }
       for (const listener of listeners) listener()
     }, TICK_MS)
   }
