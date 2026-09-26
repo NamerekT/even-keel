@@ -492,12 +492,15 @@ a:focus-visible {
 }
 
 .snake__list {
-  position: relative;
   display: grid;
   row-gap: 36px;
   margin: 0;
   padding: 0;
   list-style: none;
+}
+
+.snake__archive {
+  align-self: flex-start;
 }
 
 .snake__arrows {
