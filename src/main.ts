@@ -60,7 +60,7 @@ const limits = new LimitsWatcher({
 const account = new AccountWatcher({
   status: () => cli.authStatus(),
   login: () => cli.authLogin(),
-  loginBlock: (): string | undefined => loginBlock(dispatcher.state.active, sessions),
+  loginBlock: (): string | undefined => loginBlock(dispatcher.state.active, sessions, [...tasksByProject.values()].flat()),
   intervalMs: ACCOUNT_POLL_MS,
   loginTimeoutMs: LOGIN_TIMEOUT_MS,
   now: () => new Date(),

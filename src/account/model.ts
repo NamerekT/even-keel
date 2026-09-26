@@ -1,4 +1,5 @@
 import type { ActiveChain } from '../chain/dispatcher.js'
+import { isOpen, type HulyTask } from '../huly/model.js'
 import type { Lamp } from '../sessions/agents.js'
 
 export interface ClaudeAccount {
@@ -56,9 +57,14 @@ export function loginUrls(output: string): string[] {
   return [...new Set(found.map((url) => url.replace(TRAILING_PUNCTUATION, '')))]
 }
 
-export function loginBlock(chain: ActiveChain | null, sessions: { task: string; lamp: Lamp }[]): string | undefined {
+export function loginBlock(
+  chain: ActiveChain | null,
+  sessions: { task: string; lamp: Lamp }[],
+  tasks: HulyTask[],
+): string | undefined {
   if (chain !== null && !chain.paused) return `claude: chain ${chain.project} is running; pause it before switching the account`
-  const live = sessions.filter((view) => view.lamp !== 'finished').map((view) => view.task)
+  const closed = new Set(tasks.filter((task) => !isOpen(task.status)).map((task) => task.id))
+  const live = sessions.filter((view) => view.lamp !== 'finished' && !closed.has(view.task)).map((view) => view.task)
   if (live.length > 0) return `claude: sessions are still alive (${live.join(', ')}); switch the account once they finish`
   return undefined
 }

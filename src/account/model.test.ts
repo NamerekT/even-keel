@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { ActiveChain } from '../chain/dispatcher.js'
+import type { HulyTask, StatusCategory } from '../huly/model.js'
 import { launchBlock, loginBlock, loginUrls, parseAuthStatus, type AccountView } from './model.js'
 
 describe('parseAuthStatus', () => {
@@ -62,20 +63,34 @@ describe('loginUrls', () => {
 
 describe('loginBlock', () => {
   const chain = (paused: boolean): ActiveChain => ({ project: 'ABC', current: null, paused, error: null })
+  const task = (id: string, category: StatusCategory): HulyTask => ({ id, title: id, status: { name: category, category }, blockedBy: [] })
+  const tasks = [task('ABC-1', 'Won'), task('ABC-2', 'Active'), task('ABC-3', 'Lost')]
 
   it('allows a sign-in with no chain or a paused one and no live session', () => {
-    expect(loginBlock(null, [])).toBeUndefined()
-    expect(loginBlock(chain(true), [{ task: 'ABC-1', lamp: 'finished' }])).toBeUndefined()
+    expect(loginBlock(null, [], tasks)).toBeUndefined()
+    expect(loginBlock(chain(true), [{ task: 'ABC-2', lamp: 'finished' }], tasks)).toBeUndefined()
   })
 
   it('refuses a sign-in while a chain is running', () => {
-    expect(loginBlock(chain(false), [])).toMatch(/chain ABC is running/)
+    expect(loginBlock(chain(false), [], tasks)).toMatch(/chain ABC is running/)
   })
 
-  it('refuses a sign-in while any session is alive, even a stopped one', () => {
+  it('refuses a sign-in while a session on an open task is alive, even a stopped one', () => {
     for (const lamp of ['working', 'waiting', 'error', 'limit'] as const) {
-      expect(loginBlock(chain(true), [{ task: 'ABC-2', lamp }]), lamp).toMatch(/ABC-2/)
+      expect(loginBlock(chain(true), [{ task: 'ABC-2', lamp }], tasks), lamp).toMatch(/ABC-2/)
     }
+  })
+
+  it('ignores sessions left alive on closed tasks', () => {
+    const sessions = [
+      { task: 'ABC-1', lamp: 'waiting' as const },
+      { task: 'ABC-3', lamp: 'working' as const },
+    ]
+    expect(loginBlock(null, sessions, tasks)).toBeUndefined()
+  })
+
+  it('counts a session on a task it does not know as open', () => {
+    expect(loginBlock(null, [{ task: 'ABC-9', lamp: 'waiting' }], tasks)).toMatch(/ABC-9/)
   })
 })
 
