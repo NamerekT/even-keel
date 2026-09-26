@@ -52,7 +52,7 @@ export function ChainSnake({ project, chain, scale, focus }: Props) {
   const [links, setLinks] = useState<string[]>([])
   const columns = snakeColumns(width, BLOCK_MIN, GAP)
   const cells = blocks.map((_, index) => snakeCell(index, columns))
-  const layout = `${columns}:${blocks.map((block) => `${block.id}${block.open ? '' : '!'}<${block.blockedBy.join('+')}`).join(',')}`
+  const layout = `${columns}:${blocks.map((block) => `${block.id}${block.open ? '' : '!'}<${block.blockedBy.join('+')}@${block.milestone ?? ''}`).join(',')}`
 
   const { drag, landing, movable } = useSnakeDrag({
     listRef,
@@ -238,6 +238,11 @@ function Block({ block, scale, focused, movable, drag, offset, row, column }: Bl
         {role === 'dependent' && <span className="block__badge block__badge--dependent">ждёт её</span>}
       </div>
       {block.title !== null && <p className="block__title">{block.title}</p>}
+      {block.milestone !== null && (
+        <p className="block__milestone" title={block.milestone}>
+          {block.milestone}
+        </p>
+      )}
       {block.status !== null && <p className="block__status">{block.status}</p>}
       {block.current && block.session !== null && <ContextMeter tokens={block.session.contextTokens} scale={scale} />}
     </li>

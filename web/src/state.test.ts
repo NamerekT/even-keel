@@ -39,7 +39,7 @@ function view(task: string, lamp: SessionView['lamp'], lastActivityAt: string | 
 }
 
 function task(id: string, category: StatusCategory = 'Active', blockedBy: string[] = []): HulyTask {
-  return { id, title: id, status: { name: category, category }, blockedBy }
+  return { id, title: id, status: { name: category, category }, blockedBy, milestone: null }
 }
 
 function baton(patch: Partial<BatonState>): BatonState {
@@ -227,6 +227,23 @@ describe('chainBlocks', () => {
     ])
   })
 
+  it('carries the milestone label and what an open task must follow, blockers and earlier milestones alike', () => {
+    const planned = (id: string, category: StatusCategory, label: string, blockedBy: string[] = []): HulyTask => ({
+      ...task(id, category, blockedBy),
+      milestone: { label, targetDate: 0 },
+    })
+    const state = baton({
+      tasks: [planned('ABC-1', 'Won', 'v0.1'), planned('ABC-2', 'ToDo', 'v0.1'), planned('ABC-3', 'ToDo', 'v0.2', ['ABC-4']), task('ABC-4', 'ToDo')],
+      chain: chain({ projects: { ABC: { order: ['ABC-2', 'ABC-4', 'ABC-3'], error: null } } }),
+    })
+    expect(chainBlocks(state, 'ABC').map(({ id, milestone, after }) => ({ id, milestone, after }))).toEqual([
+      { id: 'ABC-1', milestone: 'v0.1', after: [] },
+      { id: 'ABC-2', milestone: 'v0.1', after: [] },
+      { id: 'ABC-4', milestone: null, after: [] },
+      { id: 'ABC-3', milestone: 'v0.2', after: ['ABC-4', 'ABC-2'] },
+    ])
+  })
+
   it('lights done green, canceled as canceled and open tasks without a session grey', () => {
     const state = baton({
       tasks: [task('ABC-1', 'Won'), task('ABC-2', 'Lost'), task('ABC-3', 'ToDo')],
@@ -276,7 +293,7 @@ describe('chainBlocks', () => {
 
   it('carries the title and status name, and keeps a task Huly has not delivered yet', () => {
     const state = baton({
-      tasks: [{ id: 'ABC-1', title: 'First', status: { name: 'In Progress', category: 'Active' }, blockedBy: [] }],
+      tasks: [{ id: 'ABC-1', title: 'First', status: { name: 'In Progress', category: 'Active' }, blockedBy: [], milestone: null }],
       chain: chain({ projects: { ABC: { order: ['ABC-1', 'ABC-2'], error: null } } }),
     })
     expect(chainBlocks(state, 'ABC').map(({ id, title, status }) => ({ id, title, status }))).toEqual([

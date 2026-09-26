@@ -11,6 +11,7 @@ const task = (id: string, status: TaskStatus = todo, ...blockedBy: string[]): Hu
   title: id,
   status,
   blockedBy,
+  milestone: null,
 })
 
 function setup(

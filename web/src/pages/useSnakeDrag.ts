@@ -131,7 +131,7 @@ export function useSnakeDrag({ listRef, blocks, disabled, onDrop }: Options) {
         from,
         order,
         boxes,
-        bounds: dropBounds(order, blockersOf(blocks), from, pinned),
+        bounds: dropBounds(order, new Map(open.map((block) => [block.id, block.after])), from, pinned),
         grab: listPoint(current.start),
         client,
       }

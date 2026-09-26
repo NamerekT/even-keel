@@ -5,11 +5,17 @@ export interface TaskStatus {
   category: StatusCategory
 }
 
+export interface TaskMilestone {
+  label: string
+  targetDate: number
+}
+
 export interface HulyTask {
   id: string
   title: string
   status: TaskStatus
   blockedBy: string[]
+  milestone: TaskMilestone | null
 }
 
 export interface StatusChange {
@@ -22,6 +28,12 @@ export interface HulyStatusDoc {
   _id: string
   name: string
   category?: string
+}
+
+export interface HulyMilestoneDoc {
+  _id: string
+  label: string
+  targetDate: number
 }
 
 export interface HulyIssueDoc {
@@ -49,8 +61,10 @@ export function toTasks(
   issues: HulyIssueDoc[],
   statuses: HulyStatusDoc[],
   otherIdentifiers: ReadonlyMap<string, string>,
+  milestones: HulyMilestoneDoc[],
 ): HulyTask[] {
   const statusById = new Map(statuses.map((doc) => [doc._id, doc]))
+  const milestoneById = new Map(milestones.map((doc) => [doc._id, { label: doc.label, targetDate: doc.targetDate }]))
   const identifierById = new Map(otherIdentifiers)
   for (const issue of issues) identifierById.set(issue._id, issue.identifier)
 
@@ -62,6 +76,7 @@ export function toTasks(
       title: issue.title,
       status: toStatus(status),
       blockedBy: (issue.blockedBy ?? []).flatMap((ref) => identifierById.get(ref._id) ?? []),
+      milestone: issue.milestone ? (milestoneById.get(issue.milestone) ?? null) : null,
     }
   })
 }

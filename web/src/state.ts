@@ -1,5 +1,5 @@
 import type { AccountView } from '../../src/account/model.js'
-import { chainOrder } from '../../src/chain/order.js'
+import { chainOrder, precedence } from '../../src/chain/order.js'
 import { isOpen, type HulyTask } from '../../src/huly/model.js'
 import type { Lamp } from '../../src/sessions/agents.js'
 import type { TokenTotals } from '../../src/sessions/transcript.js'
@@ -41,6 +41,8 @@ export interface ChainBlock {
   lamp: BlockLamp
   open: boolean
   blockedBy: string[]
+  milestone: string | null
+  after: string[]
   current: boolean
   session: SessionView | null
 }
@@ -100,6 +102,7 @@ export function chainBlocks(state: BatonState, project: string): ChainBlock[] {
   const tasks = projectTasks(state, project)
   const byId = new Map(tasks.map((task) => [task.id, task]))
   const closed = tasks.filter((task) => !isOpen(task.status))
+  const after = precedence(tasks.filter((task) => isOpen(task.status)))
   const order = state.chain.projects[project]
   const open =
     order === undefined || order.error !== null
@@ -118,6 +121,8 @@ export function chainBlocks(state: BatonState, project: string): ChainBlock[] {
       lamp: blockLamp(task, session),
       open: task !== undefined && isOpen(task.status),
       blockedBy: task?.blockedBy ?? [],
+      milestone: task?.milestone?.label ?? null,
+      after: after.get(id) ?? [],
       current: id === current,
       session,
     }

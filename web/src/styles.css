@@ -1055,6 +1055,15 @@ a:focus-visible {
   line-height: 1.35;
 }
 
+.block__milestone {
+  overflow: hidden;
+  margin: 0;
+  color: var(--fg-muted);
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .block__status {
   margin: auto 0 0;
   color: var(--fg-muted);

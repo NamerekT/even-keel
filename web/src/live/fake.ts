@@ -11,8 +11,15 @@ import type { Link, LiveSnapshot, LiveSource } from './connection.js'
 const TICK_MS = 2_000
 const LAUNCH_DAYS = 14
 
-function task(id: string, title: string, name: string, category: StatusCategory, blockedBy: string[] = []): HulyTask {
-  return { id, title, status: { name, category }, blockedBy }
+function task(
+  id: string,
+  title: string,
+  name: string,
+  category: StatusCategory,
+  blockedBy: string[] = [],
+  milestone: string | null = null,
+): HulyTask {
+  return { id, title, status: { name, category }, blockedBy, milestone: milestone === null ? null : { label: milestone, targetDate: 0 } }
 }
 
 function ago(minutes: number): string {
@@ -90,19 +97,19 @@ function fakeState(
   account: string | null,
 ): BatonState {
   const tasks = [
-    task('ABC-1', 'Каркас сервера', 'Done', 'Won'),
-    task('ABC-2', 'Чтение задач из трекера', 'Done', 'Won', ['ABC-1']),
-    task('ABC-3', 'Опрос трекера по расписанию', 'Canceled', 'Lost', ['ABC-2']),
-    task('ABC-4', 'Запуск сессий в фоне', 'Done', 'Won', ['ABC-2']),
-    task('ABC-5', 'Цепочка задач по связям', 'In Progress', 'Active', ['ABC-4']),
-    task('ABC-6', 'Страница проекта', 'In Progress', 'Active'),
-    task('ABC-7', 'Разбор транскриптов сессий', 'In Progress', 'Active', ['ABC-6']),
-    task('ABC-8', 'Лимиты подписки в шапке', 'In Progress', 'Active'),
-    task('ABC-9', 'Журнал запусков', 'In Progress', 'Active', ['ABC-7']),
-    task('ABC-10', 'Очередь цепочек', 'Todo', 'ToDo'),
-    task('ABC-11', 'Панель сессии', 'Backlog', 'UnStarted', ['ABC-8', 'ABC-10']),
+    task('ABC-1', 'Каркас сервера', 'Done', 'Won', [], 'v0.1 — каркас'),
+    task('ABC-2', 'Чтение задач из трекера', 'Done', 'Won', ['ABC-1'], 'v0.1 — каркас'),
+    task('ABC-3', 'Опрос трекера по расписанию', 'Canceled', 'Lost', ['ABC-2'], 'v0.1 — каркас'),
+    task('ABC-4', 'Запуск сессий в фоне', 'Done', 'Won', ['ABC-2'], 'v0.1 — каркас'),
+    task('ABC-5', 'Цепочка задач по связям', 'In Progress', 'Active', ['ABC-4'], 'v0.1 — каркас'),
+    task('ABC-6', 'Страница проекта', 'In Progress', 'Active', [], 'v0.1 — каркас'),
+    task('ABC-7', 'Разбор транскриптов сессий', 'In Progress', 'Active', ['ABC-6'], 'v0.1 — каркас'),
+    task('ABC-8', 'Лимиты подписки в шапке', 'In Progress', 'Active', [], 'v0.1 — каркас'),
+    task('ABC-9', 'Журнал запусков', 'In Progress', 'Active', ['ABC-7'], 'v0.1 — каркас'),
+    task('ABC-10', 'Очередь цепочек', 'Todo', 'ToDo', [], 'v0.2 — удобство'),
+    task('ABC-11', 'Панель сессии', 'Backlog', 'UnStarted', ['ABC-8', 'ABC-10'], 'v0.2 — удобство'),
     task('ABC-12', 'Служба Windows с перезапуском при падении', 'Backlog', 'UnStarted'),
-    task('ABC-13', 'Уведомления на телефон', 'Backlog', 'UnStarted', ['ABC-6']),
+    task('ABC-13', 'Уведомления на телефон', 'Backlog', 'UnStarted', ['ABC-6'], 'v0.2 — удобство'),
     task('DEMO-6', 'Старый формат отчёта', 'Canceled', 'Lost'),
     task('DEMO-7', 'Импорт настроек', 'Todo', 'ToDo'),
     task('DEMO-8', 'Экспорт отчёта в CSV', 'Backlog', 'UnStarted', ['DEMO-7']),

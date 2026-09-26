@@ -20,9 +20,9 @@ const issue = (id: string, identifier: string, status: string, blockedBy?: strin
 
 describe('toTasks', () => {
   it('maps an issue to a task with its status name and category', () => {
-    const tasks = toTasks([issue('i1', 'ABC-1', 'custom-review')], statuses, new Map())
+    const tasks = toTasks([issue('i1', 'ABC-1', 'custom-review')], statuses, new Map(), [])
     expect(tasks).toEqual([
-      { id: 'ABC-1', title: 'Title of ABC-1', status: { name: 'In Review', category: 'Active' }, blockedBy: [] },
+      { id: 'ABC-1', title: 'Title of ABC-1', status: { name: 'In Review', category: 'Active' }, blockedBy: [], milestone: null },
     ])
   })
 
@@ -31,22 +31,33 @@ describe('toTasks', () => {
       [issue('i1', 'ABC-1', 'tracker:status:Backlog'), issue('i2', 'ABC-2', 'tracker:status:Todo', ['i1', 'i0'])],
       statuses,
       new Map([['i0', 'ABC-0']]),
+      [],
     )
     expect(tasks[1]?.blockedBy).toEqual(['ABC-1', 'ABC-0'])
   })
 
   it('drops blockers that no longer exist', () => {
-    const tasks = toTasks([issue('i2', 'ABC-2', 'tracker:status:Todo', ['gone'])], statuses, new Map())
+    const tasks = toTasks([issue('i2', 'ABC-2', 'tracker:status:Todo', ['gone'])], statuses, new Map(), [])
     expect(tasks[0]?.blockedBy).toEqual([])
   })
 
+  it('attaches the milestone of an issue and leaves it null when missing or unknown', () => {
+    const issues = [
+      { ...issue('i1', 'ABC-1', 'tracker:status:Todo'), milestone: 'm1' },
+      { ...issue('i2', 'ABC-2', 'tracker:status:Todo'), milestone: null },
+      { ...issue('i3', 'ABC-3', 'tracker:status:Todo'), milestone: 'gone' },
+    ]
+    const tasks = toTasks(issues, statuses, new Map(), [{ _id: 'm1', label: 'v0.1', targetDate: 1000 }])
+    expect(tasks.map((task) => task.milestone)).toEqual([{ label: 'v0.1', targetDate: 1000 }, null, null])
+  })
+
   it('fails loudly on a status it does not know', () => {
-    expect(() => toTasks([issue('i1', 'ABC-1', 'nope')], statuses, new Map())).toThrow(/ABC-1.*nope/)
+    expect(() => toTasks([issue('i1', 'ABC-1', 'nope')], statuses, new Map(), [])).toThrow(/ABC-1.*nope/)
   })
 
   it('fails loudly on a status without a known category', () => {
     const odd = [...statuses, { _id: 'odd', name: 'Odd', category: 'task:statusCategory:Weird' }]
-    expect(() => toTasks([issue('i1', 'ABC-1', 'odd')], odd, new Map())).toThrow(/Odd/)
+    expect(() => toTasks([issue('i1', 'ABC-1', 'odd')], odd, new Map(), [])).toThrow(/Odd/)
   })
 })
 
@@ -75,6 +86,7 @@ describe('diffStatuses', () => {
     title: id,
     status: { name, category },
     blockedBy: [],
+    milestone: null,
   })
   const todo = { name: 'Todo', category: 'ToDo' } as const
   const done = { name: 'Done', category: 'Won' } as const
