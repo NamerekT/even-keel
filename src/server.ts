@@ -143,16 +143,27 @@ function streamEvents(deps: ServerDeps, request: IncomingMessage, response: Serv
 
 async function serveStatic(publicDir: string, path: string, response: ServerResponse): Promise<void> {
   const root = normalize(publicDir + sep)
-  const file = normalize(join(root, decodeURIComponent(path === '/' ? '/index.html' : path)))
+  const isClientRoute = !path.startsWith('/api/') && extname(path) === ''
+  const file = normalize(join(root, isClientRoute ? 'index.html' : decodeURIComponent(path)))
   if (!file.startsWith(root)) {
     response.writeHead(404).end()
     return
   }
+  let body: Buffer
   try {
-    const body = await readFile(file)
-    response.writeHead(200, { 'content-type': CONTENT_TYPES[extname(file)] ?? 'application/octet-stream' })
-    response.end(body)
+    body = await readFile(file)
   } catch {
+    if (isClientRoute) {
+      response.writeHead(503, { 'content-type': 'text/plain; charset=utf-8' })
+      response.end('The web client is not built: run npm run build')
+      return
+    }
     response.writeHead(404).end()
+    return
   }
+  response.writeHead(200, {
+    'content-type': CONTENT_TYPES[extname(file)] ?? 'application/octet-stream',
+    'cache-control': path.startsWith('/assets/') ? 'public, max-age=31536000, immutable' : 'no-cache',
+  })
+  response.end(body)
 }

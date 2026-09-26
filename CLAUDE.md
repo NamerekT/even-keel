@@ -9,6 +9,7 @@
 - Node.js 24 + TypeScript, тесты — vitest.
 - Huly — через `@hcengineering/api-client`, тот же клиент, что у git-хуков в `~/.githooks`.
 - Сессии — CLI `claude` (`--bg`, `agents --json`) и транскрипты в `~/.claude/projects`.
+- Интерфейс — React + Vite в `web/`, сборка в `dist/web`, её отдаёт сервер; маршруты клиента сервер отвечает `index.html`. Типы состояния клиент берёт из `src/state.ts` — там только типы, без `node:*`. `npm run dev:web` — Vite с прокси `/api` на `BATON_URL` (по умолчанию `:4747`), `npm run dev:fake` — вёрстка на фейковом состоянии без Huly и сессий (`?link=stale|connecting` — состояния связи).
 - Хостинг: self-hosted Forgejo, приватный репозиторий.
 
 ## Задачи
@@ -34,6 +35,7 @@
 - Хост службы — `service/BatonService.cs`, собирается штатным `csc.exe` из .NET Framework при установке, сторонних обёрток нет. Держит `node --import tsx src/main.ts` в корне репозитория, перезапускает при падении, пишет вывод в `logs/baton.log`. Для отладки без службы: `BatonService.exe <корень> <node.exe> --console`.
 - `service/install.ps1` и `service/uninstall.ps1` — из PowerShell 7 от администратора. Пароль учётки скрипт не спрашивает: пользователь вводит его на вкладке «Вход в систему» в services.msc, она же выдаёт право «Вход в качестве службы».
 - Служба читает `.env` и `baton.config.json` из корня репозитория; порт не должен быть занят ручным запуском.
+- Служба отдаёт собранный `dist/web`: `install.ps1` запускает `npm run build`. После обновления кода — снова `install.ps1` (или `npm run build` и перезапуск службы), иначе страница старая или 503.
 - `claude --bg` ходит через демон-супервизор (`claude daemon run`, канал `\\.\pipe\cc-daemon-…`). Остановка службы фоновые сессии не убивает — они дети демона.
 
 ## Тесты

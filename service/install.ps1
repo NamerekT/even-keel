@@ -29,6 +29,14 @@ New-Item -ItemType Directory -Force $bin | Out-Null
 & $csc -nologo -target:exe "-out:$exe" -reference:System.ServiceProcess.dll (Join-Path $PSScriptRoot 'BatonService.cs')
 if ($LASTEXITCODE -ne 0) { throw "csc failed with code $LASTEXITCODE" }
 
+Push-Location $root
+try {
+    npm run build
+    if ($LASTEXITCODE -ne 0) { throw "npm run build failed with code $LASTEXITCODE" }
+} finally {
+    Pop-Location
+}
+
 $command = "`"$exe`" `"$root`" `"$node`""
 if ($existing) {
     Set-Service -Name $Name -BinaryPathName $command

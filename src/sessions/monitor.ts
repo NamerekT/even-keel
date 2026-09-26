@@ -1,26 +1,10 @@
 import { open, readdir, stat } from 'node:fs/promises'
 import { join } from 'node:path'
-import { lampOf, sessionsByTask, type AgentEntry, type Lamp } from './agents.js'
+import type { SessionView } from '../state.js'
+import { lampOf, sessionsByTask, type AgentEntry } from './agents.js'
 import type { ClaudeCli } from './claude.js'
 import { projectDirName } from './paths.js'
-import { TranscriptFold, type FeedLine, type Stage, type TokenTotals } from './transcript.js'
-
-export interface SessionView {
-  task: string
-  sessionId: string
-  cwd: string
-  lamp: Lamp
-  waitingFor: string | null
-  apiError: string | null
-  startedAt: string
-  lastActivityAt: string | null
-  contextTokens: number
-  tokens: TokenTotals
-  stage: Stage | null
-  action: FeedLine | null
-  feed: FeedLine[]
-  remoteUrl: string | null
-}
+import { TranscriptFold } from './transcript.js'
 
 export interface SessionMonitorOptions {
   cli: ClaudeCli

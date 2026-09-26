@@ -12,7 +12,8 @@ import { LimitsWatcher } from './limits/watcher.js'
 import { connectHuly } from './huly/source.js'
 import { createBatonServer } from './server.js'
 import { claudeProjectsDir, ClaudeCli, resolveClaudeBinary } from './sessions/claude.js'
-import { SessionMonitor, type SessionView } from './sessions/monitor.js'
+import { SessionMonitor } from './sessions/monitor.js'
+import type { BatonState, SessionView } from './state.js'
 
 const HULY_POLL_MS = 5_000
 const TASKS_REFRESH_MS = 30_000
@@ -59,7 +60,7 @@ const dispatcher = new Dispatcher(loadChainState(chainFile), {
   now: () => new Date(),
 })
 
-const getState = () => ({
+const getState = (): BatonState => ({
   startedAt,
   projects: Object.keys(config.projects),
   chain: { active: dispatcher.state.active, queue: dispatcher.state.queue, projects: dispatcher.orders() },
@@ -70,7 +71,7 @@ const getState = () => ({
 
 const server = createBatonServer({
   hub,
-  publicDir: join(root, 'public'),
+  publicDir: join(root, 'dist', 'web'),
   getState,
   control: dispatcher,
   launches: () => readLaunches(launchesFile),

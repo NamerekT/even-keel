@@ -1,4 +1,4 @@
-import { mkdtempSync, writeFileSync } from 'node:fs'
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import type { AddressInfo } from 'node:net'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -8,12 +8,13 @@ import { createBatonServer, type ChainControl } from './server.js'
 
 describe('Baton HTTP server', () => {
   let hub: EventHub
+  let publicDir: string
   let calls: unknown[][]
   let base: string
   let close: () => Promise<void>
 
   beforeEach(async () => {
-    const publicDir = mkdtempSync(join(tmpdir(), 'baton-public-'))
+    publicDir = mkdtempSync(join(tmpdir(), 'baton-public-'))
     writeFileSync(join(publicDir, 'index.html'), '<title>Baton</title>')
     hub = new EventHub()
     calls = []
@@ -64,6 +65,26 @@ describe('Baton HTTP server', () => {
     expect((await fetch(base + '/nope.txt')).status).toBe(404)
     for (const escape of ['/..%2fpackage.json', '/..%5c..%5cpackage.json', '/%2e%2e/%2e%2e/package.json']) {
       expect((await fetch(base + escape)).status, escape).toBe(404)
+    }
+  })
+
+  it('answers client routes with the page so a reload keeps the screen', async () => {
+    for (const route of ['/p/ABC', '/p/ABC/', '/some/deep/route']) {
+      const response = await fetch(base + route)
+      expect(response.status, route).toBe(200)
+      expect(response.headers.get('content-type'), route).toMatch(/text\/html/)
+      expect(await response.text(), route).toContain('Baton')
+    }
+    expect((await fetch(base + '/assets/missing.js')).status).toBe(404)
+    expect((await fetch(base + '/api/nope')).status).toBe(404)
+  })
+
+  it('tells how to build the client when the page is missing', async () => {
+    rmSync(join(publicDir, 'index.html'))
+    for (const route of ['/', '/p/ABC']) {
+      const response = await fetch(base + route)
+      expect(response.status, route).toBe(503)
+      expect(await response.text(), route).toMatch(/npm run build/)
     }
   })
 

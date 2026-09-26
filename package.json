@@ -9,18 +9,27 @@
   "scripts": {
     "start": "tsx src/main.ts",
     "dev": "tsx watch src/main.ts",
-    "build": "tsc -p tsconfig.json",
-    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "dev:web": "vite --config web/vite.config.ts",
+    "dev:fake": "vite --config web/vite.config.ts --mode fake",
+    "build": "tsc -p tsconfig.json && tsc -p web/tsconfig.json && vite build --config web/vite.config.ts",
+    "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p web/tsconfig.json",
     "test": "vitest run"
   },
   "devDependencies": {
     "@types/node": "^24.19.0",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "@vitejs/plugin-react": "^6.1.1",
     "tsx": "^4.23.15",
     "typescript": "^5.9.3",
+    "vite": "^8.3.1",
     "vitest": "^5.0.2"
   },
   "dependencies": {
     "@hcengineering/api-client": "^0.7.423",
-    "@hcengineering/tracker": "^0.7.423"
+    "@hcengineering/tracker": "^0.7.423",
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0",
+    "react-router": "^8.4.0"
   }
 }
