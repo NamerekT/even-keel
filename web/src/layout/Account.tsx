@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from 'react'
-import type { AccountLogin, AccountView } from '../../../src/account/model.js'
+import { Link } from 'react-router'
+import type { AccountLogin, AccountView, LoginBlock } from '../../../src/account/model.js'
 import { useCommand } from '../live/useCommand.js'
 import { accountBadge } from '../state.js'
 import { usePopover } from './usePopover.js'
@@ -74,17 +75,16 @@ function AccountPanel({ account }: { account: AccountView }) {
         <h2 className="queue__heading">{status?.loggedIn ? 'Сменить аккаунт' : 'Войти'}</h2>
         {login === null ? (
           <>
-            <p className="queue__hint">
-              {account.loginBlock === null
-                ? 'Claude выдаст ссылку для входа: откройте её здесь же и войдите нужным аккаунтом.'
-                : 'Смена доступна, когда цепочка на паузе или остановлена и живых сессий нет.'}
-            </p>
+            {account.loginBlock === null ? (
+              <p className="queue__hint">Claude выдаст ссылку для входа: откройте её здесь же и войдите нужным аккаунтом.</p>
+            ) : (
+              <Blockers block={account.loginBlock} />
+            )}
             <div className="account__actions">
               <button
                 type="button"
                 className="button button--primary"
                 disabled={sending || account.loginBlock !== null}
-                title={account.loginBlock ?? undefined}
                 onClick={() => void send('account/login')}
               >
                 {status?.loggedIn ? 'Войти другим аккаунтом' : 'Войти'}
@@ -97,6 +97,30 @@ function AccountPanel({ account }: { account: AccountView }) {
       </section>
 
       {failure !== null && <p className="notice notice--error queue__error">{failure}</p>}
+    </div>
+  )
+}
+
+function Blockers({ block }: { block: LoginBlock }) {
+  return (
+    <div className="account__blockers">
+      <p className="queue__hint">Сменить пока нельзя, мешает:</p>
+      <ul className="account__blocker-list">
+        {block.chain !== null && (
+          <li>
+            Цепочка <Link to={`/p/${block.chain}`}>{block.chain}</Link> идёт — поставьте её на паузу.
+          </li>
+        )}
+        {block.sessions.map((session, index) => (
+          <li key={`${session.name}-${index}`}>
+            <span className="account__blocker-name">{session.name}</span>{' '}
+            {session.status === 'busy' ? 'работает' : `ждёт ответа${session.waitingFor === null ? '' : `: ${session.waitingFor}`}`}
+          </li>
+        ))}
+      </ul>
+      {block.sessions.length > 0 && (
+        <p className="queue__hint">Сессия перестаёт мешать, как только заканчивает ход.</p>
+      )}
     </div>
   )
 }

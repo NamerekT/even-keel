@@ -1,6 +1,6 @@
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { launchBlock, loginBlock } from './account/model.js'
+import { launchBlock, loginBlock, type LoginBlock } from './account/model.js'
 import { AccountWatcher } from './account/watcher.js'
 import { Dispatcher, type LaunchEntry } from './chain/dispatcher.js'
 import { launchDays } from './chain/launches.js'
@@ -16,6 +16,7 @@ import { LimitsWatcher } from './limits/watcher.js'
 import { connectHuly } from './huly/source.js'
 import { createBatonServer } from './server.js'
 import { claudeConfigDir, ClaudeCli, resolveClaudeBinary } from './sessions/claude.js'
+import type { AgentEntry } from './sessions/agents.js'
 import { SessionMonitor } from './sessions/monitor.js'
 import type { BatonState, SessionView } from './state.js'
 
@@ -47,6 +48,7 @@ const cli = new ClaudeCli(() => resolveClaudeBinary(process.env), CLAUDE_TIMEOUT
 const startedAt = new Date().toISOString()
 const tasksByProject = new Map<string, HulyTask[]>()
 let sessions: SessionView[] = []
+let agents: AgentEntry[] = []
 let huly: HulyHealth = { state: 'off', lastOkAt: null, error: null }
 const launches: LaunchEntry[] = readLaunches(launchesFile)
 
@@ -60,7 +62,7 @@ const limits = new LimitsWatcher({
 const account = new AccountWatcher({
   status: () => cli.authStatus(),
   login: () => cli.authLogin(),
-  loginBlock: (): string | undefined => loginBlock(dispatcher.state.active, sessions, [...tasksByProject.values()].flat()),
+  loginBlock: (): LoginBlock | null => loginBlock(dispatcher.state.active, agents),
   intervalMs: ACCOUNT_POLL_MS,
   loginTimeoutMs: LOGIN_TIMEOUT_MS,
   now: () => new Date(),
@@ -114,6 +116,11 @@ new SessionMonitor({
   claudeDir: claudeConfigDir(process.env),
   projectKeys: () => Object.keys(config.projects),
   intervalMs: SESSION_POLL_MS,
+  onAgents: (list) => {
+    const before = JSON.stringify(account.view.loginBlock)
+    agents = list
+    if (JSON.stringify(account.view.loginBlock) !== before) hub.broadcast('state', getState())
+  },
   onChange: (views) => {
     sessions = views
     hub.broadcast('state', getState())

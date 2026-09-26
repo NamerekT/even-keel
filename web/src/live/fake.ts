@@ -1,4 +1,4 @@
-import type { AccountLogin, AccountView, ClaudeAccount } from '../../../src/account/model.js'
+import { loginBlockMessage, type AccountLogin, type AccountView, type ClaudeAccount } from '../../../src/account/model.js'
 import type { LaunchEntry } from '../../../src/chain/dispatcher.js'
 import { launchDays } from '../../../src/chain/launches.js'
 import { checkOrder } from '../../../src/chain/order.js'
@@ -219,7 +219,15 @@ function fakeAccount(mode: string | null, idle: boolean): AccountView {
     status: FAKE_ACCOUNT,
     error: null,
     login: null,
-    loginBlock: idle ? null : 'claude: chain ABC is running; pause it before switching the account',
+    loginBlock: idle
+      ? null
+      : {
+          chain: 'ABC',
+          sessions: [
+            { name: 'ABC-5', status: 'busy', waitingFor: null },
+            { name: 'Scratch notes', status: 'waiting', waitingFor: 'permission' },
+          ],
+        },
   }
   if (mode === 'out') {
     return { ...signedIn, status: { loggedIn: false, authMethod: 'none', email: null, orgName: null, subscriptionType: null } }
@@ -234,7 +242,7 @@ function fakeAccount(mode: string | null, idle: boolean): AccountView {
 
 function accountCommand(account: AccountView, name: string, body: Record<string, unknown>): AccountView {
   if (name === 'account/login') {
-    if (account.loginBlock !== null) throw new Error(account.loginBlock)
+    if (account.loginBlock !== null) throw new Error(loginBlockMessage(account.loginBlock))
     return { ...account, login: { ...FAKE_LOGIN, startedAt: ago(0) } }
   }
   if (name === 'account/cancel') return { ...account, login: null }

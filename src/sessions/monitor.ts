@@ -11,6 +11,7 @@ export interface SessionMonitorOptions {
   claudeDir: string
   projectKeys: () => string[]
   intervalMs: number
+  onAgents: (agents: AgentEntry[]) => void
   onChange: (views: SessionView[]) => void
   onError: (error: unknown) => void
 }
@@ -62,6 +63,7 @@ export class SessionMonitor {
     try {
       const { claudeDir } = this.options
       const agents = await this.options.cli.agents()
+      this.options.onAgents(agents)
       for (const agent of agents) {
         const tail = this.tails.get(agent.sessionId)
         if (tail === undefined) this.tails.set(agent.sessionId, new TranscriptTail(join(claudeDir, 'projects'), agent))

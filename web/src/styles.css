@@ -562,6 +562,36 @@ h1 {
   overflow-wrap: anywhere;
 }
 
+.account__blockers {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.account__blocker-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 0;
+  padding: 8px 10px 8px 26px;
+  border-radius: 8px;
+  background: var(--warn-bg);
+  color: var(--warn-fg);
+  font-size: 14px;
+}
+
+.account__blocker-list a {
+  color: inherit;
+  font-family: var(--mono);
+  font-weight: 600;
+}
+
+.account__blocker-name {
+  font-family: var(--mono);
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
 .account__actions {
   display: flex;
   flex-wrap: wrap;

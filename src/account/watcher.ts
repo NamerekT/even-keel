@@ -1,5 +1,13 @@
 import type { ChildProcessWithoutNullStreams } from 'node:child_process'
-import { cleanOutput, loginUrls, type AccountLogin, type AccountView, type ClaudeAccount } from './model.js'
+import {
+  cleanOutput,
+  loginBlockMessage,
+  loginUrls,
+  type AccountLogin,
+  type AccountView,
+  type ClaudeAccount,
+  type LoginBlock,
+} from './model.js'
 
 const MAX_OUTPUT_CHARS = 16 * 1024
 const SHOWN_OUTPUT_CHARS = 2 * 1024
@@ -7,7 +15,7 @@ const SHOWN_OUTPUT_CHARS = 2 * 1024
 export interface AccountWatcherOptions {
   status: () => Promise<ClaudeAccount>
   login: () => ChildProcessWithoutNullStreams
-  loginBlock: () => string | undefined
+  loginBlock: () => LoginBlock | null
   intervalMs: number
   loginTimeoutMs: number
   now: () => Date
@@ -26,7 +34,7 @@ export class AccountWatcher {
   constructor(private readonly options: AccountWatcherOptions) {}
 
   get view(): AccountView {
-    return { status: this.status, error: this.error, login: this.current, loginBlock: this.options.loginBlock() ?? null }
+    return { status: this.status, error: this.error, login: this.current, loginBlock: this.options.loginBlock() }
   }
 
   start(): void {
@@ -57,7 +65,7 @@ export class AccountWatcher {
   login(): void {
     if (this.child !== undefined) throw new Error('claude: a sign-in is already running')
     const blocked = this.options.loginBlock()
-    if (blocked !== undefined) throw new Error(blocked)
+    if (blocked !== null) throw new Error(loginBlockMessage(blocked))
 
     const child = this.options.login()
     this.child = child

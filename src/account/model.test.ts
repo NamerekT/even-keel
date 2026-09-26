@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { ActiveChain } from '../chain/dispatcher.js'
-import type { HulyTask, StatusCategory } from '../huly/model.js'
-import { launchBlock, loginBlock, loginUrls, parseAuthStatus, type AccountView } from './model.js'
+import type { AgentEntry } from '../sessions/agents.js'
+import { launchBlock, loginBlock, loginBlockMessage, loginUrls, parseAuthStatus, type AccountView } from './model.js'
 
 describe('parseAuthStatus', () => {
   it('reads a signed-in account', () => {
@@ -63,34 +63,62 @@ describe('loginUrls', () => {
 
 describe('loginBlock', () => {
   const chain = (paused: boolean): ActiveChain => ({ project: 'ABC', current: null, paused, error: null })
-  const task = (id: string, category: StatusCategory): HulyTask => ({ id, title: id, status: { name: category, category }, blockedBy: [] })
-  const tasks = [task('ABC-1', 'Won'), task('ABC-2', 'Active'), task('ABC-3', 'Lost')]
-
-  it('allows a sign-in with no chain or a paused one and no live session', () => {
-    expect(loginBlock(null, [], tasks)).toBeUndefined()
-    expect(loginBlock(chain(true), [{ task: 'ABC-2', lamp: 'finished' }], tasks)).toBeUndefined()
+  const agent = (patch: Partial<AgentEntry>): AgentEntry => ({
+    cwd: 'C:\\repos\\example',
+    kind: 'interactive',
+    startedAt: 0,
+    sessionId: '00000000-0000-4000-8000-000000000001',
+    ...patch,
   })
 
-  it('refuses a sign-in while a chain is running', () => {
-    expect(loginBlock(chain(false), [], tasks)).toMatch(/chain ABC is running/)
-  })
-
-  it('refuses a sign-in while a session on an open task is alive, even a stopped one', () => {
-    for (const lamp of ['working', 'waiting', 'error', 'limit'] as const) {
-      expect(loginBlock(chain(true), [{ task: 'ABC-2', lamp }], tasks), lamp).toMatch(/ABC-2/)
-    }
-  })
-
-  it('ignores sessions left alive on closed tasks', () => {
-    const sessions = [
-      { task: 'ABC-1', lamp: 'waiting' as const },
-      { task: 'ABC-3', lamp: 'working' as const },
+  it('allows a sign-in with no chain or a paused one and every session idle or gone', () => {
+    const agents = [
+      agent({ name: 'ABC-1', status: 'idle' }),
+      agent({ name: 'ABC-2', kind: 'background', status: 'idle', state: 'blocked' }),
+      agent({ name: 'ABC-3', kind: 'background', status: 'idle', state: 'working' }),
+      agent({ name: 'ABC-4', kind: 'background', status: 'busy', state: 'done' }),
+      agent({ name: 'ABC-5', kind: 'background', status: 'busy', state: 'stopped' }),
     ]
-    expect(loginBlock(null, sessions, tasks)).toBeUndefined()
+    expect(loginBlock(null, agents)).toBeNull()
+    expect(loginBlock(chain(true), agents)).toBeNull()
   })
 
-  it('counts a session on a task it does not know as open', () => {
-    expect(loginBlock(null, [{ task: 'ABC-9', lamp: 'waiting' }], tasks)).toMatch(/ABC-9/)
+  it('names a running chain', () => {
+    expect(loginBlock(chain(false), [])).toEqual({ chain: 'ABC', sessions: [] })
+  })
+
+  it('names every session in the middle of a turn, with a task or without one', () => {
+    const agents = [
+      agent({ name: 'ABC-2', kind: 'background', status: 'busy', state: 'working' }),
+      agent({ name: 'Scratch notes', status: 'waiting', waitingFor: 'permission' }),
+      agent({ sessionId: '12345678-0000-4000-8000-000000000009', status: 'busy' }),
+      agent({ name: 'ABC-6', status: 'idle' }),
+    ]
+    expect(loginBlock(chain(true), agents)).toEqual({
+      chain: null,
+      sessions: [
+        { name: 'ABC-2', status: 'busy', waitingFor: null },
+        { name: 'Scratch notes', status: 'waiting', waitingFor: 'permission' },
+        { name: '12345678', status: 'busy', waitingFor: null },
+      ],
+    })
+  })
+})
+
+describe('loginBlockMessage', () => {
+  it('names the running chain first, then the busy sessions', () => {
+    expect(loginBlockMessage({ chain: 'ABC', sessions: [] })).toBe(
+      'claude: chain ABC is running; pause it before switching the account',
+    )
+    expect(
+      loginBlockMessage({
+        chain: null,
+        sessions: [
+          { name: 'ABC-2', status: 'busy', waitingFor: null },
+          { name: 'Scratch notes', status: 'waiting', waitingFor: 'permission' },
+        ],
+      }),
+    ).toBe('claude: sessions are in the middle of a turn (ABC-2, Scratch notes); switch the account once they finish')
   })
 })
 
