@@ -6,3 +6,5 @@ dist/
 state/
 baton.config.json
 .claude/launch.json
+logs/
+service/bin/
