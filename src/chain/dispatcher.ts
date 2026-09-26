@@ -1,0 +1,206 @@
+import { isOpen, type HulyTask } from '../huly/model.js'
+import { chainOrder, checkOrder } from './order.js'
+
+export interface CurrentTask {
+  task: string
+  sessionId: string | null
+  since: string
+}
+
+export interface ActiveChain {
+  project: string
+  current: CurrentTask | null
+  paused: boolean
+  error: string | null
+}
+
+export interface ChainState {
+  active: ActiveChain | null
+  queue: string[]
+  orders: Record<string, string[]>
+}
+
+export interface LaunchEntry {
+  at: string
+  project: string
+  task: string
+  sessionId: string
+}
+
+export interface ProjectOrder {
+  order: string[]
+  error: string | null
+}
+
+export interface DispatcherDeps {
+  projects: string[]
+  launch: (project: string, task: string) => Promise<string>
+  liveSession: (task: string) => string | undefined
+  save: (state: ChainState) => void
+  journal: (entry: LaunchEntry) => void
+  now: () => Date
+}
+
+export function emptyChainState(): ChainState {
+  return { active: null, queue: [], orders: {} }
+}
+
+export class Dispatcher {
+  private readonly tasks = new Map<string, HulyTask[]>()
+  private work: Promise<void> = Promise.resolve()
+
+  constructor(
+    readonly state: ChainState,
+    private readonly deps: DispatcherDeps,
+  ) {}
+
+  setTasks(project: string, tasks: HulyTask[]): void {
+    this.tasks.set(project, tasks.filter((task) => isOpen(task.status)))
+    this.kick()
+  }
+
+  start(project: string): void {
+    this.requireProject(project)
+    const { active, queue } = this.state
+    if (active?.project === project || queue.includes(project)) return
+    if (active === null) this.state.active = { project, current: null, paused: false, error: null }
+    else queue.push(project)
+    this.changed()
+  }
+
+  pause(): void {
+    if (this.state.active === null || this.state.active.paused) return
+    this.state.active.paused = true
+    this.changed()
+  }
+
+  resume(): void {
+    if (this.state.active === null) return
+    this.state.active.paused = false
+    this.state.active.error = null
+    this.changed()
+  }
+
+  stop(): void {
+    if (this.state.active === null) return
+    this.state.active = null
+    this.changed()
+  }
+
+  dequeue(project: string): void {
+    const index = this.state.queue.indexOf(project)
+    if (index < 0) return
+    this.state.queue.splice(index, 1)
+    this.changed()
+  }
+
+  reorder(project: string, order: string[]): void {
+    this.requireProject(project)
+    checkOrder(this.tasks.get(project) ?? [], order)
+    this.state.orders[project] = [...order]
+    this.changed()
+  }
+
+  orders(): Record<string, ProjectOrder> {
+    const result: Record<string, ProjectOrder> = {}
+    for (const [project, tasks] of this.tasks) {
+      try {
+        result[project] = { order: chainOrder(tasks, this.state.orders[project]), error: null }
+      } catch (error) {
+        result[project] = { order: [], error: messageOf(error) }
+      }
+    }
+    return result
+  }
+
+  idle(): Promise<void> {
+    return this.work
+  }
+
+  private requireProject(project: string): void {
+    if (!this.deps.projects.includes(project)) throw new Error(`chain: ${project} is not a configured project`)
+  }
+
+  private changed(): void {
+    this.deps.save(this.state)
+    this.kick()
+  }
+
+  private kick(): void {
+    this.work = this.work.then(() => this.advance())
+  }
+
+  private async advance(): Promise<void> {
+    for (;;) {
+      const chain = this.state.active
+      if (chain === null) {
+        const next = this.state.queue.shift()
+        if (next === undefined) return
+        this.state.active = { project: next, current: null, paused: false, error: null }
+        this.deps.save(this.state)
+        continue
+      }
+      if (chain.paused) return
+      const tasks = this.tasks.get(chain.project)
+      if (tasks === undefined) return
+
+      if (chain.current !== null) {
+        const { task, sessionId } = chain.current
+        if (sessionId === null) {
+          this.halt(chain, `chain: launch of ${task} was interrupted by a restart; check its session, then resume`)
+          return
+        }
+        if (tasks.some((open) => open.id === task)) return
+        chain.current = null
+      }
+
+      let order: string[]
+      try {
+        order = chainOrder(tasks, this.state.orders[chain.project])
+      } catch (error) {
+        this.halt(chain, messageOf(error))
+        return
+      }
+      const preferred = this.state.orders[chain.project]
+      if (preferred !== undefined) this.state.orders[chain.project] = preferred.filter((id) => order.includes(id))
+
+      const task = order[0]
+      if (task === undefined) {
+        this.state.active = null
+        this.deps.save(this.state)
+        continue
+      }
+
+      const since = this.deps.now().toISOString()
+      const live = this.deps.liveSession(task)
+      if (live !== undefined) {
+        chain.current = { task, sessionId: live, since }
+        this.deps.save(this.state)
+        return
+      }
+
+      chain.current = { task, sessionId: null, since }
+      this.deps.save(this.state)
+      try {
+        const sessionId = await this.deps.launch(chain.project, task)
+        this.deps.journal({ at: since, project: chain.project, task, sessionId })
+        chain.current.sessionId = sessionId
+        this.deps.save(this.state)
+      } catch (error) {
+        this.halt(chain, messageOf(error))
+      }
+      return
+    }
+  }
+
+  private halt(chain: ActiveChain, error: string): void {
+    chain.current = null
+    chain.paused = true
+    chain.error = error
+    this.deps.save(this.state)
+  }
+}
+
+function messageOf(error: unknown): string {
+  return error instanceof Error ? error.message : String(error)
+}

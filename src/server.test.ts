@@ -4,10 +4,11 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { EventHub } from './events.js'
-import { createBatonServer } from './server.js'
+import { createBatonServer, type ChainControl } from './server.js'
 
 describe('Baton HTTP server', () => {
   let hub: EventHub
+  let calls: unknown[][]
   let base: string
   let close: () => Promise<void>
 
@@ -15,7 +16,28 @@ describe('Baton HTTP server', () => {
     const publicDir = mkdtempSync(join(tmpdir(), 'baton-public-'))
     writeFileSync(join(publicDir, 'index.html'), '<title>Baton</title>')
     hub = new EventHub()
-    const server = createBatonServer({ hub, publicDir, getState: () => ({ chain: [] }) })
+    calls = []
+    const record =
+      (name: string) =>
+      (...args: unknown[]) => {
+        if (args[0] === 'QQQ') throw new Error('QQQ is not a configured project')
+        calls.push([name, ...args])
+      }
+    const control: ChainControl = {
+      start: record('start'),
+      pause: record('pause'),
+      resume: record('resume'),
+      stop: record('stop'),
+      dequeue: record('dequeue'),
+      reorder: record('reorder'),
+    }
+    const server = createBatonServer({
+      hub,
+      publicDir,
+      getState: () => ({ chain: [] }),
+      control,
+      launches: () => [{ task: 'ABC-1' }],
+    })
     await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve))
     base = `http://127.0.0.1:${(server.address() as AddressInfo).port}`
     close = () => new Promise((resolve) => server.close(() => resolve()))
@@ -61,5 +83,45 @@ describe('Baton HTTP server', () => {
     expect(text).toContain('event: state\ndata: {"chain":[]}\n\n')
     expect(text).toContain('event: ping\ndata: {"n":1}\n\n')
     controller.abort()
+  })
+
+  const post = (path: string, body?: unknown) =>
+    fetch(base + path, { method: 'POST', body: body === undefined ? undefined : JSON.stringify(body) })
+
+  it('drives the chain through POST commands and answers with the state', async () => {
+    const response = await post('/api/chain/start', { project: 'ABC' })
+    expect(response.status).toBe(200)
+    expect(await response.json()).toEqual({ chain: [] })
+
+    await post('/api/chain/pause')
+    await post('/api/chain/resume')
+    await post('/api/chain/stop')
+    await post('/api/chain/dequeue', { project: 'XYZ' })
+    await post('/api/chain/order', { project: 'ABC', order: ['ABC-2', 'ABC-1'] })
+    expect(calls).toEqual([
+      ['start', 'ABC'],
+      ['pause'],
+      ['resume'],
+      ['stop'],
+      ['dequeue', 'XYZ'],
+      ['reorder', 'ABC', ['ABC-2', 'ABC-1']],
+    ])
+  })
+
+  it('answers 400 with the reason for a refused or malformed command', async () => {
+    const refused = await post('/api/chain/start', { project: 'QQQ' })
+    expect(refused.status).toBe(400)
+    expect(await refused.json()).toEqual({ error: 'QQQ is not a configured project' })
+
+    expect((await post('/api/chain/start', {})).status).toBe(400)
+    expect((await post('/api/chain/order', { project: 'ABC', order: [1] })).status).toBe(400)
+    expect((await fetch(base + '/api/chain/start', { method: 'POST', body: '{' })).status).toBe(400)
+    expect((await post('/api/chain/nope')).status).toBe(404)
+    expect(calls).toEqual([])
+  })
+
+  it('serves the launch journal', async () => {
+    const response = await fetch(base + '/api/launches')
+    expect(await response.json()).toEqual([{ task: 'ABC-1' }])
   })
 })

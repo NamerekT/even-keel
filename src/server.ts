@@ -3,11 +3,41 @@ import { createServer, type IncomingMessage, type Server, type ServerResponse } 
 import { extname, join, normalize, sep } from 'node:path'
 import { formatEvent, type EventHub } from './events.js'
 
+export interface ChainControl {
+  start(project: string): void
+  pause(): void
+  resume(): void
+  stop(): void
+  dequeue(project: string): void
+  reorder(project: string, order: string[]): void
+}
+
 export interface ServerDeps {
   hub: EventHub
   publicDir: string
   getState: () => unknown
+  control: ChainControl
+  launches: () => unknown
 }
+
+type Command = (control: ChainControl, body: Record<string, unknown>) => void
+
+const COMMANDS: Record<string, Command> = {
+  start: (control, body) => control.start(projectOf(body)),
+  pause: (control) => control.pause(),
+  resume: (control) => control.resume(),
+  stop: (control) => control.stop(),
+  dequeue: (control, body) => control.dequeue(projectOf(body)),
+  order: (control, body) => {
+    const { order } = body
+    if (!Array.isArray(order) || !order.every((id) => typeof id === 'string')) {
+      throw new Error('order must be a list of task ids')
+    }
+    control.reorder(projectOf(body), order)
+  },
+}
+
+const MAX_BODY_BYTES = 64 * 1024
 
 const CONTENT_TYPES: Record<string, string> = {
   '.html': 'text/html; charset=utf-8',
@@ -32,8 +62,28 @@ async function route(deps: ServerDeps, request: IncomingMessage, response: Serve
   const path = new URL(request.url ?? '/', 'http://localhost').pathname
 
   if (request.method === 'GET' && path === '/api/state') {
-    response.writeHead(200, { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' })
-    response.end(JSON.stringify(deps.getState()))
+    sendJson(response, 200, deps.getState())
+    return
+  }
+
+  if (request.method === 'GET' && path === '/api/launches') {
+    sendJson(response, 200, deps.launches())
+    return
+  }
+
+  if (request.method === 'POST' && path.startsWith('/api/chain/')) {
+    const command = COMMANDS[path.slice('/api/chain/'.length)]
+    if (command === undefined) {
+      response.writeHead(404).end()
+      return
+    }
+    try {
+      command(deps.control, await readJsonBody(request))
+    } catch (error) {
+      sendJson(response, 400, { error: error instanceof Error ? error.message : String(error) })
+      return
+    }
+    sendJson(response, 200, deps.getState())
     return
   }
 
@@ -48,6 +98,36 @@ async function route(deps: ServerDeps, request: IncomingMessage, response: Serve
   }
 
   response.writeHead(405).end()
+}
+
+function sendJson(response: ServerResponse, status: number, body: unknown): void {
+  response.writeHead(status, { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' })
+  response.end(JSON.stringify(body))
+}
+
+async function readJsonBody(request: IncomingMessage): Promise<Record<string, unknown>> {
+  const chunks: Buffer[] = []
+  let size = 0
+  for await (const chunk of request as AsyncIterable<Buffer>) {
+    size += chunk.length
+    if (size > MAX_BODY_BYTES) throw new Error('request body is too large')
+    chunks.push(chunk)
+  }
+  const text = Buffer.concat(chunks).toString('utf8').trim()
+  if (text === '') return {}
+  let body: unknown
+  try {
+    body = JSON.parse(text)
+  } catch {
+    throw new Error('request body is not JSON')
+  }
+  if (typeof body !== 'object' || body === null || Array.isArray(body)) throw new Error('request body must be an object')
+  return body as Record<string, unknown>
+}
+
+function projectOf(body: Record<string, unknown>): string {
+  if (typeof body.project !== 'string' || body.project === '') throw new Error('project is required')
+  return body.project
 }
 
 function streamEvents(deps: ServerDeps, request: IncomingMessage, response: ServerResponse): void {
