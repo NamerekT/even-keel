@@ -1,7 +1,6 @@
-import { Link } from 'react-router'
-import { isOpen } from '../../../src/huly/model.js'
 import type { BatonState } from '../../../src/state.js'
-import { projectTasks } from '../state.js'
+import { LaunchChart } from './LaunchChart.js'
+import { ProjectCard } from './ProjectCard.js'
 
 export function Home({ state }: { state: BatonState }) {
   return (
@@ -10,20 +9,13 @@ export function Home({ state }: { state: BatonState }) {
       {state.projects.length === 0 ? (
         <p className="placeholder">В baton.config.json нет проектов.</p>
       ) : (
-        <ul className="plain-list">
+        <div className="cards">
           {state.projects.map((key) => (
-            <li key={key}>
-              <Link to={`/p/${key}`} className="row-link">
-                <span className="row-link__key">{key}</span>
-                <span className="row-link__meta">
-                  {state.chain.active?.project === key && 'идёт цепочка · '}
-                  открытых задач: {projectTasks(state, key).filter((task) => isOpen(task.status)).length}
-                </span>
-              </Link>
-            </li>
+            <ProjectCard key={key} state={state} project={key} />
           ))}
-        </ul>
+        </div>
       )}
+      <LaunchChart days={state.launches} projects={state.projects} />
     </section>
   )
 }

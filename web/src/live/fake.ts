@@ -1,9 +1,12 @@
+import type { LaunchEntry } from '../../../src/chain/dispatcher.js'
+import { launchDays } from '../../../src/chain/launches.js'
 import type { HulyHealth, HulyLinkState } from '../../../src/huly/health.js'
 import type { HulyTask, StatusCategory } from '../../../src/huly/model.js'
 import type { BatonState, SessionView } from '../../../src/state.js'
 import type { Link, LiveSnapshot, LiveSource } from './connection.js'
 
 const TICK_MS = 2_000
+const LAUNCH_DAYS = 14
 
 function task(id: string, title: string, name: string, category: StatusCategory, blockedBy: string[] = []): HulyTask {
   return { id, title, status: { name, category }, blockedBy }
@@ -42,41 +45,83 @@ function fakeHuly(state: HulyLinkState): HulyHealth {
   return { state, lastOkAt: ago(0), error: null }
 }
 
-function fakeState(huly: HulyLinkState): BatonState {
+const LAUNCH_PATTERN: Record<string, number[]> = {
+  ABC: [2, 1, 0, 3, 2, 0, 0, 1, 4, 2, 1, 0, 2, 1],
+  DEMO: [0, 1, 2, 0, 0, 0, 1, 0, 0, 1, 2, 1, 0, 1],
+  XYZ: [1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 1, 0, 0],
+}
+
+function fakeLaunches(): LaunchEntry[] {
+  return Object.entries(LAUNCH_PATTERN).flatMap(([project, counts]) =>
+    counts.flatMap((count, index) => {
+      const at = new Date()
+      at.setDate(at.getDate() - (counts.length - 1 - index))
+      at.setHours(10, 0, 0, 0)
+      return Array.from({ length: count }, () => ({ at: at.toISOString(), project, task: `${project}-1`, sessionId: 'fake' }))
+    }),
+  )
+}
+
+function fakeState(huly: HulyLinkState, idle: boolean, launches: LaunchEntry[]): BatonState {
   const tasks = [
     task('ABC-1', 'Каркас сервера', 'Done', 'Won'),
     task('ABC-2', 'Чтение задач из трекера', 'Done', 'Won', ['ABC-1']),
     task('ABC-3', 'Запуск сессий в фоне', 'In Progress', 'Active', ['ABC-2']),
     task('ABC-4', 'Цепочка задач по связям', 'Todo', 'ToDo', ['ABC-3']),
     task('ABC-5', 'Страница проекта', 'Backlog', 'UnStarted', ['ABC-4']),
+    task('DEMO-6', 'Старый формат отчёта', 'Canceled', 'Lost'),
     task('DEMO-7', 'Импорт настроек', 'Todo', 'ToDo'),
     task('DEMO-8', 'Экспорт отчёта в CSV', 'Backlog', 'UnStarted', ['DEMO-7']),
+    task('OPS-1', 'Резервное копирование', 'Done', 'Won'),
+    task('OPS-2', 'Ротация логов службы', 'Todo', 'ToDo'),
+    task('OPS-3', 'Проверка свободного места на диске перед запуском', 'Backlog', 'UnStarted', ['OPS-2']),
   ]
   return {
     startedAt: ago(180),
-    projects: ['ABC', 'DEMO', 'XYZ'],
+    projects: ['ABC', 'DEMO', 'XYZ', 'OPS'],
     chain: {
-      active: {
-        project: 'ABC',
-        current: { task: 'ABC-3', sessionId: null, since: ago(42) },
-        paused: false,
-        error: null,
-      },
-      queue: ['DEMO'],
+      active: idle
+        ? null
+        : {
+            project: 'ABC',
+            current: { task: 'ABC-3', sessionId: null, since: ago(42) },
+            paused: false,
+            error: null,
+          },
+      queue: idle ? [] : ['DEMO'],
       projects: {
         ABC: { order: ['ABC-3', 'ABC-4', 'ABC-5'], error: null },
         DEMO: { order: ['DEMO-7', 'DEMO-8'], error: null },
         XYZ: { order: [], error: null },
+        OPS: { order: ['OPS-2', 'OPS-3'], error: null },
       },
     },
     tasks,
-    sessions: [session('ABC-3', 61_000), session('DEMO-7', 142_000, 'waiting')],
+    sessions: idle ? [] : [session('ABC-3', 61_000), session('DEMO-7', 142_000, 'waiting')],
     limits: {
       fiveHour: { usedPercentage: 37, resetsAt: new Date(Date.now() + 2 * 3_600_000).toISOString() },
       sevenDay: { usedPercentage: 64, resetsAt: new Date(Date.now() + 3 * 86_400_000).toISOString() },
       updatedAt: ago(0),
     },
     huly: fakeHuly(huly),
+    launches: launchDays(launches, new Date(), LAUNCH_DAYS),
+  }
+}
+
+function startChain(state: BatonState, project: string, launches: LaunchEntry[]): BatonState {
+  if (!state.projects.includes(project)) throw new Error(`chain: ${project} is not a configured project`)
+  const { active, queue } = state.chain
+  if (active?.project === project || queue.includes(project)) return state
+  if (active !== null) return { ...state, chain: { ...state.chain, queue: [...queue, project] } }
+  const first = state.chain.projects[project]?.order[0]
+  if (first === undefined) return state
+  const since = ago(0)
+  launches.push({ at: since, project, task: first, sessionId: 'fake' })
+  return {
+    ...state,
+    chain: { ...state.chain, active: { project, current: { task: first, sessionId: 'fake', since }, paused: false, error: null } },
+    sessions: [...state.sessions, session(first, 0)],
+    launches: launchDays(launches, new Date(), LAUNCH_DAYS),
   }
 }
 
@@ -95,7 +140,12 @@ export function createFakeSource(search: string): LiveSource {
   const requestedHuly = params.get('huly')
   const huly: HulyLinkState = isHulyState(requestedHuly) ? requestedHuly : 'live'
   const listeners = new Set<() => void>()
-  let current: LiveSnapshot = { state: link === 'connecting' ? null : fakeState(huly), link }
+  const launches = fakeLaunches()
+  const idle = params.get('chain') === 'idle'
+  let current: LiveSnapshot = { state: link === 'connecting' ? null : fakeState(huly, idle, launches), link }
+  const notify = () => {
+    for (const listener of listeners) listener()
+  }
 
   if (link === 'live') {
     setInterval(() => {
@@ -105,7 +155,7 @@ export function createFakeSource(search: string): LiveSource {
       )
       const hulyNow = state.huly.state === 'live' ? { ...state.huly, lastOkAt: ago(0) } : state.huly
       current = { ...current, state: { ...state, sessions, huly: hulyNow } }
-      for (const listener of listeners) listener()
+      notify()
     }, TICK_MS)
   }
 
@@ -116,5 +166,10 @@ export function createFakeSource(search: string): LiveSource {
     },
     snapshot: () => current,
     retryNow: () => {},
+    command: async (name, body = {}) => {
+      if (name !== 'start' || current.state === null) throw new Error(`fake: ${name} is not supported`)
+      current = { ...current, state: startChain(current.state, String(body.project), launches) }
+      notify()
+    },
   }
 }

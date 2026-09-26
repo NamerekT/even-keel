@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { formatAgo, formatSpan } from './format.js'
+import { formatAgo, formatSpan, plural } from './format.js'
 
 const now = new Date('2026-01-01T12:00:00.000Z')
 const later = (ms: number) => new Date(now.getTime() + ms).toISOString()
@@ -47,5 +47,28 @@ describe('formatAgo', () => {
     expect(formatAgo(earlier(3 * MIN + 40_000), now)).toBe('3 мин назад')
     expect(formatAgo(earlier(2 * HOUR + 50 * MIN), now)).toBe('2 ч назад')
     expect(formatAgo(earlier(3 * DAY + 5 * HOUR), now)).toBe('3 д назад')
+  })
+})
+
+describe('plural', () => {
+  const launches = (count: number) => plural(count, 'запуск', 'запуска', 'запусков')
+
+  it('picks the Russian form by the last digits', () => {
+    expect([0, 1, 2, 4, 5, 11, 12, 14, 21, 22, 25, 101, 111, 112].map(launches)).toEqual([
+      'запусков',
+      'запуск',
+      'запуска',
+      'запуска',
+      'запусков',
+      'запусков',
+      'запусков',
+      'запусков',
+      'запуск',
+      'запуска',
+      'запусков',
+      'запуск',
+      'запусков',
+      'запусков',
+    ])
   })
 })

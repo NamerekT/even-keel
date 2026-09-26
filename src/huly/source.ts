@@ -1,9 +1,9 @@
 import { createRequire } from 'node:module'
 import type { HulyCredentials } from './credentials.js'
-import { isOpen, missingBlockers, toStatus, toTasks, type HulyIssueDoc, type HulyStatusDoc, type HulyTask } from './model.js'
+import { isOpen, milestonesOf, missingBlockers, toStatus, toTasks, type HulyIssueDoc, type HulyStatusDoc, type HulyTask } from './model.js'
 
 export interface HulySource {
-  openTasks(project: string): Promise<HulyTask[]>
+  chainTasks(project: string): Promise<HulyTask[]>
   tasks(identifiers: string[]): Promise<HulyTask[]>
   close(): Promise<void>
 }
@@ -29,7 +29,7 @@ const require = createRequire(import.meta.url)
 const api = require('@hcengineering/api-client') as ApiClientModule
 const tracker = (require('@hcengineering/tracker') as { default: TrackerPlugin }).default
 
-const ISSUE_FIELDS = { identifier: 1, title: 1, status: 1, blockedBy: 1 } as const
+const ISSUE_FIELDS = { identifier: 1, title: 1, status: 1, blockedBy: 1, milestone: 1 } as const
 
 export async function connectHuly(credentials: HulyCredentials, timeoutMs: number): Promise<HulySource> {
   const client = await api.connect(credentials.url, {
@@ -53,12 +53,18 @@ export async function connectHuly(credentials: HulyCredentials, timeoutMs: numbe
   }
 
   return {
-    async openTasks(project) {
+    async chainTasks(project) {
       const space = await client.findOne<{ _id: string }>(tracker.class.Project, { identifier: project })
       if (space === undefined) throw new Error(`huly: project ${project} not found`)
       const statuses = await findStatuses()
       const open = statuses.filter((doc) => isOpen(toStatus(doc))).map((doc) => doc._id)
-      return resolve(await findIssues({ space: space._id, status: { $in: open } }), statuses)
+      const openIssues = await findIssues({ space: space._id, status: { $in: open } })
+      const milestones = milestonesOf(openIssues)
+      const closedIssues =
+        milestones.length === 0
+          ? []
+          : await findIssues({ space: space._id, milestone: { $in: milestones }, status: { $nin: open } })
+      return resolve([...openIssues, ...closedIssues], statuses)
     },
     async tasks(identifiers) {
       const [issues, statuses] = await Promise.all([findIssues({ identifier: { $in: identifiers } }), findStatuses()])

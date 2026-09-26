@@ -9,7 +9,7 @@
 - Node.js 24 + TypeScript, тесты — vitest.
 - Huly — через `@hcengineering/api-client`, тот же клиент, что у git-хуков в `~/.githooks`.
 - Сессии — CLI `claude` (`--bg`, `agents --json`) и транскрипты в `~/.claude/projects`.
-- Интерфейс — React + Vite в `web/`, сборка в `dist/web`, её отдаёт сервер; маршруты клиента сервер отвечает `index.html`. Типы состояния клиент берёт из `src/state.ts` — там только типы, без `node:*`. `npm run dev:web` — Vite с прокси `/api` на `BATON_URL` (по умолчанию `:4747`), `npm run dev:fake` — вёрстка на фейковом состоянии без Huly и сессий (`?link=stale|connecting` — состояния связи).
+- Интерфейс — React + Vite в `web/`, сборка в `dist/web`, её отдаёт сервер; маршруты клиента сервер отвечает `index.html`. Типы состояния клиент берёт из `src/state.ts` — там только типы, без `node:*`. `npm run dev:web` — Vite с прокси `/api` на `BATON_URL` (по умолчанию `:4747`), `npm run dev:fake` — вёрстка на фейковом состоянии без Huly и сессий (`?link=stale|connecting` — состояния связи, `?chain=idle` — без активной цепочки, чтобы проверить запуск).
 - Хостинг: self-hosted Forgejo, приватный репозиторий.
 
 ## Задачи

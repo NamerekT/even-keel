@@ -44,6 +44,7 @@ function state(startedAt: string): BatonState {
     sessions: [],
     limits: null,
     huly: { state: 'off', lastOkAt: null, error: null },
+    launches: [],
   }
 }
 
@@ -51,13 +52,21 @@ describe('LiveConnection', () => {
   let streams: FakeStream[]
   let fetched: { resolve: (value: BatonState) => void; reject: (error: Error) => void }
   let live: LiveConnection
+  let commands: { name: string; body: Record<string, unknown> }[]
+  let answer: () => Promise<BatonState>
 
   const last = () => streams.at(-1)!
 
   beforeEach(() => {
     vi.useFakeTimers()
     streams = []
+    commands = []
+    answer = async () => state('commanded')
     live = new LiveConnection({
+      sendCommand: (name, body) => {
+        commands.push({ name, body })
+        return answer()
+      },
       fetchState: () =>
         new Promise<BatonState>((resolve, reject) => {
           fetched = { resolve, reject }
@@ -194,6 +203,20 @@ describe('LiveConnection', () => {
     expect(live.snapshot()).toEqual({ state: state('new'), link: 'live' })
     vi.advanceTimersByTime(10_000)
     expect(streams).toHaveLength(2)
+  })
+
+  it('sends a command and shows the state it answers with right away', async () => {
+    last().emit('state', state('before'))
+    await live.command('start', { project: 'ABC' })
+    expect(commands).toEqual([{ name: 'start', body: { project: 'ABC' } }])
+    expect(live.snapshot()).toEqual({ state: state('commanded'), link: 'live' })
+  })
+
+  it('passes a failed command on to the caller and keeps the state', async () => {
+    last().emit('state', state('before'))
+    answer = () => Promise.reject(new Error('ABC is not a configured project'))
+    await expect(live.command('start', { project: 'ABC' })).rejects.toThrow('not a configured project')
+    expect(live.snapshot().state).toEqual(state('before'))
   })
 
   it('closes the stream and fires no timers after stop', () => {

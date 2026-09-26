@@ -1,6 +1,7 @@
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { Dispatcher } from './chain/dispatcher.js'
+import { Dispatcher, type LaunchEntry } from './chain/dispatcher.js'
+import { launchDays } from './chain/launches.js'
 import { appendLaunch, loadChainState, readLaunches, saveChainState } from './chain/store.js'
 import { loadConfig } from './config.js'
 import { EventHub } from './events.js'
@@ -22,6 +23,7 @@ const HULY_TIMEOUT_MS = 15_000
 const SESSION_POLL_MS = 3_000
 const CLAUDE_TIMEOUT_MS = 30_000
 const LIMITS_POLL_MS = 2_000
+const LAUNCH_CHART_DAYS = 14
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 try {
@@ -42,6 +44,7 @@ const startedAt = new Date().toISOString()
 const tasksByProject = new Map<string, HulyTask[]>()
 let sessions: SessionView[] = []
 let huly: HulyHealth = { state: 'off', lastOkAt: null, error: null }
+const launches: LaunchEntry[] = readLaunches(launchesFile)
 
 const limits = new LimitsWatcher({
   file: limitsFile,
@@ -58,7 +61,10 @@ const dispatcher = new Dispatcher(loadChainState(chainFile), {
     saveChainState(chainFile, state)
     hub.broadcast('state', getState())
   },
-  journal: (entry) => appendLaunch(launchesFile, entry),
+  journal: (entry) => {
+    appendLaunch(launchesFile, entry)
+    launches.push(entry)
+  },
   now: () => new Date(),
 })
 
@@ -70,6 +76,7 @@ const getState = (): BatonState => ({
   sessions,
   limits: limits.limits,
   huly,
+  launches: launchDays(launches, new Date(), LAUNCH_CHART_DAYS),
 })
 
 const server = createBatonServer({
@@ -77,7 +84,7 @@ const server = createBatonServer({
   publicDir: join(root, 'dist', 'web'),
   getState,
   control: dispatcher,
-  launches: () => readLaunches(launchesFile),
+  launches: () => launches,
 })
 
 setInterval(() => hub.broadcast('ping', { at: new Date().toISOString() }), 15_000).unref()
@@ -138,7 +145,7 @@ if (credentials === undefined) {
     await Promise.all(
       Object.keys(config.projects).map(async (project) => {
         try {
-          const tasks = await link.run((source) => source.openTasks(project))
+          const tasks = await link.run((source) => source.chainTasks(project))
           tasksByProject.set(project, tasks)
           dispatcher.setTasks(project, tasks)
         } catch (error) {

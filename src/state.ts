@@ -1,4 +1,5 @@
 import type { ActiveChain, ProjectOrder } from './chain/dispatcher.js'
+import type { LaunchDay } from './chain/launches.js'
 import type { HulyHealth } from './huly/health.js'
 import type { HulyTask } from './huly/model.js'
 import type { RateLimits } from './limits/model.js'
@@ -30,4 +31,5 @@ export interface BatonState {
   sessions: SessionView[]
   limits: RateLimits | null
   huly: HulyHealth
+  launches: LaunchDay[]
 }

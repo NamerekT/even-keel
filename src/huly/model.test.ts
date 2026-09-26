@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { diffStatuses, isOpen, missingBlockers, toTasks, type HulyIssueDoc, type HulyStatusDoc, type HulyTask } from './model.js'
+import { diffStatuses, isOpen, milestonesOf, missingBlockers, toTasks, type HulyIssueDoc, type HulyStatusDoc, type HulyTask } from './model.js'
 
 const statuses: HulyStatusDoc[] = [
   { _id: 'tracker:status:Backlog', name: 'Backlog', category: 'task:statusCategory:UnStarted' },
@@ -105,5 +105,18 @@ describe('diffStatuses', () => {
   it('ignores tasks that are no longer watched', () => {
     const known = new Map([['ABC-1', todo]])
     expect(diffStatuses(known, [], [])).toEqual([])
+  })
+})
+
+describe('milestonesOf', () => {
+  it('lists each milestone of the given issues once, skipping issues without one', () => {
+    const issues: HulyIssueDoc[] = [
+      { ...issue('i1', 'ABC-1', 'tracker:status:Todo'), milestone: 'm1' },
+      { ...issue('i2', 'ABC-2', 'tracker:status:Todo'), milestone: 'm2' },
+      { ...issue('i3', 'ABC-3', 'tracker:status:Todo'), milestone: 'm1' },
+      { ...issue('i4', 'ABC-4', 'tracker:status:Todo'), milestone: null },
+      issue('i5', 'ABC-5', 'tracker:status:Todo'),
+    ]
+    expect(milestonesOf(issues)).toEqual(['m1', 'm2'])
   })
 })

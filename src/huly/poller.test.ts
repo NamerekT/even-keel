@@ -14,7 +14,7 @@ let queried: string[][]
 
 function source(): HulySource {
   return {
-    openTasks: async () => [],
+    chainTasks: async () => [],
     tasks: async (ids) => {
       queried.push(ids)
       if (failNext) {

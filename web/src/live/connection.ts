@@ -19,11 +19,13 @@ export interface LiveSource {
   subscribe(listener: () => void): () => void
   snapshot(): LiveSnapshot
   retryNow(): void
+  command(name: string, body?: Record<string, unknown>): Promise<void>
 }
 
 export interface LiveDeps {
   fetchState: () => Promise<BatonState>
   openEvents: () => EventStream
+  sendCommand: (name: string, body: Record<string, unknown>) => Promise<BatonState>
 }
 
 const CLOSED = 2
@@ -73,6 +75,11 @@ export class LiveConnection implements LiveSource {
   retryNow(): void {
     if (this.current.link !== 'stale' || this.stopped) return
     this.open()
+  }
+
+  async command(name: string, body: Record<string, unknown> = {}): Promise<void> {
+    const state = await this.deps.sendCommand(name, body)
+    if (!this.stopped) this.update({ ...this.current, state })
   }
 
   private open(): void {
