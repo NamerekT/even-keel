@@ -18,5 +18,9 @@
     "tsx": "^4.23.15",
     "typescript": "^5.9.3",
     "vitest": "^5.0.2"
+  },
+  "dependencies": {
+    "@hcengineering/api-client": "^0.7.423",
+    "@hcengineering/tracker": "^0.7.423"
   }
 }
