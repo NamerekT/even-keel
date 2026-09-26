@@ -20,6 +20,14 @@ function Invoke-Sc {
     if ($LASTEXITCODE -ne 0) { throw "sc.exe $($args -join ' ') failed with code $LASTEXITCODE" }
 }
 
+Push-Location $root
+try {
+    npm run build
+    if ($LASTEXITCODE -ne 0) { throw "npm run build failed with code $LASTEXITCODE" }
+} finally {
+    Pop-Location
+}
+
 $existing = Get-Service -Name $Name -ErrorAction SilentlyContinue
 if ($existing -and $existing.Status -ne 'Stopped') {
     Stop-Service -Name $Name
@@ -29,17 +37,9 @@ New-Item -ItemType Directory -Force $bin | Out-Null
 & $csc -nologo -target:exe "-out:$exe" -reference:System.ServiceProcess.dll (Join-Path $PSScriptRoot 'BatonService.cs')
 if ($LASTEXITCODE -ne 0) { throw "csc failed with code $LASTEXITCODE" }
 
-Push-Location $root
-try {
-    npm run build
-    if ($LASTEXITCODE -ne 0) { throw "npm run build failed with code $LASTEXITCODE" }
-} finally {
-    Pop-Location
-}
-
 $command = "`"$exe`" `"$root`" `"$node`""
 if ($existing) {
-    Set-Service -Name $Name -BinaryPathName $command
+    Invoke-Sc config $Name binPath= $command
     Start-Service -Name $Name
     Write-Host "Service $Name updated and started. Log: $root\logs\baton.log"
     return
