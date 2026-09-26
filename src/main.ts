@@ -8,6 +8,7 @@ import { readHulyCredentials } from './huly/credentials.js'
 import { HulyLink } from './huly/link.js'
 import type { HulyTask } from './huly/model.js'
 import { StatusPoller } from './huly/poller.js'
+import { LimitsWatcher } from './limits/watcher.js'
 import { connectHuly } from './huly/source.js'
 import { createBatonServer } from './server.js'
 import { claudeProjectsDir, ClaudeCli, resolveClaudeBinary } from './sessions/claude.js'
@@ -18,6 +19,7 @@ const TASKS_REFRESH_MS = 30_000
 const HULY_TIMEOUT_MS = 15_000
 const SESSION_POLL_MS = 3_000
 const CLAUDE_TIMEOUT_MS = 30_000
+const LIMITS_POLL_MS = 2_000
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 try {
@@ -30,12 +32,20 @@ const config = loadConfig(process.env.BATON_CONFIG ?? join(root, 'baton.config.j
 const stateDir = process.env.BATON_STATE_DIR ?? join(root, 'state')
 const chainFile = join(stateDir, 'chain.json')
 const launchesFile = join(stateDir, 'launches.jsonl')
+const limitsFile = join(stateDir, 'rate-limits.json')
 const credentials = readHulyCredentials(process.env)
 const hub = new EventHub()
 const cli = new ClaudeCli(() => resolveClaudeBinary(process.env), CLAUDE_TIMEOUT_MS)
 const startedAt = new Date().toISOString()
 const tasksByProject = new Map<string, HulyTask[]>()
 let sessions: SessionView[] = []
+
+const limits = new LimitsWatcher({
+  file: limitsFile,
+  intervalMs: LIMITS_POLL_MS,
+  onChange: () => hub.broadcast('state', getState()),
+  onError: (error) => console.error(`limits: ${error instanceof Error ? error.message : String(error)}`),
+})
 
 const dispatcher = new Dispatcher(loadChainState(chainFile), {
   projects: Object.keys(config.projects),
@@ -55,6 +65,7 @@ const getState = () => ({
   chain: { active: dispatcher.state.active, queue: dispatcher.state.queue, projects: dispatcher.orders() },
   tasks: [...tasksByProject.values()].flat(),
   sessions,
+  limits: limits.limits,
 })
 
 const server = createBatonServer({
@@ -78,6 +89,8 @@ new SessionMonitor({
   },
   onError: (error) => console.error(`sessions: ${error instanceof Error ? error.message : String(error)}`),
 }).start()
+
+limits.start()
 
 server.listen(config.port, config.host, () => {
   console.log(`baton listening on http://${config.host}:${config.port}`)
