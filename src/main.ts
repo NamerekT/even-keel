@@ -8,9 +8,13 @@ import type { HulyTask } from './huly/model.js'
 import { StatusPoller } from './huly/poller.js'
 import { connectHuly } from './huly/source.js'
 import { createBatonServer } from './server.js'
+import { claudeProjectsDir, ClaudeCli, resolveClaudeBinary } from './sessions/claude.js'
+import { SessionMonitor, type SessionView } from './sessions/monitor.js'
 
 const HULY_POLL_MS = 5_000
 const HULY_TIMEOUT_MS = 15_000
+const SESSION_POLL_MS = 3_000
+const CLAUDE_TIMEOUT_MS = 30_000
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 try {
@@ -24,12 +28,25 @@ const credentials = readHulyCredentials(process.env)
 const hub = new EventHub()
 const startedAt = new Date().toISOString()
 let tasks: HulyTask[] = []
+let sessions: SessionView[] = []
 
-const getState = () => ({ startedAt, projects: Object.keys(config.projects), chain: [], tasks })
+const getState = () => ({ startedAt, projects: Object.keys(config.projects), chain: [], tasks, sessions })
 
 const server = createBatonServer({ hub, publicDir: join(root, 'public'), getState })
 
 setInterval(() => hub.broadcast('ping', { at: new Date().toISOString() }), 15_000).unref()
+
+new SessionMonitor({
+  cli: new ClaudeCli(() => resolveClaudeBinary(process.env), CLAUDE_TIMEOUT_MS),
+  projectsDir: claudeProjectsDir(process.env),
+  projectKeys: () => Object.keys(config.projects),
+  intervalMs: SESSION_POLL_MS,
+  onChange: (views) => {
+    sessions = views
+    hub.broadcast('state', getState())
+  },
+  onError: (error) => console.error(`sessions: ${error instanceof Error ? error.message : String(error)}`),
+}).start()
 
 server.listen(config.port, config.host, () => {
   console.log(`baton listening on http://${config.host}:${config.port}`)
