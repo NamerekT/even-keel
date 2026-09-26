@@ -32,6 +32,7 @@ function view(task: string, lamp: SessionView['lamp'], lastActivityAt: string | 
     action: null,
     feed: [],
     remoteUrl: null,
+    remoteOff: null,
   }
 }
 

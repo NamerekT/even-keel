@@ -27,8 +27,8 @@ export function resolveClaudeBinary(env: NodeJS.ProcessEnv): string {
   return join(extensions, newest, 'resources', 'native-binary', process.platform === 'win32' ? 'claude.exe' : 'claude')
 }
 
-export function claudeProjectsDir(env: NodeJS.ProcessEnv): string {
-  return join(env.CLAUDE_CONFIG_DIR ?? join(homedir(), '.claude'), 'projects')
+export function claudeConfigDir(env: NodeJS.ProcessEnv): string {
+  return env.CLAUDE_CONFIG_DIR ?? join(homedir(), '.claude')
 }
 
 export class ClaudeCli {

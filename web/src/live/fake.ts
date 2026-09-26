@@ -33,6 +33,7 @@ function session(task: string, contextTokens: number, lamp: SessionView['lamp'] 
     action: { at: ago(0), kind: 'tool', text: 'Edit src/example.ts' },
     feed: fakeFeed(),
     remoteUrl: lamp === 'working' || lamp === 'waiting' ? 'https://claude.ai/code/session_example' : null,
+    remoteOff: lamp === 'working' || lamp === 'waiting' ? null : 'no-bridge',
   }
 }
 

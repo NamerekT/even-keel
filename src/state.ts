@@ -4,6 +4,7 @@ import type { HulyHealth } from './huly/health.js'
 import type { HulyTask } from './huly/model.js'
 import type { RateLimits } from './limits/model.js'
 import type { Lamp } from './sessions/agents.js'
+import type { RemoteOff } from './sessions/remote.js'
 import type { FeedLine, Stage, TokenTotals } from './sessions/transcript.js'
 
 export interface SessionView {
@@ -21,6 +22,7 @@ export interface SessionView {
   action: FeedLine | null
   feed: FeedLine[]
   remoteUrl: string | null
+  remoteOff: RemoteOff | null
 }
 
 export interface ContextScale {

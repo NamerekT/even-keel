@@ -1,3 +1,5 @@
+import { remoteUrlOf } from './remote.js'
+
 export type Stage = 'task' | 'recon' | 'edit' | 'test' | 'commit' | 'merge'
 export type ApiErrorKind = 'limit' | 'error'
 
@@ -55,7 +57,6 @@ interface Entry {
 const FEED_SIZE = 30
 const TEXT_LIMIT = 500
 const BRIEF_LIMIT = 160
-const REMOTE_BASE = 'https://claude.ai/code/'
 const STAGE_RANK: Record<Stage, number> = { task: 0, recon: 1, edit: 2, test: 3, commit: 4, merge: 5 }
 const BRIEF_KEYS = ['description', 'command', 'file_path', 'pattern', 'query', 'url', 'skill']
 const MCP_BRIEF_KEYS = ['identifier', 'issueIdentifier', 'title', 'name', 'query']
@@ -77,7 +78,7 @@ export class TranscriptFold {
     if (typeof entry.gitBranch === 'string' && entry.gitBranch !== '') this.gitBranch = entry.gitBranch
 
     if (entry.type === 'bridge-session' && typeof entry.bridgeSessionId === 'string') {
-      this.remoteUrl = REMOTE_BASE + entry.bridgeSessionId.replace(/^cse_/, 'session_')
+      this.remoteUrl = remoteUrlOf(entry.bridgeSessionId)
       return
     }
     if (entry.type !== 'assistant' && entry.type !== 'user') return

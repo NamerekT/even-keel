@@ -13,7 +13,7 @@ import { StatusPoller } from './huly/poller.js'
 import { LimitsWatcher } from './limits/watcher.js'
 import { connectHuly } from './huly/source.js'
 import { createBatonServer } from './server.js'
-import { claudeProjectsDir, ClaudeCli, resolveClaudeBinary } from './sessions/claude.js'
+import { claudeConfigDir, ClaudeCli, resolveClaudeBinary } from './sessions/claude.js'
 import { SessionMonitor } from './sessions/monitor.js'
 import type { BatonState, SessionView } from './state.js'
 
@@ -93,7 +93,7 @@ setInterval(() => hub.broadcast('ping', { at: new Date().toISOString() }), 15_00
 
 new SessionMonitor({
   cli,
-  projectsDir: claudeProjectsDir(process.env),
+  claudeDir: claudeConfigDir(process.env),
   projectKeys: () => Object.keys(config.projects),
   intervalMs: SESSION_POLL_MS,
   onChange: (views) => {

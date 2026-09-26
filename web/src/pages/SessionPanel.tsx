@@ -1,4 +1,5 @@
 import { useEffect, useLayoutEffect, useRef } from 'react'
+import type { RemoteOff } from '../../../src/sessions/remote.js'
 import type { FeedLine } from '../../../src/sessions/transcript.js'
 import type { ContextScale, SessionView } from '../../../src/state.js'
 import { formatClock, formatTokens } from '../format.js'
@@ -10,6 +11,14 @@ import { Lamp, LAMP_LABELS } from '../ui/Lamp.js'
 const STARTED = new Intl.DateTimeFormat('ru', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
 const FEED_TIME = new Intl.DateTimeFormat('ru', { hour: '2-digit', minute: '2-digit', second: '2-digit' })
 const PINNED_SLACK = 24
+
+const REMOTE_OFF: Record<RemoteOff, string> = {
+  starting: 'Remote Control поднимается — ссылка появится через несколько секунд.',
+  disabled:
+    'Remote Control не включается сам: в ~/.claude/settings.json нет «remoteControlAtStartup»: true. Включи его в /config — новые сессии поднимут мост.',
+  'no-bridge':
+    'Сессия не подняла Remote Control: в её записи ~/.claude/sessions/<pid>.json нет моста, хотя автозапуск включён. Открыть её отсюда нельзя.',
+}
 
 interface Props {
   block: ChainBlock
@@ -106,7 +115,7 @@ function SessionBody({ session, scale }: { session: SessionView; scale: ContextS
       </dl>
       {note !== null && <p className="notice notice--error">{note}</p>}
       {session.remoteUrl === null ? (
-        <p className="panel__remote-off">Remote Control у этой сессии не включён — открыть её отсюда нельзя.</p>
+        <p className="panel__remote-off">{REMOTE_OFF[session.remoteOff ?? 'no-bridge']}</p>
       ) : (
         <a className="button button--primary panel__remote" href={session.remoteUrl} target="_blank" rel="noreferrer">
           Открыть сессию
