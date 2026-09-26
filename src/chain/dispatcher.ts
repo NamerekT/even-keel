@@ -94,6 +94,14 @@ export class Dispatcher {
     this.changed()
   }
 
+  requeue(order: string[]): void {
+    const queue = this.state.queue
+    const same = order.length === queue.length && new Set(order).size === order.length && order.every((key) => queue.includes(key))
+    if (!same) throw new Error(`chain: the queue has changed, it is now ${queue.join(', ') || 'empty'}`)
+    this.state.queue = [...order]
+    this.changed()
+  }
+
   reorder(project: string, order: string[]): void {
     this.requireProject(project)
     checkOrder(this.tasks.get(project) ?? [], order)

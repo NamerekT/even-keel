@@ -10,6 +10,7 @@ export interface ChainControl {
   stop(): void
   dequeue(project: string): void
   reorder(project: string, order: string[]): void
+  requeue(order: string[]): void
 }
 
 export interface ServerDeps {
@@ -28,13 +29,8 @@ const COMMANDS: Record<string, Command> = {
   resume: (control) => control.resume(),
   stop: (control) => control.stop(),
   dequeue: (control, body) => control.dequeue(projectOf(body)),
-  order: (control, body) => {
-    const { order } = body
-    if (!Array.isArray(order) || !order.every((id) => typeof id === 'string')) {
-      throw new Error('order must be a list of task ids')
-    }
-    control.reorder(projectOf(body), order)
-  },
+  order: (control, body) => control.reorder(projectOf(body), listOf(body, 'order must be a list of task ids')),
+  queue: (control, body) => control.requeue(listOf(body, 'order must be a list of projects')),
 }
 
 const MAX_BODY_BYTES = 64 * 1024
@@ -128,6 +124,12 @@ async function readJsonBody(request: IncomingMessage): Promise<Record<string, un
 function projectOf(body: Record<string, unknown>): string {
   if (typeof body.project !== 'string' || body.project === '') throw new Error('project is required')
   return body.project
+}
+
+function listOf(body: Record<string, unknown>, message: string): string[] {
+  const { order } = body
+  if (!Array.isArray(order) || !order.every((item) => typeof item === 'string')) throw new Error(message)
+  return order
 }
 
 function streamEvents(deps: ServerDeps, request: IncomingMessage, response: ServerResponse): void {

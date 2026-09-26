@@ -13,13 +13,15 @@ const task = (id: string, status: TaskStatus = todo, ...blockedBy: string[]): Hu
   blockedBy,
 })
 
-function setup(options: { state?: ChainState; failLaunch?: string; live?: Record<string, string> } = {}) {
+function setup(
+  options: { state?: ChainState; failLaunch?: string; live?: Record<string, string>; projects?: string[] } = {},
+) {
   const launched: string[] = []
   const saved: ChainState[] = []
   const journal: LaunchEntry[] = []
   let counter = 0
   const dispatcher = new Dispatcher(options.state ?? emptyChainState(), {
-    projects: ['ABC', 'XYZ'],
+    projects: options.projects ?? ['ABC', 'XYZ'],
     launch: async (project, id) => {
       if (id === options.failLaunch) throw new Error(`claude: could not start ${id}`)
       launched.push(`${project}/${id}`)
@@ -192,6 +194,38 @@ describe('Dispatcher', () => {
     dispatcher.start('XYZ')
     dispatcher.dequeue('XYZ')
     expect(dispatcher.state.queue).toEqual([])
+  })
+
+  it('reorders the queue and starts the project moved to its head first', async () => {
+    const { dispatcher, launched } = setup({ projects: ['ABC', 'XYZ', 'OPS'] })
+    dispatcher.setTasks('ABC', [task('ABC-1')])
+    dispatcher.setTasks('XYZ', [task('XYZ-1')])
+    dispatcher.setTasks('OPS', [task('OPS-1')])
+    dispatcher.start('ABC')
+    dispatcher.start('XYZ')
+    dispatcher.start('OPS')
+    await dispatcher.idle()
+    dispatcher.requeue(['OPS', 'XYZ'])
+    expect(dispatcher.state.queue).toEqual(['OPS', 'XYZ'])
+
+    dispatcher.setTasks('ABC', [task('ABC-1', done)])
+    await dispatcher.idle()
+    expect(launched).toEqual(['ABC/ABC-1', 'OPS/OPS-1'])
+    expect(dispatcher.state.queue).toEqual(['XYZ'])
+  })
+
+  it('refuses a queue order that does not list exactly the queued projects', () => {
+    const { dispatcher, saved } = setup({ projects: ['ABC', 'XYZ', 'OPS'] })
+    dispatcher.start('ABC')
+    dispatcher.start('XYZ')
+    dispatcher.start('OPS')
+    const before = saved.length
+    const refusal = /queue has changed/
+    expect(() => dispatcher.requeue(['XYZ'])).toThrow(refusal)
+    expect(() => dispatcher.requeue(['XYZ', 'OPS', 'ABC'])).toThrow(refusal)
+    expect(() => dispatcher.requeue(['XYZ', 'XYZ'])).toThrow(refusal)
+    expect(dispatcher.state.queue).toEqual(['XYZ', 'OPS'])
+    expect(saved.length).toBe(before)
   })
 
   it('rejects an unknown project', () => {

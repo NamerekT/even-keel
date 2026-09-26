@@ -1,6 +1,7 @@
 import { Link, useMatch } from 'react-router'
 import { useLive } from '../live/context.js'
 import { Limits } from './Limits.js'
+import { QueueMenu } from './Queue.js'
 import { HulyState, ServerState, Waiting } from './Status.js'
 import { useNow } from './useNow.js'
 
@@ -28,6 +29,7 @@ export function Header() {
           )}
         </nav>
         <div className="header__aside">
+          {state !== null && <QueueMenu state={state} />}
           {state !== null && <Waiting sessions={state.sessions} tasks={state.tasks} />}
           {state !== null && <HulyState health={state.huly} now={now} />}
           <ServerState link={link} />

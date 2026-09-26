@@ -113,7 +113,7 @@ function fakeState(huly: HulyLinkState, idle: boolean, contextTokens: number, la
             paused: false,
             error: null,
           },
-      queue: idle ? [] : ['DEMO'],
+      queue: idle ? [] : ['DEMO', 'OPS'],
       projects: {
         ABC: { order: ['ABC-5', 'ABC-6', 'ABC-7', 'ABC-8', 'ABC-9', 'ABC-10', 'ABC-11', 'ABC-12', 'ABC-13'], error: null },
         DEMO: { order: ['DEMO-7', 'DEMO-8'], error: null },
@@ -166,6 +166,18 @@ function startChain(state: BatonState, project: string, launches: LaunchEntry[])
     sessions: [...state.sessions, session(first, 0)],
     launches: launchDays(launches, new Date(), LAUNCH_DAYS),
   }
+}
+
+function requeue(state: BatonState, order: string[]): BatonState {
+  const queue = state.chain.queue
+  if (order.length !== queue.length || !order.every((key) => queue.includes(key))) {
+    throw new Error(`chain: the queue has changed, it is now ${queue.join(', ') || 'empty'}`)
+  }
+  return { ...state, chain: { ...state.chain, queue: [...order] } }
+}
+
+function dequeue(state: BatonState, project: string): BatonState {
+  return { ...state, chain: { ...state.chain, queue: state.chain.queue.filter((key) => key !== project) } }
 }
 
 function isLink(value: string | null): value is Link {
@@ -225,6 +237,8 @@ export function createFakeSource(search: string): LiveSource {
       if (state === null) throw new Error('fake: no state yet')
       if (name === 'start') current = { ...current, state: startChain(state, String(body.project), launches) }
       else if (name === 'pause' || name === 'resume') current = { ...current, state: setPaused(state, name === 'pause') }
+      else if (name === 'queue') current = { ...current, state: requeue(state, body.order as string[]) }
+      else if (name === 'dequeue') current = { ...current, state: dequeue(state, String(body.project)) }
       else throw new Error(`fake: ${name} is not supported`)
       notify()
     },
