@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { formatAgo, formatSpan, plural } from './format.js'
+import { formatAgo, formatSpan, formatTokens, plural } from './format.js'
 
 const now = new Date('2026-01-01T12:00:00.000Z')
 const later = (ms: number) => new Date(now.getTime() + ms).toISOString()
@@ -70,5 +70,15 @@ describe('plural', () => {
       'запусков',
       'запусков',
     ])
+  })
+})
+
+describe('formatTokens', () => {
+  it('keeps small counts whole and rounds the rest to thousands or millions', () => {
+    expect(formatTokens(800)).toBe('800')
+    expect(formatTokens(61_400)).toBe('61k')
+    expect(formatTokens(599_600)).toBe('600k')
+    expect(formatTokens(1_240_000)).toBe('1.2M')
+    expect(formatTokens(2_000_000)).toBe('2M')
   })
 })

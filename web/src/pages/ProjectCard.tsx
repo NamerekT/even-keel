@@ -1,22 +1,13 @@
-import { useState } from 'react'
 import { Link } from 'react-router'
 import type { BatonState } from '../../../src/state.js'
-import { useLive } from '../live/context.js'
-import { cardTask, chainProgress, chainStatus, projectSlot, projectTasks, type ChainStatus } from '../state.js'
+import { useCommand } from '../live/useCommand.js'
+import { cardTask, chainProgress, chainStatus, projectSlot, projectTasks } from '../state.js'
 import { Lamp } from '../ui/Lamp.js'
 import { seriesStyle } from '../ui/series.js'
-
-const STATUS_LABELS: Record<ChainStatus['kind'], string> = {
-  running: 'идёт',
-  paused: 'пауза',
-  queued: 'в очереди',
-  idle: 'не запущена',
-}
+import { StatusChip } from '../ui/StatusChip.js'
 
 export function ProjectCard({ state, project }: { state: BatonState; project: string }) {
-  const { command } = useLive()
-  const [sending, setSending] = useState(false)
-  const [failure, setFailure] = useState<string | null>(null)
+  const { send, sending, failure } = useCommand()
 
   const status = chainStatus(state.chain, project)
   const order = state.chain.projects[project]
@@ -26,18 +17,6 @@ export function ProjectCard({ state, project }: { state: BatonState; project: st
   const canStart = status.kind === 'idle' && order !== undefined && order.error === null && order.order.length > 0
   const error = order?.error ?? (status.kind === 'paused' ? status.error : null) ?? failure
 
-  const start = async () => {
-    setSending(true)
-    setFailure(null)
-    try {
-      await command('start', { project })
-    } catch (reason) {
-      setFailure(reason instanceof Error ? reason.message : String(reason))
-    } finally {
-      setSending(false)
-    }
-  }
-
   return (
     <article className={`card card--${status.kind}`} style={seriesStyle(slot)}>
       <header className="card__head">
@@ -45,10 +24,7 @@ export function ProjectCard({ state, project }: { state: BatonState; project: st
         <Link to={`/p/${project}`} className="card__key">
           {project}
         </Link>
-        <span className={`chip chip--${status.kind}`}>
-          {STATUS_LABELS[status.kind]}
-          {status.kind === 'queued' && <span className="chip__extra"> · {status.position}-я</span>}
-        </span>
+        <StatusChip status={status} />
       </header>
 
       <div className="card__progress">
@@ -82,7 +58,7 @@ export function ProjectCard({ state, project }: { state: BatonState; project: st
 
       {canStart && (
         <footer className="card__foot">
-          <button type="button" className="button button--primary" disabled={sending} onClick={() => void start()}>
+          <button type="button" className="button button--primary" disabled={sending} onClick={() => void send('start', { project })}>
             {state.chain.active === null ? 'Запустить' : 'В очередь'}
           </button>
         </footer>

@@ -1,12 +1,15 @@
 import { readFileSync } from 'node:fs'
+import type { ContextScale } from './state.js'
 
 export interface BatonConfig {
   host: string
   port: number
   projects: Record<string, string>
+  context: ContextScale
 }
 
 const PROJECT_KEY = /^[A-Z][A-Z0-9_]{0,4}$/
+const DEFAULT_CONTEXT: ContextScale = { window: 600_000, warn: 50, danger: 80 }
 
 export function parseConfig(raw: unknown): BatonConfig {
   const input = (raw ?? {}) as Partial<Record<keyof BatonConfig, unknown>>
@@ -29,7 +32,21 @@ export function parseConfig(raw: unknown): BatonConfig {
     projects[key] = path
   }
 
-  return { host, port, projects }
+  return { host, port, projects, context: parseContext(input.context) }
+}
+
+function parseContext(raw: unknown): ContextScale {
+  if (raw === undefined) return { ...DEFAULT_CONTEXT }
+  if (typeof raw !== 'object' || raw === null) throw new Error('config: context must be an object')
+  const { window, warn, danger } = { ...DEFAULT_CONTEXT, ...(raw as Partial<ContextScale>) }
+  if (typeof window !== 'number' || !Number.isInteger(window) || window < 1) {
+    throw new Error(`config: context.window must be a positive integer of tokens, got ${String(window)}`)
+  }
+  const percent = (value: unknown) => typeof value === 'number' && value > 0 && value <= 100
+  if (!percent(warn) || !percent(danger) || warn >= danger) {
+    throw new Error(`config: context.warn and context.danger must be percents with 0 < warn < danger <= 100`)
+  }
+  return { window, warn, danger }
 }
 
 export function loadConfig(file: string): BatonConfig {

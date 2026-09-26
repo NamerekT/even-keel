@@ -28,6 +28,13 @@ export function plural(count: number, one: string, few: string, many: string): s
   return many
 }
 
+export function formatTokens(tokens: number): string {
+  if (tokens < 1_000) return String(tokens)
+  const thousands = Math.round(tokens / 1_000)
+  if (thousands < 1_000) return `${thousands}k`
+  return `${Number((tokens / 1_000_000).toFixed(1))}M`
+}
+
 function pair(major: number, majorUnit: string, minor: number, minorUnit: string): string {
   return minor === 0 ? `${major} ${majorUnit}` : `${major} ${majorUnit} ${minor} ${minorUnit}`
 }

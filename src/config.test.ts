@@ -8,6 +8,7 @@ describe('parseConfig', () => {
       host: '0.0.0.0',
       port: 4747,
       projects: { ABC: 'C:\\repos\\abc' },
+      context: { window: 600_000, warn: 50, danger: 80 },
     })
   })
 
@@ -31,5 +32,32 @@ describe('parseConfig', () => {
 
   it('rejects a missing projects map', () => {
     expect(() => parseConfig({})).toThrow(/projects/)
+  })
+  it('keeps an explicit context scale', () => {
+    const config = parseConfig({ projects: {}, context: { window: 200_000, warn: 60, danger: 85 } })
+    expect(config.context).toEqual({ window: 200_000, warn: 60, danger: 85 })
+  })
+
+  it('fills the missing parts of a context scale', () => {
+    expect(parseConfig({ projects: {}, context: { window: 1_000_000 } }).context).toEqual({
+      window: 1_000_000,
+      warn: 50,
+      danger: 80,
+    })
+  })
+
+  it('rejects a context window that is not a positive integer', () => {
+    expect(() => parseConfig({ projects: {}, context: { window: 0 } })).toThrow(/context.window/)
+    expect(() => parseConfig({ projects: {}, context: { window: 1.5 } })).toThrow(/context.window/)
+  })
+
+  it('rejects context thresholds outside 0..100 or out of order', () => {
+    expect(() => parseConfig({ projects: {}, context: { warn: 0 } })).toThrow(/context/)
+    expect(() => parseConfig({ projects: {}, context: { danger: 120 } })).toThrow(/context/)
+    expect(() => parseConfig({ projects: {}, context: { warn: 80, danger: 80 } })).toThrow(/context/)
+  })
+
+  it('rejects a context scale that is not an object', () => {
+    expect(() => parseConfig({ projects: {}, context: 600_000 })).toThrow(/context/)
   })
 })

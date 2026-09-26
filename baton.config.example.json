@@ -3,5 +3,10 @@
   "port": 4747,
   "projects": {
     "ABC": "C:\\repos\\example-project"
+  },
+  "context": {
+    "window": 600000,
+    "warn": 50,
+    "danger": 80
   }
 }

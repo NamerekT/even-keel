@@ -77,6 +77,7 @@ const getState = (): BatonState => ({
   limits: limits.limits,
   huly,
   launches: launchDays(launches, new Date(), LAUNCH_CHART_DAYS),
+  context: config.context,
 })
 
 const server = createBatonServer({

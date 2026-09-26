@@ -1,6 +1,7 @@
+import { chainOrder } from '../../src/chain/order.js'
 import { isOpen, type HulyTask } from '../../src/huly/model.js'
 import type { Lamp } from '../../src/sessions/agents.js'
-import type { BatonState, SessionView } from '../../src/state.js'
+import type { BatonState, ContextScale, SessionView } from '../../src/state.js'
 
 export type CardLamp = Lamp | 'idle'
 
@@ -17,7 +18,22 @@ export interface CardTask {
   next: boolean
 }
 
+export type BlockLamp = 'done' | 'working' | 'waiting' | 'stopped' | 'error' | 'limit' | 'ahead' | 'canceled'
+
+export interface ChainBlock {
+  id: string
+  title: string | null
+  status: string | null
+  lamp: BlockLamp
+  current: boolean
+  session: SessionView | null
+}
+
+export type ContextLevel = 'ok' | 'warn' | 'danger'
+
 export const PROJECT_SLOTS = 8
+
+const byNumber = (a: string, b: string) => a.localeCompare(b, 'en', { numeric: true })
 
 export function projectTasks(state: BatonState, project: string): HulyTask[] {
   return state.tasks.filter((task) => task.id.startsWith(`${project}-`))
@@ -50,8 +66,7 @@ export function cardTask(state: BatonState, project: string): CardTask | null {
   const current = active?.project === project ? active.current?.task : undefined
   const id = current ?? state.chain.projects[project]?.order[0]
   if (id === undefined) return null
-  const sessions = state.sessions.filter((view) => view.task === id)
-  const session = sessions.find((view) => view.lamp !== 'finished') ?? sessions.at(-1)
+  const session = taskSession(state.sessions, id)
   return {
     id,
     title: state.tasks.find((task) => task.id === id)?.title ?? null,
@@ -63,4 +78,62 @@ export function cardTask(state: BatonState, project: string): CardTask | null {
 export function projectSlot(projects: string[], project: string): number | null {
   const index = projects.indexOf(project)
   return index < 0 || index >= PROJECT_SLOTS ? null : index + 1
+}
+
+export function chainBlocks(state: BatonState, project: string): ChainBlock[] {
+  const tasks = projectTasks(state, project)
+  const byId = new Map(tasks.map((task) => [task.id, task]))
+  const closed = tasks.filter((task) => !isOpen(task.status))
+  const order = state.chain.projects[project]
+  const open =
+    order === undefined || order.error !== null
+      ? tasks.filter((task) => isOpen(task.status)).map((task) => task.id).sort(byNumber)
+      : order.order
+  const active = state.chain.active
+  const current = active?.project === project ? active.current?.task : undefined
+
+  return [...closedOrder(closed), ...open].map((id) => {
+    const task = byId.get(id)
+    const session = taskSession(state.sessions, id) ?? null
+    return {
+      id,
+      title: task?.title ?? null,
+      status: task?.status.name ?? null,
+      lamp: blockLamp(task, session),
+      current: id === current,
+      session,
+    }
+  })
+}
+
+export function contextFill(tokens: number, scale: ContextScale): { percent: number; level: ContextLevel } {
+  const percent = Math.min(100, (tokens / scale.window) * 100)
+  const level = percent >= scale.danger ? 'danger' : percent >= scale.warn ? 'warn' : 'ok'
+  return { percent, level }
+}
+
+export function queuedAfter(chain: BatonState['chain'], project: string): string | null {
+  const index = chain.queue.indexOf(project)
+  if (index < 0) return null
+  return index === 0 ? (chain.active?.project ?? null) : chain.queue[index - 1]!
+}
+
+function taskSession(sessions: SessionView[], task: string): SessionView | undefined {
+  const own = sessions.filter((view) => view.task === task)
+  return own.find((view) => view.lamp !== 'finished') ?? own.at(-1)
+}
+
+function closedOrder(tasks: HulyTask[]): string[] {
+  try {
+    return chainOrder(tasks)
+  } catch {
+    return tasks.map((task) => task.id).sort(byNumber)
+  }
+}
+
+function blockLamp(task: HulyTask | undefined, session: SessionView | null): BlockLamp {
+  if (task?.status.category === 'Won') return 'done'
+  if (task?.status.category === 'Lost') return 'canceled'
+  if (session === null) return 'ahead'
+  return session.lamp === 'finished' ? 'stopped' : session.lamp
 }

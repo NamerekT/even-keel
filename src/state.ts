@@ -23,6 +23,12 @@ export interface SessionView {
   remoteUrl: string | null
 }
 
+export interface ContextScale {
+  window: number
+  warn: number
+  danger: number
+}
+
 export interface BatonState {
   startedAt: string
   projects: string[]
@@ -32,4 +38,5 @@ export interface BatonState {
   limits: RateLimits | null
   huly: HulyHealth
   launches: LaunchDay[]
+  context: ContextScale
 }
