@@ -39,6 +39,8 @@ export interface ChainBlock {
   title: string | null
   status: string | null
   lamp: BlockLamp
+  open: boolean
+  blockedBy: string[]
   current: boolean
   session: SessionView | null
 }
@@ -114,6 +116,8 @@ export function chainBlocks(state: BatonState, project: string): ChainBlock[] {
       title: task?.title ?? null,
       status: task?.status.name ?? null,
       lamp: blockLamp(task, session),
+      open: task !== undefined && isOpen(task.status),
+      blockedBy: task?.blockedBy ?? [],
       current: id === current,
       session,
     }

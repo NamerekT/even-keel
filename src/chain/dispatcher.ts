@@ -1,5 +1,5 @@
 import { isOpen, type HulyTask } from '../huly/model.js'
-import { chainOrder, checkOrder } from './order.js'
+import { byNumber, chainOrder, checkOrder } from './order.js'
 
 export interface CurrentTask {
   task: string
@@ -57,6 +57,7 @@ export class Dispatcher {
 
   setTasks(project: string, tasks: HulyTask[]): void {
     this.tasks.set(project, tasks.filter((task) => isOpen(task.status)))
+    if (this.placeNew(project)) this.deps.save(this.state)
     this.kick()
   }
 
@@ -108,7 +109,12 @@ export class Dispatcher {
 
   reorder(project: string, order: string[]): void {
     this.requireProject(project)
-    checkOrder(this.tasks.get(project) ?? [], order)
+    const tasks = this.tasks.get(project) ?? []
+    checkOrder(tasks, order)
+    const current = this.currentOf(project)
+    if (current !== undefined && tasks.some((task) => task.id === current) && order[0] !== current) {
+      throw new Error(`chain: ${current} is running and stays first`)
+    }
     this.state.orders[project] = [...order]
     this.changed()
   }
@@ -117,7 +123,7 @@ export class Dispatcher {
     const result: Record<string, ProjectOrder> = {}
     for (const [project, tasks] of this.tasks) {
       try {
-        result[project] = { order: chainOrder(tasks, this.state.orders[project]), error: null }
+        result[project] = { order: chainOrder(tasks, this.preferred(project)), error: null }
       } catch (error) {
         result[project] = { order: [], error: messageOf(error) }
       }
@@ -131,6 +137,37 @@ export class Dispatcher {
 
   private requireProject(project: string): void {
     if (!this.deps.projects.includes(project)) throw new Error(`chain: ${project} is not a configured project`)
+  }
+
+  private currentOf(project: string): string | undefined {
+    const active = this.state.active
+    return active?.project === project ? active.current?.task : undefined
+  }
+
+  private preferred(project: string, stored = this.state.orders[project]): string[] | undefined {
+    const current = this.currentOf(project)
+    if (stored === undefined || current === undefined) return stored
+    return [current, ...stored.filter((id) => id !== current)]
+  }
+
+  private placeNew(project: string): boolean {
+    const stored = this.state.orders[project]
+    if (stored === undefined) return false
+    const tasks = this.tasks.get(project) ?? []
+    const open = new Set(tasks.map((task) => task.id))
+    const kept = stored.filter((id) => open.has(id))
+    const fresh = [...open].filter((id) => !stored.includes(id)).sort(byNumber)
+    if (fresh.length === 0 && kept.length === stored.length) return false
+
+    const base = this.preferred(project, kept)!.filter((id) => open.has(id))
+    const current = this.currentOf(project)
+    base.splice(current !== undefined && base[0] === current ? 1 : 0, 0, ...fresh)
+    try {
+      this.state.orders[project] = chainOrder(tasks, base)
+    } catch {
+      this.state.orders[project] = base
+    }
+    return true
   }
 
   private requireLaunches(): void {
@@ -178,8 +215,6 @@ export class Dispatcher {
         this.halt(chain, messageOf(error))
         return
       }
-      const preferred = this.state.orders[chain.project]
-      if (preferred !== undefined) this.state.orders[chain.project] = preferred.filter((id) => order.includes(id))
 
       const task = order[0]
       if (task === undefined) {

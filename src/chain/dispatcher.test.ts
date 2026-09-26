@@ -333,4 +333,60 @@ describe('Dispatcher', () => {
     expect(dispatcher.state.active).toMatchObject({ paused: true, current: null })
     expect(dispatcher.state.active?.error).toMatch(/ABC-1.*restart/)
   })
+
+  it('puts a new task at the head of a manual order and keeps it there', () => {
+    const { dispatcher, saved } = setup()
+    dispatcher.setTasks('ABC', [task('ABC-1'), task('ABC-2')])
+    dispatcher.reorder('ABC', ['ABC-2', 'ABC-1'])
+    dispatcher.setTasks('ABC', [task('ABC-1'), task('ABC-2'), task('ABC-4'), task('ABC-3')])
+    expect(dispatcher.orders().ABC?.order).toEqual(['ABC-3', 'ABC-4', 'ABC-2', 'ABC-1'])
+    expect(saved.at(-1)?.orders.ABC).toEqual(['ABC-3', 'ABC-4', 'ABC-2', 'ABC-1'])
+  })
+
+  it('puts a new task right after the running one', async () => {
+    const { dispatcher } = setup()
+    dispatcher.setTasks('ABC', [task('ABC-1'), task('ABC-2')])
+    dispatcher.reorder('ABC', ['ABC-2', 'ABC-1'])
+    dispatcher.start('ABC')
+    await dispatcher.idle()
+    dispatcher.setTasks('ABC', [task('ABC-1'), task('ABC-2', active), task('ABC-3')])
+    expect(dispatcher.orders().ABC?.order).toEqual(['ABC-2', 'ABC-3', 'ABC-1'])
+  })
+
+  it('puts a new blocked task right after its last blocker', () => {
+    const { dispatcher } = setup()
+    dispatcher.setTasks('ABC', [task('ABC-1'), task('ABC-2'), task('ABC-3')])
+    dispatcher.reorder('ABC', ['ABC-3', 'ABC-1', 'ABC-2'])
+    dispatcher.setTasks('ABC', [task('ABC-1'), task('ABC-2'), task('ABC-3'), task('ABC-4', todo, 'ABC-3', 'ABC-1')])
+    expect(dispatcher.orders().ABC?.order).toEqual(['ABC-3', 'ABC-1', 'ABC-4', 'ABC-2'])
+  })
+
+  it('treats a reopened task as new', () => {
+    const { dispatcher } = setup()
+    dispatcher.setTasks('ABC', [task('ABC-1'), task('ABC-2'), task('ABC-3')])
+    dispatcher.reorder('ABC', ['ABC-1', 'ABC-2', 'ABC-3'])
+    dispatcher.setTasks('ABC', [task('ABC-1'), task('ABC-2'), task('ABC-3', done)])
+    dispatcher.setTasks('ABC', [task('ABC-1'), task('ABC-2'), task('ABC-3')])
+    expect(dispatcher.orders().ABC?.order).toEqual(['ABC-3', 'ABC-1', 'ABC-2'])
+  })
+
+  it('keeps ordering by number until the order is changed by hand', () => {
+    const { dispatcher } = setup()
+    dispatcher.setTasks('ABC', [task('ABC-2'), task('ABC-3')])
+    dispatcher.setTasks('ABC', [task('ABC-1'), task('ABC-2'), task('ABC-3')])
+    expect(dispatcher.orders().ABC?.order).toEqual(['ABC-1', 'ABC-2', 'ABC-3'])
+    expect(dispatcher.state.orders.ABC).toBeUndefined()
+  })
+
+  it('keeps the running task first and refuses to move anything above it', async () => {
+    const { dispatcher } = setup()
+    dispatcher.setTasks('ABC', [task('ABC-1'), task('ABC-2'), task('ABC-3')])
+    dispatcher.start('ABC')
+    await dispatcher.idle()
+    dispatcher.state.orders.ABC = ['ABC-3', 'ABC-1', 'ABC-2']
+    expect(dispatcher.orders().ABC?.order).toEqual(['ABC-1', 'ABC-3', 'ABC-2'])
+    expect(() => dispatcher.reorder('ABC', ['ABC-2', 'ABC-1', 'ABC-3'])).toThrow('ABC-1 is running and stays first')
+    dispatcher.reorder('ABC', ['ABC-1', 'ABC-2', 'ABC-3'])
+    expect(dispatcher.orders().ABC?.order).toEqual(['ABC-1', 'ABC-2', 'ABC-3'])
+  })
 })

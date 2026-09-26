@@ -35,7 +35,7 @@ export function Project({ state }: { state: BatonState }) {
         {blocks.length === 0 ? (
           <p className="placeholder">{order === undefined ? 'Задачи ещё не загружены.' : 'Задач в цепочке нет.'}</p>
         ) : (
-          <ChainSnake key={key} chain={blocks} scale={state.context} focus={focus} />
+          <ChainSnake key={key} project={key} chain={blocks} scale={state.context} focus={focus} />
         )}
       </div>
       {selected !== undefined && (

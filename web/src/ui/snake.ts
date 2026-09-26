@@ -37,3 +37,37 @@ export function arrowPath(from: Box, to: Box, step: Step): string {
     ? `M ${from.left + from.width} ${y} L ${to.left} ${y}`
     : `M ${from.left} ${y} L ${to.left + to.width} ${y}`
 }
+
+const LINK_INSET = 16
+
+export interface LinkRoute {
+  gap: number
+  side: 'above' | 'below'
+  lane: number
+}
+
+export function linkPath(from: Box, to: Box, { gap, side, lane }: LinkRoute): string {
+  const fromX = from.left + from.width / 2 + LINK_INSET
+  const toX = to.left + to.width / 2 - LINK_INSET
+  const fromBottom = from.top + from.height
+  const shift = gap / 3 + lane * 6
+  const path = (...points: [number, number][]) => points.map(([x, y], index) => `${index === 0 ? 'M' : 'L'} ${x} ${y}`).join(' ')
+
+  if (from.top === to.top) {
+    if (side === 'above') return path([fromX, from.top], [fromX, from.top - shift], [toX, from.top - shift], [toX, to.top])
+    const bottom = to.top + to.height
+    return path([fromX, fromBottom], [fromX, fromBottom + shift], [toX, fromBottom + shift], [toX, bottom])
+  }
+  if (to.top - fromBottom <= gap) {
+    return path([fromX, fromBottom], [fromX, fromBottom + shift], [toX, fromBottom + shift], [toX, to.top])
+  }
+  const laneX = Math.min(from.left, to.left) - 6 - lane * 4
+  return path(
+    [fromX, fromBottom],
+    [fromX, fromBottom + shift],
+    [laneX, fromBottom + shift],
+    [laneX, to.top - shift],
+    [toX, to.top - shift],
+    [toX, to.top],
+  )
+}

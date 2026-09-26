@@ -1,6 +1,7 @@
 import type { AccountLogin, AccountView, ClaudeAccount } from '../../../src/account/model.js'
 import type { LaunchEntry } from '../../../src/chain/dispatcher.js'
 import { launchDays } from '../../../src/chain/launches.js'
+import { checkOrder } from '../../../src/chain/order.js'
 import type { HulyHealth, HulyLinkState } from '../../../src/huly/health.js'
 import type { HulyTask, StatusCategory } from '../../../src/huly/model.js'
 import type { FeedLine } from '../../../src/sessions/transcript.js'
@@ -94,14 +95,14 @@ function fakeState(
     task('ABC-3', 'Опрос трекера по расписанию', 'Canceled', 'Lost', ['ABC-2']),
     task('ABC-4', 'Запуск сессий в фоне', 'Done', 'Won', ['ABC-2']),
     task('ABC-5', 'Цепочка задач по связям', 'In Progress', 'Active', ['ABC-4']),
-    task('ABC-6', 'Страница проекта', 'In Progress', 'Active', ['ABC-5']),
+    task('ABC-6', 'Страница проекта', 'In Progress', 'Active'),
     task('ABC-7', 'Разбор транскриптов сессий', 'In Progress', 'Active', ['ABC-6']),
-    task('ABC-8', 'Лимиты подписки в шапке', 'In Progress', 'Active', ['ABC-7']),
-    task('ABC-9', 'Журнал запусков', 'In Progress', 'Active', ['ABC-8']),
-    task('ABC-10', 'Очередь цепочек', 'Todo', 'ToDo', ['ABC-9']),
-    task('ABC-11', 'Панель сессии', 'Backlog', 'UnStarted', ['ABC-10']),
-    task('ABC-12', 'Служба Windows с перезапуском при падении', 'Backlog', 'UnStarted', ['ABC-11']),
-    task('ABC-13', 'Уведомления на телефон', 'Backlog', 'UnStarted', ['ABC-12']),
+    task('ABC-8', 'Лимиты подписки в шапке', 'In Progress', 'Active'),
+    task('ABC-9', 'Журнал запусков', 'In Progress', 'Active', ['ABC-7']),
+    task('ABC-10', 'Очередь цепочек', 'Todo', 'ToDo'),
+    task('ABC-11', 'Панель сессии', 'Backlog', 'UnStarted', ['ABC-8', 'ABC-10']),
+    task('ABC-12', 'Служба Windows с перезапуском при падении', 'Backlog', 'UnStarted'),
+    task('ABC-13', 'Уведомления на телефон', 'Backlog', 'UnStarted', ['ABC-6']),
     task('DEMO-6', 'Старый формат отчёта', 'Canceled', 'Lost'),
     task('DEMO-7', 'Импорт настроек', 'Todo', 'ToDo'),
     task('DEMO-8', 'Экспорт отчёта в CSV', 'Backlog', 'UnStarted', ['DEMO-7']),
@@ -185,6 +186,14 @@ function requeue(state: BatonState, order: string[]): BatonState {
   return { ...state, chain: { ...state.chain, queue: [...order] } }
 }
 
+function reorder(state: BatonState, project: string, order: string[]): BatonState {
+  const tasks = state.tasks.filter((task) => task.id.startsWith(`${project}-`) && order.includes(task.id))
+  checkOrder(tasks, order)
+  const current = state.chain.active?.project === project ? state.chain.active.current?.task : undefined
+  if (current !== undefined && order[0] !== current) throw new Error(`chain: ${current} is running and stays first`)
+  return { ...state, chain: { ...state.chain, projects: { ...state.chain.projects, [project]: { order: [...order], error: null } } } }
+}
+
 function dequeue(state: BatonState, project: string): BatonState {
   return { ...state, chain: { ...state.chain, queue: state.chain.queue.filter((key) => key !== project) } }
 }
@@ -244,6 +253,7 @@ function fakeCommand(state: BatonState, name: string, body: Record<string, unkno
   if (name === 'chain/pause' || name === 'chain/resume') return setPaused(state, name === 'chain/pause')
   if (name === 'chain/queue') return requeue(state, body.order as string[])
   if (name === 'chain/dequeue') return dequeue(state, String(body.project))
+  if (name === 'chain/order') return reorder(state, String(body.project), body.order as string[])
   if (name.startsWith('account/')) return { ...state, account: accountCommand(state.account, name, body) }
   throw new Error(`fake: ${name} is not supported`)
 }

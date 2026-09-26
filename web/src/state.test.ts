@@ -215,6 +215,18 @@ describe('chainBlocks', () => {
     expect(chainBlocks(state, 'ABC').map((block) => block.id)).toEqual(['ABC-2', 'ABC-1', 'ABC-3', 'ABC-5', 'ABC-4'])
   })
 
+  it('marks which tasks are open and carries their blockers', () => {
+    const state = baton({
+      tasks: [task('ABC-1', 'Won'), task('ABC-2', 'ToDo', ['ABC-1']), task('ABC-3', 'ToDo', ['ABC-2', 'XYZ-4'])],
+      chain: chain({ projects: { ABC: { order: ['ABC-2', 'ABC-3'], error: null } } }),
+    })
+    expect(chainBlocks(state, 'ABC').map(({ id, open, blockedBy }) => ({ id, open, blockedBy }))).toEqual([
+      { id: 'ABC-1', open: false, blockedBy: [] },
+      { id: 'ABC-2', open: true, blockedBy: ['ABC-1'] },
+      { id: 'ABC-3', open: true, blockedBy: ['ABC-2', 'XYZ-4'] },
+    ])
+  })
+
   it('lights done green, canceled as canceled and open tasks without a session grey', () => {
     const state = baton({
       tasks: [task('ABC-1', 'Won'), task('ABC-2', 'Lost'), task('ABC-3', 'ToDo')],

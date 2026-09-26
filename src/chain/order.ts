@@ -1,6 +1,6 @@
 import type { HulyTask } from '../huly/model.js'
 
-const byNumber = (a: string, b: string) => a.localeCompare(b, 'en', { numeric: true })
+export const byNumber = (a: string, b: string) => a.localeCompare(b, 'en', { numeric: true })
 
 export function chainOrder(tasks: HulyTask[], preferred: string[] = []): string[] {
   const blockers = blockersWithin(tasks)

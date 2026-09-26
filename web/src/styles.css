@@ -858,6 +858,76 @@ a:focus-visible {
   fill: var(--fg-muted);
 }
 
+.snake__arrows--hidden {
+  opacity: 0;
+}
+
+.snake__arrow--strong {
+  stroke: var(--fg);
+  stroke-width: 3;
+  stroke-linejoin: round;
+}
+
+.snake__head--strong {
+  fill: var(--fg);
+}
+
+.snake__legend-link {
+  width: 18px;
+  height: 3px;
+  border-radius: 2px;
+  background: var(--fg);
+}
+
+.snake__hint {
+  margin: 0;
+  color: var(--fg-muted);
+  font-size: 13px;
+}
+
+.snake__list--dragging .block,
+.snake__list--landing .block {
+  transition: transform 160ms ease;
+}
+
+.snake__list--dragging {
+  cursor: grabbing;
+}
+
+.snake__list--dragging .block:hover {
+  border-color: var(--border);
+}
+
+.block--movable {
+  cursor: grab;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+}
+
+.snake__list--dragging .block--dragged {
+  z-index: 2;
+  transition: none;
+  border-color: var(--accent);
+  box-shadow: 0 8px 24px color-mix(in srgb, var(--fg) 18%, transparent);
+  cursor: grabbing;
+}
+
+.block--blocker {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent);
+}
+
+.block--dependent {
+  border-style: dashed;
+  border-color: var(--accent);
+}
+
+.block__badge--blocker,
+.block__badge--dependent {
+  background: color-mix(in srgb, var(--accent) 16%, transparent);
+}
+
 .snake__legend {
   display: flex;
   flex-wrap: wrap;
