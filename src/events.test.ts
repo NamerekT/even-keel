@@ -1,0 +1,26 @@
+import { describe, expect, it } from 'vitest'
+import { EventHub, formatEvent } from './events.js'
+
+describe('formatEvent', () => {
+  it('writes an SSE frame with the event name and JSON data', () => {
+    expect(formatEvent('state', { a: 1 })).toBe('event: state\ndata: {"a":1}\n\n')
+  })
+})
+
+describe('EventHub', () => {
+  it('sends a broadcast to every subscriber until it unsubscribes', () => {
+    const hub = new EventHub()
+    const first: string[] = []
+    const second: string[] = []
+    const dropFirst = hub.subscribe((frame) => first.push(frame))
+    hub.subscribe((frame) => second.push(frame))
+
+    hub.broadcast('ping', 1)
+    dropFirst()
+    hub.broadcast('ping', 2)
+
+    expect(first).toEqual([formatEvent('ping', 1)])
+    expect(second).toEqual([formatEvent('ping', 1), formatEvent('ping', 2)])
+    expect(hub.size).toBe(1)
+  })
+})
