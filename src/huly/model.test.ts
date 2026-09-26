@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { diffStatuses, isOpen, milestonesOf, missingBlockers, toTasks, type HulyIssueDoc, type HulyStatusDoc, type HulyTask } from './model.js'
+import { diffStatuses, isOpen, milestonesOf, missingBlockers, toTasks, withoutParents, type HulyIssueDoc, type HulyStatusDoc, type HulyTask } from './model.js'
 
 const statuses: HulyStatusDoc[] = [
   { _id: 'tracker:status:Backlog', name: 'Backlog', category: 'task:statusCategory:UnStarted' },
@@ -118,5 +118,21 @@ describe('milestonesOf', () => {
       issue('i5', 'ABC-5', 'tracker:status:Todo'),
     ]
     expect(milestonesOf(issues)).toEqual(['m1', 'm2'])
+  })
+})
+
+describe('withoutParents', () => {
+  it('drops issues that have sub-issues and keeps the rest', () => {
+    const issues: HulyIssueDoc[] = [
+      { ...issue('i1', 'ABC-1', 'tracker:status:Todo'), subIssues: 2 },
+      { ...issue('i2', 'ABC-2', 'tracker:status:Todo'), subIssues: 0 },
+      issue('i3', 'ABC-3', 'tracker:status:Todo'),
+    ]
+    expect(withoutParents(issues).map((doc) => doc.identifier)).toEqual(['ABC-2', 'ABC-3'])
+  })
+
+  it('drops a parent even when it is already closed', () => {
+    const closedParent: HulyIssueDoc = { ...issue('i1', 'ABC-1', 'tracker:status:Done'), subIssues: 1 }
+    expect(withoutParents([closedParent])).toEqual([])
   })
 })

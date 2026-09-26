@@ -31,6 +31,7 @@ export interface HulyIssueDoc {
   status: string
   blockedBy?: { _id: string }[]
   milestone?: string | null
+  subIssues?: number
 }
 
 const CATEGORY_PREFIX = 'task:statusCategory:'
@@ -76,6 +77,10 @@ export function missingBlockers(issues: HulyIssueDoc[]): string[] {
 
 export function milestonesOf(issues: HulyIssueDoc[]): string[] {
   return [...new Set(issues.flatMap((issue) => issue.milestone ?? []))]
+}
+
+export function withoutParents(issues: HulyIssueDoc[]): HulyIssueDoc[] {
+  return issues.filter((issue) => (issue.subIssues ?? 0) === 0)
 }
 
 export function isOpen(status: TaskStatus): boolean {
