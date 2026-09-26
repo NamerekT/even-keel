@@ -14,7 +14,13 @@ const task = (id: string, status: TaskStatus = todo, ...blockedBy: string[]): Hu
 })
 
 function setup(
-  options: { state?: ChainState; failLaunch?: string; live?: Record<string, string>; projects?: string[] } = {},
+  options: {
+    state?: ChainState
+    failLaunch?: string
+    live?: Record<string, string>
+    projects?: string[]
+    blocked?: string
+  } = {},
 ) {
   const launched: string[] = []
   const saved: ChainState[] = []
@@ -28,6 +34,7 @@ function setup(
       return `session-${++counter}`
     },
     liveSession: (id) => options.live?.[id],
+    blocked: () => options.blocked,
     save: (state) => saved.push(structuredClone(state)),
     journal: (entry) => journal.push(entry),
     now: () => new Date('2026-09-26T12:00:00Z'),
@@ -146,6 +153,51 @@ describe('Dispatcher', () => {
     await dispatcher.idle()
     expect(launched).toEqual(['ABC/ABC-1'])
     expect(dispatcher.state.active).toMatchObject({ paused: false, error: null })
+  })
+
+  it('refuses to start or resume a chain while launches are blocked', async () => {
+    const options: { blocked?: string } = { blocked: 'claude: not signed in' }
+    const { dispatcher, launched, saved } = setup(options)
+    dispatcher.setTasks('ABC', [task('ABC-1')])
+    expect(() => dispatcher.start('ABC')).toThrow('claude: not signed in')
+    expect(saved).toEqual([])
+
+    options.blocked = undefined
+    dispatcher.start('ABC')
+    dispatcher.pause()
+    options.blocked = 'claude: sign-in is in progress'
+    expect(() => dispatcher.resume()).toThrow('claude: sign-in is in progress')
+    expect(dispatcher.state.active).toMatchObject({ paused: true })
+    await dispatcher.idle()
+    expect(launched).toEqual([])
+  })
+
+  it('still queues a project behind a running chain while launches are blocked', () => {
+    const options: { blocked?: string } = {}
+    const { dispatcher } = setup(options)
+    dispatcher.start('ABC')
+    options.blocked = 'claude: not signed in'
+    dispatcher.start('XYZ')
+    expect(dispatcher.state.queue).toEqual(['XYZ'])
+  })
+
+  it('pauses with the reason instead of launching the next task while launches are blocked', async () => {
+    const options: { blocked?: string } = {}
+    const { dispatcher, launched } = setup(options)
+    dispatcher.setTasks('ABC', [task('ABC-1'), task('ABC-2')])
+    dispatcher.start('ABC')
+    await dispatcher.idle()
+
+    options.blocked = 'claude: not signed in'
+    dispatcher.setTasks('ABC', [task('ABC-2')])
+    await dispatcher.idle()
+    expect(launched).toEqual(['ABC/ABC-1'])
+    expect(dispatcher.state.active).toMatchObject({ paused: true, error: 'claude: not signed in', current: null })
+
+    options.blocked = undefined
+    dispatcher.resume()
+    await dispatcher.idle()
+    expect(launched).toEqual(['ABC/ABC-1', 'ABC/ABC-2'])
   })
 
   it('pauses with the cycle when the order cannot be built', async () => {

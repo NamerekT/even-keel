@@ -13,24 +13,34 @@ export interface ChainControl {
   requeue(order: string[]): void
 }
 
+export interface AccountControl {
+  login(): void
+  code(code: string): void
+  cancel(): void
+}
+
 export interface ServerDeps {
   hub: EventHub
   publicDir: string
   getState: () => unknown
   control: ChainControl
+  account: AccountControl
   launches: () => unknown
 }
 
-type Command = (control: ChainControl, body: Record<string, unknown>) => void
+type Command = (deps: ServerDeps, body: Record<string, unknown>) => void
 
 const COMMANDS: Record<string, Command> = {
-  start: (control, body) => control.start(projectOf(body)),
-  pause: (control) => control.pause(),
-  resume: (control) => control.resume(),
-  stop: (control) => control.stop(),
-  dequeue: (control, body) => control.dequeue(projectOf(body)),
-  order: (control, body) => control.reorder(projectOf(body), listOf(body, 'order must be a list of task ids')),
-  queue: (control, body) => control.requeue(listOf(body, 'order must be a list of projects')),
+  'chain/start': ({ control }, body) => control.start(projectOf(body)),
+  'chain/pause': ({ control }) => control.pause(),
+  'chain/resume': ({ control }) => control.resume(),
+  'chain/stop': ({ control }) => control.stop(),
+  'chain/dequeue': ({ control }, body) => control.dequeue(projectOf(body)),
+  'chain/order': ({ control }, body) => control.reorder(projectOf(body), listOf(body, 'order must be a list of task ids')),
+  'chain/queue': ({ control }, body) => control.requeue(listOf(body, 'order must be a list of projects')),
+  'account/login': ({ account }) => account.login(),
+  'account/code': ({ account }, body) => account.code(codeOf(body)),
+  'account/cancel': ({ account }) => account.cancel(),
 }
 
 const MAX_BODY_BYTES = 64 * 1024
@@ -67,14 +77,14 @@ async function route(deps: ServerDeps, request: IncomingMessage, response: Serve
     return
   }
 
-  if (request.method === 'POST' && path.startsWith('/api/chain/')) {
-    const command = COMMANDS[path.slice('/api/chain/'.length)]
+  if (request.method === 'POST' && path.startsWith('/api/')) {
+    const command = COMMANDS[path.slice('/api/'.length)]
     if (command === undefined) {
       response.writeHead(404).end()
       return
     }
     try {
-      command(deps.control, await readJsonBody(request))
+      command(deps, await readJsonBody(request))
     } catch (error) {
       sendJson(response, 400, { error: error instanceof Error ? error.message : String(error) })
       return
@@ -124,6 +134,12 @@ async function readJsonBody(request: IncomingMessage): Promise<Record<string, un
 function projectOf(body: Record<string, unknown>): string {
   if (typeof body.project !== 'string' || body.project === '') throw new Error('project is required')
   return body.project
+}
+
+function codeOf(body: Record<string, unknown>): string {
+  const code = typeof body.code === 'string' ? body.code.trim() : ''
+  if (code === '') throw new Error('code is required')
+  return code
 }
 
 function listOf(body: Record<string, unknown>, message: string): string[] {

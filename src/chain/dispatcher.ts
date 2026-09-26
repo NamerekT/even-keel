@@ -36,6 +36,7 @@ export interface DispatcherDeps {
   projects: string[]
   launch: (project: string, task: string) => Promise<string>
   liveSession: (task: string) => string | undefined
+  blocked: () => string | undefined
   save: (state: ChainState) => void
   journal: (entry: LaunchEntry) => void
   now: () => Date
@@ -63,8 +64,10 @@ export class Dispatcher {
     this.requireProject(project)
     const { active, queue } = this.state
     if (active?.project === project || queue.includes(project)) return
-    if (active === null) this.state.active = { project, current: null, paused: false, error: null }
-    else queue.push(project)
+    if (active === null) {
+      this.requireLaunches()
+      this.state.active = { project, current: null, paused: false, error: null }
+    } else queue.push(project)
     this.changed()
   }
 
@@ -76,6 +79,7 @@ export class Dispatcher {
 
   resume(): void {
     if (this.state.active === null) return
+    this.requireLaunches()
     this.state.active.paused = false
     this.state.active.error = null
     this.changed()
@@ -127,6 +131,11 @@ export class Dispatcher {
 
   private requireProject(project: string): void {
     if (!this.deps.projects.includes(project)) throw new Error(`chain: ${project} is not a configured project`)
+  }
+
+  private requireLaunches(): void {
+    const reason = this.deps.blocked()
+    if (reason !== undefined) throw new Error(reason)
   }
 
   private changed(): void {
@@ -184,6 +193,12 @@ export class Dispatcher {
       if (live !== undefined) {
         chain.current = { task, sessionId: live, since }
         this.deps.save(this.state)
+        return
+      }
+
+      const blocked = this.deps.blocked()
+      if (blocked !== undefined) {
+        this.halt(chain, blocked)
         return
       }
 

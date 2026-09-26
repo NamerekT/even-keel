@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest'
 import type { HulyTask, StatusCategory } from '../../src/huly/model.js'
+import type { AccountView } from '../../src/account/model.js'
 import type { BatonState, SessionView } from '../../src/state.js'
 import {
+  accountBadge,
   cardTask,
   chainBlocks,
   chainProgress,
@@ -48,6 +50,7 @@ function baton(patch: Partial<BatonState>): BatonState {
     tasks: [],
     sessions: [],
     limits: null,
+    account: { status: null, error: null, login: null, loginBlock: null },
     huly: { state: 'live', lastOkAt: null, error: null },
     trackerUrl: null,
     launches: [],
@@ -346,5 +349,32 @@ describe('issueLink', () => {
 
   it('is empty when Huly is not configured', () => {
     expect(issueLink(null, 'ABC-12')).toBeNull()
+  })
+})
+
+describe('accountBadge', () => {
+  const view = (patch: Partial<AccountView>): AccountView => ({ status: null, error: null, login: null, loginBlock: null, ...patch })
+  const account = (loggedIn: boolean, email: string | null = null) => ({
+    loggedIn,
+    authMethod: null,
+    email,
+    orgName: null,
+    subscriptionType: null,
+  })
+  const login = { startedAt: '2026-09-27T10:00:00Z', urls: [], output: '', error: null, codeSent: false }
+
+  it('shows the mailbox name of a signed-in account', () => {
+    expect(accountBadge(view({ status: account(true, 'john.doe@example.com') }))).toEqual({ kind: 'in', label: 'john.doe' })
+    expect(accountBadge(view({ status: account(true) }))).toEqual({ kind: 'in', label: 'Claude' })
+  })
+
+  it('flags a signed-out dispatcher, a running sign-in and an unknown account', () => {
+    expect(accountBadge(view({ status: account(false) }))).toEqual({ kind: 'out', label: 'Не вошли' })
+    expect(accountBadge(view({ status: account(false), login }))).toEqual({ kind: 'login', label: 'Вход…' })
+    expect(accountBadge(view({ status: account(true), login: { ...login, error: 'exited with code 1' } }))).toEqual({
+      kind: 'out',
+      label: 'Вход не удался',
+    })
+    expect(accountBadge(view({ error: 'claude: auth status timed out' }))).toEqual({ kind: 'unknown', label: 'Claude' })
   })
 })

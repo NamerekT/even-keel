@@ -58,7 +58,7 @@ export function ProjectCard({ state, project }: { state: BatonState; project: st
 
       {canStart && (
         <footer className="card__foot">
-          <button type="button" className="button button--primary" disabled={sending} onClick={() => void send('start', { project })}>
+          <button type="button" className="button button--primary" disabled={sending} onClick={() => void send('chain/start', { project })}>
             {state.chain.active === null ? 'Запустить' : 'В очередь'}
           </button>
         </footer>

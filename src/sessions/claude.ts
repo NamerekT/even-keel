@@ -1,9 +1,10 @@
-import { execFile } from 'node:child_process'
+import { execFile, spawn, type ChildProcessWithoutNullStreams } from 'node:child_process'
 import { readdirSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { setTimeout as delay } from 'node:timers/promises'
 import { promisify } from 'node:util'
+import { parseAuthStatus, type ClaudeAccount } from '../account/model.js'
 import { parseAgents, type AgentEntry } from './agents.js'
 import { newestExtensionBinary } from './paths.js'
 
@@ -44,6 +45,22 @@ export class ClaudeCli {
       maxBuffer: 16 * 1024 * 1024,
     })
     return parseAgents(stdout)
+  }
+
+  async authStatus(): Promise<ClaudeAccount> {
+    const stdout = await run(this.bin(), ['auth', 'status', '--json'], { timeout: this.timeoutMs, windowsHide: true }).then(
+      (result) => result.stdout,
+      (error: unknown) => {
+        const output = (error as { stdout?: string }).stdout ?? ''
+        if (output.trim() === '') throw error
+        return output
+      },
+    )
+    return parseAuthStatus(stdout)
+  }
+
+  authLogin(): ChildProcessWithoutNullStreams {
+    return spawn(this.bin(), ['auth', 'login', '--claudeai'], { windowsHide: true, stdio: 'pipe' })
   }
 
   async launch(task: string, cwd: string): Promise<AgentEntry> {

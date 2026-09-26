@@ -1,5 +1,7 @@
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { launchBlock, loginBlock } from './account/model.js'
+import { AccountWatcher } from './account/watcher.js'
 import { Dispatcher, type LaunchEntry } from './chain/dispatcher.js'
 import { launchDays } from './chain/launches.js'
 import { appendLaunch, loadChainState, readLaunches, saveChainState } from './chain/store.js'
@@ -24,6 +26,8 @@ const SESSION_POLL_MS = 3_000
 const CLAUDE_TIMEOUT_MS = 30_000
 const LIMITS_POLL_MS = 2_000
 const LAUNCH_CHART_DAYS = 14
+const ACCOUNT_POLL_MS = 60_000
+const LOGIN_TIMEOUT_MS = 10 * 60_000
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 try {
@@ -53,10 +57,22 @@ const limits = new LimitsWatcher({
   onError: (error) => console.error(`limits: ${error instanceof Error ? error.message : String(error)}`),
 })
 
+const account = new AccountWatcher({
+  status: () => cli.authStatus(),
+  login: () => cli.authLogin(),
+  loginBlock: (): string | undefined => loginBlock(dispatcher.state.active, sessions),
+  intervalMs: ACCOUNT_POLL_MS,
+  loginTimeoutMs: LOGIN_TIMEOUT_MS,
+  now: () => new Date(),
+  onChange: () => hub.broadcast('state', getState()),
+  onError: (error) => console.error(`account: ${error instanceof Error ? error.message : String(error)}`),
+})
+
 const dispatcher = new Dispatcher(loadChainState(chainFile), {
   projects: Object.keys(config.projects),
   launch: async (project, task) => (await cli.launch(task, config.projects[project]!)).sessionId,
   liveSession: (task) => sessions.find((view) => view.task === task && view.lamp !== 'finished')?.sessionId,
+  blocked: (): string | undefined => launchBlock(account.view),
   save: (state) => {
     saveChainState(chainFile, state)
     hub.broadcast('state', getState())
@@ -75,6 +91,7 @@ const getState = (): BatonState => ({
   tasks: [...tasksByProject.values()].flat(),
   sessions,
   limits: limits.limits,
+  account: account.view,
   huly,
   trackerUrl: credentials === undefined ? null : issueUrlBase(credentials),
   launches: launchDays(launches, new Date(), LAUNCH_CHART_DAYS),
@@ -86,6 +103,7 @@ const server = createBatonServer({
   publicDir: join(root, 'dist', 'web'),
   getState,
   control: dispatcher,
+  account,
   launches: () => launches,
 })
 
@@ -104,6 +122,7 @@ new SessionMonitor({
 }).start()
 
 limits.start()
+account.start()
 
 server.listen(config.port, config.host, () => {
   console.log(`baton listening on http://${config.host}:${config.port}`)

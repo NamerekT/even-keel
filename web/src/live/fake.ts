@@ -1,3 +1,4 @@
+import type { AccountLogin, AccountView, ClaudeAccount } from '../../../src/account/model.js'
 import type { LaunchEntry } from '../../../src/chain/dispatcher.js'
 import { launchDays } from '../../../src/chain/launches.js'
 import type { HulyHealth, HulyLinkState } from '../../../src/huly/health.js'
@@ -80,7 +81,13 @@ function fakeLaunches(): LaunchEntry[] {
   )
 }
 
-function fakeState(huly: HulyLinkState, idle: boolean, contextTokens: number, launches: LaunchEntry[]): BatonState {
+function fakeState(
+  huly: HulyLinkState,
+  idle: boolean,
+  contextTokens: number,
+  launches: LaunchEntry[],
+  account: string | null,
+): BatonState {
   const tasks = [
     task('ABC-1', 'Каркас сервера', 'Done', 'Won'),
     task('ABC-2', 'Чтение задач из трекера', 'Done', 'Won', ['ABC-1']),
@@ -139,6 +146,7 @@ function fakeState(huly: HulyLinkState, idle: boolean, contextTokens: number, la
       sevenDay: { usedPercentage: 64, resetsAt: new Date(Date.now() + 3 * 86_400_000).toISOString() },
       updatedAt: ago(0),
     },
+    account: fakeAccount(account, idle),
     huly: fakeHuly(huly),
     trackerUrl: 'https://huly.example.com/workbench/example/tracker/',
     launches: launchDays(launches, new Date(), LAUNCH_DAYS),
@@ -181,6 +189,65 @@ function dequeue(state: BatonState, project: string): BatonState {
   return { ...state, chain: { ...state.chain, queue: state.chain.queue.filter((key) => key !== project) } }
 }
 
+const FAKE_ACCOUNT: ClaudeAccount = {
+  loggedIn: true,
+  authMethod: 'claude.ai',
+  email: 'john.doe@example.com',
+  orgName: 'Example Org',
+  subscriptionType: 'max',
+}
+
+const FAKE_LOGIN: AccountLogin = {
+  startedAt: ago(1),
+  urls: ['https://claude.example.com/oauth/authorize?code=true&state=example'],
+  output: "Browser didn't open? Use the url below to sign in:\n\nhttps://claude.example.com/oauth/authorize?code=true&state=example",
+  error: null,
+  codeSent: false,
+}
+
+function fakeAccount(mode: string | null, idle: boolean): AccountView {
+  const signedIn: AccountView = {
+    status: FAKE_ACCOUNT,
+    error: null,
+    login: null,
+    loginBlock: idle ? null : 'claude: chain ABC is running; pause it before switching the account',
+  }
+  if (mode === 'out') {
+    return { ...signedIn, status: { loggedIn: false, authMethod: 'none', email: null, orgName: null, subscriptionType: null } }
+  }
+  if (mode === 'login') return { ...signedIn, login: FAKE_LOGIN, loginBlock: null }
+  if (mode === 'failed') {
+    return { ...signedIn, login: { ...FAKE_LOGIN, error: 'claude: sign-in exited with code 1: OAuth error' }, loginBlock: null }
+  }
+  if (mode === 'unknown') return { ...signedIn, status: null, error: 'claude: auth status timed out' }
+  return signedIn
+}
+
+function accountCommand(account: AccountView, name: string, body: Record<string, unknown>): AccountView {
+  if (name === 'account/login') {
+    if (account.loginBlock !== null) throw new Error(account.loginBlock)
+    return { ...account, login: { ...FAKE_LOGIN, startedAt: ago(0) } }
+  }
+  if (name === 'account/cancel') return { ...account, login: null }
+  if (name === 'account/code') {
+    if (account.login === null) throw new Error('claude: no sign-in is running')
+    if (String(body.code).trim() === 'fail') {
+      return { ...account, login: { ...account.login, error: 'claude: sign-in exited with code 1: Invalid code' } }
+    }
+    return { ...account, status: { ...FAKE_ACCOUNT, email: 'jane.roe@example.com' }, login: null }
+  }
+  throw new Error(`fake: ${name} is not supported`)
+}
+
+function fakeCommand(state: BatonState, name: string, body: Record<string, unknown>, launches: LaunchEntry[]): BatonState {
+  if (name === 'chain/start') return startChain(state, String(body.project), launches)
+  if (name === 'chain/pause' || name === 'chain/resume') return setPaused(state, name === 'chain/pause')
+  if (name === 'chain/queue') return requeue(state, body.order as string[])
+  if (name === 'chain/dequeue') return dequeue(state, String(body.project))
+  if (name.startsWith('account/')) return { ...state, account: accountCommand(state.account, name, body) }
+  throw new Error(`fake: ${name} is not supported`)
+}
+
 function isLink(value: string | null): value is Link {
   return value === 'connecting' || value === 'live' || value === 'stale'
 }
@@ -200,7 +267,7 @@ export function createFakeSource(search: string): LiveSource {
   const idle = params.get('chain') === 'idle'
   const contextTokens = Number(params.get('ctx') ?? 61_000)
   let current: LiveSnapshot = {
-    state: link === 'connecting' ? null : fakeState(huly, idle, contextTokens, launches),
+    state: link === 'connecting' ? null : fakeState(huly, idle, contextTokens, launches, params.get('account')),
     link,
   }
   const notify = () => {
@@ -236,11 +303,7 @@ export function createFakeSource(search: string): LiveSource {
     command: async (name, body = {}) => {
       const state = current.state
       if (state === null) throw new Error('fake: no state yet')
-      if (name === 'start') current = { ...current, state: startChain(state, String(body.project), launches) }
-      else if (name === 'pause' || name === 'resume') current = { ...current, state: setPaused(state, name === 'pause') }
-      else if (name === 'queue') current = { ...current, state: requeue(state, body.order as string[]) }
-      else if (name === 'dequeue') current = { ...current, state: dequeue(state, String(body.project)) }
-      else throw new Error(`fake: ${name} is not supported`)
+      current = { ...current, state: fakeCommand(state, name, body, launches) }
       notify()
     },
   }

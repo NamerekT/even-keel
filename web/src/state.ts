@@ -1,3 +1,4 @@
+import type { AccountView } from '../../src/account/model.js'
 import { chainOrder } from '../../src/chain/order.js'
 import { isOpen, type HulyTask } from '../../src/huly/model.js'
 import type { Lamp } from '../../src/sessions/agents.js'
@@ -5,6 +6,18 @@ import type { TokenTotals } from '../../src/sessions/transcript.js'
 import type { BatonState, ContextScale, SessionView } from '../../src/state.js'
 
 export type CardLamp = Lamp | 'idle'
+
+export interface AccountBadge {
+  kind: 'in' | 'out' | 'login' | 'unknown'
+  label: string
+}
+
+export function accountBadge(view: AccountView): AccountBadge {
+  if (view.login !== null) return view.login.error === null ? { kind: 'login', label: 'Вход…' } : { kind: 'out', label: 'Вход не удался' }
+  if (view.status === null) return { kind: 'unknown', label: 'Claude' }
+  if (!view.status.loggedIn) return { kind: 'out', label: 'Не вошли' }
+  return { kind: 'in', label: view.status.email?.split('@')[0] ?? 'Claude' }
+}
 
 export type ChainStatus =
   | { kind: 'running' }

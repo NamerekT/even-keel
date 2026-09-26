@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { EventHub } from './events.js'
-import { createBatonServer, type ChainControl } from './server.js'
+import { createBatonServer, type AccountControl, type ChainControl } from './server.js'
 
 describe('Baton HTTP server', () => {
   let hub: EventHub
@@ -33,11 +33,20 @@ describe('Baton HTTP server', () => {
       reorder: record('reorder'),
       requeue: record('requeue'),
     }
+    const account: AccountControl = {
+      login: () => {
+        if (calls.some(([name]) => name === 'login')) throw new Error('claude: a sign-in is already running')
+        calls.push(['login'])
+      },
+      code: record('code'),
+      cancel: record('cancel'),
+    }
     const server = createBatonServer({
       hub,
       publicDir,
       getState: () => ({ chain: [] }),
       control,
+      account,
       launches: () => [{ task: 'ABC-1' }],
     })
     await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve))
@@ -143,6 +152,24 @@ describe('Baton HTTP server', () => {
     expect((await fetch(base + '/api/chain/start', { method: 'POST', body: '{' })).status).toBe(400)
     expect((await post('/api/chain/nope')).status).toBe(404)
     expect(calls).toEqual([])
+  })
+
+  it('drives the Claude sign-in through POST commands', async () => {
+    const response = await post('/api/account/login')
+    expect(response.status).toBe(200)
+    expect(await response.json()).toEqual({ chain: [] })
+
+    await post('/api/account/code', { code: 'abc#def' })
+    await post('/api/account/cancel')
+    expect(calls).toEqual([['login'], ['code', 'abc#def'], ['cancel']])
+
+    const again = await post('/api/account/login')
+    expect(again.status).toBe(400)
+    expect(await again.json()).toEqual({ error: 'claude: a sign-in is already running' })
+    expect((await post('/api/account/code', {})).status).toBe(400)
+    expect((await post('/api/account/code', { code: '  ' })).status).toBe(400)
+    expect((await post('/api/account/nope')).status).toBe(404)
+    expect((await post('/api/nope/start')).status).toBe(404)
   })
 
   it('serves the launch journal', async () => {

@@ -58,7 +58,7 @@ function ChainControls({ state, project }: { state: BatonState; project: string 
       type="button"
       className={primary ? 'button button--primary' : 'button'}
       disabled={sending}
-      onClick={() => void send(name, name === 'start' ? { project } : undefined)}
+      onClick={() => void send(`chain/${name}`, name === 'start' ? { project } : undefined)}
     >
       {label}
     </button>

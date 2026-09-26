@@ -1,3 +1,4 @@
+import type { AccountView } from './account/model.js'
 import type { ActiveChain, ProjectOrder } from './chain/dispatcher.js'
 import type { LaunchDay } from './chain/launches.js'
 import type { HulyHealth } from './huly/health.js'
@@ -38,6 +39,7 @@ export interface BatonState {
   tasks: HulyTask[]
   sessions: SessionView[]
   limits: RateLimits | null
+  account: AccountView
   huly: HulyHealth
   trackerUrl: string | null
   launches: LaunchDay[]

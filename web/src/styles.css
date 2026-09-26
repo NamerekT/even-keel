@@ -521,6 +521,109 @@ h1 {
   font-size: 13px;
 }
 
+.account-toggle--in .queue-toggle__dot {
+  background: var(--lamp-done);
+}
+
+.account-toggle--out .queue-toggle__dot {
+  background: var(--lamp-error);
+}
+
+.account-toggle--login .queue-toggle__dot {
+  background: var(--lamp-waiting);
+  animation: blink 1.2s ease-in-out infinite;
+}
+
+.account-toggle__label {
+  max-width: 16ch;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.account-toggle--out .account-toggle__label {
+  color: var(--lamp-error);
+  font-weight: 600;
+}
+
+.account__facts {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 4px 12px;
+  margin: 0;
+  font-size: 14px;
+}
+
+.account__facts dt {
+  color: var(--fg-muted);
+}
+
+.account__facts dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.account__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.account__links {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 14px;
+}
+
+.account__links a {
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.account__code {
+  display: flex;
+  gap: 8px;
+}
+
+.account__input {
+  flex: 1;
+  min-width: 0;
+  padding: 6px 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg);
+  color: var(--fg);
+  font: inherit;
+  font-size: 16px;
+}
+
+.account__input:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.account__output summary {
+  color: var(--fg-muted);
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.account__output pre {
+  max-height: 160px;
+  margin: 6px 0 0;
+  overflow: auto;
+  padding: 8px;
+  border-radius: 8px;
+  background: var(--surface-muted);
+  font-family: var(--mono);
+  font-size: 12px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
 .banner {
   padding: 8px var(--gutter);
   background: var(--warn-bg);
@@ -1524,6 +1627,7 @@ a:focus-visible {
 
 @media (prefers-reduced-motion: reduce) {
   .link-state--connecting .link-state__dot,
+  .account-toggle--login .queue-toggle__dot,
   .lamp--working {
     animation: none;
   }

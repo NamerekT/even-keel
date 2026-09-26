@@ -14,13 +14,13 @@ async function fetchState(): Promise<BatonState> {
 }
 
 async function sendCommand(name: string, body: Record<string, unknown>): Promise<BatonState> {
-  const response = await fetch(`/api/chain/${name}`, {
+  const response = await fetch(`/api/${name}`, {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify(body),
   })
   const answer = (await response.json().catch(() => null)) as (BatonState & { error?: string }) | null
-  if (!response.ok) throw new Error(answer?.error ?? `/api/chain/${name} answered ${response.status}`)
+  if (!response.ok) throw new Error(answer?.error ?? `/api/${name} answered ${response.status}`)
   return answer!
 }
 

@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, useState, type KeyboardEvent, type PointerEvent } from 'react'
-import { Link, useLocation } from 'react-router'
+import { Link } from 'react-router'
 import type { BatonState } from '../../../src/state.js'
 import { useCommand } from '../live/useCommand.js'
 import { cardTask, chainStatus, projectSlot } from '../state.js'
@@ -7,29 +7,10 @@ import { dragShift, dropIndex, moveItem } from '../ui/drag.js'
 import { Lamp } from '../ui/Lamp.js'
 import { seriesStyle } from '../ui/series.js'
 import { StatusChip } from '../ui/StatusChip.js'
+import { usePopover } from './usePopover.js'
 
 export function QueueMenu({ state }: { state: BatonState }) {
-  const [open, setOpen] = useState(false)
-  const rootRef = useRef<HTMLDivElement>(null)
-  const { pathname } = useLocation()
-
-  useEffect(() => setOpen(false), [pathname])
-  useEffect(() => {
-    if (!open) return
-    const onPointer = (event: globalThis.PointerEvent) => {
-      if (!rootRef.current?.contains(event.target as Node)) setOpen(false)
-    }
-    const onKey = (event: globalThis.KeyboardEvent) => {
-      if (event.key === 'Escape') setOpen(false)
-    }
-    document.addEventListener('pointerdown', onPointer)
-    document.addEventListener('keydown', onKey)
-    return () => {
-      document.removeEventListener('pointerdown', onPointer)
-      document.removeEventListener('keydown', onKey)
-    }
-  }, [open])
-
+  const { open, setOpen, rootRef } = usePopover()
   const { active, queue } = state.chain
   const kind = active === null ? 'idle' : active.paused ? 'paused' : 'running'
 
@@ -66,7 +47,7 @@ function QueuePanel({ state }: { state: BatonState }) {
 
   const move = async (order: string[]) => {
     setPending(order)
-    if (!(await send('queue', { order }))) setPending(null)
+    if (!(await send('chain/queue', { order }))) setPending(null)
   }
 
   return (
@@ -97,7 +78,7 @@ function QueuePanel({ state }: { state: BatonState }) {
             queue={pending ?? served}
             disabled={sending}
             onMove={(order) => void move(order)}
-            onRemove={(project) => void send('dequeue', { project })}
+            onRemove={(project) => void send('chain/dequeue', { project })}
           />
         )}
         {served.length > 1 && <p className="queue__hint">Порядок меняется перетаскиванием за ⠿ или стрелками на нём.</p>}
