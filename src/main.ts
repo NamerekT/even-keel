@@ -117,6 +117,11 @@ const dispatcher = new Dispatcher(loadChainState(chainFile), {
   launch: async (project, task) => (await cli.launch(task, config.projects[project]!)).sessionId,
   liveSession: (task) => sessions.find((view) => view.task === task && view.lamp !== 'finished')?.sessionId,
   blocked: (): string | undefined => launchBlock(account.view),
+  busy: (task) => {
+    const view = sessions.find((each) => each.task === task && each.lamp !== 'finished')
+    const status = view && agents.find((agent) => agent.sessionId === view.sessionId)?.status
+    return status === 'busy' || status === 'waiting'
+  },
   save: (state) => {
     saveChainState(chainFile, state)
     hub.broadcast('state', getState())
@@ -146,7 +151,12 @@ const dispatcher = new Dispatcher(loadChainState(chainFile), {
 const getState = (): BatonState => ({
   startedAt,
   projects: Object.keys(config.projects),
-  chain: { active: dispatcher.state.active, queue: dispatcher.state.queue, projects: dispatcher.orders() },
+  chain: {
+    active: dispatcher.state.active,
+    queue: dispatcher.state.queue,
+    projects: dispatcher.orders(),
+    skipped: dispatcher.state.skipped,
+  },
   tasks: [...tasksByProject.values()].flat(),
   sessions,
   limits: limits.limits,

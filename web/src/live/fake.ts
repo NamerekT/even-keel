@@ -140,6 +140,7 @@ function fakeState(
         XYZ: { order: [], error: null },
         OPS: { order: ['OPS-2', 'OPS-3'], error: null },
       },
+      skipped: {},
     },
     tasks,
     sessions: idle
@@ -246,6 +247,30 @@ function reorder(state: BatonState, project: string, order: string[]): BatonStat
   return { ...state, chain: { ...state.chain, projects: { ...state.chain.projects, [project]: { order: [...order], error: null } } } }
 }
 
+function skip(state: BatonState, project: string, task: string): BatonState {
+  const active = state.chain.active
+  const holder = active?.project === project && active.current?.task === task ? active : null
+  const view = state.sessions.find((each) => each.task === task && each.lamp !== 'finished')
+  if (holder !== null && (view?.lamp === 'working' || view?.waitingFor != null)) {
+    throw new Error(`chain: ${task} is mid-turn; wait until its session stops`)
+  }
+  const skipped = state.chain.skipped[project] ?? []
+  return {
+    ...state,
+    chain: {
+      ...state.chain,
+      active: holder === null ? active : { ...holder, current: null },
+      skipped: { ...state.chain.skipped, [project]: skipped.includes(task) ? skipped : [...skipped, task] },
+    },
+  }
+}
+
+function unskip(state: BatonState, project: string, task: string): BatonState {
+  const { [project]: skipped = [], ...rest } = state.chain.skipped
+  const kept = skipped.filter((id) => id !== task)
+  return { ...state, chain: { ...state.chain, skipped: kept.length === 0 ? rest : { ...rest, [project]: kept } } }
+}
+
 function dequeue(state: BatonState, project: string): BatonState {
   return { ...state, chain: { ...state.chain, queue: state.chain.queue.filter((key) => key !== project) } }
 }
@@ -321,6 +346,8 @@ function fakeCommand(state: BatonState, name: string, body: Record<string, unkno
   if (name === 'chain/queue') return requeue(state, body.order as string[])
   if (name === 'chain/dequeue') return dequeue(state, String(body.project))
   if (name === 'chain/order') return reorder(state, String(body.project), body.order as string[])
+  if (name === 'chain/skip') return skip(state, String(body.project), String(body.task))
+  if (name === 'chain/unskip') return unskip(state, String(body.project), String(body.task))
   if (name.startsWith('account/')) return { ...state, account: accountCommand(state.account, name, body) }
   throw new Error(`fake: ${name} is not supported`)
 }
@@ -350,6 +377,18 @@ export function createFakeSource(search: string): LiveSource {
   const active = current.state?.chain.active
   if (params.get('chain') === 'limit' && active) {
     current.state!.chain.active = { ...active, current: null, limitUntil: new Date(Date.now() + 95 * 60_000).toISOString() }
+  }
+  if (params.get('chain') === 'skip' && current.state !== null) {
+    current.state.chain.skipped = { ABC: ['ABC-12'] }
+    current.state.taskSessions['ABC-9'] = [
+      {
+        sessionId: session('ABC-9', 0).sessionId,
+        at: ago(300),
+        how: 'launch',
+        resumed: 0,
+        left: { at: ago(280), reason: 'postpone', blockers: ['ABC-7'] },
+      },
+    ]
   }
   const notify = () => {
     for (const listener of listeners) listener()

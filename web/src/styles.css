@@ -973,6 +973,24 @@ a:focus-visible {
   background: color-mix(in srgb, var(--accent) 16%, transparent);
 }
 
+.block--skipped {
+  border-style: dashed;
+}
+
+.block--skipped .block__title {
+  color: var(--fg-muted);
+}
+
+.block__badge--skipped {
+  background: color-mix(in srgb, var(--fg-muted) 18%, transparent);
+}
+
+.block__return {
+  position: relative;
+  z-index: 1;
+  align-self: flex-start;
+}
+
 .snake__legend {
   display: flex;
   flex-wrap: wrap;
@@ -1604,6 +1622,24 @@ a:focus-visible {
   margin: -6px 0 0 20px;
   color: var(--fg-muted);
   font-size: 13px;
+}
+
+.panel__skip {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+}
+
+.panel__skip-note {
+  flex: 1 1 200px;
+  margin: 0;
+  color: var(--fg-muted);
+  font-size: 13px;
+}
+
+.panel__skip .notice {
+  flex-basis: 100%;
 }
 
 .panel__facts {

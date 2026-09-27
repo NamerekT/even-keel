@@ -27,8 +27,10 @@ function setup(
     accountAt?: (at: string) => string | null
     failRelay?: boolean
     limitReset?: string | null
+    busy?: Set<string>
   } = {},
 ) {
+  const busy = options.busy ?? new Set<string>()
   const clock = { now: new Date('2026-09-26T12:00:00Z') }
   const account: AccountNow = options.account ?? { email: 'john@example.com', ready: true }
   const limited: Record<string, LimitedSession> = options.limited ?? {}
@@ -46,6 +48,7 @@ function setup(
     },
     liveSession: (id) => options.live?.[id],
     blocked: () => options.blocked,
+    busy: (id) => busy.has(id),
     save: (state) => saved.push(structuredClone(state)),
     journal: (entry) => journal.push(entry),
     now: () => clock.now,
@@ -63,7 +66,7 @@ function setup(
       return `session-${++counter}`
     },
   })
-  return { dispatcher, launched, saved, journal, clock, account, limited, relays }
+  return { dispatcher, launched, saved, journal, clock, account, limited, relays, busy }
 }
 
 describe('Dispatcher', () => {
@@ -612,5 +615,132 @@ describe('Dispatcher on a limit', () => {
     await check(dispatcher)
 
     expect(dispatcher.state.active).toMatchObject({ paused: true, error: 'claude: could not stop session-' })
+  })
+})
+
+describe('Dispatcher postponing a task', () => {
+  async function running(options: Parameters<typeof setup>[0] = {}) {
+    const context = setup(options)
+    context.dispatcher.setTasks('ABC', [task('ABC-1'), task('ABC-2'), task('ABC-3')])
+    context.dispatcher.start('ABC')
+    await context.dispatcher.idle()
+    return context
+  }
+
+  it('moves on when the current task gains an open blocker and its session is not mid-turn', async () => {
+    const { dispatcher, launched, journal } = await running()
+    dispatcher.setTasks('ABC', [task('ABC-1', todo, 'ABC-3'), task('ABC-2'), task('ABC-3')])
+    await dispatcher.idle()
+
+    expect(launched).toEqual(['ABC/ABC-1', 'ABC/ABC-2'])
+    expect(journal[1]).toEqual({
+      at: '2026-09-26T12:00:00.000Z',
+      project: 'ABC',
+      task: 'ABC-1',
+      sessionId: 'session-1',
+      reason: 'postpone',
+      blockers: ['ABC-3'],
+    })
+    expect(dispatcher.orders().ABC?.order).toEqual(['ABC-2', 'ABC-3', 'ABC-1'])
+  })
+
+  it('waits while the session of the blocked task is mid-turn', async () => {
+    const { dispatcher, launched, busy } = await running({ busy: new Set(['ABC-1']) })
+    dispatcher.setTasks('ABC', [task('ABC-1', todo, 'ABC-3'), task('ABC-2'), task('ABC-3')])
+    await dispatcher.idle()
+    expect(launched).toEqual(['ABC/ABC-1'])
+    expect(dispatcher.state.active?.current?.task).toBe('ABC-1')
+
+    busy.clear()
+    dispatcher.check()
+    await dispatcher.idle()
+    expect(launched).toEqual(['ABC/ABC-1', 'ABC/ABC-2'])
+  })
+
+  it('keeps the task when its blocker is outside the chain', async () => {
+    const { dispatcher, launched } = await running()
+    dispatcher.setTasks('ABC', [task('ABC-1', todo, 'XYZ-1'), task('ABC-2'), task('ABC-3')])
+    await dispatcher.idle()
+    expect(launched).toEqual(['ABC/ABC-1'])
+  })
+})
+
+describe('Dispatcher skipping a task', () => {
+  async function running(options: Parameters<typeof setup>[0] = {}) {
+    const context = setup(options)
+    context.dispatcher.setTasks('ABC', [task('ABC-1'), task('ABC-2')])
+    context.dispatcher.start('ABC')
+    await context.dispatcher.idle()
+    return context
+  }
+
+  it('lets the current task go and launches the next one', async () => {
+    const { dispatcher, launched, journal } = await running()
+    dispatcher.skip('ABC', 'ABC-1')
+    await dispatcher.idle()
+
+    expect(launched).toEqual(['ABC/ABC-1', 'ABC/ABC-2'])
+    expect(dispatcher.state.skipped).toEqual({ ABC: ['ABC-1'] })
+    expect(journal[1]).toEqual({ at: '2026-09-26T12:00:00.000Z', project: 'ABC', task: 'ABC-1', sessionId: 'session-1', reason: 'skip' })
+  })
+
+  it('never takes a skipped task, even the last open one', async () => {
+    const { dispatcher, launched } = await running()
+    dispatcher.skip('ABC', 'ABC-1')
+    await dispatcher.idle()
+    dispatcher.setTasks('ABC', [task('ABC-1'), task('ABC-2', done)])
+    await dispatcher.idle()
+
+    expect(launched).toEqual(['ABC/ABC-1', 'ABC/ABC-2'])
+    expect(dispatcher.state.active).toBeNull()
+  })
+
+  it('refuses to skip the current task while its session is mid-turn', async () => {
+    const { dispatcher, launched } = await running({ busy: new Set(['ABC-1']) })
+    expect(() => dispatcher.skip('ABC', 'ABC-1')).toThrow('chain: ABC-1 is mid-turn; wait until its session stops')
+    await dispatcher.idle()
+    expect(launched).toEqual(['ABC/ABC-1'])
+    expect(dispatcher.state.skipped).toEqual({})
+  })
+
+  it('skips a task ahead and takes it again once returned', async () => {
+    const { dispatcher, launched } = setup()
+    dispatcher.setTasks('ABC', [task('ABC-1'), task('ABC-2'), task('ABC-3')])
+    dispatcher.start('ABC')
+    await dispatcher.idle()
+    dispatcher.skip('ABC', 'ABC-2')
+    dispatcher.setTasks('ABC', [task('ABC-1', done), task('ABC-2'), task('ABC-3')])
+    await dispatcher.idle()
+    expect(launched).toEqual(['ABC/ABC-1', 'ABC/ABC-3'])
+
+    dispatcher.unskip('ABC', 'ABC-2')
+    dispatcher.setTasks('ABC', [task('ABC-2'), task('ABC-3', done)])
+    await dispatcher.idle()
+    expect(launched).toEqual(['ABC/ABC-1', 'ABC/ABC-3', 'ABC/ABC-2'])
+    expect(dispatcher.state.skipped).toEqual({})
+  })
+
+  it('forgets a skipped task once it is closed in Huly', async () => {
+    const { dispatcher } = await running()
+    dispatcher.skip('ABC', 'ABC-2')
+    dispatcher.setTasks('ABC', [task('ABC-1'), task('ABC-2', canceled)])
+    await dispatcher.idle()
+    expect(dispatcher.state.skipped).toEqual({})
+  })
+
+  it('refuses to skip the current task while its session is still launching', () => {
+    const state: ChainState = {
+      ...emptyChainState(),
+      active: { project: 'ABC', current: { task: 'ABC-1', sessionId: null, since: 't' }, paused: true, error: null },
+    }
+    const { dispatcher } = setup({ state })
+    dispatcher.setTasks('ABC', [task('ABC-1'), task('ABC-2')])
+    expect(() => dispatcher.skip('ABC', 'ABC-1')).toThrow('chain: ABC-1 is still launching; try again in a moment')
+    expect(dispatcher.state.active?.current?.task).toBe('ABC-1')
+  })
+
+  it('refuses a task that is not open in the chain', async () => {
+    const { dispatcher } = await running()
+    expect(() => dispatcher.skip('ABC', 'ABC-9')).toThrow('chain: ABC-9 is not an open task of ABC')
   })
 })

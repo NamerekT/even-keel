@@ -32,6 +32,8 @@ describe('Baton HTTP server', () => {
       dequeue: record('dequeue'),
       reorder: record('reorder'),
       requeue: record('requeue'),
+      skip: record('skip'),
+      unskip: record('unskip'),
     }
     const account: AccountControl = {
       login: () => {
@@ -134,6 +136,8 @@ describe('Baton HTTP server', () => {
     await post('/api/chain/dequeue', { project: 'XYZ' })
     await post('/api/chain/order', { project: 'ABC', order: ['ABC-2', 'ABC-1'] })
     await post('/api/chain/queue', { order: ['XYZ', 'OPS'] })
+    await post('/api/chain/skip', { project: 'ABC', task: 'ABC-1' })
+    await post('/api/chain/unskip', { project: 'ABC', task: 'ABC-1' })
     expect(calls).toEqual([
       ['start', 'ABC'],
       ['pause'],
@@ -142,6 +146,8 @@ describe('Baton HTTP server', () => {
       ['dequeue', 'XYZ'],
       ['reorder', 'ABC', ['ABC-2', 'ABC-1']],
       ['requeue', ['XYZ', 'OPS']],
+      ['skip', 'ABC', 'ABC-1'],
+      ['unskip', 'ABC', 'ABC-1'],
     ])
   })
 
@@ -153,6 +159,7 @@ describe('Baton HTTP server', () => {
     expect((await post('/api/chain/start', {})).status).toBe(400)
     expect((await post('/api/chain/order', { project: 'ABC', order: [1] })).status).toBe(400)
     expect((await post('/api/chain/queue', { order: 'XYZ' })).status).toBe(400)
+    expect((await post('/api/chain/skip', { project: 'ABC' })).status).toBe(400)
     expect((await fetch(base + '/api/chain/start', { method: 'POST', body: '{' })).status).toBe(400)
     expect((await post('/api/chain/nope')).status).toBe(404)
     expect(calls).toEqual([])

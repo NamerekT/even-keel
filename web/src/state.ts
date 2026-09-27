@@ -1,6 +1,6 @@
 import type { AccountView } from '../../src/account/model.js'
 import type { TaskSession } from '../../src/chain/launches.js'
-import { chainOrder, precedence } from '../../src/chain/order.js'
+import { chainOrder, nextTask, precedence } from '../../src/chain/order.js'
 import type { LimitHold } from '../../src/chain/relay.js'
 import { isOpen, type HulyTask } from '../../src/huly/model.js'
 import type { Lamp } from '../../src/sessions/agents.js'
@@ -48,6 +48,7 @@ export interface ChainBlock {
   milestone: string | null
   after: string[]
   current: boolean
+  skipped: boolean
   session: SessionView | null
   sessions: TaskSession[]
   limit: LimitHold | null
@@ -118,7 +119,8 @@ export function limitWaitText(until: string, now: Date): string {
 export function cardTask(state: BatonState, project: string): CardTask | null {
   const active = state.chain.active
   const current = active?.project === project ? active.current?.task : undefined
-  const id = current ?? state.chain.projects[project]?.order[0]
+  const order = state.chain.projects[project]?.order ?? []
+  const id = current ?? nextTask(projectTasks(state, project), order, state.chain.skipped[project] ?? [])
   if (id === undefined) return null
   const session = taskSession(state.sessions, id)
   return {
@@ -148,6 +150,7 @@ export function chainBlocks(state: BatonState, project: string): ChainBlock[] {
   const current = active?.project === project ? active.current?.task : undefined
   const hold = active?.project === project ? active.current?.limit : undefined
   const pending = hold !== undefined && hold.acted === null ? hold : null
+  const skipped = new Set(state.chain.skipped[project] ?? [])
 
   return [...closedOrder(closed), ...open].map((id) => {
     const task = byId.get(id)
@@ -162,6 +165,7 @@ export function chainBlocks(state: BatonState, project: string): ChainBlock[] {
       milestone: task?.milestone?.label ?? null,
       after: after.get(id) ?? [],
       current: id === current,
+      skipped: skipped.has(id),
       session,
       sessions: state.taskSessions[id] ?? [],
       limit: id === current ? pending : null,

@@ -39,6 +39,15 @@ describe('launchDays', () => {
     ])
   })
 
+  it('does not count the chain letting go of a task as a launch', () => {
+    const at = new Date(2026, 0, 10, 9, 0).toISOString()
+    const entries: LaunchEntry[] = [
+      { at, project: 'ABC', task: 'ABC-1', sessionId: 's', reason: 'postpone', blockers: ['ABC-2'] },
+      { at, project: 'ABC', task: 'ABC-1', sessionId: 's', reason: 'skip' },
+    ]
+    expect(launchDays(entries, now, 1)).toEqual([{ day: '2026-01-10', counts: {} }])
+  })
+
   it('skips entries with an unreadable time', () => {
     const entries = [{ at: 'garbage', project: 'ABC', task: 'ABC-1', sessionId: 's' }]
     expect(launchDays(entries, now, 1)).toEqual([{ day: '2026-01-10', counts: {} }])
@@ -89,5 +98,36 @@ describe('taskSessions', () => {
       ['s9', 'manual'],
       ['s1', 'launch'],
     ])
+  })
+
+  it('marks the session the chain let go of and why', () => {
+    const list = taskSessions(
+      [
+        entry('2026-09-27T10:00:00.000Z', 'ABC-1', 's1'),
+        entry('2026-09-27T10:30:00.000Z', 'ABC-1', 's1', { reason: 'postpone', blockers: ['ABC-3'] }),
+        entry('2026-09-27T11:00:00.000Z', 'ABC-2', 's2', { reason: 'skip' }),
+      ],
+      [{ task: 'ABC-2', sessionId: 's2', startedAt: '2026-09-27T10:40:00.000Z' }],
+    )
+    expect(list).toEqual({
+      'ABC-1': [
+        {
+          sessionId: 's1',
+          at: '2026-09-27T10:00:00.000Z',
+          how: 'launch',
+          resumed: 0,
+          left: { at: '2026-09-27T10:30:00.000Z', reason: 'postpone', blockers: ['ABC-3'] },
+        },
+      ],
+      'ABC-2': [
+        {
+          sessionId: 's2',
+          at: '2026-09-27T10:40:00.000Z',
+          how: 'manual',
+          resumed: 0,
+          left: { at: '2026-09-27T11:00:00.000Z', reason: 'skip', blockers: [] },
+        },
+      ],
+    })
   })
 })

@@ -47,6 +47,21 @@ export function checkOrder(tasks: HulyTask[], order: string[]): void {
   }
 }
 
+export function nextTask(tasks: HulyTask[], order: string[], skipped: string[]): string | undefined {
+  const blockers = new Map(tasks.map((task) => [task.id, task.blockedBy]))
+  const held = new Set(skipped)
+  for (const id of order) {
+    if (!held.has(id) && !(blockers.get(id) ?? []).some((other) => held.has(other))) return id
+    held.add(id)
+  }
+  return undefined
+}
+
+export function openBlockers(tasks: HulyTask[], id: string): string[] {
+  const ids = new Set(tasks.map((task) => task.id))
+  return tasks.find((task) => task.id === id)?.blockedBy.filter((other) => ids.has(other)) ?? []
+}
+
 export function precedence(tasks: HulyTask[]): Map<string, string[]> {
   const plan = planOf(tasks)
   return new Map([...plan.blockers].map(([id, deps]) => [id, [...deps, ...plan.earlier.get(id)!]]))

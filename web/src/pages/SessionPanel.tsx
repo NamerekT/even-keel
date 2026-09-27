@@ -7,7 +7,8 @@ import type { ContextScale, SessionRecord, SessionView } from '../../../src/stat
 import { formatClock, formatMoment, formatTokens } from '../format.js'
 import { useNow } from '../layout/useNow.js'
 import { useLive } from '../live/context.js'
-import { issueLink, sessionElapsed, tokenTotal, type ChainBlock } from '../state.js'
+import { useCommand } from '../live/useCommand.js'
+import { issueLink, sessionElapsed, taskProject, tokenTotal, type ChainBlock } from '../state.js'
 import { ContextMeter } from '../ui/ContextMeter.js'
 import { Lamp, LAMP_LABELS } from '../ui/Lamp.js'
 
@@ -75,6 +76,7 @@ export function SessionPanel({ block, scale, trackerUrl, onClose }: Props) {
         </button>
       </header>
       {block.status !== null && <p className="panel__status">{block.status}</p>}
+      {block.open && <SkipControl block={block} />}
       {block.session === null ? (
         <p className="placeholder">Сессии по этой задаче ещё не было.</p>
       ) : (
@@ -85,6 +87,40 @@ export function SessionPanel({ block, scale, trackerUrl, onClose }: Props) {
       )}
       {opened !== null && <SessionWindow key={opened.sessionId} row={opened} scale={scale} onClose={() => setOpened(null)} />}
     </aside>
+  )
+}
+
+function SkipControl({ block }: { block: ChainBlock }) {
+  const { send, sending, failure } = useCommand()
+  const body = { project: taskProject(block.id), task: block.id }
+  const session = block.current ? block.session : null
+  const midTurn = session !== null && (session.lamp === 'working' || session.waitingFor !== null)
+
+  return (
+    <div className="panel__skip">
+      {block.skipped ? (
+        <>
+          <button type="button" className="button" disabled={sending} onClick={() => void send('chain/unskip', body)}>
+            Вернуть в цепочку
+          </button>
+          <p className="panel__skip-note">Задача пропущена — цепочка её не берёт.</p>
+        </>
+      ) : (
+        <>
+          <button type="button" className="button" disabled={sending || midTurn} onClick={() => void send('chain/skip', body)}>
+            Пропустить
+          </button>
+          <p className="panel__skip-note">
+            {midTurn
+              ? 'Сессия посреди хода — пропустить можно, когда она остановится.'
+              : block.current
+                ? 'Цепочка перестанет ждать задачу и возьмёт следующую. Статус в Huly и сессия не меняются.'
+                : 'Цепочка не возьмёт задачу, пока не вернёшь её. Статус в Huly не меняется.'}
+          </p>
+        </>
+      )}
+      {failure !== null && <p className="notice notice--error">{failure}</p>}
+    </div>
   )
 }
 
@@ -175,6 +211,7 @@ function SessionList({ rows, current, onOpen }: SessionListProps) {
               <span className="sessions__how">
                 {HOW[row.how]}
                 {row.resumed > 0 && ` · продолжена после лимита${row.resumed > 1 ? ` ×${row.resumed}` : ''}`}
+                {row.left !== undefined && ` · ${leftText(row.left)}`}
               </span>
               <span className="sessions__id">{row.sessionId.slice(0, 8)}</span>
               {row.sessionId === current && <span className="sessions__now">сейчас</span>}
@@ -184,6 +221,10 @@ function SessionList({ rows, current, onOpen }: SessionListProps) {
       </ul>
     </section>
   )
+}
+
+function leftText(left: NonNullable<TaskSession['left']>): string {
+  return left.reason === 'skip' ? 'пропущена' : `отложена: ждёт ${left.blockers.join(', ')}`
 }
 
 function SessionWindow({ row, scale, onClose }: { row: TaskSession; scale: ContextScale; onClose: () => void }) {

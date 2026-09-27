@@ -18,9 +18,16 @@ describe('chain store', () => {
       active: { project: 'ABC', current: { task: 'ABC-1', sessionId: 's1', since: 't' }, paused: true, error: null },
       queue: ['XYZ'],
       orders: { ABC: ['ABC-2', 'ABC-1'] },
+      skipped: { ABC: ['ABC-3'] },
     }
     saveChainState(file, state)
     expect(loadChainState(file)).toEqual(state)
+  })
+
+  it('reads a file saved before tasks could be skipped', () => {
+    const file = join(dir(), 'chain.json')
+    writeFileSync(file, '{"active": null, "queue": [], "orders": {}}')
+    expect(loadChainState(file)).toEqual(emptyChainState())
   })
 
   it('refuses a damaged file instead of silently forgetting the chain', () => {

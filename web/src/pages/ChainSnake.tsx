@@ -136,6 +136,7 @@ export function ChainSnake({ project, chain, scale, focus }: Props) {
             offset={landing?.id === block.id ? landing.offset : drag?.offsets.get(block.id)}
             row={cells[index]!.row}
             column={cells[index]!.column}
+            onReturn={sending ? undefined : () => void send('chain/unskip', { project, task: block.id })}
           />
         ))}
       </ol>
@@ -203,11 +204,13 @@ interface BlockProps {
   offset: Point | undefined
   row: number
   column: number
+  onReturn: (() => void) | undefined
 }
 
-function Block({ block, scale, focused, movable, drag, offset, row, column }: BlockProps) {
+function Block({ block, scale, focused, movable, drag, offset, row, column, onReturn }: BlockProps) {
   const classes = ['block', `block--${block.lamp}`]
   if (block.current) classes.push('block--current')
+  if (block.skipped) classes.push('block--skipped')
   if (focused) classes.push('block--focus')
   if (movable) classes.push('block--movable')
   const role = dragRole(drag, block.id)
@@ -234,6 +237,7 @@ function Block({ block, scale, focused, movable, drag, offset, row, column }: Bl
           {block.id}
         </Link>
         {block.current && <span className="block__badge">сейчас</span>}
+        {block.skipped && <span className="block__badge block__badge--skipped">пропущена</span>}
         {role === 'blocker' && <span className="block__badge block__badge--blocker">блокирует</span>}
         {role === 'dependent' && <span className="block__badge block__badge--dependent">ждёт её</span>}
       </div>
@@ -245,6 +249,11 @@ function Block({ block, scale, focused, movable, drag, offset, row, column }: Bl
       )}
       {block.status !== null && <p className="block__status">{block.status}</p>}
       {block.current && block.session !== null && <ContextMeter tokens={block.session.contextTokens} scale={scale} />}
+      {block.skipped && (
+        <button type="button" className="button block__return" disabled={onReturn === undefined} onClick={onReturn}>
+          Вернуть
+        </button>
+      )}
     </li>
   )
 }

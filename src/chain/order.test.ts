@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { HulyTask, TaskMilestone } from '../huly/model.js'
-import { chainOrder, checkOrder, compareMilestones, precedence } from './order.js'
+import { chainOrder, checkOrder, compareMilestones, nextTask, openBlockers, precedence } from './order.js'
 
 const task = (id: string, ...blockedBy: string[]): HulyTask => ({
   id,
@@ -144,5 +144,33 @@ describe('checkOrder', () => {
     expect(() => checkOrder(planned, ['ABC-2', 'ABC-3', 'ABC-1'])).toThrow(
       'ABC-2 in v0.2 — second slice cannot go before ABC-1 in the earlier v0.1 — first slice',
     )
+  })
+})
+
+describe('nextTask', () => {
+  const tasks = [task('ABC-1'), task('ABC-2', 'ABC-1'), task('ABC-3', 'ABC-2'), task('ABC-4')]
+  const order = ['ABC-1', 'ABC-2', 'ABC-3', 'ABC-4']
+
+  it('takes the first task in order when nothing is skipped', () => {
+    expect(nextTask(tasks, order, [])).toBe('ABC-1')
+  })
+
+  it('passes over a skipped task and everything waiting on it', () => {
+    expect(nextTask(tasks, order, ['ABC-1'])).toBe('ABC-4')
+    expect(nextTask(tasks, order, ['ABC-2'])).toBe('ABC-1')
+  })
+
+  it('finds nothing when every open task is skipped or waits on one', () => {
+    expect(nextTask(tasks, order, ['ABC-1', 'ABC-4'])).toBeUndefined()
+    expect(nextTask([], [], [])).toBeUndefined()
+  })
+})
+
+describe('openBlockers', () => {
+  it('lists the blockers that are open tasks of the chain', () => {
+    const tasks = [task('ABC-1'), task('ABC-2', 'ABC-1', 'ABC-9', 'XYZ-1')]
+    expect(openBlockers(tasks, 'ABC-2')).toEqual(['ABC-1'])
+    expect(openBlockers(tasks, 'ABC-1')).toEqual([])
+    expect(openBlockers(tasks, 'ABC-7')).toEqual([])
   })
 })

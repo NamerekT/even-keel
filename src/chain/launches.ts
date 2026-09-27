@@ -1,5 +1,5 @@
 import type { SessionView } from '../state.js'
-import type { LaunchEntry } from './dispatcher.js'
+import type { LaunchEntry, ReleaseReason } from './dispatcher.js'
 
 export interface LaunchDay {
   day: string
@@ -13,6 +13,7 @@ export function launchDays(entries: LaunchEntry[], now: Date, days: number): Lau
   }
   const byDay = new Map(result.map((entry) => [entry.day, entry.counts]))
   for (const entry of entries) {
+    if (isRelease(entry)) continue
     const at = new Date(entry.at)
     if (Number.isNaN(at.getTime())) continue
     const counts = byDay.get(localDay(at))
@@ -26,6 +27,7 @@ export interface TaskSession {
   at: string
   how: 'launch' | 'relay' | 'manual'
   resumed: number
+  left?: { at: string; reason: ReleaseReason; blockers: string[] }
 }
 
 export function taskSessions(
@@ -38,7 +40,12 @@ export function taskSessions(
     if (rows === undefined) byTask.set(task, (rows = new Map()))
     return rows
   }
+  const releases: (LaunchEntry & { reason: ReleaseReason })[] = []
   for (const entry of entries) {
+    if (isRelease(entry)) {
+      releases.push(entry)
+      continue
+    }
     const rows = rowsOf(entry.task)
     const known = rows.get(entry.sessionId)
     if (known !== undefined) {
@@ -51,9 +58,17 @@ export function taskSessions(
     const rows = rowsOf(view.task)
     if (!rows.has(view.sessionId)) rows.set(view.sessionId, { sessionId: view.sessionId, at: view.startedAt, how: 'manual', resumed: 0 })
   }
+  for (const entry of releases) {
+    const row = byTask.get(entry.task)?.get(entry.sessionId)
+    if (row !== undefined) row.left = { at: entry.at, reason: entry.reason, blockers: entry.blockers ?? [] }
+  }
   const result: Record<string, TaskSession[]> = {}
   for (const [task, rows] of byTask) result[task] = [...rows.values()].sort((a, b) => Date.parse(b.at) - Date.parse(a.at))
   return result
+}
+
+function isRelease(entry: LaunchEntry): entry is LaunchEntry & { reason: ReleaseReason } {
+  return entry.reason === 'postpone' || entry.reason === 'skip'
 }
 
 function localDay(date: Date): string {

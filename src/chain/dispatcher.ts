@@ -1,5 +1,5 @@
 import { isOpen, type HulyTask } from '../huly/model.js'
-import { byNumber, chainOrder, checkOrder } from './order.js'
+import { byNumber, chainOrder, checkOrder, nextTask, openBlockers } from './order.js'
 import { handoffPrompt, holdOf, relayStep, type AccountNow, type LimitedSession, type LimitHold, type RelayAction } from './relay.js'
 
 export interface CurrentTask {
@@ -21,15 +21,19 @@ export interface ChainState {
   active: ActiveChain | null
   queue: string[]
   orders: Record<string, string[]>
+  skipped: Record<string, string[]>
 }
+
+export type ReleaseReason = 'postpone' | 'skip'
 
 export interface LaunchEntry {
   at: string
   project: string
   task: string
   sessionId: string
-  reason?: RelayAction
+  reason?: RelayAction | ReleaseReason
   previous?: string
+  blockers?: string[]
 }
 
 export interface ProjectOrder {
@@ -42,6 +46,7 @@ export interface DispatcherDeps {
   launch: (project: string, task: string) => Promise<string>
   liveSession: (task: string) => string | undefined
   blocked: () => string | undefined
+  busy: (task: string) => boolean
   save: (state: ChainState) => void
   journal: (entry: LaunchEntry) => void
   now: () => Date
@@ -54,7 +59,7 @@ export interface DispatcherDeps {
 }
 
 export function emptyChainState(): ChainState {
-  return { active: null, queue: [], orders: {} }
+  return { active: null, queue: [], orders: {}, skipped: {} }
 }
 
 export class Dispatcher {
@@ -68,7 +73,8 @@ export class Dispatcher {
 
   setTasks(project: string, tasks: HulyTask[]): void {
     this.tasks.set(project, tasks.filter((task) => isOpen(task.status)))
-    if (this.placeNew(project)) this.deps.save(this.state)
+    const placed = this.placeNew(project)
+    if (this.forgetClosed(project) || placed) this.deps.save(this.state)
     this.kick()
   }
 
@@ -107,6 +113,27 @@ export class Dispatcher {
     const index = this.state.queue.indexOf(project)
     if (index < 0) return
     this.state.queue.splice(index, 1)
+    this.changed()
+  }
+
+  skip(project: string, task: string): void {
+    this.requireProject(project)
+    if (!(this.tasks.get(project) ?? []).some((open) => open.id === task)) throw new Error(`chain: ${task} is not an open task of ${project}`)
+    const active = this.state.active
+    const holder = active?.project === project && active.current?.task === task ? active : null
+    if (holder?.current?.sessionId === null) throw new Error(`chain: ${task} is still launching; try again in a moment`)
+    if (holder !== null && this.deps.busy(task)) throw new Error(`chain: ${task} is mid-turn; wait until its session stops`)
+    const skipped = (this.state.skipped[project] ??= [])
+    if (!skipped.includes(task)) skipped.push(task)
+    if (holder !== null) this.release(holder, 'skip', [])
+    this.changed()
+  }
+
+  unskip(project: string, task: string): void {
+    this.requireProject(project)
+    const skipped = this.state.skipped[project]
+    if (skipped === undefined || !skipped.includes(task)) return
+    this.keepSkipped(project, skipped.filter((id) => id !== task))
     this.changed()
   }
 
@@ -185,6 +212,31 @@ export class Dispatcher {
     return true
   }
 
+  private forgetClosed(project: string): boolean {
+    const skipped = this.state.skipped[project]
+    if (skipped === undefined) return false
+    const open = new Set((this.tasks.get(project) ?? []).map((task) => task.id))
+    const kept = skipped.filter((id) => open.has(id))
+    if (kept.length === skipped.length) return false
+    this.keepSkipped(project, kept)
+    return true
+  }
+
+  private keepSkipped(project: string, skipped: string[]): void {
+    if (skipped.length === 0) delete this.state.skipped[project]
+    else this.state.skipped[project] = skipped
+  }
+
+  private release(chain: ActiveChain, reason: ReleaseReason, blockers: string[]): void {
+    const { task, sessionId } = chain.current!
+    if (sessionId !== null) {
+      const entry: LaunchEntry = { at: this.deps.now().toISOString(), project: chain.project, task, sessionId, reason }
+      if (blockers.length > 0) entry.blockers = blockers
+      this.deps.journal(entry)
+    }
+    chain.current = null
+  }
+
   private requireLaunches(): void {
     const reason = this.deps.blocked()
     if (reason !== undefined) throw new Error(reason)
@@ -219,11 +271,16 @@ export class Dispatcher {
           this.halt(chain, `chain: launch of ${task} was interrupted by a restart; check its session, then resume`)
           return
         }
-        if (tasks.some((open) => open.id === task)) {
-          await this.followLimit(chain, chain.current)
-          return
+        if (!tasks.some((open) => open.id === task)) chain.current = null
+        else {
+          const blockers = openBlockers(tasks, task)
+          if (blockers.length === 0 || this.deps.busy(task)) {
+            await this.followLimit(chain, chain.current)
+            return
+          }
+          this.release(chain, 'postpone', blockers)
+          this.deps.save(this.state)
         }
-        chain.current = null
       }
 
       let order: string[]
@@ -234,7 +291,7 @@ export class Dispatcher {
         return
       }
 
-      const task = order[0]
+      const task = nextTask(tasks, order, this.state.skipped[chain.project] ?? [])
       if (task === undefined) {
         this.state.active = null
         this.deps.save(this.state)

@@ -49,7 +49,7 @@ export interface ContextScale {
 export interface BatonState {
   startedAt: string
   projects: string[]
-  chain: { active: ActiveChain | null; queue: string[]; projects: Record<string, ProjectOrder> }
+  chain: { active: ActiveChain | null; queue: string[]; projects: Record<string, ProjectOrder>; skipped: Record<string, string[]> }
   tasks: HulyTask[]
   sessions: SessionView[]
   limits: RateLimits | null

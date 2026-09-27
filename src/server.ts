@@ -11,6 +11,8 @@ export interface ChainControl {
   dequeue(project: string): void
   reorder(project: string, order: string[]): void
   requeue(order: string[]): void
+  skip(project: string, task: string): void
+  unskip(project: string, task: string): void
 }
 
 export interface AccountControl {
@@ -39,6 +41,8 @@ const COMMANDS: Record<string, Command> = {
   'chain/dequeue': ({ control }, body) => control.dequeue(projectOf(body)),
   'chain/order': ({ control }, body) => control.reorder(projectOf(body), listOf(body, 'order must be a list of task ids')),
   'chain/queue': ({ control }, body) => control.requeue(listOf(body, 'order must be a list of projects')),
+  'chain/skip': ({ control }, body) => control.skip(projectOf(body), taskOf(body)),
+  'chain/unskip': ({ control }, body) => control.unskip(projectOf(body), taskOf(body)),
   'account/login': ({ account }) => account.login(),
   'account/code': ({ account }, body) => account.code(codeOf(body)),
   'account/cancel': ({ account }) => account.cancel(),
@@ -149,6 +153,11 @@ async function readJsonBody(request: IncomingMessage): Promise<Record<string, un
 function projectOf(body: Record<string, unknown>): string {
   if (typeof body.project !== 'string' || body.project === '') throw new Error('project is required')
   return body.project
+}
+
+function taskOf(body: Record<string, unknown>): string {
+  if (typeof body.task !== 'string' || body.task === '') throw new Error('task is required')
+  return body.task
 }
 
 function codeOf(body: Record<string, unknown>): string {

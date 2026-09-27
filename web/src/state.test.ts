@@ -47,7 +47,7 @@ function baton(patch: Partial<BatonState>): BatonState {
   return {
     startedAt: '2026-01-01T08:00:00.000Z',
     projects: ['ABC', 'XYZ'],
-    chain: { active: null, queue: [], projects: {} },
+    chain: { active: null, queue: [], projects: {}, skipped: {} },
     tasks: [],
     sessions: [],
     limits: null,
@@ -66,6 +66,7 @@ const chain = (patch: Partial<BatonState['chain']>): BatonState['chain'] => ({
   active: null,
   queue: [],
   projects: {},
+  skipped: {},
   ...patch,
 })
 
@@ -177,6 +178,11 @@ describe('cardTask', () => {
     expect(cardTask(state, 'ABC')).toEqual({ id: 'ABC-3', title: 'ABC-3', lamp: 'idle', next: true })
   })
 
+  it('passes over a skipped task when naming the next one', () => {
+    const state = baton({ tasks: [task('ABC-3'), task('ABC-4')], chain: chain({ projects: orders, skipped: { ABC: ['ABC-3'] } }) })
+    expect(cardTask(state, 'ABC')?.id).toBe('ABC-4')
+  })
+
   it('takes the lamp of a finished session when there is no other', () => {
     const state = baton({
       tasks: [task('ABC-3')],
@@ -213,6 +219,17 @@ describe('chainBlocks', () => {
     current: { task: current, sessionId: 's', since: 't' },
     paused,
     error: null,
+  })
+
+  it('marks the tasks the chain skips', () => {
+    const state = baton({
+      tasks: [task('ABC-1', 'ToDo'), task('ABC-2', 'ToDo')],
+      chain: chain({ projects: { ABC: { order: ['ABC-1', 'ABC-2'], error: null } }, skipped: { ABC: ['ABC-2'] } }),
+    })
+    expect(chainBlocks(state, 'ABC').map((block) => [block.id, block.skipped])).toEqual([
+      ['ABC-1', false],
+      ['ABC-2', true],
+    ])
   })
 
   it('carries the sessions of each task and the pending limit of the current one', () => {
