@@ -1,3 +1,4 @@
+import { mkdirSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { accountAt, loadLedger, noteAccount, saveLedger } from './account/ledger.js'
@@ -30,6 +31,7 @@ const HULY_TIMEOUT_MS = 15_000
 const SESSION_POLL_MS = 3_000
 const CLAUDE_TIMEOUT_MS = 30_000
 const LIMITS_POLL_MS = 2_000
+const USAGE_POLL_MS = 60_000
 const LAUNCH_CHART_DAYS = 14
 const ACCOUNT_POLL_MS = 60_000
 const LOGIN_TIMEOUT_MS = 10 * 60_000
@@ -44,6 +46,7 @@ try {
 
 const config = loadConfig(process.env.BATON_CONFIG ?? join(root, 'baton.config.json'))
 const stateDir = process.env.BATON_STATE_DIR ?? join(root, 'state')
+mkdirSync(stateDir, { recursive: true })
 const chainFile = join(stateDir, 'chain.json')
 const launchesFile = join(stateDir, 'launches.jsonl')
 const limitsFile = join(stateDir, 'rate-limits.json')
@@ -63,6 +66,8 @@ let ledger = loadLedger(accountFile)
 const limits = new LimitsWatcher({
   file: limitsFile,
   intervalMs: LIMITS_POLL_MS,
+  usage: () => cli.usage(stateDir),
+  usageIntervalMs: USAGE_POLL_MS,
   notBefore: () => ledger.since,
   onChange: () => hub.broadcast('state', getState()),
   onError: (error) => console.error(`limits: ${error instanceof Error ? error.message : String(error)}`),
@@ -81,6 +86,7 @@ const account = new AccountWatcher({
     if (noted !== undefined) {
       ledger = noted
       saveLedger(accountFile, ledger)
+      limits.refresh()
     }
     hub.broadcast('state', getState())
     dispatcher.check()

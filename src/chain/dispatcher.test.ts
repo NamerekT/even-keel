@@ -26,6 +26,7 @@ function setup(
     account?: AccountNow
     accountAt?: (at: string) => string | null
     failRelay?: boolean
+    limitReset?: string | null
   } = {},
 ) {
   const clock = { now: new Date('2026-09-26T12:00:00Z') }
@@ -51,7 +52,7 @@ function setup(
     limited: (id) => limited[id],
     account: () => account,
     accountAt: options.accountAt ?? (() => account.email),
-    limitReset: () => null,
+    limitReset: () => options.limitReset ?? null,
     resume: async (_task, session) => {
       relays.push({ kind: 'resume', task: '', sessionId: session.sessionId })
       return session.sessionId
@@ -221,6 +222,38 @@ describe('Dispatcher', () => {
     dispatcher.resume()
     await dispatcher.idle()
     expect(launched).toEqual(['ABC/ABC-1', 'ABC/ABC-2'])
+  })
+
+  it('holds the next launch while the limit is used up and launches it after the reset', async () => {
+    const options: { limitReset?: string | null } = { limitReset: '2026-09-26T17:00:00.000Z' }
+    const { dispatcher, launched, saved } = setup(options)
+    dispatcher.setTasks('ABC', [task('ABC-1')])
+    dispatcher.start('ABC')
+    await dispatcher.idle()
+    expect(launched).toEqual([])
+    expect(dispatcher.state.active).toEqual({ project: 'ABC', current: null, paused: false, error: null, limitUntil: '2026-09-26T17:00:00.000Z' })
+    expect(saved.at(-1)?.active?.limitUntil).toBe('2026-09-26T17:00:00.000Z')
+
+    const savedWhileHeld = saved.length
+    dispatcher.check()
+    await dispatcher.idle()
+    expect(saved).toHaveLength(savedWhileHeld)
+
+    options.limitReset = null
+    dispatcher.check()
+    await dispatcher.idle()
+    expect(launched).toEqual(['ABC/ABC-1'])
+    expect(dispatcher.state.active?.limitUntil).toBeUndefined()
+  })
+
+  it('takes over a live session of the next task even while the limit is used up', async () => {
+    const { dispatcher, launched } = setup({ limitReset: '2026-09-26T17:00:00.000Z', live: { 'ABC-1': 'session-9' } })
+    dispatcher.setTasks('ABC', [task('ABC-1')])
+    dispatcher.start('ABC')
+    await dispatcher.idle()
+    expect(launched).toEqual([])
+    expect(dispatcher.state.active).toMatchObject({ current: { task: 'ABC-1', sessionId: 'session-9' } })
+    expect(dispatcher.state.active?.limitUntil).toBeUndefined()
   })
 
   it('pauses with the cycle when the order cannot be built', async () => {

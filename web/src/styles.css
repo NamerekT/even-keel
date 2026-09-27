@@ -841,6 +841,16 @@ a:focus-visible {
   font-size: 14px;
 }
 
+.project__wait {
+  flex-basis: 100%;
+  margin: 0;
+  padding: 6px 10px;
+  border-radius: 8px;
+  background: var(--warn-bg);
+  color: var(--warn-fg);
+  font-size: 13px;
+}
+
 .project__error {
   flex-basis: 100%;
   margin: 0;
@@ -1260,6 +1270,15 @@ a:focus-visible {
   border-radius: 8px;
   background: var(--error-bg);
   color: var(--error-fg);
+  font-size: 13px;
+}
+
+.card__wait {
+  margin: 0;
+  padding: 6px 10px;
+  border-radius: 8px;
+  background: var(--warn-bg);
+  color: var(--warn-fg);
   font-size: 13px;
 }
 

@@ -27,6 +27,11 @@ export function currentLimits(limits: RateLimits | undefined, now: Date, notBefo
   return { ...limits, fiveHour: live(limits.fiveHour), sevenDay: live(limits.sevenDay) }
 }
 
+export function newestLimits(a: RateLimits | undefined, b: RateLimits | undefined): RateLimits | undefined {
+  if (a === undefined || b === undefined) return a ?? b
+  return Date.parse(b.updatedAt) > Date.parse(a.updatedAt) ? b : a
+}
+
 export function exhaustedReset(limits: RateLimits | null): string | null {
   const resets = [limits?.fiveHour, limits?.sevenDay].flatMap((window) =>
     window !== null && window !== undefined && window.usedPercentage >= 100 ? [window.resetsAt] : [],

@@ -59,6 +59,15 @@ export class ClaudeCli {
     return parseAuthStatus(stdout)
   }
 
+  async usage(cwd: string): Promise<string> {
+    const { stdout } = await run(this.bin(), ['-p', '/usage', '--output-format', 'json', '--no-session-persistence'], {
+      cwd,
+      timeout: this.timeoutMs,
+      windowsHide: true,
+    })
+    return stdout
+  }
+
   authLogin(): ChildProcessWithoutNullStreams {
     return spawn(this.bin(), ['auth', 'login', '--claudeai'], { windowsHide: true, stdio: 'pipe' })
   }

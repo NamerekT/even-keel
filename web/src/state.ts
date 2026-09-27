@@ -6,6 +6,7 @@ import { isOpen, type HulyTask } from '../../src/huly/model.js'
 import type { Lamp } from '../../src/sessions/agents.js'
 import type { TokenTotals } from '../../src/sessions/transcript.js'
 import type { BatonState, ContextScale, SessionView } from '../../src/state.js'
+import { formatMoment } from './format.js'
 
 export type CardLamp = Lamp | 'idle'
 
@@ -22,7 +23,7 @@ export function accountBadge(view: AccountView): AccountBadge {
 }
 
 export type ChainStatus =
-  | { kind: 'running' }
+  | { kind: 'running'; limitUntil: string | null }
   | { kind: 'paused'; error: string | null }
   | { kind: 'queued'; position: number }
   | { kind: 'idle' }
@@ -78,9 +79,15 @@ export function chainProgress(tasks: HulyTask[]): { done: number; total: number 
 
 export function chainStatus(chain: BatonState['chain'], project: string): ChainStatus {
   const { active, queue } = chain
-  if (active?.project === project) return active.paused ? { kind: 'paused', error: active.error } : { kind: 'running' }
+  if (active?.project === project) {
+    return active.paused ? { kind: 'paused', error: active.error } : { kind: 'running', limitUntil: active.limitUntil ?? null }
+  }
   const index = queue.indexOf(project)
   return index < 0 ? { kind: 'idle' } : { kind: 'queued', position: index + 1 }
+}
+
+export function limitWaitText(until: string, now: Date): string {
+  return `Лимит исчерпан — следующая задача запустится после сброса в ${formatMoment(until, now)}.`
 }
 
 export function cardTask(state: BatonState, project: string): CardTask | null {

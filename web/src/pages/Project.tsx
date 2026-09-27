@@ -2,7 +2,7 @@ import { useCallback, useEffect } from 'react'
 import { useLocation, useNavigate, useParams } from 'react-router'
 import type { BatonState } from '../../../src/state.js'
 import { useCommand } from '../live/useCommand.js'
-import { chainBlocks, chainStatus, queuedAfter } from '../state.js'
+import { chainBlocks, chainStatus, limitWaitText, queuedAfter } from '../state.js'
 import { StatusChip } from '../ui/StatusChip.js'
 import { ChainSnake } from './ChainSnake.js'
 import { NotFound } from './NotFound.js'
@@ -70,6 +70,9 @@ function ChainControls({ state, project }: { state: BatonState; project: string 
       {status.kind === 'running' && button('Пауза', 'pause')}
       {status.kind === 'paused' && button('Снять с паузы', 'resume', true)}
       {after !== null && <span className="project__queue">в очереди после {after}</span>}
+      {status.kind === 'running' && status.limitUntil !== null && (
+        <p className="project__wait">{limitWaitText(status.limitUntil, new Date())}</p>
+      )}
       {error !== null && <p className="project__error">{error}</p>}
     </div>
   )

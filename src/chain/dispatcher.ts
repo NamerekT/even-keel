@@ -14,6 +14,7 @@ export interface ActiveChain {
   current: CurrentTask | null
   paused: boolean
   error: string | null
+  limitUntil?: string
 }
 
 export interface ChainState {
@@ -243,6 +244,7 @@ export class Dispatcher {
       const since = this.deps.now().toISOString()
       const live = this.deps.liveSession(task)
       if (live !== undefined) {
+        delete chain.limitUntil
         chain.current = { task, sessionId: live, since }
         this.deps.save(this.state)
         return
@@ -254,6 +256,16 @@ export class Dispatcher {
         return
       }
 
+      const reset = this.deps.limitReset()
+      if (reset !== null) {
+        if (chain.limitUntil !== reset) {
+          chain.limitUntil = reset
+          this.deps.save(this.state)
+        }
+        return
+      }
+
+      delete chain.limitUntil
       chain.current = { task, sessionId: null, since }
       this.deps.save(this.state)
       try {
@@ -313,6 +325,7 @@ export class Dispatcher {
     chain.current = null
     chain.paused = true
     chain.error = error
+    delete chain.limitUntil
     this.deps.save(this.state)
   }
 }

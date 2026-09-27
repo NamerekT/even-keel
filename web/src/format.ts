@@ -10,6 +10,14 @@ export function formatSpan(until: string, now: Date): string {
   return `${Math.floor(ms / MINUTE)} мин`
 }
 
+const CLOCK = new Intl.DateTimeFormat('ru', { hour: '2-digit', minute: '2-digit' })
+const DATED = new Intl.DateTimeFormat('ru', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
+
+export function formatMoment(at: string, now: Date): string {
+  const moment = new Date(at)
+  return moment.toDateString() === now.toDateString() ? CLOCK.format(moment) : DATED.format(moment)
+}
+
 export function formatAgo(at: string, now: Date): string {
   const ms = now.getTime() - Date.parse(at)
   if (ms < 5_000) return 'только что'

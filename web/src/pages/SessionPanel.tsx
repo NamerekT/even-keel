@@ -4,7 +4,7 @@ import type { LimitHold } from '../../../src/chain/relay.js'
 import type { RemoteOff } from '../../../src/sessions/remote.js'
 import type { FeedLine, TokenTotals } from '../../../src/sessions/transcript.js'
 import type { ContextScale, SessionRecord, SessionView } from '../../../src/state.js'
-import { formatClock, formatTokens } from '../format.js'
+import { formatClock, formatMoment, formatTokens } from '../format.js'
 import { useNow } from '../layout/useNow.js'
 import { useLive } from '../live/context.js'
 import { issueLink, sessionElapsed, tokenTotal, type ChainBlock } from '../state.js'
@@ -13,7 +13,6 @@ import { Lamp, LAMP_LABELS } from '../ui/Lamp.js'
 
 const STARTED = new Intl.DateTimeFormat('ru', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
 const FEED_TIME = new Intl.DateTimeFormat('ru', { hour: '2-digit', minute: '2-digit', second: '2-digit' })
-const CLOCK = new Intl.DateTimeFormat('ru', { hour: '2-digit', minute: '2-digit' })
 const PINNED_SLACK = 24
 
 const HOW: Record<TaskSession['how'], string> = {
@@ -150,8 +149,7 @@ function TokensFact({ tokens }: { tokens: TokenTotals }) {
 
 function limitPlan(hold: LimitHold, now: Date): string {
   if (hold.resetsAt === null) return 'Время сброса лимита неизвестно — новая сессия запустится, как только сменишь аккаунт.'
-  const reset = new Date(hold.resetsAt)
-  const at = reset.toDateString() === now.toDateString() ? CLOCK.format(reset) : STARTED.format(reset)
+  const at = formatMoment(hold.resetsAt, now)
   return hold.then === 'resume'
     ? `После сброса лимита в ${at} диспетчер продолжит эту сессию — кэш ещё будет тёплым.`
     : `После сброса лимита в ${at} (или сразу после смены аккаунта) диспетчер запустит новую сессию в той же рабочей папке.`

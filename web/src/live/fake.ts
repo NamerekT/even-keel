@@ -336,6 +336,10 @@ export function createFakeSource(search: string): LiveSource {
     state: link === 'connecting' ? null : fakeState(huly, idle, contextTokens, launches, params.get('account'), params.get('limit')),
     link,
   }
+  const active = current.state?.chain.active
+  if (params.get('chain') === 'limit' && active) {
+    current.state!.chain.active = { ...active, current: null, limitUntil: new Date(Date.now() + 95 * 60_000).toISOString() }
+  }
   const notify = () => {
     for (const listener of listeners) listener()
   }

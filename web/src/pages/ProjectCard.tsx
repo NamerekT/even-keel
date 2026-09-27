@@ -1,7 +1,7 @@
 import { Link } from 'react-router'
 import type { BatonState } from '../../../src/state.js'
 import { useCommand } from '../live/useCommand.js'
-import { cardTask, chainProgress, chainStatus, projectSlot, projectTasks } from '../state.js'
+import { cardTask, chainProgress, chainStatus, limitWaitText, projectSlot, projectTasks } from '../state.js'
 import { Lamp } from '../ui/Lamp.js'
 import { seriesStyle } from '../ui/series.js'
 import { StatusChip } from '../ui/StatusChip.js'
@@ -54,6 +54,7 @@ export function ProjectCard({ state, project }: { state: BatonState; project: st
         </p>
       )}
 
+      {status.kind === 'running' && status.limitUntil !== null && <p className="card__wait">{limitWaitText(status.limitUntil, new Date())}</p>}
       {error !== null && <p className="card__error">{error}</p>}
 
       {canStart && (

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { formatAgo, formatClock, formatSpan, formatTokens, plural } from './format.js'
+import { formatAgo, formatClock, formatMoment, formatSpan, formatTokens, plural } from './format.js'
 
 const now = new Date('2026-01-01T12:00:00.000Z')
 const later = (ms: number) => new Date(now.getTime() + ms).toISOString()
@@ -97,5 +97,19 @@ describe('formatClock', () => {
 
   it('never goes below zero when the clocks disagree', () => {
     expect(formatClock(-3_000)).toBe('0:00')
+  })
+})
+
+describe('formatMoment', () => {
+  const today = new Date(2026, 8, 27, 12, 0)
+
+  it('gives only the clock time for a moment later today', () => {
+    expect(formatMoment(new Date(2026, 8, 27, 19, 49).toISOString(), today)).toBe('19:49')
+  })
+
+  it('adds the date for a moment on another day', () => {
+    const text = formatMoment(new Date(2026, 9, 3, 14, 59).toISOString(), today)
+    expect(text).toMatch(/3 окт/)
+    expect(text).toMatch(/14:59/)
   })
 })

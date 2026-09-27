@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { currentLimits, exhaustedReset, parseLimitsFile } from './model.js'
+import { currentLimits, exhaustedReset, newestLimits, parseLimitsFile } from './model.js'
 
 const RECEIVED_AT = '2026-01-01T12:00:00.000Z'
 const FIVE_HOUR_RESET = Date.UTC(2026, 0, 1, 15, 0, 0) / 1000
@@ -82,6 +82,21 @@ describe('currentLimits', () => {
 
   it('returns null when nothing has been received yet', () => {
     expect(currentLimits(undefined, new Date(RECEIVED_AT))).toBeNull()
+  })
+})
+
+describe('newestLimits', () => {
+  const at = (updatedAt: string) => ({ fiveHour: null, sevenDay: null, updatedAt })
+
+  it('takes the snapshot received last', () => {
+    expect(newestLimits(at('2026-01-01T12:00:00.000Z'), at('2026-01-01T12:00:30.000Z'))).toEqual(at('2026-01-01T12:00:30.000Z'))
+    expect(newestLimits(at('2026-01-01T12:01:00.000Z'), at('2026-01-01T12:00:30.000Z'))).toEqual(at('2026-01-01T12:01:00.000Z'))
+  })
+
+  it('takes whichever snapshot exists', () => {
+    expect(newestLimits(undefined, at(RECEIVED_AT))).toEqual(at(RECEIVED_AT))
+    expect(newestLimits(at(RECEIVED_AT), undefined)).toEqual(at(RECEIVED_AT))
+    expect(newestLimits(undefined, undefined)).toBeUndefined()
   })
 })
 

@@ -118,19 +118,31 @@ describe('chainProgress', () => {
 })
 
 describe('chainStatus', () => {
-  const active = (patch: { paused?: boolean; error?: string | null } = {}) => ({
+  const active = (patch: { paused?: boolean; error?: string | null; limitUntil?: string } = {}) => ({
     project: 'ABC',
     current: null,
     paused: patch.paused ?? false,
     error: patch.error ?? null,
+    ...(patch.limitUntil === undefined ? {} : { limitUntil: patch.limitUntil }),
   })
 
   it('tells a running chain from a paused one', () => {
-    expect(chainStatus(chain({ active: active() }), 'ABC')).toEqual({ kind: 'running' })
+    expect(chainStatus(chain({ active: active() }), 'ABC')).toEqual({ kind: 'running', limitUntil: null })
     expect(chainStatus(chain({ active: active({ paused: true }) }), 'ABC')).toEqual({ kind: 'paused', error: null })
     expect(chainStatus(chain({ active: active({ paused: true, error: 'boom' }) }), 'ABC')).toEqual({
       kind: 'paused',
       error: 'boom',
+    })
+  })
+
+  it('tells when a running chain waits for the limit to reset', () => {
+    expect(chainStatus(chain({ active: active({ limitUntil: '2026-09-27T17:49:00.000Z' }) }), 'ABC')).toEqual({
+      kind: 'running',
+      limitUntil: '2026-09-27T17:49:00.000Z',
+    })
+    expect(chainStatus(chain({ active: active({ paused: true, limitUntil: '2026-09-27T17:49:00.000Z' }) }), 'ABC')).toEqual({
+      kind: 'paused',
+      error: null,
     })
   })
 
