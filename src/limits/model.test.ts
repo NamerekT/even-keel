@@ -71,6 +71,11 @@ describe('currentLimits', () => {
     expect(currentLimits(limits, new Date('2026-01-01T14:59:59.000Z'))).toEqual(limits)
   })
 
+  it('drops a snapshot taken before the current account was signed in', () => {
+    expect(currentLimits(limits, new Date('2026-01-01T14:00:00.000Z'), '2026-01-01T12:30:00.000Z')).toBeNull()
+    expect(currentLimits(limits, new Date('2026-01-01T14:00:00.000Z'), '2026-01-01T11:30:00.000Z')).toEqual(limits)
+  })
+
   it('drops a window once its reset time has passed', () => {
     expect(currentLimits(limits, new Date('2026-01-01T15:00:00.000Z'))).toEqual({ ...limits, fiveHour: null })
   })

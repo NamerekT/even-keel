@@ -1,5 +1,6 @@
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { accountAt, loadLedger, noteAccount, saveLedger } from './account/ledger.js'
 import { launchBlock, loginBlock, type LoginBlock } from './account/model.js'
 import { AccountWatcher } from './account/watcher.js'
 import { Dispatcher, type LaunchEntry } from './chain/dispatcher.js'
@@ -46,6 +47,7 @@ const stateDir = process.env.BATON_STATE_DIR ?? join(root, 'state')
 const chainFile = join(stateDir, 'chain.json')
 const launchesFile = join(stateDir, 'launches.jsonl')
 const limitsFile = join(stateDir, 'rate-limits.json')
+const accountFile = join(stateDir, 'account.json')
 const credentials = readHulyCredentials(process.env)
 const hub = new EventHub()
 const cli = new ClaudeCli(() => resolveClaudeBinary(process.env), CLAUDE_TIMEOUT_MS)
@@ -56,10 +58,12 @@ let sessions: SessionView[] = []
 let agents: AgentEntry[] = []
 let huly: HulyHealth = { state: 'off', lastOkAt: null, error: null }
 const launches: LaunchEntry[] = readLaunches(launchesFile)
+let ledger = loadLedger(accountFile)
 
 const limits = new LimitsWatcher({
   file: limitsFile,
   intervalMs: LIMITS_POLL_MS,
+  notBefore: () => ledger.since,
   onChange: () => hub.broadcast('state', getState()),
   onError: (error) => console.error(`limits: ${error instanceof Error ? error.message : String(error)}`),
 })
@@ -72,6 +76,12 @@ const account = new AccountWatcher({
   loginTimeoutMs: LOGIN_TIMEOUT_MS,
   now: () => new Date(),
   onChange: () => {
+    const status = account.view.status
+    const noted = noteAccount(ledger, status?.loggedIn === true ? status.email : null, new Date())
+    if (noted !== undefined) {
+      ledger = noted
+      saveLedger(accountFile, ledger)
+    }
     hub.broadcast('state', getState())
     dispatcher.check()
   },
@@ -115,6 +125,7 @@ const dispatcher = new Dispatcher(loadChainState(chainFile), {
     email: account.view.status?.email ?? null,
     ready: account.view.status?.loggedIn === true && launchBlock(account.view) === undefined,
   }),
+  accountAt: (at) => accountAt(ledger, at),
   limitReset: () => exhaustedReset(limits.limits),
   resume: async (task, session) => {
     await cli.stop(session.agentId, session.sessionId)

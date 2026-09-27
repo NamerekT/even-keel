@@ -20,8 +20,9 @@ export function parseLimitsFile(raw: unknown): RateLimits | undefined {
   }
 }
 
-export function currentLimits(limits: RateLimits | undefined, now: Date): RateLimits | null {
+export function currentLimits(limits: RateLimits | undefined, now: Date, notBefore: string | null = null): RateLimits | null {
   if (limits === undefined) return null
+  if (notBefore !== null && Date.parse(limits.updatedAt) < Date.parse(notBefore)) return null
   const live = (window: LimitWindow | null) => (window !== null && Date.parse(window.resetsAt) > now.getTime() ? window : null)
   return { ...limits, fiveHour: live(limits.fiveHour), sevenDay: live(limits.sevenDay) }
 }

@@ -24,6 +24,7 @@ function setup(
     blocked?: string
     limited?: Record<string, LimitedSession>
     account?: AccountNow
+    accountAt?: (at: string) => string | null
     failRelay?: boolean
   } = {},
 ) {
@@ -49,6 +50,7 @@ function setup(
     now: () => clock.now,
     limited: (id) => limited[id],
     account: () => account,
+    accountAt: options.accountAt ?? (() => account.email),
     limitReset: () => null,
     resume: async (_task, session) => {
       relays.push({ kind: 'resume', task: '', sessionId: session.sessionId })
@@ -508,6 +510,29 @@ describe('Dispatcher on a limit', () => {
     clock.now = new Date('2026-09-26T12:05:00Z')
     await check(dispatcher)
     expect(relays).toMatchObject([{ kind: 'relay' }])
+  })
+
+  it('hands over when the account was switched on a paused chain before the limit was noted', async () => {
+    const accountAt = (at: string) => (at < '2026-09-26T12:03:00.000Z' ? 'john@example.com' : 'jane@example.com')
+    const { dispatcher, limited, clock, relays, account } = await running({ accountAt })
+    dispatcher.pause()
+    limited['ABC-1'] = limitedSession('session-1', '2026-09-26T12:00:00.000Z', '2026-09-26T11:59:00.000Z')
+    account.email = 'jane@example.com'
+    clock.now = new Date('2026-09-26T12:05:00Z')
+    dispatcher.resume()
+    await dispatcher.idle()
+
+    expect(dispatcher.state.active?.current?.limit?.account).toBe('john@example.com')
+    expect(relays).toMatchObject([{ kind: 'relay' }])
+  })
+
+  it('waits to note a limit until the account is known', async () => {
+    const { dispatcher, limited, account } = await running({ accountAt: () => null })
+    account.email = null
+    account.ready = false
+    limited['ABC-1'] = limitedSession('session-1', '2026-09-26T12:00:00.000Z', '2026-09-26T11:59:00.000Z')
+    await check(dispatcher)
+    expect(dispatcher.state.active?.current?.limit).toBeUndefined()
   })
 
   it('acts again on a new limit of the relayed session', async () => {

@@ -4,6 +4,7 @@ import { currentLimits, parseLimitsFile, type RateLimits } from './model.js'
 export interface LimitsWatcherOptions {
   file: string
   intervalMs: number
+  notBefore: () => string | null
   onChange: (limits: RateLimits | null) => void
   onError: (error: unknown) => void
 }
@@ -16,7 +17,7 @@ export class LimitsWatcher {
   constructor(private readonly options: LimitsWatcherOptions) {}
 
   get limits(): RateLimits | null {
-    return currentLimits(this.received, new Date())
+    return currentLimits(this.received, new Date(), this.options.notBefore())
   }
 
   start(): void {
