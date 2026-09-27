@@ -7,6 +7,7 @@ export interface RateLimits {
   fiveHour: LimitWindow | null
   sevenDay: LimitWindow | null
   updatedAt: string
+  source: 'usage' | 'statusline'
 }
 
 export function parseLimitsFile(raw: unknown): RateLimits | undefined {
@@ -17,6 +18,7 @@ export function parseLimitsFile(raw: unknown): RateLimits | undefined {
     fiveHour: parseWindow(raw.rate_limits.five_hour),
     sevenDay: parseWindow(raw.rate_limits.seven_day),
     updatedAt: new Date(receivedAt).toISOString(),
+    source: 'statusline',
   }
 }
 

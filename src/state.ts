@@ -4,6 +4,7 @@ import type { LaunchDay, TaskSession } from './chain/launches.js'
 import type { HulyHealth } from './huly/health.js'
 import type { HulyTask } from './huly/model.js'
 import type { RateLimits } from './limits/model.js'
+import type { UsageHealth } from './limits/usage.js'
 import type { Lamp } from './sessions/agents.js'
 import type { RemoteOff } from './sessions/remote.js'
 import type { FeedLine, Stage, TokenTotals } from './sessions/transcript.js'
@@ -52,6 +53,7 @@ export interface BatonState {
   tasks: HulyTask[]
   sessions: SessionView[]
   limits: RateLimits | null
+  usage: UsageHealth
   account: AccountView
   huly: HulyHealth
   trackerUrl: string | null

@@ -1,6 +1,7 @@
 import { Route, Routes } from 'react-router'
 import { Header } from './layout/Header.js'
 import { LinkBanner } from './layout/LinkBanner.js'
+import { UsageBanner } from './layout/UsageBanner.js'
 import { useLive } from './live/context.js'
 import { Home } from './pages/Home.js'
 import { NotFound } from './pages/NotFound.js'
@@ -13,6 +14,7 @@ export function App() {
     <div className="app">
       <Header />
       <LinkBanner />
+      <UsageBanner />
       <main className="content">
         {state === null ? (
           <p className="placeholder">{link === 'stale' ? 'Нет связи с сервером Baton.' : 'Подключение…'}</p>

@@ -21,7 +21,7 @@ describe('parseLimitsFile', () => {
     expect(limits).toEqual({
       fiveHour: { usedPercentage: 23.5, resetsAt: '2026-01-01T15:00:00.000Z' },
       sevenDay: { usedPercentage: 41.2, resetsAt: '2026-01-05T09:30:00.000Z' },
-      updatedAt: RECEIVED_AT,
+      updatedAt: RECEIVED_AT, source: 'statusline' as const,
     })
   })
 
@@ -40,13 +40,13 @@ describe('parseLimitsFile', () => {
       }),
     )
 
-    expect(limits).toEqual({ fiveHour: null, sevenDay: null, updatedAt: RECEIVED_AT })
+    expect(limits).toEqual({ fiveHour: null, sevenDay: null, updatedAt: RECEIVED_AT, source: 'statusline' as const })
   })
 
   it('ignores the spend_limit window', () => {
     const limits = parseLimitsFile(snapshot({ spend_limit: { used_percentage: 120, resets_at: SEVEN_DAY_RESET } }))
 
-    expect(limits).toEqual({ fiveHour: null, sevenDay: null, updatedAt: RECEIVED_AT })
+    expect(limits).toEqual({ fiveHour: null, sevenDay: null, updatedAt: RECEIVED_AT, source: 'statusline' as const })
   })
 
   it.each([
@@ -64,7 +64,7 @@ describe('currentLimits', () => {
   const limits = {
     fiveHour: { usedPercentage: 90, resetsAt: '2026-01-01T15:00:00.000Z' },
     sevenDay: { usedPercentage: 41.2, resetsAt: '2026-01-05T09:30:00.000Z' },
-    updatedAt: RECEIVED_AT,
+    updatedAt: RECEIVED_AT, source: 'statusline' as const,
   }
 
   it('returns the windows unchanged before they reset', () => {
@@ -86,7 +86,7 @@ describe('currentLimits', () => {
 })
 
 describe('newestLimits', () => {
-  const at = (updatedAt: string) => ({ fiveHour: null, sevenDay: null, updatedAt })
+  const at = (updatedAt: string) => ({ fiveHour: null, sevenDay: null, updatedAt, source: 'usage' as const })
 
   it('takes the snapshot received last', () => {
     expect(newestLimits(at('2026-01-01T12:00:00.000Z'), at('2026-01-01T12:00:30.000Z'))).toEqual(at('2026-01-01T12:00:30.000Z'))
@@ -107,13 +107,13 @@ describe('exhaustedReset', () => {
     const limits = {
       fiveHour: window(100, '2026-09-27T17:00:00.000Z'),
       sevenDay: window(100, '2026-09-30T08:00:00.000Z'),
-      updatedAt: RECEIVED_AT,
+      updatedAt: RECEIVED_AT, source: 'statusline' as const,
     }
     expect(exhaustedReset(limits)).toBe('2026-09-30T08:00:00.000Z')
   })
 
   it('knows nothing when no window is exhausted', () => {
-    expect(exhaustedReset({ fiveHour: window(71, '2026-09-27T17:00:00.000Z'), sevenDay: null, updatedAt: RECEIVED_AT })).toBeNull()
+    expect(exhaustedReset({ fiveHour: window(71, '2026-09-27T17:00:00.000Z'), sevenDay: null, updatedAt: RECEIVED_AT, source: 'statusline' as const })).toBeNull()
     expect(exhaustedReset(null)).toBeNull()
   })
 })

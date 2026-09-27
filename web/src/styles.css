@@ -661,6 +661,11 @@ h1 {
   font-size: 14px;
 }
 
+.banner--error {
+  background: var(--error-bg);
+  color: var(--error-fg);
+}
+
 .banner__inner {
   flex-wrap: wrap;
   gap: 8px 16px;

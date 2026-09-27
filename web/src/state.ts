@@ -5,6 +5,7 @@ import type { LimitHold } from '../../src/chain/relay.js'
 import { isOpen, type HulyTask } from '../../src/huly/model.js'
 import type { Lamp } from '../../src/sessions/agents.js'
 import type { TokenTotals } from '../../src/sessions/transcript.js'
+import type { UsageHealth } from '../../src/limits/usage.js'
 import type { BatonState, ContextScale, SessionView } from '../../src/state.js'
 import { formatMoment } from './format.js'
 
@@ -84,6 +85,30 @@ export function chainStatus(chain: BatonState['chain'], project: string): ChainS
   }
   const index = queue.indexOf(project)
   return index < 0 ? { kind: 'idle' } : { kind: 'queued', position: index + 1 }
+}
+
+export interface UsageNotice {
+  tone: 'warn' | 'error'
+  text: string
+  key: string
+}
+
+export function usageNotice(health: UsageHealth): UsageNotice | null {
+  if (health.state === 'unread') {
+    return {
+      tone: 'warn',
+      text: `Лимиты из /usage не читаются — показаны последние из statusline, CLI мог поменять формат. Причина: ${health.reason}`,
+      key: `unread:${health.since}`,
+    }
+  }
+  if (health.state === 'off') {
+    return {
+      tone: 'error',
+      text: `Опрос /usage выключен до перезапуска службы: ответ похож на ход модели, а он тратит квоту. Причина: ${health.reason}`,
+      key: `off:${health.since}`,
+    }
+  }
+  return null
 }
 
 export function limitWaitText(until: string, now: Date): string {

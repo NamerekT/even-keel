@@ -15,6 +15,7 @@ import {
   sessionElapsed,
   taskProject,
   tokenTotal,
+  usageNotice,
   waitingSessions,
 } from './state.js'
 
@@ -50,6 +51,7 @@ function baton(patch: Partial<BatonState>): BatonState {
     tasks: [],
     sessions: [],
     limits: null,
+    usage: { state: 'ok', reason: null, since: null },
     account: { status: null, error: null, login: null, loginBlock: null },
     huly: { state: 'live', lastOkAt: null, error: null },
     trackerUrl: null,
@@ -444,5 +446,30 @@ describe('accountBadge', () => {
       label: 'Вход не удался',
     })
     expect(accountBadge(view({ error: 'claude: auth status timed out' }))).toEqual({ kind: 'unknown', label: 'Claude' })
+  })
+})
+
+describe('usageNotice', () => {
+  const since = '2026-09-27T17:00:00.000Z'
+
+  it('stays quiet while /usage is read or not asked yet', () => {
+    expect(usageNotice({ state: 'ok', reason: null, since })).toBeNull()
+    expect(usageNotice({ state: 'waiting', reason: null, since: null })).toBeNull()
+  })
+
+  it('warns that limits fall back to statusline when /usage is unreadable', () => {
+    const notice = usageNotice({ state: 'unread', reason: 'no readable "Current session" line', since })
+
+    expect(notice).toMatchObject({ tone: 'warn', key: `unread:${since}` })
+    expect(notice?.text).toMatch(/statusline/)
+    expect(notice?.text).toMatch(/no readable "Current session" line/)
+  })
+
+  it('alarms when /usage polling was turned off', () => {
+    const notice = usageNotice({ state: 'off', reason: 'num_turns is 1, not 0', since })
+
+    expect(notice).toMatchObject({ tone: 'error', key: `off:${since}` })
+    expect(notice?.text).toMatch(/выключен/)
+    expect(notice?.text).toMatch(/num_turns is 1, not 0/)
   })
 })

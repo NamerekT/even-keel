@@ -150,6 +150,7 @@ const getState = (): BatonState => ({
   tasks: [...tasksByProject.values()].flat(),
   sessions,
   limits: limits.limits,
+  usage: limits.usage,
   account: account.view,
   huly,
   trackerUrl: credentials === undefined ? null : issueUrlBase(credentials),

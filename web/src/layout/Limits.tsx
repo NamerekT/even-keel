@@ -3,19 +3,30 @@ import { formatSpan } from '../format.js'
 
 const HOT_PERCENT = 90
 
+const SOURCES: Record<RateLimits['source'], string> = { usage: 'по /usage', statusline: 'по statusline' }
+
 export function Limits({ limits, now }: { limits: RateLimits | null; now: Date }) {
+  const source = limits === null ? '' : ` · ${SOURCES[limits.source]}`
   return (
     <div className="limits">
-      <Meter label="5 ч" title="Лимит 5 часов" window={limits?.fiveHour ?? null} now={now} />
-      <Meter label="Неделя" title="Недельный лимит" window={limits?.sevenDay ?? null} now={now} />
+      <Meter label="5 ч" title="Лимит 5 часов" source={source} window={limits?.fiveHour ?? null} now={now} />
+      <Meter label="Неделя" title="Недельный лимит" source={source} window={limits?.sevenDay ?? null} now={now} />
     </div>
   )
 }
 
-function Meter({ label, title, window, now }: { label: string; title: string; window: LimitWindow | null; now: Date }) {
+interface MeterProps {
+  label: string
+  title: string
+  source: string
+  window: LimitWindow | null
+  now: Date
+}
+
+function Meter({ label, title, source, window, now }: MeterProps) {
   if (window === null) {
     return (
-      <div className="meter meter--empty" title={`${title}: нет данных`}>
+      <div className="meter meter--empty" title={`${title}: нет данных${source}`}>
         <span className="meter__label">{label}</span>
         <span className="meter__bar" aria-hidden="true" />
         <span className="meter__value">—</span>
@@ -26,7 +37,7 @@ function Meter({ label, title, window, now }: { label: string; title: string; wi
   const percent = Math.round(Math.min(Math.max(window.usedPercentage, 0), 100))
   const resetIn = formatSpan(window.resetsAt, now)
   return (
-    <div className={`meter${percent >= HOT_PERCENT ? ' meter--hot' : ''}`} title={`${title}: сброс через ${resetIn}`}>
+    <div className={`meter${percent >= HOT_PERCENT ? ' meter--hot' : ''}`} title={`${title}: сброс через ${resetIn}${source}`}>
       <span className="meter__label">{label}</span>
       <span
         className="meter__bar"

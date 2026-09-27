@@ -5,6 +5,7 @@ import { checkOrder } from '../../../src/chain/order.js'
 import type { HulyHealth, HulyLinkState } from '../../../src/huly/health.js'
 import type { HulyTask, StatusCategory } from '../../../src/huly/model.js'
 import type { FeedLine } from '../../../src/sessions/transcript.js'
+import type { UsageHealth } from '../../../src/limits/usage.js'
 import type { LimitHold } from '../../../src/chain/relay.js'
 import type { BatonState, SessionRecord, SessionView } from '../../../src/state.js'
 import type { Link, LiveSnapshot, LiveSource } from './connection.js'
@@ -97,6 +98,7 @@ function fakeState(
   launches: LaunchEntry[],
   account: string | null,
   limit: string | null,
+  usage: string | null,
 ): BatonState {
   const tasks = [
     task('ABC-1', 'Каркас сервера', 'Done', 'Won', [], 'v0.1 — каркас'),
@@ -155,7 +157,9 @@ function fakeState(
       fiveHour: { usedPercentage: 37, resetsAt: new Date(Date.now() + 2 * 3_600_000).toISOString() },
       sevenDay: { usedPercentage: 64, resetsAt: new Date(Date.now() + 3 * 86_400_000).toISOString() },
       updatedAt: ago(0),
+      source: 'usage',
     },
+    usage: fakeUsage(usage),
     account: fakeAccount(account, idle),
     huly: fakeHuly(huly),
     trackerUrl: 'https://huly.example.com/workbench/example/tracker/',
@@ -262,6 +266,13 @@ const FAKE_LOGIN: AccountLogin = {
   codeSent: false,
 }
 
+function fakeUsage(mode: string | null): UsageHealth {
+  if (mode === 'unread') return { state: 'unread', reason: 'no readable "Current week (all models)" line', since: ago(12) }
+  if (mode === 'off') return { state: 'off', reason: 'num_turns is 1, not 0', since: ago(3) }
+  if (mode === 'waiting') return { state: 'waiting', reason: null, since: null }
+  return { state: 'ok', reason: null, since: ago(60) }
+}
+
 function fakeAccount(mode: string | null, idle: boolean): AccountView {
   const signedIn: AccountView = {
     status: FAKE_ACCOUNT,
@@ -333,7 +344,7 @@ export function createFakeSource(search: string): LiveSource {
   const idle = params.get('chain') === 'idle'
   const contextTokens = Number(params.get('ctx') ?? 61_000)
   let current: LiveSnapshot = {
-    state: link === 'connecting' ? null : fakeState(huly, idle, contextTokens, launches, params.get('account'), params.get('limit')),
+    state: link === 'connecting' ? null : fakeState(huly, idle, contextTokens, launches, params.get('account'), params.get('limit'), params.get('usage')),
     link,
   }
   const active = current.state?.chain.active

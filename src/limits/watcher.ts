@@ -1,6 +1,6 @@
 import { readFile } from 'node:fs/promises'
 import { currentLimits, newestLimits, parseLimitsFile, type RateLimits } from './model.js'
-import { parseUsage } from './usage.js'
+import { parseUsage, type UsageHealth } from './usage.js'
 
 export interface LimitsWatcherOptions {
   file: string
@@ -8,7 +8,7 @@ export interface LimitsWatcherOptions {
   usage: () => Promise<string>
   usageIntervalMs: number
   notBefore: () => string | null
-  onChange: (limits: RateLimits | null) => void
+  onChange: () => void
   onError: (error: unknown) => void
 }
 
@@ -21,9 +21,13 @@ export class LimitsWatcher {
   private usageRunning = false
   private usageAgain = false
   private usageOff = false
-  private usageUnread = false
+  private health: UsageHealth = { state: 'waiting', reason: null, since: null }
 
   constructor(private readonly options: LimitsWatcherOptions) {}
+
+  get usage(): UsageHealth {
+    return this.health
+  }
 
   get limits(): RateLimits | null {
     return currentLimits(newestLimits(this.received, this.polled), new Date(), this.options.notBefore())
@@ -74,29 +78,36 @@ export class LimitsWatcher {
     try {
       answer = parseUsage(await this.options.usage(), at)
     } catch (error) {
-      this.options.onError(error)
-      return
+      const message = error instanceof Error ? error.message : String(error)
+      answer = { kind: 'unknown' as const, reason: `the call failed: ${message.trim().slice(0, 200)}` }
     }
     if (answer.kind === 'spent') {
       this.usageOff = true
-      this.options.onError(new Error('claude -p /usage reached the model and spent quota; /usage polling is off until restart'))
-      return
+      this.polled = undefined
+      this.setHealth('off', answer.reason, at)
+      this.options.onError(new Error(`claude -p /usage may have reached the model (${answer.reason}); /usage polling is off until restart`))
+    } else if (answer.kind === 'unknown') {
+      this.polled = undefined
+      if (this.health.state !== 'unread' || this.health.reason !== answer.reason) {
+        this.options.onError(new Error(`claude -p /usage answered without readable limits: ${answer.reason}`))
+      }
+      this.setHealth('unread', answer.reason, at)
+    } else {
+      this.polled = answer.limits
+      this.setHealth('ok', null, at)
     }
-    if (answer.kind === 'unknown') {
-      if (!this.usageUnread) this.options.onError(new Error('claude -p /usage answered without readable limits'))
-      this.usageUnread = true
-      return
-    }
-    this.usageUnread = false
-    this.polled = answer.limits
     this.publish()
   }
 
+  private setHealth(state: UsageHealth['state'], reason: string | null, at: string): void {
+    if (this.health.state === state && this.health.reason === reason) return
+    this.health = { state, reason, since: at }
+  }
+
   private publish(): void {
-    const limits = this.limits
-    const shown = JSON.stringify(limits)
+    const shown = JSON.stringify([this.limits, this.health])
     if (shown === this.shown) return
     this.shown = shown
-    this.options.onChange(limits)
+    this.options.onChange()
   }
 }
