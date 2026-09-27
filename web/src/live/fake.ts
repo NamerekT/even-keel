@@ -5,7 +5,8 @@ import { checkOrder } from '../../../src/chain/order.js'
 import type { HulyHealth, HulyLinkState } from '../../../src/huly/health.js'
 import type { HulyTask, StatusCategory } from '../../../src/huly/model.js'
 import type { FeedLine } from '../../../src/sessions/transcript.js'
-import type { BatonState, SessionView } from '../../../src/state.js'
+import type { LimitHold } from '../../../src/chain/relay.js'
+import type { BatonState, SessionRecord, SessionView } from '../../../src/state.js'
 import type { Link, LiveSnapshot, LiveSource } from './connection.js'
 
 const TICK_MS = 2_000
@@ -95,6 +96,7 @@ function fakeState(
   contextTokens: number,
   launches: LaunchEntry[],
   account: string | null,
+  limit: string | null,
 ): BatonState {
   const tasks = [
     task('ABC-1', 'Каркас сервера', 'Done', 'Won', [], 'v0.1 — каркас'),
@@ -125,7 +127,7 @@ function fakeState(
         ? null
         : {
             project: 'ABC',
-            current: { task: 'ABC-5', sessionId: null, since: ago(42) },
+            current: { task: 'ABC-5', sessionId: null, since: ago(42), ...fakeLimit(limit) },
             paused: false,
             error: null,
           },
@@ -142,7 +144,7 @@ function fakeState(
       ? []
       : [
           session('ABC-4', 212_000, 'finished'),
-          session('ABC-5', contextTokens),
+          limit === null ? session('ABC-5', contextTokens) : limitedSession(session('ABC-5', contextTokens, 'limit')),
           session('ABC-6', 96_000, 'waiting'),
           session('ABC-7', 188_000, 'error'),
           session('ABC-8', 74_000, 'limit'),
@@ -158,7 +160,46 @@ function fakeState(
     huly: fakeHuly(huly),
     trackerUrl: 'https://huly.example.com/workbench/example/tracker/',
     launches: launchDays(launches, new Date(), LAUNCH_DAYS),
+    taskSessions: idle
+      ? {}
+      : {
+          'ABC-5': [
+            { sessionId: session('ABC-5', 0).sessionId, at: ago(42), how: 'relay', resumed: 0 },
+            { sessionId: '00000000-0000-4000-8000-000000000105', at: ago(400), how: 'launch', resumed: 1 },
+          ],
+          'ABC-4': [{ sessionId: session('ABC-4', 0).sessionId, at: ago(900), how: 'launch', resumed: 0 }],
+          'ABC-6': [{ sessionId: session('ABC-6', 0).sessionId, at: ago(60), how: 'manual', resumed: 0 }],
+        },
     context: { window: 600_000, warn: 50, danger: 80 },
+  }
+}
+
+function fakeLimit(kind: string | null): { limit: LimitHold } | Record<string, never> {
+  if (kind !== 'relay' && kind !== 'resume' && kind !== 'unknown') return {}
+  const resetsAt = kind === 'unknown' ? null : new Date(Date.now() + 95 * 60_000).toISOString()
+  return {
+    limit: { at: ago(3), account: 'john@example.com', resetsAt, lastReplyAt: ago(4), then: kind === 'resume' ? 'resume' : 'relay', acted: null },
+  }
+}
+
+function limitedSession(view: SessionView): SessionView {
+  return { ...view, apiError: "You've hit your session limit · resets 7:20pm (Europe/Berlin)", lastActivityAt: ago(3) }
+}
+
+function fakeRecord(state: BatonState, sessionId: string): SessionRecord | null {
+  if (sessionId.endsWith('999')) return null
+  const live = state.sessions.find((view) => view.sessionId === sessionId)
+  return {
+    sessionId,
+    startedAt: live?.startedAt ?? ago(400),
+    lastActivityAt: live?.lastActivityAt ?? ago(250),
+    contextTokens: live?.contextTokens ?? 271_000,
+    tokens: live?.tokens ?? { input: 192, output: 78_000, cacheRead: 17_400_000, cacheWrite: 243_000 },
+    stage: 'test',
+    feed: [...fakeFeed(), ...fakeFeed()],
+    workdir: 'C:\\repos\\example-project\\.claude\\worktrees\\abc-5',
+    branch: 'abc-5/chain-order',
+    apiError: live?.apiError ?? "You've hit your session limit · resets 7:20pm (Europe/Berlin)",
   }
 }
 
@@ -292,7 +333,7 @@ export function createFakeSource(search: string): LiveSource {
   const idle = params.get('chain') === 'idle'
   const contextTokens = Number(params.get('ctx') ?? 61_000)
   let current: LiveSnapshot = {
-    state: link === 'connecting' ? null : fakeState(huly, idle, contextTokens, launches, params.get('account')),
+    state: link === 'connecting' ? null : fakeState(huly, idle, contextTokens, launches, params.get('account'), params.get('limit')),
     link,
   }
   const notify = () => {
@@ -330,6 +371,10 @@ export function createFakeSource(search: string): LiveSource {
       if (state === null) throw new Error('fake: no state yet')
       current = { ...current, state: fakeCommand(state, name, body, launches) }
       notify()
+    },
+    session: async (sessionId) => {
+      await new Promise((resolve) => setTimeout(resolve, 300))
+      return current.state === null ? null : fakeRecord(current.state, sessionId)
     },
   }
 }

@@ -1,4 +1,4 @@
-import type { BatonState } from '../../../src/state.js'
+import type { BatonState, SessionRecord } from '../../../src/state.js'
 
 export type Link = 'connecting' | 'live' | 'stale'
 
@@ -20,12 +20,14 @@ export interface LiveSource {
   snapshot(): LiveSnapshot
   retryNow(): void
   command(name: string, body?: Record<string, unknown>): Promise<void>
+  session(sessionId: string): Promise<SessionRecord | null>
 }
 
 export interface LiveDeps {
   fetchState: () => Promise<BatonState>
   openEvents: () => EventStream
   sendCommand: (name: string, body: Record<string, unknown>) => Promise<BatonState>
+  fetchSession: (sessionId: string) => Promise<SessionRecord | null>
 }
 
 const CLOSED = 2
@@ -80,6 +82,10 @@ export class LiveConnection implements LiveSource {
   async command(name: string, body: Record<string, unknown> = {}): Promise<void> {
     const state = await this.deps.sendCommand(name, body)
     if (!this.stopped) this.update({ ...this.current, state })
+  }
+
+  session(sessionId: string): Promise<SessionRecord | null> {
+    return this.deps.fetchSession(sessionId)
   }
 
   private open(): void {

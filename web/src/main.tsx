@@ -1,7 +1,7 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { BrowserRouter } from 'react-router'
-import type { BatonState } from '../../src/state.js'
+import type { BatonState, SessionRecord } from '../../src/state.js'
 import { App } from './App.js'
 import { LiveConnection, type LiveSource } from './live/connection.js'
 import { LiveProvider } from './live/context.js'
@@ -24,6 +24,14 @@ async function sendCommand(name: string, body: Record<string, unknown>): Promise
   return answer!
 }
 
+async function fetchSession(sessionId: string): Promise<SessionRecord | null> {
+  const response = await fetch(`/api/sessions/${encodeURIComponent(sessionId)}`, { cache: 'no-store' })
+  if (response.status === 404) return null
+  const answer = (await response.json().catch(() => null)) as (SessionRecord & { error?: string }) | null
+  if (!response.ok) throw new Error(answer?.error ?? `/api/sessions answered ${response.status}`)
+  return answer
+}
+
 async function createSource(): Promise<LiveSource> {
   if (import.meta.env.MODE === 'fake') return (await import('./live/fake.js')).createFakeSource(location.search)
 
@@ -31,6 +39,7 @@ async function createSource(): Promise<LiveSource> {
     fetchState,
     openEvents: () => new EventSource('/api/events'),
     sendCommand,
+    fetchSession,
   })
   connection.start()
   window.addEventListener('online', () => connection.retryNow())

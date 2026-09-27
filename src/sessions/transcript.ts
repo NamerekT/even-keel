@@ -24,8 +24,11 @@ export interface TranscriptSummary {
   feed: FeedLine[]
   remoteUrl: string | null
   apiError: { kind: ApiErrorKind; text: string; at: string } | null
+  firstActivityAt: string | null
   lastActivityAt: string | null
+  lastReplyAt: string | null
   gitBranch: string | null
+  workdir: string | null
 }
 
 interface Usage {
@@ -69,20 +72,29 @@ export class TranscriptFold {
   private stage: Stage | null = null
   private remoteUrl: string | null = null
   private apiError: TranscriptSummary['apiError'] = null
+  private firstActivityAt: string | null = null
   private lastActivityAt: string | null = null
+  private lastReplyAt: string | null = null
   private gitBranch: string | null = null
+  private workdir: string | null = null
+
+  constructor(private readonly feedSize = FEED_SIZE) {}
 
   push(line: string): void {
     const entry = parse(line)
     if (entry === undefined || entry.isSidechain === true) return
     if (typeof entry.gitBranch === 'string' && entry.gitBranch !== '') this.gitBranch = entry.gitBranch
+    if (typeof entry.cwd === 'string' && entry.cwd !== '') this.workdir = entry.cwd
 
     if (entry.type === 'bridge-session' && typeof entry.bridgeSessionId === 'string') {
       this.remoteUrl = remoteUrlOf(entry.bridgeSessionId)
       return
     }
     if (entry.type !== 'assistant' && entry.type !== 'user') return
-    if (typeof entry.timestamp === 'string') this.lastActivityAt = entry.timestamp
+    if (typeof entry.timestamp === 'string') {
+      this.firstActivityAt ??= entry.timestamp
+      this.lastActivityAt = entry.timestamp
+    }
     if (entry.type === 'assistant') this.pushAssistant(entry)
   }
 
@@ -104,8 +116,11 @@ export class TranscriptFold {
       feed: [...this.feed],
       remoteUrl: this.remoteUrl,
       apiError: this.apiError,
+      firstActivityAt: this.firstActivityAt,
       lastActivityAt: this.lastActivityAt,
+      lastReplyAt: this.lastReplyAt,
       gitBranch: this.gitBranch,
+      workdir: this.workdir,
     }
   }
 
@@ -122,6 +137,7 @@ export class TranscriptFold {
     if (entry.message?.model === '<synthetic>') return
 
     this.apiError = null
+    if (entry.timestamp !== undefined) this.lastReplyAt = entry.timestamp
     const usage = entry.message?.usage
     if (usage !== undefined) {
       this.lastUsage = usage
@@ -147,7 +163,7 @@ export class TranscriptFold {
 
   private addFeed(line: FeedLine): void {
     this.feed.push(line)
-    if (this.feed.length > FEED_SIZE) this.feed = this.feed.slice(-FEED_SIZE)
+    if (this.feed.length > this.feedSize) this.feed = this.feed.slice(-this.feedSize)
   }
 
   private advanceStage(next: Stage | undefined): void {

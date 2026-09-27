@@ -3,7 +3,8 @@ import { fileURLToPath } from 'node:url'
 import { launchBlock, loginBlock, type LoginBlock } from './account/model.js'
 import { AccountWatcher } from './account/watcher.js'
 import { Dispatcher, type LaunchEntry } from './chain/dispatcher.js'
-import { launchDays } from './chain/launches.js'
+import { launchDays, taskSessions } from './chain/launches.js'
+import { RESUME_PROMPT } from './chain/relay.js'
 import { appendLaunch, loadChainState, readLaunches, saveChainState } from './chain/store.js'
 import { loadConfig } from './config.js'
 import { EventHub } from './events.js'
@@ -12,11 +13,13 @@ import type { HulyHealth } from './huly/health.js'
 import { HulyLink } from './huly/link.js'
 import type { HulyTask } from './huly/model.js'
 import { StatusPoller } from './huly/poller.js'
+import { exhaustedReset } from './limits/model.js'
 import { LimitsWatcher } from './limits/watcher.js'
 import { connectHuly } from './huly/source.js'
 import { createBatonServer } from './server.js'
 import { claudeConfigDir, ClaudeCli, resolveClaudeBinary } from './sessions/claude.js'
 import type { AgentEntry } from './sessions/agents.js'
+import { readSessionRecord } from './sessions/history.js'
 import { SessionMonitor } from './sessions/monitor.js'
 import type { BatonState, SessionView } from './state.js'
 
@@ -29,6 +32,7 @@ const LIMITS_POLL_MS = 2_000
 const LAUNCH_CHART_DAYS = 14
 const ACCOUNT_POLL_MS = 60_000
 const LOGIN_TIMEOUT_MS = 10 * 60_000
+const LIMIT_CHECK_MS = 30_000
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 try {
@@ -45,6 +49,7 @@ const limitsFile = join(stateDir, 'rate-limits.json')
 const credentials = readHulyCredentials(process.env)
 const hub = new EventHub()
 const cli = new ClaudeCli(() => resolveClaudeBinary(process.env), CLAUDE_TIMEOUT_MS)
+const claudeDir = claudeConfigDir(process.env)
 const startedAt = new Date().toISOString()
 const tasksByProject = new Map<string, HulyTask[]>()
 let sessions: SessionView[] = []
@@ -66,8 +71,29 @@ const account = new AccountWatcher({
   intervalMs: ACCOUNT_POLL_MS,
   loginTimeoutMs: LOGIN_TIMEOUT_MS,
   now: () => new Date(),
-  onChange: () => hub.broadcast('state', getState()),
+  onChange: () => {
+    hub.broadcast('state', getState())
+    dispatcher.check()
+  },
   onError: (error) => console.error(`account: ${error instanceof Error ? error.message : String(error)}`),
+})
+
+const monitor = new SessionMonitor({
+  cli,
+  claudeDir,
+  projectKeys: () => Object.keys(config.projects),
+  intervalMs: SESSION_POLL_MS,
+  onAgents: (list) => {
+    const before = JSON.stringify(account.view.loginBlock)
+    agents = list
+    if (JSON.stringify(account.view.loginBlock) !== before) hub.broadcast('state', getState())
+  },
+  onChange: (views) => {
+    sessions = views
+    hub.broadcast('state', getState())
+    dispatcher.check()
+  },
+  onError: (error) => console.error(`sessions: ${error instanceof Error ? error.message : String(error)}`),
 })
 
 const dispatcher = new Dispatcher(loadChainState(chainFile), {
@@ -84,6 +110,20 @@ const dispatcher = new Dispatcher(loadChainState(chainFile), {
     launches.push(entry)
   },
   now: () => new Date(),
+  limited: (task) => monitor.limited(task),
+  account: () => ({
+    email: account.view.status?.email ?? null,
+    ready: account.view.status?.loggedIn === true && launchBlock(account.view) === undefined,
+  }),
+  limitReset: () => exhaustedReset(limits.limits),
+  resume: async (task, session) => {
+    await cli.stop(session.agentId, session.sessionId)
+    return (await cli.resume(session.sessionId, task, session.workdir, RESUME_PROMPT)).sessionId
+  },
+  relay: async (task, session, prompt) => {
+    await cli.stop(session.agentId, session.sessionId)
+    return (await cli.launch(task, session.workdir, prompt)).sessionId
+  },
 })
 
 const getState = (): BatonState => ({
@@ -97,6 +137,7 @@ const getState = (): BatonState => ({
   huly,
   trackerUrl: credentials === undefined ? null : issueUrlBase(credentials),
   launches: launchDays(launches, new Date(), LAUNCH_CHART_DAYS),
+  taskSessions: taskSessions(launches, sessions),
   context: config.context,
 })
 
@@ -107,27 +148,14 @@ const server = createBatonServer({
   control: dispatcher,
   account,
   launches: () => launches,
+  sessionRecord: (sessionId) => readSessionRecord(join(claudeDir, 'projects'), sessionId),
 })
 
 setInterval(() => hub.broadcast('ping', { at: new Date().toISOString() }), 15_000).unref()
 
-new SessionMonitor({
-  cli,
-  claudeDir: claudeConfigDir(process.env),
-  projectKeys: () => Object.keys(config.projects),
-  intervalMs: SESSION_POLL_MS,
-  onAgents: (list) => {
-    const before = JSON.stringify(account.view.loginBlock)
-    agents = list
-    if (JSON.stringify(account.view.loginBlock) !== before) hub.broadcast('state', getState())
-  },
-  onChange: (views) => {
-    sessions = views
-    hub.broadcast('state', getState())
-  },
-  onError: (error) => console.error(`sessions: ${error instanceof Error ? error.message : String(error)}`),
-}).start()
+setInterval(() => dispatcher.check(), LIMIT_CHECK_MS).unref()
 
+monitor.start()
 limits.start()
 account.start()
 

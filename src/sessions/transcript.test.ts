@@ -204,6 +204,42 @@ describe('TranscriptFold', () => {
     expect(fold([assistant('m1', [text('a')])]).summary().gitBranch).toBeNull()
   })
 
+  it('remembers the last real answer apart from a limit error that came after it', () => {
+    const lines = [assistant('m1', [text('a')])]
+    const answeredAt = new Date(Date.UTC(2026, 0, 1, 12, 0, 0) + clock).toISOString()
+    lines.push(JSON.stringify({ type: 'user', timestamp: at() }), apiError('rate_limit', 'limit'))
+    const summary = fold(lines).summary()
+    expect(summary.lastReplyAt).toBe(answeredAt)
+    expect(summary.lastActivityAt).not.toBe(answeredAt)
+    expect(fold([apiError('rate_limit', 'limit')]).summary().lastReplyAt).toBeNull()
+  })
+
+  it('remembers when the session began', () => {
+    const first = JSON.stringify({ type: 'user', timestamp: at() })
+    const began = JSON.parse(first).timestamp
+    const summary = fold([JSON.stringify({ type: 'queue-operation', timestamp: 'x' }), first, assistant('m1', [text('a')])]).summary()
+    expect(summary.firstActivityAt).toBe(began)
+  })
+
+  it('follows the folder the session works in', () => {
+    const summary = fold([
+      assistant('m1', [text('a')]),
+      JSON.stringify({ type: 'user', timestamp: at(), cwd: 'C:\\repos\\example-project\\.claude\\worktrees\\abc-3' }),
+      assistant('m2', [text('b')], {}, { cwd: 'C:\\elsewhere', isSidechain: true }),
+    ]).summary()
+    expect(summary.workdir).toBe('C:\\repos\\example-project\\.claude\\worktrees\\abc-3')
+    expect(fold([]).summary().workdir).toBeNull()
+  })
+
+  it('keeps a longer feed when asked to', () => {
+    const lines = Array.from({ length: 50 }, (_, index) => assistant(`m${index}`, [text(`step ${index}`)]))
+    const summary = fold(lines).summary()
+    const long = new TranscriptFold(100)
+    for (const line of lines) long.push(line)
+    expect(summary.feed).toHaveLength(30)
+    expect(long.summary().feed).toHaveLength(50)
+  })
+
   it('skips blank and broken lines', () => {
     const summary = fold(['', '{not json', assistant('m1', [text('ok')], { input: 1 })]).summary()
     expect(summary.contextTokens).toBe(1)

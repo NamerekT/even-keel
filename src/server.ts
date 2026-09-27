@@ -26,6 +26,7 @@ export interface ServerDeps {
   control: ChainControl
   account: AccountControl
   launches: () => unknown
+  sessionRecord: (sessionId: string) => Promise<unknown>
 }
 
 type Command = (deps: ServerDeps, body: Record<string, unknown>) => void
@@ -74,6 +75,20 @@ async function route(deps: ServerDeps, request: IncomingMessage, response: Serve
 
   if (request.method === 'GET' && path === '/api/launches') {
     sendJson(response, 200, deps.launches())
+    return
+  }
+
+  const session = /^\/api\/sessions\/([^/]+)$/.exec(path)
+  if (request.method === 'GET' && session !== null) {
+    let record: unknown
+    try {
+      record = await deps.sessionRecord(decodeURIComponent(session[1]!))
+    } catch (error) {
+      sendJson(response, 400, { error: error instanceof Error ? error.message : String(error) })
+      return
+    }
+    if (record === undefined) response.writeHead(404).end()
+    else sendJson(response, 200, record)
     return
   }
 

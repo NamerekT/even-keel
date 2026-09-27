@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { HulyTask, TaskStatus } from '../huly/model.js'
 import { Dispatcher, emptyChainState, type ChainState, type LaunchEntry } from './dispatcher.js'
+import type { AccountNow, LimitedSession } from './relay.js'
 
 const todo: TaskStatus = { name: 'Todo', category: 'ToDo' }
 const active: TaskStatus = { name: 'In Progress', category: 'Active' }
@@ -21,8 +22,15 @@ function setup(
     live?: Record<string, string>
     projects?: string[]
     blocked?: string
+    limited?: Record<string, LimitedSession>
+    account?: AccountNow
+    failRelay?: boolean
   } = {},
 ) {
+  const clock = { now: new Date('2026-09-26T12:00:00Z') }
+  const account: AccountNow = options.account ?? { email: 'john@example.com', ready: true }
+  const limited: Record<string, LimitedSession> = options.limited ?? {}
+  const relays: { kind: string; task: string; sessionId: string; prompt?: string }[] = []
   const launched: string[] = []
   const saved: ChainState[] = []
   const journal: LaunchEntry[] = []
@@ -38,9 +46,21 @@ function setup(
     blocked: () => options.blocked,
     save: (state) => saved.push(structuredClone(state)),
     journal: (entry) => journal.push(entry),
-    now: () => new Date('2026-09-26T12:00:00Z'),
+    now: () => clock.now,
+    limited: (id) => limited[id],
+    account: () => account,
+    limitReset: () => null,
+    resume: async (_task, session) => {
+      relays.push({ kind: 'resume', task: '', sessionId: session.sessionId })
+      return session.sessionId
+    },
+    relay: async (id, session, prompt) => {
+      if (options.failRelay) throw new Error(`claude: could not stop ${session.agentId}`)
+      relays.push({ kind: 'relay', task: id, sessionId: session.sessionId, prompt })
+      return `session-${++counter}`
+    },
   })
-  return { dispatcher, launched, saved, journal }
+  return { dispatcher, launched, saved, journal, clock, account, limited, relays }
 }
 
 describe('Dispatcher', () => {
@@ -389,5 +409,150 @@ describe('Dispatcher', () => {
     expect(() => dispatcher.reorder('ABC', ['ABC-2', 'ABC-1', 'ABC-3'])).toThrow('ABC-1 is running and stays first')
     dispatcher.reorder('ABC', ['ABC-1', 'ABC-2', 'ABC-3'])
     expect(dispatcher.orders().ABC?.order).toEqual(['ABC-1', 'ABC-2', 'ABC-3'])
+  })
+})
+
+describe('Dispatcher on a limit', () => {
+  const limitedSession = (sessionId: string, at: string, lastReplyAt: string): LimitedSession => ({
+    sessionId,
+    agentId: sessionId.slice(0, 8),
+    cwd: 'D:/work/abc',
+    workdir: 'D:/work/abc/.claude/worktrees/abc-1',
+    branch: 'abc-1/work',
+    transcript: null,
+    limit: { at, text: "You've hit your session limit · resets 3pm (UTC)" },
+    lastReplyAt,
+    recent: [],
+  })
+
+  async function running(options: Parameters<typeof setup>[0] = {}) {
+    const context = setup(options)
+    context.dispatcher.setTasks('ABC', [task('ABC-1'), task('ABC-2')])
+    context.dispatcher.start('ABC')
+    await context.dispatcher.idle()
+    return context
+  }
+
+  async function check(dispatcher: Dispatcher) {
+    dispatcher.check()
+    await dispatcher.idle()
+  }
+
+  it('remembers the limit and waits for the reset', async () => {
+    const { dispatcher, limited, clock, relays } = await running()
+    limited['ABC-1'] = limitedSession('session-1', '2026-09-26T12:00:00.000Z', '2026-09-26T11:59:00.000Z')
+    await check(dispatcher)
+
+    expect(relays).toEqual([])
+    expect(dispatcher.state.active?.current?.limit).toEqual({
+      at: '2026-09-26T12:00:00.000Z',
+      account: 'john@example.com',
+      resetsAt: '2026-09-26T15:00:00.000Z',
+      lastReplyAt: '2026-09-26T11:59:00.000Z',
+      then: 'relay',
+      acted: null,
+    })
+
+    clock.now = new Date('2026-09-26T14:59:00Z')
+    await check(dispatcher)
+    expect(relays).toEqual([])
+  })
+
+  it('hands the task to a new session in the old worktree once the limit resets with a cold cache', async () => {
+    const { dispatcher, limited, clock, relays, journal } = await running()
+    limited['ABC-1'] = limitedSession('session-1', '2026-09-26T12:00:00.000Z', '2026-09-26T11:59:00.000Z')
+    await check(dispatcher)
+
+    clock.now = new Date('2026-09-26T15:00:00Z')
+    await check(dispatcher)
+
+    expect(relays).toMatchObject([{ kind: 'relay', task: 'ABC-1', sessionId: 'session-1' }])
+    expect(relays[0]?.prompt).toContain('D:/work/abc/.claude/worktrees/abc-1')
+    expect(dispatcher.state.active?.current).toMatchObject({ task: 'ABC-1', sessionId: 'session-2', since: '2026-09-26T12:00:00.000Z' })
+    expect(journal.at(-1)).toEqual({
+      at: '2026-09-26T15:00:00.000Z',
+      project: 'ABC',
+      task: 'ABC-1',
+      sessionId: 'session-2',
+      reason: 'relay',
+      previous: 'session-1',
+    })
+
+    await check(dispatcher)
+    expect(relays).toHaveLength(1)
+  })
+
+  it('resumes the same session when the limit resets while its cache is warm', async () => {
+    const { dispatcher, limited, clock, relays, journal } = await running()
+    limited['ABC-1'] = limitedSession('session-1', '2026-09-26T14:30:00.000Z', '2026-09-26T14:29:00.000Z')
+    await check(dispatcher)
+    expect(dispatcher.state.active?.current?.limit?.then).toBe('resume')
+
+    clock.now = new Date('2026-09-26T15:00:10Z')
+    await check(dispatcher)
+
+    expect(relays).toMatchObject([{ kind: 'resume', sessionId: 'session-1' }])
+    expect(dispatcher.state.active?.current?.sessionId).toBe('session-1')
+    expect(journal.at(-1)).toMatchObject({ sessionId: 'session-1', reason: 'resume', previous: 'session-1' })
+
+    await check(dispatcher)
+    expect(relays).toHaveLength(1)
+  })
+
+  it('hands over before the reset when the account was switched', async () => {
+    const { dispatcher, limited, clock, relays, account } = await running()
+    limited['ABC-1'] = limitedSession('session-1', '2026-09-26T12:00:00.000Z', '2026-09-26T11:59:00.000Z')
+    await check(dispatcher)
+
+    account.email = 'jane@example.com'
+    clock.now = new Date('2026-09-26T12:05:00Z')
+    await check(dispatcher)
+    expect(relays).toMatchObject([{ kind: 'relay' }])
+  })
+
+  it('acts again on a new limit of the relayed session', async () => {
+    const { dispatcher, limited, clock, relays } = await running()
+    limited['ABC-1'] = limitedSession('session-1', '2026-09-26T12:00:00.000Z', '2026-09-26T11:59:00.000Z')
+    await check(dispatcher)
+    clock.now = new Date('2026-09-26T15:00:00Z')
+    await check(dispatcher)
+
+    limited['ABC-1'] = limitedSession('session-2', '2026-09-26T16:00:00.000Z', '2026-09-26T15:59:00.000Z')
+    clock.now = new Date('2026-09-26T16:00:00Z')
+    await check(dispatcher)
+    expect(dispatcher.state.active?.current?.limit).toMatchObject({ at: '2026-09-26T16:00:00.000Z', acted: null })
+
+    clock.now = new Date('2026-09-27T15:00:00Z')
+    await check(dispatcher)
+    expect(relays.map((relay) => relay.sessionId)).toEqual(['session-1', 'session-2'])
+  })
+
+  it('forgets the limit once the session answers again', async () => {
+    const { dispatcher, limited } = await running()
+    limited['ABC-1'] = limitedSession('session-1', '2026-09-26T12:00:00.000Z', '2026-09-26T11:59:00.000Z')
+    await check(dispatcher)
+
+    delete limited['ABC-1']
+    await check(dispatcher)
+    expect(dispatcher.state.active?.current?.limit).toBeUndefined()
+  })
+
+  it('leaves a paused chain alone', async () => {
+    const { dispatcher, limited, clock, relays } = await running()
+    limited['ABC-1'] = limitedSession('session-1', '2026-09-26T12:00:00.000Z', '2026-09-26T11:59:00.000Z')
+    dispatcher.pause()
+    clock.now = new Date('2026-09-26T16:00:00Z')
+    await check(dispatcher)
+    expect(relays).toEqual([])
+  })
+
+  it('pauses the chain when the handover fails', async () => {
+    const { dispatcher, limited, clock } = await running({ failRelay: true })
+    limited['ABC-1'] = limitedSession('session-1', '2026-09-26T12:00:00.000Z', '2026-09-26T11:59:00.000Z')
+    await check(dispatcher)
+    clock.now = new Date('2026-09-26T15:00:00Z')
+    await check(dispatcher)
+
+    expect(dispatcher.state.active).toMatchObject({ paused: true, error: 'claude: could not stop session-' })
   })
 })

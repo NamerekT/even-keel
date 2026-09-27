@@ -7,10 +7,15 @@ export function LiveProvider({ source, children }: { source: LiveSource; childre
   return <LiveContext.Provider value={source}>{children}</LiveContext.Provider>
 }
 
-export function useLive(): LiveSnapshot & Pick<LiveSource, 'retryNow' | 'command'> {
+export function useLive(): LiveSnapshot & Pick<LiveSource, 'retryNow' | 'command' | 'session'> {
   const source = useContext(LiveContext)
   if (source === null) throw new Error('useLive needs a LiveProvider')
   const subscribe = useCallback((listener: () => void) => source.subscribe(listener), [source])
   const snapshot = useSyncExternalStore(subscribe, () => source.snapshot())
-  return { ...snapshot, retryNow: () => source.retryNow(), command: (name, body) => source.command(name, body) }
+  return {
+    ...snapshot,
+    retryNow: () => source.retryNow(),
+    command: (name, body) => source.command(name, body),
+    session: (sessionId) => source.session(sessionId),
+  }
 }

@@ -24,6 +24,10 @@ export class TranscriptTail {
     private agent: AgentEntry,
   ) {}
 
+  get path(): string | undefined {
+    return this.file
+  }
+
   follow(agent: AgentEntry): void {
     this.agent = agent
   }

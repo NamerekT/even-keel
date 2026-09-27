@@ -1,10 +1,12 @@
 import { isOpen, type HulyTask } from '../huly/model.js'
 import { byNumber, chainOrder, checkOrder } from './order.js'
+import { handoffPrompt, holdOf, relayStep, type AccountNow, type LimitedSession, type LimitHold, type RelayAction } from './relay.js'
 
 export interface CurrentTask {
   task: string
   sessionId: string | null
   since: string
+  limit?: LimitHold
 }
 
 export interface ActiveChain {
@@ -25,6 +27,8 @@ export interface LaunchEntry {
   project: string
   task: string
   sessionId: string
+  reason?: RelayAction
+  previous?: string
 }
 
 export interface ProjectOrder {
@@ -40,6 +44,11 @@ export interface DispatcherDeps {
   save: (state: ChainState) => void
   journal: (entry: LaunchEntry) => void
   now: () => Date
+  limited: (task: string) => LimitedSession | undefined
+  account: () => AccountNow
+  limitReset: () => string | null
+  resume: (task: string, session: LimitedSession) => Promise<string>
+  relay: (task: string, session: LimitedSession, prompt: string) => Promise<string>
 }
 
 export function emptyChainState(): ChainState {
@@ -131,6 +140,10 @@ export class Dispatcher {
     return result
   }
 
+  check(): void {
+    this.kick()
+  }
+
   idle(): Promise<void> {
     return this.work
   }
@@ -204,7 +217,10 @@ export class Dispatcher {
           this.halt(chain, `chain: launch of ${task} was interrupted by a restart; check its session, then resume`)
           return
         }
-        if (tasks.some((open) => open.id === task)) return
+        if (tasks.some((open) => open.id === task)) {
+          await this.followLimit(chain, chain.current)
+          return
+        }
         chain.current = null
       }
 
@@ -248,6 +264,46 @@ export class Dispatcher {
         this.halt(chain, messageOf(error))
       }
       return
+    }
+  }
+
+  private async followLimit(chain: ActiveChain, current: CurrentTask): Promise<void> {
+    const session = this.deps.limited(current.task)
+    if (session === undefined) {
+      if (current.limit !== undefined && current.limit.acted === null) {
+        delete current.limit
+        this.deps.save(this.state)
+      }
+      return
+    }
+    if (current.limit?.at !== session.limit.at) {
+      current.limit = holdOf(session, this.deps.account().email, this.deps.limitReset())
+      this.deps.save(this.state)
+    }
+    const hold = current.limit
+    const now = this.deps.now()
+    const step = relayStep(hold, now, this.deps.account())
+    if (step === 'wait') return
+
+    hold.acted = step
+    this.deps.save(this.state)
+    try {
+      const sessionId =
+        step === 'resume'
+          ? await this.deps.resume(current.task, session)
+          : await this.deps.relay(current.task, session, handoffPrompt(current.task, session))
+      this.deps.journal({
+        at: now.toISOString(),
+        project: chain.project,
+        task: current.task,
+        sessionId,
+        reason: step,
+        previous: session.sessionId,
+      })
+      current.sessionId = sessionId
+      this.deps.save(this.state)
+    } catch (error) {
+      this.halt(chain, messageOf(error))
     }
   }
 

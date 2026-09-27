@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { LaunchEntry } from './dispatcher.js'
-import { launchDays } from './launches.js'
+import { launchDays, taskSessions } from './launches.js'
 
 function launch(at: Date, project: string): LaunchEntry {
   return { at: at.toISOString(), project, task: `${project}-1`, sessionId: 's' }
@@ -42,5 +42,52 @@ describe('launchDays', () => {
   it('skips entries with an unreadable time', () => {
     const entries = [{ at: 'garbage', project: 'ABC', task: 'ABC-1', sessionId: 's' }]
     expect(launchDays(entries, now, 1)).toEqual([{ day: '2026-01-10', counts: {} }])
+  })
+})
+
+describe('taskSessions', () => {
+  const entry = (at: string, task: string, sessionId: string, extra: Partial<LaunchEntry> = {}): LaunchEntry => ({
+    at,
+    project: 'ABC',
+    task,
+    sessionId,
+    ...extra,
+  })
+
+  it('lists the sessions of each task newest first with how they were started', () => {
+    const list = taskSessions(
+      [
+        entry('2026-09-27T10:00:00.000Z', 'ABC-1', 's1'),
+        entry('2026-09-27T11:00:00.000Z', 'ABC-2', 's2'),
+        entry('2026-09-27T17:20:00.000Z', 'ABC-1', 's3', { reason: 'relay', previous: 's1' }),
+      ],
+      [],
+    )
+    expect(list).toEqual({
+      'ABC-1': [
+        { sessionId: 's3', at: '2026-09-27T17:20:00.000Z', how: 'relay', resumed: 0 },
+        { sessionId: 's1', at: '2026-09-27T10:00:00.000Z', how: 'launch', resumed: 0 },
+      ],
+      'ABC-2': [{ sessionId: 's2', at: '2026-09-27T11:00:00.000Z', how: 'launch', resumed: 0 }],
+    })
+  })
+
+  it('counts a warm resume on the session it continued instead of listing it twice', () => {
+    const list = taskSessions(
+      [entry('2026-09-27T10:00:00.000Z', 'ABC-1', 's1'), entry('2026-09-27T15:00:00.000Z', 'ABC-1', 's1', { reason: 'resume', previous: 's1' })],
+      [],
+    )
+    expect(list['ABC-1']).toEqual([{ sessionId: 's1', at: '2026-09-27T10:00:00.000Z', how: 'launch', resumed: 1 }])
+  })
+
+  it('adds a session started by hand that the journal does not know', () => {
+    const list = taskSessions([entry('2026-09-27T10:00:00.000Z', 'ABC-1', 's1')], [
+      { task: 'ABC-1', sessionId: 's9', startedAt: '2026-09-27T12:00:00.000Z' },
+      { task: 'ABC-1', sessionId: 's1', startedAt: '2026-09-27T10:00:01.000Z' },
+    ])
+    expect(list['ABC-1']?.map((row) => [row.sessionId, row.how])).toEqual([
+      ['s9', 'manual'],
+      ['s1', 'launch'],
+    ])
   })
 })

@@ -54,6 +54,7 @@ function baton(patch: Partial<BatonState>): BatonState {
     huly: { state: 'live', lastOkAt: null, error: null },
     trackerUrl: null,
     launches: [],
+    taskSessions: {},
     context: { window: 600_000, warn: 50, danger: 80 },
     ...patch,
   }
@@ -198,6 +199,32 @@ describe('chainBlocks', () => {
     current: { task: current, sessionId: 's', since: 't' },
     paused,
     error: null,
+  })
+
+  it('carries the sessions of each task and the pending limit of the current one', () => {
+    const hold = {
+      at: '2026-01-01T10:00:00.000Z',
+      account: 'john@example.com',
+      resetsAt: '2026-01-01T13:00:00.000Z',
+      lastReplyAt: '2026-01-01T09:59:00.000Z',
+      then: 'relay' as const,
+      acted: null,
+    }
+    const rows = [{ sessionId: 's2', at: '2026-01-01T13:00:00.000Z', how: 'relay' as const, resumed: 0 }]
+    const state = baton({
+      tasks: [task('ABC-1', 'Active'), task('ABC-2', 'ToDo')],
+      chain: chain({
+        active: { ...running('ABC-1'), current: { task: 'ABC-1', sessionId: 's', since: 't', limit: hold } },
+        projects: { ABC: { order: ['ABC-1', 'ABC-2'], error: null } },
+      }),
+      taskSessions: { 'ABC-1': rows },
+    })
+    const [first, second] = chainBlocks(state, 'ABC')
+    expect(first).toMatchObject({ sessions: rows, limit: hold })
+    expect(second).toMatchObject({ sessions: [], limit: null })
+
+    const acted = baton({ ...state, chain: chain({ ...state.chain, active: { ...running('ABC-1'), current: { task: 'ABC-1', sessionId: 's', since: 't', limit: { ...hold, acted: 'relay' } } } }) })
+    expect(chainBlocks(acted, 'ABC')[0]?.limit).toBeNull()
   })
 
   it('puts closed tasks first in blocking order, then the open ones in chain order', () => {

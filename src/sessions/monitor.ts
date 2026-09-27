@@ -1,5 +1,6 @@
 import { readFile } from 'node:fs/promises'
 import { join } from 'node:path'
+import type { LimitedSession } from '../chain/relay.js'
 import type { SessionView } from '../state.js'
 import { lampOf, sessionsByTask, type AgentEntry } from './agents.js'
 import type { ClaudeCli } from './claude.js'
@@ -49,6 +50,25 @@ export class SessionMonitor {
   views(): SessionView[] {
     const now = Date.now()
     return [...this.tracked].map(([task, tracked]) => toView(task, tracked, this.remoteEnabled, now))
+  }
+
+  limited(task: string): LimitedSession | undefined {
+    const tracked = this.tracked.get(task)
+    if (tracked === undefined || !tracked.present) return undefined
+    const { agent, transcript } = tracked
+    const summary = transcript.fold.summary()
+    if (summary.apiError?.kind !== 'limit' || lampOf(agent, 'limit') !== 'limit') return undefined
+    return {
+      sessionId: agent.sessionId,
+      agentId: agent.id ?? agent.sessionId,
+      cwd: agent.cwd,
+      workdir: summary.workdir ?? agent.cwd,
+      branch: summary.gitBranch,
+      transcript: transcript.path ?? null,
+      limit: { at: summary.apiError.at, text: summary.apiError.text },
+      lastReplyAt: summary.lastReplyAt,
+      recent: summary.feed,
+    }
   }
 
   private schedule(delay: number): void {

@@ -1,6 +1,6 @@
 import type { AccountView } from './account/model.js'
 import type { ActiveChain, ProjectOrder } from './chain/dispatcher.js'
-import type { LaunchDay } from './chain/launches.js'
+import type { LaunchDay, TaskSession } from './chain/launches.js'
 import type { HulyHealth } from './huly/health.js'
 import type { HulyTask } from './huly/model.js'
 import type { RateLimits } from './limits/model.js'
@@ -26,6 +26,19 @@ export interface SessionView {
   remoteOff: RemoteOff | null
 }
 
+export interface SessionRecord {
+  sessionId: string
+  startedAt: string | null
+  lastActivityAt: string | null
+  contextTokens: number
+  tokens: TokenTotals
+  stage: Stage | null
+  feed: FeedLine[]
+  workdir: string | null
+  branch: string | null
+  apiError: string | null
+}
+
 export interface ContextScale {
   window: number
   warn: number
@@ -43,5 +56,6 @@ export interface BatonState {
   huly: HulyHealth
   trackerUrl: string | null
   launches: LaunchDay[]
+  taskSessions: Record<string, TaskSession[]>
   context: ContextScale
 }

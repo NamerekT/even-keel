@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { currentLimits, parseLimitsFile } from './model.js'
+import { currentLimits, exhaustedReset, parseLimitsFile } from './model.js'
 
 const RECEIVED_AT = '2026-01-01T12:00:00.000Z'
 const FIVE_HOUR_RESET = Date.UTC(2026, 0, 1, 15, 0, 0) / 1000
@@ -77,5 +77,23 @@ describe('currentLimits', () => {
 
   it('returns null when nothing has been received yet', () => {
     expect(currentLimits(undefined, new Date(RECEIVED_AT))).toBeNull()
+  })
+})
+
+describe('exhaustedReset', () => {
+  const window = (usedPercentage: number, resetsAt: string) => ({ usedPercentage, resetsAt })
+
+  it('takes the latest reset among the exhausted windows', () => {
+    const limits = {
+      fiveHour: window(100, '2026-09-27T17:00:00.000Z'),
+      sevenDay: window(100, '2026-09-30T08:00:00.000Z'),
+      updatedAt: RECEIVED_AT,
+    }
+    expect(exhaustedReset(limits)).toBe('2026-09-30T08:00:00.000Z')
+  })
+
+  it('knows nothing when no window is exhausted', () => {
+    expect(exhaustedReset({ fiveHour: window(71, '2026-09-27T17:00:00.000Z'), sevenDay: null, updatedAt: RECEIVED_AT })).toBeNull()
+    expect(exhaustedReset(null)).toBeNull()
   })
 })

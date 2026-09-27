@@ -47,6 +47,7 @@ function state(startedAt: string): BatonState {
     huly: { state: 'off', lastOkAt: null, error: null },
     trackerUrl: null,
     launches: [],
+    taskSessions: {},
     context: { window: 600_000, warn: 50, danger: 80 },
   }
 }
@@ -66,6 +67,7 @@ describe('LiveConnection', () => {
     commands = []
     answer = async () => state('commanded')
     live = new LiveConnection({
+      fetchSession: async () => null,
       sendCommand: (name, body) => {
         commands.push({ name, body })
         return answer()

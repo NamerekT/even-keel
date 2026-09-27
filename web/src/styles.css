@@ -1686,6 +1686,106 @@ a:focus-visible {
   color: var(--error-fg);
 }
 
+.notice--warn {
+  background: var(--warn-bg);
+  color: var(--warn-fg);
+}
+
+.panel__sessions {
+  display: flex;
+  flex-direction: column;
+  flex: none;
+  gap: 6px;
+}
+
+.sessions {
+  max-height: 168px;
+  margin: 0;
+  padding: 0;
+  overflow-y: auto;
+  list-style: none;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+.sessions li + li {
+  border-top: 1px solid var(--border);
+}
+
+.sessions__row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: baseline;
+  gap: 4px 10px;
+  width: 100%;
+  padding: 7px 10px;
+  border: 0;
+  background: transparent;
+  color: var(--fg);
+  font: inherit;
+  font-size: 13px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.sessions__row:hover {
+  background: var(--surface-muted);
+}
+
+.sessions__row:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
+.sessions__time {
+  color: var(--fg-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.sessions__how {
+  min-width: 0;
+}
+
+.sessions__id {
+  color: var(--fg-muted);
+  font-family: var(--mono);
+  font-size: 12px;
+}
+
+.sessions__now {
+  grid-column: 2 / -1;
+  color: var(--accent);
+  font-size: 12px;
+}
+
+.session-window {
+  width: min(760px, calc(100vw - 32px));
+  height: min(760px, calc(100dvh - 48px));
+  padding: 0;
+  background: var(--surface);
+  color: var(--fg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.session-window::backdrop {
+  background: rgb(0 0 0 / 45%);
+}
+
+.session-window__body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  height: 100%;
+  padding: 16px;
+}
+
+.session-window__place {
+  font-family: var(--mono);
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+
 @media (max-width: 760px) {
   .project--panel {
     display: block;
@@ -1713,6 +1813,20 @@ a:focus-visible {
 
   .panel__fact:first-child {
     grid-column: 1 / -1;
+  }
+
+  .session-window {
+    width: 100vw;
+    max-width: none;
+    height: 100dvh;
+    max-height: none;
+    border: 0;
+    border-radius: 0;
+  }
+
+  .session-window__body {
+    padding: max(16px, env(safe-area-inset-top)) max(var(--gutter), env(safe-area-inset-right))
+      max(16px, env(safe-area-inset-bottom)) max(var(--gutter), env(safe-area-inset-left));
   }
 }
 

@@ -63,30 +63,62 @@ export class ClaudeCli {
     return spawn(this.bin(), ['auth', 'login', '--claudeai'], { windowsHide: true, stdio: 'pipe' })
   }
 
-  async launch(task: string, cwd: string): Promise<AgentEntry> {
+  async launch(task: string, cwd: string, prompt = task): Promise<AgentEntry> {
     const launchedAt = Date.now()
-    try {
-      await run(this.bin(), ['--bg', '--permission-mode', 'auto', '-n', task, task], {
-        cwd,
-        timeout: this.timeoutMs,
-        windowsHide: true,
-      })
-    } catch (error) {
-      const { stdout, stderr } = error as { stdout?: string; stderr?: string }
-      const output = [stderr, stdout].map((text) => text?.trim()).filter(Boolean).join(' / ')
-      throw new Error(`claude: could not start ${task} in ${cwd}${output ? `: ${output}` : ''}`, { cause: error })
-    }
+    await this.start(['--bg', '--permission-mode', 'auto', '-n', task, prompt], cwd, `start ${task} in ${cwd}`)
+    return this.appear(
+      (agent) => agent.name === task && samePath(agent.cwd, cwd) && agent.startedAt >= launchedAt - CLOCK_SKEW_MS,
+      `${task} was started but did not show up in claude agents`,
+    )
+  }
 
+  async resume(sessionId: string, task: string, cwd: string, prompt: string): Promise<AgentEntry> {
+    await this.start(['--bg', '--permission-mode', 'auto', '-n', task, '--resume', sessionId, prompt], cwd, `resume ${task} in ${cwd}`)
+    return this.appear((agent) => agent.sessionId === sessionId && !isOver(agent), `${task} was resumed but did not show up in claude agents`)
+  }
+
+  async stop(agentId: string, sessionId: string): Promise<void> {
+    try {
+      await run(this.bin(), ['stop', agentId], { timeout: this.timeoutMs, windowsHide: true })
+    } catch (error) {
+      throw new Error(`claude: could not stop ${agentId}${outputOf(error)}`, { cause: error })
+    }
     const deadline = Date.now() + APPEAR_TIMEOUT_MS
     while (Date.now() < deadline) {
-      const started = (await this.agents()).find(
-        (agent) => agent.name === task && samePath(agent.cwd, cwd) && agent.startedAt >= launchedAt - CLOCK_SKEW_MS,
-      )
-      if (started !== undefined) return started
+      const agent = (await this.agents()).find((entry) => entry.sessionId === sessionId)
+      if (agent === undefined || isOver(agent)) return
       await delay(APPEAR_POLL_MS)
     }
-    throw new Error(`claude: ${task} was started but did not show up in claude agents`)
+    throw new Error(`claude: ${agentId} was told to stop but is still running`)
   }
+
+  private async start(args: string[], cwd: string, what: string): Promise<void> {
+    try {
+      await run(this.bin(), args, { cwd, timeout: this.timeoutMs, windowsHide: true })
+    } catch (error) {
+      throw new Error(`claude: could not ${what}${outputOf(error)}`, { cause: error })
+    }
+  }
+
+  private async appear(match: (agent: AgentEntry) => boolean, failure: string): Promise<AgentEntry> {
+    const deadline = Date.now() + APPEAR_TIMEOUT_MS
+    while (Date.now() < deadline) {
+      const found = (await this.agents()).find(match)
+      if (found !== undefined) return found
+      await delay(APPEAR_POLL_MS)
+    }
+    throw new Error(`claude: ${failure}`)
+  }
+}
+
+function isOver(agent: AgentEntry): boolean {
+  return agent.state === 'stopped' || agent.state === 'done' || agent.state === 'failed'
+}
+
+function outputOf(error: unknown): string {
+  const { stdout, stderr } = error as { stdout?: string; stderr?: string }
+  const output = [stderr, stdout].map((text) => text?.trim()).filter(Boolean).join(' / ')
+  return output ? `: ${output}` : ''
 }
 
 function samePath(a: string, b: string): boolean {

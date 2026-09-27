@@ -48,6 +48,10 @@ describe('Baton HTTP server', () => {
       control,
       account,
       launches: () => [{ task: 'ABC-1' }],
+      sessionRecord: async (id) => {
+        if (id === 'bad') throw new Error('sessions: bad is not a session id')
+        return id === '0a1b2c3d' ? { sessionId: id } : undefined
+      },
     })
     await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve))
     base = `http://127.0.0.1:${(server.address() as AddressInfo).port}`
@@ -170,6 +174,16 @@ describe('Baton HTTP server', () => {
     expect((await post('/api/account/code', { code: '  ' })).status).toBe(400)
     expect((await post('/api/account/nope')).status).toBe(404)
     expect((await post('/api/nope/start')).status).toBe(404)
+  })
+
+  it('serves the transcript summary of any session by its id', async () => {
+    const found = await fetch(base + '/api/sessions/0a1b2c3d')
+    expect(found.status).toBe(200)
+    expect(await found.json()).toEqual({ sessionId: '0a1b2c3d' })
+    expect((await fetch(base + '/api/sessions/ffffffff')).status).toBe(404)
+    const refused = await fetch(base + '/api/sessions/bad')
+    expect(refused.status).toBe(400)
+    expect(await refused.json()).toEqual({ error: 'sessions: bad is not a session id' })
   })
 
   it('serves the launch journal', async () => {
