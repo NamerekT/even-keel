@@ -130,4 +130,18 @@ describe('taskSessions', () => {
       ],
     })
   })
+
+  it('lists a restart and marks the session it replaced', () => {
+    const list = taskSessions(
+      [
+        entry('2026-09-27T10:00:00.000Z', 'ABC-1', 's1'),
+        entry('2026-09-27T12:00:00.000Z', 'ABC-1', 's2', { reason: 'restart', previous: 's1' }),
+      ],
+      [],
+    )
+    expect(list['ABC-1']).toEqual([
+      { sessionId: 's2', at: '2026-09-27T12:00:00.000Z', how: 'restart', resumed: 0 },
+      { sessionId: 's1', at: '2026-09-27T10:00:00.000Z', how: 'launch', resumed: 0, replaced: '2026-09-27T12:00:00.000Z' },
+    ])
+  })
 })

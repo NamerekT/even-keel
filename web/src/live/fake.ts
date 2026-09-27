@@ -265,6 +265,24 @@ function skip(state: BatonState, project: string, task: string): BatonState {
   }
 }
 
+function restart(state: BatonState, project: string, task: string): BatonState {
+  const active = state.chain.active
+  const current = active?.project === project && active.current?.task === task ? active.current : null
+  if (active === null || current === null) throw new Error(`chain: ${task} is not the current task of a chain`)
+  const view = state.sessions.find((each) => each.task === task)
+  if (view === undefined) throw new Error(`chain: no session of ${task} is known`)
+  if (view.lamp === 'working' || view.waitingFor !== null) throw new Error(`chain: ${task} is mid-turn; wait until its session stops`)
+  const sessionId = crypto.randomUUID()
+  const fresh: SessionView = { ...view, sessionId, lamp: 'working', apiError: null, startedAt: ago(0), remoteUrl: 'https://claude.ai/code/session_example', remoteOff: null }
+  const rows = (state.taskSessions[task] ?? []).map((row) => (row.sessionId === view.sessionId ? { ...row, replaced: ago(0) } : row))
+  return {
+    ...state,
+    chain: { ...state.chain, active: { ...active, current: { task, sessionId, since: current.since } } },
+    sessions: state.sessions.map((each) => (each === view ? fresh : each)),
+    taskSessions: { ...state.taskSessions, [task]: [{ sessionId, at: ago(0), how: 'restart', resumed: 0 }, ...rows] },
+  }
+}
+
 function unskip(state: BatonState, project: string, task: string): BatonState {
   const { [project]: skipped = [], ...rest } = state.chain.skipped
   const kept = skipped.filter((id) => id !== task)
@@ -348,6 +366,7 @@ function fakeCommand(state: BatonState, name: string, body: Record<string, unkno
   if (name === 'chain/order') return reorder(state, String(body.project), body.order as string[])
   if (name === 'chain/skip') return skip(state, String(body.project), String(body.task))
   if (name === 'chain/unskip') return unskip(state, String(body.project), String(body.task))
+  if (name === 'chain/restart') return restart(state, String(body.project), String(body.task))
   if (name.startsWith('account/')) return { ...state, account: accountCommand(state.account, name, body) }
   throw new Error(`fake: ${name} is not supported`)
 }
@@ -389,6 +408,16 @@ export function createFakeSource(search: string): LiveSource {
         left: { at: ago(280), reason: 'postpone', blockers: ['ABC-7'] },
       },
     ]
+  }
+  if (params.get('chain') === 'restart' && current.state !== null && active) {
+    const stalled: SessionView = {
+      ...session('ABC-5', contextTokens, 'limit'),
+      apiError: 'Лимит исчерпан: Claude Code велел сессии свернуть ход',
+      remoteUrl: null,
+      remoteOff: 'lost',
+    }
+    current.state.sessions = current.state.sessions.map((each) => (each.task === 'ABC-5' ? stalled : each))
+    current.state.chain.active = { ...active, current: { task: 'ABC-5', sessionId: stalled.sessionId, since: ago(42) } }
   }
   const notify = () => {
     for (const listener of listeners) listener()

@@ -39,7 +39,7 @@ describe('remoteAtStartup', () => {
 
 describe('remoteLink', () => {
   const startedAt = Date.parse('2026-01-01T10:00:00Z')
-  const base = { bridge: null, transcriptUrl: null, enabled: true, startedAt, now: startedAt + 60_000 }
+  const base = { bridge: null, transcriptUrl: null, lost: false, enabled: true, startedAt, now: startedAt + 60_000 }
 
   it('prefers the registry bridge over the transcript', () => {
     expect(remoteLink({ ...base, bridge: 'session_01Registry', transcriptUrl: 'https://claude.ai/code/session_01Old' })).toEqual({
@@ -66,5 +66,10 @@ describe('remoteLink', () => {
 
   it('reports a session that never brought its bridge up', () => {
     expect(remoteLink(base)).toEqual({ url: null, off: 'no-bridge' })
+  })
+
+  it('drops the link of a bridge the session has lost', () => {
+    expect(remoteLink({ ...base, bridge: 'session_01Registry', lost: true })).toEqual({ url: null, off: 'lost' })
+    expect(remoteLink({ ...base, transcriptUrl: 'https://claude.ai/code/session_01Desktop', lost: true })).toEqual({ url: null, off: 'lost' })
   })
 })

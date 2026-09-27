@@ -52,6 +52,23 @@ function apiError(error: string, message: string): string {
   })
 }
 
+const DISCONNECTED =
+  'Remote Control disconnected — signed-in claude.ai account or organization changed on this machine — run /remote-control to start a session for the current account'
+
+function wrapUp(): string {
+  return JSON.stringify({
+    type: 'user',
+    timestamp: at(),
+    isMeta: true,
+    usageLimitNote: 'wrap_up',
+    message: { role: 'user', content: '[Usage limit reached; a short grace allowance remains, then this turn is cut off without warning.]' },
+  })
+}
+
+function remoteChange(url: string): string {
+  return JSON.stringify({ type: 'attachment', timestamp: at(), attachment: { type: 'remote_session_change', url } })
+}
+
 function fold(lines: string[]): TranscriptFold {
   const result = new TranscriptFold()
   for (const line of lines) result.push(line)
@@ -238,6 +255,52 @@ describe('TranscriptFold', () => {
     for (const line of lines) long.push(line)
     expect(summary.feed).toHaveLength(30)
     expect(long.summary().feed).toHaveLength(50)
+  })
+
+  it('takes a usage-limit wrap-up note as a limit hit that outlives the wrap-up answer', () => {
+    const summary = fold([
+      assistant('m1', [text('working')]),
+      wrapUp(),
+      assistant('m2', [text('Usage limit reached, stopping here.')]),
+    ]).summary()
+
+    expect(summary.apiError).toMatchObject({ kind: 'limit' })
+    expect(summary.feed.some((line) => line.kind === 'error')).toBe(true)
+    expect(summary.lastReplyAt).toBe(new Date(Date.UTC(2026, 0, 1, 12, 0, 0) + clock).toISOString())
+  })
+
+  it('forgets a wrap-up note once someone writes to the session again', () => {
+    const limited = fold([assistant('m1', [text('working')]), wrapUp(), assistant('m2', [text('stopping')])])
+    limited.push(JSON.stringify({ type: 'user', timestamp: at(), message: { role: 'user', content: 'Go on.' } }))
+    expect(limited.summary().apiError).toBeNull()
+  })
+
+  it('keeps a wrap-up note through tool results and meta lines', () => {
+    const summary = fold([
+      wrapUp(),
+      JSON.stringify({ type: 'user', timestamp: at(), message: { role: 'user', content: [{ type: 'tool_result', content: 'ok' }] } }),
+      JSON.stringify({ type: 'user', timestamp: at(), isMeta: true, message: { role: 'user', content: 'reminder' } }),
+    ]).summary()
+    expect(summary.apiError).toMatchObject({ kind: 'limit' })
+  })
+
+  it('notices Remote Control dropping and coming back', () => {
+    const dropped = fold([
+      remoteChange('https://claude.ai/code/session_01First'),
+      JSON.stringify({ type: 'system', subtype: 'informational', level: 'warning', timestamp: at(), content: DISCONNECTED }),
+      JSON.stringify({ type: 'bridge-session', sessionId: 'abc', bridgeSessionId: 'cse_01First' }),
+    ])
+    expect(dropped.summary()).toMatchObject({ remoteUrl: 'https://claude.ai/code/session_01First', remoteLost: true })
+
+    dropped.push(remoteChange('https://claude.ai/code/session_01Second'))
+    expect(dropped.summary()).toMatchObject({ remoteUrl: 'https://claude.ai/code/session_01Second', remoteLost: false })
+  })
+
+  it('keeps the last message of the session whole', () => {
+    const long = `Done so far:\n- one\n- two\n\nLeft:\n1. ${'x'.repeat(700)}`
+    const summary = fold([assistant('m1', [text(long)]), assistant('m2', [tool('Read', { file_path: 'a.ts' })])]).summary()
+    expect(summary.lastMessage).toBe(long)
+    expect(fold([assistant('m1', [tool('Read', { file_path: 'a.ts' })])]).summary().lastMessage).toBeNull()
   })
 
   it('skips blank and broken lines', () => {

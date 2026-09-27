@@ -1,4 +1,4 @@
-export type RemoteOff = 'starting' | 'disabled' | 'no-bridge'
+export type RemoteOff = 'starting' | 'disabled' | 'no-bridge' | 'lost'
 
 export interface RemoteLink {
   url: string | null
@@ -8,6 +8,7 @@ export interface RemoteLink {
 export interface RemoteFacts {
   bridge: string | null
   transcriptUrl: string | null
+  lost: boolean
   enabled: boolean
   startedAt: number
   now: number
@@ -31,6 +32,7 @@ export function remoteAtStartup(rawSettings: string | undefined): boolean {
 }
 
 export function remoteLink(facts: RemoteFacts): RemoteLink {
+  if (facts.lost) return { url: null, off: 'lost' }
   const url = facts.bridge !== null ? remoteUrlOf(facts.bridge) : facts.transcriptUrl
   if (url !== null) return { url, off: null }
   if (!facts.enabled) return { url: null, off: 'disabled' }

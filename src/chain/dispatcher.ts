@@ -1,6 +1,16 @@
 import { isOpen, type HulyTask } from '../huly/model.js'
 import { byNumber, chainOrder, checkOrder, nextTask, openBlockers } from './order.js'
-import { handoffPrompt, holdOf, relayStep, type AccountNow, type LimitedSession, type LimitHold, type RelayAction } from './relay.js'
+import {
+  handoffPrompt,
+  holdOf,
+  relayStep,
+  type AccountNow,
+  type HandoffReason,
+  type HandoffSession,
+  type LimitedSession,
+  type LimitHold,
+  type RelayAction,
+} from './relay.js'
 
 export interface CurrentTask {
   task: string
@@ -31,7 +41,7 @@ export interface LaunchEntry {
   project: string
   task: string
   sessionId: string
-  reason?: RelayAction | ReleaseReason
+  reason?: RelayAction | ReleaseReason | 'restart'
   previous?: string
   blockers?: string[]
 }
@@ -51,11 +61,13 @@ export interface DispatcherDeps {
   journal: (entry: LaunchEntry) => void
   now: () => Date
   limited: (task: string) => LimitedSession | undefined
+  handoff: (task: string) => HandoffSession | undefined
+  locate: (session: HandoffSession) => Promise<HandoffSession>
   account: () => AccountNow
   accountAt: (at: string) => string | null
   limitReset: () => string | null
   resume: (task: string, session: LimitedSession) => Promise<string>
-  relay: (task: string, session: LimitedSession, prompt: string) => Promise<string>
+  relay: (task: string, session: HandoffSession, prompt: string) => Promise<string>
 }
 
 export function emptyChainState(): ChainState {
@@ -127,6 +139,22 @@ export class Dispatcher {
     if (!skipped.includes(task)) skipped.push(task)
     if (holder !== null) this.release(holder, 'skip', [])
     this.changed()
+  }
+
+  restart(project: string, task: string): void {
+    this.requireProject(project)
+    const chain = this.state.active
+    const current = chain?.project === project && chain.current?.task === task ? chain.current : null
+    if (chain === null || current === null) throw new Error(`chain: ${task} is not the current task of a chain`)
+    if (current.sessionId === null) throw new Error(`chain: ${task} is still launching; try again in a moment`)
+    if (this.deps.busy(task)) throw new Error(`chain: ${task} is mid-turn; wait until its session stops`)
+    this.requireLaunches()
+    const reset = this.deps.limitReset()
+    if (reset !== null) throw new Error(`chain: the usage limit is spent until ${reset}; switch the account or wait`)
+    const session = this.deps.handoff(task)
+    if (session === undefined) throw new Error(`chain: no session of ${task} is known`)
+    const replaced = current.sessionId
+    this.work = this.work.then(() => this.replace(chain, current, replaced, session))
   }
 
   unskip(project: string, task: string): void {
@@ -359,10 +387,7 @@ export class Dispatcher {
     hold.acted = step
     this.deps.save(this.state)
     try {
-      const sessionId =
-        step === 'resume'
-          ? await this.deps.resume(current.task, session)
-          : await this.deps.relay(current.task, session, handoffPrompt(current.task, session))
+      const sessionId = step === 'resume' ? await this.deps.resume(current.task, session) : await this.handOver(current.task, session, 'limit')
       this.deps.journal({
         at: now.toISOString(),
         project: chain.project,
@@ -376,6 +401,26 @@ export class Dispatcher {
     } catch (error) {
       this.halt(chain, messageOf(error))
     }
+  }
+
+  private async replace(chain: ActiveChain, current: CurrentTask, replaced: string, session: HandoffSession): Promise<void> {
+    if (this.state.active !== chain || chain.current !== current || current.sessionId !== replaced) return
+    const at = this.deps.now().toISOString()
+    delete current.limit
+    this.deps.save(this.state)
+    try {
+      const sessionId = await this.handOver(current.task, session, 'restart')
+      this.deps.journal({ at, project: chain.project, task: current.task, sessionId, reason: 'restart', previous: session.sessionId })
+      current.sessionId = sessionId
+      this.deps.save(this.state)
+    } catch (error) {
+      this.halt(chain, messageOf(error))
+    }
+  }
+
+  private async handOver(task: string, session: HandoffSession, reason: HandoffReason): Promise<string> {
+    const located = await this.deps.locate(session)
+    return this.deps.relay(task, located, handoffPrompt(task, located, reason))
   }
 
   private halt(chain: ActiveChain, error: string): void {

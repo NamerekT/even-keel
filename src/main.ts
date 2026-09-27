@@ -23,6 +23,7 @@ import { claudeConfigDir, ClaudeCli, resolveClaudeBinary } from './sessions/clau
 import type { AgentEntry } from './sessions/agents.js'
 import { readSessionRecord } from './sessions/history.js'
 import { SessionMonitor } from './sessions/monitor.js'
+import { locateWorktree } from './sessions/place.js'
 import type { BatonState, SessionView } from './state.js'
 
 const HULY_POLL_MS = 5_000
@@ -132,6 +133,8 @@ const dispatcher = new Dispatcher(loadChainState(chainFile), {
   },
   now: () => new Date(),
   limited: (task) => monitor.limited(task),
+  handoff: (task) => monitor.handoff(task),
+  locate: locateWorktree,
   account: () => ({
     email: account.view.status?.email ?? null,
     ready: account.view.status?.loggedIn === true && launchBlock(account.view) === undefined,
@@ -140,7 +143,7 @@ const dispatcher = new Dispatcher(loadChainState(chainFile), {
   limitReset: () => exhaustedReset(limits.limits),
   resume: async (task, session) => {
     await cli.stop(session.agentId, session.sessionId)
-    return (await cli.resume(session.sessionId, task, session.workdir, RESUME_PROMPT)).sessionId
+    return (await cli.resume(session.sessionId, task, session.cwd, RESUME_PROMPT)).sessionId
   },
   relay: async (task, session, prompt) => {
     await cli.stop(session.agentId, session.sessionId)

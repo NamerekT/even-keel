@@ -19,6 +19,7 @@ const PINNED_SLACK = 24
 const HOW: Record<TaskSession['how'], string> = {
   launch: 'Запуск цепочкой',
   relay: 'Новая после лимита',
+  restart: 'Перезапуск',
   manual: 'Запущена вручную',
 }
 
@@ -28,6 +29,7 @@ const REMOTE_OFF: Record<RemoteOff, string> = {
     'Remote Control не включается сам: в ~/.claude/settings.json нет «remoteControlAtStartup»: true. Включи его в /config — новые сессии поднимут мост.',
   'no-bridge':
     'Сессия не подняла Remote Control: в её записи ~/.claude/sessions/<pid>.json нет моста, хотя автозапуск включён. Открыть её отсюда нельзя.',
+  lost: 'Remote Control у сессии отвалился (например, на машине сменили аккаунт claude.ai) — с телефона её уже не открыть. Если она не довела задачу, запусти новую.',
 }
 
 interface Props {
@@ -77,6 +79,7 @@ export function SessionPanel({ block, scale, trackerUrl, onClose }: Props) {
       </header>
       {block.status !== null && <p className="panel__status">{block.status}</p>}
       {block.open && <SkipControl block={block} />}
+      {block.open && block.current && block.session !== null && <RestartControl block={block} session={block.session} />}
       {block.session === null ? (
         <p className="placeholder">Сессии по этой задаче ещё не было.</p>
       ) : (
@@ -119,6 +122,30 @@ function SkipControl({ block }: { block: ChainBlock }) {
           </p>
         </>
       )}
+      {failure !== null && <p className="notice notice--error">{failure}</p>}
+    </div>
+  )
+}
+
+function RestartControl({ block, session }: { block: ChainBlock; session: SessionView }) {
+  const { send, sending, failure } = useCommand()
+  const midTurn = session.lamp === 'working' || session.waitingFor !== null
+
+  return (
+    <div className="panel__skip">
+      <button
+        type="button"
+        className="button"
+        disabled={sending || midTurn}
+        onClick={() => void send('chain/restart', { project: taskProject(block.id), task: block.id })}
+      >
+        Новая сессия
+      </button>
+      <p className="panel__skip-note">
+        {midTurn
+          ? 'Сессия посреди хода — заменить её можно, когда она остановится.'
+          : 'Остановит эту сессию и запустит новую в той же рабочей папке с передачей дел. Статус в Huly не меняется.'}
+      </p>
       {failure !== null && <p className="notice notice--error">{failure}</p>}
     </div>
   )
@@ -212,6 +239,7 @@ function SessionList({ rows, current, onOpen }: SessionListProps) {
                 {HOW[row.how]}
                 {row.resumed > 0 && ` · продолжена после лимита${row.resumed > 1 ? ` ×${row.resumed}` : ''}`}
                 {row.left !== undefined && ` · ${leftText(row.left)}`}
+                {row.replaced !== undefined && ' · заменена вручную'}
               </span>
               <span className="sessions__id">{row.sessionId.slice(0, 8)}</span>
               {row.sessionId === current && <span className="sessions__now">сейчас</span>}

@@ -9,16 +9,27 @@ export const RESUME_PROMPT = 'Лимит сброшен — продолжай �
 export type RelayAction = 'resume' | 'relay'
 export type RelayStep = 'wait' | RelayAction
 
-export interface LimitedSession {
+export type HandoffReason = 'limit' | 'restart'
+
+export interface HandoffSession {
   sessionId: string
   agentId: string
   cwd: string
   workdir: string
   branch: string | null
   transcript: string | null
-  limit: { at: string; text: string }
   lastReplyAt: string | null
   recent: FeedLine[]
+  lastMessage: string | null
+}
+
+export interface LimitedSession extends HandoffSession {
+  limit: { at: string; text: string }
+}
+
+const HANDOFF_WHY: Record<HandoffReason, string> = {
+  limit: 'Продолжение: прошлая сессия по этой задаче упёрлась в лимит и остановлена, задачу доводишь ты.',
+  restart: 'Продолжение: прошлую сессию по этой задаче остановил пользователь — она задачу не довела, доводишь ты.',
 }
 
 export interface LimitHold {
@@ -58,12 +69,12 @@ export function relayStep(hold: LimitHold, now: Date, account: AccountNow): Rela
 }
 
 
-export function handoffPrompt(task: string, session: LimitedSession): string {
+export function handoffPrompt(task: string, session: HandoffSession, reason: HandoffReason = 'limit'): string {
   const steps = session.recent.filter((line) => line.kind !== 'error').slice(-HANDOFF_STEPS)
   const lines = [
     task,
     '',
-    'Продолжение: прошлая сессия по этой задаче упёрлась в лимит и остановлена, задачу доводишь ты.',
+    HANDOFF_WHY[reason],
     `- Рабочая папка: ${session.workdir} — работай в ней, новый worktree не создавай.`,
   ]
   if (session.branch !== null) lines.push(`- Ветка: ${session.branch} — не меняй её.`)
@@ -72,5 +83,6 @@ export function handoffPrompt(task: string, session: LimitedSession): string {
   }
   lines.push('- Начни с git status, git log main..HEAD и описания задачи.')
   if (steps.length > 0) lines.push('', 'Последние шаги прошлой сессии:', ...steps.map((line) => `- ${line.text}`))
+  if (session.lastMessage !== null) lines.push('', 'Последнее сообщение прошлой сессии:', '', session.lastMessage)
   return lines.join('\n') + '\n'
 }

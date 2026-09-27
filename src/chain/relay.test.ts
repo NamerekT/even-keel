@@ -14,6 +14,7 @@ const session = (overrides: Partial<LimitedSession> = {}): LimitedSession => ({
   limit: { at: '2026-09-27T14:39:02.453Z', text: "You've hit your session limit · resets 7:20pm (Europe/Berlin)" },
   lastReplyAt: '2026-09-27T14:38:50.000Z',
   recent: [],
+  lastMessage: null,
   ...overrides,
 })
 
@@ -112,5 +113,18 @@ describe('handoffPrompt', () => {
   it('leaves out the branch and the transcript when they are unknown', () => {
     const prompt = handoffPrompt('ABC-1', session({ branch: null, transcript: null }))
     expect(prompt).not.toContain('null')
+  })
+
+  it('passes the last message of the old session on whole', () => {
+    const lastMessage = 'Done: the tests build.\n\nLeft:\n1. Run dotnet test.\n2. Fix the migration test.'
+    expect(handoffPrompt('ABC-1', session({ lastMessage }))).toContain(lastMessage)
+  })
+
+  it('says the user stopped the old session when it is a restart rather than a limit', () => {
+    const limit = handoffPrompt('ABC-1', session())
+    const restart = handoffPrompt('ABC-1', session(), 'restart')
+    expect(limit).toContain('лимит')
+    expect(restart).not.toContain('лимит')
+    expect(restart).toContain('пользователь')
   })
 })

@@ -1,6 +1,6 @@
 import { readFile } from 'node:fs/promises'
 import { join } from 'node:path'
-import type { LimitedSession } from '../chain/relay.js'
+import type { HandoffSession, LimitedSession } from '../chain/relay.js'
 import type { SessionView } from '../state.js'
 import { lampOf, sessionsByTask, type AgentEntry } from './agents.js'
 import type { ClaudeCli } from './claude.js'
@@ -52,12 +52,11 @@ export class SessionMonitor {
     return [...this.tracked].map(([task, tracked]) => toView(task, tracked, this.remoteEnabled, now))
   }
 
-  limited(task: string): LimitedSession | undefined {
+  handoff(task: string): HandoffSession | undefined {
     const tracked = this.tracked.get(task)
-    if (tracked === undefined || !tracked.present) return undefined
+    if (tracked === undefined) return undefined
     const { agent, transcript } = tracked
     const summary = transcript.fold.summary()
-    if (summary.apiError?.kind !== 'limit' || lampOf(agent, 'limit') !== 'limit') return undefined
     return {
       sessionId: agent.sessionId,
       agentId: agent.id ?? agent.sessionId,
@@ -65,10 +64,19 @@ export class SessionMonitor {
       workdir: summary.workdir ?? agent.cwd,
       branch: summary.gitBranch,
       transcript: transcript.path ?? null,
-      limit: { at: summary.apiError.at, text: summary.apiError.text },
       lastReplyAt: summary.lastReplyAt,
       recent: summary.feed,
+      lastMessage: summary.lastMessage,
     }
+  }
+
+  limited(task: string): LimitedSession | undefined {
+    const tracked = this.tracked.get(task)
+    const session = this.handoff(task)
+    if (tracked === undefined || session === undefined || !tracked.present) return undefined
+    const { apiError } = tracked.transcript.fold.summary()
+    if (apiError?.kind !== 'limit' || lampOf(tracked.agent, 'limit') !== 'limit') return undefined
+    return { ...session, limit: { at: apiError.at, text: apiError.text } }
   }
 
   private schedule(delay: number): void {
@@ -122,6 +130,7 @@ function toView(task: string, { agent, present, transcript, bridge }: Tracked, r
   const remote = remoteLink({
     bridge,
     transcriptUrl: summary.remoteUrl,
+    lost: summary.remoteLost,
     enabled: remoteEnabled,
     startedAt: agent.startedAt,
     now,

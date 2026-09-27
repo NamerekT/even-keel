@@ -1,73 +1,7 @@
 import { describe, expect, it } from 'vitest'
-import type { HulyTask, TaskStatus } from '../huly/model.js'
-import { Dispatcher, emptyChainState, type ChainState, type LaunchEntry } from './dispatcher.js'
-import type { AccountNow, LimitedSession } from './relay.js'
-
-const todo: TaskStatus = { name: 'Todo', category: 'ToDo' }
-const active: TaskStatus = { name: 'In Progress', category: 'Active' }
-const done: TaskStatus = { name: 'Done', category: 'Won' }
-const canceled: TaskStatus = { name: 'Canceled', category: 'Lost' }
-const task = (id: string, status: TaskStatus = todo, ...blockedBy: string[]): HulyTask => ({
-  id,
-  title: id,
-  status,
-  blockedBy,
-  milestone: null,
-})
-
-function setup(
-  options: {
-    state?: ChainState
-    failLaunch?: string
-    live?: Record<string, string>
-    projects?: string[]
-    blocked?: string
-    limited?: Record<string, LimitedSession>
-    account?: AccountNow
-    accountAt?: (at: string) => string | null
-    failRelay?: boolean
-    limitReset?: string | null
-    busy?: Set<string>
-  } = {},
-) {
-  const busy = options.busy ?? new Set<string>()
-  const clock = { now: new Date('2026-09-26T12:00:00Z') }
-  const account: AccountNow = options.account ?? { email: 'john@example.com', ready: true }
-  const limited: Record<string, LimitedSession> = options.limited ?? {}
-  const relays: { kind: string; task: string; sessionId: string; prompt?: string }[] = []
-  const launched: string[] = []
-  const saved: ChainState[] = []
-  const journal: LaunchEntry[] = []
-  let counter = 0
-  const dispatcher = new Dispatcher(options.state ?? emptyChainState(), {
-    projects: options.projects ?? ['ABC', 'XYZ'],
-    launch: async (project, id) => {
-      if (id === options.failLaunch) throw new Error(`claude: could not start ${id}`)
-      launched.push(`${project}/${id}`)
-      return `session-${++counter}`
-    },
-    liveSession: (id) => options.live?.[id],
-    blocked: () => options.blocked,
-    busy: (id) => busy.has(id),
-    save: (state) => saved.push(structuredClone(state)),
-    journal: (entry) => journal.push(entry),
-    now: () => clock.now,
-    limited: (id) => limited[id],
-    account: () => account,
-    accountAt: options.accountAt ?? (() => account.email),
-    limitReset: () => options.limitReset ?? null,
-    resume: async (_task, session) => {
-      relays.push({ kind: 'resume', task: '', sessionId: session.sessionId })
-      return session.sessionId
-    },
-    relay: async (id, session, prompt) => {
-      if (options.failRelay) throw new Error(`claude: could not stop ${session.agentId}`)
-      relays.push({ kind: 'relay', task: id, sessionId: session.sessionId, prompt })
-      return `session-${++counter}`
-    },
-  })
-  return { dispatcher, launched, saved, journal, clock, account, limited, relays, busy }
-}
+import { active, canceled, done, setup, task, todo, type SetupOptions } from './dispatcher.fixture.js'
+import { emptyChainState, type ChainState, type Dispatcher } from './dispatcher.js'
+import type { LimitedSession } from './relay.js'
 
 describe('Dispatcher', () => {
   it('launches the first task in order when the chain starts', async () => {
@@ -461,9 +395,10 @@ describe('Dispatcher on a limit', () => {
     limit: { at, text: "You've hit your session limit · resets 3pm (UTC)" },
     lastReplyAt,
     recent: [],
+    lastMessage: null,
   })
 
-  async function running(options: Parameters<typeof setup>[0] = {}) {
+  async function running(options: SetupOptions = {}) {
     const context = setup(options)
     context.dispatcher.setTasks('ABC', [task('ABC-1'), task('ABC-2')])
     context.dispatcher.start('ABC')
@@ -619,7 +554,7 @@ describe('Dispatcher on a limit', () => {
 })
 
 describe('Dispatcher postponing a task', () => {
-  async function running(options: Parameters<typeof setup>[0] = {}) {
+  async function running(options: SetupOptions = {}) {
     const context = setup(options)
     context.dispatcher.setTasks('ABC', [task('ABC-1'), task('ABC-2'), task('ABC-3')])
     context.dispatcher.start('ABC')
@@ -666,7 +601,7 @@ describe('Dispatcher postponing a task', () => {
 })
 
 describe('Dispatcher skipping a task', () => {
-  async function running(options: Parameters<typeof setup>[0] = {}) {
+  async function running(options: SetupOptions = {}) {
     const context = setup(options)
     context.dispatcher.setTasks('ABC', [task('ABC-1'), task('ABC-2')])
     context.dispatcher.start('ABC')

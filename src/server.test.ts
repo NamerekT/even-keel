@@ -34,6 +34,7 @@ describe('Baton HTTP server', () => {
       requeue: record('requeue'),
       skip: record('skip'),
       unskip: record('unskip'),
+      restart: record('restart'),
     }
     const account: AccountControl = {
       login: () => {
@@ -138,6 +139,7 @@ describe('Baton HTTP server', () => {
     await post('/api/chain/queue', { order: ['XYZ', 'OPS'] })
     await post('/api/chain/skip', { project: 'ABC', task: 'ABC-1' })
     await post('/api/chain/unskip', { project: 'ABC', task: 'ABC-1' })
+    await post('/api/chain/restart', { project: 'ABC', task: 'ABC-1' })
     expect(calls).toEqual([
       ['start', 'ABC'],
       ['pause'],
@@ -148,6 +150,7 @@ describe('Baton HTTP server', () => {
       ['requeue', ['XYZ', 'OPS']],
       ['skip', 'ABC', 'ABC-1'],
       ['unskip', 'ABC', 'ABC-1'],
+      ['restart', 'ABC', 'ABC-1'],
     ])
   })
 

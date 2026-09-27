@@ -87,6 +87,8 @@ export class ClaudeCli {
   }
 
   async stop(agentId: string, sessionId: string): Promise<void> {
+    const running = (await this.agents()).find((entry) => entry.sessionId === sessionId)
+    if (running === undefined || isOver(running)) return
     try {
       await run(this.bin(), ['stop', agentId], { timeout: this.timeoutMs, windowsHide: true })
     } catch (error) {

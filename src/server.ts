@@ -13,6 +13,7 @@ export interface ChainControl {
   requeue(order: string[]): void
   skip(project: string, task: string): void
   unskip(project: string, task: string): void
+  restart(project: string, task: string): void
 }
 
 export interface AccountControl {
@@ -43,6 +44,7 @@ const COMMANDS: Record<string, Command> = {
   'chain/queue': ({ control }, body) => control.requeue(listOf(body, 'order must be a list of projects')),
   'chain/skip': ({ control }, body) => control.skip(projectOf(body), taskOf(body)),
   'chain/unskip': ({ control }, body) => control.unskip(projectOf(body), taskOf(body)),
+  'chain/restart': ({ control }, body) => control.restart(projectOf(body), taskOf(body)),
   'account/login': ({ account }) => account.login(),
   'account/code': ({ account }, body) => account.code(codeOf(body)),
   'account/cancel': ({ account }) => account.cancel(),

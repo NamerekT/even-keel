@@ -23,7 +23,9 @@ export interface TranscriptSummary {
   stage: Stage | null
   feed: FeedLine[]
   remoteUrl: string | null
+  remoteLost: boolean
   apiError: { kind: ApiErrorKind; text: string; at: string } | null
+  lastMessage: string | null
   firstActivityAt: string | null
   lastActivityAt: string | null
   lastReplyAt: string | null
@@ -47,18 +49,26 @@ interface ContentBlock {
 
 interface Entry {
   type?: string
+  subtype?: string
   isSidechain?: boolean
+  isMeta?: boolean
   isApiErrorMessage?: boolean
   error?: string
+  usageLimitNote?: string
   timestamp?: string
   cwd?: string
   gitBranch?: string
   bridgeSessionId?: string
+  content?: unknown
+  attachment?: { type?: string; url?: unknown }
   message?: { id?: string; model?: string; content?: unknown; usage?: Usage }
 }
 
 const FEED_SIZE = 30
 const TEXT_LIMIT = 500
+const MESSAGE_LIMIT = 6000
+const WRAP_UP_TEXT = 'Лимит исчерпан: Claude Code велел сессии свернуть ход'
+const REMOTE_DROPPED = 'Remote Control disconnected'
 const BRIEF_LIMIT = 160
 const STAGE_RANK: Record<Stage, number> = { task: 0, recon: 1, edit: 2, test: 3, commit: 4, merge: 5 }
 const BRIEF_KEYS = ['description', 'command', 'file_path', 'pattern', 'query', 'url', 'skill']
@@ -71,7 +81,10 @@ export class TranscriptFold {
   private action: FeedLine | null = null
   private stage: Stage | null = null
   private remoteUrl: string | null = null
+  private remoteLost = false
   private apiError: TranscriptSummary['apiError'] = null
+  private wrapUp: TranscriptSummary['apiError'] = null
+  private lastMessage: string | null = null
   private firstActivityAt: string | null = null
   private lastActivityAt: string | null = null
   private lastReplyAt: string | null = null
@@ -90,12 +103,22 @@ export class TranscriptFold {
       this.remoteUrl = remoteUrlOf(entry.bridgeSessionId)
       return
     }
+    if (entry.type === 'attachment' && entry.attachment?.type === 'remote_session_change' && typeof entry.attachment.url === 'string') {
+      this.remoteUrl = entry.attachment.url
+      this.remoteLost = false
+      return
+    }
+    if (entry.type === 'system' && typeof entry.content === 'string' && entry.content.startsWith(REMOTE_DROPPED)) {
+      this.remoteLost = true
+      return
+    }
     if (entry.type !== 'assistant' && entry.type !== 'user') return
     if (typeof entry.timestamp === 'string') {
       this.firstActivityAt ??= entry.timestamp
       this.lastActivityAt = entry.timestamp
     }
     if (entry.type === 'assistant') this.pushAssistant(entry)
+    else this.pushUser(entry)
   }
 
   summary(): TranscriptSummary {
@@ -115,7 +138,9 @@ export class TranscriptFold {
       stage: this.stage,
       feed: [...this.feed],
       remoteUrl: this.remoteUrl,
-      apiError: this.apiError,
+      remoteLost: this.remoteLost,
+      apiError: this.apiError ?? this.wrapUp,
+      lastMessage: this.lastMessage,
       firstActivityAt: this.firstActivityAt,
       lastActivityAt: this.lastActivityAt,
       lastReplyAt: this.lastReplyAt,
@@ -147,13 +172,23 @@ export class TranscriptFold {
     for (const block of blocks) {
       if (block.type === 'text') {
         const text = flatten(block.text ?? '', TEXT_LIMIT)
-        if (text !== '') this.addAction({ at, kind: 'text', text })
+        if (text === '') continue
+        this.addAction({ at, kind: 'text', text })
+        this.lastMessage = (block.text ?? '').trim().slice(0, MESSAGE_LIMIT)
       } else if (block.type === 'tool_use' && typeof block.name === 'string') {
         const input = block.input ?? {}
         this.addAction({ at, kind: 'tool', text: describeTool(block.name, input, entry.cwd) })
         this.advanceStage(stageOf(block.name, input))
       }
     }
+  }
+
+  private pushUser(entry: Entry): void {
+    if (entry.usageLimitNote === 'wrap_up') {
+      const at = entry.timestamp ?? ''
+      this.wrapUp = { kind: 'limit', text: WRAP_UP_TEXT, at }
+      this.addFeed({ at, kind: 'error', text: WRAP_UP_TEXT })
+    } else if (entry.isMeta !== true && isPrompt(entry.message?.content)) this.wrapUp = null
   }
 
   private addAction(line: FeedLine): void {
@@ -182,6 +217,13 @@ function parse(line: string): Entry | undefined {
   } catch {
     return undefined
   }
+}
+
+function isPrompt(content: unknown): boolean {
+  if (typeof content === 'string') return content.trim() !== ''
+  if (!Array.isArray(content)) return false
+  const blocks = content as ContentBlock[]
+  return blocks.some((block) => block.type === 'text') && !blocks.some((block) => block.type === 'tool_result')
 }
 
 function flatten(text: string, limit: number): string {
