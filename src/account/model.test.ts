@@ -34,6 +34,7 @@ const entry = (patch: Partial<AccountEntry>): AccountEntry => ({
   loginExpiresAt: '2026-10-27T10:00:00.000Z',
   needsLogin: false,
   sessions: 0,
+  configPending: false,
   limits: null,
   usage: { state: 'ok', reason: null, since: null },
   ...patch,

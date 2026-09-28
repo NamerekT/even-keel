@@ -1,6 +1,7 @@
 import { mkdirSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { DaemonRefresh } from './account/daemon.js'
 import { AccountHomes, accountsRoot, type AccountHome } from './account/homes.js'
 import { accountAt, activate, forgetAccount, loadLedger, noteAccount, saveLedger, type AccountLedger } from './account/ledger.js'
 import { accountId, launchBlock, loginBlock, type LoginBlock } from './account/model.js'
@@ -92,6 +93,14 @@ const limits = new LimitsWatcher({
   onError: (error) => console.error(`limits: ${error instanceof Error ? error.message : String(error)}`),
 })
 
+const daemons = new DaemonRefresh({
+  share: (home) => homes.share(home),
+  running: async (home) => (await cli.agents(home)).filter((agent) => !isOver(agent)).length,
+  stopDaemon: (home) => cli.stopDaemon(home),
+  onChange: () => hub.broadcast('state', getState()),
+  onError: (error) => console.error(`account: ${error instanceof Error ? error.message : String(error)}`),
+})
+
 const account = new AccountWatcher({
   homes,
   cli,
@@ -104,6 +113,7 @@ const account = new AccountWatcher({
   forget: (key) => saveAccounts(forgetAccount(ledger, key)),
   loginBlock: (): LoginBlock | null => loginBlock(dispatcher.state.active, agents, ledger.active),
   sessionsIn: (key) => agents.filter((agent) => agent.account === key && !isOver(agent)).length,
+  configPending: (key) => daemons.pending(key),
   limits: (key) => limits.limits(key),
   usage: (key) => limits.usage(key),
   intervalMs: ACCOUNT_POLL_MS,
@@ -154,7 +164,7 @@ const dispatcher = new Dispatcher(loadChainState(chainFile), {
   projects: Object.keys(config.projects),
   launch: async (project, task) => {
     const home = homeOf(ledger.active)
-    homes.share(home)
+    await daemons.prepare(home)
     return (await cli.launch(home, task, config.projects[project]!)).sessionId
   },
   liveSession: (task) => sessions.find((view) => view.task === task && view.lamp !== 'finished')?.sessionId,
@@ -182,14 +192,14 @@ const dispatcher = new Dispatcher(loadChainState(chainFile), {
   resume: async (task, session) => {
     const home = homeOf(session.account)
     await cli.stop(home, session.agentId, session.sessionId)
-    homes.share(home)
+    await daemons.prepare(home)
     return (await cli.resume(home, session.sessionId, task, session.cwd, RESUME_PROMPT)).sessionId
   },
   relay: async (task, session, prompt) => {
     const previous = homes.find(session.account)
     if (previous !== undefined) await cli.stop(previous, session.agentId, session.sessionId)
     const home = homeOf(ledger.active)
-    homes.share(home)
+    await daemons.prepare(home)
     return (await cli.launch(home, task, session.workdir, prompt)).sessionId
   },
 })

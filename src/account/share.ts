@@ -40,57 +40,64 @@ export function shareProjects(global: Json, folder: Json): Json | undefined {
   return JSON.stringify(shared) === JSON.stringify(folder) ? undefined : shared
 }
 
-export function shareConfig(global: SharedSources, dir: string): void {
+export function shareConfig(global: SharedSources, dir: string): boolean {
   mkdirSync(dir, { recursive: true })
+  let changed = false
   const settings = readJson(join(global.dir, 'settings.json'))
-  if (settings !== undefined) writeIfChanged(join(dir, 'settings.json'), mergeSettings(settings, readJson(join(dir, 'settings.json'))))
+  if (settings !== undefined) changed = writeIfChanged(join(dir, 'settings.json'), mergeSettings(settings, readJson(join(dir, 'settings.json')))) || changed
 
   const config = readJson(global.config)
   if (config !== undefined) {
     const shared = shareProjects(config, readJson(join(dir, '.claude.json')) ?? {})
-    if (shared !== undefined) writeFileSync(join(dir, '.claude.json'), JSON.stringify(shared, null, 2))
+    if (shared !== undefined) {
+      writeFileSync(join(dir, '.claude.json'), JSON.stringify(shared, null, 2))
+      changed = true
+    }
   }
 
-  for (const file of COPIED_FILES) copyIfChanged(join(global.dir, file), join(dir, file))
-  for (const name of LINKED_DIRS) link(join(global.dir, name), join(dir, name))
+  for (const file of COPIED_FILES) changed = copyIfChanged(join(global.dir, file), join(dir, file)) || changed
+  for (const name of LINKED_DIRS) changed = link(join(global.dir, name), join(dir, name)) || changed
   for (const name of entries(join(global.dir, 'skills'))) {
-    if (!OWN_SKILLS.has(name)) link(join(global.dir, 'skills', name), join(dir, 'skills', name))
+    if (!OWN_SKILLS.has(name)) changed = link(join(global.dir, 'skills', name), join(dir, 'skills', name)) || changed
   }
   for (const project of entries(join(global.dir, 'projects'))) {
-    link(join(global.dir, 'projects', project, 'memory'), join(dir, 'projects', project, 'memory'))
+    changed = link(join(global.dir, 'projects', project, 'memory'), join(dir, 'projects', project, 'memory')) || changed
   }
+  return changed
 }
 
-function link(target: string, path: string): void {
-  if (!isDirectory(target)) return
+function link(target: string, path: string): boolean {
+  if (!isDirectory(target)) return false
   if (existsSync(path)) {
     const stat = lstatSync(path)
-    if (stat.isSymbolicLink() || !stat.isDirectory() || readdirSync(path).length > 0) return
+    if (stat.isSymbolicLink() || !stat.isDirectory() || readdirSync(path).length > 0) return false
     rmdirSync(path)
   }
   mkdirSync(join(path, '..'), { recursive: true })
   symlinkSync(target, path, 'junction')
+  return true
 }
 
-function copyIfChanged(from: string, to: string): void {
+function copyIfChanged(from: string, to: string): boolean {
   let source: Buffer
   try {
     source = readFileSync(from)
   } catch {
-    return
+    return false
   }
   try {
-    if (readFileSync(to).equals(source)) return
+    if (readFileSync(to).equals(source)) return false
   } catch {
     mkdirSync(join(to, '..'), { recursive: true })
   }
   copyFileSync(from, to)
+  return true
 }
 
-function writeIfChanged(file: string, value: Json): void {
-  const text = JSON.stringify(value, null, 2)
-  if (JSON.stringify(readJson(file)) === JSON.stringify(value)) return
-  writeFileSync(file, text)
+function writeIfChanged(file: string, value: Json): boolean {
+  if (JSON.stringify(readJson(file)) === JSON.stringify(value)) return false
+  writeFileSync(file, JSON.stringify(value, null, 2))
+  return true
 }
 
 function readJson(file: string): Json | undefined {

@@ -125,6 +125,7 @@ function AccountItem({ entry, view, now, sending, send }: ItemProps) {
       ) : (
         <Limits limits={entry.limits} now={now} />
       )}
+      {entry.configPending && <p className="queue__hint">Новая общая конфигурация дойдёт до сессий, когда завершатся текущие сессии этого аккаунта</p>}
       {entry.error !== null && <p className="queue__hint">Последняя проверка не удалась: {entry.error}</p>}
       <div className="account__actions">
         {!active && (

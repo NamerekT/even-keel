@@ -62,10 +62,10 @@ export class AccountHomes {
     return this.home(name)
   }
 
-  share(home: AccountHome): void {
-    if (home.global) return
+  share(home: AccountHome): boolean {
+    if (home.global) return false
     const config = this.env.CLAUDE_CONFIG_DIR === undefined ? join(homedir(), '.claude.json') : join(this.global.dir, '.claude.json')
-    shareConfig({ dir: this.global.dir, config }, home.dir)
+    return shareConfig({ dir: this.global.dir, config }, home.dir)
   }
 
   remove(home: AccountHome): void {

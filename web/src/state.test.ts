@@ -457,6 +457,7 @@ describe('accountBadge', () => {
     loginExpiresAt: null,
     needsLogin: false,
     sessions: 0,
+    configPending: false,
     limits: null,
     usage: { state: 'ok', reason: null, since: null },
     ...patch,

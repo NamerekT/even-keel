@@ -348,6 +348,7 @@ function fakeEntry(patch: Partial<AccountEntry>): AccountEntry {
     loginExpiresAt: inDays(24),
     needsLogin: false,
     sessions: 0,
+    configPending: false,
     limits: null,
     usage: { state: 'ok', reason: null, since: ago(1) },
     ...patch,
@@ -387,6 +388,7 @@ function fakeAccount(mode: string | null, idle: boolean, limits: RateLimits): Ac
     return { ...signedIn, login: { ...FAKE_LOGIN, error: 'claude: sign-in exited with code 1: OAuth error' }, loginBlock: null }
   }
   if (mode === 'unknown') return { ...signedIn, accounts: [{ ...global, status: null, error: 'claude: auth status timed out' }, work] }
+  if (mode === 'pending') return { ...signedIn, accounts: [global, { ...work, sessions: 2, configPending: true }] }
   return signedIn
 }
 

@@ -118,6 +118,15 @@ export class ClaudeCli {
     throw new Error(`claude: ${agentId} was told to stop but is still running`)
   }
 
+  async stopDaemon(home: AccountHome): Promise<void> {
+    if (home.global) throw new Error('claude: the global daemon is not stopped from here')
+    try {
+      await run(this.bin(), ['daemon', 'stop', '--any'], { env: this.envOf(home), timeout: this.timeoutMs, windowsHide: true })
+    } catch (error) {
+      throw new Error(`claude: could not stop the daemon of ${home.key}${outputOf(error)}`, { cause: error })
+    }
+  }
+
   private async start(home: AccountHome, args: string[], cwd: string, what: string): Promise<void> {
     try {
       await run(this.bin(), args, { cwd, env: this.envOf(home), timeout: this.timeoutMs, windowsHide: true })

@@ -27,6 +27,7 @@ export interface AccountEntry {
   loginExpiresAt: string | null
   needsLogin: boolean
   sessions: number
+  configPending: boolean
   limits: RateLimits | null
   usage: UsageHealth
 }

@@ -33,6 +33,7 @@ export interface AccountWatcherOptions {
   forget: (key: string) => void
   loginBlock: () => LoginBlock | null
   sessionsIn: (key: string) => number
+  configPending: (key: string) => boolean
   limits: (key: string) => RateLimits | null
   usage: (key: string) => UsageHealth
   intervalMs: number
@@ -75,6 +76,7 @@ export class AccountWatcher {
         loginExpiresAt: times.loginExpiresAt === null || times.erased ? null : new Date(times.loginExpiresAt).toISOString(),
         needsLogin: needsLogin(status, times, now),
         sessions: this.options.sessionsIn(home.key),
+        configPending: this.options.configPending(home.key),
         limits: this.options.limits(home.key),
         usage: this.options.usage(home.key),
       }
