@@ -69,6 +69,7 @@ function ChainControls({ state, project }: { state: BatonState; project: string 
       {canStart && button(state.chain.active === null ? 'Запустить' : 'В очередь', 'start', true)}
       {status.kind === 'running' && button('Пауза', 'pause')}
       {status.kind === 'paused' && button('Снять с паузы', 'resume', true)}
+      {(status.kind === 'running' || status.kind === 'paused') && button('Остановить', 'stop')}
       {after !== null && <span className="project__queue">в очереди после {after}</span>}
       {status.kind === 'running' && status.limitUntil !== null && (
         <p className="project__wait">{limitWaitText(status.limitUntil, new Date())}</p>

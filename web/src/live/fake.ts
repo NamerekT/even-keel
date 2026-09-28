@@ -214,6 +214,12 @@ function setPaused(state: BatonState, paused: boolean): BatonState {
   return { ...state, chain: { ...state.chain, active: { ...active, paused, error: paused ? active.error : null } } }
 }
 
+function stopChain(state: BatonState, launches: LaunchEntry[]): BatonState {
+  const [next, ...rest] = state.chain.queue
+  const stopped = { ...state, chain: { ...state.chain, active: null, queue: rest } }
+  return next === undefined ? stopped : startChain(stopped, next, launches)
+}
+
 function startChain(state: BatonState, project: string, launches: LaunchEntry[]): BatonState {
   if (!state.projects.includes(project)) throw new Error(`chain: ${project} is not a configured project`)
   const { active, queue } = state.chain
@@ -361,6 +367,7 @@ function accountCommand(account: AccountView, name: string, body: Record<string,
 function fakeCommand(state: BatonState, name: string, body: Record<string, unknown>, launches: LaunchEntry[]): BatonState {
   if (name === 'chain/start') return startChain(state, String(body.project), launches)
   if (name === 'chain/pause' || name === 'chain/resume') return setPaused(state, name === 'chain/pause')
+  if (name === 'chain/stop') return stopChain(state, launches)
   if (name === 'chain/queue') return requeue(state, body.order as string[])
   if (name === 'chain/dequeue') return dequeue(state, String(body.project))
   if (name === 'chain/order') return reorder(state, String(body.project), body.order as string[])
