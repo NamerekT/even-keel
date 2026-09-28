@@ -2,7 +2,8 @@ import { useCallback, useEffect } from 'react'
 import { useLocation, useNavigate, useParams } from 'react-router'
 import type { BatonState } from '../../../src/state.js'
 import { useCommand } from '../live/useCommand.js'
-import { chainBlocks, chainStatus, limitWaitText, queuedAfter } from '../state.js'
+import { chainBlocks, chainStatus, limitWaitText, openQuestions, projectTasks, queuedAfter } from '../state.js'
+import { QuestionsChip } from '../ui/QuestionsChip.js'
 import { StatusChip } from '../ui/StatusChip.js'
 import { ChainSnake } from './ChainSnake.js'
 import { NotFound } from './NotFound.js'
@@ -29,6 +30,7 @@ export function Project({ state }: { state: BatonState }) {
         <header className="project__head">
           <h1 className="page__title project__title">{key}</h1>
           <StatusChip status={chainStatus(state.chain, key)} />
+          <QuestionsChip count={openQuestions(projectTasks(state, key))} />
           <ChainControls state={state} project={key} />
         </header>
         {order?.error && <p className="notice notice--error">{order.error}</p>}

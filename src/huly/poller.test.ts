@@ -6,7 +6,7 @@ import type { HulySource } from './source.js'
 
 const todo: TaskStatus = { name: 'Todo', category: 'ToDo' }
 const done: TaskStatus = { name: 'Done', category: 'Won' }
-const task = (id: string, status: TaskStatus): HulyTask => ({ id, title: id, status, blockedBy: [], milestone: null })
+const task = (id: string, status: TaskStatus): HulyTask => ({ id, title: id, status, blockedBy: [], milestone: null, question: false })
 
 let world: Map<string, TaskStatus>
 let failNext: boolean

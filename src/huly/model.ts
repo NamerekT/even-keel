@@ -16,6 +16,7 @@ export interface HulyTask {
   status: TaskStatus
   blockedBy: string[]
   milestone: TaskMilestone | null
+  question: boolean
 }
 
 export interface StatusChange {
@@ -44,7 +45,15 @@ export interface HulyIssueDoc {
   blockedBy?: { _id: string }[]
   milestone?: string | null
   subIssues?: number
+  labels?: number
 }
+
+export interface HulyLabelDoc {
+  attachedTo: string
+  title: string
+}
+
+export const QUESTION_LABEL = 'Вопрос'
 
 const CATEGORY_PREFIX = 'task:statusCategory:'
 const CATEGORIES: ReadonlySet<string> = new Set<StatusCategory>(['UnStarted', 'ToDo', 'Active', 'Won', 'Lost'])
@@ -62,8 +71,13 @@ export function toTasks(
   statuses: HulyStatusDoc[],
   otherIdentifiers: ReadonlyMap<string, string>,
   milestones: HulyMilestoneDoc[],
+  labels: HulyLabelDoc[] = [],
 ): HulyTask[] {
   const statusById = new Map(statuses.map((doc) => [doc._id, doc]))
+  const question = QUESTION_LABEL.toLocaleLowerCase()
+  const questions = new Set(
+    labels.filter((doc) => doc.title.trim().toLocaleLowerCase() === question).map((doc) => doc.attachedTo),
+  )
   const milestoneById = new Map(milestones.map((doc) => [doc._id, { label: doc.label, targetDate: doc.targetDate }]))
   const identifierById = new Map(otherIdentifiers)
   for (const issue of issues) identifierById.set(issue._id, issue.identifier)
@@ -77,6 +91,7 @@ export function toTasks(
       status: toStatus(status),
       blockedBy: (issue.blockedBy ?? []).flatMap((ref) => identifierById.get(ref._id) ?? []),
       milestone: issue.milestone ? (milestoneById.get(issue.milestone) ?? null) : null,
+      question: questions.has(issue._id),
     }
   })
 }
@@ -92,6 +107,10 @@ export function missingBlockers(issues: HulyIssueDoc[]): string[] {
 
 export function milestonesOf(issues: HulyIssueDoc[]): string[] {
   return [...new Set(issues.flatMap((issue) => issue.milestone ?? []))]
+}
+
+export function labeled(issues: HulyIssueDoc[]): string[] {
+  return issues.filter((issue) => (issue.labels ?? 0) > 0).map((issue) => issue._id)
 }
 
 export function withoutParents(issues: HulyIssueDoc[]): HulyIssueDoc[] {

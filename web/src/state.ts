@@ -61,6 +61,7 @@ export interface ChainBlock {
   after: string[]
   current: boolean
   skipped: boolean
+  question: boolean
   session: SessionView | null
   sessions: TaskSession[]
   limit: LimitHold | null
@@ -89,6 +90,10 @@ export function taskProject(task: string): string {
 export function chainProgress(tasks: HulyTask[]): { done: number; total: number } {
   const counted = tasks.filter((task) => task.status.category !== 'Lost')
   return { done: counted.filter((task) => task.status.category === 'Won').length, total: counted.length }
+}
+
+export function openQuestions(tasks: HulyTask[]): number {
+  return tasks.filter((task) => task.question && isOpen(task.status)).length
 }
 
 export function chainStatus(chain: BatonState['chain'], project: string): ChainStatus {
@@ -178,6 +183,7 @@ export function chainBlocks(state: BatonState, project: string): ChainBlock[] {
       after: after.get(id) ?? [],
       current: id === current,
       skipped: skipped.has(id),
+      question: task?.question ?? false,
       session,
       sessions: state.taskSessions[id] ?? [],
       limit: id === current ? pending : null,

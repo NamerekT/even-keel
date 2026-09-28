@@ -238,6 +238,11 @@ function Block({ block, scale, focused, movable, drag, offset, row, column, onRe
         </Link>
         {block.current && <span className="block__badge">сейчас</span>}
         {block.skipped && <span className="block__badge block__badge--skipped">пропущена</span>}
+        {block.question && (
+          <span className="block__badge block__badge--question" title="Ярлык «Вопрос»: без ответа в описании сессия, скорее всего, встанет">
+            вопрос
+          </span>
+        )}
         {role === 'blocker' && <span className="block__badge block__badge--blocker">блокирует</span>}
         {role === 'dependent' && <span className="block__badge block__badge--dependent">ждёт её</span>}
       </div>

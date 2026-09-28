@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { diffStatuses, isOpen, milestonesOf, missingBlockers, toTasks, withoutParents, type HulyIssueDoc, type HulyStatusDoc, type HulyTask } from './model.js'
+import { diffStatuses, isOpen, labeled, milestonesOf, missingBlockers, toTasks, withoutParents, type HulyIssueDoc, type HulyStatusDoc, type HulyTask } from './model.js'
 
 const statuses: HulyStatusDoc[] = [
   { _id: 'tracker:status:Backlog', name: 'Backlog', category: 'task:statusCategory:UnStarted' },
@@ -22,8 +22,19 @@ describe('toTasks', () => {
   it('maps an issue to a task with its status name and category', () => {
     const tasks = toTasks([issue('i1', 'ABC-1', 'custom-review')], statuses, new Map(), [])
     expect(tasks).toEqual([
-      { id: 'ABC-1', title: 'Title of ABC-1', status: { name: 'In Review', category: 'Active' }, blockedBy: [], milestone: null },
+      { id: 'ABC-1', title: 'Title of ABC-1', status: { name: 'In Review', category: 'Active' }, blockedBy: [], milestone: null, question: false },
     ])
+  })
+
+  it('marks an issue carrying the question label, whatever its case and spacing', () => {
+    const issues = ['i1', 'i2', 'i3'].map((id, index) => issue(id, `ABC-${index + 1}`, 'tracker:status:Todo'))
+    const labels = [
+      { attachedTo: 'i1', title: 'Вопрос' },
+      { attachedTo: 'i2', title: 'Bug' },
+      { attachedTo: 'i3', title: ' вопрос ' },
+    ]
+    const tasks = toTasks(issues, statuses, new Map(), [], labels)
+    expect(tasks.map((task) => task.question)).toEqual([true, false, true])
   })
 
   it('resolves blockers to identifiers from the issues themselves and from the extra lookup', () => {
@@ -87,6 +98,7 @@ describe('diffStatuses', () => {
     status: { name, category },
     blockedBy: [],
     milestone: null,
+    question: false,
   })
   const todo = { name: 'Todo', category: 'ToDo' } as const
   const done = { name: 'Done', category: 'Won' } as const
@@ -130,6 +142,17 @@ describe('milestonesOf', () => {
       issue('i5', 'ABC-5', 'tracker:status:Todo'),
     ]
     expect(milestonesOf(issues)).toEqual(['m1', 'm2'])
+  })
+})
+
+describe('labeled', () => {
+  it('lists the ids of issues that carry any label', () => {
+    const issues: HulyIssueDoc[] = [
+      { ...issue('i1', 'ABC-1', 'tracker:status:Todo'), labels: 2 },
+      { ...issue('i2', 'ABC-2', 'tracker:status:Todo'), labels: 0 },
+      issue('i3', 'ABC-3', 'tracker:status:Todo'),
+    ]
+    expect(labeled(issues)).toEqual(['i1'])
   })
 })
 

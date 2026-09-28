@@ -1,6 +1,19 @@
 import { createRequire } from 'node:module'
 import type { HulyCredentials } from './credentials.js'
-import { isOpen, milestonesOf, missingBlockers, toStatus, toTasks, withoutParents, type HulyIssueDoc, type HulyMilestoneDoc, type HulyStatusDoc, type HulyTask } from './model.js'
+import {
+  isOpen,
+  labeled,
+  milestonesOf,
+  missingBlockers,
+  toStatus,
+  toTasks,
+  withoutParents,
+  type HulyIssueDoc,
+  type HulyLabelDoc,
+  type HulyMilestoneDoc,
+  type HulyStatusDoc,
+  type HulyTask,
+} from './model.js'
 
 export interface HulySource {
   chainTasks(project: string): Promise<HulyTask[]>
@@ -29,8 +42,11 @@ const require = createRequire(import.meta.url)
 const api = require('@hcengineering/api-client') as ApiClientModule
 const tracker = (require('@hcengineering/tracker') as { default: TrackerPlugin }).default
 
-const ISSUE_FIELDS = { identifier: 1, title: 1, status: 1, blockedBy: 1, milestone: 1, subIssues: 1 } as const
+const TAG_REFERENCE = 'tags:class:TagReference'
+
+const ISSUE_FIELDS = { identifier: 1, title: 1, status: 1, blockedBy: 1, milestone: 1, subIssues: 1, labels: 1 } as const
 const MILESTONE_FIELDS = { label: 1, targetDate: 1 } as const
+const LABEL_FIELDS = { attachedTo: 1, title: 1 } as const
 
 export async function connectHuly(credentials: HulyCredentials, timeoutMs: number): Promise<HulySource> {
   const client = await api.connect(credentials.url, {
@@ -47,15 +63,19 @@ export async function connectHuly(credentials: HulyCredentials, timeoutMs: numbe
   async function resolve(issues: HulyIssueDoc[], statuses: HulyStatusDoc[]): Promise<HulyTask[]> {
     const missing = missingBlockers(issues)
     const planned = milestonesOf(issues)
-    const [blockers, milestones] = await Promise.all([
+    const tagged = labeled(issues)
+    const [blockers, milestones, labels] = await Promise.all([
       missing.length === 0
         ? []
         : client.findAll<HulyIssueDoc>(tracker.class.Issue, { _id: { $in: missing } }, { projection: { identifier: 1 } }),
       planned.length === 0
         ? []
         : client.findAll<HulyMilestoneDoc>(tracker.class.Milestone, { _id: { $in: planned } }, { projection: MILESTONE_FIELDS }),
+      tagged.length === 0
+        ? []
+        : client.findAll<HulyLabelDoc>(TAG_REFERENCE, { attachedTo: { $in: tagged } }, { projection: LABEL_FIELDS }),
     ])
-    return toTasks(issues, statuses, new Map(blockers.map((doc) => [doc._id, doc.identifier])), milestones)
+    return toTasks(issues, statuses, new Map(blockers.map((doc) => [doc._id, doc.identifier])), milestones, labels)
   }
 
   return {

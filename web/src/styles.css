@@ -1169,6 +1169,15 @@ a:focus-visible {
   font-size: 12px;
 }
 
+.block__badge + .block__badge {
+  margin-left: 0;
+}
+
+.block__badge.block__badge--question {
+  background: var(--warn-bg);
+  color: var(--warn-fg);
+}
+
 .block__title {
   margin: 0;
   font-size: 14px;
@@ -1304,7 +1313,8 @@ a:focus-visible {
   color: var(--fg);
 }
 
-.chip--paused {
+.chip--paused,
+.chip--questions {
   background: var(--warn-bg);
   color: var(--warn-fg);
 }

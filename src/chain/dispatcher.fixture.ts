@@ -13,6 +13,7 @@ export const task = (id: string, status: TaskStatus = todo, ...blockedBy: string
   status,
   blockedBy,
   milestone: null,
+  question: false,
 })
 
 export interface SetupOptions {

@@ -6,6 +6,7 @@ import {
   accountBadge,
   loginLeft,
   cardTask,
+  openQuestions,
   chainBlocks,
   chainProgress,
   chainStatus,
@@ -42,7 +43,7 @@ function view(task: string, lamp: SessionView['lamp'], lastActivityAt: string | 
 }
 
 function task(id: string, category: StatusCategory = 'Active', blockedBy: string[] = []): HulyTask {
-  return { id, title: id, status: { name: category, category }, blockedBy, milestone: null }
+  return { id, title: id, status: { name: category, category }, blockedBy, milestone: null, question: false }
 }
 
 function baton(patch: Partial<BatonState>): BatonState {
@@ -108,6 +109,19 @@ describe('taskProject', () => {
   it('takes the project key off a task id', () => {
     expect(taskProject('ABC-12')).toBe('ABC')
     expect(taskProject('MY_KEY2-3')).toBe('MY_KEY2')
+  })
+})
+
+describe('openQuestions', () => {
+  it('counts open tasks labelled as a question, leaving closed ones out', () => {
+    const tasks = [
+      { ...task('ABC-1', 'Won'), question: true },
+      { ...task('ABC-2', 'ToDo'), question: true },
+      { ...task('ABC-3', 'Active'), question: true },
+      { ...task('ABC-4', 'Lost'), question: true },
+      task('ABC-5', 'ToDo'),
+    ]
+    expect(openQuestions(tasks)).toBe(2)
   })
 })
 
@@ -353,13 +367,21 @@ describe('chainBlocks', () => {
 
   it('carries the title and status name, and keeps a task Huly has not delivered yet', () => {
     const state = baton({
-      tasks: [{ id: 'ABC-1', title: 'First', status: { name: 'In Progress', category: 'Active' }, blockedBy: [], milestone: null }],
+      tasks: [{ id: 'ABC-1', title: 'First', status: { name: 'In Progress', category: 'Active' }, blockedBy: [], milestone: null, question: false }],
       chain: chain({ projects: { ABC: { order: ['ABC-1', 'ABC-2'], error: null } } }),
     })
     expect(chainBlocks(state, 'ABC').map(({ id, title, status }) => ({ id, title, status }))).toEqual([
       { id: 'ABC-1', title: 'First', status: 'In Progress' },
       { id: 'ABC-2', title: null, status: null },
     ])
+  })
+
+  it('marks a task labelled as a question, open or closed, and not one Huly has not delivered', () => {
+    const state = baton({
+      tasks: [{ ...task('ABC-1', 'Won'), question: true }, { ...task('ABC-2', 'ToDo'), question: true }, task('ABC-3', 'ToDo')],
+      chain: chain({ projects: { ABC: { order: ['ABC-2', 'ABC-3', 'ABC-4'], error: null } } }),
+    })
+    expect(chainBlocks(state, 'ABC').map((block) => block.question)).toEqual([true, true, false, false])
   })
 
   it('falls back to open tasks by number when the chain order is broken', () => {

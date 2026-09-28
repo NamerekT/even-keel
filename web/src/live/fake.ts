@@ -30,7 +30,14 @@ function task(
   blockedBy: string[] = [],
   milestone: string | null = null,
 ): HulyTask {
-  return { id, title, status: { name, category }, blockedBy, milestone: milestone === null ? null : { label: milestone, targetDate: 0 } }
+  return {
+    id,
+    title,
+    status: { name, category },
+    blockedBy,
+    milestone: milestone === null ? null : { label: milestone, targetDate: 0 },
+    question: false,
+  }
 }
 
 function ago(minutes: number): string {
@@ -122,8 +129,8 @@ function fakeState(
     task('ABC-9', 'Журнал запусков', 'In Progress', 'Active', ['ABC-7'], 'v0.1 — каркас'),
     task('ABC-10', 'Очередь цепочек', 'Todo', 'ToDo', [], 'v0.2 — удобство'),
     task('ABC-11', 'Панель сессии', 'Backlog', 'UnStarted', ['ABC-8', 'ABC-10'], 'v0.2 — удобство'),
-    task('ABC-12', 'Служба Windows с перезапуском при падении', 'Backlog', 'UnStarted'),
-    task('ABC-13', 'Уведомления на телефон', 'Backlog', 'UnStarted', ['ABC-6'], 'v0.2 — удобство'),
+    { ...task('ABC-12', 'Вопрос: служба Windows или планировщик задач', 'Backlog', 'UnStarted'), question: true },
+    { ...task('ABC-13', 'Уведомления на телефон', 'Backlog', 'UnStarted', ['ABC-6'], 'v0.2 — удобство'), question: true },
     task('DEMO-6', 'Старый формат отчёта', 'Canceled', 'Lost'),
     task('DEMO-7', 'Импорт настроек', 'Todo', 'ToDo'),
     task('DEMO-8', 'Экспорт отчёта в CSV', 'Backlog', 'UnStarted', ['DEMO-7']),
