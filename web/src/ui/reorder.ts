@@ -10,6 +10,13 @@ export interface Point {
   y: number
 }
 
+export interface Box {
+  left: number
+  top: number
+  width: number
+  height: number
+}
+
 export interface BlockLink {
   from: number
   to: number

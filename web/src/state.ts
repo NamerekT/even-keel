@@ -169,7 +169,7 @@ export function chainBlocks(state: BatonState, project: string): ChainBlock[] {
   const pending = hold !== undefined && hold.acted === null ? hold : null
   const skipped = new Set(state.chain.skipped[project] ?? [])
 
-  return [...closedOrder(closed), ...open].map((id) => {
+  return [...closedOrder(closed, state.taskSessions), ...open].map((id) => {
     const task = byId.get(id)
     const session = taskSession(state.sessions, id) ?? null
     return {
@@ -222,12 +222,17 @@ function taskSession(sessions: SessionView[], task: string): SessionView | undef
   return own.find((view) => view.lamp !== 'finished') ?? own.at(-1)
 }
 
-function closedOrder(tasks: HulyTask[]): string[] {
+function closedOrder(tasks: HulyTask[], runs: Record<string, TaskSession[]>): string[] {
+  let order: string[]
   try {
-    return chainOrder(tasks)
+    order = chainOrder(tasks)
   } catch {
-    return tasks.map((task) => task.id).sort(byNumber)
+    order = tasks.map((task) => task.id).sort(byNumber)
   }
+  const lastRun = (id: string) => runs[id]?.reduce((last, run) => (run.at > last ? run.at : last), '') ?? ''
+  const never = order.filter((id) => lastRun(id) === '')
+  const ran = order.filter((id) => lastRun(id) !== '').sort((a, b) => lastRun(a).localeCompare(lastRun(b)))
+  return [...never, ...ran]
 }
 
 function blockLamp(task: HulyTask | undefined, session: SessionView | null): BlockLamp {

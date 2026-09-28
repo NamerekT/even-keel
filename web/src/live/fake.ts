@@ -20,6 +20,7 @@ import type { BatonState, SessionRecord, SessionView } from '../../../src/state.
 import type { Link, LiveSnapshot, LiveSource } from './connection.js'
 
 const TICK_MS = 2_000
+const CLOSE_TICKS = 5
 const LAUNCH_DAYS = 14
 
 function task(
@@ -131,6 +132,8 @@ function fakeState(
     task('ABC-11', 'Панель сессии', 'Backlog', 'UnStarted', ['ABC-8', 'ABC-10'], 'v0.2 — удобство'),
     { ...task('ABC-12', 'Вопрос: служба Windows или планировщик задач', 'Backlog', 'UnStarted'), question: true },
     { ...task('ABC-13', 'Уведомления на телефон', 'Backlog', 'UnStarted', ['ABC-6'], 'v0.2 — удобство'), question: true },
+    task('ABC-14', 'Установка службы одним скриптом', 'Backlog', 'UnStarted', ['ABC-11'], 'v0.3 — служба'),
+    task('ABC-15', 'Перезапуск службы после обновления', 'Backlog', 'UnStarted', ['ABC-14'], 'v0.3 — служба'),
     task('DEMO-6', 'Старый формат отчёта', 'Canceled', 'Lost'),
     task('DEMO-7', 'Импорт настроек', 'Todo', 'ToDo'),
     task('DEMO-8', 'Экспорт отчёта в CSV', 'Backlog', 'UnStarted', ['DEMO-7']),
@@ -152,7 +155,10 @@ function fakeState(
           },
       queue: idle ? [] : ['DEMO', 'OPS'],
       projects: {
-        ABC: { order: ['ABC-5', 'ABC-6', 'ABC-7', 'ABC-8', 'ABC-9', 'ABC-10', 'ABC-11', 'ABC-12', 'ABC-13'], error: null },
+        ABC: {
+          order: ['ABC-5', 'ABC-6', 'ABC-7', 'ABC-8', 'ABC-9', 'ABC-10', 'ABC-11', 'ABC-13', 'ABC-14', 'ABC-15', 'ABC-12'],
+          error: null,
+        },
         DEMO: { order: ['DEMO-7', 'DEMO-8'], error: null },
         XYZ: { order: [], error: null },
         OPS: { order: ['OPS-2', 'OPS-3'], error: null },
@@ -217,6 +223,33 @@ function fakeRecord(state: BatonState, sessionId: string): SessionRecord | null 
     workdir: 'C:\\repos\\example-project\\.claude\\worktrees\\abc-5',
     branch: 'abc-5/chain-order',
     apiError: live?.apiError ?? "You've hit your session limit · resets 7:20pm (Europe/Berlin)",
+  }
+}
+
+function closeCurrent(state: BatonState): BatonState {
+  const active = state.chain.active
+  const done = active?.current?.task
+  const project = active?.project
+  if (done === undefined || project === undefined) return state
+  const order = (state.chain.projects[project]?.order ?? []).filter((id) => id !== done)
+  const next = order[0]
+  const since = ago(0)
+  return {
+    ...state,
+    tasks: state.tasks.map((each) => (each.id === done ? { ...each, status: { name: 'Done', category: 'Won' } } : each)),
+    chain: {
+      ...state.chain,
+      active: { ...active!, current: next === undefined ? null : { task: next, sessionId: 'fake', since } },
+      projects: { ...state.chain.projects, [project]: { order, error: null } },
+    },
+    sessions: [
+      ...state.sessions.map((view) => (view.task === done ? { ...view, lamp: 'finished' as const } : view)),
+      ...(next === undefined || state.sessions.some((view) => view.task === next) ? [] : [session(next, 0)]),
+    ],
+    taskSessions:
+      next === undefined
+        ? state.taskSessions
+        : { ...state.taskSessions, [next]: [{ sessionId: session(next, 0).sessionId, at: since, how: 'launch', resumed: 0 }, ...(state.taskSessions[next] ?? [])] },
   }
 }
 
@@ -502,9 +535,12 @@ export function createFakeSource(search: string): LiveSource {
     for (const listener of listeners) listener()
   }
 
+  const closing = params.get('chain') === 'close'
+  let ticks = 0
+
   if (link === 'live') {
     setInterval(() => {
-      const state = current.state!
+      const state = closing && ++ticks % CLOSE_TICKS === 0 ? closeCurrent(current.state!) : current.state!
       const sessions = state.sessions.map((view) =>
         view.lamp === 'working'
           ? {

@@ -1,8 +1,7 @@
 import { useEffect, useRef, useState, type RefObject } from 'react'
 import type { ChainBlock } from '../state.js'
 import { moveItem } from '../ui/drag.js'
-import { clampDrop, dropBounds, nearestIndex, relatives, type Bounds, type Point } from '../ui/reorder.js'
-import type { Box } from '../ui/snake.js'
+import { clampDrop, dropBounds, nearestIndex, relatives, type Bounds, type Box, type Point } from '../ui/reorder.js'
 
 const LONG_PRESS_MS = 350
 const MOUSE_SLOP = 4
@@ -29,7 +28,7 @@ interface Active {
   client: Point
 }
 
-export interface SnakeDrag {
+export interface ChainDrag {
   id: string
   target: number
   offsets: Map<string, Point>
@@ -43,14 +42,14 @@ export interface Landing {
 }
 
 interface Options {
-  listRef: RefObject<HTMLOListElement | null>
+  listRef: RefObject<HTMLElement | null>
   blocks: ChainBlock[]
   disabled: boolean
   onDrop: (order: string[]) => void
 }
 
-export function useSnakeDrag({ listRef, blocks, disabled, onDrop }: Options) {
-  const [drag, setDrag] = useState<SnakeDrag | null>(null)
+export function useChainDrag({ listRef, blocks, disabled, onDrop }: Options) {
+  const [drag, setDrag] = useState<ChainDrag | null>(null)
   const [landing, setLanding] = useState<Landing | null>(null)
   const press = useRef<Press | null>(null)
   const active = useRef<Active | null>(null)

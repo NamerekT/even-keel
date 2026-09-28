@@ -289,6 +289,20 @@ describe('chainBlocks', () => {
     expect(chainBlocks(state, 'ABC').map((block) => block.id)).toEqual(['ABC-2', 'ABC-1', 'ABC-3', 'ABC-5', 'ABC-4'])
   })
 
+  it('puts closed tasks the chain ran after the others, by their last launch, so the one closed last stays next to the open ones', () => {
+    const launch = (at: string) => ({ sessionId: `s-${at}`, at, how: 'launch' as const, resumed: 0 })
+    const state = baton({
+      tasks: [task('ABC-1', 'Won'), task('ABC-2', 'Won', ['ABC-1']), task('ABC-3', 'Won'), task('ABC-4', 'Lost'), task('ABC-5', 'ToDo')],
+      chain: chain({ projects: { ABC: { order: ['ABC-5'], error: null } } }),
+      taskSessions: {
+        'ABC-1': [launch('2026-01-01T12:00:00.000Z')],
+        'ABC-2': [launch('2026-01-01T13:00:00.000Z'), launch('2026-01-01T09:00:00.000Z')],
+        'ABC-3': [launch('2026-01-01T10:00:00.000Z')],
+      },
+    })
+    expect(chainBlocks(state, 'ABC').map((block) => block.id)).toEqual(['ABC-4', 'ABC-3', 'ABC-1', 'ABC-2', 'ABC-5'])
+  })
+
   it('marks which tasks are open and carries their blockers', () => {
     const state = baton({
       tasks: [task('ABC-1', 'Won'), task('ABC-2', 'ToDo', ['ABC-1']), task('ABC-3', 'ToDo', ['ABC-2', 'XYZ-4'])],

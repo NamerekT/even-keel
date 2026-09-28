@@ -1,11 +1,12 @@
-import { useCallback, useEffect } from 'react'
+import { useCallback, useEffect, useRef } from 'react'
 import { useLocation, useNavigate, useParams } from 'react-router'
 import type { BatonState } from '../../../src/state.js'
 import { useCommand } from '../live/useCommand.js'
 import { chainBlocks, chainStatus, limitWaitText, openQuestions, projectTasks, queuedAfter } from '../state.js'
+import { focusAfterClose } from '../ui/focus.js'
 import { QuestionsChip } from '../ui/QuestionsChip.js'
 import { StatusChip } from '../ui/StatusChip.js'
-import { ChainSnake } from './ChainSnake.js'
+import { ChainList } from './ChainList.js'
 import { NotFound } from './NotFound.js'
 import { SessionPanel } from './SessionPanel.js'
 
@@ -15,13 +16,19 @@ export function Project({ state }: { state: BatonState }) {
   const navigate = useNavigate()
   const focus = decodeURIComponent(location.hash.slice(1))
   const close = useCallback(() => navigate({ search: location.search, hash: '' }), [navigate, location.search])
+  const blocks = chainBlocks(state, key)
+  const previous = useRef(blocks)
+  useEffect(() => {
+    const next = focusAfterClose(previous.current, blocks, focus)
+    previous.current = blocks
+    if (next !== null) navigate({ search: location.search, hash: next }, { replace: true })
+  })
   useEffect(() => {
     if (focus !== '') document.getElementById(focus)?.scrollIntoView({ block: 'nearest' })
   }, [focus])
   if (!state.projects.includes(key)) return <NotFound what={`Проекта ${key} нет в baton.config.json.`} />
 
   const order = state.chain.projects[key]
-  const blocks = chainBlocks(state, key)
   const selected = blocks.find((block) => block.id === focus)
 
   return (
@@ -37,7 +44,7 @@ export function Project({ state }: { state: BatonState }) {
         {blocks.length === 0 ? (
           <p className="placeholder">{order === undefined ? 'Задачи ещё не загружены.' : 'Задач в цепочке нет.'}</p>
         ) : (
-          <ChainSnake key={key} project={key} chain={blocks} scale={state.context} focus={focus} />
+          <ChainList key={key} project={key} chain={blocks} scale={state.context} focus={focus} />
         )}
       </div>
       {selected !== undefined && (
