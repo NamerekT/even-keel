@@ -7,6 +7,7 @@ const line = (text: string, kind: FeedLine['kind'] = 'tool'): FeedLine => ({ at:
 const session = (overrides: Partial<LimitedSession> = {}): LimitedSession => ({
   sessionId: 'abc-session',
   agentId: 'abc',
+  account: 'global',
   cwd: 'D:/work/repo',
   workdir: 'D:/work/repo/.claude/worktrees/abc-1',
   branch: 'abc-1/some-work',
@@ -28,7 +29,7 @@ const hold = (overrides: Partial<LimitHold> = {}): LimitHold => ({
   ...overrides,
 })
 
-const ready = { email: 'john@example.com', ready: true }
+const ready = { id: 'john@example.com', ready: true }
 
 describe('holdOf', () => {
   it('takes the reset time from the error text before the limits file', () => {
@@ -66,12 +67,12 @@ describe('relayStep', () => {
   })
 
   it('hands over at once when the account was switched, even with a warm cache', () => {
-    const other = { email: 'jane@example.com', ready: true }
+    const other = { id: 'jane@example.com', ready: true }
     expect(relayStep(hold(), new Date('2026-09-27T14:45:00Z'), other)).toBe('relay')
   })
 
   it('waits while the account is signing in or signed out', () => {
-    expect(relayStep(hold(), new Date('2026-09-27T18:00:00Z'), { email: 'jane@example.com', ready: false })).toBe('wait')
+    expect(relayStep(hold(), new Date('2026-09-27T18:00:00Z'), { id: 'jane@example.com', ready: false })).toBe('wait')
   })
 
   it('never resumes when the account at the limit is unknown', () => {
@@ -82,7 +83,7 @@ describe('relayStep', () => {
   it('waits only for an account switch when the reset time is unknown', () => {
     const unknown = hold({ resetsAt: null })
     expect(relayStep(unknown, new Date('2026-09-30T00:00:00Z'), ready)).toBe('wait')
-    expect(relayStep(unknown, new Date('2026-09-30T00:00:00Z'), { email: 'jane@example.com', ready: true })).toBe('relay')
+    expect(relayStep(unknown, new Date('2026-09-30T00:00:00Z'), { id: 'jane@example.com', ready: true })).toBe('relay')
   })
 
   it('does nothing once the limit was acted on', () => {

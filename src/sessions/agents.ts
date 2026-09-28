@@ -15,12 +15,14 @@ export interface AgentEntry {
   status?: AgentStatus
   waitingFor?: string
   state?: AgentState
+  account?: string
 }
 
-export function parseAgents(raw: string): AgentEntry[] {
+export function parseAgents(raw: string, account?: string): AgentEntry[] {
   const value: unknown = JSON.parse(raw)
   if (!Array.isArray(value)) throw new Error('agents: claude agents --json did not print a list')
-  return value.filter(isAgentEntry)
+  const entries = value.filter(isAgentEntry)
+  return account === undefined ? entries : entries.map((entry) => ({ ...entry, account }))
 }
 
 function isAgentEntry(value: unknown): value is AgentEntry {

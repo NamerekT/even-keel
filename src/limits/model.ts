@@ -22,6 +22,11 @@ export function parseLimitsFile(raw: unknown): RateLimits | undefined {
   }
 }
 
+export function limitsFileDir(raw: unknown): string | null {
+  if (!isRecord(raw) || typeof raw.configDir !== 'string' || raw.configDir === '') return null
+  return raw.configDir
+}
+
 export function currentLimits(limits: RateLimits | undefined, now: Date, notBefore: string | null = null): RateLimits | null {
   if (limits === undefined) return null
   if (notBefore !== null && Date.parse(limits.updatedAt) < Date.parse(notBefore)) return null

@@ -64,7 +64,7 @@ export interface DispatcherDeps {
   handoff: (task: string) => HandoffSession | undefined
   locate: (session: HandoffSession) => Promise<HandoffSession>
   account: () => AccountNow
-  accountAt: (at: string) => string | null
+  accountAt: (account: string, at: string) => string | null
   limitReset: () => string | null
   resume: (task: string, session: LimitedSession) => Promise<string>
   relay: (task: string, session: HandoffSession, prompt: string) => Promise<string>
@@ -375,8 +375,8 @@ export class Dispatcher {
       return
     }
     if (current.limit?.at !== session.limit.at) {
-      if (this.deps.account().email === null) return
-      current.limit = holdOf(session, this.deps.accountAt(session.limit.at), this.deps.limitReset())
+      if (this.deps.account().id === null) return
+      current.limit = holdOf(session, this.deps.accountAt(session.account, session.limit.at), this.deps.limitReset())
       this.deps.save(this.state)
     }
     const hold = current.limit

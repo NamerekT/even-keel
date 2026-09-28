@@ -25,7 +25,8 @@ function record(rateLimits) {
   mkdirSync(dirname(target), { recursive: true })
   const temp = `${target}.${process.pid}.tmp`
   try {
-    writeFileSync(temp, JSON.stringify({ receivedAt: new Date().toISOString(), rate_limits: rateLimits }))
+    const configDir = process.env.CLAUDE_CONFIG_DIR ?? null
+    writeFileSync(temp, JSON.stringify({ receivedAt: new Date().toISOString(), configDir, rate_limits: rateLimits }))
     renameSync(temp, target)
   } finally {
     rmSync(temp, { force: true })

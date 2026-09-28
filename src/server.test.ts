@@ -37,9 +37,16 @@ describe('Baton HTTP server', () => {
       restart: record('restart'),
     }
     const account: AccountControl = {
-      login: () => {
-        if (calls.some(([name]) => name === 'login')) throw new Error('claude: a sign-in is already running')
-        calls.push(['login'])
+      add: () => {
+        if (calls.some(([name]) => name === 'add')) throw new Error('claude: a sign-in is already running')
+        calls.push(['add'])
+      },
+      renew: record('renew'),
+      switchTo: record('switch'),
+      remove: async (key) => {
+        await Promise.resolve()
+        if (key === 'global') throw new Error('claude: the global account lives in ~/.claude and is not removed from here')
+        calls.push(['remove', key])
       },
       code: record('code'),
       cancel: record('cancel'),
@@ -169,21 +176,36 @@ describe('Baton HTTP server', () => {
   })
 
   it('drives the Claude sign-in through POST commands', async () => {
-    const response = await post('/api/account/login')
+    const response = await post('/api/account/add')
     expect(response.status).toBe(200)
     expect(await response.json()).toEqual({ chain: [] })
 
     await post('/api/account/code', { code: 'abc#def' })
     await post('/api/account/cancel')
-    expect(calls).toEqual([['login'], ['code', 'abc#def'], ['cancel']])
+    await post('/api/account/renew', { account: 'work' })
+    expect(calls).toEqual([['add'], ['code', 'abc#def'], ['cancel'], ['renew', 'work']])
 
-    const again = await post('/api/account/login')
+    const again = await post('/api/account/add')
     expect(again.status).toBe(400)
     expect(await again.json()).toEqual({ error: 'claude: a sign-in is already running' })
     expect((await post('/api/account/code', {})).status).toBe(400)
     expect((await post('/api/account/code', { code: '  ' })).status).toBe(400)
+    expect((await post('/api/account/renew', {})).status).toBe(400)
     expect((await post('/api/account/nope')).status).toBe(404)
     expect((await post('/api/nope/start')).status).toBe(404)
+  })
+
+  it('switches and removes accounts, waiting for a removal to finish', async () => {
+    expect((await post('/api/account/switch', { account: 'work' })).status).toBe(200)
+    expect((await post('/api/account/remove', { account: 'old' })).status).toBe(200)
+    expect(calls).toEqual([
+      ['switch', 'work'],
+      ['remove', 'old'],
+    ])
+    const refused = await post('/api/account/remove', { account: 'global' })
+    expect(refused.status).toBe(400)
+    expect(await refused.json()).toEqual({ error: 'claude: the global account lives in ~/.claude and is not removed from here' })
+    expect((await post('/api/account/switch', { account: '' })).status).toBe(400)
   })
 
   it('serves the transcript summary of any session by its id', async () => {

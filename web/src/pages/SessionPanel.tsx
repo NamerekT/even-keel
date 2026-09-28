@@ -26,9 +26,9 @@ const HOW: Record<TaskSession['how'], string> = {
 const REMOTE_OFF: Record<RemoteOff, string> = {
   starting: 'Remote Control поднимается — ссылка появится через несколько секунд.',
   disabled:
-    'Remote Control не включается сам: в ~/.claude/settings.json нет «remoteControlAtStartup»: true. Включи его в /config — новые сессии поднимут мост.',
+    'Remote Control не включается сам: в settings.json папки аккаунта нет «remoteControlAtStartup»: true. Включи его в /config — новые сессии поднимут мост.',
   'no-bridge':
-    'Сессия не подняла Remote Control: в её записи ~/.claude/sessions/<pid>.json нет моста, хотя автозапуск включён. Открыть её отсюда нельзя.',
+    'Сессия не подняла Remote Control: в её записи sessions/<pid>.json нет моста, хотя автозапуск включён. Открыть её отсюда нельзя.',
   lost: 'Remote Control у сессии отвалился (например, на машине сменили аккаунт claude.ai) — с телефона её уже не открыть. Если она не довела задачу, запусти новую.',
 }
 
@@ -186,10 +186,18 @@ function SessionBody({ session, limit, scale }: { session: SessionView; limit: L
       {session.remoteUrl === null ? (
         <p className="panel__remote-off">{REMOTE_OFF[session.remoteOff ?? 'no-bridge']}</p>
       ) : (
-        <a className="button button--primary panel__remote" href={session.remoteUrl} target="_blank" rel="noreferrer">
-          Открыть сессию
-        </a>
+        <div className="panel__remote-row">
+          <a className="button button--primary panel__remote" href={session.remoteUrl} target="_blank" rel="noreferrer">
+            Открыть сессию
+          </a>
+          {session.account !== null && (
+            <span className="panel__account" title="Remote Control показывает сессию только в этом аккаунте claude.ai">
+              в аккаунте {session.account}
+            </span>
+          )}
+        </div>
       )}
+      {session.remoteUrl === null && session.account !== null && <p className="panel__remote-off">Аккаунт: {session.account}</p>}
       <Feed lines={session.feed} />
     </>
   )

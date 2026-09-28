@@ -17,7 +17,10 @@ export interface ChainControl {
 }
 
 export interface AccountControl {
-  login(): void
+  add(): void
+  renew(account: string): void
+  switchTo(account: string): void
+  remove(account: string): Promise<void>
   code(code: string): void
   cancel(): void
 }
@@ -32,7 +35,7 @@ export interface ServerDeps {
   sessionRecord: (sessionId: string) => Promise<unknown>
 }
 
-type Command = (deps: ServerDeps, body: Record<string, unknown>) => void
+type Command = (deps: ServerDeps, body: Record<string, unknown>) => void | Promise<void>
 
 const COMMANDS: Record<string, Command> = {
   'chain/start': ({ control }, body) => control.start(projectOf(body)),
@@ -45,7 +48,10 @@ const COMMANDS: Record<string, Command> = {
   'chain/skip': ({ control }, body) => control.skip(projectOf(body), taskOf(body)),
   'chain/unskip': ({ control }, body) => control.unskip(projectOf(body), taskOf(body)),
   'chain/restart': ({ control }, body) => control.restart(projectOf(body), taskOf(body)),
-  'account/login': ({ account }) => account.login(),
+  'account/add': ({ account }) => account.add(),
+  'account/renew': ({ account }, body) => account.renew(accountOf(body)),
+  'account/switch': ({ account }, body) => account.switchTo(accountOf(body)),
+  'account/remove': ({ account }, body) => account.remove(accountOf(body)),
   'account/code': ({ account }, body) => account.code(codeOf(body)),
   'account/cancel': ({ account }) => account.cancel(),
 }
@@ -105,7 +111,7 @@ async function route(deps: ServerDeps, request: IncomingMessage, response: Serve
       return
     }
     try {
-      command(deps, await readJsonBody(request))
+      await command(deps, await readJsonBody(request))
     } catch (error) {
       sendJson(response, 400, { error: error instanceof Error ? error.message : String(error) })
       return
@@ -160,6 +166,11 @@ function projectOf(body: Record<string, unknown>): string {
 function taskOf(body: Record<string, unknown>): string {
   if (typeof body.task !== 'string' || body.task === '') throw new Error('task is required')
   return body.task
+}
+
+function accountOf(body: Record<string, unknown>): string {
+  if (typeof body.account !== 'string' || body.account === '') throw new Error('account is required')
+  return body.account
 }
 
 function codeOf(body: Record<string, unknown>): string {

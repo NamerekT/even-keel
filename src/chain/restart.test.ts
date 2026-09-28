@@ -6,6 +6,7 @@ import type { HandoffSession } from './relay.js'
 const handoff = (sessionId: string): HandoffSession => ({
   sessionId,
   agentId: sessionId.slice(0, 8),
+  account: 'global',
   cwd: 'D:/work/abc',
   workdir: 'D:/work/abc/.claude/worktrees/abc-1/tests',
   branch: 'main',

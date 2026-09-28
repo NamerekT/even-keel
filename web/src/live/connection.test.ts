@@ -44,7 +44,7 @@ function state(startedAt: string): BatonState {
     sessions: [],
     limits: null,
     usage: { state: 'ok', reason: null, since: null },
-    account: { status: null, error: null, login: null, loginBlock: null },
+    account: { active: 'global', accounts: [], login: null, loginBlock: null },
     huly: { state: 'off', lastOkAt: null, error: null },
     trackerUrl: null,
     launches: [],

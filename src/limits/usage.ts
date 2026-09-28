@@ -4,7 +4,7 @@ import { resetTimeOf } from './reset.js'
 export type UsageAnswer = { kind: 'limits'; limits: RateLimits } | { kind: 'spent'; reason: string } | { kind: 'unknown'; reason: string }
 
 export interface UsageHealth {
-  state: 'waiting' | 'ok' | 'unread' | 'off'
+  state: 'waiting' | 'ok' | 'unread' | 'stale' | 'off'
   reason: string | null
   since: string | null
 }

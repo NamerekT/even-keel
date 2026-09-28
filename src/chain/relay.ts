@@ -14,6 +14,7 @@ export type HandoffReason = 'limit' | 'restart'
 export interface HandoffSession {
   sessionId: string
   agentId: string
+  account: string
   cwd: string
   workdir: string
   branch: string | null
@@ -42,7 +43,7 @@ export interface LimitHold {
 }
 
 export interface AccountNow {
-  email: string | null
+  id: string | null
   ready: boolean
 }
 
@@ -56,13 +57,13 @@ export function holdOf(session: LimitedSession, account: string | null, fallback
 
 export function relayStep(hold: LimitHold, now: Date, account: AccountNow): RelayStep {
   if (hold.acted !== null || !account.ready) return 'wait'
-  const switched = hold.account !== null && account.email !== null && account.email !== hold.account
+  const switched = hold.account !== null && account.id !== null && account.id !== hold.account
   const reset = hold.resetsAt !== null && now.getTime() >= Date.parse(hold.resetsAt)
   if (!switched && !reset) return 'wait'
   const warm =
     !switched &&
     hold.account !== null &&
-    account.email === hold.account &&
+    account.id === hold.account &&
     hold.lastReplyAt !== null &&
     now.getTime() - Date.parse(hold.lastReplyAt) < WARM_CACHE_MS
   return warm ? 'resume' : 'relay'

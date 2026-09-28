@@ -1,9 +1,10 @@
 import { describe, expect, it } from 'vitest'
 import type { HulyTask, StatusCategory } from '../../src/huly/model.js'
-import type { AccountView } from '../../src/account/model.js'
+import type { AccountEntry, AccountLogin, AccountView } from '../../src/account/model.js'
 import type { BatonState, SessionView } from '../../src/state.js'
 import {
   accountBadge,
+  loginLeft,
   cardTask,
   chainBlocks,
   chainProgress,
@@ -36,6 +37,7 @@ function view(task: string, lamp: SessionView['lamp'], lastActivityAt: string | 
     feed: [],
     remoteUrl: null,
     remoteOff: null,
+    account: null,
   }
 }
 
@@ -52,7 +54,7 @@ function baton(patch: Partial<BatonState>): BatonState {
     sessions: [],
     limits: null,
     usage: { state: 'ok', reason: null, since: null },
-    account: { status: null, error: null, login: null, loginBlock: null },
+    account: { active: 'global', accounts: [], login: null, loginBlock: null },
     huly: { state: 'live', lastOkAt: null, error: null },
     trackerUrl: null,
     launches: [],
@@ -440,7 +442,6 @@ describe('issueLink', () => {
 })
 
 describe('accountBadge', () => {
-  const view = (patch: Partial<AccountView>): AccountView => ({ status: null, error: null, login: null, loginBlock: null, ...patch })
   const account = (loggedIn: boolean, email: string | null = null) => ({
     loggedIn,
     authMethod: null,
@@ -448,21 +449,59 @@ describe('accountBadge', () => {
     orgName: null,
     subscriptionType: null,
   })
-  const login = { startedAt: '2026-09-27T10:00:00Z', urls: [], output: '', error: null, codeSent: false }
+  const entry = (patch: Partial<AccountEntry>): AccountEntry => ({
+    key: 'global',
+    global: true,
+    status: null,
+    error: null,
+    loginExpiresAt: null,
+    needsLogin: false,
+    sessions: 0,
+    limits: null,
+    usage: { state: 'ok', reason: null, since: null },
+    ...patch,
+  })
+  const view = (patch: Partial<AccountEntry>, login: AccountLogin | null = null): AccountView => ({
+    active: 'global',
+    accounts: [entry(patch)],
+    login,
+    loginBlock: null,
+  })
+  const login = { target: 'global', startedAt: '2026-09-27T10:00:00Z', urls: [], output: '', error: null, codeSent: false }
 
-  it('shows the mailbox name of a signed-in account', () => {
+  it('shows the mailbox name of the active account', () => {
     expect(accountBadge(view({ status: account(true, 'john.doe@example.com') }))).toEqual({ kind: 'in', label: 'john.doe' })
     expect(accountBadge(view({ status: account(true) }))).toEqual({ kind: 'in', label: 'Claude' })
   })
 
-  it('flags a signed-out dispatcher, a running sign-in and an unknown account', () => {
-    expect(accountBadge(view({ status: account(false) }))).toEqual({ kind: 'out', label: 'Не вошли' })
-    expect(accountBadge(view({ status: account(false), login }))).toEqual({ kind: 'login', label: 'Вход…' })
-    expect(accountBadge(view({ status: account(true), login: { ...login, error: 'exited with code 1' } }))).toEqual({
+  it('flags a signed-out or run-out active account, a running sign-in and an unknown account', () => {
+    expect(accountBadge(view({ status: account(false), needsLogin: true }))).toEqual({ kind: 'out', label: 'Нужен вход' })
+    expect(accountBadge(view({ status: account(true, 'john.doe@example.com'), needsLogin: true }))).toEqual({
+      kind: 'out',
+      label: 'Нужен вход',
+    })
+    expect(accountBadge(view({ status: account(false) }, login))).toEqual({ kind: 'login', label: 'Вход…' })
+    expect(accountBadge(view({ status: account(true) }, { ...login, error: 'exited with code 1' }))).toEqual({
       kind: 'out',
       label: 'Вход не удался',
     })
     expect(accountBadge(view({ error: 'claude: auth status timed out' }))).toEqual({ kind: 'unknown', label: 'Claude' })
+    expect(accountBadge({ ...view({}), active: 'gone' })).toEqual({ kind: 'unknown', label: 'Claude' })
+  })
+})
+
+describe('loginLeft', () => {
+  const now = new Date('2026-09-28T10:00:00.000Z')
+
+  it('counts the days left of a login and asks to renew it in its last week', () => {
+    expect(loginLeft('2026-10-27T10:00:00.000Z', now)).toEqual({ text: '29 дн.', renew: false })
+    expect(loginLeft('2026-10-02T09:00:00.000Z', now)).toEqual({ text: '3 дн.', renew: true })
+    expect(loginLeft('2026-09-28T20:00:00.000Z', now)).toEqual({ text: 'меньше суток', renew: true })
+  })
+
+  it('says a login ran out or is not known', () => {
+    expect(loginLeft('2026-09-28T09:00:00.000Z', now)).toEqual({ text: 'истёк', renew: true })
+    expect(loginLeft(null, now)).toEqual({ text: '—', renew: false })
   })
 })
 

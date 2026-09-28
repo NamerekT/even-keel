@@ -1,5 +1,7 @@
 import { readFile } from 'node:fs/promises'
 import { join } from 'node:path'
+import type { AccountHome } from '../account/homes.js'
+import { GLOBAL_ACCOUNT } from '../account/model.js'
 import type { HandoffSession, LimitedSession } from '../chain/relay.js'
 import type { SessionView } from '../state.js'
 import { lampOf, sessionsByTask, type AgentEntry } from './agents.js'
@@ -9,7 +11,8 @@ import { TranscriptTail } from './tail.js'
 
 export interface SessionMonitorOptions {
   cli: ClaudeCli
-  claudeDir: string
+  homes: () => AccountHome[]
+  emailOf: (account: string) => string | null
   projectKeys: () => string[]
   intervalMs: number
   onAgents: (agents: AgentEntry[]) => void
@@ -27,7 +30,7 @@ interface Tracked {
 export class SessionMonitor {
   private readonly tracked = new Map<string, Tracked>()
   private readonly tails = new Map<string, TranscriptTail>()
-  private remoteEnabled = false
+  private readonly remoteEnabled = new Map<string, boolean>()
   private lastSnapshot = ''
   private timer: NodeJS.Timeout | undefined
   private running: Promise<void> | undefined
@@ -49,7 +52,10 @@ export class SessionMonitor {
 
   views(): SessionView[] {
     const now = Date.now()
-    return [...this.tracked].map(([task, tracked]) => toView(task, tracked, this.remoteEnabled, now))
+    return [...this.tracked].map(([task, tracked]) => {
+      const account = tracked.agent.account ?? GLOBAL_ACCOUNT
+      return toView(task, tracked, this.remoteEnabled.get(account) ?? false, this.options.emailOf(account), now)
+    })
   }
 
   handoff(task: string): HandoffSession | undefined {
@@ -60,6 +66,7 @@ export class SessionMonitor {
     return {
       sessionId: agent.sessionId,
       agentId: agent.id ?? agent.sessionId,
+      account: agent.account ?? GLOBAL_ACCOUNT,
       cwd: agent.cwd,
       workdir: summary.workdir ?? agent.cwd,
       branch: summary.gitBranch,
@@ -89,12 +96,14 @@ export class SessionMonitor {
 
   private async tick(): Promise<void> {
     try {
-      const { claudeDir } = this.options
-      const agents = await this.options.cli.agents()
+      const homes = this.options.homes()
+      const dirOf = new Map(homes.map((home) => [home.key, home.dir]))
+      const agents = (await Promise.all(homes.map((home) => this.agentsOf(home)))).flat()
       this.options.onAgents(agents)
       for (const agent of agents) {
         const tail = this.tails.get(agent.sessionId)
-        if (tail === undefined) this.tails.set(agent.sessionId, new TranscriptTail(join(claudeDir, 'projects'), agent))
+        const projects = join(dirOf.get(agent.account ?? GLOBAL_ACCOUNT)!, 'projects')
+        if (tail === undefined) this.tails.set(agent.sessionId, new TranscriptTail(projects, agent))
         else tail.follow(agent)
       }
       const tracked = new Set([...this.tracked.values()].map(({ agent }) => agent.sessionId))
@@ -103,11 +112,12 @@ export class SessionMonitor {
       const reads = await Promise.allSettled([...this.tails.values()].map((tail) => tail.read()))
       for (const read of reads) if (read.status === 'rejected') this.options.onError(read.reason)
 
-      this.remoteEnabled = remoteAtStartup(await readText(join(claudeDir, 'settings.json')))
+      for (const home of homes) this.remoteEnabled.set(home.key, remoteAtStartup(await readText(join(home.dir, 'settings.json'))))
       const branchOf = (agent: AgentEntry) => this.tails.get(agent.sessionId)?.fold.summary().gitBranch ?? null
       const byTask = sessionsByTask(agents, this.options.projectKeys(), branchOf)
       for (const [task, agent] of byTask) {
-        const record = agent.pid === undefined ? undefined : await readText(join(claudeDir, 'sessions', `${agent.pid}.json`))
+        const dir = dirOf.get(agent.account ?? GLOBAL_ACCOUNT)!
+        const record = agent.pid === undefined ? undefined : await readText(join(dir, 'sessions', `${agent.pid}.json`))
         const bridge = bridgeOfRecord(record, agent.sessionId) ?? this.tracked.get(task)?.bridge ?? null
         this.tracked.set(task, { agent, present: true, transcript: this.tails.get(agent.sessionId)!, bridge })
       }
@@ -123,9 +133,24 @@ export class SessionMonitor {
       this.options.onError(error)
     }
   }
+
+  private async agentsOf(home: AccountHome): Promise<AgentEntry[]> {
+    try {
+      return await this.options.cli.agents(home)
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error)
+      throw new Error(`claude agents in ${home.key}: ${message}`, { cause: error })
+    }
+  }
 }
 
-function toView(task: string, { agent, present, transcript, bridge }: Tracked, remoteEnabled: boolean, now: number): SessionView {
+function toView(
+  task: string,
+  { agent, present, transcript, bridge }: Tracked,
+  remoteEnabled: boolean,
+  email: string | null,
+  now: number,
+): SessionView {
   const summary = transcript.fold.summary()
   const remote = remoteLink({
     bridge,
@@ -151,6 +176,7 @@ function toView(task: string, { agent, present, transcript, bridge }: Tracked, r
     feed: summary.feed,
     remoteUrl: remote.url,
     remoteOff: remote.off,
+    account: email,
   }
 }
 

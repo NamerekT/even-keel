@@ -1,4 +1,13 @@
-import { loginBlockMessage, type AccountLogin, type AccountView, type ClaudeAccount } from '../../../src/account/model.js'
+import {
+  loginBlockMessage,
+  removeProblem,
+  switchProblem,
+  type AccountEntry,
+  type AccountLogin,
+  type AccountView,
+  type ClaudeAccount,
+} from '../../../src/account/model.js'
+import type { RateLimits } from '../../../src/limits/model.js'
 import type { LaunchEntry } from '../../../src/chain/dispatcher.js'
 import { launchDays } from '../../../src/chain/launches.js'
 import { checkOrder } from '../../../src/chain/order.js'
@@ -45,6 +54,7 @@ function session(task: string, contextTokens: number, lamp: SessionView['lamp'] 
     feed: fakeFeed(),
     remoteUrl: lamp === 'working' || lamp === 'waiting' ? 'https://claude.ai/code/session_example' : null,
     remoteOff: lamp === 'working' || lamp === 'waiting' ? null : 'no-bridge',
+    account: task === 'ABC-6' ? 'jane.roe@example.com' : 'john.doe@example.com',
   }
 }
 
@@ -154,14 +164,9 @@ function fakeState(
           session('ABC-9', 350_000, 'finished'),
           session('DEMO-7', 142_000, 'waiting'),
         ],
-    limits: {
-      fiveHour: { usedPercentage: 37, resetsAt: new Date(Date.now() + 2 * 3_600_000).toISOString() },
-      sevenDay: { usedPercentage: 64, resetsAt: new Date(Date.now() + 3 * 86_400_000).toISOString() },
-      updatedAt: ago(0),
-      source: 'usage',
-    },
+    limits: FAKE_LIMITS,
     usage: fakeUsage(usage),
-    account: fakeAccount(account, idle),
+    account: fakeAccount(account, idle, FAKE_LIMITS),
     huly: fakeHuly(huly),
     trackerUrl: 'https://huly.example.com/workbench/example/tracker/',
     launches: launchDays(launches, new Date(), LAUNCH_DAYS),
@@ -308,6 +313,7 @@ const FAKE_ACCOUNT: ClaudeAccount = {
 }
 
 const FAKE_LOGIN: AccountLogin = {
+  target: null,
   startedAt: ago(1),
   urls: ['https://claude.example.com/oauth/authorize?code=true&state=example'],
   output: "Browser didn't open? Use the url below to sign in:\n\nhttps://claude.example.com/oauth/authorize?code=true&state=example",
@@ -322,10 +328,44 @@ function fakeUsage(mode: string | null): UsageHealth {
   return { state: 'ok', reason: null, since: ago(60) }
 }
 
-function fakeAccount(mode: string | null, idle: boolean): AccountView {
-  const signedIn: AccountView = {
+const FAKE_LIMITS: RateLimits = {
+  fiveHour: { usedPercentage: 37, resetsAt: new Date(Date.now() + 2 * 3_600_000).toISOString() },
+  sevenDay: { usedPercentage: 64, resetsAt: new Date(Date.now() + 3 * 86_400_000).toISOString() },
+  updatedAt: ago(0),
+  source: 'usage',
+}
+
+function inDays(days: number): string {
+  return new Date(Date.now() + days * 86_400_000).toISOString()
+}
+
+function fakeEntry(patch: Partial<AccountEntry>): AccountEntry {
+  return {
+    key: 'global',
+    global: true,
     status: FAKE_ACCOUNT,
     error: null,
+    loginExpiresAt: inDays(24),
+    needsLogin: false,
+    sessions: 0,
+    limits: null,
+    usage: { state: 'ok', reason: null, since: ago(1) },
+    ...patch,
+  }
+}
+
+function fakeAccount(mode: string | null, idle: boolean, limits: RateLimits): AccountView {
+  const global = fakeEntry({ limits, sessions: idle ? 0 : 6 })
+  const work = fakeEntry({
+    key: 'jane.roe',
+    global: false,
+    status: { ...FAKE_ACCOUNT, email: 'jane.roe@example.com', subscriptionType: 'pro' },
+    loginExpiresAt: inDays(5),
+    usage: { state: 'stale', reason: null, since: ago(30) },
+  })
+  const signedIn: AccountView = {
+    active: 'global',
+    accounts: [global, work],
     login: null,
     loginBlock: idle
       ? null
@@ -338,28 +378,51 @@ function fakeAccount(mode: string | null, idle: boolean): AccountView {
         },
   }
   if (mode === 'out') {
-    return { ...signedIn, status: { loggedIn: false, authMethod: 'none', email: null, orgName: null, subscriptionType: null } }
+    const out = { ...global, status: { loggedIn: false, authMethod: 'none', email: null, orgName: null, subscriptionType: null }, needsLogin: true }
+    return { ...signedIn, accounts: [out, work] }
   }
+  if (mode === 'expired') return { ...signedIn, accounts: [{ ...global, loginExpiresAt: ago(60), needsLogin: true, limits: null }, work] }
   if (mode === 'login') return { ...signedIn, login: FAKE_LOGIN, loginBlock: null }
   if (mode === 'failed') {
     return { ...signedIn, login: { ...FAKE_LOGIN, error: 'claude: sign-in exited with code 1: OAuth error' }, loginBlock: null }
   }
-  if (mode === 'unknown') return { ...signedIn, status: null, error: 'claude: auth status timed out' }
+  if (mode === 'unknown') return { ...signedIn, accounts: [{ ...global, status: null, error: 'claude: auth status timed out' }, work] }
   return signedIn
 }
 
 function accountCommand(account: AccountView, name: string, body: Record<string, unknown>): AccountView {
-  if (name === 'account/login') {
-    if (account.loginBlock !== null) throw new Error(loginBlockMessage(account.loginBlock))
-    return { ...account, login: { ...FAKE_LOGIN, startedAt: ago(0) } }
+  const key = String(body.account)
+  if (name === 'account/add' || name === 'account/renew') {
+    if (account.login !== null && account.login.error === null) throw new Error('claude: a sign-in is already running')
+    if (name === 'account/renew' && key === account.active && account.loginBlock !== null) throw new Error(loginBlockMessage(account.loginBlock))
+    return { ...account, login: { ...FAKE_LOGIN, target: name === 'account/add' ? null : key, startedAt: ago(0) } }
+  }
+  if (name === 'account/switch') {
+    const problem = switchProblem(account, key)
+    if (problem !== undefined) throw new Error(problem)
+    return { ...account, active: key }
+  }
+  if (name === 'account/remove') {
+    const problem = removeProblem(account, key)
+    if (problem !== undefined) throw new Error(problem)
+    return { ...account, accounts: account.accounts.filter((entry) => entry.key !== key) }
   }
   if (name === 'account/cancel') return { ...account, login: null }
   if (name === 'account/code') {
-    if (account.login === null) throw new Error('claude: no sign-in is running')
+    const { login } = account
+    if (login === null) throw new Error('claude: no sign-in is running')
     if (String(body.code).trim() === 'fail') {
-      return { ...account, login: { ...account.login, error: 'claude: sign-in exited with code 1: Invalid code' } }
+      return { ...account, login: { ...login, error: 'claude: sign-in exited with code 1: Invalid code' } }
     }
-    return { ...account, status: { ...FAKE_ACCOUNT, email: 'jane.roe@example.com' }, login: null }
+    const renewed = { loginExpiresAt: inDays(30), needsLogin: false }
+    if (login.target === null) {
+      const added = fakeEntry({ key: 'richard.roe', global: false, status: { ...FAKE_ACCOUNT, email: 'richard.roe@example.com' }, ...renewed })
+      return { ...account, accounts: [...account.accounts, added], login: null }
+    }
+    const accounts = account.accounts.map((entry) =>
+      entry.key === login.target ? { ...entry, ...renewed, status: entry.status ?? FAKE_ACCOUNT } : entry,
+    )
+    return { ...account, accounts, login: null }
   }
   throw new Error(`fake: ${name} is not supported`)
 }

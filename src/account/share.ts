@@ -1,0 +1,125 @@
+import { copyFileSync, existsSync, lstatSync, mkdirSync, readdirSync, readFileSync, rmdirSync, symlinkSync, writeFileSync } from 'node:fs'
+import { join } from 'node:path'
+
+type Json = Record<string, unknown>
+
+const PROJECT_KEYS = [
+  'hasTrustDialogAccepted',
+  'mcpServers',
+  'allowedTools',
+  'enabledMcpjsonServers',
+  'disabledMcpjsonServers',
+  'disabledMcpServers',
+  'mcpContextUris',
+  'hasClaudeMdExternalIncludesApproved',
+  'hasClaudeMdExternalIncludesWarningShown',
+]
+const LINKED_DIRS = ['agents', 'commands', 'hooks', 'output-styles']
+const OWN_SKILLS = new Set(['synced', '.trash'])
+const COPIED_FILES = ['CLAUDE.md', join('plugins', 'installed_plugins.json'), join('plugins', 'known_marketplaces.json')]
+
+export interface SharedSources {
+  dir: string
+  config: string
+}
+
+export function mergeSettings(global: Json, folder: Json | undefined): Json {
+  return { ...folder, ...global }
+}
+
+export function shareProjects(global: Json, folder: Json): Json | undefined {
+  const projects: Json = { ...objectOf(folder.projects) }
+  for (const [path, value] of Object.entries(objectOf(global.projects))) {
+    const project = objectOf(value)
+    if (project.hasTrustDialogAccepted !== true) continue
+    const setup = Object.fromEntries(PROJECT_KEYS.filter((key) => key in project).map((key) => [key, project[key]]))
+    projects[path] = { ...objectOf(projects[path]), ...setup }
+  }
+  const shared: Json = { ...folder, projects }
+  if (global.mcpServers !== undefined) shared.mcpServers = global.mcpServers
+  return JSON.stringify(shared) === JSON.stringify(folder) ? undefined : shared
+}
+
+export function shareConfig(global: SharedSources, dir: string): void {
+  mkdirSync(dir, { recursive: true })
+  const settings = readJson(join(global.dir, 'settings.json'))
+  if (settings !== undefined) writeIfChanged(join(dir, 'settings.json'), mergeSettings(settings, readJson(join(dir, 'settings.json'))))
+
+  const config = readJson(global.config)
+  if (config !== undefined) {
+    const shared = shareProjects(config, readJson(join(dir, '.claude.json')) ?? {})
+    if (shared !== undefined) writeFileSync(join(dir, '.claude.json'), JSON.stringify(shared, null, 2))
+  }
+
+  for (const file of COPIED_FILES) copyIfChanged(join(global.dir, file), join(dir, file))
+  for (const name of LINKED_DIRS) link(join(global.dir, name), join(dir, name))
+  for (const name of entries(join(global.dir, 'skills'))) {
+    if (!OWN_SKILLS.has(name)) link(join(global.dir, 'skills', name), join(dir, 'skills', name))
+  }
+  for (const project of entries(join(global.dir, 'projects'))) {
+    link(join(global.dir, 'projects', project, 'memory'), join(dir, 'projects', project, 'memory'))
+  }
+}
+
+function link(target: string, path: string): void {
+  if (!isDirectory(target)) return
+  if (existsSync(path)) {
+    const stat = lstatSync(path)
+    if (stat.isSymbolicLink() || !stat.isDirectory() || readdirSync(path).length > 0) return
+    rmdirSync(path)
+  }
+  mkdirSync(join(path, '..'), { recursive: true })
+  symlinkSync(target, path, 'junction')
+}
+
+function copyIfChanged(from: string, to: string): void {
+  let source: Buffer
+  try {
+    source = readFileSync(from)
+  } catch {
+    return
+  }
+  try {
+    if (readFileSync(to).equals(source)) return
+  } catch {
+    mkdirSync(join(to, '..'), { recursive: true })
+  }
+  copyFileSync(from, to)
+}
+
+function writeIfChanged(file: string, value: Json): void {
+  const text = JSON.stringify(value, null, 2)
+  if (JSON.stringify(readJson(file)) === JSON.stringify(value)) return
+  writeFileSync(file, text)
+}
+
+function readJson(file: string): Json | undefined {
+  try {
+    const value: unknown = JSON.parse(readFileSync(file, 'utf8'))
+    return typeof value === 'object' && value !== null && !Array.isArray(value) ? (value as Json) : undefined
+  } catch {
+    return undefined
+  }
+}
+
+function entries(dir: string): string[] {
+  try {
+    return readdirSync(dir, { withFileTypes: true })
+      .filter((entry) => entry.isDirectory() || entry.isSymbolicLink())
+      .map((entry) => entry.name)
+  } catch {
+    return []
+  }
+}
+
+function isDirectory(path: string): boolean {
+  try {
+    return lstatSync(path).isDirectory() || lstatSync(path).isSymbolicLink()
+  } catch {
+    return false
+  }
+}
+
+function objectOf(value: unknown): Json {
+  return typeof value === 'object' && value !== null && !Array.isArray(value) ? (value as Json) : {}
+}

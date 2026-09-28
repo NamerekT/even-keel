@@ -388,6 +388,7 @@ describe('Dispatcher on a limit', () => {
   const limitedSession = (sessionId: string, at: string, lastReplyAt: string): LimitedSession => ({
     sessionId,
     agentId: sessionId.slice(0, 8),
+    account: 'global',
     cwd: 'D:/work/abc',
     workdir: 'D:/work/abc/.claude/worktrees/abc-1',
     branch: 'abc-1/work',
@@ -477,18 +478,18 @@ describe('Dispatcher on a limit', () => {
     limited['ABC-1'] = limitedSession('session-1', '2026-09-26T12:00:00.000Z', '2026-09-26T11:59:00.000Z')
     await check(dispatcher)
 
-    account.email = 'jane@example.com'
+    account.id = 'jane@example.com'
     clock.now = new Date('2026-09-26T12:05:00Z')
     await check(dispatcher)
     expect(relays).toMatchObject([{ kind: 'relay' }])
   })
 
   it('hands over when the account was switched on a paused chain before the limit was noted', async () => {
-    const accountAt = (at: string) => (at < '2026-09-26T12:03:00.000Z' ? 'john@example.com' : 'jane@example.com')
+    const accountAt = (_account: string, at: string) => (at < '2026-09-26T12:03:00.000Z' ? 'john@example.com' : 'jane@example.com')
     const { dispatcher, limited, clock, relays, account } = await running({ accountAt })
     dispatcher.pause()
     limited['ABC-1'] = limitedSession('session-1', '2026-09-26T12:00:00.000Z', '2026-09-26T11:59:00.000Z')
-    account.email = 'jane@example.com'
+    account.id = 'jane@example.com'
     clock.now = new Date('2026-09-26T12:05:00Z')
     dispatcher.resume()
     await dispatcher.idle()
@@ -499,7 +500,7 @@ describe('Dispatcher on a limit', () => {
 
   it('waits to note a limit until the account is known', async () => {
     const { dispatcher, limited, account } = await running({ accountAt: () => null })
-    account.email = null
+    account.id = null
     account.ready = false
     limited['ABC-1'] = limitedSession('session-1', '2026-09-26T12:00:00.000Z', '2026-09-26T11:59:00.000Z')
     await check(dispatcher)

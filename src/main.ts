@@ -1,8 +1,9 @@
 import { mkdirSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { accountAt, loadLedger, noteAccount, saveLedger } from './account/ledger.js'
-import { launchBlock, loginBlock, type LoginBlock } from './account/model.js'
+import { AccountHomes, accountsRoot, type AccountHome } from './account/homes.js'
+import { accountAt, activate, forgetAccount, loadLedger, noteAccount, saveLedger, type AccountLedger } from './account/ledger.js'
+import { accountId, launchBlock, loginBlock, type LoginBlock } from './account/model.js'
 import { AccountWatcher } from './account/watcher.js'
 import { Dispatcher, type LaunchEntry } from './chain/dispatcher.js'
 import { launchDays, taskSessions } from './chain/launches.js'
@@ -19,7 +20,7 @@ import { exhaustedReset } from './limits/model.js'
 import { LimitsWatcher } from './limits/watcher.js'
 import { connectHuly } from './huly/source.js'
 import { createBatonServer } from './server.js'
-import { claudeConfigDir, ClaudeCli, resolveClaudeBinary } from './sessions/claude.js'
+import { ClaudeCli, resolveClaudeBinary } from './sessions/claude.js'
 import type { AgentEntry } from './sessions/agents.js'
 import { readSessionRecord } from './sessions/history.js'
 import { SessionMonitor } from './sessions/monitor.js'
@@ -54,8 +55,8 @@ const limitsFile = join(stateDir, 'rate-limits.json')
 const accountFile = join(stateDir, 'account.json')
 const credentials = readHulyCredentials(process.env)
 const hub = new EventHub()
-const cli = new ClaudeCli(() => resolveClaudeBinary(process.env), CLAUDE_TIMEOUT_MS)
-const claudeDir = claudeConfigDir(process.env)
+const homes = new AccountHomes(process.env, accountsRoot(process.env))
+const cli = new ClaudeCli(() => resolveClaudeBinary(process.env), CLAUDE_TIMEOUT_MS, (home) => homes.envOf(home))
 const startedAt = new Date().toISOString()
 const tasksByProject = new Map<string, HulyTask[]>()
 let sessions: SessionView[] = []
@@ -64,40 +65,76 @@ let huly: HulyHealth = { state: 'off', lastOkAt: null, error: null }
 const launches: LaunchEntry[] = readLaunches(launchesFile)
 let ledger = loadLedger(accountFile)
 
+const saveAccounts = (next: AccountLedger) => {
+  ledger = next
+  saveLedger(accountFile, ledger)
+}
+
+const homeOf = (key: string): AccountHome => {
+  const home = homes.find(key)
+  if (home === undefined) throw new Error(`claude: the account folder ${key} is gone`)
+  return home
+}
+
 const limits = new LimitsWatcher({
   file: limitsFile,
   intervalMs: LIMITS_POLL_MS,
-  usage: () => cli.usage(stateDir),
+  homes: () => homes.list(),
+  ownerOf: (configDir) => homes.ownerOf(configDir),
+  usage: (home) => cli.usage(home, stateDir),
   usageIntervalMs: USAGE_POLL_MS,
-  notBefore: () => ledger.since,
+  notBefore: (key) => ledger.accounts[key]?.since ?? null,
+  accessExpired: (home) => {
+    const { accessExpiresAt } = homes.times(home)
+    return accessExpiresAt !== null && accessExpiresAt <= Date.now()
+  },
   onChange: () => hub.broadcast('state', getState()),
   onError: (error) => console.error(`limits: ${error instanceof Error ? error.message : String(error)}`),
 })
 
 const account = new AccountWatcher({
-  status: () => cli.authStatus(),
-  login: () => cli.authLogin(),
-  loginBlock: (): LoginBlock | null => loginBlock(dispatcher.state.active, agents),
+  homes,
+  cli,
+  active: () => ledger.active,
+  activate: (key) => {
+    saveAccounts(activate(ledger, key))
+    hub.broadcast('state', getState())
+    dispatcher.check()
+  },
+  forget: (key) => saveAccounts(forgetAccount(ledger, key)),
+  loginBlock: (): LoginBlock | null => loginBlock(dispatcher.state.active, agents, ledger.active),
+  sessionsIn: (key) => agents.filter((agent) => agent.account === key && !isOver(agent)).length,
+  limits: (key) => limits.limits(key),
+  usage: (key) => limits.usage(key),
   intervalMs: ACCOUNT_POLL_MS,
   loginTimeoutMs: LOGIN_TIMEOUT_MS,
   now: () => new Date(),
   onChange: () => {
-    const status = account.view.status
-    const noted = noteAccount(ledger, status?.loggedIn === true ? status.email : null, new Date())
-    if (noted !== undefined) {
-      ledger = noted
-      saveLedger(accountFile, ledger)
-      limits.refresh()
+    let changed = false
+    for (const entry of account.view.accounts) {
+      const noted = noteAccount(ledger, entry.key, entry.status?.loggedIn === true ? entry.status.email : null, new Date())
+      if (noted === undefined) continue
+      saveAccounts(noted)
+      changed = true
     }
+    if (changed) limits.refresh()
     hub.broadcast('state', getState())
     dispatcher.check()
   },
   onError: (error) => console.error(`account: ${error instanceof Error ? error.message : String(error)}`),
 })
 
+const activeAccount = () => {
+  const view = account.view
+  const entry = view.accounts.find((each) => each.key === view.active)
+  const email = entry?.status?.loggedIn === true ? entry.status.email : null
+  return { id: accountId(view.active, email), ready: email !== null && launchBlock(view) === undefined }
+}
+
 const monitor = new SessionMonitor({
   cli,
-  claudeDir,
+  homes: () => homes.list(),
+  emailOf: (key) => account.emailOf(key),
   projectKeys: () => Object.keys(config.projects),
   intervalMs: SESSION_POLL_MS,
   onAgents: (list) => {
@@ -115,7 +152,11 @@ const monitor = new SessionMonitor({
 
 const dispatcher = new Dispatcher(loadChainState(chainFile), {
   projects: Object.keys(config.projects),
-  launch: async (project, task) => (await cli.launch(task, config.projects[project]!)).sessionId,
+  launch: async (project, task) => {
+    const home = homeOf(ledger.active)
+    homes.share(home)
+    return (await cli.launch(home, task, config.projects[project]!)).sessionId
+  },
   liveSession: (task) => sessions.find((view) => view.task === task && view.lamp !== 'finished')?.sessionId,
   blocked: (): string | undefined => launchBlock(account.view),
   busy: (task) => {
@@ -135,21 +176,27 @@ const dispatcher = new Dispatcher(loadChainState(chainFile), {
   limited: (task) => monitor.limited(task),
   handoff: (task) => monitor.handoff(task),
   locate: locateWorktree,
-  account: () => ({
-    email: account.view.status?.email ?? null,
-    ready: account.view.status?.loggedIn === true && launchBlock(account.view) === undefined,
-  }),
-  accountAt: (at) => accountAt(ledger, at),
-  limitReset: () => exhaustedReset(limits.limits),
+  account: activeAccount,
+  accountAt: (key, at) => accountId(key, accountAt(ledger, key, at)),
+  limitReset: () => exhaustedReset(limits.limits(ledger.active)),
   resume: async (task, session) => {
-    await cli.stop(session.agentId, session.sessionId)
-    return (await cli.resume(session.sessionId, task, session.cwd, RESUME_PROMPT)).sessionId
+    const home = homeOf(session.account)
+    await cli.stop(home, session.agentId, session.sessionId)
+    homes.share(home)
+    return (await cli.resume(home, session.sessionId, task, session.cwd, RESUME_PROMPT)).sessionId
   },
   relay: async (task, session, prompt) => {
-    await cli.stop(session.agentId, session.sessionId)
-    return (await cli.launch(task, session.workdir, prompt)).sessionId
+    const previous = homes.find(session.account)
+    if (previous !== undefined) await cli.stop(previous, session.agentId, session.sessionId)
+    const home = homeOf(ledger.active)
+    homes.share(home)
+    return (await cli.launch(home, task, session.workdir, prompt)).sessionId
   },
 })
+
+function isOver(agent: AgentEntry): boolean {
+  return agent.state === 'done' || agent.state === 'stopped' || agent.state === 'failed'
+}
 
 const getState = (): BatonState => ({
   startedAt,
@@ -162,8 +209,8 @@ const getState = (): BatonState => ({
   },
   tasks: [...tasksByProject.values()].flat(),
   sessions,
-  limits: limits.limits,
-  usage: limits.usage,
+  limits: limits.limits(ledger.active),
+  usage: limits.usage(ledger.active),
   account: account.view,
   huly,
   trackerUrl: credentials === undefined ? null : issueUrlBase(credentials),
@@ -179,7 +226,13 @@ const server = createBatonServer({
   control: dispatcher,
   account,
   launches: () => launches,
-  sessionRecord: (sessionId) => readSessionRecord(join(claudeDir, 'projects'), sessionId),
+  sessionRecord: async (sessionId) => {
+    for (const home of homes.list()) {
+      const record = await readSessionRecord(join(home.dir, 'projects'), sessionId)
+      if (record !== undefined) return record
+    }
+    return undefined
+  },
 })
 
 setInterval(() => hub.broadcast('ping', { at: new Date().toISOString() }), 15_000).unref()

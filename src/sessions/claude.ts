@@ -4,6 +4,7 @@ import { homedir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { setTimeout as delay } from 'node:timers/promises'
 import { promisify } from 'node:util'
+import type { AccountHome } from '../account/homes.js'
 import { parseAuthStatus, type ClaudeAccount } from '../account/model.js'
 import { parseAgents, type AgentEntry } from './agents.js'
 import { newestExtensionBinary } from './paths.js'
@@ -28,27 +29,26 @@ export function resolveClaudeBinary(env: NodeJS.ProcessEnv): string {
   return join(extensions, newest, 'resources', 'native-binary', process.platform === 'win32' ? 'claude.exe' : 'claude')
 }
 
-export function claudeConfigDir(env: NodeJS.ProcessEnv): string {
-  return env.CLAUDE_CONFIG_DIR ?? join(homedir(), '.claude')
-}
-
 export class ClaudeCli {
   constructor(
     private readonly bin: () => string,
     private readonly timeoutMs: number,
+    private readonly envOf: (home: AccountHome) => NodeJS.ProcessEnv,
   ) {}
 
-  async agents(): Promise<AgentEntry[]> {
+  async agents(home: AccountHome): Promise<AgentEntry[]> {
     const { stdout } = await run(this.bin(), ['agents', '--json', '--all'], {
+      env: this.envOf(home),
       timeout: this.timeoutMs,
       windowsHide: true,
       maxBuffer: 16 * 1024 * 1024,
     })
-    return parseAgents(stdout)
+    return parseAgents(stdout, home.key)
   }
 
-  async authStatus(): Promise<ClaudeAccount> {
-    const stdout = await run(this.bin(), ['auth', 'status', '--json'], { timeout: this.timeoutMs, windowsHide: true }).then(
+  async authStatus(home: AccountHome): Promise<ClaudeAccount> {
+    const options = { env: this.envOf(home), timeout: this.timeoutMs, windowsHide: true }
+    const stdout = await run(this.bin(), ['auth', 'status', '--json'], options).then(
       (result) => result.stdout,
       (error: unknown) => {
         const output = (error as { stdout?: string }).stdout ?? ''
@@ -59,62 +59,77 @@ export class ClaudeCli {
     return parseAuthStatus(stdout)
   }
 
-  async usage(cwd: string): Promise<string> {
+  async usage(home: AccountHome, cwd: string): Promise<string> {
     const { stdout } = await run(this.bin(), ['-p', '/usage', '--output-format', 'json', '--no-session-persistence'], {
       cwd,
+      env: this.envOf(home),
       timeout: this.timeoutMs,
       windowsHide: true,
     })
     return stdout
   }
 
-  authLogin(): ChildProcessWithoutNullStreams {
-    return spawn(this.bin(), ['auth', 'login', '--claudeai'], { windowsHide: true, stdio: 'pipe' })
+  authLogin(home: AccountHome): ChildProcessWithoutNullStreams {
+    return spawn(this.bin(), ['auth', 'login', '--claudeai'], { env: this.envOf(home), windowsHide: true, stdio: 'pipe' })
   }
 
-  async launch(task: string, cwd: string, prompt = task): Promise<AgentEntry> {
+  async authLogout(home: AccountHome): Promise<void> {
+    try {
+      await run(this.bin(), ['auth', 'logout'], { env: this.envOf(home), timeout: this.timeoutMs, windowsHide: true })
+    } catch (error) {
+      throw new Error(`claude: could not sign out of ${home.key}${outputOf(error)}`, { cause: error })
+    }
+  }
+
+  async launch(home: AccountHome, task: string, cwd: string, prompt = task): Promise<AgentEntry> {
     const launchedAt = Date.now()
-    await this.start(['--bg', '--permission-mode', 'auto', '-n', task, prompt], cwd, `start ${task} in ${cwd}`)
+    await this.start(home, ['--bg', '--permission-mode', 'auto', '-n', task, prompt], cwd, `start ${task} in ${cwd}`)
     return this.appear(
+      home,
       (agent) => agent.name === task && samePath(agent.cwd, cwd) && agent.startedAt >= launchedAt - CLOCK_SKEW_MS,
       `${task} was started but did not show up in claude agents`,
     )
   }
 
-  async resume(sessionId: string, task: string, cwd: string, prompt: string): Promise<AgentEntry> {
-    await this.start(['--bg', '--permission-mode', 'auto', '-n', task, '--resume', sessionId, prompt], cwd, `resume ${task} in ${cwd}`)
-    return this.appear((agent) => agent.sessionId === sessionId && !isOver(agent), `${task} was resumed but did not show up in claude agents`)
+  async resume(home: AccountHome, sessionId: string, task: string, cwd: string, prompt: string): Promise<AgentEntry> {
+    const args = ['--bg', '--permission-mode', 'auto', '-n', task, '--resume', sessionId, prompt]
+    await this.start(home, args, cwd, `resume ${task} in ${cwd}`)
+    return this.appear(
+      home,
+      (agent) => agent.sessionId === sessionId && !isOver(agent),
+      `${task} was resumed but did not show up in claude agents`,
+    )
   }
 
-  async stop(agentId: string, sessionId: string): Promise<void> {
-    const running = (await this.agents()).find((entry) => entry.sessionId === sessionId)
+  async stop(home: AccountHome, agentId: string, sessionId: string): Promise<void> {
+    const running = (await this.agents(home)).find((entry) => entry.sessionId === sessionId)
     if (running === undefined || isOver(running)) return
     try {
-      await run(this.bin(), ['stop', agentId], { timeout: this.timeoutMs, windowsHide: true })
+      await run(this.bin(), ['stop', agentId], { env: this.envOf(home), timeout: this.timeoutMs, windowsHide: true })
     } catch (error) {
       throw new Error(`claude: could not stop ${agentId}${outputOf(error)}`, { cause: error })
     }
     const deadline = Date.now() + APPEAR_TIMEOUT_MS
     while (Date.now() < deadline) {
-      const agent = (await this.agents()).find((entry) => entry.sessionId === sessionId)
+      const agent = (await this.agents(home)).find((entry) => entry.sessionId === sessionId)
       if (agent === undefined || isOver(agent)) return
       await delay(APPEAR_POLL_MS)
     }
     throw new Error(`claude: ${agentId} was told to stop but is still running`)
   }
 
-  private async start(args: string[], cwd: string, what: string): Promise<void> {
+  private async start(home: AccountHome, args: string[], cwd: string, what: string): Promise<void> {
     try {
-      await run(this.bin(), args, { cwd, timeout: this.timeoutMs, windowsHide: true })
+      await run(this.bin(), args, { cwd, env: this.envOf(home), timeout: this.timeoutMs, windowsHide: true })
     } catch (error) {
       throw new Error(`claude: could not ${what}${outputOf(error)}`, { cause: error })
     }
   }
 
-  private async appear(match: (agent: AgentEntry) => boolean, failure: string): Promise<AgentEntry> {
+  private async appear(home: AccountHome, match: (agent: AgentEntry) => boolean, failure: string): Promise<AgentEntry> {
     const deadline = Date.now() + APPEAR_TIMEOUT_MS
     while (Date.now() < deadline) {
-      const found = (await this.agents()).find(match)
+      const found = (await this.agents(home)).find(match)
       if (found !== undefined) return found
       await delay(APPEAR_POLL_MS)
     }

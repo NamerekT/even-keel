@@ -23,7 +23,7 @@ export interface SetupOptions {
   blocked?: string
   limited?: Record<string, LimitedSession>
   account?: AccountNow
-  accountAt?: (at: string) => string | null
+  accountAt?: (account: string, at: string) => string | null
   failRelay?: boolean
   limitReset?: string | null
   busy?: Set<string>
@@ -33,7 +33,7 @@ export interface SetupOptions {
 export function setup(options: SetupOptions = {}) {
   const busy = options.busy ?? new Set<string>()
   const clock = { now: new Date('2026-09-26T12:00:00Z') }
-  const account: AccountNow = options.account ?? { email: 'john@example.com', ready: true }
+  const account: AccountNow = options.account ?? { id: 'john@example.com', ready: true }
   const limited: Record<string, LimitedSession> = options.limited ?? {}
   const handoffs: Record<string, HandoffSession> = {}
   const relays: { kind: string; task: string; sessionId: string; prompt?: string; workdir?: string }[] = []
@@ -58,7 +58,7 @@ export function setup(options: SetupOptions = {}) {
     handoff: (id) => handoffs[id],
     locate: async (session) => ({ ...session, ...options.located }),
     account: () => account,
-    accountAt: options.accountAt ?? (() => account.email),
+    accountAt: options.accountAt ?? (() => account.id),
     limitReset: () => options.limitReset ?? null,
     resume: async (_task, session) => {
       relays.push({ kind: 'resume', task: '', sessionId: session.sessionId })

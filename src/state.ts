@@ -25,6 +25,7 @@ export interface SessionView {
   feed: FeedLine[]
   remoteUrl: string | null
   remoteOff: RemoteOff | null
+  account: string | null
 }
 
 export interface SessionRecord {

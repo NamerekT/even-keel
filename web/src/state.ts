@@ -18,9 +18,21 @@ export interface AccountBadge {
 
 export function accountBadge(view: AccountView): AccountBadge {
   if (view.login !== null) return view.login.error === null ? { kind: 'login', label: 'Вход…' } : { kind: 'out', label: 'Вход не удался' }
-  if (view.status === null) return { kind: 'unknown', label: 'Claude' }
-  if (!view.status.loggedIn) return { kind: 'out', label: 'Не вошли' }
-  return { kind: 'in', label: view.status.email?.split('@')[0] ?? 'Claude' }
+  const active = view.accounts.find((entry) => entry.key === view.active)
+  if (active?.status == null) return { kind: 'unknown', label: 'Claude' }
+  if (active.needsLogin) return { kind: 'out', label: 'Нужен вход' }
+  return { kind: 'in', label: active.status.email?.split('@')[0] ?? 'Claude' }
+}
+
+const DAY_MS = 24 * 60 * 60_000
+const RENEW_WITHIN_DAYS = 7
+
+export function loginLeft(expiresAt: string | null, now: Date): { text: string; renew: boolean } {
+  if (expiresAt === null) return { text: '—', renew: false }
+  const left = Date.parse(expiresAt) - now.getTime()
+  if (left <= 0) return { text: 'истёк', renew: true }
+  const days = Math.floor(left / DAY_MS)
+  return { text: days === 0 ? 'меньше суток' : `${days} дн.`, renew: days < RENEW_WITHIN_DAYS }
 }
 
 export type ChainStatus =

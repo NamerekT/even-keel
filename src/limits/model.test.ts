@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { currentLimits, exhaustedReset, newestLimits, parseLimitsFile } from './model.js'
+import { currentLimits, exhaustedReset, limitsFileDir, newestLimits, parseLimitsFile } from './model.js'
 
 const RECEIVED_AT = '2026-01-01T12:00:00.000Z'
 const FIVE_HOUR_RESET = Date.UTC(2026, 0, 1, 15, 0, 0) / 1000
@@ -8,6 +8,20 @@ const SEVEN_DAY_RESET = Date.UTC(2026, 0, 5, 9, 30, 0) / 1000
 function snapshot(rateLimits: unknown, receivedAt = RECEIVED_AT): unknown {
   return { receivedAt, rate_limits: rateLimits }
 }
+
+describe('limitsFileDir', () => {
+  it('names the config folder of the session that wrote the snapshot', () => {
+    expect(limitsFileDir({ ...(snapshot({}) as object), configDir: 'C:\\Users\\john\\.claude-accounts\\work' })).toBe(
+      'C:\\Users\\john\\.claude-accounts\\work',
+    )
+  })
+
+  it('takes a snapshot without a folder for the global one', () => {
+    expect(limitsFileDir(snapshot({}))).toBeNull()
+    expect(limitsFileDir({ ...(snapshot({}) as object), configDir: '' })).toBeNull()
+    expect(limitsFileDir(null)).toBeNull()
+  })
+})
 
 describe('parseLimitsFile', () => {
   it('reads both windows from the statusline rate_limits object', () => {

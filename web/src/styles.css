@@ -562,6 +562,86 @@ h1 {
   overflow-wrap: anywhere;
 }
 
+.accounts {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.accounts__item {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+.accounts__item--active {
+  border-color: var(--accent);
+}
+
+.accounts__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.accounts__email {
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.accounts__mark {
+  padding: 1px 8px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.accounts__mark--active {
+  background: var(--accent);
+  color: var(--surface);
+}
+
+.accounts__mark--login {
+  background: var(--lamp-error);
+  color: var(--surface);
+}
+
+.accounts__facts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px 12px;
+  color: var(--fg-muted);
+  font-size: 13px;
+}
+
+.accounts__expiry--soon {
+  color: var(--warn-fg);
+  font-weight: 600;
+}
+
+.accounts__item .limits {
+  flex-wrap: wrap;
+  gap: 4px 16px;
+}
+
+.accounts__no-limits {
+  margin: 0;
+  color: var(--fg-muted);
+  font-size: 13px;
+}
+
+.accounts__confirm {
+  align-self: center;
+  font-size: 13px;
+}
+
 .account__blockers {
   display: flex;
   flex-direction: column;
@@ -781,6 +861,13 @@ a:focus-visible {
 .button--primary {
   border-color: var(--accent);
   background: var(--accent);
+  color: var(--surface);
+  font-weight: 600;
+}
+
+.button--danger {
+  border-color: var(--lamp-error);
+  background: var(--lamp-error);
   color: var(--surface);
   font-weight: 600;
 }
@@ -1688,6 +1775,19 @@ a:focus-visible {
 .panel__remote {
   align-self: flex-start;
   text-decoration: none;
+}
+
+.panel__remote-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 12px;
+}
+
+.panel__account {
+  color: var(--fg-muted);
+  font-size: 13px;
+  overflow-wrap: anywhere;
 }
 
 .panel__remote-off {
