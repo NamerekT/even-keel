@@ -4,7 +4,7 @@ import { chainOrder, nextTask, precedence } from '../../src/chain/order.js'
 import type { LimitHold } from '../../src/chain/relay.js'
 import { isOpen, type HulyTask } from '../../src/huly/model.js'
 import type { Lamp } from '../../src/sessions/agents.js'
-import type { TokenTotals } from '../../src/sessions/transcript.js'
+import type { CacheTtl, CacheWindow, TokenTotals } from '../../src/sessions/transcript.js'
 import type { UsageHealth } from '../../src/limits/usage.js'
 import type { BatonState, ContextScale, SessionView } from '../../src/state.js'
 import { formatMoment } from './format.js'
@@ -207,6 +207,14 @@ export function sessionElapsed(view: SessionView, now: Date): number {
   const start = Date.parse(view.startedAt)
   const end = view.lamp === 'finished' ? Date.parse(view.lastActivityAt ?? view.startedAt) : now.getTime()
   return Math.max(0, end - start)
+}
+
+const CACHE_TTL_MS: Record<CacheTtl, number> = { '5m': 5 * 60_000, '1h': 60 * 60_000 }
+
+export function cacheFreshness(cache: CacheWindow, now: Date): { left: number; level: 'ok' | 'warn' | 'cold' } {
+  const left = Math.max(0, Date.parse(cache.until) - now.getTime())
+  const level = left === 0 ? 'cold' : left < CACHE_TTL_MS[cache.ttl] / 5 ? 'warn' : 'ok'
+  return { left, level }
 }
 
 export function tokenTotal(tokens: TokenTotals): number {

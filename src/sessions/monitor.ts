@@ -170,6 +170,7 @@ function toView(
     startedAt: new Date(agent.startedAt).toISOString(),
     lastActivityAt: summary.lastActivityAt,
     contextTokens: summary.contextTokens,
+    cache: summary.cache,
     tokens: summary.tokens,
     stage: summary.stage,
     action: summary.action,

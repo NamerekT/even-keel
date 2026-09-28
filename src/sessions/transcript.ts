@@ -16,8 +16,16 @@ export interface TokenTotals {
   cacheWrite: number
 }
 
+export type CacheTtl = '5m' | '1h'
+
+export interface CacheWindow {
+  ttl: CacheTtl
+  until: string
+}
+
 export interface TranscriptSummary {
   contextTokens: number
+  cache: CacheWindow | null
   tokens: TokenTotals
   action: FeedLine | null
   stage: Stage | null
@@ -38,6 +46,7 @@ interface Usage {
   output_tokens?: number
   cache_read_input_tokens?: number
   cache_creation_input_tokens?: number
+  cache_creation?: { ephemeral_5m_input_tokens?: number; ephemeral_1h_input_tokens?: number }
 }
 
 interface ContentBlock {
@@ -70,6 +79,7 @@ const MESSAGE_LIMIT = 6000
 const WRAP_UP_TEXT = 'Лимит исчерпан: Claude Code велел сессии свернуть ход'
 const REMOTE_DROPPED = 'Remote Control disconnected'
 const BRIEF_LIMIT = 160
+const TTL_MS: Record<CacheTtl, number> = { '5m': 5 * 60_000, '1h': 60 * 60_000 }
 const STAGE_RANK: Record<Stage, number> = { task: 0, recon: 1, edit: 2, test: 3, commit: 4, merge: 5 }
 const BRIEF_KEYS = ['description', 'command', 'file_path', 'pattern', 'query', 'url', 'skill']
 const MCP_BRIEF_KEYS = ['identifier', 'issueIdentifier', 'title', 'name', 'query']
@@ -77,6 +87,9 @@ const MCP_BRIEF_KEYS = ['identifier', 'issueIdentifier', 'title', 'name', 'query
 export class TranscriptFold {
   private readonly usageById = new Map<string, Usage>()
   private lastUsage: Usage | undefined
+  private lastAnswerId: string | null = null
+  private lastRequestAt: string | null = null
+  private cacheTtl: CacheTtl | null = null
   private feed: FeedLine[] = []
   private action: FeedLine | null = null
   private stage: Stage | null = null
@@ -130,9 +143,14 @@ export class TranscriptFold {
       tokens.cacheWrite += usage.cache_creation_input_tokens ?? 0
     }
     const last = this.lastUsage
+    const cache =
+      this.cacheTtl === null || this.lastRequestAt === null
+        ? null
+        : { ttl: this.cacheTtl, until: new Date(Date.parse(this.lastRequestAt) + TTL_MS[this.cacheTtl]).toISOString() }
     return {
       contextTokens:
         (last?.input_tokens ?? 0) + (last?.cache_read_input_tokens ?? 0) + (last?.cache_creation_input_tokens ?? 0),
+      cache,
       tokens,
       action: this.action,
       stage: this.stage,
@@ -166,7 +184,15 @@ export class TranscriptFold {
     const usage = entry.message?.usage
     if (usage !== undefined) {
       this.lastUsage = usage
-      if (typeof entry.message?.id === 'string') this.usageById.set(entry.message.id, usage)
+      this.cacheTtl = writtenTtl(usage) ?? this.cacheTtl
+      const id = entry.message?.id
+      if (typeof id === 'string') {
+        this.usageById.set(id, usage)
+        if (id !== this.lastAnswerId) {
+          this.lastAnswerId = id
+          this.lastRequestAt = entry.timestamp ?? null
+        }
+      }
     }
 
     for (const block of blocks) {
@@ -217,6 +243,13 @@ function parse(line: string): Entry | undefined {
   } catch {
     return undefined
   }
+}
+
+function writtenTtl(usage: Usage): CacheTtl | null {
+  const written = usage.cache_creation
+  if ((written?.ephemeral_5m_input_tokens ?? 0) > 0) return '5m'
+  if ((written?.ephemeral_1h_input_tokens ?? 0) > 0) return '1h'
+  return null
 }
 
 function isPrompt(content: unknown): boolean {

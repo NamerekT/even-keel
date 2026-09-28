@@ -56,6 +56,7 @@ function session(task: string, contextTokens: number, lamp: SessionView['lamp'] 
     startedAt: ago(42),
     lastActivityAt: ago(0),
     contextTokens,
+    cache: fakeCache(lamp),
     tokens: { input: 18_400, output: 9_200, cacheRead: 1_240_000, cacheWrite: 96_000 },
     stage: 'edit',
     action: { at: ago(0), kind: 'tool', text: 'Edit src/example.ts' },
@@ -64,6 +65,12 @@ function session(task: string, contextTokens: number, lamp: SessionView['lamp'] 
     remoteOff: lamp === 'working' || lamp === 'waiting' ? null : 'no-bridge',
     account: task === 'ABC-6' ? 'jane.roe@example.com' : 'john.doe@example.com',
   }
+}
+
+function fakeCache(lamp: SessionView['lamp']): SessionView['cache'] {
+  if (lamp === 'working') return { ttl: '1h', until: ago(-58) }
+  if (lamp === 'waiting') return { ttl: '5m', until: ago(-2) }
+  return { ttl: '1h', until: ago(20) }
 }
 
 const FEED_STEPS: [FeedLine['kind'], string][] = [

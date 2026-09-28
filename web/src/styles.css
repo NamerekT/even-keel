@@ -1159,7 +1159,7 @@ a:focus-visible {
 .block {
   position: relative;
   display: grid;
-  grid-template-columns: 2.5ch 8.5em minmax(0, 1fr) auto;
+  grid-template-columns: 2.5ch 8.5em minmax(8em, 1fr) auto;
   grid-template-areas: 'number head title side';
   align-items: center;
   gap: 4px 12px;
@@ -1326,6 +1326,32 @@ a:focus-visible {
   font-size: 12px;
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
+}
+
+.cache-clock {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--fg-muted);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  --cache-clock: var(--lamp-done);
+}
+
+.cache-clock--warn {
+  --cache-clock: var(--lamp-waiting);
+}
+
+.cache-clock--cold {
+  --cache-clock: var(--fg-muted);
+}
+
+.cache-clock__dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--cache-clock);
 }
 
 .cards {

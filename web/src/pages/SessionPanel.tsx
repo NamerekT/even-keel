@@ -9,6 +9,7 @@ import { useNow } from '../layout/useNow.js'
 import { useLive } from '../live/context.js'
 import { useCommand } from '../live/useCommand.js'
 import { issueLink, sessionElapsed, taskProject, tokenTotal, type ChainBlock } from '../state.js'
+import { CacheClock } from '../ui/CacheClock.js'
 import { ContextMeter } from '../ui/ContextMeter.js'
 import { Lamp, LAMP_LABELS } from '../ui/Lamp.js'
 
@@ -173,6 +174,14 @@ function SessionBody({ session, limit, scale }: { session: SessionView; limit: L
           <dt>В работе</dt>
           <dd className="panel__clock">{formatClock(sessionElapsed(session, now))}</dd>
         </div>
+        {session.cache !== null && (
+          <div className="panel__fact panel__fact--wide">
+            <dt>Кэш промпта</dt>
+            <dd>
+              <CacheClock cache={session.cache} full />
+            </dd>
+          </div>
+        )}
         <div className="panel__fact panel__fact--wide">
           <dt>Контекст</dt>
           <dd>

@@ -15,6 +15,7 @@ import {
   projectSlot,
   queuedAfter,
   sessionElapsed,
+  cacheFreshness,
   taskProject,
   tokenTotal,
   usageNotice,
@@ -32,6 +33,7 @@ function view(task: string, lamp: SessionView['lamp'], lastActivityAt: string | 
     startedAt: '2026-01-01T09:00:00.000Z',
     lastActivityAt,
     contextTokens: 0,
+    cache: null,
     tokens: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
     stage: null,
     action: null,
@@ -456,6 +458,25 @@ describe('sessionElapsed', () => {
 
   it('is zero when the launch is ahead of the clock', () => {
     expect(sessionElapsed(view('ABC-1', 'working', null), new Date('2026-01-01T08:59:00.000Z'))).toBe(0)
+  })
+})
+
+describe('cacheFreshness', () => {
+  const now = new Date('2026-01-01T10:30:00.000Z')
+
+  it('counts what is left of the cache lifetime', () => {
+    expect(cacheFreshness({ ttl: '1h', until: '2026-01-01T11:20:00.000Z' }, now)).toEqual({ left: 50 * 60_000, level: 'ok' })
+  })
+
+  it('warns in the last fifth of the lifetime', () => {
+    expect(cacheFreshness({ ttl: '1h', until: '2026-01-01T10:41:00.000Z' }, now).level).toBe('warn')
+    expect(cacheFreshness({ ttl: '5m', until: '2026-01-01T10:30:50.000Z' }, now).level).toBe('warn')
+    expect(cacheFreshness({ ttl: '5m', until: '2026-01-01T10:31:10.000Z' }, now).level).toBe('ok')
+  })
+
+  it('is cold once the lifetime has run out', () => {
+    expect(cacheFreshness({ ttl: '5m', until: '2026-01-01T10:30:00.000Z' }, now)).toEqual({ left: 0, level: 'cold' })
+    expect(cacheFreshness({ ttl: '1h', until: '2026-01-01T09:00:00.000Z' }, now)).toEqual({ left: 0, level: 'cold' })
   })
 })
 

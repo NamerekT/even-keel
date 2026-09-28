@@ -14,9 +14,12 @@ interface Usage {
   cacheRead?: number
   cacheWrite?: number
   output?: number
+  write5m?: number
+  write1h?: number
 }
 
 function assistant(id: string, content: unknown[], usage: Usage = {}, extra: Record<string, unknown> = {}): string {
+  const split = usage.write5m !== undefined || usage.write1h !== undefined
   return JSON.stringify({
     type: 'assistant',
     isSidechain: false,
@@ -30,8 +33,9 @@ function assistant(id: string, content: unknown[], usage: Usage = {}, extra: Rec
       usage: {
         input_tokens: usage.input ?? 0,
         cache_read_input_tokens: usage.cacheRead ?? 0,
-        cache_creation_input_tokens: usage.cacheWrite ?? 0,
+        cache_creation_input_tokens: usage.cacheWrite ?? (usage.write5m ?? 0) + (usage.write1h ?? 0),
         output_tokens: usage.output ?? 0,
+        ...(split && { cache_creation: { ephemeral_5m_input_tokens: usage.write5m ?? 0, ephemeral_1h_input_tokens: usage.write1h ?? 0 } }),
       },
     },
     ...extra,
@@ -108,6 +112,38 @@ describe('TranscriptFold', () => {
 
     expect(summary.contextTokens).toBe(100)
     expect(summary.tokens.input).toBe(10)
+  })
+
+  it('keeps the prompt cache an hour from the request of the last answer when it was written with the hour lifetime', () => {
+    const lines = [
+      assistant('m1', [text('first')], { write1h: 4000 }),
+      assistant('m2', [{ type: 'thinking', thinking: '' }], { cacheRead: 4000, write1h: 300 }),
+    ]
+    const requestAt = (JSON.parse(lines[1] ?? '') as { timestamp: string }).timestamp
+    lines.push(assistant('m2', [text('second')], { cacheRead: 4000, write1h: 300 }))
+
+    expect(fold(lines).summary().cache).toEqual({
+      ttl: '1h',
+      until: new Date(Date.parse(requestAt) + 60 * 60_000).toISOString(),
+    })
+  })
+
+  it('takes the shorter lifetime when an answer wrote the cache with both', () => {
+    const line = assistant('m1', [text('first')], { write1h: 4000, write5m: 200 })
+    const requestAt = (JSON.parse(line) as { timestamp: string }).timestamp
+
+    expect(fold([line]).summary().cache).toEqual({ ttl: '5m', until: new Date(Date.parse(requestAt) + 5 * 60_000).toISOString() })
+  })
+
+  it('keeps the known lifetime over an answer that only read the cache', () => {
+    const lines = [assistant('m1', [text('first')], { write5m: 4000 }), assistant('m2', [text('second')], { cacheRead: 4000 })]
+    const requestAt = (JSON.parse(lines[1] ?? '') as { timestamp: string }).timestamp
+
+    expect(fold(lines).summary().cache).toEqual({ ttl: '5m', until: new Date(Date.parse(requestAt) + 5 * 60_000).toISOString() })
+  })
+
+  it('knows no cache lifetime until an answer shows which one it wrote', () => {
+    expect(fold([assistant('m1', [text('first')], { cacheRead: 4000, cacheWrite: 100 })]).summary().cache).toBeNull()
   })
 
   it('describes the current action by the last tool call', () => {

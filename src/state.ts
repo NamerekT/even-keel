@@ -7,7 +7,7 @@ import type { RateLimits } from './limits/model.js'
 import type { UsageHealth } from './limits/usage.js'
 import type { Lamp } from './sessions/agents.js'
 import type { RemoteOff } from './sessions/remote.js'
-import type { FeedLine, Stage, TokenTotals } from './sessions/transcript.js'
+import type { CacheWindow, FeedLine, Stage, TokenTotals } from './sessions/transcript.js'
 
 export interface SessionView {
   task: string
@@ -19,6 +19,7 @@ export interface SessionView {
   startedAt: string
   lastActivityAt: string | null
   contextTokens: number
+  cache: CacheWindow | null
   tokens: TokenTotals
   stage: Stage | null
   action: FeedLine | null
