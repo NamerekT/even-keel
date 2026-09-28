@@ -1027,8 +1027,10 @@ a:focus-visible {
   align-self: stretch;
 }
 
-.chain__archive {
-  align-self: flex-start;
+.chain__buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
 }
 
 .chain__rail {

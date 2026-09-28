@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from 'react'
-import { Link } from 'react-router'
+import { Link, useLocation, useNavigate } from 'react-router'
 import type { ContextScale } from '../../../src/state.js'
 import { plural } from '../format.js'
 import { useCommand } from '../live/useCommand.js'
@@ -42,6 +42,8 @@ export function ChainList({ project, chain, scale, focus }: Props) {
   const [pages, setPages] = useState(0)
   const [revealed, setRevealed] = useState(0)
   const { send, sending, failure } = useCommand()
+  const location = useLocation()
+  const navigate = useNavigate()
   const [pending, setPending] = useState<string[] | null>(null)
   const served = openIds(chain).join(',')
   useEffect(() => setPending(null), [served])
@@ -61,6 +63,18 @@ export function ChainList({ project, chain, scale, focus }: Props) {
   const [size, setSize] = useState({ width: 0, height: 0 })
   const [paths, setPaths] = useState<Rail[]>([])
   const layout = `${width}:${focus}:${blocks.map((block) => `${block.id}${block.open ? '' : '!'}<${block.blockedBy.join('+')}`).join(',')}`
+
+  const unfocus = (kept: ChainBlock[]) => {
+    if (focus !== '' && !kept.some((block) => block.id === focus)) navigate({ search: location.search, hash: '' })
+  }
+  const collapseArchive = () => {
+    setPages(0)
+    unfocus(archiveView(ordered, 0, '').visible)
+  }
+  const collapseMilestones = () => {
+    setRevealed(0)
+    unfocus(milestoneView(archive.visible, 0).sections.flatMap((section) => section.blocks))
+  }
 
   const { drag, landing, movable } = useChainDrag({
     listRef,
@@ -108,10 +122,19 @@ export function ChainList({ project, chain, scale, focus }: Props) {
 
   return (
     <div className="chain" style={{ '--rail': `${width}px` } as CSSProperties}>
-      {archive.hidden > 0 && (
-        <button type="button" className="button chain__archive" onClick={() => setPages(Math.ceil(archive.shown / ARCHIVE_PAGE) + 1)}>
-          {archive.shown === 0 ? `Архив (${archive.hidden})` : `Загрузить ещё (${archive.next}/${archive.hidden})`}
-        </button>
+      {(archive.hidden > 0 || archive.shown > 0) && (
+        <div className="chain__buttons">
+          {archive.hidden > 0 && (
+            <button type="button" className="button" onClick={() => setPages(Math.ceil(archive.shown / ARCHIVE_PAGE) + 1)}>
+              {archive.shown === 0 ? `Архив (${archive.hidden})` : `Загрузить ещё (${archive.next}/${archive.hidden})`}
+            </button>
+          )}
+          {archive.shown > 0 && (
+            <button type="button" className="button" onClick={collapseArchive}>
+              Свернуть архив
+            </button>
+          )}
+        </div>
       )}
       <div ref={listRef} className={listClass(drag !== null, landing !== null)}>
         {view.sections.map((section, index) => (
@@ -159,12 +182,21 @@ export function ChainList({ project, chain, scale, focus }: Props) {
           ))}
         </svg>
       </div>
-      {view.next !== null && (
+      {(view.next !== null || view.revealed > 0) && (
         <div className="chain__next">
-          <Milestone section={view.next} hidden />
-          <button type="button" className="button chain__reveal" onClick={() => setRevealed(view.revealed + 1)}>
-            Загрузить следующую веху
-          </button>
+          {view.next !== null && <Milestone section={view.next} hidden />}
+          <div className="chain__buttons">
+            {view.next !== null && (
+              <button type="button" className="button chain__reveal" onClick={() => setRevealed(view.revealed + 1)}>
+                Загрузить следующую веху
+              </button>
+            )}
+            {view.revealed > 0 && (
+              <button type="button" className="button" onClick={collapseMilestones}>
+                Свернуть вехи
+              </button>
+            )}
+          </div>
         </div>
       )}
       {failure !== null && <p className="notice notice--error">{failure}</p>}
