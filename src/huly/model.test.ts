@@ -22,8 +22,23 @@ describe('toTasks', () => {
   it('maps an issue to a task with its status name and category', () => {
     const tasks = toTasks([issue('i1', 'ABC-1', 'custom-review')], statuses, new Map(), [])
     expect(tasks).toEqual([
-      { id: 'ABC-1', title: 'Title of ABC-1', status: { name: 'In Review', category: 'Active' }, blockedBy: [], milestone: null, question: false },
+      { id: 'ABC-1', title: 'Title of ABC-1', status: { name: 'In Review', category: 'Active' }, blockedBy: [], milestone: null, question: false, models: [] },
     ])
+  })
+
+  it('reads model labels whatever their case and spacing, once each and in a fixed order', () => {
+    const issues = ['i1', 'i2', 'i3', 'i4'].map((id, index) => issue(id, `ABC-${index + 1}`, 'tracker:status:Todo'))
+    const labels = [
+      { attachedTo: 'i1', title: 'Sonnet' },
+      { attachedTo: 'i2', title: ' OPUS ' },
+      { attachedTo: 'i3', title: 'Opus' },
+      { attachedTo: 'i3', title: 'haiku' },
+      { attachedTo: 'i3', title: 'opus' },
+      { attachedTo: 'i4', title: 'Sonnet 4' },
+      { attachedTo: 'i4', title: 'Bug' },
+    ]
+    const tasks = toTasks(issues, statuses, new Map(), [], labels)
+    expect(tasks.map((task) => task.models)).toEqual([['sonnet'], ['opus'], ['opus', 'haiku'], []])
   })
 
   it('marks an issue carrying the question label, whatever its case and spacing', () => {
@@ -99,6 +114,7 @@ describe('diffStatuses', () => {
     blockedBy: [],
     milestone: null,
     question: false,
+    models: [],
   })
   const todo = { name: 'Todo', category: 'ToDo' } as const
   const done = { name: 'Done', category: 'Won' } as const

@@ -6,6 +6,7 @@ import { setTimeout as delay } from 'node:timers/promises'
 import { promisify } from 'node:util'
 import type { AccountHome } from '../account/homes.js'
 import { parseAuthStatus, type ClaudeAccount } from '../account/model.js'
+import type { ModelAlias } from '../huly/model.js'
 import { parseAgents, type AgentEntry } from './agents.js'
 import { newestExtensionBinary } from './paths.js'
 
@@ -81,9 +82,9 @@ export class ClaudeCli {
     }
   }
 
-  async launch(home: AccountHome, task: string, cwd: string, prompt = task): Promise<AgentEntry> {
+  async launch(home: AccountHome, task: string, cwd: string, prompt: string, model: ModelAlias | null): Promise<AgentEntry> {
     const launchedAt = Date.now()
-    await this.start(home, ['--bg', '--permission-mode', 'auto', '-n', task, prompt], cwd, `start ${task} in ${cwd}`)
+    await this.start(home, [...sessionArgs(task, model), prompt], cwd, `start ${task} in ${cwd}`)
     return this.appear(
       home,
       (agent) => agent.name === task && samePath(agent.cwd, cwd) && agent.startedAt >= launchedAt - CLOCK_SKEW_MS,
@@ -91,8 +92,15 @@ export class ClaudeCli {
     )
   }
 
-  async resume(home: AccountHome, sessionId: string, task: string, cwd: string, prompt: string): Promise<AgentEntry> {
-    const args = ['--bg', '--permission-mode', 'auto', '-n', task, '--resume', sessionId, prompt]
+  async resume(
+    home: AccountHome,
+    sessionId: string,
+    task: string,
+    cwd: string,
+    prompt: string,
+    model: ModelAlias | null,
+  ): Promise<AgentEntry> {
+    const args = [...sessionArgs(task, model), '--resume', sessionId, prompt]
     await this.start(home, args, cwd, `resume ${task} in ${cwd}`)
     return this.appear(
       home,
@@ -144,6 +152,10 @@ export class ClaudeCli {
     }
     throw new Error(`claude: ${failure}`)
   }
+}
+
+function sessionArgs(task: string, model: ModelAlias | null): string[] {
+  return ['--bg', '--permission-mode', 'auto', '-n', task, ...(model === null ? [] : ['--model', model])]
 }
 
 function isOver(agent: AgentEntry): boolean {

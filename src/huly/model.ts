@@ -17,6 +17,14 @@ export interface HulyTask {
   blockedBy: string[]
   milestone: TaskMilestone | null
   question: boolean
+  models: ModelAlias[]
+}
+
+export const MODEL_ALIASES = ['sonnet', 'opus', 'haiku'] as const
+export type ModelAlias = (typeof MODEL_ALIASES)[number]
+
+export function isModelAlias(value: string): value is ModelAlias {
+  return (MODEL_ALIASES as readonly string[]).includes(value)
 }
 
 export interface StatusChange {
@@ -75,9 +83,15 @@ export function toTasks(
 ): HulyTask[] {
   const statusById = new Map(statuses.map((doc) => [doc._id, doc]))
   const question = QUESTION_LABEL.toLocaleLowerCase()
-  const questions = new Set(
-    labels.filter((doc) => doc.title.trim().toLocaleLowerCase() === question).map((doc) => doc.attachedTo),
-  )
+  const questions = new Set<string>()
+  const modelsById = new Map<string, Set<ModelAlias>>()
+  for (const doc of labels) {
+    const title = doc.title.trim().toLocaleLowerCase()
+    if (title === question) questions.add(doc.attachedTo)
+    if (!isModelAlias(title)) continue
+    const models = modelsById.get(doc.attachedTo) ?? new Set()
+    modelsById.set(doc.attachedTo, models.add(title))
+  }
   const milestoneById = new Map(milestones.map((doc) => [doc._id, { label: doc.label, targetDate: doc.targetDate }]))
   const identifierById = new Map(otherIdentifiers)
   for (const issue of issues) identifierById.set(issue._id, issue.identifier)
@@ -92,6 +106,7 @@ export function toTasks(
       blockedBy: (issue.blockedBy ?? []).flatMap((ref) => identifierById.get(ref._id) ?? []),
       milestone: issue.milestone ? (milestoneById.get(issue.milestone) ?? null) : null,
       question: questions.has(issue._id),
+      models: MODEL_ALIASES.filter((model) => modelsById.get(issue._id)?.has(model)),
     }
   })
 }

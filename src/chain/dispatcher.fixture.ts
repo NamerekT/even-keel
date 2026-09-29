@@ -14,6 +14,7 @@ export const task = (id: string, status: TaskStatus = todo, ...blockedBy: string
   blockedBy,
   milestone: null,
   question: false,
+  models: [],
 })
 
 export interface SetupOptions {

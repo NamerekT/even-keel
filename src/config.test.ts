@@ -9,7 +9,19 @@ describe('parseConfig', () => {
       port: 4747,
       projects: { ABC: 'C:\\repos\\abc' },
       context: { window: 600_000, warn: 50, danger: 80 },
+      modelPrompts: {},
     })
+  })
+
+  it('keeps model prompts keyed by model alias', () => {
+    const config = parseConfig({ projects: {}, modelPrompts: { sonnet: 'You are Sonnet.' } })
+    expect(config.modelPrompts).toEqual({ sonnet: 'You are Sonnet.' })
+  })
+
+  it('rejects a model prompt under an unknown alias or with an empty text', () => {
+    expect(() => parseConfig({ projects: {}, modelPrompts: { gpt: 'x' } })).toThrow(/gpt/)
+    expect(() => parseConfig({ projects: {}, modelPrompts: { sonnet: ' ' } })).toThrow(/sonnet/)
+    expect(() => parseConfig({ projects: {}, modelPrompts: 'x' })).toThrow(/modelPrompts/)
   })
 
   it('keeps explicit host and port', () => {

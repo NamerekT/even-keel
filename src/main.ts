@@ -23,6 +23,7 @@ import { connectHuly } from './huly/source.js'
 import { createBatonServer } from './server.js'
 import { ClaudeCli, resolveClaudeBinary } from './sessions/claude.js'
 import type { AgentEntry } from './sessions/agents.js'
+import { launchPlan, type LaunchPlan } from './sessions/launch.js'
 import { readSessionRecord } from './sessions/history.js'
 import { SessionMonitor } from './sessions/monitor.js'
 import { locateWorktree } from './sessions/place.js'
@@ -160,12 +161,20 @@ const monitor = new SessionMonitor({
   onError: (error) => console.error(`sessions: ${error instanceof Error ? error.message : String(error)}`),
 })
 
+const planFor = (task: string, prompt: string): LaunchPlan => {
+  const known = [...tasksByProject.values()].flat().find((each) => each.id === task)
+  const plan = launchPlan(known, prompt, config.modelPrompts)
+  if (plan.warning !== null) console.warn(plan.warning)
+  return plan
+}
+
 const dispatcher = new Dispatcher(loadChainState(chainFile), {
   projects: Object.keys(config.projects),
   launch: async (project, task) => {
     const home = homeOf(ledger.active)
     await daemons.prepare(home)
-    return (await cli.launch(home, task, config.projects[project]!)).sessionId
+    const { prompt, model } = planFor(task, task)
+    return (await cli.launch(home, task, config.projects[project]!, prompt, model)).sessionId
   },
   liveSession: (task) => sessions.find((view) => view.task === task && view.lamp !== 'finished')?.sessionId,
   blocked: (): string | undefined => launchBlock(account.view),
@@ -193,14 +202,16 @@ const dispatcher = new Dispatcher(loadChainState(chainFile), {
     const home = homeOf(session.account)
     await cli.stop(home, session.agentId, session.sessionId)
     await daemons.prepare(home)
-    return (await cli.resume(home, session.sessionId, task, session.cwd, RESUME_PROMPT)).sessionId
+    const plan = planFor(task, RESUME_PROMPT)
+    return (await cli.resume(home, session.sessionId, task, session.cwd, plan.prompt, plan.model)).sessionId
   },
-  relay: async (task, session, prompt) => {
+  relay: async (task, session, handoff) => {
     const previous = homes.find(session.account)
     if (previous !== undefined) await cli.stop(previous, session.agentId, session.sessionId)
     const home = homeOf(ledger.active)
     await daemons.prepare(home)
-    return (await cli.launch(home, task, session.workdir, prompt)).sessionId
+    const { prompt, model } = planFor(task, handoff)
+    return (await cli.launch(home, task, session.workdir, prompt, model)).sessionId
   },
 })
 

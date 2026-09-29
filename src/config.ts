@@ -1,4 +1,5 @@
 import { readFileSync } from 'node:fs'
+import { isModelAlias, type ModelAlias } from './huly/model.js'
 import type { ContextScale } from './state.js'
 
 export interface BatonConfig {
@@ -6,6 +7,7 @@ export interface BatonConfig {
   port: number
   projects: Record<string, string>
   context: ContextScale
+  modelPrompts: Partial<Record<ModelAlias, string>>
 }
 
 const PROJECT_KEY = /^[A-Z][A-Z0-9_]{0,4}$/
@@ -32,7 +34,19 @@ export function parseConfig(raw: unknown): BatonConfig {
     projects[key] = path
   }
 
-  return { host, port, projects, context: parseContext(input.context) }
+  return { host, port, projects, context: parseContext(input.context), modelPrompts: parseModelPrompts(input.modelPrompts) }
+}
+
+function parseModelPrompts(raw: unknown): Partial<Record<ModelAlias, string>> {
+  if (raw === undefined) return {}
+  if (typeof raw !== 'object' || raw === null) throw new Error('config: modelPrompts must map a model alias to a prompt')
+  const prompts: Partial<Record<ModelAlias, string>> = {}
+  for (const [model, text] of Object.entries(raw)) {
+    if (!isModelAlias(model)) throw new Error(`config: modelPrompts.${model} is not a model alias`)
+    if (typeof text !== 'string' || text.trim() === '') throw new Error(`config: modelPrompts.${model} is empty`)
+    prompts[model] = text.trim()
+  }
+  return prompts
 }
 
 function parseContext(raw: unknown): ContextScale {
