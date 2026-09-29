@@ -17,7 +17,7 @@ export interface HulyTask {
   blockedBy: string[]
   milestone: TaskMilestone | null
   question: boolean
-  manual: boolean
+  labels: string[]
   models: ModelAlias[]
 }
 
@@ -63,7 +63,6 @@ export interface HulyLabelDoc {
 }
 
 export const QUESTION_LABEL = 'Вопрос'
-export const MANUAL_LABEL = 'Вручную'
 
 const CATEGORY_PREFIX = 'task:statusCategory:'
 const CATEGORIES: ReadonlySet<string> = new Set<StatusCategory>(['UnStarted', 'ToDo', 'Active', 'Won', 'Lost'])
@@ -86,13 +85,13 @@ export function toTasks(
   const statusById = new Map(statuses.map((doc) => [doc._id, doc]))
   const question = QUESTION_LABEL.toLocaleLowerCase()
   const questions = new Set<string>()
-  const manual = MANUAL_LABEL.toLocaleLowerCase()
-  const manuals = new Set<string>()
+  const labelsById = new Map<string, Map<string, string>>()
   const modelsById = new Map<string, Set<ModelAlias>>()
   for (const doc of labels) {
     const title = doc.title.trim().toLocaleLowerCase()
+    const own = labelsById.get(doc.attachedTo) ?? new Map<string, string>()
+    if (!own.has(title)) labelsById.set(doc.attachedTo, own.set(title, doc.title.trim()))
     if (title === question) questions.add(doc.attachedTo)
-    if (title === manual) manuals.add(doc.attachedTo)
     if (!isModelAlias(title)) continue
     const models = modelsById.get(doc.attachedTo) ?? new Set()
     modelsById.set(doc.attachedTo, models.add(title))
@@ -111,7 +110,7 @@ export function toTasks(
       blockedBy: (issue.blockedBy ?? []).flatMap((ref) => identifierById.get(ref._id) ?? []),
       milestone: issue.milestone ? (milestoneById.get(issue.milestone) ?? null) : null,
       question: questions.has(issue._id),
-      manual: manuals.has(issue._id),
+      labels: [...(labelsById.get(issue._id)?.values() ?? [])],
       models: MODEL_ALIASES.filter((model) => modelsById.get(issue._id)?.has(model)),
     }
   })

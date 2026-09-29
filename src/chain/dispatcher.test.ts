@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { active, backlog, canceled, done, review, setup, task, todo, type SetupOptions } from './dispatcher.fixture.js'
 import { emptyChainState, type ChainState, type Dispatcher } from './dispatcher.js'
 import type { LimitedSession } from './relay.js'
+import { DEFAULT_RULES } from './rules.js'
 
 describe('Dispatcher', () => {
   it('launches the first task in order when the chain starts', async () => {
@@ -17,11 +18,54 @@ describe('Dispatcher', () => {
 
   it('leaves a task labelled for a manual run out of the chain', async () => {
     const { dispatcher, launched } = setup()
-    dispatcher.setTasks('ABC', [{ ...task('ABC-1'), manual: true }, task('ABC-2')])
+    dispatcher.setTasks('ABC', [{ ...task('ABC-1'), labels: ['Вручную'] }, task('ABC-2')])
     dispatcher.start('ABC')
     await dispatcher.idle()
 
     expect(launched).toEqual(['ABC/ABC-2'])
+    expect(dispatcher.orders()['ABC']?.order).toEqual(['ABC-2'])
+  })
+
+  it('takes only the tasks carrying a label the project requires', async () => {
+    const { dispatcher, launched } = setup({ rules: { ABC: { ...DEFAULT_RULES, requiredLabels: ['Auto'] } } })
+    dispatcher.setTasks('ABC', [task('ABC-1'), { ...task('ABC-2', todo, 'ABC-1'), labels: ['auto'] }])
+    dispatcher.start('ABC')
+    await dispatcher.idle()
+
+    expect(dispatcher.orders()['ABC']?.order).toEqual(['ABC-2'])
+    expect(launched).toEqual(['ABC/ABC-2'])
+  })
+
+  it('takes only the statuses the project names active and does not let the rest block', async () => {
+    const { dispatcher, launched } = setup({ rules: { ABC: { ...DEFAULT_RULES, active: ['Todo', 'In Progress'] } } })
+    dispatcher.setTasks('ABC', [task('ABC-1', review), task('ABC-2', todo, 'ABC-1'), task('ABC-3', active)])
+    dispatcher.start('ABC')
+    await dispatcher.idle()
+
+    expect(dispatcher.orders()['ABC']?.order).toEqual(['ABC-2', 'ABC-3'])
+    expect(launched).toEqual(['ABC/ABC-2'])
+  })
+
+  it('moves on without clean-up when the current task reaches a terminal status outside Won', async () => {
+    const { dispatcher, launched, finished } = setup({ rules: { ABC: { ...DEFAULT_RULES, terminal: ['In Review', 'Done'] } } })
+    dispatcher.setTasks('ABC', [task('ABC-1'), task('ABC-2')])
+    dispatcher.start('ABC')
+    await dispatcher.idle()
+
+    dispatcher.setTasks('ABC', [task('ABC-1', review), task('ABC-2')])
+    await dispatcher.idle()
+    expect(finished).toEqual([])
+    expect(launched).toEqual(['ABC/ABC-1', 'ABC/ABC-2'])
+  })
+
+  it('applies changed rules with the next task list', async () => {
+    const rules = { ABC: DEFAULT_RULES }
+    const { dispatcher } = setup({ rules })
+    dispatcher.setTasks('ABC', [task('ABC-1'), task('ABC-2')])
+    expect(dispatcher.orders()['ABC']?.order).toEqual(['ABC-1', 'ABC-2'])
+
+    rules.ABC = { ...DEFAULT_RULES, excludedLabels: ['Bug'] }
+    dispatcher.setTasks('ABC', [{ ...task('ABC-1'), labels: ['Bug'] }, task('ABC-2')])
     expect(dispatcher.orders()['ABC']?.order).toEqual(['ABC-2'])
   })
 

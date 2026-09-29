@@ -10,7 +10,7 @@ import { Dispatcher, type LaunchEntry } from './chain/dispatcher.js'
 import { launchDays, taskSessions } from './chain/launches.js'
 import { RESUME_PROMPT, startPrompt } from './chain/relay.js'
 import { appendLaunch, loadChainState, readLaunches, saveChainState } from './chain/store.js'
-import { loadConfig } from './config.js'
+import { ConfigFile } from './config-file.js'
 import { EventHub } from './events.js'
 import { runGit } from './git/run.js'
 import { ensureIgnored, finishWorktree, prepareWorktree } from './git/worktree.js'
@@ -42,6 +42,7 @@ const LAUNCH_CHART_DAYS = 14
 const ACCOUNT_POLL_MS = 60_000
 const LOGIN_TIMEOUT_MS = 10 * 60_000
 const LIMIT_CHECK_MS = 30_000
+const CONFIG_POLL_MS = 2_000
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 try {
@@ -50,7 +51,17 @@ try {
   if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error
 }
 
-const config = loadConfig(process.env.BATON_CONFIG ?? join(root, 'baton.config.json'))
+const configFile = new ConfigFile({
+  file: process.env.BATON_CONFIG ?? join(root, 'baton.config.json'),
+  intervalMs: CONFIG_POLL_MS,
+  warn: (message) => console.warn(message),
+  onChange: () => {
+    for (const [project, tasks] of tasksByProject) dispatcher.setTasks(project, tasks)
+    hub.broadcast('state', getState())
+  },
+})
+const config = configFile.current
+const rulesOf = (project: string) => configFile.current.rules[project]!
 const stateDir = process.env.BATON_STATE_DIR ?? join(root, 'state')
 mkdirSync(stateDir, { recursive: true })
 const chainFile = join(stateDir, 'chain.json')
@@ -165,13 +176,14 @@ const monitor = new SessionMonitor({
 
 const planFor = (task: string, prompt: string): LaunchPlan => {
   const known = [...tasksByProject.values()].flat().find((each) => each.id === task)
-  const plan = launchPlan(known, prompt, config.modelPrompts)
+  const plan = launchPlan(known, prompt, configFile.current.modelPrompts)
   if (plan.warning !== null) console.warn(plan.warning)
   return plan
 }
 
 const dispatcher = new Dispatcher(loadChainState(chainFile), {
   projects: Object.keys(config.projects),
+  rules: rulesOf,
   launch: async (project, task) => {
     const home = homeOf(ledger.active)
     await daemons.prepare(home)
@@ -250,6 +262,7 @@ const getState = (): BatonState => ({
   launches: launchDays(launches, new Date(), LAUNCH_CHART_DAYS),
   taskSessions: taskSessions(launches, sessions),
   context: config.context,
+  configError: configFile.error,
 })
 
 const server = createBatonServer({
@@ -275,6 +288,7 @@ setInterval(() => dispatcher.check(), LIMIT_CHECK_MS).unref()
 monitor.start()
 limits.start()
 account.start()
+configFile.watch()
 
 server.listen(config.port, config.host, () => {
   console.log(`baton listening on http://${config.host}:${config.port}`)
@@ -314,11 +328,17 @@ if (credentials === undefined) {
     onError: report,
   })
 
+  const unknownByProject = new Map<string, string>()
   const refreshTasks = async (): Promise<void> => {
     await Promise.all(
       Object.keys(config.projects).map(async (project) => {
         try {
-          const tasks = await link.run((source) => source.chainTasks(project))
+          const { tasks, unknownStatuses } = await link.run((source) => source.chainTasks(project, rulesOf(project)))
+          const unknown = unknownStatuses.join('", "')
+          if (unknown !== (unknownByProject.get(project) ?? '') && unknown !== '') {
+            console.warn(`config: Huly has no status "${unknown}" named in the chain rules of ${project}`)
+          }
+          unknownByProject.set(project, unknown)
           tasksByProject.set(project, tasks)
           dispatcher.setTasks(project, tasks)
         } catch (error) {

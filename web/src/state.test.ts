@@ -45,7 +45,7 @@ function view(task: string, lamp: SessionView['lamp'], lastActivityAt: string | 
 }
 
 function task(id: string, category: StatusCategory = 'Active', blockedBy: string[] = []): HulyTask {
-  return { id, title: id, status: { name: category, category }, blockedBy, milestone: null, question: false, manual: false, models: [] }
+  return { id, title: id, status: { name: category, category }, blockedBy, milestone: null, question: false, labels: [], models: [] }
 }
 
 function baton(patch: Partial<BatonState>): BatonState {
@@ -63,6 +63,7 @@ function baton(patch: Partial<BatonState>): BatonState {
     launches: [],
     taskSessions: {},
     context: { window: 600_000, warn: 50, danger: 80 },
+    configError: null,
     ...patch,
   }
 }
@@ -384,7 +385,7 @@ describe('chainBlocks', () => {
 
   it('carries the title and status name, and keeps a task Huly has not delivered yet', () => {
     const state = baton({
-      tasks: [{ id: 'ABC-1', title: 'First', status: { name: 'In Progress', category: 'Active' }, blockedBy: [], milestone: null, question: false, manual: false, models: [] }],
+      tasks: [{ id: 'ABC-1', title: 'First', status: { name: 'In Progress', category: 'Active' }, blockedBy: [], milestone: null, question: false, labels: [], models: [] }],
       chain: chain({ projects: { ABC: { order: ['ABC-1', 'ABC-2'], error: null } } }),
     })
     expect(chainBlocks(state, 'ABC').map(({ id, title, status }) => ({ id, title, status }))).toEqual([

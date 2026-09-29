@@ -38,7 +38,7 @@ function task(
     blockedBy,
     milestone: milestone === null ? null : { label: milestone, targetDate: 0 },
     question: false,
-    manual: false,
+    labels: [],
     models: [],
   }
 }
@@ -204,6 +204,7 @@ function fakeState(
           'ABC-6': [{ sessionId: session('ABC-6', 0).sessionId, at: ago(60), how: 'manual', resumed: 0 }],
         },
     context: { window: 600_000, warn: 50, danger: 80 },
+    configError: null,
   }
 }
 
@@ -521,6 +522,9 @@ export function createFakeSource(search: string): LiveSource {
   let current: LiveSnapshot = {
     state: link === 'connecting' ? null : fakeState(huly, idle, contextTokens, launches, params.get('account'), params.get('limit'), params.get('usage')),
     link,
+  }
+  if (params.get('config') === 'broken' && current.state !== null) {
+    current.state.configError = 'config: ABC: status "In Review" is both active and terminal'
   }
   const active = current.state?.chain.active
   if (params.get('chain') === 'limit' && active) {

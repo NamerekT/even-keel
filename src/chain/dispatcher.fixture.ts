@@ -2,6 +2,7 @@ import type { FinishOutcome } from '../git/types.js'
 import type { HulyTask, TaskStatus } from '../huly/model.js'
 import { Dispatcher, emptyChainState, type ChainState, type LaunchEntry } from './dispatcher.js'
 import type { AccountNow, HandoffSession, LimitedSession } from './relay.js'
+import { DEFAULT_RULES, type ChainRules } from './rules.js'
 
 export const backlog: TaskStatus = { name: 'Backlog', category: 'UnStarted' }
 export const review: TaskStatus = { name: 'In Review', category: 'Active' }
@@ -17,7 +18,7 @@ export const task = (id: string, status: TaskStatus = todo, ...blockedBy: string
   blockedBy,
   milestone: null,
   question: false,
-  manual: false,
+  labels: [],
   models: [],
 })
 
@@ -35,6 +36,7 @@ export interface SetupOptions {
   busy?: Set<string>
   located?: Partial<HandoffSession>
   finish?: (task: string) => FinishOutcome
+  rules?: Record<string, ChainRules>
 }
 
 export function setup(options: SetupOptions = {}) {
@@ -51,6 +53,7 @@ export function setup(options: SetupOptions = {}) {
   let counter = 0
   const dispatcher = new Dispatcher(options.state ?? emptyChainState(), {
     projects: options.projects ?? ['ABC', 'XYZ'],
+    rules: (project) => options.rules?.[project] ?? DEFAULT_RULES,
     launch: async (project, id) => {
       if (id === options.failLaunch) throw new Error(`claude: could not start ${id}`)
       launched.push(`${project}/${id}`)

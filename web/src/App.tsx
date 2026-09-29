@@ -1,4 +1,5 @@
 import { Route, Routes } from 'react-router'
+import { ConfigBanner } from './layout/ConfigBanner.js'
 import { Header } from './layout/Header.js'
 import { LinkBanner } from './layout/LinkBanner.js'
 import { UsageBanner } from './layout/UsageBanner.js'
@@ -15,6 +16,7 @@ export function App() {
       <Header />
       <LinkBanner />
       <UsageBanner />
+      <ConfigBanner />
       <main className="content">
         {state === null ? (
           <p className="placeholder">{link === 'stale' ? 'Нет связи с сервером Baton.' : 'Подключение…'}</p>

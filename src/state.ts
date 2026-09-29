@@ -68,4 +68,5 @@ export interface BatonState {
   launches: LaunchDay[]
   taskSessions: Record<string, TaskSession[]>
   context: ContextScale
+  configError: string | null
 }

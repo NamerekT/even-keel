@@ -1,4 +1,5 @@
 import { readFileSync } from 'node:fs'
+import { DEFAULT_RULES, sameName, type ChainRules } from './chain/rules.js'
 import { isModelAlias, type ModelAlias } from './huly/model.js'
 import type { ContextScale } from './state.js'
 
@@ -6,15 +7,18 @@ export interface BatonConfig {
   host: string
   port: number
   projects: Record<string, string>
+  rules: Record<string, ChainRules>
   context: ContextScale
   modelPrompts: Partial<Record<ModelAlias, string>>
 }
 
 const PROJECT_KEY = /^[A-Z][A-Z0-9_]{0,4}$/
+const RULE_KEYS = ['active', 'terminal', 'requiredLabels', 'excludedLabels'] as const
+const RESTART_KEYS = ['host', 'port', 'projects', 'context'] as const
 const DEFAULT_CONTEXT: ContextScale = { window: 600_000, warn: 50, danger: 80 }
 
 export function parseConfig(raw: unknown): BatonConfig {
-  const input = (raw ?? {}) as Partial<Record<keyof BatonConfig, unknown>>
+  const input = (raw ?? {}) as Partial<Record<keyof BatonConfig | 'chain', unknown>>
 
   const host = input.host ?? '0.0.0.0'
   if (typeof host !== 'string' || host === '') throw new Error('config: host must be a non-empty string')
@@ -27,14 +31,50 @@ export function parseConfig(raw: unknown): BatonConfig {
   if (typeof input.projects !== 'object' || input.projects === null) {
     throw new Error('config: projects must map a Huly project key to a repository path')
   }
+  const shared = { ...DEFAULT_RULES, ...parseRules(input.chain, 'chain') }
   const projects: Record<string, string> = {}
-  for (const [key, path] of Object.entries(input.projects)) {
+  const rules: Record<string, ChainRules> = {}
+  for (const [key, entry] of Object.entries(input.projects)) {
     if (!PROJECT_KEY.test(key)) throw new Error(`config: "${key}" is not a Huly project key`)
-    if (typeof path !== 'string' || path === '') throw new Error(`config: repository path for ${key} is empty`)
-    projects[key] = path
+    const { repo, chain } = typeof entry === 'object' && entry !== null ? (entry as { repo?: unknown; chain?: unknown }) : { repo: entry }
+    if (typeof repo !== 'string' || repo === '') throw new Error(`config: repository path for ${key} is empty`)
+    projects[key] = repo
+    rules[key] = checkRules({ ...shared, ...parseRules(chain, `${key}.chain`) }, key)
   }
 
-  return { host, port, projects, context: parseContext(input.context), modelPrompts: parseModelPrompts(input.modelPrompts) }
+  return { host, port, projects, rules, context: parseContext(input.context), modelPrompts: parseModelPrompts(input.modelPrompts) }
+}
+
+export function liveConfig(current: BatonConfig, next: BatonConfig): BatonConfig {
+  const rules = Object.fromEntries(Object.keys(current.projects).map((key) => [key, next.rules[key] ?? current.rules[key]!]))
+  return { ...current, rules, modelPrompts: next.modelPrompts }
+}
+
+export function restartChanges(current: BatonConfig, next: BatonConfig): string[] {
+  return RESTART_KEYS.filter((key) => JSON.stringify(current[key]) !== JSON.stringify(next[key]))
+}
+
+function parseRules(raw: unknown, where: string): Partial<ChainRules> {
+  if (raw === undefined) return {}
+  if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) throw new Error(`config: ${where} must be an object`)
+  const rules: Partial<ChainRules> = {}
+  for (const [key, value] of Object.entries(raw)) {
+    if (!(RULE_KEYS as readonly string[]).includes(key)) throw new Error(`config: ${where}.${key} is not a chain rule`)
+    if (!Array.isArray(value) || value.some((name) => typeof name !== 'string' || name.trim() === '')) {
+      throw new Error(`config: ${where}.${key} must be a list of non-empty names`)
+    }
+    rules[key as (typeof RULE_KEYS)[number]] = value.map((name: string) => name.trim())
+  }
+  return rules
+}
+
+function checkRules(rules: ChainRules, project: string): ChainRules {
+  const clash = (a: string[], b: string[]) => a.find((name) => b.some((other) => sameName(name, other)))
+  const status = clash(rules.active ?? [], rules.terminal ?? [])
+  if (status !== undefined) throw new Error(`config: ${project}: status "${status}" is both active and terminal`)
+  const label = clash(rules.requiredLabels, rules.excludedLabels)
+  if (label !== undefined) throw new Error(`config: ${project}: label "${label}" is both required and excluded`)
+  return rules
 }
 
 function parseModelPrompts(raw: unknown): Partial<Record<ModelAlias, string>> {

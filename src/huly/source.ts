@@ -1,7 +1,7 @@
 import { createRequire } from 'node:module'
+import { isTerminal, unknownStatuses, type ChainRules } from '../chain/rules.js'
 import type { HulyCredentials } from './credentials.js'
 import {
-  isOpen,
   labeled,
   milestonesOf,
   missingBlockers,
@@ -15,8 +15,13 @@ import {
   type HulyTask,
 } from './model.js'
 
+export interface ChainTasks {
+  tasks: HulyTask[]
+  unknownStatuses: string[]
+}
+
 export interface HulySource {
-  chainTasks(project: string): Promise<HulyTask[]>
+  chainTasks(project: string, rules: ChainRules): Promise<ChainTasks>
   tasks(identifiers: string[]): Promise<HulyTask[]>
   close(): Promise<void>
 }
@@ -79,18 +84,19 @@ export async function connectHuly(credentials: HulyCredentials, timeoutMs: numbe
   }
 
   return {
-    async chainTasks(project) {
+    async chainTasks(project, rules) {
       const space = await client.findOne<{ _id: string }>(tracker.class.Project, { identifier: project })
       if (space === undefined) throw new Error(`huly: project ${project} not found`)
       const statuses = await findStatuses()
-      const open = statuses.filter((doc) => isOpen(toStatus(doc))).map((doc) => doc._id)
+      const open = statuses.filter((doc) => !isTerminal(rules, toStatus(doc))).map((doc) => doc._id)
       const openIssues = withoutParents(await findIssues({ space: space._id, status: { $in: open } }))
       const milestones = milestonesOf(openIssues)
       const closedIssues =
         milestones.length === 0
           ? []
           : withoutParents(await findIssues({ space: space._id, milestone: { $in: milestones }, status: { $nin: open } }))
-      return resolve([...openIssues, ...closedIssues], statuses)
+      const tasks = await resolve([...openIssues, ...closedIssues], statuses)
+      return { tasks, unknownStatuses: unknownStatuses(rules, statuses.map((doc) => doc.name)) }
     },
     async tasks(identifiers) {
       const [issues, statuses] = await Promise.all([findIssues({ identifier: { $in: identifiers } }), findStatuses()])

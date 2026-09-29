@@ -1,8 +1,18 @@
 {
   "host": "0.0.0.0",
   "port": 4747,
+  "chain": {
+    "active": ["Todo", "In Progress", "In Review"],
+    "terminal": ["Done", "Canceled"],
+    "requiredLabels": [],
+    "excludedLabels": ["Вручную"]
+  },
   "projects": {
-    "ABC": "C:\\repos\\example-project"
+    "ABC": "C:\\repos\\example-project",
+    "XYZ": {
+      "repo": "C:\\repos\\other-project",
+      "chain": { "requiredLabels": ["Auto"] }
+    }
   },
   "context": {
     "window": 600000,

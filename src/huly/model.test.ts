@@ -22,7 +22,7 @@ describe('toTasks', () => {
   it('maps an issue to a task with its status name and category', () => {
     const tasks = toTasks([issue('i1', 'ABC-1', 'custom-review')], statuses, new Map(), [])
     expect(tasks).toEqual([
-      { id: 'ABC-1', title: 'Title of ABC-1', status: { name: 'In Review', category: 'Active' }, blockedBy: [], milestone: null, question: false, manual: false, models: [] },
+      { id: 'ABC-1', title: 'Title of ABC-1', status: { name: 'In Review', category: 'Active' }, blockedBy: [], milestone: null, question: false, labels: [], models: [] },
     ])
   })
 
@@ -52,15 +52,15 @@ describe('toTasks', () => {
     expect(tasks.map((task) => task.question)).toEqual([true, false, true])
   })
 
-  it('marks an issue carrying the manual-run label, whatever its case and spacing', () => {
-    const issues = ['i1', 'i2', 'i3'].map((id, index) => issue(id, `ABC-${index + 1}`, 'tracker:status:Todo'))
+  it('keeps the labels of an issue trimmed, once each whatever the case', () => {
+    const issues = ['i1', 'i2'].map((id, index) => issue(id, `ABC-${index + 1}`, 'tracker:status:Todo'))
     const labels = [
-      { attachedTo: 'i1', title: 'Вручную' },
-      { attachedTo: 'i2', title: 'Вопрос' },
-      { attachedTo: 'i3', title: ' вручную ' },
+      { attachedTo: 'i1', title: ' Вручную ' },
+      { attachedTo: 'i1', title: 'Bug' },
+      { attachedTo: 'i1', title: 'вручную' },
     ]
     const tasks = toTasks(issues, statuses, new Map(), [], labels)
-    expect(tasks.map((task) => task.manual)).toEqual([true, false, true])
+    expect(tasks.map((task) => task.labels)).toEqual([['Вручную', 'Bug'], []])
   })
 
   it('resolves blockers to identifiers from the issues themselves and from the extra lookup', () => {
@@ -125,7 +125,7 @@ describe('diffStatuses', () => {
     blockedBy: [],
     milestone: null,
     question: false,
-    manual: false,
+    labels: [],
     models: [],
   })
   const todo = { name: 'Todo', category: 'ToDo' } as const

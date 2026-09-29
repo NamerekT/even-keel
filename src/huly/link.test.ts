@@ -6,7 +6,7 @@ import type { HulySource } from './source.js'
 function fakeSource(): HulySource & { closed: boolean } {
   return {
     closed: false,
-    chainTasks: async () => [],
+    chainTasks: async () => ({ tasks: [], unknownStatuses: [] }),
     tasks: async () => [],
     async close() {
       this.closed = true

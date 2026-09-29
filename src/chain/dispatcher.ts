@@ -1,6 +1,7 @@
 import type { FinishOutcome } from '../git/types.js'
-import { isOpen, type HulyTask } from '../huly/model.js'
+import type { HulyTask } from '../huly/model.js'
 import { byNumber, chainOrder, checkOrder, nextTask, openBlockers } from './order.js'
+import { admits, isActive, isDone, type ChainRules } from './rules.js'
 import {
   handoffPrompt,
   holdOf,
@@ -62,6 +63,7 @@ export interface ProjectOrder {
 
 export interface DispatcherDeps {
   projects: string[]
+  rules: (project: string) => ChainRules
   launch: (project: string, task: string) => Promise<string>
   liveSession: (task: string) => string | undefined
   blocked: () => string | undefined
@@ -95,15 +97,16 @@ export class Dispatcher {
   ) {}
 
   setTasks(project: string, tasks: HulyTask[]): void {
-    this.tasks.set(project, tasks.filter((task) => isOpen(task.status) && !task.manual && this.enters(project, task)))
-    this.done.set(project, new Set(tasks.filter((task) => task.status.category === 'Won').map((task) => task.id)))
+    const rules = this.deps.rules(project)
+    this.tasks.set(project, tasks.filter((task) => admits(rules, task) && this.enters(project, task, rules)))
+    this.done.set(project, new Set(tasks.filter((task) => isDone(rules, task.status)).map((task) => task.id)))
     const placed = this.placeNew(project)
     if (this.forgetClosed(project) || placed) this.deps.save(this.state)
     this.kick()
   }
 
-  private enters(project: string, task: HulyTask): boolean {
-    if (task.status.category !== 'UnStarted') return true
+  private enters(project: string, task: HulyTask, rules: ChainRules): boolean {
+    if (isActive(rules, task.status)) return true
     const active = this.state.active
     return active?.project === project && active.current?.task === task.id && this.deps.busy(task.id)
   }

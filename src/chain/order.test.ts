@@ -9,7 +9,7 @@ const task = (id: string, ...blockedBy: string[]): HulyTask => ({
   blockedBy,
   milestone: null,
   question: false,
-  manual: false,
+  labels: [],
   models: [],
 })
 
