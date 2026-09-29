@@ -83,6 +83,10 @@ export function waitingSessions(sessions: SessionView[], tasks: HulyTask[]): Ses
   return sessions.filter((view) => view.lamp === 'waiting' && open.has(view.task)).sort((a, b) => since(a) - since(b))
 }
 
+export function checkpointHandoffs(rows: TaskSession[]): number {
+  return rows.filter((row) => row.how === 'checkpoint').length
+}
+
 export function taskProject(task: string): string {
   return task.replace(/-\d+$/, '')
 }

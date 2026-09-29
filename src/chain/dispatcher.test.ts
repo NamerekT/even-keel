@@ -397,6 +397,7 @@ describe('Dispatcher on a limit', () => {
     lastReplyAt,
     recent: [],
     lastMessage: null,
+    checkpoint: null,
   })
 
   async function running(options: SetupOptions = {}) {

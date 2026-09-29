@@ -41,7 +41,7 @@ export interface LaunchEntry {
   project: string
   task: string
   sessionId: string
-  reason?: RelayAction | ReleaseReason | 'restart'
+  reason?: RelayAction | ReleaseReason | 'restart' | 'checkpoint'
   previous?: string
   blockers?: string[]
 }
@@ -303,7 +303,7 @@ export class Dispatcher {
         else {
           const blockers = openBlockers(tasks, task)
           if (blockers.length === 0 || this.deps.busy(task)) {
-            await this.followLimit(chain, chain.current)
+            if (!(await this.followLimit(chain, chain.current))) await this.followCheckpoint(chain, chain.current)
             return
           }
           this.release(chain, 'postpone', blockers)
@@ -365,24 +365,24 @@ export class Dispatcher {
     }
   }
 
-  private async followLimit(chain: ActiveChain, current: CurrentTask): Promise<void> {
+  private async followLimit(chain: ActiveChain, current: CurrentTask): Promise<boolean> {
     const session = this.deps.limited(current.task)
     if (session === undefined) {
       if (current.limit !== undefined && current.limit.acted === null) {
         delete current.limit
         this.deps.save(this.state)
       }
-      return
+      return false
     }
     if (current.limit?.at !== session.limit.at) {
-      if (this.deps.account().id === null) return
+      if (this.deps.account().id === null) return true
       current.limit = holdOf(session, this.deps.accountAt(session.account, session.limit.at), this.deps.limitReset())
       this.deps.save(this.state)
     }
     const hold = current.limit
     const now = this.deps.now()
     const step = relayStep(hold, now, this.deps.account())
-    if (step === 'wait') return
+    if (step === 'wait') return true
 
     hold.acted = step
     this.deps.save(this.state)
@@ -401,16 +401,34 @@ export class Dispatcher {
     } catch (error) {
       this.halt(chain, messageOf(error))
     }
+    return true
+  }
+
+  private async followCheckpoint(chain: ActiveChain, current: CurrentTask): Promise<void> {
+    if (this.deps.busy(current.task)) return
+    const session = this.deps.handoff(current.task)
+    if (session === undefined || session.checkpoint === null || session.sessionId !== current.sessionId) return
+    if (this.deps.blocked() !== undefined || this.deps.limitReset() !== null) return
+    await this.handOverCurrent(chain, current, session, 'checkpoint')
   }
 
   private async replace(chain: ActiveChain, current: CurrentTask, replaced: string, session: HandoffSession): Promise<void> {
     if (this.state.active !== chain || chain.current !== current || current.sessionId !== replaced) return
+    await this.handOverCurrent(chain, current, session, 'restart')
+  }
+
+  private async handOverCurrent(
+    chain: ActiveChain,
+    current: CurrentTask,
+    session: HandoffSession,
+    reason: 'restart' | 'checkpoint',
+  ): Promise<void> {
     const at = this.deps.now().toISOString()
     delete current.limit
     this.deps.save(this.state)
     try {
-      const sessionId = await this.handOver(current.task, session, 'restart')
-      this.deps.journal({ at, project: chain.project, task: current.task, sessionId, reason: 'restart', previous: session.sessionId })
+      const sessionId = await this.handOver(current.task, session, reason)
+      this.deps.journal({ at, project: chain.project, task: current.task, sessionId, reason, previous: session.sessionId })
       current.sessionId = sessionId
       this.deps.save(this.state)
     } catch (error) {

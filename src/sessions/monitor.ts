@@ -74,6 +74,7 @@ export class SessionMonitor {
       lastReplyAt: summary.lastReplyAt,
       recent: summary.feed,
       lastMessage: summary.lastMessage,
+      checkpoint: summary.checkpoint,
     }
   }
 

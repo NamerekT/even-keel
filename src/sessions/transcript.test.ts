@@ -339,6 +339,60 @@ describe('TranscriptFold', () => {
     expect(fold([assistant('m1', [tool('Read', { file_path: 'a.ts' })])]).summary().lastMessage).toBeNull()
   })
 
+  describe('checkpoint', () => {
+    const prompt = (content: string) => JSON.stringify({ type: 'user', timestamp: at(), message: { role: 'user', content } })
+
+    it('takes the path from the last line of the last answer', () => {
+      const summary = fold([
+        assistant('m1', [tool('Write', { file_path: '.temp/handoff.md' })]),
+        assistant('m2', [text('Handoff is written.\n\nCHECKPOINT: .temp/handoff.md\n')]),
+      ]).summary()
+      expect(summary.checkpoint).toBe('.temp/handoff.md')
+    })
+
+    it('knows no checkpoint when the last answer has no mark', () => {
+      expect(fold([assistant('m1', [text('All done, merged into main.')])]).summary().checkpoint).toBeNull()
+    })
+
+    it('ignores a mark that is not the last line of the answer', () => {
+      const summary = fold([assistant('m1', [text('CHECKPOINT: .temp/handoff.md\nOn second thought, I carry on myself.')])]).summary()
+      expect(summary.checkpoint).toBeNull()
+    })
+
+    it('forgets a mark from an earlier answer once a later one comes without it', () => {
+      const summary = fold([
+        assistant('m1', [text('CHECKPOINT: .temp/handoff.md')]),
+        prompt('Keep going here, do not hand over.'),
+        assistant('m2', [text('Carrying on.')]),
+      ]).summary()
+      expect(summary.checkpoint).toBeNull()
+    })
+
+    it('forgets a mark once the session calls a tool after it', () => {
+      const summary = fold([assistant('m1', [text('CHECKPOINT: .temp/handoff.md'), tool('Bash', { command: 'npm test' })])]).summary()
+      expect(summary.checkpoint).toBeNull()
+    })
+
+    it('forgets a mark once someone writes to the session', () => {
+      const marked = fold([assistant('m1', [text('CHECKPOINT: .temp/handoff.md')])])
+      marked.push(prompt('Wait, one more thing.'))
+      expect(marked.summary().checkpoint).toBeNull()
+    })
+
+    it('keeps the mark through meta lines after it', () => {
+      const summary = fold([
+        assistant('m1', [text('CHECKPOINT: .temp/handoff.md')]),
+        JSON.stringify({ type: 'user', timestamp: at(), isMeta: true, message: { role: 'user', content: 'reminder' } }),
+      ]).summary()
+      expect(summary.checkpoint).toBe('.temp/handoff.md')
+    })
+
+    it('reads a mark wrapped in markdown code or bold', () => {
+      expect(fold([assistant('m1', [text('Done.\n`CHECKPOINT: .temp/handoff.md`')])]).summary().checkpoint).toBe('.temp/handoff.md')
+      expect(fold([assistant('m1', [text('**CHECKPOINT:** `.temp/handoff.md`  ')])]).summary().checkpoint).toBe('.temp/handoff.md')
+    })
+  })
+
   it('skips blank and broken lines', () => {
     const summary = fold(['', '{not json', assistant('m1', [text('ok')], { input: 1 })]).summary()
     expect(summary.contextTokens).toBe(1)

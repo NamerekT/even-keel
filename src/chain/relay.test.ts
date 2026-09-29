@@ -16,6 +16,7 @@ const session = (overrides: Partial<LimitedSession> = {}): LimitedSession => ({
   lastReplyAt: '2026-09-27T14:38:50.000Z',
   recent: [],
   lastMessage: null,
+  checkpoint: null,
   ...overrides,
 })
 
@@ -127,5 +128,23 @@ describe('handoffPrompt', () => {
     expect(limit).toContain('лимит')
     expect(restart).not.toContain('лимит')
     expect(restart).toContain('пользователь')
+  })
+
+  it('says the old session checkpointed itself and points at its handoff note inside the worktree', () => {
+    const prompt = handoffPrompt('ABC-1', session({ checkpoint: '.temp/handoff.md' }), 'checkpoint')
+    expect(prompt).toContain('контрольную точку')
+    expect(prompt).not.toContain('лимит')
+    expect(prompt).toContain('D:/work/repo/.claude/worktrees/abc-1/.temp/handoff.md')
+  })
+
+  it('keeps an absolute handoff path as it is and mentions it on any handoff', () => {
+    const prompt = handoffPrompt('ABC-1', session({ checkpoint: 'D:\\notes\\handoff.md' }))
+    expect(prompt).toContain('лимит')
+    expect(prompt).toContain('D:\\notes\\handoff.md')
+    expect(prompt).not.toContain('worktrees/abc-1/D:')
+  })
+
+  it('says nothing of a handoff note when there is none', () => {
+    expect(handoffPrompt('ABC-1', session())).not.toContain('handoff')
   })
 })

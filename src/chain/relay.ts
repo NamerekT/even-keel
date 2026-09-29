@@ -9,7 +9,7 @@ export const RESUME_PROMPT = 'Лимит сброшен — продолжай �
 export type RelayAction = 'resume' | 'relay'
 export type RelayStep = 'wait' | RelayAction
 
-export type HandoffReason = 'limit' | 'restart'
+export type HandoffReason = 'limit' | 'restart' | 'checkpoint'
 
 export interface HandoffSession {
   sessionId: string
@@ -22,6 +22,7 @@ export interface HandoffSession {
   lastReplyAt: string | null
   recent: FeedLine[]
   lastMessage: string | null
+  checkpoint: string | null
 }
 
 export interface LimitedSession extends HandoffSession {
@@ -31,6 +32,8 @@ export interface LimitedSession extends HandoffSession {
 const HANDOFF_WHY: Record<HandoffReason, string> = {
   limit: 'Продолжение: прошлая сессия по этой задаче упёрлась в лимит и остановлена, задачу доводишь ты.',
   restart: 'Продолжение: прошлую сессию по этой задаче остановил пользователь — она задачу не довела, доводишь ты.',
+  checkpoint:
+    'Продолжение: прошлая сессия по этой задаче поставила контрольную точку, чтобы не тащить раздутый контекст дальше, и остановлена — задачу доводишь ты.',
 }
 
 export interface LimitHold {
@@ -82,8 +85,16 @@ export function handoffPrompt(task: string, session: HandoffSession, reason: Han
   if (session.transcript !== null) {
     lines.push(`- Транскрипт прошлой сессии: ${session.transcript} — целиком не читай, ищи в нём grep, если чего-то не хватает.`)
   }
+  if (session.checkpoint !== null) {
+    lines.push(`- Записка о передаче: ${notePath(session.workdir, session.checkpoint)} — прочитай её первой: что сделано, что осталось, следующая команда.`)
+  }
   lines.push('- Начни с git status, git log main..HEAD и описания задачи.')
   if (steps.length > 0) lines.push('', 'Последние шаги прошлой сессии:', ...steps.map((line) => `- ${line.text}`))
   if (session.lastMessage !== null) lines.push('', 'Последнее сообщение прошлой сессии:', '', session.lastMessage)
   return lines.join('\n') + '\n'
+}
+
+function notePath(workdir: string, note: string): string {
+  if (/^([a-zA-Z]:)?[\\/]/.test(note)) return note
+  return `${workdir.replace(/[\\/]+$/, '')}/${note.replace(/^\.[\\/]/, '')}`
 }

@@ -14,6 +14,7 @@ const handoff = (sessionId: string): HandoffSession => ({
   lastReplyAt: '2026-09-26T11:50:00.000Z',
   recent: [],
   lastMessage: 'Left: run the tests.',
+  checkpoint: null,
 })
 
 const runningState = (paused = false): ChainState => ({

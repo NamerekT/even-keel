@@ -3,7 +3,7 @@ import { Link, useLocation, useNavigate } from 'react-router'
 import type { ContextScale } from '../../../src/state.js'
 import { plural } from '../format.js'
 import { useCommand } from '../live/useCommand.js'
-import type { BlockLamp, ChainBlock } from '../state.js'
+import { checkpointHandoffs, type BlockLamp, type ChainBlock } from '../state.js'
 import { ARCHIVE_PAGE, archiveView } from '../ui/archive.js'
 import { CacheClock } from '../ui/CacheClock.js'
 import { ContextMeter } from '../ui/ContextMeter.js'
@@ -288,6 +288,11 @@ function Block({ block, number, waits, scale, focused, movable, drag, offset, on
         {role === 'dependent' && <span className="block__badge block__badge--dependent">ждёт её</span>}
         {waits.length > 0 && <span className="block__waits">ждёт {waits.join(', ')}</span>}
         {block.status !== null && <span className="block__status">{block.status}</span>}
+        {block.current && checkpointHandoffs(block.sessions) > 0 && (
+          <span className="block__badge" title="Сколько раз сессии по задаче передали дела по контрольной точке">
+            передач ×{checkpointHandoffs(block.sessions)}
+          </span>
+        )}
         {block.current && block.session !== null && block.session.cache !== null && <CacheClock cache={block.session.cache} />}
         {block.current && block.session !== null && <ContextMeter tokens={block.session.contextTokens} scale={scale} />}
         {block.skipped && (

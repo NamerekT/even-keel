@@ -333,7 +333,7 @@ function restart(state: BatonState, project: string, task: string): BatonState {
   if (view.lamp === 'working' || view.waitingFor !== null) throw new Error(`chain: ${task} is mid-turn; wait until its session stops`)
   const sessionId = crypto.randomUUID()
   const fresh: SessionView = { ...view, sessionId, lamp: 'working', apiError: null, startedAt: ago(0), remoteUrl: 'https://claude.ai/code/session_example', remoteOff: null }
-  const rows = (state.taskSessions[task] ?? []).map((row) => (row.sessionId === view.sessionId ? { ...row, replaced: ago(0) } : row))
+  const rows = (state.taskSessions[task] ?? []).map((row) => (row.sessionId === view.sessionId ? { ...row, replaced: { at: ago(0), how: 'restart' as const } } : row))
   return {
     ...state,
     chain: { ...state.chain, active: { ...active, current: { task, sessionId, since: current.since } } },
@@ -538,6 +538,14 @@ export function createFakeSource(search: string): LiveSource {
     }
     current.state.sessions = current.state.sessions.map((each) => (each.task === 'ABC-5' ? stalled : each))
     current.state.chain.active = { ...active, current: { task: 'ABC-5', sessionId: stalled.sessionId, since: ago(42) } }
+  }
+  if (params.get('chain') === 'checkpoint' && current.state !== null && active?.current) {
+    const { task, sessionId } = active.current
+    current.state.taskSessions[task] = [
+      { sessionId: sessionId ?? crypto.randomUUID(), at: ago(20), how: 'checkpoint', resumed: 0 },
+      { sessionId: crypto.randomUUID(), at: ago(70), how: 'checkpoint', resumed: 0, replaced: { at: ago(20), how: 'checkpoint' } },
+      { sessionId: crypto.randomUUID(), at: ago(150), how: 'launch', resumed: 0, replaced: { at: ago(70), how: 'checkpoint' } },
+    ]
   }
   const notify = () => {
     for (const listener of listeners) listener()

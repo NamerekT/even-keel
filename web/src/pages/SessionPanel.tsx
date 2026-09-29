@@ -8,7 +8,7 @@ import { formatClock, formatMoment, formatTokens } from '../format.js'
 import { useNow } from '../layout/useNow.js'
 import { useLive } from '../live/context.js'
 import { useCommand } from '../live/useCommand.js'
-import { issueLink, sessionElapsed, taskProject, tokenTotal, type ChainBlock } from '../state.js'
+import { checkpointHandoffs, issueLink, sessionElapsed, taskProject, tokenTotal, type ChainBlock } from '../state.js'
 import { CacheClock } from '../ui/CacheClock.js'
 import { ContextMeter } from '../ui/ContextMeter.js'
 import { Lamp, LAMP_LABELS } from '../ui/Lamp.js'
@@ -21,7 +21,13 @@ const HOW: Record<TaskSession['how'], string> = {
   launch: 'Запуск цепочкой',
   relay: 'Новая после лимита',
   restart: 'Перезапуск',
+  checkpoint: 'По контрольной точке',
   manual: 'Запущена вручную',
+}
+
+const REPLACED: Record<NonNullable<TaskSession['replaced']>['how'], string> = {
+  restart: 'заменена вручную',
+  checkpoint: 'поставила контрольную точку',
 }
 
 const REMOTE_OFF: Record<RemoteOff, string> = {
@@ -242,9 +248,12 @@ interface SessionListProps {
 }
 
 function SessionList({ rows, current, onOpen }: SessionListProps) {
+  const handoffs = checkpointHandoffs(rows)
   return (
     <section className="panel__sessions" aria-label="Сессии по задаче">
-      <h3 className="panel__feed-title">Сессии по задаче</h3>
+      <h3 className="panel__feed-title">
+        Сессии по задаче{handoffs > 0 && ` · передач по контрольной точке: ${handoffs}`}
+      </h3>
       <ul className="sessions">
         {rows.map((row) => (
           <li key={row.sessionId}>
@@ -256,7 +265,7 @@ function SessionList({ rows, current, onOpen }: SessionListProps) {
                 {HOW[row.how]}
                 {row.resumed > 0 && ` · продолжена после лимита${row.resumed > 1 ? ` ×${row.resumed}` : ''}`}
                 {row.left !== undefined && ` · ${leftText(row.left)}`}
-                {row.replaced !== undefined && ' · заменена вручную'}
+                {row.replaced !== undefined && ` · ${REPLACED[row.replaced.how]}`}
               </span>
               <span className="sessions__id">{row.sessionId.slice(0, 8)}</span>
               {row.sessionId === current && <span className="sessions__now">сейчас</span>}

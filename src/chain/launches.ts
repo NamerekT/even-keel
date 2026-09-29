@@ -25,11 +25,13 @@ export function launchDays(entries: LaunchEntry[], now: Date, days: number): Lau
 export interface TaskSession {
   sessionId: string
   at: string
-  how: 'launch' | 'relay' | 'restart' | 'manual'
+  how: 'launch' | 'relay' | HandOver | 'manual'
   resumed: number
   left?: { at: string; reason: ReleaseReason; blockers: string[] }
-  replaced?: string
+  replaced?: { at: string; how: HandOver }
 }
+
+type HandOver = 'restart' | 'checkpoint'
 
 export function taskSessions(
   entries: LaunchEntry[],
@@ -53,11 +55,11 @@ export function taskSessions(
       if (entry.reason === 'resume') known.resumed++
       continue
     }
-    const how = entry.reason === 'relay' || entry.reason === 'restart' ? entry.reason : 'launch'
+    const how = entry.reason === 'relay' || entry.reason === 'restart' || entry.reason === 'checkpoint' ? entry.reason : 'launch'
     rows.set(entry.sessionId, { sessionId: entry.sessionId, at: entry.at, how, resumed: 0 })
-    if (entry.reason === 'restart' && entry.previous !== undefined) {
+    if ((how === 'restart' || how === 'checkpoint') && entry.previous !== undefined) {
       const old = rows.get(entry.previous)
-      if (old !== undefined) old.replaced = entry.at
+      if (old !== undefined) old.replaced = { at: entry.at, how }
     }
   }
   for (const view of live) {

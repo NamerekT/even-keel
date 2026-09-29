@@ -34,6 +34,7 @@ export interface TranscriptSummary {
   remoteLost: boolean
   apiError: { kind: ApiErrorKind; text: string; at: string } | null
   lastMessage: string | null
+  checkpoint: string | null
   firstActivityAt: string | null
   lastActivityAt: string | null
   lastReplyAt: string | null
@@ -79,6 +80,7 @@ const MESSAGE_LIMIT = 6000
 const WRAP_UP_TEXT = 'Лимит исчерпан: Claude Code велел сессии свернуть ход'
 const REMOTE_DROPPED = 'Remote Control disconnected'
 const BRIEF_LIMIT = 160
+const CHECKPOINT_LINE = /^[`*_]*CHECKPOINT:[`*_]*\s*[`*_]*([^`*\s][^`*]*?)[`*_]*$/
 const TTL_MS: Record<CacheTtl, number> = { '5m': 5 * 60_000, '1h': 60 * 60_000 }
 const STAGE_RANK: Record<Stage, number> = { task: 0, recon: 1, edit: 2, test: 3, commit: 4, merge: 5 }
 const BRIEF_KEYS = ['description', 'command', 'file_path', 'pattern', 'query', 'url', 'skill']
@@ -98,6 +100,7 @@ export class TranscriptFold {
   private apiError: TranscriptSummary['apiError'] = null
   private wrapUp: TranscriptSummary['apiError'] = null
   private lastMessage: string | null = null
+  private checkpoint: string | null = null
   private firstActivityAt: string | null = null
   private lastActivityAt: string | null = null
   private lastReplyAt: string | null = null
@@ -159,6 +162,7 @@ export class TranscriptFold {
       remoteLost: this.remoteLost,
       apiError: this.apiError ?? this.wrapUp,
       lastMessage: this.lastMessage,
+      checkpoint: this.checkpoint,
       firstActivityAt: this.firstActivityAt,
       lastActivityAt: this.lastActivityAt,
       lastReplyAt: this.lastReplyAt,
@@ -201,7 +205,9 @@ export class TranscriptFold {
         if (text === '') continue
         this.addAction({ at, kind: 'text', text })
         this.lastMessage = (block.text ?? '').trim().slice(0, MESSAGE_LIMIT)
+        this.checkpoint = checkpointOf(block.text ?? '')
       } else if (block.type === 'tool_use' && typeof block.name === 'string') {
+        this.checkpoint = null
         const input = block.input ?? {}
         this.addAction({ at, kind: 'tool', text: describeTool(block.name, input, entry.cwd) })
         this.advanceStage(stageOf(block.name, input))
@@ -214,7 +220,10 @@ export class TranscriptFold {
       const at = entry.timestamp ?? ''
       this.wrapUp = { kind: 'limit', text: WRAP_UP_TEXT, at }
       this.addFeed({ at, kind: 'error', text: WRAP_UP_TEXT })
-    } else if (entry.isMeta !== true && isPrompt(entry.message?.content)) this.wrapUp = null
+    } else if (entry.isMeta !== true && isPrompt(entry.message?.content)) {
+      this.wrapUp = null
+      this.checkpoint = null
+    }
   }
 
   private addAction(line: FeedLine): void {
@@ -250,6 +259,11 @@ function writtenTtl(usage: Usage): CacheTtl | null {
   if ((written?.ephemeral_5m_input_tokens ?? 0) > 0) return '5m'
   if ((written?.ephemeral_1h_input_tokens ?? 0) > 0) return '1h'
   return null
+}
+
+function checkpointOf(text: string): string | null {
+  const last = text.trimEnd().split('\n').pop() ?? ''
+  return CHECKPOINT_LINE.exec(last.trim())?.[1] ?? null
 }
 
 function isPrompt(content: unknown): boolean {
