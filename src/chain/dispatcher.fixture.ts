@@ -17,6 +17,7 @@ export const task = (id: string, status: TaskStatus = todo, ...blockedBy: string
   status,
   blockedBy,
   milestone: null,
+  priority: 'none',
   question: false,
   labels: [],
   models: [],

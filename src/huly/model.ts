@@ -16,10 +16,16 @@ export interface HulyTask {
   status: TaskStatus
   blockedBy: string[]
   milestone: TaskMilestone | null
+  priority: TaskPriority
   question: boolean
   labels: string[]
   models: ModelAlias[]
 }
+
+export const PRIORITIES = ['urgent', 'high', 'medium', 'low', 'none'] as const
+export type TaskPriority = (typeof PRIORITIES)[number]
+
+const HULY_PRIORITIES: readonly TaskPriority[] = ['none', 'urgent', 'high', 'medium', 'low']
 
 export const MODEL_ALIASES = ['sonnet', 'opus', 'haiku'] as const
 export type ModelAlias = (typeof MODEL_ALIASES)[number]
@@ -53,6 +59,7 @@ export interface HulyIssueDoc {
   status: string
   blockedBy?: { _id: string }[]
   milestone?: string | null
+  priority?: number
   subIssues?: number
   labels?: number
 }
@@ -109,6 +116,7 @@ export function toTasks(
       status: toStatus(status),
       blockedBy: (issue.blockedBy ?? []).flatMap((ref) => identifierById.get(ref._id) ?? []),
       milestone: issue.milestone ? (milestoneById.get(issue.milestone) ?? null) : null,
+      priority: HULY_PRIORITIES[issue.priority ?? 0] ?? 'none',
       question: questions.has(issue._id),
       labels: [...(labelsById.get(issue._id)?.values() ?? [])],
       models: MODEL_ALIASES.filter((model) => modelsById.get(issue._id)?.has(model)),

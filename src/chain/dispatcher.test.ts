@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import type { HulyTask } from '../huly/model.js'
 import { active, backlog, canceled, done, review, setup, task, todo, type SetupOptions } from './dispatcher.fixture.js'
 import { emptyChainState, type ChainState, type Dispatcher } from './dispatcher.js'
 import type { LimitedSession } from './relay.js'
@@ -425,6 +426,15 @@ describe('Dispatcher', () => {
     await dispatcher.idle()
     dispatcher.setTasks('ABC', [task('ABC-1'), task('ABC-2', active), task('ABC-3')])
     expect(dispatcher.orders().ABC?.order).toEqual(['ABC-2', 'ABC-3', 'ABC-1'])
+  })
+
+  it('puts a new task behind the more urgent ones of a manual order', () => {
+    const { dispatcher } = setup()
+    const urgent = (id: string): HulyTask => ({ ...task(id), priority: 'urgent' })
+    dispatcher.setTasks('ABC', [urgent('ABC-1'), task('ABC-2'), urgent('ABC-3')])
+    dispatcher.reorder('ABC', ['ABC-3', 'ABC-1', 'ABC-2'])
+    dispatcher.setTasks('ABC', [urgent('ABC-1'), task('ABC-2'), urgent('ABC-3'), { ...task('ABC-4'), priority: 'high' }])
+    expect(dispatcher.orders().ABC?.order).toEqual(['ABC-3', 'ABC-1', 'ABC-4', 'ABC-2'])
   })
 
   it('puts a new blocked task right after its last blocker', () => {

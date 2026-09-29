@@ -49,7 +49,7 @@ const tracker = (require('@hcengineering/tracker') as { default: TrackerPlugin }
 
 const TAG_REFERENCE = 'tags:class:TagReference'
 
-const ISSUE_FIELDS = { identifier: 1, title: 1, status: 1, blockedBy: 1, milestone: 1, subIssues: 1, labels: 1 } as const
+const ISSUE_FIELDS = { identifier: 1, title: 1, status: 1, blockedBy: 1, milestone: 1, priority: 1, subIssues: 1, labels: 1 } as const
 const MILESTONE_FIELDS = { label: 1, targetDate: 1 } as const
 const LABEL_FIELDS = { attachedTo: 1, title: 1 } as const
 

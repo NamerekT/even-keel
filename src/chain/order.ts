@@ -1,4 +1,4 @@
-import type { HulyTask, TaskMilestone } from '../huly/model.js'
+import { PRIORITIES, type HulyTask, type TaskMilestone } from '../huly/model.js'
 
 export const byNumber = (a: string, b: string) => a.localeCompare(b, 'en', { numeric: true })
 
@@ -7,9 +7,11 @@ type Graph = Map<string, Set<string>>
 export function chainOrder(tasks: HulyTask[], preferred: string[] = []): string[] {
   const plan = planOf(tasks)
   const rank = new Map(preferred.map((id, index) => [id, index]))
+  const priority = priorityOf(tasks)
   const compare = (a: string, b: string) =>
     (rank.get(a) ?? Infinity) - (rank.get(b) ?? Infinity) ||
     (plan.ranks.get(a) ?? Infinity) - (plan.ranks.get(b) ?? Infinity) ||
+    priority(a) - priority(b) ||
     byNumber(a, b)
 
   const pending: Graph = new Map([...plan.blockers].map(([id, deps]) => [id, new Set([...deps, ...plan.earlier.get(id)!])]))
@@ -23,6 +25,17 @@ export function chainOrder(tasks: HulyTask[], preferred: string[] = []): string[
     for (const deps of pending.values()) deps.delete(next)
   }
   return order
+}
+
+export function withFresh(tasks: HulyTask[], order: string[], fresh: string[], pinned: number): string[] {
+  const priority = priorityOf(tasks)
+  const result = [...order]
+  const lastFirst = [...fresh].sort((a, b) => priority(b) - priority(a) || byNumber(b, a))
+  for (const id of lastFirst) {
+    const at = result.findIndex((other, index) => index >= pinned && priority(other) >= priority(id))
+    result.splice(at === -1 ? result.length : at, 0, id)
+  }
+  return result
 }
 
 export function checkOrder(tasks: HulyTask[], order: string[]): void {
@@ -104,6 +117,11 @@ function milestoneRanks(tasks: HulyTask[]): Map<string, number> {
     ranks.set(id, rank)
   }
   return ranks
+}
+
+function priorityOf(tasks: HulyTask[]): (id: string) => number {
+  const ranks = new Map(tasks.map((task) => [task.id, PRIORITIES.indexOf(task.priority)]))
+  return (id) => ranks.get(id) ?? PRIORITIES.length
 }
 
 function milestonesById(tasks: HulyTask[]): Map<string, string> {

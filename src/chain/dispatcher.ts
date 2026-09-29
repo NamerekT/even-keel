@@ -1,6 +1,6 @@
 import type { FinishOutcome } from '../git/types.js'
 import type { HulyTask } from '../huly/model.js'
-import { byNumber, chainOrder, checkOrder, nextTask, openBlockers } from './order.js'
+import { chainOrder, checkOrder, nextTask, openBlockers, withFresh } from './order.js'
 import { admits, isActive, isDone, type ChainRules } from './rules.js'
 import {
   handoffPrompt,
@@ -256,12 +256,12 @@ export class Dispatcher {
     const tasks = this.tasks.get(project) ?? []
     const open = new Set(tasks.map((task) => task.id))
     const kept = stored.filter((id) => open.has(id))
-    const fresh = [...open].filter((id) => !stored.includes(id)).sort(byNumber)
+    const fresh = [...open].filter((id) => !stored.includes(id))
     if (fresh.length === 0 && kept.length === stored.length) return false
 
-    const base = this.preferred(project, kept)!.filter((id) => open.has(id))
+    const preferred = this.preferred(project, kept)!.filter((id) => open.has(id))
     const current = this.currentOf(project)
-    base.splice(current !== undefined && base[0] === current ? 1 : 0, 0, ...fresh)
+    const base = withFresh(tasks, preferred, fresh, current !== undefined && preferred[0] === current ? 1 : 0)
     try {
       this.state.orders[project] = chainOrder(tasks, base)
     } catch {

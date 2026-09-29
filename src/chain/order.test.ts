@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import type { HulyTask, TaskMilestone } from '../huly/model.js'
-import { chainOrder, checkOrder, compareMilestones, nextTask, openBlockers, precedence } from './order.js'
+import type { HulyTask, TaskMilestone, TaskPriority } from '../huly/model.js'
+import { chainOrder, checkOrder, compareMilestones, nextTask, openBlockers, precedence, withFresh } from './order.js'
 
 const task = (id: string, ...blockedBy: string[]): HulyTask => ({
   id,
@@ -8,6 +8,7 @@ const task = (id: string, ...blockedBy: string[]): HulyTask => ({
   status: { name: 'Todo', category: 'ToDo' },
   blockedBy,
   milestone: null,
+  priority: 'none',
   question: false,
   labels: [],
   models: [],
@@ -17,6 +18,7 @@ const milestone = (label: string, targetDate = 0): TaskMilestone => ({ label, ta
 const v1 = milestone('v0.1 — first slice', 300)
 const v2 = milestone('v0.2 — second slice', 200)
 const inMilestone = (m: TaskMilestone, id: string, ...blockedBy: string[]): HulyTask => ({ ...task(id, ...blockedBy), milestone: m })
+const withPriority = (priority: TaskPriority, id: string, ...blockedBy: string[]): HulyTask => ({ ...task(id, ...blockedBy), priority })
 
 describe('chainOrder', () => {
   it('orders independent tasks by number', () => {
@@ -91,6 +93,83 @@ describe('chainOrder with milestones', () => {
   it('still names a plain blocker cycle as a cycle', () => {
     const tasks = [inMilestone(v1, 'ABC-1', 'ABC-2'), inMilestone(v1, 'ABC-2', 'ABC-1'), inMilestone(v2, 'ABC-3')]
     expect(() => chainOrder(tasks)).toThrow(/cycle: ABC-1 → ABC-2 → ABC-1$/)
+  })
+})
+
+describe('chainOrder with priorities', () => {
+  it('orders by priority before the number', () => {
+    const tasks = [
+      task('ABC-1'),
+      withPriority('low', 'ABC-2'),
+      withPriority('urgent', 'ABC-3'),
+      withPriority('high', 'ABC-4'),
+      withPriority('medium', 'ABC-5'),
+      withPriority('urgent', 'ABC-6'),
+    ]
+    expect(chainOrder(tasks)).toEqual(['ABC-3', 'ABC-6', 'ABC-4', 'ABC-5', 'ABC-2', 'ABC-1'])
+  })
+
+  it('lets a blocker of low priority go first', () => {
+    const tasks = [withPriority('urgent', 'ABC-1', 'ABC-2'), withPriority('low', 'ABC-2'), withPriority('high', 'ABC-3')]
+    expect(chainOrder(tasks)).toEqual(['ABC-3', 'ABC-2', 'ABC-1'])
+  })
+
+  it('keeps the milestone order above the priority', () => {
+    const tasks = [{ ...inMilestone(v2, 'ABC-1'), priority: 'urgent' as const }, { ...inMilestone(v1, 'ABC-2'), priority: 'low' as const }]
+    expect(chainOrder(tasks)).toEqual(['ABC-2', 'ABC-1'])
+  })
+
+  it('keeps the preferred order above the priority', () => {
+    const tasks = [withPriority('low', 'ABC-1'), withPriority('urgent', 'ABC-2')]
+    expect(chainOrder(tasks, ['ABC-1', 'ABC-2'])).toEqual(['ABC-1', 'ABC-2'])
+  })
+})
+
+describe('withFresh', () => {
+  it('puts new tasks of one priority at the head, by number', () => {
+    const tasks = ['ABC-1', 'ABC-2', 'ABC-3', 'ABC-4'].map((id) => task(id))
+    expect(withFresh(tasks, ['ABC-2', 'ABC-1'], ['ABC-4', 'ABC-3'], 0)).toEqual(['ABC-3', 'ABC-4', 'ABC-2', 'ABC-1'])
+  })
+
+  it('puts a new task ahead of its own and lower priorities only', () => {
+    const tasks = [
+      withPriority('urgent', 'ABC-1'),
+      withPriority('high', 'ABC-2'),
+      withPriority('medium', 'ABC-3'),
+      withPriority('low', 'ABC-4'),
+      task('ABC-5'),
+      withPriority('high', 'ABC-6'),
+      withPriority('medium', 'ABC-8'),
+      withPriority('medium', 'ABC-7'),
+      task('ABC-9'),
+    ]
+    const kept = ['ABC-1', 'ABC-2', 'ABC-3', 'ABC-4', 'ABC-5']
+    expect(withFresh(tasks, kept, ['ABC-9', 'ABC-8', 'ABC-7', 'ABC-6'], 0)).toEqual([
+      'ABC-1',
+      'ABC-6',
+      'ABC-2',
+      'ABC-7',
+      'ABC-8',
+      'ABC-3',
+      'ABC-4',
+      'ABC-9',
+      'ABC-5',
+    ])
+  })
+
+  it('goes past a lower priority task that a manual order put higher', () => {
+    const tasks = [withPriority('low', 'ABC-1'), withPriority('urgent', 'ABC-2'), withPriority('high', 'ABC-3')]
+    expect(withFresh(tasks, ['ABC-1', 'ABC-2'], ['ABC-3'], 0)).toEqual(['ABC-3', 'ABC-1', 'ABC-2'])
+  })
+
+  it('never goes ahead of the pinned head', () => {
+    const tasks = [withPriority('low', 'ABC-1'), withPriority('low', 'ABC-2'), withPriority('urgent', 'ABC-3')]
+    expect(withFresh(tasks, ['ABC-1', 'ABC-2'], ['ABC-3'], 1)).toEqual(['ABC-1', 'ABC-3', 'ABC-2'])
+  })
+
+  it('puts a new task last when everything kept is more urgent', () => {
+    const tasks = [withPriority('urgent', 'ABC-1'), task('ABC-2')]
+    expect(withFresh(tasks, ['ABC-1'], ['ABC-2'], 0)).toEqual(['ABC-1', 'ABC-2'])
   })
 })
 

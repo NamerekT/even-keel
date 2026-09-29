@@ -22,8 +22,17 @@ describe('toTasks', () => {
   it('maps an issue to a task with its status name and category', () => {
     const tasks = toTasks([issue('i1', 'ABC-1', 'custom-review')], statuses, new Map(), [])
     expect(tasks).toEqual([
-      { id: 'ABC-1', title: 'Title of ABC-1', status: { name: 'In Review', category: 'Active' }, blockedBy: [], milestone: null, question: false, labels: [], models: [] },
+      { id: 'ABC-1', title: 'Title of ABC-1', status: { name: 'In Review', category: 'Active' }, blockedBy: [], milestone: null, priority: 'none', question: false, labels: [], models: [] },
     ])
+  })
+
+  it('reads the Huly priority and treats an unknown one as none', () => {
+    const issues = [undefined, 0, 1, 2, 3, 4, 7].map((priority, index) => ({
+      ...issue(`i${index}`, `ABC-${index}`, 'tracker:status:Todo'),
+      ...(priority === undefined ? {} : { priority }),
+    }))
+    const tasks = toTasks(issues, statuses, new Map(), [])
+    expect(tasks.map((task) => task.priority)).toEqual(['none', 'none', 'urgent', 'high', 'medium', 'low', 'none'])
   })
 
   it('reads model labels whatever their case and spacing, once each and in a fixed order', () => {
@@ -124,6 +133,7 @@ describe('diffStatuses', () => {
     status: { name, category },
     blockedBy: [],
     milestone: null,
+    priority: 'none',
     question: false,
     labels: [],
     models: [],

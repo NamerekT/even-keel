@@ -37,6 +37,7 @@ function task(
     status: { name, category },
     blockedBy,
     milestone: milestone === null ? null : { label: milestone, targetDate: 0 },
+    priority: 'none',
     question: false,
     labels: [],
     models: [],
