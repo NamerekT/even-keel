@@ -25,6 +25,43 @@ export function parseAgents(raw: string, account?: string): AgentEntry[] {
   return account === undefined ? entries : entries.map((entry) => ({ ...entry, account }))
 }
 
+export interface SessionRecord {
+  pid: number
+  sessionId: string
+  status?: AgentStatus
+  waitingFor?: string
+}
+
+const STATUSES: readonly string[] = ['idle', 'busy', 'waiting'] satisfies AgentStatus[]
+
+export function parseSessionRecord(raw: string): SessionRecord | undefined {
+  let value: unknown
+  try {
+    value = JSON.parse(raw)
+  } catch {
+    return undefined
+  }
+  if (typeof value !== 'object' || value === null) return undefined
+  const { pid, sessionId, status, waitingFor } = value as Record<string, unknown>
+  if (typeof pid !== 'number' || typeof sessionId !== 'string') return undefined
+  return {
+    pid,
+    sessionId,
+    ...(typeof status === 'string' && STATUSES.includes(status) ? { status: status as AgentStatus } : {}),
+    ...(typeof waitingFor === 'string' ? { waitingFor } : {}),
+  }
+}
+
+export function withLiveRecords(agents: AgentEntry[], records: SessionRecord[]): AgentEntry[] {
+  const bySession = new Map(records.map((record) => [record.sessionId, record]))
+  return agents.map((agent) => {
+    const record = bySession.get(agent.sessionId)
+    if (record === undefined || agent.pid !== undefined) return agent
+    const { pid, status, waitingFor } = record
+    return { ...agent, pid, ...(status === undefined ? {} : { status }), ...(waitingFor === undefined ? {} : { waitingFor }) }
+  })
+}
+
 function isAgentEntry(value: unknown): value is AgentEntry {
   if (typeof value !== 'object' || value === null) return false
   const entry = value as Record<string, unknown>

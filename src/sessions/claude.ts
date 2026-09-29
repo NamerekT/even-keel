@@ -1,5 +1,6 @@
 import { execFile, spawn, type ChildProcessWithoutNullStreams } from 'node:child_process'
 import { readdirSync } from 'node:fs'
+import { readdir, readFile } from 'node:fs/promises'
 import { homedir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { setTimeout as delay } from 'node:timers/promises'
@@ -7,7 +8,7 @@ import { promisify } from 'node:util'
 import type { AccountHome } from '../account/homes.js'
 import { parseAuthStatus, type ClaudeAccount } from '../account/model.js'
 import type { ModelAlias } from '../huly/model.js'
-import { parseAgents, type AgentEntry } from './agents.js'
+import { parseAgents, parseSessionRecord, withLiveRecords, type AgentEntry, type SessionRecord } from './agents.js'
 import { newestExtensionBinary } from './paths.js'
 
 const run = promisify(execFile)
@@ -44,7 +45,7 @@ export class ClaudeCli {
       windowsHide: true,
       maxBuffer: 16 * 1024 * 1024,
     })
-    return parseAgents(stdout, home.key)
+    return withLiveRecords(parseAgents(stdout, home.key), await liveRecords(home))
   }
 
   async authStatus(home: AccountHome): Promise<ClaudeAccount> {
@@ -163,7 +164,22 @@ function isOver(agent: AgentEntry): boolean {
 }
 
 function isGone(agent: AgentEntry | undefined): boolean {
-  return agent === undefined || agent.state === 'stopped' || agent.state === 'failed'
+  if (agent === undefined || agent.state === 'stopped' || agent.state === 'failed') return true
+  return agent.state === 'done' && agent.pid === undefined
+}
+
+async function liveRecords(home: AccountHome): Promise<SessionRecord[]> {
+  const dir = join(home.dir, 'sessions')
+  let names: string[]
+  try {
+    names = await readdir(dir)
+  } catch {
+    return []
+  }
+  const texts = await Promise.all(
+    names.filter((name) => /^\d+\.json$/.test(name)).map((name) => readFile(join(dir, name), 'utf8').catch(() => '')),
+  )
+  return texts.map(parseSessionRecord).filter((record): record is SessionRecord => record !== undefined && isAlive(record.pid))
 }
 
 function isAlive(pid: number | undefined): boolean {
@@ -171,8 +187,8 @@ function isAlive(pid: number | undefined): boolean {
   try {
     process.kill(pid, 0)
     return true
-  } catch {
-    return false
+  } catch (error) {
+    return (error as NodeJS.ErrnoException).code === 'EPERM'
   }
 }
 

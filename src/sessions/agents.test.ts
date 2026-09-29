@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { lampOf, parseAgents, sessionsByTask, type AgentEntry } from './agents.js'
+import { lampOf, parseAgents, parseSessionRecord, sessionsByTask, withLiveRecords, type AgentEntry } from './agents.js'
 
 const interactive: AgentEntry = {
   pid: 100,
@@ -27,6 +27,47 @@ describe('parseAgents', () => {
 
   it('rejects output that is not a list', () => {
     expect(() => parseAgents('{"error":"nope"}')).toThrow(/agents/)
+  })
+})
+
+describe('parseSessionRecord', () => {
+  it('reads the pid, session and status a running session writes to sessions/<pid>.json', () => {
+    const raw = JSON.stringify({ pid: 4436, sessionId: 's1', cwd: 'C:\\x', kind: 'bg', status: 'busy', name: 'ABC-1' })
+
+    expect(parseSessionRecord(raw)).toEqual({ pid: 4436, sessionId: 's1', status: 'busy' })
+  })
+
+  it('keeps what the session waits for', () => {
+    const raw = JSON.stringify({ pid: 1, sessionId: 's1', status: 'waiting', waitingFor: 'permission' })
+
+    expect(parseSessionRecord(raw)).toEqual({ pid: 1, sessionId: 's1', status: 'waiting', waitingFor: 'permission' })
+  })
+
+  it('drops an unknown status and rejects a record without pid or session', () => {
+    expect(parseSessionRecord(JSON.stringify({ pid: 1, sessionId: 's1', status: 'dreaming' }))).toEqual({ pid: 1, sessionId: 's1' })
+    expect(parseSessionRecord(JSON.stringify({ sessionId: 's1' }))).toBeUndefined()
+    expect(parseSessionRecord(JSON.stringify({ pid: 1 }))).toBeUndefined()
+    expect(parseSessionRecord('not json')).toBeUndefined()
+  })
+})
+
+describe('withLiveRecords', () => {
+  const job: AgentEntry = { id: '4174bd8f', cwd: 'C:\\x', kind: 'background', startedAt: 1, sessionId: 's1', state: 'done' }
+
+  it('gives a background job the pid and status of its running process', () => {
+    const records = [{ pid: 33836, sessionId: 's1', status: 'idle' as const }]
+
+    expect(withLiveRecords([job], records)).toEqual([{ ...job, pid: 33836, status: 'idle' }])
+  })
+
+  it('leaves a job without a running process as it is', () => {
+    expect(withLiveRecords([job], [{ pid: 1, sessionId: 'other', status: 'busy' }])).toEqual([job])
+  })
+
+  it('keeps what claude agents already printed', () => {
+    const printed = { ...job, pid: 7, status: 'waiting' as const, waitingFor: 'permission' }
+
+    expect(withLiveRecords([printed], [{ pid: 8, sessionId: 's1', status: 'busy' }])).toEqual([printed])
   })
 })
 
