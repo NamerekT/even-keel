@@ -84,7 +84,7 @@ export class Dispatcher {
   ) {}
 
   setTasks(project: string, tasks: HulyTask[]): void {
-    this.tasks.set(project, tasks.filter((task) => isOpen(task.status)))
+    this.tasks.set(project, tasks.filter((task) => isOpen(task.status) && !task.manual))
     const placed = this.placeNew(project)
     if (this.forgetClosed(project) || placed) this.deps.save(this.state)
     this.kick()

@@ -38,6 +38,7 @@ function task(
     blockedBy,
     milestone: milestone === null ? null : { label: milestone, targetDate: 0 },
     question: false,
+    manual: false,
     models: [],
   }
 }

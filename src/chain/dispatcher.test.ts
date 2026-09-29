@@ -15,6 +15,16 @@ describe('Dispatcher', () => {
     expect(journal).toEqual([{ at: '2026-09-26T12:00:00.000Z', project: 'ABC', task: 'ABC-2', sessionId: 'session-1' }])
   })
 
+  it('leaves a task labelled for a manual run out of the chain', async () => {
+    const { dispatcher, launched } = setup()
+    dispatcher.setTasks('ABC', [{ ...task('ABC-1'), manual: true }, task('ABC-2')])
+    dispatcher.start('ABC')
+    await dispatcher.idle()
+
+    expect(launched).toEqual(['ABC/ABC-2'])
+    expect(dispatcher.orders()['ABC']?.order).toEqual(['ABC-2'])
+  })
+
   it('waits for the task list before launching', async () => {
     const { dispatcher, launched } = setup()
     dispatcher.start('ABC')
