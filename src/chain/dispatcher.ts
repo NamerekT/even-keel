@@ -84,10 +84,16 @@ export class Dispatcher {
   ) {}
 
   setTasks(project: string, tasks: HulyTask[]): void {
-    this.tasks.set(project, tasks.filter((task) => isOpen(task.status) && !task.manual))
+    this.tasks.set(project, tasks.filter((task) => isOpen(task.status) && !task.manual && this.enters(project, task)))
     const placed = this.placeNew(project)
     if (this.forgetClosed(project) || placed) this.deps.save(this.state)
     this.kick()
+  }
+
+  private enters(project: string, task: HulyTask): boolean {
+    if (task.status.category !== 'UnStarted') return true
+    const active = this.state.active
+    return active?.project === project && active.current?.task === task.id && this.deps.busy(task.id)
   }
 
   start(project: string): void {

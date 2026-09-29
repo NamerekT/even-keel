@@ -2,6 +2,8 @@ import type { HulyTask, TaskStatus } from '../huly/model.js'
 import { Dispatcher, emptyChainState, type ChainState, type LaunchEntry } from './dispatcher.js'
 import type { AccountNow, HandoffSession, LimitedSession } from './relay.js'
 
+export const backlog: TaskStatus = { name: 'Backlog', category: 'UnStarted' }
+export const review: TaskStatus = { name: 'In Review', category: 'Active' }
 export const todo: TaskStatus = { name: 'Todo', category: 'ToDo' }
 export const active: TaskStatus = { name: 'In Progress', category: 'Active' }
 export const done: TaskStatus = { name: 'Done', category: 'Won' }

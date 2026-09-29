@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { active, canceled, done, setup, task, todo, type SetupOptions } from './dispatcher.fixture.js'
+import { active, backlog, canceled, done, review, setup, task, todo, type SetupOptions } from './dispatcher.fixture.js'
 import { emptyChainState, type ChainState, type Dispatcher } from './dispatcher.js'
 import type { LimitedSession } from './relay.js'
 
@@ -23,6 +23,33 @@ describe('Dispatcher', () => {
 
     expect(launched).toEqual(['ABC/ABC-2'])
     expect(dispatcher.orders()['ABC']?.order).toEqual(['ABC-2'])
+  })
+
+  it('leaves backlog tasks out of the chain and does not let them block', async () => {
+    const { dispatcher, launched } = setup()
+    dispatcher.setTasks('ABC', [task('ABC-1', backlog), task('ABC-2', todo, 'ABC-1'), task('ABC-3', review)])
+    dispatcher.start('ABC')
+    await dispatcher.idle()
+
+    expect(dispatcher.orders()['ABC']?.order).toEqual(['ABC-2', 'ABC-3'])
+    expect(launched).toEqual(['ABC/ABC-2'])
+  })
+
+  it('stops waiting for a current task returned to backlog once its session is not mid-turn', async () => {
+    const busy = new Set(['ABC-1'])
+    const { dispatcher, launched } = setup({ busy })
+    dispatcher.setTasks('ABC', [task('ABC-1'), task('ABC-2')])
+    dispatcher.start('ABC')
+    await dispatcher.idle()
+
+    dispatcher.setTasks('ABC', [task('ABC-1', backlog), task('ABC-2')])
+    await dispatcher.idle()
+    expect(dispatcher.state.active?.current?.task).toBe('ABC-1')
+
+    busy.clear()
+    dispatcher.setTasks('ABC', [task('ABC-1', backlog), task('ABC-2')])
+    await dispatcher.idle()
+    expect(launched).toEqual(['ABC/ABC-1', 'ABC/ABC-2'])
   })
 
   it('waits for the task list before launching', async () => {
