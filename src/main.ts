@@ -8,10 +8,12 @@ import { accountId, launchBlock, loginBlock, type LoginBlock } from './account/m
 import { AccountWatcher } from './account/watcher.js'
 import { Dispatcher, type LaunchEntry } from './chain/dispatcher.js'
 import { launchDays, taskSessions } from './chain/launches.js'
-import { RESUME_PROMPT } from './chain/relay.js'
+import { RESUME_PROMPT, startPrompt } from './chain/relay.js'
 import { appendLaunch, loadChainState, readLaunches, saveChainState } from './chain/store.js'
 import { loadConfig } from './config.js'
 import { EventHub } from './events.js'
+import { runGit } from './git/run.js'
+import { ensureIgnored, finishWorktree, prepareWorktree } from './git/worktree.js'
 import { issueUrlBase, readHulyCredentials } from './huly/credentials.js'
 import type { HulyHealth } from './huly/health.js'
 import { HulyLink } from './huly/link.js'
@@ -173,8 +175,11 @@ const dispatcher = new Dispatcher(loadChainState(chainFile), {
   launch: async (project, task) => {
     const home = homeOf(ledger.active)
     await daemons.prepare(home)
-    const { prompt, model } = planFor(task, task)
-    return (await cli.launch(home, task, config.projects[project]!, prompt, model)).sessionId
+    const repo = config.projects[project]!
+    await ensureIgnored(runGit, repo)
+    const place = await prepareWorktree(runGit, repo, task)
+    const { prompt, model } = planFor(task, startPrompt(task, place))
+    return (await cli.launch(home, task, place.path, prompt, model)).sessionId
   },
   liveSession: (task) => sessions.find((view) => view.task === task && view.lamp !== 'finished')?.sessionId,
   blocked: (): string | undefined => launchBlock(account.view),
@@ -213,6 +218,12 @@ const dispatcher = new Dispatcher(loadChainState(chainFile), {
     const { prompt, model } = planFor(task, handoff)
     return (await cli.launch(home, task, session.workdir, prompt, model)).sessionId
   },
+  finish: async (project, task) => {
+    const outcome = await finishWorktree(runGit, config.projects[project]!, task)
+    for (const warning of outcome.warnings) console.warn(`git: ${warning}`)
+    if (outcome.syncError !== null) console.error(`git: sync of ${project} after ${task} failed: ${outcome.syncError}`)
+    return outcome
+  },
 })
 
 function isOver(agent: AgentEntry): boolean {
@@ -227,6 +238,7 @@ const getState = (): BatonState => ({
     queue: dispatcher.state.queue,
     projects: dispatcher.orders(),
     skipped: dispatcher.state.skipped,
+    leftovers: dispatcher.state.leftovers,
   },
   tasks: [...tasksByProject.values()].flat(),
   sessions,

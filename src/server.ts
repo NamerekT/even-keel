@@ -14,6 +14,7 @@ export interface ChainControl {
   skip(project: string, task: string): void
   unskip(project: string, task: string): void
   restart(project: string, task: string): void
+  dismiss(project: string, task: string): void
 }
 
 export interface AccountControl {
@@ -48,6 +49,7 @@ const COMMANDS: Record<string, Command> = {
   'chain/skip': ({ control }, body) => control.skip(projectOf(body), taskOf(body)),
   'chain/unskip': ({ control }, body) => control.unskip(projectOf(body), taskOf(body)),
   'chain/restart': ({ control }, body) => control.restart(projectOf(body), taskOf(body)),
+  'chain/dismiss': ({ control }, body) => control.dismiss(projectOf(body), taskOf(body)),
   'account/add': ({ account }) => account.add(),
   'account/renew': ({ account }, body) => account.renew(accountOf(body)),
   'account/switch': ({ account }, body) => account.switchTo(accountOf(body)),

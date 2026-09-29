@@ -1,3 +1,4 @@
+import type { FinishOutcome } from '../git/types.js'
 import { isOpen, type HulyTask } from '../huly/model.js'
 import { byNumber, chainOrder, checkOrder, nextTask, openBlockers } from './order.js'
 import {
@@ -25,6 +26,13 @@ export interface ActiveChain {
   paused: boolean
   error: string | null
   limitUntil?: string
+  closing?: string
+}
+
+export interface Leftover {
+  task: string
+  at: string
+  text: string
 }
 
 export interface ChainState {
@@ -32,6 +40,7 @@ export interface ChainState {
   queue: string[]
   orders: Record<string, string[]>
   skipped: Record<string, string[]>
+  leftovers: Record<string, Leftover[]>
 }
 
 export type ReleaseReason = 'postpone' | 'skip'
@@ -68,14 +77,16 @@ export interface DispatcherDeps {
   limitReset: () => string | null
   resume: (task: string, session: LimitedSession) => Promise<string>
   relay: (task: string, session: HandoffSession, prompt: string) => Promise<string>
+  finish: (project: string, task: string) => Promise<FinishOutcome>
 }
 
 export function emptyChainState(): ChainState {
-  return { active: null, queue: [], orders: {}, skipped: {} }
+  return { active: null, queue: [], orders: {}, skipped: {}, leftovers: {} }
 }
 
 export class Dispatcher {
   private readonly tasks = new Map<string, HulyTask[]>()
+  private readonly done = new Map<string, Set<string>>()
   private work: Promise<void> = Promise.resolve()
 
   constructor(
@@ -85,6 +96,7 @@ export class Dispatcher {
 
   setTasks(project: string, tasks: HulyTask[]): void {
     this.tasks.set(project, tasks.filter((task) => isOpen(task.status) && !task.manual && this.enters(project, task)))
+    this.done.set(project, new Set(tasks.filter((task) => task.status.category === 'Won').map((task) => task.id)))
     const placed = this.placeNew(project)
     if (this.forgetClosed(project) || placed) this.deps.save(this.state)
     this.kick()
@@ -161,6 +173,15 @@ export class Dispatcher {
     if (session === undefined) throw new Error(`chain: no session of ${task} is known`)
     const replaced = current.sessionId
     this.work = this.work.then(() => this.replace(chain, current, replaced, session))
+  }
+
+  dismiss(project: string, task: string): void {
+    const leftovers = this.state.leftovers[project]
+    if (leftovers === undefined || !leftovers.some((each) => each.task === task)) return
+    const kept = leftovers.filter((each) => each.task !== task)
+    if (kept.length === 0) delete this.state.leftovers[project]
+    else this.state.leftovers[project] = kept
+    this.deps.save(this.state)
   }
 
   unskip(project: string, task: string): void {
@@ -298,6 +319,7 @@ export class Dispatcher {
       if (chain.paused) return
       const tasks = this.tasks.get(chain.project)
       if (tasks === undefined) return
+      if (chain.closing !== undefined && !(await this.finish(chain, chain.closing))) return
 
       if (chain.current !== null) {
         const { task, sessionId } = chain.current
@@ -305,8 +327,14 @@ export class Dispatcher {
           this.halt(chain, `chain: launch of ${task} was interrupted by a restart; check its session, then resume`)
           return
         }
-        if (!tasks.some((open) => open.id === task)) chain.current = null
-        else {
+        if (!tasks.some((open) => open.id === task)) {
+          chain.current = null
+          if (this.done.get(chain.project)?.has(task)) {
+            chain.closing = task
+            this.deps.save(this.state)
+            continue
+          }
+        } else {
           const blockers = openBlockers(tasks, task)
           if (blockers.length === 0 || this.deps.busy(task)) {
             if (!(await this.followLimit(chain, chain.current))) await this.followCheckpoint(chain, chain.current)
@@ -369,6 +397,28 @@ export class Dispatcher {
       }
       return
     }
+  }
+
+  private async finish(chain: ActiveChain, task: string): Promise<boolean> {
+    if (this.deps.busy(task)) return false
+    let outcome: FinishOutcome
+    try {
+      outcome = await this.deps.finish(chain.project, task)
+    } catch (error) {
+      outcome = { warnings: [`${task}: ${messageOf(error)}`], syncError: null }
+    }
+    delete chain.closing
+    if (outcome.warnings.length > 0) {
+      const at = this.deps.now().toISOString()
+      const leftovers = (this.state.leftovers[chain.project] ??= [])
+      leftovers.push(...outcome.warnings.map((text) => ({ task, at, text })))
+    }
+    if (outcome.syncError !== null) {
+      this.halt(chain, `git: sync of ${chain.project} after ${task} failed; run git sync by hand, then resume: ${outcome.syncError}`)
+      return false
+    }
+    this.deps.save(this.state)
+    return true
   }
 
   private async followLimit(chain: ActiveChain, current: CurrentTask): Promise<boolean> {

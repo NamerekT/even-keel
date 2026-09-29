@@ -1,5 +1,5 @@
 import type { AccountView } from './account/model.js'
-import type { ActiveChain, ProjectOrder } from './chain/dispatcher.js'
+import type { ActiveChain, Leftover, ProjectOrder } from './chain/dispatcher.js'
 import type { LaunchDay, TaskSession } from './chain/launches.js'
 import type { HulyHealth } from './huly/health.js'
 import type { HulyTask } from './huly/model.js'
@@ -51,7 +51,13 @@ export interface ContextScale {
 export interface BatonState {
   startedAt: string
   projects: string[]
-  chain: { active: ActiveChain | null; queue: string[]; projects: Record<string, ProjectOrder>; skipped: Record<string, string[]> }
+  chain: {
+    active: ActiveChain | null
+    queue: string[]
+    projects: Record<string, ProjectOrder>
+    skipped: Record<string, string[]>
+    leftovers: Record<string, Leftover[]>
+  }
   tasks: HulyTask[]
   sessions: SessionView[]
   limits: RateLimits | null

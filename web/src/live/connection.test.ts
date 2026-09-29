@@ -39,7 +39,7 @@ function state(startedAt: string): BatonState {
   return {
     startedAt,
     projects: [],
-    chain: { active: null, queue: [], projects: {}, skipped: {} },
+    chain: { active: null, queue: [], projects: {}, skipped: {}, leftovers: {} },
     tasks: [],
     sessions: [],
     limits: null,

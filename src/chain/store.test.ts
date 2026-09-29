@@ -19,12 +19,13 @@ describe('chain store', () => {
       queue: ['XYZ'],
       orders: { ABC: ['ABC-2', 'ABC-1'] },
       skipped: { ABC: ['ABC-3'] },
+      leftovers: { ABC: [{ task: 'ABC-0', at: 't', text: 'ABC-0: the worktree was kept' }] },
     }
     saveChainState(file, state)
     expect(loadChainState(file)).toEqual(state)
   })
 
-  it('reads a file saved before tasks could be skipped', () => {
+  it('reads a file saved before tasks could be skipped or leave leftovers', () => {
     const file = join(dir(), 'chain.json')
     writeFileSync(file, '{"active": null, "queue": [], "orders": {}}')
     expect(loadChainState(file)).toEqual(emptyChainState())

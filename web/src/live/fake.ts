@@ -173,6 +173,7 @@ function fakeState(
         OPS: { order: ['OPS-2', 'OPS-3'], error: null },
       },
       skipped: {},
+      leftovers: {},
     },
     tasks,
     sessions: idle
@@ -349,6 +350,12 @@ function unskip(state: BatonState, project: string, task: string): BatonState {
   return { ...state, chain: { ...state.chain, skipped: kept.length === 0 ? rest : { ...rest, [project]: kept } } }
 }
 
+function dismiss(state: BatonState, project: string, task: string): BatonState {
+  const { [project]: leftovers = [], ...rest } = state.chain.leftovers
+  const kept = leftovers.filter((each) => each.task !== task)
+  return { ...state, chain: { ...state.chain, leftovers: kept.length === 0 ? rest : { ...rest, [project]: kept } } }
+}
+
 function dequeue(state: BatonState, project: string): BatonState {
   return { ...state, chain: { ...state.chain, queue: state.chain.queue.filter((key) => key !== project) } }
 }
@@ -487,6 +494,7 @@ function fakeCommand(state: BatonState, name: string, body: Record<string, unkno
   if (name === 'chain/order') return reorder(state, String(body.project), body.order as string[])
   if (name === 'chain/skip') return skip(state, String(body.project), String(body.task))
   if (name === 'chain/unskip') return unskip(state, String(body.project), String(body.task))
+  if (name === 'chain/dismiss') return dismiss(state, String(body.project), String(body.task))
   if (name === 'chain/restart') return restart(state, String(body.project), String(body.task))
   if (name.startsWith('account/')) return { ...state, account: accountCommand(state.account, name, body) }
   throw new Error(`fake: ${name} is not supported`)
@@ -529,6 +537,18 @@ export function createFakeSource(search: string): LiveSource {
         left: { at: ago(280), reason: 'postpone', blockers: ['ABC-7'] },
       },
     ]
+  }
+  if (params.get('chain') === 'leftover' && current.state !== null) {
+    current.state.chain.leftovers = {
+      ABC: [
+        {
+          task: 'ABC-4',
+          at: ago(35),
+          text: "ABC-4: the worktree D:\\work\\abc\\.claude\\worktrees\\abc-4 was kept: fatal: '.claude/worktrees/abc-4' contains modified or untracked files, use --force to delete it",
+        },
+        { task: 'ABC-3', at: ago(90), text: "ABC-3: the branch abc-3/task was kept: error: the branch 'abc-3/task' is not fully merged" },
+      ],
+    }
   }
   if (params.get('chain') === 'restart' && current.state !== null && active) {
     const stalled: SessionView = {

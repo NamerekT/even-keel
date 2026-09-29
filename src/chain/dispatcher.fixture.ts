@@ -1,3 +1,4 @@
+import type { FinishOutcome } from '../git/types.js'
 import type { HulyTask, TaskStatus } from '../huly/model.js'
 import { Dispatcher, emptyChainState, type ChainState, type LaunchEntry } from './dispatcher.js'
 import type { AccountNow, HandoffSession, LimitedSession } from './relay.js'
@@ -33,6 +34,7 @@ export interface SetupOptions {
   limitReset?: string | null
   busy?: Set<string>
   located?: Partial<HandoffSession>
+  finish?: (task: string) => FinishOutcome
 }
 
 export function setup(options: SetupOptions = {}) {
@@ -43,6 +45,7 @@ export function setup(options: SetupOptions = {}) {
   const handoffs: Record<string, HandoffSession> = {}
   const relays: { kind: string; task: string; sessionId: string; prompt?: string; workdir?: string }[] = []
   const launched: string[] = []
+  const finished: string[] = []
   const saved: ChainState[] = []
   const journal: LaunchEntry[] = []
   let counter = 0
@@ -74,6 +77,10 @@ export function setup(options: SetupOptions = {}) {
       relays.push({ kind: 'relay', task: id, sessionId: session.sessionId, prompt, workdir: session.workdir })
       return `session-${++counter}`
     },
+    finish: async (project, id) => {
+      finished.push(`${project}/${id}`)
+      return options.finish?.(id) ?? { warnings: [], syncError: null }
+    },
   })
-  return { dispatcher, launched, saved, journal, clock, account, limited, handoffs, relays, busy }
+  return { dispatcher, launched, finished, saved, journal, clock, account, limited, handoffs, relays, busy }
 }

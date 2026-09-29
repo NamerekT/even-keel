@@ -1,3 +1,4 @@
+import type { TaskPlace } from '../git/types.js'
 import { resetTimeOf } from '../limits/reset.js'
 import type { FeedLine } from '../sessions/transcript.js'
 
@@ -5,6 +6,16 @@ export const WARM_CACHE_MS = 55 * 60_000
 const HANDOFF_STEPS = 10
 
 export const RESUME_PROMPT = 'Лимит сброшен — продолжай с того же места.'
+
+export const CLEANUP_NOTE =
+  '- Задачу закрывает слияние ветки в main основного чекаута. Worktree и ветку после этого не удаляй и main не пушь — это сделает Батон.'
+
+export function startPrompt(task: string, place: TaskPlace): string {
+  const lines = [task, '', `- Worktree готов: ${place.path} — работай в нём, новый worktree не создавай.`]
+  if (place.branch !== null) lines.push(`- Ветка: ${place.branch} — не меняй её.`)
+  lines.push(CLEANUP_NOTE)
+  return lines.join('\n') + '\n'
+}
 
 export type RelayAction = 'resume' | 'relay'
 export type RelayStep = 'wait' | RelayAction
@@ -82,6 +93,7 @@ export function handoffPrompt(task: string, session: HandoffSession, reason: Han
     `- Рабочая папка: ${session.workdir} — работай в ней, новый worktree не создавай.`,
   ]
   if (session.branch !== null) lines.push(`- Ветка: ${session.branch} — не меняй её.`)
+  lines.push(CLEANUP_NOTE)
   if (session.transcript !== null) {
     lines.push(`- Транскрипт прошлой сессии: ${session.transcript} — целиком не читай, ищи в нём grep, если чего-то не хватает.`)
   }

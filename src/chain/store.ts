@@ -15,7 +15,7 @@ export function loadChainState(file: string): ChainState {
     typeof state.orders === 'object' &&
     state.orders !== null
   if (!valid) throw new Error(`chain: ${file} is damaged; fix or delete it`)
-  return { ...state, skipped: state.skipped ?? {} } as ChainState
+  return { ...state, skipped: state.skipped ?? {}, leftovers: state.leftovers ?? {} } as ChainState
 }
 
 export function saveChainState(file: string, state: ChainState): void {

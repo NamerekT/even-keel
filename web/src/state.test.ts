@@ -52,7 +52,7 @@ function baton(patch: Partial<BatonState>): BatonState {
   return {
     startedAt: '2026-01-01T08:00:00.000Z',
     projects: ['ABC', 'XYZ'],
-    chain: { active: null, queue: [], projects: {}, skipped: {} },
+    chain: { active: null, queue: [], projects: {}, skipped: {}, leftovers: {} },
     tasks: [],
     sessions: [],
     limits: null,
@@ -72,6 +72,7 @@ const chain = (patch: Partial<BatonState['chain']>): BatonState['chain'] => ({
   queue: [],
   projects: {},
   skipped: {},
+  leftovers: {},
   ...patch,
 })
 

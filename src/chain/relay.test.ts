@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { FeedLine } from '../sessions/transcript.js'
-import { handoffPrompt, holdOf, relayStep, type LimitHold, type LimitedSession } from './relay.js'
+import { CLEANUP_NOTE, handoffPrompt, holdOf, relayStep, startPrompt, type LimitHold, type LimitedSession } from './relay.js'
 
 const line = (text: string, kind: FeedLine['kind'] = 'tool'): FeedLine => ({ at: '2026-09-27T14:38:00.000Z', kind, text })
 
@@ -146,5 +146,24 @@ describe('handoffPrompt', () => {
 
   it('says nothing of a handoff note when there is none', () => {
     expect(handoffPrompt('ABC-1', session())).not.toContain('handoff')
+  })
+
+  it('leaves the cleanup after the merge to Baton', () => {
+    expect(handoffPrompt('ABC-1', session())).toContain(CLEANUP_NOTE)
+  })
+})
+
+describe('startPrompt', () => {
+  it('starts with the task and points at the ready worktree and branch', () => {
+    const prompt = startPrompt('ABC-1', { path: 'D:/work/repo/.claude/worktrees/abc-1', branch: 'abc-1/task' })
+    expect(prompt.split('\n')[0]).toBe('ABC-1')
+    expect(prompt).toContain('D:/work/repo/.claude/worktrees/abc-1')
+    expect(prompt).toContain('новый worktree не создавай')
+    expect(prompt).toContain('abc-1/task')
+    expect(prompt).toContain(CLEANUP_NOTE)
+  })
+
+  it('leaves out the branch of a detached worktree', () => {
+    expect(startPrompt('ABC-1', { path: 'D:/work/repo/.claude/worktrees/abc-1', branch: null })).not.toContain('null')
   })
 })

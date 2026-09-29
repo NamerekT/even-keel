@@ -41,6 +41,7 @@ export function Project({ state }: { state: BatonState }) {
           <ChainControls state={state} project={key} />
         </header>
         {order?.error && <p className="notice notice--error">{order.error}</p>}
+        <Leftovers state={state} project={key} />
         {blocks.length === 0 ? (
           <p className="placeholder">{order === undefined ? 'Задачи ещё не загружены.' : 'Задач в цепочке нет.'}</p>
         ) : (
@@ -51,6 +52,36 @@ export function Project({ state }: { state: BatonState }) {
         <SessionPanel key={selected.id} block={selected} scale={state.context} trackerUrl={state.trackerUrl} onClose={close} />
       )}
     </section>
+  )
+}
+
+function Leftovers({ state, project }: { state: BatonState; project: string }) {
+  const { send, sending, failure } = useCommand()
+  const leftovers = state.chain.leftovers[project] ?? []
+  if (leftovers.length === 0) return null
+  const tasks = [...new Set(leftovers.map((each) => each.task))]
+
+  return (
+    <div className="leftovers">
+      {tasks.map((task) => (
+        <div key={task} className="notice notice--warn leftovers__item">
+          <div className="leftovers__text">
+            <strong>{task} закрыта, но после неё не всё убрано — проверьте руками.</strong>
+            {leftovers
+              .filter((each) => each.task === task)
+              .map((each, index) => (
+                <p key={index} className="leftovers__line">
+                  {each.text}
+                </p>
+              ))}
+          </div>
+          <button type="button" className="button" disabled={sending} onClick={() => void send('chain/dismiss', { project, task })}>
+            Убрал
+          </button>
+        </div>
+      ))}
+      {failure !== null && <p className="project__error">{failure}</p>}
+    </div>
   )
 }
 
