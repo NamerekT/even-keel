@@ -5,7 +5,7 @@ export interface HulyCredentials {
   password: string
 }
 
-const VARIABLES = ['HULY_URL', 'HULY_WORKSPACE', 'HULY_EMAIL', 'HULY_PASSWORD'] as const
+export const VARIABLES =['HULY_URL', 'HULY_WORKSPACE', 'HULY_EMAIL', 'HULY_PASSWORD'] as const
 
 export function readHulyCredentials(env: Record<string, string | undefined>): HulyCredentials | undefined {
   const missing = VARIABLES.filter((name) => !env[name])

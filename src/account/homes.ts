@@ -1,6 +1,7 @@
 import { mkdirSync, readdirSync, readFileSync, renameSync, rmSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { join, resolve } from 'node:path'
+import { VARIABLES } from '../huly/credentials.js'
 import { folderName, GLOBAL_ACCOUNT, parseCredentialTimes, type CredentialTimes } from './model.js'
 import { shareConfig } from './share.js'
 
@@ -37,7 +38,10 @@ export class AccountHomes {
   }
 
   envOf(home: AccountHome): NodeJS.ProcessEnv {
-    return home.global ? this.env : { ...this.env, CLAUDE_CONFIG_DIR: home.dir }
+    const env = { ...this.env }
+    for (const name of VARIABLES) delete env[name]
+    if (!home.global) env.CLAUDE_CONFIG_DIR = home.dir
+    return env
   }
 
   times(home: AccountHome): CredentialTimes {
