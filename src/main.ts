@@ -1,5 +1,5 @@
 import { mkdirSync } from 'node:fs'
-import { dirname, join, resolve } from 'node:path'
+import { dirname, join, resolve, sep } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { DaemonRefresh } from './account/daemon.js'
 import { AccountHomes, accountsRoot, type AccountHome } from './account/homes.js'
@@ -13,7 +13,7 @@ import { appendLaunch, loadChainState, readLaunches, saveChainState } from './ch
 import { ConfigFile } from './config-file.js'
 import { EventHub } from './events.js'
 import { runGit } from './git/run.js'
-import { ensureIgnored, finishWorktree, prepareWorktree } from './git/worktree.js'
+import { ensureIgnored, finishWorktree, prepareWorktree, taskPlace } from './git/worktree.js'
 import { issueUrlBase, readHulyCredentials } from './huly/credentials.js'
 import type { HulyHealth } from './huly/health.js'
 import { HulyLink } from './huly/link.js'
@@ -231,7 +231,10 @@ const dispatcher = new Dispatcher(loadChainState(chainFile), {
     return (await cli.launch(home, task, session.workdir, prompt, model)).sessionId
   },
   finish: async (project, task) => {
-    const outcome = await finishWorktree(runGit, config.projects[project]!, task)
+    const repo = config.projects[project]!
+    const stopped = await stopTaskSessions(repo, task)
+    const finished = await finishWorktree(runGit, repo, task)
+    const outcome = { ...finished, warnings: [...stopped, ...finished.warnings] }
     for (const warning of outcome.warnings) console.warn(`git: ${warning}`)
     if (outcome.syncError !== null) console.error(`git: sync of ${project} after ${task} failed: ${outcome.syncError}`)
     return outcome
@@ -240,6 +243,32 @@ const dispatcher = new Dispatcher(loadChainState(chainFile), {
 
 function isOver(agent: AgentEntry): boolean {
   return agent.state === 'done' || agent.state === 'stopped' || agent.state === 'failed'
+}
+
+async function stopTaskSessions(repo: string, task: string): Promise<string[]> {
+  const place = resolve(taskPlace(repo, task).path).toLowerCase()
+  const inside = (cwd: string) => {
+    const path = resolve(cwd).toLowerCase()
+    return path === place || path.startsWith(`${place}${sep}`)
+  }
+  const idle = agents.filter(
+    (agent) =>
+      agent.id !== undefined &&
+      inside(agent.cwd) &&
+      agent.status !== 'busy' &&
+      agent.status !== 'waiting' &&
+      agent.state !== 'stopped' &&
+      agent.state !== 'failed',
+  )
+  const warnings: string[] = []
+  for (const agent of idle) {
+    try {
+      await cli.stop(homeOf(agent.account ?? 'global'), agent.id!, agent.sessionId)
+    } catch (error) {
+      warnings.push(`${task}: its session ${agent.sessionId} was not stopped: ${error instanceof Error ? error.message : String(error)}`)
+    }
+  }
+  return warnings
 }
 
 const getState = (): BatonState => ({

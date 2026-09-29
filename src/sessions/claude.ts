@@ -111,7 +111,7 @@ export class ClaudeCli {
 
   async stop(home: AccountHome, agentId: string, sessionId: string): Promise<void> {
     const running = (await this.agents(home)).find((entry) => entry.sessionId === sessionId)
-    if (running === undefined || isOver(running)) return
+    if (running === undefined || isGone(running)) return
     try {
       await run(this.bin(), ['stop', agentId], { env: this.envOf(home), timeout: this.timeoutMs, windowsHide: true })
     } catch (error) {
@@ -120,7 +120,7 @@ export class ClaudeCli {
     const deadline = Date.now() + APPEAR_TIMEOUT_MS
     while (Date.now() < deadline) {
       const agent = (await this.agents(home)).find((entry) => entry.sessionId === sessionId)
-      if (agent === undefined || isOver(agent)) return
+      if (isGone(agent) && !isAlive(running.pid)) return
       await delay(APPEAR_POLL_MS)
     }
     throw new Error(`claude: ${agentId} was told to stop but is still running`)
@@ -160,6 +160,20 @@ function sessionArgs(task: string, model: ModelAlias | null): string[] {
 
 function isOver(agent: AgentEntry): boolean {
   return agent.state === 'stopped' || agent.state === 'done' || agent.state === 'failed'
+}
+
+function isGone(agent: AgentEntry | undefined): boolean {
+  return agent === undefined || agent.state === 'stopped' || agent.state === 'failed'
+}
+
+function isAlive(pid: number | undefined): boolean {
+  if (pid === undefined) return false
+  try {
+    process.kill(pid, 0)
+    return true
+  } catch {
+    return false
+  }
 }
 
 function outputOf(error: unknown): string {
