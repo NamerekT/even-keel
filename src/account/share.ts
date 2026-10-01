@@ -14,6 +14,7 @@ const PROJECT_KEYS = [
   'hasClaudeMdExternalIncludesApproved',
   'hasClaudeMdExternalIncludesWarningShown',
 ]
+const ONBOARDING_KEYS = ['hasCompletedOnboarding', 'lastOnboardingVersion']
 const LINKED_DIRS = ['agents', 'commands', 'hooks', 'output-styles']
 const OWN_SKILLS = new Set(['synced', '.trash'])
 const COPIED_FILES = ['CLAUDE.md', join('plugins', 'installed_plugins.json'), join('plugins', 'known_marketplaces.json')]
@@ -37,6 +38,7 @@ export function shareProjects(global: Json, folder: Json): Json | undefined {
   }
   const shared: Json = { ...folder, projects }
   if (global.mcpServers !== undefined) shared.mcpServers = global.mcpServers
+  for (const key of ONBOARDING_KEYS) if (shared[key] === undefined && global[key] !== undefined) shared[key] = global[key]
   return JSON.stringify(shared) === JSON.stringify(folder) ? undefined : shared
 }
 

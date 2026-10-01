@@ -95,4 +95,15 @@ describe('shareProjects', () => {
     const folder = { projects: { 'C:/repos/own': { hasTrustDialogAccepted: true } } }
     expect(shareProjects(global, folder)?.projects).toHaveProperty(['C:/repos/own', 'hasTrustDialogAccepted'], true)
   })
+
+  it('marks the first run as done when the global config has done it', () => {
+    const onboarded = { ...global, hasCompletedOnboarding: true, lastOnboardingVersion: '2.1.227' }
+    expect(shareProjects(onboarded, {})).toMatchObject({ hasCompletedOnboarding: true, lastOnboardingVersion: '2.1.227' })
+  })
+
+  it('keeps the first run the folder went through by itself', () => {
+    const onboarded = { ...global, hasCompletedOnboarding: true, lastOnboardingVersion: '2.1.227' }
+    const folder = { ...shareProjects(global, {}), hasCompletedOnboarding: true, lastOnboardingVersion: '2.1.287' }
+    expect(shareProjects(onboarded, folder)).toBeUndefined()
+  })
 })
