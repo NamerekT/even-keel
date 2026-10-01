@@ -406,6 +406,7 @@ function fakeEntry(patch: Partial<AccountEntry>): AccountEntry {
     loginExpiresAt: inDays(24),
     needsLogin: false,
     sessions: 0,
+    removing: false,
     configPending: false,
     limits: null,
     usage: { state: 'ok', reason: null, since: ago(1) },
@@ -447,6 +448,7 @@ function fakeAccount(mode: string | null, idle: boolean, limits: RateLimits): Ac
   }
   if (mode === 'unknown') return { ...signedIn, accounts: [{ ...global, status: null, error: 'claude: auth status timed out' }, work] }
   if (mode === 'pending') return { ...signedIn, accounts: [global, { ...work, sessions: 2, configPending: true }] }
+  if (mode === 'removing') return { ...signedIn, accounts: [global, { ...work, sessions: 2, removing: true }] }
   return signedIn
 }
 
@@ -465,7 +467,12 @@ function accountCommand(account: AccountView, name: string, body: Record<string,
   if (name === 'account/remove') {
     const problem = removeProblem(account, key)
     if (problem !== undefined) throw new Error(problem)
+    const busy = account.accounts.some((entry) => entry.key === key && entry.sessions > 0)
+    if (busy) return { ...account, accounts: account.accounts.map((entry) => (entry.key === key ? { ...entry, removing: true } : entry)) }
     return { ...account, accounts: account.accounts.filter((entry) => entry.key !== key) }
+  }
+  if (name === 'account/keep') {
+    return { ...account, accounts: account.accounts.map((entry) => (entry.key === key ? { ...entry, removing: false } : entry)) }
   }
   if (name === 'account/cancel') return { ...account, login: null }
   if (name === 'account/code') {

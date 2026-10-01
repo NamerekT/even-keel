@@ -27,6 +27,7 @@ export interface AccountEntry {
   loginExpiresAt: string | null
   needsLogin: boolean
   sessions: number
+  removing: boolean
   configPending: boolean
   limits: RateLimits | null
   usage: UsageHealth
@@ -134,6 +135,7 @@ export function switchProblem(view: AccountView, key: string): string | undefine
   const target = view.accounts.find((entry) => entry.key === key)
   if (target === undefined) return `claude: there is no account ${key}`
   if (key === view.active) return `claude: ${key} is already active`
+  if (target.removing) return `claude: ${target.status?.email ?? key} is being removed; keep it first`
   if (target.needsLogin || target.status?.loggedIn !== true) return `claude: ${target.status?.email ?? key} needs a login first`
   if (view.loginBlock !== null) return loginBlockMessage(view.loginBlock)
   return undefined
@@ -144,7 +146,6 @@ export function removeProblem(view: AccountView, key: string): string | undefine
   if (target === undefined) return `claude: there is no account ${key}`
   if (target.global) return 'claude: the global account lives in ~/.claude and is not removed from here'
   if (key === view.active) return 'claude: the active account cannot be removed; switch to another one first'
-  if (target.sessions > 0) return `claude: ${target.sessions} sessions of ${target.status?.email ?? key} are not over yet`
   if (view.login?.target === key && view.login.error === null) return 'claude: a sign-in into this account is running'
   return undefined
 }

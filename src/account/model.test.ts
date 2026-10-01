@@ -34,6 +34,7 @@ const entry = (patch: Partial<AccountEntry>): AccountEntry => ({
   loginExpiresAt: '2026-10-27T10:00:00.000Z',
   needsLogin: false,
   sessions: 0,
+  removing: false,
   configPending: false,
   limits: null,
   usage: { state: 'ok', reason: null, since: null },
@@ -272,6 +273,11 @@ describe('switchProblem', () => {
     expect(switchProblem(expired, 'work')).toMatch(/needs a login/)
     expect(switchProblem(view({ loginBlock: { chain: 'ABC', sessions: [] } }), 'work')).toMatch(/chain ABC is running/)
   })
+
+  it('refuses an account whose folder waits to be removed', () => {
+    const removing = view({ accounts: [entry({}), entry({ key: 'work', global: false, removing: true })] })
+    expect(switchProblem(removing, 'work')).toMatch(/removed/)
+  })
 })
 
 describe('removeProblem', () => {
@@ -279,10 +285,13 @@ describe('removeProblem', () => {
     expect(removeProblem(view({}), 'work')).toBeUndefined()
   })
 
-  it('keeps the active, the global and a busy folder', () => {
+  it('lets a folder with unfinished sessions go once they are over', () => {
+    expect(removeProblem(view({ accounts: [entry({}), entry({ key: 'work', global: false, sessions: 2 })] }), 'work')).toBeUndefined()
+  })
+
+  it('keeps the active and the global folder', () => {
     expect(removeProblem(view({ active: 'work' }), 'work')).toMatch(/active/)
     expect(removeProblem(view({ active: 'work' }), 'global')).toMatch(/global/)
-    expect(removeProblem(view({ accounts: [entry({}), entry({ key: 'work', global: false, sessions: 2 })] }), 'work')).toMatch(/2 sessions/)
     const login = { target: 'work', startedAt: '2026-09-27T10:00:00Z', urls: [], output: '', error: null, codeSent: false }
     expect(removeProblem(view({ login }), 'work')).toMatch(/sign-in/)
   })

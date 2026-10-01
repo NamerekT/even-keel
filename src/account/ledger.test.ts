@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { accountAt, activate, emptyLedger, forgetAccount, noteAccount, parseLedger, type AccountLedger } from './ledger.js'
+import { accountAt, activate, emptyLedger, forgetAccount, markRemoving, noteAccount, parseLedger, type AccountLedger } from './ledger.js'
 
 const now = new Date('2026-09-27T16:00:00.000Z')
 
@@ -8,6 +8,7 @@ describe('noteAccount', () => {
     expect(noteAccount(emptyLedger(), 'work', 'john@example.com', now)).toEqual({
       active: 'global',
       accounts: { work: { email: 'john@example.com', since: '2026-09-27T16:00:00.000Z', previous: null } },
+      removing: [],
     })
   })
 
@@ -65,17 +66,32 @@ describe('activate and forgetAccount', () => {
     expect(activate(ledger, 'work').active).toBe('work')
     expect(forgetAccount(ledger, 'work').accounts).toEqual({})
   })
+
+  it('marks a folder for removal once, unmarks it and forgets the mark with the folder', () => {
+    const marked = markRemoving(markRemoving(emptyLedger(), 'work', true), 'work', true)
+    expect(marked.removing).toEqual(['work'])
+    expect(markRemoving(marked, 'work', false).removing).toEqual([])
+    expect(forgetAccount(marked, 'work').removing).toEqual([])
+  })
 })
 
 describe('parseLedger', () => {
   it('reads the per-folder journal', () => {
-    const raw = { active: 'work', accounts: { work: { email: 'jane@example.com', since: '2026-09-27T16:00:00.000Z', previous: null } } }
+    const raw = {
+      active: 'work',
+      accounts: { work: { email: 'jane@example.com', since: '2026-09-27T16:00:00.000Z', previous: null } },
+      removing: ['old'],
+    }
     expect(parseLedger(raw)).toEqual(raw)
+  })
+
+  it('reads a journal written before folders could wait for removal', () => {
+    expect(parseLedger({ active: 'work', accounts: {} }).removing).toEqual([])
   })
 
   it('carries the single-account journal over as the global folder', () => {
     const raw = { email: 'john@example.com', since: '2026-09-27T10:00:00.000Z', previous: 'jane@example.com' }
-    expect(parseLedger(raw)).toEqual({ active: 'global', accounts: { global: raw } })
+    expect(parseLedger(raw)).toEqual({ active: 'global', accounts: { global: raw }, removing: [] })
   })
 
   it('starts empty from anything else', () => {

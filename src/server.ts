@@ -22,6 +22,7 @@ export interface AccountControl {
   renew(account: string): void
   switchTo(account: string): void
   remove(account: string): Promise<void>
+  keep(account: string): void
   code(code: string): void
   cancel(): void
 }
@@ -54,6 +55,7 @@ const COMMANDS: Record<string, Command> = {
   'account/renew': ({ account }, body) => account.renew(accountOf(body)),
   'account/switch': ({ account }, body) => account.switchTo(accountOf(body)),
   'account/remove': ({ account }, body) => account.remove(accountOf(body)),
+  'account/keep': ({ account }, body) => account.keep(accountOf(body)),
   'account/code': ({ account }, body) => account.code(codeOf(body)),
   'account/cancel': ({ account }) => account.cancel(),
 }

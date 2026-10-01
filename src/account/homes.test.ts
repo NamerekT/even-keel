@@ -1,3 +1,6 @@
+import { mkdirSync, mkdtempSync, rmSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { AccountHomes } from './homes.js'
 
@@ -23,5 +26,18 @@ describe('AccountHomes.envOf', () => {
     expect(Object.keys(result).filter((name) => name.startsWith('HULY_'))).toEqual([])
     expect(result.PATH).toBe('/bin')
     expect(result.CLAUDE_CONFIG_DIR).toBe('root/a')
+  })
+})
+
+describe('AccountHomes.list', () => {
+  it('skips the lock folders the CLI keeps next to an account folder while it refreshes the token', () => {
+    const root = mkdtempSync(join(tmpdir(), 'baton-homes-'))
+    try {
+      for (const name of ['john', 'john.lock', '.pending-1', 'global']) mkdirSync(join(root, name))
+      const homes = new AccountHomes(env, root)
+      expect(homes.list().map((home) => home.key)).toEqual(['global', 'john'])
+    } finally {
+      rmSync(root, { recursive: true, force: true })
+    }
   })
 })

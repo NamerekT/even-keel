@@ -103,7 +103,7 @@ function AccountItem({ entry, view, now, sending, send }: ItemProps) {
   const active = entry.key === view.active
   const left = loginLeft(entry.loginExpiresAt, now)
   const blocked = switchProblem(view, entry.key)
-  const removable = removeProblem(view, entry.key) === undefined
+  const removable = removeProblem(view, entry.key) === undefined && !entry.removing
   const renewBlocked = view.login !== null || (active && view.loginBlock !== null)
   const email = entry.status?.email ?? (entry.global ? 'глобальный ~/.claude' : entry.key)
 
@@ -121,11 +121,17 @@ function AccountItem({ entry, view, now, sending, send }: ItemProps) {
         {entry.global && <span>папка ~/.claude</span>}
       </div>
       {entry.limits === null ? (
-        <p className="accounts__no-limits">Лимиты: нет данных{entry.usage.state === 'stale' ? ' — токен доступа истёк, обновит первая сессия' : ''}</p>
+        <p className="accounts__no-limits">Лимиты: нет данных{entry.usage.state === 'stale' ? staleNote(entry.usage.reason) : ''}</p>
       ) : (
         <Limits limits={entry.limits} now={now} />
       )}
       {entry.configPending && <p className="queue__hint">Новая общая конфигурация дойдёт до сессий, когда завершатся текущие сессии этого аккаунта</p>}
+      {entry.removing && (
+        <p className="queue__hint">
+          Выйду и удалю папку, когда завершатся сессии этого аккаунта
+          {entry.sessions > 0 ? ` (осталось: ${entry.sessions})` : ''}
+        </p>
+      )}
       {entry.error !== null && <p className="queue__hint">Последняя проверка не удалась: {entry.error}</p>}
       <div className="account__actions">
         {!active && (
@@ -156,7 +162,9 @@ function AccountItem({ entry, view, now, sending, send }: ItemProps) {
         )}
         {removable && confirming && (
           <>
-            <span className="accounts__confirm">Выйти и удалить папку?</span>
+            <span className="accounts__confirm">
+              {entry.sessions > 0 ? `Выйти и удалить папку, когда завершатся её сессии (${entry.sessions})?` : 'Выйти и удалить папку?'}
+            </span>
             <button
               type="button"
               className="button button--danger"
@@ -170,9 +178,18 @@ function AccountItem({ entry, view, now, sending, send }: ItemProps) {
             </button>
           </>
         )}
+        {entry.removing && (
+          <button type="button" className="button" disabled={sending} onClick={() => void send('account/keep', { account: entry.key })}>
+            Не удалять
+          </button>
+        )}
       </div>
     </li>
   )
+}
+
+function staleNote(reason: string | null): string {
+  return reason === null ? ' — токен доступа истёк, обновит первая сессия' : ' — сервис лимитов сейчас не отвечает, придут из первой сессии'
 }
 
 function Blockers({ block }: { block: LoginBlock }) {

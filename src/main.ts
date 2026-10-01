@@ -3,7 +3,7 @@ import { dirname, join, resolve, sep } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { DaemonRefresh } from './account/daemon.js'
 import { AccountHomes, accountsRoot, type AccountHome } from './account/homes.js'
-import { accountAt, activate, forgetAccount, loadLedger, noteAccount, saveLedger, type AccountLedger } from './account/ledger.js'
+import { accountAt, activate, forgetAccount, loadLedger, markRemoving, noteAccount, saveLedger, type AccountLedger } from './account/ledger.js'
 import { accountId, launchBlock, loginBlock, type LoginBlock } from './account/model.js'
 import { AccountWatcher } from './account/watcher.js'
 import { Dispatcher, type LaunchEntry } from './chain/dispatcher.js'
@@ -37,7 +37,7 @@ const HULY_TIMEOUT_MS = 15_000
 const SESSION_POLL_MS = 3_000
 const CLAUDE_TIMEOUT_MS = 30_000
 const LIMITS_POLL_MS = 2_000
-const USAGE_POLL_MS = 60_000
+const USAGE_POLL_MS = 5 * 60_000
 const LAUNCH_CHART_DAYS = 14
 const ACCOUNT_POLL_MS = 60_000
 const LOGIN_TIMEOUT_MS = 10 * 60_000
@@ -76,6 +76,7 @@ const startedAt = new Date().toISOString()
 const tasksByProject = new Map<string, HulyTask[]>()
 let sessions: SessionView[] = []
 let agents: AgentEntry[] = []
+let agentsRead = false
 let huly: HulyHealth = { state: 'off', lastOkAt: null, error: null }
 const launches: LaunchEntry[] = readLaunches(launchesFile)
 let ledger = loadLedger(accountFile)
@@ -127,6 +128,9 @@ const account = new AccountWatcher({
   forget: (key) => saveAccounts(forgetAccount(ledger, key)),
   loginBlock: (): LoginBlock | null => loginBlock(dispatcher.state.active, agents, ledger.active),
   sessionsIn: (key) => agents.filter((agent) => agent.account === key && !isOver(agent)).length,
+  sessionsKnown: () => agentsRead,
+  removing: (key) => ledger.removing.includes(key),
+  markRemoving: (key, on) => saveAccounts(markRemoving(ledger, key, on)),
   configPending: (key) => daemons.pending(key),
   limits: (key) => limits.limits(key),
   usage: (key) => limits.usage(key),
@@ -164,6 +168,7 @@ const monitor = new SessionMonitor({
   onAgents: (list) => {
     const before = JSON.stringify(account.view.loginBlock)
     agents = list
+    agentsRead = true
     if (JSON.stringify(account.view.loginBlock) !== before) hub.broadcast('state', getState())
   },
   onChange: (views) => {

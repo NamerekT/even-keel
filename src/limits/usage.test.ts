@@ -62,6 +62,18 @@ describe('parseUsage', () => {
     expect(parsed.kind === 'unknown' && parsed.reason).toMatch(reason)
   })
 
+  it('reports a subscription answer without any limit lines as missing data, not a new format', () => {
+    const text = lines(
+      'You are currently using your subscription to power your Claude Code usage',
+      '',
+      "What's contributing to your limits usage?",
+      'Last 24h · 82 requests · 6 sessions',
+    )
+    const parsed = parseUsage(answer(text), AT)
+
+    expect(parsed.kind).toBe('missing')
+  })
+
   it('reports an answer that went to the model instead of the local command', () => {
     expect(parseUsage(answer('Sure, here is how usage works…', { num_turns: 1, total_cost_usd: 0.16 }), AT).kind).toBe('spent')
     expect(parseUsage(answer(TEXT, { num_turns: 0, total_cost_usd: 0.01 }), AT).kind).toBe('spent')

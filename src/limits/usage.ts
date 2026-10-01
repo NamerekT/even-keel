@@ -1,7 +1,11 @@
 import type { LimitWindow, RateLimits } from './model.js'
 import { resetTimeOf } from './reset.js'
 
-export type UsageAnswer = { kind: 'limits'; limits: RateLimits } | { kind: 'spent'; reason: string } | { kind: 'unknown'; reason: string }
+export type UsageAnswer =
+  | { kind: 'limits'; limits: RateLimits }
+  | { kind: 'spent'; reason: string }
+  | { kind: 'missing'; reason: string }
+  | { kind: 'unknown'; reason: string }
 
 export interface UsageHealth {
   state: 'waiting' | 'ok' | 'unread' | 'stale' | 'off'
@@ -9,6 +13,8 @@ export interface UsageHealth {
   since: string | null
 }
 
+const SUBSCRIPTION_LINE = /^You are currently using your subscription\b/m
+const LIMIT_LINE = /^Current (session|week)\b/m
 const SESSION_LINE = /^Current session:\s*(\d+(?:\.\d+)?)% used\b(.*)$/m
 const WEEK_LINE = /^Current week \(all models\):\s*(\d+(?:\.\d+)?)% used\b(.*)$/m
 
@@ -26,6 +32,9 @@ export function parseUsage(stdout: string, at: string): UsageAnswer {
   if (failed !== false) return { kind: 'unknown', reason: 'the answer is an error' }
   if (typeof result !== 'string') return { kind: 'unknown', reason: 'the answer has no result text' }
 
+  if (SUBSCRIPTION_LINE.test(result) && !LIMIT_LINE.test(result)) {
+    return { kind: 'missing', reason: 'the subscription answer has no limit lines: the usage service did not answer (rate limit or expired token)' }
+  }
   const fiveHour = windowOf(SESSION_LINE.exec(result), at)
   if (fiveHour === undefined) return { kind: 'unknown', reason: 'no readable "Current session" line' }
   const sevenDay = windowOf(WEEK_LINE.exec(result), at)

@@ -6,6 +6,7 @@ import { folderName, GLOBAL_ACCOUNT, parseCredentialTimes, type CredentialTimes 
 import { shareConfig } from './share.js'
 
 const PENDING_PREFIX = '.pending-'
+const LOCK_SUFFIX = '.lock'
 
 export interface AccountHome {
   key: string
@@ -84,7 +85,9 @@ export class AccountHomes {
   private folders(): string[] {
     try {
       return readdirSync(this.root, { withFileTypes: true })
-        .filter((entry) => entry.isDirectory() && !entry.name.startsWith('.') && entry.name !== GLOBAL_ACCOUNT)
+        .filter(
+          (entry) => entry.isDirectory() && !entry.name.startsWith('.') && !entry.name.endsWith(LOCK_SUFFIX) && entry.name !== GLOBAL_ACCOUNT,
+        )
         .map((entry) => entry.name)
         .sort()
     } catch {

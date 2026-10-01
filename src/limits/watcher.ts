@@ -111,6 +111,9 @@ export class LimitsWatcher {
       this.usageOff = { state: 'off', reason: answer.reason, since: at }
       for (const each of this.accounts.values()) each.polled = undefined
       this.options.onError(new Error(`${OFF_REASON_PREFIX} (${answer.reason}, ${home.key}); /usage polling is off until restart`))
+    } else if (answer.kind === 'missing') {
+      account.polled = undefined
+      setHealth(account, 'stale', answer.reason, at)
     } else if (answer.kind === 'unknown') {
       account.polled = undefined
       if (this.options.accessExpired(home)) {

@@ -33,6 +33,9 @@ export interface AccountWatcherOptions {
   forget: (key: string) => void
   loginBlock: () => LoginBlock | null
   sessionsIn: (key: string) => number
+  sessionsKnown: () => boolean
+  removing: (key: string) => boolean
+  markRemoving: (key: string, on: boolean) => void
   configPending: (key: string) => boolean
   limits: (key: string) => RateLimits | null
   usage: (key: string) => UsageHealth
@@ -76,6 +79,7 @@ export class AccountWatcher {
         loginExpiresAt: times.loginExpiresAt === null || times.erased ? null : new Date(times.loginExpiresAt).toISOString(),
         needsLogin: needsLogin(status, times, now),
         sessions: this.options.sessionsIn(home.key),
+        removing: this.options.removing(home.key),
         configPending: this.options.configPending(home.key),
         limits: this.options.limits(home.key),
         usage: this.options.usage(home.key),
@@ -99,6 +103,7 @@ export class AccountWatcher {
   }
 
   async refresh(): Promise<void> {
+    await this.removeFinished()
     const homes = this.options.homes.list()
     const known = await Promise.all(homes.map((home) => this.check(home)))
     if (JSON.stringify(known) === JSON.stringify(this.known)) return
@@ -129,12 +134,40 @@ export class AccountWatcher {
   async remove(key: string): Promise<void> {
     const problem = removeProblem(this.view, key)
     if (problem !== undefined) throw new Error(problem)
+    if (!this.options.sessionsKnown() || this.options.sessionsIn(key) > 0) {
+      this.options.markRemoving(key, true)
+      this.options.onChange()
+      return
+    }
+    await this.drop(key)
+    await this.refresh()
+  }
+
+  keep(key: string): void {
+    if (!this.options.removing(key)) throw new Error(`claude: ${key} is not being removed`)
+    this.options.markRemoving(key, false)
+    this.options.onChange()
+  }
+
+  private async removeFinished(): Promise<void> {
+    if (!this.options.sessionsKnown()) return
+    const view = this.view
+    for (const entry of view.accounts) {
+      if (!entry.removing || entry.sessions > 0 || removeProblem(view, entry.key) !== undefined) continue
+      try {
+        await this.drop(entry.key)
+      } catch (error) {
+        this.options.onError(error)
+      }
+    }
+  }
+
+  private async drop(key: string): Promise<void> {
     const home = this.options.homes.find(key)!
     const status = this.known.find((known) => known.home.key === key)?.status
     if (status?.loggedIn === true) await this.options.cli.authLogout(home)
     this.options.homes.remove(home)
     this.options.forget(key)
-    await this.refresh()
   }
 
   code(code: string): void {

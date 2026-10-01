@@ -1,5 +1,5 @@
 import { execFile, spawn, type ChildProcessWithoutNullStreams } from 'node:child_process'
-import { readdirSync } from 'node:fs'
+import { existsSync, readdirSync } from 'node:fs'
 import { readdir, readFile } from 'node:fs/promises'
 import { homedir } from 'node:os'
 import { join, resolve } from 'node:path'
@@ -19,6 +19,8 @@ const CLOCK_SKEW_MS = 5_000
 
 export function resolveClaudeBinary(env: NodeJS.ProcessEnv): string {
   if (env.BATON_CLAUDE_BIN) return env.BATON_CLAUDE_BIN
+  const standalone = join(homedir(), '.local', 'bin', process.platform === 'win32' ? 'claude.exe' : 'claude')
+  if (existsSync(standalone)) return standalone
   const extensions = join(homedir(), '.vscode', 'extensions')
   let dirs: string[] = []
   try {

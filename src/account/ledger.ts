@@ -11,10 +11,11 @@ export interface AccountRecord {
 export interface AccountLedger {
   active: string
   accounts: Record<string, AccountRecord>
+  removing: string[]
 }
 
 export function emptyLedger(): AccountLedger {
-  return { active: GLOBAL_ACCOUNT, accounts: {} }
+  return { active: GLOBAL_ACCOUNT, accounts: {}, removing: [] }
 }
 
 export function noteAccount(ledger: AccountLedger, key: string, email: string | null, now: Date): AccountLedger | undefined {
@@ -36,7 +37,12 @@ export function activate(ledger: AccountLedger, key: string): AccountLedger {
 
 export function forgetAccount(ledger: AccountLedger, key: string): AccountLedger {
   const { [key]: _forgotten, ...accounts } = ledger.accounts
-  return { ...ledger, accounts }
+  return { ...ledger, accounts, removing: ledger.removing.filter((each) => each !== key) }
+}
+
+export function markRemoving(ledger: AccountLedger, key: string, on: boolean): AccountLedger {
+  const removing = ledger.removing.filter((each) => each !== key)
+  return { ...ledger, removing: on ? [...removing, key] : removing }
 }
 
 export function parseLedger(raw: unknown): AccountLedger {
@@ -44,9 +50,10 @@ export function parseLedger(raw: unknown): AccountLedger {
   if (typeof raw.active === 'string' && isRecord(raw.accounts)) {
     const accounts: Record<string, AccountRecord> = {}
     for (const [key, value] of Object.entries(raw.accounts)) if (isRecord(value)) accounts[key] = recordOf(value)
-    return { active: raw.active, accounts }
+    const removing = Array.isArray(raw.removing) ? raw.removing.filter((key): key is string => typeof key === 'string') : []
+    return { active: raw.active, accounts, removing }
   }
-  if ('email' in raw || 'since' in raw) return { active: GLOBAL_ACCOUNT, accounts: { [GLOBAL_ACCOUNT]: recordOf(raw) } }
+  if ('email' in raw || 'since' in raw) return { active: GLOBAL_ACCOUNT, accounts: { [GLOBAL_ACCOUNT]: recordOf(raw) }, removing: [] }
   return emptyLedger()
 }
 
