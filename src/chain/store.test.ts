@@ -20,6 +20,7 @@ describe('chain store', () => {
       orders: { ABC: ['ABC-2', 'ABC-1'] },
       skipped: { ABC: ['ABC-3'] },
       leftovers: { ABC: [{ task: 'ABC-0', at: 't', text: 'ABC-0: the worktree was kept' }] },
+      released: { ABC: ['ABC-4'] },
     }
     saveChainState(file, state)
     expect(loadChainState(file)).toEqual(state)

@@ -1,7 +1,7 @@
 import type { FinishOutcome } from '../git/types.js'
 import type { HulyTask } from '../huly/model.js'
 import { chainOrder, checkOrder, nextTask, openBlockers, withFresh } from './order.js'
-import { admits, isActive, isDone, type ChainRules } from './rules.js'
+import { admits, isActive, isDone, isTerminal, type ChainRules } from './rules.js'
 import {
   handoffPrompt,
   holdOf,
@@ -42,6 +42,7 @@ export interface ChainState {
   orders: Record<string, string[]>
   skipped: Record<string, string[]>
   leftovers: Record<string, Leftover[]>
+  released: Record<string, string[]>
 }
 
 export type ReleaseReason = 'postpone' | 'skip'
@@ -83,12 +84,13 @@ export interface DispatcherDeps {
 }
 
 export function emptyChainState(): ChainState {
-  return { active: null, queue: [], orders: {}, skipped: {}, leftovers: {} }
+  return { active: null, queue: [], orders: {}, skipped: {}, leftovers: {}, released: {} }
 }
 
 export class Dispatcher {
   private readonly tasks = new Map<string, HulyTask[]>()
   private readonly done = new Map<string, Set<string>>()
+  private readonly releasedDone = new Map<string, Set<string>>()
   private work: Promise<void> = Promise.resolve()
 
   constructor(
@@ -102,6 +104,25 @@ export class Dispatcher {
     this.done.set(project, new Set(tasks.filter((task) => isDone(rules, task.status)).map((task) => task.id)))
     const placed = this.placeNew(project)
     if (this.forgetClosed(project) || placed) this.deps.save(this.state)
+    this.kick()
+  }
+
+  released(project: string): string[] {
+    return [...(this.state.released[project] ?? [])]
+  }
+
+  setReleased(project: string, tasks: HulyTask[]): void {
+    const rules = this.deps.rules(project)
+    const statuses = new Map(tasks.map((task) => [task.id, task.status]))
+    const kept = this.released(project).filter((id) => {
+      const status = statuses.get(id)
+      return status !== undefined && (isDone(rules, status) || !isTerminal(rules, status))
+    })
+    this.releasedDone.set(project, new Set(kept.filter((id) => isDone(rules, statuses.get(id)!))))
+    if (kept.length !== this.released(project).length) {
+      this.keepReleased(project, kept)
+      this.deps.save(this.state)
+    }
     this.kick()
   }
 
@@ -138,6 +159,7 @@ export class Dispatcher {
 
   stop(): void {
     if (this.state.active === null) return
+    this.letGo(this.state.active)
     this.state.active = null
     this.changed()
   }
@@ -292,7 +314,55 @@ export class Dispatcher {
       if (blockers.length > 0) entry.blockers = blockers
       this.deps.journal(entry)
     }
+    this.letGo(chain)
+  }
+
+  private letGo(chain: ActiveChain): void {
+    if (chain.current === null) return
+    const released = (this.state.released[chain.project] ??= [])
+    if (!released.includes(chain.current.task)) released.push(chain.current.task)
     chain.current = null
+  }
+
+  private take(chain: ActiveChain, current: CurrentTask): void {
+    chain.current = current
+    const released = this.released(chain.project)
+    if (released.includes(current.task)) this.keepReleased(chain.project, released.filter((id) => id !== current.task))
+  }
+
+  private keepReleased(project: string, released: string[]): void {
+    if (released.length === 0) delete this.state.released[project]
+    else this.state.released[project] = released
+    const done = this.releasedDone.get(project)
+    for (const id of done ?? []) if (!released.includes(id)) done!.delete(id)
+  }
+
+  private keepLeftovers(project: string, task: string, warnings: string[]): void {
+    if (warnings.length === 0) return
+    const at = this.deps.now().toISOString()
+    const leftovers = (this.state.leftovers[project] ??= [])
+    leftovers.push(...warnings.map((text) => ({ task, at, text })))
+  }
+
+  private async sweep(): Promise<void> {
+    for (const [project, done] of this.releasedDone) {
+      for (const task of done) {
+        if (this.deps.busy(task)) continue
+        const outcome = await this.cleanUp(project, task)
+        const sync = outcome.syncError === null ? [] : [`${task}: git sync failed: ${outcome.syncError}`]
+        this.keepLeftovers(project, task, [...outcome.warnings, ...sync])
+        this.keepReleased(project, this.released(project).filter((id) => id !== task))
+        this.deps.save(this.state)
+      }
+    }
+  }
+
+  private async cleanUp(project: string, task: string): Promise<FinishOutcome> {
+    try {
+      return await this.deps.finish(project, task)
+    } catch (error) {
+      return { warnings: [`${task}: ${messageOf(error)}`], syncError: null }
+    }
   }
 
   private requireLaunches(): void {
@@ -310,6 +380,7 @@ export class Dispatcher {
   }
 
   private async advance(): Promise<void> {
+    await this.sweep()
     for (;;) {
       const chain = this.state.active
       if (chain === null) {
@@ -331,12 +402,14 @@ export class Dispatcher {
           return
         }
         if (!tasks.some((open) => open.id === task)) {
-          chain.current = null
           if (this.done.get(chain.project)?.has(task)) {
+            chain.current = null
             chain.closing = task
             this.deps.save(this.state)
             continue
           }
+          this.letGo(chain)
+          this.deps.save(this.state)
         } else {
           const blockers = openBlockers(tasks, task)
           if (blockers.length === 0 || this.deps.busy(task)) {
@@ -367,7 +440,7 @@ export class Dispatcher {
       const live = this.deps.liveSession(task)
       if (live !== undefined) {
         delete chain.limitUntil
-        chain.current = { task, sessionId: live, since }
+        this.take(chain, { task, sessionId: live, since })
         this.deps.save(this.state)
         return
       }
@@ -388,12 +461,13 @@ export class Dispatcher {
       }
 
       delete chain.limitUntil
-      chain.current = { task, sessionId: null, since }
+      const current: CurrentTask = { task, sessionId: null, since }
+      this.take(chain, current)
       this.deps.save(this.state)
       try {
         const sessionId = await this.deps.launch(chain.project, task)
         this.deps.journal({ at: since, project: chain.project, task, sessionId })
-        chain.current.sessionId = sessionId
+        current.sessionId = sessionId
         this.deps.save(this.state)
       } catch (error) {
         this.halt(chain, messageOf(error))
@@ -404,18 +478,9 @@ export class Dispatcher {
 
   private async finish(chain: ActiveChain, task: string): Promise<boolean> {
     if (this.deps.busy(task)) return false
-    let outcome: FinishOutcome
-    try {
-      outcome = await this.deps.finish(chain.project, task)
-    } catch (error) {
-      outcome = { warnings: [`${task}: ${messageOf(error)}`], syncError: null }
-    }
+    const outcome = await this.cleanUp(chain.project, task)
     delete chain.closing
-    if (outcome.warnings.length > 0) {
-      const at = this.deps.now().toISOString()
-      const leftovers = (this.state.leftovers[chain.project] ??= [])
-      leftovers.push(...outcome.warnings.map((text) => ({ task, at, text })))
-    }
+    this.keepLeftovers(chain.project, task, outcome.warnings)
     if (outcome.syncError !== null) {
       this.halt(chain, `git: sync of ${chain.project} after ${task} failed; run git sync by hand, then resume: ${outcome.syncError}`)
       return false
@@ -501,7 +566,7 @@ export class Dispatcher {
   }
 
   private halt(chain: ActiveChain, error: string): void {
-    chain.current = null
+    this.letGo(chain)
     chain.paused = true
     chain.error = error
     delete chain.limitUntil

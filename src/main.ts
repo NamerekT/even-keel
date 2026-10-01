@@ -371,6 +371,8 @@ if (credentials === undefined) {
           unknownByProject.set(project, unknown)
           tasksByProject.set(project, tasks)
           dispatcher.setTasks(project, tasks)
+          const released = dispatcher.released(project)
+          if (released.length > 0) dispatcher.setReleased(project, await link.run((source) => source.tasks(released)))
         } catch (error) {
           report(error)
         }

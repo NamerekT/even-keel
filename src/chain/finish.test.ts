@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { canceled, done, setup, task } from './dispatcher.fixture.js'
+import { canceled, done, setup, task, todo } from './dispatcher.fixture.js'
 import { emptyChainState } from './dispatcher.js'
 
 describe('Dispatcher finishing a done task', () => {
@@ -116,5 +116,116 @@ describe('Dispatcher finishing a done task', () => {
     dispatcher.setTasks('ABC', [task('ABC-1'), task('ABC-2', done)])
     await dispatcher.idle()
     expect(finished).toEqual([])
+  })
+})
+
+describe('Dispatcher finishing a task it let go of', () => {
+  it('cleans up after a task that left the chain once it is done', async () => {
+    const { dispatcher, launched, finished } = setup()
+    dispatcher.setTasks('ABC', [task('ABC-1'), task('ABC-2')])
+    dispatcher.start('ABC')
+    await dispatcher.idle()
+
+    dispatcher.setTasks('ABC', [task('ABC-2')])
+    await dispatcher.idle()
+    expect(launched).toEqual(['ABC/ABC-1', 'ABC/ABC-2'])
+    expect(dispatcher.released('ABC')).toEqual(['ABC-1'])
+
+    dispatcher.setReleased('ABC', [task('ABC-1')])
+    await dispatcher.idle()
+    expect(finished).toEqual([])
+
+    dispatcher.setReleased('ABC', [task('ABC-1', done)])
+    await dispatcher.idle()
+    expect(finished).toEqual(['ABC/ABC-1'])
+    expect(dispatcher.released('ABC')).toEqual([])
+  })
+
+  it('waits until the session of the released task is not mid-turn', async () => {
+    const busy = new Set<string>()
+    const { dispatcher, finished } = setup({ busy })
+    dispatcher.setTasks('ABC', [task('ABC-1'), task('ABC-2')])
+    dispatcher.start('ABC')
+    await dispatcher.idle()
+    dispatcher.skip('ABC', 'ABC-1')
+    await dispatcher.idle()
+
+    busy.add('ABC-1')
+    dispatcher.setReleased('ABC', [task('ABC-1', done)])
+    await dispatcher.idle()
+    expect(finished).toEqual([])
+
+    busy.clear()
+    dispatcher.check()
+    await dispatcher.idle()
+    expect(finished).toEqual(['ABC/ABC-1'])
+  })
+
+  it('cleans up after the current task of a stopped chain', async () => {
+    const { dispatcher, finished } = setup()
+    dispatcher.setTasks('ABC', [task('ABC-1')])
+    dispatcher.start('ABC')
+    await dispatcher.idle()
+    dispatcher.stop()
+    expect(dispatcher.released('ABC')).toEqual(['ABC-1'])
+
+    dispatcher.setReleased('ABC', [task('ABC-1', done)])
+    await dispatcher.idle()
+    expect(finished).toEqual(['ABC/ABC-1'])
+  })
+
+  it('forgets a released task that is canceled or gone from Huly', async () => {
+    const { dispatcher, finished } = setup()
+    dispatcher.setTasks('ABC', [task('ABC-1'), task('ABC-2'), task('ABC-3')])
+    dispatcher.start('ABC')
+    await dispatcher.idle()
+    dispatcher.skip('ABC', 'ABC-1')
+    await dispatcher.idle()
+    dispatcher.skip('ABC', 'ABC-2')
+    await dispatcher.idle()
+    expect(dispatcher.released('ABC')).toEqual(['ABC-1', 'ABC-2'])
+
+    dispatcher.setReleased('ABC', [task('ABC-1', canceled)])
+    await dispatcher.idle()
+    expect(dispatcher.released('ABC')).toEqual([])
+    expect(dispatcher.state.released).toEqual({})
+    expect(finished).toEqual([])
+  })
+
+  it('forgets a released task once the chain takes it again', async () => {
+    const { dispatcher, launched, finished } = setup()
+    dispatcher.setTasks('ABC', [task('ABC-1'), task('ABC-2')])
+    dispatcher.start('ABC')
+    await dispatcher.idle()
+
+    dispatcher.setTasks('ABC', [task('ABC-1', todo, 'ABC-2'), task('ABC-2')])
+    await dispatcher.idle()
+    expect(dispatcher.released('ABC')).toEqual(['ABC-1'])
+
+    dispatcher.setTasks('ABC', [task('ABC-1'), task('ABC-2', done)])
+    await dispatcher.idle()
+    expect(launched).toEqual(['ABC/ABC-1', 'ABC/ABC-2', 'ABC/ABC-1'])
+    expect(finished).toEqual(['ABC/ABC-2'])
+    expect(dispatcher.released('ABC')).toEqual([])
+  })
+
+  it('keeps the warnings and a failed sync of its cleanup without pausing the chain', async () => {
+    const { dispatcher, launched } = setup({ finish: () => ({ warnings: ['ABC-1: the worktree was kept'], syncError: 'sync: merge it by hand' }) })
+    dispatcher.setTasks('ABC', [task('ABC-1'), task('ABC-2')])
+    dispatcher.start('ABC')
+    await dispatcher.idle()
+    dispatcher.setTasks('ABC', [task('ABC-2')])
+    await dispatcher.idle()
+
+    dispatcher.setReleased('ABC', [task('ABC-1', done)])
+    await dispatcher.idle()
+    expect(dispatcher.state.active).toMatchObject({ paused: false, current: { task: 'ABC-2' } })
+    expect(launched).toEqual(['ABC/ABC-1', 'ABC/ABC-2'])
+    expect(dispatcher.state.leftovers).toEqual({
+      ABC: [
+        { task: 'ABC-1', at: '2026-09-26T12:00:00.000Z', text: 'ABC-1: the worktree was kept' },
+        { task: 'ABC-1', at: '2026-09-26T12:00:00.000Z', text: 'ABC-1: git sync failed: sync: merge it by hand' },
+      ],
+    })
   })
 })
