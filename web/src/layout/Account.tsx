@@ -117,7 +117,7 @@ function AccountItem({ entry, view, now, sending, send }: ItemProps) {
       <div className="accounts__facts">
         {entry.status?.subscriptionType != null && <span>план {entry.status.subscriptionType}</span>}
         <span className={left.renew ? 'accounts__expiry accounts__expiry--soon' : 'accounts__expiry'}>вход: {left.text}</span>
-        {entry.sessions > 0 && <span>сессий: {entry.sessions}</span>}
+        {entry.sessions.length > 0 && <span>сессий: {entry.sessions.length}</span>}
         {entry.global && <span>папка ~/.claude</span>}
       </div>
       {entry.limits === null ? (
@@ -128,8 +128,8 @@ function AccountItem({ entry, view, now, sending, send }: ItemProps) {
       {entry.configPending && <p className="queue__hint">Новая общая конфигурация дойдёт до сессий, когда завершатся текущие сессии этого аккаунта</p>}
       {entry.removing && (
         <p className="queue__hint">
-          Выйду и удалю папку, когда завершатся сессии этого аккаунта
-          {entry.sessions > 0 ? ` (осталось: ${entry.sessions})` : ''}
+          Выйду и удалю папку, когда завершатся процессы сессий этого аккаунта
+          {entry.sessions.length > 0 ? `, ещё живы: ${entry.sessions.join(', ')}` : ''}
         </p>
       )}
       {entry.error !== null && <p className="queue__hint">Последняя проверка не удалась: {entry.error}</p>}
@@ -163,7 +163,9 @@ function AccountItem({ entry, view, now, sending, send }: ItemProps) {
         {removable && confirming && (
           <>
             <span className="accounts__confirm">
-              {entry.sessions > 0 ? `Выйти и удалить папку, когда завершатся её сессии (${entry.sessions})?` : 'Выйти и удалить папку?'}
+              {entry.sessions.length > 0
+                ? `Выйти и удалить папку, когда завершатся её сессии (${entry.sessions.join(', ')})?`
+                : 'Выйти и удалить папку?'}
             </span>
             <button
               type="button"

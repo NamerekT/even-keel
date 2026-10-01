@@ -4,7 +4,7 @@ import { fileURLToPath } from 'node:url'
 import { DaemonRefresh } from './account/daemon.js'
 import { AccountHomes, accountsRoot, type AccountHome } from './account/homes.js'
 import { accountAt, activate, forgetAccount, loadLedger, markRemoving, noteAccount, saveLedger, type AccountLedger } from './account/ledger.js'
-import { accountId, launchBlock, loginBlock, type LoginBlock } from './account/model.js'
+import { accountId, launchBlock, liveSessions, loginBlock, type LoginBlock } from './account/model.js'
 import { AccountWatcher } from './account/watcher.js'
 import { Dispatcher, type LaunchEntry } from './chain/dispatcher.js'
 import { launchDays, taskSessions } from './chain/launches.js'
@@ -110,7 +110,7 @@ const limits = new LimitsWatcher({
 
 const daemons = new DaemonRefresh({
   share: (home) => homes.share(home),
-  running: async (home) => (await cli.agents(home)).filter((agent) => !isOver(agent)).length,
+  running: async (home) => liveSessions(await cli.agents(home), home.key).length,
   stopDaemon: (home) => cli.stopDaemon(home),
   onChange: () => hub.broadcast('state', getState()),
   onError: (error) => console.error(`account: ${error instanceof Error ? error.message : String(error)}`),
@@ -127,7 +127,7 @@ const account = new AccountWatcher({
   },
   forget: (key) => saveAccounts(forgetAccount(ledger, key)),
   loginBlock: (): LoginBlock | null => loginBlock(dispatcher.state.active, agents, ledger.active),
-  sessionsIn: (key) => agents.filter((agent) => agent.account === key && !isOver(agent)).length,
+  sessionsIn: (key) => liveSessions(agents, key),
   sessionsKnown: () => agentsRead,
   removing: (key) => ledger.removing.includes(key),
   markRemoving: (key, on) => saveAccounts(markRemoving(ledger, key, on)),
@@ -245,10 +245,6 @@ const dispatcher = new Dispatcher(loadChainState(chainFile), {
     return outcome
   },
 })
-
-function isOver(agent: AgentEntry): boolean {
-  return agent.state === 'done' || agent.state === 'stopped' || agent.state === 'failed'
-}
 
 async function stopTaskSessions(repo: string, task: string): Promise<string[]> {
   const place = resolve(taskPlace(repo, task).path).toLowerCase()

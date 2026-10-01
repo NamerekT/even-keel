@@ -32,7 +32,7 @@ export interface AccountWatcherOptions {
   activate: (key: string) => void
   forget: (key: string) => void
   loginBlock: () => LoginBlock | null
-  sessionsIn: (key: string) => number
+  sessionsIn: (key: string) => string[]
   sessionsKnown: () => boolean
   removing: (key: string) => boolean
   markRemoving: (key: string, on: boolean) => void
@@ -134,7 +134,7 @@ export class AccountWatcher {
   async remove(key: string): Promise<void> {
     const problem = removeProblem(this.view, key)
     if (problem !== undefined) throw new Error(problem)
-    if (!this.options.sessionsKnown() || this.options.sessionsIn(key) > 0) {
+    if (!this.options.sessionsKnown() || this.options.sessionsIn(key).length > 0) {
       this.options.markRemoving(key, true)
       this.options.onChange()
       return
@@ -153,7 +153,7 @@ export class AccountWatcher {
     if (!this.options.sessionsKnown()) return
     const view = this.view
     for (const entry of view.accounts) {
-      if (!entry.removing || entry.sessions > 0 || removeProblem(view, entry.key) !== undefined) continue
+      if (!entry.removing || entry.sessions.length > 0 || removeProblem(view, entry.key) !== undefined) continue
       try {
         await this.drop(entry.key)
       } catch (error) {

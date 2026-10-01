@@ -26,7 +26,7 @@ export interface AccountEntry {
   error: string | null
   loginExpiresAt: string | null
   needsLogin: boolean
-  sessions: number
+  sessions: string[]
   removing: boolean
   configPending: boolean
   limits: RateLimits | null
@@ -148,6 +148,12 @@ export function removeProblem(view: AccountView, key: string): string | undefine
   if (key === view.active) return 'claude: the active account cannot be removed; switch to another one first'
   if (view.login?.target === key && view.login.error === null) return 'claude: a sign-in into this account is running'
   return undefined
+}
+
+export function liveSessions(agents: AgentEntry[], key: string): string[] {
+  return agents
+    .filter((agent) => (agent.account ?? GLOBAL_ACCOUNT) === key && agent.pid !== undefined)
+    .map((agent) => agent.name ?? agent.sessionId.slice(0, 8))
 }
 
 export function loginBlock(chain: ActiveChain | null, agents: AgentEntry[], active: string): LoginBlock | null {

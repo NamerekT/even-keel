@@ -515,7 +515,7 @@ describe('accountBadge', () => {
     error: null,
     loginExpiresAt: null,
     needsLogin: false,
-    sessions: 0,
+    sessions: [],
     removing: false,
     configPending: false,
     limits: null,

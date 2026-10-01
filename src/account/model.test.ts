@@ -5,6 +5,7 @@ import {
   accountId,
   folderName,
   launchBlock,
+  liveSessions,
   loginBlock,
   loginBlockMessage,
   loginUrls,
@@ -33,7 +34,7 @@ const entry = (patch: Partial<AccountEntry>): AccountEntry => ({
   error: null,
   loginExpiresAt: '2026-10-27T10:00:00.000Z',
   needsLogin: false,
-  sessions: 0,
+  sessions: [],
   removing: false,
   configPending: false,
   limits: null,
@@ -107,15 +108,37 @@ describe('loginUrls', () => {
   })
 })
 
+const agent = (patch: Partial<AgentEntry>): AgentEntry => ({
+  cwd: 'C:\\repos\\example',
+  kind: 'interactive',
+  startedAt: 0,
+  sessionId: '00000000-0000-4000-8000-000000000001',
+  ...patch,
+})
+
+describe('liveSessions', () => {
+  it('names the sessions of the account whose process is alive, whatever their state', () => {
+    const agents = [
+      agent({ name: 'ABC-1', kind: 'background', state: 'blocked', pid: 101, account: 'work' }),
+      agent({ name: 'ABC-2', kind: 'background', state: 'done', pid: 102, account: 'work' }),
+      agent({ sessionId: '12345678-0000-4000-8000-000000000009', pid: 103, account: 'work' }),
+      agent({ name: 'ABC-4', pid: 104 }),
+    ]
+    expect(liveSessions(agents, 'work')).toEqual(['ABC-1', 'ABC-2', '12345678'])
+    expect(liveSessions(agents, 'global')).toEqual(['ABC-4'])
+  })
+
+  it('ignores records left behind by dead processes, even blocked or working ones', () => {
+    const agents = [
+      agent({ name: 'ABC-1', kind: 'background', state: 'blocked', account: 'work' }),
+      agent({ name: 'ABC-2', kind: 'background', state: 'working', account: 'work' }),
+    ]
+    expect(liveSessions(agents, 'work')).toEqual([])
+  })
+})
+
 describe('loginBlock', () => {
   const chain = (paused: boolean): ActiveChain => ({ project: 'ABC', current: null, paused, error: null })
-  const agent = (patch: Partial<AgentEntry>): AgentEntry => ({
-    cwd: 'C:\\repos\\example',
-    kind: 'interactive',
-    startedAt: 0,
-    sessionId: '00000000-0000-4000-8000-000000000001',
-    ...patch,
-  })
 
   it('allows a sign-in with no chain or a paused one and every session idle or gone', () => {
     const agents = [
@@ -286,7 +309,7 @@ describe('removeProblem', () => {
   })
 
   it('lets a folder with unfinished sessions go once they are over', () => {
-    expect(removeProblem(view({ accounts: [entry({}), entry({ key: 'work', global: false, sessions: 2 })] }), 'work')).toBeUndefined()
+    expect(removeProblem(view({ accounts: [entry({}), entry({ key: 'work', global: false, sessions: ['ABC-1', 'ABC-2'] })] }), 'work')).toBeUndefined()
   })
 
   it('keeps the active and the global folder', () => {

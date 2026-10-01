@@ -405,7 +405,7 @@ function fakeEntry(patch: Partial<AccountEntry>): AccountEntry {
     error: null,
     loginExpiresAt: inDays(24),
     needsLogin: false,
-    sessions: 0,
+    sessions: [],
     removing: false,
     configPending: false,
     limits: null,
@@ -415,7 +415,7 @@ function fakeEntry(patch: Partial<AccountEntry>): AccountEntry {
 }
 
 function fakeAccount(mode: string | null, idle: boolean, limits: RateLimits): AccountView {
-  const global = fakeEntry({ limits, sessions: idle ? 0 : 6 })
+  const global = fakeEntry({ limits, sessions: idle ? [] : ['ABC-1', 'ABC-2', 'ABC-3', 'ABC-4', 'ABC-5', 'Scratch notes'] })
   const work = fakeEntry({
     key: 'jane.roe',
     global: false,
@@ -447,8 +447,9 @@ function fakeAccount(mode: string | null, idle: boolean, limits: RateLimits): Ac
     return { ...signedIn, login: { ...FAKE_LOGIN, error: 'claude: sign-in exited with code 1: OAuth error' }, loginBlock: null }
   }
   if (mode === 'unknown') return { ...signedIn, accounts: [{ ...global, status: null, error: 'claude: auth status timed out' }, work] }
-  if (mode === 'pending') return { ...signedIn, accounts: [global, { ...work, sessions: 2, configPending: true }] }
-  if (mode === 'removing') return { ...signedIn, accounts: [global, { ...work, sessions: 2, removing: true }] }
+  const workSessions = ['ABC-7', 'ABC-8']
+  if (mode === 'pending') return { ...signedIn, accounts: [global, { ...work, sessions: workSessions, configPending: true }] }
+  if (mode === 'removing') return { ...signedIn, accounts: [global, { ...work, sessions: workSessions, removing: true }] }
   return signedIn
 }
 
@@ -467,7 +468,7 @@ function accountCommand(account: AccountView, name: string, body: Record<string,
   if (name === 'account/remove') {
     const problem = removeProblem(account, key)
     if (problem !== undefined) throw new Error(problem)
-    const busy = account.accounts.some((entry) => entry.key === key && entry.sessions > 0)
+    const busy = account.accounts.some((entry) => entry.key === key && entry.sessions.length > 0)
     if (busy) return { ...account, accounts: account.accounts.map((entry) => (entry.key === key ? { ...entry, removing: true } : entry)) }
     return { ...account, accounts: account.accounts.filter((entry) => entry.key !== key) }
   }
