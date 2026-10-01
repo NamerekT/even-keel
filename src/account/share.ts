@@ -30,9 +30,11 @@ export function mergeSettings(global: Json, folder: Json | undefined): Json {
 
 export function shareProjects(global: Json, folder: Json): Json | undefined {
   const projects: Json = { ...objectOf(folder.projects) }
-  for (const [path, value] of Object.entries(objectOf(global.projects))) {
+  const globalProjects = Object.entries(objectOf(global.projects))
+  const trusted = new Set(globalProjects.filter(([, value]) => objectOf(value).hasTrustDialogAccepted === true).map(([path]) => samePath(path)))
+  for (const [path, value] of globalProjects) {
     const project = objectOf(value)
-    if (project.hasTrustDialogAccepted !== true) continue
+    if (!trusted.has(samePath(path))) continue
     const setup = Object.fromEntries(PROJECT_KEYS.filter((key) => key in project).map((key) => [key, project[key]]))
     projects[path] = { ...objectOf(projects[path]), ...setup }
   }
@@ -127,6 +129,10 @@ function isDirectory(path: string): boolean {
   } catch {
     return false
   }
+}
+
+function samePath(path: string): string {
+  return path.replaceAll('\\', '/').toLowerCase()
 }
 
 function objectOf(value: unknown): Json {

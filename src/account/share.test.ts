@@ -65,7 +65,6 @@ describe('shareProjects', () => {
         lastSessionId: '00000000-0000-4000-8000-000000000001',
       },
       'C:/repos/untrusted': { hasTrustDialogAccepted: false, mcpServers: { huly: { type: 'stdio', command: 'huly-mcp' } } },
-      'c:/repos/example': { mcpServers: { huly: { type: 'stdio', command: 'huly-mcp' } } },
     },
   }
 
@@ -83,6 +82,23 @@ describe('shareProjects', () => {
           enabledMcpjsonServers: [],
         },
       },
+    })
+  })
+
+  it('brings over the setup of a path spelled in another case or with backslashes when one spelling is trusted', () => {
+    const huly = { huly: { type: 'stdio', command: 'huly-mcp' } }
+    const spelled = {
+      projects: {
+        'C:/repos/example': { hasTrustDialogAccepted: true, mcpServers: huly },
+        'c:/repos/example': { hasTrustDialogAccepted: false, mcpServers: huly, disabledMcpServers: ['forgejo'] },
+        'c:\\repos\\example': { mcpServers: huly },
+        'c:/repos/untrusted': { hasTrustDialogAccepted: false, mcpServers: huly },
+      },
+    }
+    expect(shareProjects(spelled, {})?.projects).toEqual({
+      'C:/repos/example': { hasTrustDialogAccepted: true, mcpServers: huly },
+      'c:/repos/example': { hasTrustDialogAccepted: false, mcpServers: huly, disabledMcpServers: ['forgejo'] },
+      'c:\\repos\\example': { mcpServers: huly },
     })
   })
 
