@@ -248,6 +248,19 @@ describe('nextTask', () => {
   })
 })
 
+describe('chainOrder on a long chain', () => {
+  it('orders three hundred tasks of two milestones quickly', () => {
+    const tasks = Array.from({ length: 300 }, (_, index) =>
+      inMilestone(index < 150 ? v1 : v2, `ABC-${index + 1}`, ...(index % 3 === 0 && index > 0 ? [`ABC-${index}`] : [])),
+    )
+    const started = performance.now()
+    const order = chainOrder(tasks)
+    expect(performance.now() - started).toBeLessThan(60)
+    expect(order).toHaveLength(300)
+    expect(order.indexOf('ABC-150')).toBeLessThan(order.indexOf('ABC-151'))
+  })
+})
+
 describe('openBlockers', () => {
   it('lists the blockers that are open tasks of the chain', () => {
     const tasks = [task('ABC-1'), task('ABC-2', 'ABC-1', 'ABC-9', 'XYZ-1')]

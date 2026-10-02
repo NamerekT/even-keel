@@ -23,4 +23,23 @@ describe('EventHub', () => {
     expect(second).toEqual([formatEvent('ping', 1), formatEvent('ping', 2)])
     expect(hub.size).toBe(1)
   })
+
+  it('does not repeat an event whose data has not changed since its last broadcast', () => {
+    const hub = new EventHub()
+    const frames: string[] = []
+    hub.subscribe((frame) => frames.push(frame))
+
+    hub.broadcast('state', { a: 1 })
+    hub.broadcast('state', { a: 1 })
+    hub.broadcast('ping', 1)
+    hub.broadcast('state', { a: 2 })
+    hub.broadcast('state', { a: 1 })
+
+    expect(frames).toEqual([
+      formatEvent('state', { a: 1 }),
+      formatEvent('ping', 1),
+      formatEvent('state', { a: 2 }),
+      formatEvent('state', { a: 1 }),
+    ])
+  })
 })

@@ -301,7 +301,7 @@ const getState = (): BatonState => ({
     leftovers: dispatcher.state.leftovers,
   },
   tasks: [...tasksByProject.values()].flat(),
-  sessions,
+  sessions: sessions.map((view) => (view.lamp === 'finished' ? { ...view, feed: [] } : view)),
   limits: limits.limits(ledger.active),
   usage: limits.usage(ledger.active),
   account: account.view,

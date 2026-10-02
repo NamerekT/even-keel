@@ -6,6 +6,7 @@ export function formatEvent(event: string, data: unknown): string {
 
 export class EventHub {
   private readonly subscribers = new Set<Subscriber>()
+  private readonly last = new Map<string, string>()
 
   get size(): number {
     return this.subscribers.size
@@ -18,6 +19,8 @@ export class EventHub {
 
   broadcast(event: string, data: unknown): void {
     const frame = formatEvent(event, data)
+    if (this.last.get(event) === frame) return
+    this.last.set(event, frame)
     for (const subscriber of this.subscribers) subscriber(frame)
   }
 }

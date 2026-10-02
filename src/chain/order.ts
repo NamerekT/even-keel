@@ -1,6 +1,7 @@
 import { PRIORITIES, type HulyTask, type TaskMilestone } from '../huly/model.js'
 
-export const byNumber = (a: string, b: string) => a.localeCompare(b, 'en', { numeric: true })
+const numeric = new Intl.Collator('en', { numeric: true })
+export const byNumber = (a: string, b: string) => numeric.compare(a, b)
 
 type Graph = Map<string, Set<string>>
 
@@ -15,14 +16,30 @@ export function chainOrder(tasks: HulyTask[], preferred: string[] = []): string[
     byNumber(a, b)
 
   const pending: Graph = new Map([...plan.blockers].map(([id, deps]) => [id, new Set([...deps, ...plan.earlier.get(id)!])]))
+  const waiting = new Map<string, string[]>()
+  const ready = new Set<string>()
+  for (const [id, deps] of pending) {
+    if (deps.size === 0) ready.add(id)
+    for (const dep of deps) {
+      const list = waiting.get(dep)
+      if (list === undefined) waiting.set(dep, [id])
+      else list.push(id)
+    }
+  }
   const order: string[] = []
   while (pending.size > 0) {
-    const ready = [...pending].filter(([, deps]) => deps.size === 0).map(([id]) => id)
-    if (ready.length === 0) throw deadlock(pending, plan, tasks)
-    const next = ready.sort(compare)[0]!
-    order.push(next)
-    pending.delete(next)
-    for (const deps of pending.values()) deps.delete(next)
+    if (ready.size === 0) throw deadlock(pending, plan, tasks)
+    let next: string | undefined
+    for (const id of ready) if (next === undefined || compare(id, next) < 0) next = id
+    order.push(next!)
+    ready.delete(next!)
+    pending.delete(next!)
+    for (const id of waiting.get(next!) ?? []) {
+      const deps = pending.get(id)
+      if (deps === undefined) continue
+      deps.delete(next!)
+      if (deps.size === 0) ready.add(id)
+    }
   }
   return order
 }

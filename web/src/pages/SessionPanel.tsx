@@ -213,9 +213,27 @@ function SessionBody({ session, limit, scale }: { session: SessionView; limit: L
         </div>
       )}
       {session.remoteUrl === null && session.account !== null && <p className="panel__remote-off">Аккаунт: {session.account}</p>}
-      <Feed lines={session.feed} />
+      {session.lamp === 'finished' ? <RecordFeed sessionId={session.sessionId} /> : <Feed lines={session.feed} />}
     </>
   )
+}
+
+function RecordFeed({ sessionId }: { sessionId: string }) {
+  const { session } = useLive()
+  const [lines, setLines] = useState<FeedLine[] | null>(null)
+
+  useEffect(() => {
+    let alive = true
+    session(sessionId).then(
+      (found) => alive && setLines(found?.feed ?? []),
+      () => alive && setLines([]),
+    )
+    return () => {
+      alive = false
+    }
+  }, [sessionId])
+
+  return lines === null ? <p className="placeholder">Читаю транскрипт…</p> : <Feed lines={lines} />
 }
 
 function TokensFact({ tokens }: { tokens: TokenTotals }) {
