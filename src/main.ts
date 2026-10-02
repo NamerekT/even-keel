@@ -16,7 +16,7 @@ import { EventHub } from './events.js'
 import { runGit } from './git/run.js'
 import { ensureIgnored, finishWorktree, prepareWorktree, taskPlace } from './git/worktree.js'
 import { issueUrlBase, readHulyCredentials } from './huly/credentials.js'
-import type { HulyHealth } from './huly/health.js'
+import { worthBroadcast, type HulyHealth } from './huly/health.js'
 import { HulyLink } from './huly/link.js'
 import type { HulyTask } from './huly/model.js'
 import { StatusPoller } from './huly/poller.js'
@@ -350,8 +350,9 @@ if (credentials === undefined) {
     connect: () => connectHuly(credentials, HULY_TIMEOUT_MS),
     timeoutMs: HULY_TIMEOUT_MS,
     onHealth: (health) => {
+      const before = huly
       huly = health
-      hub.broadcast('state', getState())
+      if (worthBroadcast(before, health)) hub.broadcast('state', getState())
     },
   })
   huly = link.health

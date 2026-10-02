@@ -46,7 +46,7 @@ export function Waiting({ sessions, tasks }: { sessions: SessionView[]; tasks: H
 }
 
 export function HulyState({ health, now }: { health: HulyHealth; now: Date }) {
-  const ago = health.lastOkAt === null ? null : formatAgo(health.lastOkAt, now)
+  const ago = health.lastOkAt === null || health.state === 'live' ? null : formatAgo(health.lastOkAt, now)
   const title = [
     `Huly: ${HULY_LABELS[health.state]}`,
     ago === null ? null : `последний успешный опрос ${ago}`,
