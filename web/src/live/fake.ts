@@ -7,6 +7,7 @@ import {
   type AccountView,
   type ClaudeAccount,
 } from '../../../src/account/model.js'
+import { appSwitchProblem, type AppAccount } from '../../../src/account/apps.js'
 import type { RateLimits } from '../../../src/limits/model.js'
 import type { LaunchEntry } from '../../../src/chain/dispatcher.js'
 import { launchDays } from '../../../src/chain/launches.js'
@@ -423,9 +424,11 @@ function fakeAccount(mode: string | null, idle: boolean, limits: RateLimits): Ac
     loginExpiresAt: inDays(5),
     usage: { state: 'stale', reason: null, since: ago(30) },
   })
+  const vscode: AppAccount = { app: 'vscode', account: 'jane.roe', dir: 'C:\\Users\\john\\.claude-accounts\\jane.roe', error: null, sessions: [] }
   const signedIn: AccountView = {
     active: 'global',
     accounts: [global, work],
+    apps: [vscode],
     login: null,
     loginBlock: idle
       ? null
@@ -450,6 +453,17 @@ function fakeAccount(mode: string | null, idle: boolean, limits: RateLimits): Ac
   const workSessions = ['ABC-7', 'ABC-8']
   if (mode === 'pending') return { ...signedIn, accounts: [global, { ...work, sessions: workSessions, configPending: true }] }
   if (mode === 'removing') return { ...signedIn, accounts: [global, { ...work, sessions: workSessions, removing: true }] }
+  if (mode === 'vscode-chats') {
+    const sessions = [
+      { name: 'example-12', status: 'busy' as const },
+      { name: 'Scratch', status: 'idle' as const },
+    ]
+    return { ...signedIn, apps: [{ ...vscode, sessions }] }
+  }
+  if (mode === 'vscode-broken') {
+    const error = 'vscode: settings.json is not plain JSON (comments or trailing commas?); Baton does not rewrite it'
+    return { ...signedIn, apps: [{ ...vscode, account: null, dir: null, error }] }
+  }
   return signedIn
 }
 
@@ -464,6 +478,11 @@ function accountCommand(account: AccountView, name: string, body: Record<string,
     const problem = switchProblem(account, key)
     if (problem !== undefined) throw new Error(problem)
     return { ...account, active: key }
+  }
+  if (name === 'account/app') {
+    const problem = appSwitchProblem(account, String(body.app), key)
+    if (problem !== undefined) throw new Error(problem)
+    return { ...account, apps: account.apps.map((app) => (app.app === body.app ? { ...app, account: key } : app)) }
   }
   if (name === 'account/remove') {
     const problem = removeProblem(account, key)

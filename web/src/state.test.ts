@@ -57,7 +57,7 @@ function baton(patch: Partial<BatonState>): BatonState {
     sessions: [],
     limits: null,
     usage: { state: 'ok', reason: null, since: null },
-    account: { active: 'global', accounts: [], login: null, loginBlock: null },
+    account: { active: 'global', accounts: [], login: null, loginBlock: null, apps: [] },
     huly: { state: 'live', lastOkAt: null, error: null },
     trackerUrl: null,
     launches: [],
@@ -527,6 +527,7 @@ describe('accountBadge', () => {
     accounts: [entry(patch)],
     login,
     loginBlock: null,
+    apps: [],
   })
   const login = { target: 'global', startedAt: '2026-09-27T10:00:00Z', urls: [], output: '', error: null, codeSent: false }
 

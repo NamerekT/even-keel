@@ -30,6 +30,9 @@ export interface SessionRecord {
   sessionId: string
   status?: AgentStatus
   waitingFor?: string
+  entrypoint?: string
+  name?: string
+  cwd?: string
 }
 
 const STATUSES: readonly string[] = ['idle', 'busy', 'waiting'] satisfies AgentStatus[]
@@ -42,13 +45,16 @@ export function parseSessionRecord(raw: string): SessionRecord | undefined {
     return undefined
   }
   if (typeof value !== 'object' || value === null) return undefined
-  const { pid, sessionId, status, waitingFor } = value as Record<string, unknown>
+  const { pid, sessionId, status, waitingFor, entrypoint, name, cwd } = value as Record<string, unknown>
   if (typeof pid !== 'number' || typeof sessionId !== 'string') return undefined
   return {
     pid,
     sessionId,
     ...(typeof status === 'string' && STATUSES.includes(status) ? { status: status as AgentStatus } : {}),
     ...(typeof waitingFor === 'string' ? { waitingFor } : {}),
+    ...(typeof entrypoint === 'string' ? { entrypoint } : {}),
+    ...(typeof name === 'string' && name !== '' ? { name } : {}),
+    ...(typeof cwd === 'string' ? { cwd } : {}),
   }
 }
 

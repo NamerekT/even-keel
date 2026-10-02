@@ -8,6 +8,8 @@ import {
   type AccountView,
   type LoginBlock,
 } from '../../../src/account/model.js'
+import { APP_LABELS, appSwitchProblem, type AppAccount } from '../../../src/account/apps.js'
+import type { AgentStatus } from '../../../src/sessions/agents.js'
 import { useCommand } from '../live/useCommand.js'
 import { accountBadge, loginLeft } from '../state.js'
 import { Limits } from './Limits.js'
@@ -34,20 +36,36 @@ export function AccountMenu({ account }: { account: AccountView }) {
         <span className="queue-toggle__dot" aria-hidden="true" />
         <span className="account-toggle__label">{badge.label}</span>
       </button>
-      {open && <AccountPanel account={account} />}
+      {open && <AccountPanel account={account} onClose={() => setOpen(false)} />}
     </div>
   )
 }
 
-function AccountPanel({ account }: { account: AccountView }) {
+function AccountPanel({ account, onClose }: { account: AccountView; onClose: () => void }) {
   const { send, sending, failure } = useCommand()
   const now = useNow(60_000)
   const { login } = account
 
   return (
-    <div id="account-panel" className="queue" role="dialog" aria-label="Аккаунты Claude">
+    <aside id="account-panel" className="drawer" role="dialog" aria-label="Аккаунты Claude">
+      <div className="drawer__head">
+        <h2 className="drawer__title">Аккаунты Claude</h2>
+        <button type="button" className="panel__close" aria-label="Закрыть" onClick={onClose}>
+          ×
+        </button>
+      </div>
+
       <section className="queue__section">
-        <h2 className="queue__heading">Аккаунты Claude</h2>
+        <h2 className="queue__heading">Приложения</h2>
+        <ul className="accounts">
+          {account.apps.map((app) => (
+            <AppItem key={app.app} app={app} view={account} sending={sending} send={send} />
+          ))}
+        </ul>
+      </section>
+
+      <section className="queue__section">
+        <h2 className="queue__heading">Папки аккаунтов</h2>
         {account.accounts.length === 0 ? (
           <p className="queue__empty">Список ещё не получен.</p>
         ) : (
@@ -79,8 +97,72 @@ function AccountPanel({ account }: { account: AccountView }) {
       </section>
 
       {failure !== null && <p className="notice notice--error queue__error">{failure}</p>}
-    </div>
+    </aside>
   )
+}
+
+const CHAT_STATUS: Record<AgentStatus, string> = { busy: 'работает', waiting: 'ждёт ответа', idle: 'открыт' }
+
+interface AppProps {
+  app: AppAccount
+  view: AccountView
+  sending: boolean
+  send: Send
+}
+
+function AppItem({ app, view, sending, send }: AppProps) {
+  const label = APP_LABELS[app.app]
+  const current = view.accounts.find((entry) => entry.key === app.account)
+  const targets = view.accounts.filter((entry) => entry.key !== app.account && entry.status?.loggedIn === true)
+
+  return (
+    <li className="accounts__item">
+      <div className="accounts__head">
+        <span className="accounts__email">{label}</span>
+        <span className="accounts__app-account">{appAccountName(app, current)}</span>
+      </div>
+      {app.error !== null && <p className="notice notice--error">{app.error}</p>}
+      {app.sessions.length > 0 && (
+        <div className="account__blockers">
+          <p className="queue__hint">Переключить пока нельзя, открыты чаты Claude:</p>
+          <ul className="account__blocker-list">
+            {app.sessions.map((session, index) => (
+              <li key={`${session.name}-${index}`}>
+                <span className="account__blocker-name">{session.name}</span> {session.status === null ? 'открыт' : CHAT_STATUS[session.status]}
+              </li>
+            ))}
+          </ul>
+          <p className="queue__hint">Закройте их в {label} — панель обновится сама.</p>
+        </div>
+      )}
+      {app.error === null && targets.length > 0 && (
+        <div className="account__actions">
+          {targets.map((entry) => {
+            const blocked = appSwitchProblem(view, app.app, entry.key)
+            return (
+              <button
+                key={entry.key}
+                type="button"
+                className="button"
+                disabled={sending || blocked !== undefined}
+                title={blocked}
+                onClick={() => void send('account/app', { app: app.app, account: entry.key })}
+              >
+                → {entry.status?.email ?? entry.key}
+              </button>
+            )
+          })}
+        </div>
+      )}
+      <p className="queue__hint">Новый аккаунт {label} берёт после Developer: Reload Window.</p>
+    </li>
+  )
+}
+
+function appAccountName(app: AppAccount, current: AccountEntry | undefined): string {
+  if (current !== undefined) return current.status?.email ?? current.key
+  if (app.dir !== null) return `папка ${app.dir} — её нет среди аккаунтов`
+  return app.error === null ? 'не прочитан' : '—'
 }
 
 function loginHeading({ login, accounts }: AccountView): string {
@@ -111,7 +193,14 @@ function AccountItem({ entry, view, now, sending, send }: ItemProps) {
     <li className={`accounts__item${active ? ' accounts__item--active' : ''}`}>
       <div className="accounts__head">
         <span className="accounts__email">{email}</span>
-        {active && <span className="accounts__mark accounts__mark--active">активен</span>}
+        {active && <span className="accounts__mark accounts__mark--active">Батон</span>}
+        {view.apps
+          .filter((app) => app.account === entry.key)
+          .map((app) => (
+            <span key={app.app} className="accounts__mark">
+              {APP_LABELS[app.app]}
+            </span>
+          ))}
         {entry.needsLogin && <span className="accounts__mark accounts__mark--login">нужен вход</span>}
       </div>
       <div className="accounts__facts">
@@ -142,7 +231,7 @@ function AccountItem({ entry, view, now, sending, send }: ItemProps) {
             title={blocked}
             onClick={() => void send('account/switch', { account: entry.key })}
           >
-            Переключить
+            Отдать Батону
           </button>
         )}
         {(left.renew || entry.needsLogin) && (

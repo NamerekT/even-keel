@@ -1,6 +1,7 @@
 import type { ChildProcessWithoutNullStreams } from 'node:child_process'
 import type { RateLimits } from '../limits/model.js'
 import type { UsageHealth } from '../limits/usage.js'
+import { appSwitchProblem, type AppAccount, type AppId } from './apps.js'
 import type { AccountHome, AccountHomes } from './homes.js'
 import {
   cleanOutput,
@@ -25,9 +26,17 @@ export interface AccountCli {
   authLogout: (home: AccountHome) => Promise<void>
 }
 
+export interface AppControl {
+  list: () => AppAccount[]
+  refresh: () => Promise<void>
+  point: (app: AppId, home: AccountHome) => void
+}
+
 export interface AccountWatcherOptions {
   homes: AccountHomes
   cli: AccountCli
+  apps: AppControl
+  prepare: (home: AccountHome) => Promise<void>
   active: () => string
   activate: (key: string) => void
   forget: (key: string) => void
@@ -85,7 +94,13 @@ export class AccountWatcher {
         usage: this.options.usage(home.key),
       }
     })
-    return { active: this.options.active(), accounts, login: this.current, loginBlock: this.options.loginBlock() }
+    return {
+      active: this.options.active(),
+      accounts,
+      login: this.current,
+      loginBlock: this.options.loginBlock(),
+      apps: this.options.apps.list(),
+    }
   }
 
   emailOf(key: string): string | null {
@@ -129,6 +144,16 @@ export class AccountWatcher {
     const problem = switchProblem(this.view, key)
     if (problem !== undefined) throw new Error(problem)
     this.options.activate(key)
+  }
+
+  async switchApp(app: string, key: string): Promise<void> {
+    await this.options.apps.refresh()
+    const problem = appSwitchProblem(this.view, app, key)
+    if (problem !== undefined) throw new Error(problem)
+    const home = this.options.homes.find(key)!
+    await this.options.prepare(home)
+    this.options.apps.point(app as AppId, home)
+    await this.options.apps.refresh()
   }
 
   async remove(key: string): Promise<void> {

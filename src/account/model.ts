@@ -2,6 +2,7 @@ import type { ActiveChain } from '../chain/dispatcher.js'
 import type { RateLimits } from '../limits/model.js'
 import type { UsageHealth } from '../limits/usage.js'
 import type { AgentEntry } from '../sessions/agents.js'
+import { APP_LABELS, type AppAccount } from './apps.js'
 
 export const GLOBAL_ACCOUNT = 'global'
 
@@ -47,6 +48,7 @@ export interface AccountView {
   accounts: AccountEntry[]
   login: AccountLogin | null
   loginBlock: LoginBlock | null
+  apps: AppAccount[]
 }
 
 export interface LoginBlocker {
@@ -147,6 +149,8 @@ export function removeProblem(view: AccountView, key: string): string | undefine
   if (target.global) return 'claude: the global account lives in ~/.claude and is not removed from here'
   if (key === view.active) return 'claude: the active account cannot be removed; switch to another one first'
   if (view.login?.target === key && view.login.error === null) return 'claude: a sign-in into this account is running'
+  const user = view.apps.find((app) => app.account === key)
+  if (user !== undefined) return `claude: ${APP_LABELS[user.app]} uses this account; switch it to another one first`
   return undefined
 }
 

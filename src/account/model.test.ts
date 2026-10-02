@@ -47,6 +47,7 @@ const view = (patch: Partial<AccountView>): AccountView => ({
   accounts: [entry({}), entry({ key: 'work', global: false, status: signedIn('jane.roe@example.com') })],
   login: null,
   loginBlock: null,
+  apps: [],
   ...patch,
 })
 
@@ -317,5 +318,10 @@ describe('removeProblem', () => {
     expect(removeProblem(view({ active: 'work' }), 'global')).toMatch(/global/)
     const login = { target: 'work', startedAt: '2026-09-27T10:00:00Z', urls: [], output: '', error: null, codeSent: false }
     expect(removeProblem(view({ login }), 'work')).toMatch(/sign-in/)
+  })
+
+  it('keeps a folder an app still uses', () => {
+    const apps = [{ app: 'vscode' as const, account: 'work', dir: 'C:\\work', error: null, sessions: [] }]
+    expect(removeProblem(view({ apps }), 'work')).toMatch(/VS Code uses/)
   })
 })

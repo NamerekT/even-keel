@@ -31,10 +31,10 @@ describe('parseAgents', () => {
 })
 
 describe('parseSessionRecord', () => {
-  it('reads the pid, session and status a running session writes to sessions/<pid>.json', () => {
-    const raw = JSON.stringify({ pid: 4436, sessionId: 's1', cwd: 'C:\\x', kind: 'bg', status: 'busy', name: 'ABC-1' })
+  it('reads the pid, session, status, name and origin a running session writes to sessions/<pid>.json', () => {
+    const raw = JSON.stringify({ pid: 4436, sessionId: 's1', cwd: 'C:\\x', kind: 'bg', status: 'busy', name: 'ABC-1', entrypoint: 'cli' })
 
-    expect(parseSessionRecord(raw)).toEqual({ pid: 4436, sessionId: 's1', status: 'busy' })
+    expect(parseSessionRecord(raw)).toEqual({ pid: 4436, sessionId: 's1', status: 'busy', name: 'ABC-1', cwd: 'C:\\x', entrypoint: 'cli' })
   })
 
   it('keeps what the session waits for', () => {

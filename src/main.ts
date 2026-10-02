@@ -5,6 +5,7 @@ import { DaemonRefresh } from './account/daemon.js'
 import { AccountHomes, accountsRoot, type AccountHome } from './account/homes.js'
 import { accountAt, activate, forgetAccount, loadLedger, markRemoving, noteAccount, saveLedger, type AccountLedger } from './account/ledger.js'
 import { accountId, launchBlock, liveSessions, loginBlock, type LoginBlock } from './account/model.js'
+import { VsCodeAccount, vscodeSettingsFile } from './account/vscode.js'
 import { AccountWatcher } from './account/watcher.js'
 import { Dispatcher, type LaunchEntry } from './chain/dispatcher.js'
 import { launchDays, taskSessions } from './chain/launches.js'
@@ -23,7 +24,7 @@ import { exhaustedReset } from './limits/model.js'
 import { LimitsWatcher } from './limits/watcher.js'
 import { connectHuly } from './huly/source.js'
 import { createBatonServer } from './server.js'
-import { ClaudeCli, resolveClaudeBinary } from './sessions/claude.js'
+import { ClaudeCli, liveRecords, resolveClaudeBinary } from './sessions/claude.js'
 import type { AgentEntry } from './sessions/agents.js'
 import { launchPlan, type LaunchPlan } from './sessions/launch.js'
 import { readSessionRecord } from './sessions/history.js'
@@ -40,6 +41,7 @@ const LIMITS_POLL_MS = 2_000
 const USAGE_POLL_MS = 5 * 60_000
 const LAUNCH_CHART_DAYS = 14
 const ACCOUNT_POLL_MS = 60_000
+const APP_POLL_MS = 5_000
 const LOGIN_TIMEOUT_MS = 10 * 60_000
 const LIMIT_CHECK_MS = 30_000
 const CONFIG_POLL_MS = 2_000
@@ -116,9 +118,25 @@ const daemons = new DaemonRefresh({
   onError: (error) => console.error(`account: ${error instanceof Error ? error.message : String(error)}`),
 })
 
+const vscode = new VsCodeAccount({
+  file: vscodeSettingsFile(process.env),
+  homes: () => homes.list(),
+  ownerOf: (dir) => homes.ownerOf(dir),
+  records: liveRecords,
+  intervalMs: APP_POLL_MS,
+  onChange: () => hub.broadcast('state', getState()),
+  onError: (error) => console.error(`vscode: ${error instanceof Error ? error.message : String(error)}`),
+})
+
 const account = new AccountWatcher({
   homes,
   cli,
+  apps: {
+    list: () => [vscode.view],
+    refresh: () => vscode.refresh(),
+    point: (_app, home) => vscode.point(home),
+  },
+  prepare: (home) => daemons.prepare(home),
   active: () => ledger.active,
   activate: (key) => {
     saveAccounts(activate(ledger, key))
@@ -318,6 +336,7 @@ setInterval(() => dispatcher.check(), LIMIT_CHECK_MS).unref()
 monitor.start()
 limits.start()
 account.start()
+vscode.start()
 configFile.watch()
 
 server.listen(config.port, config.host, () => {

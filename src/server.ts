@@ -21,6 +21,7 @@ export interface AccountControl {
   add(): void
   renew(account: string): void
   switchTo(account: string): void
+  switchApp(app: string, account: string): Promise<void>
   remove(account: string): Promise<void>
   keep(account: string): void
   code(code: string): void
@@ -54,6 +55,7 @@ const COMMANDS: Record<string, Command> = {
   'account/add': ({ account }) => account.add(),
   'account/renew': ({ account }, body) => account.renew(accountOf(body)),
   'account/switch': ({ account }, body) => account.switchTo(accountOf(body)),
+  'account/app': ({ account }, body) => account.switchApp(appOf(body), accountOf(body)),
   'account/remove': ({ account }, body) => account.remove(accountOf(body)),
   'account/keep': ({ account }, body) => account.keep(accountOf(body)),
   'account/code': ({ account }, body) => account.code(codeOf(body)),
@@ -175,6 +177,11 @@ function taskOf(body: Record<string, unknown>): string {
 function accountOf(body: Record<string, unknown>): string {
   if (typeof body.account !== 'string' || body.account === '') throw new Error('account is required')
   return body.account
+}
+
+function appOf(body: Record<string, unknown>): string {
+  if (typeof body.app !== 'string' || body.app === '') throw new Error('app is required')
+  return body.app
 }
 
 function codeOf(body: Record<string, unknown>): string {

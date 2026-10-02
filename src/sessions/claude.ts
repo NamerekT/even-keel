@@ -170,7 +170,7 @@ function isGone(agent: AgentEntry | undefined): boolean {
   return agent.state === 'done' && agent.pid === undefined
 }
 
-async function liveRecords(home: AccountHome): Promise<SessionRecord[]> {
+export async function liveRecords(home: AccountHome): Promise<SessionRecord[]> {
   const dir = join(home.dir, 'sessions')
   let names: string[]
   try {
