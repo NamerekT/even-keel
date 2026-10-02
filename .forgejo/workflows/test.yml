@@ -1,0 +1,28 @@
+name: Tests
+
+# Only main and pull requests. A task branch merged into main would otherwise
+# run the same tree twice; a branch that needs a check before the merge gets
+# one by opening a PR or by workflow_dispatch.
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  test:
+    # The `node24` runner label maps to node:24-bookworm: package.json asks for
+    # Node 24, the default `docker` label is still on 22.
+    runs-on: node24
+
+    steps:
+      - uses: https://github.com/actions/checkout@v4
+
+      - run: npm ci
+
+      - run: npm run typecheck
+
+      - run: npm test
