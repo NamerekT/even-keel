@@ -1806,6 +1806,7 @@ a:focus-visible {
   flex-direction: column;
   gap: 12px;
   min-width: 0;
+  overflow-y: auto;
   padding: 16px;
   background: var(--surface);
   border: 1px solid var(--border);
@@ -1964,7 +1965,7 @@ a:focus-visible {
   display: flex;
   flex-direction: column;
   flex: 1;
-  min-height: 0;
+  min-height: 160px;
   gap: 6px;
 }
 
@@ -1977,7 +1978,7 @@ a:focus-visible {
 
 .feed {
   flex: 1;
-  min-height: 120px;
+  min-height: 0;
   margin: 0;
   padding: 8px 10px;
   overflow-y: auto;
@@ -2126,6 +2127,7 @@ a:focus-visible {
   flex-direction: column;
   gap: 12px;
   height: 100%;
+  overflow-y: auto;
   padding: 16px;
 }
 
@@ -2162,6 +2164,10 @@ a:focus-visible {
 
   .panel__fact:first-child {
     grid-column: 1 / -1;
+  }
+
+  .panel__feed {
+    min-height: 60dvh;
   }
 
   .session-window {
