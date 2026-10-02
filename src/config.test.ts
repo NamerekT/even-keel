@@ -26,6 +26,11 @@ describe('parseConfig', () => {
     expect(() => parseConfig({ projects: {}, modelPrompts: 'x' })).toThrow(/modelPrompts/)
   })
 
+  it('rejects a model prompt with a substitution, since none is filled in', () => {
+    expect(() => parseConfig({ projects: {}, modelPrompts: { sonnet: 'Work on {task}.' } })).toThrow(/modelPrompts\.sonnet.*\{task\}/)
+    expect(() => parseConfig({ projects: {}, modelPrompts: { opus: 'Branch ${branch}.' } })).toThrow(/\$\{branch\}/)
+  })
+
   it('keeps explicit host and port', () => {
     const config = parseConfig({ host: '127.0.0.1', port: 5000, projects: {} })
     expect(config.host).toBe('127.0.0.1')

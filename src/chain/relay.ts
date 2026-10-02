@@ -1,5 +1,6 @@
 import type { TaskPlace } from '../git/types.js'
 import { resetTimeOf } from '../limits/reset.js'
+import { fill } from '../sessions/prompt.js'
 import type { FeedLine } from '../sessions/transcript.js'
 
 export const WARM_CACHE_MS = 55 * 60_000
@@ -11,8 +12,8 @@ export const CLEANUP_NOTE =
   '- Задачу закрывает слияние ветки в main основного чекаута. Worktree и ветку после этого не удаляй и main не пушь — это сделает Батон.'
 
 export function startPrompt(task: string, place: TaskPlace): string {
-  const lines = [task, '', `- Worktree готов: ${place.path} — работай в нём, новый worktree не создавай.`]
-  if (place.branch !== null) lines.push(`- Ветка: ${place.branch} — не меняй её.`)
+  const lines = [fill`${task}`, '', fill`- Worktree готов: ${place.path} — работай в нём, новый worktree не создавай.`]
+  if (place.branch !== null) lines.push(fill`- Ветка: ${place.branch} — не меняй её.`)
   lines.push(CLEANUP_NOTE)
   return lines.join('\n') + '\n'
 }
@@ -87,26 +88,26 @@ export function relayStep(hold: LimitHold, now: Date, account: AccountNow): Rela
 export function handoffPrompt(task: string, session: HandoffSession, reason: HandoffReason = 'limit'): string {
   const steps = session.recent.filter((line) => line.kind !== 'error').slice(-HANDOFF_STEPS)
   const lines = [
-    task,
+    fill`${task}`,
     '',
     HANDOFF_WHY[reason],
-    `- Рабочая папка: ${session.workdir} — работай в ней, новый worktree не создавай.`,
+    fill`- Рабочая папка: ${session.workdir} — работай в ней, новый worktree не создавай.`,
   ]
-  if (session.branch !== null) lines.push(`- Ветка: ${session.branch} — не меняй её.`)
+  if (session.branch !== null) lines.push(fill`- Ветка: ${session.branch} — не меняй её.`)
   lines.push(CLEANUP_NOTE)
   if (session.transcript !== null) {
-    lines.push(`- Транскрипт прошлой сессии: ${session.transcript} — целиком не читай, ищи в нём grep, если чего-то не хватает.`)
+    lines.push(fill`- Транскрипт прошлой сессии: ${session.transcript} — целиком не читай, ищи в нём grep, если чего-то не хватает.`)
   }
   if (session.checkpoint !== null) {
-    lines.push(`- Записка о передаче: ${notePath(session.workdir, session.checkpoint)} — прочитай её первой: что сделано, что осталось, следующая команда.`)
+    lines.push(fill`- Записка о передаче: ${notePath(session.workdir, session.checkpoint)} — прочитай её первой: что сделано, что осталось, следующая команда.`)
   }
   lines.push('- Начни с git status, git log main..HEAD и описания задачи.')
-  if (steps.length > 0) lines.push('', 'Последние шаги прошлой сессии:', ...steps.map((line) => `- ${line.text}`))
-  if (session.lastMessage !== null) lines.push('', 'Последнее сообщение прошлой сессии:', '', session.lastMessage)
+  if (steps.length > 0) lines.push('', 'Последние шаги прошлой сессии:', ...steps.map((line) => fill`- ${line.text}`))
+  if (session.lastMessage !== null) lines.push('', 'Последнее сообщение прошлой сессии:', '', fill`${session.lastMessage}`)
   return lines.join('\n') + '\n'
 }
 
 function notePath(workdir: string, note: string): string {
   if (/^([a-zA-Z]:)?[\\/]/.test(note)) return note
-  return `${workdir.replace(/[\\/]+$/, '')}/${note.replace(/^\.[\\/]/, '')}`
+  return fill`${workdir.replace(/[\\/]+$/, '')}/${note.replace(/^\.[\\/]/, '')}`
 }

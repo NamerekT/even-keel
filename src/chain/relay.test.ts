@@ -151,6 +151,12 @@ describe('handoffPrompt', () => {
   it('leaves the cleanup after the merge to Baton', () => {
     expect(handoffPrompt('ABC-1', session())).toContain(CLEANUP_NOTE)
   })
+
+  it('fails instead of leaving a blank where the working folder or the branch should be', () => {
+    expect(() => handoffPrompt('ABC-1', session({ workdir: '' }))).toThrow(/Рабочая папка/)
+    expect(() => handoffPrompt('ABC-1', session({ branch: ' ' }))).toThrow(/Ветка/)
+    expect(() => handoffPrompt('', session())).toThrow(/prompt/)
+  })
 })
 
 describe('startPrompt', () => {
@@ -165,5 +171,9 @@ describe('startPrompt', () => {
 
   it('leaves out the branch of a detached worktree', () => {
     expect(startPrompt('ABC-1', { path: 'D:/work/repo/.claude/worktrees/abc-1', branch: null })).not.toContain('null')
+  })
+
+  it('fails instead of leaving a blank where the worktree should be', () => {
+    expect(() => startPrompt('ABC-1', { path: '', branch: 'abc-1/task' })).toThrow(/Worktree готов/)
   })
 })
