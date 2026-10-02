@@ -144,6 +144,17 @@ describe('handoffPrompt', () => {
     expect(prompt).not.toContain('worktrees/abc-1/D:')
   })
 
+  it('leaves the last steps and the last message to the handoff note when there is one', () => {
+    const recent = [line('Bash npm test'), line('Checkpoint is written', 'text')]
+    const lastMessage = 'Checkpoint is written.\n\nCHECKPOINT: .temp/handoff.md'
+    for (const reason of ['checkpoint', 'limit'] as const) {
+      const prompt = handoffPrompt('ABC-1', session({ recent, lastMessage, checkpoint: '.temp/handoff.md' }), reason)
+      expect(prompt).toContain('.temp/handoff.md')
+      expect(prompt).not.toContain('Bash npm test')
+      expect(prompt).not.toContain('Checkpoint is written')
+    }
+  })
+
   it('says nothing of a handoff note when there is none', () => {
     expect(handoffPrompt('ABC-1', session())).not.toContain('handoff')
   })

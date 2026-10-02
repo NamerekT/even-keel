@@ -86,7 +86,6 @@ export function relayStep(hold: LimitHold, now: Date, account: AccountNow): Rela
 
 
 export function handoffPrompt(task: string, session: HandoffSession, reason: HandoffReason = 'limit'): string {
-  const steps = session.recent.filter((line) => line.kind !== 'error').slice(-HANDOFF_STEPS)
   const lines = [
     fill`${task}`,
     '',
@@ -102,6 +101,8 @@ export function handoffPrompt(task: string, session: HandoffSession, reason: Han
     lines.push(fill`- Записка о передаче: ${notePath(session.workdir, session.checkpoint)} — прочитай её первой: что сделано, что осталось, следующая команда.`)
   }
   lines.push('- Начни с git status, git log main..HEAD и описания задачи.')
+  if (session.checkpoint !== null) return lines.join('\n') + '\n'
+  const steps = session.recent.filter((line) => line.kind !== 'error').slice(-HANDOFF_STEPS)
   if (steps.length > 0) lines.push('', 'Последние шаги прошлой сессии:', ...steps.map((line) => fill`- ${line.text}`))
   if (session.lastMessage !== null) lines.push('', 'Последнее сообщение прошлой сессии:', '', fill`${session.lastMessage}`)
   return lines.join('\n') + '\n'
