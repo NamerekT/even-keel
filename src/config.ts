@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs'
 import { DEFAULT_RULES, sameName, type ChainRules } from './chain/rules.js'
 import { isModelAlias, type ModelAlias } from './huly/model.js'
+import { placeholderIn } from './sessions/prompt.js'
 import type { ContextScale } from './state.js'
 
 export interface BatonConfig {
@@ -84,6 +85,10 @@ function parseModelPrompts(raw: unknown): Partial<Record<ModelAlias, string>> {
   for (const [model, text] of Object.entries(raw)) {
     if (!isModelAlias(model)) throw new Error(`config: modelPrompts.${model} is not a model alias`)
     if (typeof text !== 'string' || text.trim() === '') throw new Error(`config: modelPrompts.${model} is empty`)
+    const placeholder = placeholderIn(text)
+    if (placeholder !== null) {
+      throw new Error(`config: modelPrompts.${model} has the substitution ${placeholder}, but a model prompt is passed on as it is`)
+    }
     prompts[model] = text.trim()
   }
   return prompts
