@@ -1,0 +1,42 @@
+name: stats
+
+services:
+  db:
+    image: postgres:18
+    restart: unless-stopped
+    environment:
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?}
+      TALLY_DB: ${TALLY_DB:-tally}
+      TALLY_WRITER_PASSWORD: ${TALLY_WRITER_PASSWORD:?}
+      TALLY_READER_PASSWORD: ${TALLY_READER_PASSWORD:?}
+    ports:
+      - "${BIND_ADDRESS:?}:5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql
+      - ./initdb:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d $${TALLY_DB}"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+
+  backup:
+    image: postgres:18
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      PGHOST: db
+      PGUSER: postgres
+      PGPASSWORD: ${POSTGRES_PASSWORD:?}
+      TALLY_DB: ${TALLY_DB:-tally}
+      BACKUP_INTERVAL_SECONDS: ${BACKUP_INTERVAL_SECONDS:-86400}
+      BACKUP_KEEP: ${BACKUP_KEEP:-7}
+    entrypoint: ["/bin/sh", "/scripts/backup.sh"]
+    volumes:
+      - ./scripts:/scripts:ro
+      - ./backups:/backups
+
+volumes:
+  pgdata:
