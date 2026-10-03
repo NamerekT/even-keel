@@ -1,5 +1,6 @@
 import type { StatsFilter } from './model.js'
 import { BASE } from './base-sql.js'
+import { filterSets, withImports, type ImportFile, type ImportPrecision, type RuleImport, type RulePurpose } from './rule-imports.js'
 import {
   compareOf,
   type CompareSettings,
@@ -131,35 +132,47 @@ from tasked
 where side is not null
 group by side`
 
+const IMPORTS = `select id, at, until, precision, sessions, files, purpose, reason, task, source from rule_imports order by at`
+
 const iso = (value: unknown): string => (value instanceof Date ? value.toISOString() : String(value))
 const maybe = (value: unknown): number | null => (value === null || value === undefined ? null : Number(value))
 
+const importOf = (row: Row): RuleImport => ({
+  id: String(row.id),
+  at: iso(row.at),
+  until: row.until === null ? null : iso(row.until),
+  precision: String(row.precision) as ImportPrecision,
+  sessions: row.sessions as string[],
+  files: row.files as ImportFile[],
+  purpose: row.purpose as RulePurpose[],
+  reason: String(row.reason),
+  task: row.task === null ? null : String(row.task),
+  source: String(row.source),
+})
+
 export async function readRules(db: RulesDb, query: RulesQuery, settings: CompareSettings): Promise<StatsRules> {
-  const [changeRows, editRows, starts, places] = await Promise.all([
+  const [changeRows, editRows, importRows, starts, places] = await Promise.all([
     db.plain(CHANGES, []),
     db.plain(EDITS, []),
+    db.plain(IMPORTS, []),
     db.base(STARTS, query, [query.projects]),
     db.places(),
   ])
-  const keep = (row: Row) => {
-    const project = scopeProject(String(row.scope), places)
-    const kind = String(row.kind) as RuleKind
-    if (query.kinds !== null && !query.kinds.includes(kind)) return null
-    if (project !== null && query.projects !== null && !query.projects.includes(project)) return null
-    return { key: String(row.key), display: String(row.display), kind, project, at: iso(row.at), added: Number(row.added) }
-  }
-  const changes: RuleChangeRow[] = changeRows.flatMap((row) => {
-    const file = keep(row)
-    return file === null ? [] : [{ ...file, id: String(row.id), removed: Number(row.removed) }]
+  const fileOf = (row: Row) => ({
+    key: String(row.key),
+    display: String(row.display),
+    kind: String(row.kind) as RuleKind,
+    project: scopeProject(String(row.scope), places),
+    at: iso(row.at),
+    added: Number(row.added),
   })
-  const edits: RuleEditRow[] = editRows.flatMap((row) => {
-    const file = keep(row)
-    return file === null ? [] : [{ ...file, sessionId: String(row.session_id), removed: maybe(row.removed) }]
-  })
+  const changes: RuleChangeRow[] = changeRows.map((row) => ({ ...fileOf(row), id: String(row.id), removed: Number(row.removed) }))
+  const edits: RuleEditRow[] = editRows.map((row) => ({ ...fileOf(row), sessionId: String(row.session_id), removed: maybe(row.removed) }))
   const ids = [...new Set(edits.map((each) => each.sessionId))]
   const info = ids.length === 0 ? [] : await db.plain(SESSION_INFO, [ids])
   const sessions = new Map(info.map((row) => [String(row.session_id), { task: row.task === null ? null : String(row.task), title: row.title === null ? null : String(row.title) }]))
-  const marks = mergeMarks(ruleSets(changes, edits, sessions), starts.map((row) => Number(row.started)), settings.minSessions)
+  const sets = filterSets(withImports(ruleSets(changes, edits, sessions), importRows.map(importOf), places), query)
+  const marks = mergeMarks(sets, starts.map((row) => Number(row.started)), settings.minSessions)
   return { at: new Date().toISOString(), marks, compare: settings }
 }
 

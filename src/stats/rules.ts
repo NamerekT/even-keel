@@ -1,5 +1,6 @@
 import { lineDiff, type DiffHunk } from './diff.js'
 import { parseStatsFilter, type StatsFilter } from './model.js'
+import { RULE_PURPOSES, type RuleNote, type RulePurpose } from './rule-imports.js'
 
 export const RULE_KINDS = ['claude_md', 'skill', 'memory', 'hook', 'settings', 'agent'] as const
 export type RuleKind = (typeof RULE_KINDS)[number]
@@ -31,13 +32,16 @@ export interface RuleSetFile extends RuleFile {
   changes: string[]
 }
 
+// `startAt` — the first edit of the set, `at` — the last one.
 export interface RuleSet {
   id: string
+  startAt: string
   at: string
   sessionId: string | null
   task: string | null
   title: string | null
   files: RuleSetFile[]
+  note: RuleNote | null
 }
 
 export interface RuleMark {
@@ -112,6 +116,7 @@ export interface ScopePlaces {
 export interface RulesQuery extends StatsFilter {
   projects: string[] | null
   kinds: RuleKind[] | null
+  purposes: RulePurpose[] | null
 }
 
 export interface CompareQuery extends StatsFilter {
@@ -184,7 +189,16 @@ export function ruleSets(
       else if (!files.has(each.key)) for (const change of attached) addFile(files, change, change.added, change.removed, change.id)
     }
     const info = sessions.get(sessionId)
-    sets.push({ id: `s:${sessionId}`, at: iso(own.at(-1)!.at), sessionId, task: info?.task ?? null, title: info?.title ?? null, files: [...files.values()] })
+    sets.push({
+      id: `s:${sessionId}`,
+      startAt: iso(own[0]!.at),
+      at: iso(own.at(-1)!.at),
+      sessionId,
+      task: info?.task ?? null,
+      title: info?.title ?? null,
+      files: [...files.values()],
+      note: null,
+    })
   }
 
   loose.sort((a, b) => Date.parse(a.at) - Date.parse(b.at))
@@ -193,7 +207,7 @@ export function ruleSets(
     if (group.length === 0) return
     const files = new Map<string, RuleSetFile>()
     for (const change of group) addFile(files, change, change.added, change.removed, change.id)
-    sets.push({ id: `m:${group[0]!.id}`, at: iso(group.at(-1)!.at), sessionId: null, task: null, title: null, files: [...files.values()] })
+    sets.push({ id: `m:${group[0]!.id}`, startAt: iso(group[0]!.at), at: iso(group.at(-1)!.at), sessionId: null, task: null, title: null, files: [...files.values()], note: null })
     group = []
   }
   for (const change of loose) {
@@ -205,15 +219,17 @@ export function ruleSets(
 }
 
 // Neighbouring sets merge into one mark while fewer than `minSessions` sessions started between them.
+// A mark goes from the first edit of its first set to the last edit of its last one.
 // `starts` are session start times in milliseconds, sorted.
 export function mergeMarks(sets: RuleSet[], starts: number[], minSessions: number): RuleMark[] {
   const marks: RuleMark[] = []
-  for (const each of [...sets].sort((a, b) => Date.parse(a.at) - Date.parse(b.at))) {
+  const later = (a: string, b: string) => (Date.parse(a) >= Date.parse(b) ? a : b)
+  for (const each of [...sets].sort((a, b) => Date.parse(a.startAt) - Date.parse(b.startAt))) {
     const last = marks.at(-1)
-    if (last !== undefined && countBetween(starts, Date.parse(last.toAt), Date.parse(each.at)) < minSessions) {
-      last.toAt = each.at
+    if (last !== undefined && countBetween(starts, Date.parse(last.toAt), Date.parse(each.startAt)) < minSessions) {
+      last.toAt = later(last.toAt, each.at)
       last.sets.push(each)
-    } else marks.push({ fromAt: each.at, toAt: each.at, sets: [each] })
+    } else marks.push({ fromAt: each.startAt, toAt: each.at, sets: [each] })
   }
   return marks
 }
@@ -287,11 +303,20 @@ function listParam(params: URLSearchParams, name: string): string[] | null {
   return listed === null ? null : listed.split(',').filter((each) => each !== '')
 }
 
+function knownList<T extends string>(params: URLSearchParams, name: string, known: readonly T[]): T[] | null {
+  const listed = listParam(params, name)
+  const unknown = listed?.find((each) => !(known as readonly string[]).includes(each))
+  if (unknown !== undefined) throw new Error(`${name} must be among ${known.join(', ')}, got ${unknown}`)
+  return listed as T[] | null
+}
+
 export function parseRulesQuery(params: URLSearchParams): RulesQuery {
-  const kinds = listParam(params, 'kinds')
-  const unknown = kinds?.find((kind) => !(RULE_KINDS as readonly string[]).includes(kind))
-  if (unknown !== undefined) throw new Error(`kinds must be among ${RULE_KINDS.join(', ')}, got ${unknown}`)
-  return { ...parseStatsFilter(params), projects: listParam(params, 'projects'), kinds: kinds as RuleKind[] | null }
+  return {
+    ...parseStatsFilter(params),
+    projects: listParam(params, 'projects'),
+    kinds: knownList(params, 'kinds', RULE_KINDS),
+    purposes: knownList(params, 'purposes', RULE_PURPOSES),
+  }
 }
 
 export function parseCompareQuery(params: URLSearchParams): CompareQuery {

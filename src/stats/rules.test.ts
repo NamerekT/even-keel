@@ -98,8 +98,8 @@ describe('ruleSets', () => {
   })
 })
 
-function set(id: string, at: string): RuleSet {
-  return { id, at, sessionId: null, task: null, title: null, files: [] }
+function set(id: string, at: string, startAt = at): RuleSet {
+  return { id, startAt, at, sessionId: null, task: null, title: null, files: [], note: null }
 }
 
 describe('mergeMarks', () => {
@@ -111,6 +111,11 @@ describe('mergeMarks', () => {
       ['2026-09-10T10:00:00Z', '2026-09-10T12:00:00Z', ['a', 'b']],
       ['2026-09-11T12:00:00Z', '2026-09-11T12:00:00Z', ['c']],
     ])
+  })
+
+  it('spans a mark from the first edit of its first set to the last edit of its sets', () => {
+    const marks = mergeMarks([set('a', '2026-09-10T10:30:00Z', '2026-09-10T09:00:00Z'), set('b', '2026-09-10T10:20:00Z', '2026-09-10T10:10:00Z')], starts, 2)
+    expect(marks.map((mark) => [mark.fromAt, mark.toAt])).toEqual([['2026-09-10T09:00:00Z', '2026-09-10T10:30:00Z']])
   })
 
   it('keeps every set apart when enough sessions start between them', () => {
@@ -169,8 +174,13 @@ describe('ruleDiff', () => {
 describe('rule queries', () => {
   it('read projects and kinds', () => {
     expect(parseRulesQuery(new URLSearchParams('projects=ABC,work&kinds=skill,memory'))).toMatchObject({ projects: ['ABC', 'work'], kinds: ['skill', 'memory'] })
-    expect(parseRulesQuery(new URLSearchParams(''))).toMatchObject({ projects: null, kinds: null })
+    expect(parseRulesQuery(new URLSearchParams(''))).toMatchObject({ projects: null, kinds: null, purposes: null })
     expect(() => parseRulesQuery(new URLSearchParams('kinds=prompt'))).toThrow(/kinds/)
+  })
+
+  it('read purposes', () => {
+    expect(parseRulesQuery(new URLSearchParams('purposes=economy,quality'))).toMatchObject({ purposes: ['economy', 'quality'] })
+    expect(() => parseRulesQuery(new URLSearchParams('purposes=speed'))).toThrow(/purposes/)
   })
 
   it('read the comparison moments and days', () => {

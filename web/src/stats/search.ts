@@ -1,4 +1,5 @@
 import type { StatsScope } from '../../../src/stats/model.js'
+import { RULE_PURPOSES, type RulePurpose } from '../../../src/stats/rule-imports.js'
 import type { RuleKind } from '../../../src/stats/rules.js'
 import { RULE_KIND_LABELS } from './marks.js'
 import { isPreset, type PeriodChoice, type Step } from './period.js'
@@ -10,11 +11,17 @@ export interface StatsView {
   account: string | null
   step: Step | null
   kinds: RuleKind[] | null
+  purposes: RulePurpose[] | null
 }
 
-export const DEFAULT_VIEW: StatsView = { period: { preset: '30d' }, projects: null, scope: 'all', account: null, step: null, kinds: null }
+export const DEFAULT_VIEW: StatsView = { period: { preset: '30d' }, projects: null, scope: 'all', account: null, step: null, kinds: null, purposes: null }
 
 const KINDS = new Set<string>(RULE_KIND_LABELS.map(([kind]) => kind))
+const PURPOSES = new Set<string>(RULE_PURPOSES)
+
+function knownList<T extends string>(listed: string | null, known: Set<string>): T[] | null {
+  return listed === null ? null : (listed.split(',').filter((each) => known.has(each)) as T[])
+}
 
 const STEPS: Record<string, Step> = { d: 'day', w: 'week', m: 'month' }
 const STEP_CODES: Record<Step, string> = { day: 'd', week: 'w', month: 'm' }
@@ -35,14 +42,14 @@ function readPeriod(params: URLSearchParams): PeriodChoice {
 
 export function parseView(params: URLSearchParams): StatsView {
   const listed = params.get('projects')
-  const kinds = params.get('kinds')
   return {
     period: readPeriod(params),
     projects: listed === null ? null : listed.split(',').filter((each) => each !== ''),
     scope: params.get('scope') === 'chain' ? 'chain' : 'all',
     account: params.get('account') || null,
     step: STEPS[params.get('step') ?? ''] ?? null,
-    kinds: kinds === null ? null : (kinds.split(',').filter((each) => KINDS.has(each)) as RuleKind[]),
+    kinds: knownList<RuleKind>(params.get('kinds'), KINDS),
+    purposes: knownList<RulePurpose>(params.get('purposes'), PURPOSES),
   }
 }
 
@@ -59,5 +66,6 @@ export function viewSearch(view: StatsView): string {
   if (view.account !== null) params.set('account', view.account)
   if (view.step !== null) params.set('step', STEP_CODES[view.step])
   if (view.kinds !== null) params.set('kinds', view.kinds.join(','))
+  if (view.purposes !== null) params.set('purposes', view.purposes.join(','))
   return params.toString()
 }

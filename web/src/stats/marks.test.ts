@@ -5,7 +5,7 @@ import { markKey, markPlaces, pickMark, pickedSpan, shortPath } from './marks.js
 const mark = (id: string, fromAt: string, toAt = fromAt): RuleMark => ({
   fromAt,
   toAt,
-  sets: [{ id, at: toAt, sessionId: null, task: null, title: null, files: [] }],
+  sets: [{ id, startAt: fromAt, at: toAt, sessionId: null, task: null, title: null, files: [], note: null }],
 })
 
 describe('markPlaces', () => {

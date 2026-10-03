@@ -117,6 +117,7 @@ export class LiveConnection implements LiveSource {
     const search = filterSearch(query)
     if (query.projects !== null) search.set('projects', query.projects.join(','))
     if (query.kinds !== null) search.set('kinds', query.kinds.join(','))
+    if (query.purposes !== null) search.set('purposes', query.purposes.join(','))
     return this.deps.fetchStats('rules', search)
   }
 

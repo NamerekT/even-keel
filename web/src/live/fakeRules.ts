@@ -1,6 +1,7 @@
 import type { StatsAnswer } from '../../../src/stats/model.js'
 import { lineDiff } from '../../../src/stats/diff.js'
 import type { CompareQuery, CompareSide, RuleDiffFile, RuleKind, RuleMark, RuleSet, RulesQuery, StatsCompare, StatsRules } from '../../../src/stats/rules.js'
+import type { ImportPrecision, RuleNote, RulePurpose } from '../../../src/stats/rule-imports.js'
 import { failure } from './fakeStats.js'
 
 const COMPARE = { minTasks: 5, minSessions: 10, days: 7 }
@@ -15,12 +16,22 @@ interface FakeFile {
   diff: boolean
 }
 
+interface FakeNote {
+  purpose: RulePurpose[]
+  reason: string
+  precision?: ImportPrecision
+  driftHours?: number
+  summaries?: string[]
+}
+
 interface FakeSet {
   daysAgo: number
   hour: number
   task: string | null
   title: string | null
   files: FakeFile[]
+  note?: FakeNote
+  imported?: boolean
 }
 
 const RULES = ['# Правила', '', '- Отвечать кратко.', '- Код и комментарии — на английском.', '- Временные файлы — в `.temp/`.', '- Базовая ветка: `main`.']
@@ -44,6 +55,23 @@ const MARKS: FakeSet[][] = [
       task: 'ABC-97',
       title: 'Тёмная тема для настроек',
       files: [file('~/.claude/CLAUDE.md', 'claude_md', null, RULES, [...RULES.slice(0, 3), '- Перед правкой читать файл целиком только по нужде.', ...RULES.slice(3)])],
+      note: { purpose: ['economy'], reason: 'Сессии читали файлы целиком и перечитывали их — контекст рос без пользы' },
+    },
+  ],
+  [
+    {
+      daysAgo: 4,
+      hour: 9,
+      task: null,
+      title: null,
+      imported: true,
+      files: [file('~/.githooks/pre-push', 'hook', null, [], [], false), file('~/.claude.json', 'settings', null, [], [], false)],
+      note: {
+        purpose: ['infra'],
+        reason: 'Пуш без проверки ветки уходил в чужой remote',
+        precision: 'hour',
+        summaries: ['Проверка ветки перед пушем', 'MCP-сервер трекера — только в своём проекте'],
+      },
     },
   ],
   [
@@ -61,6 +89,7 @@ const MARKS: FakeSet[][] = [
           ['# Coding', '', '1. Сначала падающий тест.', '2. Минимальный код.', '3. Граничные случаи — отдельными тестами.', '4. Потом сборка.'],
         ),
       ],
+      note: { purpose: ['quality', 'process'], reason: 'Фиксы без теста возвращались переделкой', driftHours: 5 },
     },
     {
       daysAgo: 6,
@@ -80,6 +109,7 @@ const MARKS: FakeSet[][] = [
       task: null,
       title: 'Хук контрольной точки',
       files: [file('~/.claude/hooks/context-checkpoint.mjs', 'hook', null, [], [], false)],
+      note: { purpose: ['economy'], reason: 'Раздутый контекст дорожал к концу длинных задач' },
     },
   ],
   [
@@ -120,6 +150,22 @@ function momentOf(set: FakeSet, minutes = 0): string {
   return day.toISOString()
 }
 
+function noteOf(set: FakeSet): RuleNote | null {
+  if (set.note === undefined) return null
+  const { purpose, reason, precision = 'exact', driftHours, summaries = [] } = set.note
+  return {
+    importId: String(set.daysAgo),
+    at: momentOf(set, -25),
+    until: momentOf(set),
+    precision,
+    purpose,
+    reason,
+    task: set.task,
+    files: set.files.map((each, index) => ({ path: each.display, action: 'changed', summary: summaries[index] ?? '', precision: null, at: null })),
+    drift: driftHours === undefined ? null : driftHours * 3_600_000,
+  }
+}
+
 function changes(): Map<string, FakeFile> {
   const map = new Map<string, FakeFile>()
   let seed = 1
@@ -155,10 +201,13 @@ export function fakeRules(mode: string | null, rules: string | null, query: Rule
           }
         })
       if (files.length === 0) continue
+      const note = noteOf(set)
+      if (query.purposes !== null && !(note?.purpose ?? []).some((purpose) => query.purposes!.includes(purpose))) continue
       const manual = set.task === null && set.title === null
-      sets.push({ id: manual ? `m:${files[0]!.changes[0] ?? hex(seed)}` : `s:${sessionOf(session)}`, at: momentOf(set), sessionId: manual ? null : sessionOf(session), task: set.task, title: set.title, files })
+      const id = set.imported ? `i:${session}` : manual ? `m:${files[0]!.changes[0] ?? hex(seed)}` : `s:${sessionOf(session)}`
+      sets.push({ id, startAt: momentOf(set, -25), at: momentOf(set), sessionId: manual ? null : sessionOf(session), task: set.task, title: set.title, files, note })
     }
-    if (sets.length > 0) marks.push({ fromAt: sets[0]!.at, toAt: sets.at(-1)!.at, sets })
+    if (sets.length > 0) marks.push({ fromAt: sets[0]!.startAt, toAt: sets.at(-1)!.at, sets })
   }
   return { state: 'ok', data: { at: new Date().toISOString(), marks: marks.reverse(), compare: COMPARE } }
 }
