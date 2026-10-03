@@ -271,6 +271,10 @@ a.stats__key:hover {
   font-size: 13px;
 }
 
+.stats-tile__line {
+  display: block;
+}
+
 .stats-tile__value {
   font-size: 24px;
   font-weight: 600;
@@ -659,6 +663,12 @@ a.stats__key:hover {
   font-size: 18px;
   font-weight: 600;
   font-variant-numeric: tabular-nums;
+}
+
+.strip__since {
+  color: var(--fg-muted);
+  font-size: 12px;
+  font-weight: 400;
 }
 
 .strip__spark {

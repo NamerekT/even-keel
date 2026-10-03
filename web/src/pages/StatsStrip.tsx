@@ -5,7 +5,7 @@ import { useLive } from '../live/context.js'
 import { AnswerNotice, loadedData, useStatsAnswer } from '../stats/common.js'
 import { formatShare, formatUsd, weeklyLimit } from '../stats/format.js'
 import { chartData, projectColors } from '../stats/history.js'
-import { formatRange, localDay, resolvePeriod } from '../stats/period.js'
+import { formatDay, formatRange, localDay, resolvePeriod } from '../stats/period.js'
 import { seriesStyle } from '../ui/series.js'
 import '../stats/stats.css'
 
@@ -26,7 +26,7 @@ export function StatsStrip({ project }: { project: string }) {
     return {
       cost: sum(2),
       sessions: sum(3),
-      limit: weeklyLimit(cells.length === 0 ? null : sum(4), DAYS).share,
+      limit: weeklyLimit(cells.length === 0 ? null : sum(4), range, history.limits),
       days: chartData(history, range, 'day', 'cost', [project]).buckets.map((each) => each.total),
       slot: projectColors(history).get(project) ?? null,
     }
@@ -45,7 +45,10 @@ export function StatsStrip({ project }: { project: string }) {
             </div>
             <div>
               <dt>Лимит в неделю</dt>
-              <dd>{summary.limit === null ? '—' : `≈ ${formatShare(summary.limit)}`}</dd>
+              <dd title={summary.limit.share === null ? 'снимков лимита за 30 дней нет' : undefined}>
+                {summary.limit.share === null ? '—' : `${summary.limit.perWeek ? '≈ ' : ''}${formatShare(summary.limit.share)}`}
+                {summary.limit.from !== null && <span className="strip__since"> с {formatDay(summary.limit.from, false)}</span>}
+              </dd>
             </div>
             <div>
               <dt>Сессии</dt>

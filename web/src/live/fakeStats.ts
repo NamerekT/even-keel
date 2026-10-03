@@ -1,9 +1,11 @@
 import type {
+  LimitCoverage,
   PeriodQuery,
   StatsAnswer,
   StatsCell,
   StatsFilter,
   StatsHistory,
+  StatsLimitWindow,
   StatsPeriod,
   StatsStuck,
   StatsTaskDetail,
@@ -71,8 +73,32 @@ export function failure<T>(mode: string | null): StatsAnswer<T> | null {
   return null
 }
 
+const LIMIT_DAYS = 20
+
+function limitCoverage(): LimitCoverage {
+  const today = localDay(new Date())
+  return { from: addDays(today, -LIMIT_DAYS), to: today }
+}
+
+// Weekly windows of every account that overlap the range and the snapshots, the last one still open.
+function limitWindows(filter: StatsFilter, range: DayRange): StatsLimitWindow[] {
+  const coverage = limitCoverage()
+  const accounts = filter.account === null ? ['global', 'work'] : [filter.account]
+  return accounts.flatMap((account, index) => {
+    const next = random(account.length * 613)
+    const windows: StatsLimitWindow[] = []
+    for (let reset = addDays(coverage.to, 3 + index * 2); addDays(reset, -7) >= addDays(coverage.from, -7); reset = addDays(reset, -7)) {
+      if (addDays(reset, -7) > range.to || reset <= range.from) continue
+      const open = reset > coverage.to
+      windows.unshift({ account, resetsAt: `${reset}T13:00:00.000Z`, peak: open ? Math.round(20 + next() * 40) : Math.round(85 + next() * 15), open })
+    }
+    return windows
+  })
+}
+
 function rows(filter: StatsFilter): { day: string; project: string; cost: number; sessions: number; limit: number }[] {
   const today = localDay(new Date())
+  const limitFrom = limitCoverage().from
   const list = []
   for (const profile of PROFILES) {
     const factor = scale(filter, profile.project)
@@ -85,7 +111,7 @@ function rows(filter: StatsFilter): { day: string; project: string; cost: number
       if (roll > profile.busy * (weekend ? 0.4 : 1)) continue
       const cost = Number((profile.weight * (0.3 + next() * 2.2) * factor).toFixed(2))
       const sessions = Math.max(1, Math.round(cost / 4 + next() * 2))
-      list.push({ day, project: profile.project, cost, sessions, limit: Number((cost * 0.11).toFixed(3)) })
+      list.push({ day, project: profile.project, cost, sessions, limit: day >= limitFrom ? Number((cost * 0.11).toFixed(3)) : 0 })
     }
   }
   return list.sort((a, b) => a.day.localeCompare(b.day) || a.project.localeCompare(b.project))
@@ -103,7 +129,15 @@ export function fakeHistory(mode: string | null, filter: StatsFilter): StatsAnsw
   const cells: StatsCell[] = list.map((row) => [dayIndex.get(row.day)!, projects.indexOf(row.project), row.cost, row.sessions, row.limit])
   return {
     state: 'ok',
-    data: { at: new Date().toISOString(), accounts: ['global', 'work'], baton: BATON, projects, days, cells },
+    data: {
+      at: new Date().toISOString(),
+      accounts: ['global', 'work'],
+      baton: BATON,
+      projects,
+      days,
+      cells,
+      limits: mode === 'empty' ? null : limitCoverage(),
+    },
   }
 }
 
@@ -202,6 +236,8 @@ export function fakePeriod(mode: string | null, query: PeriodQuery): StatsAnswer
       at: new Date().toISOString(),
       current,
       previous: totals(list, previousRange(range)),
+      limits: mode === 'empty' ? null : limitCoverage(),
+      windows: mode === 'empty' ? [] : limitWindows(query, range),
       models: share(current.cost, [['opus', 0.62], ['sonnet', 0.31], ['haiku', 0.05], ['other', 0.02]]),
       entrypoints: share(current.cost, query.scope === 'chain' ? [['baton', 1]] : [['baton', 0.48], ['vscode', 0.3], ['desktop', 0.12], ['cli', 0.08], ['tally-classify', 0.02]]),
       tasks,

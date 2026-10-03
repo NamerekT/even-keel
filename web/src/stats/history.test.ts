@@ -17,6 +17,7 @@ const history: StatsHistory = {
     [2, 4, 0.5, 1, 0],
     [2, 1, 0, 1, 0],
   ],
+  limits: { from: '2026-09-28', to: '2026-10-03' },
 }
 
 const range = { from: '2026-09-29', to: '2026-10-03' }

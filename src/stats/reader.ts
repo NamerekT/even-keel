@@ -1,5 +1,6 @@
 import pg from 'pg'
 import type {
+  LimitCoverage,
   PeriodQuery,
   ReaderSettings,
   StatsAnswer,
@@ -35,6 +36,22 @@ group by l.day, l.project
 order by l.day, l.project`
 
 const ACCOUNTS = `select distinct account from messages order by account`
+
+// $1 time zone, $2 account or null.
+const COVERAGE = `
+select to_char(min(observed_at) at time zone $1::text, 'YYYY-MM-DD') as from_day,
+  to_char(max(observed_at) at time zone $1::text, 'YYYY-MM-DD') as to_day
+from limit_snapshots
+where span = '7d' and ($2::text is null or account = $2::text)`
+
+// $1 time zone, $2 account or null, $3 first and $4 last local day of the period.
+const WINDOWS = `
+select account, resets_at, peak, resets_at > now() as open
+from limit_windows
+where span = '7d' and ($2::text is null or account = $2::text)
+  and starts_at < ($4::date + 1)::timestamp at time zone $1::text
+  and resets_at > ($3::date)::timestamp at time zone $1::text
+order by account, resets_at`
 
 const FOLDERS = `
 select lower(regexp_replace(replace(project_dir, '\\', '/'), '^[a-zA-Z]:', '')) as dir, min(project_dir) as raw
@@ -160,7 +177,13 @@ const text = (value: unknown): string | null => (value === null || value === und
 const iso = (value: unknown): string => (value instanceof Date ? value.toISOString() : String(value))
 const round = (value: number, digits: number): number => Number(value.toFixed(digits))
 
-export function mapHistory(rows: Row[], accounts: Row[], baton: string[], at: Date): StatsHistory {
+function coverage(rows: Row[]): LimitCoverage | null {
+  const row = rows[0]
+  if (row?.from_day == null || row.to_day == null) return null
+  return { from: String(row.from_day), to: String(row.to_day) }
+}
+
+export function mapHistory(rows: Row[], accounts: Row[], limits: Row[], baton: string[], at: Date): StatsHistory {
   const days: string[] = []
   const totals = new Map<string, number>()
   for (const row of rows) {
@@ -178,7 +201,7 @@ export function mapHistory(rows: Row[], accounts: Row[], baton: string[], at: Da
     number(row.sessions),
     round(number(row.limit_share), 3),
   ])
-  return { at: at.toISOString(), accounts: accounts.map((row) => String(row.account)), baton, projects, days, cells }
+  return { at: at.toISOString(), accounts: accounts.map((row) => String(row.account)), baton, projects, days, cells, limits: coverage(limits) }
 }
 
 function totals(row: Row | undefined): StatsTotals {
@@ -209,6 +232,8 @@ function stuck(row: Row): StatsStuck {
 
 export interface PeriodRows {
   totals: Row[]
+  coverage: Row[]
+  windows: Row[]
   models: Row[]
   entrypoints: Row[]
   tasks: Row[]
@@ -223,6 +248,8 @@ export function mapPeriod(query: PeriodQuery, rows: PeriodRows, at: Date): Stats
     at: at.toISOString(),
     current: totals(rows.totals.find((row) => row.cur === true)),
     previous: totals(rows.totals.find((row) => row.cur === false)),
+    limits: coverage(rows.coverage),
+    windows: rows.windows.map((row) => ({ account: String(row.account), resetsAt: iso(row.resets_at), peak: number(row.peak), open: row.open === true })),
     models: rows.models.map(share),
     entrypoints: rows.entrypoints.map(share),
     tasks: rows.tasks.map((row) => ({
@@ -283,8 +310,12 @@ export class StatsReader {
 
   history(filter: StatsFilter): Promise<StatsAnswer<StatsHistory>> {
     return this.cached(`history|${filter.scope}|${filter.account}|${filter.tz}`, async (pool) => {
-      const [rows, accounts] = await Promise.all([this.query(pool, HISTORY, filter), pool.query<Row>(ACCOUNTS).then((result) => result.rows)])
-      return mapHistory(rows, accounts, this.keys, new Date())
+      const [rows, accounts, limits] = await Promise.all([
+        this.query(pool, HISTORY, filter),
+        pool.query<Row>(ACCOUNTS).then((result) => result.rows),
+        pool.query<Row>(COVERAGE, [filter.tz, filter.account]).then((result) => result.rows),
+      ])
+      return mapHistory(rows, accounts, limits, this.keys, new Date())
     })
   }
 
@@ -292,10 +323,14 @@ export class StatsReader {
     const key = `period|${query.scope}|${query.account}|${query.tz}|${query.from}|${query.to}|${query.projects?.join(',') ?? '*'}`
     return this.cached(key, async (pool) => {
       const extra = [query.from, query.to, query.projects]
-      const [totals, models, entrypoints, tasks, weeks, stuck] = await Promise.all(
-        [TOTALS, MODELS, ENTRYPOINTS, TASKS, WEEKS, STUCK].map((sql) => this.query(pool, sql, query, extra)),
-      )
-      return mapPeriod(query, { totals: totals!, models: models!, entrypoints: entrypoints!, tasks: tasks!, weeks: weeks!, stuck: stuck! }, new Date())
+      const plain = (sql: string, params: unknown[]) => pool.query<Row>(sql, params).then((result) => result.rows)
+      const [[totals, models, entrypoints, tasks, weeks, stuck], coverage, windows] = await Promise.all([
+        Promise.all([TOTALS, MODELS, ENTRYPOINTS, TASKS, WEEKS, STUCK].map((sql) => this.query(pool, sql, query, extra))),
+        plain(COVERAGE, [query.tz, query.account]),
+        plain(WINDOWS, [query.tz, query.account, query.from, query.to]),
+      ])
+      const rows = { totals: totals!, coverage, windows, models: models!, entrypoints: entrypoints!, tasks: tasks!, weeks: weeks!, stuck: stuck! }
+      return mapPeriod(query, rows, new Date())
     })
   }
 

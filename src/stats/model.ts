@@ -14,6 +14,19 @@ export interface PeriodQuery extends StatsFilter {
 
 export type StatsCell = [day: number, project: number, cost: number, sessions: number, limit: number]
 
+// Local days, inclusive, from the first to the last snapshot of the weekly limit.
+export interface LimitCoverage {
+  from: string
+  to: string
+}
+
+export interface StatsLimitWindow {
+  account: string
+  resetsAt: string
+  peak: number
+  open: boolean
+}
+
 export interface StatsHistory {
   at: string
   accounts: string[]
@@ -21,6 +34,7 @@ export interface StatsHistory {
   projects: string[]
   days: string[]
   cells: StatsCell[]
+  limits: LimitCoverage | null
 }
 
 export interface StatsTotals {
@@ -76,6 +90,8 @@ export interface StatsPeriod {
   at: string
   current: StatsTotals
   previous: StatsTotals
+  limits: LimitCoverage | null
+  windows: StatsLimitWindow[]
   models: StatsShare[]
   entrypoints: StatsShare[]
   tasks: StatsTaskRow[]

@@ -12,7 +12,8 @@ describe('mapHistory', () => {
       { day: '2026-10-01', project: 'Example', cost: '4', sessions: '2', limit_share: 0.25 },
       { day: '2026-10-03', project: 'ABC', cost: '0.123456', sessions: '0', limit_share: 1.23456 },
     ]
-    const history = mapHistory(rows, [{ account: 'global' }], ['ABC'], AT)
+    const coverage = [{ from_day: '2026-10-03', to_day: '2026-10-03' }]
+    const history = mapHistory(rows, [{ account: 'global' }], coverage, ['ABC'], AT)
     expect(history).toEqual({
       at: '2026-10-03T12:00:00.000Z',
       accounts: ['global'],
@@ -24,18 +25,45 @@ describe('mapHistory', () => {
         [0, 0, 4, 2, 0.25],
         [1, 1, 0.1235, 0, 1.235],
       ],
+      limits: { from: '2026-10-03', to: '2026-10-03' },
     })
+  })
+
+  it('has no limit coverage without snapshots', () => {
+    expect(mapHistory([], [], [{ from_day: null, to_day: null }], [], AT).limits).toBeNull()
   })
 })
 
 describe('mapPeriod', () => {
-  const empty = { totals: [], models: [], entrypoints: [], tasks: [], weeks: [], stuck: [] }
+  const empty = { totals: [], coverage: [], windows: [], models: [], entrypoints: [], tasks: [], weeks: [], stuck: [] }
 
   it('splits the totals into this period and the previous one and zeroes a missing side', () => {
     const totals = [{ cur: true, cost: '12.5', messages: '40', sessions: '3', tasks: '2', unpriced: '0', limit_share: 2.25, stuck_cost: '1.5' }]
     const period = mapPeriod(QUERY, { ...empty, totals }, AT)
     expect(period.current).toEqual({ cost: 12.5, messages: 40, sessions: 3, tasks: 2, unpriced: 0, limit: 2.25, stuckCost: 1.5 })
     expect(period.previous).toEqual({ cost: 0, messages: 0, sessions: 0, tasks: 0, unpriced: 0, limit: null, stuckCost: 0 })
+    expect(period.limits).toBeNull()
+    expect(period.windows).toEqual([])
+  })
+
+  it('maps the limit coverage and the peaks of weekly windows', () => {
+    const period = mapPeriod(
+      QUERY,
+      {
+        ...empty,
+        coverage: [{ from_day: '2026-10-01', to_day: '2026-10-03' }],
+        windows: [
+          { account: 'global', resets_at: new Date('2026-10-03T13:00:00Z'), peak: 100, open: false },
+          { account: 'global', resets_at: new Date('2026-10-10T13:00:00Z'), peak: 22.5, open: true },
+        ],
+      },
+      AT,
+    )
+    expect(period.limits).toEqual({ from: '2026-10-01', to: '2026-10-03' })
+    expect(period.windows).toEqual([
+      { account: 'global', resetsAt: '2026-10-03T13:00:00.000Z', peak: 100, open: false },
+      { account: 'global', resetsAt: '2026-10-10T13:00:00.000Z', peak: 22.5, open: true },
+    ])
   })
 
   it('maps shares, tasks, weeks and spans', () => {

@@ -106,27 +106,41 @@ left join lateral (
   select * from model_prices p where starts_with(m.model, p.model) order by length(p.model) desc limit 1
 ) p on true;
 
+create or replace view limit_steps as
+select
+  g.account, g.span, g.observed_at, g.used_percentage, g.resets_at, g.source, g.prev_at, g.fresh, g.wnd,
+  max(g.used_percentage) over (
+    partition by g.account, g.span, g.wnd order by g.observed_at rows between unbounded preceding and 1 preceding
+  ) as prev_max,
+  case g.span when '5h' then interval '5 hours' else interval '7 days' end as len
+from (
+  select f.*, sum(f.fresh) over (partition by f.account, f.span order by f.observed_at) as wnd
+  from (
+    select
+      account, span, observed_at, used_percentage, resets_at, source,
+      lag(observed_at) over w as prev_at,
+      case when abs(extract(epoch from resets_at - lag(resets_at) over w)) <= 1800 then 0 else 1 end as fresh
+    from limit_snapshots
+    window w as (partition by account, span order by observed_at)
+  ) f
+) g;
+
 create or replace view limit_intervals as
 select s.account, s.span, d.since, s.observed_at as till, d.delta
-from (
-  select
-    account, span, observed_at, used_percentage, resets_at,
-    lag(observed_at) over w as prev_at,
-    lag(used_percentage) over w as prev_used,
-    lag(resets_at) over w as prev_resets,
-    case span when '5h' then interval '5 hours' else interval '7 days' end as len
-  from limit_snapshots
-  window w as (partition by account, span order by observed_at)
-) s
+from limit_steps s
 cross join lateral (
   select
-    case
-      when abs(extract(epoch from s.resets_at - s.prev_resets)) <= 1800 then greatest(s.used_percentage - s.prev_used, 0)
-      else s.used_percentage
-    end as delta,
+    case when s.fresh = 0 then greatest(s.used_percentage - s.prev_max, 0) else s.used_percentage end as delta,
     greatest(s.prev_at, s.resets_at - s.len) as since
 ) d
 where s.prev_at is not null and d.delta > 0 and d.since < s.observed_at;
+
+create or replace view limit_windows as
+select
+  account, span, max(resets_at) as resets_at, max(resets_at) - min(len) as starts_at,
+  max(used_percentage) as peak, min(observed_at) as first_at, max(observed_at) as last_at
+from limit_steps
+group by account, span, wnd;
 
 create or replace view limit_shares as
 select

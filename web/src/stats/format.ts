@@ -1,3 +1,6 @@
+import type { LimitCoverage, StatsLimitWindow } from '../../../src/stats/model.js'
+import { dayCount, type DayRange } from './period.js'
+
 const REASONS: Record<string, string> = {
   unclear_task: 'неясная задача',
   broken_tooling: 'сломанный инструмент',
@@ -63,6 +66,7 @@ export function costChange(cost: number, previous: number): string | null {
 
 export function formatShare(share: number | null): string {
   if (share === null) return '—'
+  if (share === 0) return '0 %'
   if (share < 1) return '< 1 %'
   return `${Math.round(share)} %`
 }
@@ -89,7 +93,37 @@ export function entrypointLabel(entrypoint: string): string {
   return ENTRYPOINTS[entrypoint] ?? entrypoint
 }
 
-export function weeklyLimit(share: number | null, days: number): { share: number | null; perWeek: boolean } {
-  if (days <= 7) return { share, perWeek: false }
-  return { share: share === null ? null : (share * 7) / days, perWeek: true }
+export interface WeeklyLimit {
+  share: number | null
+  perWeek: boolean
+  from: string | null
+  to: string | null
+}
+
+// share is the sum of the limit shares in the range; only the days covered by limit snapshots count,
+// from and to are set where the coverage starts after or ends before the range.
+export function weeklyLimit(share: number | null, range: DayRange, limits: LimitCoverage | null): WeeklyLimit {
+  const from = limits === null || limits.from < range.from ? range.from : limits.from
+  const to = limits === null || limits.to > range.to ? range.to : limits.to
+  if (limits === null || from > to) return { share: null, perWeek: false, from: null, to: null }
+  const days = dayCount({ from, to })
+  const total = share ?? 0
+  return {
+    share: days > 7 ? (total * 7) / days : total,
+    perWeek: days > 7,
+    from: from > range.from ? from : null,
+    to: to < range.to ? to : null,
+  }
+}
+
+export function limitWindows(windows: StatsLimitWindow[]): string | null {
+  if (windows.length === 0) return null
+  const accounts = [...new Set(windows.map((each) => each.account))]
+  const peaks = (account: string) =>
+    windows
+      .filter((each) => each.account === account)
+      .map((each) => `${formatShare(each.peak)}${each.open ? ' идёт' : ''}`)
+      .join(', ')
+  if (accounts.length === 1) return `окна: ${peaks(accounts[0]!)}`
+  return `окна: ${accounts.map((account) => `${account} ${peaks(account)}`).join(' · ')}`
 }

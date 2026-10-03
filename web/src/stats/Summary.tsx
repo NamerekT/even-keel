@@ -3,14 +3,15 @@ import type { StatsPeriod, StatsShare } from '../../../src/stats/model.js'
 import { plural } from '../format.js'
 import { seriesStyle } from '../ui/series.js'
 import { Section } from './common.js'
-import { costChange, entrypointLabel, formatShare, formatUsd, modelLabel, weeklyLimit } from './format.js'
-import { dayCount, formatRange, previousRange, type DayRange } from './period.js'
+import { costChange, entrypointLabel, formatShare, formatUsd, limitWindows, modelLabel, weeklyLimit, type WeeklyLimit } from './format.js'
+import { dayCount, formatDay, formatRange, previousRange, type DayRange } from './period.js'
 
 export function Tiles({ period, range }: { period: StatsPeriod; range: DayRange }) {
   const { current, previous } = period
   const change = costChange(current.cost, previous.cost)
   const days = dayCount(range)
-  const limit = weeklyLimit(current.limit, days)
+  const limit = weeklyLimit(current.limit, range, period.limits)
+  const windows = days > 7 ? limitWindows(period.windows) : null
   const stuckShare = current.cost > 0 ? (current.stuckCost / current.cost) * 100 : null
 
   return (
@@ -20,7 +21,8 @@ export function Tiles({ period, range }: { period: StatsPeriod; range: DayRange 
         {current.unpriced > 0 && ` · ${current.unpriced} без цены`}
       </Tile>
       <Tile label="Недельный лимит" value={limit.share === null ? '—' : `${limit.perWeek ? '≈ ' : ''}${formatShare(limit.share)}`}>
-        {limit.share === null ? 'снимков лимита за период нет' : limit.perWeek ? 'в среднем за неделю' : 'сумма долей за период'}
+        {limitNote(limit)}
+        {windows !== null && <span className="stats-tile__line">{windows}</span>}
       </Tile>
       <Tile label="Задачи / сессии" value={`${current.tasks} / ${current.sessions}`}>
         {current.messages.toLocaleString('ru')} {plural(current.messages, 'ответ', 'ответа', 'ответов')}
@@ -30,6 +32,13 @@ export function Tiles({ period, range }: { period: StatsPeriod; range: DayRange 
       </Tile>
     </div>
   )
+}
+
+function limitNote(limit: WeeklyLimit): string {
+  if (limit.share === null) return 'нет данных: снимков лимита за период нет'
+  const span = [limit.from && `с ${formatDay(limit.from, false)}`, limit.to && `по ${formatDay(limit.to, false)}`].filter(Boolean).join(' ')
+  if (limit.perWeek) return `в среднем за неделю${span && ` ${span}`}`
+  return `сумма долей ${span || 'за период'}`
 }
 
 function Tile({ label, value, children }: { label: string; value: string; children: ReactNode }) {
