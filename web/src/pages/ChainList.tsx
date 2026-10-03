@@ -277,7 +277,6 @@ function Block({ block, number, waits, scale, focused, movable, drag, offset, on
       </div>
       <p className="block__title">{block.title}</p>
       <div className="block__side">
-        {block.current && <span className="block__badge">сейчас</span>}
         {block.skipped && <span className="block__badge block__badge--skipped">пропущена</span>}
         {block.question && (
           <span className="block__badge block__badge--question" title="Ярлык «Вопрос»: без ответа в описании сессия, скорее всего, встанет">
@@ -287,14 +286,18 @@ function Block({ block, number, waits, scale, focused, movable, drag, offset, on
         {role === 'blocker' && <span className="block__badge block__badge--blocker">блокирует</span>}
         {role === 'dependent' && <span className="block__badge block__badge--dependent">ждёт её</span>}
         {waits.length > 0 && <span className="block__waits">ждёт {waits.join(', ')}</span>}
-        {block.status !== null && <span className="block__status">{block.status}</span>}
+        {block.status !== null && !(block.current && block.session !== null) && <span className="block__status">{block.status}</span>}
         {block.current && checkpointHandoffs(block.sessions) > 0 && (
           <span className="block__badge" title="Сколько раз сессии по задаче передали дела по контрольной точке">
             передач ×{checkpointHandoffs(block.sessions)}
           </span>
         )}
-        {block.current && block.session !== null && block.session.cache !== null && <CacheClock cache={block.session.cache} />}
-        {block.current && block.session !== null && <ContextMeter tokens={block.session.contextTokens} scale={scale} />}
+        {block.current && block.session !== null && (
+          <span className="block__metrics">
+            {block.session.cache !== null && <CacheClock cache={block.session.cache} />}
+            <ContextMeter tokens={block.session.contextTokens} scale={scale} />
+          </span>
+        )}
         {block.skipped && (
           <button type="button" className="button block__return" disabled={onReturn === undefined} onClick={onReturn}>
             Вернуть

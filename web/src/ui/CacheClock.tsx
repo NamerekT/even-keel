@@ -3,9 +3,9 @@ import { formatClock, formatMoment } from '../format.js'
 import { useNow } from '../layout/useNow.js'
 import { cacheFreshness } from '../state.js'
 
-const TTL_LABELS: Record<CacheWindow['ttl'], string> = { '5m': '5 мин', '1h': '1 ч' }
+export const TTL_LABELS: Record<CacheWindow['ttl'], string> = { '5m': '5 мин', '1h': '1 ч' }
 
-export function CacheClock({ cache, full = false }: { cache: CacheWindow; full?: boolean }) {
+export function CacheClock({ cache, bare = false }: { cache: CacheWindow; bare?: boolean }) {
   const now = useNow(1_000)
   const { left, level } = cacheFreshness(cache, now)
   const ttl = TTL_LABELS[cache.ttl]
@@ -18,7 +18,7 @@ export function CacheClock({ cache, full = false }: { cache: CacheWindow; full?:
   return (
     <span className={`cache-clock cache-clock--${level}`} title={title}>
       <span className="cache-clock__dot" aria-hidden="true" />
-      {full ? `${value} · срок ${ttl}` : `кэш ${value}`}
+      {bare ? value : `кэш ${value}`}
     </span>
   )
 }

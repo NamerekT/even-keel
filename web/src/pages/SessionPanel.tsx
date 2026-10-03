@@ -2,14 +2,14 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import type { TaskSession } from '../../../src/chain/launches.js'
 import type { LimitHold } from '../../../src/chain/relay.js'
 import type { RemoteOff } from '../../../src/sessions/remote.js'
-import type { FeedLine, TokenTotals } from '../../../src/sessions/transcript.js'
+import type { CacheWindow, FeedLine, TokenTotals } from '../../../src/sessions/transcript.js'
 import type { ContextScale, SessionRecord, SessionView } from '../../../src/state.js'
 import { formatClock, formatMoment, formatTokens } from '../format.js'
 import { useNow } from '../layout/useNow.js'
 import { useLive } from '../live/context.js'
 import { useCommand } from '../live/useCommand.js'
 import { checkpointHandoffs, issueLink, sessionElapsed, taskProject, tokenTotal, type ChainBlock } from '../state.js'
-import { CacheClock } from '../ui/CacheClock.js'
+import { CacheClock, TTL_LABELS } from '../ui/CacheClock.js'
 import { ContextMeter } from '../ui/ContextMeter.js'
 import { Lamp, LAMP_LABELS } from '../ui/Lamp.js'
 
@@ -31,12 +31,10 @@ const REPLACED: Record<NonNullable<TaskSession['replaced']>['how'], string> = {
 }
 
 const REMOTE_OFF: Record<RemoteOff, string> = {
-  starting: 'Remote Control поднимается — ссылка появится через несколько секунд.',
-  disabled:
-    'Remote Control не включается сам: в settings.json папки аккаунта нет «remoteControlAtStartup»: true. Включи его в /config — новые сессии поднимут мост.',
-  'no-bridge':
-    'Сессия не подняла Remote Control: в её записи sessions/<pid>.json нет моста, хотя автозапуск включён. Открыть её отсюда нельзя.',
-  lost: 'Remote Control у сессии отвалился (например, на машине сменили аккаунт claude.ai) — с телефона её уже не открыть. Если она не довела задачу, запусти новую.',
+  starting: 'Remote Control поднимается — ссылка будет через пару секунд.',
+  disabled: 'Remote Control выключен: в /config папки аккаунта нет «remoteControlAtStartup».',
+  'no-bridge': 'Сессия не подняла Remote Control — отсюда её не открыть.',
+  lost: 'Remote Control отвалился — с телефона не открыть. Не довела задачу — «Новая сессия».',
 }
 
 interface Props {
@@ -84,9 +82,13 @@ export function SessionPanel({ block, scale, trackerUrl, onClose }: Props) {
           ×
         </button>
       </header>
-      {block.status !== null && <p className="panel__status">{block.status}</p>}
-      {block.open && <SkipControl block={block} />}
-      {block.open && block.current && block.session !== null && <RestartControl block={block} session={block.session} />}
+      {(block.status !== null || block.skipped) && (
+        <p className="panel__status">
+          {block.status}
+          {block.skipped && <span className="panel__flag">пропущена</span>}
+        </p>
+      )}
+      <Actions block={block} />
       {block.session === null ? (
         <p className="placeholder">Сессии по этой задаче ещё не было.</p>
       ) : (
@@ -100,119 +102,112 @@ export function SessionPanel({ block, scale, trackerUrl, onClose }: Props) {
   )
 }
 
-function SkipControl({ block }: { block: ChainBlock }) {
+function Actions({ block }: { block: ChainBlock }) {
   const { send, sending, failure } = useCommand()
   const body = { project: taskProject(block.id), task: block.id }
-  const session = block.current ? block.session : null
-  const midTurn = session !== null && (session.lamp === 'working' || session.waitingFor !== null)
+  const session = block.session
+  const live = block.current ? session : null
+  const midTurn = live !== null && (live.lamp === 'working' || live.waitingFor !== null)
+  const account = session?.account == null ? '' : `\nRemote Control покажет её только в аккаунте ${session.account}`
+  const remoteOff = session === null || session.remoteUrl !== null ? null : REMOTE_OFF[session.remoteOff ?? 'no-bridge']
+  const buttons = session?.remoteUrl != null || block.open
 
+  if (!buttons) return null
   return (
-    <div className="panel__skip">
-      {block.skipped ? (
-        <>
-          <button type="button" className="button" disabled={sending} onClick={() => void send('chain/unskip', body)}>
-            Вернуть в цепочку
+    <>
+      <div className="panel__actions">
+        {session?.remoteUrl != null && (
+          <a
+            className="button button--primary"
+            href={session.remoteUrl}
+            target="_blank"
+            rel="noreferrer"
+            title={`Открыть сессию через Remote Control${account}`}
+          >
+            Открыть
+          </a>
+        )}
+        {block.open && live !== null && (
+          <button
+            type="button"
+            className="button"
+            disabled={sending || midTurn}
+            title="Остановит эту сессию и запустит новую в той же рабочей папке с передачей дел. Статус в Huly не меняется."
+            onClick={() => void send('chain/restart', body)}
+          >
+            Новая сессия
           </button>
-          <p className="panel__skip-note">Задача пропущена — цепочка её не берёт.</p>
-        </>
-      ) : (
-        <>
-          <button type="button" className="button" disabled={sending || midTurn} onClick={() => void send('chain/skip', body)}>
-            Пропустить
-          </button>
-          <p className="panel__skip-note">
-            {midTurn
-              ? 'Сессия посреди хода — пропустить можно, когда она остановится.'
-              : block.current
-                ? 'Цепочка перестанет ждать задачу и возьмёт следующую. Статус в Huly и сессия не меняются.'
-                : 'Цепочка не возьмёт задачу, пока не вернёшь её. Статус в Huly не меняется.'}
-          </p>
-        </>
+        )}
+        {block.open &&
+          (block.skipped ? (
+            <button
+              type="button"
+              className="button"
+              disabled={sending}
+              title="Задача пропущена — цепочка её не берёт, пока не вернёшь."
+              onClick={() => void send('chain/unskip', body)}
+            >
+              Вернуть
+            </button>
+          ) : (
+            <button
+              type="button"
+              className="button"
+              disabled={sending || midTurn}
+              title={
+                block.current
+                  ? 'Цепочка перестанет ждать задачу и возьмёт следующую. Статус в Huly и сессия не меняются.'
+                  : 'Цепочка не возьмёт задачу, пока не вернёшь её. Статус в Huly не меняется.'
+              }
+              onClick={() => void send('chain/skip', body)}
+            >
+              Пропустить
+            </button>
+          ))}
+        {midTurn && <span className="panel__hint">идёт ход — замена и пропуск после него</span>}
+      </div>
+      {remoteOff !== null && (
+        <p className="panel__remote-off" title={session?.account == null ? undefined : `Аккаунт: ${session.account}`}>
+          {remoteOff}
+        </p>
       )}
       {failure !== null && <p className="notice notice--error">{failure}</p>}
-    </div>
-  )
-}
-
-function RestartControl({ block, session }: { block: ChainBlock; session: SessionView }) {
-  const { send, sending, failure } = useCommand()
-  const midTurn = session.lamp === 'working' || session.waitingFor !== null
-
-  return (
-    <div className="panel__skip">
-      <button
-        type="button"
-        className="button"
-        disabled={sending || midTurn}
-        onClick={() => void send('chain/restart', { project: taskProject(block.id), task: block.id })}
-      >
-        Новая сессия
-      </button>
-      <p className="panel__skip-note">
-        {midTurn
-          ? 'Сессия посреди хода — заменить её можно, когда она остановится.'
-          : 'Остановит эту сессию и запустит новую в той же рабочей папке с передачей дел. Статус в Huly не меняется.'}
-      </p>
-      {failure !== null && <p className="notice notice--error">{failure}</p>}
-    </div>
+    </>
   )
 }
 
 function SessionBody({ session, limit, scale }: { session: SessionView; limit: LimitHold | null; scale: ContextScale }) {
   const now = useNow(1_000)
-  const { tokens } = session
   const note = session.apiError ?? (session.waitingFor === null ? null : `Ждёт: ${session.waitingFor}`)
 
   return (
     <>
+      {note !== null && <p className="notice notice--error">{note}</p>}
+      {limit !== null && <p className="notice notice--warn">{limitPlan(limit, now)}</p>}
       <dl className="panel__facts">
         <div className="panel__fact">
           <dt>Сессия</dt>
-          <dd>{LAMP_LABELS[session.lamp]}</dd>
+          <dd className={`panel__state panel__state--${session.lamp}`}>{LAMP_LABELS[session.lamp]}</dd>
         </div>
         <div className="panel__fact">
-          <dt>Запущена</dt>
-          <dd>
-            <time dateTime={session.startedAt}>{STARTED.format(new Date(session.startedAt))}</time>
+          <dt>Время</dt>
+          <dd className="panel__big">{formatClock(sessionElapsed(session, now))}</dd>
+          <dd className="panel__sub">
+            с <time dateTime={session.startedAt}>{STARTED.format(new Date(session.startedAt))}</time>
           </dd>
         </div>
         <div className="panel__fact">
-          <dt>В работе</dt>
-          <dd className="panel__clock">{formatClock(sessionElapsed(session, now))}</dd>
+          <dt>Кэш</dt>
+          {session.cache === null ? <dd className="panel__big">—</dd> : <CacheFact cache={session.cache} />}
         </div>
-        {session.cache !== null && (
-          <div className="panel__fact panel__fact--wide">
-            <dt>Кэш промпта</dt>
-            <dd>
-              <CacheClock cache={session.cache} full />
-            </dd>
-          </div>
-        )}
         <div className="panel__fact panel__fact--wide">
           <dt>Контекст</dt>
           <dd>
             <ContextMeter tokens={session.contextTokens} scale={scale} full />
           </dd>
         </div>
-        <TokensFact tokens={tokens} />
+        <TokensFact tokens={session.tokens} />
       </dl>
-      {note !== null && <p className="notice notice--error">{note}</p>}
-      {limit !== null && <p className="notice notice--warn">{limitPlan(limit, now)}</p>}
-      {session.remoteUrl === null ? (
-        <p className="panel__remote-off">{REMOTE_OFF[session.remoteOff ?? 'no-bridge']}</p>
-      ) : (
-        <div className="panel__remote-row">
-          <a className="button button--primary panel__remote" href={session.remoteUrl} target="_blank" rel="noreferrer">
-            Открыть сессию
-          </a>
-          {session.account !== null && (
-            <span className="panel__account" title="Remote Control показывает сессию только в этом аккаунте claude.ai">
-              в аккаунте {session.account}
-            </span>
-          )}
-        </div>
-      )}
-      {session.remoteUrl === null && session.account !== null && <p className="panel__remote-off">Аккаунт: {session.account}</p>}
       {session.lamp === 'finished' ? <RecordFeed sessionId={session.sessionId} /> : <Feed lines={session.feed} />}
     </>
   )
@@ -236,16 +231,35 @@ function RecordFeed({ sessionId }: { sessionId: string }) {
   return lines === null ? <p className="placeholder">Читаю транскрипт…</p> : <Feed lines={lines} />
 }
 
-function TokensFact({ tokens }: { tokens: TokenTotals }) {
+function CacheFact({ cache }: { cache: CacheWindow }) {
   return (
-    <div className="panel__fact panel__fact--wide">
-      <dt>Токены за сессию</dt>
-      <dd>
-        <strong className="panel__total">{formatTokens(tokenTotal(tokens))}</strong>
-        <span className="panel__split">
-          ввод {formatTokens(tokens.input)} · вывод {formatTokens(tokens.output)} · кэш: чтение {formatTokens(tokens.cacheRead)},
-          запись {formatTokens(tokens.cacheWrite)}
-        </span>
+    <>
+      <dd className="panel__big">
+        <CacheClock cache={cache} bare />
+      </dd>
+      <dd className="panel__sub">срок {TTL_LABELS[cache.ttl]}</dd>
+    </>
+  )
+}
+
+function TokensFact({ tokens }: { tokens: TokenTotals }) {
+  const parts: [string, number][] = [
+    ['ввод', tokens.input],
+    ['вывод', tokens.output],
+    ['чтение кэша', tokens.cacheRead],
+    ['запись кэша', tokens.cacheWrite],
+  ]
+  return (
+    <div className="panel__fact panel__fact--wide panel__tokens">
+      <dt>Токены</dt>
+      <dd className="panel__big">{formatTokens(tokenTotal(tokens))}</dd>
+      <dd className="panel__split">
+        {parts.map(([label, value]) => (
+          <span key={label} className="panel__part">
+            <span className="panel__part-label">{label}</span>
+            <b>{formatTokens(value)}</b>
+          </span>
+        ))}
       </dd>
     </div>
   )
@@ -359,12 +373,12 @@ function SessionWindow({ row, scale, onClose }: { row: TaskSession; scale: Conte
                 </dd>
               </div>
               <div className="panel__fact">
-                <dt>Последнее действие</dt>
+                <dt>Последний ход</dt>
                 <dd>{last === null ? '—' : <time dateTime={last}>{STARTED.format(new Date(last))}</time>}</dd>
               </div>
               <div className="panel__fact">
                 <dt>Работала</dt>
-                <dd className="panel__clock">{last === null ? '—' : formatClock(Date.parse(last) - Date.parse(started))}</dd>
+                <dd className="panel__big">{last === null ? '—' : formatClock(Date.parse(last) - Date.parse(started))}</dd>
               </div>
               <div className="panel__fact panel__fact--wide">
                 <dt>Контекст в конце</dt>
