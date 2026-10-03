@@ -1,9 +1,39 @@
 import { readFileSync } from 'node:fs'
 import pg from 'pg'
-import type { DbSettings, Price } from './config.js'
+import type { ClassifySettings, DbSettings, Price } from './config.js'
 import type { Snapshot } from './limits.js'
 import type { FileState, Store } from './load.js'
-import type { Batch, Launch } from './parse.js'
+import type { TaskRecord } from './huly.js'
+import type { Batch, Launch, MessageRow } from './parse.js'
+import type { Sign, SignKind, Span } from './signs.js'
+import type { TranscriptEntry } from './stream.js'
+
+export interface PendingSpan {
+  id: string
+  sessionId: string
+  agentId: string | null
+  fromAt: string
+  toAt: string
+  kinds: SignKind[]
+  task: string | null
+  signs: string[]
+}
+
+export interface SpanReason {
+  reason: string
+  note: string
+  promptVersion: number
+  model: string | null
+  classifierSession: string | null
+}
+
+export interface SignState {
+  sessionId: string
+  lastAt: string | null
+  launchReason: string | null
+  signedAt: string | null
+  key: string | null
+}
 
 const SCHEMA = readFileSync(new URL('./schema.sql', import.meta.url), 'utf8')
 const LOCK_KEY = 'tally-collector'
@@ -168,6 +198,135 @@ export class TallyDb implements Store {
       `select distinct model from message_costs where price_model is null and model is not null order by model`,
     )
     return result.rows.map((row) => row.model)
+  }
+
+  async signStates(): Promise<SignState[]> {
+    const result = await this.client.query(
+      `select s.session_id, s.last_at, s.launch_reason, g.last_at as signed_at, g.key
+       from sessions s left join sign_sessions g on g.session_id = s.session_id`,
+    )
+    return result.rows.map((row) => ({
+      sessionId: row.session_id,
+      lastAt: (row.last_at as Date | null)?.toISOString() ?? null,
+      launchReason: row.launch_reason,
+      signedAt: (row.signed_at as Date | null)?.toISOString() ?? null,
+      key: row.key,
+    }))
+  }
+
+  async sessionEntries(sessionId: string): Promise<TranscriptEntry[]> {
+    const result = await this.client.query<{ raw: TranscriptEntry }>(
+      'select raw from lines where session_id = $1 order by at, uuid',
+      [sessionId],
+    )
+    return result.rows.map((row) => row.raw)
+  }
+
+  async writeSigns(sessionId: string, lastAt: string | null, key: string, signs: Sign[], spans: Span[]): Promise<void> {
+    await this.transaction(async () => {
+      await this.client.query('delete from signs where session_id = $1', [sessionId])
+      await this.client.query('delete from spans where session_id = $1', [sessionId])
+      await this.upsert(
+        `insert into signs
+         select * from jsonb_to_recordset($1::jsonb) as x(
+           session_id text, agent_id text, kind text, from_uuid text, to_uuid text,
+           from_at timestamptz, to_at timestamptz, count int, detail text)
+         on conflict do nothing`,
+        signs.map((sign) => ({ sessionId, ...sign, agentId: sign.agentId ?? '' })),
+      )
+      await this.upsert(
+        `insert into spans
+         select id, session_id, agent_id, from_uuid, to_uuid, from_at, to_at,
+           array(select jsonb_array_elements_text(kinds))
+         from jsonb_to_recordset($1::jsonb) as x(
+           id text, session_id text, agent_id text, from_uuid text, to_uuid text,
+           from_at timestamptz, to_at timestamptz, kinds jsonb)
+         on conflict (id) do nothing`,
+        spans.map((span) => ({ ...span, agentId: span.agentId ?? '' })),
+      )
+      await this.client.query(
+        `insert into sign_sessions (session_id, last_at, key) values ($1, $2, $3)
+         on conflict (session_id) do update set last_at = excluded.last_at, key = excluded.key`,
+        [sessionId, lastAt, key],
+      )
+    })
+  }
+
+  async staleTasks(maxAgeMinutes: number): Promise<string[]> {
+    const result = await this.client.query<{ task: string }>(
+      `select distinct st.task from session_tasks st left join tasks t on t.task = st.task
+       where st.task is not null and (t.task is null or t.fetched_at < now() - make_interval(mins => $1))
+       order by st.task`,
+      [maxAgeMinutes],
+    )
+    return result.rows.map((row) => row.task)
+  }
+
+  async writeTasks(asked: string[], records: TaskRecord[]): Promise<void> {
+    const found = new Set(records.map((record) => record.task))
+    const missing = asked.filter((task) => !found.has(task)).map((task) => ({ task, title: null, status: null, labels: [], related: [] }))
+    await this.upsert(
+      `insert into tasks (task, title, status, labels, related, fetched_at)
+       select task, title, status, array(select jsonb_array_elements_text(labels)), array(select jsonb_array_elements_text(related)), now()
+       from jsonb_to_recordset($1::jsonb) as x(task text, title text, status text, labels jsonb, related jsonb)
+       on conflict (task) do update set
+         title = coalesce(excluded.title, tasks.title), status = coalesce(excluded.status, tasks.status),
+         labels = case when excluded.title is null then tasks.labels else excluded.labels end,
+         related = case when excluded.title is null then tasks.related else excluded.related end,
+         fetched_at = excluded.fetched_at`,
+      [...records, ...missing],
+    )
+  }
+
+  async pendingSpans(settings: ClassifySettings): Promise<PendingSpan[]> {
+    const result = await this.client.query(
+      `select sp.id, sp.session_id, sp.agent_id, sp.from_at, sp.to_at, sp.kinds, st.task,
+         array(
+           select g.kind || ' ×' || g.count || coalesce(': ' || nullif(g.detail, ''), '') from signs g
+           where g.session_id = sp.session_id and g.agent_id = sp.agent_id and g.from_at between sp.from_at and sp.to_at
+           order by g.from_at
+         ) as signs
+       from spans sp
+       join sessions s on s.session_id = sp.session_id
+       left join session_tasks st on st.session_id = sp.session_id
+       where not exists (select 1 from span_reasons r where r.span_id = sp.id)
+         and s.last_at < now() - make_interval(mins => $1)
+         and s.last_at > now() - make_interval(days => $2)
+       order by sp.to_at desc
+       limit $3`,
+      [settings.idleMinutes, settings.sinceDays, settings.perRun],
+    )
+    return result.rows.map((row) => ({
+      id: row.id,
+      sessionId: row.session_id,
+      agentId: row.agent_id === '' ? null : row.agent_id,
+      fromAt: (row.from_at as Date).toISOString(),
+      toAt: (row.to_at as Date).toISOString(),
+      kinds: row.kinds,
+      task: row.task,
+      signs: row.signs,
+    }))
+  }
+
+  async writeReason(span: PendingSpan, reason: SpanReason, costs: MessageRow[]): Promise<void> {
+    await this.transaction(async () => {
+      await this.client.query(
+        `insert into span_reasons (span_id, session_id, agent_id, from_at, to_at, kinds, reason, note, prompt_version, model, classifier_session)
+         values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+         on conflict (span_id) do nothing`,
+        [span.id, span.sessionId, span.agentId ?? '', span.fromAt, span.toAt, span.kinds,
+          reason.reason, reason.note, reason.promptVersion, reason.model, reason.classifierSession],
+      )
+      await this.upsert(
+        `insert into messages
+         select * from jsonb_to_recordset($1::jsonb) as x(
+           message_id text, session_id text, agent_id text, account text, project text, project_dir text, task text,
+           branch text, entrypoint text, model text, speed text, at timestamptz,
+           input bigint, cache_write_5m bigint, cache_write_1h bigint, cache_read bigint, output bigint)
+         on conflict (message_id) do nothing`,
+        costs,
+      )
+    })
   }
 
   async close(): Promise<void> {

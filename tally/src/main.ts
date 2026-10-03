@@ -9,6 +9,7 @@ import { snapshotsOfFile, snapshotsOfState, type Snapshot } from './limits.js'
 import { loadFile } from './load.js'
 import { launchMap } from './parse.js'
 import { transcriptFiles } from './scan.js'
+import { classifySpans, refreshSigns, refreshTasks } from './steps.js'
 
 const CHUNK_BYTES = 8 * 1024 * 1024
 const BATON_TIMEOUT_MS = 5_000
@@ -56,13 +57,17 @@ async function run(): Promise<number> {
     const forgotten = sources.length > 0 ? await db.forgetFilesExcept(sources.map((source) => source.path)) : 0
     const relabeled = await db.syncLaunches(launches)
     const snapshots = await db.addSnapshots(await limitSnapshots(config.batonUrl, stateDir, homes))
+    const signed = await refreshSigns(db, config.signs)
+    const tasks = await refreshTasks(db, log)
+    const classified = await classifySpans(db, config.classify, stateDir, homes, log)
     const unpriced = await db.unpricedModels()
     if (unpriced.length > 0) log(`tally: no price for ${unpriced.join(', ')} — add them to tally.config.json`)
 
     const seconds = ((Date.now() - started) / 1000).toFixed(1)
     log(
       `tally: ${sources.length} files, ${files} read, ${lines} lines, ${failed} failed, ${forgotten} forgotten, ` +
-        `${relabeled} sessions relabeled, ${snapshots} limit snapshots, ${seconds} s`,
+        `${relabeled} sessions relabeled, ${snapshots} limit snapshots, ` +
+        `${signed.sessions} sessions signed (${signed.spans} spans), ${tasks} Huly tasks, ${classified} spans classified, ${seconds} s`,
     )
     return failed > 0 ? 1 : 0
   } finally {

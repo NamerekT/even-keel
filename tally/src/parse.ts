@@ -236,7 +236,7 @@ export function errorKindOf(text: string): ErrorKind {
   return 'error'
 }
 
-function resultText(block: ContentBlock): string {
+export function resultText(block: ContentBlock): string {
   if (typeof block.content === 'string') return block.content
   return blocksOf(block.content)
     .map((item) => (typeof item.text === 'string' ? item.text : ''))

@@ -159,3 +159,92 @@ left join (
 ) l on l.task = c.task
 where c.task is not null
 group by c.task;
+
+create table if not exists signs (
+  session_id text not null,
+  agent_id text not null default '',
+  kind text not null,
+  from_uuid text not null,
+  to_uuid text not null,
+  from_at timestamptz not null,
+  to_at timestamptz not null,
+  count int not null,
+  detail text not null,
+  primary key (session_id, agent_id, kind, from_uuid)
+);
+
+create table if not exists spans (
+  id text primary key,
+  session_id text not null,
+  agent_id text not null default '',
+  from_uuid text not null,
+  to_uuid text not null,
+  from_at timestamptz not null,
+  to_at timestamptz not null,
+  kinds text[] not null
+);
+create index if not exists spans_session on spans (session_id);
+
+create table if not exists sign_sessions (
+  session_id text primary key,
+  last_at timestamptz,
+  key text not null
+);
+
+create table if not exists span_reasons (
+  span_id text primary key,
+  session_id text not null,
+  agent_id text not null default '',
+  from_at timestamptz not null,
+  to_at timestamptz not null,
+  kinds text[] not null,
+  reason text not null,
+  note text not null,
+  prompt_version int not null,
+  model text,
+  classifier_session text,
+  classified_at timestamptz not null default now()
+);
+
+create table if not exists tasks (
+  task text primary key,
+  title text,
+  status text,
+  labels text[] not null default '{}',
+  related text[] not null default '{}',
+  fetched_at timestamptz not null default now()
+);
+
+create or replace view session_tasks as
+select s.session_id, coalesce(s.launch_task, (
+  select m.task from messages m where m.session_id = s.session_id and m.task is not null order by m.at limit 1
+)) as task
+from sessions s;
+
+create or replace view stuck_spans as
+select
+  sp.id, sp.session_id, sp.agent_id, st.task, sp.from_at, sp.to_at, sp.kinds,
+  r.reason, r.note, r.prompt_version, r.classified_at
+from spans sp
+left join session_tasks st on st.session_id = sp.session_id
+left join span_reasons r on r.span_id = sp.id;
+
+create or replace view task_repeats as
+with st as (
+  select * from session_tasks where task is not null
+), stuck as (
+  select st.task, count(*) as spans from spans sp join st on st.session_id = sp.session_id group by st.task
+)
+select
+  st.task,
+  count(*) as sessions,
+  count(*) filter (where s.launch_reason = 'relay') as relays,
+  count(*) filter (where s.launch_reason = 'checkpoint') as checkpoints,
+  count(*) filter (where s.launch_reason = 'restart') as restarts,
+  coalesce(max(stuck.spans), 0) as spans,
+  t.title, t.status, t.labels, coalesce('Переделка' = any(t.labels), false) as rework, t.related
+from st
+join sessions s on s.session_id = st.session_id
+left join stuck on stuck.task = st.task
+left join tasks t on t.task = st.task
+group by st.task, t.title, t.status, t.labels, t.related;
