@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { canon, ruleFileOf, skillBody, skillDescriptions, stripFrontmatter } from './rules.js'
+import { canon, claudeJsonRules, ruleFileOf, shellRuleFiles, skillBody, skillDescriptions, stripFrontmatter } from './rules.js'
 
 const home = 'C:\\Users\\Jane'
 
@@ -55,8 +55,83 @@ describe('ruleFileOf', () => {
     expect(ruleFileOf('D:/Projects/Game/.claude/skills/unity/SKILL.md', home)).toMatchObject({ kind: 'skill', scope: '/projects/game' })
     expect(ruleFileOf('D:/Projects/Game/.claude/agents/a.md', home)).toMatchObject({ kind: 'agent', scope: '/projects/game' })
     expect(ruleFileOf('D:/Projects/Game/.claude/settings.json', home)).toMatchObject({ kind: 'settings', scope: '/projects/game' })
-    expect(ruleFileOf('D:/Projects/Game/.claude/settings.local.json', home)).toBeNull()
+    expect(ruleFileOf('D:/Projects/Game/.claude/settings.local.json', home)).toMatchObject({
+      kind: 'settings',
+      key: '/projects/game/.claude/settings.local.json',
+      scope: '/projects/game',
+    })
     expect(ruleFileOf('D:/Projects/Game/README.md', home)).toBeNull()
+  })
+
+  it('knows git hooks in the home folder', () => {
+    expect(ruleFileOf('C:\\Users\\Jane\\.githooks\\commit-msg', home)).toEqual({
+      key: '~/.githooks/commit-msg',
+      display: '~/.githooks/commit-msg',
+      kind: 'hook',
+      scope: 'global',
+    })
+    expect(ruleFileOf('C:/Users/Jane/.githooks/lib/huly.mjs', home)).toMatchObject({ kind: 'hook', key: '~/.githooks/lib/huly.mjs' })
+    expect(ruleFileOf('C:/Users/Jane/.githooks/node_modules/x/index.js', home)).toBeNull()
+  })
+
+  it('keeps .claude.json per account like settings', () => {
+    expect(ruleFileOf('C:/Users/Jane/.claude.json', home)).toEqual({ key: '~/.claude.json', display: '~/.claude.json', kind: 'settings', scope: 'global' })
+    expect(ruleFileOf('C:/Users/Jane/.claude-accounts/jane.doe/.claude.json', home)).toMatchObject({
+      kind: 'settings',
+      key: '~/.claude-accounts/jane.doe/.claude.json',
+    })
+    expect(ruleFileOf('C:/Users/Jane/.claude/.claude.json', home)).toMatchObject({ key: '~/.claude/.claude.json' })
+  })
+})
+
+describe('shellRuleFiles', () => {
+  const cwd = 'D:\\Work\\App'
+  const keys = (command: string) => shellRuleFiles(command, cwd, home).map((file) => file.key)
+
+  it('finds rule files a writing command names', () => {
+    expect(keys('cat > ~/.claude/skills/coding/SKILL.md <<EOF\nx\nEOF')).toEqual(['~/.claude/skills/coding/skill.md'])
+    expect(keys('cp /c/Users/Jane/.claude/CLAUDE.md "C:\\Users\\Jane\\.claude-accounts\\a\\CLAUDE.md"')).toEqual(['~/.claude/claude.md'])
+    expect(keys("python - <<'PY'\nopen('.claude/settings.json', 'w').write('{}')\nPY")).toEqual(['/work/app/.claude/settings.json'])
+    expect(keys('Remove-Item $env:USERPROFILE\\.claude\\agents\\old.md')).toEqual(['~/.claude/agents/old.md'])
+    expect(keys('echo x >> tally/CLAUDE.md')).toEqual(['/work/app/tally/claude.md'])
+  })
+
+  it('ignores commands that only read, globs and unknown files', () => {
+    expect(keys('cat ~/.claude/CLAUDE.md | head')).toEqual([])
+    expect(keys('rm ~/.claude/agents/*')).toEqual([])
+    expect(keys('rm src/main.ts')).toEqual([])
+    expect(keys('git commit -m "edit CLAUDE.md" && git push')).toEqual([])
+  })
+})
+
+describe('claudeJsonRules', () => {
+  it('keeps only MCP servers and per-project servers and allowed tools, with secret values redacted', () => {
+    const raw = JSON.stringify({
+      numStartups: 41,
+      mcpServers: { huly: { command: 'node', args: ['x.js'], env: { HULY_TOKEN: 'secret' } } },
+      projects: {
+        'D:/Projects/Game': { allowedTools: ['Bash(git:*)'], mcpServers: { web: { url: 'https://example.com', headers: { Authorization: 'Bearer x' } } }, lastCost: 3 },
+        'D:/Projects/Empty': { allowedTools: [], mcpServers: {}, lastCost: 1 },
+      },
+    })
+    const rules = JSON.parse(claudeJsonRules(raw)!)
+    expect(rules).toEqual({
+      mcpServers: { huly: { args: ['x.js'], command: 'node', env: { HULY_TOKEN: '***' } } },
+      projects: {
+        'D:/Projects/Game': { allowedTools: ['Bash(git:*)'], mcpServers: { web: { headers: { Authorization: '***' }, url: 'https://example.com' } } },
+      },
+    })
+    expect(claudeJsonRules(raw)).toContain('\n  "mcpServers"')
+  })
+
+  it('gives the same text whatever the counters and key order', () => {
+    const a = claudeJsonRules(JSON.stringify({ a: 1, projects: { p: { allowedTools: ['X'], b: 2 } } }))
+    const b = claudeJsonRules(JSON.stringify({ projects: { p: { b: 3, allowedTools: ['X'] } }, a: 9 }))
+    expect(a).toBe(b)
+  })
+
+  it('returns null for broken JSON', () => {
+    expect(claudeJsonRules('{ nope')).toBeNull()
   })
 })
 

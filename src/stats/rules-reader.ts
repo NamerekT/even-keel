@@ -34,12 +34,12 @@ from rule_changes c
 join rule_files f on f.key = c.key
 order by c.at`
 
-// Only edits whose tool call did not fail.
+// Only edits whose tool call did not fail. A shell command writing several files has ids '<tool use id>:<n>' past the first.
 const EDITS = `
 select e.session_id, e.key, e.at, e.added, e.removed, f.display, f.kind, f.scope
 from rule_edits e
 join rule_files f on f.key = e.key
-left join tool_calls t on t.tool_use_id = e.tool_use_id
+left join tool_calls t on t.tool_use_id = split_part(e.tool_use_id, ':', 1)
 where e.session_id is not null and e.at is not null and t.is_error is not true
 order by e.at`
 

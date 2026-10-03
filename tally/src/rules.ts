@@ -1,4 +1,5 @@
 import { createHash } from 'node:crypto'
+import { posix } from 'node:path'
 import { repoTail } from '../../src/stats/model.js'
 
 export type RuleKind = 'claude_md' | 'skill' | 'memory' | 'hook' | 'settings' | 'agent'
@@ -19,7 +20,8 @@ const MEMORY = /^projects\/([^/]+)\/memory\/[^/]+\.md$/i
 const UNDER = /^(skills|hooks|agents)\/./i
 // Skills synced by the desktop app and its trash are not the user's own.
 const FOREIGN_SKILLS = /^skills\/(synced|\.[^/]*)\//i
-const PROJECT_RULE = /^(.*)\/\.claude\/(skills\/.+|agents\/.+|settings\.json)$/i
+const PROJECT_RULE = /^(.*)\/\.claude\/(skills\/.+|agents\/.+|settings(?:\.local)?\.json)$/i
+const SKIPPED_PART = /(^|\/)(node_modules|\.git)\//i
 
 const normal = (path: string) => path.replaceAll('\\', '/').replace(/\/+$/, '')
 
@@ -28,6 +30,13 @@ export function ruleFileOf(path: string, home: string): RuleFile | null {
   const base = normal(home)
   const lower = file.toLowerCase()
   const lowerBase = base.toLowerCase()
+  if (lower === `${lowerBase}/.claude.json`) return { key: '~/.claude.json', display: '~/.claude.json', kind: 'settings', scope: GLOBAL_SCOPE }
+  if (lower.startsWith(`${lowerBase}/.githooks/`)) {
+    const rest = file.slice(base.length + '/.githooks/'.length)
+    if (SKIPPED_PART.test(rest)) return null
+    const display = `~/.githooks/${rest}`
+    return { key: display.toLowerCase(), display, kind: 'hook', scope: GLOBAL_SCOPE }
+  }
   if (lower.startsWith(`${lowerBase}/.claude/`)) return configRule(file.slice(base.length + '/.claude/'.length), null)
   if (lower.startsWith(`${lowerBase}/.claude-accounts/`)) {
     const rest = file.slice(base.length + '/.claude-accounts/'.length)
@@ -44,8 +53,8 @@ function configRule(rest: string, account: string | null): RuleFile | null {
   }
   const lower = rest.toLowerCase()
   if (lower === 'claude.md') return make('claude_md')
-  if (lower === 'settings.json') {
-    const display = account === null ? '~/.claude/settings.json' : `~/.claude-accounts/${account}/settings.json`
+  if (lower === 'settings.json' || lower === '.claude.json') {
+    const display = account === null ? `~/.claude/${rest}` : `~/.claude-accounts/${account}/${rest}`
     return { key: display.toLowerCase(), display, kind: 'settings', scope: GLOBAL_SCOPE }
   }
   const under = UNDER.exec(rest)
@@ -65,6 +74,67 @@ function projectRule(file: string): RuleFile | null {
   const what = match[2]!.toLowerCase()
   const kind: RuleKind = what.startsWith('skills/') ? 'skill' : what.startsWith('agents/') ? 'agent' : 'settings'
   return { key: repoTail(file), display: file, kind, scope: repoTail(match[1]!) }
+}
+
+// Gamma's scan.py heuristic, plus PowerShell copies and redirects into a CLAUDE.md.
+const WRITES =
+  /(\brm\b|Remove-Item|\bmv\b|Move-Item|\bcp\b|Copy-Item|>\s*\S*(?:\.claude|CLAUDE\.md)|\btee\b|sed -i|perl -i|Set-Content|Add-Content|Out-File|open\([^)]*['"]w|\.write|writeFileSync)/i
+const TOKEN_SPLIT = /[\s'"`;|&()<>,=]+/
+const HOME_PREFIX = /^(?:~|\$HOME|\$\{HOME\}|\$env:USERPROFILE|%USERPROFILE%)(?=[\\/])/i
+const MSYS_DRIVE = /^\/([a-z])\//i
+const RULE_TOKEN = /\.claude|\.githooks|claude\.md$/i
+
+// Rule files a shell command writes, judged by its text: a write marker anywhere and the file's path among its words.
+export function shellRuleFiles(command: string, cwd: string | null, home: string): RuleFile[] {
+  if (!WRITES.test(command)) return []
+  const files = new Map<string, RuleFile>()
+  for (const token of command.split(TOKEN_SPLIT)) {
+    if (!RULE_TOKEN.test(token) || /[*?{}]/.test(token)) continue
+    let path = token.replace(HOME_PREFIX, normal(home)).replace(MSYS_DRIVE, (_, drive: string) => `${drive.toUpperCase()}:/`)
+    if (path.includes('$') || path.includes('%')) continue
+    if (!/^[a-z]:[\\/]/i.test(path)) {
+      if (cwd === null) continue
+      path = `${normal(cwd)}/${path}`
+    }
+    const file = ruleFileOf(posix.normalize(normal(path)), home)
+    if (file !== null) files.set(file.key, file)
+  }
+  return [...files.values()]
+}
+
+const SECRET_KEYS = new Set(['env', 'headers'])
+
+// The rules part of .claude.json: MCP servers, and per project its MCP servers and allowed tools. Values of env and
+// headers are secrets and are replaced. The rest are counters and caches that change every session.
+export function claudeJsonRules(text: string): string | null {
+  let data: Record<string, unknown>
+  try {
+    data = JSON.parse(text) as Record<string, unknown>
+  } catch {
+    return null
+  }
+  const rules: Record<string, unknown> = {}
+  if (isFilled(data.mcpServers)) rules.mcpServers = data.mcpServers
+  const projects: Record<string, unknown> = {}
+  for (const [path, project] of Object.entries((data.projects ?? {}) as Record<string, Record<string, unknown>>)) {
+    const kept: Record<string, unknown> = {}
+    for (const name of ['mcpServers', 'allowedTools']) if (isFilled(project?.[name])) kept[name] = project[name]
+    if (Object.keys(kept).length > 0) projects[path] = kept
+  }
+  if (Object.keys(projects).length > 0) rules.projects = projects
+  return JSON.stringify(sorted(rules, false), null, 2)
+}
+
+const isFilled = (value: unknown) =>
+  value !== null && typeof value === 'object' && (Array.isArray(value) ? value.length > 0 : Object.keys(value).length > 0)
+
+function sorted(value: unknown, secret: boolean): unknown {
+  if (Array.isArray(value)) return value.map((each) => sorted(each, secret))
+  if (value !== null && typeof value === 'object') {
+    const entries = Object.entries(value).sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
+    return Object.fromEntries(entries.map(([key, inner]) => [key, secret ? '***' : sorted(inner, SECRET_KEYS.has(key))]))
+  }
+  return value
 }
 
 export function canon(text: string): string {

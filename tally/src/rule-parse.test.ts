@@ -97,6 +97,29 @@ describe('rule rows from a transcript', () => {
     ])
   })
 
+  it('records shell commands that write rule files, one row per file', () => {
+    const batch = build([
+      {
+        type: 'assistant',
+        uuid: 'u1',
+        cwd: 'D:\\Work\\App',
+        message: {
+          id: 'm1',
+          content: [
+            { type: 'tool_use', id: 'b1', name: 'Bash', input: { command: "sed -i 's/a/b/' ~/.claude/CLAUDE.md CLAUDE.md" } },
+            { type: 'tool_use', id: 'b2', name: 'Bash', input: { command: 'cat ~/.claude/CLAUDE.md' } },
+            { type: 'tool_use', id: 'b3', name: 'PowerShell', input: { command: 'Set-Content -Path "$HOME\\.githooks\\commit-msg" -Value x' } },
+          ],
+        },
+      },
+    ])
+    expect([...batch.ruleEdits.values()]).toEqual([
+      { toolUseId: 'b1', sessionId: 's1', agentId: null, key: '~/.claude/claude.md', at: '2026-10-03T10:00:00.000Z', tool: 'Bash', added: 0, removed: null },
+      { toolUseId: 'b1:1', sessionId: 's1', agentId: null, key: '/work/app/claude.md', at: '2026-10-03T10:00:00.000Z', tool: 'Bash', added: 0, removed: null },
+      expect.objectContaining({ toolUseId: 'b3', key: '~/.githooks/commit-msg', tool: 'PowerShell' }),
+    ])
+  })
+
   it('keeps only rule rows in rules-only mode', () => {
     const batch = build([attachment('a1', { type: 'instructions', files: [{ path: 'D:/Work/App/CLAUDE.md', content: '# App' }] })], true)
     expect(batch.lines.size).toBe(0)

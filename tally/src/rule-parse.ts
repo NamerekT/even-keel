@@ -1,8 +1,9 @@
 import { lineDiff } from '../../src/stats/diff.js'
 import { blocksOf, type Entry } from '../../src/sessions/entry.js'
-import { canon, hashOf, lineCount, ruleFileOf, skillBody, skillDescriptions, type RuleFile } from './rules.js'
+import { canon, hashOf, lineCount, ruleFileOf, shellRuleFiles, skillBody, skillDescriptions, type RuleFile } from './rules.js'
 
 const EDIT_TOOLS = new Set(['Edit', 'MultiEdit', 'Write'])
+const SHELL_TOOLS = new Set(['Bash', 'PowerShell'])
 
 export interface RuleContext {
   home: string
@@ -120,6 +121,16 @@ export class RuleCollector {
       if (block.name === 'Skill') {
         const args = input.args
         this.skillArgs.set(block.id, typeof args === 'string' && args.trim() !== '')
+        continue
+      }
+      if (SHELL_TOOLS.has(block.name)) {
+        const command = text(input.command)
+        const files = command === null ? [] : shellRuleFiles(command, text(entry.cwd), this.context.home)
+        files.forEach((file, index) => {
+          if (!rows.ruleFiles.has(file.key)) rows.ruleFiles.set(file.key, file)
+          const toolUseId = index === 0 ? block.id! : `${block.id}:${index}`
+          rows.ruleEdits.set(toolUseId, { toolUseId, sessionId, agentId: text(entry.agentId), key: file.key, at, tool: block.name!, added: 0, removed: null })
+        })
         continue
       }
       if (!EDIT_TOOLS.has(block.name)) continue
