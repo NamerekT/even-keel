@@ -1,12 +1,9 @@
-import { spawn } from 'node:child_process'
-import { mkdtempSync, rmSync } from 'node:fs'
-import { tmpdir } from 'node:os'
-import { join } from 'node:path'
 import { describeTool, flatten } from '../../src/sessions/entry.js'
 import type { MessageRow } from './parse.js'
 import { commandOf, streamsOf, type StreamEvent, type TranscriptEntry } from './stream.js'
 
-export const PROMPT_VERSION = 1
+export const PROMPT_VERSION = 2
+export const DEFAULT_LLM_MODEL = 'google-gemini-3.1-flash-lite'
 export const REASONS = ['unclear_task', 'broken_tooling', 'debug_loop', 'waiting_user', 'limit_env', 'normal', 'other'] as const
 export type Reason = (typeof REASONS)[number]
 
@@ -19,12 +16,19 @@ Pick the single most likely reason:
 - limit_env: usage limits, context compaction, a hand-off between sessions, timeouts.
 - normal: a false alarm; steady progress, the flagged pattern is expected for this work.
 - other: none of the above.
+A first prompt that is only a task ID (like "BTN-12") is normal: the agent reads the task text from the tracker.
 Answer with only a JSON object, no prose: {"reason": "<code>", "note": "<one or two sentences in Russian: what exactly happened>"}`
 
 const HEAD_EVENTS = 40
 const TAIL_EVENTS = 80
 const TEXT_LIMIT = 300
-const CLI_TIMEOUT_MS = 180_000
+const REQUEST_TIMEOUT_MS = 180_000
+
+export interface LlmSettings {
+  url: string
+  key: string
+  model: string
+}
 
 export interface SpanBounds {
   agentId: string | null
@@ -45,7 +49,7 @@ export interface ModelUsage {
   cacheWrite: number
 }
 
-export interface CliAnswer {
+export interface ModelAnswer {
   result: string
   sessionId: string
   usage: ModelUsage[]
@@ -74,27 +78,38 @@ export function parseVerdict(text: string): Verdict {
   return { reason: value.reason as Reason, note: typeof value.note === 'string' ? value.note.trim() : '' }
 }
 
-export function parseCliOutput(stdout: string): CliAnswer {
-  const value = JSON.parse(stdout) as {
-    is_error?: boolean
-    result?: unknown
-    session_id?: unknown
-    modelUsage?: Record<string, Record<string, unknown>>
+export function llmSettings(env: NodeJS.ProcessEnv): LlmSettings | undefined {
+  if (!env.TALLY_LLM_URL || !env.TALLY_LLM_KEY) return undefined
+  return { url: env.TALLY_LLM_URL.replace(/\/+$/, ''), key: env.TALLY_LLM_KEY, model: env.TALLY_LLM_MODEL || DEFAULT_LLM_MODEL }
+}
+
+export function parseChatResponse(body: unknown): ModelAnswer {
+  const value = (body ?? {}) as {
+    id?: unknown
+    model?: unknown
+    error?: { message?: unknown }
+    choices?: { message?: { content?: unknown } }[]
+    usage?: { prompt_tokens?: unknown; completion_tokens?: unknown; prompt_tokens_details?: { cached_tokens?: unknown } }
   }
-  if (value.is_error === true || typeof value.result !== 'string') {
-    throw new Error(`classifier: claude -p failed: ${flatten(String(value.result ?? stdout), TEXT_LIMIT)}`)
+  if (value.error !== undefined) {
+    throw new Error(`classifier: LiteLLM failed: ${flatten(String(value.error.message ?? JSON.stringify(value.error)), TEXT_LIMIT)}`)
   }
+  const result = value.choices?.[0]?.message?.content
+  if (typeof result !== 'string' || result.trim() === '') throw new Error('classifier: LiteLLM returned no answer')
   const count = (raw: unknown) => (typeof raw === 'number' && Number.isFinite(raw) ? raw : 0)
+  const cached = count(value.usage?.prompt_tokens_details?.cached_tokens)
   return {
-    result: value.result,
-    sessionId: typeof value.session_id === 'string' ? value.session_id : '',
-    usage: Object.entries(value.modelUsage ?? {}).map(([model, usage]) => ({
-      model,
-      input: count(usage.inputTokens),
-      output: count(usage.outputTokens),
-      cacheRead: count(usage.cacheReadInputTokens),
-      cacheWrite: count(usage.cacheCreationInputTokens),
-    })),
+    result,
+    sessionId: typeof value.id === 'string' ? value.id : '',
+    usage: [
+      {
+        model: typeof value.model === 'string' ? value.model.replace(/^[^/]+\//, '') : 'unknown',
+        input: count(value.usage?.prompt_tokens) - cached,
+        output: count(value.usage?.completion_tokens),
+        cacheRead: cached,
+        cacheWrite: 0,
+      },
+    ],
   }
 }
 
@@ -120,40 +135,29 @@ export function costRows(sessionId: string, usage: ModelUsage[], account: string
   }))
 }
 
-export async function askClaude(binary: string, env: NodeJS.ProcessEnv, prompt: string): Promise<CliAnswer> {
-  const cwd = mkdtempSync(join(tmpdir(), 'tally-classify-'))
-  const args = [
-    '-p',
-    '--model', 'haiku',
-    '--output-format', 'json',
-    '--no-session-persistence',
-    '--tools', '',
-    '--strict-mcp-config',
-    '--setting-sources', '',
-    '--disable-slash-commands',
-    '--system-prompt', SYSTEM_PROMPT,
-  ]
+export async function askModel(llm: LlmSettings, prompt: string): Promise<ModelAnswer> {
+  const response = await fetch(`${llm.url}/chat/completions`, {
+    method: 'POST',
+    headers: { authorization: `Bearer ${llm.key}`, 'content-type': 'application/json' },
+    body: JSON.stringify({
+      model: llm.model,
+      messages: [
+        { role: 'system', content: SYSTEM_PROMPT },
+        { role: 'user', content: prompt },
+      ],
+      temperature: 0,
+      response_format: { type: 'json_object' },
+    }),
+    signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+  })
+  const text = await response.text()
+  let body: unknown
   try {
-    const stdout = await new Promise<string>((resolve, reject) => {
-      const child = spawn(binary, args, { cwd, env, windowsHide: true })
-      const out: Buffer[] = []
-      const err: Buffer[] = []
-      const timer = setTimeout(() => child.kill(), CLI_TIMEOUT_MS)
-      child.stdout.on('data', (chunk: Buffer) => out.push(chunk))
-      child.stderr.on('data', (chunk: Buffer) => err.push(chunk))
-      child.on('error', reject)
-      child.on('close', (code) => {
-        clearTimeout(timer)
-        const text = Buffer.concat(out).toString('utf8')
-        if (code === 0 || text.trim().startsWith('{')) resolve(text)
-        else reject(new Error(`classifier: claude -p exited ${code}: ${flatten(Buffer.concat(err).toString('utf8') || text, TEXT_LIMIT)}`))
-      })
-      child.stdin.end(prompt, 'utf8')
-    })
-    return parseCliOutput(stdout)
-  } finally {
-    rmSync(cwd, { recursive: true, force: true })
+    body = JSON.parse(text)
+  } catch {
+    throw new Error(`classifier: LiteLLM answered ${response.status}: ${flatten(text, TEXT_LIMIT)}`)
   }
+  return parseChatResponse(response.ok ? body : { error: (body as { error?: unknown }).error ?? { message: `${response.status} ${text}` } })
 }
 
 function lineOf(event: StreamEvent): string | undefined {

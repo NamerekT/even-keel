@@ -1,9 +1,5 @@
-import { join } from 'node:path'
-import type { AccountHomes } from '../../src/account/homes.js'
-import { loadLedger } from '../../src/account/ledger.js'
 import { readHulyCredentials } from '../../src/huly/credentials.js'
-import { resolveClaudeBinary } from '../../src/sessions/claude.js'
-import { askClaude, costRows, excerptOf, parseVerdict, PROMPT_VERSION, promptOf } from './classify.js'
+import { askModel, costRows, excerptOf, llmSettings, parseVerdict, PROMPT_VERSION, promptOf } from './classify.js'
 import type { ClassifySettings } from './config.js'
 import type { TallyDb } from './db.js'
 import { fetchTasks } from './huly.js'
@@ -44,24 +40,21 @@ export async function refreshTasks(db: TallyDb, log: Log): Promise<number> {
   }
 }
 
-export async function classifySpans(db: TallyDb, settings: ClassifySettings, stateDir: string, homes: AccountHomes, log: Log): Promise<number> {
+export async function classifySpans(db: TallyDb, settings: ClassifySettings, log: Log): Promise<number> {
   if (settings.perRun === 0) return 0
   const pending = await db.pendingSpans(settings)
   if (pending.length === 0) return 0
-  const active = loadLedger(join(stateDir, 'account.json')).active
-  const home = homes.find(active)
-  if (home === undefined) {
-    log(`tally: Baton's active account ${active} has no folder, classifier skipped`)
+  const llm = llmSettings(process.env)
+  if (llm === undefined) {
+    log('tally: set TALLY_LLM_URL and TALLY_LLM_KEY in .env, classifier skipped')
     return 0
   }
-  const binary = resolveClaudeBinary(process.env)
-  const env = homes.envOf(home)
   let classified = 0
   for (const span of pending) {
     const excerpt = excerptOf(await db.sessionEntries(span.sessionId), span)
     let answer
     try {
-      answer = await askClaude(binary, env, promptOf(span.task, span.signs, excerpt))
+      answer = await askModel(llm, promptOf(span.task, span.signs, excerpt))
     } catch (error) {
       log(`tally: classifier stopped for this run: ${(error as Error).message}`)
       break
@@ -77,7 +70,7 @@ export async function classifySpans(db: TallyDb, settings: ClassifySettings, sta
     await db.writeReason(
       span,
       { ...verdict, promptVersion: PROMPT_VERSION, model, classifierSession: answer.sessionId || null },
-      costRows(answer.sessionId || span.id, answer.usage, home.key, new Date().toISOString()),
+      costRows(answer.sessionId || span.id, answer.usage, 'litellm', new Date().toISOString()),
     )
     classified++
   }

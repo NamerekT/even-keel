@@ -13,6 +13,7 @@ import { classifySpans, refreshSigns, refreshTasks } from './steps.js'
 
 const CHUNK_BYTES = 8 * 1024 * 1024
 const BATON_TIMEOUT_MS = 5_000
+const EXIT_GRACE_MS = 10_000
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..')
 try {
@@ -59,7 +60,7 @@ async function run(): Promise<number> {
     const snapshots = await db.addSnapshots(await limitSnapshots(config.batonUrl, stateDir, homes))
     const signed = await refreshSigns(db, config.signs)
     const tasks = await refreshTasks(db, log)
-    const classified = await classifySpans(db, config.classify, stateDir, homes, log)
+    const classified = await classifySpans(db, config.classify, log)
     const unpriced = await db.unpricedModels()
     if (unpriced.length > 0) log(`tally: no price for ${unpriced.join(', ')} — add them to tally.config.json`)
 
@@ -92,10 +93,14 @@ async function limitSnapshots(batonUrl: string, stateDir: string, homes: Account
   }
 }
 
-run().then(
-  (code) => process.exit(code),
-  (error: unknown) => {
-    log(`tally: ${(error as Error).stack ?? String(error)}`)
-    process.exit(1)
-  },
-)
+// process.exit right after a failed fetch trips a libuv assertion on Windows (UV_HANDLE_CLOSING):
+// let the loop drain and force the exit only if something still holds it.
+const finish = (code: number) => {
+  process.exitCode = code
+  setTimeout(() => process.exit(code), EXIT_GRACE_MS).unref()
+}
+
+run().then(finish, (error: unknown) => {
+  log(`tally: ${(error as Error).stack ?? String(error)}`)
+  finish(1)
+})

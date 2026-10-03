@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { costRows, excerptOf, parseCliOutput, parseVerdict } from './classify.js'
+import { costRows, DEFAULT_LLM_MODEL, excerptOf, llmSettings, parseChatResponse, parseVerdict } from './classify.js'
 import type { TranscriptEntry } from './stream.js'
 
 let n = 0
@@ -62,27 +62,44 @@ describe('parseVerdict', () => {
   })
 })
 
-describe('parseCliOutput', () => {
-  const output = JSON.stringify({
-    type: 'result',
-    is_error: false,
-    result: '{"reason":"normal","note":"Ок"}',
-    session_id: 'c1',
-    modelUsage: {
-      'claude-haiku-4-5-20251001': { inputTokens: 900, outputTokens: 40, cacheReadInputTokens: 0, cacheCreationInputTokens: 300, costUSD: 0.002 },
-    },
-  })
+describe('parseChatResponse', () => {
+  const body = {
+    id: 'chatcmpl-1',
+    model: 'gemini/gemini-3.7-flash',
+    choices: [{ index: 0, message: { role: 'assistant', content: '{"reason":"normal","note":"Ок"}' }, finish_reason: 'stop' }],
+    usage: { prompt_tokens: 900, completion_tokens: 40, total_tokens: 940, prompt_tokens_details: { cached_tokens: 300 } },
+  }
 
-  it('reads the answer, the session and the usage per model', () => {
-    expect(parseCliOutput(output)).toEqual({
+  it('reads the answer, the call id and the usage of the model that answered', () => {
+    expect(parseChatResponse(body)).toEqual({
       result: '{"reason":"normal","note":"Ок"}',
-      sessionId: 'c1',
-      usage: [{ model: 'claude-haiku-4-5-20251001', input: 900, output: 40, cacheRead: 0, cacheWrite: 300 }],
+      sessionId: 'chatcmpl-1',
+      usage: [{ model: 'gemini-3.7-flash', input: 600, output: 40, cacheRead: 300, cacheWrite: 0 }],
     })
   })
 
-  it('fails on an error result', () => {
-    expect(() => parseCliOutput(JSON.stringify({ type: 'result', is_error: true, result: 'Not logged in', session_id: 'c1' }))).toThrow(/Not logged in/)
+  it('counts a missing usage as zero tokens', () => {
+    const { usage: _, ...bare } = body
+    expect(parseChatResponse({ ...bare, model: 'gemini-3.8-flash' }).usage).toEqual([
+      { model: 'gemini-3.8-flash', input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
+    ])
+  })
+
+  it('fails on an error body or an empty answer', () => {
+    expect(() => parseChatResponse({ error: { message: 'No deployments available' } })).toThrow(/No deployments available/)
+    expect(() => parseChatResponse({ ...body, choices: [{ message: { content: null } }] })).toThrow(/no answer/)
+  })
+})
+
+describe('llmSettings', () => {
+  it('needs the URL and the key, the model has a default', () => {
+    expect(llmSettings({ TALLY_LLM_URL: 'http://100.64.0.1:4000/', TALLY_LLM_KEY: 'sk-x' })).toEqual({
+      url: 'http://100.64.0.1:4000',
+      key: 'sk-x',
+      model: DEFAULT_LLM_MODEL,
+    })
+    expect(llmSettings({ TALLY_LLM_URL: 'http://h:4000', TALLY_LLM_KEY: 'sk-x', TALLY_LLM_MODEL: 'm' })?.model).toBe('m')
+    expect(llmSettings({ TALLY_LLM_URL: 'http://h:4000' })).toBeUndefined()
   })
 })
 
