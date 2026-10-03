@@ -122,8 +122,8 @@ export function limitWindows(windows: StatsLimitWindow[]): string | null {
   const peaks = (account: string) =>
     windows
       .filter((each) => each.account === account)
-      .map((each) => `${formatShare(each.peak)}${each.open ? ' идёт' : ''}`)
+      .map((each) => `${formatShare(each.peak)}${each.open ? ' идёт' : ''}`.replaceAll(' ', ' '))
       .join(', ')
   if (accounts.length === 1) return `окна: ${peaks(accounts[0]!)}`
-  return `окна: ${accounts.map((account) => `${account} ${peaks(account)}`).join(' · ')}`
+  return `окна: ${accounts.map((account) => `${account} ${peaks(account)}`).join(' · ')}`
 }

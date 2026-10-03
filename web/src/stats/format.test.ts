@@ -102,11 +102,11 @@ describe('limitWindows', () => {
   const window = (account: string, peak: number, open = false) => ({ account, resetsAt: '2026-10-10T13:00:00.000Z', peak, open })
 
   it('lists the peaks of one account', () => {
-    expect(limitWindows([window('global', 100), window('global', 97.4), window('global', 22, true)])).toBe('окна: 100 %, 97 %, 22 % идёт')
+    expect(limitWindows([window('global', 100), window('global', 97.4), window('global', 22, true)])).toBe('окна: 100 %, 97 %, 22 % идёт')
   })
 
   it('names the accounts when there are several', () => {
-    expect(limitWindows([window('global', 100), window('john.doe', 73, true)])).toBe('окна: global 100 % · john.doe 73 % идёт')
+    expect(limitWindows([window('global', 100), window('john.doe', 73, true)])).toBe('окна: global 100 % · john.doe 73 % идёт')
   })
 
   it('is empty without windows', () => {
