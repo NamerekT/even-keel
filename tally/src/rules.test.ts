@@ -44,6 +44,14 @@ describe('ruleFileOf', () => {
     expect(ruleFileOf('C:/Users/Jane/.claude/skills/.trash/123/SKILL.md', home)).toBeNull()
   })
 
+  it('takes a skill folder for no file', () => {
+    expect(ruleFileOf('C:/Users/Jane/.claude/skills/recon', home)).toBeNull()
+    expect(ruleFileOf('C:/Users/Jane/.claude/skills/recon/', home)).toBeNull()
+    expect(ruleFileOf('C:/Users/Jane/.claude-accounts/a/skills/recon', home)).toBeNull()
+    expect(ruleFileOf('D:/Projects/Game/.claude/skills/unity', home)).toBeNull()
+    expect(ruleFileOf('D:/Projects/Game/.claude/skills/unity/refs/api.md', home)).toMatchObject({ kind: 'skill' })
+  })
+
   it('maps worktree files onto the main checkout', () => {
     const file = ruleFileOf('D:\\Projects\\Baton\\.claude\\worktrees\\btn-50\\CLAUDE.md', home)
     expect(file).toEqual({ key: '/projects/baton/claude.md', display: 'D:/Projects/Baton/CLAUDE.md', kind: 'claude_md', scope: '/projects/baton' })
@@ -105,6 +113,15 @@ describe('shellRuleFiles', () => {
     expect(keys('rm ~/.claude/agents/*')).toEqual([])
     expect(keys('rm src/main.ts')).toEqual([])
     expect(keys('git commit -m "edit CLAUDE.md" && git push')).toEqual([])
+  })
+
+  it('finds no rule file in a command on a skill folder', () => {
+    expect(keys('rm -rf ~/.claude/skills/recon')).toEqual([])
+    expect(keys('cp -r ~/.claude/skills/coding C:/Projects/Game/.claude/skills/coding/')).toEqual([])
+    expect(keys('cp -r ~/.claude/skills/coding/SKILL.md .claude/skills/coding/SKILL.md')).toEqual([
+      '~/.claude/skills/coding/skill.md',
+      '/work/app/.claude/skills/coding/skill.md',
+    ])
   })
 })
 

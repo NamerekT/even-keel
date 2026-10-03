@@ -17,10 +17,11 @@ const SKILL_BASE = /^Base directory for this skill: ([^\n]+)\n\n([\s\S]*)$/
 const FRONTMATTER = /^---\n[\s\S]*?\n---(?:\n|$)/
 const WORKTREE = /\/\.claude\/worktrees\/[^/]+(?=\/|$)/i
 const MEMORY = /^projects\/([^/]+)\/memory\/[^/]+\.md$/i
-const UNDER = /^(skills|hooks|agents)\/./i
+// A skill is a folder: skills/<name> itself is no file, only what lies in it.
+const UNDER = /^(?:(skills)\/[^/]+|(hooks|agents))\/./i
 // Skills synced by the desktop app and its trash are not the user's own.
 const FOREIGN_SKILLS = /^skills\/(synced|\.[^/]*)\//i
-const PROJECT_RULE = /^(.*)\/\.claude\/(skills\/.+|agents\/.+|settings(?:\.local)?\.json)$/i
+const PROJECT_RULE = /^(.*)\/\.claude\/(skills\/[^/]+\/.+|agents\/.+|settings(?:\.local)?\.json)$/i
 const SKIPPED_PART = /(^|\/)(node_modules|\.git)\//i
 // Logs, package manifests and backups next to the hook scripts are not rules.
 const HOOK_NOISE = /(?:\.log|\.bak|\.bak-[^/]*|\.tmp|(?:^|\/)package(?:-lock)?\.json)$/i
@@ -60,7 +61,7 @@ function configRule(rest: string, account: string | null): RuleFile | null {
     return { key: display.toLowerCase(), display, kind: 'settings', scope: GLOBAL_SCOPE }
   }
   const under = UNDER.exec(rest)
-  if (under !== null && !FOREIGN_SKILLS.test(rest)) return make(({ skills: 'skill', hooks: 'hook', agents: 'agent' } as const)[under[1]!.toLowerCase() as 'skills'])
+  if (under !== null && !FOREIGN_SKILLS.test(rest)) return make(({ skills: 'skill', hooks: 'hook', agents: 'agent' } as const)[(under[1] ?? under[2])!.toLowerCase() as 'skills'])
   const memory = MEMORY.exec(rest)
   if (memory !== null) return make('memory', `slug:${memory[1]!.toLowerCase()}`)
   return null

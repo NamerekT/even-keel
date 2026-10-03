@@ -49,11 +49,15 @@ from session_tasks st
 join sessions s on s.session_id = st.session_id
 where st.session_id = any($1::text[])`
 
+// Each answer of Tally's classifier is a session of one message with a ~1k context: not a Claude Code session,
+// and no rule edit changes it. Counted, it drowned the session median of the entry context (BTN-52).
+const SESSIONS_ONLY = `entrypoint is distinct from 'tally-classify'`
+
 // $8 project labels or null for all. Days do not matter here, $3 is cast only so Postgres knows its type.
 const STARTS = `${BASE}
 select extract(epoch from min(at)) * 1000 as started
 from base
-where ($8::text[] is null or project = any($8::text[])) and $3::text is not null
+where ($8::text[] is null or project = any($8::text[])) and $3::text is not null and ${SESSIONS_ONLY}
 group by session_id
 order by 1`
 
@@ -68,7 +72,7 @@ const TEXTS = `select hash, content from rule_texts where hash = any($1::text[])
 // $8 project labels or null, $9–$12 the bounds of the before side and of the after side.
 // A session takes the side of its first message, a task the side of its first message too. $3 as in STARTS.
 const SIDED = `${BASE}, picked as (
-  select * from base where ($8::text[] is null or project = any($8::text[])) and $3::text is not null
+  select * from base where ($8::text[] is null or project = any($8::text[])) and $3::text is not null and ${SESSIONS_ONLY}
 ), sides as (
   select $9::timestamptz as b_lo, $10::timestamptz as b_hi, $11::timestamptz as a_lo, $12::timestamptz as a_hi
 ), firsts as (
