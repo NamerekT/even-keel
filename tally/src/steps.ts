@@ -2,10 +2,12 @@ import { readHulyCredentials } from '../../src/huly/credentials.js'
 import { askModel, costRows, excerptOf, llmSettings, parseVerdict, PROMPT_VERSION, promptOf } from './classify.js'
 import type { ClassifySettings } from './config.js'
 import type { TallyDb } from './db.js'
-import { fetchTasks } from './huly.js'
+import { fetchTasks, reportTimes } from './huly.js'
 import { findSigns, signKey, spansOf, type SignRules } from './signs.js'
+import { turnsKey, turnsOf } from './turns.js'
 
 const TASK_MAX_AGE_MINUTES = 60
+const REPORT_IDLE_MINUTES = 60
 const HULY_TIMEOUT_MS = 30_000
 
 type Log = (message: string) => void
@@ -25,6 +27,18 @@ export async function refreshSigns(db: TallyDb, rules: SignRules): Promise<{ ses
   return { sessions, spans }
 }
 
+export async function refreshTurns(db: TallyDb): Promise<number> {
+  let sessions = 0
+  for (const state of await db.turnStates()) {
+    const launched = state.launchReason != null
+    const key = turnsKey(launched)
+    if (state.key === key && state.signedAt === state.lastAt) continue
+    await db.writeTurns(state.sessionId, state.lastAt, key, turnsOf(await db.sessionEntries(state.sessionId), launched))
+    sessions++
+  }
+  return sessions
+}
+
 export async function refreshTasks(db: TallyDb, log: Log): Promise<number> {
   const credentials = readHulyCredentials(process.env)
   if (credentials === undefined) return 0
@@ -36,6 +50,21 @@ export async function refreshTasks(db: TallyDb, log: Log): Promise<number> {
     return records.length
   } catch (error) {
     log(`tally: Huly tasks not fetched: ${(error as Error).message}`)
+    return 0
+  }
+}
+
+export async function reportTaskTimes(db: TallyDb, since: string | null, log: Log): Promise<number> {
+  const credentials = readHulyCredentials(process.env)
+  if (since === null || credentials === undefined) return 0
+  const pending = await db.pendingReports(since, REPORT_IDLE_MINUTES)
+  if (pending.length === 0) return 0
+  try {
+    const reported = await reportTimes(credentials, pending, HULY_TIMEOUT_MS)
+    await db.markReported(reported)
+    return reported.size
+  } catch (error) {
+    log(`tally: Huly time reports not written: ${(error as Error).message}`)
     return 0
   }
 }

@@ -3,13 +3,14 @@ import pg from 'pg'
 import type { ClassifySettings, DbSettings, Price } from './config.js'
 import type { Snapshot } from './limits.js'
 import type { FileState, Store } from './load.js'
-import type { TaskRecord } from './huly.js'
+import type { TaskRecord, TimeReport } from './huly.js'
 import type { Batch, Launch, MessageRow } from './parse.js'
 import type { RuleChange, VersionSource } from './rule-changes.js'
 import type { ImportRow } from './rule-imports.js'
 import type { RuleRows } from './rule-parse.js'
 import type { Sign, SignKind, Span } from './signs.js'
 import type { TranscriptEntry } from './stream.js'
+import type { Turn } from './turns.js'
 
 export interface PendingSpan {
   id: string
@@ -420,10 +421,45 @@ export class TallyDb implements Store {
     })
   }
 
+  async turnStates(): Promise<SignState[]> {
+    const result = await this.client.query(
+      `select s.session_id, s.last_at, s.launch_reason, g.last_at as signed_at, g.key
+       from sessions s left join turn_sessions g on g.session_id = s.session_id`,
+    )
+    return result.rows.map((row) => ({
+      sessionId: row.session_id,
+      lastAt: (row.last_at as Date | null)?.toISOString() ?? null,
+      launchReason: row.launch_reason,
+      signedAt: (row.signed_at as Date | null)?.toISOString() ?? null,
+      key: row.key,
+    }))
+  }
+
+  async writeTurns(sessionId: string, lastAt: string | null, key: string, turns: Turn[]): Promise<void> {
+    await this.transaction(async () => {
+      await this.client.query('delete from turns where session_id = $1', [sessionId])
+      await this.upsert(
+        `insert into turns (session_id, start_uuid, start, started_at, ended_at, replies, ask_s, limited, cli_s)
+         select session_id, start_uuid, start, started_at, ended_at, replies, ask_seconds, limited, cli_seconds
+         from jsonb_to_recordset($1::jsonb) as x(
+           session_id text, start_uuid text, start text, started_at timestamptz, ended_at timestamptz,
+           replies int, ask_seconds numeric, limited boolean, cli_seconds numeric)
+         on conflict do nothing`,
+        turns.map((turn) => ({ sessionId, ...turn })),
+      )
+      await this.client.query(
+        `insert into turn_sessions (session_id, last_at, key) values ($1, $2, $3)
+         on conflict (session_id) do update set last_at = excluded.last_at, key = excluded.key`,
+        [sessionId, lastAt, key],
+      )
+    })
+  }
+
   async staleTasks(maxAgeMinutes: number): Promise<string[]> {
     const result = await this.client.query<{ task: string }>(
       `select distinct st.task from session_tasks st left join tasks t on t.task = st.task
-       where st.task is not null and (t.task is null or t.fetched_at < now() - make_interval(mins => $1))
+       where st.task is not null
+         and (t.task is null or t.fetched_at < now() - make_interval(mins => $1) or (t.title is not null and t.priority is null))
        order by st.task`,
       [maxAgeMinutes],
     )
@@ -432,17 +468,46 @@ export class TallyDb implements Store {
 
   async writeTasks(asked: string[], records: TaskRecord[]): Promise<void> {
     const found = new Set(records.map((record) => record.task))
-    const missing = asked.filter((task) => !found.has(task)).map((task) => ({ task, title: null, status: null, labels: [], related: [] }))
+    const missing = asked
+      .filter((task) => !found.has(task))
+      .map((task) => ({ task, title: null, status: null, labels: [], related: [], priority: null, estimateH: null, component: null, done: null }))
     await this.upsert(
-      `insert into tasks (task, title, status, labels, related, fetched_at)
-       select task, title, status, array(select jsonb_array_elements_text(labels)), array(select jsonb_array_elements_text(related)), now()
-       from jsonb_to_recordset($1::jsonb) as x(task text, title text, status text, labels jsonb, related jsonb)
+      `insert into tasks (task, title, status, labels, related, priority, estimate_h, component, done, fetched_at)
+       select task, title, status, array(select jsonb_array_elements_text(labels)), array(select jsonb_array_elements_text(related)),
+         priority, estimate_h, component, done, now()
+       from jsonb_to_recordset($1::jsonb) as x(
+         task text, title text, status text, labels jsonb, related jsonb, priority text, estimate_h numeric, component text, done boolean)
        on conflict (task) do update set
          title = coalesce(excluded.title, tasks.title), status = coalesce(excluded.status, tasks.status),
          labels = case when excluded.title is null then tasks.labels else excluded.labels end,
          related = case when excluded.title is null then tasks.related else excluded.related end,
+         priority = case when excluded.title is null then tasks.priority else excluded.priority end,
+         estimate_h = case when excluded.title is null then tasks.estimate_h else excluded.estimate_h end,
+         component = case when excluded.title is null then tasks.component else excluded.component end,
+         done = case when excluded.title is null then tasks.done else excluded.done end,
          fetched_at = excluded.fetched_at`,
       [...records, ...missing],
+    )
+  }
+
+  async pendingReports(since: string, idleMinutes: number): Promise<TimeReport[]> {
+    const result = await this.client.query(
+      `select t.task, round(tt.active_s / 3600, 2) as hours, tt.last_at
+       from tasks t join task_times tt on tt.task = t.task
+       where t.done and t.reported_at is null and tt.active_s >= 60
+         and tt.first_at >= $1::date and tt.last_at < now() - make_interval(mins => $2)
+       order by tt.last_at`,
+      [since, idleMinutes],
+    )
+    return result.rows.map((row) => ({ task: row.task, hours: Number(row.hours), date: (row.last_at as Date).toISOString() }))
+  }
+
+  async markReported(reported: ReadonlyMap<string, number>): Promise<void> {
+    await this.client.query(
+      `update tasks t set reported_h = x.hours, reported_at = now()
+       from jsonb_to_recordset($1::jsonb) as x(task text, hours numeric)
+       where t.task = x.task`,
+      [JSON.stringify([...reported].map(([task, hours]) => ({ task, hours })))],
     )
   }
 
