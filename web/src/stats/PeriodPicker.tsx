@@ -2,6 +2,7 @@ import { useEffect, useState, type FormEvent } from 'react'
 import { usePopover } from '../layout/usePopover.js'
 import { Calendar } from './Calendar.js'
 import { PRESETS, formatRange, shiftRange, type DayRange, type PeriodChoice } from './period.js'
+import './period.css'
 
 export function PeriodPicker({
   choice,

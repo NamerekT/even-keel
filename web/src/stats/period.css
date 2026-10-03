@@ -1,0 +1,349 @@
+/* Period picker */
+
+.period {
+  position: relative;
+  display: inline-flex;
+  align-items: stretch;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+}
+
+.period__shift,
+.period__button {
+  font: inherit;
+  font-size: 14px;
+  padding: 6px 10px;
+  border: 0;
+  background: none;
+  color: var(--fg);
+  cursor: pointer;
+}
+
+.period__button {
+  border-inline: 1px solid var(--border);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.period__shift:disabled {
+  color: var(--fg-muted);
+  opacity: 0.4;
+  cursor: default;
+}
+
+.period__shift:hover:not(:disabled),
+.period__button:hover {
+  background: var(--surface-muted);
+}
+
+.period__shift:focus-visible,
+.period__button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
+.period__panel {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  z-index: 20;
+  display: flex;
+  gap: 16px;
+  padding: 12px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: 0 8px 28px rgb(0 0 0 / 0.16);
+}
+
+.period__presets {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 132px;
+  margin: 0;
+  padding: 0 12px 0 0;
+  border-right: 1px solid var(--border);
+  list-style: none;
+}
+
+.period__preset {
+  width: 100%;
+  font: inherit;
+  font-size: 14px;
+  padding: 6px 8px;
+  border: 0;
+  border-radius: 6px;
+  background: none;
+  white-space: nowrap;
+  color: var(--fg);
+  text-align: left;
+  cursor: pointer;
+}
+
+.period__preset:hover {
+  background: var(--surface-muted);
+}
+
+.period__preset--on {
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+  font-weight: 600;
+}
+
+.period__main {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.period__inputs {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  padding-top: 10px;
+  border-top: 1px solid var(--border);
+  font-size: 13px;
+  color: var(--fg-muted);
+}
+
+.period__inputs label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.period__inputs input {
+  font: inherit;
+  padding: 4px 6px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg);
+  color: var(--fg);
+}
+
+.period__inputs .button {
+  margin-left: auto;
+}
+
+/* Calendar */
+
+.calendar {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 524px;
+}
+
+.calendar--days {
+  display: grid;
+  grid-template-columns: repeat(2, 252px);
+  gap: 6px 20px;
+}
+
+.calendar__hint {
+  grid-column: 1 / -1;
+  margin: 0;
+  color: var(--fg-muted);
+  font-size: 12px;
+}
+
+.calendar__head {
+  display: grid;
+  grid-template-columns: 28px 1fr 28px;
+  align-items: center;
+}
+
+.calendar__title,
+.calendar__nav {
+  font: inherit;
+  padding: 4px;
+  border: 0;
+  border-radius: 6px;
+  background: none;
+  color: var(--fg);
+  cursor: pointer;
+}
+
+.calendar__title {
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.calendar__title--static {
+  grid-column: 2;
+  text-align: center;
+  cursor: default;
+}
+
+.calendar__title:hover:not(.calendar__title--static),
+.calendar__nav:hover:not(:disabled) {
+  background: var(--surface-muted);
+}
+
+.calendar__nav:disabled {
+  opacity: 0.3;
+  cursor: default;
+}
+
+.calendar__grid {
+  display: grid;
+  grid-template-columns: repeat(7, 36px);
+  gap: 0;
+}
+
+.calendar__grid--wide {
+  grid-template-columns: repeat(4, 1fr);
+  gap: 6px;
+}
+
+.calendar__weekday {
+  padding: 4px 0;
+  color: var(--fg-muted);
+  font-size: 11px;
+  text-align: center;
+}
+
+.calendar__cell {
+  position: relative;
+  height: 32px;
+  font: inherit;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: var(--fg);
+  cursor: pointer;
+}
+
+.calendar__cell::before {
+  content: '';
+  position: absolute;
+  bottom: 4px;
+  left: calc(50% - 9px);
+  width: 18px;
+  height: 3px;
+  border-radius: 2px;
+  background: var(--heat, transparent);
+}
+
+.calendar__cell--wide {
+  height: 40px;
+  border-radius: 6px;
+}
+
+.calendar__cell--wide::before {
+  left: calc(50% - 14px);
+  width: 28px;
+}
+
+.calendar__cell.heat-0 {
+  color: var(--fg-muted);
+}
+
+.calendar__cell.heat-1 {
+  --heat: color-mix(in srgb, var(--series-3) 35%, transparent);
+}
+
+.calendar__cell.heat-2 {
+  --heat: color-mix(in srgb, var(--series-3) 55%, transparent);
+}
+
+.calendar__cell.heat-3 {
+  --heat: color-mix(in srgb, var(--series-3) 78%, transparent);
+}
+
+.calendar__cell.heat-4 {
+  --heat: var(--series-3);
+}
+
+.calendar__cell:hover:not(:disabled) {
+  outline: 1px solid var(--fg-muted);
+  outline-offset: -1px;
+}
+
+.calendar__cell:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
+.calendar__cell:disabled {
+  background: none;
+  color: var(--fg-muted);
+  opacity: 0.35;
+  cursor: default;
+}
+
+.calendar__cell--in {
+  background: color-mix(in srgb, var(--accent) 16%, transparent);
+}
+
+.calendar__cell.calendar__cell--from,
+.calendar__cell.calendar__cell--to {
+  --heat: color-mix(in srgb, var(--surface) 70%, transparent);
+  background: var(--accent);
+  color: var(--surface);
+  font-weight: 600;
+}
+
+.calendar__cell--from {
+  border-radius: 8px 0 0 8px;
+}
+
+.calendar__cell--to {
+  border-radius: 0 8px 8px 0;
+}
+
+.calendar__cell--from.calendar__cell--to {
+  border-radius: 8px;
+}
+
+.calendar__cell.heat-0.calendar__cell--from::before,
+.calendar__cell.heat-0.calendar__cell--to::before {
+  content: none;
+}
+
+.calendar__cell--today::after {
+  content: '';
+  position: absolute;
+  top: 3px;
+  left: calc(50% - 2px);
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+@media (max-width: 640px) {
+  .period__panel {
+    position: fixed;
+    top: calc(var(--header-height) + 8px);
+    left: 8px;
+    right: 8px;
+    flex-direction: column;
+    max-height: calc(100dvh - var(--header-height) - 16px);
+    overflow-y: auto;
+  }
+
+  .period__presets {
+    flex-direction: row;
+    flex-wrap: wrap;
+    padding: 0 0 10px;
+    border-right: 0;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .period__preset {
+    width: auto;
+  }
+
+  .calendar {
+    min-width: 252px;
+  }
+
+  .calendar--days {
+    grid-template-columns: 252px;
+  }
+}
