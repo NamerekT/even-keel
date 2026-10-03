@@ -1,10 +1,9 @@
-import { open, readdir, stat } from 'node:fs/promises'
+import { readdir, stat } from 'node:fs/promises'
 import { join } from 'node:path'
 import type { AgentEntry } from './agents.js'
+import { readLines } from './lines.js'
 import { projectDirName } from './paths.js'
 import { TranscriptFold } from './transcript.js'
-
-const NEWLINE = 0x0a
 
 interface Found {
   file: string
@@ -17,7 +16,6 @@ export class TranscriptTail {
   private file: string | undefined
   private ino: number | undefined
   private offset = 0
-  private carry = Buffer.alloc(0)
 
   constructor(
     private readonly projectsDir: string,
@@ -37,21 +35,9 @@ export class TranscriptTail {
     if (found === undefined) return
     if (found.ino !== this.ino || found.size < this.offset) this.restart(found)
     this.file = found.file
-    if (found.size === this.offset) return
-
-    const handle = await open(found.file, 'r')
-    try {
-      const chunk = Buffer.alloc(found.size - this.offset)
-      const { bytesRead } = await handle.read(chunk, 0, chunk.length, this.offset)
-      this.offset += bytesRead
-      const data = Buffer.concat([this.carry, chunk.subarray(0, bytesRead)])
-      const end = data.lastIndexOf(NEWLINE)
-      this.carry = Buffer.from(data.subarray(end + 1))
-      if (end < 0) return
-      for (const line of data.subarray(0, end).toString('utf8').split('\n')) this.fold.push(line)
-    } finally {
-      await handle.close()
-    }
+    const { lines, next } = await readLines(found.file, this.offset, found.size)
+    this.offset = next
+    for (const line of lines) this.fold.push(line)
   }
 
   private restart(found: Found): void {
@@ -59,7 +45,6 @@ export class TranscriptTail {
     this.file = found.file
     this.ino = found.ino
     this.offset = 0
-    this.carry = Buffer.alloc(0)
   }
 
   private async find(): Promise<Found | undefined> {
