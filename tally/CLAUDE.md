@@ -28,7 +28,7 @@
 - `model_prices` — цены из `tally.config.json`, переписываются на каждом прогоне.
 - `files` — состояние дозагрузки.
 - `signs`, `spans`, `sign_sessions` — признаки, отрезки и с какими правилами и до какой строки посчитана сессия; `span_reasons` — причина отрезка от классификатора; `tasks` — задачи из Huly (ниже).
-- Views: `session_tasks` — задача сессии (`launch_task`, иначе задача первого ответа с задачей); `stuck_spans` — отрезки с задачей и причиной; `task_repeats` — по задаче: сессии, передачи дел по видам (`relay`, `checkpoint`, `restart`), отрезки, заголовок, статус, ярлыки, `rework` (есть ярлык `Переделка`), связанные задачи.
+- Views: `session_tasks` — задача сессии (`launch_task`, иначе задача первого ответа с задачей); `stuck_spans` — отрезки с задачей и причиной; `task_repeats` — по задаче: сессии, передачи дел по видам (`relay`, `checkpoint`, `restart`), отрезки, заголовок, статус, ярлыки, `rework` (есть ярлык `Переделка`), связанные задачи; для навыка аудита (ниже) — `audit_sessions` (сессия: папка, задача, причина запуска, активные минуты, контекст запросов и пик, доля > 150k, стоимость, застревания и ошибки вызовов), `audit_tasks` (те же суммы по задаче, задача — в периоде своего первого ответа) и `audit_rules` (смены правил с местом и `undone` — ложная пара смен за сутки).
 
 Задача ответа: запуск сессии в журнале Батона (`state/launches.jsonl`, кроме `postpone`/`skip`) → ветка `<ключ>-<номер>/…` → папка `.claude/worktrees/<ключ>-<номер>`. Журнал применяется и задним числом (`sessions.launch_task`, view берёт его первым).
 
@@ -102,70 +102,13 @@
 - Журнал правок — `ruleHistory` в `tally.config.json` (по умолчанию `<BATON_STATE_DIR>/rule-history.jsonl`, вне git): строка — набор `{ id, at, until?, atPrecision exact|hour|day, sessions, files [{ path, action, summary }], purpose, reason, task, source }`. Каждый прогон добавляет новые строки и удаляет пропавшие (ключ — SHA-1 строки), битая строка — в лог. Сервер приклеивает цель, причину и задачу к набору правок сессии из `sessions`, если время сходится с допуском (30 мин / 1 ч / 24 ч по точности), иначе набор журнала стоит сам, с пометкой о расхождении.
 - С какого времени есть история: тексты CLAUDE.md и памяти в транскриптах — с 2026-09-04 (CLI 2.1.260, первая смена — 2026-09-06), описания и тела навыков — с 2026-08-03, хуки, настройки и `.claude.json` — с первого снимка (2026-10-03) и раньше только по бэкапам, `file-history` и git.
 
-## Недельная сводка
+## Аудит сессий (BTN-53)
 
-На просьбу «недельный аудит» сессия берёт готовые цифры из базы и пишет короткую сводку. Только чтение: роль `tally_reader` (`TALLY_READER_PASSWORD`, `TALLY_READER_USER` — чтобы сменить имя), никаких `insert`/`update`, сборщик не запускается. Из worktree: `node --env-file=<основной чекаут>/.env` и скрипт в `.temp/` на `pg` (клиент — как в `src/stats/reader.ts`).
+Аудит — глобальный навык `session-audit` (`~/.claude/skills/session-audit/SKILL.md`, вне git): из любого проекта сравнивает недавний период с прежним — расход, контекст, задачи, застревания, правки правил между ними — и ищет, что поменялось. Недельный аудит — частный случай: период — последние 7 суток, прежний — 7 суток перед ними.
 
-Неделя — последние 7 суток от `now()`, прошлая — 7 суток перед ней. Проект ответа — префикс задачи (`CBL-…` → `CBL`), без задачи — `(папка)` из `messages.project`: это папка `cwd`, у служебных сессий бывают подпапки и пробные каталоги, мелочь (< $5 за неделю) сводится в «прочее».
-
-```sql
--- 1. Расход по проектам: неделя, прошлая, сессии, ответы без цены
-select coalesce(split_part(task, '-', 1), '(' || coalesce(project, '?') || ')') as project,
-  round(sum(cost) filter (where at >= now() - interval '7 days'), 2) as week,
-  round(sum(cost) filter (where at <  now() - interval '7 days'), 2) as prev,
-  count(distinct session_id) filter (where at >= now() - interval '7 days') as sessions,
-  count(*) filter (where cost is null and at >= now() - interval '7 days') as unpriced
-from message_costs where at >= now() - interval '14 days'
-group by 1 order by week desc nulls last;
-
--- 2. Цепочка Батона против остального (sessions.launch_reason не пуст — сессия из журнала запусков)
-select case when s.launch_reason is not null then 'цепочка' else 'вне цепочки' end as scope,
-  round(sum(m.cost) filter (where m.at >= now() - interval '7 days'), 2) as week,
-  round(sum(m.cost) filter (where m.at <  now() - interval '7 days'), 2) as prev
-from message_costs m join sessions s using (session_id)
-where m.at >= now() - interval '14 days' group by 1;
-
--- 3. Самые дорогие задачи недели
-select m.task, round(sum(m.cost), 2) as cost, count(distinct m.session_id) as sessions, t.status, t.title
-from message_costs m left join tasks t using (task)
-where m.at >= now() - interval '7 days' and m.task is not null
-group by m.task, t.status, t.title order by cost desc limit 10;
-
--- 4. Повторы: задачи с ответами за неделю и больше чем одной сессией, переделкой или отрезками (счётчики — за всё время задачи)
-select r.task, r.sessions, r.relays, r.checkpoints, r.restarts, r.spans, r.rework, r.status, r.title
-from task_repeats r
-where exists (select 1 from message_costs m where m.task = r.task and m.at >= now() - interval '7 days')
-  and (r.sessions > 1 or r.rework or r.spans > 0)
-order by r.sessions + r.spans desc limit 10;
-
--- 5. Застревания: причины недели и прошлой, виды признаков, разобранные отрезки с пояснением
-select coalesce(reason, '(не разобрано)') as reason,
-  count(*) filter (where to_at >= now() - interval '7 days') as week,
-  count(*) filter (where to_at <  now() - interval '7 days') as prev
-from stuck_spans where to_at >= now() - interval '14 days' group by 1 order by week desc;
-select k as kind, count(*) as spans, count(*) filter (where reason is null) as unclassified
-from stuck_spans, unnest(kinds) k where to_at >= now() - interval '7 days' group by 1 order by 2 desc;
-select task, from_at, kinds, reason, note from stuck_spans
-where to_at >= now() - interval '7 days' and reason is not null and reason <> 'normal' order by from_at desc limit 15;
-
--- 6. Доля лимита по проектам, в процентных пунктах окна (оценка, только где были снимки)
-select coalesce(split_part(s.task, '-', 1), '(без задачи)') as project, l.span,
-  round(sum(l.share)::numeric, 1) as pp, min(l.since) as since
-from limit_shares l left join session_tasks s using (session_id)
-where l.till >= now() - interval '7 days' group by 1, 2 order by 1, 2;
-```
-
-Сводка — по-русски, коротко, цифры с округлением до доллара (у задач — до цента):
-
-1. **Итог** — неделя против прошлой в долларах по ценам API и в процентах; цепочка против остального.
-2. **Проекты** — строка на проект: неделя, прошлая, изменение, сессии.
-3. **Дорогие задачи** — до 5: задача, заголовок, деньги, сессии.
-4. **Повторы** — задачи с передачами дел, заменами и переделкой: сколько сессий и почему (лимит, контрольная точка, замена вручную).
-5. **Застревания** — сколько отрезков, по причинам; 2–3 разобранных примера с пояснением классификатора; сколько не разобрано и каких видов.
-6. **Лимит** — доля по проектам, если снимки покрывают неделю; иначе — с какого момента они есть.
-7. **Выводы** — 2–4 пункта: что изменилось и что из этого стоит поправить (правило, навык, разрешение, формулировка задачи). Только то, что видно в цифрах.
-
-Цены — оценка по API, не счёт подписки; задачи в `tasks` обновляются раз в час, статус может отставать.
+- Запросы — `tally/bin/sql.mjs` из любой папки (`node <основной чекаут>/tally/bin/sql.mjs "<sql>"`, `-f файл` или stdin): `pg` и `.env` берёт из основного чекаута, роль `tally_reader` (`TALLY_READER_PASSWORD`, `TALLY_READER_USER` — чтобы сменить имя), транзакция только на чтение — `insert` и прочее база отклоняет. Сборщик на аудите не запускается.
+- Готовые суммы — views `audit_*` (раздел «Схема»), запросы и вид отчёта — в навыке.
+- Цены — оценка по API, не счёт подписки; задачи в `tasks` обновляются раз в час, статус может отставать.
 
 ## Тесты
 
