@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { RuleMark } from '../../../src/stats/rules.js'
-import { markKey, markPlaces, pickMark, pickedSpan, shortPath } from './marks.js'
+import { driftText, markKey, markPlaces, pickMark, pickedSpan, precisionText, setTitle, shortPath, toggleChip } from './marks.js'
 
 const mark = (id: string, fromAt: string, toAt = fromAt): RuleMark => ({
   fromAt,
@@ -71,5 +71,57 @@ describe('shortPath', () => {
     expect(shortPath('~/.claude/CLAUDE.md')).toBe('~/.claude/CLAUDE.md')
     expect(shortPath('~/.claude/skills/coding/SKILL.md')).toBe('…/skills/coding/SKILL.md')
     expect(shortPath('D:/Projects/git/private/Baton/CLAUDE.md')).toBe('…/private/Baton/CLAUDE.md')
+  })
+})
+
+describe('toggleChip', () => {
+  const all = ['a', 'b', 'c'] as const
+
+  it('keeps all but the clicked one when everything is on', () => {
+    expect(toggleChip(null, 'b', all)).toEqual(['a', 'c'])
+  })
+
+  it('turns a chip back on and returns to "all" once every chip is on', () => {
+    expect(toggleChip(['a'], 'c', all)).toEqual(['a', 'c'])
+    expect(toggleChip(['a', 'c'], 'b', all)).toBeNull()
+  })
+
+  it('turns a chip off and keeps the order of the full list', () => {
+    expect(toggleChip(['c', 'a'], 'c', all)).toEqual(['a'])
+    expect(toggleChip(['b'], 'b', all)).toEqual([])
+  })
+})
+
+describe('driftText', () => {
+  it('says how far the transcript is from the import', () => {
+    expect(driftText(5 * 3_600_000)).toBe('в транскрипте на 5 ч позже')
+    expect(driftText(-90 * 60_000)).toBe('в транскрипте на 2 ч раньше')
+    expect(driftText(-40 * 60_000)).toBe('в транскрипте на 40 мин раньше')
+    expect(driftText(3 * 86_400_000)).toBe('в транскрипте на 3 дн позже')
+  })
+
+  it('says nothing without a drift', () => {
+    expect(driftText(null)).toBeNull()
+    expect(driftText(0)).toBeNull()
+  })
+})
+
+describe('precisionText', () => {
+  it('marks only rough times', () => {
+    expect(precisionText('exact')).toBeNull()
+    expect(precisionText('hour')).toBe('±час')
+    expect(precisionText('day')).toBe('±день')
+  })
+})
+
+describe('setTitle', () => {
+  const set = mark('s:1', '2026-09-01T12:00:00Z').sets[0]!
+
+  it('prefers the task, then the session title, then says it was by hand', () => {
+    expect(setTitle({ ...set, task: 'ABC-1', title: 'Fix' })).toBe('ABC-1')
+    expect(setTitle({ ...set, title: 'Fix', sessionId: 'x' })).toBe('Fix')
+    expect(setTitle({ ...set, sessionId: 'x' })).toBe('сессия без задачи')
+    expect(setTitle(set)).toBe('вручную')
+    expect(setTitle({ ...set, id: 'i:4' })).toBe('из импорта')
   })
 })

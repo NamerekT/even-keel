@@ -3,6 +3,8 @@ import { seriesStyle } from '../ui/series.js'
 import { Segmented } from './common.js'
 import { formatShare, formatUsd } from './format.js'
 import type { ChartData, Metric } from './history.js'
+import { markKey, setTitle, type MarkPlace } from './marks.js'
+import { MarkTip } from './MarkTip.js'
 import { addDays, formatBucket, formatDay, nextBucket, type DayRange, type Step } from './period.js'
 
 const METRICS: [Metric, string, string][] = [
@@ -55,6 +57,9 @@ export function SpendChart({
   onMetric,
   onZoom,
   onZoomOut,
+  marks,
+  picked,
+  onPick,
 }: {
   data: ChartData
   range: DayRange
@@ -64,8 +69,12 @@ export function SpendChart({
   onMetric: (metric: Metric) => void
   onZoom: (range: DayRange) => void
   onZoomOut: (() => void) | null
+  marks: Map<string, MarkPlace[]>
+  picked: string[]
+  onPick: (key: string, extend: boolean) => void
 }) {
   const [hovered, setHovered] = useState<number | null>(null)
+  const [hoveredMark, setHoveredMark] = useState<string | null>(null)
   const [drag, setDrag] = useState<{ from: number; to: number } | null>(null)
   const { buckets, series } = data
   const max = Math.max(0, ...buckets.map((each) => each.total))
@@ -87,7 +96,7 @@ export function SpendChart({
     return () => document.removeEventListener('pointerup', finish)
   }, [drag, buckets, step, range.from, range.to])
 
-  const picked = (index: number) => drag !== null && index >= Math.min(drag.from, drag.to) && index <= Math.max(drag.from, drag.to)
+  const dragged = (index: number) => drag !== null && index >= Math.min(drag.from, drag.to) && index <= Math.max(drag.from, drag.to)
 
   return (
     <section className="chart spend" aria-labelledby="spend-title">
@@ -110,10 +119,13 @@ export function SpendChart({
           {total === 0 && <p className="chart__empty">За период пусто</p>}
           {buckets.map((row, index) => {
             const title = bucketTitle(row.bucket, step, range)
+            const side = index < buckets.length / 2 ? 'right' : 'left'
+            const places = marks.get(row.bucket) ?? []
+            const tipMark = places.find(({ mark }) => markKey(mark) === hoveredMark)?.mark
             return (
               <div
                 key={row.bucket}
-                className={picked(index) ? 'chart__column spend__column spend__column--picked' : 'chart__column spend__column'}
+                className={dragged(index) ? 'chart__column spend__column spend__column--picked' : 'chart__column spend__column'}
                 tabIndex={0}
                 aria-label={`${title}: ${formatMetric(row.total, metric)}`}
                 onPointerDown={(event) => {
@@ -137,9 +149,30 @@ export function SpendChart({
                     )}
                   </div>
                 </div>
+                {places.map(({ mark, offset }) => {
+                  const key = markKey(mark)
+                  const on = picked.includes(key)
+                  return (
+                    <button
+                      key={key}
+                      type="button"
+                      className={on ? 'spend__mark spend__mark--on' : 'spend__mark'}
+                      style={{ left: `${offset * 100}%` }}
+                      aria-pressed={on}
+                      aria-label={`Правка правил: ${mark.sets.map(setTitle).join(', ')}`}
+                      onPointerDown={(event) => event.stopPropagation()}
+                      onPointerEnter={() => setHoveredMark(key)}
+                      onPointerLeave={() => setHoveredMark(null)}
+                      onFocus={() => setHoveredMark(key)}
+                      onBlur={() => setHoveredMark(null)}
+                      onClick={(event) => onPick(key, event.shiftKey || event.ctrlKey || event.metaKey)}
+                    />
+                  )
+                })}
                 <span className="chart__day spend__label">{index % every === 0 ? formatBucket(row.bucket, step) : ' '}</span>
-                {hovered === index && drag === null && (
-                  <div className={`chart__tip chart__tip--${index < buckets.length / 2 ? 'right' : 'left'}`} role="tooltip">
+                {tipMark !== undefined && drag === null && <MarkTip mark={tipMark} side={side} />}
+                {hovered === index && drag === null && tipMark === undefined && (
+                  <div className={`chart__tip chart__tip--${side}`} role="tooltip">
                     <strong>{title}</strong>
                     {series.map((each, at) => ({ each, value: row.values[at]! }))
                       .filter(({ value }) => value > 0)
@@ -163,6 +196,7 @@ export function SpendChart({
       </div>
       <p className="spend__hint">
         Выделите мышью отрезок графика, чтобы приблизить его{onZoomOut !== null && '; двойной клик — назад'}.
+        {marks.size > 0 && ' Вертикальные метки — правки правил: клик по метке сравнивает до и после.'}
       </p>
     </section>
   )

@@ -1,14 +1,17 @@
 import { useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router'
 import type { PeriodQuery, StatsFilter, StatsScope } from '../../../src/stats/model.js'
+import type { RulesQuery } from '../../../src/stats/rules.js'
 import type { BatonState } from '../../../src/state.js'
 import { formatMoment } from '../format.js'
 import { useLive } from '../live/context.js'
 import { AnswerNotice, Segmented, loadedData, useStatsAnswer } from './common.js'
 import { chartData, dayCosts, firstDay, projectColors, projectTotals, type Metric } from './history.js'
+import { markPlaces, pickMark } from './marks.js'
 import { autoStep, localDay, resolvePeriod, type DayRange, type PeriodChoice } from './period.js'
 import { PeriodPicker } from './PeriodPicker.js'
 import { ProjectList } from './ProjectList.js'
+import { RulesSection } from './RulesSection.js'
 import { parseView, viewSearch, type StatsView } from './search.js'
 import { SpendChart } from './SpendChart.js'
 import { StuckSection } from './StuckSection.js'
@@ -24,7 +27,7 @@ const SCOPES: [StatsScope, string][] = [
 export function StatsPage({ state }: { state: BatonState }) {
   const [params, setParams] = useSearchParams()
   const view = parseView(params)
-  const { statsHistory, statsPeriod } = useLive()
+  const { statsHistory, statsPeriod, statsRules } = useLive()
   const [metric, setMetric] = useState<Metric>('cost')
   const [zooms, setZooms] = useState<PeriodChoice[]>([])
   const tz = useMemo(() => Intl.DateTimeFormat().resolvedOptions().timeZone, [])
@@ -41,6 +44,22 @@ export function StatsPage({ state }: { state: BatonState }) {
   const periodLoaded = useStatsAnswer(periodKey, () => statsPeriod(query))
   const period = loadedData(periodLoaded)
   const step = view.step ?? autoStep(range)
+  const [picked, setPicked] = useState<string[]>([])
+  const rulesQuery: RulesQuery = { ...filter, projects: view.projects, kinds: view.kinds, purposes: view.purposes }
+  const rulesLoaded = useStatsAnswer(JSON.stringify(rulesQuery), () => statsRules(rulesQuery))
+  const rules = loadedData(rulesLoaded)
+  const marks = useMemo(
+    () =>
+      (rules?.marks ?? [])
+        .filter((mark) => {
+          const day = localDay(new Date(mark.toAt))
+          return day >= range.from && day <= range.to
+        })
+        .sort((a, b) => Date.parse(b.toAt) - Date.parse(a.toAt)),
+    [rules, range.from, range.to],
+  )
+  const places = useMemo(() => markPlaces(marks, range, step), [marks, step])
+  const pick = (key: string, extend: boolean) => setPicked(pickMark(picked, key, extend))
 
   const derived = useMemo(() => {
     if (history === null) return null
@@ -115,6 +134,20 @@ export function StatsPage({ state }: { state: BatonState }) {
               onMetric={setMetric}
               onZoom={zoom}
               onZoomOut={zooms.length === 0 ? null : zoomOut}
+              marks={places}
+              picked={picked}
+              onPick={pick}
+            />
+            <RulesSection
+              loaded={rulesLoaded}
+              marks={marks}
+              kinds={view.kinds}
+              purposes={view.purposes}
+              onFilter={setView}
+              picked={picked}
+              onPick={pick}
+              base={{ ...filter, projects: view.projects }}
+              trackerUrl={state.trackerUrl}
             />
             {period !== null && (
               <>

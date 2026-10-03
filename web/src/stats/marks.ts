@@ -1,4 +1,5 @@
-import type { RuleKind, RuleMark } from '../../../src/stats/rules.js'
+import type { ImportPrecision, RulePurpose } from '../../../src/stats/rule-imports.js'
+import type { RuleKind, RuleMark, RuleSet } from '../../../src/stats/rules.js'
 import { bucketOf, dayCount, localDay, nextBucket, addDays, type DayRange, type Step } from './period.js'
 
 export const RULE_KIND_LABELS: [RuleKind, string][] = [
@@ -50,4 +51,36 @@ export function pickedSpan(marks: RuleMark[], picked: string[]): { before: strin
 export function shortPath(display: string): string {
   const parts = display.split('/')
   return parts.length <= 3 ? display : `…/${parts.slice(-3).join('/')}`
+}
+
+export const PURPOSE_LABELS: [RulePurpose, string][] = [
+  ['economy', 'экономия'],
+  ['quality', 'качество'],
+  ['process', 'процесс'],
+  ['infra', 'инфраструктура'],
+]
+
+// `null` means every chip is on.
+export function toggleChip<T extends string>(on: T[] | null, chip: T, all: readonly T[]): T[] | null {
+  const current = on ?? all
+  const next = all.filter((each) => (each === chip ? !current.includes(chip) : current.includes(each)))
+  return next.length === all.length ? null : next
+}
+
+export function driftText(drift: number | null): string | null {
+  if (drift === null || drift === 0) return null
+  const minutes = Math.abs(drift) / 60_000
+  const size = minutes < 60 ? `${Math.round(minutes)} мин` : minutes < 48 * 60 ? `${Math.round(minutes / 60)} ч` : `${Math.round(minutes / 1440)} дн`
+  return `в транскрипте на ${size} ${drift > 0 ? 'позже' : 'раньше'}`
+}
+
+export function precisionText(precision: ImportPrecision): string | null {
+  return precision === 'hour' ? '±час' : precision === 'day' ? '±день' : null
+}
+
+export function setTitle(set: RuleSet): string {
+  if (set.task !== null) return set.task
+  if (set.title !== null) return set.title
+  if (set.sessionId !== null) return 'сессия без задачи'
+  return set.id.startsWith('i:') ? 'из импорта' : 'вручную'
 }
