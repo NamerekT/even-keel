@@ -1,4 +1,5 @@
 import { execFile } from 'node:child_process'
+import { readFileSync, statSync } from 'node:fs'
 import { lstat, readdir, readFile, stat } from 'node:fs/promises'
 import { join } from 'node:path'
 import { promisify } from 'node:util'
@@ -7,9 +8,9 @@ import { canon, claudeJsonRules, isSkillFile, ruleFileOf, stripFrontmatter, type
 
 const run = promisify(execFile)
 const MAX_BYTES = 1024 * 1024
-const MAX_CLAUDE_JSON_BYTES = 64 * 1024 * 1024
+export const MAX_CLAUDE_JSON_BYTES = 64 * 1024 * 1024
 const SKIPPED_DIRS = new Set(['node_modules', '.git', '__pycache__'])
-const PROJECT_SPECS = ['CLAUDE.md', '**/CLAUDE.md', '.claude/skills/**', '.claude/agents/**', '.claude/settings.json']
+export const PROJECT_SPECS =['CLAUDE.md', '**/CLAUDE.md', '.claude/skills/**', '.claude/agents/**', '.claude/settings.json']
 
 export interface RuleSource {
   path: string
@@ -83,6 +84,14 @@ export function textOf(file: RuleFile, text: string): string | null {
 }
 
 const isClaudeJson = (file: RuleFile) => file.key.endsWith('.claude.json')
+
+export function readBackup(path: string): string | null {
+  try {
+    return statSync(path).size > MAX_CLAUDE_JSON_BYTES ? null : readFileSync(path, 'utf8')
+  } catch {
+    return null
+  }
+}
 
 export function skillsOf(sources: RuleSource[]): Map<string, RuleFile> {
   const skills = new Map<string, RuleFile>()

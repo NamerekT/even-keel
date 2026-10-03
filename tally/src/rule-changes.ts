@@ -1,9 +1,12 @@
+export type VersionSource = 'file-history' | 'backup' | 'git'
+
 export interface Version {
   at: string
   hash: string | null
+  source?: VersionSource
 }
 
-export type ChangeSource = 'snapshot' | 'transcript'
+export type ChangeSource = 'snapshot' | 'transcript' | VersionSource
 
 export interface RuleChange {
   key: string
@@ -13,8 +16,8 @@ export interface RuleChange {
   source: ChangeSource
 }
 
-// A key's timeline: what sessions saw (each version from its first sighting) until the first snapshot, then the
-// snapshots. The first transcript version and the bootstrap snapshot are initial states, not changes: a session in
+// A key's timeline: what sessions saw and older versions found in file-history, backups and git (each version from
+// its first sighting) until the first snapshot, then the snapshots. The first transcript version and the bootstrap snapshot are initial states, not changes: a session in
 // a worktree sees its branch's text, and a skill body in a transcript has no frontmatter, so their texts are never
 // compared with the files on disk across that boundary except for a snapshot taken after the bootstrap.
 export function changesOf(key: string, seen: Version[], snapshots: Version[], bootstrapAt: string | null): RuleChange[] {
@@ -22,8 +25,8 @@ export function changesOf(key: string, seen: Version[], snapshots: Version[], bo
   const sorted = [...snapshots].sort(byTime)
   const firstSnapshot = sorted[0]?.at
   const timeline = [
-    ...[...seen].sort(byTime).filter((version) => firstSnapshot === undefined || version.at < firstSnapshot).map((version) => ({ ...version, source: 'transcript' as const })),
-    ...sorted.map((version) => ({ ...version, source: 'snapshot' as const })),
+    ...[...seen].sort(byTime).filter((version) => firstSnapshot === undefined || version.at < firstSnapshot).map((version) => ({ ...version, source: version.source ?? ('transcript' as ChangeSource) })),
+    ...sorted.map((version) => ({ ...version, source: 'snapshot' as ChangeSource })),
   ]
   const changes: RuleChange[] = []
   let known = false

@@ -309,11 +309,23 @@ create table if not exists rule_changes (
   at timestamptz not null,
   old_hash text,
   new_hash text,
-  source text not null check (source in ('snapshot', 'transcript')),
+  source text not null,
   added int not null,
   removed int not null
 );
 create index if not exists rule_changes_at on rule_changes (at);
+alter table rule_changes drop constraint if exists rule_changes_source_check;
+alter table rule_changes add constraint rule_changes_source_check
+  check (source in ('snapshot', 'transcript', 'file-history', 'backup', 'git'));
+
+create table if not exists rule_versions (
+  key text not null,
+  at timestamptz not null,
+  hash text,
+  source text not null check (source in ('file-history', 'backup', 'git')),
+  ref text not null,
+  primary key (key, at, source)
+);
 
 create table if not exists rule_imports (
   hash text primary key,

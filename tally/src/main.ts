@@ -10,8 +10,9 @@ import { snapshotsOfFile, snapshotsOfState, type Snapshot } from './limits.js'
 import { loadConfig } from '../../src/config.js'
 import { loadFile, type Source } from './load.js'
 import { launchMap } from './parse.js'
-import { ruleSources, skillsOf } from './rule-scan.js'
-import { backfillRules, importRuleHistory, refreshRuleChanges, snapshotRules } from './rule-steps.js'
+import { transcriptSession } from './rule-history.js'
+import { readBackup, ruleSources, skillsOf } from './rule-scan.js'
+import { backfillRules, collectRuleHistory, importRuleHistory, refreshRuleChanges, snapshotRules } from './rule-steps.js'
 import { transcriptFiles } from './scan.js'
 import { classifySpans, refreshSigns, refreshTasks } from './steps.js'
 
@@ -44,9 +45,15 @@ async function run(): Promise<number> {
     await db.migrate()
     await db.syncPrices(config.prices)
 
-    const ruleFiles = await ruleSources(homes.list(), batonProjects(), homedir(), log)
+    const projects = batonProjects()
+    const ruleFiles = await ruleSources(homes.list(), projects, homedir(), log)
     const rules = { home: homedir(), skills: skillsOf(ruleFiles) }
-    const contextOf = (source: Source) => ({ account: source.account, launches, rules })
+    const accountDirs = new Map(homes.list().map((home) => [home.key, home.dir]))
+    const contextOf = (source: Source) => {
+      const session = transcriptSession(source.path)
+      const dir = join(accountDirs.get(source.account) ?? homes.global.dir, 'file-history', session)
+      return { account: source.account, launches, rules: { ...rules, history: { session, dir, read: readBackup } } }
+    }
     const sources = await transcriptFiles(homes.list())
     await backfillRules(db, sources, contextOf, CHUNK_BYTES, log)
     const stored = await db.files()
@@ -67,6 +74,7 @@ async function run(): Promise<number> {
     const relabeled = await db.syncLaunches(launches)
     const snapshots = await db.addSnapshots(await limitSnapshots(config.batonUrl, stateDir, homes))
     const versions = await snapshotRules(db, ruleFiles, new Date())
+    const history = await collectRuleHistory(db, homes.list(), projects, homedir(), log)
     const changes = await refreshRuleChanges(db)
     const imported = await importRuleHistory(db, resolve(root, config.ruleHistory ?? join(stateDir, 'rule-history.jsonl')), log)
     const signed = await refreshSigns(db, config.signs)
@@ -79,7 +87,7 @@ async function run(): Promise<number> {
     log(
       `tally: ${sources.length} files, ${files} read, ${lines} lines, ${failed} failed, ${forgotten} forgotten, ` +
         `${relabeled} sessions relabeled, ${snapshots} limit snapshots, ` +
-        `${ruleFiles.length} rule files (${versions} new versions, ${changes} new changes), ${imported} imported rule sets, ` +
+        `${ruleFiles.length} rule files (${versions} new versions, ${history} from git, ${changes} new changes), ${imported} imported rule sets, ` +
         `${signed.sessions} sessions signed (${signed.spans} spans), ${tasks} Huly tasks, ${classified} spans classified, ${seconds} s`,
     )
     return failed > 0 ? 1 : 0

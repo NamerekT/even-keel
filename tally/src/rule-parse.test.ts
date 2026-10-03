@@ -120,6 +120,35 @@ describe('rule rows from a transcript', () => {
     ])
   })
 
+  it('takes rule file versions from file-history backups once per backup', () => {
+    const read: string[] = []
+    const backups: Record<string, string> = {
+      'C:/hist/s1/aaa@v1': '# Old\r\n',
+      'C:/hist/s1/bbb@v1': '---\nname: x\n---\nBody',
+    }
+    const builder = new BatchBuilder({
+      account: 'global',
+      launches: launchMap([]),
+      rules: { home, skills, history: { session: 's1', dir: 'C:/hist/s1', read: (path) => (read.push(path), backups[path] ?? null) } },
+      rulesOnly: true,
+    })
+    const snapshot = (backupsOf: object) => JSON.stringify({ type: 'file-history-snapshot', messageId: 'm1', snapshot: { messageId: 'm1', trackedFileBackups: backupsOf } })
+    const tracked = {
+      'CLAUDE.md': { backupFileName: 'aaa@v1', version: 1, backupTime: '2026-09-10T10:00:00Z', realParentDir: 'C:\\Users\\Jane\\.claude' },
+      'C:\\Users\\Jane\\.claude\\skills\\x\\SKILL.md': { backupFileName: 'bbb@v1', version: 1, backupTime: '2026-09-10T11:00:00.000Z', realParentDir: 'C:\\Users\\Jane\\.claude\\skills\\x' },
+      'src/app.ts': { backupFileName: 'ccc@v1', version: 1, backupTime: '2026-09-10T11:00:00.000Z', realParentDir: 'D:\\Work\\App\\src' },
+      'notes.md': { backupFileName: null, version: 1, backupTime: '2026-09-10T11:00:00.000Z', realParentDir: 'C:\\Users\\Jane\\.claude' },
+    }
+    builder.push(snapshot(tracked))
+    builder.push(snapshot(tracked))
+    expect(read).toEqual(['C:/hist/s1/aaa@v1', 'C:/hist/s1/bbb@v1'])
+    expect([...builder.batch.ruleVersions.values()]).toEqual([
+      { key: '~/.claude/claude.md', at: '2026-09-10T10:00:00.000Z', hash: hashOf('# Old'), source: 'file-history', ref: 's1/aaa@v1' },
+      { key: '~/.claude/skills/x/skill.md', at: '2026-09-10T11:00:00.000Z', hash: hashOf('Body'), source: 'file-history', ref: 's1/bbb@v1' },
+    ])
+    expect(builder.batch.ruleTexts.get(hashOf('# Old'))?.content).toBe('# Old')
+  })
+
   it('keeps only rule rows in rules-only mode', () => {
     const batch = build([attachment('a1', { type: 'instructions', files: [{ path: 'D:/Work/App/CLAUDE.md', content: '# App' }] })], true)
     expect(batch.lines.size).toBe(0)

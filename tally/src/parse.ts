@@ -107,7 +107,7 @@ export function emptyBatch(): Batch {
 export function batchSize(batch: Batch): number {
   return (
     batch.lines.size + batch.messages.size + batch.calls.size + batch.results.size + batch.sessions.size +
-    batch.ruleTexts.size + batch.ruleSeen.size + batch.ruleEdits.size
+    batch.ruleTexts.size + batch.ruleSeen.size + batch.ruleEdits.size + batch.ruleVersions.size
   )
 }
 

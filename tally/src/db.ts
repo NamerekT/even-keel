@@ -5,7 +5,7 @@ import type { Snapshot } from './limits.js'
 import type { FileState, Store } from './load.js'
 import type { TaskRecord } from './huly.js'
 import type { Batch, Launch, MessageRow } from './parse.js'
-import type { RuleChange } from './rule-changes.js'
+import type { RuleChange, VersionSource } from './rule-changes.js'
 import type { ImportRow } from './rule-imports.js'
 import type { RuleRows } from './rule-parse.js'
 import type { Sign, SignKind, Span } from './signs.js'
@@ -50,6 +50,7 @@ export interface KeyVersion {
   key: string
   hash: string | null
   at: string
+  source?: VersionSource
 }
 
 export interface StoredChange extends RuleChange {
@@ -199,10 +200,20 @@ export class TallyDb implements Store {
        on conflict (tool_use_id) do nothing`,
       rows.ruleEdits,
     )
+    await this.upsert(
+      `insert into rule_versions select * from jsonb_to_recordset($1::jsonb) as x(key text, at timestamptz, hash text, source text, ref text)
+       on conflict do nothing`,
+      rows.ruleVersions,
+    )
   }
 
+  // rule_files goes too, so git is read again from the start: it re-adds its files on the same run, as backups do.
   async forgetTranscriptRules(): Promise<void> {
-    await this.client.query('truncate rule_seen, rule_edits, rule_files, rule_changes')
+    await this.transaction(async () => {
+      await this.client.query('truncate rule_seen, rule_edits, rule_files, rule_changes')
+      await this.client.query(`delete from rule_versions where source = 'file-history'`)
+      await this.client.query(`delete from tally_meta where name like 'rules_git:%'`)
+    })
   }
 
   async meta(name: string): Promise<string | null> {
@@ -243,12 +254,23 @@ export class TallyDb implements Store {
     })
   }
 
+  // A version found in several places counts from its earliest sighting, with that place as its source.
   async ruleVersions(): Promise<{ seen: KeyVersion[]; snapshots: KeyVersion[] }> {
     const [seen, snapshots] = await Promise.all([
-      this.client.query('select key, hash, min(at) as at from rule_seen group by key, hash'),
+      this.client.query(
+        `select distinct on (key, hash) key, hash, at, source from (
+           select key, hash, at, null as source from rule_seen
+           union all select key, hash, at, source from rule_versions
+         ) v order by key, hash, at, source nulls first`,
+      ),
       this.client.query('select key, hash, at from rule_snapshots'),
     ])
-    const map = (row: Record<string, unknown>): KeyVersion => ({ key: row.key as string, hash: row.hash as string | null, at: (row.at as Date).toISOString() })
+    const map = (row: Record<string, unknown>): KeyVersion => ({
+      key: row.key as string,
+      hash: row.hash as string | null,
+      at: (row.at as Date).toISOString(),
+      ...(row.source ? { source: row.source as VersionSource } : {}),
+    })
     return { seen: seen.rows.map(map), snapshots: snapshots.rows.map(map) }
   }
 

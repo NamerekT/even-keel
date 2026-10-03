@@ -21,6 +21,20 @@ describe('changesOf', () => {
     ])
   })
 
+  it('keeps the source of a version found outside transcripts', () => {
+    const changes = changesOf(
+      'k',
+      [
+        { at: '2026-09-04T10:00:00.000Z', hash: 'a' },
+        { at: '2026-09-05T10:00:00.000Z', hash: 'b', source: 'file-history' },
+        { at: '2026-09-06T10:00:00.000Z', hash: 'c', source: 'git' },
+      ],
+      [],
+      null,
+    )
+    expect(changes.map((change) => change.source)).toEqual(['file-history', 'git'])
+  })
+
   it('ignores transcript versions from the first snapshot on and treats the bootstrap as no change', () => {
     const changes = changesOf(
       'k',

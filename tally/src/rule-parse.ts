@@ -1,13 +1,23 @@
 import { lineDiff } from '../../src/stats/diff.js'
 import { blocksOf, type Entry } from '../../src/sessions/entry.js'
+import type { VersionSource } from './rule-changes.js'
+import { textOf } from './rule-scan.js'
 import { canon, hashOf, lineCount, ruleFileOf, shellRuleFiles, skillBody, skillDescriptions, type RuleFile } from './rules.js'
 
 const EDIT_TOOLS = new Set(['Edit', 'MultiEdit', 'Write'])
 const SHELL_TOOLS = new Set(['Bash', 'PowerShell'])
 
+// The session's file-history folder: backups the CLI made of files before the session edited them.
+export interface HistoryContext {
+  session: string
+  dir: string
+  read: (path: string) => string | null
+}
+
 export interface RuleContext {
   home: string
   skills: ReadonlyMap<string, RuleFile>
+  history?: HistoryContext
 }
 
 export interface RuleTextRow {
@@ -34,20 +44,39 @@ export interface RuleEditRow {
   removed: number | null
 }
 
+export interface RuleVersionRow {
+  key: string
+  at: string
+  hash: string | null
+  source: VersionSource
+  ref: string
+}
+
 export interface RuleRows {
   ruleTexts: Map<string, RuleTextRow>
   ruleFiles: Map<string, RuleFile>
   ruleSeen: Map<string, RuleSeenRow>
   ruleEdits: Map<string, RuleEditRow>
+  ruleVersions: Map<string, RuleVersionRow>
 }
 
 export function emptyRuleRows(): RuleRows {
-  return { ruleTexts: new Map(), ruleFiles: new Map(), ruleSeen: new Map(), ruleEdits: new Map() }
+  return { ruleTexts: new Map(), ruleFiles: new Map(), ruleSeen: new Map(), ruleEdits: new Map(), ruleVersions: new Map() }
+}
+
+export function addRuleVersion(rows: RuleRows, file: RuleFile, version: Omit<RuleVersionRow, 'key'>): void {
+  if (!rows.ruleFiles.has(file.key)) rows.ruleFiles.set(file.key, file)
+  rows.ruleVersions.set(`${file.key}|${version.at}|${version.source}`, { key: file.key, ...version })
 }
 
 type Fields = Record<string, unknown>
 
 const text = (value: unknown): string | null => (typeof value === 'string' ? value : null)
+
+const isoOf = (value: unknown): string | null => {
+  const time = typeof value === 'string' ? Date.parse(value) : NaN
+  return Number.isNaN(time) ? null : new Date(time).toISOString()
+}
 
 export function addRuleText(rows: RuleRows, file: RuleFile, content: string): string {
   const hash = hashOf(content)
@@ -60,10 +89,12 @@ export function addRuleText(rows: RuleRows, file: RuleFile, content: string): st
 // texts) and the edits it made to them. Skill invocations with arguments are skipped: the CLI appends them to the body.
 export class RuleCollector {
   private readonly skillArgs = new Map<string, boolean>()
+  private readonly backups = new Set<string>()
 
   constructor(private readonly context: RuleContext) {}
 
   push(rows: RuleRows, entry: Entry): void {
+    if (entry.type === 'file-history-snapshot') return this.pushBackups(rows, (entry as Fields).snapshot as Fields | undefined)
     const sessionId = typeof entry.sessionId === 'string' && entry.sessionId !== '' ? entry.sessionId : null
     const at = text(entry.timestamp)
     if (entry.type === 'assistant') this.pushEdits(rows, entry, sessionId, at)
@@ -101,6 +132,27 @@ export class RuleCollector {
         const file = { ...skill, key: `${skill.key}#description`, display: `${skill.display}#description` }
         this.seen(rows, file, description, sessionId, at)
       }
+    }
+  }
+
+  // A backup holds the file as it was at backupTime, before the session's edit. The same backup repeats in later
+  // snapshot lines; a null backupFileName means the file did not exist yet.
+  private pushBackups(rows: RuleRows, snapshot: Fields | undefined): void {
+    const history = this.context.history
+    const tracked = snapshot?.trackedFileBackups
+    if (history === undefined || tracked === null || typeof tracked !== 'object') return
+    for (const [path, value] of Object.entries(tracked as Record<string, Fields | null>)) {
+      const name = text(value?.backupFileName)
+      const at = isoOf(value?.backupTime)
+      if (name === null || at === null || this.backups.has(name)) continue
+      this.backups.add(name)
+      const dir = text(value?.realParentDir)
+      const file = ruleFileOf(dir === null ? path : `${dir}/${path.split(/[\\/]/).at(-1)}`, this.context.home)
+      if (file === null) continue
+      const raw = history.read(`${history.dir}/${name}`)
+      const content = raw === null ? null : textOf(file, raw)
+      if (content === null) continue
+      addRuleVersion(rows, file, { at, hash: addRuleText(rows, file, content), source: 'file-history', ref: `${history.session}/${name}` })
     }
   }
 

@@ -1,16 +1,18 @@
 import { readFile } from 'node:fs/promises'
+import type { AccountHome } from '../../src/account/homes.js'
 import { lineDiff } from '../../src/stats/diff.js'
 import type { KeyVersion, SnapshotFile, StoredChange, TallyDb } from './db.js'
 import { loadRules, type Source } from './load.js'
 import type { ParseContext } from './parse.js'
 import { changesOf, pickPath, type Version } from './rule-changes.js'
+import { backupVersions, gitVersions } from './rule-history.js'
 import { parseImports } from './rule-imports.js'
 import { addRuleText, emptyRuleRows } from './rule-parse.js'
 import { infoOf, ruleText, type RuleSource } from './rule-scan.js'
 import { hashOf } from './rules.js'
 
 // Bump to re-read every transcript for rule rows after the rule parsing changes.
-export const RULES_VERSION = '1'
+export const RULES_VERSION = '2'
 const BACKFILL = 'rules_backfill'
 const BOOTSTRAP = 'rules_bootstrap'
 
@@ -65,12 +67,31 @@ export async function backfillRules(db: TallyDb, sources: Source[], context: (so
   return true
 }
 
+// Backups are few and re-read each run; git is read from the last head of each project's main.
+export async function collectRuleHistory(db: TallyDb, homes: AccountHome[], projects: string[], home: string, log: (message: string) => void): Promise<number> {
+  const backups = await backupVersions(homes, home)
+  await db.writeRules(backups)
+  let versions = 0
+  for (const repo of projects) {
+    const name = `rules_git:${repo.replaceAll('\\', '/').toLowerCase()}`
+    try {
+      const { head, rows } = await gitVersions(repo, home, await db.meta(name))
+      await db.writeRules(rows)
+      await db.setMeta(name, head)
+      versions += rows.ruleVersions.size
+    } catch (error) {
+      log(`tally: git history of rule files in ${repo}: ${(error as Error).message.split('\n')[0]}`)
+    }
+  }
+  return versions
+}
+
 export async function refreshRuleChanges(db: TallyDb): Promise<number> {
   const { seen, snapshots } = await db.ruleVersions()
   const bootstrap = await db.meta(BOOTSTRAP)
   const grouped = (versions: KeyVersion[]) => {
     const map = new Map<string, Version[]>()
-    for (const { key, hash, at } of versions) map.set(key, [...(map.get(key) ?? []), { hash, at }])
+    for (const { key, ...version } of versions) map.set(key, [...(map.get(key) ?? []), version])
     return map
   }
   const seenByKey = grouped(seen)
