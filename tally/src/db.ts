@@ -1,0 +1,201 @@
+import { readFileSync } from 'node:fs'
+import pg from 'pg'
+import type { DbSettings, Price } from './config.js'
+import type { Snapshot } from './limits.js'
+import type { FileState, Store } from './load.js'
+import type { Batch, Launch } from './parse.js'
+
+const SCHEMA = readFileSync(new URL('./schema.sql', import.meta.url), 'utf8')
+const LOCK_KEY = 'tally-collector'
+
+export class TallyDb implements Store {
+  private constructor(private readonly client: pg.Client) {}
+
+  static async connect(settings: DbSettings): Promise<TallyDb> {
+    const client = new pg.Client({ ...settings, connectionTimeoutMillis: 15_000 })
+    await client.connect()
+    return new TallyDb(client)
+  }
+
+  async lock(): Promise<boolean> {
+    const result = await this.client.query<{ locked: boolean }>('select pg_try_advisory_lock(hashtext($1)) as locked', [LOCK_KEY])
+    return result.rows[0]?.locked === true
+  }
+
+  async migrate(): Promise<void> {
+    await this.client.query(SCHEMA)
+  }
+
+  async files(): Promise<Map<string, FileState>> {
+    const result = await this.client.query(
+      `select path, account, read_to, size, mtime, ino, head, head_len from files`,
+    )
+    return new Map(
+      result.rows.map((row) => [
+        row.path,
+        {
+          path: row.path,
+          account: row.account,
+          offset: Number(row.read_to),
+          size: Number(row.size),
+          mtime: (row.mtime as Date).toISOString(),
+          ino: row.ino,
+          head: row.head,
+          headLen: row.head_len,
+        },
+      ]),
+    )
+  }
+
+  async write(batch: Batch, file: FileState): Promise<void> {
+    await this.transaction(async () => {
+      await this.upsert(
+        `insert into lines (uuid, session_id, agent_id, type, at, raw)
+         select uuid, session_id, agent_id, type, at, raw
+         from jsonb_to_recordset($1::jsonb) as x(uuid text, session_id text, agent_id text, type text, at timestamptz, raw jsonb)
+         on conflict (uuid) do nothing`,
+        batch.lines,
+      )
+      await this.upsert(
+        `insert into messages
+         select * from jsonb_to_recordset($1::jsonb) as x(
+           message_id text, session_id text, agent_id text, account text, project text, project_dir text, task text,
+           branch text, entrypoint text, model text, speed text, at timestamptz,
+           input bigint, cache_write_5m bigint, cache_write_1h bigint, cache_read bigint, output bigint)
+         on conflict (message_id) do update set
+           at = least(messages.at, excluded.at),
+           input = greatest(messages.input, excluded.input),
+           cache_write_5m = greatest(messages.cache_write_5m, excluded.cache_write_5m),
+           cache_write_1h = greatest(messages.cache_write_1h, excluded.cache_write_1h),
+           cache_read = greatest(messages.cache_read, excluded.cache_read),
+           output = greatest(messages.output, excluded.output),
+           speed = coalesce(excluded.speed, messages.speed)`,
+        batch.messages,
+      )
+      await this.upsert(
+        `insert into tool_calls (tool_use_id, session_id, message_id, task, name, input_hash, brief, at)
+         select * from jsonb_to_recordset($1::jsonb) as x(
+           tool_use_id text, session_id text, message_id text, task text, name text, input_hash text, brief text, at timestamptz)
+         on conflict (tool_use_id) do update set
+           session_id = coalesce(tool_calls.session_id, excluded.session_id),
+           message_id = coalesce(tool_calls.message_id, excluded.message_id),
+           task = coalesce(tool_calls.task, excluded.task),
+           name = excluded.name, input_hash = excluded.input_hash, brief = excluded.brief,
+           at = least(tool_calls.at, excluded.at)`,
+        batch.calls,
+      )
+      await this.upsert(
+        `insert into tool_calls (tool_use_id, result_at, is_error, error_kind, error_text)
+         select * from jsonb_to_recordset($1::jsonb) as x(
+           tool_use_id text, result_at timestamptz, is_error boolean, error_kind text, error_text text)
+         on conflict (tool_use_id) do update set
+           result_at = excluded.result_at, is_error = excluded.is_error,
+           error_kind = excluded.error_kind, error_text = excluded.error_text`,
+        batch.results,
+      )
+      await this.upsert(
+        `insert into sessions
+         select * from jsonb_to_recordset($1::jsonb) as x(
+           session_id text, account text, project text, custom_title text, ai_title text,
+           launch_task text, launch_reason text, first_at timestamptz, last_at timestamptz)
+         on conflict (session_id) do update set
+           project = coalesce(sessions.project, excluded.project),
+           custom_title = coalesce(excluded.custom_title, sessions.custom_title),
+           ai_title = coalesce(excluded.ai_title, sessions.ai_title),
+           launch_task = coalesce(excluded.launch_task, sessions.launch_task),
+           launch_reason = coalesce(excluded.launch_reason, sessions.launch_reason),
+           first_at = least(sessions.first_at, excluded.first_at),
+           last_at = greatest(sessions.last_at, excluded.last_at)`,
+        batch.sessions,
+      )
+      await this.client.query(
+        `insert into files (path, account, read_to, size, mtime, ino, head, head_len, read_at)
+         values ($1, $2, $3, $4, $5, $6, $7, $8, now())
+         on conflict (path) do update set
+           account = excluded.account, read_to = excluded.read_to, size = excluded.size, mtime = excluded.mtime,
+           ino = excluded.ino, head = excluded.head, head_len = excluded.head_len, read_at = excluded.read_at`,
+        [file.path, file.account, file.offset, file.size, file.mtime, file.ino, file.head, file.headLen],
+      )
+    })
+  }
+
+  async forgetFilesExcept(paths: string[]): Promise<number> {
+    const result = await this.client.query('delete from files where not (path = any($1::text[]))', [paths])
+    return result.rowCount ?? 0
+  }
+
+  async syncLaunches(launches: ReadonlyMap<string, Launch>): Promise<number> {
+    const rows = [...launches].map(([session_id, launch]) => ({ session_id, task: launch.task, reason: launch.reason }))
+    const result = await this.client.query(
+      `update sessions s set launch_task = x.task, launch_reason = x.reason
+       from jsonb_to_recordset($1::jsonb) as x(session_id text, task text, reason text)
+       where s.session_id = x.session_id
+         and (s.launch_task is distinct from x.task or s.launch_reason is distinct from x.reason)`,
+      [JSON.stringify(rows)],
+    )
+    return result.rowCount ?? 0
+  }
+
+  async syncPrices(prices: Price[]): Promise<void> {
+    await this.transaction(async () => {
+      await this.client.query('delete from model_prices where not (model = any($1::text[]))', [prices.map((price) => price.model)])
+      await this.upsert(
+        `insert into model_prices (model, input, output, cache_read, cache_write_5m, cache_write_1h)
+         select * from jsonb_to_recordset($1::jsonb) as x(
+           model text, input numeric, output numeric, cache_read numeric, cache_write_5m numeric, cache_write_1h numeric)
+         on conflict (model) do update set
+           input = excluded.input, output = excluded.output, cache_read = excluded.cache_read,
+           cache_write_5m = excluded.cache_write_5m, cache_write_1h = excluded.cache_write_1h`,
+        prices,
+      )
+    })
+  }
+
+  async addSnapshots(snapshots: Snapshot[]): Promise<number> {
+    const result = await this.client.query(
+      `insert into limit_snapshots (account, span, observed_at, used_percentage, resets_at, source)
+       select account, "window", observed_at, used_percentage, resets_at, source
+       from jsonb_to_recordset($1::jsonb) as x(
+         account text, "window" text, observed_at timestamptz, used_percentage real, resets_at timestamptz, source text)
+       on conflict do nothing`,
+      [JSON.stringify(snapshots.map(snake))],
+    )
+    return result.rowCount ?? 0
+  }
+
+  async unpricedModels(): Promise<string[]> {
+    const result = await this.client.query<{ model: string }>(
+      `select distinct model from message_costs where price_model is null and model is not null order by model`,
+    )
+    return result.rows.map((row) => row.model)
+  }
+
+  async close(): Promise<void> {
+    await this.client.end()
+  }
+
+  private async upsert(sql: string, rows: Map<string, object> | object[]): Promise<void> {
+    const list = Array.isArray(rows) ? rows : [...rows.values()]
+    if (list.length === 0) return
+    await this.client.query(sql, [JSON.stringify(list.map(snake))])
+  }
+
+  private async transaction(work: () => Promise<void>): Promise<void> {
+    await this.client.query('begin')
+    try {
+      await work()
+      await this.client.query('commit')
+    } catch (error) {
+      await this.client.query('rollback')
+      throw error
+    }
+  }
+}
+
+function snake(row: object): Record<string, unknown> {
+  const result: Record<string, unknown> = {}
+  for (const [key, value] of Object.entries(row)) {
+    result[key.replace(/([a-z])([A-Z0-9])/g, '$1_$2').toLowerCase()] = value
+  }
+  return result
+}
