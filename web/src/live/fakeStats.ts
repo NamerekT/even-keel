@@ -54,7 +54,7 @@ export function fakeStats(mode: string | null, project: string, query: StatsQuer
             stuck('2', null, 20, ['failures', 'repeat'], 'debug_loop', 'Сессия трижды запускала один и тот же тест без правки между запусками.'),
             stuck('3', `${project}-12`, 30, ['reread', 'compact'], null, null),
             stuck('4', `${project}-7`, 52, ['no_commit'], 'unclear_task', 'В задаче не сказано, какой формат сохранения считать основным; сессия перебирала оба.'),
-          ],
+          ].filter((each) => query.scope === 'all' || each.task !== null),
       reasons: empty
         ? []
         : [

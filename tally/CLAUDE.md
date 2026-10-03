@@ -87,6 +87,71 @@
 - Расход — строкой в `messages` (`message_id` `tally-classify:<сессия>:<модель>`, проект `tally`, `entrypoint` `tally-classify`, запись кэша как 5-минутная), в одной транзакции с причиной: он в `message_costs`, как любой другой.
 - Замер 2026-10-03: ~19 с на отрезок, $0.004–0.01 (в среднем $0.0099 на 11 отрезков).
 
+## Недельная сводка
+
+На просьбу «недельный аудит» сессия берёт готовые цифры из базы и пишет короткую сводку. Только чтение: роль `tally_reader` (`TALLY_READER_PASSWORD`, `TALLY_READER_USER` — чтобы сменить имя), никаких `insert`/`update`, сборщик не запускается. Из worktree: `node --env-file=<основной чекаут>/.env` и скрипт в `.temp/` на `pg` (клиент — как в `src/stats/reader.ts`).
+
+Неделя — последние 7 суток от `now()`, прошлая — 7 суток перед ней. Проект ответа — префикс задачи (`CBL-…` → `CBL`), без задачи — `(папка)` из `messages.project`: это папка `cwd`, у служебных сессий бывают подпапки и пробные каталоги, мелочь (< $5 за неделю) сводится в «прочее».
+
+```sql
+-- 1. Расход по проектам: неделя, прошлая, сессии, ответы без цены
+select coalesce(split_part(task, '-', 1), '(' || coalesce(project, '?') || ')') as project,
+  round(sum(cost) filter (where at >= now() - interval '7 days'), 2) as week,
+  round(sum(cost) filter (where at <  now() - interval '7 days'), 2) as prev,
+  count(distinct session_id) filter (where at >= now() - interval '7 days') as sessions,
+  count(*) filter (where cost is null and at >= now() - interval '7 days') as unpriced
+from message_costs where at >= now() - interval '14 days'
+group by 1 order by week desc nulls last;
+
+-- 2. Цепочка Батона против остального (sessions.launch_reason не пуст — сессия из журнала запусков)
+select case when s.launch_reason is not null then 'цепочка' else 'вне цепочки' end as scope,
+  round(sum(m.cost) filter (where m.at >= now() - interval '7 days'), 2) as week,
+  round(sum(m.cost) filter (where m.at <  now() - interval '7 days'), 2) as prev
+from message_costs m join sessions s using (session_id)
+where m.at >= now() - interval '14 days' group by 1;
+
+-- 3. Самые дорогие задачи недели
+select m.task, round(sum(m.cost), 2) as cost, count(distinct m.session_id) as sessions, t.status, t.title
+from message_costs m left join tasks t using (task)
+where m.at >= now() - interval '7 days' and m.task is not null
+group by m.task, t.status, t.title order by cost desc limit 10;
+
+-- 4. Повторы: задачи с ответами за неделю и больше чем одной сессией, переделкой или отрезками (счётчики — за всё время задачи)
+select r.task, r.sessions, r.relays, r.checkpoints, r.restarts, r.spans, r.rework, r.status, r.title
+from task_repeats r
+where exists (select 1 from message_costs m where m.task = r.task and m.at >= now() - interval '7 days')
+  and (r.sessions > 1 or r.rework or r.spans > 0)
+order by r.sessions + r.spans desc limit 10;
+
+-- 5. Застревания: причины недели и прошлой, виды признаков, разобранные отрезки с пояснением
+select coalesce(reason, '(не разобрано)') as reason,
+  count(*) filter (where to_at >= now() - interval '7 days') as week,
+  count(*) filter (where to_at <  now() - interval '7 days') as prev
+from stuck_spans where to_at >= now() - interval '14 days' group by 1 order by week desc;
+select k as kind, count(*) as spans, count(*) filter (where reason is null) as unclassified
+from stuck_spans, unnest(kinds) k where to_at >= now() - interval '7 days' group by 1 order by 2 desc;
+select task, from_at, kinds, reason, note from stuck_spans
+where to_at >= now() - interval '7 days' and reason is not null and reason <> 'normal' order by from_at desc limit 15;
+
+-- 6. Доля лимита по проектам, в процентных пунктах окна (оценка, только где были снимки)
+select coalesce(split_part(s.task, '-', 1), '(без задачи)') as project, l.span,
+  round(sum(l.share)::numeric, 1) as pp, min(l.since) as since
+from limit_shares l left join session_tasks s using (session_id)
+where l.till >= now() - interval '7 days' group by 1, 2 order by 1, 2;
+```
+
+Сводка — по-русски, коротко, цифры с округлением до доллара (у задач — до цента):
+
+1. **Итог** — неделя против прошлой в долларах по ценам API и в процентах; цепочка против остального.
+2. **Проекты** — строка на проект: неделя, прошлая, изменение, сессии.
+3. **Дорогие задачи** — до 5: задача, заголовок, деньги, сессии.
+4. **Повторы** — задачи с передачами дел, заменами и переделкой: сколько сессий и почему (лимит, контрольная точка, замена вручную).
+5. **Застревания** — сколько отрезков, по причинам; 2–3 разобранных примера с пояснением классификатора; сколько не разобрано и каких видов.
+6. **Лимит** — доля по проектам, если снимки покрывают неделю; иначе — с какого момента они есть.
+7. **Выводы** — 2–4 пункта: что изменилось и что из этого стоит поправить (правило, навык, разрешение, формулировка задачи). Только то, что видно в цифрах.
+
+Цены — оценка по API, не счёт подписки; задачи в `tasks` обновляются раз в час, статус может отставать.
+
 ## Тесты
 
 Чистая логика — vitest рядом с кодом (`*.test.ts`): разбор строк, сжатие, задача по ветке и worktree, дозагрузка хвоста (на временном файле и хранилище в памяти), снимки лимитов, конфиг, признаки и отрезки на синтетических транскриптах, выдержка и разбор ответа классификатора, задачи Huly. SQL (стоимость, доля лимита, `task_repeats`) и вызов `claude -p` проверяются живым прогоном.
