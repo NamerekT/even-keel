@@ -21,6 +21,7 @@ export interface TallyConfig {
   signs: SignRules
   classify: ClassifySettings
   ruleHistory: string | null
+  reportsSince: string | null
 }
 
 export interface DbSettings {
@@ -36,7 +37,18 @@ const DEFAULT_BATON_URL = 'http://127.0.0.1:4747'
 export const DEFAULT_CLASSIFY: ClassifySettings = { perRun: 10, idleMinutes: 60, sinceDays: 14 }
 
 export function parseConfig(raw: unknown): TallyConfig {
-  const record = (raw ?? {}) as { batonUrl?: unknown; prices?: unknown; signs?: unknown; classify?: unknown; ruleHistory?: unknown }
+  const record = (raw ?? {}) as {
+    batonUrl?: unknown
+    prices?: unknown
+    signs?: unknown
+    classify?: unknown
+    ruleHistory?: unknown
+    reportsSince?: unknown
+  }
+  const since = record.reportsSince
+  if (since !== undefined && since !== null && (typeof since !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(since) || Number.isNaN(Date.parse(since)))) {
+    throw new Error('tally: "reportsSince" must be a date YYYY-MM-DD or null')
+  }
   if (record.ruleHistory !== undefined && (typeof record.ruleHistory !== 'string' || record.ruleHistory === '')) {
     throw new Error('tally: "ruleHistory" must be a path to the rule history import')
   }
@@ -60,6 +72,7 @@ export function parseConfig(raw: unknown): TallyConfig {
     signs: integers('signs', record.signs, DEFAULT_SIGN_RULES, 1),
     classify: integers('classify', record.classify, DEFAULT_CLASSIFY, 0),
     ruleHistory: (record.ruleHistory as string | undefined) ?? null,
+    reportsSince: (since as string | null | undefined) ?? null,
   }
 }
 

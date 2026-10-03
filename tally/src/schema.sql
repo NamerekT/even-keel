@@ -229,11 +229,78 @@ create table if not exists tasks (
   fetched_at timestamptz not null default now()
 );
 
+alter table tasks add column if not exists priority text;
+alter table tasks add column if not exists estimate_h numeric;
+alter table tasks add column if not exists component text;
+alter table tasks add column if not exists done boolean;
+alter table tasks add column if not exists reported_h numeric;
+alter table tasks add column if not exists reported_at timestamptz;
+
+-- A turn of the main thread (src/turns.ts): from the line that started it to the last reply before the next one.
+create table if not exists turns (
+  session_id text not null,
+  start_uuid text not null,
+  start text not null,
+  started_at timestamptz not null,
+  ended_at timestamptz not null,
+  replies int not null,
+  ask_s numeric not null,
+  limited boolean not null,
+  cli_s numeric,
+  primary key (session_id, start_uuid)
+);
+alter table turns add column if not exists cli_s numeric;
+
+create table if not exists turn_sessions (
+  session_id text primary key,
+  last_at timestamptz,
+  key text not null
+);
+
 create or replace view session_tasks as
 select s.session_id, coalesce(s.launch_task, (
   select m.task from messages m where m.session_id = s.session_id and m.task is not null order by m.at limit 1
 )) as task
 from sessions s;
+
+-- Active time is the turn less the questions to the user inside it, and no more than the CLI's own turn duration
+-- (cli only): that one also leaves out permission prompts, which the transcript does not show. Waiting is the
+-- questions, the permission prompts so found, and the gaps before a user's prompt, except after a turn cut by
+-- the usage limit.
+create or replace view session_times as
+select
+  session_id,
+  count(*) filter (where replies > 0) as turns,
+  min(started_at) as first_at,
+  max(ended_at) as last_at,
+  sum(least(turn_s, coalesce(cli_s, turn_s))) as active_s,
+  sum(ask_s + greatest(turn_s - coalesce(cli_s, turn_s), 0))
+    + coalesce(sum(gap) filter (where start = 'prompt' and not prev_limited and gap > 0), 0) as wait_s
+from (
+  select t.*,
+    greatest(extract(epoch from t.ended_at - t.started_at) - t.ask_s, 0) as turn_s,
+    extract(epoch from t.started_at - lag(t.ended_at) over w) as gap,
+    coalesce(lag(t.limited) over w, false) as prev_limited
+  from turns t
+  window w as (partition by t.session_id order by t.started_at, t.start_uuid)
+) x
+group by session_id;
+
+-- Total time runs from the first turn of the task to the last one.
+create or replace view task_times as
+select
+  st.task,
+  count(*) as sessions,
+  sum(x.turns) as turns,
+  min(x.first_at) as first_at,
+  max(x.last_at) as last_at,
+  sum(x.active_s) as active_s,
+  sum(x.wait_s) as wait_s,
+  extract(epoch from max(x.last_at) - min(x.first_at)) as total_s
+from session_times x
+join session_tasks st on st.session_id = x.session_id
+where st.task is not null
+group by st.task;
 
 create or replace view stuck_spans as
 select
@@ -245,7 +312,7 @@ left join span_reasons r on r.span_id = sp.id;
 
 -- Session audit (the session-audit skill, BTN-53). Context of a request is its whole prompt: input plus cache
 -- read and write; context metrics take the main thread only, money takes subagents too. Tally's classifier
--- answers are not sessions. Active time sums the gaps between answers of up to 10 minutes.
+-- answers are not sessions. Active time and waiting come from the turns (session_times).
 create or replace view audit_sessions as
 with tools as (
   select session_id, count(*) as calls,
@@ -253,11 +320,6 @@ with tools as (
     count(*) filter (where error_kind in ('denied', 'hook')) as denied
   from tool_calls
   group by session_id
-), gaps as (
-  select session_id, extract(epoch from at - lag(at) over (partition by session_id order by at)) as gap
-  from messages
-), active as (
-  select session_id, coalesce(sum(gap) filter (where gap <= 600), 0) / 60 as minutes from gaps group by session_id
 )
 select
   c.session_id,
@@ -268,7 +330,7 @@ select
   s.launch_reason,
   min(c.at) as first_at,
   max(c.at) as last_at,
-  max(ac.minutes) as active_min,
+  coalesce(max(tm.active_s), 0) / 60 as active_min,
   (array_agg(c.model order by c.at) filter (where c.agent_id is null))[1] as model,
   count(*) filter (where c.agent_id is null) as requests,
   coalesce(sum(x.ctx) filter (where c.agent_id is null), 0) as ctx_sum,
@@ -290,7 +352,7 @@ from message_costs c
 join sessions s on s.session_id = c.session_id
 left join session_tasks st on st.session_id = c.session_id
 left join tools t on t.session_id = c.session_id
-left join active ac on ac.session_id = c.session_id
+left join session_times tm on tm.session_id = c.session_id
 cross join lateral (
   select c.input + c.cache_write_5m + c.cache_write_1h + c.cache_read as ctx,
     lower(regexp_replace(replace(coalesce(c.project_dir, ''), '\', '/'), '^[a-zA-Z]:', '')) as dir
@@ -329,6 +391,26 @@ from audit_sessions a
 left join tasks t on t.task = a.task
 where a.task is not null
 group by a.task, t.title, t.status, t.labels, t.related;
+
+-- Time of a task against its estimate (BTN-55). A separate view: the audit views keep their columns, so a
+-- collector on an older schema.sql can still replace them.
+create or replace view task_estimates as
+select
+  a.task, a.key, a.dir, a.first_at, a.last_at, a.sessions, a.cost,
+  tt.active_s / 60 as active_min,
+  tt.wait_s / 60 as wait_min,
+  tt.total_s / 60 as total_min,
+  t.estimate_h,
+  tt.active_s / 3600 / nullif(t.estimate_h, 0) as fact_ratio,
+  t.priority, t.component, t.done, t.reported_h,
+  (
+    select mode() within group (order by substring(s.model from '(opus|sonnet|haiku)'))
+    from audit_sessions s where s.task = a.task
+  ) as model_family,
+  a.title, a.status
+from audit_tasks a
+left join task_times tt on tt.task = a.task
+left join tasks t on t.task = a.task;
 
 create or replace view task_repeats as
 with st as (

@@ -71,6 +71,22 @@ export function formatShare(share: number | null): string {
   return `${Math.round(share)} %`
 }
 
+export function formatDuration(seconds: number | null): string {
+  if (seconds === null) return '—'
+  if (seconds === 0) return '0 мин'
+  if (seconds < 30) return '< 1 мин'
+  const minutes = Math.round(seconds / 60)
+  if (minutes < 60) return `${minutes} мин`
+  if (minutes >= 600) return `${Math.round(minutes / 60)} ч`
+  const rest = minutes % 60
+  return rest === 0 ? `${minutes / 60} ч` : `${Math.floor(minutes / 60)} ч ${String(rest).padStart(2, '0')} мин`
+}
+
+export function formatRatio(ratio: number | null): string {
+  if (ratio === null) return '—'
+  return `×${ratio >= 10 ? Math.round(ratio) : Number(ratio.toFixed(1))}`
+}
+
 export function reasonLabel(reason: string | null): string {
   if (reason === null) return 'не разобрано'
   return REASONS[reason] ?? reason

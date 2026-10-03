@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest'
 import {
   costChange,
   entrypointLabel,
+  formatDuration,
+  formatRatio,
   formatShare,
   formatUsd,
   kindLabel,
@@ -41,6 +43,28 @@ describe('formatShare', () => {
     expect(formatShare(0.4)).toBe('< 1 %')
     expect(formatShare(0)).toBe('0 %')
     expect(formatShare(null)).toBe('—')
+  })
+})
+
+describe('formatDuration', () => {
+  it('shows minutes below an hour, hours and minutes below ten hours, whole hours above', () => {
+    expect(formatDuration(null)).toBe('—')
+    expect(formatDuration(0)).toBe('0 мин')
+    expect(formatDuration(20)).toBe('< 1 мин')
+    expect(formatDuration(42 * 60 + 20)).toBe('42 мин')
+    expect(formatDuration(3600)).toBe('1 ч')
+    expect(formatDuration(3600 + 5 * 60)).toBe('1 ч 05 мин')
+    expect(formatDuration(3 * 3600 + 59 * 60 + 50)).toBe('4 ч')
+    expect(formatDuration(12.6 * 3600)).toBe('13 ч')
+  })
+})
+
+describe('formatRatio', () => {
+  it('shows fact against estimate as a multiplier', () => {
+    expect(formatRatio(null)).toBe('—')
+    expect(formatRatio(1.234)).toBe('×1.2')
+    expect(formatRatio(0.5)).toBe('×0.5')
+    expect(formatRatio(12.4)).toBe('×12')
   })
 })
 

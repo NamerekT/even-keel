@@ -12,6 +12,7 @@ describe('parseConfig', () => {
       signs: DEFAULT_SIGN_RULES,
       classify: DEFAULT_CLASSIFY,
       ruleHistory: null,
+      reportsSince: null,
     })
   })
 
@@ -43,6 +44,13 @@ describe('parseConfig', () => {
     expect(parseConfig({ prices }).ruleHistory).toBeNull()
     expect(parseConfig({ prices, ruleHistory: 'state/history.jsonl' }).ruleHistory).toBe('state/history.jsonl')
     expect(() => parseConfig({ prices, ruleHistory: 5 })).toThrow(/ruleHistory/)
+  })
+
+  it('takes the first day of Huly time reports as a date', () => {
+    const prices = { 'claude-opus-5-5': price }
+    expect(parseConfig({ prices, reportsSince: '2026-10-03' }).reportsSince).toBe('2026-10-03')
+    expect(parseConfig({ prices, reportsSince: null }).reportsSince).toBeNull()
+    expect(() => parseConfig({ prices, reportsSince: '3 Oct' })).toThrow(/reportsSince/)
   })
 })
 

@@ -391,6 +391,25 @@ a.stats__key:hover {
   gap: 6px;
 }
 
+/* Estimates */
+
+.estimates {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 16px 24px;
+  margin-top: 16px;
+}
+
+.estimates__scroll {
+  min-width: 0;
+  overflow-x: auto;
+}
+
+.tasks.estimates__table th:first-child,
+.tasks.estimates__table td:first-child {
+  min-width: 0;
+}
+
 /* Tasks */
 
 .tasks__scroll {

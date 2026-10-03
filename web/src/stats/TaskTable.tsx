@@ -4,9 +4,9 @@ import { formatMoment } from '../format.js'
 import { useLive } from '../live/context.js'
 import { seriesStyle } from '../ui/series.js'
 import { AnswerNotice, Section, TaskKey, loadedData, useStatsAnswer } from './common.js'
-import { formatShare, formatUsd, kindLabel, launchLabel, modelLabel, reasonLabel } from './format.js'
+import { formatDuration, formatRatio, formatShare, formatUsd, kindLabel, launchLabel, modelLabel, reasonLabel } from './format.js'
 
-type Column = 'task' | 'project' | 'status' | 'cost' | 'limit' | 'sessions' | 'handoffs' | 'spans' | 'rework'
+type Column = 'task' | 'project' | 'status' | 'cost' | 'limit' | 'estimate' | 'active' | 'wait' | 'sessions' | 'handoffs' | 'spans' | 'rework'
 
 const FIRST_ROWS = 50
 
@@ -16,6 +16,9 @@ const COLUMNS: { key: Column; label: string; numeric: boolean; title?: string }[
   { key: 'status', label: 'Статус', numeric: false },
   { key: 'cost', label: '$', numeric: true, title: 'Деньги по ценам API' },
   { key: 'limit', label: 'Лимит', numeric: true, title: 'Доля недельного лимита' },
+  { key: 'estimate', label: 'Оценка', numeric: true, title: 'Оценка задачи в Huly' },
+  { key: 'active', label: 'Время', numeric: true, title: 'Активное время всех сессий задачи по ходам транскриптов, за всю задачу' },
+  { key: 'wait', label: 'Ожидание', numeric: true, title: 'Сколько задача ждала вашего ответа, за всю задачу' },
   { key: 'sessions', label: 'Сессии', numeric: true },
   { key: 'handoffs', label: 'Передачи', numeric: true, title: 'Передачи по лимиту, контрольные точки и замены вручную' },
   { key: 'spans', label: 'Застревания', numeric: true },
@@ -34,6 +37,12 @@ function value(row: StatsTaskRow, column: Column): string | number {
       return row.status ?? ''
     case 'limit':
       return row.limit ?? -1
+    case 'estimate':
+      return row.estimateH ?? -1
+    case 'active':
+      return row.activeS ?? -1
+    case 'wait':
+      return row.waitS ?? -1
     case 'handoffs':
       return handoffs(row)
     case 'rework':
@@ -109,6 +118,11 @@ export function TaskTable({ tasks, trackerUrl }: { tasks: StatsTaskRow[]; tracke
                     <td>{row.status !== null && <span className="chip">{row.status}</span>}</td>
                     <td className="tasks__num">{formatUsd(row.cost)}</td>
                     <td className="tasks__num">{formatShare(row.limit)}</td>
+                    <td className="tasks__num">{row.estimateH === null ? '' : formatDuration(row.estimateH * 3600)}</td>
+                    <td className="tasks__num" title={timeTitle(row)}>
+                      {row.activeS === null ? '' : formatDuration(row.activeS)}
+                    </td>
+                    <td className="tasks__num">{row.waitS ? formatDuration(row.waitS) : ''}</td>
                     <td className="tasks__num">{row.sessions}</td>
                     <td className="tasks__num" title={handoffTitle(row)}>
                       {handoffs(row) || ''}
@@ -136,6 +150,12 @@ export function TaskTable({ tasks, trackerUrl }: { tasks: StatsTaskRow[]; tracke
       )}
     </Section>
   )
+}
+
+function timeTitle(row: StatsTaskRow): string | undefined {
+  if (row.activeS === null) return undefined
+  const ratio = row.estimateH === null ? '' : `, ${formatRatio(row.activeS / 3600 / row.estimateH)} от оценки`
+  return `общее время: ${formatDuration(row.totalS)}${ratio}${row.done === true ? '' : ', задача не закрыта'}`
 }
 
 function handoffTitle(row: StatsTaskRow): string {

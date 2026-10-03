@@ -65,6 +65,14 @@ export interface StatsTaskRow {
   restarts: number
   spans: number
   rework: boolean
+  // Times of the whole task (BTN-55), not only of the period; null when the task has no turns yet.
+  estimateH: number | null
+  activeS: number | null
+  waitS: number | null
+  totalS: number | null
+  done: boolean | null
+  component: string | null
+  model: string | null
 }
 
 export interface StatsStuck {

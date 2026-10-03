@@ -119,12 +119,15 @@ select c.task, min(c.project) as project, t.title, t.status, coalesce(sum(c.cost
   count(distinct c.session_id) filter (where c.launch_reason = 'checkpoint') as checkpoints,
   count(distinct c.session_id) filter (where c.launch_reason = 'restart') as restarts,
   coalesce(max(st.spans), 0) as spans,
-  coalesce('Переделка' = any(t.labels), false) as rework
+  coalesce('Переделка' = any(t.labels), false) as rework,
+  t.estimate_h, tt.active_s, tt.wait_s, tt.total_s, t.done, t.component,
+  mode() within group (order by substring(c.model from '^claude-([a-z]+)')) as model
 from cur c
 left join seven sv on sv.message_id = c.message_id
 left join tasks t on t.task = c.task
+left join task_times tt on tt.task = c.task
 left join stuck st on st.task = c.task
-group by c.task, t.title, t.status, t.labels
+group by c.task, t.title, t.status, t.labels, t.estimate_h, t.done, t.component, tt.active_s, tt.wait_s, tt.total_s
 order by cost desc, c.task`
 
 const PICKED = `${PERIOD}, sess as (
@@ -265,6 +268,13 @@ export function mapPeriod(query: PeriodQuery, rows: PeriodRows, at: Date): Stats
       restarts: number(row.restarts),
       spans: number(row.spans),
       rework: row.rework === true,
+      estimateH: maybe(row.estimate_h),
+      activeS: maybe(row.active_s),
+      waitS: maybe(row.wait_s),
+      totalS: maybe(row.total_s),
+      done: typeof row.done === 'boolean' ? row.done : null,
+      component: text(row.component),
+      model: text(row.model),
     })),
     weeks: rows.weeks.map((row) => ({ week: String(row.week), reason: text(row.reason), spans: number(row.spans) })),
     stuck: rows.stuck.map(stuck),
