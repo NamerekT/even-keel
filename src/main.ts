@@ -1,5 +1,5 @@
 import { mkdirSync } from 'node:fs'
-import { dirname, join, resolve, sep } from 'node:path'
+import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { DaemonRefresh } from './account/daemon.js'
 import { AccountHomes, accountsRoot, type AccountHome } from './account/homes.js'
@@ -30,6 +30,7 @@ import type { AgentEntry } from './sessions/agents.js'
 import { launchPlan, type LaunchPlan } from './sessions/launch.js'
 import { readSessionRecord } from './sessions/history.js'
 import { SessionMonitor } from './sessions/monitor.js'
+import { isInside, slotOccupants } from './sessions/occupants.js'
 import { locateWorktree } from './sessions/place.js'
 import type { BatonState, SessionView } from './state.js'
 
@@ -213,7 +214,9 @@ const dispatcher = new Dispatcher(loadChainState(chainFile), {
     await daemons.prepare(home)
     const repo = config.projects[project]!
     await ensureIgnored(runGit, repo)
-    const place = await (config.slots.includes(project) ? prepareSlot : prepareWorktree)(runGit, repo, task)
+    const place = config.slots.includes(project)
+      ? await prepareSlot(runGit, repo, task, () => vacateSlot(repo, task))
+      : await prepareWorktree(runGit, repo, task)
     const { prompt, model } = planFor(task, startPrompt(task, place))
     return (await cli.launch(home, task, place.path, prompt, model)).sessionId
   },
@@ -265,17 +268,30 @@ const dispatcher = new Dispatcher(loadChainState(chainFile), {
   },
 })
 
+async function vacateSlot(repo: string, task: string): Promise<void> {
+  const slot = slotPath(repo)
+  const owners = new Map(launches.map((entry) => [entry.sessionId, entry.task]))
+  const { idle, busy } = slotOccupants(agents, owners, slot, task)
+  if (busy.length > 0) {
+    const names = busy.map((each) => `${each.task} (session ${each.agent.sessionId})`).join(', ')
+    throw new Error(`the slot ${slot} is in use by ${names} mid-turn, ${task} was not started; let it finish or stop it, then resume`)
+  }
+  for (const { agent, task: owner } of idle) {
+    try {
+      await cli.stop(homeOf(agent.account ?? 'global'), agent.id!, agent.sessionId)
+    } catch (error) {
+      throw new Error(`the session ${agent.sessionId} of ${owner} in the slot ${slot} was not stopped, ${task} was not started: ${error instanceof Error ? error.message : String(error)}`, { cause: error })
+    }
+    console.log(`slot: stopped the session ${agent.sessionId} of ${owner} before ${task} took ${slot}`)
+  }
+}
+
 async function stopTaskSessions(repo: string, task: string): Promise<string[]> {
   const own = new Set(launches.filter((entry) => entry.task === task).map((entry) => entry.sessionId))
-  const inside = (cwd: string, folder: string) => {
-    const path = resolve(cwd).toLowerCase()
-    const root = resolve(folder).toLowerCase()
-    return path === root || path.startsWith(`${root}${sep}`)
-  }
   const idle = agents.filter(
     (agent) =>
       agent.id !== undefined &&
-      (inside(agent.cwd, taskPlace(repo, task).path) || (inside(agent.cwd, slotPath(repo)) && own.has(agent.sessionId))) &&
+      (isInside(agent.cwd, taskPlace(repo, task).path) || (isInside(agent.cwd, slotPath(repo)) && own.has(agent.sessionId))) &&
       agent.status !== 'busy' &&
       agent.status !== 'waiting' &&
       agent.state !== 'stopped' &&

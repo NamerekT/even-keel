@@ -6,7 +6,7 @@ export function slotPath(repo: string): string {
   return join(repo, '.claude', 'worktrees', 'baton')
 }
 
-export async function prepareSlot(git: Git, repo: string, task: string): Promise<TaskPlace> {
+export async function prepareSlot(git: Git, repo: string, task: string, vacate: () => Promise<void> = async () => {}): Promise<TaskPlace> {
   const place = taskPlace(repo, task)
   const path = slotPath(repo)
   const [own, slot] = await worktreesAt(git, repo, [place.path, path])
@@ -18,6 +18,7 @@ export async function prepareSlot(git: Git, repo: string, task: string): Promise
   if (status.out !== '') {
     throw new Error(`git: the slot ${path} has uncommitted changes, ${task} was not started; commit or remove them, then resume:\n${status.out}`)
   }
+  await vacate()
   await must(git, path, ['clean', '-fd'], 'clean')
   const args = (await hasBranch(git, repo, place.branch)) ? ['switch', place.branch] : ['switch', '-c', place.branch, 'main']
   await must(git, path, args, `switch to ${place.branch} in`)

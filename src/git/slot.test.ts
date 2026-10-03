@@ -83,6 +83,39 @@ describe('prepareSlot', () => {
     expect(changing(calls)).toEqual([])
   })
 
+  it('vacates the slot after the status check and before it is cleaned and switched', async () => {
+    const { git, calls } = fakeGit({ [LIST]: listing([porcelain(slot), 'abc-6/task']) })
+    await prepareSlot(git, repo, 'ABC-7', async () => {
+      calls.push('vacate')
+    })
+    expect(calls.indexOf('@slot status --porcelain')).toBeLessThan(calls.indexOf('vacate'))
+    expect(calls.indexOf('vacate')).toBeLessThan(calls.indexOf('@slot clean -fd'))
+  })
+
+  it('does not vacate a slot that stays as it is or is refused', async () => {
+    const cases = [
+      { [LIST]: listing([porcelain(slot), 'abc-7/task']) },
+      { [LIST]: listing([porcelain(own), 'abc-7/task']) },
+      { [LIST]: listing([porcelain(slot), 'abc-6/task']), '@slot status --porcelain': { out: '?? notes.md' } },
+    ]
+    for (const answers of cases) {
+      let vacated = false
+      await prepareSlot(fakeGit(answers).git, repo, 'ABC-7', async () => {
+        vacated = true
+      }).catch(() => undefined)
+      expect(vacated).toBe(false)
+    }
+  })
+
+  it('switches nothing when the slot cannot be vacated', async () => {
+    const { git, calls } = fakeGit({ [LIST]: listing([porcelain(slot), 'abc-6/task']) })
+    const vacate = async () => {
+      throw new Error('ABC-6 is mid-turn in the slot')
+    }
+    await expect(prepareSlot(git, repo, 'ABC-7', vacate)).rejects.toThrow(/ABC-6 is mid-turn/)
+    expect(changing(calls)).toEqual([])
+  })
+
   it('fails with the output of git when the branch cannot be switched to', async () => {
     const { git } = fakeGit({
       [LIST]: listing([porcelain(slot), null]),
