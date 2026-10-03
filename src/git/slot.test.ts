@@ -1,19 +1,21 @@
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
-import { finishSlot, prepareSlot, slotPath } from './slot.js'
+import { finishSlot, prepareSlot, slotPaths, type SlotUse } from './slot.js'
 import type { GitResult } from './types.js'
 
 const repo = join(tmpdir(), 'abc')
 const slot = join(repo, '.claude', 'worktrees', 'baton')
+const slot2 = join(repo, '.claude', 'worktrees', 'baton-2')
 const own = join(repo, '.claude', 'worktrees', 'abc-7')
 const porcelain = (path: string) => path.replaceAll('\\', '/')
+const PREFIX: Record<string, string> = { [slot]: '@slot ', [slot2]: '@slot2 ' }
 
 function fakeGit(answers: Record<string, Partial<GitResult> | Partial<GitResult>[]> = {}) {
   const calls: string[] = []
   const git = async (cwd: string, args: string[]): Promise<GitResult> => {
-    expect([repo, slot]).toContain(cwd)
-    const command = `${cwd === slot ? '@slot ' : ''}${args.join(' ')}`
+    expect([repo, slot, slot2]).toContain(cwd)
+    const command = `${PREFIX[cwd] ?? ''}${args.join(' ')}`
     calls.push(command)
     const answer = answers[command]
     const next = Array.isArray(answer) ? (answer.length > 1 ? answer.shift() : answer[0]) : answer
@@ -31,11 +33,12 @@ const listing = (...trees: [string, string | null][]) => ({
 const LIST = 'worktree list --porcelain'
 const HAS_BRANCH = 'rev-parse --verify --quiet refs/heads/abc-7/task'
 const changing = (calls: string[]) =>
-  calls.filter((call) => /^(@slot )?(worktree (add|remove)|switch|clean|reset|stash|checkout|branch -d)/.test(call))
+  calls.filter((call) => /^(@slot2? )?(worktree (add|remove)|switch|clean|reset|stash|checkout|branch -d)/.test(call))
 
-describe('slotPath', () => {
-  it('is one standing worktree per repository', () => {
-    expect(slotPath(repo)).toBe(slot)
+describe('slotPaths', () => {
+  it('keeps the first standing worktree where a single slot was and numbers the rest', () => {
+    expect(slotPaths(repo, 1)).toEqual([slot])
+    expect(slotPaths(repo, 2)).toEqual([slot, slot2])
   })
 })
 
@@ -85,8 +88,10 @@ describe('prepareSlot', () => {
 
   it('vacates the slot after the status check and before it is cleaned and switched', async () => {
     const { git, calls } = fakeGit({ [LIST]: listing([porcelain(slot), 'abc-6/task']) })
-    await prepareSlot(git, repo, 'ABC-7', async () => {
-      calls.push('vacate')
+    await prepareSlot(git, repo, 'ABC-7', {
+      vacate: async () => {
+        calls.push('vacate')
+      },
     })
     expect(calls.indexOf('@slot status --porcelain')).toBeLessThan(calls.indexOf('vacate'))
     expect(calls.indexOf('vacate')).toBeLessThan(calls.indexOf('@slot clean -fd'))
@@ -100,8 +105,10 @@ describe('prepareSlot', () => {
     ]
     for (const answers of cases) {
       let vacated = false
-      await prepareSlot(fakeGit(answers).git, repo, 'ABC-7', async () => {
-        vacated = true
+      await prepareSlot(fakeGit(answers).git, repo, 'ABC-7', {
+        vacate: async () => {
+          vacated = true
+        },
       }).catch(() => undefined)
       expect(vacated).toBe(false)
     }
@@ -112,7 +119,21 @@ describe('prepareSlot', () => {
     const vacate = async () => {
       throw new Error('ABC-6 is mid-turn in the slot')
     }
-    await expect(prepareSlot(git, repo, 'ABC-7', vacate)).rejects.toThrow(/ABC-6 is mid-turn/)
+    await expect(prepareSlot(git, repo, 'ABC-7', { vacate })).rejects.toThrow(/ABC-6 is mid-turn/)
+    expect(changing(calls)).toEqual([])
+  })
+
+  it('refuses a slot where another task is mid-turn without vacating it', async () => {
+    const { git, calls } = fakeGit({ [LIST]: listing([porcelain(slot), 'abc-6/task']) })
+    let vacated = false
+    const pool = {
+      occupancy: (): SlotUse => ({ idle: false, busy: ['ABC-6 (session s6)'] }),
+      vacate: async () => {
+        vacated = true
+      },
+    }
+    await expect(prepareSlot(git, repo, 'ABC-7', pool)).rejects.toThrow(/ABC-6 \(session s6\) mid-turn/)
+    expect(vacated).toBe(false)
     expect(changing(calls)).toEqual([])
   })
 
@@ -122,6 +143,85 @@ describe('prepareSlot', () => {
       '@slot switch abc-7/task': { code: 128, out: "fatal: 'abc-7/task' is already used by worktree" },
     })
     await expect(prepareSlot(git, repo, 'ABC-7')).rejects.toThrow(/already used by worktree/)
+  })
+})
+
+describe('prepareSlot with a pool of two', () => {
+  const free = (): SlotUse => ({ idle: false, busy: [] })
+  const held =
+    (uses: Record<string, SlotUse>) =>
+    (path: string): SlotUse =>
+      uses[path] ?? free()
+  const idle: SlotUse = { idle: true, busy: [] }
+  const busy: SlotUse = { idle: false, busy: ['ABC-6 (session s6)'] }
+
+  function pooled(occupancy: (path: string) => SlotUse = free) {
+    const vacated: string[] = []
+    return {
+      vacated,
+      pool: {
+        count: 2,
+        occupancy,
+        vacate: async (path: string) => {
+          vacated.push(path)
+        },
+      },
+    }
+  }
+
+  it('takes the first free slot and does not add the second', async () => {
+    const { git, calls } = fakeGit({ [LIST]: listing([porcelain(slot), null]), [HAS_BRANCH]: { code: 1 } })
+    expect(await prepareSlot(git, repo, 'ABC-7', pooled().pool)).toEqual({ path: slot, branch: 'abc-7/task' })
+    expect(changing(calls)).toEqual(['@slot clean -fd', '@slot switch -c abc-7/task main'])
+  })
+
+  it('returns the slot that is already on the task’s branch, whichever it is', async () => {
+    const { git, calls } = fakeGit({ [LIST]: listing([porcelain(slot), null], [porcelain(slot2), 'abc-7/task']) })
+    expect(await prepareSlot(git, repo, 'ABC-7', pooled().pool)).toEqual({ path: slot2, branch: 'abc-7/task' })
+    expect(changing(calls)).toEqual([])
+  })
+
+  it('adds the second slot rather than stop a session of another task in the first', async () => {
+    const { git, calls } = fakeGit({ [LIST]: listing([porcelain(slot), 'abc-6/task']), [HAS_BRANCH]: { code: 1 } })
+    const { pool, vacated } = pooled(held({ [slot]: idle }))
+    expect(await prepareSlot(git, repo, 'ABC-7', pool)).toEqual({ path: slot2, branch: 'abc-7/task' })
+    expect(changing(calls)).toEqual([`worktree add --detach ${slot2} main`, '@slot2 clean -fd', '@slot2 switch -c abc-7/task main'])
+    expect(vacated).toEqual([])
+  })
+
+  it('reuses a slot left on another task’s branch with no sessions rather than add one', async () => {
+    const { git, calls } = fakeGit({ [LIST]: listing([porcelain(slot), 'abc-6/task']), [HAS_BRANCH]: { code: 1 } })
+    expect(await prepareSlot(git, repo, 'ABC-7', pooled().pool)).toEqual({ path: slot, branch: 'abc-7/task' })
+    expect(changing(calls)).toEqual(['@slot clean -fd', '@slot switch -c abc-7/task main'])
+  })
+
+  it('prefers a detached slot to one left on another task’s branch', async () => {
+    const { git } = fakeGit({ [LIST]: listing([porcelain(slot), 'abc-6/task'], [porcelain(slot2), null]), [HAS_BRANCH]: { code: 1 } })
+    expect(await prepareSlot(git, repo, 'ABC-7', pooled().pool)).toEqual({ path: slot2, branch: 'abc-7/task' })
+  })
+
+  it('stops idle sessions only when every slot is taken, and only in the slot it takes', async () => {
+    const { git, calls } = fakeGit({
+      [LIST]: listing([porcelain(slot), 'abc-6/task'], [porcelain(slot2), 'abc-8/task']),
+      [HAS_BRANCH]: { code: 1 },
+    })
+    const { pool, vacated } = pooled(held({ [slot]: busy, [slot2]: idle }))
+    expect(await prepareSlot(git, repo, 'ABC-7', pool)).toEqual({ path: slot2, branch: 'abc-7/task' })
+    expect(vacated).toEqual([slot2])
+    expect(changing(calls)).toEqual(['@slot2 clean -fd', '@slot2 switch -c abc-7/task main'])
+  })
+
+  it('refuses when no slot is usable, naming each slot and why, and touches none', async () => {
+    const { git, calls } = fakeGit({
+      [LIST]: listing([porcelain(slot), 'abc-6/task'], [porcelain(slot2), 'abc-8/task']),
+      '@slot2 status --porcelain': { out: '?? notes.md' },
+    })
+    const { pool, vacated } = pooled(held({ [slot]: busy }))
+    const failure = prepareSlot(git, repo, 'ABC-7', pool)
+    await expect(failure).rejects.toThrow(/ABC-6 \(session s6\) mid-turn/)
+    await expect(failure).rejects.toThrow(new RegExp(`${slot2.replaceAll('\\', '\\\\')}[\\s\\S]*notes\\.md`))
+    expect(vacated).toEqual([])
+    expect(changing(calls)).toEqual([])
   })
 })
 
@@ -166,6 +266,12 @@ describe('finishSlot', () => {
     const { git, calls } = fakeGit({ ...done, [LIST]: listing([porcelain(slot), null], [porcelain(own), 'abc-7/task']) })
     expect(await finishSlot(git, repo, 'ABC-7')).toEqual({ warnings: [], syncError: null })
     expect(changing(calls)).toEqual([`worktree remove ${own}`, 'branch -d abc-7/task'])
+  })
+
+  it('detaches whichever slot of the pool holds the task', async () => {
+    const { git, calls } = fakeGit({ ...done, [LIST]: listing([porcelain(slot), 'abc-6/task'], [porcelain(slot2), 'abc-7/task']) })
+    expect(await finishSlot(git, repo, 'ABC-7', 2)).toEqual({ warnings: [], syncError: null })
+    expect(changing(calls)).toEqual(['@slot2 switch --detach main', 'branch -d abc-7/task'])
   })
 
   it('has nothing to delete when the task has no branch', async () => {

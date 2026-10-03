@@ -10,21 +10,25 @@ describe('parseConfig', () => {
       port: 4747,
       projects: { ABC: 'C:\\repos\\abc' },
       rules: { ABC: DEFAULT_RULES },
-      slots: [],
+      slots: {},
       context: { window: 600_000, warn: 50, danger: 80 },
       modelPrompts: {},
       stats: { compare: { minTasks: 5, minSessions: 10, days: 7 } },
     })
   })
 
-  it('lists the projects that work in a standing slot', () => {
-    const config = parseConfig({ projects: { ABC: 'C:\\abc', XYZ: { repo: 'C:\\xyz', slot: true }, QRS: { repo: 'C:\\qrs', slot: false } } })
-    expect(config.slots).toEqual(['XYZ'])
-    expect(config.projects).toEqual({ ABC: 'C:\\abc', XYZ: 'C:\\xyz', QRS: 'C:\\qrs' })
+  it('counts the standing slots of each project that works in them', () => {
+    const config = parseConfig({
+      projects: { ABC: 'C:\\abc', XYZ: { repo: 'C:\\xyz', slot: true }, QRS: { repo: 'C:\\qrs', slot: false }, DEF: { repo: 'C:\\def', slot: 2 } },
+    })
+    expect(config.slots).toEqual({ XYZ: 1, DEF: 2 })
+    expect(config.projects).toEqual({ ABC: 'C:\\abc', XYZ: 'C:\\xyz', QRS: 'C:\\qrs', DEF: 'C:\\def' })
   })
 
-  it('rejects a slot flag that is not a boolean', () => {
-    expect(() => parseConfig({ projects: { ABC: { repo: 'C:\\abc', slot: 'yes' } } })).toThrow(/ABC.slot/)
+  it('rejects a slot that is neither a flag nor a positive whole count', () => {
+    for (const slot of ['yes', 0, -1, 1.5]) {
+      expect(() => parseConfig({ projects: { ABC: { repo: 'C:\\abc', slot } } })).toThrow(/ABC.slot/)
+    }
   })
 
   it('keeps model prompts keyed by model alias', () => {

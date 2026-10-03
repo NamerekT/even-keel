@@ -10,7 +10,7 @@ export interface BatonConfig {
   port: number
   projects: Record<string, string>
   rules: Record<string, ChainRules>
-  slots: string[]
+  slots: Record<string, number>
   context: ContextScale
   modelPrompts: Partial<Record<ModelAlias, string>>
   stats: StatsConfig
@@ -44,15 +44,17 @@ export function parseConfig(raw: unknown): BatonConfig {
   const shared = { ...DEFAULT_RULES, ...parseRules(input.chain, 'chain') }
   const projects: Record<string, string> = {}
   const rules: Record<string, ChainRules> = {}
-  const slots: string[] = []
+  const slots: Record<string, number> = {}
   for (const [key, entry] of Object.entries(input.projects)) {
     if (!PROJECT_KEY.test(key)) throw new Error(`config: "${key}" is not a Huly project key`)
     const { repo, chain, slot } =
       typeof entry === 'object' && entry !== null ? (entry as { repo?: unknown; chain?: unknown; slot?: unknown }) : { repo: entry }
     if (typeof repo !== 'string' || repo === '') throw new Error(`config: repository path for ${key} is empty`)
-    if (slot !== undefined && typeof slot !== 'boolean') throw new Error(`config: ${key}.slot must be true or false`)
+    if (slot !== undefined && typeof slot !== 'boolean' && !(Number.isInteger(slot) && (slot as number) > 0)) {
+      throw new Error(`config: ${key}.slot must be true, false or the number of slots`)
+    }
     projects[key] = repo
-    if (slot === true) slots.push(key)
+    if (slot === true || typeof slot === 'number') slots[key] = slot === true ? 1 : slot
     rules[key] = checkRules({ ...shared, ...parseRules(chain, `${key}.chain`) }, key)
   }
 

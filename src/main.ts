@@ -14,7 +14,7 @@ import { appendLaunch, loadChainState, readLaunches, saveChainState } from './ch
 import { ConfigFile } from './config-file.js'
 import { EventHub } from './events.js'
 import { runGit } from './git/run.js'
-import { finishSlot, prepareSlot, slotPath } from './git/slot.js'
+import { finishSlot, prepareSlot, slotPaths, type SlotUse } from './git/slot.js'
 import { ensureIgnored, finishWorktree, prepareWorktree, taskPlace } from './git/worktree.js'
 import { issueUrlBase, readHulyCredentials } from './huly/credentials.js'
 import { worthBroadcast, type HulyHealth } from './huly/health.js'
@@ -217,9 +217,15 @@ const dispatcher = new Dispatcher(loadChainState(chainFile), {
     await daemons.prepare(home)
     const repo = config.projects[project]!
     await ensureIgnored(runGit, repo)
-    const place = config.slots.includes(project)
-      ? await prepareSlot(runGit, repo, task, () => vacateSlot(repo, task))
-      : await prepareWorktree(runGit, repo, task)
+    const count = config.slots[project]
+    const place =
+      count !== undefined
+        ? await prepareSlot(runGit, repo, task, {
+            count,
+            occupancy: (path) => slotUse(path, task),
+            vacate: (path) => vacateSlot(path, task),
+          })
+        : await prepareWorktree(runGit, repo, task)
     const { prompt, model } = planFor(task, startPrompt(task, place))
     return (await cli.launch(home, task, place.path, prompt, model)).sessionId
   },
@@ -262,8 +268,9 @@ const dispatcher = new Dispatcher(loadChainState(chainFile), {
   },
   finish: async (project, task) => {
     const repo = config.projects[project]!
-    const stopped = await stopTaskSessions(repo, task)
-    const finished = await (config.slots.includes(project) ? finishSlot : finishWorktree)(runGit, repo, task)
+    const count = config.slots[project]
+    const stopped = await stopTaskSessions(repo, task, count ?? 1)
+    const finished = await (count !== undefined ? finishSlot(runGit, repo, task, count) : finishWorktree(runGit, repo, task))
     const outcome = { ...finished, warnings: [...stopped, ...finished.warnings] }
     for (const warning of outcome.warnings) console.warn(`git: ${warning}`)
     if (outcome.syncError !== null) console.error(`git: sync of ${project} after ${task} failed: ${outcome.syncError}`)
@@ -271,10 +278,18 @@ const dispatcher = new Dispatcher(loadChainState(chainFile), {
   },
 })
 
-async function vacateSlot(repo: string, task: string): Promise<void> {
-  const slot = slotPath(repo)
+function occupantsOf(slot: string, task: string) {
   const owners = new Map(launches.map((entry) => [entry.sessionId, entry.task]))
-  const { idle, busy } = slotOccupants(agents, owners, slot, task)
+  return slotOccupants(agents, owners, slot, task)
+}
+
+function slotUse(slot: string, task: string): SlotUse {
+  const { idle, busy } = occupantsOf(slot, task)
+  return { idle: idle.length > 0, busy: busy.map((each) => `${each.task} (session ${each.agent.sessionId})`) }
+}
+
+async function vacateSlot(slot: string, task: string): Promise<void> {
+  const { idle, busy } = occupantsOf(slot, task)
   if (busy.length > 0) {
     const names = busy.map((each) => `${each.task} (session ${each.agent.sessionId})`).join(', ')
     throw new Error(`the slot ${slot} is in use by ${names} mid-turn, ${task} was not started; let it finish or stop it, then resume`)
@@ -289,12 +304,13 @@ async function vacateSlot(repo: string, task: string): Promise<void> {
   }
 }
 
-async function stopTaskSessions(repo: string, task: string): Promise<string[]> {
+async function stopTaskSessions(repo: string, task: string, count: number): Promise<string[]> {
   const own = new Set(launches.filter((entry) => entry.task === task).map((entry) => entry.sessionId))
+  const slots = slotPaths(repo, count)
   const idle = agents.filter(
     (agent) =>
       agent.id !== undefined &&
-      (isInside(agent.cwd, taskPlace(repo, task).path) || (isInside(agent.cwd, slotPath(repo)) && own.has(agent.sessionId))) &&
+      (isInside(agent.cwd, taskPlace(repo, task).path) || (slots.some((slot) => isInside(agent.cwd, slot)) && own.has(agent.sessionId))) &&
       agent.status !== 'busy' &&
       agent.status !== 'waiting' &&
       agent.state !== 'stopped' &&
