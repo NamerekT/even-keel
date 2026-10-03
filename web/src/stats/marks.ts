@@ -84,3 +84,7 @@ export function setTitle(set: RuleSet): string {
   if (set.sessionId !== null) return 'сессия без задачи'
   return set.id.startsWith('i:') ? 'из импорта' : 'вручную'
 }
+
+export function markTitle(mark: RuleMark): string {
+  return [...new Set(mark.sets.map(setTitle))].join(', ')
+}

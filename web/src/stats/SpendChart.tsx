@@ -3,7 +3,7 @@ import { seriesStyle } from '../ui/series.js'
 import { Segmented } from './common.js'
 import { formatShare, formatUsd } from './format.js'
 import type { ChartData, Metric } from './history.js'
-import { markKey, setTitle, type MarkPlace } from './marks.js'
+import { markKey, markTitle, type MarkPlace } from './marks.js'
 import { MarkTip } from './MarkTip.js'
 import { addDays, formatBucket, formatDay, nextBucket, type DayRange, type Step } from './period.js'
 
@@ -159,7 +159,7 @@ export function SpendChart({
                       className={on ? 'spend__mark spend__mark--on' : 'spend__mark'}
                       style={{ left: `${offset * 100}%` }}
                       aria-pressed={on}
-                      aria-label={`Правка правил: ${mark.sets.map(setTitle).join(', ')}`}
+                      aria-label={`Правка правил: ${markTitle(mark)}`}
                       onPointerDown={(event) => event.stopPropagation()}
                       onPointerEnter={() => setHoveredMark(key)}
                       onPointerLeave={() => setHoveredMark(null)}

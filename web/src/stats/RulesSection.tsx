@@ -4,7 +4,7 @@ import { RULE_KINDS, type CompareQuery, type RuleKind, type RuleMark, type RuleS
 import { formatMoment } from '../format.js'
 import { useLive } from '../live/context.js'
 import { AnswerNotice, Section, TaskKey, loadedData, useStatsAnswer, type Loaded } from './common.js'
-import { PURPOSE_LABELS, RULE_KIND_LABELS, markKey, pickedSpan, setTitle, shortPath, toggleChip } from './marks.js'
+import { PURPOSE_LABELS, RULE_KIND_LABELS, markKey, markTitle, pickedSpan, setTitle, shortPath, toggleChip } from './marks.js'
 import { Lines, SetNote } from './MarkTip.js'
 import { COMPARE_DAYS, RuleCompare } from './RuleCompare.js'
 import './rules.css'
@@ -166,7 +166,7 @@ export function RulesSection({
                     onClick={(event) => onPick(key, event.shiftKey || event.ctrlKey || event.metaKey)}
                   >
                     <span className="rule-mark__at">{formatMoment(mark.toAt, now)}</span>
-                    <span className="rule-mark__sets">{mark.sets.map(setTitle).join(', ')}</span>
+                    <span className="rule-mark__sets">{markTitle(mark)}</span>
                     <span className="stats-section__note">файлов: {mark.sets.reduce((sum, set) => sum + set.files.length, 0)}</span>
                   </button>
                 </li>

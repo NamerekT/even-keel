@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { RuleMark } from '../../../src/stats/rules.js'
-import { driftText, markKey, markPlaces, pickMark, pickedSpan, precisionText, setTitle, shortPath, toggleChip } from './marks.js'
+import { driftText, markKey, markPlaces, markTitle, pickMark, pickedSpan, precisionText, setTitle, shortPath, toggleChip } from './marks.js'
 
 const mark = (id: string, fromAt: string, toAt = fromAt): RuleMark => ({
   fromAt,
@@ -123,5 +123,9 @@ describe('setTitle', () => {
     expect(setTitle({ ...set, sessionId: 'x' })).toBe('сессия без задачи')
     expect(setTitle(set)).toBe('вручную')
     expect(setTitle({ ...set, id: 'i:4' })).toBe('из импорта')
+  })
+
+  it('names a mark by its sets without repeats', () => {
+    expect(markTitle({ fromAt: set.at, toAt: set.at, sets: [{ ...set, task: 'A-1' }, { ...set, task: 'A-1' }, set] })).toBe('A-1, вручную')
   })
 })
