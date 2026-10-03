@@ -86,7 +86,15 @@ describe('mapPeriod', () => {
             restarts: '0',
             spans: '1',
             rework: true,
+            estimate_h: '1.5',
+            active_s: '4210.5',
+            wait_s: '600',
+            total_s: '9000',
+            done: true,
+            component: 'Web',
+            model: 'opus',
           },
+          { task: 'ABC-2', project: 'ABC', cost: '1', sessions: '1', estimate_h: null, active_s: null, wait_s: null, total_s: null, done: null },
         ],
         weeks: [{ week: '2026-09-28', reason: null, spans: '2' }],
         stuck: [
@@ -119,7 +127,15 @@ describe('mapPeriod', () => {
       restarts: 0,
       spans: 1,
       rework: true,
+      estimateH: 1.5,
+      activeS: 4210.5,
+      waitS: 600,
+      totalS: 9000,
+      done: true,
+      component: 'Web',
+      model: 'opus',
     })
+    expect(period.tasks[1]).toMatchObject({ estimateH: null, activeS: null, waitS: null, totalS: null, done: null, component: null, model: null })
     expect(period.weeks).toEqual([{ week: '2026-09-28', reason: null, spans: 2 }])
     expect(period.stuck[0]).toMatchObject({ project: 'Example', sessionId: 'session-1', toAt: '2026-10-01T10:05:00.000Z', kinds: ['repeat'] })
   })

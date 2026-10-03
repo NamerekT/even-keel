@@ -12,6 +12,7 @@ import { autoStep, localDay, resolvePeriod, type DayRange, type PeriodChoice } f
 import { PeriodPicker } from './PeriodPicker.js'
 import { ProjectList } from './ProjectList.js'
 import { RulesSection } from './RulesSection.js'
+import { EstimateSection } from './EstimateSection.js'
 import { parseView, viewSearch, type StatsView } from './search.js'
 import { SpendChart } from './SpendChart.js'
 import { StuckSection } from './StuckSection.js'
@@ -152,6 +153,7 @@ export function StatsPage({ state }: { state: BatonState }) {
             {period !== null && (
               <>
                 <Sources period={period} />
+                <EstimateSection tasks={period.tasks} />
                 <TaskTable tasks={period.tasks} trackerUrl={state.trackerUrl} />
                 <StuckSection weeks={period.weeks} stuck={period.stuck} trackerUrl={state.trackerUrl} />
                 <p className="stats-page__foot">Tally · прочитано {formatMoment(period.at, new Date())}</p>

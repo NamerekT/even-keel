@@ -41,7 +41,7 @@ function limitNote(limit: WeeklyLimit): string {
   return `сумма долей ${span || 'за период'}`
 }
 
-function Tile({ label, value, children }: { label: string; value: string; children: ReactNode }) {
+export function Tile({ label, value, children }: { label: string; value: string; children: ReactNode }) {
   return (
     <div className="stats-tile">
       <span className="stats-tile__label">{label}</span>

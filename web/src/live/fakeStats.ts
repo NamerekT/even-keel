@@ -16,6 +16,7 @@ import { addDays, bucketOf, dayCount, localDay, previousRange, type DayRange } f
 
 const BATON = ['ABC', 'DEMO', 'XYZ', 'OPS']
 const FOLDERS = ['yaml-tools', 'notes', 'dotfiles', 'homepage', 'game-jam', 'scratch']
+const COMPONENTS = ['Web', 'Core', null]
 const REASONS = ['broken_tooling', 'debug_loop', 'unclear_task', 'waiting_user', null]
 const TITLES = [
   'Перевести сборку на новый планировщик',
@@ -195,6 +196,9 @@ export function fakePeriod(mode: string | null, query: PeriodQuery): StatsAnswer
     const count = Math.max(1, Math.min(40, Math.round(cost / 25)))
     for (let index = 0; index < count; index++) {
       const sessions = 1 + Math.floor(next() * 5)
+      const estimateH = next() > 0.35 ? Math.round((0.25 + next() * 3) * 4) / 4 : null
+      const activeS = Math.round(sessions * 900 * (0.4 + next() * 1.8))
+      const waitS = next() > 0.5 ? Math.round(next() * 5400) : 0
       tasks.push({
         task: `${project}-${100 - index * 3}`,
         project,
@@ -208,6 +212,13 @@ export function fakePeriod(mode: string | null, query: PeriodQuery): StatsAnswer
         restarts: next() > 0.9 ? 1 : 0,
         spans: next() > 0.7 ? 1 + Math.floor(next() * 3) : 0,
         rework: next() > 0.9,
+        estimateH,
+        activeS,
+        waitS,
+        totalS: activeS + waitS + Math.round(next() * 7200),
+        done: index !== 0,
+        component: COMPONENTS[(index + project.length) % COMPONENTS.length]!,
+        model: next() > 0.3 ? 'opus' : 'sonnet',
       })
     }
   }
