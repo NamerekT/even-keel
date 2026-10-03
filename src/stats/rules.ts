@@ -84,6 +84,10 @@ export interface CompareSide {
   errorShare: number | null
   deniedShare: number | null
   entryTokens: number | null
+  requests: number
+  meanContext: number | null
+  over150Share: number | null
+  requestCost: number | null
 }
 
 export interface StatsCompare {
@@ -106,6 +110,10 @@ export interface SideSums {
   errors: number
   denied: number
   entryTokens: number | null
+  requests: number
+  contextTokens: number
+  over150: number
+  requestCost: number
 }
 
 export interface ScopePlaces {
@@ -254,7 +262,22 @@ export function compareOf(
   sums: Partial<Record<'before' | 'after', SideSums>>,
   settings: CompareSettings,
 ): StatsCompare {
-  const empty: SideSums = { tasks: 0, sessions: 0, taskCost: null, sessionsPerTask: null, cost: 0, stuckCost: 0, calls: 0, errors: 0, denied: 0, entryTokens: null }
+  const empty: SideSums = {
+    tasks: 0,
+    sessions: 0,
+    taskCost: null,
+    sessionsPerTask: null,
+    cost: 0,
+    stuckCost: 0,
+    calls: 0,
+    errors: 0,
+    denied: 0,
+    entryTokens: null,
+    requests: 0,
+    contextTokens: 0,
+    over150: 0,
+    requestCost: 0,
+  }
   const before = sums.before ?? empty
   const after = sums.after ?? empty
   const thin = [before, after].some((each) => each.tasks < settings.minTasks || each.sessions < settings.minSessions)
@@ -270,6 +293,10 @@ export function compareOf(
       errorShare: share(each.errors, each.calls),
       deniedShare: share(each.denied, each.calls),
       entryTokens: thin ? null : each.entryTokens,
+      requests: each.requests,
+      meanContext: share(each.contextTokens, each.requests),
+      over150Share: share(each.over150, each.requests),
+      requestCost: share(each.requestCost, each.requests),
     }
   }
   return {

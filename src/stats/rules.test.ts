@@ -124,7 +124,22 @@ describe('mergeMarks', () => {
 })
 
 describe('compareOf', () => {
-  const side = { tasks: 6, sessions: 12, taskCost: 2.5, sessionsPerTask: 2, cost: 40, stuckCost: 10, calls: 200, errors: 10, denied: 4, entryTokens: 31000 }
+  const side = {
+    tasks: 6,
+    sessions: 12,
+    taskCost: 2.5,
+    sessionsPerTask: 2,
+    cost: 40,
+    stuckCost: 10,
+    calls: 200,
+    errors: 10,
+    denied: 4,
+    entryTokens: 31000,
+    requests: 400,
+    contextTokens: 56_000_000,
+    over150: 100,
+    requestCost: 36,
+  }
   const sides = { before: { from: '2026-09-03T00:00:00Z', to: '2026-09-10T00:00:00Z' }, after: { from: '2026-09-12T00:00:00Z', to: '2026-09-19T00:00:00Z' } }
 
   it('turns sums into shares', () => {
@@ -134,10 +149,16 @@ describe('compareOf', () => {
     expect(result.after).toMatchObject({ stuckShare: 0, errorShare: null, deniedShare: null })
   })
 
+  it('averages context, the share over 150k and the price per main-thread request', () => {
+    const result = compareOf(sides, { before: side, after: { ...side, requests: 0, contextTokens: 0, over150: 0, requestCost: 0 } }, { minTasks: 5, minSessions: 10, days: 7 })
+    expect(result.before).toMatchObject({ requests: 400, meanContext: 140_000, over150Share: 0.25, requestCost: 0.09 })
+    expect(result.after).toMatchObject({ requests: 0, meanContext: null, over150Share: null, requestCost: null })
+  })
+
   it('hides the numbers when a side has fewer tasks or sessions than the minimum', () => {
     const result = compareOf(sides, { before: side, after: { ...side, sessions: 9 } }, { minTasks: 5, minSessions: 10, days: 7 })
     expect(result.thin).toBe(true)
-    expect(result.after).toMatchObject({ tasks: 6, sessions: 9, taskCost: null, stuckShare: null, entryTokens: null })
+    expect(result.after).toMatchObject({ tasks: 6, sessions: 9, taskCost: null, stuckShare: null, entryTokens: null, meanContext: null, requestCost: null })
     expect(result.before.taskCost).toBeNull()
   })
 

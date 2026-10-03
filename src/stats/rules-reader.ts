@@ -65,13 +65,12 @@ where c.id = any($1::text[])`
 
 const TEXTS = `select hash, content from rule_texts where hash = any($1::text[])`
 
-// $8 project labels or null, $9 the moment before, $10 the moment after, $11 days on each side.
+// $8 project labels or null, $9–$12 the bounds of the before side and of the after side.
 // A session takes the side of its first message, a task the side of its first message too. $3 as in STARTS.
 const SIDED = `${BASE}, picked as (
   select * from base where ($8::text[] is null or project = any($8::text[])) and $3::text is not null
 ), sides as (
-  select $9::timestamptz - make_interval(days => $11::int) as b_lo, $9::timestamptz as b_hi,
-    $10::timestamptz as a_lo, $10::timestamptz + make_interval(days => $11::int) as a_hi
+  select $9::timestamptz as b_lo, $10::timestamptz as b_hi, $11::timestamptz as a_lo, $12::timestamptz as a_hi
 ), firsts as (
   select session_id, min(at) as first_at from picked group by session_id
 ), sided as (
@@ -103,6 +102,17 @@ cross join lateral (
   order by m.at
   limit 1
 ) e
+where x.side is not null
+group by x.side`
+
+// Main-thread API messages of the side's sessions, as in Gamma's session-compare.
+const SIDE_REQUESTS = `${SIDED}
+select x.side, count(*) as requests, coalesce(sum(r.tokens), 0) as context_tokens,
+  count(*) filter (where r.tokens > 150000) as over150, coalesce(sum(p.cost), 0) as request_cost
+from sided x
+join picked p on p.session_id = x.session_id and p.agent_id = ''
+join messages m on m.message_id = p.message_id
+cross join lateral (select m.input + m.cache_write_5m + m.cache_write_1h + m.cache_read as tokens) r
 where x.side is not null
 group by x.side`
 
@@ -193,15 +203,27 @@ export async function readRuleDiff(db: RulesDb, ids: string[]): Promise<RuleDiff
   )
 }
 
+export type CompareSides = Record<'before' | 'after', { from: string; to: string }>
+
 export async function readCompare(db: RulesDb, query: CompareQuery, settings: CompareSettings): Promise<StatsCompare> {
   const days = query.days ?? settings.days
-  const extra = [query.projects, query.before, query.after, days]
-  const [sessions, entry, tools, tasks] = await Promise.all([SIDE_SESSIONS, SIDE_ENTRY, SIDE_TOOLS, SIDE_TASKS].map((sql) => db.base(sql, query, extra)))
+  const shift = (at: string, by: number) => new Date(Date.parse(at) + by * 86_400_000).toISOString()
+  const sides = { before: { from: shift(query.before, -days), to: query.before }, after: { from: query.after, to: shift(query.after, days) } }
+  return compareOf(sides, await readCompareSides(db, query, sides), { ...settings, days })
+}
+
+// Sums of two arbitrary periods; readCompare and the Gamma check in .temp use it.
+export async function readCompareSides(db: RulesDb, filter: StatsFilter & { projects: string[] | null }, sides: CompareSides): Promise<Record<'before' | 'after', SideSums>> {
+  const extra = [filter.projects, sides.before.from, sides.before.to, sides.after.from, sides.after.to]
+  const [sessions, entry, tools, tasks, requests] = await Promise.all(
+    [SIDE_SESSIONS, SIDE_ENTRY, SIDE_TOOLS, SIDE_TASKS, SIDE_REQUESTS].map((sql) => db.base(sql, filter, extra)),
+  )
   const pick = (rows: Row[], side: string) => rows.find((row) => row.side === side) ?? {}
   const sums = (side: 'before' | 'after'): SideSums => {
     const s = pick(sessions!, side)
     const t = pick(tasks!, side)
     const tool = pick(tools!, side)
+    const r = pick(requests!, side)
     return {
       tasks: Number(t.tasks ?? 0),
       sessions: Number(s.sessions ?? 0),
@@ -213,12 +235,11 @@ export async function readCompare(db: RulesDb, query: CompareQuery, settings: Co
       errors: Number(tool.errors ?? 0),
       denied: Number(tool.denied ?? 0),
       entryTokens: maybe(pick(entry!, side).entry),
+      requests: Number(r.requests ?? 0),
+      contextTokens: Number(r.context_tokens ?? 0),
+      over150: Number(r.over150 ?? 0),
+      requestCost: Number(r.request_cost ?? 0),
     }
   }
-  const shift = (at: string, by: number) => new Date(Date.parse(at) + by * 86_400_000).toISOString()
-  return compareOf(
-    { before: { from: shift(query.before, -days), to: query.before }, after: { from: query.after, to: shift(query.after, days) } },
-    { before: sums('before'), after: sums('after') },
-    { ...settings, days },
-  )
+  return { before: sums('before'), after: sums('after') }
 }

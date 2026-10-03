@@ -231,7 +231,12 @@ export function fakeCompare(mode: string | null, rules: string | null, query: Co
   const days = query.days ?? COMPARE.days
   const thin = rules === 'thin'
   const scale = days / 7
-  const side = (from: number, to: number, tasks: number, sessions: number, taskCost: number, stuck: number, errors: number, entry: number): CompareSide => ({
+  const side = (
+    from: number,
+    to: number,
+    [tasks, sessions, taskCost, stuck, errors, entry]: [number, number, number, number, number, number],
+    [context, over150, perRequest]: [number, number, number],
+  ): CompareSide => ({
     from: new Date(from).toISOString(),
     to: new Date(to).toISOString(),
     tasks: thin ? 3 : Math.round(tasks * scale),
@@ -242,6 +247,10 @@ export function fakeCompare(mode: string | null, rules: string | null, query: Co
     errorShare: thin ? null : errors,
     deniedShare: thin ? null : errors / 6,
     entryTokens: thin ? null : entry,
+    requests: thin ? 140 : Math.round(sessions * 38 * scale),
+    meanContext: thin ? null : context,
+    over150Share: thin ? null : over150,
+    requestCost: thin ? null : perRequest,
   })
   const before = Date.parse(query.before)
   const after = Date.parse(query.after)
@@ -252,8 +261,8 @@ export function fakeCompare(mode: string | null, rules: string | null, query: Co
       thin,
       minTasks: COMPARE.minTasks,
       minSessions: COMPARE.minSessions,
-      before: side(before - days * DAY, before, 9, 21, 7.4, 0.16, 0.052, 41_200),
-      after: side(after, Math.min(after + days * DAY, Date.now()), 11, 19, 6.1, 0.11, 0.038, 43_900),
+      before: side(before - days * DAY, before, [9, 21, 7.4, 0.16, 0.052, 41_200], [168_000, 0.49, 0.124]),
+      after: side(after, Math.min(after + days * DAY, Date.now()), [11, 19, 6.1, 0.11, 0.038, 43_900], [131_000, 0.33, 0.104]),
     },
   }
 }
