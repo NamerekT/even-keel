@@ -87,20 +87,70 @@ const HOME_PREFIX = /^(?:~|\$HOME|\$\{HOME\}|\$env:USERPROFILE|%USERPROFILE%)(?=
 const MSYS_DRIVE = /^\/([a-z])\//i
 const RULE_TOKEN = /\.claude|\.githooks|claude\.md$/i
 
-// Rule files a shell command writes, judged by its text: a write marker anywhere and the file's path among its words.
+const CD = /^\s*(?:cd|chdir|sl|set-location|pushd)(?=\s|$)(.*)$/is
+const HEREDOC = /<<-?\s*['"]?(\w+)['"]?/
+const SEGMENT_SPLIT = /&&|\|\||;|\|/
+
+// Command lines with each heredoc body kept on the line that opens it.
+function commandLines(command: string): string[] {
+  const lines = command.split(/\r?\n/)
+  const out: string[] = []
+  for (let i = 0; i < lines.length; i++) {
+    const delimiter = HEREDOC.exec(lines[i]!)?.[1]
+    if (delimiter === undefined) {
+      out.push(lines[i]!)
+      continue
+    }
+    let end = i + 1
+    while (end < lines.length && lines[end]!.trim() !== delimiter) end++
+    out.push(lines.slice(i, end + 1).join('\n'))
+    i = end
+  }
+  return out
+}
+
+// A path as the shell would resolve it from `cwd`; null when it cannot be told (unknown folder, variables).
+function resolvePath(raw: string, cwd: string | null, home: string): string | null {
+  const path = raw.replace(HOME_PREFIX, normal(home)).replace(MSYS_DRIVE, (_, drive: string) => `${drive.toUpperCase()}:/`)
+  if (path.includes('$') || path.includes('%')) return null
+  if (/^[a-z]:[\\/]/i.test(path)) return posix.normalize(normal(path))
+  return cwd === null ? null : posix.normalize(`${normal(cwd)}/${normal(path)}`)
+}
+
+function cdTarget(args: string, cwd: string | null, home: string): string | null {
+  const word = args.trim().split(/\s+/).find((each) => each !== '' && !/^(?:-[a-z]{2,}|\/d)$/i.test(each))
+  const target = word?.replace(/^['"]|['"]$/g, '')
+  if (target === undefined || target === '~') return normal(home)
+  if (target === '-') return null
+  return resolvePath(target, cwd, home)
+}
+
+// Rule files a shell command writes, judged by its text: a write marker in a command segment (between &&, ||, ;, |, a new
+// line) and the file's path among that segment's words, resolved from the folder the cd's before it moved to.
 export function shellRuleFiles(command: string, cwd: string | null, home: string): RuleFile[] {
   if (!WRITES.test(command)) return []
   const files = new Map<string, RuleFile>()
-  for (const token of command.split(TOKEN_SPLIT)) {
-    if (!RULE_TOKEN.test(token) || /[*?{}]/.test(token)) continue
-    let path = token.replace(HOME_PREFIX, normal(home)).replace(MSYS_DRIVE, (_, drive: string) => `${drive.toUpperCase()}:/`)
-    if (path.includes('$') || path.includes('%')) continue
-    if (!/^[a-z]:[\\/]/i.test(path)) {
-      if (cwd === null) continue
-      path = `${normal(cwd)}/${path}`
+  let dir = cwd
+  for (const line of commandLines(command)) {
+    const body = line.indexOf('\n')
+    const head = body < 0 ? line : line.slice(0, body)
+    const rest = body < 0 ? '' : line.slice(body)
+    const parts = head.split(SEGMENT_SPLIT)
+    parts[parts.length - 1] += rest
+    for (const segment of parts) {
+      const move = CD.exec(segment)
+      if (move !== null) {
+        dir = cdTarget(move[1]!, dir, home)
+        continue
+      }
+      if (!WRITES.test(segment)) continue
+      for (const token of segment.split(TOKEN_SPLIT)) {
+        if (!RULE_TOKEN.test(token) || /[*?{}]/.test(token)) continue
+        const path = resolvePath(token, dir, home)
+        const file = path === null ? null : ruleFileOf(path, home)
+        if (file !== null) files.set(file.key, file)
+      }
     }
-    const file = ruleFileOf(posix.normalize(normal(path)), home)
-    if (file !== null) files.set(file.key, file)
   }
   return [...files.values()]
 }

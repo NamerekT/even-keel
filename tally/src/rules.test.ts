@@ -115,6 +115,24 @@ describe('shellRuleFiles', () => {
     expect(keys('git commit -m "edit CLAUDE.md" && git push')).toEqual([])
   })
 
+  it('resolves relative paths from the folder a cd in the command moved to', () => {
+    expect(keys('cd ~ && rm .claude/agents/x.md')).toEqual(['~/.claude/agents/x.md'])
+    expect(keys('Set-Location C:\\Users\\Jane; Remove-Item .claude\\agents\\x.md')).toEqual(['~/.claude/agents/x.md'])
+    expect(keys('pushd "/c/Users/Jane" && rm .claude/agents/x.md')).toEqual(['~/.claude/agents/x.md'])
+    expect(keys('cd tally && rm .claude/agents/x.md')).toEqual(['/work/app/tally/.claude/agents/x.md'])
+    expect(keys('cd ~ && cd .claude && rm agents/x.md .claude/agents/y.md')).toEqual([])
+    expect(keys('cd "$DIR" && rm .claude/agents/x.md')).toEqual([])
+  })
+
+  it('judges the write marker per command segment', () => {
+    expect(keys('rm a.txt && grep -rn scout .claude/CLAUDE.md')).toEqual([])
+    expect(keys('rm a.txt; ls .claude/agents | head')).toEqual([])
+    expect(keys('ls x && rm .claude/agents/x.md')).toEqual(['/work/app/.claude/agents/x.md'])
+    expect(keys('rm a.txt\ngrep scout .claude/CLAUDE.md')).toEqual([])
+    expect(keys("python - <<'PY'\nimport os\npath = '.claude/settings.json'\nopen(path, 'w').write('{}')\nPY")).toEqual(['/work/app/.claude/settings.json'])
+    expect(keys("cat > .claude/agents/x.md <<'EOF'\na; b && c\nEOF")).toEqual(['/work/app/.claude/agents/x.md'])
+  })
+
   it('finds no rule file in a command on a skill folder', () => {
     expect(keys('rm -rf ~/.claude/skills/recon')).toEqual([])
     expect(keys('cp -r ~/.claude/skills/coding C:/Projects/Game/.claude/skills/coding/')).toEqual([])
