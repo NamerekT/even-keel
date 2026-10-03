@@ -1,5 +1,5 @@
 import type { BatonState, SessionRecord } from '../../../src/state.js'
-import type { StatsAnswer, StatsQuery } from '../../../src/stats/model.js'
+import type { PeriodQuery, StatsAnswer, StatsFilter, StatsHistory, StatsPeriod, StatsTaskDetail } from '../../../src/stats/model.js'
 
 export type Link = 'connecting' | 'live' | 'stale'
 
@@ -22,7 +22,9 @@ export interface LiveSource {
   retryNow(): void
   command(name: string, body?: Record<string, unknown>): Promise<void>
   session(sessionId: string): Promise<SessionRecord | null>
-  stats(project: string, query: StatsQuery): Promise<StatsAnswer>
+  statsHistory(filter: StatsFilter): Promise<StatsAnswer<StatsHistory>>
+  statsPeriod(query: PeriodQuery): Promise<StatsAnswer<StatsPeriod>>
+  statsTask(task: string): Promise<StatsAnswer<StatsTaskDetail>>
 }
 
 export interface LiveDeps {
@@ -30,7 +32,7 @@ export interface LiveDeps {
   openEvents: () => EventStream
   sendCommand: (name: string, body: Record<string, unknown>) => Promise<BatonState>
   fetchSession: (sessionId: string) => Promise<SessionRecord | null>
-  fetchStats: (project: string, query: StatsQuery) => Promise<StatsAnswer>
+  fetchStats: <T>(path: string, search: URLSearchParams) => Promise<StatsAnswer<T>>
 }
 
 const CLOSED = 2
@@ -91,8 +93,20 @@ export class LiveConnection implements LiveSource {
     return this.deps.fetchSession(sessionId)
   }
 
-  stats(project: string, query: StatsQuery): Promise<StatsAnswer> {
-    return this.deps.fetchStats(project, query)
+  statsHistory(filter: StatsFilter): Promise<StatsAnswer<StatsHistory>> {
+    return this.deps.fetchStats('history', filterSearch(filter))
+  }
+
+  statsPeriod(query: PeriodQuery): Promise<StatsAnswer<StatsPeriod>> {
+    const search = filterSearch(query)
+    search.set('from', query.from)
+    search.set('to', query.to)
+    if (query.projects !== null) search.set('projects', query.projects.join(','))
+    return this.deps.fetchStats('period', search)
+  }
+
+  statsTask(task: string): Promise<StatsAnswer<StatsTaskDetail>> {
+    return this.deps.fetchStats(`task/${encodeURIComponent(task)}`, new URLSearchParams())
   }
 
   private open(): void {
@@ -144,4 +158,10 @@ export class LiveConnection implements LiveSource {
     this.current = next
     for (const listener of this.listeners) listener()
   }
+}
+
+function filterSearch(filter: StatsFilter): URLSearchParams {
+  const search = new URLSearchParams({ scope: filter.scope, tz: filter.tz })
+  if (filter.account !== null) search.set('account', filter.account)
+  return search
 }

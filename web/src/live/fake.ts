@@ -19,7 +19,7 @@ import type { UsageHealth } from '../../../src/limits/usage.js'
 import type { LimitHold } from '../../../src/chain/relay.js'
 import type { BatonState, SessionRecord, SessionView } from '../../../src/state.js'
 import type { Link, LiveSnapshot, LiveSource } from './connection.js'
-import { fakeStats } from './fakeStats.js'
+import { fakeHistory, fakePeriod, fakeTask } from './fakeStats.js'
 
 const TICK_MS = 2_000
 const CLOSE_TICKS = 5
@@ -644,9 +644,17 @@ export function createFakeSource(search: string): LiveSource {
       await new Promise((resolve) => setTimeout(resolve, 300))
       return current.state === null ? null : fakeRecord(current.state, sessionId)
     },
-    stats: async (project, query) => {
+    statsHistory: async (filter) => {
       await new Promise((resolve) => setTimeout(resolve, 300))
-      return fakeStats(params.get('stats'), project, query)
+      return fakeHistory(params.get('stats'), filter)
+    },
+    statsPeriod: async (query) => {
+      await new Promise((resolve) => setTimeout(resolve, 300))
+      return fakePeriod(params.get('stats'), query)
+    },
+    statsTask: async (task) => {
+      await new Promise((resolve) => setTimeout(resolve, 300))
+      return fakeTask(params.get('stats'), task)
     },
   }
 }

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { costChange, formatShare, formatUsd, kindLabel, reasonLabel } from './stats.js'
+import { costChange, entrypointLabel, formatShare, formatUsd, kindLabel, launchLabel, modelLabel, reasonLabel, weeklyLimit } from './format.js'
 
 describe('formatUsd', () => {
   it('keeps cents below a hundred and rounds above', () => {
@@ -41,5 +41,28 @@ describe('labels', () => {
   it('names sign kinds', () => {
     expect(kindLabel('no_commit')).toBe('без коммита')
     expect(kindLabel('brand_new')).toBe('brand_new')
+  })
+
+  it('names models and entry points', () => {
+    expect(modelLabel('opus')).toBe('Opus')
+    expect(modelLabel('other')).toBe('другие')
+    expect(entrypointLabel('baton')).toBe('Батон')
+    expect(entrypointLabel('desktop')).toBe('приложение')
+    expect(entrypointLabel('tally-classify')).toBe('Tally')
+    expect(entrypointLabel('brand_new')).toBe('brand_new')
+  })
+
+  it('names launch reasons and sessions outside the chain', () => {
+    expect(launchLabel('checkpoint')).toBe('контрольная точка')
+    expect(launchLabel(null)).toBe('вне цепочки')
+  })
+})
+
+describe('weeklyLimit', () => {
+  it('sums a week or less and averages longer periods per week', () => {
+    expect(weeklyLimit(63, 7)).toEqual({ share: 63, perWeek: false })
+    expect(weeklyLimit(20, 1)).toEqual({ share: 20, perWeek: false })
+    expect(weeklyLimit(180, 30)).toEqual({ share: 42, perWeek: true })
+    expect(weeklyLimit(null, 30)).toEqual({ share: null, perWeek: true })
   })
 })

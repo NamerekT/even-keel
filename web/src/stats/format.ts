@@ -19,6 +19,32 @@ const KINDS: Record<string, string> = {
   handoff: 'после передачи дел',
 }
 
+const MODELS: Record<string, string> = {
+  opus: 'Opus',
+  sonnet: 'Sonnet',
+  haiku: 'Haiku',
+  fable: 'Fable',
+  other: 'другие',
+}
+
+const ENTRYPOINTS: Record<string, string> = {
+  baton: 'Батон',
+  vscode: 'VS Code',
+  desktop: 'приложение',
+  cli: 'CLI',
+  'tally-classify': 'Tally',
+  other: 'другое',
+}
+
+const LAUNCHES: Record<string, string> = {
+  launch: 'запуск',
+  start: 'запуск',
+  resume: 'продолжение',
+  relay: 'передача по лимиту',
+  restart: 'новая сессия',
+  checkpoint: 'контрольная точка',
+}
+
 const GROUPED = new Intl.NumberFormat('ru', { maximumFractionDigits: 0 })
 
 export function formatUsd(amount: number): string {
@@ -48,4 +74,22 @@ export function reasonLabel(reason: string | null): string {
 
 export function kindLabel(kind: string): string {
   return KINDS[kind] ?? kind
+}
+
+export function launchLabel(reason: string | null): string {
+  if (reason === null) return 'вне цепочки'
+  return LAUNCHES[reason] ?? reason
+}
+
+export function modelLabel(model: string): string {
+  return MODELS[model] ?? model
+}
+
+export function entrypointLabel(entrypoint: string): string {
+  return ENTRYPOINTS[entrypoint] ?? entrypoint
+}
+
+export function weeklyLimit(share: number | null, days: number): { share: number | null; perWeek: boolean } {
+  if (days <= 7) return { share, perWeek: false }
+  return { share: share === null ? null : (share * 7) / days, perWeek: true }
 }

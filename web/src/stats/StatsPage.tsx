@@ -1,0 +1,132 @@
+import { useMemo, useState } from 'react'
+import { useSearchParams } from 'react-router'
+import type { PeriodQuery, StatsFilter, StatsScope } from '../../../src/stats/model.js'
+import type { BatonState } from '../../../src/state.js'
+import { formatMoment } from '../format.js'
+import { useLive } from '../live/context.js'
+import { AnswerNotice, Segmented, loadedData, useStatsAnswer } from './common.js'
+import { chartData, dayCosts, firstDay, projectColors, projectTotals, type Metric } from './history.js'
+import { autoStep, localDay, resolvePeriod, type DayRange, type PeriodChoice } from './period.js'
+import { PeriodPicker } from './PeriodPicker.js'
+import { ProjectList } from './ProjectList.js'
+import { parseView, viewSearch, type StatsView } from './search.js'
+import { SpendChart } from './SpendChart.js'
+import { StuckSection } from './StuckSection.js'
+import { Sources, Tiles } from './Summary.js'
+import { TaskTable } from './TaskTable.js'
+import './stats.css'
+
+const SCOPES: [StatsScope, string][] = [
+  ['all', 'все'],
+  ['chain', 'цепочка'],
+]
+
+export function StatsPage({ state }: { state: BatonState }) {
+  const [params, setParams] = useSearchParams()
+  const view = parseView(params)
+  const { statsHistory, statsPeriod } = useLive()
+  const [metric, setMetric] = useState<Metric>('cost')
+  const [zooms, setZooms] = useState<PeriodChoice[]>([])
+  const tz = useMemo(() => Intl.DateTimeFormat().resolvedOptions().timeZone, [])
+  const today = localDay(new Date())
+
+  const filter: StatsFilter = { scope: view.scope, account: view.account, tz }
+  const historyKey = JSON.stringify(filter)
+  const historyLoaded = useStatsAnswer(historyKey, () => statsHistory(filter))
+  const history = loadedData(historyLoaded)
+  const range = resolvePeriod(view.period, today, history === null ? null : firstDay(history))
+  const waitsHistory = 'preset' in view.period && view.period.preset === 'all' && history === null
+  const query: PeriodQuery = { ...filter, ...range, projects: view.projects }
+  const periodKey = waitsHistory ? null : JSON.stringify(query)
+  const periodLoaded = useStatsAnswer(periodKey, () => statsPeriod(query))
+  const period = loadedData(periodLoaded)
+  const step = view.step ?? autoStep(range)
+
+  const derived = useMemo(() => {
+    if (history === null) return null
+    return {
+      colors: projectColors(history),
+      totals: projectTotals(history, range),
+      heat: dayCosts(history, view.projects),
+      chart: chartData(history, range, step, metric, view.projects),
+    }
+  }, [history, range.from, range.to, step, metric, view.projects?.join(',')])
+
+  const setView = (next: Partial<StatsView>) => setParams(viewSearch({ ...view, ...next }))
+  const choose = (period: PeriodChoice) => {
+    setZooms([])
+    setView({ period })
+  }
+  const zoom = (next: DayRange) => {
+    setZooms([...zooms, view.period])
+    setView({ period: next, step: null })
+  }
+  const zoomOut = () => {
+    const previous = zooms.at(-1)
+    if (previous === undefined) return
+    setZooms(zooms.slice(0, -1))
+    setView({ period: previous, step: null })
+  }
+
+  return (
+    <div className="page stats-page">
+      <header className="stats-page__head">
+        <h1 className="page__title">Статистика</h1>
+        <PeriodPicker
+          choice={view.period}
+          range={range}
+          today={today}
+          firstDay={history === null ? null : firstDay(history)}
+          heat={derived?.heat ?? new Map()}
+          onChange={choose}
+        />
+        <div className="stats-page__filters">
+          <span className="stats-page__filter">
+            Сессии
+            <Segmented label="Сессии" options={SCOPES} value={view.scope} onChange={(scope) => setView({ scope })} />
+          </span>
+          <label className="stats-page__filter">
+            Аккаунт
+            <select value={view.account ?? ''} onChange={(event) => setView({ account: event.target.value || null })}>
+              <option value="">все</option>
+              {[...new Set([...(history?.accounts ?? []), ...(view.account === null ? [] : [view.account])])].map((account) => (
+                <option key={account} value={account}>
+                  {account}
+                </option>
+              ))}
+            </select>
+          </label>
+        </div>
+      </header>
+
+      {history === null || derived === null ? (
+        <AnswerNotice loaded={historyLoaded} />
+      ) : (
+        <div className="stats-page__body">
+          <ProjectList totals={derived.totals} colors={derived.colors} selected={view.projects} onChange={(projects) => setView({ projects })} />
+          <div className="stats-page__main" aria-busy={periodLoaded === null || periodLoaded.key !== periodKey}>
+            {period === null ? <AnswerNotice loaded={periodLoaded} /> : <Tiles period={period} range={range} />}
+            <SpendChart
+              data={derived.chart}
+              range={range}
+              step={step}
+              metric={metric}
+              onStep={(next) => setView({ step: next === autoStep(range) ? null : next })}
+              onMetric={setMetric}
+              onZoom={zoom}
+              onZoomOut={zooms.length === 0 ? null : zoomOut}
+            />
+            {period !== null && (
+              <>
+                <Sources period={period} />
+                <TaskTable tasks={period.tasks} trackerUrl={state.trackerUrl} />
+                <StuckSection weeks={period.weeks} stuck={period.stuck} trackerUrl={state.trackerUrl} />
+                <p className="stats-page__foot">Tally · прочитано {formatMoment(period.at, new Date())}</p>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}

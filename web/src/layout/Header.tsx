@@ -1,4 +1,4 @@
-import { Link, useMatch } from 'react-router'
+import { Link, NavLink, useMatch } from 'react-router'
 import { useLive } from '../live/context.js'
 import { AccountMenu } from './Account.js'
 import { Limits } from './Limits.js'
@@ -28,6 +28,9 @@ export function Header() {
               <span className="header__crumb">{project}</span>
             </>
           )}
+          <NavLink to="/stats" className="header__link">
+            Статистика
+          </NavLink>
         </nav>
         <div className="header__aside">
           {state !== null && <QueueMenu state={state} />}

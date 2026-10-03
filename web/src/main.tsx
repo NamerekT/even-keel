@@ -2,7 +2,7 @@ import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { BrowserRouter } from 'react-router'
 import type { BatonState, SessionRecord } from '../../src/state.js'
-import type { StatsAnswer, StatsQuery } from '../../src/stats/model.js'
+import type { StatsAnswer } from '../../src/stats/model.js'
 import { App } from './App.js'
 import { LiveConnection, type LiveSource } from './live/connection.js'
 import { LiveProvider } from './live/context.js'
@@ -33,10 +33,9 @@ async function fetchSession(sessionId: string): Promise<SessionRecord | null> {
   return answer
 }
 
-async function fetchStats(project: string, query: StatsQuery): Promise<StatsAnswer> {
-  const search = new URLSearchParams({ days: String(query.days), scope: query.scope })
-  const response = await fetch(`/api/stats/${encodeURIComponent(project)}?${search}`, { cache: 'no-store' })
-  const answer = (await response.json().catch(() => null)) as (StatsAnswer & { error?: string }) | null
+async function fetchStats<T>(path: string, search: URLSearchParams): Promise<StatsAnswer<T>> {
+  const response = await fetch(`/api/stats/${path}?${search}`, { cache: 'no-store' })
+  const answer = (await response.json().catch(() => null)) as (StatsAnswer<T> & { error?: string }) | null
   if (!response.ok) throw new Error(answer?.error ?? `/api/stats answered ${response.status}`)
   return answer!
 }
