@@ -63,8 +63,11 @@ describe('Baton HTTP server', () => {
         if (id === 'bad') throw new Error('sessions: bad is not a session id')
         return id === '0a1b2c3d' ? { sessionId: id } : undefined
       },
-      stats: async (project, query) =>
-        project === 'ABC' ? { state: 'off', reason: `${project} ${query.days} ${query.scope}` } : undefined,
+      stats: {
+        history: async (filter) => ({ state: 'off', reason: `history ${filter.scope} ${filter.account} ${filter.tz}` }),
+        period: async (query) => ({ state: 'off', reason: `period ${query.from} ${query.to} ${query.projects?.join('+')}` }),
+        task: async (task) => ({ state: 'error', error: `task ${task}` }),
+      },
     })
     await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve))
     base = `http://127.0.0.1:${(server.address() as AddressInfo).port}`
@@ -223,14 +226,23 @@ describe('Baton HTTP server', () => {
     expect(await refused.json()).toEqual({ error: 'sessions: bad is not a session id' })
   })
 
-  it('serves the Tally statistics of a configured project', async () => {
-    const found = await fetch(base + '/api/stats/ABC?days=30&scope=chain')
-    expect(found.status).toBe(200)
-    expect(await found.json()).toEqual({ state: 'off', reason: 'ABC 30 chain' })
-    expect((await fetch(base + '/api/stats/QQQ')).status).toBe(404)
-    const refused = await fetch(base + '/api/stats/ABC?days=2')
-    expect(refused.status).toBe(400)
-    expect(await refused.json()).toEqual({ error: 'days must be one of 7, 30' })
+  it('serves the Tally history, a period and a task', async () => {
+    const history = await fetch(base + '/api/stats/history?scope=chain&account=work&tz=Europe/Berlin')
+    expect(await history.json()).toEqual({ state: 'off', reason: 'history chain work Europe/Berlin' })
+    const period = await fetch(base + '/api/stats/period?from=2026-09-04&to=2026-10-03&projects=ABC,Example')
+    expect(await period.json()).toEqual({ state: 'off', reason: 'period 2026-09-04 2026-10-03 ABC+Example' })
+    const task = await fetch(base + '/api/stats/task/ABC-12')
+    expect(await task.json()).toEqual({ state: 'error', error: 'task ABC-12' })
+    expect((await fetch(base + '/api/stats/ABC')).status).toBe(404)
+  })
+
+  it('refuses a malformed statistics request', async () => {
+    const backwards = await fetch(base + '/api/stats/period?from=2026-10-03&to=2026-09-04')
+    expect(backwards.status).toBe(400)
+    expect(await backwards.json()).toEqual({ error: 'from must not be after to' })
+    expect((await fetch(base + '/api/stats/period?from=2026-02-30&to=2026-03-01')).status).toBe(400)
+    expect((await fetch(base + '/api/stats/history?tz=Europe/Berlin%27;drop')).status).toBe(400)
+    expect((await fetch(base + '/api/stats/task/abc')).status).toBe(400)
   })
 
   it('serves the launch journal', async () => {

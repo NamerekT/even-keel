@@ -85,7 +85,7 @@ let agents: AgentEntry[] = []
 let agentsRead = false
 let huly: HulyHealth = { state: 'off', lastOkAt: null, error: null }
 const launches: LaunchEntry[] = readLaunches(launchesFile)
-const stats = new StatsReader(readerSettings(process.env))
+const stats = new StatsReader(readerSettings(process.env), config.projects)
 let ledger = loadLedger(accountFile)
 
 const saveAccounts = (next: AccountLedger) => {
@@ -348,10 +348,7 @@ const server = createBatonServer({
     }
     return undefined
   },
-  stats: async (project, query) => {
-    const repo = config.projects[project]
-    return repo === undefined ? undefined : stats.project(project, repo, query)
-  },
+  stats,
 })
 
 setInterval(() => hub.broadcast('ping', { at: new Date().toISOString() }), 15_000).unref()

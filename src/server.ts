@@ -2,7 +2,23 @@ import { readFile } from 'node:fs/promises'
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http'
 import { extname, join, normalize, sep } from 'node:path'
 import { formatEvent, type EventHub } from './events.js'
-import { parseStatsQuery, type StatsAnswer, type StatsQuery } from './stats/model.js'
+import {
+  isTaskId,
+  parsePeriodQuery,
+  parseStatsFilter,
+  type PeriodQuery,
+  type StatsAnswer,
+  type StatsFilter,
+  type StatsHistory,
+  type StatsPeriod,
+  type StatsTaskDetail,
+} from './stats/model.js'
+
+export interface StatsSource {
+  history(filter: StatsFilter): Promise<StatsAnswer<StatsHistory>>
+  period(query: PeriodQuery): Promise<StatsAnswer<StatsPeriod>>
+  task(task: string): Promise<StatsAnswer<StatsTaskDetail>>
+}
 
 export interface ChainControl {
   start(project: string): void
@@ -37,7 +53,7 @@ export interface ServerDeps {
   account: AccountControl
   launches: () => unknown
   sessionRecord: (sessionId: string) => Promise<unknown>
-  stats: (project: string, query: StatsQuery) => Promise<StatsAnswer | undefined>
+  stats: StatsSource
 }
 
 type Command = (deps: ServerDeps, body: Record<string, unknown>) => void | Promise<void>
@@ -113,18 +129,26 @@ async function route(deps: ServerDeps, request: IncomingMessage, response: Serve
     return
   }
 
-  const stats = /^\/api\/stats\/([^/]+)$/.exec(path)
+  const stats = /^\/api\/stats\/(history|period|task\/([^/]+))$/.exec(path)
   if (request.method === 'GET' && stats !== null) {
-    let query: StatsQuery
+    let read: () => Promise<StatsAnswer<unknown>>
     try {
-      query = parseStatsQuery(url.searchParams)
+      if (stats[1] === 'history') {
+        const filter = parseStatsFilter(url.searchParams)
+        read = () => deps.stats.history(filter)
+      } else if (stats[1] === 'period') {
+        const query = parsePeriodQuery(url.searchParams)
+        read = () => deps.stats.period(query)
+      } else {
+        const task = decodeURIComponent(stats[2]!)
+        if (!isTaskId(task)) throw new Error('task must look like ABC-12')
+        read = () => deps.stats.task(task)
+      }
     } catch (error) {
       sendJson(response, 400, { error: error instanceof Error ? error.message : String(error) })
       return
     }
-    const answer = await deps.stats(decodeURIComponent(stats[1]!), query)
-    if (answer === undefined) response.writeHead(404).end()
-    else sendJson(response, 200, answer)
+    sendJson(response, 200, await read())
     return
   }
 

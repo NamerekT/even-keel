@@ -1,35 +1,50 @@
-export const STATS_DAYS = [7, 30] as const
-export type StatsDays = (typeof STATS_DAYS)[number]
 export type StatsScope = 'all' | 'chain'
 
-export interface StatsQuery {
-  days: StatsDays
+export interface StatsFilter {
   scope: StatsScope
+  account: string | null
+  tz: string
 }
 
-export interface StatsTotal {
+export interface PeriodQuery extends StatsFilter {
+  from: string
+  to: string
+  projects: string[] | null
+}
+
+export type StatsCell = [day: number, project: number, cost: number, sessions: number, limit: number]
+
+export interface StatsHistory {
+  at: string
+  accounts: string[]
+  baton: string[]
+  projects: string[]
+  days: string[]
+  cells: StatsCell[]
+}
+
+export interface StatsTotals {
   cost: number
-  previousCost: number
   messages: number
   sessions: number
+  tasks: number
   unpriced: number
-  fiveHour: number | null
-  sevenDay: number | null
+  limit: number | null
+  stuckCost: number
 }
 
-export interface StatsTask {
+export interface StatsShare {
+  key: string
+  cost: number
+}
+
+export interface StatsTaskRow {
   task: string
+  project: string
   title: string | null
   status: string | null
   cost: number
-  sessions: number
-  sevenDay: number | null
-}
-
-export interface StatsRepeat {
-  task: string
-  title: string | null
-  status: string | null
+  limit: number | null
   sessions: number
   relays: number
   checkpoints: number
@@ -41,6 +56,7 @@ export interface StatsRepeat {
 export interface StatsStuck {
   id: string
   task: string | null
+  project: string | null
   sessionId: string
   fromAt: string
   toAt: string
@@ -49,23 +65,41 @@ export interface StatsStuck {
   note: string | null
 }
 
-export interface ProjectStats {
-  project: string
-  query: StatsQuery
-  since: string
-  at: string
-  total: StatsTotal
-  service: { cost: number; sessions: number }
-  tasks: StatsTask[]
-  repeats: StatsRepeat[]
-  stuck: StatsStuck[]
-  reasons: { reason: string | null; spans: number }[]
+export interface StatsWeekReason {
+  week: string
+  reason: string | null
+  spans: number
 }
 
-export type StatsAnswer =
-  | { state: 'ok'; stats: ProjectStats }
-  | { state: 'off'; reason: string }
-  | { state: 'error'; error: string }
+export interface StatsPeriod {
+  query: PeriodQuery
+  at: string
+  current: StatsTotals
+  previous: StatsTotals
+  models: StatsShare[]
+  entrypoints: StatsShare[]
+  tasks: StatsTaskRow[]
+  weeks: StatsWeekReason[]
+  stuck: StatsStuck[]
+}
+
+export interface StatsTaskSession {
+  sessionId: string
+  title: string | null
+  reason: string | null
+  model: string | null
+  firstAt: string
+  lastAt: string
+  cost: number
+}
+
+export interface StatsTaskDetail {
+  task: string
+  sessions: StatsTaskSession[]
+  spans: StatsStuck[]
+}
+
+export type StatsAnswer<T> = { state: 'ok'; data: T } | { state: 'off'; reason: string } | { state: 'error'; error: string }
 
 export interface ReaderSettings {
   host: string
@@ -75,12 +109,37 @@ export interface ReaderSettings {
   password: string
 }
 
-export function parseStatsQuery(params: URLSearchParams): StatsQuery {
-  const days = Number(params.get('days') ?? 7)
-  if (!STATS_DAYS.includes(days as StatsDays)) throw new Error(`days must be one of ${STATS_DAYS.join(', ')}`)
+const DAY = /^\d{4}-\d{2}-\d{2}$/
+const ZONE = /^[A-Za-z][A-Za-z0-9_+\-/]{0,63}$/
+const TASK = /^[A-Z][A-Z0-9]*-\d+$/
+
+export function parseStatsFilter(params: URLSearchParams): StatsFilter {
   const scope = params.get('scope') ?? 'all'
   if (scope !== 'all' && scope !== 'chain') throw new Error('scope must be all or chain')
-  return { days: days as StatsDays, scope }
+  const account = params.get('account') || null
+  const tz = params.get('tz') || 'UTC'
+  if (!ZONE.test(tz)) throw new Error('tz must be a time zone name')
+  return { scope, account, tz }
+}
+
+export function parsePeriodQuery(params: URLSearchParams): PeriodQuery {
+  const from = params.get('from') ?? ''
+  const to = params.get('to') ?? ''
+  if (!isDay(from) || !isDay(to)) throw new Error('from and to must be dates YYYY-MM-DD')
+  if (from > to) throw new Error('from must not be after to')
+  const listed = params.get('projects')
+  const projects = listed === null ? null : listed.split(',').filter((each) => each !== '')
+  return { ...parseStatsFilter(params), from, to, projects }
+}
+
+export function isTaskId(task: string): boolean {
+  return TASK.test(task)
+}
+
+function isDay(text: string): boolean {
+  if (!DAY.test(text)) return false
+  const date = new Date(`${text}T00:00:00Z`)
+  return !Number.isNaN(date.getTime()) && date.toISOString().startsWith(text)
 }
 
 export function repoTail(repo: string): string {
