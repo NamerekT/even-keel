@@ -406,7 +406,8 @@ a.stats__key:hover {
 }
 
 .tasks.estimates__table th:first-child,
-.tasks.estimates__table td:first-child {
+.tasks.estimates__table td:first-child,
+.tasks.steps th:first-child {
   min-width: 0;
 }
 
@@ -423,6 +424,21 @@ a.stats__key:hover {
 .steps-growth__week {
   color: var(--fg-muted);
   font-size: 0.85em;
+}
+
+.tasks.steps th,
+.tasks.steps td {
+  padding-left: 6px;
+  padding-right: 6px;
+}
+
+.tasks.steps th:first-child {
+  padding-left: 0;
+}
+
+.tasks.steps th:last-child,
+.tasks.steps td:last-child {
+  padding-right: 0;
 }
 
 .tasks.steps th[scope='row'] {

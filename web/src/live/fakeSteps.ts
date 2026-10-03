@@ -91,11 +91,12 @@ export function fakeSteps(mode: string | null, query: PeriodQuery): StatsAnswer<
 
 export function fakeTaskSteps(task: string): StatsTaskStep[] {
   const next = random(task.length * 313 + Number(task.split('-')[1] ?? 0))
+  const base = 1200 * (1 + next() * 2)
   return STEPS.filter(() => next() > 0.35)
     .map((fake) => {
       const runs = 1 + Math.floor(next() * 12)
       const seconds = runs * (fake.warm[0] + (fake.warm[1] - fake.warm[0]) * next())
-      return { step: fake.step, runs, seconds, share: Math.min(1, fake.share * (0.5 + next())) }
+      return { step: fake.step, runs, seconds, share: Math.min(1, seconds / base) }
     })
     .sort((a, b) => b.seconds - a.seconds)
 }
