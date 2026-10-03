@@ -9,6 +9,7 @@ dump=${1:-$(ls -1t backups/tally-*.dump | head -n 1)}
 db=$(sed -n 's/^TALLY_DB=//p' .env)
 db=${db:-tally}
 scratch=tally-restore-check
+live_container=$(docker compose ps -q db)
 
 counts() {
   docker exec "$1" psql -U postgres -d "$db" -At -c "
@@ -26,7 +27,7 @@ docker exec "$scratch" psql -U postgres -q -c "CREATE ROLE tally_writer; CREATE 
 docker exec "$scratch" createdb -U postgres -O tally_writer "$db"
 docker exec -i "$scratch" pg_restore -U postgres -d "$db" --exit-on-error < "$dump"
 
-live=$(counts stats-db-1)
+live=$(counts "$live_container")
 restored=$(counts "$scratch")
 echo "dump: $dump"
 echo "$restored"

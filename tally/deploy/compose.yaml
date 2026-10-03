@@ -1,4 +1,4 @@
-name: stats
+name: tally-stats
 
 services:
   db:

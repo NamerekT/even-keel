@@ -1,6 +1,6 @@
 # База Tally на сервере
 
-Postgres для статистики сессий: стек `/opt/stacks/stats` на `my-server`, Compose-проект `stats` (закреплён `name:`). Схему создаёт сборщик (BTN-46), здесь — только база, роли и бэкап.
+Postgres для статистики сессий: стек `/opt/stacks/tally-stats` на `my-server`, Compose-проект `tally-stats` (закреплён `name:`). Схему создаёт сборщик (BTN-46), здесь — только база, роли и бэкап.
 
 ## Что внутри
 
@@ -16,11 +16,11 @@ Postgres для статистики сессий: стек `/opt/stacks/stats` 
 С ПК (Git Bash), из корня репозитория:
 
 ```sh
-ssh my-server 'sudo install -d -o me -g me /opt/stacks/stats'
-scp -r tally/deploy/compose.yaml tally/deploy/initdb tally/deploy/scripts my-server:/opt/stacks/stats/
+ssh my-server 'sudo install -d -o me -g me /opt/stacks/tally-stats'
+scp -r tally/deploy/compose.yaml tally/deploy/initdb tally/deploy/scripts my-server:/opt/stacks/tally-stats/
 ```
 
-На сервере, в `/opt/stacks/stats`:
+На сервере, в `/opt/stacks/tally-stats`:
 
 ```sh
 umask 077
@@ -38,7 +38,9 @@ docker compose up -d
 
 Пароли ролей переносятся в локальный `.env` Батона (вне git) как `TALLY_DB_*`, `TALLY_WRITER_PASSWORD` и `TALLY_READER_PASSWORD` — вид в `.env.example` в корне репозитория.
 
-Порт привязан к адресу tailnet: если Docker стартует раньше, чем `tailscaled` поднимет адрес, контейнер не поднимется. Проверить после перезагрузки сервера `docker compose ps`; если `db` не встал — `net.ipv4.ip_nonlocal_bind=1` в `/etc/sysctl.d/`.
+Порт привязан к адресу tailnet. Чтобы привязка пережила загрузку, на которой Docker стартует раньше `tailscaled`, на сервере стоит `net.ipv4.ip_nonlocal_bind=1` (`/etc/sysctl.d/99-nonlocal-bind.conf`, заведён для LiteLLM). На новом хосте — завести так же.
+
+Каждый старт контейнера `backup` сразу пишет дамп, потом — по расписанию; лишние уходят по `BACKUP_KEEP`.
 
 ## Проверка
 
