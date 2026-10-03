@@ -16,7 +16,7 @@
     }
   },
   "context": {
-    "window": 600000,
+    "window": 400000,
     "warn": 50,
     "danger": 80
   },
