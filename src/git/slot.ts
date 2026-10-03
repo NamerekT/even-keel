@@ -2,41 +2,74 @@ import { join } from 'node:path'
 import type { FinishOutcome, Git, TaskPlace } from './types.js'
 import { dropBranch, finishWorktree, hasBranch, must, taskPlace, worktreesAt } from './worktree.js'
 
-export function slotPath(repo: string): string {
-  return join(repo, '.claude', 'worktrees', 'baton')
+export interface SlotUse {
+  idle: boolean
+  busy: string[]
 }
 
-export async function prepareSlot(git: Git, repo: string, task: string, vacate: () => Promise<void> = async () => {}): Promise<TaskPlace> {
+export interface SlotPool {
+  count: number
+  occupancy: (path: string) => SlotUse
+  vacate: (path: string) => Promise<void>
+}
+
+export function slotPaths(repo: string, count: number): string[] {
+  return Array.from({ length: count }, (_, index) => join(repo, '.claude', 'worktrees', index === 0 ? 'baton' : `baton-${index + 1}`))
+}
+
+export async function prepareSlot(git: Git, repo: string, task: string, options: Partial<SlotPool> = {}): Promise<TaskPlace> {
+  const { count = 1, occupancy = () => ({ idle: false, busy: [] }), vacate = async () => {} } = options
   const place = taskPlace(repo, task)
-  const path = slotPath(repo)
-  const [own, slot] = await worktreesAt(git, repo, [place.path, path])
+  const paths = slotPaths(repo, count)
+  const [own, ...slots] = await worktreesAt(git, repo, [place.path, ...paths])
   if (own !== undefined) return { path: place.path, branch: own.branch }
-  if (slot === undefined) await must(git, repo, ['worktree', 'add', '--detach', path, 'main'], 'add the slot to')
-  else if (isTaskBranch(slot.branch, task)) return { path, branch: slot.branch }
+  const holding = slots.findIndex((slot) => isTaskBranch(slot?.branch ?? null, task))
+  if (holding !== -1) return { path: paths[holding]!, branch: slots[holding]!.branch! }
 
-  const status = await must(git, path, ['status', '--porcelain'], 'read the status of')
-  if (status.out !== '') {
-    throw new Error(`git: the slot ${path} has uncommitted changes, ${task} was not started; commit or remove them, then resume:\n${status.out}`)
+  const free: { path: string; rank: number }[] = []
+  const refusals: string[] = []
+  for (const [index, slot] of slots.entries()) {
+    const path = paths[index]!
+    if (slot === undefined) {
+      free.push({ path, rank: 2 })
+      continue
+    }
+    const status = await must(git, path, ['status', '--porcelain'], 'read the status of')
+    if (status.out !== '') {
+      refusals.push(`the slot ${path} has uncommitted changes; commit or remove them:\n${status.out}`)
+      continue
+    }
+    const use = occupancy(path)
+    if (use.busy.length > 0) {
+      refusals.push(`the slot ${path} is in use by ${use.busy.join(', ')} mid-turn; let it finish or stop it`)
+      continue
+    }
+    free.push({ path, rank: use.idle ? 3 : slot.branch === null ? 0 : 1 })
   }
-  await vacate()
-  await must(git, path, ['clean', '-fd'], 'clean')
+  const chosen = free.sort((a, b) => a.rank - b.rank)[0]
+  if (chosen === undefined) throw new Error(`git: no slot is free, ${task} was not started; free one, then resume:\n${refusals.join('\n')}`)
+
+  if (chosen.rank === 2) await must(git, repo, ['worktree', 'add', '--detach', chosen.path, 'main'], 'add the slot to')
+  else await vacate(chosen.path)
+  await must(git, chosen.path, ['clean', '-fd'], 'clean')
   const args = (await hasBranch(git, repo, place.branch)) ? ['switch', place.branch] : ['switch', '-c', place.branch, 'main']
-  await must(git, path, args, `switch to ${place.branch} in`)
-  return { path, branch: place.branch }
+  await must(git, chosen.path, args, `switch to ${place.branch} in`)
+  return { path: chosen.path, branch: place.branch }
 }
 
-export async function finishSlot(git: Git, repo: string, task: string): Promise<FinishOutcome> {
+export async function finishSlot(git: Git, repo: string, task: string, count = 1): Promise<FinishOutcome> {
   const place = taskPlace(repo, task)
-  const path = slotPath(repo)
-  const [own, slot] = await worktreesAt(git, repo, [place.path, path])
+  const paths = slotPaths(repo, count)
+  const [own, ...slots] = await worktreesAt(git, repo, [place.path, ...paths])
   if (own !== undefined) return finishWorktree(git, repo, task)
 
-  if (slot === undefined || !isTaskBranch(slot.branch, task)) {
-    return dropBranch(git, repo, task, (await hasBranch(git, repo, place.branch)) ? place.branch : null, [])
-  }
+  const holding = slots.findIndex((slot) => isTaskBranch(slot?.branch ?? null, task))
+  if (holding === -1) return dropBranch(git, repo, task, (await hasBranch(git, repo, place.branch)) ? place.branch : null, [])
+  const path = paths[holding]!
+  const branch = slots[holding]!.branch!
   const kept = await leaveBranch(git, path)
-  if (kept === null) return dropBranch(git, repo, task, slot.branch, [])
-  return dropBranch(git, repo, task, null, [`${task}: the slot ${path} was kept on ${slot.branch}: ${kept}`])
+  if (kept === null) return dropBranch(git, repo, task, branch, [])
+  return dropBranch(git, repo, task, null, [`${task}: the slot ${path} was kept on ${branch}: ${kept}`])
 }
 
 async function leaveBranch(git: Git, path: string): Promise<string | null> {
