@@ -1,10 +1,10 @@
 import { useState } from 'react'
 import { RULE_PURPOSES, type RulePurpose } from '../../../src/stats/rule-imports.js'
-import { RULE_KINDS, type CompareQuery, type RuleKind, type RuleMark, type RuleSet, type RuleSetFile, type StatsRules } from '../../../src/stats/rules.js'
+import { type CompareQuery, type RuleKind, type RuleMark, type RuleSet, type RuleSetFile, type StatsRules } from '../../../src/stats/rules.js'
 import { formatMoment } from '../format.js'
 import { useLive } from '../live/context.js'
 import { AnswerNotice, Section, TaskKey, loadedData, useStatsAnswer, type Loaded } from './common.js'
-import { PURPOSE_LABELS, RULE_KIND_LABELS, markKey, markTitle, pickedSpan, setTitle, shortPath, toggleChip } from './marks.js'
+import { MARK_KINDS, PURPOSE_LABELS, RULE_KIND_LABELS, markKey, markTitle, pickedSpan, setTitle, shortPath, toggleChip } from './marks.js'
 import { Lines, SetNote } from './MarkTip.js'
 import { COMPARE_DAYS, RuleCompare } from './RuleCompare.js'
 import './rules.css'
@@ -142,9 +142,12 @@ export function RulesSection({
   const span = pickedSpan(marks, picked)
   const now = new Date()
   return (
-    <Section title="Правки правил" aside={<span className="stats-section__note">CLAUDE.md и память — с 4 сентября 2026, навыки — с 3 августа, хуки и настройки — с первого снимка</span>}>
+    <Section
+      title="Правки правил"
+      aside={<span className="stats-section__note">CLAUDE.md — с 4 сентября 2026, навыки — с 3 августа, хуки и настройки — с первого снимка; правки памяти не отмечаются</span>}
+    >
       <div className="rule-filters">
-        <Chips label="Файлы" options={RULE_KIND_LABELS} all={RULE_KINDS} on={kinds} onChange={(next) => onFilter({ kinds: next })} />
+        <Chips label="Файлы" options={RULE_KIND_LABELS} all={MARK_KINDS} on={kinds} onChange={(next) => onFilter({ kinds: next })} />
         <Chips label="Цель" options={PURPOSE_LABELS} all={RULE_PURPOSES} on={purposes} onChange={(next) => onFilter({ purposes: next })} />
       </div>
       {rules === null ? (

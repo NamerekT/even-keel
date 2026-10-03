@@ -117,6 +117,13 @@ describe('filterSets', () => {
     ])
   })
 
+  it('never marks memory: sessions write it all the time', () => {
+    const memory = { key: 'm', display: '~/.claude/projects/x/memory/a.md', kind: 'memory' as const, project: null, added: 1, removed: 0, changes: [] }
+    const withMemory = [set('s:b', '2026-09-21T10:00:00.000Z', '2026-09-21T10:00:00.000Z', { files: [memory] }), set('s:c', '2026-09-22T10:00:00.000Z', '2026-09-22T10:00:00.000Z', { files: [memory, local] })]
+    expect(filterSets(withMemory, { kinds: null, projects: null, purposes: null }).map((each) => [each.id, each.files.map((file) => file.key)])).toEqual([['s:c', ['c']]])
+    expect(filterSets(withMemory, { kinds: ['memory'], projects: null, purposes: null })).toEqual([])
+  })
+
   it('hides sets without one of the asked purposes', () => {
     expect(filterSets(sets, { kinds: null, projects: null, purposes: ['infra'] }).map((each) => each.id)).toEqual(['i:1'])
     expect(filterSets(sets, { kinds: null, projects: null, purposes: ['economy'] })).toEqual([])

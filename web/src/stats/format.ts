@@ -85,6 +85,13 @@ export function launchLabel(reason: string | null): string {
   return LAUNCHES[reason] ?? reason
 }
 
+// 'claude-opus-5-5' → 'Opus 5.5', a trailing date dropped; anything not a Claude model stays as it is.
+export function modelVersionLabel(model: string): string {
+  const match = /^claude-([a-z]+)((?:-\d{1,2})+)(?:-\d{8})?$/.exec(model)
+  if (match === null) return model
+  return `${MODELS[match[1]!] ?? match[1]} ${match[2]!.slice(1).replaceAll('-', '.')}`
+}
+
 export function modelLabel(model: string): string {
   return MODELS[model] ?? model
 }

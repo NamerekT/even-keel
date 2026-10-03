@@ -8,6 +8,7 @@ import {
   launchLabel,
   limitWindows,
   modelLabel,
+  modelVersionLabel,
   reasonLabel,
   weeklyLimit,
 } from './format.js'
@@ -62,6 +63,13 @@ describe('labels', () => {
     expect(entrypointLabel('desktop')).toBe('приложение')
     expect(entrypointLabel('tally-classify')).toBe('Tally')
     expect(entrypointLabel('brand_new')).toBe('brand_new')
+  })
+
+  it('names a model with its version', () => {
+    expect(modelVersionLabel('claude-opus-5-5')).toBe('Opus 5.5')
+    expect(modelVersionLabel('claude-opus-5')).toBe('Opus 5')
+    expect(modelVersionLabel('claude-haiku-4-5-20251001')).toBe('Haiku 4.5')
+    expect(modelVersionLabel('google-gemini-3.1-flash-lite')).toBe('google-gemini-3.1-flash-lite')
   })
 
   it('names launch reasons and sessions outside the chain', () => {

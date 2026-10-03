@@ -97,7 +97,6 @@ const MARKS: FakeSet[][] = [
       task: 'DEMO-41',
       title: 'Склад без лишних полок',
       files: [
-        file('~/.claude/projects/D--Projects-demo/memory/MEMORY.md', 'memory', 'DEMO', ['- [Порядок](order.md)'], ['- [Порядок](order.md)', '- [Склад](storage.md) — полки по весу']),
         file('D:/Projects/demo/CLAUDE.md', 'claude_md', 'DEMO', ['# Demo', '', 'Тесты: `npm test`.'], ['# Demo', '', 'Тесты: `npm test`, сборка: `npm run build`.', 'Скриншоты — в `.temp/`.']),
       ],
     },
@@ -236,6 +235,7 @@ export function fakeCompare(mode: string | null, rules: string | null, query: Co
     to: number,
     [tasks, sessions, taskCost, stuck, errors, entry]: [number, number, number, number, number, number],
     [context, over150, perRequest]: [number, number, number],
+    models: CompareSide['models'],
   ): CompareSide => ({
     from: new Date(from).toISOString(),
     to: new Date(to).toISOString(),
@@ -251,6 +251,7 @@ export function fakeCompare(mode: string | null, rules: string | null, query: Co
     meanContext: thin ? null : context,
     over150Share: thin ? null : over150,
     requestCost: thin ? null : perRequest,
+    models,
   })
   const before = Date.parse(query.before)
   const after = Date.parse(query.after)
@@ -259,10 +260,15 @@ export function fakeCompare(mode: string | null, rules: string | null, query: Co
     data: {
       days,
       thin,
+      modelShift: true,
       minTasks: COMPARE.minTasks,
       minSessions: COMPARE.minSessions,
-      before: side(before - days * DAY, before, [9, 21, 7.4, 0.16, 0.052, 41_200], [168_000, 0.49, 0.124]),
-      after: side(after, Math.min(after + days * DAY, Date.now()), [11, 19, 6.1, 0.11, 0.038, 43_900], [131_000, 0.33, 0.104]),
+      before: side(before - days * DAY, before, [9, 21, 7.4, 0.16, 0.052, 41_200], [168_000, 0.49, 0.124], [
+        { model: 'claude-opus-5', share: 0.78 },
+        { model: 'claude-opus-5-5', share: 0.19 },
+        { model: 'claude-sonnet-5', share: 0.03 },
+      ]),
+      after: side(after, Math.min(after + days * DAY, Date.now()), [11, 19, 6.1, 0.11, 0.038, 43_900], [131_000, 0.33, 0.104], [{ model: 'claude-opus-5-5', share: 1 }]),
     },
   }
 }

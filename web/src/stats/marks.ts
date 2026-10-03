@@ -5,11 +5,13 @@ import { bucketOf, dayCount, localDay, nextBucket, addDays, type DayRange, type 
 export const RULE_KIND_LABELS: [RuleKind, string][] = [
   ['claude_md', 'CLAUDE.md'],
   ['skill', 'навыки'],
-  ['memory', 'память'],
   ['hook', 'хуки'],
   ['settings', 'настройки'],
   ['agent', 'агенты'],
 ]
+
+// Memory makes no marks (filterSets), so it has no chip.
+export const MARK_KINDS: RuleKind[] = RULE_KIND_LABELS.map(([kind]) => kind)
 
 export interface MarkPlace {
   mark: RuleMark

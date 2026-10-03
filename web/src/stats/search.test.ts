@@ -33,7 +33,7 @@ describe('parseView', () => {
     expect(parse('from=2026-13-01&to=2026-13-02').period).toEqual({ preset: '30d' })
     expect(parse('scope=x').scope).toBe('all')
     expect(parse('step=y').step).toBeNull()
-    expect(parse('kinds=skill,poem,memory').kinds).toEqual(['skill', 'memory'])
+    expect(parse('kinds=skill,poem,memory').kinds).toEqual(['skill'])
     expect(parse('purposes=economy,speed').purposes).toEqual(['economy'])
   })
 })

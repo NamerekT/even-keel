@@ -1,6 +1,6 @@
 import type { CompareSide, StatsCompare } from '../../../src/stats/rules.js'
 import { formatMoment, formatTokens, plural } from '../format.js'
-import { costChange, formatUsd } from './format.js'
+import { costChange, formatUsd, modelVersionLabel } from './format.js'
 
 type Sample = 'tasks' | 'sessions' | 'requests'
 
@@ -36,6 +36,11 @@ function sample(side: CompareSide, kind: Sample): string {
   return `${count} ${plural(count, ...SAMPLES[kind])}`
 }
 
+function modelMix(side: CompareSide): string {
+  if (side.models.length === 0) return '—'
+  return side.models.map((each) => `${modelVersionLabel(each.model)} ${each.share < 0.005 ? '< 1' : Math.round(each.share * 100)} %`).join(', ')
+}
+
 export const COMPARE_DAYS = [3, 7, 14, 30]
 
 export function RuleCompare({ compare }: { compare: StatsCompare }) {
@@ -46,6 +51,11 @@ export function RuleCompare({ compare }: { compare: StatsCompare }) {
       {compare.thin && (
         <p className="notice notice--warn">
           Мало данных: для сравнения нужно не меньше {compare.minTasks} задач и {compare.minSessions} сессий с каждой стороны.
+        </p>
+      )}
+      {compare.modelShift && (
+        <p className="notice notice--warn">
+          Модели сторон разные, а цена токена у моделей своя: долларовые строки меняются и без правки. Контекст и доли от этого не зависят.
         </p>
       )}
       <table className="tasks rule-compare__table">
@@ -83,6 +93,12 @@ export function RuleCompare({ compare }: { compare: StatsCompare }) {
               </tr>
             )
           })}
+          <tr>
+            <td>Модели, доля запросов</td>
+            <td>{modelMix(before)}</td>
+            <td>{modelMix(after)}</td>
+            <td />
+          </tr>
         </tbody>
       </table>
       <p className="stats-section__note">

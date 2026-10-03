@@ -120,6 +120,13 @@ cross join lateral (select m.input + m.cache_write_5m + m.cache_write_1h + m.cac
 where x.side is not null
 group by x.side`
 
+const SIDE_MODELS = `${SIDED}
+select x.side, p.model, count(*) as requests
+from sided x
+join picked p on p.session_id = x.session_id and p.agent_id = ''
+where x.side is not null and p.model is not null
+group by x.side, p.model`
+
 const SIDE_TOOLS = `${SIDED}
 select x.side, count(*) as calls,
   count(*) filter (where t.is_error and coalesce(t.error_kind, '') not in ('denied', 'hook')) as errors,
@@ -219,8 +226,8 @@ export async function readCompare(db: RulesDb, query: CompareQuery, settings: Co
 // Sums of two arbitrary periods; readCompare and the Gamma check in .temp use it.
 export async function readCompareSides(db: RulesDb, filter: StatsFilter & { projects: string[] | null }, sides: CompareSides): Promise<Record<'before' | 'after', SideSums>> {
   const extra = [filter.projects, sides.before.from, sides.before.to, sides.after.from, sides.after.to]
-  const [sessions, entry, tools, tasks, requests] = await Promise.all(
-    [SIDE_SESSIONS, SIDE_ENTRY, SIDE_TOOLS, SIDE_TASKS, SIDE_REQUESTS].map((sql) => db.base(sql, filter, extra)),
+  const [sessions, entry, tools, tasks, requests, models] = await Promise.all(
+    [SIDE_SESSIONS, SIDE_ENTRY, SIDE_TOOLS, SIDE_TASKS, SIDE_REQUESTS, SIDE_MODELS].map((sql) => db.base(sql, filter, extra)),
   )
   const pick = (rows: Row[], side: string) => rows.find((row) => row.side === side) ?? {}
   const sums = (side: 'before' | 'after'): SideSums => {
@@ -243,6 +250,7 @@ export async function readCompareSides(db: RulesDb, filter: StatsFilter & { proj
       contextTokens: Number(r.context_tokens ?? 0),
       over150: Number(r.over150 ?? 0),
       requestCost: Number(r.request_cost ?? 0),
+      models: models!.filter((row) => row.side === side).map((row) => ({ model: String(row.model), requests: Number(row.requests) })),
     }
   }
   return { before: sums('before'), after: sums('after') }

@@ -88,11 +88,13 @@ export interface CompareSide {
   meanContext: number | null
   over150Share: number | null
   requestCost: number | null
+  models: { model: string; share: number }[]
 }
 
 export interface StatsCompare {
   days: number
   thin: boolean
+  modelShift: boolean
   minTasks: number
   minSessions: number
   before: CompareSide
@@ -114,6 +116,7 @@ export interface SideSums {
   contextTokens: number
   over150: number
   requestCost: number
+  models: { model: string; requests: number }[]
 }
 
 export interface ScopePlaces {
@@ -139,6 +142,8 @@ const EDIT_REACH = 72 * HOUR
 const MANUAL_GAP = HOUR / 2
 const CHANGE_ID = /^[0-9a-f]{40}$/
 const MAX_DIFF_CHANGES = 500
+// Half the summed difference of the model shares of the two sides; above it the price per token moved too.
+const MODEL_SHIFT = 0.2
 
 const holds = (outer: string, inner: string) => inner === outer || inner.startsWith(`${outer}/`)
 const slugOf = (raw: string) => raw.replace(/[^a-zA-Z0-9]/g, '-').toLowerCase()
@@ -277,6 +282,7 @@ export function compareOf(
     contextTokens: 0,
     over150: 0,
     requestCost: 0,
+    models: [],
   }
   const before = sums.before ?? empty
   const after = sums.after ?? empty
@@ -297,16 +303,30 @@ export function compareOf(
       meanContext: share(each.contextTokens, each.requests),
       over150Share: share(each.over150, each.requests),
       requestCost: share(each.requestCost, each.requests),
+      models: modelShares(each.models),
     }
   }
+  const was = new Map(modelShares(before.models).map((each) => [each.model, each.share]))
+  const next = new Map(modelShares(after.models).map((each) => [each.model, each.share]))
+  const moved = [...new Set([...was.keys(), ...next.keys()])].reduce((sum, model) => sum + Math.abs((was.get(model) ?? 0) - (next.get(model) ?? 0)), 0) / 2
   return {
     days: settings.days,
     thin,
+    modelShift: was.size > 0 && next.size > 0 && moved > MODEL_SHIFT,
     minTasks: settings.minTasks,
     minSessions: settings.minSessions,
     before: side(sides.before, before),
     after: side(sides.after, after),
   }
+}
+
+function modelShares(models: { model: string; requests: number }[]): { model: string; share: number }[] {
+  const total = models.reduce((sum, each) => sum + each.requests, 0)
+  if (total === 0) return []
+  return models
+    .filter((each) => each.requests > 0)
+    .map((each) => ({ model: each.model, share: each.requests / total }))
+    .sort((a, b) => b.share - a.share || a.model.localeCompare(b.model))
 }
 
 // Each file goes from the text before its first change to the text after its last one.

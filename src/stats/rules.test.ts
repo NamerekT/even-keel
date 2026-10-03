@@ -139,6 +139,7 @@ describe('compareOf', () => {
     contextTokens: 56_000_000,
     over150: 100,
     requestCost: 36,
+    models: [],
   }
   const sides = { before: { from: '2026-09-03T00:00:00Z', to: '2026-09-10T00:00:00Z' }, after: { from: '2026-09-12T00:00:00Z', to: '2026-09-19T00:00:00Z' } }
 
@@ -160,6 +161,17 @@ describe('compareOf', () => {
     expect(result.thin).toBe(true)
     expect(result.after).toMatchObject({ tasks: 6, sessions: 9, taskCost: null, stuckShare: null, entryTokens: null, meanContext: null, requestCost: null })
     expect(result.before.taskCost).toBeNull()
+  })
+
+  it('gives each side its models by share of requests and flags a changed mix', () => {
+    const opus5 = { ...side, models: [{ model: 'claude-opus-5', requests: 300 }, { model: 'claude-opus-5-5', requests: 100 }] }
+    const opus55 = { ...side, models: [{ model: 'claude-opus-5-5', requests: 400 }] }
+    const shifted = compareOf(sides, { before: opus5, after: opus55 }, { minTasks: 5, minSessions: 10, days: 7 })
+    expect(shifted.before.models).toEqual([{ model: 'claude-opus-5', share: 0.75 }, { model: 'claude-opus-5-5', share: 0.25 }])
+    expect(shifted.after.models).toEqual([{ model: 'claude-opus-5-5', share: 1 }])
+    expect(shifted.modelShift).toBe(true)
+    const close = { ...side, models: [{ model: 'claude-opus-5-5', requests: 360 }, { model: 'claude-sonnet-5-5', requests: 40 }] }
+    expect(compareOf(sides, { before: opus55, after: close }, { minTasks: 5, minSessions: 10, days: 7 }).modelShift).toBe(false)
   })
 
   it('treats a missing side as empty', () => {

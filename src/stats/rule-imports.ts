@@ -141,11 +141,15 @@ export function withImports(sets: RuleSet[], imports: RuleImport[], places: Scop
 }
 
 // Global files stay with any project filter; a set left without files or without an asked purpose is dropped.
+// Memory never makes a mark: sessions write it all the time, and its marks left too little between them to compare.
 export function filterSets(sets: RuleSet[], filter: SetFilter): RuleSet[] {
   return sets.flatMap((each) => {
     if (filter.purposes !== null && !(each.note?.purpose ?? []).some((purpose) => filter.purposes!.includes(purpose))) return []
     const files = each.files.filter(
-      (file) => (filter.kinds === null || filter.kinds.includes(file.kind)) && (file.project === null || filter.projects === null || filter.projects.includes(file.project)),
+      (file) =>
+        file.kind !== 'memory' &&
+        (filter.kinds === null || filter.kinds.includes(file.kind)) &&
+        (file.project === null || filter.projects === null || filter.projects.includes(file.project)),
     )
     return files.length === 0 ? [] : [{ ...each, files }]
   })
