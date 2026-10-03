@@ -12,12 +12,25 @@ export interface BatonConfig {
   slots: string[]
   context: ContextScale
   modelPrompts: Partial<Record<ModelAlias, string>>
+  stats: StatsConfig
+}
+
+export interface CompareSettings {
+  minTasks: number
+  minSessions: number
+  days: number
+}
+
+export interface StatsConfig {
+  compare: CompareSettings
 }
 
 const PROJECT_KEY = /^[A-Z][A-Z0-9_]{0,4}$/
 const RULE_KEYS = ['active', 'terminal', 'requiredLabels', 'excludedLabels'] as const
 const RESTART_KEYS = ['host', 'port', 'projects', 'slots', 'context'] as const
 const DEFAULT_CONTEXT: ContextScale = { window: 600_000, warn: 50, danger: 80 }
+const DEFAULT_COMPARE: CompareSettings = { minTasks: 5, minSessions: 10, days: 7 }
+const COMPARE_LIMITS: Record<keyof CompareSettings, number> = { minTasks: 10_000, minSessions: 10_000, days: 365 }
 
 export function parseConfig(raw: unknown): BatonConfig {
   const input = (raw ?? {}) as Partial<Record<keyof BatonConfig | 'chain', unknown>>
@@ -48,12 +61,21 @@ export function parseConfig(raw: unknown): BatonConfig {
     rules[key] = checkRules({ ...shared, ...parseRules(chain, `${key}.chain`) }, key)
   }
 
-  return { host, port, projects, rules, slots, context: parseContext(input.context), modelPrompts: parseModelPrompts(input.modelPrompts) }
+  return {
+    host,
+    port,
+    projects,
+    rules,
+    slots,
+    context: parseContext(input.context),
+    modelPrompts: parseModelPrompts(input.modelPrompts),
+    stats: parseStats(input.stats),
+  }
 }
 
 export function liveConfig(current: BatonConfig, next: BatonConfig): BatonConfig {
   const rules = Object.fromEntries(Object.keys(current.projects).map((key) => [key, next.rules[key] ?? current.rules[key]!]))
-  return { ...current, rules, modelPrompts: next.modelPrompts }
+  return { ...current, rules, modelPrompts: next.modelPrompts, stats: next.stats }
 }
 
 export function restartChanges(current: BatonConfig, next: BatonConfig): string[] {
@@ -111,6 +133,23 @@ function parseContext(raw: unknown): ContextScale {
     throw new Error(`config: context.warn and context.danger must be percents with 0 < warn < danger <= 100`)
   }
   return { window, warn, danger }
+}
+
+function parseStats(raw: unknown): StatsConfig {
+  if (raw === undefined) return { compare: { ...DEFAULT_COMPARE } }
+  if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) throw new Error('config: stats must be an object')
+  const compare = (raw as { compare?: unknown }).compare ?? {}
+  if (typeof compare !== 'object' || compare === null || Array.isArray(compare)) throw new Error('config: stats.compare must be an object')
+  const settings = { ...DEFAULT_COMPARE }
+  for (const [key, value] of Object.entries(compare)) {
+    const limit = COMPARE_LIMITS[key as keyof CompareSettings]
+    if (limit === undefined) throw new Error(`config: stats.compare.${key} is not a comparison setting`)
+    if (typeof value !== 'number' || !Number.isInteger(value) || value < 1 || value > limit) {
+      throw new Error(`config: stats.compare.${key} must be an integer in 1..${limit}, got ${String(value)}`)
+    }
+    settings[key as keyof CompareSettings] = value
+  }
+  return { compare: settings }
 }
 
 export function loadConfig(file: string): BatonConfig {

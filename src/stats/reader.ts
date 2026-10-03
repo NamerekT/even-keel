@@ -11,40 +11,14 @@ import type {
   StatsTaskDetail,
   StatsTotals,
 } from './model.js'
+import type { CompareSettings } from '../config.js'
+import { BASE } from './base-sql.js'
 import { folderGroups, repoTail } from './model.js'
+import { readCompare, readRuleDiff, readRules, type RulesDb } from './rules-reader.js'
+import type { CompareQuery, RuleDiffFile, RulesQuery, StatsCompare, StatsRules } from './rules.js'
 
 const CACHE_MS = 60_000
 const TOP_STUCK = 20
-
-// $1 Baton project keys, $2 their repository paths without drive, $3 time zone, $4 scope, $5 account or null,
-// $6 folders without drive and $7 their groups (folderGroups).
-// A message belongs to the Baton project of its task key, a message without a task to the Baton project
-// whose repository holds its folder, anything else to the group of its folder.
-const BASE = `
-with base as (
-  select c.message_id, c.session_id, coalesce(c.agent_id, '') as agent_id, c.task, c.at, c.cost, c.model, c.entrypoint,
-    s.launch_reason,
-    coalesce(
-      case when split_part(c.task, '-', 1) = any($1::text[]) then split_part(c.task, '-', 1) end,
-      case when c.task is null then (
-        select b.key from unnest($1::text[], $2::text[]) as b(key, dir)
-        where d.dir = b.dir or starts_with(d.dir, b.dir || '/')
-        order by length(b.dir) desc
-        limit 1
-      ) end,
-      (select g.label from unnest($6::text[], $7::text[]) as g(dir, label) where g.dir = d.dir),
-      c.project,
-      '?'
-    ) as project
-  from message_costs c
-  left join sessions s on s.session_id = c.session_id
-  cross join lateral (
-    select lower(regexp_replace(replace(coalesce(c.project_dir, ''), '\\', '/'), '^[a-zA-Z]:', '')) as dir
-  ) d
-  where ($4::text = 'all' or s.launch_reason is not null) and ($5::text is null or c.account = $5::text)
-), seven as (
-  select message_id, sum(share) as share from limit_shares where span = '7d' group by message_id
-)`
 
 const HISTORY = `${BASE}, local as (
   select b.*, (b.at at time zone $3::text)::date as day from base b
@@ -176,6 +150,11 @@ order by sp.from_at`
 
 type Row = Record<string, unknown>
 
+interface Folders {
+  dirs: string[]
+  labels: string[]
+}
+
 const number = (value: unknown): number => Number(value ?? 0)
 const maybe = (value: unknown): number | null => (value === null || value === undefined ? null : Number(value))
 const text = (value: unknown): string | null => (value === null || value === undefined ? null : String(value))
@@ -287,11 +266,12 @@ export class StatsReader {
   private readonly cache = new Map<string, { at: number; answer: StatsAnswer<unknown> }>()
   private readonly keys: string[]
   private readonly dirs: string[]
-  private folders: { at: number; groups: Promise<[string[], string[]]> } | null = null
+  private folders: { at: number; groups: Promise<Folders> } | null = null
 
   constructor(
     private readonly settings: ReaderSettings | string,
     projects: Record<string, string>,
+    private readonly compareSettings: () => CompareSettings,
   ) {
     this.pool =
       typeof settings === 'string'
@@ -327,17 +307,47 @@ export class StatsReader {
     })
   }
 
+  rules(query: RulesQuery): Promise<StatsAnswer<StatsRules>> {
+    const settings = this.compareSettings()
+    const key = `rules|${query.scope}|${query.account}|${query.projects?.join(',') ?? '*'}|${query.kinds?.join(',') ?? '*'}|${settings.minSessions}`
+    return this.cached(key, (pool) => readRules(this.db(pool), query, settings))
+  }
+
+  ruleDiff(ids: string[]): Promise<StatsAnswer<RuleDiffFile[]>> {
+    return this.cached(`diff|${ids.join(',')}`, (pool) => readRuleDiff(this.db(pool), ids))
+  }
+
+  compare(query: CompareQuery): Promise<StatsAnswer<StatsCompare>> {
+    const settings = this.compareSettings()
+    const key = `compare|${query.scope}|${query.account}|${query.projects?.join(',') ?? '*'}|${query.before}|${query.after}|${query.days}|${JSON.stringify(settings)}`
+    return this.cached(key, (pool) => readCompare(this.db(pool), query, settings))
+  }
+
+  private db(pool: pg.Pool): RulesDb {
+    return {
+      base: (sql, filter, extra) => this.query(pool, sql, filter, extra),
+      plain: (sql, params) => pool.query<Row>(sql, params).then((result) => result.rows),
+      places: async () => {
+        const { dirs, labels } = await this.groups(pool)
+        return {
+          baton: this.keys.map((key, index) => ({ key, dir: this.dirs[index]! })),
+          folders: dirs.map((dir, index) => ({ dir, label: labels[index]! })),
+        }
+      },
+    }
+  }
+
   private async query(pool: pg.Pool, sql: string, filter: StatsFilter, extra: unknown[] = []): Promise<Row[]> {
-    const [dirs, labels] = await this.groups(pool)
+    const { dirs, labels } = await this.groups(pool)
     const result = await pool.query<Row>(sql, [this.keys, this.dirs, filter.tz, filter.scope, filter.account, dirs, labels, ...extra])
     return result.rows
   }
 
-  private groups(pool: pg.Pool): Promise<[string[], string[]]> {
+  private groups(pool: pg.Pool): Promise<Folders> {
     if (this.folders !== null && Date.now() - this.folders.at < CACHE_MS) return this.folders.groups
     const groups = pool.query<{ dir: string; raw: string }>(FOLDERS).then((result) => {
       const found = folderGroups(result.rows, this.dirs)
-      return [[...found.keys()], [...found.values()]] as [string[], string[]]
+      return { dirs: [...found.keys()], labels: [...found.values()] }
     })
     this.folders = { at: Date.now(), groups }
     groups.catch(() => (this.folders = null))

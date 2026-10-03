@@ -13,11 +13,24 @@ import {
   type StatsPeriod,
   type StatsTaskDetail,
 } from './stats/model.js'
+import {
+  parseChangeIds,
+  parseCompareQuery,
+  parseRulesQuery,
+  type CompareQuery,
+  type RuleDiffFile,
+  type RulesQuery,
+  type StatsCompare,
+  type StatsRules,
+} from './stats/rules.js'
 
 export interface StatsSource {
   history(filter: StatsFilter): Promise<StatsAnswer<StatsHistory>>
   period(query: PeriodQuery): Promise<StatsAnswer<StatsPeriod>>
   task(task: string): Promise<StatsAnswer<StatsTaskDetail>>
+  rules(query: RulesQuery): Promise<StatsAnswer<StatsRules>>
+  ruleDiff(ids: string[]): Promise<StatsAnswer<RuleDiffFile[]>>
+  compare(query: CompareQuery): Promise<StatsAnswer<StatsCompare>>
 }
 
 export interface ChainControl {
@@ -129,7 +142,7 @@ async function route(deps: ServerDeps, request: IncomingMessage, response: Serve
     return
   }
 
-  const stats = /^\/api\/stats\/(history|period|task\/([^/]+))$/.exec(path)
+  const stats = /^\/api\/stats\/(history|period|rules|rules\/diff|rules\/compare|task\/([^/]+))$/.exec(path)
   if (request.method === 'GET' && stats !== null) {
     let read: () => Promise<StatsAnswer<unknown>>
     try {
@@ -139,6 +152,15 @@ async function route(deps: ServerDeps, request: IncomingMessage, response: Serve
       } else if (stats[1] === 'period') {
         const query = parsePeriodQuery(url.searchParams)
         read = () => deps.stats.period(query)
+      } else if (stats[1] === 'rules') {
+        const query = parseRulesQuery(url.searchParams)
+        read = () => deps.stats.rules(query)
+      } else if (stats[1] === 'rules/diff') {
+        const ids = parseChangeIds(url.searchParams)
+        read = () => deps.stats.ruleDiff(ids)
+      } else if (stats[1] === 'rules/compare') {
+        const query = parseCompareQuery(url.searchParams)
+        read = () => deps.stats.compare(query)
       } else {
         const task = decodeURIComponent(stats[2]!)
         if (!isTaskId(task)) throw new Error('task must look like ABC-12')

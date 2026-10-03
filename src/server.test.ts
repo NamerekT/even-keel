@@ -67,6 +67,9 @@ describe('Baton HTTP server', () => {
         history: async (filter) => ({ state: 'off', reason: `history ${filter.scope} ${filter.account} ${filter.tz}` }),
         period: async (query) => ({ state: 'off', reason: `period ${query.from} ${query.to} ${query.projects?.join('+')}` }),
         task: async (task) => ({ state: 'error', error: `task ${task}` }),
+        rules: async (query) => ({ state: 'off', reason: `rules ${query.projects?.join('+')} ${query.kinds?.join('+')}` }),
+        ruleDiff: async (ids) => ({ state: 'off', reason: `diff ${ids.length}` }),
+        compare: async (query) => ({ state: 'off', reason: `compare ${query.before} ${query.after} ${query.days}` }),
       },
     })
     await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve))
@@ -234,6 +237,19 @@ describe('Baton HTTP server', () => {
     const task = await fetch(base + '/api/stats/task/ABC-12')
     expect(await task.json()).toEqual({ state: 'error', error: 'task ABC-12' })
     expect((await fetch(base + '/api/stats/ABC')).status).toBe(404)
+  })
+
+  it('serves the rule marks, a diff and a before and after comparison', async () => {
+    const rules = await fetch(base + '/api/stats/rules?projects=ABC&kinds=skill,memory')
+    expect(await rules.json()).toEqual({ state: 'off', reason: 'rules ABC skill+memory' })
+    const id = 'f'.repeat(40)
+    const diff = await fetch(base + `/api/stats/rules/diff?changes=${id},${id}`)
+    expect(await diff.json()).toEqual({ state: 'off', reason: 'diff 2' })
+    const compare = await fetch(base + '/api/stats/rules/compare?before=2026-09-10T10:00:00Z&after=2026-09-11T10:00:00Z&days=3')
+    expect(await compare.json()).toEqual({ state: 'off', reason: 'compare 2026-09-10T10:00:00.000Z 2026-09-11T10:00:00.000Z 3' })
+    expect((await fetch(base + '/api/stats/rules?kinds=prompt')).status).toBe(400)
+    expect((await fetch(base + '/api/stats/rules/diff?changes=x')).status).toBe(400)
+    expect((await fetch(base + '/api/stats/rules/compare?before=2026-09-10')).status).toBe(400)
   })
 
   it('refuses a malformed statistics request', async () => {

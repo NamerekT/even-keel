@@ -85,7 +85,7 @@ let agents: AgentEntry[] = []
 let agentsRead = false
 let huly: HulyHealth = { state: 'off', lastOkAt: null, error: null }
 const launches: LaunchEntry[] = readLaunches(launchesFile)
-const stats = new StatsReader(readerSettings(process.env), config.projects)
+const stats = new StatsReader(readerSettings(process.env), config.projects, () => configFile.current.stats.compare)
 let ledger = loadLedger(accountFile)
 
 const saveAccounts = (next: AccountLedger) => {

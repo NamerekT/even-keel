@@ -13,6 +13,7 @@ describe('parseConfig', () => {
       slots: [],
       context: { window: 600_000, warn: 50, danger: 80 },
       modelPrompts: {},
+      stats: { compare: { minTasks: 5, minSessions: 10, days: 7 } },
     })
   })
 
@@ -90,6 +91,18 @@ describe('parseConfig', () => {
   it('rejects a context scale that is not an object', () => {
     expect(() => parseConfig({ projects: {}, context: 600_000 })).toThrow(/context/)
   })
+
+  it('fills the missing parts of the before and after comparison', () => {
+    expect(parseConfig({ projects: {}, stats: { compare: { days: 14 } } }).stats).toEqual({ compare: { minTasks: 5, minSessions: 10, days: 14 } })
+  })
+
+  it('rejects comparison thresholds that are not positive integers', () => {
+    expect(() => parseConfig({ projects: {}, stats: { compare: { minTasks: 0 } } })).toThrow(/stats.compare.minTasks/)
+    expect(() => parseConfig({ projects: {}, stats: { compare: { days: 2.5 } } })).toThrow(/stats.compare.days/)
+    expect(() => parseConfig({ projects: {}, stats: { compare: { days: 400 } } })).toThrow(/stats.compare.days/)
+    expect(() => parseConfig({ projects: {}, stats: { compare: { window: 3 } } })).toThrow(/stats.compare.window/)
+    expect(() => parseConfig({ projects: {}, stats: [] })).toThrow(/stats/)
+  })
 })
 
 describe('chain rules in the config', () => {
@@ -139,9 +152,10 @@ describe('reloading the config', () => {
 
   it('applies new chain rules and model prompts at once', () => {
     const next = parseConfig({ chain: { requiredLabels: ['Auto'] }, projects: { ABC: 'C:\\abc' }, modelPrompts: { opus: 'New.' } })
-    const live = liveConfig(base, next)
+    const live = liveConfig(base, { ...next, stats: { compare: { minTasks: 3, minSessions: 6, days: 7 } } })
     expect(live.rules.ABC?.requiredLabels).toEqual(['Auto'])
     expect(live.modelPrompts).toEqual({ opus: 'New.' })
+    expect(live.stats.compare.minTasks).toBe(3)
     expect(restartChanges(base, next)).toEqual([])
   })
 
