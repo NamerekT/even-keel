@@ -1,4 +1,5 @@
 import type { BatonState, SessionRecord } from '../../../src/state.js'
+import type { StatsAnswer, StatsQuery } from '../../../src/stats/model.js'
 
 export type Link = 'connecting' | 'live' | 'stale'
 
@@ -21,6 +22,7 @@ export interface LiveSource {
   retryNow(): void
   command(name: string, body?: Record<string, unknown>): Promise<void>
   session(sessionId: string): Promise<SessionRecord | null>
+  stats(project: string, query: StatsQuery): Promise<StatsAnswer>
 }
 
 export interface LiveDeps {
@@ -28,6 +30,7 @@ export interface LiveDeps {
   openEvents: () => EventStream
   sendCommand: (name: string, body: Record<string, unknown>) => Promise<BatonState>
   fetchSession: (sessionId: string) => Promise<SessionRecord | null>
+  fetchStats: (project: string, query: StatsQuery) => Promise<StatsAnswer>
 }
 
 const CLOSED = 2
@@ -86,6 +89,10 @@ export class LiveConnection implements LiveSource {
 
   session(sessionId: string): Promise<SessionRecord | null> {
     return this.deps.fetchSession(sessionId)
+  }
+
+  stats(project: string, query: StatsQuery): Promise<StatsAnswer> {
+    return this.deps.fetchStats(project, query)
   }
 
   private open(): void {

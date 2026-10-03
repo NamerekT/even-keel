@@ -63,6 +63,8 @@ describe('Baton HTTP server', () => {
         if (id === 'bad') throw new Error('sessions: bad is not a session id')
         return id === '0a1b2c3d' ? { sessionId: id } : undefined
       },
+      stats: async (project, query) =>
+        project === 'ABC' ? { state: 'off', reason: `${project} ${query.days} ${query.scope}` } : undefined,
     })
     await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve))
     base = `http://127.0.0.1:${(server.address() as AddressInfo).port}`
@@ -219,6 +221,16 @@ describe('Baton HTTP server', () => {
     const refused = await fetch(base + '/api/sessions/bad')
     expect(refused.status).toBe(400)
     expect(await refused.json()).toEqual({ error: 'sessions: bad is not a session id' })
+  })
+
+  it('serves the Tally statistics of a configured project', async () => {
+    const found = await fetch(base + '/api/stats/ABC?days=30&scope=chain')
+    expect(found.status).toBe(200)
+    expect(await found.json()).toEqual({ state: 'off', reason: 'ABC 30 chain' })
+    expect((await fetch(base + '/api/stats/QQQ')).status).toBe(404)
+    const refused = await fetch(base + '/api/stats/ABC?days=2')
+    expect(refused.status).toBe(400)
+    expect(await refused.json()).toEqual({ error: 'days must be one of 7, 30' })
   })
 
   it('serves the launch journal', async () => {

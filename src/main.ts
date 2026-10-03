@@ -33,6 +33,8 @@ import { SessionMonitor } from './sessions/monitor.js'
 import { isInside, slotOccupants } from './sessions/occupants.js'
 import { locateWorktree } from './sessions/place.js'
 import type { BatonState, SessionView } from './state.js'
+import { readerSettings } from './stats/model.js'
+import { StatsReader } from './stats/reader.js'
 
 const HULY_POLL_MS = 5_000
 const TASKS_REFRESH_MS = 30_000
@@ -83,6 +85,7 @@ let agents: AgentEntry[] = []
 let agentsRead = false
 let huly: HulyHealth = { state: 'off', lastOkAt: null, error: null }
 const launches: LaunchEntry[] = readLaunches(launchesFile)
+const stats = new StatsReader(readerSettings(process.env))
 let ledger = loadLedger(accountFile)
 
 const saveAccounts = (next: AccountLedger) => {
@@ -344,6 +347,10 @@ const server = createBatonServer({
       if (record !== undefined) return record
     }
     return undefined
+  },
+  stats: async (project, query) => {
+    const repo = config.projects[project]
+    return repo === undefined ? undefined : stats.project(project, repo, query)
   },
 })
 

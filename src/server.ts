@@ -2,6 +2,7 @@ import { readFile } from 'node:fs/promises'
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http'
 import { extname, join, normalize, sep } from 'node:path'
 import { formatEvent, type EventHub } from './events.js'
+import { parseStatsQuery, type StatsAnswer, type StatsQuery } from './stats/model.js'
 
 export interface ChainControl {
   start(project: string): void
@@ -36,6 +37,7 @@ export interface ServerDeps {
   account: AccountControl
   launches: () => unknown
   sessionRecord: (sessionId: string) => Promise<unknown>
+  stats: (project: string, query: StatsQuery) => Promise<StatsAnswer | undefined>
 }
 
 type Command = (deps: ServerDeps, body: Record<string, unknown>) => void | Promise<void>
@@ -84,7 +86,8 @@ export function createBatonServer(deps: ServerDeps): Server {
 }
 
 async function route(deps: ServerDeps, request: IncomingMessage, response: ServerResponse): Promise<void> {
-  const path = new URL(request.url ?? '/', 'http://localhost').pathname
+  const url = new URL(request.url ?? '/', 'http://localhost')
+  const path = url.pathname
 
   if (request.method === 'GET' && path === '/api/state') {
     sendJson(response, 200, deps.getState())
@@ -107,6 +110,21 @@ async function route(deps: ServerDeps, request: IncomingMessage, response: Serve
     }
     if (record === undefined) response.writeHead(404).end()
     else sendJson(response, 200, record)
+    return
+  }
+
+  const stats = /^\/api\/stats\/([^/]+)$/.exec(path)
+  if (request.method === 'GET' && stats !== null) {
+    let query: StatsQuery
+    try {
+      query = parseStatsQuery(url.searchParams)
+    } catch (error) {
+      sendJson(response, 400, { error: error instanceof Error ? error.message : String(error) })
+      return
+    }
+    const answer = await deps.stats(decodeURIComponent(stats[1]!), query)
+    if (answer === undefined) response.writeHead(404).end()
+    else sendJson(response, 200, answer)
     return
   }
 

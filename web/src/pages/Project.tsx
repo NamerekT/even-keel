@@ -9,6 +9,7 @@ import { StatusChip } from '../ui/StatusChip.js'
 import { ChainList } from './ChainList.js'
 import { NotFound } from './NotFound.js'
 import { SessionPanel } from './SessionPanel.js'
+import { StatsPanel } from './StatsPanel.js'
 
 export function Project({ state }: { state: BatonState }) {
   const key = useParams().key ?? ''
@@ -47,6 +48,7 @@ export function Project({ state }: { state: BatonState }) {
         ) : (
           <ChainList key={key} project={key} chain={blocks} scale={state.context} focus={focus} />
         )}
+        <StatsPanel key={`stats-${key}`} project={key} trackerUrl={state.trackerUrl} />
       </div>
       {selected !== undefined && (
         <SessionPanel key={selected.id} block={selected} scale={state.context} trackerUrl={state.trackerUrl} onClose={close} />

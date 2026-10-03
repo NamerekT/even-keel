@@ -70,6 +70,7 @@ describe('LiveConnection', () => {
     answer = async () => state('commanded')
     live = new LiveConnection({
       fetchSession: async () => null,
+      fetchStats: async () => ({ state: 'off', reason: 'test' }),
       sendCommand: (name, body) => {
         commands.push({ name, body })
         return answer()
