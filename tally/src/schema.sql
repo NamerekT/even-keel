@@ -243,6 +243,93 @@ from spans sp
 left join session_tasks st on st.session_id = sp.session_id
 left join span_reasons r on r.span_id = sp.id;
 
+-- Session audit (the session-audit skill, BTN-53). Context of a request is its whole prompt: input plus cache
+-- read and write; context metrics take the main thread only, money takes subagents too. Tally's classifier
+-- answers are not sessions. Active time sums the gaps between answers of up to 10 minutes.
+create or replace view audit_sessions as
+with tools as (
+  select session_id, count(*) as calls,
+    count(*) filter (where is_error and coalesce(error_kind, '') not in ('denied', 'hook')) as errors,
+    count(*) filter (where error_kind in ('denied', 'hook')) as denied
+  from tool_calls
+  group by session_id
+), gaps as (
+  select session_id, extract(epoch from at - lag(at) over (partition by session_id order by at)) as gap
+  from messages
+), active as (
+  select session_id, coalesce(sum(gap) filter (where gap <= 600), 0) / 60 as minutes from gaps group by session_id
+)
+select
+  c.session_id,
+  min(c.account) as account,
+  (array_agg(x.dir order by c.at) filter (where c.agent_id is null))[1] as dir,
+  st.task,
+  split_part(st.task, '-', 1) as key,
+  s.launch_reason,
+  min(c.at) as first_at,
+  max(c.at) as last_at,
+  max(ac.minutes) as active_min,
+  (array_agg(c.model order by c.at) filter (where c.agent_id is null))[1] as model,
+  count(*) filter (where c.agent_id is null) as requests,
+  coalesce(sum(x.ctx) filter (where c.agent_id is null), 0) as ctx_sum,
+  max(x.ctx) filter (where c.agent_id is null) as ctx_peak,
+  count(*) filter (where c.agent_id is null and x.ctx > 150000) as over150,
+  (array_agg(x.ctx order by c.at) filter (where c.agent_id is null))[1] as entry_ctx,
+  sum(c.cost) as cost,
+  coalesce(sum(c.cost) filter (where c.agent_id is null), 0) as main_cost,
+  count(*) filter (where c.cost is null) as unpriced,
+  coalesce(sum(c.cost) filter (where exists (
+    select 1 from spans sp
+    where sp.session_id = c.session_id and sp.agent_id = coalesce(c.agent_id, '') and c.at between sp.from_at and sp.to_at
+  )), 0) as stuck_cost,
+  coalesce(max(t.calls), 0) as tool_calls,
+  coalesce(max(t.errors), 0) as tool_errors,
+  coalesce(max(t.denied), 0) as tool_denied,
+  coalesce(s.custom_title, s.ai_title) as title
+from message_costs c
+join sessions s on s.session_id = c.session_id
+left join session_tasks st on st.session_id = c.session_id
+left join tools t on t.session_id = c.session_id
+left join active ac on ac.session_id = c.session_id
+cross join lateral (
+  select c.input + c.cache_write_5m + c.cache_write_1h + c.cache_read as ctx,
+    lower(regexp_replace(replace(coalesce(c.project_dir, ''), '\', '/'), '^[a-zA-Z]:', '')) as dir
+) x
+where c.entrypoint is distinct from 'tally-classify'
+group by c.session_id, st.task, s.launch_reason, s.custom_title, s.ai_title;
+
+-- A task over all its sessions; it belongs to the period of its first message.
+create or replace view audit_tasks as
+select
+  a.task,
+  min(a.key) as key,
+  (array_agg(a.dir order by a.first_at))[1] as dir,
+  min(a.first_at) as first_at,
+  max(a.last_at) as last_at,
+  sum(a.active_min) as active_min,
+  count(*) as sessions,
+  count(*) filter (where a.launch_reason = 'relay') as relays,
+  count(*) filter (where a.launch_reason = 'checkpoint') as checkpoints,
+  count(*) filter (where a.launch_reason = 'restart') as restarts,
+  array_agg(distinct a.model) filter (where a.model is not null) as models,
+  sum(a.requests) as requests,
+  sum(a.ctx_sum) as ctx_sum,
+  sum(a.over150) as over150,
+  max(a.ctx_peak) as ctx_peak,
+  (array_agg(a.entry_ctx order by a.first_at))[1] as entry_ctx,
+  sum(a.cost) as cost,
+  sum(a.stuck_cost) as stuck_cost,
+  (select count(*) from spans sp join session_tasks st on st.session_id = sp.session_id where st.task = a.task) as spans,
+  sum(a.tool_calls) as tool_calls,
+  sum(a.tool_errors) as tool_errors,
+  sum(a.tool_denied) as tool_denied,
+  coalesce('Переделка' = any(t.labels), false) as rework,
+  t.title, t.status, t.labels, t.related
+from audit_sessions a
+left join tasks t on t.task = a.task
+where a.task is not null
+group by a.task, t.title, t.status, t.labels, t.related;
+
 create or replace view task_repeats as
 with st as (
   select * from session_tasks where task is not null
@@ -354,3 +441,31 @@ create table if not exists rule_imports (
   task text,
   source text not null
 );
+
+-- A rule change with the folder it applies to: 'global', or the folder of a project file; memory folders
+-- (slug scopes) resolve through the folders sessions ran in (session-audit skill, BTN-53). `undone` — the
+-- same file went back to the old text within a day, as in the false deleted-and-created pairs.
+create or replace view audit_rules as
+with dirs as materialized (
+  select distinct lower(regexp_replace(replace(project_dir, '\', '/'), '^[a-zA-Z]:', '')) as dir
+  from messages
+  where project_dir is not null
+)
+select c.id, c.at, c.key, f.display, f.kind, c.source, c.added, c.removed,
+  exists (
+    select 1 from rule_changes b
+    where b.key = c.key and b.id <> c.id and b.old_hash is not distinct from c.new_hash
+      and b.new_hash is not distinct from c.old_hash and abs(extract(epoch from b.at - c.at)) <= 86400
+  ) as undone,
+  case
+    when f.scope = 'global' then 'global'
+    when f.scope like 'slug:%' then coalesce((
+      select d.dir from dirs d
+      where regexp_replace(d.dir, '[^a-z0-9]', '-', 'g') = regexp_replace(f.scope, '^slug:[a-z]-', '')
+      order by d.dir
+      limit 1
+    ), f.scope)
+    else f.scope
+  end as place
+from rule_changes c
+join rule_files f on f.key = c.key;
