@@ -19,6 +19,7 @@ import type { UsageHealth } from '../../../src/limits/usage.js'
 import type { LimitHold } from '../../../src/chain/relay.js'
 import type { BatonState, SessionRecord, SessionView } from '../../../src/state.js'
 import type { Link, LiveSnapshot, LiveSource } from './connection.js'
+import { fakeCompare, fakeRuleDiff, fakeRules } from './fakeRules.js'
 import { fakeHistory, fakePeriod, fakeTask } from './fakeStats.js'
 
 const TICK_MS = 2_000
@@ -655,6 +656,18 @@ export function createFakeSource(search: string): LiveSource {
     statsTask: async (task) => {
       await new Promise((resolve) => setTimeout(resolve, 300))
       return fakeTask(params.get('stats'), task)
+    },
+    statsRules: async (query) => {
+      await new Promise((resolve) => setTimeout(resolve, 300))
+      return fakeRules(params.get('stats'), params.get('rules'), query)
+    },
+    statsRuleDiff: async (changes) => {
+      await new Promise((resolve) => setTimeout(resolve, 300))
+      return fakeRuleDiff(params.get('stats'), changes)
+    },
+    statsCompare: async (query) => {
+      await new Promise((resolve) => setTimeout(resolve, 300))
+      return fakeCompare(params.get('stats'), params.get('rules'), query)
     },
   }
 }

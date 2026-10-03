@@ -65,7 +65,7 @@ function scale(filter: StatsFilter, project: string): number {
   return scope * account
 }
 
-function failure<T>(mode: string | null): StatsAnswer<T> | null {
+export function failure<T>(mode: string | null): StatsAnswer<T> | null {
   if (mode === 'off') return { state: 'off', reason: 'не заданы TALLY_DB_HOST, TALLY_DB_NAME, TALLY_READER_PASSWORD в .env' }
   if (mode === 'error') return { state: 'error', error: 'connect ETIMEDOUT 100.64.0.1:5432' }
   return null

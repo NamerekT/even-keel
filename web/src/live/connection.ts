@@ -1,5 +1,6 @@
 import type { BatonState, SessionRecord } from '../../../src/state.js'
 import type { PeriodQuery, StatsAnswer, StatsFilter, StatsHistory, StatsPeriod, StatsTaskDetail } from '../../../src/stats/model.js'
+import type { CompareQuery, RuleDiffFile, RulesQuery, StatsCompare, StatsRules } from '../../../src/stats/rules.js'
 
 export type Link = 'connecting' | 'live' | 'stale'
 
@@ -25,6 +26,9 @@ export interface LiveSource {
   statsHistory(filter: StatsFilter): Promise<StatsAnswer<StatsHistory>>
   statsPeriod(query: PeriodQuery): Promise<StatsAnswer<StatsPeriod>>
   statsTask(task: string): Promise<StatsAnswer<StatsTaskDetail>>
+  statsRules(query: RulesQuery): Promise<StatsAnswer<StatsRules>>
+  statsRuleDiff(changes: string[]): Promise<StatsAnswer<RuleDiffFile[]>>
+  statsCompare(query: CompareQuery): Promise<StatsAnswer<StatsCompare>>
 }
 
 export interface LiveDeps {
@@ -107,6 +111,26 @@ export class LiveConnection implements LiveSource {
 
   statsTask(task: string): Promise<StatsAnswer<StatsTaskDetail>> {
     return this.deps.fetchStats(`task/${encodeURIComponent(task)}`, new URLSearchParams())
+  }
+
+  statsRules(query: RulesQuery): Promise<StatsAnswer<StatsRules>> {
+    const search = filterSearch(query)
+    if (query.projects !== null) search.set('projects', query.projects.join(','))
+    if (query.kinds !== null) search.set('kinds', query.kinds.join(','))
+    return this.deps.fetchStats('rules', search)
+  }
+
+  statsRuleDiff(changes: string[]): Promise<StatsAnswer<RuleDiffFile[]>> {
+    return this.deps.fetchStats('rules/diff', new URLSearchParams({ changes: changes.join(',') }))
+  }
+
+  statsCompare(query: CompareQuery): Promise<StatsAnswer<StatsCompare>> {
+    const search = filterSearch(query)
+    search.set('before', query.before)
+    search.set('after', query.after)
+    if (query.days !== null) search.set('days', String(query.days))
+    if (query.projects !== null) search.set('projects', query.projects.join(','))
+    return this.deps.fetchStats('rules/compare', search)
   }
 
   private open(): void {

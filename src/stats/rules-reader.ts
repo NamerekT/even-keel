@@ -1,8 +1,8 @@
-import type { CompareSettings } from '../config.js'
 import type { StatsFilter } from './model.js'
 import { BASE } from './base-sql.js'
 import {
   compareOf,
+  type CompareSettings,
   mergeMarks,
   ruleDiff,
   ruleSets,

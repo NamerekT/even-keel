@@ -3,6 +3,7 @@ import { DEFAULT_RULES, sameName, type ChainRules } from './chain/rules.js'
 import { isModelAlias, type ModelAlias } from './huly/model.js'
 import { placeholderIn } from './sessions/prompt.js'
 import type { ContextScale } from './state.js'
+import type { CompareSettings } from './stats/rules.js'
 
 export interface BatonConfig {
   host: string
@@ -13,12 +14,6 @@ export interface BatonConfig {
   context: ContextScale
   modelPrompts: Partial<Record<ModelAlias, string>>
   stats: StatsConfig
-}
-
-export interface CompareSettings {
-  minTasks: number
-  minSessions: number
-  days: number
 }
 
 export interface StatsConfig {

@@ -1,4 +1,3 @@
-import type { CompareSettings } from '../config.js'
 import { lineDiff, type DiffHunk } from './diff.js'
 import { parseStatsFilter, type StatsFilter } from './model.js'
 
@@ -45,6 +44,12 @@ export interface RuleMark {
   fromAt: string
   toAt: string
   sets: RuleSet[]
+}
+
+export interface CompareSettings {
+  minTasks: number
+  minSessions: number
+  days: number
 }
 
 export interface StatsRules {

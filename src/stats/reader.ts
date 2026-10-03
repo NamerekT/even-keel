@@ -11,11 +11,10 @@ import type {
   StatsTaskDetail,
   StatsTotals,
 } from './model.js'
-import type { CompareSettings } from '../config.js'
 import { BASE } from './base-sql.js'
 import { folderGroups, repoTail } from './model.js'
 import { readCompare, readRuleDiff, readRules, type RulesDb } from './rules-reader.js'
-import type { CompareQuery, RuleDiffFile, RulesQuery, StatsCompare, StatsRules } from './rules.js'
+import type { CompareQuery, CompareSettings, RuleDiffFile, RulesQuery, StatsCompare, StatsRules } from './rules.js'
 
 const CACHE_MS = 60_000
 const TOP_STUCK = 20
