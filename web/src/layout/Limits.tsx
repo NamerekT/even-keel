@@ -9,7 +9,7 @@ export function Limits({ limits, now }: { limits: RateLimits | null; now: Date }
   const source = limits === null ? '' : ` · ${SOURCES[limits.source]}`
   return (
     <div className="limits">
-      <Meter label="5 ч" title="Лимит 5 часов" source={source} window={limits?.fiveHour ?? null} now={now} />
+      <Meter label="5 часов" title="Лимит 5 часов" source={source} window={limits?.fiveHour ?? null} now={now} />
       <Meter label="Неделя" title="Недельный лимит" source={source} window={limits?.sevenDay ?? null} now={now} />
     </div>
   )
@@ -27,9 +27,11 @@ function Meter({ label, title, source, window, now }: MeterProps) {
   if (window === null) {
     return (
       <div className="meter meter--empty" title={`${title}: нет данных${source}`}>
-        <span className="meter__label">{label}</span>
+        <span className="meter__top">
+          <span className="meter__label">{label}</span>
+          <span className="meter__value">—</span>
+        </span>
         <span className="meter__bar" aria-hidden="true" />
-        <span className="meter__value">—</span>
       </div>
     )
   }
@@ -38,7 +40,11 @@ function Meter({ label, title, source, window, now }: MeterProps) {
   const resetIn = formatSpan(window.resetsAt, now)
   return (
     <div className={`meter${percent >= HOT_PERCENT ? ' meter--hot' : ''}`} title={`${title}: сброс через ${resetIn}${source}`}>
-      <span className="meter__label">{label}</span>
+      <span className="meter__top">
+        <span className="meter__label">{label}</span>
+        <span className="meter__value">{percent}%</span>
+        <span className="meter__reset">↻ {resetIn}</span>
+      </span>
       <span
         className="meter__bar"
         role="meter"
@@ -49,8 +55,6 @@ function Meter({ label, title, source, window, now }: MeterProps) {
       >
         <span className="meter__fill" style={{ width: `${percent}%` }} />
       </span>
-      <span className="meter__value">{percent}%</span>
-      <span className="meter__reset">↻ {resetIn}</span>
     </div>
   )
 }

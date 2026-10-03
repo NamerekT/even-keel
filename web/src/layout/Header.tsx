@@ -3,13 +3,13 @@ import { useLive } from '../live/context.js'
 import { AccountMenu } from './Account.js'
 import { Limits } from './Limits.js'
 import { QueueMenu } from './Queue.js'
-import { HulyState, ServerState, Waiting } from './Status.js'
+import { SystemMenu, Waiting } from './Status.js'
 import { useNow } from './useNow.js'
 
 const CLOCK_MS = 5_000
 
 export function Header() {
-  const { state, link } = useLive()
+  const { state } = useLive()
   const project = useMatch('/p/:key')?.params.key
   const now = useNow(CLOCK_MS)
 
@@ -33,8 +33,7 @@ export function Header() {
           {state !== null && <QueueMenu state={state} />}
           {state !== null && <AccountMenu account={state.account} />}
           {state !== null && <Waiting sessions={state.sessions} tasks={state.tasks} />}
-          {state !== null && <HulyState health={state.huly} now={now} />}
-          <ServerState link={link} />
+          <SystemMenu now={now} />
         </div>
         {state !== null && (
           <div className="header__limits">
