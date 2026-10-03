@@ -14,7 +14,7 @@ import { transcriptSession } from './rule-history.js'
 import { readBackup, ruleSources, skillsOf } from './rule-scan.js'
 import { backfillRules, collectRuleHistory, importRuleHistory, refreshRuleChanges, snapshotRules } from './rule-steps.js'
 import { transcriptFiles } from './scan.js'
-import { classifySpans, refreshSigns, refreshTasks, refreshTurns, reportTaskTimes } from './steps.js'
+import { classifySpans, refreshSigns, refreshSteps, refreshTasks, refreshTurns, reportTaskTimes } from './steps.js'
 
 const CHUNK_BYTES = 8 * 1024 * 1024
 const BATON_TIMEOUT_MS = 5_000
@@ -79,6 +79,7 @@ async function run(): Promise<number> {
     const imported = await importRuleHistory(db, resolve(root, config.ruleHistory ?? join(stateDir, 'rule-history.jsonl')), log)
     const signed = await refreshSigns(db, config.signs)
     const turned = await refreshTurns(db)
+    const stepped = await refreshSteps(db, config.steps)
     const tasks = await refreshTasks(db, log)
     const reports = await reportTaskTimes(db, config.reportsSince, log)
     const classified = await classifySpans(db, config.classify, log)
@@ -90,7 +91,7 @@ async function run(): Promise<number> {
       `tally: ${sources.length} files, ${files} read, ${lines} lines, ${failed} failed, ${forgotten} forgotten, ` +
         `${relabeled} sessions relabeled, ${snapshots} limit snapshots, ` +
         `${ruleFiles.length} rule files (${versions} new versions, ${history} from git, ${changes} new changes), ${imported} imported rule sets, ` +
-        `${signed.sessions} sessions signed (${signed.spans} spans), ${turned} sessions split into turns, ${tasks} Huly tasks, ${reports} time reports, ${classified} spans classified, ${seconds} s`,
+        `${signed.sessions} sessions signed (${signed.spans} spans), ${turned} sessions split into turns, ${stepped} into steps, ${tasks} Huly tasks, ${reports} time reports, ${classified} spans classified, ${seconds} s`,
     )
     return failed > 0 ? 1 : 0
   } finally {

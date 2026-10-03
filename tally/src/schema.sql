@@ -551,3 +551,75 @@ select c.id, c.at, c.key, f.display, f.kind, c.source, c.added, c.removed,
   end as place
 from rule_changes c
 join rule_files f on f.key = c.key;
+
+-- Shell commands as steps (BTN-56, src/step-runs.ts): one row per launched command, polls of a background or
+-- detached run are not runs of their own. `place` is the worktree (or folder) and git branch of the launch.
+create table if not exists step_runs (
+  tool_use_id text primary key,
+  session_id text not null,
+  agent_id text not null,
+  step text,
+  signature text not null,
+  command text not null,
+  started_at timestamptz not null,
+  ended_at timestamptz not null,
+  seconds numeric not null,
+  mode text not null,
+  end_by text not null,
+  outcome text,
+  place text not null,
+  polls int not null
+);
+create index if not exists step_runs_session on step_runs (session_id);
+create index if not exists step_runs_step on step_runs (step, started_at);
+
+create table if not exists step_sessions (
+  session_id text primary key,
+  last_at timestamptz,
+  key text not null
+);
+
+-- A run is cold when it is the first of its step in its worktree and branch: a new worktree or a slot switched
+-- to another branch.
+create or replace view step_runs_x as
+select r.*,
+  case when r.step is not null then
+    row_number() over (partition by r.step, r.place order by r.started_at, r.tool_use_id) = 1
+  end as cold,
+  st.task, s.project
+from step_runs r
+left join session_tasks st on st.session_id = r.session_id
+left join sessions s on s.session_id = r.session_id;
+
+-- Weekly spread of a step per project folder (sessions.project), for the audit skill.
+create or replace view step_weeks as
+select project, step, date_trunc('week', started_at at time zone 'UTC')::date as week,
+  count(*) as n,
+  percentile_cont(0.5) within group (order by seconds) as p50,
+  percentile_cont(0.9) within group (order by seconds) as p90,
+  max(seconds) as max,
+  count(*) filter (where cold) as cold,
+  count(*) filter (where outcome in ('fail', 'timeout')) as failed
+from step_runs_x
+where step is not null
+group by project, step, week;
+
+-- A week against the one before it; growth thresholds come from tally.config.json (tally_meta 'steps').
+create or replace view step_growth as
+with w as (
+  select g.*,
+    lag(g.week) over x as prev_week, lag(g.n) over x as prev_n, lag(g.p50) over x as prev_p50, lag(g.p90) over x as prev_p90
+  from step_weeks g
+  window x as (partition by g.project, g.step order by g.week)
+), t as (
+  select coalesce((m.value::jsonb->'growth'->>'ratio')::numeric, 1.5) as ratio,
+    coalesce((m.value::jsonb->'growth'->>'minRuns')::int, 5) as min_runs,
+    coalesce((m.value::jsonb->'growth'->>'minSeconds')::numeric, 10) as min_seconds
+  from (select 1) one
+  left join tally_meta m on m.name = 'steps'
+)
+select w.project, w.step, w.week, w.n, w.p50, w.p90, w.max, w.prev_week, w.prev_n, w.prev_p50, w.prev_p90,
+  w.n >= t.min_runs and w.prev_n >= t.min_runs and w.p50 >= w.prev_p50 * t.ratio and w.p50 - w.prev_p50 >= t.min_seconds as grew_p50,
+  w.n >= t.min_runs and w.prev_n >= t.min_runs and w.p90 >= w.prev_p90 * t.ratio and w.p90 - w.prev_p90 >= t.min_seconds as grew_p90
+from w cross join t
+where w.prev_week is not null;

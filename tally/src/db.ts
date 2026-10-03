@@ -9,6 +9,7 @@ import type { RuleChange, VersionSource } from './rule-changes.js'
 import type { ImportRow } from './rule-imports.js'
 import type { RuleRows } from './rule-parse.js'
 import type { Sign, SignKind, Span } from './signs.js'
+import type { StepRun } from './step-runs.js'
 import type { TranscriptEntry } from './stream.js'
 import type { Turn } from './turns.js'
 
@@ -449,6 +450,44 @@ export class TallyDb implements Store {
       )
       await this.client.query(
         `insert into turn_sessions (session_id, last_at, key) values ($1, $2, $3)
+         on conflict (session_id) do update set last_at = excluded.last_at, key = excluded.key`,
+        [sessionId, lastAt, key],
+      )
+    })
+  }
+
+  async stepStates(): Promise<(SignState & { project: string | null })[]> {
+    const result = await this.client.query(
+      `select s.session_id, s.last_at, s.launch_reason, s.project, g.last_at as signed_at, g.key
+       from sessions s left join step_sessions g on g.session_id = s.session_id`,
+    )
+    return result.rows.map((row) => ({
+      sessionId: row.session_id,
+      lastAt: (row.last_at as Date | null)?.toISOString() ?? null,
+      launchReason: row.launch_reason,
+      project: row.project,
+      signedAt: (row.signed_at as Date | null)?.toISOString() ?? null,
+      key: row.key,
+    }))
+  }
+
+  async writeSteps(sessionId: string, lastAt: string | null, key: string, runs: StepRun[]): Promise<void> {
+    await this.transaction(async () => {
+      await this.client.query('delete from step_runs where session_id = $1', [sessionId])
+      await this.upsert(
+        `insert into step_runs (tool_use_id, session_id, agent_id, step, signature, command, started_at, ended_at, seconds,
+           mode, end_by, outcome, place, polls)
+         select tool_use_id, session_id, agent_id, step, signature, command, started_at, ended_at, seconds,
+           mode, end_by, outcome, place, polls
+         from jsonb_to_recordset($1::jsonb) as x(
+           tool_use_id text, session_id text, agent_id text, step text, signature text, command text,
+           started_at timestamptz, ended_at timestamptz, seconds numeric, mode text, end_by text, outcome text,
+           place text, polls int)
+         on conflict (tool_use_id) do nothing`,
+        runs.map((run) => ({ sessionId, ...run, agentId: run.agentId ?? '' })),
+      )
+      await this.client.query(
+        `insert into step_sessions (session_id, last_at, key) values ($1, $2, $3)
          on conflict (session_id) do update set last_at = excluded.last_at, key = excluded.key`,
         [sessionId, lastAt, key],
       )

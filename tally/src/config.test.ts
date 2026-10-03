@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { DEFAULT_CLASSIFY, dbSettings, parseConfig } from './config.js'
 import { DEFAULT_SIGN_RULES } from './signs.js'
+import { DEFAULT_STEPS } from './step-runs.js'
 
 const price = { input: 4, output: 20, cacheRead: 0.2, cacheWrite5m: 5, cacheWrite1h: 8 }
 
@@ -13,6 +14,7 @@ describe('parseConfig', () => {
       classify: DEFAULT_CLASSIFY,
       ruleHistory: null,
       reportsSince: null,
+      steps: DEFAULT_STEPS,
     })
   })
 
@@ -51,6 +53,33 @@ describe('parseConfig', () => {
     expect(parseConfig({ prices, reportsSince: '2026-10-03' }).reportsSince).toBe('2026-10-03')
     expect(parseConfig({ prices, reportsSince: null }).reportsSince).toBeNull()
     expect(() => parseConfig({ prices, reportsSince: '3 Oct' })).toThrow(/reportsSince/)
+  })
+
+  it('lays step rules over the defaults and drops a rule set to null', () => {
+    const prices = { 'claude-opus-5-5': price }
+    const steps = parseConfig({
+      prices,
+      steps: {
+        rules: { lint: '^npx\\s+eslint\\b', 'git-merge': null },
+        projects: { Gamma: { 'unity-batch': null }, Game: { bake: 'bake\\.ps1' } },
+        slowSeconds: 120,
+        growth: { ratio: 2 },
+      },
+    }).steps
+    expect(Object.keys(steps.rules)).toEqual(['vitest', 'dotnet-test', 'build', 'lint'])
+    expect(steps.projects).toEqual({ Gamma: { 'unity-check': DEFAULT_STEPS.projects.Gamma!['unity-check'] }, Game: { bake: 'bake\\.ps1' } })
+    expect([steps.slowSeconds, steps.growth]).toEqual([120, { ...DEFAULT_STEPS.growth, ratio: 2 }])
+    expect(parseConfig({ prices }).steps).toEqual(DEFAULT_STEPS)
+  })
+
+  it('rejects a broken step rule or setting', () => {
+    const prices = { 'claude-opus-5-5': price }
+    expect(() => parseConfig({ prices, steps: { rules: { bad: '(' } } })).toThrow(/steps\.rules\.bad/)
+    expect(() => parseConfig({ prices, steps: { projects: { Game: { bad: 5 } } } })).toThrow(/steps\.projects\.Game\.bad/)
+    expect(() => parseConfig({ prices, steps: { slowSeconds: 0 } })).toThrow(/slowSeconds/)
+    expect(() => parseConfig({ prices, steps: { growth: { ratio: 1 } } })).toThrow(/growth\.ratio/)
+    expect(() => parseConfig({ prices, steps: { growth: { minRuns: 1.5 } } })).toThrow(/growth\.minRuns/)
+    expect(() => parseConfig({ prices, steps: { speed: 1 } })).toThrow(/steps\.speed/)
   })
 })
 

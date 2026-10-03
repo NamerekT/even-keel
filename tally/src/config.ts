@@ -1,4 +1,5 @@
 import { DEFAULT_SIGN_RULES, type SignRules } from './signs.js'
+import { DEFAULT_STEPS, type StepSettings } from './step-runs.js'
 
 export interface Price {
   model: string
@@ -22,6 +23,7 @@ export interface TallyConfig {
   classify: ClassifySettings
   ruleHistory: string | null
   reportsSince: string | null
+  steps: StepSettings
 }
 
 export interface DbSettings {
@@ -44,6 +46,7 @@ export function parseConfig(raw: unknown): TallyConfig {
     classify?: unknown
     ruleHistory?: unknown
     reportsSince?: unknown
+    steps?: unknown
   }
   const since = record.reportsSince
   if (since !== undefined && since !== null && (typeof since !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(since) || Number.isNaN(Date.parse(since)))) {
@@ -73,7 +76,58 @@ export function parseConfig(raw: unknown): TallyConfig {
     classify: integers('classify', record.classify, DEFAULT_CLASSIFY, 0),
     ruleHistory: (record.ruleHistory as string | undefined) ?? null,
     reportsSince: (since as string | null | undefined) ?? null,
+    steps: parseSteps(record.steps),
   }
+}
+
+function parseSteps(raw: unknown): StepSettings {
+  if (raw === undefined) return structuredClone(DEFAULT_STEPS)
+  const record = objectOf('steps', raw)
+  for (const key of Object.keys(record)) {
+    if (!(key in DEFAULT_STEPS)) throw new Error(`tally: steps.${key} is not a known setting`)
+  }
+  const projects: Record<string, Record<string, string>> = structuredClone(DEFAULT_STEPS.projects)
+  for (const [project, rules] of Object.entries(record.projects === undefined ? {} : objectOf('steps.projects', record.projects))) {
+    projects[project] = stepRules(`steps.projects.${project}`, rules, projects[project] ?? {})
+  }
+  const slow = record.slowSeconds ?? DEFAULT_STEPS.slowSeconds
+  if (typeof slow !== 'number' || !(slow > 0)) throw new Error('tally: steps.slowSeconds must be a positive number of seconds')
+  const growth = { ...DEFAULT_STEPS.growth, ...(record.growth === undefined ? {} : objectOf('steps.growth', record.growth)) }
+  for (const key of Object.keys(growth)) {
+    if (!(key in DEFAULT_STEPS.growth)) throw new Error(`tally: steps.growth.${key} is not a known setting`)
+  }
+  if (typeof growth.ratio !== 'number' || !(growth.ratio > 1)) throw new Error('tally: steps.growth.ratio must be a number above 1')
+  if (!Number.isInteger(growth.minRuns) || growth.minRuns < 1) throw new Error('tally: steps.growth.minRuns must be an integer ≥ 1')
+  if (typeof growth.minSeconds !== 'number' || growth.minSeconds < 0) throw new Error('tally: steps.growth.minSeconds must be ≥ 0')
+  return {
+    rules: stepRules('steps.rules', record.rules ?? {}, DEFAULT_STEPS.rules),
+    projects,
+    slowSeconds: slow,
+    growth: growth as StepSettings['growth'],
+  }
+}
+
+function stepRules(name: string, raw: unknown, defaults: Record<string, string>): Record<string, string> {
+  const rules = { ...defaults }
+  for (const [step, source] of Object.entries(objectOf(name, raw))) {
+    if (source === null) {
+      delete rules[step]
+      continue
+    }
+    if (typeof source !== 'string' || source === '') throw new Error(`tally: ${name}.${step} must be a regular expression or null`)
+    try {
+      new RegExp(source, 'i')
+    } catch (error) {
+      throw new Error(`tally: ${name}.${step}: ${(error as Error).message}`)
+    }
+    rules[step] = source
+  }
+  return rules
+}
+
+function objectOf(name: string, raw: unknown): Record<string, unknown> {
+  if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) throw new Error(`tally: "${name}" must be an object`)
+  return raw as Record<string, unknown>
 }
 
 function integers<T extends object>(name: string, raw: unknown, defaults: T, min: number): T {

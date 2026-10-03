@@ -4,6 +4,7 @@ import type { ClassifySettings } from './config.js'
 import type { TallyDb } from './db.js'
 import { fetchTasks, reportTimes } from './huly.js'
 import { findSigns, signKey, spansOf, type SignRules } from './signs.js'
+import { rulesFor, runsOf, stepsKey, type StepSettings } from './step-runs.js'
 import { turnsKey, turnsOf } from './turns.js'
 
 const TASK_MAX_AGE_MINUTES = 60
@@ -34,6 +35,19 @@ export async function refreshTurns(db: TallyDb): Promise<number> {
     const key = turnsKey(launched)
     if (state.key === key && state.signedAt === state.lastAt) continue
     await db.writeTurns(state.sessionId, state.lastAt, key, turnsOf(await db.sessionEntries(state.sessionId), launched))
+    sessions++
+  }
+  return sessions
+}
+
+export async function refreshSteps(db: TallyDb, settings: StepSettings): Promise<number> {
+  await db.setMeta('steps', JSON.stringify({ slowSeconds: settings.slowSeconds, growth: settings.growth }))
+  let sessions = 0
+  for (const state of await db.stepStates()) {
+    const rules = rulesFor(settings, state.project)
+    const key = stepsKey(rules)
+    if (state.key === key && state.signedAt === state.lastAt) continue
+    await db.writeSteps(state.sessionId, state.lastAt, key, runsOf(await db.sessionEntries(state.sessionId), rules))
     sessions++
   }
   return sessions
