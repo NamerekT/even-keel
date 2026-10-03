@@ -10,9 +10,20 @@ describe('parseConfig', () => {
       port: 4747,
       projects: { ABC: 'C:\\repos\\abc' },
       rules: { ABC: DEFAULT_RULES },
+      slots: [],
       context: { window: 600_000, warn: 50, danger: 80 },
       modelPrompts: {},
     })
+  })
+
+  it('lists the projects that work in a standing slot', () => {
+    const config = parseConfig({ projects: { ABC: 'C:\\abc', XYZ: { repo: 'C:\\xyz', slot: true }, QRS: { repo: 'C:\\qrs', slot: false } } })
+    expect(config.slots).toEqual(['XYZ'])
+    expect(config.projects).toEqual({ ABC: 'C:\\abc', XYZ: 'C:\\xyz', QRS: 'C:\\qrs' })
+  })
+
+  it('rejects a slot flag that is not a boolean', () => {
+    expect(() => parseConfig({ projects: { ABC: { repo: 'C:\\abc', slot: 'yes' } } })).toThrow(/ABC.slot/)
   })
 
   it('keeps model prompts keyed by model alias', () => {

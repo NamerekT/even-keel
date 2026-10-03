@@ -72,6 +72,10 @@ export async function finishWorktree(git: Git, repo: string, task: string): Prom
     }
   }
 
+  return dropBranch(git, repo, task, branch, warnings)
+}
+
+export async function dropBranch(git: Git, repo: string, task: string, branch: string | null, warnings: string[]): Promise<FinishOutcome> {
   let gone: string | null = null
   if (branch !== null) {
     const deleted = await git(repo, ['branch', '-d', branch])
@@ -98,17 +102,21 @@ async function deleteOnOrigin(git: Git, repo: string, branch: string): Promise<s
   return pushed.code === 0 ? null : `the branch ${branch} was kept on origin: ${pushed.out}`
 }
 
-async function worktreeAt(git: Git, repo: string, path: string): Promise<Worktree | undefined> {
-  await git(repo, ['worktree', 'prune'])
-  const listed = await must(git, repo, ['worktree', 'list', '--porcelain'], 'list the worktrees of')
-  return parseWorktrees(listed.out).find((tree) => samePath(tree.path, path))
+export async function worktreeAt(git: Git, repo: string, path: string): Promise<Worktree | undefined> {
+  return (await worktreesAt(git, repo, [path]))[0]
 }
 
-async function hasBranch(git: Git, repo: string, branch: string): Promise<boolean> {
+export async function worktreesAt(git: Git, repo: string, paths: string[]): Promise<(Worktree | undefined)[]> {
+  await git(repo, ['worktree', 'prune'])
+  const trees = parseWorktrees((await must(git, repo, ['worktree', 'list', '--porcelain'], 'list the worktrees of')).out)
+  return paths.map((path) => trees.find((tree) => samePath(tree.path, path)))
+}
+
+export async function hasBranch(git: Git, repo: string, branch: string): Promise<boolean> {
   return (await git(repo, ['rev-parse', '--verify', '--quiet', `refs/heads/${branch}`])).code === 0
 }
 
-async function must(git: Git, repo: string, args: string[], what: string): Promise<GitResult> {
+export async function must(git: Git, repo: string, args: string[], what: string): Promise<GitResult> {
   const result = await git(repo, args)
   if (result.code !== 0) throw new Error(`git: could not ${what} ${repo}: ${result.out}`)
   return { ...result, out: result.out.trim() }

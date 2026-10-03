@@ -9,13 +9,14 @@ export interface BatonConfig {
   port: number
   projects: Record<string, string>
   rules: Record<string, ChainRules>
+  slots: string[]
   context: ContextScale
   modelPrompts: Partial<Record<ModelAlias, string>>
 }
 
 const PROJECT_KEY = /^[A-Z][A-Z0-9_]{0,4}$/
 const RULE_KEYS = ['active', 'terminal', 'requiredLabels', 'excludedLabels'] as const
-const RESTART_KEYS = ['host', 'port', 'projects', 'context'] as const
+const RESTART_KEYS = ['host', 'port', 'projects', 'slots', 'context'] as const
 const DEFAULT_CONTEXT: ContextScale = { window: 600_000, warn: 50, danger: 80 }
 
 export function parseConfig(raw: unknown): BatonConfig {
@@ -35,15 +36,19 @@ export function parseConfig(raw: unknown): BatonConfig {
   const shared = { ...DEFAULT_RULES, ...parseRules(input.chain, 'chain') }
   const projects: Record<string, string> = {}
   const rules: Record<string, ChainRules> = {}
+  const slots: string[] = []
   for (const [key, entry] of Object.entries(input.projects)) {
     if (!PROJECT_KEY.test(key)) throw new Error(`config: "${key}" is not a Huly project key`)
-    const { repo, chain } = typeof entry === 'object' && entry !== null ? (entry as { repo?: unknown; chain?: unknown }) : { repo: entry }
+    const { repo, chain, slot } =
+      typeof entry === 'object' && entry !== null ? (entry as { repo?: unknown; chain?: unknown; slot?: unknown }) : { repo: entry }
     if (typeof repo !== 'string' || repo === '') throw new Error(`config: repository path for ${key} is empty`)
+    if (slot !== undefined && typeof slot !== 'boolean') throw new Error(`config: ${key}.slot must be true or false`)
     projects[key] = repo
+    if (slot === true) slots.push(key)
     rules[key] = checkRules({ ...shared, ...parseRules(chain, `${key}.chain`) }, key)
   }
 
-  return { host, port, projects, rules, context: parseContext(input.context), modelPrompts: parseModelPrompts(input.modelPrompts) }
+  return { host, port, projects, rules, slots, context: parseContext(input.context), modelPrompts: parseModelPrompts(input.modelPrompts) }
 }
 
 export function liveConfig(current: BatonConfig, next: BatonConfig): BatonConfig {

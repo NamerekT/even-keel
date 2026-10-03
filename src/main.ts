@@ -14,6 +14,7 @@ import { appendLaunch, loadChainState, readLaunches, saveChainState } from './ch
 import { ConfigFile } from './config-file.js'
 import { EventHub } from './events.js'
 import { runGit } from './git/run.js'
+import { finishSlot, prepareSlot, slotPath } from './git/slot.js'
 import { ensureIgnored, finishWorktree, prepareWorktree, taskPlace } from './git/worktree.js'
 import { issueUrlBase, readHulyCredentials } from './huly/credentials.js'
 import { worthBroadcast, type HulyHealth } from './huly/health.js'
@@ -212,7 +213,7 @@ const dispatcher = new Dispatcher(loadChainState(chainFile), {
     await daemons.prepare(home)
     const repo = config.projects[project]!
     await ensureIgnored(runGit, repo)
-    const place = await prepareWorktree(runGit, repo, task)
+    const place = await (config.slots.includes(project) ? prepareSlot : prepareWorktree)(runGit, repo, task)
     const { prompt, model } = planFor(task, startPrompt(task, place))
     return (await cli.launch(home, task, place.path, prompt, model)).sessionId
   },
@@ -256,7 +257,7 @@ const dispatcher = new Dispatcher(loadChainState(chainFile), {
   finish: async (project, task) => {
     const repo = config.projects[project]!
     const stopped = await stopTaskSessions(repo, task)
-    const finished = await finishWorktree(runGit, repo, task)
+    const finished = await (config.slots.includes(project) ? finishSlot : finishWorktree)(runGit, repo, task)
     const outcome = { ...finished, warnings: [...stopped, ...finished.warnings] }
     for (const warning of outcome.warnings) console.warn(`git: ${warning}`)
     if (outcome.syncError !== null) console.error(`git: sync of ${project} after ${task} failed: ${outcome.syncError}`)
@@ -265,15 +266,16 @@ const dispatcher = new Dispatcher(loadChainState(chainFile), {
 })
 
 async function stopTaskSessions(repo: string, task: string): Promise<string[]> {
-  const place = resolve(taskPlace(repo, task).path).toLowerCase()
-  const inside = (cwd: string) => {
+  const own = new Set(launches.filter((entry) => entry.task === task).map((entry) => entry.sessionId))
+  const inside = (cwd: string, folder: string) => {
     const path = resolve(cwd).toLowerCase()
-    return path === place || path.startsWith(`${place}${sep}`)
+    const root = resolve(folder).toLowerCase()
+    return path === root || path.startsWith(`${root}${sep}`)
   }
   const idle = agents.filter(
     (agent) =>
       agent.id !== undefined &&
-      inside(agent.cwd) &&
+      (inside(agent.cwd, taskPlace(repo, task).path) || (inside(agent.cwd, slotPath(repo)) && own.has(agent.sessionId))) &&
       agent.status !== 'busy' &&
       agent.status !== 'waiting' &&
       agent.state !== 'stopped' &&
