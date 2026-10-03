@@ -22,6 +22,8 @@ function Invoke-Sc {
 
 Push-Location $root
 try {
+    npm install --no-audit --no-fund
+    if ($LASTEXITCODE -ne 0) { throw "npm install failed with code $LASTEXITCODE" }
     npm run build
     if ($LASTEXITCODE -ne 0) { throw "npm run build failed with code $LASTEXITCODE" }
 } finally {
