@@ -1,3 +1,4 @@
+import { blocksOf, describeTool, flatten, parseEntry, type ContentBlock, type Entry, type Usage } from './entry.js'
 import { remoteUrlOf } from './remote.js'
 
 export type Stage = 'task' | 'recon' | 'edit' | 'test' | 'commit' | 'merge'
@@ -42,49 +43,14 @@ export interface TranscriptSummary {
   workdir: string | null
 }
 
-interface Usage {
-  input_tokens?: number
-  output_tokens?: number
-  cache_read_input_tokens?: number
-  cache_creation_input_tokens?: number
-  cache_creation?: { ephemeral_5m_input_tokens?: number; ephemeral_1h_input_tokens?: number }
-}
-
-interface ContentBlock {
-  type?: string
-  text?: string
-  name?: string
-  input?: Record<string, unknown>
-}
-
-interface Entry {
-  type?: string
-  subtype?: string
-  isSidechain?: boolean
-  isMeta?: boolean
-  isApiErrorMessage?: boolean
-  error?: string
-  usageLimitNote?: string
-  timestamp?: string
-  cwd?: string
-  gitBranch?: string
-  bridgeSessionId?: string
-  content?: unknown
-  attachment?: { type?: string; url?: unknown }
-  message?: { id?: string; model?: string; content?: unknown; usage?: Usage }
-}
-
 const FEED_SIZE = 30
 const TEXT_LIMIT = 500
 const MESSAGE_LIMIT = 6000
 const WRAP_UP_TEXT = 'Лимит исчерпан: Claude Code велел сессии свернуть ход'
 const REMOTE_DROPPED = 'Remote Control disconnected'
-const BRIEF_LIMIT = 160
 const CHECKPOINT_LINE = /^[`*_]*CHECKPOINT:[`*_]*\s*[`*_]*([^`*\s][^`*]*?)[`*_]*$/
 const TTL_MS: Record<CacheTtl, number> = { '5m': 5 * 60_000, '1h': 60 * 60_000 }
 const STAGE_RANK: Record<Stage, number> = { task: 0, recon: 1, edit: 2, test: 3, commit: 4, merge: 5 }
-const BRIEF_KEYS = ['description', 'command', 'file_path', 'pattern', 'query', 'url', 'skill']
-const MCP_BRIEF_KEYS = ['identifier', 'issueIdentifier', 'title', 'name', 'query']
 
 export class TranscriptFold {
   private readonly usageById = new Map<string, Usage>()
@@ -110,7 +76,7 @@ export class TranscriptFold {
   constructor(private readonly feedSize = FEED_SIZE) {}
 
   push(line: string): void {
-    const entry = parse(line)
+    const entry = parseEntry(line)
     if (entry === undefined || entry.isSidechain === true) return
     if (typeof entry.gitBranch === 'string' && entry.gitBranch !== '') this.gitBranch = entry.gitBranch
     if (typeof entry.cwd === 'string' && entry.cwd !== '') this.workdir = entry.cwd
@@ -173,7 +139,7 @@ export class TranscriptFold {
 
   private pushAssistant(entry: Entry): void {
     const at = entry.timestamp ?? ''
-    const blocks = Array.isArray(entry.message?.content) ? (entry.message.content as ContentBlock[]) : []
+    const blocks = blocksOf(entry.message?.content)
 
     if (entry.isApiErrorMessage === true) {
       const text = flatten(blocks.map((block) => block.text ?? '').join(' '), TEXT_LIMIT) || String(entry.error)
@@ -244,16 +210,6 @@ export class TranscriptFold {
   }
 }
 
-function parse(line: string): Entry | undefined {
-  if (line.trim() === '') return undefined
-  try {
-    const value: unknown = JSON.parse(line)
-    return typeof value === 'object' && value !== null ? (value as Entry) : undefined
-  } catch {
-    return undefined
-  }
-}
-
 function writtenTtl(usage: Usage): CacheTtl | null {
   const written = usage.cache_creation
   if ((written?.ephemeral_5m_input_tokens ?? 0) > 0) return '5m'
@@ -271,31 +227,6 @@ function isPrompt(content: unknown): boolean {
   if (!Array.isArray(content)) return false
   const blocks = content as ContentBlock[]
   return blocks.some((block) => block.type === 'text') && !blocks.some((block) => block.type === 'tool_result')
-}
-
-function flatten(text: string, limit: number): string {
-  const flat = text.replace(/\s+/g, ' ').trim()
-  return flat.length > limit ? `${flat.slice(0, limit - 1)}…` : flat
-}
-
-function describeTool(name: string, input: Record<string, unknown>, cwd: string | undefined): string {
-  const mcp = /^mcp__(.+?)__(.+)$/.exec(name)
-  const label = mcp ? `${mcp[1]} ${mcp[2]}` : name
-  const key = (mcp ? MCP_BRIEF_KEYS : BRIEF_KEYS).find((candidate) => typeof input[candidate] === 'string' && input[candidate] !== '')
-  const value = key === undefined ? Object.values(input).find((candidate) => typeof candidate === 'string') : input[key]
-  if (typeof value !== 'string') return label
-  let brief = value
-  if (key === 'file_path') brief = relativePath(brief, cwd)
-  if (key === 'command') brief = brief.split('\n', 1)[0] ?? ''
-  const short = flatten(brief, BRIEF_LIMIT)
-  return short === '' ? label : `${label} ${short}`
-}
-
-function relativePath(file: string, cwd: string | undefined): string {
-  const path = file.replace(/\\/g, '/')
-  if (cwd === undefined) return path
-  const root = `${cwd.replace(/\\/g, '/').replace(/\/$/, '')}/`
-  return path.toLowerCase().startsWith(root.toLowerCase()) ? path.slice(root.length) : path
 }
 
 function stageOf(name: string, input: Record<string, unknown>): Stage | undefined {

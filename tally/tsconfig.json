@@ -1,0 +1,10 @@
+{
+  "extends": "../tsconfig.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "target": "ES2024",
+    "rootDir": ".."
+  },
+  "include": ["src"],
+  "exclude": ["src/**/*.test.ts"]
+}
