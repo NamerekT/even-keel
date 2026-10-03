@@ -17,7 +17,8 @@ export const PRESETS: { preset: Preset; label: string }[] = [
   { preset: 'all', label: 'Всё время' },
 ]
 
-export const MONTHS_SHORT = ['янв', 'февр', 'мар', 'апр', 'мая', 'июн', 'июл', 'авг', 'сент', 'окт', 'нояб', 'дек']
+const MONTHS_OF_DAY = ['янв', 'февр', 'мар', 'апр', 'мая', 'июн', 'июл', 'авг', 'сент', 'окт', 'нояб', 'дек']
+export const MONTHS_SHORT = ['янв', 'фев', 'мар', 'апр', 'май', 'июн', 'июл', 'авг', 'сен', 'окт', 'ноя', 'дек']
 export const MONTHS = ['Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь', 'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь']
 
 const DAY_MS = 86_400_000
@@ -149,7 +150,7 @@ export function buckets(range: DayRange, step: Step): string[] {
 }
 
 export function formatDay(day: string, withYear = true): string {
-  const text = `${Number(day.slice(8))} ${MONTHS_SHORT[Number(day.slice(5, 7)) - 1]}`
+  const text = `${Number(day.slice(8))} ${MONTHS_OF_DAY[Number(day.slice(5, 7)) - 1]}`
   return withYear ? `${text} ${day.slice(0, 4)}` : text
 }
 

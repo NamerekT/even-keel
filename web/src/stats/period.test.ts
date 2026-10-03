@@ -5,6 +5,7 @@ import {
   bucketOf,
   buckets,
   dayCount,
+  formatBucket,
   formatRange,
   localDay,
   previousRange,
@@ -125,5 +126,16 @@ describe('formatRange', () => {
     expect(formatRange({ from: '2026-09-04', to: TODAY })).toBe('4 сент — 3 окт 2026')
     expect(formatRange({ from: '2025-12-20', to: '2026-01-05' })).toBe('20 дек 2025 — 5 янв 2026')
     expect(formatRange({ from: TODAY, to: TODAY })).toBe('3 окт 2026')
+  })
+})
+
+describe('formatBucket', () => {
+  it('names a month bucket in the nominative', () => {
+    expect(formatBucket('2026-05-01', 'month')).toBe('май 2026')
+    expect(formatBucket('2026-09-01', 'month')).toBe('сен 2026')
+  })
+
+  it('names a day or week bucket by its first day', () => {
+    expect(formatBucket('2026-05-04', 'week')).toBe('4 мая')
   })
 })

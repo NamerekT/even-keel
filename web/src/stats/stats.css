@@ -325,6 +325,7 @@ a.stats__key:hover {
   border: 0;
   border-radius: 6px;
   background: none;
+  white-space: nowrap;
   color: var(--fg);
   text-align: left;
   cursor: pointer;
@@ -381,7 +382,7 @@ a.stats__key:hover {
   display: flex;
   flex-direction: column;
   gap: 6px;
-  min-width: 260px;
+  min-width: 524px;
 }
 
 .calendar--days {
@@ -461,9 +462,20 @@ a.stats__key:hover {
   font-variant-numeric: tabular-nums;
   border: 0;
   border-radius: 0;
-  background: var(--heat, transparent);
+  background: transparent;
   color: var(--fg);
   cursor: pointer;
+}
+
+.calendar__cell::before {
+  content: '';
+  position: absolute;
+  bottom: 4px;
+  left: calc(50% - 9px);
+  width: 18px;
+  height: 3px;
+  border-radius: 2px;
+  background: var(--heat, transparent);
 }
 
 .calendar__cell--wide {
@@ -471,24 +483,29 @@ a.stats__key:hover {
   border-radius: 6px;
 }
 
+.calendar__cell--wide::before {
+  left: calc(50% - 14px);
+  width: 28px;
+}
+
 .calendar__cell.heat-0 {
   color: var(--fg-muted);
 }
 
 .calendar__cell.heat-1 {
-  --heat: color-mix(in srgb, var(--series-3) 14%, transparent);
+  --heat: color-mix(in srgb, var(--series-3) 35%, transparent);
 }
 
 .calendar__cell.heat-2 {
-  --heat: color-mix(in srgb, var(--series-3) 28%, transparent);
+  --heat: color-mix(in srgb, var(--series-3) 55%, transparent);
 }
 
 .calendar__cell.heat-3 {
-  --heat: color-mix(in srgb, var(--series-3) 44%, transparent);
+  --heat: color-mix(in srgb, var(--series-3) 78%, transparent);
 }
 
 .calendar__cell.heat-4 {
-  --heat: color-mix(in srgb, var(--series-3) 62%, transparent);
+  --heat: var(--series-3);
 }
 
 .calendar__cell:hover:not(:disabled) {
@@ -509,13 +526,13 @@ a.stats__key:hover {
 }
 
 .calendar__cell--in {
-  box-shadow: inset 0 3px 0 var(--surface), inset 0 -3px 0 var(--surface), inset 0 0 0 40px color-mix(in srgb, var(--accent) 22%, transparent);
+  background: color-mix(in srgb, var(--accent) 16%, transparent);
 }
 
-.calendar__cell--from,
-.calendar__cell--to {
+.calendar__cell.calendar__cell--from,
+.calendar__cell.calendar__cell--to {
+  --heat: color-mix(in srgb, var(--surface) 70%, transparent);
   background: var(--accent);
-  box-shadow: none;
   color: var(--surface);
   font-weight: 600;
 }
@@ -532,10 +549,15 @@ a.stats__key:hover {
   border-radius: 8px;
 }
 
+.calendar__cell.heat-0.calendar__cell--from::before,
+.calendar__cell.heat-0.calendar__cell--to::before {
+  content: none;
+}
+
 .calendar__cell--today::after {
   content: '';
   position: absolute;
-  bottom: 4px;
+  top: 3px;
   left: calc(50% - 2px);
   width: 4px;
   height: 4px;
@@ -596,7 +618,8 @@ a.stats__key:hover {
   cursor: crosshair;
 }
 
-.spend__column--picked .chart__track {
+.spend__column--picked .chart__track,
+.spend__column--picked:hover .chart__track {
   background: color-mix(in srgb, var(--accent) 16%, transparent);
 }
 
@@ -709,6 +732,7 @@ a.stats__key:hover {
 
 .tasks th:first-child,
 .tasks td:first-child {
+  min-width: 220px;
   padding-left: 0;
 }
 
@@ -1038,6 +1062,10 @@ a.stats__key:hover {
 
   .period__preset {
     width: auto;
+  }
+
+  .calendar {
+    min-width: 252px;
   }
 
   .calendar--days {

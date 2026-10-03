@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState, type RefObject } from 'react'
 import { seriesStyle } from '../ui/series.js'
 import { Segmented } from './common.js'
 import { formatShare, formatUsd } from './format.js'
@@ -17,6 +17,20 @@ const STEPS: [Step, string, string][] = [
 ]
 const TITLES: Record<Step, string> = { day: 'Расход по дням', week: 'Расход по неделям', month: 'Расход по месяцам' }
 const MAX_LABELS = 16
+const LABEL_WIDTH = 64
+
+function useWidth<T extends HTMLElement>(): [RefObject<T | null>, number] {
+  const ref = useRef<T>(null)
+  const [width, setWidth] = useState(0)
+  useEffect(() => {
+    const element = ref.current
+    if (element === null) return
+    const observer = new ResizeObserver(([entry]) => setWidth(entry!.contentRect.width))
+    observer.observe(element)
+    return () => observer.disconnect()
+  }, [])
+  return [ref, width]
+}
 
 export function formatMetric(value: number, metric: Metric): string {
   if (metric === 'cost') return formatUsd(value)
@@ -56,7 +70,9 @@ export function SpendChart({
   const { buckets, series } = data
   const max = Math.max(0, ...buckets.map((each) => each.total))
   const total = buckets.reduce((sum, each) => sum + each.total, 0)
-  const every = Math.ceil(buckets.length / MAX_LABELS)
+  const [plot, width] = useWidth<HTMLDivElement>()
+  const labels = width === 0 ? MAX_LABELS : Math.max(2, Math.min(MAX_LABELS, Math.floor(width / LABEL_WIDTH)))
+  const every = Math.ceil(buckets.length / labels)
 
   useEffect(() => {
     if (drag === null) return
@@ -85,7 +101,7 @@ export function SpendChart({
         </div>
       </header>
 
-      <div className="chart__plot" onMouseLeave={() => setHovered(null)} onDoubleClick={() => onZoomOut?.()}>
+      <div ref={plot} className="chart__plot" onMouseLeave={() => setHovered(null)} onDoubleClick={() => onZoomOut?.()}>
         <div className="chart__axis" aria-hidden="true">
           <span>{max > 0 && formatMetric(max, metric)}</span>
           <span>0</span>
