@@ -15,6 +15,7 @@ import { RulesSection } from './RulesSection.js'
 import { EstimateSection } from './EstimateSection.js'
 import { parseView, viewSearch, type StatsView } from './search.js'
 import { SpendChart } from './SpendChart.js'
+import { StepsSection } from './StepsSection.js'
 import { StuckSection } from './StuckSection.js'
 import { Sources, Tiles } from './Summary.js'
 import { TaskTable } from './TaskTable.js'
@@ -28,7 +29,7 @@ const SCOPES: [StatsScope, string][] = [
 export function StatsPage({ state }: { state: BatonState }) {
   const [params, setParams] = useSearchParams()
   const view = parseView(params)
-  const { statsHistory, statsPeriod, statsRules } = useLive()
+  const { statsHistory, statsPeriod, statsSteps, statsRules } = useLive()
   const [metric, setMetric] = useState<Metric>('cost')
   const [zooms, setZooms] = useState<PeriodChoice[]>([])
   const tz = useMemo(() => Intl.DateTimeFormat().resolvedOptions().timeZone, [])
@@ -44,6 +45,7 @@ export function StatsPage({ state }: { state: BatonState }) {
   const periodKey = waitsHistory ? null : JSON.stringify(query)
   const periodLoaded = useStatsAnswer(periodKey, () => statsPeriod(query))
   const period = loadedData(periodLoaded)
+  const stepsLoaded = useStatsAnswer(periodKey, () => statsSteps(query))
   const step = view.step ?? autoStep(range)
   const [picked, setPicked] = useState<string[]>([])
   const rulesQuery: RulesQuery = { ...filter, projects: view.projects, kinds: view.kinds, purposes: view.purposes }
@@ -154,6 +156,7 @@ export function StatsPage({ state }: { state: BatonState }) {
               <>
                 <Sources period={period} />
                 <EstimateSection tasks={period.tasks} />
+                <StepsSection loaded={stepsLoaded} />
                 <TaskTable tasks={period.tasks} trackerUrl={state.trackerUrl} />
                 <StuckSection weeks={period.weeks} stuck={period.stuck} trackerUrl={state.trackerUrl} />
                 <p className="stats-page__foot">Tally · прочитано {formatMoment(period.at, new Date())}</p>

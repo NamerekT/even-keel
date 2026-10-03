@@ -23,10 +23,12 @@ import {
   type StatsCompare,
   type StatsRules,
 } from './stats/rules.js'
+import type { StatsSteps } from './stats/steps.js'
 
 export interface StatsSource {
   history(filter: StatsFilter): Promise<StatsAnswer<StatsHistory>>
   period(query: PeriodQuery): Promise<StatsAnswer<StatsPeriod>>
+  steps(query: PeriodQuery): Promise<StatsAnswer<StatsSteps>>
   task(task: string): Promise<StatsAnswer<StatsTaskDetail>>
   rules(query: RulesQuery): Promise<StatsAnswer<StatsRules>>
   ruleDiff(ids: string[]): Promise<StatsAnswer<RuleDiffFile[]>>
@@ -142,7 +144,7 @@ async function route(deps: ServerDeps, request: IncomingMessage, response: Serve
     return
   }
 
-  const stats = /^\/api\/stats\/(history|period|rules|rules\/diff|rules\/compare|task\/([^/]+))$/.exec(path)
+  const stats = /^\/api\/stats\/(history|period|steps|rules|rules\/diff|rules\/compare|task\/([^/]+))$/.exec(path)
   if (request.method === 'GET' && stats !== null) {
     let read: () => Promise<StatsAnswer<unknown>>
     try {
@@ -152,6 +154,9 @@ async function route(deps: ServerDeps, request: IncomingMessage, response: Serve
       } else if (stats[1] === 'period') {
         const query = parsePeriodQuery(url.searchParams)
         read = () => deps.stats.period(query)
+      } else if (stats[1] === 'steps') {
+        const query = parsePeriodQuery(url.searchParams)
+        read = () => deps.stats.steps(query)
       } else if (stats[1] === 'rules') {
         const query = parseRulesQuery(url.searchParams)
         read = () => deps.stats.rules(query)

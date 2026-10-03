@@ -4,6 +4,7 @@ import {
   entrypointLabel,
   formatDuration,
   formatRatio,
+  formatSeconds,
   formatShare,
   formatUsd,
   kindLabel,
@@ -14,6 +15,18 @@ import {
   reasonLabel,
   weeklyLimit,
 } from './format.js'
+
+describe('formatSeconds', () => {
+  it('keeps a tenth below ten seconds, whole seconds below two minutes, then minutes', () => {
+    expect(formatSeconds(null)).toBe('—')
+    expect(formatSeconds(2.64)).toBe('2.6 с')
+    expect(formatSeconds(35.4)).toBe('35 с')
+    expect(formatSeconds(119)).toBe('119 с')
+    expect(formatSeconds(201)).toBe('3.4 мин')
+    expect(formatSeconds(1265)).toBe('21 мин')
+    expect(formatSeconds(10_409)).toBe('2 ч 53 мин')
+  })
+})
 
 describe('formatUsd', () => {
   it('keeps cents below a hundred and rounds above', () => {

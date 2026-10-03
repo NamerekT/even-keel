@@ -82,6 +82,14 @@ export function formatDuration(seconds: number | null): string {
   return rest === 0 ? `${minutes / 60} ч` : `${Math.floor(minutes / 60)} ч ${String(rest).padStart(2, '0')} мин`
 }
 
+export function formatSeconds(seconds: number | null): string {
+  if (seconds === null) return '—'
+  if (seconds < 10) return `${Number(seconds.toFixed(1))} с`
+  if (seconds < 120) return `${Math.round(seconds)} с`
+  if (seconds < 600) return `${Number((seconds / 60).toFixed(1))} мин`
+  return formatDuration(seconds)
+}
+
 export function formatRatio(ratio: number | null): string {
   if (ratio === null) return '—'
   return `×${ratio >= 10 ? Math.round(ratio) : Number(ratio.toFixed(1))}`

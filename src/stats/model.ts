@@ -1,3 +1,5 @@
+import type { StatsTaskStep } from './steps.js'
+
 export type StatsScope = 'all' | 'chain'
 
 export interface StatsFilter {
@@ -121,6 +123,7 @@ export interface StatsTaskDetail {
   task: string
   sessions: StatsTaskSession[]
   spans: StatsStuck[]
+  steps: StatsTaskStep[]
 }
 
 export type StatsAnswer<T> = { state: 'ok'; data: T } | { state: 'off'; reason: string } | { state: 'error'; error: string }

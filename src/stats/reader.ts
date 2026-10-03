@@ -15,6 +15,8 @@ import type {
 import { BASE } from './base-sql.js'
 import { folderGroups, repoTail } from './model.js'
 import { readCompare, readRuleDiff, readRules, type RulesDb } from './rules-reader.js'
+import { readSteps, readTaskSteps } from './steps-reader.js'
+import type { StatsSteps, StatsTaskStep } from './steps.js'
 import type { CompareQuery, CompareSettings, RuleDiffFile, RulesQuery, StatsCompare, StatsRules } from './rules.js'
 
 const CACHE_MS = 60_000
@@ -281,7 +283,7 @@ export function mapPeriod(query: PeriodQuery, rows: PeriodRows, at: Date): Stats
   }
 }
 
-export function mapTask(task: string, sessions: Row[], spans: Row[]): StatsTaskDetail {
+export function mapTask(task: string, sessions: Row[], spans: Row[], steps: StatsTaskStep[] = []): StatsTaskDetail {
   return {
     task,
     sessions: sessions.map((row) => ({
@@ -294,6 +296,7 @@ export function mapTask(task: string, sessions: Row[], spans: Row[]): StatsTaskD
       cost: number(row.cost),
     })),
     spans: spans.map(stuck),
+    steps,
   }
 }
 
@@ -346,9 +349,17 @@ export class StatsReader {
 
   task(task: string): Promise<StatsAnswer<StatsTaskDetail>> {
     return this.cached(`task|${task}`, async (pool) => {
-      const [sessions, spans] = await Promise.all([TASK_SESSIONS, TASK_SPANS].map((sql) => pool.query<Row>(sql, [task]).then((result) => result.rows)))
-      return mapTask(task, sessions!, spans!)
+      const [[sessions, spans], steps] = await Promise.all([
+        Promise.all([TASK_SESSIONS, TASK_SPANS].map((sql) => pool.query<Row>(sql, [task]).then((result) => result.rows))),
+        readTaskSteps(this.db(pool), task),
+      ])
+      return mapTask(task, sessions!, spans!, steps)
     })
+  }
+
+  steps(query: PeriodQuery): Promise<StatsAnswer<StatsSteps>> {
+    const key = `steps|${query.scope}|${query.account}|${query.tz}|${query.from}|${query.to}|${query.projects?.join(',') ?? '*'}`
+    return this.cached(key, (pool) => readSteps(this.db(pool), query))
   }
 
   rules(query: RulesQuery): Promise<StatsAnswer<StatsRules>> {

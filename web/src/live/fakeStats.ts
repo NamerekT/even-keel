@@ -13,6 +13,7 @@ import type {
   StatsTotals,
 } from '../../../src/stats/model.js'
 import { addDays, bucketOf, dayCount, localDay, previousRange, type DayRange } from '../stats/period.js'
+import { fakeTaskSteps } from './fakeSteps.js'
 
 const BATON = ['ABC', 'DEMO', 'XYZ', 'OPS']
 const FOLDERS = ['yaml-tools', 'notes', 'dotfiles', 'homepage', 'game-jam', 'scratch']
@@ -286,5 +287,5 @@ export function fakeTask(mode: string | null, task: string): StatsAnswer<StatsTa
       const from = Date.parse(session.firstAt) + (Date.parse(session.lastAt) - Date.parse(session.firstAt)) * 0.3
       return { ...span, sessionId: session.sessionId, fromAt: new Date(from).toISOString(), toAt: new Date(from + 25 * 60_000).toISOString() }
     })
-  return { state: 'ok', data: { task, sessions, spans } }
+  return { state: 'ok', data: { task, sessions, spans, steps: fakeTaskSteps(task) } }
 }

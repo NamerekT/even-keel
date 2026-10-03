@@ -410,6 +410,73 @@ a.stats__key:hover {
   min-width: 0;
 }
 
+/* Steps */
+
+.steps-growth {
+  margin: 0 0 12px;
+  padding: 8px 12px 8px 28px;
+  border-radius: var(--radius);
+  background: var(--warn-bg);
+  color: var(--warn-fg);
+}
+
+.steps-growth__week {
+  color: var(--fg-muted);
+  font-size: 0.85em;
+}
+
+.tasks.steps th[scope='row'] {
+  font-weight: normal;
+  text-align: left;
+}
+
+.steps__count {
+  color: var(--fg-muted);
+  font-size: 0.85em;
+}
+
+.steps-buckets {
+  display: inline-flex;
+  align-items: flex-end;
+  gap: 2px;
+  height: 22px;
+  vertical-align: middle;
+}
+
+.steps-buckets__bar {
+  display: flex;
+  align-items: flex-end;
+  width: 7px;
+  height: 100%;
+  background: var(--surface-muted);
+}
+
+.steps-buckets__bar span {
+  width: 100%;
+  background: var(--series-1);
+}
+
+.steps-weeks__grew span {
+  background: var(--lamp-error);
+}
+
+.steps-unknown {
+  margin-top: 12px;
+}
+
+.steps-unknown summary {
+  cursor: pointer;
+  color: var(--fg-muted);
+}
+
+.task-steps {
+  margin: 8px 0 0;
+}
+
+.task-steps__note {
+  color: var(--fg-muted);
+}
+
 /* Tasks */
 
 .tasks__scroll {

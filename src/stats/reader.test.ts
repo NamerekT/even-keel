@@ -172,6 +172,7 @@ describe('mapTask', () => {
         },
       ],
       spans: [],
+      steps: [],
     })
   })
 })

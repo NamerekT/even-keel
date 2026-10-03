@@ -1,10 +1,10 @@
 import { Fragment, useState } from 'react'
 import type { StatsTaskDetail, StatsTaskRow } from '../../../src/stats/model.js'
-import { formatMoment } from '../format.js'
+import { formatMoment, plural } from '../format.js'
 import { useLive } from '../live/context.js'
 import { seriesStyle } from '../ui/series.js'
 import { AnswerNotice, Section, TaskKey, loadedData, useStatsAnswer } from './common.js'
-import { formatDuration, formatRatio, formatShare, formatUsd, kindLabel, launchLabel, modelLabel, reasonLabel } from './format.js'
+import { formatDuration, formatRatio, formatSeconds, formatShare, formatUsd, kindLabel, launchLabel, modelLabel, reasonLabel } from './format.js'
 
 type Column = 'task' | 'project' | 'status' | 'cost' | 'limit' | 'estimate' | 'active' | 'wait' | 'sessions' | 'handoffs' | 'spans' | 'rework'
 
@@ -225,6 +225,18 @@ function Timeline({ detail }: { detail: StatsTaskDetail }) {
             </li>
           ))}
         </ul>
+      )}
+      {detail.steps.length > 0 && (
+        <p className="task-steps">
+          Шаги:{' '}
+          {detail.steps.map((step, index) => (
+            <span key={step.step} title={`${step.runs} ${plural(step.runs, 'запуск', 'запуска', 'запусков')}, ${formatSeconds(step.seconds)}`}>
+              {index > 0 && ' · '}
+              <code>{step.step}</code> {step.share === null ? formatSeconds(step.seconds) : formatShare(step.share * 100)}
+            </span>
+          ))}
+          <span className="task-steps__note"> — доля времени задачи</span>
+        </p>
       )}
     </div>
   )

@@ -1,6 +1,7 @@
 import type { BatonState, SessionRecord } from '../../../src/state.js'
 import type { PeriodQuery, StatsAnswer, StatsFilter, StatsHistory, StatsPeriod, StatsTaskDetail } from '../../../src/stats/model.js'
 import type { CompareQuery, RuleDiffFile, RulesQuery, StatsCompare, StatsRules } from '../../../src/stats/rules.js'
+import type { StatsSteps } from '../../../src/stats/steps.js'
 
 export type Link = 'connecting' | 'live' | 'stale'
 
@@ -25,6 +26,7 @@ export interface LiveSource {
   session(sessionId: string): Promise<SessionRecord | null>
   statsHistory(filter: StatsFilter): Promise<StatsAnswer<StatsHistory>>
   statsPeriod(query: PeriodQuery): Promise<StatsAnswer<StatsPeriod>>
+  statsSteps(query: PeriodQuery): Promise<StatsAnswer<StatsSteps>>
   statsTask(task: string): Promise<StatsAnswer<StatsTaskDetail>>
   statsRules(query: RulesQuery): Promise<StatsAnswer<StatsRules>>
   statsRuleDiff(changes: string[]): Promise<StatsAnswer<RuleDiffFile[]>>
@@ -102,11 +104,11 @@ export class LiveConnection implements LiveSource {
   }
 
   statsPeriod(query: PeriodQuery): Promise<StatsAnswer<StatsPeriod>> {
-    const search = filterSearch(query)
-    search.set('from', query.from)
-    search.set('to', query.to)
-    if (query.projects !== null) search.set('projects', query.projects.join(','))
-    return this.deps.fetchStats('period', search)
+    return this.deps.fetchStats('period', periodSearch(query))
+  }
+
+  statsSteps(query: PeriodQuery): Promise<StatsAnswer<StatsSteps>> {
+    return this.deps.fetchStats('steps', periodSearch(query))
   }
 
   statsTask(task: string): Promise<StatsAnswer<StatsTaskDetail>> {
@@ -188,5 +190,13 @@ export class LiveConnection implements LiveSource {
 function filterSearch(filter: StatsFilter): URLSearchParams {
   const search = new URLSearchParams({ scope: filter.scope, tz: filter.tz })
   if (filter.account !== null) search.set('account', filter.account)
+  return search
+}
+
+function periodSearch(query: PeriodQuery): URLSearchParams {
+  const search = filterSearch(query)
+  search.set('from', query.from)
+  search.set('to', query.to)
+  if (query.projects !== null) search.set('projects', query.projects.join(','))
   return search
 }
