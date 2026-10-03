@@ -1,4 +1,5 @@
 import { readFileSync } from 'node:fs'
+import { homedir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { AccountHomes, accountsRoot } from '../../src/account/homes.js'
@@ -6,8 +7,11 @@ import { readLaunches } from '../../src/chain/store.js'
 import { dbSettings, parseConfig } from './config.js'
 import { TallyDb } from './db.js'
 import { snapshotsOfFile, snapshotsOfState, type Snapshot } from './limits.js'
-import { loadFile } from './load.js'
+import { loadConfig } from '../../src/config.js'
+import { loadFile, type Source } from './load.js'
 import { launchMap } from './parse.js'
+import { ruleSources, skillsOf } from './rule-scan.js'
+import { backfillRules, refreshRuleChanges, snapshotRules } from './rule-steps.js'
 import { transcriptFiles } from './scan.js'
 import { classifySpans, refreshSigns, refreshTasks } from './steps.js'
 
@@ -40,14 +44,18 @@ async function run(): Promise<number> {
     await db.migrate()
     await db.syncPrices(config.prices)
 
+    const ruleFiles = await ruleSources(homes.list(), batonProjects(), homedir(), log)
+    const rules = { home: homedir(), skills: skillsOf(ruleFiles) }
+    const contextOf = (source: Source) => ({ account: source.account, launches, rules })
     const sources = await transcriptFiles(homes.list())
+    await backfillRules(db, sources, contextOf, CHUNK_BYTES, log)
     const stored = await db.files()
     let files = 0
     let lines = 0
     let failed = 0
     for (const source of sources) {
       try {
-        const read = await loadFile(source, stored.get(source.path), db, { account: source.account, launches }, CHUNK_BYTES)
+        const read = await loadFile(source, stored.get(source.path), db, contextOf(source), CHUNK_BYTES)
         if (read > 0) files++
         lines += read
       } catch (error) {
@@ -58,6 +66,8 @@ async function run(): Promise<number> {
     const forgotten = sources.length > 0 ? await db.forgetFilesExcept(sources.map((source) => source.path)) : 0
     const relabeled = await db.syncLaunches(launches)
     const snapshots = await db.addSnapshots(await limitSnapshots(config.batonUrl, stateDir, homes))
+    const versions = await snapshotRules(db, ruleFiles, new Date())
+    const changes = await refreshRuleChanges(db)
     const signed = await refreshSigns(db, config.signs)
     const tasks = await refreshTasks(db, log)
     const classified = await classifySpans(db, config.classify, log)
@@ -68,11 +78,22 @@ async function run(): Promise<number> {
     log(
       `tally: ${sources.length} files, ${files} read, ${lines} lines, ${failed} failed, ${forgotten} forgotten, ` +
         `${relabeled} sessions relabeled, ${snapshots} limit snapshots, ` +
+        `${ruleFiles.length} rule files (${versions} new versions, ${changes} new changes), ` +
         `${signed.sessions} sessions signed (${signed.spans} spans), ${tasks} Huly tasks, ${classified} spans classified, ${seconds} s`,
     )
     return failed > 0 ? 1 : 0
   } finally {
     await db.close()
+  }
+}
+
+function batonProjects(): string[] {
+  const file = process.env.BATON_CONFIG ?? join(root, 'baton.config.json')
+  try {
+    return Object.values(loadConfig(file).projects)
+  } catch (error) {
+    log(`tally: no Baton projects for rule files (${(error as Error).message})`)
+    return []
   }
 }
 

@@ -5,6 +5,8 @@ import type { Snapshot } from './limits.js'
 import type { FileState, Store } from './load.js'
 import type { TaskRecord } from './huly.js'
 import type { Batch, Launch, MessageRow } from './parse.js'
+import type { RuleChange } from './rule-changes.js'
+import type { RuleRows } from './rule-parse.js'
 import type { Sign, SignKind, Span } from './signs.js'
 import type { TranscriptEntry } from './stream.js'
 
@@ -33,6 +35,26 @@ export interface SignState {
   launchReason: string | null
   signedAt: string | null
   key: string | null
+}
+
+export interface SnapshotFile {
+  path: string
+  key: string
+  size: number
+  mtime: string
+  hash: string | null
+}
+
+export interface KeyVersion {
+  key: string
+  hash: string | null
+  at: string
+}
+
+export interface StoredChange extends RuleChange {
+  id: string
+  added: number
+  removed: number
 }
 
 const SCHEMA = readFileSync(new URL('./schema.sql', import.meta.url), 'utf8')
@@ -138,6 +160,7 @@ export class TallyDb implements Store {
            last_at = greatest(sessions.last_at, excluded.last_at)`,
         batch.sessions,
       )
+      await this.writeRuleRows(batch)
       await this.client.query(
         `insert into files (path, account, read_to, size, mtime, ino, head, head_len, read_at)
          values ($1, $2, $3, $4, $5, $6, $7, $8, now())
@@ -145,6 +168,107 @@ export class TallyDb implements Store {
            account = excluded.account, read_to = excluded.read_to, size = excluded.size, mtime = excluded.mtime,
            ino = excluded.ino, head = excluded.head, head_len = excluded.head_len, read_at = excluded.read_at`,
         [file.path, file.account, file.offset, file.size, file.mtime, file.ino, file.head, file.headLen],
+      )
+    })
+  }
+
+  async writeRules(rows: RuleRows): Promise<void> {
+    await this.transaction(() => this.writeRuleRows(rows))
+  }
+
+  private async writeRuleRows(rows: RuleRows): Promise<void> {
+    await this.upsert(
+      `insert into rule_texts select * from jsonb_to_recordset($1::jsonb) as x(hash text, content text, lines int)
+       on conflict (hash) do nothing`,
+      rows.ruleTexts,
+    )
+    await this.upsert(
+      `insert into rule_files select * from jsonb_to_recordset($1::jsonb) as x(key text, display text, kind text, scope text)
+       on conflict (key) do nothing`,
+      rows.ruleFiles,
+    )
+    await this.upsert(
+      `insert into rule_seen select * from jsonb_to_recordset($1::jsonb) as x(session_id text, key text, hash text, at timestamptz)
+       on conflict (session_id, key, hash) do update set at = least(rule_seen.at, excluded.at)`,
+      rows.ruleSeen,
+    )
+    await this.upsert(
+      `insert into rule_edits select * from jsonb_to_recordset($1::jsonb) as x(
+         tool_use_id text, session_id text, agent_id text, key text, at timestamptz, tool text, added int, removed int)
+       on conflict (tool_use_id) do nothing`,
+      rows.ruleEdits,
+    )
+  }
+
+  async forgetTranscriptRules(): Promise<void> {
+    await this.client.query('truncate rule_seen, rule_edits, rule_files, rule_changes')
+  }
+
+  async meta(name: string): Promise<string | null> {
+    const result = await this.client.query<{ value: string }>('select value from tally_meta where name = $1', [name])
+    return result.rows[0]?.value ?? null
+  }
+
+  async setMeta(name: string, value: string): Promise<void> {
+    await this.client.query(
+      'insert into tally_meta (name, value) values ($1, $2) on conflict (name) do update set value = excluded.value',
+      [name, value],
+    )
+  }
+
+  async snapshotFiles(): Promise<Map<string, SnapshotFile>> {
+    const result = await this.client.query('select path, key, size, mtime, hash from rule_snapshot_files')
+    return new Map(result.rows.map((row) => [row.path, { path: row.path, key: row.key, size: Number(row.size), mtime: row.mtime, hash: row.hash }]))
+  }
+
+  async lastSnapshots(): Promise<Map<string, string | null>> {
+    const result = await this.client.query('select distinct on (key) key, hash from rule_snapshots order by key, at desc')
+    return new Map(result.rows.map((row) => [row.key, row.hash]))
+  }
+
+  async writeSnapshots(rows: RuleRows, files: SnapshotFile[], snapshots: { key: string; at: string; hash: string | null }[]): Promise<void> {
+    await this.transaction(async () => {
+      await this.writeRuleRows(rows)
+      await this.client.query('delete from rule_snapshot_files')
+      await this.upsert(
+        `insert into rule_snapshot_files select * from jsonb_to_recordset($1::jsonb) as x(path text, key text, size bigint, mtime text, hash text)`,
+        files,
+      )
+      await this.upsert(
+        `insert into rule_snapshots select * from jsonb_to_recordset($1::jsonb) as x(key text, at timestamptz, hash text)
+         on conflict do nothing`,
+        snapshots,
+      )
+    })
+  }
+
+  async ruleVersions(): Promise<{ seen: KeyVersion[]; snapshots: KeyVersion[] }> {
+    const [seen, snapshots] = await Promise.all([
+      this.client.query('select key, hash, min(at) as at from rule_seen group by key, hash'),
+      this.client.query('select key, hash, at from rule_snapshots'),
+    ])
+    const map = (row: Record<string, unknown>): KeyVersion => ({ key: row.key as string, hash: row.hash as string | null, at: (row.at as Date).toISOString() })
+    return { seen: seen.rows.map(map), snapshots: snapshots.rows.map(map) }
+  }
+
+  async ruleChangeIds(): Promise<Set<string>> {
+    const result = await this.client.query<{ id: string }>('select id from rule_changes')
+    return new Set(result.rows.map((row) => row.id))
+  }
+
+  async ruleTextsOf(hashes: string[]): Promise<Map<string, string>> {
+    const result = await this.client.query<{ hash: string; content: string }>('select hash, content from rule_texts where hash = any($1::text[])', [hashes])
+    return new Map(result.rows.map((row) => [row.hash, row.content]))
+  }
+
+  async writeRuleChanges(added: StoredChange[], removed: string[]): Promise<void> {
+    await this.transaction(async () => {
+      if (removed.length > 0) await this.client.query('delete from rule_changes where id = any($1::text[])', [removed])
+      await this.upsert(
+        `insert into rule_changes select * from jsonb_to_recordset($1::jsonb) as x(
+           id text, key text, at timestamptz, old_hash text, new_hash text, source text, added int, removed int)
+         on conflict (id) do nothing`,
+        added,
       )
     })
   }

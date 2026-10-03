@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto'
 import type { LaunchEntry } from '../../src/chain/dispatcher.js'
 import { blocksOf, describeTool, parseEntry, type ContentBlock, type Entry, type Usage } from '../../src/sessions/entry.js'
 import { cleanText, compact } from './compact.js'
+import { emptyRuleRows, RuleCollector, type RuleContext, type RuleRows } from './rule-parse.js'
 import { placeOf, taskOf } from './task.js'
 
 const ERROR_TEXT_LIMIT = 500
@@ -70,7 +71,7 @@ export interface SessionRow {
   lastAt: string | null
 }
 
-export interface Batch {
+export interface Batch extends RuleRows {
   lines: Map<string, LineRow>
   messages: Map<string, MessageRow>
   calls: Map<string, CallRow>
@@ -86,6 +87,8 @@ export interface Launch {
 export interface ParseContext {
   account: string
   launches: ReadonlyMap<string, Launch>
+  rules?: RuleContext
+  rulesOnly?: boolean
 }
 
 export function launchMap(entries: LaunchEntry[]): Map<string, Launch> {
@@ -98,21 +101,29 @@ export function launchMap(entries: LaunchEntry[]): Map<string, Launch> {
 }
 
 export function emptyBatch(): Batch {
-  return { lines: new Map(), messages: new Map(), calls: new Map(), results: new Map(), sessions: new Map() }
+  return { lines: new Map(), messages: new Map(), calls: new Map(), results: new Map(), sessions: new Map(), ...emptyRuleRows() }
 }
 
 export function batchSize(batch: Batch): number {
-  return batch.lines.size + batch.messages.size + batch.calls.size + batch.results.size + batch.sessions.size
+  return (
+    batch.lines.size + batch.messages.size + batch.calls.size + batch.results.size + batch.sessions.size +
+    batch.ruleTexts.size + batch.ruleSeen.size + batch.ruleEdits.size
+  )
 }
 
 export class BatchBuilder {
   batch = emptyBatch()
+  private readonly rules: RuleCollector | null
 
-  constructor(private readonly context: ParseContext) {}
+  constructor(private readonly context: ParseContext) {
+    this.rules = context.rules === undefined ? null : new RuleCollector(context.rules)
+  }
 
   push(text: string): void {
     const entry = parseEntry(text)
     if (entry === undefined) return
+    this.rules?.push(this.batch, entry)
+    if (this.context.rulesOnly === true) return
     const sessionId = str(entry.sessionId)
     if (sessionId !== null) this.noteSession(sessionId, entry)
     const uuid = str(entry.uuid)

@@ -248,3 +248,69 @@ join sessions s on s.session_id = st.session_id
 left join stuck on stuck.task = st.task
 left join tasks t on t.task = st.task
 group by st.task, t.title, t.status, t.labels, t.related;
+
+create table if not exists tally_meta (
+  name text primary key,
+  value text not null
+);
+
+create table if not exists rule_texts (
+  hash text primary key,
+  content text not null,
+  lines int not null
+);
+
+create table if not exists rule_files (
+  key text primary key,
+  display text not null,
+  kind text not null,
+  scope text not null
+);
+
+create table if not exists rule_seen (
+  session_id text not null,
+  key text not null,
+  hash text not null,
+  at timestamptz not null,
+  primary key (session_id, key, hash)
+);
+create index if not exists rule_seen_key on rule_seen (key, hash, at);
+
+create table if not exists rule_snapshot_files (
+  path text primary key,
+  key text not null,
+  size bigint not null,
+  mtime text not null,
+  hash text
+);
+
+create table if not exists rule_snapshots (
+  key text not null,
+  at timestamptz not null,
+  hash text,
+  primary key (key, at)
+);
+
+create table if not exists rule_edits (
+  tool_use_id text primary key,
+  session_id text,
+  agent_id text,
+  key text not null,
+  at timestamptz,
+  tool text not null,
+  added int not null,
+  removed int
+);
+create index if not exists rule_edits_key on rule_edits (key, at);
+
+create table if not exists rule_changes (
+  id text primary key,
+  key text not null,
+  at timestamptz not null,
+  old_hash text,
+  new_hash text,
+  source text not null check (source in ('snapshot', 'transcript')),
+  added int not null,
+  removed int not null
+);
+create index if not exists rule_changes_at on rule_changes (at);

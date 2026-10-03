@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto'
 import { open, stat } from 'node:fs/promises'
 import { readLines } from '../../src/sessions/lines.js'
-import { BatchBuilder, type Batch, type ParseContext } from './parse.js'
+import { BatchBuilder, emptyBatch, type Batch, type ParseContext } from './parse.js'
 
 const HEAD_BYTES = 1024
 
@@ -55,20 +55,38 @@ export async function loadFile(
   const headLen = Math.min(HEAD_BYTES, size)
   const state = { ...source, size, mtime, ino, head: await headOf(source.path, headLen), headLen }
 
+  return readChunks(source.path, from, size, chunkBytes, context, (batch, next) => store.write(batch, { ...state, offset: next }))
+}
+
+// Re-reads a whole transcript for rule rows only (the backfill of rule versions), without touching its read state.
+export async function loadRules(path: string, write: (batch: Batch) => Promise<void>, context: ParseContext, chunkBytes: number): Promise<number> {
+  const { size } = await stat(path)
+  return readChunks(path, 0, size, chunkBytes, { ...context, rulesOnly: true }, (batch) => write(batch))
+}
+
+async function readChunks(
+  path: string,
+  from: number,
+  size: number,
+  chunkBytes: number,
+  context: ParseContext,
+  write: (batch: Batch, next: number) => Promise<void>,
+): Promise<number> {
+  const builder = new BatchBuilder(context)
   let offset = from
   let chunk = chunkBytes
   let lines = 0
   while (offset < size) {
     const end = Math.min(size, offset + chunk)
-    const read = await readLines(source.path, offset, end)
+    const read = await readLines(path, offset, end)
     if (read.next === offset) {
       if (end === size) break
       chunk *= 2
       continue
     }
-    const builder = new BatchBuilder(context)
+    builder.batch = emptyBatch()
     for (const text of read.lines) builder.push(text)
-    await store.write(builder.batch, { ...state, offset: read.next })
+    await write(builder.batch, read.next)
     lines += read.lines.length
     offset = read.next
     chunk = chunkBytes
