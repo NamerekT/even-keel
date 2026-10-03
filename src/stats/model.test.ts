@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { isTaskId, parsePeriodQuery, parseStatsFilter, readerSettings, repoTail } from './model.js'
+import { folderGroups, isTaskId, parsePeriodQuery, parseStatsFilter, readerSettings, repoTail, SCRATCH_GROUP } from './model.js'
 
 describe('parseStatsFilter', () => {
   it('defaults to every session of every account in UTC', () => {
@@ -57,6 +57,33 @@ describe('repoTail', () => {
 
   it('keeps a path without a drive', () => {
     expect(repoTail('/home/john/example')).toBe('/home/john/example')
+  })
+})
+
+describe('folderGroups', () => {
+  const folder = (raw: string) => ({ dir: repoTail(raw), raw })
+
+  it('puts a folder under the outermost seen folder that holds it, named as written', () => {
+    const groups = folderGroups([folder('D:\\Work\\Tools\\forge\\backups'), folder('D:\\Work\\Tools'), folder('D:\\Work\\Tools\\forge')], [])
+    expect([...groups.values()]).toEqual(['Tools', 'Tools', 'Tools'])
+  })
+
+  it('keeps a folder whose parent was never seen on its own', () => {
+    expect(folderGroups([folder('D:\\Work\\relay\\systemd')], []).get('/work/relay/systemd')).toBe('systemd')
+  })
+
+  it('never groups under a one-level folder or a folder holding a Baton project', () => {
+    const groups = folderGroups([folder('D:\\Work'), folder('D:\\Work\\alpha'), folder('D:\\Work\\git'), folder('D:\\Work\\git\\side')], ['/work/git/example'])
+    expect(Object.fromEntries(groups)).toEqual({ '/work': 'Work', '/work/alpha': 'alpha', '/work/git': 'git', '/work/git/side': 'side' })
+  })
+
+  it('folds the scratch folders of the desktop app into one group', () => {
+    const scratch = 'C:\\Users\\John\\AppData\\Roaming\\Claude\\scratch-workspaces\\a1\\b2\\scratch-2026-09-20-abc123'
+    expect(folderGroups([folder(scratch)], []).get(repoTail(scratch))).toBe(SCRATCH_GROUP)
+  })
+
+  it('names a group by its last segment even with a trailing slash', () => {
+    expect(folderGroups([folder('D:/Work/Example/')], []).get('/work/example')).toBe('Example')
   })
 })
 

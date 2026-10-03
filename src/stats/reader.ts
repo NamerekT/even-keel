@@ -11,14 +11,15 @@ import type {
   StatsTaskDetail,
   StatsTotals,
 } from './model.js'
-import { repoTail } from './model.js'
+import { folderGroups, repoTail } from './model.js'
 
 const CACHE_MS = 60_000
 const TOP_STUCK = 20
 
-// $1 Baton project keys, $2 their repository paths without drive, $3 time zone, $4 scope, $5 account or null.
+// $1 Baton project keys, $2 their repository paths without drive, $3 time zone, $4 scope, $5 account or null,
+// $6 folders without drive and $7 their groups (folderGroups).
 // A message belongs to the Baton project of its task key, a message without a task to the Baton project
-// whose repository holds its folder, anything else to its folder name.
+// whose repository holds its folder, anything else to the group of its folder.
 const BASE = `
 with base as (
   select c.message_id, c.session_id, coalesce(c.agent_id, '') as agent_id, c.task, c.at, c.cost, c.model, c.entrypoint,
@@ -31,6 +32,7 @@ with base as (
         order by length(b.dir) desc
         limit 1
       ) end,
+      (select g.label from unnest($6::text[], $7::text[]) as g(dir, label) where g.dir = d.dir),
       c.project,
       '?'
     ) as project
@@ -61,16 +63,22 @@ order by l.day, l.project`
 
 const ACCOUNTS = `select distinct account from messages order by account`
 
-// $6 first day, $7 last day, both local and inclusive; $8 project labels or null for all.
-// The previous period is as long and ends the day before $6.
+const FOLDERS = `
+select lower(regexp_replace(replace(project_dir, '\\', '/'), '^[a-zA-Z]:', '')) as dir, min(project_dir) as raw
+from messages
+where project_dir is not null
+group by 1`
+
+// $8 first day, $9 last day, both local and inclusive; $10 project labels or null for all.
+// The previous period is as long and ends the day before $8.
 const PERIOD = `${BASE}, bounds as (
-  select ($6::date)::timestamp at time zone $3::text as lo,
-    ($7::date + 1)::timestamp at time zone $3::text as hi,
-    ($6::date - ($7::date - $6::date + 1))::timestamp at time zone $3::text as prev
+  select ($8::date)::timestamp at time zone $3::text as lo,
+    ($9::date + 1)::timestamp at time zone $3::text as hi,
+    ($8::date - ($9::date - $8::date + 1))::timestamp at time zone $3::text as prev
 ), ranged as (
   select b.*, b.at >= bounds.lo as cur
   from base b, bounds
-  where b.at >= bounds.prev and b.at < bounds.hi and ($8::text[] is null or b.project = any($8::text[]))
+  where b.at >= bounds.prev and b.at < bounds.hi and ($10::text[] is null or b.project = any($10::text[]))
 )`
 
 const TOTALS = `${PERIOD}
@@ -279,6 +287,7 @@ export class StatsReader {
   private readonly cache = new Map<string, { at: number; answer: StatsAnswer<unknown> }>()
   private readonly keys: string[]
   private readonly dirs: string[]
+  private folders: { at: number; groups: Promise<[string[], string[]]> } | null = null
 
   constructor(
     private readonly settings: ReaderSettings | string,
@@ -319,8 +328,20 @@ export class StatsReader {
   }
 
   private async query(pool: pg.Pool, sql: string, filter: StatsFilter, extra: unknown[] = []): Promise<Row[]> {
-    const result = await pool.query<Row>(sql, [this.keys, this.dirs, filter.tz, filter.scope, filter.account, ...extra])
+    const [dirs, labels] = await this.groups(pool)
+    const result = await pool.query<Row>(sql, [this.keys, this.dirs, filter.tz, filter.scope, filter.account, dirs, labels, ...extra])
     return result.rows
+  }
+
+  private groups(pool: pg.Pool): Promise<[string[], string[]]> {
+    if (this.folders !== null && Date.now() - this.folders.at < CACHE_MS) return this.folders.groups
+    const groups = pool.query<{ dir: string; raw: string }>(FOLDERS).then((result) => {
+      const found = folderGroups(result.rows, this.dirs)
+      return [[...found.keys()], [...found.values()]] as [string[], string[]]
+    })
+    this.folders = { at: Date.now(), groups }
+    groups.catch(() => (this.folders = null))
+    return groups
   }
 
   private async cached<T>(key: string, read: (pool: pg.Pool) => Promise<T>): Promise<StatsAnswer<T>> {

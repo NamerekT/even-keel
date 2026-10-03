@@ -150,6 +150,30 @@ export function repoTail(repo: string): string {
     .toLowerCase()
 }
 
+export const SCRATCH_GROUP = 'Scratch приложения'
+
+const SCRATCH = '/claude/scratch-workspaces/'
+
+const holds = (outer: string, inner: string) => inner.startsWith(`${outer}/`)
+
+// Groups the folders of messages outside Baton projects: a folder goes under the outermost folder seen in
+// the data that holds it, unless that one is a single level deep or holds a Baton project folder.
+export function folderGroups(folders: { dir: string; raw: string }[], baton: string[]): Map<string, string> {
+  const roots = folders.filter(
+    ({ dir }) => !dir.includes(SCRATCH) && dir.split('/').filter(Boolean).length >= 2 && !baton.some((repo) => holds(dir, repo)),
+  )
+  const groups = new Map<string, string>()
+  for (const folder of folders) {
+    if (folder.dir.includes(SCRATCH)) {
+      groups.set(folder.dir, SCRATCH_GROUP)
+      continue
+    }
+    const root = roots.filter(({ dir }) => holds(dir, folder.dir)).reduce((best, each) => (each.dir.length < best.dir.length ? each : best), folder)
+    groups.set(folder.dir, root.raw.split(/[\\/]/).filter(Boolean).at(-1) ?? root.raw)
+  }
+  return groups
+}
+
 export function readerSettings(env: Record<string, string | undefined>): ReaderSettings | string {
   const missing = ['TALLY_DB_HOST', 'TALLY_DB_NAME', 'TALLY_READER_PASSWORD'].filter((name) => !env[name])
   if (missing.length > 0) return missing.join(', ')
