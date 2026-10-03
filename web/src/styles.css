@@ -1001,7 +1001,6 @@ a:focus-visible {
   display: flex;
   flex-direction: column;
   gap: 18px;
-  padding-left: var(--rail, 0px);
 }
 
 .chain__section {
@@ -1057,7 +1056,6 @@ a:focus-visible {
   flex-direction: column;
   align-items: flex-start;
   gap: 10px;
-  padding-left: var(--rail, 0px);
 }
 
 .chain__next .chain__milestone {
@@ -1068,46 +1066,6 @@ a:focus-visible {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
-}
-
-.chain__rail {
-  position: absolute;
-  top: 0;
-  left: 0;
-  overflow: visible;
-  pointer-events: none;
-}
-
-.chain__link {
-  fill: none;
-  stroke: var(--fg-muted);
-  stroke-width: 1.5;
-  stroke-linejoin: round;
-}
-
-.chain__head {
-  fill: var(--fg-muted);
-}
-
-.chain__rail--hidden {
-  opacity: 0;
-}
-
-.chain__link--strong {
-  stroke: var(--fg);
-  stroke-width: 2.5;
-}
-
-.chain__head--strong {
-  fill: var(--fg);
-}
-
-.chain__legend-link {
-  width: 8px;
-  height: 12px;
-  border: 1.5px solid var(--fg-muted);
-  border-right: none;
-  border-radius: 3px 0 0 3px;
 }
 
 .chain__hint {
@@ -1144,12 +1102,12 @@ a:focus-visible {
   cursor: grabbing;
 }
 
-.block--blocker {
+.block.block--blocker {
   border-color: var(--accent);
   box-shadow: 0 0 0 1px var(--accent);
 }
 
-.block--dependent {
+.block.block--dependent {
   border-style: dashed;
   border-color: var(--accent);
 }
@@ -1282,9 +1240,23 @@ a:focus-visible {
 }
 
 .block__waits {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
   color: var(--fg-muted);
   font-size: 12px;
   white-space: nowrap;
+}
+
+.block__lock {
+  flex: none;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.3;
+}
+
+.block--blocked .block__number {
+  opacity: 0.5;
 }
 
 .block__key {

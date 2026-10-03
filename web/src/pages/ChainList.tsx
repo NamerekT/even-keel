@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from 'react'
+import { useEffect, useRef, useState, type CSSProperties } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router'
 import type { ContextScale } from '../../../src/state.js'
 import { plural } from '../format.js'
@@ -9,14 +9,9 @@ import { CacheClock } from '../ui/CacheClock.js'
 import { ContextMeter } from '../ui/ContextMeter.js'
 import { Lamp } from '../ui/Lamp.js'
 import { milestoneView, type Section } from '../ui/milestones.js'
-import { railLanes, railPath, type RailLink } from '../ui/rail.js'
-import { blockLinks, type Point } from '../ui/reorder.js'
+import { relatives, type Point } from '../ui/reorder.js'
 import { useChainDrag, type ChainDrag } from './useChainDrag.js'
 
-const LANE = 12
-const LANES = 4
-const RAIL_PAD = 20
-const STUB = 6
 const LEGEND: [BlockLamp, string][] = [
   ['done', 'готово'],
   ['working', 'в работе'],
@@ -34,9 +29,14 @@ interface Props {
   focus: string
 }
 
-interface Rail {
-  d: string
-  strong: boolean
+interface Relatives {
+  blockers: ReadonlySet<string>
+  dependents: ReadonlySet<string>
+}
+
+interface Relation {
+  role: 'dragged' | 'blocker' | 'dependent'
+  badge: boolean
 }
 
 export function ChainList({ project, chain, scale, focus }: Props) {
@@ -57,13 +57,8 @@ export function ChainList({ project, chain, scale, focus }: Props) {
   const hidden = openIds(ordered).filter((id) => !shown.has(id))
   const open = new Set(openIds(ordered))
   const numbers = new Map(openIds(blocks).map((id, index) => [id, index + 1]))
-  const lanes = rails(blocks)
-  const width = RAIL_PAD + Math.min(LANES, Math.max(0, ...lanes.map((link) => link.lane + 1))) * LANE
-
+  const [hovered, setHovered] = useState<string | null>(null)
   const listRef = useRef<HTMLDivElement>(null)
-  const [size, setSize] = useState({ width: 0, height: 0 })
-  const [paths, setPaths] = useState<Rail[]>([])
-  const layout = `${width}:${focus}:${blocks.map((block) => `${block.id}${block.open ? '' : '!'}<${block.blockedBy.join('+')}`).join(',')}`
 
   const unfocus = (kept: ChainBlock[]) => {
     if (focus !== '' && !kept.some((block) => block.id === focus)) navigate({ search: location.search, hash: '' })
@@ -88,41 +83,11 @@ export function ChainList({ project, chain, scale, focus }: Props) {
     },
   })
 
-  const measure = useCallback(() => {
-    const list = listRef.current
-    if (list === null) return
-    const rect = list.getBoundingClientRect()
-    setSize({ width: list.clientWidth, height: list.clientHeight })
-    const items = [...list.querySelectorAll<HTMLElement>('[data-block]')]
-    const rows = items.map((item) => {
-      const box = item.getBoundingClientRect()
-      return { x: box.left - rect.left, y: box.top - rect.top + box.height / 2 }
-    })
-    const focused = blocks.findIndex((block) => block.id === focus)
-    setPaths(
-      lanes.flatMap((link) => {
-        const x = width - RAIL_PAD / 2 - (link.lane % LANES) * LANE
-        const from: Point = { x: rows[link.from]!.x, y: rows[link.from]!.y + STUB }
-        return link.to.map((to) => ({
-          d: railPath(from, { x: rows[to]!.x, y: rows[to]!.y - STUB }, x),
-          strong: link.from === focused || to === focused,
-        }))
-      }),
-    )
-  }, [layout])
-
-  useLayoutEffect(() => {
-    measure()
-    const list = listRef.current
-    if (list === null) return
-    const observer = new ResizeObserver(() => measure())
-    observer.observe(list)
-    for (const item of list.querySelectorAll('[data-block]')) observer.observe(item)
-    return () => observer.disconnect()
-  }, [measure])
+  const selected = relativesOf(blocks, focus)
+  const pointed = relativesOf(blocks, hovered)
 
   return (
-    <div className="chain" style={{ '--rail': `${width}px` } as CSSProperties}>
+    <div className="chain">
       {(archive.hidden > 0 || archive.shown > 0) && (
         <div className="chain__buttons">
           {archive.hidden > 0 && (
@@ -151,37 +116,15 @@ export function ChainList({ project, chain, scale, focus }: Props) {
                   scale={scale}
                   focused={block.id === focus}
                   movable={movable(block)}
-                  drag={drag}
+                  relation={relationOf(block.id, drag, selected, pointed)}
                   offset={landing?.id === block.id ? landing.offset : drag?.offsets.get(block.id)}
+                  onHover={(inside) => setHovered((current) => (inside ? block.id : current === block.id ? null : current))}
                   onReturn={sending ? undefined : () => void send('chain/unskip', { project, task: block.id })}
                 />
               ))}
             </ol>
           </section>
         ))}
-        <svg
-          className={drag === null ? 'chain__rail' : 'chain__rail chain__rail--hidden'}
-          width={size.width}
-          height={size.height}
-          aria-hidden="true"
-        >
-          <defs>
-            <marker id="rail-head" viewBox="0 0 10 10" refX="10" refY="5" markerUnits="userSpaceOnUse" markerWidth="8" markerHeight="8" orient="auto">
-              <path className="chain__head" d="M 0 0 L 10 5 L 0 10 z" />
-            </marker>
-            <marker id="rail-head-strong" viewBox="0 0 10 10" refX="10" refY="5" markerUnits="userSpaceOnUse" markerWidth="9" markerHeight="9" orient="auto">
-              <path className="chain__head chain__head--strong" d="M 0 0 L 10 5 L 0 10 z" />
-            </marker>
-          </defs>
-          {paths.map((path, index) => (
-            <path
-              key={index}
-              className={path.strong ? 'chain__link chain__link--strong' : 'chain__link'}
-              d={path.d}
-              markerEnd={path.strong ? 'url(#rail-head-strong)' : 'url(#rail-head)'}
-            />
-          ))}
-        </svg>
       </div>
       {(view.next !== null || view.revealed > 0) && (
         <div className="chain__next">
@@ -208,11 +151,8 @@ export function ChainList({ project, chain, scale, focus }: Props) {
             {label}
           </li>
         ))}
-        <li className="chain__legend-item">
-          <span className="chain__legend-link" aria-hidden="true" />
-          блокирует
-        </li>
       </ul>
+      <p className="chain__hint">Выбранная задача или задача под курсором подсвечивает свои блокеры и задачи, которые её ждут.</p>
       {blocks.some((block) => movable(block)) && (
         <p className="chain__hint">Порядок меняется перетаскиванием карточки, на телефоне — после долгого нажатия.</p>
       )}
@@ -239,19 +179,21 @@ interface BlockProps {
   scale: ContextScale
   focused: boolean
   movable: boolean
-  drag: ChainDrag | null
+  relation: Relation | null
   offset: Point | undefined
+  onHover: (inside: boolean) => void
   onReturn: (() => void) | undefined
 }
 
-function Block({ block, number, waits, scale, focused, movable, drag, offset, onReturn }: BlockProps) {
+function Block({ block, number, waits, scale, focused, movable, relation, offset, onHover, onReturn }: BlockProps) {
   const classes = ['block', `block--${block.lamp}`]
   if (block.current) classes.push('block--current')
   if (block.skipped) classes.push('block--skipped')
   if (focused) classes.push('block--focus')
   if (movable) classes.push('block--movable')
-  const role = dragRole(drag, block.id)
-  if (role !== null) classes.push(`block--${role}`)
+  if (waits.length > 0) classes.push('block--blocked')
+  if (relation !== null) classes.push(`block--${relation.role}`)
+  const badge = relation?.badge === true ? relation.role : null
   const style: CSSProperties = {}
   if (offset !== undefined) style.transform = `translate(${offset.x}px, ${offset.y}px)`
 
@@ -262,6 +204,8 @@ function Block({ block, number, waits, scale, focused, movable, drag, offset, on
       style={style}
       data-block={block.id}
       data-movable={movable || undefined}
+      onMouseEnter={() => onHover(true)}
+      onMouseLeave={() => onHover(false)}
     >
       <span className="block__number">{number}</span>
       <div className="block__head">
@@ -283,9 +227,14 @@ function Block({ block, number, waits, scale, focused, movable, drag, offset, on
             вопрос
           </span>
         )}
-        {role === 'blocker' && <span className="block__badge block__badge--blocker">блокирует</span>}
-        {role === 'dependent' && <span className="block__badge block__badge--dependent">ждёт её</span>}
-        {waits.length > 0 && <span className="block__waits">ждёт {waits.join(', ')}</span>}
+        {badge === 'blocker' && <span className="block__badge block__badge--blocker">блокирует</span>}
+        {badge === 'dependent' && <span className="block__badge block__badge--dependent">ждёт её</span>}
+        {waits.length > 0 && (
+          <span className="block__waits">
+            <LockIcon />
+            ждёт {waits.join(', ')}
+          </span>
+        )}
         {block.status !== null && !(block.current && block.session !== null) && <span className="block__status">{block.status}</span>}
         {block.current && checkpointHandoffs(block.sessions) > 0 && (
           <span className="block__badge" title="Сколько раз сессии по задаче передали дела по контрольной точке">
@@ -308,18 +257,29 @@ function Block({ block, number, waits, scale, focused, movable, drag, offset, on
   )
 }
 
-function rails(blocks: ChainBlock[]): RailLink[] {
-  const first = blocks.findIndex((block) => block.open)
-  if (first < 0) return []
-  const links = blockLinks(openIds(blocks), new Map(blocks.map((block) => [block.id, block.blockedBy])))
-  return railLanes(links.map((link) => ({ from: link.from + first, to: link.to + first })))
+function LockIcon() {
+  return (
+    <svg className="block__lock" viewBox="0 0 12 12" width="11" height="11" aria-hidden="true">
+      <rect x="2" y="5.5" width="8" height="5.5" rx="1" />
+      <path d="M 4 5.5 V 4 a 2 2 0 0 1 4 0 V 5.5" />
+    </svg>
+  )
 }
 
-function dragRole(drag: ChainDrag | null, id: string): 'dragged' | 'blocker' | 'dependent' | null {
-  if (drag === null) return null
-  if (drag.id === id) return 'dragged'
-  if (drag.blockers.has(id)) return 'blocker'
-  return drag.dependents.has(id) ? 'dependent' : null
+function relativesOf(blocks: ChainBlock[], id: string | null): Relatives | null {
+  if (id === null || !blocks.some((block) => block.id === id && block.open)) return null
+  const found = relatives(openIds(blocks), new Map(blocks.map((block) => [block.id, block.blockedBy])), id)
+  return { blockers: new Set(found.blockers), dependents: new Set(found.dependents) }
+}
+
+function relationOf(id: string, drag: ChainDrag | null, selected: Relatives | null, pointed: Relatives | null): Relation | null {
+  if (drag !== null) return drag.id === id ? { role: 'dragged', badge: false } : roleIn(drag, id, true)
+  return (selected === null ? null : roleIn(selected, id, true)) ?? (pointed === null ? null : roleIn(pointed, id, false))
+}
+
+function roleIn(found: Relatives, id: string, badge: boolean): Relation | null {
+  if (found.blockers.has(id)) return { role: 'blocker', badge }
+  return found.dependents.has(id) ? { role: 'dependent', badge } : null
 }
 
 function openIds(blocks: ChainBlock[]): string[] {

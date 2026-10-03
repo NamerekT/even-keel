@@ -17,12 +17,6 @@ export interface Box {
   height: number
 }
 
-export interface BlockLink {
-  from: number
-  to: number
-  adjacent: boolean
-}
-
 export function dropBounds(order: string[], blockers: Blockers, from: number, pinned: number): Bounds {
   const id = order[from]!
   const own = new Set(blockers.get(id) ?? [])
@@ -46,18 +40,6 @@ export function relatives(order: string[], blockers: Blockers, id: string): { bl
     blockers: order.filter((other) => own.includes(other)),
     dependents: order.filter((other) => blockers.get(other)?.includes(id)),
   }
-}
-
-export function blockLinks(order: string[], blockers: Blockers): BlockLink[] {
-  const position = new Map(order.map((id, index) => [id, index]))
-  const links: BlockLink[] = []
-  for (const [to, id] of order.entries()) {
-    for (const blocker of blockers.get(id) ?? []) {
-      const from = position.get(blocker)
-      if (from !== undefined && from < to) links.push({ from, to, adjacent: to - from === 1 })
-    }
-  }
-  return links.sort((a, b) => a.from - b.from || a.to - b.to)
 }
 
 export function nearestIndex(centers: Point[], point: Point): number {

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { blockLinks, clampDrop, dropBounds, nearestIndex, relatives } from './reorder.js'
+import { clampDrop, dropBounds, nearestIndex, relatives } from './reorder.js'
 
 const blockers = new Map<string, string[]>([
   ['A', []],
@@ -49,17 +49,6 @@ describe('relatives', () => {
   it('names the blockers and the dependents of a task within the order', () => {
     expect(relatives(order, blockers, 'C')).toEqual({ blockers: ['A'], dependents: ['E'] })
     expect(relatives(['C', 'E'], blockers, 'C')).toEqual({ blockers: [], dependents: ['E'] })
-  })
-})
-
-describe('blockLinks', () => {
-  it('lists every blocker link by position and marks the adjacent ones', () => {
-    expect(blockLinks(order, blockers)).toEqual([
-      { from: 0, to: 2, adjacent: false },
-      { from: 1, to: 4, adjacent: false },
-      { from: 2, to: 4, adjacent: false },
-    ])
-    expect(blockLinks(['A', 'C'], blockers)).toEqual([{ from: 0, to: 1, adjacent: true }])
   })
 })
 
