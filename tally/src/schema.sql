@@ -314,3 +314,17 @@ create table if not exists rule_changes (
   removed int not null
 );
 create index if not exists rule_changes_at on rule_changes (at);
+
+create table if not exists rule_imports (
+  hash text primary key,
+  id text not null,
+  at timestamptz not null,
+  until timestamptz,
+  precision text not null,
+  sessions text[] not null,
+  files jsonb not null,
+  purpose text[] not null,
+  reason text not null,
+  task text,
+  source text not null
+);

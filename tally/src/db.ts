@@ -6,6 +6,7 @@ import type { FileState, Store } from './load.js'
 import type { TaskRecord } from './huly.js'
 import type { Batch, Launch, MessageRow } from './parse.js'
 import type { RuleChange } from './rule-changes.js'
+import type { ImportRow } from './rule-imports.js'
 import type { RuleRows } from './rule-parse.js'
 import type { Sign, SignKind, Span } from './signs.js'
 import type { TranscriptEntry } from './stream.js'
@@ -271,6 +272,27 @@ export class TallyDb implements Store {
         added,
       )
     })
+  }
+
+  // The import file is the truth: lines gone from it leave the table.
+  async syncImports(rows: ImportRow[]): Promise<{ added: number; removed: number }> {
+    let added = 0
+    let removed = 0
+    await this.transaction(async () => {
+      const gone = await this.client.query('delete from rule_imports where not (hash = any($1::text[]))', [rows.map((row) => row.hash)])
+      removed = gone.rowCount ?? 0
+      const list = rows.map(snake)
+      if (list.length === 0) return
+      const result = await this.client.query(
+        `insert into rule_imports select * from jsonb_to_recordset($1::jsonb) as x(
+           hash text, id text, at timestamptz, until timestamptz, precision text, sessions text[], files jsonb,
+           purpose text[], reason text, task text, source text)
+         on conflict (hash) do nothing`,
+        [JSON.stringify(list)],
+      )
+      added = result.rowCount ?? 0
+    })
+    return { added, removed }
   }
 
   async forgetFilesExcept(paths: string[]): Promise<number> {

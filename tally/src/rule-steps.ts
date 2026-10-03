@@ -1,8 +1,10 @@
+import { readFile } from 'node:fs/promises'
 import { lineDiff } from '../../src/stats/diff.js'
 import type { KeyVersion, SnapshotFile, StoredChange, TallyDb } from './db.js'
 import { loadRules, type Source } from './load.js'
 import type { ParseContext } from './parse.js'
 import { changesOf, pickPath, type Version } from './rule-changes.js'
+import { parseImports } from './rule-imports.js'
 import { addRuleText, emptyRuleRows } from './rule-parse.js'
 import { infoOf, ruleText, type RuleSource } from './rule-scan.js'
 import { hashOf } from './rules.js'
@@ -93,6 +95,20 @@ export async function refreshRuleChanges(db: TallyDb): Promise<number> {
   })
   await db.writeRuleChanges(added, removed)
   return added.length
+}
+
+// A missing file leaves the stored imports as they are: it may be on its way back.
+export async function importRuleHistory(db: TallyDb, path: string, log: (message: string) => void): Promise<number> {
+  let text: string
+  try {
+    text = await readFile(path, 'utf8')
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return 0
+    throw error
+  }
+  const { rows, errors } = parseImports(text)
+  for (const error of errors) log(`tally: ${path}:${error.line}: ${error.message}`)
+  return (await db.syncImports(rows)).added
 }
 
 function changeId(key: string, at: string, hash: string | null): string {

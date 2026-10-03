@@ -20,6 +20,7 @@ export interface TallyConfig {
   prices: Price[]
   signs: SignRules
   classify: ClassifySettings
+  ruleHistory: string | null
 }
 
 export interface DbSettings {
@@ -35,7 +36,10 @@ const DEFAULT_BATON_URL = 'http://127.0.0.1:4747'
 export const DEFAULT_CLASSIFY: ClassifySettings = { perRun: 10, idleMinutes: 60, sinceDays: 14 }
 
 export function parseConfig(raw: unknown): TallyConfig {
-  const record = (raw ?? {}) as { batonUrl?: unknown; prices?: unknown; signs?: unknown; classify?: unknown }
+  const record = (raw ?? {}) as { batonUrl?: unknown; prices?: unknown; signs?: unknown; classify?: unknown; ruleHistory?: unknown }
+  if (record.ruleHistory !== undefined && (typeof record.ruleHistory !== 'string' || record.ruleHistory === '')) {
+    throw new Error('tally: "ruleHistory" must be a path to the rule history import')
+  }
   const prices = record.prices
   if (typeof prices !== 'object' || prices === null || Object.keys(prices).length === 0) {
     throw new Error('tally: config needs "prices" per model prefix')
@@ -55,6 +59,7 @@ export function parseConfig(raw: unknown): TallyConfig {
     }),
     signs: integers('signs', record.signs, DEFAULT_SIGN_RULES, 1),
     classify: integers('classify', record.classify, DEFAULT_CLASSIFY, 0),
+    ruleHistory: (record.ruleHistory as string | undefined) ?? null,
   }
 }
 

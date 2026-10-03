@@ -11,7 +11,7 @@ import { loadConfig } from '../../src/config.js'
 import { loadFile, type Source } from './load.js'
 import { launchMap } from './parse.js'
 import { ruleSources, skillsOf } from './rule-scan.js'
-import { backfillRules, refreshRuleChanges, snapshotRules } from './rule-steps.js'
+import { backfillRules, importRuleHistory, refreshRuleChanges, snapshotRules } from './rule-steps.js'
 import { transcriptFiles } from './scan.js'
 import { classifySpans, refreshSigns, refreshTasks } from './steps.js'
 
@@ -68,6 +68,7 @@ async function run(): Promise<number> {
     const snapshots = await db.addSnapshots(await limitSnapshots(config.batonUrl, stateDir, homes))
     const versions = await snapshotRules(db, ruleFiles, new Date())
     const changes = await refreshRuleChanges(db)
+    const imported = await importRuleHistory(db, resolve(root, config.ruleHistory ?? join(stateDir, 'rule-history.jsonl')), log)
     const signed = await refreshSigns(db, config.signs)
     const tasks = await refreshTasks(db, log)
     const classified = await classifySpans(db, config.classify, log)
@@ -78,7 +79,7 @@ async function run(): Promise<number> {
     log(
       `tally: ${sources.length} files, ${files} read, ${lines} lines, ${failed} failed, ${forgotten} forgotten, ` +
         `${relabeled} sessions relabeled, ${snapshots} limit snapshots, ` +
-        `${ruleFiles.length} rule files (${versions} new versions, ${changes} new changes), ` +
+        `${ruleFiles.length} rule files (${versions} new versions, ${changes} new changes), ${imported} imported rule sets, ` +
         `${signed.sessions} sessions signed (${signed.spans} spans), ${tasks} Huly tasks, ${classified} spans classified, ${seconds} s`,
     )
     return failed > 0 ? 1 : 0

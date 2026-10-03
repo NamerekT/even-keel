@@ -11,6 +11,7 @@ describe('parseConfig', () => {
       prices: [{ model: 'claude-opus-5-5', ...price }],
       signs: DEFAULT_SIGN_RULES,
       classify: DEFAULT_CLASSIFY,
+      ruleHistory: null,
     })
   })
 
@@ -35,6 +36,13 @@ describe('parseConfig', () => {
 
   it('needs at least one price', () => {
     expect(() => parseConfig({})).toThrow(/prices/)
+  })
+
+  it('takes the rule history path when given', () => {
+    const prices = { 'claude-opus-5-5': price }
+    expect(parseConfig({ prices }).ruleHistory).toBeNull()
+    expect(parseConfig({ prices, ruleHistory: 'state/history.jsonl' }).ruleHistory).toBe('state/history.jsonl')
+    expect(() => parseConfig({ prices, ruleHistory: 5 })).toThrow(/ruleHistory/)
   })
 })
 
