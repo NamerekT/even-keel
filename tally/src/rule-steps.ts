@@ -4,7 +4,7 @@ import { lineDiff } from '../../src/stats/diff.js'
 import type { KeyVersion, SnapshotFile, StoredChange, TallyDb } from './db.js'
 import { loadRules, type Source } from './load.js'
 import type { ParseContext } from './parse.js'
-import { changesOf, pickPath, type Version } from './rule-changes.js'
+import { changesOf, firstSnapshotAt, pickPath, type Version } from './rule-changes.js'
 import { backupVersions, gitVersions } from './rule-history.js'
 import { parseImports } from './rule-imports.js'
 import { addRuleText, emptyRuleRows } from './rule-parse.js'
@@ -15,6 +15,7 @@ import { hashOf } from './rules.js'
 export const RULES_VERSION = '2'
 const BACKFILL = 'rules_backfill'
 const BOOTSTRAP = 'rules_bootstrap'
+const SCANNED = 'rules_scanned'
 
 export async function snapshotRules(db: TallyDb, sources: RuleSource[], now: Date): Promise<number> {
   const stored = await db.snapshotFiles()
@@ -37,16 +38,20 @@ export async function snapshotRules(db: TallyDb, sources: RuleSource[], now: Dat
   for (const file of files) if (file.hash !== null) byKey.set(file.key, [...(byKey.get(file.key) ?? []), file])
   const at = now.toISOString()
   const last = await db.lastSnapshots()
+  const bootstrap = await db.meta(BOOTSTRAP)
+  const previousScan = (await db.meta(SCANNED)) ?? bootstrap
   const snapshots: { key: string; at: string; hash: string | null }[] = []
   for (const [key, list] of byKey) {
     const path = pickPath(list.map((file) => file.path))
-    const hash = list.find((file) => file.path === path)!.hash
-    if (last.get(key) !== hash) snapshots.push({ key, at, hash })
+    const chosen = list.find((file) => file.path === path)!
+    if (last.get(key) === chosen.hash) continue
+    snapshots.push({ key, at: last.has(key) ? at : firstSnapshotAt(chosen.mtime, previousScan, bootstrap, at), hash: chosen.hash })
   }
   for (const [key, hash] of last) if (hash !== null && !byKey.has(key)) snapshots.push({ key, at, hash: null })
 
-  if ((await db.meta(BOOTSTRAP)) === null) await db.setMeta(BOOTSTRAP, at)
+  if (bootstrap === null) await db.setMeta(BOOTSTRAP, at)
   await db.writeSnapshots(rows, files, snapshots)
+  await db.setMeta(SCANNED, at)
   return snapshots.length
 }
 

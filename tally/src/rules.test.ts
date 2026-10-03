@@ -72,6 +72,10 @@ describe('ruleFileOf', () => {
     })
     expect(ruleFileOf('C:/Users/Jane/.githooks/lib/huly.mjs', home)).toMatchObject({ kind: 'hook', key: '~/.githooks/lib/huly.mjs' })
     expect(ruleFileOf('C:/Users/Jane/.githooks/node_modules/x/index.js', home)).toBeNull()
+    for (const name of ['hook.log', 'package.json', 'package-lock.json', 'config.env.bak-move', 'pre-push.bak']) {
+      expect(ruleFileOf(`C:/Users/Jane/.githooks/${name}`, home)).toBeNull()
+    }
+    expect(ruleFileOf('C:/Users/Jane/.githooks/config.env', home)).toMatchObject({ kind: 'hook' })
   })
 
   it('keeps .claude.json per account like settings', () => {

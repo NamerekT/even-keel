@@ -42,7 +42,13 @@ export function changesOf(key: string, seen: Version[], snapshots: Version[], bo
   return changes
 }
 
-const isGlobal = (path: string) => /[\\/]\.claude[\\/]/i.test(path) && !/[\\/]\.claude-accounts[\\/]/i.test(path)
+// A file the scanner sees for the first time but older than the previous scan was there all along (the scanned set
+// grew): dated to the bootstrap it is an initial state, not a new file.
+export function firstSnapshotAt(mtime: string, previousScan: string | null, bootstrapAt: string | null, now: string): string {
+  return bootstrapAt !== null && previousScan !== null && mtime < previousScan ? bootstrapAt : now
+}
+
+const isGlobal =(path: string) => /[\\/]\.claude[\\/]/i.test(path) && !/[\\/]\.claude-accounts[\\/]/i.test(path)
 
 export function pickPath(paths: string[]): string {
   return [...paths].sort((a, b) => Number(isGlobal(b)) - Number(isGlobal(a)) || a.localeCompare(b))[0]!

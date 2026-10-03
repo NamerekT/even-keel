@@ -22,6 +22,8 @@ const UNDER = /^(skills|hooks|agents)\/./i
 const FOREIGN_SKILLS = /^skills\/(synced|\.[^/]*)\//i
 const PROJECT_RULE = /^(.*)\/\.claude\/(skills\/.+|agents\/.+|settings(?:\.local)?\.json)$/i
 const SKIPPED_PART = /(^|\/)(node_modules|\.git)\//i
+// Logs, package manifests and backups next to the hook scripts are not rules.
+const HOOK_NOISE = /(?:\.log|\.bak|\.bak-[^/]*|\.tmp|(?:^|\/)package(?:-lock)?\.json)$/i
 
 const normal = (path: string) => path.replaceAll('\\', '/').replace(/\/+$/, '')
 
@@ -33,7 +35,7 @@ export function ruleFileOf(path: string, home: string): RuleFile | null {
   if (lower === `${lowerBase}/.claude.json`) return { key: '~/.claude.json', display: '~/.claude.json', kind: 'settings', scope: GLOBAL_SCOPE }
   if (lower.startsWith(`${lowerBase}/.githooks/`)) {
     const rest = file.slice(base.length + '/.githooks/'.length)
-    if (SKIPPED_PART.test(rest)) return null
+    if (SKIPPED_PART.test(rest) || HOOK_NOISE.test(rest)) return null
     const display = `~/.githooks/${rest}`
     return { key: display.toLowerCase(), display, kind: 'hook', scope: GLOBAL_SCOPE }
   }

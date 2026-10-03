@@ -1,5 +1,18 @@
 import { describe, expect, it } from 'vitest'
-import { changesOf, pickPath } from './rule-changes.js'
+import { changesOf, firstSnapshotAt, pickPath } from './rule-changes.js'
+
+describe('firstSnapshotAt', () => {
+  const now = '2026-10-03T21:00:00.000Z'
+  const previous = '2026-10-03T20:55:00.000Z'
+  it('dates a newly scanned file older than the previous scan to the bootstrap', () => {
+    expect(firstSnapshotAt('2026-09-09T10:00:00.000Z', previous, '2026-10-03T12:00:00.000Z', now)).toBe('2026-10-03T12:00:00.000Z')
+  })
+
+  it('keeps the scan time for a file made since the previous scan or on the first run', () => {
+    expect(firstSnapshotAt('2026-10-03T20:58:00.000Z', previous, '2026-10-03T12:00:00.000Z', now)).toBe(now)
+    expect(firstSnapshotAt('2026-09-09T10:00:00.000Z', null, null, now)).toBe(now)
+  })
+})
 
 const boot = '2026-10-03T12:00:00.000Z'
 
