@@ -57,7 +57,7 @@ export const DEFAULT_STEPS: StepSettings = {
   growth: { ratio: 1.5, minRuns: 5, minSeconds: 10 },
 }
 
-const STEPS_VERSION = 1
+const STEPS_VERSION = 2
 const SHELLS: ReadonlySet<string> = new Set(['Bash', 'PowerShell'])
 const COMMAND_LIMIT = 300
 const BACKGROUND = /in background with ID: ([\w-]+)|moved to the background \(ID: ([\w-]+)\)/
@@ -97,10 +97,12 @@ export function stepOf(command: string, rules: StepRule[]): string | null {
 }
 
 export function signatureOf(command: string): string {
-  const segments = segmentsOf(command)
-  const segment = segments.find((item) => !SKIPPED.test(item)) ?? segments[0] ?? ''
-  const tokens = tokensOf(segment.replace(/^&\s*/, ''))
-  while (tokens.length > 0 && ENV_ASSIGN.test(tokens[0]!)) tokens.shift()
+  const segments = segmentsOf(command).map((segment) => {
+    const tokens = tokensOf(segment.replace(/^&\s*/, ''))
+    while (tokens.length > 0 && ENV_ASSIGN.test(tokens[0]!)) tokens.shift()
+    return { segment, tokens }
+  })
+  const tokens = [...(segments.find((item) => !SKIPPED.test(item.segment) && item.tokens.length > 0) ?? segments[0])?.tokens ?? []]
   if (tokens[0] === 'env') {
     tokens.shift()
     while (tokens.length > 0 && (tokens[0]!.startsWith('-') || ENV_ASSIGN.test(tokens[0]!))) {
@@ -312,7 +314,7 @@ function placeOf(cwd: string | undefined, branch: string): string {
 }
 
 function tokensOf(segment: string): string[] {
-  return (segment.match(/"[^"]*"|'[^']*'|\S+/g) ?? []).map((token) => token.replace(/^["']|["']$/g, ''))
+  return (segment.match(/(?:[^\s"']+|"[^"]*"|'[^']*')+/g) ?? []).map((token) => token.replace(/["']/g, ''))
 }
 
 function baseName(path: string): string {

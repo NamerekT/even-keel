@@ -146,6 +146,7 @@ describe('signatureOf', () => {
     ['FOO=1 node.exe scripts/seed.js --all', 'node seed.js'],
     ['env -u CLAUDE_CONFIG_DIR node --import tsx tally/src/main.ts', 'node tsx'],
     ['mkdir -p .temp && Set-Location D:/x && python -m pytest -q', 'python pytest'],
+    ['cd /d/x && S="C:/a b/sql.mjs" && node "$S" "select 1"', 'node $S'],
   ])('%s is %s', (command, signature) => {
     expect(signatureOf(command)).toBe(signature)
   })
