@@ -53,8 +53,22 @@ export interface TaskBrief {
 
 export interface TrackerSetup {
   connect(timeoutMs: number): Promise<TaskSource>
-  /** Prefix of a task link on the page: the link is this plus the task id; `null` — no links. */
-  issueUrlBase: string | null
+  /**
+   * The link to a task of the project on the page, as a template: `{id}` stands for the task id (`ABC-12`),
+   * `{number}` for its number (`12`). `null` — no links. `project` is `null` for a task of a project
+   * missing from `even-keel.config.json` (the stats show them).
+   */
+  issueUrl(project: string | null): string | null
+}
+
+/** A key of a project's object in `even-keel.config.json` that names the project in the tracker. */
+export interface TrackerProjectKey {
+  /** The key, e.g. `github`. Every project on this tracker must have it. */
+  key: string
+  /** What its value must look like. */
+  pattern: RegExp
+  /** A value for the error message, e.g. `octo-org/example`. */
+  example: string
 }
 
 export interface TrackerAdapter {
@@ -67,8 +81,13 @@ export interface TrackerAdapter {
    * for the project folder and warns when it is missing: the sessions would get nothing but the task id.
    */
   mcpServer?: string
-  /** `undefined` — none of its variables are set and the tracker is off; throws when they are set only in part. */
-  setup(env: Record<string, string | undefined>): TrackerSetup | undefined
+  /** Optional. For a tracker whose projects are not named by the project key alone (GitHub: `owner/name`). */
+  projectKey?: TrackerProjectKey
+  /**
+   * `undefined` — none of its variables are set and the tracker is off; throws when they are set only in part.
+   * `projects` — the value of `projectKey` by project key, for the projects on this tracker; empty without `projectKey`.
+   */
+  setup(env: Record<string, string | undefined>, projects: Readonly<Record<string, string>>): TrackerSetup | undefined
 }
 
 export interface ChainTasks {

@@ -529,12 +529,16 @@ describe('tokenTotal', () => {
 
 describe('issueLink', () => {
   const urls = {
-    default: 'https://huly.example.com/workbench/example/tracker/',
-    projects: { LIN: 'https://linear.example.com/issue/', OFF: null },
+    default: 'https://huly.example.com/workbench/example/tracker/{id}',
+    projects: { LIN: 'https://linear.example.com/issue/{id}', GH: 'https://github.com/octo-org/abc/issues/{number}', OFF: null },
   }
 
-  it('appends the issue key to the address of the tracker its project uses', () => {
+  it('fills the issue key into the address of the tracker its project uses', () => {
     expect(issueLink(urls, 'LIN-12')).toBe('https://linear.example.com/issue/LIN-12')
+  })
+
+  it('fills the issue number where the tracker wants the number alone', () => {
+    expect(issueLink(urls, 'GH-12')).toBe('https://github.com/octo-org/abc/issues/12')
   })
 
   it('falls back to the shared tracker for a project the config does not name', () => {

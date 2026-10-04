@@ -139,6 +139,7 @@ export const noticesRu: NoticeTexts = {
   'config.trackerName': (p) => `${p.where} должен быть именем адаптера трекера`,
   'config.brief': (p) => `${p.where} должен быть true или false`,
   'config.trackerUnknown': (p) => `${p.where}: трекера «${p.name}» нет, есть: ${list(p.known)}`,
+  'config.trackerProject': (p) => `${p.where} должен называть проект в трекере, например «${p.example}»`,
   'config.notObject': (p) => `${p.where} должен быть объектом`,
   'config.ruleKey': (p) => `${p.where}.${p.key} — не правило цепочки`,
   'config.ruleList': (p) => `${p.where}.${p.key} должен быть списком непустых имён`,

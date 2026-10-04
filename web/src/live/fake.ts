@@ -196,7 +196,7 @@ function fakeState(
     usage: fakeUsage(usage),
     account: fakeAccount(account, idle, FAKE_LIMITS),
     trackers: [fakeHuly(huly)],
-    trackerUrls: { default: 'https://huly.example.com/workbench/example/tracker/', projects: {} },
+    trackerUrls: { default: 'https://huly.example.com/workbench/example/tracker/{id}', projects: {} },
     launches: launchDays(launches, new Date(), LAUNCH_DAYS),
     taskSessions: idle
       ? {}
