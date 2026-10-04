@@ -25,6 +25,11 @@ describe('toTask', () => {
     expect(tasks.map((task) => task.question)).toEqual([true, false, true])
   })
 
+  it('takes the English question label as well', () => {
+    const tasks = [['Question'], [' question '], ['Questions']].map((labels, index) => toTask(raw(`ABC-${index + 1}`, { labels })))
+    expect(tasks.map((task) => task.question)).toEqual([true, true, false])
+  })
+
   it('keeps the labels trimmed, once each whatever the case', () => {
     expect(toTask(raw('ABC-1', { labels: [' Вручную ', 'Bug', 'вручную', ' '] })).labels).toEqual(['Вручную', 'Bug'])
   })

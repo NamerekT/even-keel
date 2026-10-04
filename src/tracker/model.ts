@@ -38,7 +38,7 @@ export function isModelAlias(value: string): value is ModelAlias {
   return (MODEL_ALIASES as readonly string[]).includes(value)
 }
 
-export const QUESTION_LABEL = 'Вопрос'
+export const QUESTION_LABELS = ['Question', 'Вопрос']
 
 export interface StatusChange {
   id: string
@@ -55,7 +55,7 @@ export function toTask(raw: TrackerTask): Task {
   return {
     ...raw,
     labels: [...labels.values()],
-    question: labels.has(QUESTION_LABEL.toLocaleLowerCase()),
+    question: QUESTION_LABELS.some((label) => labels.has(label.toLocaleLowerCase())),
     models: MODEL_ALIASES.filter((model) => labels.has(model)),
   }
 }
