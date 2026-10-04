@@ -13,7 +13,7 @@
 | Документ | Что в нём |
 | --- | --- |
 | `docs/chain.md` | вход в цепочку, порядок, worktree задач, уборка после Done, режим «слот», исключения инварианта 1 подробно |
-| `docs/trackers.md` | прослойка `src/tracker/`, адаптеры Huly и GitHub, `brief`/`complete`, плагины Claude Code |
+| `docs/trackers.md` | прослойка `src/tracker/`, адаптеры Huly, GitHub и Linear, `brief`/`complete`, плагины Claude Code |
 | `docs/sessions.md` | CLI `claude`, транскрипты, модель по ярлыку, сборка промтов, опрос лимитов |
 | `docs/accounts.md` | папки аккаунтов, вход и переключение, панель приложений, перенос общей конфигурации |
 | `docs/web.md` | интерфейс, перевод (`language`, коды сообщений), конфиг на лету, параметры `dev:fake` |
@@ -27,7 +27,7 @@
 ## Стек
 
 - Node.js 24 + TypeScript, тесты — vitest. Интерфейс — React + Vite в `web/`, сборка в `dist/web`; типы состояния клиент берёт из `src/state.ts` — там только типы, без `node:*`.
-- Трекер — только через прослойку `src/tracker/`: цепочка, порядок, правила и страница знают нейтральную модель и контракт адаптера, а не Huly. В репозитории адаптеры Huly (`src/huly/`) и GitHub (`src/github/`).
+- Трекер — только через прослойку `src/tracker/`: цепочка, порядок, правила и страница знают нейтральную модель и контракт адаптера, а не Huly. В репозитории адаптеры Huly (`src/huly/`), GitHub (`src/github/`) и Linear (`src/linear/`).
 - Сессии — CLI `claude --bg`, по папке конфигурации на аккаунт (`CLAUDE_CONFIG_DIR`).
 - Статистика — Tally (`tally/`), сборщик и встроенная база работают внутри службы.
 - `even-keel.config.json` служба перечитывает на лету; `host`, `port`, `projects`, `tracker`, `context` — только после перезапуска.
