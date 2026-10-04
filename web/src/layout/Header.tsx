@@ -19,6 +19,7 @@ export function Header() {
       <div className="header__inner">
         <nav className="header__nav" aria-label={t.header.nav}>
           <Link to="/" className="header__brand">
+            <img className="header__logo" src="/favicon.svg" alt="" width={22} height={22} />
             Even Keel
           </Link>
           {project !== undefined && (
