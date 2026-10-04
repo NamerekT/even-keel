@@ -1,7 +1,7 @@
 {
   "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
   "name": "even-keel",
-  "description": "Tracker plugins for sessions run by Even Keel: the tracker's MCP server and skills for working tasks through it",
+  "description": "Plugins for sessions run by Even Keel: the tracker's MCP server and skills for working tasks through it, and context checkpoints",
   "owner": {
     "name": "Even Keel"
   },
@@ -22,6 +22,12 @@
       "name": "linear",
       "description": "Linear for Even Keel sessions: Linear's MCP server and a skill to read the issue, record decisions, file blockers and questions, and close the issue by merging",
       "source": "./plugins/linear",
+      "category": "productivity"
+    },
+    {
+      "name": "checkpoint",
+      "description": "Context checkpoints: once the context grows past a threshold, the session writes a handoff note and ends its turn with CHECKPOINT: <path>, and Even Keel continues the task in a fresh session",
+      "source": "./plugins/checkpoint",
       "category": "productivity"
     }
   ]
