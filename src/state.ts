@@ -79,6 +79,7 @@ export interface EvenKeelState {
   configError: Notice | null
   mcpMissing: McpMissing[]
   language: Language | null
+  unattended: boolean
 }
 
 /** A project with `brief` off whose sessions see no MCP server of its tracker. */

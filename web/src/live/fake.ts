@@ -216,6 +216,7 @@ function fakeState(
     configError: null,
     mcpMissing: [],
     language: null,
+    unattended: false,
   }
 }
 

@@ -16,10 +16,13 @@ import {
   type RelayAction,
 } from './relay.js'
 
+const UNANSWERED_MS = 10 * 60_000
+
 export interface CurrentTask {
   task: string
   sessionId: string | null
   since: string
+  resumedAt?: string
   limit?: LimitHold
 }
 
@@ -74,6 +77,8 @@ export interface DispatcherDeps {
   liveSession: (task: string) => string | undefined
   blocked: () => Notice | undefined
   busy: (task: string) => boolean
+  midTurn: (task: string) => boolean
+  unattended: () => boolean
   save: (state: ChainState) => void
   journal: (entry: LaunchEntry) => void
   now: () => Date
@@ -438,11 +443,16 @@ export class Dispatcher {
           this.deps.save(this.state)
         } else {
           const blockers = openBlockers([...tasks, ...(this.waiting.get(chain.project) ?? [])], task)
-          if (blockers.length === 0 || this.deps.busy(task)) {
+          if (blockers.length > 0 && !this.deps.busy(task)) {
+            this.release(chain, 'postpone', blockers)
+          } else if (this.unanswered(chain.current)) {
+            const skipped = (this.state.skipped[chain.project] ??= [])
+            if (!skipped.includes(task)) skipped.push(task)
+            this.release(chain, 'skip', [])
+          } else {
             if (!(await this.followLimit(chain, chain.current))) await this.followCheckpoint(chain, chain.current)
             return
           }
-          this.release(chain, 'postpone', blockers)
           this.deps.save(this.state)
         }
       }
@@ -547,11 +557,21 @@ export class Dispatcher {
         previous: session.sessionId,
       })
       current.sessionId = sessionId
+      current.resumedAt = now.toISOString()
       this.deps.save(this.state)
     } catch (error) {
       this.halt(chain, noticeOf(error))
     }
     return true
+  }
+
+  private unanswered(current: CurrentTask): boolean {
+    if (!this.deps.unattended() || this.deps.midTurn(current.task) || this.deps.limited(current.task) !== undefined) return false
+    const session = this.deps.handoff(current.task)
+    if (session === undefined || session.sessionId !== current.sessionId || session.checkpoint !== null) return false
+    const moments = [current.since, current.resumedAt, session.lastReplyAt].filter((at) => at != null)
+    const quietSince = Math.max(...moments.map((at) => Date.parse(at)))
+    return this.deps.now().getTime() - quietSince >= UNANSWERED_MS
   }
 
   private async followCheckpoint(chain: ActiveChain, current: CurrentTask): Promise<void> {

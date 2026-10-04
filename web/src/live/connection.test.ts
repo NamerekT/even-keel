@@ -53,6 +53,7 @@ function state(startedAt: string): EvenKeelState {
     configError: null,
     mcpMissing: [],
     language: null,
+    unattended: false,
   }
 }
 

@@ -31,6 +31,10 @@ export function withBrief(prompt: string, brief: TaskBrief | undefined, language
   return prompt + lines.join('\n') + '\n'
 }
 
+export function withUnattended(prompt: string, on: boolean, language: Language): string {
+  return on ? `${prompt}\n${PROMPTS[language].unattended}\n` : prompt
+}
+
 export type RelayAction = 'resume' | 'relay'
 export type RelayStep = 'wait' | RelayAction
 
