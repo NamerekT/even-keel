@@ -97,4 +97,8 @@ describe('dbSettings', () => {
   it('names the missing variables', () => {
     expect(() => dbSettings({ TALLY_DB_HOST: 'h' })).toThrow(/TALLY_WRITER_PASSWORD/)
   })
+
+  it('leaves the database local without a server host', () => {
+    expect(dbSettings({ TALLY_WRITER_PASSWORD: 'secret' })).toBeNull()
+  })
 })

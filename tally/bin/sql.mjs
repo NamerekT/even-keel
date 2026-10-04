@@ -1,5 +1,6 @@
 #!/usr/bin/env node
-// Read-only SQL against the Tally database as tally_reader, from any folder.
+// Read-only SQL against the Tally database, from any folder: the server one as tally_reader, or the local one the
+// Even Keel service serves on a loopback port. The read-only transaction is the guard.
 // Usage: node <path>/sql.mjs [-n rows] [-w width] [--csv] ("<sql>" | -f file.sql | -) — no SQL argument reads stdin.
 import { readFileSync } from 'node:fs'
 import { createRequire } from 'node:module'
@@ -51,7 +52,9 @@ function settings(root) {
   } catch (error) {
     if (error.code !== 'ENOENT') throw error
   }
-  const env = { ...file, ...Object.fromEntries(Object.entries(process.env).filter(([key]) => key.startsWith('TALLY_'))) }
+  const own = ([key]) => key.startsWith('TALLY_') || key === 'EVEN_KEEL_STATE_DIR'
+  const env = { ...file, ...Object.fromEntries(Object.entries(process.env).filter(own)) }
+  if (!env.TALLY_DB_HOST) return localSettings(env.EVEN_KEEL_STATE_DIR || join(root, 'state'))
   const missing = ['TALLY_DB_HOST', 'TALLY_DB_NAME', 'TALLY_READER_PASSWORD'].filter((name) => !env[name])
   if (missing.length > 0) fail(`missing in ${join(root, '.env')}: ${missing.join(', ')}`)
   return {
@@ -63,6 +66,18 @@ function settings(root) {
     options: '-c default_transaction_read_only=on -c statement_timeout=120000',
     connectionTimeoutMillis: 10_000,
   }
+}
+
+// Without TALLY_DB_HOST the database is PGlite, and only the Even Keel service serves it (tally/src/local.ts).
+function localSettings(stateDir) {
+  const file = join(stateDir, 'tally', 'owner.json')
+  let owner
+  try {
+    owner = JSON.parse(readFileSync(file, 'utf8'))
+  } catch {
+    fail(`no ${file}: the local Tally database is served by the Even Keel service, and it is not running`)
+  }
+  return { host: '127.0.0.1', port: owner.port, database: 'postgres', user: 'postgres', password: '', connectionTimeoutMillis: 10_000 }
 }
 
 async function readSql(opts) {

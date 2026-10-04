@@ -61,7 +61,7 @@ export interface StoredChange extends RuleChange {
   removed: number
 }
 
-const SCHEMA = readFileSync(new URL('./schema.sql', import.meta.url), 'utf8')
+export const SCHEMA = readFileSync(new URL('./schema.sql', import.meta.url), 'utf8')
 const LOCK_KEY = 'tally-collector'
 
 export class TallyDb implements Store {
