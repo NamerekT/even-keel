@@ -70,7 +70,7 @@ Even Keel готовит worktree сам (`src/git/worktree.ts`), сессии �
 - `service/install.sh` от своего пользователя (не через `sudo`): `npm install`, `npm run build`, затем на Linux — юнит `~/.config/systemd/user/even-keel.service` (`systemctl --user`, лог — `journalctl --user -u even-keel`), на macOS — агент `~/Library/LaunchAgents/local.even-keel.plist` (`launchctl`, лог — `logs/even-keel.log`, без ротации). Повторный запуск — пересборка и перезапуск. `service/uninstall.sh` убирает.
 - `PATH` и путь к `node` берутся из оболочки установщика: сменился `node` (nvm и т. п.) — снова `install.sh`.
 - Остановка службы фоновые сессии не убивает: `KillMode=process` у юнита, `AbandonProcessGroup` у агента. Юнит `--user` живёт, пока пользователь в системе; чтобы и без входа — `loginctl enable-linger <пользователь>` (установщик напомнит). Агент macOS работает только при входе в систему.
-- На Linux (WSL, Ubuntu 26.04) проходят тесты и проверка типов; сама служба и цепочка вживую ещё не запускались, macOS не проверялась.
+- Linux проверен вживую в WSL (Ubuntu 26.04, 2026-10-04): тесты и проверка типов, `install.sh` и `uninstall.sh`, вход в `claude` со страницы, лимиты `/usage`, запуск сессии в worktree задачи, после Done — остановка сессии, уборка worktree и ветки, своя синхронизация `main` с пушем в origin. Новый репозиторий CLI должен знать как доверенный: иначе запуск встаёт на паузу с просьбой один раз открыть `claude` в нём. macOS не проверялась.
 
 ### Windows
 
