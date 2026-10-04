@@ -1,5 +1,5 @@
 import {
-  loginBlockMessage,
+  loginBlockNotice,
   removeProblem,
   switchProblem,
   type AccountEntry,
@@ -8,6 +8,7 @@ import {
   type ClaudeAccount,
 } from '../../../src/account/model.js'
 import { appSwitchProblem, type AppAccount } from '../../../src/account/apps.js'
+import { fail, notice, NoticeError, textNotice } from '../../../src/notice/notice.js'
 import type { RateLimits } from '../../../src/limits/model.js'
 import type { LaunchEntry } from '../../../src/chain/dispatcher.js'
 import { launchDays } from '../../../src/chain/launches.js'
@@ -281,7 +282,7 @@ function stopChain(state: EvenKeelState, launches: LaunchEntry[]): EvenKeelState
 }
 
 function startChain(state: EvenKeelState, project: string, launches: LaunchEntry[]): EvenKeelState {
-  if (!state.projects.includes(project)) throw new Error(`chain: ${project} is not a configured project`)
+  if (!state.projects.includes(project)) throw fail('chain.unknownProject', { project })
   const { active, queue } = state.chain
   if (active?.project === project || queue.includes(project)) return state
   if (active !== null) return { ...state, chain: { ...state.chain, queue: [...queue, project] } }
@@ -300,7 +301,7 @@ function startChain(state: EvenKeelState, project: string, launches: LaunchEntry
 function requeue(state: EvenKeelState, order: string[]): EvenKeelState {
   const queue = state.chain.queue
   if (order.length !== queue.length || !order.every((key) => queue.includes(key))) {
-    throw new Error(`chain: the queue has changed, it is now ${queue.join(', ') || 'empty'}`)
+    throw fail('chain.queueChanged', { queue })
   }
   return { ...state, chain: { ...state.chain, queue: [...order] } }
 }
@@ -309,7 +310,7 @@ function reorder(state: EvenKeelState, project: string, order: string[]): EvenKe
   const tasks = state.tasks.filter((task) => task.id.startsWith(`${project}-`) && order.includes(task.id))
   checkOrder(tasks, order)
   const current = state.chain.active?.project === project ? state.chain.active.current?.task : undefined
-  if (current !== undefined && order[0] !== current) throw new Error(`chain: ${current} is running and stays first`)
+  if (current !== undefined && order[0] !== current) throw fail('chain.currentFirst', { task: current })
   return { ...state, chain: { ...state.chain, projects: { ...state.chain.projects, [project]: { order: [...order], error: null } } } }
 }
 
@@ -318,7 +319,7 @@ function skip(state: EvenKeelState, project: string, task: string): EvenKeelStat
   const holder = active?.project === project && active.current?.task === task ? active : null
   const view = state.sessions.find((each) => each.task === task && each.lamp !== 'finished')
   if (holder !== null && (view?.lamp === 'working' || view?.waitingFor != null)) {
-    throw new Error(`chain: ${task} is mid-turn; wait until its session stops`)
+    throw fail('chain.midTurn', { task })
   }
   const skipped = state.chain.skipped[project] ?? []
   return {
@@ -334,10 +335,10 @@ function skip(state: EvenKeelState, project: string, task: string): EvenKeelStat
 function restart(state: EvenKeelState, project: string, task: string): EvenKeelState {
   const active = state.chain.active
   const current = active?.project === project && active.current?.task === task ? active.current : null
-  if (active === null || current === null) throw new Error(`chain: ${task} is not the current task of a chain`)
+  if (active === null || current === null) throw fail('chain.notCurrent', { task })
   const view = state.sessions.find((each) => each.task === task)
-  if (view === undefined) throw new Error(`chain: no session of ${task} is known`)
-  if (view.lamp === 'working' || view.waitingFor !== null) throw new Error(`chain: ${task} is mid-turn; wait until its session stops`)
+  if (view === undefined) throw fail('chain.noSession', { task })
+  if (view.lamp === 'working' || view.waitingFor !== null) throw fail('chain.midTurn', { task })
   const sessionId = crypto.randomUUID()
   const fresh: SessionView = { ...view, sessionId, lamp: 'working', apiError: null, startedAt: ago(0), remoteUrl: 'https://claude.ai/code/session_example', remoteOff: null }
   const rows = (state.taskSessions[task] ?? []).map((row) => (row.sessionId === view.sessionId ? { ...row, replaced: { at: ago(0), how: 'restart' as const } } : row))
@@ -383,8 +384,8 @@ const FAKE_LOGIN: AccountLogin = {
 }
 
 function fakeUsage(mode: string | null): UsageHealth {
-  if (mode === 'unread') return { state: 'unread', reason: 'no readable "Current week (all models)" line', since: ago(12) }
-  if (mode === 'off') return { state: 'off', reason: 'num_turns is 1, not 0', since: ago(3) }
+  if (mode === 'unread') return { state: 'unread', reason: notice('usage.noWeek', {}), since: ago(12) }
+  if (mode === 'off') return { state: 'off', reason: notice('usage.turns', { value: '1' }), since: ago(3) }
   if (mode === 'waiting') return { state: 'waiting', reason: null, since: null }
   return { state: 'ok', reason: null, since: ago(60) }
 }
@@ -449,9 +450,9 @@ function fakeAccount(mode: string | null, idle: boolean, limits: RateLimits): Ac
   if (mode === 'expired') return { ...signedIn, accounts: [{ ...global, loginExpiresAt: ago(60), needsLogin: true, limits: null }, work] }
   if (mode === 'login') return { ...signedIn, login: FAKE_LOGIN, loginBlock: null }
   if (mode === 'failed') {
-    return { ...signedIn, login: { ...FAKE_LOGIN, error: 'claude: sign-in exited with code 1: OAuth error' }, loginBlock: null }
+    return { ...signedIn, login: { ...FAKE_LOGIN, error: notice('login.exited', { code: '1' }, { detail: 'OAuth error' }) }, loginBlock: null }
   }
-  if (mode === 'unknown') return { ...signedIn, accounts: [{ ...global, status: null, error: 'claude: auth status timed out' }, work] }
+  if (mode === 'unknown') return { ...signedIn, accounts: [{ ...global, status: null, error: textNotice('claude: auth status timed out') }, work] }
   const workSessions = ['ABC-7', 'ABC-8']
   if (mode === 'pending') return { ...signedIn, accounts: [global, { ...work, sessions: workSessions, configPending: true }] }
   if (mode === 'removing') return { ...signedIn, accounts: [global, { ...work, sessions: workSessions, removing: true }] }
@@ -463,8 +464,7 @@ function fakeAccount(mode: string | null, idle: boolean, limits: RateLimits): Ac
     return { ...signedIn, apps: [{ ...vscode, sessions }] }
   }
   if (mode === 'vscode-broken') {
-    const error = 'vscode: settings.json is not plain JSON (comments or trailing commas?); Even Keel does not rewrite it'
-    return { ...signedIn, apps: [{ ...vscode, account: null, dir: null, error }] }
+    return { ...signedIn, apps: [{ ...vscode, account: null, dir: null, error: notice('vscode.notJson', {}) }] }
   }
   return signedIn
 }
@@ -472,23 +472,23 @@ function fakeAccount(mode: string | null, idle: boolean, limits: RateLimits): Ac
 function accountCommand(account: AccountView, name: string, body: Record<string, unknown>): AccountView {
   const key = String(body.account)
   if (name === 'account/add' || name === 'account/renew') {
-    if (account.login !== null && account.login.error === null) throw new Error('claude: a sign-in is already running')
-    if (name === 'account/renew' && key === account.active && account.loginBlock !== null) throw new Error(loginBlockMessage(account.loginBlock))
+    if (account.login !== null && account.login.error === null) throw fail('login.running', {})
+    if (name === 'account/renew' && key === account.active && account.loginBlock !== null) throw new NoticeError(loginBlockNotice(account.loginBlock))
     return { ...account, login: { ...FAKE_LOGIN, target: name === 'account/add' ? null : key, startedAt: ago(0) } }
   }
   if (name === 'account/switch') {
     const problem = switchProblem(account, key)
-    if (problem !== undefined) throw new Error(problem)
+    if (problem !== undefined) throw new NoticeError(problem)
     return { ...account, active: key }
   }
   if (name === 'account/app') {
     const problem = appSwitchProblem(account, String(body.app), key)
-    if (problem !== undefined) throw new Error(problem)
+    if (problem !== undefined) throw new NoticeError(problem)
     return { ...account, apps: account.apps.map((app) => (app.app === body.app ? { ...app, account: key } : app)) }
   }
   if (name === 'account/remove') {
     const problem = removeProblem(account, key)
-    if (problem !== undefined) throw new Error(problem)
+    if (problem !== undefined) throw new NoticeError(problem)
     const busy = account.accounts.some((entry) => entry.key === key && entry.sessions.length > 0)
     if (busy) return { ...account, accounts: account.accounts.map((entry) => (entry.key === key ? { ...entry, removing: true } : entry)) }
     return { ...account, accounts: account.accounts.filter((entry) => entry.key !== key) }
@@ -499,9 +499,9 @@ function accountCommand(account: AccountView, name: string, body: Record<string,
   if (name === 'account/cancel') return { ...account, login: null }
   if (name === 'account/code') {
     const { login } = account
-    if (login === null) throw new Error('claude: no sign-in is running')
+    if (login === null) throw fail('login.none', {})
     if (String(body.code).trim() === 'fail') {
-      return { ...account, login: { ...login, error: 'claude: sign-in exited with code 1: Invalid code' } }
+      return { ...account, login: { ...login, error: notice('login.exited', { code: '1' }, { detail: 'Invalid code' }) } }
     }
     const renewed = { loginExpiresAt: inDays(30), needsLogin: false }
     if (login.target === null) {
@@ -556,7 +556,7 @@ export function createFakeSource(search: string): LiveSource {
   const language = params.get('lang')
   if (isLanguage(language) && current.state !== null) current.state.language = language
   if (params.get('config') === 'broken' && current.state !== null) {
-    current.state.configError = 'config: ABC: status "In Review" is both active and terminal'
+    current.state.configError = notice('config.statusBoth', { project: 'ABC', status: 'In Review' })
   }
   const active = current.state?.chain.active
   if (params.get('chain') === 'limit' && active) {
@@ -580,9 +580,18 @@ export function createFakeSource(search: string): LiveSource {
         {
           task: 'ABC-4',
           at: ago(35),
-          text: "ABC-4: the worktree D:\\work\\abc\\.claude\\worktrees\\abc-4 was kept: fatal: '.claude/worktrees/abc-4' contains modified or untracked files, use --force to delete it",
+          notice: notice(
+            'cleanup.worktreeKept',
+            { path: 'D:\\work\\abc\\.claude\\worktrees\\abc-4' },
+            { detail: "fatal: '.claude/worktrees/abc-4' contains modified or untracked files, use --force to delete it" },
+          ),
         },
-        { task: 'ABC-3', at: ago(90), text: "ABC-3: the branch abc-3/task was kept: error: the branch 'abc-3/task' is not fully merged" },
+        {
+          task: 'ABC-3',
+          at: ago(90),
+          notice: notice('cleanup.branchKept', { branch: 'abc-3/task' }, { detail: "error: the branch 'abc-3/task' is not fully merged" }),
+        },
+        { task: 'ABC-2', at: ago(120), notice: textNotice('ABC-2: the worktree was kept (an entry saved before BTN-62)') },
       ],
     }
   }

@@ -1,6 +1,7 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { BrowserRouter } from 'react-router'
+import { asNotice, NoticeError } from '../../src/notice/notice.js'
 import type { EvenKeelState, SessionRecord } from '../../src/state.js'
 import type { StatsAnswer } from '../../src/stats/model.js'
 import { App } from './App.js'
@@ -20,8 +21,8 @@ async function sendCommand(name: string, body: Record<string, unknown>): Promise
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify(body),
   })
-  const answer = (await response.json().catch(() => null)) as (EvenKeelState & { error?: string }) | null
-  if (!response.ok) throw new Error(answer?.error ?? `/api/${name} answered ${response.status}`)
+  const answer = (await response.json().catch(() => null)) as (EvenKeelState & { error?: string; notice?: unknown }) | null
+  if (!response.ok) throw new NoticeError(asNotice(answer?.notice ?? answer?.error ?? `/api/${name} answered ${response.status}`))
   return answer!
 }
 

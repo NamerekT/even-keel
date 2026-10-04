@@ -1,10 +1,11 @@
 import { useState } from 'react'
+import { noticeOf, type Notice } from '../../../src/notice/notice.js'
 import { useLive } from './context.js'
 
 export function useCommand() {
   const { command } = useLive()
   const [sending, setSending] = useState(false)
-  const [failure, setFailure] = useState<string | null>(null)
+  const [failure, setFailure] = useState<Notice | null>(null)
 
   const send = async (name: string, body?: Record<string, unknown>): Promise<boolean> => {
     setSending(true)
@@ -13,7 +14,7 @@ export function useCommand() {
       await command(name, body)
       return true
     } catch (reason) {
-      setFailure(reason instanceof Error ? reason.message : String(reason))
+      setFailure(noticeOf(reason))
       return false
     } finally {
       setSending(false)

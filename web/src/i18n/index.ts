@@ -1,4 +1,5 @@
 import { isLanguage, type Language } from '../../../src/language.js'
+import { renderNotice, type Notice } from '../../../src/notice/notice.js'
 import { en } from './en.js'
 import { ru, type Messages } from './ru.js'
 
@@ -13,6 +14,11 @@ export function setLanguage(next: Language): void {
   language = next
   t = MESSAGES[next]
   if (typeof document !== 'undefined') document.documentElement.lang = next
+}
+
+// A server message in the page's language.
+export function say(notice: Notice): string {
+  return renderNotice(notice, t.notice)
 }
 
 // The configured language wins; otherwise the first browser language the page knows, English if none.

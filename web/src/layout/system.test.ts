@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { notice } from '../../../src/notice/notice.js'
 import type { TrackerHealth, TrackerView } from '../../../src/tracker/health.js'
 import { setLanguage } from '../i18n/index.js'
 import { systemChecks, worstLevel, type SystemInput } from './system.js'
@@ -71,14 +72,15 @@ describe('systemChecks', () => {
   })
 
   it('warns on an unreadable /usage and fails on a switched-off poll and a broken config', () => {
-    const unread = systemChecks({ ...healthy, usage: { state: 'unread', reason: 'no window rows', since: 'x' } }, now)
-    expect(unread[2]).toMatchObject({ level: 'warn', details: ['no window rows'] })
+    const unread = systemChecks({ ...healthy, usage: { state: 'unread', reason: notice('usage.noSession', {}), since: 'x' } }, now)
+    expect(unread[2]).toMatchObject({ level: 'warn', details: ['нет читаемой строки «Current session»'] })
     expect(worstLevel(unread)).toBe('warn')
 
-    const off = systemChecks({ ...healthy, usage: { state: 'off', reason: 'paid turn', since: 'x' } }, now)
-    expect(off[2]).toMatchObject({ level: 'error', details: ['paid turn'] })
+    const off = systemChecks({ ...healthy, usage: { state: 'off', reason: notice('usage.turns', { value: '1' }), since: 'x' } }, now)
+    expect(off[2]).toMatchObject({ level: 'error', details: ['num_turns = 1, а не 0'] })
 
-    const config = systemChecks({ ...healthy, configError: 'chain.active: unknown status' }, now)
-    expect(config[3]).toMatchObject({ level: 'error', text: 'не применена', details: ['chain.active: unknown status'] })
+    const configError = notice('config.statusBoth', { project: 'ABC', status: 'In Review' })
+    const config = systemChecks({ ...healthy, configError }, now)
+    expect(config[3]).toMatchObject({ level: 'error', text: 'не применена', details: ['ABC: статус «In Review» и активный, и терминальный'] })
   })
 })

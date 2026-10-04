@@ -9,7 +9,8 @@ import {
   type LoginBlock,
 } from '../../../src/account/model.js'
 import { APP_LABELS, appSwitchProblem, type AppAccount } from '../../../src/account/apps.js'
-import { t } from '../i18n/index.js'
+import type { Notice } from '../../../src/notice/notice.js'
+import { say, t } from '../i18n/index.js'
 import { useCommand } from '../live/useCommand.js'
 import { accountBadge, loginLeft } from '../state.js'
 import { Limits } from './Limits.js'
@@ -94,7 +95,7 @@ function AccountPanel({ account, onClose }: { account: AccountView; onClose: () 
         )}
       </section>
 
-      {failure !== null && <p className="notice notice--error queue__error">{failure}</p>}
+      {failure !== null && <p className="notice notice--error queue__error">{say(failure)}</p>}
     </aside>
   )
 }
@@ -117,7 +118,7 @@ function AppItem({ app, view, sending, send }: AppProps) {
         <span className="accounts__email">{label}</span>
         <span className="accounts__app-account">{appAccountName(app, current)}</span>
       </div>
-      {app.error !== null && <p className="notice notice--error">{app.error}</p>}
+      {app.error !== null && <p className="notice notice--error">{say(app.error)}</p>}
       {app.sessions.length > 0 && (
         <div className="account__blockers">
           <p className="queue__hint">{t.account.chatsBlock}</p>
@@ -141,7 +142,7 @@ function AppItem({ app, view, sending, send }: AppProps) {
                 type="button"
                 className="button"
                 disabled={sending || blocked !== undefined}
-                title={blocked}
+                title={blocked === undefined ? undefined : say(blocked)}
                 onClick={() => void send('account/app', { app: app.app, account: entry.key })}
               >
                 → {entry.status?.email ?? entry.key}
@@ -220,14 +221,14 @@ function AccountItem({ entry, view, now, sending, send }: ItemProps) {
           {entry.sessions.length > 0 ? t.account.removingAlive(entry.sessions.join(', ')) : ''}
         </p>
       )}
-      {entry.error !== null && <p className="queue__hint">{t.account.checkFailed(entry.error)}</p>}
+      {entry.error !== null && <p className="queue__hint">{t.account.checkFailed(say(entry.error))}</p>}
       <div className="account__actions">
         {!active && (
           <button
             type="button"
             className="button button--primary"
             disabled={sending || blocked !== undefined}
-            title={blocked}
+            title={blocked === undefined ? undefined : say(blocked)}
             onClick={() => void send('account/switch', { account: entry.key })}
           >
             {t.account.give}
@@ -276,7 +277,7 @@ function AccountItem({ entry, view, now, sending, send }: ItemProps) {
   )
 }
 
-function staleNote(reason: string | null): string {
+function staleNote(reason: Notice | null): string {
   return reason === null ? t.account.staleExpired : t.account.staleBusy
 }
 
@@ -326,7 +327,7 @@ function LoginSteps({ login, sending, send }: StepsProps) {
     const retry = () => (login.target === null ? send('account/add') : send('account/renew', { account: login.target }))
     return (
       <>
-        <p className="notice notice--error">{login.error}</p>
+        <p className="notice notice--error">{say(login.error)}</p>
         <div className="account__actions">
           <button type="button" className="button button--primary" disabled={sending} onClick={() => void retry()}>
             {t.common.retry}

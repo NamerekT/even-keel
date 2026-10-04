@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { notice, textNotice, type Notice } from '../../src/notice/notice.js'
 import { fakeTask } from '../../src/tracker/fixture.js'
 import { setLanguage } from './i18n/index.js'
 import type { StatusCategory, Task } from '../../src/tracker/model.js'
@@ -146,7 +147,7 @@ describe('chainProgress', () => {
 })
 
 describe('chainStatus', () => {
-  const active = (patch: { paused?: boolean; error?: string | null; limitUntil?: string } = {}) => ({
+  const active = (patch: { paused?: boolean; error?: Notice | null; limitUntil?: string } = {}) => ({
     project: 'ABC',
     current: null,
     paused: patch.paused ?? false,
@@ -157,9 +158,9 @@ describe('chainStatus', () => {
   it('tells a running chain from a paused one', () => {
     expect(chainStatus(chain({ active: active() }), 'ABC')).toEqual({ kind: 'running', limitUntil: null })
     expect(chainStatus(chain({ active: active({ paused: true }) }), 'ABC')).toEqual({ kind: 'paused', error: null })
-    expect(chainStatus(chain({ active: active({ paused: true, error: 'boom' }) }), 'ABC')).toEqual({
+    expect(chainStatus(chain({ active: active({ paused: true, error: textNotice('boom') }) }), 'ABC')).toEqual({
       kind: 'paused',
-      error: 'boom',
+      error: textNotice('boom'),
     })
   })
 
@@ -410,7 +411,7 @@ describe('chainBlocks', () => {
   it('falls back to open tasks by number when the chain order is broken', () => {
     const state = stateOf({
       tasks: [task('ABC-10'), task('ABC-9'), task('ABC-1', 'Won')],
-      chain: chain({ projects: { ABC: { order: [], error: 'chain: cycle: ABC-9 → ABC-10 → ABC-9' } } }),
+      chain: chain({ projects: { ABC: { order: [], error: textNotice('chain: cycle: ABC-9 → ABC-10 → ABC-9') } } }),
     })
     expect(chainBlocks(state, 'ABC').map((block) => block.id)).toEqual(['ABC-1', 'ABC-9', 'ABC-10'])
   })
@@ -556,11 +557,11 @@ describe('accountBadge', () => {
       label: 'Нужен вход',
     })
     expect(accountBadge(view({ status: account(false) }, login))).toEqual({ kind: 'login', label: 'Вход…' })
-    expect(accountBadge(view({ status: account(true) }, { ...login, error: 'exited with code 1' }))).toEqual({
+    expect(accountBadge(view({ status: account(true) }, { ...login, error: textNotice('exited with code 1') }))).toEqual({
       kind: 'out',
       label: 'Вход не удался',
     })
-    expect(accountBadge(view({ error: 'claude: auth status timed out' }))).toEqual({ kind: 'unknown', label: 'Claude' })
+    expect(accountBadge(view({ error: textNotice('claude: auth status timed out') }))).toEqual({ kind: 'unknown', label: 'Claude' })
     expect(accountBadge({ ...view({}), active: 'gone' })).toEqual({ kind: 'unknown', label: 'Claude' })
   })
 })
@@ -589,18 +590,18 @@ describe('usageNotice', () => {
   })
 
   it('warns that limits fall back to statusline when /usage is unreadable', () => {
-    const notice = usageNotice({ state: 'unread', reason: 'no readable "Current session" line', since })
+    const banner = usageNotice({ state: 'unread', reason: notice('usage.noSession', {}), since })
 
-    expect(notice).toMatchObject({ tone: 'warn', key: `unread:${since}` })
-    expect(notice?.text).toMatch(/statusline/)
-    expect(notice?.text).toMatch(/no readable "Current session" line/)
+    expect(banner).toMatchObject({ tone: 'warn', key: `unread:${since}` })
+    expect(banner?.text).toMatch(/statusline/)
+    expect(banner?.text).toMatch(/нет читаемой строки «Current session»/)
   })
 
   it('alarms when /usage polling was turned off', () => {
-    const notice = usageNotice({ state: 'off', reason: 'num_turns is 1, not 0', since })
+    const banner = usageNotice({ state: 'off', reason: notice('usage.turns', { value: '1' }), since })
 
-    expect(notice).toMatchObject({ tone: 'error', key: `off:${since}` })
-    expect(notice?.text).toMatch(/выключен/)
-    expect(notice?.text).toMatch(/num_turns is 1, not 0/)
+    expect(banner).toMatchObject({ tone: 'error', key: `off:${since}` })
+    expect(banner?.text).toMatch(/выключен/)
+    expect(banner?.text).toMatch(/num_turns = 1, а не 0/)
   })
 })

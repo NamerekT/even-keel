@@ -1,7 +1,8 @@
 import type { TrackerView } from '../../../src/tracker/health.js'
 import type { UsageHealth } from '../../../src/limits/usage.js'
+import type { Notice } from '../../../src/notice/notice.js'
 import { formatAgo } from '../format.js'
-import { t } from '../i18n/index.js'
+import { say, t } from '../i18n/index.js'
 import type { Link } from '../live/connection.js'
 
 export type Level = 'ok' | 'warn' | 'error' | 'off'
@@ -17,7 +18,7 @@ export interface SystemInput {
   link: Link
   trackers: TrackerView[] | null
   usage: UsageHealth | null
-  configError: string | null
+  configError: Notice | null
 }
 
 const SEVERITY: Level[] = ['error', 'warn', 'ok', 'off']
@@ -49,7 +50,7 @@ function trackerCheck({ title: name, health }: TrackerView, now: Date): Check {
 
 function usageCheck(health: UsageHealth): Check {
   const name = t.system.limits
-  const details = health.reason === null ? [] : [health.reason]
+  const details = health.reason === null ? [] : [say(health.reason)]
   switch (health.state) {
     case 'ok':
       return { name, level: 'ok', text: t.system.usageLive, details }
@@ -64,8 +65,8 @@ function usageCheck(health: UsageHealth): Check {
   }
 }
 
-function configCheck(error: string | null): Check {
+function configCheck(error: Notice | null): Check {
   const name = t.system.config
   if (error === null) return { name, level: 'ok', text: t.system.configOk, details: [] }
-  return { name, level: 'error', text: t.system.configBroken, details: [error] }
+  return { name, level: 'error', text: t.system.configBroken, details: [say(error)] }
 }

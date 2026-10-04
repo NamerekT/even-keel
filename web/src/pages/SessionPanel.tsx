@@ -4,7 +4,7 @@ import type { LimitHold } from '../../../src/chain/relay.js'
 import type { CacheWindow, FeedLine, TokenTotals } from '../../../src/sessions/transcript.js'
 import type { ContextScale, SessionRecord, SessionView, TrackerUrls } from '../../../src/state.js'
 import { formatClock, formatMoment, formatTokens } from '../format.js'
-import { localized, t } from '../i18n/index.js'
+import { localized, say, t } from '../i18n/index.js'
 import { useNow } from '../layout/useNow.js'
 import { useLive } from '../live/context.js'
 import { useCommand } from '../live/useCommand.js'
@@ -147,7 +147,7 @@ function Actions({ block }: { block: ChainBlock }) {
           {remoteOff}
         </p>
       )}
-      {failure !== null && <p className="notice notice--error">{failure}</p>}
+      {failure !== null && <p className="notice notice--error">{say(failure)}</p>}
     </>
   )
 }

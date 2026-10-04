@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it } from 'vitest'
 import { en } from './en.js'
-import { language, localized, pickLanguage, setLanguage, t } from './index.js'
+import { asNotice, notice } from '../../../src/notice/notice.js'
+import { language, localized, pickLanguage, say, setLanguage, t } from './index.js'
 import { plural } from './plural.js'
 import { ru } from './ru.js'
 
@@ -44,6 +45,26 @@ describe('setLanguage', () => {
     setLanguage('ru')
     expect(value()).toBe('ru')
     expect(made).toEqual(['en', 'ru'])
+  })
+})
+
+describe('say', () => {
+  const failed = notice('chain.syncFailed', { project: 'ABC', task: 'ABC-1' }, { cause: notice('sync.push', { remote: 'origin' }, { detail: 'rejected' }) })
+
+  it('puts a server message into the page language, keeping the output of git as it is', () => {
+    setLanguage('ru')
+    expect(say(failed)).toBe(
+      'синхронизация ABC после ABC-1 не удалась — синхронизируйте main с remote вручную и снимите с паузы: не удалось отправить main в origin: rejected',
+    )
+    setLanguage('en')
+    expect(say(failed)).toBe(
+      'git: sync of ABC after ABC-1 failed; sync main with its remotes by hand, then resume: sync: could not push main to origin: rejected',
+    )
+  })
+
+  it('shows a message saved as plain text before codes as it is', () => {
+    setLanguage('ru')
+    expect(say(asNotice('ABC-0: the worktree was kept'))).toBe('ABC-0: the worktree was kept')
   })
 })
 

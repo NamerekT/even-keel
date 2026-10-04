@@ -1,3 +1,4 @@
+import { noticesRu } from './notices-ru.js'
 import { plural } from './plural.js'
 
 const forms = (one: string, few: string, many: string) => (count: number) => plural('ru', count, { one, few, many, other: few })
@@ -7,6 +8,7 @@ const launches = counted('запуск', 'запуска', 'запусков')
 const tasks = counted('задача', 'задачи', 'задач')
 
 export const ru = {
+  notice: noticesRu,
   common: {
     close: 'Закрыть',
     retry: 'Повторить',

@@ -6,9 +6,10 @@ import { isOpen, type Task } from '../../src/tracker/model.js'
 import type { Lamp } from '../../src/sessions/agents.js'
 import type { CacheTtl, CacheWindow, TokenTotals } from '../../src/sessions/transcript.js'
 import type { UsageHealth } from '../../src/limits/usage.js'
+import type { Notice } from '../../src/notice/notice.js'
 import type { EvenKeelState, ContextScale, SessionView, TrackerUrls } from '../../src/state.js'
 import { formatMoment } from './format.js'
-import { t } from './i18n/index.js'
+import { say, t } from './i18n/index.js'
 
 export type CardLamp = Lamp | 'idle'
 
@@ -40,7 +41,7 @@ export function loginLeft(expiresAt: string | null, now: Date): { text: string; 
 
 export type ChainStatus =
   | { kind: 'running'; limitUntil: string | null }
-  | { kind: 'paused'; error: string | null }
+  | { kind: 'paused'; error: Notice | null }
   | { kind: 'queued'; position: number }
   | { kind: 'idle' }
 
@@ -122,14 +123,14 @@ export function usageNotice(health: UsageHealth): UsageNotice | null {
   if (health.state === 'unread') {
     return {
       tone: 'warn',
-      text: t.banner.usageUnread(health.reason),
+      text: t.banner.usageUnread(health.reason === null ? null : say(health.reason)),
       key: `unread:${health.since}`,
     }
   }
   if (health.state === 'off') {
     return {
       tone: 'error',
-      text: t.banner.usageOff(health.reason),
+      text: t.banner.usageOff(health.reason === null ? null : say(health.reason)),
       key: `off:${health.since}`,
     }
   }

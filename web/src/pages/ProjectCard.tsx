@@ -1,6 +1,6 @@
 import { Link } from 'react-router'
 import type { EvenKeelState } from '../../../src/state.js'
-import { t } from '../i18n/index.js'
+import { say, t } from '../i18n/index.js'
 import { useCommand } from '../live/useCommand.js'
 import { cardTask, chainProgress, chainStatus, limitWaitText, openQuestions, projectSlot, projectTasks } from '../state.js'
 import { Lamp } from '../ui/Lamp.js'
@@ -58,7 +58,7 @@ export function ProjectCard({ state, project }: { state: EvenKeelState; project:
       )}
 
       {status.kind === 'running' && status.limitUntil !== null && <p className="card__wait">{limitWaitText(status.limitUntil, new Date())}</p>}
-      {error !== null && <p className="card__error">{error}</p>}
+      {error !== null && <p className="card__error">{say(error)}</p>}
 
       {canStart && (
         <footer className="card__foot">

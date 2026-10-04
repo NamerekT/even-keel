@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type CSSProperties } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router'
 import type { ContextScale } from '../../../src/state.js'
-import { t } from '../i18n/index.js'
+import { say, t } from '../i18n/index.js'
 import { useCommand } from '../live/useCommand.js'
 import { checkpointHandoffs, type BlockLamp, type ChainBlock } from '../state.js'
 import { ARCHIVE_PAGE, archiveView } from '../ui/archive.js'
@@ -135,7 +135,7 @@ export function ChainList({ project, chain, scale, focus }: Props) {
           </div>
         </div>
       )}
-      {failure !== null && <p className="notice notice--error">{failure}</p>}
+      {failure !== null && <p className="notice notice--error">{say(failure)}</p>}
       <ul className="chain__legend">
         {LEGEND.map((lamp) => (
           <li key={lamp} className="chain__legend-item">

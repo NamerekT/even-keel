@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef } from 'react'
 import { useLocation, useNavigate, useParams } from 'react-router'
 import type { EvenKeelState } from '../../../src/state.js'
-import { t } from '../i18n/index.js'
+import { say, t } from '../i18n/index.js'
 import { useCommand } from '../live/useCommand.js'
 import { chainBlocks, chainStatus, limitWaitText, openQuestions, projectTasks, queuedAfter } from '../state.js'
 import { focusAfterClose } from '../ui/focus.js'
@@ -42,7 +42,7 @@ export function Project({ state }: { state: EvenKeelState }) {
           <QuestionsChip count={openQuestions(projectTasks(state, key))} />
           <ChainControls state={state} project={key} />
         </header>
-        {order?.error && <p className="notice notice--error">{order.error}</p>}
+        {order?.error && <p className="notice notice--error">{say(order.error)}</p>}
         <Leftovers state={state} project={key} />
         {blocks.length === 0 ? (
           <p className="placeholder">{order === undefined ? t.project.chainNotLoaded : t.project.chainEmpty}</p>
@@ -74,7 +74,7 @@ function Leftovers({ state, project }: { state: EvenKeelState; project: string }
               .filter((each) => each.task === task)
               .map((each, index) => (
                 <p key={index} className="leftovers__line">
-                  {each.text}
+                  {say(each.notice)}
                 </p>
               ))}
           </div>
@@ -83,7 +83,7 @@ function Leftovers({ state, project }: { state: EvenKeelState; project: string }
           </button>
         </div>
       ))}
-      {failure !== null && <p className="project__error">{failure}</p>}
+      {failure !== null && <p className="project__error">{say(failure)}</p>}
     </div>
   )
 }
@@ -117,7 +117,7 @@ function ChainControls({ state, project }: { state: EvenKeelState; project: stri
       {status.kind === 'running' && status.limitUntil !== null && (
         <p className="project__wait">{limitWaitText(status.limitUntil, new Date())}</p>
       )}
-      {error !== null && <p className="project__error">{error}</p>}
+      {error !== null && <p className="project__error">{say(error)}</p>}
     </div>
   )
 }

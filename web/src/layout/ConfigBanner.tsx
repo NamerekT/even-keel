@@ -1,4 +1,4 @@
-import { t } from '../i18n/index.js'
+import { say, t } from '../i18n/index.js'
 import { useLive } from '../live/context.js'
 
 export function ConfigBanner() {
@@ -8,7 +8,7 @@ export function ConfigBanner() {
   return (
     <div className="banner banner--error" role="alert">
       <div className="banner__inner">
-        <span>{t.banner.config(state.configError)}</span>
+        <span>{t.banner.config(say(state.configError))}</span>
       </div>
     </div>
   )

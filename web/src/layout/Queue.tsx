@@ -1,7 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState, type KeyboardEvent, type PointerEvent } from 'react'
 import { Link } from 'react-router'
 import type { EvenKeelState } from '../../../src/state.js'
-import { t } from '../i18n/index.js'
+import { say, t } from '../i18n/index.js'
 import { useCommand } from '../live/useCommand.js'
 import { cardTask, chainStatus, projectSlot } from '../state.js'
 import { dragShift, dropIndex, moveItem } from '../ui/drag.js'
@@ -85,7 +85,7 @@ function QueuePanel({ state }: { state: EvenKeelState }) {
         {served.length > 1 && <p className="queue__hint">{t.queue.dragHint}</p>}
       </section>
 
-      {failure !== null && <p className="notice notice--error queue__error">{failure}</p>}
+      {failure !== null && <p className="notice notice--error queue__error">{say(failure)}</p>}
     </div>
   )
 }

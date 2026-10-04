@@ -1,3 +1,4 @@
+import { en as noticesEn } from '../../../src/notice/en.js'
 import { plural } from './plural.js'
 import type { Messages } from './ru.js'
 
@@ -8,6 +9,7 @@ const launches = counted('launch', 'launches')
 const tasks = counted('task', 'tasks')
 
 export const en: Messages = {
+  notice: noticesEn,
   common: {
     close: 'Close',
     retry: 'Retry',
