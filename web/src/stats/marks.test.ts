@@ -70,7 +70,7 @@ describe('shortPath', () => {
   it('keeps the last three segments of a long path', () => {
     expect(shortPath('~/.claude/CLAUDE.md')).toBe('~/.claude/CLAUDE.md')
     expect(shortPath('~/.claude/skills/coding/SKILL.md')).toBe('…/skills/coding/SKILL.md')
-    expect(shortPath('D:/Projects/git/private/Baton/CLAUDE.md')).toBe('…/private/Baton/CLAUDE.md')
+    expect(shortPath('D:/Projects/git/private/EvenKeel/CLAUDE.md')).toBe('…/private/EvenKeel/CLAUDE.md')
   })
 })
 

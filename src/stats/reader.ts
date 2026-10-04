@@ -93,7 +93,7 @@ order by cost desc`
 
 const ENTRYPOINTS = `${PERIOD}
 select case
-    when r.launch_reason is not null then 'baton'
+    when r.launch_reason is not null then 'chain'
     when r.entrypoint = 'claude-vscode' then 'vscode'
     when r.entrypoint = 'claude-desktop' then 'desktop'
     when r.entrypoint in ('cli', 'sdk-cli') then 'cli'
@@ -188,7 +188,7 @@ function coverage(rows: Row[]): LimitCoverage | null {
   return { from: String(row.from_day), to: String(row.to_day) }
 }
 
-export function mapHistory(rows: Row[], accounts: Row[], limits: Row[], baton: string[], at: Date): StatsHistory {
+export function mapHistory(rows: Row[], accounts: Row[], limits: Row[], tracked: string[], at: Date): StatsHistory {
   const days: string[] = []
   const totals = new Map<string, number>()
   for (const row of rows) {
@@ -206,7 +206,7 @@ export function mapHistory(rows: Row[], accounts: Row[], limits: Row[], baton: s
     number(row.sessions),
     round(number(row.limit_share), 3),
   ])
-  return { at: at.toISOString(), accounts: accounts.map((row) => String(row.account)), baton, projects, days, cells, limits: coverage(limits) }
+  return { at: at.toISOString(), accounts: accounts.map((row) => String(row.account)), tracked, projects, days, cells, limits: coverage(limits) }
 }
 
 function totals(row: Row | undefined): StatsTotals {
@@ -385,7 +385,7 @@ export class StatsReader {
       places: async () => {
         const { dirs, labels } = await this.groups(pool)
         return {
-          baton: this.keys.map((key, index) => ({ key, dir: this.dirs[index]! })),
+          tracked: this.keys.map((key, index) => ({ key, dir: this.dirs[index]! })),
           folders: dirs.map((dir, index) => ({ dir, label: labels[index]! })),
         }
       },

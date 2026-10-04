@@ -18,7 +18,7 @@ import type { StatusCategory, Task } from '../../../src/tracker/model.js'
 import type { FeedLine } from '../../../src/sessions/transcript.js'
 import type { UsageHealth } from '../../../src/limits/usage.js'
 import type { LimitHold } from '../../../src/chain/relay.js'
-import type { BatonState, SessionRecord, SessionView } from '../../../src/state.js'
+import type { EvenKeelState, SessionRecord, SessionView } from '../../../src/state.js'
 import type { Link, LiveSnapshot, LiveSource } from './connection.js'
 import { fakeCompare, fakeRuleDiff, fakeRules } from './fakeRules.js'
 import { fakeSteps } from './fakeSteps.js'
@@ -128,7 +128,7 @@ function fakeState(
   account: string | null,
   limit: string | null,
   usage: string | null,
-): BatonState {
+): EvenKeelState {
   const tasks = [
     task('ABC-1', 'Каркас сервера', 'Done', 'Won', [], 'v0.1 — каркас'),
     task('ABC-2', 'Чтение задач из трекера', 'Done', 'Won', ['ABC-1'], 'v0.1 — каркас'),
@@ -222,7 +222,7 @@ function limitedSession(view: SessionView): SessionView {
   return { ...view, apiError: "You've hit your session limit · resets 7:20pm (Europe/Berlin)", lastActivityAt: ago(3) }
 }
 
-function fakeRecord(state: BatonState, sessionId: string): SessionRecord | null {
+function fakeRecord(state: EvenKeelState, sessionId: string): SessionRecord | null {
   if (sessionId.endsWith('999')) return null
   const live = state.sessions.find((view) => view.sessionId === sessionId)
   return {
@@ -239,7 +239,7 @@ function fakeRecord(state: BatonState, sessionId: string): SessionRecord | null 
   }
 }
 
-function closeCurrent(state: BatonState): BatonState {
+function closeCurrent(state: EvenKeelState): EvenKeelState {
   const active = state.chain.active
   const done = active?.current?.task
   const project = active?.project
@@ -266,19 +266,19 @@ function closeCurrent(state: BatonState): BatonState {
   }
 }
 
-function setPaused(state: BatonState, paused: boolean): BatonState {
+function setPaused(state: EvenKeelState, paused: boolean): EvenKeelState {
   const active = state.chain.active
   if (active === null) return state
   return { ...state, chain: { ...state.chain, active: { ...active, paused, error: paused ? active.error : null } } }
 }
 
-function stopChain(state: BatonState, launches: LaunchEntry[]): BatonState {
+function stopChain(state: EvenKeelState, launches: LaunchEntry[]): EvenKeelState {
   const [next, ...rest] = state.chain.queue
   const stopped = { ...state, chain: { ...state.chain, active: null, queue: rest } }
   return next === undefined ? stopped : startChain(stopped, next, launches)
 }
 
-function startChain(state: BatonState, project: string, launches: LaunchEntry[]): BatonState {
+function startChain(state: EvenKeelState, project: string, launches: LaunchEntry[]): EvenKeelState {
   if (!state.projects.includes(project)) throw new Error(`chain: ${project} is not a configured project`)
   const { active, queue } = state.chain
   if (active?.project === project || queue.includes(project)) return state
@@ -295,7 +295,7 @@ function startChain(state: BatonState, project: string, launches: LaunchEntry[])
   }
 }
 
-function requeue(state: BatonState, order: string[]): BatonState {
+function requeue(state: EvenKeelState, order: string[]): EvenKeelState {
   const queue = state.chain.queue
   if (order.length !== queue.length || !order.every((key) => queue.includes(key))) {
     throw new Error(`chain: the queue has changed, it is now ${queue.join(', ') || 'empty'}`)
@@ -303,7 +303,7 @@ function requeue(state: BatonState, order: string[]): BatonState {
   return { ...state, chain: { ...state.chain, queue: [...order] } }
 }
 
-function reorder(state: BatonState, project: string, order: string[]): BatonState {
+function reorder(state: EvenKeelState, project: string, order: string[]): EvenKeelState {
   const tasks = state.tasks.filter((task) => task.id.startsWith(`${project}-`) && order.includes(task.id))
   checkOrder(tasks, order)
   const current = state.chain.active?.project === project ? state.chain.active.current?.task : undefined
@@ -311,7 +311,7 @@ function reorder(state: BatonState, project: string, order: string[]): BatonStat
   return { ...state, chain: { ...state.chain, projects: { ...state.chain.projects, [project]: { order: [...order], error: null } } } }
 }
 
-function skip(state: BatonState, project: string, task: string): BatonState {
+function skip(state: EvenKeelState, project: string, task: string): EvenKeelState {
   const active = state.chain.active
   const holder = active?.project === project && active.current?.task === task ? active : null
   const view = state.sessions.find((each) => each.task === task && each.lamp !== 'finished')
@@ -329,7 +329,7 @@ function skip(state: BatonState, project: string, task: string): BatonState {
   }
 }
 
-function restart(state: BatonState, project: string, task: string): BatonState {
+function restart(state: EvenKeelState, project: string, task: string): EvenKeelState {
   const active = state.chain.active
   const current = active?.project === project && active.current?.task === task ? active.current : null
   if (active === null || current === null) throw new Error(`chain: ${task} is not the current task of a chain`)
@@ -347,19 +347,19 @@ function restart(state: BatonState, project: string, task: string): BatonState {
   }
 }
 
-function unskip(state: BatonState, project: string, task: string): BatonState {
+function unskip(state: EvenKeelState, project: string, task: string): EvenKeelState {
   const { [project]: skipped = [], ...rest } = state.chain.skipped
   const kept = skipped.filter((id) => id !== task)
   return { ...state, chain: { ...state.chain, skipped: kept.length === 0 ? rest : { ...rest, [project]: kept } } }
 }
 
-function dismiss(state: BatonState, project: string, task: string): BatonState {
+function dismiss(state: EvenKeelState, project: string, task: string): EvenKeelState {
   const { [project]: leftovers = [], ...rest } = state.chain.leftovers
   const kept = leftovers.filter((each) => each.task !== task)
   return { ...state, chain: { ...state.chain, leftovers: kept.length === 0 ? rest : { ...rest, [project]: kept } } }
 }
 
-function dequeue(state: BatonState, project: string): BatonState {
+function dequeue(state: EvenKeelState, project: string): EvenKeelState {
   return { ...state, chain: { ...state.chain, queue: state.chain.queue.filter((key) => key !== project) } }
 }
 
@@ -461,7 +461,7 @@ function fakeAccount(mode: string | null, idle: boolean, limits: RateLimits): Ac
     return { ...signedIn, apps: [{ ...vscode, sessions }] }
   }
   if (mode === 'vscode-broken') {
-    const error = 'vscode: settings.json is not plain JSON (comments or trailing commas?); Baton does not rewrite it'
+    const error = 'vscode: settings.json is not plain JSON (comments or trailing commas?); Even Keel does not rewrite it'
     return { ...signedIn, apps: [{ ...vscode, account: null, dir: null, error }] }
   }
   return signedIn
@@ -514,7 +514,7 @@ function accountCommand(account: AccountView, name: string, body: Record<string,
   throw new Error(`fake: ${name} is not supported`)
 }
 
-function fakeCommand(state: BatonState, name: string, body: Record<string, unknown>, launches: LaunchEntry[]): BatonState {
+function fakeCommand(state: EvenKeelState, name: string, body: Record<string, unknown>, launches: LaunchEntry[]): EvenKeelState {
   if (name === 'chain/start') return startChain(state, String(body.project), launches)
   if (name === 'chain/pause' || name === 'chain/resume') return setPaused(state, name === 'chain/pause')
   if (name === 'chain/stop') return stopChain(state, launches)

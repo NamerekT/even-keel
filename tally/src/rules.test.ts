@@ -27,12 +27,12 @@ describe('ruleFileOf', () => {
   })
 
   it('scopes memory to its project slug', () => {
-    const memory = ruleFileOf('C:\\Users\\Jane\\.claude-accounts\\a\\projects\\D--Projects-Baton\\memory\\MEMORY.md', home)
+    const memory = ruleFileOf('C:\\Users\\Jane\\.claude-accounts\\a\\projects\\D--Projects-EvenKeel\\memory\\MEMORY.md', home)
     expect(memory).toEqual({
-      key: '~/.claude/projects/d--projects-baton/memory/memory.md',
-      display: '~/.claude/projects/D--Projects-Baton/memory/MEMORY.md',
+      key: '~/.claude/projects/d--projects-evenkeel/memory/memory.md',
+      display: '~/.claude/projects/D--Projects-EvenKeel/memory/MEMORY.md',
       kind: 'memory',
-      scope: 'slug:d--projects-baton',
+      scope: 'slug:d--projects-evenkeel',
     })
   })
 
@@ -53,10 +53,10 @@ describe('ruleFileOf', () => {
   })
 
   it('maps worktree files onto the main checkout', () => {
-    const file = ruleFileOf('D:\\Projects\\Baton\\.claude\\worktrees\\btn-50\\CLAUDE.md', home)
-    expect(file).toEqual({ key: '/projects/baton/claude.md', display: 'D:/Projects/Baton/CLAUDE.md', kind: 'claude_md', scope: '/projects/baton' })
-    expect(ruleFileOf('C:/Projects/Baton/CLAUDE.md', home)?.key).toBe(file!.key)
-    expect(ruleFileOf('D:/Projects/Baton/tally/CLAUDE.md', home)).toMatchObject({ kind: 'claude_md', scope: '/projects/baton/tally' })
+    const file = ruleFileOf('D:\\Projects\\EvenKeel\\.claude\\worktrees\\btn-50\\CLAUDE.md', home)
+    expect(file).toEqual({ key: '/projects/evenkeel/claude.md', display: 'D:/Projects/EvenKeel/CLAUDE.md', kind: 'claude_md', scope: '/projects/evenkeel' })
+    expect(ruleFileOf('C:/Projects/EvenKeel/CLAUDE.md', home)?.key).toBe(file!.key)
+    expect(ruleFileOf('D:/Projects/EvenKeel/tally/CLAUDE.md', home)).toMatchObject({ kind: 'claude_md', scope: '/projects/evenkeel/tally' })
   })
 
   it('knows project skills, agents and settings', () => {

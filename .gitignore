@@ -4,7 +4,7 @@ dist/
 .env
 *.log
 state/
-baton.config.json
+even-keel.config.json
 .claude/launch.json
 logs/
 service/bin/

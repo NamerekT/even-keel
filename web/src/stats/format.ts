@@ -31,7 +31,7 @@ const MODELS: Record<string, string> = {
 }
 
 const ENTRYPOINTS: Record<string, string> = {
-  baton: 'Батон',
+  chain: 'Even Keel',
   vscode: 'VS Code',
   desktop: 'приложение',
   cli: 'CLI',

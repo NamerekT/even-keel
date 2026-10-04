@@ -5,8 +5,8 @@ import { finishSlot, prepareSlot, slotPaths, type SlotUse } from './slot.js'
 import type { GitResult } from './types.js'
 
 const repo = join(tmpdir(), 'abc')
-const slot = join(repo, '.claude', 'worktrees', 'baton')
-const slot2 = join(repo, '.claude', 'worktrees', 'baton-2')
+const slot = join(repo, '.claude', 'worktrees', 'even-keel')
+const slot2 = join(repo, '.claude', 'worktrees', 'even-keel-2')
 const own = join(repo, '.claude', 'worktrees', 'abc-7')
 const porcelain = (path: string) => path.replaceAll('\\', '/')
 const PREFIX: Record<string, string> = { [slot]: '@slot ', [slot2]: '@slot2 ' }

@@ -7,7 +7,7 @@ export function ConfigBanner() {
   return (
     <div className="banner banner--error" role="alert">
       <div className="banner__inner">
-        <span>baton.config.json не применён, работает последний исправный: {state.configError}</span>
+        <span>even-keel.config.json не применён, работает последний исправный: {state.configError}</span>
       </div>
     </div>
   )

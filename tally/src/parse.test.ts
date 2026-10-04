@@ -3,7 +3,7 @@ import { BatchBuilder, errorKindOf, launchMap } from './parse.js'
 
 const base = {
   sessionId: 's1',
-  cwd: 'D:\\Projects\\Baton\\.claude\\worktrees\\btn-46',
+  cwd: 'D:\\Projects\\EvenKeel\\.claude\\worktrees\\btn-46',
   gitBranch: 'btn-46/task',
   entrypoint: 'cli',
 }
@@ -57,8 +57,8 @@ describe('BatchBuilder messages', () => {
         sessionId: 's1',
         agentId: null,
         account: 'global',
-        project: 'Baton',
-        projectDir: 'D:\\Projects\\Baton',
+        project: 'EvenKeel',
+        projectDir: 'D:\\Projects\\EvenKeel',
         task: 'BTN-46',
         branch: 'btn-46/task',
         entrypoint: 'cli',
@@ -175,7 +175,7 @@ describe('BatchBuilder sessions', () => {
     expect(batch.sessions.get('s1')).toEqual({
       sessionId: 's1',
       account: 'global',
-      project: 'Baton',
+      project: 'EvenKeel',
       customTitle: 'My title',
       aiTitle: 'Auto title',
       launchTask: null,

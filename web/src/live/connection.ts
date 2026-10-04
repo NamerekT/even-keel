@@ -1,4 +1,4 @@
-import type { BatonState, SessionRecord } from '../../../src/state.js'
+import type { EvenKeelState, SessionRecord } from '../../../src/state.js'
 import type { PeriodQuery, StatsAnswer, StatsFilter, StatsHistory, StatsPeriod, StatsTaskDetail } from '../../../src/stats/model.js'
 import type { CompareQuery, RuleDiffFile, RulesQuery, StatsCompare, StatsRules } from '../../../src/stats/rules.js'
 import type { StatsSteps } from '../../../src/stats/steps.js'
@@ -6,7 +6,7 @@ import type { StatsSteps } from '../../../src/stats/steps.js'
 export type Link = 'connecting' | 'live' | 'stale'
 
 export interface LiveSnapshot {
-  state: BatonState | null
+  state: EvenKeelState | null
   link: Link
 }
 
@@ -34,9 +34,9 @@ export interface LiveSource {
 }
 
 export interface LiveDeps {
-  fetchState: () => Promise<BatonState>
+  fetchState: () => Promise<EvenKeelState>
   openEvents: () => EventStream
-  sendCommand: (name: string, body: Record<string, unknown>) => Promise<BatonState>
+  sendCommand: (name: string, body: Record<string, unknown>) => Promise<EvenKeelState>
   fetchSession: (sessionId: string) => Promise<SessionRecord | null>
   fetchStats: <T>(path: string, search: URLSearchParams) => Promise<StatsAnswer<T>>
 }
@@ -148,7 +148,7 @@ export class LiveConnection implements LiveSource {
       this.streamed = true
       this.retryMs = FIRST_RETRY_MS
       this.watchSilence()
-      this.update({ state: JSON.parse(event.data as string) as BatonState, link: 'live' })
+      this.update({ state: JSON.parse(event.data as string) as EvenKeelState, link: 'live' })
     })
     stream.addEventListener('ping', () => {
       if (stream !== this.stream) return

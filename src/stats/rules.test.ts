@@ -14,7 +14,7 @@ import {
 } from './rules.js'
 
 const places = {
-  baton: [{ key: 'ABC', dir: '/repos/abc' }],
+  tracked: [{ key: 'ABC', dir: '/repos/abc' }],
   folders: [
     { dir: '/repos/abc', label: 'ABC' },
     { dir: '/repos/abc/.claude/worktrees/abc-1', label: 'ABC' },
@@ -28,7 +28,7 @@ describe('scopeProject', () => {
     expect(scopeProject('global', places)).toBeNull()
   })
 
-  it('puts a folder under the Baton project that holds it, else under the group of its folder', () => {
+  it('puts a folder under the Even Keel project that holds it, else under the group of its folder', () => {
     expect(scopeProject('/repos/abc', places)).toBe('ABC')
     expect(scopeProject('/repos/abc/tools/art', places)).toBe('ABC')
     expect(scopeProject('/work/tools/cli', places)).toBe('work')

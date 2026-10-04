@@ -17,7 +17,7 @@ describe('mapHistory', () => {
     expect(history).toEqual({
       at: '2026-10-03T12:00:00.000Z',
       accounts: ['global'],
-      baton: ['ABC'],
+      tracked: ['ABC'],
       projects: ['Example', 'ABC'],
       days: ['2026-10-01', '2026-10-03'],
       cells: [

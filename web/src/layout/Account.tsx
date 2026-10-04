@@ -193,7 +193,7 @@ function AccountItem({ entry, view, now, sending, send }: ItemProps) {
     <li className={`accounts__item${active ? ' accounts__item--active' : ''}`}>
       <div className="accounts__head">
         <span className="accounts__email">{email}</span>
-        {active && <span className="accounts__mark accounts__mark--active">Батон</span>}
+        {active && <span className="accounts__mark accounts__mark--active">Even Keel</span>}
         {view.apps
           .filter((app) => app.account === entry.key)
           .map((app) => (
@@ -231,7 +231,7 @@ function AccountItem({ entry, view, now, sending, send }: ItemProps) {
             title={blocked}
             onClick={() => void send('account/switch', { account: entry.key })}
           >
-            Отдать Батону
+            Отдать Even Keel
           </button>
         )}
         {(left.renew || entry.needsLogin) && (

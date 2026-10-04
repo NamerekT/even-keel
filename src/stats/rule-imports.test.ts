@@ -3,7 +3,7 @@ import { filterSets, importKind, importProjects, withImports, type RuleImport } 
 import type { RuleSet } from './rules.js'
 
 const places = {
-  baton: [
+  tracked: [
     { key: 'CBL', dir: '/projects/git/private/gamma' },
     { key: 'GS', dir: '/projects/gs' },
   ],

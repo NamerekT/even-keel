@@ -102,7 +102,7 @@ describe('sessionsByTask', () => {
     const agents = Object.keys(branches).map((sessionId) => ({
       ...interactive,
       sessionId,
-      name: sessionId === 'named' ? 'ABC-2' : 'baton-2b',
+      name: sessionId === 'named' ? 'ABC-2' : 'session-2b',
     }))
 
     const byTask = sessionsByTask(agents, ['ABC'], (agent) => branches[agent.sessionId] ?? null)

@@ -31,7 +31,7 @@ describe('AccountHomes.envOf', () => {
 
 describe('AccountHomes.list', () => {
   it('skips the lock folders the CLI keeps next to an account folder while it refreshes the token', () => {
-    const root = mkdtempSync(join(tmpdir(), 'baton-homes-'))
+    const root = mkdtempSync(join(tmpdir(), 'even-keel-homes-'))
     try {
       for (const name of ['john', 'john.lock', '.pending-1', 'global']) mkdirSync(join(root, name))
       const homes = new AccountHomes(env, root)

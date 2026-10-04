@@ -79,7 +79,7 @@ class Transcript {
 }
 
 const GAMMA = rulesFor(DEFAULT_STEPS, 'Gamma')
-const BATON = rulesFor(DEFAULT_STEPS, 'Baton')
+const OWN = rulesFor(DEFAULT_STEPS, 'EvenKeel')
 
 const brief = (runs: StepRun[]) => runs.map((run) => [run.toolUseId, run.step, run.mode, run.endBy, run.outcome, run.seconds, run.polls])
 
@@ -129,7 +129,7 @@ describe('stepOf', () => {
   })
 
   it('takes project rules only for their project', () => {
-    expect(stepOf('& tools/unity-check.ps1', BATON)).toBeNull()
+    expect(stepOf('& tools/unity-check.ps1', OWN)).toBeNull()
   })
 
   it('prefers a project rule over a common one', () => {
@@ -158,7 +158,7 @@ describe('runsOf', () => {
       .call('a', 'npm run build', { seconds: 40 })
       .call('b', 'npx vitest run', { seconds: 12, isError: true, result: 'Exit code 1\n1 failed' })
       .call('c', 'dotnet test', { seconds: 120, isError: true, result: 'Command timed out after 2m 0.0s' })
-    expect(brief(runsOf(t.entries(), BATON))).toEqual([
+    expect(brief(runsOf(t.entries(), OWN))).toEqual([
       ['a', 'build', 'foreground', 'result', 'ok', 41, 0],
       ['b', 'vitest', 'foreground', 'result', 'fail', 13, 0],
       ['c', 'dotnet-test', 'foreground', 'result', 'timeout', 121, 0],
@@ -167,7 +167,7 @@ describe('runsOf', () => {
 
   it('leaves out a foreground call that never got its result', () => {
     const t = new Transcript().call('a', 'npm run build')
-    expect(runsOf(t.entries(), BATON)).toEqual([])
+    expect(runsOf(t.entries(), OWN)).toEqual([])
   })
 
   it('ends a background run at its completion notification', () => {
@@ -190,7 +190,7 @@ describe('runsOf', () => {
       .call('a', 'dotnet test', { seconds: 120, result })
       .wait(60)
       .notify('a', 'b9', 'completed', 'Background command "dotnet test" completed (exit code 0)')
-    expect(brief(runsOf(t.entries(), BATON))).toEqual([['a', 'dotnet-test', 'background', 'notification', 'ok', 182, 0]])
+    expect(brief(runsOf(t.entries(), OWN))).toEqual([['a', 'dotnet-test', 'background', 'notification', 'ok', 182, 0]])
   })
 
   it('ends a background run without notification at its last poll', () => {
@@ -212,13 +212,13 @@ describe('runsOf', () => {
       .tool('o', 'TaskOutput', { task_id: 'b1' }, { seconds: 30 })
       .notify('a', 'b1', 'completed', 'Background command "build" completed (exit code 0)')
       .tool('r', 'Read', { file_path: `${OUT}\\b1.output` }, { seconds: 1 })
-    const [run] = runsOf(t.entries(), BATON)
+    const [run] = runsOf(t.entries(), OWN)
     expect([run!.endBy, run!.seconds, run!.polls]).toEqual(['notification', 35, 1])
   })
 
   it('ends a background run stopped by TaskStop as killed', () => {
     const t = new Transcript().background('a', 'b1', 'npm run build').wait(30).tool('k', 'TaskStop', { task_id: 'b1' }, { seconds: 1 })
-    expect(brief(runsOf(t.entries(), BATON))).toEqual([['a', 'build', 'background', 'stop', 'killed', 33, 0]])
+    expect(brief(runsOf(t.entries(), OWN))).toEqual([['a', 'build', 'background', 'stop', 'killed', 33, 0]])
   })
 
   it('ends a run at its monitor notification when a monitor waits for it', () => {
@@ -227,13 +227,13 @@ describe('runsOf', () => {
       .tool('m', 'Monitor', { command: `until grep -q done ${OUT}\\b1.output; do sleep 5; done` }, { seconds: 1 })
       .wait(100)
       .notify('m', 'b5', 'completed', 'Monitor finished')
-    const [run] = runsOf(t.entries(), BATON)
+    const [run] = runsOf(t.entries(), OWN)
     expect([run!.endBy, run!.seconds, run!.polls]).toEqual(['poll', 106, 1])
   })
 
   it('leaves a background run open when nothing tells its end', () => {
     const t = new Transcript().background('a', 'b1', 'npm run build', { seconds: 2 })
-    expect(brief(runsOf(t.entries(), BATON))).toEqual([['a', 'build', 'background', 'open', null, 3, 0]])
+    expect(brief(runsOf(t.entries(), OWN))).toEqual([['a', 'build', 'background', 'open', null, 3, 0]])
   })
 
   it('times a detached process by the polls of its log', () => {
@@ -260,7 +260,7 @@ describe('runsOf', () => {
       .background('a', 'b1', 'npm run build')
       .prompt('what now?')
       .call('s', 'sleep 30', { seconds: 30 })
-    expect(brief(runsOf(t.entries(), BATON))).toEqual([
+    expect(brief(runsOf(t.entries(), OWN))).toEqual([
       ['a', 'build', 'background', 'open', null, 2, 0],
       ['s', null, 'foreground', 'result', 'ok', 31, 0],
     ])
@@ -271,7 +271,7 @@ describe('runsOf', () => {
       .background('a', 'b1', 'npm run build')
       .background('b', 'b2', 'npm run build')
       .call('s', 'sleep 30', { seconds: 30 })
-    const runs = runsOf(t.entries(), BATON)
+    const runs = runsOf(t.entries(), OWN)
     expect(runs.map((run) => [run.toolUseId, run.polls])).toEqual([
       ['a', 0],
       ['b', 1],
@@ -282,7 +282,7 @@ describe('runsOf', () => {
     const t = new Transcript()
       .background('a', 'b1', 'npm run build', { agentId: 'x1' })
       .call('s', 'sleep 30', { seconds: 30 })
-    const runs = runsOf(t.entries(), BATON)
+    const runs = runsOf(t.entries(), OWN)
     expect(runs.map((run) => [run.toolUseId, run.agentId, run.polls])).toEqual([
       ['a', 'x1', 0],
       ['s', null, 0],
@@ -291,18 +291,18 @@ describe('runsOf', () => {
 
   it('marks interrupted calls as killed', () => {
     const t = new Transcript().call('a', 'npm run build', { seconds: 5, isError: true, result: '[Request interrupted by user for tool use]' })
-    expect(runsOf(t.entries(), BATON)[0]!.outcome).toBe('killed')
+    expect(runsOf(t.entries(), OWN)[0]!.outcome).toBe('killed')
   })
 
   it('places a run in its worktree and branch', () => {
     const t = new Transcript().call('a', 'npm run build', { seconds: 1, cwd: 'D:\\Work\\Game\\.claude\\worktrees\\cbl-7\\tools', branch: 'cbl-7/task' })
     t.call('b', 'npm run build', { seconds: 1, cwd: 'D:\\Work\\Game\\src' })
-    expect(runsOf(t.entries(), BATON).map((run) => run.place)).toEqual(['d:/work/game/.claude/worktrees/cbl-7|cbl-7/task', 'd:/work/game/src|main'])
+    expect(runsOf(t.entries(), OWN).map((run) => run.place)).toEqual(['d:/work/game/.claude/worktrees/cbl-7|cbl-7/task', 'd:/work/game/src|main'])
   })
 
   it('keeps the start of a long command and its signature', () => {
     const t = new Transcript().call('a', `git status ${'x'.repeat(400)}`, { seconds: 1 })
-    const [run] = runsOf(t.entries(), BATON)
+    const [run] = runsOf(t.entries(), OWN)
     expect([run!.command.length, run!.signature]).toEqual([300, 'git status'])
   })
 })

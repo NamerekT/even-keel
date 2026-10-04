@@ -20,7 +20,7 @@ const commit = async (name: string) => {
 }
 
 beforeEach(async () => {
-  repo = mkdtempSync(join(tmpdir(), 'baton-merged-'))
+  repo = mkdtempSync(join(tmpdir(), 'even-keel-merged-'))
   await git('init', '-q', '-b', 'main')
   await git('config', 'user.email', 'john.doe@example.com')
   await git('config', 'user.name', 'John Doe')

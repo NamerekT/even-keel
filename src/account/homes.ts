@@ -97,5 +97,5 @@ export class AccountHomes {
 }
 
 export function accountsRoot(env: NodeJS.ProcessEnv): string {
-  return env.BATON_ACCOUNTS_DIR ?? join(homedir(), '.claude-accounts')
+  return env.EVEN_KEEL_ACCOUNTS_DIR ?? join(homedir(), '.claude-accounts')
 }

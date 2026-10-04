@@ -1,5 +1,5 @@
 import { watchFile } from 'node:fs'
-import { liveConfig, loadConfig, restartChanges, type BatonConfig } from './config.js'
+import { liveConfig, loadConfig, restartChanges, type EvenKeelConfig } from './config.js'
 
 export interface ConfigFileOptions {
   file: string
@@ -9,7 +9,7 @@ export interface ConfigFileOptions {
 }
 
 export class ConfigFile {
-  current: BatonConfig
+  current: EvenKeelConfig
   error: string | null = null
 
   constructor(private readonly options: ConfigFileOptions) {
@@ -23,7 +23,7 @@ export class ConfigFile {
   }
 
   reload(): void {
-    let next: BatonConfig
+    let next: EvenKeelConfig
     try {
       next = loadConfig(this.options.file)
     } catch (error) {
@@ -33,7 +33,7 @@ export class ConfigFile {
       return
     }
     const waiting = restartChanges(this.current, next)
-    if (waiting.length > 0) this.options.warn(`config: ${waiting.join(', ')} changed and wait for a restart of Baton`)
+    if (waiting.length > 0) this.options.warn(`config: ${waiting.join(', ')} changed and wait for a restart of Even Keel`)
     this.current = liveConfig(this.current, next)
     this.error = null
     this.options.onChange()

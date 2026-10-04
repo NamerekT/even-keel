@@ -8,7 +8,7 @@ const price = { input: 4, output: 20, cacheRead: 0.2, cacheWrite5m: 5, cacheWrit
 describe('parseConfig', () => {
   it('reads prices per model prefix', () => {
     expect(parseConfig({ prices: { 'claude-opus-5-5': price } })).toEqual({
-      batonUrl: 'http://127.0.0.1:4747',
+      evenKeelUrl: 'http://127.0.0.1:4747',
       prices: [{ model: 'claude-opus-5-5', ...price }],
       signs: DEFAULT_SIGN_RULES,
       classify: DEFAULT_CLASSIFY,

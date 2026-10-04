@@ -7,7 +7,7 @@ Postgres для статистики сессий: стек `/opt/stacks/tally-s
 - `db` — `postgres:18`, порт 5432 опубликован только на адресе tailnet хоста (`BIND_ADDRESS`), в локальной сети его нет.
 - Роли (создаёт `initdb/10-roles.sh` при первом старте с пустым томом):
   - `tally_writer` — владелец базы и схемы `public`, пишет сборщик;
-  - `tally_reader` — только чтение: `SELECT` на всё, что создаст `tally_writer`, транзакции по умолчанию read-only. Им ходят Батон и сессии с недельной сводкой.
+  - `tally_reader` — только чтение: `SELECT` на всё, что создаст `tally_writer`, транзакции по умолчанию read-only. Им ходят Even Keel и сессии с недельной сводкой.
   - `postgres` — суперпользователь, нужен только бэкапу и обслуживанию.
 - `backup` — раз в `BACKUP_INTERVAL_SECONDS` (по умолчанию сутки) `pg_dump --format=custom --compress=9` в `./backups/tally-<время>.dump`, хранит `BACKUP_KEEP` (по умолчанию 7) последних.
 
@@ -36,7 +36,7 @@ mkdir -p backups && chmod 700 backups
 docker compose up -d
 ```
 
-Пароли ролей переносятся в локальный `.env` Батона (вне git) как `TALLY_DB_*`, `TALLY_WRITER_PASSWORD` и `TALLY_READER_PASSWORD` — вид в `.env.example` в корне репозитория.
+Пароли ролей переносятся в локальный `.env` Even Keel (вне git) как `TALLY_DB_*`, `TALLY_WRITER_PASSWORD` и `TALLY_READER_PASSWORD` — вид в `.env.example` в корне репозитория.
 
 Порт привязан к адресу tailnet. Чтобы привязка пережила загрузку, на которой Docker стартует раньше `tailscaled`, на сервере стоит `net.ipv4.ip_nonlocal_bind=1` (`/etc/sysctl.d/99-nonlocal-bind.conf`, заведён для LiteLLM). На новом хосте — завести так же.
 

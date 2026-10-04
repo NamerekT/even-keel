@@ -19,7 +19,7 @@ import { finishSlot, prepareSlot, slotPaths, type SlotUse } from './git/slot.js'
 import { ensureIgnored, finishWorktree, prepareWorktree, taskPlace } from './git/worktree.js'
 import { exhaustedReset } from './limits/model.js'
 import { LimitsWatcher } from './limits/watcher.js'
-import { createBatonServer } from './server.js'
+import { createEvenKeelServer } from './server.js'
 import { ClaudeCli, liveRecords, resolveClaudeBinary } from './sessions/claude.js'
 import type { AgentEntry } from './sessions/agents.js'
 import { launchPlan, type LaunchPlan } from './sessions/launch.js'
@@ -27,7 +27,7 @@ import { readSessionRecord } from './sessions/history.js'
 import { SessionMonitor } from './sessions/monitor.js'
 import { isInside, slotOccupants } from './sessions/occupants.js'
 import { locateWorktree } from './sessions/place.js'
-import type { BatonState, SessionView } from './state.js'
+import type { EvenKeelState, SessionView } from './state.js'
 import { readerSettings } from './stats/model.js'
 import { StatsReader } from './stats/reader.js'
 import { ADAPTERS } from './tracker/adapters.js'
@@ -60,7 +60,7 @@ try {
 }
 
 const configFile = new ConfigFile({
-  file: process.env.BATON_CONFIG ?? join(root, 'baton.config.json'),
+  file: process.env.EVEN_KEEL_CONFIG ?? join(root, 'even-keel.config.json'),
   intervalMs: CONFIG_POLL_MS,
   warn: (message) => console.warn(message),
   onChange: () => {
@@ -70,7 +70,7 @@ const configFile = new ConfigFile({
 })
 const config = configFile.current
 const rulesOf = (project: string) => configFile.current.rules[project]!
-const stateDir = process.env.BATON_STATE_DIR ?? join(root, 'state')
+const stateDir = process.env.EVEN_KEEL_STATE_DIR ?? join(root, 'state')
 mkdirSync(stateDir, { recursive: true })
 const chainFile = join(stateDir, 'chain.json')
 const launchesFile = join(stateDir, 'launches.jsonl')
@@ -346,7 +346,7 @@ async function stopTaskSessions(repo: string, task: string, count: number): Prom
   return warnings
 }
 
-const getState = (): BatonState => ({
+const getState = (): EvenKeelState => ({
   startedAt,
   projects: Object.keys(config.projects),
   chain: {
@@ -372,7 +372,7 @@ const getState = (): BatonState => ({
   configError: configFile.error,
 })
 
-const server = createBatonServer({
+const server = createEvenKeelServer({
   hub,
   publicDir: join(root, 'dist', 'web'),
   getState,
@@ -400,7 +400,7 @@ vscode.start()
 configFile.watch()
 
 server.listen(config.port, config.host, () => {
-  console.log(`baton listening on http://${config.host}:${config.port}`)
+  console.log(`even-keel listening on http://${config.host}:${config.port}`)
 })
 
 for (const view of trackers.values()) {

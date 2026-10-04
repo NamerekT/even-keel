@@ -2,18 +2,18 @@ import { isTerminal, unknownStatuses, type ChainRules } from '../chain/rules.js'
 import { isLeaf, toTask, type Task, type TaskStatus, type TrackerTask } from './model.js'
 
 /**
- * The contract of a tracker adapter. Baton reads tasks through it and never talks to a tracker directly;
+ * The contract of a tracker adapter. Even Keel reads tasks through it and never talks to a tracker directly;
  * Huly (`src/huly/adapter.ts`) is one implementation. An adapter is registered in `src/tracker/adapters.ts`
- * and picked by name with `tracker` in `baton.config.json`, for all projects or per project.
+ * and picked by name with `tracker` in `even-keel.config.json`, for all projects or per project.
  *
  * A task the adapter returns (`TrackerTask`):
- * - `id` — `<PROJECT>-<number>`, where PROJECT is the project key from `baton.config.json`; Baton names the
+ * - `id` — `<PROJECT>-<number>`, where PROJECT is the project key from `even-keel.config.json`; Even Keel names the
  *   worktree and the branch after it and the stats attribute sessions to a task by it.
  * - `status` — the tracker's status name and one of five categories: `UnStarted` (backlog), `ToDo` (ready),
  *   `Active` (in progress or review), `Won` (done), `Lost` (canceled). The chain rules work on these.
  * - `blockedBy` — ids of the tasks that block this one; `parent` — the id of the parent task;
  *   `subtasks` — how many subtasks it has: a task with subtasks never enters the chain.
- * - `labels` as they are named in the tracker; Baton derives the model and the question mark from them.
+ * - `labels` as they are named in the tracker; Even Keel derives the model and the question mark from them.
  * - `priority`, `milestone` (`targetDate` in ms), `estimate` (hours).
  * Whatever the tracker lacks is returned empty: `[]`, `null`, `0`, `'none'`. The chain works without it.
  */
@@ -31,7 +31,7 @@ export interface TaskSource {
    */
   brief?(id: string): Promise<TaskBrief>
   /**
-   * Optional. Moves a task to a `Won` status; Baton calls it once it sees the task's branch merged into `main`.
+   * Optional. Moves a task to a `Won` status; Even Keel calls it once it sees the task's branch merged into `main`.
    * Huly leaves it out: a git hook closes the task on merge.
    */
   complete?(id: string): Promise<void>
@@ -58,7 +58,7 @@ export interface TrackerSetup {
 export interface TrackerAdapter {
   /** The name on the page and in the log. */
   title: string
-  /** Environment variables the adapter reads; Baton keeps them out of the sessions it launches. */
+  /** Environment variables the adapter reads; Even Keel keeps them out of the sessions it launches. */
   variables: readonly string[]
   /** `undefined` — none of its variables are set and the tracker is off; throws when they are set only in part. */
   setup(env: Record<string, string | undefined>): TrackerSetup | undefined

@@ -1,11 +1,11 @@
 #Requires -RunAsAdministrator
 #Requires -Version 7
-# Builds the service host and registers the Baton service under a user account.
+# Builds the service host and registers the Even Keel service under a user account.
 # The account password is never asked here: set it on the service's Log On tab in services.msc,
 # which also grants the account the "Log on as a service" right.
 param(
     [string]$Account = "$env:USERDOMAIN\$env:USERNAME",
-    [string]$Name = 'Baton'
+    [string]$Name = 'EvenKeel'
 )
 $ErrorActionPreference = 'Stop'
 
@@ -13,7 +13,7 @@ $root = Split-Path $PSScriptRoot -Parent
 $node = (Get-Command node.exe).Source
 $csc = Join-Path $env:WINDIR 'Microsoft.NET\Framework64\v4.0.30319\csc.exe'
 $bin = Join-Path $PSScriptRoot 'bin'
-$exe = Join-Path $bin 'BatonService.exe'
+$exe = Join-Path $bin 'EvenKeelService.exe'
 
 function Invoke-Sc {
     & sc.exe @args | Out-Null
@@ -36,18 +36,18 @@ if ($existing -and $existing.Status -ne 'Stopped') {
 }
 
 New-Item -ItemType Directory -Force $bin | Out-Null
-& $csc -nologo -target:exe "-out:$exe" -reference:System.ServiceProcess.dll (Join-Path $PSScriptRoot 'BatonService.cs')
+& $csc -nologo -target:exe "-out:$exe" -reference:System.ServiceProcess.dll (Join-Path $PSScriptRoot 'EvenKeelService.cs')
 if ($LASTEXITCODE -ne 0) { throw "csc failed with code $LASTEXITCODE" }
 
 $command = "`"$exe`" `"$root`" `"$node`""
 if ($existing) {
     Invoke-Sc config $Name binPath= $command
     Start-Service -Name $Name
-    Write-Host "Service $Name updated and started. Log: $root\logs\baton.log"
+    Write-Host "Service $Name updated and started. Log: $root\logs\even-keel.log"
     return
 }
 
-New-Service -Name $Name -BinaryPathName $command -DisplayName 'Baton' -StartupType Manual `
+New-Service -Name $Name -BinaryPathName $command -DisplayName 'Even Keel' -StartupType Manual `
     -Description 'Runs Claude Code sessions for Huly issues one after another.' | Out-Null
 try {
     Invoke-Sc config $Name obj= $Account
@@ -60,5 +60,5 @@ try {
 
 Write-Host "Service $Name is registered to run as $Account."
 Write-Host "Finish in services.msc: $Name -> Properties -> Log On -> enter the password of $Account -> OK, then Start."
-Write-Host "Log: $root\logs\baton.log"
+Write-Host "Log: $root\logs\even-keel.log"
 Start-Process services.msc

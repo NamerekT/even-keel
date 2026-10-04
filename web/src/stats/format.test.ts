@@ -96,7 +96,7 @@ describe('labels', () => {
   it('names models and entry points', () => {
     expect(modelLabel('opus')).toBe('Opus')
     expect(modelLabel('other')).toBe('другие')
-    expect(entrypointLabel('baton')).toBe('Батон')
+    expect(entrypointLabel('chain')).toBe('Even Keel')
     expect(entrypointLabel('desktop')).toBe('приложение')
     expect(entrypointLabel('tally-classify')).toBe('Tally')
     expect(entrypointLabel('brand_new')).toBe('brand_new')

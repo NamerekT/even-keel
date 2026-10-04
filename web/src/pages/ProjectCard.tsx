@@ -1,5 +1,5 @@
 import { Link } from 'react-router'
-import type { BatonState } from '../../../src/state.js'
+import type { EvenKeelState } from '../../../src/state.js'
 import { useCommand } from '../live/useCommand.js'
 import { cardTask, chainProgress, chainStatus, limitWaitText, openQuestions, projectSlot, projectTasks } from '../state.js'
 import { Lamp } from '../ui/Lamp.js'
@@ -7,7 +7,7 @@ import { QuestionsChip } from '../ui/QuestionsChip.js'
 import { seriesStyle } from '../ui/series.js'
 import { StatusChip } from '../ui/StatusChip.js'
 
-export function ProjectCard({ state, project }: { state: BatonState; project: string }) {
+export function ProjectCard({ state, project }: { state: EvenKeelState; project: string }) {
   const { send, sending, failure } = useCommand()
 
   const status = chainStatus(state.chain, project)

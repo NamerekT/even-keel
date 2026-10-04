@@ -4,9 +4,9 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { EventHub } from './events.js'
-import { createBatonServer, type AccountControl, type ChainControl } from './server.js'
+import { createEvenKeelServer, type AccountControl, type ChainControl } from './server.js'
 
-describe('Baton HTTP server', () => {
+describe('Even Keel HTTP server', () => {
   let hub: EventHub
   let publicDir: string
   let calls: unknown[][]
@@ -14,8 +14,8 @@ describe('Baton HTTP server', () => {
   let close: () => Promise<void>
 
   beforeEach(async () => {
-    publicDir = mkdtempSync(join(tmpdir(), 'baton-public-'))
-    writeFileSync(join(publicDir, 'index.html'), '<title>Baton</title>')
+    publicDir = mkdtempSync(join(tmpdir(), 'even-keel-public-'))
+    writeFileSync(join(publicDir, 'index.html'), '<title>Even Keel</title>')
     hub = new EventHub()
     calls = []
     const record =
@@ -52,7 +52,7 @@ describe('Baton HTTP server', () => {
       code: record('code'),
       cancel: record('cancel'),
     }
-    const server = createBatonServer({
+    const server = createEvenKeelServer({
       hub,
       publicDir,
       getState: () => ({ chain: [] }),
@@ -85,7 +85,7 @@ describe('Baton HTTP server', () => {
     const response = await fetch(base + '/')
     expect(response.status).toBe(200)
     expect(response.headers.get('content-type')).toMatch(/text\/html/)
-    expect(await response.text()).toContain('Baton')
+    expect(await response.text()).toContain('Even Keel')
   })
 
   it('serves the state as JSON', async () => {
@@ -106,7 +106,7 @@ describe('Baton HTTP server', () => {
       const response = await fetch(base + route)
       expect(response.status, route).toBe(200)
       expect(response.headers.get('content-type'), route).toMatch(/text\/html/)
-      expect(await response.text(), route).toContain('Baton')
+      expect(await response.text(), route).toContain('Even Keel')
     }
     expect((await fetch(base + '/assets/missing.js')).status).toBe(404)
     expect((await fetch(base + '/api/nope')).status).toBe(404)

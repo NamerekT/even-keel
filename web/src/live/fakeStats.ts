@@ -15,7 +15,7 @@ import type {
 import { addDays, bucketOf, dayCount, localDay, previousRange, type DayRange } from '../stats/period.js'
 import { fakeTaskSteps } from './fakeSteps.js'
 
-const BATON = ['ABC', 'DEMO', 'XYZ', 'OPS']
+const TRACKED = ['ABC', 'DEMO', 'XYZ', 'OPS']
 const FOLDERS = ['yaml-tools', 'notes', 'dotfiles', 'homepage', 'game-jam', 'scratch']
 const COMPONENTS = ['Web', 'Core', null]
 const REASONS = ['broken_tooling', 'debug_loop', 'unclear_task', 'waiting_user', null]
@@ -63,7 +63,7 @@ function random(seed: number): () => number {
 }
 
 function scale(filter: StatsFilter, project: string): number {
-  if (filter.scope === 'chain' && !BATON.includes(project)) return 0
+  if (filter.scope === 'chain' && !TRACKED.includes(project)) return 0
   const scope = filter.scope === 'chain' ? 0.7 : 1
   const account = filter.account === null ? 1 : filter.account === 'global' ? 0.65 : 0.35
   return scope * account
@@ -134,7 +134,7 @@ export function fakeHistory(mode: string | null, filter: StatsFilter): StatsAnsw
     data: {
       at: new Date().toISOString(),
       accounts: ['global', 'work'],
-      baton: BATON,
+      tracked: TRACKED,
       projects,
       days,
       cells,
@@ -152,7 +152,7 @@ function totals(list: ReturnType<typeof rows>, range: DayRange): StatsTotals {
     cost,
     messages: Math.round(cost * 17),
     sessions,
-    tasks: Math.round(within.filter((row) => BATON.includes(row.project)).length / 3),
+    tasks: Math.round(within.filter((row) => TRACKED.includes(row.project)).length / 3),
     unpriced: 0,
     limit: within.length === 0 ? null : limit,
     stuckCost: cost * 0.13,
@@ -193,7 +193,7 @@ export function fakePeriod(mode: string | null, query: PeriodQuery): StatsAnswer
   }
   const tasks: StatsTaskRow[] = []
   for (const [project, cost] of byProject) {
-    if (!BATON.includes(project)) continue
+    if (!TRACKED.includes(project)) continue
     const count = Math.max(1, Math.min(40, Math.round(cost / 25)))
     for (let index = 0; index < count; index++) {
       const sessions = 1 + Math.floor(next() * 5)
@@ -238,7 +238,7 @@ export function fakePeriod(mode: string | null, query: PeriodQuery): StatsAnswer
     .reverse()
     .map((day, index) => {
       const project = list.find((row) => row.day === day)!.project
-      return stuckSpan(index + 1, BATON.includes(project) ? `${project}-${90 + index}` : null, project, day, next)
+      return stuckSpan(index + 1, TRACKED.includes(project) ? `${project}-${90 + index}` : null, project, day, next)
     })
 
   return {
@@ -251,7 +251,7 @@ export function fakePeriod(mode: string | null, query: PeriodQuery): StatsAnswer
       limits: mode === 'empty' ? null : limitCoverage(),
       windows: mode === 'empty' ? [] : limitWindows(query, range),
       models: share(current.cost, [['opus', 0.62], ['sonnet', 0.31], ['haiku', 0.05], ['other', 0.02]]),
-      entrypoints: share(current.cost, query.scope === 'chain' ? [['baton', 1]] : [['baton', 0.48], ['vscode', 0.3], ['desktop', 0.12], ['cli', 0.08], ['tally-classify', 0.02]]),
+      entrypoints: share(current.cost, query.scope === 'chain' ? [['chain', 1]] : [['chain', 0.48], ['vscode', 0.3], ['desktop', 0.12], ['cli', 0.08], ['tally-classify', 0.02]]),
       tasks,
       weeks,
       stuck,

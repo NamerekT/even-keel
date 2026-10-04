@@ -105,7 +105,7 @@ describe('appSwitchProblem', () => {
     expect(appSwitchProblem(view(vscode({ account: null, dir: 'C:\\elsewhere' })), 'vscode', 'global')).toBeUndefined()
   })
 
-  it('does not care about the chain or Baton sessions', () => {
+  it('does not care about the chain or Even Keel sessions', () => {
     const busy = { ...view(vscode({})), loginBlock: { chain: 'ABC', sessions: [] } }
     expect(appSwitchProblem(busy, 'vscode', 'work')).toBeUndefined()
   })

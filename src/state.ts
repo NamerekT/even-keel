@@ -53,7 +53,7 @@ export interface ContextScale {
   danger: number
 }
 
-export interface BatonState {
+export interface EvenKeelState {
   startedAt: string
   projects: string[]
   chain: {

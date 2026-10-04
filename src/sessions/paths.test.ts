@@ -3,7 +3,7 @@ import { newestExtensionBinary, projectDirName } from './paths.js'
 
 describe('projectDirName', () => {
   it('encodes a working directory the way Claude Code names its transcript folders', () => {
-    expect(projectDirName('D:\\Projects\\git\\private\\Baton')).toBe('D--Projects-git-private-Baton')
+    expect(projectDirName('D:\\Projects\\git\\private\\EvenKeel')).toBe('D--Projects-git-private-EvenKeel')
     expect(projectDirName('C:\\repos\\example\\.claude\\worktrees\\a-1b')).toBe('C--repos-example--claude-worktrees-a-1b')
   })
 })

@@ -5,7 +5,7 @@ import { describe, expect, it } from 'vitest'
 import { emptyChainState, type ChainState } from './dispatcher.js'
 import { appendLaunch, loadChainState, readLaunches, saveChainState } from './store.js'
 
-const dir = () => mkdtempSync(join(tmpdir(), 'baton-state-'))
+const dir = () => mkdtempSync(join(tmpdir(), 'even-keel-state-'))
 
 describe('chain store', () => {
   it('starts empty when nothing was saved', () => {

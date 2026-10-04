@@ -5,7 +5,7 @@ using System.ServiceProcess;
 using System.Text;
 using System.Threading;
 
-public sealed class BatonService : ServiceBase
+public sealed class EvenKeelService : ServiceBase
 {
     const long RotateBytes = 5 * 1024 * 1024;
     static readonly TimeSpan HealthyRun = TimeSpan.FromMinutes(5);
@@ -20,12 +20,12 @@ public sealed class BatonService : ServiceBase
     Thread supervisor;
     Process child;
 
-    BatonService(string root, string node)
+    EvenKeelService(string root, string node)
     {
         this.root = root;
         this.node = node;
-        logFile = Path.Combine(root, "logs", "baton.log");
-        ServiceName = "Baton";
+        logFile = Path.Combine(root, "logs", "even-keel.log");
+        ServiceName = "EvenKeel";
         CanShutdown = true;
     }
 
@@ -34,10 +34,10 @@ public sealed class BatonService : ServiceBase
         bool console = args.Length == 3 && args[2] == "--console";
         if (args.Length != 2 && !console)
         {
-            Console.Error.WriteLine("usage: BatonService.exe <baton-root> <node.exe> [--console]");
+            Console.Error.WriteLine("usage: EvenKeelService.exe <even-keel-root> <node.exe> [--console]");
             return 2;
         }
-        var service = new BatonService(Path.GetFullPath(args[0]), args[1]);
+        var service = new EvenKeelService(Path.GetFullPath(args[0]), args[1]);
         if (!console)
         {
             Run(service);
@@ -56,7 +56,7 @@ public sealed class BatonService : ServiceBase
         Log(string.Format("service: start as {0}\\{1}, session {2}, profile {3}",
             Environment.UserDomainName, Environment.UserName,
             Process.GetCurrentProcess().SessionId, Environment.GetEnvironmentVariable("USERPROFILE")));
-        supervisor = new Thread(Supervise) { IsBackground = true, Name = "baton-supervisor" };
+        supervisor = new Thread(Supervise) { IsBackground = true, Name = "even-keel-supervisor" };
         supervisor.Start();
     }
 
@@ -149,7 +149,7 @@ public sealed class BatonService : ServiceBase
                 var file = new FileInfo(logFile);
                 if (file.Exists && file.Length > RotateBytes)
                 {
-                    string previous = Path.Combine(file.DirectoryName, "baton.1.log");
+                    string previous = Path.Combine(file.DirectoryName, "even-keel.1.log");
                     File.Delete(previous);
                     file.MoveTo(previous);
                 }

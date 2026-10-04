@@ -1,7 +1,7 @@
 #Requires -RunAsAdministrator
 #Requires -Version 7
-# Background Claude sessions started by the service keep running: they belong to the claude daemon, not to Baton.
-param([string]$Name = 'Baton')
+# Background Claude sessions started by the service keep running: they belong to the claude daemon, not to Even Keel.
+param([string]$Name = 'EvenKeel')
 $ErrorActionPreference = 'Stop'
 
 $service = Get-Service -Name $Name -ErrorAction SilentlyContinue
