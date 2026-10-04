@@ -17,6 +17,12 @@
       "description": "GitHub Issues for Even Keel sessions: GitHub's MCP server and a skill to read the issue, record decisions, file blockers and questions, and close the issue by merging",
       "source": "./plugins/github",
       "category": "productivity"
+    },
+    {
+      "name": "linear",
+      "description": "Linear for Even Keel sessions: Linear's MCP server and a skill to read the issue, record decisions, file blockers and questions, and close the issue by merging",
+      "source": "./plugins/linear",
+      "category": "productivity"
     }
   ]
 }

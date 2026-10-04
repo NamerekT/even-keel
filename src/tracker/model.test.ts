@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { DEFAULT_RULES } from '../chain/rules.js'
 import { fakeTask } from './fixture.js'
-import { diffStatuses, isOpen, toTask, type TaskStatus, type TrackerTask } from './model.js'
+import { diffStatuses, isOpen, parseTaskId, toTask, type TaskStatus, type TrackerTask } from './model.js'
 import { trackerOf, type TaskSource } from './source.js'
 
 const todo: TaskStatus = { name: 'Todo', category: 'ToDo' }
@@ -32,6 +32,15 @@ describe('toTask', () => {
 
   it('keeps the labels trimmed, once each whatever the case', () => {
     expect(toTask(raw('ABC-1', { labels: [' Вручную ', 'Bug', 'вручную', ' '] })).labels).toEqual(['Вручную', 'Bug'])
+  })
+})
+
+describe('parseTaskId', () => {
+  it('splits a task id into the project and the number', () => {
+    expect(parseTaskId('ABC-12')).toEqual({ project: 'ABC', number: 12 })
+    expect(parseTaskId('ABC-0')).toBeNull()
+    expect(parseTaskId('ABC-x')).toBeNull()
+    expect(parseTaskId('abc')).toBeNull()
   })
 })
 

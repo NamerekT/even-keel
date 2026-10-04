@@ -71,7 +71,7 @@ export function parseConfig(raw: unknown, adapters: AdapterShapes = ADAPTERS): E
     rules[key] = checkRules({ ...shared, ...parseRules(chain, `${key}.chain`) }, key)
     trackers[key] = tracker === undefined ? sharedTracker : parseTracker(tracker, `${key}.tracker`, Object.keys(adapters))
     const projectKey = adapters[trackers[key]]?.projectKey
-    if (projectKey !== undefined) trackerProjects[key] = parseTrackerProject(fields[projectKey.key], `${key}.${projectKey.key}`, projectKey)
+    if (projectKey !== undefined && !(projectKey.optional && fields[projectKey.key] === undefined)) trackerProjects[key] =parseTrackerProject(fields[projectKey.key], `${key}.${projectKey.key}`, projectKey)
     briefs[key] = brief === undefined ? sharedBrief : parseBrief(brief, `${key}.brief`)
   }
 

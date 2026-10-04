@@ -60,6 +60,11 @@ export function toTask(raw: TrackerTask): Task {
   }
 }
 
+export function parseTaskId(id: string): { project: string; number: number } | null {
+  const match = /^([A-Z][A-Z0-9_]*)-([1-9]\d*)$/.exec(id)
+  return match === null ? null : { project: match[1]!, number: Number(match[2]) }
+}
+
 export function isLeaf(task: TrackerTask): boolean {
   return task.subtasks === 0
 }

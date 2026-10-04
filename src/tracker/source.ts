@@ -63,8 +63,10 @@ export interface TrackerSetup {
 
 /** A key of a project's object in `even-keel.config.json` that names the project in the tracker. */
 export interface TrackerProjectKey {
-  /** The key, e.g. `github`. Every project on this tracker must have it. */
+  /** The key, e.g. `github`. Every project on this tracker must have it, unless it is `optional`. */
   key: string
+  /** A project may leave it out (Linear: the key narrows a team down to one of its projects). */
+  optional?: boolean
   /** What its value must look like. */
   pattern: RegExp
   /** A value for the error message, e.g. `octo-org/example`. */
@@ -85,7 +87,7 @@ export interface TrackerAdapter {
   projectKey?: TrackerProjectKey
   /**
    * `undefined` — none of its variables are set and the tracker is off; throws when they are set only in part.
-   * `projects` — the value of `projectKey` by project key, for the projects on this tracker; empty without `projectKey`.
+   * `projects` — the value of `projectKey` by project key, for the projects on this tracker that have it; empty without `projectKey`.
    */
   setup(env: Record<string, string | undefined>, projects: Readonly<Record<string, string>>): TrackerSetup | undefined
 }

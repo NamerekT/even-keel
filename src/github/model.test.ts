@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { githubPriority, githubStatus, parseTaskId, RepoMap, toTrackerTask, type GithubIssue } from './model.js'
+import { githubPriority, githubStatus, RepoMap, toTrackerTask, type GithubIssue } from './model.js'
 import { issue } from './fixture.js'
 
 const repos = new RepoMap({ ABC: 'octo-org/abc', XYZ: 'Octo-Org/xyz' })
@@ -36,14 +36,7 @@ describe('github priority', () => {
   })
 })
 
-describe('github task ids', () => {
-  it('splits a task id into the project and the issue number', () => {
-    expect(parseTaskId('ABC-12')).toEqual({ project: 'ABC', number: 12 })
-    expect(parseTaskId('ABC-0')).toBeNull()
-    expect(parseTaskId('ABC-x')).toBeNull()
-    expect(parseTaskId('abc')).toBeNull()
-  })
-
+describe('github repositories', () => {
   it('finds the project of a repository whatever the case', () => {
     expect(repos.keyOf('octo-org/xyz')).toBe('XYZ')
     expect(repos.keyOf('OCTO-ORG/ABC')).toBe('ABC')

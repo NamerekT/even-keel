@@ -1,8 +1,9 @@
 import { github } from '../github/adapter.js'
 import { huly } from '../huly/adapter.js'
+import { linear } from '../linear/adapter.js'
 import type { TrackerAdapter } from './source.js'
 
-export const ADAPTERS: Readonly<Record<string, TrackerAdapter>> = { huly, github }
+export const ADAPTERS: Readonly<Record<string, TrackerAdapter>> = { huly, github, linear }
 
 export const DEFAULT_TRACKER = 'huly'
 

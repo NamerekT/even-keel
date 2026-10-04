@@ -1,6 +1,6 @@
-import type { TaskStatus, TrackerTask } from '../tracker/model.js'
+import { parseTaskId, type TaskStatus, type TrackerTask } from '../tracker/model.js'
 import type { TaskSource } from '../tracker/source.js'
-import { GITHUB_STATUSES, githubStatus, parseTaskId, RepoMap, toTrackerTask, type GithubIssue, type IssueState, type Repo } from './model.js'
+import { GITHUB_STATUSES, githubStatus, RepoMap, toTrackerTask, type GithubIssue, type IssueState, type Repo } from './model.js'
 
 export interface GithubSettings {
   token: string

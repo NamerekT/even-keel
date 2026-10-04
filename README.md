@@ -2,7 +2,7 @@
 
 Even Keel runs your backlog through [Claude Code](https://docs.claude.com/en/docs/claude-code/overview), one task at a time. It reads the open tasks of a project from your tracker, orders them by their `blocks` links, starts a Claude Code session on the first one, and when the task is done — its branch merged into `main` — cleans up and starts the next. A web page shows the chain and, for every session, what it is doing right now and how full its context is.
 
-It runs as a service on your own machine, next to your repositories and your Claude Code login. Trackers out of the box: [Huly](https://huly.io) and GitHub Issues.
+It runs as a service on your own machine, next to your repositories and your Claude Code login. Trackers out of the box: [Huly](https://huly.io), GitHub Issues and [Linear](https://linear.app).
 
 ## Sequential by design
 
@@ -33,7 +33,7 @@ One chain is active at a time; other projects wait in a queue and start when it 
 
 - **Node.js 24** or newer, and git.
 - **Claude Code CLI**, logged in with a Claude subscription (`claude` once in a terminal). Even Keel finds `~/.local/bin/claude.exe` on Windows and `claude` on `PATH` elsewhere, or the binary of the VS Code extension; `EVEN_KEEL_CLAUDE_BIN` overrides.
-- **A tracker:** a Huly workspace or GitHub repositories with Issues.
+- **A tracker:** a Huly workspace, GitHub repositories with Issues, or a Linear workspace.
 - **Statistics** need nothing more: the database is embedded. An external Postgres is optional.
 - Windows, Linux or macOS. Windows is where it runs every day; Linux was checked end to end under WSL (Ubuntu); macOS is expected to work but has not been checked.
 
@@ -81,6 +81,7 @@ Even Keel reads the tasks itself, puts the title and description of the task int
 
 - **Huly:** `HULY_URL`, `HULY_WORKSPACE`, `HULY_EMAIL`, `HULY_PASSWORD`. The project key in the config is the Huly project identifier (`ABC` for `ABC-12`).
 - **GitHub:** `GITHUB_TOKEN` — a [fine-grained token](https://github.com/settings/personal-access-tokens) with **Issues: Read and write** on the repositories. A project names its repository: `{ "repo": "…", "tracker": "github", "github": "octo-org/abc" }`. GitHub has no backlog, so keep entry to the chain on a label: `"chain": { "requiredLabels": ["ready"] }`. Details and the mapping of statuses, blockers, sub-issues and priorities: [plugins/github/README.md](plugins/github/README.md).
+- **Linear:** `LINEAR_TOKEN` — a [personal API key](https://linear.app/settings/account/security). The project key in the config is the team key (`ENG` for `ENG-12`); `"linear": "Web app"` narrows the team down to one Linear project: `{ "repo": "…", "tracker": "linear", "linear": "Web app" }`. Details and the mapping: [plugins/linear/README.md](plugins/linear/README.md).
 
 On this level the session does not write to the tracker. What you do not get:
 
@@ -97,20 +98,20 @@ With your default Claude Code config (no `CLAUDE_CONFIG_DIR` set), from the root
 
 ```sh
 claude plugin marketplace add <git URL or local path of this repository>
-claude plugin install huly@even-keel --scope project     # or github@even-keel
+claude plugin install huly@even-keel --scope project     # or github@even-keel, linear@even-keel
 ```
 
 or inside a session: `/plugin marketplace add …`, then `/plugin install huly@even-keel` with the project scope. Then:
 
 1. Commit the project's `.claude/settings.json` (it now has `enabledPlugins`): tasks run in worktrees made from `main`, and a worktree without the file has no plugin.
-2. Give the MCP server its credentials in the `env` of `~/.claude/settings.json` — `HULY_URL`, `HULY_WORKSPACE`, `HULY_TOKEN` (or `HULY_EMAIL` and `HULY_PASSWORD`) for Huly, `GITHUB_PERSONAL_ACCESS_TOKEN` for GitHub. Not system environment variables: Even Keel keeps its own tracker credentials out of the sessions it starts.
+2. Give the MCP server its credentials in the `env` of `~/.claude/settings.json` — `HULY_URL`, `HULY_WORKSPACE`, `HULY_TOKEN` (or `HULY_EMAIL` and `HULY_PASSWORD`) for Huly, `GITHUB_PERSONAL_ACCESS_TOKEN` for GitHub, `LINEAR_API_KEY` for Linear. Not system environment variables: Even Keel keeps its own tracker credentials out of the sessions it starts.
 3. Turn the brief off for the project, or the session reads its task twice: `{ "repo": "…", "brief": false }`. With `brief` off Even Keel checks that the project's sessions see the tracker's MCP server and warns on the page when they do not.
 
-The GitHub skill sets "blocked by" links through the [GitHub CLI](https://cli.github.com/), so `gh auth login` once. Everything else — troubleshooting, what the skills do — is in [plugins/huly/README.md](plugins/huly/README.md) and [plugins/github/README.md](plugins/github/README.md).
+The GitHub skill sets "blocked by" links through the [GitHub CLI](https://cli.github.com/), so `gh auth login` once. Everything else — troubleshooting, what the skills do — is in [plugins/huly/README.md](plugins/huly/README.md), [plugins/github/README.md](plugins/github/README.md) and [plugins/linear/README.md](plugins/linear/README.md).
 
 ### Several trackers
 
-Each project has its own tracker (`tracker` in the project's entry, or one for all at the top level), and they work at the same time: project A on Huly, project B on GitHub. There is one connection per kind of tracker — one Huly workspace, one GitHub token. Several connections of the same tracker are not supported yet.
+Each project has its own tracker (`tracker` in the project's entry, or one for all at the top level), and they work at the same time: project A on Huly, project B on GitHub. There is one connection per kind of tracker — one Huly workspace, one GitHub token, one Linear key. Several connections of the same tracker are not supported yet.
 
 ### 4. Run
 
@@ -152,6 +153,7 @@ On Linux it installs a systemd user unit (`systemctl --user status even-keel`, l
 | --- | --- |
 | `HULY_URL`, `HULY_WORKSPACE`, `HULY_EMAIL`, `HULY_PASSWORD` | Huly adapter |
 | `GITHUB_TOKEN` | GitHub adapter |
+| `LINEAR_TOKEN` | Linear adapter |
 | `EVEN_KEEL_ACCOUNTS_DIR` | folder of the extra Claude account folders; default `~/.claude-accounts` |
 | `EVEN_KEEL_CLAUDE_BIN` | path to the `claude` binary |
 | `EVEN_KEEL_CONFIG` | path to the config; default `even-keel.config.json` in the root |
@@ -166,7 +168,7 @@ On Linux it installs a systemd user unit (`systemctl --user status even-keel`, l
 | Key | Default | |
 | --- | --- | --- |
 | `host`, `port` | `0.0.0.0`, `4747` | where the page listens |
-| `tracker` | `huly` | tracker of every project that does not name its own: `huly` or `github` |
+| `tracker` | `huly` | tracker of every project that does not name its own: `huly`, `github` or `linear` |
 | `brief` | `true` | put the task's title and description into the prompt; `false` for projects whose sessions read the task through the tracker's plugin |
 | `chain.active` | ready and in-progress categories | status names that enter the chain |
 | `chain.terminal` | done and canceled categories | status names that close a task |
@@ -176,6 +178,7 @@ On Linux it installs a systemd user unit (`systemctl --user status even-keel`, l
 | `projects.<KEY>.repo` | — | path to the main checkout |
 | `projects.<KEY>.tracker`, `.brief`, `.chain` | the shared ones | per project; a project's `chain` key replaces the shared key whole |
 | `projects.<KEY>.github` | — | `owner/name` of the repository, for a project on GitHub |
+| `projects.<KEY>.linear` | the whole team | name of the Linear project the team is narrowed down to, for a project on Linear (the key is the team key) |
 | `projects.<KEY>.slot` | off | `true` or a number: a pool of permanent worktrees instead of one per task |
 | `context` | `{ "window": 600000, "warn": 50, "danger": 80 }` | context bar on the page: window size in tokens, warning and danger thresholds in percent |
 | `modelPrompts` | `{}` | text added to the prompt of sessions on `sonnet`, `opus` or `haiku` |
@@ -183,7 +186,7 @@ On Linux it installs a systemd user unit (`systemctl --user status even-keel`, l
 | `language` | the browser's | language of the page: `en` or `ru` |
 | `promptLanguage` | `language`, then `en` | language of the prompts Even Keel sends to sessions |
 
-Statuses are matched by name, case-insensitively. Without `active` and `terminal` the chain goes by status category, so the backlog stays out and a task enters the chain when you move it to a ready status. Status names differ between trackers: if you set them at the top level, a project on another tracker needs its own (GitHub's are `Open`, `Completed`, `Not planned`, `Duplicate`), as in the example.
+Statuses are matched by name, case-insensitively. Without `active` and `terminal` the chain goes by status category, so the backlog stays out and a task enters the chain when you move it to a ready status. Status names differ between trackers: if you set them at the top level, a project on another tracker needs its own (GitHub's are `Open`, `Completed`, `Not planned`, `Duplicate`; Linear's are the team's workflow states), as in the example.
 
 ## Extending
 
@@ -197,7 +200,7 @@ A plugin gives sessions the tracker's MCP server and a skill for working a task.
 
 ### Where it could grow
 
-- Other trackers: Linear, Jira, GitLab, YouTrack…
+- Other trackers: Jira, GitLab, YouTrack…
 - Your own classifier for the statistics, or a different model behind it.
 - Other APIs and other agents: today Even Keel is built around the Claude Code CLI and its subscription limits.
 

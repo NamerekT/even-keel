@@ -52,6 +52,15 @@ describe('parseConfig', () => {
     expect(() => parseConfig({ projects: { ABC: { repo: 'C:\\abc', tracker: 'github', github: 'https://github.com/octo-org/abc' } } })).toThrow(/ABC\.github/)
   })
 
+  it('lets a project leave out a key the adapter takes as optional, but not give a malformed one', () => {
+    const config = parseConfig({
+      tracker: 'linear',
+      projects: { ABC: { repo: 'C:\\abc', linear: ' Web app ' }, XYZ: 'C:\\xyz' },
+    })
+    expect(config.trackerProjects).toEqual({ ABC: 'Web app' })
+    expect(() => parseConfig({ tracker: 'linear', projects: { ABC: { repo: 'C:\\abc', linear: ' ' } } })).toThrow(/ABC\.linear/)
+  })
+
   it('puts the task text into prompts unless brief is off, shared or per project', () => {
     const config = parseConfig({
       brief: false,
