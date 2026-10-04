@@ -87,7 +87,7 @@ export class ClaudeCli {
     }
   }
 
-  async launch(home: AccountHome, task: string, cwd: string, prompt: string, model: ModelAlias | null): Promise<AgentEntry> {
+  async launch(home: AccountHome, task: string, cwd: string, prompt: string, model: ModelAlias): Promise<AgentEntry> {
     const launchedAt = Date.now()
     await this.start(home, [...sessionArgs(task, model), prompt], cwd, notice('claude.startFailed', { task, cwd }))
     return this.appear(
@@ -103,7 +103,7 @@ export class ClaudeCli {
     task: string,
     cwd: string,
     prompt: string,
-    model: ModelAlias | null,
+    model: ModelAlias,
   ): Promise<AgentEntry> {
     const args = [...sessionArgs(task, model), '--resume', sessionId, prompt]
     await this.start(home, args, cwd, notice('claude.resumeFailed', { task, cwd }))
@@ -155,8 +155,8 @@ export class ClaudeCli {
   }
 }
 
-function sessionArgs(task: string, model: ModelAlias | null): string[] {
-  return ['--bg', '--permission-mode', 'auto', '-n', task, ...(model === null ? [] : ['--model', model])]
+function sessionArgs(task: string, model: ModelAlias): string[] {
+  return ['--bg', '--permission-mode', 'auto', '-n', task, '--model', model]
 }
 
 function isOver(agent: AgentEntry): boolean {

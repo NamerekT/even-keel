@@ -1,7 +1,10 @@
 import type { ModelAlias, Task } from '../tracker/model.js'
 
+// Always passed explicitly: without --model the CLI takes the model from settings.json, which an editor may have just changed.
+const DEFAULT_MODEL: ModelAlias = 'opus'
+
 export interface LaunchPlan {
-  model: ModelAlias | null
+  model: ModelAlias
   prompt: string
   warning: string | null
 }
@@ -12,11 +15,9 @@ export function launchPlan(
   prompts: Partial<Record<ModelAlias, string>>,
 ): LaunchPlan {
   const models = task?.models ?? []
-  if (models.length > 1) {
-    const warning = `chain: ${task!.id} carries model labels ${models.join(', ')}; launching it on the default model`
-    return { model: null, prompt, warning }
-  }
-  const model = models[0] ?? null
-  const extra = model === null ? undefined : prompts[model]
-  return { model, prompt: extra === undefined ? prompt : `${prompt}\n\n${extra}`, warning: null }
+  const model = models.length === 1 ? models[0]! : DEFAULT_MODEL
+  const warning =
+    models.length > 1 ? `chain: ${task!.id} carries model labels ${models.join(', ')}; launching it on ${DEFAULT_MODEL}` : null
+  const extra = prompts[model]
+  return { model, prompt: extra === undefined ? prompt : `${prompt}\n\n${extra}`, warning }
 }
