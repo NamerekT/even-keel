@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import type { RuleMark } from '../../../src/stats/rules.js'
-import { driftText, markKey, markPlaces, markTitle, pickMark, pickedSpan, precisionText, setTitle, shortPath, toggleChip } from './marks.js'
+import type { RuleKind, RuleMark } from '../../../src/stats/rules.js'
+import { driftText, fileLabel, markKey, markPlaces, markSummary, markTitle, pickMark, pickedSpan, precisionText, setTitle, shortPath, toggleChip } from './marks.js'
 
 const mark = (id: string, fromAt: string, toAt = fromAt): RuleMark => ({
   fromAt,
@@ -71,6 +71,56 @@ describe('shortPath', () => {
     expect(shortPath('~/.claude/CLAUDE.md')).toBe('~/.claude/CLAUDE.md')
     expect(shortPath('~/.claude/skills/coding/SKILL.md')).toBe('…/skills/coding/SKILL.md')
     expect(shortPath('D:/Projects/git/private/EvenKeel/CLAUDE.md')).toBe('…/private/EvenKeel/CLAUDE.md')
+  })
+})
+
+describe('fileLabel', () => {
+  it('drops the shared ~/.claude/ prefix of global files', () => {
+    expect(fileLabel('~/.claude/CLAUDE.md')).toBe('CLAUDE.md')
+    expect(fileLabel('~/.claude/skills/coding/SKILL.md')).toBe('skills/coding/SKILL.md')
+    expect(fileLabel('~/.claude.json')).toBe('~/.claude.json')
+    expect(fileLabel('~/.githooks/pre-push')).toBe('~/.githooks/pre-push')
+  })
+
+  it('keeps the project folder and what lies under its .claude', () => {
+    expect(fileLabel('D:/Projects/Game/.claude/settings.local.json')).toBe('Game/.claude/settings.local.json')
+    expect(fileLabel('D:/Projects/git/private/EvenKeel/CLAUDE.md')).toBe('EvenKeel/CLAUDE.md')
+    expect(fileLabel('D:/Projects/git/private/EvenKeel/tally/CLAUDE.md')).toBe('tally/CLAUDE.md')
+    expect(fileLabel('CLAUDE.md')).toBe('CLAUDE.md')
+  })
+})
+
+describe('markSummary', () => {
+  const base = mark('s:1', '2026-09-01T12:00:00Z').sets[0]!
+  const file = (key: string, kind: RuleKind, added = 1, removed = 0) => ({ key, display: key, kind, project: null, added, removed, changes: [] })
+  const note = (reason: string) => ({ importId: '1', at: base.at, until: null, precision: 'exact' as const, purpose: [], reason, task: null, files: [], drift: null })
+
+  it('counts distinct files by kind in the chip order and sums the lines', () => {
+    const summary = markSummary({
+      fromAt: base.at,
+      toAt: base.at,
+      sets: [
+        { ...base, files: [file('b', 'skill', 3, 1), file('a', 'claude_md')] },
+        { ...base, id: 's:2', files: [file('a', 'claude_md', 2, 2), file('c', 'skill'), file('d', 'settings')] },
+      ],
+    })
+    expect(summary.kinds).toBe('CLAUDE.md, навыки ×2, настройки')
+    expect(summary.files).toBe(4)
+    expect([summary.added, summary.removed]).toEqual([8, 3])
+  })
+
+  it('names tasks first, then sessions in quotes, then edits by hand, without repeats', () => {
+    const summary = markSummary({
+      fromAt: base.at,
+      toAt: base.at,
+      sets: [base, { ...base, sessionId: 'x', title: 'Audit' }, { ...base, task: 'A-2', title: 'A-2' }, { ...base, task: 'A-1' }, { ...base, task: 'A-2' }],
+    })
+    expect(summary.who).toEqual(['A-2', 'A-1', '«Audit»', 'вручную'])
+  })
+
+  it('keeps each journal reason once', () => {
+    const summary = markSummary({ fromAt: base.at, toAt: base.at, sets: [{ ...base, note: note('Less context') }, { ...base, note: note('Less context') }, { ...base, note: note('') }, base] })
+    expect(summary.reasons).toEqual(['Less context'])
   })
 })
 

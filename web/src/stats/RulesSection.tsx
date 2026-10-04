@@ -2,15 +2,36 @@ import type { TrackerUrls } from '../../../src/state.js'
 import { useState } from 'react'
 import { RULE_PURPOSES, type RulePurpose } from '../../../src/stats/rule-imports.js'
 import { type CompareQuery, type RuleKind, type RuleMark, type RuleSet, type RuleSetFile, type StatsRules } from '../../../src/stats/rules.js'
-import { formatMoment } from '../format.js'
+import { formatMoment, plural } from '../format.js'
 import { useLive } from '../live/context.js'
 import { AnswerNotice, Section, TaskKey, loadedData, useStatsAnswer, type Loaded } from './common.js'
-import { MARK_KINDS, PURPOSE_LABELS, RULE_KIND_LABELS, markKey, markTitle, pickedSpan, setTitle, shortPath, toggleChip } from './marks.js'
+import { MARK_KINDS, PURPOSE_LABELS, RULE_KIND_LABELS, fileLabel, markKey, markSummary, pickedSpan, setTitle, toggleChip } from './marks.js'
 import { Lines, SetNote } from './MarkTip.js'
 import { COMPARE_DAYS, RuleCompare } from './RuleCompare.js'
 import './rules.css'
 
 const ACTIONS = { added: 'добавлен', changed: 'изменён', removed: 'удалён' }
+
+const DAY = new Intl.DateTimeFormat('ru', { day: 'numeric', month: 'short' })
+const CLOCK = new Intl.DateTimeFormat('ru', { hour: '2-digit', minute: '2-digit' })
+
+function dayLabel(at: Date, now: Date): string {
+  const yesterday = new Date(now)
+  yesterday.setDate(now.getDate() - 1)
+  if (at.toDateString() === now.toDateString()) return 'сегодня'
+  if (at.toDateString() === yesterday.toDateString()) return 'вчера'
+  return DAY.format(at)
+}
+
+function spanText(fromAt: string, toAt: string, now: Date): [string, string] {
+  const from = new Date(fromAt)
+  const to = new Date(toAt)
+  if (from.toDateString() !== to.toDateString()) return [`${dayLabel(from, now)} —`, dayLabel(to, now)]
+  const time = CLOCK.format(from) === CLOCK.format(to) ? CLOCK.format(to) : `${CLOCK.format(from)}–${CLOCK.format(to)}`
+  return [dayLabel(to, now), time]
+}
+
+const filesText = (count: number) => `${count} ${plural(count, 'файл', 'файла', 'файлов')}`
 
 function Chips<T extends string>({ label, options, all, on, onChange }: { label: string; options: [T, string][]; all: readonly T[]; on: T[] | null; onChange: (next: T[] | null) => void }) {
   return (
@@ -66,45 +87,103 @@ function FileDiff({ file }: { file: RuleSetFile }) {
   )
 }
 
+function MarkRow({ mark, on, now, onPick }: { mark: RuleMark; on: boolean; now: Date; onPick: (extend: boolean) => void }) {
+  const summary = markSummary(mark)
+  const [day, time] = spanText(mark.fromAt, mark.toAt, now)
+  const why = summary.reasons.length > 0
+  const details = [why ? summary.kinds : null, summary.who.join(', ')].filter((each) => each !== null && each !== '').join(' · ')
+  return (
+    <button type="button" className={on ? 'rule-mark rule-mark--on' : 'rule-mark'} aria-pressed={on} onClick={(event) => onPick(event.shiftKey || event.ctrlKey || event.metaKey)}>
+      <span className="rule-mark__when">
+        <span>{day}</span>
+        <span className="rule-mark__muted">{time}</span>
+      </span>
+      <span className="rule-mark__body">
+        <span className="rule-mark__what">{why ? summary.reasons.join(' · ') : summary.kinds}</span>
+        <span className="rule-mark__muted rule-mark__who">{details}</span>
+      </span>
+      <span className="rule-mark__size">
+        <Lines added={summary.added} removed={summary.removed} />
+        <span className="rule-mark__muted">{filesText(summary.files)}</span>
+      </span>
+    </button>
+  )
+}
+
+function FileRow({ file, open, onToggle }: { file: RuleSetFile; open: boolean; onToggle: () => void }) {
+  return (
+    <li>
+      <button type="button" className="rule-file" aria-expanded={open} title={file.display} onClick={onToggle}>
+        <span className="rule-file__caret" aria-hidden="true">
+          {open ? '▾' : '▸'}
+        </span>
+        <span className="rule-file__where">{file.project ?? 'общий'}</span>
+        <span className="rule-file__path">{fileLabel(file.display)}</span>
+        <Lines added={file.added} removed={file.removed} />
+      </button>
+      {open && (file.changes.length === 0 ? <p className="stats-section__note rule-file__note">Текста версии нет — правка видна только по счёту строк.</p> : <FileDiff file={file} />)}
+    </li>
+  )
+}
+
 function SetView({ set, trackerUrls }: { set: RuleSet; trackerUrls: TrackerUrls }) {
   const [open, setOpen] = useState<string | null>(null)
-  const imported = set.id.startsWith('i:')
+  const title = set.task === null ? (set.title ?? setTitle(set)) : set.title !== set.task ? set.title : null
   return (
     <li className="rule-set">
-      <div className="rule-set__head">
-        {set.task !== null ? <TaskKey id={set.task} trackerUrls={trackerUrls} /> : <strong>{setTitle(set)}</strong>}
-        {set.task !== null && set.title !== null && <span>{set.title}</span>}
-        <span className="stats-section__note">{formatMoment(set.at, new Date())}</span>
+      <span className="rule-set__at">{CLOCK.format(new Date(set.at))}</span>
+      <div className="rule-set__body">
+        <div className="rule-set__head">
+          {set.task !== null && <TaskKey id={set.task} trackerUrls={trackerUrls} />}
+          {title !== null && <span className={set.title === null ? 'rule-mark__muted' : undefined}>{title}</span>}
+        </div>
+        <SetNote set={set} />
+        <ul className="rule-files">
+          {set.id.startsWith('i:')
+            ? (set.note?.files ?? []).map((file) => (
+                <li key={file.path} className="rule-file rule-file--static" title={file.path}>
+                  <span className="rule-file__caret" />
+                  <span className="rule-file__where">{ACTIONS[file.action]}</span>
+                  <span className="rule-file__path">{fileLabel(file.path)}</span>
+                  {file.summary !== '' && <span className="rule-file__summary">{file.summary}</span>}
+                </li>
+              ))
+            : set.files.map((file) => <FileRow key={file.key} file={file} open={open === file.key} onToggle={() => setOpen(open === file.key ? null : file.key)} />)}
+        </ul>
       </div>
-      <SetNote set={set} />
-      {imported ? (
-        <ul className="rule-set__files">
-          {(set.note?.files ?? []).map((file) => (
-            <li key={file.path}>
-              <span className="rule-set__path">{file.path}</span> <span className="stats-section__note">{ACTIONS[file.action]}</span>
-              {file.summary !== '' && <span className="rule-set__summary">{file.summary}</span>}
-            </li>
-          ))}
-        </ul>
-      ) : (
-        <ul className="rule-set__files">
-          {set.files.map((file) => (
-            <li key={file.key}>
-              <button type="button" className="rule-set__file" aria-expanded={open === file.key} title={file.display} onClick={() => setOpen(open === file.key ? null : file.key)}>
-                <span className="rule-set__path">{shortPath(file.display)}</span>
-                <Lines added={file.added} removed={file.removed} />
-              </button>
-              {open === file.key &&
-                (file.changes.length === 0 ? (
-                  <p className="stats-section__note">Текста версии нет — правка видна только по счёту строк.</p>
-                ) : (
-                  <FileDiff file={file} />
-                ))}
-            </li>
-          ))}
-        </ul>
-      )}
     </li>
+  )
+}
+
+function Picked({ marks, before, after, now, trackerUrls }: { marks: RuleMark[]; before: string; after: string; now: Date; trackerUrls: TrackerUrls }) {
+  const sets = marks.flatMap((mark) => mark.sets).sort((a, b) => Date.parse(a.at) - Date.parse(b.at))
+  const days = new Map<string, RuleSet[]>()
+  for (const set of sets) {
+    const day = dayLabel(new Date(set.at), now)
+    days.set(day, [...(days.get(day) ?? []), set])
+  }
+  const summary = markSummary({ fromAt: before, toAt: after, sets })
+  const [day, time] = spanText(before, after, now)
+  return (
+    <div className="rule-card">
+      <header className="rule-card__head">
+        <h3 className="rule-card__title">Что поменялось</h3>
+        <span className="stats-section__note">
+          {day} {time} · {filesText(summary.files)}
+        </span>
+        <Lines added={summary.added} removed={summary.removed} />
+      </header>
+      {[...days].map(([label, each]) => (
+        <section key={label} className="rule-day">
+          {days.size > 1 && <h4 className="rule-day__title">{label}</h4>}
+          <ol className="rule-sets">
+            {each.map((set) => (
+              <SetView key={set.id} set={set} trackerUrls={trackerUrls} />
+            ))}
+          </ol>
+        </section>
+      ))}
+    </div>
   )
 }
 
@@ -143,10 +222,7 @@ export function RulesSection({
   const span = pickedSpan(marks, picked)
   const now = new Date()
   return (
-    <Section
-      title="Правки правил"
-      aside={<span className="stats-section__note">CLAUDE.md — с 4 сентября 2026, навыки — с 3 августа, хуки и настройки — с первого снимка; правки памяти не отмечаются</span>}
-    >
+    <Section title="Правки правил" aside={<span className="stats-section__note">когда менялись CLAUDE.md, навыки, хуки и настройки — и что стало с расходом</span>}>
       <div className="rule-filters">
         <Chips label="Файлы" options={RULE_KIND_LABELS} all={MARK_KINDS} on={kinds} onChange={(next) => onFilter({ kinds: next })} />
         <Chips label="Цель" options={PURPOSE_LABELS} all={RULE_PURPOSES} on={purposes} onChange={(next) => onFilter({ purposes: next })} />
@@ -160,31 +236,21 @@ export function RulesSection({
           <ol className="rule-marks">
             {marks.map((mark) => {
               const key = markKey(mark)
-              const on = picked.includes(key)
               return (
                 <li key={key}>
-                  <button
-                    type="button"
-                    className={on ? 'rule-mark rule-mark--on' : 'rule-mark'}
-                    aria-pressed={on}
-                    onClick={(event) => onPick(key, event.shiftKey || event.ctrlKey || event.metaKey)}
-                  >
-                    <span className="rule-mark__at">{formatMoment(mark.toAt, now)}</span>
-                    <span className="rule-mark__sets">{markTitle(mark)}</span>
-                    <span className="stats-section__note">файлов: {mark.sets.reduce((sum, set) => sum + set.files.length, 0)}</span>
-                  </button>
+                  <MarkRow mark={mark} on={picked.includes(key)} now={now} onPick={(extend) => onPick(key, extend)} />
                 </li>
               )
             })}
           </ol>
           {span === null ? (
-            <p className="stats-section__note">Выберите метку — на графике или в списке, — чтобы увидеть правки и сравнить до и после. Shift- или Ctrl-клик добавляет вторую метку: сравнение пойдёт от состояния до первой к состоянию после второй.</p>
+            <p className="rule-hint">Выберите правку в списке или метку на графике — ниже появятся изменённые файлы и сравнение расхода до и после. Shift- или Ctrl-клик по второй правке сравнит весь отрезок между ними.</p>
           ) : (
-            <div className="rule-picked">
-              <ul className="rule-picked__sets">{span.marks.flatMap((mark) => mark.sets).map((set) => <SetView key={set.id} set={set} trackerUrls={trackerUrls} />)}</ul>
-              <div className="rule-picked__compare">
-                <header className="stats-section__head">
-                  <h3 className="rule-picked__title">До и после</h3>
+            <>
+              <Picked marks={span.marks} before={span.before} after={span.after} now={now} trackerUrls={trackerUrls} />
+              <div className="rule-card">
+                <header className="rule-card__head">
+                  <h3 className="rule-card__title">До и после</h3>
                   <div className="segmented" role="group" aria-label="Дней с каждой стороны">
                     {COMPARE_DAYS.map((each) => {
                       const current = days ?? rules.compare.days
@@ -195,13 +261,15 @@ export function RulesSection({
                       )
                     })}
                   </div>
+                  <span className="stats-section__note">с каждой стороны от правки</span>
                 </header>
                 <Compare query={{ ...base, before: span.before, after: span.after }} days={days ?? rules.compare.days} />
               </div>
-            </div>
+            </>
           )}
         </>
       )}
+      <p className="stats-section__note rule-coverage">Учёт: CLAUDE.md — с 4 сентября 2026, навыки — с 3 августа, хуки и настройки — с первого снимка. Правки памяти не отмечаются.</p>
     </Section>
   )
 }

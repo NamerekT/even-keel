@@ -90,3 +90,48 @@ export function setTitle(set: RuleSet): string {
 export function markTitle(mark: RuleMark): string {
   return [...new Set(mark.sets.map(setTitle))].join(', ')
 }
+
+// Global files lose the `~/.claude/` they all share; elsewhere the folder above `.claude`, or the file's own folder, names the place.
+export function fileLabel(display: string): string {
+  if (display.startsWith('~/.claude/')) return display.slice('~/.claude/'.length)
+  if (display.startsWith('~/')) return display
+  const parts = display.split('/')
+  const config = parts.indexOf('.claude')
+  return parts.slice(Math.max(config > 0 ? config - 1 : parts.length - 2, 0)).join('/')
+}
+
+export interface MarkSummary {
+  reasons: string[]
+  kinds: string
+  who: string[]
+  files: number
+  added: number
+  removed: number
+}
+
+const KIND_ORDER: RuleKind[] = [...MARK_KINDS, 'memory']
+const KIND_NAMES = new Map<RuleKind, string>([...RULE_KIND_LABELS, ['memory', 'память']])
+
+export function markSummary(mark: RuleMark): MarkSummary {
+  const files = new Map<string, RuleKind>()
+  let added = 0
+  let removed = 0
+  for (const file of mark.sets.flatMap((set) => set.files)) {
+    files.set(file.key, file.kind)
+    added += file.added
+    removed += file.removed
+  }
+  const counts = KIND_ORDER.map((kind) => [kind, [...files.values()].filter((each) => each === kind).length] as const).filter(([, count]) => count > 0)
+  const tasks = mark.sets.flatMap((set) => (set.task === null ? [] : [set.task]))
+  const untasked = mark.sets.filter((set) => set.task === null)
+  const sessions = untasked.flatMap((set) => (set.title === null ? [] : [`«${set.title}»`]))
+  const others = untasked.filter((set) => set.title === null).map(setTitle)
+  return {
+    reasons: [...new Set(mark.sets.map((set) => set.note?.reason ?? '').filter((reason) => reason !== ''))],
+    kinds: counts.map(([kind, count]) => (count > 1 ? `${KIND_NAMES.get(kind)} ×${count}` : KIND_NAMES.get(kind))).join(', '),
+    who: [...new Set([...tasks, ...sessions, ...others])],
+    files: files.size,
+    added,
+    removed,
+  }
+}
