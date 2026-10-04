@@ -9,7 +9,7 @@ import {
   type LoginBlock,
 } from '../../../src/account/model.js'
 import { APP_LABELS, appSwitchProblem, type AppAccount } from '../../../src/account/apps.js'
-import type { AgentStatus } from '../../../src/sessions/agents.js'
+import { t } from '../i18n/index.js'
 import { useCommand } from '../live/useCommand.js'
 import { accountBadge, loginLeft } from '../state.js'
 import { Limits } from './Limits.js'
@@ -30,7 +30,7 @@ export function AccountMenu({ account }: { account: AccountView }) {
         className={`queue-toggle account-toggle account-toggle--${badge.kind}`}
         aria-expanded={open}
         aria-controls="account-panel"
-        title={active?.status?.email ?? 'Аккаунт Claude'}
+        title={active?.status?.email ?? t.account.button}
         onClick={() => setOpen(!open)}
       >
         <span className="queue-toggle__dot" aria-hidden="true" />
@@ -47,16 +47,16 @@ function AccountPanel({ account, onClose }: { account: AccountView; onClose: () 
   const { login } = account
 
   return (
-    <aside id="account-panel" className="drawer" role="dialog" aria-label="Аккаунты Claude">
+    <aside id="account-panel" className="drawer" role="dialog" aria-label={t.account.title}>
       <div className="drawer__head">
-        <h2 className="drawer__title">Аккаунты Claude</h2>
-        <button type="button" className="panel__close" aria-label="Закрыть" onClick={onClose}>
+        <h2 className="drawer__title">{t.account.title}</h2>
+        <button type="button" className="panel__close" aria-label={t.common.close} onClick={onClose}>
           ×
         </button>
       </div>
 
       <section className="queue__section">
-        <h2 className="queue__heading">Приложения</h2>
+        <h2 className="queue__heading">{t.account.apps}</h2>
         <ul className="accounts">
           {account.apps.map((app) => (
             <AppItem key={app.app} app={app} view={account} sending={sending} send={send} />
@@ -65,9 +65,9 @@ function AccountPanel({ account, onClose }: { account: AccountView; onClose: () 
       </section>
 
       <section className="queue__section">
-        <h2 className="queue__heading">Папки аккаунтов</h2>
+        <h2 className="queue__heading">{t.account.folders}</h2>
         {account.accounts.length === 0 ? (
-          <p className="queue__empty">Список ещё не получен.</p>
+          <p className="queue__empty">{t.account.notLoaded}</p>
         ) : (
           <ul className="accounts">
             {account.accounts.map((entry) => (
@@ -82,12 +82,10 @@ function AccountPanel({ account, onClose }: { account: AccountView; onClose: () 
         <h2 className="queue__heading">{loginHeading(account)}</h2>
         {login === null ? (
           <>
-            <p className="queue__hint">
-              Вход в новой папке: активный аккаунт не меняется. Claude выдаст ссылку — откройте её и войдите нужным аккаунтом.
-            </p>
+            <p className="queue__hint">{t.account.addHint}</p>
             <div className="account__actions">
               <button type="button" className="button" disabled={sending} onClick={() => void send('account/add')}>
-                Добавить аккаунт
+                {t.account.add}
               </button>
             </div>
           </>
@@ -100,8 +98,6 @@ function AccountPanel({ account, onClose }: { account: AccountView; onClose: () 
     </aside>
   )
 }
-
-const CHAT_STATUS: Record<AgentStatus, string> = { busy: 'работает', waiting: 'ждёт ответа', idle: 'открыт' }
 
 interface AppProps {
   app: AppAccount
@@ -124,15 +120,15 @@ function AppItem({ app, view, sending, send }: AppProps) {
       {app.error !== null && <p className="notice notice--error">{app.error}</p>}
       {app.sessions.length > 0 && (
         <div className="account__blockers">
-          <p className="queue__hint">Переключить пока нельзя, открыты чаты Claude:</p>
+          <p className="queue__hint">{t.account.chatsBlock}</p>
           <ul className="account__blocker-list">
             {app.sessions.map((session, index) => (
               <li key={`${session.name}-${index}`}>
-                <span className="account__blocker-name">{session.name}</span> {session.status === null ? 'открыт' : CHAT_STATUS[session.status]}
+                <span className="account__blocker-name">{session.name}</span> {t.account.chats[session.status ?? 'idle']}
               </li>
             ))}
           </ul>
-          <p className="queue__hint">Закройте их в {label} — панель обновится сама.</p>
+          <p className="queue__hint">{t.account.closeChats(label)}</p>
         </div>
       )}
       {app.error === null && targets.length > 0 && (
@@ -154,22 +150,22 @@ function AppItem({ app, view, sending, send }: AppProps) {
           })}
         </div>
       )}
-      <p className="queue__hint">Новый аккаунт {label} берёт после Developer: Reload Window.</p>
+      <p className="queue__hint">{t.account.reload(label)}</p>
     </li>
   )
 }
 
 function appAccountName(app: AppAccount, current: AccountEntry | undefined): string {
   if (current !== undefined) return current.status?.email ?? current.key
-  if (app.dir !== null) return `папка ${app.dir} — её нет среди аккаунтов`
-  return app.error === null ? 'не прочитан' : '—'
+  if (app.dir !== null) return t.account.unknownDir(app.dir)
+  return app.error === null ? t.account.unread : '—'
 }
 
 function loginHeading({ login, accounts }: AccountView): string {
-  if (login === null) return 'Добавить аккаунт'
-  if (login.target === null) return 'Вход в новый аккаунт'
+  if (login === null) return t.account.add
+  if (login.target === null) return t.account.loginNew
   const target = accounts.find((entry) => entry.key === login.target)
-  return `Вход: ${target?.status?.email ?? login.target}`
+  return t.account.loginTo(target?.status?.email ?? login.target)
 }
 
 interface ItemProps {
@@ -187,7 +183,7 @@ function AccountItem({ entry, view, now, sending, send }: ItemProps) {
   const blocked = switchProblem(view, entry.key)
   const removable = removeProblem(view, entry.key) === undefined && !entry.removing
   const renewBlocked = view.login !== null || (active && view.loginBlock !== null)
-  const email = entry.status?.email ?? (entry.global ? 'глобальный ~/.claude' : entry.key)
+  const email = entry.status?.email ?? (entry.global ? t.account.global : entry.key)
 
   return (
     <li className={`accounts__item${active ? ' accounts__item--active' : ''}`}>
@@ -201,27 +197,30 @@ function AccountItem({ entry, view, now, sending, send }: ItemProps) {
               {APP_LABELS[app.app]}
             </span>
           ))}
-        {entry.needsLogin && <span className="accounts__mark accounts__mark--login">нужен вход</span>}
+        {entry.needsLogin && <span className="accounts__mark accounts__mark--login">{t.account.needsLoginMark}</span>}
       </div>
       <div className="accounts__facts">
-        {entry.status?.subscriptionType != null && <span>план {entry.status.subscriptionType}</span>}
-        <span className={left.renew ? 'accounts__expiry accounts__expiry--soon' : 'accounts__expiry'}>вход: {left.text}</span>
-        {entry.sessions.length > 0 && <span>сессий: {entry.sessions.length}</span>}
-        {entry.global && <span>папка ~/.claude</span>}
+        {entry.status?.subscriptionType != null && <span>{t.account.plan(entry.status.subscriptionType)}</span>}
+        <span className={left.renew ? 'accounts__expiry accounts__expiry--soon' : 'accounts__expiry'}>{t.account.expiry(left.text)}</span>
+        {entry.sessions.length > 0 && <span>{t.account.sessions(entry.sessions.length)}</span>}
+        {entry.global && <span>{t.account.globalFolder}</span>}
       </div>
       {entry.limits === null ? (
-        <p className="accounts__no-limits">Лимиты: нет данных{entry.usage.state === 'stale' ? staleNote(entry.usage.reason) : ''}</p>
+        <p className="accounts__no-limits">
+          {t.account.noLimits}
+          {entry.usage.state === 'stale' ? staleNote(entry.usage.reason) : ''}
+        </p>
       ) : (
         <Limits limits={entry.limits} now={now} />
       )}
-      {entry.configPending && <p className="queue__hint">Новая общая конфигурация дойдёт до сессий, когда завершатся текущие сессии этого аккаунта</p>}
+      {entry.configPending && <p className="queue__hint">{t.account.configPending}</p>}
       {entry.removing && (
         <p className="queue__hint">
-          Выйду и удалю папку, когда завершатся процессы сессий этого аккаунта
-          {entry.sessions.length > 0 ? `, ещё живы: ${entry.sessions.join(', ')}` : ''}
+          {t.account.removing}
+          {entry.sessions.length > 0 ? t.account.removingAlive(entry.sessions.join(', ')) : ''}
         </p>
       )}
-      {entry.error !== null && <p className="queue__hint">Последняя проверка не удалась: {entry.error}</p>}
+      {entry.error !== null && <p className="queue__hint">{t.account.checkFailed(entry.error)}</p>}
       <div className="account__actions">
         {!active && (
           <button
@@ -231,7 +230,7 @@ function AccountItem({ entry, view, now, sending, send }: ItemProps) {
             title={blocked}
             onClick={() => void send('account/switch', { account: entry.key })}
           >
-            Отдать Even Keel
+            {t.account.give}
           </button>
         )}
         {(left.renew || entry.needsLogin) && (
@@ -241,20 +240,18 @@ function AccountItem({ entry, view, now, sending, send }: ItemProps) {
             disabled={sending || renewBlocked}
             onClick={() => void send('account/renew', { account: entry.key })}
           >
-            {entry.needsLogin ? 'Войти' : 'Продлить вход'}
+            {entry.needsLogin ? t.account.login : t.account.renew}
           </button>
         )}
         {removable && !confirming && (
           <button type="button" className="button" disabled={sending} onClick={() => setConfirming(true)}>
-            Удалить
+            {t.common.remove}
           </button>
         )}
         {removable && confirming && (
           <>
             <span className="accounts__confirm">
-              {entry.sessions.length > 0
-                ? `Выйти и удалить папку, когда завершатся её сессии (${entry.sessions.join(', ')})?`
-                : 'Выйти и удалить папку?'}
+              {entry.sessions.length > 0 ? t.account.removeWhenDone(entry.sessions.join(', ')) : t.account.removeNow}
             </span>
             <button
               type="button"
@@ -262,16 +259,16 @@ function AccountItem({ entry, view, now, sending, send }: ItemProps) {
               disabled={sending}
               onClick={() => void send('account/remove', { account: entry.key }).then(() => setConfirming(false))}
             >
-              Удалить
+              {t.common.remove}
             </button>
             <button type="button" className="button" disabled={sending} onClick={() => setConfirming(false)}>
-              Отмена
+              {t.common.cancel}
             </button>
           </>
         )}
         {entry.removing && (
           <button type="button" className="button" disabled={sending} onClick={() => void send('account/keep', { account: entry.key })}>
-            Не удалять
+            {t.account.keep}
           </button>
         )}
       </div>
@@ -280,29 +277,33 @@ function AccountItem({ entry, view, now, sending, send }: ItemProps) {
 }
 
 function staleNote(reason: string | null): string {
-  return reason === null ? ' — токен доступа истёк, обновит первая сессия' : ' — сервис лимитов сейчас не отвечает, придут из первой сессии'
+  return reason === null ? t.account.staleExpired : t.account.staleBusy
 }
 
 function Blockers({ block }: { block: LoginBlock }) {
   return (
     <div className="account__blockers">
-      <p className="queue__hint">Переключить пока нельзя, мешает:</p>
+      <p className="queue__hint">{t.account.switchBlocked}</p>
       <ul className="account__blocker-list">
         {block.chain !== null && (
           <li>
-            Цепочка <Link to={`/p/${block.chain}`}>{block.chain}</Link> идёт — поставьте её на паузу.
+            {t.account.chainBusy.before}
+            <Link to={`/p/${block.chain}`}>{block.chain}</Link>
+            {t.account.chainBusy.after}
           </li>
         )}
         {block.sessions.map((session, index) => (
           <li key={`${session.name}-${index}`}>
             <span className="account__blocker-name">{session.name}</span>{' '}
-            {session.status === 'busy' ? 'работает' : `ждёт ответа${session.waitingFor === null ? '' : `: ${session.waitingFor}`}`}
+            {session.status === 'busy'
+              ? t.account.busy
+              : session.waitingFor === null
+                ? t.account.waiting
+                : t.account.waitingFor(session.waitingFor)}
           </li>
         ))}
       </ul>
-      {block.sessions.length > 0 && (
-        <p className="queue__hint">Сессия перестаёт мешать, как только заканчивает ход.</p>
-      )}
+      {block.sessions.length > 0 && <p className="queue__hint">{t.account.turnHint}</p>}
     </div>
   )
 }
@@ -328,10 +329,10 @@ function LoginSteps({ login, sending, send }: StepsProps) {
         <p className="notice notice--error">{login.error}</p>
         <div className="account__actions">
           <button type="button" className="button button--primary" disabled={sending} onClick={() => void retry()}>
-            Повторить
+            {t.common.retry}
           </button>
           <button type="button" className="button" disabled={sending} onClick={() => void send('account/cancel')}>
-            Закрыть
+            {t.common.close}
           </button>
         </div>
         {login.output !== '' && <Output text={login.output} />}
@@ -342,13 +343,13 @@ function LoginSteps({ login, sending, send }: StepsProps) {
   return (
     <>
       {login.urls.length === 0 ? (
-        <p className="queue__hint">Жду ссылку для входа от claude…</p>
+        <p className="queue__hint">{t.account.waitingLink}</p>
       ) : (
         <ul className="account__links">
           {login.urls.map((url) => (
             <li key={url}>
               <a href={url} target="_blank" rel="noreferrer">
-                {login.urls.length === 1 ? 'Открыть страницу входа' : new URL(url).host}
+                {login.urls.length === 1 ? t.account.openLogin : new URL(url).host}
               </a>
             </li>
           ))}
@@ -359,21 +360,19 @@ function LoginSteps({ login, sending, send }: StepsProps) {
           className="account__input"
           value={code}
           onChange={(event) => setCode(event.target.value)}
-          placeholder="Код со страницы входа"
-          aria-label="Код со страницы входа"
+          placeholder={t.account.code}
+          aria-label={t.account.code}
           autoComplete="off"
           spellCheck={false}
         />
         <button type="submit" className="button" disabled={sending || code.trim() === ''}>
-          Отправить
+          {t.account.send}
         </button>
       </form>
-      <p className="queue__hint">
-        {login.codeSent ? 'Код отправлен, жду подтверждения.' : 'Код нужен, только если страница входа его показала.'}
-      </p>
+      <p className="queue__hint">{login.codeSent ? t.account.codeSent : t.account.codeHint}</p>
       <div className="account__actions">
         <button type="button" className="button" disabled={sending} onClick={() => void send('account/cancel')}>
-          Отменить вход
+          {t.account.cancelLogin}
         </button>
       </div>
       {login.output !== '' && <Output text={login.output} />}
@@ -384,7 +383,7 @@ function LoginSteps({ login, sending, send }: StepsProps) {
 function Output({ text }: { text: string }) {
   return (
     <details className="account__output">
-      <summary>Вывод claude</summary>
+      <summary>{t.account.output}</summary>
       <pre>{text}</pre>
     </details>
   )

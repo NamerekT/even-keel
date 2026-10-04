@@ -4,6 +4,7 @@ import type { PeriodQuery, StatsFilter, StatsScope } from '../../../src/stats/mo
 import type { RulesQuery } from '../../../src/stats/rules.js'
 import type { EvenKeelState } from '../../../src/state.js'
 import { formatMoment } from '../format.js'
+import { t } from '../i18n/index.js'
 import { useLive } from '../live/context.js'
 import { AnswerNotice, Segmented, loadedData, useStatsAnswer } from './common.js'
 import { chartData, dayCosts, firstDay, projectColors, projectTotals, type Metric } from './history.js'
@@ -21,10 +22,7 @@ import { Sources, Tiles } from './Summary.js'
 import { TaskTable } from './TaskTable.js'
 import './stats.css'
 
-const SCOPES: [StatsScope, string][] = [
-  ['all', 'все'],
-  ['chain', 'цепочка'],
-]
+const SCOPES: StatsScope[] = ['all', 'chain']
 
 export function StatsPage({ state }: { state: EvenKeelState }) {
   const [params, setParams] = useSearchParams()
@@ -93,7 +91,7 @@ export function StatsPage({ state }: { state: EvenKeelState }) {
   return (
     <div className="page stats-page">
       <header className="stats-page__head">
-        <h1 className="page__title">Статистика</h1>
+        <h1 className="page__title">{t.stats.title}</h1>
         <PeriodPicker
           choice={view.period}
           range={range}
@@ -104,13 +102,18 @@ export function StatsPage({ state }: { state: EvenKeelState }) {
         />
         <div className="stats-page__filters">
           <span className="stats-page__filter">
-            Сессии
-            <Segmented label="Сессии" options={SCOPES} value={view.scope} onChange={(scope) => setView({ scope })} />
+            {t.stats.sessions}
+            <Segmented
+              label={t.stats.sessions}
+              options={SCOPES.map((scope) => [scope, t.stats.scopes[scope]])}
+              value={view.scope}
+              onChange={(scope) => setView({ scope })}
+            />
           </span>
           <label className="stats-page__filter">
-            Аккаунт
+            {t.stats.account}
             <select value={view.account ?? ''} onChange={(event) => setView({ account: event.target.value || null })}>
-              <option value="">все</option>
+              <option value="">{t.stats.all}</option>
               {[...new Set([...(history?.accounts ?? []), ...(view.account === null ? [] : [view.account])])].map((account) => (
                 <option key={account} value={account}>
                   {account}
@@ -159,7 +162,7 @@ export function StatsPage({ state }: { state: EvenKeelState }) {
                 <StepsSection loaded={stepsLoaded} />
                 <TaskTable tasks={period.tasks} trackerUrls={state.trackerUrls} />
                 <StuckSection weeks={period.weeks} stuck={period.stuck} trackerUrls={state.trackerUrls} />
-                <p className="stats-page__foot">Tally · прочитано {formatMoment(period.at, new Date())}</p>
+                <p className="stats-page__foot">{t.stats.read(formatMoment(period.at, new Date()))}</p>
               </>
             )}
           </div>

@@ -1,50 +1,55 @@
 import type { StatsTaskRow } from '../../../src/stats/model.js'
-import { plural } from '../format.js'
+import { t } from '../i18n/index.js'
 import { accuracy, type AccuracyGroup } from './accuracy.js'
 import { Section } from './common.js'
 import { formatDuration, formatRatio, formatShare, modelLabel } from './format.js'
 import { Tile } from './Summary.js'
 
-const BREAKDOWNS: { key: 'project' | 'component' | 'model'; title: string; label: (key: string | null) => string }[] = [
-  { key: 'project', title: 'Проект', label: (key) => key ?? '—' },
-  { key: 'component', title: 'Компонент', label: (key) => key ?? 'без компонента' },
-  { key: 'model', title: 'Модель', label: (key) => (key === null ? 'неизвестно' : modelLabel(key)) },
+type BreakdownKey = 'project' | 'component' | 'model'
+
+const BREAKDOWNS: { key: BreakdownKey; label: (key: string | null) => string }[] = [
+  { key: 'project', label: (key) => key ?? '—' },
+  { key: 'component', label: (key) => key ?? t.stats.estimate.noComponent },
+  { key: 'model', label: (key) => (key === null ? t.stats.estimate.unknown : modelLabel(key)) },
 ]
 
 export function EstimateSection({ tasks }: { tasks: StatsTaskRow[] }) {
   const result = accuracy(tasks)
   if (result.done === 0 && result.open === 0) return null
   const skipped = [
-    result.unestimated > 0 && `без оценки: ${result.unestimated}`,
-    result.open > 0 && `не закрыто: ${result.open}`,
+    result.unestimated > 0 && t.stats.estimate.unestimated(result.unestimated),
+    result.open > 0 && t.stats.estimate.open(result.open),
   ].filter(Boolean)
 
   return (
-    <Section
-      title="Время и оценки"
-      aside={<span className="stats-section__note">время — активная работа агента по ходам, за всю задачу; в сравнении только закрытые задачи с оценкой</span>}
-    >
+    <Section title={t.stats.estimate.title} aside={<span className="stats-section__note">{t.stats.estimate.note}</span>}>
       <div className="stats-tiles">
-        <Tile label="Медиана времени задачи" value={formatDuration(result.medianS)}>
-          {result.done} {plural(result.done, 'закрытая задача', 'закрытые задачи', 'закрытых задач')}
+        <Tile label={t.stats.estimate.median} value={formatDuration(result.medianS)}>
+          {t.stats.estimate.done(result.done)}
         </Tile>
-        <Tile label="В пределах ×1.5 от оценки" value={formatShare(result.within)}>
-          сравнено {result.compared} {plural(result.compared, 'задача', 'задачи', 'задач')}
+        <Tile label={t.stats.estimate.within} value={formatShare(result.within)}>
+          {t.stats.estimate.compared(result.compared)}
           {skipped.length > 0 && ` · ${skipped.join(' · ')}`}
         </Tile>
-        <Tile label="Факт / оценка, медиана" value={formatRatio(result.ratio)}>
-          {result.ratio === null ? 'нет задач с оценкой' : result.ratio < 1 ? 'быстрее оценки' : result.ratio > 1 ? 'дольше оценки' : 'ровно по оценке'}
+        <Tile label={t.stats.estimate.ratio} value={formatRatio(result.ratio)}>
+          {ratioNote(result.ratio)}
         </Tile>
       </div>
       {result.compared > 0 && (
         <div className="estimates">
           {BREAKDOWNS.map((breakdown) => (
-            <Breakdown key={breakdown.key} title={breakdown.title} groups={result.groups[breakdown.key]} label={breakdown.label} />
+            <Breakdown key={breakdown.key} title={t.stats.estimate[breakdown.key]} groups={result.groups[breakdown.key]} label={breakdown.label} />
           ))}
         </div>
       )}
     </Section>
   )
+}
+
+function ratioNote(ratio: number | null): string {
+  if (ratio === null) return t.stats.estimate.noEstimates
+  if (ratio < 1) return t.stats.estimate.faster
+  return ratio > 1 ? t.stats.estimate.slower : t.stats.estimate.exact
 }
 
 function Breakdown({ title, groups, label }: { title: string; groups: AccuracyGroup[]; label: (key: string | null) => string }) {
@@ -54,14 +59,14 @@ function Breakdown({ title, groups, label }: { title: string; groups: AccuracyGr
         <thead>
           <tr>
             <th scope="col">{title}</th>
-            <th scope="col" className="tasks__num" title="Сравнено задач">
-              Задачи
+            <th scope="col" className="tasks__num" title={t.stats.estimate.comparedTitle}>
+              {t.stats.estimate.tasks}
             </th>
-            <th scope="col" className="tasks__num" title="Доля задач в пределах ×1.5 от оценки">
+            <th scope="col" className="tasks__num" title={t.stats.estimate.withinTitle}>
               ×1.5
             </th>
-            <th scope="col" className="tasks__num" title="Медиана факт / оценка">
-              Медиана
+            <th scope="col" className="tasks__num" title={t.stats.estimate.medianTitle}>
+              {t.stats.estimate.medianColumn}
             </th>
           </tr>
         </thead>

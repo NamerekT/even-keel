@@ -1,3 +1,4 @@
+import { t } from '../i18n/index.js'
 import { useLive } from '../live/context.js'
 
 export function LinkBanner() {
@@ -7,9 +8,9 @@ export function LinkBanner() {
   return (
     <div className="banner" role="alert">
       <div className="banner__inner">
-        <span>Данные устарели: нет связи с сервером, переподключаюсь.</span>
+        <span>{t.banner.stale}</span>
         <button type="button" className="button" onClick={retryNow}>
-          Повторить
+          {t.common.retry}
         </button>
       </div>
     </div>

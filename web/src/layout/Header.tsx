@@ -1,4 +1,5 @@
 import { Link, NavLink, useMatch } from 'react-router'
+import { t } from '../i18n/index.js'
 import { useLive } from '../live/context.js'
 import { AccountMenu } from './Account.js'
 import { Limits } from './Limits.js'
@@ -16,7 +17,7 @@ export function Header() {
   return (
     <header className="header">
       <div className="header__inner">
-        <nav className="header__nav" aria-label="Навигация">
+        <nav className="header__nav" aria-label={t.header.nav}>
           <Link to="/" className="header__brand">
             Even Keel
           </Link>
@@ -29,7 +30,7 @@ export function Header() {
             </>
           )}
           <NavLink to="/stats" className="header__link">
-            Статистика
+            {t.header.stats}
           </NavLink>
         </nav>
         <div className="header__aside">

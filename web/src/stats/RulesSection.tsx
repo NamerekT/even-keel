@@ -3,21 +3,20 @@ import { useState } from 'react'
 import { RULE_PURPOSES, type RulePurpose } from '../../../src/stats/rule-imports.js'
 import { type CompareQuery, type RuleKind, type RuleMark, type RuleSet, type RuleSetFile, type StatsRules } from '../../../src/stats/rules.js'
 import { formatMoment } from '../format.js'
+import { t } from '../i18n/index.js'
 import { useLive } from '../live/context.js'
 import { AnswerNotice, Section, TaskKey, loadedData, useStatsAnswer, type Loaded } from './common.js'
-import { MARK_KINDS, PURPOSE_LABELS, RULE_KIND_LABELS, markKey, markTitle, pickedSpan, setTitle, shortPath, toggleChip } from './marks.js'
+import { MARK_KINDS, markKey, markTitle, pickedSpan, purposeLabel, ruleKindLabels, setTitle, shortPath, toggleChip } from './marks.js'
 import { Lines, SetNote } from './MarkTip.js'
 import { COMPARE_DAYS, RuleCompare } from './RuleCompare.js'
 import './rules.css'
-
-const ACTIONS = { added: 'добавлен', changed: 'изменён', removed: 'удалён' }
 
 function Chips<T extends string>({ label, options, all, on, onChange }: { label: string; options: [T, string][]; all: readonly T[]; on: T[] | null; onChange: (next: T[] | null) => void }) {
   return (
     <div className="rule-chips" role="group" aria-label={label}>
       <span className="rule-chips__label">{label}</span>
       <button type="button" className={on === null ? 'rule-chip rule-chip--on' : 'rule-chip'} aria-pressed={on === null} onClick={() => onChange(null)}>
-        все
+        {t.stats.rules.all}
       </button>
       {options.map(([value, text]) => {
         const pressed = on !== null && on.includes(value)
@@ -40,7 +39,7 @@ function FileDiff({ file }: { file: RuleSetFile }) {
   const loaded = useStatsAnswer(key, () => statsRuleDiff(file.changes), false)
   const files = loadedData(loaded)
   if (files === null) return <AnswerNotice loaded={loaded} />
-  if (files.length === 0) return <p className="stats-section__note">Текстов версий в базе нет.</p>
+  if (files.length === 0) return <p className="stats-section__note">{t.stats.rules.noTexts}</p>
   return (
     <div className="rule-diff">
       {files.map((each, index) => (
@@ -81,7 +80,7 @@ function SetView({ set, trackerUrls }: { set: RuleSet; trackerUrls: TrackerUrls 
         <ul className="rule-set__files">
           {(set.note?.files ?? []).map((file) => (
             <li key={file.path}>
-              <span className="rule-set__path">{file.path}</span> <span className="stats-section__note">{ACTIONS[file.action]}</span>
+              <span className="rule-set__path">{file.path}</span> <span className="stats-section__note">{t.stats.rules.actions[file.action]}</span>
               {file.summary !== '' && <span className="rule-set__summary">{file.summary}</span>}
             </li>
           ))}
@@ -96,7 +95,7 @@ function SetView({ set, trackerUrls }: { set: RuleSet; trackerUrls: TrackerUrls 
               </button>
               {open === file.key &&
                 (file.changes.length === 0 ? (
-                  <p className="stats-section__note">Текста версии нет — правка видна только по счёту строк.</p>
+                  <p className="stats-section__note">{t.stats.rules.noText}</p>
                 ) : (
                   <FileDiff file={file} />
                 ))}
@@ -143,18 +142,21 @@ export function RulesSection({
   const span = pickedSpan(marks, picked)
   const now = new Date()
   return (
-    <Section
-      title="Правки правил"
-      aside={<span className="stats-section__note">CLAUDE.md — с 4 сентября 2026, навыки — с 3 августа, хуки и настройки — с первого снимка; правки памяти не отмечаются</span>}
-    >
+    <Section title={t.stats.rules.title} aside={<span className="stats-section__note">{t.stats.rules.note}</span>}>
       <div className="rule-filters">
-        <Chips label="Файлы" options={RULE_KIND_LABELS} all={MARK_KINDS} on={kinds} onChange={(next) => onFilter({ kinds: next })} />
-        <Chips label="Цель" options={PURPOSE_LABELS} all={RULE_PURPOSES} on={purposes} onChange={(next) => onFilter({ purposes: next })} />
+        <Chips label={t.stats.rules.files} options={ruleKindLabels()} all={MARK_KINDS} on={kinds} onChange={(next) => onFilter({ kinds: next })} />
+        <Chips
+          label={t.stats.rules.purpose}
+          options={RULE_PURPOSES.map((purpose) => [purpose, purposeLabel(purpose)])}
+          all={RULE_PURPOSES}
+          on={purposes}
+          onChange={(next) => onFilter({ purposes: next })}
+        />
       </div>
       {rules === null ? (
         <AnswerNotice loaded={loaded} />
       ) : marks.length === 0 ? (
-        <p className="stats-section__note">В этом периоде правок правил нет.</p>
+        <p className="stats-section__note">{t.stats.rules.none}</p>
       ) : (
         <>
           <ol className="rule-marks">
@@ -171,26 +173,26 @@ export function RulesSection({
                   >
                     <span className="rule-mark__at">{formatMoment(mark.toAt, now)}</span>
                     <span className="rule-mark__sets">{markTitle(mark)}</span>
-                    <span className="stats-section__note">файлов: {mark.sets.reduce((sum, set) => sum + set.files.length, 0)}</span>
+                    <span className="stats-section__note">{t.stats.rules.fileCount(mark.sets.reduce((sum, set) => sum + set.files.length, 0))}</span>
                   </button>
                 </li>
               )
             })}
           </ol>
           {span === null ? (
-            <p className="stats-section__note">Выберите метку — на графике или в списке, — чтобы увидеть правки и сравнить до и после. Shift- или Ctrl-клик добавляет вторую метку: сравнение пойдёт от состояния до первой к состоянию после второй.</p>
+            <p className="stats-section__note">{t.stats.rules.pick}</p>
           ) : (
             <div className="rule-picked">
               <ul className="rule-picked__sets">{span.marks.flatMap((mark) => mark.sets).map((set) => <SetView key={set.id} set={set} trackerUrls={trackerUrls} />)}</ul>
               <div className="rule-picked__compare">
                 <header className="stats-section__head">
-                  <h3 className="rule-picked__title">До и после</h3>
-                  <div className="segmented" role="group" aria-label="Дней с каждой стороны">
+                  <h3 className="rule-picked__title">{t.stats.rules.compare}</h3>
+                  <div className="segmented" role="group" aria-label={t.stats.rules.days}>
                     {COMPARE_DAYS.map((each) => {
                       const current = days ?? rules.compare.days
                       return (
                         <button key={each} type="button" className={each === current ? 'segmented__item segmented__item--on' : 'segmented__item'} aria-pressed={each === current} onClick={() => setDays(each)}>
-                          {each} дн
+                          {t.stats.rules.dayCount(each)}
                         </button>
                       )
                     })}

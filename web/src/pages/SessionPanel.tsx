@@ -1,41 +1,21 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import type { TaskSession } from '../../../src/chain/launches.js'
 import type { LimitHold } from '../../../src/chain/relay.js'
-import type { RemoteOff } from '../../../src/sessions/remote.js'
 import type { CacheWindow, FeedLine, TokenTotals } from '../../../src/sessions/transcript.js'
 import type { ContextScale, SessionRecord, SessionView, TrackerUrls } from '../../../src/state.js'
 import { formatClock, formatMoment, formatTokens } from '../format.js'
+import { localized, t } from '../i18n/index.js'
 import { useNow } from '../layout/useNow.js'
 import { useLive } from '../live/context.js'
 import { useCommand } from '../live/useCommand.js'
 import { checkpointHandoffs, issueLink, sessionElapsed, taskProject, tokenTotal, type ChainBlock } from '../state.js'
-import { CacheClock, TTL_LABELS } from '../ui/CacheClock.js'
+import { CacheClock } from '../ui/CacheClock.js'
 import { ContextMeter } from '../ui/ContextMeter.js'
-import { Lamp, LAMP_LABELS } from '../ui/Lamp.js'
+import { Lamp } from '../ui/Lamp.js'
 
-const STARTED = new Intl.DateTimeFormat('ru', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
-const FEED_TIME = new Intl.DateTimeFormat('ru', { hour: '2-digit', minute: '2-digit', second: '2-digit' })
+const STARTED = localized((language) => new Intl.DateTimeFormat(language, { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }))
+const FEED_TIME = localized((language) => new Intl.DateTimeFormat(language, { hour: '2-digit', minute: '2-digit', second: '2-digit' }))
 const PINNED_SLACK = 24
-
-const HOW: Record<TaskSession['how'], string> = {
-  launch: 'Запуск цепочкой',
-  relay: 'Новая после лимита',
-  restart: 'Перезапуск',
-  checkpoint: 'По контрольной точке',
-  manual: 'Запущена вручную',
-}
-
-const REPLACED: Record<NonNullable<TaskSession['replaced']>['how'], string> = {
-  restart: 'заменена вручную',
-  checkpoint: 'поставила контрольную точку',
-}
-
-const REMOTE_OFF: Record<RemoteOff, string> = {
-  starting: 'Remote Control поднимается — ссылка будет через пару секунд.',
-  disabled: 'Remote Control выключен: в /config папки аккаунта нет «remoteControlAtStartup».',
-  'no-bridge': 'Сессия не подняла Remote Control — отсюда её не открыть.',
-  lost: 'Remote Control отвалился — с телефона не открыть. Не довела задачу — «Новая сессия».',
-}
 
 interface Props {
   block: ChainBlock
@@ -66,31 +46,31 @@ export function SessionPanel({ block, scale, trackerUrls, onClose }: Props) {
   }, [onClose])
 
   return (
-    <aside className="panel" aria-label={`Сессия задачи ${block.id}`}>
+    <aside className="panel" aria-label={t.session.panel(block.id)}>
       <header className="panel__head">
         <Lamp lamp={block.lamp} />
         <h2 className="panel__task">
           {link === null ? (
             task
           ) : (
-            <a href={link} target="_blank" rel="noreferrer" title="Открыть задачу в трекере">
+            <a href={link} target="_blank" rel="noreferrer" title={t.session.openTask}>
               {task}
             </a>
           )}
         </h2>
-        <button ref={closeRef} type="button" className="panel__close" aria-label="Закрыть панель" onClick={onClose}>
+        <button ref={closeRef} type="button" className="panel__close" aria-label={t.session.closePanel} onClick={onClose}>
           ×
         </button>
       </header>
       {(block.status !== null || block.skipped) && (
         <p className="panel__status">
           {block.status}
-          {block.skipped && <span className="panel__flag">пропущена</span>}
+          {block.skipped && <span className="panel__flag">{t.session.skipped}</span>}
         </p>
       )}
       <Actions block={block} />
       {block.session === null ? (
-        <p className="placeholder">Сессии по этой задаче ещё не было.</p>
+        <p className="placeholder">{t.session.none}</p>
       ) : (
         <SessionBody session={block.session} limit={block.limit} scale={scale} />
       )}
@@ -108,8 +88,8 @@ function Actions({ block }: { block: ChainBlock }) {
   const session = block.session
   const live = block.current ? session : null
   const midTurn = live !== null && (live.lamp === 'working' || live.waitingFor !== null)
-  const account = session?.account == null ? '' : `\nRemote Control покажет её только в аккаунте ${session.account}`
-  const remoteOff = session === null || session.remoteUrl !== null ? null : REMOTE_OFF[session.remoteOff ?? 'no-bridge']
+  const account = session?.account == null ? '' : t.session.onlyIn(session.account)
+  const remoteOff = session === null || session.remoteUrl !== null ? null : t.session.remote[session.remoteOff ?? 'no-bridge']
   const buttons = session?.remoteUrl != null || block.open
 
   if (!buttons) return null
@@ -122,9 +102,9 @@ function Actions({ block }: { block: ChainBlock }) {
             href={session.remoteUrl}
             target="_blank"
             rel="noreferrer"
-            title={`Открыть сессию через Remote Control${account}`}
+            title={`${t.session.openRemote}${account}`}
           >
-            Открыть
+            {t.common.open}
           </a>
         )}
         {block.open && live !== null && (
@@ -132,10 +112,10 @@ function Actions({ block }: { block: ChainBlock }) {
             type="button"
             className="button"
             disabled={sending || midTurn}
-            title="Остановит эту сессию и запустит новую в той же рабочей папке с передачей дел. Статус в трекере не меняется."
+            title={t.session.restartTitle}
             onClick={() => void send('chain/restart', body)}
           >
-            Новая сессия
+            {t.session.restart}
           </button>
         )}
         {block.open &&
@@ -144,30 +124,26 @@ function Actions({ block }: { block: ChainBlock }) {
               type="button"
               className="button"
               disabled={sending}
-              title="Задача пропущена — цепочка её не берёт, пока не вернёшь."
+              title={t.session.skippedTitle}
               onClick={() => void send('chain/unskip', body)}
             >
-              Вернуть
+              {t.common.restore}
             </button>
           ) : (
             <button
               type="button"
               className="button"
               disabled={sending || midTurn}
-              title={
-                block.current
-                  ? 'Цепочка перестанет ждать задачу и возьмёт следующую. Статус в трекере и сессия не меняются.'
-                  : 'Цепочка не возьмёт задачу, пока не вернёшь её. Статус в трекере не меняется.'
-              }
+              title={block.current ? t.session.skipCurrent : t.session.skipOther}
               onClick={() => void send('chain/skip', body)}
             >
-              Пропустить
+              {t.session.skip}
             </button>
           ))}
-        {midTurn && <span className="panel__hint">идёт ход — замена и пропуск после него</span>}
+        {midTurn && <span className="panel__hint">{t.session.midTurn}</span>}
       </div>
       {remoteOff !== null && (
-        <p className="panel__remote-off" title={session?.account == null ? undefined : `Аккаунт: ${session.account}`}>
+        <p className="panel__remote-off" title={session?.account == null ? undefined : t.session.account(session.account)}>
           {remoteOff}
         </p>
       )}
@@ -178,7 +154,7 @@ function Actions({ block }: { block: ChainBlock }) {
 
 function SessionBody({ session, limit, scale }: { session: SessionView; limit: LimitHold | null; scale: ContextScale }) {
   const now = useNow(1_000)
-  const note = session.apiError ?? (session.waitingFor === null ? null : `Ждёт: ${session.waitingFor}`)
+  const note = session.apiError ?? (session.waitingFor === null ? null : t.session.waits(session.waitingFor))
 
   return (
     <>
@@ -186,22 +162,22 @@ function SessionBody({ session, limit, scale }: { session: SessionView; limit: L
       {limit !== null && <p className="notice notice--warn">{limitPlan(limit, now)}</p>}
       <dl className="panel__facts">
         <div className="panel__fact">
-          <dt>Сессия</dt>
-          <dd className={`panel__state panel__state--${session.lamp}`}>{LAMP_LABELS[session.lamp]}</dd>
+          <dt>{t.session.session}</dt>
+          <dd className={`panel__state panel__state--${session.lamp}`}>{t.lamp[session.lamp]}</dd>
         </div>
         <div className="panel__fact">
-          <dt>Время</dt>
+          <dt>{t.session.time}</dt>
           <dd className="panel__big">{formatClock(sessionElapsed(session, now))}</dd>
           <dd className="panel__sub">
-            с <time dateTime={session.startedAt}>{STARTED.format(new Date(session.startedAt))}</time>
+            {t.time.since} <time dateTime={session.startedAt}>{STARTED().format(new Date(session.startedAt))}</time>
           </dd>
         </div>
         <div className="panel__fact">
-          <dt>Кэш</dt>
+          <dt>{t.session.cache}</dt>
           {session.cache === null ? <dd className="panel__big">—</dd> : <CacheFact cache={session.cache} />}
         </div>
         <div className="panel__fact panel__fact--wide">
-          <dt>Контекст</dt>
+          <dt>{t.session.context}</dt>
           <dd>
             <ContextMeter tokens={session.contextTokens} scale={scale} full />
           </dd>
@@ -228,7 +204,7 @@ function RecordFeed({ sessionId }: { sessionId: string }) {
     }
   }, [sessionId])
 
-  return lines === null ? <p className="placeholder">Читаю транскрипт…</p> : <Feed lines={lines} />
+  return lines === null ? <p className="placeholder">{t.common.reading}</p> : <Feed lines={lines} />
 }
 
 function CacheFact({ cache }: { cache: CacheWindow }) {
@@ -237,21 +213,21 @@ function CacheFact({ cache }: { cache: CacheWindow }) {
       <dd className="panel__big">
         <CacheClock cache={cache} bare />
       </dd>
-      <dd className="panel__sub">срок {TTL_LABELS[cache.ttl]}</dd>
+      <dd className="panel__sub">{t.session.ttl(t.cache.ttl[cache.ttl])}</dd>
     </>
   )
 }
 
 function TokensFact({ tokens }: { tokens: TokenTotals }) {
   const parts: [string, number][] = [
-    ['ввод', tokens.input],
-    ['вывод', tokens.output],
-    ['чтение кэша', tokens.cacheRead],
-    ['запись кэша', tokens.cacheWrite],
+    [t.session.input, tokens.input],
+    [t.session.output, tokens.output],
+    [t.session.cacheRead, tokens.cacheRead],
+    [t.session.cacheWrite, tokens.cacheWrite],
   ]
   return (
     <div className="panel__fact panel__fact--wide panel__tokens">
-      <dt>Токены</dt>
+      <dt>{t.session.tokens}</dt>
       <dd className="panel__big">{formatTokens(tokenTotal(tokens))}</dd>
       <dd className="panel__split">
         {parts.map(([label, value]) => (
@@ -266,11 +242,9 @@ function TokensFact({ tokens }: { tokens: TokenTotals }) {
 }
 
 function limitPlan(hold: LimitHold, now: Date): string {
-  if (hold.resetsAt === null) return 'Время сброса лимита неизвестно — новая сессия запустится, как только сменишь аккаунт.'
+  if (hold.resetsAt === null) return t.session.limitUnknown
   const at = formatMoment(hold.resetsAt, now)
-  return hold.then === 'resume'
-    ? `После сброса лимита в ${at} диспетчер продолжит эту сессию — кэш ещё будет тёплым.`
-    : `После сброса лимита в ${at} (или сразу после смены аккаунта) диспетчер запустит новую сессию в той же рабочей папке.`
+  return hold.then === 'resume' ? t.session.limitResume(at) : t.session.limitRelay(at)
 }
 
 interface SessionListProps {
@@ -282,25 +256,26 @@ interface SessionListProps {
 function SessionList({ rows, current, onOpen }: SessionListProps) {
   const handoffs = checkpointHandoffs(rows)
   return (
-    <section className="panel__sessions" aria-label="Сессии по задаче">
+    <section className="panel__sessions" aria-label={t.session.list}>
       <h3 className="panel__feed-title">
-        Сессии по задаче{handoffs > 0 && ` · передач по контрольной точке: ${handoffs}`}
+        {t.session.list}
+        {handoffs > 0 && t.session.handoffs(handoffs)}
       </h3>
       <ul className="sessions">
         {rows.map((row) => (
           <li key={row.sessionId}>
             <button type="button" className="sessions__row" onClick={() => onOpen(row)}>
               <time className="sessions__time" dateTime={row.at}>
-                {STARTED.format(new Date(row.at))}
+                {STARTED().format(new Date(row.at))}
               </time>
               <span className="sessions__how">
-                {HOW[row.how]}
-                {row.resumed > 0 && ` · продолжена после лимита${row.resumed > 1 ? ` ×${row.resumed}` : ''}`}
+                {t.session.launches[row.how]}
+                {row.resumed > 0 && t.session.resumed(row.resumed)}
                 {row.left !== undefined && ` · ${leftText(row.left)}`}
-                {row.replaced !== undefined && ` · ${REPLACED[row.replaced.how]}`}
+                {row.replaced !== undefined && ` · ${t.session.replaced[row.replaced.how]}`}
               </span>
               <span className="sessions__id">{row.sessionId.slice(0, 8)}</span>
-              {row.sessionId === current && <span className="sessions__now">сейчас</span>}
+              {row.sessionId === current && <span className="sessions__now">{t.session.current}</span>}
             </button>
           </li>
         ))}
@@ -310,7 +285,7 @@ function SessionList({ rows, current, onOpen }: SessionListProps) {
 }
 
 function leftText(left: NonNullable<TaskSession['left']>): string {
-  return left.reason === 'skip' ? 'пропущена' : `отложена: ждёт ${left.blockers.join(', ')}`
+  return left.reason === 'skip' ? t.session.skipped : t.session.postponed(left.blockers.join(', '))
 }
 
 function SessionWindow({ row, scale, onClose }: { row: TaskSession; scale: ContextScale; onClose: () => void }) {
@@ -341,7 +316,7 @@ function SessionWindow({ row, scale, onClose }: { row: TaskSession; scale: Conte
     <dialog
       ref={dialogRef}
       className="session-window"
-      aria-label={`Сессия ${row.sessionId.slice(0, 8)}`}
+      aria-label={t.session.dialog(row.sessionId.slice(0, 8))}
       onClose={onClose}
       onKeyDown={(event) => {
         if (event.key === 'Escape') event.stopPropagation()
@@ -354,34 +329,34 @@ function SessionWindow({ row, scale, onClose }: { row: TaskSession; scale: Conte
         <header className="panel__head">
           <h2 className="panel__task">
             <span className="panel__key">{row.sessionId.slice(0, 8)}</span>
-            <span className="panel__title">{HOW[row.how]}</span>
+            <span className="panel__title">{t.session.launches[row.how]}</span>
           </h2>
-          <button type="button" className="panel__close" aria-label="Закрыть окно сессии" onClick={() => dialogRef.current?.close()}>
+          <button type="button" className="panel__close" aria-label={t.session.closeDialog} onClick={() => dialogRef.current?.close()}>
             ×
           </button>
         </header>
         {error !== null && <p className="notice notice--error">{error}</p>}
-        {error === null && record === undefined && <p className="placeholder">Читаю транскрипт…</p>}
-        {record === null && <p className="placeholder">Транскрипт этой сессии не найден.</p>}
+        {error === null && record === undefined && <p className="placeholder">{t.common.reading}</p>}
+        {record === null && <p className="placeholder">{t.session.notFound}</p>}
         {record !== null && record !== undefined && (
           <>
             <dl className="panel__facts">
               <div className="panel__fact">
-                <dt>Запущена</dt>
+                <dt>{t.session.started}</dt>
                 <dd>
-                  <time dateTime={started}>{STARTED.format(new Date(started))}</time>
+                  <time dateTime={started}>{STARTED().format(new Date(started))}</time>
                 </dd>
               </div>
               <div className="panel__fact">
-                <dt>Последний ход</dt>
-                <dd>{last === null ? '—' : <time dateTime={last}>{STARTED.format(new Date(last))}</time>}</dd>
+                <dt>{t.session.lastTurn}</dt>
+                <dd>{last === null ? '—' : <time dateTime={last}>{STARTED().format(new Date(last))}</time>}</dd>
               </div>
               <div className="panel__fact">
-                <dt>Работала</dt>
+                <dt>{t.session.worked}</dt>
                 <dd className="panel__big">{last === null ? '—' : formatClock(Date.parse(last) - Date.parse(started))}</dd>
               </div>
               <div className="panel__fact panel__fact--wide">
-                <dt>Контекст в конце</dt>
+                <dt>{t.session.endContext}</dt>
                 <dd>
                   <ContextMeter tokens={record.contextTokens} scale={scale} full />
                 </dd>
@@ -389,7 +364,7 @@ function SessionWindow({ row, scale, onClose }: { row: TaskSession; scale: Conte
               <TokensFact tokens={record.tokens} />
               {(record.branch !== null || record.workdir !== null) && (
                 <div className="panel__fact panel__fact--wide">
-                  <dt>Ветка и папка</dt>
+                  <dt>{t.session.place}</dt>
                   <dd className="session-window__place">
                     {record.branch ?? '—'} · {record.workdir ?? '—'}
                   </dd>
@@ -420,16 +395,16 @@ function Feed({ lines }: { lines: FeedLine[] }) {
   }
 
   return (
-    <section className="panel__feed" aria-label="Ход работы">
-      <h3 className="panel__feed-title">Ход работы</h3>
+    <section className="panel__feed" aria-label={t.session.feed}>
+      <h3 className="panel__feed-title">{t.session.feed}</h3>
       {lines.length === 0 ? (
-        <p className="placeholder">Сессия ещё ничего не сделала.</p>
+        <p className="placeholder">{t.session.feedEmpty}</p>
       ) : (
         <ol ref={listRef} className="feed" onScroll={onScroll}>
           {lines.map((line, index) => (
             <li key={`${line.at}-${index}`} className={`feed__line feed__line--${line.kind}`}>
               <time className="feed__time" dateTime={line.at}>
-                {line.at === '' ? '' : FEED_TIME.format(new Date(line.at))}
+                {line.at === '' ? '' : FEED_TIME().format(new Date(line.at))}
               </time>
               <span className="feed__text">{line.text}</span>
             </li>

@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest'
 import type { RuleMark } from '../../../src/stats/rules.js'
+import { setLanguage } from '../i18n/index.js'
 import { driftText, markKey, markPlaces, markTitle, pickMark, pickedSpan, precisionText, setTitle, shortPath, toggleChip } from './marks.js'
+
+setLanguage('ru')
 
 const mark = (id: string, fromAt: string, toAt = fromAt): RuleMark => ({
   fromAt,

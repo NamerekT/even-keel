@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { t } from '../i18n/index.js'
 import { useLive } from '../live/context.js'
 import { usageNotice } from '../state.js'
 
@@ -22,7 +23,7 @@ export function UsageBanner() {
       <div className="banner__inner">
         <span>{notice.text}</span>
         <button type="button" className="button" onClick={dismiss}>
-          Скрыть
+          {t.common.hide}
         </button>
       </div>
     </div>

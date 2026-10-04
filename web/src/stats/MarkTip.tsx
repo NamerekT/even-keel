@@ -1,11 +1,10 @@
 import type { RuleMark, RuleSet } from '../../../src/stats/rules.js'
 import { formatMoment } from '../format.js'
-import { PURPOSE_LABELS, driftText, precisionText, setTitle, shortPath } from './marks.js'
+import { t } from '../i18n/index.js'
+import { driftText, precisionText, purposeLabel, setTitle, shortPath } from './marks.js'
 
 const TIP_SETS = 5
 const TIP_FILES = 4
-
-const PURPOSES = new Map(PURPOSE_LABELS)
 
 export function SetNote({ set }: { set: RuleSet }) {
   const note = set.note
@@ -18,14 +17,14 @@ export function SetNote({ set }: { set: RuleSet }) {
         <span className="rule-tags">
           {note.purpose.map((purpose) => (
             <span key={purpose} className={`rule-tag rule-tag--${purpose}`}>
-              {PURPOSES.get(purpose)}
+              {purposeLabel(purpose)}
             </span>
           ))}
-          {precision !== null && <span className="rule-tag rule-tag--rough">время {precision}</span>}
+          {precision !== null && <span className="rule-tag rule-tag--rough">{t.stats.rules.time(precision)}</span>}
         </span>
       )}
       {note.reason !== '' && <span className="rule-reason">{note.reason}</span>}
-      {drift !== null && <span className="rule-drift">Импорт и транскрипт расходятся: {drift}</span>}
+      {drift !== null && <span className="rule-drift">{t.stats.rules.driftNote(drift)}</span>}
     </>
   )
 }
@@ -36,7 +35,7 @@ export function MarkTip({ mark, side }: { mark: RuleMark; side: 'left' | 'right'
   const to = formatMoment(mark.toAt, now)
   return (
     <div className={`chart__tip chart__tip--${side} mark-tip`} role="tooltip">
-      <strong>{from === to ? `Правка правил · ${to}` : `Правки правил · ${from} — ${to}`}</strong>
+      <strong>{from === to ? t.stats.rules.one(to) : t.stats.rules.many(from, to)}</strong>
       {mark.sets.slice(0, TIP_SETS).map((set) => (
         <div key={set.id} className="mark-tip__set">
           <span className="mark-tip__title">{setTitle(set)}</span>
@@ -47,11 +46,11 @@ export function MarkTip({ mark, side }: { mark: RuleMark; side: 'left' | 'right'
               {set.id.startsWith('i:') ? null : <Lines added={file.added} removed={file.removed} />}
             </span>
           ))}
-          {set.files.length > TIP_FILES && <span className="mark-tip__more">и ещё файлов: {set.files.length - TIP_FILES}</span>}
+          {set.files.length > TIP_FILES && <span className="mark-tip__more">{t.stats.rules.moreFiles(set.files.length - TIP_FILES)}</span>}
         </div>
       ))}
-      {mark.sets.length > TIP_SETS && <span className="mark-tip__more">и ещё наборов: {mark.sets.length - TIP_SETS}</span>}
-      <span className="mark-tip__hint">Клик — до и после, Shift-клик — вторая метка</span>
+      {mark.sets.length > TIP_SETS && <span className="mark-tip__more">{t.stats.rules.moreSets(mark.sets.length - TIP_SETS)}</span>}
+      <span className="mark-tip__hint">{t.stats.rules.tipHint}</span>
     </div>
   )
 }

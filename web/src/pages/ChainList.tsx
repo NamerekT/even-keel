@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type CSSProperties } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router'
 import type { ContextScale } from '../../../src/state.js'
-import { plural } from '../format.js'
+import { t } from '../i18n/index.js'
 import { useCommand } from '../live/useCommand.js'
 import { checkpointHandoffs, type BlockLamp, type ChainBlock } from '../state.js'
 import { ARCHIVE_PAGE, archiveView } from '../ui/archive.js'
@@ -12,15 +12,7 @@ import { milestoneView, type Section } from '../ui/milestones.js'
 import { relatives, type Point } from '../ui/reorder.js'
 import { useChainDrag, type ChainDrag } from './useChainDrag.js'
 
-const LEGEND: [BlockLamp, string][] = [
-  ['done', 'готово'],
-  ['working', 'в работе'],
-  ['waiting', 'ждёт ответа'],
-  ['stopped', 'сессия остановилась'],
-  ['error', 'ошибка или лимит'],
-  ['ahead', 'впереди'],
-  ['canceled', 'отменена'],
-]
+const LEGEND = ['done', 'working', 'waiting', 'stopped', 'error', 'ahead', 'canceled'] as const satisfies readonly BlockLamp[]
 
 interface Props {
   project: string
@@ -92,12 +84,12 @@ export function ChainList({ project, chain, scale, focus }: Props) {
         <div className="chain__buttons">
           {archive.hidden > 0 && (
             <button type="button" className="button" onClick={() => setPages(Math.ceil(archive.shown / ARCHIVE_PAGE) + 1)}>
-              {archive.shown === 0 ? `Архив (${archive.hidden})` : `Загрузить ещё (${archive.next}/${archive.hidden})`}
+              {archive.shown === 0 ? t.chain.archive(archive.hidden) : t.chain.loadMore(archive.next, archive.hidden)}
             </button>
           )}
           {archive.shown > 0 && (
             <button type="button" className="button" onClick={collapseArchive}>
-              Свернуть архив
+              {t.chain.foldArchive}
             </button>
           )}
         </div>
@@ -132,12 +124,12 @@ export function ChainList({ project, chain, scale, focus }: Props) {
           <div className="chain__buttons">
             {view.next !== null && (
               <button type="button" className="button chain__reveal" onClick={() => setRevealed(view.revealed + 1)}>
-                Загрузить следующую веху
+                {t.chain.nextMilestone}
               </button>
             )}
             {view.revealed > 0 && (
               <button type="button" className="button" onClick={collapseMilestones}>
-                Свернуть вехи
+                {t.chain.foldMilestones}
               </button>
             )}
           </div>
@@ -145,29 +137,26 @@ export function ChainList({ project, chain, scale, focus }: Props) {
       )}
       {failure !== null && <p className="notice notice--error">{failure}</p>}
       <ul className="chain__legend">
-        {LEGEND.map(([lamp, label]) => (
+        {LEGEND.map((lamp) => (
           <li key={lamp} className="chain__legend-item">
             <Lamp lamp={lamp} />
-            {label}
+            {t.chain.legend[lamp]}
           </li>
         ))}
       </ul>
-      <p className="chain__hint">Выбранная задача или задача под курсором подсвечивает свои блокеры и задачи, которые её ждут.</p>
-      {blocks.some((block) => movable(block)) && (
-        <p className="chain__hint">Порядок меняется перетаскиванием карточки, на телефоне — после долгого нажатия.</p>
-      )}
+      <p className="chain__hint">{t.chain.linksHint}</p>
+      {blocks.some((block) => movable(block)) && <p className="chain__hint">{t.chain.dragHint}</p>}
     </div>
   )
 }
 
 function Milestone({ section, hidden = false }: { section: Section<ChainBlock>; hidden?: boolean }) {
-  const count = section.blocks.length
-  const tasks = `${count} ${plural(count, 'задача', 'задачи', 'задач')}`
+  const tasks = t.chain.tasks(section.blocks.length)
   return (
     <h2 className={hidden ? 'chain__milestone chain__milestone--hidden' : 'chain__milestone'}>
-      <span className="chain__milestone-name">{section.milestone ?? 'Без вехи'}</span>
+      <span className="chain__milestone-name">{section.milestone ?? t.chain.noMilestone}</span>
       <span className="chain__milestone-line" aria-hidden="true" />
-      <span className="chain__milestone-count">{hidden ? `скрыта · ${tasks}` : tasks}</span>
+      <span className="chain__milestone-count">{hidden ? t.chain.hidden(tasks) : tasks}</span>
     </h2>
   )
 }
@@ -221,24 +210,24 @@ function Block({ block, number, waits, scale, focused, movable, relation, offset
       </div>
       <p className="block__title">{block.title}</p>
       <div className="block__side">
-        {block.skipped && <span className="block__badge block__badge--skipped">пропущена</span>}
+        {block.skipped && <span className="block__badge block__badge--skipped">{t.chain.skipped}</span>}
         {block.question && (
-          <span className="block__badge block__badge--question" title="Ярлык «Вопрос»: без ответа в описании сессия, скорее всего, встанет">
-            вопрос
+          <span className="block__badge block__badge--question" title={t.chain.questionTitle}>
+            {t.chain.question}
           </span>
         )}
-        {badge === 'blocker' && <span className="block__badge block__badge--blocker">блокирует</span>}
-        {badge === 'dependent' && <span className="block__badge block__badge--dependent">ждёт её</span>}
+        {badge === 'blocker' && <span className="block__badge block__badge--blocker">{t.chain.blocker}</span>}
+        {badge === 'dependent' && <span className="block__badge block__badge--dependent">{t.chain.dependent}</span>}
         {waits.length > 0 && (
           <span className="block__waits">
             <LockIcon />
-            ждёт {waits.join(', ')}
+            {t.chain.waits(waits.join(', '))}
           </span>
         )}
         {block.status !== null && !(block.current && block.session !== null) && <span className="block__status">{block.status}</span>}
         {block.current && checkpointHandoffs(block.sessions) > 0 && (
-          <span className="block__badge" title="Сколько раз сессии по задаче передали дела по контрольной точке">
-            передач ×{checkpointHandoffs(block.sessions)}
+          <span className="block__badge" title={t.chain.handoffsTitle}>
+            {t.chain.handoffs(checkpointHandoffs(block.sessions))}
           </span>
         )}
         {block.current && block.session !== null && (
@@ -249,7 +238,7 @@ function Block({ block, number, waits, scale, focused, movable, relation, offset
         )}
         {block.skipped && (
           <button type="button" className="button block__return" disabled={onReturn === undefined} onClick={onReturn}>
-            Вернуть
+            {t.common.restore}
           </button>
         )}
       </div>

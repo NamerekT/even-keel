@@ -1,3 +1,5 @@
+import { t } from '../i18n/index.js'
+
 export interface DayRange {
   from: string
   to: string
@@ -7,24 +9,12 @@ export type Preset = '7d' | '30d' | 'month' | 'last-month' | '3m' | 'year' | 'al
 export type Step = 'day' | 'week' | 'month'
 export type PeriodChoice = { preset: Preset } | DayRange
 
-export const PRESETS: { preset: Preset; label: string }[] = [
-  { preset: '7d', label: '7 дней' },
-  { preset: '30d', label: '30 дней' },
-  { preset: 'month', label: 'Этот месяц' },
-  { preset: 'last-month', label: 'Прошлый месяц' },
-  { preset: '3m', label: '3 месяца' },
-  { preset: 'year', label: 'Этот год' },
-  { preset: 'all', label: 'Всё время' },
-]
-
-const MONTHS_OF_DAY = ['янв', 'февр', 'мар', 'апр', 'мая', 'июн', 'июл', 'авг', 'сент', 'окт', 'нояб', 'дек']
-export const MONTHS_SHORT = ['янв', 'фев', 'мар', 'апр', 'май', 'июн', 'июл', 'авг', 'сен', 'окт', 'ноя', 'дек']
-export const MONTHS = ['Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь', 'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь']
+export const PRESETS: Preset[] = ['7d', '30d', 'month', 'last-month', '3m', 'year', 'all']
 
 const DAY_MS = 86_400_000
 
 export function isPreset(text: string): text is Preset {
-  return PRESETS.some((each) => each.preset === text)
+  return (PRESETS as string[]).includes(text)
 }
 
 export function localDay(date: Date): string {
@@ -150,7 +140,7 @@ export function buckets(range: DayRange, step: Step): string[] {
 }
 
 export function formatDay(day: string, withYear = true): string {
-  const text = `${Number(day.slice(8))} ${MONTHS_OF_DAY[Number(day.slice(5, 7)) - 1]}`
+  const text = `${Number(day.slice(8))} ${t.stats.period.monthsOfDay[Number(day.slice(5, 7)) - 1]}`
   return withYear ? `${text} ${day.slice(0, 4)}` : text
 }
 
@@ -161,6 +151,6 @@ export function formatRange(range: DayRange): string {
 }
 
 export function formatBucket(bucket: string, step: Step): string {
-  if (step === 'month') return `${MONTHS_SHORT[Number(bucket.slice(5, 7)) - 1]} ${bucket.slice(0, 4)}`
+  if (step === 'month') return `${t.stats.period.monthsShort[Number(bucket.slice(5, 7)) - 1]} ${bucket.slice(0, 4)}`
   return formatDay(bucket, false)
 }

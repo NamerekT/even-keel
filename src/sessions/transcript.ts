@@ -46,7 +46,7 @@ export interface TranscriptSummary {
 const FEED_SIZE = 30
 const TEXT_LIMIT = 500
 const MESSAGE_LIMIT = 6000
-const WRAP_UP_TEXT = 'Лимит исчерпан: Claude Code велел сессии свернуть ход'
+const WRAP_UP_TEXT = 'Usage limit reached: Claude Code told the session to wrap up the turn'
 const REMOTE_DROPPED = 'Remote Control disconnected'
 const CHECKPOINT_LINE = /^[`*_]*CHECKPOINT:[`*_]*\s*[`*_]*([^`*\s][^`*]*?)[`*_]*$/
 const TTL_MS: Record<CacheTtl, number> = { '5m': 5 * 60_000, '1h': 60 * 60_000 }

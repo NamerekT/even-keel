@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type RefObject } from 'react'
+import { t } from '../i18n/index.js'
 import { seriesStyle } from '../ui/series.js'
 import { Segmented } from './common.js'
 import { formatShare, formatUsd } from './format.js'
@@ -7,17 +8,8 @@ import { markKey, markTitle, type MarkPlace } from './marks.js'
 import { MarkTip } from './MarkTip.js'
 import { addDays, formatBucket, formatDay, nextBucket, type DayRange, type Step } from './period.js'
 
-const METRICS: [Metric, string, string][] = [
-  ['cost', '$', 'Деньги по ценам API'],
-  ['limit', '% лимита', 'Доля недельного лимита'],
-  ['sessions', 'сессии', 'Новые сессии'],
-]
-const STEPS: [Step, string, string][] = [
-  ['day', 'Д', 'По дням'],
-  ['week', 'Н', 'По неделям'],
-  ['month', 'М', 'По месяцам'],
-]
-const TITLES: Record<Step, string> = { day: 'Расход по дням', week: 'Расход по неделям', month: 'Расход по месяцам' }
+const METRICS: Metric[] = ['cost', 'limit', 'sessions']
+const STEPS: Step[] = ['day', 'week', 'month']
 const MAX_LABELS = 16
 const LABEL_WIDTH = 64
 
@@ -102,11 +94,16 @@ export function SpendChart({
     <section className="chart spend" aria-labelledby="spend-title">
       <header className="chart__head">
         <h2 id="spend-title" className="chart__title">
-          {TITLES[step]}
+          {t.stats.spend.titles[step]}
         </h2>
         <div className="spend__controls">
-          <Segmented label="Что считать" options={METRICS} value={metric} onChange={onMetric} />
-          <Segmented label="Шаг" options={STEPS} value={step} onChange={onStep} />
+          <Segmented
+            label={t.stats.spend.metric}
+            options={METRICS.map((each) => [each, ...t.stats.spend.metrics[each]])}
+            value={metric}
+            onChange={onMetric}
+          />
+          <Segmented label={t.stats.spend.step} options={STEPS.map((each) => [each, ...t.stats.spend.steps[each]])} value={step} onChange={onStep} />
         </div>
       </header>
 
@@ -116,7 +113,7 @@ export function SpendChart({
           <span>0</span>
         </div>
         <div className="chart__columns spend__columns">
-          {total === 0 && <p className="chart__empty">За период пусто</p>}
+          {total === 0 && <p className="chart__empty">{t.stats.spend.empty}</p>}
           {buckets.map((row, index) => {
             const title = bucketTitle(row.bucket, step, range)
             const side = index < buckets.length / 2 ? 'right' : 'left'
@@ -159,7 +156,7 @@ export function SpendChart({
                       className={on ? 'spend__mark spend__mark--on' : 'spend__mark'}
                       style={{ left: `${offset * 100}%` }}
                       aria-pressed={on}
-                      aria-label={`Правка правил: ${markTitle(mark)}`}
+                      aria-label={t.stats.spend.mark(markTitle(mark))}
                       onPointerDown={(event) => event.stopPropagation()}
                       onPointerEnter={() => setHoveredMark(key)}
                       onPointerLeave={() => setHoveredMark(null)}
@@ -185,7 +182,8 @@ export function SpendChart({
                         </span>
                       ))}
                     <span className="chart__tip-row spend__tip-total">
-                      Всего<span className="chart__tip-count">{formatMetric(row.total, metric)}</span>
+                      {t.common.total}
+                      <span className="chart__tip-count">{formatMetric(row.total, metric)}</span>
                     </span>
                   </div>
                 )}
@@ -195,8 +193,8 @@ export function SpendChart({
         </div>
       </div>
       <p className="spend__hint">
-        Выделите мышью отрезок графика, чтобы приблизить его{onZoomOut !== null && '; двойной клик — назад'}.
-        {marks.size > 0 && ' Вертикальные метки — правки правил: клик по метке сравнивает до и после.'}
+        {t.stats.spend.zoom}
+        {onZoomOut !== null && t.stats.spend.zoomOut}.{marks.size > 0 && t.stats.spend.marks}
       </p>
     </section>
   )

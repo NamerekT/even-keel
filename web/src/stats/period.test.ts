@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { setLanguage } from '../i18n/index.js'
 import {
   addMonths,
   autoStep,
@@ -12,6 +13,8 @@ import {
   resolvePeriod,
   shiftRange,
 } from './period.js'
+
+setLanguage('ru')
 
 const TODAY = '2026-10-03'
 

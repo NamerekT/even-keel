@@ -1,5 +1,6 @@
 import { Link } from 'react-router'
 import type { EvenKeelState } from '../../../src/state.js'
+import { t } from '../i18n/index.js'
 import { useCommand } from '../live/useCommand.js'
 import { cardTask, chainProgress, chainStatus, limitWaitText, openQuestions, projectSlot, projectTasks } from '../state.js'
 import { Lamp } from '../ui/Lamp.js'
@@ -33,7 +34,7 @@ export function ProjectCard({ state, project }: { state: EvenKeelState; project:
         <span
           className="card__bar"
           role="progressbar"
-          aria-label="Готово задач"
+          aria-label={t.project.done}
           aria-valuemin={0}
           aria-valuemax={total}
           aria-valuenow={done}
@@ -46,11 +47,11 @@ export function ProjectCard({ state, project }: { state: EvenKeelState; project:
       </div>
 
       {task === null ? (
-        <p className="card__task card__task--empty">{order === undefined ? 'Задачи ещё не загружены' : 'Открытых задач нет'}</p>
+        <p className="card__task card__task--empty">{order === undefined ? t.project.notLoaded : t.project.noTasks}</p>
       ) : (
         <p className="card__task">
           <Lamp lamp={task.lamp} />
-          <span className="card__task-label">{task.next ? 'Следующая' : 'Сейчас'}</span>
+          <span className="card__task-label">{task.next ? t.project.next : t.project.now}</span>
           <span className="card__task-id">{task.id}</span>
           {task.title !== null && <span className="card__task-title">{task.title}</span>}
         </p>
@@ -62,7 +63,7 @@ export function ProjectCard({ state, project }: { state: EvenKeelState; project:
       {canStart && (
         <footer className="card__foot">
           <button type="button" className="button button--primary" disabled={sending} onClick={() => void send('chain/start', { project })}>
-            {state.chain.active === null ? 'Запустить' : 'В очередь'}
+            {state.chain.active === null ? t.project.start : t.project.enqueue}
           </button>
         </footer>
       )}

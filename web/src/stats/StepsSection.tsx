@@ -1,9 +1,12 @@
 import type { StatsStep, StatsSteps, StatsStepWeek, StatsUnknownStep } from '../../../src/stats/steps.js'
-import { plural } from '../format.js'
+import { t } from '../i18n/index.js'
 import { AnswerNotice, Section, loadedData, type Loaded } from './common.js'
 import { formatSeconds, formatShare } from './format.js'
 
-const BUCKETS = ['< 3 с', '3–10 с', '10–30 с', '30–60 с', '1–2 мин', '2–5 мин', '5–10 мин', '10+ мин']
+function buckets(): string[] {
+  const { second, minute } = t.units
+  return [`< 3 ${second}`, `3–10 ${second}`, `10–30 ${second}`, `30–60 ${second}`, `1–2 ${minute}`, `2–5 ${minute}`, `5–10 ${minute}`, `10+ ${minute}`]
+}
 
 const percent = (part: number, whole: number): string => formatShare(whole > 0 ? (part / whole) * 100 : null)
 const shortDay = (day: string): string => `${day.slice(8, 10)}.${day.slice(5, 7)}`
@@ -12,7 +15,7 @@ export function StepsSection({ loaded }: { loaded: Loaded<StatsSteps> | null }) 
   const steps = loadedData(loaded)
   if (steps === null) {
     return (
-      <Section title="Шаги">
+      <Section title={t.stats.steps.title}>
         <AnswerNotice loaded={loaded} />
       </Section>
     )
@@ -21,21 +24,14 @@ export function StepsSection({ loaded }: { loaded: Loaded<StatsSteps> | null }) 
   const growth = steps.steps.flatMap((step) => step.growth.map((each) => ({ step: step.step, ...each })))
 
   return (
-    <Section
-      title="Шаги"
-      aside={
-        <span className="stats-section__note">
-          сборки, проверки и тесты по командам; фоновый запуск — до уведомления о конце; доля — от активного времени {steps.tasks}{' '}
-          {plural(steps.tasks, 'задачи', 'задач', 'задач')} за всю задачу
-        </span>
-      }
-    >
+    <Section title={t.stats.steps.title} aside={<span className="stats-section__note">{t.stats.steps.note(steps.tasks)}</span>}>
       {growth.length > 0 && (
         <ul className="steps-growth">
           {growth.map((each) => (
             <li key={`${each.step}|${each.week}`}>
-              {each.quantile} <code>{each.step}</code> вырос с {formatSeconds(each.from)} до {formatSeconds(each.to)}{' '}
-              <span className="steps-growth__week">неделя с {shortDay(each.week)}</span>
+              {t.stats.steps.grew(each.quantile)} <code>{each.step}</code>
+              {t.stats.steps.grewFrom(formatSeconds(each.from), formatSeconds(each.to))}
+              <span className="steps-growth__week">{t.stats.steps.week(shortDay(each.week))}</span>
             </li>
           ))}
         </ul>
@@ -45,28 +41,32 @@ export function StepsSection({ loaded }: { loaded: Loaded<StatsSteps> | null }) 
           <table className="tasks steps">
             <thead>
               <tr>
-                <th scope="col">Шаг</th>
-                <th scope="col" className="tasks__num">Запуски</th>
+                <th scope="col">{t.stats.steps.step}</th>
+                <th scope="col" className="tasks__num">{t.stats.steps.runs}</th>
                 <th scope="col" className="tasks__num">p50</th>
                 <th scope="col" className="tasks__num">p90</th>
-                <th scope="col" className="tasks__num">Макс.</th>
-                <th scope="col" className="tasks__num" title={`Доля запусков дольше ${formatSeconds(steps.settings.slowSeconds)}`}>
+                <th scope="col" className="tasks__num">{t.common.max}</th>
+                <th scope="col" className="tasks__num" title={t.stats.steps.slow(formatSeconds(steps.settings.slowSeconds))}>
                   &gt; {formatSeconds(steps.settings.slowSeconds)}
                 </th>
-                <th scope="col" title={BUCKETS.join(' · ')}>Распределение</th>
-                <th scope="col" className="tasks__num" title="Первый запуск шага в worktree или слоте на этой ветке: p50 и число">
-                  Холодный
+                <th scope="col" title={buckets().join(' · ')}>
+                  {t.stats.steps.spread}
                 </th>
-                <th scope="col" className="tasks__num" title="Повторные запуски: p50 и число">
-                  Тёплый
+                <th scope="col" className="tasks__num" title={t.stats.steps.coldTitle}>
+                  {t.stats.steps.cold}
                 </th>
-                <th scope="col" className="tasks__num" title="Падение или таймаут">
-                  Упало
+                <th scope="col" className="tasks__num" title={t.stats.steps.warmTitle}>
+                  {t.stats.steps.warm}
                 </th>
-                <th scope="col" className="tasks__num" title="Доля активного времени задач, ушедшая на шаг">
-                  Время задач
+                <th scope="col" className="tasks__num" title={t.stats.steps.failedTitle}>
+                  {t.stats.steps.failed}
                 </th>
-                <th scope="col" title="p90 по неделям">По неделям</th>
+                <th scope="col" className="tasks__num" title={t.stats.steps.shareTitle}>
+                  {t.stats.steps.share}
+                </th>
+                <th scope="col" title={t.stats.steps.weeklyTitle}>
+                  {t.stats.steps.weekly}
+                </th>
               </tr>
             </thead>
             <tbody>
@@ -84,6 +84,7 @@ export function StepsSection({ loaded }: { loaded: Loaded<StatsSteps> | null }) 
 
 function StepRow({ step }: { step: StatsStep }) {
   const failed = step.outcomes.fail + step.outcomes.timeout
+  const { fail, timeout, killed, unknown } = step.outcomes
   return (
     <tr>
       <th scope="row">
@@ -97,16 +98,13 @@ function StepRow({ step }: { step: StatsStep }) {
       <td>
         <Buckets counts={step.buckets} />
       </td>
-      <td className="tasks__num" title={`${step.cold.n} ${plural(step.cold.n, 'запуск', 'запуска', 'запусков')}, p90 ${formatSeconds(step.cold.p90)}`}>
+      <td className="tasks__num" title={`${t.stats.steps.launches(step.cold.n)}, p90 ${formatSeconds(step.cold.p90)}`}>
         {formatSeconds(step.cold.p50)} <span className="steps__count">{step.cold.n}</span>
       </td>
-      <td className="tasks__num" title={`${step.warm.n} ${plural(step.warm.n, 'запуск', 'запуска', 'запусков')}, p90 ${formatSeconds(step.warm.p90)}`}>
+      <td className="tasks__num" title={`${t.stats.steps.launches(step.warm.n)}, p90 ${formatSeconds(step.warm.p90)}`}>
         {formatSeconds(step.warm.p50)} <span className="steps__count">{step.warm.n}</span>
       </td>
-      <td
-        className="tasks__num"
-        title={`упало ${step.outcomes.fail}, таймаут ${step.outcomes.timeout}, прервано ${step.outcomes.killed}, неизвестно ${step.outcomes.unknown}`}
-      >
+      <td className="tasks__num" title={t.stats.steps.outcomes(fail, timeout, killed, unknown)}>
         {percent(failed, step.n)}
       </td>
       <td className="tasks__num">{step.share === null ? '—' : formatShare(step.share * 100)}</td>
@@ -119,10 +117,11 @@ function StepRow({ step }: { step: StatsStep }) {
 
 function Buckets({ counts }: { counts: number[] }) {
   const top = Math.max(1, ...counts)
+  const labels = buckets()
   return (
-    <span className="steps-buckets" aria-label={counts.map((count, index) => `${BUCKETS[index]}: ${count}`).join(', ')}>
+    <span className="steps-buckets" aria-label={counts.map((count, index) => `${labels[index]}: ${count}`).join(', ')}>
       {counts.map((count, index) => (
-        <span key={BUCKETS[index]} className="steps-buckets__bar" title={`${BUCKETS[index]}: ${count}`}>
+        <span key={index} className="steps-buckets__bar" title={`${labels[index]}: ${count}`}>
           <span style={{ height: `${count === 0 ? 0 : Math.max(8, (count / top) * 100)}%` }} />
         </span>
       ))}
@@ -139,7 +138,7 @@ function Weeks({ weeks }: { weeks: StatsStepWeek[] }) {
         <span
           key={week.week}
           className={`steps-buckets__bar${week.grewP50 || week.grewP90 ? ' steps-weeks__grew' : ''}`}
-          title={`неделя с ${shortDay(week.week)}: ${week.n} ${plural(week.n, 'запуск', 'запуска', 'запусков')}, p50 ${formatSeconds(week.p50)}, p90 ${formatSeconds(week.p90)}`}
+          title={`${t.stats.steps.week(shortDay(week.week))}: ${t.stats.steps.launches(week.n)}, p50 ${formatSeconds(week.p50)}, p90 ${formatSeconds(week.p90)}`}
         >
           <span style={{ height: `${Math.max(8, (week.p90 / top) * 100)}%` }} />
         </span>
@@ -151,15 +150,15 @@ function Weeks({ weeks }: { weeks: StatsStepWeek[] }) {
 function UnknownSteps({ unknown }: { unknown: StatsUnknownStep[] }) {
   return (
     <details className="steps-unknown">
-      <summary>Команды без правила — дольше всего в сумме</summary>
+      <summary>{t.stats.steps.unruled}</summary>
       <div className="estimates__scroll">
         <table className="tasks">
           <thead>
             <tr>
-              <th scope="col">Команда</th>
-              <th scope="col" className="tasks__num">Запуски</th>
-              <th scope="col" className="tasks__num">Всего</th>
-              <th scope="col" className="tasks__num">Макс.</th>
+              <th scope="col">{t.stats.steps.command}</th>
+              <th scope="col" className="tasks__num">{t.stats.steps.runs}</th>
+              <th scope="col" className="tasks__num">{t.common.total}</th>
+              <th scope="col" className="tasks__num">{t.common.max}</th>
             </tr>
           </thead>
           <tbody>

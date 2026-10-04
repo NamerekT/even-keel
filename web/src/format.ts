@@ -1,39 +1,34 @@
+import { localized, t } from './i18n/index.js'
+
 const MINUTE = 60_000
 const HOUR = 60 * MINUTE
 const DAY = 24 * HOUR
 
 export function formatSpan(until: string, now: Date): string {
   const ms = Date.parse(until) - now.getTime()
-  if (ms < MINUTE) return '< 1 мин'
-  if (ms >= DAY) return pair(Math.floor(ms / DAY), 'д', Math.floor((ms % DAY) / HOUR), 'ч')
-  if (ms >= HOUR) return pair(Math.floor(ms / HOUR), 'ч', Math.floor((ms % HOUR) / MINUTE), 'мин')
-  return `${Math.floor(ms / MINUTE)} мин`
+  const { day, hour, minute } = t.units
+  if (ms < MINUTE) return `< 1 ${minute}`
+  if (ms >= DAY) return pair(Math.floor(ms / DAY), day, Math.floor((ms % DAY) / HOUR), hour)
+  if (ms >= HOUR) return pair(Math.floor(ms / HOUR), hour, Math.floor((ms % HOUR) / MINUTE), minute)
+  return `${Math.floor(ms / MINUTE)} ${minute}`
 }
 
-const CLOCK = new Intl.DateTimeFormat('ru', { hour: '2-digit', minute: '2-digit' })
-const DATED = new Intl.DateTimeFormat('ru', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
+const CLOCK = localized((language) => new Intl.DateTimeFormat(language, { hour: '2-digit', minute: '2-digit' }))
+const DATED = localized((language) => new Intl.DateTimeFormat(language, { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }))
 
 export function formatMoment(at: string, now: Date): string {
   const moment = new Date(at)
-  return moment.toDateString() === now.toDateString() ? CLOCK.format(moment) : DATED.format(moment)
+  return moment.toDateString() === now.toDateString() ? CLOCK().format(moment) : DATED().format(moment)
 }
 
 export function formatAgo(at: string, now: Date): string {
   const ms = now.getTime() - Date.parse(at)
-  if (ms < 5_000) return 'только что'
-  if (ms < MINUTE) return `${Math.floor(ms / 1000)} с назад`
-  if (ms < HOUR) return `${Math.floor(ms / MINUTE)} мин назад`
-  if (ms < DAY) return `${Math.floor(ms / HOUR)} ч назад`
-  return `${Math.floor(ms / DAY)} д назад`
-}
-
-export function plural(count: number, one: string, few: string, many: string): string {
-  const tens = count % 100
-  const units = count % 10
-  if (tens >= 11 && tens <= 14) return many
-  if (units === 1) return one
-  if (units >= 2 && units <= 4) return few
-  return many
+  const { day, hour, minute, second } = t.units
+  if (ms < 5_000) return t.time.justNow
+  if (ms < MINUTE) return t.time.ago(`${Math.floor(ms / 1000)} ${second}`)
+  if (ms < HOUR) return t.time.ago(`${Math.floor(ms / MINUTE)} ${minute}`)
+  if (ms < DAY) return t.time.ago(`${Math.floor(ms / HOUR)} ${hour}`)
+  return t.time.ago(`${Math.floor(ms / DAY)} ${day}`)
 }
 
 export function formatTokens(tokens: number): string {
@@ -50,7 +45,7 @@ export function formatClock(ms: number): string {
   const minutes = Math.floor((seconds % 3_600) / 60)
   const two = (value: number) => String(value).padStart(2, '0')
   const tail = two(seconds % 60)
-  if (days > 0) return `${days} д ${hours}:${two(minutes)}:${tail}`
+  if (days > 0) return `${days} ${t.units.day} ${hours}:${two(minutes)}:${tail}`
   if (hours > 0) return `${hours}:${two(minutes)}:${tail}`
   return `${minutes}:${tail}`
 }

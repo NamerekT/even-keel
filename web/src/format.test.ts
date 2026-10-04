@@ -1,5 +1,8 @@
-import { describe, expect, it } from 'vitest'
-import { formatAgo, formatClock, formatMoment, formatSpan, formatTokens, plural } from './format.js'
+import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { formatAgo, formatClock, formatMoment, formatSpan, formatTokens } from './format.js'
+import { setLanguage } from './i18n/index.js'
+
+setLanguage('ru')
 
 const now = new Date('2026-01-01T12:00:00.000Z')
 const later = (ms: number) => new Date(now.getTime() + ms).toISOString()
@@ -50,26 +53,20 @@ describe('formatAgo', () => {
   })
 })
 
-describe('plural', () => {
-  const launches = (count: number) => plural(count, 'запуск', 'запуска', 'запусков')
+describe('in English', () => {
+  beforeEach(() => setLanguage('en'))
+  afterEach(() => setLanguage('ru'))
 
-  it('picks the Russian form by the last digits', () => {
-    expect([0, 1, 2, 4, 5, 11, 12, 14, 21, 22, 25, 101, 111, 112].map(launches)).toEqual([
-      'запусков',
-      'запуск',
-      'запуска',
-      'запуска',
-      'запусков',
-      'запусков',
-      'запусков',
-      'запусков',
-      'запуск',
-      'запуска',
-      'запусков',
-      'запуск',
-      'запусков',
-      'запусков',
-    ])
+  it('uses English units', () => {
+    expect(formatSpan(later(2 * HOUR + 14 * MIN + 30_000), now)).toBe('2 h 14 min')
+    expect(formatAgo(earlier(4_000), now)).toBe('just now')
+    expect(formatAgo(earlier(3 * MIN + 40_000), now)).toBe('3 min ago')
+    expect(formatClock(2 * DAY + 3 * HOUR + 4 * MIN)).toBe('2 d 3:04:00')
+  })
+
+  it('formats dates in English', () => {
+    const today = new Date(2026, 8, 27, 12, 0)
+    expect(formatMoment(new Date(2026, 9, 3, 14, 59).toISOString(), today)).toMatch(/Oct 3/)
   })
 })
 

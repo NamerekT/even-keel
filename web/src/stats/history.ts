@@ -1,4 +1,5 @@
 import type { StatsHistory } from '../../../src/stats/model.js'
+import { t } from '../i18n/index.js'
 import { PROJECT_SLOTS, projectSlot } from '../state.js'
 import { bucketOf, buckets as listBuckets, type DayRange, type Step } from './period.js'
 
@@ -104,7 +105,7 @@ export function chartData(
   const own = ranked.slice(0, limit)
   const colors = projectColors(history)
   const series: ChartSeries[] = own.map((key) => ({ key, label: key, slot: colors.get(key) ?? null }))
-  if (ranked.length > own.length) series.push({ key: OTHER, label: 'прочие', slot: null })
+  if (ranked.length > own.length) series.push({ key: OTHER, label: t.stats.others, slot: null })
   const seriesIndex = new Map(own.map((key, index) => [key, index]))
 
   const keys = listBuckets(range, step)

@@ -8,6 +8,7 @@ import type { CacheTtl, CacheWindow, TokenTotals } from '../../src/sessions/tran
 import type { UsageHealth } from '../../src/limits/usage.js'
 import type { EvenKeelState, ContextScale, SessionView, TrackerUrls } from '../../src/state.js'
 import { formatMoment } from './format.js'
+import { t } from './i18n/index.js'
 
 export type CardLamp = Lamp | 'idle'
 
@@ -17,10 +18,12 @@ export interface AccountBadge {
 }
 
 export function accountBadge(view: AccountView): AccountBadge {
-  if (view.login !== null) return view.login.error === null ? { kind: 'login', label: 'Вход…' } : { kind: 'out', label: 'Вход не удался' }
+  if (view.login !== null) {
+    return view.login.error === null ? { kind: 'login', label: t.account.loggingIn } : { kind: 'out', label: t.account.loginFailed }
+  }
   const active = view.accounts.find((entry) => entry.key === view.active)
   if (active?.status == null) return { kind: 'unknown', label: 'Claude' }
-  if (active.needsLogin) return { kind: 'out', label: 'Нужен вход' }
+  if (active.needsLogin) return { kind: 'out', label: t.account.needsLogin }
   return { kind: 'in', label: active.status.email?.split('@')[0] ?? 'Claude' }
 }
 
@@ -30,9 +33,9 @@ const RENEW_WITHIN_DAYS = 7
 export function loginLeft(expiresAt: string | null, now: Date): { text: string; renew: boolean } {
   if (expiresAt === null) return { text: '—', renew: false }
   const left = Date.parse(expiresAt) - now.getTime()
-  if (left <= 0) return { text: 'истёк', renew: true }
+  if (left <= 0) return { text: t.account.expired, renew: true }
   const days = Math.floor(left / DAY_MS)
-  return { text: days === 0 ? 'меньше суток' : `${days} дн.`, renew: days < RENEW_WITHIN_DAYS }
+  return { text: days === 0 ? t.account.underDay : t.account.days(days), renew: days < RENEW_WITHIN_DAYS }
 }
 
 export type ChainStatus =
@@ -119,14 +122,14 @@ export function usageNotice(health: UsageHealth): UsageNotice | null {
   if (health.state === 'unread') {
     return {
       tone: 'warn',
-      text: `Лимиты из /usage не читаются — показаны последние из statusline, CLI мог поменять формат. Причина: ${health.reason}`,
+      text: t.banner.usageUnread(health.reason),
       key: `unread:${health.since}`,
     }
   }
   if (health.state === 'off') {
     return {
       tone: 'error',
-      text: `Опрос /usage выключен до перезапуска службы: ответ похож на ход модели, а он тратит квоту. Причина: ${health.reason}`,
+      text: t.banner.usageOff(health.reason),
       key: `off:${health.since}`,
     }
   }
@@ -134,7 +137,7 @@ export function usageNotice(health: UsageHealth): UsageNotice | null {
 }
 
 export function limitWaitText(until: string, now: Date): string {
-  return `Лимит исчерпан — следующая задача запустится после сброса в ${formatMoment(until, now)}.`
+  return t.banner.limitHold(formatMoment(until, now))
 }
 
 export function cardTask(state: EvenKeelState, project: string): CardTask | null {

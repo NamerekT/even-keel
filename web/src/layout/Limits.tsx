@@ -1,16 +1,15 @@
 import type { LimitWindow, RateLimits } from '../../../src/limits/model.js'
 import { formatSpan } from '../format.js'
+import { t } from '../i18n/index.js'
 
 const HOT_PERCENT = 90
 
-const SOURCES: Record<RateLimits['source'], string> = { usage: 'по /usage', statusline: 'по statusline' }
-
 export function Limits({ limits, now }: { limits: RateLimits | null; now: Date }) {
-  const source = limits === null ? '' : ` · ${SOURCES[limits.source]}`
+  const source = limits === null ? '' : ` · ${t.limits.sources[limits.source]}`
   return (
     <div className="limits">
-      <Meter label="5 часов" title="Лимит 5 часов" source={source} window={limits?.fiveHour ?? null} now={now} />
-      <Meter label="Неделя" title="Недельный лимит" source={source} window={limits?.sevenDay ?? null} now={now} />
+      <Meter label={t.limits.fiveHour} title={t.limits.fiveHourTitle} source={source} window={limits?.fiveHour ?? null} now={now} />
+      <Meter label={t.limits.week} title={t.limits.weekTitle} source={source} window={limits?.sevenDay ?? null} now={now} />
     </div>
   )
 }
@@ -26,7 +25,7 @@ interface MeterProps {
 function Meter({ label, title, source, window, now }: MeterProps) {
   if (window === null) {
     return (
-      <div className="meter meter--empty" title={`${title}: нет данных${source}`}>
+      <div className="meter meter--empty" title={t.limits.empty(title, source)}>
         <span className="meter__top">
           <span className="meter__label">{label}</span>
           <span className="meter__value">—</span>
@@ -39,7 +38,7 @@ function Meter({ label, title, source, window, now }: MeterProps) {
   const percent = Math.round(Math.min(Math.max(window.usedPercentage, 0), 100))
   const resetIn = formatSpan(window.resetsAt, now)
   return (
-    <div className={`meter${percent >= HOT_PERCENT ? ' meter--hot' : ''}`} title={`${title}: сброс через ${resetIn}${source}`}>
+    <div className={`meter${percent >= HOT_PERCENT ? ' meter--hot' : ''}`} title={t.limits.reset(title, resetIn, source)}>
       <span className="meter__top">
         <span className="meter__label">{label}</span>
         <span className="meter__value">{percent}%</span>

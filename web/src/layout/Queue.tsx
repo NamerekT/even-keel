@@ -1,6 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState, type KeyboardEvent, type PointerEvent } from 'react'
 import { Link } from 'react-router'
 import type { EvenKeelState } from '../../../src/state.js'
+import { t } from '../i18n/index.js'
 import { useCommand } from '../live/useCommand.js'
 import { cardTask, chainStatus, projectSlot } from '../state.js'
 import { dragShift, dropIndex, moveItem } from '../ui/drag.js'
@@ -21,13 +22,13 @@ export function QueueMenu({ state }: { state: EvenKeelState }) {
         className={`queue-toggle queue-toggle--${kind}`}
         aria-expanded={open}
         aria-controls="queue-panel"
-        title="Очередь цепочек"
+        title={t.queue.title}
         onClick={() => setOpen(!open)}
       >
         <span className="queue-toggle__dot" aria-hidden="true" />
-        <span className="queue-toggle__label">{active?.project ?? 'Цепочка'}</span>
+        <span className="queue-toggle__label">{active?.project ?? t.queue.chain}</span>
         {queue.length > 0 && (
-          <span className="queue-toggle__count" aria-label={`в очереди ${queue.length}`}>
+          <span className="queue-toggle__count" aria-label={t.queue.count(queue.length)}>
             +{queue.length}
           </span>
         )}
@@ -51,11 +52,11 @@ function QueuePanel({ state }: { state: EvenKeelState }) {
   }
 
   return (
-    <div id="queue-panel" className="queue" role="dialog" aria-label="Очередь цепочек">
+    <div id="queue-panel" className="queue" role="dialog" aria-label={t.queue.title}>
       <section className="queue__section">
-        <h2 className="queue__heading">Сейчас</h2>
+        <h2 className="queue__heading">{t.queue.now}</h2>
         {active === null ? (
-          <p className="queue__empty">Ни одна цепочка не идёт.</p>
+          <p className="queue__empty">{t.queue.idle}</p>
         ) : (
           <div className="queue__row queue__row--active" style={seriesStyle(projectSlot(state.projects, active.project))}>
             <span className="card__swatch" aria-hidden="true" />
@@ -69,9 +70,9 @@ function QueuePanel({ state }: { state: EvenKeelState }) {
       </section>
 
       <section className="queue__section">
-        <h2 className="queue__heading">Очередь</h2>
+        <h2 className="queue__heading">{t.queue.heading}</h2>
         {served.length === 0 ? (
-          <p className="queue__empty">Пусто. Проект встаёт сюда кнопкой «В очередь», пока идёт другая цепочка.</p>
+          <p className="queue__empty">{t.queue.empty}</p>
         ) : (
           <QueueList
             state={state}
@@ -81,7 +82,7 @@ function QueuePanel({ state }: { state: EvenKeelState }) {
             onRemove={(project) => void send('chain/dequeue', { project })}
           />
         )}
-        {served.length > 1 && <p className="queue__hint">Порядок меняется перетаскиванием за ⠿ или стрелками на нём.</p>}
+        {served.length > 1 && <p className="queue__hint">{t.queue.dragHint}</p>}
       </section>
 
       {failure !== null && <p className="notice notice--error queue__error">{failure}</p>}
@@ -181,7 +182,7 @@ function QueueList({ state, queue, disabled, onMove, onRemove }: ListProps) {
               type="button"
               className="queue__handle"
               data-handle={project}
-              aria-label={`Переставить ${project}: стрелки вверх и вниз`}
+              aria-label={t.queue.move(project)}
               disabled={queue.length < 2}
               onPointerDown={grab(index)}
               onPointerMove={follow}
@@ -199,8 +200,8 @@ function QueueList({ state, queue, disabled, onMove, onRemove }: ListProps) {
             <button
               type="button"
               className="queue__remove"
-              aria-label={`Убрать ${project} из очереди`}
-              title="Убрать из очереди"
+              aria-label={t.queue.remove(project)}
+              title={t.queue.removeTitle}
               disabled={disabled}
               onClick={() => onRemove(project)}
             >
@@ -221,7 +222,7 @@ function listClass(dragging: boolean, landing: boolean): string {
 
 function TaskLine({ state, project }: { state: EvenKeelState; project: string }) {
   const task = cardTask(state, project)
-  if (task === null) return <p className="queue__task queue__task--empty">Открытых задач нет</p>
+  if (task === null) return <p className="queue__task queue__task--empty">{t.queue.noTasks}</p>
   return (
     <p className="queue__task">
       <Lamp lamp={task.lamp} />

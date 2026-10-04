@@ -1,92 +1,61 @@
 import type { LimitCoverage, StatsLimitWindow } from '../../../src/stats/model.js'
+import { localized, t } from '../i18n/index.js'
 import { dayCount, type DayRange } from './period.js'
-
-const REASONS: Record<string, string> = {
-  unclear_task: 'неясная задача',
-  broken_tooling: 'сломанный инструмент',
-  debug_loop: 'отладка по кругу',
-  waiting_user: 'ждала пользователя',
-  limit_env: 'лимит или окружение',
-  normal: 'норма',
-  other: 'другое',
-}
-
-const KINDS: Record<string, string> = {
-  failures: 'падения подряд',
-  denied: 'отказ в разрешении',
-  repeat: 'повтор команды',
-  reread: 'перечитывание файла',
-  no_commit: 'без коммита',
-  rewind: 'откат',
-  compact: 'сжатие контекста',
-  handoff: 'после передачи дел',
-}
 
 const MODELS: Record<string, string> = {
   opus: 'Opus',
   sonnet: 'Sonnet',
   haiku: 'Haiku',
   fable: 'Fable',
-  other: 'другие',
 }
 
 const ENTRYPOINTS: Record<string, string> = {
   chain: 'Even Keel',
   vscode: 'VS Code',
-  desktop: 'приложение',
   cli: 'CLI',
   'tally-classify': 'Tally',
-  other: 'другое',
 }
 
-const LAUNCHES: Record<string, string> = {
-  launch: 'запуск',
-  start: 'запуск',
-  resume: 'продолжение',
-  relay: 'передача по лимиту',
-  restart: 'новая сессия',
-  checkpoint: 'контрольная точка',
-}
-
-const GROUPED = new Intl.NumberFormat('ru', { maximumFractionDigits: 0 })
+const GROUPED = localized((language) => new Intl.NumberFormat(language, { maximumFractionDigits: 0 }))
 
 export function formatUsd(amount: number): string {
   if (amount === 0) return '$0'
   if (amount < 0.01) return '< $0.01'
   if (amount < 100) return `$${amount.toFixed(2)}`
-  return `$${GROUPED.format(amount).replace(/\s/g, ' ')}`
+  return `$${GROUPED().format(amount).replace(/\s/g, ' ')}`
 }
 
 export function costChange(cost: number, previous: number): string | null {
   if (previous <= 0) return null
   const percent = Math.round(((cost - previous) / previous) * 100)
-  if (percent === 0) return '±0 %'
-  return percent > 0 ? `+${percent} %` : `−${-percent} %`
+  if (percent === 0) return t.units.percent('±0')
+  return t.units.percent(percent > 0 ? `+${percent}` : `−${-percent}`)
 }
 
 export function formatShare(share: number | null): string {
   if (share === null) return '—'
-  if (share === 0) return '0 %'
-  if (share < 1) return '< 1 %'
-  return `${Math.round(share)} %`
+  if (share === 0) return t.units.percent('0')
+  if (share < 1) return t.units.percent('< 1')
+  return t.units.percent(String(Math.round(share)))
 }
 
 export function formatDuration(seconds: number | null): string {
   if (seconds === null) return '—'
-  if (seconds === 0) return '0 мин'
-  if (seconds < 30) return '< 1 мин'
+  const { hour, minute } = t.units
+  if (seconds === 0) return `0 ${minute}`
+  if (seconds < 30) return `< 1 ${minute}`
   const minutes = Math.round(seconds / 60)
-  if (minutes < 60) return `${minutes} мин`
-  if (minutes >= 600) return `${Math.round(minutes / 60)} ч`
+  if (minutes < 60) return `${minutes} ${minute}`
+  if (minutes >= 600) return `${Math.round(minutes / 60)} ${hour}`
   const rest = minutes % 60
-  return rest === 0 ? `${minutes / 60} ч` : `${Math.floor(minutes / 60)} ч ${String(rest).padStart(2, '0')} мин`
+  return rest === 0 ? `${minutes / 60} ${hour}` : `${Math.floor(minutes / 60)} ${hour} ${String(rest).padStart(2, '0')} ${minute}`
 }
 
 export function formatSeconds(seconds: number | null): string {
   if (seconds === null) return '—'
-  if (seconds < 10) return `${Number(seconds.toFixed(1))} с`
-  if (seconds < 120) return `${Math.round(seconds)} с`
-  if (seconds < 600) return `${Number((seconds / 60).toFixed(1))} мин`
+  if (seconds < 10) return `${Number(seconds.toFixed(1))} ${t.units.second}`
+  if (seconds < 120) return `${Math.round(seconds)} ${t.units.second}`
+  if (seconds < 600) return `${Number((seconds / 60).toFixed(1))} ${t.units.minute}`
   return formatDuration(seconds)
 }
 
@@ -96,17 +65,17 @@ export function formatRatio(ratio: number | null): string {
 }
 
 export function reasonLabel(reason: string | null): string {
-  if (reason === null) return 'не разобрано'
-  return REASONS[reason] ?? reason
+  if (reason === null) return t.stats.labels.unsorted
+  return t.stats.labels.reasons[reason] ?? reason
 }
 
 export function kindLabel(kind: string): string {
-  return KINDS[kind] ?? kind
+  return t.stats.labels.kinds[kind] ?? kind
 }
 
 export function launchLabel(reason: string | null): string {
-  if (reason === null) return 'вне цепочки'
-  return LAUNCHES[reason] ?? reason
+  if (reason === null) return t.stats.labels.outsideChain
+  return t.stats.labels.launches[reason] ?? reason
 }
 
 // 'claude-opus-5-5' → 'Opus 5.5', a trailing date dropped; anything not a Claude model stays as it is.
@@ -117,10 +86,13 @@ export function modelVersionLabel(model: string): string {
 }
 
 export function modelLabel(model: string): string {
+  if (model === 'other') return t.stats.labels.otherModels
   return MODELS[model] ?? model
 }
 
 export function entrypointLabel(entrypoint: string): string {
+  if (entrypoint === 'desktop') return t.stats.labels.desktop
+  if (entrypoint === 'other') return t.stats.labels.otherEntrypoint
   return ENTRYPOINTS[entrypoint] ?? entrypoint
 }
 
@@ -153,8 +125,8 @@ export function limitWindows(windows: StatsLimitWindow[]): string | null {
   const peaks = (account: string) =>
     windows
       .filter((each) => each.account === account)
-      .map((each) => `${formatShare(each.peak)}${each.open ? ' идёт' : ''}`.replaceAll(' ', ' '))
+      .map((each) => `${formatShare(each.peak)}${each.open ? ` ${t.stats.summary.open}` : ''}`.replaceAll(' ', ' '))
       .join(', ')
-  if (accounts.length === 1) return `окна: ${peaks(accounts[0]!)}`
-  return `окна: ${accounts.map((account) => `${account} ${peaks(account)}`).join(' · ')}`
+  if (accounts.length === 1) return t.stats.summary.windows(peaks(accounts[0]!))
+  return t.stats.summary.windows(`${accounts.map((account) => `${account} ${peaks(account)}`).join(' · ')}`)
 }

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { fakeTask } from '../../src/tracker/fixture.js'
+import { setLanguage } from './i18n/index.js'
 import type { StatusCategory, Task } from '../../src/tracker/model.js'
 import type { AccountEntry, AccountLogin, AccountView } from '../../src/account/model.js'
 import type { EvenKeelState, SessionView } from '../../src/state.js'
@@ -22,6 +23,8 @@ import {
   usageNotice,
   waitingSessions,
 } from './state.js'
+
+setLanguage('ru')
 
 function view(task: string, lamp: SessionView['lamp'], lastActivityAt: string | null): SessionView {
   return {

@@ -1,7 +1,7 @@
 import type { StatsScope } from '../../../src/stats/model.js'
 import { RULE_PURPOSES, type RulePurpose } from '../../../src/stats/rule-imports.js'
 import type { RuleKind } from '../../../src/stats/rules.js'
-import { RULE_KIND_LABELS } from './marks.js'
+import { MARK_KINDS } from './marks.js'
 import { isPreset, type PeriodChoice, type Step } from './period.js'
 
 export interface StatsView {
@@ -16,7 +16,7 @@ export interface StatsView {
 
 export const DEFAULT_VIEW: StatsView = { period: { preset: '30d' }, projects: null, scope: 'all', account: null, step: null, kinds: null, purposes: null }
 
-const KINDS = new Set<string>(RULE_KIND_LABELS.map(([kind]) => kind))
+const KINDS = new Set<string>(MARK_KINDS)
 const PURPOSES = new Set<string>(RULE_PURPOSES)
 
 function knownList<T extends string>(listed: string | null, known: Set<string>): T[] | null {

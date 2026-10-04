@@ -1,9 +1,8 @@
 import { useState } from 'react'
+import { t } from '../i18n/index.js'
 import { formatUsd } from './format.js'
 import { heatLevel } from './history.js'
-import { MONTHS, MONTHS_SHORT, addDays, addMonths, formatDay, monthEnd, type DayRange } from './period.js'
-
-const WEEKDAYS = ['пн', 'вт', 'ср', 'чт', 'пт', 'сб', 'вс']
+import { addDays, addMonths, formatDay, monthEnd, type DayRange } from './period.js'
 
 type Mode = { kind: 'days'; month: string } | { kind: 'months'; year: number } | { kind: 'years' }
 
@@ -50,7 +49,7 @@ export function Calendar({
     return (
       <div className="calendar">
         <div className="calendar__head">
-          <span className="calendar__title calendar__title--static">Годы</span>
+          <span className="calendar__title calendar__title--static">{t.stats.period.years}</span>
         </div>
         <div className="calendar__grid calendar__grid--wide">
           {years.map((year, index) => (
@@ -70,12 +69,12 @@ export function Calendar({
   }
 
   if (mode.kind === 'months') {
-    const costs = MONTHS_SHORT.map((_, index) => sumWhere(heat, (day) => day.startsWith(`${mode.year}-${String(index + 1).padStart(2, '0')}-`)))
+    const costs = t.stats.period.monthsShort.map((_, index) => sumWhere(heat, (day) => day.startsWith(`${mode.year}-${String(index + 1).padStart(2, '0')}-`)))
     const max = Math.max(0, ...costs)
     return (
       <div className="calendar">
         <div className="calendar__head">
-          <button type="button" className="calendar__nav" aria-label="Предыдущий год" onClick={() => setMode({ kind: 'months', year: mode.year - 1 })}>
+          <button type="button" className="calendar__nav" aria-label={t.stats.period.previousYear} onClick={() => setMode({ kind: 'months', year: mode.year - 1 })}>
             ‹
           </button>
           <button type="button" className="calendar__title" onClick={() => setMode({ kind: 'years' })}>
@@ -84,7 +83,7 @@ export function Calendar({
           <button
             type="button"
             className="calendar__nav"
-            aria-label="Следующий год"
+            aria-label={t.stats.period.nextYear}
             disabled={mode.year >= Number(today.slice(0, 4))}
             onClick={() => setMode({ kind: 'months', year: mode.year + 1 })}
           >
@@ -92,11 +91,11 @@ export function Calendar({
           </button>
         </div>
         <div className="calendar__grid calendar__grid--wide">
-          {MONTHS_SHORT.map((name, index) => {
+          {t.stats.period.monthsShort.map((name, index) => {
             const month = `${mode.year}-${String(index + 1).padStart(2, '0')}-01`
             return (
               <button
-                key={name}
+                key={month}
                 type="button"
                 className={`calendar__cell calendar__cell--wide heat-${heatLevel(costs[index]!, max)}`}
                 disabled={month > today}
@@ -119,20 +118,20 @@ export function Calendar({
         <div key={month} className="calendar__month">
           <div className="calendar__head">
             {index === 0 ? (
-              <button type="button" className="calendar__nav" aria-label="Предыдущий месяц" onClick={() => setMode({ kind: 'days', month: addMonths(mode.month, -1) })}>
+              <button type="button" className="calendar__nav" aria-label={t.stats.period.previousMonth} onClick={() => setMode({ kind: 'days', month: addMonths(mode.month, -1) })}>
                 ‹
               </button>
             ) : (
               <span className="calendar__nav-gap" />
             )}
             <button type="button" className="calendar__title" onClick={() => setMode({ kind: 'months', year: Number(month.slice(0, 4)) })}>
-              {MONTHS[Number(month.slice(5, 7)) - 1]} {month.slice(0, 4)}
+              {t.stats.period.months[Number(month.slice(5, 7)) - 1]} {month.slice(0, 4)}
             </button>
             {index === 1 ? (
               <button
                 type="button"
                 className="calendar__nav"
-                aria-label="Следующий месяц"
+                aria-label={t.stats.period.nextMonth}
                 disabled={mode.month >= latest}
                 onClick={() => setMode({ kind: 'days', month: addMonths(mode.month, 1) })}
               >
@@ -143,8 +142,8 @@ export function Calendar({
             )}
           </div>
           <div className="calendar__grid">
-            {WEEKDAYS.map((name) => (
-              <span key={name} className="calendar__weekday">
+            {t.stats.period.weekdays.map((name, weekday) => (
+              <span key={weekday} className="calendar__weekday">
                 {name}
               </span>
             ))}
@@ -174,7 +173,7 @@ export function Calendar({
           </div>
         </div>
       ))}
-      <p className="calendar__hint">{anchor === null ? 'Первый клик — начало, второй — конец.' : `С ${formatDay(anchor)} — выберите конец.`}</p>
+      <p className="calendar__hint">{anchor === null ? t.stats.period.pickStart : t.stats.period.pickEnd(formatDay(anchor))}</p>
     </div>
   )
 }

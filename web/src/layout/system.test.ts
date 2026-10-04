@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest'
 import type { TrackerHealth, TrackerView } from '../../../src/tracker/health.js'
+import { setLanguage } from '../i18n/index.js'
 import { systemChecks, worstLevel, type SystemInput } from './system.js'
+
+setLanguage('ru')
 
 const now = new Date('2026-10-03T12:00:00Z')
 const huly = (health: TrackerHealth): TrackerView => ({ name: 'huly', title: 'Huly', projects: ['ABC'], health })

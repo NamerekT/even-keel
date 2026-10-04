@@ -1,17 +1,11 @@
 import { Link } from 'react-router'
 import type { Task } from '../../../src/tracker/model.js'
 import type { SessionView } from '../../../src/state.js'
+import { t } from '../i18n/index.js'
 import { useLive } from '../live/context.js'
 import { taskProject, waitingSessions } from '../state.js'
-import { systemChecks, worstLevel, type Level } from './system.js'
+import { systemChecks, worstLevel } from './system.js'
 import { usePopover } from './usePopover.js'
-
-const LEVEL_LABELS: Record<Level, string> = {
-  ok: 'всё работает',
-  warn: 'есть предупреждения',
-  error: 'есть сбои',
-  off: 'нет данных',
-}
 
 export function Waiting({ sessions, tasks }: { sessions: SessionView[]; tasks: Task[] }) {
   const waiting = waitingSessions(sessions, tasks)
@@ -22,11 +16,12 @@ export function Waiting({ sessions, tasks }: { sessions: SessionView[]; tasks: T
     <Link
       to={`/p/${taskProject(first.task)}#${first.task}`}
       className="waiting"
-      title={`Ждут ответа: ${waiting.map((view) => view.task).join(', ')}`}
+      title={t.status.waitingTitle(waiting.map((view) => view.task).join(', '))}
     >
       <span className="waiting__count">{waiting.length}</span>
       <span className="waiting__label">
-        ждут<span className="waiting__tail"> ответа</span>
+        {t.status.waiting}
+        <span className="waiting__tail">{t.status.waitingTail}</span>
       </span>
     </Link>
   )
@@ -40,7 +35,7 @@ export function SystemMenu({ now }: { now: Date }) {
     now,
   )
   const level = worstLevel(checks)
-  const label = `Состояние: ${LEVEL_LABELS[level]}`
+  const label = t.status.label(t.status.levels[level])
 
   return (
     <div className="queue-menu" ref={rootRef}>
@@ -57,8 +52,8 @@ export function SystemMenu({ now }: { now: Date }) {
         <span className="system-toggle__dot" aria-hidden="true" />
       </button>
       {open && (
-        <div id="system-panel" className="queue system" role="dialog" aria-label="Состояние системы">
-          <h2 className="queue__heading">Состояние</h2>
+        <div id="system-panel" className="queue system" role="dialog" aria-label={t.status.panel}>
+          <h2 className="queue__heading">{t.status.heading}</h2>
           <ul className="system__list">
             {checks.map((check) => (
               <li key={check.name} className={`system__row system__row--${check.level}`}>
@@ -75,7 +70,7 @@ export function SystemMenu({ now }: { now: Date }) {
           </ul>
           {link === 'stale' && (
             <button type="button" className="button system__retry" onClick={retryNow}>
-              Повторить
+              {t.common.retry}
             </button>
           )}
         </div>

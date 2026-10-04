@@ -1,6 +1,7 @@
 import type { TrackerUrls } from '../../../src/state.js'
 import type { StatsStuck, StatsWeekReason } from '../../../src/stats/model.js'
 import { formatMoment } from '../format.js'
+import { t } from '../i18n/index.js'
 import { seriesStyle } from '../ui/series.js'
 import { Section, TaskKey } from './common.js'
 import { kindLabel, reasonLabel } from './format.js'
@@ -15,9 +16,9 @@ export function StuckSection({ weeks, stuck, trackerUrls }: { weeks: StatsWeekRe
   const now = new Date()
 
   return (
-    <Section title="Застревания">
+    <Section title={t.stats.stuck.title}>
       {stuck.length === 0 && weeks.length === 0 ? (
-        <p className="placeholder">Сессии за период не топтались на месте.</p>
+        <p className="placeholder">{t.stats.stuck.none}</p>
       ) : (
         <>
           <ul className="chart__legend">
@@ -31,7 +32,7 @@ export function StuckSection({ weeks, stuck, trackerUrls }: { weeks: StatsWeekRe
           </ul>
           <div className="stuck-weeks">
             {byWeek.map((week, index) => (
-              <div key={week} className="stuck-weeks__column" title={`Неделя с ${formatDay(week)}: ${totals[index]}`}>
+              <div key={week} className="stuck-weeks__column" title={t.stats.stuck.week(formatDay(week), String(totals[index]))}>
                 <div className="stuck-weeks__track">
                   <div className="chart__stack" style={{ height: `${(totals[index]! / max) * 100}%` }}>
                     {reasons.map((reason) => {
@@ -44,12 +45,12 @@ export function StuckSection({ weeks, stuck, trackerUrls }: { weeks: StatsWeekRe
               </div>
             ))}
           </div>
-          <h3 className="sources__title">Последние отрезки</h3>
+          <h3 className="sources__title">{t.stats.stuck.latest}</h3>
           <ul className="stuck-list">
             {stuck.map((row) => (
               <li key={row.id} className="stuck-list__item">
                 <span className="stuck-list__head">
-                  {row.task === null ? <span className="stats__key stats__key--none">без задачи</span> : <TaskKey id={row.task} trackerUrls={trackerUrls} />}
+                  {row.task === null ? <span className="stats__key stats__key--none">{t.stats.noTask}</span> : <TaskKey id={row.task} trackerUrls={trackerUrls} />}
                   {row.project !== null && <span className="stuck-list__project">{row.project}</span>}
                   <span className="stuck-list__when">{formatMoment(row.toAt, now)}</span>
                   <span className="stuck-list__kinds">{row.kinds.map(kindLabel).join(', ')}</span>

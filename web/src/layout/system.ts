@@ -1,6 +1,7 @@
 import type { TrackerView } from '../../../src/tracker/health.js'
 import type { UsageHealth } from '../../../src/limits/usage.js'
 import { formatAgo } from '../format.js'
+import { t } from '../i18n/index.js'
 import type { Link } from '../live/connection.js'
 
 export type Level = 'ok' | 'warn' | 'error' | 'off'
@@ -32,39 +33,39 @@ export function worstLevel(checks: Check[]): Level {
 }
 
 function serverCheck(link: Link): Check {
-  const name = 'Сервер Even Keel'
-  if (link === 'live') return { name, level: 'ok', text: 'на связи', details: [] }
-  if (link === 'connecting') return { name, level: 'warn', text: 'подключение', details: [] }
-  return { name, level: 'error', text: 'нет связи', details: ['Данные на странице устарели, переподключаюсь.'] }
+  const name = t.system.server
+  if (link === 'live') return { name, level: 'ok', text: t.system.live, details: [] }
+  if (link === 'connecting') return { name, level: 'warn', text: t.system.connecting, details: [] }
+  return { name, level: 'error', text: t.system.lost, details: [t.system.staleDetail] }
 }
 
 function trackerCheck({ title: name, health }: TrackerView, now: Date): Check {
-  if (health.state === 'off') return { name, level: 'off', text: 'выключен', details: [] }
-  if (health.state === 'live') return { name, level: 'ok', text: 'на связи', details: [] }
-  if (health.state === 'connecting') return { name, level: 'warn', text: 'подключение', details: [] }
-  const details = [health.lastOkAt === null ? null : `последний успешный опрос ${formatAgo(health.lastOkAt, now)}`, health.error]
-  return { name, level: 'error', text: 'нет связи', details: details.filter((line) => line !== null) }
+  if (health.state === 'off') return { name, level: 'off', text: t.system.off, details: [] }
+  if (health.state === 'live') return { name, level: 'ok', text: t.system.live, details: [] }
+  if (health.state === 'connecting') return { name, level: 'warn', text: t.system.connecting, details: [] }
+  const details = [health.lastOkAt === null ? null : t.system.lastOk(formatAgo(health.lastOkAt, now)), health.error]
+  return { name, level: 'error', text: t.system.lost, details: details.filter((line) => line !== null) }
 }
 
 function usageCheck(health: UsageHealth): Check {
-  const name = 'Лимиты'
+  const name = t.system.limits
   const details = health.reason === null ? [] : [health.reason]
   switch (health.state) {
     case 'ok':
-      return { name, level: 'ok', text: 'читаются из /usage', details }
+      return { name, level: 'ok', text: t.system.usageLive, details }
     case 'waiting':
-      return { name, level: 'ok', text: 'ждут первого опроса', details }
+      return { name, level: 'ok', text: t.system.usageWaiting, details }
     case 'stale':
-      return { name, level: 'off', text: '/usage без данных, берутся из statusline', details }
+      return { name, level: 'off', text: t.system.usageStale, details }
     case 'unread':
-      return { name, level: 'warn', text: '/usage не читается, берутся из statusline', details }
+      return { name, level: 'warn', text: t.system.usageUnread, details }
     case 'off':
-      return { name, level: 'error', text: 'опрос /usage выключен до перезапуска', details }
+      return { name, level: 'error', text: t.system.usageOff, details }
   }
 }
 
 function configCheck(error: string | null): Check {
-  const name = 'Конфигурация'
-  if (error === null) return { name, level: 'ok', text: 'применена', details: [] }
-  return { name, level: 'error', text: 'не применена', details: [error] }
+  const name = t.system.config
+  if (error === null) return { name, level: 'ok', text: t.system.configOk, details: [] }
+  return { name, level: 'error', text: t.system.configBroken, details: [error] }
 }

@@ -1,6 +1,7 @@
 import { useMemo } from 'react'
 import { Link } from 'react-router'
 import type { StatsFilter } from '../../../src/stats/model.js'
+import { t } from '../i18n/index.js'
 import { useLive } from '../live/context.js'
 import { AnswerNotice, loadedData, useStatsAnswer } from '../stats/common.js'
 import { formatShare, formatUsd, weeklyLimit } from '../stats/format.js'
@@ -33,25 +34,25 @@ export function StatsStrip({ project }: { project: string }) {
   }, [history, project, range.from])
 
   return (
-    <section className="strip" aria-label={`Расход ${project} за ${DAYS} дней`}>
+    <section className="strip" aria-label={t.strip.label(project, DAYS)}>
       {summary === null ? (
         <AnswerNotice loaded={loaded} />
       ) : (
         <>
           <dl className="strip__facts">
             <div>
-              <dt>Деньги</dt>
+              <dt>{t.strip.cost}</dt>
               <dd>{formatUsd(summary.cost)}</dd>
             </div>
             <div>
-              <dt>Лимит в неделю</dt>
-              <dd title={summary.limit.share === null ? 'снимков лимита за 30 дней нет' : undefined}>
+              <dt>{t.strip.limit}</dt>
+              <dd title={summary.limit.share === null ? t.strip.noSnapshots : undefined}>
                 {summary.limit.share === null ? '—' : `${summary.limit.perWeek ? '≈ ' : ''}${formatShare(summary.limit.share)}`}
-                {summary.limit.from !== null && <span className="strip__since"> с {formatDay(summary.limit.from, false)}</span>}
+                {summary.limit.from !== null && <span className="strip__since">{t.strip.since(formatDay(summary.limit.from, false))}</span>}
               </dd>
             </div>
             <div>
-              <dt>Сессии</dt>
+              <dt>{t.strip.sessions}</dt>
               <dd>{summary.sessions}</dd>
             </div>
           </dl>
@@ -59,7 +60,7 @@ export function StatsStrip({ project }: { project: string }) {
         </>
       )}
       <Link className="strip__more" to={`/stats?projects=${encodeURIComponent(project)}`}>
-        Подробнее →
+        {t.strip.more}
       </Link>
     </section>
   )
@@ -68,7 +69,7 @@ export function StatsStrip({ project }: { project: string }) {
 function Sparkline({ values, slot, label }: { values: number[]; slot: number | null; label: string }) {
   const max = Math.max(0, ...values)
   return (
-    <div className="strip__spark" style={seriesStyle(slot)} title={`${label}, по дням`} aria-hidden="true">
+    <div className="strip__spark" style={seriesStyle(slot)} title={t.strip.spark(label)} aria-hidden="true">
       {values.map((value, index) => (
         <span key={index} style={{ height: max === 0 ? 0 : `${Math.max(4, (value / max) * 100)}%`, opacity: value === 0 ? 0 : 1 }} />
       ))}

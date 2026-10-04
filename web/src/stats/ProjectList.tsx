@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { t } from '../i18n/index.js'
 import { seriesStyle } from '../ui/series.js'
 import { formatUsd } from './format.js'
 import type { ProjectTotal } from './history.js'
@@ -29,28 +30,28 @@ export function ProjectList({
   }
 
   return (
-    <aside className={open ? 'projects projects--open' : 'projects'} aria-label="Проекты">
+    <aside className={open ? 'projects projects--open' : 'projects'} aria-label={t.stats.projects.label}>
       <button type="button" className="button projects__toggle" aria-expanded={open} onClick={() => setOpen(!open)}>
-        Проекты ({selected === null ? 'все' : count}) {open ? '▴' : '▾'}
+        {t.stats.projects.count(selected === null ? t.stats.projects.all : String(count))} {open ? '▴' : '▾'}
       </button>
       <div className="projects__body">
         <input
           type="search"
           className="projects__search"
-          placeholder="Найти"
-          aria-label="Найти проект"
+          placeholder={t.stats.projects.find}
+          aria-label={t.stats.projects.findLabel}
           value={query}
           onChange={(event) => setQuery(event.target.value)}
         />
         {totals.length === 0 ? (
-          <p className="placeholder projects__empty">Расхода за период нет.</p>
+          <p className="placeholder projects__empty">{t.stats.projects.empty}</p>
         ) : (
           <ul className="projects__list">
             {shown.map(({ project, cost }) => (
               <li key={project} className={chosen(project) ? 'projects__item' : 'projects__item projects__item--off'} style={seriesStyle(colors.get(project) ?? null)}>
-                <input type="checkbox" checked={chosen(project)} onChange={() => toggle(project)} aria-label={`Учитывать ${project}`} />
+                <input type="checkbox" checked={chosen(project)} onChange={() => toggle(project)} aria-label={t.stats.projects.include(project)} />
                 <span className="chart__swatch" aria-hidden="true" />
-                <button type="button" className="projects__name" title="Оставить только этот проект" onClick={() => onChange([project])}>
+                <button type="button" className="projects__name" title={t.stats.projects.only} onClick={() => onChange([project])}>
                   {project}
                 </button>
                 <span className="projects__cost">{formatUsd(cost)}</span>
@@ -63,10 +64,10 @@ export function ProjectList({
         )}
         <div className="projects__foot">
           <button type="button" className="link-button" onClick={() => onChange(null)} disabled={selected === null}>
-            Все
+            {t.stats.projects.selectAll}
           </button>
           <button type="button" className="link-button" onClick={() => onChange([])} disabled={selected !== null && selected.length === 0}>
-            Сбросить
+            {t.stats.projects.reset}
           </button>
         </div>
       </div>

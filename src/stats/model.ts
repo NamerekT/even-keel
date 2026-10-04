@@ -177,7 +177,7 @@ export function repoTail(repo: string): string {
     .toLowerCase()
 }
 
-export const SCRATCH_GROUP = 'Scratch приложения'
+export const SCRATCH_GROUP = 'App scratch'
 
 const SCRATCH = '/claude/scratch-workspaces/'
 

@@ -1,13 +1,14 @@
 import type { EvenKeelState } from '../../../src/state.js'
+import { t } from '../i18n/index.js'
 import { LaunchChart } from './LaunchChart.js'
 import { ProjectCard } from './ProjectCard.js'
 
 export function Home({ state }: { state: EvenKeelState }) {
   return (
     <section className="page">
-      <h1 className="page__title">Проекты</h1>
+      <h1 className="page__title">{t.home.title}</h1>
       {state.projects.length === 0 ? (
-        <p className="placeholder">В even-keel.config.json нет проектов.</p>
+        <p className="placeholder">{t.home.empty}</p>
       ) : (
         <div className="cards">
           {state.projects.map((key) => (

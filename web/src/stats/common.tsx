@@ -1,6 +1,7 @@
 import type { TrackerUrls } from '../../../src/state.js'
 import { useEffect, useState, type ReactNode } from 'react'
 import type { StatsAnswer } from '../../../src/stats/model.js'
+import { t } from '../i18n/index.js'
 import { issueLink } from '../state.js'
 
 const REFRESH_MS = 5 * 60_000
@@ -34,10 +35,10 @@ export function loadedData<T>(loaded: Loaded<T> | null): T | null {
 }
 
 export function AnswerNotice({ loaded }: { loaded: Loaded<unknown> | null }) {
-  if (loaded === null) return <p className="placeholder">Читаю статистику…</p>
-  if ('failure' in loaded) return <p className="notice notice--error">Even Keel не ответил: {loaded.failure}</p>
-  if (loaded.answer.state === 'off') return <p className="notice notice--warn">Статистика Tally выключена: {loaded.answer.reason}.</p>
-  if (loaded.answer.state === 'error') return <p className="notice notice--error">База Tally недоступна: {loaded.answer.error}</p>
+  if (loaded === null) return <p className="placeholder">{t.stats.reading}</p>
+  if ('failure' in loaded) return <p className="notice notice--error">{t.stats.failed(loaded.failure)}</p>
+  if (loaded.answer.state === 'off') return <p className="notice notice--warn">{t.stats.off(loaded.answer.reason)}</p>
+  if (loaded.answer.state === 'error') return <p className="notice notice--error">{t.stats.dbError(loaded.answer.error)}</p>
   return null
 }
 

@@ -410,7 +410,7 @@ export class StatsReader {
   }
 
   private async cached<T>(key: string, read: (pool: pg.Pool) => Promise<T>): Promise<StatsAnswer<T>> {
-    if (this.pool === null) return { state: 'off', reason: `не заданы ${this.settings as string} в .env` }
+    if (this.pool === null) return { state: 'off', reason: `${this.settings as string} not set in .env` }
     const now = Date.now()
     for (const [each, entry] of this.cache) if (now - entry.at >= CACHE_MS) this.cache.delete(each)
     const hit = this.cache.get(key)

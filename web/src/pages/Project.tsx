@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef } from 'react'
 import { useLocation, useNavigate, useParams } from 'react-router'
 import type { EvenKeelState } from '../../../src/state.js'
+import { t } from '../i18n/index.js'
 import { useCommand } from '../live/useCommand.js'
 import { chainBlocks, chainStatus, limitWaitText, openQuestions, projectTasks, queuedAfter } from '../state.js'
 import { focusAfterClose } from '../ui/focus.js'
@@ -27,7 +28,7 @@ export function Project({ state }: { state: EvenKeelState }) {
   useEffect(() => {
     if (focus !== '') document.getElementById(focus)?.scrollIntoView({ block: 'nearest' })
   }, [focus])
-  if (!state.projects.includes(key)) return <NotFound what={`Проекта ${key} нет в even-keel.config.json.`} />
+  if (!state.projects.includes(key)) return <NotFound what={t.notFound.project(key)} />
 
   const order = state.chain.projects[key]
   const selected = blocks.find((block) => block.id === focus)
@@ -44,7 +45,7 @@ export function Project({ state }: { state: EvenKeelState }) {
         {order?.error && <p className="notice notice--error">{order.error}</p>}
         <Leftovers state={state} project={key} />
         {blocks.length === 0 ? (
-          <p className="placeholder">{order === undefined ? 'Задачи ещё не загружены.' : 'Задач в цепочке нет.'}</p>
+          <p className="placeholder">{order === undefined ? t.project.chainNotLoaded : t.project.chainEmpty}</p>
         ) : (
           <ChainList key={key} project={key} chain={blocks} scale={state.context} focus={focus} />
         )}
@@ -68,7 +69,7 @@ function Leftovers({ state, project }: { state: EvenKeelState; project: string }
       {tasks.map((task) => (
         <div key={task} className="notice notice--warn leftovers__item">
           <div className="leftovers__text">
-            <strong>{task} закрыта, но после неё не всё убрано — проверьте руками.</strong>
+            <strong>{t.project.leftover(task)}</strong>
             {leftovers
               .filter((each) => each.task === task)
               .map((each, index) => (
@@ -78,7 +79,7 @@ function Leftovers({ state, project }: { state: EvenKeelState; project: string }
               ))}
           </div>
           <button type="button" className="button" disabled={sending} onClick={() => void send('chain/dismiss', { project, task })}>
-            Убрал
+            {t.project.dismiss}
           </button>
         </div>
       ))}
@@ -108,11 +109,11 @@ function ChainControls({ state, project }: { state: EvenKeelState; project: stri
 
   return (
     <div className="project__controls">
-      {canStart && button(state.chain.active === null ? 'Запустить' : 'В очередь', 'start', true)}
-      {status.kind === 'running' && button('Пауза', 'pause')}
-      {status.kind === 'paused' && button('Снять с паузы', 'resume', true)}
-      {(status.kind === 'running' || status.kind === 'paused') && button('Остановить', 'stop')}
-      {after !== null && <span className="project__queue">в очереди после {after}</span>}
+      {canStart && button(state.chain.active === null ? t.project.start : t.project.enqueue, 'start', true)}
+      {status.kind === 'running' && button(t.project.pause, 'pause')}
+      {status.kind === 'paused' && button(t.project.resume, 'resume', true)}
+      {(status.kind === 'running' || status.kind === 'paused') && button(t.project.stop, 'stop')}
+      {after !== null && <span className="project__queue">{t.project.after(after)}</span>}
       {status.kind === 'running' && status.limitUntil !== null && (
         <p className="project__wait">{limitWaitText(status.limitUntil, new Date())}</p>
       )}

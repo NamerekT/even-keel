@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { setLanguage } from '../i18n/index.js'
 import {
   costChange,
   entrypointLabel,
@@ -15,6 +16,8 @@ import {
   reasonLabel,
   weeklyLimit,
 } from './format.js'
+
+setLanguage('ru')
 
 describe('formatSeconds', () => {
   it('keeps a tenth below ten seconds, whole seconds below two minutes, then minutes', () => {

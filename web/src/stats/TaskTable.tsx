@@ -1,7 +1,8 @@
 import type { TrackerUrls } from '../../../src/state.js'
 import { Fragment, useState } from 'react'
 import type { StatsTaskDetail, StatsTaskRow } from '../../../src/stats/model.js'
-import { formatMoment, plural } from '../format.js'
+import { formatMoment } from '../format.js'
+import { language, t } from '../i18n/index.js'
 import { useLive } from '../live/context.js'
 import { seriesStyle } from '../ui/series.js'
 import { AnswerNotice, Section, TaskKey, loadedData, useStatsAnswer } from './common.js'
@@ -11,19 +12,19 @@ type Column = 'task' | 'project' | 'status' | 'cost' | 'limit' | 'estimate' | 'a
 
 const FIRST_ROWS = 50
 
-const COLUMNS: { key: Column; label: string; numeric: boolean; title?: string }[] = [
-  { key: 'task', label: 'Задача', numeric: false },
-  { key: 'project', label: 'Проект', numeric: false },
-  { key: 'status', label: 'Статус', numeric: false },
-  { key: 'cost', label: '$', numeric: true, title: 'Деньги по ценам API' },
-  { key: 'limit', label: 'Лимит', numeric: true, title: 'Доля недельного лимита' },
-  { key: 'estimate', label: 'Оценка', numeric: true, title: 'Оценка задачи в трекере' },
-  { key: 'active', label: 'Время', numeric: true, title: 'Активное время всех сессий задачи по ходам транскриптов, за всю задачу' },
-  { key: 'wait', label: 'Ожидание', numeric: true, title: 'Сколько задача ждала вашего ответа, за всю задачу' },
-  { key: 'sessions', label: 'Сессии', numeric: true },
-  { key: 'handoffs', label: 'Передачи', numeric: true, title: 'Передачи по лимиту, контрольные точки и замены вручную' },
-  { key: 'spans', label: 'Застревания', numeric: true },
-  { key: 'rework', label: 'Переделка', numeric: true },
+const COLUMNS: { key: Column; numeric: boolean }[] = [
+  { key: 'task', numeric: false },
+  { key: 'project', numeric: false },
+  { key: 'status', numeric: false },
+  { key: 'cost', numeric: true },
+  { key: 'limit', numeric: true },
+  { key: 'estimate', numeric: true },
+  { key: 'active', numeric: true },
+  { key: 'wait', numeric: true },
+  { key: 'sessions', numeric: true },
+  { key: 'handoffs', numeric: true },
+  { key: 'spans', numeric: true },
+  { key: 'rework', numeric: true },
 ]
 
 const handoffs = (row: StatsTaskRow) => row.relays + row.checkpoints + row.restarts
@@ -57,7 +58,7 @@ function compare(a: StatsTaskRow, b: StatsTaskRow, column: Column): number {
   const left = value(a, column)
   const right = value(b, column)
   if (typeof left === 'number' && typeof right === 'number') return left - right
-  return String(left).localeCompare(String(right), 'ru', { numeric: true })
+  return String(left).localeCompare(String(right), language, { numeric: true })
 }
 
 export function TaskTable({ tasks, trackerUrls }: { tasks: StatsTaskRow[]; trackerUrls: TrackerUrls }) {
@@ -71,27 +72,30 @@ export function TaskTable({ tasks, trackerUrls }: { tasks: StatsTaskRow[]; track
     setSort(sort.column === column ? { column, down: !sort.down } : { column, down: numeric })
 
   return (
-    <Section title="Задачи" aside={<span className="stats-section__note">{tasks.length}</span>}>
+    <Section title={t.stats.tasks.title} aside={<span className="stats-section__note">{tasks.length}</span>}>
       {tasks.length === 0 ? (
-        <p className="placeholder">Задач с расходом за период нет.</p>
+        <p className="placeholder">{t.stats.tasks.empty}</p>
       ) : (
         <div className="tasks__scroll">
           <table className="tasks">
             <thead>
               <tr>
-                {COLUMNS.map((column) => (
-                  <th
-                    key={column.key}
-                    scope="col"
-                    className={column.numeric ? 'tasks__num' : undefined}
-                    aria-sort={sort.column === column.key ? (sort.down ? 'descending' : 'ascending') : 'none'}
-                  >
-                    <button type="button" className="tasks__sort" title={column.title} onClick={() => sortBy(column.key, column.numeric)}>
-                      {column.label}
-                      {sort.column === column.key && <span aria-hidden="true">{sort.down ? ' ↓' : ' ↑'}</span>}
-                    </button>
-                  </th>
-                ))}
+                {COLUMNS.map((column) => {
+                  const [label, title] = t.stats.tasks.columns[column.key]!
+                  return (
+                    <th
+                      key={column.key}
+                      scope="col"
+                      className={column.numeric ? 'tasks__num' : undefined}
+                      aria-sort={sort.column === column.key ? (sort.down ? 'descending' : 'ascending') : 'none'}
+                    >
+                      <button type="button" className="tasks__sort" title={title} onClick={() => sortBy(column.key, column.numeric)}>
+                        {label}
+                        {sort.column === column.key && <span aria-hidden="true">{sort.down ? ' ↓' : ' ↑'}</span>}
+                      </button>
+                    </th>
+                  )
+                })}
               </tr>
             </thead>
             <tbody>
@@ -129,7 +133,7 @@ export function TaskTable({ tasks, trackerUrls }: { tasks: StatsTaskRow[]; track
                       {handoffs(row) || ''}
                     </td>
                     <td className="tasks__num">{row.spans || ''}</td>
-                    <td className="tasks__num">{row.rework ? 'да' : ''}</td>
+                    <td className="tasks__num">{row.rework ? t.stats.tasks.yes : ''}</td>
                   </tr>
                   {open === row.task && (
                     <tr className="tasks__detail">
@@ -144,7 +148,7 @@ export function TaskTable({ tasks, trackerUrls }: { tasks: StatsTaskRow[]; track
           </table>
           {rows.length > FIRST_ROWS && (
             <button type="button" className="link-button tasks__more" onClick={() => setAll(!all)}>
-              {all ? `Показать первые ${FIRST_ROWS}` : `Показать все (${rows.length})`}
+              {all ? t.stats.tasks.first(FIRST_ROWS) : t.stats.tasks.all(rows.length)}
             </button>
           )}
         </div>
@@ -155,12 +159,12 @@ export function TaskTable({ tasks, trackerUrls }: { tasks: StatsTaskRow[]; track
 
 function timeTitle(row: StatsTaskRow): string | undefined {
   if (row.activeS === null) return undefined
-  const ratio = row.estimateH === null ? '' : `, ${formatRatio(row.activeS / 3600 / row.estimateH)} от оценки`
-  return `общее время: ${formatDuration(row.totalS)}${ratio}${row.done === true ? '' : ', задача не закрыта'}`
+  const ratio = row.estimateH === null ? '' : t.stats.tasks.ofEstimate(formatRatio(row.activeS / 3600 / row.estimateH))
+  return `${t.stats.tasks.total(formatDuration(row.totalS))}${ratio}${row.done === true ? '' : t.stats.tasks.open}`
 }
 
 function handoffTitle(row: StatsTaskRow): string {
-  return `по лимиту: ${row.relays}, контрольные точки: ${row.checkpoints}, вручную: ${row.restarts}`
+  return t.stats.tasks.handoffs(row.relays, row.checkpoints, row.restarts)
 }
 
 function TaskDetail({ task }: { task: string }) {
@@ -174,7 +178,7 @@ function TaskDetail({ task }: { task: string }) {
 function Timeline({ detail }: { detail: StatsTaskDetail }) {
   const now = new Date()
   const times = [...detail.sessions.flatMap((each) => [each.firstAt, each.lastAt]), ...detail.spans.flatMap((each) => [each.fromAt, each.toAt])].map(Date.parse)
-  if (times.length === 0) return <p className="placeholder">Сессий по задаче нет.</p>
+  if (times.length === 0) return <p className="placeholder">{t.stats.tasks.noSessions}</p>
   const start = Math.min(...times)
   const length = Math.max(Math.max(...times) - start, 60_000)
   const at = (moment: string) => `${((Date.parse(moment) - start) / length) * 100}%`
@@ -229,14 +233,14 @@ function Timeline({ detail }: { detail: StatsTaskDetail }) {
       )}
       {detail.steps.length > 0 && (
         <p className="task-steps">
-          Шаги:{' '}
+          {t.stats.tasks.steps}{' '}
           {detail.steps.map((step, index) => (
-            <span key={step.step} title={`${step.runs} ${plural(step.runs, 'запуск', 'запуска', 'запусков')}, ${formatSeconds(step.seconds)}`}>
+            <span key={step.step} title={`${t.stats.tasks.launches(step.runs)}, ${formatSeconds(step.seconds)}`}>
               {index > 0 && ' · '}
               <code>{step.step}</code> {step.share === null ? formatSeconds(step.seconds) : formatShare(step.share * 100)}
             </span>
           ))}
-          <span className="task-steps__note"> — доля времени задачи</span>
+          <span className="task-steps__note">{t.stats.tasks.stepsNote}</span>
         </p>
       )}
     </div>

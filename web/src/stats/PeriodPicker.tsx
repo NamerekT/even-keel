@@ -1,4 +1,5 @@
 import { useEffect, useState, type FormEvent } from 'react'
+import { t } from '../i18n/index.js'
 import { usePopover } from '../layout/usePopover.js'
 import { Calendar } from './Calendar.js'
 import { PRESETS, formatRange, shiftRange, type DayRange, type PeriodChoice } from './period.js'
@@ -42,7 +43,7 @@ export function PeriodPicker({
 
   return (
     <div className="period" ref={rootRef}>
-      <button type="button" className="period__shift" aria-label="Предыдущий период" onClick={() => onChange(shiftRange(range, -1, today))}>
+      <button type="button" className="period__shift" aria-label={t.stats.period.previous} onClick={() => onChange(shiftRange(range, -1, today))}>
         ‹
       </button>
       <button type="button" className="period__button" aria-expanded={open} aria-haspopup="dialog" onClick={() => setOpen(!open)}>
@@ -51,23 +52,23 @@ export function PeriodPicker({
       <button
         type="button"
         className="period__shift"
-        aria-label="Следующий период"
+        aria-label={t.stats.period.next}
         disabled={range.to >= today}
         onClick={() => onChange(shiftRange(range, 1, today))}
       >
         ›
       </button>
       {open && (
-        <div className="period__panel" role="dialog" aria-label="Период">
+        <div className="period__panel" role="dialog" aria-label={t.stats.period.dialog}>
           <ul className="period__presets">
-            {PRESETS.map(({ preset, label }) => (
+            {PRESETS.map((preset) => (
               <li key={preset}>
                 <button
                   type="button"
                   className={'preset' in choice && choice.preset === preset ? 'period__preset period__preset--on' : 'period__preset'}
                   onClick={() => apply({ preset })}
                 >
-                  {label}
+                  {t.stats.period.presets[preset]}
                 </button>
               </li>
             ))}
@@ -76,15 +77,15 @@ export function PeriodPicker({
             <Calendar range={range} today={today} firstDay={firstDay} heat={heat} onPick={apply} />
             <form className="period__inputs" onSubmit={submit}>
               <label>
-                С
+                {t.stats.period.from}
                 <input type="date" value={from} max={today} onChange={(event) => setFrom(event.target.value)} />
               </label>
               <label>
-                по
+                {t.stats.period.to}
                 <input type="date" value={to} max={today} onChange={(event) => setTo(event.target.value)} />
               </label>
               <button type="submit" className="button button--primary">
-                Применить
+                {t.common.apply}
               </button>
             </form>
           </div>

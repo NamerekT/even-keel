@@ -1,13 +1,11 @@
 import { useState } from 'react'
 import type { LaunchDay } from '../../../src/chain/launches.js'
-import { plural } from '../format.js'
+import { localized, t } from '../i18n/index.js'
 import { projectSlot } from '../state.js'
 import { seriesStyle } from '../ui/series.js'
 
-const dayFormat = new Intl.DateTimeFormat('ru', { day: 'numeric', month: 'short', weekday: 'short' })
-const monthFormat = new Intl.DateTimeFormat('ru', { month: 'short' })
-
-const launchWord = (count: number) => plural(count, 'запуск', 'запуска', 'запусков')
+const DAY = localized((language) => new Intl.DateTimeFormat(language, { day: 'numeric', month: 'short', weekday: 'short' }))
+const MONTH = localized((language) => new Intl.DateTimeFormat(language, { month: 'short' }))
 
 function localDate(day: string): Date {
   const [year, month, date] = day.split('-').map(Number)
@@ -30,11 +28,9 @@ export function LaunchChart({ days, projects }: { days: LaunchDay[]; projects: s
     <section className="chart" aria-labelledby="launch-chart-title">
       <header className="chart__head">
         <h2 id="launch-chart-title" className="chart__title">
-          Запуски за {days.length} дней
+          {t.launches.title(days.length)}
         </h2>
-        <span className="chart__total">
-          {total} {launchWord(total)}
-        </span>
+        <span className="chart__total">{t.launches.count(total)}</span>
       </header>
 
       {shown.length > 1 && (
@@ -55,7 +51,7 @@ export function LaunchChart({ days, projects }: { days: LaunchDay[]; projects: s
           <span>0</span>
         </div>
         <div className="chart__columns">
-          {total === 0 && <p className="chart__empty">Запусков не было</p>}
+          {total === 0 && <p className="chart__empty">{t.launches.none}</p>}
           {days.map((day, index) => {
             const date = localDate(day.day)
             const sum = dayTotal(day)
@@ -65,7 +61,7 @@ export function LaunchChart({ days, projects }: { days: LaunchDay[]; projects: s
                 key={day.day}
                 className="chart__column"
                 tabIndex={0}
-                aria-label={`${dayFormat.format(date)}: ${sum} ${launchWord(sum)}`}
+                aria-label={`${DAY().format(date)}: ${t.launches.count(sum)}`}
                 onMouseEnter={() => setHovered(index)}
                 onFocus={() => setHovered(index)}
                 onBlur={() => setHovered(null)}
@@ -81,14 +77,14 @@ export function LaunchChart({ days, projects }: { days: LaunchDay[]; projects: s
                 <span className="chart__day">
                   {date.getDate()}
                   {(index === 0 || date.getDate() === 1) && (
-                    <span className="chart__month">{monthFormat.format(date).replace('.', '')}</span>
+                    <span className="chart__month">{MONTH().format(date).replace('.', '')}</span>
                   )}
                 </span>
                 {hovered === index && (
                   <div className={`chart__tip chart__tip--${index < days.length / 2 ? 'right' : 'left'}`} role="tooltip">
-                    <strong>{dayFormat.format(date)}</strong>
+                    <strong>{DAY().format(date)}</strong>
                     {stack.length === 0 ? (
-                      <span className="chart__tip-row">Запусков нет</span>
+                      <span className="chart__tip-row">{t.launches.noneOnDay}</span>
                     ) : (
                       [...stack].reverse().map((project) => (
                         <span key={project} className="chart__tip-row" style={style(project)}>
@@ -107,24 +103,24 @@ export function LaunchChart({ days, projects }: { days: LaunchDay[]; projects: s
       </div>
 
       <details className="chart__table">
-        <summary>Таблицей</summary>
+        <summary>{t.launches.table}</summary>
         <div className="chart__table-scroll">
           <table>
             <thead>
               <tr>
-                <th scope="col">День</th>
+                <th scope="col">{t.launches.day}</th>
                 {shown.map((project) => (
                   <th key={project} scope="col">
                     {project}
                   </th>
                 ))}
-                <th scope="col">Всего</th>
+                <th scope="col">{t.common.total}</th>
               </tr>
             </thead>
             <tbody>
               {days.map((day) => (
                 <tr key={day.day}>
-                  <th scope="row">{dayFormat.format(localDate(day.day))}</th>
+                  <th scope="row">{DAY().format(localDate(day.day))}</th>
                   {shown.map((project) => (
                     <td key={project}>{day.counts[project] ?? 0}</td>
                   ))}

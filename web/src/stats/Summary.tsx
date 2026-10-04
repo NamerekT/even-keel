@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react'
 import type { StatsPeriod, StatsShare } from '../../../src/stats/model.js'
-import { plural } from '../format.js'
+import { language, t } from '../i18n/index.js'
 import { seriesStyle } from '../ui/series.js'
 import { Section } from './common.js'
 import { costChange, entrypointLabel, formatShare, formatUsd, limitWindows, modelLabel, weeklyLimit, type WeeklyLimit } from './format.js'
@@ -16,29 +16,34 @@ export function Tiles({ period, range }: { period: StatsPeriod; range: DayRange 
 
   return (
     <div className="stats-tiles">
-      <Tile label="Деньги" value={formatUsd(current.cost)}>
-        {change === null ? 'прошлого отрезка нет' : <span title={formatRange(previousRange(range))}>{change} к прошлым {days} {plural(days, 'дню', 'дням', 'дням')}</span>}
-        {current.unpriced > 0 && ` · ${current.unpriced} без цены`}
+      <Tile label={t.stats.summary.cost} value={formatUsd(current.cost)}>
+        {change === null ? (
+          t.stats.summary.noPrevious
+        ) : (
+          <span title={formatRange(previousRange(range))}>{t.stats.summary.change(change, days)}</span>
+        )}
+        {current.unpriced > 0 && t.stats.summary.unpriced(current.unpriced)}
       </Tile>
-      <Tile label="Недельный лимит" value={limit.share === null ? '—' : `${limit.perWeek ? '≈ ' : ''}${formatShare(limit.share)}`}>
+      <Tile label={t.stats.summary.limit} value={limit.share === null ? '—' : `${limit.perWeek ? '≈ ' : ''}${formatShare(limit.share)}`}>
         {limitNote(limit)}
         {windows !== null && <span className="stats-tile__line">{windows}</span>}
       </Tile>
-      <Tile label="Задачи / сессии" value={`${current.tasks} / ${current.sessions}`}>
-        {current.messages.toLocaleString('ru')} {plural(current.messages, 'ответ', 'ответа', 'ответов')}
+      <Tile label={t.stats.summary.tasks} value={`${current.tasks} / ${current.sessions}`}>
+        {current.messages.toLocaleString(language)} {t.stats.summary.answers(current.messages)}
       </Tile>
-      <Tile label="Ушло на буксование" value={`${formatUsd(current.stuckCost)} · ${formatShare(stuckShare)}`}>
-        ответы внутри отрезков застревания
+      <Tile label={t.stats.summary.stuck} value={`${formatUsd(current.stuckCost)} · ${formatShare(stuckShare)}`}>
+        {t.stats.summary.stuckNote}
       </Tile>
     </div>
   )
 }
 
 function limitNote(limit: WeeklyLimit): string {
-  if (limit.share === null) return 'нет данных: снимков лимита за период нет'
-  const span = [limit.from && `с ${formatDay(limit.from, false)}`, limit.to && `по ${formatDay(limit.to, false)}`].filter(Boolean).join(' ')
-  if (limit.perWeek) return `в среднем за неделю${span && ` ${span}`}`
-  return `сумма долей ${span || 'за период'}`
+  if (limit.share === null) return t.stats.summary.noLimit
+  const span = [limit.from && t.stats.summary.from(formatDay(limit.from, false)), limit.to && t.stats.summary.to(formatDay(limit.to, false))]
+    .filter(Boolean)
+    .join(' ')
+  return limit.perWeek ? t.stats.summary.perWeek(span) : t.stats.summary.sum(span)
 }
 
 export function Tile({ label, value, children }: { label: string; value: string; children: ReactNode }) {
@@ -54,10 +59,10 @@ export function Tile({ label, value, children }: { label: string; value: string;
 export function Sources({ period }: { period: StatsPeriod }) {
   if (period.current.cost === 0) return null
   return (
-    <Section title="Откуда расход">
+    <Section title={t.stats.summary.sources}>
       <div className="sources">
-        <ShareBar title="Модель" shares={period.models} label={modelLabel} />
-        <ShareBar title="Точка входа" shares={period.entrypoints} label={entrypointLabel} />
+        <ShareBar title={t.stats.summary.model} shares={period.models} label={modelLabel} />
+        <ShareBar title={t.stats.summary.entrypoint} shares={period.entrypoints} label={entrypointLabel} />
       </div>
     </Section>
   )
