@@ -18,7 +18,7 @@ const APPEAR_POLL_MS = 1_000
 const CLOCK_SKEW_MS = 5_000
 
 export function resolveClaudeBinary(env: NodeJS.ProcessEnv): string {
-  if (env.BATON_CLAUDE_BIN) return env.BATON_CLAUDE_BIN
+  if (env.EVEN_KEEL_CLAUDE_BIN) return env.EVEN_KEEL_CLAUDE_BIN
   const standalone = join(homedir(), '.local', 'bin', process.platform === 'win32' ? 'claude.exe' : 'claude')
   if (existsSync(standalone)) return standalone
   const extensions = join(homedir(), '.vscode', 'extensions')

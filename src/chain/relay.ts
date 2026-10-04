@@ -9,7 +9,7 @@ const HANDOFF_STEPS = 10
 export const RESUME_PROMPT = 'Лимит сброшен — продолжай с того же места.'
 
 export const CLEANUP_NOTE =
-  '- Задачу закрывает слияние ветки в main основного чекаута. Worktree и ветку после этого не трогай и main не пушь — уборку сделает Батон.'
+  '- Задачу закрывает слияние ветки в main основного чекаута. Worktree и ветку после этого не трогай и main не пушь — уборку сделает Even Keel.'
 
 export function startPrompt(task: string, place: TaskPlace): string {
   const lines = [fill`${task}`, '', fill`- Worktree готов: ${place.path} — работай в нём, новый worktree не создавай.`]

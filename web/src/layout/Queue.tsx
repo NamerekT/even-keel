@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState, type KeyboardEvent, type PointerEvent } from 'react'
 import { Link } from 'react-router'
-import type { BatonState } from '../../../src/state.js'
+import type { EvenKeelState } from '../../../src/state.js'
 import { useCommand } from '../live/useCommand.js'
 import { cardTask, chainStatus, projectSlot } from '../state.js'
 import { dragShift, dropIndex, moveItem } from '../ui/drag.js'
@@ -9,7 +9,7 @@ import { seriesStyle } from '../ui/series.js'
 import { StatusChip } from '../ui/StatusChip.js'
 import { usePopover } from './usePopover.js'
 
-export function QueueMenu({ state }: { state: BatonState }) {
+export function QueueMenu({ state }: { state: EvenKeelState }) {
   const { open, setOpen, rootRef } = usePopover()
   const { active, queue } = state.chain
   const kind = active === null ? 'idle' : active.paused ? 'paused' : 'running'
@@ -37,7 +37,7 @@ export function QueueMenu({ state }: { state: BatonState }) {
   )
 }
 
-function QueuePanel({ state }: { state: BatonState }) {
+function QueuePanel({ state }: { state: EvenKeelState }) {
   const { send, sending, failure } = useCommand()
   const [pending, setPending] = useState<string[] | null>(null)
   const served = state.chain.queue
@@ -99,7 +99,7 @@ interface Drag {
 }
 
 interface ListProps {
-  state: BatonState
+  state: EvenKeelState
   queue: string[]
   disabled: boolean
   onMove: (order: string[]) => void
@@ -219,7 +219,7 @@ function listClass(dragging: boolean, landing: boolean): string {
   return landing ? 'queue__list queue__list--landing' : 'queue__list'
 }
 
-function TaskLine({ state, project }: { state: BatonState; project: string }) {
+function TaskLine({ state, project }: { state: EvenKeelState; project: string }) {
   const task = cardTask(state, project)
   if (task === null) return <p className="queue__task queue__task--empty">Открытых задач нет</p>
   return (

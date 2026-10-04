@@ -117,7 +117,7 @@ let pg
 try {
   pg = require('pg')
 } catch {
-  fail(`pg not found in ${join(root, 'node_modules')} — run npm install in the Baton checkout`)
+  fail(`pg not found in ${join(root, 'node_modules')} — run npm install in the Even Keel checkout`)
 }
 pg.types.setTypeParser(1700, (text) => text)
 pg.types.setTypeParser(20, (text) => text)

@@ -1,26 +1,26 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { BrowserRouter } from 'react-router'
-import type { BatonState, SessionRecord } from '../../src/state.js'
+import type { EvenKeelState, SessionRecord } from '../../src/state.js'
 import type { StatsAnswer } from '../../src/stats/model.js'
 import { App } from './App.js'
 import { LiveConnection, type LiveSource } from './live/connection.js'
 import { LiveProvider } from './live/context.js'
 import './styles.css'
 
-async function fetchState(): Promise<BatonState> {
+async function fetchState(): Promise<EvenKeelState> {
   const response = await fetch('/api/state', { cache: 'no-store' })
   if (!response.ok) throw new Error(`/api/state answered ${response.status}`)
-  return (await response.json()) as BatonState
+  return (await response.json()) as EvenKeelState
 }
 
-async function sendCommand(name: string, body: Record<string, unknown>): Promise<BatonState> {
+async function sendCommand(name: string, body: Record<string, unknown>): Promise<EvenKeelState> {
   const response = await fetch(`/api/${name}`, {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify(body),
   })
-  const answer = (await response.json().catch(() => null)) as (BatonState & { error?: string }) | null
+  const answer = (await response.json().catch(() => null)) as (EvenKeelState & { error?: string }) | null
   if (!response.ok) throw new Error(answer?.error ?? `/api/${name} answered ${response.status}`)
   return answer!
 }

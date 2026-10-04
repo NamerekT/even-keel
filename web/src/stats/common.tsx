@@ -34,7 +34,7 @@ export function loadedData<T>(loaded: Loaded<T> | null): T | null {
 
 export function AnswerNotice({ loaded }: { loaded: Loaded<unknown> | null }) {
   if (loaded === null) return <p className="placeholder">Читаю статистику…</p>
-  if ('failure' in loaded) return <p className="notice notice--error">Батон не ответил: {loaded.failure}</p>
+  if ('failure' in loaded) return <p className="notice notice--error">Even Keel не ответил: {loaded.failure}</p>
   if (loaded.answer.state === 'off') return <p className="notice notice--warn">Статистика Tally выключена: {loaded.answer.reason}.</p>
   if (loaded.answer.state === 'error') return <p className="notice notice--error">База Tally недоступна: {loaded.answer.error}</p>
   return null

@@ -1,5 +1,5 @@
 {
-  "batonUrl": "http://127.0.0.1:4747",
+  "evenKeelUrl":"http://127.0.0.1:4747",
   "signs": { "failureRun": 3, "deniedRun": 1, "repeatRun": 2, "rereadCount": 5, "noCommitReplies": 150 },
   "classify": { "perRun": 10, "idleMinutes": 60, "sinceDays": 14 },
   "reportsSince": "2026-10-03",

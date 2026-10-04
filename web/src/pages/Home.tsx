@@ -1,13 +1,13 @@
-import type { BatonState } from '../../../src/state.js'
+import type { EvenKeelState } from '../../../src/state.js'
 import { LaunchChart } from './LaunchChart.js'
 import { ProjectCard } from './ProjectCard.js'
 
-export function Home({ state }: { state: BatonState }) {
+export function Home({ state }: { state: EvenKeelState }) {
   return (
     <section className="page">
       <h1 className="page__title">Проекты</h1>
       {state.projects.length === 0 ? (
-        <p className="placeholder">В baton.config.json нет проектов.</p>
+        <p className="placeholder">В even-keel.config.json нет проектов.</p>
       ) : (
         <div className="cards">
           {state.projects.map((key) => (

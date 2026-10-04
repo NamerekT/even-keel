@@ -5,7 +5,7 @@ import { OTHER, chartData, dayCosts, firstDay, heatLevel, projectColors, project
 const history: StatsHistory = {
   at: '2026-10-03T12:00:00.000Z',
   accounts: ['global'],
-  baton: ['CBL', 'BTN'],
+  tracked: ['CBL', 'BTN'],
   projects: ['BTN', 'yaml', 'CBL', 'notes', 'scratch'],
   days: ['2026-09-28', '2026-09-30', '2026-10-03'],
   cells: [
@@ -34,7 +34,7 @@ describe('projectTotals', () => {
 })
 
 describe('projectColors', () => {
-  it('gives Baton projects their chart slots and the rest free slots by rank', () => {
+  it('gives Even Keel projects their chart slots and the rest free slots by rank', () => {
     const colors = projectColors(history)
     expect(colors.get('CBL')).toBe(1)
     expect(colors.get('BTN')).toBe(2)
@@ -43,7 +43,7 @@ describe('projectColors', () => {
   })
 
   it('runs out of slots after eight', () => {
-    const many = { ...history, baton: [], projects: Array.from({ length: 10 }, (_, index) => `p${index}`) }
+    const many = { ...history, tracked: [],projects: Array.from({ length: 10 }, (_, index) => `p${index}`) }
     const colors = projectColors(many)
     expect(colors.get('p7')).toBe(8)
     expect(colors.get('p8')).toBeNull()

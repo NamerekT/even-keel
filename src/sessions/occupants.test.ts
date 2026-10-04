@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest'
 import type { AgentEntry } from './agents.js'
 import { isInside, slotOccupants } from './occupants.js'
 
-const slot = join(tmpdir(), 'abc', '.claude', 'worktrees', 'baton')
+const slot = join(tmpdir(), 'abc', '.claude', 'worktrees', 'even-keel')
 const agent = (sessionId: string, extra: Partial<AgentEntry> = {}): AgentEntry => ({
   id: `agent-${sessionId}`,
   cwd: slot,

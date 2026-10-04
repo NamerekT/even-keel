@@ -9,6 +9,6 @@ export default defineConfig({
   server: {
     port: 5173,
     strictPort: true,
-    proxy: { '/api': process.env.BATON_URL ?? 'http://localhost:4747' },
+    proxy: { '/api': process.env.EVEN_KEEL_URL ?? 'http://localhost:4747' },
   },
 })

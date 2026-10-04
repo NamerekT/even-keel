@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef } from 'react'
 import { useLocation, useNavigate, useParams } from 'react-router'
-import type { BatonState } from '../../../src/state.js'
+import type { EvenKeelState } from '../../../src/state.js'
 import { useCommand } from '../live/useCommand.js'
 import { chainBlocks, chainStatus, limitWaitText, openQuestions, projectTasks, queuedAfter } from '../state.js'
 import { focusAfterClose } from '../ui/focus.js'
@@ -11,7 +11,7 @@ import { NotFound } from './NotFound.js'
 import { SessionPanel } from './SessionPanel.js'
 import { StatsStrip } from './StatsStrip.js'
 
-export function Project({ state }: { state: BatonState }) {
+export function Project({ state }: { state: EvenKeelState }) {
   const key = useParams().key ?? ''
   const location = useLocation()
   const navigate = useNavigate()
@@ -27,7 +27,7 @@ export function Project({ state }: { state: BatonState }) {
   useEffect(() => {
     if (focus !== '') document.getElementById(focus)?.scrollIntoView({ block: 'nearest' })
   }, [focus])
-  if (!state.projects.includes(key)) return <NotFound what={`Проекта ${key} нет в baton.config.json.`} />
+  if (!state.projects.includes(key)) return <NotFound what={`Проекта ${key} нет в even-keel.config.json.`} />
 
   const order = state.chain.projects[key]
   const selected = blocks.find((block) => block.id === focus)
@@ -57,7 +57,7 @@ export function Project({ state }: { state: BatonState }) {
   )
 }
 
-function Leftovers({ state, project }: { state: BatonState; project: string }) {
+function Leftovers({ state, project }: { state: EvenKeelState; project: string }) {
   const { send, sending, failure } = useCommand()
   const leftovers = state.chain.leftovers[project] ?? []
   if (leftovers.length === 0) return null
@@ -87,7 +87,7 @@ function Leftovers({ state, project }: { state: BatonState; project: string }) {
   )
 }
 
-function ChainControls({ state, project }: { state: BatonState; project: string }) {
+function ChainControls({ state, project }: { state: EvenKeelState; project: string }) {
   const { send, sending, failure } = useCommand()
   const status = chainStatus(state.chain, project)
   const order = state.chain.projects[project]

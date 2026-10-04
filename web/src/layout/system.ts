@@ -32,7 +32,7 @@ export function worstLevel(checks: Check[]): Level {
 }
 
 function serverCheck(link: Link): Check {
-  const name = 'Сервер Baton'
+  const name = 'Сервер Even Keel'
   if (link === 'live') return { name, level: 'ok', text: 'на связи', details: [] }
   if (link === 'connecting') return { name, level: 'warn', text: 'подключение', details: [] }
   return { name, level: 'error', text: 'нет связи', details: ['Данные на странице устарели, переподключаюсь.'] }

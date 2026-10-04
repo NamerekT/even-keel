@@ -10,7 +10,7 @@ describe('shareConfig', () => {
   let folder: string
 
   beforeEach(() => {
-    root = mkdtempSync(join(tmpdir(), 'baton-share-'))
+    root = mkdtempSync(join(tmpdir(), 'even-keel-share-'))
     global = { dir: join(root, 'global'), config: join(root, '.claude.json') }
     folder = join(root, 'account')
     mkdirSync(join(global.dir, 'skills', 'review'), { recursive: true })

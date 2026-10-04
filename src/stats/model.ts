@@ -32,7 +32,7 @@ export interface StatsLimitWindow {
 export interface StatsHistory {
   at: string
   accounts: string[]
-  baton: string[]
+  tracked: string[]
   projects: string[]
   days: string[]
   cells: StatsCell[]
@@ -183,11 +183,11 @@ const SCRATCH = '/claude/scratch-workspaces/'
 
 const holds = (outer: string, inner: string) => inner.startsWith(`${outer}/`)
 
-// Groups the folders of messages outside Baton projects: a folder goes under the outermost folder seen in
-// the data that holds it, unless that one is a single level deep or holds a Baton project folder.
-export function folderGroups(folders: { dir: string; raw: string }[], baton: string[]): Map<string, string> {
+// Groups the folders of messages outside Even Keel projects: a folder goes under the outermost folder seen in
+// the data that holds it, unless that one is a single level deep or holds an Even Keel project folder.
+export function folderGroups(folders: { dir: string; raw: string }[], tracked: string[]): Map<string, string> {
   const roots = folders.filter(
-    ({ dir }) => !dir.includes(SCRATCH) && dir.split('/').filter(Boolean).length >= 2 && !baton.some((repo) => holds(dir, repo)),
+    ({ dir }) => !dir.includes(SCRATCH) && dir.split('/').filter(Boolean).length >= 2 && !tracked.some((repo) => holds(dir, repo)),
   )
   const groups = new Map<string, string>()
   for (const folder of folders) {

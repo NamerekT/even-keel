@@ -18,7 +18,7 @@ export function Header() {
       <div className="header__inner">
         <nav className="header__nav" aria-label="Навигация">
           <Link to="/" className="header__brand">
-            Baton
+            Even Keel
           </Link>
           {project !== undefined && (
             <>

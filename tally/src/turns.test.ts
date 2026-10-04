@@ -62,7 +62,7 @@ describe('turnsOf', () => {
     ])
   })
 
-  it('marks the first prompt of a Baton launch and the resume prompt as not the user', () => {
+  it('marks the first prompt of an Even Keel launch and the resume prompt as not the user', () => {
     const t = new Transcript()
       .prompt('BTN-1\n\n- Worktree готов')
       .say('working')

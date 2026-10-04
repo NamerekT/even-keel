@@ -6,7 +6,7 @@ import { isOpen, type HulyTask } from '../../src/huly/model.js'
 import type { Lamp } from '../../src/sessions/agents.js'
 import type { CacheTtl, CacheWindow, TokenTotals } from '../../src/sessions/transcript.js'
 import type { UsageHealth } from '../../src/limits/usage.js'
-import type { BatonState, ContextScale, SessionView } from '../../src/state.js'
+import type { EvenKeelState, ContextScale, SessionView } from '../../src/state.js'
 import { formatMoment } from './format.js'
 
 export type CardLamp = Lamp | 'idle'
@@ -73,7 +73,7 @@ export const PROJECT_SLOTS = 8
 
 const byNumber = (a: string, b: string) => a.localeCompare(b, 'en', { numeric: true })
 
-export function projectTasks(state: BatonState, project: string): HulyTask[] {
+export function projectTasks(state: EvenKeelState, project: string): HulyTask[] {
   return state.tasks.filter((task) => task.id.startsWith(`${project}-`))
 }
 
@@ -100,7 +100,7 @@ export function openQuestions(tasks: HulyTask[]): number {
   return tasks.filter((task) => task.question && isOpen(task.status)).length
 }
 
-export function chainStatus(chain: BatonState['chain'], project: string): ChainStatus {
+export function chainStatus(chain: EvenKeelState['chain'], project: string): ChainStatus {
   const { active, queue } = chain
   if (active?.project === project) {
     return active.paused ? { kind: 'paused', error: active.error } : { kind: 'running', limitUntil: active.limitUntil ?? null }
@@ -137,7 +137,7 @@ export function limitWaitText(until: string, now: Date): string {
   return `Лимит исчерпан — следующая задача запустится после сброса в ${formatMoment(until, now)}.`
 }
 
-export function cardTask(state: BatonState, project: string): CardTask | null {
+export function cardTask(state: EvenKeelState, project: string): CardTask | null {
   const active = state.chain.active
   const current = active?.project === project ? active.current?.task : undefined
   const order = state.chain.projects[project]?.order ?? []
@@ -157,7 +157,7 @@ export function projectSlot(projects: string[], project: string): number | null 
   return index < 0 || index >= PROJECT_SLOTS ? null : index + 1
 }
 
-export function chainBlocks(state: BatonState, project: string): ChainBlock[] {
+export function chainBlocks(state: EvenKeelState, project: string): ChainBlock[] {
   const tasks = projectTasks(state, project)
   const byId = new Map(tasks.map((task) => [task.id, task]))
   const closed = tasks.filter((task) => !isOpen(task.status))
@@ -201,7 +201,7 @@ export function contextFill(tokens: number, scale: ContextScale): { percent: num
   return { percent, level }
 }
 
-export function queuedAfter(chain: BatonState['chain'], project: string): string | null {
+export function queuedAfter(chain: EvenKeelState['chain'], project: string): string | null {
   const index = chain.queue.indexOf(project)
   if (index < 0) return null
   return index === 0 ? (chain.active?.project ?? null) : chain.queue[index - 1]!

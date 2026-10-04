@@ -20,7 +20,7 @@ describe('readSessionRecord', () => {
   let projects: string
 
   beforeEach(() => {
-    projects = mkdtempSync(join(tmpdir(), 'baton-history-'))
+    projects = mkdtempSync(join(tmpdir(), 'even-keel-history-'))
   })
 
   afterEach(() => {

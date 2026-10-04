@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router'
 import type { PeriodQuery, StatsFilter, StatsScope } from '../../../src/stats/model.js'
 import type { RulesQuery } from '../../../src/stats/rules.js'
-import type { BatonState } from '../../../src/state.js'
+import type { EvenKeelState } from '../../../src/state.js'
 import { formatMoment } from '../format.js'
 import { useLive } from '../live/context.js'
 import { AnswerNotice, Segmented, loadedData, useStatsAnswer } from './common.js'
@@ -26,7 +26,7 @@ const SCOPES: [StatsScope, string][] = [
   ['chain', 'цепочка'],
 ]
 
-export function StatsPage({ state }: { state: BatonState }) {
+export function StatsPage({ state }: { state: EvenKeelState }) {
   const [params, setParams] = useSearchParams()
   const view = parseView(params)
   const { statsHistory, statsPeriod, statsSteps, statsRules } = useLive()

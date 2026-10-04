@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import type { BatonState } from '../../../src/state.js'
+import type { EvenKeelState } from '../../../src/state.js'
 import { LiveConnection, type EventStream } from './connection.js'
 
 class FakeStream implements EventStream {
@@ -35,7 +35,7 @@ class FakeStream implements EventStream {
   }
 }
 
-function state(startedAt: string): BatonState {
+function state(startedAt: string): EvenKeelState {
   return {
     startedAt,
     projects: [],
@@ -56,10 +56,10 @@ function state(startedAt: string): BatonState {
 
 describe('LiveConnection', () => {
   let streams: FakeStream[]
-  let fetched: { resolve: (value: BatonState) => void; reject: (error: Error) => void }
+  let fetched: { resolve: (value: EvenKeelState) => void; reject: (error: Error) => void }
   let live: LiveConnection
   let commands: { name: string; body: Record<string, unknown> }[]
-  let answer: () => Promise<BatonState>
+  let answer: () => Promise<EvenKeelState>
 
   const last = () => streams.at(-1)!
 
@@ -76,7 +76,7 @@ describe('LiveConnection', () => {
         return answer()
       },
       fetchState: () =>
-        new Promise<BatonState>((resolve, reject) => {
+        new Promise<EvenKeelState>((resolve, reject) => {
           fetched = { resolve, reject }
         }),
       openEvents: () => {

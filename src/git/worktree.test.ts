@@ -84,7 +84,7 @@ describe('ensureIgnored', () => {
   afterEach(() => dir && rmSync(dir, { recursive: true, force: true }))
 
   it('adds the worktrees folder to the exclude file when git does not ignore it', async () => {
-    dir = mkdtempSync(join(tmpdir(), 'baton-exclude-'))
+    dir = mkdtempSync(join(tmpdir(), 'even-keel-exclude-'))
     const exclude = join(dir, 'exclude')
     writeFileSync(exclude, '# git ls-files --others --exclude-from=.git/info/exclude')
     const { git } = fakeGit({ 'check-ignore -q .claude/worktrees/probe': { code: 1 }, 'rev-parse --git-path info/exclude': { out: exclude } })

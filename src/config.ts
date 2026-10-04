@@ -5,7 +5,7 @@ import { placeholderIn } from './sessions/prompt.js'
 import type { ContextScale } from './state.js'
 import type { CompareSettings } from './stats/rules.js'
 
-export interface BatonConfig {
+export interface EvenKeelConfig {
   host: string
   port: number
   projects: Record<string, string>
@@ -27,8 +27,8 @@ const DEFAULT_CONTEXT: ContextScale = { window: 600_000, warn: 50, danger: 80 }
 const DEFAULT_COMPARE: CompareSettings = { minTasks: 5, minSessions: 10, days: 7 }
 const COMPARE_LIMITS: Record<keyof CompareSettings, number> = { minTasks: 10_000, minSessions: 10_000, days: 365 }
 
-export function parseConfig(raw: unknown): BatonConfig {
-  const input = (raw ?? {}) as Partial<Record<keyof BatonConfig | 'chain', unknown>>
+export function parseConfig(raw: unknown): EvenKeelConfig {
+  const input = (raw ?? {}) as Partial<Record<keyof EvenKeelConfig | 'chain', unknown>>
 
   const host = input.host ?? '0.0.0.0'
   if (typeof host !== 'string' || host === '') throw new Error('config: host must be a non-empty string')
@@ -70,12 +70,12 @@ export function parseConfig(raw: unknown): BatonConfig {
   }
 }
 
-export function liveConfig(current: BatonConfig, next: BatonConfig): BatonConfig {
+export function liveConfig(current: EvenKeelConfig, next: EvenKeelConfig): EvenKeelConfig {
   const rules = Object.fromEntries(Object.keys(current.projects).map((key) => [key, next.rules[key] ?? current.rules[key]!]))
   return { ...current, rules, modelPrompts: next.modelPrompts, stats: next.stats }
 }
 
-export function restartChanges(current: BatonConfig, next: BatonConfig): string[] {
+export function restartChanges(current: EvenKeelConfig, next: EvenKeelConfig): string[] {
   return RESTART_KEYS.filter((key) => JSON.stringify(current[key]) !== JSON.stringify(next[key]))
 }
 
@@ -149,6 +149,6 @@ function parseStats(raw: unknown): StatsConfig {
   return { compare: settings }
 }
 
-export function loadConfig(file: string): BatonConfig {
+export function loadConfig(file: string): EvenKeelConfig {
   return parseConfig(JSON.parse(readFileSync(file, 'utf8')))
 }

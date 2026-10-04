@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useLive } from '../live/context.js'
 import { usageNotice } from '../state.js'
 
-const DISMISSED_KEY = 'baton.usageNotice.dismissed'
+const DISMISSED_KEY = 'even-keel.usageNotice.dismissed'
 
 export function UsageBanner() {
   const { state } = useLive()

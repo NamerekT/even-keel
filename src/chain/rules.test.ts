@@ -83,15 +83,15 @@ describe('labels', () => {
   })
 
   it('need any one of the required labels, whatever its case and spacing', () => {
-    const required = rules({ requiredLabels: ['Батон', 'Auto'] })
+    const required = rules({ requiredLabels: ['Цепочка', 'Auto'] })
     expect(admits(required, { status: todo, labels: [] })).toBe(false)
     expect(admits(required, { status: todo, labels: ['Bug'] })).toBe(false)
     expect(admits(required, { status: todo, labels: [' AUTO '] })).toBe(true)
   })
 
   it('let an excluded label win over a required one', () => {
-    const both = rules({ requiredLabels: ['Батон'], excludedLabels: ['Вручную'] })
-    expect(admits(both, { status: todo, labels: ['Батон', 'Вручную'] })).toBe(false)
+    const both = rules({ requiredLabels: ['Цепочка'], excludedLabels: ['Вручную'] })
+    expect(admits(both, { status: todo, labels: ['Цепочка', 'Вручную'] })).toBe(false)
   })
 
   it('never admit a task in a terminal status', () => {

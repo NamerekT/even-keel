@@ -107,7 +107,7 @@ const CONTENT_TYPES: Record<string, string> = {
   '.webmanifest': 'application/manifest+json',
 }
 
-export function createBatonServer(deps: ServerDeps): Server {
+export function createEvenKeelServer(deps: ServerDeps): Server {
   return createServer((request, response) => {
     route(deps, request, response).catch((error: unknown) => {
       if (!response.headersSent) response.writeHead(500, { 'content-type': 'text/plain; charset=utf-8' })

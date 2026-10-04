@@ -120,7 +120,7 @@ export interface SideSums {
 }
 
 export interface ScopePlaces {
-  baton: { key: string; dir: string }[]
+  tracked: { key: string; dir: string }[]
   folders: { dir: string; label: string }[]
 }
 
@@ -149,7 +149,7 @@ const holds = (outer: string, inner: string) => inner === outer || inner.startsW
 const slugOf = (raw: string) => raw.replace(/[^a-zA-Z0-9]/g, '-').toLowerCase()
 const iso = (at: string) => new Date(at).toISOString()
 
-// The stats project of a rule file scope: none for global rules, the Baton project holding the folder, else
+// The stats project of a rule file scope: none for global rules, the Even Keel project holding the folder, else
 // the group of the deepest folder seen in the data that holds it. A memory slug is matched without its drive.
 export function scopeProject(scope: string, places: ScopePlaces): string | null {
   if (scope === 'global') return null
@@ -160,8 +160,8 @@ export function scopeProject(scope: string, places: ScopePlaces): string | null 
     if (folder === undefined) return slug
     dir = folder.dir
   }
-  const baton = places.baton.filter((each) => holds(each.dir, dir)).sort((a, b) => b.dir.length - a.dir.length)[0]
-  if (baton !== undefined) return baton.key
+  const tracked = places.tracked.filter((each) => holds(each.dir, dir)).sort((a, b) => b.dir.length - a.dir.length)[0]
+  if (tracked !== undefined) return tracked.key
   const folder = places.folders.filter((each) => holds(each.dir, dir)).sort((a, b) => b.dir.length - a.dir.length)[0]
   return folder?.label ?? dir.split('/').filter(Boolean).at(-1) ?? dir
 }

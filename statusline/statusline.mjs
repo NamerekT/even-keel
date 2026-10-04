@@ -1,5 +1,5 @@
-// Claude Code statusLine command: records the subscription rate limits for Baton and prints a short status line.
-// Usage in ~/.claude/settings.json: node "<baton>/statusline/statusline.mjs" [target-file]
+// Claude Code statusLine command: records the subscription rate limits for Even Keel and prints a short status line.
+// Usage in ~/.claude/settings.json: node "<even-keel>/statusline/statusline.mjs" [target-file]
 import { mkdirSync, renameSync, rmSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'

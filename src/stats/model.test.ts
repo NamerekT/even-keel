@@ -72,7 +72,7 @@ describe('folderGroups', () => {
     expect(folderGroups([folder('D:\\Work\\relay\\systemd')], []).get('/work/relay/systemd')).toBe('systemd')
   })
 
-  it('never groups under a one-level folder or a folder holding a Baton project', () => {
+  it('never groups under a one-level folder or a folder holding an Even Keel project', () => {
     const groups = folderGroups([folder('D:\\Work'), folder('D:\\Work\\alpha'), folder('D:\\Work\\git'), folder('D:\\Work\\git\\side')], ['/work/git/example'])
     expect(Object.fromEntries(groups)).toEqual({ '/work': 'Work', '/work/alpha': 'alpha', '/work/git': 'git', '/work/git/side': 'side' })
   })

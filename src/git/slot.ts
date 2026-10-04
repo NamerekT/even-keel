@@ -14,7 +14,7 @@ export interface SlotPool {
 }
 
 export function slotPaths(repo: string, count: number): string[] {
-  return Array.from({ length: count }, (_, index) => join(repo, '.claude', 'worktrees', index === 0 ? 'baton' : `baton-${index + 1}`))
+  return Array.from({ length: count }, (_, index) => join(repo, '.claude', 'worktrees', index === 0 ? 'even-keel' : `even-keel-${index + 1}`))
 }
 
 export async function prepareSlot(git: Git, repo: string, task: string, options: Partial<SlotPool> = {}): Promise<TaskPlace> {

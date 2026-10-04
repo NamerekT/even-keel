@@ -83,7 +83,7 @@ function parseSettings(settings: string): Record<string, unknown> {
   try {
     value = JSON.parse(settings)
   } catch {
-    throw new Error('vscode: settings.json is not plain JSON (comments or trailing commas?); Baton does not rewrite it')
+    throw new Error('vscode: settings.json is not plain JSON (comments or trailing commas?); Even Keel does not rewrite it')
   }
   if (typeof value !== 'object' || value === null || Array.isArray(value)) throw new Error('vscode: settings.json is not a JSON object')
   return value as Record<string, unknown>

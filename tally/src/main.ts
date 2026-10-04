@@ -17,7 +17,7 @@ import { transcriptFiles } from './scan.js'
 import { classifySpans, refreshSigns, refreshSteps, refreshTasks, refreshTurns, reportTaskTimes } from './steps.js'
 
 const CHUNK_BYTES = 8 * 1024 * 1024
-const BATON_TIMEOUT_MS = 5_000
+const EVEN_KEEL_TIMEOUT_MS = 5_000
 const EXIT_GRACE_MS = 10_000
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..')
@@ -32,7 +32,7 @@ const log = (message: string) => console.log(`${new Date().toISOString()} ${mess
 async function run(): Promise<number> {
   const started = Date.now()
   const config = parseConfig(JSON.parse(readFileSync(process.env.TALLY_CONFIG ?? join(root, 'tally', 'tally.config.json'), 'utf8')))
-  const stateDir = process.env.BATON_STATE_DIR ?? join(root, 'state')
+  const stateDir = process.env.EVEN_KEEL_STATE_DIR ?? join(root, 'state')
   const homes = new AccountHomes(process.env, accountsRoot(process.env))
   const launches = launchMap(readLaunches(join(stateDir, 'launches.jsonl')))
 
@@ -45,7 +45,7 @@ async function run(): Promise<number> {
     await db.migrate()
     await db.syncPrices(config.prices)
 
-    const projects = batonProjects()
+    const projects = trackedProjects()
     const ruleFiles = await ruleSources(homes.list(), projects, homedir(), log)
     const rules = { home: homedir(), skills: skillsOf(ruleFiles) }
     const accountDirs = new Map(homes.list().map((home) => [home.key, home.dir]))
@@ -72,7 +72,7 @@ async function run(): Promise<number> {
     }
     const forgotten = sources.length > 0 ? await db.forgetFilesExcept(sources.map((source) => source.path)) : 0
     const relabeled = await db.syncLaunches(launches)
-    const snapshots = await db.addSnapshots(await limitSnapshots(config.batonUrl, stateDir, homes))
+    const snapshots = await db.addSnapshots(await limitSnapshots(config.evenKeelUrl, stateDir, homes))
     const versions = await snapshotRules(db, ruleFiles, new Date())
     const history = await collectRuleHistory(db, homes.list(), projects, homedir(), log)
     const changes = await refreshRuleChanges(db)
@@ -99,24 +99,24 @@ async function run(): Promise<number> {
   }
 }
 
-function batonProjects(): string[] {
-  const file = process.env.BATON_CONFIG ?? join(root, 'baton.config.json')
+function trackedProjects(): string[] {
+  const file = process.env.EVEN_KEEL_CONFIG ?? join(root, 'even-keel.config.json')
   try {
     return Object.values(loadConfig(file).projects)
   } catch (error) {
-    log(`tally: no Baton projects for rule files (${(error as Error).message})`)
+    log(`tally: no Even Keel projects for rule files (${(error as Error).message})`)
     return []
   }
 }
 
-async function limitSnapshots(batonUrl: string, stateDir: string, homes: AccountHomes): Promise<Snapshot[]> {
-  const url = process.env.BATON_URL ?? batonUrl
+async function limitSnapshots(evenKeelUrl: string, stateDir: string, homes: AccountHomes): Promise<Snapshot[]> {
+  const url = process.env.EVEN_KEEL_URL ?? evenKeelUrl
   try {
-    const response = await fetch(new URL('/api/state', url), { signal: AbortSignal.timeout(BATON_TIMEOUT_MS) })
+    const response = await fetch(new URL('/api/state', url), { signal: AbortSignal.timeout(EVEN_KEEL_TIMEOUT_MS) })
     if (!response.ok) throw new Error(`HTTP ${response.status}`)
     return snapshotsOfState(await response.json())
   } catch (error) {
-    log(`tally: Baton at ${url} gave no limits (${(error as Error).message}), reading rate-limits.json`)
+    log(`tally: Even Keel at ${url} gave no limits (${(error as Error).message}), reading rate-limits.json`)
   }
   try {
     const raw: unknown = JSON.parse(readFileSync(join(stateDir, 'rate-limits.json'), 'utf8'))

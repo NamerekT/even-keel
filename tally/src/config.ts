@@ -17,7 +17,7 @@ export interface ClassifySettings {
 }
 
 export interface TallyConfig {
-  batonUrl: string
+  evenKeelUrl: string
   prices: Price[]
   signs: SignRules
   classify: ClassifySettings
@@ -35,12 +35,12 @@ export interface DbSettings {
 }
 
 const PRICE_KEYS = ['input', 'output', 'cacheRead', 'cacheWrite5m', 'cacheWrite1h'] as const
-const DEFAULT_BATON_URL = 'http://127.0.0.1:4747'
+const DEFAULT_EVEN_KEEL_URL = 'http://127.0.0.1:4747'
 export const DEFAULT_CLASSIFY: ClassifySettings = { perRun: 10, idleMinutes: 60, sinceDays: 14 }
 
 export function parseConfig(raw: unknown): TallyConfig {
   const record = (raw ?? {}) as {
-    batonUrl?: unknown
+    evenKeelUrl?: unknown
     prices?: unknown
     signs?: unknown
     classify?: unknown
@@ -60,7 +60,7 @@ export function parseConfig(raw: unknown): TallyConfig {
     throw new Error('tally: config needs "prices" per model prefix')
   }
   return {
-    batonUrl: typeof record.batonUrl === 'string' && record.batonUrl !== '' ? record.batonUrl : DEFAULT_BATON_URL,
+    evenKeelUrl: typeof record.evenKeelUrl === 'string' && record.evenKeelUrl !== '' ? record.evenKeelUrl : DEFAULT_EVEN_KEEL_URL,
     prices: Object.entries(prices as Record<string, Record<string, unknown>>).map(([model, value]) => {
       const price = { model } as Price
       for (const key of PRICE_KEYS) {

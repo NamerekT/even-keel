@@ -56,8 +56,8 @@ export function projectTotals(history: StatsHistory, range: DayRange): ProjectTo
 export function projectColors(history: StatsHistory): Map<string, number | null> {
   const colors = new Map<string, number | null>()
   const taken = new Set<number>()
-  for (const key of history.baton) {
-    const slot = projectSlot(history.baton, key)
+  for (const key of history.tracked) {
+    const slot = projectSlot(history.tracked, key)
     colors.set(key, slot)
     if (slot !== null) taken.add(slot)
   }

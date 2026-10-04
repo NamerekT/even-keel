@@ -20,7 +20,7 @@ export function App() {
       <ConfigBanner />
       <main className="content">
         {state === null ? (
-          <p className="placeholder">{link === 'stale' ? 'Нет связи с сервером Baton.' : 'Подключение…'}</p>
+          <p className="placeholder">{link === 'stale' ? 'Нет связи с сервером Even Keel.' : 'Подключение…'}</p>
         ) : (
           <Routes>
             <Route path="/" element={<Home state={state} />} />

@@ -72,15 +72,15 @@ export function importKind(path: string): RuleKind {
   return best?.kind ?? 'settings'
 }
 
-// Home paths are global. Elsewhere any word of the path may name a Baton project (key or folder) or a folder
+// Home paths are global. Elsewhere any word of the path may name an Even Keel project (key or folder) or a folder
 // group; a path naming none is shown with every project, like a global one.
 export function importProjects(path: string, places: ScopePlaces): (string | null)[] {
   if (/^(~|\$HOME)[\\/]/.test(path)) return [null]
   const words = path.toLowerCase().split(/[^\p{L}\p{N}_.-]+/u).filter(Boolean)
   const found: string[] = []
   for (const word of words) {
-    const baton = places.baton.find((each) => each.key.toLowerCase() === word || each.dir.split('/').at(-1) === word)
-    const project = baton?.key ?? places.folders.find((each) => each.label.toLowerCase() === word)?.label
+    const tracked = places.tracked.find((each) => each.key.toLowerCase() === word || each.dir.split('/').at(-1) === word)
+    const project = tracked?.key ??places.folders.find((each) => each.label.toLowerCase() === word)?.label
     if (project !== undefined && !found.includes(project)) found.push(project)
   }
   return found.length === 0 ? [null] : found

@@ -159,7 +159,7 @@ describe('handoffPrompt', () => {
     expect(handoffPrompt('ABC-1', session())).not.toContain('handoff')
   })
 
-  it('leaves the cleanup after the merge to Baton', () => {
+  it('leaves the cleanup after the merge to Even Keel', () => {
     expect(handoffPrompt('ABC-1', session())).toContain(CLEANUP_NOTE)
   })
 

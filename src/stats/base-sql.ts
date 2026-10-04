@@ -1,6 +1,6 @@
-// $1 Baton project keys, $2 their repository paths without drive, $3 time zone, $4 scope, $5 account or null,
+// $1 Even Keel project keys, $2 their repository paths without drive, $3 time zone, $4 scope, $5 account or null,
 // $6 folders without drive and $7 their groups (folderGroups).
-// A message belongs to the Baton project of its task key, a message without a task to the Baton project
+// A message belongs to the Even Keel project of its task key, a message without a task to the Even Keel project
 // whose repository holds its folder, anything else to the group of its folder.
 export const BASE = `
 with base as (

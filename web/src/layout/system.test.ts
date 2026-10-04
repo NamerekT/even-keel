@@ -13,7 +13,7 @@ describe('systemChecks', () => {
   it('lists the server, Huly, the limit poll and the config, all fine', () => {
     const checks = systemChecks(healthy, now)
     expect(checks.map((check) => [check.name, check.level])).toEqual([
-      ['Сервер Baton', 'ok'],
+      ['Сервер Even Keel', 'ok'],
       ['Huly', 'ok'],
       ['Лимиты', 'ok'],
       ['Конфигурация', 'ok'],
@@ -23,7 +23,7 @@ describe('systemChecks', () => {
 
   it('shows only the server until the first state arrives', () => {
     const checks = systemChecks({ link: 'connecting', huly: null, usage: null, configError: null }, now)
-    expect(checks).toEqual([{ name: 'Сервер Baton', level: 'warn', text: 'подключение', details: [] }])
+    expect(checks).toEqual([{ name: 'Сервер Even Keel', level: 'warn', text: 'подключение', details: [] }])
     expect(worstLevel(checks)).toBe('warn')
   })
 

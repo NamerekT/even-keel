@@ -11,8 +11,8 @@ describe('ConfigFile', () => {
   let changes: number
 
   beforeEach(() => {
-    dir = mkdtempSync(join(tmpdir(), 'baton-config-'))
-    file = join(dir, 'baton.config.json')
+    dir = mkdtempSync(join(tmpdir(), 'even-keel-config-'))
+    file = join(dir, 'even-keel.config.json')
     warnings = []
     changes = 0
   })
@@ -45,6 +45,6 @@ describe('ConfigFile', () => {
     write({ port: 5000, projects: { ABC: 'C:\\abc' } })
     config.reload()
     expect(config.current.port).toBe(4747)
-    expect(warnings).toEqual(['config: port changed and wait for a restart of Baton'])
+    expect(warnings).toEqual(['config: port changed and wait for a restart of Even Keel'])
   })
 })

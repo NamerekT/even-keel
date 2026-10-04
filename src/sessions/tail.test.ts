@@ -34,7 +34,7 @@ describe('TranscriptTail', () => {
   }
 
   beforeEach(() => {
-    projects = mkdtempSync(join(tmpdir(), 'baton-projects-'))
+    projects = mkdtempSync(join(tmpdir(), 'even-keel-projects-'))
   })
 
   afterEach(() => {
