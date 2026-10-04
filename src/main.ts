@@ -81,8 +81,10 @@ const launchesFile = join(stateDir, 'launches.jsonl')
 const limitsFile = join(stateDir, 'rate-limits.json')
 const accountFile = join(stateDir, 'account.json')
 const trackerNames = [...new Set([config.tracker, ...Object.values(config.trackers)])]
-const setups = new Map<string, TrackerSetup | undefined>(trackerNames.map((name) => [name, ADAPTERS[name]!.setup(process.env)]))
 const trackerProjects = (name: string) => Object.keys(config.projects).filter((project) => config.trackers[project] === name)
+const trackerNamesOf = (name: string) =>
+  Object.fromEntries(trackerProjects(name).flatMap((project) => (project in config.trackerProjects ? [[project, config.trackerProjects[project]!]] : [])))
+const setups = new Map<string, TrackerSetup | undefined>(trackerNames.map((name) => [name, ADAPTERS[name]!.setup(process.env, trackerNamesOf(name))]))
 const trackers = new Map<string, TrackerView>(
   trackerNames
     .filter((name) => trackerProjects(name).length > 0)
@@ -387,8 +389,8 @@ const getState = (): EvenKeelState => ({
   account: account.view,
   trackers: [...trackers.values()],
   trackerUrls: {
-    default: setups.get(config.tracker)?.issueUrlBase ?? null,
-    projects: Object.fromEntries(Object.keys(config.projects).map((project) => [project, setups.get(config.trackers[project]!)?.issueUrlBase ?? null])),
+    default: setups.get(config.tracker)?.issueUrl(null) ?? null,
+    projects: Object.fromEntries(Object.keys(config.projects).map((project) => [project, setups.get(config.trackers[project]!)?.issueUrl(project) ?? null])),
   },
   launches: launchDays(launches, new Date(), LAUNCH_CHART_DAYS),
   taskSessions: taskSessions(launches, sessions),

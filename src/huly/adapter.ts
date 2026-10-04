@@ -8,9 +8,10 @@ export const huly: TrackerAdapter = {
   setup(env) {
     const credentials = readHulyCredentials(env)
     if (credentials === undefined) return undefined
+    const base = issueUrlBase(credentials)
     return {
       connect: async (timeoutMs) => (await import('./source.js')).connectHuly(credentials, timeoutMs),
-      issueUrlBase: issueUrlBase(credentials),
+      issueUrl: () => `${base}{id}`,
     }
   },
 }

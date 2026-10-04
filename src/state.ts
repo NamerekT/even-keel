@@ -44,6 +44,7 @@ export interface SessionRecord {
   apiError: string | null
 }
 
+/** Task link templates (`TrackerSetup.issueUrl`): `{id}` — the task id, `{number}` — its number. */
 export interface TrackerUrls {
   default: string | null
   projects: Record<string, string | null>

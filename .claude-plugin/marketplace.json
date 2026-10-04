@@ -11,6 +11,12 @@
       "description": "Huly for Even Keel sessions: the huly MCP server and skills to read the task, record decisions, file blockers and questions, split a task into subtasks, close the task by merging, and put a repository on Huly",
       "source": "./plugins/huly",
       "category": "productivity"
+    },
+    {
+      "name": "github",
+      "description": "GitHub Issues for Even Keel sessions: GitHub's MCP server and a skill to read the issue, record decisions, file blockers and questions, and close the issue by merging",
+      "source": "./plugins/github",
+      "category": "productivity"
     }
   ]
 }

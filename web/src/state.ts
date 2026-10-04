@@ -238,8 +238,8 @@ export function tokenTotal(tokens: TokenTotals): number {
 
 export function issueLink(urls: TrackerUrls, task: string): string | null {
   const project = taskProject(task)
-  const base = Object.hasOwn(urls.projects, project) ? urls.projects[project]! : urls.default
-  return base === null ? null : base + task
+  const template = Object.hasOwn(urls.projects, project) ? urls.projects[project]! : urls.default
+  return template === null ? null : template.replaceAll('{id}', task).replaceAll('{number}', task.slice(project.length + 1))
 }
 
 function taskSession(sessions: SessionView[], task: string): SessionView | undefined {
