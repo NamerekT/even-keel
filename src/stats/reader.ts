@@ -300,6 +300,10 @@ export function mapTask(task: string, sessions: Row[], spans: Row[], steps: Stat
   }
 }
 
+export function rulesKey(query: RulesQuery, settings: CompareSettings): string {
+  return `rules|${JSON.stringify(query)}|${settings.minSessions}`
+}
+
 export class StatsReader {
   private readonly pool: pg.Pool | null
   private readonly cache = new Map<string, { at: number; answer: StatsAnswer<unknown> }>()
@@ -364,8 +368,7 @@ export class StatsReader {
 
   rules(query: RulesQuery): Promise<StatsAnswer<StatsRules>> {
     const settings = this.compareSettings()
-    const key = `rules|${query.scope}|${query.account}|${query.projects?.join(',') ?? '*'}|${query.kinds?.join(',') ?? '*'}|${settings.minSessions}`
-    return this.cached(key, (pool) => readRules(this.db(pool), query, settings))
+    return this.cached(rulesKey(query, settings), (pool) => readRules(this.db(pool), query, settings))
   }
 
   ruleDiff(ids: string[]): Promise<StatsAnswer<RuleDiffFile[]>> {

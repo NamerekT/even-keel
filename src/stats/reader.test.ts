@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { PeriodQuery } from './model.js'
-import { mapHistory, mapPeriod, mapTask } from './reader.js'
+import { mapHistory, mapPeriod, mapTask, rulesKey } from './reader.js'
+import type { RulesQuery } from './rules.js'
 
 const AT = new Date('2026-10-03T12:00:00Z')
 const QUERY: PeriodQuery = { scope: 'all', account: null, tz: 'UTC', from: '2026-09-27', to: '2026-10-03', projects: null }
@@ -174,5 +175,26 @@ describe('mapTask', () => {
       spans: [],
       steps: [],
     })
+  })
+})
+
+describe('rulesKey', () => {
+  const rules: RulesQuery = { scope: 'all', account: null, tz: 'UTC', projects: null, kinds: null, purposes: null }
+  const settings = { minTasks: 5, minSessions: 10, days: 7 }
+
+  it('tells apart queries that differ in any filter', () => {
+    const keys = [
+      rules,
+      { ...rules, purposes: ['quality' as const] },
+      { ...rules, purposes: ['economy' as const] },
+      { ...rules, kinds: ['hook' as const] },
+      { ...rules, projects: ['ABC'] },
+      { ...rules, tz: 'Europe/Berlin' },
+    ].map((query) => rulesKey(query, settings))
+    expect(new Set(keys).size).toBe(keys.length)
+  })
+
+  it('changes with the compare settings', () => {
+    expect(rulesKey(rules, settings)).not.toBe(rulesKey(rules, { ...settings, minSessions: 3 }))
   })
 })
