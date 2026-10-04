@@ -151,6 +151,7 @@ export const en = {
   'config.ruleList': (p: { where: string; key: string }) => `config: ${p.where}.${p.key} must be a list of non-empty names`,
   'config.statusBoth': (p: { project: string; status: string }) => `config: ${p.project}: status "${p.status}" is both active and terminal`,
   'config.labelBoth': (p: { project: string; label: string }) => `config: ${p.project}: label "${p.label}" is both required and excluded`,
+  'config.model': (p: { value: string; known: string[] }) => `config: model ${p.value} is not a model alias, known: ${list(p.known)}`,
   'config.modelPrompts': () => 'config: modelPrompts must map a model alias to a prompt',
   'config.modelAlias': (p: { model: string }) => `config: modelPrompts.${p.model} is not a model alias`,
   'config.modelPromptEmpty': (p: { model: string }) => `config: modelPrompts.${p.model} is empty`,

@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs'
 import { DEFAULT_RULES, sameName, type ChainRules } from './chain/rules.js'
 import { isLanguage, LANGUAGES, type Language } from './language.js'
 import { fail } from './notice/notice.js'
-import { isModelAlias, type ModelAlias } from './tracker/model.js'
+import { isModelAlias, MODEL_ALIASES, type ModelAlias } from './tracker/model.js'
 import { placeholderIn } from './sessions/prompt.js'
 import type { ContextScale } from './state.js'
 import type { CompareSettings } from './stats/rules.js'
@@ -20,6 +20,7 @@ export interface EvenKeelConfig {
   trackerProjects: Record<string, string>
   briefs: Record<string, boolean>
   context: ContextScale
+  model: ModelAlias
   modelPrompts: Partial<Record<ModelAlias, string>>
   stats: StatsConfig
   language: Language | null
@@ -34,6 +35,7 @@ const PROJECT_KEY = /^[A-Z][A-Z0-9_]{0,4}$/
 const RULE_KEYS = ['active', 'terminal', 'requiredLabels', 'excludedLabels'] as const
 const RESTART_KEYS = ['host', 'port', 'projects', 'slots', 'tracker', 'trackers', 'trackerProjects', 'context'] as const
 const DEFAULT_LANGUAGE: Language = 'en'
+const DEFAULT_MODEL: ModelAlias = 'opus'
 const DEFAULT_CONTEXT: ContextScale = { window: 600_000, warn: 50, danger: 80 }
 const DEFAULT_COMPARE: CompareSettings = { minTasks: 5, minSessions: 10, days: 7 }
 const COMPARE_LIMITS: Record<keyof CompareSettings, number> = { minTasks: 10_000, minSessions: 10_000, days: 365 }
@@ -86,6 +88,7 @@ export function parseConfig(raw: unknown, adapters: AdapterShapes = ADAPTERS): E
     trackerProjects,
     briefs,
     context: parseContext(input.context),
+    model: parseModel(input.model),
     modelPrompts: parseModelPrompts(input.modelPrompts),
     stats: parseStats(input.stats),
     language,
@@ -96,8 +99,15 @@ export function parseConfig(raw: unknown, adapters: AdapterShapes = ADAPTERS): E
 export function liveConfig(current: EvenKeelConfig, next: EvenKeelConfig): EvenKeelConfig {
   const keep = <T>(field: Record<string, T>, fallback: Record<string, T>) =>
     Object.fromEntries(Object.keys(current.projects).map((key) => [key, field[key] ?? fallback[key]!]))
-  const { modelPrompts, stats, language, promptLanguage } = next
-  return { ...current, rules: keep(next.rules, current.rules), briefs: keep(next.briefs, current.briefs), modelPrompts, stats, language, promptLanguage }
+  const { model, modelPrompts, stats, language, promptLanguage } = next
+  return { ...current, rules: keep(next.rules, current.rules), briefs: keep(next.briefs, current.briefs), model, modelPrompts, stats, language, promptLanguage }
+}
+
+function parseModel(raw: unknown): ModelAlias {
+  if (raw === undefined) return DEFAULT_MODEL
+  const model = typeof raw === 'string' ? raw.trim().toLowerCase() : ''
+  if (!isModelAlias(model)) throw fail('config.model', { value: String(JSON.stringify(raw)), known: [...MODEL_ALIASES] })
+  return model
 }
 
 function parseLanguage(raw: unknown, where: string): Language | null {

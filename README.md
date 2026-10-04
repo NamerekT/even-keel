@@ -25,7 +25,7 @@ One chain is active at a time; other projects wait in a queue and start when it 
 ## What it does
 
 - **The chain.** Tasks enter the chain by status (by default: ready and in-progress tasks — not the backlog, not closed ones) and by labels you choose. Order: open blockers first, then the order you set by dragging on the page, then milestone, priority, task number. A task with an open blocker waits; a task with subtasks never runs itself — its subtasks do.
-- **Sessions.** Each task gets a background session (`claude --bg`) in its own git worktree `.claude/worktrees/<key>-<number>` on a branch `<key>-<number>/task`, made from `main`. The session does the task and merges its branch into `main`; Even Keel sees the merge, closes the task in the tracker, stops the session, removes the worktree and the branch, and syncs `main` with the remote. Labels `Sonnet`, `Opus` or `Haiku` on a task pick the model; without one the session runs on Opus, whatever `/model` last saved in the CLI settings.
+- **Sessions.** Each task gets a background session (`claude --bg`) in its own git worktree `.claude/worktrees/<key>-<number>` on a branch `<key>-<number>/task`, made from `main`. The session does the task and merges its branch into `main`; Even Keel sees the merge, closes the task in the tracker, stops the session, removes the worktree and the branch, and syncs `main` with the remote. Labels `Sonnet`, `Opus` or `Haiku` on a task pick the model; without one the session runs on the `model` of the config (Opus by default), whatever `/model` last saved in the CLI settings.
 - **Slots.** For repositories with heavy ignored caches (Unity's `Library`, big `node_modules`) a project can use a pool of permanent worktrees instead of a fresh one per task, so the next task rebuilds only the difference.
 - **Handoffs.** A session that hit the usage limit is resumed after the reset if its prompt cache is still warm, otherwise stopped and replaced by a new session in the same worktree with a handoff prompt. The same handoff happens when a session ends its turn with a `CHECKPOINT: <path to a note>` line — the [checkpoint](plugins/checkpoint) plugin asks for it once the context grows past 150k tokens — and when you press **New session** on the page.
 - **Hands off a stopped session.** A session that asks a question or fails is left alone: you answer it — from your phone through Remote Control, if you like — or move the task in the tracker yourself. Even Keel never writes into a session that stopped on its own. You can skip a task, and a session that files a blocker for its task gets the task postponed until the blocker is done.
@@ -169,7 +169,7 @@ On Linux it installs a systemd user unit (`systemctl --user status even-keel`, l
 
 ## Configuration
 
-`even-keel.config.json`, starting from [even-keel.config.example.json](even-keel.config.example.json). The service rereads it on the fly: `chain`, `brief`, `modelPrompts`, `stats`, `language` and `promptLanguage` apply at once, the rest after a restart. A broken file keeps the last good one running and shows the error on the page.
+`even-keel.config.json`, starting from [even-keel.config.example.json](even-keel.config.example.json). The service rereads it on the fly: `chain`, `brief`, `model`, `modelPrompts`, `stats`, `language` and `promptLanguage` apply at once, the rest after a restart. A broken file keeps the last good one running and shows the error on the page.
 
 | Key | Default | |
 | --- | --- | --- |
@@ -187,6 +187,7 @@ On Linux it installs a systemd user unit (`systemctl --user status even-keel`, l
 | `projects.<KEY>.linear` | the whole team | name of the Linear project the team is narrowed down to, for a project on Linear (the key is the team key) |
 | `projects.<KEY>.slot` | off | `true` or a number: a pool of permanent worktrees instead of one per task |
 | `context` | `{ "window": 600000, "warn": 50, "danger": 80 }` | context bar on the page: window size in tokens, warning and danger thresholds in percent |
+| `model` | `opus` | model of sessions whose task has no model label: `sonnet`, `opus` or `haiku` |
 | `modelPrompts` | `{}` | text added to the prompt of sessions on `sonnet`, `opus` or `haiku` |
 | `stats.compare` | `{ "minTasks": 5, "minSessions": 10, "days": 7 }` | before/after comparisons on `/stats`: minimum sample and days on each side |
 | `language` | the browser's | language of the page: `en` or `ru` |

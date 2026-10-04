@@ -237,7 +237,7 @@ const agentStatus = (task: string) => {
 const planFor = (task: string, prompt: string): LaunchPlan => {
   const known = [...tasksByProject.values()].flat().find((each) => each.id === task)
   const full = withUnattended(prompt, dispatcher.state.unattended, promptLanguage())
-  const plan = launchPlan(known, full, configFile.current.modelPrompts)
+  const plan = launchPlan(known, full, configFile.current.model, configFile.current.modelPrompts)
   if (plan.warning !== null) console.warn(plan.warning)
   return plan
 }

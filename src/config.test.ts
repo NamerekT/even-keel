@@ -16,6 +16,7 @@ describe('parseConfig', () => {
       trackerProjects: {},
       briefs: { ABC: true },
       context: { window: 600_000, warn: 50, danger: 80 },
+      model: 'opus',
       modelPrompts: {},
       stats: { compare: { minTasks: 5, minSessions: 10, days: 7 } },
       language: null,
@@ -92,6 +93,15 @@ describe('parseConfig', () => {
     for (const slot of ['yes', 0, -1, 1.5]) {
       expect(() => parseConfig({ projects: { ABC: { repo: 'C:\\abc', slot } } })).toThrow(/ABC.slot/)
     }
+  })
+
+  it('takes the default model as an alias, in any case', () => {
+    expect(parseConfig({ projects: {}, model: ' Sonnet ' }).model).toBe('sonnet')
+  })
+
+  it('rejects a default model that is not an alias', () => {
+    expect(() => parseConfig({ projects: {}, model: 'claude-opus-5-5' })).toThrow(/model.*claude-opus-5-5.*sonnet, opus, haiku/)
+    expect(() => parseConfig({ projects: {}, model: 5 })).toThrow(/model/)
   })
 
   it('keeps model prompts keyed by model alias', () => {
@@ -217,10 +227,11 @@ describe('chain rules in the config', () => {
 describe('reloading the config', () => {
   const base = parseConfig({ projects: { ABC: 'C:\\abc' }, modelPrompts: { sonnet: 'Old.' } })
 
-  it('applies new chain rules and model prompts at once', () => {
-    const next = parseConfig({ chain: { requiredLabels: ['Auto'] }, projects: { ABC: 'C:\\abc' }, modelPrompts: { opus: 'New.' } })
+  it('applies new chain rules, the default model and model prompts at once', () => {
+    const next = parseConfig({ chain: { requiredLabels: ['Auto'] }, projects: { ABC: 'C:\\abc' }, model: 'sonnet', modelPrompts: { opus: 'New.' } })
     const live = liveConfig(base, { ...next, stats: { compare: { minTasks: 3, minSessions: 6, days: 7 } } })
     expect(live.rules.ABC?.requiredLabels).toEqual(['Auto'])
+    expect(live.model).toBe('sonnet')
     expect(live.modelPrompts).toEqual({ opus: 'New.' })
     expect(live.stats.compare.minTasks).toBe(3)
     expect(restartChanges(base, next)).toEqual([])

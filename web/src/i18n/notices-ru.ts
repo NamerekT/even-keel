@@ -145,6 +145,7 @@ export const noticesRu: NoticeTexts = {
   'config.ruleList': (p) => `${p.where}.${p.key} должен быть списком непустых имён`,
   'config.statusBoth': (p) => `${p.project}: статус «${p.status}» и активный, и терминальный`,
   'config.labelBoth': (p) => `${p.project}: ярлык «${p.label}» и обязательный, и исключающий`,
+  'config.model': (p) => `model: ${p.value} — не алиас модели, есть: ${list(p.known)}`,
   'config.modelPrompts': () => 'modelPrompts должен сопоставлять алиасу модели промт',
   'config.modelAlias': (p) => `modelPrompts.${p.model} — не алиас модели`,
   'config.modelPromptEmpty': (p) => `modelPrompts.${p.model} пуст`,
