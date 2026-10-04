@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "huly": {
+      "command": "npx",
+      "args": ["-y", "@firfi/huly-mcp@latest"],
+      "env": {
+        "TOOLSETS": "issues,projects,comments,labels,milestones,components,search,attachments,activity"
+      }
+    }
+  }
+}
