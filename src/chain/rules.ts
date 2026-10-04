@@ -7,7 +7,7 @@ export interface ChainRules {
   excludedLabels: string[]
 }
 
-export const DEFAULT_RULES: ChainRules = { active: null, terminal: null, requiredLabels: [], excludedLabels: ['Вручную'] }
+export const DEFAULT_RULES: ChainRules = { active: null, terminal: null, requiredLabels: [], excludedLabels: ['Manual', 'Вручную'] }
 
 const ACTIVE_CATEGORIES: readonly StatusCategory[] = ['ToDo', 'Active']
 const TERMINAL_CATEGORIES: readonly StatusCategory[] = ['Won', 'Lost']

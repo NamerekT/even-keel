@@ -207,6 +207,7 @@ function fakeState(
         },
     context: { window: 600_000, warn: 50, danger: 80 },
     configError: null,
+    language: null,
   }
 }
 

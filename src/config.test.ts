@@ -16,7 +16,20 @@ describe('parseConfig', () => {
       context: { window: 600_000, warn: 50, danger: 80 },
       modelPrompts: {},
       stats: { compare: { minTasks: 5, minSessions: 10, days: 7 } },
+      language: null,
+      promptLanguage: 'en',
     })
+  })
+
+  it('takes the prompt language from its own key, else from the interface language', () => {
+    expect(parseConfig({ projects: {}, language: 'ru' })).toMatchObject({ language: 'ru', promptLanguage: 'ru' })
+    expect(parseConfig({ projects: {}, language: 'ru', promptLanguage: 'en' })).toMatchObject({ language: 'ru', promptLanguage: 'en' })
+    expect(parseConfig({ projects: {}, promptLanguage: 'ru' })).toMatchObject({ language: null, promptLanguage: 'ru' })
+  })
+
+  it('rejects a language it has no texts for', () => {
+    expect(() => parseConfig({ projects: {}, language: 'de' })).toThrow(/language.*"de".*en, ru/)
+    expect(() => parseConfig({ projects: {}, promptLanguage: 'RU' })).toThrow(/promptLanguage/)
   })
 
   it('takes the tracker of a project from its own key, else from the shared one', () => {
@@ -173,6 +186,12 @@ describe('reloading the config', () => {
     expect(live.rules.ABC?.requiredLabels).toEqual(['Auto'])
     expect(live.modelPrompts).toEqual({ opus: 'New.' })
     expect(live.stats.compare.minTasks).toBe(3)
+    expect(restartChanges(base, next)).toEqual([])
+  })
+
+  it('applies the languages at once', () => {
+    const next = parseConfig({ projects: { ABC: 'C:\\abc' }, language: 'ru', promptLanguage: 'en' })
+    expect(liveConfig(base, next)).toMatchObject({ language: 'ru', promptLanguage: 'en' })
     expect(restartChanges(base, next)).toEqual([])
   })
 

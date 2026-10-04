@@ -1,4 +1,5 @@
 import type { FinishOutcome } from '../git/types.js'
+import type { Language } from '../language.js'
 import type { Task } from '../tracker/model.js'
 import { chainOrder, checkOrder, nextTask, openBlockers, withFresh } from './order.js'
 import { admits, isActive, isDone, isTerminal, type ChainRules } from './rules.js'
@@ -78,7 +79,8 @@ export interface DispatcherDeps {
   account: () => AccountNow
   accountAt: (account: string, at: string) => string | null
   limitReset: () => string | null
-  resume: (task: string, session: LimitedSession) => Promise<string>
+  promptLanguage: () => Language
+  resume:(task: string, session: LimitedSession) => Promise<string>
   relay: (task: string, session: HandoffSession, prompt: string) => Promise<string>
   finish: (project: string, task: string) => Promise<FinishOutcome>
 }
@@ -568,7 +570,7 @@ export class Dispatcher {
 
   private async handOver(task: string, session: HandoffSession, reason: HandoffReason): Promise<string> {
     const located = await this.deps.locate(session)
-    return this.deps.relay(task, located, handoffPrompt(task, located, reason))
+    return this.deps.relay(task, located, handoffPrompt(task, located, reason, this.deps.promptLanguage()))
   }
 
   private halt(chain: ActiveChain, error: string): void {

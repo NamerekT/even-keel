@@ -1,7 +1,9 @@
 import { createHash } from 'node:crypto'
-import { RESUME_PROMPT } from '../../src/chain/relay.js'
+import { PROMPTS } from '../../src/chain/prompts.js'
 import { blocksOf } from '../../src/sessions/entry.js'
 import type { TranscriptEntry } from './stream.js'
+
+const RESUME_PROMPTS = Object.values(PROMPTS).map((texts) => texts.resume)
 
 export type TurnStart = 'launch' | 'prompt' | 'resume' | 'notification' | 'message'
 
@@ -104,7 +106,7 @@ function startOf(entry: TurnEntry): TurnStart | null {
   if (entry.isMeta === true) {
     return entry.origin?.body !== undefined || SESSION_MESSAGE.test(text) ? 'message' : null
   }
-  if (text.startsWith(RESUME_PROMPT)) return 'resume'
+  if (RESUME_PROMPTS.some((prompt) => text.startsWith(prompt))) return 'resume'
   if (entry.origin?.kind === 'human') return 'prompt'
   if (entry.origin?.kind === 'task-notification' || NOTIFICATION.test(text)) return 'notification'
   return text.trim() === '' || NOT_STARTER.test(text) ? null : 'prompt'

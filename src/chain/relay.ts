@@ -1,27 +1,31 @@
 import type { TaskPlace } from '../git/types.js'
+import type { Language } from '../language.js'
 import { resetTimeOf } from '../limits/reset.js'
 import { fill } from '../sessions/prompt.js'
 import type { FeedLine } from '../sessions/transcript.js'
 import type { TaskBrief } from '../tracker/source.js'
+import { PROMPTS, type HandoffReason } from './prompts.js'
+
+export type { HandoffReason } from './prompts.js'
 
 export const WARM_CACHE_MS = 55 * 60_000
 const HANDOFF_STEPS = 10
 
-export const RESUME_PROMPT = 'Лимит сброшен — продолжай с того же места.'
+export function resumePrompt(language: Language): string {
+  return PROMPTS[language].resume
+}
 
-export const CLEANUP_NOTE =
-  '- Задачу закрывает слияние ветки в main основного чекаута. Worktree и ветку после этого не трогай и main не пушь — уборку сделает Even Keel.'
-
-export function startPrompt(task: string, place: TaskPlace): string {
-  const lines = [fill`${task}`, '', fill`- Worktree готов: ${place.path} — работай в нём, новый worktree не создавай.`]
-  if (place.branch !== null) lines.push(fill`- Ветка: ${place.branch} — не меняй её.`)
-  lines.push(CLEANUP_NOTE)
+export function startPrompt(task: string, place: TaskPlace, language: Language): string {
+  const text = PROMPTS[language]
+  const lines = [fill`${task}`, '', text.worktree(place.path)]
+  if (place.branch !== null) lines.push(text.branch(place.branch))
+  lines.push(text.cleanup)
   return lines.join('\n') + '\n'
 }
 
-export function withBrief(prompt: string, brief: TaskBrief | undefined): string {
+export function withBrief(prompt: string, brief: TaskBrief | undefined, language: Language): string {
   if (brief === undefined) return prompt
-  const lines = ['', fill`Задача из трекера: ${brief.title.trim()}`]
+  const lines = ['', PROMPTS[language].brief(brief.title.trim())]
   const description = brief.description.trim()
   if (description !== '') lines.push('', description)
   return prompt + lines.join('\n') + '\n'
@@ -29,8 +33,6 @@ export function withBrief(prompt: string, brief: TaskBrief | undefined): string 
 
 export type RelayAction = 'resume' | 'relay'
 export type RelayStep = 'wait' | RelayAction
-
-export type HandoffReason = 'limit' | 'restart' | 'checkpoint'
 
 export interface HandoffSession {
   sessionId: string
@@ -48,13 +50,6 @@ export interface HandoffSession {
 
 export interface LimitedSession extends HandoffSession {
   limit: { at: string; text: string }
-}
-
-const HANDOFF_WHY: Record<HandoffReason, string> = {
-  limit: 'Продолжение: прошлая сессия по этой задаче упёрлась в лимит и остановлена, задачу доводишь ты.',
-  restart: 'Продолжение: прошлую сессию по этой задаче остановил пользователь — она задачу не довела, доводишь ты.',
-  checkpoint:
-    'Продолжение: прошлая сессия по этой задаче поставила контрольную точку, чтобы не тащить раздутый контекст дальше, и остановлена — задачу доводишь ты.',
 }
 
 export interface LimitHold {
@@ -94,26 +89,18 @@ export function relayStep(hold: LimitHold, now: Date, account: AccountNow): Rela
 }
 
 
-export function handoffPrompt(task: string, session: HandoffSession, reason: HandoffReason = 'limit'): string {
-  const lines = [
-    fill`${task}`,
-    '',
-    HANDOFF_WHY[reason],
-    fill`- Рабочая папка: ${session.workdir} — работай в ней, новый worktree не создавай.`,
-  ]
-  if (session.branch !== null) lines.push(fill`- Ветка: ${session.branch} — не меняй её.`)
-  lines.push(CLEANUP_NOTE)
-  if (session.transcript !== null) {
-    lines.push(fill`- Транскрипт прошлой сессии: ${session.transcript} — целиком не читай, ищи в нём grep, если чего-то не хватает.`)
-  }
-  if (session.checkpoint !== null) {
-    lines.push(fill`- Записка о передаче: ${notePath(session.workdir, session.checkpoint)} — прочитай её первой: что сделано, что осталось, следующая команда.`)
-  }
-  lines.push('- Начни с git status, git log main..HEAD и описания задачи.')
+export function handoffPrompt(task: string, session: HandoffSession, reason: HandoffReason, language: Language): string {
+  const text = PROMPTS[language]
+  const lines = [fill`${task}`, '', text.why[reason], text.workdir(session.workdir)]
+  if (session.branch !== null) lines.push(text.branch(session.branch))
+  lines.push(text.cleanup)
+  if (session.transcript !== null) lines.push(text.transcript(session.transcript))
+  if (session.checkpoint !== null) lines.push(text.note(notePath(session.workdir, session.checkpoint)))
+  lines.push(text.begin)
   if (session.checkpoint !== null) return lines.join('\n') + '\n'
   const steps = session.recent.filter((line) => line.kind !== 'error').slice(-HANDOFF_STEPS)
-  if (steps.length > 0) lines.push('', 'Последние шаги прошлой сессии:', ...steps.map((line) => fill`- ${line.text}`))
-  if (session.lastMessage !== null) lines.push('', 'Последнее сообщение прошлой сессии:', '', fill`${session.lastMessage}`)
+  if (steps.length > 0) lines.push('', text.recentSteps, ...steps.map((line) => fill`- ${line.text}`))
+  if (session.lastMessage !== null) lines.push('', text.lastMessage, '', fill`${session.lastMessage}`)
   return lines.join('\n') + '\n'
 }
 

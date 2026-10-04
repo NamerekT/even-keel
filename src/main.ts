@@ -9,7 +9,7 @@ import { VsCodeAccount, vscodeSettingsFile } from './account/vscode.js'
 import { AccountWatcher } from './account/watcher.js'
 import { Dispatcher, type LaunchEntry } from './chain/dispatcher.js'
 import { launchDays, taskSessions } from './chain/launches.js'
-import { RESUME_PROMPT, startPrompt, withBrief } from './chain/relay.js'
+import { resumePrompt, startPrompt, withBrief } from './chain/relay.js'
 import { appendLaunch, loadChainState, readLaunches, saveChainState } from './chain/store.js'
 import { ConfigFile } from './config-file.js'
 import { EventHub } from './events.js'
@@ -219,9 +219,11 @@ const planFor = (task: string, prompt: string): LaunchPlan => {
   return plan
 }
 
+const promptLanguage = () => configFile.current.promptLanguage
+
 const briefed = async (task: string, prompt: string, project = projectOf(task)): Promise<string> => {
   const link = project === undefined ? undefined : links.get(config.trackers[project]!)
-  return link === undefined ? prompt : withBrief(prompt, await link.run(async (tracker) => tracker.brief?.(task)))
+  return link === undefined ? prompt : withBrief(prompt, await link.run(async (tracker) => tracker.brief?.(task)), promptLanguage())
 }
 
 function projectOf(task: string): string | undefined {
@@ -246,7 +248,7 @@ const dispatcher = new Dispatcher(loadChainState(chainFile), {
             vacate: (path) => vacateSlot(path, task),
           })
         : await prepareWorktree(runGit, repo, task)
-    const { prompt, model } = planFor(task, await briefed(task, startPrompt(task, place), project))
+    const { prompt, model } = planFor(task, await briefed(task, startPrompt(task, place, promptLanguage()), project))
     return (await cli.launch(home, task, place.path, prompt, model)).sessionId
   },
   liveSession: (task) => sessions.find((view) => view.task === task && view.lamp !== 'finished')?.sessionId,
@@ -271,11 +273,12 @@ const dispatcher = new Dispatcher(loadChainState(chainFile), {
   account: activeAccount,
   accountAt: (key, at) => accountId(key, accountAt(ledger, key, at)),
   limitReset: () => exhaustedReset(limits.limits(ledger.active)),
+  promptLanguage,
   resume: async (task, session) => {
     const home = homeOf(session.account)
     await cli.stop(home, session.agentId, session.sessionId)
     await daemons.prepare(home)
-    const plan = planFor(task, RESUME_PROMPT)
+    const plan = planFor(task, resumePrompt(promptLanguage()))
     return (await cli.resume(home, session.sessionId, task, session.cwd, plan.prompt, plan.model)).sessionId
   },
   relay: async (task, session, handoff) => {
@@ -371,6 +374,7 @@ const getState = (): EvenKeelState => ({
   taskSessions: taskSessions(launches, sessions),
   context: config.context,
   configError: configFile.error,
+  language: configFile.current.language,
 })
 
 const server = createEvenKeelServer({

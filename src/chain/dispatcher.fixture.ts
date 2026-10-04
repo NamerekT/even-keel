@@ -63,6 +63,7 @@ export function setup(options: SetupOptions = {}) {
     account: () => account,
     accountAt: options.accountAt ?? (() => account.id),
     limitReset: () => options.limitReset ?? null,
+    promptLanguage: () => 'ru',
     resume: async (_task, session) => {
       relays.push({ kind: 'resume', task: '', sessionId: session.sessionId })
       return session.sessionId

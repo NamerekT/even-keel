@@ -35,8 +35,9 @@ describe('default rules', () => {
     expect(isDone(DEFAULT_RULES, canceled)).toBe(false)
   })
 
-  it('keep a task labelled "Вручную" out, whatever its case and spacing', () => {
+  it('keep a task labelled "Вручную" or "Manual" out, whatever its case and spacing', () => {
     expect(admits(DEFAULT_RULES, { status: todo, labels: [' вручную '] })).toBe(false)
+    expect(admits(DEFAULT_RULES, { status: todo, labels: ['MANUAL'] })).toBe(false)
     expect(admits(DEFAULT_RULES, { status: todo, labels: ['Bug'] })).toBe(true)
   })
 })

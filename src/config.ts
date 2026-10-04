@@ -1,5 +1,6 @@
 import { readFileSync } from 'node:fs'
 import { DEFAULT_RULES, sameName, type ChainRules } from './chain/rules.js'
+import { isLanguage, LANGUAGES, type Language } from './language.js'
 import { isModelAlias, type ModelAlias } from './tracker/model.js'
 import { placeholderIn } from './sessions/prompt.js'
 import type { ContextScale } from './state.js'
@@ -17,6 +18,8 @@ export interface EvenKeelConfig {
   context: ContextScale
   modelPrompts: Partial<Record<ModelAlias, string>>
   stats: StatsConfig
+  language: Language | null
+  promptLanguage: Language
 }
 
 export interface StatsConfig {
@@ -26,6 +29,7 @@ export interface StatsConfig {
 const PROJECT_KEY = /^[A-Z][A-Z0-9_]{0,4}$/
 const RULE_KEYS = ['active', 'terminal', 'requiredLabels', 'excludedLabels'] as const
 const RESTART_KEYS = ['host', 'port', 'projects', 'slots', 'tracker', 'trackers', 'context'] as const
+const DEFAULT_LANGUAGE: Language = 'en'
 const DEFAULT_CONTEXT: ContextScale = { window: 600_000, warn: 50, danger: 80 }
 const DEFAULT_COMPARE: CompareSettings = { minTasks: 5, minSessions: 10, days: 7 }
 const COMPARE_LIMITS: Record<keyof CompareSettings, number> = { minTasks: 10_000, minSessions: 10_000, days: 365 }
@@ -46,6 +50,7 @@ export function parseConfig(raw: unknown, adapters: string[] = Object.keys(ADAPT
   }
   const shared = { ...DEFAULT_RULES, ...parseRules(input.chain, 'chain') }
   const sharedTracker = parseTracker(input.tracker ?? DEFAULT_TRACKER, 'tracker', adapters)
+  const language = parseLanguage(input.language, 'language')
   const projects: Record<string, string> = {}
   const rules: Record<string, ChainRules> = {}
   const slots: Record<string, number> = {}
@@ -77,12 +82,21 @@ export function parseConfig(raw: unknown, adapters: string[] = Object.keys(ADAPT
     context: parseContext(input.context),
     modelPrompts: parseModelPrompts(input.modelPrompts),
     stats: parseStats(input.stats),
+    language,
+    promptLanguage: parseLanguage(input.promptLanguage, 'promptLanguage') ?? language ?? DEFAULT_LANGUAGE,
   }
 }
 
 export function liveConfig(current: EvenKeelConfig, next: EvenKeelConfig): EvenKeelConfig {
   const rules = Object.fromEntries(Object.keys(current.projects).map((key) => [key, next.rules[key] ?? current.rules[key]!]))
-  return { ...current, rules, modelPrompts: next.modelPrompts, stats: next.stats }
+  const { modelPrompts, stats, language, promptLanguage } = next
+  return { ...current, rules, modelPrompts, stats, language, promptLanguage }
+}
+
+function parseLanguage(raw: unknown, where: string): Language | null {
+  if (raw === undefined) return null
+  if (!isLanguage(raw)) throw new Error(`config: ${where}: there is no language ${JSON.stringify(raw)}, known: ${LANGUAGES.join(', ')}`)
+  return raw
 }
 
 export function restartChanges(current: EvenKeelConfig, next: EvenKeelConfig): string[] {

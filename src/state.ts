@@ -1,6 +1,7 @@
 import type { AccountView } from './account/model.js'
 import type { ActiveChain, Leftover, ProjectOrder } from './chain/dispatcher.js'
 import type { LaunchDay, TaskSession } from './chain/launches.js'
+import type { Language } from './language.js'
 import type { RateLimits } from './limits/model.js'
 import type { UsageHealth } from './limits/usage.js'
 import type { Lamp } from './sessions/agents.js'
@@ -74,4 +75,5 @@ export interface EvenKeelState {
   taskSessions: Record<string, TaskSession[]>
   context: ContextScale
   configError: string | null
+  language: Language | null
 }

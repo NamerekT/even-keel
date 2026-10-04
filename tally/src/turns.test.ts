@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { PROMPTS } from '../../src/chain/prompts.js'
 import { parseEntry } from '../../src/sessions/entry.js'
 import type { TranscriptEntry } from './stream.js'
 import { turnsOf, type Turn } from './turns.js'
@@ -73,6 +74,11 @@ describe('turnsOf', () => {
       .say('thanks')
     expect(turnsOf(t.entries(), true).map((turn) => turn.start)).toEqual(['launch', 'resume', 'prompt'])
     expect(turnsOf(t.entries(), false)[0]!.start).toBe('prompt')
+  })
+
+  it('knows the resume prompt in English too', () => {
+    const t = new Transcript().prompt('BTN-1').say('working').wait(3600).prompt(PROMPTS.en.resume).say('again')
+    expect(turnsOf(t.entries(), true).map((turn) => turn.start)).toEqual(['launch', 'resume'])
   })
 
   it('starts a turn on a background task notification and on a message from another session', () => {
