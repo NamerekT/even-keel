@@ -3,6 +3,7 @@ import { pickLanguage, setLanguage, t } from './i18n/index.js'
 import { ConfigBanner } from './layout/ConfigBanner.js'
 import { Header } from './layout/Header.js'
 import { LinkBanner } from './layout/LinkBanner.js'
+import { McpBanner } from './layout/McpBanner.js'
 import { UsageBanner } from './layout/UsageBanner.js'
 import { useLive } from './live/context.js'
 import { Home } from './pages/Home.js'
@@ -21,6 +22,7 @@ export function App() {
       <LinkBanner />
       <UsageBanner />
       <ConfigBanner />
+      <McpBanner />
       <main className="content">
         {state === null ? (
           <p className="placeholder">{link === 'stale' ? t.app.noServer : t.app.connecting}</p>

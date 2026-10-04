@@ -76,5 +76,12 @@ export interface EvenKeelState {
   taskSessions: Record<string, TaskSession[]>
   context: ContextScale
   configError: Notice | null
+  mcpMissing: McpMissing[]
   language: Language | null
+}
+
+/** A project with `brief` off whose sessions see no MCP server of its tracker. */
+export interface McpMissing {
+  project: string
+  server: string
 }

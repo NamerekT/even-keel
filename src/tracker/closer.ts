@@ -1,6 +1,7 @@
 export interface MergeCloserOptions {
   merged: (project: string, task: string) => Promise<boolean>
-  complete: (task: string) => Promise<void>
+  /** `false` — the task was already closed. */
+  complete: (task: string) => Promise<boolean>
   onError?: (error: unknown) => void
 }
 
@@ -15,9 +16,9 @@ export class MergeCloser {
       if (this.closed.has(task)) continue
       try {
         if (!(await this.options.merged(project, task))) continue
-        await this.options.complete(task)
+        const moved = await this.options.complete(task)
         this.closed.add(task)
-        closed.push(task)
+        if (moved) closed.push(task)
       } catch (error) {
         this.options.onError?.(error)
       }

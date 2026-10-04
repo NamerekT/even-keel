@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { labeled, milestonesOf, missingBlockers, toTasks, type HulyIssueDoc, type HulyStatusDoc } from './model.js'
+import { closingStatus, labeled, milestonesOf, missingBlockers, toTasks, type HulyIssueDoc, type HulyStatusDoc } from './model.js'
 
 const statuses: HulyStatusDoc[] = [
   { _id: 'tracker:status:Backlog', name: 'Backlog', category: 'task:statusCategory:UnStarted' },
@@ -122,6 +122,24 @@ describe('milestonesOf', () => {
       issue('i5', 'ABC-5', 'tracker:status:Todo'),
     ]
     expect(milestonesOf(issues)).toEqual(['m1', 'm2'])
+  })
+})
+
+describe('closingStatus', () => {
+  const custom: HulyStatusDoc = { _id: 'custom-shipped', name: 'Shipped', category: 'task:statusCategory:Won' }
+
+  it('moves an open issue to the Won status of its project', () => {
+    expect(closingStatus('tracker:status:InProgress', statuses, null)).toBe('tracker:status:Done')
+    expect(closingStatus('custom-review', [...statuses, custom], ['tracker:status:Todo', 'custom-shipped'])).toBe('custom-shipped')
+  })
+
+  it('leaves an issue that is already done or canceled alone', () => {
+    expect(closingStatus('tracker:status:Done', statuses, null)).toBeNull()
+    expect(closingStatus('tracker:status:Canceled', statuses, null)).toBeNull()
+  })
+
+  it('fails when the project has no Won status', () => {
+    expect(() => closingStatus('tracker:status:Todo', statuses, ['tracker:status:Todo'])).toThrow(/no done status/)
   })
 })
 

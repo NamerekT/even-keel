@@ -26,15 +26,17 @@ export interface TaskSource {
   /** The tasks with these ids, whatever their status; an id the tracker no longer has is left out. */
   tasks(ids: string[]): Promise<TrackerTask[]>
   /**
-   * Optional. The text of a task for the launch prompt, when the agent has no other way to read it
-   * (no MCP server of the tracker). Huly leaves it out: its sessions read the task through MCP.
+   * Optional. The title and description of a task; Even Keel adds them to the launch and handoff prompts,
+   * so a session needs nothing but the adapter to know its task. `brief: false` in `even-keel.config.json`
+   * turns this off for projects whose sessions read the task themselves (an MCP server of the tracker).
    */
   brief?(id: string): Promise<TaskBrief>
   /**
    * Optional. Moves a task to a `Won` status; Even Keel calls it once it sees the task's branch merged into `main`.
-   * Huly leaves it out: a git hook closes the task on merge.
+   * Must do nothing and return `false` for a task that is already `Won` or `Lost`: something else (a git hook, a person)
+   * may have closed it first. `true` — the task was moved.
    */
-  complete?(id: string): Promise<void>
+  complete?(id: string): Promise<boolean>
   /** Drops the connection. */
   close(): Promise<void>
 }
@@ -60,6 +62,11 @@ export interface TrackerAdapter {
   title: string
   /** Environment variables the adapter reads; Even Keel keeps them out of the sessions it launches. */
   variables: readonly string[]
+  /**
+   * Optional. The name of the tracker's MCP server. With `brief` off Even Keel looks for it where the CLI would
+   * for the project folder and warns when it is missing: the sessions would get nothing but the task id.
+   */
+  mcpServer?: string
   /** `undefined` — none of its variables are set and the tracker is off; throws when they are set only in part. */
   setup(env: Record<string, string | undefined>): TrackerSetup | undefined
 }
@@ -73,7 +80,7 @@ export interface Tracker {
   chainTasks(project: string, rules: ChainRules): Promise<ChainTasks>
   tasks(ids: string[]): Promise<Task[]>
   brief?(id: string): Promise<TaskBrief>
-  complete?(id: string): Promise<void>
+  complete?(id: string): Promise<boolean>
   close(): Promise<void>
 }
 

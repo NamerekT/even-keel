@@ -16,6 +16,7 @@ export interface EvenKeelConfig {
   slots: Record<string, number>
   tracker: string
   trackers: Record<string, string>
+  briefs: Record<string, boolean>
   context: ContextScale
   modelPrompts: Partial<Record<ModelAlias, string>>
   stats: StatsConfig
@@ -36,7 +37,7 @@ const DEFAULT_COMPARE: CompareSettings = { minTasks: 5, minSessions: 10, days: 7
 const COMPARE_LIMITS: Record<keyof CompareSettings, number> = { minTasks: 10_000, minSessions: 10_000, days: 365 }
 
 export function parseConfig(raw: unknown, adapters: string[] = Object.keys(ADAPTERS)): EvenKeelConfig {
-  const input = (raw ?? {}) as Partial<Record<keyof EvenKeelConfig | 'chain' | 'tracker', unknown>>
+  const input = (raw ?? {}) as Partial<Record<keyof EvenKeelConfig | 'chain' | 'tracker' | 'brief', unknown>>
 
   const host = input.host ?? '0.0.0.0'
   if (typeof host !== 'string' || host === '') throw fail('config.host', {})
@@ -47,16 +48,18 @@ export function parseConfig(raw: unknown, adapters: string[] = Object.keys(ADAPT
   if (typeof input.projects !== 'object' || input.projects === null) throw fail('config.projects', {})
   const shared = { ...DEFAULT_RULES, ...parseRules(input.chain, 'chain') }
   const sharedTracker = parseTracker(input.tracker ?? DEFAULT_TRACKER, 'tracker', adapters)
+  const sharedBrief = parseBrief(input.brief ?? true, 'brief')
   const language = parseLanguage(input.language, 'language')
   const projects: Record<string, string> = {}
   const rules: Record<string, ChainRules> = {}
   const slots: Record<string, number> = {}
   const trackers: Record<string, string> = {}
+  const briefs: Record<string, boolean> = {}
   for (const [key, entry] of Object.entries(input.projects)) {
     if (!PROJECT_KEY.test(key)) throw fail('config.projectKey', { key })
-    const { repo, chain, slot, tracker } =
+    const { repo, chain, slot, tracker, brief } =
       typeof entry === 'object' && entry !== null
-        ? (entry as { repo?: unknown; chain?: unknown; slot?: unknown; tracker?: unknown })
+        ? (entry as { repo?: unknown; chain?: unknown; slot?: unknown; tracker?: unknown; brief?: unknown })
         : { repo: entry }
     if (typeof repo !== 'string' || repo === '') throw fail('config.repoEmpty', { key })
     if (slot !== undefined && typeof slot !== 'boolean' && !(Number.isInteger(slot) && (slot as number) > 0)) throw fail('config.slot', { key })
@@ -64,6 +67,7 @@ export function parseConfig(raw: unknown, adapters: string[] = Object.keys(ADAPT
     if (slot === true || typeof slot === 'number') slots[key] = slot === true ? 1 : slot
     rules[key] = checkRules({ ...shared, ...parseRules(chain, `${key}.chain`) }, key)
     trackers[key] = tracker === undefined ? sharedTracker : parseTracker(tracker, `${key}.tracker`, adapters)
+    briefs[key] = brief === undefined ? sharedBrief : parseBrief(brief, `${key}.brief`)
   }
 
   return {
@@ -74,6 +78,7 @@ export function parseConfig(raw: unknown, adapters: string[] = Object.keys(ADAPT
     slots,
     tracker: sharedTracker,
     trackers,
+    briefs,
     context: parseContext(input.context),
     modelPrompts: parseModelPrompts(input.modelPrompts),
     stats: parseStats(input.stats),
@@ -83,9 +88,10 @@ export function parseConfig(raw: unknown, adapters: string[] = Object.keys(ADAPT
 }
 
 export function liveConfig(current: EvenKeelConfig, next: EvenKeelConfig): EvenKeelConfig {
-  const rules = Object.fromEntries(Object.keys(current.projects).map((key) => [key, next.rules[key] ?? current.rules[key]!]))
+  const keep = <T>(field: Record<string, T>, fallback: Record<string, T>) =>
+    Object.fromEntries(Object.keys(current.projects).map((key) => [key, field[key] ?? fallback[key]!]))
   const { modelPrompts, stats, language, promptLanguage } = next
-  return { ...current, rules, modelPrompts, stats, language, promptLanguage }
+  return { ...current, rules: keep(next.rules, current.rules), briefs: keep(next.briefs, current.briefs), modelPrompts, stats, language, promptLanguage }
 }
 
 function parseLanguage(raw: unknown, where: string): Language | null {
@@ -103,6 +109,11 @@ function parseTracker(raw: unknown, where: string, adapters: string[]): string {
   const name = raw.trim().toLowerCase()
   if (!adapters.includes(name)) throw fail('config.trackerUnknown', { where, name, known: adapters })
   return name
+}
+
+function parseBrief(raw: unknown, where: string): boolean {
+  if (typeof raw !== 'boolean') throw fail('config.brief', { where })
+  return raw
 }
 
 function parseRules(raw: unknown, where: string): Partial<ChainRules> {

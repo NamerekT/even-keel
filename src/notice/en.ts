@@ -141,6 +141,7 @@ export const en = {
   'config.language': (p: { where: string; value: string; known: string[] }) =>
     `config: ${p.where}: there is no language ${p.value}, known: ${list(p.known)}`,
   'config.trackerName': (p: { where: string }) => `config: ${p.where} must be the name of a tracker adapter`,
+  'config.brief': (p: { where: string }) => `config: ${p.where} must be true or false`,
   'config.trackerUnknown': (p: { where: string; name: string; known: string[] }) =>
     `config: ${p.where}: there is no tracker "${p.name}", known: ${list(p.known)}`,
   'config.notObject': (p: { where: string }) => `config: ${p.where} must be an object`,

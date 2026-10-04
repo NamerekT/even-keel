@@ -76,6 +76,17 @@ export function toTasks(
   })
 }
 
+// `allowed` — the statuses of the project's type in their order; `null` when the type is unknown.
+export function closingStatus(current: string, statuses: HulyStatusDoc[], allowed: string[] | null): string | null {
+  const byId = new Map(statuses.map((doc) => [doc._id, doc]))
+  const now = byId.get(current)
+  if (now !== undefined && ['Won', 'Lost'].includes(toStatus(now).category)) return null
+  const candidates = allowed === null ? statuses : allowed.flatMap((id) => byId.get(id) ?? [])
+  const won = candidates.find((doc) => toStatus(doc).category === 'Won')
+  if (won === undefined) throw new Error('huly: the project has no done status')
+  return won._id
+}
+
 export function missingBlockers(issues: HulyIssueDoc[]): string[] {
   const fetched = new Set(issues.map((issue) => issue._id))
   const missing = new Set<string>()

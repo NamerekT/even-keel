@@ -137,6 +137,7 @@ export const noticesRu: NoticeTexts = {
   'config.slot': (p) => `${p.key}.slot должен быть true, false или числом слотов`,
   'config.language': (p) => `${p.where}: языка ${p.value} нет, есть: ${list(p.known)}`,
   'config.trackerName': (p) => `${p.where} должен быть именем адаптера трекера`,
+  'config.brief': (p) => `${p.where} должен быть true или false`,
   'config.trackerUnknown': (p) => `${p.where}: трекера «${p.name}» нет, есть: ${list(p.known)}`,
   'config.notObject': (p) => `${p.where} должен быть объектом`,
   'config.ruleKey': (p) => `${p.where}.${p.key} — не правило цепочки`,

@@ -102,10 +102,10 @@ describe('trackerOf', () => {
     const full = trackerOf({
       ...source([]),
       brief: async (id) => ({ title: `Title of ${id}`, description: '' }),
-      complete: async (id) => void completed.push(id),
+      complete: async (id) => completed.push(id) > 0,
     })
     expect(await full.brief!('ABC-1')).toEqual({ title: 'Title of ABC-1', description: '' })
-    await full.complete!('ABC-1')
+    expect(await full.complete!('ABC-1')).toBe(true)
     expect(completed).toEqual(['ABC-1'])
   })
 })

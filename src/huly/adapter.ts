@@ -4,6 +4,7 @@ import { issueUrlBase, readHulyCredentials, VARIABLES } from './credentials.js'
 export const huly: TrackerAdapter = {
   title: 'Huly',
   variables: VARIABLES,
+  mcpServer: 'huly',
   setup(env) {
     const credentials = readHulyCredentials(env)
     if (credentials === undefined) return undefined

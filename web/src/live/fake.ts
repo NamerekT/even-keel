@@ -210,6 +210,7 @@ function fakeState(
         },
     context: { window: 600_000, warn: 50, danger: 80 },
     configError: null,
+    mcpMissing: [],
     language: null,
   }
 }
@@ -560,6 +561,12 @@ export function createFakeSource(search: string): LiveSource {
   if (isLanguage(language) && current.state !== null) current.state.language = language
   if (params.get('config') === 'broken' && current.state !== null) {
     current.state.configError = notice('config.statusBoth', { project: 'ABC', status: 'In Review' })
+  }
+  if (params.get('mcp') === 'missing' && current.state !== null) {
+    current.state.mcpMissing = [
+      { project: 'ABC', server: 'huly' },
+      { project: 'XYZ', server: 'huly' },
+    ]
   }
   const active = current.state?.chain.active
   if (params.get('chain') === 'limit' && active) {

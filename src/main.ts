@@ -34,6 +34,7 @@ import { readerSettings } from './stats/model.js'
 import { StatsReader } from './stats/reader.js'
 import { ADAPTERS } from './tracker/adapters.js'
 import { MergeCloser } from './tracker/closer.js'
+import { McpCheck, readMcpSources } from './tracker/mcp.js'
 import { worthBroadcast, type TrackerView } from './tracker/health.js'
 import { TrackerLink } from './tracker/link.js'
 import type { Task } from './tracker/model.js'
@@ -67,6 +68,7 @@ const configFile = new ConfigFile({
   warn: (message) => console.warn(message),
   onChange: () => {
     for (const [project, tasks] of tasksByProject) dispatcher.setTasks(project, tasks)
+    mcp.run()
     hub.broadcast('state', getState())
   },
 })
@@ -223,9 +225,29 @@ const planFor = (task: string, prompt: string): LaunchPlan => {
 const promptLanguage = () => configFile.current.promptLanguage
 
 const briefed = async (task: string, prompt: string, project = projectOf(task)): Promise<string> => {
-  const link = project === undefined ? undefined : links.get(config.trackers[project]!)
+  if (project === undefined) return prompt
+  if (!configFile.current.briefs[project]) {
+    mcp.run()
+    return prompt
+  }
+  const link = links.get(config.trackers[project]!)
   return link === undefined ? prompt : withBrief(prompt, await link.run(async (tracker) => tracker.brief?.(task)), promptLanguage())
 }
+
+const mcp = new McpCheck({
+  targets: () =>
+    Object.entries(config.projects).flatMap(([project, repo]) => {
+      const server = ADAPTERS[config.trackers[project]!]!.mcpServer
+      return server === undefined || configFile.current.briefs[project] ? [] : [{ project, repo, server }]
+    }),
+  read: (repo) =>
+    readMcpSources(repo, {
+      claudeDir: homes.global.dir,
+      configs: [...new Set([homes.global, homes.find(ledger.active)].flatMap((home) => (home === undefined ? [] : [homes.configFile(home)])))],
+    }),
+  warn: (line) => console.warn(line),
+  onChange: () => hub.broadcast('state', getState()),
+})
 
 function projectOf(task: string): string | undefined {
   for (const [project, tasks] of tasksByProject) if (tasks.some((each) => each.id === task)) return project
@@ -372,6 +394,7 @@ const getState = (): EvenKeelState => ({
   taskSessions: taskSessions(launches, sessions),
   context: config.context,
   configError: configFile.error,
+  mcpMissing: mcp.missing,
   language: configFile.current.language,
 })
 
@@ -401,6 +424,7 @@ limits.start()
 account.start()
 vscode.start()
 configFile.watch()
+mcp.run()
 
 server.listen(config.port, config.host, () => {
   console.log(`even-keel listening on http://${config.host}:${config.port}`)

@@ -69,6 +69,7 @@ function stateOf(patch: Partial<EvenKeelState>): EvenKeelState {
     taskSessions: {},
     context: { window: 600_000, warn: 50, danger: 80 },
     configError: null,
+    mcpMissing: [],
     language: null,
     ...patch,
   }

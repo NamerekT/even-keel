@@ -53,6 +53,8 @@ export const en: Messages = {
     usageOff: (reason: string | null) =>
       `/usage polling is off until the service restarts: the answer looks like a model turn, and that spends quota. Reason: ${reason}`,
     limitHold: (at: string) => `Usage limit reached — the next task starts after the reset at ${at}.`,
+    mcp: (projects: string, server: string) =>
+      `Brief is off in ${projects}, but sessions don't see the MCP server "${server}" — they get only the task ID. Turn brief on or add the server.`,
   },
   limits: {
     fiveHour: '5 hours',

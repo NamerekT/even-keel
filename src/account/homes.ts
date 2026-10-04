@@ -70,8 +70,13 @@ export class AccountHomes {
 
   share(home: AccountHome): boolean {
     if (home.global) return false
-    const config = this.env.CLAUDE_CONFIG_DIR === undefined ? join(homedir(), '.claude.json') : join(this.global.dir, '.claude.json')
-    return shareConfig({ dir: this.global.dir, config }, home.dir)
+    return shareConfig({ dir: this.global.dir, config: this.configFile(this.global) }, home.dir)
+  }
+
+  /** The `.claude.json` the CLI reads with this folder. */
+  configFile(home: AccountHome): string {
+    if (!home.global) return join(home.dir, '.claude.json')
+    return this.env.CLAUDE_CONFIG_DIR === undefined ? join(homedir(), '.claude.json') : join(this.global.dir, '.claude.json')
   }
 
   remove(home: AccountHome): void {
