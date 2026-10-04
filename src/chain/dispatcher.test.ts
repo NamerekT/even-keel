@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import type { HulyTask } from '../huly/model.js'
+import type { Task } from '../tracker/model.js'
 import { active, backlog, canceled, done, review, setup, task, todo, type SetupOptions } from './dispatcher.fixture.js'
 import { emptyChainState, type ChainState, type Dispatcher } from './dispatcher.js'
 import type { LimitedSession } from './relay.js'
@@ -430,7 +430,7 @@ describe('Dispatcher', () => {
 
   it('puts a new task behind the more urgent ones of a manual order', () => {
     const { dispatcher } = setup()
-    const urgent = (id: string): HulyTask => ({ ...task(id), priority: 'urgent' })
+    const urgent = (id: string): Task =>({ ...task(id), priority: 'urgent' })
     dispatcher.setTasks('ABC', [urgent('ABC-1'), task('ABC-2'), urgent('ABC-3')])
     dispatcher.reorder('ABC', ['ABC-3', 'ABC-1', 'ABC-2'])
     dispatcher.setTasks('ABC', [urgent('ABC-1'), task('ABC-2'), urgent('ABC-3'), { ...task('ABC-4'), priority: 'high' }])

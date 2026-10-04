@@ -1,10 +1,12 @@
 import { describe, expect, it } from 'vitest'
+import type { TrackerHealth, TrackerView } from '../../../src/tracker/health.js'
 import { systemChecks, worstLevel, type SystemInput } from './system.js'
 
 const now = new Date('2026-10-03T12:00:00Z')
+const huly = (health: TrackerHealth): TrackerView => ({ name: 'huly', title: 'Huly', projects: ['ABC'], health })
 const healthy: SystemInput = {
   link: 'live',
-  huly: { state: 'live', lastOkAt: '2026-10-03T12:00:00Z', error: null },
+  trackers: [huly({ state: 'live', lastOkAt: '2026-10-03T12:00:00Z', error: null })],
   usage: { state: 'ok', reason: null, since: null },
   configError: null,
 }
@@ -21,15 +23,27 @@ describe('systemChecks', () => {
     expect(worstLevel(checks)).toBe('ok')
   })
 
+  it('checks every tracker in use under its own title', () => {
+    const linear: TrackerView = { name: 'linear', title: 'Linear', projects: ['LIN'], health: { state: 'connecting', lastOkAt: null, error: null } }
+    const checks = systemChecks({ ...healthy, trackers: [...healthy.trackers!, linear] }, now)
+    expect(checks.map((check) => [check.name, check.level])).toEqual([
+      ['Сервер Baton', 'ok'],
+      ['Huly', 'ok'],
+      ['Linear', 'warn'],
+      ['Лимиты', 'ok'],
+      ['Конфигурация', 'ok'],
+    ])
+  })
+
   it('shows only the server until the first state arrives', () => {
-    const checks = systemChecks({ link: 'connecting', huly: null, usage: null, configError: null }, now)
+    const checks = systemChecks({ link: 'connecting', trackers: null, usage: null, configError: null }, now)
     expect(checks).toEqual([{ name: 'Сервер Baton', level: 'warn', text: 'подключение', details: [] }])
     expect(worstLevel(checks)).toBe('warn')
   })
 
   it('explains a Huly outage with the last good poll and the error', () => {
-    const huly = { state: 'down' as const, lastOkAt: '2026-10-03T11:56:00Z', error: 'huly: call timed out' }
-    const checks = systemChecks({ ...healthy, huly }, now)
+    const down = huly({ state: 'down', lastOkAt: '2026-10-03T11:56:00Z', error: 'huly: call timed out' })
+    const checks = systemChecks({ ...healthy, trackers: [down] }, now)
     expect(checks[1]).toEqual({
       name: 'Huly',
       level: 'error',
@@ -43,7 +57,7 @@ describe('systemChecks', () => {
     const checks = systemChecks(
       {
         ...healthy,
-        huly: { state: 'off', lastOkAt: null, error: null },
+        trackers: [huly({ state: 'off', lastOkAt: null, error: null })],
         usage: { state: 'stale', reason: null, since: null },
       },
       now,

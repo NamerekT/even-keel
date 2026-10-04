@@ -1,5 +1,6 @@
 import { createRequire } from 'node:module'
-import { isTerminal, unknownStatuses, type ChainRules } from '../chain/rules.js'
+import type { TrackerTask } from '../tracker/model.js'
+import type { TaskSource } from '../tracker/source.js'
 import type { HulyCredentials } from './credentials.js'
 import {
   labeled,
@@ -7,24 +8,11 @@ import {
   missingBlockers,
   toStatus,
   toTasks,
-  withoutParents,
   type HulyIssueDoc,
   type HulyLabelDoc,
   type HulyMilestoneDoc,
   type HulyStatusDoc,
-  type HulyTask,
 } from './model.js'
-
-export interface ChainTasks {
-  tasks: HulyTask[]
-  unknownStatuses: string[]
-}
-
-export interface HulySource {
-  chainTasks(project: string, rules: ChainRules): Promise<ChainTasks>
-  tasks(identifiers: string[]): Promise<HulyTask[]>
-  close(): Promise<void>
-}
 
 type Query = Record<string, unknown>
 
@@ -49,11 +37,22 @@ const tracker = (require('@hcengineering/tracker') as { default: TrackerPlugin }
 
 const TAG_REFERENCE = 'tags:class:TagReference'
 
-const ISSUE_FIELDS = { identifier: 1, title: 1, status: 1, blockedBy: 1, milestone: 1, priority: 1, subIssues: 1, labels: 1 } as const
+const ISSUE_FIELDS = {
+  identifier: 1,
+  title: 1,
+  status: 1,
+  blockedBy: 1,
+  parents: 1,
+  milestone: 1,
+  priority: 1,
+  subIssues: 1,
+  labels: 1,
+  estimation: 1,
+} as const
 const MILESTONE_FIELDS = { label: 1, targetDate: 1 } as const
 const LABEL_FIELDS = { attachedTo: 1, title: 1 } as const
 
-export async function connectHuly(credentials: HulyCredentials, timeoutMs: number): Promise<HulySource> {
+export async function connectHuly(credentials: HulyCredentials, timeoutMs: number): Promise<TaskSource> {
   const client = await api.connect(credentials.url, {
     email: credentials.email,
     password: credentials.password,
@@ -65,7 +64,7 @@ export async function connectHuly(credentials: HulyCredentials, timeoutMs: numbe
   const findStatuses = () => client.findAll<HulyStatusDoc>(tracker.class.IssueStatus, {})
   const findIssues = (query: Query) => client.findAll<HulyIssueDoc>(tracker.class.Issue, query, { projection: ISSUE_FIELDS })
 
-  async function resolve(issues: HulyIssueDoc[], statuses: HulyStatusDoc[]): Promise<HulyTask[]> {
+  async function resolve(issues: HulyIssueDoc[], statuses: HulyStatusDoc[]): Promise<TrackerTask[]> {
     const missing = missingBlockers(issues)
     const planned = milestonesOf(issues)
     const tagged = labeled(issues)
@@ -84,19 +83,17 @@ export async function connectHuly(credentials: HulyCredentials, timeoutMs: numbe
   }
 
   return {
-    async chainTasks(project, rules) {
+    async chainTasks(project, open) {
       const space = await client.findOne<{ _id: string }>(tracker.class.Project, { identifier: project })
       if (space === undefined) throw new Error(`huly: project ${project} not found`)
       const statuses = await findStatuses()
-      const open = statuses.filter((doc) => !isTerminal(rules, toStatus(doc))).map((doc) => doc._id)
-      const openIssues = withoutParents(await findIssues({ space: space._id, status: { $in: open } }))
-      const milestones = milestonesOf(openIssues)
+      const opened = statuses.filter((doc) => open(toStatus(doc))).map((doc) => doc._id)
+      const openIssues = await findIssues({ space: space._id, status: { $in: opened } })
+      const milestones = milestonesOf(openIssues.filter((issue) => (issue.subIssues ?? 0) === 0))
       const closedIssues =
-        milestones.length === 0
-          ? []
-          : withoutParents(await findIssues({ space: space._id, milestone: { $in: milestones }, status: { $nin: open } }))
+        milestones.length === 0 ? [] : await findIssues({ space: space._id, milestone: { $in: milestones }, status: { $nin: opened } })
       const tasks = await resolve([...openIssues, ...closedIssues], statuses)
-      return { tasks, unknownStatuses: unknownStatuses(rules, statuses.map((doc) => doc.name)) }
+      return { tasks, statuses: statuses.map((doc) => doc.name) }
     },
     async tasks(identifiers) {
       const [issues, statuses] = await Promise.all([findIssues({ identifier: { $in: identifiers } }), findStatuses()])

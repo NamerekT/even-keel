@@ -2,11 +2,11 @@ import type { AccountView } from '../../src/account/model.js'
 import type { TaskSession } from '../../src/chain/launches.js'
 import { chainOrder, nextTask, precedence } from '../../src/chain/order.js'
 import type { LimitHold } from '../../src/chain/relay.js'
-import { isOpen, type HulyTask } from '../../src/huly/model.js'
+import { isOpen, type Task } from '../../src/tracker/model.js'
 import type { Lamp } from '../../src/sessions/agents.js'
 import type { CacheTtl, CacheWindow, TokenTotals } from '../../src/sessions/transcript.js'
 import type { UsageHealth } from '../../src/limits/usage.js'
-import type { BatonState, ContextScale, SessionView } from '../../src/state.js'
+import type { BatonState, ContextScale, SessionView, TrackerUrls } from '../../src/state.js'
 import { formatMoment } from './format.js'
 
 export type CardLamp = Lamp | 'idle'
@@ -73,11 +73,11 @@ export const PROJECT_SLOTS = 8
 
 const byNumber = (a: string, b: string) => a.localeCompare(b, 'en', { numeric: true })
 
-export function projectTasks(state: BatonState, project: string): HulyTask[] {
+export function projectTasks(state: BatonState, project: string): Task[] {
   return state.tasks.filter((task) => task.id.startsWith(`${project}-`))
 }
 
-export function waitingSessions(sessions: SessionView[], tasks: HulyTask[]): SessionView[] {
+export function waitingSessions(sessions: SessionView[], tasks: Task[]): SessionView[] {
   const open = new Set(tasks.filter((task) => isOpen(task.status)).map((task) => task.id))
   const since = (view: SessionView) => Date.parse(view.lastActivityAt ?? view.startedAt)
   return sessions.filter((view) => view.lamp === 'waiting' && open.has(view.task)).sort((a, b) => since(a) - since(b))
@@ -91,12 +91,12 @@ export function taskProject(task: string): string {
   return task.replace(/-\d+$/, '')
 }
 
-export function chainProgress(tasks: HulyTask[]): { done: number; total: number } {
+export function chainProgress(tasks: Task[]): { done: number; total: number } {
   const counted = tasks.filter((task) => task.status.category !== 'Lost')
   return { done: counted.filter((task) => task.status.category === 'Won').length, total: counted.length }
 }
 
-export function openQuestions(tasks: HulyTask[]): number {
+export function openQuestions(tasks: Task[]): number {
   return tasks.filter((task) => task.question && isOpen(task.status)).length
 }
 
@@ -225,8 +225,10 @@ export function tokenTotal(tokens: TokenTotals): number {
   return tokens.input + tokens.output + tokens.cacheRead + tokens.cacheWrite
 }
 
-export function issueLink(trackerUrl: string | null, task: string): string | null {
-  return trackerUrl === null ? null : trackerUrl + task
+export function issueLink(urls: TrackerUrls, task: string): string | null {
+  const project = taskProject(task)
+  const base = Object.hasOwn(urls.projects, project) ? urls.projects[project]! : urls.default
+  return base === null ? null : base + task
 }
 
 function taskSession(sessions: SessionView[], task: string): SessionView | undefined {
@@ -234,7 +236,7 @@ function taskSession(sessions: SessionView[], task: string): SessionView | undef
   return own.find((view) => view.lamp !== 'finished') ?? own.at(-1)
 }
 
-function closedOrder(tasks: HulyTask[], runs: Record<string, TaskSession[]>): string[] {
+function closedOrder(tasks: Task[], runs: Record<string, TaskSession[]>): string[] {
   let order: string[]
   try {
     order = chainOrder(tasks)
@@ -247,7 +249,7 @@ function closedOrder(tasks: HulyTask[], runs: Record<string, TaskSession[]>): st
   return [...never, ...ran]
 }
 
-function blockLamp(task: HulyTask | undefined, session: SessionView | null): BlockLamp {
+function blockLamp(task: Task | undefined, session: SessionView | null): BlockLamp {
   if (task?.status.category === 'Won') return 'done'
   if (task?.status.category === 'Lost') return 'canceled'
   if (session === null) return 'ahead'

@@ -1,5 +1,5 @@
 import { Link } from 'react-router'
-import type { HulyTask } from '../../../src/huly/model.js'
+import type { Task } from '../../../src/tracker/model.js'
 import type { SessionView } from '../../../src/state.js'
 import { useLive } from '../live/context.js'
 import { taskProject, waitingSessions } from '../state.js'
@@ -13,7 +13,7 @@ const LEVEL_LABELS: Record<Level, string> = {
   off: 'нет данных',
 }
 
-export function Waiting({ sessions, tasks }: { sessions: SessionView[]; tasks: HulyTask[] }) {
+export function Waiting({ sessions, tasks }: { sessions: SessionView[]; tasks: Task[] }) {
   const waiting = waitingSessions(sessions, tasks)
   const first = waiting[0]
   if (first === undefined) return null
@@ -36,7 +36,7 @@ export function SystemMenu({ now }: { now: Date }) {
   const { state, link, retryNow } = useLive()
   const { open, setOpen, rootRef } = usePopover()
   const checks = systemChecks(
-    { link, huly: state?.huly ?? null, usage: state?.usage ?? null, configError: state?.configError ?? null },
+    { link, trackers: state?.trackers ?? null, usage: state?.usage ?? null, configError: state?.configError ?? null },
     now,
   )
   const level = worstLevel(checks)

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { diffStatuses, isOpen, labeled, milestonesOf, missingBlockers, toTasks, withoutParents, type HulyIssueDoc, type HulyStatusDoc, type HulyTask } from './model.js'
+import { labeled, milestonesOf, missingBlockers, toTasks, type HulyIssueDoc, type HulyStatusDoc } from './model.js'
 
 const statuses: HulyStatusDoc[] = [
   { _id: 'tracker:status:Backlog', name: 'Backlog', category: 'task:statusCategory:UnStarted' },
@@ -22,7 +22,18 @@ describe('toTasks', () => {
   it('maps an issue to a task with its status name and category', () => {
     const tasks = toTasks([issue('i1', 'ABC-1', 'custom-review')], statuses, new Map(), [])
     expect(tasks).toEqual([
-      { id: 'ABC-1', title: 'Title of ABC-1', status: { name: 'In Review', category: 'Active' }, blockedBy: [], milestone: null, priority: 'none', question: false, labels: [], models: [] },
+      {
+        id: 'ABC-1',
+        title: 'Title of ABC-1',
+        status: { name: 'In Review', category: 'Active' },
+        blockedBy: [],
+        parent: null,
+        subtasks: 0,
+        milestone: null,
+        priority: 'none',
+        labels: [],
+        estimate: null,
+      },
     ])
   })
 
@@ -35,41 +46,25 @@ describe('toTasks', () => {
     expect(tasks.map((task) => task.priority)).toEqual(['none', 'none', 'urgent', 'high', 'medium', 'low', 'none'])
   })
 
-  it('reads model labels whatever their case and spacing, once each and in a fixed order', () => {
-    const issues = ['i1', 'i2', 'i3', 'i4'].map((id, index) => issue(id, `ABC-${index + 1}`, 'tracker:status:Todo'))
-    const labels = [
-      { attachedTo: 'i1', title: 'Sonnet' },
-      { attachedTo: 'i2', title: ' OPUS ' },
-      { attachedTo: 'i3', title: 'Opus' },
-      { attachedTo: 'i3', title: 'haiku' },
-      { attachedTo: 'i3', title: 'opus' },
-      { attachedTo: 'i4', title: 'Sonnet 4' },
-      { attachedTo: 'i4', title: 'Bug' },
-    ]
-    const tasks = toTasks(issues, statuses, new Map(), [], labels)
-    expect(tasks.map((task) => task.models)).toEqual([['sonnet'], ['opus'], ['opus', 'haiku'], []])
-  })
-
-  it('marks an issue carrying the question label, whatever its case and spacing', () => {
-    const issues = ['i1', 'i2', 'i3'].map((id, index) => issue(id, `ABC-${index + 1}`, 'tracker:status:Todo'))
-    const labels = [
-      { attachedTo: 'i1', title: 'Вопрос' },
-      { attachedTo: 'i2', title: 'Bug' },
-      { attachedTo: 'i3', title: ' вопрос ' },
-    ]
-    const tasks = toTasks(issues, statuses, new Map(), [], labels)
-    expect(tasks.map((task) => task.question)).toEqual([true, false, true])
-  })
-
-  it('keeps the labels of an issue trimmed, once each whatever the case', () => {
+  it('gathers the label titles of each issue', () => {
     const issues = ['i1', 'i2'].map((id, index) => issue(id, `ABC-${index + 1}`, 'tracker:status:Todo'))
     const labels = [
-      { attachedTo: 'i1', title: ' Вручную ' },
+      { attachedTo: 'i1', title: 'Sonnet' },
       { attachedTo: 'i1', title: 'Bug' },
-      { attachedTo: 'i1', title: 'вручную' },
     ]
-    const tasks = toTasks(issues, statuses, new Map(), [], labels)
-    expect(tasks.map((task) => task.labels)).toEqual([['Вручную', 'Bug'], []])
+    expect(toTasks(issues, statuses, new Map(), [], labels).map((task) => task.labels)).toEqual([['Sonnet', 'Bug'], []])
+  })
+
+  it('reads the direct parent, the number of sub-issues and the estimate, an estimate of 0 is none', () => {
+    const issues: HulyIssueDoc[] = [
+      { ...issue('i1', 'ABC-1', 'tracker:status:Todo'), subIssues: 2, estimation: 0 },
+      { ...issue('i2', 'ABC-2', 'tracker:status:Todo'), parents: [{ identifier: 'ABC-1' }, { identifier: 'ABC-0' }], estimation: 1.5 },
+    ]
+    const tasks = toTasks(issues, statuses, new Map(), [])
+    expect(tasks.map(({ parent, subtasks, estimate }) => ({ parent, subtasks, estimate }))).toEqual([
+      { parent: null, subtasks: 2, estimate: null },
+      { parent: 'ABC-1', subtasks: 0, estimate: 1.5 },
+    ])
   })
 
   it('resolves blockers to identifiers from the issues themselves and from the extra lookup', () => {
@@ -117,59 +112,6 @@ describe('missingBlockers', () => {
   })
 })
 
-describe('isOpen', () => {
-  it('treats Won and Lost as closed and everything else as open', () => {
-    expect(isOpen({ name: 'Backlog', category: 'UnStarted' })).toBe(true)
-    expect(isOpen({ name: 'In Review', category: 'Active' })).toBe(true)
-    expect(isOpen({ name: 'Done', category: 'Won' })).toBe(false)
-    expect(isOpen({ name: 'Canceled', category: 'Lost' })).toBe(false)
-  })
-})
-
-describe('diffStatuses', () => {
-  const task = (id: string, name: string, category: HulyTask['status']['category']): HulyTask => ({
-    id,
-    title: id,
-    status: { name, category },
-    blockedBy: [],
-    milestone: null,
-    priority: 'none',
-    question: false,
-    labels: [],
-    models: [],
-  })
-  const todo = { name: 'Todo', category: 'ToDo' } as const
-  const done = { name: 'Done', category: 'Won' } as const
-
-  it('reports a status that moved', () => {
-    const known = new Map([['ABC-1', todo]])
-    expect(diffStatuses(known, [task('ABC-1', 'Done', 'Won')], ['ABC-1'])).toEqual([
-      { id: 'ABC-1', from: todo, to: done },
-    ])
-  })
-
-  it('stays quiet when nothing moved', () => {
-    const known = new Map([['ABC-1', todo]])
-    expect(diffStatuses(known, [task('ABC-1', 'Todo', 'ToDo')], ['ABC-1'])).toEqual([])
-  })
-
-  it('reports a task seen for the first time', () => {
-    expect(diffStatuses(new Map(), [task('ABC-1', 'Todo', 'ToDo')], ['ABC-1'])).toEqual([
-      { id: 'ABC-1', from: null, to: todo },
-    ])
-  })
-
-  it('reports a watched task that vanished from Huly', () => {
-    const known = new Map([['ABC-1', todo]])
-    expect(diffStatuses(known, [], ['ABC-1'])).toEqual([{ id: 'ABC-1', from: todo, to: null }])
-  })
-
-  it('ignores tasks that are no longer watched', () => {
-    const known = new Map([['ABC-1', todo]])
-    expect(diffStatuses(known, [], [])).toEqual([])
-  })
-})
-
 describe('milestonesOf', () => {
   it('lists each milestone of the given issues once, skipping issues without one', () => {
     const issues: HulyIssueDoc[] = [
@@ -191,21 +133,5 @@ describe('labeled', () => {
       issue('i3', 'ABC-3', 'tracker:status:Todo'),
     ]
     expect(labeled(issues)).toEqual(['i1'])
-  })
-})
-
-describe('withoutParents', () => {
-  it('drops issues that have sub-issues and keeps the rest', () => {
-    const issues: HulyIssueDoc[] = [
-      { ...issue('i1', 'ABC-1', 'tracker:status:Todo'), subIssues: 2 },
-      { ...issue('i2', 'ABC-2', 'tracker:status:Todo'), subIssues: 0 },
-      issue('i3', 'ABC-3', 'tracker:status:Todo'),
-    ]
-    expect(withoutParents(issues).map((doc) => doc.identifier)).toEqual(['ABC-2', 'ABC-3'])
-  })
-
-  it('drops a parent even when it is already closed', () => {
-    const closedParent: HulyIssueDoc = { ...issue('i1', 'ABC-1', 'tracker:status:Done'), subIssues: 1 }
-    expect(withoutParents([closedParent])).toEqual([])
   })
 })

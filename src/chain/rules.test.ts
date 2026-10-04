@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import type { TaskStatus } from '../huly/model.js'
+import type { TaskStatus } from '../tracker/model.js'
 import { admits, DEFAULT_RULES, isActive, isDone, isTerminal, unknownStatuses, type ChainRules } from './rules.js'
 
 const backlog: TaskStatus = { name: 'Backlog', category: 'UnStarted' }

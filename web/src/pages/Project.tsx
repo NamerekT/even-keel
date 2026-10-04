@@ -51,7 +51,7 @@ export function Project({ state }: { state: BatonState }) {
         <StatsStrip key={`stats-${key}`} project={key} />
       </div>
       {selected !== undefined && (
-        <SessionPanel key={selected.id} block={selected} scale={state.context} trackerUrl={state.trackerUrl} onClose={close} />
+        <SessionPanel key={selected.id} block={selected} scale={state.context} trackerUrls={state.trackerUrls} onClose={close} />
       )}
     </section>
   )

@@ -1,3 +1,4 @@
+import type { TrackerUrls } from '../../../src/state.js'
 import { Fragment, useState } from 'react'
 import type { StatsTaskDetail, StatsTaskRow } from '../../../src/stats/model.js'
 import { formatMoment, plural } from '../format.js'
@@ -16,7 +17,7 @@ const COLUMNS: { key: Column; label: string; numeric: boolean; title?: string }[
   { key: 'status', label: 'Статус', numeric: false },
   { key: 'cost', label: '$', numeric: true, title: 'Деньги по ценам API' },
   { key: 'limit', label: 'Лимит', numeric: true, title: 'Доля недельного лимита' },
-  { key: 'estimate', label: 'Оценка', numeric: true, title: 'Оценка задачи в Huly' },
+  { key: 'estimate', label: 'Оценка', numeric: true, title: 'Оценка задачи в трекере' },
   { key: 'active', label: 'Время', numeric: true, title: 'Активное время всех сессий задачи по ходам транскриптов, за всю задачу' },
   { key: 'wait', label: 'Ожидание', numeric: true, title: 'Сколько задача ждала вашего ответа, за всю задачу' },
   { key: 'sessions', label: 'Сессии', numeric: true },
@@ -59,7 +60,7 @@ function compare(a: StatsTaskRow, b: StatsTaskRow, column: Column): number {
   return String(left).localeCompare(String(right), 'ru', { numeric: true })
 }
 
-export function TaskTable({ tasks, trackerUrl }: { tasks: StatsTaskRow[]; trackerUrl: string | null }) {
+export function TaskTable({ tasks, trackerUrls }: { tasks: StatsTaskRow[]; trackerUrls: TrackerUrls }) {
   const [sort, setSort] = useState<{ column: Column; down: boolean }>({ column: 'cost', down: true })
   const [open, setOpen] = useState<string | null>(null)
   const [all, setAll] = useState(false)
@@ -110,7 +111,7 @@ export function TaskTable({ tasks, trackerUrl }: { tasks: StatsTaskRow[]; tracke
                   >
                     <td>
                       <span className="tasks__task">
-                        <TaskKey id={row.task} trackerUrl={trackerUrl} />
+                        <TaskKey id={row.task} trackerUrls={trackerUrls} />
                         {row.title !== null && row.title !== '' && <span className="tasks__title">{row.title}</span>}
                       </span>
                     </td>

@@ -1,5 +1,6 @@
 import type { FinishOutcome } from '../git/types.js'
-import type { HulyTask, TaskStatus } from '../huly/model.js'
+import { fakeTask } from '../tracker/fixture.js'
+import type { Task, TaskStatus } from '../tracker/model.js'
 import { Dispatcher, emptyChainState, type ChainState, type LaunchEntry } from './dispatcher.js'
 import type { AccountNow, HandoffSession, LimitedSession } from './relay.js'
 import { DEFAULT_RULES, type ChainRules } from './rules.js'
@@ -11,17 +12,7 @@ export const active: TaskStatus = { name: 'In Progress', category: 'Active' }
 export const done: TaskStatus = { name: 'Done', category: 'Won' }
 export const canceled: TaskStatus = { name: 'Canceled', category: 'Lost' }
 
-export const task = (id: string, status: TaskStatus = todo, ...blockedBy: string[]): HulyTask => ({
-  id,
-  title: id,
-  status,
-  blockedBy,
-  milestone: null,
-  priority: 'none',
-  question: false,
-  labels: [],
-  models: [],
-})
+export const task = (id: string, status: TaskStatus = todo, ...blockedBy: string[]): Task => fakeTask(id, { status, blockedBy })
 
 export interface SetupOptions {
   state?: ChainState

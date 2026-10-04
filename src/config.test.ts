@@ -11,10 +11,23 @@ describe('parseConfig', () => {
       projects: { ABC: 'C:\\repos\\abc' },
       rules: { ABC: DEFAULT_RULES },
       slots: {},
+      tracker: 'huly',
+      trackers: { ABC: 'huly' },
       context: { window: 600_000, warn: 50, danger: 80 },
       modelPrompts: {},
       stats: { compare: { minTasks: 5, minSessions: 10, days: 7 } },
     })
+  })
+
+  it('takes the tracker of a project from its own key, else from the shared one', () => {
+    const config = parseConfig({ tracker: ' Fake ', projects: { ABC: 'C:\\abc', XYZ: { repo: 'C:\\xyz', tracker: 'huly' } } }, ['huly', 'fake'])
+    expect(config.tracker).toBe('fake')
+    expect(config.trackers).toEqual({ ABC: 'fake', XYZ: 'huly' })
+  })
+
+  it('rejects a tracker it has no adapter for', () => {
+    expect(() => parseConfig({ tracker: 'jira', projects: { ABC: 'C:\\abc' } })).toThrow(/tracker "jira".*huly/)
+    expect(() => parseConfig({ projects: { ABC: { repo: 'C:\\abc', tracker: 7 } } })).toThrow(/ABC.tracker/)
   })
 
   it('counts the standing slots of each project that works in them', () => {
@@ -174,7 +187,8 @@ describe('reloading the config', () => {
     expect(live.projects).toEqual({ ABC: 'C:\\abc' })
     expect(live.rules).toEqual({ ABC: DEFAULT_RULES })
     expect(live.context).toEqual(base.context)
-    expect(restartChanges(base, next)).toEqual(['port', 'projects', 'context'])
+    expect(live.trackers).toEqual({ ABC: 'huly' })
+    expect(restartChanges(base, next)).toEqual(['port', 'projects', 'trackers', 'context'])
   })
 
   it('keeps the rules of a project the new file drops until a restart', () => {

@@ -1,9 +1,10 @@
 import { readFileSync } from 'node:fs'
 import { DEFAULT_RULES, sameName, type ChainRules } from './chain/rules.js'
-import { isModelAlias, type ModelAlias } from './huly/model.js'
+import { isModelAlias, type ModelAlias } from './tracker/model.js'
 import { placeholderIn } from './sessions/prompt.js'
 import type { ContextScale } from './state.js'
 import type { CompareSettings } from './stats/rules.js'
+import { ADAPTERS, DEFAULT_TRACKER } from './tracker/adapters.js'
 
 export interface BatonConfig {
   host: string
@@ -11,6 +12,8 @@ export interface BatonConfig {
   projects: Record<string, string>
   rules: Record<string, ChainRules>
   slots: Record<string, number>
+  tracker: string
+  trackers: Record<string, string>
   context: ContextScale
   modelPrompts: Partial<Record<ModelAlias, string>>
   stats: StatsConfig
@@ -22,13 +25,13 @@ export interface StatsConfig {
 
 const PROJECT_KEY = /^[A-Z][A-Z0-9_]{0,4}$/
 const RULE_KEYS = ['active', 'terminal', 'requiredLabels', 'excludedLabels'] as const
-const RESTART_KEYS = ['host', 'port', 'projects', 'slots', 'context'] as const
+const RESTART_KEYS = ['host', 'port', 'projects', 'slots', 'tracker', 'trackers', 'context'] as const
 const DEFAULT_CONTEXT: ContextScale = { window: 600_000, warn: 50, danger: 80 }
 const DEFAULT_COMPARE: CompareSettings = { minTasks: 5, minSessions: 10, days: 7 }
 const COMPARE_LIMITS: Record<keyof CompareSettings, number> = { minTasks: 10_000, minSessions: 10_000, days: 365 }
 
-export function parseConfig(raw: unknown): BatonConfig {
-  const input = (raw ?? {}) as Partial<Record<keyof BatonConfig | 'chain', unknown>>
+export function parseConfig(raw: unknown, adapters: string[] = Object.keys(ADAPTERS)): BatonConfig {
+  const input = (raw ?? {}) as Partial<Record<keyof BatonConfig | 'chain' | 'tracker', unknown>>
 
   const host = input.host ?? '0.0.0.0'
   if (typeof host !== 'string' || host === '') throw new Error('config: host must be a non-empty string')
@@ -39,16 +42,20 @@ export function parseConfig(raw: unknown): BatonConfig {
   }
 
   if (typeof input.projects !== 'object' || input.projects === null) {
-    throw new Error('config: projects must map a Huly project key to a repository path')
+    throw new Error('config: projects must map a project key to a repository path')
   }
   const shared = { ...DEFAULT_RULES, ...parseRules(input.chain, 'chain') }
+  const sharedTracker = parseTracker(input.tracker ?? DEFAULT_TRACKER, 'tracker', adapters)
   const projects: Record<string, string> = {}
   const rules: Record<string, ChainRules> = {}
   const slots: Record<string, number> = {}
+  const trackers: Record<string, string> = {}
   for (const [key, entry] of Object.entries(input.projects)) {
-    if (!PROJECT_KEY.test(key)) throw new Error(`config: "${key}" is not a Huly project key`)
-    const { repo, chain, slot } =
-      typeof entry === 'object' && entry !== null ? (entry as { repo?: unknown; chain?: unknown; slot?: unknown }) : { repo: entry }
+    if (!PROJECT_KEY.test(key)) throw new Error(`config: "${key}" is not a project key`)
+    const { repo, chain, slot, tracker } =
+      typeof entry === 'object' && entry !== null
+        ? (entry as { repo?: unknown; chain?: unknown; slot?: unknown; tracker?: unknown })
+        : { repo: entry }
     if (typeof repo !== 'string' || repo === '') throw new Error(`config: repository path for ${key} is empty`)
     if (slot !== undefined && typeof slot !== 'boolean' && !(Number.isInteger(slot) && (slot as number) > 0)) {
       throw new Error(`config: ${key}.slot must be true, false or the number of slots`)
@@ -56,6 +63,7 @@ export function parseConfig(raw: unknown): BatonConfig {
     projects[key] = repo
     if (slot === true || typeof slot === 'number') slots[key] = slot === true ? 1 : slot
     rules[key] = checkRules({ ...shared, ...parseRules(chain, `${key}.chain`) }, key)
+    trackers[key] = tracker === undefined ? sharedTracker : parseTracker(tracker, `${key}.tracker`, adapters)
   }
 
   return {
@@ -64,6 +72,8 @@ export function parseConfig(raw: unknown): BatonConfig {
     projects,
     rules,
     slots,
+    tracker: sharedTracker,
+    trackers,
     context: parseContext(input.context),
     modelPrompts: parseModelPrompts(input.modelPrompts),
     stats: parseStats(input.stats),
@@ -77,6 +87,13 @@ export function liveConfig(current: BatonConfig, next: BatonConfig): BatonConfig
 
 export function restartChanges(current: BatonConfig, next: BatonConfig): string[] {
   return RESTART_KEYS.filter((key) => JSON.stringify(current[key]) !== JSON.stringify(next[key]))
+}
+
+function parseTracker(raw: unknown, where: string, adapters: string[]): string {
+  if (typeof raw !== 'string' || raw.trim() === '') throw new Error(`config: ${where} must be the name of a tracker adapter`)
+  const name = raw.trim().toLowerCase()
+  if (!adapters.includes(name)) throw new Error(`config: ${where}: there is no tracker "${name}", known: ${adapters.join(', ')}`)
+  return name
 }
 
 function parseRules(raw: unknown, where: string): Partial<ChainRules> {

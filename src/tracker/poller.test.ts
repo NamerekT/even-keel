@@ -1,18 +1,19 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { HulyLink } from './link.js'
-import type { HulyTask, StatusChange, TaskStatus } from './model.js'
+import { fakeTask } from './fixture.js'
+import { TrackerLink } from './link.js'
+import type { StatusChange, Task, TaskStatus } from './model.js'
 import { StatusPoller } from './poller.js'
-import type { HulySource } from './source.js'
+import type { Tracker } from './source.js'
 
 const todo: TaskStatus = { name: 'Todo', category: 'ToDo' }
 const done: TaskStatus = { name: 'Done', category: 'Won' }
-const task = (id: string, status: TaskStatus): HulyTask => ({ id, title: id, status, blockedBy: [], milestone: null, priority: 'none', question: false, labels: [], models: [] })
+const task = (id: string, status: TaskStatus): Task => fakeTask(id, { status })
 
 let world: Map<string, TaskStatus>
 let failNext: boolean
 let queried: string[][]
 
-function source(): HulySource {
+function source(): Tracker {
   return {
     chainTasks: async () => ({ tasks: [], unknownStatuses: [] }),
     tasks: async (ids) => {
@@ -46,7 +47,7 @@ function makePoller(watched: () => string[]) {
   const errors: unknown[] = []
   const connect = vi.fn(async () => source())
   const poller = new StatusPoller({
-    link: new HulyLink({ connect, timeoutMs: 1000 }),
+    link: new TrackerLink({ name: 'huly', connect, timeoutMs: 1000 }),
     watched,
     intervalMs: 5000,
     onChange: (batch) => changes.push(batch),

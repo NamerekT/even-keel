@@ -1,3 +1,4 @@
+import type { TrackerUrls } from '../../../src/state.js'
 import type { StatsStuck, StatsWeekReason } from '../../../src/stats/model.js'
 import { formatMoment } from '../format.js'
 import { seriesStyle } from '../ui/series.js'
@@ -5,7 +6,7 @@ import { Section, TaskKey } from './common.js'
 import { kindLabel, reasonLabel } from './format.js'
 import { formatDay } from './period.js'
 
-export function StuckSection({ weeks, stuck, trackerUrl }: { weeks: StatsWeekReason[]; stuck: StatsStuck[]; trackerUrl: string | null }) {
+export function StuckSection({ weeks, stuck, trackerUrls }: { weeks: StatsWeekReason[]; stuck: StatsStuck[]; trackerUrls: TrackerUrls }) {
   const reasons = [...new Set(weeks.map((each) => each.reason))].sort((a, b) => (a === null ? 1 : b === null ? -1 : a.localeCompare(b)))
   const slot = (reason: string | null) => (reason === null ? null : reasons.indexOf(reason) + 1)
   const byWeek = [...new Set(weeks.map((each) => each.week))].sort()
@@ -48,7 +49,7 @@ export function StuckSection({ weeks, stuck, trackerUrl }: { weeks: StatsWeekRea
             {stuck.map((row) => (
               <li key={row.id} className="stuck-list__item">
                 <span className="stuck-list__head">
-                  {row.task === null ? <span className="stats__key stats__key--none">без задачи</span> : <TaskKey id={row.task} trackerUrl={trackerUrl} />}
+                  {row.task === null ? <span className="stats__key stats__key--none">без задачи</span> : <TaskKey id={row.task} trackerUrls={trackerUrls} />}
                   {row.project !== null && <span className="stuck-list__project">{row.project}</span>}
                   <span className="stuck-list__when">{formatMoment(row.toAt, now)}</span>
                   <span className="stuck-list__kinds">{row.kinds.map(kindLabel).join(', ')}</span>

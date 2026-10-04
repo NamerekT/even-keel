@@ -3,7 +3,7 @@ import type { TaskSession } from '../../../src/chain/launches.js'
 import type { LimitHold } from '../../../src/chain/relay.js'
 import type { RemoteOff } from '../../../src/sessions/remote.js'
 import type { CacheWindow, FeedLine, TokenTotals } from '../../../src/sessions/transcript.js'
-import type { ContextScale, SessionRecord, SessionView } from '../../../src/state.js'
+import type { ContextScale, SessionRecord, SessionView, TrackerUrls } from '../../../src/state.js'
 import { formatClock, formatMoment, formatTokens } from '../format.js'
 import { useNow } from '../layout/useNow.js'
 import { useLive } from '../live/context.js'
@@ -40,14 +40,14 @@ const REMOTE_OFF: Record<RemoteOff, string> = {
 interface Props {
   block: ChainBlock
   scale: ContextScale
-  trackerUrl: string | null
+  trackerUrls: TrackerUrls
   onClose: () => void
 }
 
-export function SessionPanel({ block, scale, trackerUrl, onClose }: Props) {
+export function SessionPanel({ block, scale, trackerUrls, onClose }: Props) {
   const closeRef = useRef<HTMLButtonElement>(null)
   const [opened, setOpened] = useState<TaskSession | null>(null)
-  const link = issueLink(trackerUrl, block.id)
+  const link = issueLink(trackerUrls, block.id)
   const task = (
     <>
       <span className="panel__key">{block.id}</span>
@@ -73,7 +73,7 @@ export function SessionPanel({ block, scale, trackerUrl, onClose }: Props) {
           {link === null ? (
             task
           ) : (
-            <a href={link} target="_blank" rel="noreferrer" title="Открыть задачу в Huly">
+            <a href={link} target="_blank" rel="noreferrer" title="Открыть задачу в трекере">
               {task}
             </a>
           )}
@@ -132,7 +132,7 @@ function Actions({ block }: { block: ChainBlock }) {
             type="button"
             className="button"
             disabled={sending || midTurn}
-            title="Остановит эту сессию и запустит новую в той же рабочей папке с передачей дел. Статус в Huly не меняется."
+            title="Остановит эту сессию и запустит новую в той же рабочей папке с передачей дел. Статус в трекере не меняется."
             onClick={() => void send('chain/restart', body)}
           >
             Новая сессия
@@ -156,8 +156,8 @@ function Actions({ block }: { block: ChainBlock }) {
               disabled={sending || midTurn}
               title={
                 block.current
-                  ? 'Цепочка перестанет ждать задачу и возьмёт следующую. Статус в Huly и сессия не меняются.'
-                  : 'Цепочка не возьмёт задачу, пока не вернёшь её. Статус в Huly не меняется.'
+                  ? 'Цепочка перестанет ждать задачу и возьмёт следующую. Статус в трекере и сессия не меняются.'
+                  : 'Цепочка не возьмёт задачу, пока не вернёшь её. Статус в трекере не меняется.'
               }
               onClick={() => void send('chain/skip', body)}
             >

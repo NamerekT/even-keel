@@ -9,21 +9,16 @@ import { VsCodeAccount, vscodeSettingsFile } from './account/vscode.js'
 import { AccountWatcher } from './account/watcher.js'
 import { Dispatcher, type LaunchEntry } from './chain/dispatcher.js'
 import { launchDays, taskSessions } from './chain/launches.js'
-import { RESUME_PROMPT, startPrompt } from './chain/relay.js'
+import { RESUME_PROMPT, startPrompt, withBrief } from './chain/relay.js'
 import { appendLaunch, loadChainState, readLaunches, saveChainState } from './chain/store.js'
 import { ConfigFile } from './config-file.js'
 import { EventHub } from './events.js'
+import { branchMerged } from './git/merged.js'
 import { runGit } from './git/run.js'
 import { finishSlot, prepareSlot, slotPaths, type SlotUse } from './git/slot.js'
 import { ensureIgnored, finishWorktree, prepareWorktree, taskPlace } from './git/worktree.js'
-import { issueUrlBase, readHulyCredentials } from './huly/credentials.js'
-import { worthBroadcast, type HulyHealth } from './huly/health.js'
-import { HulyLink } from './huly/link.js'
-import type { HulyTask } from './huly/model.js'
-import { StatusPoller } from './huly/poller.js'
 import { exhaustedReset } from './limits/model.js'
 import { LimitsWatcher } from './limits/watcher.js'
-import { connectHuly } from './huly/source.js'
 import { createBatonServer } from './server.js'
 import { ClaudeCli, liveRecords, resolveClaudeBinary } from './sessions/claude.js'
 import type { AgentEntry } from './sessions/agents.js'
@@ -35,10 +30,17 @@ import { locateWorktree } from './sessions/place.js'
 import type { BatonState, SessionView } from './state.js'
 import { readerSettings } from './stats/model.js'
 import { StatsReader } from './stats/reader.js'
+import { ADAPTERS } from './tracker/adapters.js'
+import { MergeCloser } from './tracker/closer.js'
+import { worthBroadcast, type TrackerView } from './tracker/health.js'
+import { TrackerLink } from './tracker/link.js'
+import type { Task } from './tracker/model.js'
+import { StatusPoller } from './tracker/poller.js'
+import { trackerOf, type TrackerSetup } from './tracker/source.js'
 
-const HULY_POLL_MS = 5_000
+const TRACKER_POLL_MS = 5_000
 const TASKS_REFRESH_MS = 30_000
-const HULY_TIMEOUT_MS = 15_000
+const TRACKER_TIMEOUT_MS = 15_000
 const SESSION_POLL_MS = 3_000
 const CLAUDE_TIMEOUT_MS = 30_000
 const LIMITS_POLL_MS = 2_000
@@ -74,16 +76,23 @@ const chainFile = join(stateDir, 'chain.json')
 const launchesFile = join(stateDir, 'launches.jsonl')
 const limitsFile = join(stateDir, 'rate-limits.json')
 const accountFile = join(stateDir, 'account.json')
-const credentials = readHulyCredentials(process.env)
+const trackerNames = [...new Set([config.tracker, ...Object.values(config.trackers)])]
+const setups = new Map<string, TrackerSetup | undefined>(trackerNames.map((name) => [name, ADAPTERS[name]!.setup(process.env)]))
+const trackerProjects = (name: string) => Object.keys(config.projects).filter((project) => config.trackers[project] === name)
+const trackers = new Map<string, TrackerView>(
+  trackerNames
+    .filter((name) => trackerProjects(name).length > 0)
+    .map((name) => [name, { name, title: ADAPTERS[name]!.title, projects: trackerProjects(name), health: { state: 'off', lastOkAt: null, error: null } }]),
+)
+const links = new Map<string, TrackerLink>()
 const hub = new EventHub()
 const homes = new AccountHomes(process.env, accountsRoot(process.env))
 const cli = new ClaudeCli(() => resolveClaudeBinary(process.env), CLAUDE_TIMEOUT_MS, (home) => homes.envOf(home))
 const startedAt = new Date().toISOString()
-const tasksByProject = new Map<string, HulyTask[]>()
+const tasksByProject = new Map<string, Task[]>()
 let sessions: SessionView[] = []
 let agents: AgentEntry[] = []
 let agentsRead = false
-let huly: HulyHealth = { state: 'off', lastOkAt: null, error: null }
 const launches: LaunchEntry[] = readLaunches(launchesFile)
 const stats = new StatsReader(readerSettings(process.env), config.projects, () => configFile.current.stats.compare)
 let ledger = loadLedger(accountFile)
@@ -209,6 +218,16 @@ const planFor = (task: string, prompt: string): LaunchPlan => {
   return plan
 }
 
+const briefed = async (task: string, prompt: string, project = projectOf(task)): Promise<string> => {
+  const link = project === undefined ? undefined : links.get(config.trackers[project]!)
+  return link === undefined ? prompt : withBrief(prompt, await link.run(async (tracker) => tracker.brief?.(task)))
+}
+
+function projectOf(task: string): string | undefined {
+  for (const [project, tasks] of tasksByProject) if (tasks.some((each) => each.id === task)) return project
+  return dispatcher.state.active?.project
+}
+
 const dispatcher = new Dispatcher(loadChainState(chainFile), {
   projects: Object.keys(config.projects),
   rules: rulesOf,
@@ -226,7 +245,7 @@ const dispatcher = new Dispatcher(loadChainState(chainFile), {
             vacate: (path) => vacateSlot(path, task),
           })
         : await prepareWorktree(runGit, repo, task)
-    const { prompt, model } = planFor(task, startPrompt(task, place))
+    const { prompt, model } = planFor(task, await briefed(task, startPrompt(task, place), project))
     return (await cli.launch(home, task, place.path, prompt, model)).sessionId
   },
   liveSession: (task) => sessions.find((view) => view.task === task && view.lamp !== 'finished')?.sessionId,
@@ -263,7 +282,7 @@ const dispatcher = new Dispatcher(loadChainState(chainFile), {
     if (previous !== undefined) await cli.stop(previous, session.agentId, session.sessionId)
     const home = homeOf(ledger.active)
     await daemons.prepare(home)
-    const { prompt, model } = planFor(task, handoff)
+    const { prompt, model } = planFor(task, await briefed(task, handoff))
     return (await cli.launch(home, task, session.workdir, prompt, model)).sessionId
   },
   finish: async (project, task) => {
@@ -342,8 +361,11 @@ const getState = (): BatonState => ({
   limits: limits.limits(ledger.active),
   usage: limits.usage(ledger.active),
   account: account.view,
-  huly,
-  trackerUrl: credentials === undefined ? null : issueUrlBase(credentials),
+  trackers: [...trackers.values()],
+  trackerUrls: {
+    default: setups.get(config.tracker)?.issueUrlBase ?? null,
+    projects: Object.fromEntries(Object.keys(config.projects).map((project) => [project, setups.get(config.trackers[project]!)?.issueUrlBase ?? null])),
+  },
   launches: launchDays(launches, new Date(), LAUNCH_CHART_DAYS),
   taskSessions: taskSessions(launches, sessions),
   context: config.context,
@@ -381,29 +403,49 @@ server.listen(config.port, config.host, () => {
   console.log(`baton listening on http://${config.host}:${config.port}`)
 })
 
-if (credentials === undefined) {
-  console.log('huly: HULY_* variables are not set, tracker is off')
-} else {
-  const link = new HulyLink({
-    connect: () => connectHuly(credentials, HULY_TIMEOUT_MS),
-    timeoutMs: HULY_TIMEOUT_MS,
+for (const view of trackers.values()) {
+  const setup = setups.get(view.name)
+  if (setup === undefined) console.log(`${view.name}: ${ADAPTERS[view.name]!.variables.join(', ')} are not set, tracker is off`)
+  else startTracker(view, setup)
+}
+
+function startTracker(view: TrackerView, setup: TrackerSetup): void {
+  const { name, projects } = view
+  let completes = false
+  const link = new TrackerLink({
+    name,
+    connect: async () => {
+      const tracker = trackerOf(await setup.connect(TRACKER_TIMEOUT_MS))
+      completes = tracker.complete !== undefined
+      return tracker
+    },
+    timeoutMs: TRACKER_TIMEOUT_MS,
     onHealth: (health) => {
-      const before = huly
-      huly = health
+      const before = view.health
+      view.health = health
       if (worthBroadcast(before, health)) hub.broadcast('state', getState())
     },
   })
-  huly = link.health
-  const report = (error: unknown) => console.error(`huly: ${error instanceof Error ? error.message : String(error)}`)
+  links.set(name, link)
+  view.health = link.health
+  const report = (error: unknown) => console.error(`${name}: ${error instanceof Error ? error.message : String(error)}`)
+  const ownTasks = () => projects.flatMap((project) => tasksByProject.get(project) ?? [])
+
+  const closer = new MergeCloser({
+    merged: (project, task) => branchMerged(runGit, config.projects[project]!, task),
+    complete: (task) => link.run((tracker) => tracker.complete!(task)),
+    onError: report,
+  })
 
   const poller = new StatusPoller({
     link,
-    watched: () => [...tasksByProject.values()].flat().map((task) => task.id),
-    intervalMs: HULY_POLL_MS,
+    watched: () => ownTasks().map((task) => task.id),
+    intervalMs: TRACKER_POLL_MS,
     onChange: (changes) => {
       const byId = new Map(changes.map((change) => [change.id, change.to]))
-      for (const [project, tasks] of tasksByProject) {
-        if (!tasks.some((task) => byId.has(task.id))) continue
+      for (const project of projects) {
+        const tasks = tasksByProject.get(project)
+        if (tasks === undefined || !tasks.some((task) => byId.has(task.id))) continue
         const updated = tasks.flatMap((task) => {
           const status = byId.has(task.id) ? byId.get(task.id) : task.status
           return status ? [{ ...task, status }] : []
@@ -419,18 +461,22 @@ if (credentials === undefined) {
   const unknownByProject = new Map<string, string>()
   const refreshTasks = async (): Promise<void> => {
     await Promise.all(
-      Object.keys(config.projects).map(async (project) => {
+      projects.map(async (project) => {
         try {
-          const { tasks, unknownStatuses } = await link.run((source) => source.chainTasks(project, rulesOf(project)))
+          const { tasks, unknownStatuses } = await link.run((tracker) => tracker.chainTasks(project, rulesOf(project)))
           const unknown = unknownStatuses.join('", "')
           if (unknown !== (unknownByProject.get(project) ?? '') && unknown !== '') {
-            console.warn(`config: Huly has no status "${unknown}" named in the chain rules of ${project}`)
+            console.warn(`config: ${view.title} has no status "${unknown}" named in the chain rules of ${project}`)
           }
           unknownByProject.set(project, unknown)
           tasksByProject.set(project, tasks)
           dispatcher.setTasks(project, tasks)
           const released = dispatcher.released(project)
-          if (released.length > 0) dispatcher.setReleased(project, await link.run((source) => source.tasks(released)))
+          if (released.length > 0) dispatcher.setReleased(project, await link.run((tracker) => tracker.tasks(released)))
+          if (!completes) return
+          for (const task of await closer.sweep(project, dispatcher.held(project))) {
+            console.log(`${name}: closed ${task}, its branch is merged into main`)
+          }
         } catch (error) {
           report(error)
         }
@@ -438,7 +484,7 @@ if (credentials === undefined) {
     )
     hub.broadcast('state', getState())
     poller.start()
-    setTimeout(() => void refreshTasks(), tasksByProject.size === 0 ? HULY_POLL_MS : TASKS_REFRESH_MS)
+    setTimeout(() => void refreshTasks(), projects.some((project) => tasksByProject.has(project)) ? TASKS_REFRESH_MS : TRACKER_POLL_MS)
   }
   void refreshTasks()
 }

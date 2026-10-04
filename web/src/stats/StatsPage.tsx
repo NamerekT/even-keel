@@ -150,15 +150,15 @@ export function StatsPage({ state }: { state: BatonState }) {
               picked={picked}
               onPick={pick}
               base={{ ...filter, projects: view.projects }}
-              trackerUrl={state.trackerUrl}
+              trackerUrls={state.trackerUrls}
             />
             {period !== null && (
               <>
                 <Sources period={period} />
                 <EstimateSection tasks={period.tasks} />
                 <StepsSection loaded={stepsLoaded} />
-                <TaskTable tasks={period.tasks} trackerUrl={state.trackerUrl} />
-                <StuckSection weeks={period.weeks} stuck={period.stuck} trackerUrl={state.trackerUrl} />
+                <TaskTable tasks={period.tasks} trackerUrls={state.trackerUrls} />
+                <StuckSection weeks={period.weeks} stuck={period.stuck} trackerUrls={state.trackerUrls} />
                 <p className="stats-page__foot">Tally · прочитано {formatMoment(period.at, new Date())}</p>
               </>
             )}

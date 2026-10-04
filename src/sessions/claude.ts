@@ -7,7 +7,7 @@ import { setTimeout as delay } from 'node:timers/promises'
 import { promisify } from 'node:util'
 import type { AccountHome } from '../account/homes.js'
 import { parseAuthStatus, type ClaudeAccount } from '../account/model.js'
-import type { ModelAlias } from '../huly/model.js'
+import type { ModelAlias } from '../tracker/model.js'
 import { parseAgents, parseSessionRecord, withLiveRecords, type AgentEntry, type SessionRecord } from './agents.js'
 import { newestExtensionBinary } from './paths.js'
 

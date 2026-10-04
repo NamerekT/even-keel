@@ -1,4 +1,4 @@
-import type { StatusCategory, TaskStatus } from '../huly/model.js'
+import type { StatusCategory, TaskStatus } from '../tracker/model.js'
 
 export interface ChainRules {
   active: string[] | null

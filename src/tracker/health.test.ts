@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
-import { worthBroadcast, type HulyHealth } from './health.js'
+import { worthBroadcast, type TrackerHealth } from './health.js'
 
-const live = (lastOkAt: string): HulyHealth => ({ state: 'live', lastOkAt, error: null })
+const live = (lastOkAt: string): TrackerHealth => ({ state: 'live', lastOkAt, error: null })
 
 describe('worthBroadcast', () => {
   it('skips a live poll that only moved the last success time', () => {
@@ -9,7 +9,7 @@ describe('worthBroadcast', () => {
   })
 
   it('broadcasts a change of state or error', () => {
-    const down: HulyHealth = { state: 'down', lastOkAt: '2026-01-01T10:00:00.000Z', error: 'refused' }
+    const down: TrackerHealth = { state: 'down', lastOkAt: '2026-01-01T10:00:00.000Z', error: 'refused' }
     expect(worthBroadcast(live('2026-01-01T10:00:00.000Z'), down)).toBe(true)
     expect(worthBroadcast(down, { ...down, error: 'timeout' })).toBe(true)
     expect(worthBroadcast(down, live('2026-01-01T10:00:09.000Z'))).toBe(true)

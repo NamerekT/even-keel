@@ -1,4 +1,4 @@
-import type { HulyHealth } from '../../../src/huly/health.js'
+import type { TrackerView } from '../../../src/tracker/health.js'
 import type { UsageHealth } from '../../../src/limits/usage.js'
 import { formatAgo } from '../format.js'
 import type { Link } from '../live/connection.js'
@@ -14,17 +14,17 @@ export interface Check {
 
 export interface SystemInput {
   link: Link
-  huly: HulyHealth | null
+  trackers: TrackerView[] | null
   usage: UsageHealth | null
   configError: string | null
 }
 
 const SEVERITY: Level[] = ['error', 'warn', 'ok', 'off']
 
-export function systemChecks({ link, huly, usage, configError }: SystemInput, now: Date): Check[] {
+export function systemChecks({ link, trackers, usage, configError }: SystemInput, now: Date): Check[] {
   const server = serverCheck(link)
-  if (huly === null || usage === null) return [server]
-  return [server, hulyCheck(huly, now), usageCheck(usage), configCheck(configError)]
+  if (trackers === null || usage === null) return [server]
+  return [server, ...trackers.map((tracker) => trackerCheck(tracker, now)), usageCheck(usage), configCheck(configError)]
 }
 
 export function worstLevel(checks: Check[]): Level {
@@ -38,8 +38,7 @@ function serverCheck(link: Link): Check {
   return { name, level: 'error', text: 'нет связи', details: ['Данные на странице устарели, переподключаюсь.'] }
 }
 
-function hulyCheck(health: HulyHealth, now: Date): Check {
-  const name = 'Huly'
+function trackerCheck({ title: name, health }: TrackerView, now: Date): Check {
   if (health.state === 'off') return { name, level: 'off', text: 'выключен', details: [] }
   if (health.state === 'live') return { name, level: 'ok', text: 'на связи', details: [] }
   if (health.state === 'connecting') return { name, level: 'warn', text: 'подключение', details: [] }

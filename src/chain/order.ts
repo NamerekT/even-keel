@@ -1,11 +1,11 @@
-import { PRIORITIES, type HulyTask, type TaskMilestone } from '../huly/model.js'
+import { PRIORITIES, type Task, type TaskMilestone } from '../tracker/model.js'
 
 const numeric = new Intl.Collator('en', { numeric: true })
 export const byNumber = (a: string, b: string) => numeric.compare(a, b)
 
 type Graph = Map<string, Set<string>>
 
-export function chainOrder(tasks: HulyTask[], preferred: string[] = []): string[] {
+export function chainOrder(tasks: Task[], preferred: string[] = []): string[] {
   const plan = planOf(tasks)
   const rank = new Map(preferred.map((id, index) => [id, index]))
   const priority = priorityOf(tasks)
@@ -44,7 +44,7 @@ export function chainOrder(tasks: HulyTask[], preferred: string[] = []): string[
   return order
 }
 
-export function withFresh(tasks: HulyTask[], order: string[], fresh: string[], pinned: number): string[] {
+export function withFresh(tasks: Task[], order: string[], fresh: string[], pinned: number): string[] {
   const priority = priorityOf(tasks)
   const result = [...order]
   const lastFirst = [...fresh].sort((a, b) => priority(b) - priority(a) || byNumber(b, a))
@@ -55,7 +55,7 @@ export function withFresh(tasks: HulyTask[], order: string[], fresh: string[], p
   return result
 }
 
-export function checkOrder(tasks: HulyTask[], order: string[]): void {
+export function checkOrder(tasks: Task[], order: string[]): void {
   const plan = planOf(tasks)
   const milestones = milestonesById(tasks)
   const position = new Map<string, number>()
@@ -77,7 +77,7 @@ export function checkOrder(tasks: HulyTask[], order: string[]): void {
   }
 }
 
-export function nextTask(tasks: HulyTask[], order: string[], skipped: string[]): string | undefined {
+export function nextTask(tasks: Task[], order: string[], skipped: string[]): string | undefined {
   const blockers = new Map(tasks.map((task) => [task.id, task.blockedBy]))
   const held = new Set(skipped)
   for (const id of order) {
@@ -87,12 +87,12 @@ export function nextTask(tasks: HulyTask[], order: string[], skipped: string[]):
   return undefined
 }
 
-export function openBlockers(tasks: HulyTask[], id: string): string[] {
+export function openBlockers(tasks: Task[], id: string): string[] {
   const ids = new Set(tasks.map((task) => task.id))
   return tasks.find((task) => task.id === id)?.blockedBy.filter((other) => ids.has(other)) ?? []
 }
 
-export function precedence(tasks: HulyTask[]): Map<string, string[]> {
+export function precedence(tasks: Task[]): Map<string, string[]> {
   const plan = planOf(tasks)
   return new Map([...plan.blockers].map(([id, deps]) => [id, [...deps, ...plan.earlier.get(id)!]]))
 }
@@ -101,7 +101,12 @@ export function compareMilestones(a: TaskMilestone, b: TaskMilestone): number {
   const left = versionOf(a.label)
   const right = versionOf(b.label)
   const byVersion = left === null || right === null ? Number(left === null) - Number(right === null) : compareVersions(left, right)
-  return byVersion || a.targetDate - b.targetDate || byNumber(a.label, b.label)
+  return byVersion || byDate(a.targetDate, b.targetDate) || byNumber(a.label, b.label)
+}
+
+function byDate(a: number | null, b: number | null): number {
+  if (a === null || b === null) return Number(a === null) - Number(b === null)
+  return a - b
 }
 
 interface Plan {
@@ -110,7 +115,7 @@ interface Plan {
   ranks: Map<string, number>
 }
 
-function planOf(tasks: HulyTask[]): Plan {
+function planOf(tasks: Task[]): Plan {
   const ids = new Set(tasks.map((task) => task.id))
   const blockers = new Map(tasks.map((task) => [task.id, task.blockedBy.filter((id) => ids.has(id))]))
   const ranks = milestoneRanks(tasks)
@@ -123,7 +128,7 @@ function planOf(tasks: HulyTask[]): Plan {
   return { blockers, earlier, ranks }
 }
 
-function milestoneRanks(tasks: HulyTask[]): Map<string, number> {
+function milestoneRanks(tasks: Task[]): Map<string, number> {
   const planned = tasks
     .flatMap((task) => (task.milestone === null ? [] : [{ id: task.id, milestone: task.milestone }]))
     .sort((a, b) => compareMilestones(a.milestone, b.milestone))
@@ -136,12 +141,12 @@ function milestoneRanks(tasks: HulyTask[]): Map<string, number> {
   return ranks
 }
 
-function priorityOf(tasks: HulyTask[]): (id: string) => number {
+function priorityOf(tasks: Task[]): (id: string) => number {
   const ranks = new Map(tasks.map((task) => [task.id, PRIORITIES.indexOf(task.priority)]))
   return (id) => ranks.get(id) ?? PRIORITIES.length
 }
 
-function milestonesById(tasks: HulyTask[]): Map<string, string> {
+function milestonesById(tasks: Task[]): Map<string, string> {
   return new Map(tasks.flatMap((task) => (task.milestone === null ? [] : [[task.id, task.milestone.label] as const])))
 }
 
@@ -158,7 +163,7 @@ function compareVersions(a: number[], b: number[]): number {
   return 0
 }
 
-function deadlock(pending: Graph, plan: Plan, tasks: HulyTask[]): Error {
+function deadlock(pending: Graph, plan: Plan, tasks: Task[]): Error {
   const blockerKnot = knot(new Map([...pending.keys()].map((id) => [id, new Set(plan.blockers.get(id)!.filter((other) => pending.has(other)))])))
   if (blockerKnot.size > 0) return new Error(`chain: cycle: ${findCycle(blockerKnot).join(' → ')}`)
 

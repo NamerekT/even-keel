@@ -1,7 +1,7 @@
 import { mkdirSync, readdirSync, readFileSync, renameSync, rmSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { join, resolve } from 'node:path'
-import { VARIABLES } from '../huly/credentials.js'
+import { trackerVariables } from '../tracker/adapters.js'
 import { folderName, GLOBAL_ACCOUNT, parseCredentialTimes, type CredentialTimes } from './model.js'
 import { shareConfig } from './share.js'
 
@@ -40,7 +40,7 @@ export class AccountHomes {
 
   envOf(home: AccountHome): NodeJS.ProcessEnv {
     const env = { ...this.env }
-    for (const name of VARIABLES) delete env[name]
+    for (const name of trackerVariables()) delete env[name]
     if (!home.global) env.CLAUDE_CONFIG_DIR = home.dir
     return env
   }

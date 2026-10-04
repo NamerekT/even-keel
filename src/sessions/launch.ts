@@ -1,4 +1,4 @@
-import type { HulyTask, ModelAlias } from '../huly/model.js'
+import type { ModelAlias, Task } from '../tracker/model.js'
 
 export interface LaunchPlan {
   model: ModelAlias | null
@@ -7,7 +7,7 @@ export interface LaunchPlan {
 }
 
 export function launchPlan(
-  task: Pick<HulyTask, 'id' | 'models'> | undefined,
+  task: Pick<Task, 'id' | 'models'> | undefined,
   prompt: string,
   prompts: Partial<Record<ModelAlias, string>>,
 ): LaunchPlan {

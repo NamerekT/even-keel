@@ -1,3 +1,4 @@
+import type { TrackerUrls } from '../../../src/state.js'
 import { useState } from 'react'
 import { RULE_PURPOSES, type RulePurpose } from '../../../src/stats/rule-imports.js'
 import { type CompareQuery, type RuleKind, type RuleMark, type RuleSet, type RuleSetFile, type StatsRules } from '../../../src/stats/rules.js'
@@ -65,13 +66,13 @@ function FileDiff({ file }: { file: RuleSetFile }) {
   )
 }
 
-function SetView({ set, trackerUrl }: { set: RuleSet; trackerUrl: string | null }) {
+function SetView({ set, trackerUrls }: { set: RuleSet; trackerUrls: TrackerUrls }) {
   const [open, setOpen] = useState<string | null>(null)
   const imported = set.id.startsWith('i:')
   return (
     <li className="rule-set">
       <div className="rule-set__head">
-        {set.task !== null ? <TaskKey id={set.task} trackerUrl={trackerUrl} /> : <strong>{setTitle(set)}</strong>}
+        {set.task !== null ? <TaskKey id={set.task} trackerUrls={trackerUrls} /> : <strong>{setTitle(set)}</strong>}
         {set.task !== null && set.title !== null && <span>{set.title}</span>}
         <span className="stats-section__note">{formatMoment(set.at, new Date())}</span>
       </div>
@@ -125,7 +126,7 @@ export function RulesSection({
   picked,
   onPick,
   base,
-  trackerUrl,
+  trackerUrls,
 }: {
   loaded: Loaded<StatsRules> | null
   marks: RuleMark[]
@@ -135,7 +136,7 @@ export function RulesSection({
   picked: string[]
   onPick: (key: string, extend: boolean) => void
   base: Omit<CompareQuery, 'before' | 'after' | 'days'>
-  trackerUrl: string | null
+  trackerUrls: TrackerUrls
 }) {
   const [days, setDays] = useState<number | null>(null)
   const rules = loadedData(loaded)
@@ -180,7 +181,7 @@ export function RulesSection({
             <p className="stats-section__note">Выберите метку — на графике или в списке, — чтобы увидеть правки и сравнить до и после. Shift- или Ctrl-клик добавляет вторую метку: сравнение пойдёт от состояния до первой к состоянию после второй.</p>
           ) : (
             <div className="rule-picked">
-              <ul className="rule-picked__sets">{span.marks.flatMap((mark) => mark.sets).map((set) => <SetView key={set.id} set={set} trackerUrl={trackerUrl} />)}</ul>
+              <ul className="rule-picked__sets">{span.marks.flatMap((mark) => mark.sets).map((set) => <SetView key={set.id} set={set} trackerUrls={trackerUrls} />)}</ul>
               <div className="rule-picked__compare">
                 <header className="stats-section__head">
                   <h3 className="rule-picked__title">До и после</h3>

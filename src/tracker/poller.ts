@@ -1,8 +1,8 @@
-import type { HulyLink } from './link.js'
+import type { TrackerLink } from './link.js'
 import { diffStatuses, type StatusChange, type TaskStatus } from './model.js'
 
 export interface StatusPollerOptions {
-  link: HulyLink
+  link: TrackerLink
   watched: () => string[]
   intervalMs: number
   onChange: (changes: StatusChange[]) => void

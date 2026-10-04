@@ -1,24 +1,15 @@
 import { describe, expect, it } from 'vitest'
-import type { HulyTask, TaskMilestone, TaskPriority } from '../huly/model.js'
+import { fakeTask } from '../tracker/fixture.js'
+import type { Task, TaskMilestone, TaskPriority } from '../tracker/model.js'
 import { chainOrder, checkOrder, compareMilestones, nextTask, openBlockers, precedence, withFresh } from './order.js'
 
-const task = (id: string, ...blockedBy: string[]): HulyTask => ({
-  id,
-  title: id,
-  status: { name: 'Todo', category: 'ToDo' },
-  blockedBy,
-  milestone: null,
-  priority: 'none',
-  question: false,
-  labels: [],
-  models: [],
-})
+const task = (id: string, ...blockedBy: string[]): Task => fakeTask(id, { blockedBy })
 
 const milestone = (label: string, targetDate = 0): TaskMilestone => ({ label, targetDate })
 const v1 = milestone('v0.1 — first slice', 300)
 const v2 = milestone('v0.2 — second slice', 200)
-const inMilestone = (m: TaskMilestone, id: string, ...blockedBy: string[]): HulyTask => ({ ...task(id, ...blockedBy), milestone: m })
-const withPriority = (priority: TaskPriority, id: string, ...blockedBy: string[]): HulyTask => ({ ...task(id, ...blockedBy), priority })
+const inMilestone = (m: TaskMilestone, id: string, ...blockedBy: string[]): Task => ({ ...task(id, ...blockedBy), milestone: m })
+const withPriority = (priority: TaskPriority, id: string, ...blockedBy: string[]): Task => ({ ...task(id, ...blockedBy), priority })
 
 describe('chainOrder', () => {
   it('orders independent tasks by number', () => {
@@ -174,8 +165,12 @@ describe('withFresh', () => {
 })
 
 describe('compareMilestones', () => {
-  const sorted = (...labels: [string, number][]) =>
-    labels.map(([label, date]) => milestone(label, date)).sort(compareMilestones).map((m) => m.label)
+  const sorted = (...labels: [string, number | null][]) =>
+    labels.map(([label, targetDate]) => ({ label, targetDate })).sort(compareMilestones).map((m) => m.label)
+
+  it('puts a milestone without a date after dated ones of the same version', () => {
+    expect(sorted(['Undated', null], ['Later', 100], ['Sooner', 50])).toEqual(['Sooner', 'Later', 'Undated'])
+  })
 
   it('orders by the version in the label, not by text', () => {
     expect(sorted(['v0.10', 0], ['v0.2', 0], ['v1', 0], ['0.1 beta', 0])).toEqual(['0.1 beta', 'v0.2', 'v0.10', 'v1'])

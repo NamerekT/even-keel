@@ -12,8 +12,9 @@ import type { RateLimits } from '../../../src/limits/model.js'
 import type { LaunchEntry } from '../../../src/chain/dispatcher.js'
 import { launchDays } from '../../../src/chain/launches.js'
 import { checkOrder } from '../../../src/chain/order.js'
-import type { HulyHealth, HulyLinkState } from '../../../src/huly/health.js'
-import type { HulyTask, StatusCategory } from '../../../src/huly/model.js'
+import type { TrackerLinkState, TrackerView } from '../../../src/tracker/health.js'
+import { fakeTask as trackerTask } from '../../../src/tracker/fixture.js'
+import type { StatusCategory, Task } from '../../../src/tracker/model.js'
 import type { FeedLine } from '../../../src/sessions/transcript.js'
 import type { UsageHealth } from '../../../src/limits/usage.js'
 import type { LimitHold } from '../../../src/chain/relay.js'
@@ -34,18 +35,13 @@ function task(
   category: StatusCategory,
   blockedBy: string[] = [],
   milestone: string | null = null,
-): HulyTask {
-  return {
-    id,
+): Task {
+  return trackerTask(id, {
     title,
     status: { name, category },
     blockedBy,
     milestone: milestone === null ? null : { label: milestone, targetDate: 0 },
-    priority: 'none',
-    question: false,
-    labels: [],
-    models: [],
-  }
+  })
 }
 
 function ago(minutes: number): string {
@@ -100,10 +96,11 @@ function fakeFeed(): FeedLine[] {
   })
 }
 
-function fakeHuly(state: HulyLinkState): HulyHealth {
-  if (state === 'off' || state === 'connecting') return { state, lastOkAt: null, error: null }
-  if (state === 'down') return { state, lastOkAt: ago(4), error: 'huly: call timed out after 15000 ms' }
-  return { state, lastOkAt: ago(0), error: null }
+function fakeHuly(state: TrackerLinkState): TrackerView {
+  const view = { name: 'huly', title: 'Huly', projects: ['ABC', 'DEMO', 'XYZ', 'OPS'] }
+  if (state === 'off' || state === 'connecting') return { ...view, health: { state, lastOkAt: null, error: null } }
+  if (state === 'down') return { ...view, health: { state, lastOkAt: ago(4), error: 'huly: call timed out after 15000 ms' } }
+  return { ...view, health: { state, lastOkAt: ago(0), error: null } }
 }
 
 const LAUNCH_PATTERN: Record<string, number[]> = {
@@ -124,7 +121,7 @@ function fakeLaunches(): LaunchEntry[] {
 }
 
 function fakeState(
-  huly: HulyLinkState,
+  huly: TrackerLinkState,
   idle: boolean,
   contextTokens: number,
   launches: LaunchEntry[],
@@ -195,8 +192,8 @@ function fakeState(
     limits: FAKE_LIMITS,
     usage: fakeUsage(usage),
     account: fakeAccount(account, idle, FAKE_LIMITS),
-    huly: fakeHuly(huly),
-    trackerUrl: 'https://huly.example.com/workbench/example/tracker/',
+    trackers: [fakeHuly(huly)],
+    trackerUrls: { default: 'https://huly.example.com/workbench/example/tracker/', projects: {} },
     launches: launchDays(launches, new Date(), LAUNCH_DAYS),
     taskSessions: idle
       ? {}
@@ -536,7 +533,7 @@ function isLink(value: string | null): value is Link {
   return value === 'connecting' || value === 'live' || value === 'stale'
 }
 
-function isHulyState(value: string | null): value is HulyLinkState {
+function isHulyState(value: string | null): value is TrackerLinkState {
   return value === 'off' || value === 'connecting' || value === 'live' || value === 'down'
 }
 
@@ -545,7 +542,7 @@ export function createFakeSource(search: string): LiveSource {
   const requested = params.get('link')
   const link: Link = isLink(requested) ? requested : 'live'
   const requestedHuly = params.get('huly')
-  const huly: HulyLinkState = isHulyState(requestedHuly) ? requestedHuly : 'live'
+  const huly: TrackerLinkState = isHulyState(requestedHuly) ? requestedHuly : 'live'
   const listeners = new Set<() => void>()
   const launches = fakeLaunches()
   const idle = params.get('chain') === 'idle'
@@ -623,8 +620,10 @@ export function createFakeSource(search: string): LiveSource {
             }
           : view,
       )
-      const hulyNow = state.huly.state === 'live' ? { ...state.huly, lastOkAt: ago(0) } : state.huly
-      current = { ...current, state: { ...state, sessions, huly: hulyNow } }
+      const trackers = state.trackers.map((tracker) =>
+        tracker.health.state === 'live' ? { ...tracker, health: { ...tracker.health, lastOkAt: ago(0) } } : tracker,
+      )
+      current = { ...current, state: { ...state, sessions, trackers } }
       notify()
     }, TICK_MS)
   }

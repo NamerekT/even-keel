@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { FeedLine } from '../sessions/transcript.js'
-import { CLEANUP_NOTE, handoffPrompt, holdOf, relayStep, startPrompt, type LimitHold, type LimitedSession } from './relay.js'
+import { CLEANUP_NOTE, handoffPrompt, holdOf, relayStep, startPrompt, withBrief, type LimitHold, type LimitedSession } from './relay.js'
 
 const line = (text: string, kind: FeedLine['kind'] = 'tool'): FeedLine => ({ at: '2026-09-27T14:38:00.000Z', kind, text })
 
@@ -186,5 +186,24 @@ describe('startPrompt', () => {
 
   it('fails instead of leaving a blank where the worktree should be', () => {
     expect(() => startPrompt('ABC-1', { path: '', branch: 'abc-1/task' })).toThrow(/Worktree готов/)
+  })
+})
+
+describe('withBrief', () => {
+  const prompt = 'ABC-1\n\n- Ветка: abc-1/task — не меняй её.\n'
+
+  it('appends the title and the description of the task to the prompt', () => {
+    const text = withBrief(prompt, { title: 'Add a button', description: 'The button **saves** the form.\n' })
+    expect(text.startsWith(prompt)).toBe(true)
+    expect(text.slice(prompt.length)).toBe('\nЗадача из трекера: Add a button\n\nThe button **saves** the form.\n')
+  })
+
+  it('leaves out an empty description and keeps the prompt as it is without a brief', () => {
+    expect(withBrief(prompt, { title: 'Add a button', description: ' \n' })).toBe(`${prompt}\nЗадача из трекера: Add a button\n`)
+    expect(withBrief(prompt, undefined)).toBe(prompt)
+  })
+
+  it('fails on a task without a title', () => {
+    expect(() => withBrief(prompt, { title: ' ', description: 'Text' })).toThrow(/Задача из трекера/)
   })
 })

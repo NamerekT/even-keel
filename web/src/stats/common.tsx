@@ -1,3 +1,4 @@
+import type { TrackerUrls } from '../../../src/state.js'
 import { useEffect, useState, type ReactNode } from 'react'
 import type { StatsAnswer } from '../../../src/stats/model.js'
 import { issueLink } from '../state.js'
@@ -69,8 +70,8 @@ export function Segmented<T extends string>({
   )
 }
 
-export function TaskKey({ id, trackerUrl }: { id: string; trackerUrl: string | null }) {
-  const link = issueLink(trackerUrl, id)
+export function TaskKey({ id, trackerUrls }: { id: string; trackerUrls: TrackerUrls }) {
+  const link = issueLink(trackerUrls, id)
   return link === null ? (
     <span className="stats__key">{id}</span>
   ) : (

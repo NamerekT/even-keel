@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import type { HulyTask, StatusCategory } from '../../src/huly/model.js'
+import { fakeTask } from '../../src/tracker/fixture.js'
+import type { StatusCategory, Task } from '../../src/tracker/model.js'
 import type { AccountEntry, AccountLogin, AccountView } from '../../src/account/model.js'
 import type { BatonState, SessionView } from '../../src/state.js'
 import {
@@ -44,8 +45,8 @@ function view(task: string, lamp: SessionView['lamp'], lastActivityAt: string | 
   }
 }
 
-function task(id: string, category: StatusCategory = 'Active', blockedBy: string[] = []): HulyTask {
-  return { id, title: id, status: { name: category, category }, blockedBy, milestone: null, priority: 'none', question: false, labels: [], models: [] }
+function task(id: string, category: StatusCategory = 'Active', blockedBy: string[] = []): Task {
+  return fakeTask(id, { status: { name: category, category }, blockedBy })
 }
 
 function baton(patch: Partial<BatonState>): BatonState {
@@ -58,8 +59,8 @@ function baton(patch: Partial<BatonState>): BatonState {
     limits: null,
     usage: { state: 'ok', reason: null, since: null },
     account: { active: 'global', accounts: [], login: null, loginBlock: null, apps: [] },
-    huly: { state: 'live', lastOkAt: null, error: null },
-    trackerUrl: null,
+    trackers: [{ name: 'huly', title: 'Huly', projects: ['ABC', 'XYZ'], health: { state: 'live', lastOkAt: null, error: null } }],
+    trackerUrls: { default: null, projects: {} },
     launches: [],
     taskSessions: {},
     context: { window: 600_000, warn: 50, danger: 80 },
@@ -320,7 +321,7 @@ describe('chainBlocks', () => {
   })
 
   it('carries the milestone label and what an open task must follow, blockers and earlier milestones alike', () => {
-    const planned = (id: string, category: StatusCategory, label: string, blockedBy: string[] = []): HulyTask => ({
+    const planned = (id: string, category: StatusCategory, label: string, blockedBy: string[] = []): Task => ({
       ...task(id, category, blockedBy),
       milestone: { label, targetDate: 0 },
     })
@@ -385,7 +386,7 @@ describe('chainBlocks', () => {
 
   it('carries the title and status name, and keeps a task Huly has not delivered yet', () => {
     const state = baton({
-      tasks: [{ id: 'ABC-1', title: 'First', status: { name: 'In Progress', category: 'Active' }, blockedBy: [], milestone: null, priority: 'none', question: false, labels: [], models: [] }],
+      tasks: [fakeTask('ABC-1', { title: 'First', status: { name: 'In Progress', category: 'Active' } })],
       chain: chain({ projects: { ABC: { order: ['ABC-1', 'ABC-2'], error: null } } }),
     })
     expect(chainBlocks(state, 'ABC').map(({ id, title, status }) => ({ id, title, status }))).toEqual([
@@ -489,14 +490,22 @@ describe('tokenTotal', () => {
 })
 
 describe('issueLink', () => {
-  it('appends the issue key to the tracker address', () => {
-    expect(issueLink('https://huly.example.com/workbench/example/tracker/', 'ABC-12')).toBe(
-      'https://huly.example.com/workbench/example/tracker/ABC-12',
-    )
+  const urls = {
+    default: 'https://huly.example.com/workbench/example/tracker/',
+    projects: { LIN: 'https://linear.example.com/issue/', OFF: null },
+  }
+
+  it('appends the issue key to the address of the tracker its project uses', () => {
+    expect(issueLink(urls, 'LIN-12')).toBe('https://linear.example.com/issue/LIN-12')
   })
 
-  it('is empty when Huly is not configured', () => {
-    expect(issueLink(null, 'ABC-12')).toBeNull()
+  it('falls back to the shared tracker for a project the config does not name', () => {
+    expect(issueLink(urls, 'ABC-12')).toBe('https://huly.example.com/workbench/example/tracker/ABC-12')
+  })
+
+  it('is empty when the tracker of the project gives no address', () => {
+    expect(issueLink(urls, 'OFF-3')).toBeNull()
+    expect(issueLink({ default: null, projects: {} }, 'ABC-12')).toBeNull()
   })
 })
 

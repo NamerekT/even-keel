@@ -2,6 +2,7 @@ import type { TaskPlace } from '../git/types.js'
 import { resetTimeOf } from '../limits/reset.js'
 import { fill } from '../sessions/prompt.js'
 import type { FeedLine } from '../sessions/transcript.js'
+import type { TaskBrief } from '../tracker/source.js'
 
 export const WARM_CACHE_MS = 55 * 60_000
 const HANDOFF_STEPS = 10
@@ -16,6 +17,14 @@ export function startPrompt(task: string, place: TaskPlace): string {
   if (place.branch !== null) lines.push(fill`- Ветка: ${place.branch} — не меняй её.`)
   lines.push(CLEANUP_NOTE)
   return lines.join('\n') + '\n'
+}
+
+export function withBrief(prompt: string, brief: TaskBrief | undefined): string {
+  if (brief === undefined) return prompt
+  const lines = ['', fill`Задача из трекера: ${brief.title.trim()}`]
+  const description = brief.description.trim()
+  if (description !== '') lines.push('', description)
+  return prompt + lines.join('\n') + '\n'
 }
 
 export type RelayAction = 'resume' | 'relay'

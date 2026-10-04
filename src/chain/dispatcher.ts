@@ -1,5 +1,5 @@
 import type { FinishOutcome } from '../git/types.js'
-import type { HulyTask } from '../huly/model.js'
+import type { Task } from '../tracker/model.js'
 import { chainOrder, checkOrder, nextTask, openBlockers, withFresh } from './order.js'
 import { admits, isActive, isDone, isTerminal, type ChainRules } from './rules.js'
 import {
@@ -88,7 +88,7 @@ export function emptyChainState(): ChainState {
 }
 
 export class Dispatcher {
-  private readonly tasks = new Map<string, HulyTask[]>()
+  private readonly tasks = new Map<string, Task[]>()
   private readonly done = new Map<string, Set<string>>()
   private readonly releasedDone = new Map<string, Set<string>>()
   private work: Promise<void> = Promise.resolve()
@@ -98,7 +98,7 @@ export class Dispatcher {
     private readonly deps: DispatcherDeps,
   ) {}
 
-  setTasks(project: string, tasks: HulyTask[]): void {
+  setTasks(project: string, tasks: Task[]): void {
     const rules = this.deps.rules(project)
     this.tasks.set(project, tasks.filter((task) => admits(rules, task) && this.enters(project, task, rules)))
     this.done.set(project, new Set(tasks.filter((task) => isDone(rules, task.status)).map((task) => task.id)))
@@ -111,7 +111,13 @@ export class Dispatcher {
     return [...(this.state.released[project] ?? [])]
   }
 
-  setReleased(project: string, tasks: HulyTask[]): void {
+  held(project: string): string[] {
+    const active = this.state.active
+    const current = active?.project === project && active.current?.sessionId ? [active.current.task] : []
+    return [...current, ...this.released(project).filter((id) => !current.includes(id))]
+  }
+
+  setReleased(project: string, tasks: Task[]): void {
     const rules = this.deps.rules(project)
     const statuses = new Map(tasks.map((task) => [task.id, task.status]))
     const kept = this.released(project).filter((id) => {
@@ -126,7 +132,7 @@ export class Dispatcher {
     this.kick()
   }
 
-  private enters(project: string, task: HulyTask, rules: ChainRules): boolean {
+  private enters(project: string, task: Task, rules: ChainRules): boolean {
     if (isActive(rules, task.status)) return true
     const active = this.state.active
     return active?.project === project && active.current?.task === task.id && this.deps.busy(task.id)

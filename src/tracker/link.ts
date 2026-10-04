@@ -1,29 +1,30 @@
-import type { HulyHealth } from './health.js'
-import type { HulySource } from './source.js'
+import type { TrackerHealth } from './health.js'
+import type { Tracker } from './source.js'
 
-export interface HulyLinkOptions {
-  connect: () => Promise<HulySource>
+export interface TrackerLinkOptions {
+  name: string
+  connect: () => Promise<Tracker>
   timeoutMs: number
   now?: () => Date
-  onHealth?: (health: HulyHealth) => void
+  onHealth?: (health: TrackerHealth) => void
 }
 
-export class HulyLink {
-  private source: Promise<HulySource> | undefined
+export class TrackerLink {
+  private source: Promise<Tracker> | undefined
   private closed = false
-  private current: HulyHealth = { state: 'connecting', lastOkAt: null, error: null }
+  private current: TrackerHealth = { state: 'connecting', lastOkAt: null, error: null }
 
-  constructor(private readonly options: HulyLinkOptions) {}
+  constructor(private readonly options: TrackerLinkOptions) {}
 
-  get health(): HulyHealth {
+  get health(): TrackerHealth {
     return this.current
   }
 
-  async run<T>(call: (source: HulySource) => Promise<T>): Promise<T> {
-    if (this.closed) throw new Error('huly: link is closed')
+  async run<T>(call: (source: Tracker) => Promise<T>): Promise<T> {
+    if (this.closed) throw new Error(`${this.options.name}: link is closed`)
     const pending = (this.source ??= this.options.connect())
     try {
-      const result = await withTimeout(pending.then(call), this.options.timeoutMs)
+      const result = await withTimeout(pending.then(call), this.options.timeoutMs, this.options.name)
       this.report({ state: 'live', lastOkAt: (this.options.now?.() ?? new Date()).toISOString(), error: null })
       return result
     } catch (error) {
@@ -41,24 +42,24 @@ export class HulyLink {
     await pending?.then((source) => source.close()).catch(() => {})
   }
 
-  private report(next: HulyHealth): void {
+  private report(next: TrackerHealth): void {
     const { current } = this
     if (next.state === current.state && next.lastOkAt === current.lastOkAt && next.error === current.error) return
     this.current = next
     this.options.onHealth?.(next)
   }
 
-  private drop(pending: Promise<HulySource>): void {
+  private drop(pending: Promise<Tracker>): void {
     if (this.source !== pending) return
     this.source = undefined
     pending.then((source) => source.close()).catch(() => {})
   }
 }
 
-function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
+function withTimeout<T>(promise: Promise<T>, ms: number, name: string): Promise<T> {
   let timer: NodeJS.Timeout | undefined
   const timeout = new Promise<never>((_, reject) => {
-    timer = setTimeout(() => reject(new Error(`huly: call timed out after ${ms} ms`)), ms)
+    timer = setTimeout(() => reject(new Error(`${name}: call timed out after ${ms} ms`)), ms)
   })
   return Promise.race([promise, timeout]).finally(() => clearTimeout(timer))
 }

@@ -1,44 +1,6 @@
-export type StatusCategory = 'UnStarted' | 'ToDo' | 'Active' | 'Won' | 'Lost'
-
-export interface TaskStatus {
-  name: string
-  category: StatusCategory
-}
-
-export interface TaskMilestone {
-  label: string
-  targetDate: number
-}
-
-export interface HulyTask {
-  id: string
-  title: string
-  status: TaskStatus
-  blockedBy: string[]
-  milestone: TaskMilestone | null
-  priority: TaskPriority
-  question: boolean
-  labels: string[]
-  models: ModelAlias[]
-}
-
-export const PRIORITIES = ['urgent', 'high', 'medium', 'low', 'none'] as const
-export type TaskPriority = (typeof PRIORITIES)[number]
+import type { StatusCategory, TaskPriority, TaskStatus, TrackerTask } from '../tracker/model.js'
 
 const HULY_PRIORITIES: readonly TaskPriority[] = ['none', 'urgent', 'high', 'medium', 'low']
-
-export const MODEL_ALIASES = ['sonnet', 'opus', 'haiku'] as const
-export type ModelAlias = (typeof MODEL_ALIASES)[number]
-
-export function isModelAlias(value: string): value is ModelAlias {
-  return (MODEL_ALIASES as readonly string[]).includes(value)
-}
-
-export interface StatusChange {
-  id: string
-  from: TaskStatus | null
-  to: TaskStatus | null
-}
 
 export interface HulyStatusDoc {
   _id: string
@@ -58,18 +20,18 @@ export interface HulyIssueDoc {
   title: string
   status: string
   blockedBy?: { _id: string }[]
+  parents?: { identifier: string }[]
   milestone?: string | null
   priority?: number
   subIssues?: number
   labels?: number
+  estimation?: number
 }
 
 export interface HulyLabelDoc {
   attachedTo: string
   title: string
 }
-
-export const QUESTION_LABEL = 'Вопрос'
 
 const CATEGORY_PREFIX = 'task:statusCategory:'
 const CATEGORIES: ReadonlySet<string> = new Set<StatusCategory>(['UnStarted', 'ToDo', 'Active', 'Won', 'Lost'])
@@ -88,21 +50,10 @@ export function toTasks(
   otherIdentifiers: ReadonlyMap<string, string>,
   milestones: HulyMilestoneDoc[],
   labels: HulyLabelDoc[] = [],
-): HulyTask[] {
+): TrackerTask[] {
   const statusById = new Map(statuses.map((doc) => [doc._id, doc]))
-  const question = QUESTION_LABEL.toLocaleLowerCase()
-  const questions = new Set<string>()
-  const labelsById = new Map<string, Map<string, string>>()
-  const modelsById = new Map<string, Set<ModelAlias>>()
-  for (const doc of labels) {
-    const title = doc.title.trim().toLocaleLowerCase()
-    const own = labelsById.get(doc.attachedTo) ?? new Map<string, string>()
-    if (!own.has(title)) labelsById.set(doc.attachedTo, own.set(title, doc.title.trim()))
-    if (title === question) questions.add(doc.attachedTo)
-    if (!isModelAlias(title)) continue
-    const models = modelsById.get(doc.attachedTo) ?? new Set()
-    modelsById.set(doc.attachedTo, models.add(title))
-  }
+  const labelsById = new Map<string, string[]>()
+  for (const doc of labels) labelsById.set(doc.attachedTo, [...(labelsById.get(doc.attachedTo) ?? []), doc.title])
   const milestoneById = new Map(milestones.map((doc) => [doc._id, { label: doc.label, targetDate: doc.targetDate }]))
   const identifierById = new Map(otherIdentifiers)
   for (const issue of issues) identifierById.set(issue._id, issue.identifier)
@@ -115,11 +66,12 @@ export function toTasks(
       title: issue.title,
       status: toStatus(status),
       blockedBy: (issue.blockedBy ?? []).flatMap((ref) => identifierById.get(ref._id) ?? []),
+      parent: issue.parents?.[0]?.identifier ?? null,
+      subtasks: issue.subIssues ?? 0,
       milestone: issue.milestone ? (milestoneById.get(issue.milestone) ?? null) : null,
       priority: HULY_PRIORITIES[issue.priority ?? 0] ?? 'none',
-      question: questions.has(issue._id),
-      labels: [...(labelsById.get(issue._id)?.values() ?? [])],
-      models: MODEL_ALIASES.filter((model) => modelsById.get(issue._id)?.has(model)),
+      labels: labelsById.get(issue._id) ?? [],
+      estimate: issue.estimation ? issue.estimation : null,
     }
   })
 }
@@ -139,28 +91,4 @@ export function milestonesOf(issues: HulyIssueDoc[]): string[] {
 
 export function labeled(issues: HulyIssueDoc[]): string[] {
   return issues.filter((issue) => (issue.labels ?? 0) > 0).map((issue) => issue._id)
-}
-
-export function withoutParents(issues: HulyIssueDoc[]): HulyIssueDoc[] {
-  return issues.filter((issue) => (issue.subIssues ?? 0) === 0)
-}
-
-export function isOpen(status: TaskStatus): boolean {
-  return status.category !== 'Won' && status.category !== 'Lost'
-}
-
-export function diffStatuses(
-  known: ReadonlyMap<string, TaskStatus>,
-  current: HulyTask[],
-  watched: string[],
-): StatusChange[] {
-  const now = new Map(current.map((task) => [task.id, task.status]))
-  const changes: StatusChange[] = []
-  for (const id of watched) {
-    const from = known.get(id) ?? null
-    const to = now.get(id) ?? null
-    if (from?.name === to?.name && from?.category === to?.category) continue
-    changes.push({ id, from, to })
-  }
-  return changes
 }
