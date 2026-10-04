@@ -1250,6 +1250,30 @@ a:focus-visible {
   color: var(--fg-muted);
 }
 
+.backlog__summary {
+  width: fit-content;
+  color: var(--fg-muted);
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.backlog__blocks {
+  margin: 12px 0;
+}
+
+.block--backlog {
+  opacity: 0.6;
+}
+
+.block--backlog .block__title {
+  color: var(--fg-muted);
+}
+
+.card__backlog {
+  color: var(--fg-muted);
+  opacity: 0.7;
+}
+
 .block__return {
   position: relative;
   z-index: 1;

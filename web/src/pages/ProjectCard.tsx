@@ -13,7 +13,7 @@ export function ProjectCard({ state, project }: { state: EvenKeelState; project:
 
   const status = chainStatus(state.chain, project)
   const order = state.chain.projects[project]
-  const { done, total } = chainProgress(projectTasks(state, project))
+  const { done, total, backlog } = chainProgress(projectTasks(state, project), order)
   const task = cardTask(state, project)
   const slot = projectSlot(state.projects, project)
   const canStart = status.kind === 'idle' && order !== undefined && order.error === null && order.order.length > 0
@@ -43,6 +43,7 @@ export function ProjectCard({ state, project }: { state: EvenKeelState; project:
         </span>
         <span className="card__count">
           <strong>{done}</strong> / {total}
+          {backlog > 0 && <span className="card__backlog"> · {t.project.inBacklog(backlog)}</span>}
         </span>
       </div>
 

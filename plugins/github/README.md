@@ -36,7 +36,7 @@ How GitHub maps onto the chain:
 | milestone | the milestone and its due date |
 | estimate | none |
 
-**GitHub has no backlog**: every open issue is ready work, and without a rule the chain takes them all. Keep the entry on a label — `"chain": { "requiredLabels": ["ready"] }` — and add it to an issue once you have read it. Issues without it wait, and the page shows nothing about them. A blocker without the label does not count as one: label it too, or the issue it blocks runs first.
+**GitHub has no backlog**: every open issue is ready work, and without a rule the chain takes them all. Keep the entry on a label — `"chain": { "requiredLabels": ["ready"] }` — and add it to an issue once you have read it. Issues without it wait in the folded Backlog list under the chain. A blocker without the label does not count as one: label it too, or the issue it blocks runs first.
 
 ## Sessions: the plugin
 

@@ -3,10 +3,11 @@ import { useLocation, useNavigate, useParams } from 'react-router'
 import type { EvenKeelState } from '../../../src/state.js'
 import { say, t } from '../i18n/index.js'
 import { useCommand } from '../live/useCommand.js'
-import { chainBlocks, chainStatus, limitWaitText, openQuestions, projectTasks, queuedAfter } from '../state.js'
+import { backlogTasks, chainBlocks, chainStatus, limitWaitText, openQuestions, projectTasks, queuedAfter } from '../state.js'
 import { focusAfterClose } from '../ui/focus.js'
 import { QuestionsChip } from '../ui/QuestionsChip.js'
 import { StatusChip } from '../ui/StatusChip.js'
+import { BacklogList } from './BacklogList.js'
 import { ChainList } from './ChainList.js'
 import { NotFound } from './NotFound.js'
 import { SessionPanel } from './SessionPanel.js'
@@ -49,6 +50,7 @@ export function Project({ state }: { state: EvenKeelState }) {
         ) : (
           <ChainList key={key} project={key} chain={blocks} scale={state.context} trackerUrls={state.trackerUrls} focus={focus} />
         )}
+        <BacklogList tasks={backlogTasks(state, key)} trackerUrls={state.trackerUrls} />
         <StatsStrip key={`stats-${key}`} project={key} />
       </div>
       {selected !== undefined && (

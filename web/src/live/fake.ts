@@ -147,6 +147,9 @@ function fakeState(
     { ...task('ABC-13', 'Уведомления на телефон', 'Todo', 'ToDo', ['ABC-6'], 'v0.2 — удобство'), question: true },
     task('ABC-14', 'Установка службы одним скриптом', 'Todo', 'ToDo', ['ABC-11'], 'v0.3 — служба'),
     task('ABC-15', 'Перезапуск службы после обновления', 'Todo', 'ToDo', ['ABC-14'], 'v0.3 — служба'),
+    task('ABC-18', 'Тёмная тема для печати', 'Backlog', 'UnStarted'),
+    task('ABC-19', 'Импорт задач из CSV', 'Backlog', 'UnStarted'),
+    task('ABC-20', 'Подсказки по горячим клавишам', 'Backlog', 'UnStarted'),
     task('DEMO-6', 'Старый формат отчёта', 'Canceled', 'Lost'),
     task('DEMO-7', 'Импорт настроек', 'Todo', 'ToDo'),
     task('DEMO-8', 'Экспорт отчёта в CSV', 'Todo', 'ToDo', ['DEMO-7']),
@@ -171,11 +174,12 @@ function fakeState(
         ABC: {
           order: ['ABC-5', 'ABC-6', 'ABC-7', 'ABC-8', 'ABC-9', 'ABC-10', 'ABC-11', 'ABC-13', 'ABC-14', 'ABC-15', 'ABC-12'],
           waiting: [],
+          backlog: ['ABC-18', 'ABC-19', 'ABC-20'],
           error: null,
         },
-        DEMO: { order: ['DEMO-7', 'DEMO-8'], waiting: [], error: null },
-        XYZ: { order: [], waiting: [], error: null },
-        OPS: { order: ['OPS-2', 'OPS-3'], waiting: [], error: null },
+        DEMO: { order: ['DEMO-7', 'DEMO-8'], waiting: [], backlog: [], error: null },
+        XYZ: { order: [], waiting: [], backlog: [], error: null },
+        OPS: { order: ['OPS-2', 'OPS-3'], waiting: [], backlog: [], error: null },
       },
       skipped: {},
       leftovers: {},
@@ -249,7 +253,7 @@ function closeCurrent(state: EvenKeelState): EvenKeelState {
   const done = active?.current?.task
   const project = active?.project
   if (done === undefined || project === undefined) return state
-  const { order: stored = [], waiting = [] } = state.chain.projects[project] ?? {}
+  const { order: stored = [], waiting = [], backlog = [] } = state.chain.projects[project] ?? {}
   const order = stored.filter((id) => id !== done)
   const next = order[0]
   const since = ago(0)
@@ -259,7 +263,7 @@ function closeCurrent(state: EvenKeelState): EvenKeelState {
     chain: {
       ...state.chain,
       active: { ...active!, current: next === undefined ? null : { task: next, sessionId: 'fake', since } },
-      projects: { ...state.chain.projects, [project]: { order, waiting, error: null } },
+      projects: { ...state.chain.projects, [project]: { order, waiting, backlog, error: null } },
     },
     sessions: [
       ...state.sessions.map((view) => (view.task === done ? { ...view, lamp: 'finished' as const } : view)),
@@ -314,8 +318,8 @@ function reorder(state: EvenKeelState, project: string, order: string[]): EvenKe
   checkOrder(tasks, order)
   const current = state.chain.active?.project === project ? state.chain.active.current?.task : undefined
   if (current !== undefined && order[0] !== current) throw fail('chain.currentFirst', { task: current })
-  const waiting = state.chain.projects[project]?.waiting ?? []
-  return { ...state, chain: { ...state.chain, projects: { ...state.chain.projects, [project]: { order: [...order], waiting, error: null } } } }
+  const { waiting = [], backlog = [] } = state.chain.projects[project] ?? {}
+  return { ...state, chain: { ...state.chain, projects: { ...state.chain.projects, [project]: { order: [...order], waiting, backlog, error: null } } } }
 }
 
 function skip(state: EvenKeelState, project: string, task: string): EvenKeelState {

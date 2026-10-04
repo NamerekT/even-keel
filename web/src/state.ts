@@ -1,4 +1,5 @@
 import type { AccountView } from '../../src/account/model.js'
+import type { ProjectOrder } from '../../src/chain/dispatcher.js'
 import type { TaskSession } from '../../src/chain/launches.js'
 import { chainOrder, nextTask, precedence, withWaiting } from '../../src/chain/order.js'
 import type { LimitHold } from '../../src/chain/relay.js'
@@ -96,9 +97,16 @@ export function taskProject(task: string): string {
   return task.replace(/-\d+$/, '')
 }
 
-export function chainProgress(tasks: Task[]): { done: number; total: number } {
-  const counted = tasks.filter((task) => task.status.category !== 'Lost')
-  return { done: counted.filter((task) => task.status.category === 'Won').length, total: counted.length }
+export function chainProgress(tasks: Task[], order: ProjectOrder | undefined): { done: number; total: number; backlog: number } {
+  const chain = new Set([...(order?.order ?? []), ...(order?.waiting ?? [])])
+  const done = tasks.filter((task) => task.status.category === 'Won').length
+  const open = tasks.filter((task) => task.status.category !== 'Won' && task.status.category !== 'Lost' && chain.has(task.id)).length
+  return { done, total: done + open, backlog: order?.backlog.length ?? 0 }
+}
+
+export function backlogTasks(state: EvenKeelState, project: string): Task[] {
+  const byId = new Map(projectTasks(state, project).map((task) => [task.id, task]))
+  return (state.chain.projects[project]?.backlog ?? []).flatMap((id) => byId.get(id) ?? [])
 }
 
 export function openQuestions(tasks: Task[]): number {
