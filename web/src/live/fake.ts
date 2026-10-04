@@ -18,6 +18,7 @@ import type { StatusCategory, Task } from '../../../src/tracker/model.js'
 import type { FeedLine } from '../../../src/sessions/transcript.js'
 import type { UsageHealth } from '../../../src/limits/usage.js'
 import type { LimitHold } from '../../../src/chain/relay.js'
+import { isLanguage } from '../../../src/language.js'
 import type { EvenKeelState, SessionRecord, SessionView } from '../../../src/state.js'
 import type { Link, LiveSnapshot, LiveSource } from './connection.js'
 import { fakeCompare, fakeRuleDiff, fakeRules } from './fakeRules.js'
@@ -552,6 +553,8 @@ export function createFakeSource(search: string): LiveSource {
     state: link === 'connecting' ? null : fakeState(huly, idle, contextTokens, launches, params.get('account'), params.get('limit'), params.get('usage')),
     link,
   }
+  const language = params.get('lang')
+  if (isLanguage(language) && current.state !== null) current.state.language = language
   if (params.get('config') === 'broken' && current.state !== null) {
     current.state.configError = 'config: ABC: status "In Review" is both active and terminal'
   }
@@ -586,7 +589,7 @@ export function createFakeSource(search: string): LiveSource {
   if (params.get('chain') === 'restart' && current.state !== null && active) {
     const stalled: SessionView = {
       ...session('ABC-5', contextTokens, 'limit'),
-      apiError: 'Лимит исчерпан: Claude Code велел сессии свернуть ход',
+      apiError: 'Usage limit reached: Claude Code told the session to wrap up the turn',
       remoteUrl: null,
       remoteOff: 'lost',
     }
