@@ -142,7 +142,9 @@ function integers<T extends object>(name: string, raw: unknown, defaults: T, min
   return result as T
 }
 
-export function dbSettings(env: NodeJS.ProcessEnv): DbSettings {
+// null — no server: the local PGlite database in the Even Keel state folder.
+export function dbSettings(env: NodeJS.ProcessEnv): DbSettings | null {
+  if (!env.TALLY_DB_HOST) return null
   const missing = ['TALLY_DB_HOST', 'TALLY_DB_NAME', 'TALLY_WRITER_PASSWORD'].filter((name) => !env[name])
   if (missing.length > 0) throw new Error(`tally: set ${missing.join(', ')} in .env`)
   return {

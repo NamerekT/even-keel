@@ -52,6 +52,8 @@ export const ru = {
     usageOff: (reason: string | null) =>
       `Опрос /usage выключен до перезапуска службы: ответ похож на ход модели, а он тратит квоту. Причина: ${reason}`,
     limitHold: (at: string) => `Лимит исчерпан — следующая задача запустится после сброса в ${at}.`,
+    mcp: (projects: string, server: string) =>
+      `В ${projects} выключен brief, но сессии не видят MCP-сервер «${server}» — они получат только номер задачи. Включите brief или подключите сервер.`,
   },
   limits: {
     fiveHour: '5 часов',

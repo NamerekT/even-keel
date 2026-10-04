@@ -141,8 +141,11 @@ export const en = {
   'config.language': (p: { where: string; value: string; known: string[] }) =>
     `config: ${p.where}: there is no language ${p.value}, known: ${list(p.known)}`,
   'config.trackerName': (p: { where: string }) => `config: ${p.where} must be the name of a tracker adapter`,
+  'config.brief': (p: { where: string }) => `config: ${p.where} must be true or false`,
   'config.trackerUnknown': (p: { where: string; name: string; known: string[] }) =>
     `config: ${p.where}: there is no tracker "${p.name}", known: ${list(p.known)}`,
+  'config.trackerProject': (p: { where: string; example: string }) =>
+    `config: ${p.where} must name the project in its tracker, like "${p.example}"`,
   'config.notObject': (p: { where: string }) => `config: ${p.where} must be an object`,
   'config.ruleKey': (p: { where: string; key: string }) => `config: ${p.where}.${p.key} is not a chain rule`,
   'config.ruleList': (p: { where: string; key: string }) => `config: ${p.where}.${p.key} must be a list of non-empty names`,

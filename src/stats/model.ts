@@ -201,7 +201,9 @@ export function folderGroups(folders: { dir: string; raw: string }[], tracked: s
   return groups
 }
 
-export function readerSettings(env: Record<string, string | undefined>): ReaderSettings | string {
+// null — no server: the service serves its local database itself (src/stats/tally.ts).
+export function readerSettings(env: Record<string, string | undefined>): ReaderSettings | string | null {
+  if (!env.TALLY_DB_HOST) return null
   const missing = ['TALLY_DB_HOST', 'TALLY_DB_NAME', 'TALLY_READER_PASSWORD'].filter((name) => !env[name])
   if (missing.length > 0) return missing.join(', ')
   return {

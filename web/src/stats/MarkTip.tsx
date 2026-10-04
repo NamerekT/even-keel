@@ -42,7 +42,7 @@ export function MarkTip({ mark, side }: { mark: RuleMark; side: 'left' | 'right'
           <SetNote set={set} />
           {set.files.slice(0, TIP_FILES).map((file) => (
             <span key={file.key} className="chart__tip-row mark-tip__file">
-              {set.id.startsWith('i:') ? file.display : shortPath(file.display)}
+              <span className="mark-tip__path">{set.id.startsWith('i:') ? file.display : shortPath(file.display)}</span>
               {set.id.startsWith('i:') ? null : <Lines added={file.added} removed={file.removed} />}
             </span>
           ))}

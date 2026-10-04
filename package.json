@@ -28,6 +28,8 @@
     "vitest": "^5.0.2"
   },
   "dependencies": {
+    "@electric-sql/pglite": "^0.5.8",
+    "@electric-sql/pglite-socket": "^0.2.11",
     "@hcengineering/api-client": "^0.7.423",
     "@hcengineering/tracker": "^0.7.423",
     "pg": "^8.23.1",

@@ -300,23 +300,30 @@ export function mapTask(task: string, sessions: Row[], spans: Row[], steps: Stat
   }
 }
 
+export function rulesKey(query: RulesQuery, settings: CompareSettings): string {
+  return `rules|${JSON.stringify(query)}|${settings.minSessions}`
+}
+
 export class StatsReader {
-  private readonly pool: pg.Pool | null
+  // A string is why the stats are off; the local database comes as a promise that settles once it is open.
+  private readonly pool: Promise<pg.Pool | string>
   private readonly cache = new Map<string, { at: number; answer: StatsAnswer<unknown> }>()
   private readonly keys: string[]
   private readonly dirs: string[]
   private folders: { at: number; groups: Promise<Folders> } | null = null
 
   constructor(
-    private readonly settings: ReaderSettings | string,
+    settings: ReaderSettings | string | Promise<ReaderSettings>,
     projects: Record<string, string>,
     private readonly compareSettings: () => CompareSettings,
   ) {
-    this.pool =
-      typeof settings === 'string'
-        ? null
-        : new pg.Pool({ ...settings, max: 4, connectionTimeoutMillis: 5_000, statement_timeout: 20_000, idleTimeoutMillis: 60_000 })
-    this.pool?.on('error', () => {})
+    this.pool = Promise.resolve(settings).then((each) => {
+      if (typeof each === 'string') return `${each} not set in .env`
+      const pool = new pg.Pool({ ...each, max: 4, connectionTimeoutMillis: 5_000, statement_timeout: 20_000, idleTimeoutMillis: 60_000 })
+      pool.on('error', () => {})
+      return pool
+    })
+    this.pool.catch(() => {})
     this.keys = Object.keys(projects)
     this.dirs = this.keys.map((key) => repoTail(projects[key]!))
   }
@@ -364,8 +371,7 @@ export class StatsReader {
 
   rules(query: RulesQuery): Promise<StatsAnswer<StatsRules>> {
     const settings = this.compareSettings()
-    const key = `rules|${query.scope}|${query.account}|${query.projects?.join(',') ?? '*'}|${query.kinds?.join(',') ?? '*'}|${settings.minSessions}`
-    return this.cached(key, (pool) => readRules(this.db(pool), query, settings))
+    return this.cached(rulesKey(query, settings), (pool) => readRules(this.db(pool), query, settings))
   }
 
   ruleDiff(ids: string[]): Promise<StatsAnswer<RuleDiffFile[]>> {
@@ -410,14 +416,15 @@ export class StatsReader {
   }
 
   private async cached<T>(key: string, read: (pool: pg.Pool) => Promise<T>): Promise<StatsAnswer<T>> {
-    if (this.pool === null) return { state: 'off', reason: `${this.settings as string} not set in .env` }
     const now = Date.now()
     for (const [each, entry] of this.cache) if (now - entry.at >= CACHE_MS) this.cache.delete(each)
     const hit = this.cache.get(key)
     if (hit !== undefined) return hit.answer as StatsAnswer<T>
     let answer: StatsAnswer<T>
     try {
-      answer = { state: 'ok', data: await read(this.pool) }
+      const pool = await this.pool
+      if (typeof pool === 'string') return { state: 'off', reason: pool }
+      answer = { state: 'ok', data: await read(pool) }
     } catch (error) {
       answer = { state: 'error', error: error instanceof Error ? error.message : String(error) }
     }

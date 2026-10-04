@@ -30,10 +30,11 @@ import { isInside } from './paths.js'
 import { slotOccupants } from './sessions/occupants.js'
 import { locateWorktree } from './sessions/place.js'
 import type { EvenKeelState, SessionView } from './state.js'
-import { readerSettings } from './stats/model.js'
 import { StatsReader } from './stats/reader.js'
+import { TallyService } from './stats/tally.js'
 import { ADAPTERS } from './tracker/adapters.js'
 import { MergeCloser } from './tracker/closer.js'
+import { McpCheck, readMcpSources } from './tracker/mcp.js'
 import { worthBroadcast, type TrackerView } from './tracker/health.js'
 import { TrackerLink } from './tracker/link.js'
 import type { Task } from './tracker/model.js'
@@ -53,6 +54,9 @@ const APP_POLL_MS = 5_000
 const LOGIN_TIMEOUT_MS = 10 * 60_000
 const LIMIT_CHECK_MS = 30_000
 const CONFIG_POLL_MS = 2_000
+const TALLY_INTERVAL_MS = 5 * 60_000
+const TALLY_FIRST_DELAY_MS = 15_000
+const SHUTDOWN_MS = 15_000
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 try {
@@ -67,6 +71,7 @@ const configFile = new ConfigFile({
   warn: (message) => console.warn(message),
   onChange: () => {
     for (const [project, tasks] of tasksByProject) dispatcher.setTasks(project, tasks)
+    mcp.run()
     hub.broadcast('state', getState())
   },
 })
@@ -79,8 +84,10 @@ const launchesFile = join(stateDir, 'launches.jsonl')
 const limitsFile = join(stateDir, 'rate-limits.json')
 const accountFile = join(stateDir, 'account.json')
 const trackerNames = [...new Set([config.tracker, ...Object.values(config.trackers)])]
-const setups = new Map<string, TrackerSetup | undefined>(trackerNames.map((name) => [name, ADAPTERS[name]!.setup(process.env)]))
 const trackerProjects = (name: string) => Object.keys(config.projects).filter((project) => config.trackers[project] === name)
+const trackerNamesOf = (name: string) =>
+  Object.fromEntries(trackerProjects(name).flatMap((project) => (project in config.trackerProjects ? [[project, config.trackerProjects[project]!]] : [])))
+const setups = new Map<string, TrackerSetup | undefined>(trackerNames.map((name) => [name, ADAPTERS[name]!.setup(process.env, trackerNamesOf(name))]))
 const trackers = new Map<string, TrackerView>(
   trackerNames
     .filter((name) => trackerProjects(name).length > 0)
@@ -96,7 +103,16 @@ let sessions: SessionView[] = []
 let agents: AgentEntry[] = []
 let agentsRead = false
 const launches: LaunchEntry[] = readLaunches(launchesFile)
-const stats = new StatsReader(readerSettings(process.env), config.projects, () => configFile.current.stats.compare)
+const tally = new TallyService({
+  root,
+  stateDir,
+  env: process.env,
+  intervalMs: TALLY_INTERVAL_MS,
+  firstDelayMs: TALLY_FIRST_DELAY_MS,
+  evenKeelUrl: `http://${['0.0.0.0', '::'].includes(config.host) ? '127.0.0.1' : config.host}:${config.port}`,
+  log: (message) => console.log(message),
+})
+const stats = new StatsReader(tally.reader, config.projects, () => configFile.current.stats.compare)
 let ledger = loadLedger(accountFile)
 
 const saveAccounts = (next: AccountLedger) => {
@@ -223,9 +239,29 @@ const planFor = (task: string, prompt: string): LaunchPlan => {
 const promptLanguage = () => configFile.current.promptLanguage
 
 const briefed = async (task: string, prompt: string, project = projectOf(task)): Promise<string> => {
-  const link = project === undefined ? undefined : links.get(config.trackers[project]!)
+  if (project === undefined) return prompt
+  if (!configFile.current.briefs[project]) {
+    mcp.run()
+    return prompt
+  }
+  const link = links.get(config.trackers[project]!)
   return link === undefined ? prompt : withBrief(prompt, await link.run(async (tracker) => tracker.brief?.(task)), promptLanguage())
 }
+
+const mcp = new McpCheck({
+  targets: () =>
+    Object.entries(config.projects).flatMap(([project, repo]) => {
+      const server = ADAPTERS[config.trackers[project]!]!.mcpServer
+      return server === undefined || configFile.current.briefs[project] ? [] : [{ project, repo, server }]
+    }),
+  read: (repo) =>
+    readMcpSources(repo, {
+      claudeDir: homes.global.dir,
+      configs: [...new Set([homes.global, homes.find(ledger.active)].flatMap((home) => (home === undefined ? [] : [homes.configFile(home)])))],
+    }),
+  warn: (line) => console.warn(line),
+  onChange: () => hub.broadcast('state', getState()),
+})
 
 function projectOf(task: string): string | undefined {
   for (const [project, tasks] of tasksByProject) if (tasks.some((each) => each.id === task)) return project
@@ -365,13 +401,14 @@ const getState = (): EvenKeelState => ({
   account: account.view,
   trackers: [...trackers.values()],
   trackerUrls: {
-    default: setups.get(config.tracker)?.issueUrlBase ?? null,
-    projects: Object.fromEntries(Object.keys(config.projects).map((project) => [project, setups.get(config.trackers[project]!)?.issueUrlBase ?? null])),
+    default: setups.get(config.tracker)?.issueUrl(null) ?? null,
+    projects: Object.fromEntries(Object.keys(config.projects).map((project) => [project, setups.get(config.trackers[project]!)?.issueUrl(project) ?? null])),
   },
   launches: launchDays(launches, new Date(), LAUNCH_CHART_DAYS),
   taskSessions: taskSessions(launches, sessions),
   context: config.context,
   configError: configFile.error,
+  mcpMissing: mcp.missing,
   language: configFile.current.language,
 })
 
@@ -401,6 +438,17 @@ limits.start()
 account.start()
 vscode.start()
 configFile.watch()
+mcp.run()
+tally.start()
+
+// The local Tally database closes cleanly on a stop signal; the Windows service host kills the process instead,
+// and PGlite recovers from its WAL on the next start.
+for (const signal of ['SIGINT', 'SIGTERM'] as const) {
+  process.once(signal, () => {
+    setTimeout(() => process.exit(0), SHUTDOWN_MS).unref()
+    void tally.stop().finally(() => process.exit(0))
+  })
+}
 
 server.listen(config.port, config.host, () => {
   console.log(`even-keel listening on http://${config.host}:${config.port}`)

@@ -26,15 +26,17 @@ export interface TaskSource {
   /** The tasks with these ids, whatever their status; an id the tracker no longer has is left out. */
   tasks(ids: string[]): Promise<TrackerTask[]>
   /**
-   * Optional. The text of a task for the launch prompt, when the agent has no other way to read it
-   * (no MCP server of the tracker). Huly leaves it out: its sessions read the task through MCP.
+   * Optional. The title and description of a task; Even Keel adds them to the launch and handoff prompts,
+   * so a session needs nothing but the adapter to know its task. `brief: false` in `even-keel.config.json`
+   * turns this off for projects whose sessions read the task themselves (an MCP server of the tracker).
    */
   brief?(id: string): Promise<TaskBrief>
   /**
    * Optional. Moves a task to a `Won` status; Even Keel calls it once it sees the task's branch merged into `main`.
-   * Huly leaves it out: a git hook closes the task on merge.
+   * Must do nothing and return `false` for a task that is already `Won` or `Lost`: something else (a git hook, a person)
+   * may have closed it first. `true` — the task was moved.
    */
-  complete?(id: string): Promise<void>
+  complete?(id: string): Promise<boolean>
   /** Drops the connection. */
   close(): Promise<void>
 }
@@ -51,8 +53,22 @@ export interface TaskBrief {
 
 export interface TrackerSetup {
   connect(timeoutMs: number): Promise<TaskSource>
-  /** Prefix of a task link on the page: the link is this plus the task id; `null` — no links. */
-  issueUrlBase: string | null
+  /**
+   * The link to a task of the project on the page, as a template: `{id}` stands for the task id (`ABC-12`),
+   * `{number}` for its number (`12`). `null` — no links. `project` is `null` for a task of a project
+   * missing from `even-keel.config.json` (the stats show them).
+   */
+  issueUrl(project: string | null): string | null
+}
+
+/** A key of a project's object in `even-keel.config.json` that names the project in the tracker. */
+export interface TrackerProjectKey {
+  /** The key, e.g. `github`. Every project on this tracker must have it. */
+  key: string
+  /** What its value must look like. */
+  pattern: RegExp
+  /** A value for the error message, e.g. `octo-org/example`. */
+  example: string
 }
 
 export interface TrackerAdapter {
@@ -60,8 +76,18 @@ export interface TrackerAdapter {
   title: string
   /** Environment variables the adapter reads; Even Keel keeps them out of the sessions it launches. */
   variables: readonly string[]
-  /** `undefined` — none of its variables are set and the tracker is off; throws when they are set only in part. */
-  setup(env: Record<string, string | undefined>): TrackerSetup | undefined
+  /**
+   * Optional. The name of the tracker's MCP server. With `brief` off Even Keel looks for it where the CLI would
+   * for the project folder and warns when it is missing: the sessions would get nothing but the task id.
+   */
+  mcpServer?: string
+  /** Optional. For a tracker whose projects are not named by the project key alone (GitHub: `owner/name`). */
+  projectKey?: TrackerProjectKey
+  /**
+   * `undefined` — none of its variables are set and the tracker is off; throws when they are set only in part.
+   * `projects` — the value of `projectKey` by project key, for the projects on this tracker; empty without `projectKey`.
+   */
+  setup(env: Record<string, string | undefined>, projects: Readonly<Record<string, string>>): TrackerSetup | undefined
 }
 
 export interface ChainTasks {
@@ -73,7 +99,7 @@ export interface Tracker {
   chainTasks(project: string, rules: ChainRules): Promise<ChainTasks>
   tasks(ids: string[]): Promise<Task[]>
   brief?(id: string): Promise<TaskBrief>
-  complete?(id: string): Promise<void>
+  complete?(id: string): Promise<boolean>
   close(): Promise<void>
 }
 

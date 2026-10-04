@@ -25,6 +25,11 @@ describe('toTask', () => {
     expect(tasks.map((task) => task.question)).toEqual([true, false, true])
   })
 
+  it('takes the English question label as well', () => {
+    const tasks = [['Question'], [' question '], ['Questions']].map((labels, index) => toTask(raw(`ABC-${index + 1}`, { labels })))
+    expect(tasks.map((task) => task.question)).toEqual([true, true, false])
+  })
+
   it('keeps the labels trimmed, once each whatever the case', () => {
     expect(toTask(raw('ABC-1', { labels: [' Вручную ', 'Bug', 'вручную', ' '] })).labels).toEqual(['Вручную', 'Bug'])
   })
@@ -102,10 +107,10 @@ describe('trackerOf', () => {
     const full = trackerOf({
       ...source([]),
       brief: async (id) => ({ title: `Title of ${id}`, description: '' }),
-      complete: async (id) => void completed.push(id),
+      complete: async (id) => completed.push(id) > 0,
     })
     expect(await full.brief!('ABC-1')).toEqual({ title: 'Title of ABC-1', description: '' })
-    await full.complete!('ABC-1')
+    expect(await full.complete!('ABC-1')).toBe(true)
     expect(completed).toEqual(['ABC-1'])
   })
 })

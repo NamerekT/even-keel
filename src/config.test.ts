@@ -13,6 +13,8 @@ describe('parseConfig', () => {
       slots: {},
       tracker: 'huly',
       trackers: { ABC: 'huly' },
+      trackerProjects: {},
+      briefs: { ABC: true },
       context: { window: 600_000, warn: 50, danger: 80 },
       modelPrompts: {},
       stats: { compare: { minTasks: 5, minSessions: 10, days: 7 } },
@@ -33,9 +35,35 @@ describe('parseConfig', () => {
   })
 
   it('takes the tracker of a project from its own key, else from the shared one', () => {
-    const config = parseConfig({ tracker: ' Fake ', projects: { ABC: 'C:\\abc', XYZ: { repo: 'C:\\xyz', tracker: 'huly' } } }, ['huly', 'fake'])
+    const config = parseConfig({ tracker: ' Fake ', projects: { ABC: 'C:\\abc', XYZ: { repo: 'C:\\xyz', tracker: 'huly' } } }, { huly: {}, fake: {} })
     expect(config.tracker).toBe('fake')
     expect(config.trackers).toEqual({ ABC: 'fake', XYZ: 'huly' })
+  })
+
+  it('takes the name of a project in its tracker from the key the adapter asks for', () => {
+    const config = parseConfig({
+      projects: { ABC: { repo: 'C:\\abc', tracker: 'github', github: 'octo-org/abc' }, XYZ: { repo: 'C:\\xyz', github: 'octo-org/xyz' } },
+    })
+    expect(config.trackerProjects).toEqual({ ABC: 'octo-org/abc' })
+  })
+
+  it('rejects a project on such a tracker without that name or with a malformed one', () => {
+    expect(() => parseConfig({ tracker: 'github', projects: { ABC: 'C:\\abc' } })).toThrow(/ABC\.github.*octo-org\/example/)
+    expect(() => parseConfig({ projects: { ABC: { repo: 'C:\\abc', tracker: 'github', github: 'https://github.com/octo-org/abc' } } })).toThrow(/ABC\.github/)
+  })
+
+  it('puts the task text into prompts unless brief is off, shared or per project', () => {
+    const config = parseConfig({
+      brief: false,
+      projects: { ABC: 'C:\\abc', XYZ: { repo: 'C:\\xyz', brief: true }, QQ: { repo: 'C:\\qq' } },
+    })
+    expect(config.briefs).toEqual({ ABC: false, XYZ: true, QQ: false })
+    expect(parseConfig({ projects: { ABC: { repo: 'C:\\abc', brief: false } } }).briefs).toEqual({ ABC: false })
+  })
+
+  it('rejects a brief that is not true or false', () => {
+    expect(() => parseConfig({ brief: 'no', projects: { ABC: 'C:\\abc' } })).toThrow(/brief/)
+    expect(() => parseConfig({ projects: { ABC: { repo: 'C:\\abc', brief: 0 } } })).toThrow(/ABC.brief/)
   })
 
   it('rejects a tracker it has no adapter for', () => {
@@ -186,6 +214,12 @@ describe('reloading the config', () => {
     expect(live.rules.ABC?.requiredLabels).toEqual(['Auto'])
     expect(live.modelPrompts).toEqual({ opus: 'New.' })
     expect(live.stats.compare.minTasks).toBe(3)
+    expect(restartChanges(base, next)).toEqual([])
+  })
+
+  it('applies brief at once', () => {
+    const next = parseConfig({ projects: { ABC: { repo: 'C:\\abc', brief: false } } })
+    expect(liveConfig(base, next).briefs).toEqual({ ABC: false })
     expect(restartChanges(base, next)).toEqual([])
   })
 

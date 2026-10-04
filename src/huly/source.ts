@@ -3,6 +3,7 @@ import type { TrackerTask } from '../tracker/model.js'
 import type { TaskSource } from '../tracker/source.js'
 import type { HulyCredentials } from './credentials.js'
 import {
+  closingStatus,
   labeled,
   milestonesOf,
   missingBlockers,
@@ -15,10 +16,13 @@ import {
 } from './model.js'
 
 type Query = Record<string, unknown>
+type FullIssue = HulyIssueDoc & { space: string; description?: string | null }
 
 interface PlatformClient {
   findAll<T>(cls: string, query: Query, options?: { projection?: Record<string, 1> }): Promise<T[]>
   findOne<T>(cls: string, query: Query): Promise<T | undefined>
+  updateDoc(cls: string, space: string, id: string, update: Record<string, unknown>): Promise<unknown>
+  fetchMarkup(cls: string, id: string, attribute: string, markup: string, format: 'markdown'): Promise<string>
   close(): Promise<void>
 }
 
@@ -36,6 +40,7 @@ const api = require('@hcengineering/api-client') as ApiClientModule
 const tracker = (require('@hcengineering/tracker') as { default: TrackerPlugin }).default
 
 const TAG_REFERENCE = 'tags:class:TagReference'
+const PROJECT_TYPE = 'task:class:ProjectType'
 
 const ISSUE_FIELDS = {
   identifier: 1,
@@ -63,6 +68,19 @@ export async function connectHuly(credentials: HulyCredentials, timeoutMs: numbe
 
   const findStatuses = () => client.findAll<HulyStatusDoc>(tracker.class.IssueStatus, {})
   const findIssues = (query: Query) => client.findAll<HulyIssueDoc>(tracker.class.Issue, query, { projection: ISSUE_FIELDS })
+
+  async function findIssue(identifier: string): Promise<FullIssue> {
+    const issue = await client.findOne<FullIssue>(tracker.class.Issue, { identifier })
+    if (issue === undefined) throw new Error(`huly: issue ${identifier} not found`)
+    return issue
+  }
+
+  async function projectStatuses(space: string): Promise<string[] | null> {
+    const project = await client.findOne<{ type?: string }>(tracker.class.Project, { _id: space })
+    if (project?.type === undefined) return null
+    const type = await client.findOne<{ statuses?: { _id: string }[] }>(PROJECT_TYPE, { _id: project.type })
+    return type?.statuses?.map((status) => status._id) ?? null
+  }
 
   async function resolve(issues: HulyIssueDoc[], statuses: HulyStatusDoc[]): Promise<TrackerTask[]> {
     const missing = missingBlockers(issues)
@@ -98,6 +116,21 @@ export async function connectHuly(credentials: HulyCredentials, timeoutMs: numbe
     async tasks(identifiers) {
       const [issues, statuses] = await Promise.all([findIssues({ identifier: { $in: identifiers } }), findStatuses()])
       return resolve(issues, statuses)
+    },
+    async brief(identifier) {
+      const issue = await findIssue(identifier)
+      const description = issue.description
+        ? await client.fetchMarkup(tracker.class.Issue, issue._id, 'description', issue.description, 'markdown')
+        : ''
+      return { title: issue.title, description }
+    },
+    async complete(identifier) {
+      const issue = await findIssue(identifier)
+      const [statuses, allowed] = await Promise.all([findStatuses(), projectStatuses(issue.space)])
+      const status = closingStatus(issue.status, statuses, allowed)
+      if (status === null) return false
+      await client.updateDoc(tracker.class.Issue, issue.space, issue._id, { status })
+      return true
     },
     close: () => client.close(),
   }

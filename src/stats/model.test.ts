@@ -101,4 +101,8 @@ describe('readerSettings', () => {
   it('names what is missing', () => {
     expect(readerSettings({ TALLY_DB_HOST: 'db.example.com' })).toBe('TALLY_DB_NAME, TALLY_READER_PASSWORD')
   })
+
+  it('leaves the database local without a server host', () => {
+    expect(readerSettings({ TALLY_READER_PASSWORD: 'secret' })).toBeNull()
+  })
 })

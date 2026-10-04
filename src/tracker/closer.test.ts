@@ -15,7 +15,11 @@ function fakeAdapter(ids: string[]): TaskSource & { statuses: Map<string, TaskSt
     statuses,
     chainTasks: async (_project, open) => ({ tasks: ids.filter((id) => open(statuses.get(id)!)).map(raw), statuses: ['Todo', 'Done'] }),
     tasks: async (wanted) => wanted.filter((id) => statuses.has(id)).map(raw),
-    complete: async (id) => void statuses.set(id, done),
+    complete: async (id) => {
+      if (statuses.get(id) === done) return false
+      statuses.set(id, done)
+      return true
+    },
     close: async () => {},
   }
 }
@@ -55,10 +59,29 @@ describe('MergeCloser', () => {
     expect(dispatcher.held('ABC')).toEqual(['ABC-2', 'ABC-1'])
 
     const completed: string[] = []
-    const closer = new MergeCloser({ merged: async (_project, task) => task === 'ABC-1', complete: async (task) => void completed.push(task) })
+    const closer = new MergeCloser({
+      merged: async (_project, task) => task === 'ABC-1',
+      complete: async (task) => completed.push(task) > 0,
+    })
     await closer.sweep('ABC', dispatcher.held('ABC'))
     await closer.sweep('ABC', dispatcher.held('ABC'))
     expect(completed).toEqual(['ABC-1'])
+  })
+
+  it('does not report a task something else closed first, and does not ask about it again', async () => {
+    const adapter = fakeAdapter(['ABC-1'])
+    adapter.statuses.set('ABC-1', done)
+    let asked = 0
+    const closer = new MergeCloser({
+      merged: async () => true,
+      complete: (task) => {
+        asked++
+        return adapter.complete!(task)
+      },
+    })
+    expect(await closer.sweep('ABC', ['ABC-1'])).toEqual([])
+    expect(await closer.sweep('ABC', ['ABC-1'])).toEqual([])
+    expect(asked).toBe(1)
   })
 
   it('tries again next time when the tracker refused to close the task', async () => {
@@ -70,6 +93,7 @@ describe('MergeCloser', () => {
       complete: async (task) => {
         if (fail) throw new Error('tracker: refused')
         completed.push(task)
+        return true
       },
       onError: (error) => errors.push(error),
     })
