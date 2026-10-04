@@ -20,6 +20,16 @@ function Invoke-Sc {
     if ($LASTEXITCODE -ne 0) { throw "sc.exe $($args -join ' ') failed with code $LASTEXITCODE" }
 }
 
+# Lets the account start, stop and query the service without elevation, so its own sessions can restart it.
+function Grant-Control {
+    $sid = ([Security.Principal.NTAccount]$Account).Translate([Security.Principal.SecurityIdentifier]).Value
+    $sddl = (& sc.exe sdshow $Name | Where-Object { $_ }) -join ''
+    if ($sddl -match [regex]::Escape(";;;$sid)")) { return }
+    $ace = "(A;;CCLCSWRPWPDTLOCRRC;;;$sid)"
+    $sddl = if ($sddl -match 'S:') { $sddl -replace 'S:', "${ace}S:" } else { $sddl + $ace }
+    Invoke-Sc sdset $Name $sddl
+}
+
 Push-Location $root
 try {
     npm install --no-audit --no-fund
@@ -42,6 +52,7 @@ if ($LASTEXITCODE -ne 0) { throw "csc failed with code $LASTEXITCODE" }
 $command = "`"$exe`" `"$root`" `"$node`""
 if ($existing) {
     Invoke-Sc config $Name binPath= $command
+    Grant-Control
     Start-Service -Name $Name
     Write-Host "Service $Name updated and started. Log: $root\logs\even-keel.log"
     return
@@ -53,6 +64,7 @@ try {
     Invoke-Sc config $Name obj= $Account
     Invoke-Sc config $Name start= delayed-auto
     Invoke-Sc failure $Name reset= 86400 actions= restart/10000/restart/10000/restart/60000
+    Grant-Control
 } catch {
     & sc.exe delete $Name | Out-Null
     throw
