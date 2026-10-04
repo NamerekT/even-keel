@@ -97,8 +97,9 @@ describe('trackerOf', () => {
 
   it('leaves parents out of the chain, derives labels and asks for open statuses by the rules', async () => {
     const adapter = source([raw('ABC-1', { subtasks: 2 }), raw('ABC-2', { parent: 'ABC-1', labels: ['Sonnet'] })])
-    const { tasks, unknownStatuses } = await trackerOf(adapter).chainTasks('ABC', { ...DEFAULT_RULES, active: ['Review'] })
+    const { tasks, parents, unknownStatuses } = await trackerOf(adapter).chainTasks('ABC', { ...DEFAULT_RULES, active: ['Review'] })
     expect(tasks.map((task) => [task.id, task.models])).toEqual([['ABC-2', ['sonnet']]])
+    expect(parents.map((task) => task.id)).toEqual(['ABC-1'])
     expect(unknownStatuses).toEqual(['Review'])
     expect(adapter.asked).toEqual([todo])
   })
@@ -107,19 +108,27 @@ describe('trackerOf', () => {
     expect((await trackerOf(source([raw('ABC-1', { subtasks: 2 })])).tasks(['ABC-1'])).map((task) => task.id)).toEqual(['ABC-1'])
   })
 
-  it('passes the optional brief and completion through only when the adapter has them', async () => {
+  it('leaves closed parents out of the parents', async () => {
+    const adapter = source([raw('ABC-1', { subtasks: 2, status: done })])
+    expect((await trackerOf(adapter).chainTasks('ABC', DEFAULT_RULES)).parents).toEqual([])
+  })
+
+  it('passes the optional brief, completion and subtasks through only when the adapter has them', async () => {
     const plain = trackerOf(source([]))
     expect(plain.brief).toBeUndefined()
     expect(plain.complete).toBeUndefined()
+    expect(plain.children).toBeUndefined()
 
     const completed: string[] = []
     const full = trackerOf({
       ...source([]),
       brief: async (id) => ({ title: `Title of ${id}`, description: '' }),
       complete: async (id) => completed.push(id) > 0,
+      children: async (id) => [raw('ABC-2', { parent: id, labels: ['Opus'] })],
     })
     expect(await full.brief!('ABC-1')).toEqual({ title: 'Title of ABC-1', description: '' })
     expect(await full.complete!('ABC-1')).toBe(true)
     expect(completed).toEqual(['ABC-1'])
+    expect((await full.children!('ABC-1')).map((task) => [task.id, task.models])).toEqual([['ABC-2', ['opus']]])
   })
 })

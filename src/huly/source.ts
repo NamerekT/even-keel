@@ -132,6 +132,11 @@ export async function connectHuly(credentials: HulyCredentials, timeoutMs: numbe
       await client.updateDoc(tracker.class.Issue, issue.space, issue._id, { status })
       return true
     },
+    async children(identifier) {
+      const issue = await findIssue(identifier)
+      const [issues, statuses] = await Promise.all([findIssues({ attachedTo: issue._id }), findStatuses()])
+      return resolve(issues, statuses)
+    },
     close: () => client.close(),
   }
 }

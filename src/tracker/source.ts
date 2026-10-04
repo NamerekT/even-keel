@@ -37,6 +37,11 @@ export interface TaskSource {
    * may have closed it first. `true` — the task was moved.
    */
   complete?(id: string): Promise<boolean>
+  /**
+   * Optional. The direct subtasks of a task, whatever their status. With it and `complete` Even Keel closes
+   * a parent task once all its subtasks are closed (`src/tracker/parents.ts`).
+   */
+  children?(id: string): Promise<TrackerTask[]>
   /** Drops the connection. */
   close(): Promise<void>
 }
@@ -94,6 +99,8 @@ export interface TrackerAdapter {
 
 export interface ChainTasks {
   tasks: Task[]
+  /** Tasks with subtasks that are open by the rules; they never enter the chain. */
+  parents: Task[]
   unknownStatuses: string[]
 }
 
@@ -102,6 +109,7 @@ export interface Tracker {
   tasks(ids: string[]): Promise<Task[]>
   brief?(id: string): Promise<TaskBrief>
   complete?(id: string): Promise<boolean>
+  children?(id: string): Promise<Task[]>
   close(): Promise<void>
 }
 
@@ -109,12 +117,17 @@ export function trackerOf(source: TaskSource): Tracker {
   const tracker: Tracker = {
     async chainTasks(project, rules) {
       const { tasks, statuses } = await source.chainTasks(project, (status) => !isTerminal(rules, status))
-      return { tasks: tasks.filter(isLeaf).map(toTask), unknownStatuses: unknownStatuses(rules, statuses) }
+      return {
+        tasks: tasks.filter(isLeaf).map(toTask),
+        parents: tasks.filter((task) => !isLeaf(task) && !isTerminal(rules, task.status)).map(toTask),
+        unknownStatuses: unknownStatuses(rules, statuses),
+      }
     },
     tasks: async (ids) => (await source.tasks(ids)).map(toTask),
     close: () => source.close(),
   }
   if (source.brief !== undefined) tracker.brief = (id) => source.brief!(id)
   if (source.complete !== undefined) tracker.complete = (id) => source.complete!(id)
+  if (source.children !== undefined) tracker.children = async (id) => (await source.children!(id)).map(toTask)
   return tracker
 }

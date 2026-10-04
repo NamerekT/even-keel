@@ -48,7 +48,7 @@ When the code is written and the checks the project's `CLAUDE.md` names pass:
    - `git worktree remove <path>`, never `--force`: it refuses a dirty tree, then commit or ask. If it fails with `Permission denied` or `Device or resource busy`, git has already unregistered the worktree and left the folder: a process still holds it. Kill it only if this session started it, then delete the empty folder; otherwise name the folder and the holder to the user.
    - `git branch -d <branch>` — lowercase `-d`, it refuses an unmerged branch.
    - `git push origin --delete <branch>` if the branch was pushed. Push `main` only if the project says so.
-7. Subtasks: the session that merges the last open child of a parent task moves the parent to its done status by hand (`list_statuses` for the name).
+7. Subtasks: started by Even Keel — leave the parent alone, Even Keel closes it once all its children are closed. Started by hand — the session that merges the last open child of a parent task moves the parent to its done status by hand (`list_statuses` for the name).
 
 ## 5. Creating tasks
 

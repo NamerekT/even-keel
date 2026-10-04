@@ -55,10 +55,10 @@ describe('toTasks', () => {
     expect(toTasks(issues, statuses, new Map(), [], labels).map((task) => task.labels)).toEqual([['Sonnet', 'Bug'], []])
   })
 
-  it('reads the direct parent, the number of sub-issues and the estimate, an estimate of 0 is none', () => {
+  it('reads the direct parent (the last of the chain from the root), the number of sub-issues and the estimate, an estimate of 0 is none', () => {
     const issues: HulyIssueDoc[] = [
       { ...issue('i1', 'ABC-1', 'tracker:status:Todo'), subIssues: 2, estimation: 0 },
-      { ...issue('i2', 'ABC-2', 'tracker:status:Todo'), parents: [{ identifier: 'ABC-1' }, { identifier: 'ABC-0' }], estimation: 1.5 },
+      { ...issue('i2', 'ABC-2', 'tracker:status:Todo'), parents: [{ identifier: 'ABC-0' }, { identifier: 'ABC-1' }], estimation: 1.5 },
     ]
     const tasks = toTasks(issues, statuses, new Map(), [])
     expect(tasks.map(({ parent, subtasks, estimate }) => ({ parent, subtasks, estimate }))).toEqual([

@@ -66,7 +66,7 @@ export function toTasks(
       title: issue.title,
       status: toStatus(status),
       blockedBy: (issue.blockedBy ?? []).flatMap((ref) => identifierById.get(ref._id) ?? []),
-      parent: issue.parents?.[0]?.identifier ?? null,
+      parent: issue.parents?.at(-1)?.identifier ?? null,
       subtasks: issue.subIssues ?? 0,
       milestone: issue.milestone ? (milestoneById.get(issue.milestone) ?? null) : null,
       priority: HULY_PRIORITIES[issue.priority ?? 0] ?? 'none',

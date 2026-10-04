@@ -44,7 +44,7 @@ A split is subtasks, not a scatter of new tasks. The big task stays the parent.
 - **The parent is the map of the split.** Add a section at the end of its description: what went into which child, and what was left out. Do not rewrite the user's text in it.
 - **Each child is self-contained:** its own check, its own branch, its own commit. Order between children, if any — `blocks` relations, not prose.
 - **Commits name only the child's id, never the parent's.** Hooks and integrations close every task whose id reaches `main`; the parent's id would close the umbrella before the other children are done.
-- **The parent closes last:** the session that merges the last open child moves the parent to its done status by hand (`list_statuses` for the name).
+- **The parent closes last:** Even Keel closes it once all its children are closed. Without Even Keel the session that merges the last open child moves the parent to its done status by hand (`list_statuses` for the name).
 
 ## 5. After the split the session ends
 

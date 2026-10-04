@@ -34,6 +34,7 @@ import { StatsReader } from './stats/reader.js'
 import { TallyService } from './stats/tally.js'
 import { ADAPTERS } from './tracker/adapters.js'
 import { MergeCloser } from './tracker/closer.js'
+import { ParentCloser } from './tracker/parents.js'
 import { McpCheck, readMcpSources } from './tracker/mcp.js'
 import { worthBroadcast, type TrackerView } from './tracker/health.js'
 import { TrackerLink } from './tracker/link.js'
@@ -470,11 +471,13 @@ for (const view of trackers.values()) {
 function startTracker(view: TrackerView, setup: TrackerSetup): void {
   const { name, projects } = view
   let completes = false
+  let closesParents = false
   const link = new TrackerLink({
     name,
     connect: async () => {
       const tracker = trackerOf(await setup.connect(TRACKER_TIMEOUT_MS))
       completes = tracker.complete !== undefined
+      closesParents = completes && tracker.children !== undefined
       return tracker
     },
     timeoutMs: TRACKER_TIMEOUT_MS,
@@ -491,6 +494,12 @@ function startTracker(view: TrackerView, setup: TrackerSetup): void {
 
   const closer = new MergeCloser({
     merged: (project, task) => branchMerged(runGit, config.projects[project]!, task),
+    complete: (task) => link.run((tracker) => tracker.complete!(task)),
+    onError: report,
+  })
+
+  const parentCloser = new ParentCloser({
+    children: (task) => link.run((tracker) => tracker.children!(task)),
     complete: (task) => link.run((tracker) => tracker.complete!(task)),
     onError: report,
   })
@@ -521,7 +530,7 @@ function startTracker(view: TrackerView, setup: TrackerSetup): void {
     await Promise.all(
       projects.map(async (project) => {
         try {
-          const { tasks, unknownStatuses } = await link.run((tracker) => tracker.chainTasks(project, rulesOf(project)))
+          const { tasks, parents, unknownStatuses } = await link.run((tracker) => tracker.chainTasks(project, rulesOf(project)))
           const unknown = unknownStatuses.join('", "')
           if (unknown !== (unknownByProject.get(project) ?? '') && unknown !== '') {
             console.warn(`config: ${view.title} has no status "${unknown}" named in the chain rules of ${project}`)
@@ -534,6 +543,10 @@ function startTracker(view: TrackerView, setup: TrackerSetup): void {
           if (!completes) return
           for (const task of await closer.sweep(project, dispatcher.held(project))) {
             console.log(`${name}: closed ${task}, its branch is merged into main`)
+          }
+          if (!closesParents) return
+          for (const task of await parentCloser.sweep(parents, tasks)) {
+            console.log(`${name}: closed ${task}, all its subtasks are closed`)
           }
         } catch (error) {
           report(error)
