@@ -7,6 +7,7 @@ import type { AccountEntry, AccountLogin, AccountView } from '../../src/account/
 import type { EvenKeelState, SessionView } from '../../src/state.js'
 import {
   accountBadge,
+  backlogTasks,
   loginLeft,
   cardTask,
   openQuestions,
@@ -138,13 +139,41 @@ describe('openQuestions', () => {
 })
 
 describe('chainProgress', () => {
-  it('counts done tasks against all but the canceled ones', () => {
-    const tasks = [task('ABC-1', 'Won'), task('ABC-2', 'Won'), task('ABC-3', 'Lost'), task('ABC-4'), task('ABC-5', 'ToDo')]
-    expect(chainProgress(tasks)).toEqual({ done: 2, total: 4 })
+  it('counts done tasks against the done ones and the chain, the backlog apart', () => {
+    const tasks = [
+      task('ABC-1', 'Won'),
+      task('ABC-2', 'Won'),
+      task('ABC-3', 'Lost'),
+      task('ABC-4'),
+      task('ABC-5', 'ToDo'),
+      task('ABC-6', 'UnStarted'),
+      task('ABC-7', 'UnStarted'),
+      task('ABC-8', 'UnStarted'),
+    ]
+    const order = { order: ['ABC-5', 'ABC-4'], waiting: ['ABC-6'], backlog: ['ABC-7', 'ABC-8'], error: null }
+    expect(chainProgress(tasks, order)).toEqual({ done: 2, total: 5, backlog: 2 })
+  })
+
+  it('counts only the done tasks before the chain is loaded', () => {
+    expect(chainProgress([task('ABC-1', 'Won'), task('ABC-2', 'UnStarted')], undefined)).toEqual({ done: 1, total: 1, backlog: 0 })
   })
 
   it('is zero of zero with no tasks', () => {
-    expect(chainProgress([])).toEqual({ done: 0, total: 0 })
+    expect(chainProgress([], undefined)).toEqual({ done: 0, total: 0, backlog: 0 })
+  })
+})
+
+describe('backlogTasks', () => {
+  it('lists the backlog of the project in the order the server gives', () => {
+    const state = stateOf({
+      tasks: [task('ABC-12', 'UnStarted'), task('ABC-3', 'UnStarted'), task('ABC-4')],
+      chain: chain({ projects: { ABC: { order: ['ABC-4'], waiting: [], backlog: ['ABC-3', 'ABC-12'], error: null } } }),
+    })
+    expect(backlogTasks(state, 'ABC').map((each) => each.id)).toEqual(['ABC-3', 'ABC-12'])
+  })
+
+  it('is empty before the chain is loaded', () => {
+    expect(backlogTasks(stateOf({ tasks: [task('ABC-1', 'UnStarted')] }), 'ABC')).toEqual([])
   })
 })
 
@@ -187,7 +216,7 @@ describe('chainStatus', () => {
 })
 
 describe('cardTask', () => {
-  const orders = { ABC: { order: ['ABC-3', 'ABC-4'], waiting: [], error: null } }
+  const orders = { ABC: { order: ['ABC-3', 'ABC-4'], waiting: [], backlog: [], error:null } }
 
   it('shows the current task of the active chain with the lamp of its session', () => {
     const state = stateOf({
@@ -214,7 +243,7 @@ describe('cardTask', () => {
   it('passes over a task held by a blocker outside the chain', () => {
     const state = stateOf({
       tasks: [task('ABC-3', 'ToDo', ['ABC-9']), task('ABC-4'), task('ABC-9', 'UnStarted')],
-      chain: chain({ projects: { ABC: { order: ['ABC-3', 'ABC-4'], waiting: ['ABC-9'], error: null } } }),
+      chain: chain({ projects: { ABC: { order: ['ABC-3', 'ABC-4'], waiting: ['ABC-9'], backlog: [], error: null } } }),
     })
     expect(cardTask(state, 'ABC')?.id).toBe('ABC-4')
   })
@@ -229,7 +258,7 @@ describe('cardTask', () => {
   })
 
   it('has no task when the chain is empty or not built yet', () => {
-    expect(cardTask(stateOf({ chain: chain({ projects: { ABC: { order: [], waiting: [], error: null } } }) }), 'ABC')).toBeNull()
+    expect(cardTask(stateOf({ chain: chain({ projects: { ABC: { order: [], waiting: [], backlog: [], error:null } } }) }), 'ABC')).toBeNull()
     expect(cardTask(stateOf({}), 'ABC')).toBeNull()
   })
 
@@ -260,7 +289,7 @@ describe('chainBlocks', () => {
   it('marks the tasks the chain skips', () => {
     const state = stateOf({
       tasks: [task('ABC-1', 'ToDo'), task('ABC-2', 'ToDo')],
-      chain: chain({ projects: { ABC: { order: ['ABC-1', 'ABC-2'], waiting: [], error: null } }, skipped: { ABC: ['ABC-2'] } }),
+      chain: chain({ projects: { ABC: { order: ['ABC-1', 'ABC-2'], waiting: [], backlog: [], error:null } }, skipped: { ABC: ['ABC-2'] } }),
     })
     expect(chainBlocks(state, 'ABC').map((block) => [block.id, block.skipped])).toEqual([
       ['ABC-1', false],
@@ -282,7 +311,7 @@ describe('chainBlocks', () => {
       tasks: [task('ABC-1', 'Active'), task('ABC-2', 'ToDo')],
       chain: chain({
         active: { ...running('ABC-1'), current: { task: 'ABC-1', sessionId: 's', since: 't', limit: hold } },
-        projects: { ABC: { order: ['ABC-1', 'ABC-2'], waiting: [], error: null } },
+        projects: { ABC: { order: ['ABC-1', 'ABC-2'], waiting: [], backlog: [], error:null } },
       }),
       taskSessions: { 'ABC-1': rows },
     })
@@ -304,7 +333,7 @@ describe('chainBlocks', () => {
         task('ABC-5', 'ToDo'),
         task('XYZ-1', 'Won'),
       ],
-      chain: chain({ projects: { ABC: { order: ['ABC-5', 'ABC-4'], waiting: [], error: null } } }),
+      chain: chain({ projects: { ABC: { order: ['ABC-5', 'ABC-4'], waiting: [], backlog: [], error:null } } }),
     })
     expect(chainBlocks(state, 'ABC').map((block) => block.id)).toEqual(['ABC-2', 'ABC-1', 'ABC-3', 'ABC-5', 'ABC-4'])
   })
@@ -313,7 +342,7 @@ describe('chainBlocks', () => {
     const launch = (at: string) => ({ sessionId: `s-${at}`, at, how: 'launch' as const, resumed: 0 })
     const state = stateOf({
       tasks: [task('ABC-1', 'Won'), task('ABC-2', 'Won', ['ABC-1']), task('ABC-3', 'Won'), task('ABC-4', 'Lost'), task('ABC-5', 'ToDo')],
-      chain: chain({ projects: { ABC: { order: ['ABC-5'], waiting: [], error: null } } }),
+      chain: chain({ projects: { ABC: { order: ['ABC-5'], waiting: [], backlog: [], error:null } } }),
       taskSessions: {
         'ABC-1': [launch('2026-01-01T12:00:00.000Z')],
         'ABC-2': [launch('2026-01-01T13:00:00.000Z'), launch('2026-01-01T09:00:00.000Z')],
@@ -326,7 +355,7 @@ describe('chainBlocks', () => {
   it('marks which tasks are open and carries their blockers', () => {
     const state = stateOf({
       tasks: [task('ABC-1', 'Won'), task('ABC-2', 'ToDo', ['ABC-1']), task('ABC-3', 'ToDo', ['ABC-2', 'XYZ-4'])],
-      chain: chain({ projects: { ABC: { order: ['ABC-2', 'ABC-3'], waiting: [], error: null } } }),
+      chain: chain({ projects: { ABC: { order: ['ABC-2', 'ABC-3'], waiting: [], backlog: [], error:null } } }),
     })
     expect(chainBlocks(state, 'ABC').map(({ id, open, blockedBy }) => ({ id, open, blockedBy }))).toEqual([
       { id: 'ABC-1', open: false, blockedBy: [] },
@@ -342,7 +371,7 @@ describe('chainBlocks', () => {
     })
     const state = stateOf({
       tasks: [planned('ABC-1', 'Won', 'v0.1'), planned('ABC-2', 'ToDo', 'v0.1'), planned('ABC-3', 'ToDo', 'v0.2', ['ABC-4']), task('ABC-4', 'ToDo')],
-      chain: chain({ projects: { ABC: { order: ['ABC-2', 'ABC-4', 'ABC-3'], waiting: [], error: null } } }),
+      chain: chain({ projects: { ABC: { order: ['ABC-2', 'ABC-4', 'ABC-3'], waiting: [], backlog: [], error:null } } }),
     })
     expect(chainBlocks(state, 'ABC').map(({ id, milestone, after }) => ({ id, milestone, after }))).toEqual([
       { id: 'ABC-1', milestone: 'v0.1', after: [] },
@@ -356,7 +385,7 @@ describe('chainBlocks', () => {
     const state = stateOf({
       tasks: [task('ABC-1', 'Won'), task('ABC-2', 'Lost'), task('ABC-3', 'ToDo')],
       sessions: [view('ABC-1', 'finished', null)],
-      chain: chain({ projects: { ABC: { order: ['ABC-3'], waiting: [], error: null } } }),
+      chain: chain({ projects: { ABC: { order: ['ABC-3'], waiting: [], backlog: [], error:null } } }),
     })
     expect(chainBlocks(state, 'ABC').map((block) => block.lamp)).toEqual(['done', 'canceled', 'ahead'])
   })
@@ -372,7 +401,7 @@ describe('chainBlocks', () => {
         view('ABC-4', 'limit', null),
         view('ABC-5', 'finished', null),
       ],
-      chain: chain({ projects: { ABC: { order: ids, waiting: [], error: null } } }),
+      chain: chain({ projects: { ABC: { order: ids, waiting: [], backlog: [], error:null } } }),
     })
     expect(chainBlocks(state, 'ABC').map((block) => block.lamp)).toEqual(['working', 'waiting', 'error', 'limit', 'stopped'])
   })
@@ -381,7 +410,7 @@ describe('chainBlocks', () => {
     const state = stateOf({
       tasks: [task('ABC-1')],
       sessions: [view('ABC-1', 'finished', null), view('ABC-1', 'waiting', null)],
-      chain: chain({ projects: { ABC: { order: ['ABC-1'], waiting: [], error: null } } }),
+      chain: chain({ projects: { ABC: { order: ['ABC-1'], waiting: [], backlog: [], error:null } } }),
     })
     const [block] = chainBlocks(state, 'ABC')
     expect(block?.lamp).toBe('waiting')
@@ -390,7 +419,7 @@ describe('chainBlocks', () => {
 
   it('marks the current task of the active chain, paused or not, and only in its own project', () => {
     const tasks = [task('ABC-1'), task('ABC-2')]
-    const projects = { ABC: { order: ['ABC-1', 'ABC-2'], waiting: [], error: null } }
+    const projects = { ABC: { order: ['ABC-1', 'ABC-2'], waiting: [], backlog: [], error:null } }
     const current = (active: EvenKeelState['chain']['active']) =>
       chainBlocks(stateOf({ tasks, chain: chain({ active, projects }) }), 'ABC').map((block) => block.current)
     expect(current(running('ABC-1'))).toEqual([true, false])
@@ -402,7 +431,7 @@ describe('chainBlocks', () => {
   it('carries the title and status name, and keeps a task Huly has not delivered yet', () => {
     const state = stateOf({
       tasks: [fakeTask('ABC-1', { title: 'First', status: { name: 'In Progress', category: 'Active' } })],
-      chain: chain({ projects: { ABC: { order: ['ABC-1', 'ABC-2'], waiting: [], error: null } } }),
+      chain: chain({ projects: { ABC: { order: ['ABC-1', 'ABC-2'], waiting: [], backlog: [], error:null } } }),
     })
     expect(chainBlocks(state, 'ABC').map(({ id, title, status }) => ({ id, title, status }))).toEqual([
       { id: 'ABC-1', title: 'First', status: 'In Progress' },
@@ -413,7 +442,7 @@ describe('chainBlocks', () => {
   it('marks a task labelled as a question, open or closed, and not one Huly has not delivered', () => {
     const state = stateOf({
       tasks: [{ ...task('ABC-1', 'Won'), question: true }, { ...task('ABC-2', 'ToDo'), question: true }, task('ABC-3', 'ToDo')],
-      chain: chain({ projects: { ABC: { order: ['ABC-2', 'ABC-3', 'ABC-4'], waiting: [], error: null } } }),
+      chain: chain({ projects: { ABC: { order: ['ABC-2', 'ABC-3', 'ABC-4'], waiting: [], backlog: [], error:null } } }),
     })
     expect(chainBlocks(state, 'ABC').map((block) => block.question)).toEqual([true, true, false, false])
   })
@@ -421,7 +450,7 @@ describe('chainBlocks', () => {
   it('shows a blocker outside the chain locked, right before the task it holds', () => {
     const state = stateOf({
       tasks: [task('ABC-1', 'Won'), task('ABC-2', 'ToDo', ['ABC-9']), task('ABC-3', 'ToDo'), task('ABC-9', 'UnStarted')],
-      chain: chain({ projects: { ABC: { order: ['ABC-3', 'ABC-2'], waiting: ['ABC-9'], error: null } } }),
+      chain: chain({ projects: { ABC: { order: ['ABC-3', 'ABC-2'], waiting: ['ABC-9'], backlog: [], error: null } } }),
     })
     expect(chainBlocks(state, 'ABC').map(({ id, open, locked, status }) => ({ id, open, locked, status }))).toEqual([
       { id: 'ABC-1', open: false, locked: false, status: 'Won' },
@@ -434,7 +463,7 @@ describe('chainBlocks', () => {
   it('files a locked blocker under the milestone of the task it holds', () => {
     const state = stateOf({
       tasks: [{ ...task('ABC-2', 'ToDo', ['ABC-9']), milestone: { label: 'v0.2', targetDate: 0 } }, task('ABC-9', 'UnStarted')],
-      chain: chain({ projects: { ABC: { order: ['ABC-2'], waiting: ['ABC-9'], error: null } } }),
+      chain: chain({ projects: { ABC: { order: ['ABC-2'], waiting: ['ABC-9'], backlog: [], error: null } } }),
     })
     expect(chainBlocks(state, 'ABC').map(({ id, milestone }) => ({ id, milestone }))).toEqual([
       { id: 'ABC-9', milestone: 'v0.2' },
@@ -445,7 +474,7 @@ describe('chainBlocks', () => {
   it('falls back to open tasks by number when the chain order is broken', () => {
     const state = stateOf({
       tasks: [task('ABC-10'), task('ABC-9'), task('ABC-1', 'Won')],
-      chain: chain({ projects: { ABC: { order: [], waiting: [], error: textNotice('chain: cycle: ABC-9 → ABC-10 → ABC-9') } } }),
+      chain: chain({ projects: { ABC: { order: [], waiting: [], backlog: [], error:textNotice('chain: cycle: ABC-9 → ABC-10 → ABC-9') } } }),
     })
     expect(chainBlocks(state, 'ABC').map((block) => block.id)).toEqual(['ABC-1', 'ABC-9', 'ABC-10'])
   })

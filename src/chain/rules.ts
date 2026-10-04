@@ -29,9 +29,13 @@ export function isDone(rules: ChainRules, status: TaskStatus): boolean {
   return status.category === 'Won' && isTerminal(rules, status)
 }
 
+/** Closed, or kept out for good by an excluded label: the chain will not take it whatever happens to it. */
+export function excludes(rules: ChainRules, task: { status: TaskStatus; labels: string[] }): boolean {
+  return isTerminal(rules, task.status) || task.labels.some((label) => listed(rules.excludedLabels, label))
+}
+
 export function admits(rules: ChainRules, task: { status: TaskStatus; labels: string[] }): boolean {
-  if (isTerminal(rules, task.status)) return false
-  if (task.labels.some((label) => listed(rules.excludedLabels, label))) return false
+  if (excludes(rules, task)) return false
   return rules.requiredLabels.length === 0 || task.labels.some((label) => listed(rules.requiredLabels, label))
 }
 

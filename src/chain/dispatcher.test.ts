@@ -44,7 +44,7 @@ describe('Dispatcher', () => {
     dispatcher.start('ABC')
     await dispatcher.idle()
 
-    expect(dispatcher.orders()['ABC']).toEqual({ order: ['ABC-2', 'ABC-3'], waiting: ['ABC-1'], error: null })
+    expect(dispatcher.orders()['ABC']).toEqual({ order: ['ABC-2', 'ABC-3'], waiting: ['ABC-1'], backlog: [], error: null })
     expect(launched).toEqual(['ABC/ABC-3'])
   })
 
@@ -77,8 +77,27 @@ describe('Dispatcher', () => {
     dispatcher.start('ABC')
     await dispatcher.idle()
 
-    expect(dispatcher.orders()['ABC']).toEqual({ order: ['ABC-2', 'ABC-3'], waiting: [], error: null })
+    expect(dispatcher.orders()['ABC']).toEqual({ order: ['ABC-2', 'ABC-3'], waiting: [], backlog: ['ABC-1'], error: null })
     expect(launched).toEqual(['ABC/ABC-2'])
+  })
+
+  it('lists the backlog by number without the tasks the labels keep out or the chain waits on', () => {
+    const { dispatcher } = setup({ rules: { ABC: { ...DEFAULT_RULES, excludedLabels: ['Manual'] } } })
+    dispatcher.setTasks('ABC', [
+      task('ABC-12', backlog),
+      task('ABC-3', backlog),
+      { ...task('ABC-4', backlog), labels: ['Manual'] },
+      task('ABC-5', backlog),
+      task('ABC-6', todo, 'ABC-5'),
+      task('ABC-7', done),
+    ])
+    expect(dispatcher.orders()['ABC']?.backlog).toEqual(['ABC-3', 'ABC-12'])
+  })
+
+  it('lists in the backlog the tasks still without a required label', () => {
+    const { dispatcher } = setup({ rules: { ABC: { ...DEFAULT_RULES, requiredLabels: ['ready'] } } })
+    dispatcher.setTasks('ABC', [task('ABC-1'), { ...task('ABC-2'), labels: ['ready'] }])
+    expect(dispatcher.orders()['ABC']).toEqual({ order: ['ABC-2'], waiting: [], backlog: ['ABC-1'], error: null })
   })
 
   it('stops waiting for a current task returned to backlog once its session is not mid-turn', async () => {
@@ -367,7 +386,7 @@ describe('Dispatcher', () => {
     expect(() => dispatcher.reorder('ABC', ['ABC-3', 'ABC-2', 'ABC-1'])).toThrow(/ABC-3 cannot go before ABC-2/)
 
     dispatcher.reorder('ABC', ['ABC-2', 'ABC-3', 'ABC-1'])
-    expect(dispatcher.orders().ABC).toEqual({ order: ['ABC-2', 'ABC-3', 'ABC-1'], waiting: [], error: null })
+    expect(dispatcher.orders().ABC).toEqual({ order: ['ABC-2', 'ABC-3', 'ABC-1'], waiting: [], backlog: [], error: null })
     dispatcher.start('ABC')
     await dispatcher.idle()
     expect(launched).toEqual(['ABC/ABC-2'])
@@ -713,13 +732,14 @@ describe('Dispatcher with a blocker in the backlog', () => {
     await dispatcher.idle()
 
     expect(launched).toEqual(['ABC/ABC-3'])
-    expect(dispatcher.orders()['ABC']).toEqual({ order: ['ABC-2', 'ABC-3'], waiting: ['ABC-1'], error: null })
+    expect(dispatcher.orders()['ABC']).toEqual({ order: ['ABC-2', 'ABC-3'], waiting: ['ABC-1'], backlog: [], error: null })
   })
 
   it('shows the backlog blockers of a backlog blocker too', async () => {
     const { dispatcher } = setup()
     dispatcher.setTasks('ABC', [task('ABC-1', backlog, 'ABC-4'), task('ABC-2', todo, 'ABC-1'), task('ABC-4', backlog), task('ABC-5', backlog)])
     expect(dispatcher.orders()['ABC']?.waiting).toEqual(['ABC-1', 'ABC-4'])
+    expect(dispatcher.orders()['ABC']?.backlog).toEqual(['ABC-5'])
   })
 
   it('ends the chain when every task left waits on the backlog', async () => {
@@ -741,7 +761,7 @@ describe('Dispatcher with a blocker in the backlog', () => {
     dispatcher.setTasks('ABC', [task('ABC-1', todo), task('ABC-2', todo, 'ABC-1'), task('ABC-3', done)])
     await dispatcher.idle()
     expect(launched).toEqual(['ABC/ABC-3', 'ABC/ABC-1'])
-    expect(dispatcher.orders()['ABC']).toEqual({ order: ['ABC-1', 'ABC-2'], waiting: [], error: null })
+    expect(dispatcher.orders()['ABC']).toEqual({ order: ['ABC-1', 'ABC-2'], waiting: [], backlog: [], error: null })
   })
 
   it('frees the task once the blocker is closed', async () => {
