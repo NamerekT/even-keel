@@ -145,6 +145,11 @@ h1 {
   white-space: nowrap;
 }
 
+.header__logo {
+  margin-right: 8px;
+  vertical-align: -5px;
+}
+
 .header__sep {
   color: var(--fg-muted);
 }

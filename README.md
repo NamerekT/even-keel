@@ -1,4 +1,9 @@
-# Even Keel
+<h1>
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="assets/logo-dark.svg">
+    <img src="assets/logo-light.svg" alt="Even Keel" height="40">
+  </picture>
+</h1>
 
 Even Keel runs your backlog through [Claude Code](https://docs.claude.com/en/docs/claude-code/overview), one task at a time. It reads the open tasks of a project from your tracker, orders them by their `blocks` links, starts a Claude Code session on the first one, and when the task is done — its branch merged into `main` — cleans up and starts the next. A web page shows the chain and, for every session, what it is doing right now and how full its context is.
 
