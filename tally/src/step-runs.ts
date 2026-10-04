@@ -42,17 +42,14 @@ export interface StepRule {
 
 export const DEFAULT_STEPS: StepSettings = {
   rules: {
+    'unity-check': '^(&\\s*|(pwsh|powershell)(\\.exe)?\\s+(-\\S+\\s+)*)?["\']?[^\\s"\']*unity-check\\.ps1\\b',
+    'unity-batch': 'Unity(\\.exe)?["\']?\\s.*-batchmode',
     vitest: '^(npx|node)\\b.*\\bvitest(\\.mjs)?(\\s|$)|^vitest\\s|^npm\\s+(run\\s+)?test\\b',
     'dotnet-test': '^dotnet\\s+test\\b',
     build: '^npm\\s+run\\s+build\\b|^(npx\\s+)?tsc(\\s|$)|^dotnet\\s+build\\b',
     'git-merge': '^git\\s+(-C\\s+("[^"]*"|\\S+)\\s+)?merge\\b',
   },
-  projects: {
-    Gamma: {
-      'unity-check': '^(&\\s*|(pwsh|powershell)(\\.exe)?\\s+(-\\S+\\s+)*)?["\']?[^\\s"\']*unity-check\\.ps1\\b',
-      'unity-batch': 'Unity(\\.exe)?["\']?\\s.*-batchmode',
-    },
-  },
+  projects: {},
   slowSeconds: 60,
   growth: { ratio: 1.5, minRuns: 5, minSeconds: 10 },
 }

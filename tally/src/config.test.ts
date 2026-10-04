@@ -60,14 +60,14 @@ describe('parseConfig', () => {
     const steps = parseConfig({
       prices,
       steps: {
-        rules: { lint: '^npx\\s+eslint\\b', 'git-merge': null },
-        projects: { Gamma: { 'unity-batch': null }, Game: { bake: 'bake\\.ps1' } },
+        rules: { lint: '^npx\\s+eslint\\b', 'git-merge': null, 'unity-batch': null },
+        projects: { Game: { bake: 'bake\\.ps1', stale: null } },
         slowSeconds: 120,
         growth: { ratio: 2 },
       },
     }).steps
-    expect(Object.keys(steps.rules)).toEqual(['vitest', 'dotnet-test', 'build', 'lint'])
-    expect(steps.projects).toEqual({ Gamma: { 'unity-check': DEFAULT_STEPS.projects.Gamma!['unity-check'] }, Game: { bake: 'bake\\.ps1' } })
+    expect(Object.keys(steps.rules)).toEqual(['unity-check', 'vitest', 'dotnet-test', 'build', 'lint'])
+    expect(steps.projects).toEqual({ Game: { bake: 'bake\\.ps1' } })
     expect([steps.slowSeconds, steps.growth]).toEqual([120, { ...DEFAULT_STEPS.growth, ratio: 2 }])
     expect(parseConfig({ prices }).steps).toEqual(DEFAULT_STEPS)
   })

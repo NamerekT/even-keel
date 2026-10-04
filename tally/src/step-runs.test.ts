@@ -78,8 +78,9 @@ class Transcript {
   }
 }
 
-const GAMMA = rulesFor(DEFAULT_STEPS, 'Gamma')
-const OWN = rulesFor(DEFAULT_STEPS, 'EvenKeel')
+const GAME_STEPS = { ...DEFAULT_STEPS, projects: { Game: { bake: '^&?\\s*\\S*bake\\.ps1\\b' } } }
+const GAME = rulesFor(GAME_STEPS, 'Game')
+const OWN = rulesFor(GAME_STEPS, 'EvenKeel')
 
 const brief = (runs: StepRun[]) => runs.map((run) => [run.toolUseId, run.step, run.mode, run.endBy, run.outcome, run.seconds, run.polls])
 
@@ -113,9 +114,9 @@ describe('stepOf', () => {
     ['npm test', 'vitest'],
     ['npm run build', 'build'],
     ['npx tsc --noEmit -p tsconfig.json', 'build'],
-    ['git -C D:/Work/Game merge --no-edit cbl-7/task', 'git-merge'],
+    ['git -C D:/Work/Game merge --no-edit abc-7/task', 'git-merge'],
   ])('%s is %s', (command, step) => {
-    expect(stepOf(command, GAMMA)).toBe(step)
+    expect(stepOf(command, GAME)).toBe(step)
   })
 
   it.each([
@@ -125,11 +126,12 @@ describe('stepOf', () => {
     'cat vitest.config.ts',
     'git log --merges -5',
   ])('%s is no step', (command) => {
-    expect(stepOf(command, GAMMA)).toBeNull()
+    expect(stepOf(command, GAME)).toBeNull()
   })
 
   it('takes project rules only for their project', () => {
-    expect(stepOf('& tools/unity-check.ps1', OWN)).toBeNull()
+    expect(stepOf('& tools/bake.ps1', GAME)).toBe('bake')
+    expect(stepOf('& tools/bake.ps1', OWN)).toBeNull()
   })
 
   it('prefers a project rule over a common one', () => {
@@ -178,7 +180,7 @@ describe('runsOf', () => {
       .background('b', 'b2', '& tools/unity-check.ps1 -Check EditMode')
       .wait(50)
       .notify('b', 'b2', 'failed', 'Background command "Unity check" failed with exit code 1', true)
-    expect(brief(runsOf(t.entries(), GAMMA))).toEqual([
+    expect(brief(runsOf(t.entries(), GAME))).toEqual([
       ['a', 'unity-check', 'background', 'notification', 'ok', 203, 0],
       ['b', 'unity-check', 'background', 'notification', 'fail', 53, 0],
     ])
@@ -200,7 +202,7 @@ describe('runsOf', () => {
       .call('s', 'sleep 60', { seconds: 60 })
       .call('p', `tail -5 "${OUT.replaceAll('\\', '/')}/b1.output"`, { seconds: 1 })
       .call('g', 'git status', { seconds: 1 })
-    expect(brief(runsOf(t.entries(), GAMMA))).toEqual([
+    expect(brief(runsOf(t.entries(), GAME))).toEqual([
       ['a', 'unity-check', 'background', 'poll', null, 70, 3],
       ['g', null, 'foreground', 'result', 'ok', 2, 0],
     ])
@@ -244,7 +246,7 @@ describe('runsOf', () => {
       })
       .call('s', 'Start-Sleep -Seconds 90', { name: 'PowerShell', seconds: 90 })
       .call('p', 'Get-Content .temp\\build.log -Tail 5', { name: 'PowerShell', seconds: 1 })
-    expect(brief(runsOf(t.entries(), GAMMA))).toEqual([['a', 'unity-batch', 'detached', 'poll', null, 97, 2]])
+    expect(brief(runsOf(t.entries(), GAME))).toEqual([['a', 'unity-batch', 'detached', 'poll', null, 97, 2]])
   })
 
   it('takes Start-Process with -Wait as a foreground run', () => {
@@ -252,7 +254,7 @@ describe('runsOf', () => {
       name: 'PowerShell',
       seconds: 30,
     })
-    expect(brief(runsOf(t.entries(), GAMMA))).toEqual([['a', 'unity-batch', 'foreground', 'result', 'ok', 31, 0]])
+    expect(brief(runsOf(t.entries(), GAME))).toEqual([['a', 'unity-batch', 'foreground', 'result', 'ok', 31, 0]])
   })
 
   it('closes the polls of a run at the next prompt of the user', () => {
@@ -295,9 +297,9 @@ describe('runsOf', () => {
   })
 
   it('places a run in its worktree and branch', () => {
-    const t = new Transcript().call('a', 'npm run build', { seconds: 1, cwd: 'D:\\Work\\Game\\.claude\\worktrees\\cbl-7\\tools', branch: 'cbl-7/task' })
+    const t = new Transcript().call('a', 'npm run build', { seconds: 1, cwd: 'D:\\Work\\Game\\.claude\\worktrees\\abc-7\\tools', branch: 'abc-7/task' })
     t.call('b', 'npm run build', { seconds: 1, cwd: 'D:\\Work\\Game\\src' })
-    expect(runsOf(t.entries(), OWN).map((run) => run.place)).toEqual(['d:/work/game/.claude/worktrees/cbl-7|cbl-7/task', 'd:/work/game/src|main'])
+    expect(runsOf(t.entries(), OWN).map((run) => run.place)).toEqual(['d:/work/game/.claude/worktrees/abc-7|abc-7/task', 'd:/work/game/src|main'])
   })
 
   it('keeps the start of a long command and its signature', () => {
