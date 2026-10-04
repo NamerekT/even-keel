@@ -5,9 +5,11 @@ import {
   compareOf,
   type CompareSettings,
   mergeMarks,
+  netHashes,
   ruleDiff,
   ruleSets,
   scopeProject,
+  withNetLines,
   type CompareQuery,
   type RuleChangeRow,
   type RuleDiffFile,
@@ -29,7 +31,7 @@ export interface RulesDb {
 }
 
 const CHANGES = `
-select c.id, c.key, c.at, c.added, c.removed, f.display, f.kind, f.scope
+select c.id, c.key, c.at, c.added, c.removed, c.old_hash, c.new_hash, f.display, f.kind, f.scope
 from rule_changes c
 join rule_files f on f.key = c.key
 order by c.at`
@@ -187,12 +189,21 @@ export async function readRules(db: RulesDb, query: RulesQuery, settings: Compar
     at: iso(row.at),
     added: Number(row.added),
   })
-  const changes: RuleChangeRow[] = changeRows.map((row) => ({ ...fileOf(row), id: String(row.id), removed: Number(row.removed) }))
+  const changes: RuleChangeRow[] = changeRows.map((row) => ({
+    ...fileOf(row),
+    id: String(row.id),
+    removed: Number(row.removed),
+    oldHash: row.old_hash === null ? null : String(row.old_hash),
+    newHash: row.new_hash === null ? null : String(row.new_hash),
+  }))
   const edits: RuleEditRow[] = editRows.map((row) => ({ ...fileOf(row), sessionId: String(row.session_id), removed: maybe(row.removed) }))
   const ids = [...new Set(edits.map((each) => each.sessionId))]
   const info = ids.length === 0 ? [] : await db.plain(SESSION_INFO, [ids])
   const sessions = new Map(info.map((row) => [String(row.session_id), { task: row.task === null ? null : String(row.task), title: row.title === null ? null : String(row.title) }]))
-  const sets = filterSets(withImports(ruleSets(changes, edits, sessions), importRows.map(importOf), places), query)
+  const filtered = filterSets(withImports(ruleSets(changes, edits, sessions), importRows.map(importOf), places), query)
+  const hashes = netHashes(filtered, changes)
+  const texts = hashes.length === 0 ? [] : await db.plain(TEXTS, [hashes])
+  const sets = withNetLines(filtered, changes, new Map(texts.map((row) => [String(row.hash), String(row.content)])))
   const marks = mergeMarks(sets, starts.map((row) => Number(row.started)), settings.minSessions)
   return { at: new Date().toISOString(), marks, compare: settings }
 }

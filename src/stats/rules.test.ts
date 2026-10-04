@@ -2,12 +2,14 @@ import { describe, expect, it } from 'vitest'
 import {
   compareOf,
   mergeMarks,
+  netHashes,
   parseChangeIds,
   parseCompareQuery,
   parseRulesQuery,
   ruleDiff,
   ruleSets,
   scopeProject,
+  withNetLines,
   type RuleChangeRow,
   type RuleEditRow,
   type RuleSet,
@@ -45,8 +47,8 @@ describe('scopeProject', () => {
 
 const file = { display: '~/.claude/CLAUDE.md', kind: 'claude_md' as const, project: null }
 
-function change(id: string, key: string, at: string, added = 1, removed = 0): RuleChangeRow {
-  return { id, key, at, added, removed, ...file }
+function change(id: string, key: string, at: string, added = 1, removed = 0, oldHash: string | null = 'old', newHash: string | null = 'new'): RuleChangeRow {
+  return { id, key, at, added, removed, oldHash, newHash, ...file }
 }
 
 function edit(sessionId: string, key: string, at: string, added = 2, removed: number | null = 1): RuleEditRow {
@@ -90,6 +92,26 @@ describe('ruleSets', () => {
       ['a', 4, 2, ['c1', 'c3']],
       ['b', 2, 1, ['c2']],
     ])
+  })
+
+  it('drops a file that vanished and came back with the same text', () => {
+    const sets = ruleSets(
+      [
+        change('c1', 'k', '2026-09-10T10:00:00Z', 1, 1, 'a', 'b'),
+        change('c2', 'k', '2026-09-10T10:05:00Z', 0, 98, 'b', null),
+        change('c3', 'k', '2026-09-10T10:06:00Z', 98, 0, null, 'b'),
+        change('c4', 'k', '2026-09-10T10:10:00Z', 0, 98, 'b', null),
+        change('c5', 'k', '2026-09-10T10:11:00Z', 98, 0, null, 'c'),
+      ],
+      [],
+      new Map(),
+    )
+    expect(sets.map((each) => each.files.map((one) => [one.added, one.removed, one.changes]))).toEqual([[[99, 99, ['c1', 'c4', 'c5']]]])
+  })
+
+  it('keeps a file created for the first time', () => {
+    const [set] = ruleSets([change('c1', 'k', '2026-09-10T10:00:00Z', 5, 0, null, 'a')], [], new Map())
+    expect(set!.files[0]).toMatchObject({ added: 5, changes: ['c1'] })
   })
 
   it('counts a Write without removed lines as nothing removed', () => {
@@ -201,6 +223,36 @@ describe('ruleDiff', () => {
       ['n', 2, 0],
     ])
     expect(files[0]!.hunks[0]!.lines).toEqual([' a', '-b', '+c'])
+  })
+})
+
+describe('withNetLines', () => {
+  const changes = [
+    change('c1', 'k', '2026-09-10T10:00:00Z', 1, 1, 'h0', 'h1'),
+    change('c2', 'k', '2026-09-10T11:00:00Z', 1, 1, 'h1', 'h2'),
+    change('c3', 'n', '2026-09-10T10:30:00Z', 4, 0, 'h0', 'h3'),
+  ]
+  const sets = ruleSets(changes, [], new Map())
+
+  it('asks for the text before the first change and after the last of a file changed more than once', () => {
+    expect(netHashes(sets, changes).sort()).toEqual(['h0', 'h2'])
+  })
+
+  it('counts a file changed more than once as the diff of those two texts', () => {
+    const texts = new Map([
+      ['h0', 'a\nb\nc'],
+      ['h2', 'a\nB\nc'],
+    ])
+    const [set] = withNetLines(sets, changes, texts)
+    expect(set!.files.map((each) => [each.key, each.added, each.removed])).toEqual([
+      ['k', 1, 1],
+      ['n', 4, 0],
+    ])
+  })
+
+  it('keeps the summed lines when a text is missing', () => {
+    const [set] = withNetLines(sets, changes, new Map([['h0', 'a']]))
+    expect(set!.files[0]).toMatchObject({ added: 2, removed: 2 })
   })
 })
 

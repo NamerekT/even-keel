@@ -17,6 +17,8 @@ export interface RuleChangeRow extends RuleFile {
   at: string
   added: number
   removed: number
+  oldHash: string | null
+  newHash: string | null
 }
 
 export interface RuleEditRow extends RuleFile {
@@ -174,13 +176,27 @@ function addFile(files: Map<string, RuleSetFile>, row: RuleFile, added: number, 
   files.set(row.key, file)
 }
 
+// A file that vanished from a snapshot and came back with the same text did not change: Tally misses project files
+// when it runs without the Even Keel config and records them removed, then created again on the next run.
+function withoutRoundTrips(changes: RuleChangeRow[]): RuleChangeRow[] {
+  const ordered = [...changes].sort((a, b) => Date.parse(a.at) - Date.parse(b.at))
+  const dropped = new Set<string>()
+  for (const [index, gone] of ordered.entries()) {
+    if (gone.newHash !== null || gone.oldHash === null) continue
+    const back = ordered.slice(index + 1).find((each) => each.key === gone.key)
+    if (back !== undefined && back.oldHash === null && back.newHash === gone.oldHash) dropped.add(gone.id).add(back.id)
+  }
+  return changes.filter((each) => !dropped.has(each.id))
+}
+
 // A change goes to the session with the last edit of its file at most three days before it. Each session
 // with edits is one set; changes left without a session make sets of their own, 30 minutes apart at most.
 export function ruleSets(
-  changes: RuleChangeRow[],
+  all: RuleChangeRow[],
   edits: RuleEditRow[],
   sessions: Map<string, { task: string | null; title: string | null }>,
 ): RuleSet[] {
+  const changes = withoutRoundTrips(all)
   const ordered = [...edits].sort((a, b) => Date.parse(a.at) - Date.parse(b.at))
   const owned = new Map<string, RuleChangeRow[]>()
   const loose: RuleChangeRow[] = []
@@ -229,6 +245,37 @@ export function ruleSets(
   }
   flush()
   return sets.sort((a, b) => Date.parse(a.at) - Date.parse(b.at) || a.id.localeCompare(b.id))
+}
+
+function spanOf(file: RuleSetFile, byId: Map<string, RuleChangeRow>): { from: string | null; to: string | null } | null {
+  if (file.changes.length < 2) return null
+  const list = file.changes.flatMap((id) => byId.get(id) ?? []).sort((a, b) => Date.parse(a.at) - Date.parse(b.at))
+  return list.length === 0 ? null : { from: list[0]!.oldHash, to: list.at(-1)!.newHash }
+}
+
+// The texts `withNetLines` needs: before the first change and after the last of each file changed more than once.
+export function netHashes(sets: RuleSet[], changes: RuleChangeRow[]): string[] {
+  const byId = new Map(changes.map((each) => [each.id, each]))
+  const spans = sets.flatMap((set) => set.files.flatMap((file) => spanOf(file, byId) ?? []))
+  return [...new Set(spans.flatMap((span) => [span.from, span.to]).filter((hash) => hash !== null))]
+}
+
+// A file changed more than once in a set counts its lines as its diff shows them, not summed over the changes:
+// a line edited twice is one line, an edit taken back is none.
+export function withNetLines(sets: RuleSet[], changes: RuleChangeRow[], texts: Map<string, string>): RuleSet[] {
+  const byId = new Map(changes.map((each) => [each.id, each]))
+  const text = (hash: string | null) => (hash === null ? null : texts.get(hash))
+  return sets.map((set) => ({
+    ...set,
+    files: set.files.map((file) => {
+      const span = spanOf(file, byId)
+      if (span === null) return file
+      const [from, to] = [text(span.from), text(span.to)]
+      if (from === undefined || to === undefined) return file
+      const { added, removed } = lineDiff(from, to)
+      return { ...file, added, removed }
+    }),
+  }))
 }
 
 // Neighbouring sets merge into one mark while fewer than `minSessions` sessions started between them.
