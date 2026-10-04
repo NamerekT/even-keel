@@ -1,6 +1,7 @@
 import { mkdirSync, readdirSync, readFileSync, renameSync, rmSync } from 'node:fs'
 import { homedir } from 'node:os'
-import { join, resolve } from 'node:path'
+import { join } from 'node:path'
+import { samePath } from '../paths.js'
 import { trackerVariables } from '../tracker/adapters.js'
 import { folderName, GLOBAL_ACCOUNT, parseCredentialTimes, type CredentialTimes } from './model.js'
 import { shareConfig } from './share.js'
@@ -34,8 +35,7 @@ export class AccountHomes {
 
   ownerOf(configDir: string | null): string | undefined {
     if (configDir === null) return GLOBAL_ACCOUNT
-    const wanted = resolve(configDir).toLowerCase()
-    return this.list().find((home) => resolve(home.dir).toLowerCase() === wanted)?.key
+    return this.list().find((home) => samePath(home.dir, configDir))?.key
   }
 
   envOf(home: AccountHome): NodeJS.ProcessEnv {

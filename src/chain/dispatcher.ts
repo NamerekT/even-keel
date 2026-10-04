@@ -355,7 +355,7 @@ export class Dispatcher {
       for (const task of done) {
         if (this.deps.busy(task)) continue
         const outcome = await this.cleanUp(project, task)
-        const sync = outcome.syncError === null ? [] : [`${task}: git sync failed: ${outcome.syncError}`]
+        const sync = outcome.syncError === null ? [] : [`${task}: sync of main failed: ${outcome.syncError}`]
         this.keepLeftovers(project, task, [...outcome.warnings, ...sync])
         this.keepReleased(project, this.released(project).filter((id) => id !== task))
         this.deps.save(this.state)
@@ -488,7 +488,7 @@ export class Dispatcher {
     delete chain.closing
     this.keepLeftovers(chain.project, task, outcome.warnings)
     if (outcome.syncError !== null) {
-      this.halt(chain, `git: sync of ${chain.project} after ${task} failed; run git sync by hand, then resume: ${outcome.syncError}`)
+      this.halt(chain, `git: sync of ${chain.project} after ${task} failed; sync main with its remotes by hand, then resume:${outcome.syncError}`)
       return false
     }
     this.deps.save(this.state)

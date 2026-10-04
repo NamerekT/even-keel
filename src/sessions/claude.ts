@@ -2,11 +2,12 @@ import { execFile, spawn, type ChildProcessWithoutNullStreams } from 'node:child
 import { existsSync, readdirSync } from 'node:fs'
 import { readdir, readFile } from 'node:fs/promises'
 import { homedir } from 'node:os'
-import { join, resolve } from 'node:path'
+import { join } from 'node:path'
 import { setTimeout as delay } from 'node:timers/promises'
 import { promisify } from 'node:util'
 import type { AccountHome } from '../account/homes.js'
 import { parseAuthStatus, type ClaudeAccount } from '../account/model.js'
+import { samePath } from '../paths.js'
 import type { ModelAlias } from '../tracker/model.js'
 import { parseAgents, parseSessionRecord, withLiveRecords, type AgentEntry, type SessionRecord } from './agents.js'
 import { newestExtensionBinary } from './paths.js'
@@ -198,8 +199,4 @@ function outputOf(error: unknown): string {
   const { stdout, stderr } = error as { stdout?: string; stderr?: string }
   const output = [stderr, stdout].map((text) => text?.trim()).filter(Boolean).join(' / ')
   return output ? `: ${output}` : ''
-}
-
-function samePath(a: string, b: string): boolean {
-  return resolve(a).toLowerCase() === resolve(b).toLowerCase()
 }

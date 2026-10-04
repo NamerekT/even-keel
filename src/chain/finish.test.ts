@@ -224,7 +224,7 @@ describe('Dispatcher finishing a task it let go of', () => {
     expect(dispatcher.state.leftovers).toEqual({
       ABC: [
         { task: 'ABC-1', at: '2026-09-26T12:00:00.000Z', text: 'ABC-1: the worktree was kept' },
-        { task: 'ABC-1', at: '2026-09-26T12:00:00.000Z', text: 'ABC-1: git sync failed: sync: merge it by hand' },
+        { task: 'ABC-1', at: '2026-09-26T12:00:00.000Z', text: 'ABC-1: sync of main failed: sync: merge it by hand' },
       ],
     })
   })

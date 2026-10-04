@@ -1,15 +1,9 @@
-import { resolve, sep } from 'node:path'
+import { isInside } from '../paths.js'
 import type { AgentEntry } from './agents.js'
 
 export interface Occupant {
   agent: AgentEntry
   task: string
-}
-
-export function isInside(cwd: string, folder: string): boolean {
-  const path = resolve(cwd).toLowerCase()
-  const root = resolve(folder).toLowerCase()
-  return path === root || path.startsWith(`${root}${sep}`)
 }
 
 export function slotOccupants(

@@ -1,5 +1,6 @@
 import { copyFileSync, existsSync, lstatSync, mkdirSync, readdirSync, readFileSync, rmdirSync, symlinkSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
+import { pathKey } from '../paths.js'
 
 type Json = Record<string, unknown>
 
@@ -28,13 +29,18 @@ export function mergeSettings(global: Json, folder: Json | undefined): Json {
   return { ...folder, ...global }
 }
 
-export function shareProjects(global: Json, folder: Json): Json | undefined {
+export function linkType(platform: NodeJS.Platform): 'junction' | 'dir' {
+  return platform === 'win32' ? 'junction' : 'dir'
+}
+
+export function shareProjects(global: Json, folder: Json, platform: NodeJS.Platform = process.platform): Json | undefined {
   const projects: Json = { ...objectOf(folder.projects) }
   const globalProjects = Object.entries(objectOf(global.projects))
-  const trusted = new Set(globalProjects.filter(([, value]) => objectOf(value).hasTrustDialogAccepted === true).map(([path]) => samePath(path)))
+  const keyOf = (path: string) => pathKey(path, platform)
+  const trusted = new Set(globalProjects.filter(([, value]) => objectOf(value).hasTrustDialogAccepted === true).map(([path]) => keyOf(path)))
   for (const [path, value] of globalProjects) {
     const project = objectOf(value)
-    if (!trusted.has(samePath(path))) continue
+    if (!trusted.has(keyOf(path))) continue
     const setup = Object.fromEntries(PROJECT_KEYS.filter((key) => key in project).map((key) => [key, project[key]]))
     projects[path] = { ...objectOf(projects[path]), ...setup }
   }
@@ -78,7 +84,7 @@ function link(target: string, path: string): boolean {
     rmdirSync(path)
   }
   mkdirSync(join(path, '..'), { recursive: true })
-  symlinkSync(target, path, 'junction')
+  symlinkSync(target, path, linkType(process.platform))
   return true
 }
 
@@ -129,10 +135,6 @@ function isDirectory(path: string): boolean {
   } catch {
     return false
   }
-}
-
-function samePath(path: string): string {
-  return path.replaceAll('\\', '/').toLowerCase()
 }
 
 function objectOf(value: unknown): Json {

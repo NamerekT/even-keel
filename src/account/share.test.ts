@@ -2,7 +2,15 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { mergeSettings, shareConfig, shareProjects } from './share.js'
+import { linkType, mergeSettings, shareConfig, shareProjects } from './share.js'
+
+describe('linkType', () => {
+  it('links folders by junction on Windows and by a plain symbolic link elsewhere', () => {
+    expect(linkType('win32')).toBe('junction')
+    expect(linkType('linux')).toBe('dir')
+    expect(linkType('darwin')).toBe('dir')
+  })
+})
 
 describe('shareConfig', () => {
   let root: string
@@ -95,11 +103,22 @@ describe('shareProjects', () => {
         'c:/repos/untrusted': { hasTrustDialogAccepted: false, mcpServers: huly },
       },
     }
-    expect(shareProjects(spelled, {})?.projects).toEqual({
+    expect(shareProjects(spelled, {}, 'win32')?.projects).toEqual({
       'C:/repos/example': { hasTrustDialogAccepted: true, mcpServers: huly },
       'c:/repos/example': { hasTrustDialogAccepted: false, mcpServers: huly, disabledMcpServers: ['forgejo'] },
       'c:\\repos\\example': { mcpServers: huly },
     })
+  })
+
+  it('takes paths that differ in case for different projects on Linux', () => {
+    const huly = { huly: { type: 'stdio', command: 'huly-mcp' } }
+    const spelled = {
+      projects: {
+        '/home/john/Example': { hasTrustDialogAccepted: true, mcpServers: huly },
+        '/home/john/example': { hasTrustDialogAccepted: false, mcpServers: huly },
+      },
+    }
+    expect(shareProjects(spelled, {}, 'linux')?.projects).toEqual({ '/home/john/Example': { hasTrustDialogAccepted: true, mcpServers: huly } })
   })
 
   it('reports nothing to write when the folder already has it all', () => {

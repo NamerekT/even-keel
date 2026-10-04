@@ -1,11 +1,12 @@
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { homedir } from 'node:os'
-import { dirname, join } from 'node:path'
+import { dirname } from 'node:path'
+import { pathsOf } from '../paths.js'
 import type { SessionRecord } from '../sessions/agents.js'
 import { configDirOf, vscodeChats, withConfigDir, type AppAccount } from './apps.js'
 import type { AccountHome } from './homes.js'
 
-const NO_FILE = 'vscode: the VS Code settings file is only looked for on Windows'
+const NO_FILE = 'vscode: the VS Code settings file is only looked for on Windows, macOS and Linux'
 
 export interface VsCodeAccountOptions {
   file: string | null
@@ -17,9 +18,13 @@ export interface VsCodeAccountOptions {
   onError: (error: unknown) => void
 }
 
-export function vscodeSettingsFile(env: NodeJS.ProcessEnv): string | null {
-  if (process.platform !== 'win32') return null
-  return join(env.APPDATA ?? join(homedir(), 'AppData', 'Roaming'), 'Code', 'User', 'settings.json')
+export function vscodeSettingsFile(env: NodeJS.ProcessEnv, platform: NodeJS.Platform = process.platform, home = homedir()): string | null {
+  const { join } = pathsOf(platform)
+  const user = ['Code', 'User', 'settings.json']
+  if (platform === 'win32') return join(env.APPDATA ?? join(home, 'AppData', 'Roaming'), ...user)
+  if (platform === 'darwin') return join(home, 'Library', 'Application Support', ...user)
+  if (platform === 'linux') return join(env.XDG_CONFIG_HOME || join(home, '.config'), ...user)
+  return null
 }
 
 export class VsCodeAccount {

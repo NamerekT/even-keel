@@ -1,5 +1,7 @@
 import { appendFileSync, readFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
+import { samePath } from '../paths.js'
+import { syncMain } from './sync.js'
 import type { FinishOutcome, Git, GitResult, TaskPlace } from './types.js'
 
 export type { FinishOutcome, Git, GitResult, TaskPlace }
@@ -90,8 +92,7 @@ export async function dropBranch(git: Git, repo: string, task: string, branch: s
   }
 
   if (remotes.length === 0) return { warnings, syncError: null }
-  const synced = await git(repo, ['sync'])
-  return { warnings, syncError: synced.code === 0 ? null : synced.out || `git sync exited with ${synced.code}` }
+  return { warnings, syncError: await syncMain(git, repo, remotes) }
 }
 
 async function deleteOnOrigin(git: Git, repo: string, branch: string): Promise<string | null> {
@@ -120,8 +121,4 @@ export async function must(git: Git, repo: string, args: string[], what: string)
   const result = await git(repo, args)
   if (result.code !== 0) throw new Error(`git: could not ${what} ${repo}: ${result.out}`)
   return { ...result, out: result.out.trim() }
-}
-
-function samePath(a: string, b: string): boolean {
-  return resolve(a).toLowerCase() === resolve(b).toLowerCase()
 }

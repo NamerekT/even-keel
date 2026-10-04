@@ -114,6 +114,7 @@ describe('finishWorktree', () => {
       'remote',
       'ls-remote --exit-code --heads origin refs/heads/abc-7/task',
       'push origin --delete abc-7/task',
+      'config --get alias.sync',
       'sync',
     ])
   })
