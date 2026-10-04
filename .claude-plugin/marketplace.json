@@ -1,14 +1,14 @@
 {
   "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
   "name": "even-keel",
-  "description": "Tracker plugins for sessions run by Even Keel: the tracker's MCP server and a skill for working a task through it",
+  "description": "Tracker plugins for sessions run by Even Keel: the tracker's MCP server and skills for working tasks through it",
   "owner": {
     "name": "Even Keel"
   },
   "plugins": [
     {
       "name": "huly",
-      "description": "Huly for Even Keel sessions: the huly MCP server and a skill to read the task, record decisions, file blockers and questions, and close the task by merging",
+      "description": "Huly for Even Keel sessions: the huly MCP server and skills to read the task, record decisions, file blockers and questions, split a task into subtasks, close the task by merging, and put a repository on Huly",
       "source": "./plugins/huly",
       "category": "productivity"
     }

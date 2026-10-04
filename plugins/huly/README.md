@@ -1,6 +1,12 @@
 # huly
 
-Huly for sessions that Even Keel runs: the `huly` MCP server ([@firfi/huly-mcp](https://www.npmjs.com/package/@firfi/huly-mcp)) and the `huly:task` skill. With them a session does more than get its task in the prompt: it reads the task and its attachments, records decisions in the description, files blockers (Even Keel postpones the task on them) and question tasks, creates new tasks, leaves a closing comment and merges. Statuses are not the session's business: Even Keel closes the task in Huly when its branch lands in `main`.
+Huly for sessions that Even Keel runs: the `huly` MCP server ([@firfi/huly-mcp](https://www.npmjs.com/package/@firfi/huly-mcp)) and three skills. With them a session does more than get its task in the prompt: it reads the task and its attachments, records decisions in the description, files blockers (Even Keel postpones the task on them) and question tasks, creates new tasks, leaves a closing comment and merges. Statuses are not the session's business: Even Keel closes the task in Huly when its branch lands in `main`.
+
+| Skill | |
+| --- | --- |
+| `huly:task` | working a task from pickup to merge, creating tasks |
+| `huly:split` | when a task is worth splitting, and creating subtasks Even Keel runs one by one |
+| `huly:setup` | putting a repository on Huly once: project, components, milestone, `CLAUDE.md` block, plugin, Even Keel entry |
 
 ## Credentials
 
@@ -43,3 +49,10 @@ The session reads the task itself, so turn Even Keel's brief off for the project
 ```
 
 With `brief` off, Even Keel checks that the project's sessions see the `huly` server and warns on the page if they do not.
+
+## The session has no Huly tools
+
+- The plugin loads when a session starts: a session that was running during the install does not get it.
+- A worktree has the plugin only if `.claude/settings.json` with `enabledPlugins` is committed to `main`.
+- The server fails to start or its calls fail — the credentials are missing from the session's environment: check the `env` of `~/.claude/settings.json`, not the system environment (see Credentials).
+- The plugin was updated but sessions run the old one — the installed copy is cached by version; a change to the plugin needs a new `version` in `.claude-plugin/plugin.json`, then `claude plugin update huly@even-keel`.
