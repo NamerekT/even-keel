@@ -16,7 +16,7 @@
 
 ## Конфиг на лету (`src/config-file.ts`)
 
-`even-keel.config.json` служба перечитывает на лету: сразу применяются `chain`, `brief`, `modelPrompts`, `stats`, `language`, `promptLanguage` и `unattended` (включённый — баннер `UnattendedBanner`), а `host`, `port`, `projects`, `context`, `tracker` — после перезапуска (в лог — что ждёт). Битый файл — работает последний исправный, ошибка в лог и баннером на странице (`ConfigBanner`).
+`even-keel.config.json` служба перечитывает на лету: сразу применяются `chain`, `brief`, `modelPrompts`, `stats`, `language` и `promptLanguage`, а `host`, `port`, `projects`, `context`, `tracker` — после перезапуска (в лог — что ждёт). Битый файл — работает последний исправный, ошибка в лог и баннером на странице (`ConfigBanner`).
 
 ## Фейковые состояния (`npm run dev:fake`)
 

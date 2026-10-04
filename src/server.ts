@@ -48,6 +48,7 @@ export interface ChainControl {
   unskip(project: string, task: string): void
   restart(project: string, task: string): void
   dismiss(project: string, task: string): void
+  setUnattended(on: boolean): void
 }
 
 export interface AccountControl {
@@ -86,6 +87,7 @@ const COMMANDS: Record<string, Command> = {
   'chain/unskip': ({ control }, body) => control.unskip(projectOf(body), taskOf(body)),
   'chain/restart': ({ control }, body) => control.restart(projectOf(body), taskOf(body)),
   'chain/dismiss': ({ control }, body) => control.dismiss(projectOf(body), taskOf(body)),
+  'chain/unattended': ({ control }, body) => control.setUnattended(flagOf(body)),
   'account/add': ({ account }) => account.add(),
   'account/renew': ({ account }, body) => account.renew(accountOf(body)),
   'account/switch': ({ account }, body) => account.switchTo(accountOf(body)),
@@ -243,6 +245,11 @@ async function readJsonBody(request: IncomingMessage): Promise<Record<string, un
 function projectOf(body: Record<string, unknown>): string {
   if (typeof body.project !== 'string' || body.project === '') throw fail('request.required', { field: 'project' })
   return body.project
+}
+
+function flagOf(body: Record<string, unknown>): boolean {
+  if (typeof body.on !== 'boolean') throw fail('request.required', { field: 'on' })
+  return body.on
 }
 
 function taskOf(body: Record<string, unknown>): string {

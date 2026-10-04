@@ -39,6 +39,7 @@ describe('Even Keel HTTP server', () => {
       unskip: record('unskip'),
       restart: record('restart'),
       dismiss: record('dismiss'),
+      setUnattended: record('setUnattended'),
     }
     const account: AccountControl = {
       add: () => {
@@ -160,6 +161,7 @@ describe('Even Keel HTTP server', () => {
     await post('/api/chain/unskip', { project: 'ABC', task: 'ABC-1' })
     await post('/api/chain/restart', { project: 'ABC', task: 'ABC-1' })
     await post('/api/chain/dismiss', { project: 'ABC', task: 'ABC-0' })
+    await post('/api/chain/unattended', { on: true })
     expect(calls).toEqual([
       ['start', 'ABC'],
       ['pause'],
@@ -172,6 +174,7 @@ describe('Even Keel HTTP server', () => {
       ['unskip', 'ABC', 'ABC-1'],
       ['restart', 'ABC', 'ABC-1'],
       ['dismiss', 'ABC', 'ABC-0'],
+      ['setUnattended', true],
     ])
   })
 
@@ -184,6 +187,7 @@ describe('Even Keel HTTP server', () => {
     expect((await post('/api/chain/order', { project: 'ABC', order: [1] })).status).toBe(400)
     expect((await post('/api/chain/queue', { order: 'XYZ' })).status).toBe(400)
     expect((await post('/api/chain/skip', { project: 'ABC' })).status).toBe(400)
+    expect((await post('/api/chain/unattended', { on: 'yes' })).status).toBe(400)
     expect((await fetch(base + '/api/chain/start', { method: 'POST', body: '{' })).status).toBe(400)
     expect((await post('/api/chain/nope')).status).toBe(404)
     expect(calls).toEqual([])

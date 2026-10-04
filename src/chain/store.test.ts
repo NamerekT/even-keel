@@ -22,6 +22,7 @@ describe('chain store', () => {
       skipped: { ABC: ['ABC-3'] },
       leftovers: { ABC: [{ task: 'ABC-0', at: 't', notice: notice('cleanup.worktreeKept', { path: 'C:\\abc' }) }] },
       released: { ABC: ['ABC-4'] },
+      unattended: true,
     }
     saveChainState(file, state)
     expect(loadChainState(file)).toEqual(state)

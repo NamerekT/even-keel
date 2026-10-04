@@ -20,12 +20,7 @@ describe('parseConfig', () => {
       stats: { compare: { minTasks: 5, minSessions: 10, days: 7 } },
       language: null,
       promptLanguage: 'en',
-      unattended: false,
     })
-  })
-
-  it('rejects an unattended mode that is not true or false', () => {
-    expect(() => parseConfig({ projects: {}, unattended: 'yes' })).toThrow(/unattended/)
   })
 
   it('takes the prompt language from its own key, else from the interface language', () => {
@@ -234,12 +229,6 @@ describe('reloading the config', () => {
   it('applies brief at once', () => {
     const next = parseConfig({ projects: { ABC: { repo: 'C:\\abc', brief: false } } })
     expect(liveConfig(base, next).briefs).toEqual({ ABC: false })
-    expect(restartChanges(base, next)).toEqual([])
-  })
-
-  it('applies the unattended mode at once', () => {
-    const next = parseConfig({ projects: { ABC: 'C:\\abc' }, unattended: true })
-    expect(liveConfig(base, next).unattended).toBe(true)
     expect(restartChanges(base, next)).toEqual([])
   })
 

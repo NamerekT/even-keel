@@ -1,8 +1,9 @@
 import { Link } from 'react-router'
 import type { Task } from '../../../src/tracker/model.js'
 import type { SessionView } from '../../../src/state.js'
-import { t } from '../i18n/index.js'
+import { say, t } from '../i18n/index.js'
 import { useLive } from '../live/context.js'
+import { useCommand } from '../live/useCommand.js'
 import { taskProject, waitingSessions } from '../state.js'
 import { systemChecks, worstLevel } from './system.js'
 import { usePopover } from './usePopover.js'
@@ -30,6 +31,7 @@ export function Waiting({ sessions, tasks }: { sessions: SessionView[]; tasks: T
 export function SystemMenu({ now }: { now: Date }) {
   const { state, link, retryNow } = useLive()
   const { open, setOpen, rootRef } = usePopover()
+  const { send, sending, failure } = useCommand()
   const checks = systemChecks(
     { link, trackers: state?.trackers ?? null, usage: state?.usage ?? null, configError: state?.configError ?? null },
     now,
@@ -68,6 +70,19 @@ export function SystemMenu({ now }: { now: Date }) {
               </li>
             ))}
           </ul>
+          <label className="system__mode">
+            <input
+              type="checkbox"
+              checked={state?.unattended ?? false}
+              disabled={state === null || sending}
+              onChange={(event) => void send('chain/unattended', { on: event.target.checked })}
+            />
+            <span className="system__mode-text">
+              <span className="system__name">{t.status.unattended}</span>
+              <span className="system__detail">{t.status.unattendedHint}</span>
+            </span>
+          </label>
+          {failure !== null && <p className="notice notice--error queue__error">{say(failure)}</p>}
           {link === 'stale' && (
             <button type="button" className="button system__retry" onClick={retryNow}>
               {t.common.retry}

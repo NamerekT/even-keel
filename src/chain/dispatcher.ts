@@ -48,6 +48,7 @@ export interface ChainState {
   skipped: Record<string, string[]>
   leftovers: Record<string, Leftover[]>
   released: Record<string, string[]>
+  unattended: boolean
 }
 
 export type ReleaseReason = 'postpone' | 'skip'
@@ -78,7 +79,6 @@ export interface DispatcherDeps {
   blocked: () => Notice | undefined
   busy: (task: string) => boolean
   midTurn: (task: string) => boolean
-  unattended: () => boolean
   save: (state: ChainState) => void
   journal: (entry: LaunchEntry) => void
   now: () => Date
@@ -95,7 +95,7 @@ export interface DispatcherDeps {
 }
 
 export function emptyChainState(): ChainState {
-  return { active: null, queue: [], orders: {}, skipped: {}, leftovers: {}, released: {} }
+  return { active: null, queue: [], orders: {}, skipped: {}, leftovers: {}, released: {}, unattended: false }
 }
 
 export class Dispatcher {
@@ -232,6 +232,12 @@ export class Dispatcher {
     if (kept.length === 0) delete this.state.leftovers[project]
     else this.state.leftovers[project] = kept
     this.deps.save(this.state)
+  }
+
+  setUnattended(on: boolean): void {
+    if (this.state.unattended === on) return
+    this.state.unattended = on
+    this.changed()
   }
 
   unskip(project: string, task: string): void {
@@ -566,7 +572,7 @@ export class Dispatcher {
   }
 
   private unanswered(current: CurrentTask): boolean {
-    if (!this.deps.unattended() || this.deps.midTurn(current.task) || this.deps.limited(current.task) !== undefined) return false
+    if (!this.state.unattended || this.deps.midTurn(current.task) || this.deps.limited(current.task) !== undefined) return false
     const session = this.deps.handoff(current.task)
     if (session === undefined || session.sessionId !== current.sessionId || session.checkpoint !== null) return false
     const moments = [current.since, current.resumedAt, session.lastReplyAt].filter((at) => at != null)

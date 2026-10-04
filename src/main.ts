@@ -236,7 +236,7 @@ const agentStatus = (task: string) => {
 
 const planFor = (task: string, prompt: string): LaunchPlan => {
   const known = [...tasksByProject.values()].flat().find((each) => each.id === task)
-  const full = withUnattended(prompt, configFile.current.unattended, promptLanguage())
+  const full = withUnattended(prompt, dispatcher.state.unattended, promptLanguage())
   const plan = launchPlan(known, full, configFile.current.modelPrompts)
   if (plan.warning !== null) console.warn(plan.warning)
   return plan
@@ -301,7 +301,6 @@ const dispatcher = new Dispatcher(loadChainState(chainFile), {
     return status === 'busy' || status === 'waiting'
   },
   midTurn: (task) => agentStatus(task) === 'busy',
-  unattended: () => configFile.current.unattended,
   save: (state) => {
     saveChainState(chainFile, state)
     hub.broadcast('state', getState())
@@ -417,7 +416,7 @@ const getState = (): EvenKeelState => ({
   configError: configFile.error,
   mcpMissing: mcp.missing,
   language: configFile.current.language,
-  unattended: configFile.current.unattended,
+  unattended: dispatcher.state.unattended,
 })
 
 const server = createEvenKeelServer({

@@ -64,6 +64,21 @@ describe('Dispatcher in the unattended mode', () => {
     expect(dispatcher.state.skipped).toEqual({})
   })
 
+  it('is switched from the page and saved with the chain', async () => {
+    const { dispatcher, saved, launched } = await running({ unattended: false }, session('2026-09-26T11:00:00.000Z'))
+    expect(launched).toEqual([])
+
+    dispatcher.setUnattended(true)
+    await dispatcher.idle()
+    expect(saved.at(-1)?.unattended).toBe(true)
+    expect(dispatcher.state.skipped).toEqual({ ABC: ['ABC-1'] })
+    expect(launched).toEqual(['ABC/ABC-2'])
+
+    const count = saved.length
+    dispatcher.setUnattended(true)
+    expect(saved).toHaveLength(count)
+  })
+
   it('does nothing outside the unattended mode', async () => {
     const { dispatcher } = await running({ unattended: false }, session('2026-09-26T11:00:00.000Z'))
     expect(dispatcher.state.skipped).toEqual({})

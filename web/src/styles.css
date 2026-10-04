@@ -414,6 +414,26 @@ h1 {
   align-self: flex-start;
 }
 
+.system__mode {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding-top: 10px;
+  border-top: 1px solid var(--border);
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.system__mode input {
+  margin: 2px 0 0;
+}
+
+.system__mode-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
 .queue-toggle {
   display: inline-flex;
   align-items: center;

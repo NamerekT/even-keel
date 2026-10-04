@@ -46,7 +46,9 @@ export function setup(options: SetupOptions = {}) {
   const saved: ChainState[] = []
   const journal: LaunchEntry[] = []
   let counter = 0
-  const dispatcher = new Dispatcher(options.state ?? emptyChainState(), {
+  const state = options.state ?? emptyChainState()
+  if (options.unattended !== undefined) state.unattended = options.unattended
+  const dispatcher = new Dispatcher(state, {
     projects: options.projects ?? ['ABC', 'XYZ'],
     rules: (project) => options.rules?.[project] ?? DEFAULT_RULES,
     launch: async (project, id) => {
@@ -58,7 +60,6 @@ export function setup(options: SetupOptions = {}) {
     blocked: () => (options.blocked === undefined ? undefined : textNotice(options.blocked)),
     busy: (id) => busy.has(id) || (options.waiting?.has(id) ?? false),
     midTurn: (id) => busy.has(id) && !(options.waiting?.has(id) ?? false),
-    unattended: () => options.unattended ?? false,
     save: (state) => saved.push(structuredClone(state)),
     journal: (entry) => journal.push(entry),
     now: () => clock.now,

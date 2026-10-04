@@ -55,8 +55,7 @@ export const en: Messages = {
     limitHold: (at: string) => `Usage limit reached — the next task starts after the reset at ${at}.`,
     mcp: (projects: string, server: string) =>
       `Brief is off in ${projects}, but sessions don't see the MCP server "${server}" — they get only the task ID. Turn brief on or add the server.`,
-    unattended:
-      'Unattended mode: sessions ask no questions; a task held by a question stays on its branch and goes to Backlog, and the chain skips a session that ended its turn without Done after 10 minutes. Turned off by the unattended key in even-keel.config.json.',
+    unattended: 'Unattended mode is on: sessions ask no questions. Turn it off in the status menu (the gear).',
   },
   limits: {
     fiveHour: '5 hours',
@@ -75,6 +74,9 @@ export const en: Messages = {
     waitingTail: ' for a reply',
     panel: 'System status',
     heading: 'Status',
+    unattended: 'Unattended',
+    unattendedHint:
+      'For when nobody will answer, e.g. overnight. Sessions ask no questions: a task held by one is committed on its branch unmerged, the question is left in the task and the task goes to Backlog. A session idle for 10 minutes without Done is skipped.',
   },
   system: {
     server: 'Even Keel server',

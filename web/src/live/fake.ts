@@ -536,6 +536,7 @@ function fakeCommand(state: EvenKeelState, name: string, body: Record<string, un
   if (name === 'chain/unskip') return unskip(state, String(body.project), String(body.task))
   if (name === 'chain/dismiss') return dismiss(state, String(body.project), String(body.task))
   if (name === 'chain/restart') return restart(state, String(body.project), String(body.task))
+  if (name === 'chain/unattended') return { ...state, unattended: body.on === true }
   if (name.startsWith('account/')) return { ...state, account: accountCommand(state.account, name, body) }
   throw new Error(`fake: ${name} is not supported`)
 }

@@ -29,6 +29,7 @@ One chain is active at a time; other projects wait in a queue and start when it 
 - **Slots.** For repositories with heavy ignored caches (Unity's `Library`, big `node_modules`) a project can use a pool of permanent worktrees instead of a fresh one per task, so the next task rebuilds only the difference.
 - **Handoffs.** A session that hit the usage limit is resumed after the reset if its prompt cache is still warm, otherwise stopped and replaced by a new session in the same worktree with a handoff prompt. The same handoff happens when a session ends its turn with a `CHECKPOINT: <path to a note>` line — the [checkpoint](plugins/checkpoint) plugin asks for it once the context grows past 150k tokens — and when you press **New session** on the page.
 - **Hands off a stopped session.** A session that asks a question or fails is left alone: you answer it — from your phone through Remote Control, if you like — or move the task in the tracker yourself. Even Keel never writes into a session that stopped on its own. You can skip a task, and a session that files a blocker for its task gets the task postponed until the blocker is done.
+- **Unattended mode.** For when nobody will answer, e.g. overnight — a switch in the status menu (the gear). Sessions are told to ask nothing, to do everything a question does not hold, and to park a task held by one: committed on its branch, unmerged, the question left in the task, the task moved to Backlog. A session that sits 10 minutes without the task done is skipped, so one stuck session does not stop the night.
 - **Accounts.** Several Claude subscriptions, one config folder each. Log in, renew and remove accounts from the page, pick the one the chain uses; when one account runs out of limit, switch to another and the chain carries on. The page also switches the account of the Claude Code extension in VS Code.
 - **Limits.** The 5-hour and weekly windows of every account, read with the CLI's own `/usage` command (no quota spent). While a window is exhausted the next task waits for its reset.
 - **Statistics.** A built-in collector (Tally) reads the session transcripts every five minutes into an embedded Postgres ([PGlite](https://pglite.dev)): spend by day and project, cost and time per task, where sessions got stuck, slow commands, estimates against actual time, and before/after comparisons of changes to your rule files. All of it on the `/stats` page.
@@ -168,7 +169,7 @@ On Linux it installs a systemd user unit (`systemctl --user status even-keel`, l
 
 ## Configuration
 
-`even-keel.config.json`, starting from [even-keel.config.example.json](even-keel.config.example.json). The service rereads it on the fly: `chain`, `brief`, `modelPrompts`, `stats`, `language`, `promptLanguage` and `unattended` apply at once, the rest after a restart. A broken file keeps the last good one running and shows the error on the page.
+`even-keel.config.json`, starting from [even-keel.config.example.json](even-keel.config.example.json). The service rereads it on the fly: `chain`, `brief`, `modelPrompts`, `stats`, `language` and `promptLanguage` apply at once, the rest after a restart. A broken file keeps the last good one running and shows the error on the page.
 
 | Key | Default | |
 | --- | --- | --- |
@@ -190,7 +191,6 @@ On Linux it installs a systemd user unit (`systemctl --user status even-keel`, l
 | `stats.compare` | `{ "minTasks": 5, "minSessions": 10, "days": 7 }` | before/after comparisons on `/stats`: minimum sample and days on each side |
 | `language` | the browser's | language of the page: `en` or `ru` |
 | `promptLanguage` | `language`, then `en` | language of the prompts Even Keel sends to sessions |
-| `unattended` | `false` | for when nobody will answer, e.g. overnight: sessions are told to ask nothing, to do everything a question does not hold, and to park a task held by one — committed on its branch, unmerged, question in a comment, moved to Backlog; a session that ended its turn without the task done is skipped after 10 minutes |
 
 Statuses are matched by name, case-insensitively. Without `active` and `terminal` the chain goes by status category, so the backlog stays out and a task enters the chain when you move it to a ready status. Status names differ between trackers: if you set them at the top level, a project on another tracker needs its own (GitHub's are `Open`, `Completed`, `Not planned`, `Duplicate`; Linear's are the team's workflow states), as in the example.
 

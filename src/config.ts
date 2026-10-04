@@ -24,7 +24,6 @@ export interface EvenKeelConfig {
   stats: StatsConfig
   language: Language | null
   promptLanguage: Language
-  unattended: boolean
 }
 
 export interface StatsConfig {
@@ -53,7 +52,7 @@ export function parseConfig(raw: unknown, adapters: AdapterShapes = ADAPTERS): E
   if (typeof input.projects !== 'object' || input.projects === null) throw fail('config.projects', {})
   const shared = { ...DEFAULT_RULES, ...parseRules(input.chain, 'chain') }
   const sharedTracker = parseTracker(input.tracker ?? DEFAULT_TRACKER, 'tracker', Object.keys(adapters))
-  const sharedBrief = parseFlag(input.brief ?? true, 'brief')
+  const sharedBrief = parseBrief(input.brief ?? true, 'brief')
   const language = parseLanguage(input.language, 'language')
   const projects: Record<string, string> = {}
   const rules: Record<string, ChainRules> = {}
@@ -73,7 +72,7 @@ export function parseConfig(raw: unknown, adapters: AdapterShapes = ADAPTERS): E
     trackers[key] = tracker === undefined ? sharedTracker : parseTracker(tracker, `${key}.tracker`, Object.keys(adapters))
     const projectKey = adapters[trackers[key]]?.projectKey
     if (projectKey !== undefined && !(projectKey.optional && fields[projectKey.key] === undefined)) trackerProjects[key] =parseTrackerProject(fields[projectKey.key], `${key}.${projectKey.key}`, projectKey)
-    briefs[key] = brief === undefined ? sharedBrief : parseFlag(brief, `${key}.brief`)
+    briefs[key] = brief === undefined ? sharedBrief : parseBrief(brief, `${key}.brief`)
   }
 
   return {
@@ -91,15 +90,14 @@ export function parseConfig(raw: unknown, adapters: AdapterShapes = ADAPTERS): E
     stats: parseStats(input.stats),
     language,
     promptLanguage: parseLanguage(input.promptLanguage, 'promptLanguage') ?? language ?? DEFAULT_LANGUAGE,
-    unattended: parseFlag(input.unattended ?? false, 'unattended'),
   }
 }
 
 export function liveConfig(current: EvenKeelConfig, next: EvenKeelConfig): EvenKeelConfig {
   const keep = <T>(field: Record<string, T>, fallback: Record<string, T>) =>
     Object.fromEntries(Object.keys(current.projects).map((key) => [key, field[key] ?? fallback[key]!]))
-  const { modelPrompts, stats, language, promptLanguage, unattended } = next
-  return { ...current, rules: keep(next.rules, current.rules), briefs: keep(next.briefs, current.briefs), modelPrompts, stats, language, promptLanguage, unattended }
+  const { modelPrompts, stats, language, promptLanguage } = next
+  return { ...current, rules: keep(next.rules, current.rules), briefs: keep(next.briefs, current.briefs), modelPrompts, stats, language, promptLanguage }
 }
 
 function parseLanguage(raw: unknown, where: string): Language | null {
@@ -124,7 +122,7 @@ function parseTrackerProject(raw: unknown, where: string, { pattern, example }: 
   return raw.trim()
 }
 
-function parseFlag(raw: unknown, where: string): boolean {
+function parseBrief(raw: unknown, where: string): boolean {
   if (typeof raw !== 'boolean') throw fail('config.brief', { where })
   return raw
 }
