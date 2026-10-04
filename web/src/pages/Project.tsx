@@ -31,7 +31,7 @@ export function Project({ state }: { state: EvenKeelState }) {
   if (!state.projects.includes(key)) return <NotFound what={t.notFound.project(key)} />
 
   const order = state.chain.projects[key]
-  const selected = blocks.find((block) => block.id === focus)
+  const selected = blocks.find((block) => block.id === focus && !block.locked)
 
   return (
     <section className={selected === undefined ? 'project' : 'project project--panel'}>
@@ -47,7 +47,7 @@ export function Project({ state }: { state: EvenKeelState }) {
         {blocks.length === 0 ? (
           <p className="placeholder">{order === undefined ? t.project.chainNotLoaded : t.project.chainEmpty}</p>
         ) : (
-          <ChainList key={key} project={key} chain={blocks} scale={state.context} focus={focus} />
+          <ChainList key={key} project={key} chain={blocks} scale={state.context} trackerUrls={state.trackerUrls} focus={focus} />
         )}
         <StatsStrip key={`stats-${key}`} project={key} />
       </div>

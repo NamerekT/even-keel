@@ -1240,6 +1240,16 @@ a:focus-visible {
   background: color-mix(in srgb, var(--fg-muted) 18%, transparent);
 }
 
+.block--locked {
+  border-style: dashed;
+  opacity: 0.6;
+}
+
+.block--locked .block__title,
+.block--locked .block__key {
+  color: var(--fg-muted);
+}
+
 .block__return {
   position: relative;
   z-index: 1;

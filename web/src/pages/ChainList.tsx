@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState, type CSSProperties } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router'
-import type { ContextScale } from '../../../src/state.js'
+import { withWaiting } from '../../../src/chain/order.js'
+import type { ContextScale, TrackerUrls } from '../../../src/state.js'
 import { say, t } from '../i18n/index.js'
 import { useCommand } from '../live/useCommand.js'
-import { checkpointHandoffs, type BlockLamp, type ChainBlock } from '../state.js'
+import { checkpointHandoffs, issueLink, type BlockLamp, type ChainBlock } from '../state.js'
 import { ARCHIVE_PAGE, archiveView } from '../ui/archive.js'
 import { CacheClock } from '../ui/CacheClock.js'
 import { ContextMeter } from '../ui/ContextMeter.js'
@@ -18,6 +19,7 @@ interface Props {
   project: string
   chain: ChainBlock[]
   scale: ContextScale
+  trackerUrls: TrackerUrls
   focus: string
 }
 
@@ -31,7 +33,7 @@ interface Relation {
   badge: boolean
 }
 
-export function ChainList({ project, chain, scale, focus }: Props) {
+export function ChainList({ project, chain, scale, trackerUrls, focus }: Props) {
   const [pages, setPages] = useState(0)
   const [revealed, setRevealed] = useState(0)
   const { send, sending, failure } = useCommand()
@@ -47,7 +49,7 @@ export function ChainList({ project, chain, scale, focus }: Props) {
   const blocks = view.sections.flatMap((section) => section.blocks)
   const shown = new Set(blocks.map((block) => block.id))
   const hidden = openIds(ordered).filter((id) => !shown.has(id))
-  const open = new Set(openIds(ordered))
+  const open = new Set(linkedIds(ordered))
   const numbers = new Map(openIds(blocks).map((id, index) => [id, index + 1]))
   const [hovered, setHovered] = useState<string | null>(null)
   const listRef = useRef<HTMLDivElement>(null)
@@ -103,6 +105,7 @@ export function ChainList({ project, chain, scale, focus }: Props) {
                 <Block
                   key={block.id}
                   block={block}
+                  link={block.locked ? issueLink(trackerUrls, block.id) : null}
                   number={numbers.get(block.id)}
                   waits={block.blockedBy.filter((id) => open.has(id))}
                   scale={scale}
@@ -145,13 +148,14 @@ export function ChainList({ project, chain, scale, focus }: Props) {
         ))}
       </ul>
       <p className="chain__hint">{t.chain.linksHint}</p>
+      {blocks.some((block) => block.locked) && <p className="chain__hint">{t.chain.lockedHint}</p>}
       {blocks.some((block) => movable(block)) && <p className="chain__hint">{t.chain.dragHint}</p>}
     </div>
   )
 }
 
 function Milestone({ section, hidden = false }: { section: Section<ChainBlock>; hidden?: boolean }) {
-  const tasks = t.chain.tasks(section.blocks.length)
+  const tasks = t.chain.tasks(section.blocks.filter((block) => !block.locked).length)
   return (
     <h2 className={hidden ? 'chain__milestone chain__milestone--hidden' : 'chain__milestone'}>
       <span className="chain__milestone-name">{section.milestone ?? t.chain.noMilestone}</span>
@@ -163,6 +167,7 @@ function Milestone({ section, hidden = false }: { section: Section<ChainBlock>; 
 
 interface BlockProps {
   block: ChainBlock
+  link: string | null
   number: number | undefined
   waits: string[]
   scale: ContextScale
@@ -174,10 +179,11 @@ interface BlockProps {
   onReturn: (() => void) | undefined
 }
 
-function Block({ block, number, waits, scale, focused, movable, relation, offset, onHover, onReturn }: BlockProps) {
+function Block({ block, link, number, waits, scale, focused, movable, relation, offset, onHover, onReturn }: BlockProps) {
   const classes = ['block', `block--${block.lamp}`]
   if (block.current) classes.push('block--current')
   if (block.skipped) classes.push('block--skipped')
+  if (block.locked) classes.push('block--locked')
   if (focused) classes.push('block--focus')
   if (movable) classes.push('block--movable')
   if (waits.length > 0) classes.push('block--blocked')
@@ -198,15 +204,25 @@ function Block({ block, number, waits, scale, focused, movable, relation, offset
     >
       <span className="block__number">{number}</span>
       <div className="block__head">
-        <Lamp lamp={block.lamp} />
-        <Link
-          to={{ hash: block.id }}
-          className="block__key"
-          draggable={false}
-          aria-current={focused ? 'true' : undefined}
-        >
-          {block.id}
-        </Link>
+        {block.locked ? <LockIcon /> : <Lamp lamp={block.lamp} />}
+        {block.locked ? (
+          link === null ? (
+            <span className="block__key">{block.id}</span>
+          ) : (
+            <a href={link} className="block__key" target="_blank" rel="noreferrer" draggable={false} title={t.chain.lockedTitle}>
+              {block.id}
+            </a>
+          )
+        ) : (
+          <Link
+            to={{ hash: block.id }}
+            className="block__key"
+            draggable={false}
+            aria-current={focused ? 'true' : undefined}
+          >
+            {block.id}
+          </Link>
+        )}
       </div>
       <p className="block__title">{block.title}</p>
       <div className="block__side">
@@ -256,8 +272,8 @@ function LockIcon() {
 }
 
 function relativesOf(blocks: ChainBlock[], id: string | null): Relatives | null {
-  if (id === null || !blocks.some((block) => block.id === id && block.open)) return null
-  const found = relatives(openIds(blocks), new Map(blocks.map((block) => [block.id, block.blockedBy])), id)
+  if (id === null || !blocks.some((block) => block.id === id && (block.open || block.locked))) return null
+  const found = relatives(linkedIds(blocks), blockersOf(blocks), id)
   return { blockers: new Set(found.blockers), dependents: new Set(found.dependents) }
 }
 
@@ -275,11 +291,21 @@ function openIds(blocks: ChainBlock[]): string[] {
   return blocks.filter((block) => block.open).map((block) => block.id)
 }
 
+function linkedIds(blocks: ChainBlock[]): string[] {
+  return blocks.filter((block) => block.open || block.locked).map((block) => block.id)
+}
+
+function blockersOf(blocks: ChainBlock[]): Map<string, string[]> {
+  return new Map(blocks.map((block) => [block.id, block.blockedBy]))
+}
+
 function withOrder(chain: ChainBlock[], order: string[]): ChainBlock[] {
   const byId = new Map(chain.map((block) => [block.id, block]))
-  const open = order.flatMap((id) => byId.get(id) ?? [])
+  const open = order.filter((id) => byId.has(id))
   if (open.length !== openIds(chain).length) return chain
-  return [...chain.filter((block) => !block.open), ...open]
+  const locked = chain.filter((block) => block.locked).map((block) => block.id)
+  const placed = withWaiting(open, locked, blockersOf(chain)).map((id) => byId.get(id)!)
+  return [...chain.filter((block) => !block.open && !block.locked), ...placed]
 }
 
 function listClass(dragging: boolean, landing: boolean): string {

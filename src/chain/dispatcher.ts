@@ -2,7 +2,7 @@ import type { FinishOutcome } from '../git/types.js'
 import type { Language } from '../language.js'
 import { fail, notice, NoticeError, noticeOf, type Notice } from '../notice/notice.js'
 import type { Task } from '../tracker/model.js'
-import { chainOrder, checkOrder, nextTask, openBlockers, withFresh } from './order.js'
+import { chainOrder, checkOrder, nextTask, openBlockers, waitingBlockers, withFresh } from './order.js'
 import { admits, isActive, isDone, isTerminal, type ChainRules } from './rules.js'
 import {
   handoffPrompt,
@@ -61,6 +61,7 @@ export interface LaunchEntry {
 
 export interface ProjectOrder {
   order: string[]
+  waiting: string[]
   error: Notice | null
 }
 
@@ -92,6 +93,7 @@ export function emptyChainState(): ChainState {
 
 export class Dispatcher {
   private readonly tasks = new Map<string, Task[]>()
+  private readonly waiting = new Map<string, Task[]>()
   private readonly done = new Map<string, Set<string>>()
   private readonly releasedDone = new Map<string, Set<string>>()
   private work: Promise<void> = Promise.resolve()
@@ -103,7 +105,10 @@ export class Dispatcher {
 
   setTasks(project: string, tasks: Task[]): void {
     const rules = this.deps.rules(project)
-    this.tasks.set(project, tasks.filter((task) => admits(rules, task) && this.enters(project, task, rules)))
+    const admitted = tasks.filter((task) => admits(rules, task))
+    const chain = admitted.filter((task) => this.enters(project, task, rules))
+    this.tasks.set(project, chain)
+    this.waiting.set(project, waitingBlockers(chain, admitted.filter((task) => !chain.includes(task))))
     this.done.set(project, new Set(tasks.filter((task) => isDone(rules, task.status)).map((task) => task.id)))
     const placed = this.placeNew(project)
     if (this.forgetClosed(project) || placed) this.deps.save(this.state)
@@ -249,10 +254,11 @@ export class Dispatcher {
   orders(): Record<string, ProjectOrder> {
     const result: Record<string, ProjectOrder> = {}
     for (const [project, tasks] of this.tasks) {
+      const waiting = this.waitingIds(project)
       try {
-        result[project] = { order: chainOrder(tasks, this.preferred(project)), error: null }
+        result[project] = { order: chainOrder(tasks, this.preferred(project)), waiting, error: null }
       } catch (error) {
-        result[project] = { order: [], error: noticeOf(error) }
+        result[project] = { order: [], waiting, error: noticeOf(error) }
       }
     }
     return result
@@ -268,6 +274,10 @@ export class Dispatcher {
 
   private requireProject(project: string): void {
     if (!this.deps.projects.includes(project)) throw fail('chain.unknownProject', { project })
+  }
+
+  private waitingIds(project: string): string[] {
+    return (this.waiting.get(project) ?? []).map((task) => task.id)
   }
 
   private currentOf(project: string): string | undefined {
@@ -420,7 +430,7 @@ export class Dispatcher {
           this.letGo(chain)
           this.deps.save(this.state)
         } else {
-          const blockers = openBlockers(tasks, task)
+          const blockers = openBlockers([...tasks, ...(this.waiting.get(chain.project) ?? [])], task)
           if (blockers.length === 0 || this.deps.busy(task)) {
             if (!(await this.followLimit(chain, chain.current))) await this.followCheckpoint(chain, chain.current)
             return
@@ -438,7 +448,7 @@ export class Dispatcher {
         return
       }
 
-      const task = nextTask(tasks, order, this.state.skipped[chain.project] ?? [])
+      const task = nextTask(tasks, order, [...(this.state.skipped[chain.project] ?? []), ...this.waitingIds(chain.project)])
       if (task === undefined) {
         this.state.active = null
         this.deps.save(this.state)

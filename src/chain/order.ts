@@ -76,9 +76,9 @@ export function checkOrder(tasks: Task[], order: string[]): void {
   }
 }
 
-export function nextTask(tasks: Task[], order: string[], skipped: string[]): string | undefined {
+export function nextTask(tasks: Task[], order: string[], holding: string[]): string | undefined {
   const blockers = new Map(tasks.map((task) => [task.id, task.blockedBy]))
-  const held = new Set(skipped)
+  const held = new Set(holding)
   for (const id of order) {
     if (!held.has(id) && !(blockers.get(id) ?? []).some((other) => held.has(other))) return id
     held.add(id)
@@ -89,6 +89,59 @@ export function nextTask(tasks: Task[], order: string[], skipped: string[]): str
 export function openBlockers(tasks: Task[], id: string): string[] {
   const ids = new Set(tasks.map((task) => task.id))
   return tasks.find((task) => task.id === id)?.blockedBy.filter((other) => ids.has(other)) ?? []
+}
+
+export function waitingBlockers(chain: Task[], outside: Task[]): Task[] {
+  const byId = new Map(outside.map((task) => [task.id, task]))
+  const found = new Map<string, Task>()
+  const visit = (blockers: string[]) => {
+    for (const id of blockers) {
+      const blocker = byId.get(id)
+      if (blocker === undefined || found.has(id)) continue
+      found.set(id, blocker)
+      visit(blocker.blockedBy)
+    }
+  }
+  for (const task of chain) visit(task.blockedBy)
+  return [...found.values()].sort((a, b) => byNumber(a.id, b.id))
+}
+
+export function withWaiting(order: string[], waiting: string[], blockers: ReadonlyMap<string, readonly string[]>): string[] {
+  if (waiting.length === 0) return order
+  const kept = new Set(waiting)
+  const holds = new Map(waiting.map((id) => [id, [] as string[]]))
+  for (const id of [...order, ...waiting]) {
+    for (const blocker of blockers.get(id) ?? []) if (kept.has(blocker)) holds.get(blocker)!.push(id)
+  }
+  const position = new Map(order.map((id, index) => [id, index]))
+  const first = new Map<string, number>()
+  const firstHeld = (id: string): number => {
+    if (position.has(id)) return position.get(id)!
+    if (first.has(id)) return first.get(id)!
+    first.set(id, Infinity)
+    const index = Math.min(Infinity, ...holds.get(id)!.map(firstHeld))
+    first.set(id, index)
+    return index
+  }
+  const before = new Map<number, string[]>()
+  for (const id of [...waiting].sort(byNumber)) {
+    const index = firstHeld(id)
+    const group = before.get(index)
+    if (group === undefined) before.set(index, [id])
+    else group.push(id)
+  }
+  const placed = (group: string[] | undefined) => (group === undefined ? [] : blockersFirst(group, blockers))
+  return [...order.flatMap((id, index) => [...placed(before.get(index)), id]), ...placed(before.get(Infinity))]
+}
+
+function blockersFirst(group: string[], blockers: ReadonlyMap<string, readonly string[]>): string[] {
+  const rest = [...group]
+  const result: string[] = []
+  while (rest.length > 0) {
+    const free = rest.findIndex((id) => !(blockers.get(id) ?? []).some((other) => rest.includes(other)))
+    result.push(...rest.splice(free < 0 ? 0 : free, 1))
+  }
+  return result
 }
 
 export function precedence(tasks: Task[]): Map<string, string[]> {

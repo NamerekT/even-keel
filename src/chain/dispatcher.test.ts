@@ -38,14 +38,14 @@ describe('Dispatcher', () => {
     expect(launched).toEqual(['ABC/ABC-2'])
   })
 
-  it('takes only the statuses the project names active and does not let the rest block', async () => {
+  it('takes only the statuses the project names active and lets the rest hold their dependents', async () => {
     const { dispatcher, launched } = setup({ rules: { ABC: { ...DEFAULT_RULES, active: ['Todo', 'In Progress'] } } })
     dispatcher.setTasks('ABC', [task('ABC-1', review), task('ABC-2', todo, 'ABC-1'), task('ABC-3', active)])
     dispatcher.start('ABC')
     await dispatcher.idle()
 
-    expect(dispatcher.orders()['ABC']?.order).toEqual(['ABC-2', 'ABC-3'])
-    expect(launched).toEqual(['ABC/ABC-2'])
+    expect(dispatcher.orders()['ABC']).toEqual({ order: ['ABC-2', 'ABC-3'], waiting: ['ABC-1'], error: null })
+    expect(launched).toEqual(['ABC/ABC-3'])
   })
 
   it('moves on without clean-up when the current task reaches a terminal status outside Won', async () => {
@@ -71,13 +71,13 @@ describe('Dispatcher', () => {
     expect(dispatcher.orders()['ABC']?.order).toEqual(['ABC-2'])
   })
 
-  it('leaves backlog tasks out of the chain and does not let them block', async () => {
+  it('leaves backlog tasks out of the chain', async () => {
     const { dispatcher, launched } = setup()
-    dispatcher.setTasks('ABC', [task('ABC-1', backlog), task('ABC-2', todo, 'ABC-1'), task('ABC-3', review)])
+    dispatcher.setTasks('ABC', [task('ABC-1', backlog), task('ABC-2', todo), task('ABC-3', review)])
     dispatcher.start('ABC')
     await dispatcher.idle()
 
-    expect(dispatcher.orders()['ABC']?.order).toEqual(['ABC-2', 'ABC-3'])
+    expect(dispatcher.orders()['ABC']).toEqual({ order: ['ABC-2', 'ABC-3'], waiting: [], error: null })
     expect(launched).toEqual(['ABC/ABC-2'])
   })
 
@@ -367,7 +367,7 @@ describe('Dispatcher', () => {
     expect(() => dispatcher.reorder('ABC', ['ABC-3', 'ABC-2', 'ABC-1'])).toThrow(/ABC-3 cannot go before ABC-2/)
 
     dispatcher.reorder('ABC', ['ABC-2', 'ABC-3', 'ABC-1'])
-    expect(dispatcher.orders().ABC).toEqual({ order: ['ABC-2', 'ABC-3', 'ABC-1'], error: null })
+    expect(dispatcher.orders().ABC).toEqual({ order: ['ABC-2', 'ABC-3', 'ABC-1'], waiting: [], error: null })
     dispatcher.start('ABC')
     await dispatcher.idle()
     expect(launched).toEqual(['ABC/ABC-2'])
@@ -686,11 +686,84 @@ describe('Dispatcher postponing a task', () => {
     expect(launched).toEqual(['ABC/ABC-1', 'ABC/ABC-2'])
   })
 
-  it('keeps the task when its blocker is outside the chain', async () => {
+  it('keeps the task when its blocker is not among the tasks of the project', async () => {
     const { dispatcher, launched } = await running()
     dispatcher.setTasks('ABC', [task('ABC-1', todo, 'XYZ-1'), task('ABC-2'), task('ABC-3')])
     await dispatcher.idle()
     expect(launched).toEqual(['ABC/ABC-1'])
+  })
+
+  it('moves on when the current task gains a blocker in the backlog', async () => {
+    const { dispatcher, launched, journal } = await running()
+    dispatcher.setTasks('ABC', [task('ABC-1', todo, 'ABC-9'), task('ABC-2'), task('ABC-3'), task('ABC-9', backlog)])
+    await dispatcher.idle()
+
+    expect(launched).toEqual(['ABC/ABC-1', 'ABC/ABC-2'])
+    expect(journal[1]).toMatchObject({ task: 'ABC-1', reason: 'postpone', blockers: ['ABC-9'] })
+  })
+})
+
+describe('Dispatcher with a blocker in the backlog', () => {
+  const tasks = (blocker = backlog, ...rest: Task[]) => [task('ABC-1', blocker), task('ABC-2', todo, 'ABC-1'), task('ABC-3'), ...rest]
+
+  it('does not launch a task held by a blocker in the backlog and shows the blocker', async () => {
+    const { dispatcher, launched } = setup()
+    dispatcher.setTasks('ABC', tasks())
+    dispatcher.start('ABC')
+    await dispatcher.idle()
+
+    expect(launched).toEqual(['ABC/ABC-3'])
+    expect(dispatcher.orders()['ABC']).toEqual({ order: ['ABC-2', 'ABC-3'], waiting: ['ABC-1'], error: null })
+  })
+
+  it('shows the backlog blockers of a backlog blocker too', async () => {
+    const { dispatcher } = setup()
+    dispatcher.setTasks('ABC', [task('ABC-1', backlog, 'ABC-4'), task('ABC-2', todo, 'ABC-1'), task('ABC-4', backlog), task('ABC-5', backlog)])
+    expect(dispatcher.orders()['ABC']?.waiting).toEqual(['ABC-1', 'ABC-4'])
+  })
+
+  it('ends the chain when every task left waits on the backlog', async () => {
+    const { dispatcher, launched } = setup()
+    dispatcher.setTasks('ABC', [task('ABC-1', backlog), task('ABC-2', todo, 'ABC-1')])
+    dispatcher.start('ABC')
+    await dispatcher.idle()
+
+    expect(launched).toEqual([])
+    expect(dispatcher.state.active).toBeNull()
+  })
+
+  it('takes the blocker into the chain once it moves to Todo', async () => {
+    const { dispatcher, launched } = setup()
+    dispatcher.setTasks('ABC', tasks())
+    dispatcher.start('ABC')
+    await dispatcher.idle()
+
+    dispatcher.setTasks('ABC', [task('ABC-1', todo), task('ABC-2', todo, 'ABC-1'), task('ABC-3', done)])
+    await dispatcher.idle()
+    expect(launched).toEqual(['ABC/ABC-3', 'ABC/ABC-1'])
+    expect(dispatcher.orders()['ABC']).toEqual({ order: ['ABC-1', 'ABC-2'], waiting: [], error: null })
+  })
+
+  it('frees the task once the blocker is closed', async () => {
+    const { dispatcher, launched } = setup()
+    dispatcher.setTasks('ABC', tasks())
+    dispatcher.start('ABC')
+    await dispatcher.idle()
+
+    dispatcher.setTasks('ABC', tasks(canceled).map((each) => (each.id === 'ABC-3' ? { ...each, status: done } : each)))
+    await dispatcher.idle()
+    expect(launched).toEqual(['ABC/ABC-3', 'ABC/ABC-2'])
+    expect(dispatcher.orders()['ABC']?.waiting).toEqual([])
+  })
+
+  it('does not count a blocker that the labels keep out of the chain', async () => {
+    const { dispatcher, launched } = setup()
+    dispatcher.setTasks('ABC', [{ ...task('ABC-1', backlog), labels: ['Manual'] }, task('ABC-2', todo, 'ABC-1')])
+    dispatcher.start('ABC')
+    await dispatcher.idle()
+
+    expect(launched).toEqual(['ABC/ABC-2'])
+    expect(dispatcher.orders()['ABC']?.waiting).toEqual([])
   })
 })
 

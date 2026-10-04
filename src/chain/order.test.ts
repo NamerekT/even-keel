@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { fakeTask } from '../tracker/fixture.js'
 import type { Task, TaskMilestone, TaskPriority } from '../tracker/model.js'
-import { chainOrder, checkOrder, compareMilestones, nextTask, openBlockers, precedence, withFresh } from './order.js'
+import { chainOrder, checkOrder, compareMilestones, nextTask, openBlockers, precedence, waitingBlockers, withFresh, withWaiting } from './order.js'
 
 const task = (id: string, ...blockedBy: string[]): Task => fakeTask(id, { blockedBy })
 
@@ -262,5 +262,46 @@ describe('openBlockers', () => {
     expect(openBlockers(tasks, 'ABC-2')).toEqual(['ABC-1'])
     expect(openBlockers(tasks, 'ABC-1')).toEqual([])
     expect(openBlockers(tasks, 'ABC-7')).toEqual([])
+  })
+})
+
+describe('waitingBlockers', () => {
+  it('picks the open tasks outside the chain that block a task of the chain', () => {
+    const chain = [task('ABC-1', 'ABC-7'), task('ABC-2'), task('ABC-3', 'ABC-1', 'ABC-5', 'XYZ-1')]
+    const outside = [task('ABC-5'), task('ABC-6'), task('ABC-7')]
+    expect(waitingBlockers(chain, outside).map((each) => each.id)).toEqual(['ABC-5', 'ABC-7'])
+  })
+
+  it('follows a blocker outside the chain to its own blockers outside the chain', () => {
+    const chain = [task('ABC-1', 'ABC-10')]
+    const outside = [task('ABC-10', 'ABC-9'), task('ABC-9', 'ABC-8', 'ABC-1'), task('ABC-8', 'ABC-9'), task('ABC-4')]
+    expect(waitingBlockers(chain, outside).map((each) => each.id)).toEqual(['ABC-8', 'ABC-9', 'ABC-10'])
+  })
+
+  it('finds nothing when the chain has no blockers outside it', () => {
+    expect(waitingBlockers([task('ABC-1'), task('ABC-2', 'ABC-1')], [task('ABC-3')])).toEqual([])
+  })
+})
+
+describe('withWaiting', () => {
+  const blockers = (...tasks: Task[]) => new Map(tasks.map((each) => [each.id, each.blockedBy]))
+
+  it('puts a waiting blocker right before the first task it holds', () => {
+    const graph = blockers(task('ABC-1'), task('ABC-2', 'ABC-9'), task('ABC-3', 'ABC-9'), task('ABC-9'))
+    expect(withWaiting(['ABC-1', 'ABC-2', 'ABC-3'], ['ABC-9'], graph)).toEqual(['ABC-1', 'ABC-9', 'ABC-2', 'ABC-3'])
+  })
+
+  it('puts a waiting blocker of a waiting blocker before it', () => {
+    const graph = blockers(task('ABC-1'), task('ABC-2', 'ABC-9'), task('ABC-9', 'ABC-10'), task('ABC-10'), task('ABC-8'))
+    expect(withWaiting(['ABC-1', 'ABC-2'], ['ABC-8', 'ABC-9', 'ABC-10'], graph)).toEqual(['ABC-1', 'ABC-10', 'ABC-9', 'ABC-2', 'ABC-8'])
+  })
+
+  it('places the blocker by the earliest task it holds, also through another waiting one', () => {
+    const graph = blockers(task('ABC-1', 'ABC-9'), task('ABC-2', 'ABC-8'), task('ABC-9'), task('ABC-8', 'ABC-9'))
+    expect(withWaiting(['ABC-2', 'ABC-1'], ['ABC-8', 'ABC-9'], graph)).toEqual(['ABC-9', 'ABC-8', 'ABC-2', 'ABC-1'])
+  })
+
+  it('leaves the order alone with nothing waiting', () => {
+    expect(withWaiting(['ABC-1', 'ABC-2'], [], new Map())).toEqual(['ABC-1', 'ABC-2'])
   })
 })

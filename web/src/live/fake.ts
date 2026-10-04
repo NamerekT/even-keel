@@ -170,11 +170,12 @@ function fakeState(
       projects: {
         ABC: {
           order: ['ABC-5', 'ABC-6', 'ABC-7', 'ABC-8', 'ABC-9', 'ABC-10', 'ABC-11', 'ABC-13', 'ABC-14', 'ABC-15', 'ABC-12'],
+          waiting: [],
           error: null,
         },
-        DEMO: { order: ['DEMO-7', 'DEMO-8'], error: null },
-        XYZ: { order: [], error: null },
-        OPS: { order: ['OPS-2', 'OPS-3'], error: null },
+        DEMO: { order: ['DEMO-7', 'DEMO-8'], waiting: [], error: null },
+        XYZ: { order: [], waiting: [], error: null },
+        OPS: { order: ['OPS-2', 'OPS-3'], waiting: [], error: null },
       },
       skipped: {},
       leftovers: {},
@@ -247,7 +248,8 @@ function closeCurrent(state: EvenKeelState): EvenKeelState {
   const done = active?.current?.task
   const project = active?.project
   if (done === undefined || project === undefined) return state
-  const order = (state.chain.projects[project]?.order ?? []).filter((id) => id !== done)
+  const { order: stored = [], waiting = [] } = state.chain.projects[project] ?? {}
+  const order = stored.filter((id) => id !== done)
   const next = order[0]
   const since = ago(0)
   return {
@@ -256,7 +258,7 @@ function closeCurrent(state: EvenKeelState): EvenKeelState {
     chain: {
       ...state.chain,
       active: { ...active!, current: next === undefined ? null : { task: next, sessionId: 'fake', since } },
-      projects: { ...state.chain.projects, [project]: { order, error: null } },
+      projects: { ...state.chain.projects, [project]: { order, waiting, error: null } },
     },
     sessions: [
       ...state.sessions.map((view) => (view.task === done ? { ...view, lamp: 'finished' as const } : view)),
@@ -311,7 +313,8 @@ function reorder(state: EvenKeelState, project: string, order: string[]): EvenKe
   checkOrder(tasks, order)
   const current = state.chain.active?.project === project ? state.chain.active.current?.task : undefined
   if (current !== undefined && order[0] !== current) throw fail('chain.currentFirst', { task: current })
-  return { ...state, chain: { ...state.chain, projects: { ...state.chain.projects, [project]: { order: [...order], error: null } } } }
+  const waiting = state.chain.projects[project]?.waiting ?? []
+  return { ...state, chain: { ...state.chain, projects: { ...state.chain.projects, [project]: { order: [...order], waiting, error: null } } } }
 }
 
 function skip(state: EvenKeelState, project: string, task: string): EvenKeelState {
@@ -561,6 +564,15 @@ export function createFakeSource(search: string): LiveSource {
   const active = current.state?.chain.active
   if (params.get('chain') === 'limit' && active) {
     current.state!.chain.active = { ...active, current: null, limitUntil: new Date(Date.now() + 95 * 60_000).toISOString() }
+  }
+  if (params.get('chain') === 'backlog' && current.state !== null) {
+    const { tasks, chain } = current.state
+    current.state.tasks = [
+      ...tasks.map((each) => (each.id === 'ABC-10' ? { ...each, blockedBy: ['ABC-16'] } : each)),
+      task('ABC-16', 'Схема базы статистики', 'Backlog', 'UnStarted', ['ABC-17']),
+      task('ABC-17', 'Выбор хранилища', 'Backlog', 'UnStarted'),
+    ]
+    chain.projects['ABC'] = { ...chain.projects['ABC']!, waiting: ['ABC-16', 'ABC-17'] }
   }
   if (params.get('chain') === 'skip' && current.state !== null) {
     current.state.chain.skipped = { ABC: ['ABC-12'] }

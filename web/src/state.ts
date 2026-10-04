@@ -1,6 +1,6 @@
 import type { AccountView } from '../../src/account/model.js'
 import type { TaskSession } from '../../src/chain/launches.js'
-import { chainOrder, nextTask, precedence } from '../../src/chain/order.js'
+import { chainOrder, nextTask, precedence, withWaiting } from '../../src/chain/order.js'
 import type { LimitHold } from '../../src/chain/relay.js'
 import { isOpen, type Task } from '../../src/tracker/model.js'
 import type { Lamp } from '../../src/sessions/agents.js'
@@ -60,6 +60,7 @@ export interface ChainBlock {
   status: string | null
   lamp: BlockLamp
   open: boolean
+  locked: boolean
   blockedBy: string[]
   milestone: string | null
   after: string[]
@@ -144,8 +145,8 @@ export function limitWaitText(until: string, now: Date): string {
 export function cardTask(state: EvenKeelState, project: string): CardTask | null {
   const active = state.chain.active
   const current = active?.project === project ? active.current?.task : undefined
-  const order = state.chain.projects[project]?.order ?? []
-  const id = current ?? nextTask(projectTasks(state, project), order, state.chain.skipped[project] ?? [])
+  const { order = [], waiting = [] } = state.chain.projects[project] ?? {}
+  const id = current ?? nextTask(projectTasks(state, project), order, [...(state.chain.skipped[project] ?? []), ...waiting])
   if (id === undefined) return null
   const session = taskSession(state.sessions, id)
   return {
@@ -167,17 +168,18 @@ export function chainBlocks(state: EvenKeelState, project: string): ChainBlock[]
   const closed = tasks.filter((task) => !isOpen(task.status))
   const after = precedence(tasks.filter((task) => isOpen(task.status)))
   const order = state.chain.projects[project]
-  const open =
-    order === undefined || order.error !== null
-      ? tasks.filter((task) => isOpen(task.status)).map((task) => task.id).sort(byNumber)
-      : order.order
+  const broken = order === undefined || order.error !== null
+  const waiting = new Set(broken ? [] : order.waiting)
+  const open = broken
+    ? tasks.filter((task) => isOpen(task.status)).map((task) => task.id).sort(byNumber)
+    : withWaiting(order.order, order.waiting, new Map(tasks.map((task) => [task.id, task.blockedBy])))
   const active = state.chain.active
   const current = active?.project === project ? active.current?.task : undefined
   const hold = active?.project === project ? active.current?.limit : undefined
   const pending = hold !== undefined && hold.acted === null ? hold : null
   const skipped = new Set(state.chain.skipped[project] ?? [])
 
-  return [...closedOrder(closed, state.taskSessions), ...open].map((id) => {
+  const blocks = [...closedOrder(closed, state.taskSessions), ...open].map((id) => {
     const task = byId.get(id)
     const session = taskSession(state.sessions, id) ?? null
     return {
@@ -185,7 +187,8 @@ export function chainBlocks(state: EvenKeelState, project: string): ChainBlock[]
       title: task?.title ?? null,
       status: task?.status.name ?? null,
       lamp: blockLamp(task, session),
-      open: task !== undefined && isOpen(task.status),
+      open: task !== undefined && isOpen(task.status) && !waiting.has(id),
+      locked: waiting.has(id),
       blockedBy: task?.blockedBy ?? [],
       milestone: task?.milestone?.label ?? null,
       after: after.get(id) ?? [],
@@ -197,6 +200,10 @@ export function chainBlocks(state: EvenKeelState, project: string): ChainBlock[]
       limit: id === current ? pending : null,
     }
   })
+  for (let index = blocks.length - 2; index >= 0; index--) {
+    if (blocks[index]!.locked) blocks[index]!.milestone = blocks[index + 1]!.milestone
+  }
+  return blocks
 }
 
 export function contextFill(tokens: number, scale: ContextScale): { percent: number; level: ContextLevel } {
