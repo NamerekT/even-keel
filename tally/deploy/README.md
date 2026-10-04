@@ -1,6 +1,6 @@
 # База Tally на сервере
 
-Postgres для статистики сессий: стек `/opt/stacks/tally-stats` на `my-server`, Compose-проект `tally-stats` (закреплён `name:`). Схему создаёт сборщик (BTN-46), здесь — только база, роли и бэкап.
+Postgres для статистики сессий: стек `/opt/stacks/tally-stats` на своём сервере (ниже — `my-server`, пользователь `me`), Compose-проект `tally-stats` (закреплён `name:`). Схему создаёт сборщик (BTN-46), здесь — только база, роли и бэкап.
 
 ## Что внутри
 
@@ -49,7 +49,7 @@ export PGUSER=tally_reader PGDATABASE=tally PGPASSWORD=<пароль читат�
 # с ПК по tailnet — должно пройти
 psql -h <адрес tailnet> -c 'select current_user'
 # с ПК по адресу сервера в локальной сети — соединение должно не установиться
-psql -h 192.0.2.10 -c 'select 1'
+psql -h <адрес в локальной сети> -c 'select 1'
 ```
 
 ## Восстановление

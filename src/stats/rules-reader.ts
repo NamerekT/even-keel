@@ -111,7 +111,7 @@ cross join lateral (
 where x.side is not null
 group by x.side`
 
-// Main-thread API messages of the side's sessions, as in Gamma's session-compare.
+// Main-thread API messages of the side's sessions.
 const SIDE_REQUESTS = `${SIDED}
 select x.side, count(*) as requests, coalesce(sum(r.tokens), 0) as context_tokens,
   count(*) filter (where r.tokens > 150000) as over150, coalesce(sum(p.cost), 0) as request_cost
@@ -234,7 +234,7 @@ export async function readCompare(db: RulesDb, query: CompareQuery, settings: Co
   return compareOf(sides, await readCompareSides(db, query, sides), { ...settings, days })
 }
 
-// Sums of two arbitrary periods; readCompare and the Gamma check in .temp use it.
+// Sums of two arbitrary periods; readCompare uses it.
 export async function readCompareSides(db: RulesDb, filter: StatsFilter & { projects: string[] | null }, sides: CompareSides): Promise<Record<'before' | 'after', SideSums>> {
   const extra = [filter.projects, sides.before.from, sides.before.to, sides.after.from, sides.after.to]
   const [sessions, entry, tools, tasks, requests, models] = await Promise.all(

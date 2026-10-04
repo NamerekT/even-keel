@@ -4,7 +4,7 @@ import { placeOf, taskOf } from './task.js'
 describe('taskOf', () => {
   it('takes the task from a task branch', () => {
     expect(taskOf({ branch: 'btn-46/task', cwd: 'D:\\Projects\\EvenKeel' })).toBe('BTN-46')
-    expect(taskOf({ branch: 'CBL-318/fix-drones' })).toBe('CBL-318')
+    expect(taskOf({ branch: 'GAME-318/fix-drones' })).toBe('GAME-318')
   })
 
   it('takes the task from a worktree folder when the branch says nothing', () => {
@@ -29,7 +29,7 @@ describe('placeOf', () => {
       project: 'EvenKeel',
       dir: 'D:\\Projects\\git\\private\\EvenKeel',
     })
-    expect(placeOf('D:\\Projects\\git\\private\\Gamma')).toEqual({ project: 'Gamma', dir: 'D:\\Projects\\git\\private\\Gamma' })
+    expect(placeOf('D:\\Projects\\git\\private\\Game')).toEqual({ project: 'Game', dir: 'D:\\Projects\\git\\private\\Game' })
     expect(placeOf('/home/john/app/')).toEqual({ project: 'app', dir: '/home/john/app' })
   })
 

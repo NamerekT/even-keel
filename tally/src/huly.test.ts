@@ -3,10 +3,10 @@ import { taskRecords, unknownRelations } from './huly.js'
 
 const issues = [
   {
-    _id: 'i1', identifier: 'CBL-458', title: 'Redo the menu', status: 's1', relations: [{ _id: 'i2' }, { _id: 'i9' }],
+    _id: 'i1', identifier: 'GAME-458', title: 'Redo the menu', status: 's1', relations: [{ _id: 'i2' }, { _id: 'i9' }],
     priority: 2, estimation: 1.5, component: 'c1',
   },
-  { _id: 'i2', identifier: 'CBL-426', title: 'Menu', status: 's2', priority: 0, estimation: 0, component: null },
+  { _id: 'i2', identifier: 'GAME-426', title: 'Menu', status: 's2', priority: 0, estimation: 0, component: null },
 ]
 const statuses = [
   { _id: 's1', name: 'In Progress', category: 'task:statusCategory:Active' },
@@ -22,13 +22,13 @@ const components = [{ _id: 'c1', label: 'Меню' }]
 
 describe('taskRecords', () => {
   it('names statuses, labels, components and related issues', () => {
-    expect(taskRecords(issues, statuses, labels, new Map([['i9', 'CBL-12']]), components)).toEqual([
+    expect(taskRecords(issues, statuses, labels, new Map([['i9', 'GAME-12']]), components)).toEqual([
       {
-        task: 'CBL-458', title: 'Redo the menu', status: 'In Progress', labels: ['Переделка', 'Opus'], related: ['CBL-426', 'CBL-12'],
+        task: 'GAME-458', title: 'Redo the menu', status: 'In Progress', labels: ['Переделка', 'Opus'], related: ['GAME-426', 'GAME-12'],
         priority: 'high', estimateH: 1.5, component: 'Меню', done: false,
       },
       {
-        task: 'CBL-426', title: 'Menu', status: 'Done', labels: [], related: ['CBL-458'],
+        task: 'GAME-426', title: 'Menu', status: 'Done', labels: [], related: ['GAME-458'],
         priority: 'no-priority', estimateH: null, component: null, done: true,
       },
     ])

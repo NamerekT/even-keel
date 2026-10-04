@@ -62,7 +62,7 @@ const KIND_SIGNS: [RegExp, RuleKind][] = [
   [/agents/i, 'agent'],
 ]
 
-// Import paths are free text («Gamma/CLAUDE.md и docs»): the kind named first wins, tools and the like count as settings.
+// Import paths are free text («Game/CLAUDE.md и docs»): the kind named first wins, tools and the like count as settings.
 export function importKind(path: string): RuleKind {
   let best: { index: number; kind: RuleKind } | null = null
   for (const [sign, kind] of KIND_SIGNS) {

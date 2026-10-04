@@ -48,6 +48,6 @@ describe('viewSearch', () => {
     const text = viewSearch(view)
     expect(text).toBe('from=2026-09-04&to=2026-10-03&projects=&scope=chain&account=global&step=m&kinds=claude_md%2Chook&purposes=economy')
     expect(parse(text)).toEqual(view)
-    expect(viewSearch({ ...DEFAULT_VIEW, period: { preset: '7d' }, projects: ['BTN', 'CBL'] })).toBe('range=7d&projects=BTN%2CCBL')
+    expect(viewSearch({ ...DEFAULT_VIEW, period: { preset: '7d' }, projects: ['BTN', 'GAME'] })).toBe('range=7d&projects=BTN%2CGAME')
   })
 })

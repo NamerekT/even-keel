@@ -79,7 +79,7 @@ function projectRule(file: string): RuleFile | null {
   return { key: repoTail(file), display: file, kind, scope: repoTail(match[1]!) }
 }
 
-// Gamma's scan.py heuristic, plus PowerShell copies and redirects into a CLAUDE.md.
+// Shell writes, moves and removals, plus PowerShell copies and redirects into a CLAUDE.md.
 const WRITES =
   /(\brm\b|Remove-Item|\bmv\b|Move-Item|\bcp\b|Copy-Item|>\s*\S*(?:\.claude|CLAUDE\.md)|\btee\b|sed -i|perl -i|Set-Content|Add-Content|Out-File|open\([^)]*['"]w|\.write|writeFileSync)/i
 const TOKEN_SPLIT = /[\s'"`;|&()<>,=]+/
