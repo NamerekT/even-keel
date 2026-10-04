@@ -30,8 +30,8 @@ import { isInside } from './paths.js'
 import { slotOccupants } from './sessions/occupants.js'
 import { locateWorktree } from './sessions/place.js'
 import type { EvenKeelState, SessionView } from './state.js'
-import { readerSettings } from './stats/model.js'
 import { StatsReader } from './stats/reader.js'
+import { TallyService } from './stats/tally.js'
 import { ADAPTERS } from './tracker/adapters.js'
 import { MergeCloser } from './tracker/closer.js'
 import { McpCheck, readMcpSources } from './tracker/mcp.js'
@@ -54,6 +54,9 @@ const APP_POLL_MS = 5_000
 const LOGIN_TIMEOUT_MS = 10 * 60_000
 const LIMIT_CHECK_MS = 30_000
 const CONFIG_POLL_MS = 2_000
+const TALLY_INTERVAL_MS = 5 * 60_000
+const TALLY_FIRST_DELAY_MS = 15_000
+const SHUTDOWN_MS = 15_000
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 try {
@@ -100,7 +103,16 @@ let sessions: SessionView[] = []
 let agents: AgentEntry[] = []
 let agentsRead = false
 const launches: LaunchEntry[] = readLaunches(launchesFile)
-const stats = new StatsReader(readerSettings(process.env), config.projects, () => configFile.current.stats.compare)
+const tally = new TallyService({
+  root,
+  stateDir,
+  env: process.env,
+  intervalMs: TALLY_INTERVAL_MS,
+  firstDelayMs: TALLY_FIRST_DELAY_MS,
+  evenKeelUrl: `http://${['0.0.0.0', '::'].includes(config.host) ? '127.0.0.1' : config.host}:${config.port}`,
+  log: (message) => console.log(message),
+})
+const stats = new StatsReader(tally.reader, config.projects, () => configFile.current.stats.compare)
 let ledger = loadLedger(accountFile)
 
 const saveAccounts = (next: AccountLedger) => {
@@ -427,6 +439,16 @@ account.start()
 vscode.start()
 configFile.watch()
 mcp.run()
+tally.start()
+
+// The local Tally database closes cleanly on a stop signal; the Windows service host kills the process instead,
+// and PGlite recovers from its WAL on the next start.
+for (const signal of ['SIGINT', 'SIGTERM'] as const) {
+  process.once(signal, () => {
+    setTimeout(() => process.exit(0), SHUTDOWN_MS).unref()
+    void tally.stop().finally(() => process.exit(0))
+  })
+}
 
 server.listen(config.port, config.host, () => {
   console.log(`even-keel listening on http://${config.host}:${config.port}`)

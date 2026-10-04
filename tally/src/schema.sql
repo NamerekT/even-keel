@@ -102,9 +102,13 @@ select
     + m.cache_read * p.cache_read + m.output * p.output) / 1000000 as cost
 from messages m
 left join sessions s on s.session_id = m.session_id
-left join lateral (
-  select * from model_prices p where starts_with(m.model, p.model) order by length(p.model) desc limit 1
-) p on true;
+-- The longest price prefix once per model, not per message: per message it cost PGlite 0.6 s on every read.
+left join (
+  select distinct on (used.model) used.model as message_model, p.*
+  from (select distinct model from messages) used
+  join model_prices p on starts_with(used.model, p.model)
+  order by used.model, length(p.model) desc
+) p on p.message_model = m.model;
 
 create or replace view limit_steps as
 select
