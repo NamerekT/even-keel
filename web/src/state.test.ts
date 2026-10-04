@@ -71,6 +71,7 @@ function stateOf(patch: Partial<EvenKeelState>): EvenKeelState {
     configError: null,
     mcpMissing: [],
     language: null,
+    unattended: false,
     ...patch,
   }
 }

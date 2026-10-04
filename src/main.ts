@@ -9,7 +9,7 @@ import { VsCodeAccount, vscodeSettingsFile } from './account/vscode.js'
 import { AccountWatcher } from './account/watcher.js'
 import { Dispatcher, type LaunchEntry } from './chain/dispatcher.js'
 import { launchDays, taskSessions } from './chain/launches.js'
-import { resumePrompt, startPrompt, withBrief } from './chain/relay.js'
+import { resumePrompt, startPrompt, withBrief, withUnattended } from './chain/relay.js'
 import { appendLaunch, loadChainState, readLaunches, saveChainState } from './chain/store.js'
 import { ConfigFile } from './config-file.js'
 import { EventHub } from './events.js'
@@ -229,9 +229,15 @@ const monitor = new SessionMonitor({
   onError: (error) => console.error(`sessions: ${error instanceof Error ? error.message : String(error)}`),
 })
 
+const agentStatus = (task: string) => {
+  const view = sessions.find((each) => each.task === task && each.lamp !== 'finished')
+  return view && agents.find((agent) => agent.sessionId === view.sessionId)?.status
+}
+
 const planFor = (task: string, prompt: string): LaunchPlan => {
   const known = [...tasksByProject.values()].flat().find((each) => each.id === task)
-  const plan = launchPlan(known, prompt, configFile.current.modelPrompts)
+  const full = withUnattended(prompt, configFile.current.unattended, promptLanguage())
+  const plan = launchPlan(known, full, configFile.current.modelPrompts)
   if (plan.warning !== null) console.warn(plan.warning)
   return plan
 }
@@ -291,10 +297,11 @@ const dispatcher = new Dispatcher(loadChainState(chainFile), {
   liveSession: (task) => sessions.find((view) => view.task === task && view.lamp !== 'finished')?.sessionId,
   blocked: () => launchBlock(account.view),
   busy: (task) => {
-    const view = sessions.find((each) => each.task === task && each.lamp !== 'finished')
-    const status = view && agents.find((agent) => agent.sessionId === view.sessionId)?.status
+    const status = agentStatus(task)
     return status === 'busy' || status === 'waiting'
   },
+  midTurn: (task) => agentStatus(task) === 'busy',
+  unattended: () => configFile.current.unattended,
   save: (state) => {
     saveChainState(chainFile, state)
     hub.broadcast('state', getState())
@@ -410,6 +417,7 @@ const getState = (): EvenKeelState => ({
   configError: configFile.error,
   mcpMissing: mcp.missing,
   language: configFile.current.language,
+  unattended: configFile.current.unattended,
 })
 
 const server = createEvenKeelServer({

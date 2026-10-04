@@ -10,6 +10,7 @@ import {
   resumePrompt,
   startPrompt,
   withBrief,
+  withUnattended,
   type HandoffReason,
   type HandoffSession,
   type LimitHold,
@@ -224,6 +225,28 @@ describe('withBrief', () => {
 
   it('fails on a task without a title', () => {
     expect(() => brief(prompt, { title: ' ', description: 'Text' })).toThrow(/Задача из трекера/)
+  })
+})
+
+describe('withUnattended', () => {
+  const prompt = 'ABC-1\n\n- Ветка: abc-1/task — не меняй её.\n'
+
+  it('appends the unattended rules in the prompt language when the mode is on', () => {
+    expect(withUnattended(prompt, true, 'ru')).toBe(`${prompt}\n${PROMPTS.ru.unattended}\n`)
+    expect(withUnattended(prompt, true, 'en')).toContain(PROMPTS.en.unattended)
+  })
+
+  it('keeps the prompt as it is when the mode is off', () => {
+    expect(withUnattended(prompt, false, 'ru')).toBe(prompt)
+  })
+
+  it('tells the session to park the task instead of asking', () => {
+    for (const language of ['ru', 'en'] as const) {
+      const text = PROMPTS[language].unattended
+      expect(text).toMatch(/AskUserQuestion/)
+      expect(text).toMatch(/Backlog/)
+      expect(text).toMatch(/git status/)
+    }
   })
 })
 

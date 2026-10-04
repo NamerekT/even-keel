@@ -27,6 +27,8 @@ export interface SetupOptions {
   failRelay?: boolean
   limitReset?: string | null
   busy?: Set<string>
+  waiting?: Set<string>
+  unattended?: boolean
   located?: Partial<HandoffSession>
   finish?: (task: string) => FinishOutcome
   rules?: Record<string, ChainRules>
@@ -54,7 +56,9 @@ export function setup(options: SetupOptions = {}) {
     },
     liveSession: (id) => options.live?.[id],
     blocked: () => (options.blocked === undefined ? undefined : textNotice(options.blocked)),
-    busy: (id) => busy.has(id),
+    busy: (id) => busy.has(id) || (options.waiting?.has(id) ?? false),
+    midTurn: (id) => busy.has(id) && !(options.waiting?.has(id) ?? false),
+    unattended: () => options.unattended ?? false,
     save: (state) => saved.push(structuredClone(state)),
     journal: (entry) => journal.push(entry),
     now: () => clock.now,

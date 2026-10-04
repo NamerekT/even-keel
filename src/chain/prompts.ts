@@ -16,6 +16,7 @@ export interface PromptTexts {
   begin: string
   recentSteps: string
   lastMessage: string
+  unattended: string
 }
 
 export const PROMPTS: Record<Language, PromptTexts> = {
@@ -38,6 +39,18 @@ export const PROMPTS: Record<Language, PromptTexts> = {
     begin: '- Начни с git status, git log main..HEAD и описания задачи.',
     recentSteps: 'Последние шаги прошлой сессии:',
     lastMessage: 'Последнее сообщение прошлой сессии:',
+    unattended: [
+      'Режим без присмотра: пользователь недоступен, на вопросы до утра никто не ответит. Это правило важнее правил навыков о вопросах и статусах.',
+      '- Вопросов не задавай и ответа не жди: AskUserQuestion не вызывай, ход вопросом не заканчивай.',
+      '- Сделай в задаче всё, что можно сделать без ответа. Вопрос держит только ту часть, которую решает; остальное — код, тесты, документацию — доведи до конца.',
+      '- Вопрос с разумным вариантом по умолчанию тебя не держит: возьми вариант, который дешевле всего откатить, доведи задачу на нём и слей, а вопрос заведи отдельной задачей, как обычно.',
+      '- Если без ответа задачу не закончить:',
+      '  1. Доделай всё, что от ответа не зависит.',
+      '  2. Закоммить работу в ветку задачи так, чтобы git status был пуст: нужное — в коммит, временное — удали. Ветку в main не сливай.',
+      '  3. Комментарием к задаче: что сделано, что осталось, вопрос с вариантами ответа и что меняет каждый. Повесь на задачу ярлык вопроса (Question или Вопрос — какой уже есть в трекере).',
+      '  4. Последним шагом, после последнего коммита, переведи задачу в Backlog: git-хук после коммита двигает задачу вперёд. Через полминуты проверь статус и, если хук его сдвинул, верни Backlog.',
+      '  5. Закончи ход коротким отчётом. Следующую задачу Even Keel возьмёт сам, утром пользователь ответит в задаче или в этой сессии.',
+    ].join('\n'),
   },
   en: {
     resume: 'The usage limit has reset — carry on from where you stopped.',
@@ -58,5 +71,17 @@ export const PROMPTS: Record<Language, PromptTexts> = {
     begin: '- Start with git status, git log main..HEAD and the task description.',
     recentSteps: 'Last steps of the previous session:',
     lastMessage: 'Last message of the previous session:',
+    unattended: [
+      'Unattended mode: the user is away, and nobody will answer a question until morning. This rule outranks what the skills say about questions and statuses.',
+      '- Ask nothing and wait for no answer: do not call AskUserQuestion, do not end the turn with a question.',
+      '- Do everything in the task that can be done without an answer. A question holds only the part it decides; finish the rest — code, tests, docs.',
+      '- A question with a sensible default does not hold you: take the option that is cheapest to undo, finish the task on it and merge, and file the question as its own task, as usual.',
+      '- If the task cannot be finished without an answer:',
+      '  1. Finish everything that does not depend on the answer.',
+      '  2. Commit the work to the task branch so that git status is clean: what is needed goes into a commit, scratch is deleted. Do not merge the branch into main.',
+      '  3. Comment on the task: what is done, what is left, the question with its options and what each would change. Put the question label on the task (Question or Вопрос — whichever the tracker already has).',
+      '  4. As the last step, after the last commit, move the task to Backlog: a git hook moves the task forward after a commit. Check the status half a minute later and set Backlog again if the hook moved it.',
+      '  5. End the turn with a short report. Even Keel takes the next task itself; in the morning the user answers in the task or in this session.',
+    ].join('\n'),
   },
 }

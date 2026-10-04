@@ -1,6 +1,7 @@
 import { Route, Routes } from 'react-router'
 import { pickLanguage, setLanguage, t } from './i18n/index.js'
 import { ConfigBanner } from './layout/ConfigBanner.js'
+import { UnattendedBanner } from './layout/UnattendedBanner.js'
 import { Header } from './layout/Header.js'
 import { LinkBanner } from './layout/LinkBanner.js'
 import { McpBanner } from './layout/McpBanner.js'
@@ -22,6 +23,7 @@ export function App() {
       <LinkBanner />
       <UsageBanner />
       <ConfigBanner />
+      <UnattendedBanner />
       <McpBanner />
       <main className="content">
         {state === null ? (

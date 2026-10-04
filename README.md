@@ -163,7 +163,7 @@ On Linux it installs a systemd user unit (`systemctl --user status even-keel`, l
 
 ## Configuration
 
-`even-keel.config.json`, starting from [even-keel.config.example.json](even-keel.config.example.json). The service rereads it on the fly: `chain`, `brief`, `modelPrompts`, `stats`, `language` and `promptLanguage` apply at once, the rest after a restart. A broken file keeps the last good one running and shows the error on the page.
+`even-keel.config.json`, starting from [even-keel.config.example.json](even-keel.config.example.json). The service rereads it on the fly: `chain`, `brief`, `modelPrompts`, `stats`, `language`, `promptLanguage` and `unattended` apply at once, the rest after a restart. A broken file keeps the last good one running and shows the error on the page.
 
 | Key | Default | |
 | --- | --- | --- |
@@ -185,6 +185,7 @@ On Linux it installs a systemd user unit (`systemctl --user status even-keel`, l
 | `stats.compare` | `{ "minTasks": 5, "minSessions": 10, "days": 7 }` | before/after comparisons on `/stats`: minimum sample and days on each side |
 | `language` | the browser's | language of the page: `en` or `ru` |
 | `promptLanguage` | `language`, then `en` | language of the prompts Even Keel sends to sessions |
+| `unattended` | `false` | for when nobody will answer, e.g. overnight: sessions are told to ask nothing, to do everything a question does not hold, and to park a task held by one — committed on its branch, unmerged, question in a comment, moved to Backlog; a session that ended its turn without the task done is skipped after 10 minutes |
 
 Statuses are matched by name, case-insensitively. Without `active` and `terminal` the chain goes by status category, so the backlog stays out and a task enters the chain when you move it to a ready status. Status names differ between trackers: if you set them at the top level, a project on another tracker needs its own (GitHub's are `Open`, `Completed`, `Not planned`, `Duplicate`; Linear's are the team's workflow states), as in the example.
 
