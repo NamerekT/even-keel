@@ -5,7 +5,7 @@ import { must } from './worktree.js'
 // so a fresh branch that main has simply passed is not taken for a merged one. The start is the oldest
 // entry of the branch reflog; without a reflog the branch is never taken for merged.
 export async function branchMerged(git: Git, repo: string, task: string): Promise<boolean> {
-  const listed = await must(git, repo, ['for-each-ref', '--format=%(refname) %(objectname)', `refs/heads/${task.toLowerCase()}/`], 'list the branches of')
+  const listed = await must(git, repo, ['for-each-ref', '--format=%(refname) %(objectname)', `refs/heads/${task.toLowerCase()}/`], 'listBranches')
   for (const line of listed.out.split(/\r?\n/).filter(Boolean)) {
     const [ref, tip] = line.split(' ') as [string, string]
     if ((await git(repo, ['merge-base', '--is-ancestor', ref, 'main'])).code !== 0) continue

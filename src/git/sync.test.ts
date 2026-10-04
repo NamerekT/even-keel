@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { GitResult } from './types.js'
 import { syncMain } from './sync.js'
+import { notice } from '../notice/notice.js'
 
 const repo = '/home/john/repo'
 
@@ -26,7 +27,7 @@ describe('syncMain', () => {
 
   it('reports a failed alias with its output', async () => {
     const { git } = fakeGit({ sync: { code: 1, out: 'sync: switch to main first' } })
-    expect(await syncMain(git, repo, ['origin'])).toBe('sync: switch to main first')
+    expect(await syncMain(git, repo, ['origin'])).toEqual(notice('sync.alias', { exit: 1 }, { detail: 'sync: switch to main first' }))
   })
 
   it('without the alias, merges main of every remote, then pushes main to each', async () => {
@@ -55,25 +56,25 @@ describe('syncMain', () => {
 
   it('refuses when the main checkout is not on main', async () => {
     const { git, calls } = fakeGit({ ...builtIn, 'branch --show-current': { out: 'abc-7/task' } })
-    expect(await syncMain(git, repo, ['origin'])).toBe(`sync: ${repo} is on abc-7/task, not main; switch it to main`)
+    expect(await syncMain(git, repo, ['origin'])).toEqual(notice('sync.notMain', { repo, branch: 'abc-7/task' }))
     expect(calls.some((call) => call.startsWith('fetch'))).toBe(false)
   })
 
   it('aborts a merge that does not go cleanly and pushes nothing', async () => {
     const { git, calls } = fakeGit({ ...builtIn, 'merge --no-edit origin/main': { code: 1, out: 'CONFLICT (content): a.ts' } })
-    expect(await syncMain(git, repo, ['origin'])).toBe('sync: origin/main does not merge cleanly into main, merge it by hand: CONFLICT (content): a.ts')
+    expect(await syncMain(git, repo, ['origin'])).toEqual(notice('sync.merge', { remote: 'origin' }, { detail: 'CONFLICT (content): a.ts' }))
     expect(calls).toContain('merge --abort')
     expect(calls.some((call) => call.startsWith('push'))).toBe(false)
   })
 
   it('stops at a fetch that fails', async () => {
     const { git, calls } = fakeGit({ ...builtIn, 'fetch origin': { code: 128, out: 'could not resolve host' } })
-    expect(await syncMain(git, repo, ['origin'])).toBe('sync: could not fetch origin: could not resolve host')
+    expect(await syncMain(git, repo, ['origin'])).toEqual(notice('sync.fetch', { remote: 'origin' }, { detail: 'could not resolve host' }))
     expect(calls.some((call) => call.startsWith('push'))).toBe(false)
   })
 
   it('reports a rejected push', async () => {
     const { git } = fakeGit({ ...builtIn, 'push origin main': { code: 1, out: 'rejected' } })
-    expect(await syncMain(git, repo, ['origin'])).toBe('sync: could not push main to origin: rejected')
+    expect(await syncMain(git, repo, ['origin'])).toEqual(notice('sync.push', { remote: 'origin' }, { detail: 'rejected' }))
   })
 })

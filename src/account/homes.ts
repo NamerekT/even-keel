@@ -1,6 +1,7 @@
 import { mkdirSync, readdirSync, readFileSync, renameSync, rmSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { join } from 'node:path'
+import { fail } from '../notice/notice.js'
 import { samePath } from '../paths.js'
 import { trackerVariables } from '../tracker/adapters.js'
 import { folderName, GLOBAL_ACCOUNT, parseCredentialTimes, type CredentialTimes } from './model.js'
@@ -74,7 +75,7 @@ export class AccountHomes {
   }
 
   remove(home: AccountHome): void {
-    if (home.global) throw new Error('claude: the global account folder is not removed from here')
+    if (home.global) throw fail('account.globalKept', {})
     rmSync(home.dir, { recursive: true, force: true, maxRetries: 3 })
   }
 

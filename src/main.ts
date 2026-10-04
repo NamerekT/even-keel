@@ -19,6 +19,7 @@ import { finishSlot, prepareSlot, slotPaths, type SlotUse } from './git/slot.js'
 import { ensureIgnored, finishWorktree, prepareWorktree, taskPlace } from './git/worktree.js'
 import { exhaustedReset } from './limits/model.js'
 import { LimitsWatcher } from './limits/watcher.js'
+import { englishOf, fail, notice, noticeOf, type Notice } from './notice/notice.js'
 import { createEvenKeelServer } from './server.js'
 import { ClaudeCli, liveRecords, resolveClaudeBinary } from './sessions/claude.js'
 import type { AgentEntry } from './sessions/agents.js'
@@ -105,7 +106,7 @@ const saveAccounts = (next: AccountLedger) => {
 
 const homeOf = (key: string): AccountHome => {
   const home = homes.find(key)
-  if (home === undefined) throw new Error(`claude: the account folder ${key} is gone`)
+  if (home === undefined) throw fail('account.homeGone', { key })
   return home
 }
 
@@ -252,7 +253,7 @@ const dispatcher = new Dispatcher(loadChainState(chainFile), {
     return (await cli.launch(home, task, place.path, prompt, model)).sessionId
   },
   liveSession: (task) => sessions.find((view) => view.task === task && view.lamp !== 'finished')?.sessionId,
-  blocked: (): string | undefined => launchBlock(account.view),
+  blocked: () => launchBlock(account.view),
   busy: (task) => {
     const view = sessions.find((each) => each.task === task && each.lamp !== 'finished')
     const status = view && agents.find((agent) => agent.sessionId === view.sessionId)?.status
@@ -295,8 +296,8 @@ const dispatcher = new Dispatcher(loadChainState(chainFile), {
     const stopped = await stopTaskSessions(repo, task, count ?? 1)
     const finished = await (count !== undefined ? finishSlot(runGit, repo, task, count) : finishWorktree(runGit, repo, task))
     const outcome = { ...finished, warnings: [...stopped, ...finished.warnings] }
-    for (const warning of outcome.warnings) console.warn(`git: ${warning}`)
-    if (outcome.syncError !== null) console.error(`git: sync of ${project} after ${task} failed: ${outcome.syncError}`)
+    for (const warning of outcome.warnings) console.warn(`git: ${task}: ${englishOf(warning)}`)
+    if (outcome.syncError !== null) console.error(`git: sync of ${project} after ${task} failed: ${englishOf(outcome.syncError)}`)
     return outcome
   },
 })
@@ -308,26 +309,23 @@ function occupantsOf(slot: string, task: string) {
 
 function slotUse(slot: string, task: string): SlotUse {
   const { idle, busy } = occupantsOf(slot, task)
-  return { idle: idle.length > 0, busy: busy.map((each) => `${each.task} (session ${each.agent.sessionId})`) }
+  return { idle: idle.length > 0, busy: busy.map((each) => `${each.task} (${each.agent.sessionId})`) }
 }
 
 async function vacateSlot(slot: string, task: string): Promise<void> {
   const { idle, busy } = occupantsOf(slot, task)
-  if (busy.length > 0) {
-    const names = busy.map((each) => `${each.task} (session ${each.agent.sessionId})`).join(', ')
-    throw new Error(`the slot ${slot} is in use by ${names} mid-turn, ${task} was not started; let it finish or stop it, then resume`)
-  }
+  if (busy.length > 0) throw fail('slot.busyStart', { slot, sessions: busy.map((each) => `${each.task} (${each.agent.sessionId})`), task })
   for (const { agent, task: owner } of idle) {
     try {
       await cli.stop(homeOf(agent.account ?? 'global'), agent.id!, agent.sessionId)
     } catch (error) {
-      throw new Error(`the session ${agent.sessionId} of ${owner} in the slot ${slot} was not stopped, ${task} was not started: ${error instanceof Error ? error.message : String(error)}`, { cause: error })
+      throw fail('slot.stopFailed', { session: agent.sessionId, owner, slot, task }, { cause: noticeOf(error) }, { cause: error })
     }
     console.log(`slot: stopped the session ${agent.sessionId} of ${owner} before ${task} took ${slot}`)
   }
 }
 
-async function stopTaskSessions(repo: string, task: string, count: number): Promise<string[]> {
+async function stopTaskSessions(repo: string, task: string, count: number): Promise<Notice[]> {
   const own = new Set(launches.filter((entry) => entry.task === task).map((entry) => entry.sessionId))
   const slots = slotPaths(repo, count)
   const idle = agents.filter(
@@ -339,12 +337,12 @@ async function stopTaskSessions(repo: string, task: string, count: number): Prom
       agent.state !== 'stopped' &&
       agent.state !== 'failed',
   )
-  const warnings: string[] = []
+  const warnings: Notice[] = []
   for (const agent of idle) {
     try {
       await cli.stop(homeOf(agent.account ?? 'global'), agent.id!, agent.sessionId)
     } catch (error) {
-      warnings.push(`${task}: its session ${agent.sessionId} was not stopped: ${error instanceof Error ? error.message : String(error)}`)
+      warnings.push(notice('cleanup.sessionNotStopped', { session: agent.sessionId }, { cause: noticeOf(error) }))
     }
   }
   return warnings

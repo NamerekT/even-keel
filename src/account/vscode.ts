@@ -1,12 +1,11 @@
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { dirname } from 'node:path'
+import { fail, notice, noticeOf } from '../notice/notice.js'
 import { pathsOf } from '../paths.js'
 import type { SessionRecord } from '../sessions/agents.js'
 import { configDirOf, vscodeChats, withConfigDir, type AppAccount } from './apps.js'
 import type { AccountHome } from './homes.js'
-
-const NO_FILE = 'vscode: the VS Code settings file is only looked for on Windows, macOS and Linux'
 
 export interface VsCodeAccountOptions {
   file: string | null
@@ -58,7 +57,7 @@ export class VsCodeAccount {
 
   point(home: AccountHome): void {
     const file = this.options.file
-    if (file === null) throw new Error(NO_FILE)
+    if (file === null) throw fail('vscode.noFile', {})
     const next = withConfigDir(readText(file), home.global ? null : home.dir)
     mkdirSync(dirname(file), { recursive: true })
     writeFileSync(file, next)
@@ -68,12 +67,12 @@ export class VsCodeAccount {
     const records = await Promise.all(this.options.homes().map((home) => this.options.records(home)))
     const sessions = vscodeChats(records.flat())
     const blank = { app: 'vscode' as const, account: null, dir: null, sessions }
-    if (this.options.file === null) return { ...blank, error: NO_FILE }
+    if (this.options.file === null) return { ...blank, error: notice('vscode.noFile', {}) }
     try {
       const dir = configDirOf(readText(this.options.file))
       return { ...blank, account: this.options.ownerOf(dir) ?? null, dir, error: null }
     } catch (error) {
-      return { ...blank, error: error instanceof Error ? error.message : String(error) }
+      return { ...blank, error: noticeOf(error) }
     }
   }
 }

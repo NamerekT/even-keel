@@ -1,3 +1,5 @@
+import type { Notice } from '../notice/notice.js'
+
 export interface GitResult {
   code: number
   out: string
@@ -11,6 +13,6 @@ export interface TaskPlace {
 }
 
 export interface FinishOutcome {
-  warnings: string[]
-  syncError: string | null
+  warnings: Notice[]
+  syncError: Notice | null
 }

@@ -4,6 +4,7 @@ import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { emptyChainState, type ChainState } from './dispatcher.js'
 import { appendLaunch, loadChainState, readLaunches, saveChainState } from './store.js'
+import { notice, textNotice } from '../notice/notice.js'
 
 const dir = () => mkdtempSync(join(tmpdir(), 'even-keel-state-'))
 
@@ -19,11 +20,21 @@ describe('chain store', () => {
       queue: ['XYZ'],
       orders: { ABC: ['ABC-2', 'ABC-1'] },
       skipped: { ABC: ['ABC-3'] },
-      leftovers: { ABC: [{ task: 'ABC-0', at: 't', text: 'ABC-0: the worktree was kept' }] },
+      leftovers: { ABC: [{ task: 'ABC-0', at: 't', notice: notice('cleanup.worktreeKept', { path: 'C:\\abc' }) }] },
       released: { ABC: ['ABC-4'] },
     }
     saveChainState(file, state)
     expect(loadChainState(file)).toEqual(state)
+  })
+
+  it('reads the English pause reason and leftovers of an older file as plain text', () => {
+    const file = join(dir(), 'chain.json')
+    const active = { project: 'ABC', current: null, paused: true, error: 'chain: launch of ABC-1 failed' }
+    const leftovers = { ABC: [{ task: 'ABC-0', at: 't', text: 'ABC-0: the worktree was kept' }] }
+    writeFileSync(file, JSON.stringify({ active, queue: [], orders: {}, leftovers }))
+    const state = loadChainState(file)
+    expect(state.active?.error).toEqual(textNotice('chain: launch of ABC-1 failed'))
+    expect(state.leftovers).toEqual({ ABC: [{ task: 'ABC-0', at: 't', notice: textNotice('ABC-0: the worktree was kept') }] })
   })
 
   it('reads a file saved before tasks could be skipped or leave leftovers', () => {

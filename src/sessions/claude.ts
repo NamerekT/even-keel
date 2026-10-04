@@ -7,6 +7,7 @@ import { setTimeout as delay } from 'node:timers/promises'
 import { promisify } from 'node:util'
 import type { AccountHome } from '../account/homes.js'
 import { parseAuthStatus, type ClaudeAccount } from '../account/model.js'
+import { fail, notice, NoticeError, type Notice } from '../notice/notice.js'
 import { samePath } from '../paths.js'
 import type { ModelAlias } from '../tracker/model.js'
 import { parseAgents, parseSessionRecord, withLiveRecords, type AgentEntry, type SessionRecord } from './agents.js'
@@ -82,17 +83,17 @@ export class ClaudeCli {
     try {
       await run(this.bin(), ['auth', 'logout'], { env: this.envOf(home), timeout: this.timeoutMs, windowsHide: true })
     } catch (error) {
-      throw new Error(`claude: could not sign out of ${home.key}${outputOf(error)}`, { cause: error })
+      throw fail('claude.signOutFailed', { account: home.key }, { detail: outputOf(error) }, { cause: error })
     }
   }
 
   async launch(home: AccountHome, task: string, cwd: string, prompt: string, model: ModelAlias | null): Promise<AgentEntry> {
     const launchedAt = Date.now()
-    await this.start(home, [...sessionArgs(task, model), prompt], cwd, `start ${task} in ${cwd}`)
+    await this.start(home, [...sessionArgs(task, model), prompt], cwd, notice('claude.startFailed', { task, cwd }))
     return this.appear(
       home,
       (agent) => agent.name === task && samePath(agent.cwd, cwd) && agent.startedAt >= launchedAt - CLOCK_SKEW_MS,
-      `${task} was started but did not show up in claude agents`,
+      notice('claude.notShown', { task }),
     )
   }
 
@@ -105,12 +106,8 @@ export class ClaudeCli {
     model: ModelAlias | null,
   ): Promise<AgentEntry> {
     const args = [...sessionArgs(task, model), '--resume', sessionId, prompt]
-    await this.start(home, args, cwd, `resume ${task} in ${cwd}`)
-    return this.appear(
-      home,
-      (agent) => agent.sessionId === sessionId && !isOver(agent),
-      `${task} was resumed but did not show up in claude agents`,
-    )
+    await this.start(home, args, cwd, notice('claude.resumeFailed', { task, cwd }))
+    return this.appear(home, (agent) => agent.sessionId === sessionId && !isOver(agent), notice('claude.resumedNotShown', { task }))
   }
 
   async stop(home: AccountHome, agentId: string, sessionId: string): Promise<void> {
@@ -119,7 +116,7 @@ export class ClaudeCli {
     try {
       await run(this.bin(), ['stop', agentId], { env: this.envOf(home), timeout: this.timeoutMs, windowsHide: true })
     } catch (error) {
-      throw new Error(`claude: could not stop ${agentId}${outputOf(error)}`, { cause: error })
+      throw fail('claude.stopFailed', { agent: agentId }, { detail: outputOf(error) }, { cause: error })
     }
     const deadline = Date.now() + APPEAR_TIMEOUT_MS
     while (Date.now() < deadline) {
@@ -127,34 +124,34 @@ export class ClaudeCli {
       if (isGone(agent) && !isAlive(running.pid)) return
       await delay(APPEAR_POLL_MS)
     }
-    throw new Error(`claude: ${agentId} was told to stop but is still running`)
+    throw fail('claude.stillRunning', { agent: agentId })
   }
 
   async stopDaemon(home: AccountHome): Promise<void> {
-    if (home.global) throw new Error('claude: the global daemon is not stopped from here')
+    if (home.global) throw fail('claude.globalDaemon', {})
     try {
       await run(this.bin(), ['daemon', 'stop', '--any'], { env: this.envOf(home), timeout: this.timeoutMs, windowsHide: true })
     } catch (error) {
-      throw new Error(`claude: could not stop the daemon of ${home.key}${outputOf(error)}`, { cause: error })
+      throw fail('claude.daemonStopFailed', { account: home.key }, { detail: outputOf(error) }, { cause: error })
     }
   }
 
-  private async start(home: AccountHome, args: string[], cwd: string, what: string): Promise<void> {
+  private async start(home: AccountHome, args: string[], cwd: string, failure: Notice): Promise<void> {
     try {
       await run(this.bin(), args, { cwd, env: this.envOf(home), timeout: this.timeoutMs, windowsHide: true })
     } catch (error) {
-      throw new Error(`claude: could not ${what}${outputOf(error)}`, { cause: error })
+      throw new NoticeError({ ...failure, detail: outputOf(error) }, { cause: error })
     }
   }
 
-  private async appear(home: AccountHome, match: (agent: AgentEntry) => boolean, failure: string): Promise<AgentEntry> {
+  private async appear(home: AccountHome, match: (agent: AgentEntry) => boolean, failure: Notice): Promise<AgentEntry> {
     const deadline = Date.now() + APPEAR_TIMEOUT_MS
     while (Date.now() < deadline) {
       const found = (await this.agents(home)).find(match)
       if (found !== undefined) return found
       await delay(APPEAR_POLL_MS)
     }
-    throw new Error(`claude: ${failure}`)
+    throw new NoticeError(failure)
   }
 }
 
@@ -197,6 +194,5 @@ function isAlive(pid: number | undefined): boolean {
 
 function outputOf(error: unknown): string {
   const { stdout, stderr } = error as { stdout?: string; stderr?: string }
-  const output = [stderr, stdout].map((text) => text?.trim()).filter(Boolean).join(' / ')
-  return output ? `: ${output}` : ''
+  return [stderr, stdout].map((text) => text?.trim()).filter(Boolean).join(' / ')
 }

@@ -1,3 +1,4 @@
+import { fail } from '../notice/notice.js'
 import { PRIORITIES, type Task, type TaskMilestone } from '../tracker/model.js'
 
 const numeric = new Intl.Collator('en', { numeric: true })
@@ -60,19 +61,17 @@ export function checkOrder(tasks: Task[], order: string[]): void {
   const milestones = milestonesById(tasks)
   const position = new Map<string, number>()
   for (const [index, id] of order.entries()) {
-    if (!plan.blockers.has(id)) throw new Error(`chain: ${id} is not an open task of this chain`)
-    if (position.has(id)) throw new Error(`chain: ${id} appears twice`)
+    if (!plan.blockers.has(id)) throw fail('order.notOpen', { task: id })
+    if (position.has(id)) throw fail('order.twice', { task: id })
     position.set(id, index)
   }
   const later = (other: string, index: number) => (position.get(other) ?? -1) > index
   for (const [id, index] of position) {
     const blocker = plan.blockers.get(id)!.find((other) => later(other, index))
-    if (blocker !== undefined) throw new Error(`chain: ${id} cannot go before ${blocker}, which blocks it`)
+    if (blocker !== undefined) throw fail('order.blocked', { task: id, blocker })
     const earlier = plan.earlier.get(id)!.find((other) => later(other, index))
     if (earlier !== undefined) {
-      throw new Error(
-        `chain: ${id} in ${milestones.get(id)} cannot go before ${earlier} in the earlier ${milestones.get(earlier)}`,
-      )
+      throw fail('order.milestone', { task: id, milestone: String(milestones.get(id)), earlier, earlierMilestone: String(milestones.get(earlier)) })
     }
   }
 }

@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { textNotice } from '../notice/notice.js'
 import { setup, task, type SetupOptions } from './dispatcher.fixture.js'
 import { emptyChainState, type ChainState } from './dispatcher.js'
 import type { HandoffSession, LimitedSession } from './relay.js'
@@ -125,6 +126,6 @@ describe('Dispatcher on a checkpoint', () => {
 
   it('halts the chain when the new session does not start', async () => {
     const { dispatcher } = await running({ failRelay: true })
-    expect(dispatcher.state.active).toMatchObject({ paused: true, current: null, error: 'claude: could not stop old-sess' })
+    expect(dispatcher.state.active).toMatchObject({ paused: true, current: null, error: textNotice('claude: could not stop old-sess') })
   })
 })

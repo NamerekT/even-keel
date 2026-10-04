@@ -2,6 +2,7 @@ import { readFile } from 'node:fs/promises'
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http'
 import { extname, join, normalize, sep } from 'node:path'
 import { formatEvent, type EventHub } from './events.js'
+import { englishOf, fail, noticeOf, type NoticeCode } from './notice/notice.js'
 import {
   isTaskId,
   parsePeriodQuery,
@@ -79,8 +80,8 @@ const COMMANDS: Record<string, Command> = {
   'chain/resume': ({ control }) => control.resume(),
   'chain/stop': ({ control }) => control.stop(),
   'chain/dequeue': ({ control }, body) => control.dequeue(projectOf(body)),
-  'chain/order': ({ control }, body) => control.reorder(projectOf(body), listOf(body, 'order must be a list of task ids')),
-  'chain/queue': ({ control }, body) => control.requeue(listOf(body, 'order must be a list of projects')),
+  'chain/order': ({ control }, body) => control.reorder(projectOf(body), listOf(body, 'request.taskList')),
+  'chain/queue': ({ control }, body) => control.requeue(listOf(body, 'request.projectList')),
   'chain/skip': ({ control }, body) => control.skip(projectOf(body), taskOf(body)),
   'chain/unskip': ({ control }, body) => control.unskip(projectOf(body), taskOf(body)),
   'chain/restart': ({ control }, body) => control.restart(projectOf(body), taskOf(body)),
@@ -136,7 +137,7 @@ async function route(deps: ServerDeps, request: IncomingMessage, response: Serve
     try {
       record = await deps.sessionRecord(decodeURIComponent(session[1]!))
     } catch (error) {
-      sendJson(response, 400, { error: error instanceof Error ? error.message : String(error) })
+      sendFailure(response, error)
       return
     }
     if (record === undefined) response.writeHead(404).end()
@@ -168,11 +169,11 @@ async function route(deps: ServerDeps, request: IncomingMessage, response: Serve
         read = () => deps.stats.compare(query)
       } else {
         const task = decodeURIComponent(stats[2]!)
-        if (!isTaskId(task)) throw new Error('task must look like ABC-12')
+        if (!isTaskId(task)) throw fail('request.taskId', {})
         read = () => deps.stats.task(task)
       }
     } catch (error) {
-      sendJson(response, 400, { error: error instanceof Error ? error.message : String(error) })
+      sendFailure(response, error)
       return
     }
     sendJson(response, 200, await read())
@@ -188,7 +189,7 @@ async function route(deps: ServerDeps, request: IncomingMessage, response: Serve
     try {
       await command(deps, await readJsonBody(request))
     } catch (error) {
-      sendJson(response, 400, { error: error instanceof Error ? error.message : String(error) })
+      sendFailure(response, error)
       return
     }
     sendJson(response, 200, deps.getState())
@@ -208,6 +209,12 @@ async function route(deps: ServerDeps, request: IncomingMessage, response: Serve
   response.writeHead(405).end()
 }
 
+// `error` stays for scripts; the page translates `notice`.
+function sendFailure(response: ServerResponse, error: unknown): void {
+  const notice = noticeOf(error)
+  sendJson(response, 400, { error: englishOf(notice), notice })
+}
+
 function sendJson(response: ServerResponse, status: number, body: unknown): void {
   response.writeHead(status, { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' })
   response.end(JSON.stringify(body))
@@ -218,7 +225,7 @@ async function readJsonBody(request: IncomingMessage): Promise<Record<string, un
   let size = 0
   for await (const chunk of request as AsyncIterable<Buffer>) {
     size += chunk.length
-    if (size > MAX_BODY_BYTES) throw new Error('request body is too large')
+    if (size > MAX_BODY_BYTES) throw fail('request.tooLarge', {})
     chunks.push(chunk)
   }
   const text = Buffer.concat(chunks).toString('utf8').trim()
@@ -227,41 +234,41 @@ async function readJsonBody(request: IncomingMessage): Promise<Record<string, un
   try {
     body = JSON.parse(text)
   } catch {
-    throw new Error('request body is not JSON')
+    throw fail('request.notJson', {})
   }
-  if (typeof body !== 'object' || body === null || Array.isArray(body)) throw new Error('request body must be an object')
+  if (typeof body !== 'object' || body === null || Array.isArray(body)) throw fail('request.notObject', {})
   return body as Record<string, unknown>
 }
 
 function projectOf(body: Record<string, unknown>): string {
-  if (typeof body.project !== 'string' || body.project === '') throw new Error('project is required')
+  if (typeof body.project !== 'string' || body.project === '') throw fail('request.required', { field: 'project' })
   return body.project
 }
 
 function taskOf(body: Record<string, unknown>): string {
-  if (typeof body.task !== 'string' || body.task === '') throw new Error('task is required')
+  if (typeof body.task !== 'string' || body.task === '') throw fail('request.required', { field: 'task' })
   return body.task
 }
 
 function accountOf(body: Record<string, unknown>): string {
-  if (typeof body.account !== 'string' || body.account === '') throw new Error('account is required')
+  if (typeof body.account !== 'string' || body.account === '') throw fail('request.required', { field: 'account' })
   return body.account
 }
 
 function appOf(body: Record<string, unknown>): string {
-  if (typeof body.app !== 'string' || body.app === '') throw new Error('app is required')
+  if (typeof body.app !== 'string' || body.app === '') throw fail('request.required', { field: 'app' })
   return body.app
 }
 
 function codeOf(body: Record<string, unknown>): string {
   const code = typeof body.code === 'string' ? body.code.trim() : ''
-  if (code === '') throw new Error('code is required')
+  if (code === '') throw fail('request.required', { field: 'code' })
   return code
 }
 
-function listOf(body: Record<string, unknown>, message: string): string[] {
+function listOf(body: Record<string, unknown>, code: Extract<NoticeCode, 'request.taskList' | 'request.projectList'>): string[] {
   const { order } = body
-  if (!Array.isArray(order) || !order.every((item) => typeof item === 'string')) throw new Error(message)
+  if (!Array.isArray(order) || !order.every((item) => typeof item === 'string')) throw fail(code, {})
   return order
 }
 

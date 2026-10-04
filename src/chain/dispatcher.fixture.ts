@@ -1,4 +1,5 @@
 import type { FinishOutcome } from '../git/types.js'
+import { textNotice } from '../notice/notice.js'
 import { fakeTask } from '../tracker/fixture.js'
 import type { Task, TaskStatus } from '../tracker/model.js'
 import { Dispatcher, emptyChainState, type ChainState, type LaunchEntry } from './dispatcher.js'
@@ -52,7 +53,7 @@ export function setup(options: SetupOptions = {}) {
       return `session-${++counter}`
     },
     liveSession: (id) => options.live?.[id],
-    blocked: () => options.blocked,
+    blocked: () => (options.blocked === undefined ? undefined : textNotice(options.blocked)),
     busy: (id) => busy.has(id),
     save: (state) => saved.push(structuredClone(state)),
     journal: (entry) => journal.push(entry),

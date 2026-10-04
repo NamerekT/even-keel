@@ -1,3 +1,4 @@
+import { fail, notice, type Notice } from '../notice/notice.js'
 import type { AgentStatus, SessionRecord } from '../sessions/agents.js'
 import type { AccountView } from './model.js'
 
@@ -14,7 +15,7 @@ export interface AppAccount {
   app: AppId
   account: string | null
   dir: string | null
-  error: string | null
+  error: Notice | null
   sessions: AppSession[]
 }
 
@@ -59,21 +60,18 @@ export function vscodeChats(records: SessionRecord[]): AppSession[] {
     .map((record) => ({ name: record.name ?? lastSegment(record.cwd) ?? record.sessionId.slice(0, 8), status: record.status ?? null }))
 }
 
-export function appSwitchProblem(view: AccountView, app: string, key: string): string | undefined {
+export function appSwitchProblem(view: AccountView, app: string, key: string): Notice | undefined {
   const current = view.apps.find((each) => each.app === app)
-  if (current === undefined) return `claude: there is no app ${app}`
+  if (current === undefined) return notice('app.unknown', { app })
   const label = APP_LABELS[current.app]
   if (current.error !== null) return current.error
   const target = view.accounts.find((entry) => entry.key === key)
-  if (target === undefined) return `claude: there is no account ${key}`
+  if (target === undefined) return notice('account.unknown', { key })
   const email = target.status?.email ?? key
-  if (current.account === key) return `claude: ${label} already uses ${email}`
-  if (target.removing) return `claude: ${email} is being removed; keep it first`
-  if (target.needsLogin || target.status?.loggedIn !== true) return `claude: ${email} needs a login first`
-  if (current.sessions.length > 0) {
-    const names = current.sessions.map((session) => session.name).join(', ')
-    return `claude: ${label} has Claude chats open (${names}); close them first`
-  }
+  if (current.account === key) return notice('app.alreadyUses', { app: label, account: email })
+  if (target.removing) return notice('account.removing', { account: email })
+  if (target.needsLogin || target.status?.loggedIn !== true) return notice('account.needsLogin', { account: email })
+  if (current.sessions.length > 0) return notice('app.chatsOpen', { app: label, chats: current.sessions.map((session) => session.name) })
   return undefined
 }
 
@@ -83,9 +81,9 @@ function parseSettings(settings: string): Record<string, unknown> {
   try {
     value = JSON.parse(settings)
   } catch {
-    throw new Error('vscode: settings.json is not plain JSON (comments or trailing commas?); Even Keel does not rewrite it')
+    throw fail('vscode.notJson', {})
   }
-  if (typeof value !== 'object' || value === null || Array.isArray(value)) throw new Error('vscode: settings.json is not a JSON object')
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) throw fail('vscode.notObject', {})
   return value as Record<string, unknown>
 }
 

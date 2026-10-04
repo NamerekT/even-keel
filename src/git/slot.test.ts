@@ -3,6 +3,7 @@ import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { finishSlot, prepareSlot, slotPaths, type SlotUse } from './slot.js'
 import type { GitResult } from './types.js'
+import { englishOf } from '../notice/notice.js'
 
 const repo = join(tmpdir(), 'abc')
 const slot = join(repo, '.claude', 'worktrees', 'even-keel')
@@ -245,7 +246,7 @@ describe('finishSlot', () => {
   it('keeps a dirty slot on the task’s branch, keeps the branch, warns and still syncs', async () => {
     const { git, calls } = fakeGit({ ...done, '@slot status --porcelain': { out: '?? notes.md' } })
     const outcome = await finishSlot(git, repo, 'ABC-7')
-    expect(outcome.warnings).toEqual([expect.stringMatching(/ABC-7.*abc-7\/task[\s\S]*notes\.md/)])
+    expect(outcome.warnings.map(englishOf)).toEqual([expect.stringMatching(/abc-7\/task[\s\S]*notes\.md/)])
     expect(changing(calls)).toEqual([])
     expect(calls).toContain('sync')
   })
@@ -253,7 +254,7 @@ describe('finishSlot', () => {
   it('warns when the slot cannot leave the branch and keeps the branch', async () => {
     const { git, calls } = fakeGit({ ...done, '@slot switch --detach main': { code: 1, out: 'error: cannot switch' } })
     const outcome = await finishSlot(git, repo, 'ABC-7')
-    expect(outcome.warnings).toEqual([expect.stringMatching(/cannot switch/)])
+    expect(outcome.warnings.map(englishOf)).toEqual([expect.stringMatching(/cannot switch/)])
     expect(calls.some((call) => call.startsWith('branch -d'))).toBe(false)
   })
 

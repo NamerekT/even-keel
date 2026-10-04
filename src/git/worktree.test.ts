@@ -3,6 +3,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
 import { ensureIgnored, finishWorktree, parseWorktrees, prepareWorktree, taskPlace, type GitResult } from './worktree.js'
+import { englishOf, notice } from '../notice/notice.js'
 
 const repo = join(tmpdir(), 'abc')
 const place = join(repo, '.claude', 'worktrees', 'abc-7')
@@ -140,7 +141,7 @@ describe('finishWorktree', () => {
     })
     const outcome = await finishWorktree(git, repo, 'ABC-7')
     expect(outcome.syncError).toBeNull()
-    expect(outcome.warnings).toEqual([expect.stringMatching(/ABC-7.*contains modified or untracked files/)])
+    expect(outcome.warnings.map(englishOf)).toEqual([expect.stringMatching(/abc-7.*contains modified or untracked files/)])
     expect(calls.some((call) => call.startsWith('branch -d'))).toBe(false)
     expect(calls).toContain('sync')
   })
@@ -152,14 +153,14 @@ describe('finishWorktree', () => {
       [`worktree remove ${place}`]: { code: 255, out: 'error: failed to delete: Permission denied' },
     })
     const outcome = await finishWorktree(git, repo, 'ABC-7')
-    expect(outcome.warnings).toEqual([expect.stringMatching(/left behind.*Permission denied/)])
+    expect(outcome.warnings.map(englishOf)).toEqual([expect.stringMatching(/left behind.*Permission denied/)])
     expect(calls).toContain('branch -d abc-7/task')
   })
 
   it('warns about an unmerged branch and keeps it on origin too', async () => {
     const { git, calls } = fakeGit({ ...clean, 'branch -d abc-7/task': { code: 1, out: "error: the branch 'abc-7/task' is not fully merged" } })
     const outcome = await finishWorktree(git, repo, 'ABC-7')
-    expect(outcome.warnings).toEqual([expect.stringMatching(/not fully merged/)])
+    expect(outcome.warnings.map(englishOf)).toEqual([expect.stringMatching(/not fully merged/)])
     expect(calls).not.toContain('push origin --delete abc-7/task')
     expect(calls).toContain('sync')
   })
@@ -190,7 +191,7 @@ describe('finishWorktree', () => {
     const { git } = fakeGit({ ...clean, sync: { code: 1, out: 'sync: origin/main does not merge cleanly into main, merge it by hand' } })
     expect(await finishWorktree(git, repo, 'ABC-7')).toEqual({
       warnings: [],
-      syncError: 'sync: origin/main does not merge cleanly into main, merge it by hand',
+      syncError: notice('sync.alias', { exit: 1 }, { detail: 'sync: origin/main does not merge cleanly into main, merge it by hand' }),
     })
   })
 })

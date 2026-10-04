@@ -1,11 +1,12 @@
 import type { ChildProcessWithoutNullStreams } from 'node:child_process'
 import type { RateLimits } from '../limits/model.js'
 import type { UsageHealth } from '../limits/usage.js'
+import { fail, notice, NoticeError, noticeOf, sameNotice, type Notice } from '../notice/notice.js'
 import { appSwitchProblem, type AppAccount, type AppId } from './apps.js'
 import type { AccountHome, AccountHomes } from './homes.js'
 import {
   cleanOutput,
-  loginBlockMessage,
+  loginBlockNotice,
   loginUrls,
   needsLogin,
   removeProblem,
@@ -58,7 +59,7 @@ export interface AccountWatcherOptions {
 interface Known {
   home: AccountHome
   status: ClaudeAccount | null
-  error: string | null
+  error: Notice | null
 }
 
 interface Running {
@@ -134,22 +135,22 @@ export class AccountWatcher {
   renew(key: string): void {
     this.requireIdle()
     const home = this.options.homes.find(key)
-    if (home === undefined) throw new Error(`claude: there is no account ${key}`)
+    if (home === undefined) throw fail('account.unknown', { key })
     const blocked = key === this.options.active() ? this.options.loginBlock() : null
-    if (blocked !== null) throw new Error(loginBlockMessage(blocked))
+    if (blocked !== null) throw new NoticeError(loginBlockNotice(blocked))
     this.begin(home, false)
   }
 
   switchTo(key: string): void {
     const problem = switchProblem(this.view, key)
-    if (problem !== undefined) throw new Error(problem)
+    if (problem !== undefined) throw new NoticeError(problem)
     this.options.activate(key)
   }
 
   async switchApp(app: string, key: string): Promise<void> {
     await this.options.apps.refresh()
     const problem = appSwitchProblem(this.view, app, key)
-    if (problem !== undefined) throw new Error(problem)
+    if (problem !== undefined) throw new NoticeError(problem)
     const home = this.options.homes.find(key)!
     await this.options.prepare(home)
     this.options.apps.point(app as AppId, home)
@@ -158,7 +159,7 @@ export class AccountWatcher {
 
   async remove(key: string): Promise<void> {
     const problem = removeProblem(this.view, key)
-    if (problem !== undefined) throw new Error(problem)
+    if (problem !== undefined) throw new NoticeError(problem)
     if (!this.options.sessionsKnown() || this.options.sessionsIn(key).length > 0) {
       this.options.markRemoving(key, true)
       this.options.onChange()
@@ -169,7 +170,7 @@ export class AccountWatcher {
   }
 
   keep(key: string): void {
-    if (!this.options.removing(key)) throw new Error(`claude: ${key} is not being removed`)
+    if (!this.options.removing(key)) throw fail('account.notRemoving', { key })
     this.options.markRemoving(key, false)
     this.options.onChange()
   }
@@ -196,7 +197,7 @@ export class AccountWatcher {
   }
 
   code(code: string): void {
-    if (this.running === undefined || this.current === null) throw new Error('claude: no sign-in is running')
+    if (this.running === undefined || this.current === null) throw fail('login.none', {})
     this.running.child.stdin.write(`${code}\n`)
     this.current = { ...this.current, codeSent: true }
     this.options.onChange()
@@ -216,14 +217,14 @@ export class AccountWatcher {
     try {
       return { home, status: await this.options.cli.authStatus(home), error: null }
     } catch (reason) {
-      const error = reason instanceof Error ? reason.message : String(reason)
-      if (error !== before?.error) this.options.onError(reason)
+      const error = noticeOf(reason)
+      if (!sameNotice(error, before?.error ?? null)) this.options.onError(reason)
       return { home, status: before?.status ?? null, error }
     }
   }
 
   private requireIdle(): void {
-    if (this.running !== undefined) throw new Error('claude: a sign-in is already running')
+    if (this.running !== undefined) throw fail('login.running', {})
   }
 
   private begin(home: AccountHome, adding: boolean): void {
@@ -240,7 +241,7 @@ export class AccountWatcher {
       codeSent: false,
     }
     const timeout = setTimeout(() => {
-      this.fail(running, `claude: sign-in did not finish in ${Math.round(this.options.loginTimeoutMs / 60_000)} min`)
+      this.fail(running, notice('login.timeout', { minutes: Math.round(this.options.loginTimeoutMs / 60_000) }))
       child.kill()
     }, this.options.loginTimeoutMs)
 
@@ -255,7 +256,7 @@ export class AccountWatcher {
     child.stderr.on('data', read)
     child.on('error', (error) => {
       clearTimeout(timeout)
-      this.fail(running, `claude: could not start the sign-in: ${error.message}`)
+      this.fail(running, notice('login.startFailed', {}, { detail: error.message }))
     })
     child.on('close', (code) => {
       clearTimeout(timeout)
@@ -264,7 +265,7 @@ export class AccountWatcher {
         return
       }
       const lastLine = cleanOutput(this.output).trim().split('\n').at(-1) ?? ''
-      this.fail(running, `claude: sign-in exited with code ${code}${lastLine === '' ? '' : `: ${lastLine}`}`)
+      this.fail(running, notice('login.exited', { code: String(code) }, { detail: lastLine }))
     })
     this.options.onChange()
   }
@@ -278,8 +279,7 @@ export class AccountWatcher {
       }
     } catch (error) {
       running.adding = false
-      const message = error instanceof Error ? error.message : String(error)
-      this.fail(running, `claude: signed in, but could not set up the folder ${running.home.dir}: ${message}`)
+      this.fail(running, notice('login.setupFailed', { dir: running.home.dir }, { cause: noticeOf(error) }))
       return
     }
     if (this.running !== running) return
@@ -289,7 +289,7 @@ export class AccountWatcher {
     await this.refresh()
   }
 
-  private fail(running: Running, error: string): void {
+  private fail(running: Running, error: Notice): void {
     if (this.running !== running || this.current === null) return
     this.running = undefined
     this.current = { ...this.current, error }

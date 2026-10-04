@@ -4,6 +4,7 @@ import type { LaunchDay, TaskSession } from './chain/launches.js'
 import type { Language } from './language.js'
 import type { RateLimits } from './limits/model.js'
 import type { UsageHealth } from './limits/usage.js'
+import type { Notice } from './notice/notice.js'
 import type { Lamp } from './sessions/agents.js'
 import type { RemoteOff } from './sessions/remote.js'
 import type { CacheWindow, FeedLine, Stage, TokenTotals } from './sessions/transcript.js'
@@ -74,6 +75,6 @@ export interface EvenKeelState {
   launches: LaunchDay[]
   taskSessions: Record<string, TaskSession[]>
   context: ContextScale
-  configError: string | null
+  configError: Notice | null
   language: Language | null
 }

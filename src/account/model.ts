@@ -1,6 +1,7 @@
 import type { ActiveChain } from '../chain/dispatcher.js'
 import type { RateLimits } from '../limits/model.js'
 import type { UsageHealth } from '../limits/usage.js'
+import { fail, notice, type Notice } from '../notice/notice.js'
 import type { AgentEntry } from '../sessions/agents.js'
 import { APP_LABELS, type AppAccount } from './apps.js'
 
@@ -24,7 +25,7 @@ export interface AccountEntry {
   key: string
   global: boolean
   status: ClaudeAccount | null
-  error: string | null
+  error: Notice | null
   loginExpiresAt: string | null
   needsLogin: boolean
   sessions: string[]
@@ -39,7 +40,7 @@ export interface AccountLogin {
   startedAt: string
   urls: string[]
   output: string
-  error: string | null
+  error: Notice | null
   codeSent: boolean
 }
 
@@ -71,11 +72,11 @@ export function parseAuthStatus(text: string): ClaudeAccount {
   try {
     body = JSON.parse(text)
   } catch {
-    throw new Error(`claude: auth status is not JSON: ${text.trim().slice(0, 200)}`)
+    throw fail('claude.statusNotJson', {}, { detail: text.trim().slice(0, 200) })
   }
-  if (typeof body !== 'object' || body === null || Array.isArray(body)) throw new Error('claude: auth status is not an object')
+  if (typeof body !== 'object' || body === null || Array.isArray(body)) throw fail('claude.statusNotObject', {})
   const fields = body as Record<string, unknown>
-  if (typeof fields.loggedIn !== 'boolean') throw new Error('claude: auth status has no loggedIn flag')
+  if (typeof fields.loggedIn !== 'boolean') throw fail('claude.statusNoFlag', {})
   return {
     loggedIn: fields.loggedIn,
     authMethod: stringOf(fields.authMethod),
@@ -133,24 +134,24 @@ export function activeEntry(view: AccountView): AccountEntry | undefined {
   return view.accounts.find((entry) => entry.key === view.active)
 }
 
-export function switchProblem(view: AccountView, key: string): string | undefined {
+export function switchProblem(view: AccountView, key: string): Notice | undefined {
   const target = view.accounts.find((entry) => entry.key === key)
-  if (target === undefined) return `claude: there is no account ${key}`
-  if (key === view.active) return `claude: ${key} is already active`
-  if (target.removing) return `claude: ${target.status?.email ?? key} is being removed; keep it first`
-  if (target.needsLogin || target.status?.loggedIn !== true) return `claude: ${target.status?.email ?? key} needs a login first`
-  if (view.loginBlock !== null) return loginBlockMessage(view.loginBlock)
+  if (target === undefined) return notice('account.unknown', { key })
+  if (key === view.active) return notice('account.alreadyActive', { key })
+  if (target.removing) return notice('account.removing', { account: target.status?.email ?? key })
+  if (target.needsLogin || target.status?.loggedIn !== true) return notice('account.needsLogin', { account: target.status?.email ?? key })
+  if (view.loginBlock !== null) return loginBlockNotice(view.loginBlock)
   return undefined
 }
 
-export function removeProblem(view: AccountView, key: string): string | undefined {
+export function removeProblem(view: AccountView, key: string): Notice | undefined {
   const target = view.accounts.find((entry) => entry.key === key)
-  if (target === undefined) return `claude: there is no account ${key}`
-  if (target.global) return 'claude: the global account lives in ~/.claude and is not removed from here'
-  if (key === view.active) return 'claude: the active account cannot be removed; switch to another one first'
-  if (view.login?.target === key && view.login.error === null) return 'claude: a sign-in into this account is running'
+  if (target === undefined) return notice('account.unknown', { key })
+  if (target.global) return notice('account.globalKept', {})
+  if (key === view.active) return notice('account.activeKept', {})
+  if (view.login?.target === key && view.login.error === null) return notice('account.signInRunning', {})
   const user = view.apps.find((app) => app.account === key)
-  if (user !== undefined) return `claude: ${APP_LABELS[user.app]} uses this account; switch it to another one first`
+  if (user !== undefined) return notice('account.usedByApp', { app: APP_LABELS[user.app] })
   return undefined
 }
 
@@ -171,22 +172,17 @@ export function loginBlock(chain: ActiveChain | null, agents: AgentEntry[], acti
   return running === null && busy.length === 0 ? null : { chain: running, sessions: busy }
 }
 
-export function loginBlockMessage(block: LoginBlock): string {
-  if (block.chain !== null) return `claude: chain ${block.chain} is running; pause it before switching the account`
-  const names = block.sessions.map((session) => session.name).join(', ')
-  return `claude: sessions are in the middle of a turn (${names}); switch the account once they finish`
+export function loginBlockNotice(block: LoginBlock): Notice {
+  if (block.chain !== null) return notice('account.chainRunning', { project: block.chain })
+  return notice('account.sessionsBusy', { sessions: block.sessions.map((session) => session.name) })
 }
 
-export function launchBlock(view: AccountView): string | undefined {
+export function launchBlock(view: AccountView): Notice | undefined {
   const active = activeEntry(view)
-  if (active === undefined) return `claude: the active account folder ${view.active} is gone; switch to another account, then resume`
-  if (view.login !== null && view.login.target === view.active && view.login.error === null) {
-    return 'claude: sign-in is in progress; resume once it is done'
-  }
-  if (active.status?.loggedIn === false) return 'claude: not signed in; sign in from the account menu, then resume'
-  if (active.needsLogin) {
-    return `claude: the login of ${active.status?.email ?? active.key} has run out; renew it from the account menu, then resume`
-  }
+  if (active === undefined) return notice('account.activeGone', { key: view.active })
+  if (view.login !== null && view.login.target === view.active && view.login.error === null) return notice('account.signingIn', {})
+  if (active.status?.loggedIn === false) return notice('account.signedOut', {})
+  if (active.needsLogin) return notice('account.loginExpired', { account: active.status?.email ?? active.key })
   return undefined
 }
 

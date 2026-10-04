@@ -1,7 +1,8 @@
 import { readFile } from 'node:fs/promises'
 import type { AccountHome } from '../account/homes.js'
 import { currentLimits, limitsFileDir, newestLimits, parseLimitsFile, type RateLimits } from './model.js'
-import { parseUsage, type UsageHealth } from './usage.js'
+import { englishOf, notice, sameNotice, type Notice } from '../notice/notice.js'
+import { parseUsage, type UsageAnswer, type UsageHealth } from './usage.js'
 
 export interface LimitsWatcherOptions {
   file: string
@@ -100,17 +101,17 @@ export class LimitsWatcher {
   private async poll(home: AccountHome): Promise<void> {
     const account = this.of(home.key)
     const at = new Date().toISOString()
-    let answer
+    let answer: UsageAnswer
     try {
       answer = parseUsage(await this.options.usage(home), at)
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error)
-      answer = { kind: 'unknown' as const, reason: `the call failed: ${message.trim().slice(0, 200)}` }
+      answer = { kind: 'unknown', reason: notice('usage.callFailed', {}, { detail: message.trim().slice(0, 200) }) }
     }
     if (answer.kind === 'spent') {
       this.usageOff = { state: 'off', reason: answer.reason, since: at }
       for (const each of this.accounts.values()) each.polled = undefined
-      this.options.onError(new Error(`${OFF_REASON_PREFIX} (${answer.reason}, ${home.key}); /usage polling is off until restart`))
+      this.options.onError(new Error(`${OFF_REASON_PREFIX} (${englishOf(answer.reason)}, ${home.key}); /usage polling is off until restart`))
     } else if (answer.kind === 'missing') {
       account.polled = undefined
       setHealth(account, 'stale', answer.reason, at)
@@ -120,8 +121,8 @@ export class LimitsWatcher {
         setHealth(account, 'stale', null, at)
         return
       }
-      if (account.health.state !== 'unread' || account.health.reason !== answer.reason) {
-        this.options.onError(new Error(`claude -p /usage in ${home.key} answered without readable limits: ${answer.reason}`))
+      if (account.health.state !== 'unread' || !sameNotice(account.health.reason, answer.reason)) {
+        this.options.onError(new Error(`claude -p /usage in ${home.key} answered without readable limits: ${englishOf(answer.reason)}`))
       }
       setHealth(account, 'unread', answer.reason, at)
     } else {
@@ -147,7 +148,7 @@ export class LimitsWatcher {
   }
 }
 
-function setHealth(account: AccountLimits, state: UsageHealth['state'], reason: string | null, at: string): void {
-  if (account.health.state === state && account.health.reason === reason) return
+function setHealth(account: AccountLimits, state: UsageHealth['state'], reason: Notice | null, at: string): void {
+  if (account.health.state === state && sameNotice(account.health.reason, reason)) return
   account.health = { state, reason, since: at }
 }

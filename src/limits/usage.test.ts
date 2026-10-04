@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { parseUsage } from './usage.js'
+import { englishOf, notice } from '../notice/notice.js'
 
 const AT = '2026-09-27T15:00:00.000Z'
 
@@ -59,7 +60,7 @@ describe('parseUsage', () => {
     const parsed = parseUsage(answer(text), AT)
 
     expect(parsed.kind).toBe('unknown')
-    expect(parsed.kind === 'unknown' && parsed.reason).toMatch(reason)
+    expect(parsed.kind === 'unknown' && englishOf(parsed.reason)).toMatch(reason)
   })
 
   it('reports a subscription answer without any limit lines as missing data, not a new format', () => {
@@ -88,12 +89,12 @@ describe('parseUsage', () => {
     const parsed = parseUsage(answer(TEXT, overrides), AT)
 
     expect(parsed.kind).toBe('spent')
-    expect(parsed.kind === 'spent' && parsed.reason).toMatch(/num_turns|total_cost_usd/)
+    expect(parsed.kind === 'spent' && englishOf(parsed.reason)).toMatch(/num_turns|total_cost_usd/)
   })
 
   it('does not know an error answer or a broken output', () => {
-    expect(parseUsage(answer(TEXT, { is_error: true }), AT)).toMatchObject({ kind: 'unknown', reason: expect.stringMatching(/error/) })
-    expect(parseUsage('Error: unknown option', AT)).toMatchObject({ kind: 'unknown', reason: expect.stringMatching(/JSON/) })
-    expect(parseUsage('[]', AT)).toMatchObject({ kind: 'unknown', reason: expect.stringMatching(/JSON/) })
+    expect(parseUsage(answer(TEXT, { is_error: true }), AT)).toEqual({ kind: 'unknown', reason: notice('usage.isError', {}) })
+    expect(parseUsage('Error: unknown option', AT)).toEqual({ kind: 'unknown', reason: notice('usage.notJson', {}) })
+    expect(parseUsage('[]', AT)).toEqual({ kind: 'unknown', reason: notice('usage.notObject', {}) })
   })
 })

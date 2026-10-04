@@ -5,6 +5,9 @@ import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { EventHub } from './events.js'
 import { createEvenKeelServer, type AccountControl, type ChainControl } from './server.js'
+import { textNotice } from './notice/notice.js'
+
+const refusal = (text: string) => ({ error: text, notice: textNotice(text) })
 
 describe('Even Keel HTTP server', () => {
   let hub: EventHub
@@ -175,7 +178,7 @@ describe('Even Keel HTTP server', () => {
   it('answers 400 with the reason for a refused or malformed command', async () => {
     const refused = await post('/api/chain/start', { project: 'QQQ' })
     expect(refused.status).toBe(400)
-    expect(await refused.json()).toEqual({ error: 'QQQ is not a configured project' })
+    expect(await refused.json()).toEqual(refusal('QQQ is not a configured project'))
 
     expect((await post('/api/chain/start', {})).status).toBe(400)
     expect((await post('/api/chain/order', { project: 'ABC', order: [1] })).status).toBe(400)
@@ -198,7 +201,7 @@ describe('Even Keel HTTP server', () => {
 
     const again = await post('/api/account/add')
     expect(again.status).toBe(400)
-    expect(await again.json()).toEqual({ error: 'claude: a sign-in is already running' })
+    expect(await again.json()).toEqual(refusal('claude: a sign-in is already running'))
     expect((await post('/api/account/code', {})).status).toBe(400)
     expect((await post('/api/account/code', { code: '  ' })).status).toBe(400)
     expect((await post('/api/account/renew', {})).status).toBe(400)
@@ -215,7 +218,7 @@ describe('Even Keel HTTP server', () => {
     ])
     const refused = await post('/api/account/remove', { account: 'global' })
     expect(refused.status).toBe(400)
-    expect(await refused.json()).toEqual({ error: 'claude: the global account lives in ~/.claude and is not removed from here' })
+    expect(await refused.json()).toEqual(refusal('claude: the global account lives in ~/.claude and is not removed from here'))
     expect((await post('/api/account/switch', { account: '' })).status).toBe(400)
   })
 
@@ -226,7 +229,7 @@ describe('Even Keel HTTP server', () => {
     expect((await fetch(base + '/api/sessions/ffffffff')).status).toBe(404)
     const refused = await fetch(base + '/api/sessions/bad')
     expect(refused.status).toBe(400)
-    expect(await refused.json()).toEqual({ error: 'sessions: bad is not a session id' })
+    expect(await refused.json()).toEqual(refusal('sessions: bad is not a session id'))
   })
 
   it('serves the Tally history, a period and a task', async () => {
@@ -255,7 +258,7 @@ describe('Even Keel HTTP server', () => {
   it('refuses a malformed statistics request', async () => {
     const backwards = await fetch(base + '/api/stats/period?from=2026-10-03&to=2026-09-04')
     expect(backwards.status).toBe(400)
-    expect(await backwards.json()).toEqual({ error: 'from must not be after to' })
+    expect(await backwards.json()).toEqual(refusal('from must not be after to'))
     expect((await fetch(base + '/api/stats/period?from=2026-02-30&to=2026-03-01')).status).toBe(400)
     expect((await fetch(base + '/api/stats/history?tz=Europe/Berlin%27;drop')).status).toBe(400)
     expect((await fetch(base + '/api/stats/task/abc')).status).toBe(400)

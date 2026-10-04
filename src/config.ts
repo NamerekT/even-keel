@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs'
 import { DEFAULT_RULES, sameName, type ChainRules } from './chain/rules.js'
 import { isLanguage, LANGUAGES, type Language } from './language.js'
+import { fail } from './notice/notice.js'
 import { isModelAlias, type ModelAlias } from './tracker/model.js'
 import { placeholderIn } from './sessions/prompt.js'
 import type { ContextScale } from './state.js'
@@ -38,16 +39,12 @@ export function parseConfig(raw: unknown, adapters: string[] = Object.keys(ADAPT
   const input = (raw ?? {}) as Partial<Record<keyof EvenKeelConfig | 'chain' | 'tracker', unknown>>
 
   const host = input.host ?? '0.0.0.0'
-  if (typeof host !== 'string' || host === '') throw new Error('config: host must be a non-empty string')
+  if (typeof host !== 'string' || host === '') throw fail('config.host', {})
 
   const port = input.port ?? 4747
-  if (typeof port !== 'number' || !Number.isInteger(port) || port < 1 || port > 65535) {
-    throw new Error(`config: port must be an integer in 1..65535, got ${String(port)}`)
-  }
+  if (typeof port !== 'number' || !Number.isInteger(port) || port < 1 || port > 65535) throw fail('config.port', { value: String(port) })
 
-  if (typeof input.projects !== 'object' || input.projects === null) {
-    throw new Error('config: projects must map a project key to a repository path')
-  }
+  if (typeof input.projects !== 'object' || input.projects === null) throw fail('config.projects', {})
   const shared = { ...DEFAULT_RULES, ...parseRules(input.chain, 'chain') }
   const sharedTracker = parseTracker(input.tracker ?? DEFAULT_TRACKER, 'tracker', adapters)
   const language = parseLanguage(input.language, 'language')
@@ -56,15 +53,13 @@ export function parseConfig(raw: unknown, adapters: string[] = Object.keys(ADAPT
   const slots: Record<string, number> = {}
   const trackers: Record<string, string> = {}
   for (const [key, entry] of Object.entries(input.projects)) {
-    if (!PROJECT_KEY.test(key)) throw new Error(`config: "${key}" is not a project key`)
+    if (!PROJECT_KEY.test(key)) throw fail('config.projectKey', { key })
     const { repo, chain, slot, tracker } =
       typeof entry === 'object' && entry !== null
         ? (entry as { repo?: unknown; chain?: unknown; slot?: unknown; tracker?: unknown })
         : { repo: entry }
-    if (typeof repo !== 'string' || repo === '') throw new Error(`config: repository path for ${key} is empty`)
-    if (slot !== undefined && typeof slot !== 'boolean' && !(Number.isInteger(slot) && (slot as number) > 0)) {
-      throw new Error(`config: ${key}.slot must be true, false or the number of slots`)
-    }
+    if (typeof repo !== 'string' || repo === '') throw fail('config.repoEmpty', { key })
+    if (slot !== undefined && typeof slot !== 'boolean' && !(Number.isInteger(slot) && (slot as number) > 0)) throw fail('config.slot', { key })
     projects[key] = repo
     if (slot === true || typeof slot === 'number') slots[key] = slot === true ? 1 : slot
     rules[key] = checkRules({ ...shared, ...parseRules(chain, `${key}.chain`) }, key)
@@ -95,7 +90,7 @@ export function liveConfig(current: EvenKeelConfig, next: EvenKeelConfig): EvenK
 
 function parseLanguage(raw: unknown, where: string): Language | null {
   if (raw === undefined) return null
-  if (!isLanguage(raw)) throw new Error(`config: ${where}: there is no language ${JSON.stringify(raw)}, known: ${LANGUAGES.join(', ')}`)
+  if (!isLanguage(raw)) throw fail('config.language', { where, value: String(JSON.stringify(raw)), known: [...LANGUAGES] })
   return raw
 }
 
@@ -104,21 +99,19 @@ export function restartChanges(current: EvenKeelConfig, next: EvenKeelConfig): s
 }
 
 function parseTracker(raw: unknown, where: string, adapters: string[]): string {
-  if (typeof raw !== 'string' || raw.trim() === '') throw new Error(`config: ${where} must be the name of a tracker adapter`)
+  if (typeof raw !== 'string' || raw.trim() === '') throw fail('config.trackerName', { where })
   const name = raw.trim().toLowerCase()
-  if (!adapters.includes(name)) throw new Error(`config: ${where}: there is no tracker "${name}", known: ${adapters.join(', ')}`)
+  if (!adapters.includes(name)) throw fail('config.trackerUnknown', { where, name, known: adapters })
   return name
 }
 
 function parseRules(raw: unknown, where: string): Partial<ChainRules> {
   if (raw === undefined) return {}
-  if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) throw new Error(`config: ${where} must be an object`)
+  if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) throw fail('config.notObject', { where })
   const rules: Partial<ChainRules> = {}
   for (const [key, value] of Object.entries(raw)) {
-    if (!(RULE_KEYS as readonly string[]).includes(key)) throw new Error(`config: ${where}.${key} is not a chain rule`)
-    if (!Array.isArray(value) || value.some((name) => typeof name !== 'string' || name.trim() === '')) {
-      throw new Error(`config: ${where}.${key} must be a list of non-empty names`)
-    }
+    if (!(RULE_KEYS as readonly string[]).includes(key)) throw fail('config.ruleKey', { where, key })
+    if (!Array.isArray(value) || value.some((name) => typeof name !== 'string' || name.trim() === '')) throw fail('config.ruleList', { where, key })
     rules[key as (typeof RULE_KEYS)[number]] = value.map((name: string) => name.trim())
   }
   return rules
@@ -127,23 +120,21 @@ function parseRules(raw: unknown, where: string): Partial<ChainRules> {
 function checkRules(rules: ChainRules, project: string): ChainRules {
   const clash = (a: string[], b: string[]) => a.find((name) => b.some((other) => sameName(name, other)))
   const status = clash(rules.active ?? [], rules.terminal ?? [])
-  if (status !== undefined) throw new Error(`config: ${project}: status "${status}" is both active and terminal`)
+  if (status !== undefined) throw fail('config.statusBoth', { project, status })
   const label = clash(rules.requiredLabels, rules.excludedLabels)
-  if (label !== undefined) throw new Error(`config: ${project}: label "${label}" is both required and excluded`)
+  if (label !== undefined) throw fail('config.labelBoth', { project, label })
   return rules
 }
 
 function parseModelPrompts(raw: unknown): Partial<Record<ModelAlias, string>> {
   if (raw === undefined) return {}
-  if (typeof raw !== 'object' || raw === null) throw new Error('config: modelPrompts must map a model alias to a prompt')
+  if (typeof raw !== 'object' || raw === null) throw fail('config.modelPrompts', {})
   const prompts: Partial<Record<ModelAlias, string>> = {}
   for (const [model, text] of Object.entries(raw)) {
-    if (!isModelAlias(model)) throw new Error(`config: modelPrompts.${model} is not a model alias`)
-    if (typeof text !== 'string' || text.trim() === '') throw new Error(`config: modelPrompts.${model} is empty`)
+    if (!isModelAlias(model)) throw fail('config.modelAlias', { model })
+    if (typeof text !== 'string' || text.trim() === '') throw fail('config.modelPromptEmpty', { model })
     const placeholder = placeholderIn(text)
-    if (placeholder !== null) {
-      throw new Error(`config: modelPrompts.${model} has the substitution ${placeholder}, but a model prompt is passed on as it is`)
-    }
+    if (placeholder !== null) throw fail('config.modelPromptPlaceholder', { model, placeholder })
     prompts[model] = text.trim()
   }
   return prompts
@@ -151,29 +142,25 @@ function parseModelPrompts(raw: unknown): Partial<Record<ModelAlias, string>> {
 
 function parseContext(raw: unknown): ContextScale {
   if (raw === undefined) return { ...DEFAULT_CONTEXT }
-  if (typeof raw !== 'object' || raw === null) throw new Error('config: context must be an object')
+  if (typeof raw !== 'object' || raw === null) throw fail('config.notObject', { where: 'context' })
   const { window, warn, danger } = { ...DEFAULT_CONTEXT, ...(raw as Partial<ContextScale>) }
-  if (typeof window !== 'number' || !Number.isInteger(window) || window < 1) {
-    throw new Error(`config: context.window must be a positive integer of tokens, got ${String(window)}`)
-  }
+  if (typeof window !== 'number' || !Number.isInteger(window) || window < 1) throw fail('config.contextWindow', { value: String(window) })
   const percent = (value: unknown) => typeof value === 'number' && value > 0 && value <= 100
-  if (!percent(warn) || !percent(danger) || warn >= danger) {
-    throw new Error(`config: context.warn and context.danger must be percents with 0 < warn < danger <= 100`)
-  }
+  if (!percent(warn) || !percent(danger) || warn >= danger) throw fail('config.contextPercents', {})
   return { window, warn, danger }
 }
 
 function parseStats(raw: unknown): StatsConfig {
   if (raw === undefined) return { compare: { ...DEFAULT_COMPARE } }
-  if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) throw new Error('config: stats must be an object')
+  if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) throw fail('config.notObject', { where: 'stats' })
   const compare = (raw as { compare?: unknown }).compare ?? {}
-  if (typeof compare !== 'object' || compare === null || Array.isArray(compare)) throw new Error('config: stats.compare must be an object')
+  if (typeof compare !== 'object' || compare === null || Array.isArray(compare)) throw fail('config.notObject', { where: 'stats.compare' })
   const settings = { ...DEFAULT_COMPARE }
   for (const [key, value] of Object.entries(compare)) {
     const limit = COMPARE_LIMITS[key as keyof CompareSettings]
-    if (limit === undefined) throw new Error(`config: stats.compare.${key} is not a comparison setting`)
+    if (limit === undefined) throw fail('config.compareKey', { key })
     if (typeof value !== 'number' || !Number.isInteger(value) || value < 1 || value > limit) {
-      throw new Error(`config: stats.compare.${key} must be an integer in 1..${limit}, got ${String(value)}`)
+      throw fail('config.compareValue', { key, limit, value: String(value) })
     }
     settings[key as keyof CompareSettings] = value
   }
@@ -181,5 +168,12 @@ function parseStats(raw: unknown): StatsConfig {
 }
 
 export function loadConfig(file: string): EvenKeelConfig {
-  return parseConfig(JSON.parse(readFileSync(file, 'utf8')))
+  const text = readFileSync(file, 'utf8')
+  let raw: unknown
+  try {
+    raw = JSON.parse(text)
+  } catch (error) {
+    throw fail('config.notJson', { file }, { detail: error instanceof Error ? error.message : String(error) })
+  }
+  return parseConfig(raw)
 }

@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { englishOf, notice, textNotice } from '../notice/notice.js'
 import type { Task } from '../tracker/model.js'
 import { active, backlog, canceled, done, review, setup, task, todo, type SetupOptions } from './dispatcher.fixture.js'
 import { emptyChainState, type ChainState, type Dispatcher } from './dispatcher.js'
@@ -189,7 +190,7 @@ describe('Dispatcher', () => {
     dispatcher.setTasks('ABC', [task('ABC-1')])
     dispatcher.start('ABC')
     await dispatcher.idle()
-    expect(dispatcher.state.active).toMatchObject({ paused: true, error: 'claude: could not start ABC-1', current: null })
+    expect(dispatcher.state.active).toMatchObject({ paused: true, error: textNotice('claude: could not start ABC-1'), current: null })
 
     options.failLaunch = undefined
     dispatcher.resume()
@@ -235,7 +236,7 @@ describe('Dispatcher', () => {
     dispatcher.setTasks('ABC', [task('ABC-2')])
     await dispatcher.idle()
     expect(launched).toEqual(['ABC/ABC-1'])
-    expect(dispatcher.state.active).toMatchObject({ paused: true, error: 'claude: not signed in', current: null })
+    expect(dispatcher.state.active).toMatchObject({ paused: true, error: textNotice('claude: not signed in'), current: null })
 
     options.blocked = undefined
     dispatcher.resume()
@@ -281,7 +282,7 @@ describe('Dispatcher', () => {
     dispatcher.start('ABC')
     await dispatcher.idle()
     expect(launched).toEqual([])
-    expect(dispatcher.state.active?.error).toMatch(/cycle: ABC-1 → ABC-2 → ABC-1/)
+    expect(englishOf(dispatcher.state.active!.error!)).toMatch(/cycle: ABC-1 → ABC-2 → ABC-1/)
   })
 
   it('queues a second project and starts it when the first chain ends', async () => {
@@ -406,7 +407,7 @@ describe('Dispatcher', () => {
     await dispatcher.idle()
     expect(launched).toEqual([])
     expect(dispatcher.state.active).toMatchObject({ paused: true, current: null })
-    expect(dispatcher.state.active?.error).toMatch(/ABC-1.*restart/)
+    expect(dispatcher.state.active?.error).toEqual(notice('chain.interrupted', { task: 'ABC-1' }))
   })
 
   it('puts a new task at the head of a manual order and keeps it there', () => {
@@ -642,7 +643,7 @@ describe('Dispatcher on a limit', () => {
     clock.now = new Date('2026-09-26T15:00:00Z')
     await check(dispatcher)
 
-    expect(dispatcher.state.active).toMatchObject({ paused: true, error: 'claude: could not stop session-' })
+    expect(dispatcher.state.active).toMatchObject({ paused: true, error: textNotice('claude: could not stop session-') })
   })
 })
 

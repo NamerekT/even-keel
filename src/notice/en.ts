@@ -1,0 +1,161 @@
+export type GitStep = 'excludeFile' | 'addWorktree' | 'listRemotes' | 'listWorktrees' | 'listBranches' | 'readStatus' | 'addSlot' | 'clean' | 'switch'
+
+const list = (items: string[]) => items.join(', ')
+
+const GIT_STEPS: Record<GitStep, (subject: string) => string> = {
+  excludeFile: () => 'find the exclude file of',
+  addWorktree: (task) => `add the worktree of ${task} to`,
+  listRemotes: () => 'list the remotes of',
+  listWorktrees: () => 'list the worktrees of',
+  listBranches: () => 'list the branches of',
+  readStatus: () => 'read the status of',
+  addSlot: () => 'add the slot to',
+  clean: () => 'clean',
+  switch: (branch) => `switch to ${branch} in`,
+}
+
+// The English texts of the server's messages: the log and the English page both read them.
+export const en = {
+  text: (p: { text: string }) => p.text,
+
+  'chain.unknownProject': (p: { project: string }) => `chain: ${p.project} is not a configured project`,
+  'chain.notOpen': (p: { task: string; project: string }) => `chain: ${p.task} is not an open task of ${p.project}`,
+  'chain.launching': (p: { task: string }) => `chain: ${p.task} is still launching; try again in a moment`,
+  'chain.midTurn': (p: { task: string }) => `chain: ${p.task} is mid-turn; wait until its session stops`,
+  'chain.notCurrent': (p: { task: string }) => `chain: ${p.task} is not the current task of a chain`,
+  'chain.limitSpent': (p: { until: string }) => `chain: the usage limit is spent until ${p.until}; switch the account or wait`,
+  'chain.noSession': (p: { task: string }) => `chain: no session of ${p.task} is known`,
+  'chain.queueChanged': (p: { queue: string[] }) => `chain: the queue has changed, it is now ${list(p.queue) || 'empty'}`,
+  'chain.currentFirst': (p: { task: string }) => `chain: ${p.task} is running and stays first`,
+  'chain.interrupted': (p: { task: string }) => `chain: launch of ${p.task} was interrupted by a restart; check its session, then resume`,
+  'chain.syncFailed': (p: { project: string; task: string }) =>
+    `git: sync of ${p.project} after ${p.task} failed; sync main with its remotes by hand, then resume`,
+
+  'order.notOpen': (p: { task: string }) => `chain: ${p.task} is not an open task of this chain`,
+  'order.twice': (p: { task: string }) => `chain: ${p.task} appears twice`,
+  'order.blocked': (p: { task: string; blocker: string }) => `chain: ${p.task} cannot go before ${p.blocker}, which blocks it`,
+  'order.milestone': (p: { task: string; milestone: string; earlier: string; earlierMilestone: string }) =>
+    `chain: ${p.task} in ${p.milestone} cannot go before ${p.earlier} in the earlier ${p.earlierMilestone}`,
+
+  'cleanup.failed': () => 'cleanup failed',
+  'cleanup.syncFailed': () => 'sync of main failed',
+  'cleanup.folderLeft': (p: { path: string }) => `the worktree folder ${p.path} was left behind, a process still holds it`,
+  'cleanup.worktreeKept': (p: { path: string }) => `the worktree ${p.path} was kept`,
+  'cleanup.branchKept': (p: { branch: string }) => `the branch ${p.branch} was kept`,
+  'cleanup.originUnchecked': (p: { branch: string }) => `could not check the branch ${p.branch} on origin`,
+  'cleanup.originKept': (p: { branch: string }) => `the branch ${p.branch} was kept on origin`,
+  'cleanup.slotDirty': (p: { path: string; branch: string }) => `the slot ${p.path} was kept on ${p.branch}: it has uncommitted changes`,
+  'cleanup.slotKept': (p: { path: string; branch: string }) => `the slot ${p.path} was kept on ${p.branch}`,
+  'cleanup.sessionNotStopped': (p: { session: string }) => `its session ${p.session} was not stopped`,
+
+  'git.ignoreUnknown': (p: { repo: string; dir: string }) => `git: cannot tell whether ${p.repo} ignores ${p.dir}`,
+  'git.failed': (p: { step: GitStep; subject: string; repo: string }) => `git: could not ${GIT_STEPS[p.step](p.subject)} ${p.repo}`,
+
+  'sync.alias': (p: { exit: number }) => `git sync exited with ${p.exit}`,
+  'sync.notMain': (p: { repo: string; branch: string }) => `sync: ${p.repo} is on ${p.branch || 'a detached HEAD'}, not main; switch it to main`,
+  'sync.fetch': (p: { remote: string }) => `sync: could not fetch ${p.remote}`,
+  'sync.merge': (p: { remote: string }) => `sync: ${p.remote}/main does not merge cleanly into main, merge it by hand`,
+  'sync.push': (p: { remote: string }) => `sync: could not push main to ${p.remote}`,
+
+  'slot.dirty': (p: { path: string }) => `the slot ${p.path} has uncommitted changes; commit or remove them`,
+  'slot.busy': (p: { path: string; sessions: string[] }) => `the slot ${p.path} is in use by ${list(p.sessions)} mid-turn; let it finish or stop it`,
+  'slot.noneFree': (p: { task: string }) => `git: no slot is free, ${p.task} was not started; free one, then resume`,
+  'slot.busyStart': (p: { slot: string; sessions: string[]; task: string }) =>
+    `the slot ${p.slot} is in use by ${list(p.sessions)} mid-turn, ${p.task} was not started; let it finish or stop it, then resume`,
+  'slot.stopFailed': (p: { session: string; owner: string; slot: string; task: string }) =>
+    `the session ${p.session} of ${p.owner} in the slot ${p.slot} was not stopped, ${p.task} was not started`,
+
+  'claude.startFailed': (p: { task: string; cwd: string }) => `claude: could not start ${p.task} in ${p.cwd}`,
+  'claude.resumeFailed': (p: { task: string; cwd: string }) => `claude: could not resume ${p.task} in ${p.cwd}`,
+  'claude.notShown': (p: { task: string }) => `claude: ${p.task} was started but did not show up in claude agents`,
+  'claude.resumedNotShown': (p: { task: string }) => `claude: ${p.task} was resumed but did not show up in claude agents`,
+  'claude.stopFailed': (p: { agent: string }) => `claude: could not stop ${p.agent}`,
+  'claude.stillRunning': (p: { agent: string }) => `claude: ${p.agent} was told to stop but is still running`,
+  'claude.signOutFailed': (p: { account: string }) => `claude: could not sign out of ${p.account}`,
+  'claude.globalDaemon': () => 'claude: the global daemon is not stopped from here',
+  'claude.daemonStopFailed': (p: { account: string }) => `claude: could not stop the daemon of ${p.account}`,
+  'claude.statusNotJson': () => 'claude: auth status is not JSON',
+  'claude.statusNotObject': () => 'claude: auth status is not an object',
+  'claude.statusNoFlag': () => 'claude: auth status has no loggedIn flag',
+
+  'account.unknown': (p: { key: string }) => `claude: there is no account ${p.key}`,
+  'account.alreadyActive': (p: { key: string }) => `claude: ${p.key} is already active`,
+  'account.removing': (p: { account: string }) => `claude: ${p.account} is being removed; keep it first`,
+  'account.needsLogin': (p: { account: string }) => `claude: ${p.account} needs a login first`,
+  'account.globalKept': () => 'claude: the global account lives in ~/.claude and is not removed from here',
+  'account.activeKept': () => 'claude: the active account cannot be removed; switch to another one first',
+  'account.signInRunning': () => 'claude: a sign-in into this account is running',
+  'account.usedByApp': (p: { app: string }) => `claude: ${p.app} uses this account; switch it to another one first`,
+  'account.notRemoving': (p: { key: string }) => `claude: ${p.key} is not being removed`,
+  'account.chainRunning': (p: { project: string }) => `claude: chain ${p.project} is running; pause it before switching the account`,
+  'account.sessionsBusy': (p: { sessions: string[] }) =>
+    `claude: sessions are in the middle of a turn (${list(p.sessions)}); switch the account once they finish`,
+  'account.homeGone': (p: { key: string }) => `claude: the account folder ${p.key} is gone`,
+  'account.activeGone': (p: { key: string }) => `claude: the active account folder ${p.key} is gone; switch to another account, then resume`,
+  'account.signingIn': () => 'claude: sign-in is in progress; resume once it is done',
+  'account.signedOut': () => 'claude: not signed in; sign in from the account menu, then resume',
+  'account.loginExpired': (p: { account: string }) => `claude: the login of ${p.account} has run out; renew it from the account menu, then resume`,
+
+  'login.none': () => 'claude: no sign-in is running',
+  'login.running': () => 'claude: a sign-in is already running',
+  'login.timeout': (p: { minutes: number }) => `claude: sign-in did not finish in ${p.minutes} min`,
+  'login.startFailed': () => 'claude: could not start the sign-in',
+  'login.exited': (p: { code: string }) => `claude: sign-in exited with code ${p.code}`,
+  'login.setupFailed': (p: { dir: string }) => `claude: signed in, but could not set up the folder ${p.dir}`,
+
+  'app.unknown': (p: { app: string }) => `claude: there is no app ${p.app}`,
+  'app.alreadyUses': (p: { app: string; account: string }) => `claude: ${p.app} already uses ${p.account}`,
+  'app.chatsOpen': (p: { app: string; chats: string[] }) => `claude: ${p.app} has Claude chats open (${list(p.chats)}); close them first`,
+  'vscode.noFile': () => 'vscode: the VS Code settings file is only looked for on Windows, macOS and Linux',
+  'vscode.notJson': () => 'vscode: settings.json is not plain JSON (comments or trailing commas?); Even Keel does not rewrite it',
+  'vscode.notObject': () => 'vscode: settings.json is not a JSON object',
+
+  'usage.notJson': () => 'the answer is not JSON',
+  'usage.notObject': () => 'the answer is not a JSON object',
+  'usage.turns': (p: { value: string }) => `num_turns is ${p.value}, not 0`,
+  'usage.cost': (p: { value: string }) => `total_cost_usd is ${p.value}, not 0`,
+  'usage.isError': () => 'the answer is an error',
+  'usage.noResult': () => 'the answer has no result text',
+  'usage.noLimits': () => 'the subscription answer has no limit lines: the usage service did not answer (rate limit or expired token)',
+  'usage.noSession': () => 'no readable "Current session" line',
+  'usage.noWeek': () => 'no readable "Current week (all models)" line',
+  'usage.callFailed': () => 'the call failed',
+
+  'prompt.empty': (p: { before: string; value: string }) => `prompt: nothing to put after "${p.before}" (got ${p.value})`,
+
+  'request.tooLarge': () => 'request body is too large',
+  'request.notJson': () => 'request body is not JSON',
+  'request.notObject': () => 'request body must be an object',
+  'request.required': (p: { field: string }) => `${p.field} is required`,
+  'request.taskId': () => 'task must look like ABC-12',
+  'request.taskList': () => 'order must be a list of task ids',
+  'request.projectList': () => 'order must be a list of projects',
+
+  'config.notJson': (p: { file: string }) => `config: ${p.file} is not JSON`,
+  'config.host': () => 'config: host must be a non-empty string',
+  'config.port': (p: { value: string }) => `config: port must be an integer in 1..65535, got ${p.value}`,
+  'config.projects': () => 'config: projects must map a project key to a repository path',
+  'config.projectKey': (p: { key: string }) => `config: "${p.key}" is not a project key`,
+  'config.repoEmpty': (p: { key: string }) => `config: repository path for ${p.key} is empty`,
+  'config.slot': (p: { key: string }) => `config: ${p.key}.slot must be true, false or the number of slots`,
+  'config.language': (p: { where: string; value: string; known: string[] }) =>
+    `config: ${p.where}: there is no language ${p.value}, known: ${list(p.known)}`,
+  'config.trackerName': (p: { where: string }) => `config: ${p.where} must be the name of a tracker adapter`,
+  'config.trackerUnknown': (p: { where: string; name: string; known: string[] }) =>
+    `config: ${p.where}: there is no tracker "${p.name}", known: ${list(p.known)}`,
+  'config.notObject': (p: { where: string }) => `config: ${p.where} must be an object`,
+  'config.ruleKey': (p: { where: string; key: string }) => `config: ${p.where}.${p.key} is not a chain rule`,
+  'config.ruleList': (p: { where: string; key: string }) => `config: ${p.where}.${p.key} must be a list of non-empty names`,
+  'config.statusBoth': (p: { project: string; status: string }) => `config: ${p.project}: status "${p.status}" is both active and terminal`,
+  'config.labelBoth': (p: { project: string; label: string }) => `config: ${p.project}: label "${p.label}" is both required and excluded`,
+  'config.modelPrompts': () => 'config: modelPrompts must map a model alias to a prompt',
+  'config.modelAlias': (p: { model: string }) => `config: modelPrompts.${p.model} is not a model alias`,
+  'config.modelPromptEmpty': (p: { model: string }) => `config: modelPrompts.${p.model} is empty`,
+  'config.modelPromptPlaceholder': (p: { model: string; placeholder: string }) =>
+    `config: modelPrompts.${p.model} has the substitution ${p.placeholder}, but a model prompt is passed on as it is`,
+  'config.contextWindow': (p: { value: string }) => `config: context.window must be a positive integer of tokens, got ${p.value}`,
+  'config.contextPercents': () => 'config: context.warn and context.danger must be percents with 0 < warn < danger <= 100',
+  'config.compareKey': (p: { key: string }) => `config: stats.compare.${p.key} is not a comparison setting`,
+  'config.compareValue': (p: { key: string; limit: number; value: string }) =>
+    `config: stats.compare.${p.key} must be an integer in 1..${p.limit}, got ${p.value}`,
+}

@@ -1,6 +1,7 @@
 import { appendFileSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs'
 import { dirname } from 'node:path'
-import { emptyChainState, type ChainState, type LaunchEntry } from './dispatcher.js'
+import { asNotice, type Notice } from '../notice/notice.js'
+import { emptyChainState, type ChainState, type LaunchEntry, type Leftover } from './dispatcher.js'
 
 export function loadChainState(file: string): ChainState {
   const raw = readIfExists(file)
@@ -15,7 +16,24 @@ export function loadChainState(file: string): ChainState {
     typeof state.orders === 'object' &&
     state.orders !== null
   if (!valid) throw new Error(`chain: ${file} is damaged; fix or delete it`)
-  return { ...state, skipped: state.skipped ?? {}, leftovers: state.leftovers ?? {}, released: state.released ?? {} } as ChainState
+  const active = state.active === null || state.active === undefined ? null : { ...state.active, error: noticeOrNull(state.active.error) }
+  return { ...state, active, skipped: state.skipped ?? {}, leftovers: leftoversOf(state.leftovers), released: state.released ?? {} } as ChainState
+}
+
+// Before BTN-62 the pause reason and the leftovers were English strings; they are kept and shown as they are.
+function noticeOrNull(value: unknown): Notice | null {
+  return value === null || value === undefined ? null : asNotice(value)
+}
+
+function leftoversOf(stored: Record<string, unknown[]> | undefined): Record<string, Leftover[]> {
+  const result: Record<string, Leftover[]> = {}
+  for (const [project, list] of Object.entries(stored ?? {})) {
+    result[project] = list.map((entry) => {
+      const { task, at, notice, text } = entry as Partial<Leftover> & { text?: unknown }
+      return { task: String(task), at: String(at), notice: asNotice(notice ?? text) }
+    })
+  }
+  return result
 }
 
 export function saveChainState(file: string, state: ChainState): void {

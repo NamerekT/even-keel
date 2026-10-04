@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest'
 import { appSwitchProblem, configDirOf, vscodeChats, withConfigDir, type AppAccount } from './apps.js'
 import type { AccountEntry, AccountView } from './model.js'
+import { englishOf, notice, type Notice } from '../notice/notice.js'
+
+const say = (problem: Notice | undefined) => (problem === undefined ? undefined : englishOf(problem))
 
 const DIR = 'C:\\Users\\john\\.claude-accounts\\work'
 
@@ -112,18 +115,18 @@ describe('appSwitchProblem', () => {
 
   it('refuses while VS Code has Claude chats open', () => {
     const open = view(vscode({ sessions: [{ name: 'example-90', status: 'idle' }, { name: 'Example', status: 'busy' }] }))
-    expect(appSwitchProblem(open, 'vscode', 'work')).toMatch(/example-90, Example/)
+    expect(say(appSwitchProblem(open, 'vscode', 'work'))).toMatch(/example-90, Example/)
   })
 
   it('refuses an unknown app or account, the current one and an account that cannot be used', () => {
-    expect(appSwitchProblem(view(vscode({})), 'cursor', 'work')).toMatch(/no app/)
-    expect(appSwitchProblem(view(vscode({})), 'vscode', 'nope')).toMatch(/no account/)
-    expect(appSwitchProblem(view(vscode({ account: 'work' })), 'vscode', 'work')).toMatch(/already/)
-    expect(appSwitchProblem(view(vscode({}), [account({}), account({ key: 'work', global: false, needsLogin: true })]), 'vscode', 'work')).toMatch(/login/)
-    expect(appSwitchProblem(view(vscode({}), [account({}), account({ key: 'work', global: false, removing: true })]), 'vscode', 'work')).toMatch(/removed/)
+    expect(say(appSwitchProblem(view(vscode({})), 'cursor', 'work'))).toMatch(/no app/)
+    expect(say(appSwitchProblem(view(vscode({})), 'vscode', 'nope'))).toMatch(/no account/)
+    expect(say(appSwitchProblem(view(vscode({ account: 'work' })), 'vscode', 'work'))).toMatch(/already/)
+    expect(say(appSwitchProblem(view(vscode({}), [account({}), account({ key: 'work', global: false, needsLogin: true })]), 'vscode', 'work'))).toMatch(/login/)
+    expect(say(appSwitchProblem(view(vscode({}), [account({}), account({ key: 'work', global: false, removing: true })]), 'vscode', 'work'))).toMatch(/removed/)
   })
 
   it('refuses while the settings could not be read', () => {
-    expect(appSwitchProblem(view(vscode({ error: 'vscode: settings.json is not plain JSON' })), 'vscode', 'work')).toMatch(/plain JSON/)
+    expect(say(appSwitchProblem(view(vscode({ error: notice('vscode.notJson', {}) })), 'vscode', 'work'))).toMatch(/plain JSON/)
   })
 })

@@ -7,7 +7,7 @@ import {
   launchBlock,
   liveSessions,
   loginBlock,
-  loginBlockMessage,
+  loginBlockNotice,
   loginUrls,
   needsLogin,
   parseAuthStatus,
@@ -18,6 +18,9 @@ import {
   type AccountView,
   type ClaudeAccount,
 } from './model.js'
+import { englishOf, textNotice, type Notice } from '../notice/notice.js'
+
+const say = (notice: Notice | undefined) => (notice === undefined ? undefined : englishOf(notice))
 
 const signedIn = (email: string | null = 'john.doe@example.com'): ClaudeAccount => ({
   loggedIn: true,
@@ -184,19 +187,21 @@ describe('loginBlock', () => {
   })
 })
 
-describe('loginBlockMessage', () => {
+describe('loginBlockNotice', () => {
   it('names the running chain first, then the busy sessions', () => {
-    expect(loginBlockMessage({ chain: 'ABC', sessions: [] })).toBe(
+    expect(say(loginBlockNotice({ chain: 'ABC', sessions: [] }))).toBe(
       'claude: chain ABC is running; pause it before switching the account',
     )
     expect(
-      loginBlockMessage({
-        chain: null,
-        sessions: [
-          { name: 'ABC-2', status: 'busy', waitingFor: null },
-          { name: 'Scratch notes', status: 'waiting', waitingFor: 'permission' },
-        ],
-      }),
+      say(
+        loginBlockNotice({
+          chain: null,
+          sessions: [
+            { name: 'ABC-2', status: 'busy', waitingFor: null },
+            { name: 'Scratch notes', status: 'waiting', waitingFor: 'permission' },
+          ],
+        }),
+      ),
     ).toBe('claude: sessions are in the middle of a turn (ABC-2, Scratch notes); switch the account once they finish')
   })
 })
@@ -206,23 +211,23 @@ describe('launchBlock', () => {
 
   it('lets sessions start when the active account is signed in or not known yet', () => {
     expect(launchBlock(view({}))).toBeUndefined()
-    expect(launchBlock(view({ accounts: [entry({ status: null, error: 'claude: auth status timed out' })] }))).toBeUndefined()
+    expect(launchBlock(view({ accounts: [entry({ status: null, error: textNotice('claude: auth status timed out') })] }))).toBeUndefined()
   })
 
   it('holds sessions back when the active account is signed out or its login ran out', () => {
-    expect(launchBlock(view({ accounts: [entry({ status: { ...signedIn(), loggedIn: false }, needsLogin: true })] }))).toMatch(
+    expect(say(launchBlock(view({ accounts: [entry({ status: { ...signedIn(), loggedIn: false }, needsLogin: true })] })))).toMatch(
       /not signed in/,
     )
-    expect(launchBlock(view({ accounts: [entry({ needsLogin: true })] }))).toMatch(/login of john\.doe@example\.com has run out/)
+    expect(say(launchBlock(view({ accounts: [entry({ needsLogin: true })] })))).toMatch(/login of john\.doe@example\.com has run out/)
   })
 
   it('holds sessions back when the active folder is gone', () => {
-    expect(launchBlock(view({ active: 'gone' }))).toMatch(/gone/)
+    expect(say(launchBlock(view({ active: 'gone' })))).toMatch(/gone/)
   })
 
   it('holds sessions back only while the active account itself signs in, and not after it failed', () => {
-    expect(launchBlock(view({ login }))).toMatch(/sign-in is in progress/)
-    expect(launchBlock(view({ login: { ...login, error: 'exited with code 1' } }))).toBeUndefined()
+    expect(say(launchBlock(view({ login })))).toMatch(/sign-in is in progress/)
+    expect(launchBlock(view({ login: { ...login, error: textNotice('exited with code 1') } }))).toBeUndefined()
     expect(launchBlock(view({ login: { ...login, target: 'work' } }))).toBeUndefined()
     expect(launchBlock(view({ login: { ...login, target: null } }))).toBeUndefined()
   })
@@ -291,16 +296,16 @@ describe('switchProblem', () => {
   })
 
   it('refuses an unknown, active or unsigned account and a blocked switch', () => {
-    expect(switchProblem(view({}), 'nope')).toMatch(/no account/)
-    expect(switchProblem(view({}), 'global')).toMatch(/already active/)
+    expect(say(switchProblem(view({}), 'nope'))).toMatch(/no account/)
+    expect(say(switchProblem(view({}), 'global'))).toMatch(/already active/)
     const expired = view({ accounts: [entry({}), entry({ key: 'work', global: false, needsLogin: true })] })
-    expect(switchProblem(expired, 'work')).toMatch(/needs a login/)
-    expect(switchProblem(view({ loginBlock: { chain: 'ABC', sessions: [] } }), 'work')).toMatch(/chain ABC is running/)
+    expect(say(switchProblem(expired, 'work'))).toMatch(/needs a login/)
+    expect(say(switchProblem(view({ loginBlock: { chain: 'ABC', sessions: [] } }), 'work'))).toMatch(/chain ABC is running/)
   })
 
   it('refuses an account whose folder waits to be removed', () => {
     const removing = view({ accounts: [entry({}), entry({ key: 'work', global: false, removing: true })] })
-    expect(switchProblem(removing, 'work')).toMatch(/removed/)
+    expect(say(switchProblem(removing, 'work'))).toMatch(/removed/)
   })
 })
 
@@ -314,14 +319,14 @@ describe('removeProblem', () => {
   })
 
   it('keeps the active and the global folder', () => {
-    expect(removeProblem(view({ active: 'work' }), 'work')).toMatch(/active/)
-    expect(removeProblem(view({ active: 'work' }), 'global')).toMatch(/global/)
+    expect(say(removeProblem(view({ active: 'work' }), 'work'))).toMatch(/active/)
+    expect(say(removeProblem(view({ active: 'work' }), 'global'))).toMatch(/global/)
     const login = { target: 'work', startedAt: '2026-09-27T10:00:00Z', urls: [], output: '', error: null, codeSent: false }
-    expect(removeProblem(view({ login }), 'work')).toMatch(/sign-in/)
+    expect(say(removeProblem(view({ login }), 'work'))).toMatch(/sign-in/)
   })
 
   it('keeps a folder an app still uses', () => {
     const apps = [{ app: 'vscode' as const, account: 'work', dir: 'C:\\work', error: null, sessions: [] }]
-    expect(removeProblem(view({ apps }), 'work')).toMatch(/VS Code uses/)
+    expect(say(removeProblem(view({ apps }), 'work'))).toMatch(/VS Code uses/)
   })
 })

@@ -1,4 +1,5 @@
 import { join } from 'node:path'
+import { fail, notice, type Notice } from '../notice/notice.js'
 import type { FinishOutcome, Git, TaskPlace } from './types.js'
 import { dropBranch, finishWorktree, hasBranch, must, taskPlace, worktreesAt } from './worktree.js'
 
@@ -27,33 +28,33 @@ export async function prepareSlot(git: Git, repo: string, task: string, options:
   if (holding !== -1) return { path: paths[holding]!, branch: slots[holding]!.branch! }
 
   const free: { path: string; rank: number }[] = []
-  const refusals: string[] = []
+  const refusals: Notice[] = []
   for (const [index, slot] of slots.entries()) {
     const path = paths[index]!
     if (slot === undefined) {
       free.push({ path, rank: 2 })
       continue
     }
-    const status = await must(git, path, ['status', '--porcelain'], 'read the status of')
+    const status = await must(git, path, ['status', '--porcelain'], 'readStatus')
     if (status.out !== '') {
-      refusals.push(`the slot ${path} has uncommitted changes; commit or remove them:\n${status.out}`)
+      refusals.push(notice('slot.dirty', { path }, { detail: status.out }))
       continue
     }
     const use = occupancy(path)
     if (use.busy.length > 0) {
-      refusals.push(`the slot ${path} is in use by ${use.busy.join(', ')} mid-turn; let it finish or stop it`)
+      refusals.push(notice('slot.busy', { path, sessions: use.busy }))
       continue
     }
     free.push({ path, rank: use.idle ? 3 : slot.branch === null ? 0 : 1 })
   }
   const chosen = free.sort((a, b) => a.rank - b.rank)[0]
-  if (chosen === undefined) throw new Error(`git: no slot is free, ${task} was not started; free one, then resume:\n${refusals.join('\n')}`)
+  if (chosen === undefined) throw fail('slot.noneFree', { task }, { items: refusals })
 
-  if (chosen.rank === 2) await must(git, repo, ['worktree', 'add', '--detach', chosen.path, 'main'], 'add the slot to')
+  if (chosen.rank === 2) await must(git, repo, ['worktree', 'add', '--detach', chosen.path, 'main'], 'addSlot')
   else await vacate(chosen.path)
   await must(git, chosen.path, ['clean', '-fd'], 'clean')
   const args = (await hasBranch(git, repo, place.branch)) ? ['switch', place.branch] : ['switch', '-c', place.branch, 'main']
-  await must(git, chosen.path, args, `switch to ${place.branch} in`)
+  await must(git, chosen.path, args, 'switch', place.branch)
   return { path: chosen.path, branch: place.branch }
 }
 
@@ -64,20 +65,20 @@ export async function finishSlot(git: Git, repo: string, task: string, count = 1
   if (own !== undefined) return finishWorktree(git, repo, task)
 
   const holding = slots.findIndex((slot) => isTaskBranch(slot?.branch ?? null, task))
-  if (holding === -1) return dropBranch(git, repo, task, (await hasBranch(git, repo, place.branch)) ? place.branch : null, [])
+  if (holding === -1) return dropBranch(git, repo, (await hasBranch(git, repo, place.branch)) ? place.branch : null, [])
   const path = paths[holding]!
   const branch = slots[holding]!.branch!
-  const kept = await leaveBranch(git, path)
-  if (kept === null) return dropBranch(git, repo, task, branch, [])
-  return dropBranch(git, repo, task, null, [`${task}: the slot ${path} was kept on ${branch}: ${kept}`])
+  const kept = await leaveBranch(git, path, branch)
+  if (kept === null) return dropBranch(git, repo, branch, [])
+  return dropBranch(git, repo, null, [kept])
 }
 
-async function leaveBranch(git: Git, path: string): Promise<string | null> {
+async function leaveBranch(git: Git, path: string, branch: string): Promise<Notice | null> {
   const status = await git(path, ['status', '--porcelain'])
-  if (status.code !== 0) return status.out
-  if (status.out.trim() !== '') return `it has uncommitted changes:\n${status.out.trim()}`
+  if (status.code !== 0) return notice('cleanup.slotKept', { path, branch }, { detail: status.out })
+  if (status.out.trim() !== '') return notice('cleanup.slotDirty', { path, branch }, { detail: status.out })
   const switched = await git(path, ['switch', '--detach', 'main'])
-  return switched.code === 0 ? null : switched.out
+  return switched.code === 0 ? null : notice('cleanup.slotKept', { path, branch }, { detail: switched.out })
 }
 
 function isTaskBranch(branch: string | null, task: string): branch is string {

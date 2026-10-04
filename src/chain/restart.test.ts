@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { textNotice } from '../notice/notice.js'
 import { setup, task, type SetupOptions } from './dispatcher.fixture.js'
 import { emptyChainState, type ChainState } from './dispatcher.js'
 import type { HandoffSession } from './relay.js'
@@ -83,7 +84,7 @@ describe('Dispatcher on a restart', () => {
     const { dispatcher } = await running({ failRelay: true })
     dispatcher.restart('ABC', 'ABC-1')
     await dispatcher.idle()
-    expect(dispatcher.state.active).toMatchObject({ paused: true, current: null, error: 'claude: could not stop old-sess' })
+    expect(dispatcher.state.active).toMatchObject({ paused: true, current: null, error: textNotice('claude: could not stop old-sess') })
   })
 
   it('refuses while the session is mid-turn', async () => {

@@ -1,5 +1,6 @@
 import type { FinishOutcome } from '../git/types.js'
 import type { Language } from '../language.js'
+import { fail, notice, NoticeError, noticeOf, type Notice } from '../notice/notice.js'
 import type { Task } from '../tracker/model.js'
 import { chainOrder, checkOrder, nextTask, openBlockers, withFresh } from './order.js'
 import { admits, isActive, isDone, isTerminal, type ChainRules } from './rules.js'
@@ -26,7 +27,7 @@ export interface ActiveChain {
   project: string
   current: CurrentTask | null
   paused: boolean
-  error: string | null
+  error: Notice | null
   limitUntil?: string
   closing?: string
 }
@@ -34,7 +35,7 @@ export interface ActiveChain {
 export interface Leftover {
   task: string
   at: string
-  text: string
+  notice: Notice
 }
 
 export interface ChainState {
@@ -60,7 +61,7 @@ export interface LaunchEntry {
 
 export interface ProjectOrder {
   order: string[]
-  error: string | null
+  error: Notice | null
 }
 
 export interface DispatcherDeps {
@@ -68,7 +69,7 @@ export interface DispatcherDeps {
   rules: (project: string) => ChainRules
   launch: (project: string, task: string) => Promise<string>
   liveSession: (task: string) => string | undefined
-  blocked: () => string | undefined
+  blocked: () => Notice | undefined
   busy: (task: string) => boolean
   save: (state: ChainState) => void
   journal: (entry: LaunchEntry) => void
@@ -181,11 +182,11 @@ export class Dispatcher {
 
   skip(project: string, task: string): void {
     this.requireProject(project)
-    if (!(this.tasks.get(project) ?? []).some((open) => open.id === task)) throw new Error(`chain: ${task} is not an open task of ${project}`)
+    if (!(this.tasks.get(project) ?? []).some((open) => open.id === task)) throw fail('chain.notOpen', { task, project })
     const active = this.state.active
     const holder = active?.project === project && active.current?.task === task ? active : null
-    if (holder?.current?.sessionId === null) throw new Error(`chain: ${task} is still launching; try again in a moment`)
-    if (holder !== null && this.deps.busy(task)) throw new Error(`chain: ${task} is mid-turn; wait until its session stops`)
+    if (holder?.current?.sessionId === null) throw fail('chain.launching', { task })
+    if (holder !== null && this.deps.busy(task)) throw fail('chain.midTurn', { task })
     const skipped = (this.state.skipped[project] ??= [])
     if (!skipped.includes(task)) skipped.push(task)
     if (holder !== null) this.release(holder, 'skip', [])
@@ -196,14 +197,14 @@ export class Dispatcher {
     this.requireProject(project)
     const chain = this.state.active
     const current = chain?.project === project && chain.current?.task === task ? chain.current : null
-    if (chain === null || current === null) throw new Error(`chain: ${task} is not the current task of a chain`)
-    if (current.sessionId === null) throw new Error(`chain: ${task} is still launching; try again in a moment`)
-    if (this.deps.busy(task)) throw new Error(`chain: ${task} is mid-turn; wait until its session stops`)
+    if (chain === null || current === null) throw fail('chain.notCurrent', { task })
+    if (current.sessionId === null) throw fail('chain.launching', { task })
+    if (this.deps.busy(task)) throw fail('chain.midTurn', { task })
     this.requireLaunches()
     const reset = this.deps.limitReset()
-    if (reset !== null) throw new Error(`chain: the usage limit is spent until ${reset}; switch the account or wait`)
+    if (reset !== null) throw fail('chain.limitSpent', { until: reset })
     const session = this.deps.handoff(task)
-    if (session === undefined) throw new Error(`chain: no session of ${task} is known`)
+    if (session === undefined) throw fail('chain.noSession', { task })
     const replaced = current.sessionId
     this.work = this.work.then(() => this.replace(chain, current, replaced, session))
   }
@@ -228,7 +229,7 @@ export class Dispatcher {
   requeue(order: string[]): void {
     const queue = this.state.queue
     const same = order.length === queue.length && new Set(order).size === order.length && order.every((key) => queue.includes(key))
-    if (!same) throw new Error(`chain: the queue has changed, it is now ${queue.join(', ') || 'empty'}`)
+    if (!same) throw fail('chain.queueChanged', { queue: [...queue] })
     this.state.queue = [...order]
     this.changed()
   }
@@ -239,7 +240,7 @@ export class Dispatcher {
     checkOrder(tasks, order)
     const current = this.currentOf(project)
     if (current !== undefined && tasks.some((task) => task.id === current) && order[0] !== current) {
-      throw new Error(`chain: ${current} is running and stays first`)
+      throw fail('chain.currentFirst', { task: current })
     }
     this.state.orders[project] = [...order]
     this.changed()
@@ -251,7 +252,7 @@ export class Dispatcher {
       try {
         result[project] = { order: chainOrder(tasks, this.preferred(project)), error: null }
       } catch (error) {
-        result[project] = { order: [], error: messageOf(error) }
+        result[project] = { order: [], error: noticeOf(error) }
       }
     }
     return result
@@ -266,7 +267,7 @@ export class Dispatcher {
   }
 
   private requireProject(project: string): void {
-    if (!this.deps.projects.includes(project)) throw new Error(`chain: ${project} is not a configured project`)
+    if (!this.deps.projects.includes(project)) throw fail('chain.unknownProject', { project })
   }
 
   private currentOf(project: string): string | undefined {
@@ -345,11 +346,11 @@ export class Dispatcher {
     for (const id of done ?? []) if (!released.includes(id)) done!.delete(id)
   }
 
-  private keepLeftovers(project: string, task: string, warnings: string[]): void {
+  private keepLeftovers(project: string, task: string, warnings: Notice[]): void {
     if (warnings.length === 0) return
     const at = this.deps.now().toISOString()
     const leftovers = (this.state.leftovers[project] ??= [])
-    leftovers.push(...warnings.map((text) => ({ task, at, text })))
+    leftovers.push(...warnings.map((notice) => ({ task, at, notice })))
   }
 
   private async sweep(): Promise<void> {
@@ -357,7 +358,7 @@ export class Dispatcher {
       for (const task of done) {
         if (this.deps.busy(task)) continue
         const outcome = await this.cleanUp(project, task)
-        const sync = outcome.syncError === null ? [] : [`${task}: sync of main failed: ${outcome.syncError}`]
+        const sync = outcome.syncError === null ? [] : [notice('cleanup.syncFailed', {}, { cause: outcome.syncError })]
         this.keepLeftovers(project, task, [...outcome.warnings, ...sync])
         this.keepReleased(project, this.released(project).filter((id) => id !== task))
         this.deps.save(this.state)
@@ -369,13 +370,13 @@ export class Dispatcher {
     try {
       return await this.deps.finish(project, task)
     } catch (error) {
-      return { warnings: [`${task}: ${messageOf(error)}`], syncError: null }
+      return { warnings: [notice('cleanup.failed', {}, { cause: noticeOf(error) })], syncError: null }
     }
   }
 
   private requireLaunches(): void {
     const reason = this.deps.blocked()
-    if (reason !== undefined) throw new Error(reason)
+    if (reason !== undefined) throw new NoticeError(reason)
   }
 
   private changed(): void {
@@ -406,7 +407,7 @@ export class Dispatcher {
       if (chain.current !== null) {
         const { task, sessionId } = chain.current
         if (sessionId === null) {
-          this.halt(chain, `chain: launch of ${task} was interrupted by a restart; check its session, then resume`)
+          this.halt(chain, notice('chain.interrupted', { task }))
           return
         }
         if (!tasks.some((open) => open.id === task)) {
@@ -433,7 +434,7 @@ export class Dispatcher {
       try {
         order = chainOrder(tasks, this.state.orders[chain.project])
       } catch (error) {
-        this.halt(chain, messageOf(error))
+        this.halt(chain, noticeOf(error))
         return
       }
 
@@ -478,7 +479,7 @@ export class Dispatcher {
         current.sessionId = sessionId
         this.deps.save(this.state)
       } catch (error) {
-        this.halt(chain, messageOf(error))
+        this.halt(chain, noticeOf(error))
       }
       return
     }
@@ -490,7 +491,7 @@ export class Dispatcher {
     delete chain.closing
     this.keepLeftovers(chain.project, task, outcome.warnings)
     if (outcome.syncError !== null) {
-      this.halt(chain, `git: sync of ${chain.project} after ${task} failed; sync main with its remotes by hand, then resume:${outcome.syncError}`)
+      this.halt(chain, notice('chain.syncFailed', { project: chain.project, task }, { cause: outcome.syncError }))
       return false
     }
     this.deps.save(this.state)
@@ -531,7 +532,7 @@ export class Dispatcher {
       current.sessionId = sessionId
       this.deps.save(this.state)
     } catch (error) {
-      this.halt(chain, messageOf(error))
+      this.halt(chain, noticeOf(error))
     }
     return true
   }
@@ -564,7 +565,7 @@ export class Dispatcher {
       current.sessionId = sessionId
       this.deps.save(this.state)
     } catch (error) {
-      this.halt(chain, messageOf(error))
+      this.halt(chain, noticeOf(error))
     }
   }
 
@@ -573,15 +574,11 @@ export class Dispatcher {
     return this.deps.relay(task, located, handoffPrompt(task, located, reason, this.deps.promptLanguage()))
   }
 
-  private halt(chain: ActiveChain, error: string): void {
+  private halt(chain: ActiveChain, error: Notice): void {
     this.letGo(chain)
     chain.paused = true
     chain.error = error
     delete chain.limitUntil
     this.deps.save(this.state)
   }
-}
-
-function messageOf(error: unknown): string {
-  return error instanceof Error ? error.message : String(error)
 }

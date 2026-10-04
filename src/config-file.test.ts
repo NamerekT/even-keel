@@ -27,7 +27,7 @@ describe('ConfigFile', () => {
 
     write('{ "projects": ')
     config.reload()
-    expect(config.error).toMatch(/JSON/)
+    expect(config.error?.code).toBe('config.notJson')
     expect(config.current.projects).toEqual({ ABC: 'C:\\abc' })
     expect(warnings).toHaveLength(1)
 

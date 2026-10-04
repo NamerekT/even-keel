@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest'
 import { canceled, done, setup, task, todo } from './dispatcher.fixture.js'
 import { emptyChainState } from './dispatcher.js'
+import { englishOf, notice, textNotice } from '../notice/notice.js'
+
+const kept = notice('cleanup.worktreeKept', { path: 'C:\\abc\\.claude\\worktrees\\abc-1' })
 
 describe('Dispatcher finishing a done task', () => {
   it('cleans up after the current task once it is done, then launches the next', async () => {
@@ -65,7 +68,7 @@ describe('Dispatcher finishing a done task', () => {
   })
 
   it('keeps the warnings of a cleanup and goes on', async () => {
-    const { dispatcher, launched } = setup({ finish: () => ({ warnings: ['ABC-1: the worktree was kept'], syncError: null }) })
+    const { dispatcher, launched } = setup({ finish: () => ({ warnings: [kept], syncError: null }) })
     dispatcher.setTasks('ABC', [task('ABC-1'), task('ABC-2')])
     dispatcher.start('ABC')
     await dispatcher.idle()
@@ -74,7 +77,7 @@ describe('Dispatcher finishing a done task', () => {
     await dispatcher.idle()
     expect(launched).toEqual(['ABC/ABC-1', 'ABC/ABC-2'])
     expect(dispatcher.state.leftovers).toEqual({
-      ABC: [{ task: 'ABC-1', at: '2026-09-26T12:00:00.000Z', text: 'ABC-1: the worktree was kept' }],
+      ABC: [{ task: 'ABC-1', at: '2026-09-26T12:00:00.000Z', notice: kept }],
     })
 
     dispatcher.dismiss('ABC', 'ABC-1')
@@ -82,7 +85,7 @@ describe('Dispatcher finishing a done task', () => {
   })
 
   it('pauses with the output when git sync fails, and goes on without it on resume', async () => {
-    const { dispatcher, launched, finished } = setup({ finish: () => ({ warnings: [], syncError: 'sync: merge it by hand' }) })
+    const { dispatcher, launched, finished } = setup({ finish: () => ({ warnings: [], syncError: textNotice('sync: merge it by hand') }) })
     dispatcher.setTasks('ABC', [task('ABC-1'), task('ABC-2')])
     dispatcher.start('ABC')
     await dispatcher.idle()
@@ -90,7 +93,8 @@ describe('Dispatcher finishing a done task', () => {
     dispatcher.setTasks('ABC', [task('ABC-1', done), task('ABC-2')])
     await dispatcher.idle()
     expect(launched).toEqual(['ABC/ABC-1'])
-    expect(dispatcher.state.active).toMatchObject({ paused: true, current: null, error: expect.stringMatching(/sync: merge it by hand/) })
+    expect(dispatcher.state.active).toMatchObject({ paused: true, current: null })
+    expect(englishOf(dispatcher.state.active!.error!)).toMatch(/sync: merge it by hand/)
 
     dispatcher.resume()
     await dispatcher.idle()
@@ -210,7 +214,7 @@ describe('Dispatcher finishing a task it let go of', () => {
   })
 
   it('keeps the warnings and a failed sync of its cleanup without pausing the chain', async () => {
-    const { dispatcher, launched } = setup({ finish: () => ({ warnings: ['ABC-1: the worktree was kept'], syncError: 'sync: merge it by hand' }) })
+    const { dispatcher, launched } = setup({ finish: () => ({ warnings: [kept], syncError: textNotice('sync: merge it by hand') }) })
     dispatcher.setTasks('ABC', [task('ABC-1'), task('ABC-2')])
     dispatcher.start('ABC')
     await dispatcher.idle()
@@ -223,8 +227,8 @@ describe('Dispatcher finishing a task it let go of', () => {
     expect(launched).toEqual(['ABC/ABC-1', 'ABC/ABC-2'])
     expect(dispatcher.state.leftovers).toEqual({
       ABC: [
-        { task: 'ABC-1', at: '2026-09-26T12:00:00.000Z', text: 'ABC-1: the worktree was kept' },
-        { task: 'ABC-1', at: '2026-09-26T12:00:00.000Z', text: 'ABC-1: sync of main failed: sync: merge it by hand' },
+        { task: 'ABC-1', at: '2026-09-26T12:00:00.000Z', notice: kept },
+        { task: 'ABC-1', at: '2026-09-26T12:00:00.000Z', notice: notice('cleanup.syncFailed', {}, { cause: textNotice('sync: merge it by hand') }) },
       ],
     })
   })

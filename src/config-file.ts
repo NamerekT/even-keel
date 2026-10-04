@@ -1,5 +1,6 @@
 import { watchFile } from 'node:fs'
 import { liveConfig, loadConfig, restartChanges, type EvenKeelConfig } from './config.js'
+import { englishOf, noticeOf, type Notice } from './notice/notice.js'
 
 export interface ConfigFileOptions {
   file: string
@@ -10,7 +11,7 @@ export interface ConfigFileOptions {
 
 export class ConfigFile {
   current: EvenKeelConfig
-  error: string | null = null
+  error: Notice | null = null
 
   constructor(private readonly options: ConfigFileOptions) {
     this.current = loadConfig(options.file)
@@ -27,8 +28,8 @@ export class ConfigFile {
     try {
       next = loadConfig(this.options.file)
     } catch (error) {
-      this.error = error instanceof Error ? error.message : String(error)
-      this.options.warn(`config: ${this.options.file} is not applied, the last working config stays: ${this.error}`)
+      this.error = noticeOf(error)
+      this.options.warn(`config: ${this.options.file} is not applied, the last working config stays: ${englishOf(this.error)}`)
       this.options.onChange()
       return
     }
