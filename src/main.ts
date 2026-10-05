@@ -297,6 +297,7 @@ const dispatcher = new Dispatcher(loadChainState(chainFile), {
   },
   liveSession: (task) => sessions.find((view) => view.task === task && view.lamp !== 'finished')?.sessionId,
   blocked: () => launchBlock(account.view),
+  // `shell` is not busy: the turn has ended, only a background command of it still runs.
   busy: (task) => {
     const status = agentStatus(task)
     return status === 'busy' || status === 'waiting'

@@ -18,7 +18,7 @@ export function slotOccupants(
     const owner = owners.get(agent.sessionId)
     if (owner === undefined || owner === task || agent.id === undefined || !isInside(agent.cwd, slot)) continue
     if (agent.state === 'stopped' || agent.state === 'failed') continue
-    ;(agent.status === 'busy' || agent.status === 'waiting' ? busy : idle).push({ agent, task: owner })
+    ;(agent.status === 'busy' || agent.status === 'shell' || agent.status === 'waiting' ? busy : idle).push({ agent, task: owner })
   }
   return { idle, busy }
 }

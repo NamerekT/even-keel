@@ -47,4 +47,9 @@ describe('slotOccupants', () => {
     const agents = [agent('s6', { status: 'waiting' })]
     expect(slotOccupants(agents, owners, slot, 'ABC-7').busy).toHaveLength(1)
   })
+
+  it('counts a session with a background command running as mid-turn, so its slot is not taken from under it', () => {
+    const agents = [agent('s6', { status: 'shell' })]
+    expect(slotOccupants(agents, owners, slot, 'ABC-7').busy).toHaveLength(1)
+  })
 })

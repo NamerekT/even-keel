@@ -166,8 +166,9 @@ export function loginBlock(chain: ActiveChain | null, agents: AgentEntry[], acti
   const busy = agents.flatMap((agent): LoginBlocker[] => {
     if ((agent.account ?? GLOBAL_ACCOUNT) !== active) return []
     if (agent.state === 'done' || agent.state === 'stopped' || agent.state === 'failed') return []
-    if (agent.status !== 'busy' && agent.status !== 'waiting') return []
-    return [{ name: agent.name ?? agent.sessionId.slice(0, 8), status: agent.status, waitingFor: agent.waitingFor ?? null }]
+    if (agent.status !== 'busy' && agent.status !== 'shell' && agent.status !== 'waiting') return []
+    const status = agent.status === 'waiting' ? 'waiting' : 'busy'
+    return [{ name: agent.name ?? agent.sessionId.slice(0, 8), status, waitingFor: agent.waitingFor ?? null }]
   })
   return running === null && busy.length === 0 ? null : { chain: running, sessions: busy }
 }

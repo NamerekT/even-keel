@@ -156,6 +156,11 @@ describe('loginBlock', () => {
     expect(loginBlock(chain(true), agents, 'global')).toBeNull()
   })
 
+  it('counts a session running a background command as busy', () => {
+    const agents = [agent({ name: 'ABC-1', kind: 'background', status: 'shell', state: 'working' })]
+    expect(loginBlock(null, agents, 'global')?.sessions).toEqual([{ name: 'ABC-1', status: 'busy', waitingFor: null }])
+  })
+
   it('names a running chain', () => {
     expect(loginBlock(chain(false), [], 'global')).toEqual({ chain: 'ABC', sessions: [] })
   })

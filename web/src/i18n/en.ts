@@ -152,7 +152,7 @@ export const en: Messages = {
     notLoaded: 'The list is not loaded yet.',
     addHint: "Signs in in a new folder: the active account doesn't change. Claude gives a link — open it and sign in with the account you need.",
     add: 'Add account',
-    chats: { busy: 'working', waiting: 'waiting for a reply', idle: 'open' },
+    chats: { busy: 'working', shell: 'running a command', waiting: 'waiting for a reply', idle: 'open' },
     chatsBlock: "Can't switch yet, Claude chats are open:",
     closeChats: (app: string) => `Close them in ${app} — the panel updates by itself.`,
     reload: (app: string) => `${app} picks up the new account after Developer: Reload Window.`,

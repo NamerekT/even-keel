@@ -519,7 +519,19 @@ export class Dispatcher {
   }
 
   private async finish(chain: ActiveChain, task: string): Promise<boolean> {
-    if (this.deps.busy(task)) return false
+    if (!this.done.get(chain.project)?.has(task)) {
+      delete chain.closing
+      this.deps.save(this.state)
+      return true
+    }
+    if (this.deps.busy(task)) {
+      if (!this.quietTooLong(task)) return false
+      delete chain.closing
+      const released = (this.state.released[chain.project] ??= [])
+      if (!released.includes(task)) released.push(task)
+      this.deps.save(this.state)
+      return true
+    }
     const outcome = await this.cleanUp(chain.project, task)
     delete chain.closing
     this.keepLeftovers(chain.project, task, outcome.warnings)
@@ -578,6 +590,13 @@ export class Dispatcher {
     const moments = [current.since, current.resumedAt, session.lastReplyAt].filter((at) => at != null)
     const quietSince = Math.max(...moments.map((at) => Date.parse(at)))
     return this.deps.now().getTime() - quietSince >= UNANSWERED_MS
+  }
+
+  /** Unattended, the chain does not wait past ten quiet minutes for a session of a done task; the sweep cleans up after it. */
+  private quietTooLong(task: string): boolean {
+    const lastReplyAt = this.deps.handoff(task)?.lastReplyAt
+    if (!this.state.unattended || lastReplyAt == null) return false
+    return this.deps.now().getTime() - Date.parse(lastReplyAt) >= UNANSWERED_MS
   }
 
   private async followCheckpoint(chain: ActiveChain, current: CurrentTask): Promise<void> {

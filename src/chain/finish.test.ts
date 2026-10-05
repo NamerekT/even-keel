@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { canceled, done, setup, task, todo } from './dispatcher.fixture.js'
 import { emptyChainState } from './dispatcher.js'
+import type { HandoffSession } from './relay.js'
 import { englishOf, notice, textNotice } from '../notice/notice.js'
 
 const kept = notice('cleanup.worktreeKept', { path: 'C:\\abc\\.claude\\worktrees\\abc-1' })
@@ -39,6 +40,72 @@ describe('Dispatcher finishing a done task', () => {
     await dispatcher.idle()
     expect(finished).toEqual(['ABC/ABC-1'])
     expect(launched).toEqual(['ABC/ABC-1', 'ABC/ABC-2'])
+  })
+
+  describe('in the unattended mode', () => {
+    const quiet = (lastReplyAt: string): HandoffSession => ({
+      sessionId: 'session-1',
+      agentId: 'agent-1',
+      account: 'global',
+      cwd: 'D:/work/abc',
+      workdir: 'D:/work/abc/.claude/worktrees/abc-1',
+      branch: 'abc-1/task',
+      transcript: null,
+      lastReplyAt,
+      recent: [],
+      lastMessage: null,
+      checkpoint: null,
+    })
+
+    async function closing(lastReplyAt: string) {
+      const busy = new Set<string>()
+      const context = setup({ busy, unattended: true })
+      context.dispatcher.setTasks('ABC', [task('ABC-1'), task('ABC-2')])
+      context.dispatcher.start('ABC')
+      await context.dispatcher.idle()
+      busy.add('ABC-1')
+      context.handoffs['ABC-1'] = quiet(lastReplyAt)
+      context.dispatcher.setTasks('ABC', [task('ABC-1', done), task('ABC-2')])
+      await context.dispatcher.idle()
+      return context
+    }
+
+    it('stops waiting for a done task whose session has been quiet for ten minutes and leaves its cleanup for later', async () => {
+      const { dispatcher, launched, finished } = await closing('2026-09-26T11:50:00.000Z')
+      expect(launched).toEqual(['ABC/ABC-1', 'ABC/ABC-2'])
+      expect(finished).toEqual([])
+      expect(dispatcher.state.released).toEqual({ ABC: ['ABC-1'] })
+      expect(dispatcher.state.active?.closing).toBeUndefined()
+    })
+
+    it('keeps waiting while the session spoke less than ten minutes ago', async () => {
+      const { dispatcher, launched } = await closing('2026-09-26T11:51:00.000Z')
+      expect(launched).toEqual(['ABC/ABC-1'])
+      expect(dispatcher.state.active?.closing).toBe('ABC-1')
+    })
+  })
+
+  it('does not clean up after a done task that was reopened before its cleanup, and takes it back', async () => {
+    const busy = new Set<string>()
+    const live: Record<string, string> = {}
+    const { dispatcher, launched, finished } = setup({ busy, live })
+    dispatcher.setTasks('ABC', [task('ABC-1'), task('ABC-2')])
+    dispatcher.start('ABC')
+    await dispatcher.idle()
+
+    busy.add('ABC-1')
+    dispatcher.setTasks('ABC', [task('ABC-1', done), task('ABC-2')])
+    await dispatcher.idle()
+    expect(dispatcher.state.active?.closing).toBe('ABC-1')
+
+    busy.clear()
+    live['ABC-1'] = 'session-1'
+    dispatcher.setTasks('ABC', [task('ABC-1'), task('ABC-2')])
+    await dispatcher.idle()
+    expect(finished).toEqual([])
+    expect(launched).toEqual(['ABC/ABC-1'])
+    expect(dispatcher.state.active?.closing).toBeUndefined()
+    expect(dispatcher.state.active?.current).toMatchObject({ task: 'ABC-1', sessionId: 'session-1' })
   })
 
   it('leaves a canceled or vanished task alone', async () => {

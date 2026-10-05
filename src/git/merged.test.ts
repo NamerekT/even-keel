@@ -44,6 +44,36 @@ describe('branchMerged', () => {
     expect(await branchMerged(runGit, repo, 'ABC-7')).toBe(false)
   })
 
+  it('says no for a branch that only caught up with main, with no commits of its own', async () => {
+    await git('branch', 'abc-7/task', 'main')
+    await commit('other')
+    await git('switch', '-q', 'abc-7/task')
+    await git('merge', '-q', '--ff-only', 'main')
+    await git('switch', '-q', 'main')
+    expect(await branchMerged(runGit, repo, 'ABC-7')).toBe(false)
+  })
+
+  it('says no for a branch reset to main after commits main never took', async () => {
+    await git('switch', '-q', '-c', 'abc-7/task')
+    await commit('work')
+    await git('reset', '-q', '--hard', 'main')
+    await git('switch', '-q', 'main')
+    await commit('other')
+    await git('branch', '-f', 'abc-7/task', 'main')
+    expect(await branchMerged(runGit, repo, 'ABC-7')).toBe(false)
+  })
+
+  it('says yes for a branch merged after it caught up with main', async () => {
+    await git('branch', 'abc-7/task', 'main')
+    await commit('other')
+    await git('switch', '-q', 'abc-7/task')
+    await git('merge', '-q', '--ff-only', 'main')
+    await commit('work')
+    await git('switch', '-q', 'main')
+    await git('merge', '-q', '--no-edit', 'abc-7/task')
+    expect(await branchMerged(runGit, repo, 'ABC-7')).toBe(true)
+  })
+
   it('says no while the branch has commits main does not', async () => {
     await git('switch', '-q', '-c', 'abc-7/task')
     await commit('work')

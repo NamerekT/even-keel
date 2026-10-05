@@ -151,7 +151,7 @@ export const ru = {
     notLoaded: 'Список ещё не получен.',
     addHint: 'Вход в новой папке: активный аккаунт не меняется. Claude выдаст ссылку — откройте её и войдите нужным аккаунтом.',
     add: 'Добавить аккаунт',
-    chats: { busy: 'работает', waiting: 'ждёт ответа', idle: 'открыт' },
+    chats: { busy: 'работает', shell: 'выполняет команду', waiting: 'ждёт ответа', idle: 'открыт' },
     chatsBlock: 'Переключить пока нельзя, открыты чаты Claude:',
     closeChats: (app: string) => `Закройте их в ${app} — панель обновится сама.`,
     reload: (app: string) => `Новый аккаунт ${app} берёт после Developer: Reload Window.`,

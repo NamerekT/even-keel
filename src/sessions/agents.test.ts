@@ -43,6 +43,10 @@ describe('parseSessionRecord', () => {
     expect(parseSessionRecord(raw)).toEqual({ pid: 1, sessionId: 's1', status: 'waiting', waitingFor: 'permission' })
   })
 
+  it('keeps the status of a session that ended its turn while a background command runs', () => {
+    expect(parseSessionRecord(JSON.stringify({ pid: 1, sessionId: 's1', status: 'shell' }))).toEqual({ pid: 1, sessionId: 's1', status: 'shell' })
+  })
+
   it('drops an unknown status and rejects a record without pid or session', () => {
     expect(parseSessionRecord(JSON.stringify({ pid: 1, sessionId: 's1', status: 'dreaming' }))).toEqual({ pid: 1, sessionId: 's1' })
     expect(parseSessionRecord(JSON.stringify({ sessionId: 's1' }))).toBeUndefined()
@@ -68,6 +72,12 @@ describe('withLiveRecords', () => {
     const printed = { ...job, pid: 7, status: 'waiting' as const, waitingFor: 'permission' }
 
     expect(withLiveRecords([printed], [{ pid: 8, sessionId: 's1', status: 'busy' }])).toEqual([printed])
+  })
+
+  it('tells a printed busy session from one whose turn ended with a background command left running', () => {
+    const printed = { ...job, pid: 7, status: 'busy' as const }
+
+    expect(withLiveRecords([printed], [{ pid: 7, sessionId: 's1', status: 'shell' }])).toEqual([{ ...printed, status: 'shell' }])
   })
 })
 
@@ -138,6 +148,10 @@ describe('lampOf', () => {
   it('is working while the session is busy, even right after an API error', () => {
     expect(lampOf({ ...interactive, status: 'busy' }, null)).toBe('working')
     expect(lampOf({ ...interactive, status: 'busy' }, 'limit')).toBe('working')
+  })
+
+  it('is working while a background command of an ended turn runs', () => {
+    expect(lampOf({ ...background, status: 'shell' }, null)).toBe('working')
   })
 
   it('shows the API error the idle session stopped on', () => {

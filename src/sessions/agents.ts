@@ -1,6 +1,7 @@
 import type { ApiErrorKind } from './transcript.js'
 
-export type AgentStatus = 'idle' | 'busy' | 'waiting'
+/** `shell` — the turn has ended, but a background command the session started still runs. */
+export type AgentStatus = 'idle' | 'busy' | 'shell' | 'waiting'
 export type AgentState = 'working' | 'blocked' | 'done' | 'failed' | 'stopped'
 export type Lamp = 'working' | 'waiting' | 'error' | 'limit' | 'finished'
 
@@ -35,7 +36,7 @@ export interface SessionRecord {
   cwd?: string
 }
 
-const STATUSES: readonly string[] = ['idle', 'busy', 'waiting'] satisfies AgentStatus[]
+const STATUSES: readonly string[] = ['idle', 'busy', 'shell', 'waiting'] satisfies AgentStatus[]
 
 export function parseSessionRecord(raw: string): SessionRecord | undefined {
   let value: unknown
@@ -62,7 +63,8 @@ export function withLiveRecords(agents: AgentEntry[], records: SessionRecord[]):
   const bySession = new Map(records.map((record) => [record.sessionId, record]))
   return agents.map((agent) => {
     const record = bySession.get(agent.sessionId)
-    if (record === undefined || agent.pid !== undefined) return agent
+    if (record === undefined) return agent
+    if (agent.pid !== undefined) return record.status === 'shell' ? { ...agent, status: 'shell' } : agent
     const { pid, status, waitingFor } = record
     return { ...agent, pid, ...(status === undefined ? {} : { status }), ...(waitingFor === undefined ? {} : { waitingFor }) }
   })
@@ -122,7 +124,7 @@ function taskOfBranch(branch: string | null): string | undefined {
 export function lampOf(agent: AgentEntry | undefined, apiError: ApiErrorKind | null): Lamp {
   if (agent === undefined || agent.state === 'done' || agent.state === 'stopped') return 'finished'
   if (agent.state === 'failed') return 'error'
-  if (agent.status === 'busy') return 'working'
+  if (agent.status === 'busy' || agent.status === 'shell') return 'working'
   if (apiError !== null) return apiError
   if (agent.status === 'waiting' || agent.state === 'blocked') return 'waiting'
   if (agent.status === 'idle') return 'waiting'
