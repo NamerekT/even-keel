@@ -70,6 +70,18 @@ export function withLiveRecords(agents: AgentEntry[], records: SessionRecord[]):
   })
 }
 
+const SHELL_HANG_MS = 60 * 60_000
+
+/**
+ * The status the chain goes by. A session in `shell` waits for its own background command (a long build or test run)
+ * and counts as busy; after an hour without a line in its transcript the command is taken for hung and the session for idle.
+ */
+export function turnStatus(status: AgentStatus | undefined, lastActivityAt: string | null, now: Date): AgentStatus | undefined {
+  if (status !== 'shell') return status
+  if (lastActivityAt === null) return 'busy'
+  return now.getTime() - Date.parse(lastActivityAt) >= SHELL_HANG_MS ? 'idle' : 'busy'
+}
+
 function isAgentEntry(value: unknown): value is AgentEntry {
   if (typeof value !== 'object' || value === null) return false
   const entry = value as Record<string, unknown>

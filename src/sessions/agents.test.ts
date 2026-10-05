@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { lampOf, parseAgents, parseSessionRecord, sessionsByTask, withLiveRecords, type AgentEntry } from './agents.js'
+import { lampOf, parseAgents, parseSessionRecord, sessionsByTask, turnStatus, withLiveRecords, type AgentEntry } from './agents.js'
 
 const interactive: AgentEntry = {
   pid: 100,
@@ -131,6 +131,25 @@ describe('sessionsByTask', () => {
     const byTask = sessionsByTask([onBranch, named], ['ABC'], (agent) => (agent === onBranch ? 'abc-1/fix' : null))
 
     expect(byTask.get('ABC-1')?.sessionId).toBe('named')
+  })
+})
+
+describe('turnStatus', () => {
+  const now = new Date('2026-09-26T12:00:00Z')
+
+  it('counts a session waiting for its own background command as busy, even through a long run', () => {
+    expect(turnStatus('shell', '2026-09-26T11:01:00.000Z', now)).toBe('busy')
+    expect(turnStatus('shell', null, now)).toBe('busy')
+  })
+
+  it('takes a background command silent for an hour for a hung one, and the session for idle', () => {
+    expect(turnStatus('shell', '2026-09-26T11:00:00.000Z', now)).toBe('idle')
+  })
+
+  it('leaves the other statuses as they are', () => {
+    expect(turnStatus('busy', '2026-09-26T08:00:00.000Z', now)).toBe('busy')
+    expect(turnStatus('waiting', null, now)).toBe('waiting')
+    expect(turnStatus(undefined, null, now)).toBeUndefined()
   })
 })
 

@@ -22,7 +22,7 @@ import { LimitsWatcher } from './limits/watcher.js'
 import { englishOf, fail, notice, noticeOf, type Notice } from './notice/notice.js'
 import { createEvenKeelServer } from './server.js'
 import { ClaudeCli, liveRecords, resolveClaudeBinary } from './sessions/claude.js'
-import type { AgentEntry } from './sessions/agents.js'
+import { turnStatus, type AgentEntry } from './sessions/agents.js'
 import { launchPlan, type LaunchPlan } from './sessions/launch.js'
 import { readSessionRecord } from './sessions/history.js'
 import { SessionMonitor } from './sessions/monitor.js'
@@ -232,7 +232,8 @@ const monitor = new SessionMonitor({
 
 const agentStatus = (task: string) => {
   const view = sessions.find((each) => each.task === task && each.lamp !== 'finished')
-  return view && agents.find((agent) => agent.sessionId === view.sessionId)?.status
+  if (view === undefined) return undefined
+  return turnStatus(agents.find((agent) => agent.sessionId === view.sessionId)?.status, view.lastActivityAt, new Date())
 }
 
 const planFor = (task: string, prompt: string): LaunchPlan => {
@@ -297,7 +298,6 @@ const dispatcher = new Dispatcher(loadChainState(chainFile), {
   },
   liveSession: (task) => sessions.find((view) => view.task === task && view.lamp !== 'finished')?.sessionId,
   blocked: () => launchBlock(account.view),
-  // `shell` is not busy: the turn has ended, only a background command of it still runs.
   busy: (task) => {
     const status = agentStatus(task)
     return status === 'busy' || status === 'waiting'
