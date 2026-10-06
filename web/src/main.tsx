@@ -4,6 +4,7 @@ import { BrowserRouter } from 'react-router'
 import { asNotice, NoticeError } from '../../src/notice/notice.js'
 import type { EvenKeelState, SessionRecord } from '../../src/state.js'
 import type { StatsAnswer } from '../../src/stats/model.js'
+import type { ToolsView } from '../../src/tools/model.js'
 import { App } from './App.js'
 import { LiveConnection, type LiveSource } from './live/connection.js'
 import { LiveProvider } from './live/context.js'
@@ -26,13 +27,16 @@ async function sendCommand(name: string, body: Record<string, unknown>): Promise
   return answer!
 }
 
-async function fetchSession(sessionId: string): Promise<SessionRecord | null> {
-  const response = await fetch(`/api/sessions/${encodeURIComponent(sessionId)}`, { cache: 'no-store' })
+async function fetchOrNull<T>(path: string): Promise<T | null> {
+  const response = await fetch(path, { cache: 'no-store' })
   if (response.status === 404) return null
-  const answer = (await response.json().catch(() => null)) as (SessionRecord & { error?: string }) | null
-  if (!response.ok) throw new Error(answer?.error ?? `/api/sessions answered ${response.status}`)
+  const answer = (await response.json().catch(() => null)) as (T & { error?: string }) | null
+  if (!response.ok) throw new Error(answer?.error ?? `${path} answered ${response.status}`)
   return answer
 }
+
+const fetchSession = (sessionId: string) => fetchOrNull<SessionRecord>(`/api/sessions/${encodeURIComponent(sessionId)}`)
+const fetchTools = (project: string) => fetchOrNull<ToolsView>(`/api/projects/${encodeURIComponent(project)}/tools`)
 
 async function fetchStats<T>(path: string, search: URLSearchParams): Promise<StatsAnswer<T>> {
   const response = await fetch(`/api/stats/${path}?${search}`, { cache: 'no-store' })
@@ -49,6 +53,7 @@ async function createSource(): Promise<LiveSource> {
     openEvents: () => new EventSource('/api/events'),
     sendCommand,
     fetchSession,
+    fetchTools,
     fetchStats,
   })
   connection.start()

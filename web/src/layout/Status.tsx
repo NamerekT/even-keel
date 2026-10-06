@@ -73,6 +73,18 @@ export function SystemMenu({ now }: { now: Date }) {
           <label className="system__mode">
             <input
               type="checkbox"
+              checked={state?.trimTools ?? true}
+              disabled={state === null || sending}
+              onChange={(event) => void send('chain/trim', { on: event.target.checked })}
+            />
+            <span className="system__mode-text">
+              <span className="system__name">{t.status.trim}</span>
+              <span className="system__detail">{t.status.trimHint}</span>
+            </span>
+          </label>
+          <label className="system__mode">
+            <input
+              type="checkbox"
               checked={state?.unattended ?? false}
               disabled={state === null || sending}
               onChange={(event) => void send('chain/unattended', { on: event.target.checked })}

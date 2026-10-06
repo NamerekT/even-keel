@@ -73,6 +73,7 @@ function stateOf(patch: Partial<EvenKeelState>): EvenKeelState {
     mcpMissing: [],
     language: null,
     unattended: false,
+    trimTools: true,
     ...patch,
   }
 }

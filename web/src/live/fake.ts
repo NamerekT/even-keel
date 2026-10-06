@@ -25,6 +25,7 @@ import type { Link, LiveSnapshot, LiveSource } from './connection.js'
 import { fakeCompare, fakeRuleDiff, fakeRules } from './fakeRules.js'
 import { fakeSteps } from './fakeSteps.js'
 import { fakeHistory, fakePeriod, fakeTask } from './fakeStats.js'
+import { fakeTools } from './fakeTools.js'
 
 const TICK_MS = 2_000
 const CLOSE_TICKS = 5
@@ -217,6 +218,7 @@ function fakeState(
     mcpMissing: [],
     language: null,
     unattended: false,
+    trimTools: true,
   }
 }
 
@@ -537,6 +539,7 @@ function fakeCommand(state: EvenKeelState, name: string, body: Record<string, un
   if (name === 'chain/dismiss') return dismiss(state, String(body.project), String(body.task))
   if (name === 'chain/restart') return restart(state, String(body.project), String(body.task))
   if (name === 'chain/unattended') return { ...state, unattended: body.on === true }
+  if (name === 'chain/trim') return { ...state, trimTools: body.on === true }
   if (name.startsWith('account/')) return { ...state, account: accountCommand(state.account, name, body) }
   throw new Error(`fake: ${name} is not supported`)
 }
@@ -682,6 +685,10 @@ export function createFakeSource(search: string): LiveSource {
     session: async (sessionId) => {
       await new Promise((resolve) => setTimeout(resolve, 300))
       return current.state === null ? null : fakeRecord(current.state, sessionId)
+    },
+    tools: async (project) => {
+      await new Promise((resolve) => setTimeout(resolve, 300))
+      return current.state?.projects.includes(project) ? fakeTools(project, current.state.trimTools, params.get('tools')) : null
     },
     statsHistory: async (filter) => {
       await new Promise((resolve) => setTimeout(resolve, 300))

@@ -54,6 +54,7 @@ function state(startedAt: string): EvenKeelState {
     mcpMissing: [],
     language: null,
     unattended: false,
+    trimTools: true,
   }
 }
 
@@ -73,6 +74,7 @@ describe('LiveConnection', () => {
     answer = async () => state('commanded')
     live = new LiveConnection({
       fetchSession: async () => null,
+      fetchTools: async () => null,
       fetchStats: async () => ({ state: 'off', reason: 'test' }),
       sendCommand: (name, body) => {
         commands.push({ name, body })

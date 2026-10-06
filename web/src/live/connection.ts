@@ -2,6 +2,7 @@ import type { EvenKeelState, SessionRecord } from '../../../src/state.js'
 import type { PeriodQuery, StatsAnswer, StatsFilter, StatsHistory, StatsPeriod, StatsTaskDetail } from '../../../src/stats/model.js'
 import type { CompareQuery, RuleDiffFile, RulesQuery, StatsCompare, StatsRules } from '../../../src/stats/rules.js'
 import type { StatsSteps } from '../../../src/stats/steps.js'
+import type { ToolsView } from '../../../src/tools/model.js'
 
 export type Link = 'connecting' | 'live' | 'stale'
 
@@ -24,6 +25,7 @@ export interface LiveSource {
   retryNow(): void
   command(name: string, body?: Record<string, unknown>): Promise<void>
   session(sessionId: string): Promise<SessionRecord | null>
+  tools(project: string): Promise<ToolsView | null>
   statsHistory(filter: StatsFilter): Promise<StatsAnswer<StatsHistory>>
   statsPeriod(query: PeriodQuery): Promise<StatsAnswer<StatsPeriod>>
   statsSteps(query: PeriodQuery): Promise<StatsAnswer<StatsSteps>>
@@ -38,6 +40,7 @@ export interface LiveDeps {
   openEvents: () => EventStream
   sendCommand: (name: string, body: Record<string, unknown>) => Promise<EvenKeelState>
   fetchSession: (sessionId: string) => Promise<SessionRecord | null>
+  fetchTools: (project: string) => Promise<ToolsView | null>
   fetchStats: <T>(path: string, search: URLSearchParams) => Promise<StatsAnswer<T>>
 }
 
@@ -97,6 +100,10 @@ export class LiveConnection implements LiveSource {
 
   session(sessionId: string): Promise<SessionRecord | null> {
     return this.deps.fetchSession(sessionId)
+  }
+
+  tools(project: string): Promise<ToolsView | null> {
+    return this.deps.fetchTools(project)
   }
 
   statsHistory(filter: StatsFilter): Promise<StatsAnswer<StatsHistory>> {

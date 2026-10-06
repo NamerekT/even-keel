@@ -12,6 +12,7 @@ import { ChainList } from './ChainList.js'
 import { NotFound } from './NotFound.js'
 import { SessionPanel } from './SessionPanel.js'
 import { StatsStrip } from './StatsStrip.js'
+import { ToolsPanel } from './ToolsPanel.js'
 
 export function Project({ state }: { state: EvenKeelState }) {
   const key = useParams().key ?? ''
@@ -52,6 +53,7 @@ export function Project({ state }: { state: EvenKeelState }) {
         )}
         <BacklogList tasks={backlogTasks(state, key)} trackerUrls={state.trackerUrls} />
         <StatsStrip key={`stats-${key}`} project={key} />
+        <ToolsPanel key={`tools-${key}`} project={key} trim={state.trimTools} />
       </div>
       {selected !== undefined && (
         <SessionPanel key={selected.id} block={selected} scale={state.context} trackerUrls={state.trackerUrls} onClose={close} />
