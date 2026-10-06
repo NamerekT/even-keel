@@ -1,7 +1,7 @@
 {
   "name": "checkpoint",
-  "version": "0.1.0",
-  "description": "Context checkpoints for Even Keel sessions: once the context passes 150k tokens (and every 50k after), the session is asked to write a handoff note and end its turn with `CHECKPOINT: <path>`, so that Even Keel continues the task in a fresh session instead of re-reading the whole context on every turn. Thresholds: CHECKPOINT_FIRST_TOKENS and CHECKPOINT_STEP_TOKENS.",
+  "version": "0.2.0",
+  "description": "Context checkpoints for Even Keel sessions: once the context passes 150k tokens (and every 50k after, every 25k past 250k), the session is asked to write a handoff note and end its turn with `CHECKPOINT: <path>`, so that Even Keel continues the task in a fresh session instead of re-reading the whole context on every turn. Thresholds: CHECKPOINT_FIRST_TOKENS, CHECKPOINT_STEP_TOKENS, CHECKPOINT_LATE_TOKENS and CHECKPOINT_LATE_STEP_TOKENS.",
   "author": {
     "name": "Even Keel"
   },
