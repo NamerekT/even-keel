@@ -1,0 +1,16 @@
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "mcp__plugin_huly_huly__(create|update|add)_.*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/check-marks.mjs\"",
+            "timeout": 10
+          }
+        ]
+      }
+    ]
+  }
+}

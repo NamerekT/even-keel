@@ -75,5 +75,5 @@ The server names its arguments inconsistently; these are exact:
 - `list_attachments(objectId, objectClass)` — internal id, `"tracker:class:Issue"`, no `project`. `read_attachment_content(attachmentId)` returns images; other files — `download_attachment(attachmentId)`.
 - `add_issue_relation(project, issueIdentifier, targetIssue, relationType)` — the source is `issueIdentifier`: `blocks` means the source blocks the target.
 - `add_issue_label(project, identifier, label)` creates the label if the workspace lacks it.
-- Markdown of a `description`, `body` or comment: never put inline code inside bold or italics (`**text `Core`**`). The server accepts it, but Huly's editor rejects a code mark combined with another mark (`RangeError: Invalid collection of marks for node text: bold,code` in the browser console) and the user can no longer edit the description at all. Keep code outside the emphasis: `**text** `Core``.
+- Markdown of a `description`, `body` or comment: never put inline code inside bold, italics, strikethrough or a link (`**text `Core`**`) — Huly's editor then cannot open the text at all. Keep code outside the mark: `**text** `Core``. The plugin's hook refuses such a call and names the fragments; fix them and send again.
 - `get_milestone(project, milestone)` — the label or id, not `milestoneId`.

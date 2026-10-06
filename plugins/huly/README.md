@@ -8,6 +8,8 @@ Huly for sessions that Even Keel runs: the `huly` MCP server ([@firfi/huly-mcp](
 | `huly:split` | when a task is worth splitting, and creating subtasks Even Keel runs one by one |
 | `huly:setup` | putting a repository on Huly once: project, components, milestone, `CLAUDE.md` block, plugin, Even Keel entry |
 
+A `PreToolUse` hook (`hooks/check-marks.mjs`, needs `node`) refuses a write to Huly whose markdown puts inline code inside bold, italics, strikethrough or a link: the server takes it, but Huly's editor then cannot open the description (`RangeError: Invalid collection of marks`). The session gets the offending fragments and sends the text again with the code moved out.
+
 ## Credentials
 
 The MCP server reads them from the environment of the session:
