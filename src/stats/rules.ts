@@ -1,6 +1,6 @@
 import { lineDiff, type DiffHunk } from './diff.js'
 import { parseStatsFilter, type StatsFilter } from './model.js'
-import { RULE_PURPOSES, type RuleNote, type RulePurpose } from './rule-imports.js'
+import { RULE_PLACES, RULE_PURPOSES, type RuleNote, type RulePlace, type RulePurpose } from './rule-imports.js'
 
 export const RULE_KINDS = ['claude_md', 'skill', 'memory', 'hook', 'settings', 'agent'] as const
 export type RuleKind = (typeof RULE_KINDS)[number]
@@ -130,6 +130,7 @@ export interface RulesQuery extends StatsFilter {
   projects: string[] | null
   kinds: RuleKind[] | null
   purposes: RulePurpose[] | null
+  places: RulePlace[] | null
 }
 
 export interface CompareQuery extends StatsFilter {
@@ -410,6 +411,7 @@ export function parseRulesQuery(params: URLSearchParams): RulesQuery {
     projects: listParam(params, 'projects'),
     kinds: knownList(params, 'kinds', RULE_KINDS),
     purposes: knownList(params, 'purposes', RULE_PURPOSES),
+    places: knownList(params, 'places', RULE_PLACES),
   }
 }
 

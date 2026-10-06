@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { RuleKind, RuleMark } from '../../../src/stats/rules.js'
 import { setLanguage } from '../i18n/index.js'
-import { driftText, fileLabel, markKey, markPlaces, markSummary, markTitle, pickMark, pickedSpan, precisionText, setTitle, shortPath, toggleChip } from './marks.js'
+import { driftText, fileLabel, kindText, markKey, markPlaces, markSummary, markTitle, pickMark, pickedSpan, precisionText, setTitle, shortPath, toggleChip } from './marks.js'
 
 setLanguage('ru')
 
@@ -107,9 +107,24 @@ describe('markSummary', () => {
         { ...base, id: 's:2', files: [file('a', 'claude_md', 2, 2), file('c', 'skill'), file('d', 'settings')] },
       ],
     })
-    expect(summary.kinds).toBe('CLAUDE.md, навыки ×2, настройки')
+    expect(summary.kinds.map(kindText)).toEqual(['CLAUDE.md', 'навыки ×2', 'настройки'])
     expect(summary.files).toBe(4)
     expect([summary.added, summary.removed]).toEqual([8, 3])
+  })
+
+  it('puts shared files first, then each project by name', () => {
+    const own = (key: string, kind: RuleKind, project: string) => ({ ...file(key, kind), project })
+    const summary = markSummary({
+      fromAt: base.at,
+      toAt: base.at,
+      sets: [{ ...base, files: [own('z', 'skill', 'ZED'), own('y', 'skill', 'ABC'), file('a', 'skill'), own('x', 'claude_md', 'ABC'), file('b', 'skill')] }],
+    })
+    expect(summary.kinds).toEqual([
+      { kind: 'skill', project: null, count: 2 },
+      { kind: 'claude_md', project: 'ABC', count: 1 },
+      { kind: 'skill', project: 'ABC', count: 1 },
+      { kind: 'skill', project: 'ZED', count: 1 },
+    ])
   })
 
   it('names tasks first, then sessions in quotes, then edits by hand, without repeats', () => {

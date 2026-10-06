@@ -1,5 +1,5 @@
 import type { StatsScope } from '../../../src/stats/model.js'
-import { RULE_PURPOSES, type RulePurpose } from '../../../src/stats/rule-imports.js'
+import { RULE_PLACES, RULE_PURPOSES, type RulePlace, type RulePurpose } from '../../../src/stats/rule-imports.js'
 import type { RuleKind } from '../../../src/stats/rules.js'
 import { MARK_KINDS } from './marks.js'
 import { isPreset, type PeriodChoice, type Step } from './period.js'
@@ -12,12 +12,14 @@ export interface StatsView {
   step: Step | null
   kinds: RuleKind[] | null
   purposes: RulePurpose[] | null
+  places: RulePlace[] | null
 }
 
-export const DEFAULT_VIEW: StatsView = { period: { preset: '30d' }, projects: null, scope: 'all', account: null, step: null, kinds: null, purposes: null }
+export const DEFAULT_VIEW: StatsView = { period: { preset: '30d' }, projects: null, scope: 'all', account: null, step: null, kinds: null, purposes: null, places: null }
 
 const KINDS = new Set<string>(MARK_KINDS)
 const PURPOSES = new Set<string>(RULE_PURPOSES)
+const PLACES = new Set<string>(RULE_PLACES)
 
 function knownList<T extends string>(listed: string | null, known: Set<string>): T[] | null {
   return listed === null ? null : (listed.split(',').filter((each) => known.has(each)) as T[])
@@ -50,6 +52,7 @@ export function parseView(params: URLSearchParams): StatsView {
     step: STEPS[params.get('step') ?? ''] ?? null,
     kinds: knownList<RuleKind>(params.get('kinds'), KINDS),
     purposes: knownList<RulePurpose>(params.get('purposes'), PURPOSES),
+    places: knownList<RulePlace>(params.get('places'), PLACES),
   }
 }
 
@@ -67,5 +70,6 @@ export function viewSearch(view: StatsView): string {
   if (view.step !== null) params.set('step', STEP_CODES[view.step])
   if (view.kinds !== null) params.set('kinds', view.kinds.join(','))
   if (view.purposes !== null) params.set('purposes', view.purposes.join(','))
+  if (view.places !== null) params.set('places', view.places.join(','))
   return params.toString()
 }

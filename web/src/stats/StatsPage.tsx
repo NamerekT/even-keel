@@ -46,7 +46,7 @@ export function StatsPage({ state }: { state: EvenKeelState }) {
   const stepsLoaded = useStatsAnswer(periodKey, () => statsSteps(query))
   const step = view.step ?? autoStep(range)
   const [picked, setPicked] = useState<string[]>([])
-  const rulesQuery: RulesQuery = { ...filter, projects: view.projects, kinds: view.kinds, purposes: view.purposes }
+  const rulesQuery: RulesQuery = { ...filter, projects: view.projects, kinds: view.kinds, purposes: view.purposes, places: view.places }
   const rulesLoaded = useStatsAnswer(JSON.stringify(rulesQuery), () => statsRules(rulesQuery))
   const rules = loadedData(rulesLoaded)
   const marks = useMemo(
@@ -149,10 +149,12 @@ export function StatsPage({ state }: { state: EvenKeelState }) {
               marks={marks}
               kinds={view.kinds}
               purposes={view.purposes}
+              places={view.places}
               onFilter={setView}
               picked={picked}
               onPick={pick}
               base={{ ...filter, projects: view.projects }}
+              colors={derived.colors}
               trackerUrls={state.trackerUrls}
             />
             {period !== null && (

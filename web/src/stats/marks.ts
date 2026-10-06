@@ -96,9 +96,16 @@ export function fileLabel(display: string): string {
   return parts.slice(Math.max(config > 0 ? config - 1 : parts.length - 2, 0)).join('/')
 }
 
+// Files of one kind in one place: `project` null is shared.
+export interface KindCount {
+  kind: RuleKind
+  project: string | null
+  count: number
+}
+
 export interface MarkSummary {
   reasons: string[]
-  kinds: string
+  kinds: KindCount[]
   who: string[]
   files: number
   added: number
@@ -107,24 +114,33 @@ export interface MarkSummary {
 
 const KIND_ORDER: RuleKind[] = [...MARK_KINDS, 'memory']
 
+export function kindText({ kind, count }: KindCount): string {
+  const name = t.stats.rules.kinds[kind] ?? kind
+  return count > 1 ? `${name} ×${count}` : name
+}
+
 export function markSummary(mark: RuleMark): MarkSummary {
-  const files = new Map<string, RuleKind>()
+  const files = new Map<string, { kind: RuleKind; project: string | null }>()
   let added = 0
   let removed = 0
   for (const file of mark.sets.flatMap((set) => set.files)) {
-    files.set(file.key, file.kind)
+    files.set(file.key, { kind: file.kind, project: file.project })
     added += file.added
     removed += file.removed
   }
-  const counts = KIND_ORDER.map((kind) => [kind, [...files.values()].filter((each) => each === kind).length] as const).filter(([, count]) => count > 0)
+  const projects = [...new Set([...files.values()].flatMap((each) => (each.project === null ? [] : [each.project])))].sort()
+  const kinds = [null, ...projects].flatMap((project) =>
+    KIND_ORDER.map((kind) => ({ kind, project, count: [...files.values()].filter((each) => each.kind === kind && each.project === project).length })).filter(
+      (each) => each.count > 0,
+    ),
+  )
   const tasks = mark.sets.flatMap((set) => (set.task === null ? [] : [set.task]))
   const untasked = mark.sets.filter((set) => set.task === null)
   const sessions = untasked.flatMap((set) => (set.title === null ? [] : [t.stats.rules.quoted(set.title)]))
   const others = untasked.filter((set) => set.title === null).map(setTitle)
-  const name = (kind: RuleKind) => t.stats.rules.kinds[kind] ?? kind
   return {
     reasons: [...new Set(mark.sets.map((set) => set.note?.reason ?? '').filter((reason) => reason !== ''))],
-    kinds: counts.map(([kind, count]) => (count > 1 ? `${name(kind)} ×${count}` : name(kind))).join(', '),
+    kinds,
     who: [...new Set([...tasks, ...sessions, ...others])],
     files: files.size,
     added,

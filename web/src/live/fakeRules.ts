@@ -1,7 +1,7 @@
 import type { StatsAnswer } from '../../../src/stats/model.js'
 import { lineDiff } from '../../../src/stats/diff.js'
 import type { CompareQuery, CompareSide, RuleDiffFile, RuleKind, RuleMark, RuleSet, RulesQuery, StatsCompare, StatsRules } from '../../../src/stats/rules.js'
-import type { ImportPrecision, RuleNote, RulePurpose } from '../../../src/stats/rule-imports.js'
+import { placeOf, type ImportPrecision, type RuleNote, type RulePurpose } from '../../../src/stats/rule-imports.js'
 import { failure } from './fakeStats.js'
 
 const COMPARE = { minTasks: 5, minSessions: 10, days: 7 }
@@ -186,6 +186,7 @@ export function fakeRules(mode: string | null, rules: string | null, query: Rule
       const files = set.files
         .map((each) => ({ each, id: ids[seed++]! }))
         .filter(({ each }) => query.kinds === null || query.kinds.includes(each.kind))
+        .filter(({ each }) => query.places === null || query.places.includes(placeOf(each.project)))
         .filter(({ each }) => each.project === null || query.projects === null || query.projects.includes(each.project))
         .map(({ each, id }) => {
           const diff = lineDiff(each.before, each.after)

@@ -3,6 +3,11 @@ import type { RuleKind, RuleSet, RuleSetFile, ScopePlaces } from './rules.js'
 export const RULE_PURPOSES = ['economy', 'quality', 'process', 'infra'] as const
 export type RulePurpose = (typeof RULE_PURPOSES)[number]
 
+// Where a rule file lives: `~/.claude` and the like (no project), or a project's own repository.
+export const RULE_PLACES = ['shared', 'project'] as const
+export type RulePlace = (typeof RULE_PLACES)[number]
+export const placeOf = (project: string | null): RulePlace => (project === null ? 'shared' : 'project')
+
 export const IMPORT_PRECISIONS = ['exact', 'hour', 'day'] as const
 export type ImportPrecision = (typeof IMPORT_PRECISIONS)[number]
 
@@ -49,6 +54,7 @@ export interface SetFilter {
   kinds: RuleKind[] | null
   projects: string[] | null
   purposes: RulePurpose[] | null
+  places: RulePlace[] | null
 }
 
 const HOUR = 3_600_000
@@ -149,6 +155,7 @@ export function filterSets(sets: RuleSet[], filter: SetFilter): RuleSet[] {
       (file) =>
         file.kind !== 'memory' &&
         (filter.kinds === null || filter.kinds.includes(file.kind)) &&
+        (filter.places === null || filter.places.includes(placeOf(file.project))) &&
         (file.project === null || filter.projects === null || filter.projects.includes(file.project)),
     )
     return files.length === 0 ? [] : [{ ...each, files }]

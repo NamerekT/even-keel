@@ -120,6 +120,7 @@ export class LiveConnection implements LiveSource {
     if (query.projects !== null) search.set('projects', query.projects.join(','))
     if (query.kinds !== null) search.set('kinds', query.kinds.join(','))
     if (query.purposes !== null) search.set('purposes', query.purposes.join(','))
+    if (query.places !== null) search.set('places', query.places.join(','))
     return this.deps.fetchStats('rules', search)
   }
 

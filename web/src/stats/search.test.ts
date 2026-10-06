@@ -6,7 +6,7 @@ const parse = (text: string) => parseView(new URLSearchParams(text))
 describe('parseView', () => {
   it('defaults to 30 sliding days over all projects and sessions', () => {
     expect(parse('')).toEqual(DEFAULT_VIEW)
-    expect(DEFAULT_VIEW).toEqual({ period: { preset: '30d' }, projects: null, scope: 'all', account: null, step: null, kinds: null, purposes: null })
+    expect(DEFAULT_VIEW).toEqual({ period: { preset: '30d' }, projects: null, scope: 'all', account: null, step: null, kinds: null, purposes: null, places: null })
   })
 
   it('reads a preset, a custom range, projects, scope, account and step', () => {
@@ -18,6 +18,7 @@ describe('parseView', () => {
       step: 'week',
       kinds: null,
       purposes: null,
+      places: null,
     })
     expect(parse('from=2026-09-04&to=2026-10-03').period).toEqual({ from: '2026-09-04', to: '2026-10-03' })
   })
@@ -35,6 +36,7 @@ describe('parseView', () => {
     expect(parse('step=y').step).toBeNull()
     expect(parse('kinds=skill,poem,memory').kinds).toEqual(['skill'])
     expect(parse('purposes=economy,speed').purposes).toEqual(['economy'])
+    expect(parse('places=shared,home').places).toEqual(['shared'])
   })
 })
 
@@ -44,9 +46,9 @@ describe('viewSearch', () => {
   })
 
   it('writes what differs and reads back the same', () => {
-    const view = { period: { from: '2026-09-04', to: '2026-10-03' }, projects: [], scope: 'chain' as const, account: 'global', step: 'month' as const, kinds: ['claude_md' as const, 'hook' as const], purposes: ['economy' as const] }
+    const view = { period: { from: '2026-09-04', to: '2026-10-03' }, projects: [], scope: 'chain' as const, account: 'global', step: 'month' as const, kinds: ['claude_md' as const, 'hook' as const], purposes: ['economy' as const], places: ['project' as const] }
     const text = viewSearch(view)
-    expect(text).toBe('from=2026-09-04&to=2026-10-03&projects=&scope=chain&account=global&step=m&kinds=claude_md%2Chook&purposes=economy')
+    expect(text).toBe('from=2026-09-04&to=2026-10-03&projects=&scope=chain&account=global&step=m&kinds=claude_md%2Chook&purposes=economy&places=project')
     expect(parse(text)).toEqual(view)
     expect(viewSearch({ ...DEFAULT_VIEW, period: { preset: '7d' }, projects: ['BTN', 'GAME'] })).toBe('range=7d&projects=BTN%2CGAME')
   })

@@ -259,7 +259,9 @@ describe('withNetLines', () => {
 describe('rule queries', () => {
   it('read projects and kinds', () => {
     expect(parseRulesQuery(new URLSearchParams('projects=ABC,work&kinds=skill,memory'))).toMatchObject({ projects: ['ABC', 'work'], kinds: ['skill', 'memory'] })
-    expect(parseRulesQuery(new URLSearchParams(''))).toMatchObject({ projects: null, kinds: null, purposes: null })
+    expect(parseRulesQuery(new URLSearchParams(''))).toMatchObject({ projects: null, kinds: null, purposes: null, places: null })
+    expect(parseRulesQuery(new URLSearchParams('places=shared'))).toMatchObject({ places: ['shared'] })
+    expect(() => parseRulesQuery(new URLSearchParams('places=home'))).toThrow(/places/)
     expect(() => parseRulesQuery(new URLSearchParams('kinds=prompt'))).toThrow(/kinds/)
   })
 

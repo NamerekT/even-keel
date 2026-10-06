@@ -1,12 +1,13 @@
 import type { TrackerUrls } from '../../../src/state.js'
-import { useState } from 'react'
-import { RULE_PURPOSES, type RulePurpose } from '../../../src/stats/rule-imports.js'
+import { useState, type ReactNode } from 'react'
+import { RULE_PLACES, RULE_PURPOSES, type RulePlace, type RulePurpose } from '../../../src/stats/rule-imports.js'
 import { type CompareQuery, type RuleKind, type RuleMark, type RuleSet, type RuleSetFile, type StatsRules } from '../../../src/stats/rules.js'
 import { formatMoment } from '../format.js'
 import { localized, t } from '../i18n/index.js'
 import { useLive } from '../live/context.js'
 import { AnswerNotice, Section, TaskKey, loadedData, useStatsAnswer, type Loaded } from './common.js'
-import { MARK_KINDS, fileLabel, markKey, markSummary, pickedSpan, purposeLabel, ruleKindLabels, setTitle, toggleChip } from './marks.js'
+import { seriesStyle } from '../ui/series.js'
+import { MARK_KINDS, fileLabel, kindText, markKey, markSummary, pickedSpan, purposeLabel, ruleKindLabels, setTitle, toggleChip, type KindCount } from './marks.js'
 import { Lines, SetNote } from './MarkTip.js'
 import { COMPARE_DAYS, RuleCompare } from './RuleCompare.js'
 import './rules.css'
@@ -85,11 +86,64 @@ function FileDiff({ file }: { file: RuleSetFile }) {
   )
 }
 
-function MarkRow({ mark, on, now, onPick }: { mark: RuleMark; on: boolean; now: Date; onPick: (extend: boolean) => void }) {
+type Colors = Map<string, number | null>
+
+function PlaceDot({ project, colors }: { project: string | null; colors: Colors }) {
+  return project === null ? (
+    <span className="rule-dot rule-dot--shared" aria-hidden="true" />
+  ) : (
+    <span className="rule-dot" style={seriesStyle(colors.get(project) ?? null)} aria-hidden="true" />
+  )
+}
+
+function KindList({ kinds, colors }: { kinds: KindCount[]; colors: Colors }) {
+  return kinds.map((each) => (
+    <span key={`${each.project ?? ''}:${each.kind}`} className="rule-kind" title={each.project ?? t.stats.rules.places.shared}>
+      <PlaceDot project={each.project} colors={colors} />
+      {kindText(each)}
+    </span>
+  ))
+}
+
+// Shared files and project files: the legend of the dots in the list, and a filter — a click keeps only that place.
+function PlaceLegend({ on, projects, colors, onChange }: { on: RulePlace[] | null; projects: string[]; colors: Colors; onChange: (next: RulePlace[] | null) => void }) {
+  const item = (place: RulePlace, dots: ReactNode, label: string) => {
+    const shown = on === null || on.includes(place)
+    return (
+      <button
+        type="button"
+        className={shown ? 'rule-legend__item' : 'rule-legend__item rule-legend__item--off'}
+        aria-pressed={on !== null && on.includes(place)}
+        onClick={() => {
+          const next = on === null ? [place] : toggleChip(on, place, RULE_PLACES)
+          onChange(next !== null && next.length === 0 ? null : next)
+        }}>
+        {dots}
+        {label}
+      </button>
+    )
+  }
+  return (
+    <div className="rule-legend" role="group" aria-label={t.stats.rules.places.label}>
+      {item('shared', <PlaceDot project={null} colors={colors} />, t.stats.rules.places.shared)}
+      {item(
+        'project',
+        <span className="rule-legend__dots">
+          {projects.slice(0, 4).map((project) => (
+            <PlaceDot key={project} project={project} colors={colors} />
+          ))}
+        </span>,
+        projects.length === 1 ? projects[0]! : t.stats.rules.places.project,
+      )}
+    </div>
+  )
+}
+
+function MarkRow({ mark, on, now, colors, onPick }: { mark: RuleMark; on: boolean; now: Date; colors: Colors; onPick: (extend: boolean) => void }) {
   const summary = markSummary(mark)
   const [day, time] = spanText(mark.fromAt, mark.toAt, now)
   const why = summary.reasons.length > 0
-  const details = [why ? summary.kinds : null, summary.who.join(', ')].filter((each) => each !== null && each !== '').join(' · ')
+  const who = summary.who.join(', ')
   return (
     <button type="button" className={on ? 'rule-mark rule-mark--on' : 'rule-mark'} aria-pressed={on} onClick={(event) => onPick(event.shiftKey || event.ctrlKey || event.metaKey)}>
       <span className="rule-mark__when">
@@ -97,8 +151,12 @@ function MarkRow({ mark, on, now, onPick }: { mark: RuleMark; on: boolean; now: 
         <span className="rule-mark__muted">{time}</span>
       </span>
       <span className="rule-mark__body">
-        <span className="rule-mark__what">{why ? summary.reasons.join(' · ') : summary.kinds}</span>
-        <span className="rule-mark__muted rule-mark__who">{details}</span>
+        <span className="rule-mark__what">{why ? summary.reasons.join(' · ') : <KindList kinds={summary.kinds} colors={colors} />}</span>
+        <span className="rule-mark__muted rule-mark__who">
+          {why && <KindList kinds={summary.kinds} colors={colors} />}
+          {why && who !== '' && ' · '}
+          {who}
+        </span>
       </span>
       <span className="rule-mark__size">
         <Lines added={summary.added} removed={summary.removed} />
@@ -108,14 +166,17 @@ function MarkRow({ mark, on, now, onPick }: { mark: RuleMark; on: boolean; now: 
   )
 }
 
-function FileRow({ file, open, onToggle }: { file: RuleSetFile; open: boolean; onToggle: () => void }) {
+function FileRow({ file, open, colors, onToggle }: { file: RuleSetFile; open: boolean; colors: Colors; onToggle: () => void }) {
   return (
     <li>
       <button type="button" className="rule-file" aria-expanded={open} title={file.display} onClick={onToggle}>
         <span className="rule-file__caret" aria-hidden="true">
           {open ? '▾' : '▸'}
         </span>
-        <span className="rule-file__where">{file.project ?? t.stats.rules.shared}</span>
+        <span className="rule-file__where">
+          <PlaceDot project={file.project} colors={colors} />
+          {file.project ?? t.stats.rules.shared}
+        </span>
         <span className="rule-file__path">{fileLabel(file.display)}</span>
         <Lines added={file.added} removed={file.removed} />
       </button>
@@ -124,7 +185,7 @@ function FileRow({ file, open, onToggle }: { file: RuleSetFile; open: boolean; o
   )
 }
 
-function SetView({ set, trackerUrls }: { set: RuleSet; trackerUrls: TrackerUrls }) {
+function SetView({ set, colors, trackerUrls }: { set: RuleSet; colors: Colors; trackerUrls: TrackerUrls }) {
   const [open, setOpen] = useState<string | null>(null)
   const title = set.task === null ? (set.title ?? setTitle(set)) : set.title !== set.task ? set.title : null
   return (
@@ -146,14 +207,14 @@ function SetView({ set, trackerUrls }: { set: RuleSet; trackerUrls: TrackerUrls 
                   {file.summary !== '' && <span className="rule-file__summary">{file.summary}</span>}
                 </li>
               ))
-            : set.files.map((file) => <FileRow key={file.key} file={file} open={open === file.key} onToggle={() => setOpen(open === file.key ? null : file.key)} />)}
+            : set.files.map((file) => <FileRow key={file.key} file={file} open={open === file.key} colors={colors} onToggle={() => setOpen(open === file.key ? null : file.key)} />)}
         </ul>
       </div>
     </li>
   )
 }
 
-function Picked({ marks, before, after, now, trackerUrls }: { marks: RuleMark[]; before: string; after: string; now: Date; trackerUrls: TrackerUrls }) {
+function Picked({ marks, before, after, now, colors, trackerUrls }: { marks: RuleMark[]; before: string; after: string; now: Date; colors: Colors; trackerUrls: TrackerUrls }) {
   const sets = marks.flatMap((mark) => mark.sets).sort((a, b) => Date.parse(a.at) - Date.parse(b.at))
   const days = new Map<string, RuleSet[]>()
   for (const set of sets) {
@@ -176,7 +237,7 @@ function Picked({ marks, before, after, now, trackerUrls }: { marks: RuleMark[];
           {days.size > 1 && <h4 className="rule-day__title">{label}</h4>}
           <ol className="rule-sets">
             {each.map((set) => (
-              <SetView key={set.id} set={set} trackerUrls={trackerUrls} />
+              <SetView key={set.id} set={set} colors={colors} trackerUrls={trackerUrls} />
             ))}
           </ol>
         </section>
@@ -199,26 +260,32 @@ export function RulesSection({
   marks,
   kinds,
   purposes,
+  places,
   onFilter,
   picked,
   onPick,
   base,
+  colors,
   trackerUrls,
 }: {
   loaded: Loaded<StatsRules> | null
   marks: RuleMark[]
   kinds: RuleKind[] | null
   purposes: RulePurpose[] | null
-  onFilter: (next: { kinds?: RuleKind[] | null; purposes?: RulePurpose[] | null }) => void
+  places: RulePlace[] | null
+  onFilter: (next: { kinds?: RuleKind[] | null; purposes?: RulePurpose[] | null; places?: RulePlace[] | null }) => void
   picked: string[]
   onPick: (key: string, extend: boolean) => void
   base: Omit<CompareQuery, 'before' | 'after' | 'days'>
+  colors: Colors
   trackerUrls: TrackerUrls
 }) {
   const [days, setDays] = useState<number | null>(null)
   const rules = loadedData(loaded)
   const span = pickedSpan(marks, picked)
   const now = new Date()
+  const listed = marks.flatMap((mark) => mark.sets.flatMap((set) => set.files.flatMap((file) => (file.project === null ? [] : [file.project]))))
+  const projects = base.projects !== null && base.projects.length > 0 ? base.projects : [...new Set(listed)].sort()
   return (
     <Section title={t.stats.rules.title} aside={<span className="stats-section__note">{t.stats.rules.note}</span>}>
       <div className="rule-filters">
@@ -230,6 +297,7 @@ export function RulesSection({
           on={purposes}
           onChange={(next) => onFilter({ purposes: next })}
         />
+        <PlaceLegend on={places} projects={projects} colors={colors} onChange={(next) => onFilter({ places: next })} />
       </div>
       {rules === null ? (
         <AnswerNotice loaded={loaded} />
@@ -242,7 +310,7 @@ export function RulesSection({
               const key = markKey(mark)
               return (
                 <li key={key}>
-                  <MarkRow mark={mark} on={picked.includes(key)} now={now} onPick={(extend) => onPick(key, extend)} />
+                  <MarkRow mark={mark} on={picked.includes(key)} now={now} colors={colors} onPick={(extend) => onPick(key, extend)} />
                 </li>
               )
             })}
@@ -251,7 +319,7 @@ export function RulesSection({
             <p className="rule-hint">{t.stats.rules.pick}</p>
           ) : (
             <>
-              <Picked marks={span.marks} before={span.before} after={span.after} now={now} trackerUrls={trackerUrls} />
+              <Picked marks={span.marks} before={span.before} after={span.after} now={now} colors={colors} trackerUrls={trackerUrls} />
               <div className="rule-card">
                 <header className="rule-card__head">
                   <h3 className="rule-card__title">{t.stats.rules.compare}</h3>

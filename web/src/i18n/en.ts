@@ -585,6 +585,7 @@ export const en: Messages = {
       pick: 'Pick a change in the list or a mark on the chart — the changed files and a before-and-after comparison of the spend appear below. Shift- or Ctrl-click on a second change compares the whole stretch between them.',
       changed: 'What changed',
       shared: 'shared',
+      places: { label: 'Where the files live', shared: 'shared', project: 'projects' },
       today: 'today',
       yesterday: 'yesterday',
       compare: 'Before and after',
