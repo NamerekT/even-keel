@@ -49,6 +49,8 @@ export interface ChainState {
   leftovers: Record<string, Leftover[]>
   released: Record<string, string[]>
   unattended: boolean
+  /** Chain sessions start without claude.ai skills and plugins and with the hidden skills only for `/name`. */
+  trimTools: boolean
 }
 
 export type ReleaseReason = 'postpone' | 'skip'
@@ -95,7 +97,7 @@ export interface DispatcherDeps {
 }
 
 export function emptyChainState(): ChainState {
-  return { active: null, queue: [], orders: {}, skipped: {}, leftovers: {}, released: {}, unattended: false }
+  return { active: null, queue: [], orders: {}, skipped: {}, leftovers: {}, released: {}, unattended: false, trimTools: true }
 }
 
 export class Dispatcher {
@@ -237,6 +239,12 @@ export class Dispatcher {
   setUnattended(on: boolean): void {
     if (this.state.unattended === on) return
     this.state.unattended = on
+    this.changed()
+  }
+
+  setTrimTools(on: boolean): void {
+    if (this.state.trimTools === on) return
+    this.state.trimTools = on
     this.changed()
   }
 

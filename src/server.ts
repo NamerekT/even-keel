@@ -49,6 +49,7 @@ export interface ChainControl {
   restart(project: string, task: string): void
   dismiss(project: string, task: string): void
   setUnattended(on: boolean): void
+  setTrimTools(on: boolean): void
 }
 
 export interface AccountControl {
@@ -70,6 +71,8 @@ export interface ServerDeps {
   account: AccountControl
   launches: () => unknown
   sessionRecord: (sessionId: string) => Promise<unknown>
+  /** `undefined` for a project the config does not know. */
+  tools: (project: string) => Promise<unknown>
   stats: StatsSource
 }
 
@@ -88,6 +91,7 @@ const COMMANDS: Record<string, Command> = {
   'chain/restart': ({ control }, body) => control.restart(projectOf(body), taskOf(body)),
   'chain/dismiss': ({ control }, body) => control.dismiss(projectOf(body), taskOf(body)),
   'chain/unattended': ({ control }, body) => control.setUnattended(flagOf(body)),
+  'chain/trim': ({ control }, body) => control.setTrimTools(flagOf(body)),
   'account/add': ({ account }) => account.add(),
   'account/renew': ({ account }, body) => account.renew(accountOf(body)),
   'account/switch': ({ account }, body) => account.switchTo(accountOf(body)),
@@ -144,6 +148,20 @@ async function route(deps: ServerDeps, request: IncomingMessage, response: Serve
     }
     if (record === undefined) response.writeHead(404).end()
     else sendJson(response, 200, record)
+    return
+  }
+
+  const tools = /^\/api\/projects\/([^/]+)\/tools$/.exec(path)
+  if (request.method === 'GET' && tools !== null) {
+    let view: unknown
+    try {
+      view = await deps.tools(decodeURIComponent(tools[1]!))
+    } catch (error) {
+      sendFailure(response, error)
+      return
+    }
+    if (view === undefined) response.writeHead(404).end()
+    else sendJson(response, 200, view)
     return
   }
 

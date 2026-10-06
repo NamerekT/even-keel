@@ -17,7 +17,7 @@ export function loadChainState(file: string): ChainState {
     state.orders !== null
   if (!valid) throw new Error(`chain: ${file} is damaged; fix or delete it`)
   const active = state.active === null || state.active === undefined ? null : { ...state.active, error: noticeOrNull(state.active.error) }
-  return { ...state, active, skipped: state.skipped ?? {}, leftovers: leftoversOf(state.leftovers), released: state.released ?? {}, unattended: state.unattended === true } as ChainState
+  return { ...state, active, skipped: state.skipped ?? {}, leftovers: leftoversOf(state.leftovers), released: state.released ?? {}, unattended: state.unattended === true, trimTools: state.trimTools !== false } as ChainState
 }
 
 // Before BTN-62 the pause reason and the leftovers were English strings; they are kept and shown as they are.

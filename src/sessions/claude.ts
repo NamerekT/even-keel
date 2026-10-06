@@ -87,9 +87,9 @@ export class ClaudeCli {
     }
   }
 
-  async launch(home: AccountHome, task: string, cwd: string, prompt: string, model: ModelAlias): Promise<AgentEntry> {
+  async launch(home: AccountHome, task: string, cwd: string, prompt: string, model: ModelAlias, settings?: string): Promise<AgentEntry> {
     const launchedAt = Date.now()
-    await this.start(home, [...sessionArgs(task, model), prompt], cwd, notice('claude.startFailed', { task, cwd }))
+    await this.start(home, [...sessionArgs(task, model, settings), prompt], cwd, notice('claude.startFailed', { task, cwd }))
     return this.appear(
       home,
       (agent) => agent.name === task && samePath(agent.cwd, cwd) && agent.startedAt >= launchedAt - CLOCK_SKEW_MS,
@@ -104,8 +104,9 @@ export class ClaudeCli {
     cwd: string,
     prompt: string,
     model: ModelAlias,
+    settings?: string,
   ): Promise<AgentEntry> {
-    const args = [...sessionArgs(task, model), '--resume', sessionId, prompt]
+    const args = [...sessionArgs(task, model, settings), '--resume', sessionId, prompt]
     await this.start(home, args, cwd, notice('claude.resumeFailed', { task, cwd }))
     return this.appear(home, (agent) => agent.sessionId === sessionId && !isOver(agent), notice('claude.resumedNotShown', { task }))
   }
@@ -155,8 +156,10 @@ export class ClaudeCli {
   }
 }
 
-function sessionArgs(task: string, model: ModelAlias): string[] {
-  return ['--bg', '--permission-mode', 'auto', '-n', task, '--model', model]
+export const SESSION_MODE = 'auto'
+
+export function sessionArgs(task: string, model: ModelAlias, settings?: string): string[] {
+  return ['--bg', '--permission-mode', SESSION_MODE, '-n', task, '--model', model, ...(settings === undefined ? [] : ['--settings', settings])]
 }
 
 function isOver(agent: AgentEntry): boolean {

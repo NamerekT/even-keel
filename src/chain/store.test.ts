@@ -23,6 +23,7 @@ describe('chain store', () => {
       leftovers: { ABC: [{ task: 'ABC-0', at: 't', notice: notice('cleanup.worktreeKept', { path: 'C:\\abc' }) }] },
       released: { ABC: ['ABC-4'] },
       unattended: true,
+      trimTools: false,
     }
     saveChainState(file, state)
     expect(loadChainState(file)).toEqual(state)
@@ -42,6 +43,7 @@ describe('chain store', () => {
     const file = join(dir(), 'chain.json')
     writeFileSync(file, '{"active": null, "queue": [], "orders": {}}')
     expect(loadChainState(file)).toEqual(emptyChainState())
+    expect(loadChainState(file).trimTools).toBe(true)
   })
 
   it('refuses a damaged file instead of silently forgetting the chain', () => {

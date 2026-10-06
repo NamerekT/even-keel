@@ -6,6 +6,7 @@ import { isModelAlias, MODEL_ALIASES, type ModelAlias } from './tracker/model.js
 import { placeholderIn } from './sessions/prompt.js'
 import type { ContextScale } from './state.js'
 import type { CompareSettings } from './stats/rules.js'
+import { DEFAULT_HIDDEN_SKILLS } from './tools/settings.js'
 import { ADAPTERS, DEFAULT_TRACKER } from './tracker/adapters.js'
 import type { TrackerAdapter } from './tracker/source.js'
 
@@ -25,6 +26,8 @@ export interface EvenKeelConfig {
   stats: StatsConfig
   language: Language | null
   promptLanguage: Language
+  /** Skills chain sessions get only for `/name` while trimming is on. */
+  hiddenSkills: string[]
 }
 
 export interface StatsConfig {
@@ -93,14 +96,31 @@ export function parseConfig(raw: unknown, adapters: AdapterShapes = ADAPTERS): E
     stats: parseStats(input.stats),
     language,
     promptLanguage: parseLanguage(input.promptLanguage, 'promptLanguage') ?? language ?? DEFAULT_LANGUAGE,
+    hiddenSkills: parseHiddenSkills(input.hiddenSkills),
   }
 }
 
 export function liveConfig(current: EvenKeelConfig, next: EvenKeelConfig): EvenKeelConfig {
   const keep = <T>(field: Record<string, T>, fallback: Record<string, T>) =>
     Object.fromEntries(Object.keys(current.projects).map((key) => [key, field[key] ?? fallback[key]!]))
-  const { model, modelPrompts, stats, language, promptLanguage } = next
-  return { ...current, rules: keep(next.rules, current.rules), briefs: keep(next.briefs, current.briefs), model, modelPrompts, stats, language, promptLanguage }
+  const { model, modelPrompts, stats, language, promptLanguage, hiddenSkills } = next
+  return {
+    ...current,
+    rules: keep(next.rules, current.rules),
+    briefs: keep(next.briefs, current.briefs),
+    model,
+    modelPrompts,
+    stats,
+    language,
+    promptLanguage,
+    hiddenSkills,
+  }
+}
+
+function parseHiddenSkills(raw: unknown): string[] {
+  if (raw === undefined) return [...DEFAULT_HIDDEN_SKILLS]
+  if (!Array.isArray(raw) || raw.some((name) => typeof name !== 'string' || name.trim() === '')) throw fail('config.hiddenSkills', {})
+  return raw.map((name: string) => name.trim())
 }
 
 function parseModel(raw: unknown): ModelAlias {

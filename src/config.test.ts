@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { DEFAULT_RULES } from './chain/rules.js'
 import { liveConfig, parseConfig, restartChanges } from './config.js'
+import { DEFAULT_HIDDEN_SKILLS } from './tools/settings.js'
 
 describe('parseConfig', () => {
   it('fills defaults when only projects are given', () => {
@@ -21,7 +22,15 @@ describe('parseConfig', () => {
       stats: { compare: { minTasks: 5, minSessions: 10, days: 7 } },
       language: null,
       promptLanguage: 'en',
+      hiddenSkills: DEFAULT_HIDDEN_SKILLS,
     })
+  })
+
+  it('takes the skills hidden from chain sessions as a list of names', () => {
+    expect(parseConfig({ projects: {}, hiddenSkills: [' loop ', 'init'] }).hiddenSkills).toEqual(['loop', 'init'])
+    expect(parseConfig({ projects: {}, hiddenSkills: [] }).hiddenSkills).toEqual([])
+    expect(() => parseConfig({ projects: {}, hiddenSkills: 'loop' })).toThrow(/hiddenSkills/)
+    expect(() => parseConfig({ projects: {}, hiddenSkills: [''] })).toThrow(/hiddenSkills/)
   })
 
   it('takes the prompt language from its own key, else from the interface language', () => {
@@ -234,6 +243,12 @@ describe('reloading the config', () => {
     expect(live.model).toBe('sonnet')
     expect(live.modelPrompts).toEqual({ opus: 'New.' })
     expect(live.stats.compare.minTasks).toBe(3)
+    expect(restartChanges(base, next)).toEqual([])
+  })
+
+  it('applies the hidden skills at once', () => {
+    const next = parseConfig({ projects: { ABC: 'C:\\abc' }, hiddenSkills: ['loop'] })
+    expect(liveConfig(base, next).hiddenSkills).toEqual(['loop'])
     expect(restartChanges(base, next)).toEqual([])
   })
 

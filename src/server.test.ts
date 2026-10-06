@@ -40,6 +40,7 @@ describe('Even Keel HTTP server', () => {
       restart: record('restart'),
       dismiss: record('dismiss'),
       setUnattended: record('setUnattended'),
+      setTrimTools: record('setTrimTools'),
     }
     const account: AccountControl = {
       add: () => {
@@ -67,6 +68,7 @@ describe('Even Keel HTTP server', () => {
         if (id === 'bad') throw new Error('sessions: bad is not a session id')
         return id === '0a1b2c3d' ? { sessionId: id } : undefined
       },
+      tools: async (project) => (project === 'ABC' ? { project } : undefined),
       stats: {
         history: async (filter) => ({ state: 'off', reason: `history ${filter.scope} ${filter.account} ${filter.tz}` }),
         period: async (query) => ({ state: 'off', reason: `period ${query.from} ${query.to} ${query.projects?.join('+')}` }),
@@ -162,6 +164,7 @@ describe('Even Keel HTTP server', () => {
     await post('/api/chain/restart', { project: 'ABC', task: 'ABC-1' })
     await post('/api/chain/dismiss', { project: 'ABC', task: 'ABC-0' })
     await post('/api/chain/unattended', { on: true })
+    await post('/api/chain/trim', { on: false })
     expect(calls).toEqual([
       ['start', 'ABC'],
       ['pause'],
@@ -175,7 +178,15 @@ describe('Even Keel HTTP server', () => {
       ['restart', 'ABC', 'ABC-1'],
       ['dismiss', 'ABC', 'ABC-0'],
       ['setUnattended', true],
+      ['setTrimTools', false],
     ])
+  })
+
+  it('serves what sessions of a project get, 404 for an unknown project', async () => {
+    const response = await fetch(base + '/api/projects/ABC/tools')
+    expect(response.status).toBe(200)
+    expect(await response.json()).toEqual({ project: 'ABC' })
+    expect((await fetch(base + '/api/projects/QQQ/tools')).status).toBe(404)
   })
 
   it('answers 400 with the reason for a refused or malformed command', async () => {
