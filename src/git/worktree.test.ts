@@ -1,4 +1,4 @@
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
@@ -110,6 +110,7 @@ describe('finishWorktree', () => {
     const { git, calls } = fakeGit(clean)
     expect(await finishWorktree(git, repo, 'ABC-7')).toEqual({ warnings: [], syncError: null })
     expect(calls.filter((call) => !call.startsWith('worktree list') && call !== 'worktree prune')).toEqual([
+      `-C ${place} status --porcelain -z --ignored`,
       `worktree remove ${place}`,
       'branch -d abc-7/task',
       'remote',
@@ -185,6 +186,45 @@ describe('finishWorktree', () => {
     const { git, calls } = fakeGit({ ...clean, 'worktree list --porcelain': listing(main, [porcelainPath, 'main-copy']) })
     await finishWorktree(git, repo, 'ABC-7')
     expect(calls.some((call) => call.startsWith('branch -d'))).toBe(false)
+  })
+
+  describe('links in ignored folders', () => {
+    const status = `-C ${place} status --porcelain -z --ignored`
+    let made: string[] = []
+    afterEach(() => {
+      for (const dir of made) rmSync(dir, { recursive: true, force: true })
+      made = []
+    })
+
+    function folders() {
+      if (!existsSync(repo)) made.push(repo)
+      const outside = mkdtempSync(join(tmpdir(), 'even-keel-outside-'))
+      made.push(outside)
+      writeFileSync(join(outside, 'keep.txt'), 'x')
+      const scope = join(place, 'node_modules', '@scope')
+      mkdirSync(scope, { recursive: true })
+      writeFileSync(join(place, 'node_modules', 'real.txt'), 'x')
+      symlinkSync(outside, join(scope, 'linked'), 'junction')
+      symlinkSync(join(place, 'gone'), join(scope, 'dangling'), 'junction')
+      return { outside, scope }
+    }
+
+    it('unlinks them before git removes a clean worktree, so git neither follows nor trips on them', async () => {
+      const { outside, scope } = folders()
+      const { git, calls } = fakeGit({ ...clean, [status]: { out: '!! node_modules/\0' } })
+      await finishWorktree(git, repo, 'ABC-7')
+      expect(calls.indexOf(status)).toBeLessThan(calls.indexOf(`worktree remove ${place}`))
+      expect(readdirSync(scope)).toEqual([])
+      expect(existsSync(join(place, 'node_modules', 'real.txt'))).toBe(true)
+      expect(existsSync(join(outside, 'keep.txt'))).toBe(true)
+    })
+
+    it('leaves them in a dirty worktree, which git keeps', async () => {
+      const { scope } = folders()
+      const { git } = fakeGit({ ...clean, [status]: { out: ' M core/a.ts\0!! node_modules/\0' } })
+      await finishWorktree(git, repo, 'ABC-7')
+      expect(readdirSync(scope).sort()).toEqual(['dangling', 'linked'])
+    })
   })
 
   it('reports a failed sync with its output', async () => {

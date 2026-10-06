@@ -1,4 +1,5 @@
 import { appendFileSync, readFileSync } from 'node:fs'
+import { lstat, readdir, unlink } from 'node:fs/promises'
 import { join, resolve } from 'node:path'
 import type { GitStep } from '../notice/en.js'
 import { fail, notice, type Notice } from '../notice/notice.js'
@@ -65,6 +66,7 @@ export async function finishWorktree(git: Git, repo: string, task: string): Prom
   if (branch !== null && !branch.startsWith(`${task.toLowerCase()}/`)) branch = null
 
   if (found !== undefined) {
+    await unlinkIgnoredLinks(git, repo, place.path)
     const removed = await git(repo, ['worktree', 'remove', place.path])
     if (removed.code !== 0) {
       if ((await worktreeAt(git, repo, place.path)) === undefined) {
@@ -77,6 +79,31 @@ export async function finishWorktree(git: Git, repo: string, task: string): Prom
   }
 
   return dropBranch(git, repo, branch, warnings)
+}
+
+/**
+ * `git worktree remove` on Windows follows junctions: it empties a linked folder outside the worktree
+ * (`npm link`) and stops at a dangling one (an npm workspace link whose package it already deleted),
+ * leaving the folder behind. A clean worktree's links all sit in ignored folders, so they go first.
+ */
+async function unlinkIgnoredLinks(git: Git, repo: string, path: string): Promise<void> {
+  const status = await git(repo, ['-C', path, 'status', '--porcelain', '-z', '--ignored'])
+  const entries = status.out.split('\0').filter(Boolean)
+  if (status.code !== 0 || entries.some((entry) => !entry.startsWith('!! '))) return
+  try {
+    for (const entry of entries) await unlinkLinks(join(path, entry.slice(3)))
+  } catch {
+    // git removes what is left, as it would without this step
+  }
+}
+
+async function unlinkLinks(path: string): Promise<void> {
+  const stat = await lstat(path)
+  if (stat.isSymbolicLink()) return unlink(path)
+  if (!stat.isDirectory()) return
+  for (const entry of await readdir(path, { withFileTypes: true })) {
+    if (entry.isSymbolicLink() || entry.isDirectory()) await unlinkLinks(join(path, entry.name))
+  }
 }
 
 export async function dropBranch(git: Git, repo: string, branch: string | null, warnings: Notice[]): Promise<FinishOutcome> {
