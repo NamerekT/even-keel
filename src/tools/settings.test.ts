@@ -10,13 +10,14 @@ describe('trimSettings', () => {
     })
   })
 
-  it('keeps what the project sets for a skill, the local file included, over the hidden list', () => {
-    const project = { skillOverrides: { loop: 'on' } }
+  it('keeps what the project sets for a skill, the local file winning as in the CLI, over the hidden list', () => {
+    const project = { skillOverrides: { loop: 'on', init: 'on' } }
     const local = { skillOverrides: { dataviz: 'on', loop: 'off' } }
-    expect(trimSettings(['loop', 'dataviz', 'init'], project, local).skillOverrides).toEqual({
-      loop: 'on',
+    expect(trimSettings(['loop', 'dataviz', 'init', 'schedule'], project, local).skillOverrides).toEqual({
+      loop: 'off',
       dataviz: 'on',
-      init: 'user-invocable-only',
+      init: 'on',
+      schedule: 'user-invocable-only',
     })
   })
 })

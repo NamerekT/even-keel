@@ -36,7 +36,7 @@ export function trimSettings(hidden: string[], project: Json | undefined, local:
   return {
     syncClaudeAiSkills: false,
     syncClaudeAiPlugins: false,
-    skillOverrides: { ...overrides, ...objectOf(local?.skillOverrides), ...objectOf(project?.skillOverrides) },
+    skillOverrides: { ...overrides, ...objectOf(project?.skillOverrides), ...objectOf(local?.skillOverrides) },
   }
 }
 

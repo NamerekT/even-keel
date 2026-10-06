@@ -10,6 +10,7 @@
 
 .tools__body {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: 16px;
   font-size: 14px;
 }
@@ -92,6 +93,7 @@
 }
 
 .tools__table td:first-child {
+  min-width: 200px;
   white-space: normal;
   overflow-wrap: anywhere;
 }

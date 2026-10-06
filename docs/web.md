@@ -17,7 +17,7 @@
 
 ## Конфиг на лету (`src/config-file.ts`)
 
-`even-keel.config.json` служба перечитывает на лету: сразу применяются `chain`, `brief`, `model`, `modelPrompts`, `stats`, `language` и `promptLanguage`, а `host`, `port`, `projects`, `context`, `tracker` — после перезапуска (в лог — что ждёт). Битый файл — работает последний исправный, ошибка в лог и баннером на странице (`ConfigBanner`).
+`even-keel.config.json` служба перечитывает на лету: сразу применяются `chain`, `brief`, `model`, `modelPrompts`, `stats`, `language`, `promptLanguage` и `hiddenSkills`, а `host`, `port`, `projects`, `context`, `tracker` — после перезапуска (в лог — что ждёт). Битый файл — работает последний исправный, ошибка в лог и баннером на странице (`ConfigBanner`).
 
 ## Фейковые состояния (`npm run dev:fake`)
 
@@ -44,4 +44,5 @@
 | `?account=vscode-broken` | `settings.json` VS Code не читается |
 | `?stats=off\|error\|empty` | статистика выключена, база недоступна, данных нет — на `/stats` и в полосе страницы проекта |
 | `?rules=empty\|thin` | правок правил нет, «До и после» с малой выборкой |
+| `?tools=bloated\|empty` | панель «Что получают сессии»: последняя сессия с навыками claude.ai и упавшим MCP-сервером и расхождением аккаунтов; без транскриптов |
 | `?lang=en\|ru` | язык страницы из конфига (без него — язык браузера) |
