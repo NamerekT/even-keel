@@ -28,6 +28,8 @@ export interface EvenKeelConfig {
   promptLanguage: Language
   /** Skills chain sessions get only for `/name` while trimming is on. */
   hiddenSkills: string[]
+  /** Chains run at once; the rest wait in the queue. */
+  parallel: number
 }
 
 export interface StatsConfig {
@@ -97,15 +99,23 @@ export function parseConfig(raw: unknown, adapters: AdapterShapes = ADAPTERS): E
     language,
     promptLanguage: parseLanguage(input.promptLanguage, 'promptLanguage') ?? language ?? DEFAULT_LANGUAGE,
     hiddenSkills: parseHiddenSkills(input.hiddenSkills),
+    parallel: parseParallel(input.parallel),
   }
+}
+
+function parseParallel(raw: unknown): number {
+  if (raw === undefined) return 1
+  if (!Number.isInteger(raw) || (raw as number) < 1) throw fail('config.parallel', { value: String(JSON.stringify(raw)) })
+  return raw as number
 }
 
 export function liveConfig(current: EvenKeelConfig, next: EvenKeelConfig): EvenKeelConfig {
   const keep = <T>(field: Record<string, T>, fallback: Record<string, T>) =>
     Object.fromEntries(Object.keys(current.projects).map((key) => [key, field[key] ?? fallback[key]!]))
-  const { model, modelPrompts, stats, language, promptLanguage, hiddenSkills } = next
+  const { model, modelPrompts, stats, language, promptLanguage, hiddenSkills, parallel } = next
   return {
     ...current,
+    parallel,
     rules: keep(next.rules, current.rules),
     briefs: keep(next.briefs, current.briefs),
     model,

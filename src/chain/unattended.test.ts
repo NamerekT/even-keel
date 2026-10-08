@@ -20,7 +20,7 @@ const session = (lastReplyAt: string | null, changes: Partial<HandoffSession> = 
 
 const runningState = (since = '2026-09-26T11:00:00.000Z'): ChainState => ({
   ...emptyChainState(),
-  active: { project: 'ABC', current: { task: 'ABC-1', sessionId: 'old-session', since }, paused: false, error: null },
+  active: [{ project: 'ABC', current: { task: 'ABC-1', sessionId: 'old-session', since }, paused: false, error: null }],
 })
 
 async function running(options: SetupOptions, handoff: HandoffSession | undefined, state = runningState()) {
@@ -59,7 +59,7 @@ describe('Dispatcher in the unattended mode', () => {
 
   it('counts them anew from a resume after the usage limit', async () => {
     const state = runningState()
-    state.active!.current!.resumedAt = '2026-09-26T11:55:00.000Z'
+    state.active[0]!.current!.resumedAt = '2026-09-26T11:55:00.000Z'
     const { dispatcher } = await running({}, session('2026-09-26T11:00:00.000Z'), state)
     expect(dispatcher.state.skipped).toEqual({})
   })
@@ -82,7 +82,7 @@ describe('Dispatcher in the unattended mode', () => {
   it('does nothing outside the unattended mode', async () => {
     const { dispatcher } = await running({ unattended: false }, session('2026-09-26T11:00:00.000Z'))
     expect(dispatcher.state.skipped).toEqual({})
-    expect(dispatcher.state.active?.current?.task).toBe('ABC-1')
+    expect(dispatcher.state.active[0]?.current?.task).toBe('ABC-1')
   })
 
   it('leaves a session in the middle of its turn alone', async () => {

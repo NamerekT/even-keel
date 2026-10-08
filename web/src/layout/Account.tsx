@@ -286,13 +286,13 @@ function Blockers({ block }: { block: LoginBlock }) {
     <div className="account__blockers">
       <p className="queue__hint">{t.account.switchBlocked}</p>
       <ul className="account__blocker-list">
-        {block.chain !== null && (
-          <li>
+        {block.chains.map((project) => (
+          <li key={project}>
             {t.account.chainBusy.before}
-            <Link to={`/p/${block.chain}`}>{block.chain}</Link>
+            <Link to={`/p/${project}`}>{project}</Link>
             {t.account.chainBusy.after}
           </li>
-        )}
+        ))}
         {block.sessions.map((session, index) => (
           <li key={`${session.name}-${index}`}>
             <span className="account__blocker-name">{session.name}</span>{' '}

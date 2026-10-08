@@ -60,7 +60,9 @@ export interface EvenKeelState {
   startedAt: string
   projects: string[]
   chain: {
-    active: ActiveChain | null
+    active: ActiveChain[]
+    /** How many chains run at once (`parallel` in the config). */
+    parallel: number
     queue: string[]
     projects: Record<string, ProjectOrder>
     skipped: Record<string, string[]>

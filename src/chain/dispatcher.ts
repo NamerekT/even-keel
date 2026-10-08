@@ -42,7 +42,8 @@ export interface Leftover {
 }
 
 export interface ChainState {
-  active: ActiveChain | null
+  /** Running and paused chains in start order; at most `parallel` of them take new chains from the queue. */
+  active: ActiveChain[]
   queue: string[]
   orders: Record<string, string[]>
   skipped: Record<string, string[]>
@@ -75,6 +76,8 @@ export interface ProjectOrder {
 
 export interface DispatcherDeps {
   projects: string[]
+  /** How many chains run at once; the rest wait in the queue. */
+  parallel: () => number
   rules: (project: string) => ChainRules
   launch: (project: string, task: string) => Promise<string>
   liveSession: (task: string) => string | undefined
@@ -97,7 +100,11 @@ export interface DispatcherDeps {
 }
 
 export function emptyChainState(): ChainState {
-  return { active: null, queue: [], orders: {}, skipped: {}, leftovers: {}, released: {}, unattended: false, trimTools: true }
+  return { active: [], queue: [], orders: {}, skipped: {}, leftovers: {}, released: {}, unattended: false, trimTools: true }
+}
+
+function newChain(project: string): ActiveChain {
+  return { project, current: null, paused: false, error: null }
 }
 
 export class Dispatcher {
@@ -133,9 +140,9 @@ export class Dispatcher {
   }
 
   held(project: string): string[] {
-    const active = this.state.active
-    const current = active?.project === project && active.current?.sessionId ? [active.current.task] : []
-    return [...current, ...this.released(project).filter((id) => !current.includes(id))]
+    const current = this.chainOf(project)?.current
+    const holds = current?.sessionId ? [current.task] : []
+    return [...holds, ...this.released(project).filter((id) => !holds.includes(id))]
   }
 
   setReleased(project: string, tasks: Task[]): void {
@@ -155,39 +162,41 @@ export class Dispatcher {
 
   private enters(project: string, task: Task, rules: ChainRules): boolean {
     if (isActive(rules, task.status)) return true
-    const active = this.state.active
-    return active?.project === project && active.current?.task === task.id && this.deps.busy(task.id)
+    return this.currentOf(project) === task.id && this.deps.busy(task.id)
   }
 
   start(project: string): void {
     this.requireProject(project)
     const { active, queue } = this.state
-    if (active?.project === project || queue.includes(project)) return
-    if (active === null) {
+    if (this.chainOf(project) !== undefined || queue.includes(project)) return
+    if (active.length < this.deps.parallel()) {
       this.requireLaunches()
-      this.state.active = { project, current: null, paused: false, error: null }
+      active.push(newChain(project))
     } else queue.push(project)
     this.changed()
   }
 
-  pause(): void {
-    if (this.state.active === null || this.state.active.paused) return
-    this.state.active.paused = true
+  pause(project: string): void {
+    const chain = this.chainOf(project)
+    if (chain === undefined || chain.paused) return
+    chain.paused = true
     this.changed()
   }
 
-  resume(): void {
-    if (this.state.active === null) return
+  resume(project: string): void {
+    const chain = this.chainOf(project)
+    if (chain === undefined) return
     this.requireLaunches()
-    this.state.active.paused = false
-    this.state.active.error = null
+    chain.paused = false
+    chain.error = null
     this.changed()
   }
 
-  stop(): void {
-    if (this.state.active === null) return
-    this.letGo(this.state.active)
-    this.state.active = null
+  stop(project: string): void {
+    const chain = this.chainOf(project)
+    if (chain === undefined) return
+    this.letGo(chain)
+    this.drop(chain)
     this.changed()
   }
 
@@ -201,8 +210,8 @@ export class Dispatcher {
   skip(project: string, task: string): void {
     this.requireProject(project)
     if (!(this.tasks.get(project) ?? []).some((open) => open.id === task)) throw fail('chain.notOpen', { task, project })
-    const active = this.state.active
-    const holder = active?.project === project && active.current?.task === task ? active : null
+    const chain = this.chainOf(project)
+    const holder = chain !== undefined && chain.current?.task === task ? chain : null
     if (holder?.current?.sessionId === null) throw fail('chain.launching', { task })
     if (holder !== null && this.deps.busy(task)) throw fail('chain.midTurn', { task })
     const skipped = (this.state.skipped[project] ??= [])
@@ -213,9 +222,9 @@ export class Dispatcher {
 
   restart(project: string, task: string): void {
     this.requireProject(project)
-    const chain = this.state.active
-    const current = chain?.project === project && chain.current?.task === task ? chain.current : null
-    if (chain === null || current === null) throw fail('chain.notCurrent', { task })
+    const chain = this.chainOf(project)
+    const current = chain?.current?.task === task ? chain.current : null
+    if (chain === undefined || current === null) throw fail('chain.notCurrent', { task })
     if (current.sessionId === null) throw fail('chain.launching', { task })
     if (this.deps.busy(task)) throw fail('chain.midTurn', { task })
     this.requireLaunches()
@@ -306,9 +315,28 @@ export class Dispatcher {
     return (this.waiting.get(project) ?? []).map((task) => task.id)
   }
 
+  private chainOf(project: string): ActiveChain | undefined {
+    return this.state.active.find((chain) => chain.project === project)
+  }
+
   private currentOf(project: string): string | undefined {
-    const active = this.state.active
-    return active?.project === project ? active.current?.task : undefined
+    return this.chainOf(project)?.current?.task
+  }
+
+  private drop(chain: ActiveChain): void {
+    this.state.active = this.state.active.filter((each) => each !== chain)
+  }
+
+  /** Takes queued projects while fewer chains than `parallel` are active; a lowered `parallel` stops nothing that runs. */
+  private fill(): void {
+    let taken = false
+    while (this.state.active.length < this.deps.parallel()) {
+      const next = this.state.queue.shift()
+      if (next === undefined) break
+      this.state.active.push(newChain(next))
+      taken = true
+    }
+    if (taken) this.deps.save(this.state)
   }
 
   private preferred(project: string, stored = this.state.orders[project]): string[] | undefined {
@@ -426,15 +454,18 @@ export class Dispatcher {
 
   private async advance(): Promise<void> {
     await this.sweep()
+    const seen = new Set<ActiveChain>()
     for (;;) {
-      const chain = this.state.active
-      if (chain === null) {
-        const next = this.state.queue.shift()
-        if (next === undefined) return
-        this.state.active = { project: next, current: null, paused: false, error: null }
-        this.deps.save(this.state)
-        continue
-      }
+      this.fill()
+      const chain = this.state.active.find((each) => !seen.has(each))
+      if (chain === undefined) return
+      seen.add(chain)
+      await this.step(chain)
+    }
+  }
+
+  private async step(chain: ActiveChain): Promise<void> {
+    for (;;) {
       if (chain.paused) return
       const tasks = this.tasks.get(chain.project)
       if (tasks === undefined) return
@@ -481,9 +512,9 @@ export class Dispatcher {
 
       const task = nextTask(tasks, order, [...(this.state.skipped[chain.project] ?? []), ...this.waitingIds(chain.project)])
       if (task === undefined) {
-        this.state.active = null
+        this.drop(chain)
         this.deps.save(this.state)
-        continue
+        return
       }
 
       const since = this.deps.now().toISOString()
@@ -616,7 +647,7 @@ export class Dispatcher {
   }
 
   private async replace(chain: ActiveChain, current: CurrentTask, replaced: string, session: HandoffSession): Promise<void> {
-    if (this.state.active !== chain || chain.current !== current || current.sessionId !== replaced) return
+    if (!this.state.active.includes(chain) || chain.current !== current || current.sessionId !== replaced) return
     await this.handOverCurrent(chain, current, session, 'restart')
   }
 

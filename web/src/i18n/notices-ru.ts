@@ -154,6 +154,7 @@ export const noticesRu: NoticeTexts = {
   'config.modelAlias': (p) => `modelPrompts.${p.model} — не алиас модели`,
   'config.modelPromptEmpty': (p) => `modelPrompts.${p.model} пуст`,
   'config.hiddenSkills': () => 'hiddenSkills должен быть списком имён навыков',
+  'config.parallel': (p) => `parallel должен быть целым числом от 1, а не ${p.value}`,
   'config.modelPromptPlaceholder': (p) => `в modelPrompts.${p.model} подстановка ${p.placeholder}, а промт модели передаётся как есть`,
   'config.contextWindow': (p) => `context.window должен быть положительным целым числом токенов, а не ${p.value}`,
   'config.contextPercents': () => 'context.warn и context.danger должны быть процентами, 0 < warn < danger <= 100',

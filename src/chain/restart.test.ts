@@ -20,7 +20,7 @@ const handoff = (sessionId: string): HandoffSession => ({
 
 const runningState = (paused = false): ChainState => ({
   ...emptyChainState(),
-  active: { project: 'ABC', current: { task: 'ABC-1', sessionId: 'old-session', since: '2026-09-26T11:00:00.000Z' }, paused, error: null },
+  active: [{ project: 'ABC', current: { task: 'ABC-1', sessionId: 'old-session', since: '2026-09-26T11:00:00.000Z' }, paused, error: null }],
 })
 
 async function running(options: SetupOptions = {}) {
@@ -44,7 +44,7 @@ describe('Dispatcher on a restart', () => {
     expect(relays[0]?.prompt).toContain('abc-1/work')
     expect(relays[0]?.prompt).toContain('пользователь')
     expect(relays[0]?.prompt).toContain('Left: run the tests.')
-    expect(dispatcher.state.active?.current).toMatchObject({ task: 'ABC-1', sessionId: 'session-1' })
+    expect(dispatcher.state.active[0]?.current).toMatchObject({ task: 'ABC-1', sessionId: 'session-1' })
     expect(journal.at(-1)).toEqual({
       at: '2026-09-26T13:00:00.000Z',
       project: 'ABC',
@@ -57,7 +57,7 @@ describe('Dispatcher on a restart', () => {
 
   it('forgets the limit hold of the replaced session', async () => {
     const { dispatcher } = await running()
-    const current = dispatcher.state.active!.current!
+    const current = dispatcher.state.active[0]!.current!
     current.limit = {
       at: '2026-09-26T11:55:00.000Z',
       account: 'john@example.com',
@@ -69,7 +69,7 @@ describe('Dispatcher on a restart', () => {
 
     dispatcher.restart('ABC', 'ABC-1')
     await dispatcher.idle()
-    expect(dispatcher.state.active?.current?.limit).toBeUndefined()
+    expect(dispatcher.state.active[0]?.current?.limit).toBeUndefined()
   })
 
   it('restarts the task of a paused chain and leaves the chain paused', async () => {
@@ -77,14 +77,14 @@ describe('Dispatcher on a restart', () => {
     dispatcher.restart('ABC', 'ABC-1')
     await dispatcher.idle()
     expect(relays).toHaveLength(1)
-    expect(dispatcher.state.active).toMatchObject({ paused: true, current: { sessionId: 'session-1' } })
+    expect(dispatcher.state.active[0]).toMatchObject({ paused: true, current: { sessionId: 'session-1' } })
   })
 
   it('halts the chain when the new session does not start', async () => {
     const { dispatcher } = await running({ failRelay: true })
     dispatcher.restart('ABC', 'ABC-1')
     await dispatcher.idle()
-    expect(dispatcher.state.active).toMatchObject({ paused: true, current: null, error: textNotice('claude: could not stop old-sess') })
+    expect(dispatcher.state.active[0]).toMatchObject({ paused: true, current: null, error: textNotice('claude: could not stop old-sess') })
   })
 
   it('refuses while the session is mid-turn', async () => {

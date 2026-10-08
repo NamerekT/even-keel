@@ -59,7 +59,7 @@ export interface LoginBlocker {
 }
 
 export interface LoginBlock {
-  chain: string | null
+  chains: string[]
   sessions: LoginBlocker[]
 }
 
@@ -161,8 +161,8 @@ export function liveSessions(agents: AgentEntry[], key: string): string[] {
     .map((agent) => agent.name ?? agent.sessionId.slice(0, 8))
 }
 
-export function loginBlock(chain: ActiveChain | null, agents: AgentEntry[], active: string): LoginBlock | null {
-  const running = chain !== null && !chain.paused ? chain.project : null
+export function loginBlock(chains: ActiveChain[], agents: AgentEntry[], active: string): LoginBlock | null {
+  const running = chains.filter((chain) => !chain.paused).map((chain) => chain.project)
   const busy = agents.flatMap((agent): LoginBlocker[] => {
     if ((agent.account ?? GLOBAL_ACCOUNT) !== active) return []
     if (agent.state === 'done' || agent.state === 'stopped' || agent.state === 'failed') return []
@@ -170,11 +170,11 @@ export function loginBlock(chain: ActiveChain | null, agents: AgentEntry[], acti
     const status = agent.status === 'waiting' ? 'waiting' : 'busy'
     return [{ name: agent.name ?? agent.sessionId.slice(0, 8), status, waitingFor: agent.waitingFor ?? null }]
   })
-  return running === null && busy.length === 0 ? null : { chain: running, sessions: busy }
+  return running.length === 0 && busy.length === 0 ? null : { chains: running, sessions: busy }
 }
 
 export function loginBlockNotice(block: LoginBlock): Notice {
-  if (block.chain !== null) return notice('account.chainRunning', { project: block.chain })
+  if (block.chains.length > 0) return notice('account.chainRunning', { project: block.chains.join(', ') })
   return notice('account.sessionsBusy', { sessions: block.sessions.map((session) => session.name) })
 }
 

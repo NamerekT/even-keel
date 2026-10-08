@@ -163,9 +163,9 @@ describe('Even Keel HTTP server', () => {
     expect(response.status).toBe(200)
     expect(await response.json()).toEqual({ chain: [] })
 
-    await post('/api/chain/pause')
-    await post('/api/chain/resume')
-    await post('/api/chain/stop')
+    await post('/api/chain/pause', { project: 'ABC' })
+    await post('/api/chain/resume', { project: 'ABC' })
+    await post('/api/chain/stop', { project: 'ABC' })
     await post('/api/chain/dequeue', { project: 'XYZ' })
     await post('/api/chain/order', { project: 'ABC', order: ['ABC-2', 'ABC-1'] })
     await post('/api/chain/queue', { order: ['XYZ', 'OPS'] })
@@ -177,9 +177,9 @@ describe('Even Keel HTTP server', () => {
     await post('/api/chain/trim', { on: false })
     expect(calls).toEqual([
       ['start', 'ABC'],
-      ['pause'],
-      ['resume'],
-      ['stop'],
+      ['pause', 'ABC'],
+      ['resume', 'ABC'],
+      ['stop', 'ABC'],
       ['dequeue', 'XYZ'],
       ['reorder', 'ABC', ['ABC-2', 'ABC-1']],
       ['requeue', ['XYZ', 'OPS']],

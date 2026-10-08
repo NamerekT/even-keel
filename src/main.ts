@@ -74,6 +74,7 @@ const configFile = new ConfigFile({
   warn: (message) => console.warn(message),
   onChange: () => {
     for (const [project, tasks] of tasksByProject) dispatcher.setTasks(project, tasks)
+    dispatcher.check()
     mcp.run()
     hub.broadcast('state', getState())
   },
@@ -279,11 +280,12 @@ const settingsFor = (task: string, project = projectOf(task)): string | undefine
 
 function projectOf(task: string): string | undefined {
   for (const [project, tasks] of tasksByProject) if (tasks.some((each) => each.id === task)) return project
-  return dispatcher.state.active?.project
+  return dispatcher.state.active.find((chain) => chain.current?.task === task)?.project
 }
 
 const dispatcher = new Dispatcher(loadChainState(chainFile), {
   projects: Object.keys(config.projects),
+  parallel: () => configFile.current.parallel,
   rules: rulesOf,
   launch: async (project, task) => {
     const home = homeOf(ledger.active)
@@ -403,6 +405,7 @@ const getState = (): EvenKeelState => ({
   projects: Object.keys(config.projects),
   chain: {
     active: dispatcher.state.active,
+    parallel: configFile.current.parallel,
     queue: dispatcher.state.queue,
     projects: dispatcher.orders(),
     skipped: dispatcher.state.skipped,

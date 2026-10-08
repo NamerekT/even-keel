@@ -18,7 +18,7 @@
 
 ## Конфиг на лету (`src/config-file.ts`)
 
-`even-keel.config.json` служба перечитывает на лету: сразу применяются `chain`, `brief`, `model`, `modelPrompts`, `stats`, `language`, `promptLanguage` и `hiddenSkills`, а `host`, `port`, `projects`, `context`, `tracker` — после перезапуска (в лог — что ждёт). Битый файл — работает последний исправный, ошибка в лог и баннером на странице (`ConfigBanner`).
+`even-keel.config.json` служба перечитывает на лету: сразу применяются `parallel`, `chain`, `brief`, `model`, `modelPrompts`, `stats`, `language`, `promptLanguage` и `hiddenSkills`, а `host`, `port`, `projects`, `context`, `tracker` — после перезапуска (в лог — что ждёт). Битый файл — работает последний исправный, ошибка в лог и баннером на странице (`ConfigBanner`).
 
 ## Фейковые состояния (`npm run dev:fake`)
 
@@ -28,6 +28,7 @@
 | --- | --- |
 | `?link=stale\|connecting` | состояния связи |
 | `?chain=idle` | без активной цепочки, чтобы проверить запуск |
+| `?parallel=2` | две цепочки сразу: рядом с ABC идёт DEMO, взятый из очереди |
 | `?chain=limit` | цепочка ждёт сброса лимита |
 | `?chain=skip` | пропущенная задача и сессия, отложенная блокером |
 | `?chain=backlog` | блокеры из Backlog под замком перед задачей, которую держат (веха v0.2) |

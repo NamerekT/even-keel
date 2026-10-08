@@ -109,7 +109,7 @@ describe('appSwitchProblem', () => {
   })
 
   it('does not care about the chain or Even Keel sessions', () => {
-    const busy = { ...view(vscode({})), loginBlock: { chain: 'ABC', sessions: [] } }
+    const busy = { ...view(vscode({})), loginBlock: { chains: ['ABC'], sessions: [] } }
     expect(appSwitchProblem(busy, 'vscode', 'work')).toBeUndefined()
   })
 

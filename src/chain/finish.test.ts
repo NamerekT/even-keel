@@ -18,7 +18,7 @@ describe('Dispatcher finishing a done task', () => {
     await dispatcher.idle()
     expect(finished).toEqual(['ABC/ABC-1'])
     expect(launched).toEqual(['ABC/ABC-1', 'ABC/ABC-2'])
-    expect(dispatcher.state.active?.closing).toBeUndefined()
+    expect(dispatcher.state.active[0]?.closing).toBeUndefined()
   })
 
   it('waits until the session of the done task is not mid-turn', async () => {
@@ -33,7 +33,7 @@ describe('Dispatcher finishing a done task', () => {
     await dispatcher.idle()
     expect(finished).toEqual([])
     expect(launched).toEqual(['ABC/ABC-1'])
-    expect(dispatcher.state.active).toMatchObject({ current: null, closing: 'ABC-1' })
+    expect(dispatcher.state.active[0]).toMatchObject({ current: null, closing: 'ABC-1' })
 
     busy.clear()
     dispatcher.check()
@@ -75,13 +75,13 @@ describe('Dispatcher finishing a done task', () => {
       expect(launched).toEqual(['ABC/ABC-1', 'ABC/ABC-2'])
       expect(finished).toEqual([])
       expect(dispatcher.state.released).toEqual({ ABC: ['ABC-1'] })
-      expect(dispatcher.state.active?.closing).toBeUndefined()
+      expect(dispatcher.state.active[0]?.closing).toBeUndefined()
     })
 
     it('keeps waiting while the session spoke less than ten minutes ago', async () => {
       const { dispatcher, launched } = await closing('2026-09-26T11:51:00.000Z')
       expect(launched).toEqual(['ABC/ABC-1'])
-      expect(dispatcher.state.active?.closing).toBe('ABC-1')
+      expect(dispatcher.state.active[0]?.closing).toBe('ABC-1')
     })
   })
 
@@ -96,7 +96,7 @@ describe('Dispatcher finishing a done task', () => {
     busy.add('ABC-1')
     dispatcher.setTasks('ABC', [task('ABC-1', done), task('ABC-2')])
     await dispatcher.idle()
-    expect(dispatcher.state.active?.closing).toBe('ABC-1')
+    expect(dispatcher.state.active[0]?.closing).toBe('ABC-1')
 
     busy.clear()
     live['ABC-1'] = 'session-1'
@@ -104,8 +104,8 @@ describe('Dispatcher finishing a done task', () => {
     await dispatcher.idle()
     expect(finished).toEqual([])
     expect(launched).toEqual(['ABC/ABC-1'])
-    expect(dispatcher.state.active?.closing).toBeUndefined()
-    expect(dispatcher.state.active?.current).toMatchObject({ task: 'ABC-1', sessionId: 'session-1' })
+    expect(dispatcher.state.active[0]?.closing).toBeUndefined()
+    expect(dispatcher.state.active[0]?.current).toMatchObject({ task: 'ABC-1', sessionId: 'session-1' })
   })
 
   it('leaves a canceled or vanished task alone', async () => {
@@ -131,7 +131,7 @@ describe('Dispatcher finishing a done task', () => {
     dispatcher.setTasks('ABC', [task('ABC-1', done)])
     await dispatcher.idle()
     expect(finished).toEqual(['ABC/ABC-1'])
-    expect(dispatcher.state.active).toBeNull()
+    expect(dispatcher.state.active).toEqual([])
   })
 
   it('keeps the warnings of a cleanup and goes on', async () => {
@@ -160,17 +160,17 @@ describe('Dispatcher finishing a done task', () => {
     dispatcher.setTasks('ABC', [task('ABC-1', done), task('ABC-2')])
     await dispatcher.idle()
     expect(launched).toEqual(['ABC/ABC-1'])
-    expect(dispatcher.state.active).toMatchObject({ paused: true, current: null })
-    expect(englishOf(dispatcher.state.active!.error!)).toMatch(/sync: merge it by hand/)
+    expect(dispatcher.state.active[0]).toMatchObject({ paused: true, current: null })
+    expect(englishOf(dispatcher.state.active[0]!.error!)).toMatch(/sync: merge it by hand/)
 
-    dispatcher.resume()
+    dispatcher.resume('ABC')
     await dispatcher.idle()
     expect(finished).toEqual(['ABC/ABC-1'])
     expect(launched).toEqual(['ABC/ABC-1', 'ABC/ABC-2'])
   })
 
   it('picks up an unfinished cleanup after a restart', async () => {
-    const state = { ...emptyChainState(), active: { project: 'ABC', current: null, paused: false, error: null, closing: 'ABC-1' } }
+    const state = { ...emptyChainState(), active: [{ project: 'ABC', current: null, paused: false, error: null, closing: 'ABC-1' }] }
     const { dispatcher, finished, launched } = setup({ state })
     dispatcher.setTasks('ABC', [task('ABC-1', done), task('ABC-2')])
     await dispatcher.idle()
@@ -237,7 +237,7 @@ describe('Dispatcher finishing a task it let go of', () => {
     dispatcher.setTasks('ABC', [task('ABC-1')])
     dispatcher.start('ABC')
     await dispatcher.idle()
-    dispatcher.stop()
+    dispatcher.stop('ABC')
     expect(dispatcher.released('ABC')).toEqual(['ABC-1'])
 
     dispatcher.setReleased('ABC', [task('ABC-1', done)])
@@ -290,7 +290,7 @@ describe('Dispatcher finishing a task it let go of', () => {
 
     dispatcher.setReleased('ABC', [task('ABC-1', done)])
     await dispatcher.idle()
-    expect(dispatcher.state.active).toMatchObject({ paused: false, current: { task: 'ABC-2' } })
+    expect(dispatcher.state.active[0]).toMatchObject({ paused: false, current: { task: 'ABC-2' } })
     expect(launched).toEqual(['ABC/ABC-1', 'ABC/ABC-2'])
     expect(dispatcher.state.leftovers).toEqual({
       ABC: [

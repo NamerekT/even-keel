@@ -160,6 +160,7 @@ export const en = {
   'config.modelAlias': (p: { model: string }) => `config: modelPrompts.${p.model} is not a model alias`,
   'config.modelPromptEmpty': (p: { model: string }) => `config: modelPrompts.${p.model} is empty`,
   'config.hiddenSkills': () => 'config: hiddenSkills must be a list of skill names',
+  'config.parallel': (p: { value: string }) => `config: parallel must be a positive integer, got ${p.value}`,
   'config.modelPromptPlaceholder': (p: { model: string; placeholder: string }) =>
     `config: modelPrompts.${p.model} has the substitution ${p.placeholder}, but a model prompt is passed on as it is`,
   'config.contextWindow': (p: { value: string }) => `config: context.window must be a positive integer of tokens, got ${p.value}`,

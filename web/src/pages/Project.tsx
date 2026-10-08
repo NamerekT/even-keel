@@ -12,6 +12,7 @@ import {
   openQuestions,
   projectTasks,
   queuedAfter,
+  startsNow,
   taskProject,
 } from '../state.js'
 import { focusAfterClose } from '../ui/focus.js'
@@ -149,7 +150,7 @@ function ChainControls({ state, project }: { state: EvenKeelState; project: stri
       type="button"
       className={primary ? 'button button--primary' : 'button'}
       disabled={sending}
-      onClick={() => void send(`chain/${name}`, name === 'start' ? { project } : undefined)}
+      onClick={() => void send(`chain/${name}`, { project })}
     >
       {label}
     </button>
@@ -157,7 +158,7 @@ function ChainControls({ state, project }: { state: EvenKeelState; project: stri
 
   return (
     <div className="project__controls">
-      {canStart && button(state.chain.active === null ? t.project.start : t.project.enqueue, 'start', true)}
+      {canStart && button(startsNow(state.chain) ? t.project.start : t.project.enqueue, 'start', true)}
       {status.kind === 'running' && button(t.project.pause, 'pause')}
       {status.kind === 'paused' && button(t.project.resume, 'resume', true)}
       {(status.kind === 'running' || status.kind === 'paused') && button(t.project.stop, 'stop')}

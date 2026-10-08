@@ -39,9 +39,9 @@ export interface StatsSource {
 
 export interface ChainControl {
   start(project: string): void
-  pause(): void
-  resume(): void
-  stop(): void
+  pause(project: string): void
+  resume(project: string): void
+  stop(project: string): void
   dequeue(project: string): void
   reorder(project: string, order: string[]): void
   requeue(order: string[]): void
@@ -88,9 +88,9 @@ type Command = (deps: ServerDeps, body: Record<string, unknown>) => void | Promi
 
 const COMMANDS: Record<string, Command> = {
   'chain/start': ({ control }, body) => control.start(projectOf(body)),
-  'chain/pause': ({ control }) => control.pause(),
-  'chain/resume': ({ control }) => control.resume(),
-  'chain/stop': ({ control }) => control.stop(),
+  'chain/pause': ({ control }, body) => control.pause(projectOf(body)),
+  'chain/resume': ({ control }, body) => control.resume(projectOf(body)),
+  'chain/stop': ({ control }, body) => control.stop(projectOf(body)),
   'chain/dequeue': ({ control }, body) => control.dequeue(projectOf(body)),
   'chain/order': ({ control }, body) => control.reorder(projectOf(body), listOf(body, 'request.taskList')),
   'chain/queue': ({ control }, body) => control.requeue(listOf(body, 'request.projectList')),

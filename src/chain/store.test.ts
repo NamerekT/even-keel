@@ -16,7 +16,10 @@ describe('chain store', () => {
   it('reads back what it saved', () => {
     const file = join(dir(), 'nested', 'chain.json')
     const state: ChainState = {
-      active: { project: 'ABC', current: { task: 'ABC-1', sessionId: 's1', since: 't' }, paused: true, error: null },
+      active: [
+        { project: 'ABC', current: { task: 'ABC-1', sessionId: 's1', since: 't' }, paused: true, error: null },
+        { project: 'DEF', current: null, paused: false, error: null, limitUntil: 't' },
+      ],
       queue: ['XYZ'],
       orders: { ABC: ['ABC-2', 'ABC-1'] },
       skipped: { ABC: ['ABC-3'] },
@@ -29,13 +32,14 @@ describe('chain store', () => {
     expect(loadChainState(file)).toEqual(state)
   })
 
-  it('reads the English pause reason and leftovers of an older file as plain text', () => {
+  it('reads the single chain, the English pause reason and leftovers of an older file', () => {
     const file = join(dir(), 'chain.json')
     const active = { project: 'ABC', current: null, paused: true, error: 'chain: launch of ABC-1 failed' }
     const leftovers = { ABC: [{ task: 'ABC-0', at: 't', text: 'ABC-0: the worktree was kept' }] }
     writeFileSync(file, JSON.stringify({ active, queue: [], orders: {}, leftovers }))
     const state = loadChainState(file)
-    expect(state.active?.error).toEqual(textNotice('chain: launch of ABC-1 failed'))
+    expect(state.active).toMatchObject([{ project: 'ABC', paused: true }])
+    expect(state.active[0]?.error).toEqual(textNotice('chain: launch of ABC-1 failed'))
     expect(state.leftovers).toEqual({ ABC: [{ task: 'ABC-0', at: 't', notice: textNotice('ABC-0: the worktree was kept') }] })
   })
 
@@ -49,6 +53,8 @@ describe('chain store', () => {
   it('refuses a damaged file instead of silently forgetting the chain', () => {
     const file = join(dir(), 'chain.json')
     writeFileSync(file, '{"active": 5}')
+    expect(() => loadChainState(file)).toThrow(/chain\.json/)
+    writeFileSync(file, '{"active": [{"project": "ABC"}, 5], "queue": [], "orders": {}}')
     expect(() => loadChainState(file)).toThrow(/chain\.json/)
   })
 

@@ -20,7 +20,7 @@ Most agent orchestrators sell width: ten agents in parallel, each in its own wor
 
 Even Keel wins in time, not in width: the agent keeps working while you are away, and the chain survives what usually stops it — the usage limit running out, a context grown too large, a switch of accounts. That steady going is what the name means.
 
-One chain is active at a time; other projects wait in a queue and start when it ends. Several chains on different projects at once is an idea for later.
+Sequential within a project, not across them: different projects are different repositories, so `parallel` in the config lets that many chains run at once (one by default). Other projects wait in a queue and start as soon as a chain ends. The usage limit stays shared: every running chain takes tasks until the window is used up, then they all wait for the reset.
 
 ## What it does
 
@@ -171,13 +171,14 @@ On Linux it installs a systemd user unit (`systemctl --user status even-keel`, l
 
 ## Configuration
 
-`even-keel.config.json`, starting from [even-keel.config.example.json](even-keel.config.example.json). The service rereads it on the fly: `chain`, `brief`, `model`, `modelPrompts`, `stats`, `language`, `promptLanguage` and `hiddenSkills` apply at once, the rest after a restart. A broken file keeps the last good one running and shows the error on the page.
+`even-keel.config.json`, starting from [even-keel.config.example.json](even-keel.config.example.json). The service rereads it on the fly: `parallel`, `chain`, `brief`, `model`, `modelPrompts`, `stats`, `language`, `promptLanguage` and `hiddenSkills` apply at once, the rest after a restart. A broken file keeps the last good one running and shows the error on the page.
 
 | Key | Default | |
 | --- | --- | --- |
 | `host`, `port` | `0.0.0.0`, `4747` | where the page listens |
 | `tracker` | `huly` | tracker of every project that does not name its own: `huly`, `github` or `linear` |
 | `brief` | `true` | put the task's title and description into the prompt; `false` for projects whose sessions read the task through the tracker's plugin |
+| `parallel` | `1` | how many chains on different projects run at once; the rest wait in the queue. Lowered, it stops nothing: no new chain starts until fewer run |
 | `chain.active` | ready and in-progress categories | status names that enter the chain |
 | `chain.terminal` | done and canceled categories | status names that close a task |
 | `chain.requiredLabels` | `[]` | a task needs at least one of them; empty — no label needed |

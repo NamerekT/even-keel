@@ -20,6 +20,7 @@ export interface SetupOptions {
   failLaunch?: string
   live?: Record<string, string>
   projects?: string[]
+  parallel?: number
   blocked?: string
   limited?: Record<string, LimitedSession>
   account?: AccountNow
@@ -46,10 +47,12 @@ export function setup(options: SetupOptions = {}) {
   const saved: ChainState[] = []
   const journal: LaunchEntry[] = []
   let counter = 0
+  const capacity = { parallel: options.parallel ?? 1 }
   const state = options.state ?? emptyChainState()
   if (options.unattended !== undefined) state.unattended = options.unattended
   const dispatcher = new Dispatcher(state, {
-    projects: options.projects ?? ['ABC', 'XYZ'],
+    projects: options.projects ?? ['ABC', 'XYZ', 'DEF'],
+    parallel: () => capacity.parallel,
     rules: (project) => options.rules?.[project] ?? DEFAULT_RULES,
     launch: async (project, id) => {
       if (id === options.failLaunch) throw new Error(`claude: could not start ${id}`)
@@ -84,5 +87,5 @@ export function setup(options: SetupOptions = {}) {
       return options.finish?.(id) ?? { warnings: [], syncError: null }
     },
   })
-  return { dispatcher, launched, finished, saved, journal, clock, account, limited, handoffs, relays, busy }
+  return { dispatcher, launched, finished, saved, journal, clock, account, limited, handoffs, relays, busy, capacity }
 }

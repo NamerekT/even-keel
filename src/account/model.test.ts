@@ -142,7 +142,7 @@ describe('liveSessions', () => {
 })
 
 describe('loginBlock', () => {
-  const chain = (paused: boolean): ActiveChain => ({ project: 'ABC', current: null, paused, error: null })
+  const chain = (paused: boolean, project = 'ABC'): ActiveChain => ({ project, current: null, paused, error: null })
 
   it('allows a sign-in with no chain or a paused one and every session idle or gone', () => {
     const agents = [
@@ -152,17 +152,18 @@ describe('loginBlock', () => {
       agent({ name: 'ABC-4', kind: 'background', status: 'busy', state: 'done' }),
       agent({ name: 'ABC-5', kind: 'background', status: 'busy', state: 'stopped' }),
     ]
-    expect(loginBlock(null, agents, 'global')).toBeNull()
-    expect(loginBlock(chain(true), agents, 'global')).toBeNull()
+    expect(loginBlock([], agents, 'global')).toBeNull()
+    expect(loginBlock([chain(true), chain(true, 'XYZ')], agents, 'global')).toBeNull()
   })
 
   it('counts a session running a background command as busy', () => {
     const agents = [agent({ name: 'ABC-1', kind: 'background', status: 'shell', state: 'working' })]
-    expect(loginBlock(null, agents, 'global')?.sessions).toEqual([{ name: 'ABC-1', status: 'busy', waitingFor: null }])
+    expect(loginBlock([], agents, 'global')?.sessions).toEqual([{ name: 'ABC-1', status: 'busy', waitingFor: null }])
   })
 
-  it('names a running chain', () => {
-    expect(loginBlock(chain(false), [], 'global')).toEqual({ chain: 'ABC', sessions: [] })
+  it('names every running chain', () => {
+    expect(loginBlock([chain(false), chain(true, 'DEF'), chain(false, 'XYZ')], [], 'global')).toEqual({ chains: ['ABC', 'XYZ'], sessions: [] })
+    expect(say(loginBlockNotice({ chains: ['ABC', 'XYZ'], sessions: [] }))).toMatch(/ABC, XYZ/)
   })
 
   it('counts only the sessions of the active account', () => {
@@ -170,8 +171,8 @@ describe('loginBlock', () => {
       agent({ name: 'ABC-2', kind: 'background', status: 'busy', state: 'working', account: 'work' }),
       agent({ name: 'ABC-3', kind: 'background', status: 'busy', state: 'working' }),
     ]
-    expect(loginBlock(null, agents, 'work')?.sessions.map((session) => session.name)).toEqual(['ABC-2'])
-    expect(loginBlock(null, agents, 'global')?.sessions.map((session) => session.name)).toEqual(['ABC-3'])
+    expect(loginBlock([], agents, 'work')?.sessions.map((session) => session.name)).toEqual(['ABC-2'])
+    expect(loginBlock([], agents, 'global')?.sessions.map((session) => session.name)).toEqual(['ABC-3'])
   })
 
   it('names every session in the middle of a turn, with a task or without one', () => {
@@ -181,8 +182,8 @@ describe('loginBlock', () => {
       agent({ sessionId: '12345678-0000-4000-8000-000000000009', status: 'busy' }),
       agent({ name: 'ABC-6', status: 'idle' }),
     ]
-    expect(loginBlock(chain(true), agents, 'global')).toEqual({
-      chain: null,
+    expect(loginBlock([chain(true)], agents, 'global')).toEqual({
+      chains: [],
       sessions: [
         { name: 'ABC-2', status: 'busy', waitingFor: null },
         { name: 'Scratch notes', status: 'waiting', waitingFor: 'permission' },
@@ -194,13 +195,13 @@ describe('loginBlock', () => {
 
 describe('loginBlockNotice', () => {
   it('names the running chain first, then the busy sessions', () => {
-    expect(say(loginBlockNotice({ chain: 'ABC', sessions: [] }))).toBe(
+    expect(say(loginBlockNotice({ chains: ['ABC'], sessions: [] }))).toBe(
       'claude: chain ABC is running; pause it before switching the account',
     )
     expect(
       say(
         loginBlockNotice({
-          chain: null,
+          chains: [],
           sessions: [
             { name: 'ABC-2', status: 'busy', waitingFor: null },
             { name: 'Scratch notes', status: 'waiting', waitingFor: 'permission' },
@@ -305,7 +306,7 @@ describe('switchProblem', () => {
     expect(say(switchProblem(view({}), 'global'))).toMatch(/already active/)
     const expired = view({ accounts: [entry({}), entry({ key: 'work', global: false, needsLogin: true })] })
     expect(say(switchProblem(expired, 'work'))).toMatch(/needs a login/)
-    expect(say(switchProblem(view({ loginBlock: { chain: 'ABC', sessions: [] } }), 'work'))).toMatch(/chain ABC is running/)
+    expect(say(switchProblem(view({ loginBlock: { chains: ['ABC'], sessions: [] } }), 'work'))).toMatch(/chain ABC is running/)
   })
 
   it('refuses an account whose folder waits to be removed', () => {

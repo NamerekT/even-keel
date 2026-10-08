@@ -2,7 +2,7 @@ import { Link } from 'react-router'
 import type { EvenKeelState } from '../../../src/state.js'
 import { say, t } from '../i18n/index.js'
 import { useCommand } from '../live/useCommand.js'
-import { cardTask, chainProgress, chainStatus, limitWaitText, openQuestions, projectSlot, projectTasks } from '../state.js'
+import { cardTask, chainProgress, chainStatus, limitWaitText, openQuestions, projectSlot, projectTasks, startsNow } from '../state.js'
 import { Lamp } from '../ui/Lamp.js'
 import { QuestionsChip } from '../ui/QuestionsChip.js'
 import { seriesStyle } from '../ui/series.js'
@@ -64,7 +64,7 @@ export function ProjectCard({ state, project }: { state: EvenKeelState; project:
       {canStart && (
         <footer className="card__foot">
           <button type="button" className="button button--primary" disabled={sending} onClick={() => void send('chain/start', { project })}>
-            {state.chain.active === null ? t.project.start : t.project.enqueue}
+            {startsNow(state.chain) ? t.project.start : t.project.enqueue}
           </button>
         </footer>
       )}

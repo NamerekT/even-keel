@@ -23,7 +23,15 @@ describe('parseConfig', () => {
       language: null,
       promptLanguage: 'en',
       hiddenSkills: DEFAULT_HIDDEN_SKILLS,
+      parallel: 1,
     })
+  })
+
+  it('takes the number of chains run at once as a positive integer', () => {
+    expect(parseConfig({ projects: {}, parallel: 3 }).parallel).toBe(3)
+    expect(() => parseConfig({ projects: {}, parallel: 0 })).toThrow(/parallel/)
+    expect(() => parseConfig({ projects: {}, parallel: 1.5 })).toThrow(/parallel/)
+    expect(() => parseConfig({ projects: {}, parallel: '2' })).toThrow(/parallel/)
   })
 
   it('takes the skills hidden from chain sessions as a list of names', () => {
@@ -249,6 +257,12 @@ describe('reloading the config', () => {
   it('applies the hidden skills at once', () => {
     const next = parseConfig({ projects: { ABC: 'C:\\abc' }, hiddenSkills: ['loop'] })
     expect(liveConfig(base, next).hiddenSkills).toEqual(['loop'])
+    expect(restartChanges(base, next)).toEqual([])
+  })
+
+  it('applies the number of parallel chains at once', () => {
+    const next = parseConfig({ projects: { ABC: 'C:\\abc' }, parallel: 2 })
+    expect(liveConfig(base, next).parallel).toBe(2)
     expect(restartChanges(base, next)).toEqual([])
   })
 

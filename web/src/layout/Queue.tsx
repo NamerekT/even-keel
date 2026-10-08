@@ -13,7 +13,7 @@ import { usePopover } from './usePopover.js'
 export function QueueMenu({ state }: { state: EvenKeelState }) {
   const { open, setOpen, rootRef } = usePopover()
   const { active, queue } = state.chain
-  const kind = active === null ? 'idle' : active.paused ? 'paused' : 'running'
+  const kind = active.length === 0 ? 'idle' : active.every((chain) => chain.paused) ? 'paused' : 'running'
 
   return (
     <div className="queue-menu" ref={rootRef}>
@@ -26,7 +26,7 @@ export function QueueMenu({ state }: { state: EvenKeelState }) {
         onClick={() => setOpen(!open)}
       >
         <span className="queue-toggle__dot" aria-hidden="true" />
-        <span className="queue-toggle__label">{active?.project ?? t.queue.chain}</span>
+        <span className="queue-toggle__label">{active.length === 0 ? t.queue.chain : active.map((chain) => chain.project).join(' · ')}</span>
         {queue.length > 0 && (
           <span className="queue-toggle__count" aria-label={t.queue.count(queue.length)}>
             +{queue.length}
@@ -55,18 +55,17 @@ function QueuePanel({ state }: { state: EvenKeelState }) {
     <div id="queue-panel" className="queue" role="dialog" aria-label={t.queue.title}>
       <section className="queue__section">
         <h2 className="queue__heading">{t.queue.now}</h2>
-        {active === null ? (
-          <p className="queue__empty">{t.queue.idle}</p>
-        ) : (
-          <div className="queue__row queue__row--active" style={seriesStyle(projectSlot(state.projects, active.project))}>
+        {active.length === 0 && <p className="queue__empty">{t.queue.idle}</p>}
+        {active.map(({ project }) => (
+          <div key={project} className="queue__row queue__row--active" style={seriesStyle(projectSlot(state.projects, project))}>
             <span className="card__swatch" aria-hidden="true" />
-            <Link to={`/p/${active.project}`} className="queue__key">
-              {active.project}
+            <Link to={`/p/${project}`} className="queue__key">
+              {project}
             </Link>
-            <StatusChip status={chainStatus(state.chain, active.project)} />
-            <TaskLine state={state} project={active.project} />
+            <StatusChip status={chainStatus(state.chain, project)} />
+            <TaskLine state={state} project={project} />
           </div>
-        )}
+        ))}
       </section>
 
       <section className="queue__section">

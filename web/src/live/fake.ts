@@ -10,7 +10,7 @@ import {
 import { appSwitchProblem, type AppAccount } from '../../../src/account/apps.js'
 import { fail, notice, NoticeError, textNotice } from '../../../src/notice/notice.js'
 import type { RateLimits } from '../../../src/limits/model.js'
-import type { LaunchEntry } from '../../../src/chain/dispatcher.js'
+import type { ActiveChain, LaunchEntry } from '../../../src/chain/dispatcher.js'
 import { launchDays } from '../../../src/chain/launches.js'
 import { checkOrder } from '../../../src/chain/order.js'
 import type { TrackerLinkState, TrackerView } from '../../../src/tracker/health.js'
@@ -164,13 +164,16 @@ function fakeState(
     projects: ['ABC', 'DEMO', 'XYZ', 'OPS'],
     chain: {
       active: idle
-        ? null
-        : {
-            project: 'ABC',
-            current: { task: 'ABC-5', sessionId: null, since: ago(42), ...fakeLimit(limit) },
-            paused: false,
-            error: null,
-          },
+        ? []
+        : [
+            {
+              project: 'ABC',
+              current: { task: 'ABC-5', sessionId: null, since: ago(42), ...fakeLimit(limit) },
+              paused: false,
+              error: null,
+            },
+          ],
+      parallel: 1,
       queue: idle ? [] : ['DEMO', 'OPS'],
       projects: {
         ABC: {
@@ -252,8 +255,17 @@ function fakeRecord(state: EvenKeelState, sessionId: string): SessionRecord | nu
   }
 }
 
+function chainIn(state: EvenKeelState, project: string): ActiveChain | undefined {
+  return state.chain.active.find((chain) => chain.project === project)
+}
+
+function withChain(state: EvenKeelState, chain: ActiveChain, next: ActiveChain | null): EvenKeelState {
+  const active = state.chain.active.flatMap((each) => (each !== chain ? [each] : next === null ? [] : [next]))
+  return { ...state, chain: { ...state.chain, active } }
+}
+
 function closeCurrent(state: EvenKeelState): EvenKeelState {
-  const active = state.chain.active
+  const active = state.chain.active[0]
   const done = active?.current?.task
   const project = active?.project
   if (done === undefined || project === undefined) return state
@@ -261,12 +273,12 @@ function closeCurrent(state: EvenKeelState): EvenKeelState {
   const order = stored.filter((id) => id !== done)
   const next = order[0]
   const since = ago(0)
+  const moved = withChain(state, active!, { ...active!, current: next === undefined ? null : { task: next, sessionId: 'fake', since } })
   return {
     ...state,
     tasks: state.tasks.map((each) => (each.id === done ? { ...each, status: { name: 'Done', category: 'Won' } } : each)),
     chain: {
-      ...state.chain,
-      active: { ...active!, current: next === undefined ? null : { task: next, sessionId: 'fake', since } },
+      ...moved.chain,
       projects: { ...state.chain.projects, [project]: { order, waiting, backlog, error: null } },
     },
     sessions: [
@@ -280,30 +292,32 @@ function closeCurrent(state: EvenKeelState): EvenKeelState {
   }
 }
 
-function setPaused(state: EvenKeelState, paused: boolean): EvenKeelState {
-  const active = state.chain.active
-  if (active === null) return state
-  return { ...state, chain: { ...state.chain, active: { ...active, paused, error: paused ? active.error : null } } }
+function setPaused(state: EvenKeelState, project: string, paused: boolean): EvenKeelState {
+  const active = chainIn(state, project)
+  if (active === undefined) return state
+  return withChain(state, active, { ...active, paused, error: paused ? active.error : null })
 }
 
-function stopChain(state: EvenKeelState, launches: LaunchEntry[]): EvenKeelState {
+function stopChain(state: EvenKeelState, project: string, launches: LaunchEntry[]): EvenKeelState {
+  const active = chainIn(state, project)
+  if (active === undefined) return state
   const [next, ...rest] = state.chain.queue
-  const stopped = { ...state, chain: { ...state.chain, active: null, queue: rest } }
-  return next === undefined ? stopped : startChain(stopped, next, launches)
+  const stopped = withChain(state, active, null)
+  return next === undefined ? stopped : startChain({ ...stopped, chain: { ...stopped.chain, queue: rest } }, next, launches)
 }
 
 function startChain(state: EvenKeelState, project: string, launches: LaunchEntry[]): EvenKeelState {
   if (!state.projects.includes(project)) throw fail('chain.unknownProject', { project })
   const { active, queue } = state.chain
-  if (active?.project === project || queue.includes(project)) return state
-  if (active !== null) return { ...state, chain: { ...state.chain, queue: [...queue, project] } }
+  if (chainIn(state, project) !== undefined || queue.includes(project)) return state
+  if (active.length >= state.chain.parallel) return { ...state, chain: { ...state.chain, queue: [...queue, project] } }
   const first = state.chain.projects[project]?.order[0]
   if (first === undefined) return state
   const since = ago(0)
   launches.push({ at: since, project, task: first, sessionId: 'fake' })
   return {
     ...state,
-    chain: { ...state.chain, active: { project, current: { task: first, sessionId: 'fake', since }, paused: false, error: null } },
+    chain: { ...state.chain, active: [...active, { project, current: { task: first, sessionId: 'fake', since }, paused: false, error: null }] },
     sessions: [...state.sessions, session(first, 0)],
     launches: launchDays(launches, new Date(), LAUNCH_DAYS),
   }
@@ -320,34 +334,34 @@ function requeue(state: EvenKeelState, order: string[]): EvenKeelState {
 function reorder(state: EvenKeelState, project: string, order: string[]): EvenKeelState {
   const tasks = state.tasks.filter((task) => task.id.startsWith(`${project}-`) && order.includes(task.id))
   checkOrder(tasks, order)
-  const current = state.chain.active?.project === project ? state.chain.active.current?.task : undefined
+  const current = chainIn(state, project)?.current?.task
   if (current !== undefined && order[0] !== current) throw fail('chain.currentFirst', { task: current })
   const { waiting = [], backlog = [] } = state.chain.projects[project] ?? {}
   return { ...state, chain: { ...state.chain, projects: { ...state.chain.projects, [project]: { order: [...order], waiting, backlog, error: null } } } }
 }
 
 function skip(state: EvenKeelState, project: string, task: string): EvenKeelState {
-  const active = state.chain.active
-  const holder = active?.project === project && active.current?.task === task ? active : null
+  const active = chainIn(state, project)
+  const holder = active?.current?.task === task ? active : undefined
   const view = state.sessions.find((each) => each.task === task && each.lamp !== 'finished')
-  if (holder !== null && (view?.lamp === 'working' || view?.waitingFor != null)) {
+  if (holder !== undefined && (view?.lamp === 'working' || view?.waitingFor != null)) {
     throw fail('chain.midTurn', { task })
   }
   const skipped = state.chain.skipped[project] ?? []
+  const released = holder === undefined ? state : withChain(state, holder, { ...holder, current: null })
   return {
     ...state,
     chain: {
-      ...state.chain,
-      active: holder === null ? active : { ...holder, current: null },
+      ...released.chain,
       skipped: { ...state.chain.skipped, [project]: skipped.includes(task) ? skipped : [...skipped, task] },
     },
   }
 }
 
 function restart(state: EvenKeelState, project: string, task: string): EvenKeelState {
-  const active = state.chain.active
-  const current = active?.project === project && active.current?.task === task ? active.current : null
-  if (active === null || current === null) throw fail('chain.notCurrent', { task })
+  const active = chainIn(state, project)
+  const current = active?.current?.task === task ? active.current : null
+  if (active === undefined || current === null) throw fail('chain.notCurrent', { task })
   const view = state.sessions.find((each) => each.task === task)
   if (view === undefined) throw fail('chain.noSession', { task })
   if (view.lamp === 'working' || view.waitingFor !== null) throw fail('chain.midTurn', { task })
@@ -356,7 +370,7 @@ function restart(state: EvenKeelState, project: string, task: string): EvenKeelS
   const rows = (state.taskSessions[task] ?? []).map((row) => (row.sessionId === view.sessionId ? { ...row, replaced: { at: ago(0), how: 'restart' as const } } : row))
   return {
     ...state,
-    chain: { ...state.chain, active: { ...active, current: { task, sessionId, since: current.since } } },
+    chain: withChain(state, active, { ...active, current: { task, sessionId, since: current.since } }).chain,
     sessions: state.sessions.map((each) => (each === view ? fresh : each)),
     taskSessions: { ...state.taskSessions, [task]: [{ sessionId, at: ago(0), how: 'restart', resumed: 0 }, ...rows] },
   }
@@ -448,7 +462,7 @@ function fakeAccount(mode: string | null, idle: boolean, limits: RateLimits): Ac
     loginBlock: idle
       ? null
       : {
-          chain: 'ABC',
+          chains: ['ABC'],
           sessions: [
             { name: 'ABC-5', status: 'busy', waitingFor: null },
             { name: 'Scratch notes', status: 'waiting', waitingFor: 'permission' },
@@ -530,8 +544,8 @@ function accountCommand(account: AccountView, name: string, body: Record<string,
 
 function fakeCommand(state: EvenKeelState, name: string, body: Record<string, unknown>, launches: LaunchEntry[]): EvenKeelState {
   if (name === 'chain/start') return startChain(state, String(body.project), launches)
-  if (name === 'chain/pause' || name === 'chain/resume') return setPaused(state, name === 'chain/pause')
-  if (name === 'chain/stop') return stopChain(state, launches)
+  if (name === 'chain/pause' || name === 'chain/resume') return setPaused(state, String(body.project), name === 'chain/pause')
+  if (name === 'chain/stop') return stopChain(state, String(body.project), launches)
   if (name === 'chain/queue') return requeue(state, body.order as string[])
   if (name === 'chain/dequeue') return dequeue(state, String(body.project))
   if (name === 'chain/order') return reorder(state, String(body.project), body.order as string[])
@@ -579,9 +593,13 @@ export function createFakeSource(search: string): LiveSource {
       { project: 'XYZ', server: 'huly' },
     ]
   }
-  const active = current.state?.chain.active
+  const active = current.state?.chain.active[0]
   if (params.get('chain') === 'limit' && active) {
-    current.state!.chain.active = { ...active, current: null, limitUntil: new Date(Date.now() + 95 * 60_000).toISOString() }
+    current.state!.chain.active = [{ ...active, current: null, limitUntil: new Date(Date.now() + 95 * 60_000).toISOString() }]
+  }
+  const parallel = Number(params.get('parallel') ?? 1)
+  if (parallel > 1 && current.state !== null) {
+    current.state = startChain({ ...current.state, chain: { ...current.state.chain, parallel, queue: current.state.chain.queue.slice(1) } }, 'DEMO', launches)
   }
   if (params.get('chain') === 'backlog' && current.state !== null) {
     const { tasks, chain } = current.state
@@ -633,7 +651,7 @@ export function createFakeSource(search: string): LiveSource {
       remoteOff: 'lost',
     }
     current.state.sessions = current.state.sessions.map((each) => (each.task === 'ABC-5' ? stalled : each))
-    current.state.chain.active = { ...active, current: { task: 'ABC-5', sessionId: stalled.sessionId, since: ago(42) } }
+    current.state.chain.active = [{ ...active, current: { task: 'ABC-5', sessionId: stalled.sessionId, since: ago(42) } }]
   }
   if (params.get('chain') === 'checkpoint' && current.state !== null && active?.current) {
     const { task, sessionId } = active.current

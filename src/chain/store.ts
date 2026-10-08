@@ -1,23 +1,27 @@
 import { appendFileSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs'
 import { dirname } from 'node:path'
 import { asNotice, type Notice } from '../notice/notice.js'
-import { emptyChainState, type ChainState, type LaunchEntry, type Leftover } from './dispatcher.js'
+import { emptyChainState, type ActiveChain, type ChainState, type LaunchEntry, type Leftover } from './dispatcher.js'
 
 export function loadChainState(file: string): ChainState {
   const raw = readIfExists(file)
   if (raw === undefined) return emptyChainState()
-  let state: Partial<ChainState> = {}
+  let state: Omit<Partial<ChainState>, 'active'> & { active?: unknown } = {}
   try {
     state = (JSON.parse(raw) ?? {}) as Partial<ChainState>
   } catch {}
-  const valid =
-    (state.active === null || (typeof state.active === 'object' && typeof state.active?.project === 'string')) &&
-    Array.isArray(state.queue) &&
-    typeof state.orders === 'object' &&
-    state.orders !== null
+  const chains = activeOf(state.active)
+  const valid = chains !== undefined && Array.isArray(state.queue) && typeof state.orders === 'object' && state.orders !== null
   if (!valid) throw new Error(`chain: ${file} is damaged; fix or delete it`)
-  const active = state.active === null || state.active === undefined ? null : { ...state.active, error: noticeOrNull(state.active.error) }
+  const active = chains.map((chain) => ({ ...chain, error: noticeOrNull(chain.error) }))
   return { ...state, active, skipped: state.skipped ?? {}, leftovers: leftoversOf(state.leftovers), released: state.released ?? {}, unattended: state.unattended === true, trimTools: state.trimTools !== false } as ChainState
+}
+
+// Before BTN-67 one chain ran at a time and `active` was that chain or null.
+function activeOf(raw: unknown): ActiveChain[] | undefined {
+  const chains = raw === null ? [] : Array.isArray(raw) ? raw : [raw]
+  const valid = chains.every((chain) => typeof chain === 'object' && chain !== null && typeof (chain as ActiveChain).project === 'string')
+  return valid ? (chains as ActiveChain[]) : undefined
 }
 
 // Before BTN-62 the pause reason and the leftovers were English strings; they are kept and shown as they are.

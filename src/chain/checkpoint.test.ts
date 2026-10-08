@@ -20,7 +20,7 @@ const handoff = (sessionId: string, checkpoint: string | null = '.temp/handoff.m
 
 const runningState = (paused = false): ChainState => ({
   ...emptyChainState(),
-  active: { project: 'ABC', current: { task: 'ABC-1', sessionId: 'old-session', since: '2026-09-26T11:00:00.000Z' }, paused, error: null },
+  active: [{ project: 'ABC', current: { task: 'ABC-1', sessionId: 'old-session', since: '2026-09-26T11:00:00.000Z' }, paused, error: null }],
 })
 
 const located = { workdir: 'D:/work/abc/.claude/worktrees/abc-1', branch: 'abc-1/work' }
@@ -40,7 +40,7 @@ describe('Dispatcher on a checkpoint', () => {
     expect(relays).toMatchObject([{ kind: 'relay', task: 'ABC-1', sessionId: 'old-session', workdir: located.workdir }])
     expect(relays[0]?.prompt).toContain('контрольную точку')
     expect(relays[0]?.prompt).toContain('D:/work/abc/.claude/worktrees/abc-1/.temp/handoff.md')
-    expect(dispatcher.state.active?.current).toMatchObject({ task: 'ABC-1', sessionId: 'session-1' })
+    expect(dispatcher.state.active[0]?.current).toMatchObject({ task: 'ABC-1', sessionId: 'session-1' })
     expect(journal.at(-1)).toEqual({
       at: '2026-09-26T12:00:00.000Z',
       project: 'ABC',
@@ -66,7 +66,7 @@ describe('Dispatcher on a checkpoint', () => {
 
     expect(relays.map((relay) => relay.sessionId)).toEqual(['old-session', 'session-1'])
     expect(journal.at(-1)).toMatchObject({ sessionId: 'session-2', reason: 'checkpoint', previous: 'session-1' })
-    expect(dispatcher.state.active?.current).toMatchObject({ sessionId: 'session-2' })
+    expect(dispatcher.state.active[0]?.current).toMatchObject({ sessionId: 'session-2' })
   })
 
   it('leaves a session without a checkpoint alone', async () => {
@@ -93,16 +93,16 @@ describe('Dispatcher on a checkpoint', () => {
     const { dispatcher, relays } = await running({ state: runningState(true) })
     expect(relays).toEqual([])
 
-    dispatcher.resume()
+    dispatcher.resume('ABC')
     await dispatcher.idle()
     expect(relays).toHaveLength(1)
-    expect(dispatcher.state.active).toMatchObject({ paused: false, current: { sessionId: 'session-1' } })
+    expect(dispatcher.state.active[0]).toMatchObject({ paused: false, current: { sessionId: 'session-1' } })
   })
 
   it('waits while new sessions cannot start', async () => {
     const blocked = await running({ blocked: 'claude: sign-in in progress' })
     expect(blocked.relays).toEqual([])
-    expect(blocked.dispatcher.state.active).toMatchObject({ paused: false, current: { sessionId: 'old-session' } })
+    expect(blocked.dispatcher.state.active[0]).toMatchObject({ paused: false, current: { sessionId: 'old-session' } })
 
     const spent = await running({ limitReset: '2026-09-26T15:00:00.000Z' })
     expect(spent.relays).toEqual([])
@@ -126,6 +126,6 @@ describe('Dispatcher on a checkpoint', () => {
 
   it('halts the chain when the new session does not start', async () => {
     const { dispatcher } = await running({ failRelay: true })
-    expect(dispatcher.state.active).toMatchObject({ paused: true, current: null, error: textNotice('claude: could not stop old-sess') })
+    expect(dispatcher.state.active[0]).toMatchObject({ paused: true, current: null, error: textNotice('claude: could not stop old-sess') })
   })
 })

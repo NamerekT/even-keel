@@ -1,5 +1,5 @@
 import type { AccountView } from '../../src/account/model.js'
-import type { ProjectOrder } from '../../src/chain/dispatcher.js'
+import type { ActiveChain, ProjectOrder } from '../../src/chain/dispatcher.js'
 import type { TaskSession } from '../../src/chain/launches.js'
 import { chainOrder, nextTask, precedence, withWaiting } from '../../src/chain/order.js'
 import type { LimitHold } from '../../src/chain/relay.js'
@@ -113,9 +113,19 @@ export function openQuestions(tasks: Task[]): number {
   return tasks.filter((task) => task.question && isOpen(task.status)).length
 }
 
+export function activeChain(chain: EvenKeelState['chain'], project: string): ActiveChain | undefined {
+  return chain.active.find((each) => each.project === project)
+}
+
+/** Whether starting one more project runs it at once rather than queueing it. */
+export function startsNow(chain: EvenKeelState['chain']): boolean {
+  return chain.active.length < chain.parallel
+}
+
 export function chainStatus(chain: EvenKeelState['chain'], project: string): ChainStatus {
-  const { active, queue } = chain
-  if (active?.project === project) {
+  const { queue } = chain
+  const active = activeChain(chain, project)
+  if (active !== undefined) {
     return active.paused ? { kind: 'paused', error: active.error } : { kind: 'running', limitUntil: active.limitUntil ?? null }
   }
   const index = queue.indexOf(project)
@@ -151,8 +161,7 @@ export function limitWaitText(until: string, now: Date): string {
 }
 
 export function cardTask(state: EvenKeelState, project: string): CardTask | null {
-  const active = state.chain.active
-  const current = active?.project === project ? active.current?.task : undefined
+  const current = activeChain(state.chain, project)?.current?.task
   const { order = [], waiting = [] } = state.chain.projects[project] ?? {}
   const id = current ?? nextTask(projectTasks(state, project), order, [...(state.chain.skipped[project] ?? []), ...waiting])
   if (id === undefined) return null
@@ -181,9 +190,9 @@ export function chainBlocks(state: EvenKeelState, project: string): ChainBlock[]
   const open = broken
     ? tasks.filter((task) => isOpen(task.status)).map((task) => task.id).sort(byNumber)
     : withWaiting(order.order, order.waiting, new Map(tasks.map((task) => [task.id, task.blockedBy])))
-  const active = state.chain.active
-  const current = active?.project === project ? active.current?.task : undefined
-  const hold = active?.project === project ? active.current?.limit : undefined
+  const active = activeChain(state.chain, project)
+  const current = active?.current?.task
+  const hold = active?.current?.limit
   const pending = hold !== undefined && hold.acted === null ? hold : null
   const skipped = new Set(state.chain.skipped[project] ?? [])
 
@@ -223,7 +232,8 @@ export function contextFill(tokens: number, scale: ContextScale): { percent: num
 export function queuedAfter(chain: EvenKeelState['chain'], project: string): string | null {
   const index = chain.queue.indexOf(project)
   if (index < 0) return null
-  return index === 0 ? (chain.active?.project ?? null) : chain.queue[index - 1]!
+  if (index > 0) return chain.queue[index - 1]!
+  return chain.active.length === 1 ? chain.active[0]!.project : null
 }
 
 export function sessionElapsed(view: SessionView, now: Date): number {

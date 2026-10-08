@@ -14,7 +14,7 @@ describe('Dispatcher', () => {
     await dispatcher.idle()
 
     expect(launched).toEqual(['ABC/ABC-2'])
-    expect(dispatcher.state.active?.current).toEqual({ task: 'ABC-2', sessionId: 'session-1', since: '2026-09-26T12:00:00.000Z' })
+    expect(dispatcher.state.active[0]?.current).toEqual({ task: 'ABC-2', sessionId: 'session-1', since: '2026-09-26T12:00:00.000Z' })
     expect(journal).toEqual([{ at: '2026-09-26T12:00:00.000Z', project: 'ABC', task: 'ABC-2', sessionId: 'session-1' }])
   })
 
@@ -109,7 +109,7 @@ describe('Dispatcher', () => {
 
     dispatcher.setTasks('ABC', [task('ABC-1', backlog), task('ABC-2')])
     await dispatcher.idle()
-    expect(dispatcher.state.active?.current?.task).toBe('ABC-1')
+    expect(dispatcher.state.active[0]?.current?.task).toBe('ABC-1')
 
     busy.clear()
     dispatcher.setTasks('ABC', [task('ABC-1', backlog), task('ABC-2')])
@@ -137,7 +137,7 @@ describe('Dispatcher', () => {
     dispatcher.setTasks('ABC', [task('ABC-1', done), task('ABC-2')])
     await dispatcher.idle()
     expect(launched).toEqual(['ABC/ABC-1', 'ABC/ABC-2'])
-    expect(dispatcher.state.active?.current?.task).toBe('ABC-2')
+    expect(dispatcher.state.active[0]?.current?.task).toBe('ABC-2')
   })
 
   it('treats a canceled or vanished current task as closed', async () => {
@@ -173,7 +173,7 @@ describe('Dispatcher', () => {
 
     expect(launched).toEqual([])
     expect(journal).toEqual([])
-    expect(dispatcher.state.active?.current?.sessionId).toBe('manual-session')
+    expect(dispatcher.state.active[0]?.current?.sessionId).toBe('manual-session')
   })
 
   it('finishes the chain when no open task is left', async () => {
@@ -184,7 +184,7 @@ describe('Dispatcher', () => {
 
     dispatcher.setTasks('ABC', [])
     await dispatcher.idle()
-    expect(dispatcher.state.active).toBeNull()
+    expect(dispatcher.state.active).toEqual([])
   })
 
   it('does not launch the next task while paused, and resumes', async () => {
@@ -193,12 +193,12 @@ describe('Dispatcher', () => {
     dispatcher.start('ABC')
     await dispatcher.idle()
 
-    dispatcher.pause()
+    dispatcher.pause('ABC')
     dispatcher.setTasks('ABC', [task('ABC-2')])
     await dispatcher.idle()
     expect(launched).toEqual(['ABC/ABC-1'])
 
-    dispatcher.resume()
+    dispatcher.resume('ABC')
     await dispatcher.idle()
     expect(launched).toEqual(['ABC/ABC-1', 'ABC/ABC-2'])
   })
@@ -209,13 +209,13 @@ describe('Dispatcher', () => {
     dispatcher.setTasks('ABC', [task('ABC-1')])
     dispatcher.start('ABC')
     await dispatcher.idle()
-    expect(dispatcher.state.active).toMatchObject({ paused: true, error: textNotice('claude: could not start ABC-1'), current: null })
+    expect(dispatcher.state.active[0]).toMatchObject({ paused: true, error: textNotice('claude: could not start ABC-1'), current: null })
 
     options.failLaunch = undefined
-    dispatcher.resume()
+    dispatcher.resume('ABC')
     await dispatcher.idle()
     expect(launched).toEqual(['ABC/ABC-1'])
-    expect(dispatcher.state.active).toMatchObject({ paused: false, error: null })
+    expect(dispatcher.state.active[0]).toMatchObject({ paused: false, error: null })
   })
 
   it('refuses to start or resume a chain while launches are blocked', async () => {
@@ -227,10 +227,10 @@ describe('Dispatcher', () => {
 
     options.blocked = undefined
     dispatcher.start('ABC')
-    dispatcher.pause()
+    dispatcher.pause('ABC')
     options.blocked = 'claude: sign-in is in progress'
-    expect(() => dispatcher.resume()).toThrow('claude: sign-in is in progress')
-    expect(dispatcher.state.active).toMatchObject({ paused: true })
+    expect(() => dispatcher.resume('ABC')).toThrow('claude: sign-in is in progress')
+    expect(dispatcher.state.active[0]).toMatchObject({ paused: true })
     await dispatcher.idle()
     expect(launched).toEqual([])
   })
@@ -255,10 +255,10 @@ describe('Dispatcher', () => {
     dispatcher.setTasks('ABC', [task('ABC-2')])
     await dispatcher.idle()
     expect(launched).toEqual(['ABC/ABC-1'])
-    expect(dispatcher.state.active).toMatchObject({ paused: true, error: textNotice('claude: not signed in'), current: null })
+    expect(dispatcher.state.active[0]).toMatchObject({ paused: true, error: textNotice('claude: not signed in'), current: null })
 
     options.blocked = undefined
-    dispatcher.resume()
+    dispatcher.resume('ABC')
     await dispatcher.idle()
     expect(launched).toEqual(['ABC/ABC-1', 'ABC/ABC-2'])
   })
@@ -270,8 +270,8 @@ describe('Dispatcher', () => {
     dispatcher.start('ABC')
     await dispatcher.idle()
     expect(launched).toEqual([])
-    expect(dispatcher.state.active).toEqual({ project: 'ABC', current: null, paused: false, error: null, limitUntil: '2026-09-26T17:00:00.000Z' })
-    expect(saved.at(-1)?.active?.limitUntil).toBe('2026-09-26T17:00:00.000Z')
+    expect(dispatcher.state.active[0]).toEqual({ project: 'ABC', current: null, paused: false, error: null, limitUntil: '2026-09-26T17:00:00.000Z' })
+    expect(saved.at(-1)?.active[0]?.limitUntil).toBe('2026-09-26T17:00:00.000Z')
 
     const savedWhileHeld = saved.length
     dispatcher.check()
@@ -282,7 +282,7 @@ describe('Dispatcher', () => {
     dispatcher.check()
     await dispatcher.idle()
     expect(launched).toEqual(['ABC/ABC-1'])
-    expect(dispatcher.state.active?.limitUntil).toBeUndefined()
+    expect(dispatcher.state.active[0]?.limitUntil).toBeUndefined()
   })
 
   it('takes over a live session of the next task even while the limit is used up', async () => {
@@ -291,8 +291,8 @@ describe('Dispatcher', () => {
     dispatcher.start('ABC')
     await dispatcher.idle()
     expect(launched).toEqual([])
-    expect(dispatcher.state.active).toMatchObject({ current: { task: 'ABC-1', sessionId: 'session-9' } })
-    expect(dispatcher.state.active?.limitUntil).toBeUndefined()
+    expect(dispatcher.state.active[0]).toMatchObject({ current: { task: 'ABC-1', sessionId: 'session-9' } })
+    expect(dispatcher.state.active[0]?.limitUntil).toBeUndefined()
   })
 
   it('pauses with the cycle when the order cannot be built', async () => {
@@ -301,7 +301,7 @@ describe('Dispatcher', () => {
     dispatcher.start('ABC')
     await dispatcher.idle()
     expect(launched).toEqual([])
-    expect(englishOf(dispatcher.state.active!.error!)).toMatch(/cycle: ABC-1 → ABC-2 → ABC-1/)
+    expect(englishOf(dispatcher.state.active[0]!.error!)).toMatch(/cycle: ABC-1 → ABC-2 → ABC-1/)
   })
 
   it('queues a second project and starts it when the first chain ends', async () => {
@@ -319,7 +319,7 @@ describe('Dispatcher', () => {
     await dispatcher.idle()
     expect(launched).toEqual(['ABC/ABC-1', 'XYZ/XYZ-1'])
     expect(dispatcher.state.queue).toEqual([])
-    expect(dispatcher.state.active?.project).toBe('XYZ')
+    expect(dispatcher.state.active[0]?.project).toBe('XYZ')
   })
 
   it('stops the chain without waiting for its task and moves on to the queue', async () => {
@@ -330,7 +330,7 @@ describe('Dispatcher', () => {
     dispatcher.start('XYZ')
     await dispatcher.idle()
 
-    dispatcher.stop()
+    dispatcher.stop('ABC')
     await dispatcher.idle()
     expect(launched).toEqual(['ABC/ABC-1', 'XYZ/XYZ-1'])
   })
@@ -398,14 +398,14 @@ describe('Dispatcher', () => {
     first.dispatcher.start('ABC')
     first.dispatcher.start('XYZ')
     await first.dispatcher.idle()
-    first.dispatcher.pause()
+    first.dispatcher.pause('ABC')
     await first.dispatcher.idle()
     const persisted = first.saved.at(-1)
     expect(persisted).toEqual(first.dispatcher.state)
 
     const second = setup({ state: persisted })
     second.dispatcher.setTasks('ABC', [task('ABC-1'), task('ABC-2')])
-    second.dispatcher.resume()
+    second.dispatcher.resume('ABC')
     await second.dispatcher.idle()
     expect(first.launched).toEqual(['ABC/ABC-1'])
     expect(second.launched).toEqual([])
@@ -419,14 +419,14 @@ describe('Dispatcher', () => {
   it('pauses a launch that a restart interrupted', async () => {
     const state: ChainState = {
       ...emptyChainState(),
-      active: { project: 'ABC', current: { task: 'ABC-1', sessionId: null, since: 'x' }, paused: false, error: null },
+      active: [{ project: 'ABC', current: { task: 'ABC-1', sessionId: null, since: 'x' }, paused: false, error: null }],
     }
     const { dispatcher, launched } = setup({ state })
     dispatcher.setTasks('ABC', [task('ABC-1')])
     await dispatcher.idle()
     expect(launched).toEqual([])
-    expect(dispatcher.state.active).toMatchObject({ paused: true, current: null })
-    expect(dispatcher.state.active?.error).toEqual(notice('chain.interrupted', { task: 'ABC-1' }))
+    expect(dispatcher.state.active[0]).toMatchObject({ paused: true, current: null })
+    expect(dispatcher.state.active[0]?.error).toEqual(notice('chain.interrupted', { task: 'ABC-1' }))
   })
 
   it('puts a new task at the head of a manual order and keeps it there', () => {
@@ -530,7 +530,7 @@ describe('Dispatcher on a limit', () => {
     await check(dispatcher)
 
     expect(relays).toEqual([])
-    expect(dispatcher.state.active?.current?.limit).toEqual({
+    expect(dispatcher.state.active[0]?.current?.limit).toEqual({
       at: '2026-09-26T12:00:00.000Z',
       account: 'john@example.com',
       resetsAt: '2026-09-26T15:00:00.000Z',
@@ -554,7 +554,7 @@ describe('Dispatcher on a limit', () => {
 
     expect(relays).toMatchObject([{ kind: 'relay', task: 'ABC-1', sessionId: 'session-1' }])
     expect(relays[0]?.prompt).toContain('D:/work/abc/.claude/worktrees/abc-1')
-    expect(dispatcher.state.active?.current).toMatchObject({ task: 'ABC-1', sessionId: 'session-2', since: '2026-09-26T12:00:00.000Z' })
+    expect(dispatcher.state.active[0]?.current).toMatchObject({ task: 'ABC-1', sessionId: 'session-2', since: '2026-09-26T12:00:00.000Z' })
     expect(journal.at(-1)).toEqual({
       at: '2026-09-26T15:00:00.000Z',
       project: 'ABC',
@@ -572,13 +572,13 @@ describe('Dispatcher on a limit', () => {
     const { dispatcher, limited, clock, relays, journal } = await running()
     limited['ABC-1'] = limitedSession('session-1', '2026-09-26T14:30:00.000Z', '2026-09-26T14:29:00.000Z')
     await check(dispatcher)
-    expect(dispatcher.state.active?.current?.limit?.then).toBe('resume')
+    expect(dispatcher.state.active[0]?.current?.limit?.then).toBe('resume')
 
     clock.now = new Date('2026-09-26T15:00:10Z')
     await check(dispatcher)
 
     expect(relays).toMatchObject([{ kind: 'resume', sessionId: 'session-1' }])
-    expect(dispatcher.state.active?.current?.sessionId).toBe('session-1')
+    expect(dispatcher.state.active[0]?.current?.sessionId).toBe('session-1')
     expect(journal.at(-1)).toMatchObject({ sessionId: 'session-1', reason: 'resume', previous: 'session-1' })
 
     await check(dispatcher)
@@ -599,14 +599,14 @@ describe('Dispatcher on a limit', () => {
   it('hands over when the account was switched on a paused chain before the limit was noted', async () => {
     const accountAt = (_account: string, at: string) => (at < '2026-09-26T12:03:00.000Z' ? 'john@example.com' : 'jane@example.com')
     const { dispatcher, limited, clock, relays, account } = await running({ accountAt })
-    dispatcher.pause()
+    dispatcher.pause('ABC')
     limited['ABC-1'] = limitedSession('session-1', '2026-09-26T12:00:00.000Z', '2026-09-26T11:59:00.000Z')
     account.id = 'jane@example.com'
     clock.now = new Date('2026-09-26T12:05:00Z')
-    dispatcher.resume()
+    dispatcher.resume('ABC')
     await dispatcher.idle()
 
-    expect(dispatcher.state.active?.current?.limit?.account).toBe('john@example.com')
+    expect(dispatcher.state.active[0]?.current?.limit?.account).toBe('john@example.com')
     expect(relays).toMatchObject([{ kind: 'relay' }])
   })
 
@@ -616,7 +616,7 @@ describe('Dispatcher on a limit', () => {
     account.ready = false
     limited['ABC-1'] = limitedSession('session-1', '2026-09-26T12:00:00.000Z', '2026-09-26T11:59:00.000Z')
     await check(dispatcher)
-    expect(dispatcher.state.active?.current?.limit).toBeUndefined()
+    expect(dispatcher.state.active[0]?.current?.limit).toBeUndefined()
   })
 
   it('acts again on a new limit of the relayed session', async () => {
@@ -629,7 +629,7 @@ describe('Dispatcher on a limit', () => {
     limited['ABC-1'] = limitedSession('session-2', '2026-09-26T16:00:00.000Z', '2026-09-26T15:59:00.000Z')
     clock.now = new Date('2026-09-26T16:00:00Z')
     await check(dispatcher)
-    expect(dispatcher.state.active?.current?.limit).toMatchObject({ at: '2026-09-26T16:00:00.000Z', acted: null })
+    expect(dispatcher.state.active[0]?.current?.limit).toMatchObject({ at: '2026-09-26T16:00:00.000Z', acted: null })
 
     clock.now = new Date('2026-09-27T15:00:00Z')
     await check(dispatcher)
@@ -643,13 +643,13 @@ describe('Dispatcher on a limit', () => {
 
     delete limited['ABC-1']
     await check(dispatcher)
-    expect(dispatcher.state.active?.current?.limit).toBeUndefined()
+    expect(dispatcher.state.active[0]?.current?.limit).toBeUndefined()
   })
 
   it('leaves a paused chain alone', async () => {
     const { dispatcher, limited, clock, relays } = await running()
     limited['ABC-1'] = limitedSession('session-1', '2026-09-26T12:00:00.000Z', '2026-09-26T11:59:00.000Z')
-    dispatcher.pause()
+    dispatcher.pause('ABC')
     clock.now = new Date('2026-09-26T16:00:00Z')
     await check(dispatcher)
     expect(relays).toEqual([])
@@ -662,7 +662,7 @@ describe('Dispatcher on a limit', () => {
     clock.now = new Date('2026-09-26T15:00:00Z')
     await check(dispatcher)
 
-    expect(dispatcher.state.active).toMatchObject({ paused: true, error: textNotice('claude: could not stop session-') })
+    expect(dispatcher.state.active[0]).toMatchObject({ paused: true, error: textNotice('claude: could not stop session-') })
   })
 })
 
@@ -697,7 +697,7 @@ describe('Dispatcher postponing a task', () => {
     dispatcher.setTasks('ABC', [task('ABC-1', todo, 'ABC-3'), task('ABC-2'), task('ABC-3')])
     await dispatcher.idle()
     expect(launched).toEqual(['ABC/ABC-1'])
-    expect(dispatcher.state.active?.current?.task).toBe('ABC-1')
+    expect(dispatcher.state.active[0]?.current?.task).toBe('ABC-1')
 
     busy.clear()
     dispatcher.check()
@@ -749,7 +749,7 @@ describe('Dispatcher with a blocker in the backlog', () => {
     await dispatcher.idle()
 
     expect(launched).toEqual([])
-    expect(dispatcher.state.active).toBeNull()
+    expect(dispatcher.state.active).toEqual([])
   })
 
   it('takes the blocker into the chain once it moves to Todo', async () => {
@@ -814,7 +814,7 @@ describe('Dispatcher skipping a task', () => {
     await dispatcher.idle()
 
     expect(launched).toEqual(['ABC/ABC-1', 'ABC/ABC-2'])
-    expect(dispatcher.state.active).toBeNull()
+    expect(dispatcher.state.active).toEqual([])
   })
 
   it('refuses to skip the current task while its session is mid-turn', async () => {
@@ -853,12 +853,12 @@ describe('Dispatcher skipping a task', () => {
   it('refuses to skip the current task while its session is still launching', () => {
     const state: ChainState = {
       ...emptyChainState(),
-      active: { project: 'ABC', current: { task: 'ABC-1', sessionId: null, since: 't' }, paused: true, error: null },
+      active: [{ project: 'ABC', current: { task: 'ABC-1', sessionId: null, since: 't' }, paused: true, error: null }],
     }
     const { dispatcher } = setup({ state })
     dispatcher.setTasks('ABC', [task('ABC-1'), task('ABC-2')])
     expect(() => dispatcher.skip('ABC', 'ABC-1')).toThrow('chain: ABC-1 is still launching; try again in a moment')
-    expect(dispatcher.state.active?.current?.task).toBe('ABC-1')
+    expect(dispatcher.state.active[0]?.current?.task).toBe('ABC-1')
   })
 
   it('refuses a task that is not open in the chain', async () => {

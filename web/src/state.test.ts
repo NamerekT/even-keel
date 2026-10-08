@@ -5,6 +5,7 @@ import { setLanguage } from './i18n/index.js'
 import type { StatusCategory, Task } from '../../src/tracker/model.js'
 import type { AccountEntry, AccountLogin, AccountView } from '../../src/account/model.js'
 import type { EvenKeelState, SessionView } from '../../src/state.js'
+import type { ActiveChain } from '../../src/chain/dispatcher.js'
 import {
   accountBadge,
   backlogTasks,
@@ -19,6 +20,7 @@ import {
   projectSlot,
   queuedAfter,
   sessionElapsed,
+  startsNow,
   cacheFreshness,
   taskProject,
   tokenTotal,
@@ -58,7 +60,7 @@ function stateOf(patch: Partial<EvenKeelState>): EvenKeelState {
   return {
     startedAt: '2026-01-01T08:00:00.000Z',
     projects: ['ABC', 'XYZ'],
-    chain: { active: null, queue: [], projects: {}, skipped: {}, leftovers: {} },
+    chain: { active: [], parallel: 1, queue: [], projects: {}, skipped: {}, leftovers: {} },
     tasks: [],
     sessions: [],
     limits: null,
@@ -78,8 +80,11 @@ function stateOf(patch: Partial<EvenKeelState>): EvenKeelState {
   }
 }
 
-const chain = (patch: Partial<EvenKeelState['chain']>): EvenKeelState['chain'] => ({
-  active: null,
+type ChainPatch = Omit<Partial<EvenKeelState['chain']>, 'active'> & { active?: ActiveChain | ActiveChain[] | null }
+
+const chain = ({ active = [], ...patch }: ChainPatch): EvenKeelState['chain'] => ({
+  active: active === null ? [] : Array.isArray(active) ? active : [active],
+  parallel: 1,
   queue: [],
   projects: {},
   skipped: {},
@@ -213,6 +218,23 @@ describe('chainStatus', () => {
 
   it('calls any other chain idle', () => {
     expect(chainStatus(chain({ active: active(), queue: ['DEMO'] }), 'XYZ')).toEqual({ kind: 'idle' })
+  })
+
+  it('tells each of several active chains by its own state', () => {
+    const both = chain({ active: [active(), { ...active({ paused: true }), project: 'XYZ' }], parallel: 2 })
+    expect(chainStatus(both, 'ABC')).toEqual({ kind: 'running', limitUntil: null })
+    expect(chainStatus(both, 'XYZ')).toEqual({ kind: 'paused', error: null })
+  })
+})
+
+describe('startsNow', () => {
+  const running = (project: string) => ({ project, current: null, paused: false, error: null })
+
+  it('starts a project at once while fewer chains than allowed are active', () => {
+    expect(startsNow(chain({}))).toBe(true)
+    expect(startsNow(chain({ active: running('ABC') }))).toBe(false)
+    expect(startsNow(chain({ active: running('ABC'), parallel: 2 }))).toBe(true)
+    expect(startsNow(chain({ active: [running('ABC'), running('XYZ')], parallel: 2 }))).toBe(false)
   })
 })
 
@@ -421,7 +443,7 @@ describe('chainBlocks', () => {
   it('marks the current task of the active chain, paused or not, and only in its own project', () => {
     const tasks = [task('ABC-1'), task('ABC-2')]
     const projects = { ABC: { order: ['ABC-1', 'ABC-2'], waiting: [], backlog: [], error:null } }
-    const current = (active: EvenKeelState['chain']['active']) =>
+    const current = (active: ActiveChain | null) =>
       chainBlocks(stateOf({ tasks, chain: chain({ active, projects }) }), 'ABC').map((block) => block.current)
     expect(current(running('ABC-1'))).toEqual([true, false])
     expect(current(running('ABC-1', true))).toEqual([true, false])
@@ -512,6 +534,12 @@ describe('queuedAfter', () => {
   it('is empty for a chain that is not queued', () => {
     expect(queuedAfter(chain({ active, queue: ['DEMO'] }), 'ABC')).toBeNull()
     expect(queuedAfter(chain({ active, queue: ['DEMO'] }), 'XYZ')).toBeNull()
+  })
+
+  it('names no chain for the first in the queue while several run, as any of them may end first', () => {
+    const both = chain({ active: [active, { ...active, project: 'XYZ' }], parallel: 2, queue: ['DEMO', 'OPS'] })
+    expect(queuedAfter(both, 'DEMO')).toBeNull()
+    expect(queuedAfter(both, 'OPS')).toBe('DEMO')
   })
 })
 
