@@ -11,6 +11,7 @@ import { Home } from './pages/Home.js'
 import { NotFound } from './pages/NotFound.js'
 import { Project } from './pages/Project.js'
 import { StatsPage } from './stats/StatsPage.js'
+import { ToolsPage } from './tools/ToolsPage.js'
 
 export function App() {
   const { state, link } = useLive()
@@ -33,6 +34,7 @@ export function App() {
             <Route path="/" element={<Home state={state} />} />
             <Route path="/p/:key" element={<Project state={state} />} />
             <Route path="/stats" element={<StatsPage state={state} />} />
+            <Route path="/tools" element={<ToolsPage state={state} />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         )}

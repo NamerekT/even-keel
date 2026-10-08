@@ -4,6 +4,7 @@ import type { PeriodQuery, StatsFilter, StatsScope } from '../../../src/stats/mo
 import type { RulesQuery } from '../../../src/stats/rules.js'
 import type { EvenKeelState } from '../../../src/state.js'
 import { formatMoment } from '../format.js'
+import { formatUsd } from './format.js'
 import { t } from '../i18n/index.js'
 import { useLive } from '../live/context.js'
 import { AnswerNotice, Segmented, loadedData, useStatsAnswer } from './common.js'
@@ -11,7 +12,7 @@ import { chartData, dayCosts, firstDay, projectColors, projectTotals, type Metri
 import { markPlaces, pickMark } from './marks.js'
 import { autoStep, localDay, resolvePeriod, type DayRange, type PeriodChoice } from './period.js'
 import { PeriodPicker } from './PeriodPicker.js'
-import { ProjectList } from './ProjectList.js'
+import { ProjectList } from '../ui/ProjectList.js'
 import { RulesSection } from './RulesSection.js'
 import { EstimateSection } from './EstimateSection.js'
 import { parseView, viewSearch, type StatsView } from './search.js'
@@ -128,7 +129,13 @@ export function StatsPage({ state }: { state: EvenKeelState }) {
         <AnswerNotice loaded={historyLoaded} />
       ) : (
         <div className="stats-page__body">
-          <ProjectList totals={derived.totals} colors={derived.colors} selected={view.projects} onChange={(projects) => setView({ projects })} />
+          <ProjectList
+            items={derived.totals.map(({ project, cost }) => ({ project, amount: cost, label: formatUsd(cost) }))}
+            colors={derived.colors}
+            empty={t.stats.projects.empty}
+            selected={view.projects}
+            onChange={(projects) => setView({ projects })}
+          />
           <div className="stats-page__main" aria-busy={periodLoaded === null || periodLoaded.key !== periodKey}>
             {period === null ? <AnswerNotice loaded={periodLoaded} /> : <Tiles period={period} range={range} />}
             <SpendChart

@@ -1,0 +1,167 @@
+.link-button {
+  font: inherit;
+  font-size: 13px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--accent);
+  cursor: pointer;
+}
+
+.link-button:disabled {
+  color: var(--fg-muted);
+  cursor: default;
+}
+
+.link-button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* Projects column */
+
+.projects {
+  position: sticky;
+  top: calc(var(--header-height) + 12px);
+  padding: 12px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.projects__toggle {
+  display: none;
+}
+
+.projects__body {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.projects__search {
+  font: inherit;
+  font-size: 14px;
+  width: 100%;
+  padding: 5px 8px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg);
+  color: var(--fg);
+}
+
+.projects__empty {
+  font-size: 13px;
+}
+
+.projects__list {
+  display: flex;
+  flex-direction: column;
+  max-height: min(60vh, 560px);
+  margin: 0;
+  padding: 0;
+  overflow-y: auto;
+  list-style: none;
+}
+
+.projects__item {
+  display: grid;
+  grid-template-columns: auto auto minmax(0, 1fr) auto;
+  grid-template-areas: 'check swatch name cost' '. . bar bar';
+  align-items: center;
+  gap: 2px 6px;
+  padding: 4px 0;
+  font-size: 13px;
+}
+
+.projects__item input {
+  grid-area: check;
+  margin: 0;
+}
+
+.projects__item .chart__swatch {
+  grid-area: swatch;
+}
+
+.projects__item--off .chart__swatch,
+.projects__item--off .projects__bar span {
+  opacity: 0.35;
+}
+
+.projects__item--off .projects__name,
+.projects__item--off .projects__cost {
+  color: var(--fg-muted);
+}
+
+.projects__name {
+  grid-area: name;
+  min-width: 0;
+  overflow: hidden;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--fg);
+  font-family: var(--mono);
+  font-size: 13px;
+  text-align: left;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.projects__name:hover {
+  text-decoration: underline;
+}
+
+.projects__cost {
+  grid-area: cost;
+  color: var(--fg-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.projects__bar {
+  grid-area: bar;
+  height: 3px;
+  border-radius: 2px;
+  background: var(--surface-muted);
+}
+
+.projects__bar span {
+  display: block;
+  height: 100%;
+  border-radius: 2px;
+  background: var(--series);
+}
+
+.projects__foot {
+  display: flex;
+  gap: 16px;
+  padding-top: 4px;
+  border-top: 1px solid var(--border);
+}
+
+@media (max-width: 900px) {
+  .projects {
+    position: static;
+    padding: 0;
+    border: 0;
+    background: none;
+  }
+
+  .projects__toggle {
+    display: inline-block;
+  }
+
+  .projects__body {
+    display: none;
+  }
+
+  .projects--open .projects__body {
+    display: flex;
+    margin-top: 8px;
+    padding: 12px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+  }
+}

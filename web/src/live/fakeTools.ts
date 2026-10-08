@@ -2,22 +2,27 @@ import type { ReceivedView, SettingRow, ToolsView } from '../../../src/tools/mod
 
 const HIDDEN = 'user-invocable-only'
 
-/** `mode`: `bloated` — a session that got claude.ai skills, accounts that drift; `empty` — no session yet. */
+/**
+ * `mode`: `bloated` — a session that got claude.ai skills, accounts that drift; `empty` — no session yet.
+ * Projects whose key starts with an odd letter code differ a little, so that the comparison has something to show.
+ */
 export function fakeTools(project: string, trim: boolean, mode: string | null): ToolsView {
   const repo = `D:\\work\\${project.toLowerCase()}`
   const bloated = mode === 'bloated'
+  const odd = project.charCodeAt(0) % 2 === 1
   const settings: SettingRow[] = [
     row('sync', 'syncClaudeAiPlugins', { local: 'off', ...(trim ? { chain: 'off' } : {}) }),
     row('sync', 'syncClaudeAiSkills', { local: 'off', ...(trim ? { chain: 'off' } : {}) }),
     row('mode', 'defaultMode', { user: 'default', chain: 'auto' }),
     row('plugin', 'huly@even-keel', { user: 'off', project: 'on' }),
-    row('plugin', 'playwright@claude-plugins-official', { user: 'on' }),
+    row('plugin', 'playwright@claude-plugins-official', { user: 'on', ...(odd ? { project: 'off' } : {}) }),
     row('plugin', 'design@synced', { user: 'off' }),
-    row('skill', 'dataviz', { local: 'on', ...(trim ? { chain: 'on' } : {}) }),
+    row('skill', 'dataviz', odd ? {} : { local: 'on', ...(trim ? { chain: 'on' } : {}) }),
     row('skill', 'loop', { user: HIDDEN, ...(trim ? { chain: HIDDEN } : {}) }),
     row('skill', 'update-config', trim ? { chain: HIDDEN } : {}),
     row('permission', 'Agent', { user: 'deny' }),
     row('permission', 'Bash(git *)', { user: 'allow', project: 'allow' }),
+    row('permission', 'Bash(npm test *)', odd ? { project: 'allow' } : {}),
     row('permission', 'mcp__plugin_huly_huly__add_issue_label', { local: 'allow' }),
   ].filter((each) => Object.keys(each.values).length > 0)
 

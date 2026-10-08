@@ -35,6 +35,9 @@ export function Header() {
           <NavLink to="/stats" className="header__link">
             {t.header.stats}
           </NavLink>
+          <NavLink to="/tools" className="header__link header__link--wide">
+            {t.header.tools}
+          </NavLink>
         </nav>
         <div className="header__aside">
           {state !== null && <QueueMenu state={state} />}

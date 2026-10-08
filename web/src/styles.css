@@ -963,6 +963,10 @@ h1 {
     gap: 4px 10px;
   }
 
+  .header__link--wide {
+    display: none;
+  }
+
   .waiting__tail {
     display: none;
   }
