@@ -1,4 +1,5 @@
 import { isTerminal, unknownStatuses, type ChainRules } from '../chain/rules.js'
+import type { TrackerCard } from './card.js'
 import { isLeaf, toTask, type Task, type TaskStatus, type TrackerTask } from './model.js'
 
 /**
@@ -42,6 +43,16 @@ export interface TaskSource {
    * a parent task once all its subtasks are closed (`src/tracker/parents.ts`).
    */
   children?(id: string): Promise<TrackerTask[]>
+  /**
+   * Optional. The task in full — description, links to other tasks, comments — for its card on the page.
+   * Without it the page has no card and offers only the link to the task.
+   */
+  card?(id: string): Promise<TrackerCard>
+  /**
+   * Optional. Moves an `UnStarted` task to the tracker's first `ToDo` status; the card offers it for a task in the backlog.
+   * Returns the new status; `null` — the task is not `UnStarted` and was left alone.
+   */
+  ready?(id: string): Promise<TaskStatus | null>
   /** Drops the connection. */
   close(): Promise<void>
 }
@@ -110,6 +121,8 @@ export interface Tracker {
   brief?(id: string): Promise<TaskBrief>
   complete?(id: string): Promise<boolean>
   children?(id: string): Promise<Task[]>
+  card?(id: string): Promise<TrackerCard>
+  ready?(id: string): Promise<TaskStatus | null>
   close(): Promise<void>
 }
 
@@ -129,5 +142,7 @@ export function trackerOf(source: TaskSource): Tracker {
   if (source.brief !== undefined) tracker.brief = (id) => source.brief!(id)
   if (source.complete !== undefined) tracker.complete = (id) => source.complete!(id)
   if (source.children !== undefined) tracker.children = async (id) => (await source.children!(id)).map(toTask)
+  if (source.card !== undefined) tracker.card = (id) => source.card!(id)
+  if (source.ready !== undefined) tracker.ready = (id) => source.ready!(id)
   return tracker
 }

@@ -75,6 +75,7 @@ describe('LiveConnection', () => {
     live = new LiveConnection({
       fetchSession: async () => null,
       fetchTools: async () => null,
+      fetchCard: async () => null,
       fetchStats: async () => ({ state: 'off', reason: 'test' }),
       sendCommand: (name, body) => {
         commands.push({ name, body })

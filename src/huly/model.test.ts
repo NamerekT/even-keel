@@ -1,5 +1,18 @@
 import { describe, expect, it } from 'vitest'
-import { closingStatus, labeled, milestonesOf, missingBlockers, toTasks, type HulyIssueDoc, type HulyStatusDoc } from './model.js'
+import {
+  cardLinks,
+  closingStatus,
+  labeled,
+  milestonesOf,
+  missingBlockers,
+  personName,
+  readyStatus,
+  toCard,
+  toTasks,
+  type HulyCardDocs,
+  type HulyIssueDoc,
+  type HulyStatusDoc,
+} from './model.js'
 
 const statuses: HulyStatusDoc[] = [
   { _id: 'tracker:status:Backlog', name: 'Backlog', category: 'task:statusCategory:UnStarted' },
@@ -140,6 +153,138 @@ describe('closingStatus', () => {
 
   it('fails when the project has no Won status', () => {
     expect(() => closingStatus('tracker:status:Todo', statuses, ['tracker:status:Todo'])).toThrow(/no done status/)
+  })
+})
+
+describe('readyStatus', () => {
+  const custom: HulyStatusDoc = { _id: 'custom-ready', name: 'Ready', category: 'task:statusCategory:ToDo' }
+
+  it('moves a backlog issue to the first ToDo status of its project', () => {
+    expect(readyStatus('tracker:status:Backlog', statuses, null)?._id).toBe('tracker:status:Todo')
+    expect(readyStatus('tracker:status:Backlog', [...statuses, custom], ['tracker:status:Backlog', 'custom-ready', 'tracker:status:Todo'])?._id).toBe(
+      'custom-ready',
+    )
+  })
+
+  it('leaves an issue that is past the backlog alone', () => {
+    expect(readyStatus('tracker:status:Todo', statuses, null)).toBeNull()
+    expect(readyStatus('tracker:status:Done', statuses, null)).toBeNull()
+  })
+
+  it('fails when the project has no ToDo status', () => {
+    expect(() => readyStatus('tracker:status:Backlog', statuses, ['tracker:status:Backlog'])).toThrow(/no ToDo status/)
+  })
+})
+
+describe('personName', () => {
+  it('turns the stored "Last,First" into "First Last"', () => {
+    expect(personName('Doe,John')).toBe('John Doe')
+    expect(personName('Doe')).toBe('Doe')
+    expect(personName(' ,John ')).toBe('John')
+  })
+})
+
+describe('toCard', () => {
+  const ref = (_id: string) => ({ _id, _class: 'tracker:class:Issue' })
+  const docs = (fields: Partial<HulyCardDocs> = {}): HulyCardDocs => ({
+    issue: { ...issue('i1', 'ABC-1', 'tracker:status:Backlog'), attachedTo: 'tracker:ids:NoParent' },
+    description: '',
+    statuses,
+    linked: [],
+    blocks: [],
+    milestones: [],
+    labels: [],
+    comments: [],
+    people: new Map(),
+    ...fields,
+  })
+
+  it('maps the issue with its description, priority, milestone and labels', () => {
+    const card = toCard(
+      docs({
+        issue: { ...issue('i1', 'ABC-1', 'tracker:status:Backlog'), priority: 2, milestone: 'm1', attachedTo: 'tracker:ids:NoParent' },
+        description: '# Goal',
+        milestones: [{ _id: 'm1', label: 'v0.2', targetDate: 1_800_000_000_000 }],
+        labels: [
+          { attachedTo: 'i1', title: 'Opus' },
+          { attachedTo: 'other', title: 'UI' },
+        ],
+      }),
+    )
+    expect(card).toEqual({
+      id: 'ABC-1',
+      title: 'Title of ABC-1',
+      description: '# Goal',
+      status: { name: 'Backlog', category: 'UnStarted' },
+      priority: 'high',
+      labels: ['Opus'],
+      milestone: { label: 'v0.2', targetDate: 1_800_000_000_000 },
+      parent: null,
+      blockedBy: [],
+      blocks: [],
+      related: [],
+      comments: [],
+    })
+  })
+
+  it('links the parent, blockers, blocked and related issues it got', () => {
+    const card = toCard(
+      docs({
+        issue: {
+          ...issue('i1', 'ABC-1', 'tracker:status:Backlog', ['i2', 'gone']),
+          attachedTo: 'i5',
+          relations: [ref('i4'), { _id: 'd1', _class: 'document:class:Document' }],
+        },
+        linked: [issue('i2', 'ABC-2', 'tracker:status:Done'), issue('i4', 'ABC-4', 'tracker:status:Todo'), issue('i5', 'ABC-5', 'tracker:status:InProgress')],
+        blocks: ['i3'],
+      }),
+    )
+    expect(card.parent).toEqual({ id: 'ABC-5', title: 'Title of ABC-5', status: { name: 'In Progress', category: 'Active' } })
+    expect(card.blockedBy).toEqual([{ id: 'ABC-2', title: 'Title of ABC-2', status: { name: 'Done', category: 'Won' } }])
+    expect(card.related.map((each) => each.id)).toEqual(['ABC-4'])
+    expect(card.blocks).toEqual([])
+  })
+
+  it('lists the issues it blocks from the ones fetched for that', () => {
+    const card = toCard(docs({ linked: [issue('i3', 'ABC-3', 'tracker:status:Todo')], blocks: ['i3'] }))
+    expect(card.blocks.map((each) => each.id)).toEqual(['ABC-3'])
+  })
+
+  it('orders the comments by time and names their authors', () => {
+    const card = toCard(
+      docs({
+        comments: [
+          { createdBy: 's2', createdOn: 20, text: 'second' },
+          { createdBy: 's1', createdOn: 10, text: 'first' },
+          { createdBy: 'unknown', createdOn: 30, text: 'third' },
+        ],
+        people: new Map([
+          ['s1', 'Doe,John'],
+          ['s2', 'Roe,Jane'],
+        ]),
+      }),
+    )
+    expect(card.comments).toEqual([
+      { author: 'John Doe', at: 10, text: 'first' },
+      { author: 'Jane Roe', at: 20, text: 'second' },
+      { author: null, at: 30, text: 'third' },
+    ])
+  })
+})
+
+describe('cardLinks', () => {
+  it('lists the ids of the parent, blockers and related issues', () => {
+    expect(
+      cardLinks({
+        ...issue('i1', 'ABC-1', 'tracker:status:Todo', ['i2']),
+        attachedTo: 'i5',
+        relations: [
+          { _id: 'i4', _class: 'tracker:class:Issue' },
+          { _id: 'd1', _class: 'document:class:Document' },
+        ],
+      }),
+    ).toEqual(['i5', 'i2', 'i4'])
+    expect(cardLinks({ ...issue('i1', 'ABC-1', 'tracker:status:Todo'), attachedTo: 'tracker:ids:NoParent' })).toEqual([])
   })
 })
 

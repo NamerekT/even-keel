@@ -25,6 +25,7 @@ import type { Link, LiveSnapshot, LiveSource } from './connection.js'
 import { fakeCompare, fakeRuleDiff, fakeRules } from './fakeRules.js'
 import { fakeSteps } from './fakeSteps.js'
 import { fakeHistory, fakePeriod, fakeTask } from './fakeStats.js'
+import { fakeCard, fakeReady } from './fakeCards.js'
 import { fakeTools } from './fakeTools.js'
 
 const TICK_MS = 2_000
@@ -540,6 +541,7 @@ function fakeCommand(state: EvenKeelState, name: string, body: Record<string, un
   if (name === 'chain/restart') return restart(state, String(body.project), String(body.task))
   if (name === 'chain/unattended') return { ...state, unattended: body.on === true }
   if (name === 'chain/trim') return { ...state, trimTools: body.on === true }
+  if (name === 'task/ready') return fakeReady(state, String(body.task))
   if (name.startsWith('account/')) return { ...state, account: accountCommand(state.account, name, body) }
   throw new Error(`fake: ${name} is not supported`)
 }
@@ -689,6 +691,10 @@ export function createFakeSource(search: string): LiveSource {
     tools: async (project) => {
       await new Promise((resolve) => setTimeout(resolve, 300))
       return current.state?.projects.includes(project) ? fakeTools(project, current.state.trimTools, params.get('tools')) : null
+    },
+    card: async (task) => {
+      await new Promise((resolve) => setTimeout(resolve, 300))
+      return current.state === null ? null : fakeCard(current.state, task, params.get('card'))
     },
     statsHistory: async (filter) => {
       await new Promise((resolve) => setTimeout(resolve, 300))

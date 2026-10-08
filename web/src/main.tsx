@@ -5,6 +5,7 @@ import { asNotice, NoticeError } from '../../src/notice/notice.js'
 import type { EvenKeelState, SessionRecord } from '../../src/state.js'
 import type { StatsAnswer } from '../../src/stats/model.js'
 import type { ToolsView } from '../../src/tools/model.js'
+import type { TaskCard } from '../../src/tracker/card.js'
 import { App } from './App.js'
 import { LiveConnection, type LiveSource } from './live/connection.js'
 import { LiveProvider } from './live/context.js'
@@ -38,6 +39,15 @@ async function fetchOrNull<T>(path: string): Promise<T | null> {
 const fetchSession = (sessionId: string) => fetchOrNull<SessionRecord>(`/api/sessions/${encodeURIComponent(sessionId)}`)
 const fetchTools = (project: string) => fetchOrNull<ToolsView>(`/api/projects/${encodeURIComponent(project)}/tools`)
 
+async function fetchCard(task: string): Promise<TaskCard | null> {
+  const path = `/api/tasks/${encodeURIComponent(task)}`
+  const response = await fetch(path, { cache: 'no-store' })
+  if (response.status === 404) return null
+  const answer = (await response.json().catch(() => null)) as (TaskCard & { error?: string; notice?: unknown }) | null
+  if (!response.ok) throw new NoticeError(asNotice(answer?.notice ?? answer?.error ?? `${path} answered ${response.status}`))
+  return answer
+}
+
 async function fetchStats<T>(path: string, search: URLSearchParams): Promise<StatsAnswer<T>> {
   const response = await fetch(`/api/stats/${path}?${search}`, { cache: 'no-store' })
   const answer = (await response.json().catch(() => null)) as (StatsAnswer<T> & { error?: string }) | null
@@ -54,6 +64,7 @@ async function createSource(): Promise<LiveSource> {
     sendCommand,
     fetchSession,
     fetchTools,
+    fetchCard,
     fetchStats,
   })
   connection.start()

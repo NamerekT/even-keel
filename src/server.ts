@@ -25,6 +25,7 @@ import {
   type StatsRules,
 } from './stats/rules.js'
 import type { StatsSteps } from './stats/steps.js'
+import type { TaskCard } from './tracker/card.js'
 
 export interface StatsSource {
   history(filter: StatsFilter): Promise<StatsAnswer<StatsHistory>>
@@ -63,6 +64,12 @@ export interface AccountControl {
   cancel(): void
 }
 
+export interface TaskControl {
+  /** `undefined` — no connected tracker gives a card for the task. */
+  card(task: string): Promise<TaskCard | undefined>
+  ready(task: string): Promise<void>
+}
+
 export interface ServerDeps {
   hub: EventHub
   publicDir: string
@@ -73,6 +80,7 @@ export interface ServerDeps {
   sessionRecord: (sessionId: string) => Promise<unknown>
   /** `undefined` for a project the config does not know. */
   tools: (project: string) => Promise<unknown>
+  tasks: TaskControl
   stats: StatsSource
 }
 
@@ -92,6 +100,7 @@ const COMMANDS: Record<string, Command> = {
   'chain/dismiss': ({ control }, body) => control.dismiss(projectOf(body), taskOf(body)),
   'chain/unattended': ({ control }, body) => control.setUnattended(flagOf(body)),
   'chain/trim': ({ control }, body) => control.setTrimTools(flagOf(body)),
+  'task/ready': ({ tasks }, body) => tasks.ready(taskOf(body)),
   'account/add': ({ account }) => account.add(),
   'account/renew': ({ account }, body) => account.renew(accountOf(body)),
   'account/switch': ({ account }, body) => account.switchTo(accountOf(body)),
@@ -156,6 +165,22 @@ async function route(deps: ServerDeps, request: IncomingMessage, response: Serve
     let view: unknown
     try {
       view = await deps.tools(decodeURIComponent(tools[1]!))
+    } catch (error) {
+      sendFailure(response, error)
+      return
+    }
+    if (view === undefined) response.writeHead(404).end()
+    else sendJson(response, 200, view)
+    return
+  }
+
+  const card = /^\/api\/tasks\/([^/]+)$/.exec(path)
+  if (request.method === 'GET' && card !== null) {
+    let view: TaskCard | undefined
+    try {
+      const task = decodeURIComponent(card[1]!)
+      if (!isTaskId(task)) throw fail('request.taskId', {})
+      view = await deps.tasks.card(task)
     } catch (error) {
       sendFailure(response, error)
       return

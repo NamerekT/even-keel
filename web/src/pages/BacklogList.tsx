@@ -7,7 +7,13 @@ import { Lamp } from '../ui/Lamp.js'
 
 const OPEN_KEY = 'even-keel.backlog.open'
 
-export function BacklogList({ tasks, trackerUrls }: { tasks: Task[]; trackerUrls: TrackerUrls }) {
+interface Props {
+  tasks: Task[]
+  trackerUrls: TrackerUrls
+  onCard: (task: string) => void
+}
+
+export function BacklogList({ tasks, trackerUrls, onCard }: Props) {
   const [open, setOpen] = useState(readOpen)
   if (tasks.length === 0) return null
 
@@ -38,7 +44,11 @@ export function BacklogList({ tasks, trackerUrls }: { tasks: Task[]; trackerUrls
                   </a>
                 )}
               </div>
-              <p className="block__title">{task.title}</p>
+              <p className="block__title">
+                <button type="button" className="block__card" title={t.chain.openCard} onClick={() => onCard(task.id)}>
+                  {task.title}
+                </button>
+              </p>
               <div className="block__side">
                 <span className="block__status">{task.status.name}</span>
               </div>

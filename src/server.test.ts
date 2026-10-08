@@ -69,6 +69,16 @@ describe('Even Keel HTTP server', () => {
         return id === '0a1b2c3d' ? { sessionId: id } : undefined
       },
       tools: async (project) => (project === 'ABC' ? { project } : undefined),
+      tasks: {
+        card: async (task) => {
+          if (task === 'ABC-9') throw new Error('huly: issue ABC-9 not found')
+          return task === 'ABC-1' ? ({ id: task } as never) : undefined
+        },
+        ready: async (task) => {
+          if (task === 'ABC-9') throw new Error('huly: issue ABC-9 not found')
+          calls.push(['ready', task])
+        },
+      },
       stats: {
         history: async (filter) => ({ state: 'off', reason: `history ${filter.scope} ${filter.account} ${filter.tz}` }),
         period: async (query) => ({ state: 'off', reason: `period ${query.from} ${query.to} ${query.projects?.join('+')}` }),
@@ -187,6 +197,24 @@ describe('Even Keel HTTP server', () => {
     expect(response.status).toBe(200)
     expect(await response.json()).toEqual({ project: 'ABC' })
     expect((await fetch(base + '/api/projects/QQQ/tools')).status).toBe(404)
+  })
+
+  it('serves the card of a task, 404 when no tracker gives one', async () => {
+    const response = await fetch(base + '/api/tasks/ABC-1')
+    expect(response.status).toBe(200)
+    expect(await response.json()).toEqual({ id: 'ABC-1' })
+    expect((await fetch(base + '/api/tasks/ABC-2')).status).toBe(404)
+    expect((await fetch(base + '/api/tasks/nope')).status).toBe(400)
+    const failed = await fetch(base + '/api/tasks/ABC-9')
+    expect(failed.status).toBe(400)
+    expect(await failed.json()).toEqual(refusal('huly: issue ABC-9 not found'))
+  })
+
+  it('moves a backlog task to Todo', async () => {
+    expect((await post('/api/task/ready', { task: 'ABC-1' })).status).toBe(200)
+    expect(calls).toEqual([['ready', 'ABC-1']])
+    expect((await post('/api/task/ready', {})).status).toBe(400)
+    expect((await post('/api/task/ready', { task: 'ABC-9' })).status).toBe(400)
   })
 
   it('answers 400 with the reason for a refused or malformed command', async () => {

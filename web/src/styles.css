@@ -1470,6 +1470,23 @@ a:focus-visible {
   line-height: 1.35;
 }
 
+.block__card {
+  position: relative;
+  z-index: 1;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.block__card:hover {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
 .block__status {
   color: var(--fg-muted);
   font-size: 12px;

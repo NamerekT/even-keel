@@ -3,12 +3,17 @@ import type { TrackerTask } from '../tracker/model.js'
 import type { TaskSource } from '../tracker/source.js'
 import type { HulyCredentials } from './credentials.js'
 import {
+  cardLinks,
   closingStatus,
+  ISSUE_CLASS,
   labeled,
   milestonesOf,
   missingBlockers,
+  readyStatus,
+  toCard,
   toStatus,
   toTasks,
+  type HulyCardIssue,
   type HulyIssueDoc,
   type HulyLabelDoc,
   type HulyMilestoneDoc,
@@ -16,7 +21,13 @@ import {
 } from './model.js'
 
 type Query = Record<string, unknown>
-type FullIssue = HulyIssueDoc & { space: string; description?: string | null }
+type FullIssue = HulyCardIssue & { space: string; description?: string | null }
+
+interface ChatMessageDoc {
+  message: string
+  createdBy?: string
+  createdOn: number
+}
 
 interface PlatformClient {
   findAll<T>(cls: string, query: Query, options?: { projection?: Record<string, 1> }): Promise<T[]>
@@ -39,8 +50,15 @@ const require = createRequire(import.meta.url)
 const api = require('@hcengineering/api-client') as ApiClientModule
 const tracker = (require('@hcengineering/tracker') as { default: TrackerPlugin }).default
 
+const { markupToJSON } = require('@hcengineering/text-core') as { markupToJSON(markup: string): unknown }
+const { markupToMarkdown } = require('@hcengineering/text-markdown') as { markupToMarkdown(markup: unknown): string }
+
 const TAG_REFERENCE = 'tags:class:TagReference'
 const PROJECT_TYPE = 'task:class:ProjectType'
+const CHAT_MESSAGE = 'chunter:class:ChatMessage'
+const SOCIAL_IDENTITY = 'contact:class:SocialIdentity'
+const PERSON = 'contact:class:Person'
+const REF_FIELDS = { identifier: 1, title: 1, status: 1 } as const
 
 const ISSUE_FIELDS = {
   identifier: 1,
@@ -80,6 +98,22 @@ export async function connectHuly(credentials: HulyCredentials, timeoutMs: numbe
     if (project?.type === undefined) return null
     const type = await client.findOne<{ statuses?: { _id: string }[] }>(PROJECT_TYPE, { _id: project.type })
     return type?.statuses?.map((status) => status._id) ?? null
+  }
+
+  async function peopleOf(socialIds: string[]): Promise<Map<string, string>> {
+    if (socialIds.length === 0) return new Map()
+    const identities = await client.findAll<{ _id: string; attachedTo: string }>(
+      SOCIAL_IDENTITY,
+      { _id: { $in: [...new Set(socialIds)] } },
+      { projection: { attachedTo: 1 } },
+    )
+    const persons = await client.findAll<{ _id: string; name: string }>(
+      PERSON,
+      { _id: { $in: [...new Set(identities.map((doc) => doc.attachedTo))] } },
+      { projection: { name: 1 } },
+    )
+    const nameOf = new Map(persons.map((doc) => [doc._id, doc.name]))
+    return new Map(identities.flatMap((doc) => (nameOf.has(doc.attachedTo) ? [[doc._id, nameOf.get(doc.attachedTo)!]] : [])))
   }
 
   async function resolve(issues: HulyIssueDoc[], statuses: HulyStatusDoc[]): Promise<TrackerTask[]> {
@@ -136,6 +170,40 @@ export async function connectHuly(credentials: HulyCredentials, timeoutMs: numbe
       const issue = await findIssue(identifier)
       const [issues, statuses] = await Promise.all([findIssues({ attachedTo: issue._id }), findStatuses()])
       return resolve(issues, statuses)
+    },
+    async card(identifier) {
+      const issue = await findIssue(identifier)
+      const links = cardLinks(issue)
+      const [description, statuses, linked, blocked, milestones, labels, messages] = await Promise.all([
+        issue.description ? client.fetchMarkup(tracker.class.Issue, issue._id, 'description', issue.description, 'markdown') : '',
+        findStatuses(),
+        links.length === 0 ? [] : client.findAll<HulyIssueDoc>(tracker.class.Issue, { _id: { $in: links } }, { projection: REF_FIELDS }),
+        client.findAll<HulyIssueDoc>(tracker.class.Issue, { blockedBy: { _id: issue._id, _class: ISSUE_CLASS } }, { projection: REF_FIELDS }),
+        issue.milestone
+          ? client.findAll<HulyMilestoneDoc>(tracker.class.Milestone, { _id: issue.milestone }, { projection: MILESTONE_FIELDS })
+          : [],
+        client.findAll<HulyLabelDoc>(TAG_REFERENCE, { attachedTo: issue._id }, { projection: LABEL_FIELDS }),
+        client.findAll<ChatMessageDoc>(CHAT_MESSAGE, { attachedTo: issue._id }),
+      ])
+      return toCard({
+        issue,
+        description,
+        statuses,
+        linked: [...linked, ...blocked],
+        blocks: blocked.map((doc) => doc._id),
+        milestones,
+        labels,
+        comments: messages.map((doc) => ({ createdBy: doc.createdBy, createdOn: doc.createdOn, text: markupToMarkdown(markupToJSON(doc.message)) })),
+        people: await peopleOf(messages.flatMap((doc) => doc.createdBy ?? [])),
+      })
+    },
+    async ready(identifier) {
+      const issue = await findIssue(identifier)
+      const [statuses, allowed] = await Promise.all([findStatuses(), projectStatuses(issue.space)])
+      const status = readyStatus(issue.status, statuses, allowed)
+      if (status === null) return null
+      await client.updateDoc(tracker.class.Issue, issue.space, issue._id, { status: status._id })
+      return toStatus(status)
     },
     close: () => client.close(),
   }

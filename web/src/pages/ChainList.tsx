@@ -21,6 +21,7 @@ interface Props {
   scale: ContextScale
   trackerUrls: TrackerUrls
   focus: string
+  onCard: (task: string) => void
 }
 
 interface Relatives {
@@ -33,7 +34,7 @@ interface Relation {
   badge: boolean
 }
 
-export function ChainList({ project, chain, scale, trackerUrls, focus }: Props) {
+export function ChainList({ project, chain, scale, trackerUrls, focus, onCard }: Props) {
   const [pages, setPages] = useState(0)
   const [revealed, setRevealed] = useState(0)
   const { send, sending, failure } = useCommand()
@@ -115,6 +116,7 @@ export function ChainList({ project, chain, scale, trackerUrls, focus }: Props) 
                   offset={landing?.id === block.id ? landing.offset : drag?.offsets.get(block.id)}
                   onHover={(inside) => setHovered((current) => (inside ? block.id : current === block.id ? null : current))}
                   onReturn={sending ? undefined : () => void send('chain/unskip', { project, task: block.id })}
+                  onCard={() => onCard(block.id)}
                 />
               ))}
             </ol>
@@ -177,9 +179,10 @@ interface BlockProps {
   offset: Point | undefined
   onHover: (inside: boolean) => void
   onReturn: (() => void) | undefined
+  onCard: () => void
 }
 
-function Block({ block, link, number, waits, scale, focused, movable, relation, offset, onHover, onReturn }: BlockProps) {
+function Block({ block, link, number, waits, scale, focused, movable, relation, offset, onHover, onReturn, onCard }: BlockProps) {
   const classes = ['block', `block--${block.lamp}`]
   if (block.current) classes.push('block--current')
   if (block.skipped) classes.push('block--skipped')
@@ -224,7 +227,13 @@ function Block({ block, link, number, waits, scale, focused, movable, relation, 
           </Link>
         )}
       </div>
-      <p className="block__title">{block.title}</p>
+      <p className="block__title">
+        {block.title !== null && (
+          <button type="button" className="block__card" draggable={false} title={t.chain.openCard} onClick={onCard}>
+            {block.title}
+          </button>
+        )}
+      </p>
       <div className="block__side">
         {block.skipped && <span className="block__badge block__badge--skipped">{t.chain.skipped}</span>}
         {block.question && (

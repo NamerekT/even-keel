@@ -131,6 +131,10 @@ export const en = {
   'request.taskList': () => 'order must be a list of task ids',
   'request.projectList': () => 'order must be a list of projects',
 
+  'task.noTracker': (p: { task: string }) => `no connected tracker serves ${p.task}`,
+  'task.cannotReady': (p: { task: string }) => `the tracker of ${p.task} cannot move it to Todo`,
+  'task.pastBacklog': (p: { task: string }) => `${p.task} is no longer in a backlog status`,
+
   'config.notJson': (p: { file: string }) => `config: ${p.file} is not JSON`,
   'config.host': () => 'config: host must be a non-empty string',
   'config.port': (p: { value: string }) => `config: port must be an integer in 1..65535, got ${p.value}`,

@@ -1,9 +1,19 @@
-import { useCallback, useEffect, useRef } from 'react'
+import { lazy, Suspense, useCallback, useEffect, useRef } from 'react'
 import { useLocation, useNavigate, useParams } from 'react-router'
 import type { EvenKeelState } from '../../../src/state.js'
 import { say, t } from '../i18n/index.js'
 import { useCommand } from '../live/useCommand.js'
-import { backlogTasks, chainBlocks, chainStatus, limitWaitText, openQuestions, projectTasks, queuedAfter } from '../state.js'
+import {
+  backlogTasks,
+  chainBlocks,
+  chainStatus,
+  issueLink,
+  limitWaitText,
+  openQuestions,
+  projectTasks,
+  queuedAfter,
+  taskProject,
+} from '../state.js'
 import { focusAfterClose } from '../ui/focus.js'
 import { QuestionsChip } from '../ui/QuestionsChip.js'
 import { StatusChip } from '../ui/StatusChip.js'
@@ -13,6 +23,9 @@ import { NotFound } from './NotFound.js'
 import { SessionPanel } from './SessionPanel.js'
 import { StatsStrip } from './StatsStrip.js'
 import { ToolsLink } from './ToolsLink.js'
+
+const TaskCard = lazy(async () => ({ default: (await import('./TaskCard.js')).TaskCard }))
+const CARD_PARAM = 'task'
 
 export function Project({ state }: { state: EvenKeelState }) {
   const key = useParams().key ?? ''
@@ -34,6 +47,18 @@ export function Project({ state }: { state: EvenKeelState }) {
 
   const order = state.chain.projects[key]
   const selected = blocks.find((block) => block.id === focus && !block.locked)
+  const opened = new URLSearchParams(location.search).get(CARD_PARAM)
+  const openCard = (task: string) => {
+    const search = new URLSearchParams(location.search)
+    search.set(CARD_PARAM, task)
+    navigate({ search: search.toString(), hash: location.hash }, { state: { card: true }, replace: opened !== null })
+  }
+  const closeCard = () => {
+    if ((location.state as { card?: boolean } | null)?.card === true) return void navigate(-1)
+    const search = new URLSearchParams(location.search)
+    search.delete(CARD_PARAM)
+    navigate({ search: search.toString(), hash: location.hash }, { replace: true })
+  }
 
   return (
     <section className={selected === undefined ? 'project' : 'project project--panel'}>
@@ -49,14 +74,33 @@ export function Project({ state }: { state: EvenKeelState }) {
         {blocks.length === 0 ? (
           <p className="placeholder">{order === undefined ? t.project.chainNotLoaded : t.project.chainEmpty}</p>
         ) : (
-          <ChainList key={key} project={key} chain={blocks} scale={state.context} trackerUrls={state.trackerUrls} focus={focus} />
+          <ChainList
+            key={key}
+            project={key}
+            chain={blocks}
+            scale={state.context}
+            trackerUrls={state.trackerUrls}
+            focus={focus}
+            onCard={openCard}
+          />
         )}
-        <BacklogList tasks={backlogTasks(state, key)} trackerUrls={state.trackerUrls} />
+        <BacklogList tasks={backlogTasks(state, key)} trackerUrls={state.trackerUrls} onCard={openCard} />
         <StatsStrip key={`stats-${key}`} project={key} />
         <ToolsLink key={`tools-${key}`} project={key} trim={state.trimTools} />
       </div>
       {selected !== undefined && (
         <SessionPanel key={selected.id} block={selected} scale={state.context} trackerUrls={state.trackerUrls} onClose={close} />
+      )}
+      {opened !== null && (
+        <Suspense fallback={null}>
+          <TaskCard
+            task={opened}
+            link={issueLink(state.trackerUrls, opened)}
+            tracker={state.trackers.find((view) => view.projects.includes(taskProject(opened)))?.title ?? null}
+            onOpen={openCard}
+            onClose={closeCard}
+          />
+        </Suspense>
       )}
     </section>
   )

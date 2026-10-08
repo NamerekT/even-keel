@@ -128,6 +128,10 @@ export const noticesRu: NoticeTexts = {
   'request.taskList': () => 'порядок должен быть списком ID задач',
   'request.projectList': () => 'порядок должен быть списком проектов',
 
+  'task.noTracker': (p) => `${p.task} не обслуживает ни один подключённый трекер`,
+  'task.cannotReady': (p) => `трекер ${p.task} не умеет переводить задачи в Todo`,
+  'task.pastBacklog': (p) => `${p.task} уже не в статусе бэклога`,
+
   'config.notJson': (p) => `${p.file} — не JSON`,
   'config.host': () => 'host должен быть непустой строкой',
   'config.port': (p) => `port должен быть целым в 1..65535, а не ${p.value}`,

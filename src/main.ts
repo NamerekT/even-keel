@@ -34,12 +34,13 @@ import { StatsReader } from './stats/reader.js'
 import { TallyService } from './stats/tally.js'
 import { chainSettings, readToolsView } from './tools/panel.js'
 import { ADAPTERS } from './tracker/adapters.js'
+import { cardOf } from './tracker/card.js'
 import { MergeCloser } from './tracker/closer.js'
 import { ParentCloser } from './tracker/parents.js'
 import { McpCheck, readMcpSources } from './tracker/mcp.js'
 import { worthBroadcast, type TrackerView } from './tracker/health.js'
 import { TrackerLink } from './tracker/link.js'
-import type { Task } from './tracker/model.js'
+import { parseTaskId, type Task } from './tracker/model.js'
 import { StatusPoller } from './tracker/poller.js'
 import { trackerOf, type TrackerSetup } from './tracker/source.js'
 
@@ -456,8 +457,38 @@ const server = createEvenKeelServer({
       mode: SESSION_MODE,
     })
   },
+  tasks: {
+    card: async (task) => {
+      const project = configuredProject(task)
+      const link = project === undefined ? undefined : links.get(config.trackers[project]!)
+      if (link === undefined) return undefined
+      return link.run(async (tracker) =>
+        tracker.card === undefined ? undefined : cardOf(await tracker.card(task), rulesOf(project!), tracker.ready !== undefined),
+      )
+    },
+    ready: async (task) => {
+      const project = configuredProject(task)
+      const link = project === undefined ? undefined : links.get(config.trackers[project]!)
+      if (link === undefined) throw fail('task.noTracker', { task })
+      const status = await link.run(async (tracker) => tracker.ready?.(task))
+      if (status === undefined) throw fail('task.cannotReady', { task })
+      if (status === null) throw fail('task.pastBacklog', { task })
+      const tasks = tasksByProject.get(project!)
+      if (tasks?.some((each) => each.id === task)) {
+        const updated = tasks.map((each) => (each.id === task ? { ...each, status } : each))
+        tasksByProject.set(project!, updated)
+        dispatcher.setTasks(project!, updated)
+      }
+      hub.broadcast('state', getState())
+    },
+  },
   stats,
 })
+
+function configuredProject(task: string): string | undefined {
+  const project = parseTaskId(task)?.project
+  return project !== undefined && Object.hasOwn(config.projects, project) ? project : undefined
+}
 
 setInterval(() => hub.broadcast('ping', { at: new Date().toISOString() }), 15_000).unref()
 

@@ -3,6 +3,7 @@ import type { PeriodQuery, StatsAnswer, StatsFilter, StatsHistory, StatsPeriod, 
 import type { CompareQuery, RuleDiffFile, RulesQuery, StatsCompare, StatsRules } from '../../../src/stats/rules.js'
 import type { StatsSteps } from '../../../src/stats/steps.js'
 import type { ToolsView } from '../../../src/tools/model.js'
+import type { TaskCard } from '../../../src/tracker/card.js'
 
 export type Link = 'connecting' | 'live' | 'stale'
 
@@ -26,6 +27,7 @@ export interface LiveSource {
   command(name: string, body?: Record<string, unknown>): Promise<void>
   session(sessionId: string): Promise<SessionRecord | null>
   tools(project: string): Promise<ToolsView | null>
+  card(task: string): Promise<TaskCard | null>
   statsHistory(filter: StatsFilter): Promise<StatsAnswer<StatsHistory>>
   statsPeriod(query: PeriodQuery): Promise<StatsAnswer<StatsPeriod>>
   statsSteps(query: PeriodQuery): Promise<StatsAnswer<StatsSteps>>
@@ -41,6 +43,7 @@ export interface LiveDeps {
   sendCommand: (name: string, body: Record<string, unknown>) => Promise<EvenKeelState>
   fetchSession: (sessionId: string) => Promise<SessionRecord | null>
   fetchTools: (project: string) => Promise<ToolsView | null>
+  fetchCard: (task: string) => Promise<TaskCard | null>
   fetchStats: <T>(path: string, search: URLSearchParams) => Promise<StatsAnswer<T>>
 }
 
@@ -104,6 +107,10 @@ export class LiveConnection implements LiveSource {
 
   tools(project: string): Promise<ToolsView | null> {
     return this.deps.fetchTools(project)
+  }
+
+  card(task: string): Promise<TaskCard | null> {
+    return this.deps.fetchCard(task)
   }
 
   statsHistory(filter: StatsFilter): Promise<StatsAnswer<StatsHistory>> {
