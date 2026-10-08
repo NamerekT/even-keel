@@ -9,6 +9,7 @@ import type { ActiveChain } from '../../src/chain/dispatcher.js'
 import {
   accountBadge,
   backlogTasks,
+  canReady,
   loginLeft,
   cardTask,
   openQuestions,
@@ -66,7 +67,7 @@ function stateOf(patch: Partial<EvenKeelState>): EvenKeelState {
     limits: null,
     usage: { state: 'ok', reason: null, since: null },
     account: { active: 'global', accounts: [], login: null, loginBlock: null, apps: [] },
-    trackers: [{ name: 'huly', title: 'Huly', projects: ['ABC', 'XYZ'], health: { state: 'live', lastOkAt: null, error: null } }],
+    trackers: [{ name: 'huly', title: 'Huly', projects: ['ABC', 'XYZ'], ready: true, health: { state: 'live', lastOkAt: null, error: null } }],
     trackerUrls: { default: null, projects: {} },
     launches: [],
     taskSessions: {},
@@ -180,6 +181,19 @@ describe('backlogTasks', () => {
 
   it('is empty before the chain is loaded', () => {
     expect(backlogTasks(stateOf({ tasks: [task('ABC-1', 'UnStarted')] }), 'ABC')).toEqual([])
+  })
+})
+
+describe('canReady', () => {
+  const tracker = (ready: boolean) => ({ name: 'huly', title: 'Huly', projects: ['ABC'], ready, health: { state: 'live' as const, lastOkAt: null, error: null } })
+
+  it('is true when the tracker of the project can move a task to Todo', () => {
+    expect(canReady(stateOf({ trackers: [tracker(true)] }), 'ABC')).toBe(true)
+  })
+
+  it('is false when the tracker cannot or the project has no tracker', () => {
+    expect(canReady(stateOf({ trackers: [tracker(false)] }), 'ABC')).toBe(false)
+    expect(canReady(stateOf({ trackers: [tracker(true)] }), 'XYZ')).toBe(false)
   })
 })
 

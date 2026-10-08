@@ -7,7 +7,7 @@ import { systemChecks, worstLevel, type SystemInput } from './system.js'
 setLanguage('ru')
 
 const now = new Date('2026-10-03T12:00:00Z')
-const huly = (health: TrackerHealth): TrackerView => ({ name: 'huly', title: 'Huly', projects: ['ABC'], health })
+const huly = (health: TrackerHealth): TrackerView => ({ name: 'huly', title: 'Huly', projects: ['ABC'], ready: true, health })
 const healthy: SystemInput = {
   link: 'live',
   trackers: [huly({ state: 'live', lastOkAt: '2026-10-03T12:00:00Z', error: null })],
@@ -28,7 +28,7 @@ describe('systemChecks', () => {
   })
 
   it('checks every tracker in use under its own title', () => {
-    const linear: TrackerView = { name: 'linear', title: 'Linear', projects: ['LIN'], health: { state: 'connecting', lastOkAt: null, error: null } }
+    const linear: TrackerView = { name: 'linear', title: 'Linear', projects: ['LIN'], ready: false, health: { state: 'connecting', lastOkAt: null, error: null } }
     const checks = systemChecks({ ...healthy, trackers: [...healthy.trackers!, linear] }, now)
     expect(checks.map((check) => [check.name, check.level])).toEqual([
       ['Сервер Even Keel', 'ok'],

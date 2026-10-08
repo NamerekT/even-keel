@@ -1,7 +1,8 @@
 import { useState } from 'react'
 import type { TrackerUrls } from '../../../src/state.js'
 import type { Task } from '../../../src/tracker/model.js'
-import { t } from '../i18n/index.js'
+import { say, t } from '../i18n/index.js'
+import { useCommand } from '../live/useCommand.js'
 import { issueLink } from '../state.js'
 import { Lamp } from '../ui/Lamp.js'
 
@@ -10,11 +11,14 @@ const OPEN_KEY = 'even-keel.backlog.open'
 interface Props {
   tasks: Task[]
   trackerUrls: TrackerUrls
+  /** The project's tracker can move a backlog task to Todo. */
+  canReady: boolean
   onCard: (task: string) => void
 }
 
-export function BacklogList({ tasks, trackerUrls, onCard }: Props) {
+export function BacklogList({ tasks, trackerUrls, canReady, onCard }: Props) {
   const [open, setOpen] = useState(readOpen)
+  const { send, sending, failure } = useCommand()
   if (tasks.length === 0) return null
 
   const toggle = (next: boolean) => {
@@ -50,12 +54,24 @@ export function BacklogList({ tasks, trackerUrls, onCard }: Props) {
                 </button>
               </p>
               <div className="block__side">
+                {canReady && task.status.category === 'UnStarted' && (
+                  <button
+                    type="button"
+                    className="button block__ready"
+                    disabled={sending}
+                    title={t.card.readyHint}
+                    onClick={() => void send('task/ready', { task: task.id })}
+                  >
+                    {t.card.ready}
+                  </button>
+                )}
                 <span className="block__status">{task.status.name}</span>
               </div>
             </li>
           )
         })}
       </ol>
+      {failure !== null && <p className="notice notice--error">{say(failure)}</p>}
       <p className="chain__hint">{t.project.backlogHint}</p>
     </details>
   )

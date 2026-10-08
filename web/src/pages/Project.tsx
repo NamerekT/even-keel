@@ -5,6 +5,7 @@ import { say, t } from '../i18n/index.js'
 import { useCommand } from '../live/useCommand.js'
 import {
   backlogTasks,
+  canReady,
   chainBlocks,
   chainStatus,
   issueLink,
@@ -85,7 +86,7 @@ export function Project({ state }: { state: EvenKeelState }) {
             onCard={openCard}
           />
         )}
-        <BacklogList tasks={backlogTasks(state, key)} trackerUrls={state.trackerUrls} onCard={openCard} />
+        <BacklogList tasks={backlogTasks(state, key)} trackerUrls={state.trackerUrls} canReady={canReady(state, key)} onCard={openCard} />
         <StatsStrip key={`stats-${key}`} project={key} />
         <ToolsLink key={`tools-${key}`} project={key} trim={state.trimTools} />
       </div>

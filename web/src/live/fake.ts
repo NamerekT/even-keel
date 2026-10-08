@@ -101,7 +101,7 @@ function fakeFeed(): FeedLine[] {
 }
 
 function fakeHuly(state: TrackerLinkState): TrackerView {
-  const view = { name: 'huly', title: 'Huly', projects: ['ABC', 'DEMO', 'XYZ', 'OPS'] }
+  const view = { name: 'huly', title: 'Huly', projects: ['ABC', 'DEMO', 'XYZ', 'OPS'], ready: true }
   if (state === 'off' || state === 'connecting') return { ...view, health: { state, lastOkAt: null, error: null } }
   if (state === 'down') return { ...view, health: { state, lastOkAt: ago(4), error: 'huly: call timed out after 15000 ms' } }
   return { ...view, health: { state, lastOkAt: ago(0), error: null } }

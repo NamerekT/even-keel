@@ -109,6 +109,10 @@ export function backlogTasks(state: EvenKeelState, project: string): Task[] {
   return (state.chain.projects[project]?.backlog ?? []).flatMap((id) => byId.get(id) ?? [])
 }
 
+export function canReady(state: EvenKeelState, project: string): boolean {
+  return state.trackers.some((view) => view.ready && view.projects.includes(project))
+}
+
 export function openQuestions(tasks: Task[]): number {
   return tasks.filter((task) => task.question && isOpen(task.status)).length
 }

@@ -95,7 +95,10 @@ const setups = new Map<string, TrackerSetup | undefined>(trackerNames.map((name)
 const trackers = new Map<string, TrackerView>(
   trackerNames
     .filter((name) => trackerProjects(name).length > 0)
-    .map((name) => [name, { name, title: ADAPTERS[name]!.title, projects: trackerProjects(name), health: { state: 'off', lastOkAt: null, error: null } }]),
+    .map((name) => [
+      name,
+      { name, title: ADAPTERS[name]!.title, projects: trackerProjects(name), ready: false, health: { state: 'off', lastOkAt: null, error: null } },
+    ]),
 )
 const links = new Map<string, TrackerLink>()
 const hub = new EventHub()
@@ -534,6 +537,7 @@ function startTracker(view: TrackerView, setup: TrackerSetup): void {
       const tracker = trackerOf(await setup.connect(TRACKER_TIMEOUT_MS))
       completes = tracker.complete !== undefined
       closesParents = completes && tracker.children !== undefined
+      view.ready = tracker.ready !== undefined
       return tracker
     },
     timeoutMs: TRACKER_TIMEOUT_MS,

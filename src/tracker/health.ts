@@ -10,6 +10,8 @@ export interface TrackerView {
   name: string
   title: string
   projects: string[]
+  /** The connected adapter can move a backlog task to `ToDo`. */
+  ready: boolean
   health: TrackerHealth
 }
 
