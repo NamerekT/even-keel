@@ -68,11 +68,9 @@ function QueuePanel({ state }: { state: EvenKeelState }) {
         ))}
       </section>
 
-      <section className="queue__section">
-        <h2 className="queue__heading">{t.queue.heading}</h2>
-        {served.length === 0 ? (
-          <p className="queue__empty">{t.queue.empty}</p>
-        ) : (
+      {served.length > 0 && (
+        <section className="queue__section">
+          <h2 className="queue__heading">{t.queue.heading}</h2>
           <QueueList
             state={state}
             queue={pending ?? served}
@@ -80,9 +78,9 @@ function QueuePanel({ state }: { state: EvenKeelState }) {
             onMove={(order) => void move(order)}
             onRemove={(project) => void send('chain/dequeue', { project })}
           />
-        )}
-        {served.length > 1 && <p className="queue__hint">{t.queue.dragHint}</p>}
-      </section>
+          {served.length > 1 && <p className="queue__hint">{t.queue.dragHint}</p>}
+        </section>
+      )}
 
       {failure !== null && <p className="notice notice--error queue__error">{say(failure)}</p>}
     </div>

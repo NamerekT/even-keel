@@ -107,7 +107,6 @@ export const en: Messages = {
     now: 'Now',
     idle: 'No chain is running.',
     heading: 'Queue',
-    empty: 'Empty. A project gets here with the “Queue” button while another chain is running.',
     dragHint: 'Reorder by dragging ⠿ or with the arrow keys on it.',
     move: (project: string) => `Move ${project}: arrow keys up and down`,
     remove: (project: string) => `Remove ${project} from the queue`,
