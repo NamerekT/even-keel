@@ -7,7 +7,7 @@ export function LiveProvider({ source, children }: { source: LiveSource; childre
   return <LiveContext.Provider value={source}>{children}</LiveContext.Provider>
 }
 
-export function useLive(): LiveSnapshot & Pick<LiveSource, 'retryNow' | 'command' | 'session' | 'tools' | 'card' | 'statsHistory' | 'statsPeriod' | 'statsSteps' | 'statsTask' | 'statsRules' | 'statsRuleDiff' | 'statsCompare'> {
+export function useLive(): LiveSnapshot & Pick<LiveSource, 'retryNow' | 'command' | 'session' | 'transcript' | 'tools' | 'card' | 'statsHistory' | 'statsPeriod' | 'statsSteps' | 'statsTask' | 'statsRules' | 'statsRuleDiff' | 'statsCompare'> {
   const source = useContext(LiveContext)
   if (source === null) throw new Error('useLive needs a LiveProvider')
   const subscribe = useCallback((listener: () => void) => source.subscribe(listener), [source])
@@ -17,6 +17,7 @@ export function useLive(): LiveSnapshot & Pick<LiveSource, 'retryNow' | 'command
     retryNow: () => source.retryNow(),
     command: (name, body) => source.command(name, body),
     session: (sessionId) => source.session(sessionId),
+    transcript: (sessionId) => source.transcript(sessionId),
     tools: (project) => source.tools(project),
     card: (task) => source.card(task),
     statsHistory: (filter) => source.statsHistory(filter),

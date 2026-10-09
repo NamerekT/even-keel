@@ -79,6 +79,7 @@ export interface ServerDeps {
   account: AccountControl
   launches: () => unknown
   sessionRecord: (sessionId: string) => Promise<unknown>
+  transcript: (sessionId: string) => Promise<unknown>
   /** `undefined` for a project the config does not know. */
   tools: (project: string) => Promise<unknown>
   tasks: TaskControl
@@ -146,11 +147,12 @@ async function route(deps: ServerDeps, request: IncomingMessage, response: Serve
     return
   }
 
-  const session = /^\/api\/sessions\/([^/]+)$/.exec(path)
+  const session = /^\/api\/sessions\/([^/]+)(\/transcript)?$/.exec(path)
   if (request.method === 'GET' && session !== null) {
+    const read = session[2] === undefined ? deps.sessionRecord : deps.transcript
     let record: unknown
     try {
-      record = await deps.sessionRecord(decodeURIComponent(session[1]!))
+      record = await read(decodeURIComponent(session[1]!))
     } catch (error) {
       sendFailure(response, error)
       return

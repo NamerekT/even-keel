@@ -364,6 +364,12 @@ export const en: Messages = {
     place: 'Branch and folder',
     feed: 'Activity',
     feedEmpty: "The session hasn't done anything yet.",
+    transcript: 'Whole transcript',
+    transcriptTitle: 'Transcript',
+    transcriptDialog: (id: string) => `Transcript of session ${id}`,
+    closeTranscript: 'Close the transcript',
+    refresh: 'Refresh',
+    prompt: 'Prompt',
   },
   chain: {
     legend: {

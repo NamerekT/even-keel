@@ -67,6 +67,10 @@ describe('Even Keel HTTP server', () => {
         if (id === 'bad') throw new Error('sessions: bad is not a session id')
         return id === '0a1b2c3d' ? { sessionId: id } : undefined
       },
+      transcript: async (id) => {
+        if (id === 'bad') throw new Error('sessions: bad is not a session id')
+        return id === '0a1b2c3d' ? [{ kind: 'prompt', text: 'ABC-1' }] : undefined
+      },
       tools: async (project) => (project === 'ABC' ? { project } : undefined),
       tasks: {
         card: async (task) => {
@@ -271,6 +275,14 @@ describe('Even Keel HTTP server', () => {
     const refused = await fetch(base + '/api/sessions/bad')
     expect(refused.status).toBe(400)
     expect(await refused.json()).toEqual(refusal('sessions: bad is not a session id'))
+  })
+
+  it('serves the whole transcript of any session by its id', async () => {
+    const found = await fetch(base + '/api/sessions/0a1b2c3d/transcript')
+    expect(found.status).toBe(200)
+    expect(await found.json()).toEqual([{ kind: 'prompt', text: 'ABC-1' }])
+    expect((await fetch(base + '/api/sessions/ffffffff/transcript')).status).toBe(404)
+    expect((await fetch(base + '/api/sessions/bad/transcript')).status).toBe(400)
   })
 
   it('serves the Tally history, a period and a task', async () => {

@@ -74,6 +74,7 @@ describe('LiveConnection', () => {
     answer = async () => state('commanded')
     live = new LiveConnection({
       fetchSession: async () => null,
+      fetchTranscript: async () => null,
       fetchTools: async () => null,
       fetchCard: async () => null,
       fetchStats: async () => ({ state: 'off', reason: 'test' }),

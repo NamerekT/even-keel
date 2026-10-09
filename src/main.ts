@@ -24,7 +24,7 @@ import { createEvenKeelServer } from './server.js'
 import { ClaudeCli, liveRecords, resolveClaudeBinary, SESSION_MODE } from './sessions/claude.js'
 import { turnStatus, type AgentEntry } from './sessions/agents.js'
 import { launchPlan, type LaunchPlan } from './sessions/launch.js'
-import { readSessionRecord } from './sessions/history.js'
+import { readSessionRecord, readTranscript } from './sessions/history.js'
 import { SessionMonitor } from './sessions/monitor.js'
 import { isInside } from './paths.js'
 import { slotOccupants } from './sessions/occupants.js'
@@ -442,13 +442,8 @@ const server = createEvenKeelServer({
   control: dispatcher,
   account,
   launches: () => launches,
-  sessionRecord: async (sessionId) => {
-    for (const home of homes.list()) {
-      const record = await readSessionRecord(join(home.dir, 'projects'), sessionId)
-      if (record !== undefined) return record
-    }
-    return undefined
-  },
+  sessionRecord: (sessionId) => inHomes((projects) => readSessionRecord(projects, sessionId)),
+  transcript: (sessionId) => inHomes((projects) => readTranscript(projects, sessionId)),
   tools: async (project) => {
     const repo = config.projects[project]
     if (repo === undefined) return undefined
@@ -491,6 +486,15 @@ const server = createEvenKeelServer({
   },
   stats,
 })
+
+/** The first answer `read` finds in the `projects` folder of any account. */
+async function inHomes<T>(read: (projectsDir: string) => Promise<T | undefined>): Promise<T | undefined> {
+  for (const home of homes.list()) {
+    const found = await read(join(home.dir, 'projects'))
+    if (found !== undefined) return found
+  }
+  return undefined
+}
 
 function configuredProject(task: string): string | undefined {
   const project = parseTaskId(task)?.project

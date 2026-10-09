@@ -93,6 +93,22 @@ const FEED_STEPS: [FeedLine['kind'], string][] = [
   ['error', 'API Error: 529 overloaded, повтор через 4 с'],
 ]
 
+function fakeTranscript(): FeedLine[] {
+  const at = (minutes: number) => new Date(Date.now() - minutes * 60_000).toISOString()
+  return [
+    { at: at(40), kind: 'prompt', text: 'ABC-5\n\nWorking folder: C:\\repos\\example-project\\.claude\\worktrees\\abc-5' },
+    { at: at(39), kind: 'text', text: 'Читаю описание задачи и вложения.' },
+    { at: at(38), kind: 'tool', text: 'Bash Run the chain tests', detail: 'npx vitest run src/chain\nnpx tsc --noEmit' },
+    {
+      at: at(30),
+      kind: 'text',
+      text: 'Порядок строится топологической сортировкой.\n\n- цикл сейчас роняет сервер;\n- сначала тест на цикл, потом правка.\n\n' + 'Длинное объяснение. '.repeat(40),
+    },
+    { at: at(20), kind: 'prompt', text: 'А почему цикл не ловится раньше?' },
+    ...fakeFeed(),
+  ]
+}
+
 function fakeFeed(): FeedLine[] {
   return Array.from({ length: 30 }, (_, index) => {
     const [kind, text] = FEED_STEPS[index % FEED_STEPS.length]!
@@ -705,6 +721,10 @@ export function createFakeSource(search: string): LiveSource {
     session: async (sessionId) => {
       await new Promise((resolve) => setTimeout(resolve, 300))
       return current.state === null ? null : fakeRecord(current.state, sessionId)
+    },
+    transcript: async (sessionId) => {
+      await new Promise((resolve) => setTimeout(resolve, 300))
+      return sessionId.endsWith('999') ? null : fakeTranscript()
     },
     tools: async (project) => {
       await new Promise((resolve) => setTimeout(resolve, 300))

@@ -199,6 +199,50 @@ describe('TranscriptFold', () => {
     expect(summary.feed[29]?.text).toBe('step 39')
   })
 
+  it('shows what people wrote to the session, without meta lines, tool results or task notifications', () => {
+    const user = (content: unknown, extra: Record<string, unknown> = {}) =>
+      JSON.stringify({ type: 'user', timestamp: at(), message: { role: 'user', content }, ...extra })
+    const summary = fold([
+      user('ABC-7\n\nContinue   the task.', { origin: { kind: 'human' } }),
+      user('Base directory for this skill', { isMeta: true }),
+      assistant('m1', [tool('Read', { file_path: 'a.ts' })]),
+      user([{ type: 'tool_result', content: 'ok' }]),
+      user('<task-notification>done</task-notification>', { origin: { kind: 'task-notification' } }),
+      user([
+        text('<browser_instruction>Use the tools.</browser_instruction>'),
+        { type: 'image', source: {} },
+        text('Why is it red?'),
+        text('<pasted_content id="1">log</pasted_content>'),
+      ]),
+    ]).summary()
+
+    expect(summary.feed.map(({ kind, text }) => ({ kind, text }))).toEqual([
+      { kind: 'prompt', text: 'ABC-7 Continue the task.' },
+      { kind: 'tool', text: 'Read a.ts' },
+      { kind: 'prompt', text: 'Why is it red? <pasted_content id="1">log</pasted_content>' },
+    ])
+    expect(summary.action).toMatchObject({ kind: 'tool' })
+  })
+
+  it('keeps texts, prompts and shell commands whole when folding the whole transcript', () => {
+    const long = `Plan:\n- one\n- two\n${'x'.repeat(700)}`
+    const whole = new TranscriptFold(Infinity, true)
+    for (const line of [
+      JSON.stringify({ type: 'user', timestamp: at(), message: { role: 'user', content: `ABC-7\n\n${long}` } }),
+      assistant('m1', [text(long), tool('Bash', { command: 'npm run build\nnpm test', description: 'Build and test' })]),
+      assistant('m2', [tool('Read', { file_path: 'a.ts' })]),
+    ]) {
+      whole.push(line)
+    }
+
+    expect(whole.summary().feed.map(({ at: _, ...line }) => line)).toEqual([
+      { kind: 'prompt', text: `ABC-7\n\n${long}` },
+      { kind: 'text', text: long },
+      { kind: 'tool', text: 'Bash Build and test', detail: 'npm run build\nnpm test' },
+      { kind: 'tool', text: 'Read a.ts' },
+    ])
+  })
+
   it('tracks the stage and does not step back to reading once editing started', () => {
     const stages = (calls: ReturnType<typeof tool>[]) =>
       fold(calls.map((call, index) => assistant(`m${index}`, [call]))).summary().stage

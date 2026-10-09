@@ -102,7 +102,7 @@ export function handoffPrompt(task: string, session: HandoffSession, reason: Han
   if (session.checkpoint !== null) lines.push(text.note(notePath(session.workdir, session.checkpoint)))
   lines.push(text.begin)
   if (session.checkpoint !== null) return lines.join('\n') + '\n'
-  const steps = session.recent.filter((line) => line.kind !== 'error').slice(-HANDOFF_STEPS)
+  const steps = session.recent.filter((line) => line.kind === 'text' || line.kind === 'tool').slice(-HANDOFF_STEPS)
   if (steps.length > 0) lines.push('', text.recentSteps, ...steps.map((line) => fill`- ${line.text}`))
   if (session.lastMessage !== null) lines.push('', text.lastMessage, '', fill`${session.lastMessage}`)
   return lines.join('\n') + '\n'

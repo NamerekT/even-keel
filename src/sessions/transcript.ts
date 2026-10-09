@@ -6,8 +6,10 @@ export type ApiErrorKind = 'limit' | 'error'
 
 export interface FeedLine {
   at: string
-  kind: 'text' | 'tool' | 'error'
+  kind: 'text' | 'tool' | 'error' | 'prompt'
   text: string
+  /** The whole shell command of a tool line, only in a whole transcript. */
+  detail?: string
 }
 
 export interface TokenTotals {
@@ -49,7 +51,9 @@ const MESSAGE_LIMIT = 6000
 const WRAP_UP_TEXT = 'Usage limit reached: Claude Code told the session to wrap up the turn'
 const REMOTE_DROPPED = 'Remote Control disconnected'
 const CHECKPOINT_LINE = /^[`*_]*CHECKPOINT:[`*_]*\s*[`*_]*([^`*\s][^`*]*?)[`*_]*$/
-const TTL_MS: Record<CacheTtl, number> = { '5m': 5 * 60_000, '1h': 60 * 60_000 }
+const CONTEXT_BLOCK = /^<([a-z][\w-]*)\b[^>]*>[\s\S]*<\/\1>$/
+const SHELLS = new Set(['Bash', 'PowerShell'])
+const TTL_MS:Record<CacheTtl, number> = { '5m': 5 * 60_000, '1h': 60 * 60_000 }
 const STAGE_RANK: Record<Stage, number> = { task: 0, recon: 1, edit: 2, test: 3, commit: 4, merge: 5 }
 
 export class TranscriptFold {
@@ -73,7 +77,11 @@ export class TranscriptFold {
   private gitBranch: string | null = null
   private workdir: string | null = null
 
-  constructor(private readonly feedSize = FEED_SIZE) {}
+  /** `whole` keeps texts and prompts as written and adds shell commands to tool lines. */
+  constructor(
+    private readonly feedSize = FEED_SIZE,
+    private readonly whole = false,
+  ) {}
 
   push(line: string): void {
     const entry = parseEntry(line)
@@ -167,7 +175,7 @@ export class TranscriptFold {
 
     for (const block of blocks) {
       if (block.type === 'text') {
-        const text = flatten(block.text ?? '', TEXT_LIMIT)
+        const text = this.textOf(block.text ?? '')
         if (text === '') continue
         this.addAction({ at, kind: 'text', text })
         this.lastMessage = (block.text ?? '').trim().slice(0, MESSAGE_LIMIT)
@@ -175,7 +183,9 @@ export class TranscriptFold {
       } else if (block.type === 'tool_use' && typeof block.name === 'string') {
         this.checkpoint = null
         const input = block.input ?? {}
-        this.addAction({ at, kind: 'tool', text: describeTool(block.name, input, entry.cwd) })
+        const line: FeedLine = { at, kind: 'tool', text: describeTool(block.name, input, entry.cwd) }
+        if (this.whole && SHELLS.has(block.name) && typeof input.command === 'string') line.detail = input.command
+        this.addAction(line)
         this.advanceStage(stageOf(block.name, input))
       }
     }
@@ -189,7 +199,14 @@ export class TranscriptFold {
     } else if (entry.isMeta !== true && isPrompt(entry.message?.content)) {
       this.wrapUp = null
       this.checkpoint = null
+      if (entry.origin?.kind !== undefined && entry.origin.kind !== 'human') return
+      const text = this.textOf(promptOf(entry.message?.content))
+      if (text !== '') this.addFeed({ at: entry.timestamp ?? '', kind: 'prompt', text })
     }
+  }
+
+  private textOf(text: string): string {
+    return this.whole ? text.trim() : flatten(text, TEXT_LIMIT)
   }
 
   private addAction(line: FeedLine): void {
@@ -227,6 +244,20 @@ function isPrompt(content: unknown): boolean {
   if (!Array.isArray(content)) return false
   const blocks = content as ContentBlock[]
   return blocks.some((block) => block.type === 'text') && !blocks.some((block) => block.type === 'tool_result')
+}
+
+/** The prompt without the context blocks clients wrap around it (IDE selection, browser instructions); pasted text stays. */
+function promptOf(content: unknown): string {
+  if (typeof content === 'string') return content
+  return blocksOf(content)
+    .filter((block) => block.type === 'text' && !isContextBlock(block.text ?? ''))
+    .map((block) => (block.text ?? '').trim())
+    .join('\n\n')
+}
+
+function isContextBlock(text: string): boolean {
+  const tag = CONTEXT_BLOCK.exec(text.trim())?.[1]
+  return tag !== undefined && tag !== 'pasted_content'
 }
 
 function stageOf(name: string, input: Record<string, unknown>): Stage | undefined {

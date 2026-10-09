@@ -2268,6 +2268,79 @@ a:focus-visible {
   color: var(--error-fg);
 }
 
+.feed__line--prompt .feed__text {
+  padding-left: 8px;
+  border-left: 2px solid var(--accent);
+}
+
+.panel__feed-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.panel__feed-open {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--accent);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.panel__feed-open:hover {
+  text-decoration: underline;
+}
+
+.session-window.transcript {
+  width: min(1100px, calc(100vw - 32px));
+  height: calc(100dvh - 48px);
+}
+
+.transcript .session-window__body {
+  overflow: hidden;
+}
+
+.transcript__refresh {
+  flex: none;
+  font-size: 12px;
+  padding: 2px 10px;
+}
+
+.transcript__lines {
+  font-size: 13px;
+}
+
+.transcript__lines .feed__line {
+  padding: 4px 0;
+}
+
+.transcript__lines .feed__text {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.transcript__label {
+  display: block;
+  color: var(--accent);
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.transcript__detail {
+  margin: 4px 0 0;
+  padding: 6px 8px;
+  background: var(--surface);
+  border-radius: 6px;
+  font-family: var(--mono);
+  font-size: 12px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
 .notice--warn {
   background: var(--warn-bg);
   color: var(--warn-fg);
@@ -2423,7 +2496,8 @@ a:focus-visible {
     min-height: 60dvh;
   }
 
-  .session-window {
+  .session-window,
+  .session-window.transcript {
     width: 100vw;
     max-width: none;
     height: 100dvh;

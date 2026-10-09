@@ -38,6 +38,7 @@ export interface Entry {
   aiTitle?: string
   content?: unknown
   attachment?: { type?: string; url?: unknown }
+  origin?: { kind?: string }
   message?: { id?: string; model?: string; content?: unknown; usage?: Usage }
 }
 

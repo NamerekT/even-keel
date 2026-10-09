@@ -123,6 +123,11 @@ describe('handoffPrompt', () => {
     expect(prompt).toContain('Tests pass, writing the fix')
   })
 
+  it('leaves prompts of the old session out of its last steps', () => {
+    const prompt = handoff('ABC-1', session({ recent: [line('ABC-1 Continue the task', 'prompt'), line('Bash npm test')] }))
+    expect(prompt).not.toContain('Continue the task')
+  })
+
   it('keeps the last ten steps and drops the error lines', () => {
     const recent = [...Array.from({ length: 12 }, (_, index) => line(`step ${index + 1}`)), line('You have hit your limit', 'error')]
     const prompt = handoff('ABC-1', session({ recent }))

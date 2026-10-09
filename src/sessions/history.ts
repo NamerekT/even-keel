@@ -1,18 +1,14 @@
 import { readdir, readFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import type { SessionRecord } from '../state.js'
-import { TranscriptFold } from './transcript.js'
+import { TranscriptFold, type FeedLine, type TranscriptSummary } from './transcript.js'
 
 const SESSION_ID = /^[0-9a-f][0-9a-f-]{7,63}$/i
 const HISTORY_FEED = 5_000
 
 export async function readSessionRecord(projectsDir: string, sessionId: string): Promise<SessionRecord | undefined> {
-  if (!SESSION_ID.test(sessionId)) throw new Error(`sessions: ${sessionId} is not a session id`)
-  const text = await findTranscript(projectsDir, `${sessionId}.jsonl`)
-  if (text === undefined) return undefined
-  const fold = new TranscriptFold(HISTORY_FEED)
-  for (const line of text.split('\n')) fold.push(line)
-  const summary = fold.summary()
+  const summary = await foldTranscript(projectsDir, sessionId, new TranscriptFold(HISTORY_FEED))
+  if (summary === undefined) return undefined
   return {
     sessionId,
     startedAt: summary.firstActivityAt,
@@ -25,6 +21,19 @@ export async function readSessionRecord(projectsDir: string, sessionId: string):
     branch: summary.gitBranch,
     apiError: summary.apiError?.text ?? null,
   }
+}
+
+/** Every prompt, text and tool call of the session, uncut. */
+export async function readTranscript(projectsDir: string, sessionId: string): Promise<FeedLine[] | undefined> {
+  return (await foldTranscript(projectsDir, sessionId, new TranscriptFold(Infinity, true)))?.feed
+}
+
+async function foldTranscript(projectsDir: string, sessionId: string, fold: TranscriptFold): Promise<TranscriptSummary | undefined> {
+  if (!SESSION_ID.test(sessionId)) throw new Error(`sessions: ${sessionId} is not a session id`)
+  const text = await findTranscript(projectsDir, `${sessionId}.jsonl`)
+  if (text === undefined) return undefined
+  for (const line of text.split('\n')) fold.push(line)
+  return fold.summary()
 }
 
 async function findTranscript(projectsDir: string, name: string): Promise<string | undefined> {

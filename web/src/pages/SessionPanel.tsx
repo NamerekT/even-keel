@@ -12,6 +12,7 @@ import { checkpointHandoffs, sessionElapsed, taskProject, tokenTotal, type Chain
 import { CacheClock } from '../ui/CacheClock.js'
 import { ContextMeter } from '../ui/ContextMeter.js'
 import { Lamp } from '../ui/Lamp.js'
+import { TranscriptWindow } from './TranscriptWindow.js'
 
 const STARTED = localized((language) => new Intl.DateTimeFormat(language, { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }))
 const FEED_TIME = localized((language) => new Intl.DateTimeFormat(language, { hour: '2-digit', minute: '2-digit', second: '2-digit' }))
@@ -174,7 +175,7 @@ function SessionBody({ session, limit, scale }: { session: SessionView; limit: L
         </div>
         <TokensFact tokens={session.tokens} />
       </dl>
-      {session.lamp === 'finished' ? <RecordFeed sessionId={session.sessionId} /> : <Feed lines={session.feed} />}
+      {session.lamp === 'finished' ? <RecordFeed sessionId={session.sessionId} /> : <Feed lines={session.feed} sessionId={session.sessionId} />}
     </>
   )
 }
@@ -194,7 +195,7 @@ function RecordFeed({ sessionId }: { sessionId: string }) {
     }
   }, [sessionId])
 
-  return lines === null ? <p className="placeholder">{t.common.reading}</p> : <Feed lines={lines} />
+  return lines === null ? <p className="placeholder">{t.common.reading}</p> : <Feed lines={lines} sessionId={sessionId} />
 }
 
 function CacheFact({ cache }: { cache: CacheWindow }) {
@@ -362,7 +363,7 @@ function SessionWindow({ row, scale, onClose }: { row: TaskSession; scale: Conte
               )}
             </dl>
             {record.apiError !== null && <p className="notice notice--error">{record.apiError}</p>}
-            <Feed lines={record.feed} />
+            <Feed lines={record.feed} sessionId={row.sessionId} />
           </>
         )}
       </div>
@@ -370,9 +371,10 @@ function SessionWindow({ row, scale, onClose }: { row: TaskSession; scale: Conte
   )
 }
 
-function Feed({ lines }: { lines: FeedLine[] }) {
+function Feed({ lines, sessionId }: { lines: FeedLine[]; sessionId: string }) {
   const listRef = useRef<HTMLOListElement>(null)
   const pinned = useRef(true)
+  const [whole, setWhole] = useState(false)
 
   useLayoutEffect(() => {
     const list = listRef.current
@@ -386,7 +388,13 @@ function Feed({ lines }: { lines: FeedLine[] }) {
 
   return (
     <section className="panel__feed" aria-label={t.session.feed}>
-      <h3 className="panel__feed-title">{t.session.feed}</h3>
+      <div className="panel__feed-head">
+        <h3 className="panel__feed-title">{t.session.feed}</h3>
+        <button type="button" className="panel__feed-open" onClick={() => setWhole(true)}>
+          {t.session.transcript}
+        </button>
+      </div>
+      {whole && <TranscriptWindow sessionId={sessionId} onClose={() => setWhole(false)} />}
       {lines.length === 0 ? (
         <p className="placeholder">{t.session.feedEmpty}</p>
       ) : (

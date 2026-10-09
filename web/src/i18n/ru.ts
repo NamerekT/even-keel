@@ -363,6 +363,12 @@ export const ru = {
     place: 'Ветка и папка',
     feed: 'Ход работы',
     feedEmpty: 'Сессия ещё ничего не сделала.',
+    transcript: 'Весь транскрипт',
+    transcriptTitle: 'Транскрипт',
+    transcriptDialog: (id: string) => `Транскрипт сессии ${id}`,
+    closeTranscript: 'Закрыть транскрипт',
+    refresh: 'Обновить',
+    prompt: 'Запрос',
   },
   chain: {
     legend: {

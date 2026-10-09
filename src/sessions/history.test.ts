@@ -2,7 +2,7 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { readSessionRecord } from './history.js'
+import { readSessionRecord, readTranscript } from './history.js'
 
 const SESSION = '0a1b2c3d-1e04-43ce-b2ed-9b4a4eb36c23'
 
@@ -51,5 +51,25 @@ describe('readSessionRecord', () => {
   it('returns nothing for an unknown session and refuses ids that are not session ids', async () => {
     expect(await readSessionRecord(projects, SESSION)).toBeUndefined()
     await expect(readSessionRecord(projects, '../secrets')).rejects.toThrow('not a session id')
+    expect(await readTranscript(projects, SESSION)).toBeUndefined()
+    await expect(readTranscript(projects, '../secrets')).rejects.toThrow('not a session id')
+  })
+
+  it('reads the whole transcript with the first prompt and texts uncut', async () => {
+    const dir = join(projects, 'C--repos-example')
+    mkdirSync(dir)
+    const long = 'word '.repeat(300).trim()
+    const lines = [
+      JSON.stringify({ type: 'user', timestamp: '2026-09-27T09:59:00.000Z', message: { role: 'user', content: 'ABC-1' } }),
+      ...Array.from({ length: 40 }, (_, index) =>
+        entry(new Date(Date.UTC(2026, 8, 27, 10, index)).toISOString(), [{ type: 'text', text: `${long} ${index}` }]),
+      ),
+    ]
+    writeFileSync(join(dir, `${SESSION}.jsonl`), lines.join('\n') + '\n')
+
+    const feed = await readTranscript(projects, SESSION)
+    expect(feed).toHaveLength(41)
+    expect(feed?.[0]).toMatchObject({ kind: 'prompt', text: 'ABC-1' })
+    expect(feed?.[40]?.text).toBe(`${long} 39`)
   })
 })
