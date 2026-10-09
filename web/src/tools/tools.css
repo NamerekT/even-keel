@@ -267,23 +267,37 @@
   gap: 4px 8px;
 }
 
+.tools__value {
+  min-width: calc(min(var(--chip, 0), 16) * 1ch + 16px);
+  font-family: var(--mono);
+  font-size: 12px;
+}
+
 .tools__scopes {
   display: inline-flex;
   gap: 3px;
 }
 
 .tools__scope {
-  padding: 0 3px;
+  box-sizing: border-box;
+  width: 24px;
   border-radius: 4px;
-  color: var(--fg-muted);
+  color: color-mix(in srgb, var(--fg) 72%, var(--surface));
   font-size: 11px;
+  font-weight: 600;
+  line-height: 18px;
+  text-align: center;
+}
+
+.tools__scope[title] {
   cursor: help;
 }
 
 .tools__scope--wins {
+  background: var(--surface-muted);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--fg) 35%, transparent);
   color: var(--fg);
   font-weight: 700;
-  outline: 1px solid var(--border);
 }
 
 .tools__scope--overridden {
@@ -291,7 +305,7 @@
 }
 
 .tools__scope--unread {
-  opacity: 0.6;
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--fg) 22%, transparent);
   font-style: italic;
 }
 

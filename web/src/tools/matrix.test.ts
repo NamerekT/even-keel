@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { McpRow, SettingRow, ToolsView } from '../../../src/tools/model.js'
-import { filterRows, hiddenSkills, mcpMatrix, mcpState, problemCount, problemsOf, scopeMarks, settingMatrix, sharedProblems, tone } from './matrix.js'
+import { filterRows, hiddenSkills, mcpMatrix, mcpState, problemCount, problemsOf, scopeMarks, settingMatrix, sharedProblems, tone, usedScopes } from './matrix.js'
 
 function row(kind: SettingRow['kind'], name: string, values: SettingRow['values'], session = values.chain ?? values.project ?? values.user ?? null): SettingRow {
   return { kind, name, values, session }
@@ -78,6 +78,18 @@ describe('scopeMarks', () => {
 
   it('has no winner for a row that does not reach the session', () => {
     expect(scopeMarks(row('permission', 'Bash(x)', { local: 'allow' }))).toEqual([{ scope: 'local', value: 'allow', effect: 'unread' }])
+  })
+})
+
+describe('usedScopes', () => {
+  it('lists the scopes any cell of the rows has a value in, in the fixed order', () => {
+    const a = view('A', [row('permission', 'Bash(x)', { local: 'allow' }), row('permission', 'Agent', { user: 'deny' })])
+    const b = view('B', [row('permission', 'Bash(x)', { project: 'allow' })])
+    expect(usedScopes(settingMatrix([a, b], ['permission']))).toEqual(['user', 'project', 'local'])
+  })
+
+  it('is empty without rows', () => {
+    expect(usedScopes([])).toEqual([])
   })
 })
 

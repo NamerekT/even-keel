@@ -67,4 +67,21 @@ describe('milestoneView', () => {
     expect(view.sections).toHaveLength(2)
     expect(view.next).toBeNull()
   })
+
+  it('counts the sections that stay whatever is folded, the revealed ones coming after them', () => {
+    expect(milestoneView(chain, 0).fixed).toBe(1)
+    expect(milestoneView(chain, 2)).toMatchObject({ fixed: 1, revealed: 2 })
+    expect(milestoneView([block('A-1', null), block('A-2', 'v0.1'), block('A-3', 'v0.2')], 1).fixed).toBe(2)
+  })
+
+  it('leaves nothing to fold or reveal without milestones, whatever was revealed before', () => {
+    const plain = [block('A-1', null, false), block('A-2', null), block('A-3', null)]
+    for (const revealed of [0, 2]) {
+      const view = milestoneView(plain, revealed, 'A-3')
+      expect(view).toMatchObject({ next: null, titled: false, fixed: 1, revealed: 0 })
+      expect(view.sections[0]!.blocks).toHaveLength(3)
+    }
+    expect(milestoneView([], 1)).toMatchObject({ sections: [], next: null, titled: false, fixed: 0, revealed: 0 })
+    expect(milestoneView([block('A-1', 'v0.1', false), block('A-2', null)], 1)).toMatchObject({ fixed: 2, revealed: 0 })
+  })
 })

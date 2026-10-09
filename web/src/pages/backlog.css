@@ -1,0 +1,103 @@
+.chip--backlog {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding-left: 6px;
+  border: 0;
+  font: inherit;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+  transition:
+    background-color 0.15s,
+    color 0.15s;
+}
+
+.chip--backlog:hover,
+.chip--backlog[aria-expanded='true'] {
+  background: color-mix(in srgb, var(--accent) 18%, var(--surface-muted));
+  color: var(--fg);
+}
+
+.chip--backlog:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.backlog__title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+}
+
+.backlog__list {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.backlog__row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-areas: 'meta ready' 'name ready';
+  align-items: center;
+  gap: 2px 12px;
+  padding: 10px 0;
+  border-top: 1px solid var(--border);
+}
+
+.backlog__meta {
+  grid-area: meta;
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  font-size: 12px;
+}
+
+.backlog__key {
+  color: var(--fg-muted);
+  font-family: var(--mono);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+a.backlog__key:hover {
+  color: var(--accent);
+}
+
+.backlog__status {
+  color: var(--fg-muted);
+}
+
+.backlog__name {
+  grid-area: name;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  font-size: 14px;
+  line-height: 1.35;
+  text-align: left;
+  cursor: pointer;
+}
+
+.backlog__name:hover {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.backlog__ready {
+  grid-area: ready;
+  padding: 3px 10px;
+  font-size: 13px;
+}
+
+@media (max-width: 760px) {
+  .backlog__ready {
+    padding: 8px 12px;
+  }
+}

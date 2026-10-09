@@ -1293,21 +1293,61 @@ a:focus-visible {
   background: none;
 }
 
-.chain__next {
+.chain__toggle {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+  margin: -6px -8px;
+  padding: 6px 8px;
+  border: 0;
+  border-radius: 8px;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition:
+    background-color 0.15s,
+    color 0.15s;
+}
+
+.chain__toggle:hover {
+  background: var(--surface-muted);
+  color: var(--fg);
+}
+
+.chain__toggle:hover .chain__milestone-count {
+  color: var(--fg);
+}
+
+.chain__toggle:focus-visible {
+  outline: 2px solid var(--accent);
+}
+
+.chain__chevron {
+  flex: none;
+  margin-right: -4px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.chain__toggle[aria-expanded='true'] .chain__chevron {
+  transform: rotate(90deg);
+}
+
+.chain__archive {
   display: flex;
   flex-direction: column;
-  align-items: flex-start;
-  gap: 10px;
+  gap: 12px;
 }
 
-.chain__next .chain__milestone {
-  align-self: stretch;
-}
-
-.chain__buttons {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
+.chain__section--revealed > .chain__blocks {
+  animation: appear 0.2s ease-out;
 }
 
 .chain__hint {
@@ -1379,34 +1419,6 @@ a:focus-visible {
 .block--locked .block__title,
 .block--locked .block__key {
   color: var(--fg-muted);
-}
-
-.backlog__summary {
-  width: fit-content;
-  color: var(--fg-muted);
-  font-size: 14px;
-  cursor: pointer;
-}
-
-.backlog__blocks {
-  margin: 12px 0;
-}
-
-.block--backlog .block__head,
-.block--backlog .block__title,
-.block--backlog .block__status {
-  opacity: 0.6;
-}
-
-.block--backlog .block__title {
-  color: var(--fg-muted);
-}
-
-.block__ready {
-  position: relative;
-  z-index: 1;
-  padding: 3px 10px;
-  font-size: 13px;
 }
 
 .card__backlog {
@@ -2731,6 +2743,7 @@ a:focus-visible {
 
 @media (prefers-reduced-motion: reduce) {
   .account-toggle--login .queue-toggle__dot,
+  .chain__section--revealed > .chain__blocks,
   .chip--grown,
   .lamp--working,
   .page,

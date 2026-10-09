@@ -62,9 +62,9 @@ export function ChainList({ project, chain, scale, trackerUrls, focus, onCard }:
     setPages(0)
     unfocus(archiveView(ordered, 0, '').visible)
   }
-  const collapseMilestones = () => {
-    setRevealed(0)
-    unfocus(milestoneView(archive.visible, 0).sections.flatMap((section) => section.blocks))
+  const foldMilestones = (kept: number) => {
+    setRevealed(kept)
+    unfocus(milestoneView(archive.visible, kept).sections.flatMap((section) => section.blocks))
   }
 
   const { drag, landing, movable } = useChainDrag({
@@ -84,24 +84,45 @@ export function ChainList({ project, chain, scale, trackerUrls, focus, onCard }:
   return (
     <div className="chain">
       {(archive.hidden > 0 || archive.shown > 0) && (
-        <div className="chain__buttons">
-          <button type="button" className="button" disabled={archive.shown === 0} onClick={collapseArchive}>
-            {t.chain.foldArchive}
-          </button>
-          <button
-            type="button"
-            className="button"
-            disabled={archive.hidden === 0}
-            onClick={() => setPages(Math.ceil(archive.shown / ARCHIVE_PAGE) + 1)}
-          >
-            {archive.shown === 0 || archive.hidden === 0 ? t.chain.archive(archive.hidden) : t.chain.loadMore(archive.next, archive.hidden)}
-          </button>
+        <div className="chain__archive">
+          {archive.hidden > 0 && (
+            <Divider
+              name={t.chain.archive}
+              count={t.chain.hidden(t.chain.tasks(archive.hidden))}
+              hidden
+              toggle={{
+                expanded: false,
+                title: t.chain.loadMore(archive.next, archive.hidden),
+                run: () => setPages(Math.ceil(archive.shown / ARCHIVE_PAGE) + 1),
+              }}
+            />
+          )}
+          {archive.shown > 0 && (
+            <Divider
+              name={t.chain.archive}
+              count={t.chain.tasks(archive.shown)}
+              toggle={{ expanded: true, title: t.chain.foldArchive, run: collapseArchive }}
+            />
+          )}
         </div>
       )}
       <div ref={listRef} className={listClass(drag !== null, landing !== null)}>
         {view.sections.map((section, index) => (
-          <section key={`${index}:${section.milestone}`} className="chain__section">
-            {view.titled && <Milestone section={section} />}
+          <section
+            key={`${index}:${section.milestone}`}
+            className={index < view.fixed ? 'chain__section' : 'chain__section chain__section--revealed'}
+          >
+            {view.titled && (
+              <Divider
+                name={section.milestone ?? t.chain.noMilestone}
+                count={t.chain.tasks(openCount(section))}
+                toggle={
+                  index < view.fixed
+                    ? undefined
+                    : { expanded: true, title: t.chain.foldMilestone, run: () => foldMilestones(index - view.fixed) }
+                }
+              />
+            )}
             <ol className="chain__blocks">
               {section.blocks.map((block) => (
                 <Block
@@ -124,23 +145,13 @@ export function ChainList({ project, chain, scale, trackerUrls, focus, onCard }:
           </section>
         ))}
       </div>
-      {(view.next !== null || view.revealed > 0) && (
-        <div className="chain__next">
-          {view.next !== null && <Milestone section={view.next} hidden />}
-          <div className="chain__buttons">
-            <button type="button" className="button" disabled={view.revealed === 0} onClick={collapseMilestones}>
-              {t.chain.foldMilestones}
-            </button>
-            <button
-              type="button"
-              className="button chain__reveal"
-              disabled={view.next === null}
-              onClick={() => setRevealed(view.revealed + 1)}
-            >
-              {t.chain.nextMilestone}
-            </button>
-          </div>
-        </div>
+      {view.next !== null && (
+        <Divider
+          name={view.next.milestone ?? t.chain.noMilestone}
+          count={t.chain.hidden(t.chain.tasks(openCount(view.next)))}
+          hidden
+          toggle={{ expanded: false, title: t.chain.nextMilestone, run: () => setRevealed(view.revealed + 1) }}
+        />
       )}
       {failure !== null && <p className="notice notice--error">{say(failure)}</p>}
       <ul className="chain__legend">
@@ -158,13 +169,40 @@ export function ChainList({ project, chain, scale, trackerUrls, focus, onCard }:
   )
 }
 
-function Milestone({ section, hidden = false }: { section: Section<ChainBlock>; hidden?: boolean }) {
-  const tasks = t.chain.tasks(section.blocks.filter((block) => !block.locked).length)
+function openCount(section: Section<ChainBlock>): number {
+  return section.blocks.filter((block) => !block.locked).length
+}
+
+interface DividerProps {
+  name: string
+  count: string
+  hidden?: boolean
+  /** Makes the whole line a button that folds or reveals what the line stands for. */
+  toggle?: { expanded: boolean; title: string; run: () => void }
+}
+
+function Divider({ name, count, hidden = false, toggle }: DividerProps) {
+  const line = (
+    <>
+      {toggle !== undefined && (
+        <svg className="chain__chevron" viewBox="0 0 12 12" width="12" height="12" aria-hidden="true">
+          <path d="M4.5 2.5 8 6l-3.5 3.5" />
+        </svg>
+      )}
+      <span className="chain__milestone-name">{name}</span>
+      <span className="chain__milestone-line" aria-hidden="true" />
+      <span className="chain__milestone-count">{count}</span>
+    </>
+  )
   return (
     <h2 className={hidden ? 'chain__milestone chain__milestone--hidden' : 'chain__milestone'}>
-      <span className="chain__milestone-name">{section.milestone ?? t.chain.noMilestone}</span>
-      <span className="chain__milestone-line" aria-hidden="true" />
-      <span className="chain__milestone-count">{hidden ? t.chain.hidden(tasks) : tasks}</span>
+      {toggle === undefined ? (
+        line
+      ) : (
+        <button type="button" className="chain__toggle" aria-expanded={toggle.expanded} title={toggle.title} onClick={toggle.run}>
+          {line}
+        </button>
+      )}
     </h2>
   )
 }

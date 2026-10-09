@@ -19,7 +19,7 @@ import {
 import { focusAfterClose } from '../ui/focus.js'
 import { QuestionsChip } from '../ui/QuestionsChip.js'
 import { StatusChip } from '../ui/StatusChip.js'
-import { BacklogList } from './BacklogList.js'
+import { BACKLOG_HASH, BacklogChip, BacklogPanel } from './BacklogPanel.js'
 import { ChainList } from './ChainList.js'
 import { NotFound } from './NotFound.js'
 import { SessionPanel } from './SessionPanel.js'
@@ -49,6 +49,8 @@ export function Project({ state }: { state: EvenKeelState }) {
 
   const order = state.chain.projects[key]
   const selected = blocks.find((block) => block.id === focus && !block.locked)
+  const backlog = backlogTasks(state, key)
+  const backlogOpen = focus === BACKLOG_HASH && backlog.length > 0
   const opened = new URLSearchParams(location.search).get(CARD_PARAM)
   const openCard = (task: string) => {
     const search = new URLSearchParams(location.search)
@@ -63,12 +65,17 @@ export function Project({ state }: { state: EvenKeelState }) {
   }
 
   return (
-    <section className={selected === undefined ? 'project' : 'project project--panel'}>
+    <section className={selected === undefined && !backlogOpen ? 'project' : 'project project--panel'}>
       <div className="page">
         <header className="project__head">
           <h1 className="page__title project__title">{key}</h1>
           <StatusChip status={chainStatus(state.chain, key)} />
           <QuestionsChip count={openQuestions(projectTasks(state, key))} />
+          <BacklogChip
+            count={backlog.length}
+            open={backlogOpen}
+            onToggle={() => navigate({ search: location.search, hash: backlogOpen ? '' : BACKLOG_HASH })}
+          />
           <ChainControls state={state} project={key} />
         </header>
         {order?.error && <p className="notice notice--error">{say(order.error)}</p>}
@@ -82,16 +89,18 @@ export function Project({ state }: { state: EvenKeelState }) {
             chain={blocks}
             scale={state.context}
             trackerUrls={state.trackerUrls}
-            focus={focus}
+            focus={focus === BACKLOG_HASH ? '' : focus}
             onCard={openCard}
           />
         )}
-        <BacklogList tasks={backlogTasks(state, key)} trackerUrls={state.trackerUrls} canReady={canReady(state, key)} onCard={openCard} />
         <StatsStrip key={`stats-${key}`} project={key} />
         <ToolsLink key={`tools-${key}`} project={key} trim={state.trimTools} />
       </div>
       {selected !== undefined && (
         <SessionPanel key={selected.id} block={selected} scale={state.context} onCard={openCard} onClose={close} />
+      )}
+      {backlogOpen && (
+        <BacklogPanel tasks={backlog} trackerUrls={state.trackerUrls} canReady={canReady(state, key)} onCard={openCard} onClose={close} />
       )}
       {opened !== null && (
         <Suspense fallback={null}>

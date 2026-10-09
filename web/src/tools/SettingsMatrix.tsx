@@ -1,7 +1,7 @@
-import type { ReactNode } from 'react'
-import type { McpRow, SettingKind, SettingRow, ToolsView } from '../../../src/tools/model.js'
+import type { CSSProperties, ReactNode } from 'react'
+import type { McpRow, SettingKind, SettingRow, ToolScope, ToolsView } from '../../../src/tools/model.js'
 import { t } from '../i18n/index.js'
-import { HIDDEN, filterRows, mcpMatrix, mcpState, scopeMarks, settingMatrix, tone, type Tone } from './matrix.js'
+import { HIDDEN, filterRows, mcpMatrix, mcpState, scopeMarks, settingMatrix, tone, usedScopes, type Tone } from './matrix.js'
 
 type Section = 'claude' | 'plugin' | 'skill' | 'permission'
 
@@ -26,15 +26,17 @@ export function SettingsMatrix({ views, query, onlyDiff }: { views: ToolsView[];
         const all = settingMatrix(views, kinds)
         if (all.length === 0) return null
         const rows = filterRows(all, { query, onlyDiff })
+        const scopes = usedScopes(all)
+        const chip = Math.max(...all.flatMap((row) => row.cells.map((cell) => (cell === null ? 0 : valueText(cell.session).length))))
         return (
-          <MatrixSection key={section} title={t.tools.section[section]} shown={rows.length} total={all.length} projects={projects}>
+          <MatrixSection key={section} title={t.tools.section[section]} shown={rows.length} total={all.length} projects={projects} chip={chip}>
             {rows.map((row) => (
               <tr key={row.key}>
                 <th scope="row">
                   <code>{row.name}</code>
                 </th>
                 {row.cells.map((cell, index) => (
-                  <td key={projects[index]}>{cell === null ? <Missing /> : <SettingCell row={cell} />}</td>
+                  <td key={projects[index]}>{cell === null ? <Missing /> : <SettingCell row={cell} scopes={scopes} />}</td>
                 ))}
               </tr>
             ))}
@@ -65,7 +67,17 @@ export function SettingsMatrix({ views, query, onlyDiff }: { views: ToolsView[];
   )
 }
 
-function MatrixSection({ title, shown, total, projects, children }: { title: string; shown: number; total: number; projects: string[]; children: ReactNode }) {
+interface SectionProps {
+  title: string
+  shown: number
+  total: number
+  projects: string[]
+  /** The longest value of the section in characters: every row keeps that much room for its chip. */
+  chip?: number
+  children: ReactNode
+}
+
+function MatrixSection({ title, shown, total, projects, chip, children }: SectionProps) {
   return (
     <details className="tools__section" open>
       <summary className="tools__summary">
@@ -75,7 +87,7 @@ function MatrixSection({ title, shown, total, projects, children }: { title: str
         <p className="tools__muted">{t.tools.nothingShown}</p>
       ) : (
         <div className="tools__scroll">
-          <table className="tools__matrix">
+          <table className="tools__matrix" style={chip === undefined ? undefined : ({ '--chip': chip } as CSSProperties)}>
             <thead>
               <tr>
                 <th />
@@ -107,20 +119,28 @@ export function Chip({ tone, title, children }: { tone: Tone; title?: string; ch
   )
 }
 
-function SettingCell({ row }: { row: SettingRow }) {
+function SettingCell({ row, scopes }: { row: SettingRow; scopes: ToolScope[] }) {
+  const marks = scopeMarks(row)
   return (
     <span className="tools__cell">
-      <Chip tone={tone(row.session)}>{valueText(row.session)}</Chip>
+      <span className="tools__value">
+        <Chip tone={tone(row.session)}>{valueText(row.session)}</Chip>
+      </span>
       <span className="tools__scopes">
-        {scopeMarks(row).map((mark) => (
-          <span
-            key={mark.scope}
-            className={`tools__scope tools__scope--${mark.effect}`}
-            title={`${t.tools.scopeName[mark.scope]}: ${valueText(mark.value)} — ${t.tools.effect[mark.effect]}`}
-          >
-            {t.tools.scopeShort[mark.scope]}
-          </span>
-        ))}
+        {scopes.map((scope) => {
+          const mark = marks.find((each) => each.scope === scope)
+          return mark === undefined ? (
+            <span key={scope} className="tools__scope" aria-hidden="true" />
+          ) : (
+            <span
+              key={scope}
+              className={`tools__scope tools__scope--${mark.effect}`}
+              title={`${t.tools.scopeName[scope]}: ${valueText(mark.value)} — ${t.tools.effect[mark.effect]}`}
+            >
+              {t.tools.scopeShort[scope]}
+            </span>
+          )
+        })}
       </span>
     </span>
   )

@@ -8,6 +8,8 @@ export interface MilestoneView<T> {
   next: Section<T> | null
   titled: boolean
   revealed: number
+  /** Leading sections that are always shown; the ones after them were revealed and can be folded. */
+  fixed: number
 }
 
 export function milestoneView<T extends { id: string; milestone: string | null; open: boolean }>(
@@ -30,5 +32,6 @@ export function milestoneView<T extends { id: string; milestone: string | null; 
     next: runs[shown] ?? null,
     titled: blocks.some((block) => block.milestone !== null),
     revealed: reveal,
+    fixed: current < 0 ? runs.length : current + 1,
   }
 }

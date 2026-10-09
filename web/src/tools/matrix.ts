@@ -77,6 +77,11 @@ export function scopeMarks(row: SettingRow): { scope: ToolScope; value: string; 
   })
 }
 
+/** The scopes a table of these rows keeps a slot for, so that a mark stands in the same place in every row. */
+export function usedScopes(rows: MatrixRow<SettingRow>[]): ToolScope[] {
+  return SCOPES.filter((scope) => rows.some((row) => row.cells.some((cell) => cell?.values[scope] !== undefined)))
+}
+
 export interface Problems {
   unreached: SettingRow[]
   claudeai: string[]
