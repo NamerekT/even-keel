@@ -322,7 +322,6 @@ export const en: Messages = {
       lost: "Remote Control dropped — can't be opened from the phone. If the task isn't done — “New session”.",
     },
     panel: (task: string) => `Session of task ${task}`,
-    openTask: 'Open the task in the tracker',
     closePanel: 'Close the panel',
     skipped: 'skipped',
     none: 'No session for this task yet.',

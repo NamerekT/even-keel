@@ -2,13 +2,13 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import type { TaskSession } from '../../../src/chain/launches.js'
 import type { LimitHold } from '../../../src/chain/relay.js'
 import type { CacheWindow, FeedLine, TokenTotals } from '../../../src/sessions/transcript.js'
-import type { ContextScale, SessionRecord, SessionView, TrackerUrls } from '../../../src/state.js'
+import type { ContextScale, SessionRecord, SessionView } from '../../../src/state.js'
 import { formatClock, formatMoment, formatTokens } from '../format.js'
 import { localized, say, t } from '../i18n/index.js'
 import { useNow } from '../layout/useNow.js'
 import { useLive } from '../live/context.js'
 import { useCommand } from '../live/useCommand.js'
-import { checkpointHandoffs, issueLink, sessionElapsed, taskProject, tokenTotal, type ChainBlock } from '../state.js'
+import { checkpointHandoffs, sessionElapsed, taskProject, tokenTotal, type ChainBlock } from '../state.js'
 import { CacheClock } from '../ui/CacheClock.js'
 import { ContextMeter } from '../ui/ContextMeter.js'
 import { Lamp } from '../ui/Lamp.js'
@@ -20,20 +20,13 @@ const PINNED_SLACK = 24
 interface Props {
   block: ChainBlock
   scale: ContextScale
-  trackerUrls: TrackerUrls
+  onCard: (task: string) => void
   onClose: () => void
 }
 
-export function SessionPanel({ block, scale, trackerUrls, onClose }: Props) {
+export function SessionPanel({ block, scale, onCard, onClose }: Props) {
   const closeRef = useRef<HTMLButtonElement>(null)
   const [opened, setOpened] = useState<TaskSession | null>(null)
-  const link = issueLink(trackerUrls, block.id)
-  const task = (
-    <>
-      <span className="panel__key">{block.id}</span>
-      {block.title !== null && <span className="panel__title">{block.title}</span>}
-    </>
-  )
 
   useEffect(() => closeRef.current?.focus({ preventScroll: true }), [])
 
@@ -50,13 +43,10 @@ export function SessionPanel({ block, scale, trackerUrls, onClose }: Props) {
       <header className="panel__head">
         <Lamp lamp={block.lamp} />
         <h2 className="panel__task">
-          {link === null ? (
-            task
-          ) : (
-            <a href={link} target="_blank" rel="noreferrer" title={t.session.openTask}>
-              {task}
-            </a>
-          )}
+          <button type="button" className="panel__card" title={t.chain.openCard} onClick={() => onCard(block.id)}>
+            <span className="panel__key">{block.id}</span>
+            {block.title !== null && <span className="panel__title">{block.title}</span>}
+          </button>
         </h2>
         <button ref={closeRef} type="button" className="panel__close" aria-label={t.session.closePanel} onClick={onClose}>
           ×

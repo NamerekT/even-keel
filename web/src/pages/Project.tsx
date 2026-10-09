@@ -91,7 +91,7 @@ export function Project({ state }: { state: EvenKeelState }) {
         <ToolsLink key={`tools-${key}`} project={key} trim={state.trimTools} />
       </div>
       {selected !== undefined && (
-        <SessionPanel key={selected.id} block={selected} scale={state.context} trackerUrls={state.trackerUrls} onClose={close} />
+        <SessionPanel key={selected.id} block={selected} scale={state.context} onCard={openCard} onClose={close} />
       )}
       {opened !== null && (
         <Suspense fallback={null}>
