@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { lazy, Suspense, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import type { TaskSession } from '../../../src/chain/launches.js'
 import type { LimitHold } from '../../../src/chain/relay.js'
 import type { CacheWindow, FeedLine, TokenTotals } from '../../../src/sessions/transcript.js'
@@ -12,7 +12,8 @@ import { checkpointHandoffs, sessionElapsed, taskProject, tokenTotal, type Chain
 import { CacheClock } from '../ui/CacheClock.js'
 import { ContextMeter } from '../ui/ContextMeter.js'
 import { Lamp } from '../ui/Lamp.js'
-import { TranscriptWindow } from './TranscriptWindow.js'
+
+const TranscriptWindow = lazy(async () => ({ default: (await import('./TranscriptWindow.js')).TranscriptWindow }))
 
 const STARTED = localized((language) => new Intl.DateTimeFormat(language, { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }))
 const FEED_TIME = localized((language) => new Intl.DateTimeFormat(language, { hour: '2-digit', minute: '2-digit', second: '2-digit' }))
@@ -402,7 +403,11 @@ function Feed({ lines, sessionId, live }: { lines: FeedLine[]; sessionId: string
           {t.session.transcript}
         </button>
       </div>
-      {whole && <TranscriptWindow sessionId={sessionId} live={live} onClose={() => setWhole(false)} />}
+      {whole && (
+        <Suspense fallback={null}>
+          <TranscriptWindow sessionId={sessionId} live={live} onClose={() => setWhole(false)} />
+        </Suspense>
+      )}
       {lines.length === 0 ? (
         <p className="placeholder">{t.session.feedEmpty}</p>
       ) : (

@@ -8,6 +8,7 @@ import { formatMoment } from '../format.js'
 import { localized, say, t } from '../i18n/index.js'
 import { useLive } from '../live/context.js'
 import { useCommand } from '../live/useCommand.js'
+import '../ui/markdown.css'
 import './card.css'
 
 const DAY = localized((language) => new Intl.DateTimeFormat(language, { day: 'numeric', month: 'short', year: 'numeric' }))

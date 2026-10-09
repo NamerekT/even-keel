@@ -1,11 +1,26 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
+import Markdown, { type Components } from 'react-markdown'
+import remarkGfm from 'remark-gfm'
 import type { FeedLine } from '../../../src/sessions/transcript.js'
 import { localized, t } from '../i18n/index.js'
 import { useLive } from '../live/context.js'
+import '../ui/markdown.css'
 
 const LINE_TIME = localized((language) => new Intl.DateTimeFormat(language, { hour: '2-digit', minute: '2-digit', second: '2-digit' }))
 const POLL_MS = 3_000
 const PINNED_SLACK = 24
+
+const MARKDOWN: Components = {
+  a: ({ href, children }) =>
+    href !== undefined && /^(https?|mailto):/i.test(href) ? (
+      <a href={href} target="_blank" rel="noreferrer">
+        {children}
+      </a>
+    ) : (
+      <span>{children}</span>
+    ),
+  img: ({ alt }) => (alt ? <span className="markdown__image">[{alt}]</span> : null),
+}
 
 interface Props {
   sessionId: string
@@ -104,7 +119,15 @@ export function TranscriptWindow({ sessionId, live, onClose }: Props) {
                 </time>
                 <div className="feed__text">
                   {line.kind === 'prompt' && <span className="transcript__label">{t.session.prompt}</span>}
-                  {line.text}
+                  {line.kind === 'text' ? (
+                    <div className="markdown">
+                      <Markdown remarkPlugins={[remarkGfm]} components={MARKDOWN}>
+                        {line.text}
+                      </Markdown>
+                    </div>
+                  ) : (
+                    <span className="transcript__plain">{line.text}</span>
+                  )}
                   {line.detail !== undefined && <pre className="transcript__detail">{line.detail}</pre>}
                 </div>
               </li>

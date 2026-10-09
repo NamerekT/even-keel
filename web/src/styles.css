@@ -2314,22 +2314,29 @@ a:focus-visible {
 }
 
 .transcript__lines {
-  font-size: 13px;
+  font-size: 15px;
 }
 
 .transcript__lines .feed__line {
-  padding: 4px 0;
+  padding: 5px 0;
 }
 
 .transcript__lines .feed__text {
-  white-space: pre-wrap;
   overflow-wrap: anywhere;
+}
+
+.transcript__lines .markdown {
+  font-size: inherit;
+}
+
+.transcript__plain {
+  white-space: pre-wrap;
 }
 
 .transcript__label {
   display: block;
   color: var(--accent);
-  font-size: 11px;
+  font-size: 12px;
   letter-spacing: 0.04em;
   text-transform: uppercase;
 }
@@ -2340,7 +2347,7 @@ a:focus-visible {
   background: var(--surface);
   border-radius: 6px;
   font-family: var(--mono);
-  font-size: 12px;
+  font-size: 14px;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
 }
