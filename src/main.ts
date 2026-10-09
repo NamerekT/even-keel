@@ -40,7 +40,7 @@ import { ParentCloser } from './tracker/parents.js'
 import { McpCheck, readMcpSources } from './tracker/mcp.js'
 import { worthBroadcast, type TrackerView } from './tracker/health.js'
 import { TrackerLink } from './tracker/link.js'
-import { parseTaskId, type Task } from './tracker/model.js'
+import { isOpen, parseTaskId, type Task } from './tracker/model.js'
 import { StatusPoller } from './tracker/poller.js'
 import { trackerOf, type TrackerSetup } from './tracker/source.js'
 
@@ -597,6 +597,10 @@ function startTracker(view: TrackerView, setup: TrackerSetup): void {
             console.warn(`config: ${view.title} has no status "${unknown}" named in the chain rules of ${project}`)
           }
           unknownByProject.set(project, unknown)
+          const listed = new Set([...tasks, ...parents].map((task) => task.id))
+          const missing = [...new Set(tasks.filter((task) => isOpen(task.status)).flatMap((task) => task.blockedBy))].filter((id) => !listed.has(id))
+          const others = missing.length === 0 ? [] : await link.run((tracker) => tracker.tasks(missing))
+          dispatcher.setOutside(project, [...parents, ...others])
           tasksByProject.set(project, tasks)
           dispatcher.setTasks(project, tasks)
           const released = dispatcher.released(project)

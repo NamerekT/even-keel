@@ -185,15 +185,16 @@ export function projectSlot(projects: string[], project: string): number | null 
 
 export function chainBlocks(state: EvenKeelState, project: string): ChainBlock[] {
   const tasks = projectTasks(state, project)
-  const byId = new Map(tasks.map((task) => [task.id, task]))
+  const order = state.chain.projects[project]
+  const known = [...tasks, ...(order?.outside ?? [])]
+  const byId = new Map(known.map((task) => [task.id, task]))
   const closed = tasks.filter((task) => !isOpen(task.status))
   const after = precedence(tasks.filter((task) => isOpen(task.status)))
-  const order = state.chain.projects[project]
   const broken = order === undefined || order.error !== null
   const waiting = new Set(broken ? [] : order.waiting)
   const open = broken
     ? tasks.filter((task) => isOpen(task.status)).map((task) => task.id).sort(byNumber)
-    : withWaiting(order.order, order.waiting, new Map(tasks.map((task) => [task.id, task.blockedBy])))
+    : withWaiting(order.order, order.waiting, new Map(known.map((task) => [task.id, task.blockedBy])))
   const active = activeChain(state.chain, project)
   const current = active?.current?.task
   const hold = active?.current?.limit

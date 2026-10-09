@@ -360,6 +360,19 @@ describe('chainBlocks', () => {
     expect(chainBlocks(acted, 'ABC')[0]?.limit).toBeNull()
   })
 
+  it('shows a waiting blocker from another project locked, with its title, before the task it holds', () => {
+    const foreign = { ...task('XYZ-7', 'ToDo'), title: 'Foreign blocker' }
+    const state = stateOf({
+      tasks: [task('ABC-1', 'ToDo'), task('ABC-2', 'ToDo', ['XYZ-7'])],
+      chain: chain({ projects: { ABC: { order: ['ABC-1', 'ABC-2'], waiting: ['XYZ-7'], outside: [foreign], backlog: [], error: null } } }),
+    })
+    expect(chainBlocks(state, 'ABC').map((block) => [block.id, block.title, block.locked])).toEqual([
+      ['ABC-1', expect.anything(), false],
+      ['XYZ-7', 'Foreign blocker', true],
+      ['ABC-2', expect.anything(), false],
+    ])
+  })
+
   it('puts closed tasks first in blocking order, then the open ones in chain order', () => {
     const state = stateOf({
       tasks: [

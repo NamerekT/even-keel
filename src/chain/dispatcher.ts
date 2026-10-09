@@ -1,7 +1,7 @@
 import type { FinishOutcome } from '../git/types.js'
 import type { Language } from '../language.js'
 import { fail, notice, NoticeError, noticeOf, type Notice } from '../notice/notice.js'
-import type { Task } from '../tracker/model.js'
+import { isOpen, type Task } from '../tracker/model.js'
 import { byNumber, chainOrder, checkOrder, nextTask, openBlockers, waitingBlockers, withFresh } from './order.js'
 import { admits, excludes, isActive, isDone, isTerminal, type ChainRules } from './rules.js'
 import {
@@ -69,6 +69,8 @@ export interface LaunchEntry {
 export interface ProjectOrder {
   order: string[]
   waiting: string[]
+  /** The waiting blockers missing from the project task list (parents, other projects); set when there are any. */
+  outside?: Task[]
   /** Open tasks the chain does not take yet by their status or a missing required label, and that no chain task waits on. */
   backlog: string[]
   error: Notice | null
@@ -110,6 +112,7 @@ function newChain(project: string): ActiveChain {
 export class Dispatcher {
   private readonly tasks = new Map<string, Task[]>()
   private readonly waiting = new Map<string, Task[]>()
+  private readonly outside = new Map<string, Task[]>()
   private readonly backlog = new Map<string, string[]>()
   private readonly done = new Map<string, Set<string>>()
   private readonly releasedDone = new Map<string, Set<string>>()
@@ -124,7 +127,8 @@ export class Dispatcher {
     const rules = this.deps.rules(project)
     const admitted = tasks.filter((task) => admits(rules, task))
     const chain = admitted.filter((task) => this.enters(project, task, rules))
-    const waiting = waitingBlockers(chain, tasks.filter((task) => !isTerminal(rules, task.status) && !chain.includes(task)))
+    const outside = (this.outside.get(project) ?? []).filter((task) => isOpen(task.status))
+    const waiting = waitingBlockers(chain, [...tasks, ...outside].filter((task) => !isTerminal(rules, task.status) && !chain.includes(task)))
     const backlog = tasks.filter((task) => !excludes(rules, task) && !chain.includes(task) && !waiting.includes(task))
     this.tasks.set(project, chain)
     this.waiting.set(project, waiting)
@@ -133,6 +137,11 @@ export class Dispatcher {
     const placed = this.placeNew(project)
     if (this.forgetClosed(project) || placed) this.deps.save(this.state)
     this.kick()
+  }
+
+  /** Blockers of the project tasks that its task list lacks: open parents and tasks of other projects, whatever their status. */
+  setOutside(project: string, tasks: Task[]): void {
+    this.outside.set(project, tasks)
   }
 
   released(project: string): string[] {
@@ -283,10 +292,13 @@ export class Dispatcher {
     for (const [project, tasks] of this.tasks) {
       const waiting = this.waitingIds(project)
       const backlog = this.backlog.get(project) ?? []
+      const listed = this.outside.get(project) ?? []
+      const outside = (this.waiting.get(project) ?? []).filter((task) => listed.includes(task))
+      const extra = outside.length > 0 ? { outside } : {}
       try {
-        result[project] = { order: chainOrder(tasks, this.preferred(project)), waiting, backlog, error: null }
+        result[project] = { order: chainOrder(tasks, this.preferred(project)), waiting, ...extra, backlog, error: null }
       } catch (error) {
-        result[project] = { order: [], waiting, backlog, error: noticeOf(error) }
+        result[project] = { order: [], waiting, ...extra, backlog, error: noticeOf(error) }
       }
     }
     return result

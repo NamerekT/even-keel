@@ -796,6 +796,31 @@ describe('Dispatcher with a blocker in the backlog', () => {
     expect(dispatcher.orders()['ABC']).toEqual({ order: ['ABC-2'], waiting: ['ABC-1'], backlog: [], error: null })
   })
 
+  it('holds a task on an open blocker from outside the project task list and hands it to the page', async () => {
+    const { dispatcher, launched } = setup()
+    const foreign = task('XYZ-1', active)
+    dispatcher.setOutside('ABC', [foreign, task('XYZ-2', done)])
+    dispatcher.setTasks('ABC', [task('ABC-1', todo, 'XYZ-1'), task('ABC-2', todo, 'XYZ-2'), task('ABC-3')])
+    dispatcher.start('ABC')
+    await dispatcher.idle()
+
+    expect(launched).toEqual(['ABC/ABC-2'])
+    expect(dispatcher.orders()['ABC']).toEqual({ order: ['ABC-1', 'ABC-2', 'ABC-3'], waiting: ['XYZ-1'], outside: [foreign], backlog: [], error: null })
+  })
+
+  it('frees the task once the outside blocker is closed', async () => {
+    const { dispatcher, launched } = setup()
+    dispatcher.setOutside('ABC', [task('XYZ-1', active)])
+    dispatcher.setTasks('ABC', [task('ABC-1', todo, 'XYZ-1')])
+    dispatcher.setOutside('ABC', [task('XYZ-1', canceled)])
+    dispatcher.setTasks('ABC', [task('ABC-1', todo, 'XYZ-1')])
+    dispatcher.start('ABC')
+    await dispatcher.idle()
+
+    expect(launched).toEqual(['ABC/ABC-1'])
+    expect(dispatcher.orders()['ABC']).toEqual({ order: ['ABC-1'], waiting: [], backlog: [], error: null })
+  })
+
   it('postpones the current task once a manual blocker is added to it', async () => {
     const { dispatcher, launched } = setup()
     dispatcher.setTasks('ABC', [task('ABC-2'), task('ABC-3')])
