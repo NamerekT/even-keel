@@ -1,4 +1,4 @@
-import { copyFileSync, existsSync, lstatSync, mkdirSync, readdirSync, readFileSync, rmdirSync, symlinkSync, writeFileSync } from 'node:fs'
+import { copyFileSync, existsSync, lstatSync, mkdirSync, readdirSync, readFileSync, rmdirSync, symlinkSync, unlinkSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { pathKey } from '../paths.js'
 
@@ -50,7 +50,7 @@ export function shareProjects(global: Json, folder: Json, platform: NodeJS.Platf
   return JSON.stringify(shared) === JSON.stringify(folder) ? undefined : shared
 }
 
-export function shareConfig(global: SharedSources, dir: string): boolean {
+export function shareConfig(global: SharedSources, dir: string, warn: (message: string) => void = console.warn): boolean {
   mkdirSync(dir, { recursive: true })
   let changed = false
   const settings = readJson(join(global.dir, 'settings.json'))
@@ -70,8 +70,44 @@ export function shareConfig(global: SharedSources, dir: string): boolean {
   for (const name of entries(join(global.dir, 'skills'))) {
     if (!OWN_SKILLS.has(name)) changed = link(join(global.dir, 'skills', name), join(dir, 'skills', name)) || changed
   }
-  for (const project of entries(join(global.dir, 'projects'))) {
-    changed = link(join(global.dir, 'projects', project, 'memory'), join(dir, 'projects', project, 'memory')) || changed
+  const projects = new Set([...entries(join(global.dir, 'projects')), ...entries(join(dir, 'projects'))])
+  for (const project of projects) {
+    const shared = join(global.dir, 'projects', project, 'memory')
+    const own = join(dir, 'projects', project, 'memory')
+    changed = absorbMemory(shared, own, warn) || changed
+    changed = link(shared, own) || changed
+  }
+  return changed
+}
+
+/** Moves what an account's own memory folder holds into the shared one; files that differ stay and are warned about. */
+function absorbMemory(shared: string, own: string, warn: (message: string) => void): boolean {
+  if (!existsSync(own)) return false
+  const stat = lstatSync(own)
+  if (stat.isSymbolicLink() || !stat.isDirectory()) return false
+  mkdirSync(shared, { recursive: true })
+  return moveInto(own, shared, warn)
+}
+
+function moveInto(from: string, to: string, warn: (message: string) => void): boolean {
+  let changed = false
+  for (const entry of readdirSync(from, { withFileTypes: true })) {
+    const source = join(from, entry.name)
+    const target = join(to, entry.name)
+    if (entry.isDirectory()) {
+      mkdirSync(target, { recursive: true })
+      changed = moveInto(source, target, warn) || changed
+      if (readdirSync(source).length === 0) rmdirSync(source)
+    } else if (!existsSync(target)) {
+      copyFileSync(source, target)
+      unlinkSync(source)
+      changed = true
+    } else if (readFileSync(source).equals(readFileSync(target))) {
+      unlinkSync(source)
+      changed = true
+    } else {
+      warn(`memory: ${source} differs from ${target}; left in place, merge by hand`)
+    }
   }
   return changed
 }
