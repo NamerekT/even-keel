@@ -160,16 +160,18 @@ function ChainControls({ state, project }: { state: EvenKeelState; project: stri
 
   // Both buttons stay in place whatever the status, so a repeated click never lands on the other one.
   return (
-    <div className="project__controls">
-      {active
-        ? button(t.project.resume, 'resume', status.kind === 'paused', true)
-        : button(startsNow(state.chain) ? t.project.start : t.project.enqueue, 'start', canStart, true)}
-      {button(t.project.stop, 'stop', active)}
-      {after !== null && <span className="project__queue">{t.project.after(after)}</span>}
+    <>
+      <div className="project__controls">
+        {after !== null && <span className="project__queue">{t.project.after(after)}</span>}
+        {active
+          ? button(t.project.resume, 'resume', status.kind === 'paused', true)
+          : button(startsNow(state.chain) ? t.project.start : t.project.enqueue, 'start', canStart, true)}
+        {button(t.project.stop, 'stop', active)}
+      </div>
       {status.kind === 'running' && status.limitUntil !== null && (
         <p className="project__wait">{limitWaitText(status.limitUntil, new Date())}</p>
       )}
       {error !== null && <p className="project__error">{say(error)}</p>}
-    </div>
+    </>
   )
 }
