@@ -49,7 +49,7 @@
 
 ## Хостинг
 
-Два remote — `origin` (self-hosted Forgejo) и `github` (`github.com/NamerekWASD/even-keel`, пока приватный). `main` пушится только `git sync` (глобальный алиас: забирает `main` со всех remote, сливает и пушит во все) — не `git push origin main`, иначе remote разойдутся. Ветки задач на remote не пушатся.
+Два remote — `origin` (self-hosted Forgejo) и `github` (`github.com/NamerekT/even-keel`, организация, пока приватный). `main` пушится только `git sync` (глобальный алиас: забирает `main` со всех remote, сливает и пушит во все) — не `git push origin main`, иначе remote разойдутся. Ветки задач на remote не пушатся.
 
 ## Задачи
 
