@@ -24,6 +24,7 @@ import {
   type StatsCompare,
   type StatsRules,
 } from './stats/rules.js'
+import type { Calibration } from './stats/calibration.js'
 import type { StatsSteps } from './stats/steps.js'
 import type { TaskCard } from './tracker/card.js'
 
@@ -32,6 +33,7 @@ export interface StatsSource {
   period(query: PeriodQuery): Promise<StatsAnswer<StatsPeriod>>
   steps(query: PeriodQuery): Promise<StatsAnswer<StatsSteps>>
   task(task: string): Promise<StatsAnswer<StatsTaskDetail>>
+  calibration(project: string, task: string | null): Promise<StatsAnswer<Calibration>>
   rules(query: RulesQuery): Promise<StatsAnswer<StatsRules>>
   ruleDiff(ids: string[]): Promise<StatsAnswer<RuleDiffFile[]>>
   compare(query: CompareQuery): Promise<StatsAnswer<StatsCompare>>
@@ -169,6 +171,17 @@ async function route(deps: ServerDeps, request: IncomingMessage, response: Serve
     }
     if (view === undefined) response.writeHead(404).end()
     else sendJson(response, 200, view)
+    return
+  }
+
+  const calibration = /^\/api\/projects\/([A-Z][A-Z0-9]*)\/calibration$/.exec(path)
+  if (request.method === 'GET' && calibration !== null) {
+    const task = url.searchParams.get('task')
+    if (task !== null && !isTaskId(task)) {
+      sendFailure(response, fail('request.taskId', {}))
+      return
+    }
+    sendJson(response, 200, await deps.stats.calibration(calibration[1]!, task))
     return
   }
 

@@ -82,6 +82,7 @@ describe('Even Keel HTTP server', () => {
         history: async (filter) => ({ state: 'off', reason: `history ${filter.scope} ${filter.account} ${filter.tz}` }),
         period: async (query) => ({ state: 'off', reason: `period ${query.from} ${query.to} ${query.projects?.join('+')}` }),
         task: async (task) => ({ state: 'error', error: `task ${task}` }),
+        calibration: async (project, task) => ({ state: 'off', reason: `calibration ${project} ${task ?? 'none'}` }),
         rules: async (query) => ({ state: 'off', reason: `rules ${query.projects?.join('+')} ${query.kinds?.join('+')}` }),
         ruleDiff: async (ids) => ({ state: 'off', reason: `diff ${ids.length}` }),
         compare: async (query) => ({ state: 'off', reason: `compare ${query.before} ${query.after} ${query.days}` }),
@@ -280,6 +281,15 @@ describe('Even Keel HTTP server', () => {
     const task = await fetch(base + '/api/stats/task/ABC-12')
     expect(await task.json()).toEqual({ state: 'error', error: 'task ABC-12' })
     expect((await fetch(base + '/api/stats/ABC')).status).toBe(404)
+  })
+
+  it('serves the estimate calibration of any project key, for a task or for a new one', async () => {
+    const forTask = await fetch(base + '/api/projects/XYZ/calibration?task=XYZ-4')
+    expect(await forTask.json()).toEqual({ state: 'off', reason: 'calibration XYZ XYZ-4' })
+    const fresh = await fetch(base + '/api/projects/ABC/calibration')
+    expect(await fresh.json()).toEqual({ state: 'off', reason: 'calibration ABC none' })
+    expect((await fetch(base + '/api/projects/ABC/calibration?task=4')).status).toBe(400)
+    expect((await fetch(base + '/api/projects/a-b/calibration')).status).toBe(404)
   })
 
   it('serves the rule marks, a diff and a before and after comparison', async () => {

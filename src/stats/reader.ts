@@ -13,6 +13,7 @@ import type {
   StatsTotals,
 } from './model.js'
 import { BASE } from './base-sql.js'
+import { mapCalibration, type Calibration } from './calibration.js'
 import { folderGroups, repoTail } from './model.js'
 import { readCompare, readRuleDiff, readRules, type RulesDb } from './rules-reader.js'
 import { readSteps, readTaskSteps } from './steps-reader.js'
@@ -170,6 +171,14 @@ select sp.id, sp.task, null as project, sp.session_id, sp.from_at, sp.to_at, sp.
 from stuck_spans sp
 where sp.session_id in (select session_id from message_costs where task = $1::text)
 order by sp.from_at`
+
+const CALIBRATION = `
+select task, title, component, estimate_h, active_min
+from task_estimates
+where key = $1::text and done and active_min is not null
+order by last_at desc`
+
+const TASK_COMPONENT = `select component from tasks where task = $1::text`
 
 type Row = Record<string, unknown>
 
@@ -363,6 +372,24 @@ export class StatsReader {
         readTaskSteps(this.db(pool), task),
       ])
       return mapTask(task, sessions!, spans!, steps)
+    })
+  }
+
+  /** Any project key Tally has seen, not only the tracked ones: the huly plugin runs in projects outside the chain. */
+  calibration(project: string, task: string | null): Promise<StatsAnswer<Calibration>> {
+    return this.cached(`calibration|${project}|${task ?? ''}`, async (pool) => {
+      const [rows, owner] = await Promise.all([
+        pool.query<Row>(CALIBRATION, [project]).then((result) => result.rows),
+        task === null ? [] : pool.query<Row>(TASK_COMPONENT, [task]).then((result) => result.rows),
+      ])
+      const closed = rows.map((row) => ({
+        task: String(row.task),
+        title: text(row.title),
+        component: text(row.component),
+        estimateH: maybe(row.estimate_h),
+        activeMin: number(row.active_min),
+      }))
+      return mapCalibration(project, text(owner[0]?.component), closed, this.statsConfig().compare.minTasks)
     })
   }
 

@@ -10,6 +10,16 @@
             "timeout": 10
           }
         ]
+      },
+      {
+        "matcher": "mcp__plugin_huly_huly__(create|update)_issue",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/show-calibration.mjs\"",
+            "timeout": 10
+          }
+        ]
       }
     ]
   }
