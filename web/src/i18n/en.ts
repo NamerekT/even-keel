@@ -614,6 +614,13 @@ export const en: Messages = {
       withinTitle: 'Share of tasks within ×1.5 of the estimate',
       medianTitle: 'Median actual / estimate',
       medianColumn: 'Median',
+      within2: (share: string) => `within ×2: ${share}`,
+      within2Title: 'Share of tasks within ×2 of the estimate',
+      baseline: 'Project median instead of the estimate',
+      baselineNote: 'within ×1.5; an estimate that does not beat this tells nothing',
+      baselineColumn: 'Const.',
+      baselineTitle:
+        'Within ×1.5 if every task were estimated at the median time of its project’s closed tasks (median of this selection, not of the past)',
     },
     steps: {
       title: 'Steps',

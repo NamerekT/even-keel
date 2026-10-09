@@ -70,9 +70,30 @@ describe('accuracy', () => {
     expect(result.within).toBe(50)
   })
 
+  it('counts a task within ×2 of its estimate on both sides, bounds included', () => {
+    const result = accuracy([
+      task('ABC-1', { estimateH: 1, activeS: hours(2) }),
+      task('ABC-2', { estimateH: 2, activeS: hours(1) }),
+      task('ABC-3', { estimateH: 1, activeS: hours(2.1) }),
+      task('ABC-4', { estimateH: 1, activeS: hours(0.4) }),
+    ])
+    expect(result.within2).toBe(50)
+  })
+
+  it('scores the compared tasks against the median of the closed tasks of their project', () => {
+    const result = accuracy([
+      task('ABC-1', { estimateH: 1, activeS: hours(1) }),
+      task('ABC-2', { estimateH: 1, activeS: hours(3) }),
+      task('ABC-3', { activeS: hours(1) }),
+      task('ABC-4', { activeS: hours(9), done: false }),
+      task('XYZ-1', { estimateH: 1, activeS: hours(4) }),
+    ])
+    expect(result.baseline).toEqual({ within: (2 / 3) * 100, within2: (2 / 3) * 100 })
+  })
+
   it('has no figures without a sample', () => {
     const result = accuracy([task('ABC-1', { activeS: null })])
-    expect(result).toMatchObject({ done: 0, medianS: null, compared: 0, within: null, ratio: null })
+    expect(result).toMatchObject({ done: 0, medianS: null, compared: 0, within: null, within2: null, baseline: null, ratio: null })
     expect(result.groups.project).toEqual([])
   })
 
@@ -83,17 +104,29 @@ describe('accuracy', () => {
       task('XYZ-1', { estimateH: 2, activeS: hours(1), model: 'opus' }),
       task('XYZ-2', { activeS: hours(1), component: 'Core', model: 'opus' }),
     ])
-    expect(result.groups.project).toEqual([
+    expect(result.groups.project).toMatchObject([
       { key: 'ABC', tasks: 2, within: 50, ratio: 2 },
       { key: 'XYZ', tasks: 1, within: 0, ratio: 0.5 },
     ])
-    expect(result.groups.component).toEqual([
+    expect(result.groups.component).toMatchObject([
       { key: 'Web', tasks: 2, within: 50, ratio: 2 },
       { key: null, tasks: 1, within: 0, ratio: 0.5 },
     ])
-    expect(result.groups.model).toEqual([
+    expect(result.groups.model).toMatchObject([
       { key: 'opus', tasks: 2, within: 50, ratio: 0.75 },
       { key: 'sonnet', tasks: 1, within: 0, ratio: 3 },
+    ])
+  })
+
+  it('gives each group its ×2 share and the constant baseline', () => {
+    const result = accuracy([
+      task('ABC-1', { estimateH: 1, activeS: hours(1), component: 'Web' }),
+      task('ABC-2', { estimateH: 1, activeS: hours(2), component: 'Web' }),
+      task('ABC-3', { estimateH: 1, activeS: hours(5), component: 'Core' }),
+    ])
+    expect(result.groups.component).toEqual([
+      { key: 'Web', tasks: 2, within: 50, within2: 100, baseline: { within: 50, within2: 100 }, ratio: 1.5 },
+      { key: 'Core', tasks: 1, within: 0, within2: 0, baseline: { within: 0, within2: 0 }, ratio: 5 },
     ])
   })
 })
