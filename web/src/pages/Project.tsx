@@ -160,7 +160,6 @@ function ChainControls({ state, project }: { state: EvenKeelState; project: stri
   return (
     <div className="project__controls">
       {canStart && button(startsNow(state.chain) ? t.project.start : t.project.enqueue, 'start', true)}
-      {status.kind === 'running' && button(t.project.pause, 'pause')}
       {status.kind === 'paused' && button(t.project.resume, 'resume', true)}
       {(status.kind === 'running' || status.kind === 'paused') && button(t.project.stop, 'stop')}
       {after !== null && <span className="project__queue">{t.project.after(after)}</span>}

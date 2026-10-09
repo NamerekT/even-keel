@@ -176,13 +176,6 @@ export class Dispatcher {
     this.changed()
   }
 
-  pause(project: string): void {
-    const chain = this.chainOf(project)
-    if (chain === undefined || chain.paused) return
-    chain.paused = true
-    this.changed()
-  }
-
   resume(project: string): void {
     const chain = this.chainOf(project)
     if (chain === undefined) return

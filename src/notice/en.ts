@@ -87,7 +87,7 @@ export const en = {
   'account.signInRunning': () => 'claude: a sign-in into this account is running',
   'account.usedByApp': (p: { app: string }) => `claude: ${p.app} uses this account; switch it to another one first`,
   'account.notRemoving': (p: { key: string }) => `claude: ${p.key} is not being removed`,
-  'account.chainRunning': (p: { project: string }) => `claude: chain ${p.project} is running; pause it before switching the account`,
+  'account.chainRunning': (p: { project: string }) => `claude: chain ${p.project} is running; stop it before switching the account`,
   'account.sessionsBusy': (p: { sessions: string[] }) =>
     `claude: sessions are in the middle of a turn (${list(p.sessions)}); switch the account once they finish`,
   'account.homeGone': (p: { key: string }) => `claude: the account folder ${p.key} is gone`,

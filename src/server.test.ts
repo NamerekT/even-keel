@@ -29,7 +29,6 @@ describe('Even Keel HTTP server', () => {
       }
     const control: ChainControl = {
       start: record('start'),
-      pause: record('pause'),
       resume: record('resume'),
       stop: record('stop'),
       dequeue: record('dequeue'),
@@ -163,7 +162,6 @@ describe('Even Keel HTTP server', () => {
     expect(response.status).toBe(200)
     expect(await response.json()).toEqual({ chain: [] })
 
-    await post('/api/chain/pause', { project: 'ABC' })
     await post('/api/chain/resume', { project: 'ABC' })
     await post('/api/chain/stop', { project: 'ABC' })
     await post('/api/chain/dequeue', { project: 'XYZ' })
@@ -177,7 +175,6 @@ describe('Even Keel HTTP server', () => {
     await post('/api/chain/trim', { on: false })
     expect(calls).toEqual([
       ['start', 'ABC'],
-      ['pause', 'ABC'],
       ['resume', 'ABC'],
       ['stop', 'ABC'],
       ['dequeue', 'XYZ'],

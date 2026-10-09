@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { done, setup, task } from './dispatcher.fixture.js'
+import { done, pause, setup, task } from './dispatcher.fixture.js'
 
 const twoProjects = (options: Parameters<typeof setup>[0] = {}) => {
   const run = setup({ parallel: 2, ...options })
@@ -41,7 +41,7 @@ describe('Dispatcher with parallel chains', () => {
     dispatcher.start('XYZ')
     await dispatcher.idle()
 
-    dispatcher.pause('ABC')
+    pause(dispatcher, 'ABC')
     dispatcher.setTasks('ABC', [task('ABC-1', done), task('ABC-2')])
     await dispatcher.idle()
     expect(dispatcher.state.active.map((chain) => chain.paused)).toEqual([true, false])

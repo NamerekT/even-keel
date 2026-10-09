@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { englishOf, notice, textNotice } from '../notice/notice.js'
 import type { Task } from '../tracker/model.js'
-import { active, backlog, canceled, done, review, setup, task, todo, type SetupOptions } from './dispatcher.fixture.js'
+import { active, backlog, canceled, done, pause, review, setup, task, todo, type SetupOptions } from './dispatcher.fixture.js'
 import { emptyChainState, type ChainState, type Dispatcher } from './dispatcher.js'
 import type { LimitedSession } from './relay.js'
 import { DEFAULT_RULES } from './rules.js'
@@ -193,7 +193,7 @@ describe('Dispatcher', () => {
     dispatcher.start('ABC')
     await dispatcher.idle()
 
-    dispatcher.pause('ABC')
+    pause(dispatcher, 'ABC')
     dispatcher.setTasks('ABC', [task('ABC-2')])
     await dispatcher.idle()
     expect(launched).toEqual(['ABC/ABC-1'])
@@ -227,7 +227,7 @@ describe('Dispatcher', () => {
 
     options.blocked = undefined
     dispatcher.start('ABC')
-    dispatcher.pause('ABC')
+    pause(dispatcher, 'ABC')
     options.blocked = 'claude: sign-in is in progress'
     expect(() => dispatcher.resume('ABC')).toThrow('claude: sign-in is in progress')
     expect(dispatcher.state.active[0]).toMatchObject({ paused: true })
@@ -398,7 +398,7 @@ describe('Dispatcher', () => {
     first.dispatcher.start('ABC')
     first.dispatcher.start('XYZ')
     await first.dispatcher.idle()
-    first.dispatcher.pause('ABC')
+    pause(first.dispatcher, 'ABC')
     await first.dispatcher.idle()
     const persisted = first.saved.at(-1)
     expect(persisted).toEqual(first.dispatcher.state)
@@ -599,7 +599,7 @@ describe('Dispatcher on a limit', () => {
   it('hands over when the account was switched on a paused chain before the limit was noted', async () => {
     const accountAt = (_account: string, at: string) => (at < '2026-09-26T12:03:00.000Z' ? 'john@example.com' : 'jane@example.com')
     const { dispatcher, limited, clock, relays, account } = await running({ accountAt })
-    dispatcher.pause('ABC')
+    pause(dispatcher, 'ABC')
     limited['ABC-1'] = limitedSession('session-1', '2026-09-26T12:00:00.000Z', '2026-09-26T11:59:00.000Z')
     account.id = 'jane@example.com'
     clock.now = new Date('2026-09-26T12:05:00Z')
@@ -649,7 +649,7 @@ describe('Dispatcher on a limit', () => {
   it('leaves a paused chain alone', async () => {
     const { dispatcher, limited, clock, relays } = await running()
     limited['ABC-1'] = limitedSession('session-1', '2026-09-26T12:00:00.000Z', '2026-09-26T11:59:00.000Z')
-    dispatcher.pause('ABC')
+    pause(dispatcher, 'ABC')
     clock.now = new Date('2026-09-26T16:00:00Z')
     await check(dispatcher)
     expect(relays).toEqual([])

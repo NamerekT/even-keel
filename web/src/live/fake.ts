@@ -544,7 +544,7 @@ function accountCommand(account: AccountView, name: string, body: Record<string,
 
 function fakeCommand(state: EvenKeelState, name: string, body: Record<string, unknown>, launches: LaunchEntry[]): EvenKeelState {
   if (name === 'chain/start') return startChain(state, String(body.project), launches)
-  if (name === 'chain/pause' || name === 'chain/resume') return setPaused(state, String(body.project), name === 'chain/pause')
+  if (name === 'chain/resume') return setPaused(state, String(body.project), false)
   if (name === 'chain/stop') return stopChain(state, String(body.project), launches)
   if (name === 'chain/queue') return requeue(state, body.order as string[])
   if (name === 'chain/dequeue') return dequeue(state, String(body.project))

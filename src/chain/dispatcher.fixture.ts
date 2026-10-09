@@ -15,6 +15,14 @@ export const canceled: TaskStatus = { name: 'Canceled', category: 'Lost' }
 
 export const task = (id: string, status: TaskStatus = todo, ...blockedBy: string[]): Task => fakeTask(id, { status, blockedBy })
 
+/** Puts a chain into the state the dispatcher itself sets after an error. */
+export function pause(dispatcher: Dispatcher, project: string): void {
+  const chain = dispatcher.state.active.find((candidate) => candidate.project === project)
+  if (chain === undefined) throw new Error(`no active chain ${project}`)
+  chain.paused = true
+  dispatcher['changed']()
+}
+
 export interface SetupOptions {
   state?: ChainState
   failLaunch?: string

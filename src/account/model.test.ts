@@ -196,7 +196,7 @@ describe('loginBlock', () => {
 describe('loginBlockNotice', () => {
   it('names the running chain first, then the busy sessions', () => {
     expect(say(loginBlockNotice({ chains: ['ABC'], sessions: [] }))).toBe(
-      'claude: chain ABC is running; pause it before switching the account',
+      'claude: chain ABC is running; stop it before switching the account',
     )
     expect(
       say(
