@@ -1102,7 +1102,7 @@ a:focus-visible {
   flex-wrap: wrap;
   align-items: center;
   gap: 8px 12px;
-  margin-left: auto;
+  flex-basis: 100%;
 }
 
 .project__queue {

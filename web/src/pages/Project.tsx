@@ -146,22 +146,25 @@ function ChainControls({ state, project }: { state: EvenKeelState; project: stri
   const error = (status.kind === 'paused' ? status.error : null) ?? failure
   const after = queuedAfter(state.chain, project)
 
-  const button = (label: string, name: string, primary = false) => (
+  const active = status.kind === 'running' || status.kind === 'paused'
+  const button = (label: string, name: string, enabled: boolean, primary = false) => (
     <button
       type="button"
       className={primary ? 'button button--primary' : 'button'}
-      disabled={sending}
+      disabled={sending || !enabled}
       onClick={() => void send(`chain/${name}`, { project })}
     >
       {label}
     </button>
   )
 
+  // Both buttons stay in place whatever the status, so a repeated click never lands on the other one.
   return (
     <div className="project__controls">
-      {canStart && button(startsNow(state.chain) ? t.project.start : t.project.enqueue, 'start', true)}
-      {status.kind === 'paused' && button(t.project.resume, 'resume', true)}
-      {(status.kind === 'running' || status.kind === 'paused') && button(t.project.stop, 'stop')}
+      {active
+        ? button(t.project.resume, 'resume', status.kind === 'paused', true)
+        : button(startsNow(state.chain) ? t.project.start : t.project.enqueue, 'start', canStart, true)}
+      {button(t.project.stop, 'stop', active)}
       {after !== null && <span className="project__queue">{t.project.after(after)}</span>}
       {status.kind === 'running' && status.limitUntil !== null && (
         <p className="project__wait">{limitWaitText(status.limitUntil, new Date())}</p>

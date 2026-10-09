@@ -85,16 +85,17 @@ export function ChainList({ project, chain, scale, trackerUrls, focus, onCard }:
     <div className="chain">
       {(archive.hidden > 0 || archive.shown > 0) && (
         <div className="chain__buttons">
-          {archive.hidden > 0 && (
-            <button type="button" className="button" onClick={() => setPages(Math.ceil(archive.shown / ARCHIVE_PAGE) + 1)}>
-              {archive.shown === 0 ? t.chain.archive(archive.hidden) : t.chain.loadMore(archive.next, archive.hidden)}
-            </button>
-          )}
-          {archive.shown > 0 && (
-            <button type="button" className="button" onClick={collapseArchive}>
-              {t.chain.foldArchive}
-            </button>
-          )}
+          <button type="button" className="button" disabled={archive.shown === 0} onClick={collapseArchive}>
+            {t.chain.foldArchive}
+          </button>
+          <button
+            type="button"
+            className="button"
+            disabled={archive.hidden === 0}
+            onClick={() => setPages(Math.ceil(archive.shown / ARCHIVE_PAGE) + 1)}
+          >
+            {archive.shown === 0 || archive.hidden === 0 ? t.chain.archive(archive.hidden) : t.chain.loadMore(archive.next, archive.hidden)}
+          </button>
         </div>
       )}
       <div ref={listRef} className={listClass(drag !== null, landing !== null)}>
@@ -127,16 +128,17 @@ export function ChainList({ project, chain, scale, trackerUrls, focus, onCard }:
         <div className="chain__next">
           {view.next !== null && <Milestone section={view.next} hidden />}
           <div className="chain__buttons">
-            {view.next !== null && (
-              <button type="button" className="button chain__reveal" onClick={() => setRevealed(view.revealed + 1)}>
-                {t.chain.nextMilestone}
-              </button>
-            )}
-            {view.revealed > 0 && (
-              <button type="button" className="button" onClick={collapseMilestones}>
-                {t.chain.foldMilestones}
-              </button>
-            )}
+            <button type="button" className="button" disabled={view.revealed === 0} onClick={collapseMilestones}>
+              {t.chain.foldMilestones}
+            </button>
+            <button
+              type="button"
+              className="button chain__reveal"
+              disabled={view.next === null}
+              onClick={() => setRevealed(view.revealed + 1)}
+            >
+              {t.chain.nextMilestone}
+            </button>
           </div>
         </div>
       )}
