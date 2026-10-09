@@ -79,6 +79,11 @@
 
 html {
   -webkit-text-size-adjust: 100%;
+  scrollbar-gutter: stable;
+}
+
+html:has(dialog:modal) {
+  overflow: hidden;
 }
 
 body {
@@ -501,6 +506,7 @@ h1 {
   width: min(380px, calc(100% - 2 * var(--gutter)));
   max-height: calc(100dvh - var(--header-height) - 24px);
   overflow-y: auto;
+  overscroll-behavior: contain;
   padding: 14px;
   background: var(--surface);
   border: 1px solid var(--border);
@@ -519,6 +525,7 @@ h1 {
   gap: 18px;
   width: min(420px, 100vw);
   overflow-y: auto;
+  overscroll-behavior: contain;
   padding: 16px max(16px, env(safe-area-inset-right)) max(16px, env(safe-area-inset-bottom)) 16px;
   background: var(--surface);
   border-left: 1px solid var(--border);
@@ -909,6 +916,7 @@ h1 {
   max-height: 160px;
   margin: 6px 0 0;
   overflow: auto;
+  overscroll-behavior: contain;
   padding: 8px;
   border-radius: 8px;
   background: var(--surface-muted);
@@ -1994,6 +2002,7 @@ a:focus-visible {
   gap: 12px;
   min-width: 0;
   overflow-y: auto;
+  overscroll-behavior: contain;
   padding: 16px;
   background: var(--surface);
   border: 1px solid var(--border);
@@ -2239,6 +2248,7 @@ a:focus-visible {
   margin: 0;
   padding: 8px 10px;
   overflow-y: auto;
+  overscroll-behavior: contain;
   overflow-anchor: none;
   list-style: none;
   background: var(--surface-muted);
@@ -2377,6 +2387,7 @@ a:focus-visible {
   margin: 0;
   padding: 0;
   overflow-y: auto;
+  overscroll-behavior: contain;
   list-style: none;
   border: 1px solid var(--border);
   border-radius: 8px;
@@ -2452,6 +2463,7 @@ a:focus-visible {
   gap: 12px;
   height: 100%;
   overflow-y: auto;
+  overscroll-behavior: contain;
   padding: 16px;
 }
 
