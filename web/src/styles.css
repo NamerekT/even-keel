@@ -1316,6 +1316,13 @@ a:focus-visible {
 }
 
 .card__backlog {
+  position: relative;
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  margin-left: 10px;
+  vertical-align: -2px;
   color: var(--fg-muted);
   opacity: 0.7;
 }
@@ -1668,6 +1675,31 @@ a:focus-visible {
   color: var(--warn-fg);
 }
 
+.chip--questions {
+  position: relative;
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding-left: 6px;
+  font-variant-numeric: tabular-nums;
+}
+
+.chip--grown {
+  animation: nudge 0.8s ease-out 2;
+}
+
+.icon {
+  flex: none;
+  width: 14px;
+  height: 14px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
 .card__progress {
   display: flex;
   align-items: center;
@@ -1983,6 +2015,12 @@ a:focus-visible {
 @keyframes blink {
   50% {
     opacity: 0.3;
+  }
+}
+
+@keyframes nudge {
+  40% {
+    transform: scale(1.2);
   }
 }
 
@@ -2545,6 +2583,7 @@ a:focus-visible {
 
 @media (prefers-reduced-motion: reduce) {
   .account-toggle--login .queue-toggle__dot,
+  .chip--grown,
   .lamp--working {
     animation: none;
   }

@@ -3,6 +3,7 @@ import type { EvenKeelState } from '../../../src/state.js'
 import { say, t } from '../i18n/index.js'
 import { useCommand } from '../live/useCommand.js'
 import { cardTask, chainProgress, chainStatus, limitWaitText, openQuestions, projectSlot, projectTasks, startsNow } from '../state.js'
+import { StackIcon } from '../ui/icons.js'
 import { Lamp } from '../ui/Lamp.js'
 import { QuestionsChip } from '../ui/QuestionsChip.js'
 import { seriesStyle } from '../ui/series.js'
@@ -26,7 +27,7 @@ export function ProjectCard({ state, project }: { state: EvenKeelState; project:
         <Link to={`/p/${project}`} className="card__key">
           {project}
         </Link>
-        <StatusChip status={status} />
+        {(status.kind === 'paused' || status.kind === 'queued') && <StatusChip status={status} />}
         <QuestionsChip count={openQuestions(projectTasks(state, project))} />
       </header>
 
@@ -43,7 +44,12 @@ export function ProjectCard({ state, project }: { state: EvenKeelState; project:
         </span>
         <span className="card__count">
           <strong>{done}</strong> / {total}
-          {backlog > 0 && <span className="card__backlog"> · {t.project.inBacklog(backlog)}</span>}
+          {backlog > 0 && (
+            <span className="card__backlog" role="img" aria-label={t.project.backlog(backlog)} title={`${t.project.backlog(backlog)}. ${t.project.backlogHint}`}>
+              <StackIcon />
+              {backlog}
+            </span>
+          )}
         </span>
       </div>
 
@@ -52,7 +58,7 @@ export function ProjectCard({ state, project }: { state: EvenKeelState; project:
       ) : (
         <p className="card__task">
           <Lamp lamp={task.lamp} />
-          <span className="card__task-label">{task.next ? t.project.next : t.project.now}</span>
+          {task.next && <span className="card__task-label">{t.project.next}</span>}
           <span className="card__task-id">{task.id}</span>
           {task.title !== null && <span className="card__task-title">{task.title}</span>}
         </p>
