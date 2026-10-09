@@ -93,6 +93,25 @@ export interface CompareSide {
   models: { model: string; share: number }[]
 }
 
+// Tasks of one model family on one side (BTN-75): medians are over closed tasks, cost and counts over all of them.
+export interface FamilySums {
+  tasks: number
+  closed: number
+  cost: number
+  closedCost: number | null
+  closedMinutes: number | null
+  estimated: number
+  ratio: number | null
+}
+
+// family null — the task's main thread ran on no opus, sonnet or haiku model.
+export interface CompareFamily {
+  family: string | null
+  thin: boolean
+  before: FamilySums
+  after: FamilySums
+}
+
 export interface StatsCompare {
   days: number
   thin: boolean
@@ -101,6 +120,7 @@ export interface StatsCompare {
   minSessions: number
   before: CompareSide
   after: CompareSide
+  families: CompareFamily[]
 }
 
 export interface SideSums {
@@ -119,6 +139,7 @@ export interface SideSums {
   over150: number
   requestCost: number
   models: { model: string; requests: number }[]
+  families: (FamilySums & { family: string | null })[]
 }
 
 export interface ScopePlaces {
@@ -331,6 +352,7 @@ export function compareOf(
     over150: 0,
     requestCost: 0,
     models: [],
+    families: [],
   }
   const before = sums.before ?? empty
   const after = sums.after ?? empty
@@ -365,7 +387,28 @@ export function compareOf(
     minSessions: settings.minSessions,
     before: side(sides.before, before),
     after: side(sides.after, after),
+    families: familiesOf(before.families, after.families, settings.minTasks),
   }
+}
+
+const FAMILY_ORDER = ['opus', 'sonnet', 'haiku']
+
+function familiesOf(before: SideSums['families'], after: SideSums['families'], minTasks: number): CompareFamily[] {
+  const none: FamilySums = { tasks: 0, closed: 0, cost: 0, closedCost: null, closedMinutes: null, estimated: 0, ratio: null }
+  const of = (list: SideSums['families'], family: string | null): FamilySums => {
+    const found = list.find((each) => each.family === family)
+    if (!found) return none
+    const { family: _, ...sums } = found
+    return sums
+  }
+  const rank = (family: string | null) => (family === null ? FAMILY_ORDER.length + 1 : FAMILY_ORDER.includes(family) ? FAMILY_ORDER.indexOf(family) : FAMILY_ORDER.length)
+  return [...new Set([...before, ...after].map((each) => each.family))]
+    .sort((a, b) => rank(a) - rank(b) || (a ?? '').localeCompare(b ?? ''))
+    .map((family) => {
+      const was = of(before, family)
+      const next = of(after, family)
+      return { family, thin: was.closed < minTasks || next.closed < minTasks, before: was, after: next }
+    })
 }
 
 function modelShares(models: { model: string; requests: number }[]): { model: string; share: number }[] {

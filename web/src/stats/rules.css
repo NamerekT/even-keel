@@ -549,3 +549,37 @@
 .rule-compare__worse {
   color: var(--lamp-error);
 }
+
+.family-compare__title {
+  margin: 8px 0 0;
+  font-size: 14px;
+}
+
+.family-compare th {
+  white-space: normal;
+  vertical-align: bottom;
+}
+
+.family-compare th:first-child,
+.family-compare td:first-child {
+  min-width: 0;
+}
+
+.family-compare .rule-compare__value,
+.family-compare .rule-compare__sample,
+.family-compare .family-compare__nowrap {
+  white-space: nowrap;
+}
+
+.family-compare__first td {
+  border-bottom-style: dashed;
+}
+
+.family-compare__first td:first-child {
+  border-bottom-style: solid;
+}
+
+.rule-compare__sample.family-compare__thin {
+  color: var(--lamp-waiting);
+  cursor: help;
+}

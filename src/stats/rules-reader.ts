@@ -155,6 +155,36 @@ from tasked
 where side is not null
 group by side`
 
+// Tasks as the session audit sees them (view task_estimates, BTN-75): a session gives all its spend to its task,
+// the side is that of the task's first session. Only tasks with a message under the filters of the page.
+// The family is model_family of the view in one pass: the view's own subquery reads audit_sessions once per task.
+const SIDE_FAMILIES = `${SIDED}, own as (
+  select distinct task from picked where task is not null
+), families as (
+  select task, mode() within group (order by substring(model from '(opus|sonnet|haiku)')) as family
+  from audit_sessions
+  where task is not null
+  group by task
+)
+select x.side, f.family, count(*) as tasks, count(*) filter (where e.done) as closed,
+  coalesce(sum(e.cost), 0) as cost,
+  percentile_cont(0.5) within group (order by e.cost) filter (where e.done) as closed_cost,
+  percentile_cont(0.5) within group (order by e.active_min) filter (where e.done) as closed_minutes,
+  count(e.fact_ratio) filter (where e.done) as estimated,
+  percentile_cont(0.5) within group (order by e.fact_ratio) filter (where e.done) as ratio
+from task_estimates e
+join own o on o.task = e.task
+left join families f on f.task = e.task
+cross join sides s
+cross join lateral (
+  select case
+      when e.first_at >= s.b_lo and e.first_at < s.b_hi then 'before'
+      when e.first_at >= s.a_lo and e.first_at < s.a_hi then 'after'
+    end as side
+) x
+where x.side is not null
+group by x.side, f.family`
+
 const IMPORTS = `select id, at, until, precision, sessions, files, purpose, reason, task, source from rule_imports order by at`
 
 const iso = (value: unknown): string => (value instanceof Date ? value.toISOString() : String(value))
@@ -237,8 +267,8 @@ export async function readCompare(db: RulesDb, query: CompareQuery, settings: Co
 // Sums of two arbitrary periods; readCompare uses it.
 export async function readCompareSides(db: RulesDb, filter: StatsFilter & { projects: string[] | null }, sides: CompareSides): Promise<Record<'before' | 'after', SideSums>> {
   const extra = [filter.projects, sides.before.from, sides.before.to, sides.after.from, sides.after.to]
-  const [sessions, entry, tools, tasks, requests, models] = await Promise.all(
-    [SIDE_SESSIONS, SIDE_ENTRY, SIDE_TOOLS, SIDE_TASKS, SIDE_REQUESTS, SIDE_MODELS].map((sql) => db.base(sql, filter, extra)),
+  const [sessions, entry, tools, tasks, requests, models, families] = await Promise.all(
+    [SIDE_SESSIONS, SIDE_ENTRY, SIDE_TOOLS, SIDE_TASKS, SIDE_REQUESTS, SIDE_MODELS, SIDE_FAMILIES].map((sql) => db.base(sql, filter, extra)),
   )
   const pick = (rows: Row[], side: string) => rows.find((row) => row.side === side) ?? {}
   const sums = (side: 'before' | 'after'): SideSums => {
@@ -262,6 +292,18 @@ export async function readCompareSides(db: RulesDb, filter: StatsFilter & { proj
       over150: Number(r.over150 ?? 0),
       requestCost: Number(r.request_cost ?? 0),
       models: models!.filter((row) => row.side === side).map((row) => ({ model: String(row.model), requests: Number(row.requests) })),
+      families: families!
+        .filter((row) => row.side === side)
+        .map((row) => ({
+          family: row.family === null ? null : String(row.family),
+          tasks: Number(row.tasks),
+          closed: Number(row.closed),
+          cost: Number(row.cost),
+          closedCost: maybe(row.closed_cost),
+          closedMinutes: maybe(row.closed_minutes),
+          estimated: Number(row.estimated),
+          ratio: maybe(row.ratio),
+        })),
     }
   }
   return { before: sums('before'), after: sums('after') }

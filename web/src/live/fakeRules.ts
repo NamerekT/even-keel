@@ -270,6 +270,28 @@ export function fakeCompare(mode: string | null, rules: string | null, query: Co
         { model: 'claude-sonnet-5', share: 0.03 },
       ]),
       after: side(after, Math.min(after + days * DAY, Date.now()), [11, 19, 6.1, 0.11, 0.038, 43_900], [131_000, 0.33, 0.104], [{ model: 'claude-opus-5-5', share: 1 }]),
+      families: thin
+        ? []
+        : [
+            {
+              family: 'opus',
+              thin: false,
+              before: { tasks: 9, closed: 8, cost: 68.4, closedCost: 7.05, closedMinutes: 17.7, estimated: 0, ratio: null },
+              after: { tasks: 8, closed: 7, cost: 51.2, closedCost: 5.29, closedMinutes: 16.2, estimated: 6, ratio: 0.16 },
+            },
+            {
+              family: 'sonnet',
+              thin: true,
+              before: { tasks: 0, closed: 0, cost: 0, closedCost: null, closedMinutes: null, estimated: 0, ratio: null },
+              after: { tasks: 3, closed: 3, cost: 2.1, closedCost: 0.65, closedMinutes: 2.6, estimated: 2, ratio: 0.08 },
+            },
+            {
+              family: null,
+              thin: true,
+              before: { tasks: 1, closed: 0, cost: 0.4, closedCost: null, closedMinutes: null, estimated: 0, ratio: null },
+              after: { tasks: 0, closed: 0, cost: 0, closedCost: null, closedMinutes: null, estimated: 0, ratio: null },
+            },
+          ],
     },
   }
 }

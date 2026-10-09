@@ -162,6 +162,7 @@ describe('compareOf', () => {
     over150: 100,
     requestCost: 36,
     models: [],
+    families: [],
   }
   const sides = { before: { from: '2026-09-03T00:00:00Z', to: '2026-09-10T00:00:00Z' }, after: { from: '2026-09-12T00:00:00Z', to: '2026-09-19T00:00:00Z' } }
 
@@ -200,6 +201,20 @@ describe('compareOf', () => {
     const result = compareOf(sides, { before: side }, { minTasks: 5, minSessions: 10, days: 7 })
     expect(result.after).toMatchObject({ tasks: 0, sessions: 0, from: '2026-09-12T00:00:00Z' })
     expect(result.thin).toBe(true)
+    expect(result.families).toEqual([])
+  })
+
+  it('splits tasks by model family, keeps the numbers of a thin family and marks it', () => {
+    const family = (name: string | null, closed: number) => ({ family: name, tasks: closed + 1, closed, cost: 30, closedCost: 4.5, closedMinutes: 40, estimated: closed, ratio: 1.2 })
+    const result = compareOf(
+      sides,
+      { before: { ...side, families: [family('sonnet', 6), family(null, 1), family('opus', 8)] }, after: { ...side, families: [family('opus', 5), family('haiku', 2)] } },
+      { minTasks: 5, minSessions: 10, days: 7 },
+    )
+    expect(result.families.map((each) => each.family)).toEqual(['opus', 'sonnet', 'haiku', null])
+    expect(result.families[0]).toMatchObject({ thin: false, before: { tasks: 9, closed: 8, closedCost: 4.5 }, after: { closed: 5, ratio: 1.2 } })
+    expect(result.families[1]).toMatchObject({ thin: true, before: { closed: 6, closedMinutes: 40 }, after: { tasks: 0, closed: 0, cost: 0, closedCost: null, ratio: null } })
+    expect(result.families[2]!.thin).toBe(true)
   })
 })
 
