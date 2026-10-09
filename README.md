@@ -129,7 +129,7 @@ Without a service, on any system:
 npm start
 ```
 
-and open `http://localhost:4747`. Open a project, press **Start**: the chain takes its first task. Other projects can be queued after it.
+and open `http://localhost:4747`. Open a project, press **Start**: the chain takes its first task. Other projects can be queued after it. The page can be installed as an app (the install button in the address bar of Chrome or Edge) and then opens in its own window; browsers offer this on `localhost` or over HTTPS only.
 
 To answer sessions from your phone, turn on Remote Control at startup in `/config` of Claude Code; the page links each session's Remote Control.
 
