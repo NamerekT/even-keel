@@ -7,6 +7,7 @@ import { slotOccupants } from './occupants.js'
 const slot = join(tmpdir(), 'abc', '.claude', 'worktrees', 'even-keel')
 const agent = (sessionId: string, extra: Partial<AgentEntry> = {}): AgentEntry => ({
   id: `agent-${sessionId}`,
+  pid: 100,
   cwd: slot,
   kind: 'bg',
   startedAt: 0,
@@ -39,6 +40,15 @@ describe('slotOccupants', () => {
       agent('s8', { state: 'stopped' }),
       agent('s8', { state: 'failed', status: 'busy' }),
       agent('s6', { id: undefined }),
+    ]
+    expect(slotOccupants(agents, owners, slot, 'ABC-7')).toEqual({ idle: [], busy: [] })
+  })
+
+  it('leaves out sessions with no live process, whatever state the agent list still shows for them', () => {
+    const agents = [
+      agent('s6', { pid: undefined, state: 'done' }),
+      agent('s8', { pid: undefined, state: 'working' }),
+      agent('s6', { pid: undefined, state: 'blocked' }),
     ]
     expect(slotOccupants(agents, owners, slot, 'ABC-7')).toEqual({ idle: [], busy: [] })
   })

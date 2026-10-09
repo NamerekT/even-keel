@@ -386,6 +386,7 @@ async function stopTaskSessions(repo: string, task: string, count: number): Prom
   const idle = agents.filter(
     (agent) =>
       agent.id !== undefined &&
+      agent.pid !== undefined &&
       (isInside(agent.cwd, taskPlace(repo, task).path) || (slots.some((slot) => isInside(agent.cwd, slot)) && own.has(agent.sessionId))) &&
       agent.status !== 'busy' &&
       agent.status !== 'waiting' &&
