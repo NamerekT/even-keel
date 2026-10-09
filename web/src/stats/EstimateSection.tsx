@@ -28,9 +28,17 @@ export function EstimateSection({ tasks }: { tasks: StatsTaskRow[] }) {
           {t.stats.estimate.done(result.done)}
         </Tile>
         <Tile label={t.stats.estimate.within} value={formatShare(result.within)}>
+          {result.within2 !== null && `${t.stats.estimate.within2(formatShare(result.within2))} · `}
           {t.stats.estimate.compared(result.compared)}
           {skipped.length > 0 && ` · ${skipped.join(' · ')}`}
         </Tile>
+        {result.baseline && (
+          <Tile label={t.stats.estimate.baseline} value={formatShare(result.baseline.within)}>
+            <span title={t.stats.estimate.baselineTitle}>
+              {t.stats.estimate.baselineNote} · {t.stats.estimate.within2(formatShare(result.baseline.within2))}
+            </span>
+          </Tile>
+        )}
         <Tile label={t.stats.estimate.ratio} value={formatRatio(result.ratio)}>
           {ratioNote(result.ratio)}
         </Tile>
@@ -65,6 +73,12 @@ function Breakdown({ title, groups, label }: { title: string; groups: AccuracyGr
             <th scope="col" className="tasks__num" title={t.stats.estimate.withinTitle}>
               ×1.5
             </th>
+            <th scope="col" className="tasks__num" title={t.stats.estimate.within2Title}>
+              ×2
+            </th>
+            <th scope="col" className="tasks__num" title={t.stats.estimate.baselineTitle}>
+              {t.stats.estimate.baselineColumn}
+            </th>
             <th scope="col" className="tasks__num" title={t.stats.estimate.medianTitle}>
               {t.stats.estimate.medianColumn}
             </th>
@@ -76,6 +90,8 @@ function Breakdown({ title, groups, label }: { title: string; groups: AccuracyGr
               <td>{label(group.key)}</td>
               <td className="tasks__num">{group.tasks}</td>
               <td className="tasks__num">{formatShare(group.within)}</td>
+              <td className="tasks__num">{formatShare(group.within2)}</td>
+              <td className="tasks__num">{formatShare(group.baseline.within)}</td>
               <td className="tasks__num">{formatRatio(group.ratio)}</td>
             </tr>
           ))}
