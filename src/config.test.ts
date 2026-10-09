@@ -19,7 +19,7 @@ describe('parseConfig', () => {
       context: { window: 600_000, warn: 50, danger: 80 },
       model: 'opus',
       modelPrompts: {},
-      stats: { compare: { minTasks: 5, minSessions: 10, days: 7 } },
+      stats: { compare: { minTasks: 5, minSessions: 10, days: 7 }, moves: {}, otherBelow: 0 },
       language: null,
       promptLanguage: 'en',
       hiddenSkills: DEFAULT_HIDDEN_SKILLS,
@@ -187,7 +187,23 @@ describe('parseConfig', () => {
   })
 
   it('fills the missing parts of the before and after comparison', () => {
-    expect(parseConfig({ projects: {}, stats: { compare: { days: 14 } } }).stats).toEqual({ compare: { minTasks: 5, minSessions: 10, days: 14 } })
+    expect(parseConfig({ projects: {}, stats: { compare: { days: 14 } } }).stats).toEqual({
+      compare: { minTasks: 5, minSessions: 10, days: 14 },
+      moves: {},
+      otherBelow: 0,
+    })
+  })
+
+  it('reads folder moves and the cost below which a folder goes to Other', () => {
+    const stats = { moves: { 'D:/Old/tool': 'D:/New/tool' }, otherBelow: 25.5 }
+    expect(parseConfig({ projects: {}, stats }).stats).toMatchObject(stats)
+  })
+
+  it('rejects an empty move path and a negative or non-number Other threshold', () => {
+    expect(() => parseConfig({ projects: {}, stats: { moves: { 'D:/Old': '' } } })).toThrow(/stats.moves/)
+    expect(() => parseConfig({ projects: {}, stats: { moves: ['D:/Old'] } })).toThrow(/stats.moves/)
+    expect(() => parseConfig({ projects: {}, stats: { otherBelow: -1 } })).toThrow(/stats.otherBelow/)
+    expect(() => parseConfig({ projects: {}, stats: { otherBelow: '5' } })).toThrow(/stats.otherBelow/)
   })
 
   it('rejects comparison thresholds that are not positive integers', () => {
@@ -246,7 +262,7 @@ describe('reloading the config', () => {
 
   it('applies new chain rules, the default model and model prompts at once', () => {
     const next = parseConfig({ chain: { requiredLabels: ['Auto'] }, projects: { ABC: 'C:\\abc' }, model: 'sonnet', modelPrompts: { opus: 'New.' } })
-    const live = liveConfig(base, { ...next, stats: { compare: { minTasks: 3, minSessions: 6, days: 7 } } })
+    const live = liveConfig(base, { ...next, stats: { compare: { minTasks: 3, minSessions: 6, days: 7 }, moves: {}, otherBelow: 0 } })
     expect(live.rules.ABC?.requiredLabels).toEqual(['Auto'])
     expect(live.model).toBe('sonnet')
     expect(live.modelPrompts).toEqual({ opus: 'New.' })

@@ -166,4 +166,6 @@ export const en = {
   'config.compareKey': (p: { key: string }) => `config: stats.compare.${p.key} is not a comparison setting`,
   'config.compareValue': (p: { key: string; limit: number; value: string }) =>
     `config: stats.compare.${p.key} must be an integer in 1..${p.limit}, got ${p.value}`,
+  'config.statsMove': (p: { from: string }) => `config: stats.moves needs a non-empty old and new folder, got "${p.from}"`,
+  'config.otherBelow': (p: { value: string }) => `config: stats.otherBelow must be a number of dollars from 0, got ${p.value}`,
 }

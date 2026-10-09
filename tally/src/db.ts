@@ -62,6 +62,16 @@ export interface StoredChange extends RuleChange {
 }
 
 export const SCHEMA = readFileSync(new URL('./schema.sql', import.meta.url), 'utf8')
+
+export const SESSION_FOLDERS = `
+update sessions s set project_dir = (
+  select m.project_dir from messages m
+  where m.session_id = s.session_id and m.project_dir is not null
+  order by m.at, m.message_id
+  limit 1
+)
+where s.project_dir is null
+  and exists (select 1 from messages m where m.session_id = s.session_id and m.project_dir is not null)`
 const LOCK_KEY = 'tally-collector'
 
 export class TallyDb implements Store {
@@ -333,6 +343,11 @@ export class TallyDb implements Store {
          and (s.launch_task is distinct from x.task or s.launch_reason is distinct from x.reason)`,
       [JSON.stringify(rows)],
     )
+    return result.rowCount ?? 0
+  }
+
+  async fillSessionFolders(): Promise<number> {
+    const result = await this.client.query(SESSION_FOLDERS)
     return result.rowCount ?? 0
   }
 

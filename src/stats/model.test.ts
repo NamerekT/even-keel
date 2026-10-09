@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { folderGroups, isTaskId, parsePeriodQuery, parseStatsFilter, readerSettings, repoTail, SCRATCH_GROUP } from './model.js'
+import { folderGroups, isTaskId, OTHER_GROUP, parsePeriodQuery, parseStatsFilter, readerSettings, repoTail, SCRATCH_GROUP } from './model.js'
 
 describe('parseStatsFilter', () => {
   it('defaults to every session of every account in UTC', () => {
@@ -61,7 +61,8 @@ describe('repoTail', () => {
 })
 
 describe('folderGroups', () => {
-  const folder = (raw: string) => ({ dir: repoTail(raw), raw })
+  const folder = (raw: string, cost = 100) => ({ dir: repoTail(raw), raw, cost })
+  const example = [{ key: 'EX', dir: '/work/git/example' }]
 
   it('puts a folder under the outermost seen folder that holds it, named as written', () => {
     const groups = folderGroups([folder('D:\\Work\\Tools\\forge\\backups'), folder('D:\\Work\\Tools'), folder('D:\\Work\\Tools\\forge')], [])
@@ -73,7 +74,7 @@ describe('folderGroups', () => {
   })
 
   it('never groups under a one-level folder or a folder holding an Even Keel project', () => {
-    const groups = folderGroups([folder('D:\\Work'), folder('D:\\Work\\alpha'), folder('D:\\Work\\git'), folder('D:\\Work\\git\\side')], ['/work/git/example'])
+    const groups = folderGroups([folder('D:\\Work'), folder('D:\\Work\\alpha'), folder('D:\\Work\\git'), folder('D:\\Work\\git\\side')], example)
     expect(Object.fromEntries(groups)).toEqual({ '/work': 'Work', '/work/alpha': 'alpha', '/work/git': 'git', '/work/git/side': 'side' })
   })
 
@@ -84,6 +85,50 @@ describe('folderGroups', () => {
 
   it('names a group by its last segment even with a trailing slash', () => {
     expect(folderGroups([folder('D:/Work/Example/')], []).get('/work/example')).toBe('Example')
+  })
+
+  it('gives the folders of an Even Keel project and of its old sibling worktrees its key', () => {
+    const groups = folderGroups(
+      [folder('D:\\Work\\git\\example'), folder('D:\\Work\\git\\example\\src'), folder('D:\\Work\\git\\Example-ex12'), folder('D:\\Work\\git\\example-ex-3\\docs')],
+      example,
+    )
+    expect([...groups.values()]).toEqual(['EX', 'EX', 'EX', 'EX'])
+  })
+
+  it('keeps a sibling folder that is not a worktree name on its own', () => {
+    expect(folderGroups([folder('D:\\Work\\git\\example-server')], example).get('/work/git/example-server')).toBe('example-server')
+  })
+
+  it('reads a moved folder, its subfolders and sibling worktrees as the new place', () => {
+    const moves = { 'D:/Old/Tool': 'E:/Work/git/example', 'D:/Old/Infra': 'D:/Admin' }
+    const groups = folderGroups(
+      [folder('D:\\Old\\Tool'), folder('D:\\Old\\Tool-ex-7\\.temp'), folder('D:\\Old\\Infra'), folder('D:\\Old\\Infra\\nginx'), folder('D:\\Admin\\backups')],
+      example,
+      moves,
+    )
+    expect(Object.fromEntries(groups)).toEqual({
+      '/old/tool': 'EX',
+      '/old/tool-ex-7/.temp': 'EX',
+      '/old/infra': 'Admin',
+      '/old/infra/nginx': 'Admin',
+      '/admin/backups': 'Admin',
+    })
+  })
+
+  it('folds groups that cost less than the threshold in all, but never an Even Keel project', () => {
+    const groups = folderGroups(
+      [folder('D:\\Work\\Big', 60), folder('D:\\Docs\\notes', 20), folder('D:\\Docs\\notes\\a', 20), folder('D:\\Work\\tiny', 5), folder('D:\\Work\\git\\example', 1)],
+      example,
+      {},
+      50,
+    )
+    expect(Object.fromEntries(groups)).toEqual({
+      '/work/big': 'Big',
+      '/docs/notes': OTHER_GROUP,
+      '/docs/notes/a': OTHER_GROUP,
+      '/work/tiny': OTHER_GROUP,
+      '/work/git/example': 'EX',
+    })
   })
 })
 

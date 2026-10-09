@@ -64,6 +64,7 @@ export async function collect(settings: DbSettings, root: string, log: Log): Pro
     }
     const forgotten = sources.length > 0 ? await db.forgetFilesExcept(sources.map((source) => source.path)) : 0
     const relabeled = await db.syncLaunches(launches)
+    await db.fillSessionFolders()
     const snapshots = await db.addSnapshots(await limitSnapshots(config.evenKeelUrl, stateDir, homes, log))
     const versions = await snapshotRules(db, ruleFiles, new Date())
     const history = await collectRuleHistory(db, homes.list(), projects, homedir(), log)

@@ -17,6 +17,7 @@ import { folderGroups, repoTail } from './model.js'
 import { readCompare, readRuleDiff, readRules, type RulesDb } from './rules-reader.js'
 import { readSteps, readTaskSteps } from './steps-reader.js'
 import type { StatsSteps, StatsTaskStep } from './steps.js'
+import type { StatsConfig } from '../config.js'
 import type { CompareQuery, CompareSettings, RuleDiffFile, RulesQuery, StatsCompare, StatsRules } from './rules.js'
 
 const CACHE_MS = 60_000
@@ -56,8 +57,9 @@ where span = '7d' and ($2::text is null or account = $2::text)
 order by account, resets_at`
 
 const FOLDERS = `
-select lower(regexp_replace(replace(project_dir, '\\', '/'), '^[a-zA-Z]:', '')) as dir, min(project_dir) as raw
-from messages
+select lower(regexp_replace(replace(project_dir, '\\', '/'), '^[a-zA-Z]:', '')) as dir, min(project_dir) as raw,
+  coalesce(sum(cost), 0) as cost
+from message_costs
 where project_dir is not null
 group by 1`
 
@@ -310,12 +312,12 @@ export class StatsReader {
   private readonly cache = new Map<string, { at: number; answer: StatsAnswer<unknown> }>()
   private readonly keys: string[]
   private readonly dirs: string[]
-  private folders: { at: number; groups: Promise<Folders> } | null = null
+  private folders: { at: number; key: string; groups: Promise<Folders> } | null = null
 
   constructor(
     settings: ReaderSettings | string | Promise<ReaderSettings>,
     projects: Record<string, string>,
-    private readonly compareSettings: () => CompareSettings,
+    private readonly statsConfig: () => StatsConfig,
   ) {
     this.pool = Promise.resolve(settings).then((each) => {
       if (typeof each === 'string') return `${each} not set in .env`
@@ -370,7 +372,7 @@ export class StatsReader {
   }
 
   rules(query: RulesQuery): Promise<StatsAnswer<StatsRules>> {
-    const settings = this.compareSettings()
+    const settings = this.statsConfig().compare
     return this.cached(rulesKey(query, settings), (pool) => readRules(this.db(pool), query, settings))
   }
 
@@ -379,7 +381,7 @@ export class StatsReader {
   }
 
   compare(query: CompareQuery): Promise<StatsAnswer<StatsCompare>> {
-    const settings = this.compareSettings()
+    const settings = this.statsConfig().compare
     const key = `compare|${query.scope}|${query.account}|${query.projects?.join(',') ?? '*'}|${query.before}|${query.after}|${query.days}|${JSON.stringify(settings)}`
     return this.cached(key, (pool) => readCompare(this.db(pool), query, settings))
   }
@@ -405,12 +407,16 @@ export class StatsReader {
   }
 
   private groups(pool: pg.Pool): Promise<Folders> {
-    if (this.folders !== null && Date.now() - this.folders.at < CACHE_MS) return this.folders.groups
-    const groups = pool.query<{ dir: string; raw: string }>(FOLDERS).then((result) => {
-      const found = folderGroups(result.rows, this.dirs)
+    const { moves, otherBelow } = this.statsConfig()
+    const key = JSON.stringify([moves, otherBelow])
+    if (this.folders !== null && this.folders.key === key && Date.now() - this.folders.at < CACHE_MS) return this.folders.groups
+    const tracked = this.keys.map((each, index) => ({ key: each, dir: this.dirs[index]! }))
+    const groups = pool.query<{ dir: string; raw: string; cost: string | number }>(FOLDERS).then((result) => {
+      const folders = result.rows.map((row) => ({ dir: row.dir, raw: row.raw, cost: Number(row.cost) }))
+      const found = folderGroups(folders, tracked, moves, otherBelow)
       return { dirs: [...found.keys()], labels: [...found.values()] }
     })
-    this.folders = { at: Date.now(), groups }
+    this.folders = { at: Date.now(), key, groups }
     groups.catch(() => (this.folders = null))
     return groups
   }

@@ -34,6 +34,10 @@ export interface EvenKeelConfig {
 
 export interface StatsConfig {
   compare: CompareSettings
+  /** Old folder → new folder: sessions in the old one count where it lives now. */
+  moves: Record<string, string>
+  /** A folder group costing less than this in all goes to Other on /stats. */
+  otherBelow: number
 }
 
 const PROJECT_KEY = /^[A-Z][A-Z0-9_]{0,4}$/
@@ -213,9 +217,20 @@ function parseContext(raw: unknown): ContextScale {
 }
 
 function parseStats(raw: unknown): StatsConfig {
-  if (raw === undefined) return { compare: { ...DEFAULT_COMPARE } }
+  if (raw === undefined) return { compare: { ...DEFAULT_COMPARE }, moves: {}, otherBelow: 0 }
   if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) throw fail('config.notObject', { where: 'stats' })
-  const compare = (raw as { compare?: unknown }).compare ?? {}
+  const { compare = {}, moves = {}, otherBelow = 0 } = raw as { compare?: unknown; moves?: unknown; otherBelow?: unknown }
+  if (typeof moves !== 'object' || moves === null || Array.isArray(moves)) throw fail('config.notObject', { where: 'stats.moves' })
+  for (const [from, to] of Object.entries(moves)) {
+    if (from.trim() === '' || typeof to !== 'string' || to.trim() === '') throw fail('config.statsMove', { from })
+  }
+  if (typeof otherBelow !== 'number' || !Number.isFinite(otherBelow) || otherBelow < 0) {
+    throw fail('config.otherBelow', { value: String(JSON.stringify(otherBelow)) })
+  }
+  return { compare: parseCompare(compare), moves: moves as Record<string, string>, otherBelow }
+}
+
+function parseCompare(compare: unknown): CompareSettings {
   if (typeof compare !== 'object' || compare === null || Array.isArray(compare)) throw fail('config.notObject', { where: 'stats.compare' })
   const settings = { ...DEFAULT_COMPARE }
   for (const [key, value] of Object.entries(compare)) {
@@ -226,7 +241,7 @@ function parseStats(raw: unknown): StatsConfig {
     }
     settings[key as keyof CompareSettings] = value
   }
-  return { compare: settings }
+  return settings
 }
 
 export function loadConfig(file: string): EvenKeelConfig {

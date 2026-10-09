@@ -71,6 +71,8 @@ create table if not exists sessions (
   first_at timestamptz,
   last_at timestamptz
 );
+-- The folder of the first answer: the session counts there on /stats even after cd elsewhere.
+alter table sessions add column if not exists project_dir text;
 
 create table if not exists limit_snapshots (
   account text not null,

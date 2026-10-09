@@ -159,4 +159,6 @@ export const noticesRu: NoticeTexts = {
   'config.contextPercents': () => 'context.warn и context.danger должны быть процентами, 0 < warn < danger <= 100',
   'config.compareKey': (p) => `stats.compare.${p.key} — не настройка сравнения`,
   'config.compareValue': (p) => `stats.compare.${p.key} должен быть целым в 1..${p.limit}, а не ${p.value}`,
+  'config.statsMove': (p) => `в stats.moves нужны непустые старая и новая папки, а не «${p.from}»`,
+  'config.otherBelow': (p) => `stats.otherBelow должен быть суммой в долларах от 0, а не ${p.value}`,
 }

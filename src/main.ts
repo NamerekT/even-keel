@@ -119,7 +119,7 @@ const tally = new TallyService({
   evenKeelUrl: `http://${['0.0.0.0', '::'].includes(config.host) ? '127.0.0.1' : config.host}:${config.port}`,
   log: (message) => console.log(message),
 })
-const stats = new StatsReader(tally.reader, config.projects, () => configFile.current.stats.compare)
+const stats = new StatsReader(tally.reader, config.projects, () => configFile.current.stats)
 let ledger = loadLedger(accountFile)
 
 const saveAccounts = (next: AccountLedger) => {

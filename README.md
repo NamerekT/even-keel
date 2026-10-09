@@ -193,6 +193,8 @@ On Linux it installs a systemd user unit (`systemctl --user status even-keel`, l
 | `model` | `opus` | model of sessions whose task has no model label: `sonnet`, `opus` or `haiku` |
 | `modelPrompts` | `{}` | text added to the prompt of sessions on `sonnet`, `opus` or `haiku` |
 | `stats.compare` | `{ "minTasks": 5, "minSessions": 10, "days": 7 }` | before/after comparisons on `/stats`: minimum sample and days on each side |
+| `stats.moves` | `{}` | moved folders on `/stats`, `{ "old path": "new path" }`: sessions in the old one count under the new one |
+| `stats.otherBelow` | `0` | folder groups that cost less than this (USD, all time) are shown as one Other row on `/stats` |
 | `language` | the browser's | language of the page: `en` or `ru` |
 | `promptLanguage` | `language`, then `en` | language of the prompts Even Keel sends to sessions |
 | `hiddenSkills` | `update-config`, `loop`, `schedule`, `init` and a few more | bundled skills that trimmed chain sessions get only through `/name` |

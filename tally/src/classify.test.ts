@@ -1,7 +1,9 @@
+import { basename, resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { costRows, DEFAULT_LLM_MODEL, excerptOf, llmSettings, parseChatResponse, parseVerdict } from './classify.js'
 import type { TranscriptEntry } from './stream.js'
 
+const repo = resolve(import.meta.dirname, '..', '..').replace(/[\\/]\.claude[\\/]worktrees[\\/].*$/, '')
 let n = 0
 const at = (second: number) => `2026-10-03T10:00:${String(second).padStart(2, '0')}.000Z`
 
@@ -112,8 +114,8 @@ describe('costRows', () => {
         sessionId: 'c1',
         agentId: null,
         account: 'global',
-        project: 'tally',
-        projectDir: null,
+        project: basename(repo),
+        projectDir: repo,
         task: null,
         branch: null,
         entrypoint: 'tally-classify',

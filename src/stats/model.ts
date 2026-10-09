@@ -179,27 +179,70 @@ export function repoTail(repo: string): string {
 }
 
 export const SCRATCH_GROUP = 'App scratch'
+export const OTHER_GROUP = 'Other'
 
 const SCRATCH = '/claude/scratch-workspaces/'
+// The tail of an old sibling worktree after the folder name: Example-ex12, Example-ex-7.
+const SIBLING = /^-[a-z]+-?\d+((?:\/.*)?)$/
 
 const holds = (outer: string, inner: string) => inner.startsWith(`${outer}/`)
 
-// Groups the folders of messages outside Even Keel projects: a folder goes under the outermost folder seen in
-// the data that holds it, unless that one is a single level deep or holds an Even Keel project folder.
-export function folderGroups(folders: { dir: string; raw: string }[], tracked: string[]): Map<string, string> {
-  const roots = folders.filter(
-    ({ dir }) => !dir.includes(SCRATCH) && dir.split('/').filter(Boolean).length >= 2 && !tracked.some((repo) => holds(dir, repo)),
-  )
-  const groups = new Map<string, string>()
-  for (const folder of folders) {
-    if (folder.dir.includes(SCRATCH)) {
-      groups.set(folder.dir, SCRATCH_GROUP)
-      continue
+// What is left of dir below folder — '' for the folder itself; an old sibling worktree counts as the folder.
+function restUnder(folder: string, dir: string): string | null {
+  if (!dir.startsWith(folder)) return null
+  const tail = dir.slice(folder.length)
+  if (tail === '' || tail.startsWith('/')) return tail
+  return SIBLING.exec(tail)?.[1] ?? null
+}
+
+interface Folder {
+  dir: string
+  raw: string
+}
+
+// Labels every folder of the messages: the key of the Even Keel project holding it (sibling worktrees too), else
+// the outermost folder seen in the data or named as a move target that holds it, unless that one is a single
+// level deep or holds an Even Keel project folder. A moved folder is read at its new place. Groups costing less
+// than otherBelow in all go to Other.
+export function folderGroups(
+  folders: (Folder & { cost: number })[],
+  tracked: { key: string; dir: string }[],
+  moves: Record<string, string> = {},
+  otherBelow = 0,
+): Map<string, string> {
+  const moved = Object.entries(moves)
+    .map(([from, to]) => ({ from: repoTail(from), to: { dir: repoTail(to), raw: to } }))
+    .sort((a, b) => b.from.length - a.from.length)
+  const placeOf = (folder: Folder): Folder => {
+    for (const { from, to } of moved) {
+      const rest = restUnder(from, folder.dir)
+      if (rest !== null) return { dir: `${to.dir}${rest}`, raw: `${to.raw}${rest}` }
     }
-    const root = roots.filter(({ dir }) => holds(dir, folder.dir)).reduce((best, each) => (each.dir.length < best.dir.length ? each : best), folder)
-    groups.set(folder.dir, root.raw.split(/[\\/]/).filter(Boolean).at(-1) ?? root.raw)
+    return folder
   }
-  return groups
+  const keyOf = (dir: string) =>
+    tracked.filter((repo) => restUnder(repo.dir, dir) !== null).sort((a, b) => b.dir.length - a.dir.length)[0]?.key
+  const places = folders.map(placeOf)
+  const deep = places.filter(({ dir }) => !dir.includes(SCRATCH) && dir.split('/').filter(Boolean).length >= 2)
+  const roots = [...deep, ...moved.map(({ to }) => to)].filter(({ dir }) => !tracked.some((repo) => holds(dir, repo.dir)))
+
+  const labels = places.map((place) => {
+    const key = keyOf(place.dir)
+    if (key !== undefined) return { label: key, tracked: true }
+    if (place.dir.includes(SCRATCH)) return { label: SCRATCH_GROUP, tracked: false }
+    const root = roots
+      .filter(({ dir }) => dir === place.dir || holds(dir, place.dir))
+      .reduce((best, each) => (each.dir.length < best.dir.length ? each : best), place)
+    return { label: root.raw.split(/[\\/]/).filter(Boolean).at(-1) ?? root.raw, tracked: false }
+  })
+  const costs = new Map<string, number>()
+  labels.forEach(({ label }, index) => costs.set(label, (costs.get(label) ?? 0) + folders[index]!.cost))
+  return new Map(
+    folders.map((folder, index) => {
+      const { label, tracked } = labels[index]!
+      return [folder.dir, !tracked && costs.get(label)! < otherBelow ? OTHER_GROUP : label]
+    }),
+  )
 }
 
 // null — no server: the service serves its local database itself (src/stats/tally.ts).

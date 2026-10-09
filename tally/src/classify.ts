@@ -1,6 +1,8 @@
+import { resolve } from 'node:path'
 import { describeTool, flatten } from '../../src/sessions/entry.js'
 import type { MessageRow } from './parse.js'
 import { commandOf, streamsOf, type StreamEvent, type TranscriptEntry } from './stream.js'
+import { placeOf } from './task.js'
 
 export const PROMPT_VERSION = 2
 export const DEFAULT_LLM_MODEL = 'google-gemini-3.1-flash-lite'
@@ -113,14 +115,16 @@ export function parseChatResponse(body: unknown): ModelAnswer {
   }
 }
 
+const home = placeOf(resolve(import.meta.dirname, '..', '..'))
+
 export function costRows(sessionId: string, usage: ModelUsage[], account: string, at: string): MessageRow[] {
   return usage.map((item) => ({
     messageId: `tally-classify:${sessionId}:${item.model}`,
     sessionId,
     agentId: null,
     account,
-    project: 'tally',
-    projectDir: null,
+    project: home.project,
+    projectDir: home.dir,
     task: null,
     branch: null,
     entrypoint: 'tally-classify',
