@@ -367,7 +367,6 @@ export const ru = {
     transcriptTitle: 'Транскрипт',
     transcriptDialog: (id: string) => `Транскрипт сессии ${id}`,
     closeTranscript: 'Закрыть транскрипт',
-    refresh: 'Обновить',
     prompt: 'Запрос',
   },
   chain: {

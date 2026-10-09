@@ -722,9 +722,11 @@ export function createFakeSource(search: string): LiveSource {
       await new Promise((resolve) => setTimeout(resolve, 300))
       return current.state === null ? null : fakeRecord(current.state, sessionId)
     },
-    transcript: async (sessionId) => {
+    transcript: async (sessionId, after) => {
       await new Promise((resolve) => setTimeout(resolve, 300))
-      return sessionId.endsWith('999') ? null : fakeTranscript()
+      if (sessionId.endsWith('999')) return null
+      if (after === 0) return fakeTranscript()
+      return [{ at: ago(0), kind: 'tool', text: `Read src/example-${Date.now() % 1000}.ts` }]
     },
     tools: async (project) => {
       await new Promise((resolve) => setTimeout(resolve, 300))

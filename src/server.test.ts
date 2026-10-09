@@ -67,9 +67,9 @@ describe('Even Keel HTTP server', () => {
         if (id === 'bad') throw new Error('sessions: bad is not a session id')
         return id === '0a1b2c3d' ? { sessionId: id } : undefined
       },
-      transcript: async (id) => {
+      transcript: async (id, after) => {
         if (id === 'bad') throw new Error('sessions: bad is not a session id')
-        return id === '0a1b2c3d' ? [{ kind: 'prompt', text: 'ABC-1' }] : undefined
+        return id === '0a1b2c3d' ? [{ kind: 'prompt', text: 'ABC-1' }, { kind: 'text', text: 'On it.' }].slice(after) : undefined
       },
       tools: async (project) => (project === 'ABC' ? { project } : undefined),
       tasks: {
@@ -280,7 +280,12 @@ describe('Even Keel HTTP server', () => {
   it('serves the whole transcript of any session by its id', async () => {
     const found = await fetch(base + '/api/sessions/0a1b2c3d/transcript')
     expect(found.status).toBe(200)
-    expect(await found.json()).toEqual([{ kind: 'prompt', text: 'ABC-1' }])
+    expect(await found.json()).toEqual([
+      { kind: 'prompt', text: 'ABC-1' },
+      { kind: 'text', text: 'On it.' },
+    ])
+    expect(await (await fetch(base + '/api/sessions/0a1b2c3d/transcript?after=1')).json()).toEqual([{ kind: 'text', text: 'On it.' }])
+    expect(await (await fetch(base + '/api/sessions/0a1b2c3d/transcript?after=junk')).json()).toHaveLength(2)
     expect((await fetch(base + '/api/sessions/ffffffff/transcript')).status).toBe(404)
     expect((await fetch(base + '/api/sessions/bad/transcript')).status).toBe(400)
   })

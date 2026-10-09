@@ -27,7 +27,8 @@ export interface LiveSource {
   retryNow(): void
   command(name: string, body?: Record<string, unknown>): Promise<void>
   session(sessionId: string): Promise<SessionRecord | null>
-  transcript(sessionId: string): Promise<FeedLine[] | null>
+  /** Lines of the whole transcript from index `after` on. */
+  transcript(sessionId: string, after: number): Promise<FeedLine[] | null>
   tools(project: string): Promise<ToolsView | null>
   card(task: string): Promise<TaskCard | null>
   statsHistory(filter: StatsFilter): Promise<StatsAnswer<StatsHistory>>
@@ -44,7 +45,7 @@ export interface LiveDeps {
   openEvents: () => EventStream
   sendCommand: (name: string, body: Record<string, unknown>) => Promise<EvenKeelState>
   fetchSession: (sessionId: string) => Promise<SessionRecord | null>
-  fetchTranscript: (sessionId: string) => Promise<FeedLine[] | null>
+  fetchTranscript: (sessionId: string, after: number) => Promise<FeedLine[] | null>
   fetchTools: (project: string) => Promise<ToolsView | null>
   fetchCard: (task: string) => Promise<TaskCard | null>
   fetchStats: <T>(path: string, search: URLSearchParams) => Promise<StatsAnswer<T>>
@@ -108,8 +109,8 @@ export class LiveConnection implements LiveSource {
     return this.deps.fetchSession(sessionId)
   }
 
-  transcript(sessionId: string): Promise<FeedLine[] | null> {
-    return this.deps.fetchTranscript(sessionId)
+  transcript(sessionId: string, after: number): Promise<FeedLine[] | null> {
+    return this.deps.fetchTranscript(sessionId, after)
   }
 
   tools(project: string): Promise<ToolsView | null> {

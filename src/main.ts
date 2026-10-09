@@ -443,7 +443,7 @@ const server = createEvenKeelServer({
   account,
   launches: () => launches,
   sessionRecord: (sessionId) => inHomes((projects) => readSessionRecord(projects, sessionId)),
-  transcript: (sessionId) => inHomes((projects) => readTranscript(projects, sessionId)),
+  transcript: (sessionId, after) => inHomes((projects) => readTranscript(projects, sessionId, after)),
   tools: async (project) => {
     const repo = config.projects[project]
     if (repo === undefined) return undefined

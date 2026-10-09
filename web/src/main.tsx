@@ -38,7 +38,8 @@ async function fetchOrNull<T>(path: string): Promise<T | null> {
 }
 
 const fetchSession = (sessionId: string) => fetchOrNull<SessionRecord>(`/api/sessions/${encodeURIComponent(sessionId)}`)
-const fetchTranscript = (sessionId: string) => fetchOrNull<FeedLine[]>(`/api/sessions/${encodeURIComponent(sessionId)}/transcript`)
+const fetchTranscript = (sessionId: string, after: number) =>
+  fetchOrNull<FeedLine[]>(`/api/sessions/${encodeURIComponent(sessionId)}/transcript?after=${after}`)
 const fetchTools = (project: string) => fetchOrNull<ToolsView>(`/api/projects/${encodeURIComponent(project)}/tools`)
 
 async function fetchCard(task: string): Promise<TaskCard | null> {

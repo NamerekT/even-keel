@@ -71,5 +71,9 @@ describe('readSessionRecord', () => {
     expect(feed).toHaveLength(41)
     expect(feed?.[0]).toMatchObject({ kind: 'prompt', text: 'ABC-1' })
     expect(feed?.[40]?.text).toBe(`${long} 39`)
+
+    const tail = await readTranscript(projects, SESSION, 39)
+    expect(tail?.map((line) => line.text)).toEqual([`${long} 38`, `${long} 39`])
+    expect(await readTranscript(projects, SESSION, 41)).toEqual([])
   })
 })

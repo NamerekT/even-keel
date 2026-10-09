@@ -4,15 +4,24 @@ import { localized, t } from '../i18n/index.js'
 import { useLive } from '../live/context.js'
 
 const LINE_TIME = localized((language) => new Intl.DateTimeFormat(language, { hour: '2-digit', minute: '2-digit', second: '2-digit' }))
+const POLL_MS = 3_000
+const PINNED_SLACK = 24
+
+interface Props {
+  sessionId: string
+  /** The session still runs: new lines are fetched every few seconds. */
+  live: boolean
+  onClose: () => void
+}
 
 /** The whole transcript of a session: prompts, texts uncut, tool calls with their shell commands. */
-export function TranscriptWindow({ sessionId, onClose }: { sessionId: string; onClose: () => void }) {
+export function TranscriptWindow({ sessionId, live, onClose }: Props) {
   const { transcript } = useLive()
   const dialogRef = useRef<HTMLDialogElement>(null)
   const listRef = useRef<HTMLOListElement>(null)
+  const pinned = useRef(true)
   const [lines, setLines] = useState<FeedLine[] | null | undefined>(undefined)
   const [error, setError] = useState<string | null>(null)
-  const [reads, setReads] = useState(0)
 
   useEffect(() => {
     dialogRef.current?.showModal()
@@ -20,23 +29,41 @@ export function TranscriptWindow({ sessionId, onClose }: { sessionId: string; on
 
   useEffect(() => {
     let alive = true
-    transcript(sessionId).then(
-      (found) => {
+    let timer: ReturnType<typeof setTimeout> | undefined
+    let count = 0
+    const read = async () => {
+      try {
+        const found = await transcript(sessionId, count)
         if (!alive) return
-        setLines(found)
         setError(null)
-      },
-      (reason: unknown) => alive && setError(reason instanceof Error ? reason.message : String(reason)),
-    )
+        if (found === null) {
+          if (count === 0) setLines(null)
+        } else if (count === 0 || found.length > 0) {
+          count += found.length
+          setLines((current) => (current == null ? found : [...current, ...found]))
+        }
+      } catch (reason) {
+        if (alive) setError(reason instanceof Error ? reason.message : String(reason))
+      }
+      if (alive && live) timer = setTimeout(() => void read(), POLL_MS)
+    }
+    setLines(undefined)
+    void read()
     return () => {
       alive = false
+      clearTimeout(timer)
     }
-  }, [sessionId, reads])
+  }, [sessionId, live])
 
   useLayoutEffect(() => {
     const list = listRef.current
-    if (list !== null) list.scrollTop = list.scrollHeight
+    if (list !== null && pinned.current) list.scrollTop = list.scrollHeight
   }, [lines])
+
+  const onScroll = () => {
+    const list = listRef.current
+    if (list !== null) pinned.current = list.scrollHeight - list.scrollTop - list.clientHeight < PINNED_SLACK
+  }
 
   return (
     <dialog
@@ -61,9 +88,6 @@ export function TranscriptWindow({ sessionId, onClose }: { sessionId: string; on
             <span className="panel__key">{sessionId.slice(0, 8)}</span>
             <span className="panel__title">{t.session.transcriptTitle}</span>
           </h2>
-          <button type="button" className="button transcript__refresh" onClick={() => setReads((count) => count + 1)}>
-            {t.session.refresh}
-          </button>
           <button type="button" className="panel__close" aria-label={t.session.closeTranscript} onClick={() => dialogRef.current?.close()}>
             ×
           </button>
@@ -71,10 +95,10 @@ export function TranscriptWindow({ sessionId, onClose }: { sessionId: string; on
         {error !== null && <p className="notice notice--error">{error}</p>}
         {error === null && lines === undefined && <p className="placeholder">{t.common.reading}</p>}
         {lines === null && <p className="placeholder">{t.session.notFound}</p>}
-        {lines !== null && lines !== undefined && (
-          <ol ref={listRef} className="feed transcript__lines">
+        {lines != null && (
+          <ol ref={listRef} className="feed transcript__lines" onScroll={onScroll}>
             {lines.map((line, index) => (
-              <li key={`${line.at}-${index}`} className={`feed__line feed__line--${line.kind}`}>
+              <li key={index} className={`feed__line feed__line--${line.kind}`}>
                 <time className="feed__time" dateTime={line.at}>
                   {line.at === '' ? '' : LINE_TIME().format(new Date(line.at))}
                 </time>

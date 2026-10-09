@@ -368,7 +368,6 @@ export const en: Messages = {
     transcriptTitle: 'Transcript',
     transcriptDialog: (id: string) => `Transcript of session ${id}`,
     closeTranscript: 'Close the transcript',
-    refresh: 'Refresh',
     prompt: 'Prompt',
   },
   chain: {

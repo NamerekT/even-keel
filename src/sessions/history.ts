@@ -23,9 +23,9 @@ export async function readSessionRecord(projectsDir: string, sessionId: string):
   }
 }
 
-/** Every prompt, text and tool call of the session, uncut. */
-export async function readTranscript(projectsDir: string, sessionId: string): Promise<FeedLine[] | undefined> {
-  return (await foldTranscript(projectsDir, sessionId, new TranscriptFold(Infinity, true)))?.feed
+/** Every prompt, text and tool call of the session, uncut, from line `after` on: lines are only ever appended. */
+export async function readTranscript(projectsDir: string, sessionId: string, after = 0): Promise<FeedLine[] | undefined> {
+  return (await foldTranscript(projectsDir, sessionId, new TranscriptFold(Infinity, true)))?.feed.slice(after)
 }
 
 async function foldTranscript(projectsDir: string, sessionId: string, fold: TranscriptFold): Promise<TranscriptSummary | undefined> {

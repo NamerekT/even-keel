@@ -2303,12 +2303,6 @@ a:focus-visible {
   overflow: hidden;
 }
 
-.transcript__refresh {
-  flex: none;
-  font-size: 12px;
-  padding: 2px 10px;
-}
-
 .transcript__lines {
   font-size: 13px;
 }

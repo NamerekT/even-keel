@@ -79,7 +79,8 @@ export interface ServerDeps {
   account: AccountControl
   launches: () => unknown
   sessionRecord: (sessionId: string) => Promise<unknown>
-  transcript: (sessionId: string) => Promise<unknown>
+  /** Lines of the whole transcript from index `after` on. */
+  transcript: (sessionId: string, after: number) => Promise<unknown>
   /** `undefined` for a project the config does not know. */
   tools: (project: string) => Promise<unknown>
   tasks: TaskControl
@@ -149,10 +150,11 @@ async function route(deps: ServerDeps, request: IncomingMessage, response: Serve
 
   const session = /^\/api\/sessions\/([^/]+)(\/transcript)?$/.exec(path)
   if (request.method === 'GET' && session !== null) {
-    const read = session[2] === undefined ? deps.sessionRecord : deps.transcript
+    const id = decodeURIComponent(session[1]!)
+    const after = Math.max(0, Number.parseInt(url.searchParams.get('after') ?? '', 10) || 0)
     let record: unknown
     try {
-      record = await read(decodeURIComponent(session[1]!))
+      record = await (session[2] === undefined ? deps.sessionRecord(id) : deps.transcript(id, after))
     } catch (error) {
       sendFailure(response, error)
       return

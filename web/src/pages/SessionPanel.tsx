@@ -68,7 +68,15 @@ export function SessionPanel({ block, scale, onCard, onClose }: Props) {
       {block.sessions.length > 0 && (
         <SessionList rows={block.sessions} current={block.session?.sessionId ?? null} onOpen={setOpened} />
       )}
-      {opened !== null && <SessionWindow key={opened.sessionId} row={opened} scale={scale} onClose={() => setOpened(null)} />}
+      {opened !== null && (
+        <SessionWindow
+          key={opened.sessionId}
+          row={opened}
+          live={block.session?.sessionId === opened.sessionId && block.session.lamp !== 'finished'}
+          scale={scale}
+          onClose={() => setOpened(null)}
+        />
+      )}
     </aside>
   )
 }
@@ -175,7 +183,7 @@ function SessionBody({ session, limit, scale }: { session: SessionView; limit: L
         </div>
         <TokensFact tokens={session.tokens} />
       </dl>
-      {session.lamp === 'finished' ? <RecordFeed sessionId={session.sessionId} /> : <Feed lines={session.feed} sessionId={session.sessionId} />}
+      {session.lamp === 'finished' ? <RecordFeed sessionId={session.sessionId} /> : <Feed lines={session.feed} sessionId={session.sessionId} live />}
     </>
   )
 }
@@ -195,7 +203,7 @@ function RecordFeed({ sessionId }: { sessionId: string }) {
     }
   }, [sessionId])
 
-  return lines === null ? <p className="placeholder">{t.common.reading}</p> : <Feed lines={lines} sessionId={sessionId} />
+  return lines === null ? <p className="placeholder">{t.common.reading}</p> : <Feed lines={lines} sessionId={sessionId} live={false} />
 }
 
 function CacheFact({ cache }: { cache: CacheWindow }) {
@@ -279,7 +287,7 @@ function leftText(left: NonNullable<TaskSession['left']>): string {
   return left.reason === 'skip' ? t.session.skipped : t.session.postponed(left.blockers.join(', '))
 }
 
-function SessionWindow({ row, scale, onClose }: { row: TaskSession; scale: ContextScale; onClose: () => void }) {
+function SessionWindow({ row, live, scale, onClose }: { row: TaskSession; live: boolean; scale: ContextScale; onClose: () => void }) {
   const { session } = useLive()
   const dialogRef = useRef<HTMLDialogElement>(null)
   const [record, setRecord] = useState<SessionRecord | null | undefined>(undefined)
@@ -363,7 +371,7 @@ function SessionWindow({ row, scale, onClose }: { row: TaskSession; scale: Conte
               )}
             </dl>
             {record.apiError !== null && <p className="notice notice--error">{record.apiError}</p>}
-            <Feed lines={record.feed} sessionId={row.sessionId} />
+            <Feed lines={record.feed} sessionId={row.sessionId} live={live} />
           </>
         )}
       </div>
@@ -371,7 +379,7 @@ function SessionWindow({ row, scale, onClose }: { row: TaskSession; scale: Conte
   )
 }
 
-function Feed({ lines, sessionId }: { lines: FeedLine[]; sessionId: string }) {
+function Feed({ lines, sessionId, live }: { lines: FeedLine[]; sessionId: string; live: boolean }) {
   const listRef = useRef<HTMLOListElement>(null)
   const pinned = useRef(true)
   const [whole, setWhole] = useState(false)
@@ -394,7 +402,7 @@ function Feed({ lines, sessionId }: { lines: FeedLine[]; sessionId: string }) {
           {t.session.transcript}
         </button>
       </div>
-      {whole && <TranscriptWindow sessionId={sessionId} onClose={() => setWhole(false)} />}
+      {whole && <TranscriptWindow sessionId={sessionId} live={live} onClose={() => setWhole(false)} />}
       {lines.length === 0 ? (
         <p className="placeholder">{t.session.feedEmpty}</p>
       ) : (
