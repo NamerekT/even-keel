@@ -182,7 +182,7 @@ On Linux it installs a systemd user unit (`systemctl --user status even-keel`, l
 | `chain.active` | ready and in-progress categories | status names that enter the chain |
 | `chain.terminal` | done and canceled categories | status names that close a task |
 | `chain.requiredLabels` | `[]` | a task needs at least one of them; empty — no label needed |
-| `chain.excludedLabels` | `["Manual", "Вручную"]` | a task with one of them never enters the chain: you run it yourself |
+| `chain.excludedLabels` | `["Manual", "Вручную"]` | a task with one of them never enters the chain: you run it yourself; while open, it still holds the tasks it blocks |
 | `projects` | — | project key (a letter, then up to four letters, digits or `_`) → repository path, or an object below |
 | `projects.<KEY>.repo` | — | path to the main checkout |
 | `projects.<KEY>.tracker`, `.brief`, `.chain` | the shared ones | per project; a project's `chain` key replaces the shared key whole |

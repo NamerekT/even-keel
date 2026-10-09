@@ -124,7 +124,7 @@ export class Dispatcher {
     const rules = this.deps.rules(project)
     const admitted = tasks.filter((task) => admits(rules, task))
     const chain = admitted.filter((task) => this.enters(project, task, rules))
-    const waiting = waitingBlockers(chain, admitted.filter((task) => !chain.includes(task)))
+    const waiting = waitingBlockers(chain, tasks.filter((task) => !isTerminal(rules, task.status) && !chain.includes(task)))
     const backlog = tasks.filter((task) => !excludes(rules, task) && !chain.includes(task) && !waiting.includes(task))
     this.tasks.set(project, chain)
     this.waiting.set(project, waiting)

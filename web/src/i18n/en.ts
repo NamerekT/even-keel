@@ -382,7 +382,7 @@ export const en: Messages = {
     foldMilestones: 'Fold milestones',
     linksHint: 'The selected task or the task under the cursor highlights its blockers and the tasks waiting for it.',
     dragHint: 'Reorder by dragging a card, on a phone — after a long press.',
-    lockedHint: 'Locked rows are blockers outside the chain: the tasks behind them wait. Move a blocker to an active status and the chain takes it.',
+    lockedHint: 'Locked rows are blockers outside the chain: the tasks behind them wait. Move a blocker to an active status and the chain takes it; close a manual one yourself.',
     lockedTitle: 'Blocker outside the chain: open the task in the tracker',
     tasks,
     noMilestone: 'No milestone',

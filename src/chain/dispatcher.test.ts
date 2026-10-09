@@ -30,7 +30,7 @@ describe('Dispatcher', () => {
 
   it('takes only the tasks carrying a label the project requires', async () => {
     const { dispatcher, launched } = setup({ rules: { ABC: { ...DEFAULT_RULES, requiredLabels: ['Auto'] } } })
-    dispatcher.setTasks('ABC', [task('ABC-1'), { ...task('ABC-2', todo, 'ABC-1'), labels: ['auto'] }])
+    dispatcher.setTasks('ABC', [task('ABC-1'), { ...task('ABC-2'), labels: ['auto'] }])
     dispatcher.start('ABC')
     await dispatcher.idle()
 
@@ -776,14 +776,35 @@ describe('Dispatcher with a blocker in the backlog', () => {
     expect(dispatcher.orders()['ABC']?.waiting).toEqual([])
   })
 
-  it('does not count a blocker that the labels keep out of the chain', async () => {
+  it('holds a task on an open blocker that the labels keep out of the chain', async () => {
     const { dispatcher, launched } = setup()
-    dispatcher.setTasks('ABC', [{ ...task('ABC-1', backlog), labels: ['Manual'] }, task('ABC-2', todo, 'ABC-1')])
+    dispatcher.setTasks('ABC', [{ ...task('ABC-1', todo), labels: ['Manual'] }, task('ABC-2', todo, 'ABC-1'), task('ABC-3')])
     dispatcher.start('ABC')
     await dispatcher.idle()
 
-    expect(launched).toEqual(['ABC/ABC-2'])
-    expect(dispatcher.orders()['ABC']?.waiting).toEqual([])
+    expect(launched).toEqual(['ABC/ABC-3'])
+    expect(dispatcher.orders()['ABC']).toEqual({ order: ['ABC-2', 'ABC-3'], waiting: ['ABC-1'], backlog: [], error: null })
+  })
+
+  it('holds a task on an open blocker without a required label', async () => {
+    const { dispatcher, launched } = setup({ rules: { ABC: { ...DEFAULT_RULES, requiredLabels: ['auto'] } } })
+    dispatcher.setTasks('ABC', [task('ABC-1', todo), { ...task('ABC-2', todo, 'ABC-1'), labels: ['auto'] }])
+    dispatcher.start('ABC')
+    await dispatcher.idle()
+
+    expect(launched).toEqual([])
+    expect(dispatcher.orders()['ABC']).toEqual({ order: ['ABC-2'], waiting: ['ABC-1'], backlog: [], error: null })
+  })
+
+  it('postpones the current task once a manual blocker is added to it', async () => {
+    const { dispatcher, launched } = setup()
+    dispatcher.setTasks('ABC', [task('ABC-2'), task('ABC-3')])
+    dispatcher.start('ABC')
+    await dispatcher.idle()
+
+    dispatcher.setTasks('ABC', [{ ...task('ABC-1', todo), labels: ['Вручную'] }, task('ABC-2', todo, 'ABC-1'), task('ABC-3')])
+    await dispatcher.idle()
+    expect(launched).toEqual(['ABC/ABC-2', 'ABC/ABC-3'])
   })
 })
 
