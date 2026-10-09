@@ -91,7 +91,14 @@ describe('readerSettings', () => {
   const env = { TALLY_DB_HOST: 'db.example.com', TALLY_DB_NAME: 'tally', TALLY_READER_PASSWORD: 'secret' }
 
   it('reads the reader role from the environment', () => {
-    expect(readerSettings(env)).toEqual({ host: 'db.example.com', port: 5432, database: 'tally', user: 'tally_reader', password: 'secret' })
+    expect(readerSettings(env)).toEqual({
+      host: 'db.example.com',
+      port: 5432,
+      database: 'tally',
+      user: 'tally_reader',
+      password: 'secret',
+      options: '-c jit=off',
+    })
   })
 
   it('takes a port and another user name', () => {

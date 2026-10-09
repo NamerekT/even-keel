@@ -134,6 +134,7 @@ export interface ReaderSettings {
   database: string
   user: string
   password: string
+  options?: string
 }
 
 const DAY = /^\d{4}-\d{2}-\d{2}$/
@@ -212,5 +213,7 @@ export function readerSettings(env: Record<string, string | undefined>): ReaderS
     database: env.TALLY_DB_NAME!,
     user: env.TALLY_READER_USER || 'tally_reader',
     password: env.TALLY_READER_PASSWORD!,
+    // The planner overestimates the limit_shares join and compiles the stats queries: 2.4 s of a 3.3 s read.
+    options: '-c jit=off',
   }
 }
