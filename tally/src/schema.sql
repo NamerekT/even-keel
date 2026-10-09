@@ -91,17 +91,31 @@ create table if not exists model_prices (
   cache_write_1h numeric not null
 );
 
+-- The task of a session: its launch task, else the task of its first message with one. One pass over messages,
+-- not a lookup per session: message_costs joins it on every read.
+create or replace view session_tasks as
+select s.session_id, coalesce(s.launch_task, f.task) as task
+from sessions s
+left join (
+  select distinct on (session_id) session_id, task
+  from messages
+  where task is not null
+  order by session_id, at, message_id
+) f on f.session_id = s.session_id;
+
+-- A message gives its spend to the task of its session, as the audit counts it (BTN-79): the start of a manual
+-- session before its branch is not lost, and a session that touched two tasks goes wholly to the first.
 create or replace view message_costs as
 select
   m.message_id, m.session_id, m.agent_id, m.account, m.project, m.project_dir,
-  coalesce(s.launch_task, m.task) as task,
+  coalesce(st.task, m.task) as task,
   m.branch, m.entrypoint, m.model, m.speed, m.at,
   m.input, m.cache_write_5m, m.cache_write_1h, m.cache_read, m.output,
   p.model as price_model,
   (m.input * p.input + m.cache_write_5m * p.cache_write_5m + m.cache_write_1h * p.cache_write_1h
     + m.cache_read * p.cache_read + m.output * p.output) / 1000000 as cost
 from messages m
-left join sessions s on s.session_id = m.session_id
+left join session_tasks st on st.session_id = m.session_id
 -- The longest price prefix once per model, not per message: per message it cost PGlite 0.6 s on every read.
 left join (
   select distinct on (used.model) used.model as message_model, p.*
@@ -260,12 +274,6 @@ create table if not exists turn_sessions (
   last_at timestamptz,
   key text not null
 );
-
-create or replace view session_tasks as
-select s.session_id, coalesce(s.launch_task, (
-  select m.task from messages m where m.session_id = s.session_id and m.task is not null order by m.at limit 1
-)) as task
-from sessions s;
 
 -- Active time is the turn less the questions to the user inside it, and no more than the CLI's own turn duration
 -- (cli only): that one also leaves out permission prompts, which the transcript does not show. Waiting is the
