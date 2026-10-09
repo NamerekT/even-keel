@@ -151,22 +151,23 @@ describe('Dispatcher finishing a done task', () => {
     expect(dispatcher.state.leftovers).toEqual({})
   })
 
-  it('pauses with the output when git sync fails, and goes on without it on resume', async () => {
-    const { dispatcher, launched, finished } = setup({ finish: () => ({ warnings: [], syncError: textNotice('sync: merge it by hand') }) })
+  it('keeps a failed git sync as a warning and goes on to the next task', async () => {
+    const { dispatcher, launched, finished } = setup({ finish: () => ({ warnings: [kept], syncError: textNotice('sync: merge it by hand') }) })
     dispatcher.setTasks('ABC', [task('ABC-1'), task('ABC-2')])
     dispatcher.start('ABC')
     await dispatcher.idle()
 
     dispatcher.setTasks('ABC', [task('ABC-1', done), task('ABC-2')])
     await dispatcher.idle()
-    expect(launched).toEqual(['ABC/ABC-1'])
-    expect(dispatcher.state.active[0]).toMatchObject({ paused: true, current: null })
-    expect(englishOf(dispatcher.state.active[0]!.error!)).toMatch(/sync: merge it by hand/)
-
-    dispatcher.resume('ABC')
-    await dispatcher.idle()
     expect(finished).toEqual(['ABC/ABC-1'])
     expect(launched).toEqual(['ABC/ABC-1', 'ABC/ABC-2'])
+    expect(dispatcher.state.active[0]).toMatchObject({ paused: false, error: null, current: { task: 'ABC-2' } })
+    expect(dispatcher.state.leftovers).toEqual({
+      ABC: [
+        { task: 'ABC-1', at: '2026-09-26T12:00:00.000Z', notice: kept },
+        { task: 'ABC-1', at: '2026-09-26T12:00:00.000Z', notice: notice('cleanup.syncFailed', {}, { cause: textNotice('sync: merge it by hand') }) },
+      ],
+    })
   })
 
   it('picks up an unfinished cleanup after a restart', async () => {

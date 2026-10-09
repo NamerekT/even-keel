@@ -403,7 +403,9 @@ export class Dispatcher {
     for (const id of done ?? []) if (!released.includes(id)) done!.delete(id)
   }
 
-  private keepLeftovers(project: string, task: string, warnings: Notice[]): void {
+  private keepOutcome(project: string, task: string, outcome: FinishOutcome): void {
+    const sync = outcome.syncError === null ? [] : [notice('cleanup.syncFailed', {}, { cause: outcome.syncError })]
+    const warnings = [...outcome.warnings, ...sync]
     if (warnings.length === 0) return
     const at = this.deps.now().toISOString()
     const leftovers = (this.state.leftovers[project] ??= [])
@@ -414,9 +416,7 @@ export class Dispatcher {
     for (const [project, done] of this.releasedDone) {
       for (const task of done) {
         if (this.deps.busy(task)) continue
-        const outcome = await this.cleanUp(project, task)
-        const sync = outcome.syncError === null ? [] : [notice('cleanup.syncFailed', {}, { cause: outcome.syncError })]
-        this.keepLeftovers(project, task, [...outcome.warnings, ...sync])
+        this.keepOutcome(project, task, await this.cleanUp(project, task))
         this.keepReleased(project, this.released(project).filter((id) => id !== task))
         this.deps.save(this.state)
       }
@@ -566,11 +566,7 @@ export class Dispatcher {
     }
     const outcome = await this.cleanUp(chain.project, task)
     delete chain.closing
-    this.keepLeftovers(chain.project, task, outcome.warnings)
-    if (outcome.syncError !== null) {
-      this.halt(chain, notice('chain.syncFailed', { project: chain.project, task }, { cause: outcome.syncError }))
-      return false
-    }
+    this.keepOutcome(chain.project, task, outcome)
     this.deps.save(this.state)
     return true
   }

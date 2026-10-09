@@ -29,7 +29,6 @@ export const noticesRu: NoticeTexts = {
   'chain.queueChanged': (p) => `очередь изменилась, теперь в ней: ${list(p.queue) || 'пусто'}`,
   'chain.currentFirst': (p) => `${p.task} выполняется и остаётся первой`,
   'chain.interrupted': (p) => `запуск ${p.task} прервал перезапуск службы — проверьте её сессию и снимите с паузы`,
-  'chain.syncFailed': (p) => `синхронизация ${p.project} после ${p.task} не удалась — синхронизируйте main с remote вручную и снимите с паузы`,
 
   'order.notOpen': (p) => `${p.task} — не открытая задача этой цепочки`,
   'order.twice': (p) => `${p.task} встречается дважды`,

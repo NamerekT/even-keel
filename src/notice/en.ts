@@ -28,8 +28,6 @@ export const en = {
   'chain.queueChanged': (p: { queue: string[] }) => `chain: the queue has changed, it is now ${list(p.queue) || 'empty'}`,
   'chain.currentFirst': (p: { task: string }) => `chain: ${p.task} is running and stays first`,
   'chain.interrupted': (p: { task: string }) => `chain: launch of ${p.task} was interrupted by a restart; check its session, then resume`,
-  'chain.syncFailed': (p: { project: string; task: string }) =>
-    `git: sync of ${p.project} after ${p.task} failed; sync main with its remotes by hand, then resume`,
 
   'order.notOpen': (p: { task: string }) => `chain: ${p.task} is not an open task of this chain`,
   'order.twice': (p: { task: string }) => `chain: ${p.task} appears twice`,
