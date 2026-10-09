@@ -1,4 +1,5 @@
 import { createContext, useCallback, useContext, useSyncExternalStore, type ReactNode } from 'react'
+import { activity } from './activity.js'
 import type { LiveSnapshot, LiveSource } from './connection.js'
 
 const LiveContext = createContext<LiveSource | null>(null)
@@ -15,11 +16,11 @@ export function useLive(): LiveSnapshot & Pick<LiveSource, 'retryNow' | 'command
   return {
     ...snapshot,
     retryNow: () => source.retryNow(),
-    command: (name, body) => source.command(name, body),
-    session: (sessionId) => source.session(sessionId),
+    command: (name, body) => activity.track(source.command(name, body)),
+    session: (sessionId) => activity.track(source.session(sessionId)),
     transcript: (sessionId, after) => source.transcript(sessionId, after),
-    tools: (project) => source.tools(project),
-    card: (task) => source.card(task),
+    tools: (project) => activity.track(source.tools(project)),
+    card: (task) => activity.track(source.card(task)),
     statsHistory: (filter) => source.statsHistory(filter),
     statsPeriod: (query) => source.statsPeriod(query),
     statsSteps: (query) => source.statsSteps(query),

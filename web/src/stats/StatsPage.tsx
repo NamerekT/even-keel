@@ -7,7 +7,8 @@ import { formatMoment } from '../format.js'
 import { formatUsd } from './format.js'
 import { t } from '../i18n/index.js'
 import { useLive } from '../live/context.js'
-import { AnswerNotice, Segmented, loadedData, useStatsAnswer } from './common.js'
+import { AnswerNotice, Segmented, isStale, loadedData, useStatsAnswer, type FoldControl } from './common.js'
+import { useFolds, type Fold } from './folds.js'
 import { chartData, dayCosts, firstDay, projectColors, projectTotals, type Metric } from './history.js'
 import { markPlaces, pickMark } from './marks.js'
 import { autoStep, localDay, resolvePeriod, type DayRange, type PeriodChoice } from './period.js'
@@ -48,7 +49,10 @@ export function StatsPage({ state }: { state: EvenKeelState }) {
   const step = view.step ?? autoStep(range)
   const [picked, setPicked] = useState<string[]>([])
   const rulesQuery: RulesQuery = { ...filter, projects: view.projects, kinds: view.kinds, purposes: view.purposes, places: view.places }
-  const rulesLoaded = useStatsAnswer(JSON.stringify(rulesQuery), () => statsRules(rulesQuery))
+  const rulesKey = JSON.stringify(rulesQuery)
+  const rulesLoaded = useStatsAnswer(rulesKey, () => statsRules(rulesQuery))
+  const folds = useFolds()
+  const fold = (id: Fold): FoldControl => ({ open: folds.open.includes(id), onToggle: (on) => folds.setFold(id, on) })
   const rules = loadedData(rulesLoaded)
   const marks = useMemo(
     () =>
@@ -61,7 +65,10 @@ export function StatsPage({ state }: { state: EvenKeelState }) {
     [rules, range.from, range.to],
   )
   const places = useMemo(() => markPlaces(marks, range, step), [marks, step])
-  const pick = (key: string, extend: boolean) => setPicked(pickMark(picked, key, extend))
+  const pick = (key: string, extend: boolean) => {
+    setPicked(pickMark(picked, key, extend))
+    folds.setFold('rules', true)
+  }
 
   const derived = useMemo(() => {
     if (history === null) return null
@@ -126,9 +133,9 @@ export function StatsPage({ state }: { state: EvenKeelState }) {
       </header>
 
       {history === null || derived === null ? (
-        <AnswerNotice loaded={historyLoaded} />
+        <AnswerNotice loaded={historyLoaded} shape="page" />
       ) : (
-        <div className="stats-page__body">
+        <div className="stats-page__body" aria-busy={isStale(historyLoaded, historyKey)}>
           <ProjectList
             items={derived.totals.map(({ project, cost }) => ({ project, amount: cost, label: formatUsd(cost) }))}
             colors={derived.colors}
@@ -136,8 +143,8 @@ export function StatsPage({ state }: { state: EvenKeelState }) {
             selected={view.projects}
             onChange={(projects) => setView({ projects })}
           />
-          <div className="stats-page__main" aria-busy={periodLoaded === null || periodLoaded.key !== periodKey}>
-            {period === null ? <AnswerNotice loaded={periodLoaded} /> : <Tiles period={period} range={range} />}
+          <div className="stats-page__main" aria-busy={isStale(periodLoaded, periodKey)}>
+            {period === null ? <AnswerNotice loaded={periodLoaded} shape="tiles" /> : <Tiles period={period} range={range} />}
             <SpendChart
               data={derived.chart}
               range={range}
@@ -152,6 +159,8 @@ export function StatsPage({ state }: { state: EvenKeelState }) {
               onPick={pick}
             />
             <RulesSection
+              fold={fold('rules')}
+              busy={isStale(rulesLoaded, rulesKey)}
               loaded={rulesLoaded}
               marks={marks}
               kinds={view.kinds}
@@ -167,10 +176,10 @@ export function StatsPage({ state }: { state: EvenKeelState }) {
             {period !== null && (
               <>
                 <Sources period={period} />
-                <EstimateSection tasks={period.tasks} />
-                <StepsSection loaded={stepsLoaded} />
-                <TaskTable tasks={period.tasks} trackerUrls={state.trackerUrls} />
-                <StuckSection weeks={period.weeks} stuck={period.stuck} trackerUrls={state.trackerUrls} />
+                <EstimateSection fold={fold('estimate')} tasks={period.tasks} />
+                <StepsSection fold={fold('steps')} loaded={stepsLoaded} />
+                <TaskTable fold={fold('tasks')} tasks={period.tasks} trackerUrls={state.trackerUrls} />
+                <StuckSection fold={fold('stuck')} weeks={period.weeks} stuck={period.stuck} trackerUrls={state.trackerUrls} />
                 <p className="stats-page__foot">{t.stats.read(formatMoment(period.at, new Date()))}</p>
               </>
             )}

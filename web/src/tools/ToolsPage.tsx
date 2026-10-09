@@ -11,15 +11,18 @@ import { SettingsMatrix } from './SettingsMatrix.js'
 import { useToolsViews } from './useToolsViews.js'
 import './tools.css'
 
+/** Without `projects` in the address only the first projects are compared: every column narrows the table. */
+const FIRST_PROJECTS = 2
+
 export function ToolsPage({ state }: { state: EvenKeelState }) {
   const [params, setParams] = useSearchParams()
   const [query, setQuery] = useState('')
   const listed = params.get('projects')
-  const selected = listed === null ? null : listed.split(',').filter((each) => state.projects.includes(each))
+  const selected = listed === null ? state.projects.slice(0, FIRST_PROJECTS) : listed.split(',').filter((each) => state.projects.includes(each))
   const onlyDiff = params.get('diff') === '1'
   const loaded = useToolsViews(state.projects, state.trimTools)
 
-  const chosen = selected ?? state.projects
+  const chosen = selected
   const views: ToolsView[] = []
   const failures: string[] = []
   let loading = false
@@ -41,8 +44,7 @@ export function ToolsPage({ state }: { state: EvenKeelState }) {
     change(next)
     setParams(next)
   }
-  const choose = (projects: string[] | null) =>
-    update((next) => (projects === null ? next.delete('projects') : next.set('projects', projects.join(','))))
+  const choose = (projects: string[] | null) => update((next) => next.set('projects', (projects ?? state.projects).join(',')))
   const setOnlyDiff = (on: boolean) => update((next) => (on ? next.set('diff', '1') : next.delete('diff')))
 
   return (

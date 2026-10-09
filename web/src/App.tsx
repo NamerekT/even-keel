@@ -1,5 +1,6 @@
 import { Route, Routes } from 'react-router'
 import { pickLanguage, setLanguage, t } from './i18n/index.js'
+import { ActivityBar } from './layout/ActivityBar.js'
 import { ConfigBanner } from './layout/ConfigBanner.js'
 import { UnattendedBanner } from './layout/UnattendedBanner.js'
 import { Header } from './layout/Header.js'
@@ -20,6 +21,7 @@ export function App() {
 
   return (
     <div className="app" key={language}>
+      <ActivityBar />
       <Header />
       <LinkBanner />
       <UsageBanner />

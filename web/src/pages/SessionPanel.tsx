@@ -7,7 +7,7 @@ import { formatClock, formatMoment, formatTokens } from '../format.js'
 import { localized, say, t } from '../i18n/index.js'
 import { useNow } from '../layout/useNow.js'
 import { useLive } from '../live/context.js'
-import { useCommand } from '../live/useCommand.js'
+import { useCommand, useHold } from '../live/useCommand.js'
 import { checkpointHandoffs, sessionElapsed, taskProject, tokenTotal, type ChainBlock } from '../state.js'
 import { CacheClock } from '../ui/CacheClock.js'
 import { ContextMeter } from '../ui/ContextMeter.js'
@@ -18,6 +18,7 @@ const TranscriptWindow = lazy(async () => ({ default: (await import('./Transcrip
 const STARTED = localized((language) => new Intl.DateTimeFormat(language, { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }))
 const FEED_TIME = localized((language) => new Intl.DateTimeFormat(language, { hour: '2-digit', minute: '2-digit', second: '2-digit' }))
 const PINNED_SLACK = 24
+const REPLACE_WAIT_MS = 90_000
 
 interface Props {
   block: ChainBlock
@@ -91,6 +92,7 @@ function Actions({ block }: { block: ChainBlock }) {
   const account = session?.account == null ? '' : t.session.onlyIn(session.account)
   const remoteOff = session === null || session.remoteUrl !== null ? null : t.session.remote[session.remoteOff ?? 'no-bridge']
   const buttons = session?.remoteUrl != null || block.open
+  const replacing = useHold(`${block.current}|${session?.sessionId ?? ''}`, REPLACE_WAIT_MS)
 
   if (!buttons) return null
   return (
@@ -111,9 +113,12 @@ function Actions({ block }: { block: ChainBlock }) {
           <button
             type="button"
             className="button"
-            disabled={sending || midTurn}
+            disabled={sending || midTurn || replacing.on}
+            aria-busy={replacing.on ? true : undefined}
             title={t.session.restartTitle}
-            onClick={() => void send('chain/restart', body)}
+            onClick={async () => {
+              if (await send('chain/restart', body)) replacing.begin()
+            }}
           >
             {t.session.restart}
           </button>
@@ -133,7 +138,7 @@ function Actions({ block }: { block: ChainBlock }) {
             <button
               type="button"
               className="button"
-              disabled={sending || midTurn}
+              disabled={sending || midTurn || replacing.on}
               title={block.current ? t.session.skipCurrent : t.session.skipOther}
               onClick={() => void send('chain/skip', body)}
             >
@@ -141,6 +146,11 @@ function Actions({ block }: { block: ChainBlock }) {
             </button>
           ))}
         {midTurn && <span className="panel__hint">{t.session.midTurn}</span>}
+        {replacing.on && (
+          <span className="panel__hint busy-note" role="status">
+            {t.session.replacing}
+          </span>
+        )}
       </div>
       {remoteOff !== null && (
         <p className="panel__remote-off" title={session?.account == null ? undefined : t.session.account(session.account)}>

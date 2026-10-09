@@ -1,6 +1,6 @@
 import type { StatsStep, StatsSteps, StatsStepWeek, StatsUnknownStep } from '../../../src/stats/steps.js'
 import { t } from '../i18n/index.js'
-import { AnswerNotice, Section, loadedData, type Loaded } from './common.js'
+import { AnswerNotice, Section, loadedData, type FoldControl, type Loaded } from './common.js'
 import { formatSeconds, formatShare } from './format.js'
 
 function buckets(): string[] {
@@ -11,11 +11,11 @@ function buckets(): string[] {
 const percent = (part: number, whole: number): string => formatShare(whole > 0 ? (part / whole) * 100 : null)
 const shortDay = (day: string): string => `${day.slice(8, 10)}.${day.slice(5, 7)}`
 
-export function StepsSection({ loaded }: { loaded: Loaded<StatsSteps> | null }) {
+export function StepsSection({ loaded, fold }: { loaded: Loaded<StatsSteps> | null; fold: FoldControl }) {
   const steps = loadedData(loaded)
   if (steps === null) {
     return (
-      <Section title={t.stats.steps.title}>
+      <Section title={t.stats.steps.title} fold={fold} busy={loaded === null}>
         <AnswerNotice loaded={loaded} />
       </Section>
     )
@@ -24,7 +24,16 @@ export function StepsSection({ loaded }: { loaded: Loaded<StatsSteps> | null }) 
   const growth = steps.steps.flatMap((step) => step.growth.map((each) => ({ step: step.step, ...each })))
 
   return (
-    <Section title={t.stats.steps.title} aside={<span className="stats-section__note">{t.stats.steps.note(steps.tasks)}</span>}>
+    <Section
+      title={t.stats.steps.title}
+      fold={fold}
+      aside={
+        <>
+          <span className="stats-section__count">{steps.steps.length}</span>
+          <span className="stats-section__note">{t.stats.steps.note(steps.tasks)}</span>
+        </>
+      }
+    >
       {growth.length > 0 && (
         <ul className="steps-growth">
           {growth.map((each) => (

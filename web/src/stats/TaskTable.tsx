@@ -1,86 +1,118 @@
 import type { TrackerUrls } from '../../../src/state.js'
-import { Fragment, useState } from 'react'
+import { Fragment, useState, type CSSProperties, type ReactNode } from 'react'
 import type { StatsTaskDetail, StatsTaskRow } from '../../../src/stats/model.js'
 import { formatMoment } from '../format.js'
-import { language, t } from '../i18n/index.js'
+import { t } from '../i18n/index.js'
 import { useLive } from '../live/context.js'
 import { seriesStyle } from '../ui/series.js'
-import { AnswerNotice, Section, TaskKey, loadedData, useStatsAnswer } from './common.js'
+import { AnswerNotice, Section, TaskKey, loadedData, useStatsAnswer, type FoldControl } from './common.js'
 import { formatDuration, formatRatio, formatSeconds, formatShare, formatUsd, kindLabel, launchLabel, modelLabel, reasonLabel } from './format.js'
+import { compare, handoffs, shownColumns, type Column } from './taskColumns.js'
 
-type Column = 'task' | 'project' | 'status' | 'cost' | 'limit' | 'estimate' | 'active' | 'wait' | 'sessions' | 'handoffs' | 'spans' | 'rework'
+const FIRST_ROWS = 20
 
-const FIRST_ROWS = 50
-
-const COLUMNS: { key: Column; numeric: boolean }[] = [
-  { key: 'task', numeric: false },
-  { key: 'project', numeric: false },
-  { key: 'status', numeric: false },
-  { key: 'cost', numeric: true },
-  { key: 'limit', numeric: true },
-  { key: 'estimate', numeric: true },
-  { key: 'active', numeric: true },
-  { key: 'wait', numeric: true },
-  { key: 'sessions', numeric: true },
-  { key: 'handoffs', numeric: true },
-  { key: 'spans', numeric: true },
-  { key: 'rework', numeric: true },
-]
-
-const handoffs = (row: StatsTaskRow) => row.relays + row.checkpoints + row.restarts
-
-function value(row: StatsTaskRow, column: Column): string | number {
-  switch (column) {
-    case 'task':
-      return row.task
-    case 'project':
-      return row.project
-    case 'status':
-      return row.status ?? ''
-    case 'limit':
-      return row.limit ?? -1
-    case 'estimate':
-      return row.estimateH ?? -1
-    case 'active':
-      return row.activeS ?? -1
-    case 'wait':
-      return row.waitS ?? -1
-    case 'handoffs':
-      return handoffs(row)
-    case 'rework':
-      return row.rework ? 1 : 0
-    default:
-      return row[column]
-  }
-}
-
-function compare(a: StatsTaskRow, b: StatsTaskRow, column: Column): number {
-  const left = value(a, column)
-  const right = value(b, column)
-  if (typeof left === 'number' && typeof right === 'number') return left - right
-  return String(left).localeCompare(String(right), language, { numeric: true })
-}
-
-export function TaskTable({ tasks, trackerUrls }: { tasks: StatsTaskRow[]; trackerUrls: TrackerUrls }) {
+export function TaskTable({ tasks, trackerUrls, fold }: { tasks: StatsTaskRow[]; trackerUrls: TrackerUrls; fold: FoldControl }) {
   const [sort, setSort] = useState<{ column: Column; down: boolean }>({ column: 'cost', down: true })
   const [open, setOpen] = useState<string | null>(null)
   const [all, setAll] = useState(false)
+  const columns = shownColumns(tasks)
   const rows = [...tasks].sort((a, b) => (sort.down ? -1 : 1) * compare(a, b, sort.column) || a.task.localeCompare(b.task))
   const shown = all ? rows : rows.slice(0, FIRST_ROWS)
+  const top = Math.max(0, ...tasks.map((row) => row.cost))
 
   const sortBy = (column: Column, numeric: boolean) =>
     setSort(sort.column === column ? { column, down: !sort.down } : { column, down: numeric })
 
+  const cell = (row: StatsTaskRow, column: Column): ReactNode => {
+    switch (column) {
+      case 'task':
+        return (
+          <td key={column} className="tasks__wide">
+            <span className="tasks__task">
+              <TaskKey id={row.task} trackerUrls={trackerUrls} />
+              {row.title !== null && row.title !== '' && (
+                <span className="tasks__title" title={row.title}>
+                  {row.title}
+                </span>
+              )}
+            </span>
+          </td>
+        )
+      case 'project':
+        return (
+          <td key={column} className="tasks__project">
+            {row.project}
+          </td>
+        )
+      case 'status':
+        return <td key={column}>{row.status !== null && <span className={row.done === true ? 'chip tasks__status tasks__status--done' : 'chip tasks__status'}>{row.status}</span>}</td>
+      case 'cost':
+        return (
+          <td key={column} className="tasks__num tasks__cost" style={{ '--share': top > 0 ? row.cost / top : 0 } as CSSProperties}>
+            {formatUsd(row.cost)}
+          </td>
+        )
+      case 'limit':
+        return (
+          <td key={column} className="tasks__num">
+            {row.limit === null ? '' : formatShare(row.limit)}
+          </td>
+        )
+      case 'estimate':
+        return (
+          <td key={column} className="tasks__num">
+            {row.estimateH === null ? '' : formatDuration(row.estimateH * 3600)}
+          </td>
+        )
+      case 'active':
+        return (
+          <td key={column} className="tasks__num" title={timeTitle(row)}>
+            {row.activeS === null ? '' : formatDuration(row.activeS)}
+          </td>
+        )
+      case 'wait':
+        return (
+          <td key={column} className="tasks__num">
+            {row.waitS ? formatDuration(row.waitS) : ''}
+          </td>
+        )
+      case 'sessions':
+        return (
+          <td key={column} className="tasks__num">
+            {row.sessions}
+          </td>
+        )
+      case 'handoffs':
+        return (
+          <td key={column} className="tasks__num" title={handoffTitle(row)}>
+            {handoffs(row) || ''}
+          </td>
+        )
+      case 'spans':
+        return (
+          <td key={column} className={row.spans > 0 ? 'tasks__num tasks__num--warn' : 'tasks__num'}>
+            {row.spans || ''}
+          </td>
+        )
+      case 'rework':
+        return (
+          <td key={column} className="tasks__num tasks__num--warn">
+            {row.rework ? t.stats.tasks.yes : ''}
+          </td>
+        )
+    }
+  }
+
   return (
-    <Section title={t.stats.tasks.title} aside={<span className="stats-section__note">{tasks.length}</span>}>
+    <Section title={t.stats.tasks.title} fold={fold} aside={<span className="stats-section__count">{tasks.length}</span>}>
       {tasks.length === 0 ? (
         <p className="placeholder">{t.stats.tasks.empty}</p>
       ) : (
         <div className="tasks__scroll">
-          <table className="tasks">
+          <table className="tasks tasks--list">
             <thead>
               <tr>
-                {COLUMNS.map((column) => {
+                {columns.map((column) => {
                   const [label, title] = t.stats.tasks.columns[column.key]!
                   return (
                     <th
@@ -113,31 +145,11 @@ export function TaskTable({ tasks, trackerUrls }: { tasks: StatsTaskRow[]; track
                       }
                     }}
                   >
-                    <td>
-                      <span className="tasks__task">
-                        <TaskKey id={row.task} trackerUrls={trackerUrls} />
-                        {row.title !== null && row.title !== '' && <span className="tasks__title">{row.title}</span>}
-                      </span>
-                    </td>
-                    <td className="tasks__project">{row.project}</td>
-                    <td>{row.status !== null && <span className="chip">{row.status}</span>}</td>
-                    <td className="tasks__num">{formatUsd(row.cost)}</td>
-                    <td className="tasks__num">{formatShare(row.limit)}</td>
-                    <td className="tasks__num">{row.estimateH === null ? '' : formatDuration(row.estimateH * 3600)}</td>
-                    <td className="tasks__num" title={timeTitle(row)}>
-                      {row.activeS === null ? '' : formatDuration(row.activeS)}
-                    </td>
-                    <td className="tasks__num">{row.waitS ? formatDuration(row.waitS) : ''}</td>
-                    <td className="tasks__num">{row.sessions}</td>
-                    <td className="tasks__num" title={handoffTitle(row)}>
-                      {handoffs(row) || ''}
-                    </td>
-                    <td className="tasks__num">{row.spans || ''}</td>
-                    <td className="tasks__num">{row.rework ? t.stats.tasks.yes : ''}</td>
+                    {columns.map((column) => cell(row, column.key))}
                   </tr>
                   {open === row.task && (
                     <tr className="tasks__detail">
-                      <td colSpan={COLUMNS.length}>
+                      <td colSpan={columns.length}>
                         <TaskDetail task={row.task} />
                       </td>
                     </tr>

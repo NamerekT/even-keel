@@ -1,7 +1,7 @@
 import type { StatsTaskRow } from '../../../src/stats/model.js'
 import { t } from '../i18n/index.js'
 import { accuracy, type AccuracyGroup } from './accuracy.js'
-import { Section } from './common.js'
+import { Section, type FoldControl } from './common.js'
 import { formatDuration, formatRatio, formatShare, modelLabel } from './format.js'
 import { Tile } from './Summary.js'
 
@@ -13,7 +13,7 @@ const BREAKDOWNS: { key: BreakdownKey; label: (key: string | null) => string }[]
   { key: 'model', label: (key) => (key === null ? t.stats.estimate.unknown : modelLabel(key)) },
 ]
 
-export function EstimateSection({ tasks }: { tasks: StatsTaskRow[] }) {
+export function EstimateSection({ tasks, fold }: { tasks: StatsTaskRow[]; fold: FoldControl }) {
   const result = accuracy(tasks)
   if (result.done === 0 && result.open === 0) return null
   const skipped = [
@@ -22,7 +22,16 @@ export function EstimateSection({ tasks }: { tasks: StatsTaskRow[] }) {
   ].filter(Boolean)
 
   return (
-    <Section title={t.stats.estimate.title} aside={<span className="stats-section__note">{t.stats.estimate.note}</span>}>
+    <Section
+      title={t.stats.estimate.title}
+      fold={fold}
+      aside={
+        <>
+          <span className="stats-section__count">{formatShare(result.within)}</span>
+          <span className="stats-section__note">{t.stats.estimate.note}</span>
+        </>
+      }
+    >
       <div className="stats-tiles">
         <Tile label={t.stats.estimate.median} value={formatDuration(result.medianS)}>
           {t.stats.estimate.done(result.done)}

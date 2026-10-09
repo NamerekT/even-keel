@@ -29,6 +29,7 @@ import { fakeCard, fakeReady } from './fakeCards.js'
 import { fakeTools } from './fakeTools.js'
 
 const TICK_MS = 2_000
+const ANSWER_MS = 300
 const CLOSE_TICKS = 5
 const LAUNCH_DAYS = 14
 
@@ -594,6 +595,8 @@ export function createFakeSource(search: string): LiveSource {
   const launches = fakeLaunches()
   const idle = params.get('chain') === 'idle'
   const contextTokens = Number(params.get('ctx') ?? 61_000)
+  const delay = params.has('delay') ? Number(params.get('delay')) : null
+  const answer = () => new Promise((resolve) => setTimeout(resolve, delay ?? ANSWER_MS))
   let current: LiveSnapshot = {
     state: link === 'connecting' ? null : fakeState(huly, idle, contextTokens, launches, params.get('account'), params.get('limit'), params.get('usage')),
     link,
@@ -715,53 +718,62 @@ export function createFakeSource(search: string): LiveSource {
     command: async (name, body = {}) => {
       const state = current.state
       if (state === null) throw new Error('fake: no state yet')
-      current = { ...current, state: fakeCommand(state, name, body, launches) }
+      const next = fakeCommand(state, name, body, launches)
+      // As in the service: the restart is accepted at once and the session is replaced later.
+      if (name === 'chain/restart' && delay !== null) {
+        setTimeout(() => {
+          current = { ...current, state: next }
+          notify()
+        }, delay)
+        return
+      }
+      current = { ...current, state: next }
       notify()
     },
     session: async (sessionId) => {
-      await new Promise((resolve) => setTimeout(resolve, 300))
+      await answer()
       return current.state === null ? null : fakeRecord(current.state, sessionId)
     },
     transcript: async (sessionId, after) => {
-      await new Promise((resolve) => setTimeout(resolve, 300))
+      await new Promise((resolve) => setTimeout(resolve, ANSWER_MS))
       if (sessionId.endsWith('999')) return null
       if (after === 0) return fakeTranscript()
       return [{ at: ago(0), kind: 'tool', text: `Read src/example-${Date.now() % 1000}.ts` }]
     },
     tools: async (project) => {
-      await new Promise((resolve) => setTimeout(resolve, 300))
+      await answer()
       return current.state?.projects.includes(project) ? fakeTools(project, current.state.trimTools, params.get('tools')) : null
     },
     card: async (task) => {
-      await new Promise((resolve) => setTimeout(resolve, 300))
+      await answer()
       return current.state === null ? null : fakeCard(current.state, task, params.get('card'))
     },
     statsHistory: async (filter) => {
-      await new Promise((resolve) => setTimeout(resolve, 300))
+      await answer()
       return fakeHistory(params.get('stats'), filter)
     },
     statsPeriod: async (query) => {
-      await new Promise((resolve) => setTimeout(resolve, 300))
+      await answer()
       return fakePeriod(params.get('stats'), query)
     },
     statsSteps: async (query) => {
-      await new Promise((resolve) => setTimeout(resolve, 300))
+      await answer()
       return fakeSteps(params.get('stats'), query)
     },
     statsTask: async (task) => {
-      await new Promise((resolve) => setTimeout(resolve, 300))
+      await answer()
       return fakeTask(params.get('stats'), task)
     },
     statsRules: async (query) => {
-      await new Promise((resolve) => setTimeout(resolve, 300))
+      await answer()
       return fakeRules(params.get('stats'), params.get('rules'), query)
     },
     statsRuleDiff: async (changes) => {
-      await new Promise((resolve) => setTimeout(resolve, 300))
+      await answer()
       return fakeRuleDiff(params.get('stats'), changes)
     },
     statsCompare: async (query) => {
-      await new Promise((resolve) => setTimeout(resolve, 300))
+      await answer()
       return fakeCompare(params.get('stats'), params.get('rules'), query)
     },
   }

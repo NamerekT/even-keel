@@ -2,6 +2,7 @@ import type { TrackerUrls } from '../../../src/state.js'
 import { useEffect, useState, type ReactNode } from 'react'
 import type { StatsAnswer } from '../../../src/stats/model.js'
 import { t } from '../i18n/index.js'
+import { activity } from '../live/activity.js'
 import { issueLink } from '../state.js'
 
 const REFRESH_MS = 5 * 60_000
@@ -19,7 +20,7 @@ export function useStatsAnswer<T>(key: string | null, load: () => Promise<StatsA
         (answer) => alive && setLoaded({ key, answer }),
         (reason: unknown) => alive && setLoaded({ key, failure: reason instanceof Error ? reason.message : String(reason) }),
       )
-    void run()
+    void activity.track(run())
     const timer = refresh ? setInterval(() => void run(), REFRESH_MS) : undefined
     return () => {
       alive = false
@@ -34,8 +35,31 @@ export function loadedData<T>(loaded: Loaded<T> | null): T | null {
   return loaded !== null && 'answer' in loaded && loaded.answer.state === 'ok' ? loaded.answer.data : null
 }
 
-export function AnswerNotice({ loaded }: { loaded: Loaded<unknown> | null }) {
-  if (loaded === null) return <p className="placeholder">{t.stats.reading}</p>
+/** Whether the answer on the page is not the one for `key` yet: nothing has come, or what is shown belongs to the previous filter. */
+export function isStale(loaded: Loaded<unknown> | null, key: string | null): boolean {
+  return loaded === null || loaded.key !== key
+}
+
+export type SkeletonShape = 'page' | 'tiles' | 'lines'
+
+export function Skeleton({ shape }: { shape: SkeletonShape }) {
+  return (
+    <div className="skeleton" role="status" aria-label={t.stats.reading}>
+      {shape !== 'lines' && (
+        <div className="skeleton__row">
+          {[0, 1, 2, 3].map((each) => (
+            <span key={each} className="skeleton__block" />
+          ))}
+        </div>
+      )}
+      {shape === 'page' && <span className="skeleton__block skeleton__block--tall" />}
+      {shape !== 'tiles' && [0, 1, 2].map((each) => <span key={each} className="skeleton__block skeleton__block--line" style={{ width: `${90 - each * 18}%` }} />)}
+    </div>
+  )
+}
+
+export function AnswerNotice({ loaded, shape = 'lines' }: { loaded: Loaded<unknown> | null; shape?: SkeletonShape }) {
+  if (loaded === null) return <Skeleton shape={shape} />
   if ('failure' in loaded) return <p className="notice notice--error">{t.stats.failed(loaded.failure)}</p>
   if (loaded.answer.state === 'off') return <p className="notice notice--warn">{t.stats.off(loaded.answer.reason)}</p>
   if (loaded.answer.state === 'error') return <p className="notice notice--error">{t.stats.dbError(loaded.answer.error)}</p>
@@ -82,14 +106,45 @@ export function TaskKey({ id, trackerUrls }: { id: string; trackerUrls: TrackerU
   )
 }
 
-export function Section({ title, aside, children }: { title: string; aside?: ReactNode; children: ReactNode }) {
+export interface FoldControl {
+  open: boolean
+  onToggle: (open: boolean) => void
+}
+
+/** With `fold` the head opens and folds the section, and a folded one does not render its content. */
+export function Section({
+  title,
+  aside,
+  fold,
+  busy = false,
+  children,
+}: {
+  title: string
+  aside?: ReactNode
+  fold?: FoldControl
+  busy?: boolean
+  children: ReactNode
+}) {
+  const open = fold === undefined || fold.open
   return (
-    <section className="stats-section">
-      <header className="stats-section__head">
-        <h2 className="stats-section__title">{title}</h2>
-        {aside}
-      </header>
-      {children}
+    <section className={open ? 'stats-section' : 'stats-section stats-section--folded'} aria-busy={busy}>
+      {fold === undefined ? (
+        <header className="stats-section__head">
+          <h2 className="stats-section__title">{title}</h2>
+          {aside}
+        </header>
+      ) : (
+        <header className="stats-section__head stats-section__head--fold" onClick={() => fold.onToggle(!open)}>
+          <h2 className="stats-section__title">
+            <button type="button" className="stats-section__fold" aria-expanded={open}>
+              <span className="stats-section__caret" aria-hidden="true" />
+              {title}
+            </button>
+          </h2>
+          {aside}
+        </header>
+      )}
+      {open && <div className="stats-section__body">{children}</div>}
     </section>
   )
 }

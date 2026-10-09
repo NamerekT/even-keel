@@ -3,11 +3,21 @@ import type { StatsStuck, StatsWeekReason } from '../../../src/stats/model.js'
 import { formatMoment } from '../format.js'
 import { t } from '../i18n/index.js'
 import { seriesStyle } from '../ui/series.js'
-import { Section, TaskKey } from './common.js'
+import { Section, TaskKey, type FoldControl } from './common.js'
 import { kindLabel, reasonLabel } from './format.js'
 import { formatDay } from './period.js'
 
-export function StuckSection({ weeks, stuck, trackerUrls }: { weeks: StatsWeekReason[]; stuck: StatsStuck[]; trackerUrls: TrackerUrls }) {
+export function StuckSection({
+  weeks,
+  stuck,
+  trackerUrls,
+  fold,
+}: {
+  weeks: StatsWeekReason[]
+  stuck: StatsStuck[]
+  trackerUrls: TrackerUrls
+  fold: FoldControl
+}) {
   const reasons = [...new Set(weeks.map((each) => each.reason))].sort((a, b) => (a === null ? 1 : b === null ? -1 : a.localeCompare(b)))
   const slot = (reason: string | null) => (reason === null ? null : reasons.indexOf(reason) + 1)
   const byWeek = [...new Set(weeks.map((each) => each.week))].sort()
@@ -16,7 +26,7 @@ export function StuckSection({ weeks, stuck, trackerUrls }: { weeks: StatsWeekRe
   const now = new Date()
 
   return (
-    <Section title={t.stats.stuck.title}>
+    <Section title={t.stats.stuck.title} fold={fold} aside={<span className="stats-section__count">{totals.reduce((sum, each) => sum + each, 0)}</span>}>
       {stuck.length === 0 && weeks.length === 0 ? (
         <p className="placeholder">{t.stats.stuck.none}</p>
       ) : (

@@ -32,9 +32,15 @@
   font-size: 14px;
 }
 
+.tools-page__main > * {
+  transition: opacity 0.2s;
+  animation: appear 0.2s ease-out;
+}
+
 .tools-page__main[aria-busy='true'] > * {
-  opacity: 0.6;
-  transition: opacity 0.2s 0.3s;
+  opacity: 0.55;
+  transition-delay: 0.15s;
+  cursor: progress;
 }
 
 .tools__heading {
@@ -209,18 +215,28 @@
 
 .tools__matrix th,
 .tools__matrix td {
-  padding: 5px 8px;
-  border-top: 1px solid var(--border);
+  padding: 7px 10px;
+  border-bottom: 1px solid color-mix(in srgb, var(--border) 55%, transparent);
   text-align: left;
   vertical-align: top;
 }
 
 .tools__matrix thead th {
-  border-top: 0;
+  border-bottom: 0;
+  background: var(--surface-muted);
   color: var(--fg-muted);
   font-family: var(--mono);
-  font-weight: 500;
+  font-size: 12px;
+  font-weight: 600;
   white-space: nowrap;
+}
+
+.tools__matrix thead th:first-child {
+  border-radius: 6px 0 0 6px;
+}
+
+.tools__matrix thead th:last-child {
+  border-radius: 0 6px 6px 0;
 }
 
 .tools__matrix tbody th {
@@ -232,8 +248,16 @@
   font-size: 12px;
 }
 
+.tools__matrix tbody tr:last-child > * {
+  border-bottom: 0;
+}
+
+.tools__matrix tbody tr:nth-child(even) {
+  background: color-mix(in srgb, var(--surface-muted) 45%, transparent);
+}
+
 .tools__matrix tbody tr:hover {
-  background: var(--surface-muted);
+  background: color-mix(in srgb, var(--accent) 9%, transparent);
 }
 
 .tools__cell {

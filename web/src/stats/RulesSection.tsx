@@ -5,7 +5,7 @@ import { type CompareQuery, type RuleKind, type RuleMark, type RuleSet, type Rul
 import { formatMoment } from '../format.js'
 import { localized, t } from '../i18n/index.js'
 import { useLive } from '../live/context.js'
-import { AnswerNotice, Section, TaskKey, loadedData, useStatsAnswer, type Loaded } from './common.js'
+import { AnswerNotice, Section, TaskKey, loadedData, useStatsAnswer, type FoldControl, type Loaded } from './common.js'
 import { seriesStyle } from '../ui/series.js'
 import { MARK_KINDS, fileLabel, kindText, markKey, markSummary, pickedSpan, purposeLabel, ruleKindLabels, setTitle, toggleChip, type KindCount } from './marks.js'
 import { Lines, SetNote } from './MarkTip.js'
@@ -256,6 +256,8 @@ function Compare({ query, days }: { query: Omit<CompareQuery, 'days'>; days: num
 }
 
 export function RulesSection({
+  fold,
+  busy,
   loaded,
   marks,
   kinds,
@@ -268,6 +270,8 @@ export function RulesSection({
   colors,
   trackerUrls,
 }: {
+  fold: FoldControl
+  busy: boolean
   loaded: Loaded<StatsRules> | null
   marks: RuleMark[]
   kinds: RuleKind[] | null
@@ -287,7 +291,17 @@ export function RulesSection({
   const listed = marks.flatMap((mark) => mark.sets.flatMap((set) => set.files.flatMap((file) => (file.project === null ? [] : [file.project]))))
   const projects = base.projects !== null && base.projects.length > 0 ? base.projects : [...new Set(listed)].sort()
   return (
-    <Section title={t.stats.rules.title} aside={<span className="stats-section__note">{t.stats.rules.note}</span>}>
+    <Section
+      title={t.stats.rules.title}
+      fold={fold}
+      busy={busy}
+      aside={
+        <>
+          {rules !== null && <span className="stats-section__count">{marks.length}</span>}
+          <span className="stats-section__note">{t.stats.rules.note}</span>
+        </>
+      }
+    >
       <div className="rule-filters">
         <Chips label={t.stats.rules.files} options={ruleKindLabels()} all={MARK_KINDS} on={kinds} onChange={(next) => onFilter({ kinds: next })} />
         <Chips

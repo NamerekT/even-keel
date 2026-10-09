@@ -331,6 +331,7 @@ export const en: Messages = {
     skipOther: "The chain won't take the task until you restore it. The tracker status doesn't change.",
     skip: 'Skip',
     midTurn: 'mid-turn — replace and skip after it',
+    replacing: 'Replacing the session: the old one stops, the new one starts with a handoff — about 15 seconds.',
     account: (account: string) => `Account: ${account}`,
     waits: (what: string) => `Waiting for ${what}`,
     session: 'Session',
