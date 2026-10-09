@@ -1,20 +1,20 @@
-# Служба
+# Service
 
-Справка для сессий: установка и работа службы на разных системах. Без службы, на любой системе: `npm install`, `npm run build`, `npm start` в корне репозитория.
+Reference for sessions: installing and running the service on different systems. Without the service, on any system: `npm install`, `npm run build`, `npm start` in the repository root.
 
-Сборщик статистики Tally работает внутри службы (раз в 5 минут, своим потоком), отдельной задачи планировщика или cron не нужно.
+The Tally stats collector runs inside the service (every 5 minutes, in its own thread), so no separate scheduler or cron task is needed.
 
 ## Windows
 
-- Хост службы — `service/EvenKeelService.cs`, собирается штатным `csc.exe` из .NET Framework при установке, сторонних обёрток нет. Держит `node --import tsx src/main.ts` в корне репозитория, перезапускает при падении, пишет вывод в `logs/even-keel.log`. Для отладки без службы: `EvenKeelService.exe <корень> <node.exe> --console`.
-- `service/install.ps1` и `service/uninstall.ps1` — из PowerShell 7 от администратора. Пароль учётки скрипт не спрашивает: пользователь вводит его на вкладке «Вход в систему» в services.msc, она же выдаёт право «Вход в качестве службы».
-- Служба читает `.env` и `even-keel.config.json` из корня репозитория; порт не должен быть занят ручным запуском.
-- Служба отдаёт собранный `dist/web`: `install.ps1` запускает `npm run build`. После обновления кода — снова `install.ps1` (или `npm run build` и перезапуск службы), иначе страница старая или 503.
-- Остановка службы фоновые сессии не убивает — они дети демона `claude daemon run`.
+- The service host is `service/EvenKeelService.cs`, compiled during installation by the stock `csc.exe` from .NET Framework; there are no third-party wrappers. It keeps `node --import tsx src/main.ts` running in the repository root, restarts it on a crash and writes the output to `logs/even-keel.log`. To debug without the service: `EvenKeelService.exe <root> <node.exe> --console`.
+- `service/install.ps1` and `service/uninstall.ps1` — from PowerShell 7 as administrator. The script does not ask for the account password: the user enters it on the "Log On" tab in services.msc, which also grants the "Log on as a service" right.
+- The service reads `.env` and `even-keel.config.json` from the repository root; the port must not be occupied by a manual run.
+- The service serves the built `dist/web`: `install.ps1` runs `npm run build`. After a code update, run `install.ps1` again (or `npm run build` and restart the service), otherwise the page is stale or returns 503.
+- Stopping the service does not kill background sessions — they are children of the `claude daemon run` daemon.
 
-## Linux и macOS
+## Linux and macOS
 
-- `service/install.sh` от своего пользователя (не через `sudo`): `npm install`, `npm run build`, затем на Linux — юнит `~/.config/systemd/user/even-keel.service` (`systemctl --user`, лог — `journalctl --user -u even-keel`), на macOS — агент `~/Library/LaunchAgents/local.even-keel.plist` (`launchctl`, лог — `logs/even-keel.log`, без ротации). Повторный запуск — пересборка и перезапуск. `service/uninstall.sh` убирает.
-- `PATH` и путь к `node` берутся из оболочки установщика: сменился `node` (nvm и т. п.) — снова `install.sh`.
-- Остановка службы фоновые сессии не убивает: `KillMode=process` у юнита, `AbandonProcessGroup` у агента. Юнит `--user` живёт, пока пользователь в системе; чтобы и без входа — `loginctl enable-linger <пользователь>` (установщик напомнит). Агент macOS работает только при входе в систему.
-- Linux проверен вживую в WSL (Ubuntu 26.04, 2026-10-04): тесты и проверка типов, `install.sh` и `uninstall.sh`, вход в `claude` со страницы, лимиты `/usage`, запуск сессии в worktree задачи, после Done — остановка сессии, уборка worktree и ветки, своя синхронизация `main` с пушем в origin. Новый репозиторий CLI должен знать как доверенный: иначе запуск встаёт на паузу с просьбой один раз открыть `claude` в нём. macOS не проверялась.
+- `service/install.sh` as your own user (not via `sudo`): `npm install`, `npm run build`, then on Linux the unit `~/.config/systemd/user/even-keel.service` (`systemctl --user`, log — `journalctl --user -u even-keel`), on macOS the agent `~/Library/LaunchAgents/local.even-keel.plist` (`launchctl`, log — `logs/even-keel.log`, no rotation). Running it again rebuilds and restarts. `service/uninstall.sh` removes it.
+- `PATH` and the path to `node` are taken from the installer's shell: if `node` changed (nvm and the like), run `install.sh` again.
+- Stopping the service does not kill background sessions: `KillMode=process` in the unit, `AbandonProcessGroup` in the agent. A `--user` unit lives while the user is logged in; to keep it running without a login, use `loginctl enable-linger <user>` (the installer reminds you). The macOS agent works only while logged in.
+- Linux was verified live in WSL (Ubuntu 26.04, 2026-10-04): tests and type check, `install.sh` and `uninstall.sh`, signing in to `claude` from the page, `/usage` limits, starting a session in a task worktree, and after Done — stopping the session, cleaning up the worktree and branch, its own `main` sync with a push to origin. The CLI must know a new repository as trusted: otherwise the launch pauses and asks you to open `claude` in it once. macOS was not verified.

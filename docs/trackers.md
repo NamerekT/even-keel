@@ -1,69 +1,69 @@
-# Трекеры и плагины
+# Trackers and plugins
 
-Справка для сессий: как устроены прослойка трекера, адаптеры и плагины Claude Code. Правила работы — в `CLAUDE.md`, публичное описание — в `README.md`.
+Reference for sessions: how the tracker layer, the adapters and the Claude Code plugins are built. The working rules are in `CLAUDE.md`, the public description in `README.md`.
 
-## Прослойка `src/tracker/` (BTN-58)
+## The `src/tracker/` layer (BTN-58)
 
-- Нейтральная модель задачи — `model.ts`: `TrackerTask` от адаптера, `Task` — плюс модель и вопрос из ярлыков `Question` или `Вопрос`.
-- Контракт адаптера — `source.ts`, `TaskSource`/`TrackerAdapter`; описание там же в JSDoc — для тех, кто пишет свой. Цепочка, порядок, правила и состояние страницы знают только их.
-- Адаптер выбирается ключом `tracker` в `even-keel.config.json` — общим и у проекта (`{ "repo", "tracker" }`), по умолчанию `huly`. Реестр — `src/tracker/adapters.ts`, в репозитории Huly, GitHub и Linear.
-- Трекеру, у которого проект не называется ключом, адаптер объявляет `projectKey` — ключ в объекте проекта (у GitHub `github`: `owner/name`); без него или кривой — ошибка конфига. С `optional` ошибка — только кривой (у Linear `linear` сужает команду до проекта). Значения приходят в `setup` вторым аргументом.
-- ID задачи — `<ключ проекта>-<номер>`: по нему worktree, ветка и статистика. Чего у трекера нет, адаптер отдаёт пустым.
-- Необязательные `brief` и `complete` — у Huly есть оба (BTN-63, `src/huly/source.ts`): описание — markdown, Done — статус категории `Won` из типа проекта.
-  - `brief` — заголовок и описание дописываются к промту запуска и передачи дел.
-  - `complete` — Even Keel закрывает задачу, увидев её ветку влитой в `main`: `src/git/merged.ts` — вершина ветки в `main` и в `main` есть хоть один коммит, сделанный в самой ветке (по reflog: создание, `reset` и перемотки `Fast-forward` своих коммитов не дают, так что ветка, которая только подтянула `main`, влитой не считается), `src/tracker/closer.ts`. `true` — задачу перевели, уже закрытая — `false`, ничего не пишется. С git-хуком, который тоже переводит в Done, они не спорят: кто первый, тот и закрыл.
-- Необязательный `children` — прямые подзадачи задачи; есть только у Huly (по `attachedTo`). С ним и `complete` Even Keel закрывает родителя (`src/tracker/parents.ts`): при обновлении задач открытый по правилам родитель, у которого среди известных задач нет открытой подзадачи, проверяется в трекере — все подзадачи закрыты и хоть одна в `Won` — `complete`. Все отменены — родитель остаётся пользователю. У Huly `parents` идёт от корня: прямой родитель — последний.
-- Необязательные `card` и `ready` — карточка задачи на странице; есть только у Huly. `card` (`TrackerCard`, `src/tracker/card.ts`) — описание и комментарии в markdown, ярлыки, веха, приоритет, родитель, «блокирована», «блокирует», «связана»; сервер (`GET /api/tasks/<id>`) дописывает `cardOf`: что значит каждый ярлык для Even Keel (модель, вопрос, не пускает, требуется) и можно ли перевести в Todo. `ready` (`POST /api/task/ready`) переводит задачу категории `UnStarted` в первый статус `ToDo` типа проекта и возвращает новый статус; служба сразу подменяет его у задачи в цепочке, не дожидаясь опроса. Есть ли `ready` у подключённого адаптера, состояние несёт в `trackers[].ready`: по нему кнопка «В Todo» стоит и прямо в строке бэклога, у задач категории `UnStarted`. Без `card` страница отвечает «трекер не отдаёт карточку» и даёт ссылку.
-  - Huly: «блокирует» — задачи, у которых в `blockedBy` эта (запрос `blockedBy: { _id, _class }` целым объектом: по `blockedBy._id` и `$elemMatch` Huly ничего не находит); «связана» — `relations` самой задачи, Huly хранит связь с обеих сторон. Комментарии — `chunter:class:ChatMessage` по `attachedTo`, разметка в markdown через `@hcengineering/text-markdown`; автор — `createdBy` (социальный id) → `SocialIdentity.attachedTo` → `Person.name` в виде «Фамилия,Имя».
-- Ключ `brief` (`true` по умолчанию, общий и у проекта — `{ "repo", "brief" }`, применяется на лету) выключает описание в промте для проектов, где сессии читают задачу сами через MCP трекера. Тогда Even Keel проверяет, видит ли сессия MCP-сервер адаптера (`mcpServer`, у Huly `huly`) — при старте, смене конфига и перед запуском. Проверка — `src/tracker/mcp.ts`: user scope и local scope проекта из `.claude.json` глобального и активного аккаунта — по любому написанию пути, `.mcp.json` без `disabledMcpjsonServers`, включённые плагины, минус `disabledMcpServers`. Не видит — предупреждение в лог и баннер `McpBanner` (`mcpMissing` в состоянии): сессия получит только номер задачи.
-- На каждый трекер в работе — своя связь и опрос (`src/tracker/link.ts`, `poller.ts`) и строка в меню «Состояние». Ссылка на задачу — по трекеру её проекта (`trackerUrls`, шаблон `issueUrl` с `{id}` или `{number}`).
+- The neutral task model is `model.ts`: `TrackerTask` from the adapter, `Task` — plus the model and the question from the labels `Question` or `Вопрос`.
+- The adapter contract is `source.ts`, `TaskSource`/`TrackerAdapter`; the description is in the JSDoc there, for those who write their own. The chain, the order, the rules and the page state know only these.
+- The adapter is chosen by the `tracker` key in `even-keel.config.json` — global and per project (`{ "repo", "tracker" }`), `huly` by default. The registry is `src/tracker/adapters.ts`; the repository has Huly, GitHub and Linear.
+- For a tracker whose project is not named by a key, the adapter declares `projectKey` — a key in the project object (for GitHub `github`: `owner/name`); without it, or if malformed, it is a config error. With `optional` only a malformed one is an error (for Linear `linear` narrows the team to a project). The values arrive in `setup` as the second argument.
+- A task ID is `<project key>-<number>`: the worktree, branch and stats go by it. What the tracker lacks, the adapter returns empty.
+- The optional `brief` and `complete` — Huly has both (BTN-63, `src/huly/source.ts`): the description is markdown, Done is a status of the `Won` category from the project type.
+  - `brief` — the title and description are appended to the launch and handoff prompts.
+  - `complete` — Even Keel closes the task once it sees its branch merged into `main`: `src/git/merged.ts` — the branch tip is in `main` and `main` has at least one commit made in the branch itself (by reflog: creation, `reset` and `Fast-forward` pulls of own commits do not count, so a branch that only pulled in `main` is not considered merged), `src/tracker/closer.ts`. `true` — the task was moved, already closed — `false`, nothing is written. It does not conflict with a git hook that also moves to Done: whoever is first closed it.
+- The optional `children` — the direct subtasks of a task; only Huly has it (by `attachedTo`). With it and `complete`, Even Keel closes the parent (`src/tracker/parents.ts`): when tasks are refreshed, a parent that is open by the rules and has no open subtask among the known tasks is checked in the tracker — all subtasks closed and at least one in `Won` — `complete`. All cancelled — the parent is left to the user. In Huly `parents` goes from the root: the direct parent is the last.
+- The optional `card` and `ready` — the task card on the page; only Huly has them. `card` (`TrackerCard`, `src/tracker/card.ts`) — the description and comments in markdown, labels, milestone, priority, parent, "blocked by", "blocks", "related"; the server (`GET /api/tasks/<id>`) appends `cardOf`: what each label means to Even Keel (model, question, keeps out, required) and whether it can be moved to Todo. `ready` (`POST /api/task/ready`) moves a task of the `UnStarted` category to the first `ToDo` status of the project type and returns the new status; the service immediately substitutes it for the task in the chain without waiting for a poll. Whether the connected adapter has `ready` is carried by the state in `trackers[].ready`: the "Move to Todo" button stands on this basis right in the backlog row, for tasks of the `UnStarted` category. Without `card` the page answers "the tracker doesn't provide a card" and gives a link.
+  - Huly: "blocks" — tasks that have this one in `blockedBy` (the query passes `blockedBy: { _id, _class }` as a whole object: by `blockedBy._id` and `$elemMatch` Huly finds nothing); "related" — the task's own `relations`, Huly stores the link on both sides. Comments are `chunter:class:ChatMessage` by `attachedTo`, the markup converted to markdown with `@hcengineering/text-markdown`; the author is `createdBy` (social id) → `SocialIdentity.attachedTo` → `Person.name` in the form "Surname,Name".
+- The `brief` key (`true` by default, global and per project — `{ "repo", "brief" }`, applied on the fly) turns off the description in the prompt for projects where sessions read the task themselves through the tracker MCP. Then Even Keel checks whether the session sees the adapter's MCP server (`mcpServer`, for Huly `huly`) — at startup, on a config change and before a launch. The check is `src/tracker/mcp.ts`: user scope and the project's local scope from `.claude.json` of the global and the active account — by any spelling of the path, `.mcp.json` without `disabledMcpjsonServers`, enabled plugins, minus `disabledMcpServers`. If it does not see it — a warning in the log and the `McpBanner` banner (`mcpMissing` in the state): the session will get only the task number.
+- Each tracker in use has its own connection and poll (`src/tracker/link.ts`, `poller.ts`) and a row in the "Status" menu. A task link goes by the tracker of its project (`trackerUrls`, the `issueUrl` template with `{id}` or `{number}`).
 
 ## Huly
 
-Адаптер `src/huly/` через `@hcengineering/api-client` — тот же клиент, что у git-хуков в `~/.githooks`.
+The adapter `src/huly/` through `@hcengineering/api-client` — the same client as the git hooks in `~/.githooks`.
 
 ## GitHub Issues (BTN-65, `src/github/`)
 
-- GraphQL `api.github.com` токеном `GITHUB_TOKEN` (fine-grained, Issues: Read and write).
-- Открытая issue — `Open` (`ToDo`), закрытая как completed (или без причины) — `Completed` (`Won`), not planned и duplicate — `Lost`.
-- Блокеры — нативные «blocked by», родитель и подзадачи — sub-issues, приоритет — ярлык `priority: <уровень>` (или `priority/<уровень>`), оценки нет (0). Блокер или родитель из репозитория без проекта — ID `owner/name#номер`.
-- `complete` закрывает issue как completed. Бэклога у GitHub нет — вход в цепочку держать на ярлыке (`requiredLabels`). Pull request задачей не бывает.
-- Проверен вживую (2026-10-04, приватный репозиторий): две issue со связью «blocked by» и вехой прошли цепочкой по очереди, после слияния `complete` закрыл обе как completed.
-- Второй экземпляр Even Keel из сессии Claude Code запускать без её переменных `CLAUDE*`: унаследованный `CLAUDE_CONFIG_DIR` делает `global` папкой аккаунта сессии.
+- GraphQL `api.github.com` with the `GITHUB_TOKEN` token (fine-grained, Issues: Read and write).
+- An open issue is `Open` (`ToDo`), one closed as completed (or without a reason) is `Completed` (`Won`), not planned and duplicate are `Lost`.
+- Blockers are the native "blocked by", the parent and subtasks are sub-issues, priority is the label `priority: <level>` (or `priority/<level>`), there is no estimate (0). A blocker or parent from a repository without a project has the ID `owner/name#number`.
+- `complete` closes the issue as completed. GitHub has no backlog — keep entry into the chain on a label (`requiredLabels`). A pull request is never a task.
+- Verified live (2026-10-04, private repository): two issues with a "blocked by" link and a milestone went through the chain in turn, and after the merge `complete` closed both as completed.
+- Run a second Even Keel instance from a Claude Code session without its `CLAUDE*` variables: an inherited `CLAUDE_CONFIG_DIR` makes `global` the session's account folder.
 
 ## Linear (BTN-72, `src/linear/`)
 
-- GraphQL `api.linear.app` личным ключом `LINEAR_TOKEN` — в `Authorization` без `Bearer`.
-- Ключ проекта — ключ команды Linear, ID задачи — идентификатор Linear как есть (`NAM-12`): ветка, коммит и MCP в сессии называют задачу одинаково. Поэтому на команду — один проект Even Keel (несколько — вопрос BTN-73). Необязательный `linear` в объекте проекта — имя проекта Linear (без регистра), до которого сужается команда.
-- Статус — по типу состояния процесса команды: `triage` и `backlog` — `UnStarted`, `unstarted` — `ToDo`, `started` — `Active`, `completed` — `Won`, `canceled` и `duplicate` — `Lost`, незнакомый тип — `UnStarted`; имя — имя состояния. Бэклог у Linear свой, вход в цепочку — как у Huly.
-- Блокеры — обратные связи `blocks`, родитель и подзадачи — нативные, приоритет — нативный (1 Urgent … 4 Low, 0 — без), оценки нет (0: у Linear очки).
-- Веха — веха проекта (`projectMilestone`), не цикл: незакрытое Linear сам переносит в следующий цикл, порядка по циклам не выйдет.
-- `complete` — первое по `position` состояние типа `completed` у команды задачи; закрытая (`completed`, `canceled`, `duplicate`) — `false`.
-- Ссылка — `linear.app/<urlKey>/issue/{id}`; `urlKey` организации адаптер узнаёт при подключении, до него ссылок нет.
-- Ловушки API: сложность запроса до 10000, список без `first` считается за 50 — у вложенных явные `first`. `issue(id)` на несуществующую задачу роняет весь ответ — задачи по ID читаются фильтром `number: { in }` по ключу команды. Поля одного объекта внутри `or` Linear тоже сводит через «или» — нужен явный `and`.
-- Проверен вживую (2026-10-04, команда с сужением до тестового проекта Linear): две задачи вехи проекта со связью «blocks» прошли цепочкой по очереди — блокер первым вопреки более высокому приоритету второй, — после слияния `complete` перевёл обе в Done, worktree и ветки убраны.
+- GraphQL `api.linear.app` with the personal key `LINEAR_TOKEN` — in `Authorization` without `Bearer`.
+- The project key is the Linear team key, the task ID is the Linear identifier as is (`NAM-12`): the branch, the commit and the MCP in the session name the task the same way. Hence one Even Keel project per team (several is BTN-73's question). The optional `linear` in the project object is the Linear project name (case-insensitive) that the team is narrowed to.
+- The status goes by the team's workflow state type: `triage` and `backlog` — `UnStarted`, `unstarted` — `ToDo`, `started` — `Active`, `completed` — `Won`, `canceled` and `duplicate` — `Lost`, an unfamiliar type — `UnStarted`; the name is the state's name. Linear has its own backlog, entry into the chain is as in Huly.
+- Blockers are the inverse `blocks` relations, the parent and subtasks are native, priority is native (1 Urgent … 4 Low, 0 — none), there is no estimate (0: Linear has points).
+- The milestone is the project milestone (`projectMilestone`), not a cycle: Linear itself carries unfinished work over to the next cycle, so an order by cycles will not work.
+- `complete` is the first state of type `completed` by `position` in the task's team; a closed task (`completed`, `canceled`, `duplicate`) — `false`.
+- The link is `linear.app/<urlKey>/issue/{id}`; the adapter learns the organization's `urlKey` on connecting, and there are no links before that.
+- API traps: query complexity is up to 10000, a list without `first` counts as 50 — nested ones get an explicit `first`. `issue(id)` on a nonexistent task fails the whole response — tasks by ID are read with the filter `number: { in }` by the team key. Linear also merges fields of one object inside `or` through "or" — an explicit `and` is needed.
+- Verified live (2026-10-04, a team narrowed to a Linear test project): two tasks of a project milestone with a "blocks" link went through the chain in turn — the blocker first despite the second's higher priority — and after the merge `complete` moved both to Done, the worktrees and branches were cleaned up.
 
-## Плагины Claude Code (BTN-64)
+## Claude Code plugins (BTN-64)
 
-- Репозиторий — маркетплейс `even-keel` (`.claude-plugin/marketplace.json`), по плагину на трекер в `plugins/<трекер>/`: MCP трекера (`.mcp.json`) и навыки (`skills/<имя>`, вызываются как `<трекер>:<имя>`). `task` — работа с задачей, у Huly ещё `split` — разрез на подзадачи и `setup` — заведение репозитория в трекере. Навыки — на английском и без чужих имён и замеров. Не трекерный плагин там один — `checkpoint` (хук контрольной точки, `docs/chain.md`), он ставится в `--scope user`.
-- Ставится с глобальной конфигурацией (без `CLAUDE_CONFIG_DIR`): `claude plugin marketplace add <репозиторий>`, затем в репозитории проекта `claude plugin install huly@even-keel --scope project` — `enabledPlugins` в `.claude/settings.json` проекта, его нужно закоммитить, иначе worktree задач его не увидят. Реестр плагинов в папки аккаунтов переносит `share.ts`, поставленное в папке аккаунта перезапишется. С плагином у проекта `brief: false`.
-- Правка плагина — с новой `version` в его `plugin.json`: установленная копия лежит в кэше по версии, и `claude plugin update` с той же версией ничего не берёт.
+- The repository is the marketplace `even-keel` (`.claude-plugin/marketplace.json`), one plugin per tracker in `plugins/<tracker>/`: the tracker MCP (`.mcp.json`) and skills (`skills/<name>`, invoked as `<tracker>:<name>`). `task` — working a task; Huly also has `split` — splitting into subtasks and `setup` — putting a repository on the tracker. The skills are in English and carry no foreign names or measurements. There is one non-tracker plugin there — `checkpoint` (the checkpoint hook, `docs/chain.md`), installed with `--scope user`.
+- Installed with the global configuration (without `CLAUDE_CONFIG_DIR`): `claude plugin marketplace add <repository>`, then in the project repository `claude plugin install huly@even-keel --scope project` — `enabledPlugins` in the project's `.claude/settings.json`, which must be committed, otherwise task worktrees will not see it. `share.ts` transfers the plugin registry into account folders; what is installed in an account folder will be overwritten. With the plugin, the project has `brief: false`.
+- A plugin change comes with a new `version` in its `plugin.json`: the installed copy sits in the cache by version, and `claude plugin update` with the same version picks up nothing.
 
-### `huly` — образец
+### `huly` — the model
 
-- Сервер `@firfi/huly-mcp`. Учётки (`HULY_URL`, `HULY_WORKSPACE`, `HULY_TOKEN` или `HULY_EMAIL`/`HULY_PASSWORD`) — из окружения сессии наследованием, в `.mcp.json` их нет, там только постоянный `TOOLSETS` (набор для работы с задачей).
-- Подстановки `${…}` в `.mcp.json` плагина не годятся: незаданная переменная, даже с `:-` по умолчанию, — сессия считает сервер упавшим и не запускает его (`claude mcp list` при этом пишет «Connected»), а пустой `HULY_TOKEN` сервер не принимает.
-- Учётки пользователь кладёт в `env` своего `~/.claude/settings.json`: его применяет сама сессия, а `share.ts` переносит файл в папки аккаунтов. Системные переменные для цепочки не годятся: `envOf` (BTN-34) убирает `HULY_*` из окружения `claude`, чтобы учётка Even Keel из `.env` не попала в сессии, а сессии — дети демона папки, и окружение у них от того, кто поднял демон.
-- Как пользоваться — `plugins/huly/README.md`.
+- The server is `@firfi/huly-mcp`. The credentials (`HULY_URL`, `HULY_WORKSPACE`, `HULY_TOKEN` or `HULY_EMAIL`/`HULY_PASSWORD`) are inherited from the session environment and are not in `.mcp.json`, which has only the constant `TOOLSETS` (the set for working a task).
+- `${…}` substitutions in a plugin's `.mcp.json` are unsuitable: an unset variable, even with a `:-` default, makes the session consider the server failed and not start it (`claude mcp list` still says "Connected"), and the server does not accept an empty `HULY_TOKEN`.
+- The user puts the credentials in `env` of their `~/.claude/settings.json`: the session applies it itself, and `share.ts` transfers the file into account folders. System variables do not work for the chain: `envOf` (BTN-34) removes `HULY_*` from the `claude` environment so that Even Keel's own credentials from `.env` do not reach sessions, and sessions are children of the folder's daemon, so their environment comes from whoever started the daemon.
+- How to use it — `plugins/huly/README.md`.
 
 ### `github` (BTN-65)
 
-- Удалённый сервер GitHub (`api.githubcopilot.com/mcp/`, наборы `issues,labels`). HTTP-серверу токен нужен в заголовке, поэтому здесь подстановка `${GITHUB_PERSONAL_ACCESS_TOKEN}` — без переменной сервер всё равно бесполезен. Это не `GITHUB_TOKEN` Even Keel: тот `envOf` убирает из сессий.
-- Связей «blocked by» в MCP нет — навык ставит их через `gh api …/dependencies/blocked_by`.
-- Как пользоваться — `plugins/github/README.md`.
+- The remote GitHub server (`api.githubcopilot.com/mcp/`, toolsets `issues,labels`). An HTTP server needs the token in a header, so a `${GITHUB_PERSONAL_ACCESS_TOKEN}` substitution is used here — without the variable the server is useless anyway. This is not Even Keel's `GITHUB_TOKEN`: `envOf` removes that one from sessions.
+- The MCP has no "blocked by" links — the skill sets them via `gh api …/dependencies/blocked_by`.
+- How to use it — `plugins/github/README.md`.
 
 ### `linear` (BTN-72)
 
-- Удалённый сервер Linear (`mcp.linear.app/mcp`). Личный ключ принимает в заголовке — `Authorization: Bearer ${LINEAR_API_KEY}`; это не `LINEAR_TOKEN` Even Keel, тот `envOf` убирает из сессий.
-- Связи «blocks» сервер ставит сам: `save_issue` с `blockedBy`/`blocks`.
-- Как пользоваться — `plugins/linear/README.md`.
+- The remote Linear server (`mcp.linear.app/mcp`). It accepts a personal key in a header — `Authorization: Bearer ${LINEAR_API_KEY}`; this is not Even Keel's `LINEAR_TOKEN`, which `envOf` removes from sessions.
+- The server sets "blocks" links itself: `save_issue` with `blockedBy`/`blocks`.
+- How to use it — `plugins/linear/README.md`.

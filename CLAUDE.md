@@ -1,90 +1,90 @@
 # Even Keel
 
-Раньше назывался Baton (Батон): так он записан в старых коммитах, задачах и памяти; ключ Huly `BTN` и ветки `btn-*` остались.
+Formerly called Baton (Батон): that is how it is recorded in old commits, tasks and memory; the Huly key `BTN` and the `btn-*` branches stayed.
 
-Диспетчер цепочек сессий Claude Code. Берёт открытые задачи проекта из трекера, строит порядок по связям `blocks`, запускает сессию на первую задачу и, когда задача уходит в Done, запускает следующую. Веб-страница показывает цепочку и по каждой сессии — этап, текущее действие и заполненность контекста. Работает службой на рабочей станции пользователя: агенты запускаются только здесь.
+A dispatcher of Claude Code session chains. It takes a project's open tasks from the tracker, builds the order from `blocks` relations, starts a session on the first task and, when the task goes to Done, starts the next one. A web page shows the chain and, for each session, the stage, the current action and how full the context is. It runs as a service on the user's workstation: agents are launched only here.
 
-Глобальные правила из `~/.claude/CLAUDE.md` действуют полностью. Ниже — только то, что специфично для этого проекта.
+The global rules from `~/.claude/CLAUDE.md` apply in full. Below is only what is specific to this project.
 
-## Документация
+## Documentation
 
-Этот файл — правила и ловушки, которые нужны в каждой сессии. Справка по устройству — в `docs/`, читать документ своей области перед работой в ней:
+This file holds the rules and traps needed in every session. Reference on how things are built is in `docs/`; read the document for your area before working in it:
 
-| Документ | Что в нём |
+| Document | What is in it |
 | --- | --- |
-| `docs/chain.md` | вход в цепочку, порядок, worktree задач, уборка после Done, режим «слот», исключения инварианта 1 подробно |
-| `docs/trackers.md` | прослойка `src/tracker/`, адаптеры Huly, GitHub и Linear, `brief`/`complete`, плагины Claude Code |
-| `docs/sessions.md` | CLI `claude`, транскрипты, модель по ярлыку, сборка промтов, опрос лимитов |
-| `docs/accounts.md` | папки аккаунтов, вход и переключение, панель приложений, перенос общей конфигурации |
-| `docs/web.md` | интерфейс, перевод (`language`, коды сообщений), конфиг на лету, параметры `dev:fake` |
-| `docs/stats.md` | страница `/stats`, её маршруты и URL, правки правил; сборщик — `tally/CLAUDE.md` |
-| `docs/service.md` | служба на Windows, Linux и macOS |
+| `docs/chain.md` | entry into the chain, order, task worktrees, cleanup after Done, "slot" mode, the exceptions to invariant 1 in detail |
+| `docs/trackers.md` | the `src/tracker/` layer, the Huly, GitHub and Linear adapters, `brief`/`complete`, Claude Code plugins |
+| `docs/sessions.md` | the `claude` CLI, transcripts, the model by label, prompt assembly, limit polling |
+| `docs/accounts.md` | account folders, sign-in and switching, the apps panel, transferring the shared configuration |
+| `docs/web.md` | the interface, translation (`language`, message codes), live config, `dev:fake` parameters |
+| `docs/stats.md` | the `/stats` page, its routes and URLs, rule changes; the collector is in `tally/CLAUDE.md` |
+| `docs/service.md` | the service on Windows, Linux and macOS |
 
-`README.md` (на английском, для тех, кто видит проект впервые) и `LICENSE` (MIT) — публичная документация (BTN-60). Меняется установка, ключ конфига, переменная окружения или поведение, описанное там, — правится и README; версия CLI в разделе «Before you run it» — последняя, на которой проверено.
+`README.md` (in English, for those seeing the project for the first time) and `LICENSE` (MIT) are the public documentation (BTN-60). When installation, a config key, an environment variable or behaviour described there changes, the README is edited too; the CLI version in the "Before you run it" section is the latest one it was verified on.
 
-**Куда писать новое.** Сюда — только правило или ловушка, без которых сессия ошибётся в любой задаче, одной-двумя строками. Устройство фичи, маршруты, параметры, сопоставления полей, замеры — в документ области в `docs/` (нет подходящего — новый документ и строка в таблице выше) или в JSDoc рядом с кодом. То, что видно из кода, не пересказывать.
+**Where to write new things.** Here goes only a rule or a trap without which a session will go wrong in any task, in a line or two. How a feature is built, routes, parameters, field mappings, measurements go into the area's document in `docs/` (if none fits — a new document and a row in the table above) or into JSDoc next to the code. Do not retell what is visible from the code. Documentation in the repository is written in English; the rule that the content of Huly tasks is in Russian stays as is.
 
-## Стек
+## Stack
 
-- Node.js 24 + TypeScript, тесты — vitest. Интерфейс — React + Vite в `web/`, сборка в `dist/web`; типы состояния клиент берёт из `src/state.ts` — там только типы, без `node:*`.
-- Трекер — только через прослойку `src/tracker/`: цепочка, порядок, правила и страница знают нейтральную модель и контракт адаптера, а не Huly. В репозитории адаптеры Huly (`src/huly/`), GitHub (`src/github/`) и Linear (`src/linear/`).
-- Сессии — CLI `claude --bg`, по папке конфигурации на аккаунт (`CLAUDE_CONFIG_DIR`).
-- Статистика — Tally (`tally/`), сборщик и встроенная база работают внутри службы.
-- `even-keel.config.json` служба перечитывает на лету; `host`, `port`, `projects`, `tracker`, `context` — только после перезапуска.
+- Node.js 24 + TypeScript, tests — vitest. The interface is React + Vite in `web/`, built into `dist/web`; the client takes state types from `src/state.ts` — only types there, no `node:*`.
+- The tracker is reached only through the `src/tracker/` layer: the chain, the order, the rules and the page know the neutral model and the adapter contract, not Huly. The repository has the Huly (`src/huly/`), GitHub (`src/github/`) and Linear (`src/linear/`) adapters.
+- Sessions are the `claude --bg` CLI, with a configuration folder per account (`CLAUDE_CONFIG_DIR`).
+- Stats are Tally (`tally/`); the collector and the embedded database run inside the service.
+- The service rereads `even-keel.config.json` on the fly; `host`, `port`, `projects`, `tracker`, `context` only after a restart.
 
-## Ловушки
+## Traps
 
-- `claude agents --json` не даёт ни `pid`, ни `status`, а `state` остаётся и за мёртвыми сессиями. Живая сессия — только запись `sessions/<pid>.json` с живым `pid`.
-- CLI заводит на одну папку несколько ключей в `.claude.json` (`d:/…`, `D:/…`, `D:\…`). Пути сравнивать только через `src/paths.ts`.
-- Временный демон папки аккаунта кэширует конфигурацию: перенос (`share.ts`) доходит только до сессий после перезапуска демона.
-- `/usage` не опрашивать чаще раза в 5 минут: 429, и CLI потом ~45 мин не спрашивает этот токен. Нет строк окон — «нет данных», не ошибка.
-- В `.mcp.json` stdio-плагина подстановки `${…}` не годятся: незаданная переменная — сессия считает сервер упавшим. Учётки трекера сессии берут из `env` в `~/.claude/settings.json`; `envOf` убирает переменные адаптеров из окружения сессий.
-- Правка плагина — с новой `version` в его `plugin.json`, иначе `claude plugin update` ничего не берёт.
-- Десктопное приложение Claude переписывает профиль в `~/.claude`: держать там тот же аккаунт, что в приложении.
-- Второй экземпляр Even Keel из сессии Claude Code — без её переменных `CLAUDE*`: унаследованный `CLAUDE_CONFIG_DIR` делает `global` папкой аккаунта сессии.
-- Сессия в worktree не читает `.claude/settings.local.json` основного чекаута: что из него нужно сессиям цепочки — только через `--settings` (`src/tools/panel.ts`).
-- Промт сессии собирается через `fill`: пустое значение — ошибка и пауза цепочки, а не пустое место.
-- Сообщение сервера для страницы — код, а не текст: новый код — в `src/notice/en.ts` и `web/src/i18n/notices-ru.ts` (равенство проверяет тип). Лог службы — на английском.
-- Служба отдаёт собранный `dist/web`: после правки кода — `npm run build` и перезапуск службы, иначе страница старая или 503.
+- `claude agents --json` gives neither `pid` nor `status`, and `state` stays even for dead sessions. A live session is only a `sessions/<pid>.json` entry with a live `pid`.
+- The CLI creates several keys for one folder in `.claude.json` (`d:/…`, `D:/…`, `D:\…`). Compare paths only through `src/paths.ts`.
+- An account folder's temporary daemon caches the configuration: a transfer (`share.ts`) reaches only sessions after the daemon restarts.
+- Do not poll `/usage` more often than once per 5 minutes: 429, and then the CLI does not query that token for ~45 min. No window lines means "no data", not an error.
+- `${…}` substitutions do not work in a stdio plugin's `.mcp.json`: an unset variable makes the session consider the server failed. Sessions take tracker credentials from `env` in `~/.claude/settings.json`; `envOf` removes the adapters' variables from the sessions' environment.
+- A plugin change comes with a new `version` in its `plugin.json`, otherwise `claude plugin update` picks up nothing.
+- The Claude desktop app rewrites the profile in `~/.claude`: keep the same account there as in the app.
+- A second Even Keel instance from a Claude Code session — without its `CLAUDE*` variables: an inherited `CLAUDE_CONFIG_DIR` makes `global` the session's account folder.
+- A session in a worktree does not read the main checkout's `.claude/settings.local.json`: whatever chain sessions need from it goes only through `--settings` (`src/tools/panel.ts`).
+- A session prompt is assembled through `fill`: an empty value is an error and a chain pause, not a blank space.
+- A server message for the page is a code, not text: a new code goes into `src/notice/en.ts` and `web/src/i18n/notices-ru.ts` (the type checks that they are equal). The service log is in English.
+- The service serves the built `dist/web`: after a code change — `npm run build` and a service restart, otherwise the page is stale or 503.
 
-## Хостинг
+## Hosting
 
-Два remote — `origin` (self-hosted Forgejo) и `github` (`github.com/NamerekT/even-keel`, организация, пока приватный). `main` пушится только `git sync` (глобальный алиас: забирает `main` со всех remote, сливает и пушит во все) — не `git push origin main`, иначе remote разойдутся. Ветки задач на remote не пушатся.
+Two remotes — `origin` (self-hosted Forgejo) and `github` (`github.com/NamerekT/even-keel`, an organization, private for now). `main` is pushed only by `git sync` (a global alias: fetches `main` from all remotes, merges and pushes to all) — not `git push origin main`, otherwise the remotes diverge. Task branches are not pushed to a remote.
 
-## Задачи
+## Tasks
 
-Работа по этому репозиторию ведётся через трекер Huly, проект `BTN`.
-Правила, статусы и порядок действий — скил `huly-tracker`, читать его перед созданием задачи или началом работы по ней.
+Work on this repository is tracked in Huly, project `BTN`.
+The rules, statuses and order of actions are in the `huly-tracker` skill; read it before creating a task or starting work on one.
 
-- Код пишется под активную задачу, в её worktree. Прямая просьба без задачи — коммит в `main` основного чекаута (глобальный CLAUDE.md).
-- Ветка: `btn-<номер>/short-description`. Коммит: `[BTN-<номер>] Message`.
-- Содержимое задач (заголовки, описания, комментарии) — на русском.
-- Сессия доводит задачу до `main` сама: после одобрения ревьюера сливает ветку (`git merge --no-edit` в основной рабочей копии) — это закрывает задачу. Пользователю — отчёт о сделанном, а не команда слияния. Worktree, ветку и пуш `main` после слияния сессия из цепочки не трогает — это делает Even Keel. Сессия, запущенная вручную, убирает за собой сама по навыку и пушит `main` через `git sync`.
+- Code is written under an active task, in its worktree. A direct request without a task is a commit to `main` of the main checkout (global CLAUDE.md).
+- Branch: `btn-<number>/short-description`. Commit: `[BTN-<number>] Message`.
+- The content of tasks (titles, descriptions, comments) is in Russian.
+- A session brings a task to `main` itself: after the reviewer's approval it merges the branch (`git merge --no-edit` in the main working copy), which closes the task. The user gets a report of what was done, not a merge command. After the merge, a session from the chain leaves the worktree, the branch and the push of `main` alone — Even Keel does that. A session started by hand cleans up after itself per the skill and pushes `main` through `git sync`.
 
-Исключение из скила: прямая работа с API Huly здесь разрешена — это суть проекта.
+An exception to the skill: working with the Huly API directly is allowed here — it is the point of the project.
 
-## Worktree задач
+## Task worktrees
 
-Even Keel готовит worktree сам (`src/git/worktree.ts`, `src/git/slot.ts`), сессии его не создают: `.claude/worktrees/<ключ>-<номер>` на ветке `<ключ>-<номер>/task` или слот из пула. После Done он останавливает сессии задачи, убирает worktree и ветку и делает `git sync`; грязное и занятое не трогает, а пишет в `leftovers`. Подробно — `docs/chain.md`.
+Even Keel prepares the worktree itself (`src/git/worktree.ts`, `src/git/slot.ts`), sessions do not create it: `.claude/worktrees/<key>-<number>` on the branch `<key>-<number>/task`, or a slot from the pool. After Done it stops the task's sessions, removes the worktree and the branch and runs `git sync`; it leaves dirty or occupied ones alone and writes them to `leftovers`. In detail — `docs/chain.md`.
 
-## Инварианты
+## Invariants
 
-1. **Остановившуюся сессию диспетчер не трогает.** Вопрос, ошибка — ничего не происходит. Пользователь отвечает с телефона через Remote Control или сам двигает задачу в трекере. «Не трогает» — не останавливает её и ничего ей не пишет. Исключения (подробно — `docs/chain.md`), во всех — `claude stop`, никогда не `rm`:
-   1. лимит у сессии текущей задачи незапаузенной цепочки — `--resume` при тёплом кэше, иначе новая сессия с передачей дел;
-   2. кнопка «Новая сессия» (`restart`) — сессия не посреди хода;
-   3. контрольная точка: последняя строка последнего ответа — `CHECKPOINT: <путь>`;
-   4. задача в Done — сессия закончила ход и не ждёт ответа;
-   5. слот переключают на ветку другой задачи — останавливаются простаивающие сессии отпущенных задач в нём; посреди хода — слот не переключается.
+1. **The dispatcher does not touch a session that has stopped.** A question, an error — nothing happens. The user answers from a phone through Remote Control or moves the task in the tracker themselves. "Does not touch" means it neither stops it nor writes anything to it. Exceptions (in detail — `docs/chain.md`), all of them `claude stop`, never `rm`:
+   1. a limit on the session of the current task of an unpaused chain — `--resume` while the cache is warm, otherwise a new session with a handoff;
+   2. the "New session" button (`restart`) — the session is not mid-turn;
+   3. a checkpoint: the last line of the last response is `CHECKPOINT: <path>`;
+   4. a task in Done — the session has finished its turn and is not waiting for a reply;
+   5. a slot is switched to another task's branch — the idle sessions of released tasks in it are stopped; mid-turn, the slot is not switched.
 
-   Перестать ждать сессию, не посреди хода (`busy`/`waiting`), диспетчер может: задача получила открытый блокер из цепочки (`postpone`) или пользователь нажал «Пропустить» (`skip`). В режиме без присмотра (`unattended`) — ещё и сессию, 10 минут простоявшую без Done (в том числе `waiting`); подробно — `docs/chain.md`.
-2. **Трекер — источник правды о статусах.** Своё у диспетчера только порядок цепочки, пауза, список пропущенных задач, отпущенные задачи, ждущие уборки, предупреждения уборки, режим без присмотра и переключатель «убрать лишние инструменты».
-3. **Секретов в репозитории нет.** Адреса и учётки — из окружения или локального файла вне git; в репозитории только `.env.example` с фейками.
-4. **Пароль Windows диспетчер не принимает и не хранит.** Учётку службы пользователь вводит сам.
+   The dispatcher may stop waiting for a session that is not mid-turn (`busy`/`waiting`): the task got an open blocker from the chain (`postpone`) or the user pressed "Skip" (`skip`). In unattended mode (`unattended`) it may also stop waiting for a session that has sat idle for 10 minutes without Done (including `waiting`); in detail — `docs/chain.md`.
+2. **The tracker is the source of truth for statuses.** The dispatcher owns only the chain order, the pause, the list of skipped tasks, released tasks awaiting cleanup, cleanup warnings, unattended mode and the "trim the tools" switch.
+3. **There are no secrets in the repository.** Addresses and credentials come from the environment or a local file outside git; the repository has only `.env.example` with fakes.
+4. **The dispatcher does not accept or store the Windows password.** The user enters the service account themselves.
 
-## Служба
+## Service
 
-Без службы: `npm install`, `npm run build`, `npm start`. На Windows — служба `EvenKeel`, установка `service/install.ps1` из PowerShell 7 от администратора, лог — `logs/even-keel.log`; на Linux и macOS — `service/install.sh`. Подробно — `docs/service.md`.
+Without the service: `npm install`, `npm run build`, `npm start`. On Windows — the service `EvenKeel`, installed with `service/install.ps1` from PowerShell 7 as administrator, the log is `logs/even-keel.log`; on Linux and macOS — `service/install.sh`. In detail — `docs/service.md`.
 
-## Тесты
+## Tests
 
-TDD для логики: порядок цепочки, переходы по статусам, разбор транскриптов и ответов трекеров. Работа с процессами, сетью и вёрстка тестами не покрываются — проверяются вживую, скриншоты Playwright в `.temp/`.
+TDD for logic: chain order, status transitions, parsing transcripts and tracker answers. Process handling, network and layout are not covered by tests — they are checked live, with Playwright screenshots in `.temp/`.

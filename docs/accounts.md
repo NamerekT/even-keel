@@ -1,35 +1,35 @@
-# Аккаунты Claude
+# Claude accounts
 
-Справка для сессий: папки аккаунтов, вход, переключение, перенос общей конфигурации.
+Reference for sessions: account folders, sign-in, switching, transferring the shared configuration.
 
-## Папки и вход
+## Folders and sign-in
 
-- По папке конфигурации на аккаунт (`CLAUDE_CONFIG_DIR`): глобальный `~/.claude` (ключ `global`) и `~/.claude-accounts/<имя>` (`EVEN_KEEL_ACCOUNTS_DIR`).
-- Токены хранит и обновляет сам CLI; Even Keel из `.credentials.json` читает только сроки (`expiresAt`, `refreshTokenExpiresAt`), токены не читает и не копирует. `claude auth status --json` по каждой папке раз в минуту.
-- «Добавить аккаунт» — `claude auth login --claudeai` во временной `.pending-*`, после входа папка получает имя по e-mail; «Продлить вход» — вход в папке аккаунта. Ссылку и поле для кода страница показывает в меню аккаунта.
-- «Удалить» — `claude auth logout` и папка прочь (не активный, не глобальный). Есть живые сессии — папка помечается (`removing` в `state/account.json`), на неё нельзя переключиться, и удаляется на первой проверке после них (меню называет, какие держат), «Не удалять» снимает пометку.
-- Живая сессия папки — с живым процессом (запись `sessions/<pid>.json`), а не по `state` из `claude agents`: `blocked`/`working` там остаются и за сессией, процесс и демон которой давно умерли, такие записи ни удалению папки, ни остановке её демона не мешают (`liveSessions`).
-- Папки `*.lock` — замки, которые CLI ставит рядом с папкой аккаунта на время обновления токена, это не аккаунты.
-- Почта аккаунта в `auth status` — сохранённый профиль из `.claude.json`, а не владелец токена: десктопное приложение Claude запускает CLI в `~/.claude` со своим аккаунтом и переписывает профиль, поэтому в `~/.claude` держать тот же аккаунт, что в приложении.
+- One configuration folder per account (`CLAUDE_CONFIG_DIR`): the global `~/.claude` (key `global`) and `~/.claude-accounts/<name>` (`EVEN_KEEL_ACCOUNTS_DIR`).
+- The CLI itself stores and refreshes the tokens; Even Keel reads only the expiry times from `.credentials.json` (`expiresAt`, `refreshTokenExpiresAt`) and neither reads nor copies the tokens. `claude auth status --json` runs for each folder once a minute.
+- "Add account" — `claude auth login --claudeai` in a temporary `.pending-*` folder; after sign-in the folder is named after the e-mail. "Renew sign-in" — signing in again in the account folder. The page shows the link and the code field in the account menu.
+- Removing — `claude auth logout` and the folder goes away (not the active one, not the global one). If there are live sessions, the folder is marked (`removing` in `state/account.json`), cannot be switched to, and is deleted at the first check after they end (the menu names the ones holding it); "Don't remove" clears the mark.
+- A live session of a folder is one with a live process (a `sessions/<pid>.json` entry), not by `state` from `claude agents`: `blocked`/`working` stay there even for a session whose process and daemon died long ago, and such entries interfere neither with removing the folder nor with stopping its daemon (`liveSessions`).
+- `*.lock` folders are locks the CLI puts next to an account folder while a token is refreshed; they are not accounts.
+- The account e-mail in `auth status` is the saved profile from `.claude.json`, not the token owner: the Claude desktop app runs the CLI in `~/.claude` with its own account and rewrites the profile, so keep in `~/.claude` the same account as in the app.
 
-## Активный аккаунт
+## Active account
 
-- Переключить активный аккаунт (и продлить вход активного) можно, когда цепочка на паузе или остановлена и ни одна сессия активного аккаунта не посреди хода — `busy` или `waiting`; что мешает, меню показывает списком.
-- Пока идёт вход в активный аккаунт, он не вошёл или его вход истёк, новые сессии не запускаются (цепочка встаёт на паузу с причиной).
-- `state/account.json` — активный аккаунт и по каждой папке: её аккаунт, с какого момента он действует и какой был до него. Лимиты папки, полученные раньше смены аккаунта в ней, не показываются; аккаунт упора в лимит — папка сессии и её e-mail на момент упора, `--resume` — только если активна та же папка с тем же e-mail.
+- The active account can be switched (and the active one's sign-in renewed) when the chain is paused or stopped and no session of the active account is mid-turn — `busy` or `waiting`; the menu lists what is in the way.
+- While signing in to the active account is in progress, or it is not signed in or its sign-in has expired, new sessions are not started (the chain pauses with a reason).
+- `state/account.json` — the active account and, for each folder, its account, since when it has been in effect and which one was before it. Folder limits received before the account change in it are not shown; the account that hit a limit is the session's folder and its e-mail at the time of the limit, and `--resume` only if the same folder with the same e-mail is active.
 
-## Панель аккаунтов (`AccountMenu`)
+## Accounts panel (`AccountMenu`)
 
-- Боковая панель справа: папки аккаунтов, аккаунт Even Keel («Отдать Even Keel» — активный аккаунт цепочки) и аккаунты приложений (`src/account/apps.ts`, `src/account/vscode.ts`).
-- Пока приложение одно — VS Code: его аккаунт — `CLAUDE_CONFIG_DIR` в `claudeCode.environmentVariables` пользовательского `settings.json` (`%APPDATA%\Code\User` на Windows, `~/Library/Application Support/Code/User` на macOS, `$XDG_CONFIG_HOME/Code/User` или `~/.config/Code/User` на Linux), `global` — без переменной.
-- Файл переписывается, только если он чистый JSON (с комментариями — ошибка в панели, правка руками), остальные ключи, отступ и конец строки сохраняются.
-- Переключить нельзя, пока открыт хоть один чат Claude в VS Code — живая запись `sessions/<pid>.json` с `entrypoint: "claude-vscode"` в любой папке аккаунта (опрос раз в 5 с и заново перед записью); цепочка и сессии Even Keel не мешают. Перед записью папке переносится общая конфигурация (`DaemonRefresh.prepare`).
-- Аккаунт, на котором сидит приложение, не удаляется. Новый аккаунт VS Code берёт после Developer: Reload Window.
-- Десктопное приложение Claude сюда не входит: оно передаёт CLI свой вход, папкой конфигурации его не переключить.
+- A side panel on the right: account folders, the Even Keel account ("Give to Even Keel" — the active account of the chain) and app accounts (`src/account/apps.ts`, `src/account/vscode.ts`).
+- For now there is one app — VS Code: its account is `CLAUDE_CONFIG_DIR` in `claudeCode.environmentVariables` of the user `settings.json` (`%APPDATA%\Code\User` on Windows, `~/Library/Application Support/Code/User` on macOS, `$XDG_CONFIG_HOME/Code/User` or `~/.config/Code/User` on Linux); `global` means no variable.
+- The file is rewritten only if it is pure JSON (with comments it is an error in the panel, fix by hand); other keys, indentation and line endings are preserved.
+- Switching is impossible while any Claude chat is open in VS Code — a live `sessions/<pid>.json` entry with `entrypoint: "claude-vscode"` in any account folder (polled every 5 s and again before writing); the chain and Even Keel sessions do not interfere. Before writing, the shared configuration is transferred to the folder (`DaemonRefresh.prepare`).
+- The account an app sits on is not removed. VS Code picks up the new account after Developer: Reload Window.
+- The Claude desktop app is not included: it passes its own sign-in to the CLI, and its configuration folder cannot be switched.
 
-## Перенос общей конфигурации (`src/account/share.ts`)
+## Transferring the shared configuration (`src/account/share.ts`)
 
-- Перед каждым запуском в папке аккаунта в неё переносится: `settings.json` (глобальный поверх своего), `CLAUDE.md`, реестр плагинов, junction (вне Windows — символьная ссылка) на `agents`, `hooks`, навыки и память проектов.
-- Из `~/.claude.json` — доверие и настройки проекта (MCP local scope, `allowedTools`) для уже доверенных проектов. CLI заводит на одну папку несколько ключей: VS Code пишет диск строчной буквой — `d:/…`, CLI — `D:/…` и `D:\…`; доверенной папка считается, если доверено любое написание, и переносятся все её ключи. Регистр путей не различается только на Windows и macOS, как и везде, где Even Keel сравнивает пути, — `src/paths.ts`.
-- Отметка о пройденном первом запуске (`hasCompletedOnboarding`, `lastOnboardingVersion`), если в папке её нет: без неё интерактивный `claude` с `CLAUDE_CONFIG_DIR` папки показывает мастер со входом, хотя токен на месте.
-- Временный демон папки (`claude --bg` поднимает его сам) кэширует конфигурацию: перенос доходит до сессий, запущенных после его перезапуска. Поэтому, если перенос что-то поменял, а живых сессий в папке нет (свежий `claude agents` и записи `sessions/<pid>.json`), Even Keel перед запуском останавливает её демон — `claude daemon stop --any` с `CLAUDE_CONFIG_DIR` папки, глобальный демон он не трогает (`src/account/daemon.ts`). Есть живые — демон не трогается, меню аккаунта пишет, что конфигурация дойдёт после них, а остановка переносится на первый запуск без них. Отметка живёт в памяти службы.
+- Before every launch in an account folder, the following is transferred into it: `settings.json` (the global one on top of its own), `CLAUDE.md`, the plugin registry, a junction (a symlink outside Windows) to `agents`, `hooks`, skills and project memory.
+- From `~/.claude.json` — trust and project settings (MCP local scope, `allowedTools`) for projects that are already trusted. The CLI creates several keys for one folder: VS Code writes the drive letter in lowercase — `d:/…`, the CLI — `D:/…` and `D:\…`; a folder counts as trusted if any spelling is trusted, and all its keys are transferred. Path case is ignored only on Windows and macOS, as everywhere Even Keel compares paths — `src/paths.ts`.
+- The first-run completion mark (`hasCompletedOnboarding`, `lastOnboardingVersion`), if the folder lacks it: without it an interactive `claude` with the folder's `CLAUDE_CONFIG_DIR` shows the sign-in wizard even though the token is in place.
+- The folder's temporary daemon (`claude --bg` starts it itself) caches the configuration: the transfer reaches sessions started after its restart. So if the transfer changed something and there are no live sessions in the folder (a fresh `claude agents` and `sessions/<pid>.json` entries), Even Keel stops its daemon before launching — `claude daemon stop --any` with the folder's `CLAUDE_CONFIG_DIR`; it does not touch the global daemon (`src/account/daemon.ts`). If there are live ones, the daemon is left alone, the account menu says the configuration will arrive after they finish, and the stop is postponed to the first launch without them. The mark lives in the service's memory.

@@ -1,52 +1,52 @@
-# Страница, язык, конфиг
+# Page, language, config
 
-Справка для сессий: интерфейс, перевод, перечитывание конфига и фейковые состояния для вёрстки.
+Reference for sessions: the interface, translation, config reloading and fake states for layout work.
 
-## Интерфейс
+## Interface
 
-- React + Vite в `web/`, сборка в `dist/web`, её отдаёт сервер; маршруты клиента сервер отвечает `index.html`.
-- Типы состояния клиент берёт из `src/state.ts` — там только типы, без `node:*`.
-- `npm run dev:web` — Vite с прокси `/api` на `EVEN_KEEL_URL` (по умолчанию `:4747`).
-- Карточка задачи (`web/src/pages/TaskCard.tsx`, грузится лениво вместе с `react-markdown`): заголовок задачи в цепочке и в бэклоге открывает её, номер по-прежнему открывает панель сессии. Открытая карточка — параметр `?task=<id>` в адресе, так что «назад» на телефоне её закрывает; ссылки на другие задачи внутри карточки подменяют параметр, не плодя историю. Ссылки markdown, ведущие внутрь трекера, — текст, а с номером задачи — открывают её карточку.
-- Значок вкладки (`web/src/layout/tabBadge.ts`): красная точка — у панели состояния есть ошибка (в том числе потеряна связь со службой), жёлтая — сессии ждут ответа; их число — в заголовке, `(2) Even Keel`. Значок без точки — `web/public/favicon.svg`, точка дорисовывается к нему в data URL.
-- Страница ставится как приложение (`web/public/manifest.webmanifest`, значки `icon-*.png` — рендер `favicon.svg`, у `maskable` знак с запасом под обрезку). Service worker нет: служба и так отдаёт свежий `dist/web`. Кнопка установки в Chrome — только в безопасном контексте: `localhost` или HTTPS; по голому `http://<IP>` — нет.
+- React + Vite in `web/`, built into `dist/web`, which the server serves; for client routes the server answers `index.html`.
+- The client takes state types from `src/state.ts` — only types there, no `node:*`.
+- `npm run dev:web` — Vite with a `/api` proxy to `EVEN_KEEL_URL` (`:4747` by default).
+- The task card (`web/src/pages/TaskCard.tsx`, loaded lazily together with `react-markdown`): a task title in the chain and in the backlog opens it, while the number still opens the session panel. An open card is the `?task=<id>` parameter in the address, so "back" on a phone closes it; links to other tasks inside the card replace the parameter without piling up history. Markdown links leading inside the tracker are text, and those with a task number open its card.
+- The tab badge (`web/src/layout/tabBadge.ts`): a red dot — the status panel has an error (including a lost connection to the service), a yellow one — sessions are waiting for a reply; their count is in the title, `(2) Even Keel`. The badge without a dot is `web/public/favicon.svg`, and the dot is drawn onto it in a data URL.
+- The page installs as an app (`web/public/manifest.webmanifest`, `icon-*.png` icons are renders of `favicon.svg`, the `maskable` one has the mark with a margin for cropping). There is no service worker: the service serves a fresh `dist/web` anyway. The install button in Chrome appears only in a secure context: `localhost` or HTTPS; not on a bare `http://<IP>`.
 
-## Язык (BTN-57, `src/language.ts`: `en`, `ru`)
+## Language (BTN-57, `src/language.ts`: `en`, `ru`)
 
-- `language` в `even-keel.config.json` — язык страницы (`null` или нет ключа — язык браузера, английский, если он незнаком), `promptLanguage` — язык промтов сессий (нет — `language`, затем английский; `src/chain/prompts.ts`).
-- Страница переводит свою рамку (`web/src/i18n/`, `ru.ts` — источник типа, `en.ts` ему равен) и сообщения сервера (BTN-62): причины паузы, уборка, ошибки конфига, входа и команд приходят кодом со значениями (`{ code, params, detail, cause, items }`, `src/notice/notice.ts`), английский текст и список кодов — `src/notice/en.ts`, русский — `web/src/i18n/notices-ru.ts`, страница собирает текст через `say()`. Новый код — запись в обоих файлах, равенство наборов проверяет тип.
-- Лог службы — на английском; вывод git и CLI (`detail`) и строки, сохранённые до BTN-62 (старый `state/chain.json`), показываются как есть. Данные (транскрипты, ярлыки, задачи) не переводятся.
+- `language` in `even-keel.config.json` is the page language (`null` or no key — the browser language, English if it is unfamiliar), `promptLanguage` is the language of session prompts (absent — `language`, then English; `src/chain/prompts.ts`).
+- The page translates its own chrome (`web/src/i18n/`, `ru.ts` is the source of the type, `en.ts` equals it) and server messages (BTN-62): pause reasons, cleanup, config, sign-in and command errors arrive as a code with values (`{ code, params, detail, cause, items }`, `src/notice/notice.ts`); the English text and the list of codes are in `src/notice/en.ts`, the Russian in `web/src/i18n/notices-ru.ts`, and the page builds the text with `say()`. A new code is an entry in both files; the type checks that the sets are equal.
+- The service log is in English; git and CLI output (`detail`) and strings saved before BTN-62 (the old `state/chain.json`) are shown as is. Data (transcripts, labels, tasks) is not translated.
 
-## Конфиг на лету (`src/config-file.ts`)
+## Live config (`src/config-file.ts`)
 
-`even-keel.config.json` служба перечитывает на лету: сразу применяются `parallel`, `chain`, `brief`, `model`, `modelPrompts`, `stats`, `language`, `promptLanguage` и `hiddenSkills`, а `host`, `port`, `projects`, `context`, `tracker` — после перезапуска (в лог — что ждёт). Битый файл — работает последний исправный, ошибка в лог и баннером на странице (`ConfigBanner`).
+The service rereads `even-keel.config.json` on the fly: `parallel`, `chain`, `brief`, `model`, `modelPrompts`, `stats`, `language`, `promptLanguage` and `hiddenSkills` apply immediately, while `host`, `port`, `projects`, `context`, `tracker` apply after a restart (the log says what is waiting). A broken file — the last valid one keeps working, the error goes to the log and to a banner on the page (`ConfigBanner`).
 
-## Фейковые состояния (`npm run dev:fake`)
+## Fake states (`npm run dev:fake`)
 
-Вёрстка на фейковом состоянии без трекера и сессий. Фейковая история — с ноября 2023, несколько проектов и папок без проекта.
+Layout work on a fake state, without a tracker or sessions. The fake history starts in November 2023 and has several projects and folders without a project.
 
-| Параметр | Что показывает |
+| Parameter | What it shows |
 | --- | --- |
-| `?link=stale\|connecting` | состояния связи |
-| `?chain=idle` | без активной цепочки, чтобы проверить запуск |
-| `?parallel=2` | две цепочки сразу: рядом с ABC идёт DEMO, взятый из очереди |
-| `?chain=limit` | цепочка ждёт сброса лимита |
-| `?chain=skip` | пропущенная задача и сессия, отложенная блокером |
-| `?chain=backlog` | блокеры из Backlog под замком перед задачей, которую держат (веха v0.2) |
-| `?chain=restart` | сессия свернулась по лимиту и потеряла Remote Control, кнопка «Новая сессия» |
-| `?chain=close` | текущая задача закрывается каждые 10 с и цепочка берёт следующую |
-| `?chain=checkpoint` | по текущей задаче две передачи по контрольной точке |
-| `?chain=leftover` | предупреждения уборки после Done |
-| `?usage=unread\|off\|waiting` | состояния опроса `/usage` |
-| `?config=broken` | баннер битого конфига |
-| `?mcp=missing` | баннер «brief выключен, а MCP-сервера трекера сессии не видят» |
-| `?account=out\|expired\|login\|failed\|unknown` | состояния активного аккаунта Claude; код `fail` в поле входа — неудачный вход |
-| `?account=pending` | новая конфигурация ждёт завершения сессий аккаунта |
-| `?account=removing` | папка ждёт завершения сессий, чтобы удалиться |
-| `?account=vscode-chats` | VS Code не переключить из-за открытых чатов |
-| `?account=vscode-broken` | `settings.json` VS Code не читается |
-| `?stats=off\|error\|empty` | статистика выключена, база недоступна, данных нет — на `/stats` и в полосе страницы проекта |
-| `?rules=empty\|thin` | правок правил нет, «До и после» с малой выборкой |
-| `?tools=bloated\|empty` | `/tools`: последняя сессия с навыками claude.ai и упавшим MCP-сервером и расхождением аккаунтов; без транскриптов. Проекты на нечётную букву (`ABC`, `OPS`) немного отличаются настройками — для «Только различия» |
-| `?card=empty\|none` | карточка задачи без описания, ярлыков, связей и комментариев; трекер не отдаёт карточку. «Перевести в Todo» (в карточке и в строке бэклога) в фейке переносит задачу из бэклога в конец цепочки |
-| `?lang=en\|ru` | язык страницы из конфига (без него — язык браузера) |
+| `?link=stale\|connecting` | connection states |
+| `?chain=idle` | no active chain, to check starting one |
+| `?parallel=2` | two chains at once: DEMO, taken from the queue, runs next to ABC |
+| `?chain=limit` | the chain is waiting for the limit reset |
+| `?chain=skip` | a skipped task and a session postponed by a blocker |
+| `?chain=backlog` | blockers from Backlog under a lock in front of the held task (milestone v0.2) |
+| `?chain=restart` | a session ended on a limit and lost Remote Control, the "New session" button |
+| `?chain=close` | the current task closes every 10 s and the chain takes the next one |
+| `?chain=checkpoint` | two checkpoint handoffs on the current task |
+| `?chain=leftover` | cleanup warnings after Done |
+| `?usage=unread\|off\|waiting` | `/usage` polling states |
+| `?config=broken` | the broken config banner |
+| `?mcp=missing` | the banner "brief is off, and sessions don't see the tracker MCP servers" |
+| `?account=out\|expired\|login\|failed\|unknown` | states of the active Claude account; the `fail` code in the sign-in field is a failed sign-in |
+| `?account=pending` | the new configuration is waiting for the account's sessions to finish |
+| `?account=removing` | the folder is waiting for sessions to finish so it can be removed |
+| `?account=vscode-chats` | VS Code cannot be switched because of open chats |
+| `?account=vscode-broken` | VS Code `settings.json` is unreadable |
+| `?stats=off\|error\|empty` | stats are off, the database is unavailable, there is no data — on `/stats` and in the project page strip |
+| `?rules=empty\|thin` | no rule changes, "Before and after" with a small sample |
+| `?tools=bloated\|empty` | `/tools`: the last session with claude.ai skills, a failed MCP server and an account mismatch; without transcripts. Projects on an odd letter (`ABC`, `OPS`) differ slightly in settings — for "Only differences" |
+| `?card=empty\|none` | a task card without description, labels, relations and comments; the tracker returns no card. "Move to Todo" (in the card and in the backlog row) moves the task from the backlog to the end of the chain in the fake |
+| `?lang=en\|ru` | the page language from the config (without it — the browser language) |
