@@ -1,7 +1,8 @@
+import { useState } from 'react'
 import { Route, Routes } from 'react-router'
 import { pickLanguage, setLanguage, t } from './i18n/index.js'
 import { ActivityBar } from './layout/ActivityBar.js'
-import { Basement } from './layout/Basement.js'
+import { BasementSlot } from './layout/Basement.js'
 import { ConfigBanner } from './layout/ConfigBanner.js'
 import { UnattendedBanner } from './layout/UnattendedBanner.js'
 import { Header } from './layout/Header.js'
@@ -17,6 +18,7 @@ import { ToolsPage } from './tools/ToolsPage.js'
 
 export function App() {
   const { state, link } = useLive()
+  const [basement, setBasement] = useState<HTMLDivElement | null>(null)
   const language = pickLanguage(state?.language ?? null, navigator.languages)
   setLanguage(language)
 
@@ -33,22 +35,18 @@ export function App() {
         {state === null ? (
           <p className="placeholder">{link === 'stale' ? t.app.noServer : t.app.connecting}</p>
         ) : (
-          <Routes>
-            <Route path="/" element={<Home state={state} />} />
-            <Route path="/p/:key" element={<Project state={state} />} />
-            <Route path="/stats" element={<StatsPage state={state} />} />
-            <Route path="/tools" element={<ToolsPage state={state} />} />
-            <Route path="*" element={<NotFound />} />
-          </Routes>
+          <BasementSlot.Provider value={basement}>
+            <Routes>
+              <Route path="/" element={<Home state={state} />} />
+              <Route path="/p/:key" element={<Project state={state} />} />
+              <Route path="/stats" element={<StatsPage state={state} />} />
+              <Route path="/tools" element={<ToolsPage state={state} />} />
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+          </BasementSlot.Provider>
         )}
       </main>
-      {state !== null && (
-        <Routes>
-          <Route path="/stats" element={<Basement sign={t.basement.stats} />} />
-          <Route path="/tools" element={<Basement sign={t.basement.tools} />} />
-          <Route path="*" element={null} />
-        </Routes>
-      )}
+      <div ref={setBasement} />
     </div>
   )
 }

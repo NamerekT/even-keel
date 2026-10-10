@@ -7,6 +7,13 @@
   position: relative;
   height: 320px;
   overflow: hidden;
+  animation: basement-in 0.4s ease-out;
+}
+
+@keyframes basement-in {
+  from {
+    opacity: 0;
+  }
 }
 
 .basement::after {
@@ -227,6 +234,7 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .basement,
   .basement__sway {
     animation: none;
   }

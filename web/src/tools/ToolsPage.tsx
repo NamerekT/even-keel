@@ -3,6 +3,7 @@ import { useSearchParams } from 'react-router'
 import type { EvenKeelState } from '../../../src/state.js'
 import type { ToolsView } from '../../../src/tools/model.js'
 import { t } from '../i18n/index.js'
+import { Basement } from '../layout/Basement.js'
 import { ProjectList } from '../ui/ProjectList.js'
 import { LastSessions } from './LastSessions.js'
 import { hiddenSkills, problemCount, problemsOf } from './matrix.js'
@@ -94,6 +95,7 @@ export function ToolsPage({ state }: { state: EvenKeelState }) {
           )}
         </div>
       </div>
+      <Basement sign={t.basement.tools} ready={state.projects.every((project) => (loaded.get(project)?.state ?? 'loading') !== 'loading')} />
     </div>
   )
 }

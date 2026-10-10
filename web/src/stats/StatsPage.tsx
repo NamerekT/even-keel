@@ -6,6 +6,7 @@ import type { EvenKeelState } from '../../../src/state.js'
 import { formatMoment } from '../format.js'
 import { formatUsd } from './format.js'
 import { t } from '../i18n/index.js'
+import { Basement } from '../layout/Basement.js'
 import { useLive } from '../live/context.js'
 import { AnswerNotice, Segmented, isStale, loadedData, useStatsAnswer, type FoldControl } from './common.js'
 import { useFolds, type Fold } from './folds.js'
@@ -186,6 +187,7 @@ export function StatsPage({ state }: { state: EvenKeelState }) {
           </div>
         </div>
       )}
+      <Basement sign={t.basement.stats} ready={history !== null && period !== null && stepsLoaded !== null && rulesLoaded !== null} />
     </div>
   )
 }

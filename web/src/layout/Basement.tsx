@@ -1,4 +1,5 @@
-import type { CSSProperties } from 'react'
+import { createContext, useContext, useState, type CSSProperties } from 'react'
+import { createPortal } from 'react-dom'
 import { t } from '../i18n/index.js'
 import './basement.css'
 
@@ -26,8 +27,19 @@ const TAPES: Tape[] = [
 
 const GAP = 1.2
 
-/** The bottom of a page that is still being built: a wall, a floor, caution tapes across the whole width and a sign. */
-export function Basement({ sign: [question, ...answer] }: { sign: string[] }) {
+/** Where a page's basement goes: below `main`, so that it spans the whole window. */
+export const BasementSlot = createContext<HTMLElement | null>(null)
+
+/** The bottom of a page that is still being built; it comes once the page is `ready` and stays. */
+export function Basement({ sign, ready }: { sign: string[]; ready: boolean }) {
+  const slot = useContext(BasementSlot)
+  const [shown, setShown] = useState(ready)
+  if (ready && !shown) setShown(true)
+  return shown && slot !== null ? createPortal(<Scene sign={sign} />, slot) : null
+}
+
+/** A wall, a floor, caution tapes across the whole width and a sign. */
+function Scene({ sign: [question, ...answer] }: { sign: string[] }) {
   return (
     <div className="basement">
       <div className="basement__wall" />
