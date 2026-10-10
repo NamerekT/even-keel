@@ -20,7 +20,9 @@ Reference for sessions: account folders, sign-in, switching, transferring the sh
 
 ## Accounts panel (`AccountMenu`)
 
-- A side panel on the right: account folders, the Even Keel account ("Give to Even Keel" — the active account of the chain) and app accounts (`src/account/apps.ts`, `src/account/vscode.ts`).
+- A side panel on the right. On top, one row per account folder with its 5-hour and weekly limits in aligned columns; the folders that can work now (signed in, not being removed, no used-up window) go first, the rest keep their order below (`accountOrder`, `limitedUntil` in `web/src/state.ts`). A row shows its roles as marks and, only when there is one, an exception with its action: sign-in needed or ending, removal pending, configuration pending, a failed check. "⋯" opens the details: plan, sign-in, sessions, folder and "Remove" (or why the folder is kept).
+- Below, "Roles": one select per role — Even Keel (the active account of the chain) and each app (`src/account/apps.ts`, `src/account/vscode.ts`). An option names a used-up limit and its reset; accounts that cannot take the role are disabled; what blocks the switch is listed under its role.
+- Limit bars turn amber from 80% and red at 100%, in the panel and in the header.
 - For now there is one app — VS Code: its account is `CLAUDE_CONFIG_DIR` in `claudeCode.environmentVariables` of the user `settings.json` (`%APPDATA%\Code\User` on Windows, `~/Library/Application Support/Code/User` on macOS, `$XDG_CONFIG_HOME/Code/User` or `~/.config/Code/User` on Linux); `global` means no variable.
 - The file is rewritten only if it is pure JSON (with comments it is an error in the panel, fix by hand); other keys, indentation and line endings are preserved.
 - Switching is impossible while any Claude chat is open in VS Code — a live `sessions/<pid>.json` entry with `entrypoint: "claude-vscode"` in any account folder (polled every 5 s and again before writing); the chain and Even Keel sessions do not interfere. Before writing, the shared configuration is transferred to the folder (`DaemonRefresh.prepare`).

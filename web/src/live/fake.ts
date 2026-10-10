@@ -507,6 +507,20 @@ function fakeAccount(mode: string | null, idle: boolean, limits: RateLimits): Ac
     ]
     return { ...signedIn, apps: [{ ...vscode, sessions }] }
   }
+  if (mode === 'many') {
+    const window = (usedPercentage: number, hours: number) => ({ usedPercentage, resetsAt: new Date(Date.now() + hours * 3_600_000).toISOString() })
+    const spare = (key: string, fiveHour: number, week: number) =>
+      fakeEntry({
+        key,
+        global: false,
+        status: { ...FAKE_ACCOUNT, email: `${key}@example.com`, subscriptionType: 'pro' },
+        loginExpiresAt: inDays(25),
+        sessions: ['ABC-9'],
+        limits: { ...limits, fiveHour: window(fiveHour, 2.8), sevenDay: window(week, 100) },
+      })
+    const spent = { ...global, limits: { ...limits, fiveHour: null, sevenDay: window(100, 10.5) } }
+    return { ...signedIn, active: 'jane.roe', accounts: [spent, work, spare('richard.roe', 96, 36), spare('baby.doe', 99, 14)] }
+  }
   if (mode === 'vscode-broken') {
     return { ...signedIn, apps: [{ ...vscode, account: null, dir: null, error: notice('vscode.notJson', {}) }] }
   }

@@ -1,4 +1,4 @@
-import type { AccountView } from '../../src/account/model.js'
+import type { AccountEntry, AccountView } from '../../src/account/model.js'
 import type { ActiveChain, ProjectOrder } from '../../src/chain/dispatcher.js'
 import type { TaskSession } from '../../src/chain/launches.js'
 import { chainOrder, nextTask, precedence, withWaiting } from '../../src/chain/order.js'
@@ -38,6 +38,21 @@ export function loginLeft(expiresAt: string | null, now: Date): { text: string; 
   if (left <= 0) return { text: t.account.expired, renew: true }
   const days = Math.floor(left / DAY_MS)
   return { text: days === 0 ? t.account.underDay : t.account.days(days), renew: days < RENEW_WITHIN_DAYS }
+}
+
+export function limitedUntil(entry: AccountEntry, now: Date): string | null {
+  const spent = [entry.limits?.fiveHour, entry.limits?.sevenDay]
+    .filter((window) => window != null && window.usedPercentage >= 100 && Date.parse(window.resetsAt) > now.getTime())
+    .map((window) => window!.resetsAt)
+  return spent.length === 0 ? null : spent.reduce((later, each) => (Date.parse(each) > Date.parse(later) ? each : later))
+}
+
+export function canWork(entry: AccountEntry, now: Date): boolean {
+  return entry.status?.loggedIn === true && !entry.needsLogin && !entry.removing && limitedUntil(entry, now) === null
+}
+
+export function accountOrder(entries: AccountEntry[], now: Date): AccountEntry[] {
+  return [...entries.filter((entry) => canWork(entry, now)), ...entries.filter((entry) => !canWork(entry, now))]
 }
 
 export type ChainStatus =

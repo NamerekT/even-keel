@@ -8,6 +8,8 @@ import type { EvenKeelState, SessionView } from '../../src/state.js'
 import type { ActiveChain } from '../../src/chain/dispatcher.js'
 import {
   accountBadge,
+  accountOrder,
+  limitedUntil,
   backlogTasks,
   canReady,
   loginLeft,
@@ -637,28 +639,29 @@ describe('issueLink', () => {
   })
 })
 
+const account = (loggedIn: boolean, email: string | null = null) => ({
+  loggedIn,
+  authMethod: null,
+  email,
+  orgName: null,
+  subscriptionType: null,
+})
+const entry = (patch: Partial<AccountEntry>): AccountEntry => ({
+  key: 'global',
+  global: true,
+  status: null,
+  error: null,
+  loginExpiresAt: null,
+  needsLogin: false,
+  sessions: [],
+  removing: false,
+  configPending: false,
+  limits: null,
+  usage: { state: 'ok', reason: null, since: null },
+  ...patch,
+})
+
 describe('accountBadge', () => {
-  const account = (loggedIn: boolean, email: string | null = null) => ({
-    loggedIn,
-    authMethod: null,
-    email,
-    orgName: null,
-    subscriptionType: null,
-  })
-  const entry = (patch: Partial<AccountEntry>): AccountEntry => ({
-    key: 'global',
-    global: true,
-    status: null,
-    error: null,
-    loginExpiresAt: null,
-    needsLogin: false,
-    sessions: [],
-    removing: false,
-    configPending: false,
-    limits: null,
-    usage: { state: 'ok', reason: null, since: null },
-    ...patch,
-  })
   const view = (patch: Partial<AccountEntry>, login: AccountLogin | null = null): AccountView => ({
     active: 'global',
     accounts: [entry(patch)],
@@ -701,6 +704,60 @@ describe('loginLeft', () => {
   it('says a login ran out or is not known', () => {
     expect(loginLeft('2026-09-28T09:00:00.000Z', now)).toEqual({ text: 'истёк', renew: true })
     expect(loginLeft(null, now)).toEqual({ text: '—', renew: false })
+  })
+})
+
+describe('limitedUntil', () => {
+  const now = new Date('2026-10-10T10:00:00.000Z')
+  const limits = (fiveHour: [number, string] | null, sevenDay: [number, string] | null) => ({
+    fiveHour: fiveHour === null ? null : { usedPercentage: fiveHour[0], resetsAt: fiveHour[1] },
+    sevenDay: sevenDay === null ? null : { usedPercentage: sevenDay[0], resetsAt: sevenDay[1] },
+    updatedAt: '2026-10-10T09:59:00.000Z',
+    source: 'usage' as const,
+  })
+
+  it('gives the reset of a used-up window', () => {
+    expect(limitedUntil(entry({ limits: limits([100, '2026-10-10T12:00:00.000Z'], [40, '2026-10-14T00:00:00.000Z']) }), now)).toBe(
+      '2026-10-10T12:00:00.000Z',
+    )
+    expect(limitedUntil(entry({ limits: limits(null, [100, '2026-10-12T00:00:00.000Z']) }), now)).toBe('2026-10-12T00:00:00.000Z')
+  })
+
+  it('takes the later reset when both windows are used up', () => {
+    expect(
+      limitedUntil(entry({ limits: limits([100, '2026-10-10T12:00:00.000Z'], [100, '2026-10-12T00:00:00.000Z']) }), now),
+    ).toBe('2026-10-12T00:00:00.000Z')
+  })
+
+  it('ignores windows with room left, already reset or unknown', () => {
+    expect(limitedUntil(entry({ limits: limits([99, '2026-10-10T12:00:00.000Z'], [64, '2026-10-14T00:00:00.000Z']) }), now)).toBeNull()
+    expect(limitedUntil(entry({ limits: limits([100, '2026-10-10T09:00:00.000Z'], null) }), now)).toBeNull()
+    expect(limitedUntil(entry({ limits: null }), now)).toBeNull()
+  })
+})
+
+describe('accountOrder', () => {
+  const now = new Date('2026-10-10T10:00:00.000Z')
+  const ready = (key: string) => entry({ key, global: false, status: account(true) })
+  const spent = (key: string) => ({
+    ...ready(key),
+    limits: {
+      fiveHour: null,
+      sevenDay: { usedPercentage: 100, resetsAt: '2026-10-12T00:00:00.000Z' },
+      updatedAt: '2026-10-10T09:59:00.000Z',
+      source: 'usage' as const,
+    },
+  })
+  const keys = (entries: AccountEntry[]) => accountOrder(entries, now).map((each) => each.key)
+
+  it('puts the accounts that can work now first and keeps the order inside each group', () => {
+    expect(keys([spent('a'), ready('b'), spent('c'), ready('d')])).toEqual(['b', 'd', 'a', 'c'])
+  })
+
+  it('counts a signed-out or leaving account as unable to work', () => {
+    expect(keys([{ ...ready('a'), needsLogin: true }, ready('b'), { ...ready('c'), removing: true }, entry({ key: 'd', status: null })])).toEqual(
+      ['b', 'a', 'c', 'd'],
+    )
   })
 })
 
