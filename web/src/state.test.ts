@@ -231,6 +231,15 @@ describe('chainStatus', () => {
     })
   })
 
+  it('tells when a running chain waits for a free slot', () => {
+    const wait = { notice: textNotice('no slot is free for ABC-1'), at: '2026-09-27T17:49:00.000Z' }
+    expect(chainStatus(chain({ active: { ...active(), slotWait: wait } }), 'ABC')).toEqual({
+      kind: 'running',
+      limitUntil: null,
+      slotWait: textNotice('no slot is free for ABC-1'),
+    })
+  })
+
   it('gives a queued chain its place in the queue, counting from one', () => {
     expect(chainStatus(chain({ active: active(), queue: ['DEMO', 'XYZ'] }), 'XYZ')).toEqual({ kind: 'queued', position: 2 })
   })

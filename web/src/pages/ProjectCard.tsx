@@ -71,6 +71,7 @@ export function ProjectCard({ state, project }: { state: EvenKeelState; project:
       )}
 
       {status.kind === 'running' && status.limitUntil !== null && <p className="card__wait">{limitWaitText(status.limitUntil, new Date())}</p>}
+      {status.kind === 'running' && status.slotWait !== undefined && <p className="card__wait">{say({ ...status.slotWait, items: [] })}</p>}
       {error !== null && <p className="card__error">{say(error)}</p>}
 
       {canStart && (

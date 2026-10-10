@@ -58,6 +58,7 @@ export const en = {
   'slot.dirty': (p: { path: string }) => `the slot ${p.path} has uncommitted changes; commit or remove them`,
   'slot.busy': (p: { path: string; sessions: string[] }) => `the slot ${p.path} is in use by ${list(p.sessions)} mid-turn; let it finish or stop it`,
   'slot.noneFree': (p: { task: string }) => `git: no slot is free, ${p.task} was not started; free one, then resume`,
+  'slot.waiting': (p: { task: string }) => `no slot is free for ${p.task}; it starts as soon as one is`,
   'slot.busyStart': (p: { slot: string; sessions: string[]; task: string }) =>
     `the slot ${p.slot} is in use by ${list(p.sessions)} mid-turn, ${p.task} was not started; let it finish or stop it, then resume`,
   'slot.stopFailed': (p: { session: string; owner: string; slot: string; task: string }) =>

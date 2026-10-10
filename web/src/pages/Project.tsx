@@ -214,6 +214,7 @@ function ChainControls({ state, project }: { state: EvenKeelState; project: stri
       {status.kind === 'running' && status.limitUntil !== null && (
         <p className="project__wait">{limitWaitText(status.limitUntil, new Date())}</p>
       )}
+      {status.kind === 'running' && status.slotWait !== undefined && <p className="project__wait">{say(status.slotWait)}</p>}
       {error !== null && <p className="project__error">{say(error)}</p>}
     </>
   )

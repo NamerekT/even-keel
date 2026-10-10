@@ -56,7 +56,7 @@ export function accountOrder(entries: AccountEntry[], now: Date): AccountEntry[]
 }
 
 export type ChainStatus =
-  | { kind: 'running'; limitUntil: string | null }
+  | { kind: 'running'; limitUntil: string | null; slotWait?: Notice }
   | { kind: 'paused'; error: Notice | null }
   | { kind: 'queued'; position: number }
   | { kind: 'idle' }
@@ -180,7 +180,9 @@ export function chainStatus(chain: EvenKeelState['chain'], project: string): Cha
   const { queue } = chain
   const active = activeChain(chain, project)
   if (active !== undefined) {
-    return active.paused ? { kind: 'paused', error: active.error } : { kind: 'running', limitUntil: active.limitUntil ?? null }
+    if (active.paused) return { kind: 'paused', error: active.error }
+    const running: ChainStatus = { kind: 'running', limitUntil: active.limitUntil ?? null }
+    return active.slotWait === undefined ? running : { ...running, slotWait: active.slotWait.notice }
   }
   const index = queue.indexOf(project)
   return index < 0 ? { kind: 'idle' } : { kind: 'queued', position: index + 1 }

@@ -10,6 +10,7 @@ import { AccountWatcher } from './account/watcher.js'
 import { Dispatcher, type LaunchEntry } from './chain/dispatcher.js'
 import { launchDays, taskSessions } from './chain/launches.js'
 import { resumePrompt, startPrompt, withBrief, withUnattended } from './chain/relay.js'
+import { launchLine } from './chain/log.js'
 import { appendLaunch, loadChainState, readLaunches, saveChainState } from './chain/store.js'
 import { ConfigFile } from './config-file.js'
 import { EventHub } from './events.js'
@@ -323,6 +324,7 @@ const dispatcher = new Dispatcher(loadChainState(chainFile), {
   journal: (entry) => {
     appendLaunch(launchesFile, entry)
     launches.push(entry)
+    console.log(launchLine(entry))
   },
   now: () => new Date(),
   limited: (task) => monitor.limited(task),
@@ -364,6 +366,7 @@ const dispatcher = new Dispatcher(loadChainState(chainFile), {
     if (outcome.syncError !== null) console.error(`git: sync of ${project} after ${task} failed: ${englishOf(outcome.syncError)}`)
     return outcome
   },
+  log: (message) => console.log(message),
 })
 
 function occupantsOf(slot: string, task: string) {

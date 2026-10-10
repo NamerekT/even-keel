@@ -26,6 +26,8 @@ export function pause(dispatcher: Dispatcher, project: string): void {
 export interface SetupOptions {
   state?: ChainState
   failLaunch?: string
+  /** Launch errors by task; the test deletes an entry to let the next attempt through. */
+  refuse?: Record<string, Error>
   live?: Record<string, string>
   projects?: string[]
   parallel?: number
@@ -51,6 +53,9 @@ export function setup(options: SetupOptions = {}) {
   const handoffs: Record<string, HandoffSession> = {}
   const relays: { kind: string; task: string; sessionId: string; prompt?: string; workdir?: string }[] = []
   const launched: string[] = []
+  const tried: string[] = []
+  const refuse = options.refuse ?? {}
+  const log: string[] = []
   const finished: string[] = []
   const saved: ChainState[] = []
   const journal: LaunchEntry[] = []
@@ -63,7 +68,9 @@ export function setup(options: SetupOptions = {}) {
     parallel: () => capacity.parallel,
     rules: (project) => options.rules?.[project] ?? DEFAULT_RULES,
     launch: async (project, id) => {
+      tried.push(`${project}/${id}`)
       if (id === options.failLaunch) throw new Error(`claude: could not start ${id}`)
+      if (refuse[id] !== undefined) throw refuse[id]
       launched.push(`${project}/${id}`)
       return `session-${++counter}`
     },
@@ -94,6 +101,7 @@ export function setup(options: SetupOptions = {}) {
       finished.push(`${project}/${id}`)
       return options.finish?.(id) ?? { warnings: [], syncError: null }
     },
+    log: (message) => log.push(message),
   })
-  return { dispatcher, launched, finished, saved, journal, clock, account, limited, handoffs, relays, busy, capacity }
+  return { dispatcher, launched, tried, refuse, log, finished, saved, journal, clock, account, limited, handoffs, relays, busy, capacity }
 }

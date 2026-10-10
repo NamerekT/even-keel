@@ -43,6 +43,7 @@ Layout work on a fake state, without a tracker or sessions. The fake history sta
 | `?chain=idle` | no active chain, to check starting one; "Start" and "New session" go through the start phases 3 s each |
 | `?parallel=2` | two chains at once: DEMO, taken from the queue, runs next to ABC |
 | `?chain=limit` | the chain is waiting for the limit reset |
+| `?chain=slot` | an unattended chain is waiting for a free slot |
 | `?chain=skip` | a skipped task and a session postponed by a blocker |
 | `?chain=backlog` | blockers from Backlog under a lock in front of the held task (milestone v0.2) |
 | `?chain=restart` | a session ended on a limit and lost Remote Control, the "New session" button |

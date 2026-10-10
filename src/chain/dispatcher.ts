@@ -1,6 +1,6 @@
 import type { FinishOutcome } from '../git/types.js'
 import type { Language } from '../language.js'
-import { fail, notice, NoticeError, noticeOf, type Notice } from '../notice/notice.js'
+import { englishOf, fail, notice, NoticeError, noticeOf, sameNotice, type Notice } from '../notice/notice.js'
 import { isOpen, type Task } from '../tracker/model.js'
 import { byNumber, chainOrder, checkOrder, nextTask, openBlockers, waitingBlockers, withFresh } from './order.js'
 import { admits, excludes, isActive, isDone, isTerminal, type ChainRules } from './rules.js'
@@ -17,6 +17,8 @@ import {
 } from './relay.js'
 
 const UNANSWERED_MS = 10 * 60_000
+const SLOT_RETRY_MS = 30_000
+const SLOT_REFUSALS = new Set(['slot.noneFree', 'slot.busyStart'])
 
 export interface CurrentTask {
   task: string
@@ -34,6 +36,8 @@ export interface ActiveChain {
   paused: boolean
   error: Notice | null
   limitUntil?: string
+  /** Unattended, a launch refused for want of a slot leaves the chain running; `at` is the last attempt. */
+  slotWait?: { notice: Notice; at: string }
   closing?: string
 }
 
@@ -106,6 +110,7 @@ export interface DispatcherDeps {
   resume:(task: string, session: LimitedSession) => Promise<string>
   relay: (task: string, session: HandoffSession, prompt: string) => Promise<string>
   finish: (project: string, task: string) => Promise<FinishOutcome>
+  log: (message: string) => void
 }
 
 export function emptyChainState(): ChainState {
@@ -558,6 +563,7 @@ export class Dispatcher {
       const live = this.deps.liveSession(task)
       if (live !== undefined) {
         delete chain.limitUntil
+        delete chain.slotWait
         this.take(chain, { task, sessionId: live, since })
         this.deps.save(this.state)
         return
@@ -578,6 +584,9 @@ export class Dispatcher {
         return
       }
 
+      const lastTry = chain.slotWait === undefined ? undefined : Date.parse(chain.slotWait.at)
+      if (lastTry !== undefined && this.deps.now().getTime() - lastTry < SLOT_RETRY_MS) return
+
       delete chain.limitUntil
       const current: CurrentTask = { task, sessionId: null, since, starting: since }
       this.take(chain, current)
@@ -587,9 +596,12 @@ export class Dispatcher {
         this.deps.journal({ at: since, project: chain.project, task, sessionId })
         current.sessionId = sessionId
         delete current.starting
+        delete chain.slotWait
         this.deps.save(this.state)
       } catch (error) {
-        this.halt(chain, noticeOf(error))
+        const failure = noticeOf(error)
+        if (this.state.unattended && SLOT_REFUSALS.has(failure.code)) this.waitForSlot(chain, task, failure)
+        else this.halt(chain, failure)
       }
       return
     }
@@ -719,6 +731,17 @@ export class Dispatcher {
     chain.paused = true
     chain.error = error
     delete chain.limitUntil
+    delete chain.slotWait
+    this.deps.log(`chain: ${chain.project} paused: ${englishOf(error)}`)
+    this.deps.save(this.state)
+  }
+
+  /** The task never started, so it is not released: the chain picks it again once a slot frees up. */
+  private waitForSlot(chain: ActiveChain, task: string, refusal: Notice): void {
+    chain.current = null
+    const waiting = notice('slot.waiting', { task }, { items: refusal.items ?? [refusal] })
+    if (!sameNotice(chain.slotWait?.notice ?? null, waiting)) this.deps.log(`chain: ${chain.project}: ${englishOf(waiting)}`)
+    chain.slotWait = { notice: waiting, at: this.deps.now().toISOString() }
     this.deps.save(this.state)
   }
 }
