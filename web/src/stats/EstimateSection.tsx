@@ -3,6 +3,7 @@ import { t } from '../i18n/index.js'
 import { accuracy, type AccuracyGroup } from './accuracy.js'
 import { Section, type FoldControl } from './common.js'
 import { formatDuration, formatRatio, formatShare, modelLabel } from './format.js'
+import { estimateRemark, type EstimateRemark } from './remarks.js'
 import { Tile } from './Summary.js'
 
 type BreakdownKey = 'project' | 'component' | 'model'
@@ -25,6 +26,7 @@ export function EstimateSection({ tasks, fold }: { tasks: StatsTaskRow[]; fold: 
     <Section
       title={t.stats.estimate.title}
       fold={fold}
+      remark={remarkText(estimateRemark(result))}
       aside={
         <>
           <span className="stats-section__count">{formatShare(result.within)}</span>
@@ -61,6 +63,13 @@ export function EstimateSection({ tasks, fold }: { tasks: StatsTaskRow[]; fold: 
       )}
     </Section>
   )
+}
+
+function remarkText(remark: EstimateRemark | null): string | null {
+  if (remark === null) return null
+  const { remarks } = t.stats
+  if (remark.kind === 'optimist' || remark.kind === 'pessimist') return remarks[remark.kind](formatRatio(remark.ratio))
+  return remarks[remark.kind]
 }
 
 function ratioNote(ratio: number | null): string {

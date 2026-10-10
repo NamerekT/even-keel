@@ -487,6 +487,29 @@ export const en: Messages = {
     read: (at: string) => `Tally · read ${at}`,
     others: 'others',
     noTask: 'no task',
+    stamps: {
+      calm: ['DEAD CALM', 'no spend found'],
+      overspend: (times: string) => ['OVER BUDGET', `${times} · approved retroactively`],
+      aground: (share: string) => ['AGROUND', `${share} of the money went to being stuck`],
+      bargain: ['SAVINGS', 'suspicious ones'],
+      evenKeel: ['EVEN KEEL', 'certified by Even Keel'],
+    },
+    remarks: {
+      mono: (model: string) => `all on ${model}. A monoculture`,
+      baseline: 'the project median guesses better than the estimates. Ouch',
+      sharp: 'estimates come true more often than the weather forecast',
+      optimist: (ratio: string) => `"five minutes" optimism: ${ratio}`,
+      pessimist: (ratio: string) => `${ratio} of the estimate — padded for a storm`,
+      whale: (task: string, share: string) => `${task} ate ${share} of the budget. A private yacht club`,
+      stubborn: (task: string, sessions: number) => `${task}: ${sessions} sessions and it won't give up`,
+      stuck: {
+        unclear_task: 'tasks written in a hurry — sessions had to guess',
+        broken_tooling: "the tooling broke. Not Claude's fault, honest",
+        debug_loop: 'debugging in circles: one more fix and it surely works',
+        waiting_user: "sessions waited for you. They don't hold a grudge",
+        limit_env: 'limit and environment: lying at anchor',
+      },
+    },
     period: {
       presets: {
         '7d': '7 days',

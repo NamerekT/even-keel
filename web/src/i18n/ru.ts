@@ -490,6 +490,29 @@ export const ru = {
     read: (at: string) => `Tally · прочитано ${at}`,
     others: 'прочие',
     noTask: 'без задачи',
+    stamps: {
+      calm: ['ШТИЛЬ', 'расходов не обнаружено'],
+      overspend: (times: string) => ['ПЕРЕРАСХОД', `${times} · одобрено задним числом`],
+      aground: (share: string) => ['НА МЕЛИ', `${share} денег ушло на буксование`],
+      bargain: ['ЭКОНОМИЯ', 'подозрительная'],
+      evenKeel: ['РОВНЫЙ КИЛЬ', 'сертифицировано Even Keel'],
+    },
+    remarks: {
+      mono: (model: string) => `всё на ${model}. Монокультура`,
+      baseline: 'медиана проекта угадывает лучше оценок. Обидно',
+      sharp: 'оценки сбываются чаще прогноза погоды',
+      optimist: (ratio: string) => `оптимизм уровня «пять минут»: ${ratio}`,
+      pessimist: (ratio: string) => `${ratio} от оценки — закладывали на шторм`,
+      whale: (task: string, share: string) => `${task} съела ${share} бюджета. Личный яхт-клуб`,
+      stubborn: (task: string, sessions: number) => `${task}: ${sessions} ${forms('сессия', 'сессии', 'сессий')(sessions)}, и она не сдаётся`,
+      stuck: {
+        unclear_task: 'задачи писали второпях — сессии гадали',
+        broken_tooling: 'инструмент сломался. Claude не виноват, честно',
+        debug_loop: 'круги по отладке: ещё один фикс — и точно заработает',
+        waiting_user: 'сессии ждали вас. Они не в обиде',
+        limit_env: 'лимит и окружение: стояли на рейде',
+      },
+    },
     period: {
       presets: {
         '7d': '7 дней',

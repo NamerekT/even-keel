@@ -7,9 +7,17 @@ import { useLive } from '../live/context.js'
 import { seriesStyle } from '../ui/series.js'
 import { AnswerNotice, Section, TaskKey, loadedData, useStatsAnswer, type FoldControl } from './common.js'
 import { formatDuration, formatRatio, formatSeconds, formatShare, formatUsd, kindLabel, launchLabel, modelLabel, reasonLabel } from './format.js'
+import { tasksRemark, type TasksRemark } from './remarks.js'
 import { compare, handoffs, shownColumns, type Column } from './taskColumns.js'
 
 const FIRST_ROWS = 20
+
+function remarkText(remark: TasksRemark | null): string | null {
+  if (remark === null) return null
+  return remark.kind === 'whale'
+    ? t.stats.remarks.whale(remark.task, formatShare(remark.share))
+    : t.stats.remarks.stubborn(remark.task, remark.sessions)
+}
 
 export function TaskTable({ tasks, trackerUrls, fold }: { tasks: StatsTaskRow[]; trackerUrls: TrackerUrls; fold: FoldControl }) {
   const [sort, setSort] = useState<{ column: Column; down: boolean }>({ column: 'cost', down: true })
@@ -104,7 +112,7 @@ export function TaskTable({ tasks, trackerUrls, fold }: { tasks: StatsTaskRow[];
   }
 
   return (
-    <Section title={t.stats.tasks.title} fold={fold} aside={<span className="stats-section__count">{tasks.length}</span>}>
+    <Section title={t.stats.tasks.title} fold={fold} remark={remarkText(tasksRemark(tasks))} aside={<span className="stats-section__count">{tasks.length}</span>}>
       {tasks.length === 0 ? (
         <p className="placeholder">{t.stats.tasks.empty}</p>
       ) : (

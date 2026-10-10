@@ -6,6 +6,7 @@ import { seriesStyle } from '../ui/series.js'
 import { Section, TaskKey, type FoldControl } from './common.js'
 import { kindLabel, reasonLabel } from './format.js'
 import { formatDay } from './period.js'
+import { stuckRemark } from './remarks.js'
 
 export function StuckSection({
   weeks,
@@ -24,9 +25,10 @@ export function StuckSection({
   const totals = byWeek.map((week) => weeks.filter((each) => each.week === week).reduce((sum, each) => sum + each.spans, 0))
   const max = Math.max(0, ...totals)
   const now = new Date()
+  const remark = stuckRemark(weeks)
 
   return (
-    <Section title={t.stats.stuck.title} fold={fold} aside={<span className="stats-section__count">{totals.reduce((sum, each) => sum + each, 0)}</span>}>
+    <Section title={t.stats.stuck.title} fold={fold} remark={remark && t.stats.remarks.stuck[remark.reason]} aside={<span className="stats-section__count">{totals.reduce((sum, each) => sum + each, 0)}</span>}>
       {stuck.length === 0 && weeks.length === 0 ? (
         <p className="placeholder">{t.stats.stuck.none}</p>
       ) : (

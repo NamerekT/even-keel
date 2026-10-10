@@ -111,27 +111,31 @@ export interface FoldControl {
   onToggle: (open: boolean) => void
 }
 
-/** With `fold` the head opens and folds the section, and a folded one does not render its content. */
+/** With `fold` the head opens and folds the section, and a folded one does not render its content. `remark` is a joke scribbled on the head's margin. */
 export function Section({
   title,
   aside,
+  remark,
   fold,
   busy = false,
   children,
 }: {
   title: string
   aside?: ReactNode
+  remark?: string | null
   fold?: FoldControl
   busy?: boolean
   children: ReactNode
 }) {
   const open = fold === undefined || fold.open
+  const scribble = remark ? <span className="stats-remark">{remark}</span> : null
   return (
     <section className={open ? 'stats-section' : 'stats-section stats-section--folded'} aria-busy={busy}>
       {fold === undefined ? (
         <header className="stats-section__head">
           <h2 className="stats-section__title">{title}</h2>
           {aside}
+          {scribble}
         </header>
       ) : (
         <header className="stats-section__head stats-section__head--fold" onClick={() => fold.onToggle(!open)}>
@@ -142,6 +146,7 @@ export function Section({
             </button>
           </h2>
           {aside}
+          {scribble}
         </header>
       )}
       {open && <div className="stats-section__body">{children}</div>}

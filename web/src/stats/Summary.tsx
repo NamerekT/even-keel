@@ -3,8 +3,9 @@ import type { StatsPeriod, StatsShare } from '../../../src/stats/model.js'
 import { language, t } from '../i18n/index.js'
 import { seriesStyle } from '../ui/series.js'
 import { Section } from './common.js'
-import { costChange, entrypointLabel, formatShare, formatUsd, limitWindows, modelLabel, weeklyLimit, type WeeklyLimit } from './format.js'
+import { costChange, entrypointLabel, formatRatio, formatShare, formatUsd, limitWindows, modelLabel, weeklyLimit, type WeeklyLimit } from './format.js'
 import { dayCount, formatDay, formatRange, previousRange, type DayRange } from './period.js'
+import { sourcesRemark, stampOf, type Stamp } from './remarks.js'
 
 export function Tiles({ period, range }: { period: StatsPeriod; range: DayRange }) {
   const { current, previous } = period
@@ -13,9 +14,11 @@ export function Tiles({ period, range }: { period: StatsPeriod; range: DayRange 
   const limit = weeklyLimit(current.limit, range, period.limits)
   const windows = days > 7 ? limitWindows(period.windows) : null
   const stuckShare = current.cost > 0 ? (current.stuckCost / current.cost) * 100 : null
+  const stamp = stampOf(current, previous)
 
   return (
-    <div className="stats-tiles">
+    <div className="stats-tiles stats-tiles--stamped">
+      {stamp !== null && <StampMark key={`${stamp.kind}:${period.query.from}:${period.query.to}`} stamp={stamp} />}
       <Tile label={t.stats.summary.cost} value={formatUsd(current.cost)}>
         {change === null ? (
           t.stats.summary.noPrevious
@@ -35,6 +38,24 @@ export function Tiles({ period, range }: { period: StatsPeriod; range: DayRange 
         {t.stats.summary.stuckNote}
       </Tile>
     </div>
+  )
+}
+
+const STAMP_TONE: Record<Stamp['kind'], 'good' | 'bad'> = { calm: 'good', overspend: 'bad', aground: 'bad', bargain: 'good', evenKeel: 'good' }
+
+function StampMark({ stamp }: { stamp: Stamp }) {
+  const { stamps } = t.stats
+  const [word, caption] =
+    stamp.kind === 'overspend'
+      ? stamps.overspend(formatRatio(stamp.times))
+      : stamp.kind === 'aground'
+        ? stamps.aground(formatShare(stamp.share))
+        : stamps[stamp.kind]
+  return (
+    <span className={`stats-stamp stats-stamp--${STAMP_TONE[stamp.kind]}`}>
+      <span className="stats-stamp__word">{word}</span>
+      <span className="stats-stamp__caption">{caption}</span>
+    </span>
   )
 }
 
@@ -58,8 +79,9 @@ export function Tile({ label, value, children }: { label: string; value: string;
 
 export function Sources({ period }: { period: StatsPeriod }) {
   if (period.current.cost === 0) return null
+  const mono = sourcesRemark(period.models)
   return (
-    <Section title={t.stats.summary.sources}>
+    <Section title={t.stats.summary.sources} remark={mono && t.stats.remarks.mono(modelLabel(mono.model))}>
       <div className="sources">
         <ShareBar title={t.stats.summary.model} shares={period.models} label={modelLabel} />
         <ShareBar title={t.stats.summary.entrypoint} shares={period.entrypoints} label={entrypointLabel} />
