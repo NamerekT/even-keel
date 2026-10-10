@@ -73,6 +73,11 @@ export interface ProjectOrder {
   outside?: Task[]
   /** Open tasks the chain does not take yet by their status or a missing required label, and that no chain task waits on. */
   backlog: string[]
+  /**
+   * For the backlog tasks the chain would take once their status is active: the chain task each would stand right before,
+   * `null` for the end. Set when there are any.
+   */
+  landing?: Record<string, string | null>
   error: Notice | null
 }
 
@@ -113,7 +118,7 @@ export class Dispatcher {
   private readonly tasks = new Map<string, Task[]>()
   private readonly waiting = new Map<string, Task[]>()
   private readonly outside = new Map<string, Task[]>()
-  private readonly backlog = new Map<string, string[]>()
+  private readonly backlog = new Map<string, Task[]>()
   private readonly done = new Map<string, Set<string>>()
   private readonly releasedDone = new Map<string, Set<string>>()
   private work: Promise<void> = Promise.resolve()
@@ -132,7 +137,7 @@ export class Dispatcher {
     const backlog = tasks.filter((task) => !excludes(rules, task) && !chain.includes(task) && !waiting.includes(task))
     this.tasks.set(project, chain)
     this.waiting.set(project, waiting)
-    this.backlog.set(project, backlog.map((task) => task.id).sort(byNumber))
+    this.backlog.set(project, backlog.sort((a, b) => byNumber(a.id, b.id)))
     this.done.set(project, new Set(tasks.filter((task) => isDone(rules, task.status)).map((task) => task.id)))
     const placed = this.placeNew(project)
     if (this.forgetClosed(project) || placed) this.deps.save(this.state)
@@ -291,12 +296,14 @@ export class Dispatcher {
     const result: Record<string, ProjectOrder> = {}
     for (const [project, tasks] of this.tasks) {
       const waiting = this.waitingIds(project)
-      const backlog = this.backlog.get(project) ?? []
+      const backlog = (this.backlog.get(project) ?? []).map((task) => task.id)
       const listed = this.outside.get(project) ?? []
       const outside = (this.waiting.get(project) ?? []).filter((task) => listed.includes(task))
       const extra = outside.length > 0 ? { outside } : {}
       try {
-        result[project] = { order: chainOrder(tasks, this.preferred(project)), waiting, ...extra, backlog, error: null }
+        const order = chainOrder(tasks, this.preferred(project))
+        const landing = this.landing(project)
+        result[project] = { order, waiting, ...extra, backlog, ...(Object.keys(landing).length > 0 ? { landing } : {}), error: null }
       } catch (error) {
         result[project] = { order: [], waiting, ...extra, backlog, error: noticeOf(error) }
       }
@@ -351,23 +358,46 @@ export class Dispatcher {
   }
 
   private placeNew(project: string): boolean {
+    const placed = this.placed(project, this.tasks.get(project) ?? [])
+    if (placed === undefined) return false
+    this.state.orders[project] = placed
+    return true
+  }
+
+  /** The manual order with the chain's new tasks put in and the gone ones dropped; `undefined` — there is none or nothing changes. */
+  private placed(project: string, tasks: Task[]): string[] | undefined {
     const stored = this.state.orders[project]
-    if (stored === undefined) return false
-    const tasks = this.tasks.get(project) ?? []
+    if (stored === undefined) return undefined
     const open = new Set(tasks.map((task) => task.id))
     const kept = stored.filter((id) => open.has(id))
     const fresh = [...open].filter((id) => !stored.includes(id))
-    if (fresh.length === 0 && kept.length === stored.length) return false
+    if (fresh.length === 0 && kept.length === stored.length) return undefined
 
     const preferred = this.preferred(project, kept)!.filter((id) => open.has(id))
     const current = this.currentOf(project)
     const base = withFresh(tasks, preferred, fresh, current !== undefined && preferred[0] === current ? 1 : 0)
     try {
-      this.state.orders[project] = chainOrder(tasks, base)
+      return chainOrder(tasks, base)
     } catch {
-      this.state.orders[project] = base
+      return base
     }
-    return true
+  }
+
+  private landing(project: string): Record<string, string | null> {
+    const rules = this.deps.rules(project)
+    const chain = this.tasks.get(project) ?? []
+    const result: Record<string, string | null> = {}
+    for (const task of this.backlog.get(project) ?? []) {
+      if (!admits(rules, task)) continue
+      const tasks = [...chain, task]
+      try {
+        const order = chainOrder(tasks, this.preferred(project, this.placed(project, tasks) ?? this.state.orders[project]))
+        result[task.id] = order[order.indexOf(task.id) + 1] ?? null
+      } catch {
+        continue
+      }
+    }
+    return result
   }
 
   private forgetClosed(project: string): boolean {

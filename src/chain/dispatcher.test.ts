@@ -77,8 +77,49 @@ describe('Dispatcher', () => {
     dispatcher.start('ABC')
     await dispatcher.idle()
 
-    expect(dispatcher.orders()['ABC']).toEqual({ order: ['ABC-2', 'ABC-3'], waiting: [], backlog: ['ABC-1'], error: null })
+    expect(dispatcher.orders()['ABC']).toEqual({
+      order: ['ABC-2', 'ABC-3'],
+      waiting: [],
+      backlog: ['ABC-1'],
+      landing: { 'ABC-1': 'ABC-2' },
+      error: null,
+    })
     expect(launched).toEqual(['ABC/ABC-2'])
+  })
+
+  it('tells before which task a backlog task would stand once the chain takes it', () => {
+    const { dispatcher } = setup()
+    dispatcher.setTasks('ABC', [
+      task('ABC-1'),
+      task('ABC-2'),
+      task('ABC-3', backlog),
+      { ...task('ABC-4', backlog), priority: 'urgent' },
+      task('ABC-5', backlog, 'ABC-1'),
+    ])
+    expect(dispatcher.orders()['ABC']?.landing).toEqual({ 'ABC-3': null, 'ABC-4': 'ABC-1', 'ABC-5': null })
+    expect(dispatcher.orders()['ABC']?.order).toEqual(['ABC-1', 'ABC-2'])
+  })
+
+  it('places a backlog task in a manual order the way a new task is placed', async () => {
+    const { dispatcher, saved } = setup()
+    dispatcher.setTasks('ABC', [task('ABC-1'), task('ABC-2'), task('ABC-3', backlog)])
+    dispatcher.reorder('ABC', ['ABC-2', 'ABC-1'])
+    const writes = saved.length
+    expect(dispatcher.orders()['ABC']?.landing).toEqual({ 'ABC-3': 'ABC-2' })
+    expect(saved).toHaveLength(writes)
+
+    dispatcher.start('ABC')
+    await dispatcher.idle()
+    expect(dispatcher.orders()['ABC']?.landing).toEqual({ 'ABC-3': 'ABC-1' })
+
+    dispatcher.setTasks('ABC', [task('ABC-1'), task('ABC-2', active), task('ABC-3')])
+    expect(dispatcher.orders()['ABC']?.order).toEqual(['ABC-2', 'ABC-3', 'ABC-1'])
+  })
+
+  it('tells no place for a backlog task the chain would still not take', () => {
+    const { dispatcher } = setup({ rules: { ABC: { ...DEFAULT_RULES, requiredLabels: ['ready'] } } })
+    dispatcher.setTasks('ABC', [{ ...task('ABC-1'), labels: ['ready'] }, task('ABC-2', backlog), { ...task('ABC-3', backlog), labels: ['ready'] }])
+    expect(dispatcher.orders()['ABC']?.landing).toEqual({ 'ABC-3': null })
   })
 
   it('lists the backlog by number without the tasks the labels keep out or the chain waits on', () => {

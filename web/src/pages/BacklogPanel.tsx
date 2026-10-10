@@ -1,10 +1,11 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, type SyntheticEvent } from 'react'
 import type { TrackerUrls } from '../../../src/state.js'
 import type { Task } from '../../../src/tracker/model.js'
 import { say, t } from '../i18n/index.js'
 import { useCommand } from '../live/useCommand.js'
 import { issueLink } from '../state.js'
 import { StackIcon } from '../ui/icons.js'
+import type { Box } from '../ui/reorder.js'
 import './backlog.css'
 
 /** The address hash that opens the backlog panel; a task id never equals it. */
@@ -33,13 +34,29 @@ interface Props {
   canReady: boolean
   onCard: (task: string) => void
   onClose: () => void
+  /** The task whose Todo button is pointed at, `null` when none is. */
+  onPoint: (task: string | null) => void
+  onMove: (task: Task, from: Box) => void
+  /** The Todo command for the task has been answered. */
+  onSettled: (task: string) => void
 }
 
-export function BacklogPanel({ tasks, trackerUrls, canReady, onCard, onClose }: Props) {
+export function BacklogPanel({ tasks, trackerUrls, canReady, onCard, onClose, onPoint, onMove, onSettled }: Props) {
   const closeRef = useRef<HTMLButtonElement>(null)
   const { send, sending, failure } = useCommand()
+  const point = useRef(onPoint)
+  point.current = onPoint
 
   useEffect(() => closeRef.current?.focus({ preventScroll: true }), [])
+  useEffect(() => () => point.current(null), [])
+
+  // mousemove, not mouseenter: Chrome fires a synthetic enter when the row under a still cursor disappears.
+  const pointAt = (event: SyntheticEvent) => onPoint((event.target as HTMLElement).closest<HTMLElement>('[data-ready]')?.dataset.ready ?? null)
+  const ready = (task: Task, button: HTMLElement) => {
+    const row = button.closest('li')?.getBoundingClientRect()
+    if (row !== undefined) onMove(task, { left: row.left, top: row.top, width: row.width, height: row.height })
+    void send('task/ready', { task: task.id }).then(() => onSettled(task.id))
+  }
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
@@ -62,7 +79,13 @@ export function BacklogPanel({ tasks, trackerUrls, canReady, onCard, onClose }: 
       </header>
       <p className="chain__hint">{t.project.backlogHint}</p>
       {failure !== null && <p className="notice notice--error">{say(failure)}</p>}
-      <ol className="backlog__list">
+      <ol
+        className="backlog__list"
+        onMouseMove={pointAt}
+        onFocus={pointAt}
+        onMouseLeave={() => onPoint(null)}
+        onBlur={() => onPoint(null)}
+      >
         {tasks.map((task) => {
           const link = issueLink(trackerUrls, task.id)
           return (
@@ -86,7 +109,8 @@ export function BacklogPanel({ tasks, trackerUrls, canReady, onCard, onClose }: 
                   className="button backlog__ready"
                   disabled={sending}
                   title={t.card.readyHint}
-                  onClick={() => void send('task/ready', { task: task.id })}
+                  data-ready={task.id}
+                  onClick={(event) => ready(task, event.currentTarget)}
                 >
                   {t.card.ready}
                 </button>

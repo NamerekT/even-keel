@@ -4,14 +4,18 @@ import { withWaiting } from '../../../src/chain/order.js'
 import type { ContextScale, TrackerUrls } from '../../../src/state.js'
 import { say, t } from '../i18n/index.js'
 import { useCommand } from '../live/useCommand.js'
-import { checkpointHandoffs, issueLink, type BlockLamp, type ChainBlock } from '../state.js'
+import { checkpointHandoffs, issueLink, type BlockLamp, type ChainBlock, type Ghost } from '../state.js'
 import { ARCHIVE_PAGE, archiveView } from '../ui/archive.js'
 import { CacheClock } from '../ui/CacheClock.js'
 import { ContextMeter } from '../ui/ContextMeter.js'
 import { Lamp } from '../ui/Lamp.js'
+import { landingIndex, revealElement } from '../ui/landing.js'
 import { milestoneView, type Section } from '../ui/milestones.js'
 import { relatives, type Point } from '../ui/reorder.js'
+import type { Arrival } from './useArrival.js'
 import { useChainDrag, type ChainDrag } from './useChainDrag.js'
+
+const GHOST_DELAY_MS = 200
 
 const LEGEND = ['done', 'working', 'waiting', 'stopped', 'error', 'ahead', 'canceled'] as const satisfies readonly BlockLamp[]
 
@@ -21,6 +25,9 @@ interface Props {
   scale: ContextScale
   trackerUrls: TrackerUrls
   focus: string
+  /** A backlog task shown at the place it would take in the chain. */
+  ghost: Ghost | null
+  arrival: Arrival | null
   onCard: (task: string) => void
 }
 
@@ -34,7 +41,7 @@ interface Relation {
   badge: boolean
 }
 
-export function ChainList({ project, chain, scale, trackerUrls, focus, onCard }: Props) {
+export function ChainList({ project, chain, scale, trackerUrls, focus, ghost, arrival, onCard }: Props) {
   const [pages, setPages] = useState(0)
   const [revealed, setRevealed] = useState(0)
   const { send, sending, failure } = useCommand()
@@ -45,8 +52,9 @@ export function ChainList({ project, chain, scale, trackerUrls, focus, onCard }:
   useEffect(() => setPending(null), [served])
 
   const ordered = pending === null ? chain : withOrder(chain, pending)
-  const archive = archiveView(ordered, pages, focus)
-  const view = milestoneView(archive.visible, revealed, focus)
+  const target = ghost?.id ?? arrival?.id ?? focus
+  const archive = archiveView(withGhost(ordered, ghost), pages, target)
+  const view = milestoneView(archive.visible, revealed, target)
   const blocks = view.sections.flatMap((section) => section.blocks)
   const shown = new Set(blocks.map((block) => block.id))
   const hidden = openIds(ordered).filter((id) => !shown.has(id))
@@ -54,6 +62,20 @@ export function ChainList({ project, chain, scale, trackerUrls, focus, onCard }:
   const numbers = new Map(openIds(blocks).map((id, index) => [id, index + 1]))
   const [hovered, setHovered] = useState<string | null>(null)
   const listRef = useRef<HTMLDivElement>(null)
+
+  const keep = arrival === null ? 0 : view.revealed
+  useEffect(() => setRevealed((current) => Math.max(current, keep)), [keep])
+
+  const coming = ghost?.id ?? arrival?.id ?? null
+  const ghosted = ghost !== null
+  useEffect(() => {
+    if (coming === null) return
+    const timer = setTimeout(() => {
+      const element = listRef.current?.querySelector(`[data-block="${CSS.escape(coming)}"]`)
+      if (element) revealElement(element)
+    }, ghosted ? GHOST_DELAY_MS : 0)
+    return () => clearTimeout(timer)
+  }, [coming, ghosted])
 
   const unfocus = (kept: ChainBlock[]) => {
     if (focus !== '' && !kept.some((block) => block.id === focus)) navigate({ search: location.search, hash: '' })
@@ -115,7 +137,7 @@ export function ChainList({ project, chain, scale, trackerUrls, focus, onCard }:
             {view.titled && (
               <Divider
                 name={section.milestone ?? t.chain.noMilestone}
-                count={t.chain.tasks(openCount(section))}
+                count={t.chain.tasks(openCount(section, ghost))}
                 toggle={
                   index < view.fixed
                     ? undefined
@@ -124,23 +146,28 @@ export function ChainList({ project, chain, scale, trackerUrls, focus, onCard }:
               />
             )}
             <ol className="chain__blocks">
-              {section.blocks.map((block) => (
-                <Block
-                  key={block.id}
-                  block={block}
-                  link={block.locked ? issueLink(trackerUrls, block.id) : null}
-                  number={numbers.get(block.id)}
-                  waits={block.blockedBy.filter((id) => open.has(id))}
-                  scale={scale}
-                  focused={block.id === focus}
-                  movable={movable(block)}
-                  relation={relationOf(block.id, drag, selected, pointed)}
-                  offset={landing?.id === block.id ? landing.offset : drag?.offsets.get(block.id)}
-                  onHover={(inside) => setHovered((current) => (inside ? block.id : current === block.id ? null : current))}
-                  onReturn={sending ? undefined : () => void send('chain/unskip', { project, task: block.id })}
-                  onCard={() => onCard(block.id)}
-                />
-              ))}
+              {section.blocks.map((block) =>
+                block.id === ghost?.id ? (
+                  <GhostBlock key={block.id} block={block} />
+                ) : (
+                  <Block
+                    key={block.id}
+                    block={block}
+                    link={block.locked ? issueLink(trackerUrls, block.id) : null}
+                    number={numbers.get(block.id)}
+                    waits={block.blockedBy.filter((id) => open.has(id))}
+                    scale={scale}
+                    focused={block.id === focus}
+                    movable={movable(block)}
+                    relation={relationOf(block.id, drag, selected, pointed)}
+                    arrival={arrival?.id === block.id ? arrival : null}
+                    offset={landing?.id === block.id ? landing.offset : drag?.offsets.get(block.id)}
+                    onHover={(inside) => setHovered((current) => (inside ? block.id : current === block.id ? null : current))}
+                    onReturn={sending ? undefined : () => void send('chain/unskip', { project, task: block.id })}
+                    onCard={() => onCard(block.id)}
+                  />
+                ),
+              )}
             </ol>
           </section>
         ))}
@@ -148,7 +175,7 @@ export function ChainList({ project, chain, scale, trackerUrls, focus, onCard }:
       {view.next !== null && (
         <Divider
           name={view.next.milestone ?? t.chain.noMilestone}
-          count={t.chain.hidden(t.chain.tasks(openCount(view.next)))}
+          count={t.chain.hidden(t.chain.tasks(openCount(view.next, ghost)))}
           hidden
           toggle={{ expanded: false, title: t.chain.nextMilestone, run: () => setRevealed(view.revealed + 1) }}
         />
@@ -169,8 +196,48 @@ export function ChainList({ project, chain, scale, trackerUrls, focus, onCard }:
   )
 }
 
-function openCount(section: Section<ChainBlock>): number {
-  return section.blocks.filter((block) => !block.locked).length
+function openCount(section: Section<ChainBlock>, ghost: Ghost | null): number {
+  return section.blocks.filter((block) => !block.locked && block.id !== ghost?.id).length
+}
+
+/** The chain with a stand-in for the ghost at its landing place, unless the task is in the chain already. */
+function withGhost(blocks: ChainBlock[], ghost: Ghost | null): ChainBlock[] {
+  if (ghost === null || blocks.some((block) => block.id === ghost.id)) return blocks
+  const stand: ChainBlock = {
+    id: ghost.id,
+    title: ghost.title,
+    status: null,
+    lamp: 'ahead',
+    open: false,
+    locked: false,
+    blockedBy: [],
+    milestone: ghost.milestone,
+    after: [],
+    current: false,
+    skipped: false,
+    question: false,
+    session: null,
+    sessions: [],
+    limit: null,
+  }
+  const index = landingIndex(blocks, ghost.before)
+  return [...blocks.slice(0, index), stand, ...blocks.slice(index)]
+}
+
+function GhostBlock({ block }: { block: ChainBlock }) {
+  return (
+    <li className="block block--ghost" data-block={block.id} aria-hidden="true">
+      <span className="block__number" />
+      <div className="block__head">
+        <Lamp lamp="ahead" />
+        <span className="block__key">{block.id}</span>
+      </div>
+      <p className="block__title">{block.title}</p>
+      <div className="block__side">
+        <span className="block__badge block__badge--ghost">{t.chain.ghost}</span>
+      </div>
+    </li>
+  )
 }
 
 interface DividerProps {
@@ -216,13 +283,14 @@ interface BlockProps {
   focused: boolean
   movable: boolean
   relation: Relation | null
+  arrival: Arrival | null
   offset: Point | undefined
   onHover: (inside: boolean) => void
   onReturn: (() => void) | undefined
   onCard: () => void
 }
 
-function Block({ block, link, number, waits, scale, focused, movable, relation, offset, onHover, onReturn, onCard }: BlockProps) {
+function Block({ block, link, number, waits, scale, focused, movable, relation, arrival, offset, onHover, onReturn, onCard }: BlockProps) {
   const classes = ['block', `block--${block.lamp}`]
   if (block.current) classes.push('block--current')
   if (block.skipped) classes.push('block--skipped')
@@ -231,6 +299,7 @@ function Block({ block, link, number, waits, scale, focused, movable, relation, 
   if (movable) classes.push('block--movable')
   if (waits.length > 0) classes.push('block--blocked')
   if (relation !== null) classes.push(`block--${relation.role}`)
+  if (arrival !== null) classes.push(arrival.flying ? 'block--arriving' : 'block--landed')
   const badge = relation?.badge === true ? relation.role : null
   const style: CSSProperties = {}
   if (offset !== undefined) style.transform = `translate(${offset.x}px, ${offset.y}px)`

@@ -101,3 +101,82 @@ a.backlog__key:hover {
     padding: 8px 12px;
   }
 }
+
+.block.block--ghost,
+.block.block--arriving {
+  border: 1px dashed var(--accent);
+  background: color-mix(in srgb, var(--accent) 8%, var(--surface));
+}
+
+.block.block--ghost {
+  pointer-events: none;
+  animation: appear 0.2s ease-out;
+}
+
+.block--ghost .block__title {
+  overflow: hidden;
+  color: var(--fg-muted);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.block__badge.block__badge--ghost {
+  background: color-mix(in srgb, var(--accent) 16%, transparent);
+}
+
+.block--arriving > * {
+  visibility: hidden;
+}
+
+.block--landed {
+  animation: landed 1.4s ease-out;
+}
+
+@keyframes landed {
+  from {
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 60%, transparent);
+    background: color-mix(in srgb, var(--accent) 16%, var(--surface));
+  }
+}
+
+.flight {
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 35;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  overflow: hidden;
+  padding: 8px 14px;
+  background: var(--surface);
+  border: 1px solid var(--accent);
+  border-radius: var(--radius);
+  box-shadow: 0 8px 24px rgb(0 0 0 / 0.18);
+  pointer-events: none;
+  will-change: transform;
+}
+
+.flight__key {
+  flex: none;
+  font-family: var(--mono);
+  font-weight: 600;
+}
+
+.flight__title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .block.block--ghost,
+  .block--landed {
+    animation: none;
+  }
+
+  .block--landed {
+    outline: 2px solid var(--accent);
+    outline-offset: 3px;
+  }
+}

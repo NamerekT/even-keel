@@ -109,6 +109,23 @@ export function backlogTasks(state: EvenKeelState, project: string): Task[] {
   return (state.chain.projects[project]?.backlog ?? []).flatMap((id) => byId.get(id) ?? [])
 }
 
+export interface Ghost {
+  id: string
+  title: string
+  milestone: string | null
+  /** The chain task it would stand right before, `null` for the end. */
+  before: string | null
+}
+
+/** The stand-in for a backlog task at the place the service says it would take; `null` — the chain would not take it. */
+export function ghostOf(state: EvenKeelState, project: string, id: string | null): Ghost | null {
+  const landing = state.chain.projects[project]?.landing
+  if (id === null || landing === undefined || !Object.hasOwn(landing, id)) return null
+  const task = state.tasks.find((each) => each.id === id)
+  if (task === undefined) return null
+  return { id, title: task.title, milestone: task.milestone?.label ?? null, before: landing[id] ?? null }
+}
+
 export function canReady(state: EvenKeelState, project: string): boolean {
   return state.trackers.some((view) => view.ready && view.projects.includes(project))
 }

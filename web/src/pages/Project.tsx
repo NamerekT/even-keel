@@ -21,10 +21,13 @@ import { QuestionsChip } from '../ui/QuestionsChip.js'
 import { StatusChip } from '../ui/StatusChip.js'
 import { BACKLOG_HASH, BacklogChip, BacklogPanel } from './BacklogPanel.js'
 import { ChainList } from './ChainList.js'
+import { Flight } from './Flight.js'
+import { IdlePanel } from './IdlePanel.js'
 import { NotFound } from './NotFound.js'
 import { SessionPanel } from './SessionPanel.js'
 import { StatsStrip } from './StatsStrip.js'
 import { ToolsLink } from './ToolsLink.js'
+import { useArrival } from './useArrival.js'
 import './project.css'
 
 const TaskCard = lazy(async () => ({ default: (await import('./TaskCard.js')).TaskCard }))
@@ -46,9 +49,11 @@ export function Project({ state }: { state: EvenKeelState }) {
   useEffect(() => {
     if (focus !== '') document.getElementById(focus)?.scrollIntoView({ block: 'nearest' })
   }, [focus])
+  const arrival = useArrival(state, key, blocks, close)
   if (!state.projects.includes(key)) return <NotFound what={t.notFound.project(key)} />
 
   const order = state.chain.projects[key]
+  const flight = arrival.flight
   const selected = blocks.find((block) => block.id === focus && !block.locked)
   const backlog = backlogTasks(state, key)
   const backlogOpen = focus === BACKLOG_HASH && backlog.length > 0
@@ -91,6 +96,8 @@ export function Project({ state }: { state: EvenKeelState }) {
             scale={state.context}
             trackerUrls={state.trackerUrls}
             focus={focus === BACKLOG_HASH ? '' : focus}
+            ghost={arrival.ghost}
+            arrival={arrival.arrival}
             onCard={openCard}
           />
         )}
@@ -101,7 +108,20 @@ export function Project({ state }: { state: EvenKeelState }) {
         <SessionPanel key={selected.id} block={selected} scale={state.context} onCard={openCard} onClose={close} />
       )}
       {backlogOpen && (
-        <BacklogPanel tasks={backlog} trackerUrls={state.trackerUrls} canReady={canReady(state, key)} onCard={openCard} onClose={close} />
+        <BacklogPanel
+          tasks={backlog}
+          trackerUrls={state.trackerUrls}
+          canReady={canReady(state, key)}
+          onCard={openCard}
+          onClose={close}
+          onPoint={arrival.point}
+          onMove={(task, from) => arrival.move(task.id, task.title, from)}
+          onSettled={arrival.settle}
+        />
+      )}
+      {selected === undefined && !backlogOpen && <IdlePanel />}
+      {flight !== null && (
+        <Flight key={flight.id} task={flight.id} title={flight.title} from={flight.from} onLand={() => arrival.land(flight.id)} />
       )}
       {opened !== null && (
         <Suspense fallback={null}>

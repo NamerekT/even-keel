@@ -67,9 +67,12 @@ export function fakeReady(state: EvenKeelState, id: string): EvenKeelState {
   const order = state.chain.projects[project]
   const tasks: Task[] = state.tasks.map((each) => (each.id === id ? { ...each, status: { name: 'Todo', category: 'ToDo' } } : each))
   if (order === undefined) return { ...state, tasks }
+  const { [id]: before = null, ...landing } = order.landing ?? {}
+  const at = before === null ? -1 : order.order.indexOf(before)
+  const placed = at < 0 ? [...order.order, id] : [...order.order.slice(0, at), id, ...order.order.slice(at)]
   const projects = {
     ...state.chain.projects,
-    [project]: { ...order, order: [...order.order, id], backlog: order.backlog.filter((each) => each !== id) },
+    [project]: { ...order, order: placed, backlog: order.backlog.filter((each) => each !== id), landing },
   }
   return { ...state, tasks, chain: { ...state.chain, projects } }
 }
