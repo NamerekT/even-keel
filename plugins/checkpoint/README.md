@@ -10,6 +10,8 @@ CHECKPOINT: .temp/handoff.md
 
 The first nudge lets the session pick the moment: before a loop of checks or the wrap-up, not in the middle of a change that does not build yet or of a step that needs what is loaded. Sessions used that last clause to carry on through every nudge, so the later ones drop it: checkpoint now or as soon as the current change builds, unless all that is left is the merge and the final report. Subagents are not nudged.
 
+Sessions sometimes write the note and then close the turn with a report, without the line. A second hook, on `Stop`, catches that: if `.temp/handoff.md` was written or edited among the last three tool calls of the turn and the last line of the last message is not the mark, it sends the session back to reply with the line alone. It asks once per stop, so a session that still refuses is let go.
+
 Even Keel takes it from there: it stops the session and starts a new one in the same worktree with a handoff prompt that points at the note (see "Handoffs" in the [main README](../../README.md)). Outside a chain the line is just the end of a turn — start a new session yourself and give it the note.
 
 ## Install
