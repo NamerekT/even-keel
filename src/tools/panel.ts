@@ -7,7 +7,7 @@ import { projectDirName } from '../sessions/paths.js'
 import { readMcpSources } from '../tracker/mcp.js'
 import type { ReceivedTools, ToolsView } from './model.js'
 import { latestStarted, readReceived, skillSource } from './received.js'
-import { accountDrift, mcpRows, settingRows, trimSettings } from './settings.js'
+import { accountDrift, mcpRows, settingRows, strayMcpServers, trimSettings } from './settings.js'
 
 type Json = Record<string, unknown>
 
@@ -32,12 +32,16 @@ export interface ToolsPlaces {
   mode: string
 }
 
-/** The `--settings` JSON for a chain session of the repository: the shared memory folder and, with trimming on, the trimming. */
-export function chainSettings(repo: string, trim: boolean, hidden: string[], globalDir: string): string {
-  const memory = { autoMemoryDirectory: sharedMemory(globalDir, repo) }
-  if (!trim) return JSON.stringify(memory)
+/**
+ * The `--settings` JSON for a chain session of the repository working in `cwd`: the shared memory folder, the main
+ * checkout's MCP servers the worktree would hang on and, with trimming on, the trimming.
+ */
+export function chainSettings(repo: string, cwd: string, trim: boolean, hidden: string[], globalDir: string): string {
+  const stray = strayMcpServers(repo, cwd, readJson)
+  const always = { autoMemoryDirectory: sharedMemory(globalDir, repo), ...(stray.length > 0 && { disabledMcpjsonServers: stray }) }
+  if (!trim) return JSON.stringify(always)
   const { project, local } = projectSettings(repo)
-  return JSON.stringify({ ...trimSettings(hidden, project, local), ...memory })
+  return JSON.stringify({ ...trimSettings(hidden, project, local), ...always })
 }
 
 export async function readToolsView(project: string, places: ToolsPlaces): Promise<ToolsView> {

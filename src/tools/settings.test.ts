@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { accountDrift, mcpRows, settingRows, trimSettings } from './settings.js'
+import { accountDrift, mcpRows, settingRows, strayMcpServers, trimSettings } from './settings.js'
 
 describe('trimSettings', () => {
   it('turns claude.ai sync off and hides the listed skills', () => {
@@ -19,6 +19,31 @@ describe('trimSettings', () => {
       init: 'on',
       schedule: 'user-invocable-only',
     })
+  })
+})
+
+describe('strayMcpServers', () => {
+  const repo = 'D:\\repo'
+  const worktree = 'D:\\repo\\.claude\\worktrees\\abc-1'
+  const reader = (files: Record<string, unknown>) => (file: string) => files[file] as Record<string, unknown> | undefined
+
+  it('names the servers of the main checkout that the worktree does not have itself', () => {
+    const read = reader({
+      'D:\\repo\\.mcp.json': { mcpServers: { strata: {}, shared: {} } },
+      'D:\\repo\\.claude\\worktrees\\abc-1\\.mcp.json': { mcpServers: { shared: {} } },
+    })
+    expect(strayMcpServers(repo, worktree, read, 'win32')).toEqual(['strata'])
+  })
+
+  it('reads a file that lists servers without the mcpServers wrapper', () => {
+    expect(strayMcpServers(repo, worktree, reader({ 'D:\\repo\\.mcp.json': { strata: {} } }), 'win32')).toEqual(['strata'])
+  })
+
+  it('names nothing for a session in the main checkout, outside the repository or with no file', () => {
+    const read = reader({ 'D:\\repo\\.mcp.json': { mcpServers: { strata: {} } } })
+    expect(strayMcpServers(repo, 'd:/repo', read, 'win32')).toEqual([])
+    expect(strayMcpServers(repo, 'D:\\elsewhere\\slot', read, 'win32')).toEqual([])
+    expect(strayMcpServers(repo, worktree, reader({}), 'win32')).toEqual([])
   })
 })
 

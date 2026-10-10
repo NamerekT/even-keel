@@ -279,10 +279,10 @@ const mcp = new McpCheck({
   onChange: () => hub.broadcast('state', getState()),
 })
 
-const settingsFor = (task: string, project = projectOf(task)): string | undefined =>
+const settingsFor = (task: string, cwd: string, project = projectOf(task)): string | undefined =>
   project === undefined
     ? undefined
-    : chainSettings(config.projects[project]!, dispatcher.state.trimTools, configFile.current.hiddenSkills, homes.global.dir)
+    : chainSettings(config.projects[project]!, cwd, dispatcher.state.trimTools, configFile.current.hiddenSkills, homes.global.dir)
 
 function projectOf(task: string): string | undefined {
   for (const [project, tasks] of tasksByProject) if (tasks.some((each) => each.id === task)) return project
@@ -308,7 +308,7 @@ const dispatcher = new Dispatcher(loadChainState(chainFile), {
           })
         : await prepareWorktree(runGit, repo, task)
     const { prompt, model } = planFor(task, await briefed(task, startPrompt(task, place, promptLanguage()), project))
-    return (await cli.launch(home, task, place.path, prompt, model, settingsFor(task, project))).sessionId
+    return (await cli.launch(home, task, place.path, prompt, model, settingsFor(task, place.path, project))).sessionId
   },
   liveSession: (task) => sessions.find((view) => view.task === task && view.lamp !== 'finished')?.sessionId,
   blocked: () => launchBlock(account.view),
@@ -339,7 +339,7 @@ const dispatcher = new Dispatcher(loadChainState(chainFile), {
     await cli.stop(home, session.agentId, session.sessionId)
     await daemons.prepare(home)
     const plan = planFor(task, resumePrompt(promptLanguage()))
-    return (await cli.resume(home, session.sessionId, task, session.cwd, plan.prompt, plan.model, settingsFor(task))).sessionId
+    return (await cli.resume(home, session.sessionId, task, session.cwd, plan.prompt, plan.model, settingsFor(task, session.cwd))).sessionId
   },
   relay: async (task, session, handoff) => {
     const previous = homes.find(session.account)
@@ -347,7 +347,7 @@ const dispatcher = new Dispatcher(loadChainState(chainFile), {
     const home = homeOf(ledger.active)
     await daemons.prepare(home)
     const { prompt, model } = planFor(task, await briefed(task, handoff))
-    return (await cli.launch(home, task, session.workdir, prompt, model, settingsFor(task))).sessionId
+    return (await cli.launch(home, task, session.workdir, prompt, model, settingsFor(task, session.workdir))).sessionId
   },
   finish: async (project, task) => {
     const repo = config.projects[project]!

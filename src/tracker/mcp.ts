@@ -104,7 +104,7 @@ function pluginServers(key: string, dir: string): McpPlugin {
   return { name, servers: { ...serversIn(readJson(join(dir, '.mcp.json'))), ...fromManifest } }
 }
 
-function serversIn(file: Json | undefined): Json {
+export function serversIn(file: Json | undefined): Json {
   if (file === undefined) return {}
   return 'mcpServers' in file ? objectOf(file.mcpServers) : file
 }
