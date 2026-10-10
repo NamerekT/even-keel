@@ -22,7 +22,7 @@ export function Header() {
         <nav className="header__nav" aria-label={t.header.nav}>
           <Link to="/" className="header__brand">
             <img className="header__logo" src="/favicon.svg" alt="" width={22} height={22} />
-            Even Keel
+            <span className="header__name">Even Keel</span>
           </Link>
           {project !== undefined && (
             <>
@@ -43,6 +43,8 @@ export function Header() {
           {state !== null && <QueueMenu state={state} />}
           {state !== null && <AccountMenu account={state.account} />}
           {state !== null && <Waiting sessions={state.sessions} tasks={state.tasks} />}
+        </div>
+        <div className="header__system">
           <SystemMenu now={now} />
         </div>
         {state !== null && (
