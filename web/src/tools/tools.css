@@ -401,30 +401,14 @@
   text-decoration: underline;
 }
 
-/* Loading: the matrix outline while a scanner beam runs over it */
+/* Loading: the matrix outline */
 
 .tools-page__main > .tools-loading {
-  position: relative;
   display: flex;
   flex-direction: column;
   gap: 16px;
   opacity: 1;
   animation: appear 0.3s ease-out 0.15s backwards;
-}
-
-.tools-loading::after {
-  content: '';
-  position: absolute;
-  left: -6px;
-  right: -6px;
-  top: 0;
-  height: 2px;
-  border-radius: 1px;
-  background: linear-gradient(90deg, transparent, var(--lamp-error) 12%, var(--lamp-error) 88%, transparent);
-  box-shadow: 0 0 10px 1px color-mix(in srgb, var(--lamp-error) 55%, transparent);
-  opacity: 0.7;
-  pointer-events: none;
-  animation: tools-scan 2.6s ease-in-out infinite alternate;
 }
 
 .tools-loading__caption {
@@ -504,12 +488,6 @@
   border-radius: 8px;
 }
 
-@keyframes tools-scan {
-  to {
-    top: 100%;
-  }
-}
-
 @keyframes tools-scan-mini {
   to {
     top: 13px;
@@ -523,7 +501,6 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .tools-loading::after,
   .tools-loading__scanner::after {
     display: none;
   }
