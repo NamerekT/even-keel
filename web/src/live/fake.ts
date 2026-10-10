@@ -69,7 +69,7 @@ function session(task: string, contextTokens: number, lamp: SessionView['lamp'] 
     cwd: 'C:\\repos\\example-project',
     lamp,
     waitingFor: lamp === 'waiting' ? 'permission' : null,
-    startupDialog: false,
+    startupDialog: null,
     apiError: null,
     startedAt: ago(42),
     lastActivityAt: ago(0),
@@ -432,7 +432,7 @@ function restart(state: EvenKeelState, project: string, task: string): EvenKeelS
   if (view === undefined) throw fail('chain.noSession', { task })
   if (view.lamp === 'working' || view.waitingFor !== null) throw fail('chain.midTurn', { task })
   const sessionId = crypto.randomUUID()
-  const fresh: SessionView = { ...view, sessionId, lamp: 'working', startupDialog: false, apiError: null, startedAt: ago(0), remoteUrl: 'https://claude.ai/code/session_example', remoteOff: null }
+  const fresh: SessionView = { ...view, sessionId, lamp: 'working', startupDialog: null, apiError: null, startedAt: ago(0), remoteUrl: 'https://claude.ai/code/session_example', remoteOff: null }
   const rows = (state.taskSessions[task] ?? []).map((row) => (row.sessionId === view.sessionId ? { ...row, replaced: { at: ago(0), how: 'restart' as const } } : row))
   return {
     ...state,
@@ -744,7 +744,7 @@ export function createFakeSource(search: string): LiveSource {
     const wedged: SessionView = {
       ...session('ABC-5', 0, 'waiting'),
       waitingFor: null,
-      startupDialog: true,
+      startupDialog: 'approve 1 new project MCP server (example) — attach to respond',
       lastActivityAt: null,
       tokens: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
       stage: null,

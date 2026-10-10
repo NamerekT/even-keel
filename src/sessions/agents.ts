@@ -17,22 +17,25 @@ export interface AgentEntry {
   waitingFor?: string
   state?: AgentState
   account?: string
-  /** The session hangs on a CLI dialog before its first turn (`isStartupWedge`). */
-  startupDialog?: boolean
+  /** What the dialog the session hangs on before its first turn asks for. */
+  startupDialog?: string
 }
 
-/** The text the CLI's startup watchdog writes to `jobs/<id>/state.json` when the first turn has not begun after 45 s. */
-const STARTUP_WEDGE = 'stuck on a startup dialog'
-
-export function isStartupWedge(raw: string | undefined): boolean {
-  if (raw === undefined) return false
+/**
+ * What a blocked job waits for, from `jobs/<id>/state.json`: the CLI writes `needs` for a dialog it knows
+ * (an unapproved MCP server) and "stuck on a startup dialog" when its 45 s watchdog sees no first turn.
+ */
+export function blockedOn(raw: string | undefined): string | null {
+  if (raw === undefined) return null
   try {
     const job: unknown = JSON.parse(raw)
-    if (typeof job !== 'object' || job === null) return false
-    const { tempo, detail } = job as Record<string, unknown>
-    return tempo === 'blocked' && detail === STARTUP_WEDGE
+    if (typeof job !== 'object' || job === null) return null
+    const { tempo, detail, needs } = job as Record<string, unknown>
+    if (tempo !== 'blocked') return null
+    if (typeof needs === 'string' && needs !== '') return needs
+    return typeof detail === 'string' && detail !== '' ? detail : null
   } catch {
-    return false
+    return null
   }
 }
 

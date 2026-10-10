@@ -10,7 +10,7 @@ import { parseAuthStatus, type ClaudeAccount } from '../account/model.js'
 import { fail, notice, NoticeError, type Notice } from '../notice/notice.js'
 import { samePath } from '../paths.js'
 import type { ModelAlias } from '../tracker/model.js'
-import { isStartupWedge, parseAgents, parseSessionRecord, withLiveRecords, type AgentEntry, type SessionRecord } from './agents.js'
+import { blockedOn, parseAgents, parseSessionRecord, withLiveRecords, type AgentEntry, type SessionRecord } from './agents.js'
 import { newestExtensionBinary } from './paths.js'
 
 const run = promisify(execFile)
@@ -192,13 +192,16 @@ export async function liveRecords(home: AccountHome): Promise<SessionRecord[]> {
   return texts.map(parseSessionRecord).filter((record): record is SessionRecord => record !== undefined && isAlive(record.pid))
 }
 
-/** `claude agents` shows such a session only as `blocked`, like one with a question: why it stands is in its job file. */
+/**
+ * A blocked session without a live `sessions/<pid>.json` has not begun its first turn: it hangs on a startup dialog.
+ * `claude agents` shows it only as `blocked`, like one with a question; what it waits for is in its job file.
+ */
 async function withStartupDialogs(home: AccountHome, agents: AgentEntry[]): Promise<AgentEntry[]> {
   return Promise.all(
     agents.map(async (agent) => {
-      if (agent.state !== 'blocked' || agent.status !== undefined || agent.id === undefined) return agent
-      const job = await readFile(join(home.dir, 'jobs', agent.id, 'state.json'), 'utf8').catch(() => undefined)
-      return isStartupWedge(job) ? { ...agent, startupDialog: true } : agent
+      if (agent.state !== 'blocked' || agent.pid !== undefined || agent.id === undefined) return agent
+      const needs = blockedOn(await readFile(join(home.dir, 'jobs', agent.id, 'state.json'), 'utf8').catch(() => undefined))
+      return needs === null ? agent : { ...agent, startupDialog: needs }
     }),
   )
 }

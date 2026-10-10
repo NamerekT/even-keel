@@ -396,8 +396,8 @@ export const en: Messages = {
     },
     account: (account: string) => `Account: ${account}`,
     waits: (what: string) => `Waiting for ${what}`,
-    startupDialog:
-      'The session hangs on a Claude Code dialog before its first turn, and nobody answers it in the background: an unapproved MCP server from .mcp.json, folder trust and the like. Remove the cause and press "New session".',
+    startupDialog: (what: string) =>
+      `The session hangs on a Claude Code dialog before its first turn, and nobody answers it in the background: ${what}. Remove the cause and press "New session".`,
     session: 'Session',
     time: 'Time',
     cache: 'Cache',

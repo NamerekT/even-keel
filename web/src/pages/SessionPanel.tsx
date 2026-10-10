@@ -170,7 +170,7 @@ function SessionBody({ session, limit, scale }: { session: SessionView; limit: L
   const now = useNow(1_000)
   const note =
     session.apiError ??
-    (session.waitingFor !== null ? t.session.waits(session.waitingFor) : session.startupDialog ? t.session.startupDialog : null)
+    (session.waitingFor !== null ? t.session.waits(session.waitingFor) : session.startupDialog !== null ? t.session.startupDialog(session.startupDialog) : null)
 
   return (
     <>

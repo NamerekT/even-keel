@@ -242,9 +242,9 @@ const wedgedSessions = new Set<string>()
 
 function logStartupDialogs(views: SessionView[]): void {
   for (const view of views) {
-    if (!view.startupDialog || wedgedSessions.has(view.sessionId)) continue
+    if (view.startupDialog === null || wedgedSessions.has(view.sessionId)) continue
     wedgedSessions.add(view.sessionId)
-    console.warn(`sessions: ${view.task} hangs on a Claude Code dialog before its first turn (session ${view.sessionId}, ${view.cwd})`)
+    console.warn(`sessions: ${view.task} hangs on a Claude Code dialog before its first turn: ${view.startupDialog} (session ${view.sessionId}, ${view.cwd})`)
   }
 }
 

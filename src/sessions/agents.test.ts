@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { isStartupWedge, lampOf, parseAgents, parseSessionRecord, sessionsByTask, turnStatus, withLiveRecords, type AgentEntry } from './agents.js'
+import { blockedOn, lampOf, parseAgents, parseSessionRecord, sessionsByTask, turnStatus, withLiveRecords, type AgentEntry } from './agents.js'
 
 const interactive: AgentEntry = {
   pid: 100,
@@ -55,18 +55,21 @@ describe('parseSessionRecord', () => {
   })
 })
 
-describe('isStartupWedge', () => {
-  it('tells a job the CLI marked as hanging on a dialog before its first turn', () => {
-    const raw = JSON.stringify({ state: 'working', tempo: 'blocked', detail: 'stuck on a startup dialog', needs: 'open this session to continue setup' })
+describe('blockedOn', () => {
+  it('reads what a blocked job needs: a named dialog or the startup watchdog', () => {
+    const mcp = { state: 'blocked', tempo: 'blocked', detail: '1 new MCP server needs approval', needs: 'approve 1 new project MCP server (strata) — attach to respond' }
+    const wedge = { state: 'working', tempo: 'blocked', detail: 'stuck on a startup dialog', needs: 'open this session to continue setup' }
 
-    expect(isStartupWedge(raw)).toBe(true)
+    expect(blockedOn(JSON.stringify(mcp))).toBe('approve 1 new project MCP server (strata) — attach to respond')
+    expect(blockedOn(JSON.stringify(wedge))).toBe('open this session to continue setup')
+    expect(blockedOn(JSON.stringify({ tempo: 'blocked', detail: 'stuck on a startup dialog' }))).toBe('stuck on a startup dialog')
   })
 
-  it('does not take a question in the middle of the work or a broken file for it', () => {
-    expect(isStartupWedge(JSON.stringify({ state: 'working', tempo: 'blocked', detail: 'needs permission', needs: 'approve Bash' }))).toBe(false)
-    expect(isStartupWedge(JSON.stringify({ state: 'working', tempo: 'idle', detail: 'starting…' }))).toBe(false)
-    expect(isStartupWedge('not json')).toBe(false)
-    expect(isStartupWedge(undefined)).toBe(false)
+  it('names nothing for a job that is not blocked or a broken file', () => {
+    expect(blockedOn(JSON.stringify({ state: 'working', tempo: 'idle', detail: 'starting…' }))).toBeNull()
+    expect(blockedOn(JSON.stringify({ tempo: 'blocked' }))).toBeNull()
+    expect(blockedOn('not json')).toBeNull()
+    expect(blockedOn(undefined)).toBeNull()
   })
 })
 
