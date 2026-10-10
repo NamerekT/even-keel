@@ -494,6 +494,10 @@ export const en: Messages = {
       bargain: ['SAVINGS', 'suspicious ones'],
       evenKeel: ['EVEN KEEL', 'certified by Even Keel'],
     },
+    basement: {
+      sign: ['What are you doing down here?', "We're still working on this page, don't get in the way!"],
+      tape: 'CAUTION · WORK IN PROGRESS',
+    },
     remarks: {
       mono: (model: string) => `all on ${model}. A monoculture`,
       baseline: 'the project median guesses better than the estimates. Ouch',

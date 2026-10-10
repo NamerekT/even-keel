@@ -7,6 +7,7 @@ import { formatMoment } from '../format.js'
 import { formatUsd } from './format.js'
 import { t } from '../i18n/index.js'
 import { useLive } from '../live/context.js'
+import { Basement } from './Basement.js'
 import { AnswerNotice, Segmented, isStale, loadedData, useStatsAnswer, type FoldControl } from './common.js'
 import { useFolds, type Fold } from './folds.js'
 import { chartData, dayCosts, firstDay, projectColors, projectTotals, type Metric } from './history.js'
@@ -181,6 +182,7 @@ export function StatsPage({ state }: { state: EvenKeelState }) {
                 <TaskTable fold={fold('tasks')} tasks={period.tasks} trackerUrls={state.trackerUrls} />
                 <StuckSection fold={fold('stuck')} weeks={period.weeks} stuck={period.stuck} trackerUrls={state.trackerUrls} />
                 <p className="stats-page__foot">{t.stats.read(formatMoment(period.at, new Date()))}</p>
+                <Basement />
               </>
             )}
           </div>
