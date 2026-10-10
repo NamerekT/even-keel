@@ -25,6 +25,7 @@ import { NotFound } from './NotFound.js'
 import { SessionPanel } from './SessionPanel.js'
 import { StatsStrip } from './StatsStrip.js'
 import { ToolsLink } from './ToolsLink.js'
+import './project.css'
 
 const TaskCard = lazy(async () => ({ default: (await import('./TaskCard.js')).TaskCard }))
 const CARD_PARAM = 'task'
