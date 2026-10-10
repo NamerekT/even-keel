@@ -24,7 +24,7 @@ import type { EvenKeelState, SessionRecord, SessionView } from '../../../src/sta
 import type { Link, LiveSnapshot, LiveSource } from './connection.js'
 import { fakeCompare, fakeRuleDiff, fakeRules } from './fakeRules.js'
 import { fakeSteps } from './fakeSteps.js'
-import { fakeHistory, fakePeriod, fakeTask } from './fakeStats.js'
+import { fakeCheckpoints, fakeHistory, fakePeriod, fakeTask } from './fakeStats.js'
 import { fakeCard, fakeReady } from './fakeCards.js'
 import { fakeTools } from './fakeTools.js'
 
@@ -843,6 +843,10 @@ export function createFakeSource(search: string): LiveSource {
     statsSteps: async (query) => {
       await answer()
       return fakeSteps(params.get('stats'), query)
+    },
+    statsCheckpoints: async () => {
+      await answer()
+      return fakeCheckpoints(params.get('stats'))
     },
     statsTask: async (task) => {
       await answer()

@@ -1,5 +1,7 @@
 import type { ReactNode } from 'react'
+import { MIN_HANDOFFS, MIN_SESSIONS, type CheckpointThreshold } from '../../../src/stats/checkpoint.js'
 import type { StatsPeriod, StatsShare } from '../../../src/stats/model.js'
+import { formatTokens } from '../format.js'
 import { language, t } from '../i18n/index.js'
 import { seriesStyle } from '../ui/series.js'
 import { Section } from './common.js'
@@ -86,6 +88,25 @@ export function Sources({ period }: { period: StatsPeriod }) {
         <ShareBar title={t.stats.summary.model} shares={period.models} label={modelLabel} />
         <ShareBar title={t.stats.summary.entrypoint} shares={period.entrypoints} label={entrypointLabel} />
       </div>
+    </Section>
+  )
+}
+
+export function Checkpoints({ thresholds, projects }: { thresholds: CheckpointThreshold[]; projects: string[] | null }) {
+  const shown = thresholds.filter((each) => projects === null || projects.includes(each.project))
+  if (shown.length === 0) return null
+  const waiting = (each: CheckpointThreshold) => t.stats.checkpoint.waiting(each.handoffs, each.sessions, MIN_HANDOFFS, MIN_SESSIONS)
+  return (
+    <Section title={t.stats.checkpoint.title} aside={<span className="stats-section__note">{t.stats.checkpoint.note}</span>}>
+      <ul className="checkpoints">
+        {shown.map((each) => (
+          <li key={each.project} title={each.source === 'default' ? waiting(each) : undefined}>
+            <span className="checkpoints__project">{each.project}</span>
+            <span className="checkpoints__first">{formatTokens(each.first)}</span>
+            <span className="checkpoints__source">{t.stats.checkpoint.sources[each.source](each.handoffs)}</span>
+          </li>
+        ))}
+      </ul>
     </Section>
   )
 }

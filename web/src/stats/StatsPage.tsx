@@ -21,7 +21,7 @@ import { parseView, viewSearch, type StatsView } from './search.js'
 import { SpendChart } from './SpendChart.js'
 import { StepsSection } from './StepsSection.js'
 import { StuckSection } from './StuckSection.js'
-import { Sources, Tiles } from './Summary.js'
+import { Checkpoints, Sources, Tiles } from './Summary.js'
 import { TaskTable } from './TaskTable.js'
 import './stats.css'
 
@@ -30,7 +30,7 @@ const SCOPES: StatsScope[] = ['all', 'chain']
 export function StatsPage({ state }: { state: EvenKeelState }) {
   const [params, setParams] = useSearchParams()
   const view = parseView(params)
-  const { statsHistory, statsPeriod, statsSteps, statsRules } = useLive()
+  const { statsHistory, statsPeriod, statsSteps, statsCheckpoints, statsRules } = useLive()
   const [metric, setMetric] = useState<Metric>('cost')
   const [zooms, setZooms] = useState<PeriodChoice[]>([])
   const tz = useMemo(() => Intl.DateTimeFormat().resolvedOptions().timeZone, [])
@@ -47,6 +47,7 @@ export function StatsPage({ state }: { state: EvenKeelState }) {
   const periodLoaded = useStatsAnswer(periodKey, () => statsPeriod(query))
   const period = loadedData(periodLoaded)
   const stepsLoaded = useStatsAnswer(periodKey, () => statsSteps(query))
+  const checkpoints = loadedData(useStatsAnswer('checkpoints', statsCheckpoints))
   const step = view.step ?? autoStep(range)
   const [picked, setPicked] = useState<string[]>([])
   const rulesQuery: RulesQuery = { ...filter, projects: view.projects, kinds: view.kinds, purposes: view.purposes, places: view.places }
@@ -179,6 +180,7 @@ export function StatsPage({ state }: { state: EvenKeelState }) {
                 <Sources period={period} />
                 <EstimateSection fold={fold('estimate')} tasks={period.tasks} />
                 <StepsSection fold={fold('steps')} loaded={stepsLoaded} />
+                {checkpoints !== null && <Checkpoints thresholds={checkpoints} projects={view.projects} />}
                 <TaskTable fold={fold('tasks')} tasks={period.tasks} trackerUrls={state.trackerUrls} />
                 <StuckSection fold={fold('stuck')} weeks={period.weeks} stuck={period.stuck} trackerUrls={state.trackerUrls} />
                 <p className="stats-page__foot">{t.stats.read(formatMoment(period.at, new Date()))}</p>

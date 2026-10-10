@@ -12,6 +12,7 @@ import type {
   StatsTaskRow,
   StatsTotals,
 } from '../../../src/stats/model.js'
+import type { CheckpointThreshold } from '../../../src/stats/checkpoint.js'
 import { addDays, bucketOf, dayCount, localDay, previousRange, type DayRange } from '../stats/period.js'
 import { fakeTaskSteps } from './fakeSteps.js'
 
@@ -73,6 +74,20 @@ export function failure<T>(mode: string | null): StatsAnswer<T> | null {
   if (mode === 'off') return { state: 'off', reason: 'TALLY_DB_HOST, TALLY_DB_NAME, TALLY_READER_PASSWORD not set in .env' }
   if (mode === 'error') return { state: 'error', error: 'connect ETIMEDOUT 100.64.0.1:5432' }
   return null
+}
+
+export function fakeCheckpoints(mode: string | null): StatsAnswer<CheckpointThreshold[]> {
+  return (
+    failure<CheckpointThreshold[]>(mode) ?? {
+      state: 'ok',
+      data: [
+        { project: 'ABC', first: 187_000, source: 'calibrated', handoffs: 163, sessions: 446 },
+        { project: 'DEMO', first: 200_000, source: 'default', handoffs: 12, sessions: 31 },
+        { project: 'XYZ', first: 200_000, source: 'default', handoffs: 0, sessions: 0 },
+        { project: 'OPS', first: 215_000, source: 'calibrated', handoffs: 24, sessions: 58 },
+      ],
+    }
+  )
 }
 
 const LIMIT_DAYS = 20

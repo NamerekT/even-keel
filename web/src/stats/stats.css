@@ -460,6 +460,34 @@ a.stats__key:hover {
   gap: 6px;
 }
 
+.checkpoints {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 24px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.checkpoints li {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+}
+
+.checkpoints__project {
+  font-weight: 600;
+}
+
+.checkpoints__first {
+  font-variant-numeric: tabular-nums;
+}
+
+.checkpoints__source {
+  color: var(--fg-muted);
+  font-size: 13px;
+}
+
 /* Estimates */
 
 .estimates {

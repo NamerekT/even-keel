@@ -745,6 +745,17 @@ export const en: Messages = {
       baselineTitle:
         'Within ×1.5 if every task were estimated at the median time of its project’s closed tasks (median of this selection, not of the past)',
     },
+    checkpoint: {
+      title: 'Checkpoint threshold',
+      note: 'the context size at which a session is first asked to hand the task over',
+      sources: {
+        default: () => 'default',
+        config: () => 'set in the config',
+        calibrated: (sessions: number) => `from ${sessions} sessions of the project`,
+      },
+      waiting: (handoffs: number, sessions: number, needHandoffs: number, needSessions: number) =>
+        `Calibration starts at ${needHandoffs} handoffs and ${needSessions} sessions over 150k; the project has ${handoffs} and ${sessions}`,
+    },
     steps: {
       title: 'Steps',
       note: (count: number) =>

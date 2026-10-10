@@ -14,6 +14,7 @@ import type {
 } from './model.js'
 import { BASE } from './base-sql.js'
 import { mapCalibration, type Calibration } from './calibration.js'
+import { checkpointThreshold, type CheckpointMeasure, type CheckpointThreshold } from './checkpoint.js'
 import { folderGroups, repoTail } from './model.js'
 import { readCompare, readRuleDiff, readRules, type RulesDb } from './rules-reader.js'
 import { readSteps, readTaskSteps } from './steps-reader.js'
@@ -179,6 +180,58 @@ where key = $1::text and done and active_min is not null
 order by last_at desc`
 
 const TASK_COMPONENT = `select component from tasks where task = $1::text`
+
+// $1 project keys. Requests are those of the main thread, numbered within the session; a successor is a
+// session started from a checkpoint note. The note is whatever a session spent from writing it to its end,
+// the recovery is what a successor spent before its first edit.
+const CHECKPOINT = `
+with own as (
+  select s.session_id, coalesce(s.launch_reason = 'checkpoint', false) as handed, split_part(st.task, '-', 1) as key
+  from sessions s
+  join session_tasks st on st.session_id = s.session_id
+  where split_part(st.task, '-', 1) = any($1::text[])
+), reqs as (
+  select c.session_id, c.message_id, c.cost, c.model,
+    c.input + c.cache_write_5m + c.cache_write_1h + c.cache_read as ctx,
+    row_number() over (partition by c.session_id order by c.at, c.message_id) as n
+  from message_costs c
+  join own o on o.session_id = c.session_id
+  where c.agent_id is null and c.entrypoint is distinct from 'tally-classify'
+), marks as (
+  select r.session_id,
+    min(r.n) filter (where t.brief not like '%.temp/handoff.md') as edit_n,
+    min(r.n) filter (where t.brief like '%.temp/handoff.md') as note_n
+  from tool_calls t
+  join reqs r on r.message_id = t.message_id
+  where t.name in ('Edit', 'Write', 'MultiEdit', 'NotebookEdit')
+  group by r.session_id
+), per as (
+  select o.session_id, o.key, o.handed,
+    max(r.ctx) as peak,
+    max(r.ctx) filter (where r.n = 15) as ctx15,
+    sum(r.cost) filter (where r.n < m.edit_n) as recovery,
+    sum(r.cost) filter (where r.n >= m.note_n) as note,
+    (array_agg(r.model order by r.n))[1] as model
+  from own o
+  join reqs r on r.session_id = o.session_id
+  left join marks m on m.session_id = o.session_id
+  group by o.session_id, o.key, o.handed
+), total as (
+  select key,
+    count(*) filter (where handed) as handoffs,
+    count(*) filter (where peak > 150000) as sessions,
+    percentile_cont(0.5) within group (order by ctx15) filter (where handed) as base,
+    percentile_cont(0.5) within group (order by recovery) filter (where handed) as recovery,
+    percentile_cont(0.5) within group (order by note) as note,
+    mode() within group (order by model) filter (where handed) as model
+  from per
+  group by key
+)
+select t.key, t.handoffs, t.sessions, t.base, t.recovery, t.note, (
+  select p.cache_read from model_prices p
+  where starts_with(t.model, p.model) order by length(p.model) desc limit 1
+) as cache_read
+from total t`
 
 type Row = Record<string, unknown>
 
@@ -390,6 +443,40 @@ export class StatsReader {
         activeMin: number(row.active_min),
       }))
       return mapCalibration(project, text(owner[0]?.component), closed, this.statsConfig().compare.minTasks)
+    })
+  }
+
+  /** The checkpoint threshold of every tracked project, for the page. */
+  async checkpoints(): Promise<StatsAnswer<CheckpointThreshold[]>> {
+    const answer = await this.checkpointMeasures()
+    if (answer.state !== 'ok') return answer
+    const pinned = this.statsConfig().checkpointTokens
+    return { state: 'ok', data: this.keys.map((key) => checkpointThreshold(key, answer.data[key] ?? null, pinned)) }
+  }
+
+  /** For the hook, so it never fails: without statistics the project runs on the default or the pinned number. */
+  async checkpoint(project: string): Promise<CheckpointThreshold> {
+    const answer = await this.checkpointMeasures()
+    const measure = answer.state === 'ok' ? (answer.data[project] ?? null) : null
+    return checkpointThreshold(project, measure, this.statsConfig().checkpointTokens)
+  }
+
+  private checkpointMeasures(): Promise<StatsAnswer<Record<string, CheckpointMeasure>>> {
+    return this.cached('checkpoint', async (pool) => {
+      const { rows } = await pool.query<Row>(CHECKPOINT, [this.keys])
+      return Object.fromEntries(
+        rows.map((row): [string, CheckpointMeasure] => [
+          String(row.key),
+          {
+            handoffs: number(row.handoffs),
+            sessions: number(row.sessions),
+            base: maybe(row.base),
+            note: maybe(row.note),
+            recovery: maybe(row.recovery),
+            cacheRead: maybe(row.cache_read),
+          },
+        ]),
+      )
     })
   }
 

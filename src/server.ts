@@ -27,6 +27,7 @@ import {
   type StatsRules,
 } from './stats/rules.js'
 import type { Calibration } from './stats/calibration.js'
+import type { CheckpointThreshold, SessionCheckpoint } from './stats/checkpoint.js'
 import type { StatsSteps } from './stats/steps.js'
 import type { TaskCard } from './tracker/card.js'
 import type { TaskFile } from './tracker/source.js'
@@ -40,6 +41,7 @@ export interface StatsSource {
   steps(query: PeriodQuery): Promise<StatsAnswer<StatsSteps>>
   task(task: string): Promise<StatsAnswer<StatsTaskDetail>>
   calibration(project: string, task: string | null): Promise<StatsAnswer<Calibration>>
+  checkpoints(): Promise<StatsAnswer<CheckpointThreshold[]>>
   rules(query: RulesQuery): Promise<StatsAnswer<StatsRules>>
   ruleDiff(ids: string[]): Promise<StatsAnswer<RuleDiffFile[]>>
   compare(query: CompareQuery): Promise<StatsAnswer<StatsCompare>>
@@ -89,6 +91,8 @@ export interface ServerDeps {
   sessionRecord: (sessionId: string) => Promise<unknown>
   /** Lines of the whole transcript from index `after` on. */
   transcript: (sessionId: string, after: number) => Promise<unknown>
+  /** For the checkpoint hook; `undefined` for a session the chain did not start. */
+  checkpoint: (sessionId: string) => Promise<SessionCheckpoint | undefined>
   /** `undefined` for a project the config does not know. */
   tools: (project: string) => Promise<unknown>
   tasks: TaskControl
@@ -153,6 +157,14 @@ async function route(deps: ServerDeps, request: IncomingMessage, response: Serve
 
   if (request.method === 'GET' && path === '/api/launches') {
     sendJson(response, 200, deps.launches())
+    return
+  }
+
+  const checkpoint = /^\/api\/sessions\/([^/]+)\/checkpoint$/.exec(path)
+  if (request.method === 'GET' && checkpoint !== null) {
+    const found = await deps.checkpoint(decodeURIComponent(checkpoint[1]!))
+    if (found === undefined) response.writeHead(404).end()
+    else sendJson(response, 200, found)
     return
   }
 
@@ -229,7 +241,7 @@ async function route(deps: ServerDeps, request: IncomingMessage, response: Serve
     return
   }
 
-  const stats = /^\/api\/stats\/(history|period|steps|rules|rules\/diff|rules\/compare|task\/([^/]+))$/.exec(path)
+  const stats = /^\/api\/stats\/(history|period|steps|checkpoints|rules|rules\/diff|rules\/compare|task\/([^/]+))$/.exec(path)
   if (request.method === 'GET' && stats !== null) {
     let read: () => Promise<StatsAnswer<unknown>>
     try {
@@ -242,6 +254,8 @@ async function route(deps: ServerDeps, request: IncomingMessage, response: Serve
       } else if (stats[1] === 'steps') {
         const query = parsePeriodQuery(url.searchParams)
         read = () => deps.stats.steps(query)
+      } else if (stats[1] === 'checkpoints') {
+        read = () => deps.stats.checkpoints()
       } else if (stats[1] === 'rules') {
         const query = parseRulesQuery(url.searchParams)
         read = () => deps.stats.rules(query)

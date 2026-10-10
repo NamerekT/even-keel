@@ -162,4 +162,5 @@ export const noticesRu: NoticeTexts = {
   'config.compareValue': (p) => `stats.compare.${p.key} должен быть целым в 1..${p.limit}, а не ${p.value}`,
   'config.statsMove': (p) => `в stats.moves нужны непустые старая и новая папки, а не «${p.from}»`,
   'config.otherBelow': (p) => `stats.otherBelow должен быть суммой в долларах от 0, а не ${p.value}`,
+  'config.checkpointTokens': (p) => `stats.checkpointTokens должен быть целым числом токенов от ${p.from} или null, а не ${p.value}`,
 }

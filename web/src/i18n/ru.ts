@@ -748,6 +748,17 @@ export const ru = {
       baselineTitle:
         'В пределах ×1.5, если бы каждой задаче поставили медиану времени закрытых задач её проекта (медиана этой выборки, а не прошлого)',
     },
+    checkpoint: {
+      title: 'Порог контрольной точки',
+      note: 'размер контекста, на котором сессию впервые просят передать дела',
+      sources: {
+        default: () => 'по умолчанию',
+        config: () => 'задан в конфиге',
+        calibrated: (sessions: number) => `по ${sessions} ${forms('сессии', 'сессиям', 'сессиям')(sessions)} проекта`,
+      },
+      waiting: (handoffs: number, sessions: number, needHandoffs: number, needSessions: number) =>
+        `Калибровка включается с ${needHandoffs} передач и ${needSessions} сессий больше 150k; у проекта ${handoffs} и ${sessions}`,
+    },
     steps: {
       title: 'Шаги',
       note: (count: number) =>

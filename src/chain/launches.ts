@@ -75,6 +75,28 @@ export function taskSessions(
   return result
 }
 
+export interface TaskRun {
+  project: string
+  task: string
+  /** Sessions of the task started from a handoff, up to and including this one. */
+  handoffs: number
+}
+
+/** The task of a session the chain started and how many handoffs it had had by then; `undefined` for any other session. */
+export function handoffsOf(entries: LaunchEntry[], sessionId: string): TaskRun | undefined {
+  const own = entries.find((entry) => entry.sessionId === sessionId && !isRelease(entry))
+  if (own === undefined) return undefined
+  const seen = new Set<string>()
+  let handoffs = 0
+  for (const entry of entries) {
+    if (entry.task !== own.task || isRelease(entry) || seen.has(entry.sessionId)) continue
+    seen.add(entry.sessionId)
+    if (entry.reason === 'relay' || entry.reason === 'restart' || entry.reason === 'checkpoint') handoffs++
+    if (entry === own) break
+  }
+  return { project: own.project, task: own.task, handoffs }
+}
+
 function isRelease(entry: LaunchEntry): entry is LaunchEntry & { reason: ReleaseReason } {
   return entry.reason === 'postpone' || entry.reason === 'skip'
 }

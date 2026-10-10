@@ -8,7 +8,7 @@ import { accountId, launchBlock, liveSessions, loginBlock, type LoginBlock } fro
 import { VsCodeAccount, vscodeSettingsFile } from './account/vscode.js'
 import { AccountWatcher } from './account/watcher.js'
 import { Dispatcher, type LaunchEntry } from './chain/dispatcher.js'
-import { launchDays, taskSessions } from './chain/launches.js'
+import { handoffsOf, launchDays, taskSessions } from './chain/launches.js'
 import { resumePrompt, startPrompt, withBrief, withUnattended } from './chain/relay.js'
 import { launchLine } from './chain/log.js'
 import { appendLaunch, loadChainState, readLaunches, saveChainState } from './chain/store.js'
@@ -465,6 +465,12 @@ const server = createEvenKeelServer({
   launches: () => launches,
   sessionRecord: (sessionId) => inHomes((projects) => readSessionRecord(projects, sessionId)),
   transcript: (sessionId, after) => inHomes((projects) => readTranscript(projects, sessionId, after)),
+  checkpoint: async (sessionId) => {
+    const run = handoffsOf(launches, sessionId)
+    if (run === undefined) return undefined
+    const { first, source } = await stats.checkpoint(run.project)
+    return { ...run, first, source }
+  },
   tools: async (project) => {
     const repo = config.projects[project]
     if (repo === undefined) return undefined

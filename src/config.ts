@@ -38,6 +38,8 @@ export interface StatsConfig {
   moves: Record<string, string>
   /** A folder group costing less than this in all goes to Other on /stats. */
   otherBelow: number
+  /** The checkpoint hook's first threshold for every project; null leaves it to the calibration. */
+  checkpointTokens: number | null
 }
 
 const PROJECT_KEY = /^[A-Z][A-Z0-9_]{0,4}$/
@@ -48,6 +50,8 @@ const DEFAULT_MODEL: ModelAlias = 'opus'
 const DEFAULT_CONTEXT: ContextScale = { window: 600_000, warn: 50, danger: 80 }
 const DEFAULT_COMPARE: CompareSettings = { minTasks: 5, minSessions: 10, days: 7 }
 const COMPARE_LIMITS: Record<keyof CompareSettings, number> = { minTasks: 10_000, minSessions: 10_000, days: 365 }
+/** The checkpoint hook asks the service for its threshold only from this context size on. */
+const CHECKPOINT_ASK_FROM = 100_000
 
 type AdapterShapes = Readonly<Record<string, Pick<TrackerAdapter, 'projectKey'>>>
 
@@ -217,9 +221,14 @@ function parseContext(raw: unknown): ContextScale {
 }
 
 function parseStats(raw: unknown): StatsConfig {
-  if (raw === undefined) return { compare: { ...DEFAULT_COMPARE }, moves: {}, otherBelow: 0 }
+  if (raw === undefined) return { compare: { ...DEFAULT_COMPARE }, moves: {}, otherBelow: 0, checkpointTokens: null }
   if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) throw fail('config.notObject', { where: 'stats' })
-  const { compare = {}, moves = {}, otherBelow = 0 } = raw as { compare?: unknown; moves?: unknown; otherBelow?: unknown }
+  const {
+    compare = {},
+    moves = {},
+    otherBelow = 0,
+    checkpointTokens = null,
+  } = raw as { compare?: unknown; moves?: unknown; otherBelow?: unknown; checkpointTokens?: unknown }
   if (typeof moves !== 'object' || moves === null || Array.isArray(moves)) throw fail('config.notObject', { where: 'stats.moves' })
   for (const [from, to] of Object.entries(moves)) {
     if (from.trim() === '' || typeof to !== 'string' || to.trim() === '') throw fail('config.statsMove', { from })
@@ -227,7 +236,10 @@ function parseStats(raw: unknown): StatsConfig {
   if (typeof otherBelow !== 'number' || !Number.isFinite(otherBelow) || otherBelow < 0) {
     throw fail('config.otherBelow', { value: String(JSON.stringify(otherBelow)) })
   }
-  return { compare: parseCompare(compare), moves: moves as Record<string, string>, otherBelow }
+  if (checkpointTokens !== null && (!Number.isInteger(checkpointTokens) || (checkpointTokens as number) < CHECKPOINT_ASK_FROM)) {
+    throw fail('config.checkpointTokens', { from: CHECKPOINT_ASK_FROM, value: String(JSON.stringify(checkpointTokens)) })
+  }
+  return { compare: parseCompare(compare), moves: moves as Record<string, string>, otherBelow, checkpointTokens: checkpointTokens as number | null }
 }
 
 function parseCompare(compare: unknown): CompareSettings {

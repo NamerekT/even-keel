@@ -72,6 +72,8 @@ describe('Even Keel HTTP server', () => {
         if (id === 'bad') throw new Error('sessions: bad is not a session id')
         return id === '0a1b2c3d' ? [{ kind: 'prompt', text: 'ABC-1' }, { kind: 'text', text: 'On it.' }].slice(after) : undefined
       },
+      checkpoint: async (id) =>
+        id === '0a1b2c3d' ? { project: 'ABC', task: 'ABC-1', handoffs: 2, first: 193_000, source: 'calibrated' } : undefined,
       tools: async (project) => (project === 'ABC' ? { project } : undefined),
       tasks: {
         card: async (task) => {
@@ -95,6 +97,7 @@ describe('Even Keel HTTP server', () => {
         period: async (query) => ({ state: 'off', reason: `period ${query.from} ${query.to} ${query.projects?.join('+')}` }),
         task: async (task) => ({ state: 'error', error: `task ${task}` }),
         calibration: async (project, task) => ({ state: 'off', reason: `calibration ${project} ${task ?? 'none'}` }),
+        checkpoints: async () => ({ state: 'off', reason: 'checkpoints' }),
         rules: async (query) => ({ state: 'off', reason: `rules ${query.projects?.join('+')} ${query.kinds?.join('+')}` }),
         ruleDiff: async (ids) => ({ state: 'off', reason: `diff ${ids.length}` }),
         compare: async (query) => ({ state: 'off', reason: `compare ${query.before} ${query.after} ${query.days}` }),
@@ -335,6 +338,14 @@ describe('Even Keel HTTP server', () => {
     expect(await fresh.json()).toEqual({ state: 'off', reason: 'calibration ABC none' })
     expect((await fetch(base + '/api/projects/ABC/calibration?task=4')).status).toBe(400)
     expect((await fetch(base + '/api/projects/a-b/calibration')).status).toBe(404)
+  })
+
+  it('serves the checkpoint threshold of a chain session to the hook, and of the projects to the page', async () => {
+    const known = await fetch(base + '/api/sessions/0a1b2c3d/checkpoint')
+    expect(await known.json()).toEqual({ project: 'ABC', task: 'ABC-1', handoffs: 2, first: 193_000, source: 'calibrated' })
+    expect((await fetch(base + '/api/sessions/manual/checkpoint')).status).toBe(404)
+    const page = await fetch(base + '/api/stats/checkpoints')
+    expect(await page.json()).toEqual({ state: 'off', reason: 'checkpoints' })
   })
 
   it('serves the rule marks, a diff and a before and after comparison', async () => {

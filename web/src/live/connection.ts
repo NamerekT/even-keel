@@ -2,6 +2,7 @@ import type { FeedLine } from '../../../src/sessions/transcript.js'
 import type { EvenKeelState, SessionRecord } from '../../../src/state.js'
 import type { PeriodQuery, StatsAnswer, StatsFilter, StatsHistory, StatsPeriod, StatsTaskDetail } from '../../../src/stats/model.js'
 import type { CompareQuery, RuleDiffFile, RulesQuery, StatsCompare, StatsRules } from '../../../src/stats/rules.js'
+import type { CheckpointThreshold } from '../../../src/stats/checkpoint.js'
 import type { StatsSteps } from '../../../src/stats/steps.js'
 import type { ToolsView } from '../../../src/tools/model.js'
 import type { TaskCard } from '../../../src/tracker/card.js'
@@ -34,6 +35,7 @@ export interface LiveSource {
   statsHistory(filter: StatsFilter): Promise<StatsAnswer<StatsHistory>>
   statsPeriod(query: PeriodQuery): Promise<StatsAnswer<StatsPeriod>>
   statsSteps(query: PeriodQuery): Promise<StatsAnswer<StatsSteps>>
+  statsCheckpoints(): Promise<StatsAnswer<CheckpointThreshold[]>>
   statsTask(task: string): Promise<StatsAnswer<StatsTaskDetail>>
   statsRules(query: RulesQuery): Promise<StatsAnswer<StatsRules>>
   statsRuleDiff(changes: string[]): Promise<StatsAnswer<RuleDiffFile[]>>
@@ -131,6 +133,10 @@ export class LiveConnection implements LiveSource {
 
   statsSteps(query: PeriodQuery): Promise<StatsAnswer<StatsSteps>> {
     return this.deps.fetchStats('steps', periodSearch(query))
+  }
+
+  statsCheckpoints(): Promise<StatsAnswer<CheckpointThreshold[]>> {
+    return this.deps.fetchStats('checkpoints', new URLSearchParams())
   }
 
   statsTask(task: string): Promise<StatsAnswer<StatsTaskDetail>> {

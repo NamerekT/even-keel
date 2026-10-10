@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { LaunchEntry } from './dispatcher.js'
-import { launchDays, taskSessions } from './launches.js'
+import { handoffsOf, launchDays, taskSessions } from './launches.js'
 
 function launch(at: Date, project: string): LaunchEntry {
   return { at: at.toISOString(), project, task: `${project}-1`, sessionId: 's' }
@@ -54,14 +54,15 @@ describe('launchDays', () => {
   })
 })
 
+const entry = (at: string, task: string, sessionId: string, extra: Partial<LaunchEntry> = {}): LaunchEntry => ({
+  at,
+  project: 'ABC',
+  task,
+  sessionId,
+  ...extra,
+})
+
 describe('taskSessions', () => {
-  const entry = (at: string, task: string, sessionId: string, extra: Partial<LaunchEntry> = {}): LaunchEntry => ({
-    at,
-    project: 'ABC',
-    task,
-    sessionId,
-    ...extra,
-  })
 
   it('lists the sessions of each task newest first with how they were started', () => {
     const list = taskSessions(
@@ -159,5 +160,33 @@ describe('taskSessions', () => {
       { sessionId: 's2', at: '2026-09-27T11:00:00.000Z', how: 'checkpoint', resumed: 0, replaced: { at: '2026-09-27T12:00:00.000Z', how: 'checkpoint' } },
       { sessionId: 's1', at: '2026-09-27T10:00:00.000Z', how: 'launch', resumed: 0, replaced: { at: '2026-09-27T11:00:00.000Z', how: 'checkpoint' } },
     ])
+  })
+})
+
+describe('handoffsOf', () => {
+  const journal = [
+    entry('2026-09-27T10:00:00.000Z', 'ABC-1', 's1'),
+    entry('2026-09-27T10:30:00.000Z', 'ABC-2', 'other', { reason: 'checkpoint', previous: 'gone' }),
+    entry('2026-09-27T11:00:00.000Z', 'ABC-1', 's2', { reason: 'checkpoint', previous: 's1' }),
+    entry('2026-09-27T11:30:00.000Z', 'ABC-1', 's2', { reason: 'resume' }),
+    entry('2026-09-27T12:00:00.000Z', 'ABC-1', 's3', { reason: 'relay', previous: 's2' }),
+    entry('2026-09-27T12:30:00.000Z', 'ABC-1', 's3', { reason: 'postpone' }),
+    entry('2026-09-27T13:00:00.000Z', 'ABC-1', 's4'),
+    entry('2026-09-27T14:00:00.000Z', 'ABC-1', 's5', { reason: 'restart', previous: 's4' }),
+  ]
+
+  it('counts the handoffs of the task up to the session, whatever started them', () => {
+    expect(handoffsOf(journal, 's1')).toEqual({ project: 'ABC', task: 'ABC-1', handoffs: 0 })
+    expect(handoffsOf(journal, 's2')).toEqual({ project: 'ABC', task: 'ABC-1', handoffs: 1 })
+    expect(handoffsOf(journal, 's3')).toEqual({ project: 'ABC', task: 'ABC-1', handoffs: 2 })
+    expect(handoffsOf(journal, 's5')).toEqual({ project: 'ABC', task: 'ABC-1', handoffs: 3 })
+  })
+
+  it('does not count a session the chain started anew, nor a warm resume', () => {
+    expect(handoffsOf(journal, 's4')).toEqual({ project: 'ABC', task: 'ABC-1', handoffs: 2 })
+  })
+
+  it('knows nothing about a session the chain did not start', () => {
+    expect(handoffsOf(journal, 'manual')).toBeUndefined()
   })
 })

@@ -19,7 +19,7 @@ describe('parseConfig', () => {
       context: { window: 600_000, warn: 50, danger: 80 },
       model: 'opus',
       modelPrompts: {},
-      stats: { compare: { minTasks: 5, minSessions: 10, days: 7 }, moves: {}, otherBelow: 0 },
+      stats: { compare: { minTasks: 5, minSessions: 10, days: 7 }, moves: {}, otherBelow: 0, checkpointTokens: null },
       language: null,
       promptLanguage: 'en',
       hiddenSkills: DEFAULT_HIDDEN_SKILLS,
@@ -191,6 +191,7 @@ describe('parseConfig', () => {
       compare: { minTasks: 5, minSessions: 10, days: 14 },
       moves: {},
       otherBelow: 0,
+      checkpointTokens: null,
     })
   })
 
@@ -212,6 +213,14 @@ describe('parseConfig', () => {
     expect(() => parseConfig({ projects: {}, stats: { compare: { days: 400 } } })).toThrow(/stats.compare.days/)
     expect(() => parseConfig({ projects: {}, stats: { compare: { window: 3 } } })).toThrow(/stats.compare.window/)
     expect(() => parseConfig({ projects: {}, stats: [] })).toThrow(/stats/)
+  })
+
+  it('reads a pinned checkpoint threshold and rejects one the hook would never ask about', () => {
+    expect(parseConfig({ projects: {}, stats: { checkpointTokens: 180_000 } }).stats.checkpointTokens).toBe(180_000)
+    expect(parseConfig({ projects: {}, stats: { checkpointTokens: null } }).stats.checkpointTokens).toBeNull()
+    expect(() => parseConfig({ projects: {}, stats: { checkpointTokens: 99_999 } })).toThrow(/stats.checkpointTokens/)
+    expect(() => parseConfig({ projects: {}, stats: { checkpointTokens: 180_000.5 } })).toThrow(/stats.checkpointTokens/)
+    expect(() => parseConfig({ projects: {}, stats: { checkpointTokens: '180000' } })).toThrow(/stats.checkpointTokens/)
   })
 })
 
@@ -262,7 +271,7 @@ describe('reloading the config', () => {
 
   it('applies new chain rules, the default model and model prompts at once', () => {
     const next = parseConfig({ chain: { requiredLabels: ['Auto'] }, projects: { ABC: 'C:\\abc' }, model: 'sonnet', modelPrompts: { opus: 'New.' } })
-    const live = liveConfig(base, { ...next, stats: { compare: { minTasks: 3, minSessions: 6, days: 7 }, moves: {}, otherBelow: 0 } })
+    const live = liveConfig(base, { ...next, stats: { compare: { minTasks: 3, minSessions: 6, days: 7 }, moves: {}, otherBelow: 0, checkpointTokens: null } })
     expect(live.rules.ABC?.requiredLabels).toEqual(['Auto'])
     expect(live.model).toBe('sonnet')
     expect(live.modelPrompts).toEqual({ opus: 'New.' })
