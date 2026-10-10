@@ -206,10 +206,10 @@ export const ru = {
     output: 'Вывод claude',
   },
   notFound: {
-    title: 'Не найдено',
-    page: 'Такой страницы нет.',
+    title: 'Лестница привела не туда.',
+    page: 'Такой страницы здесь нет.',
     project: (key: string) => `Проекта ${key} нет в even-keel.config.json.`,
-    back: 'К проектам',
+    back: 'Наверх — вот сюда.',
   },
   home: {
     title: 'Проекты',

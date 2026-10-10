@@ -10,6 +10,43 @@
   animation: basement-in 0.4s ease-out;
 }
 
+.app__basement {
+  display: flex;
+  flex-direction: column;
+}
+
+.app:has(.basement--tall) > .content {
+  flex: none;
+  padding-bottom: 0;
+}
+
+.app__basement:has(.basement--tall) {
+  flex: 1;
+}
+
+.basement--tall {
+  --floor: 150px;
+  flex: 1;
+  height: auto;
+  min-height: 460px;
+}
+
+.basement--tall .basement__tapes {
+  top: max(0px, calc(50% - 190px));
+}
+
+.basement--tall .basement__sign {
+  bottom: 50px;
+  padding: 24px 26px 16px;
+  font-size: 17px;
+}
+
+.basement--tall .basement__sign strong {
+  display: block;
+  margin-bottom: 4px;
+  font-size: 22px;
+}
+
 @keyframes basement-in {
   from {
     opacity: 0;

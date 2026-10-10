@@ -207,10 +207,10 @@ export const en: Messages = {
     output: 'claude output',
   },
   notFound: {
-    title: 'Not found',
-    page: 'There is no such page.',
+    title: 'You took the wrong stairs.',
+    page: 'There is no such page down here.',
     project: (key: string) => `Project ${key} is not in even-keel.config.json.`,
-    back: 'To projects',
+    back: 'The way up is here.',
   },
   home: {
     title: 'Projects',

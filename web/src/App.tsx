@@ -46,7 +46,7 @@ export function App() {
           </BasementSlot.Provider>
         )}
       </main>
-      <div ref={setBasement} />
+      <div className="app__basement" ref={setBasement} />
     </div>
   )
 }

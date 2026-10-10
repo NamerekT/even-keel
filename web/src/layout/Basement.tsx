@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, type CSSProperties } from 'react'
+import { createContext, useContext, useState, type CSSProperties, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import { t } from '../i18n/index.js'
 import './basement.css'
@@ -30,18 +30,26 @@ const GAP = 1.2
 /** Where a page's basement goes: below `main`, so that it spans the whole window. */
 export const BasementSlot = createContext<HTMLElement | null>(null)
 
+interface SceneProps {
+  sign: string[]
+  /** The scene takes the rest of the window instead of a strip at the bottom. */
+  tall?: boolean
+  /** Goes on the sign after its text. */
+  children?: ReactNode
+}
+
 /** The bottom of a page that is still being built; it comes once the page is `ready` and stays. */
-export function Basement({ sign, ready }: { sign: string[]; ready: boolean }) {
+export function Basement({ ready, ...scene }: SceneProps & { ready: boolean }) {
   const slot = useContext(BasementSlot)
   const [shown, setShown] = useState(ready)
   if (ready && !shown) setShown(true)
-  return shown && slot !== null ? createPortal(<Scene sign={sign} />, slot) : null
+  return shown && slot !== null ? createPortal(<Scene {...scene} />, slot) : null
 }
 
 /** A wall, a floor, caution tapes across the whole width and a sign. */
-function Scene({ sign: [question, ...answer] }: { sign: string[] }) {
+function Scene({ sign: [question, ...answer], tall, children }: SceneProps) {
   return (
-    <div className="basement">
+    <div className={tall ? 'basement basement--tall' : 'basement'}>
       <div className="basement__wall" />
       <div className="basement__floor" />
       <div className="basement__tapes" aria-hidden="true">
@@ -50,7 +58,7 @@ function Scene({ sign: [question, ...answer] }: { sign: string[] }) {
         ))}
       </div>
       <p className="basement__sign">
-        <strong>{question}</strong> {answer.join(' ')}
+        <strong>{question}</strong> {answer.join(' ')} {children}
         <span className="basement__legs" />
       </p>
     </div>
