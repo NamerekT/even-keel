@@ -45,6 +45,7 @@ export const en: Messages = {
     nav: 'Navigation',
     stats: 'Stats',
     tools: 'Tools',
+    menu: 'Menu',
   },
   banner: {
     config: (error: string) => `even-keel.config.json is not applied, the last valid one is in use: ${error}`,

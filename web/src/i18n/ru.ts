@@ -44,6 +44,7 @@ export const ru = {
     nav: 'Навигация',
     stats: 'Статистика',
     tools: 'Инструменты',
+    menu: 'Меню',
   },
   banner: {
     config: (error: string) => `even-keel.config.json не применён, работает последний исправный: ${error}`,

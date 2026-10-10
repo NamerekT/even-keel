@@ -3,8 +3,10 @@ import { t } from '../i18n/index.js'
 import { useLive } from '../live/context.js'
 import { AccountMenu } from './Account.js'
 import { Limits } from './Limits.js'
+import { MobileMenu } from './Menu.js'
 import { QueueMenu } from './Queue.js'
 import { SystemMenu, Waiting } from './Status.js'
+import { useNarrow } from './useNarrow.js'
 import { useTabBadge } from './tabBadge.js'
 import { useNow } from './useNow.js'
 
@@ -14,6 +16,7 @@ export function Header() {
   const { state } = useLive()
   const project = useMatch('/p/:key')?.params.key
   const now = useNow(CLOCK_MS)
+  const narrow = useNarrow()
   useTabBadge(now)
 
   return (
@@ -32,20 +35,22 @@ export function Header() {
               <span className="header__crumb">{project}</span>
             </>
           )}
-          <NavLink to="/stats" className="header__link">
-            {t.header.stats}
-          </NavLink>
-          <NavLink to="/tools" className="header__link header__link--wide">
-            {t.header.tools}
-          </NavLink>
+          {!narrow && (
+            <>
+              <NavLink to="/stats" className="header__link">
+                {t.header.stats}
+              </NavLink>
+              <NavLink to="/tools" className="header__link">
+                {t.header.tools}
+              </NavLink>
+            </>
+          )}
         </nav>
         <div className="header__aside">
-          {state !== null && <QueueMenu state={state} />}
-          {state !== null && <AccountMenu account={state.account} />}
+          {state !== null && !narrow && <QueueMenu state={state} />}
+          {state !== null && !narrow && <AccountMenu account={state.account} />}
           {state !== null && <Waiting sessions={state.sessions} tasks={state.tasks} />}
-        </div>
-        <div className="header__system">
-          <SystemMenu now={now} />
+          {narrow ? <MobileMenu now={now} /> : <SystemMenu now={now} />}
         </div>
         {state !== null && (
           <div className="header__limits">
