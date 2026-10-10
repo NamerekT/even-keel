@@ -1055,9 +1055,42 @@ h1 {
 }
 
 .page__meme {
-  margin: -10px 0 0;
-  color: var(--fg-muted);
-  font-size: 15px;
+  margin: -6px 0 2px;
+  padding: 2px 0 2px 12px;
+  border-left: 3px solid var(--accent);
+  color: var(--fg);
+  font-family: var(--mono);
+  font-size: 16px;
+}
+
+/* A typed line: the whole text for screen readers, the untyped rest kept invisible so the line does not reflow. */
+.typed__all {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.typed__rest {
+  visibility: hidden;
+}
+
+.typed__caret {
+  display: inline-block;
+  width: 0;
+  height: 1.1em;
+  margin-right: -2px;
+  border-left: 2px solid var(--accent);
+  vertical-align: text-bottom;
+  animation: caret 1s steps(1) infinite;
+}
+
+@keyframes caret {
+  50% {
+    opacity: 0;
+  }
 }
 
 .placeholder {

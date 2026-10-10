@@ -6,6 +6,7 @@ import { cardTask, chainProgress, chainStatus, limitWaitText, openQuestions, pro
 import { StackIcon } from '../ui/icons.js'
 import { Lamp } from '../ui/Lamp.js'
 import { emptyCard } from '../ui/memes.js'
+import { Typed } from '../ui/Typed.js'
 import { QuestionsChip } from '../ui/QuestionsChip.js'
 import { seriesStyle } from '../ui/series.js'
 import { StatusChip } from '../ui/StatusChip.js'
@@ -55,7 +56,11 @@ export function ProjectCard({ state, project }: { state: EvenKeelState; project:
       </div>
 
       {task === null ? (
-        <p className="card__task card__task--empty">{order === undefined ? t.project.notLoaded : emptyText({ done, total, backlog })}</p>
+        order === undefined ? (
+          <p className="card__task card__task--empty">{t.project.notLoaded}</p>
+        ) : (
+          <EmptyLine progress={{ done, total, backlog }} />
+        )
       ) : (
         <p className="card__task">
           <Lamp lamp={task.lamp} />
@@ -79,16 +84,12 @@ export function ProjectCard({ state, project }: { state: EvenKeelState; project:
   )
 }
 
-function emptyText(progress: { done: number; total: number; backlog: number }): string {
-  const { emptyCard: lines } = t.project
-  switch (emptyCard(progress)) {
-    case 'held':
-      return t.project.noTasks
-    case 'shelved':
-      return lines.shelved(progress.backlog)
-    case 'ghost':
-      return lines.ghost
-    case 'finished':
-      return lines.finished(progress.done)
-  }
+const CARD_PACE = { charMs: 35, pauseMs: 1500 }
+
+function EmptyLine({ progress }: { progress: { done: number; total: number; backlog: number } }) {
+  const kind = emptyCard(progress)
+  if (kind === 'held') return <p className="card__task card__task--empty">{t.project.noTasks}</p>
+  const lines = t.project.emptyCard
+  const parts = kind === 'shelved' ? lines.shelved(progress.backlog) : kind === 'ghost' ? lines.ghost : lines.finished(progress.done)
+  return <Typed key={kind} parts={parts} pace={CARD_PACE} className="card__task card__task--empty" />
 }

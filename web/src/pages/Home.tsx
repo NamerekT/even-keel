@@ -3,10 +3,12 @@ import type { EvenKeelState } from '../../../src/state.js'
 import { localized, t } from '../i18n/index.js'
 import { openQuestions } from '../state.js'
 import { type HarborMeme, harborMemes } from '../ui/memes.js'
+import { Typed } from '../ui/Typed.js'
 import { LaunchChart, localDate } from './LaunchChart.js'
 import { ProjectCard } from './ProjectCard.js'
 
 const PEAK_DAY = localized((language) => new Intl.DateTimeFormat(language, { day: 'numeric', month: 'long' }))
+const HOME_PACE = { charMs: 45, pauseMs: 3000 }
 
 export function Home({ state }: { state: EvenKeelState }) {
   // One draw per visit; the line follows the numbers as they change.
@@ -22,7 +24,7 @@ export function Home({ state }: { state: EvenKeelState }) {
   return (
     <section className="page">
       <h1 className="page__title">{t.home.title}</h1>
-      <p className="page__meme">{harborText(meme)}</p>
+      <Typed key={meme.kind} parts={harborText(meme)} pace={HOME_PACE} className="page__meme" />
       {state.projects.length === 0 ? (
         <p className="placeholder">{t.home.empty}</p>
       ) : (
@@ -37,7 +39,7 @@ export function Home({ state }: { state: EvenKeelState }) {
   )
 }
 
-function harborText(meme: HarborMeme): string {
+function harborText(meme: HarborMeme): string[] {
   const { memes } = t.home
   switch (meme.kind) {
     case 'self':
