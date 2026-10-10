@@ -309,6 +309,11 @@ describe('switchProblem', () => {
     expect(say(switchProblem(view({ loginBlock: { chains: ['ABC'], sessions: [] } }), 'work'))).toMatch(/chain ABC is running/)
   })
 
+  it('is not held by busy sessions of the active account: a switch only picks the folder for new launches', () => {
+    const busy = { chains: [], sessions: [{ name: 'ABC-1', status: 'busy' as const, waitingFor: null }] }
+    expect(switchProblem(view({ loginBlock: busy }), 'work')).toBeUndefined()
+  })
+
   it('refuses an account whose folder waits to be removed', () => {
     const removing = view({ accounts: [entry({}), entry({ key: 'work', global: false, removing: true })] })
     expect(say(switchProblem(removing, 'work'))).toMatch(/removed/)

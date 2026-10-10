@@ -140,8 +140,13 @@ export function switchProblem(view: AccountView, key: string): Notice | undefine
   if (key === view.active) return notice('account.alreadyActive', { key })
   if (target.removing) return notice('account.removing', { account: target.status?.email ?? key })
   if (target.needsLogin || target.status?.loggedIn !== true) return notice('account.needsLogin', { account: target.status?.email ?? key })
-  if (view.loginBlock !== null) return loginBlockNotice(view.loginBlock)
+  const blocked = switchBlock(view.loginBlock)
+  if (blocked !== null) return loginBlockNotice(blocked)
   return undefined
+}
+
+export function switchBlock(block: LoginBlock | null): LoginBlock | null {
+  return block === null || block.chains.length === 0 ? null : { chains: block.chains, sessions: [] }
 }
 
 export function removeProblem(view: AccountView, key: string): Notice | undefined {
