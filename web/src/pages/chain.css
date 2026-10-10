@@ -1,0 +1,592 @@
+/*
+ * The look of chain blocks beyond their state: tiers, priority, labels, families, estimates, and the motion of changes.
+ * Selectors start with `.chain`: this file loads before styles.css, and its rules must win over the base `.block` ones.
+ */
+
+@property --sweep {
+  syntax: '<angle>';
+  inherits: false;
+  initial-value: 0deg;
+}
+
+.chain {
+  --family-0: var(--series-2);
+  --family-1: var(--series-3);
+  --family-2: var(--series-5);
+  --family-3: var(--series-7);
+  --family-4: var(--series-4);
+  --family-5: var(--series-6);
+  --hazard-dark: #1c1c1a;
+}
+
+.chain .chain__blocks {
+  interpolate-size: allow-keywords;
+}
+
+.chain .block {
+  transition:
+    min-height 0.3s ease,
+    padding 0.3s ease,
+    background-color 0.3s ease;
+}
+
+/* Tiers */
+
+.chain .block--lead {
+  grid-template-areas:
+    'number head title side'
+    'number head action side';
+  min-height: 64px;
+  padding-block: 12px;
+  background-color: color-mix(in srgb, var(--lamp-working) 6%, var(--surface));
+}
+
+.chain .block--lead .block__title {
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.chain .block__action {
+  grid-area: action;
+  min-width: 0;
+  margin: 0;
+  overflow: hidden;
+  color: var(--fg-muted);
+  font-family: var(--mono);
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.chain .block--far,
+.chain .block--past {
+  min-height: 34px;
+  padding-block: 4px;
+}
+
+.chain .block--far .block__title,
+.chain .block--past .block__title {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--fg-muted);
+  font-size: 13px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.chain .block--far .block__card,
+.chain .block--past .block__card {
+  display: block;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.chain .block--far:hover .block__title,
+.chain .block--past:hover .block__title {
+  color: var(--fg);
+}
+
+.chain .block--far .block__key,
+.chain .block--past .block__key {
+  font-size: 13px;
+  font-weight: 500;
+}
+
+/* Priority: the shape of the number */
+
+.chain .block__number {
+  display: inline-grid;
+  place-items: center;
+  justify-self: end;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 4px;
+  border-radius: 999px;
+}
+
+.chain .block__number:empty {
+  visibility: hidden;
+}
+
+.chain .block__number--medium {
+  box-shadow: inset 0 0 0 1px var(--border);
+}
+
+.chain .block__number--high {
+  background: var(--series-2);
+  color: #fff;
+  font-weight: 600;
+}
+
+.chain .block__number--low {
+  opacity: 0.45;
+}
+
+.chain .block__number--urgent {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  background: var(--lamp-error);
+  color: #fff;
+  font-weight: 700;
+  animation: siren 1.2s ease-in-out infinite;
+}
+
+.chain .block__number--urgent::before {
+  content: '';
+  position: absolute;
+  inset: -6px;
+  z-index: -1;
+  background: conic-gradient(from 0deg, transparent 0 62%, rgb(255 255 255 / 0.6) 80%, transparent 96%);
+  animation: beacon 0.9s linear infinite;
+}
+
+.chain .block--current .block__number {
+  background: none;
+  box-shadow: none;
+  color: var(--lamp-working);
+  opacity: 1;
+  animation: none;
+}
+
+.chain .block--current .block__number::before {
+  content: none;
+}
+
+.chain .block__play {
+  fill: currentColor;
+}
+
+.chain .block--priority-urgent {
+  border-color: color-mix(in srgb, var(--lamp-error) 55%, var(--border));
+}
+
+.chain .block__hazard {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 6px;
+  border-radius: calc(var(--radius) - 1px) 0 0 calc(var(--radius) - 1px);
+  background: repeating-linear-gradient(-45deg, var(--lamp-waiting) 0 4px, var(--hazard-dark) 4px 8px);
+  background-size: 100% 11.3px;
+  animation: hazard 1.4s linear infinite;
+}
+
+@keyframes siren {
+  50% {
+    box-shadow: 0 0 10px 2px color-mix(in srgb, var(--lamp-error) 70%, transparent);
+  }
+}
+
+@keyframes beacon {
+  to {
+    transform: rotate(1turn);
+  }
+}
+
+@keyframes hazard {
+  to {
+    background-position: 0 11.3px;
+  }
+}
+
+/* Labels */
+
+.chain .block--rework {
+  background-image: repeating-linear-gradient(135deg, transparent 0 7px, color-mix(in srgb, var(--fg) 6%, transparent) 7px 8px);
+}
+
+.chain .block__corner {
+  position: absolute;
+  top: -1px;
+  right: -1px;
+  width: 14px;
+  height: 14px;
+  border-top-right-radius: var(--radius);
+  background: var(--lamp-waiting);
+  clip-path: polygon(0 0, 100% 0, 100% 100%);
+}
+
+.chain .block__model {
+  padding: 0 5px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--fg-muted);
+  font-family: var(--mono);
+  font-size: 11px;
+}
+
+/* Estimate */
+
+.chain .block__estimate {
+  position: absolute;
+  bottom: 0;
+  left: var(--radius);
+  width: calc((100% - 2 * var(--radius)) * var(--estimate));
+  height: 2px;
+  border-radius: 1px;
+  background: color-mix(in srgb, var(--fg-muted) 45%, transparent);
+}
+
+.chain .block--lead .block__estimate {
+  background: var(--lamp-working);
+}
+
+/* Families of subtasks */
+
+.chain .block__rail {
+  position: absolute;
+  top: -5px;
+  bottom: -5px;
+  left: calc(-9px - var(--lane) * 6px);
+  width: 2px;
+  border-radius: 1px;
+  background: var(--family);
+  opacity: 0.55;
+  transition: opacity 0.15s ease;
+}
+
+.chain .block__rail--start {
+  top: 50%;
+}
+
+.chain .block__rail--end {
+  bottom: 50%;
+}
+
+.chain .block__rail--start::before,
+.chain .block__rail--end::after {
+  content: '';
+  position: absolute;
+  left: -2px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--family);
+}
+
+.chain .block__rail--start::before {
+  top: -3px;
+}
+
+.chain .block__rail--end::after {
+  bottom: -3px;
+}
+
+.chain .block__rail--pass {
+  width: 0;
+  border-left: 2px dotted var(--family);
+  background: none;
+  opacity: 0.35;
+}
+
+.chain .block--kin {
+  background-color: color-mix(in srgb, var(--fg) 4%, var(--surface));
+}
+
+.chain .block--kin .block__rail {
+  opacity: 1;
+}
+
+@media (max-width: 760px) {
+  .chain .block__rail {
+    left: calc(1px + var(--lane) * 4px);
+  }
+
+  .chain .block--lead {
+    grid-template-areas: 'number head' '. title' '. action' '. side';
+  }
+}
+
+/* Motion: a new task, a finished one, a handover, a task leaving for the archive */
+
+.chain .block--enter {
+  overflow: hidden;
+  animation:
+    block-enter 0.5s ease-out var(--beat) both,
+    block-glow 1.8s ease-out calc(var(--beat) + 0.4s) both;
+}
+
+.chain .block--enter > * {
+  animation: block-slide 0.45s ease-out calc(var(--beat) + 0.2s) both;
+}
+
+.chain .block--fresh {
+  animation: block-glow 3s ease-out both;
+}
+
+.chain .block--leaving {
+  overflow: hidden;
+  pointer-events: none;
+  animation: block-leave 0.55s ease-in var(--beat) both;
+}
+
+.chain .block--leaving.block--archived {
+  animation-name: block-archive;
+  animation-duration: 0.7s;
+}
+
+.chain .block--finish {
+  animation: block-done 1.3s ease-out var(--beat) both;
+}
+
+.chain .block--finish .block__head {
+  position: relative;
+}
+
+.chain .block__stamp {
+  position: absolute;
+  top: 50%;
+  left: -3px;
+  translate: 0 -50%;
+  fill: none;
+  stroke: var(--lamp-done);
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 2.4;
+  stroke-dasharray: 16;
+  stroke-dashoffset: 16;
+  animation:
+    stamp-draw 0.45s ease-out var(--beat) forwards,
+    stamp-fade 0.3s ease-in calc(var(--beat) + 1.1s) forwards;
+}
+
+.chain .block--take.block--current {
+  border-color: var(--border);
+  box-shadow: none;
+}
+
+.chain .block__frame {
+  position: absolute;
+  inset: -2px;
+  border: 2px solid var(--lamp-working);
+  border-radius: calc(var(--radius) + 1px);
+  pointer-events: none;
+  mask: conic-gradient(#000 var(--sweep), transparent 0);
+  animation:
+    frame-draw 0.7s ease-in-out var(--beat) both,
+    frame-glow 0.8s ease-out calc(var(--beat) + 0.7s) both;
+}
+
+.chain .block--take .block__play {
+  animation: pop 0.4s cubic-bezier(0.3, 1.6, 0.5, 1) calc(var(--beat) + 0.5s) both;
+}
+
+.chain .block--take .lamp {
+  animation: ignite 0.5s ease-out calc(var(--beat) + 0.3s) both;
+}
+
+.chain .chain__milestone--bump .chain__milestone-count {
+  display: inline-block;
+  animation: count-bump 0.5s ease-out calc(var(--beat) + 0.45s) both;
+}
+
+.chain .chain__away {
+  align-self: flex-start;
+  margin: 0;
+  padding: 6px 12px;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+  font-size: 13px;
+  animation: away 6s ease both;
+}
+
+@keyframes block-enter {
+  from {
+    height: 0;
+    min-height: 0;
+    margin-bottom: -8px;
+    padding-block: 0;
+    border-width: 0;
+    opacity: 0;
+  }
+}
+
+@keyframes block-slide {
+  from {
+    opacity: 0;
+    transform: translateX(-16px);
+  }
+}
+
+@keyframes block-glow {
+  from {
+    background-color: color-mix(in srgb, var(--accent) 16%, var(--surface));
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 55%, transparent);
+  }
+}
+
+@keyframes block-leave {
+  to {
+    height: 0;
+    min-height: 0;
+    margin-bottom: -8px;
+    padding-block: 0;
+    border-width: 0;
+    opacity: 0;
+    transform: scale(0.96);
+  }
+}
+
+@keyframes block-archive {
+  30% {
+    opacity: 0.9;
+    transform: translateY(-6px) scale(0.98);
+  }
+  to {
+    height: 0;
+    min-height: 0;
+    margin-bottom: -8px;
+    padding-block: 0;
+    border-width: 0;
+    opacity: 0;
+    transform: translateY(-40px) scale(0.9);
+  }
+}
+
+@keyframes block-done {
+  from {
+    background-color: color-mix(in srgb, var(--lamp-done) 24%, var(--surface));
+  }
+}
+
+@keyframes stamp-draw {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+@keyframes stamp-fade {
+  to {
+    opacity: 0;
+  }
+}
+
+@keyframes frame-draw {
+  from {
+    --sweep: 0deg;
+  }
+  to {
+    --sweep: 360deg;
+  }
+}
+
+@keyframes frame-glow {
+  50% {
+    box-shadow: 0 0 14px 2px color-mix(in srgb, var(--lamp-working) 60%, transparent);
+  }
+}
+
+@keyframes pop {
+  from {
+    transform: scale(0);
+  }
+}
+
+@keyframes ignite {
+  from {
+    scale: 0;
+  }
+  60% {
+    scale: 1.8;
+  }
+}
+
+@keyframes count-bump {
+  40% {
+    color: var(--accent);
+    transform: scale(1.25);
+  }
+}
+
+@keyframes away {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  6%,
+  85% {
+    opacity: 1;
+    transform: none;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+/* The legend of shapes */
+
+.chain .chain__shape {
+  display: inline-block;
+  width: 14px;
+  height: 10px;
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  background: var(--surface);
+}
+
+.chain .chain__shape--urgent {
+  border-color: var(--lamp-error);
+  background: repeating-linear-gradient(-45deg, var(--lamp-waiting) 0 3px, var(--hazard-dark) 3px 6px);
+}
+
+.chain .chain__shape--high,
+.chain .chain__shape--low {
+  width: 10px;
+  border-radius: 50%;
+}
+
+.chain .chain__shape--high {
+  border-color: var(--series-2);
+  background: var(--series-2);
+}
+
+.chain .chain__shape--low {
+  border-color: var(--fg-muted);
+  background: none;
+  opacity: 0.6;
+}
+
+.chain .chain__shape--rework {
+  background-image: repeating-linear-gradient(135deg, transparent 0 2px, var(--fg-muted) 2px 3px);
+}
+
+.chain .chain__shape--family {
+  width: 2px;
+  height: 12px;
+  border: 0;
+  background: var(--family-0);
+}
+
+.chain .chain__shape--estimate {
+  height: 2px;
+  border: 0;
+  background: var(--fg-muted);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .chain .block,
+  .chain .block--enter,
+  .chain .block--enter > *,
+  .chain .block--fresh,
+  .chain .block--finish,
+  .chain .block__stamp,
+  .chain .block__frame,
+  .chain .block--take .block__play,
+  .chain .block--take .lamp,
+  .chain .block__hazard,
+  .chain .block__number--urgent,
+  .chain .block__number--urgent::before,
+  .chain .chain__milestone--bump .chain__milestone-count,
+  .chain .chain__away {
+    animation: none;
+    transition: none;
+  }
+
+  .chain .block__frame {
+    --sweep: 360deg;
+  }
+}

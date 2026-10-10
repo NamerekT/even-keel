@@ -99,6 +99,7 @@ export function Project({ state }: { state: EvenKeelState }) {
             focus={focus === BACKLOG_HASH ? '' : focus}
             ghost={arrival.ghost}
             arrival={arrival.arrival}
+            incoming={arrival.incoming}
             onCard={openCard}
           />
         )}

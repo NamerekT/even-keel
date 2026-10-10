@@ -472,6 +472,23 @@ export const ru = {
       answer: 'первый ответ',
     },
     openCard: 'Открыть карточку задачи',
+    away: ({ entered, archived, removed }: { entered: number; archived: number; removed: number }) =>
+      `Пока вас не было: ${[
+        entered > 0 ? `+${tasks(entered)}` : '',
+        archived > 0 ? `${archived} в архив` : '',
+        removed > 0 ? `${removed} ушло из цепочки` : '',
+      ]
+        .filter((part) => part !== '')
+        .join(', ')}`,
+    family: (parent: string) => `Подзадачи ${parent}`,
+    shapes: {
+      urgent: 'срочно',
+      high: 'высокий приоритет',
+      low: 'низкий приоритет',
+      rework: 'переделка',
+      family: 'подзадачи одного родителя',
+      estimate: 'полоса снизу — оценка',
+    },
   },
   card: {
     close: 'Закрыть',

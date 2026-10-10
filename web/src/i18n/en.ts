@@ -469,6 +469,23 @@ export const en: Messages = {
       answer: 'first answer',
     },
     openCard: 'Open the task card',
+    away: ({ entered, archived, removed }: { entered: number; archived: number; removed: number }) =>
+      `While you were away: ${[
+        entered > 0 ? `+${tasks(entered)}` : '',
+        archived > 0 ? `${archived} archived` : '',
+        removed > 0 ? `${removed} left the chain` : '',
+      ]
+        .filter((part) => part !== '')
+        .join(', ')}`,
+    family: (parent: string) => `Subtasks of ${parent}`,
+    shapes: {
+      urgent: 'urgent',
+      high: 'high priority',
+      low: 'low priority',
+      rework: 'rework',
+      family: 'subtasks of one parent',
+      estimate: 'bottom bar — estimate',
+    },
   },
   card: {
     close: 'Close',

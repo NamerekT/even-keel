@@ -41,14 +41,22 @@ function task(
   category: StatusCategory,
   blockedBy: string[] = [],
   milestone: string | null = null,
+  extra: Partial<Task> = {},
 ): Task {
   return trackerTask(id, {
     title,
     status: { name, category },
     blockedBy,
     milestone: milestone === null ? null : { label: milestone, targetDate: 0 },
+    priority: 'medium',
+    ...extra,
   })
 }
+
+const minutes = (count: number) => count / 60
+const REWORK = { labels: ['Переделка'] }
+
+const FRESH_TITLES = ['Сводка за ночь на главной', 'Подсветка новых задач', 'Экспорт журнала запусков', 'Повтор упавшей сессии']
 
 function ago(minutes: number): string {
   return new Date(Date.now() - minutes * 60_000).toISOString()
@@ -156,17 +164,17 @@ function fakeState(
     task('ABC-2', 'Чтение задач из трекера', 'Done', 'Won', ['ABC-1'], 'v0.1 — каркас'),
     task('ABC-3', 'Опрос трекера по расписанию', 'Canceled', 'Lost', ['ABC-2'], 'v0.1 — каркас'),
     task('ABC-4', 'Запуск сессий в фоне', 'Done', 'Won', ['ABC-2'], 'v0.1 — каркас'),
-    task('ABC-5', 'Цепочка задач по связям', 'In Progress', 'Active', ['ABC-4'], 'v0.1 — каркас'),
-    task('ABC-6', 'Страница проекта', 'In Progress', 'Active', [], 'v0.1 — каркас'),
-    task('ABC-7', 'Разбор транскриптов сессий', 'In Progress', 'Active', ['ABC-6'], 'v0.1 — каркас'),
-    task('ABC-8', 'Лимиты подписки в шапке', 'In Progress', 'Active', [], 'v0.1 — каркас'),
-    task('ABC-9', 'Журнал запусков', 'In Progress', 'Active', ['ABC-7'], 'v0.1 — каркас'),
-    task('ABC-10', 'Очередь цепочек', 'Todo', 'ToDo', [], 'v0.2 — удобство'),
-    task('ABC-11', 'Панель сессии', 'Todo', 'ToDo', ['ABC-8', 'ABC-10'], 'v0.2 — удобство'),
-    { ...task('ABC-12', 'Вопрос: служба Windows или планировщик задач', 'Todo', 'ToDo'), question: true },
-    { ...task('ABC-13', 'Уведомления на телефон', 'Todo', 'ToDo', ['ABC-6'], 'v0.2 — удобство'), question: true },
-    task('ABC-14', 'Установка службы одним скриптом', 'Todo', 'ToDo', ['ABC-11'], 'v0.3 — служба'),
-    task('ABC-15', 'Перезапуск службы после обновления', 'Todo', 'ToDo', ['ABC-14'], 'v0.3 — служба'),
+    task('ABC-5', 'Цепочка задач по связям', 'In Progress', 'Active', ['ABC-4'], 'v0.1 — каркас', { priority: 'high', estimate: minutes(40), parent: 'ABC-16' }),
+    task('ABC-6', 'Страница проекта', 'In Progress', 'Active', [], 'v0.1 — каркас', { priority: 'urgent', estimate: minutes(20) }),
+    task('ABC-7', 'Разбор транскриптов сессий', 'In Progress', 'Active', ['ABC-6'], 'v0.1 — каркас', { estimate: minutes(80), parent: 'ABC-16' }),
+    task('ABC-8', 'Лимиты подписки в шапке', 'In Progress', 'Active', [], 'v0.1 — каркас', { ...REWORK, priority: 'low', estimate: minutes(20) }),
+    task('ABC-9', 'Журнал запусков', 'In Progress', 'Active', ['ABC-7'], 'v0.1 — каркас', { estimate: minutes(10), parent: 'ABC-16' }),
+    task('ABC-10', 'Очередь цепочек', 'Todo', 'ToDo', [], 'v0.2 — удобство', { estimate: 1.5, parent: 'ABC-17', labels: ['Sonnet'], models: ['sonnet'] }),
+    task('ABC-11', 'Панель сессии', 'Todo', 'ToDo', ['ABC-8', 'ABC-10'], 'v0.2 — удобство', { estimate: minutes(5), parent: 'ABC-17' }),
+    { ...task('ABC-12', 'Вопрос: служба Windows или планировщик задач', 'Todo', 'ToDo', [], null, { priority: 'low' }), question: true },
+    { ...task('ABC-13', 'Уведомления на телефон', 'Todo', 'ToDo', ['ABC-6'], 'v0.2 — удобство', { estimate: 3 }), question: true },
+    task('ABC-14', 'Установка службы одним скриптом', 'Todo', 'ToDo', ['ABC-11'], 'v0.3 — служба', { priority: 'high', estimate: minutes(40) }),
+    task('ABC-15', 'Перезапуск службы после обновления', 'Todo', 'ToDo', ['ABC-14'], 'v0.3 — служба', { ...REWORK, priority: 'low' }),
     task('ABC-18', 'Тёмная тема для печати', 'Backlog', 'UnStarted', [], 'v0.2 — удобство'),
     task('ABC-19', 'Импорт задач из CSV', 'Backlog', 'UnStarted', [], 'v0.3 — служба'),
     task('ABC-20', 'Подсказки по горячим клавишам', 'Backlog', 'UnStarted'),
@@ -315,13 +323,15 @@ function closeCurrent(state: EvenKeelState): EvenKeelState {
   const project = active?.project
   if (done === undefined || project === undefined) return state
   const kept = state.chain.projects[project] ?? { order: [], waiting: [], backlog: [], error: null }
+  const fresh = freshTask(state, project)
   const order = kept.order.filter((id) => id !== done)
+  order.splice(2, 0, fresh.id)
   const next = order[0]
   const since = ago(0)
   const moved = withChain(state, active!, { ...active!, current: next === undefined ? null : { task: next, sessionId: session(next, 0).sessionId, since } })
   return {
     ...state,
-    tasks: state.tasks.map((each) => (each.id === done ? { ...each, status: { name: 'Done', category: 'Won' } } : each)),
+    tasks: [...state.tasks.map((each) => (each.id === done ? { ...each, status: { name: 'Done', category: 'Won' as const } } : each)), fresh],
     chain: {
       ...moved.chain,
       projects: { ...state.chain.projects, [project]: { ...kept, order, error: null } },
@@ -335,6 +345,14 @@ function closeCurrent(state: EvenKeelState): EvenKeelState {
         ? state.taskSessions
         : { ...state.taskSessions, [next]: [{ sessionId: session(next, 0).sessionId, at: since, how: 'launch', resumed: 0 }, ...(state.taskSessions[next] ?? [])] },
   }
+}
+
+/** A task that shows up in the chain with each close, so the page has an entry to mark. */
+function freshTask(state: EvenKeelState, project: string): Task {
+  const count = state.tasks.filter((each) => each.id.startsWith(`${project}-`)).length
+  const number = 100 + count
+  const milestone = state.tasks.find((each) => each.id === state.chain.projects[project]?.order[1])?.milestone?.label ?? null
+  return task(`${project}-${number}`, FRESH_TITLES[count % FRESH_TITLES.length]!, 'Todo', 'ToDo', [], milestone, { estimate: minutes(20) })
 }
 
 function setPaused(state: EvenKeelState, project: string, paused: boolean): EvenKeelState {

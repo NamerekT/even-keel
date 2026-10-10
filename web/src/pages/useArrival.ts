@@ -59,6 +59,8 @@ export function useArrival(state: EvenKeelState, project: string, blocks: ChainB
     ghost,
     arrival,
     flight,
+    /** The task on its way from the backlog: its own flight marks it, the chain's entry motion must not. */
+    incoming: moving?.id ?? flight?.id ?? landed,
     point: setPointed,
     move: (id: string, title: string, from: Box) => {
       setLanded(null)
