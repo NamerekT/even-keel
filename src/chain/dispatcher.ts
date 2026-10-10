@@ -24,6 +24,8 @@ export interface CurrentTask {
   since: string
   resumedAt?: string
   limit?: LimitHold
+  /** When the dispatcher began launching or handing the task over; gone once the new session id is known. */
+  starting?: string
 }
 
 export interface ActiveChain {
@@ -577,13 +579,14 @@ export class Dispatcher {
       }
 
       delete chain.limitUntil
-      const current: CurrentTask = { task, sessionId: null, since }
+      const current: CurrentTask = { task, sessionId: null, since, starting: since }
       this.take(chain, current)
       this.deps.save(this.state)
       try {
         const sessionId = await this.deps.launch(chain.project, task)
         this.deps.journal({ at: since, project: chain.project, task, sessionId })
         current.sessionId = sessionId
+        delete current.starting
         this.deps.save(this.state)
       } catch (error) {
         this.halt(chain, noticeOf(error))
@@ -633,6 +636,7 @@ export class Dispatcher {
     if (step === 'wait') return true
 
     hold.acted = step
+    current.starting = now.toISOString()
     this.deps.save(this.state)
     try {
       const sessionId = step === 'resume' ? await this.deps.resume(current.task, session) : await this.handOver(current.task, session, 'limit')
@@ -646,6 +650,7 @@ export class Dispatcher {
       })
       current.sessionId = sessionId
       current.resumedAt = now.toISOString()
+      delete current.starting
       this.deps.save(this.state)
     } catch (error) {
       this.halt(chain, noticeOf(error))
@@ -690,11 +695,13 @@ export class Dispatcher {
   ): Promise<void> {
     const at = this.deps.now().toISOString()
     delete current.limit
+    current.starting = at
     this.deps.save(this.state)
     try {
       const sessionId = await this.handOver(current.task, session, reason)
       this.deps.journal({ at, project: chain.project, task: current.task, sessionId, reason, previous: session.sessionId })
       current.sessionId = sessionId
+      delete current.starting
       this.deps.save(this.state)
     } catch (error) {
       this.halt(chain, noticeOf(error))

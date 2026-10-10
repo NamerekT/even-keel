@@ -20,6 +20,7 @@ Reference for sessions: the interface, translation, config reloading and fake st
 - The content column is `--column` in `web/src/styles.css`: 94 % of the window, the header and the banners use the same variable.
 - On a narrow screen (≤760 px, `useNarrow`) the header is one row: the brand with the project key, the waiting count and a burger (`web/src/layout/Menu.tsx`) whose dot is the worst of the status panel and the account. The burger's sheet holds the links, the chain, account and status toggles, whose panels unfold inside the sheet, and the full limits. The limits themselves stay in the header as two 2 px bars along its bottom edge, 5 hours on the left and the week on the right.
 - What the page is busy with: every request except polling goes through `activity.track` (`web/src/live/activity.ts`) and shows the bar at the top of the window (`ActivityBar`). `useCommand` marks the pressed button `aria-busy` for the duration of its command, so a new command button needs nothing for its spinner. A command the service accepts at once and carries out later (`chain/restart`) keeps its button busy with `useHold` until the state changes; a block that reloads with its previous data on screen sets `aria-busy` on itself and is dimmed.
+- A session that is starting (`sessionStart` in `web/src/state.ts`, `web/src/ui/SessionStart.tsx`): the current task's row shows a pill with the phase and the time since the start began, the row shimmers and its lamp is a blinking ring; the session panel shows a loading card with three steps instead of the session's facts. The phases: `launch` and `handover` while `CurrentTask.starting` is set (the dispatcher is preparing the worktree or handing over), `boot` while the page does not see the new session id yet, `answer` while that session works and its context is still empty (its feed is shown under the card). The time counts from the journal row of the new session; after 5 minutes the page stops calling it a start.
 - The page installs as an app (`web/public/manifest.webmanifest`, `icon-*.png` icons are renders of `favicon.svg`, the `maskable` one has the mark with a margin for cropping). There is no service worker: the service serves a fresh `dist/web` anyway. The install button in Chrome appears only in a secure context: `localhost` or HTTPS; not on a bare `http://<IP>`.
 
 ## Language (BTN-57, `src/language.ts`: `en`, `ru`)
@@ -39,7 +40,7 @@ Layout work on a fake state, without a tracker or sessions. The fake history sta
 | Parameter | What it shows |
 | --- | --- |
 | `?link=stale\|connecting` | connection states |
-| `?chain=idle` | no active chain, to check starting one |
+| `?chain=idle` | no active chain, to check starting one; "Start" and "New session" go through the start phases 3 s each |
 | `?parallel=2` | two chains at once: DEMO, taken from the queue, runs next to ABC |
 | `?chain=limit` | the chain is waiting for the limit reset |
 | `?chain=skip` | a skipped task and a session postponed by a blocker |
@@ -62,4 +63,4 @@ Layout work on a fake state, without a tracker or sessions. The fake history sta
 | `?tools=bloated\|empty` | `/tools`: the last session with claude.ai skills, a failed MCP server and an account mismatch; without transcripts. Projects on an odd letter (`ABC`, `OPS`) differ slightly in settings — for "Only differences" |
 | `?card=empty\|none` | a task card without description, labels, relations, comments and attachments (otherwise it has SVG pictures, an MDN CC0 video and a text file); the tracker returns no card. "Move to Todo" (in the card and in the backlog panel) moves the task from the backlog into the chain in the fake, to its `landing` place: ABC-18 into v0.2, ABC-19 into the folded v0.3, ABC-20 to the end |
 | `?lang=en\|ru` | the page language from the config (without it — the browser language) |
-| `?delay=<ms>` | answers (stats, tools, card, session) take that long instead of 0.3 s, and "New session" swaps the session that much later — for skeletons, dimming and the busy button |
+| `?delay=<ms>` | answers (stats, tools, card, session) take that long instead of 0.3 s, and each start phase after "Start" or "New session" lasts that long — for skeletons, dimming and the busy button |

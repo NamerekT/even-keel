@@ -1,7 +1,7 @@
 import { appendFileSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs'
 import { dirname } from 'node:path'
 import { asNotice, type Notice } from '../notice/notice.js'
-import { emptyChainState, type ActiveChain, type ChainState, type LaunchEntry, type Leftover } from './dispatcher.js'
+import { emptyChainState, type ActiveChain, type ChainState, type CurrentTask, type LaunchEntry, type Leftover } from './dispatcher.js'
 
 export function loadChainState(file: string): ChainState {
   const raw = readIfExists(file)
@@ -13,7 +13,7 @@ export function loadChainState(file: string): ChainState {
   const chains = activeOf(state.active)
   const valid = chains !== undefined && Array.isArray(state.queue) && typeof state.orders === 'object' && state.orders !== null
   if (!valid) throw new Error(`chain: ${file} is damaged; fix or delete it`)
-  const active = chains.map((chain) => ({ ...chain, error: noticeOrNull(chain.error) }))
+  const active = chains.map((chain) => ({ ...chain, current: settled(chain.current), error: noticeOrNull(chain.error) }))
   return { ...state, active, skipped: state.skipped ?? {}, leftovers: leftoversOf(state.leftovers), released: state.released ?? {}, unattended: state.unattended === true, trimTools: state.trimTools !== false } as ChainState
 }
 
@@ -22,6 +22,13 @@ function activeOf(raw: unknown): ActiveChain[] | undefined {
   const chains = raw === null ? [] : Array.isArray(raw) ? raw : [raw]
   const valid = chains.every((chain) => typeof chain === 'object' && chain !== null && typeof (chain as ActiveChain).project === 'string')
   return valid ? (chains as ActiveChain[]) : undefined
+}
+
+// A start cut short by a service restart is not running any more.
+function settled(current: CurrentTask | null | undefined): CurrentTask | null {
+  if (current == null) return null
+  const { starting: _, ...rest } = current
+  return rest
 }
 
 // Before BTN-62 the pause reason and the leftovers were English strings; they are kept and shown as they are.

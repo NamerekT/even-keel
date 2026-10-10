@@ -5,7 +5,8 @@ import { setLanguage } from './i18n/index.js'
 import type { StatusCategory, Task } from '../../src/tracker/model.js'
 import type { AccountEntry, AccountLogin, AccountView } from '../../src/account/model.js'
 import type { EvenKeelState, SessionView } from '../../src/state.js'
-import type { ActiveChain } from '../../src/chain/dispatcher.js'
+import type { ActiveChain, CurrentTask } from '../../src/chain/dispatcher.js'
+import type { TaskSession } from '../../src/chain/launches.js'
 import {
   accountBadge,
   accountOrder,
@@ -24,6 +25,7 @@ import {
   projectSlot,
   queuedAfter,
   sessionElapsed,
+  sessionStart,
   startsNow,
   cacheFreshness,
   taskProject,
@@ -459,6 +461,18 @@ describe('chainBlocks', () => {
     expect(chainBlocks(state, 'ABC').map((block) => block.lamp)).toEqual(['working', 'waiting', 'error', 'limit', 'stopped'])
   })
 
+  it('tells only the current task that its session is starting', () => {
+    const starting = { task: 'ABC-1', sessionId: null, since: '2026-01-01T10:00:00.000Z', starting: '2026-01-01T10:00:00.000Z' }
+    const state = stateOf({
+      tasks: [task('ABC-1'), task('ABC-2')],
+      sessions: [view('ABC-2', 'working', null)],
+      chain: chain({ active: { ...running('ABC-1'), current: starting }, projects: { ABC: { order: ['ABC-1', 'ABC-2'], waiting: [], backlog: [], error: null } } }),
+    })
+    const [first, second] = chainBlocks(state, 'ABC', new Date('2026-01-01T10:00:05.000Z'))
+    expect(first?.start).toEqual({ phase: 'launch', since: '2026-01-01T10:00:00.000Z' })
+    expect(second?.start).toBeNull()
+  })
+
   it('prefers a live session over a finished one of the same task', () => {
     const state = stateOf({
       tasks: [task('ABC-1')],
@@ -570,6 +584,56 @@ describe('queuedAfter', () => {
     const both = chain({ active: [active, { ...active, project: 'XYZ' }], parallel: 2, queue: ['DEMO', 'OPS'] })
     expect(queuedAfter(both, 'DEMO')).toBeNull()
     expect(queuedAfter(both, 'OPS')).toBe('DEMO')
+  })
+})
+
+describe('sessionStart', () => {
+  const now = new Date('2026-01-01T10:01:00.000Z')
+  const current = (patch: Partial<CurrentTask> = {}): CurrentTask => ({ task: 'ABC-1', sessionId: 'new', since: '2026-01-01T08:00:00.000Z', ...patch })
+  const run = (sessionId: string, at: string): TaskSession => ({ sessionId, at, how: 'checkpoint', resumed: 0 })
+  const live = (patch: Partial<SessionView> = {}): SessionView => ({
+    ...view('ABC-1', 'working', null),
+    sessionId: 'new',
+    startedAt: '2026-01-01T10:00:20.000Z',
+    ...patch,
+  })
+
+  it('is a launch while the service starts the first session of the task', () => {
+    const launching = current({ sessionId: null, starting: '2026-01-01T10:00:00.000Z' })
+    expect(sessionStart(launching, null, [], now)).toEqual({ phase: 'launch', since: '2026-01-01T10:00:00.000Z' })
+  })
+
+  it('is a handover while the service replaces the session of the task', () => {
+    const old = live({ sessionId: 'old', lamp: 'waiting', contextTokens: 170_000 })
+    const handing = current({ sessionId: 'old', starting: '2026-01-01T10:00:00.000Z' })
+    expect(sessionStart(handing, old, [], now)).toEqual({ phase: 'handover', since: '2026-01-01T10:00:00.000Z' })
+  })
+
+  it('is a boot until the page sees the new session, counted from when the start began', () => {
+    const old = live({ sessionId: 'old', lamp: 'finished', contextTokens: 170_000 })
+    const runs = [run('old', '2026-01-01T08:00:00.000Z'), run('new', '2026-01-01T10:00:00.000Z')]
+    expect(sessionStart(current(), old, runs, now)).toEqual({ phase: 'boot', since: '2026-01-01T10:00:00.000Z' })
+    expect(sessionStart(current(), null, runs, now)).toEqual({ phase: 'boot', since: '2026-01-01T10:00:00.000Z' })
+  })
+
+  it('waits for the answer while the new session works on its first one', () => {
+    const runs = [run('new', '2026-01-01T10:00:00.000Z')]
+    expect(sessionStart(current(), live(), runs, now)).toEqual({ phase: 'answer', since: '2026-01-01T10:00:00.000Z' })
+    expect(sessionStart(current(), live(), [], now)).toEqual({ phase: 'answer', since: '2026-01-01T10:00:20.000Z' })
+  })
+
+  it('is over once the session answered, stopped or asks something', () => {
+    const runs = [run('new', '2026-01-01T10:00:00.000Z')]
+    expect(sessionStart(current(), live({ contextTokens: 24_000 }), runs, now)).toBeNull()
+    expect(sessionStart(current(), live({ lamp: 'error' }), runs, now)).toBeNull()
+    expect(sessionStart(current(), live({ lamp: 'waiting' }), runs, now)).toBeNull()
+  })
+
+  it('gives up on a boot that took too long to be one', () => {
+    const runs = [run('new', '2026-01-01T09:50:00.000Z')]
+    expect(sessionStart(current(), null, runs, now)).toBeNull()
+    expect(sessionStart(current(), live({ startedAt: '2026-01-01T09:50:00.000Z' }), [], now)).toBeNull()
+    expect(sessionStart(current(), null, [], now)).toBeNull()
   })
 })
 

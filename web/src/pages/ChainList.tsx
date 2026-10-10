@@ -12,6 +12,7 @@ import { Lamp } from '../ui/Lamp.js'
 import { landingIndex, revealElement } from '../ui/landing.js'
 import { milestoneView, type Section } from '../ui/milestones.js'
 import { relatives, type Point } from '../ui/reorder.js'
+import { StartPill } from '../ui/SessionStart.js'
 import type { Arrival } from './useArrival.js'
 import { useChainDrag, type ChainDrag } from './useChainDrag.js'
 
@@ -219,6 +220,7 @@ function withGhost(blocks: ChainBlock[], ghost: Ghost | null): ChainBlock[] {
     session: null,
     sessions: [],
     limit: null,
+    start: null,
   }
   const index = landingIndex(blocks, ghost.before)
   return [...blocks.slice(0, index), stand, ...blocks.slice(index)]
@@ -293,6 +295,7 @@ interface BlockProps {
 function Block({ block, link, number, waits, scale, focused, movable, relation, arrival, offset, onHover, onReturn, onCard }: BlockProps) {
   const classes = ['block', `block--${block.lamp}`]
   if (block.current) classes.push('block--current')
+  if (block.start !== null) classes.push('block--starting')
   if (block.skipped) classes.push('block--skipped')
   if (block.locked) classes.push('block--locked')
   if (focused) classes.push('block--focus')
@@ -301,7 +304,7 @@ function Block({ block, link, number, waits, scale, focused, movable, relation, 
   if (relation !== null) classes.push(`block--${relation.role}`)
   if (arrival !== null) classes.push(arrival.flying ? 'block--arriving' : 'block--landed')
   const badge = relation?.badge === true ? relation.role : null
-  const metered = blockMetered(block) ? block.session : null
+  const metered = block.start === null && blockMetered(block) ? block.session : null
   const style: CSSProperties = {}
   if (offset !== undefined) style.transform = `translate(${offset.x}px, ${offset.y}px)`
 
@@ -359,7 +362,8 @@ function Block({ block, link, number, waits, scale, focused, movable, relation, 
             {t.chain.waits(waits.join(', '))}
           </span>
         )}
-        {block.status !== null && metered === null && <span className="block__status">{block.status}</span>}
+        {block.start !== null && <StartPill start={block.start} />}
+        {block.status !== null && metered === null && block.start === null && <span className="block__status">{block.status}</span>}
         {metered !== null && checkpointHandoffs(block.sessions) > 0 && (
           <span className="block__badge" title={t.chain.handoffsTitle}>
             {t.chain.handoffs(checkpointHandoffs(block.sessions))}

@@ -379,7 +379,21 @@ export const en: Messages = {
     skipOther: "The chain won't take the task until you restore it. The tracker status doesn't change.",
     skip: 'Skip',
     midTurn: 'mid-turn — replace and skip after it',
-    replacing: 'Replacing the session: the old one stops, the new one starts with a handoff — about 15 seconds.',
+    start: {
+      title: {
+        launch: 'Starting a session',
+        handover: 'Handing the task over',
+        boot: 'Session booting',
+        answer: 'Session thinking',
+      },
+      text: {
+        launch: 'Preparing the working copy and starting Claude Code.',
+        handover: 'The old session stops, the new one starts with a handoff.',
+        boot: 'Claude Code is coming up: settings, plugins, MCP servers.',
+        answer: 'The session is up and working on its first answer.',
+      },
+      steps: ['Prepare', 'Boot', 'First answer'],
+    },
     account: (account: string) => `Account: ${account}`,
     waits: (what: string) => `Waiting for ${what}`,
     session: 'Session',
@@ -448,6 +462,12 @@ export const en: Messages = {
     waits: (tasks: string) => `waits for ${tasks}`,
     handoffsTitle: 'How many times sessions of the task handed off at a checkpoint',
     handoffs: (count: number) => `handoffs ×${count}`,
+    starting: {
+      launch: 'starting',
+      handover: 'handing over',
+      boot: 'booting',
+      answer: 'first answer',
+    },
     openCard: 'Open the task card',
   },
   card: {

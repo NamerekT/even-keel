@@ -12,6 +12,7 @@ import { checkpointHandoffs, sessionElapsed, taskProject, tokenTotal, type Chain
 import { CacheClock } from '../ui/CacheClock.js'
 import { ContextMeter } from '../ui/ContextMeter.js'
 import { Lamp } from '../ui/Lamp.js'
+import { StartCard } from '../ui/SessionStart.js'
 
 const TranscriptWindow = lazy(async () => ({ default: (await import('./TranscriptWindow.js')).TranscriptWindow }))
 
@@ -62,7 +63,14 @@ export function SessionPanel({ block, scale, onCard, onClose }: Props) {
         </p>
       )}
       <Actions block={block} />
-      {block.session === null ? (
+      {block.start !== null ? (
+        <>
+          <StartCard start={block.start} />
+          {block.start.phase === 'answer' && block.session !== null && (
+            <Feed lines={block.session.feed} sessionId={block.session.sessionId} live />
+          )}
+        </>
+      ) : block.session === null ? (
         <p className="placeholder">{t.session.none}</p>
       ) : (
         <SessionBody session={block.session} limit={block.limit} scale={scale} />
@@ -93,6 +101,7 @@ function Actions({ block }: { block: ChainBlock }) {
   const remoteOff = session === null || session.remoteUrl !== null ? null : t.session.remote[session.remoteOff ?? 'no-bridge']
   const buttons = session?.remoteUrl != null || block.open
   const replacing = useHold(`${block.current}|${session?.sessionId ?? ''}`, REPLACE_WAIT_MS)
+  const starting = replacing.on || (block.current && block.start !== null)
 
   if (!buttons) return null
   return (
@@ -113,7 +122,7 @@ function Actions({ block }: { block: ChainBlock }) {
           <button
             type="button"
             className="button"
-            disabled={sending || midTurn || replacing.on}
+            disabled={sending || midTurn || starting}
             aria-busy={replacing.on ? true : undefined}
             title={t.session.restartTitle}
             onClick={async () => {
@@ -138,21 +147,16 @@ function Actions({ block }: { block: ChainBlock }) {
             <button
               type="button"
               className="button"
-              disabled={sending || midTurn || replacing.on}
+              disabled={sending || midTurn || starting}
               title={block.current ? t.session.skipCurrent : t.session.skipOther}
               onClick={() => void send('chain/skip', body)}
             >
               {t.session.skip}
             </button>
           ))}
-        {midTurn && <span className="panel__hint">{t.session.midTurn}</span>}
-        {replacing.on && (
-          <span className="panel__hint busy-note" role="status">
-            {t.session.replacing}
-          </span>
-        )}
+        {midTurn && !starting && <span className="panel__hint">{t.session.midTurn}</span>}
       </div>
-      {remoteOff !== null && (
+      {remoteOff !== null && !starting && (
         <p className="panel__remote-off" title={session?.account == null ? undefined : t.session.account(session.account)}>
           {remoteOff}
         </p>

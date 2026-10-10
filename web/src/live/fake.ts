@@ -31,6 +31,7 @@ import { fakeTools } from './fakeTools.js'
 const TICK_MS = 2_000
 const ANSWER_MS = 300
 const CLOSE_TICKS = 5
+const START_STAGE_MS = 3_000
 const LAUNCH_DAYS = 14
 
 function task(
@@ -185,7 +186,7 @@ function fakeState(
         : [
             {
               project: 'ABC',
-              current: { task: 'ABC-5', sessionId: null, since: ago(42), ...fakeLimit(limit) },
+              current: { task: 'ABC-5', sessionId: session('ABC-5', 0).sessionId, since: ago(42), ...fakeLimit(limit) },
               paused: false,
               error: null,
             },
@@ -282,6 +283,32 @@ function withChain(state: EvenKeelState, chain: ActiveChain, next: ActiveChain |
   return { ...state, chain: { ...state.chain, active } }
 }
 
+/**
+ * What the page sees after a start or a restart, as in the service: the dispatcher starting the session,
+ * the session not seen yet, the session up and silent, then its first answer.
+ */
+function startStages(before: EvenKeelState, after: EvenKeelState, project: string): EvenKeelState[] {
+  const chain = chainIn(after, project)
+  const current = chain?.current
+  if (chain === undefined || current == null || current.sessionId === null) return [after]
+  const prior = chainIn(before, project)?.current
+  const replaced = prior?.task === current.task ? prior.sessionId : null
+  const fresh = after.sessions.find((view) => view.sessionId === current.sessionId && view.task === current.task)
+  if (fresh === undefined) return [after]
+  const silent: SessionView = { ...fresh, startedAt: ago(0), contextTokens: 0, cache: null, action: null, feed: fresh.feed.slice(0, 1) }
+  const withSession = (view: SessionView) => after.sessions.map((each) => (each === fresh ? view : each))
+  return [
+    {
+      ...withChain(after, chain, { ...chain, current: { ...current, sessionId: replaced, starting: ago(0) } }),
+      sessions: before.sessions,
+      taskSessions: before.taskSessions,
+    },
+    { ...after, sessions: before.sessions },
+    { ...after, sessions: withSession(silent) },
+    { ...after, sessions: withSession({ ...silent, contextTokens: 12_000, feed: fresh.feed }) },
+  ]
+}
+
 function closeCurrent(state: EvenKeelState): EvenKeelState {
   const active = state.chain.active[0]
   const done = active?.current?.task
@@ -291,7 +318,7 @@ function closeCurrent(state: EvenKeelState): EvenKeelState {
   const order = kept.order.filter((id) => id !== done)
   const next = order[0]
   const since = ago(0)
-  const moved = withChain(state, active!, { ...active!, current: next === undefined ? null : { task: next, sessionId: 'fake', since } })
+  const moved = withChain(state, active!, { ...active!, current: next === undefined ? null : { task: next, sessionId: session(next, 0).sessionId, since } })
   return {
     ...state,
     tasks: state.tasks.map((each) => (each.id === done ? { ...each, status: { name: 'Done', category: 'Won' } } : each)),
@@ -301,7 +328,7 @@ function closeCurrent(state: EvenKeelState): EvenKeelState {
     },
     sessions: [
       ...state.sessions.map((view) => (view.task === done ? { ...view, lamp: 'finished' as const } : view)),
-      ...(next === undefined || state.sessions.some((view) => view.task === next) ? [] : [session(next, 0)]),
+      ...(next === undefined || state.sessions.some((view) => view.task === next) ? [] : [session(next, 12_000)]),
     ],
     taskSessions:
       next === undefined
@@ -332,12 +359,14 @@ function startChain(state: EvenKeelState, project: string, launches: LaunchEntry
   const first = state.chain.projects[project]?.order[0]
   if (first === undefined) return state
   const since = ago(0)
-  launches.push({ at: since, project, task: first, sessionId: 'fake' })
+  const { sessionId } = session(first, 0)
+  launches.push({ at: since, project, task: first, sessionId })
   return {
     ...state,
-    chain: { ...state.chain, active: [...active, { project, current: { task: first, sessionId: 'fake', since }, paused: false, error: null }] },
-    sessions: [...state.sessions, session(first, 0)],
+    chain: { ...state.chain, active: [...active, { project, current: { task: first, sessionId, since }, paused: false, error: null }] },
+    sessions: [...state.sessions.filter((view) => view.task !== first), session(first, 12_000)],
     launches: launchDays(launches, new Date(), LAUNCH_DAYS),
+    taskSessions: { ...state.taskSessions, [first]: [{ sessionId, at: since, how: 'launch', resumed: 0 }, ...(state.taskSessions[first] ?? [])] },
   }
 }
 
@@ -706,7 +735,7 @@ export function createFakeSource(search: string): LiveSource {
     setInterval(() => {
       const state = closing && ++ticks % CLOSE_TICKS === 0 ? closeCurrent(current.state!) : current.state!
       const sessions = state.sessions.map((view) =>
-        view.lamp === 'working'
+        view.lamp === 'working' && view.contextTokens > 0
           ? {
               ...view,
               contextTokens: view.contextTokens + 800,
@@ -734,16 +763,15 @@ export function createFakeSource(search: string): LiveSource {
       const state = current.state
       if (state === null) throw new Error('fake: no state yet')
       const next = fakeCommand(state, name, body, launches)
-      // As in the service: the restart is accepted at once and the session is replaced later.
-      if (name === 'chain/restart' && delay !== null) {
-        setTimeout(() => {
-          current = { ...current, state: next }
+      const stages = name === 'chain/start' || name === 'chain/restart' ? startStages(state, next, String(body.project)) : [next]
+      stages.forEach((stage, index) => {
+        const show = () => {
+          current = { ...current, state: stage }
           notify()
-        }, delay)
-        return
-      }
-      current = { ...current, state: next }
-      notify()
+        }
+        if (index === 0) show()
+        else setTimeout(show, index * (delay ?? START_STAGE_MS))
+      })
     },
     session: async (sessionId) => {
       await answer()

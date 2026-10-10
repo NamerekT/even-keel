@@ -50,6 +50,13 @@ describe('chain store', () => {
     expect(loadChainState(file).trimTools).toBe(true)
   })
 
+  it('forgets a session start the service did not live to finish', () => {
+    const file = join(dir(), 'chain.json')
+    const current = { task: 'ABC-1', sessionId: 's1', since: 't', starting: 't' }
+    writeFileSync(file, JSON.stringify({ active: [{ project: 'ABC', current, paused: false, error: null }], queue: [], orders: {} }))
+    expect(loadChainState(file).active[0]?.current).toEqual({ task: 'ABC-1', sessionId: 's1', since: 't' })
+  })
+
   it('refuses a damaged file instead of silently forgetting the chain', () => {
     const file = join(dir(), 'chain.json')
     writeFileSync(file, '{"active": 5}')

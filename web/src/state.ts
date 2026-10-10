@@ -1,5 +1,5 @@
 import type { AccountEntry, AccountView } from '../../src/account/model.js'
-import type { ActiveChain, ProjectOrder } from '../../src/chain/dispatcher.js'
+import type { ActiveChain, CurrentTask, ProjectOrder } from '../../src/chain/dispatcher.js'
 import type { TaskSession } from '../../src/chain/launches.js'
 import { chainOrder, nextTask, precedence, withWaiting } from '../../src/chain/order.js'
 import type { LimitHold } from '../../src/chain/relay.js'
@@ -86,7 +86,21 @@ export interface ChainBlock {
   session: SessionView | null
   sessions: TaskSession[]
   limit: LimitHold | null
+  start: SessionStart | null
 }
+
+/**
+ * `launch`, `handover` — the service is starting the session; `boot` — the page does not see the new session yet;
+ * `answer` — the session is up and has not answered yet.
+ */
+export interface SessionStart {
+  phase: StartPhase
+  since: string
+}
+
+export type StartPhase = 'launch' | 'handover' | 'boot' | 'answer'
+
+const BOOT_WAIT_MS = 5 * 60_000
 
 export type ContextLevel = 'ok' | 'warn' | 'danger'
 
@@ -219,7 +233,17 @@ export function projectSlot(projects: string[], project: string): number | null 
   return index < 0 || index >= PROJECT_SLOTS ? null : index + 1
 }
 
-export function chainBlocks(state: EvenKeelState, project: string): ChainBlock[] {
+export function sessionStart(current: CurrentTask, session: SessionView | null, runs: TaskSession[], now: Date): SessionStart | null {
+  if (current.sessionId === null) return { phase: 'launch', since: current.starting ?? current.since }
+  if (current.starting !== undefined) return { phase: 'handover', since: current.starting }
+  const seen = session?.sessionId === current.sessionId ? session : null
+  const since = runs.find((run) => run.sessionId === current.sessionId)?.at ?? seen?.startedAt
+  if (since === undefined || now.getTime() - Date.parse(since) > BOOT_WAIT_MS) return null
+  if (seen === null) return { phase: 'boot', since }
+  return seen.lamp === 'working' && seen.contextTokens === 0 ? { phase: 'answer', since } : null
+}
+
+export function chainBlocks(state: EvenKeelState, project: string, now = new Date()): ChainBlock[] {
   const tasks = projectTasks(state, project)
   const order = state.chain.projects[project]
   const known = [...tasks, ...(order?.outside ?? [])]
@@ -233,6 +257,7 @@ export function chainBlocks(state: EvenKeelState, project: string): ChainBlock[]
     : withWaiting(order.order, order.waiting, new Map(known.map((task) => [task.id, task.blockedBy])))
   const active = activeChain(state.chain, project)
   const current = active?.current?.task
+  const running = active?.current ?? null
   const hold = active?.current?.limit
   const pending = hold !== undefined && hold.acted === null ? hold : null
   const skipped = new Set(state.chain.skipped[project] ?? [])
@@ -240,6 +265,7 @@ export function chainBlocks(state: EvenKeelState, project: string): ChainBlock[]
   const blocks = [...closedOrder(closed, state.taskSessions), ...open].map((id) => {
     const task = byId.get(id)
     const session = taskSession(state.sessions, id) ?? null
+    const sessions = state.taskSessions[id] ?? []
     return {
       id,
       title: task?.title ?? null,
@@ -254,8 +280,9 @@ export function chainBlocks(state: EvenKeelState, project: string): ChainBlock[]
       skipped: skipped.has(id),
       question: task?.question ?? false,
       session,
-      sessions: state.taskSessions[id] ?? [],
+      sessions,
       limit: id === current ? pending : null,
+      start: running?.task === id ? sessionStart(running, session, sessions, now) : null,
     }
   })
   for (let index = blocks.length - 2; index >= 0; index--) {
