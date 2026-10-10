@@ -43,6 +43,7 @@ function view(task: string, lamp: SessionView['lamp'], lastActivityAt: string | 
     cwd: 'C:\\repos\\example',
     lamp,
     waitingFor: null,
+    startupDialog: false,
     apiError: null,
     startedAt: '2026-01-01T09:00:00.000Z',
     lastActivityAt,

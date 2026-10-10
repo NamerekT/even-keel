@@ -231,11 +231,22 @@ const monitor = new SessionMonitor({
   },
   onChange: (views) => {
     sessions = views
+    logStartupDialogs(views)
     hub.broadcast('state', getState())
     dispatcher.check()
   },
   onError: (error) => console.error(`sessions: ${error instanceof Error ? error.message : String(error)}`),
 })
+
+const wedgedSessions = new Set<string>()
+
+function logStartupDialogs(views: SessionView[]): void {
+  for (const view of views) {
+    if (!view.startupDialog || wedgedSessions.has(view.sessionId)) continue
+    wedgedSessions.add(view.sessionId)
+    console.warn(`sessions: ${view.task} hangs on a Claude Code dialog before its first turn (session ${view.sessionId}, ${view.cwd})`)
+  }
+}
 
 const agentStatus = (task: string) => {
   const view = sessions.find((each) => each.task === task && each.lamp !== 'finished')

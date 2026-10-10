@@ -168,7 +168,9 @@ function Actions({ block }: { block: ChainBlock }) {
 
 function SessionBody({ session, limit, scale }: { session: SessionView; limit: LimitHold | null; scale: ContextScale }) {
   const now = useNow(1_000)
-  const note = session.apiError ?? (session.waitingFor === null ? null : t.session.waits(session.waitingFor))
+  const note =
+    session.apiError ??
+    (session.waitingFor !== null ? t.session.waits(session.waitingFor) : session.startupDialog ? t.session.startupDialog : null)
 
   return (
     <>

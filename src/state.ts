@@ -17,6 +17,8 @@ export interface SessionView {
   cwd: string
   lamp: Lamp
   waitingFor: string | null
+  /** Hangs on a CLI dialog before its first turn: not mid-turn, nobody in the background answers it. */
+  startupDialog: boolean
   apiError: string | null
   startedAt: string
   lastActivityAt: string | null

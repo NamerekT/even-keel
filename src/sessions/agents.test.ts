@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { lampOf, parseAgents, parseSessionRecord, sessionsByTask, turnStatus, withLiveRecords, type AgentEntry } from './agents.js'
+import { isStartupWedge, lampOf, parseAgents, parseSessionRecord, sessionsByTask, turnStatus, withLiveRecords, type AgentEntry } from './agents.js'
 
 const interactive: AgentEntry = {
   pid: 100,
@@ -52,6 +52,21 @@ describe('parseSessionRecord', () => {
     expect(parseSessionRecord(JSON.stringify({ sessionId: 's1' }))).toBeUndefined()
     expect(parseSessionRecord(JSON.stringify({ pid: 1 }))).toBeUndefined()
     expect(parseSessionRecord('not json')).toBeUndefined()
+  })
+})
+
+describe('isStartupWedge', () => {
+  it('tells a job the CLI marked as hanging on a dialog before its first turn', () => {
+    const raw = JSON.stringify({ state: 'working', tempo: 'blocked', detail: 'stuck on a startup dialog', needs: 'open this session to continue setup' })
+
+    expect(isStartupWedge(raw)).toBe(true)
+  })
+
+  it('does not take a question in the middle of the work or a broken file for it', () => {
+    expect(isStartupWedge(JSON.stringify({ state: 'working', tempo: 'blocked', detail: 'needs permission', needs: 'approve Bash' }))).toBe(false)
+    expect(isStartupWedge(JSON.stringify({ state: 'working', tempo: 'idle', detail: 'starting…' }))).toBe(false)
+    expect(isStartupWedge('not json')).toBe(false)
+    expect(isStartupWedge(undefined)).toBe(false)
   })
 })
 

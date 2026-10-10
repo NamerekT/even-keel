@@ -17,6 +17,23 @@ export interface AgentEntry {
   waitingFor?: string
   state?: AgentState
   account?: string
+  /** The session hangs on a CLI dialog before its first turn (`isStartupWedge`). */
+  startupDialog?: boolean
+}
+
+/** The text the CLI's startup watchdog writes to `jobs/<id>/state.json` when the first turn has not begun after 45 s. */
+const STARTUP_WEDGE = 'stuck on a startup dialog'
+
+export function isStartupWedge(raw: string | undefined): boolean {
+  if (raw === undefined) return false
+  try {
+    const job: unknown = JSON.parse(raw)
+    if (typeof job !== 'object' || job === null) return false
+    const { tempo, detail } = job as Record<string, unknown>
+    return tempo === 'blocked' && detail === STARTUP_WEDGE
+  } catch {
+    return false
+  }
 }
 
 export function parseAgents(raw: string, account?: string): AgentEntry[] {

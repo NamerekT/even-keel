@@ -10,7 +10,7 @@ import { parseAuthStatus, type ClaudeAccount } from '../account/model.js'
 import { fail, notice, NoticeError, type Notice } from '../notice/notice.js'
 import { samePath } from '../paths.js'
 import type { ModelAlias } from '../tracker/model.js'
-import { parseAgents, parseSessionRecord, withLiveRecords, type AgentEntry, type SessionRecord } from './agents.js'
+import { isStartupWedge, parseAgents, parseSessionRecord, withLiveRecords, type AgentEntry, type SessionRecord } from './agents.js'
 import { newestExtensionBinary } from './paths.js'
 
 const run = promisify(execFile)
@@ -49,7 +49,7 @@ export class ClaudeCli {
       windowsHide: true,
       maxBuffer: 16 * 1024 * 1024,
     })
-    return withLiveRecords(parseAgents(stdout, home.key), await liveRecords(home))
+    return withStartupDialogs(home, withLiveRecords(parseAgents(stdout, home.key), await liveRecords(home)))
   }
 
   async authStatus(home: AccountHome): Promise<ClaudeAccount> {
@@ -190,6 +190,17 @@ export async function liveRecords(home: AccountHome): Promise<SessionRecord[]> {
     names.filter((name) => /^\d+\.json$/.test(name)).map((name) => readFile(join(dir, name), 'utf8').catch(() => '')),
   )
   return texts.map(parseSessionRecord).filter((record): record is SessionRecord => record !== undefined && isAlive(record.pid))
+}
+
+/** `claude agents` shows such a session only as `blocked`, like one with a question: why it stands is in its job file. */
+async function withStartupDialogs(home: AccountHome, agents: AgentEntry[]): Promise<AgentEntry[]> {
+  return Promise.all(
+    agents.map(async (agent) => {
+      if (agent.state !== 'blocked' || agent.status !== undefined || agent.id === undefined) return agent
+      const job = await readFile(join(home.dir, 'jobs', agent.id, 'state.json'), 'utf8').catch(() => undefined)
+      return isStartupWedge(job) ? { ...agent, startupDialog: true } : agent
+    }),
+  )
 }
 
 function isAlive(pid: number | undefined): boolean {

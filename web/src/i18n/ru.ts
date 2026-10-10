@@ -399,6 +399,8 @@ export const ru = {
     },
     account: (account: string) => `Аккаунт: ${account}`,
     waits: (what: string) => `Ждёт: ${what}`,
+    startupDialog:
+      'Сессия висит на диалоге Claude Code до первого хода, и в фоне на него некому ответить: неодобренный MCP-сервер из .mcp.json, доверие к папке и тому подобное. Уберите причину и нажмите «Новая сессия».',
     session: 'Сессия',
     time: 'Время',
     cache: 'Кэш',

@@ -51,6 +51,7 @@ Layout work on a fake state, without a tracker or sessions. The fake history sta
 | `?chain=restart` | a session ended on a limit and lost Remote Control, the "New session" button |
 | `?chain=close` | the current task closes every 10 s, the chain takes the next one and a new task enters third — for the motion of changes |
 | `?chain=checkpoint` | two checkpoint handoffs on the current task |
+| `?chain=dialog` | the current session hangs on a startup dialog before its first turn |
 | `?chain=leftover` | cleanup warnings after Done |
 | `?usage=unread\|off\|waiting` | `/usage` polling states |
 | `?config=broken` | the broken config banner |

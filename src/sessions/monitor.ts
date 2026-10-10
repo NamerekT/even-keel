@@ -167,6 +167,7 @@ function toView(
     cwd: agent.cwd,
     lamp: lampOf(present ? agent : undefined, summary.apiError?.kind ?? null),
     waitingFor: present && agent.status === 'waiting' ? (agent.waitingFor ?? null) : null,
+    startupDialog: present && agent.startupDialog === true,
     apiError: summary.apiError?.text ?? null,
     startedAt: new Date(agent.startedAt).toISOString(),
     lastActivityAt: summary.lastActivityAt,
