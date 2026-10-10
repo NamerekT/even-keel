@@ -102,8 +102,10 @@
   justify-self: end;
   min-width: 20px;
   height: 20px;
-  padding: 0 4px;
+  padding: 0 3px;
   border-radius: 999px;
+  font-size: 11px;
+  white-space: nowrap;
 }
 
 .chain .block__number:empty {
