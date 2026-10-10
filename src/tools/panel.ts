@@ -1,6 +1,7 @@
 import { createReadStream, readdirSync, readFileSync, statSync } from 'node:fs'
 import { join } from 'node:path'
 import { createInterface } from 'node:readline'
+import { sharedMemory } from '../account/share.js'
 import { samePath } from '../paths.js'
 import { projectDirName } from '../sessions/paths.js'
 import { readMcpSources } from '../tracker/mcp.js'
@@ -31,11 +32,12 @@ export interface ToolsPlaces {
   mode: string
 }
 
-/** The `--settings` JSON for a chain session of the repository, `undefined` with trimming off. */
-export function chainSettings(repo: string, trim: boolean, hidden: string[]): string | undefined {
-  if (!trim) return undefined
+/** The `--settings` JSON for a chain session of the repository: the shared memory folder and, with trimming on, the trimming. */
+export function chainSettings(repo: string, trim: boolean, hidden: string[], globalDir: string): string {
+  const memory = { autoMemoryDirectory: sharedMemory(globalDir, repo) }
+  if (!trim) return JSON.stringify(memory)
   const { project, local } = projectSettings(repo)
-  return JSON.stringify(trimSettings(hidden, project, local))
+  return JSON.stringify({ ...trimSettings(hidden, project, local), ...memory })
 }
 
 export async function readToolsView(project: string, places: ToolsPlaces): Promise<ToolsView> {

@@ -1,6 +1,7 @@
 import { copyFileSync, existsSync, lstatSync, mkdirSync, readdirSync, readFileSync, rmdirSync, symlinkSync, unlinkSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { pathKey } from '../paths.js'
+import { projectDirName } from '../sessions/paths.js'
 
 type Json = Record<string, unknown>
 
@@ -27,6 +28,14 @@ export interface SharedSources {
 
 export function mergeSettings(global: Json, folder: Json | undefined): Json {
   return { ...folder, ...global }
+}
+
+/**
+ * The repository's memory folder in the global folder. An account folder holds only a link to it, and the CLI asks
+ * before every write through that link (its target lies in `~/.claude`), so chain sessions get this path as `autoMemoryDirectory`.
+ */
+export function sharedMemory(globalDir: string, repo: string): string {
+  return join(globalDir, 'projects', projectDirName(repo), 'memory')
 }
 
 export function linkType(platform: NodeJS.Platform): 'junction' | 'dir' {

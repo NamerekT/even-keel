@@ -2,7 +2,15 @@ import { lstatSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync 
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { linkType, mergeSettings, shareConfig, shareProjects } from './share.js'
+import { linkType, mergeSettings, shareConfig, sharedMemory, shareProjects } from './share.js'
+
+describe('sharedMemory', () => {
+  it('is the memory folder of the repository in the global folder, the one account folders link to', () => {
+    expect(sharedMemory('C:/Users/john/.claude', 'C:/repos/example.app')).toBe(
+      join('C:/Users/john/.claude', 'projects', 'C--repos-example-app', 'memory'),
+    )
+  })
+})
 
 describe('linkType', () => {
   it('links folders by junction on Windows and by a plain symbolic link elsewhere', () => {

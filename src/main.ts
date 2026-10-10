@@ -279,7 +279,9 @@ const mcp = new McpCheck({
 })
 
 const settingsFor = (task: string, project = projectOf(task)): string | undefined =>
-  project === undefined ? undefined : chainSettings(config.projects[project]!, dispatcher.state.trimTools, configFile.current.hiddenSkills)
+  project === undefined
+    ? undefined
+    : chainSettings(config.projects[project]!, dispatcher.state.trimTools, configFile.current.hiddenSkills, homes.global.dir)
 
 function projectOf(task: string): string | undefined {
   for (const [project, tasks] of tasksByProject) if (tasks.some((each) => each.id === task)) return project
