@@ -272,6 +272,11 @@ export const en: Messages = {
       hint: 'A task number opens its session here, its title opens the card.',
     },
   },
+  basement: {
+    tapes: ['CAUTION', 'DO NOT ENTER', 'WORK IN PROGRESS', 'NO ENTRY'],
+    stats: ['What are you doing down here?', "We're still working on this page, don't get in the way!"],
+    tools: ['No tools issued past this point.', 'The storekeeper is at lunch — come back after the limit resets.'],
+  },
   launches: {
     count: launches,
     title: (days: number) => `Launches over ${days} days`,
@@ -493,10 +498,6 @@ export const en: Messages = {
       aground: (share: string) => ['AGROUND', `${share} of the money went to being stuck`],
       bargain: ['SAVINGS', 'suspicious ones'],
       evenKeel: ['EVEN KEEL', 'certified by Even Keel'],
-    },
-    basement: {
-      sign: ['What are you doing down here?', "We're still working on this page, don't get in the way!"],
-      tape: 'CAUTION · WORK IN PROGRESS',
     },
     remarks: {
       mono: (model: string) => `all on ${model}. A monoculture`,

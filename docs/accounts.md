@@ -14,7 +14,7 @@ Reference for sessions: account folders, sign-in, switching, transferring the sh
 
 ## Active account
 
-- The active account can be switched (and the active one's sign-in renewed) when the chain is paused or stopped and no session of the active account is mid-turn — `busy` or `waiting`; the menu lists what is in the way.
+- The active account can be switched when every chain is paused or stopped: the switch only picks the folder for new launches, so sessions of the active account, mid-turn or not (VS Code chats included), do not hold it (`switchBlock`). Renewing the active one's sign-in rewrites the folder's tokens, so it also waits until no session of the active account is mid-turn — `busy` or `waiting`. The menu lists what is in the way.
 - While signing in to the active account is in progress, or it is not signed in or its sign-in has expired, new sessions are not started (the chain pauses with a reason).
 - `state/account.json` — the active account and, for each folder, its account, since when it has been in effect and which one was before it. Folder limits received before the account change in it are not shown; the account that hit a limit is the session's folder and its e-mail at the time of the limit, and `--resume` only if the same folder with the same e-mail is active.
 

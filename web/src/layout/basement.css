@@ -1,0 +1,233 @@
+.basement {
+  --tape: #f2c200;
+  --ink: #1c1c1a;
+  --hazard: repeating-linear-gradient(-45deg, var(--tape) 0 12px, var(--ink) 12px 24px);
+  --floor: 100px;
+  --frame: var(--ink);
+  position: relative;
+  height: 320px;
+  overflow: hidden;
+}
+
+.basement::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  background: radial-gradient(ellipse 75% 130% at 50% 0, transparent 45%, #00000030);
+  pointer-events: none;
+}
+
+.basement__wall {
+  position: absolute;
+  inset: 0 0 var(--floor);
+  background:
+    repeating-linear-gradient(0deg, transparent 0 39px, color-mix(in srgb, var(--fg) 6%, transparent) 39px 40px),
+    linear-gradient(var(--bg), color-mix(in srgb, var(--fg) 13%, var(--bg)));
+}
+
+.basement__wall::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 8px;
+  background: color-mix(in srgb, var(--fg) 24%, var(--bg));
+  box-shadow: 0 2px 5px #0004;
+}
+
+.basement__floor {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: var(--floor);
+  overflow: hidden;
+  background: linear-gradient(color-mix(in srgb, var(--fg) 30%, var(--bg)), color-mix(in srgb, var(--fg) 16%, var(--bg)));
+  perspective: 220px;
+  perspective-origin: 50% 0;
+}
+
+.basement__floor::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -150%;
+  right: -150%;
+  height: 400px;
+  background-image:
+    linear-gradient(90deg, color-mix(in srgb, var(--fg) 28%, transparent) 2px, transparent 2px),
+    linear-gradient(0deg, color-mix(in srgb, var(--fg) 22%, transparent) 2px, transparent 2px);
+  background-size: 110px 70px;
+  transform: rotateX(70deg);
+  transform-origin: 50% 0;
+}
+
+.basement__tapes {
+  position: absolute;
+  inset: 0;
+}
+
+.basement__tape {
+  position: absolute;
+  left: -5%;
+  width: 110%;
+  height: var(--band);
+  transform: rotate(var(--tilt));
+}
+
+.basement__tape--far {
+  --band: 17px;
+  --text: 10px;
+  filter: drop-shadow(0 3px 2px #0002) saturate(0.8) brightness(0.92);
+}
+
+.basement__tape--mid {
+  --band: 23px;
+  --text: 12px;
+  filter: drop-shadow(0 6px 4px #0003);
+}
+
+.basement__tape--near {
+  --band: 31px;
+  --text: 15px;
+  filter: drop-shadow(0 11px 7px #0004);
+}
+
+.basement__band {
+  position: relative;
+  display: flex;
+  align-items: center;
+  height: var(--band);
+  overflow: hidden;
+  background: var(--tape);
+  color: var(--ink);
+  font-size: var(--text);
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  white-space: pre;
+}
+
+.basement__band--hazard {
+  background:
+    linear-gradient(var(--tape) 0 2px, transparent 2px calc(100% - 2px), var(--tape) calc(100% - 2px)),
+    var(--hazard);
+}
+
+.basement__band--worn::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(ellipse 70px 45% at 9% 30%, #fff9, transparent 70%),
+    radial-gradient(ellipse 110px 60% at 31% 75%, #fff7, transparent 70%),
+    radial-gradient(ellipse 45px 55% at 52% 20%, #fff8, transparent 70%),
+    radial-gradient(ellipse 140px 50% at 74% 60%, #fff6, transparent 70%),
+    radial-gradient(ellipse 60px 40% at 93% 35%, #fff8, transparent 70%),
+    repeating-linear-gradient(100deg, transparent 0 41px, #0000001f 41px 42px, transparent 42px 97px);
+}
+
+.basement__band--torn-left {
+  clip-path: polygon(0 0, calc(100% - 6px) 0, 100% 18%, calc(100% - 9px) 36%, calc(100% - 2px) 52%, calc(100% - 11px) 74%, calc(100% - 4px) 88%, calc(100% - 8px) 100%, 0 100%);
+}
+
+.basement__band--torn-right {
+  justify-content: flex-end;
+  clip-path: polygon(6px 0, 100% 0, 100% 100%, 8px 100%, 4px 88%, 11px 74%, 2px 52%, 9px 36%, 0 18%);
+}
+
+.basement__piece {
+  position: absolute;
+  top: 0;
+  transform: rotate(var(--droop));
+}
+
+.basement__piece--left {
+  left: 0;
+  transform-origin: 0 50%;
+}
+
+.basement__piece--right {
+  right: 0;
+  transform-origin: 100% 50%;
+}
+
+.basement__sway {
+  display: block;
+  transform-origin: inherit;
+  animation: basement-sway 5s ease-in-out infinite alternate;
+}
+
+.basement__piece--right .basement__sway {
+  animation-duration: 6.5s;
+  animation-delay: -2s;
+}
+
+@keyframes basement-sway {
+  from {
+    transform: rotate(-0.8deg);
+  }
+  to {
+    transform: rotate(0.8deg);
+  }
+}
+
+.basement__sign {
+  position: absolute;
+  z-index: 2;
+  left: 50%;
+  bottom: 30px;
+  width: max-content;
+  max-width: min(560px, calc(100% - 32px));
+  margin: 0;
+  padding: 18px 18px 12px;
+  border: 3px solid var(--frame);
+  border-radius: 6px;
+  background: var(--surface);
+  font-size: 15px;
+  line-height: 1.4;
+  text-align: center;
+  transform: translateX(-50%);
+  box-shadow: 0 16px 22px -10px #0009;
+}
+
+.basement__sign::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 8px;
+  background: var(--hazard);
+}
+
+.basement__legs::before,
+.basement__legs::after {
+  content: '';
+  position: absolute;
+  bottom: -25px;
+  width: 6px;
+  height: 22px;
+  background: var(--frame);
+}
+
+.basement__legs::before {
+  left: 18%;
+}
+
+.basement__legs::after {
+  right: 18%;
+}
+
+@media (prefers-color-scheme: dark) {
+  .basement {
+    --frame: #8d8b84;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .basement__sway {
+    animation: none;
+  }
+}

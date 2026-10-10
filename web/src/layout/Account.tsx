@@ -2,6 +2,7 @@ import { useState, type FormEvent, type ReactNode } from 'react'
 import { Link } from 'react-router'
 import {
   removeProblem,
+  switchBlock,
   switchProblem,
   type AccountEntry,
   type AccountLogin,
@@ -48,6 +49,7 @@ function AccountPanel({ account, onClose }: { account: AccountView; onClose: () 
   const now = useNow(60_000)
   const { login } = account
   const ordered = accountOrder(account.accounts, now)
+  const switchBlocked = switchBlock(account.loginBlock)
 
   return (
     <aside id="account-panel" className="drawer" role="dialog" aria-label={t.account.title}>
@@ -98,11 +100,11 @@ function AccountPanel({ account, onClose }: { account: AccountView; onClose: () 
             value={account.active}
             options={ordered}
             now={now}
-            disabled={sending || account.loginBlock !== null}
+            disabled={sending || switchBlocked !== null}
             problem={(key) => switchProblem(account, key)}
             onPick={(key) => void send('account/switch', { account: key })}
           >
-            {account.loginBlock !== null && <Blockers block={account.loginBlock} />}
+            {switchBlocked !== null && <Blockers block={switchBlocked} />}
           </RoleRow>
           {account.apps.map((app) => (
             <AppRole key={app.app} app={app} view={account} options={ordered} now={now} sending={sending} send={send} />

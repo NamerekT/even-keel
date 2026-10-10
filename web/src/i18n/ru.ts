@@ -326,6 +326,11 @@ export const ru = {
     accountsSame: 'settings.json всех аккаунтов совпадает с глобальным.',
     drift: (account: string, keys: string) => `${account}: отличается от глобального settings.json в ${keys}`,
   },
+  basement: {
+    tapes: ['ОСТОРОЖНО', 'НЕ ВХОДИТЬ', 'ИДУТ РАБОТЫ', 'ПРОХОД ЗАКРЫТ'],
+    stats: ['Что ты тут забыл?', 'Мы ещё работаем над страницей, не мешай!'],
+    tools: ['Инструменты дальше не выдаём.', 'Кладовщик на обеде — приходи после сброса лимита.'],
+  },
   launches: {
     count: launches,
     title: (days: number) => `Запуски за ${days} дней`,
@@ -496,10 +501,6 @@ export const ru = {
       aground: (share: string) => ['НА МЕЛИ', `${share} денег ушло на буксование`],
       bargain: ['ЭКОНОМИЯ', 'подозрительная'],
       evenKeel: ['РОВНЫЙ КИЛЬ', 'сертифицировано Even Keel'],
-    },
-    basement: {
-      sign: ['Что ты тут забыл?', 'Мы ещё работаем над страницей, не мешай!'],
-      tape: 'ОСТОРОЖНО · ИДУТ РАБОТЫ',
     },
     remarks: {
       mono: (model: string) => `всё на ${model}. Монокультура`,

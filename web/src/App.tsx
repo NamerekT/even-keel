@@ -1,6 +1,7 @@
 import { Route, Routes } from 'react-router'
 import { pickLanguage, setLanguage, t } from './i18n/index.js'
 import { ActivityBar } from './layout/ActivityBar.js'
+import { Basement } from './layout/Basement.js'
 import { ConfigBanner } from './layout/ConfigBanner.js'
 import { UnattendedBanner } from './layout/UnattendedBanner.js'
 import { Header } from './layout/Header.js'
@@ -41,6 +42,13 @@ export function App() {
           </Routes>
         )}
       </main>
+      {state !== null && (
+        <Routes>
+          <Route path="/stats" element={<Basement sign={t.basement.stats} />} />
+          <Route path="/tools" element={<Basement sign={t.basement.tools} />} />
+          <Route path="*" element={null} />
+        </Routes>
+      )}
     </div>
   )
 }
