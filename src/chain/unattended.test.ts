@@ -102,6 +102,16 @@ describe('Dispatcher in the unattended mode', () => {
     expect(relays).toHaveLength(1)
   })
 
+  it('counts them anew from a checkpoint handover, before the new session takes its first turn', async () => {
+    const context = await running({}, session('2026-09-26T11:00:00.000Z', { checkpoint: '.temp/handoff.md' }))
+    const sessionId = context.dispatcher.state.active[0]!.current!.sessionId!
+    context.handoffs['ABC-1'] = session(null, { sessionId, lastMessage: '' })
+    context.dispatcher.setTasks('ABC', [task('ABC-1'), task('ABC-2')])
+    await context.dispatcher.idle()
+    expect(context.dispatcher.state.skipped).toEqual({})
+    expect(context.launched).toEqual([])
+  })
+
   it('ignores a session other than the current one', async () => {
     const { dispatcher } = await running({}, session('2026-09-26T11:00:00.000Z', { sessionId: 'another-session' }))
     expect(dispatcher.state.skipped).toEqual({})

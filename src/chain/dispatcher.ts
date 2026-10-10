@@ -701,6 +701,7 @@ export class Dispatcher {
       const sessionId = await this.handOver(current.task, session, reason)
       this.deps.journal({ at, project: chain.project, task: current.task, sessionId, reason, previous: session.sessionId })
       current.sessionId = sessionId
+      current.resumedAt = at
       delete current.starting
       this.deps.save(this.state)
     } catch (error) {
