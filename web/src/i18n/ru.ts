@@ -211,11 +211,24 @@ export const ru = {
   home: {
     title: 'Проекты',
     empty: 'В even-keel.config.json нет проектов.',
+    memes: {
+      self: 'Even Keel: мемы про вайбкодеров. Написано вайбкодером.',
+      peak: (day: string, count: number) => `${day}: ${launches(count)}. Ты вообще спал?`,
+      favorite: (project: string, count: number, total: number) => `${count} из ${launches(total)} — ${project}. Любимчик, да?`,
+      questions: (count: number) =>
+        `${count} ${forms('вопрос', 'вопроса', 'вопросов')(count)} ${forms('ждёт', 'ждут', 'ждут')(count)} ответа. Они не обидятся. Наверное.`,
+      limit: (percent: number) => `${percent}% пятичасового лимита. Притормозить? Не, не слышал.`,
+    },
   },
   project: {
     done: 'Готово задач',
     notLoaded: 'Задачи ещё не загружены',
     noTasks: 'Открытых задач нет',
+    emptyCard: {
+      ghost: '0 из 0. Проект-призрак.',
+      finished: (count: number) => `${count} из ${count}. Всё? Правда всё?`,
+      shelved: (count: number) => `Цепь пуста, а в бэклоге ${tasks(count)}. Намёк понял?`,
+    },
     next: 'Следующая',
     start: 'Запустить',
     enqueue: 'В очередь',

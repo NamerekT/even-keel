@@ -5,6 +5,7 @@ import { useCommand } from '../live/useCommand.js'
 import { cardTask, chainProgress, chainStatus, limitWaitText, openQuestions, projectSlot, projectTasks, startsNow } from '../state.js'
 import { StackIcon } from '../ui/icons.js'
 import { Lamp } from '../ui/Lamp.js'
+import { emptyCard } from '../ui/memes.js'
 import { QuestionsChip } from '../ui/QuestionsChip.js'
 import { seriesStyle } from '../ui/series.js'
 import { StatusChip } from '../ui/StatusChip.js'
@@ -54,7 +55,7 @@ export function ProjectCard({ state, project }: { state: EvenKeelState; project:
       </div>
 
       {task === null ? (
-        <p className="card__task card__task--empty">{order === undefined ? t.project.notLoaded : t.project.noTasks}</p>
+        <p className="card__task card__task--empty">{order === undefined ? t.project.notLoaded : emptyText({ done, total, backlog })}</p>
       ) : (
         <p className="card__task">
           <Lamp lamp={task.lamp} />
@@ -76,4 +77,18 @@ export function ProjectCard({ state, project }: { state: EvenKeelState; project:
       )}
     </article>
   )
+}
+
+function emptyText(progress: { done: number; total: number; backlog: number }): string {
+  const { emptyCard: lines } = t.project
+  switch (emptyCard(progress)) {
+    case 'held':
+      return t.project.noTasks
+    case 'shelved':
+      return lines.shelved(progress.backlog)
+    case 'ghost':
+      return lines.ghost
+    case 'finished':
+      return lines.finished(progress.done)
+  }
 }

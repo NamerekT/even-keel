@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { TaskSession } from '../../../src/chain/launches.js'
 import type { ChainBlock } from '../state.js'
-import { longestRun, momentsOf, pickMeme, type Scene } from './memes.js'
+import { emptyCard, type Harbor, harborMemes, longestRun, momentsOf, pickMeme, type Scene } from './memes.js'
 
 const block = (id: string, extra: Partial<ChainBlock> = {}): ChainBlock =>
   ({ id, open: true, locked: false, question: false, skipped: false, sessions: [], ...extra }) as ChainBlock
@@ -76,5 +76,48 @@ describe('pickMeme', () => {
     const draws = [0.6, 0.99]
     expect(pickMeme(['calm'], 5, () => draws.shift()!)).toEqual({ drive: true })
     expect(pickMeme([], 5, () => 0)).toEqual({ line: 0 })
+  })
+})
+
+describe('emptyCard', () => {
+  it('keeps the plain line while open tasks are only held back', () => {
+    expect(emptyCard({ done: 3, total: 5, backlog: 2 })).toBe('held')
+  })
+
+  it('points at the backlog when the chain is through and the backlog is not', () => {
+    expect(emptyCard({ done: 5, total: 5, backlog: 2 })).toBe('shelved')
+    expect(emptyCard({ done: 0, total: 0, backlog: 1 })).toBe('shelved')
+  })
+
+  it('tells a project with no tasks at all from one with everything done', () => {
+    expect(emptyCard({ done: 0, total: 0, backlog: 0 })).toBe('ghost')
+    expect(emptyCard({ done: 19, total: 19, backlog: 0 })).toBe('finished')
+  })
+})
+
+describe('harborMemes', () => {
+  const day = (date: string, counts: Record<string, number>) => ({ day: date, counts })
+  const harbor = (extra: Partial<Harbor> = {}): Harbor => ({ projects: ['ABC', 'XYZ'], launches: [], questions: 0, fiveHour: null, ...extra })
+
+  it('always has the line about itself', () => {
+    expect(harborMemes(harbor())).toEqual([{ kind: 'self' }])
+  })
+
+  it('names the busiest day once it reaches fifty launches', () => {
+    const launches = [day('2026-10-07', { ABC: 20, XYZ: 10 }), day('2026-10-08', { ABC: 40, XYZ: 12 })]
+    expect(harborMemes(harbor({ launches }))).toContainEqual({ kind: 'peak', day: '2026-10-08', count: 52 })
+    expect(harborMemes(harbor({ launches: [day('2026-10-08', { ABC: 49 })] })).map((meme) => meme.kind)).not.toContain('peak')
+  })
+
+  it('finds a favourite holding three quarters of at least fifty launches, among several projects', () => {
+    const launches = [day('2026-10-08', { ABC: 45, XYZ: 15 })]
+    expect(harborMemes(harbor({ launches }))).toContainEqual({ kind: 'favorite', project: 'ABC', count: 45, total: 60 })
+    expect(harborMemes(harbor({ launches: [day('2026-10-08', { ABC: 44, XYZ: 16 })] })).map((meme) => meme.kind)).not.toContain('favorite')
+    expect(harborMemes(harbor({ projects: ['ABC'], launches: [day('2026-10-08', { ABC: 60 })] })).map((meme) => meme.kind)).not.toContain('favorite')
+  })
+
+  it('counts waiting questions from three and the five-hour limit from half', () => {
+    expect(harborMemes(harbor({ questions: 3, fiveHour: 50 }))).toEqual([{ kind: 'self' }, { kind: 'questions', count: 3 }, { kind: 'limit', percent: 50 }])
+    expect(harborMemes(harbor({ questions: 2, fiveHour: 49.9 }))).toEqual([{ kind: 'self' }])
   })
 })

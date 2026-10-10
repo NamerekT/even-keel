@@ -212,11 +212,23 @@ export const en: Messages = {
   home: {
     title: 'Projects',
     empty: 'even-keel.config.json has no projects.',
+    memes: {
+      self: 'Even Keel: memes about vibe coders. Written by a vibe coder.',
+      peak: (day: string, count: number) => `${day}: ${launches(count)}. Did you even sleep?`,
+      favorite: (project: string, count: number, total: number) => `${count} of ${launches(total)} are ${project}. Favorite, huh?`,
+      questions: (count: number) => `${counted('question', 'questions')(count)} waiting for an answer. They won't be offended. Probably.`,
+      limit: (percent: number) => `${percent}% of the five-hour limit. Slow down? Never heard of it.`,
+    },
   },
   project: {
     done: 'Tasks done',
     notLoaded: 'Tasks are not loaded yet',
     noTasks: 'No open tasks',
+    emptyCard: {
+      ghost: '0 of 0. A ghost project.',
+      finished: (count: number) => `${count} of ${count}. That's it? Really, all of them?`,
+      shelved: (count: number) => `The chain is empty, ${tasks(count)} in the backlog. Get the hint?`,
+    },
     next: 'Next',
     start: 'Start',
     enqueue: 'Queue',

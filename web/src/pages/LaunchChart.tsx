@@ -7,7 +7,7 @@ import { seriesStyle } from '../ui/series.js'
 const DAY = localized((language) => new Intl.DateTimeFormat(language, { day: 'numeric', month: 'short', weekday: 'short' }))
 const MONTH = localized((language) => new Intl.DateTimeFormat(language, { month: 'short' }))
 
-function localDate(day: string): Date {
+export function localDate(day: string): Date {
   const [year, month, date] = day.split('-').map(Number)
   return new Date(year!, month! - 1, date)
 }
