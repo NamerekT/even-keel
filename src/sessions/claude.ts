@@ -90,11 +90,7 @@ export class ClaudeCli {
   async launch(home: AccountHome, task: string, cwd: string, prompt: string, model: ModelAlias, settings?: string): Promise<AgentEntry> {
     const launchedAt = Date.now()
     await this.start(home, [...sessionArgs(task, model, settings), prompt], cwd, notice('claude.startFailed', { task, cwd }))
-    return this.appear(
-      home,
-      (agent) => agent.name === task && samePath(agent.cwd, cwd) && agent.startedAt >= launchedAt - CLOCK_SKEW_MS,
-      notice('claude.notShown', { task }),
-    )
+    return this.appear(home, launchedAs(task, cwd, launchedAt), notice('claude.notShown', { task }))
   }
 
   async resume(
@@ -106,9 +102,10 @@ export class ClaudeCli {
     model: ModelAlias,
     settings?: string,
   ): Promise<AgentEntry> {
+    const resumedAt = Date.now()
     const args = [...sessionArgs(task, model, settings), '--resume', sessionId, prompt]
     await this.start(home, args, cwd, notice('claude.resumeFailed', { task, cwd }))
-    return this.appear(home, (agent) => agent.sessionId === sessionId && !isOver(agent), notice('claude.resumedNotShown', { task }))
+    return this.appear(home, resumedAs(sessionId, task, cwd, resumedAt), notice('claude.resumedNotShown', { task }))
   }
 
   async stop(home: AccountHome, agentId: string, sessionId: string): Promise<void> {
@@ -160,6 +157,16 @@ export const SESSION_MODE = 'auto'
 
 export function sessionArgs(task: string, model: ModelAlias, settings?: string): string[] {
   return ['--bg', '--permission-mode', SESSION_MODE, '-n', task, '--model', model, ...(settings === undefined ? [] : ['--settings', settings])]
+}
+
+function launchedAs(task: string, cwd: string, since: number): (agent: AgentEntry) => boolean {
+  return (agent) => agent.name === task && samePath(agent.cwd, cwd) && agent.startedAt >= since - CLOCK_SKEW_MS
+}
+
+/** A `--bg --resume` session may come up under a new session id (CLI 2.1.296), so it is also recognised the way a launch is. */
+export function resumedAs(sessionId: string, task: string, cwd: string, since: number): (agent: AgentEntry) => boolean {
+  const launched = launchedAs(task, cwd, since)
+  return (agent) => !isOver(agent) && (agent.sessionId === sessionId || launched(agent))
 }
 
 function isOver(agent: AgentEntry): boolean {
