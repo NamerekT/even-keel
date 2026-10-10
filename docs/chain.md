@@ -59,7 +59,7 @@ A task that the chain started and released other than through Done — dropped o
 
 In every exception a session `claude agents` shows `failed` or `stopped` is stopped as well while its process lives (`pid` from a live `sessions/<pid>.json`): a session that failed at start (an API 400) keeps running, and `claude stop` run from a terminal marks the job `stopped` without reaching the service's daemon (`isGone` in `src/sessions/claude.ts`, `stopTaskSessions`, `slotOccupants`).
 
-The dispatcher may stop waiting for a session (without touching it) if it is not mid-turn (`busy`/`waiting`): the current task got an open blocker from the same chain (the session postponed it itself, `postpone` in the log) or the user pressed "Skip" (`skip`). The chain does not take a skipped task until the user returns it or it leaves the chain in the tracker (closed, in Backlog).
+The dispatcher may stop waiting for a session (without touching it) if it is not mid-turn (`busy`/`waiting`): the current task got an open blocker from the same chain (the session postponed it itself, `postpone` in the log) or the user pressed "Skip" (`skip`). The chain does not take a skipped task until the user returns it or it leaves the chain in the tracker (closed, in Backlog). "Skip" is refused for any task whose session is mid-turn, also one released by "Stop": otherwise a restarted chain would launch the next task beside it instead of taking the live session again.
 
 ## Unattended mode (`unattended`)
 

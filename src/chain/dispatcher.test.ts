@@ -912,6 +912,17 @@ describe('Dispatcher skipping a task', () => {
     expect(dispatcher.state.skipped).toEqual({})
   })
 
+  it('refuses to skip a released task while its session is mid-turn, so a restarted chain takes the live session again', async () => {
+    const { dispatcher, launched } = await running({ busy: new Set(['ABC-1']), live: { 'ABC-1': 'session-1' } })
+    dispatcher.stop('ABC')
+    expect(() => dispatcher.skip('ABC', 'ABC-1')).toThrow('chain: ABC-1 is mid-turn; wait until its session stops')
+    dispatcher.start('ABC')
+    await dispatcher.idle()
+    expect(launched).toEqual([])
+    expect(dispatcher.state.active[0]?.current).toMatchObject({ task: 'ABC-1', sessionId: 'session-1' })
+    expect(dispatcher.state.skipped).toEqual({})
+  })
+
   it('skips a task ahead and takes it again once returned', async () => {
     const { dispatcher, launched } = setup()
     dispatcher.setTasks('ABC', [task('ABC-1'), task('ABC-2'), task('ABC-3')])
