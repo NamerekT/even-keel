@@ -86,6 +86,53 @@ html:has(dialog:modal) {
   overflow: hidden;
 }
 
+/* Scrollbars: one look everywhere; the page's is wider than the panes'.
+   Chromium ignores ::-webkit-scrollbar on elements with scrollbar-color or
+   scrollbar-width set, so the standard properties are for Firefox only. */
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+:root::-webkit-scrollbar {
+  width: 12px;
+}
+
+::-webkit-scrollbar-track,
+::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  border: 2px solid transparent;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--fg-muted) 35%, transparent) padding-box;
+}
+
+:hover::-webkit-scrollbar-thumb {
+  background-color: color-mix(in srgb, var(--fg-muted) 55%, transparent);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background-color: color-mix(in srgb, var(--fg-muted) 80%, transparent);
+}
+
+::-webkit-scrollbar-thumb:active {
+  background-color: var(--accent);
+}
+
+@supports not selector(::-webkit-scrollbar) {
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: color-mix(in srgb, var(--fg-muted) 45%, transparent) transparent;
+  }
+
+  :root {
+    scrollbar-width: auto;
+  }
+}
+
 body {
   margin: 0;
   background: var(--bg);
