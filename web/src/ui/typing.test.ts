@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { typedAt } from './typing.js'
+import { book, typedAt, typingTime } from './typing.js'
 
 const pace = { charMs: 10, pauseMs: 100 }
 
@@ -18,5 +18,29 @@ describe('typedAt', () => {
   it('pauses between every two parts and stops at the whole text', () => {
     expect(typedAt(['a', 'b', 'c'], 10 + 100 + 10 + 50, pace)).toBe(2)
     expect(typedAt(['a', 'b', 'c'], 10_000, pace)).toBe(3)
+  })
+})
+
+describe('typingTime', () => {
+  it('sums the characters and the holds between parts', () => {
+    expect(typingTime(['abc', 'de', 'f'], pace)).toBe(60 + 200)
+    expect(typingTime(['abc'], pace)).toBe(30)
+  })
+})
+
+describe('book', () => {
+  it('runs lines one after another with a single typist', () => {
+    const free = [0]
+    expect(book(free, 0, 50)).toBe(0)
+    expect(book(free, 10, 30)).toBe(50)
+    expect(free).toEqual([80])
+  })
+
+  it('gives each line the typist that frees first, and never starts in the past', () => {
+    const free = [0, 0]
+    expect(book(free, 0, 50)).toBe(0)
+    expect(book(free, 0, 20)).toBe(0)
+    expect(book(free, 5, 10)).toBe(20)
+    expect(book(free, 100, 10)).toBe(100)
   })
 })
