@@ -24,6 +24,15 @@ describe('voyageFrame', () => {
     expect(mastTop(voyageFrame(crest))).toBeLessThan(mastTop(voyageFrame(0)) - 1)
     expect(mastTop(voyageFrame(crest, true))).toBeLessThan(mastTop(voyageFrame(0, true)))
   })
+
+  it('puts the driving boat on two wheels right under its hull, and the sailing one on none', () => {
+    for (const tick of [0, tickWhere((at) => Math.abs(at - BOAT_MAST) <= 0.3)]) {
+      const frame = rows(voyageFrame(tick, true))
+      const keel = frame.findIndex((row) => row.includes('\\_________________/'))
+      expect(frame[keel + 1]!.match(/\(o\)/g)).toHaveLength(2)
+    }
+    expect(voyageFrame(0)).not.toContain('(o)')
+  })
 })
 
 describe('poseAt', () => {

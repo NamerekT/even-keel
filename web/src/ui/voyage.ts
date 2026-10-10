@@ -1,6 +1,6 @@
 /**
  * ASCII frames of a sailboat that rocks on a choppy sea and now and then rides over a low swell, tilting with it.
- * In `drive` mode the old picture stays: a stiff boat crawling over a hollow hill, as if over land.
+ * In `drive` mode the old picture stays: a stiff boat on wheels crawling over a hollow hill, as if over land.
  */
 
 const WIDTH = 60
@@ -45,6 +45,8 @@ const BOAT = [
   '\\####o####o####o####/',
   ' \\_________________/',
 ]
+/** What the driving boat rolls on, under its hull. */
+const WHEELS = '    (o)       (o)'
 const BOAT_LEFT = 20
 const BOAT_MIDDLE = 10
 const CLOUD = ['   .--.', '.-(    ).', '(___.__)__)']
@@ -270,10 +272,11 @@ function driveFrame(tick: number): string {
   })
 
   const lift = Math.round(rise(BOAT_MAST - crest, DRIVE_SWELL))
-  BOAT.forEach((line, row) => [...line].forEach((char, index) => canvas.put(SEA - (BOAT.length - 1 - row) - lift, BOAT_LEFT + index, char)))
+  const sprite = [...BOAT, WHEELS]
+  sprite.forEach((line, row) => [...line].forEach((char, index) => canvas.put(SEA - (sprite.length - 1 - row) - lift, BOAT_LEFT + index, char)))
 
   if (slope(BOAT_MAST - crest, DRIVE_SWELL) >= 0.2) {
-    const deck = SEA - 2 - lift
+    const deck = SEA - 3 - lift
     const bow = BOAT_LEFT + BOAT[BOAT.length - 3]!.length - 1
     for (const [row, column, char] of SPRAY[tick % 2]!) canvas.put(deck + row, bow + column, char)
   }

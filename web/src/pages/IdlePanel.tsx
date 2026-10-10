@@ -7,7 +7,7 @@ import { shownAt, typingTime } from '../ui/typing.js'
 import { VOYAGE_TICK_MS, voyageFrame } from '../ui/voyage.js'
 
 const IDLE_PACE = { charMs: 40, pauseMs: 1500 }
-/** How long a general line stays typed before it is erased for the next one. */
+/** How long a line stays typed before it is erased for the next one: a general line always, the others at least. */
 const HOLD_MS = 7000
 
 /** Holds the side column while no panel is open, so the chain keeps its width. */
@@ -32,7 +32,8 @@ export function IdlePanel({ scene }: { scene: Scene }) {
       setMeme(draw(meme))
       return
     }
-    line.current.eraseAt ??= Math.max(performance.now() - line.current.start, typingTime(parts, IDLE_PACE))
+    // The moments change as the page loads too, so a line drawn before that still gets its hold.
+    line.current.eraseAt ??= Math.max(performance.now() - line.current.start, typingTime(parts, IDLE_PACE) + HOLD_MS)
   }, [cue])
 
   useEffect(() => {
@@ -60,10 +61,12 @@ export function IdlePanel({ scene }: { scene: Scene }) {
 
   return (
     <aside className="idle">
-      <pre className="idle__voyage" aria-hidden="true">
-        {voyageFrame(tick, 'drive' in meme)}
-      </pre>
-      <TypedLine text={parts.join('')} shown={shown} className="idle__meme" />
+      <div className="idle__scene">
+        <pre className="idle__voyage" aria-hidden="true">
+          {voyageFrame(tick, 'drive' in meme)}
+        </pre>
+        <TypedLine text={parts.join('')} shown={shown} className="idle__meme" />
+      </div>
       <p className="idle__hint">{t.project.idle.hint}</p>
     </aside>
   )

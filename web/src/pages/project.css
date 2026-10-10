@@ -84,6 +84,13 @@
   }
 }
 
+/* As wide as the picture, so every meme starts at its left edge instead of jumping with its length. */
+.idle__scene {
+  display: grid;
+  gap: 12px;
+  width: min-content;
+}
+
 .idle__voyage {
   margin: 0;
   font-family: var(--mono);
@@ -95,6 +102,7 @@
   margin: 0;
   color: var(--fg);
   font-size: 15px;
+  text-align: left;
 }
 
 .idle__hint {
