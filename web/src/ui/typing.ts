@@ -21,6 +21,12 @@ export function typedAt(parts: string[], elapsed: number, { charMs, pauseMs }: P
   return shown
 }
 
+/** Like `typedAt`, but from `eraseAt` ms on (`null` — never) the line is erased at the same pace. */
+export function shownAt(parts: string[], elapsed: number, pace: Pace, eraseAt: number | null): number {
+  if (eraseAt === null || elapsed < eraseAt) return typedAt(parts, elapsed, pace)
+  return Math.max(0, typedAt(parts, eraseAt, pace) - Math.floor((elapsed - eraseAt) / pace.charMs))
+}
+
 export function typingTime(parts: string[], { charMs, pauseMs }: Pace): number {
   return parts.join('').length * charMs + Math.max(0, parts.length - 1) * pauseMs
 }

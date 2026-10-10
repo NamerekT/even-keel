@@ -77,6 +77,18 @@ describe('pickMeme', () => {
     expect(pickMeme(['calm'], 5, () => draws.shift()!)).toEqual({ drive: true })
     expect(pickMeme([], 5, () => 0)).toEqual({ line: 0 })
   })
+
+  it('never draws the previous line again', () => {
+    expect(pickMeme([], 5, () => 0, { line: 0 })).toEqual({ line: 1 })
+    expect(pickMeme([], 5, () => 0.99, { drive: true })).toEqual({ line: 4 })
+    expect(pickMeme([], 1, () => 0.99, { line: 0 })).toEqual({ drive: true })
+  })
+
+  it('leaves the previous moment out of the moments', () => {
+    const draws = [0.2, 0]
+    expect(pickMeme(['calm', 'spend'], 5, () => draws.shift()!, { moment: 'calm' })).toEqual({ moment: 'spend' })
+    expect(pickMeme(['calm'], 5, () => 0, { moment: 'calm' })).toEqual({ line: 0 })
+  })
 })
 
 describe('emptyCard', () => {

@@ -43,10 +43,14 @@ export function momentsOf(scene: Scene): Moment[] {
   return moments
 }
 
-/** Half the draws go to the moments, when there are any; the rest to the general lines and the drive. */
-export function pickMeme(moments: Moment[], lines: number, random: () => number): Meme {
-  if (moments.length > 0 && random() < 0.5) return { moment: moments[Math.floor(random() * moments.length)]! }
-  const index = Math.floor(random() * (lines + 1))
+/** Half the draws go to the moments, when there are any; the rest to the general lines and the drive. Never `previous` again. */
+export function pickMeme(moments: Moment[], lines: number, random: () => number, previous?: Meme): Meme {
+  const fresh = moments.filter((moment) => !(previous && 'moment' in previous && previous.moment === moment))
+  if (fresh.length > 0 && random() < 0.5) return { moment: fresh[Math.floor(random() * fresh.length)]! }
+  // The drive is the general line after the last one.
+  const skip = previous === undefined || 'moment' in previous ? -1 : 'drive' in previous ? lines : previous.line
+  let index = Math.floor(random() * (skip < 0 ? lines + 1 : lines))
+  if (skip >= 0 && index >= skip) index += 1
   return index === lines ? { drive: true } : { line: index }
 }
 

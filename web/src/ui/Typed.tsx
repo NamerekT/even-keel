@@ -40,7 +40,11 @@ export function Typed({ parts, pace, className }: { parts: string[]; pace: Pace;
     return () => cancelAnimationFrame(frame)
   }, [])
 
-  const text = parts.join('')
+  return <TypedLine text={parts.join('')} shown={shown} className={className} />
+}
+
+/** `shown` characters of `text` with the caret after them; -1 — none shown and no caret yet. */
+export function TypedLine({ text, shown, className }: { text: string; shown: number; className: string }) {
   const typed = Math.max(0, shown)
   return (
     <p className={className}>

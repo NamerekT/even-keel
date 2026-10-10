@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { book, typedAt, typingTime } from './typing.js'
+import { book, shownAt, typedAt, typingTime } from './typing.js'
 
 const pace = { charMs: 10, pauseMs: 100 }
 
@@ -18,6 +18,23 @@ describe('typedAt', () => {
   it('pauses between every two parts and stops at the whole text', () => {
     expect(typedAt(['a', 'b', 'c'], 10 + 100 + 10 + 50, pace)).toBe(2)
     expect(typedAt(['a', 'b', 'c'], 10_000, pace)).toBe(3)
+  })
+})
+
+describe('shownAt', () => {
+  it('types as usual while the line is not being erased', () => {
+    expect(shownAt(['abc', 'de'], 140, pace, null)).toBe(4)
+    expect(shownAt(['abc', 'de'], 140, pace, 500)).toBe(4)
+  })
+
+  it('erases at the typing pace from what was shown when erasing began', () => {
+    expect(shownAt(['abc', 'de'], 500, pace, 500)).toBe(5)
+    expect(shownAt(['abc', 'de'], 525, pace, 500)).toBe(3)
+    expect(shownAt(['abc', 'de'], 140 + 10, pace, 140)).toBe(3)
+  })
+
+  it('stops at an empty line', () => {
+    expect(shownAt(['abc', 'de'], 10_000, pace, 500)).toBe(0)
   })
 })
 
