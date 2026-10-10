@@ -479,6 +479,14 @@ export const en: Messages = {
     noAuthor: 'no author',
     ready: 'Move to Todo',
     readyHint: 'The task is in the backlog: the chain takes it once it is in Todo.',
+    attachments: 'Attachments',
+    download: (name: string) => `Download ${name}`,
+    viewer: {
+      close: 'Close',
+      prev: 'Previous',
+      next: 'Next',
+      original: 'Open the file',
+    },
   },
   stats: {
     title: 'Stats',

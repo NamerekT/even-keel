@@ -2,6 +2,7 @@ import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import type { AddressInfo } from 'node:net'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { Readable } from 'node:stream'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { EventHub } from './events.js'
 import { createEvenKeelServer, type AccountControl, type ChainControl } from './server.js'
@@ -80,6 +81,13 @@ describe('Even Keel HTTP server', () => {
         ready: async (task) => {
           if (task === 'ABC-9') throw new Error('huly: issue ABC-9 not found')
           calls.push(['ready', task])
+        },
+        file: async (task, file) => {
+          if (task === 'ABC-9') throw new Error('huly: issue ABC-9 not found')
+          if (task !== 'ABC-1') return undefined
+          if (file === 'shot 1.png') return { type: 'image/png', size: 4, body: Readable.from([Buffer.from('PNG!')]) }
+          if (file === 'page.html') return { type: 'text/html', size: 6, body: Readable.from([Buffer.from('<html>')]) }
+          return undefined
         },
       },
       stats: {
@@ -210,6 +218,26 @@ describe('Even Keel HTTP server', () => {
     const failed = await fetch(base + '/api/tasks/ABC-9')
     expect(failed.status).toBe(400)
     expect(await failed.json()).toEqual(refusal('huly: issue ABC-9 not found'))
+  })
+
+  it('passes a file of a task through, 404 for a file the task does not have', async () => {
+    const response = await fetch(base + '/api/tasks/ABC-1/files/shot%201.png')
+    expect(response.status).toBe(200)
+    expect(response.headers.get('content-type')).toBe('image/png')
+    expect(response.headers.get('content-length')).toBe('4')
+    expect(response.headers.get('x-content-type-options')).toBe('nosniff')
+    expect(response.headers.get('content-disposition')).toBe('inline')
+    expect(await response.text()).toBe('PNG!')
+    expect((await fetch(base + '/api/tasks/ABC-1/files/other.png')).status).toBe(404)
+    expect((await fetch(base + '/api/tasks/ABC-2/files/shot%201.png')).status).toBe(404)
+    expect((await fetch(base + '/api/tasks/nope/files/shot%201.png')).status).toBe(400)
+    expect((await fetch(base + '/api/tasks/ABC-9/files/shot%201.png')).status).toBe(400)
+  })
+
+  it('makes a file that is not a picture, video or PDF a download, so it never runs on the page origin', async () => {
+    const response = await fetch(base + '/api/tasks/ABC-1/files/page.html')
+    expect(response.headers.get('content-disposition')).toBe('attachment')
+    expect(response.headers.get('content-security-policy')).toBe('sandbox')
   })
 
   it('moves a backlog task to Todo', async () => {

@@ -468,6 +468,12 @@ const server = createEvenKeelServer({
         tracker.card === undefined ? undefined : cardOf(await tracker.card(task), rulesOf(project!), tracker.ready !== undefined),
       )
     },
+    file: async (task, file) => {
+      const project = configuredProject(task)
+      const link = project === undefined ? undefined : links.get(config.trackers[project]!)
+      if (link === undefined) return undefined
+      return link.run(async (tracker) => (await tracker.file?.(task, file)) ?? undefined)
+    },
     ready: async (task) => {
       const project = configuredProject(task)
       const link = project === undefined ? undefined : links.get(config.trackers[project]!)

@@ -482,6 +482,14 @@ export const ru = {
     noAuthor: 'без автора',
     ready: 'Перевести в Todo',
     readyHint: 'Задача в бэклоге: цепочка возьмёт её, когда она будет в Todo.',
+    attachments: 'Вложения',
+    download: (name: string) => `Скачать ${name}`,
+    viewer: {
+      close: 'Закрыть',
+      prev: 'Предыдущее',
+      next: 'Следующее',
+      original: 'Открыть файл',
+    },
   },
   stats: {
     title: 'Статистика',

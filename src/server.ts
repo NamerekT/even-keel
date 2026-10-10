@@ -1,6 +1,8 @@
 import { readFile } from 'node:fs/promises'
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http'
 import { extname, join, normalize, sep } from 'node:path'
+import { Readable } from 'node:stream'
+import { pipeline } from 'node:stream/promises'
 import { formatEvent, type EventHub } from './events.js'
 import { englishOf, fail, noticeOf, type NoticeCode } from './notice/notice.js'
 import {
@@ -27,6 +29,10 @@ import {
 import type { Calibration } from './stats/calibration.js'
 import type { StatsSteps } from './stats/steps.js'
 import type { TaskCard } from './tracker/card.js'
+import type { TaskFile } from './tracker/source.js'
+
+/** Files the browser may show in place; anything else is a download, so a tracker file never runs as the page. */
+const SHOWN_IN_PLACE = /^(image\/(png|jpeg|gif|webp|avif|bmp)|video\/[\w.+-]+|audio\/[\w.+-]+|application\/pdf)$/
 
 export interface StatsSource {
   history(filter: StatsFilter): Promise<StatsAnswer<StatsHistory>>
@@ -68,6 +74,8 @@ export interface AccountControl {
 export interface TaskControl {
   /** `undefined` — no connected tracker gives a card for the task. */
   card(task: string): Promise<TaskCard | undefined>
+  /** `undefined` — no connected tracker gives the file, or the task has no such file. */
+  file(task: string, file: string): Promise<TaskFile | undefined>
   ready(task: string): Promise<void>
 }
 
@@ -205,6 +213,22 @@ async function route(deps: ServerDeps, request: IncomingMessage, response: Serve
     return
   }
 
+  const file = /^\/api\/tasks\/([^/]+)\/files\/([^/]+)$/.exec(path)
+  if (request.method === 'GET' && file !== null) {
+    let found: TaskFile | undefined
+    try {
+      const task = decodeURIComponent(file[1]!)
+      if (!isTaskId(task)) throw fail('request.taskId', {})
+      found = await deps.tasks.file(task, decodeURIComponent(file[2]!))
+    } catch (error) {
+      sendFailure(response, error)
+      return
+    }
+    if (found === undefined) response.writeHead(404).end()
+    else await sendFile(response, found)
+    return
+  }
+
   const stats = /^\/api\/stats\/(history|period|steps|rules|rules\/diff|rules\/compare|task\/([^/]+))$/.exec(path)
   if (request.method === 'GET' && stats !== null) {
     let read: () => Promise<StatsAnswer<unknown>>
@@ -278,6 +302,23 @@ function sendFailure(response: ServerResponse, error: unknown): void {
 function sendJson(response: ServerResponse, status: number, body: unknown): void {
   response.writeHead(status, { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' })
   response.end(JSON.stringify(body))
+}
+
+async function sendFile(response: ServerResponse, file: TaskFile): Promise<void> {
+  const shown = SHOWN_IN_PLACE.test(file.type)
+  response.writeHead(200, {
+    'content-type': file.type || 'application/octet-stream',
+    ...(file.size === null ? {} : { 'content-length': String(file.size) }),
+    'content-disposition': shown ? 'inline' : 'attachment',
+    'x-content-type-options': 'nosniff',
+    'cache-control': 'private, max-age=3600',
+    ...(shown ? {} : { 'content-security-policy': 'sandbox' }),
+  })
+  try {
+    await pipeline(Readable.from(file.body), response)
+  } catch {
+    response.destroy()
+  }
 }
 
 async function readJsonBody(request: IncomingMessage): Promise<Record<string, unknown>> {

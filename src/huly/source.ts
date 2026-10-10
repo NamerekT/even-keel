@@ -13,6 +13,7 @@ import {
   toCard,
   toStatus,
   toTasks,
+  type HulyAttachmentDoc,
   type HulyCardIssue,
   type HulyIssueDoc,
   type HulyLabelDoc,
@@ -24,6 +25,7 @@ type Query = Record<string, unknown>
 type FullIssue = HulyCardIssue & { space: string; description?: string | null }
 
 interface ChatMessageDoc {
+  _id: string
   message: string
   createdBy?: string
   createdOn: number
@@ -37,8 +39,13 @@ interface PlatformClient {
   close(): Promise<void>
 }
 
+interface StorageClient {
+  get(file: string): Promise<AsyncIterable<Uint8Array>>
+}
+
 interface ApiClientModule {
   connect(url: string, options: Record<string, unknown>): Promise<PlatformClient>
+  connectStorage(url: string, options: Record<string, unknown>): Promise<StorageClient>
   NodeWebSocketFactory: unknown
 }
 
@@ -56,6 +63,7 @@ const { markupToMarkdown } = require('@hcengineering/text-markdown') as { markup
 const TAG_REFERENCE = 'tags:class:TagReference'
 const PROJECT_TYPE = 'task:class:ProjectType'
 const CHAT_MESSAGE = 'chunter:class:ChatMessage'
+const ATTACHMENT = 'attachment:class:Attachment'
 const SOCIAL_IDENTITY = 'contact:class:SocialIdentity'
 const PERSON = 'contact:class:Person'
 const REF_FIELDS = { identifier: 1, title: 1, status: 1 } as const
@@ -74,18 +82,33 @@ const ISSUE_FIELDS = {
 } as const
 const MILESTONE_FIELDS = { label: 1, targetDate: 1 } as const
 const LABEL_FIELDS = { attachedTo: 1, title: 1 } as const
+const ATTACHMENT_FIELDS = { file: 1, name: 1, type: 1, size: 1, modifiedOn: 1, createdOn: 1 } as const
 
 export async function connectHuly(credentials: HulyCredentials, timeoutMs: number): Promise<TaskSource> {
+  const account = { email: credentials.email, password: credentials.password, workspace: credentials.workspace }
   const client = await api.connect(credentials.url, {
-    email: credentials.email,
-    password: credentials.password,
-    workspace: credentials.workspace,
+    ...account,
     socketFactory: api.NodeWebSocketFactory,
     connectionTimeout: timeoutMs,
   })
 
   const findStatuses = () => client.findAll<HulyStatusDoc>(tracker.class.IssueStatus, {})
   const findIssues = (query: Query) => client.findAll<HulyIssueDoc>(tracker.class.Issue, query, { projection: ISSUE_FIELDS })
+  const findAttachments = (query: Query) => client.findAll<HulyAttachmentDoc>(ATTACHMENT, query, { projection: ATTACHMENT_FIELDS })
+
+  let storage: Promise<StorageClient> | null = null
+  // The storage token may expire while the service runs: a failed read connects anew once.
+  async function readFile(file: string): Promise<AsyncIterable<Uint8Array>> {
+    for (let attempt = 0; ; attempt++) {
+      storage ??= api.connectStorage(credentials.url, account)
+      try {
+        return await (await storage).get(file)
+      } catch (error) {
+        storage = null
+        if (attempt > 0) throw error
+      }
+    }
+  }
 
   async function findIssue(identifier: string): Promise<FullIssue> {
     const issue = await client.findOne<FullIssue>(tracker.class.Issue, { identifier })
@@ -185,6 +208,10 @@ export async function connectHuly(credentials: HulyCredentials, timeoutMs: numbe
         client.findAll<HulyLabelDoc>(TAG_REFERENCE, { attachedTo: issue._id }, { projection: LABEL_FIELDS }),
         client.findAll<ChatMessageDoc>(CHAT_MESSAGE, { attachedTo: issue._id }),
       ])
+      const [people, attachments] = await Promise.all([
+        peopleOf(messages.flatMap((doc) => doc.createdBy ?? [])),
+        findAttachments({ attachedTo: { $in: [issue._id, ...messages.map((doc) => doc._id)] } }),
+      ])
       return toCard({
         issue,
         description,
@@ -194,8 +221,16 @@ export async function connectHuly(credentials: HulyCredentials, timeoutMs: numbe
         milestones,
         labels,
         comments: messages.map((doc) => ({ createdBy: doc.createdBy, createdOn: doc.createdOn, text: markupToMarkdown(markupToJSON(doc.message)) })),
-        people: await peopleOf(messages.flatMap((doc) => doc.createdBy ?? [])),
+        people,
+        attachments,
       })
+    },
+    async file(identifier, file) {
+      const issue = await findIssue(identifier)
+      const messages = await client.findAll<{ _id: string }>(CHAT_MESSAGE, { attachedTo: issue._id }, { projection: { _id: 1 } })
+      const [doc] = await findAttachments({ attachedTo: { $in: [issue._id, ...messages.map((each) => each._id)] }, file })
+      if (doc === undefined) return null
+      return { type: doc.type ?? '', size: doc.size ?? null, body: await readFile(file) }
     },
     async ready(identifier) {
       const issue = await findIssue(identifier)

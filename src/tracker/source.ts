@@ -2,6 +2,14 @@ import { isTerminal, unknownStatuses, type ChainRules } from '../chain/rules.js'
 import type { TrackerCard } from './card.js'
 import { isLeaf, toTask, type Task, type TaskStatus, type TrackerTask } from './model.js'
 
+export interface TaskFile {
+  /** MIME type; empty when unknown. */
+  type: string
+  /** bytes; `null` when unknown */
+  size: number | null
+  body: AsyncIterable<Uint8Array>
+}
+
 /**
  * The contract of a tracker adapter. Even Keel reads tasks through it and never talks to a tracker directly;
  * Huly (`src/huly/adapter.ts`) is one implementation. An adapter is registered in `src/tracker/adapters.ts`
@@ -48,6 +56,11 @@ export interface TaskSource {
    * Without it the page has no card and offers only the link to the task.
    */
   card?(id: string): Promise<TrackerCard>
+  /**
+   * Optional. The content of a file from the task's card whose `url` is `null`, by its `file`;
+   * `null` — the task has no such file. The page gets it through the service, which holds the tracker's credentials.
+   */
+  file?(id: string, file: string): Promise<TaskFile | null>
   /**
    * Optional. Moves an `UnStarted` task to the tracker's first `ToDo` status; the card offers it for a task in the backlog.
    * Returns the new status; `null` — the task is not `UnStarted` and was left alone.
@@ -122,6 +135,7 @@ export interface Tracker {
   complete?(id: string): Promise<boolean>
   children?(id: string): Promise<Task[]>
   card?(id: string): Promise<TrackerCard>
+  file?(id: string, file: string): Promise<TaskFile | null>
   ready?(id: string): Promise<TaskStatus | null>
   close(): Promise<void>
 }
@@ -143,6 +157,7 @@ export function trackerOf(source: TaskSource): Tracker {
   if (source.complete !== undefined) tracker.complete = (id) => source.complete!(id)
   if (source.children !== undefined) tracker.children = async (id) => (await source.children!(id)).map(toTask)
   if (source.card !== undefined) tracker.card = (id) => source.card!(id)
+  if (source.file !== undefined) tracker.file = (id, file) => source.file!(id, file)
   if (source.ready !== undefined) tracker.ready = (id) => source.ready!(id)
   return tracker
 }

@@ -59,6 +59,18 @@ export interface HulyCardDocs {
   comments: HulyCommentDoc[]
   /** A person's name as Huly keeps it, by social id. */
   people: ReadonlyMap<string, string>
+  /** The files of the issue and of its comments. */
+  attachments: HulyAttachmentDoc[]
+}
+
+/** `file` is the blob id in the workspace storage. */
+export interface HulyAttachmentDoc {
+  file: string
+  name: string
+  type?: string
+  size?: number
+  modifiedOn: number
+  createdOn?: number
 }
 
 export const ISSUE_CLASS = 'tracker:class:Issue'
@@ -172,6 +184,9 @@ export function toCard(docs: HulyCardDocs): TrackerCard {
         const name = doc.createdBy === undefined ? undefined : docs.people.get(doc.createdBy)
         return { author: name === undefined ? null : personName(name), at: doc.createdOn, text: doc.text }
       }),
+    attachments: [...docs.attachments]
+      .sort((a, b) => (a.createdOn ?? a.modifiedOn) - (b.createdOn ?? b.modifiedOn))
+      .map((doc) => ({ file: doc.file, name: doc.name, type: doc.type ?? '', size: doc.size ?? 0, url: null })),
   }
 }
 

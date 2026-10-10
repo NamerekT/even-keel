@@ -15,6 +15,20 @@ export interface TrackerCard {
   blocks: TaskRef[]
   related: TaskRef[]
   comments: TaskComment[]
+  attachments: TaskAttachment[]
+}
+
+/** A file attached to the task or to one of its comments. */
+export interface TaskAttachment {
+  /** Unique within the task: the page asks the service for the file by it. */
+  file: string
+  name: string
+  /** MIME type; empty when the tracker does not say. */
+  type: string
+  /** bytes; 0 when the tracker does not say */
+  size: number
+  /** A link the browser opens itself; `null` — the file goes through the service (`TaskSource.file`). */
+  url: string | null
 }
 
 export interface TaskRef {
@@ -39,8 +53,9 @@ export interface CardLabel {
   role: LabelRole | null
 }
 
-export interface TaskCard extends Omit<TrackerCard, 'labels'> {
+export interface TaskCard extends Omit<TrackerCard, 'labels' | 'attachments'> {
   labels: CardLabel[]
+  attachments: (TaskAttachment & { url: string })[]
   /** The tracker can move the task to a `ToDo` status, and the task is `UnStarted`. */
   ready: boolean
   /** The labels the chain requires when the task has none of them; empty otherwise. */
@@ -53,6 +68,10 @@ export function cardOf(raw: TrackerCard, rules: ChainRules, canReady: boolean): 
   return {
     ...raw,
     labels,
+    attachments: raw.attachments.map((each) => ({
+      ...each,
+      url: each.url ?? `/api/tasks/${encodeURIComponent(raw.id)}/files/${encodeURIComponent(each.file)}`,
+    })),
     ready: canReady && raw.status.category === 'UnStarted',
     requires: required ? rules.requiredLabels : [],
   }

@@ -15,6 +15,7 @@ const raw = (fields: Partial<TrackerCard> = {}): TrackerCard => ({
   blocks: [],
   related: [],
   comments: [],
+  attachments: [],
   ...fields,
 })
 
@@ -42,5 +43,20 @@ describe('cardOf', () => {
     expect(card.requires).toEqual([])
     expect(card.labels).toEqual([{ name: 'agent', role: 'required' }])
     expect(cardOf(raw(), DEFAULT_RULES, true).requires).toEqual([])
+  })
+
+  it('sends a file without its own link through the service', () => {
+    const card = cardOf(
+      raw({
+        id: 'ABC-1',
+        attachments: [
+          { file: 'shot 1.png', name: 'shot 1.png', type: 'image/png', size: 10, url: null },
+          { file: 'clip', name: 'clip.mp4', type: 'video/mp4', size: 20, url: 'https://example.com/clip.mp4' },
+        ],
+      }),
+      DEFAULT_RULES,
+      true,
+    )
+    expect(card.attachments.map((each) => each.url)).toEqual(['/api/tasks/ABC-1/files/shot%201.png', 'https://example.com/clip.mp4'])
   })
 })

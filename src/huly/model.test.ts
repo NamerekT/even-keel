@@ -196,6 +196,7 @@ describe('toCard', () => {
     labels: [],
     comments: [],
     people: new Map(),
+    attachments: [],
     ...fields,
   })
 
@@ -224,6 +225,7 @@ describe('toCard', () => {
       blocks: [],
       related: [],
       comments: [],
+      attachments: [],
     })
   })
 
@@ -268,6 +270,23 @@ describe('toCard', () => {
       { author: 'John Doe', at: 10, text: 'first' },
       { author: 'Jane Roe', at: 20, text: 'second' },
       { author: null, at: 30, text: 'third' },
+    ])
+  })
+
+  it('lists the files of the issue and its comments, oldest first, to be fetched through the service', () => {
+    const card = toCard(
+      docs({
+        attachments: [
+          { file: 'b2', name: 'clip.mp4', type: 'video/mp4', size: 20, modifiedOn: 30, createdOn: 20 },
+          { file: 'b1', name: 'shot.png', type: 'image/png', size: 10, modifiedOn: 10 },
+          { file: 'b3', name: 'notes', modifiedOn: 40 },
+        ],
+      }),
+    )
+    expect(card.attachments).toEqual([
+      { file: 'b1', name: 'shot.png', type: 'image/png', size: 10, url: null },
+      { file: 'b2', name: 'clip.mp4', type: 'video/mp4', size: 20, url: null },
+      { file: 'b3', name: 'notes', type: '', size: 0, url: null },
     ])
   })
 })

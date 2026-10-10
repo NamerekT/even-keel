@@ -30,7 +30,24 @@ const COMMENTS = [
   { author: null, text: 'Checked on a narrow screen:\n\n```\nnpm run dev:fake\n```' },
 ]
 
-/** `mode`: `empty` — a task without description, labels, links and comments; `none` — the tracker gives no card. */
+const picture = (width: number, height: number, from: string, to: string, text: string): string =>
+  'data:image/svg+xml,' +
+  encodeURIComponent(
+    `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">` +
+      `<defs><linearGradient id="g" x2="1" y2="1"><stop offset="0" stop-color="${from}"/><stop offset="1" stop-color="${to}"/></linearGradient></defs>` +
+      `<rect width="100%" height="100%" fill="url(#g)"/>` +
+      `<text x="50%" y="50%" fill="#fff" font-family="sans-serif" font-size="${Math.round(width / 12)}" text-anchor="middle" dominant-baseline="middle">${text}</text></svg>`,
+  )
+
+const ATTACHMENTS: TaskCard['attachments'] = [
+  { file: 'screen-desktop.svg', name: 'screen-desktop.svg', type: 'image/svg+xml', size: 2_400, url: picture(1600, 900, '#2f5fd0', '#1baf7a', '1600 × 900') },
+  { file: 'screen-phone.svg', name: 'screen-phone.svg', type: 'image/svg+xml', size: 1_900, url: picture(390, 844, '#eb6834', '#d2443a', '390 × 844') },
+  { file: 'diagram.svg', name: 'chain-order-diagram-with-a-long-name.svg', type: 'image/svg+xml', size: 1_200, url: picture(800, 800, '#6b4fd0', '#2a78d6', '800 × 800') },
+  { file: 'flower.webm', name: 'flower.webm', type: 'video/webm', size: 554_058, url: 'https://interactive-examples.mdn.mozilla.net/media/cc0-videos/flower.webm' },
+  { file: 'notes.txt', name: 'notes.txt', type: 'text/plain', size: 32, url: 'data:text/plain;charset=utf-8,' + encodeURIComponent('Notes from the call, nothing more.\n') },
+]
+
+/** `mode`: `empty` — a task without description, labels, links, comments and attachments; `none` — the tracker gives no card. */
 export function fakeCard(state: EvenKeelState, id: string, mode: string | null): TaskCard | null {
   if (mode === 'none') return null
   const task = state.tasks.find((each) => each.id === id)
@@ -62,6 +79,7 @@ export function fakeCard(state: EvenKeelState, id: string, mode: string | null):
     blocks: refs(state.tasks.filter((each) => each.blockedBy.includes(id)).map((each) => each.id)),
     related: plain ? [] : refs(state.tasks.filter((each) => each.id !== id && each.id.startsWith(id.split('-')[0]!)).slice(0, 1).map((each) => each.id)),
     comments: plain ? [] : COMMENTS.map((comment, index) => ({ ...comment, at: Date.now() - (COMMENTS.length - index) * 3_600_000 })),
+    attachments: plain ? [] : ATTACHMENTS,
     ready: task.status.category === 'UnStarted',
     requires: [],
   }
