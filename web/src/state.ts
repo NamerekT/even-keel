@@ -104,6 +104,10 @@ export function waitingSessions(sessions: SessionView[], tasks: Task[]): Session
   return sessions.filter((view) => view.lamp === 'waiting' && open.has(view.task)).sort((a, b) => since(a) - since(b))
 }
 
+export function blockMetered(block: Pick<ChainBlock, 'current' | 'session'>): boolean {
+  return block.session !== null && (block.current || block.session.lamp !== 'finished')
+}
+
 export function checkpointHandoffs(rows: TaskSession[]): number {
   return rows.filter((row) => row.how === 'checkpoint').length
 }

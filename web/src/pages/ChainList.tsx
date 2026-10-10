@@ -4,7 +4,7 @@ import { withWaiting } from '../../../src/chain/order.js'
 import type { ContextScale, TrackerUrls } from '../../../src/state.js'
 import { say, t } from '../i18n/index.js'
 import { useCommand } from '../live/useCommand.js'
-import { checkpointHandoffs, issueLink, type BlockLamp, type ChainBlock, type Ghost } from '../state.js'
+import { blockMetered, checkpointHandoffs, issueLink, type BlockLamp, type ChainBlock, type Ghost } from '../state.js'
 import { ARCHIVE_PAGE, archiveView } from '../ui/archive.js'
 import { CacheClock } from '../ui/CacheClock.js'
 import { ContextMeter } from '../ui/ContextMeter.js'
@@ -301,6 +301,7 @@ function Block({ block, link, number, waits, scale, focused, movable, relation, 
   if (relation !== null) classes.push(`block--${relation.role}`)
   if (arrival !== null) classes.push(arrival.flying ? 'block--arriving' : 'block--landed')
   const badge = relation?.badge === true ? relation.role : null
+  const metered = blockMetered(block) ? block.session : null
   const style: CSSProperties = {}
   if (offset !== undefined) style.transform = `translate(${offset.x}px, ${offset.y}px)`
 
@@ -358,16 +359,16 @@ function Block({ block, link, number, waits, scale, focused, movable, relation, 
             {t.chain.waits(waits.join(', '))}
           </span>
         )}
-        {block.status !== null && !(block.current && block.session !== null) && <span className="block__status">{block.status}</span>}
-        {block.current && checkpointHandoffs(block.sessions) > 0 && (
+        {block.status !== null && metered === null && <span className="block__status">{block.status}</span>}
+        {metered !== null && checkpointHandoffs(block.sessions) > 0 && (
           <span className="block__badge" title={t.chain.handoffsTitle}>
             {t.chain.handoffs(checkpointHandoffs(block.sessions))}
           </span>
         )}
-        {block.current && block.session !== null && (
+        {metered !== null && (
           <span className="block__metrics">
-            {block.session.cache !== null && <CacheClock cache={block.session.cache} />}
-            <ContextMeter tokens={block.session.contextTokens} scale={scale} />
+            {metered.cache !== null && <CacheClock cache={metered.cache} />}
+            <ContextMeter tokens={metered.contextTokens} scale={scale} />
           </span>
         )}
         {block.skipped && (

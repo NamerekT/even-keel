@@ -11,6 +11,7 @@ import {
   accountOrder,
   limitedUntil,
   backlogTasks,
+  blockMetered,
   canReady,
   loginLeft,
   cardTask,
@@ -587,6 +588,22 @@ describe('sessionElapsed', () => {
 
   it('is zero when the launch is ahead of the clock', () => {
     expect(sessionElapsed(view('ABC-1', 'working', null), new Date('2026-01-01T08:59:00.000Z'))).toBe(0)
+  })
+})
+
+describe('blockMetered', () => {
+  it('meters a live session even when the chain is not running it', () => {
+    expect(blockMetered({ current: false, session: view('ABC-1', 'working', null) })).toBe(true)
+    expect(blockMetered({ current: false, session: view('ABC-1', 'waiting', null) })).toBe(true)
+  })
+
+  it('meters the current task even after its session has finished', () => {
+    expect(blockMetered({ current: true, session: view('ABC-1', 'finished', null) })).toBe(true)
+  })
+
+  it('does not meter a finished session of another task or a task without one', () => {
+    expect(blockMetered({ current: false, session: view('ABC-1', 'finished', null) })).toBe(false)
+    expect(blockMetered({ current: true, session: null })).toBe(false)
   })
 })
 
