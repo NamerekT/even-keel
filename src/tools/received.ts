@@ -77,6 +77,12 @@ export function readReceived(lines: string[]): ReceivedTools | undefined {
   }
 }
 
+/** The session that started last: a transcript touched later may belong to an older session that is still being written. */
+export function latestStarted(sessions: ReceivedTools[]): ReceivedTools | undefined {
+  const startOf = (session: ReceivedTools) => (session.at === null ? -Infinity : Date.parse(session.at))
+  return sessions.reduce<ReceivedTools | undefined>((latest, each) => (latest === undefined || startOf(each) > startOf(latest) ? each : latest), undefined)
+}
+
 export function skillSource(name: string, known: KnownSkills): SkillSource {
   if (name.startsWith(CLAUDE_AI_PREFIX)) return 'claudeai'
   if (name.includes(':')) return 'plugin'

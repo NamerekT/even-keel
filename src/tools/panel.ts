@@ -4,8 +4,8 @@ import { createInterface } from 'node:readline'
 import { samePath } from '../paths.js'
 import { projectDirName } from '../sessions/paths.js'
 import { readMcpSources } from '../tracker/mcp.js'
-import type { ToolsView } from './model.js'
-import { readReceived, skillSource } from './received.js'
+import type { ReceivedTools, ToolsView } from './model.js'
+import { latestStarted, readReceived, skillSource } from './received.js'
 import { accountDrift, mcpRows, settingRows, trimSettings } from './settings.js'
 
 type Json = Record<string, unknown>
@@ -13,6 +13,8 @@ type Json = Record<string, unknown>
 /** Tool attachments come in the first lines; MCP servers connect a little after the first answer. */
 const HEAD_LINES = 400
 const WORKTREE_DIR = '--claude-worktrees-'
+/** How many of the last touched transcripts are compared by their start. */
+const RECENT = 8
 
 export interface ToolsPlaces {
   repo: string
@@ -69,7 +71,7 @@ function projectSettings(repo: string): { project: Json | undefined; local: Json
   return { project: readJson(join(repo, '.claude', 'settings.json')), local: readJson(join(repo, '.claude', 'settings.local.json')) }
 }
 
-/** The newest transcript of the project, a worktree one first: chain sessions run there. */
+/** The project's session that started last among the last touched transcripts, worktree ones first: chain sessions run there. */
 async function readNewest(homes: string[], repo: string) {
   const base = projectDirName(repo).toLowerCase()
   const found: { file: string; worktree: boolean; at: number }[] = []
@@ -86,11 +88,12 @@ async function readNewest(homes: string[], repo: string) {
     }
   }
   found.sort((a, b) => Number(b.worktree) - Number(a.worktree) || b.at - a.at)
-  for (const { file } of found.slice(0, 5)) {
-    const received = readReceived(await headLines(file, HEAD_LINES))
-    if (received !== undefined) return received
+  const received: ReceivedTools[] = []
+  for (const { file } of found.slice(0, RECENT)) {
+    const session = readReceived(await headLines(file, HEAD_LINES))
+    if (session !== undefined) received.push(session)
   }
-  return undefined
+  return latestStarted(received)
 }
 
 async function headLines(file: string, count: number): Promise<string[]> {

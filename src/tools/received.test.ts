@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { readReceived, skillSource } from './received.js'
+import { latestStarted, readReceived, skillSource } from './received.js'
 
 const line = (value: unknown) => JSON.stringify(value)
 const attachment = (value: Record<string, unknown>) => line({ type: 'attachment', attachment: value })
@@ -60,5 +60,20 @@ describe('skillSource', () => {
     expect(skillSource('recon', known)).toBe('project')
     expect(skillSource('coding', known)).toBe('user')
     expect(skillSource('update-config', known)).toBe('bundled')
+  })
+})
+
+describe('latestStarted', () => {
+  const started = (sessionId: string, at: string | null) => ({ ...readReceived([attachment({ type: 'skill_listing', names: [] })])!, sessionId, at })
+
+  it('takes the session that started last, not the first one in the list', () => {
+    const list = [started('old-but-touched', '2026-10-09T15:44:14Z'), started('new', '2026-10-09T23:40:21Z'), started('middle', '2026-10-09T22:18:31Z')]
+    expect(latestStarted(list)?.sessionId).toBe('new')
+  })
+
+  it('keeps the list order for sessions without a start time', () => {
+    expect(latestStarted([started('first', null), started('second', null)])?.sessionId).toBe('first')
+    expect(latestStarted([started('unknown', null), started('known', '2026-10-09T23:40:21Z')])?.sessionId).toBe('known')
+    expect(latestStarted([])).toBeUndefined()
   })
 })
