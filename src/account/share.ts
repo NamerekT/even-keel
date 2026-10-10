@@ -1,6 +1,19 @@
-import { copyFileSync, existsSync, lstatSync, mkdirSync, readdirSync, readFileSync, rmdirSync, symlinkSync, unlinkSync, writeFileSync } from 'node:fs'
-import { join } from 'node:path'
-import { pathKey } from '../paths.js'
+import {
+  copyFileSync,
+  existsSync,
+  lstatSync,
+  mkdirSync,
+  readdirSync,
+  readFileSync,
+  readlinkSync,
+  rmdirSync,
+  type Stats,
+  symlinkSync,
+  unlinkSync,
+  writeFileSync,
+} from 'node:fs'
+import { dirname, join } from 'node:path'
+import { pathKey, samePath } from '../paths.js'
 import { projectDirName } from '../sessions/paths.js'
 
 type Json = Record<string, unknown>
@@ -31,11 +44,16 @@ export function mergeSettings(global: Json, folder: Json | undefined): Json {
 }
 
 /**
- * The repository's memory folder in the global folder. An account folder holds only a link to it, and the CLI asks
- * before every write through that link (its target lies in `~/.claude`), so chain sessions get this path as `autoMemoryDirectory`.
+ * Project memory lives next to the global folder, not inside it: the global folder and every account folder hold only
+ * a link to it. The CLI asks before every write whose real path lies in a `.claude` folder that is not the session's own.
  */
+export function memoryStore(globalDir: string): string {
+  return join(dirname(globalDir), '.claude-memory')
+}
+
+/** The repository's folder in the memory store; chain sessions also get it as `autoMemoryDirectory`. */
 export function sharedMemory(globalDir: string, repo: string): string {
-  return join(globalDir, 'projects', projectDirName(repo), 'memory')
+  return join(memoryStore(globalDir), projectDirName(repo))
 }
 
 export function linkType(platform: NodeJS.Platform): 'junction' | 'dir' {
@@ -79,17 +97,18 @@ export function shareConfig(global: SharedSources, dir: string, warn: (message: 
   for (const name of entries(join(global.dir, 'skills'))) {
     if (!OWN_SKILLS.has(name)) changed = link(join(global.dir, 'skills', name), join(dir, 'skills', name)) || changed
   }
+  const store = memoryStore(global.dir)
   const projects = new Set([...entries(join(global.dir, 'projects')), ...entries(join(dir, 'projects'))])
   for (const project of projects) {
-    const shared = join(global.dir, 'projects', project, 'memory')
-    const own = join(dir, 'projects', project, 'memory')
-    changed = absorbMemory(shared, own, warn) || changed
-    changed = link(shared, own) || changed
+    const shared = join(store, project)
+    const owns = [global.dir, dir].map((home) => join(home, 'projects', project, 'memory'))
+    for (const own of owns) changed = absorbMemory(shared, own, warn) || changed
+    for (const own of owns) changed = link(shared, own) || changed
   }
   return changed
 }
 
-/** Moves what an account's own memory folder holds into the shared one; files that differ stay and are warned about. */
+/** Moves what a folder's own memory holds into the store; files that differ stay and are warned about. */
 function absorbMemory(shared: string, own: string, warn: (message: string) => void): boolean {
   if (!existsSync(own)) return false
   const stat = lstatSync(own)
@@ -123,9 +142,12 @@ function moveInto(from: string, to: string, warn: (message: string) => void): bo
 
 function link(target: string, path: string): boolean {
   if (!isDirectory(target)) return false
-  if (existsSync(path)) {
-    const stat = lstatSync(path)
-    if (stat.isSymbolicLink() || !stat.isDirectory() || readdirSync(path).length > 0) return false
+  const stat = lstatOf(path)
+  if (stat?.isSymbolicLink()) {
+    if (samePath(linkTarget(path), target)) return false
+    unlinkSync(path)
+  } else if (stat !== undefined) {
+    if (!stat.isDirectory() || readdirSync(path).length > 0) return false
     rmdirSync(path)
   }
   mkdirSync(join(path, '..'), { recursive: true })
@@ -172,6 +194,21 @@ function entries(dir: string): string[] {
   } catch {
     return []
   }
+}
+
+function lstatOf(path: string): Stats | undefined {
+  try {
+    return lstatSync(path)
+  } catch {
+    return undefined
+  }
+}
+
+/** A junction's target comes back as `\\?\C:\…\` on Windows. */
+function linkTarget(path: string): string {
+  return readlinkSync(path)
+    .replace(/^\\\\\?\\/, '')
+    .replace(/[\\/]+$/, '')
 }
 
 function isDirectory(path: string): boolean {

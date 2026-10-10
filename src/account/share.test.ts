@@ -1,14 +1,13 @@
-import { lstatSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { lstatSync, mkdirSync, mkdtempSync, readFileSync, readlinkSync, realpathSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { samePath } from '../paths.js'
 import { linkType, mergeSettings, shareConfig, sharedMemory, shareProjects } from './share.js'
 
 describe('sharedMemory', () => {
-  it('is the memory folder of the repository in the global folder, the one account folders link to', () => {
-    expect(sharedMemory('C:/Users/john/.claude', 'C:/repos/example.app')).toBe(
-      join('C:/Users/john/.claude', 'projects', 'C--repos-example-app', 'memory'),
-    )
+  it('is the folder of the repository in the memory store next to the global folder, the one both folders link to', () => {
+    expect(sharedMemory('C:/Users/john/.claude', 'C:/repos/example.app')).toBe(join('C:/Users/john', '.claude-memory', 'C--repos-example-app'))
   })
 })
 
@@ -77,12 +76,22 @@ describe('shareConfig project memory', () => {
   afterEach(() => rmSync(root, { recursive: true, force: true }))
 
   const share = () => shareConfig(global, folder, (message) => warnings.push(message))
+  const stored = (project = 'p1') => join(root, '.claude-memory', project)
+  const linksTo = (path: string, target: string) => lstatSync(path).isSymbolicLink() && samePath(realpathSync(path), realpathSync(target))
 
-  it('moves memory begun in the account into the global folder when it has none', () => {
+  it('moves the global memory into the store and links the global folder to it', () => {
+    note(global.dir, 'a.md', 'A')
+    expect(share()).toBe(true)
+    expect(readFileSync(join(stored(), 'a.md'), 'utf8')).toBe('A')
+    expect(linksTo(memory(global.dir), stored())).toBe(true)
+    expect(linksTo(memory(folder), stored())).toBe(true)
+  })
+
+  it('moves memory begun in the account into the store when it has none', () => {
     note(folder, 'a.md', 'A')
     expect(share()).toBe(true)
-    expect(readFileSync(join(memory(global.dir), 'a.md'), 'utf8')).toBe('A')
-    expect(lstatSync(memory(folder)).isSymbolicLink()).toBe(true)
+    expect(readFileSync(join(stored(), 'a.md'), 'utf8')).toBe('A')
+    expect(linksTo(memory(folder), stored())).toBe(true)
     expect(readFileSync(join(memory(folder), 'a.md'), 'utf8')).toBe('A')
   })
 
@@ -91,30 +100,48 @@ describe('shareConfig project memory', () => {
     note(folder, 'a.md', 'A')
     share()
     expect(readFileSync(join(memory(global.dir), 'a.md'), 'utf8')).toBe('A')
-    expect(lstatSync(memory(folder)).isSymbolicLink()).toBe(true)
+    expect(linksTo(memory(folder), stored())).toBe(true)
   })
 
-  it('brings over only the files the global folder lacks and links when nothing of its own is left', () => {
+  it('brings over only the files the store lacks and links when nothing of its own is left', () => {
     note(global.dir, 'a.md', 'A')
     note(folder, 'a.md', 'A')
     note(folder, 'b.md', 'B')
     share()
-    expect(readFileSync(join(memory(global.dir), 'b.md'), 'utf8')).toBe('B')
-    expect(lstatSync(memory(folder)).isSymbolicLink()).toBe(true)
+    expect(readFileSync(join(stored(), 'b.md'), 'utf8')).toBe('B')
+    expect(linksTo(memory(folder), stored())).toBe(true)
     expect(warnings).toEqual([])
   })
 
-  it('leaves files that differ by content alone, warns and keeps the folder', () => {
+  it('leaves files that differ by content alone, warns and keeps the folder; the global memory wins', () => {
     note(global.dir, 'a.md', 'global')
     note(folder, 'a.md', 'account')
     note(folder, 'b.md', 'B')
     share()
-    expect(readFileSync(join(memory(global.dir), 'a.md'), 'utf8')).toBe('global')
+    expect(readFileSync(join(stored(), 'a.md'), 'utf8')).toBe('global')
     expect(readFileSync(join(memory(folder), 'a.md'), 'utf8')).toBe('account')
-    expect(readFileSync(join(memory(global.dir), 'b.md'), 'utf8')).toBe('B')
+    expect(readFileSync(join(stored(), 'b.md'), 'utf8')).toBe('B')
     expect(lstatSync(memory(folder)).isSymbolicLink()).toBe(false)
     expect(warnings).toHaveLength(1)
     expect(warnings[0]).toContain('a.md')
+  })
+
+  it('points an account link into the global folder at the store instead', () => {
+    note(global.dir, 'a.md', 'A')
+    mkdirSync(join(folder, 'projects', 'p1'), { recursive: true })
+    symlinkSync(memory(global.dir), memory(folder), linkType(process.platform))
+    expect(share()).toBe(true)
+    expect(linksTo(memory(folder), stored())).toBe(true)
+    expect(readlinkSync(memory(folder))).not.toContain('global')
+    expect(readFileSync(join(memory(folder), 'a.md'), 'utf8')).toBe('A')
+  })
+
+  it('replaces a link whose target is gone', () => {
+    note(global.dir, 'a.md', 'A')
+    mkdirSync(join(folder, 'projects', 'p1'), { recursive: true })
+    symlinkSync(join(root, 'gone'), memory(folder), linkType(process.platform))
+    share()
+    expect(linksTo(memory(folder), stored())).toBe(true)
   })
 
   it('reports a change on the move and none on a repeat', () => {
@@ -127,8 +154,8 @@ describe('shareConfig project memory', () => {
     mkdirSync(join(memory(folder), 'sub'), { recursive: true })
     writeFileSync(join(memory(folder), 'sub', 'x.md'), 'X')
     share()
-    expect(readFileSync(join(memory(global.dir), 'sub', 'x.md'), 'utf8')).toBe('X')
-    expect(lstatSync(memory(folder)).isSymbolicLink()).toBe(true)
+    expect(readFileSync(join(stored(), 'sub', 'x.md'), 'utf8')).toBe('X')
+    expect(linksTo(memory(folder), stored())).toBe(true)
   })
 })
 
