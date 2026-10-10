@@ -79,9 +79,20 @@
 
 .markdown th,
 .markdown td {
-  padding: 4px 10px;
+  padding: 6px 12px;
   border: 1px solid var(--border);
   text-align: left;
+  vertical-align: top;
+}
+
+.markdown th {
+  background: var(--surface-muted);
+  font-weight: 600;
+}
+
+.markdown th > p,
+.markdown td > p {
+  margin: 0;
 }
 
 .markdown a {

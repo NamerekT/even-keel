@@ -464,8 +464,8 @@ export const en: Messages = {
     noMilestone: 'none',
     due: (date: string) => `due ${date}`,
     roles: {
-      model: 'Model label: the session of the task runs on this model',
-      question: 'Question: without an answer in the description the session will most likely get stuck',
+      model: 'The session of the task runs on this model',
+      question: 'Without an answer in the description the session will most likely get stuck',
       excluded: 'This label keeps the task out of the chain',
       required: 'The chain takes only tasks with this label',
     },

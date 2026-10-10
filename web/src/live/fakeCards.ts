@@ -16,6 +16,13 @@ The page shows the task in full, so that nobody has to open the tracker on a pho
 | \`description\` | the tracker |
 | \`labels\` | the tracker and the chain rules |
 
+Huly writes its tables as HTML:
+
+<table><tbody><tr><th><p>Tracker</p></th><th><p>Tables</p></th></tr><tr><td><p>Huly</p></td><td><p>HTML</p></td></tr><tr><td><p>GitHub, Linear</p></td><td><p>Markdown</p></td></tr></tbody></table>
+
+1. **Ordered items** keep their numbers.
+2. A link to [ABC-2](tracker://ABC-2) opens its card.
+
 Done when \`npm test\` is green — see [the docs](https://example.com/docs).`
 
 const COMMENTS = [
