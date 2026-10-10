@@ -12,7 +12,10 @@ import '../stats/stats.css'
 
 const DAYS = 30
 
-export function StatsStrip({ project }: { project: string }) {
+export type StripData = ReturnType<typeof useStrip>
+
+/** The project's last 30 days from the stats; the page reads it once for the strip and the idle panel. */
+export function useStrip(project: string) {
   const { statsHistory } = useLive()
   const filter: StatsFilter = useMemo(() => ({ scope: 'all', account: null, tz: Intl.DateTimeFormat().resolvedOptions().timeZone }), [])
   const loaded = useStatsAnswer(JSON.stringify(filter), () => statsHistory(filter))
@@ -33,6 +36,10 @@ export function StatsStrip({ project }: { project: string }) {
     }
   }, [history, project, range.from])
 
+  return { loaded, summary, range }
+}
+
+export function StatsStrip({ project, strip: { loaded, summary, range } }: { project: string; strip: StripData }) {
   return (
     <section className="strip" aria-label={t.strip.label(project, DAYS)}>
       {summary === null ? (

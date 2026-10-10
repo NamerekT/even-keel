@@ -25,7 +25,7 @@ import { Flight } from './Flight.js'
 import { IdlePanel } from './IdlePanel.js'
 import { NotFound } from './NotFound.js'
 import { SessionPanel } from './SessionPanel.js'
-import { StatsStrip } from './StatsStrip.js'
+import { StatsStrip, useStrip } from './StatsStrip.js'
 import { ToolsLink } from './ToolsLink.js'
 import { useArrival } from './useArrival.js'
 import './project.css'
@@ -50,6 +50,7 @@ export function Project({ state }: { state: EvenKeelState }) {
     if (focus !== '') document.getElementById(focus)?.scrollIntoView({ block: 'nearest' })
   }, [focus])
   const arrival = useArrival(state, key, blocks, close)
+  const strip = useStrip(key)
   if (!state.projects.includes(key)) return <NotFound what={t.notFound.project(key)} />
 
   const order = state.chain.projects[key]
@@ -101,7 +102,7 @@ export function Project({ state }: { state: EvenKeelState }) {
             onCard={openCard}
           />
         )}
-        <StatsStrip key={`stats-${key}`} project={key} />
+        <StatsStrip project={key} strip={strip} />
         <ToolsLink key={`tools-${key}`} project={key} trim={state.trimTools} />
       </div>
       {selected !== undefined && (
@@ -119,7 +120,19 @@ export function Project({ state }: { state: EvenKeelState }) {
           onSettled={arrival.settle}
         />
       )}
-      {selected === undefined && !backlogOpen && <IdlePanel />}
+      {selected === undefined && !backlogOpen && (
+        <IdlePanel
+          key={key}
+          scene={{
+            loaded: order !== undefined && order.error === null,
+            blocks,
+            backlog: backlog.length,
+            status: chainStatus(state.chain, key),
+            unattended: state.unattended,
+            monthCost: strip.summary?.cost ?? null,
+          }}
+        />
+      )}
       {flight !== null && (
         <Flight key={flight.id} task={flight.id} title={flight.title} from={flight.from} onLand={() => arrival.land(flight.id)} />
       )}
