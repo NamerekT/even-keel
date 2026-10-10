@@ -57,6 +57,8 @@ A task that the chain started and released other than through Done — dropped o
 4. **Task in Done**: when its session has finished a turn and is not waiting for a reply (not `busy`/`waiting`), the dispatcher stops it (`claude stop`, not `rm`; the transcript stays, `--resume` by hand is possible) and removes the worktree. After the merge, sessions make no more than a couple of checks in the same turn and finish with a report (measured from transcripts, 2026-09-29).
 5. **A slot is switched** to another task's branch (only when the pool has no free slot): the dispatcher first stops the live sessions of released tasks (skipped, postponed by a blocker) in the slot (`claude stop`, not `rm`), otherwise the answer to such a session through Remote Control would land in another task's branch. If such a session is mid-turn (`busy`/`waiting`), the slot is not switched and the chain is paused with its task.
 
+In every exception a session `claude agents` shows `failed` or `stopped` is stopped as well while its process lives (`pid` from a live `sessions/<pid>.json`): a session that failed at start (an API 400) keeps running, and `claude stop` run from a terminal marks the job `stopped` without reaching the service's daemon (`isGone` in `src/sessions/claude.ts`, `stopTaskSessions`, `slotOccupants`).
+
 The dispatcher may stop waiting for a session (without touching it) if it is not mid-turn (`busy`/`waiting`): the current task got an open blocker from the same chain (the session postponed it itself, `postpone` in the log) or the user pressed "Skip" (`skip`). The chain does not take a skipped task until the user returns it or it leaves the chain in the tracker (closed, in Backlog).
 
 ## Unattended mode (`unattended`)

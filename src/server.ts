@@ -271,7 +271,9 @@ async function route(deps: ServerDeps, request: IncomingMessage, response: Serve
       return
     }
     try {
-      await command(deps, await readJsonBody(request))
+      const body = await readJsonBody(request)
+      await command(deps, body)
+      if (path.startsWith('/api/chain/')) console.log(`page: ${path.slice('/api/'.length)} ${commandTarget(body)}`.trimEnd())
     } catch (error) {
       sendFailure(response, error)
       return
@@ -344,6 +346,14 @@ async function readJsonBody(request: IncomingMessage): Promise<Record<string, un
 function projectOf(body: Record<string, unknown>): string {
   if (typeof body.project !== 'string' || body.project === '') throw fail('request.required', { field: 'project' })
   return body.project
+}
+
+/** What a chain command was aimed at, for the service log: `project/task`, the order, or the switch. */
+function commandTarget(body: Record<string, unknown>): string {
+  const parts = [body.project, body.task].filter((part) => typeof part === 'string' && part !== '')
+  if (Array.isArray(body.order)) parts.push(body.order.join(','))
+  if (typeof body.on === 'boolean') parts.push(body.on ? 'on' : 'off')
+  return parts.join('/')
 }
 
 function flagOf(body: Record<string, unknown>): boolean {

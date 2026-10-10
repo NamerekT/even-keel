@@ -166,9 +166,9 @@ function isOver(agent: AgentEntry): boolean {
   return agent.state === 'stopped' || agent.state === 'done' || agent.state === 'failed'
 }
 
+/** `failed` and `stopped` do not mean the process exited: a session that failed at start keeps running, and so does one stopped through a daemon that `claude stop` could not reach. */
 function isGone(agent: AgentEntry | undefined): boolean {
-  if (agent === undefined || agent.state === 'stopped' || agent.state === 'failed') return true
-  return agent.state === 'done' && agent.pid === undefined
+  return agent === undefined || (isOver(agent) && agent.pid === undefined)
 }
 
 export async function liveRecords(home: AccountHome): Promise<SessionRecord[]> {

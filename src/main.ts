@@ -350,8 +350,15 @@ const dispatcher = new Dispatcher(loadChainState(chainFile), {
   finish: async (project, task) => {
     const repo = config.projects[project]!
     const count = config.slots[project]
-    const stopped = await stopTaskSessions(repo, task, count ?? 1)
-    const finished = await (count !== undefined ? finishSlot(runGit, repo, task, count) : finishWorktree(runGit, repo, task))
+    let stopped: Notice[]
+    let finished: Awaited<ReturnType<typeof finishWorktree>>
+    try {
+      stopped = await stopTaskSessions(repo, task, count ?? 1)
+      finished = await (count !== undefined ? finishSlot(runGit, repo, task, count) : finishWorktree(runGit, repo, task))
+    } catch (error) {
+      console.error(`git: cleanup after ${task} failed: ${englishOf(noticeOf(error))}`)
+      throw error
+    }
     const outcome = { ...finished, warnings: [...stopped, ...finished.warnings] }
     for (const warning of outcome.warnings) console.warn(`git: ${task}: ${englishOf(warning)}`)
     if (outcome.syncError !== null) console.error(`git: sync of ${project} after ${task} failed: ${englishOf(outcome.syncError)}`)
@@ -391,9 +398,7 @@ async function stopTaskSessions(repo: string, task: string, count: number): Prom
       agent.pid !== undefined &&
       (isInside(agent.cwd, taskPlace(repo, task).path) || (slots.some((slot) => isInside(agent.cwd, slot)) && own.has(agent.sessionId))) &&
       agent.status !== 'busy' &&
-      agent.status !== 'waiting' &&
-      agent.state !== 'stopped' &&
-      agent.state !== 'failed',
+      agent.status !== 'waiting',
   )
   const warnings: Notice[] = []
   for (const agent of idle) {

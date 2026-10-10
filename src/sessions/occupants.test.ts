@@ -33,15 +33,14 @@ describe('slotOccupants', () => {
     })
   })
 
-  it('leaves out the task’s own sessions, sessions elsewhere, stopped or failed ones and ones without an agent id', () => {
-    const agents = [
-      agent('s7', { status: 'busy' }),
-      agent('s6', { cwd: join(tmpdir(), 'abc') }),
-      agent('s8', { state: 'stopped' }),
-      agent('s8', { state: 'failed', status: 'busy' }),
-      agent('s6', { id: undefined }),
-    ]
+  it('leaves out the task’s own sessions, sessions elsewhere and ones without an agent id', () => {
+    const agents = [agent('s7', { status: 'busy' }), agent('s6', { cwd: join(tmpdir(), 'abc') }), agent('s6', { id: undefined })]
     expect(slotOccupants(agents, owners, slot, 'ABC-7')).toEqual({ idle: [], busy: [] })
+  })
+
+  it('counts a stopped or failed session whose process still runs, so it is stopped before the slot is taken', () => {
+    const agents = [agent('s6', { state: 'failed', status: 'idle' }), agent('s8', { state: 'stopped', status: 'idle' })]
+    expect(slotOccupants(agents, owners, slot, 'ABC-7').idle).toHaveLength(2)
   })
 
   it('leaves out sessions with no live process, whatever state the agent list still shows for them', () => {
