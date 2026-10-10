@@ -34,9 +34,13 @@ interface SceneProps {
   sign: string[]
   /** The scene takes the rest of the window instead of a strip at the bottom. */
   tall?: boolean
+  /** Nothing is being built here: the "work in progress" tape is bare stripes. */
+  idle?: boolean
   /** Goes on the sign after its text. */
   children?: ReactNode
 }
+
+const WORK_IN_PROGRESS = 2
 
 /** The bottom of a page that is still being built; it comes once the page is `ready` and stays. */
 export function Basement({ ready, ...scene }: SceneProps & { ready: boolean }) {
@@ -47,14 +51,14 @@ export function Basement({ ready, ...scene }: SceneProps & { ready: boolean }) {
 }
 
 /** A wall, a floor, caution tapes across the whole width and a sign. */
-function Scene({ sign: [question, ...answer], tall, children }: SceneProps) {
+function Scene({ sign: [question, ...answer], tall, idle, children }: SceneProps) {
   return (
     <div className={tall ? 'basement basement--tall' : 'basement'}>
       <div className="basement__wall" />
       <div className="basement__floor" />
       <div className="basement__tapes" aria-hidden="true">
         {TAPES.map((tape, index) => (
-          <TapeView key={index} tape={tape} />
+          <TapeView key={index} tape={idle && tape.word === WORK_IN_PROGRESS ? { ...tape, word: undefined } : tape} />
         ))}
       </div>
       <p className="basement__sign">

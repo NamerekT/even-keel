@@ -4,7 +4,7 @@ import { Basement } from '../layout/Basement.js'
 
 export function NotFound({ what }: { what?: string }) {
   return (
-    <Basement tall ready sign={[t.notFound.title, what ?? t.notFound.page]}>
+    <Basement tall idle ready sign={[t.notFound.title, what ?? t.notFound.page]}>
       <Link to="/">{t.notFound.back}</Link>
     </Basement>
   )
