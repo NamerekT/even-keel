@@ -9,6 +9,7 @@ import { LastSessions } from './LastSessions.js'
 import { hiddenSkills, problemCount, problemsOf } from './matrix.js'
 import { Problems } from './Problems.js'
 import { SettingsMatrix } from './SettingsMatrix.js'
+import { ToolsLoading } from './ToolsLoading.js'
 import { useToolsViews } from './useToolsViews.js'
 import './tools.css'
 
@@ -68,7 +69,7 @@ export function ToolsPage({ state }: { state: EvenKeelState }) {
           {chosen.length === 0 ? (
             <p className="placeholder">{t.tools.noneChosen}</p>
           ) : views.length === 0 ? (
-            loading && <p className="placeholder">{t.tools.loading}</p>
+            loading && <ToolsLoading projects={chosen} ready={(project) => (loaded.get(project)?.state ?? 'loading') !== 'loading'} />
           ) : (
             <>
               <Problems views={views} accounts={views[0]!.accounts} />
