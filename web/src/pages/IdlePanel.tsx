@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { t } from '../i18n/index.js'
 import { stillMotion } from '../ui/landing.js'
-import { longestRun, type Meme, momentsOf, pickMeme, type Scene } from '../ui/memes.js'
+import { longestRun, type Meme, type Motion, momentsOf, pickMeme, pictureMotion, type Scene } from '../ui/memes.js'
 import { TypedLine } from '../ui/Typed.js'
 import { shownAt, typingTime } from '../ui/typing.js'
 import { VOYAGE_TICK_MS, voyageFrame } from '../ui/voyage.js'
@@ -9,6 +9,7 @@ import { VOYAGE_TICK_MS, voyageFrame } from '../ui/voyage.js'
 const IDLE_PACE = { charMs: 40, pauseMs: 1500 }
 /** How long a line stays typed before it is erased for the next one: a general line always, the others at least. */
 const HOLD_MS = 7000
+const FORWARD: Motion = { sea: 1, cloud: 1 }
 
 /** Holds the side column while no panel is open, so the chain keeps its width. */
 export function IdlePanel({ scene }: { scene: Scene }) {
@@ -18,15 +19,17 @@ export function IdlePanel({ scene }: { scene: Scene }) {
   const [meme, setMeme] = useState<Meme>(() => draw())
   const parts = memeParts(meme, scene)
   const [shown, setShown] = useState(() => (stillMotion() ? Infinity : 0))
-  const [tick, setTick] = useState(0)
+  const [tick, setTick] = useState({ sea: 0, cloud: 0 })
+  const motion = useRef(FORWARD)
   // When the line started, when it starts being erased (ms after the start), and the moments it was drawn on.
   const line = useRef({ start: performance.now(), eraseAt: null as number | null, cue })
   const latest = useRef({ meme, parts, cue, draw })
   latest.current = { meme, parts, cue, draw }
 
-  // A general line goes on its own; the drive and a moment's line stay until the moments change.
+  // A general line goes on its own; the drive and a moment's line stay until the moments change. The picture plays its acts
+  // and keeps the last one for good.
   useEffect(() => {
-    if ('line' in meme || line.current.cue === cue) return
+    if ('line' in meme || 'picture' in meme || line.current.cue === cue) return
     if (stillMotion()) {
       line.current = { start: performance.now(), eraseAt: null, cue }
       setMeme(draw(meme))
@@ -41,11 +44,14 @@ export function IdlePanel({ scene }: { scene: Scene }) {
     let frame = requestAnimationFrame(function step(now) {
       const { meme, parts, cue, draw } = latest.current
       const elapsed = now - line.current.start
-      const eraseAt = 'line' in meme ? typingTime(parts, IDLE_PACE) + HOLD_MS : line.current.eraseAt
+      const acts = t.project.idle.picture.length
+      const held = typingTime(parts, IDLE_PACE) + HOLD_MS
+      const eraseAt = 'picture' in meme ? (meme.picture < acts - 1 ? held : null) : 'line' in meme ? held : line.current.eraseAt
+      motion.current = 'picture' in meme ? pictureMotion(meme.picture, acts, elapsed, parts, IDLE_PACE) : FORWARD
       const count = shownAt(parts, elapsed, IDLE_PACE, eraseAt)
       if (eraseAt !== null && elapsed > eraseAt && count === 0) {
         line.current = { start: now, eraseAt: null, cue }
-        setMeme(draw(meme))
+        setMeme('picture' in meme ? { picture: meme.picture + 1 } : draw(meme))
       }
       setShown(count)
       frame = requestAnimationFrame(step)
@@ -55,7 +61,10 @@ export function IdlePanel({ scene }: { scene: Scene }) {
 
   useEffect(() => {
     if (stillMotion()) return
-    const timer = setInterval(() => setTick((current) => current + 1), VOYAGE_TICK_MS)
+    const timer = setInterval(() => {
+      const { sea, cloud } = motion.current
+      if (sea !== 0 || cloud !== 0) setTick((current) => ({ sea: current.sea + sea, cloud: current.cloud + cloud }))
+    }, VOYAGE_TICK_MS)
     return () => clearInterval(timer)
   }, [])
 
@@ -63,7 +72,7 @@ export function IdlePanel({ scene }: { scene: Scene }) {
     <aside className="idle">
       <div className="idle__scene">
         <pre className="idle__voyage" aria-hidden="true">
-          {voyageFrame(tick, 'drive' in meme)}
+          {voyageFrame(tick.sea, 'drive' in meme, tick.cloud)}
         </pre>
         <TypedLine text={parts.join('')} shown={shown} className="idle__meme" />
       </div>
@@ -76,6 +85,7 @@ function memeParts(meme: Meme, scene: Scene): string[] {
   const { idle } = t.project
   if ('drive' in meme) return idle.drive
   if ('line' in meme) return idle.memes[meme.line]!
+  if ('picture' in meme) return idle.picture[meme.picture]!
   const line = idle.moments[meme.moment]
   return typeof line === 'function' ? line(longestRun(scene.blocks)) : line
 }

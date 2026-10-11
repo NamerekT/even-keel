@@ -94,7 +94,7 @@ function slope(offset: number, { height, half }: Swell): number {
 export function crestAt(tick: number): number {
   const { half } = SAIL_SWELL
   const crossing = (WIDTH + 2 * half) / SPEED
-  const step = tick % (crossing + CALM_TICKS)
+  const step = wrap(tick, crossing + CALM_TICKS)
   return WIDTH + half - Math.min(step, crossing) * SPEED
 }
 
@@ -110,8 +110,18 @@ export function poseAt(tick: number): { lift: number; tilt: number } {
   return { lift, tilt: lift === 0 ? 0 : LEAN * Math.atan2((bow - stern) * ASPECT, 2 * REACH) }
 }
 
-export function voyageFrame(tick: number, drive = false): string {
-  return drive ? driveFrame(tick) : sailFrame(tick)
+/** The frame at `tick`, with the cloud at its own tick. Ticks before zero are fine, so the voyage can run backwards. */
+export function voyageFrame(tick: number, drive = false, cloud = tick): string {
+  const canvas = new Canvas(HEIGHT, WIDTH)
+  drawCloud(canvas, cloud)
+  if (drive) driveFrame(canvas, tick)
+  else sailFrame(canvas, tick)
+  return canvas.lines().join('\n')
+}
+
+/** `value` modulo `size`, never negative. */
+function wrap(value: number, size: number): number {
+  return ((value % size) + size) % size
 }
 
 /** The boat alone with its rig leaning by `angle`, trimmed to its drawing. */
@@ -150,24 +160,21 @@ class Canvas {
 }
 
 function drawCloud(canvas: Canvas, tick: number): void {
-  const left = WIDTH - (Math.floor(tick / CLOUD_TICKS) % (WIDTH + CLOUD[2]!.length))
+  const left = WIDTH - wrap(Math.floor(tick / CLOUD_TICKS), WIDTH + CLOUD[2]!.length)
   CLOUD.forEach((line, row) => [...line].forEach((char, index) => canvas.put(row, left + index, char)))
 }
 
 function deepChar(row: number, column: number, tick: number): string {
   const depth = Math.max(0, row - SEA - 1) % DEEP.length
   const line = DEEP[depth]!
-  return line[(column + Math.floor(tick / (depth + 2))) % line.length]!
+  return line[wrap(column + Math.floor(tick / (depth + 2)), line.length)]!
 }
 
-function sailFrame(tick: number): string {
-  const canvas = new Canvas(HEIGHT, WIDTH)
-  drawCloud(canvas, tick)
-
+function sailFrame(canvas: Canvas, tick: number): void {
   const crest = crestAt(tick)
   const surface = Array.from({ length: WIDTH }, (_, column) => Math.round(SEA - rise(column + 0.5 - crest)))
   surface.forEach((top, column) => {
-    canvas.set(top, column, CHOP[(column + tick) % CHOP.length]!)
+    canvas.set(top, column, CHOP[wrap(column + tick, CHOP.length)]!)
     for (let row = top + 1; row < HEIGHT; row++) canvas.set(row, column, deepChar(row, column, tick))
   })
 
@@ -179,19 +186,17 @@ function sailFrame(tick: number): string {
 
   const keel = top + KEEL.row
   for (let column = BOAT_LEFT + KEEL.from; column <= BOAT_LEFT + KEEL.to; column++) {
-    if (surface[column]! <= keel) canvas.set(keel, column, CHOP[(column + tick) % CHOP.length]!)
+    if (surface[column]! <= keel) canvas.set(keel, column, CHOP[wrap(column + tick, CHOP.length)]!)
   }
-  ;[...WAKE[tick % 2]!].forEach((char, index) => {
+  ;[...WAKE[wrap(tick, 2)]!].forEach((char, index) => {
     const column = BOAT_LEFT - index
     if (column >= 0 && surface[column]! >= keel) canvas.set(surface[column]!, column, char)
   })
 
   if (slope(BOAT_MAST - crest, SAIL_SWELL) >= SPRAY_SLOPE) {
     const bow = BOAT_LEFT + BOW_DECK[0] - 1
-    for (const [down, right, char] of SPRAY[tick % 2]!) canvas.put(top + BOW_DECK[1] - 1 + down, bow + right, char)
+    for (const [down, right, char] of SPRAY[wrap(tick, 2)]!) canvas.put(top + BOW_DECK[1] - 1 + down, bow + right, char)
   }
-
-  return canvas.lines().join('\n')
 }
 
 /** Draws the level hull with its top row at `top` and the rig over it leaning by `angle`, bow up positive. */
@@ -257,18 +262,15 @@ function stroke(canvas: Canvas, [x0, y0]: Point, [x1, y1]: Point): void {
   }
 }
 
-function driveFrame(tick: number): string {
-  const canvas = new Canvas(HEIGHT, WIDTH)
-  drawCloud(canvas, tick)
-
+function driveFrame(canvas: Canvas, tick: number): void {
   const crest = crestAt(tick)
   const levels = Array.from({ length: WIDTH }, (_, column) => Math.round(rise(column - crest, DRIVE_SWELL)))
   levels.forEach((level, column) => {
     const before = levels[column - 1] ?? 0
     for (let step = before + 1; step <= level; step++) canvas.put(SEA - step + 1, column, '/')
     for (let step = level + 1; step <= before; step++) canvas.put(SEA - step + 1, column, '\\')
-    if (level === before) canvas.put(SEA - level, column, level === 0 ? CHOP[(column + tick) % CHOP.length]! : '_')
-    DEEP.forEach((line, depth) => canvas.put(SEA + 1 + depth, column, line[(column + Math.floor(tick / (depth + 2))) % line.length]!))
+    if (level === before) canvas.put(SEA - level, column, level === 0 ? CHOP[wrap(column + tick, CHOP.length)]! : '_')
+    DEEP.forEach((line, depth) => canvas.put(SEA + 1 + depth, column, line[wrap(column + Math.floor(tick / (depth + 2)), line.length)]!))
   })
 
   const lift = Math.round(rise(BOAT_MAST - crest, DRIVE_SWELL))
@@ -278,8 +280,6 @@ function driveFrame(tick: number): string {
   if (slope(BOAT_MAST - crest, DRIVE_SWELL) >= 0.2) {
     const deck = SEA - 3 - lift
     const bow = BOAT_LEFT + BOAT[BOAT.length - 3]!.length - 1
-    for (const [row, column, char] of SPRAY[tick % 2]!) canvas.put(deck + row, bow + column, char)
+    for (const [row, column, char] of SPRAY[wrap(tick, 2)]!) canvas.put(deck + row, bow + column, char)
   }
-
-  return canvas.lines().join('\n')
 }

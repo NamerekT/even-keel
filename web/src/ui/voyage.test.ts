@@ -33,6 +33,23 @@ describe('voyageFrame', () => {
     }
     expect(voyageFrame(0)).not.toContain('(o)')
   })
+
+  it('draws ticks before zero, so the voyage can run backwards', () => {
+    for (const tick of [-1, -17, -400]) {
+      for (const drive of [false, true]) {
+        const frame = voyageFrame(tick, drive)
+        expect(frame).not.toContain('undefined')
+        expect(rows(frame).map((row) => row.length)).toEqual(rows(voyageFrame(0, drive)).map((row) => row.length))
+      }
+    }
+  })
+
+  it('moves the cloud on its own tick and leaves the sea and the boat alone', () => {
+    const still = rows(voyageFrame(30, false, 30))
+    const drifted = rows(voyageFrame(30, false, 80))
+    expect(drifted.slice(0, 3)).not.toEqual(still.slice(0, 3))
+    expect(drifted.slice(3)).toEqual(still.slice(3))
+  })
 })
 
 describe('poseAt', () => {

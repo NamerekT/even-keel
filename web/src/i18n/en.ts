@@ -258,6 +258,12 @@ export const en: Messages = {
         ['Options? Hmm…', ' the first sounds good, but the third is better…', " I'll pick the recommended one."],
       ],
       drive: ["Look! It's not sailing, it's…", ' driving?!', ' Wait, what?'],
+      picture: [
+        ['Now I have the full picture.', ' Full.', ' Picture.'],
+        ["It doesn't move anymore.", " Let's fix it…"],
+        ['Edit…', ' Edit…', ' Edit…'],
+        ['Fixed! Everything works now.', ' Sailing backwards is a pre-existing bug,', ' unrelated to my changes.', ' Filed an issue.'],
+      ],
       moments: {
         calm: ['Dead calm. Not a single task…', " Guess I'll code myself?"],
         backlogEmpty: ['Backlog empty?!', " Okay, who's hiding tasks?"],

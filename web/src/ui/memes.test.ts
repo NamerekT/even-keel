@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { TaskSession } from '../../../src/chain/launches.js'
 import type { ChainBlock } from '../state.js'
-import { emptyCard, type Harbor, harborMemes, longestRun, momentsOf, pickMeme, type Scene } from './memes.js'
+import { emptyCard, type Harbor, harborMemes, longestRun, momentsOf, pickMeme, pictureMotion, type Scene } from './memes.js'
 
 const block = (id: string, extra: Partial<ChainBlock> = {}): ChainBlock =>
   ({ id, open: true, locked: false, question: false, skipped: false, sessions: [], ...extra }) as ChainBlock
@@ -72,22 +72,43 @@ describe('pickMeme', () => {
     expect(pickMeme(['calm', 'spend'], 5, () => draws.shift()!)).toEqual({ moment: 'spend' })
   })
 
-  it('takes a general line or the drive on the upper half, and always without moments', () => {
-    const draws = [0.6, 0.99]
+  it('takes a general line, the drive or the picture on the upper half, and always without moments', () => {
+    const draws = [0.6, 0.8]
     expect(pickMeme(['calm'], 5, () => draws.shift()!)).toEqual({ drive: true })
+    expect(pickMeme([], 5, () => 0.99)).toEqual({ picture: 0 })
     expect(pickMeme([], 5, () => 0)).toEqual({ line: 0 })
   })
 
   it('never draws the previous line again', () => {
     expect(pickMeme([], 5, () => 0, { line: 0 })).toEqual({ line: 1 })
-    expect(pickMeme([], 5, () => 0.99, { drive: true })).toEqual({ line: 4 })
-    expect(pickMeme([], 1, () => 0.99, { line: 0 })).toEqual({ drive: true })
+    expect(pickMeme([], 5, () => 0.8, { drive: true })).toEqual({ line: 4 })
+    expect(pickMeme([], 5, () => 0.99, { drive: true })).toEqual({ picture: 0 })
+    expect(pickMeme([], 1, () => 0.4, { line: 0 })).toEqual({ drive: true })
   })
 
   it('leaves the previous moment out of the moments', () => {
     const draws = [0.2, 0]
     expect(pickMeme(['calm', 'spend'], 5, () => draws.shift()!, { moment: 'calm' })).toEqual({ moment: 'spend' })
     expect(pickMeme(['calm'], 5, () => 0, { moment: 'calm' })).toEqual({ line: 0 })
+  })
+})
+
+describe('pictureMotion', () => {
+  const pace = { charMs: 10, pauseMs: 100 }
+  const parts = ['Full picture.', ' Full.', ' Picture.']
+  // Typed by: 'Full picture.' at 130, ' Full.' starts at 230 and ends at 290, ' Picture.' starts at 390 and ends at 480.
+
+  it('stops the sea when the second part starts and the cloud once the line is typed', () => {
+    expect(pictureMotion(0, 4, 229, parts, pace)).toEqual({ sea: 1, cloud: 1 })
+    expect(pictureMotion(0, 4, 230, parts, pace)).toEqual({ sea: 0, cloud: 1 })
+    expect(pictureMotion(0, 4, 479, parts, pace)).toEqual({ sea: 0, cloud: 1 })
+    expect(pictureMotion(0, 4, 480, parts, pace)).toEqual({ sea: 0, cloud: 0 })
+  })
+
+  it('keeps everything still in the middle acts and runs it backwards in the last', () => {
+    expect(pictureMotion(1, 4, 0, parts, pace)).toEqual({ sea: 0, cloud: 0 })
+    expect(pictureMotion(2, 4, 5000, parts, pace)).toEqual({ sea: 0, cloud: 0 })
+    expect(pictureMotion(3, 4, 0, parts, pace)).toEqual({ sea: -1, cloud: -1 })
   })
 })
 
