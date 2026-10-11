@@ -19,7 +19,7 @@ import { StartPill } from '../ui/SessionStart.js'
 import { ActionScreen } from './ActionScreen.js'
 import './chain.css'
 import type { Arrival } from './useArrival.js'
-import { reorderable, useChainDrag, type ChainDrag } from './useChainDrag.js'
+import { reorderable, useChainDrag, type ChainDrag, type Landing } from './useChainDrag.js'
 import { useChainMotion } from './useChainMotion.js'
 
 const GHOST_DELAY_MS = 200
@@ -113,7 +113,7 @@ export function ChainList({ project, chain, scale, trackerUrls, focus, ghost, ar
     unfocus(milestoneView(archive.visible, kept).sections.flatMap((section) => section.blocks))
   }
 
-  const { drag, landing, movable } = useChainDrag({
+  const { drag, landing, settling, movable } = useChainDrag({
     listRef,
     blocks,
     disabled: sending,
@@ -158,7 +158,7 @@ export function ChainList({ project, chain, scale, trackerUrls, focus, ghost, ar
           {t.chain.away(motion.quiet)}
         </p>
       )}
-      <div ref={listRef} className={listClass(drag !== null, landing !== null)}>
+      <div ref={listRef} className={listClass(drag, landing, settling)}>
         {view.sections.map((section, index) => (
           <section
             key={`${index}:${section.milestone}`}
@@ -603,7 +603,8 @@ function withOrder(chain: ChainBlock[], order: string[]): ChainBlock[] {
   return [...chain.filter((block) => !block.open && !block.locked), ...placed]
 }
 
-function listClass(dragging: boolean, landing: boolean): string {
-  if (dragging) return 'chain__list chain__list--dragging'
-  return landing ? 'chain__list chain__list--landing' : 'chain__list'
+function listClass(drag: ChainDrag | null, landing: Landing | null, settling: boolean): string {
+  if (drag !== null) return 'chain__list chain__list--dragging'
+  if (landing?.moved) return 'chain__list'
+  return landing !== null || settling ? 'chain__list chain__list--settling' : 'chain__list'
 }

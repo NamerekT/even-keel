@@ -1582,7 +1582,7 @@ a:focus-visible {
 }
 
 .chain__list--dragging .block,
-.chain__list--landing .block {
+.chain__list--settling .block {
   transition: transform 160ms ease;
 }
 

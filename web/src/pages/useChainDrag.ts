@@ -8,6 +8,7 @@ const MOUSE_SLOP = 4
 const TOUCH_SLOP = 8
 const EDGE = 56
 const EDGE_SPEED = 14
+const SETTLE_MS = 200
 
 interface Press {
   pointerId: number
@@ -40,6 +41,8 @@ export interface ChainDrag {
 export interface Landing {
   id: string
   offset: Point
+  /** The order changed: cards are re-laid out this frame and must not animate their dropped transforms. */
+  moved: boolean
 }
 
 interface Options {
@@ -52,6 +55,7 @@ interface Options {
 export function useChainDrag({ listRef, blocks, disabled, onDrop }: Options) {
   const [drag, setDrag] = useState<ChainDrag | null>(null)
   const [landing, setLanding] = useState<Landing | null>(null)
+  const [settling, setSettling] = useState(false)
   const press = useRef<Press | null>(null)
   const active = useRef<Active | null>(null)
   const swallowClick = useRef(false)
@@ -61,10 +65,19 @@ export function useChainDrag({ listRef, blocks, disabled, onDrop }: Options) {
   useEffect(() => {
     if (landing === null) return
     let frame = requestAnimationFrame(() => {
-      frame = requestAnimationFrame(() => setLanding(null))
+      frame = requestAnimationFrame(() => {
+        setLanding(null)
+        setSettling(true)
+      })
     })
     return () => cancelAnimationFrame(frame)
   }, [landing])
+
+  useEffect(() => {
+    if (!settling) return
+    const timer = setTimeout(() => setSettling(false), SETTLE_MS)
+    return () => clearTimeout(timer)
+  }, [settling])
 
   useEffect(() => {
     const list = listRef.current
@@ -152,7 +165,7 @@ export function useChainDrag({ listRef, blocks, disabled, onDrop }: Options) {
       const home = state.boxes[state.from]!
       const slot = state.boxes[to]!
       setDrag(null)
-      setLanding({ id: state.id, offset: { x: home.left + dx - slot.left, y: home.top + dy - slot.top } })
+      setLanding({ id: state.id, offset: { x: home.left + dx - slot.left, y: home.top + dy - slot.top }, moved: to !== state.from })
       swallowClick.current = true
       setTimeout(() => (swallowClick.current = false))
       if (to !== state.from) latest.current.onDrop(moveItem(state.order, state.from, to))
@@ -247,7 +260,7 @@ export function useChainDrag({ listRef, blocks, disabled, onDrop }: Options) {
 
   const movable = (block: ChainBlock) => !disabled && reorderable(block)
 
-  return { drag, landing, movable }
+  return { drag, landing, settling, movable }
 }
 
 /** Movable apart from a command in flight: the drag hint keys off this so it does not blink out on every drop. */
