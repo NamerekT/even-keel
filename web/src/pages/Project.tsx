@@ -3,6 +3,7 @@ import { useLocation, useNavigate, useParams } from 'react-router'
 import type { EvenKeelState } from '../../../src/state.js'
 import { say, t } from '../i18n/index.js'
 import { isNarrow } from '../layout/useNarrow.js'
+import { useWide } from '../layout/useWide.js'
 import { useCommand } from '../live/useCommand.js'
 import {
   backlogTasks,
@@ -65,6 +66,7 @@ export function Project({ state }: { state: EvenKeelState }) {
   }, [focus])
   const arrival = useArrival(state, key, blocks, close)
   const strip = useStrip(key)
+  const wide = useWide()
   if (!state.projects.includes(key)) return <NotFound what={t.notFound.project(key)} />
 
   const order = state.chain.projects[key]
@@ -139,7 +141,7 @@ export function Project({ state }: { state: EvenKeelState }) {
           onSettled={arrival.settle}
         />
       )}
-      {selected === undefined && !backlogOpen && (
+      {wide && selected === undefined && !backlogOpen && (
         <IdlePanel
           key={key}
           scene={{

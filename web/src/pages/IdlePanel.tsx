@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { t } from '../i18n/index.js'
+import { useVisible } from '../layout/useVisible.js'
 import { stillMotion } from '../ui/landing.js'
 import { chatAt, type ChatLine, chatTime, longestRun, type Meme, type Motion, momentsOf, pickMeme, playMotion, type Scene } from '../ui/memes.js'
 import { TypedLine } from '../ui/Typed.js'
@@ -23,6 +24,7 @@ export function IdlePanel({ scene }: { scene: Scene }) {
   const [said, setSaid] = useState<ReturnType<typeof chatAt>>({ said: [], selected: 0 })
   const [tick, setTick] = useState({ sea: 0, cloud: 0 })
   const motion = useRef(FORWARD)
+  const visible = useVisible()
   // When the line started, when it starts being erased (ms after the start), and the moments it was drawn on.
   const line = useRef({ start: performance.now(), eraseAt: null as number | null, cue })
   const latest = useRef({ meme, parts, chat, cue, draw })
@@ -67,13 +69,13 @@ export function IdlePanel({ scene }: { scene: Scene }) {
   }, [])
 
   useEffect(() => {
-    if (stillMotion()) return
+    if (stillMotion() || !visible) return
     const timer = setInterval(() => {
       const { sea, cloud } = motion.current
       if (sea !== 0 || cloud !== 0) setTick((current) => ({ sea: current.sea + sea, cloud: current.cloud + cloud }))
     }, VOYAGE_TICK_MS)
     return () => clearInterval(timer)
-  }, [])
+  }, [visible])
 
   return (
     <aside className="idle">
