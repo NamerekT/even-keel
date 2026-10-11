@@ -10,7 +10,7 @@ import {
   formatUsd,
   kindLabel,
   launchLabel,
-  limitWindows,
+  limitAccounts,
   modelLabel,
   modelVersionLabel,
   reasonLabel,
@@ -146,18 +146,23 @@ describe('weeklyLimit', () => {
   })
 })
 
-describe('limitWindows', () => {
+describe('limitAccounts', () => {
   const window = (account: string, peak: number, open = false) => ({ account, resetsAt: '2026-10-10T13:00:00.000Z', peak, open })
 
-  it('lists the peaks of one account', () => {
-    expect(limitWindows([window('global', 100), window('global', 97.4), window('global', 22, true)])).toBe('окна: 100 %, 97 %, 22 % идёт')
+  it('splits the peaks of an account into closed windows and the ongoing one', () => {
+    expect(limitAccounts([window('global', 100), window('global', 97.4), window('global', 22, true)])).toEqual([
+      { account: 'global', closed: [100, 97.4], open: [22] },
+    ])
   })
 
-  it('names the accounts when there are several', () => {
-    expect(limitWindows([window('global', 100), window('john.doe', 73, true)])).toBe('окна: global 100 % · john.doe 73 % идёт')
+  it('gives a row per account in the order they come', () => {
+    expect(limitAccounts([window('global', 100), window('john.doe', 73, true), window('global', 10, true)])).toEqual([
+      { account: 'global', closed: [100], open: [10] },
+      { account: 'john.doe', closed: [], open: [73] },
+    ])
   })
 
   it('is empty without windows', () => {
-    expect(limitWindows([])).toBeNull()
+    expect(limitAccounts([])).toEqual([])
   })
 })

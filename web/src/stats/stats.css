@@ -162,8 +162,61 @@ a.stats__key:hover {
   font-size: 13px;
 }
 
-.stats-tile__line {
-  display: block;
+.limit-accounts {
+  display: grid;
+  grid-template-columns: minmax(5ch, 1fr) auto auto;
+  gap: 3px 12px;
+  margin: 6px 0 0;
+  padding: 0;
+  list-style: none;
+  color: var(--fg-muted);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.limit-accounts li {
+  display: grid;
+  grid-column: 1 / -1;
+  grid-template-columns: subgrid;
+  align-items: baseline;
+}
+
+.limit-accounts__head {
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+.limit-accounts__head span + span,
+.limit-accounts__peaks {
+  justify-self: end;
+}
+
+.limit-accounts__name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.limit-accounts__peaks {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 3px 8px;
+  color: var(--fg);
+}
+
+.limit-accounts__peak {
+  min-width: 5ch;
+  padding-bottom: 3px;
+  text-align: right;
+  white-space: nowrap;
+  background:
+    linear-gradient(var(--fg-muted), var(--fg-muted)) left bottom / var(--peak) 2px no-repeat,
+    linear-gradient(var(--border), var(--border)) left bottom / 100% 2px no-repeat;
+}
+
+.limit-accounts__peaks--open .limit-accounts__peak {
+  background-image: linear-gradient(var(--accent), var(--accent)), linear-gradient(var(--border), var(--border));
 }
 
 .stats-tile__value {

@@ -119,14 +119,19 @@ export function weeklyLimit(share: number | null, range: DayRange, limits: Limit
   }
 }
 
-export function limitWindows(windows: StatsLimitWindow[]): string | null {
-  if (windows.length === 0) return null
-  const accounts = [...new Set(windows.map((each) => each.account))]
-  const peaks = (account: string) =>
-    windows
-      .filter((each) => each.account === account)
-      .map((each) => `${formatShare(each.peak)}${each.open ? ` ${t.stats.summary.open}` : ''}`.replaceAll(' ', ' '))
-      .join(', ')
-  if (accounts.length === 1) return t.stats.summary.windows(peaks(accounts[0]!))
-  return t.stats.summary.windows(`${accounts.map((account) => `${account} ${peaks(account)}`).join(' · ')}`)
+export interface AccountWindows {
+  account: string
+  closed: number[]
+  open: number[]
+}
+
+/** The peaks of the weekly windows, a row per account: the closed windows and the one still going. */
+export function limitAccounts(windows: StatsLimitWindow[]): AccountWindows[] {
+  const rows = new Map<string, AccountWindows>()
+  for (const { account, peak, open } of windows) {
+    const row = rows.get(account) ?? { account, closed: [], open: [] }
+    rows.set(account, row)
+    ;(open ? row.open : row.closed).push(peak)
+  }
+  return [...rows.values()]
 }

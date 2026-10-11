@@ -1,11 +1,22 @@
-import type { ReactNode } from 'react'
+import type { CSSProperties, ReactNode } from 'react'
 import { MIN_HANDOFFS, MIN_SESSIONS, type CheckpointThreshold } from '../../../src/stats/checkpoint.js'
 import type { StatsPeriod, StatsShare } from '../../../src/stats/model.js'
 import { formatTokens } from '../format.js'
 import { language, t } from '../i18n/index.js'
 import { seriesStyle } from '../ui/series.js'
 import { Section } from './common.js'
-import { costChange, entrypointLabel, formatRatio, formatShare, formatUsd, limitWindows, modelLabel, weeklyLimit, type WeeklyLimit } from './format.js'
+import {
+  costChange,
+  entrypointLabel,
+  formatRatio,
+  formatShare,
+  formatUsd,
+  limitAccounts,
+  modelLabel,
+  weeklyLimit,
+  type AccountWindows,
+  type WeeklyLimit,
+} from './format.js'
 import { dayCount, formatDay, formatRange, previousRange, type DayRange } from './period.js'
 import { sourcesRemark, stampOf, type Stamp } from './remarks.js'
 
@@ -14,7 +25,7 @@ export function Tiles({ period, range }: { period: StatsPeriod; range: DayRange 
   const change = costChange(current.cost, previous.cost)
   const days = dayCount(range)
   const limit = weeklyLimit(current.limit, range, period.limits)
-  const windows = days > 7 ? limitWindows(period.windows) : null
+  const windows = days > 7 ? limitAccounts(period.windows) : []
   const stuckShare = current.cost > 0 ? (current.stuckCost / current.cost) * 100 : null
   const stamp = stampOf(current, previous)
 
@@ -29,9 +40,12 @@ export function Tiles({ period, range }: { period: StatsPeriod; range: DayRange 
         )}
         {current.unpriced > 0 && t.stats.summary.unpriced(current.unpriced)}
       </Tile>
-      <Tile label={t.stats.summary.limit} value={limit.share === null ? '—' : `${limit.perWeek ? '≈ ' : ''}${formatShare(limit.share)}`}>
+      <Tile
+        label={t.stats.summary.limit}
+        value={limit.share === null ? '—' : `${limit.perWeek ? '≈ ' : ''}${formatShare(limit.share)}`}
+        footer={windows.length > 0 && <LimitAccounts rows={windows} />}
+      >
         {limitNote(limit)}
-        {windows !== null && <span className="stats-tile__line">{windows}</span>}
       </Tile>
       <Tile label={t.stats.summary.tasks} value={`${current.tasks} / ${current.sessions}`}>
         {current.messages.toLocaleString(language)} {t.stats.summary.answers(current.messages)}
@@ -69,12 +83,48 @@ function limitNote(limit: WeeklyLimit): string {
   return limit.perWeek ? t.stats.summary.perWeek(span) : t.stats.summary.sum(span)
 }
 
-export function Tile({ label, value, children }: { label: string; value: string; children: ReactNode }) {
+function LimitAccounts({ rows }: { rows: AccountWindows[] }) {
+  const { summary } = t.stats
+  const closed = rows.some((each) => each.closed.length > 0)
+  const open = rows.some((each) => each.open.length > 0)
+  const peaks = (list: number[], label?: string) =>
+    list.map((peak, index) => (
+      <span
+        key={index}
+        className="limit-accounts__peak"
+        style={{ '--peak': `${Math.min(100, peak)}%` } as CSSProperties}
+        aria-label={label && `${formatShare(peak)} ${label}`}
+      >
+        {formatShare(peak)}
+      </span>
+    ))
+  return (
+    <ul className="limit-accounts">
+      <li className="limit-accounts__head" aria-hidden="true">
+        <span>{summary.windows}</span>
+        {closed && <span>{summary.closed}</span>}
+        {open && <span>{summary.open}</span>}
+      </li>
+      {rows.map((row) => (
+        <li key={row.account}>
+          <span className="limit-accounts__name" title={row.account}>
+            {row.account}
+          </span>
+          {closed && <span className="limit-accounts__peaks">{peaks(row.closed)}</span>}
+          {open && <span className="limit-accounts__peaks limit-accounts__peaks--open">{peaks(row.open, summary.open)}</span>}
+        </li>
+      ))}
+    </ul>
+  )
+}
+
+export function Tile({ label, value, children, footer }: { label: string; value: string; children: ReactNode; footer?: ReactNode }) {
   return (
     <div className="stats-tile">
       <span className="stats-tile__label">{label}</span>
       <span className="stats-tile__value">{value}</span>
       <span className="stats-tile__note">{children}</span>
+      {footer}
     </div>
   )
 }

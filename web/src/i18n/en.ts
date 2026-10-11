@@ -362,7 +362,7 @@ export const en: Messages = {
   strip: {
     label: (project: string, days: number) => `${project} spend over ${days} days`,
     cost: 'Cost',
-    limit: 'Weekly limit',
+    limit: 'In weekly limits',
     noSnapshots: 'no limit snapshots in 30 days',
     since: (day: string) => ` since ${day}`,
     sessions: 'Sessions',
@@ -628,7 +628,7 @@ export const en: Messages = {
       noPrevious: 'no previous span',
       change: (change: string, days: number) => `${change} vs the previous ${days} ${forms('day', 'days')(days)}`,
       unpriced: (count: number) => ` · ${count} unpriced`,
-      limit: 'Weekly limit',
+      limit: 'In weekly limits',
       tasks: 'Tasks / sessions',
       answers: forms('answer', 'answers'),
       stuck: 'Spent stuck',
@@ -641,7 +641,8 @@ export const en: Messages = {
       sources: 'Where the spend goes',
       model: 'Model',
       entrypoint: 'Entry point',
-      windows: (peaks: string) => `windows: ${peaks}`,
+      windows: 'windows',
+      closed: 'closed',
       open: 'ongoing',
     },
     labels: {
@@ -696,7 +697,7 @@ export const en: Messages = {
       mark: (title: string) => `Rule change: ${title}`,
       zoom: 'Drag across the chart to zoom in',
       zoomOut: '; double-click to go back',
-      marks: ' Vertical marks are rule changes: click one to compare before and after.',
+      marks: ' Notches at the axis are rule changes: click one to compare before and after.',
     },
     tasks: {
       columns: {

@@ -365,7 +365,7 @@ export const ru = {
   strip: {
     label: (project: string, days: number) => `Расход ${project} за ${days} дней`,
     cost: 'Деньги',
-    limit: 'Лимит в неделю',
+    limit: 'В недельных лимитах',
     noSnapshots: 'снимков лимита за 30 дней нет',
     since: (day: string) => ` с ${day}`,
     sessions: 'Сессии',
@@ -631,7 +631,7 @@ export const ru = {
       noPrevious: 'прошлого отрезка нет',
       change: (change: string, days: number) => `${change} к прошлым ${days} ${forms('дню', 'дням', 'дням')(days)}`,
       unpriced: (count: number) => ` · ${count} без цены`,
-      limit: 'Недельный лимит',
+      limit: 'В недельных лимитах',
       tasks: 'Задачи / сессии',
       answers: forms('ответ', 'ответа', 'ответов'),
       stuck: 'Ушло на буксование',
@@ -644,7 +644,8 @@ export const ru = {
       sources: 'Откуда расход',
       model: 'Модель',
       entrypoint: 'Точка входа',
-      windows: (peaks: string) => `окна: ${peaks}`,
+      windows: 'окна',
+      closed: 'закрытые',
       open: 'идёт',
     },
     labels: {
@@ -699,7 +700,7 @@ export const ru = {
       mark: (title: string) => `Правка правил: ${title}`,
       zoom: 'Выделите мышью отрезок графика, чтобы приблизить его',
       zoomOut: '; двойной клик — назад',
-      marks: ' Вертикальные метки — правки правил: клик по метке сравнивает до и после.',
+      marks: ' Засечки у оси — правки правил: клик по засечке сравнивает до и после.',
     },
     tasks: {
       columns: {

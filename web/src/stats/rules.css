@@ -1,28 +1,48 @@
 /* Rule marks on the spend chart */
 
+/* At rest a mark is a notch at the X axis; the line rises over the plot only under the pointer and for a picked mark. */
 .spend__mark {
+  --notch: 12px;
+  --plot: 204px;
   position: absolute;
-  top: 0;
+  top: calc(var(--plot) - var(--notch));
   z-index: 1;
   width: 9px;
-  height: 200px;
+  height: var(--notch);
   margin-left: -4px;
   padding: 0;
   border: 0;
-  background: linear-gradient(var(--lamp-waiting), var(--lamp-waiting)) center / 2px 100% no-repeat;
+  background: none;
+  color: var(--lamp-waiting);
   cursor: pointer;
-  opacity: 0.75;
 }
 
-.spend__mark:hover,
-.spend__mark:focus-visible,
-.spend__mark--on {
-  opacity: 1;
-  background-size: 3px 100%;
+.spend__mark::before {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 3px;
+  width: 3px;
+  height: var(--notch);
+  border-radius: 1px;
+  background: currentColor;
+  transition: height 0.12s ease-out;
+}
+
+.spend__mark:hover::before,
+.spend__mark:focus-visible::before,
+.spend__mark--on::before {
+  height: var(--plot);
 }
 
 .spend__mark--on {
-  background-image: linear-gradient(var(--accent), var(--accent));
+  color: var(--accent);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .spend__mark::before {
+    transition: none;
+  }
 }
 
 .spend__mark:focus-visible {
