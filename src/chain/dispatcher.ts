@@ -11,6 +11,7 @@ import {
   type ProjectOrder,
   type ReleaseReason,
 } from './model.js'
+import { MainCheck } from './maincheck.js'
 import { byNumber, chainOrder, checkOrder, nextTask, openBlockers, waitingBlockers, withFresh } from './order.js'
 import { admits, excludes, isActive, isDone, isTerminal, type ChainRules } from './rules.js'
 import { handoffPrompt, holdOf, relayStep, type HandoffReason, type HandoffSession } from './relay.js'
@@ -39,11 +40,14 @@ export class Dispatcher {
   private readonly done = new Map<string, Set<string>>()
   private readonly releasedDone = new Map<string, Set<string>>()
   private work: Promise<void> = Promise.resolve()
+  private readonly main: MainCheck | null
 
   constructor(
     readonly state: ChainState,
     private readonly deps: DispatcherDeps,
-  ) {}
+  ) {
+    this.main = deps.main === undefined ? null : new MainCheck(state, deps.main, deps.now, deps.log)
+  }
 
   setTasks(project: string, tasks: Task[]): void {
     const rules = this.deps.rules(project)
@@ -402,11 +406,47 @@ export class Dispatcher {
     for (const [project, done] of this.releasedDone) {
       for (const task of done) {
         if (this.deps.busy(task)) continue
-        this.keepOutcome(project, task, await this.cleanUp(project, task))
+        await this.closeUp(project, task)
         this.keepReleased(project, this.released(project).filter((id) => id !== task))
         this.deps.save(this.state)
       }
     }
+  }
+
+  /** Cleans up after a done task and, once main is pushed, awaits the CI's verdict on it. */
+  private async closeUp(project: string, task: string): Promise<void> {
+    const outcome = await this.cleanUp(project, task)
+    this.keepOutcome(project, task, outcome)
+    if (outcome.syncError === null) await this.main?.pushed(project, task)
+  }
+
+  private async settleMain(): Promise<void> {
+    if (this.main === null) return
+    const listed = (project: string) => [...(this.tasks.get(project) ?? []), ...(this.waiting.get(project) ?? []), ...(this.backlog.get(project) ?? [])]
+    const { changed, stops } = await this.main.settle((project, task) => listed(project).some((each) => each.id === task))
+    for (const { project, notice } of stops) {
+      let chain = this.chainOf(project)
+      if (chain === undefined) {
+        this.state.queue = this.state.queue.filter((key) => key !== project)
+        chain = newChain(project)
+        this.state.active.push(chain)
+      }
+      this.halt(chain, notice)
+    }
+    if (changed) this.deps.save(this.state)
+  }
+
+  /** Whether the launch of `task` waits for the CI's verdict on main; the task's place is prepared meanwhile. */
+  private heldByMain(chain: ActiveChain, task: string, listed: string[]): boolean {
+    const hold = this.main?.holds(chain.project, listed) ?? null
+    const wait = hold === null || hold === 'fix' ? undefined : { commit: hold.commit, since: hold.at }
+    if (chain.ciWait?.commit !== wait?.commit) {
+      if (wait === undefined) delete chain.ciWait
+      else chain.ciWait = wait
+      this.deps.save(this.state)
+    }
+    if (wait !== undefined) this.main!.ahead(chain.project, task)
+    return hold !== null
   }
 
   private async cleanUp(project: string, task: string): Promise<FinishOutcome> {
@@ -433,6 +473,7 @@ export class Dispatcher {
 
   private async advance(): Promise<void> {
     await this.sweep()
+    await this.settleMain()
     const seen = new Set<ActiveChain>()
     for (;;) {
       this.fill()
@@ -489,7 +530,10 @@ export class Dispatcher {
         return
       }
 
-      const task = nextTask(tasks, order, [...(this.state.skipped[chain.project] ?? []), ...this.waitingIds(chain.project)])
+      const skipped = this.state.skipped[chain.project] ?? []
+      const listed = tasks.map((open) => open.id)
+      const fix = this.main?.fixOf(chain.project, listed.filter((id) => !skipped.includes(id)))
+      const task = fix ?? nextTask(tasks, order, [...skipped, ...this.waitingIds(chain.project)])
       if (task === undefined) {
         this.drop(chain)
         this.deps.save(this.state)
@@ -501,10 +545,13 @@ export class Dispatcher {
       if (live !== undefined) {
         delete chain.limitUntil
         delete chain.slotWait
+        delete chain.ciWait
         this.take(chain, { task, sessionId: live, since })
         this.deps.save(this.state)
         return
       }
+
+      if (this.heldByMain(chain, task, listed)) return
 
       const blocked = this.deps.blocked()
       if (blocked !== undefined) {
@@ -558,9 +605,8 @@ export class Dispatcher {
       this.deps.save(this.state)
       return true
     }
-    const outcome = await this.cleanUp(chain.project, task)
+    await this.closeUp(chain.project, task)
     delete chain.closing
-    this.keepOutcome(chain.project, task, outcome)
     this.deps.save(this.state)
     return true
   }
@@ -686,6 +732,7 @@ export class Dispatcher {
     chain.error = error
     delete chain.limitUntil
     delete chain.slotWait
+    delete chain.ciWait
     this.deps.log(`chain: ${chain.project} paused: ${englishOf(error)}`)
     this.deps.save(this.state)
   }

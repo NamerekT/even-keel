@@ -63,6 +63,10 @@ export const noticesRu: NoticeTexts = {
   'ci.denied': (p) => `${p.ci}: токен отклонён (HTTP ${p.status}) — ему нужно чтение actions репозитория`,
   'ci.http': (p) => `${p.ci}: API ответил HTTP ${p.status}`,
   'ci.unreachable': (p) => `${p.ci}: API не отвечает`,
+  'ci.notTaken': (p) => `${p.ci}: ни один раннер не взял ${p.commit}`,
+  'ci.fixFailed': (p) => `CI красный на main в ${p.commit} — это пуш починки ${p.task}; цепочка ждёт вас`,
+  'ci.cannotCreate': (p) => `CI красный на main в ${p.commit}, а трекер не умеет заводить задачу на починку`,
+  'ci.fixNotCreated': (p) => `CI красный на main в ${p.commit}; задача на починку не заведена`,
 
   'slot.dirty': (p) => `в слоте ${p.path} незакоммиченные изменения — закоммитьте или уберите их`,
   'slot.busy': (p) => `слот ${p.path} занят посреди хода: ${list(p.sessions)} — дождитесь или остановите`,

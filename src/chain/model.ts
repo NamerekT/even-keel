@@ -1,7 +1,9 @@
+import type { CiVerdict, RedRun } from '../ci/verdict.js'
 import type { FinishOutcome } from '../git/types.js'
 import type { Language } from '../language.js'
 import type { Notice } from '../notice/notice.js'
 import type { Task } from '../tracker/model.js'
+import type { NewTask } from '../tracker/source.js'
 import type { ChainRules } from './rules.js'
 import type { AccountNow, HandoffReason, HandoffSession, LimitedSession, LimitHold, RelayAction } from './relay.js'
 
@@ -23,6 +25,8 @@ export interface ActiveChain {
   limitUntil?: string
   /** Unattended, a launch refused for want of a slot leaves the chain running; `at` is the last attempt. */
   slotWait?: { notice: Notice; at: string }
+  /** The next launch waits for the CI's verdict on this push of main. */
+  ciWait?: { commit: string; since: string }
   closing?: string
 }
 
@@ -43,6 +47,25 @@ export interface ChainState {
   unattended: boolean
   /** Chain sessions start without claude.ai skills and plugins and with the hidden skills only for `/name`. */
   trimTools: boolean
+  /** What the CI said of each project's main and what the chain waits on. */
+  ci: Record<string, MainGate>
+}
+
+/** A push of main by the cleanup after Done that the CI has not judged yet. */
+export interface MainPush {
+  commit: string
+  /** When Even Keel pushed it. */
+  at: string
+  /** The tasks it brought, with those of earlier pushes not judged before it came. */
+  tasks: string[]
+}
+
+export interface MainGate {
+  /** The last commit of main the CI passed. */
+  green?: string
+  check?: MainPush
+  /** The task Even Keel created to fix a red main, from its creation until a push of it is judged. */
+  fix?: { task: string; at: string; commit: string }
 }
 
 export type ReleaseReason = 'postpone' | 'skip'
@@ -100,10 +123,34 @@ export interface DispatcherDeps {
   relay: (task: string, session: HandoffSession, prompt: string, reason: HandoffReason) => Promise<string>
   finish: (project: string, task: string) => Promise<FinishOutcome>
   log: (message: string) => void
+  /** Without it the chain neither waits for the CI after a push of main nor reacts to a red one. */
+  main?: MainCheckDeps
+}
+
+export interface MainCheckDeps {
+  /** The commit main is at in the project's checkout; `null` — unknown. */
+  head: (project: string) => Promise<string | null>
+  /** What the project's counted CIs say of a commit pushed at `since`. */
+  verdict: (project: string, commit: string, since: string) => CiVerdict
+  /** How long the next launch waits for the verdict: `null` — as long as it takes, `0` — not at all. */
+  waitMs: (project: string) => number | null
+  report: (project: string, push: MainPush, failed: RedRun[], green: string | null) => Promise<RedReport>
+  /** Creates a task in the project's tracker ready for the chain; `null` — the tracker cannot create tasks. */
+  create: (project: string, task: Omit<NewTask, 'project'>) => Promise<string | null>
+  comment: (task: string, body: string) => Promise<void>
+  /** Prepares the place of the next task while the chain waits; its launch then reuses it. */
+  prepare: (project: string, task: string) => Promise<void>
+}
+
+/** The fix task's title and description, and the comment for a fix task already open. */
+export interface RedReport {
+  title: string
+  description: string
+  comment: string
 }
 
 export function emptyChainState(): ChainState {
-  return { active: [], queue: [], orders: {}, skipped: {}, leftovers: {}, released: {}, unattended: false, trimTools: true }
+  return { active: [], queue: [], orders: {}, skipped: {}, leftovers: {}, released: {}, unattended: false, trimTools: true, ci: {} }
 }
 
 export function newChain(project: string): ActiveChain {

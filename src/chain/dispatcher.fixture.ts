@@ -3,6 +3,7 @@ import { textNotice } from '../notice/notice.js'
 import { fakeTask } from '../tracker/fixture.js'
 import type { Task, TaskStatus } from '../tracker/model.js'
 import { Dispatcher, emptyChainState, type ChainState, type LaunchEntry } from './dispatcher.js'
+import type { MainCheckDeps } from './model.js'
 import type { AccountNow, HandoffSession, LimitedSession } from './relay.js'
 import { DEFAULT_RULES, type ChainRules } from './rules.js'
 
@@ -45,6 +46,7 @@ export interface SetupOptions {
   located?: Partial<HandoffSession>
   finish?: (task: string) => FinishOutcome
   rules?: Record<string, ChainRules>
+  main?: MainCheckDeps
 }
 
 export function setup(options: SetupOptions = {}) {
@@ -109,6 +111,7 @@ export function setup(options: SetupOptions = {}) {
       return options.finish?.(id) ?? { warnings: [], syncError: null }
     },
     log: (message) => log.push(message),
+    ...(options.main === undefined ? {} : { main: options.main }),
   })
   return { dispatcher, launched, tried, refuse, log, finished, saved, journal, clock, account, limited, handoffs, relays, busy, capacity }
 }

@@ -1,6 +1,6 @@
 import { isTerminal, unknownStatuses, type ChainRules } from '../chain/rules.js'
 import type { TrackerCard } from './card.js'
-import { isLeaf, toTask, type Task, type TaskStatus, type TrackerTask } from './model.js'
+import { isLeaf, toTask, type Task, type TaskPriority, type TaskStatus, type TrackerTask } from './model.js'
 
 export interface TaskFile {
   /** MIME type; empty when unknown. */
@@ -77,8 +77,24 @@ export interface TaskSource {
    * `files` are the comment's files, each by what `file(id, file)` serves.
    */
   commentsAfter?(id: string, after: string): Promise<TrackerComment[]>
+  /**
+   * Optional. Creates a task in the tracker's first `ToDo` status, so the chain takes it, and returns its id.
+   * Even Keel creates the task to fix a red CI on `main` with it; without it the chain only stops.
+   */
+  create?(task: NewTask): Promise<string>
   /** Drops the connection. */
   close(): Promise<void>
+}
+
+export interface NewTask {
+  /** The project key from `even-keel.config.json`. */
+  project: string
+  title: string
+  /** Markdown. */
+  description: string
+  priority: TaskPriority
+  /** The new task goes into the milestone of this task, if it has one; `null` — into none. */
+  milestoneOf: string | null
 }
 
 export interface TrackerComment {
@@ -157,6 +173,7 @@ export interface Tracker {
   ready?(id: string): Promise<TaskStatus | null>
   comment?(id: string, body: string): Promise<string>
   commentsAfter?(id: string, after: string): Promise<TrackerComment[]>
+  create?(task: NewTask): Promise<string>
   close(): Promise<void>
 }
 
@@ -181,5 +198,6 @@ export function trackerOf(source: TaskSource): Tracker {
   if (source.ready !== undefined) tracker.ready = (id) => source.ready!(id)
   if (source.comment !== undefined) tracker.comment = (id, body) => source.comment!(id, body)
   if (source.commentsAfter !== undefined) tracker.commentsAfter = (id, after) => source.commentsAfter!(id, after)
+  if (source.create !== undefined) tracker.create = (task) => source.create!(task)
   return tracker
 }

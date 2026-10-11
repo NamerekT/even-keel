@@ -14,7 +14,7 @@ export function loadChainState(file: string): ChainState {
   const valid = chains !== undefined && Array.isArray(state.queue) && typeof state.orders === 'object' && state.orders !== null
   if (!valid) throw new Error(`chain: ${file} is damaged; fix or delete it`)
   const active = chains.map((chain) => ({ ...chain, current: settled(chain.current), error: noticeOrNull(chain.error) }))
-  return { ...state, active, skipped: state.skipped ?? {}, leftovers: leftoversOf(state.leftovers), released: state.released ?? {}, unattended: state.unattended === true, trimTools: state.trimTools !== false } as ChainState
+  return { ...state, active, skipped: state.skipped ?? {}, leftovers: leftoversOf(state.leftovers), released: state.released ?? {}, unattended: state.unattended === true, trimTools: state.trimTools !== false, ci: state.ci ?? {} } as ChainState
 }
 
 // Before BTN-67 one chain ran at a time and `active` was that chain or null.

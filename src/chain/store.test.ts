@@ -27,6 +27,7 @@ describe('chain store', () => {
       released: { ABC: ['ABC-4'] },
       unattended: true,
       trimTools: false,
+      ci: { ABC: { green: 'abc123', check: { commit: 'def456', at: 't', tasks: ['ABC-5'] } } },
     }
     saveChainState(file, state)
     expect(loadChainState(file)).toEqual(state)
