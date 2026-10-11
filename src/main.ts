@@ -8,7 +8,7 @@ import { accountId, launchBlock, liveSessions, loginBlock, type LoginBlock } fro
 import { VsCodeAccount, vscodeSettingsFile } from './account/vscode.js'
 import { AccountWatcher } from './account/watcher.js'
 import { Dispatcher, type LaunchEntry } from './chain/dispatcher.js'
-import { handoffsOf, launchDays, taskSessions } from './chain/launches.js'
+import { handoffsOf, launchDays, ranSince, taskSessions } from './chain/launches.js'
 import { noteOf, resumePrompt, startPrompt, withBrief, withUnattended } from './chain/relay.js'
 import { launchLine } from './chain/log.js'
 import { readNote, saveSnapshot, snapshotReason } from './chain/snapshots.js'
@@ -49,6 +49,8 @@ import { trackerOf, type TrackerSetup } from './tracker/source.js'
 
 const TRACKER_POLL_MS = 5_000
 const TASKS_REFRESH_MS = 30_000
+/** How long a task the chain ran stays on the page once closed, whatever its milestone. */
+const RAN_SHOWN_MS = 7 * 24 * 60 * 60_000
 const TRACKER_TIMEOUT_MS = 15_000
 const SESSION_POLL_MS = 3_000
 const CLAUDE_TIMEOUT_MS = 30_000
@@ -679,9 +681,12 @@ function startTracker(view: TrackerView, setup: TrackerSetup): void {
           const listed = new Set([...tasks, ...parents].map((task) => task.id))
           const missing = [...new Set(tasks.filter((task) => isOpen(task.status)).flatMap((task) => task.blockedBy))].filter((id) => !listed.has(id))
           const others = missing.length === 0 ? [] : await link.run((tracker) => tracker.tasks(missing))
+          const unlisted = ranSince(launches, project, new Date(Date.now() - RAN_SHOWN_MS)).filter((id) => !listed.has(id))
+          const ran = unlisted.length === 0 ? [] : (await link.run((tracker) => tracker.tasks(unlisted))).filter((task) => !isOpen(task.status))
+          const shown = [...tasks, ...ran]
           dispatcher.setOutside(project, [...parents, ...others])
-          tasksByProject.set(project, tasks)
-          dispatcher.setTasks(project, tasks)
+          tasksByProject.set(project, shown)
+          dispatcher.setTasks(project, shown)
           const released = dispatcher.released(project)
           if (released.length > 0) dispatcher.setReleased(project, await link.run((tracker) => tracker.tasks(released)))
           if (!completes) return

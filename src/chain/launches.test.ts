@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { LaunchEntry } from './dispatcher.js'
-import { handoffsOf, launchDays, taskSessions } from './launches.js'
+import { handoffsOf, launchDays, ranSince, taskSessions } from './launches.js'
 
 function launch(at: Date, project: string): LaunchEntry {
   return { at: at.toISOString(), project, task: `${project}-1`, sessionId: 's' }
@@ -201,5 +201,36 @@ describe('handoffsOf', () => {
 
   it('knows nothing about a session the chain did not start', () => {
     expect(handoffsOf(journal, 'manual')).toBeUndefined()
+  })
+})
+
+describe('ranSince', () => {
+  const entry = (at: string, task: string, reason?: LaunchEntry['reason']): LaunchEntry => ({
+    at,
+    project: task.replace(/-\d+$/, ''),
+    task,
+    sessionId: `${task}-${at}`,
+    ...(reason ? { reason } : {}),
+  })
+  const since = new Date('2026-01-10T00:00:00Z')
+
+  it('lists the tasks of the project the chain started since then, each once, in launch order', () => {
+    const entries = [
+      entry('2026-01-10T01:00:00Z', 'ABC-2'),
+      entry('2026-01-10T02:00:00Z', 'XYZ-1'),
+      entry('2026-01-10T03:00:00Z', 'ABC-1'),
+      entry('2026-01-10T04:00:00Z', 'ABC-2', 'checkpoint'),
+    ]
+    expect(ranSince(entries, 'ABC', since)).toEqual(['ABC-2', 'ABC-1'])
+  })
+
+  it('leaves out older launches and the releases, which start nothing', () => {
+    const entries = [
+      entry('2026-01-09T23:59:00Z', 'ABC-1'),
+      entry('2026-01-10T01:00:00Z', 'ABC-2', 'postpone'),
+      entry('2026-01-10T01:00:00Z', 'ABC-3', 'skip'),
+      entry('not a date', 'ABC-4'),
+    ]
+    expect(ranSince(entries, 'ABC', since)).toEqual([])
   })
 })

@@ -30,6 +30,7 @@ export interface TaskSource {
   /**
    * Tasks of a project that are open by `open`, plus closed tasks sharing a milestone with them
    * (the page shows milestone progress), and the names of every status the tracker knows.
+   * Closed tasks the chain ran recently Even Keel requests itself, through `tasks`.
    */
   chainTasks(project: string, open: (status: TaskStatus) => boolean): Promise<TrackerTasks>
   /** The tasks with these ids, whatever their status; an id the tracker no longer has is left out. */
