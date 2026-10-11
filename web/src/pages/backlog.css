@@ -54,7 +54,7 @@
 
 .backlog__list--ready .backlog__row {
   grid-template-columns: 26px minmax(0, 1fr);
-  grid-template-areas: 'ready meta' '. name';
+  grid-template-areas: 'ready meta' 'ready name';
   padding-left: 8px;
 }
 
@@ -145,10 +145,10 @@ a.backlog__key:hover {
 
 .backlog__ready {
   grid-area: ready;
-  display: inline-grid;
+  display: grid;
   place-items: center;
+  align-self: stretch;
   width: 26px;
-  height: 26px;
   padding: 0;
   border: 1px solid var(--border);
   border-radius: 7px;
@@ -183,7 +183,6 @@ a.backlog__key:hover {
 @media (max-width: 760px) {
   .backlog__ready {
     width: 34px;
-    height: 34px;
   }
 
   .backlog__list--ready .backlog__row {

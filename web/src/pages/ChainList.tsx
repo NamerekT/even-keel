@@ -503,12 +503,15 @@ function Block(props: BlockProps) {
             </span>
             <span className="block__metrics-row block__metrics-row--who">
               <AccountTag email={metered.account} />
-              {handoffs > 0 && (
-                <span className="block__handoffs" role="img" aria-label={t.chain.handoffs(handoffs)} title={t.chain.handoffsTitle}>
-                  <HandoffIcon />
-                  {handoffs}
-                </span>
-              )}
+              <span
+                className={handoffs > 0 ? 'block__handoffs' : 'block__handoffs block__handoffs--none'}
+                role="img"
+                aria-label={t.chain.handoffs(handoffs)}
+                title={t.chain.handoffsTitle}
+              >
+                <HandoffIcon />
+                {handoffs}
+              </span>
             </span>
           </span>
         )}

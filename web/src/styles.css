@@ -1804,6 +1804,7 @@ a:focus-visible {
   flex-direction: column;
   border: 1px solid var(--border);
   border-radius: 8px;
+  overflow: hidden;
   background: var(--surface-muted);
 }
 
@@ -1814,17 +1815,32 @@ a:focus-visible {
   padding: 4px 10px;
 }
 
-.block__metrics-row:empty {
-  display: none;
-}
-
 .block__metrics-row + .block__metrics-row {
   border-top: 1px solid var(--border);
 }
 
 .block__metrics-row--who {
-  justify-content: space-between;
-  padding-block: 3px;
+  align-items: stretch;
+  gap: 0;
+  padding: 0;
+}
+
+.block__metrics .account-tag {
+  flex: 1;
+  min-width: 0;
+  padding: 3px 10px;
+  border: 0;
+  border-radius: 0;
+}
+
+.block__metrics .block__handoffs {
+  margin-left: auto;
+  padding: 3px 10px;
+  border-left: 1px solid var(--border);
+}
+
+.block__handoffs--none {
+  opacity: 0.5;
 }
 
 .block__metrics .context-meter {
