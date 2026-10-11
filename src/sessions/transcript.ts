@@ -1,3 +1,4 @@
+import { answersIn, questionsOf, toolAnswers, type Ask, type AskAnswers } from './ask.js'
 import { blocksOf, describeTool, flatten, parseEntry, type ContentBlock, type Entry, type Usage } from './entry.js'
 import { remoteUrlOf } from './remote.js'
 
@@ -6,10 +7,14 @@ export type ApiErrorKind = 'limit' | 'error'
 
 export interface FeedLine {
   at: string
-  kind: 'text' | 'tool' | 'error' | 'prompt'
+  kind: 'text' | 'tool' | 'error' | 'prompt' | 'answer'
   text: string
   /** The whole shell command of a tool line, only in a whole transcript. */
   detail?: string
+  /** The questions of an `AskUserQuestion` tool line, only in a whole transcript. */
+  ask?: Ask
+  /** An answer line: the question it answers and the answers it carries, by question text. */
+  answers?: { ask: string; answers: AskAnswers }
 }
 
 export interface TokenTotals {
@@ -40,6 +45,8 @@ export interface TranscriptSummary {
   checkpoint: string | null
   /** An `AskUserQuestion` is waiting for the user's choice. */
   asking: boolean
+  /** The `AskUserQuestion` waiting for the user's choice. */
+  ask: Ask | null
   firstActivityAt: string | null
   lastActivityAt: string | null
   lastReplyAt: string | null
@@ -74,8 +81,10 @@ export class TranscriptFold {
   private wrapUp: TranscriptSummary['apiError'] = null
   private lastMessage: string | null = null
   private checkpoint: string | null = null
-  /** The id of an `AskUserQuestion` call that has no result yet. */
-  private openAsk: string | null = null
+  /** The `AskUserQuestion` call that has no result yet. */
+  private openAsk: Ask | null = null
+  /** An `AskUserQuestion` whose call ended without the user's answer: the next prompt answers it. */
+  private strayAsk: Ask | null = null
   private firstActivityAt: string | null = null
   private lastActivityAt: string | null = null
   private lastReplyAt: string | null = null
@@ -143,6 +152,7 @@ export class TranscriptFold {
       lastMessage: this.lastMessage,
       checkpoint: this.checkpoint,
       asking: this.openAsk !== null,
+      ask: this.openAsk,
       firstActivityAt: this.firstActivityAt,
       lastActivityAt: this.lastActivityAt,
       lastReplyAt: this.lastReplyAt,
@@ -188,10 +198,14 @@ export class TranscriptFold {
         this.checkpoint = checkpointOf(block.text ?? '')
       } else if (block.type === 'tool_use' && typeof block.name === 'string') {
         this.checkpoint = null
-        if (block.name === ASK_TOOL) this.openAsk = block.id ?? ASK_TOOL
         const input = block.input ?? {}
         const line: FeedLine = { at, kind: 'tool', text: describeTool(block.name, input, entry.cwd) }
         if (this.whole && SHELLS.has(block.name) && typeof input.command === 'string') line.detail = input.command
+        if (block.name === ASK_TOOL) {
+          this.openAsk = { id: block.id ?? ASK_TOOL, questions: questionsOf(input) }
+          this.strayAsk = null
+          if (this.whole) line.ask = this.openAsk
+        }
         this.addAction(line)
         this.advanceStage(stageOf(block.name, input))
       }
@@ -199,8 +213,12 @@ export class TranscriptFold {
   }
 
   private pushUser(entry: Entry): void {
-    if (this.openAsk !== null && blocksOf(entry.message?.content).some((block) => block.type === 'tool_result' && block.tool_use_id === this.openAsk)) {
+    const ask = this.openAsk
+    if (ask !== null && blocksOf(entry.message?.content).some((block) => block.type === 'tool_result' && block.tool_use_id === ask.id)) {
       this.openAsk = null
+      const answers = toolAnswers(entry.toolUseResult)
+      if (answers === null) this.strayAsk = ask
+      else this.addFeed({ at: entry.timestamp ?? '', kind: 'answer', text: this.textOf(answerText(answers)), answers: { ask: ask.id, answers } })
     }
     if (entry.usageLimitNote === 'wrap_up') {
       const at = entry.timestamp ?? ''
@@ -210,8 +228,14 @@ export class TranscriptFold {
       this.wrapUp = null
       this.checkpoint = null
       if (entry.origin?.kind !== undefined && entry.origin.kind !== 'human') return
-      const text = this.textOf(promptOf(entry.message?.content))
-      if (text !== '') this.addFeed({ at: entry.timestamp ?? '', kind: 'prompt', text })
+      const prompt = promptOf(entry.message?.content)
+      const text = this.textOf(prompt)
+      const answered = this.openAsk ?? this.strayAsk
+      this.openAsk = null
+      this.strayAsk = null
+      if (text === '') return
+      if (answered === null) this.addFeed({ at: entry.timestamp ?? '', kind: 'prompt', text })
+      else this.addFeed({ at: entry.timestamp ?? '', kind: 'answer', text, answers: { ask: answered.id, answers: answersIn(prompt, answered) } })
     }
   }
 
@@ -235,6 +259,12 @@ export class TranscriptFold {
       this.stage = next
     }
   }
+}
+
+function answerText(answers: AskAnswers): string {
+  return Object.entries(answers)
+    .map(([question, answer]) => `${question} → ${answer}`)
+    .join('\n')
 }
 
 function writtenTtl(usage: Usage): CacheTtl | null {

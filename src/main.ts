@@ -23,6 +23,8 @@ import { exhaustedReset } from './limits/model.js'
 import { LimitsWatcher } from './limits/watcher.js'
 import { englishOf, fail, notice, noticeOf, type Notice } from './notice/notice.js'
 import { createEvenKeelServer } from './server.js'
+import { replyPrompt, type Reply } from './sessions/ask.js'
+import { saveInbox, type InboxFile } from './sessions/inbox.js'
 import { ClaudeCli, liveRecords, resolveClaudeBinary, SESSION_MODE } from './sessions/claude.js'
 import { turnStatus, type AgentEntry } from './sessions/agents.js'
 import { launchPlan, type LaunchPlan } from './sessions/launch.js'
@@ -273,8 +275,10 @@ function logStartupDialogs(views: SessionView[]): void {
   }
 }
 
+const liveView = (task: string) => sessions.find((each) => each.task === task && each.lamp !== 'finished')
+
 const agentStatus = (task: string) => {
-  const view = sessions.find((each) => each.task === task && each.lamp !== 'finished')
+  const view = liveView(task)
   if (view === undefined) return undefined
   return turnStatus(agents.find((agent) => agent.sessionId === view.sessionId)?.status, view.lastActivityAt, new Date())
 }
@@ -353,6 +357,7 @@ const dispatcher = new Dispatcher(loadChainState(chainFile), {
     return status === 'busy' || status === 'waiting'
   },
   midTurn: (task) => agentStatus(task) === 'busy',
+  asked: (task) => liveView(task)?.ask?.id ?? null,
   save: (state) => {
     saveChainState(chainFile, state)
     hub.broadcast('state', getState())
@@ -375,6 +380,13 @@ const dispatcher = new Dispatcher(loadChainState(chainFile), {
     await cli.stop(home, session.agentId, session.sessionId)
     await daemons.prepare(home)
     const plan = planFor(task, resumePrompt(promptLanguage()))
+    return (await cli.resume(home, session.sessionId, task, session.cwd, plan.prompt, plan.model, settingsFor(task, session.cwd))).sessionId
+  },
+  reply: async (task, session, prompt) => {
+    const home = homeOf(session.account)
+    await cli.stop(home, session.agentId, session.sessionId)
+    await daemons.prepare(home)
+    const plan = planFor(task, prompt)
     return (await cli.resume(home, session.sessionId, task, session.cwd, plan.prompt, plan.model, settingsFor(task, session.cwd))).sessionId
   },
   relay: async (task, session, handoff, reason) => {
@@ -414,6 +426,27 @@ const dispatcher = new Dispatcher(loadChainState(chainFile), {
   },
   log: (message) => console.log(message),
 })
+
+/** Saves the files into the task's folder and resumes the waiting session with the reply (invariant 1, exception 6). */
+async function answerSession(
+  project: string,
+  task: string,
+  sessionId: string,
+  ask: string | null,
+  reply: Omit<Reply, 'files'> & { files: InboxFile[] },
+): Promise<void> {
+  const { session } = dispatcher.answerable(project, task, sessionId, ask)
+  const question = ask === null ? null : (liveView(task)?.ask ?? null)
+  let files: string[]
+  try {
+    files = await saveInbox(session.workdir, reply.files)
+  } catch (error) {
+    throw fail('answer.file', { name: reply.files.map((file) => file.name).join(', ') }, { detail: (error as Error).message }, { cause: error })
+  }
+  const prompt = replyPrompt({ ...reply, files }, question, promptLanguage())
+  dispatcher.answer(project, task, sessionId, ask, prompt)
+  console.log(`chain: ${task}: the user's answer from the ${reply.from} goes to the session ${sessionId}${files.length > 0 ? ` with ${files.length} file(s)` : ''}`)
+}
 
 function occupantsOf(slot: string, task: string) {
   const owners = new Map(launches.map((entry) => [entry.sessionId, entry.task]))
@@ -497,6 +530,9 @@ const server = createEvenKeelServer({
   getState,
   control: dispatcher,
   account,
+  sessions: {
+    answer: ({ project, task, sessionId, ask, answers, text, files }) => answerSession(project, task, sessionId, ask, { from: 'page', answers, text, files }),
+  },
   launches: () => launches,
   sessionRecord: async (sessionId) => {
     for (const home of homes.list()) {

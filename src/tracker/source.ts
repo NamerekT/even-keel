@@ -67,8 +67,25 @@ export interface TaskSource {
    * Returns the new status; `null` — the task is not `UnStarted` and was left alone.
    */
   ready?(id: string): Promise<TaskStatus | null>
+  /**
+   * Optional. Posts a Markdown comment on the task and returns its id. With `commentsAfter` Even Keel puts a session's
+   * `AskUserQuestion` to the user in the tracker and passes the reply comment on to the session.
+   */
+  comment?(id: string, body: string): Promise<string>
+  /**
+   * Optional. The comments on the task posted after the comment `after`, oldest first; `[]` when `after` is gone.
+   * `files` are the comment's files, each by what `file(id, file)` serves.
+   */
+  commentsAfter?(id: string, after: string): Promise<TrackerComment[]>
   /** Drops the connection. */
   close(): Promise<void>
+}
+
+export interface TrackerComment {
+  id: string
+  /** Markdown. */
+  body: string
+  files: { name: string; file: string }[]
 }
 
 export interface TrackerTasks {
@@ -138,6 +155,8 @@ export interface Tracker {
   card?(id: string): Promise<TrackerCard>
   file?(id: string, file: string): Promise<TaskFile | null>
   ready?(id: string): Promise<TaskStatus | null>
+  comment?(id: string, body: string): Promise<string>
+  commentsAfter?(id: string, after: string): Promise<TrackerComment[]>
   close(): Promise<void>
 }
 
@@ -160,5 +179,7 @@ export function trackerOf(source: TaskSource): Tracker {
   if (source.card !== undefined) tracker.card = (id) => source.card!(id)
   if (source.file !== undefined) tracker.file = (id, file) => source.file!(id, file)
   if (source.ready !== undefined) tracker.ready = (id) => source.ready!(id)
+  if (source.comment !== undefined) tracker.comment = (id, body) => source.comment!(id, body)
+  if (source.commentsAfter !== undefined) tracker.commentsAfter = (id, after) => source.commentsAfter!(id, after)
   return tracker
 }

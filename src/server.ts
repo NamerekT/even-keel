@@ -81,12 +81,28 @@ export interface TaskControl {
   ready(task: string): Promise<void>
 }
 
+export interface AnswerRequest {
+  project: string
+  task: string
+  sessionId: string
+  /** The id of the `AskUserQuestion` answered; `null` — a reply to a turn that ended in plain text. */
+  ask: string | null
+  answers: Record<string, string>
+  text: string
+  files: { name: string; data: Uint8Array }[]
+}
+
+export interface SessionControl {
+  answer(request: AnswerRequest): Promise<void>
+}
+
 export interface ServerDeps {
   hub: EventHub
   publicDir: string
   getState: () => unknown
   control: ChainControl
   account: AccountControl
+  sessions: SessionControl
   launches: () => unknown
   sessionRecord: (sessionId: string) => Promise<unknown>
   /** Lines of the whole transcript from index `after` on. */
@@ -115,6 +131,7 @@ const COMMANDS: Record<string, Command> = {
   'chain/unattended': ({ control }, body) => control.setUnattended(flagOf(body)),
   'chain/trim': ({ control }, body) => control.setTrimTools(flagOf(body)),
   'task/ready': ({ tasks }, body) => tasks.ready(taskOf(body)),
+  'session/answer': ({ sessions }, body) => sessions.answer(answerOf(body)),
   'account/add': ({ account }) => account.add(),
   'account/renew': ({ account }, body) => account.renew(accountOf(body)),
   'account/switch': ({ account }, body) => account.switchTo(accountOf(body)),
@@ -126,6 +143,9 @@ const COMMANDS: Record<string, Command> = {
 }
 
 const MAX_BODY_BYTES = 64 * 1024
+/** An answer carries its files in base64. */
+const MAX_ANSWER_BYTES = 64 * 1024 * 1024
+const BODY_LIMITS: Record<string, number> = { '/api/session/answer': MAX_ANSWER_BYTES }
 
 const CONTENT_TYPES: Record<string, string> = {
   '.html': 'text/html; charset=utf-8',
@@ -285,9 +305,11 @@ async function route(deps: ServerDeps, request: IncomingMessage, response: Serve
       return
     }
     try {
-      const body = await readJsonBody(request)
+      const body = await readJsonBody(request, BODY_LIMITS[path] ?? MAX_BODY_BYTES)
       await command(deps, body)
-      if (path.startsWith('/api/chain/')) console.log(`page: ${path.slice('/api/'.length)} ${commandTarget(body)}`.trimEnd())
+      if (path.startsWith('/api/chain/') || path === '/api/session/answer') {
+        console.log(`page: ${path.slice('/api/'.length)} ${commandTarget(body)}`.trimEnd())
+      }
     } catch (error) {
       sendFailure(response, error)
       return
@@ -337,12 +359,12 @@ async function sendFile(response: ServerResponse, file: TaskFile): Promise<void>
   }
 }
 
-async function readJsonBody(request: IncomingMessage): Promise<Record<string, unknown>> {
+async function readJsonBody(request: IncomingMessage, limit: number): Promise<Record<string, unknown>> {
   const chunks: Buffer[] = []
   let size = 0
   for await (const chunk of request as AsyncIterable<Buffer>) {
     size += chunk.length
-    if (size > MAX_BODY_BYTES) throw fail('request.tooLarge', {})
+    if (size > limit) throw fail('request.tooLarge', {})
     chunks.push(chunk)
   }
   const text = Buffer.concat(chunks).toString('utf8').trim()
@@ -378,6 +400,25 @@ function flagOf(body: Record<string, unknown>): boolean {
 function taskOf(body: Record<string, unknown>): string {
   if (typeof body.task !== 'string' || body.task === '') throw fail('request.required', { field: 'task' })
   return body.task
+}
+
+export function answerOf(body: Record<string, unknown>): AnswerRequest {
+  const { sessionId, ask, answers, text, files } = body
+  if (typeof sessionId !== 'string' || sessionId === '') throw fail('request.required', { field: 'sessionId' })
+  if (ask !== null && (typeof ask !== 'string' || ask === '')) throw fail('request.required', { field: 'ask' })
+  const answered = typeof answers === 'object' && answers !== null && !Array.isArray(answers) ? Object.entries(answers) : []
+  const sent = Array.isArray(files) ? files : []
+  if (!answered.every(([, value]) => typeof value === 'string')) throw fail('request.required', { field: 'answers' })
+  if (!sent.every((file) => typeof file?.name === 'string' && typeof file?.data === 'string')) throw fail('request.required', { field: 'files' })
+  return {
+    project: projectOf(body),
+    task: taskOf(body),
+    sessionId,
+    ask,
+    answers: Object.fromEntries(answered) as Record<string, string>,
+    text: typeof text === 'string' ? text : '',
+    files: sent.map((file: { name: string; data: string }) => ({ name: file.name, data: Buffer.from(file.data, 'base64') })),
+  }
 }
 
 function accountOf(body: Record<string, unknown>): string {

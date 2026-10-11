@@ -6,6 +6,7 @@ import type { RateLimits } from './limits/model.js'
 import type { UsageHealth } from './limits/usage.js'
 import type { Notice } from './notice/notice.js'
 import type { Lamp } from './sessions/agents.js'
+import type { Ask } from './sessions/ask.js'
 import type { RemoteOff } from './sessions/remote.js'
 import type { CacheWindow, FeedLine, Stage, TokenTotals } from './sessions/transcript.js'
 import type { TrackerView } from './tracker/health.js'
@@ -21,6 +22,8 @@ export interface SessionView {
   startupDialog: string | null
   /** The transcript ends in an `AskUserQuestion` the user has not answered. */
   asking: boolean
+  /** That `AskUserQuestion`, for the answer panel of the chat window. */
+  ask: Ask | null
   apiError: string | null
   startedAt: string
   lastActivityAt: string | null

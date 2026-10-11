@@ -169,6 +169,7 @@ function toView(
     waitingFor: present && agent.status === 'waiting' ? (agent.waitingFor ?? null) : null,
     startupDialog: present ? (agent.startupDialog ?? null) : null,
     asking: present && summary.asking,
+    ask: present ? summary.ask : null,
     apiError: summary.apiError?.text ?? null,
     startedAt: new Date(agent.startedAt).toISOString(),
     lastActivityAt: summary.lastActivityAt,

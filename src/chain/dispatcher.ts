@@ -67,7 +67,7 @@ export interface LaunchEntry {
   project: string
   task: string
   sessionId: string
-  reason?: RelayAction | ReleaseReason | 'restart' | 'checkpoint'
+  reason?: RelayAction | ReleaseReason | 'restart' | 'checkpoint' | 'answer'
   previous?: string
   blockers?: string[]
 }
@@ -97,6 +97,8 @@ export interface DispatcherDeps {
   blocked: () => Notice | undefined
   busy: (task: string) => boolean
   midTurn: (task: string) => boolean
+  /** The id of the `AskUserQuestion` the task's session waits on, `null` for none. */
+  asked: (task: string) => string | null
   save: (state: ChainState) => void
   journal: (entry: LaunchEntry) => void
   now: () => Date
@@ -108,6 +110,8 @@ export interface DispatcherDeps {
   limitReset: () => string | null
   promptLanguage: () => Language
   resume:(task: string, session: LimitedSession) => Promise<string>
+  /** Stops the waiting session and resumes it with the user's reply; returns the session id it came up under. */
+  reply: (task: string, session: HandoffSession, prompt: string) => Promise<string>
   relay: (task: string, session: HandoffSession, prompt: string, reason: HandoffReason) => Promise<string>
   finish: (project: string, task: string) => Promise<FinishOutcome>
   log: (message: string) => void
@@ -248,6 +252,33 @@ export class Dispatcher {
     if (session === undefined) throw fail('chain.noSession', { task })
     const replaced = current.sessionId
     this.work = this.work.then(() => this.replace(chain, current, replaced, session))
+  }
+
+  /**
+   * Throws unless the user may answer the session now: it is the current one of the task, waits rather than works,
+   * and still waits on the question `ask` (`null` — on none, the turn ended in plain text).
+   */
+  answerable(project: string, task: string, sessionId: string, ask: string | null): { chain: ActiveChain; current: CurrentTask; session: HandoffSession } {
+    this.requireProject(project)
+    const chain = this.chainOf(project)
+    const current = chain?.current?.task === task ? chain.current : null
+    if (chain === undefined || current === null) throw fail('chain.notCurrent', { task })
+    if (current.sessionId === null || current.starting !== undefined) throw fail('chain.launching', { task })
+    const session = this.deps.handoff(task)
+    if (current.sessionId !== sessionId || session?.sessionId !== sessionId || this.deps.asked(task) !== ask) {
+      throw fail('answer.moved', { task })
+    }
+    if (this.deps.midTurn(task)) throw fail('answer.busy', { task })
+    this.requireLaunches()
+    const reset = this.deps.limitReset()
+    if (reset !== null) throw fail('chain.limitSpent', { until: reset })
+    return { chain, current, session }
+  }
+
+  /** Invariant 1, exception 6: the user's own answer resumes the session that waits for it. */
+  answer(project: string, task: string, sessionId: string, ask: string | null, prompt: string): void {
+    const { chain, current, session } = this.answerable(project, task, sessionId, ask)
+    this.work = this.work.then(() => this.deliver(chain, current, session, prompt))
   }
 
   dismiss(project: string, task: string): void {
@@ -697,6 +728,23 @@ export class Dispatcher {
   private async replace(chain: ActiveChain, current: CurrentTask, replaced: string, session: HandoffSession): Promise<void> {
     if (!this.state.active.includes(chain) || chain.current !== current || current.sessionId !== replaced) return
     await this.handOverCurrent(chain, current, session, 'restart')
+  }
+
+  private async deliver(chain: ActiveChain, current: CurrentTask, session: HandoffSession, prompt: string): Promise<void> {
+    if (!this.state.active.includes(chain) || chain.current !== current || current.sessionId !== session.sessionId) return
+    const at = this.deps.now().toISOString()
+    current.starting = at
+    this.deps.save(this.state)
+    try {
+      const sessionId = await this.deps.reply(current.task, session, prompt)
+      this.deps.journal({ at, project: chain.project, task: current.task, sessionId, reason: 'answer', previous: session.sessionId })
+      current.sessionId = sessionId
+      current.resumedAt = at
+      delete current.starting
+      this.deps.save(this.state)
+    } catch (error) {
+      this.halt(chain, noticeOf(error))
+    }
   }
 
   private async handOverCurrent(

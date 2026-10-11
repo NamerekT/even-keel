@@ -35,6 +35,7 @@ interface PlatformClient {
   findAll<T>(cls: string, query: Query, options?: { projection?: Record<string, 1> }): Promise<T[]>
   findOne<T>(cls: string, query: Query): Promise<T | undefined>
   updateDoc(cls: string, space: string, id: string, update: Record<string, unknown>): Promise<unknown>
+  addCollection(cls: string, space: string, attachedTo: string, attachedToClass: string, collection: string, attributes: Record<string, unknown>): Promise<string>
   fetchMarkup(cls: string, id: string, attribute: string, markup: string, format: 'markdown'): Promise<string>
   close(): Promise<void>
 }
@@ -57,8 +58,14 @@ const require = createRequire(import.meta.url)
 const api = require('@hcengineering/api-client') as ApiClientModule
 const tracker = (require('@hcengineering/tracker') as { default: TrackerPlugin }).default
 
-const { markupToJSON } = require('@hcengineering/text-core') as { markupToJSON(markup: string): unknown }
-const { markupToMarkdown } = require('@hcengineering/text-markdown') as { markupToMarkdown(markup: unknown): string }
+const { markupToJSON, jsonToMarkup } = require('@hcengineering/text-core') as {
+  markupToJSON(markup: string): unknown
+  jsonToMarkup(json: unknown): string
+}
+const { markupToMarkdown, markdownToMarkup } = require('@hcengineering/text-markdown') as {
+  markupToMarkdown(markup: unknown): string
+  markdownToMarkup(markdown: string): unknown
+}
 
 const TAG_REFERENCE = 'tags:class:TagReference'
 const PROJECT_TYPE = 'task:class:ProjectType'
@@ -82,7 +89,7 @@ const ISSUE_FIELDS = {
 } as const
 const MILESTONE_FIELDS = { label: 1, targetDate: 1 } as const
 const LABEL_FIELDS = { attachedTo: 1, title: 1 } as const
-const ATTACHMENT_FIELDS = { file: 1, name: 1, type: 1, size: 1, modifiedOn: 1, createdOn: 1 } as const
+const ATTACHMENT_FIELDS = { attachedTo: 1, file: 1, name: 1, type: 1, size: 1, modifiedOn: 1, createdOn: 1 } as const
 
 export async function connectHuly(credentials: HulyCredentials, timeoutMs: number): Promise<TaskSource> {
   const account = { email: credentials.email, password: credentials.password, workspace: credentials.workspace }
@@ -239,6 +246,25 @@ export async function connectHuly(credentials: HulyCredentials, timeoutMs: numbe
       if (status === null) return null
       await client.updateDoc(tracker.class.Issue, issue.space, issue._id, { status: status._id })
       return toStatus(status)
+    },
+    async comment(identifier, body) {
+      const issue = await findIssue(identifier)
+      const message = jsonToMarkup(markdownToMarkup(body))
+      return client.addCollection(CHAT_MESSAGE, issue.space, issue._id, tracker.class.Issue, 'comments', { message, attachments: 0 })
+    },
+    async commentsAfter(identifier, after) {
+      const issue = await findIssue(identifier)
+      const question = await client.findOne<ChatMessageDoc>(CHAT_MESSAGE, { _id: after })
+      if (question === undefined) return []
+      const messages = (await client.findAll<ChatMessageDoc>(CHAT_MESSAGE, { attachedTo: issue._id, createdOn: { $gt: question.createdOn } })).sort(
+        (a, b) => a.createdOn - b.createdOn,
+      )
+      const attachments = messages.length === 0 ? [] : await findAttachments({ attachedTo: { $in: messages.map((doc) => doc._id) } })
+      return messages.map((doc) => ({
+        id: doc._id,
+        body: markupToMarkdown(markupToJSON(doc.message)),
+        files: attachments.filter((each) => each.attachedTo === doc._id).map((each) => ({ name: each.name, file: each.file })),
+      }))
     },
     close: () => client.close(),
   }

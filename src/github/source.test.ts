@@ -130,4 +130,30 @@ describe('github source', () => {
     expect(await source.complete!('ABC-7')).toBe(false)
     expect(calls).toHaveLength(2)
   })
+
+  it('posts a comment on the issue and gives its id', async () => {
+    const { source, calls } = await connect([
+      { body: { data: { repository: { issue: { id: 'I_kwDOexample7', state: 'OPEN' } } } } },
+      { body: { data: { addComment: { commentEdge: { node: { id: 'IC_1' } } } } } },
+    ])
+    expect(await source.comment!('ABC-7', 'Which one?')).toBe('IC_1')
+    expect(calls[2]!.variables).toEqual({ id: 'I_kwDOexample7', body: 'Which one?' })
+  })
+
+  it('gives the comments after a given one with the files they link to', async () => {
+    const nodes = [
+      { id: 'IC_0', body: 'earlier' },
+      { id: 'IC_1', body: 'Which one?' },
+      { id: 'IC_2', body: '2\n![shot](https://github.com/user-attachments/assets/abc-123)' },
+    ]
+    const { source } = await connect([{ body: { data: { repository: { issue: { comments: { nodes } } } } } }])
+    expect(await source.commentsAfter!('ABC-7', 'IC_1')).toEqual([
+      { id: 'IC_2', body: nodes[2]!.body, files: [{ name: 'shot', file: 'https://github.com/user-attachments/assets/abc-123' }] },
+    ])
+  })
+
+  it('serves no file from outside the upload hosts', async () => {
+    const { source } = await connect([])
+    expect(await source.file!('ABC-7', 'https://example.com/steal')).toBeNull()
+  })
 })

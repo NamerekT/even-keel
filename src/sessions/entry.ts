@@ -39,6 +39,7 @@ export interface Entry {
   content?: unknown
   attachment?: { type?: string; url?: unknown }
   origin?: { kind?: string }
+  toolUseResult?: unknown
   message?: { id?: string; model?: string; content?: unknown; usage?: Usage }
 }
 

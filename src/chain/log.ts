@@ -8,5 +8,6 @@ export function launchLine(entry: LaunchEntry): string {
     const why = blockers !== undefined && blockers.length > 0 ? `${reason}, blocked by ${blockers.join(', ')}` : reason
     return `chain: ${task} released (${why}), its session ${sessionId} is left as it is`
   }
+  if (reason === 'answer') return `chain: ${task} resumed with the user's answer in the session ${sessionId}`
   return `chain: ${task} handed over by ${reason} from the session ${previous ?? 'unknown'} to ${sessionId}`
 }

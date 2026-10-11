@@ -1,3 +1,4 @@
+import { commentsAfterId, linkedFiles } from '../tracker/comments.js'
 import { parseTaskId, type TrackerTask } from '../tracker/model.js'
 import type { TaskSource } from '../tracker/source.js'
 import { linearStatus, toTrackerTask, type LinearIssue, type LinearState } from './model.js'
@@ -66,6 +67,21 @@ const ISSUE_STATE = `query($filter: IssueFilter!) {
 const MOVE_ISSUE = `mutation($id: String!, $state: String!) {
   issueUpdate(id: $id, input: { stateId: $state }) { success }
 }`
+
+const ISSUE_ID = `query($filter: IssueFilter!) {
+  issues(first: 1, filter: $filter) { nodes { id } }
+}`
+
+const ISSUE_COMMENTS = `query($filter: IssueFilter!) {
+  issues(first: 1, filter: $filter) { nodes { comments(first: 100) { nodes { id body createdAt } } } }
+}`
+
+const ADD_COMMENT = `mutation($id: String!, $body: String!) {
+  commentCreate(input: { issueId: $id, body: $body }) { success comment { id } }
+}`
+
+/** Where Linear keeps uploaded files; they need the key like the API does. */
+const UPLOADS = /^https:\/\/uploads\.linear\.app\//
 
 export async function connectLinear(settings: LinearSettings, timeoutMs: number, fetchImpl: typeof fetch = fetch): Promise<LinearSource> {
   async function graphql<T>(query: string, variables: Record<string, unknown> = {}): Promise<T> {
@@ -175,6 +191,30 @@ export async function connectLinear(settings: LinearSettings, timeoutMs: number,
       const { issueUpdate } = await graphql<{ issueUpdate: { success: boolean } }>(MOVE_ISSUE, { id: issue.id, state: done.id })
       if (!issueUpdate.success) throw new Error(`linear: ${id} was not moved to ${done.id}`)
       return true
+    },
+
+    async comment(id, body) {
+      const issue = await oneIssue<{ id: string }>(id, ISSUE_ID)
+      const { commentCreate } = await graphql<{ commentCreate: { success: boolean; comment: { id: string } | null } }>(ADD_COMMENT, { id: issue.id, body })
+      if (!commentCreate.success || commentCreate.comment === null) throw new Error(`linear: the comment on ${id} was not created`)
+      return commentCreate.comment.id
+    },
+
+    async commentsAfter(id, after) {
+      const issue = await oneIssue<{ comments: { nodes: { id: string; body: string; createdAt: string }[] } }>(id, ISSUE_COMMENTS)
+      const comments = [...issue.comments.nodes]
+        .sort((a, b) => Date.parse(a.createdAt) - Date.parse(b.createdAt))
+        .map((node) => ({ id: node.id, body: node.body, files: linkedFiles(node.body, UPLOADS) }))
+      return commentsAfterId(comments, after)
+    },
+
+    // A file of a comment is its upload link; the key goes only to Linear's upload host.
+    async file(_id, file) {
+      if (!UPLOADS.test(file)) return null
+      const response = await fetchImpl(file, { headers: { authorization: settings.token }, signal: AbortSignal.timeout(timeoutMs) })
+      if (!response.ok || response.body === null) return null
+      const size = Number.parseInt(response.headers.get('content-length') ?? '', 10)
+      return { type: response.headers.get('content-type') ?? '', size: Number.isNaN(size) ? null : size, body: response.body }
     },
 
     close: async () => {},

@@ -168,4 +168,30 @@ describe('linear source', () => {
     const { source } = await connect([{ body: { data: { issues: { nodes: [] } } } }])
     await expect(source.complete!('ENG-7')).rejects.toThrow(/ENG-7/)
   })
+
+  it('posts a comment on the issue and gives its id', async () => {
+    const { source, calls } = await connect([
+      { body: { data: { issues: { nodes: [{ id: 'uuid-eng-7' }] } } } },
+      { body: { data: { commentCreate: { success: true, comment: { id: 'c-1' } } } } },
+    ])
+    expect(await source.comment!('ENG-7', 'Which one?')).toBe('c-1')
+    expect(calls[2]!.variables).toEqual({ id: 'uuid-eng-7', body: 'Which one?' })
+  })
+
+  it('gives the comments after a given one, oldest first, with the files they link to', async () => {
+    const nodes = [
+      { id: 'c-2', body: '[logs.zip](https://uploads.linear.app/org/logs.zip)', createdAt: '2026-10-11T10:02:00.000Z' },
+      { id: 'c-1', body: 'Which one?', createdAt: '2026-10-11T10:01:00.000Z' },
+      { id: 'c-0', body: 'earlier', createdAt: '2026-10-11T10:00:00.000Z' },
+    ]
+    const { source } = await connect([{ body: { data: { issues: { nodes: [{ comments: { nodes } }] } } } }])
+    expect(await source.commentsAfter!('ENG-7', 'c-1')).toEqual([
+      { id: 'c-2', body: nodes[0]!.body, files: [{ name: 'logs.zip', file: 'https://uploads.linear.app/org/logs.zip' }] },
+    ])
+  })
+
+  it('serves no file from outside the upload host', async () => {
+    const { source } = await connect([])
+    expect(await source.file!('ENG-7', 'https://example.com/steal')).toBeNull()
+  })
 })

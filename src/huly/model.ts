@@ -65,6 +65,8 @@ export interface HulyCardDocs {
 
 /** `file` is the blob id in the workspace storage. */
 export interface HulyAttachmentDoc {
+  /** The issue or the comment the file belongs to. */
+  attachedTo?: string
   file: string
   name: string
   type?: string

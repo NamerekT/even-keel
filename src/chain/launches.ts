@@ -55,7 +55,7 @@ export function taskSessions(
     const rows = rowsOf(entry.task)
     const known = rows.get(entry.sessionId)
     if (known !== undefined) {
-      if (entry.reason === 'resume') known.resumed++
+      if (entry.reason === 'resume' || entry.reason === 'answer') known.resumed++
       continue
     }
     const how = entry.reason === 'relay' || entry.reason === 'restart' || entry.reason === 'checkpoint' ? entry.reason : 'launch'

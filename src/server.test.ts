@@ -63,6 +63,11 @@ describe('Even Keel HTTP server', () => {
       getState: () => ({ chain: [] }),
       control,
       account,
+      sessions: {
+        answer: async (request) => {
+          calls.push(['answer', { ...request, files: request.files.map((file) => ({ name: file.name, text: Buffer.from(file.data).toString('utf8') })) }])
+        },
+      },
       launches: () => [{ task: 'ABC-1' }],
       sessionRecord: async (id) => {
         if (id === 'bad') throw new Error('sessions: bad is not a session id')
@@ -117,6 +122,31 @@ describe('Even Keel HTTP server', () => {
     expect(response.status).toBe(200)
     expect(response.headers.get('content-type')).toMatch(/text\/html/)
     expect(await response.text()).toContain('Even Keel')
+  })
+
+  it('passes an answer with its files on, past the usual body limit', async () => {
+    const big = Buffer.alloc(100 * 1024, 'a').toString('base64')
+    const body = {
+      project: 'ABC',
+      task: 'ABC-1',
+      sessionId: '0a1b2c3d',
+      ask: 'toolu_1',
+      answers: { 'Which color?': 'Blue' },
+      text: 'Also this',
+      files: [{ name: 'a.txt', data: Buffer.from('hello').toString('base64') }, { name: 'big.txt', data: big }],
+    }
+    const response = await fetch(base + '/api/session/answer', { method: 'POST', body: JSON.stringify(body) })
+    expect(response.status).toBe(200)
+    const [, request] = calls.find(([name]) => name === 'answer')! as [string, { files: { name: string; text: string }[] }]
+    expect(request).toMatchObject({ project: 'ABC', task: 'ABC-1', sessionId: '0a1b2c3d', ask: 'toolu_1', answers: { 'Which color?': 'Blue' }, text: 'Also this' })
+    expect(request.files[0]).toEqual({ name: 'a.txt', text: 'hello' })
+    expect(request.files[1]?.text.length).toBe(100 * 1024)
+  })
+
+  it('refuses an answer without its session', async () => {
+    const response = await fetch(base + '/api/session/answer', { method: 'POST', body: JSON.stringify({ project: 'ABC', task: 'ABC-1', ask: null }) })
+    expect(response.status).toBe(400)
+    expect((await response.json()).notice).toMatchObject({ code: 'request.required', params: { field: 'sessionId' } })
   })
 
   it('serves the state as JSON', async () => {

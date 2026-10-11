@@ -461,6 +461,80 @@ describe('TranscriptFold', () => {
     })
   })
 
+  describe('questions', () => {
+    const QUESTIONS = [
+      {
+        question: 'Which color?',
+        header: 'Color',
+        multiSelect: false,
+        options: [
+          { label: 'Red (Recommended)', description: 'Warm' },
+          { label: 'Blue', description: 'Cold', preview: 'body { color: blue }' },
+        ],
+      },
+      { question: 'Which sizes?', header: 'Size', multiSelect: true, options: [{ label: 'S', description: '' }, { label: 'L', description: '' }] },
+    ]
+    const ask = () => assistant('m1', [tool('AskUserQuestion', { questions: QUESTIONS })])
+    const result = (toolUseResult: unknown, isError = false) =>
+      JSON.stringify({
+        type: 'user',
+        timestamp: at(),
+        message: { role: 'user', content: [{ type: 'tool_result', tool_use_id: 'toolu_AskUserQuestion', content: 'done', is_error: isError }] },
+        toolUseResult,
+      })
+    const prompt = (content: string) => JSON.stringify({ type: 'user', timestamp: at(), message: { role: 'user', content } })
+    const whole = (lines: string[]) => {
+      const result = new TranscriptFold(Infinity, true)
+      for (const line of lines) result.push(line)
+      return result
+    }
+
+    it('gives the open question with its options', () => {
+      expect(fold([ask()]).summary().ask).toEqual({ id: 'toolu_AskUserQuestion', questions: QUESTIONS })
+    })
+
+    it('drops malformed questions and options, keeps the rest', () => {
+      const line = assistant('m1', [
+        tool('AskUserQuestion', { questions: [{ question: 'Q?', options: [{ label: 'A' }, { description: 'no label' }] }, 'junk'] }),
+      ])
+      expect(fold([line]).summary().ask?.questions).toEqual([
+        { question: 'Q?', header: '', multiSelect: false, options: [{ label: 'A', description: '' }] },
+      ])
+    })
+
+    it('carries the question on the tool line of a whole transcript only', () => {
+      expect(whole([ask()]).summary().feed.at(-1)?.ask?.id).toBe('toolu_AskUserQuestion')
+      expect(fold([ask()]).summary().feed.at(-1)?.ask).toBeUndefined()
+    })
+
+    it('adds an answer line when the tool returns the answers', () => {
+      const summary = whole([ask(), result({ questions: QUESTIONS, answers: { 'Which color?': 'Blue', 'Which sizes?': 'S, L' } })]).summary()
+      expect(summary.ask).toBeNull()
+      expect(summary.feed.at(-1)).toMatchObject({
+        kind: 'answer',
+        answers: { ask: 'toolu_AskUserQuestion', answers: { 'Which color?': 'Blue', 'Which sizes?': 'S, L' } },
+      })
+    })
+
+    it('takes the next prompt as the answer to a question the tool left without one', () => {
+      const reply = 'Answer:\n- "Which color?" → Blue\n- "Which sizes?" → L'
+      for (const lines of [[ask(), result(undefined, true), prompt(reply)], [ask(), prompt(reply)]]) {
+        const summary = whole(lines).summary()
+        expect(summary.ask).toBeNull()
+        expect(summary.feed.at(-1)).toMatchObject({
+          kind: 'answer',
+          text: reply,
+          answers: { ask: 'toolu_AskUserQuestion', answers: { 'Which color?': 'Blue', 'Which sizes?': 'L' } },
+        })
+      }
+    })
+
+    it('takes a prompt as an ordinary one once the question is answered', () => {
+      const summary = whole([ask(), result({ answers: { 'Which color?': 'Blue' } }), prompt('next')]).summary()
+      expect(summary.feed.at(-1)).toMatchObject({ kind: 'prompt', text: 'next' })
+    })
+  })
+
   it('skips blank and broken lines', () => {
     const summary = fold(['', '{not json', assistant('m1', [text('ok')], { input: 1 })]).summary()
     expect(summary.contextTokens).toBe(1)

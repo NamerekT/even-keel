@@ -1,3 +1,4 @@
+import { commentsAfterId, linkedFiles } from '../tracker/comments.js'
 import { parseTaskId, type TaskStatus, type TrackerTask } from '../tracker/model.js'
 import type { TaskSource } from '../tracker/source.js'
 import { GITHUB_STATUSES, githubStatus, RepoMap, toTrackerTask, type GithubIssue, type IssueState, type Repo } from './model.js'
@@ -53,6 +54,17 @@ const ISSUE_STATE = `query($owner: String!, $name: String!, $number: Int!) {
 const CLOSE_ISSUE = `mutation($id: ID!) {
   closeIssue(input: { issueId: $id, stateReason: COMPLETED }) { issue { state } }
 }`
+
+const ISSUE_COMMENTS = `query($owner: String!, $name: String!, $number: Int!) {
+  repository(owner: $owner, name: $name) { issue(number: $number) { comments(last: 100) { nodes { id body } } } }
+}`
+
+const ADD_COMMENT = `mutation($id: ID!, $body: String!) {
+  addComment(input: { subjectId: $id, body: $body }) { commentEdge { node { id } } }
+}`
+
+/** Where GitHub keeps the files dropped into a comment. */
+const UPLOADS = /^https:\/\/(github\.com\/user-attachments\/|private-user-images\.githubusercontent\.com\/)/
 
 export async function connectGithub(settings: GithubSettings, timeoutMs: number, fetchImpl: typeof fetch = fetch): Promise<TaskSource> {
   const repos = new RepoMap(settings.projects)
@@ -163,6 +175,27 @@ export async function connectGithub(settings: GithubSettings, timeoutMs: number,
       if (issue.state === 'CLOSED') return false
       await graphql(CLOSE_ISSUE, { id: issue.id })
       return true
+    },
+
+    async comment(id, body) {
+      const { issue } = await issueOf<{ id: string }>(id, ISSUE_STATE)
+      const data = await graphql<{ addComment: { commentEdge: { node: { id: string } } } }>(ADD_COMMENT, { id: issue.id, body })
+      return data.addComment.commentEdge.node.id
+    },
+
+    async commentsAfter(id, after) {
+      const { issue } = await issueOf<{ comments: { nodes: { id: string; body: string }[] } }>(id, ISSUE_COMMENTS)
+      const comments = issue.comments.nodes.map((node) => ({ id: node.id, body: node.body, files: linkedFiles(node.body, UPLOADS) }))
+      return commentsAfterId(comments, after)
+    },
+
+    // A file of a comment is its upload link; the token goes only to GitHub's own upload hosts.
+    async file(_id, file) {
+      if (!UPLOADS.test(file)) return null
+      const response = await fetchImpl(file, { headers: { authorization: `bearer ${settings.token}`, 'user-agent': 'even-keel' }, signal: AbortSignal.timeout(timeoutMs) })
+      if (!response.ok || response.body === null) return null
+      const size = Number.parseInt(response.headers.get('content-length') ?? '', 10)
+      return { type: response.headers.get('content-type') ?? '', size: Number.isNaN(size) ? null : size, body: response.body }
     },
 
     close: async () => {},

@@ -39,6 +39,8 @@ export interface SetupOptions {
   limitReset?: string | null
   busy?: Set<string>
   waiting?: Set<string>
+  /** The open `AskUserQuestion` of a task's session, by task. */
+  asked?: Record<string, string>
   unattended?: boolean
   located?: Partial<HandoffSession>
   finish?: (task: string) => FinishOutcome
@@ -78,6 +80,7 @@ export function setup(options: SetupOptions = {}) {
     blocked: () => (options.blocked === undefined ? undefined : textNotice(options.blocked)),
     busy: (id) => busy.has(id) || (options.waiting?.has(id) ?? false),
     midTurn: (id) => busy.has(id) && !(options.waiting?.has(id) ?? false),
+    asked: (id) => options.asked?.[id] ?? null,
     save: (state) => saved.push(structuredClone(state)),
     journal: (entry) => journal.push(entry),
     now: () => clock.now,
@@ -90,6 +93,10 @@ export function setup(options: SetupOptions = {}) {
     promptLanguage: () => 'ru',
     resume: async (_task, session) => {
       relays.push({ kind: 'resume', task: '', sessionId: session.sessionId })
+      return session.sessionId
+    },
+    reply: async (id, session, prompt) => {
+      relays.push({ kind: 'reply', task: id, sessionId: session.sessionId, prompt })
       return session.sessionId
     },
     relay: async (id, session, prompt, reason) => {
