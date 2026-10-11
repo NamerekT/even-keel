@@ -35,10 +35,12 @@ export interface CiRun {
   url: string
 }
 
-/** The adapter contract of a CI: the latest runs of the repository, newest first, and the jobs of one run. */
+/** The adapter contract of a CI: the latest runs of the repository, newest first, the jobs of one run and a job's log. */
 export interface CiSource {
   runs(limit: number): Promise<CiRun[]>
   jobs(run: CiRun): Promise<CiJob[]>
+  /** Absent — the CI does not give logs through its API (Forgejo). */
+  log?(job: CiJob): Promise<string>
 }
 
 export interface CurrentRun {

@@ -101,4 +101,15 @@ describe('githubActionsSource', () => {
       },
     ])
   })
+
+  it('reads a job log as text with the token', async () => {
+    const asked: { url: string; auth: string | null }[] = []
+    const fetchImpl = (async (input: string | URL, init?: RequestInit) => {
+      asked.push({ url: String(input), auth: new Headers(init?.headers).get('authorization') })
+      return new Response('2026-10-11T20:17:08.1Z npm test\n2026-10-11T20:17:09.1Z FAIL', { status: 200 })
+    }) as typeof fetch
+    const source = githubActionsSource({ owner: 'octo-org', repo: 'app', token: 'fake-token' }, 1_000, fetchImpl)
+    expect(await source.log!({ id: 11 } as never)).toBe('2026-10-11T20:17:08.1Z npm test\n2026-10-11T20:17:09.1Z FAIL')
+    expect(asked).toEqual([{ url: 'https://api.github.com/repos/octo-org/app/actions/jobs/11/logs', auth: 'Bearer fake-token' }])
+  })
 })

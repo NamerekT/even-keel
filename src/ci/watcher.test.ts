@@ -22,7 +22,7 @@ function run(id: number, overrides: Partial<CiRun> = {}): CiRun {
   }
 }
 
-function setup(options: { runs?: CiRun[]; source?: false } = {}) {
+function setup(options: { runs?: CiRun[]; source?: false; jobs?: CiJob[]; log?: CiSource['log'] } = {}) {
   let clock = Date.parse('2026-10-12T12:00:00Z')
   let head = 'sha2'
   let runs = options.runs ?? [run(2), run(1)]
@@ -30,8 +30,9 @@ function setup(options: { runs?: CiRun[]; source?: false } = {}) {
   const calls = { runs: 0, jobs: [] as number[] }
   const logs: string[] = []
   let changes = 0
-  const jobs: CiJob[] = [{ id: 1, name: 'test', status: 'success', startedAt: null, stoppedAt: null, steps: null }]
+  const jobs: CiJob[] = options.jobs ?? [{ id: 1, name: 'test', status: 'success', startedAt: null, stoppedAt: null, steps: null }]
   const source: CiSource = {
+    ...(options.log === undefined ? {} : { log: options.log }),
     runs: async () => {
       calls.runs++
       if (failure !== null) throw failure
@@ -151,5 +152,35 @@ describe('CiWatch', () => {
     const t = setup({ source: false })
     await t.watch.tick()
     expect(t.watch.view).toMatchObject({ health: 'off', error: { code: 'ci.noToken', params: { variable: 'FORGEJO_TOKEN' } } })
+  })
+})
+
+describe('CiWatch.failed', () => {
+  const red = run(2, { status: 'failure' })
+  const failedJobs: CiJob[] = [
+    { id: 1, name: 'lint', status: 'success', startedAt: null, stoppedAt: null, steps: [] },
+    { id: 5, name: 'test', status: 'failure', startedAt: null, stoppedAt: null, steps: [] },
+  ]
+
+  it('reuses the jobs of the current run and reads the tail of the first failed job', async () => {
+    const asked: number[] = []
+    const t = setup({ runs: [red, run(1)], jobs: failedJobs, log: async (job) => (asked.push(job.id), '2026-10-12T11:00:00.1Z a\n2026-10-12T11:00:01.1Z FAIL\n') })
+    await t.watch.tick()
+    expect(await t.watch.failed(red)).toEqual({ kind: 'forgejo', run: red, jobs: failedJobs, log: 'a\nFAIL' })
+    expect(t.calls.jobs).toEqual([2])
+    expect(asked).toEqual([5])
+  })
+
+  it('asks for the jobs of an older run and leaves the log out when the CI gives none', async () => {
+    const t = setup({ runs: [run(3), red], jobs: failedJobs })
+    await t.watch.tick()
+    expect(await t.watch.failed(red)).toEqual({ kind: 'forgejo', run: red, jobs: failedJobs, log: null })
+    expect(t.calls.jobs).toEqual([3, 2])
+  })
+
+  it('keeps what it read when the log fails', async () => {
+    const t = setup({ runs: [red], jobs: failedJobs, log: async () => { throw fail('ci.http', { ci: 'GitHub Actions', status: 410 }) } })
+    expect(await t.watch.failed(red)).toEqual({ kind: 'forgejo', run: red, jobs: failedJobs, log: null })
+    expect(t.logs).toHaveLength(1)
   })
 })

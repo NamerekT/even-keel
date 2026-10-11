@@ -1,4 +1,4 @@
-import { getJson } from './http.js'
+import { getJson, getText } from './http.js'
 import type { CiJob, CiRun, CiSource, CiStep, RunStatus } from './model.js'
 
 export interface GithubActionsSettings {
@@ -83,6 +83,10 @@ export function githubActionsSource(settings: GithubActionsSettings, timeoutMs: 
     async jobs(run) {
       const { jobs } = await get<{ jobs: GithubJob[] }>(`/actions/runs/${run.id}/jobs?per_page=100`)
       return jobs.map((job): CiJob => ({ id: job.id, ...stepOf(job), steps: (job.steps ?? []).map(stepOf) }))
+    },
+
+    log(job) {
+      return getText(TITLE, `${base}/actions/jobs/${job.id}/logs`, `Bearer ${settings.token}`, timeoutMs, fetchImpl)
     },
   }
 }
