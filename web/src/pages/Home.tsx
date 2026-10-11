@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import type { EvenKeelState } from '../../../src/state.js'
 import { localized, t } from '../i18n/index.js'
-import { openQuestions } from '../state.js'
+import { openQuestions, questionPath } from '../state.js'
 import { type HarborMeme, harborMemes } from '../ui/memes.js'
 import { Typed, Typists } from '../ui/Typed.js'
 import { LaunchChart, localDate } from './LaunchChart.js'
@@ -26,7 +26,13 @@ export function Home({ state }: { state: EvenKeelState }) {
       <h1 className="page__title">{t.home.title}</h1>
       {/* The lines type the way the chains run: as many at once as `parallel` allows, in page order. */}
       <Typists count={state.chain.parallel}>
-        <Typed key={meme.kind} parts={harborText(meme)} pace={HOME_PACE} className="page__meme" />
+        <Typed
+          key={meme.kind}
+          parts={harborText(meme)}
+          pace={HOME_PACE}
+          className="page__meme"
+          to={meme.kind === 'questions' ? questionPath(state, state.projects) : null}
+        />
         {state.projects.length === 0 ? (
           <p className="placeholder">{t.home.empty}</p>
         ) : (

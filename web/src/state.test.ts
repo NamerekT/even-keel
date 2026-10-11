@@ -23,6 +23,7 @@ import {
   contextFill,
   issueLink,
   projectSlot,
+  questionPath,
   queuedAfter,
   sessionElapsed,
   sessionStart,
@@ -151,6 +152,69 @@ describe('openQuestions', () => {
       task('ABC-5', 'ToDo'),
     ]
     expect(openQuestions(tasks)).toBe(2)
+  })
+})
+
+describe('questionPath', () => {
+  const question = (id: string, category: StatusCategory = 'ToDo'): Task => ({ ...task(id, category), question: true })
+  const order = (ids: string[], waiting: string[] = []) => ({ order: ids, waiting, backlog: [], error: null })
+
+  it('leads to the session of the only open question', () => {
+    const state = stateOf({
+      tasks: [task('ABC-1'), question('ABC-2')],
+      sessions: [view('ABC-2', 'waiting', null)],
+      chain: chain({ projects: { ABC: order(['ABC-1', 'ABC-2']) } }),
+    })
+    expect(questionPath(state, ['ABC', 'XYZ'])).toBe('/p/ABC#ABC-2')
+  })
+
+  it('takes the first question in chain order, across projects in page order', () => {
+    const state = stateOf({
+      tasks: [question('ABC-2'), question('ABC-3'), question('XYZ-1')],
+      sessions: [view('ABC-2', 'waiting', null), view('ABC-3', 'working', null), view('XYZ-1', 'waiting', null)],
+      chain: chain({ projects: { ABC: order(['ABC-3', 'ABC-2']), XYZ: order(['XYZ-1']) } }),
+    })
+    expect(questionPath(state, ['ABC', 'XYZ'])).toBe('/p/ABC#ABC-3')
+    expect(questionPath(state, ['XYZ', 'ABC'])).toBe('/p/XYZ#XYZ-1')
+    expect(questionPath(state, ['XYZ'])).toBe('/p/XYZ#XYZ-1')
+  })
+
+  it('leads to the project page while no question has a session: ahead in the chain, held back or in the backlog', () => {
+    const state = stateOf({
+      tasks: [question('ABC-1'), question('ABC-2'), question('ABC-3', 'UnStarted')],
+      sessions: [view('ABC-2', 'finished', null)],
+      chain: chain({ projects: { ABC: { ...order(['ABC-1'], ['ABC-2']), backlog: ['ABC-3'] } } }),
+    })
+    expect(questionPath(state, ['ABC'])).toBe('/p/ABC')
+  })
+
+  it('passes a question without a session for a later one that has it', () => {
+    const state = stateOf({
+      tasks: [question('ABC-1'), question('XYZ-1'), question('XYZ-2')],
+      sessions: [view('XYZ-2', 'waiting', null)],
+      chain: chain({ projects: { ABC: order(['ABC-1']), XYZ: order(['XYZ-1', 'XYZ-2']) } }),
+    })
+    expect(questionPath(state, ['ABC', 'XYZ'])).toBe('/p/XYZ#XYZ-2')
+  })
+
+  it('counts a question whose session is only starting', () => {
+    const state = stateOf({
+      tasks: [question('ABC-1')],
+      chain: chain({
+        active: { project: 'ABC', current: { task: 'ABC-1', sessionId: null, since: '2026-01-01T08:00:00.000Z' }, paused: false, error: null },
+        projects: { ABC: order(['ABC-1']) },
+      }),
+    })
+    expect(questionPath(state, ['ABC'])).toBe('/p/ABC#ABC-1')
+  })
+
+  it('is null without open questions, whatever sessions the closed ones left', () => {
+    const state = stateOf({
+      tasks: [question('ABC-1', 'Won'), task('ABC-2')],
+      sessions: [view('ABC-1', 'finished', null), view('ABC-2', 'working', null)],
+      chain: chain({ projects: { ABC: order(['ABC-2']) } }),
+    })
+    expect(questionPath(state, ['ABC', 'XYZ'])).toBeNull()
   })
 })
 

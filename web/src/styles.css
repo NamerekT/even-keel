@@ -1355,6 +1355,16 @@ h1 {
   visibility: hidden;
 }
 
+.typed__link {
+  color: inherit;
+  text-decoration: underline dotted var(--fg-muted);
+  text-underline-offset: 4px;
+}
+
+.typed__link:hover {
+  text-decoration: underline solid var(--accent);
+}
+
 .typed__caret {
   display: inline-block;
   width: 0;
@@ -2120,6 +2130,14 @@ a:focus-visible {
   gap: 4px;
   padding-left: 6px;
   font-variant-numeric: tabular-nums;
+}
+
+.chip--link {
+  text-decoration: none;
+}
+
+.chip--link:hover {
+  box-shadow: 0 0 0 1px var(--warn-fg);
 }
 
 .chip--grown {

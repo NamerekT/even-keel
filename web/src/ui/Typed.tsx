@@ -1,4 +1,5 @@
 import { createContext, type ReactNode, useContext, useEffect, useMemo, useRef, useState } from 'react'
+import { Link } from 'react-router'
 import { stillMotion } from './landing.js'
 import { book, type Pace, typedAt, typingTime } from './typing.js'
 
@@ -17,9 +18,9 @@ export function Typists({ count, children }: { count: number; children: ReactNod
 
 /**
  * A line typed part by part with a hold between parts. Typing runs once per mount — key the component to type
- * a new line; a changed number in the same line is taken over as it is.
+ * a new line; a changed number in the same line is taken over as it is. With `to` the line is a link.
  */
-export function Typed({ parts, pace, className }: { parts: string[]; pace: Pace; className: string }) {
+export function Typed({ parts, pace, className, to }: { parts: string[]; pace: Pace; className: string; to?: string | null }) {
   const queue = useContext(TypingQueue)
   const latest = useRef(parts)
   latest.current = parts
@@ -40,14 +41,14 @@ export function Typed({ parts, pace, className }: { parts: string[]; pace: Pace;
     return () => cancelAnimationFrame(frame)
   }, [])
 
-  return <TypedLine text={parts.join('')} shown={shown} className={className} />
+  return <TypedLine text={parts.join('')} shown={shown} className={className} to={to} />
 }
 
 /** `shown` characters of `text` with the caret after them; -1 — none shown and no caret yet. */
-export function TypedLine({ text, shown, className }: { text: string; shown: number; className: string }) {
+export function TypedLine({ text, shown, className, to = null }: { text: string; shown: number; className: string; to?: string | null }) {
   const typed = Math.max(0, shown)
-  return (
-    <p className={className}>
+  const line = (
+    <>
       <span className="typed__all">{text}</span>
       <span aria-hidden="true">
         {text.slice(0, typed)}
@@ -58,6 +59,17 @@ export function TypedLine({ text, shown, className }: { text: string; shown: num
           </>
         )}
       </span>
+    </>
+  )
+  return (
+    <p className={className}>
+      {to === null ? (
+        line
+      ) : (
+        <Link to={to} className="typed__link">
+          {line}
+        </Link>
+      )}
     </p>
   )
 }

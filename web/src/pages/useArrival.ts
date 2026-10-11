@@ -1,11 +1,11 @@
 import { useEffect, useState } from 'react'
 import type { EvenKeelState } from '../../../src/state.js'
+import { isNarrow } from '../layout/useNarrow.js'
 import { ghostOf, type ChainBlock, type Ghost } from '../state.js'
 import { stillMotion } from '../ui/landing.js'
 import type { Box } from '../ui/reorder.js'
 
 const LANDED_MS = 1600
-const NARROW = '(max-width: 760px)'
 
 interface Moving {
   id: string
@@ -39,7 +39,7 @@ export function useArrival(state: EvenKeelState, project: string, blocks: ChainB
       if (moving.settled) setMoving(null)
       return
     }
-    const narrow = window.matchMedia(NARROW).matches
+    const narrow = isNarrow()
     if (narrow) closePanel()
     if (narrow || stillMotion()) setLanded(moving.id)
     else setFlight(moving)

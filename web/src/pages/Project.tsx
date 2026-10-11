@@ -2,6 +2,7 @@ import { lazy, Suspense, useCallback, useEffect, useRef } from 'react'
 import { useLocation, useNavigate, useParams } from 'react-router'
 import type { EvenKeelState } from '../../../src/state.js'
 import { say, t } from '../i18n/index.js'
+import { isNarrow } from '../layout/useNarrow.js'
 import { useCommand } from '../live/useCommand.js'
 import {
   backlogTasks,
@@ -12,12 +13,13 @@ import {
   limitWaitText,
   openQuestions,
   projectTasks,
+  questionPath,
   queuedAfter,
   startsNow,
   taskLinks,
   taskProject,
 } from '../state.js'
-import { focusAfterClose } from '../ui/focus.js'
+import { focusAfterClose, focusOnEntry } from '../ui/focus.js'
 import { QuestionsChip } from '../ui/QuestionsChip.js'
 import { StatusChip } from '../ui/StatusChip.js'
 import { BACKLOG_HASH, BacklogChip, BacklogPanel } from './BacklogPanel.js'
@@ -38,9 +40,18 @@ export function Project({ state }: { state: EvenKeelState }) {
   const key = useParams().key ?? ''
   const location = useLocation()
   const navigate = useNavigate()
-  const focus = decodeURIComponent(location.hash.slice(1))
+  const hash = decodeURIComponent(location.hash.slice(1))
   const close = useCallback(() => navigate({ search: location.search, hash: '' }), [navigate, location.search])
   const blocks = chainBlocks(state, key)
+  const entered = useRef<string | null>(null)
+  // Once per arrival, so the cross keeps the panel closed; not where the panel would cover the whole page.
+  const entry = entered.current === key || isNarrow() ? null : focusOnEntry(blocks, hash)
+  // Already the first frame shows the panel, the address catches up after it.
+  const focus = entry ?? hash
+  useEffect(() => {
+    entered.current = key
+    if (entry !== null) navigate({ search: location.search, hash: entry }, { replace: true })
+  })
   const previous = useRef(blocks)
   useEffect(() => {
     const next = focusAfterClose(previous.current, blocks, focus)
@@ -59,6 +70,7 @@ export function Project({ state }: { state: EvenKeelState }) {
   const selected = blocks.find((block) => block.id === focus && !block.locked)
   const backlog = backlogTasks(state, key)
   const backlogOpen = focus === BACKLOG_HASH && backlog.length > 0
+  const question = questionPath(state, [key])
   const links = taskLinks(state.tasks, new Map(blocks.map((block) => [block.id, block.lamp])))
   const opened = new URLSearchParams(location.search).get(CARD_PARAM)
   const openCard = (task: string) => {
@@ -79,7 +91,7 @@ export function Project({ state }: { state: EvenKeelState }) {
         <header className="project__head">
           <h1 className="page__title project__title">{key}</h1>
           <StatusChip status={chainStatus(state.chain, key)} />
-          <QuestionsChip count={openQuestions(projectTasks(state, key))} />
+          <QuestionsChip count={openQuestions(projectTasks(state, key))} to={question?.includes('#') ? question : null} />
           <BacklogChip
             count={backlog.length}
             open={backlogOpen}

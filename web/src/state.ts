@@ -219,6 +219,27 @@ export function openQuestions(tasks: Task[]): number {
   return tasks.filter((task) => task.question && isOpen(task.status)).length
 }
 
+/** Whether the task's panel has a session to show: one that ran or runs, or one being started. */
+export function hasSession(block: { locked: boolean; session: unknown; start: unknown }): boolean {
+  return !block.locked && (block.session !== null || block.start !== null)
+}
+
+/**
+ * Where the questions figure leads: the session of the first open question that has one — projects in the given
+ * order, tasks in chain order — or, while none has a session, the page of the first project with a question.
+ */
+export function questionPath(state: EvenKeelState, projects: string[]): string | null {
+  let page: string | null = null
+  for (const project of projects) {
+    const questions = new Set(projectTasks(state, project).filter((task) => task.question && isOpen(task.status)).map((task) => task.id))
+    if (questions.size === 0) continue
+    const block = chainBlocks(state, project).find((each) => questions.has(each.id) && hasSession(each))
+    if (block !== undefined) return `/p/${project}#${block.id}`
+    page ??= `/p/${project}`
+  }
+  return page
+}
+
 export function activeChain(chain: EvenKeelState['chain'], project: string): ActiveChain | undefined {
   return chain.active.find((each) => each.project === project)
 }

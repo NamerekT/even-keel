@@ -2,7 +2,17 @@ import { Link } from 'react-router'
 import type { EvenKeelState } from '../../../src/state.js'
 import { say, t } from '../i18n/index.js'
 import { useCommand } from '../live/useCommand.js'
-import { cardTask, chainProgress, chainStatus, limitWaitText, openQuestions, projectSlot, projectTasks, startsNow } from '../state.js'
+import {
+  cardTask,
+  chainProgress,
+  chainStatus,
+  limitWaitText,
+  openQuestions,
+  projectSlot,
+  projectTasks,
+  questionPath,
+  startsNow,
+} from '../state.js'
 import { StackIcon } from '../ui/icons.js'
 import { Lamp } from '../ui/Lamp.js'
 import { emptyCard } from '../ui/memes.js'
@@ -29,7 +39,7 @@ export function ProjectCard({ state, project }: { state: EvenKeelState; project:
           {project}
         </Link>
         {(status.kind === 'paused' || status.kind === 'queued') && <StatusChip status={status} />}
-        <QuestionsChip count={openQuestions(projectTasks(state, project))} />
+        <QuestionsChip count={openQuestions(projectTasks(state, project))} to={questionPath(state, [project])} />
       </header>
 
       <div className="card__progress">
