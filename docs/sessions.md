@@ -39,7 +39,7 @@ The `checkpoint` plugin's hook (`plugins/checkpoint/hooks/context-checkpoint.mjs
 
 ## Prompts (`src/sessions/prompt.ts`)
 
-Assembled strictly: a value in the launch and handoff prompt goes through `fill`, and an empty or non-string one is an assembly error — the chain pauses with it instead of going into a session with a blank space. `modelPrompts` is passed as is, with no substitutions: `{name}`, `{{name}}`, `${name}` is a config error. The prompt language is `promptLanguage` (`src/chain/prompts.ts`, see `docs/web.md`).
+Assembled strictly: a value in the launch and handoff prompt goes through `fill`, and an empty or non-string one is an assembly error — the chain pauses with it instead of going into a session with a blank space. `modelPrompts` is passed as is, with no substitutions: `{name}`, `{{name}}`, `${name}` is a config error. A project's `prompt` (BTN-97, `withProjectPrompt`) goes under the heading "Instructions for this project:" after the brief and before the unattended rules and the model prompt, into the prompt of a new session only — the first launch and a handoff; `--resume` and a reply continue a session that already has it. It is free text and is not checked for substitutions; an empty one is no prompt. The prompt language is `promptLanguage` (`src/chain/prompts.ts`, see `docs/web.md`).
 
 ## Limits
 

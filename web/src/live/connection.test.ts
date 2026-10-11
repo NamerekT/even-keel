@@ -39,6 +39,7 @@ function state(startedAt: string): EvenKeelState {
   return {
     startedAt,
     projects: [],
+    settings: {},
     chain: { active: [], parallel: 1, queue: [], projects: {}, skipped: {}, leftovers: {} },
     tasks: [],
     sessions: [],

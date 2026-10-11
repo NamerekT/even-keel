@@ -73,6 +73,7 @@ function stateOf(patch: Partial<EvenKeelState>): EvenKeelState {
   return {
     startedAt: '2026-01-01T08:00:00.000Z',
     projects: ['ABC', 'XYZ'],
+    settings: {},
     chain: { active: [], parallel: 1, queue: [], projects: {}, skipped: {}, leftovers: {} },
     tasks: [],
     sessions: [],

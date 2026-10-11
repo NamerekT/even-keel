@@ -59,6 +59,14 @@ export interface TrackerUrls {
   projects: Record<string, string | null>
 }
 
+/** What the user sets per project: `prompt` and `commands.beforeStart` in the config. */
+export interface ProjectSettings {
+  /** Added to the prompt of every new session of the project; `null` — none. */
+  prompt: string | null
+  /** Run in order in the task's folder before a new session starts. */
+  beforeStart: string[]
+}
+
 export interface ContextScale {
   window: number
   warn: number
@@ -68,6 +76,7 @@ export interface ContextScale {
 export interface EvenKeelState {
   startedAt: string
   projects: string[]
+  settings: Record<string, ProjectSettings>
   chain: {
     active: ActiveChain[]
     /** How many chains run at once (`parallel` in the config). */

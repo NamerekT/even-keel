@@ -1,4 +1,4 @@
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
@@ -46,5 +46,38 @@ describe('ConfigFile', () => {
     config.reload()
     expect(config.current.port).toBe(4747)
     expect(warnings).toEqual(['config: port changed and wait for a restart of Even Keel'])
+  })
+
+  it('writes the settings of a project, keeps the other keys and applies them at once', () => {
+    write({ port: 5000, projects: { ABC: 'C:\\abc', XYZ: { repo: 'C:\\xyz', slot: 2 } }, custom: { kept: true } })
+    const config = open()
+
+    config.saveProject('ABC', { prompt: ' Mind Library. ', beforeStart: ['npm ci', ' '] })
+    config.saveProject('XYZ', { prompt: 'Run tests.', beforeStart: [] })
+    expect(JSON.parse(readFileSync(file, 'utf8'))).toEqual({
+      port: 5000,
+      projects: {
+        ABC: { repo: 'C:\\abc', prompt: 'Mind Library.', commands: { beforeStart: ['npm ci'] } },
+        XYZ: { repo: 'C:\\xyz', slot: 2, prompt: 'Run tests.' },
+      },
+      custom: { kept: true },
+    })
+    expect(config.current.settings.ABC).toEqual({ prompt: 'Mind Library.', beforeStart: ['npm ci'] })
+  })
+
+  it('removes the keys of cleared settings', () => {
+    write({ projects: { ABC: { repo: 'C:\\abc', brief: false, prompt: 'Old.', commands: { beforeStart: ['npm ci'] } } } })
+    const config = open()
+
+    config.saveProject('ABC', { prompt: '', beforeStart: [] })
+    expect(JSON.parse(readFileSync(file, 'utf8'))).toEqual({ projects: { ABC: { repo: 'C:\\abc', brief: false } } })
+  })
+
+  it('refuses a project the config does not know and leaves the file as it is', () => {
+    write({ projects: { ABC: 'C:\\abc' } })
+    const config = open()
+
+    expect(() => config.saveProject('XYZ', { prompt: 'Hi.', beforeStart: [] })).toThrow(/XYZ/)
+    expect(JSON.parse(readFileSync(file, 'utf8'))).toEqual({ projects: { ABC: 'C:\\abc' } })
   })
 })

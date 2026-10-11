@@ -67,6 +67,8 @@ export const noticesRu: NoticeTexts = {
     `слот ${p.slot} занят посреди хода: ${list(p.sessions)}, ${p.task} не запущена — дождитесь или остановите, затем снимите с паузы`,
   'slot.stopFailed': (p) => `сессия ${p.session} задачи ${p.owner} в слоте ${p.slot} не остановлена, ${p.task} не запущена`,
 
+  'setup.failed': (p) => `команда «${p.command}» перед стартом ${p.task} завершилась с кодом ${p.code} — сессия не запущена, исправьте и снимите с паузы`,
+
   'claude.startFailed': (p) => `не удалось запустить ${p.task} в ${p.cwd}`,
   'claude.resumeFailed': (p) => `не удалось продолжить ${p.task} в ${p.cwd}`,
   'claude.notShown': (p) => `${p.task} запущена, но не появилась в claude agents`,
@@ -151,6 +153,11 @@ export const noticesRu: NoticeTexts = {
   'config.notObject': (p) => `${p.where} должен быть объектом`,
   'config.ruleKey': (p) => `${p.where}.${p.key} — не правило цепочки`,
   'config.ruleList': (p) => `${p.where}.${p.key} должен быть списком непустых имён`,
+  'config.projectPrompt': (p) => `${p.where} должен быть текстом`,
+  'config.commandKey': (p) => `${p.where}.${p.key} — не вид команд, есть: ${list(p.known)}`,
+  'config.commandList': (p) => `${p.where} должен быть списком команд`,
+  'config.unknownProject': (p) => `проекта ${p.key} нет`,
+  'config.writeFailed': (p) => `не удалось записать ${p.file}`,
   'config.statusBoth': (p) => `${p.project}: статус «${p.status}» и активный, и терминальный`,
   'config.labelBoth': (p) => `${p.project}: ярлык «${p.label}» и обязательный, и исключающий`,
   'config.model': (p) => `model: ${p.value} — не алиас модели, есть: ${list(p.known)}`,

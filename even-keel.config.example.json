@@ -15,7 +15,9 @@
       "repo": "C:\\repos\\other-project",
       "slot": true,
       "brief": false,
-      "chain": { "requiredLabels": ["Auto"] }
+      "chain": { "requiredLabels": ["Auto"] },
+      "prompt": "Run npm test before merging.",
+      "commands": { "beforeStart": ["npm ci"] }
     },
     "GHB": {
       "repo": "C:\\repos\\github-project",

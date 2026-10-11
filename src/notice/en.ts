@@ -68,6 +68,9 @@ export const en = {
   'slot.stopFailed': (p: { session: string; owner: string; slot: string; task: string }) =>
     `the session ${p.session} of ${p.owner} in the slot ${p.slot} was not stopped, ${p.task} was not started`,
 
+  'setup.failed': (p: { task: string; command: string; code: number }) =>
+    `setup: "${p.command}" before the start of ${p.task} exited with code ${p.code}; the session was not started, fix it and resume`,
+
   'claude.startFailed': (p: { task: string; cwd: string }) => `claude: could not start ${p.task} in ${p.cwd}`,
   'claude.resumeFailed': (p: { task: string; cwd: string }) => `claude: could not resume ${p.task} in ${p.cwd}`,
   'claude.notShown': (p: { task: string }) => `claude: ${p.task} was started but did not show up in claude agents`,
@@ -156,6 +159,12 @@ export const en = {
   'config.notObject': (p: { where: string }) => `config: ${p.where} must be an object`,
   'config.ruleKey': (p: { where: string; key: string }) => `config: ${p.where}.${p.key} is not a chain rule`,
   'config.ruleList': (p: { where: string; key: string }) => `config: ${p.where}.${p.key} must be a list of non-empty names`,
+  'config.projectPrompt': (p: { where: string }) => `config: ${p.where} must be text`,
+  'config.commandKey': (p: { where: string; key: string; known: string[] }) =>
+    `config: ${p.where}.${p.key} is not a kind of commands, known: ${list(p.known)}`,
+  'config.commandList': (p: { where: string }) => `config: ${p.where} must be a list of commands`,
+  'config.unknownProject': (p: { key: string }) => `config: there is no project ${p.key}`,
+  'config.writeFailed': (p: { file: string }) => `config: could not write ${p.file}`,
   'config.statusBoth': (p: { project: string; status: string }) => `config: ${p.project}: status "${p.status}" is both active and terminal`,
   'config.labelBoth': (p: { project: string; label: string }) => `config: ${p.project}: label "${p.label}" is both required and excluded`,
   'config.model': (p: { value: string; known: string[] }) => `config: model ${p.value} is not a model alias, known: ${list(p.known)}`,

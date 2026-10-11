@@ -26,6 +26,7 @@ import {
   type StatsCompare,
   type StatsRules,
 } from './stats/rules.js'
+import type { ProjectSettings } from './state.js'
 import type { Calibration } from './stats/calibration.js'
 import type { CheckpointThreshold, SessionCheckpoint } from './stats/checkpoint.js'
 import type { StatsSteps } from './stats/steps.js'
@@ -96,6 +97,11 @@ export interface SessionControl {
   answer(request: AnswerRequest): Promise<void>
 }
 
+export interface SettingsControl {
+  /** Writes the project's settings into the config file. */
+  save(project: string, settings: ProjectSettings): void
+}
+
 export interface ServerDeps {
   hub: EventHub
   publicDir: string
@@ -103,6 +109,7 @@ export interface ServerDeps {
   control: ChainControl
   account: AccountControl
   sessions: SessionControl
+  settings: SettingsControl
   launches: () => unknown
   sessionRecord: (sessionId: string) => Promise<unknown>
   /** Lines of the whole transcript from index `after` on. */
@@ -132,6 +139,7 @@ const COMMANDS: Record<string, Command> = {
   'chain/trim': ({ control }, body) => control.setTrimTools(flagOf(body)),
   'task/ready': ({ tasks }, body) => tasks.ready(taskOf(body)),
   'session/answer': ({ sessions }, body) => sessions.answer(answerOf(body)),
+  'project/settings': ({ settings }, body) => settings.save(projectOf(body), settingsOf(body)),
   'account/add': ({ account }) => account.add(),
   'account/renew': ({ account }, body) => account.renew(accountOf(body)),
   'account/switch': ({ account }, body) => account.switchTo(accountOf(body)),
@@ -419,6 +427,13 @@ export function answerOf(body: Record<string, unknown>): AnswerRequest {
     text: typeof text === 'string' ? text : '',
     files: sent.map((file: { name: string; data: string }) => ({ name: file.name, data: Buffer.from(file.data, 'base64') })),
   }
+}
+
+function settingsOf(body: Record<string, unknown>): ProjectSettings {
+  const { prompt, beforeStart } = body
+  if (prompt !== null && typeof prompt !== 'string') throw fail('request.required', { field: 'prompt' })
+  if (!Array.isArray(beforeStart) || !beforeStart.every((line) => typeof line === 'string')) throw fail('request.required', { field: 'beforeStart' })
+  return { prompt, beforeStart }
 }
 
 function accountOf(body: Record<string, unknown>): string {

@@ -22,6 +22,7 @@ Reference for sessions: entry into the chain, order, task worktrees, cleanup and
 - Before the first launch for a task — in the project's main checkout (`config.projects[project]`) `git worktree add -b <key>-<number>/task .claude/worktrees/<key>-<number> main`, all lowercase. The branch tail is always `task`: the hooks in `~/.githooks` need the form `<key>-<number>/<something>`.
 - If a worktree already exists at that path, it is taken as is, with its branch; if only the branch exists, it is brought back into a new worktree. `.claude/worktrees/` is appended to `.git/info/exclude` if git does not ignore it.
 - The session starts with `cwd` = the worktree, and the prompt is the task ID, a line about the ready worktree and that there is no need to clean up (`startPrompt`).
+- Commands before start (BTN-97, `commands.beforeStart` of the project, `src/sessions/setup.ts`): after the worktree or slot is ready and before the session starts, each runs in order through the system shell in the task's folder, with the session's environment (`envOf`), 20 min at most. Their output goes to the service log line by line (`setup: <task>: | …`); a non-zero exit stops the rest, the session is not started and the chain pauses with `setup.failed` and the last 40 lines of output. They run on every new launch of a task (a task the chain takes again runs them again), but not on `--resume`, a reply or a handoff.
 
 ## Cleanup after Done
 

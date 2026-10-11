@@ -191,6 +191,12 @@ function fakeState(
   return {
     startedAt: ago(180),
     projects: ['ABC', 'DEMO', 'XYZ', 'OPS'],
+    settings: {
+      ABC: { prompt: 'Run npm test before merging.', beforeStart: ['npm ci'] },
+      DEMO: { prompt: null, beforeStart: [] },
+      XYZ: { prompt: null, beforeStart: [] },
+      OPS: { prompt: null, beforeStart: [] },
+    },
     chain: {
       active: idle
         ? []
@@ -484,6 +490,12 @@ function dequeue(state: EvenKeelState, project: string): EvenKeelState {
   return { ...state, chain: { ...state.chain, queue: state.chain.queue.filter((key) => key !== project) } }
 }
 
+function fakeSettings(state: EvenKeelState, project: string, body: Record<string, unknown>): EvenKeelState {
+  const prompt = String(body.prompt ?? '').trim()
+  const beforeStart = (body.beforeStart as string[]).map((line) => line.trim()).filter((line) => line !== '')
+  return { ...state, settings: { ...state.settings, [project]: { prompt: prompt === '' ? null : prompt, beforeStart } } }
+}
+
 function fakeCommand(state: EvenKeelState, name: string, body: Record<string, unknown>, launches: LaunchEntry[]): EvenKeelState {
   if (name === 'chain/start') return startChain(state, String(body.project), launches)
   if (name === 'chain/resume') return setPaused(state, String(body.project), false)
@@ -499,6 +511,7 @@ function fakeCommand(state: EvenKeelState, name: string, body: Record<string, un
   if (name === 'chain/trim') return { ...state, trimTools: body.on === true }
   if (name === 'session/answer') return fakeAnswer(state, body)
   if (name === 'task/ready') return fakeReady(state, String(body.task))
+  if (name === 'project/settings') return fakeSettings(state, String(body.project), body)
   if (name.startsWith('account/')) return { ...state, account: accountCommand(state.account, name, body) }
   throw new Error(`fake: ${name} is not supported`)
 }

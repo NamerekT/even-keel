@@ -68,6 +68,7 @@ describe('Even Keel HTTP server', () => {
           calls.push(['answer', { ...request, files: request.files.map((file) => ({ name: file.name, text: Buffer.from(file.data).toString('utf8') })) }])
         },
       },
+      settings: { save: record('settings') },
       launches: () => [{ task: 'ABC-1' }],
       sessionRecord: async (id) => {
         if (id === 'bad') throw new Error('sessions: bad is not a session id')
@@ -147,6 +148,20 @@ describe('Even Keel HTTP server', () => {
     const response = await fetch(base + '/api/session/answer', { method: 'POST', body: JSON.stringify({ project: 'ABC', task: 'ABC-1', ask: null }) })
     expect(response.status).toBe(400)
     expect((await response.json()).notice).toMatchObject({ code: 'request.required', params: { field: 'sessionId' } })
+  })
+
+  it('passes the settings of a project on', async () => {
+    const body = { project: 'ABC', prompt: 'Run npm test.', beforeStart: ['npm ci'] }
+    const response = await fetch(base + '/api/project/settings', { method: 'POST', body: JSON.stringify(body) })
+    expect(response.status).toBe(200)
+    expect(calls).toContainEqual(['settings', 'ABC', { prompt: 'Run npm test.', beforeStart: ['npm ci'] }])
+  })
+
+  it('refuses settings whose commands are not a list of strings', async () => {
+    const body = { project: 'ABC', prompt: '', beforeStart: 'npm ci' }
+    const response = await fetch(base + '/api/project/settings', { method: 'POST', body: JSON.stringify(body) })
+    expect(response.status).toBe(400)
+    expect((await response.json()).notice).toMatchObject({ code: 'request.required', params: { field: 'beforeStart' } })
   })
 
   it('serves the state as JSON', async () => {

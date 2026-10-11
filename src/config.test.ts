@@ -16,6 +16,7 @@ describe('parseConfig', () => {
       trackers: { ABC: 'huly' },
       trackerProjects: {},
       briefs: { ABC: true },
+      settings: { ABC: { prompt: null, beforeStart: [] } },
       context: { window: 600_000, warn: 50, danger: 80 },
       model: 'opus',
       modelPrompts: {},
@@ -91,6 +92,31 @@ describe('parseConfig', () => {
   it('rejects a brief that is not true or false', () => {
     expect(() => parseConfig({ brief: 'no', projects: { ABC: 'C:\\abc' } })).toThrow(/brief/)
     expect(() => parseConfig({ projects: { ABC: { repo: 'C:\\abc', brief: 0 } } })).toThrow(/ABC.brief/)
+  })
+
+  it('takes a project prompt and the commands before start, trimmed', () => {
+    const config = parseConfig({
+      projects: {
+        ABC: { repo: 'C:\\abc', prompt: '  Run npm test before merging.\n', commands: { beforeStart: [' npm ci ', '', 'npm run build'] } },
+        XYZ: 'C:\\xyz',
+      },
+    })
+    expect(config.settings).toEqual({
+      ABC: { prompt: 'Run npm test before merging.', beforeStart: ['npm ci', 'npm run build'] },
+      XYZ: { prompt: null, beforeStart: [] },
+    })
+  })
+
+  it('reads an empty project prompt as no prompt', () => {
+    expect(parseConfig({ projects: { ABC: { repo: 'C:\\abc', prompt: '  ' } } }).settings.ABC?.prompt).toBeNull()
+  })
+
+  it('rejects a project prompt that is not text and commands that are not a list of strings', () => {
+    expect(() => parseConfig({ projects: { ABC: { repo: 'C:\\abc', prompt: 1 } } })).toThrow(/ABC.prompt/)
+    expect(() => parseConfig({ projects: { ABC: { repo: 'C:\\abc', commands: ['npm ci'] } } })).toThrow(/ABC.commands/)
+    expect(() => parseConfig({ projects: { ABC: { repo: 'C:\\abc', commands: { beforeStart: 'npm ci' } } } })).toThrow(/ABC.commands.beforeStart/)
+    expect(() => parseConfig({ projects: { ABC: { repo: 'C:\\abc', commands: { beforeStart: [1] } } } })).toThrow(/ABC.commands.beforeStart/)
+    expect(() => parseConfig({ projects: { ABC: { repo: 'C:\\abc', commands: { afterAll: [] } } } })).toThrow(/afterAll/)
   })
 
   it('rejects a tracker it has no adapter for', () => {
@@ -294,6 +320,12 @@ describe('reloading the config', () => {
   it('applies brief at once', () => {
     const next = parseConfig({ projects: { ABC: { repo: 'C:\\abc', brief: false } } })
     expect(liveConfig(base, next).briefs).toEqual({ ABC: false })
+    expect(restartChanges(base, next)).toEqual([])
+  })
+
+  it('applies the project prompt and the commands before start at once', () => {
+    const next = parseConfig({ projects: { ABC: { repo: 'C:\\abc', prompt: 'Mind Library.', commands: { beforeStart: ['npm ci'] } } } })
+    expect(liveConfig(base, next).settings).toEqual({ ABC: { prompt: 'Mind Library.', beforeStart: ['npm ci'] } })
     expect(restartChanges(base, next)).toEqual([])
   })
 

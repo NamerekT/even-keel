@@ -9,7 +9,7 @@ import { VsCodeAccount, vscodeSettingsFile } from './account/vscode.js'
 import { AccountWatcher } from './account/watcher.js'
 import { Dispatcher, type LaunchEntry } from './chain/dispatcher.js'
 import { handoffsOf, launchDays, ranSince, taskSessions } from './chain/launches.js'
-import { noteOf, resumePrompt, startPrompt, withBrief, withUnattended } from './chain/relay.js'
+import { noteOf, resumePrompt, startPrompt, withBrief, withProjectPrompt, withUnattended } from './chain/relay.js'
 import { launchLine } from './chain/log.js'
 import { readNote, saveSnapshot, snapshotReason } from './chain/snapshots.js'
 import { appendLaunch, loadChainState, readLaunches, saveChainState } from './chain/store.js'
@@ -29,6 +29,7 @@ import { ClaudeCli, liveRecords, resolveClaudeBinary, SESSION_MODE } from './ses
 import { turnStatus, type AgentEntry } from './sessions/agents.js'
 import { launchPlan, type LaunchPlan } from './sessions/launch.js'
 import { readSessionRecord, readTranscript } from './sessions/history.js'
+import { runBeforeStart, systemShell } from './sessions/setup.js'
 import { SessionMonitor } from './sessions/monitor.js'
 import { TranscriptOwners } from './sessions/owners.js'
 import { isInside } from './paths.js'
@@ -304,6 +305,10 @@ const briefed = async (task: string, prompt: string, project = projectOf(task)):
   return link === undefined ? prompt : withBrief(prompt, await link.run(async (tracker) => tracker.brief?.(task)), promptLanguage())
 }
 
+/** The project's own prompt, for a new session only: a resumed one already has it. */
+const withProject = (prompt: string, project: string | undefined): string =>
+  withProjectPrompt(prompt, project === undefined ? null : (configFile.current.settings[project]?.prompt ?? null), promptLanguage())
+
 /** `.claude.json` files sessions read: the global one and the active account's. */
 const claudeConfigs = () =>
   [...new Set([homes.global, homes.find(ledger.active)].flatMap((home) => (home === undefined ? [] : [homes.configFile(home)])))]
@@ -348,7 +353,13 @@ const dispatcher = new Dispatcher(loadChainState(chainFile), {
             vacate: (path) => vacateSlot(path, task),
           })
         : await prepareWorktree(runGit, repo, task)
-    const { prompt, model } = planFor(task, await briefed(task, startPrompt(task, place, promptLanguage()), project))
+    await runBeforeStart(configFile.current.settings[project]?.beforeStart ?? [], {
+      task,
+      cwd: place.path,
+      shell: systemShell(() => homes.envOf(home)),
+      log: (line) => console.log(line),
+    })
+    const { prompt, model } = planFor(task, withProject(await briefed(task, startPrompt(task, place, promptLanguage()), project), project))
     return (await cli.launch(home, task, place.path, prompt, model, settingsFor(task, place.path, project))).sessionId
   },
   liveSession: (task) => sessions.find((view) => view.task === task && view.lamp !== 'finished')?.sessionId,
@@ -395,7 +406,7 @@ const dispatcher = new Dispatcher(loadChainState(chainFile), {
     if (previous !== undefined) await cli.stop(previous, session.agentId, session.sessionId)
     const home = homeOf(ledger.active)
     await daemons.prepare(home)
-    const { prompt, model } = planFor(task, await briefed(task, handoff))
+    const { prompt, model } = planFor(task, withProject(await briefed(task, handoff), projectOf(task)))
     const notePath = noteOf(session)
     const note = await readNote(notePath)
     const at = new Date().toISOString()
@@ -497,6 +508,7 @@ async function stopTaskSessions(repo: string, task: string, count: number): Prom
 const getState = (): EvenKeelState => ({
   startedAt,
   projects: Object.keys(config.projects),
+  settings: configFile.current.settings,
   chain: {
     active: dispatcher.state.active,
     parallel: configFile.current.parallel,
@@ -533,6 +545,13 @@ const server = createEvenKeelServer({
   account,
   sessions: {
     answer: ({ project, task, sessionId, ask, answers, text, files }) => answerSession(project, task, sessionId, ask, { from: 'page', answers, text, files }),
+  },
+  settings: {
+    save: (project, settings) => {
+      if (config.projects[project] === undefined) throw fail('config.unknownProject', { key: project })
+      configFile.saveProject(project, settings)
+      console.log(`page: the settings of ${project} are written to the config`)
+    },
   },
   launches: () => launches,
   sessionRecord: async (sessionId) => {

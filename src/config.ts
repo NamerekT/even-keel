@@ -4,7 +4,7 @@ import { isLanguage, LANGUAGES, type Language } from './language.js'
 import { fail } from './notice/notice.js'
 import { isModelAlias, MODEL_ALIASES, type ModelAlias } from './tracker/model.js'
 import { placeholderIn } from './sessions/prompt.js'
-import type { ContextScale } from './state.js'
+import type { ContextScale, ProjectSettings } from './state.js'
 import type { CompareSettings } from './stats/rules.js'
 import { DEFAULT_HIDDEN_SKILLS } from './tools/settings.js'
 import { ADAPTERS, DEFAULT_TRACKER } from './tracker/adapters.js'
@@ -20,6 +20,7 @@ export interface EvenKeelConfig {
   trackers: Record<string, string>
   trackerProjects: Record<string, string>
   briefs: Record<string, boolean>
+  settings: Record<string, ProjectSettings>
   context: ContextScale
   model: ModelAlias
   modelPrompts: Partial<Record<ModelAlias, string>>
@@ -44,6 +45,7 @@ export interface StatsConfig {
 
 const PROJECT_KEY = /^[A-Z][A-Z0-9_]{0,4}$/
 const RULE_KEYS = ['active', 'terminal', 'requiredLabels', 'excludedLabels'] as const
+const COMMAND_KEYS = ['beforeStart'] as const
 const RESTART_KEYS = ['host', 'port', 'projects', 'slots', 'tracker', 'trackers', 'trackerProjects', 'context'] as const
 const DEFAULT_LANGUAGE: Language = 'en'
 const DEFAULT_MODEL: ModelAlias = 'opus'
@@ -75,10 +77,11 @@ export function parseConfig(raw: unknown, adapters: AdapterShapes = ADAPTERS): E
   const trackers: Record<string, string> = {}
   const trackerProjects: Record<string, string> = {}
   const briefs: Record<string, boolean> = {}
+  const settings: Record<string, ProjectSettings> = {}
   for (const [key, entry] of Object.entries(input.projects)) {
     if (!PROJECT_KEY.test(key)) throw fail('config.projectKey', { key })
     const fields: Record<string, unknown> = typeof entry === 'object' && entry !== null ? (entry as Record<string, unknown>) : { repo: entry }
-    const { repo, chain, slot, tracker, brief } = fields
+    const { repo, chain, slot, tracker, brief, prompt, commands } = fields
     if (typeof repo !== 'string' || repo === '') throw fail('config.repoEmpty', { key })
     if (slot !== undefined && typeof slot !== 'boolean' && !(Number.isInteger(slot) && (slot as number) > 0)) throw fail('config.slot', { key })
     projects[key] = repo
@@ -88,6 +91,7 @@ export function parseConfig(raw: unknown, adapters: AdapterShapes = ADAPTERS): E
     const projectKey = adapters[trackers[key]]?.projectKey
     if (projectKey !== undefined && !(projectKey.optional && fields[projectKey.key] === undefined)) trackerProjects[key] =parseTrackerProject(fields[projectKey.key], `${key}.${projectKey.key}`, projectKey)
     briefs[key] = brief === undefined ? sharedBrief : parseBrief(brief, `${key}.brief`)
+    settings[key] = { prompt: parseProjectPrompt(prompt, `${key}.prompt`), beforeStart: parseCommands(commands, `${key}.commands`).beforeStart }
   }
 
   return {
@@ -100,6 +104,7 @@ export function parseConfig(raw: unknown, adapters: AdapterShapes = ADAPTERS): E
     trackers,
     trackerProjects,
     briefs,
+    settings,
     context: parseContext(input.context),
     model: parseModel(input.model),
     modelPrompts: parseModelPrompts(input.modelPrompts),
@@ -126,6 +131,7 @@ export function liveConfig(current: EvenKeelConfig, next: EvenKeelConfig): EvenK
     parallel,
     rules: keep(next.rules, current.rules),
     briefs: keep(next.briefs, current.briefs),
+    settings: keep(next.settings, current.settings),
     model,
     modelPrompts,
     stats,
@@ -173,6 +179,25 @@ function parseTrackerProject(raw: unknown, where: string, { pattern, example }: 
 function parseBrief(raw: unknown, where: string): boolean {
   if (typeof raw !== 'boolean') throw fail('config.brief', { where })
   return raw
+}
+
+function parseProjectPrompt(raw: unknown, where: string): string | null {
+  if (raw === undefined) return null
+  if (typeof raw !== 'string') throw fail('config.projectPrompt', { where })
+  return raw.trim() === '' ? null : raw.trim()
+}
+
+// An object rather than a list, so commands after the agent's work get a key of their own next to `beforeStart`.
+function parseCommands(raw: unknown, where: string): { beforeStart: string[] } {
+  if (raw === undefined) return { beforeStart: [] }
+  if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) throw fail('config.notObject', { where })
+  const commands = { beforeStart: [] as string[] }
+  for (const [key, value] of Object.entries(raw)) {
+    if (!(COMMAND_KEYS as readonly string[]).includes(key)) throw fail('config.commandKey', { where, key, known: [...COMMAND_KEYS] })
+    if (!Array.isArray(value) || value.some((line) => typeof line !== 'string')) throw fail('config.commandList', { where: `${where}.${key}` })
+    commands[key as (typeof COMMAND_KEYS)[number]] = value.map((line: string) => line.trim()).filter((line) => line !== '')
+  }
+  return commands
 }
 
 function parseRules(raw: unknown, where: string): Partial<ChainRules> {
@@ -257,12 +282,33 @@ function parseCompare(compare: unknown): CompareSettings {
 }
 
 export function loadConfig(file: string): EvenKeelConfig {
+  return parseConfig(readRawConfig(file))
+}
+
+export function readRawConfig(file: string): unknown {
   const text = readFileSync(file, 'utf8')
-  let raw: unknown
   try {
-    raw = JSON.parse(text)
+    return JSON.parse(text)
   } catch (error) {
     throw fail('config.notJson', { file }, { detail: error instanceof Error ? error.message : String(error) })
   }
-  return parseConfig(raw)
+}
+
+/** The project's entry in the config file with `prompt` and `commands.beforeStart` set, or removed when empty; its other keys stay. */
+export function withProjectSettings(entry: unknown, { prompt, beforeStart }: ProjectSettings): Record<string, unknown> {
+  const fields: Record<string, unknown> = isPlainObject(entry) ? { ...entry } : { repo: entry }
+  const text = prompt?.trim() ?? ''
+  if (text === '') delete fields.prompt
+  else fields.prompt = text
+  const commands: Record<string, unknown> = isPlainObject(fields.commands) ? { ...fields.commands } : {}
+  const lines = beforeStart.map((line) => line.trim()).filter((line) => line !== '')
+  if (lines.length === 0) delete commands.beforeStart
+  else commands.beforeStart = lines
+  if (Object.keys(commands).length === 0) delete fields.commands
+  else fields.commands = commands
+  return fields
+}
+
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
 }

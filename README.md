@@ -172,7 +172,7 @@ On Linux it installs a systemd user unit (`systemctl --user status even-keel`, l
 
 ## Configuration
 
-`even-keel.config.json`, starting from [even-keel.config.example.json](even-keel.config.example.json). The service rereads it on the fly: `parallel`, `chain`, `brief`, `model`, `modelPrompts`, `stats`, `language`, `promptLanguage` and `hiddenSkills` apply at once, the rest after a restart. A broken file keeps the last good one running and shows the error on the page.
+`even-keel.config.json`, starting from [even-keel.config.example.json](even-keel.config.example.json). The service rereads it on the fly: `parallel`, `chain`, `brief`, a project's `prompt` and `commands`, `model`, `modelPrompts`, `stats`, `language`, `promptLanguage` and `hiddenSkills` apply at once, the rest after a restart. A broken file keeps the last good one running and shows the error on the page. A project's `prompt` and `commands.beforeStart` can also be edited from its page (**Settings**), which writes them into the file and keeps the other keys.
 
 | Key | Default | |
 | --- | --- | --- |
@@ -190,6 +190,8 @@ On Linux it installs a systemd user unit (`systemctl --user status even-keel`, l
 | `projects.<KEY>.github` | — | `owner/name` of the repository, for a project on GitHub |
 | `projects.<KEY>.linear` | the whole team | name of the Linear project the team is narrowed down to, for a project on Linear (the key is the team key) |
 | `projects.<KEY>.slot` | off | `true` or a number: a pool of permanent worktrees instead of one per task |
+| `projects.<KEY>.prompt` | none | text added to the prompt of every new session of the project (first start and handoff; a resumed session already has it); empty — none |
+| `projects.<KEY>.commands.beforeStart` | `[]` | shell commands (`cmd.exe` on Windows) run in order in the task's worktree or slot before a new session starts, such as `npm ci`; output goes to the service log. A failed one pauses the chain with its output on the page; a resumed session does not run them again |
 | `context` | `{ "window": 600000, "warn": 50, "danger": 80 }` | context bar on the page: window size in tokens, warning and danger thresholds in percent |
 | `model` | `opus` | model of sessions whose task has no model label: `sonnet`, `opus` or `haiku` |
 | `modelPrompts` | `{}` | text added to the prompt of sessions on `sonnet`, `opus` or `haiku` |

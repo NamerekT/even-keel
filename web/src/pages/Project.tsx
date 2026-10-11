@@ -31,6 +31,7 @@ import { Flight } from './Flight.js'
 import { IdlePanel } from './IdlePanel.js'
 import { NotFound } from './NotFound.js'
 import { SessionPanel } from './SessionPanel.js'
+import { SETTINGS_HASH, SettingsChip, SettingsPanel } from './SettingsPanel.js'
 import { StatsStrip, useStrip } from './StatsStrip.js'
 import { ToolsLink } from './ToolsLink.js'
 import { useArrival } from './useArrival.js'
@@ -74,6 +75,9 @@ export function Project({ state }: { state: EvenKeelState }) {
   const selected = blocks.find((block) => block.id === focus && !block.locked)
   const backlog = backlogTasks(state, key)
   const backlogOpen = focus === BACKLOG_HASH && backlog.length > 0
+  const settings = state.settings[key]
+  const settingsOpen = focus === SETTINGS_HASH && settings !== undefined
+  const side = selected !== undefined || backlogOpen || settingsOpen
   const question = questionPath(state, [key])
   const links = taskLinks(state.tasks, new Map(blocks.map((block) => [block.id, block.lamp])))
   const opened = new URLSearchParams(location.search).get(CARD_PARAM)
@@ -90,7 +94,7 @@ export function Project({ state }: { state: EvenKeelState }) {
   }
 
   return (
-    <section className={selected === undefined && !backlogOpen ? 'project' : 'project project--panel'}>
+    <section className={side ? 'project project--panel' : 'project'}>
       <div className="page">
         <header className="project__head">
           <h1 className="page__title project__title">{key}</h1>
@@ -101,6 +105,9 @@ export function Project({ state }: { state: EvenKeelState }) {
             open={backlogOpen}
             onToggle={() => navigate({ search: location.search, hash: backlogOpen ? '' : BACKLOG_HASH })}
           />
+          {settings !== undefined && (
+            <SettingsChip open={settingsOpen} onToggle={() => navigate({ search: location.search, hash: settingsOpen ? '' : SETTINGS_HASH })} />
+          )}
           <ChainControls state={state} project={key} />
         </header>
         {order?.error && <p className="notice notice--error">{say(order.error)}</p>}
@@ -114,7 +121,7 @@ export function Project({ state }: { state: EvenKeelState }) {
             chain={blocks}
             scale={state.context}
             trackerUrls={state.trackerUrls}
-            focus={focus === BACKLOG_HASH ? '' : focus}
+            focus={focus === BACKLOG_HASH || focus === SETTINGS_HASH ? '' : focus}
             ghost={arrival.ghost}
             arrival={arrival.arrival}
             incoming={arrival.incoming}
@@ -141,7 +148,8 @@ export function Project({ state }: { state: EvenKeelState }) {
           onSettled={arrival.settle}
         />
       )}
-      {wide && selected === undefined && !backlogOpen && (
+      {settingsOpen && <SettingsPanel key={`settings-${key}`} project={key} settings={settings} onClose={close} />}
+      {wide && !side && (
         <IdlePanel
           key={key}
           scene={{

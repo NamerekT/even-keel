@@ -65,6 +65,17 @@ export function StackIcon() {
   )
 }
 
+/** Settings: two sliders. */
+export function SlidersIcon() {
+  return (
+    <svg className="icon" viewBox="0 0 16 16" aria-hidden="true">
+      <path d="M2 4.5h6M11 4.5h3M2 11.5h2M7 11.5h7" />
+      <circle cx="9.5" cy="4.5" r="1.5" />
+      <circle cx="5.5" cy="11.5" r="1.5" />
+    </svg>
+  )
+}
+
 /** The chain queue: the first in line is playing, the rest wait under it. */
 export function QueueIcon() {
   return (

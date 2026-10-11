@@ -31,6 +31,10 @@ export function withBrief(prompt: string, brief: TaskBrief | undefined, language
   return prompt + lines.join('\n') + '\n'
 }
 
+export function withProjectPrompt(prompt: string, text: string | null, language: Language): string {
+  return text === null ? prompt : `${prompt}\n${PROMPTS[language].project(text)}\n`
+}
+
 export function withUnattended(prompt: string, on: boolean, language: Language): string {
   return on ? `${prompt}\n${PROMPTS[language].unattended}\n` : prompt
 }

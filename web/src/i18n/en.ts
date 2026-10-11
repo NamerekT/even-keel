@@ -303,6 +303,20 @@ export const en: Messages = {
       hint: 'A task number opens its session here, its title opens the card.',
     },
   },
+  settings: {
+    open: 'Settings',
+    title: 'Project settings',
+    hint: 'Written to even-keel.config.json; the next session of the project gets them, no restart needed.',
+    prompt: 'Prompt',
+    promptHint: 'Added to the prompt of every new session of the project.',
+    promptPlaceholder: 'Run npm test before merging.',
+    beforeStart: 'Commands before start',
+    beforeStartHint:
+      "One per line. They run in order in the task's folder before a new session starts; a resumed session does not run them again. A failed command pauses the chain.",
+    beforeStartPlaceholder: 'npm ci',
+    save: 'Save',
+    saved: 'Saved.',
+  },
   basement: {
     tapes: ['CAUTION', 'DO NOT ENTER', 'WORK IN PROGRESS', 'NO ENTRY'],
     stats: ['What are you doing down here?', "We're still working on this page, don't get in the way!"],

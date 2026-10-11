@@ -10,6 +10,7 @@ import {
   resumePrompt,
   startPrompt,
   withBrief,
+  withProjectPrompt,
   withUnattended,
   type HandoffReason,
   type HandoffSession,
@@ -230,6 +231,21 @@ describe('withBrief', () => {
 
   it('fails on a task without a title', () => {
     expect(() => brief(prompt, { title: ' ', description: 'Text' })).toThrow(/Задача из трекера/)
+  })
+})
+
+describe('withProjectPrompt', () => {
+  const prompt = 'ABC-1\n\n- Ветка: abc-1/task — не меняй её.\n'
+
+  it('appends the project prompt under its heading', () => {
+    expect(withProjectPrompt(prompt, 'Run npm test before merging.', 'ru')).toBe(
+      `${prompt}\nУказания для этого проекта:\nRun npm test before merging.\n`,
+    )
+    expect(withProjectPrompt(prompt, 'Mind Library.', 'en')).toBe(`${prompt}\nInstructions for this project:\nMind Library.\n`)
+  })
+
+  it('keeps the prompt as it is without a project prompt', () => {
+    expect(withProjectPrompt(prompt, null, 'ru')).toBe(prompt)
   })
 })
 
