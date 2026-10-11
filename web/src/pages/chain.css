@@ -184,7 +184,8 @@
   justify-self: end;
   min-width: 20px;
   height: 20px;
-  padding: 0 3px;
+  /* Digits have no descenders, so a centered line box puts their ink over a pixel low. */
+  padding: 0 3px 1px;
   border-radius: 999px;
   font-size: 11px;
   white-space: nowrap;
