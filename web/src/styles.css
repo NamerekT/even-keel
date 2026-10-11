@@ -3112,6 +3112,8 @@ a:focus-visible {
     animation-duration: 3s;
   }
 
+  .chain__list--dragging .block,
+  .chain__list--settling .block,
   .queue__row {
     transition: none;
   }

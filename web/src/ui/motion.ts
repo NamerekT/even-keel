@@ -38,6 +38,18 @@ export interface Motion<T> {
   delays: Partial<Record<Beat, number>>
 }
 
+export type Mark = 'enter' | 'fresh' | 'finish' | 'take'
+
+export interface Stage<T> {
+  /** Leaving copies of all running motions, the newest motion's first. */
+  leaving: (Leaving<T> & { beat: number })[]
+  /** The marks on each task, each with the delay of its own beat. */
+  marks: ReadonlyMap<string, ReadonlyMap<Mark, number>>
+  quiet: Away | null
+  /** When the archive count bumps, for the oldest motion that archives a task. */
+  bump: number | null
+}
+
 export interface Slot<T> {
   block: T
   leaving: boolean
@@ -85,20 +97,53 @@ export function motionSpan(motion: Motion<unknown>): number {
   return Math.max(0, ...Object.values(motion.delays)) + BEAT_LENGTH_MS
 }
 
-/** The sections with the leaving tasks back where they stood, until they fold away. */
-export function placeLeaving<T extends { id: string }>(sections: T[][], leaving: Leaving<T>[]): Slot<T>[][] {
-  const placed = sections.map((blocks) => blocks.map((block) => ({ block, leaving: false })))
-  const top = leaving.filter((each) => each.after === null).map((each) => ({ block: each.item, leaving: true }))
-  for (const section of placed) {
-    for (let index = section.length - 1; index >= 0; index--) {
-      const anchor = section[index]!
-      if (anchor.leaving) continue
-      const kept = leaving.filter((each) => each.after === anchor.block.id).map((each) => ({ block: each.item, leaving: true }))
-      section.splice(index + 1, 0, ...kept)
-    }
+/** All motions still playing, merged: a change that comes mid-motion adds to it instead of cutting it short. */
+export function stageOf<T>(motions: Motion<T>[]): Stage<T> {
+  const leaving: Stage<T>['leaving'] = []
+  const marks = new Map<string, Map<Mark, number>>()
+  const mark = (id: string, kind: Mark, beat: number) => marks.set(id, (marks.get(id) ?? new Map<Mark, number>()).set(kind, beat))
+  let quiet: Away | null = null
+  let bump: number | null = null
+  for (const motion of motions) {
+    const at = (beat: Beat) => motion.delays[beat] ?? 0
+    leaving.unshift(...motion.leaving.map((each) => ({ ...each, beat: at('leave') })))
+    for (const id of motion.entered) mark(id, motion.quiet === null ? 'enter' : 'fresh', at('enter'))
+    for (const id of motion.finished) mark(id, 'finish', at('finish'))
+    if (motion.taken !== null) mark(motion.taken, 'take', at('take'))
+    if (motion.quiet !== null) quiet = motion.quiet
+    if (bump === null && motion.leaving.some((each) => each.archived)) bump = at('leave')
   }
-  if (placed.length > 0) placed[0]!.unshift(...top)
+  return { leaving, marks, quiet, bump }
+}
+
+/**
+ * The sections with the leaving tasks back where they stood, until they fold away. A copy may stand after
+ * another copy, so the copies of later motions go first; a copy whose task is back or whose anchor is gone is dropped.
+ */
+export function placeLeaving<T extends { id: string }>(sections: T[][], leaving: Leaving<T>[]): Slot<T>[][] {
+  const placed: Slot<T>[][] = sections.map((blocks) => blocks.map((block) => ({ block, leaving: false })))
+  const anchors = new Map<string, string | null>()
+  for (const each of leaving) {
+    if (placed.some((section) => section.some((slot) => slot.block.id === each.item.id))) continue
+    const spot = spotOf(placed, each.after)
+    if (spot === null) continue
+    const { section, index } = spot
+    const behind = new Set([each.after])
+    let at = index
+    while (at < section.length && section[at]!.leaving && behind.has(anchors.get(section[at]!.block.id)!)) behind.add(section[at++]!.block.id)
+    section.splice(at, 0, { block: each.item, leaving: true })
+    anchors.set(each.item.id, each.after)
+  }
   return placed
+}
+
+function spotOf<T extends { id: string }>(placed: Slot<T>[][], after: string | null): { section: Slot<T>[]; index: number } | null {
+  if (after === null) return placed.length === 0 ? null : { section: placed[0]!, index: 0 }
+  for (const section of placed) {
+    const index = section.findIndex((slot) => slot.block.id === after)
+    if (index >= 0) return { section, index: index + 1 }
+  }
+  return null
 }
 
 function anchorOf(order: string[], id: string, shown: ReadonlySet<string>): string | null {
