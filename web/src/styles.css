@@ -1842,10 +1842,36 @@ a:focus-visible {
   text-underline-offset: 3px;
 }
 
-.block__status {
+.status {
+  display: inline-flex;
   color: var(--fg-muted);
   font-size: 12px;
   white-space: nowrap;
+}
+
+.status .icon {
+  width: 16px;
+  height: 16px;
+}
+
+.status--UnStarted circle {
+  stroke-dasharray: 2.4 2.5;
+}
+
+.status--Won circle {
+  fill: var(--lamp-done);
+  stroke: var(--lamp-done);
+}
+
+.status--Lost circle {
+  fill: color-mix(in srgb, var(--fg-muted) 80%, transparent);
+  stroke: transparent;
+}
+
+.status--Won path,
+.status--Lost path {
+  stroke: var(--surface);
+  stroke-width: 1.8;
 }
 
 @media (max-width: 760px) {

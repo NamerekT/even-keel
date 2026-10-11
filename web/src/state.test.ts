@@ -505,14 +505,14 @@ describe('chainBlocks', () => {
     expect(current(null)).toEqual([false, false])
   })
 
-  it('carries the title and status name, and keeps a task Huly has not delivered yet', () => {
+  it('carries the title, status name and category, and keeps a task Huly has not delivered yet', () => {
     const state = stateOf({
       tasks: [fakeTask('ABC-1', { title: 'First', status: { name: 'In Progress', category: 'Active' } })],
       chain: chain({ projects: { ABC: { order: ['ABC-1', 'ABC-2'], waiting: [], backlog: [], error:null } } }),
     })
-    expect(chainBlocks(state, 'ABC').map(({ id, title, status }) => ({ id, title, status }))).toEqual([
-      { id: 'ABC-1', title: 'First', status: 'In Progress' },
-      { id: 'ABC-2', title: null, status: null },
+    expect(chainBlocks(state, 'ABC').map(({ id, title, status, stage }) => ({ id, title, status, stage }))).toEqual([
+      { id: 'ABC-1', title: 'First', status: 'In Progress', stage: 'Active' },
+      { id: 'ABC-2', title: null, status: null, stage: null },
     ])
   })
 

@@ -775,14 +775,11 @@ export function createFakeSource(search: string): LiveSource {
   if (link === 'live') {
     setInterval(() => {
       const state = closing && ++ticks % CLOSE_TICKS === 0 ? closeCurrent(current.state!) : current.state!
+      const [kind, text] = FEED_STEPS[(closing ? ticks : ++ticks) % FEED_STEPS.length]!
+      const line: FeedLine = { at: ago(0), kind, text }
       const sessions = state.sessions.map((view) =>
         view.lamp === 'working' && view.contextTokens > 0
-          ? {
-              ...view,
-              contextTokens: view.contextTokens + 800,
-              lastActivityAt: ago(0),
-              feed: [...view.feed.slice(1), { at: ago(0), kind: 'tool' as const, text: `Read src/example-${Date.now() % 1000}.ts` }],
-            }
+          ? { ...view, contextTokens: view.contextTokens + 800, lastActivityAt: ago(0), action: line, feed: [...view.feed.slice(1), line] }
           : view,
       )
       const trackers = state.trackers.map((tracker) =>

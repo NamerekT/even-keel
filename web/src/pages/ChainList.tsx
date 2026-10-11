@@ -8,6 +8,7 @@ import { blockMetered, checkpointHandoffs, issueLink, type BlockLamp, type Chain
 import { ARCHIVE_PAGE, archiveView } from '../ui/archive.js'
 import { CacheClock } from '../ui/CacheClock.js'
 import { ContextMeter } from '../ui/ContextMeter.js'
+import { TaskStatus } from '../ui/icons.js'
 import { Lamp } from '../ui/Lamp.js'
 import { landingIndex, revealElement } from '../ui/landing.js'
 import { estimateShare, isRework, railsOf, tiersOf, type Rail, type Tier } from '../ui/look.js'
@@ -15,6 +16,7 @@ import { milestoneView, type Section } from '../ui/milestones.js'
 import { placeLeaving, type Beat, type Motion } from '../ui/motion.js'
 import { relatives, type Point } from '../ui/reorder.js'
 import { StartPill } from '../ui/SessionStart.js'
+import { ActionScreen } from './ActionScreen.js'
 import './chain.css'
 import type { Arrival } from './useArrival.js'
 import { useChainDrag, type ChainDrag } from './useChainDrag.js'
@@ -257,6 +259,7 @@ function withGhost(blocks: ChainBlock[], ghost: Ghost | null): ChainBlock[] {
     id: ghost.id,
     title: ghost.title,
     status: null,
+    stage: null,
     lamp: 'ahead',
     open: false,
     locked: false,
@@ -307,7 +310,7 @@ function LeavingBlock({ block, archived, beat }: { block: ChainBlock; archived: 
         <span className="block__key">{block.id}</span>
       </div>
       <p className="block__title">{block.title}</p>
-      <div className="block__side">{block.status !== null && <span className="block__status">{block.status}</span>}</div>
+      <div className="block__side">{block.status !== null && <TaskStatus name={block.status} stage={block.stage} />}</div>
     </li>
   )
 }
@@ -454,11 +457,7 @@ function Block(props: BlockProps) {
           </button>
         )}
       </p>
-      {action !== null && (
-        <p className="block__action" title={action.text}>
-          {action.text}
-        </p>
-      )}
+      {action !== null && <ActionScreen line={action} />}
       <div className="block__side">
         {block.models.map((model) => (
           <span key={model} className="block__model" title={t.card.roles.model}>
@@ -480,7 +479,7 @@ function Block(props: BlockProps) {
           </span>
         )}
         {block.start !== null && <StartPill start={block.start} />}
-        {block.status !== null && metered === null && block.start === null && <span className="block__status">{block.status}</span>}
+        {block.status !== null && metered === null && block.start === null && <TaskStatus name={block.status} stage={block.stage} />}
         {metered !== null && checkpointHandoffs(block.sessions) > 0 && (
           <span className="block__badge" title={t.chain.handoffsTitle}>
             {t.chain.handoffs(checkpointHandoffs(block.sessions))}

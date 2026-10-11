@@ -3,7 +3,7 @@ import type { ActiveChain, CurrentTask, ProjectOrder } from '../../src/chain/dis
 import type { TaskSession } from '../../src/chain/launches.js'
 import { chainOrder, nextTask, precedence, withWaiting } from '../../src/chain/order.js'
 import type { LimitHold } from '../../src/chain/relay.js'
-import { isOpen, type ModelAlias, type Task, type TaskPriority } from '../../src/tracker/model.js'
+import { isOpen, type ModelAlias, type StatusCategory, type Task, type TaskPriority } from '../../src/tracker/model.js'
 import type { Lamp } from '../../src/sessions/agents.js'
 import type { CacheTtl, CacheWindow, TokenTotals } from '../../src/sessions/transcript.js'
 import type { UsageHealth } from '../../src/limits/usage.js'
@@ -74,6 +74,7 @@ export interface ChainBlock {
   id: string
   title: string | null
   status: string | null
+  stage: StatusCategory | null
   lamp: BlockLamp
   open: boolean
   locked: boolean
@@ -277,6 +278,7 @@ export function chainBlocks(state: EvenKeelState, project: string, now = new Dat
       id,
       title: task?.title ?? null,
       status: task?.status.name ?? null,
+      stage: task?.status.category ?? null,
       lamp: blockLamp(task, session),
       open: task !== undefined && isOpen(task.status) && !waiting.has(id),
       locked: waiting.has(id),

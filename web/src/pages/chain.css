@@ -46,16 +46,98 @@
   font-weight: 600;
 }
 
+/* The current action: a small terminal screen whose line is replaced as the session works */
+
 .chain .block__action {
+  --screen-fg: #c9d4e0;
+  --screen-glyph: color-mix(in srgb, var(--lamp-working) 70%, #fff);
+  position: relative;
+  display: grid;
   grid-area: action;
+  min-width: 0;
+  margin-top: 6px;
+  padding: 3px 10px 3px 24px;
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--lamp-working) 35%, var(--border));
+  border-radius: 6px;
+  background: #0f1216;
+  box-shadow: inset 0 1px 6px rgb(0 0 0 / 0.55);
+  color: var(--screen-fg);
+  font-family: var(--mono);
+  font-size: 12px;
+  line-height: 18px;
+}
+
+.chain .block__action::before {
+  content: '❯';
+  position: absolute;
+  top: 3px;
+  left: 10px;
+  color: var(--screen-glyph);
+  font-weight: 700;
+}
+
+.chain .block__action::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(to bottom, transparent 0 2px, rgb(255 255 255 / 0.03) 2px 3px);
+  pointer-events: none;
+}
+
+.chain .screen--tool::before {
+  content: '$';
+}
+
+.chain .screen--prompt::before {
+  content: '›';
+  color: var(--screen-fg);
+}
+
+.chain .screen--error {
+  --screen-glyph: var(--lamp-error);
+  color: color-mix(in srgb, var(--lamp-error) 55%, var(--screen-fg));
+}
+
+.chain .screen--error::before {
+  content: '!';
+}
+
+.chain .screen__line {
+  grid-area: 1 / 1;
   min-width: 0;
   margin: 0;
   overflow: hidden;
-  color: var(--fg-muted);
-  font-family: var(--mono);
-  font-size: 12px;
   text-overflow: ellipsis;
   white-space: nowrap;
+  animation: screen-in 0.3s ease-out both;
+}
+
+.chain .screen__line--out {
+  animation: screen-out 0.3s ease-in both;
+}
+
+.chain .block__action .typed__caret {
+  width: 0.6em;
+  height: 1.15em;
+  margin-right: 0;
+  border: 0;
+  background: var(--screen-glyph);
+  opacity: 0.85;
+}
+
+@keyframes screen-in {
+  from {
+    opacity: 0;
+    transform: translateY(100%);
+  }
+}
+
+@keyframes screen-out {
+  to {
+    opacity: 0;
+    transform: translateY(-100%);
+  }
 }
 
 .chain .block--far,
@@ -583,9 +665,14 @@
   .chain .block__number--urgent,
   .chain .block__number--urgent::before,
   .chain .chain__milestone--bump .chain__milestone-count,
-  .chain .chain__away {
+  .chain .chain__away,
+  .chain .screen__line {
     animation: none;
     transition: none;
+  }
+
+  .chain .screen__line--out {
+    display: none;
   }
 
   .chain .block__frame {
