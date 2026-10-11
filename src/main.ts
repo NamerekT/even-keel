@@ -9,8 +9,9 @@ import { VsCodeAccount, vscodeSettingsFile } from './account/vscode.js'
 import { AccountWatcher } from './account/watcher.js'
 import { Dispatcher, type LaunchEntry } from './chain/dispatcher.js'
 import { handoffsOf, launchDays, taskSessions } from './chain/launches.js'
-import { resumePrompt, startPrompt, withBrief, withUnattended } from './chain/relay.js'
+import { noteOf, resumePrompt, startPrompt, withBrief, withUnattended } from './chain/relay.js'
 import { launchLine } from './chain/log.js'
+import { readNote, saveSnapshot, snapshotReason } from './chain/snapshots.js'
 import { appendLaunch, loadChainState, readLaunches, saveChainState } from './chain/store.js'
 import { ConfigFile } from './config-file.js'
 import { EventHub } from './events.js'
@@ -86,6 +87,7 @@ const stateDir = process.env.EVEN_KEEL_STATE_DIR ?? join(root, 'state')
 mkdirSync(stateDir, { recursive: true })
 const chainFile = join(stateDir, 'chain.json')
 const launchesFile = join(stateDir, 'launches.jsonl')
+const handoffsDir = join(stateDir, 'handoffs')
 const limitsFile = join(stateDir, 'rate-limits.json')
 const accountFile = join(stateDir, 'account.json')
 const trackerNames = [...new Set([config.tracker, ...Object.values(config.trackers)])]
@@ -352,13 +354,23 @@ const dispatcher = new Dispatcher(loadChainState(chainFile), {
     const plan = planFor(task, resumePrompt(promptLanguage()))
     return (await cli.resume(home, session.sessionId, task, session.cwd, plan.prompt, plan.model, settingsFor(task, session.cwd))).sessionId
   },
-  relay: async (task, session, handoff) => {
+  relay: async (task, session, handoff, reason) => {
     const previous = homes.find(session.account)
     if (previous !== undefined) await cli.stop(previous, session.agentId, session.sessionId)
     const home = homeOf(ledger.active)
     await daemons.prepare(home)
     const { prompt, model } = planFor(task, await briefed(task, handoff))
-    return (await cli.launch(home, task, session.workdir, prompt, model, settingsFor(task, session.workdir))).sessionId
+    const notePath = noteOf(session)
+    const note = await readNote(notePath)
+    const at = new Date().toISOString()
+    const { sessionId } = await cli.launch(home, task, session.workdir, prompt, model, settingsFor(task, session.workdir))
+    const snapshot = { at, task, sessionId, previous: session.sessionId, reason: snapshotReason(reason), prompt, notePath, note }
+    try {
+      saveSnapshot(handoffsDir, snapshot)
+    } catch (error) {
+      console.warn(`chain: handoff snapshot of ${task} not saved: ${(error as Error).message}`)
+    }
+    return sessionId
   },
   finish: async (project, task) => {
     const repo = config.projects[project]!

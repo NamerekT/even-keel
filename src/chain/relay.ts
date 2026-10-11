@@ -99,13 +99,19 @@ export function handoffPrompt(task: string, session: HandoffSession, reason: Han
   if (session.branch !== null) lines.push(text.branch(session.branch))
   lines.push(text.cleanup)
   if (session.transcript !== null) lines.push(text.transcript(session.transcript))
-  if (session.checkpoint !== null) lines.push(text.note(notePath(session.workdir, session.checkpoint)))
+  const note = noteOf(session)
+  if (note !== null) lines.push(text.note(note))
   lines.push(text.begin)
-  if (session.checkpoint !== null) return lines.join('\n') + '\n'
+  if (note !== null) return lines.join('\n') + '\n'
   const steps = session.recent.filter((line) => line.kind === 'text' || line.kind === 'tool').slice(-HANDOFF_STEPS)
   if (steps.length > 0) lines.push('', text.recentSteps, ...steps.map((line) => fill`- ${line.text}`))
   if (session.lastMessage !== null) lines.push('', text.lastMessage, '', fill`${session.lastMessage}`)
   return lines.join('\n') + '\n'
+}
+
+/** The handoff note the prompt points the new session at, as an absolute path; null — the prompt carries the recent steps instead. */
+export function noteOf(session: HandoffSession): string | null {
+  return session.checkpoint === null ? null : notePath(session.workdir, session.checkpoint)
 }
 
 function notePath(workdir: string, note: string): string {

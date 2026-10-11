@@ -6,6 +6,7 @@ import { readLaunches } from '../../src/chain/store.js'
 import { loadConfig } from '../../src/config.js'
 import { parseConfig, type DbSettings } from './config.js'
 import { TallyDb } from './db.js'
+import { refreshHandoffs } from './handoffs.js'
 import { snapshotsOfFile, snapshotsOfState, type Snapshot } from './limits.js'
 import { loadFile, type Source } from './load.js'
 import { launchMap } from './parse.js'
@@ -26,7 +27,8 @@ export async function collect(settings: DbSettings, root: string, log: Log): Pro
   const config = parseConfig(JSON.parse(readFileSync(process.env.TALLY_CONFIG ?? join(root, 'tally', 'tally.config.json'), 'utf8')))
   const stateDir = process.env.EVEN_KEEL_STATE_DIR ?? join(root, 'state')
   const homes = new AccountHomes(process.env, accountsRoot(process.env))
-  const launches = launchMap(readLaunches(join(stateDir, 'launches.jsonl')))
+  const journal = readLaunches(join(stateDir, 'launches.jsonl'))
+  const launches = launchMap(journal)
 
   const db = await TallyDb.connect(settings)
   try {
@@ -65,6 +67,8 @@ export async function collect(settings: DbSettings, root: string, log: Log): Pro
     const forgotten = sources.length > 0 ? await db.forgetFilesExcept(sources.map((source) => source.path)) : 0
     const relabeled = await db.syncLaunches(launches)
     await db.fillSessionFolders()
+    const prompted = await db.fillPrompts()
+    const handoffs = await refreshHandoffs(db, stateDir, sources, journal)
     const snapshots = await db.addSnapshots(await limitSnapshots(config.evenKeelUrl, stateDir, homes, log))
     const versions = await snapshotRules(db, ruleFiles, new Date())
     const history = await collectRuleHistory(db, homes.list(), projects, homedir(), log)
@@ -82,7 +86,7 @@ export async function collect(settings: DbSettings, root: string, log: Log): Pro
     const seconds = ((Date.now() - started) / 1000).toFixed(1)
     log(
       `tally: ${sources.length} files, ${files} read, ${lines} lines, ${failed} failed, ${forgotten} forgotten, ` +
-        `${relabeled} sessions relabeled, ${snapshots} limit snapshots, ` +
+        `${relabeled} sessions relabeled, ${prompted} prompts, ${handoffs} handoffs, ${snapshots} limit snapshots,` +
         `${ruleFiles.length} rule files (${versions} new versions, ${history} from git, ${changes} new changes), ${imported} imported rule sets, ` +
         `${signed.sessions} sessions signed (${signed.spans} spans), ${turned} sessions split into turns, ${stepped} into steps, ${tasks} Huly tasks, ${reports} time reports, ${classified} spans classified, ${seconds} s`,
     )

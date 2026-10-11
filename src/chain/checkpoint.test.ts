@@ -37,7 +37,7 @@ describe('Dispatcher on a checkpoint', () => {
   it('hands the current task to a new session in the same worktree and journals the checkpoint', async () => {
     const { dispatcher, relays, journal } = await running()
 
-    expect(relays).toMatchObject([{ kind: 'relay', task: 'ABC-1', sessionId: 'old-session', workdir: located.workdir }])
+    expect(relays).toMatchObject([{ kind: 'relay', task: 'ABC-1', sessionId: 'old-session', workdir: located.workdir, reason: 'checkpoint' }])
     expect(relays[0]?.prompt).toContain('контрольную точку')
     expect(relays[0]?.prompt).toContain('D:/work/abc/.claude/worktrees/abc-1/.temp/handoff.md')
     expect(dispatcher.state.active[0]?.current).toMatchObject({ task: 'ABC-1', sessionId: 'session-1' })

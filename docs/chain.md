@@ -59,6 +59,8 @@ A task that the chain started and released other than through Done — dropped o
 
 In every exception a session `claude agents` shows `failed` or `stopped` is stopped as well while its process lives (`pid` from a live `sessions/<pid>.json`): a session that failed at start (an API 400) keeps running, and `claude stop` run from a terminal marks the job `stopped` without reaching the service's daemon (`isGone` in `src/sessions/claude.ts`, `stopTaskSessions`, `slotOccupants`).
 
+Every handoff (limit, "New session", checkpoint) leaves a snapshot `<state>/handoffs/<new session>.json` (`src/chain/snapshots.ts`): the whole prompt, the note's path and its text as read just before the launch, the reason in the launch log's words and the previous session. The note itself is overwritten by the next handoff and goes with the worktree; Tally loads the snapshots into `handoffs` (`tally/CLAUDE.md`). A failed save is a warning in the log, the handoff goes on.
+
 The dispatcher may stop waiting for a session (without touching it) if it is not mid-turn (`busy`/`waiting`): the current task got an open blocker from the same chain (the session postponed it itself, `postpone` in the log) or the user pressed "Skip" (`skip`). The chain does not take a skipped task until the user returns it or it leaves the chain in the tracker (closed, in Backlog). "Skip" is refused for any task whose session is mid-turn, also one released by "Stop": otherwise a restarted chain would launch the next task beside it instead of taking the live session again.
 
 ## Unattended mode (`unattended`)

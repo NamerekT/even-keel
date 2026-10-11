@@ -51,7 +51,7 @@ export function setup(options: SetupOptions = {}) {
   const account: AccountNow = options.account ?? { id: 'john@example.com', ready: true }
   const limited: Record<string, LimitedSession> = options.limited ?? {}
   const handoffs: Record<string, HandoffSession> = {}
-  const relays: { kind: string; task: string; sessionId: string; prompt?: string; workdir?: string }[] = []
+  const relays: { kind: string; task: string; sessionId: string; prompt?: string; workdir?: string; reason?: string }[] = []
   const launched: string[] = []
   const tried: string[] = []
   const refuse = options.refuse ?? {}
@@ -92,9 +92,9 @@ export function setup(options: SetupOptions = {}) {
       relays.push({ kind: 'resume', task: '', sessionId: session.sessionId })
       return session.sessionId
     },
-    relay: async (id, session, prompt) => {
+    relay: async (id, session, prompt, reason) => {
       if (options.failRelay) throw new Error(`claude: could not stop ${session.agentId}`)
-      relays.push({ kind: 'relay', task: id, sessionId: session.sessionId, prompt, workdir: session.workdir })
+      relays.push({ kind: 'relay', task: id, sessionId: session.sessionId, prompt, workdir: session.workdir, reason })
       return `session-${++counter}`
     },
     finish: async (project, id) => {

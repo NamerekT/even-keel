@@ -108,7 +108,7 @@ export interface DispatcherDeps {
   limitReset: () => string | null
   promptLanguage: () => Language
   resume:(task: string, session: LimitedSession) => Promise<string>
-  relay: (task: string, session: HandoffSession, prompt: string) => Promise<string>
+  relay: (task: string, session: HandoffSession, prompt: string, reason: HandoffReason) => Promise<string>
   finish: (project: string, task: string) => Promise<FinishOutcome>
   log: (message: string) => void
 }
@@ -723,7 +723,7 @@ export class Dispatcher {
 
   private async handOver(task: string, session: HandoffSession, reason: HandoffReason): Promise<string> {
     const located = await this.deps.locate(session)
-    return this.deps.relay(task, located, handoffPrompt(task, located, reason, this.deps.promptLanguage()))
+    return this.deps.relay(task, located, handoffPrompt(task, located, reason, this.deps.promptLanguage()), reason)
   }
 
   private halt(chain: ActiveChain, error: Notice): void {

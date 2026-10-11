@@ -73,6 +73,8 @@ create table if not exists sessions (
 );
 -- The folder of the first answer: the session counts there on /stats even after cd elsewhere.
 alter table sessions add column if not exists project_dir text;
+-- The first human prompt of the main thread ('' — none in a day), for the task the session names itself.
+alter table sessions add column if not exists prompt text;
 
 create table if not exists limit_snapshots (
   account text not null,
@@ -94,16 +96,28 @@ create table if not exists model_prices (
 );
 
 -- The task of a session: its launch task, else the task of its first message with one. One pass over messages,
--- not a lookup per session: message_costs joins it on every read.
+-- not a lookup per session: message_costs joins it on every read. A manual session in a checkout left on a task
+-- branch often works on another task of the project: when its titles and first prompt name tasks of the branch's
+-- project but not the branch's own, the first named one wins (custom title, generated title, prompt).
 create or replace view session_tasks as
-select s.session_id, coalesce(s.launch_task, f.task) as task
+select s.session_id, coalesce(s.launch_task, n.task, f.task) as task
 from sessions s
 left join (
   select distinct on (session_id) session_id, task
   from messages
   where task is not null
   order by session_id, at, message_id
-) f on f.session_id = s.session_id;
+) f on f.session_id = s.session_id
+left join lateral (
+  select upper(x.m[1]) as task
+  from (values (1, s.custom_title), (2, s.ai_title), (3, s.prompt)) t(rank, txt)
+  cross join lateral regexp_matches(
+    t.txt, '(?<![A-Za-z0-9])(' || split_part(f.task, '-', 1) || '-[0-9]+)(?![0-9])', 'gi'
+  ) with ordinality x(m, pos)
+  where s.launch_task is null and f.task is not null and t.txt is not null
+  order by upper(x.m[1]) = f.task desc, t.rank, x.pos
+  limit 1
+) n on true;
 
 -- A message gives its spend to the task of its session, as the audit counts it (BTN-79): the start of a manual
 -- session before its branch is not lost, and a session that touched two tasks goes wholly to the first.
@@ -637,3 +651,24 @@ select w.project, w.step, w.week, w.n, w.p50, w.p90, w.max, w.prev_week, w.prev_
   w.n >= t.min_runs and w.prev_n >= t.min_runs and w.p90 >= w.prev_p90 * t.ratio and w.p90 - w.prev_p90 >= t.min_seconds as grew_p90
 from w cross join t
 where w.prev_week is not null;
+
+-- What a handoff gave the new session (session_id): Even Keel's snapshot, or for older handoffs the prompt from the
+-- new transcript and the note rebuilt from the old one's Write and Edit calls (source = 'transcript').
+create table if not exists handoffs (
+  session_id text primary key,
+  previous text not null,
+  task text not null,
+  reason text not null,
+  at timestamptz,
+  source text not null check (source in ('even-keel', 'transcript')),
+  prompt text not null,
+  note_path text,
+  note text
+);
+create index if not exists handoffs_task on handoffs (task);
+
+create or replace view handoff_notes as
+select h.session_id, h.previous, h.task, h.reason, h.at, h.source, h.note_path,
+  length(h.prompt) as prompt_chars, length(h.note) as note_chars,
+  array(select m[1] from regexp_matches(coalesce(h.note, ''), '^#{1,6}[ \t]+(.+?)[ \t\r]*$', 'gn') m) as headings
+from handoffs h;
