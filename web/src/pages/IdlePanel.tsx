@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { t } from '../i18n/index.js'
 import { stillMotion } from '../ui/landing.js'
-import { longestRun, type Meme, type Motion, momentsOf, pickMeme, pictureMotion, type Scene } from '../ui/memes.js'
+import { longestRun, type Meme, type Motion, momentsOf, pickMeme, playMotion, type Scene } from '../ui/memes.js'
 import { TypedLine } from '../ui/Typed.js'
 import { shownAt, typingTime } from '../ui/typing.js'
 import { VOYAGE_TICK_MS, voyageFrame } from '../ui/voyage.js'
@@ -26,10 +26,10 @@ export function IdlePanel({ scene }: { scene: Scene }) {
   const latest = useRef({ meme, parts, cue, draw })
   latest.current = { meme, parts, cue, draw }
 
-  // A general line goes on its own; the drive and a moment's line stay until the moments change. The picture plays its acts
-  // and keeps the last one for good.
+  // A general line goes on its own; the drive and a moment's line stay until the moments change. A play goes act by act;
+  // the picture keeps its last act for good.
   useEffect(() => {
-    if ('line' in meme || 'picture' in meme || line.current.cue === cue) return
+    if ('line' in meme || 'play' in meme || line.current.cue === cue) return
     if (stillMotion()) {
       line.current = { start: performance.now(), eraseAt: null, cue }
       setMeme(draw(meme))
@@ -44,14 +44,16 @@ export function IdlePanel({ scene }: { scene: Scene }) {
     let frame = requestAnimationFrame(function step(now) {
       const { meme, parts, cue, draw } = latest.current
       const elapsed = now - line.current.start
-      const acts = t.project.idle.picture.length
+      const acts = 'play' in meme ? t.project.idle.plays[meme.play].length : 0
+      const nextAct = 'play' in meme && meme.act < acts - 1 ? { play: meme.play, act: meme.act + 1 } : null
       const held = typingTime(parts, IDLE_PACE) + HOLD_MS
-      const eraseAt = 'picture' in meme ? (meme.picture < acts - 1 ? held : null) : 'line' in meme ? held : line.current.eraseAt
-      motion.current = 'picture' in meme ? pictureMotion(meme.picture, acts, elapsed, parts, IDLE_PACE) : FORWARD
+      const stays = 'play' in meme && meme.play === 'picture' && nextAct === null
+      const eraseAt = 'line' in meme || ('play' in meme && !stays) ? held : 'play' in meme ? null : line.current.eraseAt
+      motion.current = 'play' in meme ? playMotion(meme.play, meme.act, acts, elapsed, parts, IDLE_PACE) : FORWARD
       const count = shownAt(parts, elapsed, IDLE_PACE, eraseAt)
       if (eraseAt !== null && elapsed > eraseAt && count === 0) {
         line.current = { start: now, eraseAt: null, cue }
-        setMeme('picture' in meme ? { picture: meme.picture + 1 } : draw(meme))
+        setMeme(nextAct ?? draw(meme))
       }
       setShown(count)
       frame = requestAnimationFrame(step)
@@ -85,7 +87,7 @@ function memeParts(meme: Meme, scene: Scene): string[] {
   const { idle } = t.project
   if ('drive' in meme) return idle.drive
   if ('line' in meme) return idle.memes[meme.line]!
-  if ('picture' in meme) return idle.picture[meme.picture]!
+  if ('play' in meme) return idle.plays[meme.play][meme.act]!
   const line = idle.moments[meme.moment]
   return typeof line === 'function' ? line(longestRun(scene.blocks)) : line
 }

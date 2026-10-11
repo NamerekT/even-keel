@@ -217,7 +217,7 @@ export const en: Messages = {
     title: 'Projects',
     empty: 'even-keel.config.json has no projects.',
     memes: {
-      self: ['Even Keel: memes about vibe coders...', ' Written by a vibe coder?! Bruh.'],
+      self: ['Even Keel: memes about vibe coders...', ' Written by a vibe coder?!', ' Bruh.'],
       peak: (day: string, count: number) => [`${day}: ${launches(count)}.`, ' Did you even sleep?'],
       favorite: (project: string, count: number, total: number) => [`${count} of ${launches(total)} are ${project}.`, ' Favorite, huh?'],
       questions: (count: number) => [`${counted('question', 'questions')(count)} waiting for an answer.`, " They won't be offended.", ' Probably.'],
@@ -258,12 +258,20 @@ export const en: Messages = {
         ['Options? Hmm…', ' the first sounds good, but the third is better…', " I'll pick the recommended one."],
       ],
       drive: ["Look! It's not sailing, it's…", ' driving?!', ' Wait, what?'],
-      picture: [
-        ['Now I have the full picture.', ' Full.', ' Picture.'],
-        ["It doesn't move anymore.", " Let's fix it…"],
-        ['Update(voyage.ts)', ' Update(voyage.ts)', ' Update(voyage.ts)'],
-        ['Fixed! Everything works now.', ' Sailing backwards is a pre-existing bug,', ' unrelated to my changes.', ' Filed an issue.'],
-      ],
+      plays: {
+        picture: [
+          ['Now I have the full picture.', ' Full.', ' Picture.'],
+          ["It doesn't move anymore.", " Let's fix it…"],
+          ['Update(voyage.ts)', ' Update(voyage.ts)', ' Update(voyage.ts)'],
+          ['Fixed! Everything works now.', ' Sailing backwards is a pre-existing bug,', ' unrelated to my changes.', ' Filed an issue.'],
+        ],
+        spoons: [
+          ['Spoons come in two kinds:', ' those that remember the soup', ' and those that pretend.'],
+          ['There are more of the second kind,', ' but they are registered as furniture.'],
+          ['So they may vote only on Wednesdays', ' and only for Gary the Fog.'],
+          ['Gary the Fog was written off long ago,', ' yet he still comes to work: nobody told him,', ' and he is too shy to ask Kevin the Lamppost.'],
+        ],
+      },
       moments: {
         calm: ['Dead calm. Not a single task…', " Guess I'll code myself?"],
         backlogEmpty: ['Backlog empty?!', " Okay, who's hiding tasks?"],

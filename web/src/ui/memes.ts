@@ -16,8 +16,12 @@ export interface Scene {
   monthCost: number | null
 }
 
-/** A general line by its index, the line for the driving boat, an act of the frozen picture, or a moment's line. */
-export type Meme = { line: number } | { drive: true } | { picture: number } | { moment: Moment }
+/** Stories told in acts, one line each: the picture freezes the voyage and keeps its last act for good, the others go like a general line. */
+export const PLAYS = ['picture', 'spoons'] as const
+export type Play = (typeof PLAYS)[number]
+
+/** A general line by its index, the line for the driving boat, an act of a play, or a moment's line. */
+export type Meme = { line: number } | { drive: true } | { play: Play; act: number } | { moment: Moment }
 
 const RERUN_SESSIONS = 3
 const SPEND_USD = 1000
@@ -44,16 +48,24 @@ export function momentsOf(scene: Scene): Moment[] {
   return moments
 }
 
-/** Half the draws go to the moments, when there are any; the rest to the general lines, the drive and the picture. Never `previous` again. */
+/** Half the draws go to the moments, when there are any; the rest to the general lines, the drive and the plays. Never `previous` again. */
 export function pickMeme(moments: Moment[], lines: number, random: () => number, previous?: Meme): Meme {
   const fresh = moments.filter((moment) => !(previous && 'moment' in previous && previous.moment === moment))
   if (fresh.length > 0 && random() < 0.5) return { moment: fresh[Math.floor(random() * fresh.length)]! }
-  // The drive and the picture are the general lines after the last one.
+  // The drive and then the plays are the general lines after the last one.
   const skip =
-    previous === undefined || 'moment' in previous ? -1 : 'drive' in previous ? lines : 'picture' in previous ? lines + 1 : previous.line
-  let index = Math.floor(random() * (skip < 0 ? lines + 2 : lines + 1))
+    previous === undefined || 'moment' in previous
+      ? -1
+      : 'drive' in previous
+        ? lines
+        : 'play' in previous
+          ? lines + 1 + PLAYS.indexOf(previous.play)
+          : previous.line
+  const count = lines + 1 + PLAYS.length
+  let index = Math.floor(random() * (skip < 0 ? count : count - 1))
   if (skip >= 0 && index >= skip) index += 1
-  return index === lines ? { drive: true } : index === lines + 1 ? { picture: 0 } : { line: index }
+  if (index < lines) return { line: index }
+  return index === lines ? { drive: true } : { play: PLAYS[index - lines - 1]!, act: 0 }
 }
 
 /** Which way the sea with the boat and the cloud move, per tick. */
@@ -63,10 +75,12 @@ export interface Motion {
 }
 
 /**
- * The picture is a play in `acts`, `elapsed` ms into act `act` typed from `parts`: in the first the sea stops as its
- * second part starts and the cloud once it is typed, in the middle ones all stands still, in the last all runs backwards.
+ * How the voyage moves `elapsed` ms into act `act` of `acts` typed from `parts`. Only the picture moves it its own way: in
+ * the first act the sea stops as the second part starts and the cloud once it is typed, in the middle ones all stands
+ * still, in the last all runs backwards.
  */
-export function pictureMotion(act: number, acts: number, elapsed: number, parts: string[], pace: Pace): Motion {
+export function playMotion(play: Play, act: number, acts: number, elapsed: number, parts: string[], pace: Pace): Motion {
+  if (play !== 'picture') return { sea: 1, cloud: 1 }
   if (act === acts - 1) return { sea: -1, cloud: -1 }
   if (act > 0) return { sea: 0, cloud: 0 }
   const secondPart = typingTime(parts.slice(0, 1), pace) + pace.pauseMs
