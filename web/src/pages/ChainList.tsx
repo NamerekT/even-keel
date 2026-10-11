@@ -25,7 +25,8 @@ import type { Arrival } from './useArrival.js'
 import { reorderable, useChainDrag, type ChainDrag, type Landing } from './useChainDrag.js'
 import { useChainMotion } from './useChainMotion.js'
 
-const GHOST_DELAY_MS = 200
+/** How long the ghost takes to grow open or fold shut. */
+const GHOST_MS = 250
 
 interface Props {
   project: string
@@ -53,7 +54,8 @@ interface Relation {
   badge: boolean
 }
 
-export function ChainList({ project, chain, scale, trackerUrls, focus, ghost, arrival, incoming, links, onCard }: Props) {
+export function ChainList({ project, chain, scale, trackerUrls, focus, ghost: aimed, arrival, incoming, links, onCard }: Props) {
+  const { ghost, leaving } = useLingering(aimed)
   const [pages, setPages] = useState(0)
   const [revealed, setRevealed] = useState(0)
   const { send, sending, failure } = useCommand()
@@ -67,6 +69,7 @@ export function ChainList({ project, chain, scale, trackerUrls, focus, ghost, ar
   const target = ghost?.id ?? arrival?.id ?? focus
   const archive = archiveView(withGhost(ordered, ghost), pages, target)
   const view = milestoneView(archive.visible, revealed, target)
+  const settled = milestoneView(archive.visible, revealed, arrival?.id ?? focus).sections.length
   const blocks = view.sections.flatMap((section) => section.blocks)
   const shown = new Set(blocks.map((block) => block.id))
   const hidden = openIds(ordered).filter((id) => !shown.has(id))
@@ -77,6 +80,8 @@ export function ChainList({ project, chain, scale, trackerUrls, focus, ghost, ar
   const motion = useChainMotion(project, ordered, shown, incoming)
   const real = blocks.filter((block) => block.id !== ghost?.id)
   const tiers = tiersOf(real.map((block) => ({ ...block, live: blockMetered(block) })))
+  // The ghost takes the size the task will have where it lands, so the swap for the real block does not jump.
+  const ghostTier = ghost === null ? 'far' : (tiersOf(blocks.map((block) => ({ ...block, live: blockMetered(block) }))).get(ghost.id) ?? 'far')
   const rails = railsOf(real)
   const kin = real.find((block) => block.id === hovered)?.parent ?? null
   const slots = placeLeaving(
@@ -89,14 +94,14 @@ export function ChainList({ project, chain, scale, trackerUrls, focus, ghost, ar
   const keep = arrival === null ? 0 : view.revealed
   useEffect(() => setRevealed((current) => Math.max(current, keep)), [keep])
 
-  const coming = ghost?.id ?? arrival?.id ?? null
-  const ghosted = ghost !== null
+  const coming = aimed?.id ?? arrival?.id ?? null
+  const ghosted = aimed !== null
   useEffect(() => {
     if (coming === null) return
     const timer = setTimeout(() => {
       const element = listRef.current?.querySelector(`[data-block="${CSS.escape(coming)}"]`)
       if (element) revealElement(element)
-    }, ghosted ? GHOST_DELAY_MS : 0)
+    }, ghosted ? GHOST_MS : 0)
     return () => clearTimeout(timer)
   }, [coming, ghosted])
 
@@ -159,10 +164,7 @@ export function ChainList({ project, chain, scale, trackerUrls, focus, ghost, ar
       )}
       <div ref={listRef} className={listClass(drag, landing, settling)}>
         {view.sections.map((section, index) => (
-          <section
-            key={`${index}:${section.milestone}`}
-            className={index < view.fixed ? 'chain__section' : 'chain__section chain__section--revealed'}
-          >
+          <section key={`${index}:${section.milestone}`} className={sectionClass(index, view.fixed, settled, leaving)}>
             {view.titled && (
               <Divider
                 name={section.milestone ?? t.chain.noMilestone}
@@ -184,7 +186,7 @@ export function ChainList({ project, chain, scale, trackerUrls, focus, ghost, ar
                     beat={motion?.delays.leave ?? 0}
                   />
                 ) : block.id === ghost?.id ? (
-                  <GhostBlock key={block.id} block={block} />
+                  <GhostBlock key={block.id} block={block} tier={ghostTier} leaving={leaving} />
                 ) : (
                   <Block
                     key={block.id}
@@ -268,9 +270,31 @@ function withGhost(blocks: ChainBlock[], ghost: Ghost | null): ChainBlock[] {
   return [...blocks.slice(0, index), stand, ...blocks.slice(index)]
 }
 
-function GhostBlock({ block }: { block: ChainBlock }) {
+/** The ghost stays a moment after the pointer leaves its button, to fold shut rather than vanish. */
+function useLingering(ghost: Ghost | null): { ghost: Ghost | null; leaving: boolean } {
+  const [kept, setKept] = useState<Ghost | null>(null)
+  if (ghost !== null && ghost.id !== kept?.id) setKept(ghost)
+  const gone = ghost === null && kept !== null
+  useEffect(() => {
+    if (!gone) return
+    const timer = setTimeout(() => setKept(null), GHOST_MS)
+    return () => clearTimeout(timer)
+  }, [gone])
+  return gone ? { ghost: kept, leaving: true } : { ghost, leaving: false }
+}
+
+/** Sections past `settled` are open only to show the ghost: they grow and fold with it. */
+function sectionClass(index: number, fixed: number, settled: number, leaving: boolean): string {
+  const classes = ['chain__section']
+  if (index >= fixed) classes.push('chain__section--revealed')
+  if (index >= settled) classes.push('chain__section--ghost')
+  if (index >= settled && leaving) classes.push('chain__section--gone')
+  return classes.join(' ')
+}
+
+function GhostBlock({ block, tier, leaving }: { block: ChainBlock; tier: Tier; leaving: boolean }) {
   return (
-    <li className="block block--ghost" data-block={block.id} aria-hidden="true">
+    <li className={`block block--ghost block--${tier}${leaving ? ' block--ghost-out' : ''}`} data-block={block.id} aria-hidden="true">
       <span className="block__number" />
       <div className="block__head">
         <Lamp lamp="ahead" />
@@ -586,6 +610,5 @@ function withOrder(chain: ChainBlock[], order: string[]): ChainBlock[] {
 
 function listClass(drag: ChainDrag | null, landing: Landing | null, settling: boolean): string {
   if (drag !== null) return 'chain__list chain__list--dragging'
-  if (landing?.moved) return 'chain__list'
   return landing !== null || settling ? 'chain__list chain__list--settling' : 'chain__list'
 }

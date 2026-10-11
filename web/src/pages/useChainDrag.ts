@@ -1,7 +1,8 @@
-import { useEffect, useRef, useState, type RefObject } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState, type RefObject } from 'react'
 import type { ChainBlock } from '../state.js'
 import { moveItem } from '../ui/drag.js'
-import { clampDrop, clampShift, dropBounds, nearestIndex, relatives, type Bounds, type Box, type Point } from '../ui/reorder.js'
+import { stillMotion } from '../ui/landing.js'
+import { clampDrop, clampShift, dropBounds, nearestIndex, relatives, stackedTops, type Bounds, type Box, type Point } from '../ui/reorder.js'
 
 const LONG_PRESS_MS = 350
 const MOUSE_SLOP = 4
@@ -38,11 +39,16 @@ export interface ChainDrag {
   dependents: Set<string>
 }
 
+/** A card dropped back to its own place glides there from where it was let go. */
 export interface Landing {
   id: string
   offset: Point
-  /** The order changed: cards are re-laid out this frame and must not animate their dropped transforms. */
-  moved: boolean
+}
+
+/** The order changed: where every card stood when the dragged one was let go, to glide them into the new layout. */
+interface Reflow {
+  id: string
+  from: Map<string, Point>
 }
 
 interface Options {
@@ -56,6 +62,7 @@ export function useChainDrag({ listRef, blocks, disabled, onDrop }: Options) {
   const [drag, setDrag] = useState<ChainDrag | null>(null)
   const [landing, setLanding] = useState<Landing | null>(null)
   const [settling, setSettling] = useState(false)
+  const [reflow, setReflow] = useState<Reflow | null>(null)
   const press = useRef<Press | null>(null)
   const active = useRef<Active | null>(null)
   const swallowClick = useRef(false)
@@ -79,6 +86,37 @@ export function useChainDrag({ listRef, blocks, disabled, onDrop }: Options) {
     return () => clearTimeout(timer)
   }, [settling])
 
+  // A drop into or out of the first places changes card heights, so the new layout is measured rather than predicted.
+  useLayoutEffect(() => {
+    const list = listRef.current
+    if (reflow === null || list === null || stillMotion()) return
+    const items = [...list.querySelectorAll<HTMLElement>('[data-block]')]
+    for (const item of items) item.style.transition = 'none'
+    const moves = items.flatMap((item) => {
+      const from = reflow.from.get(item.dataset.block!)
+      if (from === undefined) return []
+      const box = item.getBoundingClientRect()
+      return [{ item, x: from.x - box.left, y: from.y - box.top }]
+    })
+    for (const { item, x, y } of moves) item.style.transform = `translate(${x}px, ${y}px)`
+    const dragged = moves.find(({ item }) => item.dataset.block === reflow.id)?.item
+    if (dragged !== undefined) dragged.style.zIndex = '2'
+    void list.offsetHeight
+    for (const { item } of moves) {
+      item.style.transition = `transform ${SETTLE_MS}ms ease`
+      item.style.transform = ''
+    }
+    const clear = () => {
+      for (const item of items) item.style.transition = ''
+      if (dragged !== undefined) dragged.style.zIndex = ''
+    }
+    const timer = setTimeout(clear, SETTLE_MS)
+    return () => {
+      clearTimeout(timer)
+      clear()
+    }
+  }, [listRef, reflow])
+
   useEffect(() => {
     const list = listRef.current
     if (list === null) return
@@ -101,11 +139,15 @@ export function useChainDrag({ listRef, blocks, disabled, onDrop }: Options) {
     const render = (state: Active) => {
       const { dx, dy, target } = measure(state)
       const preview = moveItem(state.order, state.from, target)
+      const tops = stackedTops(
+        state.boxes,
+        preview.map((id) => state.order.indexOf(id)),
+      )
       const offsets = new Map<string, Point>()
       for (const [index, id] of state.order.entries()) {
         const slot = state.boxes[preview.indexOf(id)]!
         const own = state.boxes[index]!
-        if (id !== state.id && slot !== own) offsets.set(id, { x: slot.left - own.left, y: slot.top - own.top })
+        if (id !== state.id && tops[index] !== own.top) offsets.set(id, { x: slot.left - own.left, y: tops[index]! - own.top })
       }
       offsets.set(state.id, { x: dx, y: dy })
       const related = relatives(state.order, blockersOf(latest.current.blocks), state.id)
@@ -162,10 +204,9 @@ export function useChainDrag({ listRef, blocks, disabled, onDrop }: Options) {
       if (state === null) return
       const { dx, dy, target } = measure(state)
       const to = commit ? target : state.from
-      const home = state.boxes[state.from]!
-      const slot = state.boxes[to]!
       setDrag(null)
-      setLanding({ id: state.id, offset: { x: home.left + dx - slot.left, y: home.top + dy - slot.top }, moved: to !== state.from })
+      if (to === state.from) setLanding({ id: state.id, offset: { x: dx, y: dy } })
+      else setReflow({ id: state.id, from: positions(list) })
       swallowClick.current = true
       setTimeout(() => (swallowClick.current = false))
       if (to !== state.from) latest.current.onDrop(moveItem(state.order, state.from, to))
@@ -266,6 +307,16 @@ export function useChainDrag({ listRef, blocks, disabled, onDrop }: Options) {
 /** Movable apart from a command in flight: the drag hint keys off this so it does not blink out on every drop. */
 export function reorderable(block: ChainBlock): boolean {
   return block.open && !block.current
+}
+
+function positions(list: HTMLElement): Map<string, Point> {
+  const items = [...list.querySelectorAll<HTMLElement>('[data-block]')]
+  return new Map(
+    items.map((item) => {
+      const box = item.getBoundingClientRect()
+      return [item.dataset.block!, { x: box.left, y: box.top }]
+    }),
+  )
 }
 
 function blockersOf(blocks: ChainBlock[]): Map<string, string[]> {

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { clampDrop, clampShift, dropBounds, nearestIndex, relatives } from './reorder.js'
+import { clampDrop, clampShift, dropBounds, nearestIndex, relatives, stackedTops } from './reorder.js'
 
 const blockers = new Map<string, string[]>([
   ['A', []],
@@ -76,5 +76,24 @@ describe('clampShift', () => {
   it('stops the card at the edges of the list', () => {
     expect(clampShift(box, area, { x: 500, y: 900 })).toEqual({ x: 90, y: 260 })
     expect(clampShift(box, area, { x: -500, y: -900 })).toEqual({ x: -10, y: -100 })
+  })
+})
+
+describe('stackedTops', () => {
+  const box = (top: number, height: number) => ({ left: 0, top, width: 100, height })
+
+  it('keeps the tops when the order stays', () => {
+    const boxes = [box(0, 70), box(78, 34), box(120, 34)]
+    expect(stackedTops(boxes, [0, 1, 2])).toEqual([0, 78, 120])
+  })
+
+  it('stacks cards of different heights without holes or overlaps', () => {
+    const boxes = [box(0, 70), box(78, 34), box(120, 34)]
+    expect(stackedTops(boxes, [1, 0, 2])).toEqual([42, 0, 120])
+  })
+
+  it('keeps a milestone divider between the same places', () => {
+    const boxes = [box(0, 70), box(78, 70), box(190, 34)]
+    expect(stackedTops(boxes, [0, 2, 1])).toEqual([0, 154, 78])
   })
 })

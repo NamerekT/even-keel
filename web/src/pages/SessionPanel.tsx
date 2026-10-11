@@ -183,9 +183,6 @@ function SessionBody({ session, limit, scale }: { session: SessionView; limit: L
         <div className="panel__fact">
           <dt>{t.session.session}</dt>
           <dd className={`panel__state panel__state--${session.lamp}`}>{t.lamp[session.lamp]}</dd>
-          <dd>
-            <AccountTag email={session.account} />
-          </dd>
         </div>
         <div className="panel__fact">
           <dt>{t.session.time}</dt>

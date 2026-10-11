@@ -6,6 +6,7 @@ import { stillMotion } from '../ui/landing.js'
 import type { Box } from '../ui/reorder.js'
 
 const LANDED_MS = 1600
+const REST_MS = 250
 
 interface Moving {
   id: string
@@ -27,6 +28,7 @@ export interface Arrival {
  * On a narrow screen the panel covers the chain, so it is closed instead of the flight.
  */
 export function useArrival(state: EvenKeelState, project: string, blocks: ChainBlock[], closePanel: () => void) {
+  const [aimed, setAimed] = useState<string | null>(null)
   const [pointed, setPointed] = useState<string | null>(null)
   const [moving, setMoving] = useState<Moving | null>(null)
   const [flight, setFlight] = useState<Moving | null>(null)
@@ -46,6 +48,16 @@ export function useArrival(state: EvenKeelState, project: string, blocks: ChainB
     setMoving(null)
   }, [moving, arrived, closePanel])
 
+  // A pointer passing over the buttons on its way elsewhere does not shake the chain with ghosts.
+  useEffect(() => {
+    if (aimed === null) {
+      setPointed(null)
+      return
+    }
+    const timer = setTimeout(() => setPointed(aimed), REST_MS)
+    return () => clearTimeout(timer)
+  }, [aimed])
+
   useEffect(() => {
     if (landed === null) return
     const timer = setTimeout(() => setLanded(null), LANDED_MS)
@@ -61,7 +73,7 @@ export function useArrival(state: EvenKeelState, project: string, blocks: ChainB
     flight,
     /** The task on its way from the backlog: its own flight marks it, the chain's entry motion must not. */
     incoming: moving?.id ?? flight?.id ?? landed,
-    point: setPointed,
+    point: setAimed,
     move: (id: string, title: string, from: Box) => {
       setLanded(null)
       setMoving({ id, title, from, settled: false })

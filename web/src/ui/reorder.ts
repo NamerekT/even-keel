@@ -50,6 +50,21 @@ export function clampShift(box: Box, area: { width: number; height: number }, sh
   }
 }
 
+/**
+ * The top of each card once the cards stand in `order` (indices into `boxes`): each keeps its own height
+ * and the gaps between places stay, so a milestone divider stays between the same places.
+ */
+export function stackedTops(boxes: Box[], order: number[]): number[] {
+  const tops = new Array<number>(boxes.length)
+  let top = boxes[0]?.top ?? 0
+  for (const [place, index] of order.entries()) {
+    tops[index] = top
+    const next = boxes[place + 1]
+    if (next !== undefined) top += boxes[index]!.height + next.top - boxes[place]!.top - boxes[place]!.height
+  }
+  return tops
+}
+
 export function nearestIndex(centers: Point[], point: Point): number {
   let best = 0
   let bestDistance = Infinity

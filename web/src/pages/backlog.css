@@ -196,9 +196,74 @@ a.backlog__key:hover {
   background: color-mix(in srgb, var(--accent) 8%, var(--surface));
 }
 
+/* The ghost and a milestone it unfolds grow open and fold shut, so the chain under them slides instead of jumping. */
+
+.chain .block.block--ghost,
+.chain__section--ghost {
+  interpolate-size: allow-keywords;
+  transition:
+    height 0.25s ease,
+    min-height 0.25s ease,
+    padding 0.25s ease,
+    border-width 0.25s ease,
+    margin 0.25s ease,
+    opacity 0.25s ease;
+}
+
 .block.block--ghost {
+  overflow: clip;
   pointer-events: none;
-  animation: appear 0.2s ease-out;
+}
+
+.chain__section--ghost {
+  min-height: 0;
+  clip-path: inset(0 -40px);
+}
+
+.chain .block.block--ghost-out {
+  height: 0;
+  min-height: 0;
+  padding-block: 0;
+  border-width: 0;
+  opacity: 0;
+}
+
+.block.block--ghost-out:not(:first-child) {
+  margin-top: -8px;
+}
+
+.block.block--ghost-out:first-child:not(:last-child) {
+  margin-bottom: -8px;
+}
+
+.chain__section--gone {
+  height: 0;
+  margin-top: -18px;
+  opacity: 0;
+}
+
+@starting-style {
+  .chain .block.block--ghost {
+    height: 0;
+    min-height: 0;
+    padding-block: 0;
+    border-width: 0;
+    opacity: 0;
+  }
+
+  .block.block--ghost:not(:first-child) {
+    margin-top: -8px;
+  }
+
+  .block.block--ghost:first-child:not(:last-child) {
+    margin-bottom: -8px;
+  }
+
+  .chain__section--ghost {
+    height: 0;
+    margin-top: -18px;
+    opacity: 0;
+  }
 }
 
 .block--ghost .block__title {
@@ -254,12 +319,13 @@ a.backlog__key:hover {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .block.block--ghost,
-  .block--landed {
-    animation: none;
+  .chain .block.block--ghost,
+  .chain__section--ghost {
+    transition: none;
   }
 
   .block--landed {
+    animation: none;
     outline: 2px solid var(--accent);
     outline-offset: 3px;
   }
