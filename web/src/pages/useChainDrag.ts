@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type RefObject } from 'react'
 import type { ChainBlock } from '../state.js'
 import { moveItem } from '../ui/drag.js'
-import { clampDrop, dropBounds, nearestIndex, relatives, type Bounds, type Box, type Point } from '../ui/reorder.js'
+import { clampDrop, clampShift, dropBounds, nearestIndex, relatives, type Bounds, type Box, type Point } from '../ui/reorder.js'
 
 const LONG_PRESS_MS = 350
 const MOUSE_SLOP = 4
@@ -23,6 +23,7 @@ interface Active {
   from: number
   order: string[]
   boxes: Box[]
+  area: { width: number; height: number }
   bounds: Bounds
   grab: Point
   client: Point
@@ -77,8 +78,8 @@ export function useChainDrag({ listRef, blocks, disabled, onDrop }: Options) {
 
     const measure = (state: Active) => {
       const point = listPoint(state.client)
-      const dx = point.x - state.grab.x
-      const dy = point.y - state.grab.y
+      const shift = { x: point.x - state.grab.x, y: point.y - state.grab.y }
+      const { x: dx, y: dy } = clampShift(state.boxes[state.from]!, state.area, shift)
       const centers = state.boxes.map((box) => ({ x: box.left + box.width / 2, y: box.top + box.height / 2 }))
       const center = { x: centers[state.from]!.x + dx, y: centers[state.from]!.y + dy }
       return { dx, dy, target: clampDrop(state.bounds, nearestIndex(centers, center), state.from) }
@@ -130,6 +131,7 @@ export function useChainDrag({ listRef, blocks, disabled, onDrop }: Options) {
         from,
         order,
         boxes,
+        area: { width: rect.width, height: rect.height },
         bounds: dropBounds(order, new Map(open.map((block) => [block.id, block.after])), from, pinned),
         grab: listPoint(current.start),
         client,
@@ -243,9 +245,14 @@ export function useChainDrag({ listRef, blocks, disabled, onDrop }: Options) {
     }
   }, [listRef])
 
-  const movable = (block: ChainBlock) => !disabled && block.open && !block.current
+  const movable = (block: ChainBlock) => !disabled && reorderable(block)
 
   return { drag, landing, movable }
+}
+
+/** Movable apart from a command in flight: the drag hint keys off this so it does not blink out on every drop. */
+export function reorderable(block: ChainBlock): boolean {
+  return block.open && !block.current
 }
 
 function blockersOf(blocks: ChainBlock[]): Map<string, string[]> {

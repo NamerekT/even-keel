@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { clampDrop, dropBounds, nearestIndex, relatives } from './reorder.js'
+import { clampDrop, clampShift, dropBounds, nearestIndex, relatives } from './reorder.js'
 
 const blockers = new Map<string, string[]>([
   ['A', []],
@@ -62,5 +62,19 @@ describe('nearestIndex', () => {
     expect(nearestIndex(centers, { x: 90, y: 30 })).toBe(1)
     expect(nearestIndex(centers, { x: 70, y: 80 })).toBe(2)
     expect(nearestIndex(centers, { x: -50, y: 10 })).toBe(0)
+  })
+})
+
+describe('clampShift', () => {
+  const box = { left: 10, top: 100, width: 200, height: 40 }
+  const area = { width: 300, height: 400 }
+
+  it('keeps a shift that stays inside the list', () => {
+    expect(clampShift(box, area, { x: 20, y: -60 })).toEqual({ x: 20, y: -60 })
+  })
+
+  it('stops the card at the edges of the list', () => {
+    expect(clampShift(box, area, { x: 500, y: 900 })).toEqual({ x: 90, y: 260 })
+    expect(clampShift(box, area, { x: -500, y: -900 })).toEqual({ x: -10, y: -100 })
   })
 })

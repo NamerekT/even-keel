@@ -19,7 +19,7 @@ import { StartPill } from '../ui/SessionStart.js'
 import { ActionScreen } from './ActionScreen.js'
 import './chain.css'
 import type { Arrival } from './useArrival.js'
-import { useChainDrag, type ChainDrag } from './useChainDrag.js'
+import { reorderable, useChainDrag, type ChainDrag } from './useChainDrag.js'
 import { useChainMotion } from './useChainMotion.js'
 
 const GHOST_DELAY_MS = 200
@@ -243,7 +243,7 @@ export function ChainList({ project, chain, scale, trackerUrls, focus, ghost, ar
       )}
       <p className="chain__hint">{t.chain.linksHint}</p>
       {blocks.some((block) => block.locked) && <p className="chain__hint">{t.chain.lockedHint}</p>}
-      {blocks.some((block) => movable(block)) && <p className="chain__hint">{t.chain.dragHint}</p>}
+      {blocks.some(reorderable) && <p className="chain__hint">{t.chain.dragHint}</p>}
     </div>
   )
 }

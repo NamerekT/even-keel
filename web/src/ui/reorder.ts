@@ -42,6 +42,14 @@ export function relatives(order: string[], blockers: Blockers, id: string): { bl
   }
 }
 
+/** A transform past the list's edge grows the page, and the page shrinks back on drop: the scroll jumps. */
+export function clampShift(box: Box, area: { width: number; height: number }, shift: Point): Point {
+  return {
+    x: Math.min(area.width - box.left - box.width, Math.max(-box.left, shift.x)),
+    y: Math.min(area.height - box.top - box.height, Math.max(-box.top, shift.y)),
+  }
+}
+
 export function nearestIndex(centers: Point[], point: Point): number {
   let best = 0
   let bestDistance = Infinity
