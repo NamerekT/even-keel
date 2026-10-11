@@ -844,37 +844,47 @@ h1 {
 }
 
 .accounts__roles {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, 128px);
   gap: 6px;
   padding-top: 2px;
 }
 
 .accounts__role {
-  padding: 3px 12px;
-  border: 1px solid var(--border);
+  width: 100%;
+  padding: 4px 8px;
+  border: 1px solid color-mix(in srgb, var(--fg-muted) 75%, transparent);
   border-radius: 6px;
-  background: transparent;
+  background: var(--surface-muted);
   color: var(--fg);
   font: inherit;
   font-size: 13px;
+  font-weight: 500;
+  text-align: center;
+  white-space: nowrap;
   cursor: pointer;
 }
 
 .accounts__role:enabled:hover,
 .accounts__role:focus-visible {
   border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 12%, var(--surface-muted));
   color: var(--accent);
   outline: none;
 }
 
 .accounts__role:disabled {
-  cursor: default;
-  opacity: 0.4;
+  border-style: dashed;
+  border-color: color-mix(in srgb, var(--fg-muted) 55%, transparent);
+  background: transparent;
+  color: var(--fg-muted);
+  cursor: not-allowed;
 }
 
 .accounts__role--on:disabled {
+  border-style: solid;
   border-color: var(--accent);
+  cursor: default;
   background: color-mix(in srgb, var(--accent) 18%, transparent);
   color: var(--accent);
   font-weight: 600;
