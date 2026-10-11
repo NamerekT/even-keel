@@ -240,6 +240,14 @@ export const en: Messages = {
     dismiss: 'Done',
     resume: 'Resume',
     stop: 'Stop',
+    off: {
+      running: 'The chain is running — nothing to resume.',
+      idle: 'The chain is not running — nothing to stop.',
+      queued: 'The chain is in the queue and starts when its turn comes.',
+      notLoaded: 'Tasks are not loaded yet — nothing to start.',
+      failed: 'The chain cannot start until its tasks load without an error.',
+      empty: 'No tasks in the chain — nothing to start.',
+    },
     after: (project: string) => `queued after ${project}`,
     idle: {
       memes: [
@@ -470,6 +478,7 @@ export const en: Messages = {
     foldArchive: 'Fold the archive',
     nextMilestone: 'Show the milestone',
     foldMilestone: 'Fold the milestone',
+    help: 'Marks and hints',
     linksHint: 'The selected task or the task under the cursor highlights its blockers and the tasks waiting for it.',
     dragHint: 'Reorder by dragging a card, on a phone — after a long press.',
     lockedHint: 'Locked rows are blockers outside the chain: the tasks behind them wait. Move a blocker to an active status and the chain takes it; close a manual one yourself.',

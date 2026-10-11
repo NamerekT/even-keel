@@ -681,6 +681,7 @@ export function createFakeSource(search: string): LiveSource {
   if (params.get('chain') === 'limit' && active) {
     current.state!.chain.active = [{ ...active, current: null, limitUntil: new Date(Date.now() + 95 * 60_000).toISOString() }]
   }
+  if (params.get('chain') === 'paused' && current.state !== null) current.state = setPaused(current.state, 'ABC', true)
   if (params.get('chain') === 'slot' && active) {
     const dirty = notice('slot.dirty', { path: 'D:/work/abc/.claude/worktrees/even-keel' }, { detail: 'M src/app.ts\n?? src/scratch.ts' })
     const slotWait = { notice: notice('slot.waiting', { task: 'ABC-12' }, { items: [dirty] }), at: new Date().toISOString() }

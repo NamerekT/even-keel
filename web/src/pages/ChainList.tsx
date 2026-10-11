@@ -4,7 +4,7 @@ import { withWaiting } from '../../../src/chain/order.js'
 import type { ContextScale, TrackerUrls } from '../../../src/state.js'
 import { say, t } from '../i18n/index.js'
 import { useCommand } from '../live/useCommand.js'
-import { blockMetered, checkpointHandoffs, issueLink, type BlockLamp, type ChainBlock, type Ghost, type TaskLinks } from '../state.js'
+import { blockMetered, checkpointHandoffs, issueLink, type ChainBlock, type Ghost, type TaskLinks } from '../state.js'
 import { AccountTag } from '../ui/AccountTag.js'
 import { ARCHIVE_PAGE, archiveView } from '../ui/archive.js'
 import { CacheClock } from '../ui/CacheClock.js'
@@ -20,15 +20,12 @@ import { relatives, type Point } from '../ui/reorder.js'
 import { StartPill } from '../ui/SessionStart.js'
 import { ActionScreen } from './ActionScreen.js'
 import './chain.css'
+import { ChainLegend } from './ChainLegend.js'
 import type { Arrival } from './useArrival.js'
 import { reorderable, useChainDrag, type ChainDrag, type Landing } from './useChainDrag.js'
 import { useChainMotion } from './useChainMotion.js'
 
 const GHOST_DELAY_MS = 200
-
-const LEGEND = ['done', 'working', 'waiting', 'stopped', 'error', 'ahead', 'canceled'] as const satisfies readonly BlockLamp[]
-const SHAPES = ['urgent', 'high', 'low', 'rework', 'family', 'estimate'] as const
-type Shape = (typeof SHAPES)[number]
 
 interface Props {
   project: string
@@ -88,7 +85,6 @@ export function ChainList({ project, chain, scale, trackerUrls, focus, ghost, ar
   )
   const marks = marksOf(motion)
   const archiving = motion?.leaving.some((each) => each.archived) === true
-  const shapes = SHAPES.filter((shape) => shapeShown(shape, real, rails.size > 0))
 
   const keep = arrival === null ? 0 : view.revealed
   useEffect(() => setRevealed((current) => Math.max(current, keep)), [keep])
@@ -227,27 +223,12 @@ export function ChainList({ project, chain, scale, trackerUrls, focus, ghost, ar
         />
       )}
       {failure !== null && <p className="notice notice--error">{say(failure)}</p>}
-      <ul className="chain__legend">
-        {LEGEND.map((lamp) => (
-          <li key={lamp} className="chain__legend-item">
-            <Lamp lamp={lamp} />
-            {t.chain.legend[lamp]}
-          </li>
-        ))}
-      </ul>
-      {shapes.length > 0 && (
-        <ul className="chain__legend">
-          {shapes.map((shape) => (
-            <li key={shape} className="chain__legend-item">
-              <span className={`chain__shape chain__shape--${shape}`} aria-hidden="true" />
-              {t.chain.shapes[shape]}
-            </li>
-          ))}
-        </ul>
-      )}
-      <p className="chain__hint">{t.chain.linksHint}</p>
-      {blocks.some((block) => block.locked) && <p className="chain__hint">{t.chain.lockedHint}</p>}
-      {blocks.some(reorderable) && <p className="chain__hint">{t.chain.dragHint}</p>}
+      <ChainLegend
+        blocks={real}
+        families={rails.size > 0}
+        locked={blocks.some((block) => block.locked)}
+        movable={blocks.some(reorderable)}
+      />
     </div>
   )
 }
@@ -554,14 +535,6 @@ function CheckIcon() {
 function priorityTitle(block: ChainBlock): string | undefined {
   if (block.priority === 'none' || block.priority === 'medium') return undefined
   return `${t.card.priority}: ${t.card.priorities[block.priority]}`
-}
-
-function shapeShown(shape: Shape, blocks: ChainBlock[], families: boolean): boolean {
-  const ahead = blocks.filter((block) => block.lamp !== 'done' && block.lamp !== 'canceled')
-  if (shape === 'family') return families
-  if (shape === 'rework') return ahead.some((block) => isRework(block.labels))
-  if (shape === 'estimate') return ahead.some((block) => estimateShare(block.estimate) !== null)
-  return ahead.some((block) => block.priority === shape)
 }
 
 function marksOf(motion: Motion<ChainBlock> | null): Map<string, { mark: Mark; beat: number }> {

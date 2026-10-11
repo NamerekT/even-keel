@@ -8,6 +8,7 @@ import {
   backlogTasks,
   canReady,
   chainBlocks,
+  chainControls,
   chainStatus,
   issueLink,
   limitWaitText,
@@ -18,6 +19,7 @@ import {
   startsNow,
   taskLinks,
   taskProject,
+  type ChainControl,
 } from '../state.js'
 import { focusAfterClose, focusOnEntry } from '../ui/focus.js'
 import { QuestionsChip } from '../ui/QuestionsChip.js'
@@ -201,17 +203,16 @@ function Leftovers({ state, project }: { state: EvenKeelState; project: string }
 function ChainControls({ state, project }: { state: EvenKeelState; project: string }) {
   const { send, sending, failure } = useCommand()
   const status = chainStatus(state.chain, project)
-  const order = state.chain.projects[project]
-  const canStart = status.kind === 'idle' && order !== undefined && order.error === null && order.order.length > 0
+  const controls = chainControls(status, state.chain.projects[project])
   const error = (status.kind === 'paused' ? status.error : null) ?? failure
   const after = queuedAfter(state.chain, project)
 
   const active = status.kind === 'running' || status.kind === 'paused'
-  const button = (label: string, name: string, enabled: boolean, primary = false) => (
+  const button = (label: string, name: ChainControl) => (
     <button
       type="button"
-      className={primary ? 'button button--primary' : 'button'}
-      disabled={sending || !enabled}
+      className={controls.primary === name ? 'button button--primary' : 'button'}
+      disabled={sending || !controls.enabled.includes(name)}
       onClick={() => void send(`chain/${name}`, { project })}
     >
       {label}
@@ -223,11 +224,10 @@ function ChainControls({ state, project }: { state: EvenKeelState; project: stri
     <>
       <div className="project__controls">
         {after !== null && <span className="project__queue">{t.project.after(after)}</span>}
-        {active
-          ? button(t.project.resume, 'resume', status.kind === 'paused', true)
-          : button(startsNow(state.chain) ? t.project.start : t.project.enqueue, 'start', canStart, true)}
-        {button(t.project.stop, 'stop', active)}
+        {active ? button(t.project.resume, 'resume') : button(startsNow(state.chain) ? t.project.start : t.project.enqueue, 'start')}
+        {button(t.project.stop, 'stop')}
       </div>
+      {controls.off !== null && <p className="project__hint">{t.project.off[controls.off]}</p>}
       {status.kind === 'running' && status.limitUntil !== null && (
         <p className="project__wait">{limitWaitText(status.limitUntil, new Date())}</p>
       )}

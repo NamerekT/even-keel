@@ -31,6 +31,11 @@
   opacity: 0.5;
 }
 
+/* A zero is not shown but keeps its place, so the lock and the key stand in one column down the chain. */
+.links__count--none .links__number {
+  visibility: hidden;
+}
+
 .links__count .icon {
   width: 13px;
   height: 13px;

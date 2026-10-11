@@ -5,7 +5,7 @@ import { setLanguage } from './i18n/index.js'
 import type { StatusCategory, Task } from '../../src/tracker/model.js'
 import type { AccountEntry, AccountLogin, AccountView } from '../../src/account/model.js'
 import type { EvenKeelState, SessionView } from '../../src/state.js'
-import type { ActiveChain, CurrentTask } from '../../src/chain/dispatcher.js'
+import type { ActiveChain, CurrentTask, ProjectOrder } from '../../src/chain/dispatcher.js'
 import type { TaskSession } from '../../src/chain/launches.js'
 import {
   accountBadge,
@@ -18,6 +18,7 @@ import {
   cardTask,
   openQuestions,
   chainBlocks,
+  chainControls,
   chainProgress,
   chainStatus,
   contextFill,
@@ -356,6 +357,30 @@ describe('chainStatus', () => {
     const both = chain({ active: [active(), { ...active({ paused: true }), project: 'XYZ' }], parallel: 2 })
     expect(chainStatus(both, 'ABC')).toEqual({ kind: 'running', limitUntil: null })
     expect(chainStatus(both, 'XYZ')).toEqual({ kind: 'paused', error: null })
+  })
+})
+
+describe('chainControls', () => {
+  const order = (patch: Partial<ProjectOrder> = {}): ProjectOrder => ({ order: ['ABC-1'], waiting: [], backlog: [], error: null, ...patch })
+
+  it('fills Stop while the chain runs and says why Resume is off', () => {
+    expect(chainControls({ kind: 'running', limitUntil: null }, order())).toEqual({ enabled: ['stop'], primary: 'stop', off: 'running' })
+  })
+
+  it('fills Resume on a paused chain and leaves Stop pressable', () => {
+    expect(chainControls({ kind: 'paused', error: null }, order())).toEqual({ enabled: ['resume', 'stop'], primary: 'resume', off: null })
+  })
+
+  it('fills Start on an idle chain that has tasks', () => {
+    expect(chainControls({ kind: 'idle' }, order())).toEqual({ enabled: ['start'], primary: 'start', off: 'idle' })
+  })
+
+  it('fills nothing when no button can be pressed, and names the reason', () => {
+    const none = { enabled: [], primary: null }
+    expect(chainControls({ kind: 'queued', position: 1 }, order())).toEqual({ ...none, off: 'queued' })
+    expect(chainControls({ kind: 'idle' }, undefined)).toEqual({ ...none, off: 'notLoaded' })
+    expect(chainControls({ kind: 'idle' }, order({ error: textNotice('boom') }))).toEqual({ ...none, off: 'failed' })
+    expect(chainControls({ kind: 'idle' }, order({ order: [] }))).toEqual({ ...none, off: 'empty' })
   })
 })
 
