@@ -70,15 +70,16 @@ Even Keel prepares the worktree itself (`src/git/worktree.ts`, `src/git/slot.ts`
 
 ## Invariants
 
-1. **The dispatcher does not touch a session that has stopped.** A question, an error — nothing happens. The user answers from a phone through Remote Control or moves the task in the tracker themselves. "Does not touch" means it neither stops it nor writes anything to it. Exceptions (in detail — `docs/chain.md`), all of them `claude stop`, never `rm`:
+1. **The dispatcher does not touch a session that has stopped.** A question, an error — nothing happens. The user answers from the page's chat window, a tracker comment or Remote Control, or moves the task in the tracker themselves. "Does not touch" means it neither stops it nor writes anything to it. Exceptions (in detail — `docs/chain.md`), all of them `claude stop`, never `rm`:
    1. a limit on the session of the current task of an unpaused chain — `--resume` while the cache is warm, otherwise a new session with a handoff;
    2. the "New session" button (`restart`) — the session is not mid-turn;
    3. a checkpoint: the last line of the last response is `CHECKPOINT: <path>`;
    4. a task in Done — the session has finished its turn and is not waiting for a reply;
-   5. a slot is switched to another task's branch — the idle sessions of released tasks in it are stopped; mid-turn, the slot is not switched.
+   5. a slot is switched to another task's branch — the idle sessions of released tasks in it are stopped; mid-turn, the slot is not switched;
+   6. the user's explicit answer — from the chat window or a tracker comment posted after the question — only while the session waits, not mid-turn: `--resume` with the answer.
 
    The dispatcher may stop waiting for a session that is not mid-turn (`busy`/`waiting`): the task got an open blocker from the chain (`postpone`) or the user pressed "Skip" (`skip`). In unattended mode (`unattended`) it may also stop waiting for a session that has sat idle for 10 minutes without Done (including `waiting`); in detail — `docs/chain.md`.
-2. **The tracker is the source of truth for statuses.** The dispatcher owns only the chain order, the pause, the list of skipped tasks, released tasks awaiting cleanup, cleanup warnings, unattended mode and the "trim the tools" switch.
+2. **The tracker is the source of truth for statuses.** The dispatcher owns only the chain order, the pause, the list of skipped tasks, released tasks awaiting cleanup, cleanup warnings, unattended mode, the "trim the tools" switch and the questions it posted to the tracker.
 3. **There are no secrets in the repository.** Addresses and credentials come from the environment or a local file outside git; the repository has only `.env.example` with fakes.
 4. **The dispatcher does not accept or store the Windows password.** The user enters the service account themselves.
 
