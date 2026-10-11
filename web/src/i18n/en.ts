@@ -248,10 +248,10 @@ export const en: Messages = {
     idle: {
       memes: [
         ['One does not simply', ' merge into main.'],
-        ['It works on my machine.'],
+        ['It works on my machine.', ' Running it again.', ' Permission denied.', ' ON MY OWN MACHINE?!'],
         ['Keep calm', ' and stay on an even keel.'],
-        ['Pain-Driven Development:', ' first it hurts, then the test.'],
-        ['300 APM,', ' all of them on "Continue".'],
+        ['Pain-Driven Development', ': first it hurts, then the test.'],
+        ['300 APM', ', all of them on "Continue".'],
         ['state: running.', ' pid: not found.'],
         ['"You\'re absolutely right!"', ' — and everything gets rewritten.'],
         ['Fair winds', ' and no merge conflicts.'],
@@ -263,10 +263,10 @@ export const en: Messages = {
           ['Now I have the full picture.', ' Full.', ' Picture.'],
           ["It doesn't move anymore.", " Let's fix it…"],
           ['Update(voyage.ts)', ' Update(voyage.ts)', ' Update(voyage.ts)'],
-          ['Fixed! Everything works now.', ' Sailing backwards is a pre-existing bug,', ' unrelated to my changes.', ' Filed an issue.'],
+          ['Fixed!', ' Everything works now.', ' Sailing backwards is a pre-existing bug unrelated to my changes. Filed an issue.'],
         ],
         spoons: [
-          ['Spoons come in two kinds:', ' those that remember the soup', ' and those that pretend.'],
+          ['Spoons come in two kinds:', ' those that remember the soup and those that pretend.'],
           ['There are more of the second kind,', ' but they are registered as furniture.'],
           ['So they may vote only on Wednesdays', ' and only for Gary the Fog.'],
           ['Gary the Fog was written off long ago,', ' yet he still comes to work: nobody told him,', ' and he is too shy to ask Kevin the Lamppost.'],
