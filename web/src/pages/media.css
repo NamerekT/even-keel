@@ -135,6 +135,7 @@
   border: 0;
   overflow: auto;
   background: rgb(0 0 0 / 0.88);
+  backdrop-filter: var(--scrim-blur);
   color: #fff;
 }
 

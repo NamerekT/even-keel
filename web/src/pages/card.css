@@ -27,8 +27,8 @@ html:has(.task-card[open]) {
 }
 
 .task-card::backdrop {
-  background: rgb(0 0 0 / 0.6);
-  backdrop-filter: blur(2px);
+  background: var(--scrim);
+  backdrop-filter: var(--scrim-blur);
 }
 
 .task-card__frame {

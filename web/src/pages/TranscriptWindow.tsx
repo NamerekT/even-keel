@@ -59,6 +59,7 @@ export function TranscriptWindow({ sessionId, account, live, chat, onClose }: Pr
   const [error, setError] = useState<string | null>(null)
   const [sent, setSent] = useState<SentLine[]>([])
   const shown = lines == null ? null : [...lines, ...sent.filter((each) => !lines.slice(each.after).some(isReply)).map((each) => each.line)]
+  const remoteUrl = chat?.session.remoteUrl
   const answered = new Map<string, AskAnswers>((shown ?? []).flatMap((line) => (line.answers === undefined ? [] : [[line.answers.ask, line.answers.answers]])))
 
   useEffect(() => {
@@ -127,6 +128,18 @@ export function TranscriptWindow({ sessionId, account, live, chat, onClose }: Pr
             <span className="panel__title">{chat === undefined ? t.session.transcriptTitle : `${t.session.chat.title} · ${sessionId.slice(0, 8)}`}</span>
             <AccountTag email={account} />
           </h2>
+          {remoteUrl != null && (
+            <a
+              className="panel__remote"
+              href={remoteUrl}
+              target="_blank"
+              rel="noreferrer"
+              title={`${t.session.openRemote}${account === null ? '' : t.session.onlyIn(account)}`}
+              aria-label={t.session.openRemote}
+            >
+              ↗
+            </a>
+          )}
           <button type="button" className="panel__close" aria-label={t.session.closeTranscript} onClick={() => dialogRef.current?.close()}>
             ×
           </button>
