@@ -14,6 +14,7 @@ This file holds the rules and traps needed in every session. Reference on how th
 | --- | --- |
 | `docs/chain.md` | entry into the chain, order, task worktrees, cleanup after Done, "slot" mode, the exceptions to invariant 1 in detail |
 | `docs/trackers.md` | the `src/tracker/` layer, the Huly, GitHub and Linear adapters, `brief`/`complete`, Claude Code plugins |
+| `docs/ci.md` | the `src/ci/` layer, the Forgejo and GitHub Actions adapters, which remote gets a CI, polling, Forgejo API traps |
 | `docs/sessions.md` | the `claude` CLI, transcripts, the model by label, prompt assembly, limit polling |
 | `docs/accounts.md` | account folders, sign-in and switching, the apps panel, transferring the shared configuration |
 | `docs/web.md` | the interface, translation (`language`, message codes), live config, `dev:fake` parameters |

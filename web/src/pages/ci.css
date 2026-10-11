@@ -96,6 +96,22 @@
   animation: appear var(--motion-appear) ease-out;
 }
 
+/* On a narrow screen the chip sits mid-row, so the panel hangs from the whole project head instead. */
+@media (max-width: 760px) {
+  .project__head {
+    position: relative;
+  }
+
+  .ci-menu {
+    position: static;
+  }
+
+  .ci-panel {
+    right: 0;
+    width: auto;
+  }
+}
+
 .ci {
   display: flex;
   flex-direction: column;
@@ -140,6 +156,7 @@
 .ci__notice {
   margin: 0;
   font-size: 12px;
+  overflow-wrap: anywhere;
 }
 
 .ci__block {

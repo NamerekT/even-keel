@@ -36,6 +36,7 @@ Sequential within a project, not across them: different projects are different r
 - **Accounts.** Several Claude subscriptions, one config folder each. Log in, renew and remove accounts from the page, pick the one the chain uses; when one account runs out of limit, switch to another and the chain carries on. The page also switches the account of the Claude Code extension in VS Code.
 - **Limits.** The 5-hour and weekly windows of every account, read with the CLI's own `/usage` command (no quota spent). While a window is exhausted the next task waits for its reset.
 - **Statistics.** A built-in collector (Tally) reads the session transcripts every five minutes into an embedded Postgres ([PGlite](https://pglite.dev)): spend by day and project, cost and time per task, where sessions got stuck, slow commands, estimates against actual time, and before/after comparisons of changes to your rule files. All of it on the `/stats` page.
+- **CI.** A badge in the project's head shows the CI of each remote — Forgejo Actions or GitHub Actions, found from `git remote` and the workflow folders: whether the API answers and a runner takes the runs, the current run with its tasks, jobs and steps against the usual length, and the recent runs. The API is polled only while a run is unfinished or after a push. Watching only: the chain does not wait for it yet.
 - **Languages.** The page is in English or Russian; the prompts Even Keel sends to sessions can be in either, separately.
 
 ## Requirements
@@ -163,6 +164,7 @@ On Linux it installs a systemd user unit (`systemctl --user status even-keel`, l
 | `HULY_URL`, `HULY_WORKSPACE`, `HULY_EMAIL`, `HULY_PASSWORD` | Huly adapter |
 | `GITHUB_TOKEN` | GitHub adapter |
 | `LINEAR_TOKEN` | Linear adapter |
+| `FORGEJO_TOKEN` | CI runs on a Forgejo remote: a token with read access to repositories. GitHub Actions on a `github.com` remote takes `GITHUB_TOKEN`, which then also needs **Actions: Read**. Without its token a CI shows as not connected |
 | `EVEN_KEEL_ACCOUNTS_DIR` | folder of the extra Claude account folders; default `~/.claude-accounts` |
 | `EVEN_KEEL_CLAUDE_BIN` | path to the `claude` binary |
 | `EVEN_KEEL_CONFIG` | path to the config; default `even-keel.config.json` in the root |

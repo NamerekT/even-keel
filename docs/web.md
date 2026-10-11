@@ -69,6 +69,7 @@ Layout work on a fake state, without a tracker or sessions. The fake history sta
 | `?cache=warn\|cold` | the cache of the current session is in the last fifth of its lifetime; has run out |
 | `?usage=unread\|off\|waiting` | `/usage` polling states |
 | `?config=broken` | the broken config banner |
+| `?ci=failure\|stuck\|push\|error\|off\|none` | the CI badge of ABC (`web/src/live/fakeCi.ts`): a red last run; a run queued past `STUCK_MS`; a push no run has taken yet; the API not answering; no token; no CI at all. Without it ABC has a running Forgejo run and a green GitHub Actions |
 | `?mcp=missing` | the banner "brief is off, and sessions don't see the tracker MCP servers" |
 | `?account=out\|expired\|login\|failed\|unknown` | states of the active Claude account; the `fail` code in the sign-in field is a failed sign-in |
 | `?account=pending` | the new configuration is waiting for the account's sessions to finish |

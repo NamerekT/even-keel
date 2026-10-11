@@ -82,13 +82,15 @@ function github(): CiView {
 export function fakeCi(kind: string | null): Record<string, CiView[]> {
   if (kind === 'none') return {}
   const finished = forgejo({ current: { run: HISTORY[0]!, tasks: ['ABC-4'], jobs: [job(1, 'test', 'success', 1_800, 192, false)] }, history: HISTORY })
+  const queued = run(41, 'queued', 300, null, '[ABC-5] Экспорт отчёта')
   const views: Record<string, CiView> = {
     failure: forgejo({
       current: { run: HISTORY[1]!, tasks: ['ABC-3'], jobs: [job(1, 'test', 'failure', 7_200, 75, false), job(2, 'deploy', 'skipped', null, null, false)] },
       history: HISTORY.slice(1),
     }),
     stuck: forgejo({
-      current: { run: run(41, 'queued', 300, null, '[ABC-5] Экспорт отчёта'), tasks: ['ABC-5'], jobs: [job(1, 'test', 'queued', null, null, false)] },
+      current: { run: queued, tasks: ['ABC-5'], jobs: [job(1, 'test', 'queued', null, null, false)] },
+      history: [queued, ...HISTORY],
     }),
     push: { ...finished, pushed: { commit: '5c95521730bbc58ab20052f7ff807c29a8fbeb65', at: ago(40) } },
     error: { ...finished, health: 'error', error: notice('ci.unreachable', { ci: 'Forgejo' }, { detail: 'connect ETIMEDOUT 100.64.0.1:443' }), checkedAt: ago(30) },
