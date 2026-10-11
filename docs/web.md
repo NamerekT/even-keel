@@ -75,3 +75,14 @@ Layout work on a fake state, without a tracker or sessions. The fake history sta
 | `?card=empty\|none` | a task card without description, labels, relations, comments and attachments (otherwise it has SVG pictures, an MDN CC0 video and a text file); the tracker returns no card. "Move to Todo" (in the card and in the backlog panel) moves the task from the backlog into the chain in the fake, to its `landing` place: ABC-18 into v0.2, ABC-19 into the folded v0.3, ABC-20 to the end |
 | `?lang=en\|ru` | the page language from the config (without it — the browser language) |
 | `?delay=<ms>` | answers (stats, tools, card, session) take that long instead of 0.3 s, and each start phase after "Start" or "New session" lasts that long — for skeletons, dimming and the busy button |
+
+## Motion frame sheets (BTN-95)
+
+An animation is checked by eye on one sheet of captioned frames, not frame by frame. Everything runs in one `browser_run_code_unsafe` call, without new dependencies.
+
+- The state comes from `npm run dev:fake` (the table above), in the dark theme. For motion that a page timer starts (`?chain=close`), `page.clock.install()` goes before `goto` and `page.clock.runFor(ms)` moves time on: the page's timers then stand still and do not clear the marks while frames are taken.
+- CSS animations and transitions: once the motion has started, `document.getAnimations().forEach((a) => a.pause())`, then for each moment set `a.currentTime = t` on all of them — one clock for the whole motion, `--beat` delays included. Moments: the start, quarters, the end, keyframe peaks.
+- JS motion (`Typed`, `IdlePanel`, `Flight`): a series at an even step of 50–100 ms from its start.
+- Each frame is captioned with its time from the start in ms and, per animation, `animationName` (`transitionProperty` for a transition, the beat or the text for JS) and `getComputedTiming().progress` in %.
+- A frame is a `page.screenshot({ clip })` around the element, not the whole screen. The sheet is a new page (`page.context().newPage()`) with a grid of `img` from data URLs and their captions, taken with one `screenshot({ fullPage: true })` into `.temp/motion/<animation>/sheet.png`.
+- Reduced motion: `page.emulateMedia({ reducedMotion: 'reduce' })`, then the `getAnimations()` with `playState === 'running'` — each one left has a reason (a loader slowed to 3 s) or is a defect.
