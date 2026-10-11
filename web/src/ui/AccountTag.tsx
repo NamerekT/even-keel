@@ -10,7 +10,7 @@ export function AccountTag({ email }: { email: string | null | undefined }) {
   const at = email.lastIndexOf('@')
   return (
     <span className="account-tag" style={seriesStyle(accountSlot(state?.account, email))} title={t.session.account(email)}>
-      {at > 0 ? email.slice(0, at) : email}
+      <span className="account-tag__name">{at > 0 ? email.slice(0, at) : email}</span>
     </span>
   )
 }

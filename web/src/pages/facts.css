@@ -32,6 +32,11 @@
   font-size: 14px;
 }
 
+.panel__fact dd:has(> .account-tag) {
+  display: flex;
+  min-width: 0;
+}
+
 .panel__fact .panel__value {
   color: var(--fg-muted);
   font-weight: 500;

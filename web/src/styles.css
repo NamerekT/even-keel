@@ -906,8 +906,13 @@ h1 {
   font-size: 12px;
   font-weight: 600;
   line-height: 1.4;
-  text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.account-tag__name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .account-tag::before {
@@ -2845,7 +2850,7 @@ a:focus-visible {
 
 .sessions__row {
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto auto;
+  grid-template-columns: auto minmax(min-content, 1fr) minmax(0, max-content) auto;
   align-items: center;
   gap: 4px 10px;
   width: 100%;
@@ -2874,7 +2879,7 @@ a:focus-visible {
 }
 
 .sessions__how {
-  min-width: 0;
+  min-width: min-content;
 }
 
 .sessions__account {
