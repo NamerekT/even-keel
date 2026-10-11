@@ -412,13 +412,27 @@ export class TallyDb implements Store {
     await this.transaction(async () => {
       await this.client.query('delete from model_prices where not (model = any($1::text[]))', [prices.map((price) => price.model)])
       await this.upsert(
-        `insert into model_prices (model, input, output, cache_read, cache_write_5m, cache_write_1h)
+        `insert into model_prices (model, input, output, cache_read, cache_write_5m, cache_write_1h,
+           long_over, long_input, long_output, long_cache_read, long_cache_write_5m, long_cache_write_1h)
          select * from jsonb_to_recordset($1::jsonb) as x(
-           model text, input numeric, output numeric, cache_read numeric, cache_write_5m numeric, cache_write_1h numeric)
+           model text, input numeric, output numeric, cache_read numeric, cache_write_5m numeric, cache_write_1h numeric,
+           long_over bigint, long_input numeric, long_output numeric, long_cache_read numeric,
+           long_cache_write_5m numeric, long_cache_write_1h numeric)
          on conflict (model) do update set
            input = excluded.input, output = excluded.output, cache_read = excluded.cache_read,
-           cache_write_5m = excluded.cache_write_5m, cache_write_1h = excluded.cache_write_1h`,
-        prices,
+           cache_write_5m = excluded.cache_write_5m, cache_write_1h = excluded.cache_write_1h,
+           long_over = excluded.long_over, long_input = excluded.long_input, long_output = excluded.long_output,
+           long_cache_read = excluded.long_cache_read, long_cache_write_5m = excluded.long_cache_write_5m,
+           long_cache_write_1h = excluded.long_cache_write_1h`,
+        prices.map(({ longPrompt, ...price }) => ({
+          ...price,
+          longOver: longPrompt?.over ?? null,
+          longInput: longPrompt?.input ?? null,
+          longOutput: longPrompt?.output ?? null,
+          longCacheRead: longPrompt?.cacheRead ?? null,
+          longCacheWrite5m: longPrompt?.cacheWrite5m ?? null,
+          longCacheWrite1h: longPrompt?.cacheWrite1h ?? null,
+        })),
       )
     })
   }

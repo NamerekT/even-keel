@@ -1,13 +1,19 @@
 import { DEFAULT_SIGN_RULES, type SignRules } from './signs.js'
 import { DEFAULT_STEPS, type StepSettings } from './step-runs.js'
 
-export interface Price {
-  model: string
+export interface Rates {
   input: number
   output: number
   cacheRead: number
   cacheWrite5m: number
   cacheWrite1h: number
+}
+
+// longPrompt — the rates of a request whose prompt (input, cache read and cache writes) is over `over` tokens;
+// they apply to all of its tokens (Haiku 5.5 over 100k).
+export interface Price extends Rates {
+  model: string
+  longPrompt: (Rates & { over: number }) | null
 }
 
 export interface ClassifySettings {
@@ -61,23 +67,37 @@ export function parseConfig(raw: unknown): TallyConfig {
   }
   return {
     evenKeelUrl: typeof record.evenKeelUrl === 'string' && record.evenKeelUrl !== '' ? record.evenKeelUrl : DEFAULT_EVEN_KEEL_URL,
-    prices: Object.entries(prices as Record<string, Record<string, unknown>>).map(([model, value]) => {
-      const price = { model } as Price
-      for (const key of PRICE_KEYS) {
-        const amount = value?.[key]
-        if (typeof amount !== 'number' || !Number.isFinite(amount) || amount < 0) {
-          throw new Error(`tally: prices.${model}.${key} must be a non-negative number (USD per million tokens)`)
-        }
-        price[key] = amount
-      }
-      return price
-    }),
+    prices: Object.entries(prices as Record<string, Record<string, unknown>>).map(([model, value]) => ({
+      model,
+      ...rates(`prices.${model}`, value),
+      longPrompt: value?.longPrompt === undefined ? null : longPrompt(`prices.${model}.longPrompt`, value.longPrompt),
+    })),
     signs: integers('signs', record.signs, DEFAULT_SIGN_RULES, 1),
     classify: integers('classify', record.classify, DEFAULT_CLASSIFY, 0),
     ruleHistory: (record.ruleHistory as string | undefined) ?? null,
     reportsSince: (since as string | null | undefined) ?? null,
     steps: parseSteps(record.steps),
   }
+}
+
+function rates(name: string, raw: Record<string, unknown> | undefined): Rates {
+  const result = {} as Rates
+  for (const key of PRICE_KEYS) {
+    const amount = raw?.[key]
+    if (typeof amount !== 'number' || !Number.isFinite(amount) || amount < 0) {
+      throw new Error(`tally: ${name}.${key} must be a non-negative number (USD per million tokens)`)
+    }
+    result[key] = amount
+  }
+  return result
+}
+
+function longPrompt(name: string, raw: unknown): Rates & { over: number } {
+  const record = objectOf(name, raw)
+  if (!Number.isInteger(record.over) || (record.over as number) < 1) {
+    throw new Error(`tally: ${name}.over must be a positive integer (prompt tokens)`)
+  }
+  return { over: record.over as number, ...rates(name, record) }
 }
 
 function parseSteps(raw: unknown): StepSettings {

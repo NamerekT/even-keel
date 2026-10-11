@@ -94,6 +94,12 @@ create table if not exists model_prices (
   cache_write_5m numeric not null,
   cache_write_1h numeric not null
 );
+alter table model_prices add column if not exists long_over bigint;
+alter table model_prices add column if not exists long_input numeric;
+alter table model_prices add column if not exists long_output numeric;
+alter table model_prices add column if not exists long_cache_read numeric;
+alter table model_prices add column if not exists long_cache_write_5m numeric;
+alter table model_prices add column if not exists long_cache_write_1h numeric;
 
 -- The task of a session: its launch task, else the task of its first message with one. One pass over messages,
 -- not a lookup per session: message_costs joins it on every read. A manual session in a checkout left on a task
@@ -128,8 +134,8 @@ select
   m.branch, m.entrypoint, m.model, m.speed, m.at,
   m.input, m.cache_write_5m, m.cache_write_1h, m.cache_read, m.output,
   p.model as price_model,
-  (m.input * p.input + m.cache_write_5m * p.cache_write_5m + m.cache_write_1h * p.cache_write_1h
-    + m.cache_read * p.cache_read + m.output * p.output) / 1000000 as cost
+  (m.input * r.input + m.cache_write_5m * r.cache_write_5m + m.cache_write_1h * r.cache_write_1h
+    + m.cache_read * r.cache_read + m.output * r.output) / 1000000 as cost
 from messages m
 left join session_tasks st on st.session_id = m.session_id
 -- The longest price prefix once per model, not per message: per message it cost PGlite 0.6 s on every read.
@@ -138,7 +144,17 @@ left join (
   from (select distinct model from messages) used
   join model_prices p on starts_with(used.model, p.model)
   order by used.model, length(p.model) desc
-) p on p.message_model = m.model;
+) p on p.message_model = m.model
+-- A prompt over long_over tokens pays the long prompt rates on all of its tokens.
+left join lateral (
+  select
+    case when long then p.long_input else p.input end as input,
+    case when long then p.long_output else p.output end as output,
+    case when long then p.long_cache_read else p.cache_read end as cache_read,
+    case when long then p.long_cache_write_5m else p.cache_write_5m end as cache_write_5m,
+    case when long then p.long_cache_write_1h else p.cache_write_1h end as cache_write_1h
+  from (select coalesce(m.input + m.cache_read + m.cache_write_5m + m.cache_write_1h > p.long_over, false) as long) t
+) r on true;
 
 create or replace view limit_steps as
 select

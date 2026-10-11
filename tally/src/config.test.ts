@@ -9,7 +9,7 @@ describe('parseConfig', () => {
   it('reads prices per model prefix', () => {
     expect(parseConfig({ prices: { 'claude-opus-5-5': price } })).toEqual({
       evenKeelUrl: 'http://127.0.0.1:4747',
-      prices: [{ model: 'claude-opus-5-5', ...price }],
+      prices: [{ model: 'claude-opus-5-5', ...price, longPrompt: null }],
       signs: DEFAULT_SIGN_RULES,
       classify: DEFAULT_CLASSIFY,
       ruleHistory: null,
@@ -35,6 +35,21 @@ describe('parseConfig', () => {
   it('rejects a price with a missing or negative number', () => {
     expect(() => parseConfig({ prices: { 'claude-opus-5-5': { ...price, cacheWrite1h: undefined } } })).toThrow(/cacheWrite1h/)
     expect(() => parseConfig({ prices: { 'claude-opus-5-5': { ...price, output: -1 } } })).toThrow(/output/)
+  })
+
+  it('reads the price of a long prompt with its threshold', () => {
+    const longPrompt = { over: 100000, input: 0.5, output: 2.5, cacheRead: 0.05, cacheWrite5m: 0.625, cacheWrite1h: 1 }
+    expect(parseConfig({ prices: { 'claude-haiku-5-5': { ...price, longPrompt } } }).prices).toEqual([
+      { model: 'claude-haiku-5-5', ...price, longPrompt },
+    ])
+  })
+
+  it('rejects a long prompt price without a threshold or with a bad number', () => {
+    const longPrompt = { over: 100000, ...price }
+    expect(() => parseConfig({ prices: { m: { ...price, longPrompt: { ...longPrompt, over: undefined } } } })).toThrow(/prices.m.longPrompt.over/)
+    expect(() => parseConfig({ prices: { m: { ...price, longPrompt: { ...longPrompt, over: 1.5 } } } })).toThrow(/prices.m.longPrompt.over/)
+    expect(() => parseConfig({ prices: { m: { ...price, longPrompt: { ...longPrompt, input: -1 } } } })).toThrow(/prices.m.longPrompt.input/)
+    expect(() => parseConfig({ prices: { m: { ...price, longPrompt: 5 } } })).toThrow(/prices.m.longPrompt/)
   })
 
   it('needs at least one price', () => {
