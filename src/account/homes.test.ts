@@ -20,6 +20,11 @@ describe('AccountHomes.envOf', () => {
     expect(result.PATH).toBe('/bin')
   })
 
+  it('drops the CI token', () => {
+    const homes = new AccountHomes({ ...env, FORGEJO_TOKEN: 'fake-token' }, 'root')
+    expect(homes.envOf(homes.global).FORGEJO_TOKEN).toBeUndefined()
+  })
+
   it('drops the Huly credentials and sets the config dir for another account', () => {
     const homes = new AccountHomes(env, 'root')
     const result = homes.envOf({ key: 'a', dir: 'root/a', global: false })

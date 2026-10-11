@@ -82,6 +82,7 @@ function stateOf(patch: Partial<EvenKeelState>): EvenKeelState {
     account: { active: 'global', accounts: [], login: null, loginBlock: null, apps: [] },
     trackers: [{ name: 'huly', title: 'Huly', projects: ['ABC', 'XYZ'], ready: true, health: { state: 'live', lastOkAt: null, error: null } }],
     trackerUrls: { default: null, projects: {} },
+    ci: {},
     launches: [],
     taskSessions: {},
     context: { window: 600_000, warn: 50, danger: 80 },

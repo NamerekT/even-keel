@@ -59,6 +59,11 @@ export const en = {
   'sync.merge': (p: { remote: string }) => `sync: ${p.remote}/main does not merge cleanly into main, merge it by hand`,
   'sync.push': (p: { remote: string }) => `sync: could not push main to ${p.remote}`,
 
+  'ci.noToken': (p: { variable: string }) => `set ${p.variable} in the environment of Even Keel to watch this CI`,
+  'ci.denied': (p: { ci: string; status: number }) => `${p.ci}: the token was refused (HTTP ${p.status}); it needs read access to the repository's actions`,
+  'ci.http': (p: { ci: string; status: number }) => `${p.ci}: the API answered HTTP ${p.status}`,
+  'ci.unreachable': (p: { ci: string }) => `${p.ci}: the API did not answer`,
+
   'slot.dirty': (p: { path: string }) => `the slot ${p.path} has uncommitted changes; commit or remove them`,
   'slot.busy': (p: { path: string; sessions: string[] }) => `the slot ${p.path} is in use by ${list(p.sessions)} mid-turn; let it finish or stop it`,
   'slot.noneFree': (p: { task: string }) => `git: no slot is free, ${p.task} was not started; free one, then resume`,

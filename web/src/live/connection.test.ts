@@ -48,6 +48,7 @@ function state(startedAt: string): EvenKeelState {
     account: { active: 'global', accounts: [], login: null, loginBlock: null, apps: [] },
     trackers: [],
     trackerUrls: { default: null, projects: {} },
+    ci: {},
     launches: [],
     taskSessions: {},
     context: { window: 600_000, warn: 50, danger: 80 },

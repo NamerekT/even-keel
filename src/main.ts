@@ -13,6 +13,8 @@ import { noteOf, resumePrompt, startPrompt, withBrief, withProjectPrompt, withUn
 import { launchLine } from './chain/log.js'
 import { readNote, saveSnapshot, snapshotReason } from './chain/snapshots.js'
 import { appendLaunch, loadChainState, readLaunches, saveChainState } from './chain/store.js'
+import { CI_TOKENS, ciSource, projectTargets } from './ci/adapters.js'
+import { CiWatch } from './ci/watcher.js'
 import { ConfigFile } from './config-file.js'
 import { EventHub } from './events.js'
 import { branchMerged } from './git/merged.js'
@@ -70,6 +72,8 @@ const CONFIG_POLL_MS = 2_000
 const TALLY_INTERVAL_MS = 5 * 60_000
 const TALLY_FIRST_DELAY_MS = 15_000
 const SHUTDOWN_MS = 15_000
+const CI_TICK_MS = 5_000
+const CI_TIMEOUT_MS = 15_000
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 try {
@@ -117,6 +121,7 @@ const homes = new AccountHomes(process.env, accountsRoot(process.env))
 const cli = new ClaudeCli(() => resolveClaudeBinary(process.env), CLAUDE_TIMEOUT_MS, (home) => homes.envOf(home))
 const startedAt = new Date().toISOString()
 const tasksByProject = new Map<string, Task[]>()
+const ciWatches = new Map<string, CiWatch[]>()
 let sessions: SessionView[] = []
 let agents: AgentEntry[] = []
 let agentsRead = false
@@ -527,6 +532,7 @@ const getState = (): EvenKeelState => ({
     default: setups.get(config.tracker)?.issueUrl(null) ?? null,
     projects: Object.fromEntries(Object.keys(config.projects).map((project) => [project, setups.get(config.trackers[project]!)?.issueUrl(project) ?? null])),
   },
+  ci: Object.fromEntries([...ciWatches].map(([project, watches]) => [project, watches.map((watch) => watch.view)])),
   launches: launchDays(launches, new Date(), LAUNCH_CHART_DAYS),
   taskSessions: taskSessions(launches, sessions, sessionAccount),
   context: config.context,
@@ -660,6 +666,33 @@ setInterval(() => hub.broadcast('ping', { at: new Date().toISOString() }), 15_00
 setInterval(() => void questions.tick(), 15_000).unref()
 
 setInterval(() => dispatcher.check(), LIMIT_CHECK_MS).unref()
+
+void (async () => {
+  for (const [project, repo] of Object.entries(config.projects)) {
+    const targets = await projectTargets(runGit, repo)
+    if (targets.length === 0) continue
+    ciWatches.set(
+      project,
+      targets.map(
+        (target) =>
+          new CiWatch({
+            target,
+            source: ciSource(target, process.env, CI_TIMEOUT_MS),
+            variable: CI_TOKENS[target.kind],
+            git: runGit,
+            repo,
+            log: (message) => console.log(message),
+            onChange: () => hub.broadcast('state', getState()),
+          }),
+      ),
+    )
+    console.log(`ci: ${project} watches ${targets.map((target) => `${target.kind} on ${target.remote}`).join(', ')}`)
+  }
+  setInterval(() => {
+    for (const watch of [...ciWatches.values()].flat()) void watch.tick()
+  }, CI_TICK_MS).unref()
+  for (const watch of [...ciWatches.values()].flat()) void watch.tick()
+})()
 
 monitor.start()
 void owners.scan()

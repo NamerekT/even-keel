@@ -27,6 +27,7 @@ import { QuestionsChip } from '../ui/QuestionsChip.js'
 import { StatusChip } from '../ui/StatusChip.js'
 import { BACKLOG_HASH, BacklogChip, BacklogPanel } from './BacklogPanel.js'
 import { ChainList } from './ChainList.js'
+import { CiChip } from './CiChip.js'
 import { Flight } from './Flight.js'
 import { IdlePanel } from './IdlePanel.js'
 import { NotFound } from './NotFound.js'
@@ -99,6 +100,7 @@ export function Project({ state }: { state: EvenKeelState }) {
         <header className="project__head">
           <h1 className="page__title project__title">{key}</h1>
           <StatusChip status={chainStatus(state.chain, key)} />
+          {state.ci[key] !== undefined && <CiChip views={state.ci[key]} urls={state.trackerUrls} />}
           <QuestionsChip count={openQuestions(projectTasks(state, key))} to={question?.includes('#') ? question : null} />
           <BacklogChip
             count={backlog.length}

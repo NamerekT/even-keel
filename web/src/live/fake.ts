@@ -11,6 +11,7 @@ import { isLanguage } from '../../../src/language.js'
 import type { EvenKeelState, SessionRecord, SessionView } from '../../../src/state.js'
 import type { Link, LiveSnapshot, LiveSource } from './connection.js'
 import { accountCommand, fakeAccount, fakeUsage, FAKE_LIMITS } from './fakeAccounts.js'
+import { fakeCi } from './fakeCi.js'
 import { fakeCompare, fakeRuleDiff, fakeRules } from './fakeRules.js'
 import { fakeSteps } from './fakeSteps.js'
 import { fakeCheckpoints, fakeHistory, fakePeriod, fakeTask } from './fakeStats.js'
@@ -242,6 +243,7 @@ function fakeState(
     account: fakeAccount(account, idle, FAKE_LIMITS),
     trackers: [fakeHuly(huly)],
     trackerUrls: { default: 'https://huly.example.com/workbench/example/tracker/{id}', projects: {} },
+    ci: fakeCi(null),
     launches: launchDays(launches, new Date(), LAUNCH_DAYS),
     taskSessions: idle
       ? {}
@@ -542,6 +544,7 @@ export function createFakeSource(search: string): LiveSource {
   }
   const language = params.get('lang')
   if (isLanguage(language) && current.state !== null) current.state.language = language
+  if (params.has('ci') && current.state !== null) current.state.ci = fakeCi(params.get('ci'))
   if (params.get('config') === 'broken' && current.state !== null) {
     current.state.configError = notice('config.statusBoth', { project: 'ABC', status: 'In Review' })
   }

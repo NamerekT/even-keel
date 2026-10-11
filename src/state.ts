@@ -1,6 +1,7 @@
 import type { AccountView } from './account/model.js'
 import type { ActiveChain, Leftover, ProjectOrder } from './chain/dispatcher.js'
 import type { LaunchDay, TaskSession } from './chain/launches.js'
+import type { CiView } from './ci/model.js'
 import type { Language } from './language.js'
 import type { RateLimits } from './limits/model.js'
 import type { UsageHealth } from './limits/usage.js'
@@ -93,6 +94,8 @@ export interface EvenKeelState {
   account: AccountView
   trackers: TrackerView[]
   trackerUrls: TrackerUrls
+  /** The CIs of each project that has any; a project without CI has no key. */
+  ci: Record<string, CiView[]>
   launches: LaunchDay[]
   taskSessions: Record<string, TaskSession[]>
   context: ContextScale

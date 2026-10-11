@@ -59,6 +59,11 @@ export const noticesRu: NoticeTexts = {
   'sync.merge': (p) => `${p.remote}/main не сливается в main чисто — слейте вручную`,
   'sync.push': (p) => `не удалось отправить main в ${p.remote}`,
 
+  'ci.noToken': (p) => `чтобы следить за этим CI, задайте ${p.variable} в окружении Even Keel`,
+  'ci.denied': (p) => `${p.ci}: токен отклонён (HTTP ${p.status}) — ему нужно чтение actions репозитория`,
+  'ci.http': (p) => `${p.ci}: API ответил HTTP ${p.status}`,
+  'ci.unreachable': (p) => `${p.ci}: API не отвечает`,
+
   'slot.dirty': (p) => `в слоте ${p.path} незакоммиченные изменения — закоммитьте или уберите их`,
   'slot.busy': (p) => `слот ${p.path} занят посреди хода: ${list(p.sessions)} — дождитесь или остановите`,
   'slot.noneFree': (p) => `свободного слота нет, ${p.task} не запущена — освободите слот и снимите с паузы`,
