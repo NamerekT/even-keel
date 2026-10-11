@@ -437,6 +437,30 @@ describe('TranscriptFold', () => {
     })
   })
 
+  describe('asking', () => {
+    const answer = (name: string) =>
+      JSON.stringify({
+        type: 'user',
+        timestamp: at(),
+        message: { role: 'user', content: [{ type: 'tool_result', tool_use_id: `toolu_${name}`, content: 'answered' }] },
+      })
+
+    it('is raised while an AskUserQuestion has no result', () => {
+      expect(fold([assistant('m1', [tool('AskUserQuestion', { questions: [] })])]).summary().asking).toBe(true)
+    })
+
+    it('drops once the answer comes as a tool result', () => {
+      const summary = fold([assistant('m1', [tool('AskUserQuestion', { questions: [] })]), answer('AskUserQuestion')]).summary()
+      expect(summary.asking).toBe(false)
+    })
+
+    it('stays down for other tools and stays up through an answer to another tool', () => {
+      expect(fold([assistant('m1', [tool('Read', { file_path: 'a.ts' })])]).summary().asking).toBe(false)
+      const open = fold([assistant('m1', [tool('AskUserQuestion', { questions: [] }), tool('Read', { file_path: 'a.ts' })]), answer('Read')])
+      expect(open.summary().asking).toBe(true)
+    })
+  })
+
   it('skips blank and broken lines', () => {
     const summary = fold(['', '{not json', assistant('m1', [text('ok')], { input: 1 })]).summary()
     expect(summary.contextTokens).toBe(1)

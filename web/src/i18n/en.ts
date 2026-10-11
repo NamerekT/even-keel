@@ -293,6 +293,7 @@ export const en: Messages = {
         limit: ["I'm not slacking!", " I'm waiting for the limit to reset.", ' Honest.'],
         rerun: (count: number) => ['"A five-minute task," they said.', ` Session #${count}…`],
         checkpoint: ['Out of context, not out of task.', ' Here we go again.'],
+        choice: ['Options? Hmm… the first sounds good,', ' but the third is better…', " I'll pick the recommended one."],
         spend: ['Over $1,000 on Claude this month?!', ' Ever tried writing code by hand?'],
       },
       hint: 'A task number opens its session here, its title opens the card.',

@@ -38,6 +38,8 @@ export interface TranscriptSummary {
   apiError: { kind: ApiErrorKind; text: string; at: string } | null
   lastMessage: string | null
   checkpoint: string | null
+  /** An `AskUserQuestion` is waiting for the user's choice. */
+  asking: boolean
   firstActivityAt: string | null
   lastActivityAt: string | null
   lastReplyAt: string | null
@@ -52,7 +54,8 @@ const WRAP_UP_TEXT = 'Usage limit reached: Claude Code told the session to wrap 
 const REMOTE_DROPPED = 'Remote Control disconnected'
 const CHECKPOINT_LINE = /^[`*_]*CHECKPOINT:[`*_]*\s*[`*_]*([^`*\s][^`*]*?)[`*_]*$/
 const CONTEXT_BLOCK = /^<([a-z][\w-]*)\b[^>]*>[\s\S]*<\/\1>$/
-const SHELLS = new Set(['Bash', 'PowerShell'])
+const ASK_TOOL = 'AskUserQuestion'
+const SHELLS =new Set(['Bash', 'PowerShell'])
 const TTL_MS:Record<CacheTtl, number> = { '5m': 5 * 60_000, '1h': 60 * 60_000 }
 const STAGE_RANK: Record<Stage, number> = { task: 0, recon: 1, edit: 2, test: 3, commit: 4, merge: 5 }
 
@@ -71,6 +74,8 @@ export class TranscriptFold {
   private wrapUp: TranscriptSummary['apiError'] = null
   private lastMessage: string | null = null
   private checkpoint: string | null = null
+  /** The id of an `AskUserQuestion` call that has no result yet. */
+  private openAsk: string | null = null
   private firstActivityAt: string | null = null
   private lastActivityAt: string | null = null
   private lastReplyAt: string | null = null
@@ -137,6 +142,7 @@ export class TranscriptFold {
       apiError: this.apiError ?? this.wrapUp,
       lastMessage: this.lastMessage,
       checkpoint: this.checkpoint,
+      asking: this.openAsk !== null,
       firstActivityAt: this.firstActivityAt,
       lastActivityAt: this.lastActivityAt,
       lastReplyAt: this.lastReplyAt,
@@ -182,6 +188,7 @@ export class TranscriptFold {
         this.checkpoint = checkpointOf(block.text ?? '')
       } else if (block.type === 'tool_use' && typeof block.name === 'string') {
         this.checkpoint = null
+        if (block.name === ASK_TOOL) this.openAsk = block.id ?? ASK_TOOL
         const input = block.input ?? {}
         const line: FeedLine = { at, kind: 'tool', text: describeTool(block.name, input, entry.cwd) }
         if (this.whole && SHELLS.has(block.name) && typeof input.command === 'string') line.detail = input.command
@@ -192,6 +199,9 @@ export class TranscriptFold {
   }
 
   private pushUser(entry: Entry): void {
+    if (this.openAsk !== null && blocksOf(entry.message?.content).some((block) => block.type === 'tool_result' && block.tool_use_id === this.openAsk)) {
+      this.openAsk = null
+    }
     if (entry.usageLimitNote === 'wrap_up') {
       const at = entry.timestamp ?? ''
       this.wrapUp = { kind: 'limit', text: WRAP_UP_TEXT, at }

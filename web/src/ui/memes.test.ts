@@ -48,6 +48,14 @@ describe('momentsOf', () => {
     expect(momentsOf(scene({ blocks: [block('ABC-1', { open: false, sessions: runs('launch', 'checkpoint', 'launch') })] }))).not.toContain('rerun')
   })
 
+  it('sees a choice while a live session of an open task waits in AskUserQuestion', () => {
+    const asking = (extra: Partial<ChainBlock>) => scene({ blocks: [block('ABC-1', { session: { asking: true } as ChainBlock['session'], ...extra })] })
+    expect(momentsOf(asking({}))).toContain('choice')
+    expect(momentsOf(asking({ open: false }))).not.toContain('choice')
+    expect(momentsOf(scene({ blocks: [block('ABC-1', { session: { asking: false } as ChainBlock['session'] })] }))).not.toContain('choice')
+    expect(momentsOf(scene())).not.toContain('choice')
+  })
+
   it('notices a month over a thousand dollars', () => {
     expect(momentsOf(scene({ monthCost: 1000 }))).toContain('spend')
     expect(momentsOf(scene({ monthCost: 999.99 }))).not.toContain('spend')

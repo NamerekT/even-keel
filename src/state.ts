@@ -19,6 +19,8 @@ export interface SessionView {
   waitingFor: string | null
   /** What the CLI dialog the session hangs on before its first turn asks for: not mid-turn, nobody in the background answers it. */
   startupDialog: string | null
+  /** The transcript ends in an `AskUserQuestion` the user has not answered. */
+  asking: boolean
   apiError: string | null
   startedAt: string
   lastActivityAt: string | null

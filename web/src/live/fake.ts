@@ -70,6 +70,7 @@ function session(task: string, contextTokens: number, lamp: SessionView['lamp'] 
     lamp,
     waitingFor: lamp === 'waiting' ? 'permission' : null,
     startupDialog: null,
+    asking: lamp === 'waiting' && task === 'ABC-5',
     apiError: null,
     startedAt: ago(42),
     lastActivityAt: ago(0),

@@ -44,6 +44,7 @@ function view(task: string, lamp: SessionView['lamp'], lastActivityAt: string | 
     lamp,
     waitingFor: null,
     startupDialog: null,
+    asking: false,
     apiError: null,
     startedAt: '2026-01-01T09:00:00.000Z',
     lastActivityAt,

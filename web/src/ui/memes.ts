@@ -3,7 +3,7 @@ import { type ChainBlock, type ChainStatus, checkpointHandoffs } from '../state.
 import { type Pace, typingTime } from './typing.js'
 
 /** Situations on the project page that have a meme of their own. */
-export type Moment = 'calm' | 'backlogEmpty' | 'stopped' | 'autopilot' | 'overnight' | 'limit' | 'rerun' | 'checkpoint' | 'spend'
+export type Moment = 'calm' | 'backlogEmpty' | 'stopped' | 'autopilot' | 'overnight' | 'limit' | 'rerun' | 'checkpoint' | 'choice' | 'spend'
 
 export interface Scene {
   /** Whether the service has read the project's chain. */
@@ -48,6 +48,7 @@ export function momentsOf(scene: Scene): Moment[] {
   if (status.kind === 'running') moments.push(status.limitUntil !== null ? 'limit' : scene.unattended ? 'overnight' : 'autopilot')
   if (longestRun(open) >= RERUN_SESSIONS) moments.push('rerun')
   if (open.some((block) => checkpointHandoffs(block.sessions) > 0)) moments.push('checkpoint')
+  if (open.some((block) => block.session?.asking === true)) moments.push('choice')
   if ((scene.monthCost ?? 0) >= SPEND_USD) moments.push('spend')
   return moments
 }
