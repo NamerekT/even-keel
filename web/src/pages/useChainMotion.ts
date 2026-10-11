@@ -1,21 +1,27 @@
-import { useEffect, useLayoutEffect, useState } from 'react'
+import { useEffect, useLayoutEffect, useMemo, useState } from 'react'
 import { useVisible } from '../layout/useVisible.js'
 import type { ChainBlock } from '../state.js'
 import { archiveView } from '../ui/archive.js'
 import { stillMotion } from '../ui/landing.js'
-import { motionOf, motionSpan, type Frame, type Motion } from '../ui/motion.js'
+import { motionOf, motionSpan, stageOf, type Frame, type Motion, type Stage } from '../ui/motion.js'
 
 /** The last frame of each project's chain the user saw; it outlives the page, so coming back from another page plays what changed. */
 const seen = new Map<string, Frame<ChainBlock>>()
 
+interface Play {
+  motion: Motion<ChainBlock>
+  /** `performance.now()` when its marks come off. */
+  end: number
+}
+
 /**
  * What changed in the chain since the user last saw it. The page shows new data at once, hidden or not;
  * the motion only marks the change, and only while the page is visible: a change made out of sight
- * plays when the user comes back, as one net change.
+ * plays when the user comes back, as one net change. A change that comes mid-motion plays alongside it.
  */
-export function useChainMotion(project: string, chain: ChainBlock[], shown: ReadonlySet<string>, skip: string | null): Motion<ChainBlock> | null {
+export function useChainMotion(project: string, chain: ChainBlock[], shown: ReadonlySet<string>, skip: string | null): Stage<ChainBlock> {
   const visible = useVisible()
-  const [motion, setMotion] = useState<Motion<ChainBlock> | null>(null)
+  const [plays, setPlays] = useState<Play[]>([])
   const frame = frameOf(chain, shown)
   const key = frameKey(frame)
 
@@ -25,17 +31,20 @@ export function useChainMotion(project: string, chain: ChainBlock[], shown: Read
     seen.set(project, frame)
     if (prev === undefined) return
     const found = motionOf(prev, frame, new Set(skip === null ? [] : [skip]))
-    if (found !== null) setMotion(stillMotion() ? { ...found, leaving: [] } : found)
+    if (found === null) return
+    const motion = stillMotion() ? { ...found, leaving: [] } : found
+    setPlays((current) => [...current, { motion, end: performance.now() + motionSpan(motion) }])
     // The key stands for the frame, which is a new object on every render.
   }, [project, key, visible])
 
   useEffect(() => {
-    if (motion === null) return
-    const timer = setTimeout(() => setMotion(null), motionSpan(motion))
+    if (plays.length === 0) return
+    const next = Math.min(...plays.map((play) => play.end))
+    const timer = setTimeout(() => setPlays((current) => current.filter((play) => play.end > performance.now())), next - performance.now())
     return () => clearTimeout(timer)
-  }, [motion])
+  }, [plays])
 
-  return motion
+  return useMemo(() => stageOf(plays.map((play) => play.motion)), [plays])
 }
 
 function frameOf(chain: ChainBlock[], shown: ReadonlySet<string>): Frame<ChainBlock> {

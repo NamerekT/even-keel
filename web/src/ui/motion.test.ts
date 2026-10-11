@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { BlockLamp } from '../state.js'
-import { BEAT_MS, motionOf, placeLeaving, type Frame } from './motion.js'
+import { BEAT_MS, motionOf, placeLeaving, stageOf, type Frame } from './motion.js'
 
 interface Item {
   id: string
@@ -116,5 +116,69 @@ describe('placeLeaving', () => {
       { item: block('C'), after: 'A', archived: false },
     ])
     expect(placed[0]!.map((slot) => slot.block.id)).toEqual(['A', 'B', 'C'])
+  })
+
+  it('anchors an older leaving copy to a newer one when its anchor left too', () => {
+    const placed = placeLeaving([[block('B')]], [
+      { item: block('A'), after: null, archived: true },
+      { item: block('X'), after: 'A', archived: false },
+    ])
+    expect(placed[0]!.map((slot) => `${slot.block.id}${slot.leaving ? '-' : ''}`)).toEqual(['A-', 'X-', 'B'])
+  })
+
+  it('drops a copy of a task that is back in the chain, a repeated one and one whose anchor is gone', () => {
+    const placed = placeLeaving([[block('A'), block('B')]], [
+      { item: block('B'), after: 'A', archived: false },
+      { item: block('C'), after: 'A', archived: false },
+      { item: block('C'), after: 'B', archived: false },
+      { item: block('D'), after: 'Q', archived: false },
+    ])
+    expect(placed[0]!.map((slot) => `${slot.block.id}${slot.leaving ? '-' : ''}`)).toEqual(['A', 'C-', 'B'])
+  })
+})
+
+describe('stageOf', () => {
+  const play = (rows: string, current: string | null, next: string, nextCurrent: string | null = null, closed: string[] = []) =>
+    motionOf(frame(rows, current), frame(next, nextCurrent, { closed }), none)!
+
+  it('keeps every running motion: a later change adds to the marks and the leaving copies, it does not cut them', () => {
+    const first = play('A:done B:working C', 'B', 'B:done C', null, ['A'])
+    const second = play('B:done C', null, 'B:done C:working X', 'C')
+    const stage = stageOf([first, second])
+    expect(stage.leaving.map((each) => [each.item.id, each.beat])).toEqual([['A', BEAT_MS]])
+    expect(stage.marks.get('B')).toEqual(new Map([['finish', 0]]))
+    expect(stage.marks.get('C')).toEqual(new Map([['take', BEAT_MS]]))
+    expect(stage.marks.get('X')).toEqual(new Map([['enter', 0]]))
+    expect(stage.bump).toBe(BEAT_MS)
+  })
+
+  it('lists the leaving copies of the newest motion first, so the older ones can anchor to them', () => {
+    const first = play('A B C', null, 'A C')
+    const second = play('A C', null, 'C')
+    expect(stageOf([first, second]).leaving.map((each) => each.item.id)).toEqual(['A', 'B'])
+  })
+
+  it('lets a block carry marks of different motions at once, the newer one winning a mark of the same kind', () => {
+    const first = play('A B', null, 'A B', 'A')
+    const second = play('A B', 'A', 'A:done B', 'B')
+    const third = play('A:done B', 'B', 'A:done B X', 'A')
+    const stage = stageOf([first, second, third])
+    expect(stage.marks.get('A')).toEqual(new Map([['take', BEAT_MS], ['finish', 0]]))
+  })
+
+  it('shows the summary of the newest quiet motion and marks its new tasks as fresh', () => {
+    const quiet = motionOf(frame('A:done B C D E F G', 'B'), frame('G:done H I J K', 'H', { closed: ['A', 'B', 'C', 'D', 'E', 'F', 'G'] }), none)!
+    const stage = stageOf([quiet])
+    expect(stage.quiet).toEqual({ entered: 4, archived: 6, removed: 0 })
+    expect(stage.marks.get('H')).toEqual(new Map([['fresh', 0]]))
+    expect(stage.bump).toBeNull()
+  })
+
+  it('is empty without motions', () => {
+    const stage = stageOf([])
+    expect(stage.leaving).toEqual([])
+    expect(stage.marks.size).toBe(0)
+    expect(stage.quiet).toBeNull()
+    expect(stage.bump).toBeNull()
   })
 })

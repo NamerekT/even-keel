@@ -15,7 +15,7 @@ import { landingIndex, revealElement } from '../ui/landing.js'
 import { Links } from '../ui/Links.js'
 import { estimateShare, isRework, railsOf, showsAction, tiersOf, type Rail, type Tier } from '../ui/look.js'
 import { milestoneView, type Section } from '../ui/milestones.js'
-import { placeLeaving, type Beat, type Motion } from '../ui/motion.js'
+import { placeLeaving, type Mark } from '../ui/motion.js'
 import { relatives, type Point } from '../ui/reorder.js'
 import { StartPill } from '../ui/SessionStart.js'
 import { ActionScreen } from './ActionScreen.js'
@@ -42,7 +42,7 @@ interface Props {
   onCard: (task: string) => void
 }
 
-type Mark = 'enter' | 'fresh' | 'finish' | 'take'
+const NO_MARKS: ReadonlyMap<Mark, number> = new Map()
 
 interface Relatives {
   blockers: ReadonlySet<string>
@@ -86,10 +86,9 @@ export function ChainList({ project, chain, scale, trackerUrls, focus, ghost: ai
   const kin = real.find((block) => block.id === hovered)?.parent ?? null
   const slots = placeLeaving(
     view.sections.map((section) => section.blocks),
-    motion?.leaving ?? [],
+    motion.leaving,
   )
-  const marks = marksOf(motion)
-  const archiving = motion?.leaving.some((each) => each.archived) === true
+  const copies = new Map(motion.leaving.toReversed().map((each) => [each.item.id, each]))
 
   const keep = arrival === null ? 0 : view.revealed
   useEffect(() => setRevealed((current) => Math.max(current, keep)), [keep])
@@ -140,7 +139,7 @@ export function ChainList({ project, chain, scale, trackerUrls, focus, ghost: ai
               name={t.chain.archive}
               count={t.chain.hidden(t.chain.tasks(archive.hidden))}
               hidden
-              bump={archiving ? motion?.delays.leave : undefined}
+              bump={motion.bump ?? undefined}
               toggle={{
                 expanded: false,
                 title: t.chain.loadMore(archive.next, archive.hidden),
@@ -157,7 +156,7 @@ export function ChainList({ project, chain, scale, trackerUrls, focus, ghost: ai
           )}
         </div>
       )}
-      {motion?.quiet && (
+      {motion.quiet && (
         <p className="chain__away" role="status">
           {t.chain.away(motion.quiet)}
         </p>
@@ -182,8 +181,8 @@ export function ChainList({ project, chain, scale, trackerUrls, focus, ghost: ai
                   <LeavingBlock
                     key={`leaving:${block.id}`}
                     block={block}
-                    archived={motion?.leaving.some((each) => each.item.id === block.id && each.archived) === true}
-                    beat={motion?.delays.leave ?? 0}
+                    archived={copies.get(block.id)?.archived === true}
+                    beat={copies.get(block.id)?.beat ?? 0}
                   />
                 ) : block.id === ghost?.id ? (
                   <GhostBlock key={block.id} block={block} tier={ghostTier} leaving={leaving} />
@@ -199,8 +198,7 @@ export function ChainList({ project, chain, scale, trackerUrls, focus, ghost: ai
                     tier={tiers.get(block.id) ?? 'near'}
                     rails={rails.get(block.id) ?? []}
                     kin={kin !== null && block.parent === kin}
-                    mark={marks.get(block.id)?.mark ?? null}
-                    beat={marks.get(block.id)?.beat ?? 0}
+                    marks={motion.marks.get(block.id) ?? NO_MARKS}
                     focused={block.id === focus}
                     movable={movable(block)}
                     relation={relationOf(block.id, drag, selected, pointed)}
@@ -386,8 +384,8 @@ interface BlockProps {
   rails: Rail[]
   /** A sibling of the task under the cursor. */
   kin: boolean
-  mark: Mark | null
-  beat: number
+  /** The marks of running motions, each with the delay of its own beat. */
+  marks: ReadonlyMap<Mark, number>
   focused: boolean
   movable: boolean
   relation: Relation | null
@@ -399,12 +397,12 @@ interface BlockProps {
 }
 
 function Block(props: BlockProps) {
-  const { block, link, number, waits, links, scale, tier, rails, kin, mark, beat, focused, movable, relation, arrival, offset, onHover, onReturn, onCard } = props
+  const { block, link, number, waits, links, scale, tier, rails, kin, marks, focused, movable, relation, arrival, offset, onHover, onReturn, onCard } = props
   const classes = ['block', `block--${block.lamp}`, `block--${tier}`, `block--priority-${block.priority}`]
   if (isRework(block.labels)) classes.push('block--rework')
   if (block.question) classes.push('block--question')
   if (kin) classes.push('block--kin')
-  if (mark !== null) classes.push(`block--${mark}`)
+  for (const mark of marks.keys()) classes.push(`block--${mark}`)
   if (block.current) classes.push('block--current')
   if (block.start !== null) classes.push('block--starting')
   if (block.skipped) classes.push('block--skipped')
@@ -422,7 +420,7 @@ function Block(props: BlockProps) {
   const status = shownStatus(block)
   const handoffs = checkpointHandoffs(block.sessions)
   const style = {
-    '--beat': `${beat}ms`,
+    ...Object.fromEntries([...marks].map(([mark, beat]) => [`--beat-${mark}`, `${beat}ms`])),
     ...(share !== null && { '--estimate': share.toFixed(2) }),
     ...(offset !== undefined && { transform: `translate(${offset.x}px, ${offset.y}px)` }),
   } as CSSProperties
@@ -449,12 +447,12 @@ function Block(props: BlockProps) {
       {block.priority === 'urgent' && <span className="block__hazard" aria-hidden="true" />}
       {block.question && <span className="block__corner" aria-hidden="true" />}
       {share !== null && <span className="block__estimate" aria-hidden="true" />}
-      {mark === 'take' && <span className="block__frame" aria-hidden="true" />}
+      {marks.has('take') && <span className="block__frame" aria-hidden="true" />}
       <span className={`block__number block__number--${block.priority}`} title={priorityTitle(block)}>
         {block.current ? <PlayIcon /> : number}
       </span>
       <div className="block__head">
-        {mark === 'finish' && <CheckIcon />}
+        {marks.has('finish') && <CheckIcon />}
         {block.locked ? <LockIcon /> : <Lamp lamp={block.lamp} />}
         {block.locked ? (
           link === null ? (
@@ -559,16 +557,6 @@ function CheckIcon() {
 function priorityTitle(block: ChainBlock): string | undefined {
   if (block.priority === 'none' || block.priority === 'medium') return undefined
   return `${t.card.priority}: ${t.card.priorities[block.priority]}`
-}
-
-function marksOf(motion: Motion<ChainBlock> | null): Map<string, { mark: Mark; beat: number }> {
-  const marks = new Map<string, { mark: Mark; beat: number }>()
-  if (motion === null) return marks
-  const at = (beat: Beat) => motion.delays[beat] ?? 0
-  for (const id of motion.entered) marks.set(id, { mark: motion.quiet === null ? 'enter' : 'fresh', beat: at('enter') })
-  for (const id of motion.finished) marks.set(id, { mark: 'finish', beat: at('finish') })
-  if (motion.taken !== null) marks.set(motion.taken, { mark: 'take', beat: at('take') })
-  return marks
 }
 
 function relativesOf(blocks: ChainBlock[], id: string | null): Relatives | null {

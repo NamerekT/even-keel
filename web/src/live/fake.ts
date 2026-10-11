@@ -31,6 +31,7 @@ import { fakeTools } from './fakeTools.js'
 const TICK_MS = 2_000
 const ANSWER_MS = 300
 const CLOSE_TICKS = 5
+const HANDOVER_MS = 1_000
 const START_STAGE_MS = 3_000
 const LAUNCH_DAYS = 14
 
@@ -321,26 +322,49 @@ function startStages(before: EvenKeelState, after: EvenKeelState, project: strin
 }
 
 function closeCurrent(state: EvenKeelState): EvenKeelState {
+  const project = state.chain.active[0]?.project
+  return project === undefined ? state : takeNext(finishCurrent(state), project)
+}
+
+/** The first half of a close: the current task is done and leaves the chain, nothing is taken yet. */
+function finishCurrent(state: EvenKeelState): EvenKeelState {
   const active = state.chain.active[0]
   const done = active?.current?.task
   const project = active?.project
   if (done === undefined || project === undefined) return state
   const kept = state.chain.projects[project] ?? { order: [], waiting: [], backlog: [], error: null }
+  const moved = withChain(state, active!, { ...active!, current: null })
+  return {
+    ...state,
+    tasks: state.tasks.map((each) => (each.id === done ? { ...each, status: { name: 'Done', category: 'Won' as const } } : each)),
+    chain: {
+      ...moved.chain,
+      projects: { ...state.chain.projects, [project]: { ...kept, order: kept.order.filter((id) => id !== done), error: null } },
+    },
+    sessions: state.sessions.map((view) => (view.task === done ? { ...view, lamp: 'finished' as const } : view)),
+  }
+}
+
+/** The second half: the chain takes its first task and a new task enters third. */
+function takeNext(state: EvenKeelState, project: string): EvenKeelState {
+  const active = chainIn(state, project)
+  const kept = state.chain.projects[project]
+  if (active === undefined || kept === undefined) return state
   const fresh = freshTask(state, project)
-  const order = kept.order.filter((id) => id !== done)
+  const order = [...kept.order]
   order.splice(2, 0, fresh.id)
   const next = order[0]
   const since = ago(0)
-  const moved = withChain(state, active!, { ...active!, current: next === undefined ? null : { task: next, sessionId: session(next, 0).sessionId, since } })
+  const moved = withChain(state, active, { ...active, current: next === undefined ? null : { task: next, sessionId: session(next, 0).sessionId, since } })
   return {
     ...state,
-    tasks: [...state.tasks.map((each) => (each.id === done ? { ...each, status: { name: 'Done', category: 'Won' as const } } : each)), fresh],
+    tasks: [...state.tasks, fresh],
     chain: {
       ...moved.chain,
-      projects: { ...state.chain.projects, [project]: { ...kept, order, error: null } },
+      projects: { ...state.chain.projects, [project]: { ...kept, order } },
     },
     sessions: [
-      ...state.sessions.map((view) => (view.task === done ? { ...view, lamp: 'finished' as const } : view)),
+      ...state.sessions,
       ...(next === undefined || state.sessions.some((view) => view.task === next) ? [] : [session(next, 12_000)]),
     ],
     taskSessions:
@@ -777,12 +801,24 @@ export function createFakeSource(search: string): LiveSource {
     for (const listener of listeners) listener()
   }
 
-  const closing = params.get('chain') === 'close'
+  const handover = params.get('chain') === 'handover'
+  const closing = params.get('chain') === 'close' || handover
   let ticks = 0
+
+  const close = (state: EvenKeelState): EvenKeelState => {
+    if (!handover) return closeCurrent(state)
+    const project = state.chain.active[0]?.project
+    if (project === undefined) return state
+    setTimeout(() => {
+      current = { ...current, state: takeNext(current.state!, project) }
+      notify()
+    }, HANDOVER_MS)
+    return finishCurrent(state)
+  }
 
   if (link === 'live') {
     setInterval(() => {
-      const state = closing && ++ticks % CLOSE_TICKS === 0 ? closeCurrent(current.state!) : current.state!
+      const state = closing && ++ticks % CLOSE_TICKS === 0 ? close(current.state!) : current.state!
       const [kind, text] = FEED_STEPS[(closing ? ticks : ++ticks) % FEED_STEPS.length]!
       const line: FeedLine = { at: ago(0), kind, text }
       const sessions = state.sessions.map((view) =>
