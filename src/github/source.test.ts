@@ -140,6 +140,27 @@ describe('github source', () => {
     expect(calls[2]!.variables).toEqual({ id: 'I_kwDOexample7', body: 'Which one?' })
   })
 
+  it('creates an open issue with the priority label in the milestone of the given task', async () => {
+    const { source, calls } = await connect([
+      { body: { data: { repository: { id: 'R_1', label: { id: 'LA_high' }, issue: { milestone: { id: 'MI_1' } } } } } },
+      { body: { data: { createIssue: { issue: { number: 42 } } } } },
+    ])
+    const id = await source.create!({ project: 'ABC', title: 'CI on main failed: abcdef1', description: 'Log', priority: 'high', milestoneOf: 'ABC-7' })
+    expect(id).toBe('ABC-42')
+    expect(calls[1]!.variables).toEqual({ owner: 'octo-org', name: 'abc', label: 'priority: high', number: 7, withIssue: true })
+    expect(calls[2]!.variables).toEqual({ input: { repositoryId: 'R_1', title: 'CI on main failed: abcdef1', body: 'Log', labelIds: ['LA_high'], milestoneId: 'MI_1' } })
+  })
+
+  it('creates an issue without a label or a milestone the repository does not have', async () => {
+    const { source, calls } = await connect([
+      { body: { data: { repository: { id: 'R_1', label: null } } } },
+      { body: { data: { createIssue: { issue: { number: 43 } } } } },
+    ])
+    expect(await source.create!({ project: 'ABC', title: 'T', description: 'D', priority: 'high', milestoneOf: null })).toBe('ABC-43')
+    expect(calls[1]!.variables).toMatchObject({ number: 0, withIssue: false })
+    expect(calls[2]!.variables).toEqual({ input: { repositoryId: 'R_1', title: 'T', body: 'D' } })
+  })
+
   it('gives the comments after a given one with the files they link to', async () => {
     const nodes = [
       { id: 'IC_0', body: 'earlier' },

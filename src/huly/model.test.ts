@@ -5,6 +5,7 @@ import {
   labeled,
   milestonesOf,
   missingBlockers,
+  hulyPriority,
   personName,
   readyStatus,
   toCard,
@@ -173,6 +174,12 @@ describe('readyStatus', () => {
 
   it('fails when the project has no ToDo status', () => {
     expect(() => readyStatus('tracker:status:Backlog', statuses, ['tracker:status:Backlog'])).toThrow(/no ToDo status/)
+  })
+})
+
+describe('hulyPriority', () => {
+  it('stores a priority as Huly’s index', () => {
+    expect(['none', 'urgent', 'high', 'medium', 'low'].map((each) => hulyPriority(each as never))).toEqual([0, 1, 2, 3, 4])
   })
 })
 

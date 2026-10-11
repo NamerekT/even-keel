@@ -1,5 +1,5 @@
 import { commentsAfterId, linkedFiles } from '../tracker/comments.js'
-import { parseTaskId, type TrackerTask } from '../tracker/model.js'
+import { parseTaskId, type TaskPriority, type TrackerTask } from '../tracker/model.js'
 import type { TaskSource } from '../tracker/source.js'
 import { linearStatus, toTrackerTask, type LinearIssue, type LinearState } from './model.js'
 
@@ -79,6 +79,16 @@ const ISSUE_COMMENTS = `query($filter: IssueFilter!) {
 const ADD_COMMENT = `mutation($id: String!, $body: String!) {
   commentCreate(input: { issueId: $id, body: $body }) { success comment { id } }
 }`
+
+const ISSUE_PLACE = `query($filter: IssueFilter!) {
+  issues(first: 1, filter: $filter) { nodes { project { id } projectMilestone { id } } }
+}`
+
+const CREATE_ISSUE = `mutation($input: IssueCreateInput!) {
+  issueCreate(input: $input) { success issue { identifier } }
+}`
+
+const LINEAR_PRIORITY: Readonly<Record<TaskPriority, number>> = { none: 0, urgent: 1, high: 2, medium: 3, low: 4 }
 
 /** Where Linear keeps uploaded files; they need the key like the API does. */
 const UPLOADS = /^https:\/\/uploads\.linear\.app\//
@@ -206,6 +216,30 @@ export async function connectLinear(settings: LinearSettings, timeoutMs: number,
         .sort((a, b) => Date.parse(a.createdAt) - Date.parse(b.createdAt))
         .map((node) => ({ id: node.id, body: node.body, files: linkedFiles(node.body, UPLOADS) }))
       return commentsAfterId(comments, after)
+    },
+
+    // The ready status is the team's first `unstarted` state; the project and the milestone are those of `milestoneOf`.
+    async create(task) {
+      const team = await teamOf(task.project)
+      const state = team.states.find((each) => each.type === 'unstarted')
+      if (state === undefined) throw new Error(`linear: team ${task.project} has no unstarted state`)
+      const place =
+        task.milestoneOf === null
+          ? null
+          : (await graphql<{ issues: { nodes: { project: { id: string } | null; projectMilestone: { id: string } | null }[] } }>(ISSUE_PLACE, { filter: byNumber(task.milestoneOf) })).issues.nodes[0] ?? null
+      const project = place?.project?.id ?? team.project
+      const input = {
+        teamId: team.id,
+        title: task.title,
+        description: task.description,
+        priority: LINEAR_PRIORITY[task.priority],
+        stateId: state.id,
+        ...(project === undefined ? {} : { projectId: project }),
+        ...(place?.projectMilestone == null ? {} : { projectMilestoneId: place.projectMilestone.id }),
+      }
+      const { issueCreate } = await graphql<{ issueCreate: { success: boolean; issue: { identifier: string } | null } }>(CREATE_ISSUE, { input })
+      if (!issueCreate.success || issueCreate.issue === null) throw new Error(`linear: the issue in ${task.project} was not created`)
+      return issueCreate.issue.identifier
     },
 
     // A file of a comment is its upload link; the key goes only to Linear's upload host.

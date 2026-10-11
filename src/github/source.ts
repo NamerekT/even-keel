@@ -63,6 +63,18 @@ const ADD_COMMENT = `mutation($id: ID!, $body: String!) {
   addComment(input: { subjectId: $id, body: $body }) { commentEdge { node { id } } }
 }`
 
+const CREATE_CONTEXT = `query($owner: String!, $name: String!, $label: String!, $number: Int!, $withIssue: Boolean!) {
+  repository(owner: $owner, name: $name) {
+    id
+    label(name: $label) { id }
+    issue(number: $number) @include(if: $withIssue) { milestone { id } }
+  }
+}`
+
+const CREATE_ISSUE = `mutation($input: CreateIssueInput!) {
+  createIssue(input: $input) { issue { number } }
+}`
+
 /** Where GitHub keeps the files dropped into a comment. */
 const UPLOADS = /^https:\/\/(github\.com\/user-attachments\/|private-user-images\.githubusercontent\.com\/)/
 
@@ -187,6 +199,28 @@ export async function connectGithub(settings: GithubSettings, timeoutMs: number,
       const { issue } = await issueOf<{ comments: { nodes: { id: string; body: string }[] } }>(id, ISSUE_COMMENTS)
       const comments = issue.comments.nodes.map((node) => ({ id: node.id, body: node.body, files: linkedFiles(node.body, UPLOADS) }))
       return commentsAfterId(comments, after)
+    },
+
+    // An open issue is the ready status; the priority goes on as the label `priority: <level>` when the repository has it.
+    async create(task) {
+      const repo = repoOf(task.project)
+      const source = task.milestoneOf === null ? null : parseTaskId(task.milestoneOf)
+      const number = source !== null && source.project === task.project ? source.number : null
+      const context = await graphql<{
+        repository: { id: string; label: { id: string } | null; issue?: { milestone: { id: string } | null } | null } | null
+      }>(CREATE_CONTEXT, { ...repo, label: `priority: ${task.priority}`, number: number ?? 0, withIssue: number !== null })
+      const repository = context.repository
+      if (repository === null) throw new Error(`github: ${repo.owner}/${repo.name} not found or the token cannot see it`)
+      const milestoneId = repository.issue?.milestone?.id
+      const input = {
+        repositoryId: repository.id,
+        title: task.title,
+        body: task.description,
+        ...(repository.label === null ? {} : { labelIds: [repository.label.id] }),
+        ...(milestoneId === undefined ? {} : { milestoneId }),
+      }
+      const data = await graphql<{ createIssue: { issue: { number: number } } }>(CREATE_ISSUE, { input })
+      return `${task.project}-${data.createIssue.issue.number}`
     },
 
     // A file of a comment is its upload link; the token goes only to GitHub's own upload hosts.

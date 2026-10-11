@@ -137,10 +137,21 @@ export function readyStatus(current: string, statuses: HulyStatusDoc[], allowed:
   const byId = new Map(statuses.map((doc) => [doc._id, doc]))
   const now = byId.get(current)
   if (now === undefined || toStatus(now).category !== 'UnStarted') return null
+  return todoStatus(statuses, allowed)
+}
+
+/** The project's first `ToDo` status: the one a task the chain should take goes into. */
+export function todoStatus(statuses: HulyStatusDoc[], allowed: string[] | null): HulyStatusDoc {
+  const byId = new Map(statuses.map((doc) => [doc._id, doc]))
   const candidates = allowed === null ? statuses : allowed.flatMap((id) => byId.get(id) ?? [])
   const ready = candidates.find((doc) => toStatus(doc).category === 'ToDo')
   if (ready === undefined) throw new Error('huly: the project has no ToDo status')
   return ready
+}
+
+/** Huly keeps the priority as an index: 0 none, 1 urgent, 2 high, 3 medium, 4 low. */
+export function hulyPriority(priority: TaskPriority): number {
+  return Math.max(0, HULY_PRIORITIES.indexOf(priority))
 }
 
 // Huly keeps a person's name as "Last,First".

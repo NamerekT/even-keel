@@ -178,6 +178,26 @@ describe('linear source', () => {
     expect(calls[2]!.variables).toEqual({ id: 'uuid-eng-7', body: 'Which one?' })
   })
 
+  it('creates an issue in the first unstarted state, in the project and the milestone of the given task', async () => {
+    const { source, calls } = await connect([
+      team(),
+      { body: { data: { issues: { nodes: [{ project: { id: 'project-web' }, projectMilestone: { id: 'milestone-1' } }] } } } },
+      { body: { data: { issueCreate: { success: true, issue: { identifier: 'ENG-42' } } } } },
+    ])
+    const id = await source.create!({ project: 'ENG', title: 'CI on main failed: abcdef1', description: 'Log', priority: 'high', milestoneOf: 'ENG-7' })
+    expect(id).toBe('ENG-42')
+    expect(calls[2]!.variables).toEqual({ filter: { team: { key: { eq: 'ENG' } }, number: { eq: 7 } } })
+    expect(calls[3]!.variables).toEqual({
+      input: { teamId: 'team-eng', title: 'CI on main failed: abcdef1', description: 'Log', priority: 2, stateId: 's-todo', projectId: 'project-web', projectMilestoneId: 'milestone-1' },
+    })
+  })
+
+  it('creates an issue in the project of the config when no task gives a place', async () => {
+    const { source, calls } = await connect([team([{ id: 'project-web' }]), { body: { data: { issueCreate: { success: true, issue: { identifier: 'ENG-43' } } } } }], { ENG: 'Web app' })
+    expect(await source.create!({ project: 'ENG', title: 'T', description: 'D', priority: 'high', milestoneOf: null })).toBe('ENG-43')
+    expect(calls[2]!.variables).toEqual({ input: { teamId: 'team-eng', title: 'T', description: 'D', priority: 2, stateId: 's-todo', projectId: 'project-web' } })
+  })
+
   it('gives the comments after a given one, oldest first, with the files they link to', async () => {
     const nodes = [
       { id: 'c-2', body: '[logs.zip](https://uploads.linear.app/org/logs.zip)', createdAt: '2026-10-11T10:02:00.000Z' },

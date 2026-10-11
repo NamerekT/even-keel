@@ -5,6 +5,7 @@ import type { HulyCredentials } from './credentials.js'
 import {
   cardLinks,
   closingStatus,
+  hulyPriority,
   ISSUE_CLASS,
   labeled,
   milestonesOf,
@@ -12,6 +13,7 @@ import {
   readyStatus,
   toCard,
   toStatus,
+  todoStatus,
   toTasks,
   type HulyAttachmentDoc,
   type HulyCardIssue,
@@ -33,10 +35,19 @@ interface ChatMessageDoc {
 
 interface PlatformClient {
   findAll<T>(cls: string, query: Query, options?: { projection?: Record<string, 1> }): Promise<T[]>
-  findOne<T>(cls: string, query: Query): Promise<T | undefined>
-  updateDoc(cls: string, space: string, id: string, update: Record<string, unknown>): Promise<unknown>
-  addCollection(cls: string, space: string, attachedTo: string, attachedToClass: string, collection: string, attributes: Record<string, unknown>): Promise<string>
+  findOne<T>(cls: string, query: Query, options?: { sort?: Record<string, 1 | -1> }): Promise<T | undefined>
+  updateDoc(cls: string, space: string, id: string, update: Record<string, unknown>, retrieve?: boolean): Promise<unknown>
+  addCollection(
+    cls: string,
+    space: string,
+    attachedTo: string,
+    attachedToClass: string,
+    collection: string,
+    attributes: Record<string, unknown>,
+    id?: string,
+  ): Promise<string>
   fetchMarkup(cls: string, id: string, attribute: string, markup: string, format: 'markdown'): Promise<string>
+  uploadMarkup(cls: string, id: string, attribute: string, markup: string, format: 'markdown'): Promise<string>
   close(): Promise<void>
 }
 
@@ -52,11 +63,15 @@ interface ApiClientModule {
 
 interface TrackerPlugin {
   class: { Issue: string; IssueStatus: string; Milestone: string; Project: string }
+  ids: { NoParent: string }
+  taskTypes: { Issue: string }
 }
 
 const require = createRequire(import.meta.url)
 const api = require('@hcengineering/api-client') as ApiClientModule
 const tracker = (require('@hcengineering/tracker') as { default: TrackerPlugin }).default
+const { generateId } = require('@hcengineering/core') as { generateId(): string }
+const { makeRank } = require('@hcengineering/rank') as { makeRank(prev: string | undefined, next: string | undefined): string }
 
 const { markupToJSON, jsonToMarkup } = require('@hcengineering/text-core') as {
   markupToJSON(markup: string): unknown
@@ -73,6 +88,7 @@ const CHAT_MESSAGE = 'chunter:class:ChatMessage'
 const ATTACHMENT = 'attachment:class:Attachment'
 const SOCIAL_IDENTITY = 'contact:class:SocialIdentity'
 const PERSON = 'contact:class:Person'
+const SPACE_OF_SPACES = 'core:space:Space'
 const REF_FIELDS = { identifier: 1, title: 1, status: 1 } as const
 
 const ISSUE_FIELDS = {
@@ -265,6 +281,54 @@ export async function connectHuly(credentials: HulyCredentials, timeoutMs: numbe
         body: markupToMarkdown(markupToJSON(doc.message)),
         files: attachments.filter((each) => each.attachedTo === doc._id).map((each) => ({ name: each.name, file: each.file })),
       }))
+    },
+    async create(task) {
+      const space = await client.findOne<{ _id: string; identifier: string }>(tracker.class.Project, { identifier: task.project })
+      if (space === undefined) throw new Error(`huly: project ${task.project} not found`)
+      const [statuses, allowed, last, source] = await Promise.all([
+        findStatuses(),
+        projectStatuses(space._id),
+        client.findOne<{ rank?: string }>(tracker.class.Issue, { space: space._id }, { sort: { rank: -1 } }),
+        task.milestoneOf === null ? undefined : client.findOne<{ milestone?: string | null }>(tracker.class.Issue, { identifier: task.milestoneOf }),
+      ])
+      const status = todoStatus(statuses, allowed)
+      // The project's issue counter is taken the way Huly's own client takes it.
+      const taken = (await client.updateDoc(tracker.class.Project, SPACE_OF_SPACES, space._id, { $inc: { sequence: 1 } }, true)) as { object?: { sequence?: number } }
+      const number = taken.object?.sequence
+      if (number === undefined) throw new Error(`huly: project ${task.project} gave no issue number`)
+      const id = generateId()
+      const identifier = `${space.identifier}-${number}`
+      const description = await client.uploadMarkup(tracker.class.Issue, id, 'description', task.description, 'markdown')
+      await client.addCollection(
+        tracker.class.Issue,
+        space._id,
+        tracker.ids.NoParent,
+        tracker.class.Issue,
+        'subIssues',
+        {
+          title: task.title,
+          description,
+          status: status._id,
+          number,
+          kind: tracker.taskTypes.Issue,
+          identifier,
+          priority: hulyPriority(task.priority),
+          assignee: null,
+          component: null,
+          milestone: source?.milestone ?? null,
+          estimation: 0,
+          remainingTime: 0,
+          reportedTime: 0,
+          reports: 0,
+          subIssues: 0,
+          parents: [],
+          childInfo: [],
+          dueDate: null,
+          rank: makeRank(last?.rank, undefined),
+        },
+        id,
+      )
+      return identifier
     },
     close: () => client.close(),
   }
