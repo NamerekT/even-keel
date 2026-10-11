@@ -18,21 +18,38 @@ export function Typists({ count, children }: { count: number; children: ReactNod
 
 /**
  * A line typed part by part with a hold between parts. Typing runs once per mount — key the component to type
- * a new line; a changed number in the same line is taken over as it is. With `to` the line is a link.
+ * a new line; a changed number in the same line is taken over as it is. With `to` the line is a link; `delay` holds
+ * the first character back by that many ms.
  */
-export function Typed({ parts, pace, className, to }: { parts: string[]; pace: Pace; className: string; to?: string | null }) {
+export function Typed({
+  parts,
+  pace,
+  className,
+  to,
+  delay = 0,
+}: {
+  parts: string[]
+  pace: Pace
+  className: string
+  to?: string | null
+  delay?: number
+}) {
   const queue = useContext(TypingQueue)
   const latest = useRef(parts)
   latest.current = parts
-  const startAt = useRef<number | null>(null)
+  // The delay is read on every frame: a motion mark may set it a render after the line mounted.
+  const latestDelay = useRef(delay)
+  latestDelay.current = delay
+  const startAt = useRef<{ queued: number; mounted: number } | null>(null)
   // -1 — waiting for its turn in the queue.
   const [shown, setShown] = useState(() => (stillMotion() ? Infinity : -1))
 
   useEffect(() => {
     if (stillMotion()) return
-    startAt.current ??= queue?.(typingTime(latest.current, pace)) ?? performance.now()
+    startAt.current ??= { queued: queue?.(typingTime(latest.current, pace)) ?? 0, mounted: performance.now() }
     let frame = requestAnimationFrame(function step(now) {
-      const elapsed = now - startAt.current!
+      const { queued, mounted } = startAt.current!
+      const elapsed = now - Math.max(queued, mounted + latestDelay.current)
       const count = elapsed < 0 ? -1 : typedAt(latest.current, elapsed, pace)
       const done = count >= latest.current.join('').length
       setShown(done ? Infinity : count)

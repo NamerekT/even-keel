@@ -460,6 +460,28 @@
   animation: ignite 0.5s ease-out calc(var(--beat-take) + 0.3s) both;
 }
 
+/* The taken block grows into the lead on its own beat, not as soon as the data changes. */
+.chain .block--take {
+  transition-delay: var(--beat-take);
+}
+
+.chain .block--take .block__title {
+  transition:
+    font-size 0.3s ease var(--beat-take),
+    font-weight 0.3s ease var(--beat-take);
+}
+
+.chain .block--take .block__action {
+  animation: action-open 0.3s ease-out var(--beat-take) both;
+}
+
+/* A copy leaving for the archive rides up behind the milestone line, not over its text. */
+.chain .chain__milestone {
+  position: relative;
+  z-index: 1;
+  background: var(--bg);
+}
+
 .chain .chain__milestone--bump .chain__milestone-count {
   display: inline-block;
   animation: count-bump 0.5s ease-out calc(var(--beat) + 0.45s) both;
@@ -528,6 +550,16 @@
     border-width: 0;
     opacity: 0;
     transform: translateY(-40px) scale(0.9);
+  }
+}
+
+@keyframes action-open {
+  from {
+    height: 0;
+    margin-top: 0;
+    padding-block: 0;
+    border-width: 0;
+    opacity: 0;
   }
 }
 
@@ -663,6 +695,8 @@
   .chain .block__frame,
   .chain .block--take .block__play,
   .chain .block--take .lamp,
+  .chain .block--take .block__title,
+  .chain .block--take .block__action,
   .chain .block__hazard,
   .chain .block__number--urgent,
   .chain .block__number--urgent::before,

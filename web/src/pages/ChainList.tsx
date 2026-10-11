@@ -27,6 +27,8 @@ import { useChainMotion } from './useChainMotion.js'
 
 /** How long the ghost takes to grow open or fold shut. */
 const GHOST_MS = 250
+/** How long the frame of a taken block takes to draw (`frame-draw` in chain.css): its action prints after it. */
+const FRAME_MS = 700
 
 interface Props {
   project: string
@@ -481,7 +483,7 @@ function Block(props: BlockProps) {
           </button>
         )}
       </p>
-      {action !== null && <ActionScreen line={action} />}
+      {action !== null && <ActionScreen line={action} delay={marks.has('take') ? marks.get('take')! + FRAME_MS : 0} />}
       <div className="block__side">
         {block.models.map((model) => (
           <span key={model} className="tag" title={t.card.roles.model}>
