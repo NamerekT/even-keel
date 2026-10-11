@@ -62,8 +62,8 @@
   transition: opacity 0.2s 0.15s;
 }
 
-.stats-page__main[aria-busy='true'] > .stats-section::after,
-.stats-section[aria-busy='true']::after {
+.stats-page__main[aria-busy='true'] > .stats-section:not(.stats-section--folded)::after,
+.stats-section[aria-busy='true']:not(.stats-section--folded)::after {
   content: '';
   position: absolute;
   top: 0;
@@ -315,6 +315,10 @@ a.stats__key:hover {
     animation: none;
   }
 
+  .stats-page__main[aria-busy='true'] > .stats-section:not(.stats-section--folded)::after,
+  .stats-section[aria-busy='true']:not(.stats-section--folded)::after {
+    animation-duration: 3s;
+  }
 }
 
 /* Spend chart */

@@ -519,7 +519,9 @@
   }
 
   .tools-loading__bar,
-  .tools-loading__project::before {
+  .tools-loading__project::before,
+  .tools-page__main > *,
+  .tools-page__main > .tools-loading {
     animation: none;
   }
 }

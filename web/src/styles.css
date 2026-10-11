@@ -1486,40 +1486,26 @@ a:focus-visible {
 
 .button[aria-busy='true'],
 .button[aria-busy='true']:disabled {
+  position: relative;
   cursor: progress;
   opacity: 0.85;
+  animation: busy-text 0.12s 0.12s ease-out forwards;
 }
 
 .button[aria-busy='true']::before {
   content: '';
-  display: inline-block;
-  width: 0;
+  position: absolute;
+  inset: 0;
+  width: 12px;
   height: 12px;
-  margin-right: 0;
-  border: 0 solid currentColor;
+  margin: auto;
+  border: 2px solid currentColor;
   border-right-color: transparent;
   border-radius: 50%;
-  vertical-align: -1px;
+  opacity: 0;
   animation:
     spinner-in 0.12s 0.12s ease-out forwards,
     spin 0.7s linear infinite;
-}
-
-.busy-note {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.busy-note::before {
-  content: '';
-  flex: none;
-  width: 12px;
-  height: 12px;
-  border: 2px solid var(--accent);
-  border-right-color: transparent;
-  border-radius: 50%;
-  animation: spin 0.7s linear infinite;
 }
 
 .button--primary {
@@ -2610,9 +2596,13 @@ a:focus-visible {
 
 @keyframes spinner-in {
   to {
-    width: 12px;
-    margin-right: 8px;
-    border-width: 2px;
+    opacity: 1;
+  }
+}
+
+@keyframes busy-text {
+  to {
+    -webkit-text-fill-color: transparent;
   }
 }
 
@@ -3107,9 +3097,12 @@ a:focus-visible {
     animation: none;
   }
 
-  .activity--on,
-  [aria-busy='true']::after {
+  .activity--on {
     animation-duration: 3s;
+  }
+
+  .button[aria-busy='true']::before {
+    animation-duration: 0.12s, 3s;
   }
 
   .chain__list--dragging .block,
