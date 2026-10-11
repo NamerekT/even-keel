@@ -261,7 +261,7 @@ export const en: Messages = {
       picture: [
         ['Now I have the full picture.', ' Full.', ' Picture.'],
         ["It doesn't move anymore.", " Let's fix it…"],
-        ['Edit…', ' Edit…', ' Edit…'],
+        ['Update(voyage.ts)', ' Update(voyage.ts)', ' Update(voyage.ts)'],
         ['Fixed! Everything works now.', ' Sailing backwards is a pre-existing bug,', ' unrelated to my changes.', ' Filed an issue.'],
       ],
       moments: {
