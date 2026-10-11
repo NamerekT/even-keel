@@ -15,6 +15,8 @@ import { fakeCompare, fakeRuleDiff, fakeRules } from './fakeRules.js'
 import { fakeSteps } from './fakeSteps.js'
 import { fakeCheckpoints, fakeHistory, fakePeriod, fakeTask } from './fakeStats.js'
 import { fakeCard, fakeReady } from './fakeCards.js'
+import { fakeAnswer, fakeOpenAsk, fakePastAsk, FAKE_ASK } from './fakeChat.js'
+import type { Ask } from '../../../src/sessions/ask.js'
 import { fakeTools } from './fakeTools.js'
 
 const TICK_MS = 2_000
@@ -58,9 +60,10 @@ function session(task: string, contextTokens: number, lamp: SessionView['lamp'] 
     sessionId: `00000000-0000-4000-8000-${task.replace(/\D/g, '').padStart(12, '0')}`,
     cwd: 'C:\\repos\\example-project',
     lamp,
-    waitingFor: lamp === 'waiting' ? 'permission' : null,
+    waitingFor: lamp === 'waiting' && task !== 'ABC-5' ? 'permission' : null,
     startupDialog: null,
     asking: lamp === 'waiting' && task === 'ABC-5',
+    ask: lamp === 'waiting' && task === 'ABC-5' ? FAKE_ASK : null,
     apiError: null,
     startedAt: ago(42),
     lastActivityAt: ago(0),
@@ -95,12 +98,13 @@ const FEED_STEPS: [FeedLine['kind'], string][] = [
   ['error', 'API Error: 529 overloaded, повтор через 4 с'],
 ]
 
-function fakeTranscript(): FeedLine[] {
+function fakeTranscript(open: Ask | null): FeedLine[] {
   const at = (minutes: number) => new Date(Date.now() - minutes * 60_000).toISOString()
   return [
     { at: at(40), kind: 'prompt', text: 'ABC-5\n\nWorking folder: C:\\repos\\example-project\\.claude\\worktrees\\abc-5' },
     { at: at(39), kind: 'text', text: 'Читаю описание задачи и вложения.' },
     { at: at(38), kind: 'tool', text: 'Bash Run the chain tests', detail: 'npx vitest run src/chain\nnpx tsc --noEmit' },
+    ...fakePastAsk(at),
     {
       at: at(30),
       kind: 'text',
@@ -108,6 +112,7 @@ function fakeTranscript(): FeedLine[] {
     },
     { at: at(20), kind: 'prompt', text: 'А почему цикл не ловится раньше?' },
     ...fakeFeed(),
+    ...fakeOpenAsk(open),
   ]
 }
 
@@ -486,6 +491,7 @@ function fakeCommand(state: EvenKeelState, name: string, body: Record<string, un
   if (name === 'chain/restart') return restart(state, String(body.project), String(body.task))
   if (name === 'chain/unattended') return { ...state, unattended: body.on === true }
   if (name === 'chain/trim') return { ...state, trimTools: body.on === true }
+  if (name === 'session/answer') return fakeAnswer(state, body)
   if (name === 'task/ready') return fakeReady(state, String(body.task))
   if (name.startsWith('account/')) return { ...state, account: accountCommand(state.account, name, body) }
   throw new Error(`fake: ${name} is not supported`)
@@ -592,6 +598,11 @@ export function createFakeSource(search: string): LiveSource {
     current.state.sessions = current.state.sessions.map((each) => (each.task === 'ABC-5' ? stalled : each))
     current.state.chain.active = [{ ...active, current: { task: 'ABC-5', sessionId: stalled.sessionId, since: ago(42) } }]
   }
+  if (params.get('chain') === 'ask' && current.state !== null && active) {
+    const asking = session('ABC-5', contextTokens, 'waiting')
+    current.state.sessions = current.state.sessions.map((each) => (each.task === 'ABC-5' ? asking : each))
+    current.state.chain.active = [{ ...active, current: { task: 'ABC-5', sessionId: asking.sessionId, since: ago(42) } }]
+  }
   if (params.get('chain') === 'dialog' && current.state !== null && active) {
     const wedged: SessionView = {
       ...session('ABC-5', 0, 'waiting'),
@@ -687,7 +698,7 @@ export function createFakeSource(search: string): LiveSource {
     transcript: async (sessionId, after) => {
       await new Promise((resolve) => setTimeout(resolve, ANSWER_MS))
       if (sessionId.endsWith('999')) return null
-      if (after === 0) return fakeTranscript()
+      if (after === 0) return fakeTranscript(current.state?.sessions.find((view) => view.sessionId === sessionId)?.ask ?? null)
       return [{ at: ago(0), kind: 'tool', text: `Read src/example-${Date.now() % 1000}.ts` }]
     },
     tools: async (project) => {

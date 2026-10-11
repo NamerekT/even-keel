@@ -198,3 +198,32 @@
   font-weight: 500;
   text-align: right;
 }
+
+.panel__remote {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  margin-top: -4px;
+  border-radius: 8px;
+  color: var(--fg-muted);
+  font-size: 18px;
+  text-decoration: none;
+}
+
+.panel__remote:hover {
+  background: var(--surface-muted);
+  color: var(--accent);
+}
+
+.panel__remote:focus-visible {
+  outline: 2px solid var(--accent);
+}
+
+/* The session waits for a reply: the chat button takes the colour of "waiting for a reply" in the legend. */
+.button--primary.panel__chat--waiting {
+  border-color: var(--lamp-waiting);
+  background: var(--lamp-waiting);
+  color: #1c1c1a;
+}

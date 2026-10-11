@@ -106,6 +106,13 @@ export function chosenLabels(question: AskQuestion, answer: string | undefined):
   return question.options.filter((option) => parts.includes(option.label)).map((option) => option.label)
 }
 
+/** The "Other" text of an answer: what is left once the option labels it names are taken out. */
+export function otherAnswer(question: AskQuestion, answer: string | undefined): string {
+  if (answer === undefined || question.options.some((option) => option.label === answer)) return ''
+  const chosen = chosenLabels(question, answer)
+  return joinLabels(answer.split(LABEL_SEPARATOR).filter((part) => !chosen.includes(part))).trim()
+}
+
 export function joinLabels(labels: string[]): string {
   return labels.join(LABEL_SEPARATOR)
 }

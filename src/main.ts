@@ -1,4 +1,4 @@
-import { mkdirSync } from 'node:fs'
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { DaemonRefresh } from './account/daemon.js'
@@ -47,6 +47,7 @@ import { worthBroadcast, type TrackerView } from './tracker/health.js'
 import { TrackerLink } from './tracker/link.js'
 import { isOpen, parseTaskId, type Task } from './tracker/model.js'
 import { StatusPoller } from './tracker/poller.js'
+import { TrackerQuestions, type AskingSession, type PostedQuestion } from './tracker/questions.js'
 import { trackerOf, type TrackerSetup } from './tracker/source.js'
 
 const TRACKER_POLL_MS = 5_000
@@ -613,7 +614,31 @@ function configuredProject(task: string): string | undefined {
   return project !== undefined && Object.hasOwn(config.projects, project) ? project : undefined
 }
 
+const questionsFile = join(stateDir, 'questions.json')
+const questions = new TrackerQuestions({
+  sessions: () =>
+    dispatcher.state.active.flatMap((chain): AskingSession[] => {
+      const sessionId = chain.current?.sessionId
+      const view = sessionId == null ? undefined : liveView(chain.current!.task)
+      return view === undefined || view.sessionId !== sessionId ? [] : [{ project: chain.project, task: view.task, sessionId, ask: view.ask }]
+    }),
+  tracker: (project, call) => links.get(config.trackers[project]!)?.run(call),
+  language: () => configFile.current.language ?? promptLanguage(),
+  load: () => {
+    try {
+      return JSON.parse(readFileSync(questionsFile, 'utf8')) as PostedQuestion[]
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code === 'ENOENT') return []
+      throw error
+    }
+  },
+  save: (posted) => writeFileSync(questionsFile, `${JSON.stringify(posted, null, 2)}\n`),
+  answer: (project, task, sessionId, ask, reply) => answerSession(project, task, sessionId, ask, { from: 'tracker', ...reply }),
+  log: (message) => console.log(message),
+})
+
 setInterval(() => hub.broadcast('ping', { at: new Date().toISOString() }), 15_000).unref()
+setInterval(() => void questions.tick(), 15_000).unref()
 
 setInterval(() => dispatcher.check(), LIMIT_CHECK_MS).unref()
 

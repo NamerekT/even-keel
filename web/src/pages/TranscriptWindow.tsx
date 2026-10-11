@@ -1,10 +1,14 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import Markdown, { type Components } from 'react-markdown'
 import remarkGfm from 'remark-gfm'
+import type { AskAnswers } from '../../../src/sessions/ask.js'
 import type { FeedLine } from '../../../src/sessions/transcript.js'
+import type { SessionView } from '../../../src/state.js'
 import { localized, t } from '../i18n/index.js'
 import { useLive } from '../live/context.js'
 import { AccountTag } from '../ui/AccountTag.js'
+import { AskCard } from './AskPanel.js'
+import { ChatComposer } from './ChatComposer.js'
 import '../ui/markdown.css'
 
 const LINE_TIME = localized((language) => new Intl.DateTimeFormat(language, { hour: '2-digit', minute: '2-digit', second: '2-digit' }))
@@ -23,22 +27,39 @@ const MARKDOWN: Components = {
   img: ({ alt }) => (alt ? <span className="markdown__image">[{alt}]</span> : null),
 }
 
+/** The current session of a chain task: the window becomes a chat that answers it. */
+export interface ChatTarget {
+  project: string
+  task: string
+  session: SessionView
+}
+
 interface Props {
   sessionId: string
   account: string | null
   /** The session still runs: new lines are fetched every few seconds. */
   live: boolean
+  chat?: ChatTarget
   onClose: () => void
 }
 
-/** The whole transcript of a session: prompts, texts uncut, tool calls with their shell commands. */
-export function TranscriptWindow({ sessionId, account, live, onClose }: Props) {
+/** A reply sent from this window, shown until the transcript has a prompt or an answer after the line it was sent at. */
+interface SentLine {
+  line: FeedLine
+  after: number
+}
+
+/** The whole transcript of a session: prompts, texts uncut, tool calls with their shell commands; with `chat`, a reply box under it. */
+export function TranscriptWindow({ sessionId, account, live, chat, onClose }: Props) {
   const { transcript } = useLive()
   const dialogRef = useRef<HTMLDialogElement>(null)
   const listRef = useRef<HTMLOListElement>(null)
   const pinned = useRef(true)
   const [lines, setLines] = useState<FeedLine[] | null | undefined>(undefined)
   const [error, setError] = useState<string | null>(null)
+  const [sent, setSent] = useState<SentLine[]>([])
+  const shown = lines == null ? null : [...lines, ...sent.filter((each) => !lines.slice(each.after).some(isReply)).map((each) => each.line)]
+  const answered = new Map<string, AskAnswers>((shown ?? []).flatMap((line) => (line.answers === undefined ? [] : [[line.answers.ask, line.answers.answers]])))
 
   useEffect(() => {
     dialogRef.current?.showModal()
@@ -75,7 +96,7 @@ export function TranscriptWindow({ sessionId, account, live, onClose }: Props) {
   useLayoutEffect(() => {
     const list = listRef.current
     if (list !== null && pinned.current) list.scrollTop = list.scrollHeight
-  }, [lines])
+  }, [lines, sent])
 
   const onScroll = () => {
     const list = listRef.current
@@ -85,7 +106,7 @@ export function TranscriptWindow({ sessionId, account, live, onClose }: Props) {
   return (
     <dialog
       ref={dialogRef}
-      className="session-window transcript"
+      className={`session-window transcript${chat === undefined ? '' : ' transcript--chat'}`}
       aria-label={t.session.transcriptDialog(sessionId.slice(0, 8))}
       onClose={(event) => {
         event.stopPropagation()
@@ -102,8 +123,8 @@ export function TranscriptWindow({ sessionId, account, live, onClose }: Props) {
       <div className="session-window__body">
         <header className="panel__head">
           <h2 className="panel__task">
-            <span className="panel__key">{sessionId.slice(0, 8)}</span>
-            <span className="panel__title">{t.session.transcriptTitle}</span>
+            <span className="panel__key">{chat?.task ?? sessionId.slice(0, 8)}</span>
+            <span className="panel__title">{chat === undefined ? t.session.transcriptTitle : `${t.session.chat.title} · ${sessionId.slice(0, 8)}`}</span>
             <AccountTag email={account} />
           </h2>
           <button type="button" className="panel__close" aria-label={t.session.closeTranscript} onClick={() => dialogRef.current?.close()}>
@@ -113,16 +134,19 @@ export function TranscriptWindow({ sessionId, account, live, onClose }: Props) {
         {error !== null && <p className="notice notice--error">{error}</p>}
         {error === null && lines === undefined && <p className="placeholder">{t.common.reading}</p>}
         {lines === null && <p className="placeholder">{t.session.notFound}</p>}
-        {lines != null && (
+        {shown != null && (
           <ol ref={listRef} className="feed transcript__lines" onScroll={onScroll}>
-            {lines.map((line, index) => (
+            {shown.map((line, index) => (
               <li key={index} className={`feed__line feed__line--${line.kind}`}>
                 <time className="feed__time" dateTime={line.at}>
                   {line.at === '' ? '' : LINE_TIME().format(new Date(line.at))}
                 </time>
                 <div className="feed__text">
                   {line.kind === 'prompt' && <span className="transcript__label">{t.session.prompt}</span>}
-                  {line.kind === 'text' ? (
+                  {line.kind === 'answer' && <span className="transcript__label">{t.session.answer}</span>}
+                  {line.ask !== undefined && !(chat !== undefined && waitsOn(chat, line.ask.id, answered)) ? (
+                    <AskCard ask={line.ask} answers={answered.get(line.ask.id) ?? (chat?.session.ask?.id === line.ask.id ? null : {})} />
+                  ) : line.kind === 'text' ? (
                     <div className="markdown">
                       <Markdown remarkPlugins={[remarkGfm]} components={MARKDOWN}>
                         {line.text}
@@ -137,7 +161,28 @@ export function TranscriptWindow({ sessionId, account, live, onClose }: Props) {
             ))}
           </ol>
         )}
+        {chat !== undefined && (
+          <ChatComposer
+            key={`${chat.session.sessionId}|${chat.session.ask?.id ?? ''}`}
+            project={chat.project}
+            task={chat.task}
+            session={chat.session}
+            onSent={(line) => {
+              pinned.current = true
+              setSent((now) => [...now, { line, after: lines?.length ?? 0 }])
+            }}
+          />
+        )}
       </div>
     </dialog>
   )
+}
+
+/** The question the chat's answer panel shows: its card in the transcript would only repeat it. */
+function waitsOn(chat: ChatTarget, ask: string, answered: Map<string, AskAnswers>): boolean {
+  return chat.session.ask?.id === ask && !answered.has(ask)
+}
+
+function isReply(line: FeedLine): boolean {
+  return line.kind === 'answer' || line.kind === 'prompt'
 }

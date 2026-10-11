@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { answersIn, chosenLabels, questionComment, questionsOf, replyPrompt, toolAnswers, trackerAnswers, type Ask } from './ask.js'
+import { answersIn, chosenLabels, otherAnswer, questionComment, questionsOf, replyPrompt, toolAnswers, trackerAnswers, type Ask } from './ask.js'
 
 const ASK: Ask = {
   id: 'toolu_1',
@@ -39,6 +39,15 @@ describe('chosenLabels', () => {
     expect(chosenLabels(ASK.questions[0]!, 'Red (Recommended)')).toEqual(['Red (Recommended)'])
     expect(chosenLabels(ASK.questions[0]!, 'something else')).toEqual([])
     expect(chosenLabels(ASK.questions[0]!, undefined)).toEqual([])
+  })
+})
+
+describe('otherAnswer', () => {
+  it('is the part of the answer that names no option', () => {
+    expect(otherAnswer(ASK.questions[0]!, 'something else')).toBe('something else')
+    expect(otherAnswer(ASK.questions[0]!, 'Blue')).toBe('')
+    expect(otherAnswer(ASK.questions[1]!, 'S, my own, L')).toBe('my own')
+    expect(otherAnswer(ASK.questions[1]!, undefined)).toBe('')
   })
 })
 

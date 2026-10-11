@@ -34,6 +34,10 @@ interface Props {
 export function SessionPanel({ block, scale, onCard, onClose }: Props) {
   const closeRef = useRef<HTMLButtonElement>(null)
   const [opened, setOpened] = useState<TaskSession | null>(null)
+  const remoteUrl = block.session?.remoteUrl ?? null
+  const account = block.session?.account == null ? '' : t.session.onlyIn(block.session.account)
+  // The current session is read and answered in the chat window, opened from the actions.
+  const chat = block.current && block.session !== null
 
   useEffect(() => closeRef.current?.focus({ preventScroll: true }), [])
 
@@ -55,6 +59,11 @@ export function SessionPanel({ block, scale, onCard, onClose }: Props) {
             {block.title !== null && <span className="panel__title">{block.title}</span>}
           </button>
         </h2>
+        {remoteUrl !== null && (
+          <a className="panel__remote" href={remoteUrl} target="_blank" rel="noreferrer" title={`${t.session.openRemote}${account}`} aria-label={t.session.openRemote}>
+            ↗
+          </a>
+        )}
         <button ref={closeRef} type="button" className="panel__close" aria-label={t.session.closePanel} onClick={onClose}>
           ×
         </button>
@@ -70,13 +79,13 @@ export function SessionPanel({ block, scale, onCard, onClose }: Props) {
         <>
           <StartCard start={block.start} />
           {block.start.phase === 'answer' && block.session !== null && (
-            <Feed lines={block.session.feed} sessionId={block.session.sessionId} account={block.session.account} live />
+            <Feed lines={block.session.feed} sessionId={block.session.sessionId} account={block.session.account} live whole={!chat} />
           )}
         </>
       ) : block.session === null ? (
         <p className="placeholder">{t.session.none}</p>
       ) : (
-        <SessionBody session={block.session} limit={block.limit} scale={scale} />
+        <SessionBody session={block.session} limit={block.limit} scale={scale} whole={!chat} />
       )}
       {block.sessions.length > 0 && (
         <SessionList rows={block.sessions} current={block.session?.sessionId ?? null} onOpen={setOpened} />
@@ -96,30 +105,29 @@ export function SessionPanel({ block, scale, onCard, onClose }: Props) {
 
 function Actions({ block }: { block: ChainBlock }) {
   const { send, sending, failure } = useCommand()
+  const [chatting, setChatting] = useState(false)
   const body = { project: taskProject(block.id), task: block.id }
   const session = block.session
   const live = block.current ? session : null
   const midTurn = live !== null && (live.lamp === 'working' || live.waitingFor !== null)
-  const account = session?.account == null ? '' : t.session.onlyIn(session.account)
   const remoteOff = session === null || session.remoteUrl !== null ? null : t.session.remote[session.remoteOff ?? 'no-bridge']
-  const buttons = session?.remoteUrl != null || block.open
   const replacing = useHold(`${block.current}|${session?.sessionId ?? ''}`, REPLACE_WAIT_MS)
   const starting = replacing.on || (block.current && block.start !== null)
+  const waiting = live?.lamp === 'waiting'
 
-  if (!buttons) return null
+  if (live === null && !block.open) return null
   return (
     <>
       <div className="panel__actions">
-        {session?.remoteUrl != null && (
-          <a
-            className="button button--primary"
-            href={session.remoteUrl}
-            target="_blank"
-            rel="noreferrer"
-            title={`${t.session.openRemote}${account}`}
+        {live !== null && (
+          <button
+            type="button"
+            className={`button button--primary${waiting ? ' panel__chat--waiting' : ''}`}
+            title={waiting ? t.session.chat.waiting : t.session.chat.idle}
+            onClick={() => setChatting(true)}
           >
-            {t.common.open}
-          </a>
+            {t.session.chat.open}
+          </button>
         )}
         {block.open && live !== null && (
           <button
@@ -165,11 +173,23 @@ function Actions({ block }: { block: ChainBlock }) {
         </p>
       )}
       {failure !== null && <p className="notice notice--error">{say(failure)}</p>}
+      {chatting && live !== null && (
+        <Suspense fallback={null}>
+          <TranscriptWindow
+            key={live.sessionId}
+            sessionId={live.sessionId}
+            account={live.account}
+            live={live.lamp !== 'finished'}
+            chat={{ project: body.project, task: block.id, session: live }}
+            onClose={() => setChatting(false)}
+          />
+        </Suspense>
+      )}
     </>
   )
 }
 
-function SessionBody({ session, limit, scale }: { session: SessionView; limit: LimitHold | null; scale: ContextScale }) {
+function SessionBody({ session, limit, scale, whole }: { session: SessionView; limit: LimitHold | null; scale: ContextScale; whole: boolean }) {
   const now = useNow(1_000)
   const note =
     session.apiError ??
@@ -204,15 +224,15 @@ function SessionBody({ session, limit, scale }: { session: SessionView; limit: L
         <TokensFact tokens={session.tokens} />
       </dl>
       {session.lamp === 'finished' ? (
-        <RecordFeed sessionId={session.sessionId} account={session.account} />
+        <RecordFeed sessionId={session.sessionId} account={session.account} whole={whole} />
       ) : (
-        <Feed lines={session.feed} sessionId={session.sessionId} account={session.account} live />
+        <Feed lines={session.feed} sessionId={session.sessionId} account={session.account} live whole={whole} />
       )}
     </>
   )
 }
 
-function RecordFeed({ sessionId, account }: { sessionId: string; account: string | null }) {
+function RecordFeed({ sessionId, account, whole }: { sessionId: string; account: string | null; whole: boolean }) {
   const { session } = useLive()
   const [lines, setLines] = useState<FeedLine[] | null>(null)
 
@@ -227,7 +247,7 @@ function RecordFeed({ sessionId, account }: { sessionId: string; account: string
     }
   }, [sessionId])
 
-  return lines === null ? <p className="placeholder">{t.common.reading}</p> : <Feed lines={lines} sessionId={sessionId} account={account} live={false} />
+  return lines === null ? <p className="placeholder">{t.common.reading}</p> : <Feed lines={lines} sessionId={sessionId} account={account} live={false} whole={whole} />
 }
 
 function CacheFact({ cache }: { cache: CacheWindow }) {
@@ -424,7 +444,7 @@ function SessionWindow({ row, live, scale, onClose }: { row: TaskSession; live: 
               )}
             </dl>
             {record.apiError !== null && <p className="notice notice--error">{record.apiError}</p>}
-            <Feed lines={record.feed} sessionId={row.sessionId} account={account} live={live} />
+            <Feed lines={record.feed} sessionId={row.sessionId} account={account} live={live} whole />
           </>
         )}
       </div>
@@ -432,7 +452,16 @@ function SessionWindow({ row, live, scale, onClose }: { row: TaskSession; live: 
   )
 }
 
-function Feed({ lines, sessionId, account, live }: { lines: FeedLine[]; sessionId: string; account: string | null; live: boolean }) {
+interface FeedProps {
+  lines: FeedLine[]
+  sessionId: string
+  account: string | null
+  live: boolean
+  /** Offers the read-only whole transcript; the current session has the chat window instead. */
+  whole: boolean
+}
+
+function Feed({ lines, sessionId, account, live, whole: offered }: FeedProps) {
   const listRef = useRef<HTMLOListElement>(null)
   const pinned = useRef(true)
   const [whole, setWhole] = useState(false)
@@ -451,9 +480,11 @@ function Feed({ lines, sessionId, account, live }: { lines: FeedLine[]; sessionI
     <section className="panel__feed" aria-label={t.session.feed}>
       <div className="panel__feed-head">
         <h3 className="panel__feed-title">{t.session.feed}</h3>
-        <button type="button" className="panel__feed-open" onClick={() => setWhole(true)}>
-          {t.session.transcript}
-        </button>
+        {offered && (
+          <button type="button" className="panel__feed-open" onClick={() => setWhole(true)}>
+            {t.session.transcript}
+          </button>
+        )}
       </div>
       {whole && (
         <Suspense fallback={null}>
