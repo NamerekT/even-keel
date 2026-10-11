@@ -54,10 +54,16 @@ function ago(minutes: number): string {
   return new Date(Date.now() - minutes * 60_000).toISOString()
 }
 
+function fakeSessionId(task: string): string {
+  const [project = '', number = ''] = task.split('-')
+  const projectHex = Array.from(project.slice(0, 4), (char) => char.charCodeAt(0).toString(16).padStart(2, '0')).join('')
+  return `${projectHex.padStart(8, '0')}-0000-4000-8000-${number.replace(/\D/g, '').padStart(12, '0')}`
+}
+
 function session(task: string, contextTokens: number, lamp: SessionView['lamp'] = 'working'): SessionView {
   return {
     task,
-    sessionId: `00000000-0000-4000-8000-${task.replace(/\D/g, '').padStart(12, '0')}`,
+    sessionId: fakeSessionId(task),
     cwd: 'C:\\repos\\example-project',
     lamp,
     waitingFor: lamp === 'waiting' && task !== 'ABC-5' ? 'permission' : null,
