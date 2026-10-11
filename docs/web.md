@@ -47,6 +47,7 @@ Layout work on a fake state, without a tracker or sessions. The fake history sta
 | `?link=stale\|connecting` | connection states |
 | `?chain=idle` | no active chain, to check starting one; "Start" and "New session" go through the start phases 3 s each |
 | `?parallel=2` | two chains at once: DEMO, taken from the queue, runs next to ABC |
+| `?chain=paused` | the chain is paused: "Resume" is the filled button and "Stop" stays pressable |
 | `?chain=limit` | the chain is waiting for the limit reset |
 | `?chain=slot` | an unattended chain is waiting for a free slot |
 | `?chain=skip` | a skipped task and a session postponed by a blocker |

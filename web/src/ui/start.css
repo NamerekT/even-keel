@@ -49,6 +49,10 @@
   animation: blink 1.2s ease-in-out infinite;
 }
 
+.block--starting .block__head .lamp::after {
+  content: none;
+}
+
 .start-card {
   display: flex;
   flex-direction: column;

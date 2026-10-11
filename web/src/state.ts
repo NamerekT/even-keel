@@ -261,6 +261,24 @@ export function chainStatus(chain: EvenKeelState['chain'], project: string): Cha
   return index < 0 ? { kind: 'idle' } : { kind: 'queued', position: index + 1 }
 }
 
+export type ChainControl = 'start' | 'resume' | 'stop'
+export type ControlsOff = 'running' | 'idle' | 'queued' | 'notLoaded' | 'failed' | 'empty'
+
+export interface ChainControls {
+  enabled: ChainControl[]
+  /** The one button that gets the fill: never a disabled one. */
+  primary: ChainControl | null
+  /** Why a button cannot be pressed now. */
+  off: ControlsOff | null
+}
+
+export function chainControls(status: ChainStatus, order: ProjectOrder | undefined): ChainControls {
+  if (status.kind === 'running') return { enabled: ['stop'], primary: 'stop', off: 'running' }
+  if (status.kind === 'paused') return { enabled: ['resume', 'stop'], primary: 'resume', off: null }
+  const off = status.kind === 'queued' ? 'queued' : order === undefined ? 'notLoaded' : order.error !== null ? 'failed' : order.order.length === 0 ? 'empty' : null
+  return off === null ? { enabled: ['start'], primary: 'start', off: 'idle' } : { enabled: [], primary: null, off }
+}
+
 export interface UsageNotice {
   tone: 'warn' | 'error'
   text: string
