@@ -1689,7 +1689,7 @@ a:focus-visible {
   gap: 4px 12px;
   min-width: 0;
   min-height: 46px;
-  padding: 8px 14px 8px 8px;
+  padding: 8px 14px;
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius);
@@ -1761,6 +1761,10 @@ a:focus-visible {
 
 .block__metrics .context-meter {
   width: 120px;
+}
+
+.block__metrics .cache-clock {
+  min-width: 7.5em;
 }
 
 .block__metrics .context-meter__track,
@@ -1874,7 +1878,7 @@ a:focus-visible {
   .block {
     grid-template-columns: 2.5ch minmax(0, 1fr);
     grid-template-areas: 'number head' '. title' '. side';
-    padding: 10px 12px 10px 6px;
+    padding: 10px 12px;
   }
 
   .block__divider {
