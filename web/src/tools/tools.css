@@ -95,6 +95,12 @@
   font-size: 13px;
 }
 
+.tools__problem-fix {
+  margin: 0 0 6px;
+  font-size: 12px;
+  opacity: 0.85;
+}
+
 .tools__problems .tools__chip--lost {
   background: var(--surface);
 }

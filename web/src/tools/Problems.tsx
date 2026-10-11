@@ -17,6 +17,7 @@ export function Problems({ views, accounts }: { views: ToolsView[]; accounts: Ac
         return (
           <div key={kind} className="tools__problem">
             <p className="tools__problem-label">{t.tools.problem[kind]}</p>
+            <p className="tools__problem-fix">{t.tools.problemFix[kind]}</p>
             <div className="tools__chips">
               {problems.map((problem) => (
                 <Chip key={`${problem.row?.kind ?? ''}:${problem.name}`} tone="lost" title={titleOf(problem)}>
@@ -31,6 +32,7 @@ export function Problems({ views, accounts }: { views: ToolsView[]; accounts: Ac
       {accounts.length > 0 && (
         <div className="tools__problem">
           <p className="tools__problem-label">{t.tools.accounts}</p>
+          <p className="tools__problem-fix">{t.tools.problemFix.accounts}</p>
           <ul className="tools__list">
             {accounts.map((drift) => (
               <li key={drift.account}>{t.tools.drift(drift.account, drift.keys.join(', '))}</li>

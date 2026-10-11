@@ -338,6 +338,17 @@ export const en: Messages = {
       mcpFailed: 'MCP servers that failed to connect',
       mcpOutside: 'MCP servers not in a worktree',
     },
+    problemFix: {
+      unreached:
+        'Fix: move the setting to the project’s .claude/settings.json (it is committed and a worktree reads it), or to the settings Even Keel passes to chain sessions through --settings.',
+      claudeai: 'Fix: turn on “Trim the tools” in the status menu — chain sessions then start with claude.ai skills and plugins off. The list is from the last session, so it may predate the switch.',
+      mcpFailed:
+        'Fix: check the server’s command and credentials. Tracker credentials come from env in ~/.claude/settings.json; ${…} substitutions do not work in a stdio plugin’s .mcp.json.',
+      mcpOutside:
+        'Fix: commit the server to the project’s own .mcp.json, or configure it as a plugin; a server that is only in the main checkout’s .mcp.json does not reach chain sessions.',
+      accounts:
+        'Fix: change the key in the global ~/.claude/settings.json — it is copied over the account folder’s file before every launch; a key that is only in the account folder’s settings.json is removed there by hand.',
+    },
     find: 'Find a setting',
     onlyDiff: 'Only differences',
     section: { claude: 'claude.ai and mode', plugin: 'Plugins', skill: 'Skills', permission: 'Permissions', mcp: 'MCP servers in the settings' },
