@@ -249,7 +249,7 @@ function checkpointOf(text: string): string | null {
   return CHECKPOINT_LINE.exec(last.trim())?.[1] ?? null
 }
 
-function isPrompt(content: unknown): boolean {
+export function isPrompt(content: unknown): boolean {
   if (typeof content === 'string') return content.trim() !== ''
   if (!Array.isArray(content)) return false
   const blocks = content as ContentBlock[]
@@ -257,7 +257,7 @@ function isPrompt(content: unknown): boolean {
 }
 
 /** The prompt without the context blocks clients wrap around it (IDE selection, browser instructions); pasted text stays. */
-function promptOf(content: unknown): string {
+export function promptOf(content: unknown): string {
   if (typeof content === 'string') return content
   return blocksOf(content)
     .filter((block) => block.type === 'text' && !isContextBlock(block.text ?? ''))
@@ -265,7 +265,7 @@ function promptOf(content: unknown): string {
     .join('\n\n')
 }
 
-function isContextBlock(text: string): boolean {
+export function isContextBlock(text: string): boolean {
   const tag = CONTEXT_BLOCK.exec(text.trim())?.[1]
   return tag !== undefined && tag !== 'pasted_content'
 }

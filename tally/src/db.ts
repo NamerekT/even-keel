@@ -1,5 +1,6 @@
 import { readFileSync } from 'node:fs'
 import pg from 'pg'
+import type { Entry } from '../../src/sessions/entry.js'
 import type { ClassifySettings, DbSettings, Price } from './config.js'
 import type { Snapshot } from './limits.js'
 import type { FileState, Store } from './load.js'
@@ -12,6 +13,9 @@ import type { Sign, SignKind, Span } from './signs.js'
 import type { StepRun } from './step-runs.js'
 import type { TranscriptEntry } from './stream.js'
 import type { Turn } from './turns.js'
+import { cleanText } from './compact.js'
+import type { HandoffRow } from './handoffs.js'
+import { firstPrompt } from './prompt.js'
 
 export interface PendingSpan {
   id: string
@@ -72,6 +76,21 @@ update sessions s set project_dir = (
 )
 where s.project_dir is null
   and exists (select 1 from messages m where m.session_id = s.session_id and m.project_dir is not null)`
+// Only rows that can be a prompt: the rest of a session's user rows are tool results, heavy to fetch.
+export const SESSION_PROMPT_ROWS = `
+select s.session_id, coalesce(s.last_at < now() - interval '1 day', false) as old,
+  (select coalesce(jsonb_agg(p.raw order by p.at, p.uuid), '[]'::jsonb)
+   from (
+     select l.raw, l.at, l.uuid from lines l
+     where l.session_id = s.session_id and l.agent_id is null and l.type = 'user'
+       and coalesce(l.raw->>'isMeta', '') <> 'true'
+       and (jsonb_typeof(l.raw->'message'->'content') = 'string'
+         or not (l.raw->'message'->'content') @> '[{"type": "tool_result"}]')
+     order by l.at, l.uuid
+     limit 10
+   ) p) as rows
+from sessions s
+where s.prompt is null`
 const LOCK_KEY = 'tally-collector'
 
 export class TallyDb implements Store {
@@ -349,6 +368,44 @@ export class TallyDb implements Store {
   async fillSessionFolders(): Promise<number> {
     const result = await this.client.query(SESSION_FOLDERS)
     return result.rowCount ?? 0
+  }
+
+  async handoffSources(): Promise<Map<string, string>> {
+    const result = await this.client.query<{ session_id: string; source: string }>('select session_id, source from handoffs')
+    return new Map(result.rows.map((row) => [row.session_id, row.source]))
+  }
+
+  /** A snapshot replaces a row rebuilt from transcripts, never the other way round. */
+  async addHandoffs(rows: HandoffRow[]): Promise<number> {
+    const result = await this.client.query(
+      `insert into handoffs (session_id, previous, task, reason, at, source, prompt, note_path, note)
+       select x."sessionId", x.previous, x.task, x.reason, nullif(x.at, '')::timestamptz, x.source, x.prompt, x."notePath", x.note
+       from jsonb_to_recordset($1::jsonb) as x(
+         "sessionId" text, previous text, task text, reason text, at text, source text, prompt text, "notePath" text, note text)
+       on conflict (session_id) do update set
+         previous = excluded.previous, task = excluded.task, reason = excluded.reason, at = excluded.at, source = excluded.source,
+         prompt = excluded.prompt, note_path = excluded.note_path, note = excluded.note
+       where handoffs.source <> 'even-keel'`,
+      [JSON.stringify(rows.map((row) => ({ ...row, prompt: cleanText(row.prompt), note: row.note === null ? null : cleanText(row.note) })))],
+    )
+    return result.rowCount ?? 0
+  }
+
+  /** The first prompt of sessions without one; a session that has none a day after its last row gets '' and is not read again. */
+  async fillPrompts(): Promise<number> {
+    const result = await this.client.query<{ session_id: string; old: boolean; rows: Entry[] }>(SESSION_PROMPT_ROWS)
+    const rows = result.rows.flatMap((row) => {
+      const prompt = firstPrompt(row.rows)
+      return prompt !== null || row.old ? [{ session_id: row.session_id, prompt: prompt ?? '' }] : []
+    })
+    if (rows.length === 0) return 0
+    const updated = await this.client.query(
+      `update sessions s set prompt = x.prompt
+       from jsonb_to_recordset($1::jsonb) as x(session_id text, prompt text)
+       where s.session_id = x.session_id`,
+      [JSON.stringify(rows)],
+    )
+    return updated.rowCount ?? 0
   }
 
   async syncPrices(prices: Price[]): Promise<void> {

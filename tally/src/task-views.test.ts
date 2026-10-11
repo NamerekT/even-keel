@@ -33,7 +33,7 @@ describe('task of a message', () => {
         [id, session, task, at],
       )
     }
-  })
+  }, 30_000)
 
   afterAll(async () => {
     await db?.close()
@@ -70,5 +70,75 @@ describe('task of a message', () => {
       except
       select session_id, task from session_tasks`)
     expect(rows.filter((row) => row.session_id !== 'orphan')).toEqual([])
+  })
+})
+
+type Named = [session: string, branchTask: string | null, custom: string | null, ai: string | null, prompt: string | null, launch?: string]
+
+describe('task named by the session itself', () => {
+  let db: PGlite
+
+  beforeAll(async () => {
+    db = await PGlite.create()
+    await db.exec(`set timezone = 'UTC'`)
+    await db.exec(SCHEMA)
+    const sessions: Named[] = [
+      ['other', 'CBL-157', null, 'CBL-169', 'делай CBL-169'],
+      ['lower', 'CBL-157', null, 'Кеширование путей', 'делаем cbl-170 потому что'],
+      ['own', 'CBL-157', null, 'CBL-157 подзадачи', 'посмотри подзадачи CBL-157, кроме CBL-160'],
+      ['own-late', 'CBL-157', null, null, 'сравни CBL-160 с CBL-157'],
+      ['title-first', 'CBL-157', null, 'CBL-143', 'глянь, вроде CBL-127 уже сделали'],
+      ['custom', 'CBL-157', 'CBL-171', 'CBL-165', 'делай CBL-165'],
+      ['silent', 'CBL-157', null, 'Названия планет', 'придумай названия планет'],
+      ['foreign', 'CBL-157', null, 'Even Keel', 'посмотри BTN-80'],
+      ['digits', 'CBL-157', null, null, 'XCBL-12 и CBL-X не задачи этой ветки'],
+      ['chain', 'CBL-157', null, 'CBL-169', 'делай CBL-169', 'CBL-158'],
+      ['main', null, null, 'CBL-169', 'делай CBL-169'],
+    ]
+    for (const [session, task, custom, ai, prompt, launch] of sessions) {
+      await db.query(
+        `insert into sessions (session_id, account, custom_title, ai_title, prompt, launch_task) values ($1, 'a', $2, $3, $4, $5)`,
+        [session, custom, ai, prompt, launch ?? null],
+      )
+      await db.query(
+        `insert into messages (message_id, session_id, account, task, at, input, cache_write_5m, cache_write_1h, cache_read, output)
+         values ($1, $1, 'a', $2, '2026-10-01T10:00:00Z', 0, 0, 0, 0, 0)`,
+        [session, task],
+      )
+    }
+  }, 30_000)
+
+  afterAll(async () => {
+    await db?.close()
+  })
+
+  async function tasks(): Promise<Record<string, string | null>> {
+    const { rows } = await db.query<{ session_id: string; task: string | null }>('select session_id, task from session_tasks')
+    return Object.fromEntries(rows.map((row) => [row.session_id, row.task]))
+  }
+
+  it('trusts the prompt and the title over the branch when they name another task of its project', async () => {
+    const found = await tasks()
+    expect([found.other, found.lower]).toEqual(['CBL-169', 'CBL-170'])
+  })
+
+  it('keeps the branch task when the session names it anywhere', async () => {
+    const found = await tasks()
+    expect([found.own, found['own-late']]).toEqual(['CBL-157', 'CBL-157'])
+  })
+
+  it('reads the custom title first, then the generated title, then the prompt', async () => {
+    const found = await tasks()
+    expect([found['title-first'], found.custom]).toEqual(['CBL-143', 'CBL-171'])
+  })
+
+  it('keeps the branch task when the session names no task of its project', async () => {
+    const found = await tasks()
+    expect([found.silent, found.foreign, found.digits]).toEqual(['CBL-157', 'CBL-157', 'CBL-157'])
+  })
+
+  it('leaves the launch journal and sessions without a branch task alone', async () => {
+    const found = await tasks()
+    expect([found.chain, found.main]).toEqual(['CBL-158', null])
   })
 })
