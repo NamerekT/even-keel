@@ -20,7 +20,7 @@ export function IdlePanel({ scene }: { scene: Scene }) {
   const parts = memeParts(meme, scene)
   const chat = 'chat' in meme ? t.project.idle.chats[meme.chat] : null
   const [shown, setShown] = useState(() => (stillMotion() ? Infinity : 0))
-  const [said, setSaid] = useState<number[]>([])
+  const [said, setSaid] = useState<ReturnType<typeof chatAt>>({ said: [], selected: 0 })
   const [tick, setTick] = useState({ sea: 0, cloud: 0 })
   const motion = useRef(FORWARD)
   // When the line started, when it starts being erased (ms after the start), and the moments it was drawn on.
@@ -53,14 +53,14 @@ export function IdlePanel({ scene }: { scene: Scene }) {
       const eraseAt = 'line' in meme || chat || ('play' in meme && !stays) ? held : 'play' in meme ? null : line.current.eraseAt
       motion.current = 'play' in meme ? playMotion(meme.play, meme.act, acts, elapsed, parts, IDLE_PACE) : FORWARD
       const count = shownAt(parts, elapsed, IDLE_PACE, eraseAt)
-      const lines = chat ? chatAt(chat, elapsed, IDLE_PACE, eraseAt) : []
-      const gone = chat ? lines.every((shown) => shown < 0) : count === 0
+      const lines = chat ? chatAt(chat, elapsed, IDLE_PACE, eraseAt) : { said: [], selected: 0 }
+      const gone = chat ? lines.said.every((shown) => shown < 0) : count === 0
       if (eraseAt !== null && elapsed > eraseAt && gone) {
         line.current = { start: now, eraseAt: null, cue }
         setMeme(nextAct ?? draw(meme))
       }
       setShown(count)
-      setSaid((current) => (current.join() === lines.join() ? current : lines))
+      setSaid((current) => (current.said.join() === lines.said.join() && current.selected === lines.selected ? current : lines))
       frame = requestAnimationFrame(step)
     })
     return () => cancelAnimationFrame(frame)
@@ -93,15 +93,16 @@ export function IdlePanel({ scene }: { scene: Scene }) {
 }
 
 /** Every line is laid out from the start, so the panel keeps its height while they come; `said` as from `chatAt`. */
-function ChatLines({ chat, said }: { chat: ChatLine[]; said: number[] }) {
+function ChatLines({ chat, said: { said, selected } }: { chat: ChatLine[]; said: ReturnType<typeof chatAt> }) {
   return (
     <div className="idle__chat">
       {chat.map((line, index) => {
         const count = said[index] ?? -1
+        const className = `idle__said${'human' in line ? ' idle__said--human' : ''}${index >= chat.length - selected ? ' idle__said--selected' : ''}`
         return 'human' in line ? (
-          <TypedLine key={index} text={`> ${line.human}`} shown={count < 0 ? -1 : Infinity} className="idle__said idle__said--human" />
+          <TypedLine key={index} text={`> ${line.human}`} shown={count < 0 ? -1 : Infinity} className={className} />
         ) : (
-          <TypedLine key={index} text={`● ${line.agent}`} shown={count < 0 ? -1 : count + 2} className="idle__said" />
+          <TypedLine key={index} text={`● ${line.agent}`} shown={count < 0 ? -1 : count + 2} className={className} />
         )
       })}
     </div>

@@ -126,6 +126,10 @@
   font-size: 13px;
 }
 
+.idle__said--selected > [aria-hidden] {
+  background: color-mix(in srgb, var(--accent) 30%, transparent);
+}
+
 .idle__hint {
   margin: 0;
   font-size: 13px;

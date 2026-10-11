@@ -82,35 +82,28 @@ export function chatTime(chat: ChatLine[], { charMs, pauseMs }: Pace): number {
   return typed * charMs + Math.max(0, chat.length - 1) * pauseMs
 }
 
+/** How a chat is erased: selected a line per `lineMs` from the bottom, held selected `holdMs`, then deleted at once. */
+export const CHAT_SELECT = { lineMs: 150, holdMs: 700 }
+
 /**
- * How many characters of each chat line show `elapsed` ms after the start; -1 — the line is not there. From `eraseAt` ms
- * on (`null` — never) the chat is erased from the bottom: an agent line at the typing pace, a human line at once.
+ * How many characters of each chat line show `elapsed` ms after the start (-1 — the line is not there) and how many of
+ * the last lines are selected. From `eraseAt` ms on (`null` — never) the chat is selected and deleted.
  */
-export function chatAt(chat: ChatLine[], elapsed: number, pace: Pace, eraseAt: number | null): number[] {
-  const shown = chat.map(() => -1)
+export function chatAt(chat: ChatLine[], elapsed: number, pace: Pace, eraseAt: number | null): { said: number[]; selected: number } {
+  const said = chat.map(() => -1)
+  if (eraseAt !== null && elapsed >= eraseAt + (chat.length - 1) * CHAT_SELECT.lineMs + CHAT_SELECT.holdMs) return { said, selected: 0 }
   let left = eraseAt === null ? elapsed : Math.min(elapsed, eraseAt)
   for (const [index, line] of chat.entries()) {
-    if ('human' in line) shown[index] = line.human.length
+    if ('human' in line) said[index] = line.human.length
     else {
-      shown[index] = Math.min(line.agent.length, Math.floor(left / pace.charMs))
+      said[index] = Math.min(line.agent.length, Math.floor(left / pace.charMs))
       left -= line.agent.length * pace.charMs
     }
     left -= pace.pauseMs
     if (left < 0) break
   }
-  if (eraseAt === null || elapsed < eraseAt) return shown
-
-  let erased = Math.floor((elapsed - eraseAt) / pace.charMs)
-  for (let index = chat.length - 1; index >= 0; index -= 1) {
-    if (shown[index]! < 0) continue
-    if ('agent' in chat[index]! && erased < shown[index]!) {
-      shown[index]! -= erased
-      break
-    }
-    if ('agent' in chat[index]!) erased -= shown[index]!
-    shown[index] = -1
-  }
-  return shown
+  const selected = eraseAt === null || elapsed < eraseAt ? 0 : Math.min(chat.length, Math.floor((elapsed - eraseAt) / CHAT_SELECT.lineMs) + 1)
+  return { said, selected }
 }
 
 /** Which way the sea with the boat and the cloud move, per tick. */

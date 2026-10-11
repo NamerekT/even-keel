@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { TaskSession } from '../../../src/chain/launches.js'
 import type { ChainBlock } from '../state.js'
-import { chatAt, chatTime, emptyCard, type Harbor, harborMemes, longestRun, momentsOf, pickMeme, playMotion, type Scene } from './memes.js'
+import { CHAT_SELECT, chatAt, chatTime, emptyCard, type Harbor, harborMemes, longestRun, momentsOf, pickMeme, playMotion, type Scene } from './memes.js'
 
 const block = (id: string, extra: Partial<ChainBlock> = {}): ChainBlock =>
   ({ id, open: true, locked: false, question: false, skipped: false, sessions: [], ...extra }) as ChainBlock
@@ -133,22 +133,27 @@ describe('chatAt', () => {
   })
 
   it('shows the human lines whole at once and types the agent lines, keeping the earlier ones', () => {
-    expect(chatAt(chat, 0, pace, null)).toEqual([2, -1, -1, -1])
-    expect(chatAt(chat, 99, pace, null)).toEqual([2, -1, -1, -1])
-    expect(chatAt(chat, 100, pace, null)).toEqual([2, 2, -1, -1])
-    expect(chatAt(chat, 200, pace, null)).toEqual([2, 2, 0, -1])
-    expect(chatAt(chat, 230, pace, null)).toEqual([2, 2, 3, -1])
-    expect(chatAt(chat, 349, pace, null)).toEqual([2, 2, 5, -1])
-    expect(chatAt(chat, 350, pace, null)).toEqual([2, 2, 5, 0])
-    expect(chatAt(chat, Infinity, pace, null)).toEqual([2, 2, 5, 3])
+    const said = (elapsed: number) => chatAt(chat, elapsed, pace, null).said
+    expect(said(0)).toEqual([2, -1, -1, -1])
+    expect(said(99)).toEqual([2, -1, -1, -1])
+    expect(said(100)).toEqual([2, 2, -1, -1])
+    expect(said(200)).toEqual([2, 2, 0, -1])
+    expect(said(230)).toEqual([2, 2, 3, -1])
+    expect(said(349)).toEqual([2, 2, 5, -1])
+    expect(said(350)).toEqual([2, 2, 5, 0])
+    expect(said(Infinity)).toEqual([2, 2, 5, 3])
+    expect(chatAt(chat, Infinity, pace, null).selected).toBe(0)
   })
 
-  it('erases from the bottom: the agent lines at the typing pace, a human line at once once it is the last', () => {
-    expect(chatAt(chat, 500, pace, 500)).toEqual([2, 2, 5, 3])
-    expect(chatAt(chat, 510, pace, 500)).toEqual([2, 2, 5, 2])
-    expect(chatAt(chat, 530, pace, 500)).toEqual([2, 2, 5, -1])
-    expect(chatAt(chat, 579, pace, 500)).toEqual([2, 2, 1, -1])
-    expect(chatAt(chat, 580, pace, 500)).toEqual([-1, -1, -1, -1])
+  it('selects the lines from the bottom one by one, then deletes them all at once', () => {
+    const { lineMs, holdMs } = CHAT_SELECT
+    const all = 500 + 3 * lineMs
+    expect(chatAt(chat, 499, pace, 500)).toEqual({ said: [2, 2, 5, 3], selected: 0 })
+    expect(chatAt(chat, 500, pace, 500)).toEqual({ said: [2, 2, 5, 3], selected: 1 })
+    expect(chatAt(chat, 500 + lineMs, pace, 500).selected).toBe(2)
+    expect(chatAt(chat, all - 1, pace, 500).selected).toBe(3)
+    expect(chatAt(chat, all + holdMs - 1, pace, 500)).toEqual({ said: [2, 2, 5, 3], selected: 4 })
+    expect(chatAt(chat, all + holdMs, pace, 500)).toEqual({ said: [-1, -1, -1, -1], selected: 0 })
   })
 })
 
