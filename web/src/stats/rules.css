@@ -26,7 +26,7 @@
   height: var(--notch);
   border-radius: 1px;
   background: currentColor;
-  transition: height 0.12s ease-out;
+  transition: height var(--motion-fast) ease-out;
 }
 
 .spend__mark:hover::before,
@@ -182,9 +182,9 @@
   color: var(--fg-muted);
   cursor: pointer;
   transition:
-    background-color 0.15s,
-    border-color 0.15s,
-    color 0.15s;
+    background-color var(--motion-fast),
+    border-color var(--motion-fast),
+    color var(--motion-fast);
 }
 
 .rule-chip--on {
@@ -213,8 +213,8 @@
   font-size: 13px;
   cursor: pointer;
   transition:
-    background-color 0.15s,
-    opacity 0.15s;
+    background-color var(--motion-fast),
+    opacity var(--motion-fast);
 }
 
 .rule-legend__item:hover {
@@ -301,8 +301,8 @@
   text-align: left;
   cursor: pointer;
   transition:
-    background-color 0.15s,
-    border-color 0.15s;
+    background-color var(--motion-fast),
+    border-color var(--motion-fast);
 }
 
 .rule-mark:hover {

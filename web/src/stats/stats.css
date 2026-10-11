@@ -46,20 +46,20 @@
 
 .stats-page__main > *,
 .stats-page__body > .projects {
-  transition: opacity 0.2s;
+  transition: opacity var(--motion-appear);
 }
 
 .stats-page__main[aria-busy='true'] > *,
 .stats-page__body[aria-busy='true'] > .projects,
 .stats-page__body[aria-busy='true'] .spend {
   opacity: 0.55;
-  transition-delay: 0.15s;
+  transition-delay: var(--motion-fast);
   cursor: progress;
 }
 
 .stats-section[aria-busy='true'] > .stats-section__body {
   opacity: 0.55;
-  transition: opacity 0.2s 0.15s;
+  transition: opacity var(--motion-appear) var(--motion-fast);
 }
 
 .stats-page__main[aria-busy='true'] > .stats-section:not(.stats-section--folded)::after,
@@ -101,9 +101,9 @@
 
 .segmented__item {
   transition:
-    background-color 0.15s,
-    color 0.15s,
-    box-shadow 0.15s;
+    background-color var(--motion-fast),
+    color var(--motion-fast),
+    box-shadow var(--motion-fast);
 }
 
 .segmented__item--on {
@@ -382,7 +382,7 @@ a.stats__key:hover {
   flex-direction: column;
   gap: 10px;
   min-width: 0;
-  animation: appear 0.2s ease-out;
+  animation: appear var(--motion-appear) ease-out;
 }
 
 .stats-section__head {
@@ -438,7 +438,7 @@ a.stats__key:hover {
   border-right: 2px solid var(--fg-muted);
   border-bottom: 2px solid var(--fg-muted);
   transform: rotate(-45deg);
-  transition: transform 0.15s ease;
+  transition: transform var(--motion-fast) ease;
 }
 
 .stats-section__fold[aria-expanded='true'] .stats-section__caret {
@@ -782,7 +782,7 @@ a.stats__key:hover {
 }
 
 .tasks__detail > td > * {
-  animation: appear 0.18s ease-out;
+  animation: appear var(--motion-appear) ease-out;
 }
 
 .tasks__row:focus-visible {

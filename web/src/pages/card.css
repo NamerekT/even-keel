@@ -16,7 +16,7 @@ html:has(.task-card[open]) {
 }
 
 .task-card[open] {
-  animation: task-card-in 0.16s ease-out;
+  animation: task-card-in var(--motion-appear) ease-out;
 }
 
 @keyframes task-card-in {
@@ -72,9 +72,9 @@ html:has(.task-card[open]) {
   text-decoration: none;
   white-space: nowrap;
   transition:
-    color 0.15s,
-    border-color 0.15s,
-    background-color 0.15s;
+    color var(--motion-fast),
+    border-color var(--motion-fast),
+    background-color var(--motion-fast);
 }
 
 .task-card__link:hover {
@@ -579,7 +579,7 @@ html:has(.task-card[open]) {
   height: 12px;
   border-radius: 6px;
   background: linear-gradient(90deg, var(--surface-muted) 30%, color-mix(in srgb, var(--fg) 10%, var(--surface-muted)) 50%, var(--surface-muted) 70%) 0 0 / 300% 100%;
-  animation: task-card-bone 1.4s ease-in-out infinite;
+  animation: shimmer var(--motion-skeleton) linear infinite;
 }
 
 .task-card__bone--title {
@@ -590,15 +590,6 @@ html:has(.task-card[open]) {
 
 .task-card__bone--short {
   width: 40%;
-}
-
-@keyframes task-card-bone {
-  from {
-    background-position: 100% 0;
-  }
-  to {
-    background-position: 0 0;
-  }
 }
 
 @media (prefers-reduced-motion: reduce) {

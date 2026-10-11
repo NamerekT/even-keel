@@ -326,7 +326,7 @@
   border-radius: 1px;
   background: var(--family);
   opacity: 0.55;
-  transition: opacity 0.15s ease;
+  transition: opacity var(--motion-fast) ease;
 }
 
 .chain .block__rail--start {
@@ -388,7 +388,7 @@
   overflow: hidden;
   animation:
     block-enter 0.5s ease-out var(--beat-enter) both,
-    block-glow 1.8s ease-out calc(var(--beat-enter) + 0.4s) both;
+    block-glow var(--motion-mark) ease-out calc(var(--beat-enter) + 0.4s) both;
 }
 
 .chain .block--enter > * {
@@ -396,7 +396,7 @@
 }
 
 .chain .block--fresh {
-  animation: block-glow 3s ease-out both;
+  animation: block-glow var(--motion-mark) ease-out both;
 }
 
 .chain .block--leaving {

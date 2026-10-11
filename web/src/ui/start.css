@@ -5,7 +5,7 @@
   border: 2px solid var(--lamp-working);
   border-right-color: transparent;
   border-radius: 50%;
-  animation: spin 0.8s linear infinite;
+  animation: spin var(--motion-spin) linear infinite;
 }
 
 .start-spinner--big {
@@ -40,13 +40,13 @@
     transparent 65%
   );
   background-size: 300% 100%;
-  animation: shimmer 1.8s linear infinite;
+  animation: shimmer var(--motion-skeleton) linear infinite;
 }
 
 .block--starting .block__head .lamp {
   background: transparent;
   box-shadow: inset 0 0 0 2px var(--lamp-working);
-  animation: blink 1.2s ease-in-out infinite;
+  animation: blink var(--motion-blink) ease-in-out infinite;
 }
 
 .block--starting .block__head .lamp::after {
@@ -61,7 +61,7 @@
   border: 1px solid color-mix(in srgb, var(--lamp-working) 40%, var(--border));
   border-radius: 8px;
   background: color-mix(in srgb, var(--lamp-working) 5%, var(--surface));
-  animation: appear 0.2s ease-out;
+  animation: appear var(--motion-appear) ease-out;
 }
 
 .start-card__head {
@@ -113,7 +113,7 @@
   background-origin: border-box;
   color: var(--fg);
   font-weight: 600;
-  animation: shimmer 1.4s linear infinite;
+  animation: shimmer var(--motion-skeleton) linear infinite;
 }
 
 .start-card__bones {
@@ -127,7 +127,7 @@
   border-radius: 8px;
   background: linear-gradient(100deg, var(--surface-muted) 35%, var(--surface) 50%, var(--surface-muted) 65%);
   background-size: 300% 100%;
-  animation: shimmer 1.4s linear infinite;
+  animation: shimmer var(--motion-skeleton) linear infinite;
 }
 
 .start-card__bone--wide {

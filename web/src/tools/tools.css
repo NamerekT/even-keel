@@ -40,13 +40,13 @@
 }
 
 .tools-page__main > * {
-  transition: opacity 0.2s;
-  animation: appear 0.2s ease-out;
+  transition: opacity var(--motion-appear);
+  animation: appear var(--motion-appear) ease-out;
 }
 
 .tools-page__main[aria-busy='true'] > * {
   opacity: 0.55;
-  transition-delay: 0.15s;
+  transition-delay: var(--motion-fast);
   cursor: progress;
 }
 
@@ -421,7 +421,7 @@
   flex-direction: column;
   gap: 16px;
   opacity: 1;
-  animation: appear 0.3s ease-out 0.15s backwards;
+  animation: appear var(--motion-appear) ease-out var(--motion-fast) backwards;
 }
 
 .tools-loading__caption {
@@ -477,7 +477,7 @@
   border-radius: 50%;
   vertical-align: 1px;
   background: var(--lamp-working);
-  animation: blink 1.1s ease-in-out infinite;
+  animation: blink var(--motion-blink) ease-in-out infinite;
 }
 
 .tools-loading__project--ready::before {
@@ -491,7 +491,7 @@
   margin: 3px 0;
   border-radius: 5px;
   background: color-mix(in srgb, var(--fg) 11%, transparent);
-  animation: tools-pulse 1.6s ease-in-out calc(var(--i, 0) * 90ms) infinite;
+  animation: tools-pulse var(--motion-skeleton) ease-in-out calc(var(--i, 0) * 90ms) infinite;
 }
 
 .tools-loading__bar--chip {

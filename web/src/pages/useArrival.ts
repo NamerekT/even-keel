@@ -5,6 +5,7 @@ import { ghostOf, type ChainBlock, type Ghost } from '../state.js'
 import { stillMotion } from '../ui/landing.js'
 import type { Box } from '../ui/reorder.js'
 
+/** `--motion-mark` in styles.css: the glow of a landed block. */
 const LANDED_MS = 1600
 const REST_MS = 250
 

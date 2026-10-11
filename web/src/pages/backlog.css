@@ -7,9 +7,9 @@
   font-variant-numeric: tabular-nums;
   cursor: pointer;
   transition:
-    background-color 0.15s,
-    border-color 0.15s,
-    color 0.15s;
+    background-color var(--motion-fast),
+    border-color var(--motion-fast),
+    color var(--motion-fast);
 }
 
 .tag--backlog:hover,
@@ -156,9 +156,9 @@ a.backlog__key:hover {
   color: var(--fg-muted);
   cursor: pointer;
   transition:
-    background-color 0.15s,
-    border-color 0.15s,
-    color 0.15s;
+    background-color var(--motion-fast),
+    border-color var(--motion-fast),
+    color var(--motion-fast);
 }
 
 .backlog__ready:hover:not(:disabled),
@@ -277,15 +277,9 @@ a.backlog__key:hover {
   visibility: hidden;
 }
 
+/* `block-glow` comes from chain.css: a landed block is a chain block. */
 .block--landed {
-  animation: landed 1.4s ease-out;
-}
-
-@keyframes landed {
-  from {
-    box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 60%, transparent);
-    background: color-mix(in srgb, var(--accent) 16%, var(--surface));
-  }
+  animation: block-glow var(--motion-mark) ease-out;
 }
 
 .flight {
