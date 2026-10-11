@@ -1,0 +1,125 @@
+.panel__facts {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin: 0;
+}
+
+.panel__fact {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface-muted);
+}
+
+.panel__fact--wide {
+  grid-column: 1 / -1;
+}
+
+.panel__fact dt {
+  color: var(--fg-muted);
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.panel__fact dd {
+  margin: 0;
+  font-size: 14px;
+}
+
+.panel__fact .panel__big {
+  font-size: 18px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.panel__big .cache-clock {
+  gap: 7px;
+  color: var(--fg);
+  font-size: inherit;
+}
+
+.panel__fact .panel__sub {
+  color: var(--fg-muted);
+  font-size: 12px;
+}
+
+.panel__fact .context-meter__track {
+  background: var(--border);
+}
+
+.panel__state {
+  font-weight: 600;
+}
+
+.panel__state--working {
+  color: var(--lamp-working);
+}
+
+.panel__state--waiting,
+.panel__state--stopped {
+  color: var(--lamp-waiting);
+}
+
+.panel__state--error,
+.panel__state--limit {
+  color: var(--lamp-error);
+}
+
+.panel__state--finished {
+  color: var(--lamp-done);
+}
+
+.panel__tokens {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-areas: 'label total' 'split split';
+  align-items: baseline;
+  gap: 6px 12px;
+}
+
+.panel__tokens dt {
+  grid-area: label;
+}
+
+.panel__tokens .panel__big {
+  grid-area: total;
+}
+
+.panel__split {
+  grid-area: split;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.panel__part {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  padding: 4px 8px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface);
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+
+.panel__part-label {
+  overflow: hidden;
+  color: var(--fg-muted);
+  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@media (max-width: 760px) {
+  .panel__split {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}

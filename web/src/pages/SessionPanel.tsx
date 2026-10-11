@@ -14,6 +14,7 @@ import { CacheClock } from '../ui/CacheClock.js'
 import { ContextMeter } from '../ui/ContextMeter.js'
 import { Lamp } from '../ui/Lamp.js'
 import { StartCard } from '../ui/SessionStart.js'
+import './facts.css'
 
 const TranscriptWindow = lazy(async () => ({ default: (await import('./TranscriptWindow.js')).TranscriptWindow }))
 
