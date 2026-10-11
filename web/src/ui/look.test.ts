@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { BlockLamp } from '../state.js'
-import { estimateShare, isRework, railsOf, tiersOf } from './look.js'
+import { estimateShare, isRework, railsOf, showsAction, tiersOf } from './look.js'
 
 const item = (id: string, lamp: BlockLamp = 'ahead', current = false, live = false) => ({ id, lamp, current, live })
 
@@ -18,6 +18,21 @@ describe('tiersOf', () => {
   it('keeps a far task with a live session near, for its meters', () => {
     const tiers = tiersOf([item('A'), item('B'), item('C'), item('D'), item('E', 'working', false, true)])
     expect(tiers.get('E')).toBe('near')
+  })
+})
+
+describe('showsAction', () => {
+  it('shows the lead session until it has finished', () => {
+    expect(showsAction('lead', 'waiting')).toBe(true)
+    expect(showsAction('lead', 'finished')).toBe(false)
+    expect(showsAction('lead', null)).toBe(false)
+  })
+
+  it('shows any other session only while it works, as after the chain is stopped', () => {
+    expect(showsAction('near', 'working')).toBe(true)
+    expect(showsAction('far', 'working')).toBe(true)
+    expect(showsAction('near', 'waiting')).toBe(false)
+    expect(showsAction('past', 'working')).toBe(false)
   })
 })
 

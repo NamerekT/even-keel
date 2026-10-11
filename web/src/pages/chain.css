@@ -32,10 +32,14 @@
 
 /* Tiers */
 
-.chain .block--lead {
+.chain .block--lead,
+.chain .block--acting {
   grid-template-areas:
     'number head title side'
     'number head action side';
+}
+
+.chain .block--lead {
   min-height: 64px;
   padding-block: 12px;
   background-color: color-mix(in srgb, var(--lamp-working) 6%, var(--surface));
@@ -381,7 +385,8 @@
     left: calc(1px + var(--lane) * 4px);
   }
 
-  .chain .block--lead {
+  .chain .block--lead,
+  .chain .block--acting {
     grid-template-areas: 'number head' '. title' '. action' '. side';
   }
 }

@@ -2112,6 +2112,21 @@ a:focus-visible {
   color: var(--fg-muted);
 }
 
+/* An empty card's joke, still like a quote in the project's color, with the punchline in the home meme's type. */
+.card__quip {
+  margin: 0;
+  padding: 1px 0 1px 10px;
+  border-left: 3px solid var(--series);
+  color: var(--fg-muted);
+  font-size: 14px;
+}
+
+.card__punchline {
+  color: var(--fg);
+  font-family: var(--mono);
+  font-size: 13px;
+}
+
 .card__task-label {
   font-size: 12px;
 }

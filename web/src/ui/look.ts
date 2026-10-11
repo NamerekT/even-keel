@@ -1,4 +1,6 @@
-import type { BlockLamp } from '../state.js'
+import type { BlockLamp, ChainBlock } from '../state.js'
+
+type SessionLamp = NonNullable<ChainBlock['session']>['lamp']
 
 /** How much room a chain block gets: the current task most, the far end of the chain least. */
 export type Tier = 'lead' | 'near' | 'far' | 'past'
@@ -27,6 +29,12 @@ export function tiersOf(blocks: { id: string; lamp: BlockLamp; current: boolean;
     else tiers.set(block.id, ahead++ < NEAR || block.live ? 'near' : 'far')
   }
   return tiers
+}
+
+/** Whether a block shows its session's current action: the lead's until the session finishes, any other only mid-turn, as when the chain is stopped under it. */
+export function showsAction(tier: Tier, lamp: SessionLamp | null): boolean {
+  if (lamp === null || tier === 'past') return false
+  return tier === 'lead' ? lamp !== 'finished' : lamp === 'working'
 }
 
 /** The length of the estimate bar: estimates double from step to step, so the bar grows on a log scale. */

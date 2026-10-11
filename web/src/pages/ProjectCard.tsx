@@ -6,7 +6,6 @@ import { cardTask, chainProgress, chainStatus, limitWaitText, openQuestions, pro
 import { StackIcon } from '../ui/icons.js'
 import { Lamp } from '../ui/Lamp.js'
 import { emptyCard } from '../ui/memes.js'
-import { Typed } from '../ui/Typed.js'
 import { QuestionsChip } from '../ui/QuestionsChip.js'
 import { seriesStyle } from '../ui/series.js'
 import { StatusChip } from '../ui/StatusChip.js'
@@ -85,12 +84,16 @@ export function ProjectCard({ state, project }: { state: EvenKeelState; project:
   )
 }
 
-const CARD_PACE = { charMs: 35, pauseMs: 1500 }
-
+/** Stands still, so the cards do not type all at once: the first part sets the joke up, the rest is its punchline. */
 function EmptyLine({ progress }: { progress: { done: number; total: number; backlog: number } }) {
   const kind = emptyCard(progress)
   if (kind === 'held') return <p className="card__task card__task--empty">{t.project.noTasks}</p>
   const lines = t.project.emptyCard
-  const parts = kind === 'shelved' ? lines.shelved(progress.backlog) : kind === 'ghost' ? lines.ghost : lines.finished(progress.done)
-  return <Typed key={kind} parts={parts} pace={CARD_PACE} className="card__task card__task--empty" />
+  const [setup, ...punchline] = kind === 'shelved' ? lines.shelved(progress.backlog) : kind === 'ghost' ? lines.ghost : lines.finished(progress.done)
+  return (
+    <p className="card__quip">
+      {setup}
+      {punchline.length > 0 && <span className="card__punchline">{punchline.join('')}</span>}
+    </p>
+  )
 }

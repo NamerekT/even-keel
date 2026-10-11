@@ -11,7 +11,7 @@ import { ContextMeter } from '../ui/ContextMeter.js'
 import { HandoffIcon } from '../ui/icons.js'
 import { Lamp } from '../ui/Lamp.js'
 import { landingIndex, revealElement } from '../ui/landing.js'
-import { estimateShare, isRework, railsOf, tiersOf, type Rail, type Tier } from '../ui/look.js'
+import { estimateShare, isRework, railsOf, showsAction, tiersOf, type Rail, type Tier } from '../ui/look.js'
 import { milestoneView, type Section } from '../ui/milestones.js'
 import { placeLeaving, type Beat, type Motion } from '../ui/motion.js'
 import { relatives, type Point } from '../ui/reorder.js'
@@ -406,7 +406,8 @@ function Block(props: BlockProps) {
   if (arrival !== null) classes.push(arrival.flying ? 'block--arriving' : 'block--landed')
   const badge = relation?.badge === true ? relation.role : null
   const metered = block.start === null && blockMetered(block) ? block.session : null
-  const action = tier === 'lead' && block.session !== null && block.session.lamp !== 'finished' ? block.session.action : null
+  const action = block.session !== null && showsAction(tier, block.session.lamp) ? block.session.action : null
+  if (action !== null) classes.push('block--acting')
   const share = tier === 'past' ? null : estimateShare(block.estimate)
   const status = shownStatus(block)
   const handoffs = checkpointHandoffs(block.sessions)
