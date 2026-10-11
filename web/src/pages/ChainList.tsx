@@ -8,7 +8,7 @@ import { blockMetered, checkpointHandoffs, issueLink, type BlockLamp, type Chain
 import { ARCHIVE_PAGE, archiveView } from '../ui/archive.js'
 import { CacheClock } from '../ui/CacheClock.js'
 import { ContextMeter } from '../ui/ContextMeter.js'
-import { TaskStatus } from '../ui/icons.js'
+import { HandoffIcon } from '../ui/icons.js'
 import { Lamp } from '../ui/Lamp.js'
 import { landingIndex, revealElement } from '../ui/landing.js'
 import { estimateShare, isRework, railsOf, tiersOf, type Rail, type Tier } from '../ui/look.js'
@@ -128,7 +128,7 @@ export function ChainList({ project, chain, scale, trackerUrls, focus, ghost, ar
   const pointed = relativesOf(blocks, hovered)
 
   return (
-    <div className="chain">
+    <div className="chain" style={{ '--key-chars': keyChars(ordered) } as CSSProperties}>
       {(archive.hidden > 0 || archive.shown > 0) && (
         <div className="chain__archive">
           {archive.hidden > 0 && (
@@ -291,12 +291,23 @@ function GhostBlock({ block }: { block: ChainBlock }) {
         <Lamp lamp="ahead" />
         <span className="block__key">{block.id}</span>
       </div>
+      <span className="block__divider" />
       <p className="block__title">{block.title}</p>
       <div className="block__side">
         <span className="block__badge block__badge--ghost">{t.chain.ghost}</span>
       </div>
     </li>
   )
+}
+
+/** The key column fits the longest key of the whole chain, folded parts too, so it does not jump on unfolding. */
+function keyChars(blocks: ChainBlock[]): number {
+  return Math.max(0, ...blocks.map((block) => block.id.length))
+}
+
+/** The lamp already tells done, canceled and not started apart; only "In Progress" from "In Review" needs the word. */
+function shownStatus(block: ChainBlock): string | null {
+  return block.stage === 'Active' ? block.status : null
 }
 
 /** A copy of a block that left the chain, kept until it folds away: into the archive line if the task closed. */
@@ -309,8 +320,9 @@ function LeavingBlock({ block, archived, beat }: { block: ChainBlock; archived: 
         <Lamp lamp={block.lamp} />
         <span className="block__key">{block.id}</span>
       </div>
+      <span className="block__divider" aria-hidden="true" />
       <p className="block__title">{block.title}</p>
-      <div className="block__side">{block.status !== null && <TaskStatus name={block.status} stage={block.stage} />}</div>
+      <div className="block__side">{shownStatus(block) !== null && <span className="block__status">{shownStatus(block)}</span>}</div>
     </li>
   )
 }
@@ -396,6 +408,8 @@ function Block(props: BlockProps) {
   const metered = block.start === null && blockMetered(block) ? block.session : null
   const action = tier === 'lead' && block.session !== null && block.session.lamp !== 'finished' ? block.session.action : null
   const share = tier === 'past' ? null : estimateShare(block.estimate)
+  const status = shownStatus(block)
+  const handoffs = checkpointHandoffs(block.sessions)
   const style = {
     '--beat': `${beat}ms`,
     ...(share !== null && { '--estimate': share.toFixed(2) }),
@@ -450,6 +464,7 @@ function Block(props: BlockProps) {
           </Link>
         )}
       </div>
+      <span className="block__divider" aria-hidden="true" />
       <p className="block__title">
         {block.title !== null && (
           <button type="button" className="block__card" draggable={false} title={t.chain.openCard} onClick={onCard}>
@@ -479,10 +494,11 @@ function Block(props: BlockProps) {
           </span>
         )}
         {block.start !== null && <StartPill start={block.start} />}
-        {block.status !== null && metered === null && block.start === null && <TaskStatus name={block.status} stage={block.stage} />}
-        {metered !== null && checkpointHandoffs(block.sessions) > 0 && (
-          <span className="block__badge" title={t.chain.handoffsTitle}>
-            {t.chain.handoffs(checkpointHandoffs(block.sessions))}
+        {status !== null && metered === null && block.start === null && <span className="block__status">{status}</span>}
+        {metered !== null && handoffs > 0 && (
+          <span className="block__badge block__handoffs" role="img" aria-label={t.chain.handoffs(handoffs)} title={t.chain.handoffsTitle}>
+            <HandoffIcon />
+            {handoffs}
           </span>
         )}
         {metered !== null && (

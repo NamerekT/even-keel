@@ -46,6 +46,7 @@ export function BacklogPanel({ tasks, trackerUrls, canReady, onCard, onClose, on
   const { send, sending, failure } = useCommand()
   const point = useRef(onPoint)
   point.current = onPoint
+  const mixed = new Set(tasks.map((task) => task.status.name)).size > 1
 
   useEffect(() => closeRef.current?.focus({ preventScroll: true }), [])
   useEffect(() => () => point.current(null), [])
@@ -98,7 +99,7 @@ export function BacklogPanel({ tasks, trackerUrls, canReady, onCard, onClose, on
                     {task.id}
                   </a>
                 )}
-                <span className="backlog__status">{task.status.name}</span>
+                {mixed && <span className="backlog__status">{task.status.name}</span>}
               </div>
               <button type="button" className="backlog__name" title={t.chain.openCard} onClick={() => onCard(task.id)}>
                 {task.title}

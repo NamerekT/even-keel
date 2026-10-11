@@ -1683,7 +1683,7 @@ a:focus-visible {
 .block {
   position: relative;
   display: grid;
-  grid-template-columns: 2.5ch 8.5em minmax(8em, 1fr) auto;
+  grid-template-columns: 2.5ch calc(var(--key-chars, 9) * 0.6em + 18px) minmax(8em, 1fr) auto;
   grid-template-areas: 'number head title side';
   align-items: center;
   gap: 4px 12px;
@@ -1842,36 +1842,32 @@ a:focus-visible {
   text-underline-offset: 3px;
 }
 
-.status {
-  display: inline-flex;
+.block__status {
   color: var(--fg-muted);
   font-size: 12px;
   white-space: nowrap;
 }
 
-.status .icon {
-  width: 16px;
-  height: 16px;
+.block__divider {
+  grid-column: title;
+  grid-row: 1 / -1;
+  justify-self: start;
+  align-self: stretch;
+  width: 1px;
+  margin: 3px 0 3px -7px;
+  background: linear-gradient(to bottom, transparent, var(--border) 30% 70%, transparent);
+  pointer-events: none;
 }
 
-.status--UnStarted circle {
-  stroke-dasharray: 2.4 2.5;
+.block--current .block__divider {
+  background: linear-gradient(to bottom, transparent, color-mix(in srgb, var(--lamp-working) 55%, transparent) 30% 70%, transparent);
 }
 
-.status--Won circle {
-  fill: var(--lamp-done);
-  stroke: var(--lamp-done);
-}
-
-.status--Lost circle {
-  fill: color-mix(in srgb, var(--fg-muted) 80%, transparent);
-  stroke: transparent;
-}
-
-.status--Won path,
-.status--Lost path {
-  stroke: var(--surface);
-  stroke-width: 1.8;
+.block__handoffs {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-variant-numeric: tabular-nums;
 }
 
 @media (max-width: 760px) {
@@ -1879,6 +1875,10 @@ a:focus-visible {
     grid-template-columns: 2.5ch minmax(0, 1fr);
     grid-template-areas: 'number head' '. title' '. side';
     padding: 10px 12px 10px 6px;
+  }
+
+  .block__divider {
+    display: none;
   }
 
   .block__side {
