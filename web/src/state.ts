@@ -378,6 +378,13 @@ export function cacheFreshness(cache: CacheWindow, now: Date): { left: number; l
   return { left, level }
 }
 
+/** How loud the panel draws the cache: quiet until it is about to run out, and for a finished session always. */
+export function cacheTone(cache: CacheWindow | null, now: Date, lamp: Lamp): ContextLevel {
+  if (cache === null || lamp === 'finished') return 'ok'
+  const { level } = cacheFreshness(cache, now)
+  return level === 'cold' ? 'danger' : level
+}
+
 export function tokenTotal(tokens: TokenTotals): number {
   return tokens.input + tokens.output + tokens.cacheRead + tokens.cacheWrite
 }

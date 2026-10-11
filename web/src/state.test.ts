@@ -28,6 +28,7 @@ import {
   sessionStart,
   startsNow,
   cacheFreshness,
+  cacheTone,
   taskLinks,
   taskProject,
   tokenTotal,
@@ -735,6 +736,26 @@ describe('cacheFreshness', () => {
   it('is cold once the lifetime has run out', () => {
     expect(cacheFreshness({ ttl: '5m', until: '2026-01-01T10:30:00.000Z' }, now)).toEqual({ left: 0, level: 'cold' })
     expect(cacheFreshness({ ttl: '1h', until: '2026-01-01T09:00:00.000Z' }, now)).toEqual({ left: 0, level: 'cold' })
+  })
+})
+
+describe('cacheTone', () => {
+  const now = new Date('2026-01-01T10:30:00.000Z')
+
+  it('stays quiet while the cache is far from running out', () => {
+    expect(cacheTone({ ttl: '1h', until: '2026-01-01T11:20:00.000Z' }, now, 'working')).toBe('ok')
+    expect(cacheTone(null, now, 'working')).toBe('ok')
+  })
+
+  it('warns in the last fifth of the lifetime and alarms once the cache is cold', () => {
+    expect(cacheTone({ ttl: '1h', until: '2026-01-01T10:41:00.000Z' }, now, 'waiting')).toBe('warn')
+    expect(cacheTone({ ttl: '1h', until: '2026-01-01T09:00:00.000Z' }, now, 'waiting')).toBe('danger')
+    expect(cacheTone({ ttl: '1h', until: '2026-01-01T09:00:00.000Z' }, now, 'limit')).toBe('danger')
+  })
+
+  it('stays quiet for a finished session: nothing will read its cache', () => {
+    expect(cacheTone({ ttl: '5m', until: '2026-01-01T10:30:50.000Z' }, now, 'finished')).toBe('ok')
+    expect(cacheTone({ ttl: '1h', until: '2026-01-01T09:00:00.000Z' }, now, 'finished')).toBe('ok')
   })
 })
 

@@ -8,12 +8,13 @@ import { localized, say, t } from '../i18n/index.js'
 import { useNow } from '../layout/useNow.js'
 import { useLive } from '../live/context.js'
 import { useCommand, useHold } from '../live/useCommand.js'
-import { checkpointHandoffs, sessionElapsed, taskProject, tokenTotal, type ChainBlock } from '../state.js'
+import { cacheTone, checkpointHandoffs, contextFill, sessionElapsed, taskProject, tokenTotal, type ChainBlock } from '../state.js'
 import { AccountTag } from '../ui/AccountTag.js'
 import { CacheClock } from '../ui/CacheClock.js'
 import { ContextMeter } from '../ui/ContextMeter.js'
 import { Lamp } from '../ui/Lamp.js'
 import { StartCard } from '../ui/SessionStart.js'
+import { useTip } from '../ui/useTip.js'
 import './facts.css'
 
 const TranscriptWindow = lazy(async () => ({ default: (await import('./TranscriptWindow.js')).TranscriptWindow }))
@@ -188,16 +189,16 @@ function SessionBody({ session, limit, scale }: { session: SessionView; limit: L
         </div>
         <div className="panel__fact">
           <dt>{t.session.time}</dt>
-          <dd className="panel__big">{formatClock(sessionElapsed(session, now))}</dd>
+          <dd className="panel__value">{formatClock(sessionElapsed(session, now))}</dd>
           <dd className="panel__sub">
             {t.time.since} <time dateTime={session.startedAt}>{STARTED().format(new Date(session.startedAt))}</time>
           </dd>
         </div>
-        <div className="panel__fact">
+        <div className={`panel__fact panel__fact--${cacheTone(session.cache, now, session.lamp)}`}>
           <dt>{t.session.cache}</dt>
-          {session.cache === null ? <dd className="panel__big">—</dd> : <CacheFact cache={session.cache} />}
+          {session.cache === null ? <dd className="panel__value">—</dd> : <CacheFact cache={session.cache} />}
         </div>
-        <div className="panel__fact panel__fact--wide">
+        <div className={`panel__fact panel__fact--wide panel__fact--${contextFill(session.contextTokens, scale).level}`}>
           <dt>{t.session.context}</dt>
           <dd>
             <ContextMeter tokens={session.contextTokens} scale={scale} full />
@@ -235,7 +236,7 @@ function RecordFeed({ sessionId, account }: { sessionId: string; account: string
 function CacheFact({ cache }: { cache: CacheWindow }) {
   return (
     <>
-      <dd className="panel__big">
+      <dd className="panel__value">
         <CacheClock cache={cache} bare />
       </dd>
       <dd className="panel__sub">{t.session.ttl(t.cache.ttl[cache.ttl])}</dd>
@@ -243,7 +244,9 @@ function CacheFact({ cache }: { cache: CacheWindow }) {
   )
 }
 
+/** The total alone; the split by kind is a tip under it, opened by pointing at the number or pressing it. */
 function TokensFact({ tokens }: { tokens: TokenTotals }) {
+  const { shown, anchor, tip, show, hide, close } = useTip<HTMLButtonElement, HTMLSpanElement>()
   const parts: [string, number][] = [
     [t.session.input, tokens.input],
     [t.session.output, tokens.output],
@@ -253,14 +256,36 @@ function TokensFact({ tokens }: { tokens: TokenTotals }) {
   return (
     <div className="panel__fact panel__fact--wide panel__tokens">
       <dt>{t.session.tokens}</dt>
-      <dd className="panel__big">{formatTokens(tokenTotal(tokens))}</dd>
-      <dd className="panel__split">
-        {parts.map(([label, value]) => (
-          <span key={label} className="panel__part">
-            <span className="panel__part-label">{label}</span>
-            <b>{formatTokens(value)}</b>
-          </span>
-        ))}
+      <dd className="panel__value">
+        <button
+          ref={anchor}
+          type="button"
+          className="panel__total"
+          aria-expanded={shown}
+          onMouseEnter={show}
+          onMouseLeave={hide}
+          onFocus={show}
+          onBlur={hide}
+          onClick={show}
+          onKeyDown={(event) => {
+            if (event.key !== 'Escape' || !shown) return
+            event.preventDefault()
+            event.stopPropagation()
+            close()
+          }}
+        >
+          {formatTokens(tokenTotal(tokens))}
+          {shown && (
+            <span ref={tip} popover="manual" className="panel__split" role="tooltip">
+              {parts.map(([label, value]) => (
+                <span key={label} className="panel__part">
+                  <span className="panel__part-label">{label}</span>
+                  <b>{formatTokens(value)}</b>
+                </span>
+              ))}
+            </span>
+          )}
+        </button>
       </dd>
     </div>
   )
@@ -373,17 +398,17 @@ function SessionWindow({ row, live, scale, onClose }: { row: TaskSession; live: 
             <dl className="panel__facts">
               <div className="panel__fact">
                 <dt>{t.session.started}</dt>
-                <dd>
+                <dd className="panel__value">
                   <time dateTime={started}>{STARTED().format(new Date(started))}</time>
                 </dd>
               </div>
               <div className="panel__fact">
                 <dt>{t.session.lastTurn}</dt>
-                <dd>{last === null ? '—' : <time dateTime={last}>{STARTED().format(new Date(last))}</time>}</dd>
+                <dd className="panel__value">{last === null ? '—' : <time dateTime={last}>{STARTED().format(new Date(last))}</time>}</dd>
               </div>
               <div className="panel__fact">
                 <dt>{t.session.worked}</dt>
-                <dd className="panel__big">{last === null ? '—' : formatClock(Date.parse(last) - Date.parse(started))}</dd>
+                <dd className="panel__value">{last === null ? '—' : formatClock(Date.parse(last) - Date.parse(started))}</dd>
               </div>
               <div className="panel__fact panel__fact--wide">
                 <dt>{t.session.endContext}</dt>
