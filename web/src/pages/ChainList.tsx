@@ -279,7 +279,7 @@ function GhostBlock({ block }: { block: ChainBlock }) {
       <span className="block__divider" />
       <p className="block__title">{block.title}</p>
       <div className="block__side">
-        <span className="block__badge block__badge--ghost">{t.chain.ghost}</span>
+        <span className="tag">{t.chain.ghost}</span>
       </div>
     </li>
   )
@@ -462,18 +462,18 @@ function Block(props: BlockProps) {
       {action !== null && <ActionScreen line={action} />}
       <div className="block__side">
         {block.models.map((model) => (
-          <span key={model} className="block__model" title={t.card.roles.model}>
+          <span key={model} className="tag" title={t.card.roles.model}>
             {model}
           </span>
         ))}
-        {block.skipped && <span className="block__badge block__badge--skipped">{t.chain.skipped}</span>}
+        {block.skipped && <span className="chip">{t.chain.skipped}</span>}
         {block.question && (
-          <span className="block__badge block__badge--question" title={t.chain.questionTitle}>
+          <span className="chip chip--question" title={t.chain.questionTitle}>
             {t.chain.question}
           </span>
         )}
-        {badge === 'blocker' && <span className="block__badge block__badge--blocker">{t.chain.blocker}</span>}
-        {badge === 'dependent' && <span className="block__badge block__badge--dependent">{t.chain.dependent}</span>}
+        {badge === 'blocker' && <span className="tag">{t.chain.blocker}</span>}
+        {badge === 'dependent' && <span className="tag">{t.chain.dependent}</span>}
         {block.start !== null && <StartPill start={block.start} />}
         {status !== null && metered === null && block.start === null && <span className="block__status">{status}</span>}
         {metered !== null && (

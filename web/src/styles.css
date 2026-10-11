@@ -25,6 +25,14 @@
   --series-8: #e34948;
   --series-other: #9a988f;
 
+  /* Shares that are not projects (model, entrypoint, reason): one slate hue, the biggest share the strongest, so a project's colour means only the project. */
+  --tone-1: #2c3544;
+  --tone-2: #3f4a5c;
+  --tone-3: #566276;
+  --tone-4: #717d91;
+  --tone-5: #8e99aa;
+  --tone-6: #adb6c4;
+
   --warn-bg: #fbf0d0;
   --warn-fg: #6a4b00;
   --error-bg: #fbe0dd;
@@ -63,6 +71,13 @@
     --series-7: #9085e9;
     --series-8: #e66767;
     --series-other: #6f6d66;
+
+    --tone-1: #d8dde5;
+    --tone-2: #b5bdca;
+    --tone-3: #949fb1;
+    --tone-4: #7a8599;
+    --tone-5: #636e82;
+    --tone-6: #525c6f;
 
     --warn-bg: #3a2f10;
     --warn-fg: #f3d58a;
@@ -212,8 +227,13 @@ h1 {
   white-space: nowrap;
 }
 
+/* Targets of the header are at least 24px (WCAG 2.5.8), 44px on a narrow screen; the padding grows, the text does not. */
 .header__link {
-  margin-left: 8px;
+  display: inline-flex;
+  align-items: center;
+  min-height: 32px;
+  margin-left: 2px;
+  padding: 0 6px;
   color: var(--fg-muted);
   font-size: 14px;
   text-decoration: none;
@@ -529,6 +549,11 @@ h1 {
 
 .queue-toggle--paused .queue-toggle__dot {
   background: var(--lamp-waiting);
+}
+
+.queue-toggle .icon {
+  margin-right: -2px;
+  color: var(--fg-muted);
 }
 
 .queue-toggle__label {
@@ -1205,11 +1230,39 @@ h1 {
   }
 
   .waiting {
+    position: relative;
     padding: 2px;
+  }
+
+  .waiting::after {
+    content: '';
+    position: absolute;
+    inset: -10px;
   }
 
   .waiting__label {
     display: none;
+  }
+
+  .header__brand {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+  }
+
+  .system-toggle {
+    width: 44px;
+    height: 44px;
+  }
+
+  .system-toggle__dot {
+    top: 10px;
+    right: 10px;
+  }
+
+  .menu-sheet__links .header__link,
+  .menu-sheet__chips .queue-toggle {
+    min-height: 44px;
   }
 }
 
@@ -1238,6 +1291,7 @@ h1 {
 
 .menu-sheet__links .header__link {
   margin-left: 0;
+  padding: 0;
   font-size: 15px;
 }
 
@@ -1342,7 +1396,6 @@ h1 {
   padding: 2px 0 2px 12px;
   border-left: 3px solid var(--accent);
   color: var(--fg);
-  font-family: var(--mono);
   font-size: 16px;
 }
 
@@ -1701,21 +1754,12 @@ a:focus-visible {
   border-color: var(--accent);
 }
 
-.block__badge--blocker,
-.block__badge--dependent {
-  background: color-mix(in srgb, var(--accent) 16%, transparent);
-}
-
 .block--skipped {
   border-style: dashed;
 }
 
 .block--skipped .block__title {
   color: var(--fg-muted);
-}
-
-.block__badge--skipped {
-  background: color-mix(in srgb, var(--fg-muted) 18%, transparent);
 }
 
 .block--locked {
@@ -1938,6 +1982,9 @@ a:focus-visible {
 }
 
 .block__key {
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
   color: var(--fg);
   font-family: var(--mono);
   font-weight: 600;
@@ -1953,18 +2000,6 @@ a:focus-visible {
 
 .block__key:focus-visible {
   outline: none;
-}
-
-.block__badge {
-  padding: 0 7px;
-  border-radius: 999px;
-  background: color-mix(in srgb, var(--lamp-working) 16%, transparent);
-  font-size: 12px;
-}
-
-.block__badge.block__badge--question {
-  background: var(--warn-bg);
-  color: var(--warn-fg);
 }
 
 .block__title {
@@ -2163,13 +2198,26 @@ a:focus-visible {
   outline: none;
 }
 
-.chip {
-  padding: 1px 8px;
+/* Two looks of a plaque: a status (.chip) is a coloured fill, a label (.tag) a neutral outline. */
+.chip,
+.tag {
+  padding: 0 8px;
+  border: 1px solid transparent;
   border-radius: 999px;
+  font-size: 12px;
+  line-height: 18px;
+  white-space: nowrap;
+}
+
+.chip {
   background: var(--surface-muted);
   color: var(--fg-muted);
-  font-size: 12px;
-  white-space: nowrap;
+}
+
+.tag {
+  border-color: var(--border);
+  background: transparent;
+  color: var(--fg-muted);
 }
 
 .chip--running {
@@ -2178,6 +2226,7 @@ a:focus-visible {
 }
 
 .chip--paused,
+.chip--question,
 .chip--questions {
   background: var(--warn-bg);
   color: var(--warn-fg);
@@ -2267,7 +2316,7 @@ a:focus-visible {
   color: var(--fg-muted);
 }
 
-/* An empty card's joke, still like a quote in the project's color, with the punchline in the home meme's type. */
+/* An empty card's joke, still like a quote in the project's color, with the punchline in full ink like the home meme. */
 .card__quip {
   margin: 0;
   padding: 1px 0 1px 10px;
@@ -2278,8 +2327,6 @@ a:focus-visible {
 
 .card__punchline {
   color: var(--fg);
-  font-family: var(--mono);
-  font-size: 13px;
 }
 
 .card__task-label {

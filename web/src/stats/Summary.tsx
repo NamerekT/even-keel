@@ -3,7 +3,7 @@ import { MIN_HANDOFFS, MIN_SESSIONS, type CheckpointThreshold } from '../../../s
 import type { StatsPeriod, StatsShare } from '../../../src/stats/model.js'
 import { formatTokens } from '../format.js'
 import { language, t } from '../i18n/index.js'
-import { seriesStyle } from '../ui/series.js'
+import { TONES, toneStyle } from '../ui/series.js'
 import { Section } from './common.js'
 import {
   costChange,
@@ -164,18 +164,18 @@ export function Checkpoints({ thresholds, projects }: { thresholds: CheckpointTh
 function ShareBar({ title, shares, label }: { title: string; shares: StatsShare[]; label: (key: string) => string }) {
   const total = shares.reduce((sum, each) => sum + each.cost, 0)
   const shown = shares.filter((each) => each.cost > 0)
-  const slot = (index: number) => (index < 8 ? index + 1 : null)
+  const slot = (index: number) => (index < TONES ? index + 1 : null)
   return (
     <div className="sources__row">
       <h3 className="sources__title">{title}</h3>
       <div className="sources__bar" aria-hidden="true">
         {shown.map((each, index) => (
-          <span key={each.key} style={{ ...seriesStyle(slot(index)), flexGrow: each.cost }} />
+          <span key={each.key} style={{ ...toneStyle(slot(index)), flexGrow: each.cost }} />
         ))}
       </div>
       <ul className="chart__legend">
         {shown.map((each, index) => (
-          <li key={each.key} className="sources__key" style={seriesStyle(slot(index))}>
+          <li key={each.key} className="sources__key" style={toneStyle(slot(index))}>
             <span className="chart__swatch" aria-hidden="true" />
             {label(each.key)}
             <span className="chart__key-count">

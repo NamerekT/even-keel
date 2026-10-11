@@ -291,7 +291,8 @@ a.stats__key:hover {
   min-width: 0;
   max-width: 45%;
   margin-left: auto;
-  color: var(--lamp-error);
+  /* Graphite, a pencil note: red means an error or a limit here, and a joke in red reads as an accident. */
+  color: var(--fg-muted);
   font-family: 'Segoe Print', 'Bradley Hand', 'Comic Sans MS', cursive;
   font-size: 13px;
   line-height: 1.3;
@@ -761,7 +762,7 @@ a.stats__key:hover {
   white-space: nowrap;
 }
 
-.tasks__status--done {
+.chip.tasks__status--done {
   background: color-mix(in srgb, var(--lamp-done) 16%, transparent);
   color: inherit;
 }

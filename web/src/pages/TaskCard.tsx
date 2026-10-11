@@ -203,7 +203,7 @@ function CardBody({ card, onOpen, onChanged }: { card: Card; onOpen: (task: stri
                   {card.labels.map((label) => (
                     <li
                       key={label.name}
-                      className={`task-card__chip task-card__chip--${label.role ?? 'plain'}`}
+                      className={label.role === null || label.role === 'model' ? 'tag' : `chip task-card__chip--${label.role}`}
                       title={label.role === null ? undefined : t.card.roles[label.role]}
                     >
                       {label.name}

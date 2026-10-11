@@ -18,7 +18,7 @@ export function BacklogChip({ count, open, onToggle }: { count: number; open: bo
   return (
     <button
       type="button"
-      className="chip chip--backlog"
+      className="tag tag--backlog"
       aria-expanded={open}
       title={t.project.backlogHint}
       onClick={onToggle}

@@ -459,34 +459,20 @@ html:has(.task-card[open]) {
   list-style: none;
 }
 
-.task-card__chip {
-  padding: 1px 9px;
-  border: 1px solid var(--border);
-  border-radius: 999px;
-  font-size: 12px;
-  line-height: 18px;
-}
-
-.task-card__chip--model {
-  border-color: transparent;
-  background: color-mix(in srgb, var(--lamp-working) 18%, transparent);
-}
-
-.task-card__chip--question {
-  border-color: transparent;
+/* A label that changes what the chain does with the task is a status; a model or a plain label is a tag. */
+.chip.task-card__chip--question {
   background: var(--warn-bg);
   color: var(--warn-fg);
 }
 
-.task-card__chip--excluded {
-  border-color: transparent;
+.chip.task-card__chip--excluded {
   background: var(--error-bg);
   color: var(--error-fg);
 }
 
-.task-card__chip--required {
-  border-color: transparent;
+.chip.task-card__chip--required {
   background: color-mix(in srgb, var(--lamp-done) 18%, transparent);
+  color: var(--fg);
 }
 
 .task-card__roles {

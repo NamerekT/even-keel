@@ -1,25 +1,25 @@
-.chip--backlog {
+.tag.tag--backlog {
   display: inline-flex;
   align-items: center;
   gap: 4px;
   padding-left: 6px;
-  border: 0;
-  font: inherit;
-  font-size: 12px;
+  font-family: inherit;
   font-variant-numeric: tabular-nums;
   cursor: pointer;
   transition:
     background-color 0.15s,
+    border-color 0.15s,
     color 0.15s;
 }
 
-.chip--backlog:hover,
-.chip--backlog[aria-expanded='true'] {
-  background: color-mix(in srgb, var(--accent) 18%, var(--surface-muted));
+.tag--backlog:hover,
+.tag--backlog[aria-expanded='true'] {
+  border-color: color-mix(in srgb, var(--accent) 50%, var(--border));
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
   color: var(--fg);
 }
 
-.chip--backlog:focus-visible {
+.tag--backlog:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
 }
@@ -206,10 +206,6 @@ a.backlog__key:hover {
   color: var(--fg-muted);
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-
-.block__badge.block__badge--ghost {
-  background: color-mix(in srgb, var(--accent) 16%, transparent);
 }
 
 .block--arriving > * {

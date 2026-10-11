@@ -299,15 +299,6 @@
   clip-path: polygon(0 0, 100% 0, 100% 100%);
 }
 
-.chain .block__model {
-  padding: 0 5px;
-  border: 1px solid var(--border);
-  border-radius: 4px;
-  color: var(--fg-muted);
-  font-family: var(--mono);
-  font-size: 11px;
-}
-
 /* Estimate */
 
 .chain .block__estimate {

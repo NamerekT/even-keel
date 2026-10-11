@@ -64,3 +64,13 @@ export function StackIcon() {
     </svg>
   )
 }
+
+/** The chain queue: the first in line is playing, the rest wait under it. */
+export function QueueIcon() {
+  return (
+    <svg className="icon" viewBox="0 0 16 16" aria-hidden="true">
+      <path d="M2.5 2.75v3.5L5.5 4.5z" />
+      <path d="M8 4.5h5.5M2.5 8.5h11M2.5 12.5h11" />
+    </svg>
+  )
+}

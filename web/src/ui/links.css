@@ -12,6 +12,7 @@
   align-items: center;
   gap: 3px;
   min-width: 3.4em;
+  min-height: 24px;
   padding: 2px 5px;
   border-radius: 6px;
   color: var(--fg);

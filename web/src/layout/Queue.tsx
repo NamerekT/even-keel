@@ -5,6 +5,7 @@ import { say, t } from '../i18n/index.js'
 import { useCommand } from '../live/useCommand.js'
 import { cardTask, chainStatus, projectSlot } from '../state.js'
 import { dragShift, dropIndex, moveItem } from '../ui/drag.js'
+import { QueueIcon } from '../ui/icons.js'
 import { Lamp } from '../ui/Lamp.js'
 import { seriesStyle } from '../ui/series.js'
 import { StatusChip } from '../ui/StatusChip.js'
@@ -26,6 +27,7 @@ export function QueueMenu({ state }: { state: EvenKeelState }) {
         onClick={() => setOpen(!open)}
       >
         <span className="queue-toggle__dot" aria-hidden="true" />
+        <QueueIcon />
         <span className="queue-toggle__label">{active.length === 0 ? t.queue.chain : active.map((chain) => chain.project).join(' · ')}</span>
         {queue.length > 0 && (
           <span className="queue-toggle__count" aria-label={t.queue.count(queue.length)}>
