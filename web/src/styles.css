@@ -1798,13 +1798,33 @@ a:focus-visible {
 }
 
 .block__metrics {
+  position: relative;
+  z-index: 1;
   display: inline-flex;
-  align-items: center;
-  gap: 12px;
-  padding: 4px 10px;
+  flex-direction: column;
   border: 1px solid var(--border);
   border-radius: 8px;
   background: var(--surface-muted);
+}
+
+.block__metrics-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 4px 10px;
+}
+
+.block__metrics-row:empty {
+  display: none;
+}
+
+.block__metrics-row + .block__metrics-row {
+  border-top: 1px solid var(--border);
+}
+
+.block__metrics-row--who {
+  justify-content: space-between;
+  padding-block: 3px;
 }
 
 .block__metrics .context-meter {
@@ -1818,15 +1838,6 @@ a:focus-visible {
 .block__metrics .context-meter__track,
 .panel__fact .context-meter__track {
   background: var(--border);
-}
-
-.block__waits {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  color: var(--fg-muted);
-  font-size: 12px;
-  white-space: nowrap;
 }
 
 .block__lock {
@@ -1919,6 +1930,8 @@ a:focus-visible {
   display: inline-flex;
   align-items: center;
   gap: 4px;
+  color: var(--fg-muted);
+  font-size: 12px;
   font-variant-numeric: tabular-nums;
 }
 

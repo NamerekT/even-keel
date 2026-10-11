@@ -28,6 +28,7 @@ import {
   sessionStart,
   startsNow,
   cacheFreshness,
+  taskLinks,
   taskProject,
   tokenTotal,
   usageNotice,
@@ -188,6 +189,42 @@ describe('backlogTasks', () => {
 
   it('is empty before the chain is loaded', () => {
     expect(backlogTasks(stateOf({ tasks: [task('ABC-1', 'UnStarted')] }), 'ABC')).toEqual([])
+  })
+})
+
+describe('taskLinks', () => {
+  const ids = (items: { id: string }[]) => items.map((item) => item.id)
+
+  it('lists the open blockers of a task and the open tasks waiting for it, by number', () => {
+    const links = taskLinks(
+      [task('ABC-1'), task('ABC-10', 'ToDo'), task('ABC-2', 'Won'), task('ABC-3', 'ToDo', ['ABC-10', 'ABC-1', 'ABC-2']), task('ABC-4', 'ToDo', ['ABC-3'])],
+      new Map(),
+    )
+    expect(ids(links('ABC-3').blockers)).toEqual(['ABC-1', 'ABC-10'])
+    expect(ids(links('ABC-3').dependents)).toEqual(['ABC-4'])
+    expect(ids(links('ABC-1').dependents)).toEqual(['ABC-3'])
+  })
+
+  it('leaves closed tasks out of the waiting ones', () => {
+    const links = taskLinks([task('ABC-1'), task('ABC-2', 'Lost', ['ABC-1']), task('ABC-3', 'Won', ['ABC-1'])], new Map())
+    expect(links('ABC-1').dependents).toEqual([])
+  })
+
+  it('gives a closed or unknown task no links', () => {
+    const links = taskLinks([task('ABC-1'), task('ABC-2', 'Won', ['ABC-1']), task('ABC-3', 'ToDo', ['ABC-2'])], new Map())
+    expect(links('ABC-2')).toEqual({ blockers: [], dependents: [] })
+    expect(links('ABC-9')).toEqual({ blockers: [], dependents: [] })
+  })
+
+  it('keeps a blocker it does not know, without a title', () => {
+    const links = taskLinks([task('ABC-1', 'ToDo', ['XYZ-5'])], new Map())
+    expect(links('ABC-1').blockers).toEqual([{ id: 'XYZ-5', title: null, lamp: 'ahead' }])
+  })
+
+  it('takes the lamp of a chain block, otherwise one from the status', () => {
+    const links = taskLinks([task('ABC-1'), task('ABC-2', 'ToDo'), task('ABC-3', 'ToDo', ['ABC-1', 'ABC-2'])], new Map([['ABC-1', 'waiting']]))
+    expect(links('ABC-3').blockers.map((item) => item.lamp)).toEqual(['waiting', 'ahead'])
+    expect(links('ABC-3').blockers[0]!.title).toBe(task('ABC-1').title)
   })
 })
 

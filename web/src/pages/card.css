@@ -450,52 +450,6 @@ html:has(.task-card[open]) {
   font-weight: 600;
 }
 
-.task-card__bars {
-  display: inline-flex;
-  align-items: flex-end;
-  gap: 2px;
-  height: 12px;
-}
-
-.task-card__bar {
-  width: 3px;
-  border-radius: 1px;
-  background: color-mix(in srgb, var(--fg) 20%, transparent);
-}
-
-.task-card__bar:nth-child(1) {
-  height: 5px;
-}
-
-.task-card__bar:nth-child(2) {
-  height: 8px;
-}
-
-.task-card__bar:nth-child(3) {
-  height: 12px;
-}
-
-.task-card__bar--on {
-  background: var(--fg);
-}
-
-.task-card__priority--high .task-card__bar--on {
-  background: var(--lamp-waiting);
-}
-
-.task-card__urgent {
-  display: grid;
-  place-items: center;
-  width: 13px;
-  height: 13px;
-  border-radius: 3px;
-  background: var(--lamp-error);
-  color: var(--surface);
-  font-size: 10px;
-  font-weight: 800;
-  line-height: 1;
-}
-
 .task-card__chips {
   display: flex;
   flex-wrap: wrap;

@@ -1,0 +1,47 @@
+.priority__bars {
+  display: inline-flex;
+  flex: none;
+  align-items: flex-end;
+  gap: 2px;
+  height: 12px;
+}
+
+.priority__bar {
+  width: 3px;
+  border-radius: 1px;
+  background: color-mix(in srgb, var(--fg) 20%, transparent);
+}
+
+.priority__bar:nth-child(1) {
+  height: 5px;
+}
+
+.priority__bar:nth-child(2) {
+  height: 8px;
+}
+
+.priority__bar:nth-child(3) {
+  height: 12px;
+}
+
+.priority__bar--on {
+  background: var(--fg);
+}
+
+.priority__bars--high .priority__bar--on {
+  background: var(--lamp-waiting);
+}
+
+.priority__urgent {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 13px;
+  height: 13px;
+  border-radius: 3px;
+  background: var(--lamp-error);
+  color: var(--surface);
+  font-size: 10px;
+  font-weight: 800;
+  line-height: 1;
+}

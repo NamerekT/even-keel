@@ -6,12 +6,13 @@ import remarkGfm from 'remark-gfm'
 import { noticeOf, type Notice } from '../../../src/notice/notice.js'
 import { isTaskId } from '../../../src/stats/model.js'
 import type { CardLabel, TaskCard as Card, TaskRef } from '../../../src/tracker/card.js'
-import type { TaskPriority, TaskStatus } from '../../../src/tracker/model.js'
+import type { TaskStatus } from '../../../src/tracker/model.js'
 import { formatMoment } from '../format.js'
 import { localized, say, t } from '../i18n/index.js'
 import { useLive } from '../live/context.js'
 import { useCommand } from '../live/useCommand.js'
 import '../ui/markdown.css'
+import { PriorityIcon } from '../ui/Priority.js'
 import { Attachments } from './Attachments.js'
 import './card.css'
 
@@ -250,18 +251,6 @@ function StatusPill({ status }: { status: TaskStatus }) {
     <span className={`task-card__status task-card__status--${status.category}`}>
       <span className="task-card__dot" />
       {status.name}
-    </span>
-  )
-}
-
-function PriorityIcon({ priority }: { priority: TaskPriority }) {
-  if (priority === 'urgent') return <span className="task-card__urgent" aria-hidden="true">!</span>
-  const level = { none: 0, low: 1, medium: 2, high: 3 }[priority]
-  return (
-    <span className="task-card__bars" aria-hidden="true">
-      {[1, 2, 3].map((bar) => (
-        <span key={bar} className={bar <= level ? 'task-card__bar task-card__bar--on' : 'task-card__bar'} />
-      ))}
     </span>
   )
 }

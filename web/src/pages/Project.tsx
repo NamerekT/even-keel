@@ -14,6 +14,7 @@ import {
   projectTasks,
   queuedAfter,
   startsNow,
+  taskLinks,
   taskProject,
 } from '../state.js'
 import { focusAfterClose } from '../ui/focus.js'
@@ -58,6 +59,7 @@ export function Project({ state }: { state: EvenKeelState }) {
   const selected = blocks.find((block) => block.id === focus && !block.locked)
   const backlog = backlogTasks(state, key)
   const backlogOpen = focus === BACKLOG_HASH && backlog.length > 0
+  const links = taskLinks(state.tasks, new Map(blocks.map((block) => [block.id, block.lamp])))
   const opened = new URLSearchParams(location.search).get(CARD_PARAM)
   const openCard = (task: string) => {
     const search = new URLSearchParams(location.search)
@@ -100,6 +102,7 @@ export function Project({ state }: { state: EvenKeelState }) {
             ghost={arrival.ghost}
             arrival={arrival.arrival}
             incoming={arrival.incoming}
+            links={links}
             onCard={openCard}
           />
         )}
@@ -114,6 +117,7 @@ export function Project({ state }: { state: EvenKeelState }) {
           tasks={backlog}
           trackerUrls={state.trackerUrls}
           canReady={canReady(state, key)}
+          links={links}
           onCard={openCard}
           onClose={close}
           onPoint={arrival.point}

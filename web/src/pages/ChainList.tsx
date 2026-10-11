@@ -4,7 +4,7 @@ import { withWaiting } from '../../../src/chain/order.js'
 import type { ContextScale, TrackerUrls } from '../../../src/state.js'
 import { say, t } from '../i18n/index.js'
 import { useCommand } from '../live/useCommand.js'
-import { blockMetered, checkpointHandoffs, issueLink, type BlockLamp, type ChainBlock, type Ghost } from '../state.js'
+import { blockMetered, checkpointHandoffs, issueLink, type BlockLamp, type ChainBlock, type Ghost, type TaskLinks } from '../state.js'
 import { AccountTag } from '../ui/AccountTag.js'
 import { ARCHIVE_PAGE, archiveView } from '../ui/archive.js'
 import { CacheClock } from '../ui/CacheClock.js'
@@ -12,6 +12,7 @@ import { ContextMeter } from '../ui/ContextMeter.js'
 import { HandoffIcon } from '../ui/icons.js'
 import { Lamp } from '../ui/Lamp.js'
 import { landingIndex, revealElement } from '../ui/landing.js'
+import { Links } from '../ui/Links.js'
 import { estimateShare, isRework, railsOf, showsAction, tiersOf, type Rail, type Tier } from '../ui/look.js'
 import { milestoneView, type Section } from '../ui/milestones.js'
 import { placeLeaving, type Beat, type Motion } from '../ui/motion.js'
@@ -39,6 +40,7 @@ interface Props {
   ghost: Ghost | null
   arrival: Arrival | null
   incoming: string | null
+  links: (task: string) => TaskLinks
   onCard: (task: string) => void
 }
 
@@ -54,7 +56,7 @@ interface Relation {
   badge: boolean
 }
 
-export function ChainList({ project, chain, scale, trackerUrls, focus, ghost, arrival, incoming, onCard }: Props) {
+export function ChainList({ project, chain, scale, trackerUrls, focus, ghost, arrival, incoming, links, onCard }: Props) {
   const [pages, setPages] = useState(0)
   const [revealed, setRevealed] = useState(0)
   const { send, sending, failure } = useCommand()
@@ -194,6 +196,7 @@ export function ChainList({ project, chain, scale, trackerUrls, focus, ghost, ar
                     link={block.locked ? issueLink(trackerUrls, block.id) : null}
                     number={numbers.get(block.id)}
                     waits={block.blockedBy.filter((id) => open.has(id))}
+                    links={links(block.id)}
                     scale={scale}
                     tier={tiers.get(block.id) ?? 'near'}
                     rails={rails.get(block.id) ?? []}
@@ -207,7 +210,7 @@ export function ChainList({ project, chain, scale, trackerUrls, focus, ghost, ar
                     offset={landing?.id === block.id ? landing.offset : drag?.offsets.get(block.id)}
                     onHover={(inside) => setHovered((current) => (inside ? block.id : current === block.id ? null : current))}
                     onReturn={sending ? undefined : () => void send('chain/unskip', { project, task: block.id })}
-                    onCard={() => onCard(block.id)}
+                    onCard={onCard}
                   />
                 ),
               )}
@@ -372,6 +375,7 @@ interface BlockProps {
   link: string | null
   number: number | undefined
   waits: string[]
+  links: TaskLinks
   scale: ContextScale
   tier: Tier
   rails: Rail[]
@@ -386,11 +390,11 @@ interface BlockProps {
   offset: Point | undefined
   onHover: (inside: boolean) => void
   onReturn: (() => void) | undefined
-  onCard: () => void
+  onCard: (task: string) => void
 }
 
 function Block(props: BlockProps) {
-  const { block, link, number, waits, scale, tier, rails, kin, mark, beat, focused, movable, relation, arrival, offset, onHover, onReturn, onCard } = props
+  const { block, link, number, waits, links, scale, tier, rails, kin, mark, beat, focused, movable, relation, arrival, offset, onHover, onReturn, onCard } = props
   const classes = ['block', `block--${block.lamp}`, `block--${tier}`, `block--priority-${block.priority}`]
   if (isRework(block.labels)) classes.push('block--rework')
   if (block.question) classes.push('block--question')
@@ -469,7 +473,7 @@ function Block(props: BlockProps) {
       <span className="block__divider" aria-hidden="true" />
       <p className="block__title">
         {block.title !== null && (
-          <button type="button" className="block__card" draggable={false} title={t.chain.openCard} onClick={onCard}>
+          <button type="button" className="block__card" draggable={false} title={t.chain.openCard} onClick={() => onCard(block.id)}>
             {block.title}
           </button>
         )}
@@ -489,25 +493,23 @@ function Block(props: BlockProps) {
         )}
         {badge === 'blocker' && <span className="block__badge block__badge--blocker">{t.chain.blocker}</span>}
         {badge === 'dependent' && <span className="block__badge block__badge--dependent">{t.chain.dependent}</span>}
-        {waits.length > 0 && (
-          <span className="block__waits">
-            <LockIcon />
-            {t.chain.waits(waits.join(', '))}
-          </span>
-        )}
         {block.start !== null && <StartPill start={block.start} />}
         {status !== null && metered === null && block.start === null && <span className="block__status">{status}</span>}
-        {metered !== null && handoffs > 0 && (
-          <span className="block__badge block__handoffs" role="img" aria-label={t.chain.handoffs(handoffs)} title={t.chain.handoffsTitle}>
-            <HandoffIcon />
-            {handoffs}
-          </span>
-        )}
-        {metered !== null && <AccountTag email={metered.account} />}
         {metered !== null && (
           <span className="block__metrics">
-            {metered.cache !== null && <CacheClock cache={metered.cache} />}
-            <ContextMeter tokens={metered.contextTokens} scale={scale} />
+            <span className="block__metrics-row">
+              {metered.cache !== null && <CacheClock cache={metered.cache} />}
+              <ContextMeter tokens={metered.contextTokens} scale={scale} />
+            </span>
+            <span className="block__metrics-row block__metrics-row--who">
+              <AccountTag email={metered.account} />
+              {handoffs > 0 && (
+                <span className="block__handoffs" role="img" aria-label={t.chain.handoffs(handoffs)} title={t.chain.handoffsTitle}>
+                  <HandoffIcon />
+                  {handoffs}
+                </span>
+              )}
+            </span>
           </span>
         )}
         {block.skipped && (
@@ -515,6 +517,7 @@ function Block(props: BlockProps) {
             {t.common.restore}
           </button>
         )}
+        <Links links={links} onCard={onCard} />
       </div>
     </li>
   )

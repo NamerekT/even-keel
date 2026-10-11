@@ -148,6 +148,52 @@ export function backlogTasks(state: EvenKeelState, project: string): Task[] {
   return (state.chain.projects[project]?.backlog ?? []).flatMap((id) => byId.get(id) ?? [])
 }
 
+export interface LinkedTask {
+  id: string
+  title: string | null
+  lamp: BlockLamp
+}
+
+export interface TaskLinks {
+  blockers: LinkedTask[]
+  dependents: LinkedTask[]
+}
+
+const NO_LINKS: TaskLinks = { blockers: [], dependents: [] }
+
+/**
+ * The open tasks an open task waits for and the open ones waiting for it; a closed task holds nothing.
+ * A blocker missing from `tasks` stays, as it cannot be told closed. A task in the chain lends its block's lamp.
+ */
+export function taskLinks(tasks: Task[], lamps: ReadonlyMap<string, BlockLamp>): (id: string) => TaskLinks {
+  const byId = new Map(tasks.map((task) => [task.id, task]))
+  const waiting = new Map<string, string[]>()
+  for (const task of tasks) {
+    if (!isOpen(task.status)) continue
+    for (const blocker of task.blockedBy) waiting.set(blocker, [...(waiting.get(blocker) ?? []), task.id])
+  }
+  const live = (id: string) => {
+    const task = byId.get(id)
+    return task === undefined || isOpen(task.status)
+  }
+  const linked = (ids: string[]): LinkedTask[] =>
+    ids.toSorted(byNumber).map((id) => {
+      const task = byId.get(id)
+      return { id, title: task?.title ?? null, lamp: lamps.get(id) ?? statusLamp(task?.status.category) }
+    })
+  return (id) => {
+    const task = byId.get(id)
+    if (task === undefined || !isOpen(task.status)) return NO_LINKS
+    return { blockers: linked(task.blockedBy.filter(live)), dependents: linked(waiting.get(id) ?? []) }
+  }
+}
+
+function statusLamp(category: StatusCategory | undefined): BlockLamp {
+  if (category === 'Won') return 'done'
+  if (category === 'Lost') return 'canceled'
+  return category === 'Active' ? 'working' : 'ahead'
+}
+
 export interface Ghost {
   id: string
   title: string

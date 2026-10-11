@@ -3,8 +3,10 @@ import type { TrackerUrls } from '../../../src/state.js'
 import type { Task } from '../../../src/tracker/model.js'
 import { say, t } from '../i18n/index.js'
 import { useCommand } from '../live/useCommand.js'
-import { issueLink } from '../state.js'
-import { StackIcon } from '../ui/icons.js'
+import { issueLink, type TaskLinks } from '../state.js'
+import { FlagIcon, IntoChainIcon, StackIcon } from '../ui/icons.js'
+import { Links } from '../ui/Links.js'
+import { PriorityIcon } from '../ui/Priority.js'
 import type { Box } from '../ui/reorder.js'
 import './backlog.css'
 
@@ -32,6 +34,7 @@ interface Props {
   trackerUrls: TrackerUrls
   /** The project's tracker can move a backlog task to Todo. */
   canReady: boolean
+  links: (task: string) => TaskLinks
   onCard: (task: string) => void
   onClose: () => void
   /** The task whose Todo button is pointed at, `null` when none is. */
@@ -41,7 +44,7 @@ interface Props {
   onSettled: (task: string) => void
 }
 
-export function BacklogPanel({ tasks, trackerUrls, canReady, onCard, onClose, onPoint, onMove, onSettled }: Props) {
+export function BacklogPanel({ tasks, trackerUrls, canReady, links, onCard, onClose, onPoint, onMove, onSettled }: Props) {
   const closeRef = useRef<HTMLButtonElement>(null)
   const { send, sending, failure } = useCommand()
   const point = useRef(onPoint)
@@ -81,7 +84,7 @@ export function BacklogPanel({ tasks, trackerUrls, canReady, onCard, onClose, on
       <p className="chain__hint">{t.project.backlogHint}</p>
       {failure !== null && <p className="notice notice--error">{say(failure)}</p>}
       <ol
-        className="backlog__list"
+        className={canReady ? 'backlog__list backlog__list--ready' : 'backlog__list'}
         onMouseMove={pointAt}
         onFocus={pointAt}
         onMouseLeave={() => onPoint(null)}
@@ -90,8 +93,23 @@ export function BacklogPanel({ tasks, trackerUrls, canReady, onCard, onClose, on
         {tasks.map((task) => {
           const link = issueLink(trackerUrls, task.id)
           return (
-            <li key={task.id} className="backlog__row">
+            <li key={task.id} className={`backlog__row backlog__row--${task.priority}`}>
+              {canReady && task.status.category === 'UnStarted' && (
+                <button
+                  type="button"
+                  className="backlog__ready"
+                  disabled={sending}
+                  aria-label={t.card.ready}
+                  data-ready={task.id}
+                  onClick={(event) => ready(task, event.currentTarget)}
+                >
+                  <IntoChainIcon />
+                </button>
+              )}
               <div className="backlog__meta">
+                <span className="backlog__priority" title={`${t.card.priority}: ${t.card.priorities[task.priority]}`}>
+                  <PriorityIcon priority={task.priority} />
+                </span>
                 {link === null ? (
                   <span className="backlog__key">{task.id}</span>
                 ) : (
@@ -100,22 +118,18 @@ export function BacklogPanel({ tasks, trackerUrls, canReady, onCard, onClose, on
                   </a>
                 )}
                 {mixed && <span className="backlog__status">{task.status.name}</span>}
+                <span
+                  className={task.milestone === null ? 'backlog__milestone backlog__milestone--none' : 'backlog__milestone'}
+                  title={t.card.milestone}
+                >
+                  <FlagIcon />
+                  <span className="backlog__milestone-name">{task.milestone?.label ?? t.chain.noMilestone}</span>
+                </span>
+                <Links links={links(task.id)} onCard={onCard} />
               </div>
               <button type="button" className="backlog__name" title={t.chain.openCard} onClick={() => onCard(task.id)}>
                 {task.title}
               </button>
-              {canReady && task.status.category === 'UnStarted' && (
-                <button
-                  type="button"
-                  className="button backlog__ready"
-                  disabled={sending}
-                  title={t.card.readyHint}
-                  data-ready={task.id}
-                  onClick={(event) => ready(task, event.currentTarget)}
-                >
-                  {t.card.ready}
-                </button>
-              )}
             </li>
           )
         })}

@@ -483,7 +483,6 @@ export const en: Messages = {
     blocker: 'blocks',
     dependent: 'waits for it',
     ghost: 'will stand here',
-    waits: (tasks: string) => `waits for ${tasks}`,
     handoffsTitle: 'How many times sessions of the task handed off at a checkpoint',
     handoffs: (count: number) => `handoffs ×${count}`,
     starting: {

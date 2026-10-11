@@ -486,7 +486,6 @@ export const ru = {
     blocker: 'блокирует',
     dependent: 'ждёт её',
     ghost: 'встанет сюда',
-    waits: (tasks: string) => `ждёт ${tasks}`,
     handoffsTitle: 'Сколько раз сессии по задаче передали дела по контрольной точке',
     handoffs: (count: number) => `передач ×${count}`,
     starting: {
