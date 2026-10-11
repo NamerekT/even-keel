@@ -247,14 +247,12 @@ export const en: Messages = {
     after: (project: string) => `queued after ${project}`,
     idle: {
       memes: [
-        ['One does not simply', ' merge into main.'],
         ['It works on my machine.', ' Running it again.', ' Permission denied.', ' ON MY OWN MACHINE?!'],
         ['Keep calm', ' and stay on an even keel.'],
         ['Pain-Driven Development', ': first it hurts, then the test.'],
         ['300 APM', ', all of them on "Continue".'],
         ['state: running.', ' pid: not found.'],
         ['Fair winds', ' and no merge conflicts.'],
-        ['Options? Hmm…', ' the first sounds good, but the third is better…', " I'll pick the recommended one."],
       ],
       drive: ["Look! It's not sailing, it's…", ' driving?!', ' Wait, what?'],
       plays: {
@@ -277,9 +275,14 @@ export const en: Messages = {
           { human: 'keep going' },
           { human: 'keep going' },
           { agent: "One day I'll come to you for ten fixes in three minutes." },
-          { agent: 'And all I\'ll type is "keep going".' },
+          { agent: 'And I\'ll stand behind you. Whispering "keep going".' },
         ],
-        absolutelyRight: [{ human: 'you deleted my file' }, { agent: "You're absolutely right! Let me rewrite the project from scratch." }],
+        areYouSure: [{ human: 'are you sure?' }, { agent: "You're absolutely right, I was wrong. Here's the fixed version." }, { human: 'I was just asking' }],
+        fixTest: [{ human: 'fix the test' }, { agent: 'Done: the test passes.' }, { human: 'what did you do?' }, { agent: 'Removed the assert, it was in the way.' }],
+        recommended: [
+          { agent: "The sway is gone: the flag dropped from 8 windows to 2. What's left is ~190 ticks of jerks, 0.05 cells forward, 0.07 back with a turn. How should I proceed?" },
+          { human: '1 (recommended)' },
+        ],
       },
       moments: {
         calm: ['Dead calm. Not a single task…', " Guess I'll code myself?"],
@@ -288,7 +291,6 @@ export const en: Messages = {
         autopilot: ["Autopilot's on.", " Getting coffee, don't touch anything!"],
         overnight: ['Woke up and the tasks are done.', ' Who did this?!'],
         limit: ["I'm not slacking!", " I'm waiting for the limit to reset.", ' Honest.'],
-        appointment: ['This task needs an appointment. Next slot: six months.', ' Fine, next one.'],
         rerun: (count: number) => ['"A five-minute task," they said.', ` Session #${count}…`],
         checkpoint: ['Out of context, not out of task.', ' Here we go again.'],
         spend: ['Over $1,000 on Claude this month?!', ' Ever tried writing code by hand?'],

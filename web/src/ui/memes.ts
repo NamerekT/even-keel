@@ -3,7 +3,7 @@ import { type ChainBlock, type ChainStatus, checkpointHandoffs } from '../state.
 import { type Pace, typingTime } from './typing.js'
 
 /** Situations on the project page that have a meme of their own. */
-export type Moment = 'calm' | 'backlogEmpty' | 'stopped' | 'autopilot' | 'overnight' | 'limit' | 'appointment' | 'rerun' | 'checkpoint' | 'spend'
+export type Moment = 'calm' | 'backlogEmpty' | 'stopped' | 'autopilot' | 'overnight' | 'limit' | 'rerun' | 'checkpoint' | 'spend'
 
 export interface Scene {
   /** Whether the service has read the project's chain. */
@@ -21,7 +21,7 @@ export const PLAYS = ['picture', 'spoons'] as const
 export type Play = (typeof PLAYS)[number]
 
 /** Dialogues in the look of Claude Code: the human's lines appear whole, the agent's are typed, and they pile up. */
-export const CHATS = ['keepGoing', 'absolutelyRight'] as const
+export const CHATS = ['keepGoing', 'areYouSure', 'fixTest', 'recommended'] as const
 export type Chat = (typeof CHATS)[number]
 export type ChatLine = { human: string } | { agent: string }
 
@@ -46,7 +46,6 @@ export function momentsOf(scene: Scene): Moment[] {
   if (open.length > 0 && scene.backlog === 0) moments.push('backlogEmpty')
   if (status.kind === 'idle' && open.length > 0) moments.push('stopped')
   if (status.kind === 'running') moments.push(status.limitUntil !== null ? 'limit' : scene.unattended ? 'overnight' : 'autopilot')
-  if (open.some((block) => block.question || block.skipped)) moments.push('appointment')
   if (longestRun(open) >= RERUN_SESSIONS) moments.push('rerun')
   if (open.some((block) => checkpointHandoffs(block.sessions) > 0)) moments.push('checkpoint')
   if ((scene.monthCost ?? 0) >= SPEND_USD) moments.push('spend')

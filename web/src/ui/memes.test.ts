@@ -42,12 +42,6 @@ describe('momentsOf', () => {
     expect(momentsOf(scene({ status: { kind: 'running', limitUntil: '2026-10-10T12:00:00Z' } }))).toEqual(['limit'])
   })
 
-  it('waits for an appointment when an open task holds a question or was skipped', () => {
-    expect(momentsOf(scene({ blocks: [block('ABC-1', { question: true })] }))).toContain('appointment')
-    expect(momentsOf(scene({ blocks: [block('ABC-1', { skipped: true })] }))).toContain('appointment')
-    expect(momentsOf(scene({ blocks: [block('ABC-1', { question: true, open: false })] }))).not.toContain('appointment')
-  })
-
   it('counts reruns and checkpoints on open tasks only', () => {
     expect(momentsOf(scene({ blocks: [block('ABC-1', { sessions: runs('launch', 'relay', 'launch') })] }))).toContain('rerun')
     expect(momentsOf(scene({ blocks: [block('ABC-1', { sessions: runs('launch', 'checkpoint') })] }))).toContain('checkpoint')
@@ -73,23 +67,25 @@ describe('pickMeme', () => {
   })
 
   it('takes a general line, the drive, a play from its first act or a chat on the upper half, and always without moments', () => {
-    const draws = [0.6, 0.55]
+    const draws = [0.6, 0.45]
     expect(pickMeme(['calm'], 5, () => draws.shift()!)).toEqual({ drive: true })
-    expect(pickMeme([], 5, () => 0.65)).toEqual({ play: 'picture', act: 0 })
-    expect(pickMeme([], 5, () => 0.75)).toEqual({ play: 'spoons', act: 0 })
-    expect(pickMeme([], 5, () => 0.8)).toEqual({ chat: 'keepGoing' })
-    expect(pickMeme([], 5, () => 0.99)).toEqual({ chat: 'absolutelyRight' })
+    expect(pickMeme([], 5, () => 0.55)).toEqual({ play: 'picture', act: 0 })
+    expect(pickMeme([], 5, () => 0.6)).toEqual({ play: 'spoons', act: 0 })
+    expect(pickMeme([], 5, () => 0.7)).toEqual({ chat: 'keepGoing' })
+    expect(pickMeme([], 5, () => 0.8)).toEqual({ chat: 'areYouSure' })
+    expect(pickMeme([], 5, () => 0.85)).toEqual({ chat: 'fixTest' })
+    expect(pickMeme([], 5, () => 0.99)).toEqual({ chat: 'recommended' })
     expect(pickMeme([], 5, () => 0)).toEqual({ line: 0 })
   })
 
   it('never draws the previous line again', () => {
     expect(pickMeme([], 5, () => 0, { line: 0 })).toEqual({ line: 1 })
-    expect(pickMeme([], 5, () => 0.5, { drive: true })).toEqual({ line: 4 })
-    expect(pickMeme([], 5, () => 0.6, { drive: true })).toEqual({ play: 'picture', act: 0 })
-    expect(pickMeme([], 5, () => 0.6, { play: 'picture', act: 3 })).toEqual({ drive: true })
-    expect(pickMeme([], 5, () => 0.7, { play: 'picture', act: 3 })).toEqual({ play: 'spoons', act: 0 })
-    expect(pickMeme([], 5, () => 0.99, { chat: 'keepGoing' })).toEqual({ chat: 'absolutelyRight' })
-    expect(pickMeme([], 5, () => 0.99, { chat: 'absolutelyRight' })).toEqual({ chat: 'keepGoing' })
+    expect(pickMeme([], 5, () => 0.4, { drive: true })).toEqual({ line: 4 })
+    expect(pickMeme([], 5, () => 0.5, { drive: true })).toEqual({ play: 'picture', act: 0 })
+    expect(pickMeme([], 5, () => 0.5, { play: 'picture', act: 3 })).toEqual({ drive: true })
+    expect(pickMeme([], 5, () => 0.6, { play: 'picture', act: 3 })).toEqual({ play: 'spoons', act: 0 })
+    expect(pickMeme([], 5, () => 0.75, { chat: 'keepGoing' })).toEqual({ chat: 'areYouSure' })
+    expect(pickMeme([], 5, () => 0.99, { chat: 'recommended' })).toEqual({ chat: 'fixTest' })
     expect(pickMeme([], 1, () => 0.1, { line: 0 })).toEqual({ drive: true })
   })
 
