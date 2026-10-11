@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { TaskSession } from '../../../src/chain/launches.js'
 import type { ChainBlock } from '../state.js'
-import { emptyCard, type Harbor, harborMemes, longestRun, momentsOf, pickMeme, playMotion, type Scene } from './memes.js'
+import { chatAt, chatTime, emptyCard, type Harbor, harborMemes, longestRun, momentsOf, pickMeme, playMotion, type Scene } from './memes.js'
 
 const block = (id: string, extra: Partial<ChainBlock> = {}): ChainBlock =>
   ({ id, open: true, locked: false, question: false, skipped: false, sessions: [], ...extra }) as ChainBlock
@@ -72,21 +72,25 @@ describe('pickMeme', () => {
     expect(pickMeme(['calm', 'spend'], 5, () => draws.shift()!)).toEqual({ moment: 'spend' })
   })
 
-  it('takes a general line, the drive or a play from its first act on the upper half, and always without moments', () => {
-    const draws = [0.6, 0.7]
+  it('takes a general line, the drive, a play from its first act or a chat on the upper half, and always without moments', () => {
+    const draws = [0.6, 0.55]
     expect(pickMeme(['calm'], 5, () => draws.shift()!)).toEqual({ drive: true })
-    expect(pickMeme([], 5, () => 0.8)).toEqual({ play: 'picture', act: 0 })
-    expect(pickMeme([], 5, () => 0.99)).toEqual({ play: 'spoons', act: 0 })
+    expect(pickMeme([], 5, () => 0.65)).toEqual({ play: 'picture', act: 0 })
+    expect(pickMeme([], 5, () => 0.75)).toEqual({ play: 'spoons', act: 0 })
+    expect(pickMeme([], 5, () => 0.8)).toEqual({ chat: 'keepGoing' })
+    expect(pickMeme([], 5, () => 0.99)).toEqual({ chat: 'absolutelyRight' })
     expect(pickMeme([], 5, () => 0)).toEqual({ line: 0 })
   })
 
   it('never draws the previous line again', () => {
     expect(pickMeme([], 5, () => 0, { line: 0 })).toEqual({ line: 1 })
-    expect(pickMeme([], 5, () => 0.7, { drive: true })).toEqual({ line: 4 })
-    expect(pickMeme([], 5, () => 0.8, { drive: true })).toEqual({ play: 'picture', act: 0 })
-    expect(pickMeme([], 5, () => 0.8, { play: 'picture', act: 3 })).toEqual({ drive: true })
-    expect(pickMeme([], 5, () => 0.99, { play: 'picture', act: 3 })).toEqual({ play: 'spoons', act: 0 })
-    expect(pickMeme([], 1, () => 0.2, { line: 0 })).toEqual({ drive: true })
+    expect(pickMeme([], 5, () => 0.5, { drive: true })).toEqual({ line: 4 })
+    expect(pickMeme([], 5, () => 0.6, { drive: true })).toEqual({ play: 'picture', act: 0 })
+    expect(pickMeme([], 5, () => 0.6, { play: 'picture', act: 3 })).toEqual({ drive: true })
+    expect(pickMeme([], 5, () => 0.7, { play: 'picture', act: 3 })).toEqual({ play: 'spoons', act: 0 })
+    expect(pickMeme([], 5, () => 0.99, { chat: 'keepGoing' })).toEqual({ chat: 'absolutelyRight' })
+    expect(pickMeme([], 5, () => 0.99, { chat: 'absolutelyRight' })).toEqual({ chat: 'keepGoing' })
+    expect(pickMeme([], 1, () => 0.1, { line: 0 })).toEqual({ drive: true })
   })
 
   it('leaves the previous moment out of the moments', () => {
@@ -116,6 +120,35 @@ describe('playMotion', () => {
 
   it('leaves the voyage alone in the other plays', () => {
     for (const act of [0, 3]) expect(playMotion('spoons', act, 4, 300, parts, pace)).toEqual({ sea: 1, cloud: 1 })
+  })
+})
+
+describe('chatAt', () => {
+  const pace = { charMs: 10, pauseMs: 100 }
+  const chat = [{ human: 'go' }, { human: 'go' }, { agent: 'Done.' }, { agent: 'Yes' }]
+  // Said by: both 'go' at 0 and 100, 'Done.' typed from 200 to 250, 'Yes' from 350 to 380.
+
+  it('takes 100 ms between lines and types only the agent', () => {
+    expect(chatTime(chat, pace)).toBe(380)
+  })
+
+  it('shows the human lines whole at once and types the agent lines, keeping the earlier ones', () => {
+    expect(chatAt(chat, 0, pace, null)).toEqual([2, -1, -1, -1])
+    expect(chatAt(chat, 99, pace, null)).toEqual([2, -1, -1, -1])
+    expect(chatAt(chat, 100, pace, null)).toEqual([2, 2, -1, -1])
+    expect(chatAt(chat, 200, pace, null)).toEqual([2, 2, 0, -1])
+    expect(chatAt(chat, 230, pace, null)).toEqual([2, 2, 3, -1])
+    expect(chatAt(chat, 349, pace, null)).toEqual([2, 2, 5, -1])
+    expect(chatAt(chat, 350, pace, null)).toEqual([2, 2, 5, 0])
+    expect(chatAt(chat, Infinity, pace, null)).toEqual([2, 2, 5, 3])
+  })
+
+  it('erases from the bottom: the agent lines at the typing pace, a human line at once once it is the last', () => {
+    expect(chatAt(chat, 500, pace, 500)).toEqual([2, 2, 5, 3])
+    expect(chatAt(chat, 510, pace, 500)).toEqual([2, 2, 5, 2])
+    expect(chatAt(chat, 530, pace, 500)).toEqual([2, 2, 5, -1])
+    expect(chatAt(chat, 579, pace, 500)).toEqual([2, 2, 1, -1])
+    expect(chatAt(chat, 580, pace, 500)).toEqual([-1, -1, -1, -1])
   })
 })
 

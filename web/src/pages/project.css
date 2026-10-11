@@ -105,6 +105,27 @@
   text-align: left;
 }
 
+.idle__chat {
+  display: grid;
+  gap: 6px;
+}
+
+/* A wrapped line goes on under the text, not under the mark. */
+.idle__said {
+  margin: 0;
+  padding-left: 0.95em;
+  text-indent: -0.95em;
+  color: var(--fg);
+  font-size: 15px;
+  text-align: left;
+}
+
+.idle__said--human {
+  color: var(--fg-muted);
+  font-family: var(--mono);
+  font-size: 13px;
+}
+
 .idle__hint {
   margin: 0;
   font-size: 13px;

@@ -253,7 +253,6 @@ export const en: Messages = {
         ['Pain-Driven Development', ': first it hurts, then the test.'],
         ['300 APM', ', all of them on "Continue".'],
         ['state: running.', ' pid: not found.'],
-        ['"You\'re absolutely right!"', ' — and everything gets rewritten.'],
         ['Fair winds', ' and no merge conflicts.'],
         ['Options? Hmm…', ' the first sounds good, but the third is better…', " I'll pick the recommended one."],
       ],
@@ -271,6 +270,16 @@ export const en: Messages = {
           ['So they may vote only on Wednesdays', ' and only for Gary the Fog.'],
           ['Gary the Fog was written off long ago,', ' yet he still comes to work: nobody told him,', ' and he is too shy to ask Kevin the Lamppost.'],
         ],
+      },
+      chats: {
+        keepGoing: [
+          { human: 'keep going' },
+          { human: 'keep going' },
+          { human: 'keep going' },
+          { agent: "One day I'll come to you for ten fixes in three minutes." },
+          { agent: 'And all I\'ll type is "keep going".' },
+        ],
+        absolutelyRight: [{ human: 'you deleted my file' }, { agent: "You're absolutely right! Let me rewrite the project from scratch." }],
       },
       moments: {
         calm: ['Dead calm. Not a single task…', " Guess I'll code myself?"],

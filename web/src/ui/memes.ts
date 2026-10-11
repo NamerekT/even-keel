@@ -20,8 +20,13 @@ export interface Scene {
 export const PLAYS = ['picture', 'spoons'] as const
 export type Play = (typeof PLAYS)[number]
 
-/** A general line by its index, the line for the driving boat, an act of a play, or a moment's line. */
-export type Meme = { line: number } | { drive: true } | { play: Play; act: number } | { moment: Moment }
+/** Dialogues in the look of Claude Code: the human's lines appear whole, the agent's are typed, and they pile up. */
+export const CHATS = ['keepGoing', 'absolutelyRight'] as const
+export type Chat = (typeof CHATS)[number]
+export type ChatLine = { human: string } | { agent: string }
+
+/** A general line by its index, the line for the driving boat, an act of a play, a chat, or a moment's line. */
+export type Meme = { line: number } | { drive: true } | { play: Play; act: number } | { chat: Chat } | { moment: Moment }
 
 const RERUN_SESSIONS = 3
 const SPEND_USD = 1000
@@ -52,7 +57,8 @@ export function momentsOf(scene: Scene): Moment[] {
 export function pickMeme(moments: Moment[], lines: number, random: () => number, previous?: Meme): Meme {
   const fresh = moments.filter((moment) => !(previous && 'moment' in previous && previous.moment === moment))
   if (fresh.length > 0 && random() < 0.5) return { moment: fresh[Math.floor(random() * fresh.length)]! }
-  // The drive and then the plays are the general lines after the last one.
+  // The drive, the plays and then the chats are the general lines after the last one.
+  const chats = lines + 1 + PLAYS.length
   const skip =
     previous === undefined || 'moment' in previous
       ? -1
@@ -60,12 +66,51 @@ export function pickMeme(moments: Moment[], lines: number, random: () => number,
         ? lines
         : 'play' in previous
           ? lines + 1 + PLAYS.indexOf(previous.play)
-          : previous.line
-  const count = lines + 1 + PLAYS.length
+          : 'chat' in previous
+            ? chats + CHATS.indexOf(previous.chat)
+            : previous.line
+  const count = chats + CHATS.length
   let index = Math.floor(random() * (skip < 0 ? count : count - 1))
   if (skip >= 0 && index >= skip) index += 1
   if (index < lines) return { line: index }
-  return index === lines ? { drive: true } : { play: PLAYS[index - lines - 1]!, act: 0 }
+  if (index === lines) return { drive: true }
+  return index < chats ? { play: PLAYS[index - lines - 1]!, act: 0 } : { chat: CHATS[index - chats]! }
+}
+
+export function chatTime(chat: ChatLine[], { charMs, pauseMs }: Pace): number {
+  const typed = chat.reduce((sum, line) => sum + ('agent' in line ? line.agent.length : 0), 0)
+  return typed * charMs + Math.max(0, chat.length - 1) * pauseMs
+}
+
+/**
+ * How many characters of each chat line show `elapsed` ms after the start; -1 — the line is not there. From `eraseAt` ms
+ * on (`null` — never) the chat is erased from the bottom: an agent line at the typing pace, a human line at once.
+ */
+export function chatAt(chat: ChatLine[], elapsed: number, pace: Pace, eraseAt: number | null): number[] {
+  const shown = chat.map(() => -1)
+  let left = eraseAt === null ? elapsed : Math.min(elapsed, eraseAt)
+  for (const [index, line] of chat.entries()) {
+    if ('human' in line) shown[index] = line.human.length
+    else {
+      shown[index] = Math.min(line.agent.length, Math.floor(left / pace.charMs))
+      left -= line.agent.length * pace.charMs
+    }
+    left -= pace.pauseMs
+    if (left < 0) break
+  }
+  if (eraseAt === null || elapsed < eraseAt) return shown
+
+  let erased = Math.floor((elapsed - eraseAt) / pace.charMs)
+  for (let index = chat.length - 1; index >= 0; index -= 1) {
+    if (shown[index]! < 0) continue
+    if ('agent' in chat[index]! && erased < shown[index]!) {
+      shown[index]! -= erased
+      break
+    }
+    if ('agent' in chat[index]!) erased -= shown[index]!
+    shown[index] = -1
+  }
+  return shown
 }
 
 /** Which way the sea with the boat and the cloud move, per tick. */
