@@ -5,6 +5,7 @@ import type { ContextScale, TrackerUrls } from '../../../src/state.js'
 import { say, t } from '../i18n/index.js'
 import { useCommand } from '../live/useCommand.js'
 import { blockMetered, checkpointHandoffs, issueLink, type BlockLamp, type ChainBlock, type Ghost } from '../state.js'
+import { AccountTag } from '../ui/AccountTag.js'
 import { ARCHIVE_PAGE, archiveView } from '../ui/archive.js'
 import { CacheClock } from '../ui/CacheClock.js'
 import { ContextMeter } from '../ui/ContextMeter.js'
@@ -502,6 +503,7 @@ function Block(props: BlockProps) {
             {handoffs}
           </span>
         )}
+        {metered !== null && <AccountTag email={metered.account} />}
         {metered !== null && (
           <span className="block__metrics">
             {metered.cache !== null && <CacheClock cache={metered.cache} />}

@@ -56,6 +56,8 @@ export interface ReceivedTools {
 
 export interface ReceivedView extends Omit<ReceivedTools, 'skills'> {
   skills: ReceivedSkill[]
+  /** The e-mail of the account the session ran on, when known. */
+  account?: string | null
 }
 
 export interface ToolsView {

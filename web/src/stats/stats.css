@@ -797,6 +797,11 @@ a.stats__key:hover {
   font-size: 12px;
 }
 
+.timeline__label .account-tag {
+  align-self: flex-start;
+  margin-top: 3px;
+}
+
 .timeline__track {
   position: relative;
   height: 16px;

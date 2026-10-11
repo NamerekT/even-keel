@@ -9,6 +9,7 @@ import { useNow } from '../layout/useNow.js'
 import { useLive } from '../live/context.js'
 import { useCommand, useHold } from '../live/useCommand.js'
 import { checkpointHandoffs, sessionElapsed, taskProject, tokenTotal, type ChainBlock } from '../state.js'
+import { AccountTag } from '../ui/AccountTag.js'
 import { CacheClock } from '../ui/CacheClock.js'
 import { ContextMeter } from '../ui/ContextMeter.js'
 import { Lamp } from '../ui/Lamp.js'
@@ -67,7 +68,7 @@ export function SessionPanel({ block, scale, onCard, onClose }: Props) {
         <>
           <StartCard start={block.start} />
           {block.start.phase === 'answer' && block.session !== null && (
-            <Feed lines={block.session.feed} sessionId={block.session.sessionId} live />
+            <Feed lines={block.session.feed} sessionId={block.session.sessionId} account={block.session.account} live />
           )}
         </>
       ) : block.session === null ? (
@@ -180,6 +181,9 @@ function SessionBody({ session, limit, scale }: { session: SessionView; limit: L
         <div className="panel__fact">
           <dt>{t.session.session}</dt>
           <dd className={`panel__state panel__state--${session.lamp}`}>{t.lamp[session.lamp]}</dd>
+          <dd>
+            <AccountTag email={session.account} />
+          </dd>
         </div>
         <div className="panel__fact">
           <dt>{t.session.time}</dt>
@@ -200,12 +204,16 @@ function SessionBody({ session, limit, scale }: { session: SessionView; limit: L
         </div>
         <TokensFact tokens={session.tokens} />
       </dl>
-      {session.lamp === 'finished' ? <RecordFeed sessionId={session.sessionId} /> : <Feed lines={session.feed} sessionId={session.sessionId} live />}
+      {session.lamp === 'finished' ? (
+        <RecordFeed sessionId={session.sessionId} account={session.account} />
+      ) : (
+        <Feed lines={session.feed} sessionId={session.sessionId} account={session.account} live />
+      )}
     </>
   )
 }
 
-function RecordFeed({ sessionId }: { sessionId: string }) {
+function RecordFeed({ sessionId, account }: { sessionId: string; account: string | null }) {
   const { session } = useLive()
   const [lines, setLines] = useState<FeedLine[] | null>(null)
 
@@ -220,7 +228,7 @@ function RecordFeed({ sessionId }: { sessionId: string }) {
     }
   }, [sessionId])
 
-  return lines === null ? <p className="placeholder">{t.common.reading}</p> : <Feed lines={lines} sessionId={sessionId} live={false} />
+  return lines === null ? <p className="placeholder">{t.common.reading}</p> : <Feed lines={lines} sessionId={sessionId} account={account} live={false} />
 }
 
 function CacheFact({ cache }: { cache: CacheWindow }) {
@@ -290,6 +298,9 @@ function SessionList({ rows, current, onOpen }: SessionListProps) {
                 {row.left !== undefined && ` · ${leftText(row.left)}`}
                 {row.replaced !== undefined && ` · ${t.session.replaced[row.replaced.how]}`}
               </span>
+              <span className="sessions__account">
+                <AccountTag email={row.account} />
+              </span>
               <span className="sessions__id">{row.sessionId.slice(0, 8)}</span>
               {row.sessionId === current && <span className="sessions__now">{t.session.current}</span>}
             </button>
@@ -327,6 +338,7 @@ function SessionWindow({ row, live, scale, onClose }: { row: TaskSession; live: 
 
   const started = record?.startedAt ?? row.at
   const last = record?.lastActivityAt ?? null
+  const account = record?.account ?? row.account ?? null
 
   return (
     <dialog
@@ -346,6 +358,7 @@ function SessionWindow({ row, live, scale, onClose }: { row: TaskSession; live: 
           <h2 className="panel__task">
             <span className="panel__key">{row.sessionId.slice(0, 8)}</span>
             <span className="panel__title">{t.session.launches[row.how]}</span>
+            <AccountTag email={account} />
           </h2>
           <button type="button" className="panel__close" aria-label={t.session.closeDialog} onClick={() => dialogRef.current?.close()}>
             ×
@@ -388,7 +401,7 @@ function SessionWindow({ row, live, scale, onClose }: { row: TaskSession; live: 
               )}
             </dl>
             {record.apiError !== null && <p className="notice notice--error">{record.apiError}</p>}
-            <Feed lines={record.feed} sessionId={row.sessionId} live={live} />
+            <Feed lines={record.feed} sessionId={row.sessionId} account={account} live={live} />
           </>
         )}
       </div>
@@ -396,7 +409,7 @@ function SessionWindow({ row, live, scale, onClose }: { row: TaskSession; live: 
   )
 }
 
-function Feed({ lines, sessionId, live }: { lines: FeedLine[]; sessionId: string; live: boolean }) {
+function Feed({ lines, sessionId, account, live }: { lines: FeedLine[]; sessionId: string; account: string | null; live: boolean }) {
   const listRef = useRef<HTMLOListElement>(null)
   const pinned = useRef(true)
   const [whole, setWhole] = useState(false)
@@ -421,7 +434,7 @@ function Feed({ lines, sessionId, live }: { lines: FeedLine[]; sessionId: string
       </div>
       {whole && (
         <Suspense fallback={null}>
-          <TranscriptWindow sessionId={sessionId} live={live} onClose={() => setWhole(false)} />
+          <TranscriptWindow sessionId={sessionId} account={account} live={live} onClose={() => setWhole(false)} />
         </Suspense>
       )}
       {lines.length === 0 ? (

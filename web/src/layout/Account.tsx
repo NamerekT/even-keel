@@ -1,20 +1,13 @@
-import { useState, type FormEvent, type ReactNode } from 'react'
+import { useState, type FormEvent } from 'react'
 import { Link } from 'react-router'
-import {
-  removeProblem,
-  switchBlock,
-  switchProblem,
-  type AccountEntry,
-  type AccountLogin,
-  type AccountView,
-  type LoginBlock,
-} from '../../../src/account/model.js'
+import { removeProblem, switchProblem, type AccountEntry, type AccountLogin, type AccountView } from '../../../src/account/model.js'
 import { APP_LABELS, appSwitchProblem, type AppAccount } from '../../../src/account/apps.js'
 import type { Notice } from '../../../src/notice/notice.js'
-import { formatSpan } from '../format.js'
+import { accountSlot } from '../accounts.js'
 import { say, t } from '../i18n/index.js'
 import { useCommand } from '../live/useCommand.js'
-import { accountBadge, accountOrder, canWork, limitedUntil, loginLeft } from '../state.js'
+import { accountBadge, accountOrder, canWork, loginLeft } from '../state.js'
+import { seriesStyle } from '../ui/series.js'
 import { Limits } from './Limits.js'
 import { useNow } from './useNow.js'
 import { usePopover } from './usePopover.js'
@@ -49,7 +42,8 @@ function AccountPanel({ account, onClose }: { account: AccountView; onClose: () 
   const now = useNow(60_000)
   const { login } = account
   const ordered = accountOrder(account.accounts, now)
-  const switchBlocked = switchBlock(account.loginBlock)
+  const running = account.loginBlock?.chains ?? []
+  const active = account.accounts.find((entry) => entry.key === account.active)
 
   return (
     <aside id="account-panel" className="drawer" role="dialog" aria-label={t.account.title}>
@@ -95,19 +89,24 @@ function AccountPanel({ account, onClose }: { account: AccountView; onClose: () 
       <section className="queue__section">
         <h2 className="queue__heading">{t.account.roles}</h2>
         <ul className="roles">
-          <RoleRow
-            label="Even Keel"
-            value={account.active}
-            options={ordered}
-            now={now}
-            disabled={sending || switchBlocked !== null}
-            problem={(key) => switchProblem(account, key)}
-            onPick={(key) => void send('account/switch', { account: key })}
-          >
-            {switchBlocked !== null && <Blockers block={switchBlocked} />}
-          </RoleRow>
+          {running.length > 0 && (
+            <li className="roles__item">
+              <span className="roles__label">Even Keel</span>
+              <div className="account__blockers">
+                <p className="queue__hint">{t.account.chainsRunning}</p>
+                <ul className="account__blocker-list">
+                  {running.map((project) => (
+                    <li key={project}>
+                      <Link to={`/p/${project}`}>{project}</Link>
+                    </li>
+                  ))}
+                </ul>
+                <p className="queue__hint">{t.account.chainsStay(active === undefined ? account.active : accountName(active))}</p>
+              </div>
+            </li>
+          )}
           {account.apps.map((app) => (
-            <AppRole key={app.app} app={app} view={account} options={ordered} now={now} sending={sending} send={send} />
+            <AppNotes key={app.app} app={app} />
           ))}
         </ul>
       </section>
@@ -117,81 +116,16 @@ function AccountPanel({ account, onClose }: { account: AccountView; onClose: () 
   )
 }
 
-interface RoleProps {
-  label: string
-  value: string | null
-  options: AccountEntry[]
-  now: Date
-  disabled: boolean
-  problem: (key: string) => Notice | undefined
-  onPick: (key: string) => void
-  placeholder?: string
-  children?: ReactNode
-}
-
-function RoleRow({ label, value, options, now, disabled, problem, onPick, placeholder, children }: RoleProps) {
-  const known = options.some((entry) => entry.key === value)
-  return (
-    <li className="roles__item">
-      <label className="roles__row">
-        <span className="roles__label">{label}</span>
-        <select
-          className="roles__select"
-          value={known ? value! : ''}
-          disabled={disabled}
-          onChange={(event) => onPick(event.target.value)}
-        >
-          {!known && (
-            <option value="" disabled>
-              {placeholder ?? '—'}
-            </option>
-          )}
-          {options.map((entry) => (
-            <option key={entry.key} value={entry.key} disabled={entry.key !== value && problem(entry.key) !== undefined}>
-              {optionLabel(entry, now)}
-            </option>
-          ))}
-        </select>
-      </label>
-      {children}
-    </li>
-  )
-}
-
-function optionLabel(entry: AccountEntry, now: Date): string {
-  const name = accountName(entry)
-  if (entry.removing) return t.account.optionRemoving(name)
-  if (entry.needsLogin || entry.status?.loggedIn !== true) return t.account.optionLogin(name)
-  const until = limitedUntil(entry, now)
-  return until === null ? name : t.account.optionLimit(name, formatSpan(until, now))
-}
-
 function accountName(entry: AccountEntry): string {
   return entry.status?.email ?? (entry.global ? t.account.global : entry.key)
 }
 
-interface AppProps {
-  app: AppAccount
-  view: AccountView
-  options: AccountEntry[]
-  now: Date
-  sending: boolean
-  send: Send
-}
-
-function AppRole({ app, view, options, now, sending, send }: AppProps) {
+function AppNotes({ app }: { app: AppAccount }) {
   const label = APP_LABELS[app.app]
   return (
-    <RoleRow
-      label={label}
-      value={app.account}
-      options={options}
-      now={now}
-      disabled={sending || app.error !== null || app.sessions.length > 0}
-      problem={(key) => appSwitchProblem(view, app.app, key)}
-      onPick={(key) => void send('account/app', { app: app.app, account: key })}
-      placeholder={appAccountName(app)}
-    >
+    <li className="roles__item">
+      <span className="roles__label">{label}</span>
+      {app.account === null && <p className="queue__hint">{t.account.appOn(appAccountName(app))}</p>}
       {app.error !== null && <p className="notice notice--error">{say(app.error)}</p>}
       {app.sessions.length > 0 && (
         <div className="account__blockers">
@@ -207,13 +141,58 @@ function AppRole({ app, view, options, now, sending, send }: AppProps) {
         </div>
       )}
       <p className="queue__hint">{t.account.reload(label)}</p>
-    </RoleRow>
+    </li>
   )
 }
 
 function appAccountName(app: AppAccount): string {
   if (app.dir !== null) return t.account.unknownDir(app.dir)
   return app.error === null ? t.account.unread : '—'
+}
+
+interface Role {
+  label: string
+  on: boolean
+  problem: Notice | undefined
+  pick: () => void
+}
+
+function rolesOf(entry: AccountEntry, view: AccountView, send: Send): Role[] {
+  return [
+    {
+      label: 'Even Keel',
+      on: entry.key === view.active,
+      problem: switchProblem(view, entry.key),
+      pick: () => void send('account/switch', { account: entry.key }),
+    },
+    ...view.apps.map((app) => ({
+      label: APP_LABELS[app.app],
+      on: app.account === entry.key,
+      problem: appSwitchProblem(view, app.app, entry.key),
+      pick: () => void send('account/app', { app: app.app, account: entry.key }),
+    })),
+  ]
+}
+
+function RoleButtons({ roles, sending }: { roles: Role[]; sending: boolean }) {
+  return (
+    <div className="accounts__roles">
+      {roles.map((role) => (
+        <button
+          key={role.label}
+          type="button"
+          className={`accounts__role${role.on ? ' accounts__role--on' : ''}`}
+          aria-pressed={role.on}
+          disabled={role.on || sending || role.problem !== undefined}
+          title={role.on ? t.account.holds(role.label) : role.problem !== undefined ? say(role.problem) : t.account.take(role.label)}
+          onClick={role.pick}
+        >
+          {role.on && <span aria-hidden="true">✓ </span>}
+          {role.label}
+        </button>
+      ))}
+    </div>
+  )
 }
 
 function loginHeading({ login, accounts }: AccountView): string {
@@ -239,20 +218,17 @@ function AccountItem({ entry, view, now, sending, send }: ItemProps) {
   const off = !canWork(entry, now)
   const name = accountName(entry)
   const at = name.lastIndexOf('@')
-  const roles = [...(active ? ['Even Keel'] : []), ...view.apps.filter((app) => app.account === entry.key).map((app) => APP_LABELS[app.app])]
+  const email = entry.status?.email ?? null
+  const slot = email === null ? null : accountSlot(view, email)
 
   return (
-    <li className={`accounts__item${off ? ' accounts__item--off' : ''}`}>
+    <li className={`accounts__item${off ? ' accounts__item--off' : ''}`} style={seriesStyle(slot)}>
       <div className="accounts__head">
+        <span className="accounts__dot" aria-hidden="true" />
         <span className="accounts__email" title={name}>
           {at > 0 ? name.slice(0, at) : name}
           {at > 0 && <span className="accounts__domain">{name.slice(at)}</span>}
         </span>
-        {roles.map((role) => (
-          <span key={role} className="accounts__mark">
-            {role}
-          </span>
-        ))}
         <button
           type="button"
           className="accounts__more"
@@ -298,6 +274,7 @@ function AccountItem({ entry, view, now, sending, send }: ItemProps) {
       {entry.configPending && <p className="accounts__note">{t.account.configPending}</p>}
       {entry.error !== null && <p className="accounts__note">{t.account.checkFailed(say(entry.error))}</p>}
       {open && <AccountDetails entry={entry} view={view} left={left.text} sending={sending} send={send} />}
+      <RoleButtons roles={rolesOf(entry, view, send)} sending={sending} />
     </li>
   )
 }
@@ -354,34 +331,6 @@ function AccountDetails({ entry, view, left, sending, send }: DetailsProps) {
 
 function staleNote(reason: Notice | null): string {
   return reason === null ? t.account.staleExpired : t.account.staleBusy
-}
-
-function Blockers({ block }: { block: LoginBlock }) {
-  return (
-    <div className="account__blockers">
-      <p className="queue__hint">{t.account.switchBlocked}</p>
-      <ul className="account__blocker-list">
-        {block.chains.map((project) => (
-          <li key={project}>
-            {t.account.chainBusy.before}
-            <Link to={`/p/${project}`}>{project}</Link>
-            {t.account.chainBusy.after}
-          </li>
-        ))}
-        {block.sessions.map((session, index) => (
-          <li key={`${session.name}-${index}`}>
-            <span className="account__blocker-name">{session.name}</span>{' '}
-            {session.status === 'busy'
-              ? t.account.busy
-              : session.waitingFor === null
-                ? t.account.waiting
-                : t.account.waitingFor(session.waitingFor)}
-          </li>
-        ))}
-      </ul>
-      {block.sessions.length > 0 && <p className="queue__hint">{t.account.turnHint}</p>}
-    </div>
-  )
 }
 
 interface StepsProps {

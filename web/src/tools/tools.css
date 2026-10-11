@@ -4,6 +4,13 @@
   font-size: 13px;
 }
 
+.tools__meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 8px;
+}
+
 .tools__trim {
   margin: 0;
   padding: 8px 12px;

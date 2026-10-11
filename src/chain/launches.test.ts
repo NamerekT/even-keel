@@ -90,6 +90,19 @@ describe('taskSessions', () => {
     expect(list['ABC-1']).toEqual([{ sessionId: 's1', at: '2026-09-27T10:00:00.000Z', how: 'launch', resumed: 1 }])
   })
 
+  it('names the account of each session as of its start', () => {
+    const list = taskSessions(
+      [entry('2026-09-27T10:00:00.000Z', 'ABC-1', 's1'), entry('2026-09-27T11:00:00.000Z', 'ABC-1', 's2')],
+      [{ task: 'ABC-1', sessionId: 's9', startedAt: '2026-09-27T12:00:00.000Z' }],
+      (sessionId, at) => (sessionId === 's2' ? null : `${sessionId}@example.com ${at}`),
+    )
+    expect(list['ABC-1']?.map((row) => [row.sessionId, row.account])).toEqual([
+      ['s9', 's9@example.com 2026-09-27T12:00:00.000Z'],
+      ['s2', null],
+      ['s1', 's1@example.com 2026-09-27T10:00:00.000Z'],
+    ])
+  })
+
   it('adds a session started by hand that the journal does not know', () => {
     const list = taskSessions([entry('2026-09-27T10:00:00.000Z', 'ABC-1', 's1')], [
       { task: 'ABC-1', sessionId: 's9', startedAt: '2026-09-27T12:00:00.000Z' },

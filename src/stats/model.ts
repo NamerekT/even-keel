@@ -117,6 +117,8 @@ export interface StatsTaskSession {
   firstAt: string
   lastAt: string
   cost: number
+  /** The account folder key the session's messages came from. */
+  account: string | null
 }
 
 export interface StatsTaskDetail {

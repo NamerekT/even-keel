@@ -1,9 +1,11 @@
 import type { TrackerUrls } from '../../../src/state.js'
 import { Fragment, useState, type CSSProperties, type ReactNode } from 'react'
 import type { StatsTaskDetail, StatsTaskRow } from '../../../src/stats/model.js'
+import { folderEmail } from '../accounts.js'
 import { formatMoment } from '../format.js'
 import { t } from '../i18n/index.js'
 import { useLive } from '../live/context.js'
+import { AccountTag } from '../ui/AccountTag.js'
 import { seriesStyle } from '../ui/series.js'
 import { AnswerNotice, Section, TaskKey, loadedData, useStatsAnswer, type FoldControl } from './common.js'
 import { formatDuration, formatRatio, formatSeconds, formatShare, formatUsd, kindLabel, launchLabel, modelLabel, reasonLabel } from './format.js'
@@ -196,6 +198,7 @@ function TaskDetail({ task }: { task: string }) {
 }
 
 function Timeline({ detail }: { detail: StatsTaskDetail }) {
+  const { state } = useLive()
   const now = new Date()
   const times = [...detail.sessions.flatMap((each) => [each.firstAt, each.lastAt]), ...detail.spans.flatMap((each) => [each.fromAt, each.toAt])].map(Date.parse)
   if (times.length === 0) return <p className="placeholder">{t.stats.tasks.noSessions}</p>
@@ -218,6 +221,7 @@ function Timeline({ detail }: { detail: StatsTaskDetail }) {
               <span className="timeline__meta">
                 {session.model !== null && modelLabel(session.model.replace(/^claude-([a-z]+).*$/, '$1'))} · {formatUsd(session.cost)}
               </span>
+              {session.account !== null && <AccountTag email={folderEmail(state?.account, session.account)} />}
             </span>
             <span className="timeline__track">
               <span className="timeline__bar" style={{ ...seriesStyle((index % 8) + 1), left: at(session.firstAt), width: width(session.firstAt, session.lastAt) }} />

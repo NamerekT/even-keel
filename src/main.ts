@@ -28,6 +28,7 @@ import { turnStatus, type AgentEntry } from './sessions/agents.js'
 import { launchPlan, type LaunchPlan } from './sessions/launch.js'
 import { readSessionRecord, readTranscript } from './sessions/history.js'
 import { SessionMonitor } from './sessions/monitor.js'
+import { TranscriptOwners } from './sessions/owners.js'
 import { isInside } from './paths.js'
 import { slotOccupants } from './sessions/occupants.js'
 import { locateWorktree } from './sessions/place.js'
@@ -58,6 +59,7 @@ const ACCOUNT_POLL_MS = 60_000
 const APP_POLL_MS = 5_000
 const LOGIN_TIMEOUT_MS = 10 * 60_000
 const LIMIT_CHECK_MS = 30_000
+const OWNERS_RESCAN_MS = 5 * 60_000
 const CONFIG_POLL_MS = 2_000
 const TALLY_INTERVAL_MS = 5 * 60_000
 const TALLY_FIRST_DELAY_MS = 15_000
@@ -211,6 +213,25 @@ const account = new AccountWatcher({
   },
   onError: (error) => console.error(`account: ${error instanceof Error ? error.message : String(error)}`),
 })
+
+const owners = new TranscriptOwners({
+  homes: () => homes.list(),
+  rescanMs: OWNERS_RESCAN_MS,
+  onChange: () => hub.broadcast('state', getState()),
+  onError: (error) => console.error(`sessions: ${error instanceof Error ? error.message : String(error)}`),
+})
+
+/** The e-mail a folder had at `at` (the folder's account may change), else its current one. */
+const emailAt = (key: string, at: string | null): string | null =>
+  (at === null ? null : accountAt(ledger, key, at)) ?? account.emailOf(key)
+
+const sessionAccount = (sessionId: string | null, at: string | null): string | null => {
+  if (sessionId === null) return null
+  const live = sessions.find((view) => view.sessionId === sessionId)
+  if (live !== undefined) return live.account
+  const key = owners.of(sessionId)
+  return key === undefined ? null : emailAt(key, at)
+}
 
 const activeAccount = () => {
   const view = account.view
@@ -459,7 +480,7 @@ const getState = (): EvenKeelState => ({
     projects: Object.fromEntries(Object.keys(config.projects).map((project) => [project, setups.get(config.trackers[project]!)?.issueUrl(project) ?? null])),
   },
   launches: launchDays(launches, new Date(), LAUNCH_CHART_DAYS),
-  taskSessions: taskSessions(launches, sessions),
+  taskSessions: taskSessions(launches, sessions, sessionAccount),
   context: config.context,
   configError: configFile.error,
   mcpMissing: mcp.missing,
@@ -475,7 +496,13 @@ const server = createEvenKeelServer({
   control: dispatcher,
   account,
   launches: () => launches,
-  sessionRecord: (sessionId) => inHomes((projects) => readSessionRecord(projects, sessionId)),
+  sessionRecord: async (sessionId) => {
+    for (const home of homes.list()) {
+      const found = await readSessionRecord(join(home.dir, 'projects'), sessionId)
+      if (found !== undefined) return { ...found, account: sessionAccount(sessionId, found.startedAt) ?? emailAt(home.key, found.startedAt) }
+    }
+    return undefined
+  },
   transcript: (sessionId, after) => inHomes((projects) => readTranscript(projects, sessionId, after)),
   checkpoint: async (sessionId) => {
     const run = handoffsOf(launches, sessionId)
@@ -487,7 +514,7 @@ const server = createEvenKeelServer({
     const repo = config.projects[project]
     if (repo === undefined) return undefined
     const list = homes.list()
-    return readToolsView(project, {
+    const view = await readToolsView(project, {
       repo,
       globalDir: homes.global.dir,
       configs: claudeConfigs(),
@@ -497,6 +524,8 @@ const server = createEvenKeelServer({
       hidden: configFile.current.hiddenSkills,
       mode: SESSION_MODE,
     })
+    const received = view.received
+    return received === null ? view : { ...view, received: { ...received, account: sessionAccount(received.sessionId, received.at) } }
   },
   tasks: {
     card: async (task) => {
@@ -551,6 +580,7 @@ setInterval(() => hub.broadcast('ping', { at: new Date().toISOString() }), 15_00
 setInterval(() => dispatcher.check(), LIMIT_CHECK_MS).unref()
 
 monitor.start()
+void owners.scan()
 limits.start()
 account.start()
 vscode.start()

@@ -160,7 +160,7 @@ limit ${TOP_STUCK}`
 
 const TASK_SESSIONS = `
 select c.session_id, coalesce(s.custom_title, s.ai_title) as title, s.launch_reason, mode() within group (order by c.model) as model,
-  min(c.at) as first_at, max(c.at) as last_at, coalesce(sum(c.cost), 0) as cost
+  min(c.at) as first_at, max(c.at) as last_at, coalesce(sum(c.cost), 0) as cost, mode() within group (order by c.account) as account
 from message_costs c
 left join sessions s on s.session_id = c.session_id
 where c.task = $1::text
@@ -358,6 +358,7 @@ export function mapTask(task: string, sessions: Row[], spans: Row[], steps: Stat
       firstAt: iso(row.first_at),
       lastAt: iso(row.last_at),
       cost: number(row.cost),
+      account: text(row.account),
     })),
     spans: spans.map(stuck),
     steps,

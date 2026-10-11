@@ -823,8 +823,90 @@ h1 {
   display: flex;
   flex-direction: column;
   gap: 6px;
-  padding: 10px 0;
-  border-top: 1px solid var(--border);
+  margin: 0 -10px;
+  padding: 10px;
+  border-top: 1px solid color-mix(in srgb, var(--fg-muted) 55%, transparent);
+  transition: background-color 120ms ease, box-shadow 120ms ease;
+}
+
+.accounts__item:has(.accounts__role:enabled:hover),
+.accounts__item:has(.accounts__role:enabled:focus-visible) {
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  box-shadow: inset 3px 0 0 var(--accent);
+}
+
+.accounts__dot {
+  flex: none;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--series);
+}
+
+.accounts__roles {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding-top: 2px;
+}
+
+.accounts__role {
+  padding: 3px 12px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--fg);
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.accounts__role:enabled:hover,
+.accounts__role:focus-visible {
+  border-color: var(--accent);
+  color: var(--accent);
+  outline: none;
+}
+
+.accounts__role:disabled {
+  cursor: default;
+  opacity: 0.4;
+}
+
+.accounts__role--on:disabled {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 18%, transparent);
+  color: var(--accent);
+  font-weight: 600;
+  opacity: 1;
+}
+
+.account-tag {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: 5px;
+  max-width: 100%;
+  padding: 1px 8px 1px 6px;
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--series) 60%, transparent);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--series) 16%, transparent);
+  color: var(--fg);
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.4;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.account-tag::before {
+  content: '';
+  flex: none;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--series);
 }
 
 .accounts__head {
@@ -850,16 +932,6 @@ h1 {
 
 .accounts__item--off .accounts__email {
   color: var(--fg-muted);
-}
-
-.accounts__mark {
-  flex: none;
-  padding: 1px 8px;
-  border: 1px solid var(--accent);
-  border-radius: 999px;
-  color: var(--accent);
-  font-size: 12px;
-  font-weight: 600;
 }
 
 .accounts__more {
@@ -949,42 +1021,8 @@ h1 {
   gap: 6px;
 }
 
-.roles__row {
-  display: grid;
-  grid-template-columns: 80px minmax(0, 1fr);
-  align-items: center;
-  gap: 10px;
-}
-
 .roles__label {
   font-weight: 600;
-}
-
-.roles__select {
-  min-width: 0;
-  padding: 6px 8px;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  background: var(--bg);
-  color: var(--fg);
-  font: inherit;
-  font-size: 14px;
-  text-overflow: ellipsis;
-}
-
-.roles__select:disabled {
-  opacity: 0.6;
-}
-
-@media (max-width: 760px) {
-  .roles__select {
-    font-size: 16px;
-  }
-}
-
-.roles__select:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 1px;
 }
 
 .accounts__confirm {
@@ -2484,6 +2522,11 @@ a:focus-visible {
   line-height: 1.35;
 }
 
+.panel__task .account-tag {
+  margin-left: 8px;
+  vertical-align: 2px;
+}
+
 .panel__card {
   padding: 0;
   border: 0;
@@ -2862,8 +2905,8 @@ a:focus-visible {
 
 .sessions__row {
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
-  align-items: baseline;
+  grid-template-columns: auto minmax(0, 1fr) auto auto;
+  align-items: center;
   gap: 4px 10px;
   width: 100%;
   padding: 7px 10px;
@@ -2891,6 +2934,11 @@ a:focus-visible {
 }
 
 .sessions__how {
+  min-width: 0;
+}
+
+.sessions__account {
+  display: flex;
   min-width: 0;
 }
 

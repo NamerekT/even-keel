@@ -20,6 +20,7 @@ export async function readSessionRecord(projectsDir: string, sessionId: string):
     workdir: summary.workdir,
     branch: summary.gitBranch,
     apiError: summary.apiError?.text ?? null,
+    account: null,
   }
 }
 

@@ -46,6 +46,8 @@ export interface SessionRecord {
   workdir: string | null
   branch: string | null
   apiError: string | null
+  /** The e-mail of the account the session ran on. */
+  account: string | null
 }
 
 /** Task link templates (`TrackerSetup.issueUrl`): `{id}` — the task id, `{number}` — its number. */

@@ -301,16 +301,15 @@ describe('switchProblem', () => {
     expect(switchProblem(view({}), 'work')).toBeUndefined()
   })
 
-  it('refuses an unknown, active or unsigned account and a blocked switch', () => {
+  it('refuses an unknown, active or unsigned account', () => {
     expect(say(switchProblem(view({}), 'nope'))).toMatch(/no account/)
     expect(say(switchProblem(view({}), 'global'))).toMatch(/already active/)
     const expired = view({ accounts: [entry({}), entry({ key: 'work', global: false, needsLogin: true })] })
     expect(say(switchProblem(expired, 'work'))).toMatch(/needs a login/)
-    expect(say(switchProblem(view({ loginBlock: { chains: ['ABC'], sessions: [] } }), 'work'))).toMatch(/chain ABC is running/)
   })
 
-  it('is not held by busy sessions of the active account: a switch only picks the folder for new launches', () => {
-    const busy = { chains: [], sessions: [{ name: 'ABC-1', status: 'busy' as const, waitingFor: null }] }
+  it('is held neither by a running chain nor by busy sessions: a switch only picks the folder for new launches', () => {
+    const busy = { chains: ['ABC'], sessions: [{ name: 'ABC-1', status: 'busy' as const, waitingFor: null }] }
     expect(switchProblem(view({ loginBlock: busy }), 'work')).toBeUndefined()
   })
 

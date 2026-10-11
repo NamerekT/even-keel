@@ -293,6 +293,7 @@ export function fakeTask(mode: string | null, task: string): StatsAnswer<StatsTa
       firstAt: new Date(firstAt).toISOString(),
       lastAt: new Date(lastAt).toISOString(),
       cost: 2 + next() * 12,
+      account: index % 3 === 1 ? 'jane.roe' : 'global',
     }
   })
   const spans = sessions

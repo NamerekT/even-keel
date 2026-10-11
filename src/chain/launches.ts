@@ -29,6 +29,8 @@ export interface TaskSession {
   resumed: number
   left?: { at: string; reason: ReleaseReason; blockers: string[] }
   replaced?: { at: string; how: HandOver }
+  /** The e-mail of the account the session ran on; `null` when it is not known. */
+  account?: string | null
 }
 
 type HandOver = 'restart' | 'checkpoint'
@@ -36,6 +38,7 @@ type HandOver = 'restart' | 'checkpoint'
 export function taskSessions(
   entries: LaunchEntry[],
   live: Pick<SessionView, 'task' | 'sessionId' | 'startedAt'>[],
+  accountOf?: (sessionId: string, at: string) => string | null,
 ): Record<string, TaskSession[]> {
   const byTask = new Map<string, Map<string, TaskSession>>()
   const rowsOf = (task: string) => {
@@ -71,7 +74,10 @@ export function taskSessions(
     if (row !== undefined) row.left = { at: entry.at, reason: entry.reason, blockers: entry.blockers ?? [] }
   }
   const result: Record<string, TaskSession[]> = {}
-  for (const [task, rows] of byTask) result[task] = [...rows.values()].sort((a, b) => Date.parse(b.at) - Date.parse(a.at))
+  for (const [task, rows] of byTask) {
+    if (accountOf !== undefined) for (const row of rows.values()) row.account = accountOf(row.sessionId, row.at)
+    result[task] = [...rows.values()].sort((a, b) => Date.parse(b.at) - Date.parse(a.at))
+  }
   return result
 }
 

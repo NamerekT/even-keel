@@ -59,6 +59,7 @@ function received(repo: string, project: string, bloated: boolean): ReceivedView
     at: new Date(Date.now() - 42 * 60_000).toISOString(),
     version: '2.1.290',
     mode: 'auto',
+    account: 'jane.roe@example.com',
     skills: [
       { name: 'coding', source: 'user' },
       { name: 'huly-tracker', source: 'user' },

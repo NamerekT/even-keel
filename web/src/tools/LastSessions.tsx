@@ -1,6 +1,7 @@
 import type { ReceivedView, SkillSource, ToolsView } from '../../../src/tools/model.js'
 import { formatAgo } from '../format.js'
 import { t } from '../i18n/index.js'
+import { AccountTag } from '../ui/AccountTag.js'
 import { Chip } from './SettingsMatrix.js'
 
 const SOURCES: SkillSource[] = ['claudeai', 'project', 'user', 'plugin', 'bundled']
@@ -25,7 +26,10 @@ function Received({ received }: { received: ReceivedView }) {
   const ago = received.at === null ? '' : formatAgo(received.at, new Date())
   return (
     <>
-      <p className="tools__muted">{t.tools.meta(ago, received.version, received.mode)}</p>
+      <p className="tools__muted tools__meta">
+        <AccountTag email={received.account} />
+        {t.tools.meta(ago, received.version, received.mode)}
+      </p>
       {received.cwd !== null && (
         <p className="tools__cwd" title={received.cwd}>
           <code>{received.cwd}</code>

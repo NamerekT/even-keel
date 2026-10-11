@@ -4,6 +4,7 @@ import remarkGfm from 'remark-gfm'
 import type { FeedLine } from '../../../src/sessions/transcript.js'
 import { localized, t } from '../i18n/index.js'
 import { useLive } from '../live/context.js'
+import { AccountTag } from '../ui/AccountTag.js'
 import '../ui/markdown.css'
 
 const LINE_TIME = localized((language) => new Intl.DateTimeFormat(language, { hour: '2-digit', minute: '2-digit', second: '2-digit' }))
@@ -24,13 +25,14 @@ const MARKDOWN: Components = {
 
 interface Props {
   sessionId: string
+  account: string | null
   /** The session still runs: new lines are fetched every few seconds. */
   live: boolean
   onClose: () => void
 }
 
 /** The whole transcript of a session: prompts, texts uncut, tool calls with their shell commands. */
-export function TranscriptWindow({ sessionId, live, onClose }: Props) {
+export function TranscriptWindow({ sessionId, account, live, onClose }: Props) {
   const { transcript } = useLive()
   const dialogRef = useRef<HTMLDialogElement>(null)
   const listRef = useRef<HTMLOListElement>(null)
@@ -102,6 +104,7 @@ export function TranscriptWindow({ sessionId, live, onClose }: Props) {
           <h2 className="panel__task">
             <span className="panel__key">{sessionId.slice(0, 8)}</span>
             <span className="panel__title">{t.session.transcriptTitle}</span>
+            <AccountTag email={account} />
           </h2>
           <button type="button" className="panel__close" aria-label={t.session.closeTranscript} onClick={() => dialogRef.current?.close()}>
             ×

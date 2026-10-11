@@ -240,11 +240,11 @@ function fakeState(
       ? {}
       : {
           'ABC-5': [
-            { sessionId: session('ABC-5', 0).sessionId, at: ago(42), how: 'relay', resumed: 0 },
-            { sessionId: '00000000-0000-4000-8000-000000000105', at: ago(400), how: 'launch', resumed: 1 },
+            { sessionId: session('ABC-5', 0).sessionId, at: ago(42), how: 'relay', resumed: 0, account: 'john.doe@example.com' },
+            { sessionId: '00000000-0000-4000-8000-000000000105', at: ago(400), how: 'launch', resumed: 1, account: 'jane.roe@example.com' },
           ],
-          'ABC-4': [{ sessionId: session('ABC-4', 0).sessionId, at: ago(900), how: 'launch', resumed: 0 }],
-          'ABC-6': [{ sessionId: session('ABC-6', 0).sessionId, at: ago(60), how: 'manual', resumed: 0 }],
+          'ABC-4': [{ sessionId: session('ABC-4', 0).sessionId, at: ago(900), how: 'launch', resumed: 0, account: 'john.doe@example.com' }],
+          'ABC-6': [{ sessionId: session('ABC-6', 0).sessionId, at: ago(60), how: 'manual', resumed: 0, account: 'jane.roe@example.com' }],
         },
     context: { window: 600_000, warn: 50, danger: 80 },
     configError: null,
@@ -281,6 +281,7 @@ function fakeRecord(state: EvenKeelState, sessionId: string): SessionRecord | nu
     workdir: 'C:\\repos\\example-project\\.claude\\worktrees\\abc-5',
     branch: 'abc-5/chain-order',
     apiError: live?.apiError ?? "You've hit your session limit · resets 7:20pm (Europe/Berlin)",
+    account: live?.account ?? state.taskSessions['ABC-5']?.find((row) => row.sessionId === sessionId)?.account ?? 'jane.roe@example.com',
   }
 }
 
