@@ -1,8 +1,8 @@
-import { lazy, Suspense, useCallback, useEffect, useRef } from 'react'
+import { lazy, Suspense, useCallback, useEffect, useRef, type ReactNode } from 'react'
 import { useLocation, useNavigate, useParams } from 'react-router'
 import type { EvenKeelState } from '../../../src/state.js'
 import { say, t } from '../i18n/index.js'
-import { isNarrow } from '../layout/useNarrow.js'
+import { isNarrow, useNarrow } from '../layout/useNarrow.js'
 import { useWide } from '../layout/useWide.js'
 import { useCommand } from '../live/useCommand.js'
 import {
@@ -28,7 +28,7 @@ import { QuestionsChip } from '../ui/QuestionsChip.js'
 import { StatusChip } from '../ui/StatusChip.js'
 import { BACKLOG_HASH, BacklogChip, BacklogPanel } from './BacklogPanel.js'
 import { ChainList } from './ChainList.js'
-import { CiChip } from './CiChip.js'
+import { CI_HASH, CiChip, CiPanel } from './CiChip.js'
 import { Flight } from './Flight.js'
 import { IdlePanel } from './IdlePanel.js'
 import { NotFound } from './NotFound.js'
@@ -70,6 +70,7 @@ export function Project({ state }: { state: EvenKeelState }) {
   const arrival = useArrival(state, key, blocks, close)
   const strip = useStrip(key)
   const wide = useWide()
+  const narrow = useNarrow()
   if (!state.projects.includes(key)) return <NotFound what={t.notFound.project(key)} />
 
   const order = state.chain.projects[key]
@@ -79,7 +80,20 @@ export function Project({ state }: { state: EvenKeelState }) {
   const backlogOpen = focus === BACKLOG_HASH && backlog.length > 0
   const settings = state.settings[key]
   const settingsOpen = focus === SETTINGS_HASH && settings !== undefined
-  const side = selected !== undefined || backlogOpen || settingsOpen
+  const ci = state.ci[key]
+  const ciOpen = focus === CI_HASH && ci !== undefined
+  const side = selected !== undefined || backlogOpen || settingsOpen || ciOpen
+  const column = side || wide
+  // Over the side column the CI badge, Backlog and Settings are tabs on its card; with no column they end the head row.
+  const tabs = column && !narrow
+  const toggle = (hash: string, open: boolean) => () => navigate({ search: location.search, hash: open ? '' : hash })
+  const tools = (ci !== undefined || backlog.length > 0 || settings !== undefined) && (
+    <>
+      {ci !== undefined && <CiChip views={ci} open={ciOpen} tab={tabs} onToggle={toggle(CI_HASH, ciOpen)} />}
+      <BacklogChip count={backlog.length} open={backlogOpen} tab={tabs} onToggle={toggle(BACKLOG_HASH, backlogOpen)} />
+      {settings !== undefined && <SettingsChip open={settingsOpen} tab={tabs} onToggle={toggle(SETTINGS_HASH, settingsOpen)} />}
+    </>
+  )
   const question = questionPath(state, [key])
   const links = taskLinks(state.tasks, new Map(blocks.map((block) => [block.id, block.lamp])))
   const opened = new URLSearchParams(location.search).get(CARD_PARAM)
@@ -100,18 +114,10 @@ export function Project({ state }: { state: EvenKeelState }) {
       <div className="page">
         <header className="project__head">
           <h1 className="page__title project__title">{key}</h1>
-          <StatusChip status={chainStatus(state.chain, key)} />
-          {state.ci[key] !== undefined && <CiChip views={state.ci[key]} urls={state.trackerUrls} />}
           <QuestionsChip count={openQuestions(projectTasks(state, key))} to={question?.includes('#') ? question : null} />
-          <BacklogChip
-            count={backlog.length}
-            open={backlogOpen}
-            onToggle={() => navigate({ search: location.search, hash: backlogOpen ? '' : BACKLOG_HASH })}
-          />
-          {settings !== undefined && (
-            <SettingsChip open={settingsOpen} onToggle={() => navigate({ search: location.search, hash: settingsOpen ? '' : SETTINGS_HASH })} />
-          )}
-          <ChainControls state={state} project={key} />
+          <ChainControls state={state} project={key}>
+            {!tabs && tools}
+          </ChainControls>
         </header>
         {order?.error && <p className="notice notice--error">{say(order.error)}</p>}
         <Leftovers state={state} project={key} />
@@ -124,7 +130,7 @@ export function Project({ state }: { state: EvenKeelState }) {
             chain={blocks}
             scale={state.context}
             trackerUrls={state.trackerUrls}
-            focus={focus === BACKLOG_HASH || focus === SETTINGS_HASH ? '' : focus}
+            focus={focus === BACKLOG_HASH || focus === SETTINGS_HASH || focus === CI_HASH ? '' : focus}
             ghost={arrival.ghost}
             arrival={arrival.arrival}
             incoming={arrival.incoming}
@@ -135,35 +141,41 @@ export function Project({ state }: { state: EvenKeelState }) {
         <StatsStrip project={key} strip={strip} />
         <ToolsLink key={`tools-${key}`} project={key} trim={state.trimTools} />
       </div>
-      {selected !== undefined && (
-        <SessionPanel key={selected.id} block={selected} scale={state.context} onCard={openCard} onClose={close} />
-      )}
-      {backlogOpen && (
-        <BacklogPanel
-          tasks={backlog}
-          trackerUrls={state.trackerUrls}
-          canReady={canReady(state, key)}
-          links={links}
-          onCard={openCard}
-          onClose={close}
-          onPoint={arrival.point}
-          onMove={(task, from) => arrival.move(task.id, task.title, from)}
-          onSettled={arrival.settle}
-        />
-      )}
-      {settingsOpen && <SettingsPanel key={`settings-${key}`} project={key} settings={settings} onClose={close} />}
-      {wide && !side && (
-        <IdlePanel
-          key={key}
-          scene={{
-            loaded: order !== undefined && order.error === null,
-            blocks,
-            backlog: backlog.length,
-            status: chainStatus(state.chain, key),
-            unattended: state.unattended,
-            monthCost: strip.summary?.cost ?? null,
-          }}
-        />
+      {column && (
+        <div className={tabs && tools !== false ? 'project__side project__side--tabs' : 'project__side'}>
+          {tabs && tools !== false && <div className="side-tabs">{tools}</div>}
+          {selected !== undefined && (
+            <SessionPanel key={selected.id} block={selected} scale={state.context} onCard={openCard} onClose={close} />
+          )}
+          {backlogOpen && (
+            <BacklogPanel
+              tasks={backlog}
+              trackerUrls={state.trackerUrls}
+              canReady={canReady(state, key)}
+              links={links}
+              onCard={openCard}
+              onClose={close}
+              onPoint={arrival.point}
+              onMove={(task, from) => arrival.move(task.id, task.title, from)}
+              onSettled={arrival.settle}
+            />
+          )}
+          {settingsOpen && <SettingsPanel key={`settings-${key}`} project={key} settings={settings} onClose={close} />}
+          {ciOpen && <CiPanel views={ci} urls={state.trackerUrls} onClose={close} />}
+          {!side && (
+            <IdlePanel
+              key={key}
+              scene={{
+                loaded: order !== undefined && order.error === null,
+                blocks,
+                backlog: backlog.length,
+                status: chainStatus(state.chain, key),
+                unattended: state.unattended,
+                monthCost: strip.summary?.cost ?? null,
+              }}
+            />
+          )}
+        </div>
       )}
       {flight !== null && (
         <Flight key={flight.id} task={flight.id} title={flight.title} from={flight.from} onLand={() => arrival.land(flight.id)} />
@@ -213,12 +225,13 @@ function Leftovers({ state, project }: { state: EvenKeelState; project: string }
   )
 }
 
-function ChainControls({ state, project }: { state: EvenKeelState; project: string }) {
+function ChainControls({ state, project, children }: { state: EvenKeelState; project: string; children?: ReactNode }) {
   const { send, sending, failure } = useCommand()
   const status = chainStatus(state.chain, project)
   const controls = chainControls(status, state.chain.projects[project])
   const error = (status.kind === 'paused' ? status.error : null) ?? failure
   const after = queuedAfter(state.chain, project)
+  const off = controls.off === null ? undefined : t.project.off[controls.off]
 
   const active = status.kind === 'running' || status.kind === 'paused'
   const button = (label: string, name: ChainControl) => (
@@ -226,6 +239,7 @@ function ChainControls({ state, project }: { state: EvenKeelState; project: stri
       type="button"
       className={controls.primary === name ? 'button button--primary' : 'button'}
       disabled={sending || !controls.enabled.includes(name)}
+      title={controls.enabled.includes(name) ? undefined : off}
       onClick={() => void send(`chain/${name}`, { project })}
     >
       {label}
@@ -236,11 +250,12 @@ function ChainControls({ state, project }: { state: EvenKeelState; project: stri
   return (
     <>
       <div className="project__controls">
+        <StatusChip status={status} />
         {after !== null && <span className="project__queue">{t.project.after(after)}</span>}
         {active ? button(t.project.resume, 'resume') : button(startsNow(state.chain) ? t.project.start : t.project.enqueue, 'start')}
         {button(t.project.stop, 'stop')}
+        {children}
       </div>
-      {controls.off !== null && <p className="project__hint">{t.project.off[controls.off]}</p>}
       {status.kind === 'running' && status.limitUntil !== null && (
         <p className="project__wait">{limitWaitText(status.limitUntil, new Date())}</p>
       )}

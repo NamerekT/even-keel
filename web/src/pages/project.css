@@ -22,14 +22,6 @@
   font-size: 14px;
 }
 
-.project__hint {
-  flex-basis: 100%;
-  margin: 0;
-  color: var(--fg-muted);
-  font-size: 12px;
-  text-align: right;
-}
-
 .project__wait {
   flex-basis: 100%;
   margin: 0;
@@ -89,6 +81,116 @@
     border-radius: var(--radius);
     color: var(--fg-muted);
     text-align: center;
+  }
+}
+
+.project__side {
+  --side-tabs: 42px;
+  min-width: 0;
+}
+
+/* One strip with dividers, flat at the bottom: it stands on the card under it. */
+.side-tabs {
+  display: flex;
+  height: var(--side-tabs);
+  border: 1px solid var(--border);
+  border-bottom: 0;
+  border-radius: var(--radius) var(--radius) 0 0;
+}
+
+.side-tab {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-width: 0;
+  padding: 0 16px;
+  border: 0;
+  background: transparent;
+  color: var(--fg-muted);
+  font: inherit;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  cursor: pointer;
+  transition:
+    background-color var(--motion-fast),
+    color var(--motion-fast);
+}
+
+.side-tab + .side-tab {
+  border-left: 1px solid var(--border);
+}
+
+.side-tab:first-child {
+  border-top-left-radius: calc(var(--radius) - 1px);
+}
+
+.side-tab:last-child {
+  border-top-right-radius: calc(var(--radius) - 1px);
+}
+
+.side-tab--wide {
+  flex: 1;
+  font-size: 15px;
+}
+
+.side-tab .icon {
+  width: 16px;
+  height: 16px;
+}
+
+.side-tab:hover {
+  background: var(--surface-muted);
+  color: var(--fg);
+}
+
+.side-tab.chip--ci-failure,
+.side-tab.chip--ci-error {
+  background: var(--error-bg);
+  color: var(--error-fg);
+}
+
+.side-tab.chip--ci-stuck {
+  background: var(--warn-bg);
+  color: var(--warn-fg);
+}
+
+/* The open tab runs into its card: it covers the card's top border and takes its background. */
+.side-tab.side-tab[aria-expanded='true'] {
+  z-index: 1;
+  margin-bottom: -1px;
+  background: var(--surface);
+  box-shadow: inset 0 2px 0 var(--accent);
+  color: var(--fg);
+  font-weight: 600;
+}
+
+.side-tab:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
+@media (min-width: 761px) {
+  .project__side {
+    position: sticky;
+    top: calc(var(--header-height) + 24px);
+  }
+
+  .project__side > .panel,
+  .project__side > .idle {
+    position: static;
+  }
+
+  .project__side--tabs > .panel,
+  .project__side--tabs > .idle {
+    border-top-left-radius: 0;
+    border-top-right-radius: 0;
+  }
+
+  .project__side--tabs > .panel {
+    max-height: calc(100dvh - var(--header-height) - 24px - 32px - var(--side-tabs));
   }
 }
 

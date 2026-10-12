@@ -13,12 +13,13 @@ import './backlog.css'
 /** The address hash that opens the backlog panel; a task id never equals it. */
 export const BACKLOG_HASH = 'backlog'
 
-export function BacklogChip({ count, open, onToggle }: { count: number; open: boolean; onToggle: () => void }) {
+/** `tab` — a tab on the side column's card instead of a tag in the head row. */
+export function BacklogChip({ count, open, tab = false, onToggle }: { count: number; open: boolean; tab?: boolean; onToggle: () => void }) {
   if (count === 0) return null
   return (
     <button
       type="button"
-      className="tag tag--backlog"
+      className={tab ? 'side-tab side-tab--wide' : 'tag tag--backlog'}
       aria-expanded={open}
       title={t.project.backlogHint}
       onClick={onToggle}

@@ -1,47 +1,68 @@
+import { useEffect, useRef } from 'react'
 import { isFinished, runDurationMs, stuckSince, type CiJob, type CiRun, type CiView, type CurrentRun } from '../../../src/ci/model.js'
 import type { TrackerUrls } from '../../../src/state.js'
 import { ciLevel, worstCiLevel } from '../ci.js'
 import { formatAgo, formatClock, formatSpan } from '../format.js'
 import { say, t } from '../i18n/index.js'
 import { useNow } from '../layout/useNow.js'
-import { usePopover } from '../layout/usePopover.js'
 import { issueLink } from '../state.js'
 import './ci.css'
 
 const SHORT_SHA = 7
 const short = (commit: string) => commit.slice(0, SHORT_SHA)
 
-/** The CI badge of the project head; the panel under it shows each CI's runs. */
-export function CiChip({ views, urls }: { views: CiView[]; urls: TrackerUrls }) {
+/** The address hash that opens the CI panel; a task id never equals it. */
+export const CI_HASH = 'ci'
+
+/** The CI badge: a chip in the project head, or with `tab` a tab on the side column's card. It opens the CI panel. */
+export function CiChip({ views, open, tab = false, onToggle }: { views: CiView[]; open: boolean; tab?: boolean; onToggle: () => void }) {
   const now = useNow(1_000)
-  const { open, setOpen, rootRef } = usePopover()
   const level = worstCiLevel(views, now)
   const running = views.map((view) => view.current?.run).find((run) => run?.status === 'running')
   const label = t.ci.title(t.ci.levels[level])
 
   return (
-    <div className="ci-menu" ref={rootRef}>
-      <button
-        type="button"
-        className={`chip chip--ci chip--ci-${level}`}
-        aria-expanded={open}
-        aria-controls="ci-panel"
-        aria-label={label}
-        title={label}
-        onClick={() => setOpen(!open)}
-      >
-        <span className="ci-dot" aria-hidden="true" />
-        {t.ci.chip}
-        {running !== undefined && <span className="chip__extra"> · {formatClock(runDurationMs(running, now) ?? 0)}</span>}
-      </button>
-      {open && (
-        <div id="ci-panel" className="ci-panel" role="dialog" aria-label={t.ci.panel}>
-          {views.map((view) => (
-            <CiSection key={`${view.kind}-${view.remote}`} view={view} now={now} urls={urls} />
-          ))}
-        </div>
-      )}
-    </div>
+    <button
+      type="button"
+      className={`${tab ? 'side-tab' : 'chip chip--ci'} chip--ci-${level}`}
+      aria-expanded={open}
+      aria-label={label}
+      title={label}
+      onClick={onToggle}
+    >
+      <span className="ci-dot" aria-hidden="true" />
+      {t.ci.chip}
+      {running !== undefined && <span className="chip__extra"> · {formatClock(runDurationMs(running, now) ?? 0)}</span>}
+    </button>
+  )
+}
+
+/** The side panel with each CI's runs. */
+export function CiPanel({ views, urls, onClose }: { views: CiView[]; urls: TrackerUrls; onClose: () => void }) {
+  const now = useNow(1_000)
+  const closeRef = useRef<HTMLButtonElement>(null)
+
+  useEffect(() => closeRef.current?.focus({ preventScroll: true }), [])
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape' && document.querySelector('dialog[open]') === null) onClose()
+    }
+    document.addEventListener('keydown', onKey)
+    return () => document.removeEventListener('keydown', onKey)
+  }, [onClose])
+
+  return (
+    <aside className="panel ci-card" aria-label={t.ci.panel}>
+      <header className="panel__head">
+        <h2 className="panel__task">{t.ci.panel}</h2>
+        <button ref={closeRef} type="button" className="panel__close" aria-label={t.session.closePanel} onClick={onClose}>
+          ×
+        </button>
+      </header>
+      {views.map((view) => (
+        <CiSection key={`${view.kind}-${view.remote}`} view={view} now={now} urls={urls} />
+      ))}
+    </aside>
   )
 }
 

@@ -9,9 +9,15 @@ import './settings.css'
 /** The address hash that opens the settings panel; a task id never equals it. */
 export const SETTINGS_HASH = 'settings'
 
-export function SettingsChip({ open, onToggle }: { open: boolean; onToggle: () => void }) {
+export function SettingsChip({ open, tab = false, onToggle }: { open: boolean; tab?: boolean; onToggle: () => void }) {
   return (
-    <button type="button" className="tag tag--settings" aria-expanded={open} title={t.settings.title} onClick={onToggle}>
+    <button
+      type="button"
+      className={tab ? 'side-tab side-tab--wide' : 'tag tag--settings'}
+      aria-expanded={open}
+      title={t.settings.title}
+      onClick={onToggle}
+    >
       <SlidersIcon />
       {t.settings.open}
     </button>

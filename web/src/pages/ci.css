@@ -1,7 +1,3 @@
-.ci-menu {
-  position: relative;
-}
-
 .chip--ci {
   display: inline-flex;
   align-items: center;
@@ -76,40 +72,8 @@
   animation: blink var(--motion-blink) ease-in-out infinite;
 }
 
-.ci-panel {
-  position: absolute;
-  top: calc(100% + 6px);
-  left: 0;
-  z-index: 20;
-  display: flex;
-  flex-direction: column;
+.ci-card {
   gap: 16px;
-  width: min(440px, calc(100vw - 2 * var(--gutter)));
-  max-height: calc(100dvh - var(--header-height) - 120px);
-  overflow-y: auto;
-  overscroll-behavior: contain;
-  padding: 14px;
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  box-shadow: 0 10px 30px rgb(0 0 0 / 0.14);
-  animation: appear var(--motion-appear) ease-out;
-}
-
-/* On a narrow screen the chip sits mid-row, so the panel hangs from the whole project head instead. */
-@media (max-width: 760px) {
-  .project__head {
-    position: relative;
-  }
-
-  .ci-menu {
-    position: static;
-  }
-
-  .ci-panel {
-    right: 0;
-    width: auto;
-  }
 }
 
 .ci {
