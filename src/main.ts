@@ -282,7 +282,8 @@ const liveView = (task: string) => sessions.find((each) => each.task === task &&
 const agentStatus = (task: string) => {
   const view = liveView(task)
   if (view === undefined) return undefined
-  return turnStatus(agents.find((agent) => agent.sessionId === view.sessionId)?.status, view.lastActivityAt, new Date())
+  const status = agents.find((agent) => agent.sessionId === view.sessionId)?.status
+  return turnStatus(status, view.lastActivityAt, new Date(), view.lamp === 'limit')
 }
 
 const planFor = (task: string, prompt: string): LaunchPlan => {

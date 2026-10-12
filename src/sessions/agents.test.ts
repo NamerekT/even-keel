@@ -164,6 +164,11 @@ describe('turnStatus', () => {
     expect(turnStatus('shell', '2026-09-26T11:00:00.000Z', now)).toBe('idle')
   })
 
+  it('takes a session whose turn ended on a limit for idle, whatever its background command does', () => {
+    expect(turnStatus('shell', '2026-09-26T11:59:00.000Z', now, true)).toBe('idle')
+    expect(turnStatus('busy', '2026-09-26T11:59:00.000Z', now, true)).toBe('busy')
+  })
+
   it('leaves the other statuses as they are', () => {
     expect(turnStatus('busy', '2026-09-26T08:00:00.000Z', now)).toBe('busy')
     expect(turnStatus('waiting', null, now)).toBe('waiting')
@@ -189,6 +194,11 @@ describe('lampOf', () => {
 
   it('is working while a background command of an ended turn runs', () => {
     expect(lampOf({ ...background, status: 'shell' }, null)).toBe('working')
+    expect(lampOf({ ...background, status: 'shell' }, 'error')).toBe('working')
+  })
+
+  it('shows the limit a turn ended on even while its background command still runs', () => {
+    expect(lampOf({ ...background, status: 'shell' }, 'limit')).toBe('limit')
   })
 
   it('shows the API error the idle session stopped on', () => {
