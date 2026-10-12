@@ -56,7 +56,7 @@ export function accountOrder(entries: AccountEntry[], now: Date): AccountEntry[]
 }
 
 export type ChainStatus =
-  | { kind: 'running'; limitUntil: string | null; slotWait?: Notice }
+  | { kind: 'running'; limitUntil: string | null; slotWait?: Notice; ciWait?: { commit: string; since: string } }
   | { kind: 'paused'; error: Notice | null }
   | { kind: 'queued'; position: number }
   | { kind: 'idle' }
@@ -254,8 +254,12 @@ export function chainStatus(chain: EvenKeelState['chain'], project: string): Cha
   const active = activeChain(chain, project)
   if (active !== undefined) {
     if (active.paused) return { kind: 'paused', error: active.error }
-    const running: ChainStatus = { kind: 'running', limitUntil: active.limitUntil ?? null }
-    return active.slotWait === undefined ? running : { ...running, slotWait: active.slotWait.notice }
+    return {
+      kind: 'running',
+      limitUntil: active.limitUntil ?? null,
+      ...(active.slotWait === undefined ? {} : { slotWait: active.slotWait.notice }),
+      ...(active.ciWait === undefined ? {} : { ciWait: active.ciWait }),
+    }
   }
   const index = queue.indexOf(project)
   return index < 0 ? { kind: 'idle' } : { kind: 'queued', position: index + 1 }
@@ -305,6 +309,10 @@ export function usageNotice(health: UsageHealth): UsageNotice | null {
 
 export function limitWaitText(until: string, now: Date): string {
   return t.banner.limitHold(formatMoment(until, now))
+}
+
+export function ciWaitText(wait: { commit: string; since: string }, now: Date): string {
+  return t.banner.ciHold(wait.commit.slice(0, 7), formatMoment(wait.since, now))
 }
 
 export function cardTask(state: EvenKeelState, project: string): CardTask | null {

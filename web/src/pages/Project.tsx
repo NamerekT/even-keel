@@ -11,6 +11,7 @@ import {
   chainBlocks,
   chainControls,
   chainStatus,
+  ciWaitText,
   issueLink,
   limitWaitText,
   openQuestions,
@@ -244,6 +245,7 @@ function ChainControls({ state, project }: { state: EvenKeelState; project: stri
         <p className="project__wait">{limitWaitText(status.limitUntil, new Date())}</p>
       )}
       {status.kind === 'running' && status.slotWait !== undefined && <p className="project__wait">{say(status.slotWait)}</p>}
+      {status.kind === 'running' && status.ciWait !== undefined && <p className="project__wait">{ciWaitText(status.ciWait, new Date())}</p>}
       {error !== null && <p className="project__error">{say(error)}</p>}
     </>
   )

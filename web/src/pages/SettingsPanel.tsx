@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { CI_KINDS, type CiKind } from '../../../src/ci/model.js'
 import type { ProjectSettings } from '../../../src/state.js'
 import { say, t } from '../i18n/index.js'
 import { useCommand } from '../live/useCommand.js'
@@ -20,12 +21,30 @@ export function SettingsChip({ open, onToggle }: { open: boolean; onToggle: () =
 interface Draft {
   prompt: string
   commands: string
+  kinds: CiKind[]
+  wait: string
 }
 
-const draftOf = (settings: ProjectSettings): Draft => ({ prompt: settings.prompt ?? '', commands: settings.beforeStart.join('\n') })
+const draftOf = (settings: ProjectSettings): Draft => ({
+  prompt: settings.prompt ?? '',
+  commands: settings.beforeStart.join('\n'),
+  kinds: settings.ci.kinds,
+  wait: settings.ci.waitMinutes === null ? '' : String(settings.ci.waitMinutes),
+})
 const linesOf = (text: string) => text.split('\n').map((line) => line.trim()).filter((line) => line !== '')
+/** Empty — wait as long as it takes; `undefined` — not a whole number of minutes. */
+const minutesOf = (text: string): number | null | undefined => {
+  if (text.trim() === '') return null
+  const minutes = Number(text)
+  return Number.isInteger(minutes) && minutes >= 0 ? minutes : undefined
+}
+const sameKinds = (a: CiKind[], b: CiKind[]) => CI_KINDS.every((kind) => a.includes(kind) === b.includes(kind))
 // What the service would store, so a stray space or blank line is not an unsaved change.
-const sameDraft = (a: Draft, b: Draft) => a.prompt.trim() === b.prompt.trim() && linesOf(a.commands).join('\n') === linesOf(b.commands).join('\n')
+const sameDraft = (a: Draft, b: Draft) =>
+  a.prompt.trim() === b.prompt.trim() &&
+  linesOf(a.commands).join('\n') === linesOf(b.commands).join('\n') &&
+  sameKinds(a.kinds, b.kinds) &&
+  minutesOf(a.wait) === minutesOf(b.wait)
 
 export function SettingsPanel({ project, settings, onClose }: { project: string; settings: ProjectSettings; onClose: () => void }) {
   const closeRef = useRef<HTMLButtonElement>(null)
@@ -35,6 +54,7 @@ export function SettingsPanel({ project, settings, onClose }: { project: string;
   const [done, setDone] = useState(false)
   const previous = useRef(saved)
   const changed = !sameDraft(draft, saved)
+  const waitMinutes = minutesOf(draft.wait)
 
   useEffect(() => closeRef.current?.focus({ preventScroll: true }), [])
 
@@ -57,8 +77,11 @@ export function SettingsPanel({ project, settings, onClose }: { project: string;
     setDone(false)
     setDraft({ ...draft, ...next })
   }
+  const toggle = (kind: CiKind, on: boolean) => edit({ kinds: CI_KINDS.filter((each) => (each === kind ? on : draft.kinds.includes(each))) })
   const save = async () => {
-    if (await send('project/settings', { project, prompt: draft.prompt, beforeStart: linesOf(draft.commands) })) setDone(true)
+    if (waitMinutes === undefined) return
+    const ci = { kinds: draft.kinds, waitMinutes }
+    if (await send('project/settings', { project, prompt: draft.prompt, beforeStart: linesOf(draft.commands), ci })) setDone(true)
   }
 
   return (
@@ -103,8 +126,35 @@ export function SettingsPanel({ project, settings, onClose }: { project: string;
             onChange={(event) => edit({ commands: event.target.value })}
           />
         </label>
+        <fieldset className="settings__field settings__group">
+          <legend className="settings__label">{t.settings.ci}</legend>
+          <span className="settings__hint">{t.settings.ciHint}</span>
+          <div className="settings__checks">
+            {CI_KINDS.map((kind) => (
+              <label key={kind} className="settings__check">
+                <input type="checkbox" checked={draft.kinds.includes(kind)} onChange={(event) => toggle(kind, event.target.checked)} />
+                {t.settings.ciKinds[kind]}
+              </label>
+            ))}
+          </div>
+        </fieldset>
+        <label className="settings__field">
+          <span className="settings__label">{t.settings.ciWait}</span>
+          <span className="settings__hint">{t.settings.ciWaitHint}</span>
+          <input
+            className="settings__text settings__number"
+            type="number"
+            min={0}
+            step={1}
+            inputMode="numeric"
+            value={draft.wait}
+            placeholder={t.settings.ciWaitPlaceholder}
+            aria-invalid={waitMinutes === undefined}
+            onChange={(event) => edit({ wait: event.target.value })}
+          />
+        </label>
         <div className="settings__actions">
-          <button type="submit" className="button button--primary" disabled={sending || !changed}>
+          <button type="submit" className="button button--primary" disabled={sending || !changed || waitMinutes === undefined}>
             {t.settings.save}
           </button>
           {done && !changed && <span className="settings__saved">{t.settings.saved}</span>}

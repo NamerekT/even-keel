@@ -43,7 +43,7 @@ Reference for sessions: the interface, translation, config reloading and fake st
 
 The service rereads `even-keel.config.json` on the fly: `parallel`, `chain`, `brief`, a project's `prompt` and `commands`, `model`, `modelPrompts`, `stats`, `language`, `promptLanguage` and `hiddenSkills` apply immediately, while `host`, `port`, `projects`, `context`, `tracker` apply after a restart (the log says what is waiting). A broken file — the last valid one keeps working, the error goes to the log and to a banner on the page (`ConfigBanner`).
 
-Project settings (BTN-97): the "Settings" tag in the project head opens a side panel at `#settings` (`web/src/pages/SettingsPanel.tsx`) with the project's `prompt` and `commands.beforeStart` (one command per line) from `EvenKeelState.settings`. "Save" sends `POST /api/project/settings` with `{project, prompt, beforeStart}`; `ConfigFile.saveProject` reads the file, replaces only those two keys in the project's entry (a string entry becomes `{ repo }`, an empty value removes its key, an empty `commands` goes away), parses the whole result with `parseConfig` and writes it with a 2-space indent only if it parses, then reloads. Other keys and their values stay; comments are impossible in JSON anyway. `commands` is an object so that commands after the agent's work get a key of their own; an unknown key in it is a config error.
+Project settings (BTN-97): the "Settings" tag in the project head opens a side panel at `#settings` (`web/src/pages/SettingsPanel.tsx`) with the project's `prompt`, `commands.beforeStart` (one command per line) and `ci` (BTN-103: a checkbox per CI kind and "wait no longer than, min", empty — `null`) from `EvenKeelState.settings`. "Save" sends `POST /api/project/settings` with `{project, prompt, beforeStart, ci}` — the server refuses a body without a valid `ci`; `ConfigFile.saveProject` reads the file, replaces only those keys in the project's entry (`ci` is written only when it is not the default) (a string entry becomes `{ repo }`, an empty value removes its key, an empty `commands` goes away), parses the whole result with `parseConfig` and writes it with a 2-space indent only if it parses, then reloads. Other keys and their values stay; comments are impossible in JSON anyway. `commands` is an object so that commands after the agent's work get a key of their own; an unknown key in it is a config error.
 
 ## Fake states (`npm run dev:fake`)
 
@@ -57,6 +57,7 @@ Layout work on a fake state, without a tracker or sessions. The fake history sta
 | `?chain=paused` | the chain is paused: "Resume" is the filled button and "Stop" stays pressable |
 | `?chain=limit` | the chain is waiting for the limit reset |
 | `?chain=slot` | an unattended chain is waiting for a free slot |
+| `?chain=ci` | the chain is waiting for the CI of a pushed main |
 | `?chain=skip` | a skipped task and a session postponed by a blocker |
 | `?chain=backlog` | blockers from Backlog under a lock in front of the held task (milestone v0.2) |
 | `?chain=restart` | a session ended on a limit and lost Remote Control, the "New session" button |

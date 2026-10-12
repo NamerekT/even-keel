@@ -348,6 +348,11 @@ describe('chainStatus', () => {
     })
   })
 
+  it('tells when a running chain waits for the CI of main', () => {
+    const ciWait = { commit: '0123456789abcdef', since: '2026-09-27T17:49:00.000Z' }
+    expect(chainStatus(chain({ active: { ...active(), ciWait } }), 'ABC')).toEqual({ kind: 'running', limitUntil: null, ciWait })
+  })
+
   it('gives a queued chain its place in the queue, counting from one', () => {
     expect(chainStatus(chain({ active: active(), queue: ['DEMO', 'XYZ'] }), 'XYZ')).toEqual({ kind: 'queued', position: 2 })
   })

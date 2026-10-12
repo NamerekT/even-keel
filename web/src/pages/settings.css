@@ -76,6 +76,43 @@
   outline-offset: -1px;
 }
 
+.settings__group {
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.settings__group legend {
+  padding: 0;
+}
+
+.settings__checks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 20px;
+  margin-top: 4px;
+}
+
+.settings__check {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+}
+
+.settings__check input {
+  accent-color: var(--accent);
+}
+
+.settings__number {
+  width: 12em;
+  resize: none;
+}
+
+.settings__number[aria-invalid='true'] {
+  border-color: var(--lamp-error);
+}
+
 .settings__actions {
   display: flex;
   align-items: center;

@@ -55,6 +55,7 @@ export const en: Messages = {
     usageOff: (reason: string | null) =>
       `/usage polling is off until the service restarts: the answer looks like a model turn, and that spends quota. Reason: ${reason}`,
     limitHold: (at: string) => `Usage limit reached — the next task starts after the reset at ${at}.`,
+    ciHold: (commit: string, since: string) => `Waiting for the CI of main on ${commit} since ${since} — the next task starts when it is green.`,
     mcp: (projects: string, server: string) =>
       `Brief is off in ${projects}, but sessions don't see the MCP server "${server}" — they get only the task ID. Turn brief on or add the server.`,
     unattended: 'Unattended mode is on: sessions ask no questions. Turn it off in the status menu (the gear).',
@@ -355,6 +356,13 @@ export const en: Messages = {
     beforeStartHint:
       "One per line. They run in order in the task's folder before a new session starts; a resumed session does not run them again. A failed command pauses the chain.",
     beforeStartPlaceholder: 'npm ci',
+    ci: 'CI of main',
+    ciHint:
+      'After a task is merged and main is pushed, the next task waits for these CIs. A red CI creates a fix task that goes first; a red fix pauses the chain.',
+    ciKinds: { forgejo: 'Forgejo Actions', github: 'GitHub Actions' },
+    ciWait: 'Longest wait for CI, min',
+    ciWaitHint: 'Empty — as long as it takes. 0 — do not wait: faster, but the next task may start on a broken main.',
+    ciWaitPlaceholder: 'no limit',
     save: 'Save',
     saved: 'Saved.',
   },

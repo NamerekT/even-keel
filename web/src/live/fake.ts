@@ -565,6 +565,10 @@ export function createFakeSource(search: string): LiveSource {
     const slotWait = { notice: notice('slot.waiting', { task: 'ABC-12' }, { items: [dirty] }), at: new Date().toISOString() }
     current.state!.chain.active = [{ ...active, current: null, slotWait }]
   }
+  if (params.get('chain') === 'ci' && active) {
+    const ciWait = { commit: '9f77142a5c0e3d1b7e6f4a2c8d9b0e1f2a3b4c5d', since: new Date(Date.now() - 4 * 60_000).toISOString() }
+    current.state!.chain.active = [{ ...active, current: null, ciWait }]
+  }
   const parallel = Number(params.get('parallel') ?? 1)
   if (parallel > 1 && current.state !== null) {
     current.state = startChain({ ...current.state, chain: { ...current.state.chain, parallel, queue: current.state.chain.queue.slice(1) } }, 'DEMO', launches)
