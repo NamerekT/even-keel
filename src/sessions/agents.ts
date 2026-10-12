@@ -95,9 +95,16 @@ const SHELL_HANG_MS = 60 * 60_000
 /**
  * The status the chain goes by. A session in `shell` waits for its own background command (a long build or test run)
  * and counts as busy; after an hour without a line in its transcript the command is taken for hung and the session for idle.
+ * A turn that ended on a limit has nothing to continue with when the command ends, so such a session is idle at once.
  */
-export function turnStatus(status: AgentStatus | undefined, lastActivityAt: string | null, now: Date): AgentStatus | undefined {
+export function turnStatus(
+  status: AgentStatus | undefined,
+  lastActivityAt: string | null,
+  now: Date,
+  limit = false,
+): AgentStatus | undefined {
   if (status !== 'shell') return status
+  if (limit) return 'idle'
   if (lastActivityAt === null) return 'busy'
   return now.getTime() - Date.parse(lastActivityAt) >= SHELL_HANG_MS ? 'idle' : 'busy'
 }
@@ -156,7 +163,7 @@ function taskOfBranch(branch: string | null): string | undefined {
 export function lampOf(agent: AgentEntry | undefined, apiError: ApiErrorKind | null): Lamp {
   if (agent === undefined || agent.state === 'done' || agent.state === 'stopped') return 'finished'
   if (agent.state === 'failed') return 'error'
-  if (agent.status === 'busy' || agent.status === 'shell') return 'working'
+  if (agent.status === 'busy' || (agent.status === 'shell' && apiError !== 'limit')) return 'working'
   if (apiError !== null) return apiError
   if (agent.status === 'waiting' || agent.state === 'blocked') return 'waiting'
   if (agent.status === 'idle') return 'waiting'
