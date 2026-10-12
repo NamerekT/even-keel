@@ -599,13 +599,13 @@ const server = createEvenKeelServer({
     answer: ({ project, task, sessionId, ask, answers, text, files }) => answerSession(project, task, sessionId, ask, { from: 'page', answers, text, files }),
   },
   settings: {
-    save: (project, form) => {
+    save: (project, form, base) => {
       if (config.projects[project] === undefined) throw fail('config.unknownProject', { key: project })
-      configFile.saveProject(project, form)
+      configFile.saveProject(project, form, base)
       console.log(`page: the settings of ${project} are written to the config`)
     },
-    saveShared: (form) => {
-      configFile.saveShared(form)
+    saveShared: (form, base) => {
+      configFile.saveShared(form, base)
       console.log('page: the shared settings are written to the config')
     },
   },

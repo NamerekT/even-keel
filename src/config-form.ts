@@ -5,7 +5,6 @@ import {
   DEFAULT_LANGUAGE,
   DEFAULT_MODEL,
   isPlainObject,
-  parseConfig,
   parseShared,
   RULE_KEYS,
   withProjectSettings,
@@ -68,17 +67,17 @@ export function restartPending(current: EvenKeelConfig, saved: EvenKeelConfig): 
 }
 
 /**
- * The raw config with the project's entry set from the form. A value the form leaves as it was keeps its key as written;
- * a changed one is written only where it differs from what the project would inherit, otherwise its key goes.
+ * The raw config with the project's entry set from the form. `base` is what the form started from: a value the form left
+ * as it was keeps its key as written, even if the file changed since; a changed one is written only where it differs
+ * from what the project would inherit, otherwise its key goes.
  */
-export function withProjectForm(raw: unknown, project: string, form: ProjectForm, adapters: Adapters = ADAPTERS): Record<string, unknown> {
+export function withProjectForm(raw: unknown, project: string, form: ProjectForm, base: ProjectForm, adapters: Adapters = ADAPTERS): Record<string, unknown> {
   const config = isPlainObject(raw) ? raw : {}
   const { projects } = config
   if (!isPlainObject(projects) || !Object.hasOwn(projects, project)) throw fail('config.unknownProject', { key: project })
-  const before = formsOrNull(config, adapters)?.projects[project]
-  const changed = (field: keyof ProjectForm) => before === undefined || !same(before[field], form[field])
+  const changed = (field: keyof ProjectForm) => !same(base[field], form[field])
   const shared = parseShared(config, adapters)
-  const entry = withProjectSettings(projects[project], form)
+  const entry = withProjectSettings(projects[project], form, changed)
 
   if (changed('repo')) entry.repo = form.repo.trim()
   if (changed('slot')) {
@@ -88,7 +87,7 @@ export function withProjectForm(raw: unknown, project: string, form: ProjectForm
   if (changed('tracker')) inherit(entry, 'tracker', form.tracker, shared.tracker)
   if (changed('brief')) inherit(entry, 'brief', form.brief, shared.brief)
   if (changed('chain')) {
-    const rules = withRules(entry.chain, rulesOf(form.chain), shared.chain, before?.chain)
+    const rules = withRules(entry.chain, rulesOf(form.chain), shared.chain, base.chain)
     if (rules === undefined) delete entry.chain
     else entry.chain = rules
   }
@@ -105,10 +104,9 @@ export function withProjectForm(raw: unknown, project: string, form: ProjectForm
 }
 
 /** The raw config with the shared keys set from the form, by the same rule as `withProjectForm`, against the defaults. */
-export function withSharedForm(raw: unknown, form: SharedForm, adapters: Adapters = ADAPTERS): Record<string, unknown> {
+export function withSharedForm(raw: unknown, form: SharedForm, base: SharedForm): Record<string, unknown> {
   const config: Record<string, unknown> = { ...(isPlainObject(raw) ? raw : {}) }
-  const before = formsOrNull(config, adapters)?.shared
-  const changed = (field: keyof SharedForm) => before === undefined || !same(before[field], form[field])
+  const changed = (field: keyof SharedForm) => !same(base[field], form[field])
   const put = (key: string, value: unknown, fallback: unknown) => {
     if (same(value, fallback)) delete config[key]
     else config[key] = value
@@ -117,7 +115,7 @@ export function withSharedForm(raw: unknown, form: SharedForm, adapters: Adapter
   if (changed('parallel')) put('parallel', form.parallel, 1)
   if (changed('tracker')) put('tracker', form.tracker, DEFAULT_TRACKER)
   if (changed('brief')) put('brief', form.brief, true)
-  if (changed('chain')) put('chain', withRules(config.chain, rulesOf(form.chain), DEFAULT_RULES, before?.chain), undefined)
+  if (changed('chain')) put('chain', withRules(config.chain, rulesOf(form.chain), DEFAULT_RULES, base.chain), undefined)
   if (changed('model')) put('model', form.model, DEFAULT_MODEL)
   if (changed('modelPrompts')) {
     const prompts = Object.entries(form.modelPrompts).flatMap(([model, text]) => (text?.trim() ? [[model, text.trim()]] : []))
@@ -137,14 +135,6 @@ export function withSharedForm(raw: unknown, form: SharedForm, adapters: Adapter
     put('stats', Object.keys(stats).length === 0 ? undefined : stats, undefined)
   }
   return config
-}
-
-function formsOrNull(config: Record<string, unknown>, adapters: Adapters): ReturnType<typeof formsOf> | null {
-  try {
-    return formsOf(parseConfig(config, adapters), adapters)
-  } catch {
-    return null
-  }
 }
 
 function inherit(entry: Record<string, unknown>, key: string, value: unknown, inherited: unknown): void {

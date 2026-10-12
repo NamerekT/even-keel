@@ -43,7 +43,7 @@ describe('withProjectForm', () => {
       brief: false,
       chain: { active: ['Todo', ' '], terminal: [], requiredLabels: [], excludedLabels: ['Manual', 'Вручную'] },
     }
-    const next = withProjectForm(raw, 'ABC', form)
+    const next = withProjectForm(raw, 'ABC', form, formOf(raw, 'ABC'))
     expect(next).toEqual({
       tracker: 'huly',
       projects: { ABC: { repo: 'D:\\abc', branch: 'master', slot: 3, tracker: 'github', brief: false, chain: { active: ['Todo'] }, github: 'octo-org/abc' }, XYZ: 'C:\\xyz' },
@@ -55,26 +55,42 @@ describe('withProjectForm', () => {
   it('keeps keys the form leaves as they were, even when they repeat the shared value', () => {
     const raw = { projects: { ABC: { repo: 'C:\\abc', tracker: 'huly', slot: true, chain: { excludedLabels: ['Manual', 'Вручную'] } } } }
     const form = { ...formOf(raw, 'ABC'), prompt: 'Hi.' }
-    expect(withProjectForm(raw, 'ABC', form)).toEqual({ projects: { ABC: { ...raw.projects.ABC, prompt: 'Hi.' } } })
+    expect(withProjectForm(raw, 'ABC', form, formOf(raw, 'ABC'))).toEqual({ projects: { ABC: { ...raw.projects.ABC, prompt: 'Hi.' } } })
   })
 
   it('removes the keys that go back to what is inherited, and the project key of the tracker left', () => {
     const raw = { brief: false, projects: { ABC: { repo: 'C:\\abc', tracker: 'github', github: 'octo-org/abc', brief: true, slot: 2, chain: { requiredLabels: ['Auto'] } } } }
     const form: ProjectForm = { ...formOf(raw, 'ABC'), tracker: 'huly', trackerProject: null, brief: false, slot: 0, chain: { active: null, terminal: null, requiredLabels: [], excludedLabels: ['Manual', 'Вручную'] } }
-    expect(withProjectForm(raw, 'ABC', form)).toEqual({ brief: false, projects: { ABC: { repo: 'C:\\abc' } } })
+    expect(withProjectForm(raw, 'ABC', form, formOf(raw, 'ABC'))).toEqual({ brief: false, projects: { ABC: { repo: 'C:\\abc' } } })
   })
 
   it('writes null for statuses by category over a shared list', () => {
     const raw = { chain: { terminal: ['Done'] }, projects: { ABC: 'C:\\abc' } }
     const form = { ...formOf(raw, 'ABC'), chain: { ...formOf(raw, 'ABC').chain, terminal: [] } }
-    const next = withProjectForm(raw, 'ABC', form)
+    const next = withProjectForm(raw, 'ABC', form, formOf(raw, 'ABC'))
     expect(next.projects).toEqual({ ABC: { repo: 'C:\\abc', chain: { terminal: null } } })
     expect(parseConfig(next).rules.ABC?.terminal).toBeNull()
   })
 
+  it('leaves a hand edit of the file alone where the form kept the value it started from', () => {
+    const base = formOf({ projects: { ABC: 'C:\\abc' } }, 'ABC')
+    const edited = { projects: { ABC: { repo: 'C:\\abc', prompt: 'Hand.', slot: 2, branch: 'trunk', ci: { waitMinutes: 5 }, commands: { check: ['npm test'] } } } }
+    const form: ProjectForm = { ...base, beforeStart: ['npm ci'], brief: false }
+    expect(withProjectForm(edited, 'ABC', form, base)).toEqual({
+      projects: { ABC: { ...edited.projects.ABC, commands: { check: ['npm test'], beforeStart: ['npm ci'] }, brief: false } },
+    })
+  })
+
+  it('writes a field changed both in the form and in the file over the file', () => {
+    const base = formOf({ projects: { ABC: 'C:\\abc' } }, 'ABC')
+    const edited = { projects: { ABC: { repo: 'C:\\abc', prompt: 'Hand.', slot: 2 } } }
+    const form: ProjectForm = { ...base, prompt: 'Mine.', slot: 4 }
+    expect(withProjectForm(edited, 'ABC', form, base)).toEqual({ projects: { ABC: { repo: 'C:\\abc', prompt: 'Mine.', slot: 4 } } })
+  })
+
   it('refuses a project the config does not know', () => {
     const raw = { projects: { ABC: 'C:\\abc' } }
-    expect(() => withProjectForm(raw, 'XYZ', formOf(raw, 'ABC'))).toThrow(/XYZ/)
+    expect(() => withProjectForm(raw, 'XYZ', formOf(raw, 'ABC'), formOf(raw, 'ABC'))).toThrow(/XYZ/)
   })
 })
 
@@ -94,7 +110,7 @@ describe('withSharedForm', () => {
       chain: { active: null, terminal: null, requiredLabels: ['Auto'], excludedLabels: ['Manual', 'Вручную'] },
       stats: { ...sharedOf(raw).stats, compare: { minTasks: 5, minSessions: 10, days: 7 }, otherBelow: 2 },
     }
-    expect(withSharedForm(raw, form)).toEqual({
+    expect(withSharedForm(raw, form, sharedOf(raw))).toEqual({
       projects: { ABC: 'C:\\abc' },
       custom: true,
       parallel: 2,
@@ -109,7 +125,14 @@ describe('withSharedForm', () => {
 
   it('keeps shared keys the form leaves as they were', () => {
     const raw = { projects: {}, model: 'opus', parallel: 1, promptLanguage: 'en' }
-    expect(withSharedForm(raw, sharedOf(raw))).toEqual(raw)
+    expect(withSharedForm(raw, sharedOf(raw), sharedOf(raw))).toEqual(raw)
+  })
+
+  it('leaves a hand edit of the file alone and writes a field changed in both over it', () => {
+    const base = sharedOf({ projects: {} })
+    const edited = { projects: {}, model: 'opus', parallel: 2, chain: { requiredLabels: ['Auto'] } }
+    const form: SharedForm = { ...base, parallel: 3, chain: { ...base.chain, excludedLabels: [] } }
+    expect(withSharedForm(edited, form, base)).toEqual({ projects: {}, model: 'opus', parallel: 3, chain: { requiredLabels: ['Auto'], excludedLabels: [] } })
   })
 })
 

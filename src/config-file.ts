@@ -57,13 +57,13 @@ export class ConfigFile {
   }
 
   /** Writes the project's settings into the file, only if the whole config still parses, and applies what is live at once. */
-  saveProject(project: string, form: ProjectForm): void {
-    this.write(withProjectForm(readRawConfig(this.options.file), project, form))
+  saveProject(project: string, form: ProjectForm, base: ProjectForm): void {
+    this.write(withProjectForm(readRawConfig(this.options.file), project, form, base))
   }
 
   /** Writes the shared settings into the file, by the same rule as `saveProject`. */
-  saveShared(form: SharedForm): void {
-    this.write(withSharedForm(readRawConfig(this.options.file), form))
+  saveShared(form: SharedForm, base: SharedForm): void {
+    this.write(withSharedForm(readRawConfig(this.options.file), form, base))
   }
 
   private write(next: Record<string, unknown>): void {

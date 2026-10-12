@@ -63,8 +63,9 @@ describe('ConfigFile', () => {
     const config = open()
     const form = (project: string) => config.view().projects[project]!
 
-    config.saveProject('ABC', { ...form('ABC'), branch: 'master', prompt: ' Mind Library. ', beforeStart: ['npm ci', ' '], check: ['npm test'], ci: { kinds: ['github'], waitMinutes: 20, recheckMain: true, fixTask: false }, fillMilestone: true })
-    config.saveProject('XYZ', { ...form('XYZ'), prompt: 'Run tests.' })
+    const abc = { ...form('ABC'), branch: 'master', prompt: ' Mind Library. ', beforeStart: ['npm ci', ' '], check: ['npm test'], fillMilestone: true }
+    config.saveProject('ABC', { ...abc, ci: { kinds: ['github'], waitMinutes: 20, recheckMain: true, fixTask: false } }, form('ABC'))
+    config.saveProject('XYZ', { ...form('XYZ'), prompt: 'Run tests.' }, form('XYZ'))
     expect(JSON.parse(readFileSync(file, 'utf8'))).toEqual({
       port: 5000,
       projects: {
@@ -87,7 +88,8 @@ describe('ConfigFile', () => {
     write({ projects: { ABC: { repo: 'C:\\abc', brief: false, prompt: 'Old.', commands: { beforeStart: ['npm ci'], check: ['npm test'] }, ci: { waitMinutes: 5 } } } })
     const config = open()
 
-    config.saveProject('ABC', { ...config.view().projects.ABC!, prompt: '', beforeStart: [], check: [], ci, fillMilestone: false })
+    const form = config.view().projects.ABC!
+    config.saveProject('ABC', { ...form, prompt: '', beforeStart: [], check: [], ci, fillMilestone: false }, form)
     expect(JSON.parse(readFileSync(file, 'utf8'))).toEqual({ projects: { ABC: { repo: 'C:\\abc', brief: false } } })
   })
 
@@ -95,7 +97,7 @@ describe('ConfigFile', () => {
     write({ projects: { ABC: 'C:\\abc' } })
     const config = open()
 
-    expect(() => config.saveProject('XYZ', { ...config.view().projects.ABC!, prompt: 'Hi.' })).toThrow(/XYZ/)
+    expect(() => config.saveProject('XYZ', { ...config.view().projects.ABC!, prompt: 'Hi.' }, config.view().projects.ABC!)).toThrow(/XYZ/)
     expect(JSON.parse(readFileSync(file, 'utf8'))).toEqual({ projects: { ABC: 'C:\\abc' } })
   })
 
@@ -103,7 +105,7 @@ describe('ConfigFile', () => {
     write({ projects: { ABC: 'C:\\abc' } })
     const config = open()
 
-    expect(() => config.saveProject('ABC', { ...config.view().projects.ABC!, tracker: 'github' })).toThrow(expect.objectContaining({ notice: expect.objectContaining({ code: 'config.trackerProject' }) }))
+    expect(() => config.saveProject('ABC', { ...config.view().projects.ABC!, tracker: 'github' }, config.view().projects.ABC!)).toThrow(expect.objectContaining({ notice: expect.objectContaining({ code: 'config.trackerProject' }) }))
     expect(JSON.parse(readFileSync(file, 'utf8'))).toEqual({ projects: { ABC: 'C:\\abc' } })
   })
 
@@ -111,7 +113,7 @@ describe('ConfigFile', () => {
     write({ projects: { ABC: 'C:\\abc' } })
     const config = open()
 
-    config.saveShared({ ...config.view().shared, parallel: 2, tracker: 'linear' })
+    config.saveShared({ ...config.view().shared, parallel: 2, tracker: 'linear' }, config.view().shared)
     expect(JSON.parse(readFileSync(file, 'utf8'))).toEqual({ projects: { ABC: 'C:\\abc' }, parallel: 2, tracker: 'linear' })
     expect(config.current.parallel).toBe(2)
     expect(config.current.tracker).toBe('huly')

@@ -175,12 +175,17 @@ describe('Even Keel HTTP server', () => {
   const chain = { active: null, terminal: ['Done'], requiredLabels: [], excludedLabels: ['Manual'] }
   const form = { branch: 'master', repo: 'C:\\abc', tracker: 'github', trackerProject: 'octo-org/abc', slot: 2, brief: false, chain }
 
-  it('passes the settings of a project on', async () => {
+  it('passes the settings of a project on with the values the form started from', async () => {
     const ci = { kinds: ['github'], waitMinutes: 15, recheckMain: false, fixTask: true }
-    const body = { project: 'ABC', prompt: 'Run npm test.', beforeStart: ['npm ci'], check: ['npm test'], ci, fillMilestone: true, ...form }
-    const response = await fetch(base + '/api/project/settings', { method: 'POST', body: JSON.stringify(body) })
+    const settings = { prompt: 'Run npm test.', beforeStart: ['npm ci'], check: ['npm test'], ci, fillMilestone: true, ...form }
+    const started = { ...settings, prompt: null, slot: 0 }
+    const response = await fetch(base + '/api/project/settings', { method: 'POST', body: JSON.stringify({ project: 'ABC', ...settings, base: started }) })
     expect(response.status).toBe(200)
-    expect(calls).toContainEqual(['settings', 'ABC', { prompt: 'Run npm test.', beforeStart: ['npm ci'], check: ['npm test'], ci, fillMilestone: true, ...form }])
+    expect(calls).toContainEqual(['settings', 'ABC', settings, started])
+
+    const missing = await fetch(base + '/api/project/settings', { method: 'POST', body: JSON.stringify({ project: 'ABC', ...settings }) })
+    expect(missing.status).toBe(400)
+    expect((await missing.json()).notice).toMatchObject({ code: 'request.required', params: { field: 'base' } })
   })
 
   it('refuses project settings of a wrong shape', async () => {
@@ -216,9 +221,10 @@ describe('Even Keel HTTP server', () => {
       context: { window: 600_000, warn: 50, danger: 80 },
       stats: { compare: { minTasks: 5, minSessions: 10, days: 7 }, moves: {}, otherBelow: 0, checkpointTokens: null },
     }
-    const response = await fetch(base + '/api/settings', { method: 'POST', body: JSON.stringify(shared) })
+    const started = { ...shared, parallel: 1 }
+    const response = await fetch(base + '/api/settings', { method: 'POST', body: JSON.stringify({ ...shared, base: started }) })
     expect(response.status).toBe(200)
-    expect(calls).toContainEqual(['shared', shared])
+    expect(calls).toContainEqual(['shared', shared, started])
 
     for (const [field, change] of [['parallel', { parallel: '2' }], ['modelPrompts', { modelPrompts: { haiku: 1 } }], ['stats', { stats: { ...shared.stats, moves: [] } }]] as const) {
       const refused = await fetch(base + '/api/settings', { method: 'POST', body: JSON.stringify({ ...shared, ...change }) })

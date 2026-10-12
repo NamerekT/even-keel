@@ -359,34 +359,42 @@ export function readRawConfig(file: string): unknown {
   }
 }
 
-/** The project's entry in the config file with `branch`, `prompt`, `commands`, `ci` and `fillMilestone` set, or removed when empty or default; its other keys stay. */
-export function withProjectSettings(entry: unknown, { branch, prompt, beforeStart, check, ci, fillMilestone }: ProjectSettings): Record<string, unknown> {
+/**
+ * The project's entry in the config file with `branch`, `prompt`, `commands`, `ci` and `fillMilestone` set, or removed when empty or default;
+ * its other keys stay, and so do the settings `changed` leaves out.
+ */
+export function withProjectSettings(
+  entry: unknown,
+  { branch, prompt, beforeStart, check, ci, fillMilestone }: ProjectSettings,
+  changed: (field: keyof ProjectSettings) => boolean = () => true,
+): Record<string, unknown> {
   const fields: Record<string, unknown> = isPlainObject(entry) ? { ...entry } : { repo: entry }
-  const name = branch.trim()
-  if (name === DEFAULT_BRANCH) delete fields.branch
-  else fields.branch = name
-  const text = prompt?.trim() ?? ''
-  if (text === '') delete fields.prompt
-  else fields.prompt = text
   const commands: Record<string, unknown> = isPlainObject(fields.commands) ? { ...fields.commands } : {}
+  /** Sets the key, or removes it when `undefined`. */
+  const put = (into: Record<string, unknown>, key: string, value: unknown) => {
+    if (value === undefined) delete into[key]
+    else into[key] = value
+  }
+
+  const name = branch.trim()
+  if (changed('branch')) put(fields, 'branch', name === DEFAULT_BRANCH ? undefined : name)
+  if (changed('prompt')) put(fields, 'prompt', prompt?.trim() || undefined)
   for (const [key, list] of [['beforeStart', beforeStart], ['check', check]] as const) {
     const lines = list.map((line) => line.trim()).filter((line) => line !== '')
-    if (lines.length === 0) delete commands[key]
-    else commands[key] = lines
+    if (changed(key)) put(commands, key, lines.length === 0 ? undefined : lines)
   }
-  if (Object.keys(commands).length === 0) delete fields.commands
-  else fields.commands = commands
-  const kinds = CI_KINDS.filter((kind) => ci.kinds.includes(kind))
-  const written = {
-    ...(kinds.length === CI_KINDS.length ? {} : { kinds }),
-    ...(ci.waitMinutes === null ? {} : { waitMinutes: ci.waitMinutes }),
-    ...(ci.recheckMain ? {} : { recheckMain: false }),
-    ...(ci.fixTask ? { fixTask: true } : {}),
+  if (changed('beforeStart') || changed('check')) put(fields, 'commands', Object.keys(commands).length === 0 ? undefined : commands)
+  if (changed('ci')) {
+    const kinds = CI_KINDS.filter((kind) => ci.kinds.includes(kind))
+    const written = {
+      ...(kinds.length === CI_KINDS.length ? {} : { kinds }),
+      ...(ci.waitMinutes === null ? {} : { waitMinutes: ci.waitMinutes }),
+      ...(ci.recheckMain ? {} : { recheckMain: false }),
+      ...(ci.fixTask ? { fixTask: true } : {}),
+    }
+    put(fields, 'ci', Object.keys(written).length === 0 ? undefined : written)
   }
-  if (Object.keys(written).length === 0) delete fields.ci
-  else fields.ci = written
-  if (fillMilestone) fields.fillMilestone = true
-  else delete fields.fillMilestone
+  if (changed('fillMilestone')) put(fields, 'fillMilestone', fillMilestone || undefined)
   return fields
 }
 

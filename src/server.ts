@@ -104,10 +104,10 @@ export interface SessionControl {
 }
 
 export interface SettingsControl {
-  /** Writes the project's settings into the config file. */
-  save(project: string, form: ProjectForm): void
-  /** Writes the shared settings into the config file. */
-  saveShared(form: SharedForm): void
+  /** Writes into the config file the project's settings that differ from `base`, the values the form started from. */
+  save(project: string, form: ProjectForm, base: ProjectForm): void
+  /** Writes into the config file the shared settings that differ from `base`. */
+  saveShared(form: SharedForm, base: SharedForm): void
 }
 
 export interface ServerDeps {
@@ -154,8 +154,8 @@ const COMMANDS: Record<string, Command> = {
   'chain/trim': ({ control }, body) => control.setTrimTools(flagOf(body)),
   'task/ready': ({ tasks }, body) => tasks.ready(taskOf(body)),
   'session/answer': ({ sessions }, body) => sessions.answer(answerOf(body)),
-  'project/settings': ({ settings }, body) => settings.save(projectOf(body), projectFormOf(body)),
-  settings: ({ settings }, body) => settings.saveShared(sharedFormOf(body)),
+  'project/settings': ({ settings }, body) => settings.save(projectOf(body), projectFormOf(body), projectFormOf(baseOf(body))),
+  settings: ({ settings }, body) => settings.saveShared(sharedFormOf(body), sharedFormOf(baseOf(body))),
   'account/add': ({ account }) => account.add(),
   'account/renew': ({ account }, body) => account.renew(accountOf(body)),
   'account/switch': ({ account }, body) => account.switchTo(accountOf(body)),
@@ -476,6 +476,11 @@ export function answerOf(body: Record<string, unknown>): AnswerRequest {
     text: typeof text === 'string' ? text : '',
     files: sent.map((file: { name: string; data: string }) => ({ name: file.name, data: Buffer.from(file.data, 'base64') })),
   }
+}
+
+/** The values a settings form started from: only a field that differs from them is written over the file. */
+function baseOf(body: Record<string, unknown>): Record<string, unknown> {
+  return mapOf(body.base, 'base', () => true)
 }
 
 // The shape only: the values are judged by `parseConfig` when the form is written into the config.
