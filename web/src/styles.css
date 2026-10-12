@@ -2634,6 +2634,12 @@ a:focus-visible {
   }
 }
 
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+}
+
 @keyframes sweep {
   from {
     background-position: -60% 0;

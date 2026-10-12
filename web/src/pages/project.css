@@ -183,6 +183,11 @@
     position: static;
   }
 
+  /* The card stands under the tabs: its frame stays put and only what is in it fades in. */
+  .project__side > .panel {
+    animation: none;
+  }
+
   .project__side--tabs > .panel,
   .project__side--tabs > .idle {
     border-top-left-radius: 0;
@@ -191,6 +196,13 @@
 
   .project__side--tabs > .panel {
     max-height: calc(100dvh - var(--header-height) - 24px - 32px - var(--side-tabs));
+  }
+}
+
+/* Zero specificity, so a child with an animation of its own keeps it. */
+@media (min-width: 761px) and (prefers-reduced-motion: no-preference) {
+  :where(.project__side > .panel) > * {
+    animation: fade-in var(--motion-appear) ease-out;
   }
 }
 
