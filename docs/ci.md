@@ -1,6 +1,6 @@
 # CI
 
-Even Keel watches the CI of each project and shows it on the page (BTN-102). After a push of `main` the chain waits for the verdict of the counted CIs before the next launch, and a red `main` becomes a fix task that goes first (BTN-103): how the chain behaves is in `docs/chain.md`, "The CI of main".
+Even Keel watches the CI of each project and shows it on the page (BTN-102). After a push of `main` the chain waits for the verdict of the counted CIs before the next launch, and a red `main` becomes a fix task that goes first (BTN-103): how the chain behaves is in `docs/chain.md`, "The CI of main". Without a CI to judge `main`, the project's own check commands do (BTN-104, below).
 
 ## The layer
 
@@ -24,12 +24,21 @@ The contract is two calls: `runs(limit)` — the latest runs, newest first; `job
 `projects.<KEY>.ci` in `even-keel.config.json`, read live, also set from the project's settings panel:
 
 ```json
-"ci": { "kinds": ["forgejo", "github"], "waitMinutes": 30 }
+"ci": { "kinds": ["forgejo", "github"], "waitMinutes": 30, "recheckMain": true }
 ```
 
-- `kinds` — the CIs whose verdict the chain waits for; without the key — both (`DEFAULT_CI` in `src/config.ts`); empty — none (the local check is BTN-104).
+- `kinds` — the CIs whose verdict the chain waits for; without the key — both (`DEFAULT_CI` in `src/config.ts`); empty — none, and the project's own check takes over (below).
 - `waitMinutes` — how long the next launch waits after the push: `null` or no key — as long as it takes, `0` — not at all (faster, but the next task may start on a broken `main`).
+- `recheckMain` — `false` turns off the second run of the project's check on a `main` that moved (below).
 - The settings panel writes the key only when it differs from the default.
+
+## The check without a CI (BTN-104)
+
+`projects.<KEY>.commands.check` — lines run in order, like `commands.beforeStart`; empty — no check. It is in effect when no counted CI will judge `main`: `kinds` is empty, the repository has none of them, or one is not `ok` (`mergeCheck` in `src/chain/mainci.ts`).
+
+- **On the branch, before the merge.** The `PreToolUse` hook of the `checkpoint` plugin (`plugins/checkpoint/hooks/merge-check.mjs`) sees a Bash command that merges the branch of the session's worktree, asks `GET /api/sessions/<id>/check` (404 — not a chain session; `{ commands: [] }` — no check) and runs the commands in the worktree. The first failure blocks the merge (exit 2) with the command, its code and the tail of its output; the session fixes it and merges again. The plugin is installed in user scope, so it reaches the sessions of every tracker.
+- **On main, if it moved.** Before the cleanup deletes the branch, the dispatcher reads its tree (`MainCheckDeps.taskTree`); after the push, `MainCheck.pushed` compares it with the tree of `main` (`checked` on the push). When the CI cannot judge the push (`none` at once, `unavailable` after the wait), `withoutCi` decides: the same tree — green, the check before the merge covered it; another tree and `recheckMain` — the push goes to `ci[<project>].local`, and before the next launch the dispatcher runs the check in that task's place (`checkMain`, a yellow line `ciWait.local` on the page): `TaskPlaces.readyAhead` brings the place to `main` and runs the commands before start, and the check runs only if the place is then on `main` (a task with its own commits is skipped with a log line). The user's main checkout is never touched.
+- **A failure on main** is a red `main` (`MainFailure.check`): the same fix task, with the command and the output tail in its text (`redReport`), the same single fix at a time, and a failure on the push of the fix stops the chain with `check.fixFailed`.
 
 ## Which CI a project has
 

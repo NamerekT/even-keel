@@ -37,6 +37,7 @@ Sequential within a project, not across them: different projects are different r
 - **Limits.** The 5-hour and weekly windows of every account, read with the CLI's own `/usage` command (no quota spent). While a window is exhausted the next task waits for its reset.
 - **Statistics.** A built-in collector (Tally) reads the session transcripts every five minutes into an embedded Postgres ([PGlite](https://pglite.dev)): spend by day and project, cost and time per task, where sessions got stuck, slow commands, estimates against actual time, and before/after comparisons of changes to your rule files. All of it on the `/stats` page.
 - **CI.** A badge in the project's head shows the CI of each remote — Forgejo Actions or GitHub Actions, found from `git remote` and the workflow folders: whether the API answers and a runner takes the runs, the current run with its tasks, jobs and steps against the usual length, and the recent runs. The API is polled only while a run is unfinished or after a push. After a task is merged and `main` is pushed, the next task waits for the CI's verdict (as long as the project allows) while its worktree is prepared; a red `main` becomes a high-priority fix task that the chain takes first, and if the fix is red too the chain pauses instead of filing another.
+- **A check without CI.** A project with no CI, or whose CI does not answer, can name its own check commands, such as `npm run typecheck && npm test`. A session's merge into `main` waits until they pass in the task's worktree (a hook of the [checkpoint](plugins/checkpoint) plugin), and a failure goes back to the session to fix. If `main` moved while the task ran, Even Keel runs the check again on `main` in the next task's worktree before that task starts; a failure there is handled like a red CI.
 - **Languages.** The page is in English or Russian; the prompts Even Keel sends to sessions can be in either, separately.
 
 ## Requirements
@@ -174,7 +175,7 @@ On Linux it installs a systemd user unit (`systemctl --user status even-keel`, l
 
 ## Configuration
 
-`even-keel.config.json`, starting from [even-keel.config.example.json](even-keel.config.example.json). The service rereads it on the fly: `parallel`, `chain`, `brief`, a project's `prompt`, `commands` and `ci`, `model`, `modelPrompts`, `stats`, `language`, `promptLanguage` and `hiddenSkills` apply at once, the rest after a restart. A broken file keeps the last good one running and shows the error on the page. A project's `prompt`, `commands.beforeStart` and `ci` can also be edited from its page (**Settings**), which writes them into the file and keeps the other keys.
+`even-keel.config.json`, starting from [even-keel.config.example.json](even-keel.config.example.json). The service rereads it on the fly: `parallel`, `chain`, `brief`, a project's `prompt`, `commands` and `ci`, `model`, `modelPrompts`, `stats`, `language`, `promptLanguage` and `hiddenSkills` apply at once, the rest after a restart. A broken file keeps the last good one running and shows the error on the page. A project's `prompt`, `commands` and `ci` can also be edited from its page (**Settings**), which writes them into the file and keeps the other keys.
 
 | Key | Default | |
 | --- | --- | --- |
@@ -195,7 +196,9 @@ On Linux it installs a systemd user unit (`systemctl --user status even-keel`, l
 | `projects.<KEY>.prompt` | none | text added to the prompt of every new session of the project (first start and handoff; a resumed session already has it); empty — none |
 | `projects.<KEY>.commands.beforeStart` | `[]` | shell commands (`cmd.exe` on Windows) run in order in the task's worktree or slot before a new session starts, such as `npm ci`; output goes to the service log. A failed one pauses the chain with its output on the page; a resumed session does not run them again |
 | `projects.<KEY>.ci.kinds` | `["forgejo", "github"]` | the CIs whose verdict on a pushed `main` the next task waits for; empty — none |
+| `projects.<KEY>.commands.check` | `[]` | the project's check, run in order when no CI of `ci.kinds` will judge `main` (none counted, or one not answering): before a session's merge, in its worktree, by the [checkpoint](plugins/checkpoint) plugin's hook — a failure blocks the merge; and on `main` in the next task's worktree when `main` moved during the task — a failure files a fix task as a red CI does |
 | `projects.<KEY>.ci.waitMinutes` | none | how long the next task waits for that verdict, in minutes; none — as long as it takes, `0` — not at all (faster, but a task may start on a broken `main`) |
+| `projects.<KEY>.ci.recheckMain` | `true` | `false` — do not run `commands.check` again on a `main` that moved during the task |
 | `context` | `{ "window": 600000, "warn": 50, "danger": 80 }` | context bar on the page: window size in tokens, warning and danger thresholds in percent |
 | `model` | `opus` | model of sessions whose task has no model label: `sonnet`, `opus` or `haiku` |
 | `modelPrompts` | `{}` | text added to the prompt of sessions on `sonnet`, `opus` or `haiku` |

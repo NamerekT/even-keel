@@ -58,6 +58,7 @@ Layout work on a fake state, without a tracker or sessions. The fake history sta
 | `?chain=limit` | the chain is waiting for the limit reset |
 | `?chain=slot` | an unattended chain is waiting for a free slot |
 | `?chain=ci` | the chain is waiting for the CI of a pushed main |
+| `?chain=check` | the chain is running the project's own check on a pushed main in the next task's folder |
 | `?chain=skip` | a skipped task and a session postponed by a blocker |
 | `?chain=backlog` | blockers from Backlog under a lock in front of the held task (milestone v0.2) |
 | `?chain=restart` | a session ended on a limit and lost Remote Control, the "New session" button |
