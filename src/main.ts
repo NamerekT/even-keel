@@ -11,11 +11,14 @@ import { Dispatcher, type LaunchEntry } from './chain/dispatcher.js'
 import { handoffsOf, launchDays, ranSince, taskSessions } from './chain/launches.js'
 import { noteOf, resumePrompt, startPrompt, withBrief, withProjectPrompt, withUnattended } from './chain/relay.js'
 import { launchLine } from './chain/log.js'
+import { mainCheckDeps } from './chain/mainci.js'
+import { TaskPlaces } from './chain/places.js'
 import { readNote, saveSnapshot, snapshotReason } from './chain/snapshots.js'
 import { appendLaunch, loadChainState, readLaunches, saveChainState } from './chain/store.js'
 import { CI_TOKENS, ciSource, projectTargets } from './ci/adapters.js'
 import { CiWatch } from './ci/watcher.js'
 import { ConfigFile } from './config-file.js'
+import { DEFAULT_CI } from './config.js'
 import { EventHub } from './events.js'
 import { branchMerged } from './git/merged.js'
 import { runGit } from './git/run.js'
@@ -340,6 +343,24 @@ function projectOf(task: string): string | undefined {
   return dispatcher.state.active.find((chain) => chain.current?.task === task)?.project
 }
 
+const places = new TaskPlaces({
+  git: runGit,
+  place: async (project, task) => {
+    const repo = config.projects[project]!
+    await ensureIgnored(runGit, repo)
+    const count = config.slots[project]
+    if (count === undefined) return prepareWorktree(runGit, repo, task)
+    return prepareSlot(runGit, repo, task, { count, occupancy: (path) => slotUse(path, task), vacate: (path) => vacateSlot(path, task) })
+  },
+  setUp: (project, task, path) =>
+    runBeforeStart(configFile.current.settings[project]?.beforeStart ?? [], {
+      task,
+      cwd: path,
+      shell: systemShell(() => homes.envOf(homeOf(ledger.active))),
+      log: (line) => console.log(line),
+    }),
+})
+
 const dispatcher = new Dispatcher(loadChainState(chainFile), {
   projects: Object.keys(config.projects),
   parallel: () => configFile.current.parallel,
@@ -347,23 +368,7 @@ const dispatcher = new Dispatcher(loadChainState(chainFile), {
   launch: async (project, task) => {
     const home = homeOf(ledger.active)
     await daemons.prepare(home)
-    const repo = config.projects[project]!
-    await ensureIgnored(runGit, repo)
-    const count = config.slots[project]
-    const place =
-      count !== undefined
-        ? await prepareSlot(runGit, repo, task, {
-            count,
-            occupancy: (path) => slotUse(path, task),
-            vacate: (path) => vacateSlot(path, task),
-          })
-        : await prepareWorktree(runGit, repo, task)
-    await runBeforeStart(configFile.current.settings[project]?.beforeStart ?? [], {
-      task,
-      cwd: place.path,
-      shell: systemShell(() => homes.envOf(home)),
-      log: (line) => console.log(line),
-    })
+    const place = await places.ready(project, task)
     const { prompt, model } = planFor(task, withProject(await briefed(task, startPrompt(task, place, promptLanguage()), project), project))
     return (await cli.launch(home, task, place.path, prompt, model, settingsFor(task, place.path, project))).sessionId
   },
@@ -442,6 +447,21 @@ const dispatcher = new Dispatcher(loadChainState(chainFile), {
     return outcome
   },
   log: (message) => console.log(message),
+  main: mainCheckDeps({
+    repo: (project) => config.projects[project]!,
+    git: runGit,
+    watches: (project) => ciWatches.get(project) ?? [],
+    settings: (project) => configFile.current.settings[project]?.ci ?? DEFAULT_CI,
+    language: () => configFile.current.language ?? promptLanguage(),
+    create: async (task) => (await links.get(config.trackers[task.project]!)?.run(async (tracker) => tracker.create?.(task))) ?? null,
+    comment: async (task, body) => {
+      const project = configuredProject(task)
+      const link = project === undefined ? undefined : links.get(config.trackers[project]!)
+      await link?.run(async (tracker) => tracker.comment?.(task, body))
+    },
+    prepare: (project, task) => places.prepare(project, task),
+    now: () => new Date(),
+  }),
 })
 
 /** Saves the files into the task's folder and resumes the waiting session with the reply (invariant 1, exception 6). */
@@ -682,7 +702,10 @@ void (async () => {
             git: runGit,
             repo,
             log: (message) => console.log(message),
-            onChange: () => hub.broadcast('state', getState()),
+            onChange: () => {
+              hub.broadcast('state', getState())
+              dispatcher.check()
+            },
           }),
       ),
     )

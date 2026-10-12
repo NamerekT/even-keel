@@ -58,6 +58,21 @@ export async function prepareWorktree(git: Git, repo: string, task: string): Pro
   return place
 }
 
+/**
+ * Brings a prepared place up to `main` while nothing of the task is in it yet: no commits of its own, no changes.
+ * A task prepared while the chain waited for the CI then starts from the fix that came meanwhile. `true` — it moved.
+ */
+export async function catchUp(git: Git, path: string): Promise<boolean> {
+  const [own, behind, status] = await Promise.all([
+    git(path, ['rev-list', '--count', 'main..HEAD']),
+    git(path, ['rev-list', '--count', 'HEAD..main']),
+    git(path, ['status', '--porcelain']),
+  ])
+  if (own.code !== 0 || behind.code !== 0 || status.code !== 0) return false
+  if (own.out.trim() !== '0' || behind.out.trim() === '0' || status.out.trim() !== '') return false
+  return (await git(path, ['merge', '--ff-only', 'main'])).code === 0
+}
+
 export async function finishWorktree(git: Git, repo: string, task: string): Promise<FinishOutcome> {
   const place = taskPlace(repo, task)
   const warnings: Notice[] = []

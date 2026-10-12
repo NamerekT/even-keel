@@ -2,7 +2,7 @@ import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, 
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
-import { ensureIgnored, finishWorktree, parseWorktrees, prepareWorktree, taskPlace, type GitResult } from './worktree.js'
+import { catchUp, ensureIgnored, finishWorktree, parseWorktrees, prepareWorktree, taskPlace, type GitResult } from './worktree.js'
 import { englishOf, notice } from '../notice/notice.js'
 
 const repo = join(tmpdir(), 'abc')
@@ -77,6 +77,38 @@ describe('prepareWorktree', () => {
       [`worktree add ${place} abc-7/task`]: { code: 128, out: "fatal: 'abc-7/task' is already used by worktree" },
     })
     await expect(prepareWorktree(git, repo, 'ABC-7')).rejects.toThrow(/already used by worktree/)
+  })
+})
+
+describe('catchUp', () => {
+  function placeGit(answers: Record<string, Partial<GitResult>>) {
+    const calls: string[] = []
+    const git = async (cwd: string, args: string[]): Promise<GitResult> => {
+      expect(cwd).toBe(place)
+      calls.push(args.join(' '))
+      return { code: 0, out: '', ...answers[args.join(' ')] }
+    }
+    return { git, calls }
+  }
+  const fresh = { 'rev-list --count main..HEAD': { out: '0\n' }, 'rev-list --count HEAD..main': { out: '2\n' }, 'status --porcelain': { out: '' } }
+
+  it('moves a place with nothing of its own up to main', async () => {
+    const { git, calls } = placeGit(fresh)
+    expect(await catchUp(git, place)).toBe(true)
+    expect(calls).toContain('merge --ff-only main')
+  })
+
+  it('leaves a place with its own commits, with changes or already at main alone', async () => {
+    for (const change of [{ 'rev-list --count main..HEAD': { out: '1\n' } }, { 'status --porcelain': { out: ' M a.ts\n' } }, { 'rev-list --count HEAD..main': { out: '0\n' } }]) {
+      const { git, calls } = placeGit({ ...fresh, ...change })
+      expect(await catchUp(git, place)).toBe(false)
+      expect(calls).not.toContain('merge --ff-only main')
+    }
+  })
+
+  it('says it did not move when git fails', async () => {
+    expect(await catchUp(placeGit({ ...fresh, 'merge --ff-only main': { code: 128, out: 'fatal: Not possible to fast-forward' } }).git, place)).toBe(false)
+    expect(await catchUp(placeGit({ ...fresh, 'status --porcelain': { code: 128 } }).git, place)).toBe(false)
   })
 })
 
