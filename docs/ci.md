@@ -1,6 +1,6 @@
 # CI
 
-Even Keel watches the CI of each project and shows it on the page. Watching only: the chain neither waits for a run nor reacts to a red one (BTN-102; waiting and the reaction are later tasks).
+Even Keel watches the CI of each project and shows it on the page (BTN-102). After a push of `main` the chain waits for the verdict of the counted CIs before the next launch, and a red `main` becomes a fix task that goes first (BTN-103): how the chain behaves is in `docs/chain.md`, "The CI of main".
 
 ## The layer
 
@@ -14,8 +14,22 @@ Even Keel watches the CI of each project and shows it on the page. Watching only
 | `http.ts` | `getJson` and its notices `ci.denied`, `ci.http`, `ci.unreachable` |
 | `adapters.ts` | `CI_TOKENS`, `ciVariables` (kept out of the sessions' environment by `AccountHomes.envOf`), `ciSource`, `projectTargets` |
 | `watcher.ts` | `CiWatch`, one per CI of a repository |
+| `verdict.ts` | `verdictOf`: what the CIs say about a pushed commit — green, red, pending or unavailable |
+| `report.ts` | `redReport`: the fix task's title, description and comment in en/ru; `logTail` |
 
-The contract is two calls: `runs(limit)` — the latest runs, newest first; `jobs(run)` — the jobs of a run with their steps when the CI gives them.
+The contract is two calls: `runs(limit)` — the latest runs, newest first; `jobs(run)` — the jobs of a run with their steps when the CI gives them. The optional `log(job)` is a job's log — only GitHub has it (`getText` in `http.ts`); `CiWatch.failed(run)` gathers the failed jobs and the tail of the first log for the fix task's text.
+
+## Which CIs the chain counts
+
+`projects.<KEY>.ci` in `even-keel.config.json`, read live, also set from the project's settings panel:
+
+```json
+"ci": { "kinds": ["forgejo", "github"], "waitMinutes": 30 }
+```
+
+- `kinds` — the CIs whose verdict the chain waits for; without the key — both (`DEFAULT_CI` in `src/config.ts`); empty — none (the local check is BTN-104).
+- `waitMinutes` — how long the next launch waits after the push: `null` or no key — as long as it takes, `0` — not at all (faster, but the next task may start on a broken `main`).
+- The settings panel writes the key only when it differs from the default.
 
 ## Which CI a project has
 
