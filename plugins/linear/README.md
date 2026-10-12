@@ -35,6 +35,7 @@ How Linear maps onto the chain:
 | priority | Urgent, High, Medium, Low; No priority — none |
 | milestone | the project milestone and its target date (not the cycle: unfinished issues roll over to the next cycle on their own) |
 | estimate | none: Linear estimates are points |
+| task card | the description and comments, labels, milestone, parent, `blocks` relations both ways, `related`; "Move to Todo" takes a Backlog-type issue to the team's first Todo-type state |
 
 Linear has a backlog, so the chain works as with Huly: an issue enters it once it is moved to Todo or further. Links on the page lead to `https://linear.app/<workspace>/issue/ENG-12`; Even Keel learns the workspace when it connects.
 

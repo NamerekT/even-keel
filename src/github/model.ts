@@ -1,3 +1,4 @@
+import type { TaskRef, TrackerCard } from '../tracker/card.js'
 import { PRIORITIES, type TaskPriority, type TaskStatus, type TrackerTask } from '../tracker/model.js'
 
 export type IssueState = 'OPEN' | 'CLOSED'
@@ -18,6 +19,21 @@ export interface GithubIssue extends IssueRef {
   blockedBy: { nodes: IssueRef[] }
   labels: { nodes: { name: string }[] }
   milestone: { number: number; title: string; dueOn: string | null } | null
+}
+
+/** An issue a card links to: enough to show its title and status. */
+export interface CardRef extends IssueRef {
+  title: string
+  state: IssueState
+  stateReason: IssueStateReason | null
+}
+
+export interface GithubCardIssue extends Omit<GithubIssue, 'parent' | 'blockedBy'> {
+  body: string | null
+  parent: CardRef | null
+  blockedBy: { nodes: CardRef[] }
+  blocking: { nodes: CardRef[] }
+  comments: { nodes: { author: { login: string } | null; createdAt: string; body: string }[] }
 }
 
 export interface Repo {
@@ -73,6 +89,29 @@ export class RepoMap {
   idOf(ref: IssueRef): string {
     const key = this.keyOf(ref.repository.nameWithOwner)
     return key === undefined ? `${ref.repository.nameWithOwner}#${ref.number}` : `${key}-${ref.number}`
+  }
+}
+
+export function toCard(issue: GithubCardIssue, repos: RepoMap): TrackerCard {
+  const labels = issue.labels.nodes.map((label) => label.name)
+  const { milestone } = issue
+  const refOf = (ref: CardRef): TaskRef => ({ id: repos.idOf(ref), title: ref.title, status: githubStatus(ref.state, ref.stateReason) })
+  return {
+    id: repos.idOf(issue),
+    title: issue.title,
+    description: issue.body ?? '',
+    status: githubStatus(issue.state, issue.stateReason),
+    priority: githubPriority(labels),
+    labels,
+    milestone: milestone === null ? null : { label: milestone.title, targetDate: milestone.dueOn === null ? null : Date.parse(milestone.dueOn) },
+    parent: issue.parent === null ? null : refOf(issue.parent),
+    blockedBy: issue.blockedBy.nodes.map(refOf),
+    blocks: issue.blocking.nodes.map(refOf),
+    related: [],
+    comments: [...issue.comments.nodes]
+      .sort((a, b) => Date.parse(a.createdAt) - Date.parse(b.createdAt))
+      .map((node) => ({ author: node.author?.login ?? null, at: Date.parse(node.createdAt), text: node.body })),
+    attachments: [],
   }
 }
 

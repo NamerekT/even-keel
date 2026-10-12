@@ -1,7 +1,7 @@
 import { commentsAfterId, linkedFiles } from '../tracker/comments.js'
 import { parseTaskId, type TaskPriority, type TrackerTask } from '../tracker/model.js'
 import type { TaskSource } from '../tracker/source.js'
-import { linearStatus, toTrackerTask, type LinearIssue, type LinearState } from './model.js'
+import { linearStatus, readyState, toCard, toTrackerTask, type LinearCardIssue, type LinearIssue, type LinearState, type TeamStateDoc } from './model.js'
 
 export interface LinearSettings {
   token: string
@@ -64,7 +64,30 @@ const ISSUE_STATE = `query($filter: IssueFilter!) {
   }
 }`
 
-const MOVE_ISSUE = `mutation($id: String!, $state: String!) {
+const CARD_REF = 'identifier title state { name type }'
+
+const ISSUE_CARD = `query($filter: IssueFilter!) {
+  issues(first: 1, filter: $filter) {
+    nodes {
+      identifier title description priority
+      state { name type }
+      parent { ${CARD_REF} }
+      relations(first: 25) { nodes { type relatedIssue { ${CARD_REF} } } }
+      inverseRelations(first: 25) { nodes { type issue { ${CARD_REF} } } }
+      labels(first: 25) { nodes { name } }
+      projectMilestone { name targetDate }
+      comments(first: 100) { nodes { user { name } createdAt body } }
+    }
+  }
+}`
+
+const ISSUE_READY = `query($filter: IssueFilter!) {
+  issues(first: 1, filter: $filter) {
+    nodes { id state { name type } team { states(first: 100) { nodes { id name type position } } } }
+  }
+}`
+
+const MOVE_ISSUE =`mutation($id: String!, $state: String!) {
   issueUpdate(id: $id, input: { stateId: $state }) { success }
 }`
 
@@ -191,6 +214,19 @@ export async function connectLinear(settings: LinearSettings, timeoutMs: number,
     async brief(id) {
       const issue = await oneIssue<{ title: string; description: string | null }>(id, ISSUE_BRIEF)
       return { title: issue.title, description: issue.description ?? '' }
+    },
+
+    async card(id) {
+      return toCard(await oneIssue<LinearCardIssue>(id, ISSUE_CARD))
+    },
+
+    async ready(id) {
+      const issue = await oneIssue<{ id: string; state: LinearState; team: { states: { nodes: TeamStateDoc[] } } }>(id, ISSUE_READY)
+      const state = readyState(issue.state, issue.team.states.nodes)
+      if (state === null) return null
+      const { issueUpdate } = await graphql<{ issueUpdate: { success: boolean } }>(MOVE_ISSUE, { id: issue.id, state: state.id })
+      if (!issueUpdate.success) throw new Error(`linear: ${id} was not moved to ${state.id}`)
+      return linearStatus(state)
     },
 
     async complete(id) {

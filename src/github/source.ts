@@ -1,7 +1,7 @@
 import { commentsAfterId, linkedFiles } from '../tracker/comments.js'
 import { parseTaskId, type TaskStatus, type TrackerTask } from '../tracker/model.js'
 import type { TaskSource } from '../tracker/source.js'
-import { GITHUB_STATUSES, githubStatus, RepoMap, toTrackerTask, type GithubIssue, type IssueState, type Repo } from './model.js'
+import { GITHUB_STATUSES, githubStatus, RepoMap, toCard, toTrackerTask, type GithubCardIssue, type GithubIssue, type IssueState, type Repo } from './model.js'
 
 export interface GithubSettings {
   token: string
@@ -47,7 +47,25 @@ const ISSUE_BRIEF = `query($owner: String!, $name: String!, $number: Int!) {
   repository(owner: $owner, name: $name) { issue(number: $number) { title body } }
 }`
 
-const ISSUE_STATE = `query($owner: String!, $name: String!, $number: Int!) {
+const CARD_REF = 'number title state stateReason repository { nameWithOwner }'
+
+const ISSUE_CARD = `query($owner: String!, $name: String!, $number: Int!) {
+  repository(owner: $owner, name: $name) {
+    issue(number: $number) {
+      id number title state stateReason body
+      repository { nameWithOwner }
+      subIssuesSummary { total }
+      parent { ${CARD_REF} }
+      blockedBy(first: 50) { nodes { ${CARD_REF} } }
+      blocking(first: 50) { nodes { ${CARD_REF} } }
+      labels(first: 50) { nodes { name } }
+      milestone { number title dueOn }
+      comments(first: 100) { nodes { author { login } createdAt body } }
+    }
+  }
+}`
+
+const ISSUE_STATE =`query($owner: String!, $name: String!, $number: Int!) {
   repository(owner: $owner, name: $name) { issue(number: $number) { id state } }
 }`
 
@@ -180,6 +198,11 @@ export async function connectGithub(settings: GithubSettings, timeoutMs: number,
     async brief(id) {
       const { issue } = await issueOf<{ title: string; body: string | null }>(id, ISSUE_BRIEF)
       return { title: issue.title, description: issue.body ?? '' }
+    },
+
+    async card(id) {
+      const { issue } = await issueOf<GithubCardIssue>(id, ISSUE_CARD)
+      return toCard(issue, repos)
     },
 
     async complete(id) {
