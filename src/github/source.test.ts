@@ -161,6 +161,27 @@ describe('github source', () => {
     expect(calls[2]!.variables).toEqual({ input: { repositoryId: 'R_1', title: 'T', body: 'D' } })
   })
 
+  it('puts an issue without a milestone into the milestone of another issue', async () => {
+    const { source, calls } = await connect([
+      { body: { data: { repository: { issue: { id: 'I_kwDOexample9', milestone: null }, like: { milestone: { id: 'MI_1' } } } } } },
+      { body: { data: { updateIssue: { issue: { number: 9 } } } } },
+    ])
+    expect(await source.setMilestone!('ABC-9', 'ABC-7')).toBe(true)
+    expect(calls[1]!.variables).toEqual({ owner: 'octo-org', name: 'abc', number: 9, like: 7 })
+    expect(calls[2]!.variables).toEqual({ id: 'I_kwDOexample9', milestone: 'MI_1' })
+  })
+
+  it('leaves alone an issue that has a milestone, and one whose model has none or is in another repository', async () => {
+    const { source, calls } = await connect([
+      { body: { data: { repository: { issue: { id: 'I_kwDOexample9', milestone: { id: 'MI_2' } }, like: { milestone: { id: 'MI_1' } } } } } },
+      { body: { data: { repository: { issue: { id: 'I_kwDOexample9', milestone: null }, like: { milestone: null } } } } },
+    ])
+    expect(await source.setMilestone!('ABC-9', 'ABC-7')).toBe(false)
+    expect(await source.setMilestone!('ABC-9', 'ABC-7')).toBe(false)
+    expect(await source.setMilestone!('ABC-9', 'XYZ-7')).toBe(false)
+    expect(calls).toHaveLength(3)
+  })
+
   it('gives the comments after a given one with the files they link to', async () => {
     const nodes = [
       { id: 'IC_0', body: 'earlier' },

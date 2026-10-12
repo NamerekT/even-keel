@@ -82,7 +82,7 @@ export function parseConfig(raw: unknown, adapters: AdapterShapes = ADAPTERS): E
   for (const [key, entry] of Object.entries(input.projects)) {
     if (!PROJECT_KEY.test(key)) throw fail('config.projectKey', { key })
     const fields: Record<string, unknown> = typeof entry === 'object' && entry !== null ? (entry as Record<string, unknown>) : { repo: entry }
-    const { repo, chain, slot, tracker, brief, prompt, commands, ci } = fields
+    const { repo, chain, slot, tracker, brief, prompt, commands, ci, fillMilestone } = fields
     if (typeof repo !== 'string' || repo === '') throw fail('config.repoEmpty', { key })
     if (slot !== undefined && typeof slot !== 'boolean' && !(Number.isInteger(slot) && (slot as number) > 0)) throw fail('config.slot', { key })
     projects[key] = repo
@@ -96,6 +96,7 @@ export function parseConfig(raw: unknown, adapters: AdapterShapes = ADAPTERS): E
       prompt: parseProjectPrompt(prompt, `${key}.prompt`),
       ...parseCommands(commands, `${key}.commands`),
       ci: parseCi(ci, `${key}.ci`),
+      fillMilestone: fillMilestone === undefined ? false : parseBrief(fillMilestone, `${key}.fillMilestone`),
     }
   }
 
@@ -316,8 +317,8 @@ export function readRawConfig(file: string): unknown {
   }
 }
 
-/** The project's entry in the config file with `prompt`, `commands` and `ci` set, or removed when empty or default; its other keys stay. */
-export function withProjectSettings(entry: unknown, { prompt, beforeStart, check, ci }: ProjectSettings): Record<string, unknown> {
+/** The project's entry in the config file with `prompt`, `commands`, `ci` and `fillMilestone` set, or removed when empty or default; its other keys stay. */
+export function withProjectSettings(entry: unknown, { prompt, beforeStart, check, ci, fillMilestone }: ProjectSettings): Record<string, unknown> {
   const fields: Record<string, unknown> = isPlainObject(entry) ? { ...entry } : { repo: entry }
   const text = prompt?.trim() ?? ''
   if (text === '') delete fields.prompt
@@ -338,6 +339,8 @@ export function withProjectSettings(entry: unknown, { prompt, beforeStart, check
   }
   if (Object.keys(written).length === 0) delete fields.ci
   else fields.ci = written
+  if (fillMilestone) fields.fillMilestone = true
+  else delete fields.fillMilestone
   return fields
 }
 

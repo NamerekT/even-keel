@@ -1,6 +1,7 @@
 import type { Dispatcher, LaunchEntry } from '../chain/dispatcher.js'
 import { ranSince } from '../chain/launches.js'
 import type { ChainRules } from '../chain/rules.js'
+import { MilestoneFiller } from '../chain/milestones.js'
 import { branchMerged } from '../git/merged.js'
 import { runGit } from '../git/run.js'
 import { MergeCloser } from './closer.js'
@@ -24,23 +25,28 @@ export interface TrackerStartDeps {
   links: Map<string, TrackerLink>
   tasksByProject: Map<string, Task[]>
   launches: LaunchEntry[]
-  dispatcher: Pick<Dispatcher, 'setTasks' | 'setOutside' | 'released' | 'setReleased' | 'held'>
+  dispatcher: Pick<Dispatcher, 'setTasks' | 'setOutside' | 'released' | 'setReleased' | 'held' | 'view'>
+  /** The project's `fillMilestone` setting. */
+  fillsMilestone: (project: string) => boolean
   /** Sends the page a fresh state. */
   broadcast: () => void
 }
 
 /** Connects a tracker, polls the statuses of its projects' tasks and refreshes them, closing merged tasks and done parents. */
 export function startTracker(view: TrackerView, setup: TrackerSetup, deps: TrackerStartDeps): void {
-  const { repos, rulesOf, links, tasksByProject, launches, dispatcher, broadcast } = deps
+  const { repos, rulesOf, links, tasksByProject, launches, dispatcher, fillsMilestone, broadcast } = deps
   const { name, projects } = view
   let completes = false
   let closesParents = false
+  let setsMilestones = false
+  const unfilled = new Set<string>()
   const link = new TrackerLink({
     name,
     connect: async () => {
       const tracker = trackerOf(await setup.connect(TRACKER_TIMEOUT_MS))
       completes = tracker.complete !== undefined
       closesParents = completes && tracker.children !== undefined
+      setsMilestones = tracker.setMilestone !== undefined
       view.ready = tracker.ready !== undefined
       return tracker
     },
@@ -67,6 +73,24 @@ export function startTracker(view: TrackerView, setup: TrackerSetup, deps: Track
     complete: (task) => link.run((tracker) => tracker.complete!(task)),
     onError: report,
   })
+
+  const filler = new MilestoneFiller({
+    enabled: fillsMilestone,
+    assign: (task, like) => link.run((tracker) => tracker.setMilestone!(task, like)),
+    onError: report,
+  })
+
+  const fillMilestones = async (project: string): Promise<void> => {
+    if (!setsMilestones) {
+      if (!fillsMilestone(project) || unfilled.has(project)) return
+      unfilled.add(project)
+      console.warn(`config: ${view.title} cannot set the milestone of a task, fillMilestone of ${project} does nothing`)
+      return
+    }
+    for (const { task, like, milestone } of await filler.sweep(project, dispatcher.view(project))) {
+      console.log(`${name}: put ${task} into the milestone ${milestone} of ${like}, it entered the chain without one`)
+    }
+  }
 
   const poller = new StatusPoller({
     link,
@@ -111,6 +135,7 @@ export function startTracker(view: TrackerView, setup: TrackerSetup, deps: Track
           dispatcher.setTasks(project, shown)
           const released = dispatcher.released(project)
           if (released.length > 0) dispatcher.setReleased(project, await link.run((tracker) => tracker.tasks(released)))
+          await fillMilestones(project)
           if (!completes) return
           for (const task of await closer.sweep(project, dispatcher.held(project))) {
             console.log(`${name}: closed ${task}, its branch is merged into main`)

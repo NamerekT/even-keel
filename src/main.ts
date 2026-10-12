@@ -751,6 +751,7 @@ for (const view of trackers.values()) {
       tasksByProject,
       launches,
       dispatcher,
+      fillsMilestone: (project) => configFile.current.settings[project]?.fillMilestone ?? false,
       broadcast: () => hub.broadcast('state', getState()),
     })
   }

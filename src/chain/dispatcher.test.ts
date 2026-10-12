@@ -783,6 +783,20 @@ describe('Dispatcher with a blocker in the backlog', () => {
     expect(dispatcher.orders()['ABC']?.backlog).toEqual(['ABC-5'])
   })
 
+  it('gives the chain, its blockers that may yet enter it and the current task', async () => {
+    const { dispatcher } = setup()
+    dispatcher.setOutside('ABC', [task('XYZ-9', backlog)])
+    dispatcher.setTasks('ABC', [task('ABC-1', backlog), task('ABC-2', todo, 'ABC-1', 'XYZ-9'), task('ABC-3', todo), task('ABC-5', backlog)])
+    dispatcher.start('ABC')
+    await dispatcher.idle()
+
+    const { tasks, blockers, current } = dispatcher.view('ABC')
+    expect(tasks.map((each) => each.id)).toEqual(['ABC-2', 'ABC-3'])
+    expect(blockers.map((each) => each.id)).toEqual(['ABC-1'])
+    expect(current).toBe('ABC-3')
+    expect(dispatcher.view('XYZ')).toEqual({ tasks: [], blockers: [], current: undefined })
+  })
+
   it('ends the chain when every task left waits on the backlog', async () => {
     const { dispatcher, launched } = setup()
     dispatcher.setTasks('ABC', [task('ABC-1', backlog), task('ABC-2', todo, 'ABC-1')])

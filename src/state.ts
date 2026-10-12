@@ -69,6 +69,8 @@ export interface ProjectSettings {
   /** The project's check, run in order when no counted CI judges main: before a session merges, and on main if it moved. */
   check: string[]
   ci: CiSettings
+  /** A task that enters the chain without a milestone gets the active one in the tracker. */
+  fillMilestone: boolean
 }
 
 /** Which CIs of the project the chain counts after a push of main, and how long it waits for them. */

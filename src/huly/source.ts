@@ -330,6 +330,12 @@ export async function connectHuly(credentials: HulyCredentials, timeoutMs: numbe
       )
       return identifier
     },
+    async setMilestone(identifier, milestoneOf) {
+      const [issue, like] = await Promise.all([findIssue(identifier), findIssue(milestoneOf)])
+      if (issue.milestone || !like.milestone || like.space !== issue.space) return false
+      await client.updateDoc(tracker.class.Issue, issue.space, issue._id, { milestone: like.milestone })
+      return true
+    },
     close: () => client.close(),
   }
 }

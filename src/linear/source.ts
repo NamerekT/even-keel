@@ -104,7 +104,11 @@ const ADD_COMMENT = `mutation($id: String!, $body: String!) {
 }`
 
 const ISSUE_PLACE = `query($filter: IssueFilter!) {
-  issues(first: 1, filter: $filter) { nodes { project { id } projectMilestone { id } } }
+  issues(first: 1, filter: $filter) { nodes { id project { id } projectMilestone { id } } }
+}`
+
+const PLACE_ISSUE = `mutation($id: String!, $input: IssueUpdateInput!) {
+  issueUpdate(id: $id, input: $input) { success }
 }`
 
 const CREATE_ISSUE = `mutation($input: IssueCreateInput!) {
@@ -276,6 +280,20 @@ export async function connectLinear(settings: LinearSettings, timeoutMs: number,
       const { issueCreate } = await graphql<{ issueCreate: { success: boolean; issue: { identifier: string } | null } }>(CREATE_ISSUE, { input })
       if (!issueCreate.success || issueCreate.issue === null) throw new Error(`linear: the issue in ${task.project} was not created`)
       return issueCreate.issue.identifier
+    },
+
+    // A milestone belongs to a project: an issue without a project gets it with the milestone, an issue of another project is left alone.
+    async setMilestone(id, milestoneOf) {
+      type Place = { id: string; project: { id: string } | null; projectMilestone: { id: string } | null }
+      const issue = await oneIssue<Place>(id, ISSUE_PLACE)
+      if (issue.projectMilestone !== null) return false
+      const like = await oneIssue<Place>(milestoneOf, ISSUE_PLACE)
+      if (like.project === null || like.projectMilestone === null) return false
+      if (issue.project !== null && issue.project.id !== like.project.id) return false
+      const input = { ...(issue.project === null ? { projectId: like.project.id } : {}), projectMilestoneId: like.projectMilestone.id }
+      const { issueUpdate } = await graphql<{ issueUpdate: { success: boolean } }>(PLACE_ISSUE, { id: issue.id, input })
+      if (!issueUpdate.success) throw new Error(`linear: ${id} was not put into the milestone of ${milestoneOf}`)
+      return true
     },
 
     // A file of a comment is its upload link; the key goes only to Linear's upload host.

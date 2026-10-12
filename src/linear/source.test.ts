@@ -198,6 +198,43 @@ describe('linear source', () => {
     expect(calls[2]!.variables).toEqual({ input: { teamId: 'team-eng', title: 'T', description: 'D', priority: 2, stateId: 's-todo', projectId: 'project-web' } })
   })
 
+  it('puts an issue without a milestone into the milestone of another issue, with its project when the issue has none', async () => {
+    const place = (id: string, project: string | null, milestone: string | null) => ({
+      body: { data: { issues: { nodes: [{ id, project: project === null ? null : { id: project }, projectMilestone: milestone === null ? null : { id: milestone } }] } } },
+    })
+    const moved = { body: { data: { issueUpdate: { success: true } } } }
+    const { source, calls } = await connect([
+      place('issue-9', 'project-web', null),
+      place('issue-7', 'project-web', 'milestone-1'),
+      moved,
+      place('issue-9', null, null),
+      place('issue-7', 'project-web', 'milestone-1'),
+      moved,
+    ])
+    expect(await source.setMilestone!('ENG-9', 'ENG-7')).toBe(true)
+    expect(calls[1]!.variables).toEqual({ filter: { team: { key: { eq: 'ENG' } }, number: { eq: 9 } } })
+    expect(calls[3]!.variables).toEqual({ id: 'issue-9', input: { projectMilestoneId: 'milestone-1' } })
+    expect(await source.setMilestone!('ENG-9', 'ENG-7')).toBe(true)
+    expect(calls[6]!.variables).toEqual({ id: 'issue-9', input: { projectId: 'project-web', projectMilestoneId: 'milestone-1' } })
+  })
+
+  it('leaves alone an issue that has a milestone, and one whose model has none or is in another project', async () => {
+    const place = (project: string | null, milestone: string | null) => ({
+      body: { data: { issues: { nodes: [{ id: 'issue', project: project === null ? null : { id: project }, projectMilestone: milestone === null ? null : { id: milestone } }] } } },
+    })
+    const { source, calls } = await connect([
+      place('project-web', 'milestone-2'),
+      place('project-web', null),
+      place('project-web', null),
+      place('project-web', null),
+      place('project-api', 'milestone-1'),
+    ])
+    expect(await source.setMilestone!('ENG-9', 'ENG-7')).toBe(false)
+    expect(await source.setMilestone!('ENG-9', 'ENG-7')).toBe(false)
+    expect(await source.setMilestone!('ENG-9', 'ENG-7')).toBe(false)
+    expect(calls).toHaveLength(6)
+  })
+
   it('gives the comments after a given one, oldest first, with the files they link to', async () => {
     const nodes = [
       { id: 'c-2', body: '[logs.zip](https://uploads.linear.app/org/logs.zip)', createdAt: '2026-10-11T10:02:00.000Z' },

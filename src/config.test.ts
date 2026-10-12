@@ -16,7 +16,7 @@ describe('parseConfig', () => {
       trackers: { ABC: 'huly' },
       trackerProjects: {},
       briefs: { ABC: true },
-      settings: { ABC: { prompt: null, beforeStart: [], check: [], ci: DEFAULT_CI } },
+      settings: { ABC: { prompt: null, beforeStart: [], check: [], ci: DEFAULT_CI, fillMilestone: false } },
       context: { window: 600_000, warn: 50, danger: 80 },
       model: 'opus',
       modelPrompts: {},
@@ -106,8 +106,8 @@ describe('parseConfig', () => {
       },
     })
     expect(config.settings).toEqual({
-      ABC: { prompt: 'Run npm test before merging.', beforeStart: ['npm ci', 'npm run build'], check: ['npm test'], ci: DEFAULT_CI },
-      XYZ: { prompt: null, beforeStart: [], check: [], ci: DEFAULT_CI },
+      ABC: { prompt: 'Run npm test before merging.', beforeStart: ['npm ci', 'npm run build'], check: ['npm test'], ci: DEFAULT_CI, fillMilestone: false },
+      XYZ: { prompt: null, beforeStart: [], check: [], ci: DEFAULT_CI, fillMilestone: false },
     })
   })
 
@@ -124,6 +124,13 @@ describe('parseConfig', () => {
     expect(config.settings.DEF?.ci).toEqual({ kinds: [], waitMinutes: 0, recheckMain: false })
     expect(config.settings.XYZ?.ci).toEqual(DEFAULT_CI)
     expect(() => parseConfig({ projects: { ABC: { repo: 'C:\\abc', ci: { recheckMain: 'no' } } } })).toThrow(/ABC.ci.recheckMain/)
+  })
+
+  it('fills milestones only for a project that asks for it', () => {
+    const config = parseConfig({ projects: { ABC: { repo: 'C:\\abc', fillMilestone: true }, XYZ: 'C:\\xyz' } })
+    expect(config.settings.ABC?.fillMilestone).toBe(true)
+    expect(config.settings.XYZ?.fillMilestone).toBe(false)
+    expect(() => parseConfig({ projects: { ABC: { repo: 'C:\\abc', fillMilestone: 'yes' } } })).toThrow(/ABC.fillMilestone/)
   })
 
   it('rejects an unknown CI and a wait that is not whole minutes', () => {
@@ -352,7 +359,7 @@ describe('reloading the config', () => {
 
   it('applies the project prompt and the commands before start at once', () => {
     const next = parseConfig({ projects: { ABC: { repo: 'C:\\abc', prompt: 'Mind Library.', commands: { beforeStart: ['npm ci'] } } } })
-    expect(liveConfig(base, next).settings).toEqual({ ABC: { prompt: 'Mind Library.', beforeStart: ['npm ci'], check: [], ci: DEFAULT_CI } })
+    expect(liveConfig(base, next).settings).toEqual({ ABC: { prompt: 'Mind Library.', beforeStart: ['npm ci'], check: [], ci: DEFAULT_CI, fillMilestone: false } })
     expect(restartChanges(base, next)).toEqual([])
   })
 
@@ -386,7 +393,7 @@ describe('reloading the config', () => {
 
 describe('withProjectSettings', () => {
   it('writes the CI settings only when they differ from the default, keeping the other keys', () => {
-    const settings = { prompt: null, beforeStart: [], check: [], ci: DEFAULT_CI }
+    const settings = { prompt: null, beforeStart: [], check: [], ci: DEFAULT_CI, fillMilestone: false }
     expect(withProjectSettings({ repo: 'C:\\abc', ci: { kinds: ['github'] } }, settings)).toEqual({ repo: 'C:\\abc' })
     expect(withProjectSettings('C:\\abc', { ...settings, ci: { kinds: ['github', 'forgejo'], waitMinutes: 10, recheckMain: true } })).toEqual({
       repo: 'C:\\abc',
@@ -398,8 +405,14 @@ describe('withProjectSettings', () => {
     })
   })
 
+  it('writes the milestone switch only when it is on', () => {
+    const settings = { prompt: null, beforeStart: [], check: [], ci: DEFAULT_CI, fillMilestone: true }
+    expect(withProjectSettings('C:\\abc', settings)).toEqual({ repo: 'C:\\abc', fillMilestone: true })
+    expect(withProjectSettings({ repo: 'C:\\abc', fillMilestone: true }, { ...settings, fillMilestone: false })).toEqual({ repo: 'C:\\abc' })
+  })
+
   it('writes the check commands next to the commands before start', () => {
-    const settings = { prompt: null, beforeStart: ['npm ci'], check: [' npm test ', ''], ci: DEFAULT_CI }
+    const settings = { prompt: null, beforeStart: ['npm ci'], check: [' npm test ', ''], ci: DEFAULT_CI, fillMilestone: false }
     expect(withProjectSettings({ repo: 'C:\\abc', commands: { check: ['old'] } }, settings)).toEqual({
       repo: 'C:\\abc',
       commands: { beforeStart: ['npm ci'], check: ['npm test'] },

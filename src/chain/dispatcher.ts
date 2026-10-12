@@ -13,6 +13,7 @@ import {
   type ReleaseReason,
 } from './model.js'
 import { MainCheck } from './maincheck.js'
+import type { ChainView } from './milestones.js'
 import { byNumber, chainOrder, checkOrder, nextTask, openBlockers, waitingBlockers, withFresh } from './order.js'
 import { admits, excludes, isActive, isDone, isTerminal, type ChainRules } from './rules.js'
 import { handoffPrompt, holdOf, relayStep, type HandoffReason, type HandoffSession } from './relay.js'
@@ -258,6 +259,15 @@ export class Dispatcher {
       }
     }
     return result
+  }
+
+  view(project: string): ChainView {
+    const listed = this.outside.get(project) ?? []
+    return {
+      tasks: this.tasks.get(project) ?? [],
+      blockers: (this.waiting.get(project) ?? []).filter((task) => !listed.includes(task)),
+      current: this.currentOf(project),
+    }
   }
 
   check(): void {

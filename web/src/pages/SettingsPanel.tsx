@@ -25,6 +25,7 @@ interface Draft {
   kinds: CiKind[]
   wait: string
   recheck: boolean
+  fillMilestone: boolean
 }
 
 const draftOf = (settings: ProjectSettings): Draft => ({
@@ -34,6 +35,7 @@ const draftOf = (settings: ProjectSettings): Draft => ({
   kinds: settings.ci.kinds,
   wait: settings.ci.waitMinutes === null ? '' : String(settings.ci.waitMinutes),
   recheck: settings.ci.recheckMain,
+  fillMilestone: settings.fillMilestone,
 })
 const linesOf = (text: string) => text.split('\n').map((line) => line.trim()).filter((line) => line !== '')
 /** Empty — wait as long as it takes; `undefined` — not a whole number of minutes. */
@@ -50,7 +52,8 @@ const sameDraft = (a: Draft, b: Draft) =>
   linesOf(a.check).join('\n') === linesOf(b.check).join('\n') &&
   sameKinds(a.kinds, b.kinds) &&
   minutesOf(a.wait) === minutesOf(b.wait) &&
-  a.recheck === b.recheck
+  a.recheck === b.recheck &&
+  a.fillMilestone === b.fillMilestone
 
 export function SettingsPanel({ project, settings, onClose }: { project: string; settings: ProjectSettings; onClose: () => void }) {
   const closeRef = useRef<HTMLButtonElement>(null)
@@ -87,7 +90,7 @@ export function SettingsPanel({ project, settings, onClose }: { project: string;
   const save = async () => {
     if (waitMinutes === undefined) return
     const ci = { kinds: draft.kinds, waitMinutes, recheckMain: draft.recheck }
-    const body = { project, prompt: draft.prompt, beforeStart: linesOf(draft.commands), check: linesOf(draft.check), ci }
+    const body = { project, prompt: draft.prompt, beforeStart: linesOf(draft.commands), check: linesOf(draft.check), ci, fillMilestone: draft.fillMilestone }
     if (await send('project/settings', body)) setDone(true)
   }
 
@@ -178,6 +181,13 @@ export function SettingsPanel({ project, settings, onClose }: { project: string;
             {t.settings.recheckMain}
           </label>
           <span className="settings__hint">{t.settings.recheckMainHint}</span>
+        </div>
+        <div className="settings__field">
+          <label className="settings__check">
+            <input type="checkbox" checked={draft.fillMilestone} onChange={(event) => edit({ fillMilestone: event.target.checked })} />
+            {t.settings.fillMilestone}
+          </label>
+          <span className="settings__hint">{t.settings.fillMilestoneHint}</span>
         </div>
         <div className="settings__actions">
           <button type="submit" className="button button--primary" disabled={sending || !changed || waitMinutes === undefined}>

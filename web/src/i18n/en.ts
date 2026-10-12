@@ -370,6 +370,9 @@ export const en: Messages = {
     checkPlaceholder: 'npm run typecheck && npm test',
     recheckMain: 'Check main again if it moved',
     recheckMainHint: "If main after the merge is not what the check passed on, the check runs in the next task's folder before it starts; a failure creates a fix task.",
+    fillMilestone: 'Give the active milestone to tasks without one',
+    fillMilestoneHint:
+      'A task that enters the chain without a milestone gets, in the tracker, the milestone of the current task, or the earliest one in the chain. Once: a milestone you change or clear afterwards stays as you left it.',
     save: 'Save',
     saved: 'Saved.',
   },

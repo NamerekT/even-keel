@@ -193,10 +193,10 @@ function fakeState(
     startedAt: ago(180),
     projects: ['ABC', 'DEMO', 'XYZ', 'OPS'],
     settings: {
-      ABC: { prompt: 'Run npm test before merging.', beforeStart: ['npm ci'], check: [], ci: { kinds: ['forgejo', 'github'], waitMinutes: null, recheckMain: true } },
-      DEMO: { prompt: null, beforeStart: [], check: [], ci: { kinds: ['github'], waitMinutes: 15, recheckMain: true } },
-      XYZ: { prompt: null, beforeStart: [], check: [], ci: { kinds: ['forgejo', 'github'], waitMinutes: null, recheckMain: true } },
-      OPS: { prompt: null, beforeStart: ['npm ci'], check: ['npm run typecheck', 'npm test'], ci: { kinds: [], waitMinutes: 0, recheckMain: false } },
+      ABC: { prompt: 'Run npm test before merging.', beforeStart: ['npm ci'], check: [], ci: { kinds: ['forgejo', 'github'], waitMinutes: null, recheckMain: true }, fillMilestone: true },
+      DEMO: { prompt: null, beforeStart: [], check: [], ci: { kinds: ['github'], waitMinutes: 15, recheckMain: true }, fillMilestone: false },
+      XYZ: { prompt: null, beforeStart: [], check: [], ci: { kinds: ['forgejo', 'github'], waitMinutes: null, recheckMain: true }, fillMilestone: false },
+      OPS: { prompt: null, beforeStart: ['npm ci'], check: ['npm run typecheck', 'npm test'], ci: { kinds: [], waitMinutes: 0, recheckMain: false }, fillMilestone: false },
     },
     chain: {
       active: idle
@@ -496,7 +496,7 @@ function fakeSettings(state: EvenKeelState, project: string, body: Record<string
   const prompt = String(body.prompt ?? '').trim()
   const lines = (list: unknown) => (list as string[]).map((line) => line.trim()).filter((line) => line !== '')
   const ci = body.ci as ProjectSettings['ci']
-  const settings = { prompt: prompt === '' ? null : prompt, beforeStart: lines(body.beforeStart), check: lines(body.check), ci }
+  const settings = { prompt: prompt === '' ? null : prompt, beforeStart: lines(body.beforeStart), check: lines(body.check), ci, fillMilestone: body.fillMilestone === true }
   return { ...state, settings: { ...state.settings, [project]: settings } }
 }
 

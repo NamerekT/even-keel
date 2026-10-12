@@ -441,9 +441,11 @@ export function answerOf(body: Record<string, unknown>): AnswerRequest {
 }
 
 function settingsOf(body: Record<string, unknown>): ProjectSettings {
-  const { prompt, beforeStart, check, ci } = body
+  const { prompt, beforeStart, check, ci, fillMilestone } = body
   if (prompt !== null && typeof prompt !== 'string') throw fail('request.required', { field: 'prompt' })
-  return { prompt, beforeStart: linesOf(beforeStart, 'beforeStart'), check: linesOf(check, 'check'), ci: ciOf(ci) }
+  const settings = { prompt, beforeStart: linesOf(beforeStart, 'beforeStart'), check: linesOf(check, 'check'), ci: ciOf(ci) }
+  if (typeof fillMilestone !== 'boolean') throw fail('request.required', { field: 'fillMilestone' })
+  return { ...settings, fillMilestone }
 }
 
 function linesOf(raw: unknown, field: string): string[] {

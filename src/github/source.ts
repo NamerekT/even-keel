@@ -93,6 +93,17 @@ const CREATE_ISSUE = `mutation($input: CreateIssueInput!) {
   createIssue(input: $input) { issue { number } }
 }`
 
+const ISSUE_MILESTONES = `query($owner: String!, $name: String!, $number: Int!, $like: Int!) {
+  repository(owner: $owner, name: $name) {
+    issue(number: $number) { id milestone { id } }
+    like: issue(number: $like) { milestone { id } }
+  }
+}`
+
+const SET_MILESTONE = `mutation($id: ID!, $milestone: ID!) {
+  updateIssue(input: { id: $id, milestoneId: $milestone }) { issue { number } }
+}`
+
 /** Where GitHub keeps the files dropped into a comment. */
 const UPLOADS = /^https:\/\/(github\.com\/user-attachments\/|private-user-images\.githubusercontent\.com\/)/
 
@@ -244,6 +255,21 @@ export async function connectGithub(settings: GithubSettings, timeoutMs: number,
       }
       const data = await graphql<{ createIssue: { issue: { number: number } } }>(CREATE_ISSUE, { input })
       return `${task.project}-${data.createIssue.issue.number}`
+    },
+
+    // A milestone belongs to a repository: a task of another project gives none.
+    async setMilestone(id, milestoneOf) {
+      const like = parseTaskId(milestoneOf)
+      if (like === null || like.project !== parseTaskId(id)?.project) return false
+      const { repository } = await graphql<{
+        repository: { issue: { id: string; milestone: { id: string } | null } | null; like: { milestone: { id: string } | null } | null } | null
+      }>(ISSUE_MILESTONES, { ...repoOf(like.project), number: parseTaskId(id)!.number, like: like.number })
+      const issue = repository?.issue
+      if (issue == null) throw new Error(`github: issue ${id} not found`)
+      const milestone = repository?.like?.milestone
+      if (issue.milestone !== null || milestone == null) return false
+      await graphql(SET_MILESTONE, { id: issue.id, milestone: milestone.id })
+      return true
     },
 
     // A file of a comment is its upload link; the token goes only to GitHub's own upload hosts.

@@ -153,10 +153,17 @@ describe('Even Keel HTTP server', () => {
 
   it('passes the settings of a project on', async () => {
     const ci = { kinds: ['github'], waitMinutes: 15, recheckMain: false }
-    const body = { project: 'ABC', prompt: 'Run npm test.', beforeStart: ['npm ci'], check: ['npm test'], ci }
+    const body = { project: 'ABC', prompt: 'Run npm test.', beforeStart: ['npm ci'], check: ['npm test'], ci, fillMilestone: true }
     const response = await fetch(base + '/api/project/settings', { method: 'POST', body: JSON.stringify(body) })
     expect(response.status).toBe(200)
-    expect(calls).toContainEqual(['settings', 'ABC', { prompt: 'Run npm test.', beforeStart: ['npm ci'], check: ['npm test'], ci }])
+    expect(calls).toContainEqual(['settings', 'ABC', { prompt: 'Run npm test.', beforeStart: ['npm ci'], check: ['npm test'], ci, fillMilestone: true }])
+  })
+
+  it('refuses settings without the milestone switch', async () => {
+    const body = { project: 'ABC', prompt: '', beforeStart: [], check: [], ci: { kinds: [], waitMinutes: null, recheckMain: true }, fillMilestone: 'yes' }
+    const response = await fetch(base + '/api/project/settings', { method: 'POST', body: JSON.stringify(body) })
+    expect(response.status).toBe(400)
+    expect((await response.json()).notice).toMatchObject({ code: 'request.required', params: { field: 'fillMilestone' } })
   })
 
   it('refuses CI settings with an unknown CI, a wait that is not whole minutes or no recheck switch', async () => {

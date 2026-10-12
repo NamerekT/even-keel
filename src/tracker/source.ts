@@ -82,6 +82,12 @@ export interface TaskSource {
    * Even Keel creates the task to fix a red CI on `main` with it; without it the chain only stops.
    */
   create?(task: NewTask): Promise<string>
+  /**
+   * Optional. Puts a task that has no milestone into the milestone of the task `milestoneOf`; with it and a project's
+   * `fillMilestone` Even Keel gives the active milestone to a task that entered the chain without one.
+   * Must do nothing and return `false` for a task that has a milestone by now, and when `milestoneOf` has none.
+   */
+  setMilestone?(id: string, milestoneOf: string): Promise<boolean>
   /** Drops the connection. */
   close(): Promise<void>
 }
@@ -174,6 +180,7 @@ export interface Tracker {
   comment?(id: string, body: string): Promise<string>
   commentsAfter?(id: string, after: string): Promise<TrackerComment[]>
   create?(task: NewTask): Promise<string>
+  setMilestone?(id: string, milestoneOf: string): Promise<boolean>
   close(): Promise<void>
 }
 
@@ -199,5 +206,6 @@ export function trackerOf(source: TaskSource): Tracker {
   if (source.comment !== undefined) tracker.comment = (id, body) => source.comment!(id, body)
   if (source.commentsAfter !== undefined) tracker.commentsAfter = (id, after) => source.commentsAfter!(id, after)
   if (source.create !== undefined) tracker.create = (task) => source.create!(task)
+  if (source.setMilestone !== undefined) tracker.setMilestone = (id, milestoneOf) => source.setMilestone!(id, milestoneOf)
   return tracker
 }

@@ -175,7 +175,7 @@ On Linux it installs a systemd user unit (`systemctl --user status even-keel`, l
 
 ## Configuration
 
-`even-keel.config.json`, starting from [even-keel.config.example.json](even-keel.config.example.json). The service rereads it on the fly: `parallel`, `chain`, `brief`, a project's `prompt`, `commands` and `ci`, `model`, `modelPrompts`, `stats`, `language`, `promptLanguage` and `hiddenSkills` apply at once, the rest after a restart. A broken file keeps the last good one running and shows the error on the page. A project's `prompt`, `commands` and `ci` can also be edited from its page (**Settings**), which writes them into the file and keeps the other keys.
+`even-keel.config.json`, starting from [even-keel.config.example.json](even-keel.config.example.json). The service rereads it on the fly: `parallel`, `chain`, `brief`, a project's `prompt`, `commands`, `ci` and `fillMilestone`, `model`, `modelPrompts`, `stats`, `language`, `promptLanguage` and `hiddenSkills` apply at once, the rest after a restart. A broken file keeps the last good one running and shows the error on the page. A project's `prompt`, `commands`, `ci` and `fillMilestone` can also be edited from its page (**Settings**), which writes them into the file and keeps the other keys.
 
 | Key | Default | |
 | --- | --- | --- |
@@ -199,6 +199,7 @@ On Linux it installs a systemd user unit (`systemctl --user status even-keel`, l
 | `projects.<KEY>.commands.check` | `[]` | the project's check, run in order when no CI of `ci.kinds` will judge `main` (none counted, or one not answering): before a session's merge, in its worktree, by the [checkpoint](plugins/checkpoint) plugin's hook — a failure blocks the merge; and on `main` in the next task's worktree when `main` moved during the task — a failure files a fix task as a red CI does |
 | `projects.<KEY>.ci.waitMinutes` | none | how long the next task waits for that verdict, in minutes; none — as long as it takes, `0` — not at all (faster, but a task may start on a broken `main`) |
 | `projects.<KEY>.ci.recheckMain` | `true` | `false` — do not run `commands.check` again on a `main` that moved during the task |
+| `projects.<KEY>.fillMilestone` | `false` | `true` — a task that enters the chain without a milestone gets, in the tracker, the milestone of the current task, or the earliest one in the chain; once, so a milestone you change or clear afterwards stays |
 | `context` | `{ "window": 600000, "warn": 50, "danger": 80 }` | context bar on the page: window size in tokens, warning and danger thresholds in percent |
 | `model` | `opus` | model of sessions whose task has no model label: `sonnet`, `opus` or `haiku` |
 | `modelPrompts` | `{}` | text added to the prompt of sessions on `sonnet`, `opus` or `haiku` |
