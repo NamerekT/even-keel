@@ -96,6 +96,8 @@ export interface ChainBlock {
   start: SessionStart | null
   /** A red main stopped the task's session; it goes on once main is fixed. */
   interrupted?: true
+  /** The fix of a red main leads the chain and this task is next: its live session takes no answer from the chat until the fix lands. */
+  aside?: true
 }
 
 /**
@@ -365,8 +367,10 @@ export function chainBlocks(state: EvenKeelState, project: string, now = new Dat
   const hold = active?.current?.limit
   const pending = hold !== undefined && hold.acted === null ? hold : null
   const skipped = new Set(state.chain.skipped[project] ?? [])
+  const fix = fixName(project)
+  const next = current === fix && !broken && active?.interrupted === undefined ? nextTask(tasks, order.order, [...skipped, ...order.waiting]) : undefined
 
-  const blocks = [...closedOrder(closed, state.taskSessions), ...open].map((id) => {
+  const blocks =[...closedOrder(closed, state.taskSessions), ...open].map((id) => {
     const task = byId.get(id)
     const session = taskSession(state.sessions, id) ?? null
     const sessions = state.taskSessions[id] ?? []
@@ -394,12 +398,12 @@ export function chainBlocks(state: EvenKeelState, project: string, now = new Dat
       limit: id === current ? pending : null,
       start: running?.task === id ? sessionStart(running, session, sessions, now) : null,
       ...(id === active?.interrupted?.task && { interrupted: true as const }),
+      ...(id === next && session !== null && session.lamp !== 'finished' && { aside: true as const }),
     }
   })
   for (let index = blocks.length - 2; index >= 0; index--) {
     if (blocks[index]!.locked) blocks[index]!.milestone = blocks[index + 1]!.milestone
   }
-  const fix = fixName(project)
   const fixSession = taskSession(state.sessions, fix) ?? null
   if (current !== fix && (fixSession === null || fixSession.lamp === 'finished')) return blocks
   // The fix session of a red main is not a tracker task: it leads the chain as a block of its own, ahead of the open tasks.

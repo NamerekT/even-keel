@@ -38,7 +38,7 @@ export function SessionPanel({ block, scale, onCard, onClose }: Props) {
   const remoteUrl = block.session?.remoteUrl ?? null
   const account = block.session?.account == null ? '' : t.session.onlyIn(block.session.account)
   // The current session is read and answered in the chat window, opened from the actions.
-  const chat = block.current && block.session !== null
+  const chat = (block.current || block.aside === true) && block.session !== null
 
   useEffect(() => closeRef.current?.focus({ preventScroll: true }), [])
 
@@ -118,6 +118,9 @@ function Actions({ block }: { block: ChainBlock }) {
   const body = { project: taskProject(block.id), task: block.id }
   const session = block.session
   const live = block.current ? session : null
+  // A task that made way for the fix of main keeps its chat, shut until the chain takes it again.
+  const aside = block.aside === true
+  const talking = live ?? (aside ? session : null)
   const midTurn = live !== null && (live.lamp === 'working' || live.waitingFor !== null)
   const remoteOff = session === null || session.remoteUrl !== null ? null : t.session.remote[session.remoteOff ?? 'no-bridge']
   const replacing = useHold(`${block.current}|${session?.sessionId ?? ''}`, REPLACE_WAIT_MS)
@@ -131,11 +134,11 @@ function Actions({ block }: { block: ChainBlock }) {
   return (
     <>
       <div className="panel__actions">
-        {live !== null && (
+        {talking !== null && (
           <button
             type="button"
             className={`button button--primary${waiting ? ' panel__chat--waiting' : ''}`}
-            title={waiting ? t.session.chat.waiting : t.session.chat.idle}
+            title={aside ? t.session.chat.aside : waiting ? t.session.chat.waiting : t.session.chat.idle}
             onClick={() => setChatting(true)}
           >
             {t.session.chat.open}
@@ -185,14 +188,14 @@ function Actions({ block }: { block: ChainBlock }) {
         </p>
       )}
       {failure !== null && <p className="notice notice--error">{say(failure)}</p>}
-      {chatting && live !== null && (
+      {chatting && talking !== null && (
         <Suspense fallback={null}>
           <TranscriptWindow
-            key={live.sessionId}
-            sessionId={live.sessionId}
-            account={live.account}
-            live={live.lamp !== 'finished'}
-            chat={{ project: body.project, task: block.id, session: live }}
+            key={talking.sessionId}
+            sessionId={talking.sessionId}
+            account={talking.account}
+            live={talking.lamp !== 'finished'}
+            chat={{ project: body.project, task: block.id, session: talking, aside }}
             onClose={() => setChatting(false)}
           />
         </Suspense>

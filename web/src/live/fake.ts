@@ -653,6 +653,11 @@ export function createFakeSource(search: string): LiveSource {
     current.state.chain.active = [{ ...active, current: { task: 'ABC-5', sessionId: wedged.sessionId, since: ago(6) } }]
   }
   if (params.get('chain') === 'fix' && current.state !== null) current.state = withFix(current.state, 'ABC', session(fixName('ABC'), 38_000), ago(6))
+  if (params.get('chain') === 'aside' && current.state !== null) {
+    const asking = session('ABC-5', contextTokens, 'waiting')
+    current.state.sessions = current.state.sessions.map((each) => (each.task === 'ABC-5' ? asking : each))
+    current.state = withFix(current.state, 'ABC', session(fixName('ABC'), 38_000), ago(6), true)
+  }
   const cache = params.get('cache')
   if ((cache === 'warn' || cache === 'cold') && current.state !== null) {
     const until = ago(cache === 'warn' ? -8 : 20)

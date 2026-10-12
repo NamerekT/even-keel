@@ -567,6 +567,17 @@ describe('chainBlocks', () => {
       ])
     })
 
+    it('marks the task whose live session is set aside until it lands: the one the chain takes next', () => {
+      const aside = (state: EvenKeelState) => chainBlocks(state, 'ABC').filter((block) => block.aside).map((block) => block.id)
+      const sessions = [view('ABC-FIX', 'working', null), view('ABC-2', 'waiting', null), view('ABC-3', 'waiting', null)]
+      const fixing = chain({ active: running('ABC-FIX'), projects: order })
+      expect(aside(stateOf({ tasks, sessions, chain: fixing }))).toEqual(['ABC-2'])
+      expect(aside(stateOf({ tasks, sessions, chain: { ...fixing, skipped: { ABC: ['ABC-2'] } } }))).toEqual(['ABC-3'])
+      expect(aside(stateOf({ tasks, sessions: [sessions[0]!, view('ABC-2', 'finished', null)], chain: fixing }))).toEqual([])
+      expect(aside(stateOf({ tasks, sessions, chain: chain({ active: { ...running('ABC-FIX'), interrupted: stopped }, projects: order }) }))).toEqual([])
+      expect(aside(stateOf({ tasks, sessions, chain: chain({ active: running('ABC-2'), projects: order }) }))).toEqual([])
+    })
+
     it('stays in the list while its session lives after the chain let it go, and leaves once it has finished', () => {
       const waiting = stateOf({ tasks, sessions: [view('ABC-FIX', 'waiting', null)], chain: chain({ active: running('ABC-2'), projects: order }) })
       expect(chainBlocks(waiting, 'ABC').map((block) => [block.id, block.current])).toEqual([

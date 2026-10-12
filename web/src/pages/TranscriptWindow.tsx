@@ -32,6 +32,8 @@ export interface ChatTarget {
   project: string
   task: string
   session: SessionView
+  /** The task made way for the fix of a red main: the chat shows its question and takes no answer until the chain is back. */
+  aside: boolean
 }
 
 interface Props {
@@ -180,6 +182,7 @@ export function TranscriptWindow({ sessionId, account, live, chat, onClose }: Pr
             project={chat.project}
             task={chat.task}
             session={chat.session}
+            aside={chat.aside}
             onSent={(line) => {
               pinned.current = true
               setSent((now) => [...now, { line, after: lines?.length ?? 0 }])

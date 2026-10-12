@@ -12,18 +12,19 @@ interface Props {
   project: string
   task: string
   session: SessionView
+  aside: boolean
   onSent: (line: FeedLine) => void
 }
 
 /** The bottom of the chat window: the options of the open question or a free reply, with files; open only while the session waits. */
-export function ChatComposer({ project, task, session, onSent }: Props) {
+export function ChatComposer({ project, task, session, aside, onSent }: Props) {
   const { send, sending, failure } = useCommand()
   const ask = session.ask
   const [picks, setPicks] = useState<Pick[]>(() => ask?.questions.map(() => NO_PICK) ?? [])
   const [text, setText] = useState('')
   const [files, setFiles] = useState<File[]>([])
   const sent = useHold(`${session.sessionId}|${session.lamp}|${ask?.id ?? ''}`, SENT_HOLD_MS)
-  const locked = lockReason(session)
+  const locked = lockReason(session, aside)
   const disabled = locked !== null || sending || sent.on
   const left = ask === null ? 0 : ask.questions.filter((question, index) => pickAnswer(question, picks[index] ?? NO_PICK) === '').length
   const ready = ask === null ? text.trim() !== '' || files.length > 0 : left === 0
@@ -105,13 +106,13 @@ export function ChatComposer({ project, task, session, onSent }: Props) {
   )
 }
 
-function lockReason(session: SessionView): string | null {
+function lockReason(session: SessionView, aside: boolean): string | null {
   if (session.lamp === 'working') return t.session.chat.working
   if (session.lamp === 'finished') return t.session.chat.finished
   if (session.lamp === 'limit') return t.session.chat.limit
   if (session.lamp === 'error') return t.session.chat.error
   if (session.waitingFor !== null && !session.asking) return t.session.chat.dialog(session.waitingFor)
-  return null
+  return aside ? t.session.chat.aside : null
 }
 
 async function encoded(file: File): Promise<{ name: string; data: string }> {

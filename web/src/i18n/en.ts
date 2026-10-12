@@ -570,6 +570,7 @@ export const en: Messages = {
       limit: 'The session hit a limit — Even Keel resumes it by itself.',
       error: 'The session stopped on an API error. You can reply once it waits again.',
       dialog: (what: string) => `The session waits for ${what}. Answer it through Remote Control.`,
+      aside: 'The fix of main leads the chain. You can reply from the chat once it lands; until then — through Remote Control.',
       question: 'Question',
       pending: 'waits for a reply',
     },
