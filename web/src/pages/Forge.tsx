@@ -9,6 +9,7 @@ export function Forge({ lamp }: { lamp: BlockLamp }) {
       <title>{t.lamp[lamp]}</title>
       <g className="forge__scene">
         <path className="forge__anvil" d="M10.5 16.3h11V18h-4v1.5h2V21h-7v-1.5h2V18h-4z" />
+        <rect className="forge__ingot" x="13.4" y="14.4" width="5.2" height="1.9" rx="0.5" />
         <Smith side="left" />
         <g transform="translate(32 0) scale(-1 1)">
           <Smith side="right" />
@@ -33,7 +34,7 @@ function Smith({ side }: { side: 'left' | 'right' }) {
           <rect x="8" y="-2.3" width="2.6" height="4.6" rx="0.5" />
         </g>
       </g>
-      <path className="forge__spark" d="M14.6 15.2l-0.9-1.6M15.9 14.8v-2M17.2 15.2l0.9-1.6" />
+      <path className="forge__spark" d="M14.6 13.6l-0.9-1.6M15.9 13.2v-2M17.2 13.6l0.9-1.6" />
     </g>
   )
 }
