@@ -14,6 +14,8 @@ import type { TrackerAdapter } from './tracker/source.js'
 export interface EvenKeelConfig {
   host: string
   port: number
+  /** Names besides loopback and `host` the page may be reached by — a proxy's name, say. */
+  allowedHosts: string[]
   projects: Record<string, string>
   rules: Record<string, ChainRules>
   slots: Record<string, number>
@@ -61,7 +63,7 @@ type AdapterShapes = Readonly<Record<string, Pick<TrackerAdapter, 'projectKey'>>
 export function parseConfig(raw: unknown, adapters: AdapterShapes = ADAPTERS): EvenKeelConfig {
   const input = (raw ?? {}) as Partial<Record<keyof EvenKeelConfig | 'chain' | 'tracker' | 'brief', unknown>>
 
-  const host = input.host ?? '0.0.0.0'
+  const host = input.host ?? '127.0.0.1'
   if (typeof host !== 'string' || host === '') throw fail('config.host', {})
 
   const port = input.port ?? 4747
@@ -103,6 +105,7 @@ export function parseConfig(raw: unknown, adapters: AdapterShapes = ADAPTERS): E
   return {
     host,
     port,
+    allowedHosts: parseAllowedHosts(input.allowedHosts),
     projects,
     rules,
     slots,
@@ -131,9 +134,10 @@ function parseParallel(raw: unknown): number {
 export function liveConfig(current: EvenKeelConfig, next: EvenKeelConfig): EvenKeelConfig {
   const keep = <T>(field: Record<string, T>, fallback: Record<string, T>) =>
     Object.fromEntries(Object.keys(current.projects).map((key) => [key, field[key] ?? fallback[key]!]))
-  const { model, modelPrompts, stats, language, promptLanguage, hiddenSkills, parallel } = next
+  const { allowedHosts, model, modelPrompts, stats, language, promptLanguage, hiddenSkills, parallel } = next
   return {
     ...current,
+    allowedHosts,
     parallel,
     rules: keep(next.rules, current.rules),
     briefs: keep(next.briefs, current.briefs),
@@ -145,6 +149,13 @@ export function liveConfig(current: EvenKeelConfig, next: EvenKeelConfig): EvenK
     promptLanguage,
     hiddenSkills,
   }
+}
+
+function parseAllowedHosts(raw: unknown): string[] {
+  if (raw === undefined) return []
+  const names = Array.isArray(raw) ? raw.map((name) => (typeof name === 'string' ? name.trim().toLowerCase() : '')) : ['']
+  if (names.some((name) => name === '' || /[/\\@?#\s]/.test(name))) throw fail('config.allowedHosts', {})
+  return names
 }
 
 function parseHiddenSkills(raw: unknown): string[] {

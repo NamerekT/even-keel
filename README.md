@@ -136,6 +136,18 @@ and open `http://localhost:4747`. Open a project, press **Start**: the chain tak
 
 Sessions can be answered from the page's chat or the tracker. To answer them in Claude's own app as well, turn on Remote Control at startup in `/config` of Claude Code; the page links each session's Remote Control.
 
+### Reaching the page from another machine
+
+By default the page listens on `127.0.0.1` only, and nothing else on the network sees it. That is on purpose: the page starts sessions with automatic permissions, writes answers into waiting sessions and signs Claude accounts in and out, so whoever reaches it drives your machine. Every request is also checked whatever `host` is:
+
+- its `Host` must be `localhost`, `127.0.0.1`, `[::1]`, the configured `host` or a name in `allowedHosts`, otherwise it gets 403. This stops DNS rebinding — a foreign site whose name was pointed at `127.0.0.1`;
+- an `Origin`, if the request has one, must be one of the same names, so another site open in your browser cannot post to the page. Requests without `Origin` (the plugins' hooks, `curl`) pass.
+
+Two ways to reach it from elsewhere:
+
+- **A proxy on the same machine** (recommended). For example a Tailscale Service, `tailscale serve --service=svc:even-keel --https=443 http://localhost:4747`, which also gives the page HTTPS, so it can be installed as an app. The proxy forwards the name it was reached by, so put that name into `allowedHosts`: `"allowedHosts": ["even-keel.example.ts.net"]`. Its requests come from loopback, so the page asks them for no token: who gets in is decided by the tailnet's access rules.
+- **Listening on the network.** Set `host` to `0.0.0.0` or the machine's address, put the names or addresses you open it by into `allowedHosts` (the configured address itself is let in), and set `EVEN_KEEL_TOKEN` in `.env`. Without the token the service does not start. A request from another machine then needs the token: open the page once as `http://<address>:4747/?token=<token>`, and the service keeps it in an `HttpOnly`, `SameSite=Strict` cookie and drops it from the address; scripts send `Authorization: Bearer <token>`. Plain HTTP shows the token to anyone on the way, so prefer a proxy with HTTPS.
+
 ### As a service
 
 The service starts with the system and restarts Even Keel if it fails. Stopping the service does not kill running sessions: they belong to the CLI's daemon.
@@ -169,17 +181,19 @@ On Linux it installs a systemd user unit (`systemctl --user status even-keel`, l
 | `EVEN_KEEL_ACCOUNTS_DIR` | folder of the extra Claude account folders; default `~/.claude-accounts` |
 | `EVEN_KEEL_CLAUDE_BIN` | path to the `claude` binary |
 | `EVEN_KEEL_CONFIG` | path to the config; default `even-keel.config.json` in the root |
+| `EVEN_KEEL_TOKEN` | the page's token for requests from other machines; required when `host` is not loopback, 16+ characters of `A-Z a-z 0-9 . _ ~ + / = -`, e.g. `node -e "console.log(crypto.randomBytes(24).toString('hex'))"`. Read at startup |
 | `EVEN_KEEL_STATE_DIR` | where state lives (chain order, accounts, launch log, statistics database); default `state/` |
 | `TALLY_DB_HOST`, `TALLY_DB_PORT`, `TALLY_DB_NAME`, `TALLY_WRITER_PASSWORD`, `TALLY_READER_PASSWORD` | your own Postgres for the statistics instead of the embedded one: the collector writes as `tally_writer`, the page reads as `tally_reader`. `tally/deploy/` has a Compose file that creates both roles |
 | `TALLY_LLM_URL`, `TALLY_LLM_KEY`, `TALLY_LLM_MODEL` | optional classifier of the stuck spans on `/stats`: an OpenAI-compatible endpoint, its key and a model it serves; without them the spans are found but not explained |
 
 ## Configuration
 
-`even-keel.config.json`, starting from [even-keel.config.example.json](even-keel.config.example.json). The service rereads it on the fly: `parallel`, `chain`, `brief`, a project's `prompt`, `commands`, `ci` and `fillMilestone`, `model`, `modelPrompts`, `stats`, `language`, `promptLanguage` and `hiddenSkills` apply at once, the rest after a restart. A broken file keeps the last good one running and shows the error on the page. A project's `prompt`, `commands`, `ci` and `fillMilestone` can also be edited from its page (**Settings**), which writes them into the file and keeps the other keys.
+`even-keel.config.json`, starting from [even-keel.config.example.json](even-keel.config.example.json). The service rereads it on the fly: `parallel`, `chain`, `brief`, a project's `prompt`, `commands`, `ci` and `fillMilestone`, `model`, `modelPrompts`, `stats`, `language`, `promptLanguage`, `hiddenSkills` and `allowedHosts` apply at once, the rest after a restart. A broken file keeps the last good one running and shows the error on the page. A project's `prompt`, `commands`, `ci` and `fillMilestone` can also be edited from its page (**Settings**), which writes them into the file and keeps the other keys.
 
 | Key | Default | |
 | --- | --- | --- |
-| `host`, `port` | `0.0.0.0`, `4747` | where the page listens |
+| `host`, `port` | `127.0.0.1`, `4747` | where the page listens; any other address than loopback needs `EVEN_KEEL_TOKEN` ([Reaching the page from another machine](#reaching-the-page-from-another-machine)) |
+| `allowedHosts` | `[]` | host names the page may be opened by besides `localhost`, `127.0.0.1`, `[::1]` and `host`, such as a proxy's name; any other `Host` gets 403 |
 | `tracker` | `huly` | tracker of every project that does not name its own: `huly`, `github` or `linear` |
 | `brief` | `true` | put the task's title and description into the prompt; `false` for projects whose sessions read the task through the tracker's plugin |
 | `parallel` | `1` | how many chains on different projects run at once; the rest wait in the queue. Lowered, it stops nothing: no new chain starts until fewer run |

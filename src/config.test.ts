@@ -7,8 +7,9 @@ describe('parseConfig', () => {
   it('fills defaults when only projects are given', () => {
     const config = parseConfig({ projects: { ABC: 'C:\\repos\\abc' } })
     expect(config).toEqual({
-      host: '0.0.0.0',
+      host: '127.0.0.1',
       port: 4747,
+      allowedHosts: [],
       projects: { ABC: 'C:\\repos\\abc' },
       rules: { ABC: DEFAULT_RULES },
       slots: {},
@@ -26,6 +27,13 @@ describe('parseConfig', () => {
       hiddenSkills: DEFAULT_HIDDEN_SKILLS,
       parallel: 1,
     })
+  })
+
+  it('takes the extra host names of the page as a list, trimmed and lowercase', () => {
+    expect(parseConfig({ projects: {}, allowedHosts: [' Pult.Example.com '] }).allowedHosts).toEqual(['pult.example.com'])
+    expect(() => parseConfig({ projects: {}, allowedHosts: 'pult.example.com' })).toThrow(/allowedHosts/)
+    expect(() => parseConfig({ projects: {}, allowedHosts: [''] })).toThrow(/allowedHosts/)
+    expect(() => parseConfig({ projects: {}, allowedHosts: ['https://pult.example.com'] })).toThrow(/allowedHosts/)
   })
 
   it('takes the number of chains run at once as a positive integer', () => {
@@ -343,6 +351,12 @@ describe('reloading the config', () => {
   it('applies the hidden skills at once', () => {
     const next = parseConfig({ projects: { ABC: 'C:\\abc' }, hiddenSkills: ['loop'] })
     expect(liveConfig(base, next).hiddenSkills).toEqual(['loop'])
+    expect(restartChanges(base, next)).toEqual([])
+  })
+
+  it('applies the allowed host names at once', () => {
+    const next = parseConfig({ projects: { ABC: 'C:\\abc' }, allowedHosts: ['pult.example.com'] })
+    expect(liveConfig(base, next).allowedHosts).toEqual(['pult.example.com'])
     expect(restartChanges(base, next)).toEqual([])
   })
 

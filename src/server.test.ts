@@ -1,10 +1,12 @@
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { request } from 'node:http'
 import type { AddressInfo } from 'node:net'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { Readable } from 'node:stream'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { EventHub } from './events.js'
+import { guardHosts } from './guard.js'
 import { createEvenKeelServer, type AccountControl, type ChainControl } from './server.js'
 import { textNotice } from './notice/notice.js'
 
@@ -109,6 +111,7 @@ describe('Even Keel HTTP server', () => {
         ruleDiff: async (ids) => ({ state: 'off', reason: `diff ${ids.length}` }),
         compare: async (query) => ({ state: 'off', reason: `compare ${query.before} ${query.after} ${query.days}` }),
       },
+      guard: () => ({ hosts: guardHosts('127.0.0.1', []), token: null }),
     })
     await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve))
     base = `http://127.0.0.1:${(server.address() as AddressInfo).port}`
@@ -117,6 +120,24 @@ describe('Even Keel HTTP server', () => {
 
   afterEach(async () => {
     await close()
+  })
+
+  it('refuses a foreign Host and a foreign Origin before any route', async () => {
+    const send = (method: string, path: string, headers: Record<string, string>) =>
+      new Promise<number>((resolve, reject) => {
+        const { hostname, port } = new URL(base)
+        request({ hostname, port, method, path, headers }, (response) => {
+          response.resume()
+          resolve(response.statusCode ?? 0)
+        })
+          .on('error', reject)
+          .end(method === 'POST' ? JSON.stringify({ project: 'ABC' }) : undefined)
+      })
+    expect(await send('GET', '/api/state', { host: 'evil.example.net:4747' })).toBe(403)
+    expect(await send('POST', '/api/chain/start', { origin: 'https://evil.example.net' })).toBe(403)
+    expect(calls).toEqual([])
+    expect(await send('POST', '/api/chain/start', { host: 'localhost:4747', origin: 'http://localhost:4747' })).toBe(200)
+    expect(calls).toEqual([['start', 'ABC']])
   })
 
   it('serves the page at the root', async () => {

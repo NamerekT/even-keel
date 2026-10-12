@@ -27,6 +27,7 @@ import { ensureIgnored, finishWorktree, prepareWorktree, taskPlace } from './git
 import { exhaustedReset } from './limits/model.js'
 import { LimitsWatcher } from './limits/watcher.js'
 import { englishOf, fail, notice, noticeOf, type Notice } from './notice/notice.js'
+import { guardHosts, guardToken } from './guard.js'
 import { createEvenKeelServer } from './server.js'
 import { replyPrompt, type Reply } from './sessions/ask.js'
 import { saveInbox, type InboxFile } from './sessions/inbox.js'
@@ -90,6 +91,14 @@ const configFile = new ConfigFile({
   },
 })
 const config = configFile.current
+const token = (() => {
+  try {
+    return guardToken(process.env, config.host)
+  } catch (error) {
+    console.error(englishOf(noticeOf(error)))
+    process.exit(1)
+  }
+})()
 const rulesOf = (project: string) => configFile.current.rules[project]!
 const stateDir = process.env.EVEN_KEEL_STATE_DIR ?? join(root, 'state')
 mkdirSync(stateDir, { recursive: true })
@@ -656,6 +665,7 @@ const server = createEvenKeelServer({
     },
   },
   stats,
+  guard: () => ({ hosts: guardHosts(config.host, configFile.current.allowedHosts), token }),
 })
 
 /** The first answer `read` finds in the `projects` folder of any account. */

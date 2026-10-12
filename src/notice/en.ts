@@ -190,6 +190,12 @@ export const en = {
   'config.modelPromptEmpty': (p: { model: string }) => `config: modelPrompts.${p.model} is empty`,
   'config.hiddenSkills': () => 'config: hiddenSkills must be a list of skill names',
   'config.parallel': (p: { value: string }) => `config: parallel must be a positive integer, got ${p.value}`,
+  'config.allowedHosts': () => 'config: allowedHosts must be a list of host names',
+  'config.token': (p: { host: string }) =>
+    `config: host ${p.host} is reachable from the network, so the page needs a token: set EVEN_KEEL_TOKEN in .env ` +
+    `(16+ characters, e.g. the output of: node -e "console.log(crypto.randomBytes(24).toString('hex'))") and restart, ` +
+    'or set host to 127.0.0.1',
+  'config.tokenShape': () => 'config: EVEN_KEEL_TOKEN must be 16+ characters of A-Z a-z 0-9 . _ ~ + / = -',
   'config.modelPromptPlaceholder': (p: { model: string; placeholder: string }) =>
     `config: modelPrompts.${p.model} has the substitution ${p.placeholder}, but a model prompt is passed on as it is`,
   'config.contextWindow': (p: { value: string }) => `config: context.window must be a positive integer of tokens, got ${p.value}`,

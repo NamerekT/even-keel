@@ -183,6 +183,11 @@ export const noticesRu: NoticeTexts = {
   'config.modelPromptEmpty': (p) => `modelPrompts.${p.model} пуст`,
   'config.hiddenSkills': () => 'hiddenSkills должен быть списком имён навыков',
   'config.parallel': (p) => `parallel должен быть целым числом от 1, а не ${p.value}`,
+  'config.allowedHosts': () => 'allowedHosts должен быть списком имён хостов',
+  'config.token': (p) =>
+    `host ${p.host} виден из сети, поэтому странице нужен токен: задайте EVEN_KEEL_TOKEN в .env (от 16 символов) и перезапустите службу, ` +
+    'или поставьте host 127.0.0.1',
+  'config.tokenShape': () => 'EVEN_KEEL_TOKEN должен быть от 16 символов из A-Z a-z 0-9 . _ ~ + / = -',
   'config.modelPromptPlaceholder': (p) => `в modelPrompts.${p.model} подстановка ${p.placeholder}, а промт модели передаётся как есть`,
   'config.contextWindow': (p) => `context.window должен быть положительным целым числом токенов, а не ${p.value}`,
   'config.contextPercents': () => 'context.warn и context.danger должны быть процентами, 0 < warn < danger <= 100',

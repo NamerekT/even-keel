@@ -4,6 +4,7 @@ import { extname, join, normalize, sep } from 'node:path'
 import { Readable } from 'node:stream'
 import { pipeline } from 'node:stream/promises'
 import { formatEvent, type EventHub } from './events.js'
+import { guard, type GuardSettings } from './guard.js'
 import { englishOf, fail, noticeOf, type NoticeCode } from './notice/notice.js'
 import {
   isTaskId,
@@ -123,6 +124,8 @@ export interface ServerDeps {
   tools: (project: string) => Promise<unknown>
   tasks: TaskControl
   stats: StatsSource
+  /** Read per request: `allowedHosts` is live. */
+  guard: () => GuardSettings
 }
 
 type Command = (deps: ServerDeps, body: Record<string, unknown>) => void | Promise<void>
@@ -157,6 +160,7 @@ const MAX_BODY_BYTES = 64 * 1024
 /** An answer carries its files in base64. */
 const MAX_ANSWER_BYTES = 64 * 1024 * 1024
 const BODY_LIMITS: Record<string, number> = { '/api/session/answer': MAX_ANSWER_BYTES }
+const MAX_REPORTED = 100
 
 const CONTENT_TYPES: Record<string, string> = {
   '.html': 'text/html; charset=utf-8',
@@ -169,7 +173,31 @@ const CONTENT_TYPES: Record<string, string> = {
 }
 
 export function createEvenKeelServer(deps: ServerDeps): Server {
+  const reported = new Set<string>()
   return createServer((request, response) => {
+    const verdict = guard(deps.guard(), {
+      method: request.method ?? 'GET',
+      url: request.url ?? '/',
+      host: request.headers.host,
+      origin: request.headers.origin,
+      cookie: request.headers.cookie,
+      authorization: request.headers.authorization,
+      remote: request.socket.remoteAddress,
+      local: request.socket.localAddress,
+    })
+    if (verdict.kind === 'enter') {
+      response.writeHead(303, { location: verdict.location, 'set-cookie': verdict.cookie, 'cache-control': 'no-store' }).end()
+      return
+    }
+    if (verdict.kind === 'refuse') {
+      // One line per distinct refusal: a rebinding page may retry endlessly.
+      if (!reported.has(verdict.reason) && reported.size < MAX_REPORTED) {
+        reported.add(verdict.reason)
+        console.warn(`guard: refused ${request.method} ${request.url?.split('?')[0]}: ${verdict.reason}`)
+      }
+      response.writeHead(verdict.status, { 'content-type': 'text/plain; charset=utf-8', 'cache-control': 'no-store' }).end(verdict.reason)
+      return
+    }
     route(deps, request, response).catch((error: unknown) => {
       if (!response.headersSent) response.writeHead(500, { 'content-type': 'text/plain; charset=utf-8' })
       response.end(String(error))
