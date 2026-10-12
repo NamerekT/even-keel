@@ -45,27 +45,36 @@ describe('ConfigFile', () => {
     write({ projects: { ABC: 'C:\\abc' } })
     const config = open()
 
-    write({ port: 5000, projects: { ABC: 'C:\\abc' } })
+    write({ context: { window: 1_000_000 }, projects: { ABC: 'C:\\abc' } })
     config.reload()
-    expect(config.current.port).toBe(4747)
-    expect(warnings).toEqual(['config: port changed and wait for a restart of Even Keel'])
+    expect(config.current.context.window).toBe(600_000)
+    expect(warnings).toEqual(['config: changed, waiting for a restart of Even Keel: context'])
+  })
+
+  it('warns once that the address is no longer read from the file', () => {
+    write({ host: '0.0.0.0', port: 5000, projects: { ABC: 'C:\\abc' } })
+    const config = open()
+    config.reload()
+    expect(warnings).toEqual([`config: host and port in ${file} are not read; the address comes from EVEN_KEEL_HOST and EVEN_KEEL_PORT`])
   })
 
   it('writes the settings of a project, keeps the other keys and applies them at once', () => {
     write({ port: 5000, projects: { ABC: 'C:\\abc', XYZ: { repo: 'C:\\xyz', slot: 2 } }, custom: { kept: true } })
     const config = open()
+    const form = (project: string) => config.view().projects[project]!
 
-    config.saveProject('ABC', { prompt: ' Mind Library. ', beforeStart: ['npm ci', ' '], check: ['npm test'], ci: { kinds: ['github'], waitMinutes: 20, recheckMain: true, fixTask: false }, fillMilestone: true })
-    config.saveProject('XYZ', { prompt: 'Run tests.', beforeStart: [], check: [], ci, fillMilestone: false })
+    config.saveProject('ABC', { ...form('ABC'), branch: 'master', prompt: ' Mind Library. ', beforeStart: ['npm ci', ' '], check: ['npm test'], ci: { kinds: ['github'], waitMinutes: 20, recheckMain: true, fixTask: false }, fillMilestone: true })
+    config.saveProject('XYZ', { ...form('XYZ'), prompt: 'Run tests.' })
     expect(JSON.parse(readFileSync(file, 'utf8'))).toEqual({
       port: 5000,
       projects: {
-        ABC: { repo: 'C:\\abc', prompt: 'Mind Library.', commands: { beforeStart: ['npm ci'], check: ['npm test'] }, ci: { kinds: ['github'], waitMinutes: 20 }, fillMilestone: true },
+        ABC: { repo: 'C:\\abc', branch: 'master', prompt: 'Mind Library.', commands: { beforeStart: ['npm ci'], check: ['npm test'] }, ci: { kinds: ['github'], waitMinutes: 20 }, fillMilestone: true },
         XYZ: { repo: 'C:\\xyz', slot: 2, prompt: 'Run tests.' },
       },
       custom: { kept: true },
     })
     expect(config.current.settings.ABC).toEqual({
+      branch: 'master',
       prompt: 'Mind Library.',
       beforeStart: ['npm ci'],
       check: ['npm test'],
@@ -78,7 +87,7 @@ describe('ConfigFile', () => {
     write({ projects: { ABC: { repo: 'C:\\abc', brief: false, prompt: 'Old.', commands: { beforeStart: ['npm ci'], check: ['npm test'] }, ci: { waitMinutes: 5 } } } })
     const config = open()
 
-    config.saveProject('ABC', { prompt: '', beforeStart: [], check: [], ci, fillMilestone: false })
+    config.saveProject('ABC', { ...config.view().projects.ABC!, prompt: '', beforeStart: [], check: [], ci, fillMilestone: false })
     expect(JSON.parse(readFileSync(file, 'utf8'))).toEqual({ projects: { ABC: { repo: 'C:\\abc', brief: false } } })
   })
 
@@ -86,7 +95,26 @@ describe('ConfigFile', () => {
     write({ projects: { ABC: 'C:\\abc' } })
     const config = open()
 
-    expect(() => config.saveProject('XYZ', { prompt: 'Hi.', beforeStart: [], check: [], ci, fillMilestone: false })).toThrow(/XYZ/)
+    expect(() => config.saveProject('XYZ', { ...config.view().projects.ABC!, prompt: 'Hi.' })).toThrow(/XYZ/)
     expect(JSON.parse(readFileSync(file, 'utf8'))).toEqual({ projects: { ABC: 'C:\\abc' } })
+  })
+
+  it('refuses settings the config would not parse and leaves the file as it is', () => {
+    write({ projects: { ABC: 'C:\\abc' } })
+    const config = open()
+
+    expect(() => config.saveProject('ABC', { ...config.view().projects.ABC!, tracker: 'github' })).toThrow(expect.objectContaining({ notice: expect.objectContaining({ code: 'config.trackerProject' }) }))
+    expect(JSON.parse(readFileSync(file, 'utf8'))).toEqual({ projects: { ABC: 'C:\\abc' } })
+  })
+
+  it('writes the shared settings and shows what waits for a restart', () => {
+    write({ projects: { ABC: 'C:\\abc' } })
+    const config = open()
+
+    config.saveShared({ ...config.view().shared, parallel: 2, tracker: 'linear' })
+    expect(JSON.parse(readFileSync(file, 'utf8'))).toEqual({ projects: { ABC: 'C:\\abc' }, parallel: 2, tracker: 'linear' })
+    expect(config.current.parallel).toBe(2)
+    expect(config.current.tracker).toBe('huly')
+    expect(config.view()).toMatchObject({ shared: { tracker: 'linear' }, projects: { ABC: { tracker: 'linear' } }, restart: ['tracker', 'ABC.tracker'] })
   })
 })

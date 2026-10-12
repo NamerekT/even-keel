@@ -21,6 +21,8 @@ A task id is the Linear identifier itself: `ENG-12` is issue 12 of the team with
 
 ## 2. Where to work
 
+`main` in this skill is the project's main branch: the one Even Keel's prompt names, otherwise the one the project's `CLAUDE.md` names, otherwise `main`.
+
 - Started by Even Keel — the prompt names a ready worktree or a working folder: the session already runs in it, on the task's branch. Do not create a worktree, do not create or switch branches.
 - Started by hand: follow the project's own `CLAUDE.md` for the branch and the worktree.
 - Commit messages and branch names follow the project's `CLAUDE.md`. Without a rule there, prefix commits with the task id: `[ENG-12] Message`. A commit names only the id of its own issue, and never with a magic word (`fixes ENG-12`, `closes ENG-12`): Linear's GitHub or GitLab integration would close the issue on its own terms.

@@ -21,6 +21,8 @@ Two neighbouring skills: `huly:split` — when a task is too big or holds an unc
 
 ## 2. Where to work
 
+`main` in this skill is the project's main branch: the one Even Keel's prompt names, otherwise the one the project's `CLAUDE.md` names, otherwise `main`.
+
 - Started by Even Keel — the prompt names a ready worktree or a working folder: the session already runs in it, on the task's branch. Do not create a worktree, do not create or switch branches. A handoff note named in the prompt is read first.
 - Started by hand: follow the project's own `CLAUDE.md` for the branch and the worktree. Without a rule there, from the main checkout: `git worktree add -b abc-12/short-description .claude/worktrees/abc-12 main`, lowercase, then work only inside it — absolute paths into the worktree, git run there. Even Keel uses the same path, so if the chain later takes the task it picks this worktree up. Branch from the local `main`, not from `origin/main` (so not the harness's own worktree tool): local `main` may be ahead. `.claude/worktrees/` must be ignored by git — add it to `.git/info/exclude` if it is not, or every search returns each file twice.
 - The main checkout stays on `main`: merges and work without a task happen there.

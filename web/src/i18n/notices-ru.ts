@@ -40,7 +40,7 @@ export const noticesRu: NoticeTexts = {
   'order.milestone': (p) => `${p.task} из ${p.milestone} не может идти раньше ${p.earlier} из более раннего ${p.earlierMilestone}`,
 
   'cleanup.failed': () => 'уборка не удалась',
-  'cleanup.syncFailed': () => 'синхронизация main не удалась',
+  'cleanup.syncFailed': () => 'синхронизация главной ветки не удалась',
   'cleanup.folderLeft': (p) => `папка worktree ${p.path} осталась: её держит процесс`,
   'cleanup.worktreeKept': (p) => `worktree ${p.path} оставлен`,
   'cleanup.branchKept': (p) => `ветка ${p.branch} оставлена`,
@@ -52,12 +52,14 @@ export const noticesRu: NoticeTexts = {
 
   'git.ignoreUnknown': (p) => `не понять, игнорирует ли ${p.repo} папку ${p.dir}`,
   'git.failed': (p) => `git: не удалось ${GIT_STEPS[p.step](p.subject)} ${p.repo}`,
+  'git.noBranch': (p) =>
+    `в ${p.repo} нет ветки ${p.branch} — главной ветки проекта ${p.project}; создайте её или укажите нужную в настройках проекта`,
 
   'sync.alias': (p) => `git sync завершился с кодом ${p.exit}`,
-  'sync.notMain': (p) => `${p.repo} стоит на ${p.branch || 'отцепленном HEAD'}, а не на main — переключите его на main`,
+  'sync.notMain': (p) => `${p.repo} стоит на ${p.branch || 'отцепленном HEAD'}, а не на ${p.main} — переключите его на ${p.main}`,
   'sync.fetch': (p) => `не удалось получить ${p.remote}`,
-  'sync.merge': (p) => `${p.remote}/main не сливается в main чисто — слейте вручную`,
-  'sync.push': (p) => `не удалось отправить main в ${p.remote}`,
+  'sync.merge': (p) => `${p.remote}/${p.main} не сливается в ${p.main} чисто — слейте вручную`,
+  'sync.push': (p) => `не удалось отправить ${p.main} в ${p.remote}`,
 
   'ci.noToken': (p) => `чтобы следить за этим CI, задайте ${p.variable} в окружении Even Keel`,
   'ci.denied': (p) => `${p.ci}: токен отклонён (HTTP ${p.status}) — ему нужно чтение actions репозитория`,
@@ -153,8 +155,8 @@ export const noticesRu: NoticeTexts = {
   'task.pastBacklog': (p) => `${p.task} уже не в статусе бэклога`,
 
   'config.notJson': (p) => `${p.file} — не JSON`,
-  'config.host': () => 'host должен быть непустой строкой',
-  'config.port': (p) => `port должен быть целым в 1..65535, а не ${p.value}`,
+  'config.port': (p) => `EVEN_KEEL_PORT должен быть целым в 1..65535, а не ${p.value}`,
+  'config.branch': (p) => `${p.where} должен быть именем ветки, а не ${p.value}`,
   'config.projects': () => 'projects должен сопоставлять ключу проекта путь к репозиторию',
   'config.projectKey': (p) => `«${p.key}» — не ключ проекта`,
   'config.repoEmpty': (p) => `путь к репозиторию ${p.key} пуст`,

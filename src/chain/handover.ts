@@ -126,7 +126,7 @@ export class Handovers {
 
   async handOver(task: string, session: HandoffSession, reason: HandoffReason, extra?: string): Promise<string> {
     const located = await this.deps.locate(session)
-    const prompt = handoffPrompt(task, located, reason, this.deps.promptLanguage())
+    const prompt = handoffPrompt(task, located, reason, this.deps.promptLanguage(), this.deps.mainBranch(task))
     return this.deps.relay(task, located, extra === undefined ? prompt : `${prompt}\n${extra}\n`, reason)
   }
 }

@@ -25,7 +25,7 @@ Sequential within a project, not across them: different projects are different r
 ## What it does
 
 - **The chain.** Tasks enter the chain by status (by default: ready and in-progress tasks — not the backlog, not closed ones) and by labels you choose. Order: open blockers first, then the order you set by dragging on the page, then milestone, priority, task number. A task with an open blocker waits; a task with subtasks never runs itself — its subtasks do, and on Huly Even Keel closes it once they are all closed.
-- **Sessions.** Each task gets a background session (`claude --bg`) in its own git worktree `.claude/worktrees/<key>-<number>` on a branch `<key>-<number>/task`, made from `main`. The session does the task and merges its branch into `main`; Even Keel sees the merge, closes the task in the tracker, stops the session, removes the worktree and the branch, and syncs `main` with the remote. Labels `Sonnet`, `Opus` or `Haiku` on a task pick the model; without one the session runs on the `model` of the config (Opus by default), whatever `/model` last saved in the CLI settings.
+- **Sessions.** Each task gets a background session (`claude --bg`) in its own git worktree `.claude/worktrees/<key>-<number>` on a branch `<key>-<number>/task`, made from `main` (or the project's `branch`; `main` below means that branch). The session does the task and merges its branch into `main`; Even Keel sees the merge, closes the task in the tracker, stops the session, removes the worktree and the branch, and syncs `main` with the remote. Labels `Sonnet`, `Opus` or `Haiku` on a task pick the model; without one the session runs on the `model` of the config (Opus by default), whatever `/model` last saved in the CLI settings.
 - **Slots.** For repositories with heavy ignored caches (Unity's `Library`, big `node_modules`) a project can use a pool of permanent worktrees instead of a fresh one per task, so the next task rebuilds only the difference.
 - **Handoffs.** A session that hit the usage limit is resumed after the reset if its prompt cache is still warm, otherwise stopped and replaced by a new session in the same worktree with a handoff prompt. The same handoff happens when a session ends its turn with a `CHECKPOINT: <path to a note>` line — the [checkpoint](plugins/checkpoint) plugin asks for it once the context grows past a threshold, 200k tokens until the project's own statistics give a better one, and stops asking below 300k after three handoffs of a task — and when you press **New session** on the page.
 - **Chat with the session.** The **Chat** button of the current session opens its whole transcript with a reply box: the options of the session's question as tabs and radio buttons or checkboxes, free text and files, which land in the task's `.temp/inbox/`. The button turns amber while the session waits for you. Even Keel stops the session and resumes it with your answer. A question with options is also posted to the tracker as a numbered comment; reply with `2`, `1, 3` or text. Remote Control still works: the page links each session's Remote Control.
@@ -78,11 +78,11 @@ cp even-keel.config.example.json even-keel.config.json
 
 Each project needs:
 
-- a git repository with a `main` branch; with a remote, Even Keel pushes `main` after every task;
+- a git repository with a main branch — `main` unless the project names another in `branch`; with a remote, Even Keel pushes it after every task;
 - the repository trusted by Claude Code: open `claude` in it once and accept the trust prompt, or the first launch pauses the chain and asks for it;
 - a rule that the session merges its branch when done. Without the plugin ([level 2](#2-with-the-plugin)) put it into the project's `CLAUDE.md`, for example:
 
-  > When the task is done and the checks pass, commit, then merge the branch into `main` in the main checkout with `git merge --no-edit <branch>`. Do not remove the worktree or the branch afterwards.
+  > When the task is done and the checks pass, commit, then merge the branch into `main` (the project's main branch) in the main checkout with `git merge --no-edit <branch>`. Do not remove the worktree or the branch afterwards.
 
 ### 3. Pick how sessions work with the tracker
 
@@ -138,15 +138,15 @@ Sessions can be answered from the page's chat or the tracker. To answer them in 
 
 ### Reaching the page from another machine
 
-By default the page listens on `127.0.0.1` only, and nothing else on the network sees it. That is on purpose: the page starts sessions with automatic permissions, writes answers into waiting sessions and signs Claude accounts in and out, so whoever reaches it drives your machine. Every request is also checked whatever `host` is:
+By default the page listens on `127.0.0.1` only, and nothing else on the network sees it. That is on purpose: the page starts sessions with automatic permissions, writes answers into waiting sessions and signs Claude accounts in and out, so whoever reaches it drives your machine. Every request is also checked whatever `EVEN_KEEL_HOST` is:
 
-- its `Host` must be `localhost`, `127.0.0.1`, `[::1]`, the configured `host` or a name in `allowedHosts`, otherwise it gets 403. This stops DNS rebinding — a foreign site whose name was pointed at `127.0.0.1`;
+- its `Host` must be `localhost`, `127.0.0.1`, `[::1]`, `EVEN_KEEL_HOST` or a name in `allowedHosts`, otherwise it gets 403. This stops DNS rebinding — a foreign site whose name was pointed at `127.0.0.1`;
 - an `Origin`, if the request has one, must be one of the same names, so another site open in your browser cannot post to the page. Requests without `Origin` (the plugins' hooks, `curl`) pass.
 
 Two ways to reach it from elsewhere:
 
 - **A proxy on the same machine** (recommended). For example a Tailscale Service, `tailscale serve --service=svc:even-keel --https=443 http://localhost:4747`, which also gives the page HTTPS, so it can be installed as an app. The proxy forwards the name it was reached by, so put that name into `allowedHosts`: `"allowedHosts": ["even-keel.example.ts.net"]`. Its requests come from loopback, so the page asks them for no token: who gets in is decided by the tailnet's access rules.
-- **Listening on the network.** Set `host` to `0.0.0.0` or the machine's address, put the names or addresses you open it by into `allowedHosts` (the configured address itself is let in), and set `EVEN_KEEL_TOKEN` in `.env`. Without the token the service does not start. A request from another machine then needs the token: open the page once as `http://<address>:4747/?token=<token>`, and the service keeps it in an `HttpOnly`, `SameSite=Strict` cookie and drops it from the address; scripts send `Authorization: Bearer <token>`. Plain HTTP shows the token to anyone on the way, so prefer a proxy with HTTPS.
+- **Listening on the network.** Set `EVEN_KEEL_HOST` in `.env` to `0.0.0.0` or the machine's address, put the names or addresses you open it by into `allowedHosts` (the configured address itself is let in), and set `EVEN_KEEL_TOKEN` in `.env`. Without the token the service does not start. A request from another machine then needs the token: open the page once as `http://<address>:4747/?token=<token>`, and the service keeps it in an `HttpOnly`, `SameSite=Strict` cookie and drops it from the address; scripts send `Authorization: Bearer <token>`. Plain HTTP shows the token to anyone on the way, so prefer a proxy with HTTPS.
 
 ### As a service
 
@@ -181,19 +181,19 @@ On Linux it installs a systemd user unit (`systemctl --user status even-keel`, l
 | `EVEN_KEEL_ACCOUNTS_DIR` | folder of the extra Claude account folders; default `~/.claude-accounts` |
 | `EVEN_KEEL_CLAUDE_BIN` | path to the `claude` binary |
 | `EVEN_KEEL_CONFIG` | path to the config; default `even-keel.config.json` in the root |
-| `EVEN_KEEL_TOKEN` | the page's token for requests from other machines; required when `host` is not loopback, 16+ characters of `A-Z a-z 0-9 . _ ~ + / = -`, e.g. `node -e "console.log(crypto.randomBytes(24).toString('hex'))"`. Read at startup |
+| `EVEN_KEEL_HOST`, `EVEN_KEEL_PORT` | where the page listens; default `127.0.0.1` and `4747`. Any other address than loopback needs `EVEN_KEEL_TOKEN` ([Reaching the page from another machine](#reaching-the-page-from-another-machine)). Read at startup; `host` and `port` left in an older config are not read, the log says so once |
+| `EVEN_KEEL_TOKEN` | the page's token for requests from other machines; required when `EVEN_KEEL_HOST` is not loopback, 16+ characters of `A-Z a-z 0-9 . _ ~ + / = -`, e.g. `node -e "console.log(crypto.randomBytes(24).toString('hex'))"`. Read at startup |
 | `EVEN_KEEL_STATE_DIR` | where state lives (chain order, accounts, launch log, statistics database); default `state/` |
 | `TALLY_DB_HOST`, `TALLY_DB_PORT`, `TALLY_DB_NAME`, `TALLY_WRITER_PASSWORD`, `TALLY_READER_PASSWORD` | your own Postgres for the statistics instead of the embedded one: the collector writes as `tally_writer`, the page reads as `tally_reader`. `tally/deploy/` has a Compose file that creates both roles |
 | `TALLY_LLM_URL`, `TALLY_LLM_KEY`, `TALLY_LLM_MODEL` | optional classifier of the stuck spans on `/stats`: an OpenAI-compatible endpoint, its key and a model it serves; without them the spans are found but not explained |
 
 ## Configuration
 
-`even-keel.config.json`, starting from [even-keel.config.example.json](even-keel.config.example.json). The service rereads it on the fly: `parallel`, `chain`, `brief`, a project's `prompt`, `commands`, `ci` and `fillMilestone`, `model`, `modelPrompts`, `stats`, `language`, `promptLanguage`, `hiddenSkills` and `allowedHosts` apply at once, the rest after a restart. A broken file keeps the last good one running and shows the error on the page. A project's `prompt`, `commands`, `ci` and `fillMilestone` can also be edited from its page (**Settings**), which writes them into the file and keeps the other keys.
+`even-keel.config.json`, starting from [even-keel.config.example.json](even-keel.config.example.json). Everything in it except adding a project can be edited on the page: a project's keys on its page (**Settings**), the shared ones on **Settings** in the header. The page writes only the keys you changed and keeps the rest of the file as it is; editing the file by hand works too. The service rereads it on the fly: `tracker`, `context`, `projects` and a project's `repo`, `slot`, `tracker`, `github` and `linear` apply after a restart (the page marks them), the rest at once. A broken file keeps the last good one running and shows the error on the page, next to the field when it has one.
 
 | Key | Default | |
 | --- | --- | --- |
-| `host`, `port` | `127.0.0.1`, `4747` | where the page listens; any other address than loopback needs `EVEN_KEEL_TOKEN` ([Reaching the page from another machine](#reaching-the-page-from-another-machine)) |
-| `allowedHosts` | `[]` | host names the page may be opened by besides `localhost`, `127.0.0.1`, `[::1]` and `host`, such as a proxy's name; any other `Host` gets 403 |
+| `allowedHosts` | `[]` | host names the page may be opened by besides `localhost`, `127.0.0.1`, `[::1]` and `EVEN_KEEL_HOST`, such as a proxy's name; any other `Host` gets 403 |
 | `tracker` | `huly` | tracker of every project that does not name its own: `huly`, `github` or `linear` |
 | `brief` | `true` | put the task's title and description into the prompt; `false` for projects whose sessions read the task through the tracker's plugin |
 | `parallel` | `1` | how many chains on different projects run at once; the rest wait in the queue. Lowered, it stops nothing: no new chain starts until fewer run |
@@ -203,7 +203,8 @@ On Linux it installs a systemd user unit (`systemctl --user status even-keel`, l
 | `chain.excludedLabels` | `["Manual", "Вручную"]` | a task with one of them never enters the chain: you run it yourself; while open, it still holds the tasks it blocks |
 | `projects` | — | project key (a letter, then up to four letters, digits or `_`) → repository path, or an object below |
 | `projects.<KEY>.repo` | — | path to the main checkout |
-| `projects.<KEY>.tracker`, `.brief`, `.chain` | the shared ones | per project; a project's `chain` key replaces the shared key whole |
+| `projects.<KEY>.branch` | `main` | the project's main branch: tasks branch off it and merge into it, the CI and the check judge it. A branch missing from the repository pauses the chain |
+| `projects.<KEY>.tracker`, `.brief`, `.chain` | the shared ones | per project; a project's `chain` key replaces the shared key whole; `null` for `active` or `terminal` goes back to the status categories over a shared list |
 | `projects.<KEY>.github` | — | `owner/name` of the repository, for a project on GitHub |
 | `projects.<KEY>.linear` | the whole team | name of the Linear project the team is narrowed down to, for a project on Linear (the key is the team key) |
 | `projects.<KEY>.slot` | off | `true` or a number: a pool of permanent worktrees instead of one per task |

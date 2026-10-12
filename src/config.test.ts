@@ -1,23 +1,23 @@
 import { describe, expect, it } from 'vitest'
 import { DEFAULT_RULES } from './chain/rules.js'
-import { DEFAULT_CI, liveConfig, parseConfig, restartChanges, withProjectSettings } from './config.js'
+import { DEFAULT_CI, ignoredKeys, liveConfig, listenOf, parseConfig, restartChanges, withProjectSettings } from './config.js'
 import { DEFAULT_HIDDEN_SKILLS } from './tools/settings.js'
 
 describe('parseConfig', () => {
   it('fills defaults when only projects are given', () => {
     const config = parseConfig({ projects: { ABC: 'C:\\repos\\abc' } })
     expect(config).toEqual({
-      host: '127.0.0.1',
-      port: 4747,
       allowedHosts: [],
       projects: { ABC: 'C:\\repos\\abc' },
       rules: { ABC: DEFAULT_RULES },
       slots: {},
+      chain: DEFAULT_RULES,
       tracker: 'huly',
       trackers: { ABC: 'huly' },
       trackerProjects: {},
+      brief: true,
       briefs: { ABC: true },
-      settings: { ABC: { prompt: null, beforeStart: [], check: [], ci: DEFAULT_CI, fillMilestone: false } },
+      settings: { ABC: { branch: 'main', prompt: null, beforeStart: [], check: [], ci: DEFAULT_CI, fillMilestone: false } },
       context: { window: 600_000, warn: 50, danger: 80 },
       model: 'opus',
       modelPrompts: {},
@@ -114,8 +114,8 @@ describe('parseConfig', () => {
       },
     })
     expect(config.settings).toEqual({
-      ABC: { prompt: 'Run npm test before merging.', beforeStart: ['npm ci', 'npm run build'], check: ['npm test'], ci: DEFAULT_CI, fillMilestone: false },
-      XYZ: { prompt: null, beforeStart: [], check: [], ci: DEFAULT_CI, fillMilestone: false },
+      ABC: { branch: 'main', prompt: 'Run npm test before merging.', beforeStart: ['npm ci', 'npm run build'], check: ['npm test'], ci: DEFAULT_CI, fillMilestone: false },
+      XYZ: { branch: 'main', prompt: null, beforeStart: [], check: [], ci: DEFAULT_CI, fillMilestone: false },
     })
   })
 
@@ -206,14 +206,30 @@ describe('parseConfig', () => {
     expect(() => parseConfig({ projects: {}, modelPrompts: { opus: 'Branch ${branch}.' } })).toThrow(/\$\{branch\}/)
   })
 
-  it('keeps explicit host and port', () => {
-    const config = parseConfig({ host: '127.0.0.1', port: 5000, projects: {} })
-    expect(config.host).toBe('127.0.0.1')
-    expect(config.port).toBe(5000)
+  it('takes the main branch of a project from its own key, main without one', () => {
+    const config = parseConfig({ projects: { ABC: { repo: 'C:\\abc', branch: ' master ' }, XYZ: 'C:\\xyz' } })
+    expect(config.settings.ABC?.branch).toBe('master')
+    expect(config.settings.XYZ?.branch).toBe('main')
   })
 
-  it('rejects a port outside the TCP range', () => {
-    expect(() => parseConfig({ port: 70000, projects: {} })).toThrow(/port/)
+  it('rejects a main branch git would not take as a branch name', () => {
+    for (const branch of ['', 'two words', '-x', 'a..b', 'a/', 'x.lock', 'a:b', 7]) {
+      expect(() => parseConfig({ projects: { ABC: { repo: 'C:\\abc', branch } } })).toThrow(/ABC\.branch/)
+    }
+    expect(parseConfig({ projects: { ABC: { repo: 'C:\\abc', branch: 'release/v1' } } }).settings.ABC?.branch).toBe('release/v1')
+  })
+
+  it('keeps the shared chain rules and brief next to the projects', () => {
+    const config = parseConfig({ chain: { requiredLabels: ['Auto'] }, brief: false, projects: {} })
+    expect(config.chain).toEqual({ ...DEFAULT_RULES, requiredLabels: ['Auto'] })
+    expect(config.brief).toBe(false)
+  })
+
+  it('reads no address from the file and names the keys it leaves out', () => {
+    const raw = { host: '0.0.0.0', port: 5000, projects: {} }
+    expect(parseConfig(raw)).not.toHaveProperty('port')
+    expect(ignoredKeys(raw)).toEqual(['host', 'port'])
+    expect(ignoredKeys({ projects: {} })).toEqual([])
   })
 
   it('rejects a project key that is not a Huly identifier', () => {
@@ -374,7 +390,13 @@ describe('reloading the config', () => {
 
   it('applies the project prompt and the commands before start at once', () => {
     const next = parseConfig({ projects: { ABC: { repo: 'C:\\abc', prompt: 'Mind Library.', commands: { beforeStart: ['npm ci'] } } } })
-    expect(liveConfig(base, next).settings).toEqual({ ABC: { prompt: 'Mind Library.', beforeStart: ['npm ci'], check: [], ci: DEFAULT_CI, fillMilestone: false } })
+    expect(liveConfig(base, next).settings).toEqual({ ABC: { branch: 'main', prompt: 'Mind Library.', beforeStart: ['npm ci'], check: [], ci: DEFAULT_CI, fillMilestone: false } })
+    expect(restartChanges(base, next)).toEqual([])
+  })
+
+  it('applies the main branch and the shared rules at once', () => {
+    const next = parseConfig({ brief: false, chain: { requiredLabels: ['Auto'] }, projects: { ABC: { repo: 'C:\\abc', branch: 'master' } } })
+    expect(liveConfig(base, next)).toMatchObject({ brief: false, chain: { requiredLabels: ['Auto'] }, settings: { ABC: { branch: 'master' } } })
     expect(restartChanges(base, next)).toEqual([])
   })
 
@@ -384,19 +406,17 @@ describe('reloading the config', () => {
     expect(restartChanges(base, next)).toEqual([])
   })
 
-  it('keeps address, projects and context until a restart and names what waits for it', () => {
+  it('keeps projects and context until a restart and names what waits for it', () => {
     const next = parseConfig({
-      port: 5000,
       projects: { ABC: 'C:\\moved', XYZ: { repo: 'C:\\xyz', chain: { requiredLabels: ['Auto'] } } },
       context: { window: 1_000_000 },
     })
     const live = liveConfig(base, next)
-    expect(live.port).toBe(4747)
     expect(live.projects).toEqual({ ABC: 'C:\\abc' })
     expect(live.rules).toEqual({ ABC: DEFAULT_RULES })
     expect(live.context).toEqual(base.context)
     expect(live.trackers).toEqual({ ABC: 'huly' })
-    expect(restartChanges(base, next)).toEqual(['port', 'projects', 'trackers', 'context'])
+    expect(restartChanges(base, next)).toEqual(['projects', 'trackers', 'context'])
   })
 
   it('keeps the rules of a project the new file drops until a restart', () => {
@@ -407,8 +427,14 @@ describe('reloading the config', () => {
 })
 
 describe('withProjectSettings', () => {
+  it('writes the main branch only when it is not main', () => {
+    const settings = { branch: 'master', prompt: null, beforeStart: [], check: [], ci: DEFAULT_CI, fillMilestone: false }
+    expect(withProjectSettings('C:\\abc', settings)).toEqual({ repo: 'C:\\abc', branch: 'master' })
+    expect(withProjectSettings({ repo: 'C:\\abc', branch: 'master' }, { ...settings, branch: ' main ' })).toEqual({ repo: 'C:\\abc' })
+  })
+
   it('writes the CI settings only when they differ from the default, keeping the other keys', () => {
-    const settings = { prompt: null, beforeStart: [], check: [], ci: DEFAULT_CI, fillMilestone: false }
+    const settings = { branch: 'main', prompt: null, beforeStart: [], check: [], ci: DEFAULT_CI, fillMilestone: false }
     expect(withProjectSettings({ repo: 'C:\\abc', ci: { kinds: ['github'] } }, settings)).toEqual({ repo: 'C:\\abc' })
     expect(withProjectSettings('C:\\abc', { ...settings, ci: { kinds: ['github', 'forgejo'], waitMinutes: 10, recheckMain: true, fixTask: false } })).toEqual({
       repo: 'C:\\abc',
@@ -421,17 +447,29 @@ describe('withProjectSettings', () => {
   })
 
   it('writes the milestone switch only when it is on', () => {
-    const settings = { prompt: null, beforeStart: [], check: [], ci: DEFAULT_CI, fillMilestone: true }
+    const settings = { branch: 'main', prompt: null, beforeStart: [], check: [], ci: DEFAULT_CI, fillMilestone: true }
     expect(withProjectSettings('C:\\abc', settings)).toEqual({ repo: 'C:\\abc', fillMilestone: true })
     expect(withProjectSettings({ repo: 'C:\\abc', fillMilestone: true }, { ...settings, fillMilestone: false })).toEqual({ repo: 'C:\\abc' })
   })
 
   it('writes the check commands next to the commands before start', () => {
-    const settings = { prompt: null, beforeStart: ['npm ci'], check: [' npm test ', ''], ci: DEFAULT_CI, fillMilestone: false }
+    const settings = { branch: 'main', prompt: null, beforeStart: ['npm ci'], check: [' npm test ', ''], ci: DEFAULT_CI, fillMilestone: false }
     expect(withProjectSettings({ repo: 'C:\\abc', commands: { check: ['old'] } }, settings)).toEqual({
       repo: 'C:\\abc',
       commands: { beforeStart: ['npm ci'], check: ['npm test'] },
     })
     expect(withProjectSettings({ repo: 'C:\\abc', commands: { check: ['old'] } }, { ...settings, beforeStart: [], check: [] })).toEqual({ repo: 'C:\\abc' })
+  })
+})
+
+describe('listenOf', () => {
+  it('takes the address from the environment, loopback and 4747 without it', () => {
+    expect(listenOf({})).toEqual({ host: '127.0.0.1', port: 4747 })
+    expect(listenOf({ EVEN_KEEL_HOST: ' 0.0.0.0 ', EVEN_KEEL_PORT: '5000' })).toEqual({ host: '0.0.0.0', port: 5000 })
+    expect(listenOf({ EVEN_KEEL_HOST: '', EVEN_KEEL_PORT: ' ' })).toEqual({ host: '127.0.0.1', port: 4747 })
+  })
+
+  it('rejects a port outside the TCP range or not a whole number', () => {
+    for (const port of ['70000', '0', '12.5', 'http']) expect(() => listenOf({ EVEN_KEEL_PORT: port })).toThrow(/EVEN_KEEL_PORT/)
   })
 })

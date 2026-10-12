@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { EvenKeelState } from '../../../src/state.js'
 import { LiveConnection, type EventStream } from './connection.js'
+import { FAKE_SHARED } from './fakeConfig.js'
 
 class FakeStream implements EventStream {
   readyState = 0
@@ -39,7 +40,7 @@ function state(startedAt: string): EvenKeelState {
   return {
     startedAt,
     projects: [],
-    settings: {},
+    config: { shared: FAKE_SHARED, projects: {}, restart: [], trackers: [] },
     chain: { active: [], parallel: 1, queue: [], projects: {}, skipped: {}, leftovers: {} },
     tasks: [],
     sessions: [],

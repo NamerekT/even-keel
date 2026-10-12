@@ -1,7 +1,8 @@
 import { watchFile, writeFileSync } from 'node:fs'
-import { liveConfig, loadConfig, parseConfig, readRawConfig, restartChanges, withProjectSettings, type EvenKeelConfig } from './config.js'
+import { formsOf, restartPending, trackerChoices, withProjectForm, withSharedForm } from './config-form.js'
+import { ignoredKeys, liveConfig, loadConfig, parseConfig, readRawConfig, restartChanges, type EvenKeelConfig } from './config.js'
 import { englishOf, fail, noticeOf, type Notice } from './notice/notice.js'
-import type { ProjectSettings } from './state.js'
+import type { ConfigView, ProjectForm, SharedForm } from './state.js'
 
 export interface ConfigFileOptions {
   file: string
@@ -11,11 +12,20 @@ export interface ConfigFileOptions {
 }
 
 export class ConfigFile {
+  /** What the service runs on: the file's last working parse, with the keys that wait for a restart as they were at the start. */
   current: EvenKeelConfig
+  /** The file's last working parse as it is. */
+  saved: EvenKeelConfig
   error: Notice | null = null
 
   constructor(private readonly options: ConfigFileOptions) {
-    this.current = loadConfig(options.file)
+    const raw = readRawConfig(options.file)
+    this.current = parseConfig(raw)
+    this.saved = this.current
+    const ignored = ignoredKeys(raw)
+    if (ignored.length > 0) {
+      options.warn(`config: ${ignored.join(' and ')} in ${options.file} are not read; the address comes from EVEN_KEEL_HOST and EVEN_KEEL_PORT`)
+    }
   }
 
   watch(): void {
@@ -34,20 +44,30 @@ export class ConfigFile {
       this.options.onChange()
       return
     }
-    const waiting = restartChanges(this.current, next)
-    if (waiting.length > 0) this.options.warn(`config: ${waiting.join(', ')} changed and wait for a restart of Even Keel`)
+    const waiting = restartChanges(this.saved, next)
+    if (waiting.length > 0) this.options.warn(`config: changed, waiting for a restart of Even Keel: ${waiting.join(', ')}`)
+    this.saved = next
     this.current = liveConfig(this.current, next)
     this.error = null
     this.options.onChange()
   }
 
-  /** Writes the project's settings into the file, only if the whole config still parses, and applies them at once. */
-  saveProject(project: string, settings: ProjectSettings): void {
+  view(): ConfigView {
+    return { ...formsOf(this.saved), restart: restartPending(this.current, this.saved), trackers: trackerChoices() }
+  }
+
+  /** Writes the project's settings into the file, only if the whole config still parses, and applies what is live at once. */
+  saveProject(project: string, form: ProjectForm): void {
+    this.write(withProjectForm(readRawConfig(this.options.file), project, form))
+  }
+
+  /** Writes the shared settings into the file, by the same rule as `saveProject`. */
+  saveShared(form: SharedForm): void {
+    this.write(withSharedForm(readRawConfig(this.options.file), form))
+  }
+
+  private write(next: Record<string, unknown>): void {
     const { file } = this.options
-    const raw = readRawConfig(file)
-    const projects = (raw as { projects?: unknown } | null)?.projects
-    if (typeof projects !== 'object' || projects === null || !Object.hasOwn(projects, project)) throw fail('config.unknownProject', { key: project })
-    const next = { ...(raw as Record<string, unknown>), projects: { ...projects, [project]: withProjectSettings((projects as Record<string, unknown>)[project], settings) } }
     parseConfig(next)
     try {
       writeFileSync(file, `${JSON.stringify(next, null, 2)}\n`)

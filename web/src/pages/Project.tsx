@@ -78,7 +78,7 @@ export function Project({ state }: { state: EvenKeelState }) {
   const selected = blocks.find((block) => block.id === focus && !block.locked)
   const backlog = backlogTasks(state, key)
   const backlogOpen = focus === BACKLOG_HASH && backlog.length > 0
-  const settings = state.settings[key]
+  const settings = state.config.projects[key]
   const settingsOpen = focus === SETTINGS_HASH && settings !== undefined
   const ci = state.ci[key]
   const ciOpen = focus === CI_HASH && ci !== undefined
@@ -160,7 +160,7 @@ export function Project({ state }: { state: EvenKeelState }) {
               onSettled={arrival.settle}
             />
           )}
-          {settingsOpen && <SettingsPanel key={`settings-${key}`} project={key} settings={settings} onClose={close} />}
+          {settingsOpen && <SettingsPanel key={`settings-${key}`} project={key} form={settings} config={state.config} configError={state.configError} onClose={close} />}
           {ciOpen && <CiPanel views={ci} urls={state.trackerUrls} onClose={close} />}
           {!side && (
             <IdlePanel

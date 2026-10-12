@@ -40,6 +40,9 @@ export function MobileMenu({ now }: { now: Date }) {
             <NavLink to="/tools" className="header__link">
               {t.header.tools}
             </NavLink>
+            <NavLink to="/settings" className="header__link">
+              {t.header.settings}
+            </NavLink>
           </nav>
           <div className="menu-sheet__chips">
             {state !== null && <QueueMenu state={state} />}

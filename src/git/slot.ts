@@ -12,6 +12,8 @@ export interface SlotPool {
   count: number
   occupancy: (path: string) => SlotUse
   vacate: (path: string) => Promise<void>
+  /** The project's main branch: a new slot and a new task branch start from it. */
+  main: string
 }
 
 export function slotPaths(repo: string, count: number): string[] {
@@ -19,7 +21,7 @@ export function slotPaths(repo: string, count: number): string[] {
 }
 
 export async function prepareSlot(git: Git, repo: string, task: string, options: Partial<SlotPool> = {}): Promise<TaskPlace> {
-  const { count = 1, occupancy = () => ({ idle: false, busy: [] }), vacate = async () => {} } = options
+  const { count = 1, occupancy = () => ({ idle: false, busy: [] }), vacate = async () => {}, main = 'main' } = options
   const place = taskPlace(repo, task)
   const paths = slotPaths(repo, count)
   const [own, ...slots] = await worktreesAt(git, repo, [place.path, ...paths])
@@ -50,34 +52,34 @@ export async function prepareSlot(git: Git, repo: string, task: string, options:
   const chosen = free.sort((a, b) => a.rank - b.rank)[0]
   if (chosen === undefined) throw fail('slot.noneFree', { task }, { items: refusals })
 
-  if (chosen.rank === 2) await must(git, repo, ['worktree', 'add', '--detach', chosen.path, 'main'], 'addSlot')
+  if (chosen.rank === 2) await must(git, repo, ['worktree', 'add', '--detach', chosen.path, main], 'addSlot')
   else await vacate(chosen.path)
   await must(git, chosen.path, ['clean', '-fd'], 'clean')
-  const args = (await hasBranch(git, repo, place.branch)) ? ['switch', place.branch] : ['switch', '-c', place.branch, 'main']
+  const args = (await hasBranch(git, repo, place.branch)) ? ['switch', place.branch] : ['switch', '-c', place.branch, main]
   await must(git, chosen.path, args, 'switch', place.branch)
   return { path: chosen.path, branch: place.branch }
 }
 
-export async function finishSlot(git: Git, repo: string, task: string, count = 1): Promise<FinishOutcome> {
+export async function finishSlot(git: Git, repo: string, task: string, count = 1, main = 'main'): Promise<FinishOutcome> {
   const place = taskPlace(repo, task)
   const paths = slotPaths(repo, count)
   const [own, ...slots] = await worktreesAt(git, repo, [place.path, ...paths])
-  if (own !== undefined) return finishWorktree(git, repo, task)
+  if (own !== undefined) return finishWorktree(git, repo, task, main)
 
   const holding = slots.findIndex((slot) => isTaskBranch(slot?.branch ?? null, task))
-  if (holding === -1) return dropBranch(git, repo, (await hasBranch(git, repo, place.branch)) ? place.branch : null, [])
+  if (holding === -1) return dropBranch(git, repo, (await hasBranch(git, repo, place.branch)) ? place.branch : null, [], main)
   const path = paths[holding]!
   const branch = slots[holding]!.branch!
-  const kept = await leaveBranch(git, path, branch)
-  if (kept === null) return dropBranch(git, repo, branch, [])
-  return dropBranch(git, repo, null, [kept])
+  const kept = await leaveBranch(git, path, branch, main)
+  if (kept === null) return dropBranch(git, repo, branch, [], main)
+  return dropBranch(git, repo, null, [kept], main)
 }
 
-async function leaveBranch(git: Git, path: string, branch: string): Promise<Notice | null> {
+async function leaveBranch(git: Git, path: string, branch: string, main: string): Promise<Notice | null> {
   const status = await git(path, ['status', '--porcelain'])
   if (status.code !== 0) return notice('cleanup.slotKept', { path, branch }, { detail: status.out })
   if (status.out.trim() !== '') return notice('cleanup.slotDirty', { path, branch }, { detail: status.out })
-  const switched = await git(path, ['switch', '--detach', 'main'])
+  const switched = await git(path, ['switch', '--detach', main])
   return switched.code === 0 ? null : notice('cleanup.slotKept', { path, branch }, { detail: switched.out })
 }
 

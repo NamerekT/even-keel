@@ -4,7 +4,7 @@ import { isLanguage, LANGUAGES, type Language } from './language.js'
 import { fail } from './notice/notice.js'
 import { isModelAlias, MODEL_ALIASES, type ModelAlias } from './tracker/model.js'
 import { placeholderIn } from './sessions/prompt.js'
-import type { CiSettings, ContextScale, ProjectSettings } from './state.js'
+import type { CiSettings, ContextScale, ProjectSettings, StatsConfig } from './state.js'
 import { CI_KINDS, type CiKind } from './ci/model.js'
 import type { CompareSettings } from './stats/rules.js'
 import { DEFAULT_HIDDEN_SKILLS } from './tools/settings.js'
@@ -12,16 +12,18 @@ import { ADAPTERS, DEFAULT_TRACKER } from './tracker/adapters.js'
 import type { TrackerAdapter } from './tracker/source.js'
 
 export interface EvenKeelConfig {
-  host: string
-  port: number
-  /** Names besides loopback and `host` the page may be reached by — a proxy's name, say. */
+  /** Names besides loopback and `EVEN_KEEL_HOST` the page may be reached by — a proxy's name, say. */
   allowedHosts: string[]
   projects: Record<string, string>
+  /** The shared rules, defaults filled in; a project's own keys go over them into `rules`. */
+  chain: ChainRules
   rules: Record<string, ChainRules>
   slots: Record<string, number>
   tracker: string
   trackers: Record<string, string>
   trackerProjects: Record<string, string>
+  /** The shared `brief`; `briefs` — what each project ends up with. */
+  brief: boolean
   briefs: Record<string, boolean>
   settings: Record<string, ProjectSettings>
   context: ContextScale
@@ -36,24 +38,21 @@ export interface EvenKeelConfig {
   parallel: number
 }
 
-export interface StatsConfig {
-  compare: CompareSettings
-  /** Old folder → new folder: sessions in the old one count where it lives now. */
-  moves: Record<string, string>
-  /** A folder group costing less than this in all goes to Other on /stats. */
-  otherBelow: number
-  /** The checkpoint hook's first threshold for every project; null leaves it to the calibration. */
-  checkpointTokens: number | null
-}
-
 const PROJECT_KEY = /^[A-Z][A-Z0-9_]{0,4}$/
-const RULE_KEYS = ['active', 'terminal', 'requiredLabels', 'excludedLabels'] as const
+export const RULE_KEYS = ['active', 'terminal', 'requiredLabels', 'excludedLabels'] as const
 const COMMAND_KEYS = ['beforeStart', 'check'] as const
-const RESTART_KEYS = ['host', 'port', 'projects', 'slots', 'tracker', 'trackers', 'trackerProjects', 'context'] as const
-const DEFAULT_LANGUAGE: Language = 'en'
-const DEFAULT_MODEL: ModelAlias = 'opus'
-const DEFAULT_CONTEXT: ContextScale = { window: 600_000, warn: 50, danger: 80 }
-const DEFAULT_COMPARE: CompareSettings = { minTasks: 5, minSessions: 10, days: 7 }
+const RESTART_KEYS = ['projects', 'slots', 'tracker', 'trackers', 'trackerProjects', 'context'] as const
+/** Keys an older config had; the address now comes from `EVEN_KEEL_HOST` and `EVEN_KEEL_PORT`. */
+const IGNORED_KEYS = ['host', 'port'] as const
+export const DEFAULT_BRANCH = 'main'
+const DEFAULT_HOST = '127.0.0.1'
+const DEFAULT_PORT = 4747
+// What `git check-ref-format --branch` refuses, short of the rarest cases.
+const BRANCH = /^(?!-)(?!.*\.\.)(?!.*@\{)(?!.*\/\/)(?!.*\/\.)(?!\.)[^\s~^:?*[\\\x00-\x1f\x7f]+(?<![/.])(?<!\.lock)$/
+export const DEFAULT_LANGUAGE: Language = 'en'
+export const DEFAULT_MODEL: ModelAlias = 'opus'
+export const DEFAULT_CONTEXT: Readonly<ContextScale> = { window: 600_000, warn: 50, danger: 80 }
+export const DEFAULT_COMPARE: Readonly<CompareSettings> = { minTasks: 5, minSessions: 10, days: 7 }
 const COMPARE_LIMITS: Record<keyof CompareSettings, number> = { minTasks: 10_000, minSessions: 10_000, days: 365 }
 /** The checkpoint hook asks the service for its threshold only from this context size on. */
 const CHECKPOINT_ASK_FROM = 100_000
@@ -61,18 +60,10 @@ const CHECKPOINT_ASK_FROM = 100_000
 type AdapterShapes = Readonly<Record<string, Pick<TrackerAdapter, 'projectKey'>>>
 
 export function parseConfig(raw: unknown, adapters: AdapterShapes = ADAPTERS): EvenKeelConfig {
-  const input = (raw ?? {}) as Partial<Record<keyof EvenKeelConfig | 'chain' | 'tracker' | 'brief', unknown>>
-
-  const host = input.host ?? '127.0.0.1'
-  if (typeof host !== 'string' || host === '') throw fail('config.host', {})
-
-  const port = input.port ?? 4747
-  if (typeof port !== 'number' || !Number.isInteger(port) || port < 1 || port > 65535) throw fail('config.port', { value: String(port) })
+  const input = (raw ?? {}) as Partial<Record<keyof EvenKeelConfig, unknown>>
 
   if (typeof input.projects !== 'object' || input.projects === null) throw fail('config.projects', {})
-  const shared = { ...DEFAULT_RULES, ...parseRules(input.chain, 'chain') }
-  const sharedTracker = parseTracker(input.tracker ?? DEFAULT_TRACKER, 'tracker', Object.keys(adapters))
-  const sharedBrief = parseBrief(input.brief ?? true, 'brief')
+  const { chain: shared, tracker: sharedTracker, brief: sharedBrief } = parseShared(input, adapters)
   const language = parseLanguage(input.language, 'language')
   const projects: Record<string, string> = {}
   const rules: Record<string, ChainRules> = {}
@@ -84,7 +75,7 @@ export function parseConfig(raw: unknown, adapters: AdapterShapes = ADAPTERS): E
   for (const [key, entry] of Object.entries(input.projects)) {
     if (!PROJECT_KEY.test(key)) throw fail('config.projectKey', { key })
     const fields: Record<string, unknown> = typeof entry === 'object' && entry !== null ? (entry as Record<string, unknown>) : { repo: entry }
-    const { repo, chain, slot, tracker, brief, prompt, commands, ci, fillMilestone } = fields
+    const { repo, branch, chain, slot, tracker, brief, prompt, commands, ci, fillMilestone } = fields
     if (typeof repo !== 'string' || repo === '') throw fail('config.repoEmpty', { key })
     if (slot !== undefined && typeof slot !== 'boolean' && !(Number.isInteger(slot) && (slot as number) > 0)) throw fail('config.slot', { key })
     projects[key] = repo
@@ -95,6 +86,7 @@ export function parseConfig(raw: unknown, adapters: AdapterShapes = ADAPTERS): E
     if (projectKey !== undefined && !(projectKey.optional && fields[projectKey.key] === undefined)) trackerProjects[key] =parseTrackerProject(fields[projectKey.key], `${key}.${projectKey.key}`, projectKey)
     briefs[key] = brief === undefined ? sharedBrief : parseBrief(brief, `${key}.brief`)
     settings[key] = {
+      branch: parseBranch(branch, `${key}.branch`),
       prompt: parseProjectPrompt(prompt, `${key}.prompt`),
       ...parseCommands(commands, `${key}.commands`),
       ci: parseCi(ci, `${key}.ci`),
@@ -103,15 +95,15 @@ export function parseConfig(raw: unknown, adapters: AdapterShapes = ADAPTERS): E
   }
 
   return {
-    host,
-    port,
     allowedHosts: parseAllowedHosts(input.allowedHosts),
     projects,
+    chain: shared,
     rules,
     slots,
     tracker: sharedTracker,
     trackers,
     trackerProjects,
+    brief: sharedBrief,
     briefs,
     settings,
     context: parseContext(input.context),
@@ -125,6 +117,16 @@ export function parseConfig(raw: unknown, adapters: AdapterShapes = ADAPTERS): E
   }
 }
 
+/** The shared keys a project inherits unless it sets its own. */
+export function parseShared(raw: unknown, adapters: AdapterShapes = ADAPTERS): Pick<EvenKeelConfig, 'chain' | 'tracker' | 'brief'> {
+  const input = (isPlainObject(raw) ? raw : {}) as Partial<Record<keyof EvenKeelConfig, unknown>>
+  return {
+    chain: { ...DEFAULT_RULES, ...parseRules(input.chain, 'chain') },
+    tracker: parseTracker(input.tracker ?? DEFAULT_TRACKER, 'tracker', Object.keys(adapters)),
+    brief: parseBrief(input.brief ?? true, 'brief'),
+  }
+}
+
 function parseParallel(raw: unknown): number {
   if (raw === undefined) return 1
   if (!Number.isInteger(raw) || (raw as number) < 1) throw fail('config.parallel', { value: String(JSON.stringify(raw)) })
@@ -134,11 +136,13 @@ function parseParallel(raw: unknown): number {
 export function liveConfig(current: EvenKeelConfig, next: EvenKeelConfig): EvenKeelConfig {
   const keep = <T>(field: Record<string, T>, fallback: Record<string, T>) =>
     Object.fromEntries(Object.keys(current.projects).map((key) => [key, field[key] ?? fallback[key]!]))
-  const { allowedHosts, model, modelPrompts, stats, language, promptLanguage, hiddenSkills, parallel } = next
+  const { allowedHosts, chain, brief, model, modelPrompts, stats, language, promptLanguage, hiddenSkills, parallel } = next
   return {
     ...current,
     allowedHosts,
     parallel,
+    chain,
+    brief,
     rules: keep(next.rules, current.rules),
     briefs: keep(next.briefs, current.briefs),
     settings: keep(next.settings, current.settings),
@@ -149,6 +153,27 @@ export function liveConfig(current: EvenKeelConfig, next: EvenKeelConfig): EvenK
     promptLanguage,
     hiddenSkills,
   }
+}
+
+/** Where the service listens: `EVEN_KEEL_HOST` and `EVEN_KEEL_PORT`, loopback and 4747 without them. */
+export function listenOf(env: NodeJS.ProcessEnv): { host: string; port: number } {
+  const host = env.EVEN_KEEL_HOST?.trim() || DEFAULT_HOST
+  const text = env.EVEN_KEEL_PORT?.trim() || String(DEFAULT_PORT)
+  const port = /^\d+$/.test(text) ? Number(text) : NaN
+  if (!Number.isInteger(port) || port < 1 || port > 65535) throw fail('config.port', { value: text })
+  return { host, port }
+}
+
+/** The keys of the raw config that are no longer read. */
+export function ignoredKeys(raw: unknown): string[] {
+  return isPlainObject(raw) ? IGNORED_KEYS.filter((key) => Object.hasOwn(raw, key)) : []
+}
+
+function parseBranch(raw: unknown, where: string): string {
+  if (raw === undefined) return DEFAULT_BRANCH
+  const name = typeof raw === 'string' ? raw.trim() : ''
+  if (!BRANCH.test(name)) throw fail('config.branch', { where, value: String(JSON.stringify(raw)) })
+  return name
 }
 
 function parseAllowedHosts(raw: unknown): string[] {
@@ -241,6 +266,11 @@ function parseRules(raw: unknown, where: string): Partial<ChainRules> {
   const rules: Partial<ChainRules> = {}
   for (const [key, value] of Object.entries(raw)) {
     if (!(RULE_KEYS as readonly string[]).includes(key)) throw fail('config.ruleKey', { where, key })
+    // A project goes back to the categories of its statuses over a shared list.
+    if (value === null && (key === 'active' || key === 'terminal')) {
+      rules[key] = null
+      continue
+    }
     if (!Array.isArray(value) || value.some((name) => typeof name !== 'string' || name.trim() === '')) throw fail('config.ruleList', { where, key })
     rules[key as (typeof RULE_KEYS)[number]] = value.map((name: string) => name.trim())
   }
@@ -329,9 +359,12 @@ export function readRawConfig(file: string): unknown {
   }
 }
 
-/** The project's entry in the config file with `prompt`, `commands`, `ci` and `fillMilestone` set, or removed when empty or default; its other keys stay. */
-export function withProjectSettings(entry: unknown, { prompt, beforeStart, check, ci, fillMilestone }: ProjectSettings): Record<string, unknown> {
+/** The project's entry in the config file with `branch`, `prompt`, `commands`, `ci` and `fillMilestone` set, or removed when empty or default; its other keys stay. */
+export function withProjectSettings(entry: unknown, { branch, prompt, beforeStart, check, ci, fillMilestone }: ProjectSettings): Record<string, unknown> {
   const fields: Record<string, unknown> = isPlainObject(entry) ? { ...entry } : { repo: entry }
+  const name = branch.trim()
+  if (name === DEFAULT_BRANCH) delete fields.branch
+  else fields.branch = name
   const text = prompt?.trim() ?? ''
   if (text === '') delete fields.prompt
   else fields.prompt = text
@@ -357,6 +390,6 @@ export function withProjectSettings(entry: unknown, { prompt, beforeStart, check
   return fields
 }
 
-function isPlainObject(value: unknown): value is Record<string, unknown> {
+export function isPlainObject(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
 }

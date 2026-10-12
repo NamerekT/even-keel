@@ -13,6 +13,7 @@ import { useLive } from './live/context.js'
 import { Home } from './pages/Home.js'
 import { NotFound } from './pages/NotFound.js'
 import { Project } from './pages/Project.js'
+import { SharedSettings } from './pages/SharedSettings.js'
 import { StatsPage } from './stats/StatsPage.js'
 import { ToolsPage } from './tools/ToolsPage.js'
 
@@ -41,6 +42,7 @@ export function App() {
               <Route path="/p/:key" element={<Project state={state} />} />
               <Route path="/stats" element={<StatsPage state={state} />} />
               <Route path="/tools" element={<ToolsPage state={state} />} />
+              <Route path="/settings" element={<SharedSettings state={state} />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
           </BasementSlot.Provider>

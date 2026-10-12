@@ -70,7 +70,7 @@ describe('Even Keel HTTP server', () => {
           calls.push(['answer', { ...request, files: request.files.map((file) => ({ name: file.name, text: Buffer.from(file.data).toString('utf8') })) }])
         },
       },
-      settings: { save: record('settings') },
+      settings: { save: record('settings'), saveShared: record('shared') },
       launches: () => [{ task: 'ABC-1' }],
       sessionRecord: async (id) => {
         if (id === 'bad') throw new Error('sessions: bad is not a session id')
@@ -82,7 +82,7 @@ describe('Even Keel HTTP server', () => {
       },
       checkpoint: async (id) =>
         id === '0a1b2c3d' ? { project: 'ABC', task: 'ABC-1', handoffs: 2, first: 193_000, source: 'calibrated' } : undefined,
-      mergeCheck: (id) => (id === 'chain-session' ? ['npm test'] : undefined),
+      mergeCheck: (id) => (id === 'chain-session' ? { commands: ['npm test'], branch: 'master' } : undefined),
       tools: async (project) => (project === 'ABC' ? { project } : undefined),
       tasks: {
         card: async (task) => {
@@ -172,12 +172,59 @@ describe('Even Keel HTTP server', () => {
     expect((await response.json()).notice).toMatchObject({ code: 'request.required', params: { field: 'sessionId' } })
   })
 
+  const chain = { active: null, terminal: ['Done'], requiredLabels: [], excludedLabels: ['Manual'] }
+  const form = { branch: 'master', repo: 'C:\\abc', tracker: 'github', trackerProject: 'octo-org/abc', slot: 2, brief: false, chain }
+
   it('passes the settings of a project on', async () => {
     const ci = { kinds: ['github'], waitMinutes: 15, recheckMain: false, fixTask: true }
-    const body = { project: 'ABC', prompt: 'Run npm test.', beforeStart: ['npm ci'], check: ['npm test'], ci, fillMilestone: true }
+    const body = { project: 'ABC', prompt: 'Run npm test.', beforeStart: ['npm ci'], check: ['npm test'], ci, fillMilestone: true, ...form }
     const response = await fetch(base + '/api/project/settings', { method: 'POST', body: JSON.stringify(body) })
     expect(response.status).toBe(200)
-    expect(calls).toContainEqual(['settings', 'ABC', { prompt: 'Run npm test.', beforeStart: ['npm ci'], check: ['npm test'], ci, fillMilestone: true }])
+    expect(calls).toContainEqual(['settings', 'ABC', { prompt: 'Run npm test.', beforeStart: ['npm ci'], check: ['npm test'], ci, fillMilestone: true, ...form }])
+  })
+
+  it('refuses project settings of a wrong shape', async () => {
+    const ci = { kinds: [], waitMinutes: null, recheckMain: true, fixTask: false }
+    const bad = [
+      ['branch', { branch: 1 }],
+      ['slot', { slot: -1 }],
+      ['slot', { slot: true }],
+      ['trackerProject', { trackerProject: 5 }],
+      ['brief', { brief: 'no' }],
+      ['chain', { chain: { ...chain, active: 'Todo' } }],
+    ] as const
+    for (const [field, change] of bad) {
+      const body = { project: 'ABC', prompt: '', beforeStart: [], check: [], ci, fillMilestone: false, ...form, ...change }
+      const response = await fetch(base + '/api/project/settings', { method: 'POST', body: JSON.stringify(body) })
+      expect(response.status).toBe(400)
+      expect((await response.json()).notice).toMatchObject({ code: 'request.required', params: { field } })
+    }
+  })
+
+  it('passes the shared settings on and refuses a wrong shape', async () => {
+    const shared = {
+      parallel: 2,
+      tracker: 'huly',
+      brief: true,
+      chain,
+      model: 'opus',
+      modelPrompts: { haiku: 'Be brief.' },
+      language: null,
+      promptLanguage: 'en',
+      hiddenSkills: ['dataviz'],
+      allowedHosts: [],
+      context: { window: 600_000, warn: 50, danger: 80 },
+      stats: { compare: { minTasks: 5, minSessions: 10, days: 7 }, moves: {}, otherBelow: 0, checkpointTokens: null },
+    }
+    const response = await fetch(base + '/api/settings', { method: 'POST', body: JSON.stringify(shared) })
+    expect(response.status).toBe(200)
+    expect(calls).toContainEqual(['shared', shared])
+
+    for (const [field, change] of [['parallel', { parallel: '2' }], ['modelPrompts', { modelPrompts: { haiku: 1 } }], ['stats', { stats: { ...shared.stats, moves: [] } }]] as const) {
+      const refused = await fetch(base + '/api/settings', { method: 'POST', body: JSON.stringify({ ...shared, ...change }) })
+      expect(refused.status).toBe(400)
+      expect((await refused.json()).notice).toMatchObject({ code: 'request.required', params: { field } })
+    }
   })
 
   it('refuses settings without the milestone switch', async () => {
@@ -213,10 +260,10 @@ describe('Even Keel HTTP server', () => {
     }
   })
 
-  it('gives the merge hook the check commands of a chain session and 404 for any other', async () => {
+  it('gives the merge hook the check commands and the main branch of a chain session and 404 for any other', async () => {
     const found = await fetch(base + '/api/sessions/chain-session/check')
     expect(found.status).toBe(200)
-    expect(await found.json()).toEqual({ commands: ['npm test'] })
+    expect(await found.json()).toEqual({ commands: ['npm test'], branch: 'master' })
     expect((await fetch(base + '/api/sessions/other/check')).status).toBe(404)
   })
 

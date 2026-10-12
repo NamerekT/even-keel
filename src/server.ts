@@ -27,7 +27,11 @@ import {
   type StatsCompare,
   type StatsRules,
 } from './stats/rules.js'
-import type { CiSettings, ProjectSettings } from './state.js'
+import type { ChainRules } from './chain/rules.js'
+import type { Language } from './language.js'
+import type { CiSettings, ContextScale, ProjectForm, SharedForm, StatsConfig } from './state.js'
+import type { CompareSettings } from './stats/rules.js'
+import type { ModelAlias } from './tracker/model.js'
 import { CI_KINDS, type CiKind } from './ci/model.js'
 import type { Calibration } from './stats/calibration.js'
 import type { CheckpointThreshold, SessionCheckpoint } from './stats/checkpoint.js'
@@ -101,7 +105,9 @@ export interface SessionControl {
 
 export interface SettingsControl {
   /** Writes the project's settings into the config file. */
-  save(project: string, settings: ProjectSettings): void
+  save(project: string, form: ProjectForm): void
+  /** Writes the shared settings into the config file. */
+  saveShared(form: SharedForm): void
 }
 
 export interface ServerDeps {
@@ -118,8 +124,11 @@ export interface ServerDeps {
   transcript: (sessionId: string, after: number) => Promise<unknown>
   /** For the checkpoint hook; `undefined` for a session the chain did not start. */
   checkpoint: (sessionId: string) => Promise<SessionCheckpoint | undefined>
-  /** For the merge hook: the project's check commands to run before the merge, empty — none; `undefined` for a session the chain did not start. */
-  mergeCheck: (sessionId: string) => string[] | undefined
+  /**
+   * For the merge hook: the project's check commands to run before the merge, empty — none, and its main branch;
+   * `undefined` for a session the chain did not start.
+   */
+  mergeCheck: (sessionId: string) => { commands: string[]; branch: string } | undefined
   /** `undefined` for a project the config does not know. */
   tools: (project: string) => Promise<unknown>
   tasks: TaskControl
@@ -145,7 +154,8 @@ const COMMANDS: Record<string, Command> = {
   'chain/trim': ({ control }, body) => control.setTrimTools(flagOf(body)),
   'task/ready': ({ tasks }, body) => tasks.ready(taskOf(body)),
   'session/answer': ({ sessions }, body) => sessions.answer(answerOf(body)),
-  'project/settings': ({ settings }, body) => settings.save(projectOf(body), settingsOf(body)),
+  'project/settings': ({ settings }, body) => settings.save(projectOf(body), projectFormOf(body)),
+  settings: ({ settings }, body) => settings.saveShared(sharedFormOf(body)),
   'account/add': ({ account }) => account.add(),
   'account/renew': ({ account }, body) => account.renew(accountOf(body)),
   'account/switch': ({ account }, body) => account.switchTo(accountOf(body)),
@@ -229,9 +239,9 @@ async function route(deps: ServerDeps, request: IncomingMessage, response: Serve
 
   const mergeCheck = /^\/api\/sessions\/([^/]+)\/check$/.exec(path)
   if (request.method === 'GET' && mergeCheck !== null) {
-    const commands = deps.mergeCheck(decodeURIComponent(mergeCheck[1]!))
-    if (commands === undefined) response.writeHead(404).end()
-    else sendJson(response, 200, { commands })
+    const check = deps.mergeCheck(decodeURIComponent(mergeCheck[1]!))
+    if (check === undefined) response.writeHead(404).end()
+    else sendJson(response, 200, check)
     return
   }
 
@@ -468,17 +478,86 @@ export function answerOf(body: Record<string, unknown>): AnswerRequest {
   }
 }
 
-function settingsOf(body: Record<string, unknown>): ProjectSettings {
-  const { prompt, beforeStart, check, ci, fillMilestone } = body
+// The shape only: the values are judged by `parseConfig` when the form is written into the config.
+function projectFormOf(body: Record<string, unknown>): ProjectForm {
+  const { prompt, beforeStart, check, ci, fillMilestone, branch, repo, tracker, trackerProject, slot, brief, chain } = body
   if (prompt !== null && typeof prompt !== 'string') throw fail('request.required', { field: 'prompt' })
   const settings = { prompt, beforeStart: linesOf(beforeStart, 'beforeStart'), check: linesOf(check, 'check'), ci: ciOf(ci) }
   if (typeof fillMilestone !== 'boolean') throw fail('request.required', { field: 'fillMilestone' })
-  return { ...settings, fillMilestone }
+  if (trackerProject !== null && typeof trackerProject !== 'string') throw fail('request.required', { field: 'trackerProject' })
+  if (!Number.isInteger(slot) || (slot as number) < 0) throw fail('request.required', { field: 'slot' })
+  return {
+    ...settings,
+    fillMilestone,
+    branch: textOf(branch, 'branch'),
+    repo: textOf(repo, 'repo'),
+    tracker: textOf(tracker, 'tracker'),
+    trackerProject,
+    slot: slot as number,
+    brief: switchOf(brief, 'brief'),
+    chain: rulesOf(chain),
+  }
+}
+
+function sharedFormOf(body: Record<string, unknown>): SharedForm {
+  const { parallel, tracker, brief, chain, model, modelPrompts, language, promptLanguage, hiddenSkills, allowedHosts, context, stats } = body
+  if (language !== null && typeof language !== 'string') throw fail('request.required', { field: 'language' })
+  return {
+    parallel: numberOf(parallel, 'parallel'),
+    tracker: textOf(tracker, 'tracker'),
+    brief: switchOf(brief, 'brief'),
+    chain: rulesOf(chain),
+    model: textOf(model, 'model') as ModelAlias,
+    modelPrompts: mapOf(modelPrompts, 'modelPrompts', (value) => typeof value === 'string'),
+    language: language as Language | null,
+    promptLanguage: textOf(promptLanguage, 'promptLanguage') as Language,
+    hiddenSkills: linesOf(hiddenSkills, 'hiddenSkills'),
+    allowedHosts: linesOf(allowedHosts, 'allowedHosts'),
+    context: mapOf(context, 'context', (value) => typeof value === 'number') as unknown as ContextScale,
+    stats: statsOf(stats),
+  }
+}
+
+function statsOf(raw: unknown): StatsConfig {
+  const { compare, moves, otherBelow, checkpointTokens } = mapOf(raw, 'stats', () => true)
+  if (checkpointTokens !== null && typeof checkpointTokens !== 'number') throw fail('request.required', { field: 'stats' })
+  return {
+    compare: mapOf(compare, 'stats', (value) => typeof value === 'number') as unknown as CompareSettings,
+    moves: mapOf(moves, 'stats', (value) => typeof value === 'string'),
+    otherBelow: numberOf(otherBelow, 'stats'),
+    checkpointTokens,
+  }
+}
+
+function rulesOf(raw: unknown): ChainRules {
+  const { active, terminal, requiredLabels, excludedLabels } = mapOf(raw, 'chain', () => true)
+  const statuses = (list: unknown) => (list === null ? null : linesOf(list, 'chain'))
+  return { active: statuses(active), terminal: statuses(terminal), requiredLabels: linesOf(requiredLabels, 'chain'), excludedLabels: linesOf(excludedLabels, 'chain') }
 }
 
 function linesOf(raw: unknown, field: string): string[] {
   if (!Array.isArray(raw) || !raw.every((line) => typeof line === 'string')) throw fail('request.required', { field })
   return raw
+}
+
+function textOf(raw: unknown, field: string): string {
+  if (typeof raw !== 'string') throw fail('request.required', { field })
+  return raw
+}
+
+function numberOf(raw: unknown, field: string): number {
+  if (typeof raw !== 'number' || !Number.isFinite(raw)) throw fail('request.required', { field })
+  return raw
+}
+
+function switchOf(raw: unknown, field: string): boolean {
+  if (typeof raw !== 'boolean') throw fail('request.required', { field })
+  return raw
+}
+
+function mapOf<T>(raw: unknown, field: string, fits: (value: unknown) => boolean): Record<string, T> {
+  if (typeof raw !== 'object' || raw === null || Array.isArray(raw) || !Object.values(raw).every(fits)) throw fail('request.required', { field })
+  return raw as Record<string, T>
 }
 
 function ciOf(raw: unknown): CiSettings {

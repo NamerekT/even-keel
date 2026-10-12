@@ -47,33 +47,38 @@ export async function ensureIgnored(git: Git, repo: string): Promise<void> {
   appendFileSync(file, `${text === '' || text.endsWith('\n') ? '' : '\n'}${WORKTREES}\n`)
 }
 
-export async function prepareWorktree(git: Git, repo: string, task: string): Promise<TaskPlace> {
+/** The project's main branch must be there before any task branches off it. */
+export async function requireBranch(git: Git, repo: string, project: string, branch: string): Promise<void> {
+  if (!(await hasBranch(git, repo, branch))) throw fail('git.noBranch', { project, branch, repo })
+}
+
+export async function prepareWorktree(git: Git, repo: string, task: string, main = 'main'): Promise<TaskPlace> {
   const place = taskPlace(repo, task)
   const found = await worktreeAt(git, repo, place.path)
   if (found !== undefined) return { path: place.path, branch: found.branch }
   const args = (await hasBranch(git, repo, place.branch))
     ? ['worktree', 'add', place.path, place.branch]
-    : ['worktree', 'add', '-b', place.branch, place.path, 'main']
+    : ['worktree', 'add', '-b', place.branch, place.path, main]
   await must(git, repo, args, 'addWorktree', task)
   return place
 }
 
 /**
- * Brings a prepared place up to `main` while nothing of the task is in it yet: no commits of its own, no changes.
+ * Brings a prepared place up to the main branch while nothing of the task is in it yet: no commits of its own, no changes.
  * A task prepared while the chain waited for the CI then starts from the fix that came meanwhile. `true` — it moved.
  */
-export async function catchUp(git: Git, path: string): Promise<boolean> {
+export async function catchUp(git: Git, path: string, main = 'main'): Promise<boolean> {
   const [own, behind, status] = await Promise.all([
-    git(path, ['rev-list', '--count', 'main..HEAD']),
-    git(path, ['rev-list', '--count', 'HEAD..main']),
+    git(path, ['rev-list', '--count', `${main}..HEAD`]),
+    git(path, ['rev-list', '--count', `HEAD..${main}`]),
     git(path, ['status', '--porcelain']),
   ])
   if (own.code !== 0 || behind.code !== 0 || status.code !== 0) return false
   if (own.out.trim() !== '0' || behind.out.trim() === '0' || status.out.trim() !== '') return false
-  return (await git(path, ['merge', '--ff-only', 'main'])).code === 0
+  return (await git(path, ['merge', '--ff-only', main])).code === 0
 }
 
-export async function finishWorktree(git: Git, repo: string, task: string): Promise<FinishOutcome> {
+export async function finishWorktree(git: Git, repo: string, task: string, main = 'main'): Promise<FinishOutcome> {
   const place = taskPlace(repo, task)
   const warnings: Notice[] = []
   const found = await worktreeAt(git, repo, place.path)
@@ -93,7 +98,7 @@ export async function finishWorktree(git: Git, repo: string, task: string): Prom
     }
   }
 
-  return dropBranch(git, repo, branch, warnings)
+  return dropBranch(git, repo, branch, warnings, main)
 }
 
 /**
@@ -121,7 +126,7 @@ async function unlinkLinks(path: string): Promise<void> {
   }
 }
 
-export async function dropBranch(git: Git, repo: string, branch: string | null, warnings: Notice[]): Promise<FinishOutcome> {
+export async function dropBranch(git: Git, repo: string, branch: string | null, warnings: Notice[], main = 'main'): Promise<FinishOutcome> {
   let gone: string | null = null
   if (branch !== null) {
     const deleted = await git(repo, ['branch', '-d', branch])
@@ -136,7 +141,7 @@ export async function dropBranch(git: Git, repo: string, branch: string | null, 
   }
 
   if (remotes.length === 0) return { warnings, syncError: null }
-  return { warnings, syncError: await syncMain(git, repo, remotes) }
+  return { warnings, syncError: await syncMain(git, repo, remotes, main) }
 }
 
 async function deleteOnOrigin(git: Git, repo: string, branch: string): Promise<Notice | null> {

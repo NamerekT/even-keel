@@ -20,12 +20,14 @@ export interface CiWatchDeps {
   variable: string
   git: Git
   repo: string
+  /** The project's main branch, read at each look; `main` without it. */
+  main?: () => string
   now?: () => Date
   log: (message: string) => void
   onChange: () => void
 }
 
-// One CI of one repository. A push is seen locally: `git push` and `git fetch` move `refs/remotes/<remote>/main`,
+// One CI of one repository. A push is seen locally: `git push` and `git fetch` move `refs/remotes/<remote>/<main branch>`,
 // so the API is asked only at the start, while a run is unfinished and for a while after a push.
 export class CiWatch {
   view: CiView
@@ -90,7 +92,8 @@ export class CiWatch {
 
   /** Whether the remote's main moved since the last look; the first look is not a push. */
   private async readHead(now: Date): Promise<boolean> {
-    const read = await this.deps.git(this.deps.repo, ['rev-parse', '--verify', '--quiet', `refs/remotes/${this.deps.target.remote}/main`])
+    const main = this.deps.main?.() ?? 'main'
+    const read = await this.deps.git(this.deps.repo, ['rev-parse', '--verify', '--quiet', `refs/remotes/${this.deps.target.remote}/${main}`])
     const head = read.code === 0 ? read.out.trim() : null
     const first = this.head === undefined
     const moved = !first && head !== null && head !== this.head

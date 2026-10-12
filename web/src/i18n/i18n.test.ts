@@ -49,13 +49,13 @@ describe('setLanguage', () => {
 })
 
 describe('say', () => {
-  const failed = notice('cleanup.syncFailed', {}, { cause: notice('sync.push', { remote: 'origin' }, { detail: 'rejected' }) })
+  const failed = notice('cleanup.syncFailed', {}, { cause: notice('sync.push', { remote: 'origin', main: 'master' }, { detail: 'rejected' }) })
 
   it('puts a server message into the page language, keeping the output of git as it is', () => {
     setLanguage('ru')
-    expect(say(failed)).toBe('синхронизация main не удалась: не удалось отправить main в origin: rejected')
+    expect(say(failed)).toBe('синхронизация главной ветки не удалась: не удалось отправить master в origin: rejected')
     setLanguage('en')
-    expect(say(failed)).toBe('sync of main failed: sync: could not push main to origin: rejected')
+    expect(say(failed)).toBe('sync of the main branch failed: sync: could not push master to origin: rejected')
   })
 
   it('shows a message saved as plain text before codes as it is', () => {

@@ -1,6 +1,7 @@
 import type { AccountView } from './account/model.js'
 import type { ActiveChain, Leftover, ProjectOrder } from './chain/dispatcher.js'
 import type { LaunchDay, TaskSession } from './chain/launches.js'
+import type { ChainRules } from './chain/rules.js'
 import type { CiKind, CiView } from './ci/model.js'
 import type { Language } from './language.js'
 import type { RateLimits } from './limits/model.js'
@@ -8,10 +9,11 @@ import type { UsageHealth } from './limits/usage.js'
 import type { Notice } from './notice/notice.js'
 import type { Lamp } from './sessions/agents.js'
 import type { Ask } from './sessions/ask.js'
+import type { CompareSettings } from './stats/rules.js'
 import type { RemoteOff } from './sessions/remote.js'
 import type { CacheWindow, FeedLine, Stage, TokenTotals } from './sessions/transcript.js'
 import type { TrackerView } from './tracker/health.js'
-import type { Task } from './tracker/model.js'
+import type { ModelAlias, Task } from './tracker/model.js'
 
 export interface SessionView {
   task: string
@@ -60,8 +62,10 @@ export interface TrackerUrls {
   projects: Record<string, string | null>
 }
 
-/** What the user sets per project: `prompt`, `commands.beforeStart`, `commands.check` and `ci` in the config. */
+/** What the user sets per project and the chain reads live: `branch`, `prompt`, `commands.beforeStart`, `commands.check`, `ci` and `fillMilestone` in the config. */
 export interface ProjectSettings {
+  /** The project's main branch: tasks branch off it and merge into it, the CI watches it. */
+  branch: string
   /** Added to the prompt of every new session of the project; `null` — none. */
   prompt: string | null
   /** Run in order in the task's folder before a new session starts. */
@@ -90,10 +94,63 @@ export interface ContextScale {
   danger: number
 }
 
+export interface StatsConfig {
+  compare: CompareSettings
+  /** Old folder → new folder: sessions in the old one count where it lives now. */
+  moves: Record<string, string>
+  /** A folder group costing less than this in all goes to Other on /stats. */
+  otherBelow: number
+  /** The checkpoint hook's first threshold for every project; null leaves it to the calibration. */
+  checkpointTokens: number | null
+}
+
+/** A project's entry of the config as the settings panel edits it: the values it ends up with, the shared ones filled in. */
+export interface ProjectForm extends ProjectSettings {
+  repo: string
+  tracker: string
+  /** The project's key in its tracker (`github`: `owner/name`, `linear`: a project of the team); `null` — the tracker has none, or it is optional and not set. */
+  trackerProject: string | null
+  /** Slots of the pool; `0` — a worktree per task. */
+  slot: number
+  brief: boolean
+  chain: ChainRules
+}
+
+/** The shared keys of the config as the settings page edits them, defaults filled in. */
+export interface SharedForm {
+  parallel: number
+  tracker: string
+  brief: boolean
+  chain: ChainRules
+  model: ModelAlias
+  modelPrompts: Partial<Record<ModelAlias, string>>
+  language: Language | null
+  promptLanguage: Language
+  hiddenSkills: string[]
+  allowedHosts: string[]
+  context: ContextScale
+  stats: StatsConfig
+}
+
+/** A tracker the settings can pick, and the key a project on it names its tracker project with. */
+export interface TrackerChoice {
+  name: string
+  projectKey: { key: string; example: string; optional: boolean } | null
+}
+
+/** The config file as the settings show it: saved values, which may wait for a restart. */
+export interface ConfigView {
+  shared: SharedForm
+  projects: Record<string, ProjectForm>
+  /** What is saved but waits for a restart of the service: `tracker`, `context`, `ABC.repo`, `ABC.slot`, `ABC.tracker`, `ABC.trackerProject`, or `ABC` for a new project. */
+  restart: string[]
+  trackers: TrackerChoice[]
+}
+
 export interface EvenKeelState {
   startedAt: string
   projects: string[]
-  settings: Record<string, ProjectSettings>
+  config: ConfigView
   chain: {
     active: ActiveChain[]
     /** How many chains run at once (`parallel` in the config). */

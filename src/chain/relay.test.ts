@@ -4,8 +4,10 @@ import type { FeedLine } from '../sessions/transcript.js'
 import type { TaskBrief } from '../tracker/source.js'
 import { PROMPTS } from './prompts.js'
 import {
+  fixPrompt,
   handoffPrompt,
   holdOf,
+  mainFixedPrompt,
   relayStep,
   resumePrompt,
   startPrompt,
@@ -18,7 +20,7 @@ import {
   type LimitedSession,
 } from './relay.js'
 
-const CLEANUP_NOTE = PROMPTS.ru.cleanup
+const CLEANUP_NOTE = PROMPTS.ru.cleanup('main')
 const handoff = (task: string, from: HandoffSession, reason: HandoffReason = 'limit') => handoffPrompt(task, from, reason, 'ru')
 const start = (task: string, place: TaskPlace) => startPrompt(task, place, 'ru')
 const brief = (prompt: string, task: TaskBrief | undefined) => withBrief(prompt, task, 'ru')
@@ -282,10 +284,19 @@ describe('prompts in English', () => {
         '',
         '- Worktree is ready: D:/work/repo/.claude/worktrees/abc-1 — work in it, do not create a new worktree.',
         '- Branch: abc-1/task — do not change it.',
-        PROMPTS.en.cleanup,
+        PROMPTS.en.cleanup('main'),
         '',
       ].join('\n'),
     )
+  })
+
+  it('names the project’s main branch when it is not main', () => {
+    expect(startPrompt('ABC-1', place, 'en', 'master')).toContain('Merging the branch into master of the main checkout closes the task.')
+    const prompt = handoffPrompt('ABC-1', session(), 'limit', 'ru', 'master')
+    expect(prompt).toContain('git log master..HEAD')
+    expect(prompt).not.toMatch(/\bmain\.\.HEAD|в main\b/)
+    expect(fixPrompt('Broken.', place, 'en', 'trunk')).toContain('Merge the fix into trunk of the main checkout')
+    expect(mainFixedPrompt('c1c1c1c1c1', 'c2c2c2c2c2', 'en', 'trunk')).toContain('Merge trunk into your branch')
   })
 
   it('builds the handoff prompt for each reason without a Russian word', () => {
