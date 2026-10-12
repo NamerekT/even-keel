@@ -22,6 +22,7 @@ import { StartPill } from '../ui/SessionStart.js'
 import { ActionScreen } from './ActionScreen.js'
 import './chain.css'
 import { ChainLegend } from './ChainLegend.js'
+import { Forge } from './Forge.js'
 import type { Arrival } from './useArrival.js'
 import { inOrder, reorderable, useChainDrag, type ChainDrag, type Landing } from './useChainDrag.js'
 import { useChainMotion } from './useChainMotion.js'
@@ -421,6 +422,7 @@ function Block(props: BlockProps) {
   if (action !== null) classes.push('block--acting')
   const share = tier === 'past' ? null : estimateShare(block.estimate)
   const status = shownStatus(block)
+  const fix = isFixName(block.id)
   const handoffs = checkpointHandoffs(block.sessions)
   const style = {
     ...Object.fromEntries([...marks].map(([mark, beat]) => [`--beat-${mark}`, `${beat}ms`])),
@@ -452,11 +454,11 @@ function Block(props: BlockProps) {
       {share !== null && <span className="block__estimate" aria-hidden="true" />}
       {marks.has('take') && <span className="block__frame" aria-hidden="true" />}
       <span className={`block__number block__number--${block.priority}`} title={priorityTitle(block)}>
-        {block.current ? <PlayIcon /> : number}
+        {fix ? null : block.current ? <PlayIcon /> : number}
       </span>
       <div className="block__head">
         {marks.has('finish') && <CheckIcon />}
-        {block.locked ? <LockIcon /> : <Lamp lamp={block.lamp} />}
+        {fix ? <Forge lamp={block.lamp} /> : block.locked ? <LockIcon /> : <Lamp lamp={block.lamp} />}
         {block.locked ? (
           link === null ? (
             <span className="block__key">{block.id}</span>
@@ -479,7 +481,7 @@ function Block(props: BlockProps) {
       <span className="block__divider" aria-hidden="true" />
       <p className="block__title">
         {block.title !== null &&
-          (isFixName(block.id) ? (
+          (fix ? (
             block.title
           ) : (
             <button type="button" className="block__card" draggable={false} title={t.chain.openCard} onClick={() => onCard(block.id)}>

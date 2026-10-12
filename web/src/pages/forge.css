@@ -1,0 +1,120 @@
+/* Spans the number column, the gap and the lamp's place, so the key stays in line with the other rows. */
+.forge {
+  flex: none;
+  width: calc(2.5ch + 22px);
+  height: 22px;
+  margin-left: calc(-2.5ch - 12px);
+  overflow: visible;
+  color: var(--lamp-idle);
+  fill: currentColor;
+}
+
+.forge--working {
+  color: var(--lamp-working);
+}
+
+.forge--waiting,
+.forge--stopped {
+  color: var(--lamp-waiting);
+}
+
+.forge--error,
+.forge--limit {
+  color: var(--lamp-error);
+}
+
+.forge--done {
+  color: var(--lamp-done);
+}
+
+.forge__line {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.forge__anvil {
+  opacity: 0.55;
+}
+
+.forge__hammer {
+  transform-box: view-box;
+  transform-origin: 0 0;
+  transform: rotate(80deg);
+}
+
+.forge__spark {
+  fill: none;
+  stroke: var(--lamp-waiting);
+  stroke-width: 1.2;
+  stroke-linecap: round;
+  opacity: 0;
+}
+
+.forge__crossed {
+  display: none;
+}
+
+.forge--working .forge__hammer {
+  animation: forge-strike var(--motion-blink) ease-in-out infinite;
+}
+
+.forge--working .forge__spark {
+  animation: forge-spark var(--motion-blink) linear infinite;
+}
+
+.forge--working .forge__smith--right * {
+  animation-delay: calc(var(--motion-blink) / -2);
+}
+
+@keyframes forge-strike {
+  0%,
+  100% {
+    transform: rotate(-60deg);
+  }
+
+  30% {
+    transform: rotate(-66deg);
+    animation-timing-function: ease-in;
+  }
+
+  42% {
+    transform: rotate(30deg);
+  }
+
+  50% {
+    transform: rotate(20deg);
+  }
+
+  56% {
+    transform: rotate(30deg);
+  }
+}
+
+@keyframes forge-spark {
+  0%,
+  41% {
+    opacity: 0;
+  }
+
+  44% {
+    opacity: 1;
+  }
+
+  58%,
+  100% {
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .forge__scene {
+    display: none;
+  }
+
+  .forge__crossed {
+    display: inline;
+  }
+}
