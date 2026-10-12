@@ -79,6 +79,22 @@ describe('replyPrompt', () => {
   it('refuses an empty reply', () => {
     expect(() => replyPrompt({ from: 'page', answers: { 'Which color?': ' ' }, text: ' ', files: [] }, ONE, 'en')).toThrow()
   })
+
+  it('repeats the questions of a call the stop lost with the message it was in', () => {
+    const lost: Ask = { ...ASK, unsaved: true }
+    const prompt = replyPrompt({ from: 'page', answers: { 'Which color?': 'Blue', 'Which sizes?': 'S, L' }, text: '', files: [] }, lost, 'en')
+
+    expect(prompt).not.toContain('call above')
+    expect(prompt).toContain('1. Which color?\n   1. Red (Recommended) — Warm\n   2. Blue\n2. Which sizes?\n   1. S\n   2. L')
+    expect(answersIn(prompt, lost)).toEqual({ 'Which color?': 'Blue', 'Which sizes?': 'S, L' })
+  })
+
+  it('repeats a lost question for a reply that answers it in its own words', () => {
+    const prompt = replyPrompt({ from: 'tracker', answers: {}, text: 'Neither, go green', files: [] }, { ...ONE, unsaved: true }, 'en')
+
+    expect(prompt).toContain('Which color?\n1. Red (Recommended) — Warm\n2. Blue')
+    expect(prompt.trim().endsWith('Neither, go green')).toBe(true)
+  })
 })
 
 describe('answersIn', () => {

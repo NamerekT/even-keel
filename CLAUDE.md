@@ -36,6 +36,7 @@ This file holds the rules and traps needed in every session. Reference on how th
 ## Traps
 
 - `claude agents --json` gives neither `pid` nor `status`, and `state` stays even for dead sessions. A live session is only a `sessions/<pid>.json` entry with a live `pid`.
+- A pending `AskUserQuestion` is not in the transcript: the CLI writes the session's last message with the call only once it is answered, and `claude stop` loses it. Until then the question is only in `jobs/<id>/state.json` (`docs/sessions.md`).
 - `claude stop`/`claude agents` from a terminal do not reach the service's daemon (Windows session 0): `stop` prints "stopped" and marks the job `stopped` while the process lives on. Stop chain sessions through Even Keel or by killing the pid.
 - The CLI creates several keys for one folder in `.claude.json` (`d:/…`, `D:/…`, `D:\…`). Compare paths only through `src/paths.ts`.
 - An account folder's temporary daemon caches the configuration: a transfer (`share.ts`) reaches only sessions after the daemon restarts.

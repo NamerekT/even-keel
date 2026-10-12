@@ -564,6 +564,7 @@ export const en: Messages = {
       other: 'Other',
       otherPlaceholder: 'Your own answer…',
       unanswered: (count: number) => `Left to answer: ${count}`,
+      unsaved: 'Claude Code saves the message with this question only once it is answered. A reply from here resumes the session without it, with the question and your answer; a reply through Remote Control keeps it.',
       sent: 'The reply is sent — the session goes on with it.',
       working: 'The session is working. You can reply once it stops.',
       finished: 'The session has finished — it cannot be replied to.',

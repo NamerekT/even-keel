@@ -19,6 +19,11 @@ export interface AskQuestion {
 export interface Ask {
   id: string
   questions: AskQuestion[]
+  /**
+   * The call is known from the session's job file only: the CLI writes the message with a pending call into the
+   * transcript once it is answered, and stopping the session before that loses the message.
+   */
+  unsaved?: true
 }
 
 /** Answers by question text: the chosen labels joined with ", ", or the user's own text. */
@@ -37,11 +42,13 @@ export interface Reply {
 
 const LABEL_SEPARATOR = ', '
 
-const TEXTS: Record<Language, { intro: Record<ReplySource, string>; asked: string; comment: string; files: string; question: (count: number) => string; how: (several: boolean) => string }> = {
+const TEXTS: Record<Language, { intro: Record<ReplySource, string>; asked: string; lost: string; comment: string; files: string; question: (count: number) => string; how: (several: boolean) => string }> = {
   ru: {
     intro: { page: 'Ответ пользователя со страницы Even Keel.', tracker: 'Ответ пользователя комментарием в трекере.' },
     asked:
       'Твой вызов AskUserQuestion выше остался без ответа в самом инструменте: сессию остановили и продолжили, чтобы передать ответ. Если вызов завершился ошибкой или прерыванием — это из-за остановки, ответ ниже.',
+    lost:
+      'Ты задал пользователю вопрос через AskUserQuestion. Чтобы передать ответ, сессию остановили и продолжили, а сообщение с вызовом CLI записать не успел: выше нет ни вызова, ни текста, который ты написал перед ним. Вот что ты спросил, ответ ниже.',
     comment: 'Комментарий пользователя:',
     files: 'Файлы от пользователя:',
     question: (count) => (count > 1 ? '**Сессия ждёт ответа на вопросы**' : '**Сессия ждёт ответа**'),
@@ -54,6 +61,8 @@ const TEXTS: Record<Language, { intro: Record<ReplySource, string>; asked: strin
     intro: { page: "The user's reply from the Even Keel page.", tracker: "The user's reply as a comment in the tracker." },
     asked:
       'Your AskUserQuestion call above got no answer in the tool itself: the session was stopped and resumed to pass the answer on. If the call ended in an error or an interruption, that is the stop; the answer is below.',
+    lost:
+      'You asked the user a question through AskUserQuestion. To pass the answer on, the session was stopped and resumed, and the CLI had not saved the message with the call: neither the call nor the text you wrote before it is in the conversation. Here is what you asked, the answer is below.',
     comment: "The user's comment:",
     files: 'Files from the user:',
     question: (count) => (count > 1 ? '**The session waits for answers**' : '**The session waits for an answer**'),
@@ -123,11 +132,27 @@ export function replyPrompt(reply: Reply, ask: Ask | null, language: Language): 
   const answered = ask === null ? [] : ask.questions.filter((question) => (reply.answers[question.question] ?? '').trim() !== '')
   const comment = reply.text.trim()
   if (answered.length === 0 && comment === '' && reply.files.length === 0) throw fail('answer.empty', {})
-  const blocks = [ask === null ? text.intro[reply.from] : `${text.intro[reply.from]}\n${text.asked}`]
+  const blocks = [ask === null ? text.intro[reply.from] : `${text.intro[reply.from]}\n${ask.unsaved ? text.lost : text.asked}`]
+  if (ask?.unsaved) blocks.push(askedText(ask))
   if (answered.length > 0) blocks.push(answered.map((question) => answerLine(question.question, reply.answers[question.question]!)).join('\n'))
   if (comment !== '') blocks.push(answered.length > 0 ? `${text.comment}\n${comment}` : comment)
   if (reply.files.length > 0) blocks.push([text.files, ...reply.files.map((file) => `- ${file}`)].join('\n'))
   return blocks.join('\n\n') + '\n'
+}
+
+/** The questions with their options numbered, a list of questions when there are several. */
+function askedText(ask: Ask): string {
+  const several = ask.questions.length > 1
+  return ask.questions
+    .flatMap((question, index) => [
+      several ? `${index + 1}. ${oneLine(question.question)}` : oneLine(question.question),
+      ...question.options.map((option, number) => `${several ? '   ' : ''}${number + 1}. ${optionLine(option)}`),
+    ])
+    .join('\n')
+}
+
+function optionLine(option: AskOption): string {
+  return option.description === '' ? option.label : `${option.label} — ${option.description}`
 }
 
 function answerLine(question: string, answer: string): string {
@@ -159,7 +184,7 @@ export function questionComment(ask: Ask, language: Language): string {
     const title = several ? `${index + 1}. ${question.question}` : question.question
     blocks.push(question.header === '' ? title : `${title} _(${question.header})_`)
     if (question.options.length > 0) {
-      blocks.push(question.options.map((option, number) => `${number + 1}. ${option.label}${option.description === '' ? '' : ` — ${option.description}`}`).join('\n'))
+      blocks.push(question.options.map((option, number) => `${number + 1}. ${optionLine(option)}`).join('\n'))
     }
   })
   blocks.push(text.how(several))

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { blockedOn, lampOf, parseAgents, parseSessionRecord, sessionsByTask, turnStatus, withLiveRecords, type AgentEntry } from './agents.js'
+import { blockedAsk, blockedOn, lampOf, parseAgents, parseSessionRecord, sessionsByTask, turnStatus, withLiveRecords, type AgentEntry } from './agents.js'
 
 const interactive: AgentEntry = {
   pid: 100,
@@ -70,6 +70,34 @@ describe('blockedOn', () => {
     expect(blockedOn(JSON.stringify({ tempo: 'blocked' }))).toBeNull()
     expect(blockedOn('not json')).toBeNull()
     expect(blockedOn(undefined)).toBeNull()
+  })
+})
+
+describe('blockedAsk', () => {
+  const colour = { question: 'Which colour?', options: [{ label: 'Red', description: 'the warm one' }, { label: 'Blue', description: 'the cold one' }] }
+  const job = (questions: unknown[]) => JSON.stringify({ state: 'working', tempo: 'blocked', needs: 'answer: Which colour? (Red · Blue)', block: { questions } })
+
+  it('reads the question a blocked job waits on, which the transcript does not have yet', () => {
+    const ask = blockedAsk(job([colour]), 'k3x9')
+
+    expect(ask?.unsaved).toBe(true)
+    expect(ask?.id).toMatch(/^job:k3x9:/)
+    expect(ask?.questions).toEqual([{ question: 'Which colour?', header: '', multiSelect: false, options: colour.options }])
+  })
+
+  it('tells the next question of the job from the previous one', () => {
+    const next = { question: 'Which layout?', options: [{ label: 'Rows', description: '' }] }
+
+    expect(blockedAsk(job([next]), 'k3x9')?.id).not.toBe(blockedAsk(job([colour]), 'k3x9')?.id)
+    expect(blockedAsk(job([colour]), 'k3x9')?.id).toBe(blockedAsk(job([colour]), 'k3x9')?.id)
+  })
+
+  it('finds no question in a job that is not blocked, waits on something else, or a broken file', () => {
+    expect(blockedAsk(JSON.stringify({ tempo: 'active', block: { questions: [colour] } }), 'k3x9')).toBeNull()
+    expect(blockedAsk(JSON.stringify({ tempo: 'blocked', needs: 'open this session to continue setup' }), 'k3x9')).toBeNull()
+    expect(blockedAsk(job([]), 'k3x9')).toBeNull()
+    expect(blockedAsk('not json', 'k3x9')).toBeNull()
+    expect(blockedAsk(undefined, 'k3x9')).toBeNull()
   })
 })
 

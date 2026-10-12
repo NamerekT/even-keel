@@ -161,6 +161,7 @@ function toView(
     startedAt: agent.startedAt,
     now,
   })
+  const ask = present ? (summary.ask ?? agent.ask ?? null) : null
   return {
     task,
     sessionId: agent.sessionId,
@@ -168,8 +169,8 @@ function toView(
     lamp: lampOf(present ? agent : undefined, summary.apiError?.kind ?? null),
     waitingFor: present && agent.status === 'waiting' ? (agent.waitingFor ?? null) : null,
     startupDialog: present ? (agent.startupDialog ?? null) : null,
-    asking: present && summary.asking,
-    ask: present ? summary.ask : null,
+    asking: ask !== null,
+    ask,
     apiError: summary.apiError?.text ?? null,
     startedAt: new Date(agent.startedAt).toISOString(),
     lastActivityAt: summary.lastActivityAt,

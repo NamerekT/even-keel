@@ -10,7 +10,7 @@ import { parseAuthStatus, type ClaudeAccount } from '../account/model.js'
 import { fail, notice, NoticeError, type Notice } from '../notice/notice.js'
 import { samePath } from '../paths.js'
 import type { ModelAlias } from '../tracker/model.js'
-import { blockedOn, parseAgents, parseSessionRecord, withLiveRecords, type AgentEntry, type SessionRecord } from './agents.js'
+import { blockedAsk, blockedOn, parseAgents, parseSessionRecord, withLiveRecords, type AgentEntry, type SessionRecord } from './agents.js'
 import { newestExtensionBinary } from './paths.js'
 
 const run = promisify(execFile)
@@ -49,7 +49,7 @@ export class ClaudeCli {
       windowsHide: true,
       maxBuffer: 16 * 1024 * 1024,
     })
-    return withStartupDialogs(home, withLiveRecords(parseAgents(stdout, home.key), await liveRecords(home)))
+    return withJobFiles(home, withLiveRecords(parseAgents(stdout, home.key), await liveRecords(home)))
   }
 
   async authStatus(home: AccountHome): Promise<ClaudeAccount> {
@@ -193,15 +193,23 @@ export async function liveRecords(home: AccountHome): Promise<SessionRecord[]> {
 }
 
 /**
- * A blocked session without a live `sessions/<pid>.json` has not begun its first turn: it hangs on a startup dialog.
- * `claude agents` shows it only as `blocked`, like one with a question; what it waits for is in its job file.
+ * What only the job file of a session tells. A blocked session without a live `sessions/<pid>.json` has not begun
+ * its first turn: it hangs on a startup dialog, and `claude agents` shows it only as `blocked`, like one with a question.
+ * A live session that waits has its open `AskUserQuestion` there and not yet in the transcript.
  */
-async function withStartupDialogs(home: AccountHome, agents: AgentEntry[]): Promise<AgentEntry[]> {
+async function withJobFiles(home: AccountHome, agents: AgentEntry[]): Promise<AgentEntry[]> {
   return Promise.all(
     agents.map(async (agent) => {
-      if (agent.state !== 'blocked' || agent.pid !== undefined || agent.id === undefined) return agent
-      const needs = blockedOn(await readFile(join(home.dir, 'jobs', agent.id, 'state.json'), 'utf8').catch(() => undefined))
-      return needs === null ? agent : { ...agent, startupDialog: needs }
+      const { id } = agent
+      const dialog = agent.state === 'blocked' && agent.pid === undefined
+      if (id === undefined || !(dialog || (agent.pid !== undefined && agent.status === 'waiting'))) return agent
+      const job = await readFile(join(home.dir, 'jobs', id, 'state.json'), 'utf8').catch(() => undefined)
+      if (dialog) {
+        const needs = blockedOn(job)
+        return needs === null ? agent : { ...agent, startupDialog: needs }
+      }
+      const ask = blockedAsk(job, id)
+      return ask === null ? agent : { ...agent, ask }
     }),
   )
 }

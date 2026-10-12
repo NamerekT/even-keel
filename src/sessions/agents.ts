@@ -1,3 +1,4 @@
+import { questionsOf, type Ask } from './ask.js'
 import type { ApiErrorKind } from './transcript.js'
 
 /** `shell` — the turn has ended, but a background command the session started still runs. */
@@ -19,6 +20,8 @@ export interface AgentEntry {
   account?: string
   /** What the dialog the session hangs on before its first turn asks for. */
   startupDialog?: string
+  /** The `AskUserQuestion` the waiting session has open, by its job file. */
+  ask?: Ask
 }
 
 /**
@@ -26,14 +29,37 @@ export interface AgentEntry {
  * (an unapproved MCP server) and "stuck on a startup dialog" when its 45 s watchdog sees no first turn.
  */
 export function blockedOn(raw: string | undefined): string | null {
+  const job = blockedJob(raw)
+  if (job === null) return null
+  const { detail, needs } = job
+  if (typeof needs === 'string' && needs !== '') return needs
+  return typeof detail === 'string' && detail !== '' ? detail : null
+}
+
+/**
+ * The `AskUserQuestion` a blocked job waits on, from `block.questions` of its `jobs/<id>/state.json`: the question
+ * and the options, without `header`, `multiSelect` or `preview`. The CLI (2.1.296) writes the message with a pending
+ * call into the transcript only once it is answered, so until then the question is nowhere else.
+ */
+export function blockedAsk(raw: string | undefined, jobId: string): Ask | null {
+  const questions = questionsOf(blockedJob(raw)?.block)
+  if (questions.length === 0) return null
+  return { id: `job:${jobId}:${fnv1a(JSON.stringify(questions))}`, questions, unsaved: true }
+}
+
+/** The page's type check reads this file too, so no `node:crypto` here. */
+function fnv1a(text: string): string {
+  let hash = 0x811c9dc5
+  for (let index = 0; index < text.length; index++) hash = Math.imul(hash ^ text.charCodeAt(index), 0x01000193)
+  return (hash >>> 0).toString(16).padStart(8, '0')
+}
+
+function blockedJob(raw: string | undefined): Record<string, unknown> | null {
   if (raw === undefined) return null
   try {
     const job: unknown = JSON.parse(raw)
     if (typeof job !== 'object' || job === null) return null
-    const { tempo, detail, needs } = job as Record<string, unknown>
-    if (tempo !== 'blocked') return null
-    if (typeof needs === 'string' && needs !== '') return needs
-    return typeof detail === 'string' && detail !== '' ? detail : null
+    return (job as Record<string, unknown>).tempo === 'blocked' ? (job as Record<string, unknown>) : null
   } catch {
     return null
   }

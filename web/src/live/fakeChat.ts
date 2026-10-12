@@ -37,6 +37,18 @@ export const FAKE_ASK: Ask = {
   ],
 }
 
+/** The same question as the job file gives it in `?chain=unsaved`, the transcript not having the call yet: no headers, previews or multi-select. */
+export const FAKE_UNSAVED_ASK: Ask = {
+  id: 'job:fake:open',
+  unsaved: true,
+  questions: FAKE_ASK.questions.map(({ question, options }) => ({
+    question,
+    header: '',
+    multiSelect: false,
+    options: options.map(({ label, description }) => ({ label, description })),
+  })),
+}
+
 const PAST_ASK: Ask = {
   id: 'toolu_fake_past',
   questions: [
@@ -61,9 +73,9 @@ export function fakePastAsk(at: (minutes: number) => string): FeedLine[] {
   ]
 }
 
-/** The tool line of the question the session waits on, at the end of the transcript. */
+/** The tool line of the question the session waits on, at the end of the transcript; an unsaved one has none. */
 export function fakeOpenAsk(open: Ask | null): FeedLine[] {
-  return open === null ? [] : [{ at: new Date().toISOString(), kind: 'tool', text: `AskUserQuestion ${open.questions[0]!.question}`, ask: open }]
+  return open === null || open.unsaved ? [] : [{ at: new Date().toISOString(), kind: 'tool', text: `AskUserQuestion ${open.questions[0]!.question}`, ask: open }]
 }
 
 /** `session/answer`: the waiting session takes the reply and goes back to work. */

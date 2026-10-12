@@ -48,6 +48,7 @@ export function ChatComposer({ project, task, session, aside, onSent }: Props) {
       }}
     >
       {ask !== null && <AskPanel ask={ask} picks={picks} disabled={disabled} onPick={(index, pick) => setPicks((now) => now.map((each, at) => (at === index ? pick : each)))} />}
+      {ask?.unsaved && <p className="chat__hint">{t.session.chat.unsaved}</p>}
       <div className="chat__row">
         <textarea
           className="chat__text"

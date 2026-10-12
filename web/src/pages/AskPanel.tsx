@@ -64,7 +64,7 @@ export function AskPanel({ ask, picks, disabled, onPick }: PanelProps) {
               className={`ask__tab${pickAnswer(each, picks[at] ?? NO_PICK) !== '' ? ' ask__tab--done' : ''}`}
               onClick={() => setTab(at)}
             >
-              {each.header}
+              {each.header || at + 1}
             </button>
           ))}
         </div>

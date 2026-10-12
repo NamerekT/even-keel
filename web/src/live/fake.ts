@@ -18,7 +18,7 @@ import { fakeCompare, fakeRuleDiff, fakeRules } from './fakeRules.js'
 import { fakeSteps } from './fakeSteps.js'
 import { fakeCheckpoints, fakeHistory, fakePeriod, fakeTask } from './fakeStats.js'
 import { fakeCard, fakeReady } from './fakeCards.js'
-import { fakeAnswer, fakeOpenAsk, fakePastAsk, FAKE_ASK } from './fakeChat.js'
+import { fakeAnswer, fakeOpenAsk, fakePastAsk, FAKE_ASK, FAKE_UNSAVED_ASK } from './fakeChat.js'
 import type { Ask } from '../../../src/sessions/ask.js'
 import { fakeTools } from './fakeTools.js'
 
@@ -630,8 +630,9 @@ export function createFakeSource(search: string): LiveSource {
     current.state.sessions = current.state.sessions.map((each) => (each.task === 'ABC-5' ? stalled : each))
     current.state.chain.active = [{ ...active, current: { task: 'ABC-5', sessionId: stalled.sessionId, since: ago(42) } }]
   }
-  if (params.get('chain') === 'ask' && current.state !== null && active) {
-    const asking = session('ABC-5', contextTokens, 'waiting')
+  if ((params.get('chain') === 'ask' || params.get('chain') === 'unsaved') && current.state !== null && active) {
+    const waiting = session('ABC-5', contextTokens, 'waiting')
+    const asking: SessionView = params.get('chain') === 'ask' ? waiting : { ...waiting, waitingFor: 'input needed', ask: FAKE_UNSAVED_ASK }
     current.state.sessions = current.state.sessions.map((each) => (each.task === 'ABC-5' ? asking : each))
     current.state.chain.active = [{ ...active, current: { task: 'ABC-5', sessionId: asking.sessionId, since: ago(42) } }]
   }
