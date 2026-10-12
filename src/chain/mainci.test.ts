@@ -2,7 +2,8 @@ import { describe, expect, it } from 'vitest'
 import type { CiKind, CiRun, CiView } from '../ci/model.js'
 import type { Git } from '../git/types.js'
 import type { CiSettings } from '../state.js'
-import { mainCheckDeps, type MainCiWatch } from './mainci.js'
+import { mainCheckDeps, mergeCheck, type MainCiWatch } from './mainci.js'
+import type { CheckFailure } from './model.js'
 
 const run = (kind: CiKind, status: CiRun['status']): CiRun => ({
   id: kind === 'github' ? 1 : 2,
@@ -30,11 +31,20 @@ const view = (kind: CiKind, status: CiRun['status']): CiView => ({
   pushed: null,
 })
 
-function setup(settings: CiSettings, views: CiView[]) {
+const all = (kinds: CiKind[], waitMinutes: number | null = null): CiSettings => ({ kinds, waitMinutes, recheckMain: true })
+
+function setup(settings: CiSettings, views: CiView[], heads: Record<string, string> = {}, failure: CheckFailure | null = null) {
   const gitCalls: string[][] = []
-  const git: Git = async (_cwd, args) => {
+  const checks: string[] = []
+  const git: Git = async (cwd, args) => {
     gitCalls.push(args)
-    if (args[0] === 'rev-parse') return { code: 0, out: 'c2\n' }
+    if (args[0] === 'rev-parse') {
+      const ref = args.at(-1)!
+      if (ref.endsWith('^{tree}')) return { code: 0, out: `tree-${ref.slice(0, -7)}\n` }
+      const head = heads[`${cwd} ${ref}`]
+      return head === undefined ? { code: 0, out: 'c2\n' } : { code: 0, out: `${head}\n` }
+    }
+    if (args[0] === 'for-each-ref') return { code: 0, out: args.at(-1) === 'refs/heads/abc-1' ? 'b1\n' : '' }
     return { code: 0, out: 'c2abc [ABC-2] Second\nc1abc [ABC-1] First\n' }
   }
   const watches: MainCiWatch[] = views.map((each) => ({ view: each, failed: async (failed) => ({ kind: each.kind, run: failed, jobs: [], log: 'FAIL' }) }))
@@ -43,38 +53,44 @@ function setup(settings: CiSettings, views: CiView[]) {
     git,
     watches: () => watches,
     settings: () => settings,
+    commands: () => ['npm test'],
     language: () => 'en',
     create: async () => 'ABC-9',
     comment: async () => {},
     prepare: async () => {},
+    place: async (_project, task) => `D:/repos/abc/.claude/worktrees/${task.toLowerCase()}`,
+    runCheck: async (_project, task, cwd) => {
+      checks.push(`${task} in ${cwd}`)
+      return failure
+    },
     now: () => new Date('2026-10-12T10:05:00Z'),
   })
-  return { deps, gitCalls }
+  return { deps, gitCalls, checks }
 }
 
 describe('mainCheckDeps', () => {
   it('reads main of the project checkout', async () => {
-    const { deps } = setup({ kinds: ['forgejo', 'github'], waitMinutes: null }, [])
+    const { deps } = setup(all(['forgejo', 'github']), [])
     expect(await deps.head('ABC')).toBe('c2')
   })
 
   it('counts only the CIs the project settings name', () => {
     const views = [view('forgejo', 'failure'), view('github', 'success')]
-    expect(setup({ kinds: ['github'], waitMinutes: null }, views).deps.verdict('ABC', 'c2', '2026-10-12T10:00:00Z')).toEqual({ state: 'green' })
-    expect(setup({ kinds: ['forgejo', 'github'], waitMinutes: null }, views).deps.verdict('ABC', 'c2', '2026-10-12T10:00:00Z').state).toBe('red')
-    expect(setup({ kinds: [], waitMinutes: null }, views).deps.verdict('ABC', 'c2', '2026-10-12T10:00:00Z')).toEqual({ state: 'none' })
+    expect(setup(all(['github']), views).deps.verdict('ABC', 'c2', '2026-10-12T10:00:00Z')).toEqual({ state: 'green' })
+    expect(setup(all(['forgejo', 'github']), views).deps.verdict('ABC', 'c2', '2026-10-12T10:00:00Z').state).toBe('red')
+    expect(setup(all([]), views).deps.verdict('ABC', 'c2', '2026-10-12T10:00:00Z')).toEqual({ state: 'none' })
   })
 
   it('turns the wait into milliseconds, null staying as long as it takes', () => {
-    expect(setup({ kinds: [], waitMinutes: null }, []).deps.waitMs('ABC')).toBeNull()
-    expect(setup({ kinds: [], waitMinutes: 0 }, []).deps.waitMs('ABC')).toBe(0)
-    expect(setup({ kinds: [], waitMinutes: 15 }, []).deps.waitMs('ABC')).toBe(900_000)
+    expect(setup(all([]), []).deps.waitMs('ABC')).toBeNull()
+    expect(setup(all([], 0), []).deps.waitMs('ABC')).toBe(0)
+    expect(setup(all([], 15), []).deps.waitMs('ABC')).toBe(900_000)
   })
 
   it('reports the failed runs with the commits since the last green one', async () => {
-    const { deps, gitCalls } = setup({ kinds: ['github'], waitMinutes: null }, [view('github', 'failure')])
+    const { deps, gitCalls } = setup(all(['github']), [view('github', 'failure')])
     const push = { commit: 'c2', at: '2026-10-12T10:00:00Z', tasks: ['ABC-1', 'ABC-2'] }
-    const report = await deps.report('ABC', push, [{ kind: 'github', run: run('github', 'failure') }], 'c0')
+    const report = await deps.report('ABC', push, { ci: [{ kind: 'github', run: run('github', 'failure') }] }, 'c0')
     expect(gitCalls.at(-1)).toEqual(['log', '--format=%h %s', '-50', 'c0..c2'])
     expect(report.title).toBe('CI on main failed: c2')
     expect(report.description).toContain('c1abc [ABC-1] First')
@@ -82,8 +98,56 @@ describe('mainCheckDeps', () => {
   })
 
   it('takes the latest commits of main when no green one is known', async () => {
-    const { deps, gitCalls } = setup({ kinds: ['github'], waitMinutes: null }, [view('github', 'failure')])
-    await deps.report('ABC', { commit: 'c2', at: '2026-10-12T10:00:00Z', tasks: [] }, [{ kind: 'github', run: run('github', 'failure') }], null)
+    const { deps, gitCalls } = setup(all(['github']), [view('github', 'failure')])
+    await deps.report('ABC', { commit: 'c2', at: '2026-10-12T10:00:00Z', tasks: [] }, { ci: [{ kind: 'github', run: run('github', 'failure') }] }, null)
     expect(gitCalls.at(-1)).toEqual(['log', '--format=%h %s', '-20', 'c2'])
+  })
+
+  it('reports a failed project check by its command and output', async () => {
+    const { deps } = setup(all([]), [])
+    const report = await deps.report('ABC', { commit: 'c2', at: '2026-10-12T10:00:00Z', tasks: ['ABC-2'] }, { check: { command: 'npm test', code: 1, output: 'FAIL' } }, 'c0')
+    expect(report.title).toBe('Check of main failed: c2')
+    expect(report.description).toContain('`npm test` exited with code 1.')
+  })
+
+  it('reads the tree of the task branch, whatever its tail', async () => {
+    const { deps, gitCalls } = setup(all([]), [])
+    expect(await deps.taskTree('ABC', 'ABC-1')).toBe('tree-b1')
+    expect(gitCalls[0]).toEqual(['for-each-ref', '--format=%(objectname)', 'refs/heads/abc-1'])
+    expect(await deps.taskTree('ABC', 'ABC-2')).toBeNull()
+    expect(await deps.tree('ABC', 'c2')).toBe('tree-c2')
+  })
+
+  it('gives the check commands and whether main is checked again', () => {
+    expect(setup(all([]), []).deps.checking('ABC')).toEqual({ commands: ['npm test'], recheck: true })
+    expect(setup({ ...all([]), recheckMain: false }, []).deps.checking('ABC')).toEqual({ commands: ['npm test'], recheck: false })
+  })
+
+  it('runs the check of main in the place of the next task when it stands on main', async () => {
+    const place = 'D:/repos/abc/.claude/worktrees/abc-2'
+    const green = setup(all([]), [], { [`${place} HEAD`]: 'c2', 'D:/repos/abc refs/heads/main': 'c2' })
+    expect(await green.deps.checkMain('ABC', 'ABC-2', 'c2')).toEqual({ state: 'green' })
+    expect(green.checks).toEqual([`ABC-2 in ${place}`])
+
+    const failure = { command: 'npm test', code: 1, output: 'FAIL' }
+    const red = setup(all([]), [], { [`${place} HEAD`]: 'c2', 'D:/repos/abc refs/heads/main': 'c2' }, failure)
+    expect(await red.deps.checkMain('ABC', 'ABC-2', 'c2')).toEqual({ state: 'red', failure })
+
+    const own = setup(all([]), [], { [`${place} HEAD`]: 'b7', 'D:/repos/abc refs/heads/main': 'c2' })
+    expect(await own.deps.checkMain('ABC', 'ABC-2', 'c2')).toEqual({ state: 'skipped', reason: `the place of ABC-2 (${place}) is not on main` })
+    expect(own.checks).toEqual([])
+  })
+})
+
+describe('mergeCheck', () => {
+  const healthy = view('github', 'success')
+  const down: CiView = { ...view('forgejo', 'success'), health: 'error' }
+
+  it('asks for the check before the merge only when no counted CI will judge main', () => {
+    expect(mergeCheck(['npm test'], all([]), [healthy])).toEqual(['npm test'])
+    expect(mergeCheck(['npm test'], all(['github']), [])).toEqual(['npm test'])
+    expect(mergeCheck(['npm test'], all(['github']), [healthy])).toEqual([])
+    expect(mergeCheck(['npm test'], all(['github', 'forgejo']), [healthy, down])).toEqual(['npm test'])
+    expect(mergeCheck(['npm test'], all(['github']), [healthy, down])).toEqual([])
   })
 })

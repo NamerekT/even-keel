@@ -1,4 +1,4 @@
-import type { RedReport } from '../chain/model.js'
+import type { CheckFailure, RedReport } from '../chain/model.js'
 import type { Language } from '../language.js'
 import type { CiJob, CiKind, CiRun } from './model.js'
 import { CI_TITLES, shortCommit } from './verdict.js'
@@ -19,14 +19,20 @@ export interface RedFacts {
   /** `null` — no green commit is known, and `commits` are the latest ones of main. */
   green: string | null
   tasks: string[]
+  /** The project's own check found main red (BTN-104); `runs` are then empty. */
+  check?: CheckFailure
 }
 
 export const LOG_LINES = 60
 
-interface ReportTexts {
+interface Opening {
   title: (commit: string) => string
   intro: (commit: string) => string
   again: (commit: string) => string
+}
+
+interface ReportTexts extends Opening {
+  check: Opening & { failed: string; exited: (command: string, code: number) => string }
   runs: string
   job: string
   step: string
@@ -43,6 +49,13 @@ const TEXTS: Record<Language, ReportTexts> = {
     title: (commit) => `CI on main failed: ${commit}`,
     intro: (commit) => `The CI run of \`main\` failed on \`${commit}\`. Even Keel created this task: fix main; the chain takes it first.`,
     again: (commit) => `CI on main failed again on \`${commit}\`.`,
+    check: {
+      title: (commit) => `Check of main failed: ${commit}`,
+      intro: (commit) => `The project's check failed on \`main\` at \`${commit}\`. Even Keel created this task: fix main; the chain takes it first.`,
+      again: (commit) => `The project's check failed again on \`${commit}\`.`,
+      failed: 'Failed check',
+      exited: (command, code) => `\`${command}\` exited with code ${code}.`,
+    },
     runs: 'Failed runs',
     job: 'job',
     step: 'failed step',
@@ -57,6 +70,13 @@ const TEXTS: Record<Language, ReportTexts> = {
     title: (commit) => `CI на main упал: ${commit}`,
     intro: (commit) => `Прогон CI на \`main\` упал на коммите \`${commit}\`. Задачу завёл Even Keel: нужно починить main, цепочка берёт её первой.`,
     again: (commit) => `CI на main снова упал на \`${commit}\`.`,
+    check: {
+      title: (commit) => `Проверка main упала: ${commit}`,
+      intro: (commit) => `Проверка проекта упала на \`main\` на коммите \`${commit}\`. Задачу завёл Even Keel: нужно починить main, цепочка берёт её первой.`,
+      again: (commit) => `Проверка проекта снова упала на \`${commit}\`.`,
+      failed: 'Упавшая проверка',
+      exited: (command, code) => `\`${command}\` завершилась с кодом ${code}.`,
+    },
     runs: 'Упавшие прогоны',
     job: 'задание',
     step: 'упал шаг',
@@ -73,23 +93,32 @@ const TEXTS: Record<Language, ReportTexts> = {
 export function redReport(facts: RedFacts, language: Language): RedReport {
   const texts = TEXTS[language]
   const commit = shortCommit(facts.commit)
+  const opening = facts.check === undefined ? texts : texts.check
   const body = bodyOf(facts, texts)
-  return { title: texts.title(commit), description: `${texts.intro(commit)}\n\n${body}`, comment: `${texts.again(commit)}\n\n${body}` }
+  return { title: opening.title(commit), description: `${opening.intro(commit)}\n\n${body}`, comment: `${opening.again(commit)}\n\n${body}` }
 }
 
 function bodyOf(facts: RedFacts, texts: ReportTexts): string {
-  const runs = facts.runs.flatMap((failed) => [`- ${CI_TITLES[failed.kind]}: [${failed.run.workflow} #${failed.run.number}](${failed.run.url})`, ...jobLines(failed.jobs, texts)])
-  const logs = facts.runs.filter((failed) => failed.log !== null && failed.log !== '')
+  return [...(facts.check === undefined ? runsOf(facts.runs, texts) : checkOf(facts.check, texts)), `## ${texts.commits}`, ...commitsOf(facts, texts)].join('\n\n')
+}
+
+function runsOf(failedRuns: FailedRun[], texts: ReportTexts): string[] {
+  const runs = failedRuns.flatMap((failed) => [`- ${CI_TITLES[failed.kind]}: [${failed.run.workflow} #${failed.run.number}](${failed.run.url})`, ...jobLines(failed.jobs, texts)])
+  const logs = failedRuns.filter((failed) => failed.log !== null && failed.log !== '')
+  return [`## ${texts.runs}`, runs.join('\n'), ...(logs.length === 0 ? [texts.noLog] : [`## ${texts.log}`, ...logs.map((failed) => fenced(failed.log!))])]
+}
+
+function checkOf(check: CheckFailure, texts: ReportTexts): string[] {
+  return [`## ${texts.check.failed}`, texts.check.exited(check.command, check.code), fenced(logTail(check.output))]
+}
+
+function commitsOf(facts: RedFacts, texts: ReportTexts): string[] {
   return [
-    `## ${texts.runs}`,
-    runs.join('\n'),
-    ...(logs.length === 0 ? [texts.noLog] : [`## ${texts.log}`, ...logs.map((failed) => fenced(failed.log!))]),
-    `## ${texts.commits}`,
     ...(facts.green === null ? [texts.noCommits] : []),
     fenced(facts.commits.join('\n')),
     `## ${texts.tasks}`,
     facts.tasks.length === 0 ? texts.noTasks : facts.tasks.join(', '),
-  ].join('\n\n')
+  ]
 }
 
 function jobLines(jobs: CiJob[] | null, texts: ReportTexts): string[] {

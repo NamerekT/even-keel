@@ -37,4 +37,11 @@ export class TaskPlaces {
     if (!prepared || moved) await this.deps.setUp(project, task, place.path)
     return place
   }
+
+  /** The place made ready now and kept as prepared, so the launch that follows does not set it up again. */
+  async readyAhead(project: string, task: string): Promise<TaskPlace> {
+    const place = await this.ready(project, task)
+    this.ahead.set(task, Promise.resolve())
+    return place
+  }
 }

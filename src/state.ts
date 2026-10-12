@@ -60,12 +60,14 @@ export interface TrackerUrls {
   projects: Record<string, string | null>
 }
 
-/** What the user sets per project: `prompt` and `commands.beforeStart` in the config. */
+/** What the user sets per project: `prompt`, `commands.beforeStart`, `commands.check` and `ci` in the config. */
 export interface ProjectSettings {
   /** Added to the prompt of every new session of the project; `null` — none. */
   prompt: string | null
   /** Run in order in the task's folder before a new session starts. */
   beforeStart: string[]
+  /** The project's check, run in order when no counted CI judges main: before a session merges, and on main if it moved. */
+  check: string[]
   ci: CiSettings
 }
 
@@ -74,6 +76,8 @@ export interface CiSettings {
   kinds: CiKind[]
   /** `null` — as long as it takes, `0` — not at all. */
   waitMinutes: number | null
+  /** Without a CI to judge it, main that is not the tree checked before the merge is checked again before the next launch. */
+  recheckMain: boolean
 }
 
 export interface ContextScale {

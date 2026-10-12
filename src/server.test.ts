@@ -80,6 +80,7 @@ describe('Even Keel HTTP server', () => {
       },
       checkpoint: async (id) =>
         id === '0a1b2c3d' ? { project: 'ABC', task: 'ABC-1', handoffs: 2, first: 193_000, source: 'calibrated' } : undefined,
+      mergeCheck: (id) => (id === 'chain-session' ? ['npm test'] : undefined),
       tools: async (project) => (project === 'ABC' ? { project } : undefined),
       tasks: {
         card: async (task) => {
@@ -151,16 +152,23 @@ describe('Even Keel HTTP server', () => {
   })
 
   it('passes the settings of a project on', async () => {
-    const ci = { kinds: ['github'], waitMinutes: 15 }
-    const body = { project: 'ABC', prompt: 'Run npm test.', beforeStart: ['npm ci'], ci }
+    const ci = { kinds: ['github'], waitMinutes: 15, recheckMain: false }
+    const body = { project: 'ABC', prompt: 'Run npm test.', beforeStart: ['npm ci'], check: ['npm test'], ci }
     const response = await fetch(base + '/api/project/settings', { method: 'POST', body: JSON.stringify(body) })
     expect(response.status).toBe(200)
-    expect(calls).toContainEqual(['settings', 'ABC', { prompt: 'Run npm test.', beforeStart: ['npm ci'], ci }])
+    expect(calls).toContainEqual(['settings', 'ABC', { prompt: 'Run npm test.', beforeStart: ['npm ci'], check: ['npm test'], ci }])
   })
 
-  it('refuses CI settings with an unknown CI or a wait that is not whole minutes', async () => {
-    for (const ci of [undefined, { kinds: ['jenkins'], waitMinutes: null }, { kinds: [], waitMinutes: -5 }, { kinds: [], waitMinutes: 1.5 }]) {
-      const body = { project: 'ABC', prompt: '', beforeStart: [], ci }
+  it('refuses CI settings with an unknown CI, a wait that is not whole minutes or no recheck switch', async () => {
+    const bad = [
+      undefined,
+      { kinds: ['jenkins'], waitMinutes: null, recheckMain: true },
+      { kinds: [], waitMinutes: -5, recheckMain: true },
+      { kinds: [], waitMinutes: 1.5, recheckMain: true },
+      { kinds: [], waitMinutes: null },
+    ]
+    for (const ci of bad) {
+      const body = { project: 'ABC', prompt: '', beforeStart: [], check: [], ci }
       const response = await fetch(base + '/api/project/settings', { method: 'POST', body: JSON.stringify(body) })
       expect(response.status).toBe(400)
       expect((await response.json()).notice).toMatchObject({ code: 'request.required', params: { field: 'ci' } })
@@ -168,10 +176,19 @@ describe('Even Keel HTTP server', () => {
   })
 
   it('refuses settings whose commands are not a list of strings', async () => {
-    const body = { project: 'ABC', prompt: '', beforeStart: 'npm ci', ci: { kinds: [], waitMinutes: null } }
-    const response = await fetch(base + '/api/project/settings', { method: 'POST', body: JSON.stringify(body) })
-    expect(response.status).toBe(400)
-    expect((await response.json()).notice).toMatchObject({ code: 'request.required', params: { field: 'beforeStart' } })
+    for (const [field, lists] of [['beforeStart', { beforeStart: 'npm ci', check: [] }], ['check', { beforeStart: [], check: [1] }]] as const) {
+      const body = { project: 'ABC', prompt: '', ...lists, ci: { kinds: [], waitMinutes: null, recheckMain: true } }
+      const response = await fetch(base + '/api/project/settings', { method: 'POST', body: JSON.stringify(body) })
+      expect(response.status).toBe(400)
+      expect((await response.json()).notice).toMatchObject({ code: 'request.required', params: { field } })
+    }
+  })
+
+  it('gives the merge hook the check commands of a chain session and 404 for any other', async () => {
+    const found = await fetch(base + '/api/sessions/chain-session/check')
+    expect(found.status).toBe(200)
+    expect(await found.json()).toEqual({ commands: ['npm test'] })
+    expect((await fetch(base + '/api/sessions/other/check')).status).toBe(404)
   })
 
   it('serves the state as JSON', async () => {

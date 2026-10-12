@@ -67,6 +67,9 @@ export const noticesRu: NoticeTexts = {
   'ci.fixFailed': (p) => `CI красный на main в ${p.commit} — это пуш починки ${p.task}; цепочка ждёт вас`,
   'ci.cannotCreate': (p) => `CI красный на main в ${p.commit}, а трекер не умеет заводить задачу на починку`,
   'ci.fixNotCreated': (p) => `CI красный на main в ${p.commit}; задача на починку не заведена`,
+  'check.fixFailed': (p) => `проверка проекта падает на main в ${p.commit} — это пуш починки ${p.task}; цепочка ждёт вас`,
+  'check.cannotCreate': (p) => `проверка проекта падает на main в ${p.commit}, а трекер не умеет заводить задачу на починку`,
+  'check.fixNotCreated': (p) => `проверка проекта падает на main в ${p.commit}; задача на починку не заведена`,
 
   'slot.dirty': (p) => `в слоте ${p.path} незакоммиченные изменения — закоммитьте или уберите их`,
   'slot.busy': (p) => `слот ${p.path} занят посреди хода: ${list(p.sessions)} — дождитесь или остановите`,

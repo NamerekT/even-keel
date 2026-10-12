@@ -25,8 +25,8 @@ export interface ActiveChain {
   limitUntil?: string
   /** Unattended, a launch refused for want of a slot leaves the chain running; `at` is the last attempt. */
   slotWait?: { notice: Notice; at: string }
-  /** The next launch waits for the CI's verdict on this push of main. */
-  ciWait?: { commit: string; since: string }
+  /** The next launch waits for the CI's verdict on this push of main; `local` — for the project's own check of it. */
+  ciWait?: { commit: string; since: string; local?: true }
   closing?: string
 }
 
@@ -58,12 +58,16 @@ export interface MainPush {
   at: string
   /** The tasks it brought, with those of earlier pushes not judged before it came. */
   tasks: string[]
+  /** Main's tree is the tree of the last task's branch, which the project's check ran on before the merge. */
+  checked?: true
 }
 
 export interface MainGate {
-  /** The last commit of main the CI passed. */
+  /** The last commit of main the CI or the project's check passed. */
   green?: string
   check?: MainPush
+  /** A push the CI could not judge: the project's check runs on it in the next task's place before that task starts. */
+  local?: MainPush
   /** The task Even Keel created to fix a red main, from its creation until a push of it is judged. */
   fix?: { task: string; at: string; commit: string }
 }
@@ -134,13 +138,32 @@ export interface MainCheckDeps {
   verdict: (project: string, commit: string, since: string) => CiVerdict
   /** How long the next launch waits for the verdict: `null` — as long as it takes, `0` — not at all. */
   waitMs: (project: string) => number | null
-  report: (project: string, push: MainPush, failed: RedRun[], green: string | null) => Promise<RedReport>
+  report: (project: string, push: MainPush, failure: MainFailure, green: string | null) => Promise<RedReport>
   /** Creates a task in the project's tracker ready for the chain; `null` — the tracker cannot create tasks. */
   create: (project: string, task: Omit<NewTask, 'project'>) => Promise<string | null>
   comment: (task: string, body: string) => Promise<void>
   /** Prepares the place of the next task while the chain waits; its launch then reuses it. */
   prepare: (project: string, task: string) => Promise<void>
+  /** The tree of the task's branch, read before the cleanup deletes it; `null` — no branch. */
+  taskTree: (project: string, task: string) => Promise<string | null>
+  tree: (project: string, commit: string) => Promise<string | null>
+  /** The project's check (BTN-104): no commands — none; `recheck` — run it on main when main is not what it ran on. */
+  checking: (project: string) => { commands: string[]; recheck: boolean }
+  /** Runs the project's check on main in the place of the task about to start, which keeps it for the launch. */
+  checkMain: (project: string, task: string, commit: string) => Promise<MainCheckRun>
 }
+
+/** The first command of the project's check that failed, with its output. */
+export interface CheckFailure {
+  command: string
+  code: number
+  output: string
+}
+
+export type MainCheckRun = { state: 'green' } | { state: 'red'; failure: CheckFailure } | { state: 'skipped'; reason: string }
+
+/** What found main red: the CI's failed runs or the project's own check. */
+export type MainFailure = { ci: RedRun[] } | { check: CheckFailure }
 
 /** The fix task's title and description, and the comment for a fix task already open. */
 export interface RedReport {

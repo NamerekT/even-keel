@@ -117,6 +117,8 @@ export interface ServerDeps {
   transcript: (sessionId: string, after: number) => Promise<unknown>
   /** For the checkpoint hook; `undefined` for a session the chain did not start. */
   checkpoint: (sessionId: string) => Promise<SessionCheckpoint | undefined>
+  /** For the merge hook: the project's check commands to run before the merge, empty — none; `undefined` for a session the chain did not start. */
+  mergeCheck: (sessionId: string) => string[] | undefined
   /** `undefined` for a project the config does not know. */
   tools: (project: string) => Promise<unknown>
   tasks: TaskControl
@@ -194,6 +196,14 @@ async function route(deps: ServerDeps, request: IncomingMessage, response: Serve
     const found = await deps.checkpoint(decodeURIComponent(checkpoint[1]!))
     if (found === undefined) response.writeHead(404).end()
     else sendJson(response, 200, found)
+    return
+  }
+
+  const mergeCheck = /^\/api\/sessions\/([^/]+)\/check$/.exec(path)
+  if (request.method === 'GET' && mergeCheck !== null) {
+    const commands = deps.mergeCheck(decodeURIComponent(mergeCheck[1]!))
+    if (commands === undefined) response.writeHead(404).end()
+    else sendJson(response, 200, { commands })
     return
   }
 
@@ -431,18 +441,22 @@ export function answerOf(body: Record<string, unknown>): AnswerRequest {
 }
 
 function settingsOf(body: Record<string, unknown>): ProjectSettings {
-  const { prompt, beforeStart, ci } = body
+  const { prompt, beforeStart, check, ci } = body
   if (prompt !== null && typeof prompt !== 'string') throw fail('request.required', { field: 'prompt' })
-  if (!Array.isArray(beforeStart) || !beforeStart.every((line) => typeof line === 'string')) throw fail('request.required', { field: 'beforeStart' })
-  return { prompt, beforeStart, ci: ciOf(ci) }
+  return { prompt, beforeStart: linesOf(beforeStart, 'beforeStart'), check: linesOf(check, 'check'), ci: ciOf(ci) }
+}
+
+function linesOf(raw: unknown, field: string): string[] {
+  if (!Array.isArray(raw) || !raw.every((line) => typeof line === 'string')) throw fail('request.required', { field })
+  return raw
 }
 
 function ciOf(raw: unknown): CiSettings {
-  const { kinds, waitMinutes } = (typeof raw === 'object' && raw !== null ? raw : {}) as Record<string, unknown>
+  const { kinds, waitMinutes, recheckMain } = (typeof raw === 'object' && raw !== null ? raw : {}) as Record<string, unknown>
   const known = Array.isArray(kinds) && kinds.every((kind) => (CI_KINDS as readonly unknown[]).includes(kind))
   const wait = waitMinutes === null || (Number.isInteger(waitMinutes) && (waitMinutes as number) >= 0)
-  if (!known || !wait) throw fail('request.required', { field: 'ci' })
-  return { kinds: kinds as CiKind[], waitMinutes: waitMinutes as number | null }
+  if (!known || !wait || typeof recheckMain !== 'boolean') throw fail('request.required', { field: 'ci' })
+  return { kinds: kinds as CiKind[], waitMinutes: waitMinutes as number | null, recheckMain }
 }
 
 function accountOf(body: Record<string, unknown>): string {

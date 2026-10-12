@@ -8,6 +8,7 @@ import {
   type CurrentTask,
   type DispatcherDeps,
   type LaunchEntry,
+  type MainPush,
   type ProjectOrder,
   type ReleaseReason,
 } from './model.js'
@@ -415,15 +416,19 @@ export class Dispatcher {
 
   /** Cleans up after a done task and, once main is pushed, awaits the CI's verdict on it. */
   private async closeUp(project: string, task: string): Promise<void> {
+    const tree = (await this.main?.taskTree(project, task)) ?? null
     const outcome = await this.cleanUp(project, task)
     this.keepOutcome(project, task, outcome)
-    if (outcome.syncError === null) await this.main?.pushed(project, task)
+    if (outcome.syncError === null) await this.main?.pushed(project, task, tree)
   }
+
+  /** Whether the task is open in the tracker, in the chain or out of it. */
+  private readonly listedOpen = (project: string, task: string): boolean =>
+    [...(this.tasks.get(project) ?? []), ...(this.waiting.get(project) ?? []), ...(this.backlog.get(project) ?? [])].some((each) => each.id === task)
 
   private async settleMain(): Promise<void> {
     if (this.main === null) return
-    const listed = (project: string) => [...(this.tasks.get(project) ?? []), ...(this.waiting.get(project) ?? []), ...(this.backlog.get(project) ?? [])]
-    const { changed, stops } = await this.main.settle((project, task) => listed(project).some((each) => each.id === task))
+    const { changed, stops } = await this.main.settle(this.listedOpen)
     for (const { project, notice } of stops) {
       let chain = this.chainOf(project)
       if (chain === undefined) {
@@ -447,6 +452,18 @@ export class Dispatcher {
     }
     if (wait !== undefined) this.main!.ahead(chain.project, task)
     return hold !== null
+  }
+
+  /** Runs the project's check on a push of main no CI judged, in the place of `task`; false — the chain is stopped. */
+  private async checkMain(chain: ActiveChain, task: string, push: MainPush): Promise<boolean> {
+    chain.ciWait = { commit: push.commit, since: this.deps.now().toISOString(), local: true }
+    this.deps.save(this.state)
+    const stop = await this.main!.checkLocally(chain.project, task, this.listedOpen)
+    delete chain.ciWait
+    this.deps.save(this.state)
+    if (stop === null) return true
+    this.halt(chain, stop)
+    return false
   }
 
   private async cleanUp(project: string, task: string): Promise<FinishOutcome> {
@@ -570,6 +587,12 @@ export class Dispatcher {
 
       const lastTry = chain.slotWait === undefined ? undefined : Date.parse(chain.slotWait.at)
       if (lastTry !== undefined && this.deps.now().getTime() - lastTry < SLOT_RETRY_MS) return
+
+      const unjudged = this.main?.due(chain.project)
+      if (unjudged !== undefined) {
+        if (!(await this.checkMain(chain, task, unjudged))) return
+        continue
+      }
 
       delete chain.limitUntil
       const current: CurrentTask = { task, sessionId: null, since, starting: since }

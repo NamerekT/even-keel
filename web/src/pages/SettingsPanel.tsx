@@ -21,15 +21,19 @@ export function SettingsChip({ open, onToggle }: { open: boolean; onToggle: () =
 interface Draft {
   prompt: string
   commands: string
+  check: string
   kinds: CiKind[]
   wait: string
+  recheck: boolean
 }
 
 const draftOf = (settings: ProjectSettings): Draft => ({
   prompt: settings.prompt ?? '',
   commands: settings.beforeStart.join('\n'),
+  check: settings.check.join('\n'),
   kinds: settings.ci.kinds,
   wait: settings.ci.waitMinutes === null ? '' : String(settings.ci.waitMinutes),
+  recheck: settings.ci.recheckMain,
 })
 const linesOf = (text: string) => text.split('\n').map((line) => line.trim()).filter((line) => line !== '')
 /** Empty — wait as long as it takes; `undefined` — not a whole number of minutes. */
@@ -43,8 +47,10 @@ const sameKinds = (a: CiKind[], b: CiKind[]) => CI_KINDS.every((kind) => a.inclu
 const sameDraft = (a: Draft, b: Draft) =>
   a.prompt.trim() === b.prompt.trim() &&
   linesOf(a.commands).join('\n') === linesOf(b.commands).join('\n') &&
+  linesOf(a.check).join('\n') === linesOf(b.check).join('\n') &&
   sameKinds(a.kinds, b.kinds) &&
-  minutesOf(a.wait) === minutesOf(b.wait)
+  minutesOf(a.wait) === minutesOf(b.wait) &&
+  a.recheck === b.recheck
 
 export function SettingsPanel({ project, settings, onClose }: { project: string; settings: ProjectSettings; onClose: () => void }) {
   const closeRef = useRef<HTMLButtonElement>(null)
@@ -80,8 +86,9 @@ export function SettingsPanel({ project, settings, onClose }: { project: string;
   const toggle = (kind: CiKind, on: boolean) => edit({ kinds: CI_KINDS.filter((each) => (each === kind ? on : draft.kinds.includes(each))) })
   const save = async () => {
     if (waitMinutes === undefined) return
-    const ci = { kinds: draft.kinds, waitMinutes }
-    if (await send('project/settings', { project, prompt: draft.prompt, beforeStart: linesOf(draft.commands), ci })) setDone(true)
+    const ci = { kinds: draft.kinds, waitMinutes, recheckMain: draft.recheck }
+    const body = { project, prompt: draft.prompt, beforeStart: linesOf(draft.commands), check: linesOf(draft.check), ci }
+    if (await send('project/settings', body)) setDone(true)
   }
 
   return (
@@ -153,6 +160,25 @@ export function SettingsPanel({ project, settings, onClose }: { project: string;
             onChange={(event) => edit({ wait: event.target.value })}
           />
         </label>
+        <label className="settings__field">
+          <span className="settings__label">{t.settings.check}</span>
+          <span className="settings__hint">{t.settings.checkHint}</span>
+          <textarea
+            className="settings__text settings__text--mono"
+            rows={3}
+            spellCheck={false}
+            value={draft.check}
+            placeholder={t.settings.checkPlaceholder}
+            onChange={(event) => edit({ check: event.target.value })}
+          />
+        </label>
+        <div className="settings__field">
+          <label className="settings__check">
+            <input type="checkbox" checked={draft.recheck} onChange={(event) => edit({ recheck: event.target.checked })} />
+            {t.settings.recheckMain}
+          </label>
+          <span className="settings__hint">{t.settings.recheckMainHint}</span>
+        </div>
         <div className="settings__actions">
           <button type="submit" className="button button--primary" disabled={sending || !changed || waitMinutes === undefined}>
             {t.settings.save}

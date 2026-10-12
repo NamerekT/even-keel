@@ -11,7 +11,7 @@ import { Dispatcher, type LaunchEntry } from './chain/dispatcher.js'
 import { handoffsOf, launchDays, taskSessions } from './chain/launches.js'
 import { noteOf, resumePrompt, startPrompt, withBrief, withProjectPrompt, withUnattended } from './chain/relay.js'
 import { launchLine } from './chain/log.js'
-import { mainCheckDeps } from './chain/mainci.js'
+import { mainCheckDeps, mergeCheck } from './chain/mainci.js'
 import { TaskPlaces } from './chain/places.js'
 import { readNote, saveSnapshot, snapshotReason } from './chain/snapshots.js'
 import { appendLaunch, loadChainState, readLaunches, saveChainState } from './chain/store.js'
@@ -33,7 +33,7 @@ import { ClaudeCli, liveRecords, resolveClaudeBinary, SESSION_MODE } from './ses
 import { turnStatus, type AgentEntry } from './sessions/agents.js'
 import { launchPlan, type LaunchPlan } from './sessions/launch.js'
 import { readSessionRecord, readTranscript } from './sessions/history.js'
-import { runBeforeStart, systemShell } from './sessions/setup.js'
+import { runBeforeStart, runCheck, systemShell, type SetupRun } from './sessions/setup.js'
 import { SessionMonitor } from './sessions/monitor.js'
 import { TranscriptOwners } from './sessions/owners.js'
 import { isInside } from './paths.js'
@@ -344,14 +344,12 @@ const places = new TaskPlaces({
     if (count === undefined) return prepareWorktree(runGit, repo, task)
     return prepareSlot(runGit, repo, task, { count, occupancy: (path) => slotUse(path, task), vacate: (path) => vacateSlot(path, task) })
   },
-  setUp: (project, task, path) =>
-    runBeforeStart(configFile.current.settings[project]?.beforeStart ?? [], {
-      task,
-      cwd: path,
-      shell: systemShell(() => homes.envOf(homeOf(ledger.active))),
-      log: (line) => console.log(line),
-    }),
+  setUp: (project, task, path) => runBeforeStart(configFile.current.settings[project]?.beforeStart ?? [], taskRun(task, path)),
 })
+
+function taskRun(task: string, cwd: string): SetupRun {
+  return { task, cwd, shell: systemShell(() => homes.envOf(homeOf(ledger.active))), log: (line) => console.log(line) }
+}
 
 const dispatcher = new Dispatcher(loadChainState(chainFile), {
   projects: Object.keys(config.projects),
@@ -444,6 +442,7 @@ const dispatcher = new Dispatcher(loadChainState(chainFile), {
     git: runGit,
     watches: (project) => ciWatches.get(project) ?? [],
     settings: (project) => configFile.current.settings[project]?.ci ?? DEFAULT_CI,
+    commands: (project) => configFile.current.settings[project]?.check ?? [],
     language: () => configFile.current.language ?? promptLanguage(),
     create: async (task) => (await links.get(config.trackers[task.project]!)?.run(async (tracker) => tracker.create?.(task))) ?? null,
     comment: async (task, body) => {
@@ -452,6 +451,8 @@ const dispatcher = new Dispatcher(loadChainState(chainFile), {
       await link?.run(async (tracker) => tracker.comment?.(task, body))
     },
     prepare: (project, task) => places.prepare(project, task),
+    place: async (project, task) => (await places.readyAhead(project, task)).path,
+    runCheck: (project, task, cwd) => runCheck(configFile.current.settings[project]?.check ?? [], taskRun(task, cwd)),
     now: () => new Date(),
   }),
 })
@@ -585,6 +586,13 @@ const server = createEvenKeelServer({
     if (run === undefined) return undefined
     const { first, source } = await stats.checkpoint(run.project)
     return { ...run, first, source }
+  },
+  mergeCheck: (sessionId) => {
+    const run = handoffsOf(launches, sessionId)
+    if (run === undefined) return undefined
+    const settings = configFile.current.settings[run.project]
+    const views = (ciWatches.get(run.project) ?? []).map((watch) => watch.view)
+    return settings === undefined ? [] : mergeCheck(settings.check, settings.ci, views)
   },
   tools: async (project) => {
     const repo = config.projects[project]

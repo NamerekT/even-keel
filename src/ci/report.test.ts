@@ -74,6 +74,20 @@ describe('redReport', () => {
     expect(comment).toContain('[CI #12](https://example.com/acme/app/actions/runs/7)')
   })
 
+  it('tells of the project check that failed on main instead of CI runs', () => {
+    const check = { ...facts, runs: [], check: { command: 'npm test', code: 1, output: 'FAIL src/a.test.ts\n```\nexpected 1 to be 2\n' } }
+    const en = redReport(check, 'en')
+    expect(en.title).toBe('Check of main failed: abcdef1')
+    expect(en.description).toContain("The project's check failed on `main` at `abcdef1`")
+    expect(en.description).toContain('`npm test` exited with code 1.')
+    expect(en.description).toContain("```text\nFAIL src/a.test.ts\n'''\nexpected 1 to be 2\n```")
+    expect(en.description).not.toContain('## Failed runs')
+    expect(en.description).toContain('BTN-1, BTN-2')
+    const ru = redReport(check, 'ru')
+    expect(ru.title).toBe('Проверка main упала: abcdef1')
+    expect(ru.comment.startsWith('Проверка проекта снова упала на `abcdef1`.')).toBe(true)
+  })
+
   it('never puts inline code inside a bold mark or a link', () => {
     for (const language of ['en', 'ru'] as const) {
       const { description, comment } = redReport(facts, language)

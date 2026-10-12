@@ -67,6 +67,9 @@ export const en = {
   'ci.fixFailed': (p: { task: string; commit: string }) => `CI is red on main at ${p.commit}, the push of the fix ${p.task}; the chain waits for you`,
   'ci.cannotCreate': (p: { commit: string }) => `CI is red on main at ${p.commit}, and the tracker cannot create a task to fix it`,
   'ci.fixNotCreated': (p: { commit: string }) => `CI is red on main at ${p.commit}; the task to fix it was not created`,
+  'check.fixFailed': (p: { task: string; commit: string }) => `The project's check fails on main at ${p.commit}, the push of the fix ${p.task}; the chain waits for you`,
+  'check.cannotCreate': (p: { commit: string }) => `The project's check fails on main at ${p.commit}, and the tracker cannot create a task to fix it`,
+  'check.fixNotCreated': (p: { commit: string }) => `The project's check fails on main at ${p.commit}; the task to fix it was not created`,
 
   'slot.dirty': (p: { path: string }) => `the slot ${p.path} has uncommitted changes; commit or remove them`,
   'slot.busy': (p: { path: string; sessions: string[] }) => `the slot ${p.path} is in use by ${list(p.sessions)} mid-turn; let it finish or stop it`,

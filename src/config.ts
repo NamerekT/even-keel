@@ -46,7 +46,7 @@ export interface StatsConfig {
 
 const PROJECT_KEY = /^[A-Z][A-Z0-9_]{0,4}$/
 const RULE_KEYS = ['active', 'terminal', 'requiredLabels', 'excludedLabels'] as const
-const COMMAND_KEYS = ['beforeStart'] as const
+const COMMAND_KEYS = ['beforeStart', 'check'] as const
 const RESTART_KEYS = ['host', 'port', 'projects', 'slots', 'tracker', 'trackers', 'trackerProjects', 'context'] as const
 const DEFAULT_LANGUAGE: Language = 'en'
 const DEFAULT_MODEL: ModelAlias = 'opus'
@@ -94,7 +94,7 @@ export function parseConfig(raw: unknown, adapters: AdapterShapes = ADAPTERS): E
     briefs[key] = brief === undefined ? sharedBrief : parseBrief(brief, `${key}.brief`)
     settings[key] = {
       prompt: parseProjectPrompt(prompt, `${key}.prompt`),
-      beforeStart: parseCommands(commands, `${key}.commands`).beforeStart,
+      ...parseCommands(commands, `${key}.commands`),
       ci: parseCi(ci, `${key}.ci`),
     }
   }
@@ -192,27 +192,28 @@ function parseProjectPrompt(raw: unknown, where: string): string | null {
   return raw.trim() === '' ? null : raw.trim()
 }
 
-export const DEFAULT_CI: Readonly<CiSettings> = Object.freeze({ kinds: Object.freeze([...CI_KINDS]) as CiKind[], waitMinutes: null })
-const CI_KEYS = ['kinds', 'waitMinutes'] as const
+export const DEFAULT_CI: Readonly<CiSettings> = Object.freeze({ kinds: Object.freeze([...CI_KINDS]) as CiKind[], waitMinutes: null, recheckMain: true })
+const CI_KEYS = ['kinds', 'waitMinutes', 'recheckMain'] as const
 
 function parseCi(raw: unknown, where: string): CiSettings {
   if (raw === undefined) return DEFAULT_CI
   if (!isPlainObject(raw)) throw fail('config.notObject', { where })
   const unknown = Object.keys(raw).find((key) => !(CI_KEYS as readonly string[]).includes(key))
   if (unknown !== undefined) throw fail('config.ciKey', { where, key: unknown, known: [...CI_KEYS] })
-  const { kinds = DEFAULT_CI.kinds, waitMinutes = null } = raw
+  const { kinds = DEFAULT_CI.kinds, waitMinutes = null, recheckMain = true } = raw
   if (!Array.isArray(kinds) || kinds.some((kind) => !(CI_KINDS as readonly unknown[]).includes(kind))) {
     throw fail('config.ciKinds', { where: `${where}.kinds`, known: [...CI_KINDS] })
   }
   if (waitMinutes !== null && !(Number.isInteger(waitMinutes) && (waitMinutes as number) >= 0)) throw fail('config.ciWait', { where: `${where}.waitMinutes` })
-  return { kinds: CI_KINDS.filter((kind) => kinds.includes(kind)), waitMinutes: waitMinutes as number | null }
+  if (typeof recheckMain !== 'boolean') throw fail('config.brief', { where: `${where}.recheckMain` })
+  return { kinds: CI_KINDS.filter((kind) => kinds.includes(kind)), waitMinutes: waitMinutes as number | null, recheckMain }
 }
 
-// An object rather than a list, so commands after the agent's work get a key of their own next to `beforeStart`.
-function parseCommands(raw: unknown, where: string): { beforeStart: string[] } {
-  if (raw === undefined) return { beforeStart: [] }
+// An object rather than a list, so each moment of a task gets its own key: `beforeStart`, `check`.
+function parseCommands(raw: unknown, where: string): Record<(typeof COMMAND_KEYS)[number], string[]> {
+  const commands = { beforeStart: [] as string[], check: [] as string[] }
+  if (raw === undefined) return commands
   if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) throw fail('config.notObject', { where })
-  const commands = { beforeStart: [] as string[] }
   for (const [key, value] of Object.entries(raw)) {
     if (!(COMMAND_KEYS as readonly string[]).includes(key)) throw fail('config.commandKey', { where, key, known: [...COMMAND_KEYS] })
     if (!Array.isArray(value) || value.some((line) => typeof line !== 'string')) throw fail('config.commandList', { where: `${where}.${key}` })
@@ -315,22 +316,25 @@ export function readRawConfig(file: string): unknown {
   }
 }
 
-/** The project's entry in the config file with `prompt`, `commands.beforeStart` and `ci` set, or removed when empty or default; its other keys stay. */
-export function withProjectSettings(entry: unknown, { prompt, beforeStart, ci }: ProjectSettings): Record<string, unknown> {
+/** The project's entry in the config file with `prompt`, `commands` and `ci` set, or removed when empty or default; its other keys stay. */
+export function withProjectSettings(entry: unknown, { prompt, beforeStart, check, ci }: ProjectSettings): Record<string, unknown> {
   const fields: Record<string, unknown> = isPlainObject(entry) ? { ...entry } : { repo: entry }
   const text = prompt?.trim() ?? ''
   if (text === '') delete fields.prompt
   else fields.prompt = text
   const commands: Record<string, unknown> = isPlainObject(fields.commands) ? { ...fields.commands } : {}
-  const lines = beforeStart.map((line) => line.trim()).filter((line) => line !== '')
-  if (lines.length === 0) delete commands.beforeStart
-  else commands.beforeStart = lines
+  for (const [key, list] of [['beforeStart', beforeStart], ['check', check]] as const) {
+    const lines = list.map((line) => line.trim()).filter((line) => line !== '')
+    if (lines.length === 0) delete commands[key]
+    else commands[key] = lines
+  }
   if (Object.keys(commands).length === 0) delete fields.commands
   else fields.commands = commands
   const kinds = CI_KINDS.filter((kind) => ci.kinds.includes(kind))
   const written = {
     ...(kinds.length === CI_KINDS.length ? {} : { kinds }),
     ...(ci.waitMinutes === null ? {} : { waitMinutes: ci.waitMinutes }),
+    ...(ci.recheckMain ? {} : { recheckMain: false }),
   }
   if (Object.keys(written).length === 0) delete fields.ci
   else fields.ci = written

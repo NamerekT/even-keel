@@ -56,6 +56,7 @@ export const en: Messages = {
       `/usage polling is off until the service restarts: the answer looks like a model turn, and that spends quota. Reason: ${reason}`,
     limitHold: (at: string) => `Usage limit reached — the next task starts after the reset at ${at}.`,
     ciHold: (commit: string, since: string) => `Waiting for the CI of main on ${commit} since ${since} — the next task starts when it is green.`,
+    checkHold: (commit: string, since: string) => `Checking main at ${commit} since ${since} in the next task's folder — the task starts when the check passes.`,
     mcp: (projects: string, server: string) =>
       `Brief is off in ${projects}, but sessions don't see the MCP server "${server}" — they get only the task ID. Turn brief on or add the server.`,
     unattended: 'Unattended mode is on: sessions ask no questions. Turn it off in the status menu (the gear).',
@@ -363,6 +364,12 @@ export const en: Messages = {
     ciWait: 'Longest wait for CI, min',
     ciWaitHint: 'Empty — as long as it takes. 0 — do not wait: faster, but the next task may start on a broken main.',
     ciWaitPlaceholder: 'no limit',
+    check: 'Check commands',
+    checkHint:
+      "For when no CI above judges main. One per line, in order: a session's merge into main waits until they pass in the task's folder; a failure is sent back to the session to fix.",
+    checkPlaceholder: 'npm run typecheck && npm test',
+    recheckMain: 'Check main again if it moved',
+    recheckMainHint: "If main after the merge is not what the check passed on, the check runs in the next task's folder before it starts; a failure creates a fix task.",
     save: 'Save',
     saved: 'Saved.',
   },

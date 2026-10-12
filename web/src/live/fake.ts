@@ -193,10 +193,10 @@ function fakeState(
     startedAt: ago(180),
     projects: ['ABC', 'DEMO', 'XYZ', 'OPS'],
     settings: {
-      ABC: { prompt: 'Run npm test before merging.', beforeStart: ['npm ci'], ci: { kinds: ['forgejo', 'github'], waitMinutes: null } },
-      DEMO: { prompt: null, beforeStart: [], ci: { kinds: ['github'], waitMinutes: 15 } },
-      XYZ: { prompt: null, beforeStart: [], ci: { kinds: ['forgejo', 'github'], waitMinutes: null } },
-      OPS: { prompt: null, beforeStart: [], ci: { kinds: [], waitMinutes: 0 } },
+      ABC: { prompt: 'Run npm test before merging.', beforeStart: ['npm ci'], check: [], ci: { kinds: ['forgejo', 'github'], waitMinutes: null, recheckMain: true } },
+      DEMO: { prompt: null, beforeStart: [], check: [], ci: { kinds: ['github'], waitMinutes: 15, recheckMain: true } },
+      XYZ: { prompt: null, beforeStart: [], check: [], ci: { kinds: ['forgejo', 'github'], waitMinutes: null, recheckMain: true } },
+      OPS: { prompt: null, beforeStart: ['npm ci'], check: ['npm run typecheck', 'npm test'], ci: { kinds: [], waitMinutes: 0, recheckMain: false } },
     },
     chain: {
       active: idle
@@ -494,9 +494,10 @@ function dequeue(state: EvenKeelState, project: string): EvenKeelState {
 
 function fakeSettings(state: EvenKeelState, project: string, body: Record<string, unknown>): EvenKeelState {
   const prompt = String(body.prompt ?? '').trim()
-  const beforeStart = (body.beforeStart as string[]).map((line) => line.trim()).filter((line) => line !== '')
+  const lines = (list: unknown) => (list as string[]).map((line) => line.trim()).filter((line) => line !== '')
   const ci = body.ci as ProjectSettings['ci']
-  return { ...state, settings: { ...state.settings, [project]: { prompt: prompt === '' ? null : prompt, beforeStart, ci } } }
+  const settings = { prompt: prompt === '' ? null : prompt, beforeStart: lines(body.beforeStart), check: lines(body.check), ci }
+  return { ...state, settings: { ...state.settings, [project]: settings } }
 }
 
 function fakeCommand(state: EvenKeelState, name: string, body: Record<string, unknown>, launches: LaunchEntry[]): EvenKeelState {
@@ -565,8 +566,9 @@ export function createFakeSource(search: string): LiveSource {
     const slotWait = { notice: notice('slot.waiting', { task: 'ABC-12' }, { items: [dirty] }), at: new Date().toISOString() }
     current.state!.chain.active = [{ ...active, current: null, slotWait }]
   }
-  if (params.get('chain') === 'ci' && active) {
-    const ciWait = { commit: '9f77142a5c0e3d1b7e6f4a2c8d9b0e1f2a3b4c5d', since: new Date(Date.now() - 4 * 60_000).toISOString() }
+  if ((params.get('chain') === 'ci' || params.get('chain') === 'check') && active) {
+    const local = params.get('chain') === 'check' ? { local: true as const } : {}
+    const ciWait = { commit: '9f77142a5c0e3d1b7e6f4a2c8d9b0e1f2a3b4c5d', since: new Date(Date.now() - 4 * 60_000).toISOString(), ...local }
     current.state!.chain.active = [{ ...active, current: null, ciWait }]
   }
   const parallel = Number(params.get('parallel') ?? 1)

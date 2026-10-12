@@ -53,4 +53,12 @@ describe('TaskPlaces', () => {
     await places.ready('ABC', 'ABC-2')
     expect(calls).toEqual(['place ABC-2', 'setUp ABC-2', 'place ABC-2', 'setUp ABC-2'])
   })
+
+  it('keeps a place readied for the check of main as prepared for the launch that follows', async () => {
+    const { places, calls } = setup()
+    await places.readyAhead('ABC', 'ABC-2')
+    await places.ready('ABC', 'ABC-2')
+    await places.ready('ABC', 'ABC-2')
+    expect(calls).toEqual(['place ABC-2', 'setUp ABC-2', 'place ABC-2', 'place ABC-2', 'setUp ABC-2'])
+  })
 })

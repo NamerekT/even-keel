@@ -1,71 +1,8 @@
 import { describe, expect, it } from 'vitest'
-import type { CiRun } from '../ci/model.js'
-import type { CiVerdict } from '../ci/verdict.js'
 import { notice } from '../notice/notice.js'
 import { done, setup, task } from './dispatcher.fixture.js'
+import { afterDone, failedRun, fakeMain } from './maincheck.fixture.js'
 import { FIX_LISTED_MS } from './maincheck.js'
-import type { MainCheckDeps, MainPush } from './model.js'
-import type { NewTask } from '../tracker/source.js'
-
-const failedRun: CiRun = {
-  id: 7,
-  number: 7,
-  title: 'Merge',
-  workflow: 'test.yml',
-  commit: 'bbbbbbbbbb',
-  status: 'failure',
-  createdAt: '2026-09-26T12:00:05Z',
-  startedAt: '2026-09-26T12:00:10Z',
-  stoppedAt: '2026-09-26T12:02:00Z',
-  url: 'https://ci.example.com/runs/7',
-}
-
-function fakeMain(wait: number | null = null) {
-  const heads = ['bbbbbbbbbb', 'cccccccccc', 'dddddddddd']
-  const ci = {
-    verdict: { state: 'pending' } as CiVerdict,
-    wait,
-    created: [] as Omit<NewTask, 'project'>[],
-    comments: [] as { task: string; body: string }[],
-    prepared: [] as string[],
-    reports: [] as { push: MainPush; green: string | null }[],
-    canCreate: true,
-    next: 9,
-  }
-  const deps: MainCheckDeps = {
-    head: async () => heads.shift() ?? null,
-    verdict: () => ci.verdict,
-    waitMs: () => ci.wait,
-    report: async (_project, push, _failed, green) => {
-      ci.reports.push({ push: structuredClone(push), green })
-      return { title: `CI on main failed: ${push.commit.slice(0, 7)}`, description: 'log', comment: 'more log' }
-    },
-    create: async (_project, created) => {
-      if (!ci.canCreate) return null
-      ci.created.push(created)
-      return `ABC-${ci.next++}`
-    },
-    comment: async (id, body) => {
-      ci.comments.push({ task: id, body })
-    },
-    prepare: async (project, id) => {
-      ci.prepared.push(`${project}/${id}`)
-    },
-  }
-  return { ci, deps }
-}
-
-async function afterDone(wait: number | null = null) {
-  const { ci, deps } = fakeMain(wait)
-  const harness = setup({ main: deps })
-  const { dispatcher } = harness
-  dispatcher.setTasks('ABC', [task('ABC-1'), task('ABC-2'), task('ABC-3')])
-  dispatcher.start('ABC')
-  await dispatcher.idle()
-  dispatcher.setTasks('ABC', [task('ABC-1', done), task('ABC-2'), task('ABC-3')])
-  await dispatcher.idle()
-  return { ...harness, ci }
-}
 
 describe('Dispatcher and the CI of main', () => {
   it('waits for the verdict on the push before the next launch, preparing the next task meanwhile', async () => {
@@ -126,7 +63,9 @@ describe('Dispatcher and the CI of main', () => {
     dispatcher.check()
     await dispatcher.idle()
     expect(ci.created).toHaveLength(1)
-    expect(ci.reports).toEqual([{ push: { commit: 'bbbbbbbbbb', at: '2026-09-26T12:00:00.000Z', tasks: ['ABC-1'] }, green: null }])
+    expect(ci.reports).toEqual([
+      { push: { commit: 'bbbbbbbbbb', at: '2026-09-26T12:00:00.000Z', tasks: ['ABC-1'] }, failure: { ci: [{ kind: 'forgejo', run: failedRun }] }, green: null },
+    ])
     expect(dispatcher.state.ci.ABC?.fix).toEqual({ task: 'ABC-9', at: '2026-09-26T12:00:00.000Z', commit: 'bbbbbbbbbb' })
     expect(launched).toEqual(['ABC/ABC-1'])
 
