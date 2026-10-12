@@ -1,6 +1,8 @@
 import type { Notice } from '../notice/notice.js'
 
-export type CiKind = 'forgejo' | 'github'
+export const CI_KINDS = ['forgejo', 'github'] as const
+
+export type CiKind = (typeof CI_KINDS)[number]
 
 export type RunStatus = 'queued' | 'running' | 'success' | 'failure' | 'cancelled' | 'skipped'
 

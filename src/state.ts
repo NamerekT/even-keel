@@ -1,7 +1,7 @@
 import type { AccountView } from './account/model.js'
 import type { ActiveChain, Leftover, ProjectOrder } from './chain/dispatcher.js'
 import type { LaunchDay, TaskSession } from './chain/launches.js'
-import type { CiView } from './ci/model.js'
+import type { CiKind, CiView } from './ci/model.js'
 import type { Language } from './language.js'
 import type { RateLimits } from './limits/model.js'
 import type { UsageHealth } from './limits/usage.js'
@@ -66,6 +66,14 @@ export interface ProjectSettings {
   prompt: string | null
   /** Run in order in the task's folder before a new session starts. */
   beforeStart: string[]
+  ci: CiSettings
+}
+
+/** Which CIs of the project the chain counts after a push of main, and how long it waits for them. */
+export interface CiSettings {
+  kinds: CiKind[]
+  /** `null` — as long as it takes, `0` — not at all. */
+  waitMinutes: number | null
 }
 
 export interface ContextScale {

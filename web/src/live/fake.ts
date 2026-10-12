@@ -8,7 +8,7 @@ import type { StatusCategory, Task } from '../../../src/tracker/model.js'
 import type { FeedLine } from '../../../src/sessions/transcript.js'
 import type { LimitHold } from '../../../src/chain/relay.js'
 import { isLanguage } from '../../../src/language.js'
-import type { EvenKeelState, SessionRecord, SessionView } from '../../../src/state.js'
+import type { EvenKeelState, ProjectSettings, SessionRecord, SessionView } from '../../../src/state.js'
 import type { Link, LiveSnapshot, LiveSource } from './connection.js'
 import { accountCommand, fakeAccount, fakeUsage, FAKE_LIMITS } from './fakeAccounts.js'
 import { fakeCi } from './fakeCi.js'
@@ -193,10 +193,10 @@ function fakeState(
     startedAt: ago(180),
     projects: ['ABC', 'DEMO', 'XYZ', 'OPS'],
     settings: {
-      ABC: { prompt: 'Run npm test before merging.', beforeStart: ['npm ci'] },
-      DEMO: { prompt: null, beforeStart: [] },
-      XYZ: { prompt: null, beforeStart: [] },
-      OPS: { prompt: null, beforeStart: [] },
+      ABC: { prompt: 'Run npm test before merging.', beforeStart: ['npm ci'], ci: { kinds: ['forgejo', 'github'], waitMinutes: null } },
+      DEMO: { prompt: null, beforeStart: [], ci: { kinds: ['github'], waitMinutes: 15 } },
+      XYZ: { prompt: null, beforeStart: [], ci: { kinds: ['forgejo', 'github'], waitMinutes: null } },
+      OPS: { prompt: null, beforeStart: [], ci: { kinds: [], waitMinutes: 0 } },
     },
     chain: {
       active: idle
@@ -495,7 +495,8 @@ function dequeue(state: EvenKeelState, project: string): EvenKeelState {
 function fakeSettings(state: EvenKeelState, project: string, body: Record<string, unknown>): EvenKeelState {
   const prompt = String(body.prompt ?? '').trim()
   const beforeStart = (body.beforeStart as string[]).map((line) => line.trim()).filter((line) => line !== '')
-  return { ...state, settings: { ...state.settings, [project]: { prompt: prompt === '' ? null : prompt, beforeStart } } }
+  const ci = body.ci as ProjectSettings['ci']
+  return { ...state, settings: { ...state.settings, [project]: { prompt: prompt === '' ? null : prompt, beforeStart, ci } } }
 }
 
 function fakeCommand(state: EvenKeelState, name: string, body: Record<string, unknown>, launches: LaunchEntry[]): EvenKeelState {

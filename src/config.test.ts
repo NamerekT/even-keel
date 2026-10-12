@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { DEFAULT_RULES } from './chain/rules.js'
-import { liveConfig, parseConfig, restartChanges } from './config.js'
+import { DEFAULT_CI, liveConfig, parseConfig, restartChanges, withProjectSettings } from './config.js'
 import { DEFAULT_HIDDEN_SKILLS } from './tools/settings.js'
 
 describe('parseConfig', () => {
@@ -16,7 +16,7 @@ describe('parseConfig', () => {
       trackers: { ABC: 'huly' },
       trackerProjects: {},
       briefs: { ABC: true },
-      settings: { ABC: { prompt: null, beforeStart: [] } },
+      settings: { ABC: { prompt: null, beforeStart: [], ci: DEFAULT_CI } },
       context: { window: 600_000, warn: 50, danger: 80 },
       model: 'opus',
       modelPrompts: {},
@@ -102,9 +102,31 @@ describe('parseConfig', () => {
       },
     })
     expect(config.settings).toEqual({
-      ABC: { prompt: 'Run npm test before merging.', beforeStart: ['npm ci', 'npm run build'] },
-      XYZ: { prompt: null, beforeStart: [] },
+      ABC: { prompt: 'Run npm test before merging.', beforeStart: ['npm ci', 'npm run build'], ci: DEFAULT_CI },
+      XYZ: { prompt: null, beforeStart: [], ci: DEFAULT_CI },
     })
+  })
+
+  it('counts both CIs and waits for them as long as it takes unless the project says otherwise', () => {
+    expect(DEFAULT_CI).toEqual({ kinds: ['forgejo', 'github'], waitMinutes: null })
+    const config = parseConfig({
+      projects: {
+        ABC: { repo: 'C:\\abc', ci: { kinds: ['github'], waitMinutes: 15 } },
+        DEF: { repo: 'C:\\def', ci: { kinds: [], waitMinutes: 0 } },
+        XYZ: { repo: 'C:\\xyz', ci: { waitMinutes: null } },
+      },
+    })
+    expect(config.settings.ABC?.ci).toEqual({ kinds: ['github'], waitMinutes: 15 })
+    expect(config.settings.DEF?.ci).toEqual({ kinds: [], waitMinutes: 0 })
+    expect(config.settings.XYZ?.ci).toEqual(DEFAULT_CI)
+  })
+
+  it('rejects an unknown CI and a wait that is not whole minutes', () => {
+    expect(() => parseConfig({ projects: { ABC: { repo: 'C:\\abc', ci: [] } } })).toThrow(/ABC.ci/)
+    expect(() => parseConfig({ projects: { ABC: { repo: 'C:\\abc', ci: { kinds: ['jenkins'] } } } })).toThrow(/ABC.ci.kinds/)
+    expect(() => parseConfig({ projects: { ABC: { repo: 'C:\\abc', ci: { waitMinutes: -1 } } } })).toThrow(/ABC.ci.waitMinutes/)
+    expect(() => parseConfig({ projects: { ABC: { repo: 'C:\\abc', ci: { waitMinutes: 1.5 } } } })).toThrow(/ABC.ci.waitMinutes/)
+    expect(() => parseConfig({ projects: { ABC: { repo: 'C:\\abc', ci: { other: 1 } } } })).toThrow(/other/)
   })
 
   it('reads an empty project prompt as no prompt', () => {
@@ -325,7 +347,7 @@ describe('reloading the config', () => {
 
   it('applies the project prompt and the commands before start at once', () => {
     const next = parseConfig({ projects: { ABC: { repo: 'C:\\abc', prompt: 'Mind Library.', commands: { beforeStart: ['npm ci'] } } } })
-    expect(liveConfig(base, next).settings).toEqual({ ABC: { prompt: 'Mind Library.', beforeStart: ['npm ci'] } })
+    expect(liveConfig(base, next).settings).toEqual({ ABC: { prompt: 'Mind Library.', beforeStart: ['npm ci'], ci: DEFAULT_CI } })
     expect(restartChanges(base, next)).toEqual([])
   })
 
@@ -354,5 +376,17 @@ describe('reloading the config', () => {
     const shaped = parseConfig({ chain: { requiredLabels: ['Auto'] }, projects: { ABC: 'C:\\abc' } })
     const next = parseConfig({ projects: { XYZ: 'C:\\xyz' } })
     expect(liveConfig(shaped, next).rules).toEqual({ ABC: shaped.rules.ABC })
+  })
+})
+
+describe('withProjectSettings', () => {
+  it('writes the CI settings only when they differ from the default, keeping the other keys', () => {
+    const settings = { prompt: null, beforeStart: [], ci: DEFAULT_CI }
+    expect(withProjectSettings({ repo: 'C:\\abc', ci: { kinds: ['github'] } }, settings)).toEqual({ repo: 'C:\\abc' })
+    expect(withProjectSettings('C:\\abc', { ...settings, ci: { kinds: ['github', 'forgejo'], waitMinutes: 10 } })).toEqual({
+      repo: 'C:\\abc',
+      ci: { waitMinutes: 10 },
+    })
+    expect(withProjectSettings('C:\\abc', { ...settings, ci: { kinds: [], waitMinutes: null } })).toEqual({ repo: 'C:\\abc', ci: { kinds: [] } })
   })
 })

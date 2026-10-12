@@ -151,14 +151,24 @@ describe('Even Keel HTTP server', () => {
   })
 
   it('passes the settings of a project on', async () => {
-    const body = { project: 'ABC', prompt: 'Run npm test.', beforeStart: ['npm ci'] }
+    const ci = { kinds: ['github'], waitMinutes: 15 }
+    const body = { project: 'ABC', prompt: 'Run npm test.', beforeStart: ['npm ci'], ci }
     const response = await fetch(base + '/api/project/settings', { method: 'POST', body: JSON.stringify(body) })
     expect(response.status).toBe(200)
-    expect(calls).toContainEqual(['settings', 'ABC', { prompt: 'Run npm test.', beforeStart: ['npm ci'] }])
+    expect(calls).toContainEqual(['settings', 'ABC', { prompt: 'Run npm test.', beforeStart: ['npm ci'], ci }])
+  })
+
+  it('refuses CI settings with an unknown CI or a wait that is not whole minutes', async () => {
+    for (const ci of [undefined, { kinds: ['jenkins'], waitMinutes: null }, { kinds: [], waitMinutes: -5 }, { kinds: [], waitMinutes: 1.5 }]) {
+      const body = { project: 'ABC', prompt: '', beforeStart: [], ci }
+      const response = await fetch(base + '/api/project/settings', { method: 'POST', body: JSON.stringify(body) })
+      expect(response.status).toBe(400)
+      expect((await response.json()).notice).toMatchObject({ code: 'request.required', params: { field: 'ci' } })
+    }
   })
 
   it('refuses settings whose commands are not a list of strings', async () => {
-    const body = { project: 'ABC', prompt: '', beforeStart: 'npm ci' }
+    const body = { project: 'ABC', prompt: '', beforeStart: 'npm ci', ci: { kinds: [], waitMinutes: null } }
     const response = await fetch(base + '/api/project/settings', { method: 'POST', body: JSON.stringify(body) })
     expect(response.status).toBe(400)
     expect((await response.json()).notice).toMatchObject({ code: 'request.required', params: { field: 'beforeStart' } })

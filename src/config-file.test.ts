@@ -3,6 +3,9 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { ConfigFile } from './config-file.js'
+import { DEFAULT_CI } from './config.js'
+
+const ci = DEFAULT_CI
 
 describe('ConfigFile', () => {
   let dir: string
@@ -52,24 +55,24 @@ describe('ConfigFile', () => {
     write({ port: 5000, projects: { ABC: 'C:\\abc', XYZ: { repo: 'C:\\xyz', slot: 2 } }, custom: { kept: true } })
     const config = open()
 
-    config.saveProject('ABC', { prompt: ' Mind Library. ', beforeStart: ['npm ci', ' '] })
-    config.saveProject('XYZ', { prompt: 'Run tests.', beforeStart: [] })
+    config.saveProject('ABC', { prompt: ' Mind Library. ', beforeStart: ['npm ci', ' '], ci: { kinds: ['github'], waitMinutes: 20 } })
+    config.saveProject('XYZ', { prompt: 'Run tests.', beforeStart: [], ci })
     expect(JSON.parse(readFileSync(file, 'utf8'))).toEqual({
       port: 5000,
       projects: {
-        ABC: { repo: 'C:\\abc', prompt: 'Mind Library.', commands: { beforeStart: ['npm ci'] } },
+        ABC: { repo: 'C:\\abc', prompt: 'Mind Library.', commands: { beforeStart: ['npm ci'] }, ci: { kinds: ['github'], waitMinutes: 20 } },
         XYZ: { repo: 'C:\\xyz', slot: 2, prompt: 'Run tests.' },
       },
       custom: { kept: true },
     })
-    expect(config.current.settings.ABC).toEqual({ prompt: 'Mind Library.', beforeStart: ['npm ci'] })
+    expect(config.current.settings.ABC).toEqual({ prompt: 'Mind Library.', beforeStart: ['npm ci'], ci: { kinds: ['github'], waitMinutes: 20 } })
   })
 
   it('removes the keys of cleared settings', () => {
-    write({ projects: { ABC: { repo: 'C:\\abc', brief: false, prompt: 'Old.', commands: { beforeStart: ['npm ci'] } } } })
+    write({ projects: { ABC: { repo: 'C:\\abc', brief: false, prompt: 'Old.', commands: { beforeStart: ['npm ci'] }, ci: { waitMinutes: 5 } } } })
     const config = open()
 
-    config.saveProject('ABC', { prompt: '', beforeStart: [] })
+    config.saveProject('ABC', { prompt: '', beforeStart: [], ci })
     expect(JSON.parse(readFileSync(file, 'utf8'))).toEqual({ projects: { ABC: { repo: 'C:\\abc', brief: false } } })
   })
 
@@ -77,7 +80,7 @@ describe('ConfigFile', () => {
     write({ projects: { ABC: 'C:\\abc' } })
     const config = open()
 
-    expect(() => config.saveProject('XYZ', { prompt: 'Hi.', beforeStart: [] })).toThrow(/XYZ/)
+    expect(() => config.saveProject('XYZ', { prompt: 'Hi.', beforeStart: [], ci })).toThrow(/XYZ/)
     expect(JSON.parse(readFileSync(file, 'utf8'))).toEqual({ projects: { ABC: 'C:\\abc' } })
   })
 })

@@ -4,7 +4,8 @@ import { isLanguage, LANGUAGES, type Language } from './language.js'
 import { fail } from './notice/notice.js'
 import { isModelAlias, MODEL_ALIASES, type ModelAlias } from './tracker/model.js'
 import { placeholderIn } from './sessions/prompt.js'
-import type { ContextScale, ProjectSettings } from './state.js'
+import type { CiSettings, ContextScale, ProjectSettings } from './state.js'
+import { CI_KINDS, type CiKind } from './ci/model.js'
 import type { CompareSettings } from './stats/rules.js'
 import { DEFAULT_HIDDEN_SKILLS } from './tools/settings.js'
 import { ADAPTERS, DEFAULT_TRACKER } from './tracker/adapters.js'
@@ -81,7 +82,7 @@ export function parseConfig(raw: unknown, adapters: AdapterShapes = ADAPTERS): E
   for (const [key, entry] of Object.entries(input.projects)) {
     if (!PROJECT_KEY.test(key)) throw fail('config.projectKey', { key })
     const fields: Record<string, unknown> = typeof entry === 'object' && entry !== null ? (entry as Record<string, unknown>) : { repo: entry }
-    const { repo, chain, slot, tracker, brief, prompt, commands } = fields
+    const { repo, chain, slot, tracker, brief, prompt, commands, ci } = fields
     if (typeof repo !== 'string' || repo === '') throw fail('config.repoEmpty', { key })
     if (slot !== undefined && typeof slot !== 'boolean' && !(Number.isInteger(slot) && (slot as number) > 0)) throw fail('config.slot', { key })
     projects[key] = repo
@@ -91,7 +92,11 @@ export function parseConfig(raw: unknown, adapters: AdapterShapes = ADAPTERS): E
     const projectKey = adapters[trackers[key]]?.projectKey
     if (projectKey !== undefined && !(projectKey.optional && fields[projectKey.key] === undefined)) trackerProjects[key] =parseTrackerProject(fields[projectKey.key], `${key}.${projectKey.key}`, projectKey)
     briefs[key] = brief === undefined ? sharedBrief : parseBrief(brief, `${key}.brief`)
-    settings[key] = { prompt: parseProjectPrompt(prompt, `${key}.prompt`), beforeStart: parseCommands(commands, `${key}.commands`).beforeStart }
+    settings[key] = {
+      prompt: parseProjectPrompt(prompt, `${key}.prompt`),
+      beforeStart: parseCommands(commands, `${key}.commands`).beforeStart,
+      ci: parseCi(ci, `${key}.ci`),
+    }
   }
 
   return {
@@ -185,6 +190,22 @@ function parseProjectPrompt(raw: unknown, where: string): string | null {
   if (raw === undefined) return null
   if (typeof raw !== 'string') throw fail('config.projectPrompt', { where })
   return raw.trim() === '' ? null : raw.trim()
+}
+
+export const DEFAULT_CI: Readonly<CiSettings> = Object.freeze({ kinds: Object.freeze([...CI_KINDS]) as CiKind[], waitMinutes: null })
+const CI_KEYS = ['kinds', 'waitMinutes'] as const
+
+function parseCi(raw: unknown, where: string): CiSettings {
+  if (raw === undefined) return DEFAULT_CI
+  if (!isPlainObject(raw)) throw fail('config.notObject', { where })
+  const unknown = Object.keys(raw).find((key) => !(CI_KEYS as readonly string[]).includes(key))
+  if (unknown !== undefined) throw fail('config.ciKey', { where, key: unknown, known: [...CI_KEYS] })
+  const { kinds = DEFAULT_CI.kinds, waitMinutes = null } = raw
+  if (!Array.isArray(kinds) || kinds.some((kind) => !(CI_KINDS as readonly unknown[]).includes(kind))) {
+    throw fail('config.ciKinds', { where: `${where}.kinds`, known: [...CI_KINDS] })
+  }
+  if (waitMinutes !== null && !(Number.isInteger(waitMinutes) && (waitMinutes as number) >= 0)) throw fail('config.ciWait', { where: `${where}.waitMinutes` })
+  return { kinds: CI_KINDS.filter((kind) => kinds.includes(kind)), waitMinutes: waitMinutes as number | null }
 }
 
 // An object rather than a list, so commands after the agent's work get a key of their own next to `beforeStart`.
@@ -294,8 +315,8 @@ export function readRawConfig(file: string): unknown {
   }
 }
 
-/** The project's entry in the config file with `prompt` and `commands.beforeStart` set, or removed when empty; its other keys stay. */
-export function withProjectSettings(entry: unknown, { prompt, beforeStart }: ProjectSettings): Record<string, unknown> {
+/** The project's entry in the config file with `prompt`, `commands.beforeStart` and `ci` set, or removed when empty or default; its other keys stay. */
+export function withProjectSettings(entry: unknown, { prompt, beforeStart, ci }: ProjectSettings): Record<string, unknown> {
   const fields: Record<string, unknown> = isPlainObject(entry) ? { ...entry } : { repo: entry }
   const text = prompt?.trim() ?? ''
   if (text === '') delete fields.prompt
@@ -306,6 +327,13 @@ export function withProjectSettings(entry: unknown, { prompt, beforeStart }: Pro
   else commands.beforeStart = lines
   if (Object.keys(commands).length === 0) delete fields.commands
   else fields.commands = commands
+  const kinds = CI_KINDS.filter((kind) => ci.kinds.includes(kind))
+  const written = {
+    ...(kinds.length === CI_KINDS.length ? {} : { kinds }),
+    ...(ci.waitMinutes === null ? {} : { waitMinutes: ci.waitMinutes }),
+  }
+  if (Object.keys(written).length === 0) delete fields.ci
+  else fields.ci = written
   return fields
 }
 

@@ -26,7 +26,8 @@ import {
   type StatsCompare,
   type StatsRules,
 } from './stats/rules.js'
-import type { ProjectSettings } from './state.js'
+import type { CiSettings, ProjectSettings } from './state.js'
+import { CI_KINDS, type CiKind } from './ci/model.js'
 import type { Calibration } from './stats/calibration.js'
 import type { CheckpointThreshold, SessionCheckpoint } from './stats/checkpoint.js'
 import type { StatsSteps } from './stats/steps.js'
@@ -430,10 +431,18 @@ export function answerOf(body: Record<string, unknown>): AnswerRequest {
 }
 
 function settingsOf(body: Record<string, unknown>): ProjectSettings {
-  const { prompt, beforeStart } = body
+  const { prompt, beforeStart, ci } = body
   if (prompt !== null && typeof prompt !== 'string') throw fail('request.required', { field: 'prompt' })
   if (!Array.isArray(beforeStart) || !beforeStart.every((line) => typeof line === 'string')) throw fail('request.required', { field: 'beforeStart' })
-  return { prompt, beforeStart }
+  return { prompt, beforeStart, ci: ciOf(ci) }
+}
+
+function ciOf(raw: unknown): CiSettings {
+  const { kinds, waitMinutes } = (typeof raw === 'object' && raw !== null ? raw : {}) as Record<string, unknown>
+  const known = Array.isArray(kinds) && kinds.every((kind) => (CI_KINDS as readonly unknown[]).includes(kind))
+  const wait = waitMinutes === null || (Number.isInteger(waitMinutes) && (waitMinutes as number) >= 0)
+  if (!known || !wait) throw fail('request.required', { field: 'ci' })
+  return { kinds: kinds as CiKind[], waitMinutes: waitMinutes as number | null }
 }
 
 function accountOf(body: Record<string, unknown>): string {
