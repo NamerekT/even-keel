@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { BOAT_MAST, boatSketch, crestAt, poseAt, voyageFrame } from './voyage.js'
+import { BOAT_MAST, boatSketch, crestAt, poseAt, seaAt, voyageFrame } from './voyage.js'
 
 const rows = (frame: string) => frame.split('\n')
 const mastTop = (frame: string) => rows(frame).findIndex((row) => row.includes('|'))
@@ -8,6 +8,11 @@ const tickWhere = (test: (crest: number) => boolean) => {
   while (!test(crestAt(tick))) tick++
   return tick
 }
+/** The tick of the first 200 at which `value` is the largest. */
+const mostAt = (value: (tick: number) => number) =>
+  Array.from({ length: 200 }, (_, tick) => tick).reduce((best, tick) => (value(tick) > value(best) ? tick : best))
+const crestTick = mostAt((tick) => seaAt(BOAT_MAST, tick))
+const troughTick = mostAt((tick) => -seaAt(BOAT_MAST, tick))
 /** How far the mast's top stands right of its foot, in columns. */
 const mastLean = (sketch: string[]) => sketch[0]!.indexOf('|') - sketch.at(-3)!.indexOf('|')
 
@@ -19,10 +24,19 @@ describe('voyageFrame', () => {
     expect(sizes.size).toBe(1)
   })
 
-  it('lifts the boat when the swell crest passes under the mast', () => {
+  it('lifts the sailing boat on a crest and lowers it in a trough', () => {
+    expect(mastTop(voyageFrame(crestTick))).toBeLessThan(mastTop(voyageFrame(troughTick)))
+  })
+
+  it('lifts the driving boat when the hill passes under the mast', () => {
     const crest = tickWhere((at) => Math.abs(at - BOAT_MAST) <= 0.3)
-    expect(mastTop(voyageFrame(crest))).toBeLessThan(mastTop(voyageFrame(0)) - 1)
     expect(mastTop(voyageFrame(crest, true))).toBeLessThan(mastTop(voyageFrame(0, true)))
+  })
+
+  it('draws the water at its height inside a row, rising and falling', () => {
+    const sea = rows(voyageFrame(0)).slice(3).join('\n')
+    expect(sea).toMatch(/\.-'/)
+    expect(sea).toMatch(/'-\./)
   })
 
   it('puts the driving boat on two wheels right under its hull, and the sailing one on none', () => {
@@ -52,20 +66,27 @@ describe('voyageFrame', () => {
   })
 })
 
+describe('seaAt', () => {
+  it('dips below the calm level as well as rises over it, with a sharper crest than trough', () => {
+    const heights = Array.from({ length: 60 }, (_, column) => seaAt(column, 0))
+    const crest = Math.max(...heights)
+    const trough = Math.min(...heights)
+    expect(crest).toBeGreaterThan(0.5)
+    expect(trough).toBeLessThan(-0.5)
+    expect(crest).toBeGreaterThan(-trough)
+  })
+})
+
 describe('poseAt', () => {
-  it('rides the crest level and high', () => {
-    const pose = poseAt(tickWhere((at) => Math.abs(at - BOAT_MAST) <= 0.3))
-    expect(pose.lift).toBeGreaterThan(1.5)
-    expect(Math.abs(pose.tilt)).toBeLessThan(0.02)
+  it('rides the crest level and higher than the trough by more than a row', () => {
+    expect(Math.abs(poseAt(crestTick).tilt)).toBeLessThan(0.02)
+    expect(poseAt(crestTick).lift - poseAt(troughTick).lift).toBeGreaterThan(1)
   })
 
-  it('raises the bow while climbing and drops it while coming down', () => {
-    expect(poseAt(tickWhere((at) => at < BOAT_MAST + 10)).tilt).toBeGreaterThan(0.05)
-    expect(poseAt(tickWhere((at) => at < BOAT_MAST - 10)).tilt).toBeLessThan(-0.05)
-  })
-
-  it('settles once the swell has passed', () => {
-    expect(poseAt(tickWhere((at) => at < BOAT_MAST - 40))).toEqual({ lift: 0, tilt: 0 })
+  it('raises the bow while the water under it stands higher than under the stern, and drops it the other way', () => {
+    const climb = (tick: number) => seaAt(BOAT_MAST + 8, tick) - seaAt(BOAT_MAST - 8, tick)
+    expect(poseAt(mostAt(climb)).tilt).toBeGreaterThan(0.05)
+    expect(poseAt(mostAt((tick) => -climb(tick))).tilt).toBeLessThan(-0.05)
   })
 })
 

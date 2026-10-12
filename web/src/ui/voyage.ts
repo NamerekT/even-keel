@@ -1,31 +1,40 @@
 /**
- * ASCII frames of a sailboat that rocks on a choppy sea and now and then rides over a low swell, tilting with it.
- * In `drive` mode the old picture stays: a stiff boat on wheels crawling over a hollow hill, as if over land.
+ * ASCII frames of a sailboat that rides a train of waves running at it, rising on the crests, sinking in the troughs and
+ * tilting with the slope. In `drive` mode the old picture stays: a stiff boat on wheels crawling over a hollow hill, as if over land.
  */
 
-const WIDTH = 60
+const WIDTH = 76
 const SEA = 16
 const CHOP = '~-~~-~'
-const DEEP = ['   ~      ~         ~    .  ', '      .        ~       ~       ']
+const DEEP = ['   ~      ~         ~    .  ', '      .        ~       ~       ', '         .               ~          ']
 const HEIGHT = SEA + 1 + DEEP.length
-/** A swell's height in rows and its half width in columns. */
-interface Swell {
-  height: number
-  half: number
-}
-const SAIL_SWELL: Swell = { height: 2, half: 26 }
-const DRIVE_SWELL: Swell = { height: 4, half: 18 }
-/** Columns the swell moves per tick. */
+/**
+ * The waves: length in columns, the crest's height over the calm level in rows, and how much sharper the crest is than
+ * the trough; past 0.25 the trough grows a bump of its own.
+ */
+const WAVE = { length: 40, height: 1.6, sharp: 0.15 }
+/** A short ripple over the waves, running the other way: height in rows, length in columns, columns per tick. */
+const RIPPLE = { height: 0.12, length: 7, speed: 0.25 }
+/** Where in its row each character's mark sits, as a share of the row from its top: the water's height inside a row. */
+const WATER: [number, string][] = [
+  [0.15, "'"],
+  [0.5, '-'],
+  [0.78, '.'],
+  [0.97, '_'],
+]
+/** The drive's hill: height in rows and half width in columns. */
+const HILL = { height: 4, half: 22 }
+/** Columns the waves and the hill move per tick. */
 const SPEED = 0.6
 const CALM_TICKS = 40
-/** How much taller a character cell is than it is wide (9px mono, line-height 1.1). */
+/** How much taller a character cell is than it is wide (7px mono, line-height 1.1). */
 const ASPECT = 1.8
 /** Lines flatter than this are drawn with `_` and `-`, steeper than `UPRIGHT` with `|`, in between with `/` and `\`. */
 const FLAT = (25 * Math.PI) / 180
 const UPRIGHT = (75 * Math.PI) / 180
-const SWAY = { angle: 0.06, ticks: 28 }
-/** The swell's slope under the boat from which the bow throws spray. */
-const SPRAY_SLOPE = 0.08
+const SWAY = { angle: 0.05, ticks: 28 }
+/** The boat's tilt, bow up, from which the bow throws spray. */
+const SPRAY_TILT = 0.055
 /** Spray drops as row and column offsets from the bow's deck corner, two sets that take turns. */
 const SPRAY = [
   [[-1, 1, "'"], [-2, 2, '.'], [0, 2, ','], [-3, 1, '.']],
@@ -47,7 +56,7 @@ const BOAT = [
 ]
 /** What the driving boat rolls on, under its hull. */
 const WHEELS = '    (o)       (o)'
-const BOAT_LEFT = 20
+const BOAT_LEFT = 25
 const BOAT_MIDDLE = 10
 const CLOUD = ['   .--.', '.-(    ).', '(___.__)__)']
 const CLOUD_TICKS = 5
@@ -71,43 +80,50 @@ const RIG_LINES: [Point, Point][] = [
 /** The hull's bottom row from its stern corner to its bow corner, which the chop covers wherever the water reaches it. */
 const KEEL = { row: 9, from: 1, to: 19 }
 const BOW_DECK: Point = [21, 8]
-/** How far bow and stern reach from the mast, where the swell under them tilts the boat. */
+/** How far bow and stern reach from the mast, where the waves under them tilt the boat. */
 const REACH = 9
-/** The share of the swell's slope the rig leans by. */
-const LEAN = 0.9
+/** The share of the waves' slope the rig leans by: they never stop, so a full lean would keep the sails broken half the time. */
+const LEAN = 0.3
 /** Past this the sails cross the boom and the deck. */
 const MAX_LEAN = 0.16
 
 export const VOYAGE_TICK_MS = 90
 
-/** The swell's rise in rows `offset` columns from its crest. */
-function rise(offset: number, { height, half }: Swell = SAIL_SWELL): number {
+/** How far the sea stands over its calm level `column` columns in at the tick, in rows, below it negative. The waves run to the left. */
+export function seaAt(column: number, tick: number): number {
+  const phase = (2 * Math.PI * (column + tick * SPEED)) / WAVE.length
+  return (WAVE.height * (Math.cos(phase) + WAVE.sharp * Math.cos(2 * phase))) / (1 + WAVE.sharp)
+}
+
+/** The drive's hill rise in rows `offset` columns from its top. */
+function rise(offset: number): number {
+  const { height, half } = HILL
   return Math.abs(offset) >= half ? 0 : (height * (1 + Math.cos((Math.PI * offset) / half))) / 2
 }
 
-function slope(offset: number, { height, half }: Swell): number {
+function slope(offset: number): number {
+  const { height, half } = HILL
   if (Math.abs(offset) >= half) return 0
   return ((-height * Math.PI) / (2 * half)) * Math.sin((Math.PI * offset) / half)
 }
 
-/** Where the swell's crest is at the tick; far off the left edge during the calm. Both swells keep the wider one's pace. */
+/** Where the drive's hill top is at the tick; far off the left edge during the calm. */
 export function crestAt(tick: number): number {
-  const { half } = SAIL_SWELL
+  const { half } = HILL
   const crossing = (WIDTH + 2 * half) / SPEED
   const step = wrap(tick, crossing + CALM_TICKS)
   return WIDTH + half - Math.min(step, crossing) * SPEED
 }
 
-/** The column under the boat's mast, where the swell lifts it. */
+/** The column under the boat's mast, where the sea lifts it. */
 export const BOAT_MAST = BOAT_LEFT + BOAT_MIDDLE
 
-/** How high the swell lifts the boat, in rows, and how far it tilts it, in radians, bow up positive. */
+/** How high the sea lifts the sailing boat, in rows, below the calm level negative, and how far it tilts it, in radians, bow up positive. */
 export function poseAt(tick: number): { lift: number; tilt: number } {
-  const crest = crestAt(tick)
-  const bow = rise(BOAT_MAST + REACH - crest)
-  const stern = rise(BOAT_MAST - REACH - crest)
-  const lift = (bow + rise(BOAT_MAST - crest) + stern) / 3
-  return { lift, tilt: lift === 0 ? 0 : LEAN * Math.atan2((bow - stern) * ASPECT, 2 * REACH) }
+  const bow = seaAt(BOAT_MAST + REACH, tick)
+  const stern = seaAt(BOAT_MAST - REACH, tick)
+  const lift = (bow + 2 * seaAt(BOAT_MAST, tick) + stern) / 4
+  return { lift, tilt: LEAN * Math.atan2((bow - stern) * ASPECT, 2 * REACH) }
 }
 
 /** The frame at `tick`, with the cloud at its own tick. Ticks before zero are fine, so the voyage can run backwards. */
@@ -170,11 +186,22 @@ function deepChar(row: number, column: number, tick: number): string {
   return line[wrap(column + Math.floor(tick / (depth + 2)), line.length)]!
 }
 
+/** The character whose mark sits nearest to `share` of a row from its top. */
+function waterChar(share: number): string {
+  return WATER.reduce((best, mark) => (Math.abs(mark[0] - share) < Math.abs(best[0] - share) ? mark : best))[1]
+}
+
 function sailFrame(canvas: Canvas, tick: number): void {
-  const crest = crestAt(tick)
-  const surface = Array.from({ length: WIDTH }, (_, column) => Math.round(SEA - rise(column + 0.5 - crest)))
-  surface.forEach((top, column) => {
-    canvas.set(top, column, CHOP[wrap(column + tick, CHOP.length)]!)
+  // Rows counted down, with the fraction inside the row; the calm sea runs through the middle of row `SEA`.
+  const surface = Array.from({ length: WIDTH }, (_, column) => {
+    const x = column + 0.5
+    const ripple = RIPPLE.height * Math.sin((2 * Math.PI * (x - tick * RIPPLE.speed)) / RIPPLE.length)
+    return SEA + 0.5 - seaAt(x, tick) - ripple
+  })
+  const rows = surface.map(Math.floor)
+  surface.forEach((level, column) => {
+    const top = rows[column]!
+    canvas.set(top, column, waterChar(level - top))
     for (let row = top + 1; row < HEIGHT; row++) canvas.set(row, column, deepChar(row, column, tick))
   })
 
@@ -186,14 +213,14 @@ function sailFrame(canvas: Canvas, tick: number): void {
 
   const keel = top + KEEL.row
   for (let column = BOAT_LEFT + KEEL.from; column <= BOAT_LEFT + KEEL.to; column++) {
-    if (surface[column]! <= keel) canvas.set(keel, column, CHOP[wrap(column + tick, CHOP.length)]!)
+    if (surface[column]! < keel + 0.5) canvas.set(keel, column, CHOP[wrap(column + tick, CHOP.length)]!)
   }
   ;[...WAKE[wrap(tick, 2)]!].forEach((char, index) => {
     const column = BOAT_LEFT - index
-    if (column >= 0 && surface[column]! >= keel) canvas.set(surface[column]!, column, char)
+    if (column >= 0 && rows[column]! >= keel) canvas.set(rows[column]!, column, char)
   })
 
-  if (slope(BOAT_MAST - crest, SAIL_SWELL) >= SPRAY_SLOPE) {
+  if (pose.tilt >= SPRAY_TILT) {
     const bow = BOAT_LEFT + BOW_DECK[0] - 1
     for (const [down, right, char] of SPRAY[wrap(tick, 2)]!) canvas.put(top + BOW_DECK[1] - 1 + down, bow + right, char)
   }
@@ -264,7 +291,7 @@ function stroke(canvas: Canvas, [x0, y0]: Point, [x1, y1]: Point): void {
 
 function driveFrame(canvas: Canvas, tick: number): void {
   const crest = crestAt(tick)
-  const levels = Array.from({ length: WIDTH }, (_, column) => Math.round(rise(column - crest, DRIVE_SWELL)))
+  const levels = Array.from({ length: WIDTH }, (_, column) => Math.round(rise(column - crest)))
   levels.forEach((level, column) => {
     const before = levels[column - 1] ?? 0
     for (let step = before + 1; step <= level; step++) canvas.put(SEA - step + 1, column, '/')
@@ -273,11 +300,11 @@ function driveFrame(canvas: Canvas, tick: number): void {
     DEEP.forEach((line, depth) => canvas.put(SEA + 1 + depth, column, line[wrap(column + Math.floor(tick / (depth + 2)), line.length)]!))
   })
 
-  const lift = Math.round(rise(BOAT_MAST - crest, DRIVE_SWELL))
+  const lift = Math.round(rise(BOAT_MAST - crest))
   const sprite = [...BOAT, WHEELS]
   sprite.forEach((line, row) => [...line].forEach((char, index) => canvas.put(SEA - (sprite.length - 1 - row) - lift, BOAT_LEFT + index, char)))
 
-  if (slope(BOAT_MAST - crest, DRIVE_SWELL) >= 0.2) {
+  if (slope(BOAT_MAST - crest) >= 0.2) {
     const deck = SEA - 3 - lift
     const bow = BOAT_LEFT + BOAT[BOAT.length - 3]!.length - 1
     for (const [row, column, char] of SPRAY[wrap(tick, 2)]!) canvas.put(deck + row, bow + column, char)
