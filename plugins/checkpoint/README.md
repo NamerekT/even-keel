@@ -23,6 +23,10 @@ Without Even Keel, or in a session it did not start, the hook works on the numbe
 
 Even Keel takes it from there: it stops the session and starts a new one in the same worktree with a handoff prompt that points at the note (see "Handoffs" in the [main README](../../README.md)). Outside a chain the line is just the end of a turn — start a new session yourself and give it the note.
 
+## The check before the merge
+
+A third hook, on `PreToolUse` of Bash, guards the merge of a chain session. When a command runs `git … merge … <branch>` with the branch of the session's own worktree — the session bringing its task into `main` — the hook asks Even Keel for the project's check (`/api/sessions/<id>/check`, the `commands.check` of the project). Even Keel gives the commands only when no CI it counts will judge `main`: the project counts none, or one does not answer. The hook runs them in order in the worktree, through the system shell, 20 minutes each at most; the first that fails blocks the merge, and its command, exit code and the last 60 lines of output go back to the session to fix. A command without `merge`, a merge of another branch, `--abort`, a session Even Keel did not start, or Even Keel not answering within two seconds — the hook lets the command through.
+
 ## Install
 
 User scope — the hook is useful in every project, not only in chains:
