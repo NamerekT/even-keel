@@ -85,3 +85,22 @@ export function QueueIcon() {
     </svg>
   )
 }
+
+/** Save: a check mark. */
+export function CheckIcon() {
+  return (
+    <svg className="icon" viewBox="0 0 16 16" aria-hidden="true">
+      <path d="M3 8.5 6.5 12 13 4.5" />
+    </svg>
+  )
+}
+
+/** Back as it was: an arrow turning back. */
+export function UndoIcon() {
+  return (
+    <svg className="icon" viewBox="0 0 16 16" aria-hidden="true">
+      <path d="M5.5 3 2.5 6l3 3" />
+      <path d="M2.5 6h7a4 4 0 0 1 0 8H7" />
+    </svg>
+  )
+}

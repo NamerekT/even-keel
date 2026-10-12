@@ -60,12 +60,23 @@ export function fakeConfig(): ConfigView {
 /** `?config=restart` — saved values that wait for a restart of the service. */
 export const fakeRestart = (config: ConfigView): ConfigView => ({ ...config, restart: ['tracker', 'context', 'ABC.repo', 'XYZ.slot'] })
 
+/** `?config=edited`, a few seconds after the page opens — the file edited by hand under the forms: ABC's prompt and branch, the shared model. */
+export const fakeHandEdit = (config: ConfigView): ConfigView => {
+  const abc = config.projects.ABC!
+  return {
+    ...config,
+    shared: { ...config.shared, model: 'sonnet' },
+    projects: { ...config.projects, ABC: { ...abc, branch: 'trunk', prompt: 'Run npm test and npm run lint before merging.' } },
+  }
+}
+
 /** What the service would save: the form as it came, lines trimmed. */
 export function fakeSettingsCommand(state: EvenKeelState, name: string, body: Record<string, unknown>): EvenKeelState | null {
   const lines = (list: unknown) => (list as string[]).map((line) => line.trim()).filter((line) => line !== '')
-  if (name === 'settings') return { ...state, config: { ...state.config, shared: body as unknown as SharedForm } }
+  const { base: _base, ...sent } = body
+  if (name === 'settings') return { ...state, config: { ...state.config, shared: sent as unknown as SharedForm } }
   if (name !== 'project/settings') return null
-  const { project: key, ...form } = body as unknown as ProjectForm & { project: string }
+  const { project: key, ...form } = sent as unknown as ProjectForm & { project: string }
   const prompt = form.prompt?.trim() ?? ''
   const saved: ProjectForm = { ...form, prompt: prompt === '' ? null : prompt, beforeStart: lines(form.beforeStart), check: lines(form.check) }
   return { ...state, config: { ...state.config, projects: { ...state.config.projects, [key]: saved } } }

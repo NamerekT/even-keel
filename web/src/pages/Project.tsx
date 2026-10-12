@@ -33,7 +33,7 @@ import { Flight } from './Flight.js'
 import { IdlePanel } from './IdlePanel.js'
 import { NotFound } from './NotFound.js'
 import { SessionPanel } from './SessionPanel.js'
-import { SETTINGS_HASH, SettingsChip, SettingsPanel } from './SettingsPanel.js'
+import { SETTINGS_HASH, SettingsChip, SettingsPanel, useSettingsDirty } from './SettingsPanel.js'
 import { StatsStrip, useStrip } from './StatsStrip.js'
 import { ToolsLink } from './ToolsLink.js'
 import { useArrival } from './useArrival.js'
@@ -71,6 +71,8 @@ export function Project({ state }: { state: EvenKeelState }) {
   const strip = useStrip(key)
   const wide = useWide()
   const narrow = useNarrow()
+  const settings = state.config.projects[key]
+  const settingsDirty = useSettingsDirty(key, settings)
   if (!state.projects.includes(key)) return <NotFound what={t.notFound.project(key)} />
 
   const order = state.chain.projects[key]
@@ -78,7 +80,6 @@ export function Project({ state }: { state: EvenKeelState }) {
   const selected = blocks.find((block) => block.id === focus && !block.locked)
   const backlog = backlogTasks(state, key)
   const backlogOpen = focus === BACKLOG_HASH && backlog.length > 0
-  const settings = state.config.projects[key]
   const settingsOpen = focus === SETTINGS_HASH && settings !== undefined
   const ci = state.ci[key]
   const ciOpen = focus === CI_HASH && ci !== undefined
@@ -91,7 +92,7 @@ export function Project({ state }: { state: EvenKeelState }) {
     <>
       {ci !== undefined && <CiChip views={ci} open={ciOpen} tab={tabs} onToggle={toggle(CI_HASH, ciOpen)} />}
       <BacklogChip count={backlog.length} open={backlogOpen} tab={tabs} onToggle={toggle(BACKLOG_HASH, backlogOpen)} />
-      {settings !== undefined && <SettingsChip open={settingsOpen} tab={tabs} onToggle={toggle(SETTINGS_HASH, settingsOpen)} />}
+      {settings !== undefined && <SettingsChip open={settingsOpen} tab={tabs} dirty={settingsDirty} onToggle={toggle(SETTINGS_HASH, settingsOpen)} />}
     </>
   )
   const question = questionPath(state, [key])

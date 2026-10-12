@@ -13,7 +13,7 @@ import type { EvenKeelState, SessionRecord, SessionView } from '../../../src/sta
 import type { Link, LiveSnapshot, LiveSource } from './connection.js'
 import { accountCommand, fakeAccount, fakeUsage, FAKE_LIMITS } from './fakeAccounts.js'
 import { fakeCi } from './fakeCi.js'
-import { fakeConfig, fakeRestart, fakeSettingsCommand } from './fakeConfig.js'
+import { fakeConfig, fakeHandEdit, fakeRestart, fakeSettingsCommand } from './fakeConfig.js'
 import { withFix } from './fakeFix.js'
 import { fakeCompare, fakeRuleDiff, fakeRules } from './fakeRules.js'
 import { fakeSteps } from './fakeSteps.js'
@@ -28,6 +28,8 @@ const ANSWER_MS = 300
 const CLOSE_TICKS = 5
 const HANDOVER_MS = 1_000
 const START_STAGE_MS = 3_000
+/** `?config=edited`: time to open the settings and start a draft before the file changes under it. */
+const HAND_EDIT_MS = 15_000
 const LAUNCH_DAYS = 14
 
 function task(
@@ -680,6 +682,13 @@ export function createFakeSource(search: string): LiveSource {
       notify()
     }, HANDOVER_MS)
     return finishCurrent(state)
+  }
+
+  if (params.get('config') === 'edited' && current.state !== null) {
+    setTimeout(() => {
+      current = { ...current, state: { ...current.state!, config: fakeHandEdit(current.state!.config) } }
+      notify()
+    }, HAND_EDIT_MS)
   }
 
   if (link === 'live') {
