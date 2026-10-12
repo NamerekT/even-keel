@@ -8,7 +8,7 @@ import { accountId, launchBlock, liveSessions, loginBlock, type LoginBlock } fro
 import { VsCodeAccount, vscodeSettingsFile } from './account/vscode.js'
 import { AccountWatcher } from './account/watcher.js'
 import { Dispatcher, type LaunchEntry } from './chain/dispatcher.js'
-import { handoffsOf, launchDays, ranSince, taskSessions } from './chain/launches.js'
+import { handoffsOf, launchDays, taskSessions } from './chain/launches.js'
 import { noteOf, resumePrompt, startPrompt, withBrief, withProjectPrompt, withUnattended } from './chain/relay.js'
 import { launchLine } from './chain/log.js'
 import { mainCheckDeps } from './chain/mainci.js'
@@ -20,7 +20,6 @@ import { CiWatch } from './ci/watcher.js'
 import { ConfigFile } from './config-file.js'
 import { DEFAULT_CI } from './config.js'
 import { EventHub } from './events.js'
-import { branchMerged } from './git/merged.js'
 import { runGit } from './git/run.js'
 import { finishSlot, prepareSlot, slotPaths, type SlotUse } from './git/slot.js'
 import { ensureIgnored, finishWorktree, prepareWorktree, taskPlace } from './git/worktree.js'
@@ -46,21 +45,14 @@ import { TallyService } from './stats/tally.js'
 import { chainSettings, readToolsView } from './tools/panel.js'
 import { ADAPTERS } from './tracker/adapters.js'
 import { cardOf } from './tracker/card.js'
-import { MergeCloser } from './tracker/closer.js'
-import { ParentCloser } from './tracker/parents.js'
 import { McpCheck, readMcpSources } from './tracker/mcp.js'
-import { worthBroadcast, type TrackerView } from './tracker/health.js'
-import { TrackerLink } from './tracker/link.js'
-import { isOpen, parseTaskId, type Task } from './tracker/model.js'
-import { StatusPoller } from './tracker/poller.js'
+import type { TrackerView } from './tracker/health.js'
+import type { TrackerLink } from './tracker/link.js'
+import { parseTaskId, type Task } from './tracker/model.js'
 import { TrackerQuestions, type AskingSession, type PostedQuestion } from './tracker/questions.js'
-import { trackerOf, type TrackerSetup } from './tracker/source.js'
+import type { TrackerSetup } from './tracker/source.js'
+import { startTracker } from './tracker/start.js'
 
-const TRACKER_POLL_MS = 5_000
-const TASKS_REFRESH_MS = 30_000
-/** How long a task the chain ran stays on the page once closed, whatever its milestone. */
-const RAN_SHOWN_MS = 7 * 24 * 60 * 60_000
-const TRACKER_TIMEOUT_MS = 15_000
 const SESSION_POLL_MS = 3_000
 const CLAUDE_TIMEOUT_MS = 30_000
 const LIMITS_POLL_MS = 2_000
@@ -742,105 +734,16 @@ server.listen(config.port, config.host, () => {
 for (const view of trackers.values()) {
   const setup = setups.get(view.name)
   if (setup === undefined) console.log(`${view.name}: ${ADAPTERS[view.name]!.variables.join(', ')} are not set, tracker is off`)
-  else startTracker(view, setup)
-}
-
-function startTracker(view: TrackerView, setup: TrackerSetup): void {
-  const { name, projects } = view
-  let completes = false
-  let closesParents = false
-  const link = new TrackerLink({
-    name,
-    connect: async () => {
-      const tracker = trackerOf(await setup.connect(TRACKER_TIMEOUT_MS))
-      completes = tracker.complete !== undefined
-      closesParents = completes && tracker.children !== undefined
-      view.ready = tracker.ready !== undefined
-      return tracker
-    },
-    timeoutMs: TRACKER_TIMEOUT_MS,
-    onHealth: (health) => {
-      const before = view.health
-      view.health = health
-      if (worthBroadcast(before, health)) hub.broadcast('state', getState())
-    },
-  })
-  links.set(name, link)
-  view.health = link.health
-  const report = (error: unknown) => console.error(`${name}: ${error instanceof Error ? error.message : String(error)}`)
-  const ownTasks = () => projects.flatMap((project) => tasksByProject.get(project) ?? [])
-
-  const closer = new MergeCloser({
-    merged: (project, task) => branchMerged(runGit, config.projects[project]!, task),
-    complete: (task) => link.run((tracker) => tracker.complete!(task)),
-    onError: report,
-  })
-
-  const parentCloser = new ParentCloser({
-    children: (task) => link.run((tracker) => tracker.children!(task)),
-    complete: (task) => link.run((tracker) => tracker.complete!(task)),
-    onError: report,
-  })
-
-  const poller = new StatusPoller({
-    link,
-    watched: () => ownTasks().map((task) => task.id),
-    intervalMs: TRACKER_POLL_MS,
-    onChange: (changes) => {
-      const byId = new Map(changes.map((change) => [change.id, change.to]))
-      for (const project of projects) {
-        const tasks = tasksByProject.get(project)
-        if (tasks === undefined || !tasks.some((task) => byId.has(task.id))) continue
-        const updated = tasks.flatMap((task) => {
-          const status = byId.has(task.id) ? byId.get(task.id) : task.status
-          return status ? [{ ...task, status }] : []
-        })
-        tasksByProject.set(project, updated)
-        dispatcher.setTasks(project, updated)
-      }
-      hub.broadcast('state', getState())
-    },
-    onError: report,
-  })
-
-  const unknownByProject = new Map<string, string>()
-  const refreshTasks = async (): Promise<void> => {
-    await Promise.all(
-      projects.map(async (project) => {
-        try {
-          const { tasks, parents, unknownStatuses } = await link.run((tracker) => tracker.chainTasks(project, rulesOf(project)))
-          const unknown = unknownStatuses.join('", "')
-          if (unknown !== (unknownByProject.get(project) ?? '') && unknown !== '') {
-            console.warn(`config: ${view.title} has no status "${unknown}" named in the chain rules of ${project}`)
-          }
-          unknownByProject.set(project, unknown)
-          const listed = new Set([...tasks, ...parents].map((task) => task.id))
-          const missing = [...new Set(tasks.filter((task) => isOpen(task.status)).flatMap((task) => task.blockedBy))].filter((id) => !listed.has(id))
-          const others = missing.length === 0 ? [] : await link.run((tracker) => tracker.tasks(missing))
-          const unlisted = ranSince(launches, project, new Date(Date.now() - RAN_SHOWN_MS)).filter((id) => !listed.has(id))
-          const ran = unlisted.length === 0 ? [] : (await link.run((tracker) => tracker.tasks(unlisted))).filter((task) => !isOpen(task.status))
-          const shown = [...tasks, ...ran]
-          dispatcher.setOutside(project, [...parents, ...others])
-          tasksByProject.set(project, shown)
-          dispatcher.setTasks(project, shown)
-          const released = dispatcher.released(project)
-          if (released.length > 0) dispatcher.setReleased(project, await link.run((tracker) => tracker.tasks(released)))
-          if (!completes) return
-          for (const task of await closer.sweep(project, dispatcher.held(project))) {
-            console.log(`${name}: closed ${task}, its branch is merged into main`)
-          }
-          if (!closesParents) return
-          for (const task of await parentCloser.sweep(parents, tasks)) {
-            console.log(`${name}: closed ${task}, all its subtasks are closed`)
-          }
-        } catch (error) {
-          report(error)
-        }
-      }),
-    )
-    hub.broadcast('state', getState())
-    poller.start()
-    setTimeout(() => void refreshTasks(), projects.some((project) => tasksByProject.has(project)) ? TASKS_REFRESH_MS : TRACKER_POLL_MS)
+  else {
+    startTracker(view, setup, {
+      repos: config.projects,
+      rulesOf,
+      links,
+      tasksByProject,
+      launches,
+      dispatcher,
+      broadcast: () => hub.broadcast('state', getState()),
+    })
   }
-  void refreshTasks()
 }
+
