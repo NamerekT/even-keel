@@ -33,8 +33,8 @@ export function IdlePanel({ scene }: { scene: Scene }) {
   const latest = useRef({ meme, parts, chat, cue, draw })
   latest.current = { meme, parts, chat, cue, draw }
 
-  // A general line and a chat go on their own; the drive and a moment's line stay until the moments change. A play goes
-  // act by act; the picture keeps its last act for good.
+  // A general line, a moment's line and a chat go on their own; the drive stays until the moments change, and so does a
+  // moment's line with reduced motion. A play goes act by act; the picture keeps its last act for good.
   useEffect(() => {
     if ('line' in meme || 'play' in meme || 'chat' in meme || line.current.cue === cue) return
     if (stillMotion()) {
@@ -55,7 +55,8 @@ export function IdlePanel({ scene }: { scene: Scene }) {
       const nextAct = 'play' in meme && meme.act < acts - 1 ? { play: meme.play, act: meme.act + 1 } : null
       const held = (chat ? chatTime(chat, IDLE_PACE) : typingTime(parts, IDLE_PACE)) + HOLD_MS
       const stays = 'play' in meme && meme.play === 'picture' && nextAct === null
-      const eraseAt = 'line' in meme || chat || ('play' in meme && !stays) ? held : 'play' in meme ? null : line.current.eraseAt
+      const goes = 'line' in meme || 'moment' in meme || chat || ('play' in meme && !stays)
+      const eraseAt = goes ? held : 'play' in meme ? null : line.current.eraseAt
       motion.current = 'play' in meme ? playMotion(meme.play, meme.act, acts, elapsed, parts, IDLE_PACE) : FORWARD
       const count = shownAt(parts, elapsed, IDLE_PACE, eraseAt)
       const lines = chat ? chatAt(chat, elapsed, IDLE_PACE, eraseAt) : { said: [], selected: 0 }

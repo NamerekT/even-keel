@@ -53,10 +53,16 @@ export function momentsOf(scene: Scene): Moment[] {
   return moments
 }
 
-/** Half the draws go to the moments, when there are any; the rest to the general lines, the drive and the plays. Never `previous` again. */
+/** A moment stays true for as long as the page stands still, so more than this share of the draws makes it a refrain. */
+const MOMENT_SHARE = 0.25
+
+/**
+ * A quarter of the draws go to the moments, when there are any; the rest to the general lines, the drive, the plays and the
+ * chats. Never `previous` again.
+ */
 export function pickMeme(moments: Moment[], lines: number, random: () => number, previous?: Meme): Meme {
   const fresh = moments.filter((moment) => !(previous && 'moment' in previous && previous.moment === moment))
-  if (fresh.length > 0 && random() < 0.5) return { moment: fresh[Math.floor(random() * fresh.length)]! }
+  if (fresh.length > 0 && random() < MOMENT_SHARE) return { moment: fresh[Math.floor(random() * fresh.length)]! }
   // The drive, the plays and then the chats are the general lines after the last one.
   const chats = lines + 1 + PLAYS.length
   const skip =

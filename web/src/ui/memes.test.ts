@@ -69,13 +69,13 @@ describe('longestRun', () => {
 })
 
 describe('pickMeme', () => {
-  it('takes a moment on the lower half of the draw', () => {
+  it('takes a moment on the lowest quarter of the draw', () => {
     const draws = [0.2, 0.7]
     expect(pickMeme(['calm', 'spend'], 5, () => draws.shift()!)).toEqual({ moment: 'spend' })
   })
 
-  it('takes a general line, the drive, a play from its first act or a chat on the upper half, and always without moments', () => {
-    const draws = [0.6, 0.45]
+  it('takes a general line, the drive, a play from its first act or a chat above that quarter, and always without moments', () => {
+    const draws = [0.3, 0.45]
     expect(pickMeme(['calm'], 5, () => draws.shift()!)).toEqual({ drive: true })
     expect(pickMeme([], 5, () => 0.55)).toEqual({ play: 'picture', act: 0 })
     expect(pickMeme([], 5, () => 0.6)).toEqual({ play: 'spoons', act: 0 })
