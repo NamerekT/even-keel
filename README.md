@@ -213,6 +213,16 @@ On Linux it installs a systemd user unit (`systemctl --user status even-keel`, l
 
 Statuses are matched by name, case-insensitively. Without `active` and `terminal` the chain goes by status category, so the backlog stays out and a task enters the chain when you move it to a ready status. Status names differ between trackers: if you set them at the top level, a project on another tracker needs its own (GitHub's are `Open`, `Completed`, `Not planned`, `Duplicate`; Linear's are the team's workflow states), as in the example.
 
+## What comes next
+
+Planned for the next release, v0.2:
+
+- **Codex as a second agent.** Sessions, accounts and limits through the `codex` CLI, next to Claude Code.
+- **Setup without a config file.** A wizard on the page adds a project and checks it on the way: the repository and its main branch, the project in the tracker, Claude Code's trust in the folder. Even Keel keeps the settings itself, so there is no file to copy or edit.
+- **One executable.** A single downloaded file that runs Even Keel, installs the service and updates it, instead of a clone, Node.js and a build. Windows first, Linux if it works out; macOS keeps `service/install.sh`.
+
+Looked at, not promised: running in Docker, sessions on an API key instead of a subscription, a cap on how much of the usage limit one task may spend, several connections to one tracker (two Huly workspaces, for example).
+
 ## Extending
 
 ### Your own tracker
