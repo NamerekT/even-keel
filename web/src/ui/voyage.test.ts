@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { BOAT_MAST, boatSketch, crestAt, poseAt, seaAt, voyageFrame } from './voyage.js'
+import { boatSketch, crestAt, mastAt, poseAt, seaAt, SKY_ROWS, VOYAGE_WIDTH, voyageFrame } from './voyage.js'
 
 const rows = (frame: string) => frame.split('\n')
 const mastTop = (frame: string) => rows(frame).findIndex((row) => row.includes('|'))
@@ -11,10 +11,11 @@ const tickWhere = (test: (crest: number) => boolean) => {
 /** The tick of the first 200 at which `value` is the largest. */
 const mostAt = (value: (tick: number) => number) =>
   Array.from({ length: 200 }, (_, tick) => tick).reduce((best, tick) => (value(tick) > value(best) ? tick : best))
-const crestTick = mostAt((tick) => seaAt(BOAT_MAST, tick))
-const troughTick = mostAt((tick) => -seaAt(BOAT_MAST, tick))
+const crestTick = mostAt((tick) => seaAt(mastAt(), tick))
+const troughTick = mostAt((tick) => -seaAt(mastAt(), tick))
+const KEEL = '\\_____________________________/'
 /** How far the mast's top stands right of its foot, in columns. */
-const mastLean = (sketch: string[]) => sketch[0]!.indexOf('|') - sketch.at(-3)!.indexOf('|')
+const mastLean = (sketch: string[]) => sketch[0]!.indexOf('|') - sketch.at(-5)!.indexOf('|')
 
 describe('voyageFrame', () => {
   it('keeps the same size on every tick, sailing or driving', () => {
@@ -24,25 +25,34 @@ describe('voyageFrame', () => {
     expect(sizes.size).toBe(1)
   })
 
+  it('stretches the sea and the sky to the width asked, the boat keeping its size, but not below the narrowest', () => {
+    for (const width of [80, 130]) {
+      const frame = rows(voyageFrame(0, false, 0, width))
+      expect(new Set(frame.map((row) => row.length))).toEqual(new Set([width]))
+      expect(frame.join('\n')).toContain('_________________|_________________')
+    }
+    expect(rows(voyageFrame(0, false, 0, 10))[0]).toHaveLength(VOYAGE_WIDTH.min)
+  })
+
   it('lifts the sailing boat on a crest and lowers it in a trough', () => {
     expect(mastTop(voyageFrame(crestTick))).toBeLessThan(mastTop(voyageFrame(troughTick)))
   })
 
   it('lifts the driving boat when the hill passes under the mast', () => {
-    const crest = tickWhere((at) => Math.abs(at - BOAT_MAST) <= 0.3)
+    const crest = tickWhere((at) => Math.abs(at - mastAt()) <= 0.3)
     expect(mastTop(voyageFrame(crest, true))).toBeLessThan(mastTop(voyageFrame(0, true)))
   })
 
   it('draws the water at its height inside a row, rising and falling', () => {
-    const sea = rows(voyageFrame(0)).slice(3).join('\n')
-    expect(sea).toMatch(/\.-'/)
-    expect(sea).toMatch(/'-\./)
+    const seas = Array.from({ length: 40 }, (_, tick) => rows(voyageFrame(tick)).slice(SKY_ROWS).join('\n'))
+    expect(seas.some((sea) => /[_.]-+'/.test(sea))).toBe(true)
+    expect(seas.some((sea) => /'-+[._]/.test(sea))).toBe(true)
   })
 
   it('puts the driving boat on two wheels right under its hull, and the sailing one on none', () => {
-    for (const tick of [0, tickWhere((at) => Math.abs(at - BOAT_MAST) <= 0.3)]) {
+    for (const tick of [0, tickWhere((at) => Math.abs(at - mastAt()) <= 0.3)]) {
       const frame = rows(voyageFrame(tick, true))
-      const keel = frame.findIndex((row) => row.includes('\\_________________/'))
+      const keel = frame.findIndex((row) => row.includes(KEEL))
       expect(frame[keel + 1]!.match(/\(o\)/g)).toHaveLength(2)
     }
     expect(voyageFrame(0)).not.toContain('(o)')
@@ -58,17 +68,17 @@ describe('voyageFrame', () => {
     }
   })
 
-  it('moves the cloud on its own tick and leaves the sea and the boat alone', () => {
+  it('moves the sky on its own tick and leaves the sea and the boat alone', () => {
     const still = rows(voyageFrame(30, false, 30))
     const drifted = rows(voyageFrame(30, false, 80))
-    expect(drifted.slice(0, 3)).not.toEqual(still.slice(0, 3))
-    expect(drifted.slice(3)).toEqual(still.slice(3))
+    expect(drifted.slice(0, SKY_ROWS)).not.toEqual(still.slice(0, SKY_ROWS))
+    expect(drifted.slice(SKY_ROWS)).toEqual(still.slice(SKY_ROWS))
   })
 })
 
 describe('seaAt', () => {
   it('dips below the calm level as well as rises over it, with a sharper crest than trough', () => {
-    const heights = Array.from({ length: 60 }, (_, column) => seaAt(column, 0))
+    const heights = Array.from({ length: 100 }, (_, column) => seaAt(column, 0))
     const crest = Math.max(...heights)
     const trough = Math.min(...heights)
     expect(crest).toBeGreaterThan(0.5)
@@ -84,7 +94,7 @@ describe('poseAt', () => {
   })
 
   it('raises the bow while the water under it stands higher than under the stern, and drops it the other way', () => {
-    const climb = (tick: number) => seaAt(BOAT_MAST + 8, tick) - seaAt(BOAT_MAST - 8, tick)
+    const climb = (tick: number) => seaAt(mastAt() + 12, tick) - seaAt(mastAt() - 12, tick)
     expect(poseAt(mostAt(climb)).tilt).toBeGreaterThan(0.05)
     expect(poseAt(mostAt((tick) => -climb(tick))).tilt).toBeLessThan(-0.05)
   })
@@ -93,25 +103,32 @@ describe('poseAt', () => {
 describe('boatSketch', () => {
   it('draws the level boat as the hand-drawn one', () => {
     expect(boatSketch(0)).toEqual([
-      '          |\\',
-      '          | \\',
-      '          |  \\',
-      '         /|   \\',
-      '        / |    \\',
-      '       /  |     \\',
-      '      /___|______\\',
-      '__________|__________',
-      '\\    o    o    o    /',
-      ' \\_________________/',
+      '                 |~>',
+      '                 |\\',
+      '                 | \\',
+      '                 |  \\',
+      '                 |   \\',
+      '                /|    \\',
+      '               / |     \\',
+      '               / |      \\',
+      '              /  |       \\',
+      '             /   |        \\',
+      '            /    |         \\',
+      '            /    |          \\',
+      '           /_____|___________\\',
+      '_________________|_________________',
+      '\\   o    o    o    o    o    o    /',
+      ' \\===============================/',
+      '  \\_____________________________/',
     ])
   })
 
-  it('leans the mast back with the bow up and forward with the bow down, the hull staying level', () => {
+  it('leans the mast back with the bow up and forward with the bow down, the hull and the boom staying level', () => {
     const level = boatSketch(0)
-    const hull = level.slice(-3)
-    expect(mastLean(boatSketch(0.15))).toBeLessThan(0)
-    expect(mastLean(boatSketch(-0.15))).toBeGreaterThan(0)
-    expect(boatSketch(0.15).slice(-3)).toEqual(hull)
-    expect(boatSketch(-0.15).slice(-3)).toEqual(hull)
+    const hull = level.slice(-5)
+    expect(mastLean(boatSketch(0.12))).toBeLessThan(0)
+    expect(mastLean(boatSketch(-0.12))).toBeGreaterThan(0)
+    expect(boatSketch(0.12).slice(-5)).toEqual(hull)
+    expect(boatSketch(-0.12).slice(-5)).toEqual(hull)
   })
 })
