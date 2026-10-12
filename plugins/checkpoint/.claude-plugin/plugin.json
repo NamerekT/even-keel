@@ -1,7 +1,7 @@
 {
   "name": "checkpoint",
-  "version": "0.5.0",
-  "description": "Context checkpoints for Even Keel sessions: once the context passes 200k tokens (and every 50k after, every 25k past 250k), the session is asked to write a handoff note and end its turn with `CHECKPOINT: <path>`, so that Even Keel continues the task in a fresh session instead of re-reading the whole context on every turn. A session that writes the note but forgets the line is sent back to add it. With Even Keel running, the first threshold is the project's calibrated one, and a task that has had three handoffs is asked only from 300k. Thresholds: CHECKPOINT_FIRST_TOKENS, CHECKPOINT_STEP_TOKENS, CHECKPOINT_LATE_TOKENS, CHECKPOINT_LATE_STEP_TOKENS, CHECKPOINT_HARD_TOKENS and CHECKPOINT_MAX_HANDOFFS. In a chain session of a project without a CI to judge main, the merge of the task branch waits for the project's check commands from Even Keel and is blocked while they fail.",
+  "version": "0.5.1",
+  "description": "Context checkpoints for Even Keel sessions: once the context passes 200k tokens (and every 50k after, every 25k past 250k), the session is asked to write a handoff note and end its turn with `CHECKPOINT: <path>`, so that Even Keel continues the task in a fresh session instead of re-reading the whole context on every turn. A session that writes the note but forgets the line is sent back to add it. With Even Keel running, the first threshold is the project's calibrated one, and a task that has had three handoffs is asked only from 300k. Thresholds: CHECKPOINT_FIRST_TOKENS, CHECKPOINT_STEP_TOKENS, CHECKPOINT_LATE_TOKENS, CHECKPOINT_LATE_STEP_TOKENS, CHECKPOINT_HARD_TOKENS and CHECKPOINT_MAX_HANDOFFS. In a chain session of a project without a CI to judge its main branch, the merge of the task branch waits for the project's check commands from Even Keel and is blocked while they fail.",
   "author": {
     "name": "Even Keel"
   },

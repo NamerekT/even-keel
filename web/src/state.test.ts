@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { notice, textNotice, type Notice } from '../../src/notice/notice.js'
 import { fakeTask } from '../../src/tracker/fixture.js'
 import { setLanguage } from './i18n/index.js'
+import { FAKE_SHARED } from './live/fakeConfig.js'
 import type { StatusCategory, Task } from '../../src/tracker/model.js'
 import type { AccountEntry, AccountLogin, AccountView } from '../../src/account/model.js'
 import type { EvenKeelState, SessionView } from '../../src/state.js'
@@ -74,7 +75,7 @@ function stateOf(patch: Partial<EvenKeelState>): EvenKeelState {
   return {
     startedAt: '2026-01-01T08:00:00.000Z',
     projects: ['ABC', 'XYZ'],
-    settings: {},
+    config: { shared: FAKE_SHARED, projects: {}, restart: [], trackers: [] },
     chain: { active: [], parallel: 1, queue: [], projects: {}, skipped: {}, leftovers: {} },
     tasks: [],
     sessions: [],

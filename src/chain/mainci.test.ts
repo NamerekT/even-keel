@@ -33,7 +33,7 @@ const view = (kind: CiKind, status: CiRun['status']): CiView => ({
 
 const all = (kinds: CiKind[], waitMinutes: number | null = null): CiSettings => ({ kinds, waitMinutes, recheckMain: true, fixTask: false })
 
-function setup(settings: CiSettings, views: CiView[], heads: Record<string, string> = {}, failure: CheckFailure | null = null) {
+function setup(settings: CiSettings, views: CiView[], heads: Record<string, string> = {}, failure: CheckFailure | null = null, main = 'main') {
   const gitCalls: string[][] = []
   const checks: string[] = []
   const git: Git = async (cwd, args) => {
@@ -50,6 +50,7 @@ function setup(settings: CiSettings, views: CiView[], heads: Record<string, stri
   const watches: MainCiWatch[] = views.map((each) => ({ view: each, failed: async (failed) => ({ kind: each.kind, run: failed, jobs: [], log: 'FAIL' }) }))
   const deps = mainCheckDeps({
     repo: () => 'D:/repos/abc',
+    main: () => main,
     git,
     watches: () => watches,
     settings: () => settings,
@@ -73,6 +74,14 @@ describe('mainCheckDeps', () => {
   it('reads main of the project checkout', async () => {
     const { deps } = setup(all(['forgejo', 'github']), [])
     expect(await deps.head('ABC')).toBe('c2')
+  })
+
+  it('reads the project’s main branch and checks the next task’s place against it when it is not main', async () => {
+    const place = 'D:/repos/abc/.claude/worktrees/abc-2'
+    const { deps, gitCalls } = setup(all([]), [], { [`${place} HEAD`]: 'c3', 'D:/repos/abc refs/heads/master': 'c3' }, null, 'master')
+    expect(await deps.head('ABC')).toBe('c3')
+    expect(gitCalls[0]).toEqual(['rev-parse', '--verify', '--quiet', 'refs/heads/master'])
+    expect(await deps.checkMain('ABC', 'ABC-2', 'c3')).toEqual({ state: 'green' })
   })
 
   it('counts only the CIs the project settings name', () => {

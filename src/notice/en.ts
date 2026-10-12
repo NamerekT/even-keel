@@ -40,7 +40,7 @@ export const en = {
     `chain: ${p.task} in ${p.milestone} cannot go before ${p.earlier} in the earlier ${p.earlierMilestone}`,
 
   'cleanup.failed': () => 'cleanup failed',
-  'cleanup.syncFailed': () => 'sync of main failed',
+  'cleanup.syncFailed': () => 'sync of the main branch failed',
   'cleanup.folderLeft': (p: { path: string }) => `the worktree folder ${p.path} was left behind, a process still holds it`,
   'cleanup.worktreeKept': (p: { path: string }) => `the worktree ${p.path} was kept`,
   'cleanup.branchKept': (p: { branch: string }) => `the branch ${p.branch} was kept`,
@@ -52,12 +52,15 @@ export const en = {
 
   'git.ignoreUnknown': (p: { repo: string; dir: string }) => `git: cannot tell whether ${p.repo} ignores ${p.dir}`,
   'git.failed': (p: { step: GitStep; subject: string; repo: string }) => `git: could not ${GIT_STEPS[p.step](p.subject)} ${p.repo}`,
+  'git.noBranch': (p: { project: string; branch: string; repo: string }) =>
+    `git: ${p.repo} has no branch ${p.branch}, the main branch of ${p.project}; create it or name the right one in the project's settings`,
 
   'sync.alias': (p: { exit: number }) => `git sync exited with ${p.exit}`,
-  'sync.notMain': (p: { repo: string; branch: string }) => `sync: ${p.repo} is on ${p.branch || 'a detached HEAD'}, not main; switch it to main`,
+  'sync.notMain': (p: { repo: string; branch: string; main: string }) =>
+    `sync: ${p.repo} is on ${p.branch || 'a detached HEAD'}, not ${p.main}; switch it to ${p.main}`,
   'sync.fetch': (p: { remote: string }) => `sync: could not fetch ${p.remote}`,
-  'sync.merge': (p: { remote: string }) => `sync: ${p.remote}/main does not merge cleanly into main, merge it by hand`,
-  'sync.push': (p: { remote: string }) => `sync: could not push main to ${p.remote}`,
+  'sync.merge': (p: { remote: string; main: string }) => `sync: ${p.remote}/${p.main} does not merge cleanly into ${p.main}, merge it by hand`,
+  'sync.push': (p: { remote: string; main: string }) => `sync: could not push ${p.main} to ${p.remote}`,
 
   'ci.noToken': (p: { variable: string }) => `set ${p.variable} in the environment of Even Keel to watch this CI`,
   'ci.denied': (p: { ci: string; status: number }) => `${p.ci}: the token was refused (HTTP ${p.status}); it needs read access to the repository's actions`,
@@ -156,8 +159,8 @@ export const en = {
   'task.pastBacklog': (p: { task: string }) => `${p.task} is no longer in a backlog status`,
 
   'config.notJson': (p: { file: string }) => `config: ${p.file} is not JSON`,
-  'config.host': () => 'config: host must be a non-empty string',
-  'config.port': (p: { value: string }) => `config: port must be an integer in 1..65535, got ${p.value}`,
+  'config.port': (p: { value: string }) => `config: EVEN_KEEL_PORT must be an integer in 1..65535, got ${p.value}`,
+  'config.branch': (p: { where: string; value: string }) => `config: ${p.where} must be a branch name, got ${p.value}`,
   'config.projects': () => 'config: projects must map a project key to a repository path',
   'config.projectKey': (p: { key: string }) => `config: "${p.key}" is not a project key`,
   'config.repoEmpty': (p: { key: string }) => `config: repository path for ${p.key} is empty`,

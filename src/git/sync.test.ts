@@ -54,15 +54,43 @@ describe('syncMain', () => {
     expect(calls).toContain('push origin main')
   })
 
+  it('syncs a main branch named otherwise by itself, past the user’s alias made for main', async () => {
+    const { git, calls } = fakeGit({
+      'config --local --get alias.sync': { code: 1 },
+      'config --get alias.sync': { out: '!sh ~/.githooks/git-sync.sh' },
+      'branch --show-current': { out: 'master' },
+    })
+    expect(await syncMain(git, repo, ['origin'], 'master')).toBeNull()
+    expect(calls).toEqual([
+      'config --local --get alias.sync',
+      'branch --show-current',
+      'fetch origin',
+      'rev-parse --verify --quiet refs/remotes/origin/master',
+      'merge --no-edit origin/master',
+      'push origin master',
+    ])
+  })
+
+  it('runs the repository’s own alias whatever the main branch is called', async () => {
+    const { git, calls } = fakeGit({ 'config --local --get alias.sync': { out: '!sh sync.sh' } })
+    expect(await syncMain(git, repo, ['origin'], 'master')).toBeNull()
+    expect(calls).toEqual(['config --local --get alias.sync', 'sync'])
+  })
+
+  it('names the main branch it expected when the checkout is elsewhere', async () => {
+    const { git } = fakeGit({ 'config --local --get alias.sync': { code: 1 }, 'branch --show-current': { out: 'main' } })
+    expect(await syncMain(git, repo, ['origin'], 'master')).toEqual(notice('sync.notMain', { repo, branch: 'main', main: 'master' }))
+  })
+
   it('refuses when the main checkout is not on main', async () => {
     const { git, calls } = fakeGit({ ...builtIn, 'branch --show-current': { out: 'abc-7/task' } })
-    expect(await syncMain(git, repo, ['origin'])).toEqual(notice('sync.notMain', { repo, branch: 'abc-7/task' }))
+    expect(await syncMain(git, repo, ['origin'])).toEqual(notice('sync.notMain', { repo, branch: 'abc-7/task', main: 'main' }))
     expect(calls.some((call) => call.startsWith('fetch'))).toBe(false)
   })
 
   it('aborts a merge that does not go cleanly and pushes nothing', async () => {
     const { git, calls } = fakeGit({ ...builtIn, 'merge --no-edit origin/main': { code: 1, out: 'CONFLICT (content): a.ts' } })
-    expect(await syncMain(git, repo, ['origin'])).toEqual(notice('sync.merge', { remote: 'origin' }, { detail: 'CONFLICT (content): a.ts' }))
+    expect(await syncMain(git, repo, ['origin'])).toEqual(notice('sync.merge', { remote: 'origin', main: 'main' }, { detail: 'CONFLICT (content): a.ts' }))
     expect(calls).toContain('merge --abort')
     expect(calls.some((call) => call.startsWith('push'))).toBe(false)
   })
@@ -75,6 +103,6 @@ describe('syncMain', () => {
 
   it('reports a rejected push', async () => {
     const { git } = fakeGit({ ...builtIn, 'push origin main': { code: 1, out: 'rejected' } })
-    expect(await syncMain(git, repo, ['origin'])).toEqual(notice('sync.push', { remote: 'origin' }, { detail: 'rejected' }))
+    expect(await syncMain(git, repo, ['origin'])).toEqual(notice('sync.push', { remote: 'origin', main: 'main' }, { detail: 'rejected' }))
   })
 })

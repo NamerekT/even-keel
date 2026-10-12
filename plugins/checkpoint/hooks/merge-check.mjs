@@ -26,11 +26,13 @@ function git(cwd, args) {
 }
 
 /** Empty — no check: Even Keel did not start this session, the project has none, or a CI will judge main. */
-async function commandsOf(sessionId) {
+/** The commands and the project's main branch; the branch is `main` when Even Keel does not name one. */
+async function checkOf(sessionId) {
   const response = await fetch(`${BASE}/api/sessions/${encodeURIComponent(sessionId)}/check`, { signal: AbortSignal.timeout(2000) });
-  if (!response.ok) return [];
+  if (!response.ok) return { commands: [], main: "main" };
   const body = await response.json();
-  return Array.isArray(body?.commands) ? body.commands.filter((command) => typeof command === "string" && command.trim() !== "") : [];
+  const commands = Array.isArray(body?.commands) ? body.commands.filter((command) => typeof command === "string" && command.trim() !== "") : [];
+  return { commands, main: typeof body?.branch === "string" && body.branch !== "" ? body.branch : "main" };
 }
 
 async function main() {
@@ -39,13 +41,15 @@ async function main() {
   if (!String(input.tool_input?.command ?? "").includes("merge")) return;
   const root = git(process.env.CLAUDE_PROJECT_DIR || input.cwd || ".", ["rev-parse", "--show-toplevel"]);
   const branch = root === "" ? "" : git(root, ["branch", "--show-current"]);
-  if (branch === "" || branch === "main" || !mergesBranch(input.tool_input?.command, branch)) return;
-  let commands;
+  if (branch === "" || !mergesBranch(input.tool_input?.command, branch)) return;
+  let check;
   try {
-    commands = await commandsOf(input.session_id);
+    check = await checkOf(input.session_id);
   } catch {
     return;
   }
+  const { commands } = check;
+  if (branch === check.main) return;
   for (const command of commands) {
     const run = spawnSync(command, { cwd: root, shell: true, encoding: "utf8", timeout: COMMAND_TIMEOUT_MS, windowsHide: true, maxBuffer: 16 * 1024 * 1024 });
     if (run.status === 0) continue;

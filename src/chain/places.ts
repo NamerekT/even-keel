@@ -3,6 +3,8 @@ import type { Git, TaskPlace } from '../git/types.js'
 
 export interface TaskPlacesDeps {
   git: Git
+  /** The project's main branch. */
+  main: (project: string) => string
   /** The task's worktree or slot, made or found; asking again for the same task finds the same place. */
   place: (project: string, task: string) => Promise<TaskPlace>
   /** The project's commands before start, in the place. */
@@ -33,7 +35,7 @@ export class TaskPlaces {
     this.ahead.delete(task)
     const prepared = ahead !== undefined && (await ahead.then(() => true, () => false))
     const place = await this.deps.place(project, task)
-    const moved = await catchUp(this.deps.git, place.path)
+    const moved = await catchUp(this.deps.git, place.path, this.deps.main(project))
     if (!prepared || moved) await this.deps.setUp(project, task, place.path)
     return place
   }

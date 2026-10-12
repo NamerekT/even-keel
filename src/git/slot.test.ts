@@ -50,6 +50,13 @@ describe('prepareSlot', () => {
     expect(changing(calls)).toEqual([`worktree add --detach ${slot} main`, '@slot clean -fd', '@slot switch -c abc-7/task main'])
   })
 
+  it('adds the slot and the task branch off the project’s main branch when it is not main', async () => {
+    const { git, calls } = fakeGit({ [LIST]: listing(), [HAS_BRANCH]: { code: 1 } })
+    await prepareSlot(git, repo, 'ABC-7', { main: 'master' })
+    expect(calls).toContain(`worktree add --detach ${slot} master`)
+    expect(calls).toContain('@slot switch -c abc-7/task master')
+  })
+
   it('cleans a clean slot and makes a new branch off main when the task has none', async () => {
     const { git, calls } = fakeGit({ [LIST]: listing([porcelain(slot), 'abc-6/task']), [HAS_BRANCH]: { code: 1 } })
     expect(await prepareSlot(git, repo, 'ABC-7')).toEqual({ path: slot, branch: 'abc-7/task' })
@@ -241,6 +248,13 @@ describe('finishSlot', () => {
       'config --get alias.sync',
       'sync',
     ])
+  })
+
+  it('detaches the slot on the project’s main branch when it is not main', async () => {
+    const { git, calls } = fakeGit({ ...done, 'config --local --get alias.sync': { code: 1 }, 'branch --show-current': { out: 'master' } })
+    expect(await finishSlot(git, repo, 'ABC-7', 1, 'master')).toEqual({ warnings: [], syncError: null })
+    expect(calls).toContain('@slot switch --detach master')
+    expect(calls).toContain('push origin master')
   })
 
   it('keeps a dirty slot on the task’s branch, keeps the branch, warns and still syncs', async () => {

@@ -22,9 +22,10 @@ function run(id: number, overrides: Partial<CiRun> = {}): CiRun {
   }
 }
 
-function setup(options: { runs?: CiRun[]; source?: false; jobs?: CiJob[]; log?: CiSource['log'] } = {}) {
+function setup(options: { runs?: CiRun[]; source?: false; jobs?: CiJob[]; log?: CiSource['log']; main?: string } = {}) {
   let clock = Date.parse('2026-10-12T12:00:00Z')
   let head = 'sha2'
+  const refs: string[] = []
   let runs = options.runs ?? [run(2), run(1)]
   let failure: Error | null = null
   const calls = { runs: 0, jobs: [] as number[] }
@@ -44,7 +45,10 @@ function setup(options: { runs?: CiRun[]; source?: false; jobs?: CiJob[]; log?: 
     },
   }
   const git: Git = async (_cwd, args) => {
-    if (args[0] === 'rev-parse') return { code: 0, out: head }
+    if (args[0] === 'rev-parse') {
+      refs.push(args.at(-1)!)
+      return { code: 0, out: head }
+    }
     if (args[0] === 'log') return { code: 0, out: args.includes('sha1..sha2') ? '[ABC-2] Second\n[ABC-1] Merged in' : '[ABC-9] Other' }
     return { code: 1, out: '' }
   }
@@ -54,6 +58,7 @@ function setup(options: { runs?: CiRun[]; source?: false; jobs?: CiJob[]; log?: 
     variable: 'FORGEJO_TOKEN',
     git,
     repo: 'D:/repos/app',
+    ...(options.main === undefined ? {} : { main: () => options.main! }),
     now: () => new Date(clock),
     log: (message) => logs.push(message),
     onChange: () => changes++,
@@ -61,6 +66,7 @@ function setup(options: { runs?: CiRun[]; source?: false; jobs?: CiJob[]; log?: 
   return {
     watch,
     calls,
+    refs,
     logs,
     changes: () => changes,
     advance: (ms: number) => (clock += ms),
@@ -83,6 +89,15 @@ describe('CiWatch', () => {
     t.advance(POLL_MS * 10)
     await t.watch.tick()
     expect(t.calls.runs).toBe(1)
+  })
+
+  it('watches the remote’s copy of the project’s main branch, main by default', async () => {
+    const plain = setup()
+    await plain.watch.tick()
+    expect(plain.refs).toEqual(['refs/remotes/origin/main'])
+    const named = setup({ main: 'master' })
+    await named.watch.tick()
+    expect(named.refs).toEqual(['refs/remotes/origin/master'])
   })
 
   it('polls while a run is unfinished, at most every POLL_MS', async () => {

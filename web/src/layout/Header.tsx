@@ -43,6 +43,9 @@ export function Header() {
               <NavLink to="/tools" className="header__link">
                 {t.header.tools}
               </NavLink>
+              <NavLink to="/settings" className="header__link">
+                {t.header.settings}
+              </NavLink>
             </>
           )}
         </nav>

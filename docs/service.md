@@ -8,7 +8,7 @@ The Tally stats collector runs inside the service (every 5 minutes, in its own t
 
 - The service host is `service/EvenKeelService.cs`, compiled during installation by the stock `csc.exe` from .NET Framework; there are no third-party wrappers. It keeps `node --import tsx src/main.ts` running in the repository root, restarts it on a crash and writes the output to `logs/even-keel.log`. To debug without the service: `EvenKeelService.exe <root> <node.exe> --console`.
 - `service/install.ps1` and `service/uninstall.ps1` — from PowerShell 7 as administrator. The script does not ask for the account password: the user enters it on the "Log On" tab in services.msc, which also grants the "Log on as a service" right.
-- The service reads `.env` and `even-keel.config.json` from the repository root; the port must not be occupied by a manual run.
+- The service reads `.env` and `even-keel.config.json` from the repository root; the address and port are `EVEN_KEEL_HOST` and `EVEN_KEEL_PORT` in `.env` (`127.0.0.1:4747` without them), and the port must not be occupied by a manual run.
 - The service serves the built `dist/web`: `install.ps1` runs `npm run build`. After a code update, run `install.ps1` again (or `npm run build` and restart the service), otherwise the page is stale or returns 503.
 - Stopping the service does not kill background sessions — they are children of the `claude daemon run` daemon.
 

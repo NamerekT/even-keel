@@ -19,7 +19,7 @@ import { folderGroups, repoTail } from './model.js'
 import { readCompare, readRuleDiff, readRules, type RulesDb } from './rules-reader.js'
 import { readSteps, readTaskSteps } from './steps-reader.js'
 import type { StatsSteps, StatsTaskStep } from './steps.js'
-import type { StatsConfig } from '../config.js'
+import type { StatsConfig } from '../state.js'
 import type { CompareQuery, CompareSettings, RuleDiffFile, RulesQuery, StatsCompare, StatsRules } from './rules.js'
 
 const CACHE_MS = 60_000

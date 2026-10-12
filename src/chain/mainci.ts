@@ -19,6 +19,8 @@ export interface MainCiWatch {
 
 export interface MainCiDeps {
   repo: (project: string) => string
+  /** The project's main branch. */
+  main: (project: string) => string
   git: Git
   watches: (project: string) => MainCiWatch[]
   settings: (project: string) => CiSettings
@@ -56,7 +58,7 @@ export function mainCheckDeps(deps: MainCiDeps): MainCheckDeps {
   }
 
   return {
-    head: (project) => revision(deps.repo(project), 'refs/heads/main'),
+    head: (project) => revision(deps.repo(project), `refs/heads/${deps.main(project)}`),
     verdict: (project, commit, since) => verdictOf(counted(project).map((watch) => watch.view), commit, since, deps.now()),
     waitMs(project) {
       const minutes = deps.settings(project).waitMinutes
@@ -87,12 +89,13 @@ export function mainCheckDeps(deps: MainCiDeps): MainCheckDeps {
     checking: (project) => ({ commands: deps.commands(project), recheck: deps.settings(project).recheckMain }),
     async checkMain(project, task) {
       const path = await deps.place(project, task)
-      const [head, main] = await Promise.all([revision(path, 'HEAD'), revision(deps.repo(project), 'refs/heads/main')])
-      if (head === null || head !== main) return { state: 'skipped', reason: `the place of ${task} (${path}) is not on main` }
+      const branch = deps.main(project)
+      const [head, main] = await Promise.all([revision(path, 'HEAD'), revision(deps.repo(project), `refs/heads/${branch}`)])
+      if (head === null || head !== main) return { state: 'skipped', reason: `the place of ${task} (${path}) is not on ${branch}` }
       const failure = await deps.runCheck(project, task, path)
       return failure === null ? { state: 'green' } : { state: 'red', failure }
     },
     fixTask: (project) => deps.settings(project).fixTask,
-    merged: (project, task) => branchMerged(deps.git, deps.repo(project), task),
+    merged: (project, task) => branchMerged(deps.git, deps.repo(project), task, deps.main(project)),
   }
 }

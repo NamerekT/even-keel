@@ -31,7 +31,8 @@ This file holds the rules and traps needed in every session. Reference on how th
 - The tracker is reached only through the `src/tracker/` layer: the chain, the order, the rules and the page know the neutral model and the adapter contract, not Huly. The repository has the Huly (`src/huly/`), GitHub (`src/github/`) and Linear (`src/linear/`) adapters.
 - Sessions are the `claude --bg` CLI, with a configuration folder per account (`CLAUDE_CONFIG_DIR`).
 - Stats are Tally (`tally/`); the collector and the embedded database run inside the service.
-- The service rereads `even-keel.config.json` on the fly; `host`, `port`, `projects`, `tracker`, `context` only after a restart.
+- The service rereads `even-keel.config.json` on the fly (the page edits it too); `projects`, a project's `repo`/`slot`/tracker, `tracker`, `context` only after a restart. The address is `EVEN_KEEL_HOST`/`EVEN_KEEL_PORT`, not the config.
+- A project's main branch is its `branch` key (`main` by default): never write a literal `main` into git calls or session prompts.
 
 ## Traps
 

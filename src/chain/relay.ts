@@ -15,20 +15,20 @@ export function resumePrompt(language: Language): string {
   return PROMPTS[language].resume
 }
 
-export function startPrompt(task: string, place: TaskPlace, language: Language): string {
+export function startPrompt(task: string, place: TaskPlace, language: Language, main = 'main'): string {
   const text = PROMPTS[language]
   const lines = [fill`${task}`, '', text.worktree(place.path)]
   if (place.branch !== null) lines.push(text.branch(place.branch))
-  lines.push(text.cleanup)
+  lines.push(text.cleanup(main))
   return lines.join('\n') + '\n'
 }
 
 /** The prompt of the session that fixes a red main without a task: the report of what broke, then its place and rules. */
-export function fixPrompt(report: string, place: TaskPlace, language: Language): string {
+export function fixPrompt(report: string, place: TaskPlace, language: Language, main = 'main'): string {
   const text = PROMPTS[language]
   const lines = [fill`${report.trim()}`, '', text.worktree(place.path)]
   if (place.branch !== null) lines.push(text.branch(place.branch))
-  lines.push(text.fixRules)
+  lines.push(text.fixRules(main))
   return lines.join('\n') + '\n'
 }
 
@@ -37,8 +37,8 @@ export function withReport(prompt: string, report: string | undefined): string {
   return report === undefined ? prompt : `${prompt}\n${report.trim()}\n`
 }
 
-export function mainFixedPrompt(red: string, fixed: string | null, language: Language): string {
-  return PROMPTS[language].mainFixed(red.slice(0, 7), fixed === null ? null : fixed.slice(0, 7))
+export function mainFixedPrompt(red: string, fixed: string | null, language: Language, main = 'main'): string {
+  return PROMPTS[language].mainFixed(red.slice(0, 7), fixed === null ? null : fixed.slice(0, 7), main)
 }
 
 export function withBrief(prompt: string, brief: TaskBrief | undefined, language: Language): string {
@@ -115,15 +115,15 @@ export function relayStep(hold: LimitHold, now: Date, account: AccountNow): Rela
 }
 
 
-export function handoffPrompt(task: string, session: HandoffSession, reason: HandoffReason, language: Language): string {
+export function handoffPrompt(task: string, session: HandoffSession, reason: HandoffReason, language: Language, main = 'main'): string {
   const text = PROMPTS[language]
   const lines = [fill`${task}`, '', text.why[reason], text.workdir(session.workdir)]
   if (session.branch !== null) lines.push(text.branch(session.branch))
-  lines.push(text.cleanup)
+  lines.push(text.cleanup(main))
   if (session.transcript !== null) lines.push(text.transcript(session.transcript))
   const note = noteOf(session)
   if (note !== null) lines.push(text.note(note))
-  lines.push(text.begin)
+  lines.push(text.begin(main))
   if (note !== null) return lines.join('\n') + '\n'
   const steps = session.recent.filter((line) => line.kind === 'text' || line.kind === 'tool').slice(-HANDOFF_STEPS)
   if (steps.length > 0) lines.push('', text.recentSteps, ...steps.map((line) => fill`- ${line.text}`))

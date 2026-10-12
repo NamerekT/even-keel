@@ -21,6 +21,8 @@ A task id is `<project key>-<issue number>`: `ABC-12` is issue `#12`. The reposi
 
 ## 2. Where to work
 
+`main` in this skill is the project's main branch: the one Even Keel's prompt names, otherwise the one the project's `CLAUDE.md` names, otherwise `main`.
+
 - Started by Even Keel — the prompt names a ready worktree or a working folder: the session already runs in it, on the task's branch. Do not create a worktree, do not create or switch branches.
 - Started by hand: follow the project's own `CLAUDE.md` for the branch and the worktree.
 - Commit messages and branch names follow the project's `CLAUDE.md`. Without a rule there, prefix commits with the task id: `[ABC-12] Message`. Do not write `#12`, `fixes #12` or `closes #12` in commits: GitHub would link or close the issue on its own terms.

@@ -148,6 +148,8 @@ export interface DispatcherDeps {
   accountAt: (account: string, at: string) => string | null
   limitReset: () => string | null
   promptLanguage: () => Language
+  /** The main branch of the task's project, which the prompts name. */
+  mainBranch: (task: string) => string
   resume:(task: string, session: LimitedSession) => Promise<string>
   /** Stops the waiting session and resumes it with the user's reply; returns the session id it came up under. */
   reply: (task: string, session: HandoffSession, prompt: string) => Promise<string>

@@ -19,11 +19,11 @@ import { appendLaunch, loadChainState, readLaunches, saveChainState } from './ch
 import { CI_TOKENS, ciSource, projectTargets } from './ci/adapters.js'
 import { CiWatch } from './ci/watcher.js'
 import { ConfigFile } from './config-file.js'
-import { DEFAULT_CI } from './config.js'
+import { DEFAULT_BRANCH, DEFAULT_CI, listenOf } from './config.js'
 import { EventHub } from './events.js'
 import { runGit } from './git/run.js'
 import { finishSlot, prepareSlot, slotPaths, type SlotUse } from './git/slot.js'
-import { ensureIgnored, finishWorktree, prepareWorktree, taskPlace } from './git/worktree.js'
+import { ensureIgnored, finishWorktree, prepareWorktree, requireBranch, taskPlace } from './git/worktree.js'
 import { exhaustedReset } from './limits/model.js'
 import { LimitsWatcher } from './limits/watcher.js'
 import { englishOf, fail, notice, noticeOf, type Notice } from './notice/notice.js'
@@ -91,14 +91,16 @@ const configFile = new ConfigFile({
   },
 })
 const config = configFile.current
-const token = (() => {
+const { listen, token } = (() => {
   try {
-    return guardToken(process.env, config.host)
+    const listen = listenOf(process.env)
+    return { listen, token: guardToken(process.env, listen.host) }
   } catch (error) {
     console.error(englishOf(noticeOf(error)))
     process.exit(1)
   }
 })()
+const branchOf = (project: string) => configFile.current.settings[project]?.branch ?? DEFAULT_BRANCH
 const rulesOf = (project: string) => configFile.current.rules[project]!
 const stateDir = process.env.EVEN_KEEL_STATE_DIR ?? join(root, 'state')
 mkdirSync(stateDir, { recursive: true })
@@ -137,7 +139,7 @@ const tally = new TallyService({
   env: process.env,
   intervalMs: TALLY_INTERVAL_MS,
   firstDelayMs: TALLY_FIRST_DELAY_MS,
-  evenKeelUrl: `http://${['0.0.0.0', '::'].includes(config.host) ? '127.0.0.1' : config.host}:${config.port}`,
+  evenKeelUrl: `http://${['0.0.0.0', '::'].includes(listen.host) ? '127.0.0.1' : listen.host}:${listen.port}`,
   log: (message) => console.log(message),
 })
 const stats = new StatsReader(tally.reader, config.projects, () => configFile.current.stats)
@@ -348,12 +350,15 @@ function projectOf(task: string): string | undefined {
 
 const places = new TaskPlaces({
   git: runGit,
+  main: branchOf,
   place: async (project, task) => {
     const repo = config.projects[project]!
+    const main = branchOf(project)
+    await requireBranch(runGit, repo, project, main)
     await ensureIgnored(runGit, repo)
     const count = config.slots[project]
-    if (count === undefined || isFixName(task)) return prepareWorktree(runGit, repo, task)
-    return prepareSlot(runGit, repo, task, { count, occupancy: (path) => slotUse(path, task), vacate: (path) => vacateSlot(path, task) })
+    if (count === undefined || isFixName(task)) return prepareWorktree(runGit, repo, task, main)
+    return prepareSlot(runGit, repo, task, { count, main, occupancy: (path) => slotUse(path, task), vacate: (path) => vacateSlot(path, task) })
   },
   setUp: (project, task, path) => runBeforeStart(configFile.current.settings[project]?.beforeStart ?? [], taskRun(task, path)),
 })
@@ -370,7 +375,7 @@ const dispatcher = new Dispatcher(loadChainState(chainFile), {
     const home = homeOf(ledger.active)
     await daemons.prepare(home)
     const place = await places.ready(project, task)
-    const { prompt, model } = planFor(task, withProject(await briefed(task, startPrompt(task, place, promptLanguage()), project), project))
+    const { prompt, model } = planFor(task, withProject(await briefed(task, startPrompt(task, place, promptLanguage(), branchOf(project)), project), project))
     return (await cli.launch(home, task, place.path, prompt, model, settingsFor(task, place.path, project))).sessionId
   },
   liveSession: (task) => sessions.find((view) => view.task === task && view.lamp !== 'finished')?.sessionId,
@@ -398,6 +403,10 @@ const dispatcher = new Dispatcher(loadChainState(chainFile), {
   accountAt: (key, at) => accountId(key, accountAt(ledger, key, at)),
   limitReset: () => exhaustedReset(limits.limits(ledger.active)),
   promptLanguage,
+  mainBranch: (task) => {
+    const project = projectOf(task)
+    return project === undefined ? DEFAULT_BRANCH : branchOf(project)
+  },
   resume: async (task, session) => {
     const home = homeOf(session.account)
     await cli.stop(home, session.agentId, session.sessionId)
@@ -436,7 +445,7 @@ const dispatcher = new Dispatcher(loadChainState(chainFile), {
     const home = homeOf(ledger.active)
     await daemons.prepare(home)
     const place = await places.ready(project, name)
-    const { prompt, model } = planFor(name, withProject(fixPrompt(report, place, promptLanguage()), project))
+    const { prompt, model } = planFor(name, withProject(fixPrompt(report, place, promptLanguage(), branchOf(project)), project))
     return (await cli.launch(home, name, place.path, prompt, model, settingsFor(name, place.path, project))).sessionId
   },
   stop: (session) => cli.stop(homeOf(session.account), session.agentId, session.sessionId),
@@ -447,7 +456,8 @@ const dispatcher = new Dispatcher(loadChainState(chainFile), {
     let finished: Awaited<ReturnType<typeof finishWorktree>>
     try {
       stopped = await stopTaskSessions(repo, task, count ?? 1)
-      finished = await (count !== undefined ? finishSlot(runGit, repo, task, count) : finishWorktree(runGit, repo, task))
+      const main = branchOf(project)
+      finished = await (count !== undefined ? finishSlot(runGit, repo, task, count, main) : finishWorktree(runGit, repo, task, main))
     } catch (error) {
       console.error(`git: cleanup after ${task} failed: ${englishOf(noticeOf(error))}`)
       throw error
@@ -460,6 +470,7 @@ const dispatcher = new Dispatcher(loadChainState(chainFile), {
   log: (message) => console.log(message),
   main: mainCheckDeps({
     repo: (project) => config.projects[project]!,
+    main: branchOf,
     git: runGit,
     watches: (project) => ciWatches.get(project) ?? [],
     settings: (project) => configFile.current.settings[project]?.ci ?? DEFAULT_CI,
@@ -548,7 +559,7 @@ async function stopTaskSessions(repo: string, task: string, count: number): Prom
 const getState = (): EvenKeelState => ({
   startedAt,
   projects: Object.keys(config.projects),
-  settings: configFile.current.settings,
+  config: configFile.view(),
   chain: {
     active: dispatcher.state.active,
     parallel: configFile.current.parallel,
@@ -588,10 +599,14 @@ const server = createEvenKeelServer({
     answer: ({ project, task, sessionId, ask, answers, text, files }) => answerSession(project, task, sessionId, ask, { from: 'page', answers, text, files }),
   },
   settings: {
-    save: (project, settings) => {
+    save: (project, form) => {
       if (config.projects[project] === undefined) throw fail('config.unknownProject', { key: project })
-      configFile.saveProject(project, settings)
+      configFile.saveProject(project, form)
       console.log(`page: the settings of ${project} are written to the config`)
+    },
+    saveShared: (form) => {
+      configFile.saveShared(form)
+      console.log('page: the shared settings are written to the config')
     },
   },
   launches: () => launches,
@@ -614,7 +629,8 @@ const server = createEvenKeelServer({
     if (run === undefined) return undefined
     const settings = configFile.current.settings[run.project]
     const views = (ciWatches.get(run.project) ?? []).map((watch) => watch.view)
-    return settings === undefined ? [] : mergeCheck(settings.check, settings.ci, views)
+    const commands = settings === undefined ? [] : mergeCheck(settings.check, settings.ci, views)
+    return { commands, branch: branchOf(run.project) }
   },
   tools: async (project) => {
     const repo = config.projects[project]
@@ -665,7 +681,7 @@ const server = createEvenKeelServer({
     },
   },
   stats,
-  guard: () => ({ hosts: guardHosts(config.host, configFile.current.allowedHosts), token }),
+  guard: () => ({ hosts: guardHosts(listen.host, configFile.current.allowedHosts), token }),
 })
 
 /** The first answer `read` finds in the `projects` folder of any account. */
@@ -725,6 +741,7 @@ void (async () => {
             variable: CI_TOKENS[target.kind],
             git: runGit,
             repo,
+            main: () => branchOf(project),
             log: (message) => console.log(message),
             onChange: () => {
               hub.broadcast('state', getState())
@@ -759,8 +776,8 @@ for (const signal of ['SIGINT', 'SIGTERM'] as const) {
   })
 }
 
-server.listen(config.port, config.host, () => {
-  console.log(`even-keel listening on http://${config.host}:${config.port}`)
+server.listen(listen.port, listen.host, () => {
+  console.log(`even-keel listening on http://${listen.host}:${listen.port}`)
 })
 
 for (const view of trackers.values()) {
@@ -775,6 +792,7 @@ for (const view of trackers.values()) {
       launches,
       dispatcher,
       fillsMilestone: (project) => configFile.current.settings[project]?.fillMilestone ?? false,
+      mainBranch: branchOf,
       broadcast: () => hub.broadcast('state', getState()),
     })
   }

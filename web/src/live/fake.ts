@@ -9,10 +9,11 @@ import type { StatusCategory, Task } from '../../../src/tracker/model.js'
 import type { FeedLine } from '../../../src/sessions/transcript.js'
 import type { LimitHold } from '../../../src/chain/relay.js'
 import { isLanguage } from '../../../src/language.js'
-import type { EvenKeelState, ProjectSettings, SessionRecord, SessionView } from '../../../src/state.js'
+import type { EvenKeelState, SessionRecord, SessionView } from '../../../src/state.js'
 import type { Link, LiveSnapshot, LiveSource } from './connection.js'
 import { accountCommand, fakeAccount, fakeUsage, FAKE_LIMITS } from './fakeAccounts.js'
 import { fakeCi } from './fakeCi.js'
+import { fakeConfig, fakeRestart, fakeSettingsCommand } from './fakeConfig.js'
 import { withFix } from './fakeFix.js'
 import { fakeCompare, fakeRuleDiff, fakeRules } from './fakeRules.js'
 import { fakeSteps } from './fakeSteps.js'
@@ -195,12 +196,7 @@ function fakeState(
   return {
     startedAt: ago(180),
     projects: ['ABC', 'DEMO', 'XYZ', 'OPS'],
-    settings: {
-      ABC: { prompt: 'Run npm test before merging.', beforeStart: ['npm ci'], check: [], ci: { kinds: ['forgejo', 'github'], waitMinutes: null, recheckMain: true, fixTask: false }, fillMilestone: true },
-      DEMO: { prompt: null, beforeStart: [], check: [], ci: { kinds: ['github'], waitMinutes: 15, recheckMain: true, fixTask: true }, fillMilestone: false },
-      XYZ: { prompt: null, beforeStart: [], check: [], ci: { kinds: ['forgejo', 'github'], waitMinutes: null, recheckMain: true, fixTask: false }, fillMilestone: false },
-      OPS: { prompt: null, beforeStart: ['npm ci'], check: ['npm run typecheck', 'npm test'], ci: { kinds: [], waitMinutes: 0, recheckMain: false, fixTask: false }, fillMilestone: false },
-    },
+    config: fakeConfig(),
     chain: {
       active: idle
         ? []
@@ -496,14 +492,6 @@ function dequeue(state: EvenKeelState, project: string): EvenKeelState {
   return { ...state, chain: { ...state.chain, queue: state.chain.queue.filter((key) => key !== project) } }
 }
 
-function fakeSettings(state: EvenKeelState, project: string, body: Record<string, unknown>): EvenKeelState {
-  const prompt = String(body.prompt ?? '').trim()
-  const lines = (list: unknown) => (list as string[]).map((line) => line.trim()).filter((line) => line !== '')
-  const ci = body.ci as ProjectSettings['ci']
-  const settings = { prompt: prompt === '' ? null : prompt, beforeStart: lines(body.beforeStart), check: lines(body.check), ci, fillMilestone: body.fillMilestone === true }
-  return { ...state, settings: { ...state.settings, [project]: settings } }
-}
-
 function fakeCommand(state: EvenKeelState, name: string, body: Record<string, unknown>, launches: LaunchEntry[]): EvenKeelState {
   if (name === 'chain/start') return startChain(state, String(body.project), launches)
   if (name === 'chain/resume') return setPaused(state, String(body.project), false)
@@ -519,7 +507,8 @@ function fakeCommand(state: EvenKeelState, name: string, body: Record<string, un
   if (name === 'chain/trim') return { ...state, trimTools: body.on === true }
   if (name === 'session/answer') return fakeAnswer(state, body)
   if (name === 'task/ready') return fakeReady(state, String(body.task))
-  if (name === 'project/settings') return fakeSettings(state, String(body.project), body)
+  const settings = fakeSettingsCommand(state, name, body)
+  if (settings !== null) return settings
   if (name.startsWith('account/')) return { ...state, account: accountCommand(state.account, name, body) }
   throw new Error(`fake: ${name} is not supported`)
 }
@@ -554,6 +543,7 @@ export function createFakeSource(search: string): LiveSource {
   if (params.get('config') === 'broken' && current.state !== null) {
     current.state.configError = notice('config.statusBoth', { project: 'ABC', status: 'In Review' })
   }
+  if (params.get('config') === 'restart' && current.state !== null) current.state.config = fakeRestart(current.state.config)
   if (params.get('mcp') === 'missing' && current.state !== null) {
     current.state.mcpMissing = [
       { project: 'ABC', server: 'huly' },

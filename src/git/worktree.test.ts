@@ -2,7 +2,7 @@ import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, 
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
-import { catchUp, ensureIgnored, finishWorktree, parseWorktrees, prepareWorktree, taskPlace, type GitResult } from './worktree.js'
+import { catchUp, ensureIgnored, finishWorktree, parseWorktrees, prepareWorktree, requireBranch, taskPlace, type GitResult } from './worktree.js'
 import { englishOf, notice } from '../notice/notice.js'
 
 const repo = join(tmpdir(), 'abc')
@@ -30,6 +30,14 @@ const listing = (...trees: [string, string | null][]) => ({
 
 const main: [string, string] = [repo.replaceAll('\\', '/'), 'main']
 
+describe('requireBranch', () => {
+  it('passes a repository that has the main branch and names the project when it has not', async () => {
+    await expect(requireBranch(fakeGit().git, repo, 'ABC', 'master')).resolves.toBeUndefined()
+    const { git } = fakeGit({ 'rev-parse --verify --quiet refs/heads/master': { code: 1 } })
+    await expect(requireBranch(git, repo, 'ABC', 'master')).rejects.toMatchObject({ notice: notice('git.noBranch', { project: 'ABC', branch: 'master', repo }) })
+  })
+})
+
 describe('taskPlace', () => {
   it('names the worktree and the branch after the task in lower case', () => {
     expect(taskPlace(repo, 'ABC-7')).toEqual({ path: place, branch: 'abc-7/task' })
@@ -51,6 +59,12 @@ describe('prepareWorktree', () => {
     const { git, calls } = fakeGit({ 'worktree list --porcelain': listing(main), 'rev-parse --verify --quiet refs/heads/abc-7/task': { code: 1 } })
     expect(await prepareWorktree(git, repo, 'ABC-7')).toEqual({ path: place, branch: 'abc-7/task' })
     expect(calls).toContain(`worktree add -b abc-7/task ${place} main`)
+  })
+
+  it('branches off the project’s main branch when it is not main', async () => {
+    const { git, calls } = fakeGit({ 'worktree list --porcelain': listing(main), 'rev-parse --verify --quiet refs/heads/abc-7/task': { code: 1 } })
+    await prepareWorktree(git, repo, 'ABC-7', 'master')
+    expect(calls).toContain(`worktree add -b abc-7/task ${place} master`)
   })
 
   it('takes an existing worktree as it is, with its own branch', async () => {
@@ -96,6 +110,12 @@ describe('catchUp', () => {
     const { git, calls } = placeGit(fresh)
     expect(await catchUp(git, place)).toBe(true)
     expect(calls).toContain('merge --ff-only main')
+  })
+
+  it('moves a place up to the project’s main branch when it is not main', async () => {
+    const { git, calls } = placeGit({ 'rev-list --count master..HEAD': { out: '0\n' }, 'rev-list --count HEAD..master': { out: '1\n' } })
+    expect(await catchUp(git, place, 'master')).toBe(true)
+    expect(calls).toContain('merge --ff-only master')
   })
 
   it('leaves a place with its own commits, with changes or already at main alone', async () => {
@@ -151,6 +171,12 @@ describe('finishWorktree', () => {
       'config --get alias.sync',
       'sync',
     ])
+  })
+
+  it('syncs the project’s main branch when it is not main', async () => {
+    const { git, calls } = fakeGit({ ...clean, 'config --local --get alias.sync': { code: 1 }, 'branch --show-current': { out: 'master' } })
+    expect(await finishWorktree(git, repo, 'ABC-7', 'master')).toEqual({ warnings: [], syncError: null })
+    expect(calls).toContain('push origin master')
   })
 
   it('does not delete a branch origin does not have', async () => {

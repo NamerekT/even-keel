@@ -28,13 +28,15 @@ export interface TrackerStartDeps {
   dispatcher: Pick<Dispatcher, 'setTasks' | 'setOutside' | 'released' | 'setReleased' | 'held' | 'view'>
   /** The project's `fillMilestone` setting. */
   fillsMilestone: (project: string) => boolean
+  /** The project's main branch, where a merged task branch lands. */
+  mainBranch: (project: string) => string
   /** Sends the page a fresh state. */
   broadcast: () => void
 }
 
 /** Connects a tracker, polls the statuses of its projects' tasks and refreshes them, closing merged tasks and done parents. */
 export function startTracker(view: TrackerView, setup: TrackerSetup, deps: TrackerStartDeps): void {
-  const { repos, rulesOf, links, tasksByProject, launches, dispatcher, fillsMilestone, broadcast } = deps
+  const { repos, rulesOf, links, tasksByProject, launches, dispatcher, fillsMilestone, mainBranch, broadcast } = deps
   const { name, projects } = view
   let completes = false
   let closesParents = false
@@ -63,7 +65,7 @@ export function startTracker(view: TrackerView, setup: TrackerSetup, deps: Track
   const ownTasks = () => projects.flatMap((project) => tasksByProject.get(project) ?? [])
 
   const closer = new MergeCloser({
-    merged: (project, task) => branchMerged(runGit, repos[project]!, task),
+    merged: (project, task) => branchMerged(runGit, repos[project]!, task, mainBranch(project)),
     complete: (task) => link.run((tracker) => tracker.complete!(task)),
     onError: report,
   })

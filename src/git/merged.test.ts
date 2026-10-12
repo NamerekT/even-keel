@@ -96,6 +96,16 @@ describe('branchMerged', () => {
     expect(await branchMerged(runGit, repo, 'ABC-8')).toBe(true)
   })
 
+  it('looks for the branch in the project’s main branch when it is not main', async () => {
+    await git('branch', '-m', 'main', 'master')
+    await git('switch', '-q', '-c', 'abc-7/task')
+    await commit('work')
+    await git('switch', '-q', 'master')
+    expect(await branchMerged(runGit, repo, 'ABC-7', 'master')).toBe(false)
+    await git('merge', '-q', '--no-edit', 'abc-7/task')
+    expect(await branchMerged(runGit, repo, 'ABC-7', 'master')).toBe(true)
+  })
+
   it('looks only at the branches of that task', async () => {
     await git('switch', '-q', '-c', 'abc-70/task')
     await commit('work')
