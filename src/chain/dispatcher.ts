@@ -13,12 +13,13 @@ import {
   type ReleaseReason,
 } from './model.js'
 import { isFixName } from './fix.js'
+import { Handovers } from './handover.js'
 import { MainCheck } from './maincheck.js'
 import { MainFix } from './mainfix.js'
 import type { ChainView } from './milestones.js'
 import { byNumber, chainOrder, checkOrder, nextTask, openBlockers, waitingBlockers, withFresh } from './order.js'
 import { admits, excludes, isActive, isDone, isTerminal, type ChainRules } from './rules.js'
-import { handoffPrompt, holdOf, relayStep, type HandoffReason, type HandoffSession } from './relay.js'
+import type { HandoffSession } from './relay.js'
 
 export {
   emptyChainState,
@@ -32,7 +33,6 @@ export {
   type ReleaseReason,
 } from './model.js'
 
-const UNANSWERED_MS = 10 * 60_000
 const SLOT_RETRY_MS = 30_000
 const SLOT_REFUSALS = new Set(['slot.noneFree', 'slot.busyStart'])
 
@@ -46,11 +46,13 @@ export class Dispatcher {
   private work: Promise<void> = Promise.resolve()
   private readonly main: MainCheck | null
   private readonly fixes: MainFix | null
+  private readonly handovers: Handovers
 
   constructor(
     readonly state: ChainState,
     private readonly deps: DispatcherDeps,
   ) {
+    this.handovers = new Handovers(state, deps, (chain, error) => this.halt(chain, error))
     this.main = deps.main === undefined ? null : new MainCheck(state, deps.main, deps.now, deps.log)
     this.fixes =
       this.main === null
@@ -61,7 +63,7 @@ export class Dispatcher {
             take: (chain, current) => this.take(chain, current),
             release: (project, task) => this.remember(project, task),
             closeUp: (project, task) => this.closeUp(project, task),
-            handOver: (task, session, reason, extra) => this.handOver(task, session, reason, extra),
+            handOver: (task, session, reason, extra) => this.handovers.handOver(task, session, reason, extra),
             heldByMain: (chain, task) => this.heldByMain(chain, task, (this.tasks.get(chain.project) ?? []).map((open) => open.id), false),
           })
   }
@@ -184,7 +186,7 @@ export class Dispatcher {
     const session = this.deps.handoff(task)
     if (session === undefined) throw fail('chain.noSession', { task })
     const replaced = current.sessionId
-    this.work = this.work.then(() => this.replace(chain, current, replaced, session))
+    this.work = this.work.then(() => this.handovers.replace(chain, current, replaced, session))
   }
 
   /**
@@ -211,7 +213,7 @@ export class Dispatcher {
   /** Invariant 1, exception 6: the user's own answer resumes the session that waits for it. */
   answer(project: string, task: string, sessionId: string, ask: string | null, prompt: string): void {
     const { chain, current, session } = this.answerable(project, task, sessionId, ask)
-    this.work = this.work.then(() => this.deliver(chain, current, session, prompt))
+    this.work = this.work.then(() => this.handovers.deliver(chain, current, session, prompt))
   }
 
   dismiss(project: string, task: string): void {
@@ -559,7 +561,7 @@ export class Dispatcher {
         if (isFixName(task)) {
           if (this.fixes === null) chain.current = null
           else if (!(await this.fixes.follow(chain, chain.current))) {
-            if (!(await this.followLimit(chain, chain.current))) await this.followCheckpoint(chain, chain.current)
+            if (!(await this.handovers.followLimit(chain, chain.current))) await this.handovers.followCheckpoint(chain, chain.current)
             return
           }
           continue
@@ -577,12 +579,12 @@ export class Dispatcher {
           const blockers = openBlockers([...tasks, ...(this.waiting.get(chain.project) ?? [])], task)
           if (blockers.length > 0 && !this.deps.busy(task)) {
             this.release(chain, 'postpone', blockers)
-          } else if (this.unanswered(chain.current)) {
+          } else if (this.handovers.unanswered(chain.current)) {
             const skipped = (this.state.skipped[chain.project] ??= [])
             if (!skipped.includes(task)) skipped.push(task)
             this.release(chain, 'skip', [])
           } else if (this.fixes === null || !(await this.fixes.yields(chain, chain.current))) {
-            if (!(await this.followLimit(chain, chain.current))) await this.followCheckpoint(chain, chain.current)
+            if (!(await this.handovers.followLimit(chain, chain.current))) await this.handovers.followCheckpoint(chain, chain.current)
             return
           }
           this.deps.save(this.state)
@@ -683,7 +685,7 @@ export class Dispatcher {
       return true
     }
     if (this.deps.busy(task)) {
-      if (!this.quietTooLong(task)) return false
+      if (!this.handovers.quietTooLong(task)) return false
       delete chain.closing
       const released = (this.state.released[chain.project] ??= [])
       if (!released.includes(task)) released.push(task)
@@ -694,122 +696,6 @@ export class Dispatcher {
     delete chain.closing
     this.deps.save(this.state)
     return true
-  }
-
-  private async followLimit(chain: ActiveChain, current: CurrentTask): Promise<boolean> {
-    const session = this.deps.limited(current.task)
-    if (session === undefined) {
-      if (current.limit !== undefined && current.limit.acted === null) {
-        delete current.limit
-        this.deps.save(this.state)
-      }
-      return false
-    }
-    if (current.limit?.at !== session.limit.at) {
-      if (this.deps.account().id === null) return true
-      current.limit = holdOf(session, this.deps.accountAt(session.account, session.limit.at), this.deps.limitReset())
-      this.deps.save(this.state)
-    }
-    const hold = current.limit
-    const now = this.deps.now()
-    const step = relayStep(hold, now, this.deps.account())
-    if (step === 'wait') return true
-
-    hold.acted = step
-    current.starting = now.toISOString()
-    this.deps.save(this.state)
-    try {
-      const sessionId = step === 'resume' ? await this.deps.resume(current.task, session) : await this.handOver(current.task, session, 'limit')
-      this.deps.journal({
-        at: now.toISOString(),
-        project: chain.project,
-        task: current.task,
-        sessionId,
-        reason: step,
-        previous: session.sessionId,
-      })
-      current.sessionId = sessionId
-      current.resumedAt = now.toISOString()
-      delete current.starting
-      this.deps.save(this.state)
-    } catch (error) {
-      this.halt(chain, noticeOf(error))
-    }
-    return true
-  }
-
-  private unanswered(current: CurrentTask): boolean {
-    if (!this.state.unattended || this.deps.midTurn(current.task) || this.deps.limited(current.task) !== undefined) return false
-    const session = this.deps.handoff(current.task)
-    if (session === undefined || session.sessionId !== current.sessionId || session.checkpoint !== null) return false
-    const moments = [current.since, current.resumedAt, session.lastReplyAt].filter((at) => at != null)
-    const quietSince = Math.max(...moments.map((at) => Date.parse(at)))
-    return this.deps.now().getTime() - quietSince >= UNANSWERED_MS
-  }
-
-  /** Unattended, the chain does not wait past ten quiet minutes for a session of a done task; the sweep cleans up after it. */
-  private quietTooLong(task: string): boolean {
-    const lastReplyAt = this.deps.handoff(task)?.lastReplyAt
-    if (!this.state.unattended || lastReplyAt == null) return false
-    return this.deps.now().getTime() - Date.parse(lastReplyAt) >= UNANSWERED_MS
-  }
-
-  private async followCheckpoint(chain: ActiveChain, current: CurrentTask): Promise<void> {
-    if (this.deps.busy(current.task)) return
-    const session = this.deps.handoff(current.task)
-    if (session === undefined || session.checkpoint === null || session.sessionId !== current.sessionId) return
-    if (this.deps.blocked() !== undefined || this.deps.limitReset() !== null) return
-    await this.handOverCurrent(chain, current, session, 'checkpoint')
-  }
-
-  private async replace(chain: ActiveChain, current: CurrentTask, replaced: string, session: HandoffSession): Promise<void> {
-    if (!this.state.active.includes(chain) || chain.current !== current || current.sessionId !== replaced) return
-    await this.handOverCurrent(chain, current, session, 'restart')
-  }
-
-  private async deliver(chain: ActiveChain, current: CurrentTask, session: HandoffSession, prompt: string): Promise<void> {
-    if (!this.state.active.includes(chain) || chain.current !== current || current.sessionId !== session.sessionId) return
-    const at = this.deps.now().toISOString()
-    current.starting = at
-    this.deps.save(this.state)
-    try {
-      const sessionId = await this.deps.reply(current.task, session, prompt)
-      this.deps.journal({ at, project: chain.project, task: current.task, sessionId, reason: 'answer', previous: session.sessionId })
-      current.sessionId = sessionId
-      current.resumedAt = at
-      delete current.starting
-      this.deps.save(this.state)
-    } catch (error) {
-      this.halt(chain, noticeOf(error))
-    }
-  }
-
-  private async handOverCurrent(
-    chain: ActiveChain,
-    current: CurrentTask,
-    session: HandoffSession,
-    reason: 'restart' | 'checkpoint',
-  ): Promise<void> {
-    const at = this.deps.now().toISOString()
-    delete current.limit
-    current.starting = at
-    this.deps.save(this.state)
-    try {
-      const sessionId = await this.handOver(current.task, session, reason)
-      this.deps.journal({ at, project: chain.project, task: current.task, sessionId, reason, previous: session.sessionId })
-      current.sessionId = sessionId
-      current.resumedAt = at
-      delete current.starting
-      this.deps.save(this.state)
-    } catch (error) {
-      this.halt(chain, noticeOf(error))
-    }
-  }
-
-  private async handOver(task: string, session: HandoffSession, reason: HandoffReason, extra?: string): Promise<string> {
-    const located = await this.deps.locate(session)
-    const prompt = handoffPrompt(task, located, reason, this.deps.promptLanguage())
-    return this.deps.relay(task, located, extra === undefined ? prompt : `${prompt}\n${extra}\n`, reason)
   }
 
   private halt(chain: ActiveChain, error: Notice): void {
