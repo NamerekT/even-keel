@@ -80,6 +80,8 @@ export interface CiSettings {
   waitMinutes: number | null
   /** Without a CI to judge it, main that is not the tree checked before the merge is checked again before the next launch. */
   recheckMain: boolean
+  /** A red main gets a fix task in the tracker; without it a session with no task fixes main (BTN-115). */
+  fixTask: boolean
 }
 
 export interface ContextScale {

@@ -1,5 +1,6 @@
 import type { SessionView } from '../state.js'
 import type { LaunchEntry, ReleaseReason } from './dispatcher.js'
+import { isFixName } from './fix.js'
 
 export interface LaunchDay {
   day: string
@@ -103,11 +104,11 @@ export function handoffsOf(entries: LaunchEntry[], sessionId: string): TaskRun |
   return { project: own.project, task: own.task, handoffs }
 }
 
-/** The tasks of a project the chain started a session on since `since`, each once, in launch order. */
+/** The tasks of a project the chain started a session on since `since`, each once, in launch order; fix sessions of main are not tasks. */
 export function ranSince(entries: LaunchEntry[], project: string, since: Date): string[] {
   const ran = new Set<string>()
   for (const entry of entries) {
-    if (entry.project !== project || isRelease(entry) || !(Date.parse(entry.at) >= since.getTime())) continue
+    if (entry.project !== project || isRelease(entry) || isFixName(entry.task) || !(Date.parse(entry.at) >= since.getTime())) continue
     ran.add(entry.task)
   }
   return [...ran]

@@ -233,4 +233,9 @@ describe('ranSince', () => {
     ]
     expect(ranSince(entries, 'ABC', since)).toEqual([])
   })
+
+  it('leaves out the fix session of main, which is not a task', () => {
+    const fix: LaunchEntry = { at: '2026-01-10T02:00:00Z', project: 'ABC', task: 'ABC-FIX', sessionId: 'fix' }
+    expect(ranSince([entry('2026-01-10T01:00:00Z', 'ABC-2'), fix], 'ABC', since)).toEqual(['ABC-2'])
+  })
 })

@@ -77,10 +77,11 @@ Even Keel prepares the worktree itself (`src/git/worktree.ts`, `src/git/slot.ts`
    3. a checkpoint: the last line of the last response is `CHECKPOINT: <path>`;
    4. a task in Done — the session has finished its turn and is not waiting for a reply;
    5. a slot is switched to another task's branch — the idle sessions of released tasks in it are stopped; mid-turn, the slot is not switched;
-   6. the user's explicit answer — from the chat window or a tracker comment posted after the question — only while the session waits, not mid-turn: `--resume` with the answer.
+   6. the user's explicit answer — from the chat window or a tracker comment posted after the question — only while the session waits, not mid-turn: `--resume` with the answer;
+   7. a red main with `ci.fixTask` off — the only one that stops a session mid-turn: the working (`busy`) session of the current task is stopped, a fix session `<KEY>-FIX` without a tracker task leads the chain, and after its merge the stopped one goes on with a message. A session that waits for an answer is not stopped.
 
    The dispatcher may stop waiting for a session that is not mid-turn (`busy`/`waiting`): the task got an open blocker from the chain (`postpone`) or the user pressed "Skip" (`skip`). In unattended mode (`unattended`) it may also stop waiting for a session that has sat idle for 10 minutes without Done (including `waiting`); in detail — `docs/chain.md`.
-2. **The tracker is the source of truth for statuses.** The dispatcher owns only the chain order, the pause, the list of skipped tasks, released tasks awaiting cleanup, cleanup warnings, unattended mode, the "trim the tools" switch, the questions it posted to the tracker and the CI verdicts on main: the last green commit, the push it waits on (for the CI or for the project's own check) and the fix task it created.
+2. **The tracker is the source of truth for statuses.** The dispatcher owns only the chain order, the pause, the list of skipped tasks, released tasks awaiting cleanup, cleanup warnings, unattended mode, the "trim the tools" switch, the questions it posted to the tracker and the CI verdicts on main: the last green commit, the push it waits on (for the CI or for the project's own check) and the fix of a red main — the session it started for it, or the task it created — with the task whose session it stopped for the fix.
 3. **There are no secrets in the repository.** Addresses and credentials come from the environment or a local file outside git; the repository has only `.env.example` with fakes.
 4. **The dispatcher does not accept or store the Windows password.** The user enters the service account themselves.
 

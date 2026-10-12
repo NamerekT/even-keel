@@ -9,7 +9,8 @@ import { VsCodeAccount, vscodeSettingsFile } from './account/vscode.js'
 import { AccountWatcher } from './account/watcher.js'
 import { Dispatcher, type LaunchEntry } from './chain/dispatcher.js'
 import { handoffsOf, launchDays, taskSessions } from './chain/launches.js'
-import { noteOf, resumePrompt, startPrompt, withBrief, withProjectPrompt, withUnattended } from './chain/relay.js'
+import { isFixName } from './chain/fix.js'
+import { fixPrompt, noteOf, resumePrompt, startPrompt, withBrief, withProjectPrompt, withReport, withUnattended } from './chain/relay.js'
 import { launchLine } from './chain/log.js'
 import { mainCheckDeps, mergeCheck } from './chain/mainci.js'
 import { TaskPlaces } from './chain/places.js'
@@ -342,7 +343,7 @@ const places = new TaskPlaces({
     const repo = config.projects[project]!
     await ensureIgnored(runGit, repo)
     const count = config.slots[project]
-    if (count === undefined) return prepareWorktree(runGit, repo, task)
+    if (count === undefined || isFixName(task)) return prepareWorktree(runGit, repo, task)
     return prepareSlot(runGit, repo, task, { count, occupancy: (path) => slotUse(path, task), vacate: (path) => vacateSlot(path, task) })
   },
   setUp: (project, task, path) => runBeforeStart(configFile.current.settings[project]?.beforeStart ?? [], taskRun(task, path)),
@@ -407,7 +408,9 @@ const dispatcher = new Dispatcher(loadChainState(chainFile), {
     if (previous !== undefined) await cli.stop(previous, session.agentId, session.sessionId)
     const home = homeOf(ledger.active)
     await daemons.prepare(home)
-    const { prompt, model } = planFor(task, withProject(await briefed(task, handoff), projectOf(task)))
+    const project = projectOf(task)
+    const told = isFixName(task) ? withReport(handoff, project === undefined ? undefined : dispatcher.state.ci[project]?.fix?.report) : await briefed(task, handoff)
+    const { prompt, model } = planFor(task, withProject(told, project))
     const notePath = noteOf(session)
     const note = await readNote(notePath)
     const at = new Date().toISOString()
@@ -420,9 +423,17 @@ const dispatcher = new Dispatcher(loadChainState(chainFile), {
     }
     return sessionId
   },
+  launchFix: async (project, name, report) => {
+    const home = homeOf(ledger.active)
+    await daemons.prepare(home)
+    const place = await places.ready(project, name)
+    const { prompt, model } = planFor(name, withProject(fixPrompt(report, place, promptLanguage()), project))
+    return (await cli.launch(home, name, place.path, prompt, model, settingsFor(name, place.path, project))).sessionId
+  },
+  stop: (session) => cli.stop(homeOf(session.account), session.agentId, session.sessionId),
   finish: async (project, task) => {
     const repo = config.projects[project]!
-    const count = config.slots[project]
+    const count = isFixName(task) ? undefined : config.slots[project]
     let stopped: Notice[]
     let finished: Awaited<ReturnType<typeof finishWorktree>>
     try {
@@ -445,6 +456,7 @@ const dispatcher = new Dispatcher(loadChainState(chainFile), {
     settings: (project) => configFile.current.settings[project]?.ci ?? DEFAULT_CI,
     commands: (project) => configFile.current.settings[project]?.check ?? [],
     language: () => configFile.current.language ?? promptLanguage(),
+    promptLanguage,
     create: async (task) => (await links.get(config.trackers[task.project]!)?.run(async (tracker) => tracker.create?.(task))) ?? null,
     comment: async (task, body) => {
       const project = configuredProject(task)
@@ -666,7 +678,8 @@ const questions = new TrackerQuestions({
     dispatcher.state.active.flatMap((chain): AskingSession[] => {
       const sessionId = chain.current?.sessionId
       const view = sessionId == null ? undefined : liveView(chain.current!.task)
-      return view === undefined || view.sessionId !== sessionId ? [] : [{ project: chain.project, task: view.task, sessionId, ask: view.ask }]
+      if (view === undefined || view.sessionId !== sessionId || isFixName(view.task)) return []
+      return [{ project: chain.project, task: view.task, sessionId, ask: view.ask }]
     }),
   tracker: (project, call) => links.get(config.trackers[project]!)?.run(call),
   language: () => configFile.current.language ?? promptLanguage(),

@@ -359,7 +359,7 @@ export const en: Messages = {
     beforeStartPlaceholder: 'npm ci',
     ci: 'CI of main',
     ciHint:
-      'After a task is merged and main is pushed, the next task waits for these CIs. A red CI creates a fix task that goes first; a red fix pauses the chain.',
+      'After a task is merged and main is pushed, the next task waits for these CIs. A red CI is fixed first, before the next task; a red fix pauses the chain.',
     ciKinds: { forgejo: 'Forgejo Actions', github: 'GitHub Actions' },
     ciWait: 'Longest wait for CI, min',
     ciWaitHint: 'Empty — as long as it takes. 0 — do not wait: faster, but the next task may start on a broken main.',
@@ -369,7 +369,10 @@ export const en: Messages = {
       "For when no CI above judges main. One per line, in order: a session's merge into main waits until they pass in the task's folder; a failure is sent back to the session to fix.",
     checkPlaceholder: 'npm run typecheck && npm test',
     recheckMain: 'Check main again if it moved',
-    recheckMainHint: "If main after the merge is not what the check passed on, the check runs in the next task's folder before it starts; a failure creates a fix task.",
+    recheckMainHint: "If main after the merge is not what the check passed on, the check runs in the next task's folder before it starts; a failure is fixed like a red CI.",
+    fixTask: 'Create a task when CI fails',
+    fixTaskHint:
+      'Off: a session without a tracker task fixes a red main, and the working session is stopped until it is done, then goes on with a note. On: the chain creates a fix task and takes it after the current one. The same for a failed check of main.',
     fillMilestone: 'Give the active milestone to tasks without one',
     fillMilestoneHint:
       'A task that enters the chain without a milestone gets, in the tracker, the milestone of the current task, or the earliest one in the chain. Once: a milestone you change or clear afterwards stays as you left it.',
@@ -491,6 +494,8 @@ export const en: Messages = {
     skippedTitle: "The task is skipped — the chain won't take it until you restore it.",
     skipCurrent: "The chain stops waiting for the task and takes the next one. The tracker status and the session don't change.",
     skipOther: "The chain won't take the task until you restore it. The tracker status doesn't change.",
+    skipFix: 'The chain stops waiting for the fix and goes on with the tasks; the next red main starts a new fix. The session does not change.',
+    interrupted: 'stopped until main is fixed',
     skip: 'Skip',
     midTurn: 'mid-turn — replace and skip after it',
     start: {
@@ -593,6 +598,9 @@ export const en: Messages = {
     noMilestone: 'No milestone',
     hidden: (tasks: string) => `hidden · ${tasks}`,
     skipped: 'skipped',
+    fix: 'Fixing main',
+    interrupted: 'waits for main',
+    interruptedTitle: 'Main went red: the session of this task was stopped and goes on once main is fixed',
     questionTitle: 'Label “Question”: without an answer in the description the session will most likely get stuck',
     question: 'question',
     blocker: 'blocks',

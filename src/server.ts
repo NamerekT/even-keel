@@ -454,11 +454,11 @@ function linesOf(raw: unknown, field: string): string[] {
 }
 
 function ciOf(raw: unknown): CiSettings {
-  const { kinds, waitMinutes, recheckMain } = (typeof raw === 'object' && raw !== null ? raw : {}) as Record<string, unknown>
+  const { kinds, waitMinutes, recheckMain, fixTask } = (typeof raw === 'object' && raw !== null ? raw : {}) as Record<string, unknown>
   const known = Array.isArray(kinds) && kinds.every((kind) => (CI_KINDS as readonly unknown[]).includes(kind))
   const wait = waitMinutes === null || (Number.isInteger(waitMinutes) && (waitMinutes as number) >= 0)
-  if (!known || !wait || typeof recheckMain !== 'boolean') throw fail('request.required', { field: 'ci' })
-  return { kinds: kinds as CiKind[], waitMinutes: waitMinutes as number | null, recheckMain }
+  if (!known || !wait || typeof recheckMain !== 'boolean' || typeof fixTask !== 'boolean') throw fail('request.required', { field: 'ci' })
+  return { kinds: kinds as CiKind[], waitMinutes: waitMinutes as number | null, recheckMain, fixTask }
 }
 
 function accountOf(body: Record<string, unknown>): string {

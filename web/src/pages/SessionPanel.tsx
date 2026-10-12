@@ -1,4 +1,5 @@
 import { lazy, Suspense, useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { isFixName } from '../../../src/chain/fix.js'
 import type { TaskSession } from '../../../src/chain/launches.js'
 import type { LimitHold } from '../../../src/chain/relay.js'
 import type { CacheWindow, FeedLine, TokenTotals } from '../../../src/sessions/transcript.js'
@@ -54,10 +55,17 @@ export function SessionPanel({ block, scale, onCard, onClose }: Props) {
       <header className="panel__head">
         <Lamp lamp={block.lamp} />
         <h2 className="panel__task">
-          <button type="button" className="panel__card" title={t.chain.openCard} onClick={() => onCard(block.id)}>
-            <span className="panel__key">{block.id}</span>
-            {block.title !== null && <span className="panel__title">{block.title}</span>}
-          </button>
+          {isFixName(block.id) ? (
+            <>
+              <span className="panel__key">{block.id}</span>
+              <span className="panel__title">{block.title}</span>
+            </>
+          ) : (
+            <button type="button" className="panel__card" title={t.chain.openCard} onClick={() => onCard(block.id)}>
+              <span className="panel__key">{block.id}</span>
+              {block.title !== null && <span className="panel__title">{block.title}</span>}
+            </button>
+          )}
         </h2>
         {remoteUrl !== null && (
           <a className="panel__remote" href={remoteUrl} target="_blank" rel="noreferrer" title={`${t.session.openRemote}${account}`} aria-label={t.session.openRemote}>
@@ -68,10 +76,11 @@ export function SessionPanel({ block, scale, onCard, onClose }: Props) {
           ×
         </button>
       </header>
-      {(block.status !== null || block.skipped) && (
+      {(block.status !== null || block.skipped || block.interrupted) && (
         <p className="panel__status">
           {block.status}
           {block.skipped && <span className="panel__flag">{t.session.skipped}</span>}
+          {block.interrupted && <span className="panel__flag">{t.session.interrupted}</span>}
         </p>
       )}
       <Actions block={block} />
@@ -115,7 +124,10 @@ function Actions({ block }: { block: ChainBlock }) {
   const starting = replacing.on || (block.current && block.start !== null)
   const waiting = live?.lamp === 'waiting'
 
-  if (live === null && !block.open) return null
+  const fix = isFixName(block.id)
+
+  // "Skip" on the fix of main is only for the session the chain waits on.
+  if (live === null && (!block.open || fix)) return null
   return (
     <>
       <div className="panel__actions">
@@ -159,7 +171,7 @@ function Actions({ block }: { block: ChainBlock }) {
               type="button"
               className="button"
               disabled={sending || midTurn || starting}
-              title={block.current ? t.session.skipCurrent : t.session.skipOther}
+              title={fix ? t.session.skipFix : block.current ? t.session.skipCurrent : t.session.skipOther}
               onClick={() => void send('chain/skip', body)}
             >
               {t.session.skip}

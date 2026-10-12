@@ -21,7 +21,7 @@ export interface HandoffSnapshot {
 
 /** The launch journal's word for the handoff reason. */
 export function snapshotReason(reason: HandoffReason): SnapshotReason {
-  return reason === 'limit' ? 'relay' : reason
+  return reason === 'limit' || reason === 'mainFixed' ? 'relay' : reason
 }
 
 export async function readNote(path: string | null): Promise<string | null> {

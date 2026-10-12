@@ -1,4 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, useState, type RefObject } from 'react'
+import { isFixName } from '../../../src/chain/fix.js'
 import type { ChainBlock } from '../state.js'
 import { moveItem } from '../ui/drag.js'
 import { stillMotion } from '../ui/landing.js'
@@ -169,7 +170,7 @@ export function useChainDrag({ listRef, blocks, disabled, onDrop }: Options) {
     const begin = (current: Press, client: Point) => {
       press.current = null
       const { blocks } = latest.current
-      const open = blocks.filter((block) => block.open)
+      const open = blocks.filter(inOrder)
       const order = open.map((block) => block.id)
       const from = order.indexOf(current.id)
       if (from < 0) return
@@ -306,7 +307,12 @@ export function useChainDrag({ listRef, blocks, disabled, onDrop }: Options) {
 
 /** Movable apart from a command in flight: the drag hint keys off this so it does not blink out on every drop. */
 export function reorderable(block: ChainBlock): boolean {
-  return block.open && !block.current
+  return inOrder(block) && !block.current
+}
+
+/** An open task of the chain's order; the fix session of main is open and has no place in it. */
+export function inOrder(block: ChainBlock): boolean {
+  return block.open && !isFixName(block.id)
 }
 
 function positions(list: HTMLElement): Map<string, Point> {

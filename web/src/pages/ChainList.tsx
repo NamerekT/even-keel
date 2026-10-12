@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type CSSProperties } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router'
+import { isFixName } from '../../../src/chain/fix.js'
 import { withWaiting } from '../../../src/chain/order.js'
 import type { ContextScale, TrackerUrls } from '../../../src/state.js'
 import { say, t } from '../i18n/index.js'
@@ -22,7 +23,7 @@ import { ActionScreen } from './ActionScreen.js'
 import './chain.css'
 import { ChainLegend } from './ChainLegend.js'
 import type { Arrival } from './useArrival.js'
-import { reorderable, useChainDrag, type ChainDrag, type Landing } from './useChainDrag.js'
+import { inOrder, reorderable, useChainDrag, type ChainDrag, type Landing } from './useChainDrag.js'
 import { useChainMotion } from './useChainMotion.js'
 
 /** How long the ghost takes to grow open or fold shut. */
@@ -236,7 +237,7 @@ export function ChainList({ project, chain, scale, trackerUrls, focus, ghost: ai
 }
 
 function openCount(section: Section<ChainBlock>, ghost: Ghost | null): number {
-  return section.blocks.filter((block) => !block.locked && block.id !== ghost?.id).length
+  return section.blocks.filter((block) => !block.locked && block.id !== ghost?.id && !isFixName(block.id)).length
 }
 
 /** The chain with a stand-in for the ghost at its landing place, unless the task is in the chain already. */
@@ -477,11 +478,14 @@ function Block(props: BlockProps) {
       </div>
       <span className="block__divider" aria-hidden="true" />
       <p className="block__title">
-        {block.title !== null && (
-          <button type="button" className="block__card" draggable={false} title={t.chain.openCard} onClick={() => onCard(block.id)}>
-            {block.title}
-          </button>
-        )}
+        {block.title !== null &&
+          (isFixName(block.id) ? (
+            block.title
+          ) : (
+            <button type="button" className="block__card" draggable={false} title={t.chain.openCard} onClick={() => onCard(block.id)}>
+              {block.title}
+            </button>
+          ))}
       </p>
       {action !== null && <ActionScreen line={action} delay={marks.has('take') ? marks.get('take')! + FRAME_MS : 0} />}
       <div className="block__side">
@@ -491,6 +495,11 @@ function Block(props: BlockProps) {
           </span>
         ))}
         {block.skipped && <span className="chip">{t.chain.skipped}</span>}
+        {block.interrupted && (
+          <span className="chip" title={t.chain.interruptedTitle}>
+            {t.chain.interrupted}
+          </span>
+        )}
         {block.question && (
           <span className="chip chip--question" title={t.chain.questionTitle}>
             {t.chain.question}
@@ -578,7 +587,7 @@ function roleIn(found: Relatives, id: string, badge: boolean): Relation | null {
 }
 
 function openIds(blocks: ChainBlock[]): string[] {
-  return blocks.filter((block) => block.open).map((block) => block.id)
+  return blocks.filter(inOrder).map((block) => block.id)
 }
 
 function linkedIds(blocks: ChainBlock[]): string[] {
@@ -595,7 +604,7 @@ function withOrder(chain: ChainBlock[], order: string[]): ChainBlock[] {
   if (open.length !== openIds(chain).length) return chain
   const locked = chain.filter((block) => block.locked).map((block) => block.id)
   const placed = withWaiting(open, locked, blockersOf(chain)).map((id) => byId.get(id)!)
-  return [...chain.filter((block) => !block.open && !block.locked), ...placed]
+  return [...chain.filter((block) => !inOrder(block) && !block.locked), ...placed]
 }
 
 function listClass(drag: ChainDrag | null, landing: Landing | null, settling: boolean): string {

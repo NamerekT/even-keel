@@ -1,5 +1,6 @@
 import type { AccountEntry, AccountView } from '../../src/account/model.js'
 import type { ActiveChain, CurrentTask, ProjectOrder } from '../../src/chain/dispatcher.js'
+import { fixName, isFixName } from '../../src/chain/fix.js'
 import type { TaskSession } from '../../src/chain/launches.js'
 import { chainOrder, nextTask, precedence, withWaiting } from '../../src/chain/order.js'
 import type { LimitHold } from '../../src/chain/relay.js'
@@ -93,6 +94,8 @@ export interface ChainBlock {
   sessions: TaskSession[]
   limit: LimitHold | null
   start: SessionStart | null
+  /** A red main stopped the task's session; it goes on once main is fixed. */
+  interrupted?: true
 }
 
 /**
@@ -121,7 +124,7 @@ export function projectTasks(state: EvenKeelState, project: string): Task[] {
 export function waitingSessions(sessions: SessionView[], tasks: Task[]): SessionView[] {
   const open = new Set(tasks.filter((task) => isOpen(task.status)).map((task) => task.id))
   const since = (view: SessionView) => Date.parse(view.lastActivityAt ?? view.startedAt)
-  return sessions.filter((view) => view.lamp === 'waiting' && open.has(view.task)).sort((a, b) => since(a) - since(b))
+  return sessions.filter((view) => view.lamp === 'waiting' && (open.has(view.task) || isFixName(view.task))).sort((a, b) => since(a) - since(b))
 }
 
 export function blockMetered(block: Pick<ChainBlock, 'current' | 'session'>): boolean {
@@ -133,7 +136,7 @@ export function checkpointHandoffs(rows: TaskSession[]): number {
 }
 
 export function taskProject(task: string): string {
-  return task.replace(/-\d+$/, '')
+  return task.replace(/-(\d+|FIX)$/, '')
 }
 
 export function chainProgress(tasks: Task[], order: ProjectOrder | undefined): { done: number; total: number; backlog: number } {
@@ -323,7 +326,7 @@ export function cardTask(state: EvenKeelState, project: string): CardTask | null
   const session = taskSession(state.sessions, id)
   return {
     id,
-    title: state.tasks.find((task) => task.id === id)?.title ?? null,
+    title: isFixName(id) ? t.chain.fix : (state.tasks.find((task) => task.id === id)?.title ?? null),
     lamp: session?.lamp ?? 'idle',
     next: current === undefined,
   }
@@ -390,12 +393,44 @@ export function chainBlocks(state: EvenKeelState, project: string, now = new Dat
       sessions,
       limit: id === current ? pending : null,
       start: running?.task === id ? sessionStart(running, session, sessions, now) : null,
+      ...(id === active?.interrupted?.task && { interrupted: true as const }),
     }
   })
   for (let index = blocks.length - 2; index >= 0; index--) {
     if (blocks[index]!.locked) blocks[index]!.milestone = blocks[index + 1]!.milestone
   }
-  return blocks
+  const fix = fixName(project)
+  const fixSession = taskSession(state.sessions, fix) ?? null
+  if (current !== fix && (fixSession === null || fixSession.lamp === 'finished')) return blocks
+  // The fix session of a red main is not a tracker task: it leads the chain as a block of its own, ahead of the open tasks.
+  const at = blocks.findIndex((block) => block.open || block.locked)
+  const ahead = at < 0 ? blocks.length : at
+  const fixSessions = state.taskSessions[fix] ?? []
+  const fixBlock: ChainBlock = {
+    id: fix,
+    title: t.chain.fix,
+    status: null,
+    stage: null,
+    lamp: blockLamp(undefined, fixSession),
+    open: true,
+    locked: false,
+    blockedBy: [],
+    milestone: blocks[ahead]?.milestone ?? null,
+    after: [],
+    current: fix === current,
+    skipped: false,
+    question: false,
+    priority: 'none',
+    estimate: null,
+    parent: null,
+    labels: [],
+    models: [],
+    session: fixSession,
+    sessions: fixSessions,
+    limit: fix === current ? pending : null,
+    start: running?.task === fix ? sessionStart(running, fixSession, fixSessions, now) : null,
+  }
+  return blocks.toSpliced(ahead, 0, fixBlock)
 }
 
 export function contextFill(tokens: number, scale: ContextScale): { percent: number; level: ContextLevel } {
@@ -437,6 +472,7 @@ export function tokenTotal(tokens: TokenTotals): number {
 }
 
 export function issueLink(urls: TrackerUrls, task: string): string | null {
+  if (isFixName(task)) return null
   const project = taskProject(task)
   const template = Object.hasOwn(urls.projects, project) ? urls.projects[project]! : urls.default
   return template === null ? null : template.replaceAll('{id}', task).replaceAll('{number}', task.slice(project.length + 1))

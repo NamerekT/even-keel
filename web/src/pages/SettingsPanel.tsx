@@ -25,6 +25,7 @@ interface Draft {
   kinds: CiKind[]
   wait: string
   recheck: boolean
+  fixTask: boolean
   fillMilestone: boolean
 }
 
@@ -35,6 +36,7 @@ const draftOf = (settings: ProjectSettings): Draft => ({
   kinds: settings.ci.kinds,
   wait: settings.ci.waitMinutes === null ? '' : String(settings.ci.waitMinutes),
   recheck: settings.ci.recheckMain,
+  fixTask: settings.ci.fixTask,
   fillMilestone: settings.fillMilestone,
 })
 const linesOf = (text: string) => text.split('\n').map((line) => line.trim()).filter((line) => line !== '')
@@ -53,6 +55,7 @@ const sameDraft = (a: Draft, b: Draft) =>
   sameKinds(a.kinds, b.kinds) &&
   minutesOf(a.wait) === minutesOf(b.wait) &&
   a.recheck === b.recheck &&
+  a.fixTask === b.fixTask &&
   a.fillMilestone === b.fillMilestone
 
 export function SettingsPanel({ project, settings, onClose }: { project: string; settings: ProjectSettings; onClose: () => void }) {
@@ -89,7 +92,7 @@ export function SettingsPanel({ project, settings, onClose }: { project: string;
   const toggle = (kind: CiKind, on: boolean) => edit({ kinds: CI_KINDS.filter((each) => (each === kind ? on : draft.kinds.includes(each))) })
   const save = async () => {
     if (waitMinutes === undefined) return
-    const ci = { kinds: draft.kinds, waitMinutes, recheckMain: draft.recheck }
+    const ci = { kinds: draft.kinds, waitMinutes, recheckMain: draft.recheck, fixTask: draft.fixTask }
     const body = { project, prompt: draft.prompt, beforeStart: linesOf(draft.commands), check: linesOf(draft.check), ci, fillMilestone: draft.fillMilestone }
     if (await send('project/settings', body)) setDone(true)
   }
@@ -181,6 +184,13 @@ export function SettingsPanel({ project, settings, onClose }: { project: string;
             {t.settings.recheckMain}
           </label>
           <span className="settings__hint">{t.settings.recheckMainHint}</span>
+        </div>
+        <div className="settings__field">
+          <label className="settings__check">
+            <input type="checkbox" checked={draft.fixTask} onChange={(event) => edit({ fixTask: event.target.checked })} />
+            {t.settings.fixTask}
+          </label>
+          <span className="settings__hint">{t.settings.fixTaskHint}</span>
         </div>
         <div className="settings__field">
           <label className="settings__check">

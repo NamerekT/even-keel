@@ -29,6 +29,8 @@ interface Opening {
   title: (commit: string) => string
   intro: (commit: string) => string
   again: (commit: string) => string
+  /** Opens the prompt of a fix session without a task. */
+  session: (commit: string) => string
 }
 
 interface ReportTexts extends Opening {
@@ -49,10 +51,12 @@ const TEXTS: Record<Language, ReportTexts> = {
     title: (commit) => `CI on main failed: ${commit}`,
     intro: (commit) => `The CI run of \`main\` failed on \`${commit}\`. Even Keel created this task: fix main; the chain takes it first.`,
     again: (commit) => `CI on main failed again on \`${commit}\`.`,
+    session: (commit) => `The CI run of \`main\` failed on \`${commit}\`. Even Keel started this session to fix main; there is no tracker task for it.`,
     check: {
       title: (commit) => `Check of main failed: ${commit}`,
       intro: (commit) => `The project's check failed on \`main\` at \`${commit}\`. Even Keel created this task: fix main; the chain takes it first.`,
       again: (commit) => `The project's check failed again on \`${commit}\`.`,
+      session: (commit) => `The project's check failed on \`main\` at \`${commit}\`. Even Keel started this session to fix main; there is no tracker task for it.`,
       failed: 'Failed check',
       exited: (command, code) => `\`${command}\` exited with code ${code}.`,
     },
@@ -70,10 +74,12 @@ const TEXTS: Record<Language, ReportTexts> = {
     title: (commit) => `CI на main упал: ${commit}`,
     intro: (commit) => `Прогон CI на \`main\` упал на коммите \`${commit}\`. Задачу завёл Even Keel: нужно починить main, цепочка берёт её первой.`,
     again: (commit) => `CI на main снова упал на \`${commit}\`.`,
+    session: (commit) => `Прогон CI на \`main\` упал на коммите \`${commit}\`. Эту сессию запустил Even Keel, чтобы починить main; задачи в трекере на это нет.`,
     check: {
       title: (commit) => `Проверка main упала: ${commit}`,
       intro: (commit) => `Проверка проекта упала на \`main\` на коммите \`${commit}\`. Задачу завёл Even Keel: нужно починить main, цепочка берёт её первой.`,
       again: (commit) => `Проверка проекта снова упала на \`${commit}\`.`,
+      session: (commit) => `Проверка проекта упала на \`main\` на коммите \`${commit}\`. Эту сессию запустил Even Keel, чтобы починить main; задачи в трекере на это нет.`,
       failed: 'Упавшая проверка',
       exited: (command, code) => `\`${command}\` завершилась с кодом ${code}.`,
     },
@@ -89,13 +95,22 @@ const TEXTS: Record<Language, ReportTexts> = {
   },
 }
 
-/** The fix task for a red main and the comment for one already open, in the language of the config. */
-export function redReport(facts: RedFacts, language: Language): RedReport {
+/**
+ * The fix task for a red main and the comment for one already open, in the language of the config;
+ * the prompt of a fix session without a task, in the language of prompts.
+ */
+export function redReport(facts: RedFacts, language: Language, promptLanguage: Language = language): RedReport {
   const texts = TEXTS[language]
   const commit = shortCommit(facts.commit)
   const opening = facts.check === undefined ? texts : texts.check
   const body = bodyOf(facts, texts)
-  return { title: opening.title(commit), description: `${opening.intro(commit)}\n\n${body}`, comment: `${opening.again(commit)}\n\n${body}` }
+  const told = TEXTS[promptLanguage]
+  return {
+    title: opening.title(commit),
+    description: `${opening.intro(commit)}\n\n${body}`,
+    comment: `${opening.again(commit)}\n\n${body}`,
+    prompt: `${(facts.check === undefined ? told : told.check).session(commit)}\n\n${bodyOf(facts, told)}`,
+  }
 }
 
 function bodyOf(facts: RedFacts, texts: ReportTexts): string {

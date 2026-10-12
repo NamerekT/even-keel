@@ -37,6 +37,10 @@ export function fakeMain(wait: number | null = null) {
     /** The project's check on main, by the commit it runs on; green when missing. */
     runs: {} as Record<string, MainCheckRun>,
     checked: [] as string[],
+    /** `ci.fixTask`: off — a session without a task fixes a red main. */
+    fixTask: true,
+    /** Tasks and fix sessions whose branch is in main. */
+    merged: new Set<string>(),
   }
   const deps: MainCheckDeps = {
     head: async () => heads.shift() ?? null,
@@ -44,7 +48,7 @@ export function fakeMain(wait: number | null = null) {
     waitMs: () => ci.wait,
     report: async (_project, push, failure, green) => {
       ci.reports.push({ push: structuredClone(push), failure, green })
-      return { title: `CI on main failed: ${push.commit.slice(0, 7)}`, description: 'log', comment: 'more log' }
+      return { title: `CI on main failed: ${push.commit.slice(0, 7)}`, description: 'log', comment: 'more log', prompt: 'fix main: log' }
     },
     create: async (_project, created) => {
       if (!ci.canCreate) return null
@@ -64,6 +68,8 @@ export function fakeMain(wait: number | null = null) {
       ci.checked.push(`${project}/${id}@${commit}`)
       return ci.runs[commit] ?? { state: 'green' }
     },
+    fixTask: () => ci.fixTask,
+    merged: async (_project, id) => ci.merged.has(id),
   }
   return { ci, deps }
 }

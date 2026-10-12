@@ -150,6 +150,15 @@ describe('sessionsByTask', () => {
 
     expect(byTask.get('ABC-1')?.sessionId).toBe('named')
   })
+
+  it('tracks the fix session of main by its name or its branch, for a configured project only', () => {
+    const named = { ...interactive, sessionId: 'named', name: 'ABC-FIX' }
+    const onBranch = { ...interactive, sessionId: 'on-branch', name: 'session-2b' }
+    const foreign = { ...interactive, sessionId: 'foreign', name: 'HOT-FIX' }
+
+    expect(sessionsByTask([named, foreign], ['ABC']).get('ABC-FIX')?.sessionId).toBe('named')
+    expect([...sessionsByTask([onBranch, foreign], ['ABC'], (agent) => (agent === onBranch ? 'abc-fix/task' : null)).keys()]).toEqual(['ABC-FIX'])
+  })
 })
 
 describe('turnStatus', () => {

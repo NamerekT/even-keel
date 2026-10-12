@@ -88,6 +88,18 @@ describe('redReport', () => {
     expect(ru.comment.startsWith('Проверка проекта снова упала на `abcdef1`.')).toBe(true)
   })
 
+  it('opens the prompt of a fix session without a task in the language of prompts, over the same facts', () => {
+    const { prompt, description } = redReport(facts, 'en', 'ru')
+    expect(prompt.startsWith('Прогон CI на `main` упал на коммите `abcdef1`. Эту сессию запустил Even Keel')).toBe(true)
+    expect(prompt).toContain('[CI #12](https://example.com/acme/app/actions/runs/7)')
+    expect(prompt).not.toContain('Задачу завёл')
+    expect(description.startsWith('The CI run of `main` failed')).toBe(true)
+    const check = redReport({ ...facts, runs: [], check: { command: 'npm test', code: 1, output: 'FAIL' } }, 'ru', 'en')
+    expect(check.prompt.startsWith("The project's check failed on `main` at `abcdef1`. Even Keel started this session")).toBe(true)
+    expect(check.prompt).toContain('`npm test` exited with code 1.')
+    expect(redReport(facts, 'en').prompt.startsWith('The CI run of `main` failed on `abcdef1`. Even Keel started this session')).toBe(true)
+  })
+
   it('never puts inline code inside a bold mark or a link', () => {
     for (const language of ['en', 'ru'] as const) {
       const { description, comment } = redReport(facts, language)

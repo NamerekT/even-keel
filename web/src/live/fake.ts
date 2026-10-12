@@ -1,5 +1,6 @@
 import { fail, notice, textNotice } from '../../../src/notice/notice.js'
 import type { ActiveChain, LaunchEntry } from '../../../src/chain/dispatcher.js'
+import { fixName, isFixName } from '../../../src/chain/fix.js'
 import { launchDays } from '../../../src/chain/launches.js'
 import { checkOrder } from '../../../src/chain/order.js'
 import type { TrackerLinkState, TrackerView } from '../../../src/tracker/health.js'
@@ -12,6 +13,7 @@ import type { EvenKeelState, ProjectSettings, SessionRecord, SessionView } from 
 import type { Link, LiveSnapshot, LiveSource } from './connection.js'
 import { accountCommand, fakeAccount, fakeUsage, FAKE_LIMITS } from './fakeAccounts.js'
 import { fakeCi } from './fakeCi.js'
+import { withFix } from './fakeFix.js'
 import { fakeCompare, fakeRuleDiff, fakeRules } from './fakeRules.js'
 import { fakeSteps } from './fakeSteps.js'
 import { fakeCheckpoints, fakeHistory, fakePeriod, fakeTask } from './fakeStats.js'
@@ -193,10 +195,10 @@ function fakeState(
     startedAt: ago(180),
     projects: ['ABC', 'DEMO', 'XYZ', 'OPS'],
     settings: {
-      ABC: { prompt: 'Run npm test before merging.', beforeStart: ['npm ci'], check: [], ci: { kinds: ['forgejo', 'github'], waitMinutes: null, recheckMain: true }, fillMilestone: true },
-      DEMO: { prompt: null, beforeStart: [], check: [], ci: { kinds: ['github'], waitMinutes: 15, recheckMain: true }, fillMilestone: false },
-      XYZ: { prompt: null, beforeStart: [], check: [], ci: { kinds: ['forgejo', 'github'], waitMinutes: null, recheckMain: true }, fillMilestone: false },
-      OPS: { prompt: null, beforeStart: ['npm ci'], check: ['npm run typecheck', 'npm test'], ci: { kinds: [], waitMinutes: 0, recheckMain: false }, fillMilestone: false },
+      ABC: { prompt: 'Run npm test before merging.', beforeStart: ['npm ci'], check: [], ci: { kinds: ['forgejo', 'github'], waitMinutes: null, recheckMain: true, fixTask: false }, fillMilestone: true },
+      DEMO: { prompt: null, beforeStart: [], check: [], ci: { kinds: ['github'], waitMinutes: 15, recheckMain: true, fixTask: true }, fillMilestone: false },
+      XYZ: { prompt: null, beforeStart: [], check: [], ci: { kinds: ['forgejo', 'github'], waitMinutes: null, recheckMain: true, fixTask: false }, fillMilestone: false },
+      OPS: { prompt: null, beforeStart: ['npm ci'], check: ['npm run typecheck', 'npm test'], ci: { kinds: [], waitMinutes: 0, recheckMain: false, fixTask: false }, fillMilestone: false },
     },
     chain: {
       active: idle
@@ -435,7 +437,7 @@ function reorder(state: EvenKeelState, project: string, order: string[]): EvenKe
   const tasks = state.tasks.filter((task) => task.id.startsWith(`${project}-`) && order.includes(task.id))
   checkOrder(tasks, order)
   const current = chainIn(state, project)?.current?.task
-  if (current !== undefined && order[0] !== current) throw fail('chain.currentFirst', { task: current })
+  if (current !== undefined && !isFixName(current) && order[0] !== current) throw fail('chain.currentFirst', { task: current })
   const kept = state.chain.projects[project] ?? { waiting: [], backlog: [] }
   return { ...state, chain: { ...state.chain, projects: { ...state.chain.projects, [project]: { ...kept, order: [...order], error: null } } } }
 }
@@ -449,6 +451,7 @@ function skip(state: EvenKeelState, project: string, task: string): EvenKeelStat
   }
   const skipped = state.chain.skipped[project] ?? []
   const released = holder === undefined ? state : withChain(state, holder, { ...holder, current: null })
+  if (isFixName(task)) return released
   return {
     ...state,
     chain: {
@@ -649,6 +652,7 @@ export function createFakeSource(search: string): LiveSource {
     current.state.sessions = current.state.sessions.map((each) => (each.task === 'ABC-5' ? wedged : each))
     current.state.chain.active = [{ ...active, current: { task: 'ABC-5', sessionId: wedged.sessionId, since: ago(6) } }]
   }
+  if (params.get('chain') === 'fix' && current.state !== null) current.state = withFix(current.state, 'ABC', session(fixName('ABC'), 38_000), ago(6))
   const cache = params.get('cache')
   if ((cache === 'warn' || cache === 'cold') && current.state !== null) {
     const until = ago(cache === 'warn' ? -8 : 20)

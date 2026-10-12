@@ -12,7 +12,9 @@ import {
   type ProjectOrder,
   type ReleaseReason,
 } from './model.js'
+import { isFixName } from './fix.js'
 import { MainCheck } from './maincheck.js'
+import { MainFix } from './mainfix.js'
 import type { ChainView } from './milestones.js'
 import { byNumber, chainOrder, checkOrder, nextTask, openBlockers, waitingBlockers, withFresh } from './order.js'
 import { admits, excludes, isActive, isDone, isTerminal, type ChainRules } from './rules.js'
@@ -43,12 +45,25 @@ export class Dispatcher {
   private readonly releasedDone = new Map<string, Set<string>>()
   private work: Promise<void> = Promise.resolve()
   private readonly main: MainCheck | null
+  private readonly fixes: MainFix | null
 
   constructor(
     readonly state: ChainState,
     private readonly deps: DispatcherDeps,
   ) {
     this.main = deps.main === undefined ? null : new MainCheck(state, deps.main, deps.now, deps.log)
+    this.fixes =
+      this.main === null
+        ? null
+        : new MainFix(state, deps, this.main, {
+            halt: (chain, error) => this.halt(chain, error),
+            letGo: (chain) => this.letGo(chain),
+            take: (chain, current) => this.take(chain, current),
+            release: (project, task) => this.remember(project, task),
+            closeUp: (project, task) => this.closeUp(project, task),
+            handOver: (task, session, reason, extra) => this.handOver(task, session, reason, extra),
+            heldByMain: (chain, task) => this.heldByMain(chain, task, (this.tasks.get(chain.project) ?? []).map((open) => open.id), false),
+          })
   }
 
   setTasks(project: string, tasks: Task[]): void {
@@ -78,7 +93,7 @@ export class Dispatcher {
 
   held(project: string): string[] {
     const current = this.chainOf(project)?.current
-    const holds = current?.sessionId ? [current.task] : []
+    const holds = current?.sessionId && !isFixName(current.task) ? [current.task] : []
     return [...holds, ...this.released(project).filter((id) => !holds.includes(id))]
   }
 
@@ -126,6 +141,7 @@ export class Dispatcher {
     const chain = this.chainOf(project)
     if (chain === undefined) return
     this.letGo(chain)
+    if (chain.interrupted !== undefined) this.remember(project, chain.interrupted.task)
     this.drop(chain)
     this.changed()
   }
@@ -139,6 +155,11 @@ export class Dispatcher {
 
   skip(project: string, task: string): void {
     this.requireProject(project)
+    if (this.fixes !== null && isFixName(task)) {
+      this.fixes.skip(this.chainOf(project), task)
+      this.changed()
+      return
+    }
     if (!(this.tasks.get(project) ?? []).some((open) => open.id === task)) throw fail('chain.notOpen', { task, project })
     const chain = this.chainOf(project)
     const holder = chain !== undefined && chain.current?.task === task ? chain : null
@@ -290,8 +311,11 @@ export class Dispatcher {
     return this.state.active.find((chain) => chain.project === project)
   }
 
+  /** The task the chain leads; while a fix session of main runs — the task it interrupted, if any. */
   private currentOf(project: string): string | undefined {
-    return this.chainOf(project)?.current?.task
+    const chain = this.chainOf(project)
+    const task = chain?.current?.task
+    return task === undefined || isFixName(task) ? chain?.interrupted?.task : task
   }
 
   private drop(chain: ActiveChain): void {
@@ -386,9 +410,13 @@ export class Dispatcher {
 
   private letGo(chain: ActiveChain): void {
     if (chain.current === null) return
-    const released = (this.state.released[chain.project] ??= [])
-    if (!released.includes(chain.current.task)) released.push(chain.current.task)
+    if (!isFixName(chain.current.task)) this.remember(chain.project, chain.current.task)
     chain.current = null
+  }
+
+  private remember(project: string, task: string): void {
+    const released = (this.state.released[project] ??= [])
+    if (!released.includes(task)) released.push(task)
   }
 
   private take(chain: ActiveChain, current: CurrentTask): void {
@@ -438,7 +466,7 @@ export class Dispatcher {
 
   private async settleMain(): Promise<void> {
     if (this.main === null) return
-    const { changed, stops } = await this.main.settle(this.listedOpen)
+    const { changed, stops, fixes } = await this.main.settle(this.listedOpen)
     for (const { project, notice } of stops) {
       let chain = this.chainOf(project)
       if (chain === undefined) {
@@ -447,12 +475,16 @@ export class Dispatcher {
         this.state.active.push(chain)
       }
       this.halt(chain, notice)
+      this.fixes!.giveBack(chain)
+    }
+    for (const project of fixes) {
+      if (this.chainOf(project) === undefined && !this.state.queue.includes(project)) this.state.active.push({ ...newChain(project), fixOnly: true })
     }
     if (changed) this.deps.save(this.state)
   }
 
-  /** Whether the launch of `task` waits for the CI's verdict on main; the task's place is prepared meanwhile. */
-  private heldByMain(chain: ActiveChain, task: string, listed: string[]): boolean {
+  /** Whether the launch of `task` waits for the CI's verdict on main; with `ahead` the task's place is prepared meanwhile. */
+  private heldByMain(chain: ActiveChain, task: string, listed: string[], ahead = true): boolean {
     const hold = this.main?.holds(chain.project, listed) ?? null
     const wait = hold === null || hold === 'fix' ? undefined : { commit: hold.commit, since: hold.at }
     if (chain.ciWait?.commit !== wait?.commit) {
@@ -460,7 +492,7 @@ export class Dispatcher {
       else chain.ciWait = wait
       this.deps.save(this.state)
     }
-    if (wait !== undefined) this.main!.ahead(chain.project, task)
+    if (wait !== undefined && ahead) this.main!.ahead(chain.project, task)
     return hold !== null
   }
 
@@ -524,6 +556,14 @@ export class Dispatcher {
           this.halt(chain, notice('chain.interrupted', { task }))
           return
         }
+        if (isFixName(task)) {
+          if (this.fixes === null) chain.current = null
+          else if (!(await this.fixes.follow(chain, chain.current))) {
+            if (!(await this.followLimit(chain, chain.current))) await this.followCheckpoint(chain, chain.current)
+            return
+          }
+          continue
+        }
         if (!tasks.some((open) => open.id === task)) {
           if (this.done.get(chain.project)?.has(task)) {
             chain.current = null
@@ -541,12 +581,24 @@ export class Dispatcher {
             const skipped = (this.state.skipped[chain.project] ??= [])
             if (!skipped.includes(task)) skipped.push(task)
             this.release(chain, 'skip', [])
-          } else {
+          } else if (this.fixes === null || !(await this.fixes.yields(chain, chain.current))) {
             if (!(await this.followLimit(chain, chain.current))) await this.followCheckpoint(chain, chain.current)
             return
           }
           this.deps.save(this.state)
+          if (chain.paused) return
         }
+      }
+
+      const fix = this.main?.sessionFix(chain.project)
+      if (fix === undefined && chain.fixOnly) {
+        this.drop(chain)
+        this.deps.save(this.state)
+        return
+      }
+      if (fix === undefined && chain.interrupted !== undefined) {
+        if (await this.fixes!.resume(chain, tasks)) continue
+        return
       }
 
       let order: string[]
@@ -559,8 +611,8 @@ export class Dispatcher {
 
       const skipped = this.state.skipped[chain.project] ?? []
       const listed = tasks.map((open) => open.id)
-      const fix = this.main?.fixOf(chain.project, listed.filter((id) => !skipped.includes(id)))
-      const task = fix ?? nextTask(tasks, order, [...skipped, ...this.waitingIds(chain.project)])
+      const fixTask = this.main?.fixOf(chain.project, listed.filter((id) => !skipped.includes(id)))
+      const task = fix?.task ?? fixTask ?? nextTask(tasks, order, [...skipped, ...this.waitingIds(chain.project)])
       if (task === undefined) {
         this.drop(chain)
         this.deps.save(this.state)
@@ -578,7 +630,7 @@ export class Dispatcher {
         return
       }
 
-      if (this.heldByMain(chain, task, listed)) return
+      if (fix === undefined && this.heldByMain(chain, task, listed)) return
 
       const blocked = this.deps.blocked()
       if (blocked !== undefined) {
@@ -598,7 +650,7 @@ export class Dispatcher {
       const lastTry = chain.slotWait === undefined ? undefined : Date.parse(chain.slotWait.at)
       if (lastTry !== undefined && this.deps.now().getTime() - lastTry < SLOT_RETRY_MS) return
 
-      const unjudged = this.main?.due(chain.project)
+      const unjudged = fix === undefined ? this.main?.due(chain.project) : undefined
       if (unjudged !== undefined) {
         if (!(await this.checkMain(chain, task, unjudged))) return
         continue
@@ -609,7 +661,7 @@ export class Dispatcher {
       this.take(chain, current)
       this.deps.save(this.state)
       try {
-        const sessionId = await this.deps.launch(chain.project, task)
+        const sessionId = fix === undefined ? await this.deps.launch(chain.project, task) : await this.deps.launchFix(chain.project, task, fix.report)
         this.deps.journal({ at: since, project: chain.project, task, sessionId })
         current.sessionId = sessionId
         delete current.starting
@@ -754,9 +806,10 @@ export class Dispatcher {
     }
   }
 
-  private async handOver(task: string, session: HandoffSession, reason: HandoffReason): Promise<string> {
+  private async handOver(task: string, session: HandoffSession, reason: HandoffReason, extra?: string): Promise<string> {
     const located = await this.deps.locate(session)
-    return this.deps.relay(task, located, handoffPrompt(task, located, reason, this.deps.promptLanguage()), reason)
+    const prompt = handoffPrompt(task, located, reason, this.deps.promptLanguage())
+    return this.deps.relay(task, located, extra === undefined ? prompt : `${prompt}\n${extra}\n`, reason)
   }
 
   private halt(chain: ActiveChain, error: Notice): void {

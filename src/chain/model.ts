@@ -28,6 +28,23 @@ export interface ActiveChain {
   /** The next launch waits for the CI's verdict on this push of main; `local` — for the project's own check of it. */
   ciWait?: { commit: string; since: string; local?: true }
   closing?: string
+  /** The task whose working session a red main stopped (BTN-115); it goes on once the fix is judged. */
+  interrupted?: Interrupted
+  /** The chain exists only for the fix session of a red main and ends with it. */
+  fixOnly?: true
+}
+
+export interface Interrupted {
+  task: string
+  sessionId: string
+  /** When the chain took the task. */
+  since: string
+  /** When the session was stopped. */
+  at: string
+  /** The red commit of main. */
+  commit: string
+  /** Main after the fix landed; unset — the fix was skipped. */
+  fixed?: string
 }
 
 export interface Leftover {
@@ -68,8 +85,18 @@ export interface MainGate {
   check?: MainPush
   /** A push the CI could not judge: the project's check runs on it in the next task's place before that task starts. */
   local?: MainPush
-  /** The task Even Keel created to fix a red main, from its creation until a push of it is judged. */
-  fix?: { task: string; at: string; commit: string }
+  /**
+   * The task Even Keel created to fix a red main, from its creation until a push of it is judged. Without a task
+   * (`ci.fixTask` off) `task` is the fix session's name and `report` its prompt, kept until its branch lands.
+   */
+  fix?: { task: string; at: string; commit: string; report?: string }
+}
+
+/** The fix of a red main a session without a task does or is about to do. */
+export interface SessionFix {
+  task: string
+  commit: string
+  report: string
 }
 
 export type ReleaseReason = 'postpone' | 'skip'
@@ -125,6 +152,10 @@ export interface DispatcherDeps {
   /** Stops the waiting session and resumes it with the user's reply; returns the session id it came up under. */
   reply: (task: string, session: HandoffSession, prompt: string) => Promise<string>
   relay: (task: string, session: HandoffSession, prompt: string, reason: HandoffReason) => Promise<string>
+  /** Starts the session that fixes a red main without a task, in a place of its own; `report` says what broke. */
+  launchFix: (project: string, name: string, report: string) => Promise<string>
+  /** Stops a session, mid-turn too (`claude stop`): only for a red main, invariant 1's exception 7. */
+  stop: (session: HandoffSession) => Promise<void>
   finish: (project: string, task: string) => Promise<FinishOutcome>
   log: (message: string) => void
   /** Without it the chain neither waits for the CI after a push of main nor reacts to a red one. */
@@ -151,6 +182,10 @@ export interface MainCheckDeps {
   checking: (project: string) => { commands: string[]; recheck: boolean }
   /** Runs the project's check on main in the place of the task about to start, which keeps it for the launch. */
   checkMain: (project: string, task: string, commit: string) => Promise<MainCheckRun>
+  /** `ci.fixTask`: a red main becomes a task in the tracker rather than a session without one. */
+  fixTask: (project: string) => boolean
+  /** Whether the branch of the task, or of the fix session, is in main with commits of its own. */
+  merged: (project: string, task: string) => Promise<boolean>
 }
 
 /** The first command of the project's check that failed, with its output. */
@@ -165,11 +200,12 @@ export type MainCheckRun = { state: 'green' } | { state: 'red'; failure: CheckFa
 /** What found main red: the CI's failed runs or the project's own check. */
 export type MainFailure = { ci: RedRun[] } | { check: CheckFailure }
 
-/** The fix task's title and description, and the comment for a fix task already open. */
+/** The fix task's title and description, the comment for a fix task already open, and the prompt of a fix session without a task. */
 export interface RedReport {
   title: string
   description: string
   comment: string
+  prompt: string
 }
 
 export function emptyChainState(): ChainState {

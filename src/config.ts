@@ -193,21 +193,22 @@ function parseProjectPrompt(raw: unknown, where: string): string | null {
   return raw.trim() === '' ? null : raw.trim()
 }
 
-export const DEFAULT_CI: Readonly<CiSettings> = Object.freeze({ kinds: Object.freeze([...CI_KINDS]) as CiKind[], waitMinutes: null, recheckMain: true })
-const CI_KEYS = ['kinds', 'waitMinutes', 'recheckMain'] as const
+export const DEFAULT_CI: Readonly<CiSettings> = Object.freeze({ kinds: Object.freeze([...CI_KINDS]) as CiKind[], waitMinutes: null, recheckMain: true, fixTask: false })
+const CI_KEYS = ['kinds', 'waitMinutes', 'recheckMain', 'fixTask'] as const
 
 function parseCi(raw: unknown, where: string): CiSettings {
   if (raw === undefined) return DEFAULT_CI
   if (!isPlainObject(raw)) throw fail('config.notObject', { where })
   const unknown = Object.keys(raw).find((key) => !(CI_KEYS as readonly string[]).includes(key))
   if (unknown !== undefined) throw fail('config.ciKey', { where, key: unknown, known: [...CI_KEYS] })
-  const { kinds = DEFAULT_CI.kinds, waitMinutes = null, recheckMain = true } = raw
+  const { kinds = DEFAULT_CI.kinds, waitMinutes = null, recheckMain = true, fixTask = false } = raw
   if (!Array.isArray(kinds) || kinds.some((kind) => !(CI_KINDS as readonly unknown[]).includes(kind))) {
     throw fail('config.ciKinds', { where: `${where}.kinds`, known: [...CI_KINDS] })
   }
   if (waitMinutes !== null && !(Number.isInteger(waitMinutes) && (waitMinutes as number) >= 0)) throw fail('config.ciWait', { where: `${where}.waitMinutes` })
   if (typeof recheckMain !== 'boolean') throw fail('config.brief', { where: `${where}.recheckMain` })
-  return { kinds: CI_KINDS.filter((kind) => kinds.includes(kind)), waitMinutes: waitMinutes as number | null, recheckMain }
+  if (typeof fixTask !== 'boolean') throw fail('config.brief', { where: `${where}.fixTask` })
+  return { kinds: CI_KINDS.filter((kind) => kinds.includes(kind)), waitMinutes: waitMinutes as number | null, recheckMain, fixTask }
 }
 
 // An object rather than a list, so each moment of a task gets its own key: `beforeStart`, `check`.
@@ -336,6 +337,7 @@ export function withProjectSettings(entry: unknown, { prompt, beforeStart, check
     ...(kinds.length === CI_KINDS.length ? {} : { kinds }),
     ...(ci.waitMinutes === null ? {} : { waitMinutes: ci.waitMinutes }),
     ...(ci.recheckMain ? {} : { recheckMain: false }),
+    ...(ci.fixTask ? { fixTask: true } : {}),
   }
   if (Object.keys(written).length === 0) delete fields.ci
   else fields.ci = written

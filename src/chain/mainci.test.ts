@@ -31,7 +31,7 @@ const view = (kind: CiKind, status: CiRun['status']): CiView => ({
   pushed: null,
 })
 
-const all = (kinds: CiKind[], waitMinutes: number | null = null): CiSettings => ({ kinds, waitMinutes, recheckMain: true })
+const all = (kinds: CiKind[], waitMinutes: number | null = null): CiSettings => ({ kinds, waitMinutes, recheckMain: true, fixTask: false })
 
 function setup(settings: CiSettings, views: CiView[], heads: Record<string, string> = {}, failure: CheckFailure | null = null) {
   const gitCalls: string[][] = []
@@ -55,6 +55,7 @@ function setup(settings: CiSettings, views: CiView[], heads: Record<string, stri
     settings: () => settings,
     commands: () => ['npm test'],
     language: () => 'en',
+    promptLanguage: () => 'ru',
     create: async () => 'ABC-9',
     comment: async () => {},
     prepare: async () => {},
@@ -108,6 +109,12 @@ describe('mainCheckDeps', () => {
     const report = await deps.report('ABC', { commit: 'c2', at: '2026-10-12T10:00:00Z', tasks: ['ABC-2'] }, { check: { command: 'npm test', code: 1, output: 'FAIL' } }, 'c0')
     expect(report.title).toBe('Check of main failed: c2')
     expect(report.description).toContain('`npm test` exited with code 1.')
+    expect(report.prompt).toContain('`npm test` завершилась с кодом 1.')
+  })
+
+  it('reads from the project settings whether a red main gets a fix task', () => {
+    expect(setup(all([]), []).deps.fixTask('ABC')).toBe(false)
+    expect(setup({ ...all([]), fixTask: true }, []).deps.fixTask('ABC')).toBe(true)
   })
 
   it('reads the tree of the task branch, whatever its tail', async () => {

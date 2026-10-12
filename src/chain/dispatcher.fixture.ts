@@ -37,6 +37,7 @@ export interface SetupOptions {
   account?: AccountNow
   accountAt?: (account: string, at: string) => string | null
   failRelay?: boolean
+  failStop?: boolean
   limitReset?: string | null
   busy?: Set<string>
   waiting?: Set<string>
@@ -51,12 +52,15 @@ export interface SetupOptions {
 
 export function setup(options: SetupOptions = {}) {
   const busy = options.busy ?? new Set<string>()
+  const live: Record<string, string> = options.live ?? {}
   const clock = { now: new Date('2026-09-26T12:00:00Z') }
   const account: AccountNow = options.account ?? { id: 'john@example.com', ready: true }
   const limited: Record<string, LimitedSession> = options.limited ?? {}
   const handoffs: Record<string, HandoffSession> = {}
   const relays: { kind: string; task: string; sessionId: string; prompt?: string; workdir?: string; reason?: string }[] = []
   const launched: string[] = []
+  const fixes: { project: string; name: string; report: string }[] = []
+  const stopped: string[] = []
   const tried: string[] = []
   const refuse = options.refuse ?? {}
   const log: string[] = []
@@ -78,7 +82,7 @@ export function setup(options: SetupOptions = {}) {
       launched.push(`${project}/${id}`)
       return `session-${++counter}`
     },
-    liveSession: (id) => options.live?.[id],
+    liveSession: (id) => live[id],
     blocked: () => (options.blocked === undefined ? undefined : textNotice(options.blocked)),
     busy: (id) => busy.has(id) || (options.waiting?.has(id) ?? false),
     midTurn: (id) => busy.has(id) && !(options.waiting?.has(id) ?? false),
@@ -106,6 +110,16 @@ export function setup(options: SetupOptions = {}) {
       relays.push({ kind: 'relay', task: id, sessionId: session.sessionId, prompt, workdir: session.workdir, reason })
       return `session-${++counter}`
     },
+    launchFix: async (project, name, report) => {
+      if (name === options.failLaunch) throw new Error(`claude: could not start ${name}`)
+      launched.push(`${project}/${name}`)
+      fixes.push({ project, name, report })
+      return `session-${++counter}`
+    },
+    stop: async (session) => {
+      if (options.failStop) throw new Error(`claude: could not stop ${session.agentId}`)
+      stopped.push(session.sessionId)
+    },
     finish: async (project, id) => {
       finished.push(`${project}/${id}`)
       return options.finish?.(id) ?? { warnings: [], syncError: null }
@@ -113,5 +127,5 @@ export function setup(options: SetupOptions = {}) {
     log: (message) => log.push(message),
     ...(options.main === undefined ? {} : { main: options.main }),
   })
-  return { dispatcher, launched, tried, refuse, log, finished, saved, journal, clock, account, limited, handoffs, relays, busy, capacity }
+  return { dispatcher, launched, fixes, stopped, live, tried, refuse, log, finished, saved, journal, clock, account, limited, handoffs, relays, busy, capacity }
 }

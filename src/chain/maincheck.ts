@@ -1,6 +1,7 @@
 import { shortCommit } from '../ci/verdict.js'
 import { englishOf, notice, noticeOf, type Notice } from '../notice/notice.js'
-import type { ChainState, MainCheckDeps, MainCheckRun, MainFailure, MainGate, MainPush, RedReport } from './model.js'
+import { fixName, isFixName } from './fix.js'
+import type { ChainState, MainCheckDeps, MainCheckRun, MainFailure, MainGate, MainPush, RedReport, SessionFix } from './model.js'
 
 /** How long the chain waits for the tracker to list the fix task it has just created. */
 export const FIX_LISTED_MS = 5 * 60_000
@@ -15,6 +16,7 @@ type IsOpen = (project: string, task: string) => boolean
 // The CI after a push of main (BTN-103): the next launch waits for its verdict, a red main becomes one fix task,
 // and a red push of that fix stops the chain instead of filing another. Without a CI to judge it, the project's
 // own check does (BTN-104): before the merge on the task's branch, and on main in the next task's place if main moved.
+// With `ci.fixTask` off (BTN-115) the fix is a session without a task, which the dispatcher starts (`MainFix`).
 export class MainCheck {
   private readonly prepared = new Map<string, string>()
 
@@ -74,8 +76,37 @@ export class MainCheck {
     }
     const fix = gate.fix
     const pushed = [...(gate.check?.tasks ?? []), ...(gate.local?.tasks ?? [])]
-    if (fix !== undefined && !listed.includes(fix.task) && !pushed.includes(fix.task) && now - Date.parse(fix.at) < FIX_LISTED_MS) return 'fix'
-    return null
+    const awaited = fix !== undefined && !isFixName(fix.task) && !listed.includes(fix.task) && !pushed.includes(fix.task)
+    return awaited && now - Date.parse(fix.at) < FIX_LISTED_MS ? 'fix' : null
+  }
+
+  /** The fix a session without a task does or is about to do; gone once its branch has landed. */
+  sessionFix(project: string): SessionFix | undefined {
+    const fix = this.state.ci[project]?.fix
+    return fix?.report === undefined ? undefined : { task: fix.task, commit: fix.commit, report: fix.report }
+  }
+
+  /**
+   * The fix session's branch is in main and cleaned up: its push, if one went out, is what judges the fix.
+   * Returns the commit main went out at, `null` when it is not known.
+   */
+  fixLanded(project: string): string | null {
+    const gate = this.state.ci[project]
+    const fix = gate?.fix
+    if (gate === undefined) return null
+    const pushed = [...(gate.check?.tasks ?? []), ...(gate.local?.tasks ?? [])]
+    if (fix !== undefined && pushed.includes(fix.task)) delete fix.report
+    else delete gate.fix
+    return gate.check?.commit ?? gate.local?.commit ?? gate.green ?? null
+  }
+
+  /** The user gave the fix session up: main stays as it is. */
+  dropFix(project: string): void {
+    delete this.state.ci[project]?.fix
+  }
+
+  merged(project: string, task: string): Promise<boolean> {
+    return this.deps.merged(project, task).catch(() => false)
   }
 
   /** The fix task goes before the chain's order while it is open in the chain. */
@@ -116,9 +147,13 @@ export class MainCheck {
     return null
   }
 
-  /** Asks for the verdict on every awaited push; returns the chains a red push of a fix must stop. */
-  async settle(open: IsOpen): Promise<{ changed: boolean; stops: MainStop[] }> {
+  /**
+   * Asks for the verdict on every awaited push; returns the chains a red push of a fix must stop and the projects
+   * whose red main a session without a task is to fix.
+   */
+  async settle(open: IsOpen): Promise<{ changed: boolean; stops: MainStop[]; fixes: string[] }> {
     const stops: MainStop[] = []
+    const fixes: string[] = []
     let changed = false
     for (const [project, gate] of Object.entries(this.state.ci)) {
       const push = gate.check
@@ -130,13 +165,15 @@ export class MainCheck {
       if (verdict.state === 'green') {
         this.passed(project, gate, push, 'is green')
       } else if (verdict.state === 'red') {
+        const before = gate.fix
         const stop = await this.red(project, gate, push, { ci: verdict.failed }, open)
         if (stop !== null) stops.push({ project, notice: stop })
+        else if (gate.fix !== before && gate.fix?.report !== undefined) fixes.push(project)
       } else {
         this.withoutCi(project, gate, push, verdict.state === 'unavailable' ? verdict.reasons : [])
       }
     }
-    return { changed, stops }
+    return { changed, stops, fixes }
   }
 
   /** No CI judged the push: the project's check takes it, if the project has one. */
@@ -183,13 +220,19 @@ export class MainCheck {
       this.log(`ci: ${project}: ${commit} is ${what} after the fix ${task}; the chain stops`)
       return notice(ci ? 'ci.fixFailed' : 'check.fixFailed', { task, commit })
     }
+    const fix = gate.fix
+    if (fix?.report !== undefined) {
+      this.log(`ci: ${project}: ${commit} is ${what}; the session ${fix.task} is already fixing main`)
+      return null
+    }
+    const byTask = this.deps.fixTask(project)
     let report: RedReport
     try {
       report = await this.deps.report(project, push, failure, gate.green ?? null)
     } catch (error) {
-      return notice(ci ? 'ci.fixNotCreated' : 'check.fixNotCreated', { commit }, { cause: noticeOf(error) })
+      const code = byTask ? (ci ? 'ci.fixNotCreated' : 'check.fixNotCreated') : ci ? 'ci.fixNotStarted' : 'check.fixNotStarted'
+      return notice(code, { commit }, { cause: noticeOf(error) })
     }
-    const fix = gate.fix
     if (fix !== undefined && open(project, fix.task)) {
       try {
         await this.deps.comment(fix.task, report.comment)
@@ -197,6 +240,11 @@ export class MainCheck {
       } catch (error) {
         this.log(`ci: ${project}: ${commit} is ${what}; the comment on ${fix.task} failed: ${englishOf(noticeOf(error))}`)
       }
+      return null
+    }
+    if (!byTask) {
+      gate.fix = { task: fixName(project), at: this.now().toISOString(), commit: push.commit, report: report.prompt }
+      this.log(`ci: ${project}: ${commit} is ${what}; a session without a task fixes it`)
       return null
     }
     let task: string | null

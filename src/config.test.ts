@@ -112,18 +112,19 @@ describe('parseConfig', () => {
   })
 
   it('counts both CIs and waits for them as long as it takes unless the project says otherwise', () => {
-    expect(DEFAULT_CI).toEqual({ kinds: ['forgejo', 'github'], waitMinutes: null, recheckMain: true })
+    expect(DEFAULT_CI).toEqual({ kinds: ['forgejo', 'github'], waitMinutes: null, recheckMain: true, fixTask: false })
     const config = parseConfig({
       projects: {
         ABC: { repo: 'C:\\abc', ci: { kinds: ['github'], waitMinutes: 15 } },
-        DEF: { repo: 'C:\\def', ci: { kinds: [], waitMinutes: 0, recheckMain: false } },
+        DEF: { repo: 'C:\\def', ci: { kinds: [], waitMinutes: 0, recheckMain: false, fixTask: true } },
         XYZ: { repo: 'C:\\xyz', ci: { waitMinutes: null } },
       },
     })
-    expect(config.settings.ABC?.ci).toEqual({ kinds: ['github'], waitMinutes: 15, recheckMain: true })
-    expect(config.settings.DEF?.ci).toEqual({ kinds: [], waitMinutes: 0, recheckMain: false })
+    expect(config.settings.ABC?.ci).toEqual({ kinds: ['github'], waitMinutes: 15, recheckMain: true, fixTask: false })
+    expect(config.settings.DEF?.ci).toEqual({ kinds: [], waitMinutes: 0, recheckMain: false, fixTask: true })
     expect(config.settings.XYZ?.ci).toEqual(DEFAULT_CI)
     expect(() => parseConfig({ projects: { ABC: { repo: 'C:\\abc', ci: { recheckMain: 'no' } } } })).toThrow(/ABC.ci.recheckMain/)
+    expect(() => parseConfig({ projects: { ABC: { repo: 'C:\\abc', ci: { fixTask: 1 } } } })).toThrow(/ABC.ci.fixTask/)
   })
 
   it('fills milestones only for a project that asks for it', () => {
@@ -395,13 +396,13 @@ describe('withProjectSettings', () => {
   it('writes the CI settings only when they differ from the default, keeping the other keys', () => {
     const settings = { prompt: null, beforeStart: [], check: [], ci: DEFAULT_CI, fillMilestone: false }
     expect(withProjectSettings({ repo: 'C:\\abc', ci: { kinds: ['github'] } }, settings)).toEqual({ repo: 'C:\\abc' })
-    expect(withProjectSettings('C:\\abc', { ...settings, ci: { kinds: ['github', 'forgejo'], waitMinutes: 10, recheckMain: true } })).toEqual({
+    expect(withProjectSettings('C:\\abc', { ...settings, ci: { kinds: ['github', 'forgejo'], waitMinutes: 10, recheckMain: true, fixTask: false } })).toEqual({
       repo: 'C:\\abc',
       ci: { waitMinutes: 10 },
     })
-    expect(withProjectSettings('C:\\abc', { ...settings, ci: { kinds: [], waitMinutes: null, recheckMain: false } })).toEqual({
+    expect(withProjectSettings('C:\\abc', { ...settings, ci: { kinds: [], waitMinutes: null, recheckMain: false, fixTask: true } })).toEqual({
       repo: 'C:\\abc',
-      ci: { kinds: [], recheckMain: false },
+      ci: { kinds: [], recheckMain: false, fixTask: true },
     })
   })
 

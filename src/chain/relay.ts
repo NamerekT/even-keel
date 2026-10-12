@@ -23,6 +23,24 @@ export function startPrompt(task: string, place: TaskPlace, language: Language):
   return lines.join('\n') + '\n'
 }
 
+/** The prompt of the session that fixes a red main without a task: the report of what broke, then its place and rules. */
+export function fixPrompt(report: string, place: TaskPlace, language: Language): string {
+  const text = PROMPTS[language]
+  const lines = [fill`${report.trim()}`, '', text.worktree(place.path)]
+  if (place.branch !== null) lines.push(text.branch(place.branch))
+  lines.push(text.fixRules)
+  return lines.join('\n') + '\n'
+}
+
+/** A handoff of the fix session carries the report again: there is no task to read it from. */
+export function withReport(prompt: string, report: string | undefined): string {
+  return report === undefined ? prompt : `${prompt}\n${report.trim()}\n`
+}
+
+export function mainFixedPrompt(red: string, fixed: string | null, language: Language): string {
+  return PROMPTS[language].mainFixed(red.slice(0, 7), fixed === null ? null : fixed.slice(0, 7))
+}
+
 export function withBrief(prompt: string, brief: TaskBrief | undefined, language: Language): string {
   if (brief === undefined) return prompt
   const lines = ['', PROMPTS[language].brief(brief.title.trim())]
