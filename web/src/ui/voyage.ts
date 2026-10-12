@@ -9,7 +9,7 @@ export const VOYAGE_TICK_MS = 90
 /** The width in columns the picture is drawn at until the room for it is measured, and the narrowest it gets. */
 export const VOYAGE_WIDTH = { start: 100, min: 64 }
 
-const SEA = 24
+const SEA = 22
 const CHOP = '~-~~-~'
 /** Marks under the surface: how many cells in a hundred hold one just under the calm level, and how many fewer each row down. */
 const DEEP = { near: 16, fade: 2 }
@@ -54,18 +54,18 @@ const WAKE = ['=-~-. ~ .  .', '-=~.- . ~  .']
 
 /** The hull, level whatever the sea does: the deck, portholes, a stripe and the bottom. `#` is a blank the sea and the sky do not show through. */
 const HULL = [
-  '_________________|_________________',
-  '\\###o####o####o####o####o####o####/',
-  ' \\===============================/',
-  '  \\_____________________________/',
+  '_____________|_____________',
+  '\\##o####o####o####o####o##/',
+  ' \\=======================/',
+  '  \\_____________________/',
 ]
 /** Rows of the rig over the hull; the deck is the row after them. */
-const RIG_ROWS = 13
+const RIG_ROWS = 11
 const BOAT_ROWS = RIG_ROWS + HULL.length
 /** The mast's column in the sprite, under which the sea lifts the boat. */
-const MAST = 17
+const MAST = 13
 /** What the driving boat rolls on, under its hull. */
-const WHEELS = '       (o)              (o)'
+const WHEELS = '     (o)          (o)'
 /** The masthead pennant, two frames that take turns. */
 const PENNANT = ['~>', '->']
 const PENNANT_TICKS = 3
@@ -75,22 +75,24 @@ type Point = readonly [number, number]
 /** The rig leans from the mast's foot. A hull cannot tilt in ASCII: past ~5° it breaks into steps, so it stays level. */
 const FOOT: Point = [MAST + 0.5, RIG_ROWS + 1]
 const RIG_SOLIDS: Point[][] = [
-  [[MAST + 0.5, 1], [30, 13], [MAST + 0.5, 13]],
-  [[MAST + 0.5, 5], [MAST + 0.5, 13], [11, 13]],
+  [[MAST + 0.5, 1], [24, RIG_ROWS], [MAST + 0.5, RIG_ROWS]],
+  [[MAST + 0.5, 4], [MAST + 0.5, RIG_ROWS], [8, RIG_ROWS]],
 ]
 const RIG_LINES: [Point, Point][] = [
-  [[12, 13], [29, 13]],
-  [[18, 1], [30, 13]],
-  [[17, 5], [11, 13]],
+  [[9, RIG_ROWS], [23, RIG_ROWS]],
+  [[MAST + 1, 1], [24, RIG_ROWS]],
+  [[MAST, 4], [8, RIG_ROWS]],
   [[MAST + 0.5, 0], [MAST + 0.5, RIG_ROWS + 1]],
 ]
 /** The middle of the mast's top cell, the pennant flying right of it. */
 const MAST_HEAD: Point = [MAST + 0.5, 0.5]
 /** The hull's bottom row from its stern corner to its bow corner, which the chop covers wherever the water reaches it. */
-const KEEL = { row: BOAT_ROWS - 1, from: 2, to: 32 }
+const KEEL = { row: BOAT_ROWS - 1, from: 2, to: 24 }
 const BOW_DECK: Point = [HULL[0]!.length, RIG_ROWS + 1]
 /** How far bow and stern reach from the mast, where the waves under them tilt the boat. */
-const REACH = 14
+const REACH = 11
+/** How steeply, in rows per column, the water drawn next to the hull falls from its bottom to the open sea's level. */
+const HUG = 0.5
 /** The share of the waves' slope the rig leans by: they never stop, so a full lean would keep the sails broken half the time. */
 const LEAN = 0.3
 /** Past this the mast's lean reads as a fall. */
@@ -243,27 +245,30 @@ function waterChar(share: number): string {
 }
 
 function sailFrame(canvas: Canvas, tick: number): void {
-  // Rows counted down, with the fraction inside the row; the calm sea runs through the middle of row `SEA`.
-  const surface = Array.from({ length: canvas.width }, (_, column) => {
-    const x = column + 0.5
-    const ripple = RIPPLE.height * Math.sin((2 * Math.PI * (x - tick * RIPPLE.speed)) / RIPPLE.length)
-    return SEA + 0.5 - seaAt(x, tick) - ripple
-  })
-  const rows = surface.map(Math.floor)
-  surface.forEach((level, column) => {
-    const top = rows[column]!
-    canvas.set(top, column, waterChar(level - top))
-    for (let row = top + 1; row < HEIGHT; row++) canvas.set(row, column, deepChar(row, column, tick))
-  })
-
   // The lift is whole rows, so the hull keeps its shape.
   const left = boatLeft(canvas.width)
   const pose = poseAt(tick, canvas.width)
   const angle = Math.max(-MAX_LEAN, Math.min(MAX_LEAN, pose.tilt + SWAY.angle * Math.sin((2 * Math.PI * tick) / SWAY.ticks)))
   const top = SEA - (BOAT_ROWS - 1) - Math.round(pose.lift)
+  const keel = top + KEEL.row
+
+  // Rows counted down, with the fraction inside the row; the calm sea runs through the middle of row `SEA`. Under the hull
+  // the water comes up to its bottom, so a trough between two crests never shows as a gap the boat hangs over.
+  const surface = Array.from({ length: canvas.width }, (_, column) => {
+    const x = column + 0.5
+    const ripple = RIPPLE.height * Math.sin((2 * Math.PI * (x - tick * RIPPLE.speed)) / RIPPLE.length)
+    const off = Math.max(left + KEEL.from - column, column - left - KEEL.to, 0)
+    return Math.min(SEA + 0.5 - seaAt(x, tick) - ripple, keel + 0.9 + off * HUG)
+  })
+  const rows = surface.map(Math.floor)
+  surface.forEach((level, column) => {
+    const water = rows[column]!
+    canvas.set(water, column, waterChar(level - water))
+    for (let row = water + 1; row < HEIGHT; row++) canvas.set(row, column, deepChar(row, column, tick))
+  })
+
   drawBoat(canvas, top, left, angle, tick)
 
-  const keel = top + KEEL.row
   for (let column = left + KEEL.from; column <= left + KEEL.to; column++) {
     if (surface[column]! < keel + 0.5) canvas.set(keel, column, CHOP[wrap(column + tick, CHOP.length)]!)
   }
