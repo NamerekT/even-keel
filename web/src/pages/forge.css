@@ -9,7 +9,8 @@
   fill: currentColor;
 }
 
-.forge--working {
+.forge--working,
+.forge--handoff {
   color: var(--lamp-working);
 }
 

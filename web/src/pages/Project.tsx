@@ -95,7 +95,7 @@ export function Project({ state }: { state: EvenKeelState }) {
     </>
   )
   const question = questionPath(state, [key])
-  const links = taskLinks(state.tasks, new Map(blocks.map((block) => [block.id, block.lamp])))
+  const links = taskLinks(state.tasks, state.sessions)
   const opened = new URLSearchParams(location.search).get(CARD_PARAM)
   const openCard = (task: string) => {
     const search = new URLSearchParams(location.search)

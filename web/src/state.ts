@@ -13,8 +13,6 @@ import type { EvenKeelState, ContextScale, SessionView, TrackerUrls } from '../.
 import { formatMoment } from './format.js'
 import { say, t } from './i18n/index.js'
 
-export type CardLamp = Lamp | 'idle'
-
 export interface AccountBadge {
   kind: 'in' | 'out' | 'login' | 'unknown'
   label: string
@@ -65,11 +63,12 @@ export type ChainStatus =
 export interface CardTask {
   id: string
   title: string | null
-  lamp: CardLamp
+  lamp: BlockLamp
   next: boolean
 }
 
-export type BlockLamp = 'done' | 'working' | 'waiting' | 'stopped' | 'error' | 'limit' | 'ahead' | 'canceled'
+/** The lamp of a task, the same wherever the task shows: `handoff` — its session ended on a checkpoint nobody took up. */
+export type BlockLamp = 'done' | 'working' | 'waiting' | 'handoff' | 'stopped' | 'error' | 'limit' | 'ahead' | 'canceled'
 
 export interface ChainBlock {
   id: string
@@ -126,7 +125,9 @@ export function projectTasks(state: EvenKeelState, project: string): Task[] {
 export function waitingSessions(sessions: SessionView[], tasks: Task[]): SessionView[] {
   const open = new Set(tasks.filter((task) => isOpen(task.status)).map((task) => task.id))
   const since = (view: SessionView) => Date.parse(view.lastActivityAt ?? view.startedAt)
-  return sessions.filter((view) => view.lamp === 'waiting' && (open.has(view.task) || isFixName(view.task))).sort((a, b) => since(a) - since(b))
+  return sessions
+    .filter((view) => view.lamp === 'waiting' && !view.checkpoint && (open.has(view.task) || isFixName(view.task)))
+    .sort((a, b) => since(a) - since(b))
 }
 
 export function blockMetered(block: Pick<ChainBlock, 'current' | 'session'>): boolean {
@@ -168,9 +169,9 @@ const NO_LINKS: TaskLinks = { blockers: [], dependents: [] }
 
 /**
  * The open tasks an open task waits for and the open ones waiting for it; a closed task holds nothing.
- * A blocker missing from `tasks` stays, as it cannot be told closed. A task in the chain lends its block's lamp.
+ * A blocker missing from `tasks` stays, as it cannot be told closed.
  */
-export function taskLinks(tasks: Task[], lamps: ReadonlyMap<string, BlockLamp>): (id: string) => TaskLinks {
+export function taskLinks(tasks: Task[], sessions: SessionView[]): (id: string) => TaskLinks {
   const byId = new Map(tasks.map((task) => [task.id, task]))
   const waiting = new Map<string, string[]>()
   for (const task of tasks) {
@@ -184,19 +185,13 @@ export function taskLinks(tasks: Task[], lamps: ReadonlyMap<string, BlockLamp>):
   const linked = (ids: string[]): LinkedTask[] =>
     ids.toSorted(byNumber).map((id) => {
       const task = byId.get(id)
-      return { id, title: task?.title ?? null, lamp: lamps.get(id) ?? statusLamp(task?.status.category) }
+      return { id, title: task?.title ?? null, lamp: taskLamp(task, taskSession(sessions, id) ?? null) }
     })
   return (id) => {
     const task = byId.get(id)
     if (task === undefined || !isOpen(task.status)) return NO_LINKS
     return { blockers: linked(task.blockedBy.filter(live)), dependents: linked(waiting.get(id) ?? []) }
   }
-}
-
-function statusLamp(category: StatusCategory | undefined): BlockLamp {
-  if (category === 'Won') return 'done'
-  if (category === 'Lost') return 'canceled'
-  return category === 'Active' ? 'working' : 'ahead'
 }
 
 export interface Ghost {
@@ -325,11 +320,11 @@ export function cardTask(state: EvenKeelState, project: string): CardTask | null
   const { order = [], waiting = [] } = state.chain.projects[project] ?? {}
   const id = current ?? nextTask(projectTasks(state, project), order, [...(state.chain.skipped[project] ?? []), ...waiting])
   if (id === undefined) return null
-  const session = taskSession(state.sessions, id)
+  const task = state.tasks.find((each) => each.id === id)
   return {
     id,
-    title: isFixName(id) ? t.chain.fix : (state.tasks.find((task) => task.id === id)?.title ?? null),
-    lamp: session?.lamp ?? 'idle',
+    title: isFixName(id) ? t.chain.fix : (task?.title ?? null),
+    lamp: taskLamp(task, taskSession(state.sessions, id) ?? null),
     next: current === undefined,
   }
 }
@@ -379,7 +374,7 @@ export function chainBlocks(state: EvenKeelState, project: string, now = new Dat
       title: task?.title ?? null,
       status: task?.status.name ?? null,
       stage: task?.status.category ?? null,
-      lamp: blockLamp(task, session),
+      lamp: taskLamp(task, session),
       open: task !== undefined && isOpen(task.status) && !waiting.has(id),
       locked: waiting.has(id),
       blockedBy: task?.blockedBy ?? [],
@@ -415,7 +410,7 @@ export function chainBlocks(state: EvenKeelState, project: string, now = new Dat
     title: t.chain.fix,
     status: null,
     stage: null,
-    lamp: blockLamp(undefined, fixSession),
+    lamp: taskLamp(undefined, fixSession),
     open: true,
     locked: false,
     blockedBy: [],
@@ -500,9 +495,11 @@ function closedOrder(tasks: Task[], runs: Record<string, TaskSession[]>): string
   return [...never, ...ran]
 }
 
-function blockLamp(task: Task | undefined, session: SessionView | null): BlockLamp {
+/** The tracker's status first: a finished session lights a task done only when the task is done. */
+function taskLamp(task: Task | undefined, session: SessionView | null): BlockLamp {
   if (task?.status.category === 'Won') return 'done'
   if (task?.status.category === 'Lost') return 'canceled'
   if (session === null) return 'ahead'
+  if (session.checkpoint && (session.lamp === 'waiting' || session.lamp === 'finished')) return 'handoff'
   return session.lamp === 'finished' ? 'stopped' : session.lamp
 }

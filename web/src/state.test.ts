@@ -46,6 +46,7 @@ function view(task: string, lamp: SessionView['lamp'], lastActivityAt: string | 
     sessionId: `session-${task}`,
     cwd: 'C:\\repos\\example',
     lamp,
+    checkpoint: false,
     waitingFor: null,
     startupDialog: null,
     asking: false,
@@ -141,6 +142,11 @@ describe('waitingSessions', () => {
   it('counts a waiting fix session of a red main, which has no task', () => {
     const sessions = [view('ABC-FIX', 'waiting', '2026-01-01T10:00:00.000Z'), view('XYZ-FIX', 'working', null)]
     expect(waitingSessions(sessions, []).map((session) => session.task)).toEqual(['ABC-FIX'])
+  })
+
+  it('leaves out a session that ended its turn on a checkpoint: it waits for a handover, not for an answer', () => {
+    const sessions = [{ ...view('ABC-1', 'waiting', null), checkpoint: true }, view('ABC-2', 'waiting', null)]
+    expect(waitingSessions(sessions, [task('ABC-1'), task('ABC-2')]).map((session) => session.task)).toEqual(['ABC-2'])
   })
 })
 
@@ -276,7 +282,7 @@ describe('taskLinks', () => {
   it('lists the open blockers of a task and the open tasks waiting for it, by number', () => {
     const links = taskLinks(
       [task('ABC-1'), task('ABC-10', 'ToDo'), task('ABC-2', 'Won'), task('ABC-3', 'ToDo', ['ABC-10', 'ABC-1', 'ABC-2']), task('ABC-4', 'ToDo', ['ABC-3'])],
-      new Map(),
+      [],
     )
     expect(ids(links('ABC-3').blockers)).toEqual(['ABC-1', 'ABC-10'])
     expect(ids(links('ABC-3').dependents)).toEqual(['ABC-4'])
@@ -284,23 +290,24 @@ describe('taskLinks', () => {
   })
 
   it('leaves closed tasks out of the waiting ones', () => {
-    const links = taskLinks([task('ABC-1'), task('ABC-2', 'Lost', ['ABC-1']), task('ABC-3', 'Won', ['ABC-1'])], new Map())
+    const links = taskLinks([task('ABC-1'), task('ABC-2', 'Lost', ['ABC-1']), task('ABC-3', 'Won', ['ABC-1'])], [])
     expect(links('ABC-1').dependents).toEqual([])
   })
 
   it('gives a closed or unknown task no links', () => {
-    const links = taskLinks([task('ABC-1'), task('ABC-2', 'Won', ['ABC-1']), task('ABC-3', 'ToDo', ['ABC-2'])], new Map())
+    const links = taskLinks([task('ABC-1'), task('ABC-2', 'Won', ['ABC-1']), task('ABC-3', 'ToDo', ['ABC-2'])], [])
     expect(links('ABC-2')).toEqual({ blockers: [], dependents: [] })
     expect(links('ABC-9')).toEqual({ blockers: [], dependents: [] })
   })
 
   it('keeps a blocker it does not know, without a title', () => {
-    const links = taskLinks([task('ABC-1', 'ToDo', ['XYZ-5'])], new Map())
+    const links = taskLinks([task('ABC-1', 'ToDo', ['XYZ-5'])], [])
     expect(links('ABC-1').blockers).toEqual([{ id: 'XYZ-5', title: null, lamp: 'ahead' }])
   })
 
-  it('takes the lamp of a chain block, otherwise one from the status', () => {
-    const links = taskLinks([task('ABC-1'), task('ABC-2', 'ToDo'), task('ABC-3', 'ToDo', ['ABC-1', 'ABC-2'])], new Map([['ABC-1', 'waiting']]))
+  it('lights a linked task by its status and session, as its chain block is lit', () => {
+    const tasks = [task('ABC-1'), task('ABC-2'), task('ABC-3', 'ToDo', ['ABC-1', 'ABC-2'])]
+    const links = taskLinks(tasks, [view('ABC-1', 'waiting', null)])
     expect(links('ABC-3').blockers.map((item) => item.lamp)).toEqual(['waiting', 'ahead'])
     expect(links('ABC-3').blockers[0]!.title).toBe(task('ABC-1').title)
   })
@@ -429,7 +436,7 @@ describe('cardTask', () => {
 
   it('shows the first task in order as the next one when nothing runs, grey without a session', () => {
     const state = stateOf({ tasks: [task('ABC-3'), task('ABC-4')], chain: chain({ projects: orders }) })
-    expect(cardTask(state, 'ABC')).toEqual({ id: 'ABC-3', title: 'ABC-3', lamp: 'idle', next: true })
+    expect(cardTask(state, 'ABC')).toEqual({ id: 'ABC-3', title: 'ABC-3', lamp: 'ahead', next: true })
   })
 
   it('passes over a skipped task when naming the next one', () => {
@@ -445,13 +452,29 @@ describe('cardTask', () => {
     expect(cardTask(state, 'ABC')?.id).toBe('ABC-4')
   })
 
-  it('takes the lamp of a finished session when there is no other', () => {
+  it('shows a finished session of a task still open as stopped, not as done', () => {
     const state = stateOf({
       tasks: [task('ABC-3')],
       sessions: [view('ABC-3', 'finished', null)],
       chain: chain({ projects: orders }),
     })
-    expect(cardTask(state, 'ABC')?.lamp).toBe('finished')
+    expect(cardTask(state, 'ABC')?.lamp).toBe('stopped')
+  })
+
+  it('lights the task as its chain block on the project page is lit', () => {
+    const cases: SessionView[][] = [
+      [],
+      [view('ABC-3', 'working', null)],
+      [view('ABC-3', 'waiting', null)],
+      [view('ABC-3', 'finished', null)],
+      [{ ...view('ABC-3', 'waiting', null), checkpoint: true }],
+      [{ ...view('ABC-3', 'finished', null), checkpoint: true }],
+      [view('ABC-3', 'limit', null)],
+    ]
+    for (const sessions of cases) {
+      const state = stateOf({ tasks: [task('ABC-3'), task('ABC-4')], sessions, chain: chain({ projects: orders }) })
+      expect(cardTask(state, 'ABC')?.lamp).toBe(chainBlocks(state, 'ABC').find((block) => block.id === 'ABC-3')?.lamp)
+    }
   })
 
   it('has no task when the chain is empty or not built yet', () => {
@@ -461,7 +484,7 @@ describe('cardTask', () => {
 
   it('keeps a task Huly has not delivered yet, without a title', () => {
     const state = stateOf({ chain: chain({ projects: orders }) })
-    expect(cardTask(state, 'ABC')).toEqual({ id: 'ABC-3', title: null, lamp: 'idle', next: true })
+    expect(cardTask(state, 'ABC')).toEqual({ id: 'ABC-3', title: null, lamp: 'ahead', next: true })
   })
 
   it('shows the fix session of a red main as the current work, under its own title', () => {
@@ -698,6 +721,20 @@ describe('chainBlocks', () => {
       chain: chain({ projects: { ABC: { order: ids, waiting: [], backlog: [], error:null } } }),
     })
     expect(chainBlocks(state, 'ABC').map((block) => block.lamp)).toEqual(['working', 'waiting', 'error', 'limit', 'stopped'])
+  })
+
+  it('shows a task whose session ended on a checkpoint nobody took up as cut off at a handoff, live or not', () => {
+    const ids = ['ABC-1', 'ABC-2', 'ABC-3']
+    const state = stateOf({
+      tasks: ids.map((id) => task(id)),
+      sessions: [
+        { ...view('ABC-1', 'waiting', null), checkpoint: true },
+        { ...view('ABC-2', 'finished', null), checkpoint: true },
+        { ...view('ABC-3', 'error', null), checkpoint: true },
+      ],
+      chain: chain({ projects: { ABC: { order: ids, waiting: [], backlog: [], error: null } } }),
+    })
+    expect(chainBlocks(state, 'ABC').map((block) => block.lamp)).toEqual(['handoff', 'handoff', 'error'])
   })
 
   it('tells only the current task that its session is starting', () => {

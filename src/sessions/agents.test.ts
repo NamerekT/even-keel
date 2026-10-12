@@ -13,6 +13,9 @@ const interactive: AgentEntry = {
 
 const background: AgentEntry = { ...interactive, kind: 'background', id: 'k3x9', state: 'working' }
 
+/** A background job as `claude agents --json` prints it with no live `sessions/<pid>.json` behind it. */
+const { pid: _pid, status: _status, ...jobOnly } = background
+
 describe('parseAgents', () => {
   it('reads the entries claude agents --json prints and drops malformed ones', () => {
     const raw = JSON.stringify([
@@ -252,5 +255,14 @@ describe('lampOf', () => {
 
   it('trusts the job state when there is no process status', () => {
     expect(lampOf({ ...background, status: undefined }, null)).toBe('working')
+  })
+
+  it('takes a job without a live process for finished once its launch is long over, whatever its state says', () => {
+    expect(lampOf(jobOnly, null, background.startedAt + 6 * 60_000)).toBe('finished')
+    expect(lampOf({ ...jobOnly, state: 'blocked' }, null, background.startedAt + 6 * 60_000)).toBe('waiting')
+  })
+
+  it('keeps a fresh job without a process yet working', () => {
+    expect(lampOf(jobOnly, null, background.startedAt + 60_000)).toBe('working')
   })
 })

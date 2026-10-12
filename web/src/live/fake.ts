@@ -69,6 +69,7 @@ function session(task: string, contextTokens: number, lamp: SessionView['lamp'] 
     sessionId: fakeSessionId(task),
     cwd: 'C:\\repos\\example-project',
     lamp,
+    checkpoint: false,
     waitingFor: lamp === 'waiting' && task !== 'ABC-5' ? 'permission' : null,
     startupDialog: null,
     asking: lamp === 'waiting' && task === 'ABC-5',

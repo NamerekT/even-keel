@@ -186,9 +186,17 @@ function taskOfBranch(branch: string | null): string | undefined {
   return /^[a-z][a-z0-9_]*-(\d+|fix)(?=\/|$)/.exec(branch ?? '')?.[0].toUpperCase()
 }
 
-export function lampOf(agent: AgentEntry | undefined, apiError: ApiErrorKind | null): Lamp {
+/** How long a fresh background job may go without a live process before its `state` stops being trusted. */
+const LAUNCH_GRACE_MS = 5 * 60_000
+
+/**
+ * `claude agents` keeps `state: working` for a job whose process died long ago: past its launch, a job with no live
+ * `sessions/<pid>.json` (no `pid`) is finished unless it hangs on a startup dialog.
+ */
+export function lampOf(agent: AgentEntry | undefined, apiError: ApiErrorKind | null, now = Date.now()): Lamp {
   if (agent === undefined || agent.state === 'done' || agent.state === 'stopped') return 'finished'
   if (agent.state === 'failed') return 'error'
+  if (agent.pid === undefined && agent.state !== 'blocked' && now - agent.startedAt > LAUNCH_GRACE_MS) return 'finished'
   if (agent.status === 'busy' || (agent.status === 'shell' && apiError !== 'limit')) return 'working'
   if (apiError !== null) return apiError
   if (agent.status === 'waiting' || agent.state === 'blocked') return 'waiting'

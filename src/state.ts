@@ -18,6 +18,8 @@ export interface SessionView {
   sessionId: string
   cwd: string
   lamp: Lamp
+  /** The last line of the session's last response is `CHECKPOINT: <path>`: it waits to be handed over, not for an answer. */
+  checkpoint: boolean
   waitingFor: string | null
   /** What the CLI dialog the session hangs on before its first turn asks for: not mid-turn, nobody in the background answers it. */
   startupDialog: string | null
