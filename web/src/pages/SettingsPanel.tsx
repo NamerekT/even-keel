@@ -2,16 +2,20 @@ import { useEffect, useRef, type ReactNode } from 'react'
 import { CI_KINDS, type CiKind } from '../../../src/ci/model.js'
 import type { Notice } from '../../../src/notice/notice.js'
 import type { ConfigView, ProjectForm } from '../../../src/state.js'
+import type { Task } from '../../../src/tracker/model.js'
 import { say, t } from '../i18n/index.js'
 import { useCommand } from '../live/useCommand.js'
 import { SlidersIcon } from '../ui/icons.js'
+import { Select } from '../ui/Select.js'
 import { changed, edited, reverted, sent, type Value, type Values } from './settingsDraft.js'
 import {
+  CheckField,
+  FieldHead,
+  fieldId,
   FieldNote,
   GroupTabs,
   linesOf,
   marksOf,
-  RestartMark,
   RULE_KEYS,
   RuleFields,
   rulesOf,
@@ -24,6 +28,7 @@ import {
   useFieldErrors,
   wholeOf,
 } from './settingsParts.js'
+import { ruleChoicesOf } from './settingsRows.js'
 import { useDraft, useTab } from './settingsStore.js'
 import './settings.css'
 
@@ -51,7 +56,7 @@ const GROUPS = [
   { id: 'repo', keys: ['repo', 'branch', 'slot'] },
   { id: 'tracker', keys: ['tracker', 'trackerProject', 'fillMilestone', ...RULE_KEYS] },
   { id: 'sessions', keys: ['brief', 'prompt', 'beforeStart'] },
-  { id: 'ci', keys: ['check', 'kinds', 'wait', 'recheck', 'fixTask'] },
+  { id: 'ci', keys: ['guard', 'check', 'kinds', 'wait', 'recheck', 'fixTask'] },
 ] as const
 type GroupId = (typeof GROUPS)[number]['id']
 const KEYS: readonly string[] = GROUPS.flatMap((group) => group.keys)
@@ -116,12 +121,15 @@ export function SettingsPanel({
   form,
   config,
   configError,
+  tasks,
   onClose,
 }: {
   project: string
   form: ProjectForm
   config: ConfigView
   configError: Notice | null
+  /** The project's tasks: their statuses and labels are offered in the chain rules. */
+  tasks: readonly Task[]
   onClose: () => void
 }) {
   const closeRef = useRef<HTMLButtonElement>(null)
@@ -160,28 +168,21 @@ export function SettingsPanel({
     await send('project/settings', { project, ...next, base })
   }
   const leftover = unplaced(project, failure, config)
-  const check = (key: string, label: string, hint: string, error?: string) => (
-    <div className={marks.box(key)}>
-      <label className="settings__check">
-        <input type="checkbox" checked={on(key)} onChange={(event) => edit(key, event.target.checked)} />
-        {label}
-      </label>
-      <span className="settings__hint">{hint}</span>
+  const unguarded = !on('guard')
+  const check = (key: string, label: string, hint: string, error?: string, disabled = false) => (
+    <CheckField className={marks.box(key)} label={label} hint={hint} checked={on(key)} disabled={disabled} onChange={(checked) => edit(key, checked)}>
       {marks.note(key)}
       {error !== undefined && <FieldNote error={errorOf(error)} />}
-    </div>
+    </CheckField>
   )
 
   const groups: Record<GroupId, () => ReactNode> = {
     repo: () => (
       <>
-        <label className={marks.box('repo')}>
-          <span className="settings__label">
-            {t.settings.repo}
-            <RestartMark on={restart('repo')} />
-          </span>
-          <span className="settings__hint">{t.settings.repoHint}</span>
+        <div className={marks.box('repo')}>
+          <FieldHead label={t.settings.repo} hint={t.settings.repoHint} htmlFor={fieldId('repo')} restart={restart('repo')} />
           <input
+            id={fieldId('repo')}
             className="settings__text settings__text--mono"
             spellCheck={false}
             value={text('repo')}
@@ -190,11 +191,11 @@ export function SettingsPanel({
           />
           {marks.note('repo')}
           <FieldNote error={errorOf('repo')} />
-        </label>
-        <label className={marks.box('branch')}>
-          <span className="settings__label">{t.settings.branch}</span>
-          <span className="settings__hint">{t.settings.branchHint}</span>
+        </div>
+        <div className={marks.box('branch')}>
+          <FieldHead label={t.settings.branch} hint={t.settings.branchHint} htmlFor={fieldId('branch')} />
           <input
+            id={fieldId('branch')}
             className="settings__text settings__text--mono settings__short"
             spellCheck={false}
             value={text('branch')}
@@ -204,14 +205,11 @@ export function SettingsPanel({
           />
           {marks.note('branch')}
           <FieldNote error={errorOf('branch')} />
-        </label>
-        <label className={marks.box('slot')}>
-          <span className="settings__label">
-            {t.settings.slot}
-            <RestartMark on={restart('slot')} />
-          </span>
-          <span className="settings__hint">{t.settings.slotHint}</span>
+        </div>
+        <div className={marks.box('slot')}>
+          <FieldHead label={t.settings.slot} hint={t.settings.slotHint} htmlFor={fieldId('slot')} restart={restart('slot')} />
           <input
+            id={fieldId('slot')}
             className="settings__text settings__number"
             type="number"
             min={0}
@@ -223,39 +221,35 @@ export function SettingsPanel({
           />
           {marks.note('slot')}
           <FieldNote error={errorOf('slot')} />
-        </label>
+        </div>
       </>
     ),
     tracker: () => (
       <>
         <div className="settings__row">
-          <label className={marks.box('tracker')}>
-            <span className="settings__label">
-              {t.settings.tracker}
-              <RestartMark on={restart('tracker')} />
-            </span>
-            <select
+          <div className={marks.box('tracker')}>
+            <FieldHead label={t.settings.tracker} htmlFor={fieldId('tracker')} restart={restart('tracker')} />
+            <Select
+              id={fieldId('tracker')}
               className="settings__text settings__short"
               value={text('tracker')}
-              aria-invalid={errorOf('tracker') !== null}
-              onChange={(event) => edit('tracker', event.target.value)}
-            >
-              {config.trackers.map((each) => (
-                <option key={each.name} value={each.name}>
-                  {each.name}
-                </option>
-              ))}
-            </select>
+              options={config.trackers.map((each) => ({ value: each.name, label: each.name }))}
+              invalid={errorOf('tracker') !== null}
+              onChange={(value) => edit('tracker', value)}
+            />
             {marks.note('tracker')}
             <FieldNote error={errorOf('tracker')} />
-          </label>
+          </div>
           {tracker?.projectKey != null && (
-            <label className={marks.box('trackerProject', 'settings__field settings__grow')}>
-              <span className="settings__label">
-                {t.settings.trackerProject(tracker.projectKey.key)}
-                <RestartMark on={restart('trackerProject')} />
-              </span>
+            <div className={marks.box('trackerProject', 'settings__field settings__grow')}>
+              <FieldHead
+                label={t.settings.trackerProject(tracker.projectKey.key)}
+                hint={tracker.projectKey.optional ? t.settings.trackerProjectOptional : undefined}
+                htmlFor={fieldId('trackerProject')}
+                restart={restart('trackerProject')}
+              />
               <input
+                id={fieldId('trackerProject')}
                 className="settings__text settings__text--mono"
                 spellCheck={false}
                 value={text('trackerProject')}
@@ -263,23 +257,22 @@ export function SettingsPanel({
                 aria-invalid={errorOf('trackerProject') !== null}
                 onChange={(event) => edit('trackerProject', event.target.value)}
               />
-              {tracker.projectKey.optional && <span className="settings__hint">{t.settings.trackerProjectOptional}</span>}
               {marks.note('trackerProject')}
               <FieldNote error={errorOf('trackerProject')} />
-            </label>
+            </div>
           )}
         </div>
         {check('fillMilestone', t.settings.fillMilestone, t.settings.fillMilestoneHint, 'fillMilestone')}
-        <RuleFields text={text} onEdit={edit} errorOf={errorOf} marks={marks} />
+        <RuleFields text={text} onEdit={edit} errorOf={errorOf} marks={marks} choices={ruleChoicesOf(tasks)} />
       </>
     ),
     sessions: () => (
       <>
         {check('brief', t.settings.brief, t.settings.briefHint, 'brief')}
-        <label className={marks.box('prompt')}>
-          <span className="settings__label">{t.settings.prompt}</span>
-          <span className="settings__hint">{t.settings.promptHint}</span>
+        <div className={marks.box('prompt')}>
+          <FieldHead label={t.settings.prompt} hint={t.settings.promptHint} htmlFor={fieldId('prompt')} />
           <textarea
+            id={fieldId('prompt')}
             className="settings__text"
             rows={5}
             value={text('prompt')}
@@ -288,11 +281,11 @@ export function SettingsPanel({
           />
           {marks.note('prompt')}
           <FieldNote error={errorOf('prompt')} />
-        </label>
-        <label className={marks.box('beforeStart')}>
-          <span className="settings__label">{t.settings.beforeStart}</span>
-          <span className="settings__hint">{t.settings.beforeStartHint}</span>
+        </div>
+        <div className={marks.box('beforeStart')}>
+          <FieldHead label={t.settings.beforeStart} hint={t.settings.beforeStartHint} htmlFor={fieldId('beforeStart')} />
           <textarea
+            id={fieldId('beforeStart')}
             className="settings__text settings__text--mono"
             rows={4}
             spellCheck={false}
@@ -302,57 +295,64 @@ export function SettingsPanel({
           />
           {marks.note('beforeStart')}
           <FieldNote error={errorOf('beforeStart')} />
-        </label>
+        </div>
       </>
     ),
     ci: () => (
       <>
-        <label className={marks.box('check')}>
-          <span className="settings__label">{t.settings.check}</span>
-          <span className="settings__hint">{t.settings.checkHint}</span>
-          <textarea
-            className="settings__text settings__text--mono"
-            rows={3}
-            spellCheck={false}
-            value={text('check')}
-            placeholder={t.settings.checkPlaceholder}
-            onChange={(event) => edit('check', event.target.value)}
-          />
-          {marks.note('check')}
-          <FieldNote error={errorOf('check')} />
-        </label>
-        <fieldset className={marks.box('kinds', 'settings__field settings__group')}>
-          <legend className="settings__label">{t.settings.ci}</legend>
-          <span className="settings__hint">{t.settings.ciHint}</span>
-          <div className="settings__checks">
-            {CI_KINDS.map((kind) => (
-              <label key={kind} className="settings__check">
-                <input type="checkbox" checked={kinds.includes(kind)} onChange={(event) => toggle(kind, event.target.checked)} />
-                {t.settings.ciKinds[kind]}
-              </label>
-            ))}
+        {check('guard', t.settings.guard, t.settings.guardHint)}
+        {/* With the guard off the values stay as they are, only greyed out: turning it back on brings them back. */}
+        <div className={unguarded ? 'settings__guarded settings__guarded--off' : 'settings__guarded'}>
+          <div className={marks.box('check')}>
+            <FieldHead label={t.settings.check} hint={t.settings.checkHint} htmlFor={fieldId('check')} />
+            <textarea
+              id={fieldId('check')}
+              className="settings__text settings__text--mono"
+              rows={3}
+              spellCheck={false}
+              value={text('check')}
+              placeholder={t.settings.checkPlaceholder}
+              disabled={unguarded}
+              onChange={(event) => edit('check', event.target.value)}
+            />
+            {marks.note('check')}
+            <FieldNote error={errorOf('check')} />
           </div>
-          {marks.note('kinds', (value) => shown((value as CiKind[]).map((kind) => t.settings.ciKinds[kind])))}
-          <FieldNote error={errorOf('ci')} />
-        </fieldset>
-        <label className={marks.box('wait')}>
-          <span className="settings__label">{t.settings.ciWait}</span>
-          <span className="settings__hint">{t.settings.ciWaitHint}</span>
-          <input
-            className="settings__text settings__number"
-            type="number"
-            min={0}
-            step={1}
-            inputMode="numeric"
-            value={text('wait')}
-            placeholder={t.settings.ciWaitPlaceholder}
-            aria-invalid={minutesOf(text('wait')) === undefined}
-            onChange={(event) => edit('wait', event.target.value)}
-          />
-          {marks.note('wait', (value) => ((value as string).trim() === '' ? t.settings.ciWaitPlaceholder : shown(value)))}
-        </label>
-        {check('recheck', t.settings.recheckMain, t.settings.recheckMainHint)}
-        {check('fixTask', t.settings.fixTask, t.settings.fixTaskHint)}
+          <fieldset className={marks.box('kinds', 'settings__field settings__group')}>
+            <legend>
+              <FieldHead label={t.settings.ci} hint={t.settings.ciHint} />
+            </legend>
+            <div className="settings__checks">
+              {CI_KINDS.map((kind) => (
+                <label key={kind} className="settings__check">
+                  <input type="checkbox" checked={kinds.includes(kind)} disabled={unguarded} onChange={(event) => toggle(kind, event.target.checked)} />
+                  {t.settings.ciKinds[kind]}
+                </label>
+              ))}
+            </div>
+            {marks.note('kinds', (value) => shown((value as CiKind[]).map((kind) => t.settings.ciKinds[kind])))}
+            <FieldNote error={errorOf('ci')} />
+          </fieldset>
+          <div className={marks.box('wait')}>
+            <FieldHead label={t.settings.ciWait} hint={t.settings.ciWaitHint} htmlFor={fieldId('wait')} />
+            <input
+              id={fieldId('wait')}
+              className="settings__text settings__number"
+              type="number"
+              min={0}
+              step={1}
+              inputMode="numeric"
+              value={text('wait')}
+              placeholder={t.settings.ciWaitPlaceholder}
+              disabled={unguarded}
+              aria-invalid={minutesOf(text('wait')) === undefined}
+              onChange={(event) => edit('wait', event.target.value)}
+            />
+            {marks.note('wait', (value) => ((value as string).trim() === '' ? t.settings.ciWaitPlaceholder : shown(value)))}
+          </div>
+          {check('recheck', t.settings.recheckMain, t.settings.recheckMainHint, undefined, unguarded)}
+          {check('fixTask', t.settings.fixTask, t.settings.fixTaskHint, undefined, unguarded)}
+        </div>
       </>
     ),
   }

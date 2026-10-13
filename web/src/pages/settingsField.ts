@@ -25,7 +25,7 @@ const SHARED: Partial<Record<Notice['code'], string>> = {
   'config.compareValue': 'stats',
   'config.statsMove': 'stats',
   'config.otherBelow': 'stats',
-  'config.checkpointTokens': 'stats',
+  'config.checkpointTokens': 'checkpointTokens',
 }
 
 /** Where a config error belongs; `null` — no field of the settings, the banner alone shows it. `trackerKeys` — the project keys of the trackers (`github`, `linear`). */

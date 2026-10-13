@@ -15,6 +15,7 @@ import { markPlaces, pickMark } from './marks.js'
 import { autoStep, localDay, resolvePeriod, type DayRange, type PeriodChoice } from './period.js'
 import { PeriodPicker } from './PeriodPicker.js'
 import { ProjectList } from '../ui/ProjectList.js'
+import { Select } from '../ui/Select.js'
 import { RulesSection } from './RulesSection.js'
 import { EstimateSection } from './EstimateSection.js'
 import { parseView, viewSearch, type StatsView } from './search.js'
@@ -122,14 +123,14 @@ export function StatsPage({ state }: { state: EvenKeelState }) {
           </span>
           <label className="stats-page__filter">
             {t.stats.account}
-            <select value={view.account ?? ''} onChange={(event) => setView({ account: event.target.value || null })}>
-              <option value="">{t.stats.all}</option>
-              {[...new Set([...(history?.accounts ?? []), ...(view.account === null ? [] : [view.account])])].map((account) => (
-                <option key={account} value={account}>
-                  {account}
-                </option>
-              ))}
-            </select>
+            <Select
+              value={view.account ?? ''}
+              options={[
+                { value: '', label: t.stats.all },
+                ...[...new Set([...(history?.accounts ?? []), ...(view.account === null ? [] : [view.account])])].map((account) => ({ value: account, label: account })),
+              ]}
+              onChange={(account) => setView({ account: account || null })}
+            />
           </label>
         </div>
       </header>

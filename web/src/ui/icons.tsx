@@ -95,12 +95,48 @@ export function CheckIcon() {
   )
 }
 
+/** A list that opens downwards: a chevron. */
+export function ChevronIcon() {
+  return (
+    <svg className="icon" viewBox="0 0 16 16" aria-hidden="true">
+      <path d="m4 6 4 4 4-4" />
+    </svg>
+  )
+}
+
 /** Back as it was: an arrow turning back. */
 export function UndoIcon() {
   return (
     <svg className="icon" viewBox="0 0 16 16" aria-hidden="true">
       <path d="M5.5 3 2.5 6l3 3" />
       <path d="M2.5 6h7a4 4 0 0 1 0 8H7" />
+    </svg>
+  )
+}
+
+/** Add a row: a plus. */
+export function PlusIcon() {
+  return (
+    <svg className="icon" viewBox="0 0 16 16" aria-hidden="true">
+      <path d="M8 3v10M3 8h10" />
+    </svg>
+  )
+}
+
+/** Remove a row: a bin. */
+export function TrashIcon() {
+  return (
+    <svg className="icon" viewBox="0 0 16 16" aria-hidden="true">
+      <path d="M2.5 4.25h11M6.25 4.25V2.75h3.5v1.5M4 4.25l.75 9.25h6.5L12 4.25" />
+    </svg>
+  )
+}
+
+/** The groups of a page: three lines. */
+export function MenuIcon() {
+  return (
+    <svg className="icon" viewBox="0 0 16 16" aria-hidden="true">
+      <path d="M2.5 4h11M2.5 8h11M2.5 12h11" />
     </svg>
   )
 }

@@ -281,7 +281,6 @@
 
 .ask__option input {
   margin: 3px 0 0;
-  accent-color: var(--accent);
 }
 
 .ask__label {

@@ -104,7 +104,7 @@ The dispatcher may stop waiting for a session (without touching it) if it is not
 
 ## Unattended mode (`unattended`)
 
-A switch in the status menu (the gear, `SystemMenu`) — for when nobody is there to answer, for example at night. Stored in `state/chain.json` (`unattended`, the command `chain/unattended` with `{ on }`); when on, there is the banner `UnattendedBanner`.
+A switch on `/settings`, the Chain group — for when nobody is there to answer, for example at night. Stored in `state/chain.json` (`unattended`, the command `chain/unattended` with `{ on }`); when on, there is the banner `UnattendedBanner`.
 
 - `PROMPTS.unattended` (`src/chain/prompts.ts`) is appended to every prompt — launch, `--resume`, handoff: ask no questions, do everything that the question does not hold up; a question with a default option — as usual (finish and merge, the question as a task); a task that cannot be finished without an answer — commit it to its branch until `git status` is clean, do not merge, put the question with options in a comment, add the question label, and as the last step move to Backlog (the post-commit hook moves the status forward, so after the commit and with a check). Sessions started before it was turned on do not get the text — only with the nearest `--resume` or handoff.
 - A task in Backlog drops out of the chain like any returned to an inactive status: it is released, and the worktree or slot with its branch stays. A clean tree matters in "slot" mode: a dirty slot is not taken, and a couple of parked tasks with litter would stop the chain.

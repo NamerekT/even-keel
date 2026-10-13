@@ -1,15 +1,20 @@
-import type { ReactNode } from 'react'
+import { useId, type ReactNode } from 'react'
 import type { ChainRules } from '../../../src/chain/rules.js'
 import type { Notice } from '../../../src/notice/notice.js'
 import type { ConfigView } from '../../../src/state.js'
 import { say, t } from '../i18n/index.js'
-import { CheckIcon, UndoIcon } from '../ui/icons.js'
+import { CheckIcon, QuestionIcon, UndoIcon } from '../ui/icons.js'
+import { useTip } from '../ui/useTip.js'
 import type { Draft, Same, Value, Values } from './settingsDraft.js'
 import { fieldOf } from './settingsField.js'
+import { withoutListed } from './settingsRows.js'
+import { ListTable } from './settingsTable.js'
 
 export const RULE_KEYS = ['active', 'terminal', 'requiredLabels', 'excludedLabels'] as const
 export type RuleKey = (typeof RULE_KEYS)[number]
 export type RuleTexts = Record<RuleKey, string>
+/** The list a name may not share with: a status is either in work or closed, a label either needed or excluded. */
+const OPPOSITE: Record<RuleKey, RuleKey> = { active: 'terminal', terminal: 'active', requiredLabels: 'excludedLabels', excludedLabels: 'requiredLabels' }
 
 export const linesOf = (text: string) => text.split('\n').map((line) => line.trim()).filter((line) => line !== '')
 export const rulesText = (rules: ChainRules): RuleTexts => ({
@@ -53,6 +58,89 @@ export function RestartMark({ on }: { on: boolean }) {
   return on ? <span className="settings__restart">{t.settings.restart}</span> : null
 }
 
+/** A question mark after a setting's name: pointed at or focused, it tells what the setting does. */
+export function HelpTip({ text }: { text: string }) {
+  const { shown, anchor, tip, show, hide, close } = useTip<HTMLButtonElement, HTMLSpanElement>()
+  const id = useId()
+  return (
+    <button
+      ref={anchor}
+      type="button"
+      className="help"
+      aria-label={t.settings.help}
+      aria-describedby={id}
+      onMouseEnter={show}
+      onMouseLeave={hide}
+      onFocus={show}
+      onBlur={hide}
+      onClick={show}
+      onKeyDown={(event) => event.key === 'Escape' && close()}
+    >
+      <QuestionIcon />
+      <span id={id} hidden>
+        {text}
+      </span>
+      {shown && (
+        <span ref={tip} popover="manual" className="help__tip" role="tooltip">
+          {text}
+        </span>
+      )}
+    </button>
+  )
+}
+
+/** A setting's name, its help and whether it waits for a restart. `htmlFor` ties the name to its control. */
+export function FieldHead({ label, hint, htmlFor, restart = false }: { label: string; hint?: string; htmlFor?: string; restart?: boolean }) {
+  return (
+    <span className="settings__head-row">
+      {htmlFor === undefined ? (
+        <span className="settings__label">{label}</span>
+      ) : (
+        <label className="settings__label" htmlFor={htmlFor}>
+          {label}
+        </label>
+      )}
+      {hint !== undefined && <HelpTip text={hint} />}
+      <RestartMark on={restart} />
+    </span>
+  )
+}
+
+/** A switch with its help; `children` go under it — the marks of a change and the error. */
+export function CheckField({
+  className,
+  label,
+  hint,
+  checked,
+  disabled = false,
+  onChange,
+  children,
+}: {
+  className: string
+  label: string
+  hint: string
+  checked: boolean
+  disabled?: boolean
+  onChange: (checked: boolean) => void
+  children?: ReactNode
+}) {
+  return (
+    <div className={className}>
+      <span className="settings__head-row">
+        <label className="settings__check">
+          <input type="checkbox" checked={checked} disabled={disabled} onChange={(event) => onChange(event.target.checked)} />
+          {label}
+        </label>
+        <HelpTip text={hint} />
+      </span>
+      {children}
+    </div>
+  )
+}
+
+/** The id of a field's control, for its name to point at. */
+export const fieldId = (key: string) => `setting-${key.replace(/\W/g, '-')}`
+
 export function FieldNote({ error }: { error: Notice | null }) {
   return error === null ? null : (
     <span className="settings__error" role="alert">
@@ -61,46 +149,49 @@ export function FieldNote({ error }: { error: Notice | null }) {
   )
 }
 
-export function Section({ title, children }: { title: string; children: ReactNode }) {
+export function Section({ title, hint, children }: { title: string; hint?: string; children: ReactNode }) {
   return (
     <fieldset className="settings__section">
-      <legend className="settings__heading">{title}</legend>
+      <legend className="settings__heading">
+        {title}
+        {hint !== undefined && <HelpTip text={hint} />}
+      </legend>
       {children}
     </fieldset>
   )
 }
 
-/** The rules are fields of the draft under their own names. */
+/** The rules are fields of the draft under their own names; `choices` are offered as one types a status or a label. */
 export function RuleFields({
   text,
   onEdit,
   errorOf,
   marks,
+  choices,
 }: {
   text: (key: RuleKey) => string
   onEdit: (key: RuleKey, text: string) => void
   errorOf: (field: string) => Notice | null
   marks: Marks
+  choices: { statuses: readonly string[]; labels: readonly string[] }
 }) {
   return (
-    <Section title={t.settings.rules}>
-      <span className="settings__hint">{t.settings.rulesHint}</span>
+    <Section title={t.settings.rules} hint={t.settings.rulesHint}>
       <div className="settings__rules">
         {RULE_KEYS.map((key) => (
-          <label key={key} className={marks.box(key)}>
-            <span className="settings__label">{t.settings.rule[key]}</span>
-            <textarea
-              className="settings__text"
-              rows={2}
-              spellCheck={false}
+          <div key={key} className={marks.box(key)}>
+            <FieldHead label={t.settings.rule[key]} hint={t.settings.ruleHint[key]} />
+            <ListTable
+              label={t.settings.rule[key]}
               value={text(key)}
-              placeholder={t.settings.rulePlaceholder[key]}
-              aria-invalid={errorOf(`chain.${key}`) !== null}
-              onChange={(event) => onEdit(key, event.target.value)}
+              add={t.settings.ruleAdd[key]}
+              empty={t.settings.rulePlaceholder[key]}
+              suggest={withoutListed(key === 'active' || key === 'terminal' ? choices.statuses : choices.labels, text(OPPOSITE[key]))}
+              onChange={(value) => onEdit(key, value)}
             />
             {marks.note(key)}
             <FieldNote error={errorOf(`chain.${key}`)} />
-          </label>
+          </div>
         ))}
       </div>
     </Section>

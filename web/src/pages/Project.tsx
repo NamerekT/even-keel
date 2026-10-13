@@ -161,7 +161,7 @@ export function Project({ state }: { state: EvenKeelState }) {
               onSettled={arrival.settle}
             />
           )}
-          {settingsOpen && <SettingsPanel key={`settings-${key}`} project={key} form={settings} config={state.config} configError={state.configError} onClose={close} />}
+          {settingsOpen && <SettingsPanel key={`settings-${key}`} project={key} form={settings} config={state.config} configError={state.configError} tasks={state.tasks.filter((task) => taskProject(task.id) === key)} onClose={close} />}
           {ciOpen && <CiPanel views={ci} urls={state.trackerUrls} onClose={close} />}
           {!side && (
             <IdlePanel

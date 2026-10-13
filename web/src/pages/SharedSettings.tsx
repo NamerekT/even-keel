@@ -1,16 +1,20 @@
-import type { ReactNode } from 'react'
+import { useState, type ReactNode } from 'react'
 import { LANGUAGES, type Language } from '../../../src/language.js'
 import type { EvenKeelState, SharedForm } from '../../../src/state.js'
 import { MODEL_ALIASES, type ModelAlias } from '../../../src/tracker/model.js'
 import { say, t } from '../i18n/index.js'
 import { useCommand } from '../live/useCommand.js'
+import { useToolsViews } from '../tools/useToolsViews.js'
+import { Select } from '../ui/Select.js'
 import { changed, edited, reverted, sent, type Value, type Values } from './settingsDraft.js'
 import {
+  CheckField,
+  FieldHead,
   FieldNote,
-  GroupTabs,
+  fieldId,
+  HelpTip,
   linesOf,
   marksOf,
-  RestartMark,
   RULE_KEYS,
   RuleFields,
   rulesOf,
@@ -20,20 +24,24 @@ import {
   unplaced,
   useFieldErrors,
   wholeOf,
+  type Marks,
 } from './settingsParts.js'
+import { lineOf, linesText, pairOf, ruleChoicesOf, rowsOf } from './settingsRows.js'
 import { useDraft, useTab } from './settingsStore.js'
+import { ListTable, RowsTable } from './settingsTable.js'
+import { SettingsNav } from './SettingsNav.js'
 import './settings.css'
 
-const MOVE = /\s*=>\s*/
 const SCOPE = 'shared'
 const promptKey = (model: ModelAlias) => `modelPrompt.${model}`
+const PROMPT_KEYS = MODEL_ALIASES.map(promptKey)
 
 const GROUPS = [
   { id: 'chain', keys: ['parallel', 'tracker', 'brief', ...RULE_KEYS] },
-  { id: 'models', keys: ['model', ...MODEL_ALIASES.map(promptKey), 'promptLanguage'] },
-  { id: 'sessions', keys: ['hiddenSkills', 'window', 'warn', 'danger'] },
+  { id: 'models', keys: ['model', ...PROMPT_KEYS, 'promptLanguage'] },
+  { id: 'sessions', keys: ['hiddenSkills', 'window', 'warn', 'danger', 'checkpointTokens'] },
   { id: 'page', keys: ['language', 'allowedHosts'] },
-  { id: 'stats', keys: ['minTasks', 'minSessions', 'days', 'otherBelow', 'checkpointTokens', 'moves'] },
+  { id: 'stats', keys: ['minTasks', 'minSessions', 'days', 'otherBelow', 'moves'] },
 ] as const
 type GroupId = (typeof GROUPS)[number]['id']
 const keysOf = (id: GroupId): readonly string[] => GROUPS.find((group) => group.id === id)!.keys
@@ -58,22 +66,21 @@ const valuesOf = (form: SharedForm): Values => ({
   days: String(form.stats.compare.days),
   otherBelow: String(form.stats.otherBelow),
   checkpointTokens: form.stats.checkpointTokens === null ? '' : String(form.stats.checkpointTokens),
-  moves: Object.entries(form.stats.moves)
-    .map(([from, to]) => `${from} => ${to}`)
-    .join('\n'),
+  moves: linesText(Object.entries(form.stats.moves).map(lineOf)),
 })
 
 const amountOf = (text: string): number | undefined => (text.trim() !== '' && Number.isFinite(Number(text)) ? Number(text) : undefined)
 
-/** What the service gets; `undefined` while a number field holds something else. The service judges the ranges. */
+/** What the service gets; `undefined` while a number field holds something else, or a moved folder lacks a side. The service judges the ranges. */
 function formOf(values: Values): SharedForm | undefined {
   const text = (key: string) => values[key] as string
   const numbers = ['parallel', 'window', 'minTasks', 'minSessions', 'days'].map((key) => wholeOf(text(key), 0))
   const [warn, danger, otherBelow] = ['warn', 'danger', 'otherBelow'].map((key) => amountOf(text(key)))
   const checkpointTokens = text('checkpointTokens').trim() === '' ? null : wholeOf(text('checkpointTokens'), 0)
   const [parallel, window, minTasks, minSessions, days] = numbers
+  const moves = linesOf(text('moves')).map(pairOf)
   if (numbers.includes(undefined) || warn === undefined || danger === undefined || otherBelow === undefined || checkpointTokens === undefined) return undefined
-  const moves = linesOf(text('moves')).map((line) => line.split(MOVE).map((part) => part.trim()))
+  if (moves.some(([from, to]) => from === '' || to === '')) return undefined
   const language = text('language')
   return {
     parallel: parallel!,
@@ -89,7 +96,7 @@ function formOf(values: Values): SharedForm | undefined {
     context: { window: window!, warn, danger },
     stats: {
       compare: { minTasks: minTasks!, minSessions: minSessions!, days: days! },
-      moves: Object.fromEntries(moves.map(([from = '', to = '']) => [from, to])),
+      moves: Object.fromEntries(moves),
       otherBelow,
       checkpointTokens,
     },
@@ -99,6 +106,7 @@ function formOf(values: Values): SharedForm | undefined {
 export function SharedSettings({ state }: { state: EvenKeelState }) {
   const { config, configError } = state
   const { send, sending, failure } = useCommand()
+  const modes = useCommand()
   const saved = valuesOf(config.shared)
   const [current, setDraft] = useDraft(SCOPE, saved, same)
   const draft = current!
@@ -110,36 +118,58 @@ export function SharedSettings({ state }: { state: EvenKeelState }) {
   const errorOf = useFieldErrors(null, [failure, configError], config)
   const leftover = unplaced(null, failure, config)
   const text = (key: string) => draft.edit[key] as string
+  const titleOf = (id: GroupId) => t.shared[id]
 
   const edit = (key: string, value: Value) => setDraft(edited(draft, key, value))
+  const editAll = (values: Values) => setDraft(Object.entries(values).reduce((each, [key, value]) => edited(each, key, value), draft))
   const revert = (keys: readonly string[]) => setDraft(reverted(draft, saved, keys))
   const marks = marksOf(draft, saved, same, revert)
   const save = async () => {
     if (next === undefined || base === undefined) return
     await send('settings', { ...next, base } as unknown as Record<string, unknown>)
   }
-  const number = (key: string, label: string, invalid: boolean, wide = false) => (
-    <label className={marks.box(key)}>
-      <span className="settings__label">{label}</span>
+  const number = (key: string, label: string, invalid: boolean, hint?: string) => (
+    <div className={marks.box(key)}>
+      <FieldHead label={label} hint={hint} htmlFor={fieldId(key)} />
       <input
-        className={wide ? 'settings__text settings__wide-number' : 'settings__text settings__number'}
+        id={fieldId(key)}
+        className="settings__text settings__number"
         inputMode="numeric"
         value={text(key)}
         aria-invalid={invalid}
         onChange={(event) => edit(key, event.target.value)}
       />
       {marks.note(key)}
-    </label>
+    </div>
   )
-  const languageName = (value: Value) => (value === '' ? t.shared.languageAuto : t.shared.languages[value as Language])
+  const select = (key: string, label: string, options: readonly { value: string; label: string }[], hint?: string, restart = false) => (
+    <div className={marks.box(key)}>
+      <FieldHead label={label} hint={hint} htmlFor={fieldId(key)} restart={restart} />
+      <Select id={fieldId(key)} className="settings__text settings__short" value={text(key)} options={options} onChange={(value) => edit(key, value)} />
+      {marks.note(key, (value) => options.find((option) => option.value === value)?.label ?? String(value))}
+      <FieldNote error={errorOf(key)} />
+    </div>
+  )
+  const languages = LANGUAGES.map((language) => ({ value: language, label: t.shared.languages[language] }))
+
+  const modesFailure = modes.failure !== null && <p className="notice notice--error">{say(modes.failure)}</p>
 
   const groups: Record<GroupId, () => ReactNode> = {
     chain: () => (
       <>
-        <label className={marks.box('parallel')}>
-          <span className="settings__label">{t.shared.parallel}</span>
-          <span className="settings__hint">{t.shared.parallelHint}</span>
+        <CheckField
+          className="settings__field"
+          label={t.status.unattended}
+          hint={t.status.unattendedHint}
+          checked={state.unattended}
+          disabled={modes.sending}
+          onChange={(on) => void modes.send('chain/unattended', { on })}
+        />
+        {modesFailure}
+        <div className={marks.box('parallel')}>
+          <FieldHead label={t.shared.parallel} hint={t.shared.parallelHint} htmlFor={fieldId('parallel')} />
           <input
+            id={fieldId('parallel')}
             className="settings__text settings__number"
             type="number"
             min={1}
@@ -151,154 +181,68 @@ export function SharedSettings({ state }: { state: EvenKeelState }) {
           />
           {marks.note('parallel')}
           <FieldNote error={errorOf('parallel')} />
-        </label>
-        <label className={marks.box('tracker')}>
-          <span className="settings__label">
-            {t.shared.tracker}
-            <RestartMark on={config.restart.includes('tracker')} />
-          </span>
-          <select className="settings__text settings__short" value={text('tracker')} onChange={(event) => edit('tracker', event.target.value)}>
-            {config.trackers.map((each) => (
-              <option key={each.name} value={each.name}>
-                {each.name}
-              </option>
-            ))}
-          </select>
-          {marks.note('tracker')}
-          <FieldNote error={errorOf('tracker')} />
-        </label>
-        <div className={marks.box('brief')}>
-          <label className="settings__check">
-            <input type="checkbox" checked={draft.edit.brief as boolean} onChange={(event) => edit('brief', event.target.checked)} />
-            {t.settings.brief}
-          </label>
-          <span className="settings__hint">{t.settings.briefHint}</span>
+        </div>
+        {select(
+          'tracker',
+          t.shared.tracker,
+          config.trackers.map((each) => ({ value: each.name, label: each.name })),
+          t.shared.trackerHint,
+          config.restart.includes('tracker'),
+        )}
+        <CheckField className={marks.box('brief')} label={t.settings.brief} hint={t.settings.briefHint} checked={draft.edit.brief as boolean} onChange={(on) => edit('brief', on)}>
           {marks.note('brief')}
           <FieldNote error={errorOf('brief')} />
-        </div>
-        <RuleFields text={text} onEdit={edit} errorOf={errorOf} marks={marks} />
+        </CheckField>
+        <RuleFields text={text} onEdit={edit} errorOf={errorOf} marks={marks} choices={ruleChoicesOf(state.tasks)} />
       </>
     ),
     models: () => (
       <>
-        <label className={marks.box('model')}>
-          <span className="settings__label">{t.shared.model}</span>
-          <span className="settings__hint">{t.shared.modelHint}</span>
-          <select className="settings__text settings__short" value={text('model')} onChange={(event) => edit('model', event.target.value)}>
-            {MODEL_ALIASES.map((model) => (
-              <option key={model} value={model}>
-                {model}
-              </option>
-            ))}
-          </select>
-          {marks.note('model')}
-          <FieldNote error={errorOf('model')} />
-        </label>
-        <div className="settings__field">
-          <span className="settings__label">{t.shared.modelPrompts}</span>
-          <span className="settings__hint">{t.shared.modelPromptsHint}</span>
-          {MODEL_ALIASES.map((model) => (
-            <label key={model} className={marks.box(promptKey(model))}>
-              <span className="settings__hint">{model}</span>
-              <textarea className="settings__text" rows={2} value={text(promptKey(model))} onChange={(event) => edit(promptKey(model), event.target.value)} />
-              {marks.note(promptKey(model))}
-            </label>
-          ))}
+        {select(
+          'model',
+          t.shared.model,
+          MODEL_ALIASES.map((model) => ({ value: model, label: model })),
+          t.shared.modelHint,
+        )}
+        <div className={marks.box(PROMPT_KEYS)}>
+          <FieldHead label={t.shared.modelPrompts} hint={t.shared.modelPromptsHint} />
+          <ModelPrompts text={text} onEdit={editAll} marks={marks} />
           <FieldNote error={errorOf('modelPrompts')} />
         </div>
-        <label className={marks.box('promptLanguage')}>
-          <span className="settings__label">{t.shared.promptLanguage}</span>
-          <select className="settings__text settings__short" value={text('promptLanguage')} onChange={(event) => edit('promptLanguage', event.target.value)}>
-            {LANGUAGES.map((language) => (
-              <option key={language} value={language}>
-                {t.shared.languages[language]}
-              </option>
-            ))}
-          </select>
-          {marks.note('promptLanguage', languageName)}
-          <FieldNote error={errorOf('promptLanguage')} />
-        </label>
+        {select('promptLanguage', t.shared.promptLanguage, languages)}
       </>
     ),
     sessions: () => (
       <>
-        <label className={marks.box('hiddenSkills')}>
-          <span className="settings__label">{t.shared.hiddenSkills}</span>
-          <span className="settings__hint">{t.shared.hiddenSkillsHint}</span>
-          <textarea
-            className="settings__text settings__text--mono"
-            rows={6}
-            spellCheck={false}
-            value={text('hiddenSkills')}
-            aria-invalid={errorOf('hiddenSkills') !== null}
-            onChange={(event) => edit('hiddenSkills', event.target.value)}
-          />
+        <CheckField
+          className="settings__field"
+          label={t.status.trim}
+          hint={t.status.trimHint}
+          checked={state.trimTools}
+          disabled={modes.sending}
+          onChange={(on) => void modes.send('chain/trim', { on })}
+        />
+        {modesFailure}
+        <div className={marks.box('hiddenSkills')}>
+          <FieldHead label={t.shared.hiddenSkills} hint={t.shared.hiddenSkillsHint} />
+          <HiddenSkills state={state} value={text('hiddenSkills')} onChange={(value) => edit('hiddenSkills', value)} />
           {marks.note('hiddenSkills')}
           <FieldNote error={errorOf('hiddenSkills')} />
-        </label>
+        </div>
         <div className="settings__field">
-          <span className="settings__label">
-            {t.shared.context}
-            <RestartMark on={config.restart.includes('context')} />
-          </span>
-          <span className="settings__hint">{t.shared.contextHint}</span>
+          <FieldHead label={t.shared.context} hint={t.shared.contextHint} restart={config.restart.includes('context')} />
           <div className="settings__row">
-            {number('window', t.shared.contextWindow, wholeOf(text('window'), 1) === undefined, true)}
+            {number('window', t.shared.contextWindow, wholeOf(text('window'), 1) === undefined)}
             {number('warn', t.shared.contextWarn, amountOf(text('warn')) === undefined)}
             {number('danger', t.shared.contextDanger, amountOf(text('danger')) === undefined)}
           </div>
           <FieldNote error={errorOf('context')} />
         </div>
-      </>
-    ),
-    page: () => (
-      <>
-        <label className={marks.box('language')}>
-          <span className="settings__label">{t.shared.language}</span>
-          <select className="settings__text settings__short" value={text('language')} onChange={(event) => edit('language', event.target.value)}>
-            <option value="">{t.shared.languageAuto}</option>
-            {LANGUAGES.map((language) => (
-              <option key={language} value={language}>
-                {t.shared.languages[language]}
-              </option>
-            ))}
-          </select>
-          {marks.note('language', languageName)}
-          <FieldNote error={errorOf('language')} />
-        </label>
-        <label className={marks.box('allowedHosts')}>
-          <span className="settings__label">{t.shared.allowedHosts}</span>
-          <span className="settings__hint">{t.shared.allowedHostsHint}</span>
-          <textarea
-            className="settings__text settings__text--mono"
-            rows={2}
-            spellCheck={false}
-            value={text('allowedHosts')}
-            placeholder="even-keel.example.com"
-            aria-invalid={errorOf('allowedHosts') !== null}
-            onChange={(event) => edit('allowedHosts', event.target.value)}
-          />
-          {marks.note('allowedHosts')}
-          <FieldNote error={errorOf('allowedHosts')} />
-        </label>
-      </>
-    ),
-    stats: () => (
-      <>
-        <div className="settings__field">
-          <span className="settings__hint">{t.shared.compare}</span>
-          <div className="settings__row">
-            {number('minTasks', t.shared.minTasks, wholeOf(text('minTasks'), 1) === undefined)}
-            {number('minSessions', t.shared.minSessions, wholeOf(text('minSessions'), 1) === undefined)}
-            {number('days', t.shared.days, wholeOf(text('days'), 1) === undefined)}
-          </div>
-        </div>
-        {number('otherBelow', t.shared.otherBelow, amountOf(text('otherBelow')) === undefined)}
-        <label className={marks.box('checkpointTokens')}>
-          <span className="settings__label">{t.shared.checkpointTokens}</span>
-          <span className="settings__hint">{t.shared.checkpointTokensHint}</span>
+        <div className={marks.box('checkpointTokens')}>
+          <FieldHead label={t.shared.checkpointTokens} hint={t.shared.checkpointTokensHint} htmlFor={fieldId('checkpointTokens')} />
           <input
-            className="settings__text settings__wide-number"
+            id={fieldId('checkpointTokens')}
+            className="settings__text settings__number"
             inputMode="numeric"
             value={text('checkpointTokens')}
             placeholder={t.shared.checkpointTokensPlaceholder}
@@ -306,20 +250,53 @@ export function SharedSettings({ state }: { state: EvenKeelState }) {
             onChange={(event) => edit('checkpointTokens', event.target.value)}
           />
           {marks.note('checkpointTokens', (value) => ((value as string).trim() === '' ? t.shared.checkpointTokensPlaceholder : (value as string)))}
-        </label>
-        <label className={marks.box('moves')}>
-          <span className="settings__label">{t.shared.moves}</span>
-          <span className="settings__hint">{t.shared.movesHint}</span>
-          <textarea
-            className="settings__text settings__text--mono"
-            rows={3}
-            spellCheck={false}
-            value={text('moves')}
-            placeholder="D:/old/abc => D:/Projects/abc"
-            onChange={(event) => edit('moves', event.target.value)}
+          <FieldNote error={errorOf('checkpointTokens')} />
+        </div>
+      </>
+    ),
+    page: () => (
+      <>
+        {select('language', t.shared.language, [{ value: '', label: t.shared.languageAuto }, ...languages])}
+        <div className={marks.box('allowedHosts')}>
+          <FieldHead label={t.shared.allowedHosts} hint={t.shared.allowedHostsHint} />
+          <ListTable
+            label={t.shared.allowedHosts}
+            value={text('allowedHosts')}
+            add={t.shared.allowedHostsAdd}
+            empty={t.shared.allowedHostsEmpty}
+            mono
+            onChange={(value) => edit('allowedHosts', value)}
+          />
+          {marks.note('allowedHosts')}
+          <FieldNote error={errorOf('allowedHosts')} />
+        </div>
+      </>
+    ),
+    stats: () => (
+      <>
+        <div className="settings__field">
+          <FieldHead label={t.shared.compare} hint={t.shared.compareHint} />
+          <div className="settings__row">
+            {number('minTasks', t.shared.minTasks, wholeOf(text('minTasks'), 1) === undefined)}
+            {number('minSessions', t.shared.minSessions, wholeOf(text('minSessions'), 1) === undefined)}
+            {number('days', t.shared.days, wholeOf(text('days'), 1) === undefined)}
+          </div>
+        </div>
+        {number('otherBelow', t.shared.otherBelow, amountOf(text('otherBelow')) === undefined, t.shared.otherBelowHint)}
+        <div className={marks.box('moves')}>
+          <FieldHead label={t.shared.moves} hint={t.shared.movesHint} />
+          <RowsTable
+            label={t.shared.moves}
+            columns={[
+              { title: t.shared.movesFrom, placeholder: 'D:/old/abc', mono: true },
+              { title: t.shared.movesTo, placeholder: 'D:/Projects/abc', mono: true },
+            ]}
+            rows={rowsOf(text('moves')).map(pairOf)}
+            empty={t.shared.none}
+            onChange={(rows) => edit('moves', linesText(rows.map(lineOf)))}
           />
           {marks.note('moves')}
-        </label>
+        </div>
         <FieldNote error={errorOf('stats')} />
       </>
     ),
@@ -328,21 +305,25 @@ export function SharedSettings({ state }: { state: EvenKeelState }) {
   return (
     <div className="page settings-page">
       <header>
-        <h1 className="page__title">{t.shared.title}</h1>
-        <p className="chain__hint">{t.shared.hint}</p>
-        <p className="chain__hint">{t.shared.elsewhere}</p>
+        <h1 className="page__title settings-page__title">
+          {t.shared.title}
+          <HelpTip text={`${t.shared.hint} ${t.shared.elsewhere}`} />
+        </h1>
       </header>
       <div className="settings-page__body">
-        <GroupTabs groups={GROUPS.map(({ id }) => ({ id, title: t.shared[id] }))} open={open} dirty={dirty} onOpen={setOpen} />
+        <SettingsNav groups={GROUPS.map(({ id }) => ({ id, title: titleOf(id) }))} open={open} dirty={dirty} onOpen={setOpen} />
         <form
-          className="settings__form"
-          role="tabpanel"
-          aria-labelledby={`settings-tab-${open}`}
+          key={open}
+          className="settings__form settings-page__form"
+          aria-labelledby="settings-group"
           onSubmit={(event) => {
             event.preventDefault()
             void save()
           }}
         >
+          <h2 id="settings-group" className="settings-page__group">
+            {titleOf(open)}
+          </h2>
           {groups[open]()}
           {leftover !== null && <p className="notice notice--error">{say(leftover)}</p>}
           {dirty(open) && <SaveBar canSave={!sending && next !== undefined} onRevert={() => revert(keysOf(open))} />}
@@ -350,4 +331,54 @@ export function SharedSettings({ state }: { state: EvenKeelState }) {
       </div>
     </div>
   )
+}
+
+/** A row per model with a prompt, in the order they were added; a row cleared while typing stays until its bin. */
+function ModelPrompts({ text, onEdit, marks }: { text: (key: string) => string; onEdit: (values: Values) => void; marks: Marks }) {
+  const [listed, setListed] = useState<readonly ModelAlias[]>([])
+  const shown = [...listed, ...MODEL_ALIASES.filter((model) => !listed.includes(model) && text(promptKey(model)) !== '')]
+  const gone = MODEL_ALIASES.filter((model) => !shown.includes(model) && marks.note(promptKey(model)) !== null)
+  return (
+    <>
+      <RowsTable
+        label={t.shared.modelPrompts}
+        columns={[
+          { title: t.shared.promptModel, placeholder: t.shared.promptModel, options: MODEL_ALIASES.map((model) => ({ value: model, label: model })), width: '9em' },
+          { title: t.shared.promptText, placeholder: t.shared.promptAdd, multiline: true },
+        ]}
+        rows={shown.map((model) => [model, text(promptKey(model))])}
+        empty={t.shared.none}
+        onChange={(rows) => {
+          setListed(rows.map(([model]) => model as ModelAlias))
+          onEdit(Object.fromEntries(MODEL_ALIASES.map((model) => [promptKey(model), rows.find(([each]) => each === model)?.[1] ?? ''])))
+        }}
+      />
+      {[...shown, ...gone].map((model) => {
+        const note = marks.note(promptKey(model))
+        return (
+          note !== null && (
+            <span key={model} className="settings__row-note">
+              <span className="tag">{model}</span>
+              {note}
+            </span>
+          )
+        )
+      })}
+    </>
+  )
+}
+
+/** Offers the skills recent sessions of every project had, besides those already hidden. */
+function HiddenSkills({ state, value, onChange }: { state: EvenKeelState; value: string; onChange: (value: string) => void }) {
+  const loaded = useToolsViews(state.projects, state.trimTools)
+  const known = [...loaded.values()].flatMap((each) =>
+    each.state !== 'ready' || each.view === null
+      ? []
+      : [
+          ...(each.view.received?.skills.filter((skill) => skill.source !== 'claudeai').map((skill) => skill.name) ?? []),
+          ...each.view.settings.filter((row) => row.kind === 'skill').map((row) => row.name),
+        ],
+  )
+  const suggest = [...new Set(known)].sort((a, b) => a.localeCompare(b))
+  return <ListTable label={t.shared.hiddenSkills} value={value} add={t.shared.hiddenSkillsAdd} empty={t.shared.none} suggest={suggest} mono onChange={onChange} />
 }

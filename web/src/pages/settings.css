@@ -35,6 +35,18 @@
   gap: 16px;
 }
 
+/* The fields the guard of main covers; greyed out while it is off. */
+.settings__guarded {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  transition: opacity var(--motion-fast);
+}
+
+.settings__guarded--off {
+  opacity: 0.5;
+}
+
 .settings__field {
   display: flex;
   flex-direction: column;
@@ -100,10 +112,6 @@
   cursor: pointer;
 }
 
-.settings__check input {
-  accent-color: var(--accent);
-}
-
 .settings__number {
   width: 12em;
   resize: none;
@@ -116,6 +124,11 @@
 
 .settings__short {
   max-width: 16em;
+}
+
+/* A pick next to another field in a row would shrink to its current value. */
+.settings__text.select {
+  min-width: 12em;
 }
 
 .settings__text[aria-invalid='true'] {
@@ -176,16 +189,399 @@
 
 .settings__rules {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(14em, 1fr));
-  gap: 12px 16px;
+  grid-template-columns: repeat(auto-fit, minmax(min(22em, 100%), 1fr));
+  gap: 16px;
+}
+
+/* A setting's name, its question mark and the restart mark in one line. */
+.settings__head-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 2px 4px;
+}
+
+.settings__heading {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.help {
+  position: relative;
+  display: inline-grid;
+  flex: none;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--fg-muted);
+  cursor: help;
+  transition: color var(--motion-fast);
+}
+
+.help .icon {
+  width: 15px;
+  height: 15px;
+}
+
+.help:hover,
+.help:focus-visible {
+  color: var(--accent);
+}
+
+.help:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
+.help__tip {
+  position: fixed;
+  inset: auto;
+  width: max-content;
+  max-width: min(360px, calc(100vw - 16px));
+  margin: 0;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  box-shadow: 0 8px 24px rgb(0 0 0 / 0.25);
+  color: var(--fg);
+  font: 13px/1.45 var(--font);
+  letter-spacing: normal;
+  text-align: left;
+  text-transform: none;
+  white-space: normal;
+  cursor: auto;
+  animation: fade-in var(--motion-fast) ease-out;
+}
+
+/* The page of shared settings: the groups in a column at the left, the open one at the right, together no wider than reads well. */
+.settings-page {
+  max-width: 1180px;
+}
+
+.settings-page__title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
 }
 
 .settings-page__body {
+  display: grid;
+  grid-template-columns: 200px minmax(0, 1fr);
+  align-items: start;
+  gap: 32px;
+  margin-top: 8px;
+}
+
+.settings-page__group {
+  margin: 0;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--border);
+  font-size: 17px;
+}
+
+.settings-page__form {
+  animation: fade-in var(--motion-appear) ease-out;
+}
+
+.settings-nav {
+  position: sticky;
+  top: calc(var(--header-height) + 24px);
+}
+
+.settings-nav__list {
   display: flex;
   flex-direction: column;
-  gap: 16px;
-  max-width: 44em;
-  margin-top: 16px;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.settings-nav__item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 36px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--fg-muted);
+  font: inherit;
+  font-size: 14px;
+  text-align: left;
+  cursor: pointer;
+  transition:
+    background-color var(--motion-fast),
+    color var(--motion-fast);
+}
+
+.settings-nav__title {
+  flex: 1;
+  min-width: 0;
+}
+
+.settings-nav__item:hover {
+  background: var(--surface-muted);
+  color: var(--fg);
+}
+
+.settings-nav__item[aria-current] {
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  box-shadow: inset 2px 0 0 var(--accent);
+  color: var(--fg);
+  font-weight: 600;
+}
+
+.settings-nav__item:focus-visible,
+.settings-nav__toggle:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
+/* Up to 760px: one column, the groups in a drawer from the left behind a button showing the open one. */
+.settings-nav__toggle {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 44px;
+  padding: 0 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--fg);
+  font: inherit;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+}
+
+.settings-nav__toggle .icon {
+  width: 16px;
+  height: 16px;
+}
+
+.settings-drawer {
+  position: fixed;
+  inset: 0 auto 0 0;
+  width: min(300px, 85vw);
+  max-width: none;
+  height: 100dvh;
+  max-height: none;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-right: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--fg);
+}
+
+.settings-drawer[open] {
+  animation: drawer-in var(--motion-appear) ease-out;
+}
+
+.settings-drawer::backdrop {
+  background: rgb(0 0 0 / 0.45);
+}
+
+.settings-drawer__body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  height: 100%;
+  padding: max(14px, env(safe-area-inset-top)) 12px 16px max(12px, env(safe-area-inset-left));
+}
+
+.settings-drawer__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-left: 12px;
+}
+
+.settings-drawer__heading {
+  color: var(--fg-muted);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.settings-drawer .settings-nav__item {
+  min-height: 44px;
+  font-size: 15px;
+}
+
+@keyframes drawer-in {
+  from {
+    transform: translateX(-100%);
+  }
+}
+
+@media (max-width: 760px) {
+  .settings-page__body {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 16px;
+  }
+}
+
+/* A list setting as a table: cells edited in place, long values wrap inside them. */
+.rows__table {
+  width: 100%;
+  margin-top: 4px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  border-spacing: 0;
+  table-layout: fixed;
+  overflow: hidden;
+}
+
+.rows__table th,
+.rows__table td {
+  padding: 0;
+  border-bottom: 1px solid var(--border);
+  vertical-align: top;
+}
+
+.rows__table td + td,
+.rows__table th + th {
+  border-left: 1px solid var(--border);
+}
+
+.rows__table > :last-child > tr:last-child > * {
+  border-bottom: 0;
+}
+
+.rows__table th {
+  padding: 6px 10px;
+  background: var(--surface-muted);
+  color: var(--fg-muted);
+  font-size: 12px;
+  font-weight: 600;
+  text-align: left;
+}
+
+.rows__action-col {
+  width: 40px;
+}
+
+.rows__table .rows__action {
+  border-left: 0;
+  vertical-align: middle;
+  text-align: center;
+}
+
+.rows__input {
+  display: block;
+  width: 100%;
+  min-height: 36px;
+  margin: 0;
+  padding: 7px 10px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: var(--fg);
+  font: 14px/1.45 var(--font);
+  field-sizing: content;
+  resize: none;
+  overflow-wrap: anywhere;
+}
+
+.rows__input--mono {
+  font-family: var(--mono);
+  font-size: 13px;
+}
+
+.rows__input::placeholder {
+  color: var(--fg-muted);
+  opacity: 0.7;
+}
+
+.rows__input:hover {
+  background: color-mix(in srgb, var(--surface-muted) 60%, transparent);
+}
+
+.rows__input:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
+.rows__input[aria-invalid='true'] {
+  box-shadow: inset 2px 0 0 var(--lamp-error);
+}
+
+.rows__new td {
+  background: color-mix(in srgb, var(--surface-muted) 45%, transparent);
+}
+
+.rows__empty td {
+  padding: 8px 10px;
+  color: var(--fg-muted);
+  font-size: 13px;
+}
+
+.rows__button {
+  display: inline-grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--fg-muted);
+  cursor: pointer;
+  transition:
+    background-color var(--motion-fast),
+    color var(--motion-fast);
+}
+
+.rows__button:hover {
+  background: color-mix(in srgb, var(--lamp-error) 14%, transparent);
+  color: var(--lamp-error);
+}
+
+.rows__button--add:hover {
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+  color: var(--accent);
+}
+
+.rows__button:disabled {
+  opacity: 0.35;
+  background: transparent;
+  color: var(--fg-muted);
+  cursor: default;
+}
+
+.rows__button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
+/* The marks of a model's prompt under the table: its name, then what it was. */
+.settings__row-note {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+/* A model name is lowercase: the pill centres its x-height, not its line box, and shares the note's baseline. */
+.settings__row-note .tag {
+  padding-bottom: 4px;
+  line-height: 14px;
+}
+
+.settings__row-note .settings__mark {
+  flex: 1;
+  min-width: 0;
 }
 
 /* The panel's head: the groups as tabs, the cross at the right. */
