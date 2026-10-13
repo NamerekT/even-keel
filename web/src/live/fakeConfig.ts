@@ -1,7 +1,7 @@
 import { DEFAULT_RULES } from '../../../src/chain/rules.js'
 import type { ConfigView, EvenKeelState, ProjectForm, SharedForm } from '../../../src/state.js'
 
-const CI_ALL = { kinds: ['forgejo', 'github'], waitMinutes: null, recheckMain: true, fixTask: false } as ProjectForm['ci']
+const CI_ALL: ProjectForm['ci'] = { guard: true, kinds: ['forgejo', 'github'], waitMinutes: null, recheckMain: true, fixTask: false }
 
 export const FAKE_SHARED: SharedForm = {
   parallel: 1,
@@ -43,10 +43,10 @@ export function fakeConfig(): ConfigView {
         branch: 'master',
         tracker: 'github',
         trackerProject: 'octo-org/demo',
-        ci: { kinds: ['github'], waitMinutes: 15, recheckMain: true, fixTask: true },
+        ci: { guard: true, kinds: ['github'], waitMinutes: 15, recheckMain: true, fixTask: true },
       }),
       XYZ: project('D:/Projects/xyz', { slot: 2, chain: { ...DEFAULT_RULES, requiredLabels: ['Auto'] } }),
-      OPS: project('D:/Projects/ops', { beforeStart: ['npm ci'], check: ['npm run typecheck', 'npm test'], ci: { kinds: [], waitMinutes: 0, recheckMain: false, fixTask: false } }),
+      OPS: project('D:/Projects/ops', { beforeStart: ['npm ci'], check: ['npm run typecheck', 'npm test'], ci: { guard: false, kinds: [], waitMinutes: 0, recheckMain: false, fixTask: false } }),
     },
     restart: [],
     trackers: [

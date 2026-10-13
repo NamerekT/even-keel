@@ -39,18 +39,19 @@ export interface MainCiDeps {
   now: () => Date
 }
 
-/** The check a session runs before it merges (BTN-104): only when no counted CI is there to judge main. */
+/** The check a session runs before it merges (BTN-104): only when no counted CI is there to judge main, and never with the guard off. */
 export function mergeCheck(commands: string[], settings: CiSettings, views: CiView[]): string[] {
+  if (!settings.guard) return []
   const counted = views.filter((view) => settings.kinds.includes(view.kind))
   return counted.length > 0 && counted.every((view) => view.health === 'ok') ? [] : commands
 }
 
 // What the chain's check of main (BTN-103, BTN-104) needs from the service: git of the project, its counted CIs,
-// its own check and the tracker.
+// its own check and the tracker. With the guard of main off no CI counts and there is no check, so a push is never awaited.
 export function mainCheckDeps(deps: MainCiDeps): MainCheckDeps {
   const counted = (project: string) => {
-    const kinds = deps.settings(project).kinds
-    return deps.watches(project).filter((watch) => kinds.includes(watch.view.kind))
+    const { guard, kinds } = deps.settings(project)
+    return guard ? deps.watches(project).filter((watch) => kinds.includes(watch.view.kind)) : []
   }
   const revision = async (cwd: string, rev: string) => {
     const read = await deps.git(cwd, ['rev-parse', '--verify', '--quiet', rev])
@@ -86,8 +87,13 @@ export function mainCheckDeps(deps: MainCiDeps): MainCheckDeps {
       return commit === undefined ? null : revision(repo, `${commit.trim()}^{tree}`)
     },
     tree: (project, commit) => revision(deps.repo(project), `${commit}^{tree}`),
-    checking: (project) => ({ commands: deps.commands(project), recheck: deps.settings(project).recheckMain }),
+    checking(project) {
+      const { guard, recheckMain } = deps.settings(project)
+      return { commands: guard ? deps.commands(project) : [], recheck: recheckMain }
+    },
     async checkMain(project, task) {
+      // A check of main due from before the guard was turned off.
+      if (!deps.settings(project).guard) return { state: 'skipped', reason: 'the guard of main is off' }
       const path = await deps.place(project, task)
       const branch = deps.main(project)
       const [head, main] = await Promise.all([revision(path, 'HEAD'), revision(deps.repo(project), `refs/heads/${branch}`)])

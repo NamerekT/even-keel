@@ -176,7 +176,7 @@ describe('Even Keel HTTP server', () => {
   const form = { branch: 'master', repo: 'C:\\abc', tracker: 'github', trackerProject: 'octo-org/abc', slot: 2, brief: false, chain }
 
   it('passes the settings of a project on with the values the form started from', async () => {
-    const ci = { kinds: ['github'], waitMinutes: 15, recheckMain: false, fixTask: true }
+    const ci = { guard: false, kinds: ['github'], waitMinutes: 15, recheckMain: false, fixTask: true }
     const settings = { prompt: 'Run npm test.', beforeStart: ['npm ci'], check: ['npm test'], ci, fillMilestone: true, ...form }
     const started = { ...settings, prompt: null, slot: 0 }
     const response = await fetch(base + '/api/project/settings', { method: 'POST', body: JSON.stringify({ project: 'ABC', ...settings, base: started }) })
@@ -189,7 +189,7 @@ describe('Even Keel HTTP server', () => {
   })
 
   it('refuses project settings of a wrong shape', async () => {
-    const ci = { kinds: [], waitMinutes: null, recheckMain: true, fixTask: false }
+    const ci = { guard: true, kinds: [], waitMinutes: null, recheckMain: true, fixTask: false }
     const bad = [
       ['branch', { branch: 1 }],
       ['slot', { slot: -1 }],
@@ -234,7 +234,7 @@ describe('Even Keel HTTP server', () => {
   })
 
   it('refuses settings without the milestone switch', async () => {
-    const body = { project: 'ABC', prompt: '', beforeStart: [], check: [], ci: { kinds: [], waitMinutes: null, recheckMain: true, fixTask: false }, fillMilestone: 'yes' }
+    const body = { project: 'ABC', prompt: '', beforeStart: [], check: [], ci: { guard: true, kinds: [], waitMinutes: null, recheckMain: true, fixTask: false }, fillMilestone: 'yes' }
     const response = await fetch(base + '/api/project/settings', { method: 'POST', body: JSON.stringify(body) })
     expect(response.status).toBe(400)
     expect((await response.json()).notice).toMatchObject({ code: 'request.required', params: { field: 'fillMilestone' } })
@@ -243,11 +243,12 @@ describe('Even Keel HTTP server', () => {
   it('refuses CI settings with an unknown CI, a wait that is not whole minutes or a missing switch', async () => {
     const bad = [
       undefined,
-      { kinds: ['jenkins'], waitMinutes: null, recheckMain: true, fixTask: false },
-      { kinds: [], waitMinutes: -5, recheckMain: true, fixTask: false },
-      { kinds: [], waitMinutes: 1.5, recheckMain: true, fixTask: false },
-      { kinds: [], waitMinutes: null, fixTask: false },
-      { kinds: [], waitMinutes: null, recheckMain: true },
+      { guard: true, kinds: ['jenkins'], waitMinutes: null, recheckMain: true, fixTask: false },
+      { guard: true, kinds: [], waitMinutes: -5, recheckMain: true, fixTask: false },
+      { guard: true, kinds: [], waitMinutes: 1.5, recheckMain: true, fixTask: false },
+      { guard: true, kinds: [], waitMinutes: null, fixTask: false },
+      { guard: true, kinds: [], waitMinutes: null, recheckMain: true },
+      { kinds: [], waitMinutes: null, recheckMain: true, fixTask: false },
     ]
     for (const ci of bad) {
       const body = { project: 'ABC', prompt: '', beforeStart: [], check: [], ci }
@@ -259,7 +260,7 @@ describe('Even Keel HTTP server', () => {
 
   it('refuses settings whose commands are not a list of strings', async () => {
     for (const [field, lists] of [['beforeStart', { beforeStart: 'npm ci', check: [] }], ['check', { beforeStart: [], check: [1] }]] as const) {
-      const body = { project: 'ABC', prompt: '', ...lists, ci: { kinds: [], waitMinutes: null, recheckMain: true, fixTask: false } }
+      const body = { project: 'ABC', prompt: '', ...lists, ci: { guard: true, kinds: [], waitMinutes: null, recheckMain: true, fixTask: false } }
       const response = await fetch(base + '/api/project/settings', { method: 'POST', body: JSON.stringify(body) })
       expect(response.status).toBe(400)
       expect((await response.json()).notice).toMatchObject({ code: 'request.required', params: { field } })

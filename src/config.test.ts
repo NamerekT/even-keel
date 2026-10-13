@@ -120,7 +120,7 @@ describe('parseConfig', () => {
   })
 
   it('counts both CIs and waits for them as long as it takes unless the project says otherwise', () => {
-    expect(DEFAULT_CI).toEqual({ kinds: ['forgejo', 'github'], waitMinutes: null, recheckMain: true, fixTask: false })
+    expect(DEFAULT_CI).toEqual({ guard: true, kinds: ['forgejo', 'github'], waitMinutes: null, recheckMain: true, fixTask: false })
     const config = parseConfig({
       projects: {
         ABC: { repo: 'C:\\abc', ci: { kinds: ['github'], waitMinutes: 15 } },
@@ -128,11 +128,17 @@ describe('parseConfig', () => {
         XYZ: { repo: 'C:\\xyz', ci: { waitMinutes: null } },
       },
     })
-    expect(config.settings.ABC?.ci).toEqual({ kinds: ['github'], waitMinutes: 15, recheckMain: true, fixTask: false })
-    expect(config.settings.DEF?.ci).toEqual({ kinds: [], waitMinutes: 0, recheckMain: false, fixTask: true })
+    expect(config.settings.ABC?.ci).toEqual({ guard: true, kinds: ['github'], waitMinutes: 15, recheckMain: true, fixTask: false })
+    expect(config.settings.DEF?.ci).toEqual({ guard: true, kinds: [], waitMinutes: 0, recheckMain: false, fixTask: true })
     expect(config.settings.XYZ?.ci).toEqual(DEFAULT_CI)
     expect(() => parseConfig({ projects: { ABC: { repo: 'C:\\abc', ci: { recheckMain: 'no' } } } })).toThrow(/ABC.ci.recheckMain/)
     expect(() => parseConfig({ projects: { ABC: { repo: 'C:\\abc', ci: { fixTask: 1 } } } })).toThrow(/ABC.ci.fixTask/)
+  })
+
+  it('turns the guard of main off only when the project says so, keeping the other CI keys', () => {
+    const config = parseConfig({ projects: { ABC: { repo: 'C:\\abc', ci: { guard: false, kinds: ['github'], fixTask: true } } } })
+    expect(config.settings.ABC?.ci).toEqual({ guard: false, kinds: ['github'], waitMinutes: null, recheckMain: true, fixTask: true })
+    expect(() => parseConfig({ projects: { ABC: { repo: 'C:\\abc', ci: { guard: 'off' } } } })).toThrow(/ABC.ci.guard/)
   })
 
   it('fills milestones only for a project that asks for it', () => {
@@ -436,14 +442,20 @@ describe('withProjectSettings', () => {
   it('writes the CI settings only when they differ from the default, keeping the other keys', () => {
     const settings = { branch: 'main', prompt: null, beforeStart: [], check: [], ci: DEFAULT_CI, fillMilestone: false }
     expect(withProjectSettings({ repo: 'C:\\abc', ci: { kinds: ['github'] } }, settings)).toEqual({ repo: 'C:\\abc' })
-    expect(withProjectSettings('C:\\abc', { ...settings, ci: { kinds: ['github', 'forgejo'], waitMinutes: 10, recheckMain: true, fixTask: false } })).toEqual({
+    expect(withProjectSettings('C:\\abc', { ...settings, ci: { guard: true, kinds: ['github', 'forgejo'], waitMinutes: 10, recheckMain: true, fixTask: false } })).toEqual({
       repo: 'C:\\abc',
       ci: { waitMinutes: 10 },
     })
-    expect(withProjectSettings('C:\\abc', { ...settings, ci: { kinds: [], waitMinutes: null, recheckMain: false, fixTask: true } })).toEqual({
+    expect(withProjectSettings('C:\\abc', { ...settings, ci: { guard: true, kinds: [], waitMinutes: null, recheckMain: false, fixTask: true } })).toEqual({
       repo: 'C:\\abc',
       ci: { kinds: [], recheckMain: false, fixTask: true },
     })
+  })
+
+  it('writes the guard of main only when it is off, and keeps the CI keys it covers', () => {
+    const settings = { branch: 'main', prompt: null, beforeStart: [], check: ['npm test'], ci: { ...DEFAULT_CI, guard: false, waitMinutes: 10 }, fillMilestone: false }
+    expect(withProjectSettings('C:\\abc', settings)).toEqual({ repo: 'C:\\abc', commands: { check: ['npm test'] }, ci: { guard: false, waitMinutes: 10 } })
+    expect(withProjectSettings({ repo: 'C:\\abc', ci: { guard: false } }, { ...settings, check: [], ci: DEFAULT_CI })).toEqual({ repo: 'C:\\abc' })
   })
 
   it('writes the milestone switch only when it is on', () => {

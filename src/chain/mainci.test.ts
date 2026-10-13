@@ -31,7 +31,8 @@ const view = (kind: CiKind, status: CiRun['status']): CiView => ({
   pushed: null,
 })
 
-const all = (kinds: CiKind[], waitMinutes: number | null = null): CiSettings => ({ kinds, waitMinutes, recheckMain: true, fixTask: false })
+const all = (kinds: CiKind[], waitMinutes: number | null = null): CiSettings => ({ guard: true, kinds, waitMinutes, recheckMain: true, fixTask: false })
+const unguarded = (kinds: CiKind[]): CiSettings => ({ ...all(kinds), guard: false })
 
 function setup(settings: CiSettings, views: CiView[], heads: Record<string, string> = {}, failure: CheckFailure | null = null, main = 'main') {
   const gitCalls: string[][] = []
@@ -153,6 +154,15 @@ describe('mainCheckDeps', () => {
     expect(await own.deps.checkMain('ABC', 'ABC-2', 'c2')).toEqual({ state: 'skipped', reason: `the place of ABC-2 (${place}) is not on main` })
     expect(own.checks).toEqual([])
   })
+
+  it('judges nothing when the guard of main is off: no CI counts, no check runs', async () => {
+    const place = 'D:/repos/abc/.claude/worktrees/abc-2'
+    const { deps, checks } = setup(unguarded(['github']), [view('github', 'failure')], { [`${place} HEAD`]: 'c2', 'D:/repos/abc refs/heads/main': 'c2' })
+    expect(deps.verdict('ABC', 'c2', '2026-10-12T10:00:00Z')).toEqual({ state: 'none' })
+    expect(deps.checking('ABC')).toEqual({ commands: [], recheck: true })
+    expect(await deps.checkMain('ABC', 'ABC-2', 'c2')).toEqual({ state: 'skipped', reason: 'the guard of main is off' })
+    expect(checks).toEqual([])
+  })
 })
 
 describe('mergeCheck', () => {
@@ -165,5 +175,10 @@ describe('mergeCheck', () => {
     expect(mergeCheck(['npm test'], all(['github']), [healthy])).toEqual([])
     expect(mergeCheck(['npm test'], all(['github', 'forgejo']), [healthy, down])).toEqual(['npm test'])
     expect(mergeCheck(['npm test'], all(['github']), [healthy, down])).toEqual([])
+  })
+
+  it('asks for no check when the guard of main is off, CI or not', () => {
+    expect(mergeCheck(['npm test'], unguarded([]), [])).toEqual([])
+    expect(mergeCheck(['npm test'], unguarded(['github', 'forgejo']), [healthy, down])).toEqual([])
   })
 })

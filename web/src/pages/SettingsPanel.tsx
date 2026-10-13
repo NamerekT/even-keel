@@ -70,6 +70,7 @@ const valuesOf = (form: ProjectForm): Values => ({
   prompt: form.prompt ?? '',
   beforeStart: form.beforeStart.join('\n'),
   check: form.check.join('\n'),
+  guard: form.ci.guard,
   kinds: form.ci.kinds,
   wait: form.ci.waitMinutes === null ? '' : String(form.ci.waitMinutes),
   recheck: form.ci.recheckMain,
@@ -99,7 +100,7 @@ function formOf(values: Values): ProjectForm | undefined {
     prompt: text('prompt').trim(),
     beforeStart: linesOf(text('beforeStart')),
     check: linesOf(text('check')),
-    ci: { kinds: CI_KINDS.filter((kind) => kinds.includes(kind)), waitMinutes, recheckMain: on('recheck'), fixTask: on('fixTask') },
+    ci: { guard: on('guard'), kinds: CI_KINDS.filter((kind) => kinds.includes(kind)), waitMinutes, recheckMain: on('recheck'), fixTask: on('fixTask') },
     fillMilestone: on('fillMilestone'),
   }
 }

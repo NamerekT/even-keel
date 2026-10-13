@@ -81,6 +81,8 @@ export interface ProjectSettings {
 
 /** Which CIs of the project the chain counts after a push of main, and how long it waits for them. */
 export interface CiSettings {
+  /** The chain keeps main green: waits for the CIs, runs the check, fixes a red main. `false` — none of it, the keys below kept but unused. */
+  guard: boolean
   kinds: CiKind[]
   /** `null` — as long as it takes, `0` — not at all. */
   waitMinutes: number | null

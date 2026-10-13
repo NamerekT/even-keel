@@ -64,7 +64,7 @@ describe('ConfigFile', () => {
     const form = (project: string) => config.view().projects[project]!
 
     const abc = { ...form('ABC'), branch: 'master', prompt: ' Mind Library. ', beforeStart: ['npm ci', ' '], check: ['npm test'], fillMilestone: true }
-    config.saveProject('ABC', { ...abc, ci: { kinds: ['github'], waitMinutes: 20, recheckMain: true, fixTask: false } }, form('ABC'))
+    config.saveProject('ABC', { ...abc, ci: { guard: true, kinds: ['github'], waitMinutes: 20, recheckMain: true, fixTask: false } }, form('ABC'))
     config.saveProject('XYZ', { ...form('XYZ'), prompt: 'Run tests.' }, form('XYZ'))
     expect(JSON.parse(readFileSync(file, 'utf8'))).toEqual({
       port: 5000,
@@ -79,7 +79,7 @@ describe('ConfigFile', () => {
       prompt: 'Mind Library.',
       beforeStart: ['npm ci'],
       check: ['npm test'],
-      ci: { kinds: ['github'], waitMinutes: 20, recheckMain: true, fixTask: false },
+      ci: { guard: true, kinds: ['github'], waitMinutes: 20, recheckMain: true, fixTask: false },
       fillMilestone: true,
     })
   })
