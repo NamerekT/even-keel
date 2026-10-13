@@ -3,7 +3,7 @@ import { Link } from 'react-router'
 import type { EvenKeelState } from '../../../src/state.js'
 import { say, t } from '../i18n/index.js'
 import { useCommand } from '../live/useCommand.js'
-import { cardTask, chainStatus, projectSlot } from '../state.js'
+import { cardTask, chainStatus, projectName, projectSlot } from '../state.js'
 import { dragShift, dropIndex, moveItem } from '../ui/drag.js'
 import { QueueIcon } from '../ui/icons.js'
 import { Lamp } from '../ui/Lamp.js'
@@ -28,7 +28,19 @@ export function QueueMenu({ state }: { state: EvenKeelState }) {
       >
         <span className="queue-toggle__dot" aria-hidden="true" />
         <QueueIcon />
-        <span className="queue-toggle__label">{active.length === 0 ? t.queue.chain : active.map((chain) => chain.project).join(' · ')}</span>
+        <span className="queue-toggle__label">
+          {active.length === 0
+            ? t.queue.chain
+            : active.map(({ project }, index) => {
+                const name = projectName(state, project)
+                return (
+                  <span key={project} className={name === null ? 'queue-toggle__key' : 'queue-toggle__name'}>
+                    {index > 0 && ' · '}
+                    {name ?? project}
+                  </span>
+                )
+              })}
+        </span>
         {queue.length > 0 && (
           <span className="queue-toggle__count" aria-label={t.queue.count(queue.length)}>
             +{queue.length}
@@ -61,9 +73,7 @@ function QueuePanel({ state }: { state: EvenKeelState }) {
         {active.map(({ project }) => (
           <div key={project} className="queue__row queue__row--active" style={seriesStyle(projectSlot(state.projects, project))}>
             <span className="card__swatch" aria-hidden="true" />
-            <Link to={`/p/${project}`} className="queue__key">
-              {project}
-            </Link>
+            <ProjectLink state={state} project={project} />
             <StatusChip status={chainStatus(state.chain, project)} />
             <TaskLine state={state} project={project} />
           </div>
@@ -193,9 +203,7 @@ function QueueList({ state, queue, disabled, onMove, onRemove }: ListProps) {
             </button>
             <span className="queue__place">{index + 1}</span>
             <span className="card__swatch" aria-hidden="true" />
-            <Link to={`/p/${project}`} className="queue__key">
-              {project}
-            </Link>
+            <ProjectLink state={state} project={project} />
             <button
               type="button"
               className="queue__remove"
@@ -217,6 +225,16 @@ function QueueList({ state, queue, disabled, onMove, onRemove }: ListProps) {
 function listClass(dragging: boolean, landing: boolean): string {
   if (dragging) return 'queue__list queue__list--dragging'
   return landing ? 'queue__list queue__list--landing' : 'queue__list'
+}
+
+function ProjectLink({ state, project }: { state: EvenKeelState; project: string }) {
+  const name = projectName(state, project)
+  return (
+    <Link to={`/p/${project}`} className="queue__key">
+      {project}
+      {name !== null && <span className="queue__name">{name}</span>}
+    </Link>
+  )
 }
 
 function TaskLine({ state, project }: { state: EvenKeelState; project: string }) {

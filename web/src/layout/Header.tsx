@@ -50,9 +50,11 @@ export function Header() {
         ) : (
           <div className="header__aside">
             {state !== null && (
-              <div className="hblock work-block">
-                <QueueMenu state={state} />
-                <Waiting sessions={state.sessions} tasks={state.tasks} />
+              <div className="work-anchor">
+                <div className="hblock work-block">
+                  <QueueMenu state={state} />
+                  <Waiting sessions={state.sessions} tasks={state.tasks} />
+                </div>
               </div>
             )}
             {state !== null && <AccountBlock account={state.account} limits={state.limits} now={now} />}

@@ -658,6 +658,13 @@ input[type='radio']:disabled {
 .queue-toggle__label {
   font-family: var(--mono);
   font-weight: 600;
+  max-width: 240px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.queue-toggle__name {
+  font-family: var(--font);
 }
 
 .queue-toggle--idle .queue-toggle__label {
@@ -842,6 +849,16 @@ input[type='radio']:disabled {
   font-family: var(--mono);
   font-weight: 700;
   text-decoration: none;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.queue__name {
+  margin-left: 8px;
+  color: var(--fg-muted);
+  font-family: var(--font);
+  font-weight: 400;
 }
 
 .queue__key:hover {

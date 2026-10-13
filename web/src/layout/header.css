@@ -26,6 +26,18 @@
   border-left: 1px solid var(--border);
 }
 
+/* The queue popover hangs under the work block: the anchor is outside it, so the block's overflow does not clip the popover. */
+.work-anchor {
+  position: relative;
+  display: flex;
+}
+
+.work-anchor .queue {
+  left: 0;
+  right: auto;
+  width: min(380px, calc(100vw - 2 * var(--gutter)));
+}
+
 .work-block > .queue-menu {
   display: flex;
 }
