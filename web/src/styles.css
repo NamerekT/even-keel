@@ -2239,6 +2239,14 @@ a:focus-visible {
   text-decoration: none;
 }
 
+.card__name {
+  margin-left: 8px;
+  color: var(--fg-muted);
+  font-family: var(--font);
+  font-size: 14px;
+  font-weight: 400;
+}
+
 .card__key::after {
   content: '';
   position: absolute;

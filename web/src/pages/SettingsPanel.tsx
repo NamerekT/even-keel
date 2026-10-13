@@ -90,8 +90,8 @@ const valuesOf = (form: ProjectForm): Values => ({
 /** Empty — wait as long as it takes; `undefined` — not a whole number of minutes. */
 const minutesOf = (text: string): number | null | undefined => (text.trim() === '' ? null : wholeOf(text, 0))
 
-/** What the service gets; `undefined` while a number field holds something else. */
-function formOf(values: Values): ProjectForm | undefined {
+/** What the service gets; `undefined` while a number field holds something else. The name is not the panel's: it goes as it came. */
+function formOf(values: Values, name: string | null): ProjectForm | undefined {
   const text = (key: string) => values[key] as string
   const on = (key: string) => values[key] as boolean
   const waitMinutes = minutesOf(text('wait'))
@@ -100,6 +100,7 @@ function formOf(values: Values): ProjectForm | undefined {
   const trackerProject = text('trackerProject').trim()
   const kinds = values.kinds as readonly string[]
   return {
+    name,
     repo: text('repo').trim(),
     branch: text('branch').trim(),
     tracker: text('tracker'),
@@ -145,8 +146,9 @@ export function SettingsPanel({
   const [open, setOpen] = useTab<GroupId>(scopeOf(project), 'repo')
   const dirty = (id: GroupId) => changed(draft, keysOf(id), same).length > 0
   const outgoing = sent(draft, keysOf(open))
-  const next = formOf(outgoing.form)
-  const base = formOf(outgoing.base)
+  const next = formOf(outgoing.form, form.name)
+  const base = formOf(outgoing.base, form.name)
+  const locked = config.trackerLocked.includes(project)
   const errorOf = useFieldErrors(project, [failure, configError], config)
   const restart = (field: string) => config.restart.includes(`${project}.${field}`)
   const text = (key: string) => draft.edit[key] as string
@@ -233,13 +235,14 @@ export function SettingsPanel({
       <>
         <div className="settings__row">
           <div className={marks.box('tracker')}>
-            <FieldHead label={t.settings.tracker} htmlFor={fieldId('tracker')} restart={restart('tracker')} />
+            <FieldHead label={t.settings.tracker} htmlFor={fieldId('tracker')} restart={restart('tracker')} soon={locked ? t.settings.trackerSoon : undefined} />
             <Select
               id={fieldId('tracker')}
               className="settings__text settings__short"
               value={text('tracker')}
               options={config.trackers.map((each) => ({ value: each.name, label: each.name }))}
               invalid={errorOf('tracker') !== null}
+              disabled={locked}
               onChange={(value) => edit('tracker', value)}
             />
             {marks.note('tracker')}
@@ -260,6 +263,7 @@ export function SettingsPanel({
                 value={text('trackerProject')}
                 placeholder={tracker.projectKey.example}
                 aria-invalid={errorOf('trackerProject') !== null}
+                disabled={locked}
                 onChange={(event) => edit('trackerProject', event.target.value)}
               />
               {marks.note('trackerProject')}
@@ -267,6 +271,7 @@ export function SettingsPanel({
             </div>
           )}
         </div>
+        {locked && <p className="settings__hint">{t.settings.trackerLocked}</p>}
         {check('fillMilestone', t.settings.fillMilestone, t.settings.fillMilestoneHint, 'fillMilestone')}
         <RuleFields text={text} onEdit={edit} errorOf={errorOf} marks={marks} choices={ruleChoicesOf(tasks)} />
       </>

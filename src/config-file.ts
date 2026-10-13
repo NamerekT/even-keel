@@ -52,8 +52,8 @@ export class ConfigFile {
     this.options.onChange()
   }
 
-  view(): ConfigView {
-    return { ...formsOf(this.saved), restart: restartPending(this.current, this.saved), trackers: trackerChoices() }
+  view(trackerLocked: string[] = []): ConfigView {
+    return { ...formsOf(this.saved), restart: restartPending(this.current, this.saved), trackers: trackerChoices(), trackerLocked }
   }
 
   /** Writes the project's settings into the file, only if the whole config still parses, and applies what is live at once. */

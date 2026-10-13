@@ -18,7 +18,7 @@ describe('formsOf', () => {
       brief: false,
       chain: { active: null, terminal: null, requiredLabels: ['Auto'], excludedLabels: ['Manual', 'Вручную'] },
     })
-    expect(formOf({ projects: { ABC: 'C:\\abc' } }, 'ABC')).toMatchObject({ tracker: 'huly', trackerProject: null, slot: 0, brief: true })
+    expect(formOf({ projects: { ABC: 'C:\\abc' } }, 'ABC')).toMatchObject({ name: null, tracker: 'huly', trackerProject: null, slot: 0, brief: true })
   })
 
   it('names the project key of each tracker', () => {
@@ -86,6 +86,14 @@ describe('withProjectForm', () => {
     const edited = { projects: { ABC: { repo: 'C:\\abc', prompt: 'Hand.', slot: 2 } } }
     const form: ProjectForm = { ...base, prompt: 'Mine.', slot: 4 }
     expect(withProjectForm(edited, 'ABC', form, base)).toEqual({ projects: { ABC: { repo: 'C:\\abc', prompt: 'Mine.', slot: 4 } } })
+  })
+
+  it('writes the name of a project trimmed, and removes it when emptied', () => {
+    const raw = { projects: { ABC: 'C:\\abc' } }
+    const named = withProjectForm(raw, 'ABC', { ...formOf(raw, 'ABC'), name: '  Web shop ' }, formOf(raw, 'ABC'))
+    expect(named).toEqual({ projects: { ABC: { repo: 'C:\\abc', name: 'Web shop' } } })
+    expect(formOf(named, 'ABC').name).toBe('Web shop')
+    expect(withProjectForm(named, 'ABC', { ...formOf(named, 'ABC'), name: ' ' }, formOf(named, 'ABC'))).toEqual({ projects: { ABC: { repo: 'C:\\abc' } } })
   })
 
   it('refuses a project the config does not know', () => {

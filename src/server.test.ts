@@ -173,7 +173,7 @@ describe('Even Keel HTTP server', () => {
   })
 
   const chain = { active: null, terminal: ['Done'], requiredLabels: [], excludedLabels: ['Manual'] }
-  const form = { branch: 'master', repo: 'C:\\abc', tracker: 'github', trackerProject: 'octo-org/abc', slot: 2, brief: false, chain }
+  const form = { name: 'Web shop', branch: 'master', repo: 'C:\\abc', tracker: 'github', trackerProject: 'octo-org/abc', slot: 2, brief: false, chain }
 
   it('passes the settings of a project on with the values the form started from', async () => {
     const ci = { guard: false, kinds: ['github'], waitMinutes: 15, recheckMain: false, fixTask: true }
@@ -195,6 +195,7 @@ describe('Even Keel HTTP server', () => {
       ['slot', { slot: -1 }],
       ['slot', { slot: true }],
       ['trackerProject', { trackerProject: 5 }],
+      ['name', { name: 5 }],
       ['brief', { brief: 'no' }],
       ['chain', { chain: { ...chain, active: 'Todo' } }],
     ] as const

@@ -9,6 +9,7 @@ describe('parseConfig', () => {
     expect(config).toEqual({
       allowedHosts: [],
       projects: { ABC: 'C:\\repos\\abc' },
+      names: {},
       rules: { ABC: DEFAULT_RULES },
       slots: {},
       chain: DEFAULT_RULES,
@@ -139,6 +140,12 @@ describe('parseConfig', () => {
     const config = parseConfig({ projects: { ABC: { repo: 'C:\\abc', ci: { guard: false, kinds: ['github'], fixTask: true } } } })
     expect(config.settings.ABC?.ci).toEqual({ guard: false, kinds: ['github'], waitMinutes: null, recheckMain: true, fixTask: true })
     expect(() => parseConfig({ projects: { ABC: { repo: 'C:\\abc', ci: { guard: 'off' } } } })).toThrow(/ABC.ci.guard/)
+  })
+
+  it('reads the name a project is shown by, trimmed; blank is no name', () => {
+    const config = parseConfig({ projects: { ABC: { repo: 'C:\\abc', name: ' Web shop ' }, XYZ: { repo: 'C:\\xyz', name: '  ' }, OPS: 'C:\\ops' } })
+    expect(config.names).toEqual({ ABC: 'Web shop' })
+    expect(() => parseConfig({ projects: { ABC: { repo: 'C:\\abc', name: 5 } } })).toThrow(expect.objectContaining({ notice: expect.objectContaining({ code: 'config.projectName' }) }))
   })
 
   it('fills milestones only for a project that asks for it', () => {

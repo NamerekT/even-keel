@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { LaunchEntry } from './dispatcher.js'
-import { handoffsOf, launchDays, ranSince, taskSessions } from './launches.js'
+import { handoffsOf, launchDays, launchedProjects, ranSince, taskSessions } from './launches.js'
 
 function launch(at: Date, project: string): LaunchEntry {
   return { at: at.toISOString(), project, task: `${project}-1`, sessionId: 's' }
@@ -237,5 +237,23 @@ describe('ranSince', () => {
   it('leaves out the fix session of main, which is not a task', () => {
     const fix: LaunchEntry = { at: '2026-01-10T02:00:00Z', project: 'ABC', task: 'ABC-FIX', sessionId: 'fix' }
     expect(ranSince([entry('2026-01-10T01:00:00Z', 'ABC-2'), fix], 'ABC', since)).toEqual(['ABC-2'])
+  })
+})
+
+describe('launchedProjects', () => {
+  const entry = (project: string, task: string, reason?: LaunchEntry['reason']): LaunchEntry => ({
+    at: '2026-01-10T01:00:00Z',
+    project,
+    task,
+    sessionId: task,
+    ...(reason ? { reason } : {}),
+  })
+
+  it('names each project the chain started a task of, once', () => {
+    expect(launchedProjects([entry('ABC', 'ABC-1'), entry('XYZ', 'XYZ-3'), entry('ABC', 'ABC-2')])).toEqual(['ABC', 'XYZ'])
+  })
+
+  it('does not count releases or the fix session of main, which start no task of the tracker', () => {
+    expect(launchedProjects([entry('ABC', 'ABC-1', 'skip'), entry('XYZ', 'XYZ-FIX'), entry('OPS', 'OPS-1', 'postpone')])).toEqual([])
   })
 })

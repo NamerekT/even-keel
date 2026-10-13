@@ -11,6 +11,7 @@
   "projects": {
     "ABC": "C:\\repos\\example-project",
     "XYZ": {
+      "name": "Other project",
       "repo": "C:\\repos\\other-project",
       "branch": "master",
       "slot": true,

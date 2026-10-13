@@ -28,6 +28,7 @@ export function formsOf(config: EvenKeelConfig, adapters: Adapters = ADAPTERS): 
       key,
       {
         ...config.settings[key]!,
+        name: config.names[key] ?? null,
         repo,
         tracker: config.trackers[key]!,
         trackerProject: adapters[config.trackers[key]!]?.projectKey === undefined ? null : (config.trackerProjects[key] ?? null),
@@ -80,6 +81,11 @@ export function withProjectForm(raw: unknown, project: string, form: ProjectForm
   const entry = withProjectSettings(projects[project], form, changed)
 
   if (changed('repo')) entry.repo = form.repo.trim()
+  if (changed('name')) {
+    const name = form.name?.trim() ?? ''
+    if (name === '') delete entry.name
+    else entry.name = name
+  }
   if (changed('slot')) {
     if (form.slot === 0) delete entry.slot
     else entry.slot = form.slot

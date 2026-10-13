@@ -19,6 +19,7 @@ export const FAKE_SHARED: SharedForm = {
 }
 
 const project = (repo: string, change: Partial<ProjectForm>): ProjectForm => ({
+  name: null,
   repo,
   branch: 'main',
   tracker: 'huly',
@@ -38,7 +39,7 @@ export function fakeConfig(): ConfigView {
   return {
     shared: { ...FAKE_SHARED, brief: false, modelPrompts: { haiku: 'Keep answers short.' } },
     projects: {
-      ABC: project('D:/Projects/abc', { brief: false, prompt: 'Run npm test before merging.', beforeStart: ['npm ci'], fillMilestone: true }),
+      ABC: project('D:/Projects/abc', { name: 'Storefront', brief: false, prompt: 'Run npm test before merging.', beforeStart: ['npm ci'], fillMilestone: true }),
       DEMO: project('D:/Projects/demo', {
         branch: 'master',
         tracker: 'github',
@@ -54,6 +55,7 @@ export function fakeConfig(): ConfigView {
       { name: 'github', projectKey: { key: 'github', example: 'octo-org/example', optional: false } },
       { name: 'linear', projectKey: { key: 'linear', example: 'Web app', optional: true } },
     ],
+    trackerLocked: ['ABC', 'DEMO'],
   }
 }
 
@@ -78,6 +80,7 @@ export function fakeSettingsCommand(state: EvenKeelState, name: string, body: Re
   if (name !== 'project/settings') return null
   const { project: key, ...form } = sent as unknown as ProjectForm & { project: string }
   const prompt = form.prompt?.trim() ?? ''
-  const saved: ProjectForm = { ...form, prompt: prompt === '' ? null : prompt, beforeStart: lines(form.beforeStart), check: lines(form.check) }
+  const title = form.name?.trim() ?? ''
+  const saved: ProjectForm = { ...form, name: title === '' ? null : title, prompt: prompt === '' ? null : prompt, beforeStart: lines(form.beforeStart), check: lines(form.check) }
   return { ...state, config: { ...state.config, projects: { ...state.config.projects, [key]: saved } } }
 }

@@ -90,7 +90,8 @@ export function HelpTip({ text }: { text: string }) {
 }
 
 /** A setting's name, its help and whether it waits for a restart. `htmlFor` ties the name to its control. */
-export function FieldHead({ label, hint, htmlFor, restart = false }: { label: string; hint?: string; htmlFor?: string; restart?: boolean }) {
+/** `soon` — a badge for a field that is fixed for now: the version that will let it change. */
+export function FieldHead({ label, hint, htmlFor, restart = false, soon }: { label: string; hint?: string; htmlFor?: string; restart?: boolean; soon?: string }) {
   return (
     <span className="settings__head-row">
       {htmlFor === undefined ? (
@@ -102,6 +103,7 @@ export function FieldHead({ label, hint, htmlFor, restart = false }: { label: st
       )}
       {hint !== undefined && <HelpTip text={hint} />}
       <RestartMark on={restart} />
+      {soon !== undefined && <span className="settings__soon">{soon}</span>}
     </span>
   )
 }

@@ -35,6 +35,7 @@ export function fieldOf(notice: Notice, trackerKeys: string[]): FieldError | nul
   if (shared !== undefined) return { project: null, field: shared }
   if (notice.code === 'config.repoEmpty') return { project: notice.params.key, field: 'repo' }
   if (notice.code === 'config.slot') return { project: notice.params.key, field: 'slot' }
+  if (notice.code === 'config.trackerLocked') return { project: notice.params.key, field: 'tracker' }
   if (notice.code === 'config.statusBoth') return { project: notice.params.project, field: 'chain.terminal' }
   if (notice.code === 'config.labelBoth') return { project: notice.params.project, field: 'chain.excludedLabels' }
   if (typeof params.where !== 'string') return null

@@ -8,7 +8,7 @@ import { accountId, launchBlock, liveSessions, loginBlock, type LoginBlock } fro
 import { VsCodeAccount, vscodeSettingsFile } from './account/vscode.js'
 import { AccountWatcher } from './account/watcher.js'
 import { Dispatcher, type LaunchEntry } from './chain/dispatcher.js'
-import { handoffsOf, launchDays, taskSessions } from './chain/launches.js'
+import { handoffsOf, launchDays, launchedProjects, taskSessions } from './chain/launches.js'
 import { isFixName } from './chain/fix.js'
 import { fixPrompt, noteOf, resumePrompt, startPrompt, withBrief, withProjectPrompt, withReport, withUnattended } from './chain/relay.js'
 import { launchLine } from './chain/log.js'
@@ -559,7 +559,7 @@ async function stopTaskSessions(repo: string, task: string, count: number): Prom
 const getState = (): EvenKeelState => ({
   startedAt,
   projects: Object.keys(config.projects),
-  config: configFile.view(),
+  config: configFile.view(launchedProjects(launches)),
   chain: {
     active: dispatcher.state.active,
     parallel: configFile.current.parallel,
@@ -601,6 +601,8 @@ const server = createEvenKeelServer({
   settings: {
     save: (project, form, base) => {
       if (config.projects[project] === undefined) throw fail('config.unknownProject', { key: project })
+      const moved = form.tracker !== base.tracker || form.trackerProject !== base.trackerProject
+      if (moved && launchedProjects(launches).includes(project)) throw fail('config.trackerLocked', { key: project })
       configFile.saveProject(project, form, base)
       console.log(`page: the settings of ${project} are written to the config`)
     },

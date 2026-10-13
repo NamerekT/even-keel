@@ -114,6 +114,11 @@ export function ranSince(entries: LaunchEntry[], project: string, since: Date): 
   return [...ran]
 }
 
+/** The projects the chain has started a task of, each once: their tracker is fixed until a switch can keep the tasks apart (BTN-66). */
+export function launchedProjects(entries: LaunchEntry[]): string[] {
+  return [...new Set(entries.filter((entry) => !isRelease(entry) && !isFixName(entry.task)).map((entry) => entry.project))]
+}
+
 function isRelease(entry: LaunchEntry): entry is LaunchEntry & { reason: ReleaseReason } {
   return entry.reason === 'postpone' || entry.reason === 'skip'
 }

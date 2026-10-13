@@ -15,6 +15,8 @@ export interface EvenKeelConfig {
   /** Names besides loopback and `EVEN_KEEL_HOST` the page may be reached by — a proxy's name, say. */
   allowedHosts: string[]
   projects: Record<string, string>
+  /** The names projects are shown by, only those that have one. */
+  names: Record<string, string>
   /** The shared rules, defaults filled in; a project's own keys go over them into `rules`. */
   chain: ChainRules
   rules: Record<string, ChainRules>
@@ -66,6 +68,7 @@ export function parseConfig(raw: unknown, adapters: AdapterShapes = ADAPTERS): E
   const { chain: shared, tracker: sharedTracker, brief: sharedBrief } = parseShared(input, adapters)
   const language = parseLanguage(input.language, 'language')
   const projects: Record<string, string> = {}
+  const names: Record<string, string> = {}
   const rules: Record<string, ChainRules> = {}
   const slots: Record<string, number> = {}
   const trackers: Record<string, string> = {}
@@ -75,10 +78,12 @@ export function parseConfig(raw: unknown, adapters: AdapterShapes = ADAPTERS): E
   for (const [key, entry] of Object.entries(input.projects)) {
     if (!PROJECT_KEY.test(key)) throw fail('config.projectKey', { key })
     const fields: Record<string, unknown> = typeof entry === 'object' && entry !== null ? (entry as Record<string, unknown>) : { repo: entry }
-    const { repo, branch, chain, slot, tracker, brief, prompt, commands, ci, fillMilestone } = fields
+    const { repo, name, branch, chain, slot, tracker, brief, prompt, commands, ci, fillMilestone } = fields
     if (typeof repo !== 'string' || repo === '') throw fail('config.repoEmpty', { key })
     if (slot !== undefined && typeof slot !== 'boolean' && !(Number.isInteger(slot) && (slot as number) > 0)) throw fail('config.slot', { key })
+    if (name !== undefined && typeof name !== 'string') throw fail('config.projectName', { where: `${key}.name` })
     projects[key] = repo
+    if (typeof name === 'string' && name.trim() !== '') names[key] = name.trim()
     if (slot === true || typeof slot === 'number') slots[key] = slot === true ? 1 : slot
     rules[key] = checkRules({ ...shared, ...parseRules(chain, `${key}.chain`) }, key)
     trackers[key] = tracker === undefined ? sharedTracker : parseTracker(tracker, `${key}.tracker`, Object.keys(adapters))
@@ -97,6 +102,7 @@ export function parseConfig(raw: unknown, adapters: AdapterShapes = ADAPTERS): E
   return {
     allowedHosts: parseAllowedHosts(input.allowedHosts),
     projects,
+    names,
     chain: shared,
     rules,
     slots,
@@ -136,10 +142,11 @@ function parseParallel(raw: unknown): number {
 export function liveConfig(current: EvenKeelConfig, next: EvenKeelConfig): EvenKeelConfig {
   const keep = <T>(field: Record<string, T>, fallback: Record<string, T>) =>
     Object.fromEntries(Object.keys(current.projects).map((key) => [key, field[key] ?? fallback[key]!]))
-  const { allowedHosts, chain, brief, model, modelPrompts, stats, language, promptLanguage, hiddenSkills, parallel } = next
+  const { allowedHosts, names, chain, brief, model, modelPrompts, stats, language, promptLanguage, hiddenSkills, parallel } = next
   return {
     ...current,
     allowedHosts,
+    names,
     parallel,
     chain,
     brief,

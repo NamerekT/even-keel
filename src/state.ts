@@ -110,6 +110,8 @@ export interface StatsConfig {
 
 /** A project's entry of the config as the settings panel edits it: the values it ends up with, the shared ones filled in. */
 export interface ProjectForm extends ProjectSettings {
+  /** What the page shows next to the key; the key stays the project's id. `null` — no name. */
+  name: string | null
   repo: string
   tracker: string
   /** The project's key in its tracker (`github`: `owner/name`, `linear`: a project of the team); `null` — the tracker has none, or it is optional and not set. */
@@ -149,6 +151,8 @@ export interface ConfigView {
   /** What is saved but waits for a restart of the service: `tracker`, `context`, `ABC.repo`, `ABC.slot`, `ABC.tracker`, `ABC.trackerProject`, or `ABC` for a new project. */
   restart: string[]
   trackers: TrackerChoice[]
+  /** Projects the chain has started a task of: the page does not switch their tracker or tracker project until BTN-66. */
+  trackerLocked: string[]
 }
 
 export interface EvenKeelState {

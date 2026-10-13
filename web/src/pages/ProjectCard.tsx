@@ -9,6 +9,7 @@ import {
   ciWaitText,
   limitWaitText,
   openQuestions,
+  projectName,
   projectSlot,
   projectTasks,
   questionPath,
@@ -31,6 +32,7 @@ export function ProjectCard({ state, project }: { state: EvenKeelState; project:
   const slot = projectSlot(state.projects, project)
   const canStart = status.kind === 'idle' && order !== undefined && order.error === null && order.order.length > 0
   const error = order?.error ?? (status.kind === 'paused' ? status.error : null) ?? failure
+  const name = projectName(state, project)
 
   return (
     <article className={`card card--${status.kind}`} style={seriesStyle(slot)}>
@@ -38,6 +40,7 @@ export function ProjectCard({ state, project }: { state: EvenKeelState; project:
         <span className="card__swatch" aria-hidden="true" />
         <Link to={`/p/${project}`} className="card__key">
           {project}
+          {name !== null &&<span className="card__name">{name}</span>}
         </Link>
         {(status.kind === 'paused' || status.kind === 'queued') && <StatusChip status={status} />}
         <QuestionsChip count={openQuestions(projectTasks(state, project))} to={questionPath(state, [project])} />

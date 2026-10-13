@@ -9,6 +9,51 @@
   font-family: var(--mono);
 }
 
+/* The name after the key: plain text until clicked, then a field of the same size. */
+.project__name,
+.project__name-input {
+  min-width: 0;
+  max-width: 40ch;
+  margin-left: -4px;
+  padding: 2px 6px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  font-size: 18px;
+  line-height: 1.25;
+}
+
+.project__name {
+  overflow: hidden;
+  background: none;
+  color: var(--fg-muted);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: text;
+}
+
+.project__name:hover,
+.project__name:focus-visible {
+  border-color: var(--border);
+  color: var(--fg);
+}
+
+.project__name--empty {
+  font-size: 13px;
+  opacity: 0.7;
+}
+
+.project__name-input {
+  width: 28ch;
+  border-color: var(--accent);
+  background: var(--bg);
+  color: var(--fg);
+}
+
+.project__name-error {
+  color: var(--lamp-error);
+  font-size: 13px;
+}
+
 .project__controls {
   display: flex;
   flex-wrap: wrap;

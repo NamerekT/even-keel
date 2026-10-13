@@ -268,6 +268,9 @@ export const en: Messages = {
     },
   },
   project: {
+    name: 'Project name',
+    nameAdd: 'Add a name',
+    rename: (key: string) => `Rename project ${key}`,
     done: 'Tasks done',
     notLoaded: 'Tasks are not loaded yet',
     noTasks: 'No open tasks',
@@ -403,6 +406,8 @@ export const en: Messages = {
     tracker: 'Tracker',
     trackerProject: (key: string) => `Project in the tracker (${key})`,
     trackerProjectOptional: 'May be left empty.',
+    trackerSoon: 'v0.2',
+    trackerLocked: "The chain has started tasks of this project, so its tracker stays: task IDs from two trackers would collide and their branches, folders and stats would mix. Switching the tracker comes in v0.2.",
     brief: 'Task description in the prompt',
     briefHint: "Even Keel puts the task's title and description into the prompt. Turn it off when the session reads its task through the tracker's plugin, or it reads it twice.",
     slot: 'Slots',

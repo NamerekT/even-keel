@@ -177,6 +177,9 @@ export const en = {
   'config.ruleKey': (p: { where: string; key: string }) => `config: ${p.where}.${p.key} is not a chain rule`,
   'config.ruleList': (p: { where: string; key: string }) => `config: ${p.where}.${p.key} must be a list of non-empty names`,
   'config.projectPrompt': (p: { where: string }) => `config: ${p.where} must be text`,
+  'config.projectName': (p: { where: string }) => `config: ${p.where} must be text`,
+  'config.trackerLocked': (p: { key: string }) =>
+    `config: the chain has started tasks of ${p.key}, so its tracker is not switched from the page; that comes in v0.2`,
   'config.commandKey': (p: { where: string; key: string; known: string[] }) =>
     `config: ${p.where}.${p.key} is not a kind of commands, known: ${list(p.known)}`,
   'config.commandList': (p: { where: string }) => `config: ${p.where} must be a list of commands`,

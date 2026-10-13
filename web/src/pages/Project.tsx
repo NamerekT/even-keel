@@ -33,6 +33,7 @@ import { CI_HASH, CiChip, CiPanel } from './CiChip.js'
 import { Flight } from './Flight.js'
 import { IdlePanel } from './IdlePanel.js'
 import { NotFound } from './NotFound.js'
+import { ProjectName } from './ProjectName.js'
 import { SessionPanel } from './SessionPanel.js'
 import { SETTINGS_HASH, SettingsChip, SettingsPanel, useSettingsDirty } from './SettingsPanel.js'
 import { StatsStrip, useStrip } from './StatsStrip.js'
@@ -118,6 +119,7 @@ export function Project({ state }: { state: EvenKeelState }) {
       <div className="page">
         <header className="project__head">
           <h1 className="page__title project__title">{key}</h1>
+          {settings !== undefined && <ProjectName project={key} form={settings} />}
           <QuestionsChip count={openQuestions(projectTasks(state, key))} to={question?.includes('#') ? question : null} />
           {narrow && tools !== false && <div className="hblock project__tools">{tools}</div>}
           <ChainControls state={state} project={key} narrow={narrow}>

@@ -189,7 +189,7 @@ On Linux it installs a systemd user unit (`systemctl --user status even-keel`, l
 
 ## Configuration
 
-`even-keel.config.json`, starting from [even-keel.config.example.json](even-keel.config.example.json). Everything in it except adding a project can be edited on the page: a project's keys on its page (**Settings**), the shared ones on `/settings`, behind the gear in the header. The page writes only the keys you changed and keeps the rest of the file as it is; editing the file by hand works too, even with a form open: a save does not overwrite a hand edit of a field you did not touch, and a field changed in both places is marked. The service rereads it on the fly: `tracker`, `context`, `projects` and a project's `repo`, `slot`, `tracker`, `github` and `linear` apply after a restart (the page marks them), the rest at once. A broken file keeps the last good one running and shows the error on the page, next to the field when it has one.
+`even-keel.config.json`, starting from [even-keel.config.example.json](even-keel.config.example.json). Everything in it except adding a project can be edited on the page: a project's keys on its page (**Settings**), the shared ones on `/settings`, behind the gear in the header. Once the chain has started a task of a project, the page no longer switches that project's tracker or tracker project; moving a live project to another tracker is planned for v0.2. The page writes only the keys you changed and keeps the rest of the file as it is; editing the file by hand works too, even with a form open: a save does not overwrite a hand edit of a field you did not touch, and a field changed in both places is marked. The service rereads it on the fly: `tracker`, `context`, `projects` and a project's `repo`, `slot`, `tracker`, `github` and `linear` apply after a restart (the page marks them), the rest at once. A broken file keeps the last good one running and shows the error on the page, next to the field when it has one.
 
 | Key | Default | |
 | --- | --- | --- |
@@ -203,6 +203,7 @@ On Linux it installs a systemd user unit (`systemctl --user status even-keel`, l
 | `chain.excludedLabels` | `["Manual", "Вручную"]` | a task with one of them never enters the chain: you run it yourself; while open, it still holds the tasks it blocks |
 | `projects` | — | project key (a letter, then up to four letters, digits or `_`) → repository path, or an object below |
 | `projects.<KEY>.repo` | — | path to the main checkout |
+| `projects.<KEY>.name` | none | display name shown next to the key; the page edits it in the project head |
 | `projects.<KEY>.branch` | `main` | the project's main branch: tasks branch off it and merge into it, the CI and the check judge it. A branch missing from the repository pauses the chain |
 | `projects.<KEY>.tracker`, `.brief`, `.chain` | the shared ones | per project; a project's `chain` key replaces the shared key whole; `null` for `active` or `terminal` goes back to the status categories over a shared list |
 | `projects.<KEY>.github` | — | `owner/name` of the repository, for a project on GitHub |

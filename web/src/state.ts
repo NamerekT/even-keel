@@ -329,6 +329,10 @@ export function cardTask(state: EvenKeelState, project: string): CardTask | null
   }
 }
 
+export function projectName(state: EvenKeelState, project: string): string | null {
+  return state.config.projects[project]?.name ?? null
+}
+
 export function projectSlot(projects: string[], project: string): number | null {
   const index = projects.indexOf(project)
   return index < 0 || index >= PROJECT_SLOTS ? null : index + 1
