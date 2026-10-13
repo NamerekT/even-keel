@@ -5,9 +5,9 @@
   </picture>
 </h1>
 
-**Your Claude subscription keeps working while you don't.** Its usage limit comes in 5-hour windows that reset whether you used them or not, and many of them pass while you sleep, eat or sit in meetings. Even Keel spends them on your backlog.
+**Hand your backlog to [Claude Code](https://docs.claude.com/en/docs/claude-code/overview) and stop babysitting it.** Even Keel takes the open tasks of a project from your tracker, in the order of their `blocks` links, and works through them one at a time while you do something else: a session on the first task, and when its branch lands in `main`, cleanup and the next. It waits out a spent usage limit, hands a long session over to a fresh one and keeps going through the night. Only what really needs you — a question, a decision — waits for you: on its page, in the tracker or on your phone.
 
-It takes the open tasks of a project from your tracker, orders them by their `blocks` links and runs them through [Claude Code](https://docs.claude.com/en/docs/claude-code/overview) one at a time: a session on the first task, and when the task is done — its branch merged into `main` — cleanup and the next. When a window runs out, the chain waits for the reset and goes on. Overnight, sessions ask nothing and park whatever needs your decision; in the morning you read what was merged and answer what piled up. A web page shows the chain and, for every session, what it is doing right now and how full its context is.
+**And it shows what each change did.** Built-in statistics show what every task cost, where sessions got stuck and how full their context ran, and compare before and after every change to your rule files. A web page shows the chain and, for every session, what it is doing right now.
 
 It runs as a service on your own machine, next to your repositories: your own subscription, through the unmodified `claude` CLI and its own login. Trackers out of the box: [Huly](https://huly.io), GitHub Issues and [Linear](https://linear.app).
 
