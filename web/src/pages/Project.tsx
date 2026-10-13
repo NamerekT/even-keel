@@ -28,6 +28,7 @@ import { QuestionsChip } from '../ui/QuestionsChip.js'
 import { StatusChip } from '../ui/StatusChip.js'
 import { BACKLOG_HASH, BacklogChip, BacklogPanel } from './BacklogPanel.js'
 import { ChainList } from './ChainList.js'
+import { SEG_CLASS, type ChipLook } from './chipLook.js'
 import { CI_HASH, CiChip, CiPanel } from './CiChip.js'
 import { Flight } from './Flight.js'
 import { IdlePanel } from './IdlePanel.js'
@@ -85,14 +86,16 @@ export function Project({ state }: { state: EvenKeelState }) {
   const ciOpen = focus === CI_HASH && ci !== undefined
   const side = selected !== undefined || backlogOpen || settingsOpen || ciOpen
   const column = side || wide
-  // Over the side column the CI badge, Backlog and Settings are tabs on its card; with no column they end the head row.
+  // Over the side column the CI badge, Backlog and Settings are tabs on its card; with no column they end the head row,
+  // and on a narrow screen they are one block of segments at the end of the title row.
   const tabs = column && !narrow
+  const look: ChipLook = tabs ? 'tab' : narrow ? 'seg' : 'tag'
   const toggle = (hash: string, open: boolean) => () => navigate({ search: location.search, hash: open ? '' : hash })
   const tools = (ci !== undefined || backlog.length > 0 || settings !== undefined) && (
     <>
-      {ci !== undefined && <CiChip views={ci} open={ciOpen} tab={tabs} onToggle={toggle(CI_HASH, ciOpen)} />}
-      <BacklogChip count={backlog.length} open={backlogOpen} tab={tabs} onToggle={toggle(BACKLOG_HASH, backlogOpen)} />
-      {settings !== undefined && <SettingsChip open={settingsOpen} tab={tabs} dirty={settingsDirty} onToggle={toggle(SETTINGS_HASH, settingsOpen)} />}
+      {ci !== undefined && <CiChip views={ci} open={ciOpen} look={look} onToggle={toggle(CI_HASH, ciOpen)} />}
+      <BacklogChip count={backlog.length} open={backlogOpen} look={look} onToggle={toggle(BACKLOG_HASH, backlogOpen)} />
+      {settings !== undefined && <SettingsChip open={settingsOpen} look={look} dirty={settingsDirty} onToggle={toggle(SETTINGS_HASH, settingsOpen)} />}
     </>
   )
   const question = questionPath(state, [key])
@@ -116,8 +119,9 @@ export function Project({ state }: { state: EvenKeelState }) {
         <header className="project__head">
           <h1 className="page__title project__title">{key}</h1>
           <QuestionsChip count={openQuestions(projectTasks(state, key))} to={question?.includes('#') ? question : null} />
-          <ChainControls state={state} project={key}>
-            {!tabs && tools}
+          {narrow && tools !== false && <div className="hblock project__tools">{tools}</div>}
+          <ChainControls state={state} project={key} narrow={narrow}>
+            {look === 'tag' && tools}
           </ChainControls>
         </header>
         {order?.error && <p className="notice notice--error">{say(order.error)}</p>}
@@ -226,7 +230,8 @@ function Leftovers({ state, project }: { state: EvenKeelState; project: string }
   )
 }
 
-function ChainControls({ state, project, children }: { state: EvenKeelState; project: string; children?: ReactNode }) {
+/** On a narrow screen the two buttons are one block of segments, like the head's other blocks. */
+function ChainControls({ state, project, narrow, children }: { state: EvenKeelState; project: string; narrow: boolean; children?: ReactNode }) {
   const { send, sending, failure } = useCommand()
   const status = chainStatus(state.chain, project)
   const controls = chainControls(status, state.chain.projects[project])
@@ -235,10 +240,11 @@ function ChainControls({ state, project, children }: { state: EvenKeelState; pro
   const off = controls.off === null ? undefined : t.project.off[controls.off]
 
   const active = status.kind === 'running' || status.kind === 'paused'
+  const base = narrow ? SEG_CLASS : 'button'
   const button = (label: string, name: ChainControl) => (
     <button
       type="button"
-      className={controls.primary === name ? 'button button--primary' : 'button'}
+      className={controls.primary === name ? `${base} ${narrow ? 'seg-button--primary' : 'button--primary'}` : base}
       disabled={sending || !controls.enabled.includes(name)}
       title={controls.enabled.includes(name) ? undefined : off}
       onClick={() => void send(`chain/${name}`, { project })}
@@ -248,13 +254,24 @@ function ChainControls({ state, project, children }: { state: EvenKeelState; pro
   )
 
   // Both buttons stay in place whatever the status, so a repeated click never lands on the other one.
+  const first = active ? button(t.project.resume, 'resume') : button(startsNow(state.chain) ? t.project.start : t.project.enqueue, 'start')
+  const stop = button(t.project.stop, 'stop')
   return (
     <>
       <div className="project__controls">
         <StatusChip status={status} />
         {after !== null && <span className="project__queue">{t.project.after(after)}</span>}
-        {active ? button(t.project.resume, 'resume') : button(startsNow(state.chain) ? t.project.start : t.project.enqueue, 'start')}
-        {button(t.project.stop, 'stop')}
+        {narrow ? (
+          <div className="hblock project__buttons">
+            {first}
+            {stop}
+          </div>
+        ) : (
+          <>
+            {first}
+            {stop}
+          </>
+        )}
         {children}
       </div>
       {status.kind === 'running' && status.limitUntil !== null && (

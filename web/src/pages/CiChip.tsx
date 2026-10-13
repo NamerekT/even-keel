@@ -6,6 +6,7 @@ import { formatAgo, formatClock, formatSpan } from '../format.js'
 import { say, t } from '../i18n/index.js'
 import { useNow } from '../layout/useNow.js'
 import { issueLink } from '../state.js'
+import { SEG_CLASS, type ChipLook } from './chipLook.js'
 import './ci.css'
 
 const SHORT_SHA = 7
@@ -14,8 +15,10 @@ const short = (commit: string) => commit.slice(0, SHORT_SHA)
 /** The address hash that opens the CI panel; a task id never equals it. */
 export const CI_HASH = 'ci'
 
-/** The CI badge: a chip in the project head, or with `tab` a tab on the side column's card. It opens the CI panel. */
-export function CiChip({ views, open, tab = false, onToggle }: { views: CiView[]; open: boolean; tab?: boolean; onToggle: () => void }) {
+const CI_CLASS: Record<ChipLook, string> = { tag: 'chip chip--ci', tab: 'side-tab', seg: SEG_CLASS }
+
+/** The CI badge: a chip in the project head, a tab on the side column's card or a segment of the narrow head. It opens the CI panel. */
+export function CiChip({ views, open, look = 'tag', onToggle }: { views: CiView[]; open: boolean; look?: ChipLook; onToggle: () => void }) {
   const now = useNow(1_000)
   const level = worstCiLevel(views, now)
   const running = views.map((view) => view.current?.run).find((run) => run?.status === 'running')
@@ -24,7 +27,7 @@ export function CiChip({ views, open, tab = false, onToggle }: { views: CiView[]
   return (
     <button
       type="button"
-      className={`${tab ? 'side-tab' : 'chip chip--ci'} chip--ci-${level}`}
+      className={`${CI_CLASS[look]} chip--ci-${level}`}
       aria-expanded={open}
       aria-label={label}
       title={label}

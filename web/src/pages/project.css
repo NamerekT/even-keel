@@ -53,6 +53,66 @@
   .project--panel {
     display: block;
   }
+
+  .project__controls {
+    flex-basis: 100%;
+    margin-left: 0;
+  }
+}
+
+/* The narrow head: the panels' block ends the title row, the status and the buttons' block make the next one. */
+.project__tools {
+  margin-left: auto;
+}
+
+.project__buttons {
+  margin-left: auto;
+}
+
+.project__tools,
+.project__buttons {
+  height: 38px;
+}
+
+.seg-button {
+  justify-content: center;
+  border: 0;
+  background: transparent;
+  color: var(--fg);
+  font: inherit;
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+}
+
+.seg-button .icon {
+  width: 16px;
+  height: 16px;
+}
+
+.seg-button:hover:not(:disabled),
+.seg-button[aria-expanded='true'] {
+  background: var(--surface-muted);
+}
+
+.seg-button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
+.seg-button:disabled {
+  color: var(--fg-muted);
+  cursor: default;
+}
+
+.seg-button.seg-button--primary {
+  background: var(--accent);
+  color: var(--surface);
+  font-weight: 600;
+}
+
+.seg-button--primary:disabled {
+  opacity: 0.55;
 }
 
 .idle {

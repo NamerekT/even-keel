@@ -8,24 +8,29 @@ import { FlagIcon, IntoChainIcon, StackIcon } from '../ui/icons.js'
 import { Links } from '../ui/Links.js'
 import { PriorityIcon } from '../ui/Priority.js'
 import type { Box } from '../ui/reorder.js'
+import { SEG_CLASS, type ChipLook } from './chipLook.js'
 import './backlog.css'
 
 /** The address hash that opens the backlog panel; a task id never equals it. */
 export const BACKLOG_HASH = 'backlog'
 
-/** `tab` — a tab on the side column's card instead of a tag in the head row. */
-export function BacklogChip({ count, open, tab = false, onToggle }: { count: number; open: boolean; tab?: boolean; onToggle: () => void }) {
+/** A tag in the head row, a tab on the side column's card, or a segment showing only the count. */
+const BACKLOG_CLASS: Record<ChipLook, string> = { tag: 'tag tag--backlog', tab: 'side-tab side-tab--wide', seg: SEG_CLASS }
+
+export function BacklogChip({ count, open, look = 'tag', onToggle }: { count: number; open: boolean; look?: ChipLook; onToggle: () => void }) {
   if (count === 0) return null
+  const seg = look === 'seg'
   return (
     <button
       type="button"
-      className={tab ? 'side-tab side-tab--wide' : 'tag tag--backlog'}
+      className={BACKLOG_CLASS[look]}
       aria-expanded={open}
+      aria-label={seg ? t.project.backlog(count) : undefined}
       title={t.project.backlogHint}
       onClick={onToggle}
     >
       <StackIcon />
-      {t.project.backlog(count)}
+      {seg ? count : t.project.backlog(count)}
     </button>
   )
 }

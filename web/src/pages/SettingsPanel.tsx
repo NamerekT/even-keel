@@ -30,22 +30,27 @@ import {
 } from './settingsParts.js'
 import { ruleChoicesOf } from './settingsRows.js'
 import { useDraft, useTab } from './settingsStore.js'
+import { SEG_CLASS, type ChipLook } from './chipLook.js'
 import './settings.css'
 
 /** The address hash that opens the settings panel; a task id never equals it. */
 export const SETTINGS_HASH = 'settings'
 
-export function SettingsChip({ open, tab = false, dirty, onToggle }: { open: boolean; tab?: boolean; dirty: boolean; onToggle: () => void }) {
+const CHIP_CLASS: Record<ChipLook, string> = { tag: 'tag tag--settings', tab: 'side-tab side-tab--wide', seg: SEG_CLASS }
+
+export function SettingsChip({ open, look = 'tag', dirty, onToggle }: { open: boolean; look?: ChipLook; dirty: boolean; onToggle: () => void }) {
+  const seg = look === 'seg'
   return (
     <button
       type="button"
-      className={tab ? 'side-tab side-tab--wide' : 'tag tag--settings'}
+      className={CHIP_CLASS[look]}
       aria-expanded={open}
+      aria-label={seg ? t.settings.open : undefined}
       title={t.settings.title}
       onClick={onToggle}
     >
       <SlidersIcon />
-      {t.settings.open}
+      {!seg && t.settings.open}
       {dirty && <UnsavedDot />}
     </button>
   )
