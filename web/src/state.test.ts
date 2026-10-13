@@ -312,6 +312,12 @@ describe('taskLinks', () => {
     expect(links('ABC-3').blockers.map((item) => item.lamp)).toEqual(['waiting', 'ahead'])
     expect(links('ABC-3').blockers[0]!.title).toBe(task('ABC-1').title)
   })
+
+  it('lights a backlog task apart from one ahead in the chain', () => {
+    const tasks = [task('ABC-1', 'ToDo'), task('ABC-2', 'UnStarted'), task('ABC-3', 'ToDo', ['ABC-1', 'ABC-2'])]
+    const links = taskLinks(tasks, [])
+    expect(links('ABC-3').blockers.map((item) => item.lamp)).toEqual(['ahead', 'backlog'])
+  })
 })
 
 describe('canReady', () => {

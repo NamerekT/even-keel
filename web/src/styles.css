@@ -1660,6 +1660,12 @@ a:focus-visible {
   box-shadow: inset 0 0 0 2px var(--lamp-idle);
 }
 
+/* Not in the chain yet: a dashed ring, so a blocker out of sight reads as "somewhere in the backlog". */
+.lamp--backlog {
+  background: transparent;
+  border: 2px dotted var(--fg-muted);
+}
+
 .chain {
   display: flex;
   flex-direction: column;

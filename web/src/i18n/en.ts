@@ -139,6 +139,7 @@ export const en: Messages = {
     limit: 'hit the usage limit',
     finished: 'session finished',
     ahead: 'ahead',
+    backlog: 'in the backlog, outside the chain',
     canceled: 'canceled',
   },
   questions: {
@@ -696,6 +697,7 @@ export const en: Messages = {
       stopped: 'session stopped',
       error: 'error or limit',
       ahead: 'ahead',
+      backlog: 'in the backlog',
       canceled: 'canceled',
     },
     archive: 'Archive',

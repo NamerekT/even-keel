@@ -68,7 +68,7 @@ export interface CardTask {
 }
 
 /** The lamp of a task, the same wherever the task shows: `handoff` — its session ended on a checkpoint nobody took up. */
-export type BlockLamp = 'done' | 'working' | 'waiting' | 'handoff' | 'stopped' | 'error' | 'limit' | 'ahead' | 'canceled'
+export type BlockLamp = 'done' | 'working' | 'waiting' | 'handoff' | 'stopped' | 'error' | 'limit' | 'ahead' | 'backlog' | 'canceled'
 
 export interface ChainBlock {
   id: string
@@ -503,7 +503,7 @@ function closedOrder(tasks: Task[], runs: Record<string, TaskSession[]>): string
 function taskLamp(task: Task | undefined, session: SessionView | null): BlockLamp {
   if (task?.status.category === 'Won') return 'done'
   if (task?.status.category === 'Lost') return 'canceled'
-  if (session === null) return 'ahead'
+  if (session === null) return task?.status.category === 'UnStarted' ? 'backlog' : 'ahead'
   if (session.checkpoint && (session.lamp === 'waiting' || session.lamp === 'finished')) return 'handoff'
   return session.lamp === 'finished' ? 'stopped' : session.lamp
 }

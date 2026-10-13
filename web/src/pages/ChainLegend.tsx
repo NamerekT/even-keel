@@ -4,7 +4,7 @@ import type { BlockLamp, ChainBlock } from '../state.js'
 import { Lamp } from '../ui/Lamp.js'
 import { estimateShare, isRework } from '../ui/look.js'
 
-const LEGEND = ['done', 'working', 'waiting', 'handoff', 'stopped', 'error', 'ahead', 'canceled'] as const satisfies readonly BlockLamp[]
+const LEGEND = ['done', 'working', 'waiting', 'handoff', 'stopped', 'error', 'ahead', 'backlog', 'canceled'] as const satisfies readonly BlockLamp[]
 const SHAPES = ['urgent', 'high', 'low', 'rework', 'family', 'estimate'] as const
 type Shape = (typeof SHAPES)[number]
 

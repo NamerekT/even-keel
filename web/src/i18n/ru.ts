@@ -138,6 +138,7 @@ export const ru = {
     limit: 'упёрлась в лимит',
     finished: 'сессия завершена',
     ahead: 'впереди',
+    backlog: 'в бэклоге, вне цепочки',
     canceled: 'отменена',
   },
   questions: {
@@ -700,6 +701,7 @@ export const ru = {
       stopped: 'сессия остановилась',
       error: 'ошибка или лимит',
       ahead: 'впереди',
+      backlog: 'в бэклоге',
       canceled: 'отменена',
     },
     archive: 'Архив',
