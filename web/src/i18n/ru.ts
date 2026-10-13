@@ -28,6 +28,7 @@ export const ru = {
     days: 'дн',
     hour: 'ч',
     minute: 'мин',
+    minuteShort: 'м',
     second: 'с',
     percent: (value: string) => `${value} %`,
   },
@@ -46,6 +47,8 @@ export const ru = {
     tools: 'Инструменты',
     settings: 'Настройки',
     menu: 'Меню',
+    gear: (level: string) => `Настройки и состояние: ${level}`,
+    back: 'Назад',
   },
   banner: {
     config: (error: string) => `even-keel.config.json не применён, работает последний исправный: ${error}`,
@@ -70,10 +73,11 @@ export const ru = {
     noData: 'нет данных',
     empty: (title: string, source: string) => `${title}: нет данных${source}`,
     reset: (title: string, resetIn: string, source: string) => `${title}: сброс через ${resetIn}${source}`,
+    resetAt: (resetIn: string, at: string) => `сброс через ${resetIn} — ${at}`,
+    updated: (source: string, ago: string) => `${source}, ${ago}`,
   },
   status: {
     levels: { ok: 'всё работает', warn: 'есть предупреждения', error: 'есть сбои', off: 'нет данных' },
-    label: (level: string) => `Состояние: ${level}`,
     waitingTitle: (tasks: string) => `Ждут ответа: ${tasks}`,
     waiting: 'ждут',
     waitingTail: ' ответа',
@@ -193,7 +197,6 @@ export const ru = {
     label: 'Заполнение контекста',
   },
   account: {
-    button: 'Аккаунт Claude',
     title: 'Аккаунты Claude',
     folders: 'Аккаунты',
     roles: 'Роли',

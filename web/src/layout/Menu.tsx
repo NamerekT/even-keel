@@ -2,13 +2,13 @@ import { NavLink } from 'react-router'
 import { t } from '../i18n/index.js'
 import { useLive } from '../live/context.js'
 import { accountBadge } from '../state.js'
-import { AccountMenu } from './Account.js'
-import { Limits } from './Limits.js'
+import { AccountSheet } from './AccountBlock.js'
 import { QueueMenu } from './Queue.js'
-import { SystemMenu } from './Status.js'
+import { GearRows, Waiting } from './Status.js'
 import { systemChecks, worstLevel, type Level } from './system.js'
 import { usePopover } from './usePopover.js'
 
+/** The narrow screen's burger: one column of the wide header's blocks — stats, the work, the account with its limits, the gear's items. */
 export function MobileMenu({ now }: { now: Date }) {
   const { state, link } = useLive()
   const { open, setOpen, rootRef } = usePopover()
@@ -33,23 +33,19 @@ export function MobileMenu({ now }: { now: Date }) {
       </button>
       {open && (
         <div id="menu-sheet" className="menu-sheet">
-          <nav className="menu-sheet__links" aria-label={t.header.nav}>
-            <NavLink to="/stats" className="header__link">
+          <nav className="sheet__rows" aria-label={t.header.nav}>
+            <NavLink to="/stats" className="gear__item">
               {t.header.stats}
             </NavLink>
-            <NavLink to="/tools" className="header__link">
-              {t.header.tools}
-            </NavLink>
-            <NavLink to="/settings" className="header__link">
-              {t.header.settings}
-            </NavLink>
           </nav>
-          <div className="menu-sheet__chips">
-            {state !== null && <QueueMenu state={state} />}
-            {state !== null && <AccountMenu account={state.account} />}
-            <SystemMenu now={now} />
-          </div>
-          {state !== null && <Limits limits={state.limits} now={now} />}
+          {state !== null && (
+            <div className="sheet__work">
+              <QueueMenu state={state} />
+              <Waiting sessions={state.sessions} tasks={state.tasks} />
+            </div>
+          )}
+          {state !== null && <AccountSheet account={state.account} limits={state.limits} now={now} />}
+          <GearRows now={now} />
         </div>
       )}
     </div>

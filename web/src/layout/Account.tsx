@@ -6,38 +6,14 @@ import type { Notice } from '../../../src/notice/notice.js'
 import { accountSlot } from '../accounts.js'
 import { say, t } from '../i18n/index.js'
 import { useCommand } from '../live/useCommand.js'
-import { accountBadge, accountOrder, canWork, loginLeft } from '../state.js'
+import { accountOrder, canWork, loginLeft } from '../state.js'
 import { seriesStyle } from '../ui/series.js'
 import { Limits } from './Limits.js'
 import { useNow } from './useNow.js'
-import { usePopover } from './usePopover.js'
 
 type Send = (name: string, body?: Record<string, unknown>) => Promise<boolean>
 
-export function AccountMenu({ account }: { account: AccountView }) {
-  const { open, setOpen, rootRef } = usePopover()
-  const badge = accountBadge(account)
-  const active = account.accounts.find((entry) => entry.key === account.active)
-
-  return (
-    <div className="queue-menu" ref={rootRef}>
-      <button
-        type="button"
-        className={`queue-toggle account-toggle account-toggle--${badge.kind}`}
-        aria-expanded={open}
-        aria-controls="account-panel"
-        title={active?.status?.email ?? t.account.button}
-        onClick={() => setOpen(!open)}
-      >
-        <span className="queue-toggle__dot" aria-hidden="true" />
-        <span className="account-toggle__label">{badge.label}</span>
-      </button>
-      {open && <AccountPanel account={account} onClose={() => setOpen(false)} />}
-    </div>
-  )
-}
-
-function AccountPanel({ account, onClose }: { account: AccountView; onClose: () => void }) {
+export function AccountPanel({ account, onClose }: { account: AccountView; onClose: () => void }) {
   const { send, sending, failure } = useCommand()
   const now = useNow(60_000)
   const { login } = account

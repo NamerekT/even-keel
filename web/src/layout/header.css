@@ -1,0 +1,465 @@
+/* The blocks of the wide header: the work (chains and questions), the account with its limits, the gear. One height, border and divider for all;
+   the narrow project head builds its blocks from the same parts. */
+.hblock {
+  display: inline-flex;
+  align-items: stretch;
+  height: 34px;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  background: transparent;
+  color: var(--fg);
+  font: inherit;
+  font-size: 13px;
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.hblock__seg {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 0 11px;
+}
+
+.hblock__seg + .hblock__seg {
+  border-left: 1px solid var(--border);
+}
+
+.work-block > .queue-menu {
+  display: flex;
+}
+
+.work-block .queue-toggle {
+  gap: 7px;
+  padding: 0 11px;
+  border: 0;
+  border-radius: 0;
+}
+
+.work-block .queue-toggle:focus-visible,
+.work-block .waiting:focus-visible,
+.account-block__toggle:focus-visible {
+  outline-offset: -2px;
+}
+
+.work-block .queue-toggle--idle .queue-toggle__dot,
+.work-block .queue-toggle:not(.queue-toggle--idle) .icon {
+  display: none;
+}
+
+.work-block .waiting {
+  gap: 7px;
+  padding: 0 11px;
+  border-left: 1px solid var(--border);
+  border-radius: 0;
+}
+
+.work-block .waiting:hover {
+  background: color-mix(in srgb, var(--lamp-waiting) 18%, var(--warn-bg));
+  text-decoration: none;
+}
+
+.account-block {
+  position: relative;
+}
+
+.account-block__toggle {
+  cursor: pointer;
+}
+
+.account-block__toggle:hover,
+.account-block__toggle[aria-expanded='true'] {
+  background: var(--surface-muted);
+}
+
+.limit__ring {
+  flex: none;
+  transform: rotate(-90deg);
+}
+
+.limit__ring circle {
+  fill: none;
+  stroke-width: 3;
+}
+
+.limit__track {
+  stroke: var(--border);
+}
+
+.limit__fill {
+  stroke: var(--lamp-working);
+  stroke-linecap: round;
+}
+
+.limit__value {
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+}
+
+.limit__reset {
+  color: var(--fg-muted);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.limit--warm .limit__fill {
+  stroke: var(--lamp-waiting);
+}
+
+.limit--full .limit__fill {
+  stroke: var(--lamp-error);
+}
+
+.limit--warm .meter__fill {
+  background: var(--lamp-waiting);
+}
+
+.limit--full .meter__fill {
+  background: var(--lamp-error);
+}
+
+.limit--full .limit__value {
+  color: var(--lamp-error);
+}
+
+.limit--empty .limit__value {
+  color: var(--fg-muted);
+  font-weight: 400;
+}
+
+/* The full numbers of the account block, on hover or keyboard focus; the click opens the drawer instead. */
+.account-card {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 20;
+  display: none;
+  width: 320px;
+  padding: 12px 14px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: 0 10px 30px rgb(0 0 0 / 0.14);
+  font-size: 13px;
+  pointer-events: none;
+}
+
+.account-block:hover .account-card,
+.account-block__toggle:focus-visible + .account-card {
+  display: block;
+}
+
+.account-card__head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px;
+  font-weight: 600;
+}
+
+.account-card__name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.account-card__plan {
+  margin-left: auto;
+}
+
+.account-card__window {
+  display: grid;
+  grid-template-columns: 64px 1fr 40px;
+  align-items: center;
+  gap: 4px 10px;
+  margin: 10px 0;
+}
+
+.account-card__label,
+.account-card__when {
+  color: var(--fg-muted);
+}
+
+.account-card__window .meter__bar {
+  height: 5px;
+}
+
+.account-card__window .limit__value {
+  text-align: right;
+}
+
+.account-card__when {
+  grid-column: 2 / -1;
+  font-size: 12px;
+}
+
+.account-card__foot {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
+  color: var(--fg-muted);
+  font-size: 12px;
+}
+
+.system-toggle.gear-toggle {
+  width: 34px;
+  height: 34px;
+  border-radius: 9px;
+}
+
+.gear-toggle .system-toggle__dot {
+  display: none;
+  top: 5px;
+  right: 5px;
+}
+
+.gear-toggle--warn .system-toggle__dot {
+  display: block;
+  background: var(--lamp-waiting);
+}
+
+.gear-toggle--error .system-toggle__dot {
+  display: block;
+  background: var(--lamp-error);
+}
+
+.queue.gear {
+  gap: 2px;
+  width: 240px;
+  padding: 6px;
+}
+
+.gear__item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  width: 100%;
+  padding: 8px 10px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--fg);
+  font: inherit;
+  font-size: 14px;
+  text-align: left;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.gear__item:hover {
+  background: var(--surface-muted);
+}
+
+.gear__item.active {
+  font-weight: 600;
+}
+
+.gear__level {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--fg-muted);
+  font-size: 13px;
+  font-weight: 400;
+}
+
+.gear__item--ok .system__dot {
+  background: var(--lamp-done);
+}
+
+.gear__item--warn .system__dot {
+  background: var(--lamp-waiting);
+}
+
+.gear__item--error .system__dot {
+  background: var(--lamp-error);
+}
+
+.gear__head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.gear__back {
+  display: inline-grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--fg-muted);
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.gear__back:hover {
+  background: var(--surface-muted);
+  color: var(--fg);
+}
+
+/* The narrow screen's sheet: the same blocks in one column, a line between them. */
+.menu-sheet > * + * {
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+}
+
+.sheet__rows {
+  display: flex;
+  flex-direction: column;
+  margin: 0 -10px;
+}
+
+.sheet__rows .gear__item,
+.account-card__open {
+  min-height: 44px;
+}
+
+.sheet__rows .gear__item {
+  font-size: 15px;
+}
+
+.sheet__rows a.gear__item::after,
+.sheet__chevron {
+  content: '›';
+  color: var(--fg-muted);
+  font-size: 18px;
+  line-height: 1;
+  transition: transform var(--motion-fast) ease;
+}
+
+.sheet__chevron--open {
+  transform: rotate(90deg);
+}
+
+.sheet__checks.system {
+  width: auto;
+  padding: 2px 10px 8px;
+}
+
+.sheet__work {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.sheet__work:has(.waiting) {
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
+.sheet__work .queue-menu {
+  display: contents;
+}
+
+.sheet__work .queue-toggle,
+.sheet__work .waiting {
+  grid-row: 1;
+  min-height: 44px;
+  padding: 0 14px;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  font-size: 15px;
+}
+
+.sheet__work .queue-toggle {
+  gap: 8px;
+}
+
+.sheet__work:has(.waiting) .queue-toggle {
+  border-radius: 9px 0 0 9px;
+}
+
+.sheet__work .waiting {
+  gap: 8px;
+  border-left: 0;
+  border-radius: 0 9px 9px 0;
+}
+
+.sheet__work .waiting::after {
+  content: none;
+}
+
+.sheet__work .waiting__label {
+  display: inline;
+}
+
+.sheet__work .queue-toggle--idle .queue-toggle__dot,
+.sheet__work .queue-toggle:not(.queue-toggle--idle) .icon {
+  display: none;
+}
+
+.sheet__work .queue {
+  position: static;
+  grid-column: 1 / -1;
+  grid-row: 2;
+  width: auto;
+  max-height: none;
+  margin-top: 8px;
+  box-shadow: none;
+}
+
+.account-card.account-card--sheet {
+  position: static;
+  display: block;
+  width: auto;
+  padding: 12px 0 0;
+  border: 0;
+  border-top: 1px solid var(--border);
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  font-size: 14px;
+  pointer-events: auto;
+}
+
+.account-card__open {
+  width: calc(100% + 20px);
+  margin: 0 -10px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--fg);
+  font: inherit;
+  font-size: 15px;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+}
+
+.account-card__open .account-card__name {
+  flex: 1;
+}
+
+.account-card__open:hover,
+.account-card__open[aria-expanded='true'] {
+  background: var(--surface-muted);
+}
+
+.account-card__open .account-card__plan {
+  font-weight: 400;
+}
+
+/* Between the narrow layout and a roomy window the blocks shed words first, the card keeps them. */
+@media (min-width: 761px) and (max-width: 1000px) {
+  .header__inner .header__aside {
+    gap: 10px;
+  }
+
+  .work-block .waiting__tail {
+    display: none;
+  }
+}
+
+@media (max-width: 880px) {
+  .hblock .limit__reset {
+    display: none;
+  }
+}

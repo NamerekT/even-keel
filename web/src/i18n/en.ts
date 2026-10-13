@@ -29,6 +29,7 @@ export const en: Messages = {
     days: 'd',
     hour: 'h',
     minute: 'min',
+    minuteShort: 'm',
     second: 's',
     percent: (value: string) => `${value}%`,
   },
@@ -47,6 +48,8 @@ export const en: Messages = {
     tools: 'Tools',
     settings: 'Settings',
     menu: 'Menu',
+    gear: (level: string) => `Settings and status: ${level}`,
+    back: 'Back',
   },
   banner: {
     config: (error: string) => `even-keel.config.json is not applied, the last valid one is in use: ${error}`,
@@ -71,10 +74,11 @@ export const en: Messages = {
     noData: 'no data',
     empty: (title: string, source: string) => `${title}: no data${source}`,
     reset: (title: string, resetIn: string, source: string) => `${title}: resets in ${resetIn}${source}`,
+    resetAt: (resetIn: string, at: string) => `resets in ${resetIn} — ${at}`,
+    updated: (source: string, ago: string) => `${source}, ${ago}`,
   },
   status: {
     levels: { ok: 'all good', warn: 'warnings', error: 'failures', off: 'no data' },
-    label: (level: string) => `Status: ${level}`,
     waitingTitle: (tasks: string) => `Waiting for a reply: ${tasks}`,
     waiting: 'waiting',
     waitingTail: ' for a reply',
@@ -194,7 +198,6 @@ export const en: Messages = {
     label: 'Context usage',
   },
   account: {
-    button: 'Claude account',
     title: 'Claude accounts',
     folders: 'Accounts',
     roles: 'Roles',

@@ -542,6 +542,11 @@ export function createFakeSource(search: string): LiveSource {
   const language = params.get('lang')
   if (isLanguage(language) && current.state !== null) current.state.language = language
   if (params.has('ci') && current.state !== null) current.state.ci = fakeCi(params.get('ci'))
+  if (params.get('limits') === 'hot' && current.state !== null) {
+    const { fiveHour, sevenDay } = FAKE_LIMITS
+    current.state.limits = { ...FAKE_LIMITS, fiveHour: { ...fiveHour!, usedPercentage: 86 }, sevenDay: { ...sevenDay!, usedPercentage: 100 } }
+  }
+  if (params.get('limits') === 'none' && current.state !== null) current.state.limits = null
   if (params.get('config') === 'broken' && current.state !== null) {
     current.state.configError = notice('config.statusBoth', { project: 'ABC', status: 'In Review' })
   }

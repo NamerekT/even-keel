@@ -2,8 +2,8 @@ import type { LimitWindow, RateLimits } from '../../../src/limits/model.js'
 import { formatSpan } from '../format.js'
 import { t } from '../i18n/index.js'
 
-const WARM_PERCENT = 80
-const FULL_PERCENT = 100
+export const WARM_PERCENT = 80
+export const FULL_PERCENT = 100
 
 interface LimitsProps {
   limits: RateLimits | null

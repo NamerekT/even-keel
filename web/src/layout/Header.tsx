@@ -1,14 +1,15 @@
 import { Link, NavLink, useMatch } from 'react-router'
 import { t } from '../i18n/index.js'
 import { useLive } from '../live/context.js'
-import { AccountMenu } from './Account.js'
+import { AccountBlock } from './AccountBlock.js'
 import { Limits } from './Limits.js'
 import { MobileMenu } from './Menu.js'
 import { QueueMenu } from './Queue.js'
-import { SystemMenu, Waiting } from './Status.js'
+import { GearMenu, Waiting } from './Status.js'
 import { useNarrow } from './useNarrow.js'
 import { useTabBadge } from './tabBadge.js'
 import { useNow } from './useNow.js'
+import './header.css'
 
 const CLOCK_MS = 5_000
 
@@ -36,26 +37,29 @@ export function Header() {
             </>
           )}
           {!narrow && (
-            <>
-              <NavLink to="/stats" className="header__link">
-                {t.header.stats}
-              </NavLink>
-              <NavLink to="/tools" className="header__link">
-                {t.header.tools}
-              </NavLink>
-              <NavLink to="/settings" className="header__link">
-                {t.header.settings}
-              </NavLink>
-            </>
+            <NavLink to="/stats" className="header__link">
+              {t.header.stats}
+            </NavLink>
           )}
         </nav>
-        <div className="header__aside">
-          {state !== null && !narrow && <QueueMenu state={state} />}
-          {state !== null && !narrow && <AccountMenu account={state.account} />}
-          {state !== null && <Waiting sessions={state.sessions} tasks={state.tasks} />}
-          {narrow ? <MobileMenu now={now} /> : <SystemMenu now={now} />}
-        </div>
-        {state !== null && (
+        {narrow ? (
+          <div className="header__aside">
+            {state !== null && <Waiting sessions={state.sessions} tasks={state.tasks} />}
+            <MobileMenu now={now} />
+          </div>
+        ) : (
+          <div className="header__aside">
+            {state !== null && (
+              <div className="hblock work-block">
+                <QueueMenu state={state} />
+                <Waiting sessions={state.sessions} tasks={state.tasks} />
+              </div>
+            )}
+            {state !== null && <AccountBlock account={state.account} limits={state.limits} now={now} />}
+            <GearMenu now={now} />
+          </div>
+        )}
+        {state !== null && narrow && (
           <div className="header__limits">
             <Limits limits={state.limits} now={now} />
           </div>

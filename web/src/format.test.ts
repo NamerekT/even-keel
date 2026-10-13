@@ -37,6 +37,13 @@ describe('formatSpan', () => {
     expect(formatSpan(later(30_000), now)).toBe('< 1 мин')
     expect(formatSpan(earlier(5_000), now)).toBe('< 1 мин')
   })
+
+  it('packs units against the numbers when short', () => {
+    expect(formatSpan(later(4 * DAY + 2 * HOUR + 5 * MIN), now, true)).toBe('4д 2ч')
+    expect(formatSpan(later(HOUR + 33 * MIN), now, true)).toBe('1ч 33м')
+    expect(formatSpan(later(12 * MIN), now, true)).toBe('12м')
+    expect(formatSpan(later(30_000), now, true)).toBe('<1м')
+  })
 })
 
 describe('formatAgo', () => {
