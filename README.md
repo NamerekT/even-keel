@@ -5,9 +5,11 @@
   </picture>
 </h1>
 
-Even Keel runs your backlog through [Claude Code](https://docs.claude.com/en/docs/claude-code/overview), one task at a time. It reads the open tasks of a project from your tracker, orders them by their `blocks` links, starts a Claude Code session on the first one, and when the task is done — its branch merged into `main` — cleans up and starts the next. A web page shows the chain and, for every session, what it is doing right now and how full its context is.
+**Your Claude subscription keeps working while you don't.** Its usage limit comes in 5-hour windows that reset whether you used them or not, and many of them pass while you sleep, eat or sit in meetings. Even Keel spends them on your backlog.
 
-It runs as a service on your own machine, next to your repositories and your Claude Code login. Trackers out of the box: [Huly](https://huly.io), GitHub Issues and [Linear](https://linear.app).
+It takes the open tasks of a project from your tracker, orders them by their `blocks` links and runs them through [Claude Code](https://docs.claude.com/en/docs/claude-code/overview) one at a time: a session on the first task, and when the task is done — its branch merged into `main` — cleanup and the next. When a window runs out, the chain waits for the reset and goes on. Overnight, sessions ask nothing and park whatever needs your decision; in the morning you read what was merged and answer what piled up. A web page shows the chain and, for every session, what it is doing right now and how full its context is.
+
+It runs as a service on your own machine, next to your repositories: your own subscription, through the unmodified `claude` CLI and its own login. Trackers out of the box: [Huly](https://huly.io), GitHub Issues and [Linear](https://linear.app).
 
 ## Sequential by design
 
