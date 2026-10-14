@@ -1,5 +1,6 @@
-import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
-import { dirname } from 'node:path'
+import { readFileSync } from 'node:fs'
+import { writeAtomic } from '../storage/atomic.js'
+import { refuseNewer, SCHEMA_VERSION, versionOf } from '../storage/schema.js'
 import { GLOBAL_ACCOUNT } from './model.js'
 
 export interface AccountRecord {
@@ -58,16 +59,18 @@ export function parseLedger(raw: unknown): AccountLedger {
 }
 
 export function loadLedger(file: string): AccountLedger {
+  let raw: unknown
   try {
-    return parseLedger(JSON.parse(readFileSync(file, 'utf8')))
+    raw = JSON.parse(readFileSync(file, 'utf8'))
   } catch {
     return emptyLedger()
   }
+  refuseNewer(file, versionOf(raw))
+  return parseLedger(raw)
 }
 
 export function saveLedger(file: string, ledger: AccountLedger): void {
-  mkdirSync(dirname(file), { recursive: true })
-  writeFileSync(file, JSON.stringify(ledger, null, 2))
+  writeAtomic(file, JSON.stringify({ version: SCHEMA_VERSION, ...ledger }, null, 2))
 }
 
 function recordOf(raw: Record<string, unknown>): AccountRecord {

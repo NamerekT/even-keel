@@ -13,6 +13,11 @@ export function versionOf(raw: unknown): number {
   return typeof version === 'number' && Number.isInteger(version) && version > 0 ? version : 1
 }
 
+/** The first line of a v2+ `.jsonl` log: `{"version":2}` and nothing else. */
+export function isVersionLine(line: unknown): boolean {
+  return typeof line === 'object' && line !== null && !Array.isArray(line) && Object.keys(line).length === 1 && 'version' in line
+}
+
 /** Throws for a file a newer Even Keel wrote: this code must not write over it. */
 export function refuseNewer(file: string, version: number): void {
   if (version > SCHEMA_VERSION) throw fail('storage.newer', { file, version, known: SCHEMA_VERSION })
