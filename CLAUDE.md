@@ -12,7 +12,7 @@ This file holds the rules and traps needed in every session. Reference on how th
 
 | Document | What is in it |
 | --- | --- |
-| `docs/chain.md` | entry into the chain, order, task worktrees, cleanup after Done, "slot" mode, the exceptions to invariant 1 in detail |
+| `docs/chain.md` | entry into the chain, order, task worktrees, cleanup after Done, "slot" mode, the exceptions to invariant 1 in detail, state files and their schema version |
 | `docs/trackers.md` | the `src/tracker/` layer, the Huly, GitHub and Linear adapters, `brief`/`complete`, Claude Code plugins |
 | `docs/ci.md` | the `src/ci/` layer, the Forgejo and GitHub Actions adapters, which remote gets a CI, polling, Forgejo API traps |
 | `docs/sessions.md` | the `claude` CLI, transcripts, the model by label, prompt assembly, limit polling |
@@ -49,6 +49,8 @@ This file holds the rules and traps needed in every session. Reference on how th
 - A session in a worktree does not read the main checkout's `.claude/settings.local.json`: whatever chain sessions need from it goes only through `--settings` (`src/tools/panel.ts`).
 - A session prompt is assembled through `fill`: an empty value is an error and a chain pause, not a blank space.
 - A server message for the page is a code, not text: a new code goes into `src/notice/en.ts` and `web/src/i18n/notices-ru.ts` (the type checks that they are equal). The service log is in English.
+- A project key is not its id: the files of `state/` and the page's URLs name a project by its GUID (`projects[].id`, `config.ids`), the running service, the tracker and branches by its key; `src/chain/store.ts` translates.
+- A change of a file format in the config or `state/` is a new `SCHEMA_VERSION`, a migration step in `src/storage/migrations.ts` and a new frozen sample in `test/fixtures/` — never an edit of an old step or sample.
 - The service serves the built `dist/web`: after a code change — `npm run build` and a service restart, otherwise the page is stale or 503.
 
 ## Hosting

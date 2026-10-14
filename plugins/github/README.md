@@ -16,9 +16,9 @@ A project on GitHub names its repository with the `github` key:
 
 ```json
 {
-  "projects": {
-    "ABC": { "repo": "D:/work/abc", "tracker": "github", "github": "octo-org/abc", "chain": { "requiredLabels": ["ready"] } }
-  }
+  "projects": [
+    { "key": "ABC", "repo": "D:/work/abc", "tracker": "github", "github": "octo-org/abc", "chain": { "requiredLabels": ["ready"] } }
+  ]
 }
 ```
 
@@ -71,7 +71,7 @@ Install with your default Claude Code config (no `CLAUDE_CONFIG_DIR` set). Even 
 The session reads the issue itself, so turn Even Keel's brief off for the project — otherwise the issue is read twice:
 
 ```json
-{ "projects": { "ABC": { "repo": "D:/work/abc", "tracker": "github", "github": "octo-org/abc", "brief": false } } }
+{ "projects": [{ "key": "ABC", "repo": "D:/work/abc", "tracker": "github", "github": "octo-org/abc", "brief": false }] }
 ```
 
 With `brief` off, Even Keel checks that the project's sessions see the `github` server and warns on the page if they do not.

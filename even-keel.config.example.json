@@ -1,4 +1,5 @@
 {
+  "version": 2,
   "allowedHosts": [],
   "tracker": "huly",
   "parallel": 1,
@@ -8,9 +9,15 @@
     "requiredLabels": [],
     "excludedLabels": ["Manual"]
   },
-  "projects": {
-    "ABC": "C:\\repos\\example-project",
-    "XYZ": {
+  "projects": [
+    {
+      "id": "00000000-0000-4000-8000-000000000001",
+      "key": "ABC",
+      "repo": "C:\\repos\\example-project"
+    },
+    {
+      "id": "00000000-0000-4000-8000-000000000002",
+      "key": "XYZ",
       "name": "Other project",
       "repo": "C:\\repos\\other-project",
       "branch": "master",
@@ -20,7 +27,9 @@
       "prompt": "Run npm test before merging.",
       "commands": { "beforeStart": ["npm ci"] }
     },
-    "GHB": {
+    {
+      "id": "00000000-0000-4000-8000-000000000003",
+      "key": "GHB",
       "repo": "C:\\repos\\github-project",
       "tracker": "github",
       "github": "octo-org/github-project",
@@ -30,7 +39,7 @@
         "requiredLabels": ["ready"]
       }
     }
-  },
+  ],
   "context": {
     "window": 400000,
     "warn": 50,

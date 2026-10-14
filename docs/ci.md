@@ -21,7 +21,7 @@ The contract is two calls: `runs(limit)` — the latest runs, newest first; `job
 
 ## Which CIs the chain counts
 
-`projects.<KEY>.ci` in `even-keel.config.json`, read live, also set from the project's settings panel:
+`projects[].ci` in `even-keel.config.json`, read live, also set from the project's settings panel:
 
 ```json
 "ci": { "guard": true, "kinds": ["forgejo", "github"], "waitMinutes": 30, "recheckMain": true, "fixTask": false }
@@ -36,7 +36,7 @@ The contract is two calls: `runs(limit)` — the latest runs, newest first; `job
 
 ## The check without a CI (BTN-104)
 
-`projects.<KEY>.commands.check` — lines run in order, like `commands.beforeStart`; empty — no check. It is in effect when no counted CI will judge `main`: `kinds` is empty, the repository has none of them, or one is not `ok` (`mergeCheck` in `src/chain/mainci.ts`). With `ci.guard: false` it never runs.
+`projects[].commands.check` — lines run in order, like `commands.beforeStart`; empty — no check. It is in effect when no counted CI will judge `main`: `kinds` is empty, the repository has none of them, or one is not `ok` (`mergeCheck` in `src/chain/mainci.ts`). With `ci.guard: false` it never runs.
 
 - **On the branch, before the merge.** The `PreToolUse` hook of the `checkpoint` plugin (`plugins/checkpoint/hooks/merge-check.mjs`) sees a Bash command that merges the branch of the session's worktree, asks `GET /api/sessions/<id>/check` (404 — not a chain session; `{ commands: [] }` — no check) and runs the commands in the worktree. The first failure blocks the merge (exit 2) with the command, its code and the tail of its output; the session fixes it and merges again. The plugin is installed in user scope, so it reaches the sessions of every tracker.
 - **On main, if it moved.** Before the cleanup deletes the branch, the dispatcher reads its tree (`MainCheckDeps.taskTree`); after the push, `MainCheck.pushed` compares it with the tree of `main` (`checked` on the push). When the CI cannot judge the push (`none` at once, `unavailable` after the wait), `withoutCi` decides: the same tree — green, the check before the merge covered it; another tree and `recheckMain` — the push goes to `ci[<project>].local`, and before the next launch the dispatcher runs the check in that task's place (`checkMain`, a yellow line `ciWait.local` on the page): `TaskPlaces.readyAhead` brings the place to `main` and runs the commands before start, and the check runs only if the place is then on `main` (a task with its own commits is skipped with a log line). The user's main checkout is never touched.

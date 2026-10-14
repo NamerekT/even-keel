@@ -16,9 +16,9 @@ Even Keel strips `LINEAR_TOKEN` from the environment of the sessions it starts, 
 
 ```json
 {
-  "projects": {
-    "ENG": { "repo": "D:/work/web", "tracker": "linear", "linear": "Web app" }
-  }
+  "projects": [
+    { "key": "ENG", "repo": "D:/work/web", "tracker": "linear", "linear": "Web app" }
+  ]
 }
 ```
 
@@ -71,7 +71,7 @@ Install with your default Claude Code config (no `CLAUDE_CONFIG_DIR` set). Even 
 The session reads the issue itself, so turn Even Keel's brief off for the project — otherwise the issue is read twice:
 
 ```json
-{ "projects": { "ENG": { "repo": "D:/work/web", "tracker": "linear", "linear": "Web app", "brief": false } } }
+{ "projects": [{ "key": "ENG", "repo": "D:/work/web", "tracker": "linear", "linear": "Web app", "brief": false }] }
 ```
 
 With `brief` off, Even Keel checks that the project's sessions see the `linear` server and warns on the page if they do not.

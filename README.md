@@ -170,6 +170,16 @@ service/install.sh
 
 On Linux it installs a systemd user unit (`systemctl --user status even-keel`, log: `journalctl --user -u even-keel`). A user unit stops when you log out; to keep it running, `loginctl enable-linger $USER`. On macOS it installs a launchd agent `local.even-keel` (log: `logs/even-keel.log`), which runs while you are logged in. The script takes `PATH` and `node` from your shell; if `node` changes (nvm and the like), run it again. Run it again after updating the code too. `service/uninstall.sh` removes it.
 
+### Updating
+
+```sh
+git pull
+npm ci
+npm run build
+```
+
+Then restart Even Keel (as a service: run its install script again). A new version may store the config and `state/` in a newer format: at startup, before anything else, Even Keel rewrites them to it and keeps each old file next to it as `<file>.v<N>.bak` (the log names them). It rewrites all of them or none; a file it cannot read, or one written by a newer version, leaves the service with only the page, which shows the reason. To go back to the previous version, check out its code and put the `.bak` copies back in place of the rewritten files.
+
 ## Environment
 
 `.env` in the repository root. A tracker whose variables are all empty is off; set in part, it is a startup error.
@@ -203,23 +213,26 @@ On Linux it installs a systemd user unit (`systemctl --user status even-keel`, l
 | `chain.terminal` | done and canceled categories | status names that close a task |
 | `chain.requiredLabels` | `[]` | a task needs at least one of them; empty — no label needed |
 | `chain.excludedLabels` | `["Manual", "Вручную"]` | a task with one of them never enters the chain: you run it yourself; while open, it still holds the tasks it blocks |
-| `projects` | — | project key (a letter, then up to four letters, digits or `_`) → repository path, or an object below |
-| `projects.<KEY>.repo` | — | path to the main checkout |
-| `projects.<KEY>.name` | none | display name shown next to the key; the page edits it in the project head |
-| `projects.<KEY>.branch` | `main` | the project's main branch: tasks branch off it and merge into it, the CI and the check judge it. A branch missing from the repository pauses the chain |
-| `projects.<KEY>.tracker`, `.brief`, `.chain` | the shared ones | per project; a project's `chain` key replaces the shared key whole; `null` for `active` or `terminal` goes back to the status categories over a shared list |
-| `projects.<KEY>.github` | — | `owner/name` of the repository, for a project on GitHub |
-| `projects.<KEY>.linear` | the whole team | name of the Linear project the team is narrowed down to, for a project on Linear (the key is the team key) |
-| `projects.<KEY>.slot` | off | `true` or a number: a pool of permanent worktrees instead of one per task |
-| `projects.<KEY>.prompt` | none | text added to the prompt of every new session of the project (first start and handoff; a resumed session already has it); empty — none |
-| `projects.<KEY>.commands.beforeStart` | `[]` | shell commands (`cmd.exe` on Windows) run in order in the task's worktree or slot before a new session starts, such as `npm ci`; output goes to the service log. A failed one pauses the chain with its output on the page; a resumed session does not run them again |
-| `projects.<KEY>.ci.guard` | `true` | `false` — do not guard `main` at all: no wait for a CI, no `commands.check`, no fix of a red `main`; the other `ci` keys are kept for when it is back on |
-| `projects.<KEY>.ci.kinds` | `["forgejo", "github"]` | the CIs whose verdict on a pushed `main` the next task waits for; empty — none |
-| `projects.<KEY>.commands.check` | `[]` | the project's check, run in order when no CI of `ci.kinds` will judge `main` (none counted, or one not answering): before a session's merge, in its worktree, by the [checkpoint](plugins/checkpoint) plugin's hook — a failure blocks the merge; and on `main` in the next task's worktree when `main` moved during the task — a failure is fixed as a red CI is |
-| `projects.<KEY>.ci.waitMinutes` | none | how long the next task waits for that verdict, in minutes; none — as long as it takes, `0` — not at all (faster, but a task may start on a broken `main`) |
-| `projects.<KEY>.ci.recheckMain` | `true` | `false` — do not run `commands.check` again on a `main` that moved during the task |
-| `projects.<KEY>.ci.fixTask` | `false` | who fixes a red `main`. `false` — a session without a tracker task; the session working on the current task is stopped until the fix is merged and then continued. `true` — a high-priority task created in the tracker, taken after the current one |
-| `projects.<KEY>.fillMilestone` | `false` | `true` — a task that enters the chain without a milestone gets, in the tracker, the milestone of the current task, or the earliest one in the chain; once, so a milestone you change or clear afterwards stays |
+| `version` | — | version of the file's format; Even Keel writes it and [migrates](#updating) an older file itself. A file newer than the code is not read |
+| `projects` | — | an array of projects, each an object with the keys below |
+| `projects[].key` | — | the tracker's project key (a letter, then up to four letters, digits or `_`) |
+| `projects[].id` | given at startup | the project's own id, a GUID that never changes; the files of `state/` and the page's links name the project by it. Add a project without one: Even Keel writes it into the file at the next start |
+| `projects[].repo` | — | path to the main checkout |
+| `projects[].name` | none | display name shown next to the key; the page edits it in the project head |
+| `projects[].branch` | `main` | the project's main branch: tasks branch off it and merge into it, the CI and the check judge it. A branch missing from the repository pauses the chain |
+| `projects[].tracker`, `.brief`, `.chain` | the shared ones | per project; a project's `chain` key replaces the shared key whole; `null` for `active` or `terminal` goes back to the status categories over a shared list |
+| `projects[].github` | — | `owner/name` of the repository, for a project on GitHub |
+| `projects[].linear` | the whole team | name of the Linear project the team is narrowed down to, for a project on Linear (the key is the team key) |
+| `projects[].slot` | off | `true` or a number: a pool of permanent worktrees instead of one per task |
+| `projects[].prompt` | none | text added to the prompt of every new session of the project (first start and handoff; a resumed session already has it); empty — none |
+| `projects[].commands.beforeStart` | `[]` | shell commands (`cmd.exe` on Windows) run in order in the task's worktree or slot before a new session starts, such as `npm ci`; output goes to the service log. A failed one pauses the chain with its output on the page; a resumed session does not run them again |
+| `projects[].ci.guard` | `true` | `false` — do not guard `main` at all: no wait for a CI, no `commands.check`, no fix of a red `main`; the other `ci` keys are kept for when it is back on |
+| `projects[].ci.kinds` | `["forgejo", "github"]` | the CIs whose verdict on a pushed `main` the next task waits for; empty — none |
+| `projects[].commands.check` | `[]` | the project's check, run in order when no CI of `ci.kinds` will judge `main` (none counted, or one not answering): before a session's merge, in its worktree, by the [checkpoint](plugins/checkpoint) plugin's hook — a failure blocks the merge; and on `main` in the next task's worktree when `main` moved during the task — a failure is fixed as a red CI is |
+| `projects[].ci.waitMinutes` | none | how long the next task waits for that verdict, in minutes; none — as long as it takes, `0` — not at all (faster, but a task may start on a broken `main`) |
+| `projects[].ci.recheckMain` | `true` | `false` — do not run `commands.check` again on a `main` that moved during the task |
+| `projects[].ci.fixTask` | `false` | who fixes a red `main`. `false` — a session without a tracker task; the session working on the current task is stopped until the fix is merged and then continued. `true` — a high-priority task created in the tracker, taken after the current one |
+| `projects[].fillMilestone` | `false` | `true` — a task that enters the chain without a milestone gets, in the tracker, the milestone of the current task, or the earliest one in the chain; once, so a milestone you change or clear afterwards stays |
 | `context` | `{ "window": 600000, "warn": 50, "danger": 80 }` | context bar on the page: window size in tokens, warning and danger thresholds in percent |
 | `model` | `opus` | model of sessions whose task has no model label: `sonnet`, `opus` or `haiku` |
 | `modelPrompts` | `{}` | text added to the prompt of sessions on `sonnet`, `opus` or `haiku` |

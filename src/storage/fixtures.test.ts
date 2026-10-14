@@ -1,0 +1,80 @@
+import { cpSync, mkdtempSync, readdirSync, readFileSync, rmSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join, relative } from 'node:path'
+import { afterEach, describe, expect, it } from 'vitest'
+import { loadLedger } from '../account/ledger.js'
+import { loadChainState, loadQuestions, readLaunches } from '../chain/store.js'
+import { parseConfig } from '../config.js'
+import { root } from '../locations.js'
+import { upgradeStorage } from './migrations.js'
+import { SCHEMA_VERSION } from './schema.js'
+
+// Frozen samples of the files as the current schema version writes them: a change of the format that breaks reading
+// them needs a new version, a migration step and a new sample next to this one, not an edit of this one.
+const samples = join(root, 'test', 'fixtures', `schema-v${SCHEMA_VERSION}`)
+const sample = (name: string) => join(samples, name)
+const json = (name: string) => JSON.parse(readFileSync(sample(name), 'utf8'))
+
+const ABC = '11111111-1111-4111-8111-111111111111'
+const XYZ = '22222222-2222-4222-8222-222222222222'
+
+describe(`frozen samples of schema v${SCHEMA_VERSION}`, () => {
+  let dir: string | undefined
+  afterEach(() => {
+    if (dir !== undefined) rmSync(dir, { recursive: true, force: true })
+    dir = undefined
+  })
+
+  it('reads the config', () => {
+    const config = parseConfig(json('even-keel.config.json'))
+    expect(config.ids).toEqual({ ABC, XYZ })
+    expect(config.projects).toEqual({ ABC: 'C:\\repos\\example-project', XYZ: 'C:\\repos\\other-project' })
+    expect(config.slots).toEqual({ XYZ: 2 })
+  })
+
+  it('reads the chain naming projects by their keys', () => {
+    const state = loadChainState(sample('state/chain.json'), { ABC, XYZ })
+    expect(state.active.map((chain) => [chain.project, chain.current?.task])).toEqual([['ABC', 'ABC-2']])
+    expect(state.queue).toEqual(['XYZ'])
+    expect(state.orders).toEqual({ ABC: ['ABC-1', 'ABC-2', 'ABC-3'], XYZ: ['XYZ-7'] })
+    expect(Object.keys(state.skipped)).toEqual(['ABC'])
+    expect(state.leftovers.XYZ?.[0]?.task).toBe('XYZ-1')
+    expect(state.released).toEqual({ ABC: ['ABC-1'] })
+    expect(Object.keys(state.ci)).toEqual(['ABC'])
+  })
+
+  it('reads the questions, the launches and the accounts', () => {
+    expect(loadQuestions(sample('state/questions.json')).map((question) => question.task)).toEqual(['ABC-2'])
+    expect(readLaunches(sample('state/launches.jsonl'), { ABC, XYZ }).map((entry) => [entry.project, entry.task])).toEqual([
+      ['ABC', 'ABC-1'],
+      ['ABC', 'ABC-2'],
+    ])
+    expect(readLaunches(sample('state/launches.jsonl')).map((entry) => entry.project)).toEqual([ABC, ABC])
+    expect(loadLedger(sample('state/account.json')).accounts.global?.email).toBe('john.doe@example.com')
+  })
+
+  it('is current: the migration writes nothing', () => {
+    dir = mkdtempSync(join(tmpdir(), 'even-keel-samples-'))
+    cpSync(samples, dir, { recursive: true })
+    const before = filesOf(dir)
+    const logs: string[] = []
+    upgradeStorage({ configFile: join(dir, 'even-keel.config.json'), stateDir: join(dir, 'state'), log: (line) => logs.push(line) })
+    expect(logs).toEqual([])
+    expect(filesOf(dir)).toEqual(before)
+  })
+
+  it('matches the example config of the repository', () => {
+    const config = parseConfig(JSON.parse(readFileSync(join(root, 'even-keel.config.example.json'), 'utf8')))
+    expect(Object.keys(config.ids)).toEqual(['ABC', 'XYZ', 'GHB'])
+  })
+})
+
+function filesOf(dir: string): Record<string, string> {
+  const files: Record<string, string> = {}
+  for (const entry of readdirSync(dir, { recursive: true, withFileTypes: true })) {
+    if (!entry.isFile()) continue
+    const path = join(entry.parentPath, entry.name)
+    files[relative(dir, path)] = readFileSync(path, 'utf8')
+  }
+  return files
+}

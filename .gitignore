@@ -3,8 +3,9 @@ dist/
 .temp/
 .env
 *.log
-state/
-even-keel.config.json
+/state/
+/even-keel.config.json
+/even-keel.config.json.v*.bak
 .claude/launch.json
 logs/
 service/bin/
