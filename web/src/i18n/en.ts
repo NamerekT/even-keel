@@ -41,6 +41,7 @@ export const en: Messages = {
   app: {
     connecting: 'Connecting…',
     noServer: 'No connection to the Even Keel server.',
+    blocked: (reason: string) => `Even Keel started nothing and wrote nothing. ${reason}`,
   },
   header: {
     nav: 'Navigation',

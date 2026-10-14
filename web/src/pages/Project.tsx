@@ -1,5 +1,5 @@
 import { lazy, Suspense, useCallback, useEffect, useRef, type ReactNode } from 'react'
-import { useLocation, useNavigate, useParams } from 'react-router'
+import { useLocation, useNavigate } from 'react-router'
 import type { EvenKeelState } from '../../../src/state.js'
 import { say, t } from '../i18n/index.js'
 import { isNarrow, useNarrow } from '../layout/useNarrow.js'
@@ -44,8 +44,7 @@ import './project.css'
 const TaskCard = lazy(async () => ({ default: (await import('./TaskCard.js')).TaskCard }))
 const CARD_PARAM = 'task'
 
-export function Project({ state }: { state: EvenKeelState }) {
-  const key = useParams().key ?? ''
+export function Project({ state, project: key }: { state: EvenKeelState; project: string }) {
   const location = useLocation()
   const navigate = useNavigate()
   const hash = decodeURIComponent(location.hash.slice(1))

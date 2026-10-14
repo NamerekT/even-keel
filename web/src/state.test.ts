@@ -25,6 +25,8 @@ import {
   contextFill,
   issueLink,
   projectSlot,
+  projectOfPath,
+  projectPath,
   questionPath,
   queuedAfter,
   sessionElapsed,
@@ -75,6 +77,7 @@ function stateOf(patch: Partial<EvenKeelState>): EvenKeelState {
   return {
     startedAt: '2026-01-01T08:00:00.000Z',
     projects: ['ABC', 'XYZ'],
+    projectIds: { ABC: 'id-abc', XYZ: 'id-xyz' },
     config: { shared: FAKE_SHARED, projects: {}, restart: [], trackers: [], trackerLocked: [] },
     chain: { active: [], parallel: 1, queue: [], projects: {}, skipped: {}, leftovers: {} },
     tasks: [],
@@ -175,6 +178,21 @@ describe('openQuestions', () => {
   })
 })
 
+describe('project paths', () => {
+  it('name a project by its id, a project without one by its key', () => {
+    const state = stateOf({ projectIds: { ABC: 'id-abc' } })
+    expect(projectPath(state, 'ABC')).toBe('/p/id-abc')
+    expect(projectPath(state, 'XYZ')).toBe('/p/XYZ')
+  })
+
+  it('read the project from its id and from the key of an older link', () => {
+    const state = stateOf({})
+    expect(projectOfPath(state, 'id-xyz')).toEqual({ project: 'XYZ', byKey: false })
+    expect(projectOfPath(state, 'ABC')).toEqual({ project: 'ABC', byKey: true })
+    expect(projectOfPath(state, 'nothing')).toEqual({ project: 'nothing', byKey: false })
+  })
+})
+
 describe('questionPath', () => {
   const question = (id: string, category: StatusCategory = 'ToDo'): Task => ({ ...task(id, category), question: true })
   const order = (ids: string[], waiting: string[] = []) => ({ order: ids, waiting, backlog: [], error: null })
@@ -185,7 +203,7 @@ describe('questionPath', () => {
       sessions: [view('ABC-2', 'waiting', null)],
       chain: chain({ projects: { ABC: order(['ABC-1', 'ABC-2']) } }),
     })
-    expect(questionPath(state, ['ABC', 'XYZ'])).toBe('/p/ABC#ABC-2')
+    expect(questionPath(state, ['ABC', 'XYZ'])).toBe('/p/id-abc#ABC-2')
   })
 
   it('takes the first question in chain order, across projects in page order', () => {
@@ -194,9 +212,9 @@ describe('questionPath', () => {
       sessions: [view('ABC-2', 'waiting', null), view('ABC-3', 'working', null), view('XYZ-1', 'waiting', null)],
       chain: chain({ projects: { ABC: order(['ABC-3', 'ABC-2']), XYZ: order(['XYZ-1']) } }),
     })
-    expect(questionPath(state, ['ABC', 'XYZ'])).toBe('/p/ABC#ABC-3')
-    expect(questionPath(state, ['XYZ', 'ABC'])).toBe('/p/XYZ#XYZ-1')
-    expect(questionPath(state, ['XYZ'])).toBe('/p/XYZ#XYZ-1')
+    expect(questionPath(state, ['ABC', 'XYZ'])).toBe('/p/id-abc#ABC-3')
+    expect(questionPath(state, ['XYZ', 'ABC'])).toBe('/p/id-xyz#XYZ-1')
+    expect(questionPath(state, ['XYZ'])).toBe('/p/id-xyz#XYZ-1')
   })
 
   it('leads to the project page while no question has a session: ahead in the chain, held back or in the backlog', () => {
@@ -205,7 +223,7 @@ describe('questionPath', () => {
       sessions: [view('ABC-2', 'finished', null)],
       chain: chain({ projects: { ABC: { ...order(['ABC-1'], ['ABC-2']), backlog: ['ABC-3'] } } }),
     })
-    expect(questionPath(state, ['ABC'])).toBe('/p/ABC')
+    expect(questionPath(state, ['ABC'])).toBe('/p/id-abc')
   })
 
   it('passes a question without a session for a later one that has it', () => {
@@ -214,7 +232,7 @@ describe('questionPath', () => {
       sessions: [view('XYZ-2', 'waiting', null)],
       chain: chain({ projects: { ABC: order(['ABC-1']), XYZ: order(['XYZ-1', 'XYZ-2']) } }),
     })
-    expect(questionPath(state, ['ABC', 'XYZ'])).toBe('/p/XYZ#XYZ-2')
+    expect(questionPath(state, ['ABC', 'XYZ'])).toBe('/p/id-xyz#XYZ-2')
   })
 
   it('counts a question whose session is only starting', () => {
@@ -225,7 +243,7 @@ describe('questionPath', () => {
         projects: { ABC: order(['ABC-1']) },
       }),
     })
-    expect(questionPath(state, ['ABC'])).toBe('/p/ABC#ABC-1')
+    expect(questionPath(state, ['ABC'])).toBe('/p/id-abc#ABC-1')
   })
 
   it('is null without open questions, whatever sessions the closed ones left', () => {

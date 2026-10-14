@@ -1,3 +1,4 @@
+import type { Notice } from '../../../src/notice/notice.js'
 import type { FeedLine } from '../../../src/sessions/transcript.js'
 import type { EvenKeelState, SessionRecord } from '../../../src/state.js'
 import type { PeriodQuery, StatsAnswer, StatsFilter, StatsHistory, StatsPeriod, StatsTaskDetail } from '../../../src/stats/model.js'
@@ -12,6 +13,8 @@ export type Link = 'connecting' | 'live' | 'stale'
 export interface LiveSnapshot {
   state: EvenKeelState | null
   link: Link
+  /** Why the service started nothing: its storage is from a newer Even Keel or could not be migrated. */
+  blocked?: Notice
 }
 
 export interface EventStream {
@@ -179,6 +182,13 @@ export class LiveConnection implements LiveSource {
       this.watchSilence()
       this.update({ state: JSON.parse(event.data as string) as EvenKeelState, link: 'live' })
     })
+    // The service started nothing and only says why; it sends no pings, so its silence is no sign of a lost link.
+    stream.addEventListener('blocked', (event) => {
+      if (stream !== this.stream) return
+      this.streamed = true
+      clearTimeout(this.silenceTimer)
+      this.update({ state: null, link: 'live', blocked: JSON.parse(event.data as string) as Notice })
+    })
     stream.addEventListener('ping', () => {
       if (stream !== this.stream) return
       this.watchSilence()
@@ -210,7 +220,7 @@ export class LiveConnection implements LiveSource {
   }
 
   private update(next: LiveSnapshot): void {
-    if (next.state === this.current.state && next.link === this.current.link) return
+    if (next.state === this.current.state && next.link === this.current.link && next.blocked === this.current.blocked) return
     this.current = next
     for (const listener of this.listeners) listener()
   }

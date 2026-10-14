@@ -40,6 +40,7 @@ export const ru = {
   app: {
     connecting: 'Подключение…',
     noServer: 'Нет связи с сервером Even Keel.',
+    blocked: (reason: string) => `Even Keel ничего не запустил и ничего не записал. ${reason}`,
   },
   header: {
     nav: 'Навигация',

@@ -4,18 +4,19 @@ import type { Task } from '../../../src/tracker/model.js'
 import type { SessionView } from '../../../src/state.js'
 import { t } from '../i18n/index.js'
 import { useLive } from '../live/context.js'
-import { taskProject, waitingSessions } from '../state.js'
+import { projectPath, taskProject, waitingSessions } from '../state.js'
 import { systemChecks, worstLevel, type Check } from './system.js'
 import { usePopover } from './usePopover.js'
 
 export function Waiting({ sessions, tasks }: { sessions: SessionView[]; tasks: Task[] }) {
+  const { state } = useLive()
   const waiting = waitingSessions(sessions, tasks)
   const first = waiting[0]
   if (first === undefined) return null
 
   return (
     <Link
-      to={`/p/${taskProject(first.task)}#${first.task}`}
+      to={`${projectPath(state, taskProject(first.task))}#${first.task}`}
       className="waiting"
       title={t.status.waitingTitle(waiting.map((view) => view.task).join(', '))}
     >

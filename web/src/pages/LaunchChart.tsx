@@ -2,6 +2,7 @@ import { useState } from 'react'
 import type { LaunchDay } from '../../../src/chain/launches.js'
 import { localized, t } from '../i18n/index.js'
 import { projectSlot } from '../state.js'
+import { ProjectLabel } from '../ui/ProjectLabel.js'
 import { seriesStyle } from '../ui/series.js'
 
 const DAY = localized((language) => new Intl.DateTimeFormat(language, { day: 'numeric', month: 'short', weekday: 'short' }))
@@ -38,7 +39,7 @@ export function LaunchChart({ days, projects }: { days: LaunchDay[]; projects: s
           {shown.map((project) => (
             <li key={project} className="chart__key" style={style(project)}>
               <span className="chart__swatch" aria-hidden="true" />
-              {project}
+              <ProjectLabel project={project} />
               <span className="chart__key-count">{totals.get(project)}</span>
             </li>
           ))}

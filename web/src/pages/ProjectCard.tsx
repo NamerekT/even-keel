@@ -9,7 +9,7 @@ import {
   ciWaitText,
   limitWaitText,
   openQuestions,
-  projectName,
+  projectPath,
   projectSlot,
   projectTasks,
   questionPath,
@@ -18,6 +18,7 @@ import {
 import { StackIcon } from '../ui/icons.js'
 import { Lamp } from '../ui/Lamp.js'
 import { emptyCard } from '../ui/memes.js'
+import { ProjectLabel } from '../ui/ProjectLabel.js'
 import { QuestionsChip } from '../ui/QuestionsChip.js'
 import { seriesStyle } from '../ui/series.js'
 import { StatusChip } from '../ui/StatusChip.js'
@@ -32,15 +33,13 @@ export function ProjectCard({ state, project }: { state: EvenKeelState; project:
   const slot = projectSlot(state.projects, project)
   const canStart = status.kind === 'idle' && order !== undefined && order.error === null && order.order.length > 0
   const error = order?.error ?? (status.kind === 'paused' ? status.error : null) ?? failure
-  const name = projectName(state, project)
 
   return (
     <article className={`card card--${status.kind}`} style={seriesStyle(slot)}>
       <header className="card__head">
         <span className="card__swatch" aria-hidden="true" />
-        <Link to={`/p/${project}`} className="card__key">
-          {project}
-          {name !== null &&<span className="card__name">{name}</span>}
+        <Link to={projectPath(state, project)} className="card__key">
+          <ProjectLabel project={project} nameClass="card__name" />
         </Link>
         {(status.kind === 'paused' || status.kind === 'queued') && <StatusChip status={status} />}
         <QuestionsChip count={openQuestions(projectTasks(state, project))} to={questionPath(state, [project])} />

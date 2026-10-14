@@ -13,7 +13,7 @@ import type { EvenKeelState, SessionRecord, SessionView } from '../../../src/sta
 import type { Link, LiveSnapshot, LiveSource } from './connection.js'
 import { accountCommand, fakeAccount, fakeUsage, FAKE_LIMITS } from './fakeAccounts.js'
 import { fakeCi } from './fakeCi.js'
-import { fakeConfig, fakeHandEdit, fakeRestart, fakeSettingsCommand } from './fakeConfig.js'
+import { FAKE_PROJECT_IDS, fakeConfig, fakeHandEdit, fakeRestart, fakeSettingsCommand } from './fakeConfig.js'
 import { withFix } from './fakeFix.js'
 import { fakeCompare, fakeRuleDiff, fakeRules } from './fakeRules.js'
 import { fakeSteps } from './fakeSteps.js'
@@ -198,6 +198,7 @@ function fakeState(
   return {
     startedAt: ago(180),
     projects: ['ABC', 'DEMO', 'XYZ', 'OPS'],
+    projectIds: FAKE_PROJECT_IDS,
     config: fakeConfig(),
     chain: {
       active: idle

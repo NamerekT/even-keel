@@ -3,10 +3,11 @@ import { Link } from 'react-router'
 import type { EvenKeelState } from '../../../src/state.js'
 import { say, t } from '../i18n/index.js'
 import { useCommand } from '../live/useCommand.js'
-import { cardTask, chainStatus, projectName, projectSlot } from '../state.js'
+import { cardTask, chainStatus, projectName, projectPath, projectSlot } from '../state.js'
 import { dragShift, dropIndex, moveItem } from '../ui/drag.js'
 import { QueueIcon } from '../ui/icons.js'
 import { Lamp } from '../ui/Lamp.js'
+import { ProjectLabel } from '../ui/ProjectLabel.js'
 import { seriesStyle } from '../ui/series.js'
 import { StatusChip } from '../ui/StatusChip.js'
 import { usePopover } from './usePopover.js'
@@ -228,11 +229,9 @@ function listClass(dragging: boolean, landing: boolean): string {
 }
 
 function ProjectLink({ state, project }: { state: EvenKeelState; project: string }) {
-  const name = projectName(state, project)
   return (
-    <Link to={`/p/${project}`} className="queue__key">
-      {project}
-      {name !== null && <span className="queue__name">{name}</span>}
+    <Link to={projectPath(state, project)} className="queue__key">
+      <ProjectLabel project={project} nameClass="queue__name" />
     </Link>
   )
 }

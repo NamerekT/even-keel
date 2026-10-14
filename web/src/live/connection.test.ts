@@ -40,6 +40,7 @@ function state(startedAt: string): EvenKeelState {
   return {
     startedAt,
     projects: [],
+    projectIds: {},
     config: { shared: FAKE_SHARED, projects: {}, restart: [], trackers: [], trackerLocked: [] },
     chain: { active: [], parallel: 1, queue: [], projects: {}, skipped: {}, leftovers: {} },
     tasks: [],
@@ -123,6 +124,15 @@ describe('LiveConnection', () => {
     fetched.resolve(state('fetched'))
     await vi.advanceTimersByTimeAsync(0)
     expect(live.snapshot().state).toEqual(state('streamed'))
+  })
+
+  it('holds the reason a service that started nothing sends, without going stale on its silence', async () => {
+    const reason = { code: 'storage.newer', params: { file: 'chain.json', version: 3, known: 2 } }
+    last().open()
+    last().emit('blocked', reason)
+    expect(live.snapshot()).toEqual({ state: null, link: 'live', blocked: reason })
+    await vi.advanceTimersByTimeAsync(60_000)
+    expect(live.snapshot().link).toBe('live')
   })
 
   it('stays connecting when the first fetch fails', async () => {

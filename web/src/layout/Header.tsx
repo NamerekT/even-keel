@@ -1,6 +1,8 @@
 import { Link, NavLink, useMatch } from 'react-router'
 import { t } from '../i18n/index.js'
 import { useLive } from '../live/context.js'
+import { projectOfPath } from '../state.js'
+import { ProjectLabel } from '../ui/ProjectLabel.js'
 import { AccountBlock } from './AccountBlock.js'
 import { Limits } from './Limits.js'
 import { MobileMenu } from './Menu.js'
@@ -15,7 +17,8 @@ const CLOCK_MS = 5_000
 
 export function Header() {
   const { state } = useLive()
-  const project = useMatch('/p/:key')?.params.key
+  const param = useMatch('/p/:id')?.params.id
+  const project = param === undefined || state === null ? param : projectOfPath(state, param).project
   const now = useNow(CLOCK_MS)
   const narrow = useNarrow()
   useTabBadge(now)
@@ -33,7 +36,9 @@ export function Header() {
               <span className="header__sep" aria-hidden="true">
                 /
               </span>
-              <span className="header__crumb">{project}</span>
+              <span className="header__crumb">
+                <ProjectLabel project={project} />
+              </span>
             </>
           )}
           {!narrow && (

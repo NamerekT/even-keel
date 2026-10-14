@@ -6,7 +6,9 @@ import type { Notice } from '../../../src/notice/notice.js'
 import { accountSlot } from '../accounts.js'
 import { say, t } from '../i18n/index.js'
 import { useCommand } from '../live/useCommand.js'
-import { accountOrder, canWork, loginLeft } from '../state.js'
+import { useLive } from '../live/context.js'
+import { accountOrder, canWork, loginLeft, projectPath } from '../state.js'
+import { ProjectLabel } from '../ui/ProjectLabel.js'
 import { seriesStyle } from '../ui/series.js'
 import { Limits } from './Limits.js'
 import { useNow } from './useNow.js'
@@ -15,6 +17,7 @@ type Send = (name: string, body?: Record<string, unknown>) => Promise<boolean>
 
 export function AccountPanel({ account, onClose }: { account: AccountView; onClose: () => void }) {
   const { send, sending, failure } = useCommand()
+  const { state } = useLive()
   const now = useNow(60_000)
   const { login } = account
   const ordered = accountOrder(account.accounts, now)
@@ -73,7 +76,9 @@ export function AccountPanel({ account, onClose }: { account: AccountView; onClo
                 <ul className="account__blocker-list">
                   {running.map((project) => (
                     <li key={project}>
-                      <Link to={`/p/${project}`}>{project}</Link>
+                      <Link to={projectPath(state, project)}>
+                        <ProjectLabel project={project} />
+                      </Link>
                     </li>
                   ))}
                 </ul>

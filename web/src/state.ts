@@ -234,8 +234,8 @@ export function questionPath(state: EvenKeelState, projects: string[]): string |
     const questions = new Set(projectTasks(state, project).filter((task) => task.question && isOpen(task.status)).map((task) => task.id))
     if (questions.size === 0) continue
     const block = chainBlocks(state, project).find((each) => questions.has(each.id) && hasSession(each))
-    if (block !== undefined) return `/p/${project}#${block.id}`
-    page ??= `/p/${project}`
+    if (block !== undefined) return `${projectPath(state, project)}#${block.id}`
+    page ??= projectPath(state, project)
   }
   return page
 }
@@ -327,6 +327,18 @@ export function cardTask(state: EvenKeelState, project: string): CardTask | null
     lamp: taskLamp(task, taskSession(state.sessions, id) ?? null),
     next: current === undefined,
   }
+}
+
+/** The project's page: by its id, which outlives a change of the key. */
+export function projectPath(state: Pick<EvenKeelState, 'projectIds'> | null, project: string): string {
+  return `/p/${encodeURIComponent(state?.projectIds[project] ?? project)}`
+}
+
+/** The project a page address names: by its id, or by its key in a link from before ids (`byKey`, to be redirected). */
+export function projectOfPath(state: EvenKeelState, param: string): { project: string; byKey: boolean } {
+  const byId = Object.entries(state.projectIds).find(([, id]) => id === param)?.[0]
+  if (byId !== undefined) return { project: byId, byKey: false }
+  return { project: param, byKey: state.projects.includes(param) && state.projectIds[param] !== undefined }
 }
 
 export function projectName(state: EvenKeelState, project: string): string | null {
