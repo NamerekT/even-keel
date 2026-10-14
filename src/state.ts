@@ -158,6 +158,8 @@ export interface ConfigView {
 export interface EvenKeelState {
   startedAt: string
   projects: string[]
+  /** The id of each project by its key: the page's URL names a project by it, since the key may change. */
+  projectIds: Record<string, string>
   config: ConfigView
   chain: {
     active: ActiveChain[]

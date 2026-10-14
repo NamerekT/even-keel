@@ -5,7 +5,7 @@ import { Readable } from 'node:stream'
 import { pipeline } from 'node:stream/promises'
 import { formatEvent, type EventHub } from './events.js'
 import { guard, type GuardSettings } from './guard.js'
-import { englishOf, fail, noticeOf, type NoticeCode } from './notice/notice.js'
+import { englishOf, fail, noticeOf, type Notice, type NoticeCode } from './notice/notice.js'
 import {
   isTaskId,
   parsePeriodQuery,
@@ -183,9 +183,31 @@ const CONTENT_TYPES: Record<string, string> = {
 }
 
 export function createEvenKeelServer(deps: ServerDeps): Server {
+  return guardedServer(deps.guard, (request, response) => route(deps, request, response))
+}
+
+/**
+ * The page alone, for a service that started nothing — its storage is from a newer Even Keel or cannot be migrated:
+ * `/api/events` sends the reason as the event `blocked`, the other API calls get 503.
+ */
+export function createBlockedServer(deps: { guard: () => GuardSettings; publicDir: string; reason: Notice }): Server {
+  return guardedServer(deps.guard, async (request, response) => {
+    const path = new URL(request.url ?? '/', 'http://localhost').pathname
+    if (request.method === 'GET' && path === '/api/events') {
+      response.writeHead(200, { 'content-type': 'text/event-stream; charset=utf-8', 'cache-control': 'no-store', connection: 'keep-alive' })
+      response.write(formatEvent('blocked', deps.reason))
+      return
+    }
+    if (path.startsWith('/api/')) sendJson(response, 503, { error: englishOf(deps.reason), notice: deps.reason })
+    else if (request.method === 'GET') await serveStatic(deps.publicDir, path, response)
+    else response.writeHead(405).end()
+  })
+}
+
+function guardedServer(settings: () => GuardSettings, handle: (request: IncomingMessage, response: ServerResponse) => Promise<void>): Server {
   const reported = new Set<string>()
   return createServer((request, response) => {
-    const verdict = guard(deps.guard(), {
+    const verdict = guard(settings(), {
       method: request.method ?? 'GET',
       url: request.url ?? '/',
       host: request.headers.host,
@@ -208,7 +230,7 @@ export function createEvenKeelServer(deps: ServerDeps): Server {
       response.writeHead(verdict.status, { 'content-type': 'text/plain; charset=utf-8', 'cache-control': 'no-store' }).end(verdict.reason)
       return
     }
-    route(deps, request, response).catch((error: unknown) => {
+    handle(request, response).catch((error: unknown) => {
       if (!response.headersSent) response.writeHead(500, { 'content-type': 'text/plain; charset=utf-8' })
       response.end(String(error))
     })

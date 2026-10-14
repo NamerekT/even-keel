@@ -1,6 +1,5 @@
-import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
-import { dirname, join, resolve } from 'node:path'
-import { fileURLToPath } from 'node:url'
+import { mkdirSync } from 'node:fs'
+import { join } from 'node:path'
 import { DaemonRefresh } from './account/daemon.js'
 import { AccountHomes, accountsRoot, type AccountHome } from './account/homes.js'
 import { accountAt, activate, forgetAccount, loadLedger, markRemoving, noteAccount, saveLedger, type AccountLedger } from './account/ledger.js'
@@ -15,7 +14,7 @@ import { launchLine } from './chain/log.js'
 import { mainCheckDeps, mergeCheck } from './chain/mainci.js'
 import { TaskPlaces } from './chain/places.js'
 import { readNote, saveSnapshot, snapshotReason } from './chain/snapshots.js'
-import { appendLaunch, loadChainState, readLaunches, saveChainState } from './chain/store.js'
+import { appendLaunch, loadChainState, loadQuestions, readLaunches, saveChainState, saveQuestions } from './chain/store.js'
 import { CI_TOKENS, ciSource, projectTargets } from './ci/adapters.js'
 import { CiWatch } from './ci/watcher.js'
 import { ConfigFile } from './config-file.js'
@@ -38,6 +37,7 @@ import { readSessionRecord, readTranscript } from './sessions/history.js'
 import { runBeforeStart, runCheck, systemShell, type SetupRun } from './sessions/setup.js'
 import { SessionMonitor } from './sessions/monitor.js'
 import { TranscriptOwners } from './sessions/owners.js'
+import { configPath, root, stateDirOf } from './locations.js'
 import { isInside } from './paths.js'
 import { slotOccupants } from './sessions/occupants.js'
 import { locateWorktree } from './sessions/place.js'
@@ -51,7 +51,7 @@ import { McpCheck, readMcpSources } from './tracker/mcp.js'
 import type { TrackerView } from './tracker/health.js'
 import type { TrackerLink } from './tracker/link.js'
 import { parseTaskId, type Task } from './tracker/model.js'
-import { TrackerQuestions, type AskingSession, type PostedQuestion } from './tracker/questions.js'
+import { TrackerQuestions, type AskingSession } from './tracker/questions.js'
 import type { TrackerSetup } from './tracker/source.js'
 import { startTracker } from './tracker/start.js'
 
@@ -72,15 +72,8 @@ const SHUTDOWN_MS = 15_000
 const CI_TICK_MS = 5_000
 const CI_TIMEOUT_MS = 15_000
 
-const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
-try {
-  process.loadEnvFile(join(root, '.env'))
-} catch (error) {
-  if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error
-}
-
 const configFile = new ConfigFile({
-  file: process.env.EVEN_KEEL_CONFIG ?? join(root, 'even-keel.config.json'),
+  file: configPath(),
   intervalMs: CONFIG_POLL_MS,
   warn: (message) => console.warn(message),
   onChange: () => {
@@ -102,7 +95,7 @@ const { listen, token } = (() => {
 })()
 const branchOf = (project: string) => configFile.current.settings[project]?.branch ?? DEFAULT_BRANCH
 const rulesOf = (project: string) => configFile.current.rules[project]!
-const stateDir = process.env.EVEN_KEEL_STATE_DIR ?? join(root, 'state')
+const stateDir = stateDirOf()
 mkdirSync(stateDir, { recursive: true })
 const chainFile = join(stateDir, 'chain.json')
 const launchesFile = join(stateDir, 'launches.jsonl')
@@ -132,7 +125,7 @@ const ciWatches = new Map<string, CiWatch[]>()
 let sessions: SessionView[] = []
 let agents: AgentEntry[] = []
 let agentsRead = false
-const launches: LaunchEntry[] = readLaunches(launchesFile)
+const launches: LaunchEntry[] = readLaunches(launchesFile, config.ids)
 const tally = new TallyService({
   root,
   stateDir,
@@ -367,7 +360,7 @@ function taskRun(task: string, cwd: string): SetupRun {
   return { task, cwd, shell: systemShell(() => homes.envOf(homeOf(ledger.active))), log: (line) => console.log(line) }
 }
 
-const dispatcher = new Dispatcher(loadChainState(chainFile), {
+const dispatcher = new Dispatcher(loadChainState(chainFile, config.ids), {
   projects: Object.keys(config.projects),
   parallel: () => configFile.current.parallel,
   rules: rulesOf,
@@ -387,11 +380,11 @@ const dispatcher = new Dispatcher(loadChainState(chainFile), {
   midTurn: (task) => agentStatus(task) === 'busy',
   asked: (task) => liveView(task)?.ask?.id ?? null,
   save: (state) => {
-    saveChainState(chainFile, state)
+    saveChainState(chainFile, state, config.ids)
     hub.broadcast('state', getState())
   },
   journal: (entry) => {
-    appendLaunch(launchesFile, entry)
+    appendLaunch(launchesFile, entry, config.ids)
     launches.push(entry)
     console.log(launchLine(entry))
   },
@@ -559,6 +552,7 @@ async function stopTaskSessions(repo: string, task: string, count: number): Prom
 const getState = (): EvenKeelState => ({
   startedAt,
   projects: Object.keys(config.projects),
+  projectIds: config.ids,
   config: configFile.view(launchedProjects(launches)),
   chain: {
     active: dispatcher.state.active,
@@ -711,15 +705,8 @@ const questions = new TrackerQuestions({
     }),
   tracker: (project, call) => links.get(config.trackers[project]!)?.run(call),
   language: () => configFile.current.language ?? promptLanguage(),
-  load: () => {
-    try {
-      return JSON.parse(readFileSync(questionsFile, 'utf8')) as PostedQuestion[]
-    } catch (error) {
-      if ((error as NodeJS.ErrnoException).code === 'ENOENT') return []
-      throw error
-    }
-  },
-  save: (posted) => writeFileSync(questionsFile, `${JSON.stringify(posted, null, 2)}\n`),
+  load: () => loadQuestions(questionsFile),
+  save: (posted) => saveQuestions(questionsFile, posted),
   answer: (project, task, sessionId, ask, reply) => answerSession(project, task, sessionId, ask, { from: 'tracker', ...reply }),
   log: (message) => console.log(message),
 })

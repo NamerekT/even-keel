@@ -30,6 +30,6 @@ describe('fieldOf', () => {
 
   it('leaves the errors no field shows to the banner', () => {
     expect(fieldOf(notice('config.notJson', { file: 'even-keel.config.json' }), keys)).toBeNull()
-    expect(fieldOf(notice('config.projectKey', { key: 'abc' }), keys)).toBeNull()
+    expect(fieldOf(notice('config.projectKey', { where: 'projects[0].key', value: '"abc"' }), keys)).toBeNull()
   })
 })

@@ -72,8 +72,7 @@ const CHECKPOINT_ASK_FROM = 100_000
 type AdapterShapes = Readonly<Record<string, Pick<TrackerAdapter, 'projectKey'>>>
 
 export function parseConfig(raw: unknown, adapters: AdapterShapes = ADAPTERS): EvenKeelConfig {
-  const input = (raw ?? {}) as Partial<Record<keyof EvenKeelConfig, unknown>>
-
+  const input = (raw ?? {}) as Partial<Record<keyof EvenKeelConfig | 'version', unknown>>
   parseVersion(input.version)
   if (!Array.isArray(input.projects)) throw fail('config.projects', {})
   const { chain: shared, tracker: sharedTracker, brief: sharedBrief } = parseShared(input, adapters)
