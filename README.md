@@ -182,6 +182,8 @@ npm run build
 
 Then restart Even Keel (as a service: run its install script again). A new version may store the config and `state/` in a newer format: at startup, before anything else, Even Keel rewrites them to it and keeps each old file next to it as `<file>.v<N>.bak` (the log names them). It rewrites all of them or none; a file it cannot read, or one written by a newer version, leaves the service with only the page, which shows the reason. To go back to the previous version, check out its code and put the `.bak` copies back in place of the rewritten files.
 
+The statistics database is versioned too: the collector brings its schema up to date on its first run after the update, step by step, each step in one transaction. Going back to an older version does not undo that: the older collector stops on a newer database (one line in the log) and `/stats` says so, until you update again or restore a backup of the database taken before the update (`<state>/tally/pgdata` for the embedded one). On your own Postgres the collector migrates as `tally_writer`; if it is not the owner of the tables, it changes nothing and logs the statements to run and the role to run them as.
+
 ## Environment
 
 `.env` in the repository root. A tracker whose variables are all empty is off; set in part, it is a startup error.
