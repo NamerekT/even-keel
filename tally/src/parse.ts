@@ -32,6 +32,7 @@ export interface MessageRow {
   entrypoint: string | null
   model: string | null
   speed: string | null
+  effort: string | null
   at: string | null
   input: number
   cacheWrite5m: number
@@ -182,6 +183,7 @@ export class BatchBuilder {
       entrypoint: str(entry.entrypoint),
       model: str(entry.message?.model),
       speed: str(usage.speed),
+      effort: str(entry.effort),
       at: str(entry.timestamp),
       input: usage.input_tokens ?? 0,
       cacheWrite5m: write5m,
@@ -265,6 +267,7 @@ function mergeMessages(known: MessageRow, next: MessageRow): MessageRow {
     cacheRead: Math.max(known.cacheRead, next.cacheRead),
     output: Math.max(known.output, next.output),
     speed: next.speed ?? known.speed,
+    effort: next.effort ?? known.effort,
   }
 }
 

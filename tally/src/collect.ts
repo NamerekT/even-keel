@@ -67,6 +67,10 @@ export async function collect(settings: DbSettings, root: string, log: Log): Pro
     const forgotten = sources.length > 0 ? await db.forgetFilesExcept(sources.map((source) => source.path)) : 0
     const relabeled = await db.syncLaunches(launches)
     await db.fillSessionFolders()
+    if ((await db.meta('efforts')) === null) {
+      log(`tally: ${await db.fillEfforts()} older messages given their effort level`)
+      await db.setMeta('efforts', new Date().toISOString())
+    }
     const prompted = await db.fillPrompts()
     const handoffs = await refreshHandoffs(db, stateDir, sources, journal)
     const snapshots = await db.addSnapshots(await limitSnapshots(config.evenKeelUrl, stateDir, homes, log))

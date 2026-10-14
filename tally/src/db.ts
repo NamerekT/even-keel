@@ -76,6 +76,16 @@ update sessions s set project_dir = (
 )
 where s.project_dir is null
   and exists (select 1 from messages m where m.session_id = s.session_id and m.project_dir is not null)`
+// Messages loaded before effort was parsed take it from their stored lines; run once (tally_meta 'efforts').
+export const MESSAGE_EFFORTS = `
+update messages m set effort = e.effort
+from (
+  select distinct on (raw->'message'->>'id') raw->'message'->>'id' as message_id, raw->>'effort' as effort
+  from lines
+  where type = 'assistant' and raw->>'effort' is not null
+  order by raw->'message'->>'id', at desc
+) e
+where e.message_id = m.message_id and m.effort is null`
 // Only rows that can be a prompt: the rest of a session's user rows are tool results, heavy to fetch.
 export const SESSION_PROMPT_ROWS = `
 select s.session_id, coalesce(s.last_at < now() - interval '1 day', false) as old,
@@ -146,7 +156,7 @@ export class TallyDb implements Store {
          select * from jsonb_to_recordset($1::jsonb) as x(
            message_id text, session_id text, agent_id text, account text, project text, project_dir text, task text,
            branch text, entrypoint text, model text, speed text, at timestamptz,
-           input bigint, cache_write_5m bigint, cache_write_1h bigint, cache_read bigint, output bigint)
+           input bigint, cache_write_5m bigint, cache_write_1h bigint, cache_read bigint, output bigint, effort text)
          on conflict (message_id) do update set
            at = least(messages.at, excluded.at),
            input = greatest(messages.input, excluded.input),
@@ -154,7 +164,8 @@ export class TallyDb implements Store {
            cache_write_1h = greatest(messages.cache_write_1h, excluded.cache_write_1h),
            cache_read = greatest(messages.cache_read, excluded.cache_read),
            output = greatest(messages.output, excluded.output),
-           speed = coalesce(excluded.speed, messages.speed)`,
+           speed = coalesce(excluded.speed, messages.speed),
+           effort = coalesce(excluded.effort, messages.effort)`,
         batch.messages,
       )
       await this.upsert(
@@ -362,6 +373,11 @@ export class TallyDb implements Store {
          and (s.launch_task is distinct from x.task or s.launch_reason is distinct from x.reason)`,
       [JSON.stringify(rows)],
     )
+    return result.rowCount ?? 0
+  }
+
+  async fillEfforts(): Promise<number> {
+    const result = await this.client.query(MESSAGE_EFFORTS)
     return result.rowCount ?? 0
   }
 
@@ -680,7 +696,7 @@ export class TallyDb implements Store {
          select * from jsonb_to_recordset($1::jsonb) as x(
            message_id text, session_id text, agent_id text, account text, project text, project_dir text, task text,
            branch text, entrypoint text, model text, speed text, at timestamptz,
-           input bigint, cache_write_5m bigint, cache_write_1h bigint, cache_read bigint, output bigint)
+           input bigint, cache_write_5m bigint, cache_write_1h bigint, cache_read bigint, output bigint, effort text)
          on conflict (message_id) do nothing`,
         costs,
       )

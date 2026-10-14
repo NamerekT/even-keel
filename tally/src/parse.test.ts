@@ -64,6 +64,7 @@ describe('BatchBuilder messages', () => {
         entrypoint: 'cli',
         model: 'claude-opus-5-5',
         speed: 'standard',
+        effort: null,
         at: '2026-10-03T10:00:00.000Z',
         input: 3,
         cacheWrite5m: 100,
@@ -73,6 +74,14 @@ describe('BatchBuilder messages', () => {
       },
     ])
     expect([...batch.lines.keys()]).toEqual(['u1', 'u2'])
+  })
+
+  it('takes the effort level from any line of the response', () => {
+    const batch = build([
+      assistant('u1', '2026-10-03T10:00:00.000Z', [], usage, { effort: 'xhigh', perTurnEffort: null }),
+      assistant('u2', '2026-10-03T10:00:01.000Z', [], usage),
+    ])
+    expect(batch.messages.get('msg_1')!.effort).toBe('xhigh')
   })
 
   it('counts cache writes without a breakdown as 5 minute writes', () => {

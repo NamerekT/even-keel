@@ -130,6 +130,7 @@ export function costRows(sessionId: string, usage: ModelUsage[], account: string
     entrypoint: 'tally-classify',
     model: item.model,
     speed: null,
+    effort: null,
     at,
     input: item.input,
     cacheWrite5m: item.cacheWrite,

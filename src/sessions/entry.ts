@@ -33,6 +33,7 @@ export interface Entry {
   timestamp?: string
   cwd?: string
   gitBranch?: string
+  effort?: string
   bridgeSessionId?: string
   customTitle?: string
   aiTitle?: string

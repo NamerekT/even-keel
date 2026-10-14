@@ -121,6 +121,7 @@ describe('costRows', () => {
         entrypoint: 'tally-classify',
         model: 'claude-haiku-4-5-20251001',
         speed: null,
+        effort: null,
         at: '2026-10-03T12:00:00.000Z',
         input: 900,
         cacheWrite5m: 300,

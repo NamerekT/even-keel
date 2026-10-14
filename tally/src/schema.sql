@@ -39,6 +39,8 @@ create table if not exists messages (
   cache_read bigint not null,
   output bigint not null
 );
+-- The effort level the CLI sent with the request (low … max), absent before the CLI recorded it.
+alter table messages add column if not exists effort text;
 create index if not exists messages_session on messages (session_id);
 create index if not exists messages_task on messages (task);
 create index if not exists messages_account_at on messages (account, at);
@@ -455,6 +457,16 @@ select
 from audit_tasks a
 left join task_times tt on tt.task = a.task
 left join tasks t on t.task = a.task;
+
+-- The effort level of a session: the most frequent one of its main thread; mixed when it was changed midway.
+create or replace view session_efforts as
+select
+  session_id,
+  mode() within group (order by effort) as effort,
+  count(distinct effort) > 1 as mixed
+from messages
+where agent_id is null and effort is not null
+group by session_id;
 
 create or replace view task_repeats as
 with st as (
