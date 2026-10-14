@@ -810,6 +810,8 @@ export const en: Messages = {
     failed: (error: string) => `Even Keel didn't answer: ${error}`,
     off: (reason: string) => `Tally stats are off: ${reason}.`,
     dbError: (error: string) => `The Tally database is unavailable: ${error}`,
+    newer: (version: number, known: number) =>
+      `The Tally database is at schema version ${version}, and this Even Keel knows only up to ${known}: it was updated and then rolled back. Update Even Keel again — stats are not read or collected until then.`,
     scopes: { all: 'all', chain: 'chain' },
     sessions: 'Sessions',
     account: 'Account',

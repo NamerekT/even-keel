@@ -2,7 +2,6 @@ import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { collect } from './collect.js'
 import { dbSettings } from './config.js'
-import { SCHEMA } from './db.js'
 import { openLocalTally, tallyDir } from './local.js'
 
 // A collector run by hand, for debugging: the Even Keel service runs it every 5 minutes itself.
@@ -21,7 +20,7 @@ const log = (message: string) => console.log(`${new Date().toISOString()} ${mess
 async function run(): Promise<number> {
   const server = dbSettings(process.env)
   if (server !== null) return collect(server, root, log)
-  const local = await openLocalTally(tallyDir(process.env.EVEN_KEEL_STATE_DIR ?? join(root, 'state')), SCHEMA)
+  const local = await openLocalTally(tallyDir(process.env.EVEN_KEEL_STATE_DIR ?? join(root, 'state')))
   try {
     return await collect(local.settings, root, log)
   } finally {

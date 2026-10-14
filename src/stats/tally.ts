@@ -1,6 +1,7 @@
 import { join } from 'node:path'
 import { Worker } from 'node:worker_threads'
 import { readerSettings, type ReaderSettings } from './model.js'
+import { HALTED } from './tally-schema.js'
 
 // Tally inside the service (BTN-70): the collector runs every few minutes on a thread of its own, and without
 // TALLY_DB_HOST the database is PGlite in <state>/tally, owned by another thread and served on a loopback port.
@@ -112,11 +113,15 @@ export class TallyService {
       env: { ...process.env, EVEN_KEEL_URL: env.EVEN_KEEL_URL ?? evenKeelUrl },
     })
     this.running = run
-    run.on('message', () => void run.terminate())
+    let halted = false
+    run.on('message', (code: number) => {
+      halted = code === HALTED
+      void run.terminate()
+    })
     run.on('error', (error) => log(`tally: ${error.stack ?? error.message}`))
     run.on('exit', () => {
       this.running = null
-      this.schedule(Math.max(0, this.options.intervalMs - (Date.now() - started)))
+      if (!halted) this.schedule(Math.max(0, this.options.intervalMs - (Date.now() - started)))
     })
   }
 }

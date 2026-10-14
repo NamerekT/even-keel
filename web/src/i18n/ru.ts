@@ -814,6 +814,8 @@ export const ru = {
     failed: (error: string) => `Even Keel не ответил: ${error}`,
     off: (reason: string) => `Статистика Tally выключена: ${reason}.`,
     dbError: (error: string) => `База Tally недоступна: ${error}`,
+    newer: (version: number, known: number) =>
+      `База Tally уже на версии схемы ${version}, а этот Even Keel знает только до ${known}: его обновили и откатили. Обновите Even Keel снова — до тех пор статистика не читается и не собирается.`,
     scopes: { all: 'все', chain: 'цепочка' },
     sessions: 'Сессии',
     account: 'Аккаунт',

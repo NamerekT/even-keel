@@ -1,9 +1,8 @@
-import { readFileSync } from 'node:fs'
 import { PGlite } from '@electric-sql/pglite'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { migrate, pgliteDb } from './migrations.js'
 
-// The cost of a message (message_costs) on the whole schema.sql in an in-memory PGlite.
-const SCHEMA = readFileSync(new URL('./schema.sql', import.meta.url), 'utf8')
+// The cost of a message (message_costs) on the whole schema in an in-memory PGlite.
 
 type Message = [id: string, model: string, input: number, cacheWrite5m: number, cacheWrite1h: number, cacheRead: number, output: number]
 
@@ -12,7 +11,7 @@ describe('cost of a message', () => {
 
   beforeAll(async () => {
     db = await PGlite.create()
-    await db.exec(SCHEMA)
+    await migrate(pgliteDb(db))
     await db.exec(`insert into model_prices (model, input, output, cache_read, cache_write_5m, cache_write_1h,
         long_over, long_input, long_output, long_cache_read, long_cache_write_5m, long_cache_write_1h) values
       ('claude-haiku-5-5', 1, 10, 0.1, 2, 3, 100000, 5, 50, 0.5, 10, 15),

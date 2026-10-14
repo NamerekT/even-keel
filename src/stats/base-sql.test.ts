@@ -1,11 +1,10 @@
-import { readFileSync } from 'node:fs'
 import { PGlite } from '@electric-sql/pglite'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { SESSION_FOLDERS } from '../../tally/src/db.js'
+import { migrate, pgliteDb } from '../../tally/src/migrations.js'
 import { BASE } from './base-sql.js'
 
-// The project and task of a message on the whole schema.sql in an in-memory PGlite.
-const SCHEMA = readFileSync(new URL('../../tally/src/schema.sql', import.meta.url), 'utf8')
+// The project and task of a message on the whole schema in an in-memory PGlite.
 const REPO = 'D:\\Projects\\even-keel'
 const PARENT = 'abcdef12-0000-4000-8000-000000000000'
 
@@ -17,7 +16,7 @@ describe('project of a message', () => {
   beforeAll(async () => {
     db = await PGlite.create()
     await db.exec(`set timezone = 'UTC'`)
-    await db.exec(SCHEMA)
+    await migrate(pgliteDb(db))
     await db.exec(`insert into sessions (session_id, account, launch_task) values
       ('wander', 'a', null), ('${PARENT}', 'a', 'BTN-65'), ('child', 'a', null)`)
     const messages: Message[] = [

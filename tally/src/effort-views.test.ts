@@ -1,8 +1,9 @@
 import { PGlite } from '@electric-sql/pglite'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
-import { MESSAGE_EFFORTS, SCHEMA } from './db.js'
+import { MESSAGE_EFFORTS } from './db.js'
+import { migrate, pgliteDb } from './migrations.js'
 
-// The effort level of messages loaded before it was parsed, and of a session, on the whole schema.sql in PGlite.
+// The effort level of messages loaded before it was parsed, and of a session, on the whole schema in PGlite.
 type Message = [id: string, session: string, agent: string | null, effort: string | null]
 
 describe('effort level', () => {
@@ -10,7 +11,7 @@ describe('effort level', () => {
 
   beforeAll(async () => {
     db = await PGlite.create()
-    await db.exec(SCHEMA)
+    await migrate(pgliteDb(db))
     const messages: Message[] = [
       ['h1', 'high', null, 'high'],
       ['h2', 'high', null, 'high'],

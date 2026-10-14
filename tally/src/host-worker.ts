@@ -1,6 +1,5 @@
 import { parentPort, workerData } from 'node:worker_threads'
 import type { HostMessage, HostRequest } from '../../src/stats/tally.js'
-import { SCHEMA } from './db.js'
 import { openLocalTally } from './local.js'
 
 // The Even Keel service's thread that owns the local database: PGlite runs WASM queries on the thread
@@ -10,7 +9,7 @@ const port = parentPort!
 const post = (message: HostMessage) => port.postMessage(message)
 
 try {
-  const local = await openLocalTally((workerData as { dir: string }).dir, SCHEMA)
+  const local = await openLocalTally((workerData as { dir: string }).dir)
   port.on('message', (request: HostRequest) => {
     if (request.type !== 'close') return
     local.close().then(

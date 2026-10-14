@@ -128,7 +128,12 @@ export interface StatsTaskDetail {
   steps: StatsTaskStep[]
 }
 
-export type StatsAnswer<T> = { state: 'ok'; data: T } | { state: 'off'; reason: string } | { state: 'error'; error: string }
+// newer — the database is at a schema version this code does not know (BTN-133).
+export type StatsAnswer<T> =
+  | { state: 'ok'; data: T }
+  | { state: 'off'; reason: string }
+  | { state: 'error'; error: string }
+  | { state: 'newer'; version: number; known: number }
 
 export interface ReaderSettings {
   host: string

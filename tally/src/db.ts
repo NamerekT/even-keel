@@ -1,4 +1,3 @@
-import { readFileSync } from 'node:fs'
 import pg from 'pg'
 import type { Entry } from '../../src/sessions/entry.js'
 import type { ClassifySettings, DbSettings, Price } from './config.js'
@@ -15,6 +14,7 @@ import type { TranscriptEntry } from './stream.js'
 import type { Turn } from './turns.js'
 import { cleanText } from './compact.js'
 import type { HandoffRow } from './handoffs.js'
+import { migrate, pgDb, type Migration } from './migrations.js'
 import { firstPrompt } from './prompt.js'
 
 export interface PendingSpan {
@@ -64,8 +64,6 @@ export interface StoredChange extends RuleChange {
   added: number
   removed: number
 }
-
-export const SCHEMA = readFileSync(new URL('./schema.sql', import.meta.url), 'utf8')
 
 export const SESSION_FOLDERS = `
 update sessions s set project_dir = (
@@ -117,8 +115,8 @@ export class TallyDb implements Store {
     return result.rows[0]?.locked === true
   }
 
-  async migrate(): Promise<void> {
-    await this.client.query(SCHEMA)
+  migrate(): Promise<Migration> {
+    return migrate(pgDb(this.client))
   }
 
   async files(): Promise<Map<string, FileState>> {

@@ -4,11 +4,13 @@ import { join, resolve } from 'node:path'
 import { AccountHomes, accountsRoot } from '../../src/account/homes.js'
 import { readLaunches } from '../../src/chain/store.js'
 import { loadConfig } from '../../src/config.js'
+import { HALTED } from '../../src/stats/tally-schema.js'
 import { parseConfig, type DbSettings } from './config.js'
 import { TallyDb } from './db.js'
 import { refreshHandoffs } from './handoffs.js'
 import { snapshotsOfFile, snapshotsOfState, type Snapshot } from './limits.js'
 import { loadFile, type Source } from './load.js'
+import { deniedLine } from './migrations.js'
 import { launchMap } from './parse.js'
 import { transcriptSession } from './rule-history.js'
 import { readBackup, ruleSources, skillsOf } from './rule-scan.js'
@@ -36,7 +38,16 @@ export async function collect(settings: DbSettings, root: string, log: Log): Pro
       log('tally: another run holds the lock, skipping')
       return 0
     }
-    await db.migrate()
+    const migration = await db.migrate()
+    if (migration.state === 'newer') {
+      log(`tally: the database is at schema v${migration.version}, this Even Keel knows up to v${migration.known}: nothing is collected until it is updated`)
+      return HALTED
+    }
+    if (migration.state === 'denied') {
+      log(deniedLine(migration))
+      return HALTED
+    }
+    if (migration.state === 'migrated') log(`tally: database schema ${migration.from === 0 ? 'unversioned' : `v${migration.from}`} → v${migration.to}`)
     await db.syncPrices(config.prices)
 
     const projects = trackedProjects(root, log)

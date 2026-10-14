@@ -18,6 +18,7 @@ import { checkpointThreshold, type CheckpointMeasure, type CheckpointThreshold }
 import { folderGroups, repoTail } from './model.js'
 import { readCompare, readRuleDiff, readRules, type RulesDb } from './rules-reader.js'
 import { readSteps, readTaskSteps } from './steps-reader.js'
+import { TALLY_SCHEMA_VERSION, tallyVersion } from './tally-schema.js'
 import type { StatsSteps, StatsTaskStep } from './steps.js'
 import type { StatsConfig } from '../state.js'
 import type { CompareQuery, CompareSettings, RuleDiffFile, RulesQuery, StatsCompare, StatsRules } from './rules.js'
@@ -545,7 +546,8 @@ export class StatsReader {
     try {
       const pool = await this.pool
       if (typeof pool === 'string') return { state: 'off', reason: pool }
-      answer = { state: 'ok', data: await read(pool) }
+      const version = await tallyVersion(pool)
+      answer = version > TALLY_SCHEMA_VERSION ? { state: 'newer', version, known: TALLY_SCHEMA_VERSION } : { state: 'ok', data: await read(pool) }
     } catch (error) {
       answer = { state: 'error', error: error instanceof Error ? error.message : String(error) }
     }

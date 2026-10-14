@@ -1,9 +1,8 @@
-import { readFileSync } from 'node:fs'
 import { PGlite } from '@electric-sql/pglite'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { migrate, pgliteDb } from './migrations.js'
 
-// The task of a message and of a session (BTN-79) on the whole schema.sql in an in-memory PGlite.
-const SCHEMA = readFileSync(new URL('./schema.sql', import.meta.url), 'utf8')
+// The task of a message and of a session (BTN-79) on the whole schema in an in-memory PGlite.
 
 type Message = [id: string, session: string, task: string | null, at: string]
 
@@ -13,7 +12,7 @@ describe('task of a message', () => {
   beforeAll(async () => {
     db = await PGlite.create()
     await db.exec(`set timezone = 'UTC'`)
-    await db.exec(SCHEMA)
+    await migrate(pgliteDb(db))
     await db.exec(`insert into sessions (session_id, account, launch_task) values
       ('chain', 'a', 'ABC-1'), ('manual', 'a', null), ('plain', 'a', null)`)
     const messages: Message[] = [
@@ -81,7 +80,7 @@ describe('task named by the session itself', () => {
   beforeAll(async () => {
     db = await PGlite.create()
     await db.exec(`set timezone = 'UTC'`)
-    await db.exec(SCHEMA)
+    await migrate(pgliteDb(db))
     const sessions: Named[] = [
       ['other', 'CBL-157', null, 'CBL-169', 'делай CBL-169'],
       ['lower', 'CBL-157', null, 'Кеширование путей', 'делаем cbl-170 потому что'],
