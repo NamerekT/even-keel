@@ -14,12 +14,14 @@ export interface PostedQuestion {
   done?: boolean
 }
 
-/** The session of a chain's current task and the question it waits on, if any. */
+/** A live session of a chain task and the question it waits on, if any. */
 export interface AskingSession {
   project: string
   task: string
   sessionId: string
   ask: Ask | null
+  /** The task is the current one of its chain: only then is its question posted and the replies read. */
+  current: boolean
 }
 
 export interface TrackerReply {
@@ -39,13 +41,21 @@ export interface QuestionsDeps {
   log: (line: string) => void
 }
 
-const RETRIED = new Set(['answer.busy', 'chain.launching', 'chain.limitSpent'])
+const RETRIED = new Set(['answer.busy', 'chain.launching', 'chain.limitSpent', 'chain.notCurrent'])
 
-/** What to do on a tick: post the new questions, read the replies to the open ones, forget those the session left. */
+const waitsOn = (session: AskingSession, question: PostedQuestion) =>
+  session.task === question.task && session.sessionId === question.sessionId && session.ask?.id === question.ask
+
+/**
+ * What to do on a tick: post the new questions of current tasks, read the replies to the open ones, forget those the
+ * session left. A question stays while its session waits on it, current or not, so a reply written meanwhile is read
+ * once the chain takes the task again.
+ */
 export function questionPlan(sessions: AskingSession[], posted: PostedQuestion[]): { post: AskingSession[]; read: PostedQuestion[]; keep: PostedQuestion[] } {
-  const keep = posted.filter((each) => sessions.some((session) => session.task === each.task && session.sessionId === each.sessionId && session.ask?.id === each.ask))
-  const post = sessions.filter((session) => session.ask !== null && !keep.some((each) => each.task === session.task && each.ask === session.ask!.id))
-  return { post, read: keep.filter((each) => each.done !== true), keep }
+  const keep = posted.filter((each) => sessions.some((session) => waitsOn(session, each)))
+  const post = sessions.filter((session) => session.current && session.ask !== null && !keep.some((each) => each.task === session.task && each.ask === session.ask!.id))
+  const read = keep.filter((each) => each.done !== true && sessions.some((session) => session.current && waitsOn(session, each)))
+  return { post, read, keep }
 }
 
 /** The reply that comments after the question make: the first one answers the question, the rest go along as text. */
@@ -78,7 +88,7 @@ export class TrackerQuestions {
       const plan = questionPlan(sessions, this.posted)
       if (plan.keep.length !== this.posted.length) this.store(plan.keep)
       for (const session of plan.post) await this.post(session)
-      for (const question of plan.read) await this.read(question, sessions.find((session) => session.task === question.task)!)
+      for (const question of plan.read) await this.read(question, sessions.find((session) => session.current && waitsOn(session, question))!)
     } finally {
       this.running = false
     }

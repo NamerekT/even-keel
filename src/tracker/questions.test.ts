@@ -9,7 +9,7 @@ const ASK: Ask = {
   id: 'toolu_1',
   questions: [{ question: 'Which color?', header: 'Color', multiSelect: false, options: [{ label: 'Red', description: '' }, { label: 'Blue', description: '' }] }],
 }
-const asking = (fields: Partial<AskingSession> = {}): AskingSession => ({ project: 'ABC', task: 'ABC-1', sessionId: 's1', ask: ASK, ...fields })
+const asking = (fields: Partial<AskingSession> = {}): AskingSession => ({ project: 'ABC', task: 'ABC-1', sessionId: 's1', ask: ASK, current: true, ...fields })
 const posted = (fields: Partial<PostedQuestion> = {}): PostedQuestion => ({ task: 'ABC-1', sessionId: 's1', ask: 'toolu_1', comment: 'c1', ...fields })
 const comment = (id: string, body: string, files: TrackerComment['files'] = []): TrackerComment => ({ id, body, files })
 
@@ -28,6 +28,14 @@ describe('questionPlan', () => {
 
   it('does not read a question already answered', () => {
     expect(questionPlan([asking()], [posted({ done: true })])).toEqual({ post: [], read: [], keep: [posted({ done: true })] })
+  })
+
+  it('keeps the question of a session that waits while its task is not current, and reads it once the task is', () => {
+    const aside = asking({ current: false })
+    expect(questionPlan([aside], [])).toEqual({ post: [], read: [], keep: [] })
+    expect(questionPlan([aside], [posted()])).toEqual({ post: [], read: [], keep: [posted()] })
+    expect(questionPlan([asking(), aside], [posted()])).toEqual({ post: [], read: [posted()], keep: [posted()] })
+    expect(questionPlan([aside, asking({ sessionId: 's2', ask: null })], [posted()])).toEqual({ post: [], read: [], keep: [posted()] })
   })
 })
 
@@ -98,5 +106,29 @@ describe('TrackerQuestions', () => {
     await questions.tick()
     await questions.tick()
     expect(store.at(-1)).toEqual([posted()])
+  })
+
+  it('tries again when the task stopped being current before the reply was passed on', async () => {
+    const { questions, store } = fixture([asking()], [comment('c2', '2')], 'chain.notCurrent')
+    await questions.tick()
+    await questions.tick()
+    expect(store.at(-1)).toEqual([posted()])
+  })
+
+  it('passes on a reply written while the task was not current, without posting the question again', async () => {
+    const sessions = [asking()]
+    const replies: TrackerComment[] = []
+    const { questions, answers, bodies } = fixture(sessions, replies)
+    await questions.tick()
+    sessions[0] = asking({ current: false })
+    replies.push(comment('c2', '2'))
+    await questions.tick()
+    expect(answers).toEqual([])
+
+    sessions[0] = asking()
+    await questions.tick()
+    expect(answers).toHaveLength(1)
+    expect(answers[0]!.reply.answers).toEqual({ 'Which color?': 'Blue' })
+    expect(bodies).toHaveLength(1)
   })
 })

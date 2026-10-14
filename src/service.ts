@@ -713,13 +713,20 @@ function configuredProject(task: string): string | undefined {
 
 const questionsFile = join(stateDir, 'questions.json')
 const questions = new TrackerQuestions({
-  sessions: () =>
-    dispatcher.state.active.flatMap((chain): AskingSession[] => {
+  sessions: () => {
+    const current = dispatcher.state.active.flatMap((chain): AskingSession[] => {
       const sessionId = chain.current?.sessionId
       const view = sessionId == null ? undefined : liveView(chain.current!.task)
       if (view === undefined || view.sessionId !== sessionId || isFixName(view.task)) return []
-      return [{ project: chain.project, task: view.task, sessionId, ask: view.ask }]
-    }),
+      return [{ project: chain.project, task: view.task, sessionId, ask: view.ask, current: true }]
+    })
+    const aside = sessions.flatMap((view): AskingSession[] => {
+      const project = configuredProject(view.task)
+      if (view.lamp === 'finished' || project === undefined || current.some((each) => each.sessionId === view.sessionId)) return []
+      return [{ project, task: view.task, sessionId: view.sessionId, ask: view.ask, current: false }]
+    })
+    return [...current, ...aside]
+  },
   tracker: (project, call) => links.get(config.trackers[project]!)?.run(call),
   language: () => configFile.current.language ?? promptLanguage(),
   load: () => loadQuestions(questionsFile),
