@@ -13,6 +13,7 @@ import type { EvenKeelState, SessionRecord, SessionView } from '../../../src/sta
 import type { Link, LiveSnapshot, LiveSource } from './connection.js'
 import { accountCommand, fakeAccount, fakeUsage, FAKE_LIMITS } from './fakeAccounts.js'
 import { fakeCi } from './fakeCi.js'
+import { fakeUpdates, fakeUpdatesCommand } from './fakeUpdates.js'
 import { FAKE_PROJECT_IDS, fakeConfig, fakeHandEdit, fakeRestart, fakeSettingsCommand } from './fakeConfig.js'
 import { withFix } from './fakeFix.js'
 import { fakeCompare, fakeRuleDiff, fakeRules } from './fakeRules.js'
@@ -263,6 +264,7 @@ function fakeState(
     language: null,
     unattended: false,
     trimTools: true,
+    updates: fakeUpdates(null),
   }
 }
 
@@ -510,7 +512,7 @@ function fakeCommand(state: EvenKeelState, name: string, body: Record<string, un
   if (name === 'chain/trim') return { ...state, trimTools: body.on === true }
   if (name === 'session/answer') return fakeAnswer(state, body)
   if (name === 'task/ready') return fakeReady(state, String(body.task))
-  const settings = fakeSettingsCommand(state, name, body)
+  const settings = fakeSettingsCommand(state, name, body) ?? fakeUpdatesCommand(state, name)
   if (settings !== null) return settings
   if (name.startsWith('account/')) return { ...state, account: accountCommand(state.account, name, body) }
   throw new Error(`fake: ${name} is not supported`)
@@ -543,6 +545,7 @@ export function createFakeSource(search: string): LiveSource {
   const language = params.get('lang')
   if (isLanguage(language) && current.state !== null) current.state.language = language
   if (params.has('ci') && current.state !== null) current.state.ci = fakeCi(params.get('ci'))
+  if (params.has('update') && current.state !== null) current.state.updates = fakeUpdates(params.get('update'))
   if (params.get('limits') === 'hot' && current.state !== null) {
     const { fiveHour, sevenDay } = FAKE_LIMITS
     current.state.limits = { ...FAKE_LIMITS, fiveHour: { ...fiveHour!, usedPercentage: 86 }, sevenDay: { ...sevenDay!, usedPercentage: 100 } }

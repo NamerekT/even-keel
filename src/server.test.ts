@@ -70,7 +70,7 @@ describe('Even Keel HTTP server', () => {
           calls.push(['answer', { ...request, files: request.files.map((file) => ({ name: file.name, text: Buffer.from(file.data).toString('utf8') })) }])
         },
       },
-      settings: { save: record('settings'), saveShared: record('shared') },
+      settings: { save: record('settings'), saveShared: record('shared'), dismissUpdate: record('dismiss'), muteUpdates: record('mute') },
       launches: () => [{ task: 'ABC-1' }],
       sessionRecord: async (id) => {
         if (id === 'bad') throw new Error('sessions: bad is not a session id')
@@ -221,17 +221,34 @@ describe('Even Keel HTTP server', () => {
       allowedHosts: [],
       context: { window: 600_000, warn: 50, danger: 80 },
       stats: { compare: { minTasks: 5, minSessions: 10, days: 7 }, moves: {}, otherBelow: 0, checkpointTokens: null },
+      updates: { check: true, notify: false },
     }
     const started = { ...shared, parallel: 1 }
     const response = await fetch(base + '/api/settings', { method: 'POST', body: JSON.stringify({ ...shared, base: started }) })
     expect(response.status).toBe(200)
     expect(calls).toContainEqual(['shared', shared, started])
 
-    for (const [field, change] of [['parallel', { parallel: '2' }], ['modelPrompts', { modelPrompts: { haiku: 1 } }], ['stats', { stats: { ...shared.stats, moves: [] } }]] as const) {
+    const refusals = [
+      ['parallel', { parallel: '2' }],
+      ['modelPrompts', { modelPrompts: { haiku: 1 } }],
+      ['stats', { stats: { ...shared.stats, moves: [] } }],
+      ['updates', { updates: { check: 'yes', notify: true } }],
+    ] as const
+    for (const [field, change] of refusals) {
       const refused = await fetch(base + '/api/settings', { method: 'POST', body: JSON.stringify({ ...shared, ...change }) })
       expect(refused.status).toBe(400)
       expect((await refused.json()).notice).toMatchObject({ code: 'request.required', params: { field } })
     }
+  })
+
+  it('passes on the toast buttons: closing one version and turning the toasts off', async () => {
+    expect((await fetch(base + '/api/updates/dismiss', { method: 'POST', body: JSON.stringify({ version: '0.2.0' }) })).status).toBe(200)
+    expect((await fetch(base + '/api/updates/mute', { method: 'POST', body: '{}' })).status).toBe(200)
+    expect(calls).toContainEqual(['dismiss', '0.2.0'])
+    expect(calls).toContainEqual(['mute'])
+    const refused = await fetch(base + '/api/updates/dismiss', { method: 'POST', body: '{}' })
+    expect(refused.status).toBe(400)
+    expect((await refused.json()).notice).toMatchObject({ code: 'request.required', params: { field: 'version' } })
   })
 
   it('refuses settings without the milestone switch', async () => {

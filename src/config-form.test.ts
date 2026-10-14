@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { formsOf, restartPending, trackerChoices, withProjectForm, withSharedForm } from './config-form.js'
+import { formsOf, restartPending, trackerChoices, withProjectForm, withSharedForm, withUpdates } from './config-form.js'
 import { parseConfig } from './config.js'
 import type { ProjectForm, SharedForm } from './state.js'
 
@@ -146,6 +146,25 @@ describe('withSharedForm', () => {
     const edited = { projects: [], model: 'opus', parallel: 2, chain: { requiredLabels: ['Auto'] } }
     const form: SharedForm = { ...base, parallel: 3, chain: { ...base.chain, excludedLabels: [] } }
     expect(withSharedForm(edited, form, base)).toEqual({ projects: [], model: 'opus', parallel: 3, chain: { requiredLabels: ['Auto'], excludedLabels: [] } })
+  })
+
+  it('writes the update switches and keeps the closed version', () => {
+    const raw = { projects: [], updates: { notify: false, dismissed: '0.2.0' } }
+    const base = sharedOf(raw)
+    expect(base.updates).toEqual({ check: true, notify: false })
+    expect(withSharedForm(raw, { ...base, updates: { check: false, notify: true } }, base)).toEqual({ projects: [], updates: { check: false, dismissed: '0.2.0' } })
+    expect(withSharedForm({ projects: [], updates: { check: false } }, { ...base, updates: { check: true, notify: true } }, base)).toEqual({ projects: [] })
+  })
+})
+
+describe('withUpdates', () => {
+  it('sets the given update settings and removes what goes back to the defaults', () => {
+    expect(withUpdates({ projects: [] }, { dismissed: '0.2.0' })).toEqual({ projects: [], updates: { dismissed: '0.2.0' } })
+    expect(withUpdates({ projects: [], updates: { check: false, dismissed: '0.2.0' } }, { notify: false })).toEqual({
+      projects: [],
+      updates: { check: false, dismissed: '0.2.0', notify: false },
+    })
+    expect(withUpdates({ projects: [], updates: { notify: false } }, { notify: true })).toEqual({ projects: [] })
   })
 })
 

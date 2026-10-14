@@ -54,6 +54,8 @@ import { parseTaskId, type Task } from './tracker/model.js'
 import { TrackerQuestions, type AskingSession } from './tracker/questions.js'
 import type { TrackerSetup } from './tracker/source.js'
 import { startTracker } from './tracker/start.js'
+import { updatesView } from './updates/release.js'
+import { installed, UpdateWatcher } from './updates/watcher.js'
 
 const SESSION_POLL_MS = 3_000
 const CLAUDE_TIMEOUT_MS = 30_000
@@ -71,6 +73,7 @@ const TALLY_FIRST_DELAY_MS = 15_000
 const SHUTDOWN_MS = 15_000
 const CI_TICK_MS = 5_000
 const CI_TIMEOUT_MS = 15_000
+const UPDATE_POLL_MS = 12 * 60 * 60_000
 
 const configFile = new ConfigFile({
   file: configPath(),
@@ -80,6 +83,7 @@ const configFile = new ConfigFile({
     for (const [project, tasks] of tasksByProject) dispatcher.setTasks(project, tasks)
     dispatcher.check()
     mcp.run()
+    updates.configChanged()
     hub.broadcast('state', getState())
   },
 })
@@ -163,6 +167,16 @@ const limits = new LimitsWatcher({
   },
   onChange: () => hub.broadcast('state', getState()),
   onError: (error) => console.error(`limits: ${error instanceof Error ? error.message : String(error)}`),
+})
+
+const release = installed(root)
+const updates = new UpdateWatcher({
+  repo: release.repo,
+  current: release.version,
+  enabled: () => configFile.current.updates.check,
+  intervalMs: UPDATE_POLL_MS,
+  onChange: () => hub.broadcast('state', getState()),
+  log: (line) => console.log(line),
 })
 
 const daemons = new DaemonRefresh({
@@ -581,6 +595,7 @@ const getState = (): EvenKeelState => ({
   language: configFile.current.language,
   unattended: dispatcher.state.unattended,
   trimTools: dispatcher.state.trimTools,
+  updates: updatesView(release.version, updates.latest, configFile.current.updates),
 })
 
 const server = createEvenKeelServer({
@@ -604,6 +619,8 @@ const server = createEvenKeelServer({
       configFile.saveShared(form, base)
       console.log('page: the shared settings are written to the config')
     },
+    dismissUpdate: (version) => configFile.saveUpdates({ dismissed: version }),
+    muteUpdates: () => configFile.saveUpdates({ notify: false }),
   },
   launches: () => launches,
   sessionRecord: async (sessionId) => {
@@ -750,6 +767,7 @@ void (async () => {
 monitor.start()
 void owners.scan()
 limits.start()
+updates.start()
 account.start()
 vscode.start()
 configFile.watch()

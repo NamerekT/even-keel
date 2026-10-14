@@ -6,6 +6,7 @@ import { t } from '../i18n/index.js'
 import { useLive } from '../live/context.js'
 import { projectPath, taskProject, waitingSessions } from '../state.js'
 import { systemChecks, worstLevel, type Check } from './system.js'
+import { VersionRow } from './Updates.js'
 import { usePopover } from './usePopover.js'
 
 export function Waiting({ sessions, tasks }: { sessions: SessionView[]; tasks: Task[] }) {
@@ -66,6 +67,7 @@ export function GearRows({ now }: { now: Date }) {
       <NavLink to="/tools" className="gear__item">
         {t.header.tools}
       </NavLink>
+      <VersionRow />
     </nav>
   )
 }
@@ -115,6 +117,7 @@ export function GearMenu({ now }: { now: Date }) {
           <NavLink to="/tools" className="gear__item">
             {t.header.tools}
           </NavLink>
+          <VersionRow />
         </nav>
       )}
       {open && view === 'status' && (

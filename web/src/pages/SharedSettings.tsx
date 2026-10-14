@@ -40,7 +40,7 @@ const GROUPS = [
   { id: 'chain', keys: ['parallel', 'tracker', 'brief', ...RULE_KEYS] },
   { id: 'models', keys: ['model', ...PROMPT_KEYS, 'promptLanguage'] },
   { id: 'sessions', keys: ['hiddenSkills', 'window', 'warn', 'danger', 'checkpointTokens'] },
-  { id: 'page', keys: ['language', 'allowedHosts'] },
+  { id: 'page', keys: ['language', 'allowedHosts', 'updatesCheck', 'updatesNotify'] },
   { id: 'stats', keys: ['minTasks', 'minSessions', 'days', 'otherBelow', 'moves'] },
 ] as const
 type GroupId = (typeof GROUPS)[number]['id']
@@ -67,6 +67,8 @@ const valuesOf = (form: SharedForm): Values => ({
   otherBelow: String(form.stats.otherBelow),
   checkpointTokens: form.stats.checkpointTokens === null ? '' : String(form.stats.checkpointTokens),
   moves: linesText(Object.entries(form.stats.moves).map(lineOf)),
+  updatesCheck: form.updates.check,
+  updatesNotify: form.updates.notify,
 })
 
 const amountOf = (text: string): number | undefined => (text.trim() !== '' && Number.isFinite(Number(text)) ? Number(text) : undefined)
@@ -100,6 +102,7 @@ function formOf(values: Values): SharedForm | undefined {
       otherBelow,
       checkpointTokens,
     },
+    updates: { check: values.updatesCheck as boolean, notify: values.updatesNotify as boolean },
   }
 }
 
@@ -270,6 +273,25 @@ export function SharedSettings({ state }: { state: EvenKeelState }) {
           {marks.note('allowedHosts')}
           <FieldNote error={errorOf('allowedHosts')} />
         </div>
+        <CheckField
+          className={marks.box('updatesCheck')}
+          label={t.shared.updatesCheck}
+          hint={t.shared.updatesCheckHint}
+          checked={draft.edit.updatesCheck as boolean}
+          onChange={(on) => edit('updatesCheck', on)}
+        >
+          {marks.note('updatesCheck')}
+          <FieldNote error={errorOf('updates')} />
+        </CheckField>
+        <CheckField
+          className={marks.box('updatesNotify')}
+          label={t.shared.updatesNotify}
+          hint={t.shared.updatesNotifyHint}
+          checked={draft.edit.updatesNotify as boolean}
+          onChange={(on) => edit('updatesNotify', on)}
+        >
+          {marks.note('updatesNotify')}
+        </CheckField>
       </>
     ),
     stats: () => (

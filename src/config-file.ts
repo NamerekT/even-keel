@@ -1,9 +1,10 @@
 import { watchFile } from 'node:fs'
-import { formsOf, restartPending, trackerChoices, withProjectForm, withSharedForm } from './config-form.js'
+import { formsOf, restartPending, trackerChoices, withProjectForm, withSharedForm, withUpdates } from './config-form.js'
 import { ignoredKeys, liveConfig, parseConfig, readRawConfig, restartChanges, withIds, type EvenKeelConfig } from './config.js'
 import { englishOf, fail, noticeOf, type Notice } from './notice/notice.js'
 import { writeAtomic } from './storage/atomic.js'
 import type { ConfigView, ProjectForm, SharedForm } from './state.js'
+import type { UpdateSettings } from './updates/release.js'
 
 export interface ConfigFileOptions {
   file: string
@@ -83,6 +84,11 @@ export class ConfigFile {
   /** Writes the shared settings into the file, by the same rule as `saveProject`. */
   saveShared(form: SharedForm, base: SharedForm): void {
     this.write(withSharedForm(readRawConfig(this.options.file), form, base))
+  }
+
+  /** Writes the given keys of `updates` into the file, by the same rule as `saveProject`. */
+  saveUpdates(patch: Partial<UpdateSettings>): void {
+    this.write(withUpdates(readRawConfig(this.options.file), patch))
   }
 
   private write(next: Record<string, unknown>): void {

@@ -210,6 +210,8 @@ export const en = {
   'config.hiddenSkills': () => 'config: hiddenSkills must be a list of skill names',
   'config.parallel': (p: { value: string }) => `config: parallel must be a positive integer, got ${p.value}`,
   'config.allowedHosts': () => 'config: allowedHosts must be a list of host names',
+  'config.updatesKey': (p: { key: string; known: string[] }) => `config: updates.${p.key} is not an update setting, known: ${list(p.known)}`,
+  'config.updatesDismissed': (p: { value: string }) => `config: updates.dismissed must be a version such as 0.2.0, or null, got ${p.value}`,
   'config.token': (p: { host: string }) =>
     `config: host ${p.host} is reachable from the network, so the page needs a token: set EVEN_KEEL_TOKEN in .env ` +
     `(16+ characters, e.g. the output of: node -e "console.log(crypto.randomBytes(24).toString('hex'))") and restart, ` +

@@ -14,6 +14,7 @@ import type { RemoteOff } from './sessions/remote.js'
 import type { CacheWindow, FeedLine, Stage, TokenTotals } from './sessions/transcript.js'
 import type { TrackerView } from './tracker/health.js'
 import type { ModelAlias, Task } from './tracker/model.js'
+import type { UpdateSettings, UpdatesView } from './updates/release.js'
 
 export interface SessionView {
   task: string
@@ -136,6 +137,8 @@ export interface SharedForm {
   allowedHosts: string[]
   context: ContextScale
   stats: StatsConfig
+  /** The switches of `updates`; the closed version is written by the toast, not the form. */
+  updates: Pick<UpdateSettings, 'check' | 'notify'>
 }
 
 /** A tracker the settings can pick, and the key a project on it names its tracker project with. */
@@ -187,6 +190,7 @@ export interface EvenKeelState {
   language: Language | null
   unattended: boolean
   trimTools: boolean
+  updates: UpdatesView
 }
 
 /** A project with `brief` off whose sessions see no MCP server of its tracker. */

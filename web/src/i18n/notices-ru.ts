@@ -198,6 +198,8 @@ export const noticesRu: NoticeTexts = {
   'config.hiddenSkills': () => 'hiddenSkills должен быть списком имён навыков',
   'config.parallel': (p) => `parallel должен быть целым числом от 1, а не ${p.value}`,
   'config.allowedHosts': () => 'allowedHosts должен быть списком имён хостов',
+  'config.updatesKey': (p) => `updates.${p.key} — не настройка обновлений, есть: ${list(p.known)}`,
+  'config.updatesDismissed': (p) => `updates.dismissed должен быть версией вида 0.2.0 или null, а не ${p.value}`,
   'config.token': (p) =>
     `host ${p.host} виден из сети, поэтому странице нужен токен: задайте EVEN_KEEL_TOKEN в .env (от 16 символов) и перезапустите службу, ` +
     'или поставьте host 127.0.0.1',

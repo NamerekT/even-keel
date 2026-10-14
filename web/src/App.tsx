@@ -9,7 +9,9 @@ import { UnattendedBanner } from './layout/UnattendedBanner.js'
 import { Header } from './layout/Header.js'
 import { LinkBanner } from './layout/LinkBanner.js'
 import { McpBanner } from './layout/McpBanner.js'
+import { UpdateToast } from './layout/Updates.js'
 import { UsageBanner } from './layout/UsageBanner.js'
+import { ToastStack } from './ui/Toast.js'
 import { useLive } from './live/context.js'
 import { projectOfPath, projectPath } from './state.js'
 import { Home } from './pages/Home.js'
@@ -62,6 +64,9 @@ export function App() {
         )}
       </main>
       <div className="app__basement" ref={setBasement} />
+      <ToastStack>
+        <UpdateToast />
+      </ToastStack>
     </div>
   )
 }

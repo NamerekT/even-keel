@@ -15,6 +15,7 @@ import type { ConfigView, ProjectForm, SharedForm, TrackerChoice } from './state
 import { DEFAULT_HIDDEN_SKILLS } from './tools/settings.js'
 import { ADAPTERS, DEFAULT_TRACKER } from './tracker/adapters.js'
 import type { TrackerAdapter } from './tracker/source.js'
+import { DEFAULT_UPDATES, type UpdateSettings } from './updates/release.js'
 
 type Adapters = Readonly<Record<string, Pick<TrackerAdapter, 'projectKey'>>>
 
@@ -39,7 +40,8 @@ export function formsOf(config: EvenKeelConfig, adapters: Adapters = ADAPTERS): 
     ]),
   )
   const { parallel, tracker, brief, chain, model, modelPrompts, language, promptLanguage, hiddenSkills, allowedHosts, context, stats } = config
-  return { projects, shared: { parallel, tracker, brief, chain, model, modelPrompts, language, promptLanguage, hiddenSkills, allowedHosts, context, stats } }
+  const updates = { check: config.updates.check, notify: config.updates.notify }
+  return { projects, shared: { parallel, tracker, brief, chain, model, modelPrompts, language, promptLanguage, hiddenSkills, allowedHosts, context, stats, updates } }
 }
 
 export function trackerChoices(adapters: Adapters = ADAPTERS): TrackerChoice[] {
@@ -142,6 +144,17 @@ export function withSharedForm(raw: unknown, form: SharedForm, base: SharedForm)
     else stats.compare = written
     put('stats', Object.keys(stats).length === 0 ? undefined : stats, undefined)
   }
+  if (changed('updates')) put('updates', withDefaults(config.updates, form.updates, { check: DEFAULT_UPDATES.check, notify: DEFAULT_UPDATES.notify }), undefined)
+  return config
+}
+
+/** The raw config with the given keys of `updates` set, against the defaults: what the toast's buttons write. */
+export function withUpdates(raw: unknown, patch: Partial<UpdateSettings>): Record<string, unknown> {
+  const config: Record<string, unknown> = { ...(isPlainObject(raw) ? raw : {}) }
+  const defaults = Object.fromEntries(Object.keys(patch).map((key) => [key, DEFAULT_UPDATES[key as keyof UpdateSettings]])) as Partial<UpdateSettings>
+  const updates = withDefaults(config.updates, patch, defaults)
+  if (updates === undefined) delete config.updates
+  else config.updates = updates
   return config
 }
 

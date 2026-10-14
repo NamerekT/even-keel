@@ -23,6 +23,7 @@ export const FAKE_SHARED: SharedForm = {
   allowedHosts: [],
   context: { window: 600_000, warn: 50, danger: 80 },
   stats: { compare: { minTasks: 5, minSessions: 10, days: 7 }, moves: {}, otherBelow: 0, checkpointTokens: null },
+  updates: { check: true, notify: true },
 }
 
 const project = (repo: string, change: Partial<ProjectForm>): ProjectForm => ({

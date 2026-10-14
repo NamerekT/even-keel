@@ -95,7 +95,17 @@ describe('parseConfig', () => {
       promptLanguage: 'en',
       hiddenSkills: DEFAULT_HIDDEN_SKILLS,
       parallel: 1,
+      updates: { check: true, notify: true, dismissed: null },
     })
+  })
+
+  it('takes the release check, its toasts and the closed version from updates', () => {
+    expect(parse({ projects: {}, updates: { check: false } }).updates).toEqual({ check: false, notify: true, dismissed: null })
+    expect(parse({ projects: {}, updates: { notify: false, dismissed: '0.2.0' } }).updates).toEqual({ check: true, notify: false, dismissed: '0.2.0' })
+    expect(() => parse({ projects: {}, updates: true })).toThrow(/updates must be an object/)
+    expect(() => parse({ projects: {}, updates: { check: 'no' } })).toThrow(/updates\.check/)
+    expect(() => parse({ projects: {}, updates: { dismissed: 'soon' } })).toThrow(/updates\.dismissed/)
+    expect(() => parse({ projects: {}, updates: { channel: 'beta' } })).toThrow(/updates\.channel/)
   })
 
   it('takes the extra host names of the page as a list, trimmed and lowercase', () => {
@@ -454,6 +464,12 @@ describe('reloading the config', () => {
   it('applies the allowed host names at once', () => {
     const next = parse({ projects: { ABC: 'C:\\abc' }, allowedHosts: ['pult.example.com'] })
     expect(liveConfig(base, next).allowedHosts).toEqual(['pult.example.com'])
+    expect(restartChanges(base, next)).toEqual([])
+  })
+
+  it('applies the update settings at once', () => {
+    const next = parse({ projects: { ABC: 'C:\\abc' }, updates: { notify: false } })
+    expect(liveConfig(base, next).updates.notify).toBe(false)
     expect(restartChanges(base, next)).toEqual([])
   })
 

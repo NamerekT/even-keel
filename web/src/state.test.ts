@@ -96,6 +96,7 @@ function stateOf(patch: Partial<EvenKeelState>): EvenKeelState {
     language: null,
     unattended: false,
     trimTools: true,
+    updates: { current: '0.1.0', available: null, toast: false },
     ...patch,
   }
 }

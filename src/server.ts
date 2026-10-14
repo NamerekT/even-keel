@@ -108,6 +108,10 @@ export interface SettingsControl {
   save(project: string, form: ProjectForm, base: ProjectForm): void
   /** Writes into the config file the shared settings that differ from `base`. */
   saveShared(form: SharedForm, base: SharedForm): void
+  /** The toast's "Close": no toast for this version, a later one shows it again. */
+  dismissUpdate(version: string): void
+  /** The toast's "Don't show again": no toasts about new versions until the switch on /settings. */
+  muteUpdates(): void
 }
 
 export interface ServerDeps {
@@ -156,6 +160,8 @@ const COMMANDS: Record<string, Command> = {
   'session/answer': ({ sessions }, body) => sessions.answer(answerOf(body)),
   'project/settings': ({ settings }, body) => settings.save(projectOf(body), projectFormOf(body), projectFormOf(baseOf(body))),
   settings: ({ settings }, body) => settings.saveShared(sharedFormOf(body), sharedFormOf(baseOf(body))),
+  'updates/dismiss': ({ settings }, body) => settings.dismissUpdate(textOf(body.version, 'version')),
+  'updates/mute': ({ settings }) => settings.muteUpdates(),
   'account/add': ({ account }) => account.add(),
   'account/renew': ({ account }, body) => account.renew(accountOf(body)),
   'account/switch': ({ account }, body) => account.switchTo(accountOf(body)),
@@ -529,7 +535,7 @@ function projectFormOf(body: Record<string, unknown>): ProjectForm {
 }
 
 function sharedFormOf(body: Record<string, unknown>): SharedForm {
-  const { parallel, tracker, brief, chain, model, modelPrompts, language, promptLanguage, hiddenSkills, allowedHosts, context, stats } = body
+  const { parallel, tracker, brief, chain, model, modelPrompts, language, promptLanguage, hiddenSkills, allowedHosts, context, stats, updates } = body
   if (language !== null && typeof language !== 'string') throw fail('request.required', { field: 'language' })
   return {
     parallel: numberOf(parallel, 'parallel'),
@@ -544,7 +550,15 @@ function sharedFormOf(body: Record<string, unknown>): SharedForm {
     allowedHosts: linesOf(allowedHosts, 'allowedHosts'),
     context: mapOf(context, 'context', (value) => typeof value === 'number') as unknown as ContextScale,
     stats: statsOf(stats),
+    updates: updatesOf(updates),
   }
+}
+
+/** A page from before the update switches sends none: form and base then agree and nothing is written. */
+function updatesOf(raw: unknown): SharedForm['updates'] {
+  if (raw === undefined) return { check: true, notify: true }
+  const { check, notify } = mapOf(raw, 'updates', (value) => typeof value === 'boolean')
+  return { check: switchOf(check, 'updates'), notify: switchOf(notify, 'updates') }
 }
 
 function statsOf(raw: unknown): StatsConfig {

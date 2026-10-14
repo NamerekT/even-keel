@@ -12,6 +12,7 @@ import type { CompareSettings } from './stats/rules.js'
 import { DEFAULT_HIDDEN_SKILLS } from './tools/settings.js'
 import { ADAPTERS, DEFAULT_TRACKER } from './tracker/adapters.js'
 import type { TrackerAdapter } from './tracker/source.js'
+import { compareVersions, DEFAULT_UPDATES, type UpdateSettings } from './updates/release.js'
 
 export interface EvenKeelConfig {
   /** Names besides loopback and `EVEN_KEEL_HOST` the page may be reached by — a proxy's name, say. */
@@ -47,6 +48,7 @@ export interface EvenKeelConfig {
   hiddenSkills: string[]
   /** Chains run at once; the rest wait in the queue. */
   parallel: number
+  updates: UpdateSettings
 }
 
 const PROJECT_KEY = /^[A-Z][A-Z0-9_]{0,4}$/
@@ -141,6 +143,7 @@ export function parseConfig(raw: unknown, adapters: AdapterShapes = ADAPTERS): E
     promptLanguage: parseLanguage(input.promptLanguage, 'promptLanguage') ?? language ?? DEFAULT_LANGUAGE,
     hiddenSkills: parseHiddenSkills(input.hiddenSkills),
     parallel: parseParallel(input.parallel),
+    updates: parseUpdates(input.updates),
   }
 }
 
@@ -182,13 +185,26 @@ function parseParallel(raw: unknown): number {
   return raw as number
 }
 
+function parseUpdates(raw: unknown): UpdateSettings {
+  if (raw === undefined) return { ...DEFAULT_UPDATES }
+  if (!isPlainObject(raw)) throw fail('config.notObject', { where: 'updates' })
+  const unknown = Object.keys(raw).find((key) => !Object.hasOwn(DEFAULT_UPDATES, key))
+  if (unknown !== undefined) throw fail('config.updatesKey', { key: unknown, known: Object.keys(DEFAULT_UPDATES) })
+  const { check, notify, dismissed } = { ...DEFAULT_UPDATES, ...raw }
+  if (dismissed !== null && (typeof dismissed !== 'string' || compareVersions(dismissed, dismissed) === null)) {
+    throw fail('config.updatesDismissed', { value: String(JSON.stringify(dismissed)) })
+  }
+  return { check: parseBrief(check, 'updates.check'), notify: parseBrief(notify, 'updates.notify'), dismissed }
+}
+
 export function liveConfig(current: EvenKeelConfig, next: EvenKeelConfig): EvenKeelConfig {
   const keep = <T>(field: Record<string, T>, fallback: Record<string, T>) =>
     Object.fromEntries(Object.keys(current.projects).map((key) => [key, field[key] ?? fallback[key]!]))
-  const { allowedHosts, names, chain, brief, model, modelPrompts, stats, language, promptLanguage, hiddenSkills, parallel } = next
+  const { allowedHosts, names, chain, brief, model, modelPrompts, stats, language, promptLanguage, hiddenSkills, parallel, updates } = next
   return {
     ...current,
     allowedHosts,
+    updates,
     names,
     parallel,
     chain,
