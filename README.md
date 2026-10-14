@@ -172,6 +172,8 @@ On Linux it installs a systemd user unit (`systemctl --user status even-keel`, l
 
 ### Updating
 
+The gear menu in the header ends with the installed version. Even Keel asks GitHub for its latest release at start and every 12 hours (a request to `api.github.com` without a token; it names only the installed version); a newer one gets a link next to the version and a notification in the corner of the page. Turn the check off on `/settings` → **Interface** or with `"updates": { "check": false }` in the config. To update:
+
 ```sh
 git pull
 npm ci
@@ -243,6 +245,9 @@ Then restart Even Keel (as a service: run its install script again). A new versi
 | `language` | the browser's | language of the page: `en` or `ru` |
 | `promptLanguage` | `language`, then `en` | language of the prompts Even Keel sends to sessions |
 | `hiddenSkills` | `update-config`, `loop`, `schedule`, `init` and a few more | bundled skills that trimmed chain sessions get only through `/name` |
+| `updates.check` | `true` | ask GitHub for the latest Even Keel release at start and every 12 hours, without a token; `false` — never go there ([Updating](#updating)) |
+| `updates.notify` | `true` | a newer release gets a notification in the corner of the page; `false` — only the mark next to the version in the gear menu |
+| `updates.dismissed` | `null` | the version whose notification you closed; the page writes it, and a later release notifies again |
 
 Statuses are matched by name, case-insensitively. Without `active` and `terminal` the chain goes by status category, so the backlog stays out and a task enters the chain when you move it to a ready status. Status names differ between trackers: if you set them at the top level, a project on another tracker needs its own (GitHub's are `Open`, `Completed`, `Not planned`, `Duplicate`; Linear's are the team's workflow states), as in the example.
 
