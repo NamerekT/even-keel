@@ -171,7 +171,7 @@ export const en = {
   'config.version': (p: { value: string }) => `config: version must be a whole number, not ${p.value}`,
   'storage.newer': (p: { file: string; version: number; known: number }) =>
     `storage: ${p.file} is from a newer version of Even Keel (schema ${p.version}, this one knows up to ${p.known}); ` +
-    'put back its *.bak copy or update Even Keel. Nothing is started and nothing is written',
+    'put back its *.bak copy or update Even Keel',
   'storage.damaged': (p: { file: string }) => `storage: ${p.file} cannot be read, so nothing was migrated`,
   'storage.unknownProject': (p: { file: string; project: string }) =>
     `storage: ${p.file} names the project ${p.project}, which the config does not have, so nothing was migrated`,

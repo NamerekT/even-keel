@@ -21,7 +21,7 @@ if (blocked === undefined) await import('./service.js')
 else serveBlocked(blocked)
 
 function serveBlocked(reason: Notice): void {
-  console.error(`${englishOf(reason)}; the service started nothing and serves the page only`)
+  console.error(`${englishOf(reason)}. The service started nothing and wrote nothing; it serves the page only`)
   const listen = listenOf(process.env)
   const token = guardToken(process.env, listen.host)
   const hosts = guardHosts(listen.host, allowedHosts(configPath()))

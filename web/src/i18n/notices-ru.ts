@@ -165,7 +165,7 @@ export const noticesRu: NoticeTexts = {
   'config.version': (p) => `version должен быть целым числом, а не ${p.value}`,
   'storage.newer': (p) =>
     `${p.file} записан более новой версией Even Keel (схема ${p.version}, эта знает до ${p.known}): ` +
-    'верните его копию *.bak или обновите Even Keel. Ничего не запущено и ничего не записано',
+    'верните его копию *.bak или обновите Even Keel',
   'storage.damaged': (p) => `${p.file} не читается, поэтому миграция ничего не записала`,
   'storage.unknownProject': (p) => `${p.file} называет проект ${p.project}, которого нет в конфиге, поэтому миграция ничего не записала`,
   'storage.writeFailed': (p) => `не удалось записать ${p.file}; записанные до него файлы возвращены из копий`,
