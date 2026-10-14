@@ -1,4 +1,6 @@
+import { randomUUID } from 'node:crypto'
 import { readFileSync } from 'node:fs'
+import { refuseNewer } from './storage/schema.js'
 import { DEFAULT_RULES, sameName, type ChainRules } from './chain/rules.js'
 import { isLanguage, LANGUAGES, type Language } from './language.js'
 import { fail } from './notice/notice.js'
@@ -14,7 +16,14 @@ import type { TrackerAdapter } from './tracker/source.js'
 export interface EvenKeelConfig {
   /** Names besides loopback and `EVEN_KEEL_HOST` the page may be reached by — a proxy's name, say. */
   allowedHosts: string[]
+  /**
+   * The repository of each project by its key, in the order of the file. Inside the running service a project goes by its
+   * key; the key may change across restarts, so what outlives the process — the files of `state/`, the page's URL — names
+   * it by its id.
+   */
   projects: Record<string, string>
+  /** The id of each project by its key: a GUID that never changes. */
+  ids: Record<string, string>
   /** The names projects are shown by, only those that have one. */
   names: Record<string, string>
   /** The shared rules, defaults filled in; a project's own keys go over them into `rules`. */
@@ -47,6 +56,7 @@ const RESTART_KEYS = ['projects', 'slots', 'tracker', 'trackers', 'trackerProjec
 /** Keys an older config had; the address now comes from `EVEN_KEEL_HOST` and `EVEN_KEEL_PORT`. */
 const IGNORED_KEYS = ['host', 'port'] as const
 export const DEFAULT_BRANCH = 'main'
+export const CONFIG_FILE = 'even-keel.config.json'
 const DEFAULT_HOST = '127.0.0.1'
 const DEFAULT_PORT = 4747
 // What `git check-ref-format --branch` refuses, short of the rarest cases.
@@ -64,10 +74,12 @@ type AdapterShapes = Readonly<Record<string, Pick<TrackerAdapter, 'projectKey'>>
 export function parseConfig(raw: unknown, adapters: AdapterShapes = ADAPTERS): EvenKeelConfig {
   const input = (raw ?? {}) as Partial<Record<keyof EvenKeelConfig, unknown>>
 
-  if (typeof input.projects !== 'object' || input.projects === null) throw fail('config.projects', {})
+  parseVersion(input.version)
+  if (!Array.isArray(input.projects)) throw fail('config.projects', {})
   const { chain: shared, tracker: sharedTracker, brief: sharedBrief } = parseShared(input, adapters)
   const language = parseLanguage(input.language, 'language')
   const projects: Record<string, string> = {}
+  const ids: Record<string, string> = {}
   const names: Record<string, string> = {}
   const rules: Record<string, ChainRules> = {}
   const slots: Record<string, number> = {}
@@ -75,10 +87,19 @@ export function parseConfig(raw: unknown, adapters: AdapterShapes = ADAPTERS): E
   const trackerProjects: Record<string, string> = {}
   const briefs: Record<string, boolean> = {}
   const settings: Record<string, ProjectSettings> = {}
-  for (const [key, entry] of Object.entries(input.projects)) {
-    if (!PROJECT_KEY.test(key)) throw fail('config.projectKey', { key })
-    const fields: Record<string, unknown> = typeof entry === 'object' && entry !== null ? (entry as Record<string, unknown>) : { repo: entry }
-    const { repo, name, branch, chain, slot, tracker, brief, prompt, commands, ci, fillMilestone } = fields
+  const placeOf: Record<string, string> = {}
+  for (const [index, fields] of (input.projects as unknown[]).entries()) {
+    const place = `projects[${index}]`
+    if (!isPlainObject(fields)) throw fail('config.projectEntry', { where: place })
+    const { id, key, repo, name, branch, chain, slot, tracker, brief, prompt, commands, ci, fillMilestone } = fields
+    if (typeof key !== 'string' || !PROJECT_KEY.test(key)) throw fail('config.projectKey', { where: `${place}.key`, value: String(JSON.stringify(key)) })
+    if (typeof id !== 'string' || id.trim() === '') throw fail('config.projectId', { where: `${place}.id` })
+    for (const [field, value] of [['key', key], ['id', id]] as const) {
+      const first = placeOf[`${field}:${value}`]
+      if (first !== undefined) throw fail('config.projectTwice', { field, value: JSON.stringify(value), first, second: place })
+      placeOf[`${field}:${value}`] = place
+    }
+    ids[key] = id
     if (typeof repo !== 'string' || repo === '') throw fail('config.repoEmpty', { key })
     if (slot !== undefined && typeof slot !== 'boolean' && !(Number.isInteger(slot) && (slot as number) > 0)) throw fail('config.slot', { key })
     if (name !== undefined && typeof name !== 'string') throw fail('config.projectName', { where: `${key}.name` })
@@ -102,6 +123,7 @@ export function parseConfig(raw: unknown, adapters: AdapterShapes = ADAPTERS): E
   return {
     allowedHosts: parseAllowedHosts(input.allowedHosts),
     projects,
+    ids,
     names,
     chain: shared,
     rules,
@@ -131,6 +153,28 @@ export function parseShared(raw: unknown, adapters: AdapterShapes = ADAPTERS): P
     tracker: parseTracker(input.tracker ?? DEFAULT_TRACKER, 'tracker', Object.keys(adapters)),
     brief: parseBrief(input.brief ?? true, 'brief'),
   }
+}
+
+function parseVersion(raw: unknown): void {
+  if (raw === undefined) return
+  if (!Number.isInteger(raw) || (raw as number) < 1) throw fail('config.version', { value: String(JSON.stringify(raw)) })
+  refuseNewer(CONFIG_FILE, raw as number)
+}
+
+/**
+ * The raw config with an id given to every project entry that has none — one added by hand — and the keys of those
+ * entries; the same object when there are none. The service writes the result back into the file.
+ */
+export function withIds(raw: unknown, newId: () => string = randomUUID): { raw: unknown; keys: string[] } {
+  const projects = isPlainObject(raw) ? raw.projects : undefined
+  if (!Array.isArray(projects)) return { raw, keys: [] }
+  const keys: string[] = []
+  const filled = projects.map((entry: unknown) => {
+    if (!isPlainObject(entry) || entry.id !== undefined) return entry
+    keys.push(String(entry.key))
+    return { id: newId(), ...entry }
+  })
+  return keys.length === 0 ? { raw, keys } : { raw: { ...(raw as Record<string, unknown>), projects: filled }, keys }
 }
 
 function parseParallel(raw: unknown): number {
@@ -360,8 +404,9 @@ function parseCompare(compare: unknown): CompareSettings {
   return settings
 }
 
+/** The config of the file, an entry without an id given one in memory only: for readers that do not write the file. */
 export function loadConfig(file: string): EvenKeelConfig {
-  return parseConfig(readRawConfig(file))
+  return parseConfig(withIds(readRawConfig(file)).raw)
 }
 
 export function readRawConfig(file: string): unknown {

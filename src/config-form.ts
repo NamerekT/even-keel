@@ -72,13 +72,15 @@ export function restartPending(current: EvenKeelConfig, saved: EvenKeelConfig): 
  * as it was keeps its key as written, even if the file changed since; a changed one is written only where it differs
  * from what the project would inherit, otherwise its key goes.
  */
-export function withProjectForm(raw: unknown, project: string, form: ProjectForm, base: ProjectForm, adapters: Adapters = ADAPTERS): Record<string, unknown> {
+export function withProjectForm(raw: unknown, id: string, form: ProjectForm, base: ProjectForm, adapters: Adapters = ADAPTERS): Record<string, unknown> {
   const config = isPlainObject(raw) ? raw : {}
   const { projects } = config
-  if (!isPlainObject(projects) || !Object.hasOwn(projects, project)) throw fail('config.unknownProject', { key: project })
+  const index = Array.isArray(projects) ? projects.findIndex((each: unknown) => isPlainObject(each) && each.id === id) : -1
+  if (index < 0) throw fail('config.unknownProject', { key: id })
+  const list = projects as unknown[]
   const changed = (field: keyof ProjectForm) => !same(base[field], form[field])
   const shared = parseShared(config, adapters)
-  const entry = withProjectSettings(projects[project], form, changed)
+  const entry = withProjectSettings(list[index], form, changed)
 
   if (changed('repo')) entry.repo = form.repo.trim()
   if (changed('name')) {
@@ -106,7 +108,7 @@ export function withProjectForm(raw: unknown, project: string, form: ProjectForm
     if (own !== undefined && value === '') delete entry[own]
     else if (own !== undefined) entry[own] = value
   }
-  return { ...config, projects: { ...projects, [project]: entry } }
+  return { ...config, projects: list.map((each, at) => (at === index ? entry : each)) }
 }
 
 /** The raw config with the shared keys set from the form, by the same rule as `withProjectForm`, against the defaults. */

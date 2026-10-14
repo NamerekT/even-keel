@@ -1,7 +1,8 @@
-import { watchFile, writeFileSync } from 'node:fs'
+import { watchFile } from 'node:fs'
 import { formsOf, restartPending, trackerChoices, withProjectForm, withSharedForm } from './config-form.js'
-import { ignoredKeys, liveConfig, loadConfig, parseConfig, readRawConfig, restartChanges, type EvenKeelConfig } from './config.js'
+import { ignoredKeys, liveConfig, parseConfig, readRawConfig, restartChanges, withIds, type EvenKeelConfig } from './config.js'
 import { englishOf, fail, noticeOf, type Notice } from './notice/notice.js'
+import { writeAtomic } from './storage/atomic.js'
 import type { ConfigView, ProjectForm, SharedForm } from './state.js'
 
 export interface ConfigFileOptions {
@@ -20,7 +21,7 @@ export class ConfigFile {
 
   constructor(private readonly options: ConfigFileOptions) {
     const raw = readRawConfig(options.file)
-    this.current = parseConfig(raw)
+    this.current = this.parseFilled(raw)
     this.saved = this.current
     const ignored = ignoredKeys(raw)
     if (ignored.length > 0) {
@@ -37,7 +38,7 @@ export class ConfigFile {
   reload(): void {
     let next: EvenKeelConfig
     try {
-      next = loadConfig(this.options.file)
+      next = this.parseFilled(readRawConfig(this.options.file))
     } catch (error) {
       this.error = noticeOf(error)
       this.options.warn(`config: ${this.options.file} is not applied, the last working config stays: ${englishOf(this.error)}`)
@@ -56,9 +57,27 @@ export class ConfigFile {
     return { ...formsOf(this.saved), restart: restartPending(this.current, this.saved), trackers: trackerChoices(), trackerLocked }
   }
 
-  /** Writes the project's settings into the file, only if the whole config still parses, and applies what is live at once. */
+  /** Writes the project's settings into its entry of the file, only if the whole config still parses, and applies what is live at once. */
   saveProject(project: string, form: ProjectForm, base: ProjectForm): void {
-    this.write(withProjectForm(readRawConfig(this.options.file), project, form, base))
+    const id = this.saved.ids[project]
+    if (id === undefined) throw fail('config.unknownProject', { key: project })
+    this.write(withProjectForm(readRawConfig(this.options.file), id, form, base))
+  }
+
+  /** The config of the raw file; an entry added without an id gets one written into the file, once the whole file parses. */
+  private parseFilled(raw: unknown): EvenKeelConfig {
+    const { raw: filled, keys } = withIds(raw)
+    const config = parseConfig(filled)
+    if (keys.length === 0) return config
+    const { file } = this.options
+    try {
+      writeAtomic(`${file}.bak`, `${JSON.stringify(raw, null, 2)}\n`)
+      writeAtomic(file, `${JSON.stringify(filled, null, 2)}\n`)
+    } catch (error) {
+      throw fail('config.writeFailed', { file }, { detail: (error as Error).message }, { cause: error })
+    }
+    for (const key of keys) this.options.warn(`config: ${key} had no id, gave it ${config.ids[key]} in ${file}`)
+    return config
   }
 
   /** Writes the shared settings into the file, by the same rule as `saveProject`. */
@@ -70,7 +89,7 @@ export class ConfigFile {
     const { file } = this.options
     parseConfig(next)
     try {
-      writeFileSync(file, `${JSON.stringify(next, null, 2)}\n`)
+      writeAtomic(file, `${JSON.stringify(next, null, 2)}\n`)
     } catch (error) {
       throw fail('config.writeFailed', { file }, { detail: (error as Error).message }, { cause: error })
     }

@@ -161,8 +161,21 @@ export const en = {
   'config.notJson': (p: { file: string }) => `config: ${p.file} is not JSON`,
   'config.port': (p: { value: string }) => `config: EVEN_KEEL_PORT must be an integer in 1..65535, got ${p.value}`,
   'config.branch': (p: { where: string; value: string }) => `config: ${p.where} must be a branch name, got ${p.value}`,
-  'config.projects': () => 'config: projects must map a project key to a repository path',
-  'config.projectKey': (p: { key: string }) => `config: "${p.key}" is not a project key`,
+  'config.projects': () => 'config: projects must be a list of project records',
+  'config.projectEntry': (p: { where: string }) => `config: ${p.where} must be an object with the project's id, key and repo`,
+  'config.projectKey': (p: { where: string; value: string }) =>
+    `config: ${p.where} must be a project key (a capital letter, then up to 4 capitals, digits or _), not ${p.value}`,
+  'config.projectId': (p: { where: string }) => `config: ${p.where} must be the project's id; Even Keel writes one into an entry that has none`,
+  'config.projectTwice': (p: { field: string; value: string; first: string; second: string }) =>
+    `config: the ${p.field} ${p.value} is given twice, at ${p.first} and at ${p.second}`,
+  'config.version': (p: { value: string }) => `config: version must be a whole number, not ${p.value}`,
+  'storage.newer': (p: { file: string; version: number; known: number }) =>
+    `storage: ${p.file} is from a newer version of Even Keel (schema ${p.version}, this one knows up to ${p.known}); ` +
+    'put back its *.bak copy or update Even Keel. Nothing is started and nothing is written',
+  'storage.damaged': (p: { file: string }) => `storage: ${p.file} cannot be read, so nothing was migrated`,
+  'storage.unknownProject': (p: { file: string; project: string }) =>
+    `storage: ${p.file} names the project ${p.project}, which the config does not have, so nothing was migrated`,
+  'storage.writeFailed': (p: { file: string }) => `storage: could not write ${p.file}; the files written before it are put back from their copies`,
   'config.repoEmpty': (p: { key: string }) => `config: repository path for ${p.key} is empty`,
   'config.slot': (p: { key: string }) => `config: ${p.key}.slot must be true, false or the number of slots`,
   'config.language': (p: { where: string; value: string; known: string[] }) =>
