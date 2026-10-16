@@ -89,7 +89,7 @@ cp even-keel.config.example.json even-keel.config.json
 Each project needs:
 
 - a git repository with a main branch — `main` unless the project names another in `branch`; with a remote, Even Keel pushes it after every task;
-- the repository trusted by Claude Code: open `claude` in it once and accept the trust prompt, or the first launch pauses the chain and asks for it;
+- the repository trusted by Claude Code: open `claude` in it once and accept the trust prompt, or the first launch pauses the chain and asks for it (accepting it in the repository covers the task worktrees the message names; then press **Resume**: the chain does not retry by itself);
 - a rule that the session merges its branch when done. Without the plugin ([level 2](#2-with-the-plugin)) put it into the project's `CLAUDE.md`, for example:
 
   > When the task is done and the checks pass, commit, then merge the branch into `main` (the project's main branch) in the main checkout with `git merge --no-edit <branch>`. Do not remove the worktree or the branch afterwards.
@@ -191,6 +191,14 @@ npm run build
 Then restart Even Keel (as a service: run its install script again). A new version may store the config and `state/` in a newer format: at startup, before anything else, Even Keel rewrites them to it and keeps each old file next to it as `<file>.v<N>.bak` (the log names them). It rewrites all of them or none; a file it cannot read, or one written by a newer version, leaves the service with only the page, which shows the reason. To go back to the previous version, check out its code and put the `.bak` copies back in place of the rewritten files.
 
 The statistics database is versioned too: the collector brings its schema up to date on its first run after the update, step by step, each step in one transaction. Going back to an older version does not undo that: the older collector stops on a newer database (one line in the log) and `/stats` says so, until you update again or restore a backup of the database taken before the update (`<state>/tally/pgdata` for the embedded one). On your own Postgres the collector migrates as `tally_writer`; if it is not the owner of the tables, it changes nothing and logs the statements to run and the role to run them as.
+
+### Uninstall
+
+`service\uninstall.ps1` (PowerShell 7 as administrator) or `service/uninstall.sh` stops and removes the service and nothing else. Sessions it started keep running: they belong to the CLI's daemon, so finish or stop them first (`claude agents` lists them). The rest stays where it is, for you to remove by hand:
+
+- **The Even Keel folder** — the code, `.env` with the tracker credentials, the config, `logs/`, and `state/` (`EVEN_KEEL_STATE_DIR`) with the chain, the launch log and the embedded statistics database (`state/tally/pgdata`). Deleting the folder removes all of it. On your own Postgres the statistics stay in that database.
+- **In each project's repository** — the worktrees of unfinished tasks in `.claude/worktrees/` with their branches `<key>-<number>/task` (`git worktree list`, then `git worktree remove` and `git branch -d`), the slots of a project with `slot`, and the line `.claude/worktrees/` Even Keel added to `.git/info/exclude`. With the plugin: `claude plugin uninstall huly@even-keel --scope project` (or `github@…`, `linear@…`) and commit `.claude/settings.json`.
+- **In your Claude Code config** — the plugin credentials in the `env` of `~/.claude/settings.json`, the marketplace (`claude plugin marketplace remove even-keel`), and the extra account folders in `~/.claude-accounts` (`EVEN_KEEL_ACCOUNTS_DIR`), each still signed in until you run `claude auth logout` with its `CLAUDE_CONFIG_DIR`. Project memory moved to `~/.claude-memory/<project>`, with `~/.claude/projects/<project>/memory` linking to it: Claude Code keeps using it through the link, so leave it unless you want the memory gone too.
 
 ## Environment
 
