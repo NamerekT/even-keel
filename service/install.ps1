@@ -30,6 +30,12 @@ function Grant-Control {
     Invoke-Sc sdset $Name $sddl
 }
 
+# A running service holds native binaries of node_modules (esbuild under tsx): npm fails on them with EPERM.
+$existing = Get-Service -Name $Name -ErrorAction SilentlyContinue
+if ($existing -and $existing.Status -ne 'Stopped') {
+    Stop-Service -Name $Name
+}
+
 Push-Location $root
 try {
     npm install --no-audit --no-fund
@@ -38,11 +44,6 @@ try {
     if ($LASTEXITCODE -ne 0) { throw "npm run build failed with code $LASTEXITCODE" }
 } finally {
     Pop-Location
-}
-
-$existing = Get-Service -Name $Name -ErrorAction SilentlyContinue
-if ($existing -and $existing.Status -ne 'Stopped') {
-    Stop-Service -Name $Name
 }
 
 New-Item -ItemType Directory -Force $bin | Out-Null

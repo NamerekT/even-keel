@@ -182,13 +182,14 @@ On Linux it installs a systemd user unit (`systemctl --user status even-keel`, l
 
 The gear menu in the header ends with the installed version. Even Keel asks GitHub for its latest release at start and every 12 hours (a request to `api.github.com` without a token; it names only the installed version); a newer one gets a link next to the version and a notification in the corner of the page. Turn the check off on `/settings` → **Interface** or with `"updates": { "check": false }` in the config. To update:
 
-```sh
-git pull
-npm ci
-npm run build
-```
+- **run from a terminal** — stop Even Keel, then `git pull`, `npm ci`, `npm run build` and `npm start`;
+- **as a service** — `git pull`, then run its install script again: it installs the dependencies, builds the page and restarts the service.
 
-Then restart Even Keel (as a service: run its install script again). A new version may store the config and `state/` in a newer format: at startup, before anything else, Even Keel rewrites them to it and keeps each old file next to it as `<file>.v<N>.bak` (the log names them). It rewrites all of them or none; a file it cannot read, or one written by a newer version, leaves the service with only the page, which shows the reason. To go back to the previous version, check out its code and put the `.bak` copies back in place of the rewritten files.
+On Windows a running Even Keel holds files in `node_modules`: `npm ci` next to it fails with `EPERM` and leaves the folder half-removed. Stop Even Keel and run `npm ci` again. Running sessions are not stopped by any of this: they belong to the CLI's daemon, and the restarted Even Keel picks them up.
+
+The plugins come with the code. A marketplace added from the local path of this folder is read from the folder, so sessions started after the update get the new plugins. One added from a git URL keeps its own copy: `claude plugin marketplace update even-keel`, then `claude plugin update huly@even-keel` (or `github@…`, `linear@…`, `checkpoint@…`) in each project repository that installed it.
+
+A new version may store the config and `state/` in a newer format: at startup, before anything else, Even Keel rewrites them to it and keeps each old file next to it as `<file>.v<N>.bak` (the log names them). It rewrites all of them or none; a file it cannot read, or one written by a newer version, leaves the service with only the page, which shows the reason. To go back to the previous version, check out its code and put the `.bak` copies back in place of the rewritten files.
 
 The statistics database is versioned too: the collector brings its schema up to date on its first run after the update, step by step, each step in one transaction. Going back to an older version does not undo that: the older collector stops on a newer database (one line in the log) and `/stats` says so, until you update again or restore a backup of the database taken before the update (`<state>/tally/pgdata` for the embedded one). On your own Postgres the collector migrates as `tally_writer`; if it is not the owner of the tables, it changes nothing and logs the statements to run and the role to run them as.
 
