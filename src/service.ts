@@ -126,6 +126,8 @@ const cli = new ClaudeCli(() => resolveClaudeBinary(process.env), CLAUDE_TIMEOUT
 const startedAt = new Date().toISOString()
 const tasksByProject = new Map<string, Task[]>()
 const ciWatches = new Map<string, CiWatch[]>()
+/** Every project's remotes are read and its CIs are in `ciWatches`. */
+let ciFound = false
 let sessions: SessionView[] = []
 let agents: AgentEntry[] = []
 let agentsRead = false
@@ -487,7 +489,7 @@ const dispatcher = new Dispatcher(loadChainState(chainFile, config.ids), {
     repo: (project) => config.projects[project]!,
     main: branchOf,
     git: runGit,
-    watches: (project) => ciWatches.get(project) ?? [],
+    watches: (project) => (ciFound ? (ciWatches.get(project) ?? []) : null),
     settings: (project) => configFile.current.settings[project]?.ci ?? DEFAULT_CI,
     commands: (project) => configFile.current.settings[project]?.check ?? [],
     language: () => configFile.current.language ?? promptLanguage(),
@@ -774,6 +776,8 @@ void (async () => {
     )
     console.log(`ci: ${project} watches ${targets.map((target) => `${target.kind} on ${target.remote}`).join(', ')}`)
   }
+  ciFound = true
+  dispatcher.check()
   setInterval(() => {
     for (const watch of [...ciWatches.values()].flat()) void watch.tick()
   }, CI_TICK_MS).unref()

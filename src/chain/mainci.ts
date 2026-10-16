@@ -22,7 +22,8 @@ export interface MainCiDeps {
   /** The project's main branch. */
   main: (project: string) => string
   git: Git
-  watches: (project: string) => MainCiWatch[]
+  /** `null` — the service has yet to find the project's CIs. */
+  watches: (project: string) => MainCiWatch[] | null
   settings: (project: string) => CiSettings
   /** The project's check commands (`commands.check`). */
   commands: (project: string) => string[]
@@ -49,9 +50,9 @@ export function mergeCheck(commands: string[], settings: CiSettings, views: CiVi
 // What the chain's check of main (BTN-103, BTN-104) needs from the service: git of the project, its counted CIs,
 // its own check and the tracker. With the guard of main off no CI counts and there is no check, so a push is never awaited.
 export function mainCheckDeps(deps: MainCiDeps): MainCheckDeps {
-  const counted = (project: string) => {
+  const counted = (project: string): MainCiWatch[] | null => {
     const { guard, kinds } = deps.settings(project)
-    return guard ? deps.watches(project).filter((watch) => kinds.includes(watch.view.kind)) : []
+    return guard ? (deps.watches(project)?.filter((watch) => kinds.includes(watch.view.kind)) ?? null) : []
   }
   const revision = async (cwd: string, rev: string) => {
     const read = await deps.git(cwd, ['rev-parse', '--verify', '--quiet', rev])
@@ -60,7 +61,11 @@ export function mainCheckDeps(deps: MainCiDeps): MainCheckDeps {
 
   return {
     head: (project) => revision(deps.repo(project), `refs/heads/${deps.main(project)}`),
-    verdict: (project, commit, since) => verdictOf(counted(project).map((watch) => watch.view), commit, since, deps.now()),
+    verdict(project, commit, since) {
+      // Right after a start the CIs are not found yet: without the wait an awaited push would pass for one without a CI.
+      const watches = counted(project)
+      return watches === null ? { state: 'pending' } : verdictOf(watches.map((watch) => watch.view), commit, since, deps.now())
+    },
     waitMs(project) {
       const minutes = deps.settings(project).waitMinutes
       return minutes === null ? null : minutes * 60_000
@@ -71,7 +76,7 @@ export function mainCheckDeps(deps: MainCiDeps): MainCheckDeps {
       const commits = log.code === 0 ? log.out.split(/\r?\n/).filter((line) => line.trim() !== '') : []
       const facts = { commit: push.commit, commits, green, tasks: push.tasks }
       if ('check' in failure) return redReport({ ...facts, runs: [], check: failure.check }, deps.language(), deps.promptLanguage())
-      const watches = counted(project)
+      const watches = counted(project) ?? []
       const runs = await Promise.all(
         failure.ci.map(({ kind, run }) => watches.find((watch) => watch.view.kind === kind)?.failed(run) ?? Promise.resolve({ kind, run, jobs: null, log: null })),
       )

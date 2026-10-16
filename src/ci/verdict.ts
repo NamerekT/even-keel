@@ -38,6 +38,8 @@ export function verdictOf(views: CiView[], commit: string, since: string, now: D
 function viewVerdict(view: CiView, commit: string, since: string, now: Date): CiVerdict {
   const ci = CI_TITLES[view.kind]
   if (view.health !== 'ok') return { state: 'unavailable', reasons: [view.error ?? notice('ci.unreachable', { ci })] }
+  // Not asked since the service started: an empty history says nothing about the commit yet.
+  if (view.checkedAt === null) return { state: 'pending' }
   const known = [...(view.current === null ? [] : [view.current.run]), ...view.history]
   const runs = known.filter((run, index) => run.commit === commit && known.findIndex((other) => other.id === run.id) === index)
   const failed = runs.filter((run) => run.status === 'failure')

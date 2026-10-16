@@ -93,6 +93,10 @@ describe('verdictOf', () => {
     expect(verdict.state).toBe('red')
   })
 
+  it('waits for a CI that has not been asked yet since the service started, however late', () => {
+    expect(verdictOf([view([], { checkedAt: null })], 'B', PUSHED, LATE)).toEqual({ state: 'pending' })
+  })
+
   it('puts red before waiting, waiting before unavailable, and unavailable before green across CIs', () => {
     const green = view([run(1)])
     const pending = view([run(1, { status: 'running', stoppedAt: null })], { kind: 'github' })

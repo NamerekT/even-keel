@@ -122,7 +122,15 @@ export class Dispatcher {
   start(project: string): void {
     this.requireProject(project)
     const { active, queue } = this.state
-    if (this.chainOf(project) !== undefined || queue.includes(project)) return
+    const chain = this.chainOf(project)
+    if (chain !== undefined || queue.includes(project)) {
+      // A chain started only for the fix of a red main goes on with the tasks once the user starts it.
+      if (chain?.fixOnly) {
+        delete chain.fixOnly
+        this.changed()
+      }
+      return
+    }
     if (active.length < this.deps.parallel()) {
       this.requireLaunches()
       active.push(newChain(project))

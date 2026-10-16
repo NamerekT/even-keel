@@ -144,6 +144,62 @@ describe('Dispatcher and a red main without a fix task', () => {
     expect(launched).toEqual(['ABC/ABC-1', 'ABC/ABC-FIX'])
   })
 
+  /** The chain is stopped while ABC-1 works; ABC-1 then goes to Done on its own and its push awaits the CI. */
+  async function stoppedWhileWorking() {
+    const { ci, deps } = fakeMain()
+    ci.fixTask = false
+    const harness = setup({ main: deps })
+    const { dispatcher, busy } = harness
+    dispatcher.setTasks('ABC', [task('ABC-1'), task('ABC-2')])
+    dispatcher.start('ABC')
+    await dispatcher.idle()
+    busy.add('ABC-1')
+    dispatcher.stop('ABC')
+    await dispatcher.idle()
+    busy.delete('ABC-1')
+    dispatcher.setTasks('ABC', [task('ABC-1', done), task('ABC-2')])
+    dispatcher.setReleased('ABC', [task('ABC-1', done)])
+    await dispatcher.idle()
+    expect(dispatcher.state.ci.ABC?.check?.tasks).toEqual(['ABC-1'])
+    return { ...harness, ci }
+  }
+
+  it('starts the fix before the next task when the chain is started again before the red verdict', async () => {
+    const { dispatcher, launched, fixes, ci } = await stoppedWhileWorking()
+    dispatcher.start('ABC')
+    await dispatcher.idle()
+    expect(launched).toEqual(['ABC/ABC-1'])
+
+    ci.verdict = red
+    dispatcher.check()
+    await dispatcher.idle()
+    expect(fixes).toHaveLength(1)
+    expect(launched).toEqual(['ABC/ABC-1', 'ABC/ABC-FIX'])
+    expect(dispatcher.state.active).toMatchObject([{ project: 'ABC', current: { task: 'ABC-FIX' } }])
+    expect(dispatcher.state.active[0]?.fixOnly).toBeUndefined()
+  })
+
+  it('goes on with the chain after the fix when it is started while the fix of a stopped chain works', async () => {
+    const { dispatcher, launched, ci } = await stoppedWhileWorking()
+    ci.verdict = red
+    dispatcher.check()
+    await dispatcher.idle()
+    expect(dispatcher.state.active).toMatchObject([{ project: 'ABC', fixOnly: true, current: { task: 'ABC-FIX' } }])
+
+    dispatcher.start('ABC')
+    await dispatcher.idle()
+    expect(dispatcher.state.active[0]?.fixOnly).toBeUndefined()
+
+    ci.verdict = { state: 'pending' }
+    ci.merged.add('ABC-FIX')
+    dispatcher.check()
+    await dispatcher.idle()
+    ci.verdict = { state: 'green' }
+    dispatcher.check()
+    await dispatcher.idle()
+    expect(launched).toEqual(['ABC/ABC-1', 'ABC/ABC-FIX', 'ABC/ABC-2'])
+  })
+
   it('drops the fix on "Skip" and goes on with the chain', async () => {
     const { dispatcher, launched, busy, ci } = await withoutTask()
     ci.verdict = red

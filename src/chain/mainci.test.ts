@@ -34,7 +34,8 @@ const view = (kind: CiKind, status: CiRun['status']): CiView => ({
 const all = (kinds: CiKind[], waitMinutes: number | null = null): CiSettings => ({ guard: true, kinds, waitMinutes, recheckMain: true, fixTask: false })
 const unguarded = (kinds: CiKind[]): CiSettings => ({ ...all(kinds), guard: false })
 
-function setup(settings: CiSettings, views: CiView[], heads: Record<string, string> = {}, failure: CheckFailure | null = null, main = 'main') {
+/** `views: null` — the service has yet to find the project's CIs. */
+function setup(settings: CiSettings, views: CiView[] | null, heads: Record<string, string> = {}, failure: CheckFailure | null = null, main = 'main') {
   const gitCalls: string[][] = []
   const checks: string[] = []
   const git: Git = async (cwd, args) => {
@@ -48,7 +49,8 @@ function setup(settings: CiSettings, views: CiView[], heads: Record<string, stri
     if (args[0] === 'for-each-ref') return { code: 0, out: args.at(-1) === 'refs/heads/abc-1' ? 'b1\n' : '' }
     return { code: 0, out: 'c2abc [ABC-2] Second\nc1abc [ABC-1] First\n' }
   }
-  const watches: MainCiWatch[] = views.map((each) => ({ view: each, failed: async (failed) => ({ kind: each.kind, run: failed, jobs: [], log: 'FAIL' }) }))
+  const watches: MainCiWatch[] | null =
+    views?.map((each) => ({ view: each, failed: async (failed) => ({ kind: each.kind, run: failed, jobs: [], log: 'FAIL' }) })) ?? null
   const deps = mainCheckDeps({
     repo: () => 'D:/repos/abc',
     main: () => main,
@@ -90,6 +92,11 @@ describe('mainCheckDeps', () => {
     expect(setup(all(['github']), views).deps.verdict('ABC', 'c2', '2026-10-12T10:00:00Z')).toEqual({ state: 'green' })
     expect(setup(all(['forgejo', 'github']), views).deps.verdict('ABC', 'c2', '2026-10-12T10:00:00Z').state).toBe('red')
     expect(setup(all([]), views).deps.verdict('ABC', 'c2', '2026-10-12T10:00:00Z')).toEqual({ state: 'none' })
+  })
+
+  it('waits for the verdict until the service has found the project CIs, so a push is not taken for one without a CI', () => {
+    expect(setup(all(['forgejo']), null).deps.verdict('ABC', 'c2', '2026-10-12T10:00:00Z')).toEqual({ state: 'pending' })
+    expect(setup(unguarded(['forgejo']), null).deps.verdict('ABC', 'c2', '2026-10-12T10:00:00Z')).toEqual({ state: 'none' })
   })
 
   it('turns the wait into milliseconds, null staying as long as it takes', () => {
