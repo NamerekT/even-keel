@@ -585,6 +585,32 @@ describe('Dispatcher on a limit', () => {
     expect(relays).toEqual([])
   })
 
+  it('learns the reset of a limit without a reset time from the limits polled later and hands over after it', async () => {
+    const polled: { reset: string | null; asked: string[] } = { reset: null, asked: [] }
+    const limitResetAfter = (account: string, at: string) => {
+      polled.asked.push(`${account} ${at}`)
+      return polled.reset
+    }
+    const { dispatcher, limited, clock, relays } = await running({ limitResetAfter })
+    limited['ABC-1'] = {
+      ...limitedSession('session-1', '2026-09-26T12:00:00.000Z', '2026-09-26T11:59:00.000Z'),
+      limit: { at: '2026-09-26T12:00:00.000Z', text: 'Usage limit reached; a short grace allowance remains' },
+    }
+    await check(dispatcher)
+    expect(dispatcher.state.active[0]?.current?.limit?.resetsAt).toBeNull()
+
+    clock.now = new Date('2026-09-26T12:05:00Z')
+    polled.reset = '2026-09-26T14:00:00.000Z'
+    await check(dispatcher)
+    expect(dispatcher.state.active[0]?.current?.limit).toMatchObject({ resetsAt: '2026-09-26T14:00:00.000Z', acted: null })
+    expect(polled.asked.at(-1)).toBe('global 2026-09-26T12:00:00.000Z')
+    expect(relays).toEqual([])
+
+    clock.now = new Date('2026-09-26T14:00:00Z')
+    await check(dispatcher)
+    expect(relays).toMatchObject([{ kind: 'relay', task: 'ABC-1', sessionId: 'session-1' }])
+  })
+
   it('hands the task to a new session in the old worktree once the limit resets with a cold cache', async () => {
     const { dispatcher, limited, clock, relays, journal } = await running()
     limited['ABC-1'] = limitedSession('session-1', '2026-09-26T12:00:00.000Z', '2026-09-26T11:59:00.000Z')

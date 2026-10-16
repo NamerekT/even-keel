@@ -23,7 +23,7 @@ import { EventHub } from './events.js'
 import { runGit } from './git/run.js'
 import { finishSlot, prepareSlot, slotPaths, type SlotUse } from './git/slot.js'
 import { ensureIgnored, finishWorktree, prepareWorktree, requireBranch, taskPlace } from './git/worktree.js'
-import { exhaustedReset } from './limits/model.js'
+import { exhaustedReset, limitResetAfter } from './limits/model.js'
 import { LimitsWatcher } from './limits/watcher.js'
 import { englishOf, fail, notice, noticeOf, type Notice } from './notice/notice.js'
 import { guardHosts, guardToken } from './guard.js'
@@ -409,6 +409,7 @@ const dispatcher = new Dispatcher(loadChainState(chainFile, config.ids), {
   account: activeAccount,
   accountAt: (key, at) => accountId(key, accountAt(ledger, key, at)),
   limitReset: () => exhaustedReset(limits.limits(ledger.active)),
+  limitResetAfter: (account, at) => limitResetAfter(limits.limits(account), at),
   promptLanguage,
   mainBranch: (task) => {
     const project = projectOf(task)

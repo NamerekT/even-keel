@@ -147,6 +147,8 @@ export interface DispatcherDeps {
   account: () => AccountNow
   accountAt: (account: string, at: string) => string | null
   limitReset: () => string | null
+  /** When the limit an account folder hit at `at` resets, by its polled limits (`limitResetAfter`). */
+  limitResetAfter: (account: string, at: string) => string | null
   promptLanguage: () => Language
   /** The main branch of the task's project, which the prompts name. */
   mainBranch: (task: string) => string

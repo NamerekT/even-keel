@@ -13,6 +13,7 @@ import {
   startPrompt,
   withBrief,
   withProjectPrompt,
+  withReset,
   withUnattended,
   type HandoffReason,
   type HandoffSession,
@@ -68,6 +69,14 @@ describe('holdOf', () => {
   it('expects a warm resume when the reset comes within the cache lifetime of the last reply', () => {
     const limited = session({ limit: { at: '2026-09-27T17:10:00.000Z', text: 'resets 7:20pm (Europe/Berlin)' }, lastReplyAt: '2026-09-27T17:05:00.000Z' })
     expect(holdOf(limited, 'john@example.com', null).then).toBe('resume')
+  })
+})
+
+describe('withReset', () => {
+  it('fills in a reset time learned after the limit and plans the step for it', () => {
+    const unknown = hold({ resetsAt: null, lastReplyAt: '2026-09-27T14:38:50.000Z' })
+    expect(withReset(unknown, '2026-09-27T15:00:00.000Z')).toEqual(hold({ resetsAt: '2026-09-27T15:00:00.000Z', then: 'resume' }))
+    expect(withReset(unknown, '2026-09-27T17:20:00.000Z')).toEqual(hold())
   })
 })
 

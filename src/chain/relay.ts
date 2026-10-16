@@ -94,10 +94,14 @@ export interface AccountNow {
 
 export function holdOf(session: LimitedSession, account: string | null, fallbackReset: string | null): LimitHold {
   const resetsAt = resetTimeOf(session.limit.text, session.limit.at) ?? fallbackReset
-  const { lastReplyAt } = session
+  return withReset({ at: session.limit.at, account, resetsAt: null, lastReplyAt: session.lastReplyAt, then: 'relay', acted: null }, resetsAt)
+}
+
+export function withReset(hold: LimitHold, resetsAt: string | null): LimitHold {
+  const { account, lastReplyAt } = hold
   const warmAtReset =
     account !== null && resetsAt !== null && lastReplyAt !== null && Date.parse(resetsAt) - Date.parse(lastReplyAt) < WARM_CACHE_MS
-  return { at: session.limit.at, account, resetsAt, lastReplyAt, then: warmAtReset ? 'resume' : 'relay', acted: null }
+  return { ...hold, resetsAt, then: warmAtReset ? 'resume' : 'relay' }
 }
 
 export function relayStep(hold: LimitHold, now: Date, account: AccountNow): RelayStep {

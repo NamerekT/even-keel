@@ -39,6 +39,7 @@ export interface SetupOptions {
   failRelay?: boolean
   failStop?: boolean
   limitReset?: string | null
+  limitResetAfter?: (account: string, at: string) => string | null
   busy?: Set<string>
   waiting?: Set<string>
   /** The open `AskUserQuestion` of a task's session, by task. */
@@ -96,6 +97,7 @@ export function setup(options: SetupOptions = {}) {
     account: () => account,
     accountAt: options.accountAt ?? (() => account.id),
     limitReset: () => options.limitReset ?? null,
+    limitResetAfter: options.limitResetAfter ?? (() => options.limitReset ?? null),
     promptLanguage: () => 'ru',
     mainBranch: () => 'main',
     resume: async (_task, session) => {

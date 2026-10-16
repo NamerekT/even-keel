@@ -46,6 +46,24 @@ export function exhaustedReset(limits: RateLimits | null): string | null {
   return resets.sort().at(-1) ?? null
 }
 
+const FIVE_HOURS_MS = 5 * 60 * 60_000
+
+/**
+ * When a limit the account hit at `at` resets, for a limit whose text gave no time — the CLI's `wrap_up` warning
+ * comes before the window shows 100%. Without an exhausted window it is the end of the five-hour window the limit
+ * fell into, or the start of a newer one; `null` until the account's limits are newer than the limit. A statusline
+ * snapshot may leave the five-hour window out, so only `/usage` saying it has not started counts as a reset.
+ */
+export function limitResetAfter(limits: RateLimits | null, at: string): string | null {
+  const exhausted = exhaustedReset(limits)
+  if (exhausted !== null) return exhausted
+  if (limits === null || Date.parse(limits.updatedAt) <= Date.parse(at)) return null
+  const window = limits.fiveHour
+  if (window === null) return limits.source === 'usage' ? limits.updatedAt : null
+  const start = Date.parse(window.resetsAt) - FIVE_HOURS_MS
+  return start > Date.parse(at) ? new Date(start).toISOString() : window.resetsAt
+}
+
 function parseWindow(raw: unknown): LimitWindow | null {
   if (!isRecord(raw)) return null
   const { used_percentage: used, resets_at: resetsAt } = raw

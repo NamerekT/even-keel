@@ -1,6 +1,6 @@
 import { noticeOf, type Notice } from '../notice/notice.js'
 import type { ActiveChain, ChainState, CurrentTask, DispatcherDeps } from './model.js'
-import { handoffPrompt, holdOf, relayStep, type HandoffReason, type HandoffSession } from './relay.js'
+import { handoffPrompt, holdOf, relayStep, withReset, type HandoffReason, type HandoffSession } from './relay.js'
 
 const UNANSWERED_MS = 10 * 60_000
 
@@ -25,8 +25,15 @@ export class Handovers {
     }
     if (current.limit?.at !== session.limit.at) {
       if (this.deps.account().id === null) return true
-      current.limit = holdOf(session, this.deps.accountAt(session.account, session.limit.at), this.deps.limitReset())
+      const reset = this.deps.limitResetAfter(session.account, session.limit.at)
+      current.limit = holdOf(session, this.deps.accountAt(session.account, session.limit.at), reset)
       this.deps.save(this.state)
+    } else if (current.limit.resetsAt === null) {
+      const reset = this.deps.limitResetAfter(session.account, current.limit.at)
+      if (reset !== null) {
+        current.limit = withReset(current.limit, reset)
+        this.deps.save(this.state)
+      }
     }
     const hold = current.limit
     const now = this.deps.now()

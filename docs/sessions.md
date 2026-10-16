@@ -49,3 +49,4 @@ Assembled strictly: a value in the launch and handoff prompt goes through `fill`
 - With an expired access token or after a 429, `/usage` returns no limits (the subscription line is there, the window lines are not) — that is "no data" (`stale`), not an error. A `/usage` answer is accepted whole or not at all: both window lines with a percentage and a reset (`0% used` without a reset — the window has not started).
 - Polling continues only if the answer says outright `num_turns: 0` and `total_cost_usd: 0`, otherwise it is switched off until restart. An unreadable answer or switched-off polling is shown by the page as a banner (`UsageBanner`).
 - While a window is used up, the next task is not started: the chain waits for the reset (`limitUntil`) and continues by itself.
+- A limit on a running session whose text gives no reset time (the `wrap_up` warning) takes it from these limits once they are newer than the limit (`docs/chain.md`, exception 1).

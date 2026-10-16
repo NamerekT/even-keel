@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { currentLimits, exhaustedReset, limitsFileDir, newestLimits, parseLimitsFile } from './model.js'
+import { currentLimits, exhaustedReset, limitResetAfter, limitsFileDir, newestLimits, parseLimitsFile } from './model.js'
 
 const RECEIVED_AT = '2026-01-01T12:00:00.000Z'
 const FIVE_HOUR_RESET = Date.UTC(2026, 0, 1, 15, 0, 0) / 1000
@@ -129,5 +129,42 @@ describe('exhaustedReset', () => {
   it('knows nothing when no window is exhausted', () => {
     expect(exhaustedReset({ fiveHour: window(71, '2026-09-27T17:00:00.000Z'), sevenDay: null, updatedAt: RECEIVED_AT, source: 'statusline' as const })).toBeNull()
     expect(exhaustedReset(null)).toBeNull()
+  })
+})
+
+describe('limitResetAfter', () => {
+  const HIT = '2026-10-15T23:21:26.679Z'
+  const window = (usedPercentage: number, resetsAt: string) => ({ usedPercentage, resetsAt })
+  const limits = (fiveHour: { usedPercentage: number; resetsAt: string } | null, updatedAt: string, source: 'usage' | 'statusline' = 'usage') => ({
+    fiveHour,
+    sevenDay: window(25, '2026-10-22T15:00:00.000Z'),
+    updatedAt,
+    source,
+  })
+
+  it('takes the reset of an exhausted window', () => {
+    const spent = limits(window(100, '2026-10-16T01:00:00.000Z'), '2026-10-15T23:00:00.000Z')
+    expect(limitResetAfter(spent, HIT)).toBe('2026-10-16T01:00:00.000Z')
+  })
+
+  it('takes the end of the five-hour window the limit fell into when the window is not quite at 100%', () => {
+    expect(limitResetAfter(limits(window(98, '2026-10-16T01:00:00.000Z'), '2026-10-15T23:25:00.000Z'), HIT)).toBe('2026-10-16T01:00:00.000Z')
+  })
+
+  it('knows nothing from limits taken before the limit', () => {
+    expect(limitResetAfter(limits(window(98, '2026-10-16T01:00:00.000Z'), '2026-10-15T23:20:00.000Z'), HIT)).toBeNull()
+    expect(limitResetAfter(null, HIT)).toBeNull()
+  })
+
+  it('sees the reset in a five-hour window that started after the limit', () => {
+    expect(limitResetAfter(limits(window(3, '2026-10-16T09:30:00.000Z'), '2026-10-16T04:40:00.000Z'), HIT)).toBe('2026-10-16T04:30:00.000Z')
+  })
+
+  it('sees the reset in a five-hour window that /usage reports as not started', () => {
+    expect(limitResetAfter(limits(null, '2026-10-16T05:01:14.834Z'), HIT)).toBe('2026-10-16T05:01:14.834Z')
+  })
+
+  it('does not take a statusline snapshot without the five-hour window for a reset', () => {
+    expect(limitResetAfter(limits(null, '2026-10-16T00:22:00.400Z', 'statusline'), HIT)).toBeNull()
   })
 })
