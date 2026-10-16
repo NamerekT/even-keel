@@ -798,7 +798,7 @@ server.listen(listen.port, listen.host, () => {
 
 for (const view of trackers.values()) {
   const setup = setups.get(view.name)
-  if (setup === undefined) console.log(`${view.name}: ${ADAPTERS[view.name]!.variables.join(', ')} are not set, tracker is off`)
+  if (setup === undefined) console.log(`${view.name}: ${ADAPTERS[view.name]!.variables.join(', ')} not set, tracker is off`)
   else {
     startTracker(view, setup, {
       repos: config.projects,

@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { TrackerHealth } from './health.js'
-import { TrackerLink } from './link.js'
+import { errorText, TrackerLink } from './link.js'
 import type { Tracker } from './source.js'
 
 function fakeSource(): Tracker & { closed: boolean } {
@@ -102,6 +102,14 @@ describe('TrackerLink', () => {
     const link = new TrackerLink({ name: 'huly',connect: async () => Promise.reject(new Error('refused')), timeoutMs: 1000 })
     await expect(link.run(async () => 1)).rejects.toThrow()
     expect(link.health).toEqual({ state: 'down', lastOkAt: null, error: 'refused' })
+  })
+
+  it('names the cause of a failed fetch, which alone says only "fetch failed"', async () => {
+    const failed = new TypeError('fetch failed', { cause: new Error('getaddrinfo ENOTFOUND huly.example.com') })
+    const link = new TrackerLink({ name: 'huly', connect: async () => Promise.reject(failed), timeoutMs: 1000 })
+    await expect(link.run(async () => 1)).rejects.toThrow()
+    expect(link.health.error).toBe('fetch failed: getaddrinfo ENOTFOUND huly.example.com')
+    expect(errorText(failed)).toBe('fetch failed: getaddrinfo ENOTFOUND huly.example.com')
   })
 
   it('does not report a change when a failure repeats with the same error', async () => {

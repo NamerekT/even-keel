@@ -72,8 +72,9 @@ describe(`frozen samples of schema v${SCHEMA_VERSION}`, () => {
   })
 
   it('matches the example config of the repository', () => {
-    const config = parseConfig(JSON.parse(readFileSync(join(root, 'even-keel.config.example.json'), 'utf8')))
-    expect(Object.keys(config.ids)).toEqual(['ABC', 'XYZ', 'GHB'])
+    const example = JSON.parse(readFileSync(join(root, 'even-keel.config.example.json'), 'utf8'))
+    expect(example.version).toBe(SCHEMA_VERSION)
+    expect(Object.keys(parseConfig(example).ids)).toEqual(['ABC', 'XYZ', 'GHB'])
   })
 })
 
