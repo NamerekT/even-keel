@@ -1,7 +1,21 @@
 import { describe, expect, it } from 'vitest'
 import type { TaskSession } from '../../../src/chain/launches.js'
 import type { ChainBlock } from '../state.js'
-import { CHAT_SELECT, chatAt, chatTime, emptyCard, type Harbor, harborMemes, longestRun, momentsOf, pickMeme, playMotion, type Scene } from './memes.js'
+import {
+  CHAT_SELECT,
+  chatAt,
+  chatTime,
+  emptyCard,
+  emptyTurns,
+  type Harbor,
+  harborMemes,
+  longestRun,
+  momentsOf,
+  pickMeme,
+  playMotion,
+  punchline,
+  type Scene,
+} from './memes.js'
 
 const block = (id: string, extra: Partial<ChainBlock> = {}): ChainBlock =>
   ({ id, open: true, locked: false, question: false, skipped: false, sessions: [], ...extra }) as ChainBlock
@@ -174,6 +188,20 @@ describe('emptyCard', () => {
   it('tells a project with no tasks at all from one with everything done', () => {
     expect(emptyCard({ done: 0, total: 0, backlog: 0 })).toBe('ghost')
     expect(emptyCard({ done: 19, total: 19, backlog: 0 })).toBe('finished')
+  })
+})
+
+describe('emptyTurns', () => {
+  it('counts each kind of empty card on its own, in page order', () => {
+    expect(emptyTurns(['finished', null, 'ghost', 'finished', 'held', 'finished', 'ghost'])).toEqual([0, 0, 0, 1, 0, 2, 1])
+  })
+})
+
+describe('punchline', () => {
+  it('gives each turn its own variant and nothing once they run out', () => {
+    expect(punchline(['a', 'b'], 0)).toBe('a')
+    expect(punchline(['a', 'b'], 1)).toBe('b')
+    expect(punchline(['a', 'b'], 2)).toBeNull()
   })
 })
 

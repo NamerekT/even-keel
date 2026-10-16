@@ -2,10 +2,10 @@ import { useState } from 'react'
 import type { EvenKeelState } from '../../../src/state.js'
 import { localized, t } from '../i18n/index.js'
 import { openQuestions, questionPath } from '../state.js'
-import { type HarborMeme, harborMemes } from '../ui/memes.js'
+import { emptyTurns, type HarborMeme, harborMemes } from '../ui/memes.js'
 import { Typed, Typists } from '../ui/Typed.js'
 import { LaunchChart, localDate } from './LaunchChart.js'
-import { ProjectCard } from './ProjectCard.js'
+import { emptyKind, ProjectCard } from './ProjectCard.js'
 
 const PEAK_DAY = localized((language) => new Intl.DateTimeFormat(language, { day: 'numeric', month: 'long' }))
 const HOME_PACE = { charMs: 45, pauseMs: 3000 }
@@ -20,6 +20,7 @@ export function Home({ state }: { state: EvenKeelState }) {
     fiveHour: state.limits?.fiveHour?.usedPercentage ?? null,
   })
   const meme = memes[Math.floor(draw * memes.length)]!
+  const turns = emptyTurns(state.projects.map((key) => emptyKind(state, key)))
 
   return (
     <section className="page">
@@ -37,8 +38,8 @@ export function Home({ state }: { state: EvenKeelState }) {
           <p className="placeholder">{t.home.empty}</p>
         ) : (
           <div className="cards">
-            {state.projects.map((key) => (
-              <ProjectCard key={key} state={state} project={key} />
+            {state.projects.map((key, index) => (
+              <ProjectCard key={key} state={state} project={key} turn={turns[index]!} />
             ))}
           </div>
         )}

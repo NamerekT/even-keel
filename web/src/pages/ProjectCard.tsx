@@ -17,13 +17,14 @@ import {
 } from '../state.js'
 import { StackIcon } from '../ui/icons.js'
 import { Lamp } from '../ui/Lamp.js'
-import { emptyCard } from '../ui/memes.js'
+import { type EmptyCard, emptyCard, punchline } from '../ui/memes.js'
 import { ProjectLabel } from '../ui/ProjectLabel.js'
 import { QuestionsChip } from '../ui/QuestionsChip.js'
 import { seriesStyle } from '../ui/series.js'
 import { StatusChip } from '../ui/StatusChip.js'
 
-export function ProjectCard({ state, project }: { state: EvenKeelState; project: string }) {
+/** `turn` — which card of its empty kind this one is on the page (`emptyTurns`). */
+export function ProjectCard({ state, project, turn }: { state: EvenKeelState; project: string; turn: number }) {
   const { send, sending, failure } = useCommand()
 
   const status = chainStatus(state.chain, project)
@@ -71,7 +72,7 @@ export function ProjectCard({ state, project }: { state: EvenKeelState; project:
         order === undefined ? (
           <p className="card__task card__task--empty">{t.project.notLoaded}</p>
         ) : (
-          <EmptyLine progress={{ done, total, backlog }} />
+          <EmptyLine progress={{ done, total, backlog }} turn={turn} />
         )
       ) : (
         <p className="card__task">
@@ -98,16 +99,26 @@ export function ProjectCard({ state, project }: { state: EvenKeelState; project:
   )
 }
 
-/** Stands still, so the cards do not type all at once: the first part sets the joke up, the rest is its punchline. */
-function EmptyLine({ progress }: { progress: { done: number; total: number; backlog: number } }) {
+/** What the card says with no task to show; `null` — it shows a task or the chain is not read yet. */
+export function emptyKind(state: EvenKeelState, project: string): EmptyCard | null {
+  const order = state.chain.projects[project]
+  if (order === undefined || cardTask(state, project) !== null) return null
+  return emptyCard(chainProgress(projectTasks(state, project), order))
+}
+
+/**
+ * Stands still, so the cards do not type all at once: the setup, then the punchline of the card's `turn` among the cards
+ * of its kind.
+ */
+function EmptyLine({ progress, turn }: { progress: { done: number; total: number; backlog: number }; turn: number }) {
   const kind = emptyCard(progress)
   if (kind === 'held') return <p className="card__task card__task--empty">{t.project.noTasks}</p>
-  const lines = t.project.emptyCard
-  const [setup, ...punchline] = kind === 'shelved' ? lines.shelved(progress.backlog) : kind === 'ghost' ? lines.ghost : lines.finished(progress.done)
+  const { setup, punchlines } = t.project.emptyCard[kind]
+  const line = punchline(punchlines, turn)
   return (
     <p className="card__quip">
-      {setup}
-      {punchline.length > 0 && <span className="card__punchline">{punchline.join('')}</span>}
+      {setup(kind === 'shelved' ? progress.backlog : progress.done)}
+      {line !== null && <span className="card__punchline">{line}</span>}
     </p>
   )
 }
