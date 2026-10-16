@@ -55,6 +55,7 @@ Sequential within a project, not across them: different projects are different r
 - **Even Keel depends on undocumented behaviour of the Claude Code CLI**: `claude agents --json`, the `sessions/<pid>.json` records, the background daemon (`claude --bg`, `claude daemon`), the transcript format, the text of `/usage`, the layout of `~/.claude.json` and `.credentials.json`. None of it is a public API. Last checked against **Claude Code 2.1.289**. A CLI update may break a part of Even Keel until it is adapted — please open an issue when it does.
 - **Sessions run with `--permission-mode auto`**: they act without asking you on each tool call. Set up the permissions and hooks you want in your Claude Code settings before you start a chain.
 - Even Keel reads only the expiry dates from `.credentials.json`; tokens stay with the CLI and are never read, copied or sent anywhere.
+- **Some behaviour has never been checked live** — macOS, an early reset of Claude limits, a few tracker and CI paths. Read [What has not been verified](docs/unverified.md) before relying on any of them.
 
 ## Install
 
