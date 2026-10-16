@@ -51,8 +51,8 @@ Sequential within a project, not across them: different projects are different r
 
 ## Requirements
 
-- **Node.js 24** or newer, and git.
-- **Claude Code CLI**, logged in with a Claude subscription (`claude` once in a terminal). Even Keel finds `~/.local/bin/claude.exe` on Windows and `claude` on `PATH` elsewhere, or the binary of the VS Code extension; `EVEN_KEEL_CLAUDE_BIN` overrides.
+- **Node.js 24** or newer ([nodejs.org](https://nodejs.org/en/download); on Linux nvm needs no `sudo`), and git with your name and email set (`git config --global user.name` and `user.email`): sessions commit and merge under them.
+- **Claude Code CLI** ([install](https://docs.claude.com/en/docs/claude-code/setup)), logged in with a Claude subscription (`claude` once in a terminal). Even Keel finds `~/.local/bin/claude.exe` on Windows and `claude` on `PATH` elsewhere, or the binary of the VS Code extension; `EVEN_KEEL_CLAUDE_BIN` overrides.
 - **A tracker:** a Huly workspace, GitHub repositories with Issues, or a Linear workspace.
 - **Statistics** need nothing more: the database is embedded. An external Postgres is optional.
 - Windows, Linux or macOS. Windows is where it runs every day; Linux was checked end to end under WSL (Ubuntu); macOS is expected to work but has not been checked.
