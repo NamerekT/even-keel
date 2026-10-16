@@ -4,11 +4,11 @@ import { lineDiff } from '../../src/stats/diff.js'
 import type { KeyVersion, SnapshotFile, StoredChange, TallyDb } from './db.js'
 import { loadRules, type Source } from './load.js'
 import type { ParseContext } from './parse.js'
-import { changesOf, firstSnapshotAt, pickPath, type Version } from './rule-changes.js'
+import { changesOf, firstSnapshotAt, goneKeys, pickPath, type Version } from './rule-changes.js'
 import { backupVersions, gitVersions } from './rule-history.js'
 import { parseImports } from './rule-imports.js'
 import { addRuleText, emptyRuleRows } from './rule-parse.js'
-import { infoOf, ruleText, type RuleSource } from './rule-scan.js'
+import { infoOf, ruleText, type RuleScan } from './rule-scan.js'
 import { hashOf } from './rules.js'
 
 // Bump to re-read every transcript for rule rows after the rule parsing changes.
@@ -17,7 +17,7 @@ const BACKFILL = 'rules_backfill'
 const BOOTSTRAP = 'rules_bootstrap'
 const SCANNED = 'rules_scanned'
 
-export async function snapshotRules(db: TallyDb, sources: RuleSource[], now: Date): Promise<number> {
+export async function snapshotRules(db: TallyDb, { sources, listed }: RuleScan, now: Date): Promise<number> {
   const stored = await db.snapshotFiles()
   const rows = emptyRuleRows()
   const files: SnapshotFile[] = []
@@ -47,7 +47,7 @@ export async function snapshotRules(db: TallyDb, sources: RuleSource[], now: Dat
     if (last.get(key) === chosen.hash) continue
     snapshots.push({ key, at: last.has(key) ? at : firstSnapshotAt(chosen.mtime, previousScan, bootstrap, at), hash: chosen.hash })
   }
-  for (const [key, hash] of last) if (hash !== null && !byKey.has(key)) snapshots.push({ key, at, hash: null })
+  for (const key of goneKeys(last, new Set(byKey.keys()), listed)) snapshots.push({ key, at, hash: null })
 
   if (bootstrap === null) await db.setMeta(BOOTSTRAP, at)
   await db.writeSnapshots(rows, files, snapshots)

@@ -48,6 +48,13 @@ export function firstSnapshotAt(mtime: string, previousScan: string | null, boot
   return bootstrapAt !== null && previousScan !== null && mtime < previousScan ? bootstrapAt : now
 }
 
+// A file is gone only where this run looked: global files always, a project's only when its repository was listed.
+// A project that dropped out of the snapshot (config unread, empty, of an unknown form; git failed) is left as it was.
+export function goneKeys(last: Map<string, string | null>, present: Set<string>, listed: string[]): string[] {
+  const looked = (key: string) => key.startsWith('~/') || listed.some((root) => key.startsWith(`${root}/`))
+  return [...last].filter(([key, hash]) => hash !== null && !present.has(key) && looked(key)).map(([key]) => key)
+}
+
 const isGlobal =(path: string) => /[\\/]\.claude[\\/]/i.test(path) && !/[\\/]\.claude-accounts[\\/]/i.test(path)
 
 export function pickPath(paths: string[]): string {

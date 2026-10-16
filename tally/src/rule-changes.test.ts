@@ -1,5 +1,32 @@
 import { describe, expect, it } from 'vitest'
-import { changesOf, firstSnapshotAt, pickPath } from './rule-changes.js'
+import { changesOf, firstSnapshotAt, goneKeys, pickPath } from './rule-changes.js'
+
+describe('goneKeys', () => {
+  const last = new Map<string, string | null>([
+    ['~/.claude/claude.md', 'a'],
+    ['/work/app/claude.md', 'b'],
+    ['/work/app/.claude/settings.json', 'c'],
+    ['/work/lib/claude.md', 'd'],
+    ['/work/old/claude.md', null],
+  ])
+
+  it('deletes a missing file of a listed project and a missing global file', () => {
+    expect(goneKeys(last, new Set(['/work/app/claude.md', '/work/lib/claude.md']), ['/work/app', '/work/lib']).sort()).toEqual([
+      '/work/app/.claude/settings.json',
+      '~/.claude/claude.md',
+    ])
+  })
+
+  it('leaves the files of a project that dropped out of the snapshot alone', () => {
+    const present = new Set(['~/.claude/claude.md', '/work/app/claude.md', '/work/app/.claude/settings.json'])
+    expect(goneKeys(last, present, ['/work/app'])).toEqual([])
+    expect(goneKeys(last, new Set(['~/.claude/claude.md']), [])).toEqual([])
+  })
+
+  it('does not take a project for a listed one whose path merely starts the same', () => {
+    expect(goneKeys(last, new Set(['~/.claude/claude.md']), ['/work/ap'])).toEqual([])
+  })
+})
 
 describe('firstSnapshotAt', () => {
   const now = '2026-10-03T21:00:00.000Z'
