@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { calibrationText, estimateCall } from "./calibration.mjs";
+import { calibrationText, estimateCall, mismatch } from "./calibration.mjs";
 
 const TOOL = "mcp__plugin_huly_huly__";
 
@@ -88,5 +88,40 @@ describe("calibrationText", () => {
 
   it("has nothing to say without closed tasks", () => {
     expect(calibrationText({ ...calibration, closed: 0, estimated: 0, recent: [] })).toBeNull();
+  });
+
+  it("explains a refusal instead of asking for a correction afterwards", () => {
+    const text = calibrationText(calibration, { minutes: 40, median: 19.6, nearest: 20 });
+    expect(text).toContain("This call was refused once");
+    expect(text).toContain("40 min");
+    expect(text).toContain("median of 20 min");
+    expect(text).toContain("20 min (0.33)");
+    expect(text).not.toContain("It reaches you after the call");
+    expect(text).toContain("- 10 min: 6 tasks");
+  });
+});
+
+describe("mismatch", () => {
+  const steps = [step(5, 0), step(10, 6, 5.7), step(20, 23, 9.8), step(40, 50, 19.9), step(80, 3, 49)];
+  const data = { ...calibration, steps };
+
+  it("names the step nearest the median when the sent step is off by more than half", () => {
+    expect(mismatch(data, 0.67)).toEqual({ minutes: 40, median: 19.9, nearest: 20 });
+    expect(mismatch(data, 0.33)).toEqual({ minutes: 20, median: 9.8, nearest: 10 });
+    expect(mismatch(data, 0.17)).toEqual({ minutes: 10, median: 5.7, nearest: 5 });
+  });
+
+  it("flags an estimate set too low as well", () => {
+    const low = [step(5, 8, 12), step(10, 0), step(20, 0), step(40, 0), step(80, 0)];
+    expect(mismatch({ ...calibration, steps: low }, 0.08)).toEqual({ minutes: 5, median: 12, nearest: 10 });
+  });
+
+  it("lets through a step within half of its median, a thin step and an estimate off the scale", () => {
+    const fine = [step(5, 0), step(10, 6, 12.4), step(20, 0), step(40, 0), step(80, 0)];
+    expect(mismatch({ ...calibration, steps: fine }, 0.17)).toBeNull();
+    expect(mismatch(data, 1.33)).toBeNull();
+    expect(mismatch(data, 0.5)).toBeNull();
+    expect(mismatch(data, 0.08)).toBeNull();
+    expect(mismatch(null, 0.67)).toBeNull();
   });
 });

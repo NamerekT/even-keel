@@ -1,5 +1,6 @@
 // Estimate calibration from Even Keel's statistics (BTN-82): what closed tasks estimated at each step
-// actually took. Shown to the agent when it sets an estimate.
+// actually took. Shown to the agent when it sets an estimate; a step the data disagrees with refuses the call
+// once, so the agent sees the numbers before the estimate lands (BTN-152).
 
 const TASK = /^[A-Z][A-Z0-9]*-\d+$/;
 
@@ -16,6 +17,23 @@ export function estimateCall(toolName, input) {
 
 const minutes = (value) => (value < 0.5 ? "<1" : String(Math.round(value)));
 
+const SPREAD = 1.5;
+
+/**
+ * The step of the estimate sent, when enough closed tasks sit on it and their median is more than SPREAD times
+ * away from it, with the step nearest that median; null otherwise (off the scale, thin data, close enough).
+ */
+export function mismatch(calibration, hours) {
+  const sent = calibration?.steps?.find((step) => Math.abs(hours * 60 - step.minutes) <= 1);
+  if (!sent || sent.thin || sent.median === null || sent.median <= 0) return null;
+  if (sent.median * SPREAD >= sent.minutes && sent.median <= sent.minutes * SPREAD) return null;
+  const distance = (step) => Math.abs(Math.log(step.minutes / sent.median));
+  const nearest = calibration.steps.reduce((best, step) => (distance(step) < distance(best) ? step : best));
+  return { minutes: sent.minutes, median: sent.median, nearest: nearest.minutes };
+}
+
+const hoursOf = (step) => String(Math.round((step / 60) * 100) / 100);
+
 function stepLine(step) {
   const count = step.closed === 1 ? "1 task" : `${step.closed} tasks`;
   const thin = step.thin ? " (thin data)" : "";
@@ -29,12 +47,14 @@ function taskLine(task, withComponent) {
   return `- ${task.task}${title}${component}: ${estimate} → ${minutes(task.activeMin)}`;
 }
 
-/** The text for the agent, or null when the project has no closed tasks to learn from. */
-export function calibrationText(calibration) {
+/** The text for the agent, or null when the project has no closed tasks to learn from; `refused` is a `mismatch`. */
+export function calibrationText(calibration, refused = null) {
   if (!calibration || calibration.closed === 0) return null;
   const lines = [
     `Estimate calibration, project ${calibration.project}: closed tasks from Even Keel's statistics, actual = the agent's active minutes.`,
-    "It reaches you after the call: if the estimation you sent disagrees with these numbers, send update_issue with a corrected one.",
+    refused
+      ? `This call was refused once: you sent ${refused.minutes} min, and closed tasks estimated at ${refused.minutes} min took a median of ${minutes(refused.median)} min — the nearest step is ${refused.nearest} min (${hoursOf(refused.nearest)}). Weigh the task against the numbers below and send the same call again with the estimation you settle on; it goes through.`
+      : "It reaches you after the call: if the estimation you sent disagrees with these numbers, send update_issue with a corrected one.",
     "",
   ];
   const filled = calibration.steps.filter((step) => step.closed > 0);

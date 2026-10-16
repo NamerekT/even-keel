@@ -1,10 +1,11 @@
 #!/usr/bin/env node
 // PreToolUse on Huly calls that set an estimate: adds the project's estimate calibration from Even Keel
-// to the agent's context, once per session and project. No Even Keel, no statistics, no data — silent.
+// to the agent's context, once per session and project. When the step sent disagrees with the data, that one
+// call is refused with the calibration instead, and the retry goes through. No Even Keel, no statistics, no data — silent.
 import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { calibrationText, estimateCall } from "./calibration.mjs";
+import { calibrationText, estimateCall, mismatch } from "./calibration.mjs";
 
 const BASE = (process.env.EVEN_KEEL_URL || "http://127.0.0.1:4747").replace(/\/+$/, "");
 const MARKS = join(tmpdir(), "even-keel-calibration");
@@ -33,14 +34,21 @@ async function main() {
   const response = await fetch(`${BASE}/api/projects/${call.project}/calibration${query}`, { signal: AbortSignal.timeout(2000) });
   if (!response.ok) return;
   const answer = await response.json();
-  const text = answer?.state === "ok" ? calibrationText(answer.data) : null;
-  if (text === null) return;
+  if (answer?.state !== "ok" || calibrationText(answer.data) === null) return;
+  // A refusal without a mark would refuse the retry too, and the agent could never set the estimate.
+  let refused = mark === null ? null : mismatch(answer.data, input.tool_input.estimation);
   if (mark !== null) {
     try {
       remember(mark);
-    } catch {}
+    } catch {
+      refused = null;
+    }
   }
-  process.stdout.write(JSON.stringify({ hookSpecificOutput: { hookEventName: "PreToolUse", additionalContext: text } }));
+  const text = calibrationText(answer.data, refused);
+  const output = refused
+    ? { hookEventName: "PreToolUse", permissionDecision: "deny", permissionDecisionReason: text }
+    : { hookEventName: "PreToolUse", additionalContext: text };
+  process.stdout.write(JSON.stringify({ hookSpecificOutput: output }));
 }
 
 main().catch(() => {});
