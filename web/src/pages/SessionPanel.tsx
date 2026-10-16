@@ -38,7 +38,7 @@ export function SessionPanel({ block, scale, onCard, onClose }: Props) {
   const remoteUrl = block.session?.remoteUrl ?? null
   const account = block.session?.account == null ? '' : t.session.onlyIn(block.session.account)
   // The current session is read and answered in the chat window, opened from the actions.
-  const chat = (block.current || block.aside === true) && block.session !== null
+  const chat = (block.current || block.aside === true || block.loose === true) && block.session !== null
 
   useEffect(() => closeRef.current?.focus({ preventScroll: true }), [])
 
@@ -122,15 +122,16 @@ function Actions({ block }: { block: ChainBlock }) {
   const live = block.current ? session : null
   // A task that made way for the fix of main keeps its chat, shut until the chain takes it again.
   const aside = block.aside === true
-  const talking = live ?? (aside ? session : null)
+  // Once the chain stopped, the session that lives on is still answered from the chat.
+  const talking = live ?? (aside || block.loose === true ? session : null)
   const midTurn = live !== null && (live.lamp === 'working' || live.waitingFor !== null)
   const remoteOff = session === null || session.remoteUrl !== null ? null : t.session.remote[session.remoteOff ?? 'no-bridge']
   const replacing = useHold(`${block.current}|${session?.sessionId ?? ''}`, REPLACE_WAIT_MS)
   const starting = replacing.on || (block.current && block.start !== null)
-  const waiting = live?.lamp === 'waiting'
+  const waiting = !aside && talking?.lamp === 'waiting'
 
   // "Skip" on the fix of main is only for the session the chain waits on.
-  if (live === null && (!block.open || fix)) return null
+  if (talking === null && (!block.open || fix)) return null
   return (
     <>
       <div className="panel__actions">

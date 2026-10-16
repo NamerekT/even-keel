@@ -105,6 +105,8 @@ export interface ChainBlock {
   interrupted?: true
   /** The fix of a red main leads the chain and this task is next: its live session takes no answer from the chat until the fix lands. */
   aside?: true
+  /** The chain is stopped and the task's session lives on: the chat still answers it. */
+  loose?: true
   /** The row of a fix of a red main that is over. */
   fix?: FixEpisode
 }
@@ -429,6 +431,7 @@ export function chainBlocks(state: EvenKeelState, project: string, now = new Dat
       start: running?.task === id ? sessionStart(running, session, sessions, now) : null,
       ...(id === active?.interrupted?.task && { interrupted: true as const }),
       ...(id === next && session !== null && session.lamp !== 'finished' && { aside: true as const }),
+      ...(active === undefined && session !== null && session.lamp !== 'finished' && { loose: true as const }),
     }
   })
   for (let index = blocks.length - 2; index >= 0; index--) {

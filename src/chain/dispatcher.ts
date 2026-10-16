@@ -190,17 +190,23 @@ export class Dispatcher {
   }
 
   /**
-   * Throws unless the user may answer the session now: it is the current one of the task, waits rather than works,
-   * and still waits on the question `ask` (`null` — on none, the turn ended in plain text).
+   * Throws unless the user may answer the session now: it is the current one of the task — of its chain or, once
+   * the chain stopped, the one that lives on — waits rather than works, and still waits on the question `ask`
+   * (`null` — on none, the turn ended in plain text).
    */
-  answerable(project: string, task: string, sessionId: string, ask: string | null): { chain: ActiveChain; current: CurrentTask; session: HandoffSession } {
+  answerable(
+    project: string,
+    task: string,
+    sessionId: string,
+    ask: string | null,
+  ): { chain: ActiveChain | null; current: CurrentTask | null; session: HandoffSession } {
     this.requireProject(project)
-    const chain = this.chainOf(project)
+    const chain = this.chainOf(project) ?? null
     const current = chain?.current?.task === task ? chain.current : null
-    if (chain === undefined || current === null) throw fail('chain.notCurrent', { task })
-    if (current.sessionId === null || current.starting !== undefined) throw fail('chain.launching', { task })
+    if (chain !== null && current === null) throw fail('chain.notCurrent', { task })
+    if (current !== null && (current.sessionId === null || current.starting !== undefined)) throw fail('chain.launching', { task })
     const session = this.deps.handoff(task)
-    if (current.sessionId !== sessionId || session?.sessionId !== sessionId || this.deps.asked(task) !== ask) {
+    if ((current !== null && current.sessionId !== sessionId) || session?.sessionId !== sessionId || this.deps.asked(task) !== ask) {
       throw fail('answer.moved', { task })
     }
     if (this.deps.midTurn(task)) throw fail('answer.busy', { task })
@@ -213,7 +219,9 @@ export class Dispatcher {
   /** Invariant 1, exception 6: the user's own answer resumes the session that waits for it. */
   answer(project: string, task: string, sessionId: string, ask: string | null, prompt: string): void {
     const { chain, current, session } = this.answerable(project, task, sessionId, ask)
-    this.work = this.work.then(() => this.handovers.deliver(chain, current, session, prompt))
+    this.work = this.work.then(() =>
+      chain === null || current === null ? this.handovers.deliverLoose(project, task, session, prompt) : this.handovers.deliver(chain, current, session, prompt),
+    )
   }
 
   dismiss(project: string, task: string): void {

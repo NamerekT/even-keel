@@ -583,6 +583,15 @@ describe('chainBlocks', () => {
     expect(chainBlocks(acted, 'ABC')[0]?.limit).toBeNull()
   })
 
+  it('marks the tasks whose live session outlasted the stopped chain', () => {
+    const loose = (state: EvenKeelState) => chainBlocks(state, 'ABC').filter((block) => block.loose).map((block) => block.id)
+    const tasks = [task('ABC-1', 'Active'), task('ABC-2', 'ToDo'), task('ABC-3', 'ToDo')]
+    const projects = { ABC: { order: ['ABC-1', 'ABC-2', 'ABC-3'], waiting: [], backlog: [], error: null } }
+    const sessions = [view('ABC-1', 'working', null), view('ABC-2', 'finished', null), view('ABC-3', 'waiting', null)]
+    expect(loose(stateOf({ tasks, sessions, chain: chain({ projects }) }))).toEqual(['ABC-1', 'ABC-3'])
+    expect(loose(stateOf({ tasks, sessions, chain: chain({ active: running('ABC-1', true), projects }) }))).toEqual([])
+  })
+
   describe('the fix session of a red main', () => {
     const order = { ABC: { order: ['ABC-2', 'ABC-3'], waiting: [], backlog: [], error: null } }
     const tasks = [task('ABC-1', 'Won'), task('ABC-2', 'Active'), task('ABC-3', 'ToDo')]

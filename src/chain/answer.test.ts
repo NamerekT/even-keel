@@ -80,6 +80,20 @@ describe('Dispatcher on an answer', () => {
     expect(refusal(() => dispatcher.answer('ABC', 'ABC-2', 'old-session', null, 'x'))).toBe('chain.notCurrent')
   })
 
+  it('answers a session that lives on after its chain stopped', async () => {
+    const { dispatcher, relays, journal, clock } = await running()
+    dispatcher.stop('ABC')
+    clock.now = new Date('2026-09-26T13:00:00Z')
+
+    dispatcher.answer('ABC', 'ABC-1', 'old-session', 'toolu_1', 'Answer: Blue')
+    await dispatcher.idle()
+
+    expect(relays).toEqual([{ kind: 'reply', task: 'ABC-1', sessionId: 'old-session', prompt: 'Answer: Blue' }])
+    expect(journal.at(-1)).toEqual({ at: '2026-09-26T13:00:00.000Z', project: 'ABC', task: 'ABC-1', sessionId: 'old-session', reason: 'answer', previous: 'old-session' })
+    expect(dispatcher.state.active).toEqual([])
+    expect(refusal(() => dispatcher.answer('ABC', 'ABC-1', 'older-session', 'toolu_1', 'x'))).toBe('answer.moved')
+  })
+
   it('refuses while the limit is spent', async () => {
     const { dispatcher } = await running({ limitReset: '2026-09-26T15:00:00.000Z' })
     expect(refusal(() => dispatcher.answer('ABC', 'ABC-1', 'old-session', 'toolu_1', 'x'))).toBe('chain.limitSpent')

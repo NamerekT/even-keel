@@ -1,4 +1,4 @@
-import { noticeOf, type Notice } from '../notice/notice.js'
+import { englishOf, noticeOf, type Notice } from '../notice/notice.js'
 import type { ActiveChain, ChainState, CurrentTask, DispatcherDeps } from './model.js'
 import { isFixName } from './fix.js'
 import { handoffPrompt, holdOf, relayStep, withReport, withReset, type HandoffReason, type HandoffSession } from './relay.js'
@@ -6,7 +6,7 @@ import { handoffPrompt, holdOf, relayStep, withReport, withReset, type HandoffRe
 const UNANSWERED_MS = 10 * 60_000
 
 // The session of a chain's current task that the dispatcher continues or replaces itself (invariant 1, exceptions
-// 1–3 and 6): after a limit, on a checkpoint, by "New session" and with the user's answer; and how long an
+// 1–3 and 6): after a limit, on a checkpoint, by "New session" and with the user's answer (also once the chain stopped); and how long an
 // unattended chain waits for a quiet one.
 export class Handovers {
   constructor(
@@ -107,6 +107,18 @@ export class Handovers {
       this.deps.save(this.state)
     } catch (error) {
       this.halt(chain, noticeOf(error))
+    }
+  }
+
+  /** The answer to a session that lives on after its chain stopped: no chain to follow it or to pause on a failure. */
+  async deliverLoose(project: string, task: string, session: HandoffSession, prompt: string): Promise<void> {
+    if (this.state.active.some((chain) => chain.project === project)) return
+    const at = this.deps.now().toISOString()
+    try {
+      const sessionId = await this.deps.reply(task, session, prompt)
+      this.deps.journal({ at, project, task, sessionId, reason: 'answer', previous: session.sessionId })
+    } catch (error) {
+      this.deps.log(`chain: ${task}: the answer did not reach the session ${session.sessionId}: ${englishOf(noticeOf(error))}`)
     }
   }
 
