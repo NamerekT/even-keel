@@ -172,6 +172,7 @@ describe('upgradeStorage', () => {
     put(configFile, { version: SCHEMA_VERSION, projects: [{ id: 'id-abc', key: 'ABC', repo: 'C:\\abc' }, { key: 'NEW', repo: 'C:\\new' }] })
     upgrade()
     expect(json(configFile).projects[1]).toEqual({ id: 'guid-1', key: 'NEW', repo: 'C:\\new' })
+    expect(logs).toEqual([`storage: gave an id to the projects of ${configFile} without one, the previous file is kept at ${configFile}.v${SCHEMA_VERSION}.bak`])
   })
 
   describe('writes nothing', () => {

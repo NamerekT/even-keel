@@ -9,7 +9,7 @@ import { AccountWatcher } from './account/watcher.js'
 import { Dispatcher, type LaunchEntry } from './chain/dispatcher.js'
 import { fixEpisodes, handoffsOf, launchDays, launchedProjects, taskSessions } from './chain/launches.js'
 import { isFixName } from './chain/fix.js'
-import { fixPrompt, noteOf, resumePrompt, startPrompt, withBrief, withProjectPrompt, withUnattended } from './chain/relay.js'
+import { fixPrompt, noteOf, resumePrompt, startPrompt, withBrief, withProjectPrompt, withTracker, withUnattended, type TrackerPlace } from './chain/relay.js'
 import { launchLine } from './chain/log.js'
 import { mainCheckDeps, mergeCheck } from './chain/mainci.js'
 import { TaskPlaces } from './chain/places.js'
@@ -315,8 +315,15 @@ const planFor = (task: string, prompt: string): LaunchPlan => {
 
 const promptLanguage = () => configFile.current.promptLanguage
 
-const briefed = async (task: string, prompt: string, project = projectOf(task)): Promise<string> => {
-  if (project === undefined) return prompt
+const trackerPlace = (project: string): TrackerPlace | null => {
+  const name = config.trackers[project]!
+  const place = config.trackerProjects[project]
+  return place === undefined ? null : { title: ADAPTERS[name]!.title, project: place }
+}
+
+const briefed = async (task: string, given: string, project = projectOf(task)): Promise<string> => {
+  if (project === undefined) return given
+  const prompt = withTracker(given, trackerPlace(project), promptLanguage())
   if (!configFile.current.briefs[project]) {
     mcp.run()
     return prompt
@@ -798,7 +805,7 @@ server.listen(listen.port, listen.host, () => {
 
 for (const view of trackers.values()) {
   const setup = setups.get(view.name)
-  if (setup === undefined) console.log(`${view.name}: ${ADAPTERS[view.name]!.variables.join(', ')} are not set, tracker is off`)
+  if (setup === undefined) console.log(`${view.name}: ${ADAPTERS[view.name]!.variables.join(', ')} not set, tracker is off`)
   else {
     startTracker(view, setup, {
       repos: config.projects,

@@ -6,7 +6,7 @@ import { branchMerged } from '../git/merged.js'
 import { runGit } from '../git/run.js'
 import { MergeCloser } from './closer.js'
 import { worthBroadcast, type TrackerView } from './health.js'
-import { TrackerLink } from './link.js'
+import { errorText, TrackerLink } from './link.js'
 import { isOpen, type Task } from './model.js'
 import { ParentCloser } from './parents.js'
 import { StatusPoller } from './poller.js'
@@ -61,7 +61,7 @@ export function startTracker(view: TrackerView, setup: TrackerSetup, deps: Track
   })
   links.set(name, link)
   view.health = link.health
-  const report = (error: unknown) => console.error(`${name}: ${error instanceof Error ? error.message : String(error)}`)
+  const report = (error: unknown) => console.error(`${name}: ${errorText(error)}`)
   const ownTasks = () => projects.flatMap((project) => tasksByProject.get(project) ?? [])
 
   const closer = new MergeCloser({

@@ -91,7 +91,10 @@ export function upgradeStorage(options: UpgradeOptions): void {
       throw fail('storage.writeFailed', { file: each.file }, {}, { cause: error })
     }
   }
-  for (const each of rewrites) log(`storage: ${each.file} is now v${SCHEMA_VERSION}, the v${each.from} file is kept at ${copyOf(each)}`)
+  for (const each of rewrites) {
+    if (each.from === SCHEMA_VERSION) log(`storage: gave an id to the projects of ${each.file} without one, the previous file is kept at ${copyOf(each)}`)
+    else log(`storage: ${each.file} is now v${SCHEMA_VERSION}, the v${each.from} file is kept at ${copyOf(each)}`)
+  }
 }
 
 /** v1 → v2: the `projects` object by key becomes an array of records in the same order, the key a field of each. */

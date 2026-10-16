@@ -10,6 +10,7 @@ export interface PromptTexts {
   worktree: (path: string) => string
   branch: (branch: string) => string
   brief: (title: string) => string
+  tracker: (title: string, project: string) => string
   project: (text: string) => string
   why: Record<HandoffReason, string>
   workdir: (path: string) => string
@@ -33,6 +34,7 @@ export const PROMPTS: Record<Language, PromptTexts> = {
     worktree: (path) => fill`- Worktree готов: ${path} — работай в нём, новый worktree не создавай.`,
     branch: (branch) => fill`- Ветка: ${branch} — не меняй её.`,
     brief: (title) => fill`Задача из трекера: ${title}`,
+    tracker: (title, project) => fill`Трекер: ${title}, проект ${project}.`,
     project: (text) => fill`Указания для этого проекта:\n${text}`,
     why: {
       limit: 'Продолжение: прошлая сессия по этой задаче упёрлась в лимит и остановлена, задачу доводишь ты.',
@@ -76,6 +78,7 @@ export const PROMPTS: Record<Language, PromptTexts> = {
     worktree: (path) => fill`- Worktree is ready: ${path} — work in it, do not create a new worktree.`,
     branch: (branch) => fill`- Branch: ${branch} — do not change it.`,
     brief: (title) => fill`Task from the tracker: ${title}`,
+    tracker: (title, project) => fill`Tracker: ${title}, project ${project}.`,
     project: (text) => fill`Instructions for this project:\n${text}`,
     why: {
       limit: 'Continuation: the previous session on this task hit the usage limit and was stopped; you finish the task.',

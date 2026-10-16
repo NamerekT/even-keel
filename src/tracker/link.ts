@@ -29,8 +29,7 @@ export class TrackerLink {
       return result
     } catch (error) {
       this.drop(pending)
-      const message = error instanceof Error ? error.message : String(error)
-      this.report({ state: 'down', lastOkAt: this.current.lastOkAt, error: message })
+      this.report({ state: 'down', lastOkAt: this.current.lastOkAt, error: errorText(error) })
       throw error
     }
   }
@@ -54,6 +53,13 @@ export class TrackerLink {
     this.source = undefined
     pending.then((source) => source.close()).catch(() => {})
   }
+}
+
+/** The message of an error with its cause: Node's `fetch` says only "fetch failed" and keeps the reason (DNS, refused) in `cause`. */
+export function errorText(error: unknown): string {
+  if (!(error instanceof Error)) return String(error)
+  const { cause } = error
+  return cause instanceof Error ? `${error.message}: ${cause.message}` : error.message
 }
 
 function withTimeout<T>(promise: Promise<T>, ms: number, name: string): Promise<T> {

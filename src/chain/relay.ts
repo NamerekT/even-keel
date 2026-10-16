@@ -51,6 +51,16 @@ export function withBrief(prompt: string, brief: TaskBrief | undefined, language
   return prompt + lines.join('\n') + '\n'
 }
 
+export interface TrackerPlace {
+  title: string
+  project: string
+}
+
+/** The project in the tracker (a GitHub repository, a Linear project) as the config names it: the session's working folder may have no remote that tells it. */
+export function withTracker(prompt: string, tracker: TrackerPlace | null, language: Language): string {
+  return tracker === null ? prompt : `${prompt}\n${PROMPTS[language].tracker(tracker.title, tracker.project)}\n`
+}
+
 export function withProjectPrompt(prompt: string, text: string | null, language: Language): string {
   return text === null ? prompt : `${prompt}\n${PROMPTS[language].project(text)}\n`
 }

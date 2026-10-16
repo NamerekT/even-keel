@@ -51,15 +51,15 @@ Sequential within a project, not across them: different projects are different r
 
 ## Requirements
 
-- **Node.js 24** or newer, and git.
-- **Claude Code CLI**, logged in with a Claude subscription (`claude` once in a terminal). Even Keel finds `~/.local/bin/claude.exe` on Windows and `claude` on `PATH` elsewhere, or the binary of the VS Code extension; `EVEN_KEEL_CLAUDE_BIN` overrides.
+- **Node.js 24** or newer ([nodejs.org](https://nodejs.org/en/download); on Linux nvm needs no `sudo`), and git with your name and email set (`git config --global user.name` and `user.email`): sessions commit and merge under them.
+- **Claude Code CLI** ([install](https://docs.claude.com/en/docs/claude-code/setup)), logged in with a Claude subscription (`claude` once in a terminal). Even Keel finds the native install in `~/.local/bin` (`claude.exe` on Windows), then the binary of the VS Code extension, then `claude` on `PATH`; `EVEN_KEEL_CLAUDE_BIN` overrides.
 - **A tracker:** a Huly workspace, GitHub repositories with Issues, or a Linear workspace.
 - **Statistics** need nothing more: the database is embedded. An external Postgres is optional.
-- Windows, Linux or macOS. Windows is where it runs every day; Linux was checked end to end under WSL (Ubuntu); macOS is expected to work but has not been checked.
+- Windows, Linux or macOS. Windows is where it runs every day; Linux was checked end to end under WSL and on a clean Ubuntu server, by this README; macOS is expected to work but has not been checked.
 
 ## Before you run it
 
-- **Even Keel depends on undocumented behaviour of the Claude Code CLI**: `claude agents --json`, the `sessions/<pid>.json` records, the background daemon (`claude --bg`, `claude daemon`), the transcript format, the text of `/usage`, the layout of `~/.claude.json` and `.credentials.json`. None of it is a public API. Last checked against **Claude Code 2.1.289**. A CLI update may break a part of Even Keel until it is adapted — please open an issue when it does.
+- **Even Keel depends on undocumented behaviour of the Claude Code CLI**: `claude agents --json`, the `sessions/<pid>.json` records, the background daemon (`claude --bg`, `claude daemon`), the transcript format, the text of `/usage`, the layout of `~/.claude.json` and `.credentials.json`. None of it is a public API. Last checked against **Claude Code 2.1.301**. A CLI update may break a part of Even Keel until it is adapted — please open an issue when it does.
 - **Sessions run with `--permission-mode auto`**: they act without asking you on each tool call. Set up the permissions and hooks you want in your Claude Code settings before you start a chain.
 - Even Keel reads only the expiry dates from `.credentials.json`; tokens stay with the CLI and are never read, copied or sent anywhere.
 - **Some behaviour has never been checked live** — macOS, an early reset of Claude limits, a few tracker and CI paths. Read [What has not been verified](docs/unverified.md) before relying on any of them.
@@ -89,7 +89,7 @@ cp even-keel.config.example.json even-keel.config.json
 Each project needs:
 
 - a git repository with a main branch — `main` unless the project names another in `branch`; with a remote, Even Keel pushes it after every task;
-- the repository trusted by Claude Code: open `claude` in it once and accept the trust prompt, or the first launch pauses the chain and asks for it;
+- the repository trusted by Claude Code: open `claude` in it once and accept the trust prompt, or the first launch pauses the chain and asks for it (accepting it in the repository covers the task worktrees the message names; then press **Resume**: the chain does not retry by itself);
 - a rule that the session merges its branch when done. Without the plugin ([level 2](#2-with-the-plugin)) put it into the project's `CLAUDE.md`, for example:
 
   > When the task is done and the checks pass, commit, then merge the branch into `main` (the project's main branch) in the main checkout with `git merge --no-edit <branch>`. Do not remove the worktree or the branch afterwards.
@@ -125,7 +125,7 @@ claude plugin install huly@even-keel --scope project     # or github@even-keel, 
 or inside a session: `/plugin marketplace add …`, then `/plugin install huly@even-keel` with the project scope. Then:
 
 1. Commit the project's `.claude/settings.json` (it now has `enabledPlugins`): tasks run in worktrees made from `main`, and a worktree without the file has no plugin.
-2. Give the MCP server its credentials in the `env` of `~/.claude/settings.json` — `HULY_URL`, `HULY_WORKSPACE`, `HULY_TOKEN` (or `HULY_EMAIL` and `HULY_PASSWORD`) for Huly, `GITHUB_PERSONAL_ACCESS_TOKEN` for GitHub, `LINEAR_API_KEY` for Linear. Not system environment variables: Even Keel keeps its own tracker credentials out of the sessions it starts.
+2. Give the MCP server its credentials in the `env` of `~/.claude/settings.json` — `HULY_URL`, `HULY_WORKSPACE`, `HULY_TOKEN` (or `HULY_EMAIL` and `HULY_PASSWORD`) for Huly, `GITHUB_PERSONAL_ACCESS_TOKEN` for GitHub, `LINEAR_API_KEY` for Linear. Not system environment variables: Even Keel keeps its own tracker credentials out of the sessions it starts. Do it before you next open `claude` in the project: a server that failed without its credentials is not tried again for 15 minutes, and sessions started in that time run without it (the task's session says the tracker's MCP server did not connect; press **New session** once the 15 minutes are over).
 3. Turn the brief off for the project, or the session reads its task twice: `{ "repo": "…", "brief": false }`. With `brief` off Even Keel checks that the project's sessions see the tracker's MCP server and warns on the page when they do not.
 
 The GitHub skill sets "blocked by" links through the [GitHub CLI](https://cli.github.com/), so `gh auth login` once. Everything else — troubleshooting, what the skills do — is in [plugins/huly/README.md](plugins/huly/README.md), [plugins/github/README.md](plugins/github/README.md) and [plugins/linear/README.md](plugins/linear/README.md).
@@ -191,6 +191,14 @@ npm run build
 Then restart Even Keel (as a service: run its install script again). A new version may store the config and `state/` in a newer format: at startup, before anything else, Even Keel rewrites them to it and keeps each old file next to it as `<file>.v<N>.bak` (the log names them). It rewrites all of them or none; a file it cannot read, or one written by a newer version, leaves the service with only the page, which shows the reason. To go back to the previous version, check out its code and put the `.bak` copies back in place of the rewritten files.
 
 The statistics database is versioned too: the collector brings its schema up to date on its first run after the update, step by step, each step in one transaction. Going back to an older version does not undo that: the older collector stops on a newer database (one line in the log) and `/stats` says so, until you update again or restore a backup of the database taken before the update (`<state>/tally/pgdata` for the embedded one). On your own Postgres the collector migrates as `tally_writer`; if it is not the owner of the tables, it changes nothing and logs the statements to run and the role to run them as.
+
+### Uninstall
+
+`service\uninstall.ps1` (PowerShell 7 as administrator) or `service/uninstall.sh` stops and removes the service and nothing else. Sessions it started keep running: they belong to the CLI's daemon, so finish or stop them first (`claude agents` lists them). The rest stays where it is, for you to remove by hand:
+
+- **The Even Keel folder** — the code, `.env` with the tracker credentials, the config, `logs/` (Windows and macOS; on Linux the log is the journal), and `state/` (`EVEN_KEEL_STATE_DIR`) with the chain, the launch log and the embedded statistics database (`state/tally/pgdata`). Deleting the folder removes all of it. On your own Postgres the statistics stay in that database.
+- **In each project's repository** — the worktrees of unfinished tasks in `.claude/worktrees/` with their branches `<key>-<number>/task` (`git worktree list`, then `git worktree remove` and `git branch -d`), the slots of a project with `slot`, and the line `.claude/worktrees/` Even Keel added to `.git/info/exclude`. With the plugin: `claude plugin uninstall huly@even-keel --scope project` (or `github@…`, `linear@…`) and commit `.claude/settings.json`.
+- **In your Claude Code config** — the plugin credentials in the `env` of `~/.claude/settings.json`, the marketplace (`claude plugin marketplace remove even-keel`), and the extra account folders in `~/.claude-accounts` (`EVEN_KEEL_ACCOUNTS_DIR`), each still signed in until you run `claude auth logout` with its `CLAUDE_CONFIG_DIR`. Project memory moved to `~/.claude-memory/<project>`, with `~/.claude/projects/<project>/memory` linking to it: Claude Code keeps using it through the link, so leave it unless you want the memory gone too.
 
 ## Environment
 
