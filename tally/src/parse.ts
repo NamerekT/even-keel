@@ -1,5 +1,6 @@
 import { createHash } from 'node:crypto'
 import type { LaunchEntry } from '../../src/chain/dispatcher.js'
+import { isLaunch } from '../../src/chain/launches.js'
 import { blocksOf, describeTool, parseEntry, type ContentBlock, type Entry, type Usage } from '../../src/sessions/entry.js'
 import { cleanText, compact } from './compact.js'
 import { emptyRuleRows, RuleCollector, type RuleContext, type RuleRows } from './rule-parse.js'
@@ -95,7 +96,7 @@ export interface ParseContext {
 export function launchMap(entries: LaunchEntry[]): Map<string, Launch> {
   const map = new Map<string, Launch>()
   for (const entry of entries) {
-    if (entry.reason === 'postpone' || entry.reason === 'skip' || map.has(entry.sessionId)) continue
+    if (!isLaunch(entry) || map.has(entry.sessionId)) continue
     map.set(entry.sessionId, { task: entry.task, reason: entry.reason ?? 'launch' })
   }
   return map

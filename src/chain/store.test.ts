@@ -5,6 +5,7 @@ import { describe, expect, it } from 'vitest'
 import { emptyChainState, type ChainState } from './dispatcher.js'
 import { appendLaunch, loadChainState, loadQuestions, readLaunches, saveChainState, saveQuestions } from './store.js'
 import { notice, textNotice } from '../notice/notice.js'
+import { SCHEMA_VERSION } from '../storage/schema.js'
 
 const dir = () => mkdtempSync(join(tmpdir(), 'even-keel-state-'))
 
@@ -90,7 +91,7 @@ describe('chain store', () => {
       }
       saveChainState(file, state, ids)
       const saved = JSON.parse(readFileSync(file, 'utf8'))
-      expect(saved.version).toBe(2)
+      expect(saved.version).toBe(SCHEMA_VERSION)
       expect(saved.active[0].project).toBe('id-abc')
       expect(saved.queue).toEqual(['id-xyz'])
       expect(Object.keys(saved.orders)).toEqual(['id-abc', 'id-xyz'])
@@ -105,7 +106,7 @@ describe('chain store', () => {
 
     it('refuses a chain file of a newer version', () => {
       const file = join(dir(), 'chain.json')
-      writeFileSync(file, JSON.stringify({ version: 3, active: [], queue: [], orders: {} }))
+      writeFileSync(file, JSON.stringify({ version: SCHEMA_VERSION + 1, active: [], queue: [], orders: {} }))
       expect(() => loadChainState(file, ids)).toThrow(/newer/)
     })
 
@@ -115,7 +116,7 @@ describe('chain store', () => {
       appendLaunch(file, entry, ids)
       appendLaunch(file, entry, ids)
       const lines = readFileSync(file, 'utf8').trim().split('\n').map((line) => JSON.parse(line))
-      expect(lines).toEqual([{ version: 2 }, { ...entry, project: 'id-abc' }, { ...entry, project: 'id-abc' }])
+      expect(lines).toEqual([{ version: SCHEMA_VERSION }, { ...entry, project: 'id-abc' }, { ...entry, project: 'id-abc' }])
       expect(readLaunches(file, ids)).toEqual([entry, entry])
       expect(readLaunches(file)).toEqual([
         { ...entry, project: 'id-abc' },
@@ -128,7 +129,7 @@ describe('chain store', () => {
       expect(loadQuestions(file)).toEqual([])
       const posted = [{ task: 'ABC-1', sessionId: 's1', ask: 'a', comment: 'c' }]
       saveQuestions(file, posted)
-      expect(JSON.parse(readFileSync(file, 'utf8'))).toEqual({ version: 2, questions: posted })
+      expect(JSON.parse(readFileSync(file, 'utf8'))).toEqual({ version: SCHEMA_VERSION, questions: posted })
       expect(loadQuestions(file)).toEqual(posted)
       writeFileSync(file, JSON.stringify(posted))
       expect(loadQuestions(file)).toEqual(posted)

@@ -1,10 +1,12 @@
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { root } from '../locations.js'
 import { noticeOf } from '../notice/notice.js'
 import { writeAtomic } from './atomic.js'
 import { upgradeStorage } from './migrations.js'
+import { SCHEMA_VERSION } from './schema.js'
 
 describe('upgradeStorage', () => {
   let dir: string
@@ -73,7 +75,7 @@ describe('upgradeStorage', () => {
       const config = json(configFile)
       expect(Object.keys(config)[0]).toBe('version')
       expect(config).toEqual({
-        version: 2,
+        version: SCHEMA_VERSION,
         language: 'en',
         projects: [
           { id: 'guid-1', key: 'ABC', repo: 'C:\\abc' },
@@ -86,7 +88,7 @@ describe('upgradeStorage', () => {
       putV1()
       upgrade()
       const chain = json(state('chain.json'))
-      expect(chain.version).toBe(2)
+      expect(chain.version).toBe(SCHEMA_VERSION)
       expect(chain.active[0].project).toBe('guid-1')
       expect(chain.queue).toEqual(['guid-2'])
       expect(Object.keys(chain.orders)).toEqual(['guid-1', 'guid-2'])
@@ -100,10 +102,10 @@ describe('upgradeStorage', () => {
     it('wraps the questions, rewrites the launches with ids under a version line and stamps the account file', () => {
       putV1()
       upgrade()
-      expect(json(state('questions.json'))).toEqual({ version: 2, questions: v1Questions })
+      expect(json(state('questions.json'))).toEqual({ version: SCHEMA_VERSION, questions: v1Questions })
       const lines = text(state('launches.jsonl')).trim().split('\n').map((line) => JSON.parse(line))
-      expect(lines).toEqual([{ version: 2 }, { ...v1Launches[0], project: 'guid-1' }, { ...v1Launches[1], project: 'guid-2' }])
-      expect(json(state('account.json'))).toEqual({ version: 2, ...v1Account })
+      expect(lines).toEqual([{ version: SCHEMA_VERSION }, { ...v1Launches[0], project: 'guid-1' }, { ...v1Launches[1], project: 'guid-2' }])
+      expect(json(state('account.json'))).toEqual({ version: SCHEMA_VERSION, ...v1Account })
     })
 
     it('keeps a copy of every file it rewrites and says so in the log', () => {
@@ -121,7 +123,7 @@ describe('upgradeStorage', () => {
     it('migrates the files that are there and leaves out the missing ones', () => {
       put(configFile, v1Config)
       upgrade()
-      expect(json(configFile).version).toBe(2)
+      expect(json(configFile).version).toBe(SCHEMA_VERSION)
       expect(existsSync(state('chain.json'))).toBe(false)
       expect(existsSync(state('launches.jsonl'))).toBe(false)
     })
@@ -130,7 +132,7 @@ describe('upgradeStorage', () => {
       put(configFile, { projects: [{ id: 'id-abc', key: 'ABC', repo: 'C:\\abc' }] })
       put(state('chain.json'), { ...v1Chain, active: [], queue: [], orders: { ABC: [] }, skipped: {}, leftovers: {}, released: {}, ci: {} })
       upgrade()
-      expect(json(configFile)).toEqual({ version: 2, projects: [{ id: 'id-abc', key: 'ABC', repo: 'C:\\abc' }] })
+      expect(json(configFile)).toEqual({ version: SCHEMA_VERSION, projects: [{ id: 'id-abc', key: 'ABC', repo: 'C:\\abc' }] })
       expect(json(state('chain.json')).orders).toEqual({ 'id-abc': [] })
     })
 
@@ -145,8 +147,29 @@ describe('upgradeStorage', () => {
     })
   })
 
-  it('gives an id to a v2 entry added by hand and writes nothing else', () => {
-    put(configFile, { version: 2, projects: [{ id: 'id-abc', key: 'ABC', repo: 'C:\\abc' }, { key: 'NEW', repo: 'C:\\new' }] })
+  describe('v2 to v3', () => {
+    const v2 = join(root, 'test', 'fixtures', 'schema-v2')
+    const names = ['even-keel.config.json', 'state/chain.json', 'state/questions.json', 'state/launches.jsonl', 'state/account.json']
+
+    it('stamps every file with the new version and changes nothing else', () => {
+      cpSync(v2, dir, { recursive: true })
+      const before = originals()
+      upgrade()
+      for (const name of names.filter((each) => each.endsWith('.json'))) {
+        const { version, ...rest } = json(join(dir, name))
+        expect(version).toBe(3)
+        const { version: _, ...old } = JSON.parse(readFileSync(join(v2, name), 'utf8'))
+        expect(rest).toEqual(old)
+      }
+      const lines = text(state('launches.jsonl')).split('\n')
+      expect(lines[0]).toBe('{"version":3}')
+      expect(lines.slice(1).join('\n')).toBe(before[3]!.split('\n').slice(1).join('\n'))
+      expect(names.map((name) => text(join(dir, `${name}.v2.bak`)))).toEqual(before)
+    })
+  })
+
+  it('gives an id to an entry of the current version added by hand and writes nothing else', () => {
+    put(configFile, { version: SCHEMA_VERSION, projects: [{ id: 'id-abc', key: 'ABC', repo: 'C:\\abc' }, { key: 'NEW', repo: 'C:\\new' }] })
     upgrade()
     expect(json(configFile).projects[1]).toEqual({ id: 'guid-1', key: 'NEW', repo: 'C:\\new' })
   })
@@ -154,7 +177,7 @@ describe('upgradeStorage', () => {
   describe('writes nothing', () => {
     it('when any file is newer than the code', () => {
       putV1()
-      put(state('account.json'), { version: 3, active: 'global', accounts: {}, removing: [] })
+      put(state('account.json'), { version: SCHEMA_VERSION + 1, active: 'global', accounts: {}, removing: [] })
       const before = originals()
       expect(codeOf(upgrade)).toBe('storage.newer')
       expect(originals()).toEqual(before)
@@ -163,7 +186,7 @@ describe('upgradeStorage', () => {
 
     it('when the launches log is newer than the code', () => {
       putV1()
-      put(state('launches.jsonl'), '{"version":3}\n')
+      put(state('launches.jsonl'), `{"version":${SCHEMA_VERSION + 1}}\n`)
       expect(codeOf(upgrade)).toBe('storage.newer')
       expect(json(configFile)).toEqual(v1Config)
     })

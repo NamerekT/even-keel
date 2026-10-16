@@ -21,4 +21,11 @@ describe('launchLine', () => {
       'chain: ABC-1 released (postpone, blocked by ABC-2, ABC-3), its session old-session is left as it is',
     )
   })
+
+  it('tells how a fix of main ended', () => {
+    expect(launchLine({ at, project: 'ABC', task: 'ABC-FIX', sessionId: 'fix', reason: 'landed', commit: 'cccccccccc' })).toBe(
+      'chain: ABC-FIX landed, main is at ccccccc',
+    )
+    expect(launchLine({ at, project: 'ABC', task: 'ABC-FIX', sessionId: 'fix', reason: 'dropped' })).toBe('chain: ABC-FIX dropped, main stays as it was')
+  })
 })

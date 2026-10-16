@@ -158,6 +158,45 @@ describe('Dispatcher and a red main without a fix task', () => {
     expect(dispatcher.state.ci.ABC?.fix).toBeUndefined()
     expect(launched).toEqual(['ABC/ABC-1', 'ABC/ABC-FIX', 'ABC/ABC-2'])
   })
+
+  it('journals the red commit with the launch of the fix and the commit main is at once it lands', async () => {
+    const { dispatcher, journal, clock, ci } = await withoutTask()
+    ci.verdict = red
+    dispatcher.check()
+    await dispatcher.idle()
+    expect(journal.filter((entry) => entry.task === 'ABC-FIX')).toEqual([
+      { at: '2026-09-26T12:00:00.000Z', project: 'ABC', task: 'ABC-FIX', sessionId: 'session-2', commit: 'bbbbbbbbbb' },
+    ])
+
+    ci.verdict = { state: 'pending' }
+    ci.merged.add('ABC-FIX')
+    dispatcher.check()
+    await dispatcher.idle()
+    expect(journal.filter((entry) => entry.task === 'ABC-FIX').at(-1)).toEqual({
+      at: clock.now.toISOString(),
+      project: 'ABC',
+      task: 'ABC-FIX',
+      sessionId: 'session-2',
+      reason: 'landed',
+      commit: 'cccccccccc',
+    })
+  })
+
+  it('journals a fix given up on "Skip" as dropped', async () => {
+    const { dispatcher, journal, clock, ci } = await withoutTask()
+    ci.verdict = red
+    dispatcher.check()
+    await dispatcher.idle()
+    dispatcher.skip('ABC', 'ABC-FIX')
+    await dispatcher.idle()
+    expect(journal.filter((entry) => entry.task === 'ABC-FIX').at(-1)).toEqual({
+      at: clock.now.toISOString(),
+      project: 'ABC',
+      task: 'ABC-FIX',
+      sessionId: 'session-2',
+      reason: 'dropped',
+    })
+  })
 })
 
 describe('Dispatcher and the session a red main interrupts', () => {

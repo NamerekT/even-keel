@@ -1,8 +1,9 @@
 import { shortCommit } from '../ci/verdict.js'
 import { fail, noticeOf, type Notice } from '../notice/notice.js'
 import type { Task } from '../tracker/model.js'
+import { isFixName } from './fix.js'
 import type { MainCheck } from './maincheck.js'
-import type { ActiveChain, ChainState, CurrentTask, DispatcherDeps } from './model.js'
+import type { ActiveChain, ChainState, CurrentTask, DispatcherDeps, FixOutcome, LaunchEntry } from './model.js'
 import { mainFixedPrompt, WARM_CACHE_MS, type HandoffReason, type HandoffSession } from './relay.js'
 
 /** What the fix of a red main needs of the dispatcher that runs it. */
@@ -66,6 +67,9 @@ export class MainFix {
       await this.host.closeUp(project, fix.task)
       const head = this.main.fixLanded(project)
       if (chain.interrupted !== undefined && head !== null) chain.interrupted.fixed = head
+      this.ended(chain, 'landed', head)
+    } else if (isFixName(current.task)) {
+      this.ended(chain, 'dropped', null)
     }
     chain.current = null
     this.deps.save(this.state)
@@ -148,8 +152,17 @@ export class MainFix {
     if (chain.current.sessionId === null) throw fail('chain.launching', { task: name })
     if (this.deps.busy(name)) throw fail('chain.midTurn', { task: name })
     this.main.dropFix(chain.project)
+    this.ended(chain, 'dropped', null)
     chain.current = null
     this.deps.log(`chain: ${chain.project}: the fix session ${name} is skipped, main stays as it is`)
+  }
+
+  /** The launch log keeps how the fix ended, for its line in the chain's archive. */
+  private ended(chain: ActiveChain, how: FixOutcome, commit: string | null): void {
+    const current = chain.current!
+    const entry: LaunchEntry = { at: this.deps.now().toISOString(), project: chain.project, task: current.task, sessionId: current.sessionId ?? '', reason: how }
+    if (commit !== null) entry.commit = commit
+    this.deps.journal(entry)
   }
 
   private forget(chain: ActiveChain): boolean {

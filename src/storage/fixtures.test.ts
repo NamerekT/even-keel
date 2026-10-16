@@ -3,6 +3,7 @@ import { tmpdir } from 'node:os'
 import { join, relative } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
 import { loadLedger } from '../account/ledger.js'
+import { fixEpisodes, isLaunch } from '../chain/launches.js'
 import { loadChainState, loadQuestions, readLaunches } from '../chain/store.js'
 import { parseConfig } from '../config.js'
 import { root } from '../locations.js'
@@ -45,11 +46,18 @@ describe(`frozen samples of schema v${SCHEMA_VERSION}`, () => {
 
   it('reads the questions, the launches and the accounts', () => {
     expect(loadQuestions(sample('state/questions.json')).map((question) => question.task)).toEqual(['ABC-2'])
-    expect(readLaunches(sample('state/launches.jsonl'), { ABC, XYZ }).map((entry) => [entry.project, entry.task])).toEqual([
+    const launches = readLaunches(sample('state/launches.jsonl'), { ABC, XYZ })
+    expect(launches.filter(isLaunch).map((entry) => [entry.project, entry.task])).toEqual([
       ['ABC', 'ABC-1'],
       ['ABC', 'ABC-2'],
+      ['ABC', 'ABC-FIX'],
+      ['ABC', 'ABC-FIX'],
     ])
-    expect(readLaunches(sample('state/launches.jsonl')).map((entry) => entry.project)).toEqual([ABC, ABC])
+    expect(fixEpisodes(launches).episodes.ABC?.map((episode) => [episode.id, episode.red?.slice(0, 7), episode.end?.how, episode.end?.commit?.slice(0, 7)])).toEqual([
+      ['ABC-FIX.1', 'c6b3956', 'landed', '15945fe'],
+      ['ABC-FIX.2', 'd00d000', 'dropped', undefined],
+    ])
+    expect(new Set(readLaunches(sample('state/launches.jsonl')).map((entry) => entry.project))).toEqual(new Set([ABC]))
     expect(loadLedger(sample('state/account.json')).accounts.global?.email).toBe('john.doe@example.com')
   })
 

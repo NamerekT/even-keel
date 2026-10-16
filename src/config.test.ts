@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { DEFAULT_RULES } from './chain/rules.js'
 import { DEFAULT_CI, ignoredKeys, liveConfig, listenOf, parseConfig, restartChanges, withIds, withProjectSettings } from './config.js'
+import { SCHEMA_VERSION } from './storage/schema.js'
 import { DEFAULT_HIDDEN_SKILLS } from './tools/settings.js'
 
 /** Most cases here are about one field of a project, so they write `projects` keyed by the project key, each id `id-<KEY>`. */
@@ -46,8 +47,8 @@ describe('projects in the config', () => {
   })
 
   it('reject a schema version newer than this code knows', () => {
-    expect(parseConfig({ version: 2, projects: [] }).projects).toEqual({})
-    expect(() => parseConfig({ version: 3, projects: [] })).toThrow(/newer version of Even Keel/)
+    expect(parseConfig({ version: SCHEMA_VERSION, projects: [] }).projects).toEqual({})
+    expect(() => parseConfig({ version: SCHEMA_VERSION + 1, projects: [] })).toThrow(/newer version of Even Keel/)
     expect(() => parseConfig({ version: 'two', projects: [] })).toThrow(/version/)
   })
 })

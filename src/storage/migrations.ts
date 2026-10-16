@@ -52,7 +52,7 @@ export function upgradeStorage(options: UpgradeOptions): void {
     if (after !== stored.text) rewrites.push({ file: stored.file, from: stored.version, before: stored.text, after })
   }
 
-  const raw = withIds(config.version < 2 ? configV2(config.value) : config.value, newId).raw
+  const raw = withIds(config.version < 2 ? configV2(config.value) : config.version < SCHEMA_VERSION ? restamped(config) : config.value, newId).raw
   rewrite(config, raw === config.value ? config.text : jsonText(raw))
   if (rewrites.length === 0 && files.every((stored) => stored.version === SCHEMA_VERSION)) return
   parseConfig(raw)
@@ -69,6 +69,14 @@ export function upgradeStorage(options: UpgradeOptions): void {
     const rename = idOf(launches.file)
     const entries = (launches.value as Record<string, unknown>[]).map((entry) => ({ ...entry, project: rename(String(entry.project)) }))
     rewrite(launches, [{ version: SCHEMA_VERSION }, ...entries].map((line) => `${JSON.stringify(line)}\n`).join(''))
+  }
+  // v2 → v3: the launch log gains the red commit of a fix's launch and its outcome (BTN-153), optional fields an older
+  // reader does without; every file only takes the new version.
+  for (const stored of [chain, questions, account]) {
+    if (stored !== undefined && stored.version >= 2 && stored.version < SCHEMA_VERSION) rewrite(stored, jsonText(restamped(stored)))
+  }
+  if (launches !== undefined && launches.version >= 2 && launches.version < SCHEMA_VERSION) {
+    rewrite(launches, launches.text.replace(/^[^\n]*\n?/, `${JSON.stringify({ version: SCHEMA_VERSION })}\n`))
   }
   if (rewrites.length === 0) return
 
@@ -106,6 +114,10 @@ function idsOf(raw: unknown): Record<string, string> {
 function stamped(raw: Record<string, unknown>): Record<string, unknown> {
   const { version: _, ...rest } = raw
   return { version: SCHEMA_VERSION, ...rest }
+}
+
+function restamped(stored: Stored): Record<string, unknown> {
+  return stamped(asRecord(stored))
 }
 
 function asRecord(stored: Stored): Record<string, unknown> {

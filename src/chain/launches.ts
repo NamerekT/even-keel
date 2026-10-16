@@ -1,6 +1,7 @@
 import type { SessionView } from '../state.js'
 import type { LaunchEntry, ReleaseReason } from './dispatcher.js'
-import { isFixName } from './fix.js'
+import { fixEpisodeId, fixName, fixTaskOf, isFixName, liveFixId } from './fix.js'
+import type { FixOutcome } from './model.js'
 
 export interface LaunchDay {
   day: string
@@ -14,7 +15,7 @@ export function launchDays(entries: LaunchEntry[], now: Date, days: number): Lau
   }
   const byDay = new Map(result.map((entry) => [entry.day, entry.counts]))
   for (const entry of entries) {
-    if (isRelease(entry)) continue
+    if (!isLaunch(entry)) continue
     const at = new Date(entry.at)
     if (Number.isNaN(at.getTime())) continue
     const counts = byDay.get(localDay(at))
@@ -36,6 +37,57 @@ export interface TaskSession {
 
 type HandOver = 'restart' | 'checkpoint'
 
+/** A fix of a red main from its first launch to its outcome (BTN-153). */
+export interface FixEpisode {
+  /** `ABC-FIX.<n>`, the row of the episode on the page. */
+  id: string
+  /** The red commit the fix was started for; `null` in a log from before the commit was kept. */
+  red: string | null
+  at: string
+  /** `null` while the fix is not over. */
+  end: FixEnd | null
+}
+
+export interface FixEnd {
+  at: string
+  /** `lost` — another fix started without a word of how this one ended. */
+  how: FixOutcome | 'lost'
+  /** The commit main went out at when the fix landed. */
+  commit: string | null
+}
+
+/**
+ * The fixes of each project's red main in the launch log, oldest first, and the episode of each fix entry. An episode
+ * is a launch with its handovers, resumes and answers up to its outcome; a launch for the same red commit is part of it.
+ */
+export function fixEpisodes(entries: LaunchEntry[]): { episodes: Record<string, FixEpisode[]>; of: Map<LaunchEntry, string> } {
+  const episodes: Record<string, FixEpisode[]> = {}
+  const of = new Map<LaunchEntry, string>()
+  for (const entry of entries) {
+    if (!isFixName(entry.task)) continue
+    const list = (episodes[entry.project] ??= [])
+    let open = list.at(-1)
+    if (open?.end !== null) open = undefined
+    const start = () => {
+      const episode: FixEpisode = { id: fixEpisodeId(entry.project, list.length + 1), red: entry.commit ?? null, at: entry.at, end: null }
+      list.push(episode)
+      return episode
+    }
+    if (isOutcome(entry)) {
+      if (open === undefined) continue
+      open.end = { at: entry.at, how: entry.reason, commit: entry.commit ?? null }
+      of.set(entry, open.id)
+      continue
+    }
+    if (entry.reason === undefined && (open === undefined || open.red === null || open.red !== entry.commit)) {
+      if (open !== undefined) open.end = { at: entry.at, how: 'lost', commit: null }
+      open = start()
+    }
+    of.set(entry, (open ?? start()).id)
+  }
+  return { episodes, of }
+}
+
 export function taskSessions(
   entries: LaunchEntry[],
   live: Pick<SessionView, 'task' | 'sessionId' | 'startedAt'>[],
@@ -47,13 +99,16 @@ export function taskSessions(
     if (rows === undefined) byTask.set(task, (rows = new Map()))
     return rows
   }
+  const fixes = fixEpisodes(entries)
+  const rowOf = (entry: LaunchEntry) => fixes.of.get(entry) ?? entry.task
   const releases: (LaunchEntry & { reason: ReleaseReason })[] = []
   for (const entry of entries) {
     if (isRelease(entry)) {
       releases.push(entry)
       continue
     }
-    const rows = rowsOf(entry.task)
+    if (isOutcome(entry)) continue
+    const rows = rowsOf(rowOf(entry))
     const known = rows.get(entry.sessionId)
     if (known !== undefined) {
       if (entry.reason === 'resume' || entry.reason === 'answer') known.resumed++
@@ -67,11 +122,13 @@ export function taskSessions(
     }
   }
   for (const view of live) {
-    const rows = rowsOf(view.task)
+    const fix = isFixName(view.task) ? fixTaskOf(view.task) : null
+    const project = fix === null ? '' : fix.slice(0, -fixName('').length)
+    const rows = rowsOf(fix === null ? view.task : liveFixId(project, fixes.episodes[project] ?? []))
     if (!rows.has(view.sessionId)) rows.set(view.sessionId, { sessionId: view.sessionId, at: view.startedAt, how: 'manual', resumed: 0 })
   }
   for (const entry of releases) {
-    const row = byTask.get(entry.task)?.get(entry.sessionId)
+    const row = byTask.get(rowOf(entry))?.get(entry.sessionId)
     if (row !== undefined) row.left = { at: entry.at, reason: entry.reason, blockers: entry.blockers ?? [] }
   }
   const result: Record<string, TaskSession[]> = {}
@@ -91,12 +148,12 @@ export interface TaskRun {
 
 /** The task of a session the chain started and how many handoffs it had had by then; `undefined` for any other session. */
 export function handoffsOf(entries: LaunchEntry[], sessionId: string): TaskRun | undefined {
-  const own = entries.find((entry) => entry.sessionId === sessionId && !isRelease(entry))
+  const own = entries.find((entry) => entry.sessionId === sessionId && isLaunch(entry))
   if (own === undefined) return undefined
   const seen = new Set<string>()
   let handoffs = 0
   for (const entry of entries) {
-    if (entry.task !== own.task || isRelease(entry) || seen.has(entry.sessionId)) continue
+    if (entry.task !== own.task || !isLaunch(entry) || seen.has(entry.sessionId)) continue
     seen.add(entry.sessionId)
     if (entry.reason === 'relay' || entry.reason === 'restart' || entry.reason === 'checkpoint') handoffs++
     if (entry === own) break
@@ -119,8 +176,17 @@ export function launchedProjects(entries: LaunchEntry[]): string[] {
   return [...new Set(entries.filter((entry) => !isRelease(entry) && !isFixName(entry.task)).map((entry) => entry.project))]
 }
 
+/** An entry of a session the chain started or continued: not a release, not the outcome of a fix. */
+export function isLaunch(entry: LaunchEntry): boolean {
+  return !isRelease(entry) && !isOutcome(entry)
+}
+
 function isRelease(entry: LaunchEntry): entry is LaunchEntry & { reason: ReleaseReason } {
   return entry.reason === 'postpone' || entry.reason === 'skip'
+}
+
+function isOutcome(entry: LaunchEntry): entry is LaunchEntry & { reason: FixOutcome } {
+  return entry.reason === 'landed' || entry.reason === 'dropped'
 }
 
 function localDay(date: Date): string {

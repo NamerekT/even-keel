@@ -101,14 +101,19 @@ export interface SessionFix {
 
 export type ReleaseReason = 'postpone' | 'skip'
 
+/** How the fix of a red main ended (BTN-153): its branch landed in main, or the user gave it up and main stayed as it was. */
+export type FixOutcome = 'landed' | 'dropped'
+
 export interface LaunchEntry {
   at: string
   project: string
   task: string
   sessionId: string
-  reason?: RelayAction | ReleaseReason | 'restart' | 'checkpoint' | 'answer'
+  reason?: RelayAction | ReleaseReason | FixOutcome | 'restart' | 'checkpoint' | 'answer'
   previous?: string
   blockers?: string[]
+  /** The commit of main the entry of a fix is about: red at its launch, the one main went out at when it landed. */
+  commit?: string
 }
 
 export interface ProjectOrder {

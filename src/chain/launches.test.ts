@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { LaunchEntry } from './dispatcher.js'
-import { handoffsOf, launchDays, launchedProjects, ranSince, taskSessions } from './launches.js'
+import { fixEpisodes, handoffsOf, launchDays, launchedProjects, ranSince, taskSessions } from './launches.js'
 
 function launch(at: Date, project: string): LaunchEntry {
   return { at: at.toISOString(), project, task: `${project}-1`, sessionId: 's' }
@@ -255,5 +255,83 @@ describe('launchedProjects', () => {
 
   it('does not count releases or the fix session of main, which start no task of the tracker', () => {
     expect(launchedProjects([entry('ABC', 'ABC-1', 'skip'), entry('XYZ', 'XYZ-FIX'), entry('OPS', 'OPS-1', 'postpone')])).toEqual([])
+  })
+})
+
+describe('fixEpisodes', () => {
+  const fix = (at: string, sessionId: string, extra: Partial<LaunchEntry> = {}) => entry(at, 'ABC-FIX', sessionId, extra)
+
+  it('makes each fix an episode of its own, from its launch to its outcome', () => {
+    const { episodes } = fixEpisodes([
+      fix('2026-10-16T06:30:00.000Z', 'f1', { commit: 'red1' }),
+      entry('2026-10-16T06:40:00.000Z', 'ABC-2', 's2'),
+      fix('2026-10-16T06:50:00.000Z', 'f2', { reason: 'checkpoint', previous: 'f1' }),
+      fix('2026-10-16T07:00:00.000Z', 'f2', { reason: 'landed', commit: 'green1' }),
+      fix('2026-10-16T09:00:00.000Z', 'f3', { commit: 'red2' }),
+      fix('2026-10-16T09:10:00.000Z', 'f3', { reason: 'dropped' }),
+      fix('2026-10-16T10:00:00.000Z', 'f4', { commit: 'red3' }),
+    ])
+    expect(episodes).toEqual({
+      ABC: [
+        { id: 'ABC-FIX.1', red: 'red1', at: '2026-10-16T06:30:00.000Z', end: { at: '2026-10-16T07:00:00.000Z', how: 'landed', commit: 'green1' } },
+        { id: 'ABC-FIX.2', red: 'red2', at: '2026-10-16T09:00:00.000Z', end: { at: '2026-10-16T09:10:00.000Z', how: 'dropped', commit: null } },
+        { id: 'ABC-FIX.3', red: 'red3', at: '2026-10-16T10:00:00.000Z', end: null },
+      ],
+    })
+  })
+
+  it('keeps a launch of the same red commit in the open episode', () => {
+    const { episodes } = fixEpisodes([fix('2026-10-16T06:30:00.000Z', 'f1', { commit: 'red1' }), fix('2026-10-16T06:45:00.000Z', 'f2', { commit: 'red1' })])
+    expect(episodes.ABC).toEqual([{ id: 'ABC-FIX.1', red: 'red1', at: '2026-10-16T06:30:00.000Z', end: null }])
+  })
+
+  it('closes an episode left without an outcome as lost once another fix starts', () => {
+    const { episodes } = fixEpisodes([fix('2026-10-01T06:30:00.000Z', 'old'), fix('2026-10-16T06:30:00.000Z', 'f1', { commit: 'red1' })])
+    expect(episodes.ABC).toEqual([
+      { id: 'ABC-FIX.1', red: null, at: '2026-10-01T06:30:00.000Z', end: { at: '2026-10-16T06:30:00.000Z', how: 'lost', commit: null } },
+      { id: 'ABC-FIX.2', red: 'red1', at: '2026-10-16T06:30:00.000Z', end: null },
+    ])
+  })
+})
+
+describe('taskSessions of the fix of main', () => {
+  it('lists the sessions of each episode under its id, a live one by hand under the open episode', () => {
+    const list = taskSessions(
+      [
+        entry('2026-10-16T06:30:00.000Z', 'ABC-FIX', 'f1', { commit: 'red1' }),
+        entry('2026-10-16T06:50:00.000Z', 'ABC-FIX', 'f2', { reason: 'checkpoint', previous: 'f1' }),
+        entry('2026-10-16T06:55:00.000Z', 'ABC-FIX', 'f2', { reason: 'answer', previous: 'f2' }),
+        entry('2026-10-16T07:00:00.000Z', 'ABC-FIX', 'f2', { reason: 'landed', commit: 'green1' }),
+        entry('2026-10-16T09:00:00.000Z', 'ABC-FIX', 'f3', { commit: 'red2' }),
+      ],
+      [{ task: 'ABC-FIX', sessionId: 'f9', startedAt: '2026-10-16T09:30:00.000Z' }],
+    )
+    expect(list).toEqual({
+      'ABC-FIX.1': [
+        { sessionId: 'f2', at: '2026-10-16T06:50:00.000Z', how: 'checkpoint', resumed: 1 },
+        { sessionId: 'f1', at: '2026-10-16T06:30:00.000Z', how: 'launch', resumed: 0, replaced: { at: '2026-10-16T06:50:00.000Z', how: 'checkpoint' } },
+      ],
+      'ABC-FIX.2': [
+        { sessionId: 'f9', at: '2026-10-16T09:30:00.000Z', how: 'manual', resumed: 0 },
+        { sessionId: 'f3', at: '2026-10-16T09:00:00.000Z', how: 'launch', resumed: 0 },
+      ],
+    })
+  })
+
+  it('puts a live fix session the journal does not know into the next episode when none is open', () => {
+    const list = taskSessions(
+      [entry('2026-10-16T06:30:00.000Z', 'ABC-FIX', 'f1', { commit: 'red1' }), entry('2026-10-16T07:00:00.000Z', 'ABC-FIX', 'f1', { reason: 'dropped' })],
+      [{ task: 'ABC-FIX', sessionId: 'f9', startedAt: '2026-10-16T09:30:00.000Z' }],
+    )
+    expect(Object.keys(list)).toEqual(['ABC-FIX.1', 'ABC-FIX.2'])
+  })
+
+  it('does not count the outcome of a fix as a launch nor a handoff', () => {
+    const journal = [
+      entry('2026-10-16T06:30:00.000Z', 'ABC-FIX', 'f1', { commit: 'red1' }),
+      entry('2026-10-16T07:00:00.000Z', 'ABC-FIX', 'f1', { reason: 'landed', commit: 'green1' }),
+    ]
+    expect(launchDays(journal, new Date('2026-10-16T12:00:00.000Z'), 1)[0]?.counts).toEqual({ ABC: 1 })
+    expect(handoffsOf(journal, 'f1')).toEqual({ project: 'ABC', task: 'ABC-FIX', handoffs: 0 })
   })
 })
