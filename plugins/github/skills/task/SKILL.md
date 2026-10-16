@@ -11,7 +11,7 @@ Even Keel runs the chain: it takes the open issues of the repository in order, s
 
 ## 0. Which issue
 
-A task id is `<project key>-<issue number>`: `ABC-12` is issue `#12`. The repository (`owner` and `repo` in every tool) is the one the project's `CLAUDE.md` names; without that, the `origin` remote of the working folder (`git remote get-url origin`).
+A task id is `<project key>-<issue number>`: `ABC-12` is issue `#12`. The repository (`owner` and `repo` in every tool) is the one Even Keel's prompt names (`Tracker: GitHub, project owner/repo.`), otherwise the one the project's `CLAUDE.md` names; without either, the `origin` remote of the working folder (`git remote get-url origin`).
 
 ## 1. Read the issue
 

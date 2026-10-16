@@ -15,6 +15,7 @@ import {
   withProjectPrompt,
   withReport,
   withReset,
+  withTracker,
   withUnattended,
   type HandoffReason,
   type HandoffSession,
@@ -336,6 +337,12 @@ describe('prompts in English', () => {
     expect(withBrief('ABC-1\n', { title: 'Add a button', description: '' }, 'en')).toBe('ABC-1\n\nTask from the tracker: Add a button\n')
     expect(resumePrompt('en')).not.toMatch(/[а-яё]/i)
     expect(resumePrompt('ru')).toBe('Лимит сброшен — продолжай с того же места.')
+  })
+
+  it('names the project in the tracker, so a session finds its task without a matching remote', () => {
+    expect(withTracker('ABC-1\n', { title: 'GitHub', project: 'octo-org/abc' }, 'en')).toBe('ABC-1\n\nTracker: GitHub, project octo-org/abc.\n')
+    expect(withTracker('ABC-1\n', { title: 'GitHub', project: 'octo-org/abc' }, 'ru')).toBe('ABC-1\n\nТрекер: GitHub, проект octo-org/abc.\n')
+    expect(withTracker('ABC-1\n', null, 'en')).toBe('ABC-1\n')
   })
 
   it('has every prompt in every language', () => {
