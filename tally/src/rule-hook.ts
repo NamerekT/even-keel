@@ -1,0 +1,175 @@
+import { mkdirSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs'
+import { join, resolve } from 'node:path'
+import { IMPORT_ACTIONS, IMPORT_PRECISIONS, RULE_PURPOSES } from '../../src/stats/rule-imports.js'
+import { parseImports } from './rule-imports.js'
+import { ruleFileOf, type RuleFile } from './rules.js'
+
+// A Claude Code hook (PostToolUse on Edit/MultiEdit/Write, and Stop) asking a session that edited rule files to
+// say why in the rule history; without the why an audit sees the change but cannot judge it. Entry: tally/bin/rule-hook.mjs.
+
+export interface HookState {
+  // Rule files of the session already reminded of, by display path.
+  files: string[]
+  // The files the last blocked stop was about: a stop is blocked again only for files edited since.
+  blocked: string[]
+}
+
+export interface HookPlace {
+  home: string
+  journal: string
+}
+
+export interface HookInput {
+  hook_event_name?: string
+  session_id?: string
+  tool_name?: string
+  tool_input?: { file_path?: unknown }
+  stop_hook_active?: boolean
+}
+
+export const EMPTY_STATE: HookState = { files: [], blocked: [] }
+
+const EDIT_TOOLS = new Set(['Edit', 'MultiEdit', 'Write'])
+const SESSION_ID = /^[\w-]+$/
+const STALE_MS = 30 * 24 * 3600 * 1000
+
+// The same files the Tally snapshot takes, except memory: sessions write it all the time.
+export function hookRuleFile(path: string, home: string): RuleFile | null {
+  const file = ruleFileOf(path, home)
+  return file === null || file.kind === 'memory' ? null : file
+}
+
+// A session is logged by a line whose `sessions` has a prefix of its id, as the server attaches them.
+export function journalCheck(text: string, session: string): { logged: boolean; errors: string[] } {
+  const { rows, errors } = parseImports(text)
+  const logged = rows.some((row) => row.sessions.some((prefix) => prefix !== '' && session.startsWith(prefix)))
+  const lines = text.split(/\r?\n/)
+  const short = session.slice(0, 8)
+  const own = errors.filter((error) => lines[error.line - 1]!.includes(short)).map((error) => `line ${error.line}: ${error.message}`)
+  return { logged, errors: logged ? [] : own }
+}
+
+export function afterEdit(input: HookInput, state: HookState, place: HookPlace): { state: HookState; context: string | null } {
+  const path = input.tool_input?.file_path
+  if (!EDIT_TOOLS.has(input.tool_name ?? '') || typeof path !== 'string') return { state, context: null }
+  const file = hookRuleFile(path, place.home)
+  if (file === null || state.files.includes(file.display)) return { state, context: null }
+  const context =
+    `Rule file changed: ${file.display}. Before you end the turn, log why in the rule history — ` +
+    `${format(input.session_id ?? '', place.journal, [file.display])} ` +
+    'If this session already has a line there, add the file to its files instead of a new line.'
+  return { state: { ...state, files: [...state.files, file.display] }, context }
+}
+
+export function beforeStop(input: HookInput, state: HookState, journal: string | null, place: HookPlace): { state: HookState; reason: string | null } {
+  const fresh = state.files.filter((file) => !state.blocked.includes(file))
+  if (input.stop_hook_active === true || fresh.length === 0) return { state, reason: null }
+  const session = input.session_id ?? ''
+  const { logged, errors } = journalCheck(journal ?? '', session)
+  if (logged) return { state, reason: null }
+  const broken = errors.length === 0 ? '' : ` Lines of this session there do not parse: ${errors.join('; ')}.`
+  const reason =
+    `This session changed rule files (${state.files.join(', ')}), and the rule history has no line with its id in sessions.${broken} ` +
+    `Add it now — ${format(session, place.journal, state.files)} ` +
+    'Then end the turn as before: if your last message ended with a CHECKPOINT: line, end with it again. This reminder comes once.'
+  return { state: { ...state, blocked: [...state.files] }, reason }
+}
+
+function format(session: string, journal: string, files: string[]): string {
+  const example = {
+    id: '<unique in the log>',
+    at: '<ISO time of the edit>',
+    atPrecision: 'exact',
+    sessions: [session],
+    files: files.map((path) => ({ path, action: 'changed', summary: '<what changed>' })),
+    purpose: ['<purpose>'],
+    reason: '<why: what it should fix or improve>',
+    task: '<task id or empty>',
+    source: 'session',
+  }
+  return (
+    `append one JSON line per set of edits to ${journal} (Read it, then Edit; Write only if it does not exist): ${JSON.stringify(example)}. ` +
+    `action: ${IMPORT_ACTIONS.join(' | ')}; atPrecision: ${IMPORT_PRECISIONS.join(' | ')}; purpose: one or more of ${RULE_PURPOSES.join(', ')}; ` +
+    'summary and reason in the language of the lines already there. The format is `ruleHistory` in tally/CLAUDE.md.'
+  )
+}
+
+export interface HookEnv {
+  root: string
+  env: NodeJS.ProcessEnv
+  home: string
+}
+
+// The hook's whole run: the output to print as JSON, or null for none.
+export function runHook(raw: unknown, { root, env, home }: HookEnv): object | null {
+  const input = (raw ?? {}) as HookInput
+  const session = input.session_id ?? ''
+  if (!SESSION_ID.test(session)) return null
+  const stateDir = env.EVEN_KEEL_STATE_DIR ?? join(root, 'state')
+  const place: HookPlace = { home, journal: journalPath(root, stateDir, env).replaceAll('\\', '/') }
+  const stateFile = join(stateDir, 'rule-hook', `${session}.json`)
+  const state = readState(stateFile)
+
+  if (input.hook_event_name === 'PostToolUse') {
+    const next = afterEdit(input, state ?? EMPTY_STATE, place)
+    if (next.context === null) return null
+    writeState(stateFile, next.state, state === null)
+    return { hookSpecificOutput: { hookEventName: 'PostToolUse', additionalContext: next.context } }
+  }
+  if (input.hook_event_name === 'Stop' && state !== null) {
+    const next = beforeStop(input, state, readText(place.journal), place)
+    if (next.reason === null) return null
+    writeState(stateFile, next.state, false)
+    return { decision: 'block', reason: next.reason }
+  }
+  return null
+}
+
+// As the collector resolves it: `ruleHistory` of tally.config.json against the root, otherwise the state folder.
+function journalPath(root: string, stateDir: string, env: NodeJS.ProcessEnv): string {
+  let configured: unknown
+  try {
+    configured = JSON.parse(readFileSync(env.TALLY_CONFIG ?? join(root, 'tally', 'tally.config.json'), 'utf8')).ruleHistory
+  } catch {
+    configured = undefined
+  }
+  return resolve(root, typeof configured === 'string' && configured !== '' ? configured : join(stateDir, 'rule-history.jsonl'))
+}
+
+function readText(path: string): string | null {
+  try {
+    return readFileSync(path, 'utf8')
+  } catch {
+    return null
+  }
+}
+
+function readState(path: string): HookState | null {
+  const text = readText(path)
+  if (text === null) return null
+  try {
+    const raw = JSON.parse(text) as Partial<HookState>
+    const list = (value: unknown) => (Array.isArray(value) ? value.filter((each): each is string => typeof each === 'string') : [])
+    return { files: list(raw.files), blocked: list(raw.blocked) }
+  } catch {
+    return null
+  }
+}
+
+// A new session's file also sweeps out those of sessions untouched for a month.
+function writeState(path: string, state: HookState, fresh: boolean): void {
+  const dir = join(path, '..')
+  mkdirSync(dir, { recursive: true })
+  if (fresh) {
+    const now = Date.now()
+    for (const name of readdirSync(dir)) {
+      const other = join(dir, name)
+      try {
+        if (now - statSync(other).mtimeMs > STALE_MS) rmSync(other, { force: true })
+      } catch {
+        // Another session's hook may have removed it first.
+      }
+    }
+  }
+  writeFileSync(path, `${JSON.stringify(state)}\n`)
+}
