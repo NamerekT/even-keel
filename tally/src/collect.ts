@@ -51,7 +51,8 @@ export async function collect(settings: DbSettings, root: string, log: Log): Pro
     await db.syncPrices(config.prices)
 
     const projects = trackedProjects(root, log)
-    const ruleFiles = await ruleSources(homes.list(), projects, homedir(), log)
+    const ruleScan = await ruleSources(homes.list(), projects, homedir(), log)
+    const ruleFiles = ruleScan.sources
     const rules = { home: homedir(), skills: skillsOf(ruleFiles) }
     const accountDirs = new Map(homes.list().map((home) => [home.key, home.dir]))
     const contextOf = (source: Source) => {
@@ -85,7 +86,7 @@ export async function collect(settings: DbSettings, root: string, log: Log): Pro
     const prompted = await db.fillPrompts()
     const handoffs = await refreshHandoffs(db, stateDir, sources, journal)
     const snapshots = await db.addSnapshots(await limitSnapshots(config.evenKeelUrl, stateDir, homes, log))
-    const versions = await snapshotRules(db, ruleFiles, new Date())
+    const versions = await snapshotRules(db, ruleScan, new Date())
     const history = await collectRuleHistory(db, homes.list(), projects, homedir(), log)
     const changes = await refreshRuleChanges(db)
     const imported = await importRuleHistory(db, resolve(root, config.ruleHistory ?? join(stateDir, 'rule-history.jsonl')), log)

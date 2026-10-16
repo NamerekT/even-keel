@@ -4,6 +4,7 @@ import { lstat, readdir, readFile, stat } from 'node:fs/promises'
 import { join } from 'node:path'
 import { promisify } from 'node:util'
 import type { AccountHome } from '../../src/account/homes.js'
+import { repoTail } from '../../src/stats/model.js'
 import { canon, claudeJsonRules, isSkillFile, ruleFileOf, stripFrontmatter, type RuleFile } from './rules.js'
 
 const run = promisify(execFile)
@@ -17,6 +18,12 @@ export interface RuleSource {
   file: RuleFile
 }
 
+export interface RuleScan {
+  sources: RuleSource[]
+  /** The repositories git listed this run, as rule keys start (`repoTail`). */
+  listed: string[]
+}
+
 export interface FileInfo {
   size: number
   mtime: string
@@ -24,8 +31,9 @@ export interface FileInfo {
 
 // Real rule files on disk: each account folder (account copies of junctions are skipped, the global folder
 // has the originals) and the main checkout of each project, listed by git so ignored caches are never walked.
-export async function ruleSources(homes: AccountHome[], projects: string[], home: string, log: (message: string) => void): Promise<RuleSource[]> {
+export async function ruleSources(homes: AccountHome[], projects: string[], home: string, log: (message: string) => void): Promise<RuleScan> {
   const paths: string[] = [join(home, '.claude.json')]
+  const listed: string[] = []
   await walk(join(home, '.githooks'), false, paths)
   for (const account of homes) {
     paths.push(join(account.dir, 'CLAUDE.md'), join(account.dir, 'settings.json'))
@@ -45,6 +53,7 @@ export async function ruleSources(homes: AccountHome[], projects: string[], home
         maxBuffer: 16 * 1024 * 1024,
       })
       for (const file of stdout.split('\0')) if (file !== '') paths.push(join(repo, file))
+      listed.push(repoTail(repo))
     } catch (error) {
       log(`tally: rule files of ${repo}: ${(error as Error).message.split('\n')[0]}`)
     }
@@ -57,7 +66,7 @@ export async function ruleSources(homes: AccountHome[], projects: string[], home
     seen.add(path.toLowerCase())
     sources.push({ path, file })
   }
-  return sources
+  return { sources, listed }
 }
 
 export async function infoOf(path: string): Promise<FileInfo | null> {
