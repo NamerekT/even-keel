@@ -1,7 +1,7 @@
 import type { AccountEntry, AccountView } from '../../src/account/model.js'
 import type { ActiveChain, CurrentTask, ProjectOrder } from '../../src/chain/dispatcher.js'
-import { fixName, isFixName } from '../../src/chain/fix.js'
-import type { TaskSession } from '../../src/chain/launches.js'
+import { fixName, isFixName, liveFixId } from '../../src/chain/fix.js'
+import type { FixEpisode, TaskSession } from '../../src/chain/launches.js'
 import { chainOrder, nextTask, precedence, withWaiting } from '../../src/chain/order.js'
 import type { LimitHold } from '../../src/chain/relay.js'
 import { isOpen, type ModelAlias, type StatusCategory, type Task, type TaskPriority } from '../../src/tracker/model.js'
@@ -67,8 +67,16 @@ export interface CardTask {
   next: boolean
 }
 
-/** The lamp of a task, the same wherever the task shows: `handoff` — its session ended on a checkpoint nobody took up. */
-export type BlockLamp = 'done' | 'working' | 'waiting' | 'handoff' | 'stopped' | 'error' | 'limit' | 'ahead' | 'backlog' | 'canceled'
+/**
+ * The lamp of a task, the same wherever the task shows: `handoff` — its session ended on a checkpoint nobody took up;
+ * `fixed` — a fix of a red main that is over, landed or dropped.
+ */
+export type BlockLamp = 'done' | 'working' | 'waiting' | 'handoff' | 'stopped' | 'error' | 'limit' | 'ahead' | 'backlog' | 'canceled' | 'fixed'
+
+/** A row that is over and goes to the archive: a closed task or a fix of main that ended. */
+export function isClosedLamp(lamp: BlockLamp): boolean {
+  return lamp === 'done' || lamp === 'canceled' || lamp === 'fixed'
+}
 
 export interface ChainBlock {
   id: string
@@ -97,6 +105,8 @@ export interface ChainBlock {
   interrupted?: true
   /** The fix of a red main leads the chain and this task is next: its live session takes no answer from the chat until the fix lands. */
   aside?: true
+  /** The row of a fix of a red main that is over. */
+  fix?: FixEpisode
 }
 
 /**
@@ -380,8 +390,17 @@ export function chainBlocks(state: EvenKeelState, project: string, now = new Dat
   const skipped = new Set(state.chain.skipped[project] ?? [])
   const fix = fixName(project)
   const next = current === fix && !broken && active?.interrupted === undefined ? nextTask(tasks, order.order, [...skipped, ...order.waiting]) : undefined
+  const episodes = state.fixes[project] ?? []
+  const ended = new Map(episodes.flatMap((episode) => (episode.end === null ? [] : [[episode.id, episode]])))
+  const fixSession = taskSession(state.sessions, fix) ?? null
 
-  const blocks =[...closedOrder(closed, state.taskSessions), ...open].map((id) => {
+  const blocks = [...closedOrder(closed, state.taskSessions, [...ended.values()]), ...open].map((id): ChainBlock => {
+    const episode = ended.get(id)
+    if (episode !== undefined) {
+      const sessions = state.taskSessions[id] ?? []
+      const session = fixSession !== null && sessions.some((run) => run.sessionId === fixSession.sessionId) ? fixSession : null
+      return { ...fixRow(id, fixTitle(episode), 'fixed', null, session, sessions), fix: episode }
+    }
     const task = byId.get(id)
     const session = taskSession(state.sessions, id) ?? null
     const sessions = state.taskSessions[id] ?? []
@@ -415,24 +434,47 @@ export function chainBlocks(state: EvenKeelState, project: string, now = new Dat
   for (let index = blocks.length - 2; index >= 0; index--) {
     if (blocks[index]!.locked) blocks[index]!.milestone = blocks[index + 1]!.milestone
   }
-  const fixSession = taskSession(state.sessions, fix) ?? null
-  if (current !== fix && (fixSession === null || fixSession.lamp === 'finished')) return blocks
+  // A fix that is over has no milestone of its own: it stays in the section of its neighbours.
+  for (const [index, block] of blocks.entries()) {
+    if (block.fix !== undefined) block.milestone = blocks[index - 1]?.milestone ?? blocks.slice(index + 1).find((each) => each.fix === undefined)?.milestone ?? null
+  }
+  const lingers = fixSession !== null && fixSession.lamp !== 'finished' && episodes.at(-1)?.end == null
+  if (current !== fix && !lingers) return blocks
   // The fix session of a red main is not a tracker task: it leads the chain as a block of its own, ahead of the open tasks.
   const at = blocks.findIndex((block) => block.open || block.locked)
   const ahead = at < 0 ? blocks.length : at
-  const fixSessions = state.taskSessions[fix] ?? []
+  const id = liveFixId(project, episodes)
+  const fixSessions = state.taskSessions[id] ?? []
   const fixBlock: ChainBlock = {
-    id: fix,
-    title: t.chain.fix,
+    ...fixRow(id, t.chain.fix, taskLamp(undefined, fixSession), blocks[ahead]?.milestone ?? null, fixSession, fixSessions),
+    open: true,
+    current: fix === current,
+    limit: fix === current ? pending : null,
+    start: running?.task === fix ? sessionStart(running, fixSession, fixSessions, now) : null,
+  }
+  return blocks.toSpliced(ahead, 0, fixBlock)
+}
+
+/** The row a link to a fix by its name (`ABC-FIX`) means: the fix running now, otherwise the one its session is on. */
+export function fixBlockOf(blocks: ChainBlock[], hash: string): string | null {
+  if (!isFixName(hash) || blocks.some((block) => block.id === hash)) return null
+  const rows = blocks.filter((block) => isFixName(block.id))
+  return (rows.find((block) => block.fix === undefined) ?? rows.findLast((block) => block.session?.task === hash))?.id ?? null
+}
+
+function fixRow(id: string, title: string, lamp: BlockLamp, milestone: string | null, session: SessionView | null, sessions: TaskSession[]): ChainBlock {
+  return {
+    id,
+    title,
     status: null,
     stage: null,
-    lamp: taskLamp(undefined, fixSession),
-    open: true,
+    lamp,
+    open: false,
     locked: false,
     blockedBy: [],
-    milestone: blocks[ahead]?.milestone ?? null,
+    milestone,
     after: [],
-    current: fix === current,
+    current: false,
     skipped: false,
     question: false,
     priority: 'none',
@@ -440,12 +482,18 @@ export function chainBlocks(state: EvenKeelState, project: string, now = new Dat
     parent: null,
     labels: [],
     models: [],
-    session: fixSession,
-    sessions: fixSessions,
-    limit: fix === current ? pending : null,
-    start: running?.task === fix ? sessionStart(running, fixSession, fixSessions, now) : null,
+    session,
+    sessions,
+    limit: null,
+    start: null,
   }
-  return blocks.toSpliced(ahead, 0, fixBlock)
+}
+
+const SHORT_COMMIT = 7
+
+function fixTitle(episode: FixEpisode): string {
+  const short = (commit: string | null) => commit?.slice(0, SHORT_COMMIT) ?? null
+  return episode.end?.how === 'landed' ? t.chain.fixLanded(short(episode.red), short(episode.end.commit)) : t.chain.fixDropped(short(episode.red))
 }
 
 export function contextFill(tokens: number, scale: ContextScale): { percent: number; level: ContextLevel } {
@@ -498,16 +546,18 @@ function taskSession(sessions: SessionView[], task: string): SessionView | undef
   return own.find((view) => view.lamp !== 'finished') ?? own.at(-1)
 }
 
-function closedOrder(tasks: Task[], runs: Record<string, TaskSession[]>): string[] {
+/** Closed tasks by their last launch, those never launched first; a fix that is over by the time it ended. */
+function closedOrder(tasks: Task[], runs: Record<string, TaskSession[]>, fixes: FixEpisode[]): string[] {
   let order: string[]
   try {
     order = chainOrder(tasks)
   } catch {
     order = tasks.map((task) => task.id).sort(byNumber)
   }
-  const lastRun = (id: string) => runs[id]?.reduce((last, run) => (run.at > last ? run.at : last), '') ?? ''
+  const ends = new Map(fixes.map((episode) => [episode.id, episode.end!.at]))
+  const lastRun = (id: string) => ends.get(id) ?? runs[id]?.reduce((last, run) => (run.at > last ? run.at : last), '') ?? ''
   const never = order.filter((id) => lastRun(id) === '')
-  const ran = order.filter((id) => lastRun(id) !== '').sort((a, b) => lastRun(a).localeCompare(lastRun(b)))
+  const ran = [...order.filter((id) => lastRun(id) !== ''), ...ends.keys()].sort((a, b) => lastRun(a).localeCompare(lastRun(b)))
   return [...never, ...ran]
 }
 

@@ -6,6 +6,8 @@ const counted = (one: string, few: string, many: string) => (count: number) => `
 
 const launches = counted('запуск', 'запуска', 'запусков')
 const tasks = counted('задача', 'задачи', 'задач')
+const fixes = counted('починка', 'починки', 'починок')
+const fixOf = (red: string | null) => (red === null ? 'Починка main' : `Починка main: ${red}`)
 
 export const ru = {
   notice: noticesRu,
@@ -153,6 +155,7 @@ export const ru = {
     ahead: 'впереди',
     backlog: 'в бэклоге, вне цепочки',
     canceled: 'отменена',
+    fixed: 'починка main завершена',
   },
   questions: {
     title: 'Задачи с ярлыком «Вопрос» ждут ответа в описании — без него сессия, скорее всего, встанет',
@@ -185,6 +188,8 @@ export const ru = {
     usual: (median: string) => `обычно ${median}`,
     took: (duration: string) => `шёл ${duration}`,
     tasks: 'Задачи пуша',
+    fixTask: 'починка main',
+    fixTaskTitle: 'Строка этой починки в архиве цепочки',
     jobs: 'Задачи прогона',
     noJobs: 'Задач прогона пока нет',
     stepsOnPage: 'Шаги — на странице прогона',
@@ -720,8 +725,10 @@ export const ru = {
       ahead: 'впереди',
       backlog: 'в бэклоге',
       canceled: 'отменена',
+      fixed: 'починка main',
     },
     archive: 'Архив',
+    archived: (taskCount: number, fixCount: number) => (fixCount === 0 ? tasks(taskCount) : taskCount === 0 ? fixes(fixCount) : `${tasks(taskCount)} · ${fixes(fixCount)}`),
     loadMore: (next: number, hidden: number) => `Загрузить ещё (${next}/${hidden})`,
     foldArchive: 'Свернуть архив',
     nextMilestone: 'Показать веху',
@@ -736,6 +743,9 @@ export const ru = {
     hidden: (tasks: string) => `скрыто · ${tasks}`,
     skipped: 'пропущена',
     fix: 'Починка main',
+    fixLanded: (red: string | null, commit: string | null) => (commit === null ? fixOf(red) : `${fixOf(red)} → ${commit}`),
+    fixDropped: (red: string | null) => `${fixOf(red)} — брошена, main остался как был`,
+    fixRuns: 'Открыть панель CI с прогонами этих коммитов',
     interrupted: 'ждёт main',
     interruptedTitle: 'Main покраснел: сессия этой задачи остановлена и продолжит, когда main починят',
     questionTitle: 'Ярлык «Вопрос»: без ответа в описании сессия, скорее всего, встанет',

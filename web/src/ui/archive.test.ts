@@ -16,6 +16,15 @@ const chain = (closed: number, open: number) => [
 const ids = (blocks: { id: string }[]) => blocks.map((block) => block.id)
 
 describe('archiveView', () => {
+  it('archives a fix of main that is over like a closed task, and counts the fixes apart', () => {
+    const blocks = chain(4, 1).toSpliced(2, 0, { id: 'T-FIX.1', lamp: 'fixed' })
+    const view = archiveView(blocks, 1, '')
+    expect(ids(view.visible)).toEqual(['T-1', 'T-2', 'T-FIX.1', 'T-3', 'T-4', 'T-5'])
+    expect([view.shown, view.shownFixes]).toEqual([4, 1])
+    const folded = archiveView(blocks, 0, '')
+    expect([folded.hidden, folded.hiddenFixes, folded.shownFixes]).toEqual([4, 1, 0])
+  })
+
   it('keeps only the last closed block in front of the open ones', () => {
     const view = archiveView(chain(40, 2), 0, '')
     expect(ids(view.visible)).toEqual(['T-40', 'T-41', 'T-42'])

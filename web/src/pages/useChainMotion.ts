@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useMemo, useState } from 'react'
 import { useVisible } from '../layout/useVisible.js'
-import type { ChainBlock } from '../state.js'
+import { isClosedLamp, type ChainBlock } from '../state.js'
 import { archiveView } from '../ui/archive.js'
 import { stillMotion } from '../ui/landing.js'
 import { motionOf, motionSpan, stageOf, type Frame, type Motion, type Stage } from '../ui/motion.js'
@@ -53,7 +53,7 @@ function frameOf(chain: ChainBlock[], shown: ReadonlySet<string>): Frame<ChainBl
     order: live.map((block) => block.id),
     items: new Map(live.map((block) => [block.id, block])),
     shown,
-    closed: new Set(chain.filter((block) => block.lamp === 'done' || block.lamp === 'canceled').map((block) => block.id)),
+    closed: new Set(chain.filter((block) => isClosedLamp(block.lamp)).map((block) => block.id)),
     current: chain.find((block) => block.current)?.id ?? null,
   }
 }

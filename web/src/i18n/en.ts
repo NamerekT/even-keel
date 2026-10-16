@@ -7,6 +7,8 @@ const counted = (one: string, other: string) => (count: number) => `${count} ${f
 
 const launches = counted('launch', 'launches')
 const tasks = counted('task', 'tasks')
+const fixes = counted('fix', 'fixes')
+const fixOf = (red: string | null) => (red === null ? 'Fix of main' : `Fix of main: ${red}`)
 
 export const en: Messages = {
   notice: noticesEn,
@@ -154,6 +156,7 @@ export const en: Messages = {
     ahead: 'ahead',
     backlog: 'in the backlog, outside the chain',
     canceled: 'canceled',
+    fixed: 'fix of main, over',
   },
   questions: {
     title: 'Tasks labeled “Question” wait for an answer in the description — without it the session will most likely get stuck',
@@ -186,6 +189,8 @@ export const en: Messages = {
     usual: (median: string) => `usually ${median}`,
     took: (duration: string) => `took ${duration}`,
     tasks: 'Tasks of the push',
+    fixTask: 'fix of main',
+    fixTaskTitle: 'The row of this fix in the chain archive',
     jobs: 'Jobs',
     noJobs: 'No jobs yet',
     stepsOnPage: 'Steps are on the run page',
@@ -716,8 +721,10 @@ export const en: Messages = {
       ahead: 'ahead',
       backlog: 'in the backlog',
       canceled: 'canceled',
+      fixed: 'fix of main',
     },
     archive: 'Archive',
+    archived: (taskCount: number, fixCount: number) => (fixCount === 0 ? tasks(taskCount) : taskCount === 0 ? fixes(fixCount) : `${tasks(taskCount)} · ${fixes(fixCount)}`),
     loadMore: (next: number, hidden: number) => `Load more (${next}/${hidden})`,
     foldArchive: 'Fold the archive',
     nextMilestone: 'Show the milestone',
@@ -732,6 +739,9 @@ export const en: Messages = {
     hidden: (tasks: string) => `hidden · ${tasks}`,
     skipped: 'skipped',
     fix: 'Fixing main',
+    fixLanded: (red: string | null, commit: string | null) => (commit === null ? fixOf(red) : `${fixOf(red)} → ${commit}`),
+    fixDropped: (red: string | null) => `${fixOf(red)} — dropped, main stayed as it was`,
+    fixRuns: 'Open the CI panel with the runs of these commits',
     interrupted: 'waits for main',
     interruptedTitle: 'Main went red: the session of this task was stopped and goes on once main is fixed',
     questionTitle: 'Label “Question”: without an answer in the description the session will most likely get stuck',

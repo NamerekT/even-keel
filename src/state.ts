@@ -1,6 +1,6 @@
 import type { AccountView } from './account/model.js'
 import type { ActiveChain, Leftover, ProjectOrder } from './chain/dispatcher.js'
-import type { LaunchDay, TaskSession } from './chain/launches.js'
+import type { FixEpisode, LaunchDay, TaskSession } from './chain/launches.js'
 import type { ChainRules } from './chain/rules.js'
 import type { CiKind, CiView } from './ci/model.js'
 import type { Language } from './language.js'
@@ -183,7 +183,10 @@ export interface EvenKeelState {
   /** The CIs of each project that has any; a project without CI has no key. */
   ci: Record<string, CiView[]>
   launches: LaunchDay[]
+  /** The sessions of each task by its id; a fix of a red main by the id of its episode (`fixes`). */
   taskSessions: Record<string, TaskSession[]>
+  /** The fixes of each project's red main, oldest first (BTN-153). */
+  fixes: Record<string, FixEpisode[]>
   context: ContextScale
   configError: Notice | null
   mcpMissing: McpMissing[]

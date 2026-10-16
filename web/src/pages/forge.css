@@ -28,6 +28,19 @@
   color: var(--lamp-done);
 }
 
+/* The fix is over: the forge has cooled down to its two hammers. */
+.forge--fixed {
+  color: var(--lamp-fix);
+}
+
+.forge--fixed .forge__scene {
+  display: none;
+}
+
+.forge--fixed .forge__crossed {
+  display: inline;
+}
+
 .forge__line {
   fill: none;
   stroke: currentColor;

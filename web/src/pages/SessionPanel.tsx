@@ -1,5 +1,5 @@
 import { lazy, Suspense, useEffect, useLayoutEffect, useRef, useState } from 'react'
-import { isFixName } from '../../../src/chain/fix.js'
+import { fixTaskOf, isFixName } from '../../../src/chain/fix.js'
 import type { TaskSession } from '../../../src/chain/launches.js'
 import type { LimitHold } from '../../../src/chain/relay.js'
 import type { CacheWindow, FeedLine, TokenTotals } from '../../../src/sessions/transcript.js'
@@ -92,7 +92,7 @@ export function SessionPanel({ block, scale, onCard, onClose }: Props) {
           )}
         </>
       ) : block.session === null ? (
-        <p className="placeholder">{t.session.none}</p>
+        block.sessions.length === 0 && <p className="placeholder">{t.session.none}</p>
       ) : (
         <SessionBody session={block.session} limit={block.limit} scale={scale} whole={!chat} />
       )}
@@ -115,7 +115,9 @@ export function SessionPanel({ block, scale, onCard, onClose }: Props) {
 function Actions({ block }: { block: ChainBlock }) {
   const { send, sending, failure } = useCommand()
   const [chatting, setChatting] = useState(false)
-  const body = { project: taskProject(block.id), task: block.id }
+  const fix = isFixName(block.id)
+  // The row of a fix is one of its episodes; the service knows the fix by its name.
+  const body = { project: taskProject(block.id), task: fix ? fixTaskOf(block.id) : block.id }
   const session = block.session
   const live = block.current ? session : null
   // A task that made way for the fix of main keeps its chat, shut until the chain takes it again.
@@ -126,8 +128,6 @@ function Actions({ block }: { block: ChainBlock }) {
   const replacing = useHold(`${block.current}|${session?.sessionId ?? ''}`, REPLACE_WAIT_MS)
   const starting = replacing.on || (block.current && block.start !== null)
   const waiting = live?.lamp === 'waiting'
-
-  const fix = isFixName(block.id)
 
   // "Skip" on the fix of main is only for the session the chain waits on.
   if (live === null && (!block.open || fix)) return null
@@ -195,7 +195,7 @@ function Actions({ block }: { block: ChainBlock }) {
             sessionId={talking.sessionId}
             account={talking.account}
             live={talking.lamp !== 'finished'}
-            chat={{ project: body.project, task: block.id, session: talking, aside }}
+            chat={{ project: body.project, task: body.task, session: talking, aside }}
             onClose={() => setChatting(false)}
           />
         </Suspense>

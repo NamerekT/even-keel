@@ -7,7 +7,7 @@ import { accountId, launchBlock, liveSessions, loginBlock, type LoginBlock } fro
 import { VsCodeAccount, vscodeSettingsFile } from './account/vscode.js'
 import { AccountWatcher } from './account/watcher.js'
 import { Dispatcher, type LaunchEntry } from './chain/dispatcher.js'
-import { handoffsOf, launchDays, launchedProjects, taskSessions } from './chain/launches.js'
+import { fixEpisodes, handoffsOf, launchDays, launchedProjects, taskSessions } from './chain/launches.js'
 import { isFixName } from './chain/fix.js'
 import { fixPrompt, noteOf, resumePrompt, startPrompt, withBrief, withProjectPrompt, withUnattended } from './chain/relay.js'
 import { launchLine } from './chain/log.js'
@@ -590,6 +590,7 @@ const getState = (): EvenKeelState => ({
   ci: Object.fromEntries([...ciWatches].map(([project, watches]) => [project, watches.map((watch) => watch.view)])),
   launches: launchDays(launches, new Date(), LAUNCH_CHART_DAYS),
   taskSessions: taskSessions(launches, sessions, sessionAccount),
+  fixes: fixEpisodes(launches).episodes,
   context: config.context,
   configError: configFile.error,
   mcpMissing: mcp.missing,

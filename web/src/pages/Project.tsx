@@ -9,6 +9,7 @@ import {
   backlogTasks,
   canReady,
   chainBlocks,
+  fixBlockOf,
   chainControls,
   chainStatus,
   ciWaitText,
@@ -29,7 +30,7 @@ import { StatusChip } from '../ui/StatusChip.js'
 import { BACKLOG_HASH, BacklogChip, BacklogPanel } from './BacklogPanel.js'
 import { ChainList } from './ChainList.js'
 import { SEG_CLASS, type ChipLook } from './chipLook.js'
-import { CI_HASH, CiChip, CiPanel } from './CiChip.js'
+import { CI_HASH, CiChip, CiPanel, ciFocus } from './CiChip.js'
 import { Flight } from './Flight.js'
 import { IdlePanel } from './IdlePanel.js'
 import { NotFound } from './NotFound.js'
@@ -52,7 +53,8 @@ export function Project({ state, project: key }: { state: EvenKeelState; project
   const blocks = chainBlocks(state, key)
   const entered = useRef<string | null>(null)
   // Once per arrival, so the cross keeps the panel closed; not where the panel would cover the whole page.
-  const entry = entered.current === key || isNarrow() ? null : focusOnEntry(blocks, hash)
+  // A link to the fix of main by its name opens the row of its episode.
+  const entry = fixBlockOf(blocks, hash) ?? (entered.current === key || isNarrow() ? null : focusOnEntry(blocks, hash))
   // Already the first frame shows the panel, the address catches up after it.
   const focus = entry ?? hash
   useEffect(() => {
@@ -83,7 +85,8 @@ export function Project({ state, project: key }: { state: EvenKeelState; project
   const backlogOpen = focus === BACKLOG_HASH && backlog.length > 0
   const settingsOpen = focus === SETTINGS_HASH && settings !== undefined
   const ci = state.ci[key]
-  const ciOpen = focus === CI_HASH && ci !== undefined
+  const ciAt = ciFocus(focus)
+  const ciOpen = ciAt.open && ci !== undefined
   const side = selected !== undefined || backlogOpen || settingsOpen || ciOpen
   const column = side || wide
   // Over the side column the CI badge, Backlog and Settings are tabs on its card; with no column they end the head row,
@@ -136,7 +139,8 @@ export function Project({ state, project: key }: { state: EvenKeelState; project
             chain={blocks}
             scale={state.context}
             trackerUrls={state.trackerUrls}
-            focus={focus === BACKLOG_HASH || focus === SETTINGS_HASH || focus === CI_HASH ? '' : focus}
+            focus={focus === BACKLOG_HASH || focus === SETTINGS_HASH || ciAt.open ? '' : focus}
+            ci={ci !== undefined}
             ghost={arrival.ghost}
             arrival={arrival.arrival}
             incoming={arrival.incoming}
@@ -167,7 +171,7 @@ export function Project({ state, project: key }: { state: EvenKeelState; project
             />
           )}
           {settingsOpen && <SettingsPanel key={`settings-${key}`} project={key} form={settings} config={state.config} configError={state.configError} tasks={state.tasks.filter((task) => taskProject(task.id) === key)} onClose={close} />}
-          {ciOpen && <CiPanel views={ci} urls={state.trackerUrls} onClose={close} />}
+          {ciOpen && <CiPanel views={ci} urls={state.trackerUrls} fixes={state.fixes[key] ?? []} fix={ciAt.fix} onClose={close} />}
           {!side && (
             <IdlePanel
               key={key}

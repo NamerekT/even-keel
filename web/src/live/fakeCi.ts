@@ -27,6 +27,11 @@ const HISTORY: CiRun[] = [
   run(36, 'success', 90_000, 201, '[ABC-1] Стартовый экран'),
 ]
 
+const FIX_RUN = run(41, 'success', 900, 180, 'Fix main: restore the config fixture')
+
+/** The fix of a red main in the fake chain archive: the red #39 and the green #41 of `?ci=fixed`. */
+export const FAKE_FIX = { red: HISTORY[1]!.commit, landed: FIX_RUN.commit }
+
 const STEPS = ['Set up job', 'Checkout', 'npm ci', 'npm run typecheck', 'npm test', 'Post Checkout']
 
 function job(id: number, name: string, status: RunStatus, startedAgo: number | null, length: number | null, steps: boolean): CiJob {
@@ -78,7 +83,7 @@ function github(): CiView {
   }
 }
 
-/** `?ci=failure|stuck|push|error|off|none`; without it ABC has a running Forgejo run and a green GitHub Actions. */
+/** `?ci=failure|stuck|push|fixed|error|off|none`; without it ABC has a running Forgejo run and a green GitHub Actions. */
 export function fakeCi(kind: string | null): Record<string, CiView[]> {
   if (kind === 'none') return {}
   const finished = forgejo({ current: { run: HISTORY[0]!, tasks: ['ABC-4'], jobs: [job(1, 'test', 'success', 1_800, 192, false)] }, history: HISTORY })
@@ -92,6 +97,7 @@ export function fakeCi(kind: string | null): Record<string, CiView[]> {
       current: { run: queued, tasks: ['ABC-5'], jobs: [job(1, 'test', 'queued', null, null, false)] },
       history: [queued, ...HISTORY],
     }),
+    fixed: forgejo({ current: { run: FIX_RUN, tasks: [], jobs: [job(1, 'test', 'success', 900, 180, false)] }, history: [FIX_RUN, ...HISTORY] }),
     push: { ...finished, pushed: { commit: '5c95521730bbc58ab20052f7ff807c29a8fbeb65', at: ago(40) } },
     error: { ...finished, health: 'error', error: notice('ci.unreachable', { ci: 'Forgejo' }, { detail: 'connect ETIMEDOUT 100.64.0.1:443' }), checkedAt: ago(30) },
     off: { ...forgejo(), health: 'off', error: notice('ci.noToken', { variable: 'FORGEJO_TOKEN' }), checkedAt: null, current: null, history: [], medianMs: null },

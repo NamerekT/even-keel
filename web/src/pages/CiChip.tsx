@@ -1,4 +1,7 @@
 import { useEffect, useRef } from 'react'
+import { Link } from 'react-router'
+import { isFixName } from '../../../src/chain/fix.js'
+import type { FixEpisode } from '../../../src/chain/launches.js'
 import { isFinished, runDurationMs, stuckSince, type CiJob, type CiRun, type CiView, type CurrentRun } from '../../../src/ci/model.js'
 import type { TrackerUrls } from '../../../src/state.js'
 import { ciLevel, worstCiLevel } from '../ci.js'
@@ -14,6 +17,15 @@ const short = (commit: string) => commit.slice(0, SHORT_SHA)
 
 /** The address hash that opens the CI panel; a task id never equals it. */
 export const CI_HASH = 'ci'
+
+/** The hash that opens the CI panel on the runs of a fix of main that is over (BTN-153). */
+export const ciHash = (fix: string) => `${CI_HASH}/${fix}`
+
+/** Whether the hash opens the CI panel, and on which fix if on one. */
+export function ciFocus(hash: string): { open: boolean; fix: string | null } {
+  if (hash === CI_HASH) return { open: true, fix: null }
+  return hash.startsWith(`${CI_HASH}/`) ? { open: true, fix: hash.slice(CI_HASH.length + 1) } : { open: false, fix: null }
+}
 
 const CI_CLASS: Record<ChipLook, string> = { tag: 'chip chip--ci', tab: 'side-tab', seg: SEG_CLASS }
 
@@ -40,8 +52,16 @@ export function CiChip({ views, open, look = 'tag', onToggle }: { views: CiView[
   )
 }
 
+interface Fixes {
+  episodes: FixEpisode[]
+  /** The commits of the fix the panel was opened on: their runs stand out. */
+  marked: ReadonlySet<string>
+}
+
 /** The side panel with each CI's runs. */
-export function CiPanel({ views, urls, onClose }: { views: CiView[]; urls: TrackerUrls; onClose: () => void }) {
+export function CiPanel({ views, urls, fixes, fix, onClose }: { views: CiView[]; urls: TrackerUrls; fixes: FixEpisode[]; fix: string | null; onClose: () => void }) {
+  const episode = fixes.find((each) => each.id === fix)
+  const known: Fixes = { episodes: fixes, marked: new Set([episode?.red, episode?.end?.commit].filter((commit) => commit != null)) }
   const now = useNow(1_000)
   const closeRef = useRef<HTMLButtonElement>(null)
 
@@ -63,13 +83,13 @@ export function CiPanel({ views, urls, onClose }: { views: CiView[]; urls: Track
         </button>
       </header>
       {views.map((view) => (
-        <CiSection key={`${view.kind}-${view.remote}`} view={view} now={now} urls={urls} />
+        <CiSection key={`${view.kind}-${view.remote}`} view={view} now={now} urls={urls} fixes={known} />
       ))}
     </aside>
   )
 }
 
-function CiSection({ view, now, urls }: { view: CiView; now: Date; urls: TrackerUrls }) {
+function CiSection({ view, now, urls, fixes }: { view: CiView; now: Date; urls: TrackerUrls; fixes: Fixes }) {
   const stuck = stuckSince(view, now)
   const queued = view.current?.run.status === 'queued' && stuck === view.current.run.createdAt
   return (
@@ -93,8 +113,8 @@ function CiSection({ view, now, urls }: { view: CiView; now: Date; urls: Tracker
         </p>
       )}
       {stuck === null && view.pushed !== null && <p className="ci__hint">{t.ci.pushed(short(view.pushed.commit))}</p>}
-      {view.current !== null && <Current current={view.current} median={view.medianMs} now={now} urls={urls} />}
-      {view.history.length > 0 ? <History runs={view.history} now={now} /> : view.checkedAt !== null && view.health === 'ok' && <p className="ci__hint">{t.ci.noRuns}</p>}
+      {view.current !== null && <Current current={view.current} median={view.medianMs} now={now} urls={urls} fixes={fixes} />}
+      {view.history.length > 0 ? <History runs={view.history} now={now} marked={fixes.marked} /> : view.checkedAt !== null && view.health === 'ok' && <p className="ci__hint">{t.ci.noRuns}</p>}
     </section>
   )
 }
@@ -104,13 +124,16 @@ function formatAgoSpan(at: string, now: Date): string {
   return formatSpan(new Date(2 * now.getTime() - Date.parse(at)).toISOString(), now)
 }
 
-function Current({ current, median, now, urls }: { current: CurrentRun; median: number | null; now: Date; urls: TrackerUrls }) {
-  const { run, tasks, jobs } = current
+function Current({ current, median, now, urls, fixes }: { current: CurrentRun; median: number | null; now: Date; urls: TrackerUrls; fixes: Fixes }) {
+  const { run, jobs } = current
   const finished = isFinished(run.status)
+  const fix = fixes.episodes.find((episode) => episode.end?.how === 'landed' && episode.end.commit === run.commit)
+  const tasks = current.tasks.filter((task) => !isFixName(task))
+  const fixed = fix !== undefined || tasks.length < current.tasks.length
   return (
     <div className="ci__block">
       <h3 className="ci__heading">{finished ? t.ci.last : t.ci.current}</h3>
-      <a className="ci__run" href={run.url} target="_blank" rel="noreferrer" title={t.ci.openRun}>
+      <a className={fixes.marked.has(run.commit) ? 'ci__run ci__run--fix' : 'ci__run'} href={run.url} target="_blank" rel="noreferrer" title={t.ci.openRun}>
         <span className={`ci-status ci-status--${run.status}`}>{t.ci.status[run.status]}</span>
         <span className="ci__title">{run.title}</span>
       </a>
@@ -118,9 +141,17 @@ function Current({ current, median, now, urls }: { current: CurrentRun; median: 
         <code>{short(run.commit)}</code> · #{run.number} · {run.workflow}
         {timing(run, median, now)}
       </p>
-      {tasks.length > 0 && (
+      {(tasks.length > 0 || fixed) && (
         <p className="ci__tasks">
           <span className="ci__label">{t.ci.tasks}:</span>
+          {fixed &&
+            (fix === undefined ? (
+              <span className="ci__fix">{t.ci.fixTask}</span>
+            ) : (
+              <Link className="ci__fix" to={{ hash: fix.id }} title={t.ci.fixTaskTitle}>
+                {t.ci.fixTask}
+              </Link>
+            ))}
           {tasks.map((task) => {
             const href = issueLink(urls, task)
             return href === null ? (
@@ -192,7 +223,7 @@ function Line({ status, name, length }: { status: CiRun['status']; name: string;
   )
 }
 
-function History({ runs, now }: { runs: CiRun[]; now: Date }) {
+function History({ runs, now, marked }: { runs: CiRun[]; now: Date; marked: ReadonlySet<string> }) {
   return (
     <>
       <h3 className="ci__heading">{t.ci.history}</h3>
@@ -201,7 +232,7 @@ function History({ runs, now }: { runs: CiRun[]; now: Date }) {
           const length = runDurationMs(run, now)
           return (
             <li key={run.id}>
-              <a className="ci__past" href={run.url} target="_blank" rel="noreferrer" title={`${t.ci.status[run.status]} · ${run.title}`}>
+              <a className={marked.has(run.commit) ? 'ci__past ci__past--fix' : 'ci__past'} href={run.url} target="_blank" rel="noreferrer" title={`${t.ci.status[run.status]} · ${run.title}`}>
                 <span className={`ci-status-dot ci-status-dot--${run.status}`} aria-label={t.ci.status[run.status]} role="img" />
                 <span className="ci__past-number">#{run.number}</span>
                 <code className="ci__past-commit">{short(run.commit)}</code>

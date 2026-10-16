@@ -1,4 +1,4 @@
-import type { BlockLamp, ChainBlock } from '../state.js'
+import { isClosedLamp, type BlockLamp, type ChainBlock } from '../state.js'
 
 type SessionLamp = NonNullable<ChainBlock['session']>['lamp']
 
@@ -25,7 +25,7 @@ export function tiersOf(blocks: { id: string; lamp: BlockLamp; current: boolean;
   let ahead = 0
   for (const block of blocks) {
     if (block.current) tiers.set(block.id, 'lead')
-    else if (block.lamp === 'done' || block.lamp === 'canceled') tiers.set(block.id, 'past')
+    else if (isClosedLamp(block.lamp)) tiers.set(block.id, 'past')
     else tiers.set(block.id, ahead++ < NEAR || block.live ? 'near' : 'far')
   }
   return tiers

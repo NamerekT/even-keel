@@ -22,6 +22,7 @@ import { StartPill } from '../ui/SessionStart.js'
 import { ActionScreen } from './ActionScreen.js'
 import './chain.css'
 import { ChainLegend } from './ChainLegend.js'
+import { ciHash } from './CiChip.js'
 import { Forge } from './Forge.js'
 import type { Arrival } from './useArrival.js'
 import { inOrder, reorderable, useChainDrag, type ChainDrag, type Landing } from './useChainDrag.js'
@@ -38,6 +39,8 @@ interface Props {
   scale: ContextScale
   trackerUrls: TrackerUrls
   focus: string
+  /** The project has a CI: the row of a fix that is over opens its runs. */
+  ci: boolean
   /** A backlog task shown at the place it would take in the chain. */
   ghost: Ghost | null
   arrival: Arrival | null
@@ -58,7 +61,7 @@ interface Relation {
   badge: boolean
 }
 
-export function ChainList({ project, chain, scale, trackerUrls, focus, ghost: aimed, arrival, incoming, links, onCard }: Props) {
+export function ChainList({ project, chain, scale, trackerUrls, focus, ci, ghost: aimed, arrival, incoming, links, onCard }: Props) {
   const { ghost, leaving } = useLingering(aimed)
   const [pages, setPages] = useState(0)
   const [revealed, setRevealed] = useState(0)
@@ -141,7 +144,7 @@ export function ChainList({ project, chain, scale, trackerUrls, focus, ghost: ai
           {archive.hidden > 0 && (
             <Divider
               name={t.chain.archive}
-              count={t.chain.hidden(t.chain.tasks(archive.hidden))}
+              count={t.chain.hidden(t.chain.archived(archive.hidden - archive.hiddenFixes, archive.hiddenFixes))}
               hidden
               bump={motion.bump ?? undefined}
               toggle={{
@@ -154,7 +157,7 @@ export function ChainList({ project, chain, scale, trackerUrls, focus, ghost: ai
           {archive.shown > 0 && (
             <Divider
               name={t.chain.archive}
-              count={t.chain.tasks(archive.shown)}
+              count={t.chain.archived(archive.shown - archive.shownFixes, archive.shownFixes)}
               toggle={{ expanded: true, title: t.chain.foldArchive, run: collapseArchive }}
             />
           )}
@@ -199,6 +202,7 @@ export function ChainList({ project, chain, scale, trackerUrls, focus, ghost: ai
                     waits={block.blockedBy.filter((id) => open.has(id))}
                     links={links(block.id)}
                     scale={scale}
+                    ci={ci}
                     tier={tiers.get(block.id) ?? 'near'}
                     rails={rails.get(block.id) ?? []}
                     kin={kin !== null && block.parent === kin}
@@ -384,6 +388,7 @@ interface BlockProps {
   waits: string[]
   links: TaskLinks
   scale: ContextScale
+  ci: boolean
   tier: Tier
   rails: Rail[]
   /** A sibling of the task under the cursor. */
@@ -401,7 +406,7 @@ interface BlockProps {
 }
 
 function Block(props: BlockProps) {
-  const { block, link, number, waits, links, scale, tier, rails, kin, marks, focused, movable, relation, arrival, offset, onHover, onReturn, onCard } = props
+  const { block, link, number, waits, links, scale, ci, tier, rails, kin, marks, focused, movable, relation, arrival, offset, onHover, onReturn, onCard } = props
   const classes = ['block', `block--${block.lamp}`, `block--${tier}`, `block--priority-${block.priority}`]
   if (isRework(block.labels)) classes.push('block--rework')
   if (block.question) classes.push('block--question')
@@ -482,7 +487,13 @@ function Block(props: BlockProps) {
       <p className="block__title">
         {block.title !== null &&
           (fix ? (
-            block.title
+            block.fix !== undefined && ci ? (
+              <Link to={{ hash: ciHash(block.id) }} className="block__card" draggable={false} title={t.chain.fixRuns}>
+                {block.title}
+              </Link>
+            ) : (
+              block.title
+            )
           ) : (
             <button type="button" className="block__card" draggable={false} title={t.chain.openCard} onClick={() => onCard(block.id)}>
               {block.title}

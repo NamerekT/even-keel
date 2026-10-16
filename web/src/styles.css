@@ -14,6 +14,8 @@
   --lamp-waiting: #d19a0f;
   --lamp-error: #d2443a;
   --lamp-idle: #9a988f;
+  /* A fix of a red main that is over: a service record, not a task, so a colour no other lamp has. */
+  --lamp-fix: #7c5cd6;
 
   --series-1: #2a78d6;
   --series-2: #eb6834;
@@ -74,6 +76,7 @@
     --lamp-waiting: #f0bd3c;
     --lamp-error: #ff6b5f;
     --lamp-idle: #6f6d66;
+    --lamp-fix: #b49cfc;
 
     --series-1: #3987e5;
     --series-2: #d95926;
@@ -1661,6 +1664,10 @@ a:focus-visible {
   box-shadow: inset 0 0 0 2px var(--lamp-idle);
 }
 
+.lamp--fixed {
+  background: var(--lamp-fix);
+}
+
 /* Not in the chain yet: a dashed ring, so a blocker out of sight reads as "somewhere in the backlog". */
 .lamp--backlog {
   background: transparent;
@@ -1951,6 +1958,12 @@ a:focus-visible {
 
 .block--done {
   background: color-mix(in srgb, var(--lamp-done) 6%, var(--surface));
+}
+
+/* A fix of a red main that is over: a service record among the tasks, with a stripe on its left edge. */
+.block--fixed {
+  background: color-mix(in srgb, var(--lamp-fix) 8%, var(--surface));
+  box-shadow: inset 3px 0 0 var(--lamp-fix);
 }
 
 .block--canceled {

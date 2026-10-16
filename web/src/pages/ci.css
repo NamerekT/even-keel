@@ -270,6 +270,21 @@
   text-decoration: underline;
 }
 
+/* The runs of the red commit and of the fix the panel was opened on from the chain archive. */
+.ci__past--fix,
+.ci__run--fix {
+  margin-inline: -6px;
+  padding-inline: 6px;
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--lamp-fix) 16%, transparent);
+  box-shadow: inset 3px 0 0 var(--lamp-fix);
+}
+
+.ci__fix {
+  color: var(--lamp-fix);
+  font-weight: 500;
+}
+
 .ci__past-number {
   color: var(--fg-muted);
   font-variant-numeric: tabular-nums;

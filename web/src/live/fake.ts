@@ -12,7 +12,7 @@ import { isLanguage } from '../../../src/language.js'
 import type { EvenKeelState, SessionRecord, SessionView } from '../../../src/state.js'
 import type { Link, LiveSnapshot, LiveSource } from './connection.js'
 import { accountCommand, fakeAccount, fakeUsage, FAKE_LIMITS } from './fakeAccounts.js'
-import { fakeCi } from './fakeCi.js'
+import { FAKE_FIX, fakeCi } from './fakeCi.js'
 import { fakeUpdates, fakeUpdatesCommand } from './fakeUpdates.js'
 import { FAKE_PROJECT_IDS, fakeConfig, fakeHandEdit, fakeRestart, fakeSettingsCommand } from './fakeConfig.js'
 import { withFix } from './fakeFix.js'
@@ -257,6 +257,16 @@ function fakeState(
           ],
           'ABC-4': [{ sessionId: session('ABC-4', 0).sessionId, at: ago(900), how: 'launch', resumed: 0, account: 'john.doe@example.com' }],
           'ABC-6': [{ sessionId: session('ABC-6', 0).sessionId, at: ago(60), how: 'manual', resumed: 0, account: 'jane.roe@example.com' }],
+          'ABC-FIX.1': [{ sessionId: '00000000-0000-4000-8000-000000000f01', at: ago(1_400), how: 'launch', resumed: 0, account: 'john.doe@example.com' }],
+          'ABC-FIX.2': [{ sessionId: '00000000-0000-4000-8000-000000000f02', at: ago(700), how: 'launch', resumed: 0, account: 'john.doe@example.com' }],
+        },
+    fixes: idle
+      ? {}
+      : {
+          ABC: [
+            { id: 'ABC-FIX.1', red: '5c95521730bbc58ab20052f7ff807c29a8fbeb65', at: ago(1_400), end: { at: ago(1_390), how: 'dropped', commit: null } },
+            { id: 'ABC-FIX.2', red: FAKE_FIX.red, at: ago(700), end: { at: ago(680), how: 'landed', commit: FAKE_FIX.landed } },
+          ],
         },
     context: { window: 600_000, warn: 50, danger: 80 },
     configError: null,

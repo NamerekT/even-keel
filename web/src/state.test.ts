@@ -23,6 +23,7 @@ import {
   chainProgress,
   chainStatus,
   contextFill,
+  fixBlockOf,
   issueLink,
   projectSlot,
   projectOfPath,
@@ -90,6 +91,7 @@ function stateOf(patch: Partial<EvenKeelState>): EvenKeelState {
     ci: {},
     launches: [],
     taskSessions: {},
+    fixes: {},
     context: { window: 600_000, warn: 50, danger: 80 },
     configError: null,
     mcpMissing: [],
@@ -593,12 +595,12 @@ describe('chainBlocks', () => {
         tasks,
         sessions: [session],
         chain: chain({ active: { ...running('ABC-FIX'), interrupted: stopped }, projects: order }),
-        taskSessions: { 'ABC-FIX': rows },
+        taskSessions: { 'ABC-FIX.1': rows },
       })
       const blocks = chainBlocks(state, 'ABC')
       expect(blocks.map((block) => [block.id, block.current])).toEqual([
         ['ABC-1', false],
-        ['ABC-FIX', true],
+        ['ABC-FIX.1', true],
         ['ABC-2', false],
         ['ABC-3', false],
       ])
@@ -610,7 +612,7 @@ describe('chainBlocks', () => {
       const state = stateOf({ tasks, chain: chain({ active: { ...running('ABC-FIX'), interrupted: stopped }, projects: order }) })
       expect(chainBlocks(state, 'ABC').map((block) => [block.id, block.interrupted])).toEqual([
         ['ABC-1', undefined],
-        ['ABC-FIX', undefined],
+        ['ABC-FIX.1', undefined],
         ['ABC-2', true],
         ['ABC-3', undefined],
       ])
@@ -631,7 +633,7 @@ describe('chainBlocks', () => {
       const waiting = stateOf({ tasks, sessions: [view('ABC-FIX', 'waiting', null)], chain: chain({ active: running('ABC-2'), projects: order }) })
       expect(chainBlocks(waiting, 'ABC').map((block) => [block.id, block.current])).toEqual([
         ['ABC-1', false],
-        ['ABC-FIX', false],
+        ['ABC-FIX.1', false],
         ['ABC-2', true],
         ['ABC-3', false],
       ])
@@ -644,12 +646,77 @@ describe('chainBlocks', () => {
         tasks: [task('ABC-1', 'Won')],
         chain: chain({ active: { ...running('ABC-FIX'), fixOnly: true }, projects: { ABC: { order: [], waiting: [], backlog: [], error: null } } }),
       })
-      expect(chainBlocks(state, 'ABC').map((block) => block.id)).toEqual(['ABC-1', 'ABC-FIX'])
+      expect(chainBlocks(state, 'ABC').map((block) => block.id)).toEqual(['ABC-1', 'ABC-FIX.1'])
     })
 
     it('is absent while main is green', () => {
       const state = stateOf({ tasks, chain: chain({ active: running('ABC-2'), projects: order }) })
       expect(chainBlocks(state, 'ABC').map((block) => block.id)).toEqual(['ABC-1', 'ABC-2', 'ABC-3'])
+    })
+  })
+
+  describe('the fixes of a red main that are over', () => {
+    const order = { ABC: { order: ['ABC-2', 'ABC-3'], waiting: [], backlog: [], error: null } }
+    const tasks = [task('ABC-1', 'Won'), task('ABC-4', 'Won'), task('ABC-2', 'Active'), task('ABC-3', 'ToDo')]
+    const row = (at: string, sessionId = 's') => ({ sessionId, at, how: 'launch' as const, resumed: 0 })
+    const landed = {
+      id: 'ABC-FIX.1',
+      red: 'c6b3956aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+      at: '2026-01-01T09:30:00.000Z',
+      end: { at: '2026-01-01T10:00:00.000Z', how: 'landed' as const, commit: '15945febbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb' },
+    }
+    const dropped = { id: 'ABC-FIX.2', red: 'd00d000ccccccccccccccccccccccccccccccccc', at: '2026-01-01T11:30:00.000Z', end: { at: '2026-01-01T12:00:00.000Z', how: 'dropped' as const, commit: null } }
+    const runs = { 'ABC-1': [row('2026-01-01T09:00:00.000Z')], 'ABC-4': [row('2026-01-01T11:00:00.000Z')], 'ABC-FIX.1': [row(landed.at, 'f1')], 'ABC-FIX.2': [row(dropped.at, 'session-ABC-FIX')] }
+    const base = { tasks, taskSessions: runs, fixes: { ABC: [landed, dropped] }, chain: chain({ active: running('ABC-2'), projects: order }) }
+
+    it('each stand among the closed tasks by the time it ended, as a row of its own with its sessions', () => {
+      const blocks = chainBlocks(stateOf(base), 'ABC')
+      expect(blocks.map((block) => [block.id, block.lamp, block.open])).toEqual([
+        ['ABC-1', 'done', false],
+        ['ABC-FIX.1', 'fixed', false],
+        ['ABC-4', 'done', false],
+        ['ABC-FIX.2', 'fixed', false],
+        ['ABC-2', 'ahead', true],
+        ['ABC-3', 'ahead', true],
+      ])
+      expect(blocks[1]).toMatchObject({ title: 'Починка main: c6b3956 → 15945fe', current: false, sessions: runs['ABC-FIX.1'], session: null, fix: landed })
+      expect(blocks[3]?.title).toBe('Починка main: d00d000 — брошена, main остался как был')
+    })
+
+    it('names only the commit main went out at when the log did not keep the red one', () => {
+      const state = stateOf({ ...base, fixes: { ABC: [{ ...landed, red: null }] } })
+      expect(chainBlocks(state, 'ABC')[1]?.title).toBe('Починка main → 15945fe')
+    })
+
+    it('keeps the session that still lives after its fix was dropped on its row, and adds no live block for it', () => {
+      const blocks = chainBlocks(stateOf({ ...base, sessions: [view('ABC-FIX', 'waiting', null)] }), 'ABC')
+      expect(blocks.map((block) => block.id)).toEqual(['ABC-1', 'ABC-FIX.1', 'ABC-4', 'ABC-FIX.2', 'ABC-2', 'ABC-3'])
+      expect(blocks[3]).toMatchObject({ lamp: 'fixed', session: { task: 'ABC-FIX', lamp: 'waiting' } })
+    })
+
+    it('take a link to the fix by its name to the row of its session: the live one first', () => {
+      const lingering = chainBlocks(stateOf({ ...base, sessions: [view('ABC-FIX', 'waiting', null)] }), 'ABC')
+      expect(fixBlockOf(lingering, 'ABC-FIX')).toBe('ABC-FIX.2')
+      expect(fixBlockOf(lingering, 'ABC-FIX.1')).toBeNull()
+      expect(fixBlockOf(lingering, 'ABC-2')).toBeNull()
+      const live = chainBlocks(stateOf({ ...base, sessions: [view('ABC-FIX', 'working', null)], chain: chain({ active: running('ABC-FIX'), projects: order }) }), 'ABC')
+      expect(fixBlockOf(live, 'ABC-FIX')).toBe('ABC-FIX.3')
+    })
+
+    it('leave the fix running now its own id after theirs', () => {
+      const open = { id: 'ABC-FIX.3', red: 'e00e000', at: '2026-01-01T13:00:00.000Z', end: null }
+      const state = stateOf({ ...base, fixes: { ABC: [landed, dropped, open] }, sessions: [view('ABC-FIX', 'working', null)], chain: chain({ active: running('ABC-FIX'), projects: order }) })
+      expect(chainBlocks(state, 'ABC').map((block) => [block.id, block.lamp, block.current])).toEqual([
+        ['ABC-1', 'done', false],
+        ['ABC-FIX.1', 'fixed', false],
+        ['ABC-4', 'done', false],
+        ['ABC-FIX.2', 'fixed', false],
+        ['ABC-FIX.3', 'working', true],
+        ['ABC-2', 'ahead', false],
+        ['ABC-3', 'ahead', false],
+      ])
+      const launching = stateOf({ ...base, chain: chain({ active: running('ABC-FIX'), projects: order }) })
+      expect(chainBlocks(launching, 'ABC').find((block) => block.current)?.id).toBe('ABC-FIX.3')
     })
   })
 
