@@ -13,6 +13,7 @@ import {
   startPrompt,
   withBrief,
   withProjectPrompt,
+  withReport,
   withReset,
   withUnattended,
   type HandoffReason,
@@ -242,6 +243,18 @@ describe('withBrief', () => {
 
   it('fails on a task without a title', () => {
     expect(() => brief(prompt, { title: ' ', description: 'Text' })).toThrow(/Задача из трекера/)
+  })
+})
+
+describe('withReport', () => {
+  it('appends the trimmed report to the prompt', () => {
+    expect(withReport('ABC-FIX', 'prompt', '  broke  \n')).toBe('prompt\nbroke\n')
+  })
+
+  it('fails with a code when there is no report', () => {
+    for (const report of [undefined, ' \n']) {
+      expect(() => withReport('ABC-FIX', 'prompt', report)).toThrowError(expect.objectContaining({ notice: { code: 'chain.fixReportMissing', params: { task: 'ABC-FIX' } } }))
+    }
   })
 })
 

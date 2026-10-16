@@ -1,6 +1,7 @@
 import type { TaskPlace } from '../git/types.js'
 import type { Language } from '../language.js'
 import { resetTimeOf } from '../limits/reset.js'
+import { fail } from '../notice/notice.js'
 import { fill } from '../sessions/prompt.js'
 import type { FeedLine } from '../sessions/transcript.js'
 import type { TaskBrief } from '../tracker/source.js'
@@ -32,9 +33,10 @@ export function fixPrompt(report: string, place: TaskPlace, language: Language, 
   return lines.join('\n') + '\n'
 }
 
-/** A handoff of the fix session carries the report again: there is no task to read it from. */
-export function withReport(prompt: string, report: string | undefined): string {
-  return report === undefined ? prompt : `${prompt}\n${report.trim()}\n`
+/** A handoff of the fix session carries the report again: there is no task to read it from, so without it nothing starts. */
+export function withReport(task: string, prompt: string, report: string | undefined): string {
+  if (report === undefined || report.trim() === '') throw fail('chain.fixReportMissing', { task })
+  return `${prompt}\n${report.trim()}\n`
 }
 
 export function mainFixedPrompt(red: string, fixed: string | null, language: Language, main = 'main'): string {

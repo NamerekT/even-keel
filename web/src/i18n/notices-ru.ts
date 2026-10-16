@@ -32,7 +32,8 @@ export const noticesRu: NoticeTexts = {
   'answer.file': (p) => `файл ${p.name} не сохранился`,
   'chain.queueChanged': (p) => `очередь изменилась, теперь в ней: ${list(p.queue) || 'пусто'}`,
   'chain.currentFirst': (p) => `${p.task} выполняется и остаётся первой`,
-  'chain.interrupted': (p) => `запуск ${p.task} прервал перезапуск службы — проверьте её сессию и снимите с паузы`,
+  'chain.fixReportMissing': (p) => `${p.task}: отчёта о поломке нет, новой сессии нечего чинить — проверьте main и снимите с паузы`,
+  'chain.interrupted':(p) => `запуск ${p.task} прервал перезапуск службы — проверьте её сессию и снимите с паузы`,
 
   'order.notOpen': (p) => `${p.task} — не открытая задача этой цепочки`,
   'order.twice': (p) => `${p.task} встречается дважды`,

@@ -9,7 +9,7 @@ import { AccountWatcher } from './account/watcher.js'
 import { Dispatcher, type LaunchEntry } from './chain/dispatcher.js'
 import { handoffsOf, launchDays, launchedProjects, taskSessions } from './chain/launches.js'
 import { isFixName } from './chain/fix.js'
-import { fixPrompt, noteOf, resumePrompt, startPrompt, withBrief, withProjectPrompt, withReport, withUnattended } from './chain/relay.js'
+import { fixPrompt, noteOf, resumePrompt, startPrompt, withBrief, withProjectPrompt, withUnattended } from './chain/relay.js'
 import { launchLine } from './chain/log.js'
 import { mainCheckDeps, mergeCheck } from './chain/mainci.js'
 import { TaskPlaces } from './chain/places.js'
@@ -435,7 +435,7 @@ const dispatcher = new Dispatcher(loadChainState(chainFile, config.ids), {
     const home = homeOf(ledger.active)
     await daemons.prepare(home)
     const project = projectOf(task)
-    const told = isFixName(task) ? withReport(handoff, project === undefined ? undefined : dispatcher.state.ci[project]?.fix?.report) : await briefed(task, handoff)
+    const told = isFixName(task) ? handoff : await briefed(task, handoff)
     const { prompt, model } = planFor(task, withProject(told, project))
     const notePath = noteOf(session)
     const note = await readNote(notePath)

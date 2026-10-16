@@ -1,6 +1,7 @@
 import { noticeOf, type Notice } from '../notice/notice.js'
 import type { ActiveChain, ChainState, CurrentTask, DispatcherDeps } from './model.js'
-import { handoffPrompt, holdOf, relayStep, withReset, type HandoffReason, type HandoffSession } from './relay.js'
+import { isFixName } from './fix.js'
+import { handoffPrompt, holdOf, relayStep, withReport, withReset, type HandoffReason, type HandoffSession } from './relay.js'
 
 const UNANSWERED_MS = 10 * 60_000
 
@@ -132,8 +133,14 @@ export class Handovers {
   }
 
   async handOver(task: string, session: HandoffSession, reason: HandoffReason, extra?: string): Promise<string> {
+    const report = isFixName(task) ? withReport(task, '', this.reportOf(task)) : ''
     const located = await this.deps.locate(session)
     const prompt = handoffPrompt(task, located, reason, this.deps.promptLanguage(), this.deps.mainBranch(task))
-    return this.deps.relay(task, located, extra === undefined ? prompt : `${prompt}\n${extra}\n`, reason)
+    const told = extra === undefined ? prompt : `${prompt}\n${extra}\n`
+    return this.deps.relay(task, located, told + report, reason)
+  }
+
+  private reportOf(task: string): string | undefined {
+    return Object.values(this.state.ci).find((gate) => gate.fix?.task === task)?.fix?.report
   }
 }

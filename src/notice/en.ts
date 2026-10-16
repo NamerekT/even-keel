@@ -31,7 +31,8 @@ export const en = {
   'answer.file': (p: { name: string }) => `answer: the file ${p.name} could not be saved`,
   'chain.queueChanged': (p: { queue: string[] }) => `chain: the queue has changed, it is now ${list(p.queue) || 'empty'}`,
   'chain.currentFirst': (p: { task: string }) => `chain: ${p.task} is running and stays first`,
-  'chain.interrupted': (p: { task: string }) => `chain: launch of ${p.task} was interrupted by a restart; check its session, then resume`,
+  'chain.fixReportMissing': (p: { task: string }) => `chain: the report of ${p.task} is gone, so a new session cannot be told what to fix; check main and resume`,
+  'chain.interrupted':(p: { task: string }) => `chain: launch of ${p.task} was interrupted by a restart; check its session, then resume`,
 
   'order.notOpen': (p: { task: string }) => `chain: ${p.task} is not an open task of this chain`,
   'order.twice': (p: { task: string }) => `chain: ${p.task} appears twice`,

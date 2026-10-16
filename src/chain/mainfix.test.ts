@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { done, setup, task } from './dispatcher.fixture.js'
 import { afterDone, failedRun, fakeMain } from './maincheck.fixture.js'
-import type { HandoffSession } from './relay.js'
+import type { HandoffSession, LimitedSession } from './relay.js'
 
 const red = { state: 'red', failed: [{ kind: 'forgejo', run: failedRun }] } as const
 
@@ -317,5 +317,70 @@ describe('Dispatcher and the session a red main interrupts', () => {
     await dispatcher.idle()
     expect(dispatcher.state.active).toEqual([])
     expect(dispatcher.state.released).toEqual({ ABC: ['ABC-2'] })
+  })
+})
+
+describe('Dispatcher and the handover of a fix session', () => {
+  const limitedFix = (at: string, lastReplyAt: string): LimitedSession => ({
+    ...sessionOf('session-2', lastReplyAt),
+    workdir: '/repo/.claude/worktrees/abc-fix',
+    limit: { at, text: "You've hit your session limit · resets 3pm (UTC)" },
+  })
+
+  /** ABC-1 is done, main is red and the fix session `ABC-FIX` is the current `session-2`. */
+  async function fixing() {
+    const harness = await withoutTask()
+    harness.ci.verdict = red
+    harness.dispatcher.check()
+    await harness.dispatcher.idle()
+    expect(harness.dispatcher.state.active[0]?.current).toMatchObject({ task: 'ABC-FIX', sessionId: 'session-2' })
+    return harness
+  }
+
+  it('hands a limited fix session over with the report once the limit resets with a cold cache', async () => {
+    const { dispatcher, limited, clock, relays } = await fixing()
+    limited['ABC-FIX'] = limitedFix('2026-09-26T12:00:00.000Z', '2026-09-26T11:59:00.000Z')
+    dispatcher.check()
+    await dispatcher.idle()
+    expect(relays).toEqual([])
+
+    clock.now = new Date('2026-09-26T15:00:00Z')
+    dispatcher.check()
+    await dispatcher.idle()
+    expect(relays).toMatchObject([{ kind: 'relay', task: 'ABC-FIX', sessionId: 'session-2', reason: 'limit' }])
+    expect(relays[0]?.prompt).toContain('fix main: log')
+    expect(dispatcher.state.active[0]?.current).toMatchObject({ task: 'ABC-FIX', sessionId: 'session-3' })
+    expect(dispatcher.state.active[0]?.error).toBeNull()
+  })
+
+  it('resumes a limited fix session when the limit resets while its cache is warm', async () => {
+    const { dispatcher, limited, clock, relays } = await fixing()
+    limited['ABC-FIX'] = limitedFix('2026-09-26T14:30:00.000Z', '2026-09-26T14:29:00.000Z')
+    dispatcher.check()
+    await dispatcher.idle()
+
+    clock.now = new Date('2026-09-26T15:00:10Z')
+    dispatcher.check()
+    await dispatcher.idle()
+    expect(relays).toMatchObject([{ kind: 'resume', sessionId: 'session-2' }])
+    expect(dispatcher.state.active[0]?.current).toMatchObject({ task: 'ABC-FIX', sessionId: 'session-2' })
+  })
+
+  it('hands a fix session over with the report on a checkpoint', async () => {
+    const { dispatcher, handoffs, relays } = await fixing()
+    handoffs['ABC-FIX'] = { ...sessionOf('session-2', '2026-09-26T11:50:00.000Z'), checkpoint: '.temp/handoff.md' }
+    dispatcher.check()
+    await dispatcher.idle()
+    expect(relays).toMatchObject([{ kind: 'relay', task: 'ABC-FIX', sessionId: 'session-2', reason: 'checkpoint' }])
+    expect(relays[0]?.prompt).toContain('fix main: log')
+    expect(dispatcher.state.active[0]?.current).toMatchObject({ task: 'ABC-FIX', sessionId: 'session-3' })
+  })
+
+  it('refuses to hand a fix session over without its report, so no session starts', async () => {
+    const { dispatcher, relays } = await fixing()
+    delete dispatcher.state.ci.ABC!.fix!.report
+    const handOver = dispatcher['handovers'].handOver('ABC-FIX', sessionOf('session-2', '2026-09-26T11:50:00.000Z'), 'checkpoint')
+    await expect(handOver).rejects.toMatchObject({ notice: { code: 'chain.fixReportMissing', params: { task: 'ABC-FIX' } } })
+    expect(relays).toEqual([])
   })
 })
