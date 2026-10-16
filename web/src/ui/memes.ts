@@ -140,6 +140,21 @@ export function emptyCard({ done, total, backlog }: { done: number; total: numbe
   return total === 0 ? 'ghost' : 'finished'
 }
 
+/** Which card of its kind each card is on the page, so that neighbours with the same kind take different punchlines. */
+export function emptyTurns(kinds: (EmptyCard | null)[]): number[] {
+  const seen = new Map<EmptyCard | null, number>()
+  return kinds.map((kind) => {
+    const turn = seen.get(kind) ?? 0
+    seen.set(kind, turn + 1)
+    return turn
+  })
+}
+
+/** The punchline of a turn; once the variants run out, the card says only its setup. */
+export function punchline(variants: readonly string[], turn: number): string | null {
+  return variants[turn] ?? null
+}
+
 /** What the home page knows to joke about. */
 export interface Harbor {
   projects: string[]

@@ -294,9 +294,31 @@ export const en: Messages = {
     notLoaded: 'Tasks are not loaded yet',
     noTasks: 'No open tasks',
     emptyCard: {
-      ghost: ['0 of 0.', ' A ghost project.'],
-      finished: (count: number) => [`${count} of ${count}.`, " That's it?", ' Really, all of them?'],
-      shelved: (count: number) => [`The chain is empty, ${tasks(count)} in the backlog.`, ' Get the hint?'],
+      ghost: {
+        setup: () => '0 of 0.',
+        punchlines: [' A ghost project.', ' Not a single task. Not one!', ' Hello? Anyone here?', ' A perfect score. Technically.', ' Wait, does this project even exist?'],
+      },
+      finished: {
+        setup: (count: number) => `${count} of ${count}.`,
+        punchlines: [
+          " That's it? Really, all of them?",
+          ' Nothing left to break.',
+          ' Time to invent new problems.',
+          ' The tracker is suspiciously quiet.',
+          ' Go touch grass.',
+          ' Someone, file a bug!',
+        ],
+      },
+      shelved: {
+        setup: (count: number) => `The chain is empty, ${tasks(count)} in the backlog.`,
+        punchlines: [
+          ' Get the hint?',
+          " They won't move to Todo on their own!",
+          " They're getting bored in there.",
+          ' Someday. Maybe. Probably not.',
+          ' The ship is ready, the crew is still ashore.',
+        ],
+      },
     },
     next: 'Next',
     start: 'Start',
