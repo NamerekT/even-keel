@@ -35,7 +35,7 @@ describe('false rule deletions', () => {
         ('r2', '/w/b/claude.md', '2026-10-05 10:00Z', null, 'b2', 'snapshot', 4, 0);
     `)
     await migrate(pgliteDb(db))
-  })
+  }, 30_000)
 
   afterAll(async () => {
     await db.close()

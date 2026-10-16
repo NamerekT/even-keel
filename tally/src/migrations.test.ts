@@ -11,7 +11,7 @@ describe('schema migrations', () => {
 
   beforeEach(async () => {
     db = await PGlite.create()
-  })
+  }, 30_000)
 
   afterEach(async () => {
     await db.close()

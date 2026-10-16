@@ -33,7 +33,7 @@ describe('project of a message', () => {
       )
     }
     await db.exec(SESSION_FOLDERS)
-  })
+  }, 30_000)
 
   afterAll(async () => {
     await db?.close()

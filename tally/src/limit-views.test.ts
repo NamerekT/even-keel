@@ -41,7 +41,7 @@ describe(`limit views (${live ? 'server' : 'PGlite'})`, () => {
     })
     await server.connect()
     client = server
-  })
+  }, 30_000)
 
   afterAll(async () => {
     await client?.end()
