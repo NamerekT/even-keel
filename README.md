@@ -52,7 +52,7 @@ Sequential within a project, not across them: different projects are different r
 ## Requirements
 
 - **Node.js 24** or newer ([nodejs.org](https://nodejs.org/en/download); on Linux nvm needs no `sudo`), and git with your name and email set (`git config --global user.name` and `user.email`): sessions commit and merge under them.
-- **Claude Code CLI** ([install](https://docs.claude.com/en/docs/claude-code/setup)), logged in with a Claude subscription (`claude` once in a terminal). Even Keel finds `~/.local/bin/claude.exe` on Windows and `claude` on `PATH` elsewhere, or the binary of the VS Code extension; `EVEN_KEEL_CLAUDE_BIN` overrides.
+- **Claude Code CLI** ([install](https://docs.claude.com/en/docs/claude-code/setup)), logged in with a Claude subscription (`claude` once in a terminal). Even Keel finds the native install in `~/.local/bin` (`claude.exe` on Windows), then the binary of the VS Code extension, then `claude` on `PATH`; `EVEN_KEEL_CLAUDE_BIN` overrides.
 - **A tracker:** a Huly workspace, GitHub repositories with Issues, or a Linear workspace.
 - **Statistics** need nothing more: the database is embedded. An external Postgres is optional.
 - Windows, Linux or macOS. Windows is where it runs every day; Linux was checked end to end under WSL (Ubuntu); macOS is expected to work but has not been checked.
@@ -125,7 +125,7 @@ claude plugin install huly@even-keel --scope project     # or github@even-keel, 
 or inside a session: `/plugin marketplace add …`, then `/plugin install huly@even-keel` with the project scope. Then:
 
 1. Commit the project's `.claude/settings.json` (it now has `enabledPlugins`): tasks run in worktrees made from `main`, and a worktree without the file has no plugin.
-2. Give the MCP server its credentials in the `env` of `~/.claude/settings.json` — `HULY_URL`, `HULY_WORKSPACE`, `HULY_TOKEN` (or `HULY_EMAIL` and `HULY_PASSWORD`) for Huly, `GITHUB_PERSONAL_ACCESS_TOKEN` for GitHub, `LINEAR_API_KEY` for Linear. Not system environment variables: Even Keel keeps its own tracker credentials out of the sessions it starts.
+2. Give the MCP server its credentials in the `env` of `~/.claude/settings.json` — `HULY_URL`, `HULY_WORKSPACE`, `HULY_TOKEN` (or `HULY_EMAIL` and `HULY_PASSWORD`) for Huly, `GITHUB_PERSONAL_ACCESS_TOKEN` for GitHub, `LINEAR_API_KEY` for Linear. Not system environment variables: Even Keel keeps its own tracker credentials out of the sessions it starts. Do it before you next open `claude` in the project: a server that failed without its credentials is not tried again for 15 minutes, and sessions started in that time run without it (the task's session says the tracker's MCP server did not connect; press **New session** once the 15 minutes are over).
 3. Turn the brief off for the project, or the session reads its task twice: `{ "repo": "…", "brief": false }`. With `brief` off Even Keel checks that the project's sessions see the tracker's MCP server and warns on the page when they do not.
 
 The GitHub skill sets "blocked by" links through the [GitHub CLI](https://cli.github.com/), so `gh auth login` once. Everything else — troubleshooting, what the skills do — is in [plugins/huly/README.md](plugins/huly/README.md), [plugins/github/README.md](plugins/github/README.md) and [plugins/linear/README.md](plugins/linear/README.md).
