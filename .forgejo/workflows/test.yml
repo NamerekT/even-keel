@@ -26,3 +26,20 @@ jobs:
       - run: npm run typecheck
 
       - run: npm test
+
+      # Builds and restarts the service on the workstation that runs it (service/rebuild.ps1), once a push of
+      # main is green. Off unless the repository sets the DEPLOY_SSH_* variables and the DEPLOY_SSH_KEY secret;
+      # a workstation that is off or a failed build does not turn main red.
+      - name: Rebuild the service
+        if: github.event_name == 'push' && vars.DEPLOY_SSH_HOST != ''
+        continue-on-error: true
+        env:
+          KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          KNOWN_HOSTS: ${{ vars.DEPLOY_SSH_KNOWN_HOSTS }}
+          TARGET: ${{ vars.DEPLOY_SSH_USER }}@${{ vars.DEPLOY_SSH_HOST }}
+        run: |
+          install -d -m 700 ~/.ssh
+          printf '%s\n' "$KEY" > ~/.ssh/rebuild
+          chmod 600 ~/.ssh/rebuild
+          printf '%s\n' "$KNOWN_HOSTS" > ~/.ssh/known_hosts
+          ssh -i ~/.ssh/rebuild -o BatchMode=yes -o ConnectTimeout=15 "$TARGET" "$GITHUB_SHA"
