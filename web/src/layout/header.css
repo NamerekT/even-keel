@@ -85,6 +85,32 @@
   background: var(--surface-muted);
 }
 
+.account-block__group {
+  display: inline-flex;
+  align-items: stretch;
+}
+
+/* The accounts past the active one: a small ring each, the account's colour in its middle. */
+.account-block__others {
+  gap: 3px;
+  padding: 0 8px;
+  border-left: 1px solid var(--border);
+}
+
+.account-block__mini {
+  display: inline-flex;
+}
+
+.limit__core {
+  display: none;
+}
+
+.account-block__mini .limit__core {
+  display: inline;
+  fill: var(--series);
+  stroke: none;
+}
+
 .limit__ring {
   flex: none;
   transform: rotate(-90deg);
@@ -179,6 +205,21 @@
 
 .account-card__plan {
   margin-left: auto;
+}
+
+.account-card__part + .account-card__part {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+}
+
+.account-card__projects {
+  margin: 0;
+  overflow: hidden;
+  color: var(--fg-muted);
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .account-card__window {

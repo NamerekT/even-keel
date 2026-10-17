@@ -1,6 +1,18 @@
 import { describe, expect, it } from 'vitest'
 import { DEFAULT_RULES } from './chain/rules.js'
-import { DEFAULT_CI, ignoredKeys, liveConfig, listenOf, parseConfig, restartChanges, runSettings, withIds, withProjectSettings } from './config.js'
+import {
+  DEFAULT_CI,
+  ignoredKeys,
+  liveConfig,
+  listenOf,
+  parseConfig,
+  poolEntries,
+  projectsByAccount,
+  restartChanges,
+  runSettings,
+  withIds,
+  withProjectSettings,
+} from './config.js'
 import { SCHEMA_VERSION } from './storage/schema.js'
 import { DEFAULT_HIDDEN_SKILLS } from './tools/settings.js'
 
@@ -299,6 +311,29 @@ describe('parseConfig', () => {
       labels: true,
     })
     expect(runSettings(config, 'XYZ')).toEqual({ provider: 'claude', models: { claude: 'opus', codex: 'gpt-5.6-sol' }, accounts: { claude: 'global', codex: 'codex' }, labels: true })
+  })
+
+  it('lists the pool entries, the shared ones and each project its own', () => {
+    const config = parse({
+      projects: { ABC: { repo: 'C:\\abc', provider: 'codex', accounts: { codex: 'codex-work' } }, XYZ: 'C:\\xyz' },
+      accounts: { claude: 'work' },
+    })
+    expect(poolEntries(config, ['ABC', 'XYZ'])).toEqual([
+      { project: null, provider: 'claude', account: 'work' },
+      { project: null, provider: 'codex', account: 'codex' },
+      { project: 'ABC', provider: 'codex', account: 'codex-work' },
+    ])
+  })
+
+  it('tells which projects run on which account by their provider', () => {
+    const config = parse({
+      projects: {
+        ABC: { repo: 'C:\\abc', provider: 'codex', accounts: { claude: 'team-api' } },
+        DEF: { repo: 'C:\\def', accounts: { claude: 'team-api' } },
+        XYZ: 'C:\\xyz',
+      },
+    })
+    expect(projectsByAccount(config, ['ABC', 'DEF', 'XYZ'])).toEqual({ codex: ['ABC'], 'team-api': ['DEF'], global: ['XYZ'] })
   })
 
   it('rejects an unknown CI and a wait that is not whole minutes', () => {

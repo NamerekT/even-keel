@@ -7,6 +7,7 @@ import {
   type AccountLogin,
   type AccountView,
   type AccountStatus,
+  type PoolEntry,
 } from '../../../src/account/model.js'
 import { appSwitchProblem, type AppAccount } from '../../../src/account/apps.js'
 import { fail, notice, NoticeError, textNotice } from '../../../src/notice/notice.js'
@@ -26,6 +27,13 @@ const FAKE_ACCOUNT: AccountStatus = {
   orgName: 'Example Org',
   subscriptionType: 'max',
 }
+
+/** The fake page's projects, all on the shared pool unless a mode gives one a folder of its own. */
+const FAKE_PROJECTS = ['ABC', 'DEMO', 'XYZ', 'OPS']
+const SHARED_POOL: PoolEntry[] = [
+  { project: null, provider: CLAUDE, account: 'global' },
+  { project: null, provider: CODEX, account: 'codex' },
+]
 
 const FAKE_LOGIN: AccountLogin = {
   agent: 'claude',
@@ -96,6 +104,7 @@ function fakeEntry(patch: Partial<AccountEntry>): AccountEntry {
     loginExpiresAt: inDays(24),
     needsLogin: false,
     sessions: [],
+    projects: [],
     removing: false,
     configPending: false,
     apiKey: false,
@@ -106,7 +115,7 @@ function fakeEntry(patch: Partial<AccountEntry>): AccountEntry {
 }
 
 export function fakeAccount(mode: string | null, idle: boolean, limits: RateLimits): AccountView {
-  const global = fakeEntry({ limits, sessions: idle ? [] : ['ABC-1', 'ABC-2', 'ABC-3', 'ABC-4', 'ABC-5', 'Scratch notes'] })
+  const global = fakeEntry({ limits, projects: FAKE_PROJECTS, sessions: idle ? [] : ['ABC-1', 'ABC-2', 'ABC-3', 'ABC-4', 'ABC-5', 'Scratch notes'] })
   const work = fakeEntry({
     key: 'jane.roe',
     global: false,
@@ -119,6 +128,7 @@ export function fakeAccount(mode: string | null, idle: boolean, limits: RateLimi
     active: 'global',
     accounts: [global, work],
     apps: [vscode],
+    pool: SHARED_POOL,
     login: null,
     loginBlock: idle
       ? null
@@ -152,7 +162,7 @@ export function fakeAccount(mode: string | null, idle: boolean, limits: RateLimi
   }
   if (mode === 'many') {
     const window = (usedPercentage: number, hours: number) => ({ usedPercentage, resetsAt: new Date(Date.now() + hours * 3_600_000).toISOString() })
-    const spare = (key: string, fiveHour: number, week: number) =>
+    const spare = (key: string, fiveHour: number, week: number, patch: Partial<AccountEntry>) =>
       fakeEntry({
         key,
         global: false,
@@ -160,9 +170,23 @@ export function fakeAccount(mode: string | null, idle: boolean, limits: RateLimi
         loginExpiresAt: inDays(25),
         sessions: ['ABC-9'],
         limits: { ...limits, fiveHour: window(fiveHour, 2.8), sevenDay: window(week, 100) },
+        ...patch,
       })
-    const spent = { ...global, limits: { ...limits, fiveHour: null, sevenDay: window(100, 10.5) } }
-    return { ...signedIn, active: 'jane.roe', accounts: [spent, work, spare('richard.roe', 96, 36), spare('baby.doe', 99, 14)] }
+    // The shared pool moved to jane.roe; XYZ and OPS kept a folder of their own.
+    const spent = { ...global, projects: [], limits: { ...limits, fiveHour: null, sevenDay: window(100, 10.5) } }
+    const pool = [
+      { project: null, provider: CLAUDE, account: 'jane.roe' },
+      { project: null, provider: CODEX, account: 'codex' },
+      { project: 'XYZ', provider: CLAUDE, account: 'richard.roe' },
+      { project: 'OPS', provider: CLAUDE, account: 'baby.doe' },
+    ]
+    const accounts = [
+      spent,
+      { ...work, projects: ['ABC', 'DEMO'], limits },
+      spare('richard.roe', 96, 36, { projects: ['XYZ'] }),
+      spare('baby.doe', 99, 14, { projects: ['OPS'] }),
+    ]
+    return { ...signedIn, active: 'jane.roe', accounts, pool }
   }
   if (mode === 'api') {
     const lost = apiEntry('old-key', { status: { loggedIn: false, authMethod: 'none', email: null, orgName: null, subscriptionType: null }, needsLogin: true })
@@ -173,10 +197,13 @@ export function fakeAccount(mode: string | null, idle: boolean, limits: RateLimi
       global: true,
       limits: { ...limits, fiveHour: null, sevenDay: null, month: { usedPercentage: 12, resetsAt: new Date(Date.now() + 11 * 86_400_000).toISOString() } },
     })
-    const paid = codexEntry('jane.roe-2', 'jane.roe@example.com', 'plus', { limits })
+    // OPS runs on Codex, on a paid folder of its own.
+    const paid = codexEntry('jane.roe-2', 'jane.roe@example.com', 'plus', { limits, projects: ['OPS'] })
     // A plan that turned free next to the free one: held, with the warning on its card.
     const extra = codexEntry('baby.doe', 'baby.doe@example.com', 'free')
-    return { ...signedIn, accounts: [global, work, apiEntry('ci-key', { name: 'CI key' }), codex, paid, extra] }
+    const own = { ...global, projects: FAKE_PROJECTS.filter((project) => project !== 'OPS') }
+    const pool = [...SHARED_POOL, { project: 'OPS', provider: CODEX, account: 'jane.roe-2' }]
+    return { ...signedIn, accounts: [own, work, apiEntry('ci-key', { name: 'CI key' }), codex, paid, extra], pool }
   }
   if (mode === 'vscode-broken') {
     return { ...signedIn, apps: [{ ...vscode, account: null, dir: null, error: notice('vscode.notJson', {}) }] }

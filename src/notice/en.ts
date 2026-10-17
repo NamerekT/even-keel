@@ -132,6 +132,9 @@ export const en = {
   'account.needsLogin': (p: { account: string }) => `claude: ${p.account} needs a login first`,
   'account.globalKept': () => 'claude: the global account lives in ~/.claude and is not removed from here',
   'account.activeKept': () => 'claude: the active account cannot be removed; switch to another one first',
+  'account.sharedPool': () => 'claude: the shared settings name this account in their pool; pick another one there first',
+  'account.projectPool': (p: { projects: string[] }) =>
+    `claude: the settings of projects ${list(p.projects)} name this account in their pool; pick another one there first`,
   'account.signInRunning': () => 'claude: a sign-in into this account is running',
   'account.usedByApp': (p: { app: string }) => `claude: ${p.app} uses this account; switch it to another one first`,
   'account.codexApp': () => 'codex: the apps run on Claude Code; a Codex account is not given to one',

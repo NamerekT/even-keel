@@ -11,6 +11,8 @@ import type { TaskSession } from '../../src/chain/launches.js'
 import {
   accountBadge,
   accountOrder,
+  entryBadge,
+  headerAccounts,
   limitedUntil,
   backlogTasks,
   blockMetered,
@@ -87,7 +89,7 @@ function stateOf(patch: Partial<EvenKeelState>): EvenKeelState {
     sessions: [],
     limits: null,
     usage: { state: 'ok', reason: null, since: null },
-    account: { active: 'global', accounts: [], login: null, loginBlock: null, apps: [] },
+    account: { active: 'global', accounts: [], login: null, loginBlock: null, apps: [], pool: [] },
     trackers: [{ name: 'huly', title: 'Huly', projects: ['ABC', 'XYZ'], ready: true, health: { state: 'live', lastOkAt: null, error: null } }],
     trackerUrls: { default: null, projects: {} },
     ci: {},
@@ -1187,6 +1189,7 @@ const entry = (patch: Partial<AccountEntry>): AccountEntry => ({
   loginExpiresAt: null,
   needsLogin: false,
   sessions: [],
+  projects: [],
   removing: false,
   configPending: false,
   apiKey: false,
@@ -1202,6 +1205,7 @@ describe('accountBadge', () => {
     login,
     loginBlock: null,
     apps: [],
+    pool: [],
   })
   const login = { agent: 'claude', target: 'global', startedAt: '2026-09-27T10:00:00Z', urls: [], output: '', error: null, codeSent: false }
 
@@ -1227,6 +1231,33 @@ describe('accountBadge', () => {
     })
     expect(accountBadge(view({ error: textNotice('claude: auth status timed out') }))).toEqual({ kind: 'unknown', label: 'Claude' })
     expect(accountBadge({ ...view({}), active: 'gone' })).toEqual({ kind: 'unknown', label: 'Claude' })
+  })
+
+  it('names any account by itself, its own sign-in only', () => {
+    const work = entry({ key: 'work', global: false, status: account(true, 'jane.roe@example.com') })
+    expect(entryBadge(work, null)).toEqual({ kind: 'in', label: 'jane.roe' })
+    expect(entryBadge(work, login)).toEqual({ kind: 'in', label: 'jane.roe' })
+    expect(entryBadge(work, { ...login, target: 'work' })).toEqual({ kind: 'login', label: 'Вход…' })
+    expect(entryBadge({ ...work, needsLogin: true }, null)).toEqual({ kind: 'out', label: 'Нужен вход' })
+  })
+})
+
+describe('headerAccounts', () => {
+  const view = (active: string, accounts: AccountEntry[]): AccountView => ({ active, accounts, login: null, loginBlock: null, apps: [], pool: [] })
+
+  it('puts the active account first, then every account a project runs on', () => {
+    const accounts = [
+      entry({ projects: ['XYZ'] }),
+      entry({ key: 'idle', global: false }),
+      entry({ key: 'work', global: false, projects: ['ABC', 'DEF'] }),
+      entry({ key: 'codex', agent: 'codex', projects: ['OPS'] }),
+    ]
+    expect(headerAccounts(view('work', accounts)).map((each) => each.key)).toEqual(['work', 'global', 'codex'])
+  })
+
+  it('keeps the active account without projects and skips a gone one', () => {
+    expect(headerAccounts(view('global', [entry({}), entry({ key: 'work', global: false })])).map((each) => each.key)).toEqual(['global'])
+    expect(headerAccounts(view('gone', [entry({ projects: ['ABC'] })])).map((each) => each.key)).toEqual(['global'])
   })
 })
 

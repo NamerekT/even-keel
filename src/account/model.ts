@@ -40,6 +40,8 @@ export interface AccountEntry {
   loginExpiresAt: string | null
   needsLogin: boolean
   sessions: string[]
+  /** The projects whose sessions run on it by their provider's pool entry, their own or the shared one (`projectsByAccount`). */
+  projects: string[]
   removing: boolean
   configPending: boolean
   apiKey: boolean
@@ -65,6 +67,15 @@ export interface AccountView {
   login: AccountLogin | null
   loginBlock: LoginBlock | null
   apps: AppAccount[]
+  /** Every pool entry of the config: the account folders it names cannot be removed. */
+  pool: PoolEntry[]
+}
+
+/** A pool entry naming an account folder for a provider: the shared pool's (`project` null) or a project's own. */
+export interface PoolEntry {
+  project: string | null
+  provider: string
+  account: string
 }
 
 export interface LoginBlocker {
@@ -173,6 +184,9 @@ export function removeProblem(view: AccountView, key: string): Notice | undefine
   if (target === undefined) return notice('account.unknown', { key })
   if (target.global) return notice(target.agent === CLAUDE ? 'account.globalKept' : 'account.codexHomeKept', {})
   if (key === view.active) return notice('account.activeKept', {})
+  const named = view.pool.filter((entry) => entry.account === key)
+  if (named.some((entry) => entry.project === null)) return notice('account.sharedPool', {})
+  if (named.length > 0) return notice('account.projectPool', { projects: [...new Set(named.map((entry) => entry.project!))] })
   if (view.login?.target === key && view.login.error === null) return notice('account.signInRunning', {})
   const user = view.apps.find((app) => app.account === key)
   if (user !== undefined) return notice('account.usedByApp', { app: APP_LABELS[user.app] })

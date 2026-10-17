@@ -25,7 +25,7 @@ import { appendLaunch, loadChainState, loadQuestions, readLaunches, saveChainSta
 import { CI_TOKENS, ciSource, projectTargets } from './ci/adapters.js'
 import { CiWatch } from './ci/watcher.js'
 import { ConfigFile } from './config-file.js'
-import { DEFAULT_BRANCH, DEFAULT_CI, listenOf, runSettings } from './config.js'
+import { DEFAULT_BRANCH, DEFAULT_CI, listenOf, poolEntries, projectsByAccount, runSettings } from './config.js'
 import { EventHub } from './events.js'
 import { runGit } from './git/run.js'
 import { finishSlot, prepareSlot, slotPaths, type SlotUse } from './git/slot.js'
@@ -244,6 +244,8 @@ const account = new AccountWatcher({
   name: (key, name) => saveAccounts(nameAccount(ledger, key, name)),
   loginBlock: (): LoginBlock | null => loginBlock(dispatcher.state.active, agents, activeAccount()),
   sessionsIn: (key) => liveSessions(agents, key),
+  projectsOn: (key) => projectsByAccount(configFile.current, Object.keys(config.projects))[key] ?? [],
+  pool: () => poolEntries(configFile.current, Object.keys(config.projects)),
   sessionsKnown: () => agentsRead,
   removing: (key) => ledger.removing.includes(key),
   markRemoving: (key, on) => saveAccounts(markRemoving(ledger, key, on)),

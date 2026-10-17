@@ -89,6 +89,7 @@ const account = (patch: Partial<AccountEntry>): AccountEntry => ({
   loginExpiresAt: null,
   needsLogin: false,
   sessions: [],
+  projects: [],
   removing: false,
   configPending: false,
   apiKey: false,
@@ -105,6 +106,7 @@ const view = (app: AppAccount, accounts: AccountEntry[] = [account({}), account(
   login: null,
   loginBlock: null,
   apps: [app],
+  pool: [],
 })
 
 describe('appSwitchProblem', () => {

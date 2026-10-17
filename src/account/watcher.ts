@@ -22,6 +22,7 @@ import {
   type AccountView,
   type AccountStatus,
   type LoginBlock,
+  type PoolEntry,
 } from './model.js'
 
 const MAX_OUTPUT_CHARS = 16 * 1024
@@ -48,6 +49,9 @@ export interface AccountWatcherOptions {
   name: (key: string, name: string) => void
   loginBlock: () => LoginBlock | null
   sessionsIn: (key: string) => string[]
+  /** The projects whose sessions run in the folder, by the pool. */
+  projectsOn: (key: string) => string[]
+  pool: () => PoolEntry[]
   sessionsKnown: () => boolean
   removing: (key: string) => boolean
   markRemoving: (key: string, on: boolean) => void
@@ -105,6 +109,7 @@ export class AccountWatcher {
         loginExpiresAt: times.loginExpiresAt === null || times.erased ? null : new Date(times.loginExpiresAt).toISOString(),
         needsLogin: needsLogin(status, times, now) || (isApiKey(status) && this.keys.rejected(home.key)),
         sessions: this.options.sessionsIn(home.key),
+        projects: this.options.projectsOn(home.key),
         removing: this.options.removing(home.key),
         configPending: this.options.configPending(home.key),
         apiKey: isApiKey(status),
@@ -118,6 +123,7 @@ export class AccountWatcher {
       login: this.current,
       loginBlock: this.options.loginBlock(),
       apps: this.options.apps.list(),
+      pool: this.options.pool(),
     }
   }
 

@@ -1,10 +1,10 @@
 import type { CSSProperties } from 'react'
-import type { AccountView } from '../../../src/account/model.js'
+import type { AccountEntry, AccountView } from '../../../src/account/model.js'
 import { limitSpans, type LimitWindow, type RateLimits } from '../../../src/limits/model.js'
 import { entrySlot } from '../accounts.js'
 import { formatAgo, formatMoment, formatSpan } from '../format.js'
 import { t } from '../i18n/index.js'
-import { accountBadge, loginLeft } from '../state.js'
+import { accountBadge, entryBadge, headerAccounts, loginLeft } from '../state.js'
 import { AccountPanel } from './Account.js'
 import { spendText, useSpend, type Spend } from './accountParts.js'
 import { seriesStyle } from '../ui/series.js'
@@ -21,8 +21,9 @@ interface BlockProps {
 }
 
 /**
- * The account and its two limits as one block of the wide header: a click opens the accounts drawer,
- * a hover or focus shows the card with the full numbers. An API account has no limits: today's spend stands for them.
+ * The account and its limits as one block of the wide header: the active one, then every other account a project runs on.
+ * A click opens the accounts drawer, a hover or focus shows the card with the full numbers and the projects of each.
+ * An API account has no limits: today's spend stands for them.
  */
 export function AccountBlock({ account, limits, now }: BlockProps) {
   const { open, setOpen, rootRef } = usePopover()
@@ -34,23 +35,21 @@ export function AccountBlock({ account, limits, now }: BlockProps) {
     <div className="queue-menu account-block" ref={rootRef} style={activeStyle(account)}>
       <button
         type="button"
-        className={`hblock account-block__toggle account-toggle--${badge.kind}`}
+        className="hblock account-block__toggle"
         aria-expanded={open}
         aria-controls="account-panel"
         aria-describedby={open ? undefined : 'account-card'}
         onClick={() => setOpen(!open)}
       >
-        <span className="hblock__seg">
-          <span className="queue-toggle__dot" aria-hidden="true" />
-          <span className="account-toggle__label">{badge.label}</span>
-        </span>
-        {active?.apiKey === true ? (
-          <span className="hblock__seg limit limit--spend" title={t.account.todayTitle}>
-            <span className="limit__value">{spendText(spend, active.key)}</span>
+        {/* A group per account: its kind colours only its own dot, so the groups sit side by side, never one in another. */}
+        <span className={`account-block__group account-toggle--${badge.kind}`}>
+          <span className="hblock__seg">
+            <span className="queue-toggle__dot" aria-hidden="true" />
+            <span className="account-toggle__label">{badge.label}</span>
           </span>
-        ) : (
-          limitSpans(limits).map((span) => <LimitSegment key={span} window={limits?.[span] ?? null} title={spanNames(span).title} now={now} />)
-        )}
+          <BlockLimits entry={active} limits={limits} now={now} spend={spend} />
+        </span>
+        <OtherRings account={account} />
       </button>
       {!open && <AccountCard account={account} limits={limits} now={now} spend={spend} />}
       {open && <AccountPanel account={account} spend={spend} onClose={() => setOpen(false)} />}
@@ -58,10 +57,58 @@ export function AccountBlock({ account, limits, now }: BlockProps) {
   )
 }
 
+/** The header's accounts past the active one. */
+function others(view: AccountView): AccountEntry[] {
+  return headerAccounts(view).filter((entry) => entry.key !== view.active)
+}
+
 /** The active account's colour, the same as its card's, for the dot before its name. */
 function activeStyle(view: AccountView): CSSProperties {
   const active = view.accounts.find((entry) => entry.key === view.active)
   return seriesStyle(active === undefined ? null : entrySlot(view, active))
+}
+
+function BlockLimits({ entry, limits, now, spend }: { entry: AccountEntry | undefined; limits: RateLimits | null; now: Date; spend: Spend }) {
+  if (entry?.apiKey === true) {
+    return (
+      <span className="hblock__seg limit limit--spend" title={t.account.todayTitle}>
+        <span className="limit__value">{spendText(spend, entry.key)}</span>
+      </span>
+    )
+  }
+  return limitSpans(limits).map((span) => <LimitSegment key={span} window={limits?.[span] ?? null} title={spanNames(span).title} now={now} />)
+}
+
+/**
+ * The accounts past the active one as one segment of small rings: each filled to its fullest window, with the account's
+ * colour in the middle. Their names, numbers and projects are in the card.
+ */
+function OtherRings({ account }: { account: AccountView }) {
+  const shown = others(account)
+  if (shown.length === 0) return null
+  return (
+    <span className="hblock__seg account-block__others">
+      {shown.map((entry) => {
+        const window = fullestWindow(entry.limits)
+        const percent = window === null ? 0 : percentOf(window)
+        return (
+          <span
+            key={entry.key}
+            className={`account-block__mini${window === null ? ' limit--empty' : heatOf(percent)}`}
+            style={seriesStyle(entrySlot(account, entry))}
+            aria-label={`${entryBadge(entry, account.login).label}${window === null ? '' : ` ${percent}%`}`}
+          >
+            <Ring percent={percent} />
+          </span>
+        )
+      })}
+    </span>
+  )
+}
+
+function fullestWindow(limits: RateLimits | null): LimitWindow | null {
+  const windows = limitSpans(limits).flatMap((span) => limits?.[span] ?? [])
+  return windows.reduce<LimitWindow | null>((top, each) => (top === null || each.usedPercentage > top.usedPercentage ? each : top), null)
 }
 
 function percentOf(window: LimitWindow): number {
@@ -98,6 +145,7 @@ function Ring({ percent }: { percent: number }) {
       {percent > 0 && (
         <circle className="limit__fill" cx="11" cy="11" r={RING_RADIUS} strokeDasharray={`${(RING_LENGTH * percent) / 100} ${RING_LENGTH}`} />
       )}
+      <circle className="limit__core" cx="11" cy="11" r="3" />
     </svg>
   )
 }
@@ -107,16 +155,20 @@ export function AccountSheet({ account, limits, now }: BlockProps) {
   const { open, setOpen, rootRef } = usePopover()
   const badge = accountBadge(account)
   const spend = useSpend(account)
+  const active = account.accounts.find((entry) => entry.key === account.active)
 
   return (
-    <div className={`account-card account-card--sheet account-toggle--${badge.kind}`} ref={rootRef} style={activeStyle(account)}>
-      <button type="button" className="account-card__head account-card__open" aria-expanded={open} aria-controls="account-panel" onClick={() => setOpen(!open)}>
-        <CardHead account={account} />
-        <span className="sheet__chevron" aria-hidden="true">
-          ›
-        </span>
-      </button>
-      <CardBody account={account} limits={limits} now={now} spend={spend} />
+    <div className="account-card account-card--sheet" ref={rootRef} style={activeStyle(account)}>
+      <div className={`account-card__part account-toggle--${badge.kind}`}>
+        <button type="button" className="account-card__head account-card__open" aria-expanded={open} aria-controls="account-panel" onClick={() => setOpen(!open)}>
+          <CardHead entry={active} label={badge.label} />
+          <span className="sheet__chevron" aria-hidden="true">
+            ›
+          </span>
+        </button>
+        <CardBody entry={active} limits={limits} now={now} spend={spend} />
+      </div>
+      <OtherParts account={account} now={now} spend={spend} />
       {open && <AccountPanel account={account} spend={spend} onClose={() => setOpen(false)} />}
     </div>
   )
@@ -127,45 +179,77 @@ interface CardProps extends BlockProps {
 }
 
 function AccountCard({ account, limits, now, spend }: CardProps) {
+  const badge = accountBadge(account)
+  const active = account.accounts.find((entry) => entry.key === account.active)
   return (
-    <div id="account-card" className={`account-card account-toggle--${accountBadge(account).kind}`} role="tooltip">
-      <div className="account-card__head">
-        <CardHead account={account} />
+    <div id="account-card" className="account-card" role="tooltip">
+      <div className={`account-card__part account-toggle--${badge.kind}`}>
+        <div className="account-card__head">
+          <CardHead entry={active} label={badge.label} />
+        </div>
+        <CardBody entry={active} limits={limits} now={now} spend={spend} />
       </div>
-      <CardBody account={account} limits={limits} now={now} spend={spend} />
+      <OtherParts account={account} now={now} spend={spend} />
     </div>
   )
 }
 
-function CardHead({ account }: { account: AccountView }) {
-  const active = account.accounts.find((entry) => entry.key === account.active)
-  const plan = active?.apiKey === true ? t.account.apiKey : (active?.status?.subscriptionType ?? null)
+/** A part of the card for each account past the active one, in its own colour. */
+function OtherParts({ account, now, spend }: { account: AccountView; now: Date; spend: Spend }) {
+  return others(account).map((entry) => {
+    const badge = entryBadge(entry, account.login)
+    return (
+      <div key={entry.key} className={`account-card__part account-toggle--${badge.kind}`} style={seriesStyle(entrySlot(account, entry))}>
+        <div className="account-card__head">
+          <CardHead entry={entry} label={badge.label} />
+        </div>
+        <CardBody entry={entry} limits={entry.limits} now={now} spend={spend} />
+      </div>
+    )
+  })
+}
+
+function CardHead({ entry, label }: { entry: AccountEntry | undefined; label: string }) {
+  const plan = entry?.apiKey === true ? t.account.apiKey : (entry?.status?.subscriptionType ?? null)
   return (
     <>
       <span className="queue-toggle__dot" aria-hidden="true" />
-      <span className="account-card__name">{active?.name ?? active?.status?.email ?? accountBadge(account).label}</span>
+      <span className="account-card__name">{entry?.name ?? entry?.status?.email ?? label}</span>
       {plan !== null && <span className="tag account-card__plan">{plan}</span>}
     </>
   )
 }
 
-function CardBody({ account, limits, now, spend }: CardProps) {
-  const active = account.accounts.find((entry) => entry.key === account.active)
-  if (active?.apiKey === true) {
+interface BodyProps {
+  entry: AccountEntry | undefined
+  limits: RateLimits | null
+  now: Date
+  spend: Spend
+}
+
+function CardBody({ entry, limits, now, spend }: BodyProps) {
+  const projects = entry !== undefined && (
+    <p className="account-card__projects">{entry.projects.length === 0 ? t.account.projectsNone : t.account.projectsOn(entry.projects)}</p>
+  )
+  if (entry?.apiKey === true) {
     return (
-      <div className="account-card__foot">
-        <span>{spendText(spend, active.key)}</span>
-      </div>
+      <>
+        {projects}
+        <div className="account-card__foot">
+          <span>{spendText(spend, entry.key)}</span>
+        </div>
+      </>
     )
   }
   return (
     <>
+      {projects}
       {limitSpans(limits).map((span) => (
         <CardWindow key={span} label={spanNames(span).label} window={limits?.[span] ?? null} now={now} />
       ))}
       <div className="account-card__foot">
         <span>{limits === null ? t.limits.noData : t.limits.updated(t.limits.sources[limits.source], formatAgo(limits.updatedAt, now))}</span>
-        {active !== undefined && <span>{t.account.expiry(loginLeft(active.loginExpiresAt, now).text)}</span>}
+        {entry !== undefined && <span>{t.account.expiry(loginLeft(entry.loginExpiresAt, now).text)}</span>}
       </div>
     </>
   )

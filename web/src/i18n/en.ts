@@ -310,6 +310,8 @@ export const en: Messages = {
     today: (cost: string) => `today ${cost}`,
     todayNone: 'today: no data',
     todayTitle: "Spent today on this account's key, by Tally",
+    projectsOn: (projects: string[]) => `Projects: ${projects.join(', ')}`,
+    projectsNone: 'No project runs here',
     apiKeyLost: "The key isn't accepted: remove the account and add the key again",
     keyName: 'Account name',
     keyValue: 'Key',

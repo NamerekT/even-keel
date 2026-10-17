@@ -4,7 +4,7 @@ import { refuseNewer } from './storage/schema.js'
 import { DEFAULT_RULES, sameName, type ChainRules } from './chain/rules.js'
 import { isLanguage, LANGUAGES, type Language } from './language.js'
 import { fail } from './notice/notice.js'
-import { CODEX_ACCOUNT, GLOBAL_ACCOUNT } from './account/model.js'
+import { CODEX_ACCOUNT, GLOBAL_ACCOUNT, type PoolEntry } from './account/model.js'
 import { DEFAULT_PROVIDER, EXECUTION_MODES, isProvider, PROVIDERS } from './agent/providers.js'
 import type { RunSettings } from './sessions/launch.js'
 import { placeholderIn } from './sessions/prompt.js'
@@ -367,6 +367,26 @@ export function runSettings(config: Pick<EvenKeelConfig, 'settings' | 'provider'
     accounts: { ...config.accounts, ...own?.accounts },
     labels: own?.modelLabels ?? config.modelLabels,
   }
+}
+
+type PoolConfig = Pick<EvenKeelConfig, 'settings' | 'accounts'>
+
+/** The pool entries of the config: the shared pool's, then each project's own. */
+export function poolEntries(config: PoolConfig, projects: string[]): PoolEntry[] {
+  const entries = (project: string | null, accounts: Record<string, string> | undefined) =>
+    Object.entries(accounts ?? {}).map(([provider, account]) => ({ project, provider, account }))
+  return [...entries(null, config.accounts), ...projects.flatMap((project) => entries(project, config.settings[project]?.accounts))]
+}
+
+/** The account folder each project's sessions run on by its provider (`runSettings`), as the projects on each folder. */
+export function projectsByAccount(config: Parameters<typeof runSettings>[0], projects: string[]): Record<string, string[]> {
+  const found: Record<string, string[]> = {}
+  for (const project of projects) {
+    const run = runSettings(config, project)
+    const account = run.accounts[run.provider]
+    if (account !== undefined) (found[account] ??= []).push(project)
+  }
+  return found
 }
 
 function parseProjectPrompt(raw: unknown, where: string): string | null {

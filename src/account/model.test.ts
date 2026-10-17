@@ -44,6 +44,7 @@ const entry = (patch: Partial<AccountEntry>): AccountEntry => ({
   loginExpiresAt: '2026-10-27T10:00:00.000Z',
   needsLogin: false,
   sessions: [],
+  projects: [],
   removing: false,
   configPending: false,
   apiKey: false,
@@ -75,6 +76,7 @@ const view = (patch: Partial<AccountView>): AccountView => ({
   login: null,
   loginBlock: null,
   apps: [],
+  pool: [],
   ...patch,
 })
 
@@ -418,5 +420,16 @@ describe('removeProblem', () => {
   it('keeps a folder an app still uses', () => {
     const apps = [{ app: 'vscode' as const, account: 'work', dir: 'C:\\work', error: null, sessions: [] }]
     expect(say(removeProblem(view({ apps }), 'work'))).toMatch(/VS Code uses/)
+  })
+
+  it('keeps a folder a pool entry names, the shared pool or a project', () => {
+    expect(say(removeProblem(view({ pool: [{ project: null, provider: 'codex', account: 'work' }] }), 'work'))).toMatch(/shared settings/)
+    const pool = [
+      { project: 'ABC', provider: 'claude', account: 'work' },
+      { project: 'XYZ', provider: 'codex', account: 'work' },
+      { project: 'DEF', provider: 'claude', account: 'other' },
+    ]
+    expect(say(removeProblem(view({ pool }), 'work'))).toMatch(/projects ABC, XYZ/)
+    expect(removeProblem(view({ pool }), 'other-work')).toMatchObject({ code: 'account.unknown' })
   })
 })

@@ -1,4 +1,4 @@
-import type { AccountEntry, AccountView } from '../../src/account/model.js'
+import type { AccountEntry, AccountLogin, AccountView } from '../../src/account/model.js'
 import type { ActiveChain, CurrentTask, ProjectOrder } from '../../src/chain/dispatcher.js'
 import { fixName, isFixName, liveFixId } from '../../src/chain/fix.js'
 import type { FixEpisode, TaskSession } from '../../src/chain/launches.js'
@@ -23,9 +23,24 @@ export function accountBadge(view: AccountView): AccountBadge {
     return view.login.error === null ? { kind: 'login', label: t.account.loggingIn } : { kind: 'out', label: t.account.loginFailed }
   }
   const active = view.accounts.find((entry) => entry.key === view.active)
-  if (active?.status == null) return { kind: 'unknown', label: 'Claude' }
-  if (active.needsLogin) return { kind: 'out', label: t.account.needsLogin }
-  return { kind: 'in', label: active.name ?? active.status.email?.split('@')[0] ?? 'Claude' }
+  return active === undefined ? { kind: 'unknown', label: 'Claude' } : entryBadge(active, null)
+}
+
+/** The badge of one account: only a sign-in into this very folder shows on it. */
+export function entryBadge(entry: AccountEntry, login: AccountLogin | null): AccountBadge {
+  if (login !== null && login.target === entry.key) {
+    return login.error === null ? { kind: 'login', label: t.account.loggingIn } : { kind: 'out', label: t.account.loginFailed }
+  }
+  if (entry.status == null) return { kind: 'unknown', label: 'Claude' }
+  if (entry.needsLogin) return { kind: 'out', label: t.account.needsLogin }
+  return { kind: 'in', label: entry.name ?? entry.status.email?.split('@')[0] ?? 'Claude' }
+}
+
+/** The accounts the header shows: the one holding the Even Keel role, then every other one a project runs on. */
+export function headerAccounts(view: AccountView): AccountEntry[] {
+  const active = view.accounts.find((entry) => entry.key === view.active)
+  const others = view.accounts.filter((entry) => entry.key !== view.active && entry.projects.length > 0)
+  return active === undefined ? others : [active, ...others]
 }
 
 const DAY_MS = 24 * 60 * 60_000

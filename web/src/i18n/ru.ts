@@ -308,6 +308,8 @@ export const ru = {
     today: (cost: string) => `сегодня ${cost}`,
     todayNone: 'сегодня: нет данных',
     todayTitle: 'Потрачено сегодня с ключа этого аккаунта, по Tally',
+    projectsOn: (projects: string[]) => `Проекты: ${projects.join(', ')}`,
+    projectsNone: 'Проектов здесь нет',
     apiKeyLost: 'Ключ не принят: удалите аккаунт и добавьте ключ заново',
     keyName: 'Имя аккаунта',
     keyValue: 'Ключ',

@@ -12,6 +12,7 @@ const entry = (key: string, email: string | null): AccountEntry => ({
   loginExpiresAt: null,
   needsLogin: false,
   sessions: [],
+  projects: [],
   removing: false,
   configPending: false,
   apiKey: false,
@@ -19,7 +20,7 @@ const entry = (key: string, email: string | null): AccountEntry => ({
   usage: { state: 'ok', reason: null, since: null },
 })
 
-const view = (accounts: AccountEntry[]): AccountView => ({ active: 'global', accounts, login: null, loginBlock: null, apps: [] })
+const view = (accounts: AccountEntry[]): AccountView => ({ active: 'global', accounts, login: null, loginBlock: null, apps: [], pool: [] })
 
 describe('accountSlot', () => {
   const accounts = view([entry('work', 'jane@example.com'), entry('global', 'john@example.com'), entry('spare', null)])
