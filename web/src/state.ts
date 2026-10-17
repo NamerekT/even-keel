@@ -25,7 +25,7 @@ export function accountBadge(view: AccountView): AccountBadge {
   const active = view.accounts.find((entry) => entry.key === view.active)
   if (active?.status == null) return { kind: 'unknown', label: 'Claude' }
   if (active.needsLogin) return { kind: 'out', label: t.account.needsLogin }
-  return { kind: 'in', label: active.status.email?.split('@')[0] ?? 'Claude' }
+  return { kind: 'in', label: active.name ?? active.status.email?.split('@')[0] ?? 'Claude' }
 }
 
 const DAY_MS = 24 * 60 * 60_000

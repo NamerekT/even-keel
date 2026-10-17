@@ -252,6 +252,7 @@ export const en: Messages = {
     days: (days: number) => `${days} d`,
     sessions: (count: number) => `sessions: ${count}`,
     globalFolder: 'folder ~/.claude',
+    folder: (key: string) => `folder ${key}`,
     noLimits: 'Limits: no data',
     staleExpired: ' — the access token expired, the first session will refresh it',
     staleBusy: " — the limits service isn't answering now, they'll come from the first session",
@@ -278,7 +279,7 @@ export const en: Messages = {
     todayTitle: "Spent today on this account's key, by Tally",
     apiKeyLost: "The key isn't accepted: remove the account and add the key again",
     addKey: 'Add API key',
-    keyName: 'Folder name',
+    keyName: 'Account name',
     keyValue: 'Key',
     keyAdd: 'Add',
     keyHint:

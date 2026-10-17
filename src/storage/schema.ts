@@ -5,7 +5,7 @@ import { fail } from '../notice/notice.js'
  * file's format is a new version, a step in `migrations.ts` and a new frozen sample in `test/fixtures/schema-v<N>/`.
  * A future import into a database reads it to know what it imports.
  */
-export const SCHEMA_VERSION = 4
+export const SCHEMA_VERSION = 5
 
 /** A file without a version is from before versions: 1. */
 export function versionOf(raw: unknown): number {

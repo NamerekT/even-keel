@@ -101,7 +101,7 @@ Layout work on a fake state, without a tracker or sessions. The fake history sta
 | `?account=vscode-chats` | VS Code cannot be switched because of open chats |
 | `?account=vscode-broken` | VS Code `settings.json` is unreadable |
 | `?account=many` | four accounts: one with the week used up, two near the 5-hour limit, the chain on a second folder |
-| `?account=api` | API accounts: the active `ci-key` with today's spend and `old-key` whose key is not accepted |
+| `?account=api` | API accounts: the active `ci-key` named "CI key" with today's spend and `old-key` whose key is not accepted |
 | `?stats=off\|error\|empty\|newer` | stats are off, the database is unavailable, there is no data, the database is at a newer schema version than the code — on `/stats` and in the project page strip |
 | `?rules=empty\|thin` | no rule changes, "Before and after" with a small sample |
 | `?tools=bloated\|empty` | `/tools`: the last session with claude.ai skills, a failed MCP server and an account mismatch; without transcripts. Projects on an odd letter (`ABC`, `OPS`) differ slightly in settings — for "Only differences" |

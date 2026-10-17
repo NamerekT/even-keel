@@ -2,7 +2,7 @@ import { mkdirSync } from 'node:fs'
 import { join } from 'node:path'
 import { DaemonRefresh } from './account/daemon.js'
 import { AccountHomes, accountsRoot, type AccountHome } from './account/homes.js'
-import { accountAt, activate, forgetAccount, loadLedger, markRemoving, noteAccount, saveLedger, type AccountLedger } from './account/ledger.js'
+import { accountAt, activate, forgetAccount, loadLedger, markRemoving, nameAccount, noteAccount, saveLedger, type AccountLedger } from './account/ledger.js'
 import { accountId, launchBlock, liveSessions, loginBlock, type LoginBlock } from './account/model.js'
 import { VsCodeAccount, vscodeSettingsFile } from './account/vscode.js'
 import { AccountWatcher } from './account/watcher.js'
@@ -217,6 +217,8 @@ const account = new AccountWatcher({
     dispatcher.check()
   },
   forget: (key) => saveAccounts(forgetAccount(ledger, key)),
+  nameOf: (key) => ledger.accounts[key]?.name ?? null,
+  name: (key, name) => saveAccounts(nameAccount(ledger, key, name)),
   loginBlock: (): LoginBlock | null => loginBlock(dispatcher.state.active, agents, ledger.active),
   sessionsIn: (key) => liveSessions(agents, key),
   sessionsKnown: () => agentsRead,

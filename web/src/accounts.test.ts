@@ -4,6 +4,7 @@ import { accountSlot, folderEmail } from './accounts.js'
 
 const entry = (key: string, email: string | null): AccountEntry => ({
   key,
+  name: null,
   global: key === 'global',
   status: email === null ? null : { loggedIn: true, authMethod: null, email, orgName: null, subscriptionType: null },
   error: null,

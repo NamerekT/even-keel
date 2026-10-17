@@ -43,6 +43,8 @@ export interface AccountWatcherOptions {
   active: () => string
   activate: (key: string) => void
   forget: (key: string) => void
+  nameOf: (key: string) => string | null
+  name: (key: string, name: string) => void
   loginBlock: () => LoginBlock | null
   sessionsIn: (key: string) => string[]
   sessionsKnown: () => boolean
@@ -85,6 +87,7 @@ export class AccountWatcher {
       const times = this.options.homes.times(home)
       return {
         key: home.key,
+        name: this.options.nameOf(home.key),
         global: home.global,
         status,
         error,
@@ -140,7 +143,8 @@ export class AccountWatcher {
   }
 
   async addApiKey(name: string, key: string): Promise<void> {
-    this.options.homes.addApiKey(name, key)
+    const home = this.options.homes.addApiKey(name, key)
+    this.options.name(home.key, name)
     await this.refresh()
   }
 

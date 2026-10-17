@@ -1,4 +1,5 @@
 import {
+  folderName,
   loginBlockNotice,
   removeProblem,
   switchProblem,
@@ -66,6 +67,7 @@ function apiEntry(key: string, patch: Partial<AccountEntry> = {}): AccountEntry 
 function fakeEntry(patch: Partial<AccountEntry>): AccountEntry {
   return {
     key: 'global',
+    name: null,
     global: true,
     status: FAKE_ACCOUNT,
     error: null,
@@ -142,7 +144,7 @@ export function fakeAccount(mode: string | null, idle: boolean, limits: RateLimi
   }
   if (mode === 'api') {
     const lost = apiEntry('old-key', { status: { loggedIn: false, authMethod: 'none', email: null, orgName: null, subscriptionType: null }, needsLogin: true })
-    return { ...signedIn, active: 'ci-key', accounts: [global, work, apiEntry('ci-key', { sessions: ['ABC-5'] }), lost] }
+    return { ...signedIn, active: 'ci-key', accounts: [global, work, apiEntry('ci-key', { name: 'CI key', sessions: ['ABC-5'] }), lost] }
   }
   if (mode === 'vscode-broken') {
     return { ...signedIn, apps: [{ ...vscode, account: null, dir: null, error: notice('vscode.notJson', {}) }] }
@@ -159,8 +161,9 @@ export function accountCommand(account: AccountView, name: string, body: Record<
   }
   if (name === 'account/api') {
     if (!/^\S{21,}$/.test(String(body.key).trim())) throw fail('account.apiKeyInvalid', {})
-    const key = String(body.name).trim().toLowerCase() || 'api'
-    return { ...account, accounts: [...account.accounts, apiEntry(key)] }
+    const name = String(body.name ?? '').trim()
+    const key = folderName(name || 'api', account.accounts.map((entry) => entry.key))
+    return { ...account, accounts: [...account.accounts, apiEntry(key, { name: name || null })] }
   }
   if (name === 'account/switch') {
     const problem = switchProblem(account, key)

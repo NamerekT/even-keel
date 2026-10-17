@@ -147,9 +147,9 @@ describe('upgradeStorage', () => {
     })
   })
 
-  // v2 → v3 (the launch log's fix entries) and v3 → v4 (`commands.afterGreen` and its mark in the chain's `ci`) only add
-  // optional fields, so both steps only stamp the files.
-  describe.each([2, 3])('v%i to the current version', (from) => {
+  // v2 → v3 (the launch log's fix entries), v3 → v4 (the name of an account) and v4 → v5 (`commands.afterGreen` and its
+  // mark in the chain's `ci`) only add optional fields, so each step only stamps the files.
+  describe.each([2, 3, 4])('v%i to the current version', (from) => {
     const sample = join(root, 'test', 'fixtures', `schema-v${from}`)
     const names = ['even-keel.config.json', 'state/chain.json', 'state/questions.json', 'state/launches.jsonl', 'state/account.json']
 

@@ -108,7 +108,7 @@ export function AccountPanel({ account, spend, onClose }: { account: AccountView
 }
 
 function accountName(entry: AccountEntry): string {
-  return entry.status?.email ?? (entry.global ? t.account.global : entry.key)
+  return entry.name ?? entry.status?.email ?? (entry.global ? t.account.global : entry.key)
 }
 
 function AppNotes({ app }: { app: AppAccount }) {
@@ -190,7 +190,7 @@ function loginHeading({ login, accounts }: AccountView): string {
   if (login === null) return t.account.add
   if (login.target === null) return t.account.loginNew
   const target = accounts.find((entry) => entry.key === login.target)
-  return t.account.loginTo(target?.status?.email ?? login.target)
+  return t.account.loginTo(target === undefined ? login.target : accountName(target))
 }
 
 function ApiKeyForm({ sending, send }: { sending: boolean; send: Send }) {
@@ -263,7 +263,7 @@ function AccountItem({ entry, view, now, spend, sending, send }: ItemProps) {
   const renewBlocked = view.login !== null || (active && view.loginBlock !== null)
   const off = !canWork(entry, now)
   const name = accountName(entry)
-  const at = name.lastIndexOf('@')
+  const at = entry.name === null ? name.lastIndexOf('@') : -1
   const email = entry.status?.email ?? null
   const slot = email === null ? null : accountSlot(view, email)
 
@@ -358,6 +358,7 @@ function AccountDetails({ entry, view, left, sending, send }: DetailsProps) {
         )}
         {entry.sessions.length > 0 && <span>{t.account.sessions(entry.sessions.length)}</span>}
         {entry.global && <span>{t.account.globalFolder}</span>}
+        {!entry.global && entry.name !== null && <span>{t.account.folder(entry.key)}</span>}
       </div>
       {entry.removing ? null : kept !== undefined ? (
         <p className="accounts__note">{say(kept)}</p>

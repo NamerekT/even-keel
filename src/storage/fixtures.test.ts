@@ -60,7 +60,9 @@ describe(`frozen samples of schema v${SCHEMA_VERSION}`, () => {
       ['ABC-FIX.2', 'd00d000', 'dropped', undefined],
     ])
     expect(new Set(readLaunches(sample('state/launches.jsonl')).map((entry) => entry.project))).toEqual(new Set([ABC]))
-    expect(loadLedger(sample('state/account.json')).accounts.global?.email).toBe('john.doe@example.com')
+    const ledger = loadLedger(sample('state/account.json'))
+    expect(ledger.accounts.global?.email).toBe('john.doe@example.com')
+    expect(ledger.accounts['team-api']?.name).toBe('Team API')
   })
 
   it('is current: the migration writes nothing', () => {
