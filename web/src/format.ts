@@ -4,16 +4,14 @@ const MINUTE = 60_000
 const HOUR = 60 * MINUTE
 const DAY = 24 * HOUR
 
-/** `short` packs units against the numbers and shortens the minute: "1ч 33м" for the header. */
-export function formatSpan(until: string, now: Date, short = false): string {
+/** The time left, units against the numbers and the minute short: "1ч 33м", the same in the header and on the cards. */
+export function formatSpan(until: string, now: Date): string {
   const ms = Date.parse(until) - now.getTime()
-  const { day, hour } = t.units
-  const minute = short ? t.units.minuteShort : t.units.minute
-  const gap = short ? '' : ' '
-  if (ms < MINUTE) return `<${gap}1${gap}${minute}`
-  if (ms >= DAY) return pair(Math.floor(ms / DAY), day, Math.floor((ms % DAY) / HOUR), hour, gap)
-  if (ms >= HOUR) return pair(Math.floor(ms / HOUR), hour, Math.floor((ms % HOUR) / MINUTE), minute, gap)
-  return `${Math.floor(ms / MINUTE)}${gap}${minute}`
+  const { day, hour, minuteShort: minute } = t.units
+  if (ms < MINUTE) return `<1${minute}`
+  if (ms >= DAY) return pair(Math.floor(ms / DAY), day, Math.floor((ms % DAY) / HOUR), hour)
+  if (ms >= HOUR) return pair(Math.floor(ms / HOUR), hour, Math.floor((ms % HOUR) / MINUTE), minute)
+  return `${Math.floor(ms / MINUTE)}${minute}`
 }
 
 const CLOCK = localized((language) => new Intl.DateTimeFormat(language, { hour: '2-digit', minute: '2-digit' }))
@@ -53,6 +51,6 @@ export function formatClock(ms: number): string {
   return `${minutes}:${tail}`
 }
 
-function pair(major: number, majorUnit: string, minor: number, minorUnit: string, gap: string): string {
-  return minor === 0 ? `${major}${gap}${majorUnit}` : `${major}${gap}${majorUnit} ${minor}${gap}${minorUnit}`
+function pair(major: number, majorUnit: string, minor: number, minorUnit: string): string {
+  return minor === 0 ? `${major}${majorUnit}` : `${major}${majorUnit} ${minor}${minorUnit}`
 }

@@ -165,7 +165,7 @@ export function Select({ value, options, onChange, id, className = '', label, in
 }
 
 /** Under the button and at least as wide, its left edge on the button's; above it when the viewport ends first. */
-function place(element: HTMLElement, at: DOMRect) {
+export function place(element: HTMLElement, at: DOMRect) {
   element.style.minWidth = `${at.width}px`
   const width = element.offsetWidth
   const height = element.offsetHeight

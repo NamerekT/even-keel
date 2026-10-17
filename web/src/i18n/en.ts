@@ -1,4 +1,4 @@
-import { en as noticesEn } from '../../../src/notice/en.js'
+import { noticesEn } from './notices-en.js'
 import { plural } from './plural.js'
 import type { Messages } from './ru.js'
 
@@ -223,8 +223,6 @@ export const en: Messages = {
   account: {
     title: 'Accounts',
     all: 'All accounts',
-    switch: 'Switch account',
-    switchTitle: 'Switch account',
     back: 'Back',
     stepProvider: 'Provider',
     stepConnection: 'Connection',
@@ -250,20 +248,19 @@ export const en: Messages = {
     codexTerminal: 'Or in a terminal on this machine:',
     codexSignedIn: (who: string) => `Codex is signed in as ${who}. Even Keel has one Codex account: signing in again replaces it.`,
     globalOf: (folder: string) => `global ${folder}`,
-    take: (role: string) => `Make it the ${role} account`,
     holds: (role: string) => `${role} works on this account`,
-    appOn: (where: string) => `Now on: ${where}`,
-    chainsRunning: "Chains are running — switching the account doesn't stop them:",
-    chainsStay: (account: string) => `Sessions already working stay on ${account}; the next ones start on the new account.`,
+    roles: 'Where this account works: pick an app to move it here',
+    rolesNone: 'Not in use',
+    appOn: (where: string) => `now on ${where}`,
+    nextHere: "The chains' next sessions start on this account",
+    chainsStay: (account: string) => `Sessions already working stay on ${account}; the next ones start here`,
+    workingNow: 'Working now',
     notLoaded: 'The list is not loaded yet.',
     addHint: "Signs in in a new folder: the active account doesn't change. Claude gives a link — open it and sign in with the account you need.",
     add: 'Add account',
     chats: { busy: 'working', shell: 'running a command', waiting: 'waiting for a reply', idle: 'open' },
-    chatsBlock: "Can't switch yet, Claude chats are open:",
-    closeChats: (app: string) => `Close them in ${app} — the panel updates by itself.`,
-    reload: (app: string) => `${app} picks up the new account after Developer: Reload Window.`,
+    reload: (app: string) => `${app} picks it up after Developer: Reload Window`,
     unknownDir: (dir: string) => `folder ${dir} — not among the accounts`,
-    unread: 'not read',
     loginNew: 'Signing in to a new account',
     loginTo: (who: string) => `Signing in: ${who}`,
     loggingIn: 'Signing in…',
@@ -272,8 +269,7 @@ export const en: Messages = {
     expiry: (left: string) => `sign-in: ${left}`,
     expired: 'expired',
     underDay: 'under a day',
-    days: (days: number) => `${days} d`,
-    sessions: (count: number) => `sessions: ${count}`,
+    days: (days: number) => `${days}d`,
     folder: (key: string) => `folder ${key}`,
     noLimits: 'Limits: no data',
     staleExpired: ' — the access token expired, the first session will refresh it',

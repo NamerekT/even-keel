@@ -140,3 +140,42 @@ export function MenuIcon() {
     </svg>
   )
 }
+
+/** Claude Code: a burst of rays. */
+export function ClaudeIcon() {
+  return (
+    <svg className="icon" viewBox="0 0 16 16" aria-hidden="true">
+      <path d="M8 1.75v12.5M1.75 8h12.5M3.6 3.6l8.8 8.8M12.4 3.6l-8.8 8.8" />
+    </svg>
+  )
+}
+
+/** Codex: a hexagon with a prompt in it. */
+export function CodexIcon() {
+  return (
+    <svg className="icon" viewBox="0 0 16 16" aria-hidden="true">
+      <path d="M8 1.5 13.75 4.75v6.5L8 14.5 2.25 11.25v-6.5Z" />
+      <path d="M5.75 6.5 7.5 8l-1.75 1.5M8.75 10h1.75" />
+    </svg>
+  )
+}
+
+/** Signed in through the agent's CLI: a terminal. */
+export function TerminalIcon() {
+  return (
+    <svg className="icon" viewBox="0 0 16 16" aria-hidden="true">
+      <rect x="1.75" y="3" width="12.5" height="10" rx="1.5" />
+      <path d="M4.5 6.25 6.5 8l-2 1.75M8 10h3.5" />
+    </svg>
+  )
+}
+
+/** Through the Agent SDK: braces. */
+export function BracesIcon() {
+  return (
+    <svg className="icon" viewBox="0 0 16 16" aria-hidden="true">
+      <path d="M6 2.75c-1.5 0-1.75.75-1.75 2v1.5c0 1-.5 1.75-1.5 1.75 1 0 1.5.75 1.5 1.75v1.5c0 1.25.25 2 1.75 2" />
+      <path d="M10 2.75c1.5 0 1.75.75 1.75 2v1.5c0 1 .5 1.75 1.5 1.75-1 0-1.5.75-1.5 1.75v1.5c0 1.25-.25 2-1.75 2" />
+    </svg>
+  )
+}

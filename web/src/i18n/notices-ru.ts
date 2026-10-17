@@ -1,7 +1,9 @@
 import type { GitStep } from '../../../src/notice/en.js'
 import type { NoticeTexts } from '../../../src/notice/notice.js'
+import { plural } from './plural.js'
 
 const list = (items: string[]) => items.join(', ')
+const chats = (count: number) => `${count} ${plural('ru', count, { one: 'чат', few: 'чата', many: 'чатов', other: 'чата' })}`
 
 const GIT_STEPS: Record<GitStep, (subject: string) => string> = {
   excludeFile: () => 'найти файл exclude в',
@@ -148,7 +150,7 @@ export const noticesRu: NoticeTexts = {
 
   'app.unknown': (p) => `приложения ${p.app} нет`,
   'app.alreadyUses': (p) => `${p.app} уже использует ${p.account}`,
-  'app.chatsOpen': (p) => `в ${p.app} открыты чаты Claude (${list(p.chats)}) — сначала закройте их`,
+  'app.chatsOpen': (p) => `в ${p.app} ${plural('ru', p.count, { one: 'открыт', other: 'открыто' })} ${chats(p.count)} Claude — сначала закройте`,
   'vscode.noFile': () => 'файл настроек VS Code ищется только на Windows, macOS и Linux',
   'vscode.notJson': () => 'settings.json — не чистый JSON (комментарии или висячие запятые?), Even Keel его не переписывает',
   'vscode.notObject': () => 'settings.json — не JSON-объект',

@@ -903,7 +903,7 @@ input[type='radio']:disabled {
 }
 
 .account-toggle--in .queue-toggle__dot {
-  background: var(--lamp-done);
+  background: var(--series);
 }
 
 .account-toggle--out .queue-toggle__dot {
@@ -963,6 +963,28 @@ input[type='radio']:disabled {
   height: 9px;
   border-radius: 50%;
   background: var(--series);
+}
+
+.account-mark {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: 4px;
+}
+
+.account-mark__agent {
+  display: inline-flex;
+  color: var(--series);
+}
+
+.account-mark__agent .icon {
+  width: 15px;
+  height: 15px;
+  stroke-width: 1.9;
+}
+
+.account-mark > .icon {
+  color: var(--fg-muted);
 }
 
 .account-tag {
@@ -1077,35 +1099,6 @@ input[type='radio']:disabled {
   font-size: 13px;
 }
 
-.account__blockers {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.account__blocker-list {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  margin: 0;
-  padding: 8px 10px 8px 26px;
-  border-radius: 8px;
-  background: var(--warn-bg);
-  color: var(--warn-fg);
-  font-size: 14px;
-}
-
-.account__blocker-list a {
-  color: inherit;
-  font-family: var(--mono);
-  font-weight: 600;
-}
-
-.account__blocker-name {
-  font-family: var(--mono);
-  font-weight: 600;
-  overflow-wrap: anywhere;
-}
 
 .account__actions {
   display: flex;
@@ -2218,6 +2211,14 @@ a:focus-visible {
   border-color: var(--border);
   background: transparent;
   color: var(--fg-muted);
+}
+
+/* Segoe UI sits lowercase 2px below a line box's middle; a label is lowercase, so its box is its x-height. */
+@supports (text-box: trim-both ex alphabetic) {
+  .tag {
+    padding-block: calc((18px - 1ex) / 2);
+    text-box: trim-both ex alphabetic;
+  }
 }
 
 .chip--running {

@@ -13,36 +13,29 @@ const HOUR = 60 * MIN
 const DAY = 24 * HOUR
 
 describe('formatSpan', () => {
-  it('shows days and hours past a day', () => {
-    expect(formatSpan(later(3 * DAY + 4 * HOUR + 20 * MIN), now)).toBe('3 д 4 ч')
+  it('shows days and hours past a day, units against the numbers', () => {
+    expect(formatSpan(later(3 * DAY + 4 * HOUR + 20 * MIN), now)).toBe('3д 4ч')
   })
 
   it('drops zero hours after days', () => {
-    expect(formatSpan(later(2 * DAY + 10 * MIN), now)).toBe('2 д')
+    expect(formatSpan(later(2 * DAY + 10 * MIN), now)).toBe('2д')
   })
 
   it('shows hours and minutes under a day', () => {
-    expect(formatSpan(later(2 * HOUR + 14 * MIN + 30_000), now)).toBe('2 ч 14 мин')
+    expect(formatSpan(later(2 * HOUR + 14 * MIN + 30_000), now)).toBe('2ч 14м')
   })
 
   it('drops zero minutes after hours', () => {
-    expect(formatSpan(later(5 * HOUR), now)).toBe('5 ч')
+    expect(formatSpan(later(5 * HOUR), now)).toBe('5ч')
   })
 
   it('shows minutes under an hour', () => {
-    expect(formatSpan(later(12 * MIN + 59_000), now)).toBe('12 мин')
+    expect(formatSpan(later(12 * MIN + 59_000), now)).toBe('12м')
   })
 
   it('shows under a minute for the last seconds and for a moment already past', () => {
-    expect(formatSpan(later(30_000), now)).toBe('< 1 мин')
-    expect(formatSpan(earlier(5_000), now)).toBe('< 1 мин')
-  })
-
-  it('packs units against the numbers when short', () => {
-    expect(formatSpan(later(4 * DAY + 2 * HOUR + 5 * MIN), now, true)).toBe('4д 2ч')
-    expect(formatSpan(later(HOUR + 33 * MIN), now, true)).toBe('1ч 33м')
-    expect(formatSpan(later(12 * MIN), now, true)).toBe('12м')
-    expect(formatSpan(later(30_000), now, true)).toBe('<1м')
+    expect(formatSpan(later(30_000), now)).toBe('<1м')
+    expect(formatSpan(earlier(5_000), now)).toBe('<1м')
   })
 })
 
@@ -65,7 +58,7 @@ describe('in English', () => {
   afterEach(() => setLanguage('ru'))
 
   it('uses English units', () => {
-    expect(formatSpan(later(2 * HOUR + 14 * MIN + 30_000), now)).toBe('2 h 14 min')
+    expect(formatSpan(later(2 * HOUR + 14 * MIN + 30_000), now)).toBe('2h 14m')
     expect(formatAgo(earlier(4_000), now)).toBe('just now')
     expect(formatAgo(earlier(3 * MIN + 40_000), now)).toBe('3 min ago')
     expect(formatClock(2 * DAY + 3 * HOUR + 4 * MIN)).toBe('2 d 3:04:00')

@@ -44,6 +44,7 @@ import { agentOfTask, launchPlan, type LaunchPlan } from './sessions/launch.js'
 import { runAfterGreen, runBeforeStart, runCheck, systemShell, type SetupRun } from './sessions/setup.js'
 import { SessionMonitor } from './sessions/monitor.js'
 import { TranscriptOwners } from './sessions/owners.js'
+import { ChatTitles } from './sessions/title.js'
 import { configPath, root, stateDirOf } from './locations.js'
 import { isInside } from './paths.js'
 import { slotOccupants } from './sessions/occupants.js'
@@ -212,11 +213,13 @@ const daemons = new DaemonRefresh({
   onError: (error) => console.error(`account: ${error instanceof Error ? error.message : String(error)}`),
 })
 
+const chatTitles = new ChatTitles()
 const vscode = new VsCodeAccount({
   file: vscodeSettingsFile(process.env),
   homes: () => homes.list(),
   ownerOf: (dir) => homes.ownerOf(dir),
   records: async (home) => (await agentOf(home).liveRecords?.(home)) ?? [],
+  title: (home, sessionId) => chatTitles.of(join(home.dir, 'projects'), sessionId),
   intervalMs: APP_POLL_MS,
   onChange: () => hub.broadcast('state', getState()),
   onError: (error) => console.error(`vscode: ${error instanceof Error ? error.message : String(error)}`),

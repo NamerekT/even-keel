@@ -1,10 +1,13 @@
+import type { CSSProperties } from 'react'
 import type { AccountView } from '../../../src/account/model.js'
 import type { LimitWindow, RateLimits } from '../../../src/limits/model.js'
+import { entrySlot } from '../accounts.js'
 import { formatAgo, formatMoment, formatSpan } from '../format.js'
 import { t } from '../i18n/index.js'
 import { accountBadge, loginLeft } from '../state.js'
 import { AccountPanel } from './Account.js'
 import { spendText, useSpend, type Spend } from './accountParts.js'
+import { seriesStyle } from '../ui/series.js'
 import { FULL_PERCENT, WARM_PERCENT } from './Limits.js'
 import { usePopover } from './usePopover.js'
 
@@ -28,7 +31,7 @@ export function AccountBlock({ account, limits, now }: BlockProps) {
   const active = account.accounts.find((entry) => entry.key === account.active)
 
   return (
-    <div className="queue-menu account-block" ref={rootRef}>
+    <div className="queue-menu account-block" ref={rootRef} style={activeStyle(account)}>
       <button
         type="button"
         className={`hblock account-block__toggle account-toggle--${badge.kind}`}
@@ -58,6 +61,12 @@ export function AccountBlock({ account, limits, now }: BlockProps) {
   )
 }
 
+/** The active account's colour, the same as its card's, for the dot before its name. */
+function activeStyle(view: AccountView): CSSProperties {
+  const active = view.accounts.find((entry) => entry.key === view.active)
+  return seriesStyle(active === undefined ? null : entrySlot(view, active))
+}
+
 function percentOf(window: LimitWindow): number {
   return Math.round(Math.min(Math.max(window.usedPercentage, 0), 100))
 }
@@ -80,7 +89,7 @@ function LimitSegment({ window, title, now }: { window: LimitWindow | null; titl
     <span className={`hblock__seg limit${heatOf(percent)}`}>
       <Ring percent={percent} />
       <span className="limit__value">{percent}%</span>
-      <span className="limit__reset">{formatSpan(window.resetsAt, now, true)}</span>
+      <span className="limit__reset">{formatSpan(window.resetsAt, now)}</span>
     </span>
   )
 }
@@ -103,7 +112,7 @@ export function AccountSheet({ account, limits, now }: BlockProps) {
   const spend = useSpend(account)
 
   return (
-    <div className={`account-card account-card--sheet account-toggle--${badge.kind}`} ref={rootRef}>
+    <div className={`account-card account-card--sheet account-toggle--${badge.kind}`} ref={rootRef} style={activeStyle(account)}>
       <button type="button" className="account-card__head account-card__open" aria-expanded={open} aria-controls="account-panel" onClick={() => setOpen(!open)}>
         <CardHead account={account} />
         <span className="sheet__chevron" aria-hidden="true">

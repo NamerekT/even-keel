@@ -42,15 +42,29 @@
   background: var(--surface);
 }
 
-.account-card-item__tags {
+/* What the card changes — the roles and the buttons — stays at its bottom, level across a row of cards, whatever the notes above. */
+.account-card-item__foot {
   display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: auto;
+  padding-top: 4px;
 }
 
-.account-card-item__role {
-  border-color: var(--accent);
-  color: var(--accent);
+.account-card-item__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.account-card-item__actions:empty {
+  display: none;
+}
+
+.account-card-item__actions > .accounts__note {
+  flex-basis: 100%;
+  order: -1;
 }
 
 .add-steps {

@@ -8,8 +8,18 @@ export type AppId = 'vscode'
 export const APP_LABELS: Record<AppId, string> = { vscode: 'VS Code' }
 
 export interface AppSession {
+  /** The chat's title as the app's tab shows it; the CLI's name of the session until it has one. */
   name: string
+  /** The CLI's name of the session, as `AccountEntry.sessions` lists it. */
+  session: string
+  /** The account folder the chat runs in. */
+  account: string
   status: AgentStatus | null
+}
+
+export interface TitledRecord {
+  record: SessionRecord
+  title: string | null
 }
 
 export interface AppAccount {
@@ -55,10 +65,19 @@ export function withConfigDir(settings: string, dir: string | null): string {
   return settings.trim() === '' || /\r?\n$/.test(settings) ? `${text}${eol}` : text
 }
 
-export function vscodeChats(records: SessionRecord[]): AppSession[] {
+export function isVsCodeChat(record: SessionRecord): boolean {
+  return record.entrypoint === VSCODE_ENTRYPOINT
+}
+
+export function vscodeChats(account: string, records: TitledRecord[]): AppSession[] {
   return records
-    .filter((record) => record.entrypoint === VSCODE_ENTRYPOINT)
-    .map((record) => ({ name: record.name ?? lastSegment(record.cwd) ?? record.sessionId.slice(0, 8), status: record.status ?? null }))
+    .filter(({ record }) => isVsCodeChat(record))
+    .map(({ record, title }) => ({
+      name: title ?? record.name ?? lastSegment(record.cwd) ?? record.sessionId.slice(0, 8),
+      session: record.name ?? record.sessionId.slice(0, 8),
+      account,
+      status: record.status ?? null,
+    }))
 }
 
 export function appSwitchProblem(view: AccountView, app: string, key: string): Notice | undefined {
@@ -73,7 +92,7 @@ export function appSwitchProblem(view: AccountView, app: string, key: string): N
   if (current.account === key) return notice('app.alreadyUses', { app: label, account: email })
   if (target.removing) return notice('account.removing', { account: email })
   if (target.needsLogin || target.status?.loggedIn !== true) return notice('account.needsLogin', { account: email })
-  if (current.sessions.length > 0) return notice('app.chatsOpen', { app: label, chats: current.sessions.map((session) => session.name) })
+  if (current.sessions.length > 0) return notice('app.chatsOpen', { app: label, count: current.sessions.length })
   return undefined
 }
 

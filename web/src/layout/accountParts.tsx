@@ -1,14 +1,16 @@
-import { useMemo, useState, type FormEvent } from 'react'
+import { useMemo, useState, type FormEvent, type ReactNode } from 'react'
 import { removeProblem, type AccountEntry, type AccountLogin, type AccountView } from '../../../src/account/model.js'
+import { CLAUDE } from '../../../src/claude/name.js'
 import { CODEX } from '../../../src/codex/name.js'
 import type { Notice } from '../../../src/notice/notice.js'
-import { PROVIDERS } from '../accounts.js'
+import { connectionOf, PROVIDERS, type Connection } from '../accounts.js'
 import { say, t } from '../i18n/index.js'
 import { useLive } from '../live/context.js'
 import { useCommand } from '../live/useCommand.js'
 import { loginLeft } from '../state.js'
 import { loadedData, useStatsAnswer } from '../stats/common.js'
 import { formatUsd } from '../stats/format.js'
+import { BracesIcon, ClaudeIcon, CodexIcon, KeyIcon, TerminalIcon } from '../ui/icons.js'
 
 export type Send = (name: string, body?: Record<string, unknown>) => Promise<boolean>
 
@@ -42,6 +44,23 @@ export function agentLabel(agent: string): string {
   return provider === undefined ? agent : t.account.agents[provider]
 }
 
+const CONNECTION_ICONS: Record<Connection, () => ReactNode> = { cli: TerminalIcon, sdk: BracesIcon, apiKey: KeyIcon }
+
+/**
+ * Whose account it is and how it signs in, as two icons before the name: the agent's in the account's colour, so two
+ * folders of one e-mail (Claude and Codex) or of look-alike names still read apart.
+ */
+export function AccountMark({ entry }: { entry: AccountEntry }) {
+  const connection = connectionOf(entry)
+  const Connected = CONNECTION_ICONS[connection]
+  return (
+    <span className="account-mark" title={`${agentLabel(entry.agent)} · ${t.account.connections[connection]}`}>
+      <span className="account-mark__agent">{entry.agent === CODEX ? <CodexIcon /> : entry.agent === CLAUDE ? <ClaudeIcon /> : <span className="accounts__dot" />}</span>
+      <Connected />
+    </span>
+  )
+}
+
 /** The name with the e-mail's domain dimmed, so that a column of accounts reads by the part that differs. */
 export function AccountName({ entry }: { entry: AccountEntry }) {
   const name = accountName(entry)
@@ -60,12 +79,14 @@ interface NotesProps {
   now: Date
   sending: boolean
   send: Send
+  /** Leave the actions out: the card puts them in its foot (`NoteActions`). */
+  bare?: boolean
 }
 
 /** The exceptions of an account, each with its action: sign-in needed or ending, removal pending, configuration pending, a failed check. */
-export function AccountNotes({ entry, view, now, sending, send }: NotesProps) {
+export function AccountNotes({ entry, view, now, sending, send, bare = false }: NotesProps) {
   const left = loginLeft(entry.loginExpiresAt, now)
-  const renewBlocked = view.login !== null || (entry.key === view.active && view.loginBlock !== null)
+  const actions = (button: ReactNode) => (bare ? null : button)
 
   return (
     <>
@@ -79,14 +100,7 @@ export function AccountNotes({ entry, view, now, sending, send }: NotesProps) {
       {!entry.apiKey && (left.renew || entry.needsLogin) && (
         <div className="accounts__note accounts__note--warn">
           <span>{entry.needsLogin ? t.account.needsLogin : t.account.expiry(left.text)}</span>
-          <button
-            type="button"
-            className="button button--small"
-            disabled={sending || renewBlocked}
-            onClick={() => void send('account/renew', { account: entry.key })}
-          >
-            {entry.needsLogin ? t.account.login : t.account.renew}
-          </button>
+          {actions(<RenewButton entry={entry} view={view} sending={sending} send={send} />)}
         </div>
       )}
       {entry.removing && (
@@ -95,14 +109,40 @@ export function AccountNotes({ entry, view, now, sending, send }: NotesProps) {
             {t.account.removing}
             {entry.sessions.length > 0 ? t.account.removingAlive(entry.sessions.join(', ')) : ''}
           </span>
-          <button type="button" className="button button--small" disabled={sending} onClick={() => void send('account/keep', { account: entry.key })}>
-            {t.account.keep}
-          </button>
+          {actions(<KeepButton entry={entry} sending={sending} send={send} />)}
         </div>
       )}
       {entry.configPending && <p className="accounts__note">{t.account.configPending}</p>}
       {entry.error !== null && <p className="accounts__note">{t.account.checkFailed(say(entry.error))}</p>}
     </>
+  )
+}
+
+/** The buttons `AccountNotes` leaves out when `bare`: renew the sign-in, keep a folder being removed. */
+export function NoteActions({ entry, view, now, sending, send }: Omit<NotesProps, 'bare'>) {
+  const left = loginLeft(entry.loginExpiresAt, now)
+  return (
+    <>
+      {!entry.apiKey && (left.renew || entry.needsLogin) && <RenewButton entry={entry} view={view} sending={sending} send={send} />}
+      {entry.removing && <KeepButton entry={entry} sending={sending} send={send} />}
+    </>
+  )
+}
+
+function RenewButton({ entry, view, sending, send }: Omit<NotesProps, 'now' | 'bare'>) {
+  const blocked = view.login !== null || (entry.key === view.active && view.loginBlock !== null)
+  return (
+    <button type="button" className="button button--small" disabled={sending || blocked} onClick={() => void send('account/renew', { account: entry.key })}>
+      {entry.needsLogin ? t.account.login : t.account.renew}
+    </button>
+  )
+}
+
+function KeepButton({ entry, sending, send }: Pick<NotesProps, 'entry' | 'sending' | 'send'>) {
+  return (
+    <button type="button" className="button button--small" disabled={sending} onClick={() => void send('account/keep', { account: entry.key })}>
+      {t.account.keep}
+    </button>
   )
 }
 

@@ -83,7 +83,7 @@ With `ci.fixTask` off nothing is created in the tracker, and the adapter needs n
 - A paused chain also holds a place. When a chain ends or is stopped, the next project is taken from the queue at once, and the other chains go on. Lowering `parallel` stops nobody, and no new ones are taken until there are fewer active ones.
 - Each chain has its own current task, pause, error, handoff and `closing`. "Resume", "Stop" (`chain/resume|stop` with `{ project }`) act on their own project. There is no manual pause: only the dispatcher itself pauses a chain on an error, it keeps its place and queue, and "Resume" retries. Stopping releases the task (its session keeps working, the cleanup is as for a released task) and frees the place.
 - The account limit is shared and is not split between chains: all take tasks until the window is used up; once it is used up, all wait for the reset (`limitUntil` on each), and the continuation after the reset is per chain.
-- Renewing the active account's sign-in is blocked by any chain that is not paused (`LoginBlock.chains`, `src/account/model.ts`). Switching the account is not: the session working now stays on its folder, the next launches go to the new one, and the switch window warns with the list of running chains.
+- Renewing the active account's sign-in is blocked by any chain that is not paused (`LoginBlock.chains`, `src/account/model.ts`). Switching the account is not: the session working now stays on its folder, the next launches go to the new one, as the roles menu says under "Even Keel" (`docs/accounts.md`).
 
 ## "Slot" mode (`src/git/slot.ts`)
 

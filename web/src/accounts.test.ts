@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { AccountEntry, AccountView } from '../../src/account/model.js'
-import { accountSlot, addStep, canAdd, connectionOf, deviceLogin, folderEmail } from './accounts.js'
+import { accountSlot, addStep, canAdd, connectionOf, deviceLogin, entrySlot, folderEmail } from './accounts.js'
 
 const entry = (key: string, email: string | null): AccountEntry => ({
   key,
@@ -37,6 +37,15 @@ describe('accountSlot', () => {
   it('wraps around the eight series colours', () => {
     const many = view(Array.from({ length: 10 }, (_, index) => entry(`k${index}`, `u${index}@example.com`)))
     expect(accountSlot(many, 'u8@example.com')).toBe(1)
+  })
+})
+
+describe('entrySlot', () => {
+  it('colours a folder by its e-mail, and one without an e-mail by its own key', () => {
+    const accounts = view([entry('work', 'jane@example.com'), entry('global', 'john@example.com'), entry('spare', null), entry('codex', 'jane@example.com')])
+    expect(entrySlot(accounts, accounts.accounts[0]!)).toBe(4)
+    expect(entrySlot(accounts, accounts.accounts[3]!)).toBe(4)
+    expect(entrySlot(accounts, accounts.accounts[2]!)).toBe(3)
   })
 })
 

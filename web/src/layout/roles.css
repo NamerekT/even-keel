@@ -1,0 +1,182 @@
+/* Where an account works: the apps on it as chips in one field, the apps to move here in a list under it. */
+.roles {
+  display: flex;
+  min-width: 0;
+}
+
+/* Nothing to offer: the same frame as the field, without the chevron, so the cards' bottom rows match. */
+.roles--fixed {
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  min-height: 30px;
+  padding: 3px 6px 3px 4px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+.roles__field {
+  display: flex;
+  flex: 1;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  min-height: 30px;
+  padding: 3px 6px 3px 4px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--fg);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color var(--motion-fast) ease;
+}
+
+.roles__field:enabled:hover,
+.roles__field[aria-expanded='true'] {
+  border-color: var(--accent);
+}
+
+.roles__field:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.roles__field:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.roles__field > .icon {
+  margin-left: auto;
+  color: var(--fg-muted);
+  transition: transform var(--motion-fast);
+}
+
+.roles__field[aria-expanded='true'] > .icon {
+  transform: rotate(180deg);
+}
+
+.roles__chip {
+  padding: 0 8px;
+  border: 1px solid color-mix(in srgb, var(--accent) 60%, transparent);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 20px;
+  white-space: nowrap;
+}
+
+.roles__none {
+  padding: 0 4px;
+  color: var(--fg-muted);
+  font-size: 13px;
+}
+
+.roles__menu {
+  position: fixed;
+  inset: auto;
+  width: max-content;
+  max-width: min(380px, calc(100vw - 16px));
+  margin: 0;
+  padding: 4px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  box-shadow: 0 8px 24px rgb(0 0 0 / 0.25);
+  color: var(--fg);
+  font: 14px/1.45 var(--font);
+  list-style: none;
+  animation: fade-in var(--motion-fast) ease-out;
+}
+
+.roles__offer {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  width: 100%;
+  padding: 6px 8px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--fg);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.roles__offer:hover,
+.roles__offer:focus-visible {
+  background: var(--surface-muted);
+  outline: none;
+}
+
+.roles__offer[aria-disabled='true'] {
+  cursor: not-allowed;
+}
+
+.roles__offer[aria-disabled='true'] .roles__label {
+  color: var(--fg-muted);
+}
+
+.roles__label {
+  font-weight: 600;
+}
+
+.roles__note,
+.roles__why {
+  font-size: 12px;
+}
+
+.roles__note {
+  color: color-mix(in srgb, var(--accent) 80%, var(--fg));
+}
+
+.roles__why {
+  color: var(--warn-fg);
+}
+
+/* What runs on the account now. */
+.work {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 13px;
+}
+
+.work__label {
+  color: var(--fg-muted);
+}
+
+.work__list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.work__item {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  min-width: 0;
+}
+
+.work__name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.work__where {
+  flex: none;
+  margin-left: auto;
+  color: var(--fg-muted);
+  font-size: 12px;
+}

@@ -356,8 +356,8 @@ describe('the Codex folder', () => {
   const codex = view({ accounts: [entry({}), entry({ key: 'codex', agent: 'codex' })] })
 
   it('is neither made active nor removed from the page', () => {
-    expect(say(switchProblem(codex, 'codex'))).toMatch(/Codex account/)
-    expect(say(removeProblem(codex, 'codex'))).toMatch(/Codex account/)
+    expect(say(switchProblem(codex, 'codex'))).toMatch(/^codex: the account lives in CODEX_HOME/)
+    expect(say(removeProblem(codex, 'codex'))).toMatch(/^codex: the account lives in CODEX_HOME/)
   })
 })
 

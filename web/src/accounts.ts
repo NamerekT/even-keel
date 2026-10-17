@@ -12,6 +12,15 @@ export function accountSlot(view: AccountView | undefined, email: string): numbe
   return (keys.indexOf(owner.key) % SERIES) + 1
 }
 
+/** The series colour of an account folder: by its e-mail, so sessions and cards agree; by its key when it has none. */
+export function entrySlot(view: AccountView, entry: AccountEntry): number {
+  const email = entry.status?.email ?? null
+  const byEmail = email === null ? null : accountSlot(view, email)
+  if (byEmail !== null) return byEmail
+  const keys = view.accounts.map((each) => each.key).sort()
+  return (keys.indexOf(entry.key) % SERIES) + 1
+}
+
 export function folderEmail(view: AccountView | undefined, key: string): string {
   return view?.accounts.find((entry) => entry.key === key)?.status?.email ?? key
 }

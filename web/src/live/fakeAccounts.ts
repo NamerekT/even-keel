@@ -131,10 +131,10 @@ export function fakeAccount(mode: string | null, idle: boolean, limits: RateLimi
   if (mode === 'removing') return { ...signedIn, accounts: [global, { ...work, sessions: workSessions, removing: true }] }
   if (mode === 'vscode-chats') {
     const sessions = [
-      { name: 'example-12', status: 'busy' as const },
-      { name: 'Scratch', status: 'idle' as const },
+      { name: 'Header colours on the accounts page', session: 'example-12', account: 'jane.roe', status: 'busy' as const },
+      { name: 'Scratch', session: 'example-13', account: 'jane.roe', status: 'idle' as const },
     ]
-    return { ...signedIn, apps: [{ ...vscode, sessions }] }
+    return { ...signedIn, accounts: [global, { ...work, sessions: ['example-12', 'example-13'] }], apps: [{ ...vscode, sessions }] }
   }
   if (mode === 'many') {
     const window = (usedPercentage: number, hours: number) => ({ usedPercentage, resetsAt: new Date(Date.now() + hours * 3_600_000).toISOString() })

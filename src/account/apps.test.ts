@@ -62,17 +62,19 @@ describe('withConfigDir', () => {
 })
 
 describe('vscodeChats', () => {
-  it('keeps only sessions started by the VS Code extension', () => {
-    const chats = vscodeChats([
-      { pid: 1, sessionId: 'aaaaaaaa-1', entrypoint: 'claude-vscode', name: 'example-90', status: 'idle' },
-      { pid: 2, sessionId: 'bbbbbbbb-2', entrypoint: 'cli', name: 'ABC-1', status: 'busy' },
-      { pid: 3, sessionId: 'cccccccc-3', entrypoint: 'claude-vscode', cwd: 'd:\\Projects\\Example' },
-      { pid: 4, sessionId: 'dddddddd-4', entrypoint: 'claude-vscode' },
+  it('keeps only sessions started by the VS Code extension, named by their tab title', () => {
+    const chats = vscodeChats('work', [
+      { record: { pid: 1, sessionId: 'aaaaaaaa-1', entrypoint: 'claude-vscode', name: 'example-90', status: 'idle' }, title: 'Header colours' },
+      { record: { pid: 2, sessionId: 'bbbbbbbb-2', entrypoint: 'cli', name: 'ABC-1', status: 'busy' }, title: null },
+      { record: { pid: 3, sessionId: 'cccccccc-3', entrypoint: 'claude-vscode', cwd: 'd:\\Projects\\Example', name: 'example-91' }, title: null },
+      { record: { pid: 4, sessionId: 'dddddddd-4', entrypoint: 'claude-vscode', cwd: 'd:\\Projects\\Example' }, title: null },
+      { record: { pid: 5, sessionId: 'eeeeeeee-5', entrypoint: 'claude-vscode' }, title: null },
     ])
     expect(chats).toEqual([
-      { name: 'example-90', status: 'idle' },
-      { name: 'Example', status: null },
-      { name: 'dddddddd', status: null },
+      { name: 'Header colours', session: 'example-90', account: 'work', status: 'idle' },
+      { name: 'example-91', session: 'example-91', account: 'work', status: null },
+      { name: 'Example', session: 'dddddddd', account: 'work', status: null },
+      { name: 'eeeeeeee', session: 'eeeeeeee', account: 'work', status: null },
     ])
   })
 })
@@ -117,8 +119,9 @@ describe('appSwitchProblem', () => {
   })
 
   it('refuses while VS Code has Claude chats open', () => {
-    const open = view(vscode({ sessions: [{ name: 'example-90', status: 'idle' }, { name: 'Example', status: 'busy' }] }))
-    expect(say(appSwitchProblem(open, 'vscode', 'work'))).toMatch(/example-90, Example/)
+    const chat = (name: string) => ({ name, session: name, account: 'global', status: 'idle' as const })
+    expect(say(appSwitchProblem(view(vscode({ sessions: [chat('Example')] })), 'vscode', 'work'))).toMatch(/1 Claude chat open/)
+    expect(say(appSwitchProblem(view(vscode({ sessions: [chat('example-90'), chat('Example')] })), 'vscode', 'work'))).toMatch(/2 Claude chats open/)
   })
 
   it('refuses an unknown app or account, the current one and an account that cannot be used', () => {

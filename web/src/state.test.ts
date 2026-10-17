@@ -1233,8 +1233,8 @@ describe('loginLeft', () => {
   const now = new Date('2026-09-28T10:00:00.000Z')
 
   it('counts the days left of a login and asks to renew it in its last week', () => {
-    expect(loginLeft('2026-10-27T10:00:00.000Z', now)).toEqual({ text: '29 дн.', renew: false })
-    expect(loginLeft('2026-10-02T09:00:00.000Z', now)).toEqual({ text: '3 дн.', renew: true })
+    expect(loginLeft('2026-10-27T10:00:00.000Z', now)).toEqual({ text: '29д', renew: false })
+    expect(loginLeft('2026-10-02T09:00:00.000Z', now)).toEqual({ text: '3д', renew: true })
     expect(loginLeft('2026-09-28T20:00:00.000Z', now)).toEqual({ text: 'меньше суток', renew: true })
   })
 

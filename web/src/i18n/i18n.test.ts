@@ -55,7 +55,7 @@ describe('say', () => {
     setLanguage('ru')
     expect(say(failed)).toBe('синхронизация главной ветки не удалась: не удалось отправить master в origin: rejected')
     setLanguage('en')
-    expect(say(failed)).toBe('sync of the main branch failed: sync: could not push master to origin: rejected')
+    expect(say(failed)).toBe('sync of the main branch failed: could not push master to origin: rejected')
   })
 
   it('shows a message saved as plain text before codes as it is', () => {

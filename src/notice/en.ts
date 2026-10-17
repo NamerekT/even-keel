@@ -133,7 +133,7 @@ export const en = {
   'account.signInRunning': () => 'claude: a sign-in into this account is running',
   'account.usedByApp': (p: { app: string }) => `claude: ${p.app} uses this account; switch it to another one first`,
   'account.codexFolder': () =>
-    'codex: the Codex account lives in CODEX_HOME or ~/.codex; it is not made active, given to an app or removed from here',
+    'codex: the account lives in CODEX_HOME or ~/.codex; it is not made active, given to an app or removed from here',
   'account.notRemoving': (p: { key: string }) => `claude: ${p.key} is not being removed`,
   'account.apiKeyInvalid': () => 'claude: an API key is one word of more than 20 characters, like sk-ant-api03-…',
   'account.apiKeyRejected': () => "claude: Anthropic doesn't accept this key: it is wrong, revoked or its organization is disabled",
@@ -156,7 +156,8 @@ export const en = {
 
   'app.unknown': (p: { app: string }) => `claude: there is no app ${p.app}`,
   'app.alreadyUses': (p: { app: string; account: string }) => `claude: ${p.app} already uses ${p.account}`,
-  'app.chatsOpen': (p: { app: string; chats: string[] }) => `claude: ${p.app} has Claude chats open (${list(p.chats)}); close them first`,
+  'app.chatsOpen': (p: { app: string; count: number }) =>
+    `claude: ${p.app} has ${p.count} Claude ${p.count === 1 ? 'chat' : 'chats'} open; close ${p.count === 1 ? 'it' : 'them'} first`,
   'vscode.noFile': () => 'vscode: the VS Code settings file is only looked for on Windows, macOS and Linux',
   'vscode.notJson': () => 'vscode: settings.json is not plain JSON (comments or trailing commas?); Even Keel does not rewrite it',
   'vscode.notObject': () => 'vscode: settings.json is not a JSON object',

@@ -4,7 +4,7 @@ import { dirname } from 'node:path'
 import { fail, notice, noticeOf } from '../notice/notice.js'
 import { pathsOf } from '../paths.js'
 import type { SessionRecord } from '../sessions/agents.js'
-import { configDirOf, vscodeChats, withConfigDir, type AppAccount } from './apps.js'
+import { configDirOf, isVsCodeChat, vscodeChats, withConfigDir, type AppAccount, type AppSession } from './apps.js'
 import type { AccountHome } from './homes.js'
 
 export interface VsCodeAccountOptions {
@@ -12,6 +12,8 @@ export interface VsCodeAccountOptions {
   homes: () => AccountHome[]
   ownerOf: (dir: string | null) => string | undefined
   records: (home: AccountHome) => Promise<SessionRecord[]>
+  /** The chat's tab title from its transcript, null until it has one. */
+  title: (home: AccountHome, sessionId: string) => Promise<string | null>
   intervalMs: number
   onChange: () => void
   onError: (error: unknown) => void
@@ -64,8 +66,8 @@ export class VsCodeAccount {
   }
 
   private async read(): Promise<AppAccount> {
-    const records = await Promise.all(this.options.homes().map((home) => this.options.records(home)))
-    const sessions = vscodeChats(records.flat())
+    const chats = await Promise.all(this.options.homes().map((home) => this.chatsOf(home)))
+    const sessions = chats.flat()
     const blank = { app: 'vscode' as const, account: null, dir: null, sessions }
     if (this.options.file === null) return { ...blank, error: notice('vscode.noFile', {}) }
     try {
@@ -74,6 +76,12 @@ export class VsCodeAccount {
     } catch (error) {
       return { ...blank, error: noticeOf(error) }
     }
+  }
+
+  private async chatsOf(home: AccountHome): Promise<AppSession[]> {
+    const records = (await this.options.records(home)).filter(isVsCodeChat)
+    const titled = await Promise.all(records.map(async (record) => ({ record, title: await this.options.title(home, record.sessionId) })))
+    return vscodeChats(home.key, titled)
   }
 }
 
