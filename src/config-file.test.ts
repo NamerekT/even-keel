@@ -112,6 +112,7 @@ describe('ConfigFile', () => {
       fillMilestone: true,
       agent: 'claude',
       codexModel: null,
+      codexBypassSandbox: false,
     })
   })
 

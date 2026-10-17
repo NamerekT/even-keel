@@ -44,6 +44,7 @@ const project = (repo: string, change: Partial<ProjectForm>): ProjectForm => ({
   fillMilestone: false,
   agent: 'claude',
   codexModel: null,
+  codexBypassSandbox: false,
   ...change,
 })
 

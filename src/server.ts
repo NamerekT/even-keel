@@ -519,7 +519,7 @@ function baseOf(body: Record<string, unknown>): Record<string, unknown> {
 
 // The shape only: the values are judged by `parseConfig` when the form is written into the config.
 function projectFormOf(body: Record<string, unknown>): ProjectForm {
-  const { name, prompt, beforeStart, check, afterGreen, ci, fillMilestone, agent, codexModel, branch, repo, tracker, trackerProject, slot, brief, chain } = body
+  const { name, prompt, beforeStart, check, afterGreen, ci, fillMilestone, agent, codexModel, codexBypassSandbox, branch, repo, tracker, trackerProject, slot, brief, chain } = body
   if (name !== undefined && name !== null && typeof name !== 'string') throw fail('request.required', { field: 'name' })
   if (prompt !== null && typeof prompt !== 'string') throw fail('request.required', { field: 'prompt' })
   const settings = {
@@ -539,6 +539,7 @@ function projectFormOf(body: Record<string, unknown>): ProjectForm {
     fillMilestone,
     agent: textOf(agent, 'agent'),
     codexModel,
+    codexBypassSandbox: switchOf(codexBypassSandbox, 'codexBypassSandbox'),
     branch: textOf(branch, 'branch'),
     repo: textOf(repo, 'repo'),
     tracker: textOf(tracker, 'tracker'),

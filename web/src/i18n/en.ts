@@ -428,6 +428,9 @@ export const en: Messages = {
     agents: { claude: 'Claude Code', codex: 'Codex' },
     codexModel: 'Codex model',
     codexModelHint: 'Empty — the model of the Codex config. The Sonnet, Opus and Haiku labels act only on Claude.',
+    codexBypassSandbox: 'Run Codex sessions without the sandbox',
+    codexBypassSandboxHint:
+      'Off — the automatic reviewer approves actions inside the Codex sandbox. Under the Windows service that sandbox does not start, and a session can neither edit files nor run commands; on, a session does everything without limits on this machine. Claude sessions are not affected.',
     guard: 'Keep main green',
     guardHint:
       'Off: the chain does not watch main — after a push the next task starts at once, with no wait for CI, no check and no fix of a red main; CI itself still runs and reports as usual. For when the project’s CI serves other ends (deploys, releases, reports) or you watch main yourself. The fields below keep their values.',

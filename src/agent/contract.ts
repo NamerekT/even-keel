@@ -43,6 +43,8 @@ export interface SessionStart {
   settings?: string
   /** Optional. The agent's own model name (the project's `codexModel`); without it the agent's configured default. */
   modelName?: string
+  /** Optional. Run without the agent's own sandbox and approvals (the project's `codexBypassSandbox`). */
+  bypassSandbox?: boolean
   /** Optional. The tracker's MCP server for an agent that does not read Claude Code plugins. */
   tracker?: TrackerServer
 }

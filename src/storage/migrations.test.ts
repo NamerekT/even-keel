@@ -148,9 +148,9 @@ describe('upgradeStorage', () => {
   })
 
   // v2 → v3 (the launch log's fix entries), v3 → v4 (the name of an account), v4 → v5 (`commands.afterGreen` and its
-  // mark in the chain's `ci`) and v5 → v6 (a project's agent, Codex sessions) only add optional fields, so each step only
-  // stamps the files.
-  describe.each([2, 3, 4, 5])('v%i to the current version', (from) => {
+  // mark in the chain's `ci`), v5 → v6 (a project's agent, Codex sessions) and v6 → v7 (the bypass of the Codex sandbox)
+  // only add optional fields, so each step only stamps the files.
+  describe.each([2, 3, 4, 5, 6])('v%i to the current version', (from) => {
     const sample = join(root, 'test', 'fixtures', `schema-v${from}`)
     const names = ['even-keel.config.json', 'state/chain.json', 'state/questions.json', 'state/launches.jsonl', 'state/account.json']
 

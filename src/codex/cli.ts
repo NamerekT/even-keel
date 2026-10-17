@@ -19,8 +19,10 @@ const POLL_MS = 500
 const STOP_TIMEOUT_MS = 30_000
 const TRIPLES: Record<string, string> = { x64: 'x86_64-pc-windows-msvc', arm64: 'aarch64-pc-windows-msvc' }
 
-/** Chain sessions run without a human: the model approves its own actions (BTN-168; the sandbox is BTN-171). */
+/** Chain sessions run without a human: the model approves its own actions (BTN-168). */
 export const SESSION_MODE = 'approve-for-me'
+/** A project's `codexBypassSandbox`: from the Windows service the sandbox does not start (BTN-171). */
+const BYPASS_MODE = 'dangerously-bypass-approvals-and-sandbox'
 
 /**
  * `EVEN_KEEL_CODEX_BIN`, else on Windows the native `codex.exe` of the global npm package (its `codex.cmd` needs a
@@ -36,13 +38,13 @@ export function resolveCodexBinary(env: NodeJS.ProcessEnv): string {
 }
 
 /** Every flag of `codex exec` goes before `resume`: the subcommand has none of its own. */
-export function turnArgs(start: Pick<SessionStart, 'modelName' | 'tracker'>, prompt: string, resumeId?: string): string[] {
-  const { modelName, tracker } = start
+export function turnArgs(start: Pick<SessionStart, 'modelName' | 'bypassSandbox' | 'tracker'>, prompt: string, resumeId?: string): string[] {
+  const { modelName, bypassSandbox, tracker } = start
   const variables = Object.keys(tracker?.env ?? {})
   return [
     'exec',
     '--json',
-    `--${SESSION_MODE}`,
+    `--${bypassSandbox === true ? BYPASS_MODE : SESSION_MODE}`,
     ...(modelName === undefined ? [] : ['-m', modelName]),
     ...(tracker === undefined ? [] : mcpArgs(tracker.name, tracker.server, variables)),
     ...(variables.length > 0 ? ['-c', `shell_environment_policy.exclude=${JSON.stringify(variables)}`] : []),

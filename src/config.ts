@@ -99,7 +99,7 @@ export function parseConfig(raw: unknown, adapters: AdapterShapes = ADAPTERS): E
   for (const [index, fields] of (input.projects as unknown[]).entries()) {
     const place = `projects[${index}]`
     if (!isPlainObject(fields)) throw fail('config.projectEntry', { where: place })
-    const { id, key, repo, name, branch, chain, slot, tracker, brief, prompt, commands, ci, fillMilestone, agent, codexModel } = fields
+    const { id, key, repo, name, branch, chain, slot, tracker, brief, prompt, commands, ci, fillMilestone, agent, codexModel, codexBypassSandbox } = fields
     if (typeof key !== 'string' || !PROJECT_KEY.test(key)) throw fail('config.projectKey', { where: `${place}.key`, value: String(JSON.stringify(key)) })
     if (typeof id !== 'string' || id.trim() === '') throw fail('config.projectId', { where: `${place}.id` })
     for (const [field, value] of [['key', key], ['id', id]] as const) {
@@ -127,6 +127,7 @@ export function parseConfig(raw: unknown, adapters: AdapterShapes = ADAPTERS): E
       fillMilestone: fillMilestone === undefined ? false : parseBrief(fillMilestone, `${key}.fillMilestone`),
       agent: parseAgent(agent, `${key}.agent`),
       codexModel: parseCodexModel(codexModel, `${key}.codexModel`),
+      codexBypassSandbox: codexBypassSandbox === undefined ? false : parseBrief(codexBypassSandbox, `${key}.codexBypassSandbox`),
     }
   }
 
@@ -464,12 +465,12 @@ export function readRawConfig(file: string): unknown {
 }
 
 /**
- * The project's entry in the config file with `branch`, `prompt`, `commands`, `ci`, `fillMilestone`, `agent` and `codexModel` set, or
- * removed when empty or default; its other keys stay, and so do the settings `changed` leaves out.
+ * The project's entry in the config file with `branch`, `prompt`, `commands`, `ci`, `fillMilestone`, `agent`, `codexModel` and
+ * `codexBypassSandbox` set, or removed when empty or default; its other keys stay, and so do the settings `changed` leaves out.
  */
 export function withProjectSettings(
   entry: unknown,
-  { branch, prompt, beforeStart, check, afterGreen, ci, fillMilestone, agent, codexModel }: ProjectSettings,
+  { branch, prompt, beforeStart, check, afterGreen, ci, fillMilestone, agent, codexModel, codexBypassSandbox }: ProjectSettings,
   changed: (field: keyof ProjectSettings) => boolean = () => true,
 ): Record<string, unknown> {
   const fields: Record<string, unknown> = isPlainObject(entry) ? { ...entry } : { repo: entry }
@@ -502,6 +503,7 @@ export function withProjectSettings(
   if (changed('fillMilestone')) put(fields, 'fillMilestone', fillMilestone || undefined)
   if (changed('agent')) put(fields, 'agent', agent === DEFAULT_AGENT ? undefined : agent)
   if (changed('codexModel')) put(fields, 'codexModel', codexModel?.trim() || undefined)
+  if (changed('codexBypassSandbox')) put(fields, 'codexBypassSandbox', codexBypassSandbox || undefined)
   return fields
 }
 

@@ -350,13 +350,21 @@ const planFor = (task: string, prompt: string, project = projectOf(task)): Launc
 /** The folder a new session starts in: Codex has its one folder, Claude sessions start in the active account. */
 const startHomeKey = (agent: string) => (agent === CODEX ? CODEX_ACCOUNT : ledger.active)
 
-/** What a session of an agent without Claude Code's plugins and model labels also gets: the project's model and the tracker's server. */
-const agentExtras = (home: AccountHome, project: string | undefined): Pick<SessionStart, 'modelName' | 'tracker'> => {
+/**
+ * What a session of an agent without Claude Code's plugins and model labels also gets: the project's model, its bypass
+ * of the sandbox and the tracker's server.
+ */
+const agentExtras = (home: AccountHome, project: string | undefined): Pick<SessionStart, 'modelName' | 'bypassSandbox' | 'tracker'> => {
   if (home.agent === CLAUDE || project === undefined) return {}
   const adapter = ADAPTERS[config.trackers[project]!]!
   const tracker = adapter.mcpServer === undefined ? undefined : readTrackerServer(root, adapter.mcpServer, adapter.variables, homes.global.dir, process.env)
-  const modelName = configFile.current.settings[project]?.codexModel ?? undefined
-  return { ...(modelName === undefined ? {} : { modelName }), ...(tracker === undefined ? {} : { tracker }) }
+  const settings = configFile.current.settings[project]
+  const modelName = settings?.codexModel ?? undefined
+  return {
+    ...(modelName === undefined ? {} : { modelName }),
+    ...(settings?.codexBypassSandbox === true ? { bypassSandbox: true } : {}),
+    ...(tracker === undefined ? {} : { tracker }),
+  }
 }
 
 const promptLanguage = () => configFile.current.promptLanguage

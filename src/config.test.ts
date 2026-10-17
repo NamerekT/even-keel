@@ -87,7 +87,7 @@ describe('parseConfig', () => {
       trackerProjects: {},
       brief: true,
       briefs: { ABC: true },
-      settings: { ABC: { branch: 'main', prompt: null, beforeStart: [], check: [], afterGreen: [], ci: DEFAULT_CI, fillMilestone: false, agent: 'claude', codexModel: null } },
+      settings: { ABC: { branch: 'main', prompt: null, beforeStart: [], check: [], afterGreen: [], ci: DEFAULT_CI, fillMilestone: false, agent: 'claude', codexModel: null, codexBypassSandbox: false } },
       context: { window: 600_000, warn: 50, danger: 80 },
       model: 'opus',
       modelPrompts: {},
@@ -212,8 +212,9 @@ describe('parseConfig', () => {
         fillMilestone: false,
         agent: 'claude',
         codexModel: null,
+        codexBypassSandbox: false,
       },
-      XYZ: { branch: 'main', prompt: null, beforeStart: [], check: [], afterGreen: [], ci: DEFAULT_CI, fillMilestone: false, agent: 'claude', codexModel: null },
+      XYZ: { branch: 'main', prompt: null, beforeStart: [], check: [], afterGreen: [], ci: DEFAULT_CI, fillMilestone: false, agent: 'claude', codexModel: null, codexBypassSandbox: false },
     })
   })
 
@@ -255,9 +256,16 @@ describe('parseConfig', () => {
   it('reads the agent of a project, Claude by default, and the Codex model, blank is none', () => {
     const config = parse({ projects: { ABC: { repo: 'C:\\abc', agent: ' Codex ', codexModel: ' gpt-5.6-luna ' }, XYZ: { repo: 'C:\\xyz', codexModel: ' ' } } })
     expect(config.settings.ABC).toMatchObject({ agent: 'codex', codexModel: 'gpt-5.6-luna' })
-    expect(config.settings.XYZ).toMatchObject({ agent: 'claude', codexModel: null })
+    expect(config.settings.XYZ).toMatchObject({ agent: 'claude', codexModel: null, codexBypassSandbox: false })
     expect(() => parse({ projects: { ABC: { repo: 'C:\\abc', agent: 'gemini' } } })).toThrow(expect.objectContaining({ notice: expect.objectContaining({ code: 'config.agent' }) }))
     expect(() => parse({ projects: { ABC: { repo: 'C:\\abc', codexModel: 5 } } })).toThrow(expect.objectContaining({ notice: expect.objectContaining({ code: 'config.codexModel' }) }))
+  })
+
+  it('keeps the Codex sandbox unless the project bypasses it', () => {
+    const config = parse({ projects: { ABC: { repo: 'C:\\abc', codexBypassSandbox: true }, XYZ: { repo: 'C:\\xyz' } } })
+    expect(config.settings.ABC?.codexBypassSandbox).toBe(true)
+    expect(config.settings.XYZ?.codexBypassSandbox).toBe(false)
+    expect(() => parse({ projects: { ABC: { repo: 'C:\\abc', codexBypassSandbox: 'yes' } } })).toThrow(/ABC.codexBypassSandbox/)
   })
 
   it('rejects an unknown CI and a wait that is not whole minutes', () => {
@@ -514,7 +522,7 @@ describe('reloading the config', () => {
 
   it('applies the project prompt and the commands before start at once', () => {
     const next = parse({ projects: { ABC: { repo: 'C:\\abc', prompt: 'Mind Library.', commands: { beforeStart: ['npm ci'] } } } })
-    expect(liveConfig(base, next).settings).toEqual({ ABC: { branch: 'main', prompt: 'Mind Library.', beforeStart: ['npm ci'], check: [], afterGreen: [], ci: DEFAULT_CI, fillMilestone: false, agent: 'claude', codexModel: null } })
+    expect(liveConfig(base, next).settings).toEqual({ ABC: { branch: 'main', prompt: 'Mind Library.', beforeStart: ['npm ci'], check: [], afterGreen: [], ci: DEFAULT_CI, fillMilestone: false, agent: 'claude', codexModel: null, codexBypassSandbox: false } })
     expect(restartChanges(base, next)).toEqual([])
   })
 
@@ -558,13 +566,13 @@ describe('reloading the config', () => {
 
 describe('withProjectSettings', () => {
   it('writes the main branch only when it is not main', () => {
-    const settings = { branch: 'master', prompt: null, beforeStart: [], check: [], afterGreen: [], ci: DEFAULT_CI, fillMilestone: false, agent: 'claude', codexModel: null }
+    const settings = { branch: 'master', prompt: null, beforeStart: [], check: [], afterGreen: [], ci: DEFAULT_CI, fillMilestone: false, agent: 'claude', codexModel: null, codexBypassSandbox: false }
     expect(withProjectSettings('C:\\abc', settings)).toEqual({ repo: 'C:\\abc', branch: 'master' })
     expect(withProjectSettings({ repo: 'C:\\abc', branch: 'master' }, { ...settings, branch: ' main ' })).toEqual({ repo: 'C:\\abc' })
   })
 
   it('writes the CI settings only when they differ from the default, keeping the other keys', () => {
-    const settings = { branch: 'main', prompt: null, beforeStart: [], check: [], afterGreen: [], ci: DEFAULT_CI, fillMilestone: false, agent: 'claude', codexModel: null }
+    const settings = { branch: 'main', prompt: null, beforeStart: [], check: [], afterGreen: [], ci: DEFAULT_CI, fillMilestone: false, agent: 'claude', codexModel: null, codexBypassSandbox: false }
     expect(withProjectSettings({ repo: 'C:\\abc', ci: { kinds: ['github'] } }, settings)).toEqual({ repo: 'C:\\abc' })
     expect(withProjectSettings('C:\\abc', { ...settings, ci: { guard: true, kinds: ['github', 'forgejo'], waitMinutes: 10, recheckMain: true, fixTask: false } })).toEqual({
       repo: 'C:\\abc',
@@ -577,25 +585,31 @@ describe('withProjectSettings', () => {
   })
 
   it('writes the guard of main only when it is off, and keeps the CI keys it covers', () => {
-    const settings = { branch: 'main', prompt: null, beforeStart: [], check: ['npm test'], afterGreen: [], ci: { ...DEFAULT_CI, guard: false, waitMinutes: 10 }, fillMilestone: false, agent: 'claude', codexModel: null }
+    const settings = { branch: 'main', prompt: null, beforeStart: [], check: ['npm test'], afterGreen: [], ci: { ...DEFAULT_CI, guard: false, waitMinutes: 10 }, fillMilestone: false, agent: 'claude', codexModel: null, codexBypassSandbox: false }
     expect(withProjectSettings('C:\\abc', settings)).toEqual({ repo: 'C:\\abc', commands: { check: ['npm test'] }, ci: { guard: false, waitMinutes: 10 } })
     expect(withProjectSettings({ repo: 'C:\\abc', ci: { guard: false } }, { ...settings, check: [], ci: DEFAULT_CI })).toEqual({ repo: 'C:\\abc' })
   })
 
   it('writes the milestone switch only when it is on', () => {
-    const settings = { branch: 'main', prompt: null, beforeStart: [], check: [], afterGreen: [], ci: DEFAULT_CI, fillMilestone: true, agent: 'claude', codexModel: null }
+    const settings = { branch: 'main', prompt: null, beforeStart: [], check: [], afterGreen: [], ci: DEFAULT_CI, fillMilestone: true, agent: 'claude', codexModel: null, codexBypassSandbox: false }
     expect(withProjectSettings('C:\\abc', settings)).toEqual({ repo: 'C:\\abc', fillMilestone: true })
     expect(withProjectSettings({ repo: 'C:\\abc', fillMilestone: true }, { ...settings, fillMilestone: false })).toEqual({ repo: 'C:\\abc' })
   })
 
   it('writes the agent only when it is not Claude, and the Codex model only when set', () => {
-    const settings = { branch: 'main', prompt: null, beforeStart: [], check: [], afterGreen: [], ci: DEFAULT_CI, fillMilestone: false, agent: 'codex', codexModel: ' gpt-5.6-luna ' }
+    const settings = { branch: 'main', prompt: null, beforeStart: [], check: [], afterGreen: [], ci: DEFAULT_CI, fillMilestone: false, agent: 'codex', codexModel: ' gpt-5.6-luna ', codexBypassSandbox: false }
     expect(withProjectSettings('C:\\abc', settings)).toEqual({ repo: 'C:\\abc', agent: 'codex', codexModel: 'gpt-5.6-luna' })
     expect(withProjectSettings({ repo: 'C:\\abc', agent: 'codex', codexModel: 'x' }, { ...settings, agent: 'claude', codexModel: ' ' })).toEqual({ repo: 'C:\\abc' })
   })
 
+  it('writes the bypass of the Codex sandbox only when it is on', () => {
+    const settings = { branch: 'main', prompt: null, beforeStart: [], check: [], afterGreen: [], ci: DEFAULT_CI, fillMilestone: false, agent: 'codex', codexModel: null, codexBypassSandbox: true }
+    expect(withProjectSettings('C:\\abc', settings)).toEqual({ repo: 'C:\\abc', agent: 'codex', codexBypassSandbox: true })
+    expect(withProjectSettings({ repo: 'C:\\abc', codexBypassSandbox: true }, { ...settings, agent: 'claude', codexBypassSandbox: false })).toEqual({ repo: 'C:\\abc' })
+  })
+
   it('writes the check commands and the commands after a green main next to the commands before start', () => {
-    const settings = { branch: 'main', prompt: null, beforeStart: ['npm ci'], check: [' npm test ', ''], afterGreen: ['npm run build '], ci: DEFAULT_CI, fillMilestone: false, agent: 'claude', codexModel: null }
+    const settings = { branch: 'main', prompt: null, beforeStart: ['npm ci'], check: [' npm test ', ''], afterGreen: ['npm run build '], ci: DEFAULT_CI, fillMilestone: false, agent: 'claude', codexModel: null, codexBypassSandbox: false }
     expect(withProjectSettings({ repo: 'C:\\abc', commands: { check: ['old'] } }, settings)).toEqual({
       repo: 'C:\\abc',
       commands: { beforeStart: ['npm ci'], check: ['npm test'], afterGreen: ['npm run build'] },

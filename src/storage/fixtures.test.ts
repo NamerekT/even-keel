@@ -33,8 +33,8 @@ describe(`frozen samples of schema v${SCHEMA_VERSION}`, () => {
     expect(config.projects).toEqual({ ABC: 'C:\\repos\\example-project', XYZ: 'C:\\repos\\other-project' })
     expect(config.slots).toEqual({ XYZ: 2 })
     expect(config.settings.ABC?.afterGreen).toEqual(['npm run build', 'pwsh -File service/restart.ps1'])
-    expect(config.settings.ABC).toMatchObject({ agent: 'claude', codexModel: null })
-    expect(config.settings.XYZ).toMatchObject({ agent: 'codex', codexModel: 'gpt-5.6-luna' })
+    expect(config.settings.ABC).toMatchObject({ agent: 'claude', codexModel: null, codexBypassSandbox: false })
+    expect(config.settings.XYZ).toMatchObject({ agent: 'codex', codexModel: 'gpt-5.6-luna', codexBypassSandbox: true })
   })
 
   it('reads the record of a Codex session', () => {

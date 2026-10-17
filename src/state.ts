@@ -69,7 +69,7 @@ export interface TrackerUrls {
 
 /**
  * What the user sets per project and the chain reads live: `branch`, `prompt`, `commands.beforeStart`, `commands.check`,
- * `commands.afterGreen`, `ci`, `fillMilestone`, `agent` and `codexModel` in the config.
+ * `commands.afterGreen`, `ci`, `fillMilestone`, `agent`, `codexModel` and `codexBypassSandbox` in the config.
  */
 export interface ProjectSettings {
   /** The project's main branch: tasks branch off it and merge into it, the CI watches it. */
@@ -89,6 +89,11 @@ export interface ProjectSettings {
   agent: string
   /** The model of the project's Codex sessions; `null` — the one of the Codex config. */
   codexModel: string | null
+  /**
+   * The project's Codex sessions run without Codex's sandbox and automatic reviewer: from the Windows service the
+   * sandbox does not start (BTN-171). Claude ignores it.
+   */
+  codexBypassSandbox: boolean
 }
 
 /** Which CIs of the project the chain counts after a push of main, and how long it waits for them. */

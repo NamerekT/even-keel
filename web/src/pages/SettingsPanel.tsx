@@ -64,7 +64,7 @@ export function SettingsChip({ open, look = 'tag', dirty, onToggle }: { open: bo
 const GROUPS = [
   { id: 'repo', keys: ['repo', 'branch', 'slot'] },
   { id: 'tracker', keys: ['tracker', 'trackerProject', 'fillMilestone', ...RULE_KEYS] },
-  { id: 'sessions', keys: ['agent', 'codexModel', 'brief', 'prompt', 'beforeStart'] },
+  { id: 'sessions', keys: ['agent', 'codexModel', 'codexBypassSandbox', 'brief', 'prompt', 'beforeStart'] },
   { id: 'ci', keys: ['guard', 'check', 'afterGreen', 'kinds', 'wait', 'recheck', 'fixTask'] },
 ] as const
 type GroupId = (typeof GROUPS)[number]['id']
@@ -93,6 +93,7 @@ const valuesOf = (form: ProjectForm): Values => ({
   fillMilestone: form.fillMilestone,
   agent: form.agent,
   codexModel: form.codexModel ?? '',
+  codexBypassSandbox: form.codexBypassSandbox,
 })
 /** Empty — wait as long as it takes; `undefined` — not a whole number of minutes. */
 const minutesOf = (text: string): number | null | undefined => (text.trim() === '' ? null : wholeOf(text, 0))
@@ -124,6 +125,7 @@ function formOf(values: Values, name: string | null): ProjectForm | undefined {
     fillMilestone: on('fillMilestone'),
     agent: text('agent'),
     codexModel: codexModel === '' ? null : codexModel,
+    codexBypassSandbox: on('codexBypassSandbox'),
   }
 }
 
@@ -318,6 +320,7 @@ export function SettingsPanel({
             <FieldNote error={errorOf('codexModel')} />
           </div>
         </div>
+        {check('codexBypassSandbox', t.settings.codexBypassSandbox, t.settings.codexBypassSandboxHint, 'codexBypassSandbox')}
         {check('brief', t.settings.brief, t.settings.briefHint, 'brief')}
         <div className={marks.box('prompt')}>
           <FieldHead label={t.settings.prompt} hint={t.settings.promptHint} htmlFor={fieldId('prompt')} />
