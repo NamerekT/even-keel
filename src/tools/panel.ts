@@ -5,10 +5,9 @@ import { sharedMemory } from '../account/share.js'
 import { samePath } from '../paths.js'
 import type { CacheTtl } from '../state.js'
 import { projectDirName } from '../sessions/paths.js'
-import { readMcpSources } from '../tracker/mcp.js'
 import type { ReceivedTools, ToolsView } from './model.js'
 import { latestStarted, readReceived, skillSource } from './received.js'
-import { accountDrift, mcpRows, settingRows, strayMcpServers, trimSettings } from './settings.js'
+import { accountDrift, settingRows, trimSettings } from './settings.js'
 
 type Json = Record<string, unknown>
 
@@ -34,15 +33,21 @@ export interface ToolsPlaces {
 }
 
 /**
- * The `--settings` JSON for a chain session of the repository working in `cwd`: the shared memory folder, the main
- * checkout's MCP servers the worktree would hang on, the prompt cache TTL when the config pins one and, with trimming
+ * The `--settings` JSON for a chain session of the repository: the shared memory folder, the enabled plugins its
+ * packages do not bring turned off (`otherPlugins`), the prompt cache TTL when the config pins one and, with trimming
  * on, the trimming.
  */
-export function chainSettings(repo: string, cwd: string, trim: boolean, hidden: string[], globalDir: string, cacheTtl: CacheTtl | null): string {
-  const stray = strayMcpServers(repo, cwd, readJson)
+export function chainSettings(
+  repo: string,
+  plugins: Record<string, false>,
+  trim: boolean,
+  hidden: string[],
+  globalDir: string,
+  cacheTtl: CacheTtl | null,
+): string {
   const always = {
     autoMemoryDirectory: sharedMemory(globalDir, repo),
-    ...(stray.length > 0 && { disabledMcpjsonServers: stray }),
+    ...(Object.keys(plugins).length > 0 && { enabledPlugins: plugins }),
     ...(cacheTtl !== null && { promptCacheTtl: cacheTtl }),
   }
   if (!trim) return JSON.stringify(always)
@@ -55,8 +60,8 @@ export async function readToolsView(project: string, places: ToolsPlaces): Promi
   const user = readJson(join(places.globalDir, 'settings.json'))
   const { project: shared, local } = projectSettings(repo)
   const chain = places.trim ? trimSettings(places.hidden, shared, local) : undefined
-  const sources = readMcpSources(repo, { claudeDir: places.globalDir, configs: places.configs })
-  const localAllowed = (sources?.configs ?? []).flatMap((config) => {
+  const configs = places.configs.map(readJson).filter((config) => config !== undefined)
+  const localAllowed = configs.flatMap((config) => {
     const entries = Object.entries(objectOf(config.projects)).filter(([path]) => samePath(path, repo))
     return entries.flatMap(([, entry]) => strings(objectOf(entry).allowedTools))
   })
@@ -73,7 +78,6 @@ export async function readToolsView(project: string, places: ToolsPlaces): Promi
     repo,
     trim: places.trim,
     settings: settingRows({ user, project: shared, local, chain, chainMode: places.mode, localAllowed: [...new Set(localAllowed)] }),
-    mcp: sources === undefined ? [] : mcpRows(sources, repo),
     accounts,
     received: received === undefined ? null : { ...received, skills: received.skills.map((name) => ({ name, source: skillSource(name, known) })) },
   }

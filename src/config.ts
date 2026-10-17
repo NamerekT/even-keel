@@ -86,6 +86,7 @@ export const DEFAULT_EXECUTION: Readonly<Record<string, string>> = Object.fromEn
 export const CONFIG_FILE = 'even-keel.config.json'
 const DEFAULT_HOST = '127.0.0.1'
 const DEFAULT_PORT = 4747
+const DEFAULT_MCP_PORT = 4748
 // What `git check-ref-format --branch` refuses, short of the rarest cases.
 const BRANCH = /^(?!-)(?!.*\.\.)(?!.*@\{)(?!.*\/\/)(?!.*\/\.)(?!\.)[^\s~^:?*[\\\x00-\x1f\x7f]+(?<![/.])(?<!\.lock)$/
 export const DEFAULT_LANGUAGE: Language = 'en'
@@ -266,6 +267,14 @@ export function listenOf(env: NodeJS.ProcessEnv): { host: string; port: number }
   const port = /^\d+$/.test(text) ? Number(text) : NaN
   if (!Number.isInteger(port) || port < 1 || port > 65535) throw fail('config.port', { value: text })
   return { host, port }
+}
+
+/** The port of the MCP gateway (`src/packages/gateway.ts`), always on 127.0.0.1. */
+export function mcpPortOf(env: NodeJS.ProcessEnv): number {
+  const text = env.EVEN_KEEL_MCP_PORT?.trim() || String(DEFAULT_MCP_PORT)
+  const port = /^\d+$/.test(text) ? Number(text) : NaN
+  if (!Number.isInteger(port) || port < 1 || port > 65535) throw fail('config.mcpPort', { value: text })
+  return port
 }
 
 /** The keys of the raw config that are no longer read. */

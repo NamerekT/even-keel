@@ -1,17 +1,13 @@
 import { describe, expect, it } from 'vitest'
-import type { McpRow, SettingRow, ToolsView } from '../../../src/tools/model.js'
-import { filterRows, hiddenSkills, mcpMatrix, mcpState, problemCount, problemsOf, scopeMarks, settingMatrix, sharedProblems, tone, usedScopes } from './matrix.js'
+import type { SettingRow, ToolsView } from '../../../src/tools/model.js'
+import { filterRows, hiddenSkills, problemCount, problemsOf, scopeMarks, settingMatrix, sharedProblems, tone, usedScopes } from './matrix.js'
 
 function row(kind: SettingRow['kind'], name: string, values: SettingRow['values'], session = values.chain ?? values.project ?? values.user ?? null): SettingRow {
   return { kind, name, values, session }
 }
 
-function mcp(name: string, extra: Partial<McpRow> = {}): McpRow {
-  return { name, scope: 'user', plugin: null, disabled: false, worktree: true, ...extra }
-}
-
 function view(project: string, settings: SettingRow[], more: Partial<ToolsView> = {}): ToolsView {
-  return { project, repo: `D:\\work\\${project}`, trim: true, settings, mcp: [], accounts: [], received: null, ...more }
+  return { project, repo: `D:\\work\\${project}`, trim: true, settings, accounts: [], received: null, ...more }
 }
 
 describe('settingMatrix', () => {
@@ -49,22 +45,6 @@ describe('filterRows', () => {
   })
 })
 
-describe('mcpMatrix', () => {
-  it('matches servers by scope, plugin and name', () => {
-    const a = view('A', [], { mcp: [mcp('db', { scope: 'local', worktree: false }), mcp('huly', { scope: 'plugin', plugin: 'huly' })] })
-    const b = view('B', [], { mcp: [mcp('huly', { scope: 'plugin', plugin: 'huly' })] })
-    const rows = mcpMatrix([a, b])
-    expect(rows.map((each) => [each.name, each.cells.map((cell) => cell && mcpState(cell))])).toEqual([
-      ['db', ['outside', null]],
-      ['huly', ['on', 'on']],
-    ])
-  })
-
-  it('names a disabled server before one outside the worktree', () => {
-    expect(mcpState(mcp('db', { disabled: true, worktree: false }))).toBe('disabled')
-  })
-})
-
 describe('scopeMarks', () => {
   it('marks the scope that wins, the same, the overridden and the unread one', () => {
     const marks = scopeMarks(row('plugin', 'playwright', { user: 'on', project: 'off', local: 'on', chain: 'off' }))
@@ -98,7 +78,6 @@ describe('problemsOf', () => {
     const lost = row('permission', 'Bash(x)', { local: 'allow' })
     const found = problemsOf(
       view('A', [row('plugin', 'huly', { project: 'on' }), lost], {
-        mcp: [mcp('db', { scope: 'local', worktree: false }), mcp('old', { worktree: false, disabled: true })],
         received: {
           sessionId: null,
           cwd: null,
@@ -118,8 +97,8 @@ describe('problemsOf', () => {
         },
       }),
     )
-    expect(found).toEqual({ unreached: [lost], claudeai: ['anthropic-skills:pdf'], mcpFailed: ['forgejo'], mcpOutside: ['db'] })
-    expect(problemCount(found)).toBe(4)
+    expect(found).toEqual({ unreached: [lost], claudeai: ['anthropic-skills:pdf'], mcpFailed: ['forgejo'] })
+    expect(problemCount(found)).toBe(3)
   })
 
   it('finds nothing in a clean view without a session', () => {
@@ -130,13 +109,10 @@ describe('problemsOf', () => {
 describe('sharedProblems', () => {
   it('lists each problem once with the projects that have it', () => {
     const lost = (value: string) => row('permission', 'Bash(x)', { local: value })
-    const a = view('A', [lost('allow')], { mcp: [mcp('db', { worktree: false })] })
+    const a = view('A', [lost('allow')])
     const b = view('B', [lost('allow')])
     const c = view('C', [row('plugin', 'huly', { project: 'on' })])
-    expect(sharedProblems([a, b, c])).toEqual([
-      { kind: 'unreached', name: 'Bash(x)', projects: ['A', 'B'], row: a.settings[0] },
-      { kind: 'mcpOutside', name: 'db', projects: ['A'], row: null },
-    ])
+    expect(sharedProblems([a, b, c])).toEqual([{ kind: 'unreached', name: 'Bash(x)', projects: ['A', 'B'], row: a.settings[0] }])
   })
 })
 

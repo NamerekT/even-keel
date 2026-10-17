@@ -43,20 +43,16 @@ describe('turnArgs', () => {
     expect(turnArgs({ model: null, bypassSandbox: false }, 'BTN-1', 'thread-1')).toEqual(['exec', '--json', '--approve-for-me', 'resume', 'thread-1', 'BTN-1'])
   })
 
-  it('puts the model, the tracker and every other flag before resume', () => {
-    const tracker = { name: 'huly', server: { command: 'npx' }, env: { HULY_URL: 'https://example.com' } }
-    expect(turnArgs({ model: 'gpt-5.6-luna', tracker }, 'go on', 'thread-1')).toEqual([
+  it('puts the model, the gateway servers and every other flag before resume', () => {
+    const mcp = [{ name: 'huly', plugin: 'huly', url: 'http://127.0.0.1:4748/mcp/p/huly%40even-keel@a/huly' }]
+    expect(turnArgs({ model: 'gpt-5.6-luna', mcp }, 'go on', 'thread-1')).toEqual([
       'exec',
       '--json',
       '--approve-for-me',
       '-m',
       'gpt-5.6-luna',
       '-c',
-      'mcp_servers.huly.command="npx"',
-      '-c',
-      'mcp_servers.huly.env_vars=["HULY_URL"]',
-      '-c',
-      'shell_environment_policy.exclude=["HULY_URL"]',
+      'mcp_servers.huly.url="http://127.0.0.1:4748/mcp/p/huly%40even-keel@a/huly"',
       'resume',
       'thread-1',
       'go on',

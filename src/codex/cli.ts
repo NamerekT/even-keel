@@ -38,16 +38,14 @@ export function resolveCodexBinary(env: NodeJS.ProcessEnv): string {
 }
 
 /** Every flag of `codex exec` goes before `resume`: the subcommand has none of its own. */
-export function turnArgs(start: Pick<SessionStart, 'model' | 'bypassSandbox' | 'tracker'>, prompt: string, resumeId?: string): string[] {
-  const { model, bypassSandbox, tracker } = start
-  const variables = Object.keys(tracker?.env ?? {})
+export function turnArgs(start: Pick<SessionStart, 'model' | 'bypassSandbox' | 'mcp'>, prompt: string, resumeId?: string): string[] {
+  const { model, bypassSandbox, mcp = [] } = start
   return [
     'exec',
     '--json',
     `--${bypassSandbox === true ? BYPASS_MODE : SESSION_MODE}`,
     ...(model === null ? [] : ['-m', model]),
-    ...(tracker === undefined ? [] : mcpArgs(tracker.name, tracker.server, variables)),
-    ...(variables.length > 0 ? ['-c', `shell_environment_policy.exclude=${JSON.stringify(variables)}`] : []),
+    ...mcpArgs(mcp),
     ...(resumeId === undefined ? [] : ['resume', resumeId]),
     prompt,
   ]
@@ -180,7 +178,7 @@ export class CodexCli {
     try {
       child = spawn(this.bin(), args, {
         cwd,
-        env: { ...this.envOf(home), ...start.tracker?.env },
+        env: this.envOf(home),
         detached: true,
         stdio: ['ignore', fd, fd],
         windowsHide: true,

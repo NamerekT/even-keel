@@ -42,17 +42,21 @@ export interface SessionStart {
   settings?: string
   /** Optional. Run without the agent's own sandbox and approvals (the global `execution` of the agent is `bypass`). */
   bypassSandbox?: boolean
-  /** Optional. The tracker's MCP server for an agent that does not read Claude Code plugins. */
-  tracker?: TrackerServer
+  /**
+   * Optional. The MCP servers of the project's packages, all behind Even Keel's gateway (`src/packages/`): the session
+   * gets these and no other. `undefined` — the agent's own configuration decides.
+   */
+  mcp?: SessionMcp[]
+  /** Optional. The folders of the project's plugin packages, for an agent that reads Claude Code plugins. */
+  plugins?: string[]
 }
 
-/** A tracker's MCP server as its Claude Code plugin declares it, with the credentials the session must not see. */
-export interface TrackerServer {
+/** A server of the gateway: the session reaches it at `url` with no credentials of its own. */
+export interface SessionMcp {
   name: string
-  /** The server's entry of the plugin's `.mcp.json`. */
-  server: unknown
-  /** The tracker's variables and their values. */
-  env: Record<string, string>
+  /** The plugin it comes with: Claude Code names its tools after the plugin, and the plugin's hooks match them so. */
+  plugin: string | null
+  url: string
 }
 
 /** A session as the agent knows it: the id of its job or process and the id of its conversation. */

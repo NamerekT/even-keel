@@ -152,6 +152,11 @@ export interface TrackerAdapter {
    * for the project folder and warns when it is missing: the sessions would get nothing but the task id.
    */
   mcpServer?: string
+  /**
+   * Optional. By placeholder of the tracker plugin's `.mcp.json`, the adapter's variable that holds its value
+   * (`GITHUB_PERSONAL_ACCESS_TOKEN` ← `GITHUB_TOKEN`): the MCP gateway fills it from the same pool of keys.
+   */
+  mcpKeys?: Readonly<Record<string, string>>
   /** Optional. For a tracker whose projects are not named by the project key alone (GitHub: `owner/name`). */
   projectKey?: TrackerProjectKey
   /**

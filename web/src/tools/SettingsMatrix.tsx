@@ -1,7 +1,7 @@
 import type { CSSProperties, ReactNode } from 'react'
-import type { McpRow, SettingKind, SettingRow, ToolScope, ToolsView } from '../../../src/tools/model.js'
+import type { SettingKind, SettingRow, ToolScope, ToolsView } from '../../../src/tools/model.js'
 import { t } from '../i18n/index.js'
-import { HIDDEN, filterRows, mcpMatrix, mcpState, scopeMarks, settingMatrix, tone, usedScopes, type Tone } from './matrix.js'
+import { HIDDEN, filterRows, scopeMarks, settingMatrix, tone, usedScopes, type Tone } from './matrix.js'
 
 type Section = 'claude' | 'plugin' | 'skill' | 'permission'
 
@@ -12,12 +12,8 @@ const SECTIONS: [Section, SettingKind[]][] = [
   ['permission', ['permission']],
 ]
 
-const MCP_TONES: Record<ReturnType<typeof mcpState>, Tone> = { on: 'on', disabled: 'off', outside: 'lost' }
-
 export function SettingsMatrix({ views, query, onlyDiff }: { views: ToolsView[]; query: string; onlyDiff: boolean }) {
   const projects = views.map((view) => view.project)
-  const mcpAll = mcpMatrix(views)
-  const mcpRows = filterRows(mcpAll, { query, onlyDiff })
 
   return (
     <>
@@ -43,26 +39,6 @@ export function SettingsMatrix({ views, query, onlyDiff }: { views: ToolsView[];
           </MatrixSection>
         )
       })}
-      {mcpAll.length > 0 && (
-        <MatrixSection title={t.tools.section.mcp} shown={mcpRows.length} total={mcpAll.length} projects={projects}>
-          {mcpRows.map((row) => {
-            const first = row.cells.find((cell): cell is McpRow => cell !== null)!
-            return (
-              <tr key={row.key}>
-                <th scope="row">
-                  <code>{row.name}</code>
-                  <span className="tools__muted">{` · ${t.tools.mcpScope[first.scope]}${first.plugin === null ? '' : ` ${first.plugin}`}`}</span>
-                </th>
-                {row.cells.map((cell, index) => (
-                  <td key={projects[index]}>
-                    {cell === null ? <Missing /> : <Chip tone={MCP_TONES[mcpState(cell)]}>{t.tools.mcpState[mcpState(cell)]}</Chip>}
-                  </td>
-                ))}
-              </tr>
-            )
-          })}
-        </MatrixSection>
-      )}
     </>
   )
 }

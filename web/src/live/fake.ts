@@ -24,6 +24,7 @@ import { fakeCard, fakeReady } from './fakeCards.js'
 import { fakeAnswer, fakeOpenAsk, fakePastAsk, FAKE_ASK, FAKE_UNSAVED_ASK } from './fakeChat.js'
 import type { Ask } from '../../../src/sessions/ask.js'
 import { fakeTools } from './fakeTools.js'
+import { fakePackages, fakePackagesCommand } from './fakePackages.js'
 
 const TICK_MS = 2_000
 const ANSWER_MS = 300
@@ -273,8 +274,7 @@ function fakeState(
         },
     context: { window: 600_000, warn: 50, danger: 80 },
     configError: null,
-    mcpMissing: [],
-    mcpFailed: [],
+    packages: fakePackages(['ABC', 'DEMO', 'XYZ', 'OPS'], null),
     language: null,
     unattended: false,
     trimTools: true,
@@ -531,7 +531,7 @@ function fakeCommand(state: EvenKeelState, name: string, body: Record<string, un
   if (name === 'chain/trim') return { ...state, trimTools: body.on === true }
   if (name === 'session/answer') return fakeAnswer(state, body)
   if (name === 'task/ready') return fakeReady(state, String(body.task))
-  const settings = fakeSettingsCommand(state, name, body) ?? fakeUpdatesCommand(state, name)
+  const settings = fakeSettingsCommand(state, name, body) ?? fakeUpdatesCommand(state, name) ?? fakePackagesCommand(state, name, body)
   if (settings !== null) return settings
   if (name.startsWith('account/')) return { ...state, account: accountCommand(state.account, name, body) }
   throw new Error(`fake: ${name} is not supported`)
@@ -578,15 +578,7 @@ export function createFakeSource(search: string): LiveSource {
     current.state.configError = notice('config.statusBoth', { project: 'ABC', status: 'In Review' })
   }
   if (params.get('config') === 'restart' && current.state !== null) current.state.config = fakeRestart(current.state.config)
-  if (params.get('mcp') === 'missing' && current.state !== null) {
-    current.state.mcpMissing = [
-      { project: 'ABC', server: 'huly' },
-      { project: 'XYZ', server: 'huly' },
-    ]
-  }
-  if (params.get('mcp') === 'failed' && current.state !== null) {
-    current.state.mcpFailed = [{ project: 'ABC', server: 'huly', until: new Date(Date.now() + 12 * 60_000).toISOString() }]
-  }
+  if (params.has('packages') && current.state !== null) current.state.packages = fakePackages(current.state.projects, params.get('packages'))
   const active = current.state?.chain.active[0]
   if (params.get('chain') === 'limit' && active) {
     current.state!.chain.active = [{ ...active, current: null, limitUntil: new Date(Date.now() + 95 * 60_000).toISOString() }]

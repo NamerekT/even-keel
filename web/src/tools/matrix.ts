@@ -1,4 +1,4 @@
-import type { McpRow, SettingKind, SettingRow, ToolScope, ToolsView } from '../../../src/tools/model.js'
+import type { SettingKind, SettingRow, ToolScope, ToolsView } from '../../../src/tools/model.js'
 
 export const HIDDEN = 'user-invocable-only'
 
@@ -22,14 +22,6 @@ export function settingMatrix(views: ToolsView[], kinds: SettingKind[]): MatrixR
   )
 }
 
-export function mcpMatrix(views: ToolsView[]): MatrixRow<McpRow>[] {
-  return matrix(
-    views.map((view) => view.mcp),
-    (row) => `${row.scope}\u0000${row.plugin ?? ''}\u0000${row.name}`,
-    (a, b) => a.name.localeCompare(b.name) || a.scope.localeCompare(b.scope),
-  )
-}
-
 function matrix<T extends { name: string }>(lists: T[][], keyOf: (row: T) => string, order: (a: T, b: T) => number): MatrixRow<T>[] {
   const rows = new Map<string, { first: T; cells: (T | null)[] }>()
   lists.forEach((list, column) => {
@@ -45,20 +37,12 @@ function matrix<T extends { name: string }>(lists: T[][], keyOf: (row: T) => str
     .map(([key, { first, cells }]) => ({ key, name: first.name, cells }))
 }
 
-export type McpState = 'on' | 'disabled' | 'outside'
-
-export function mcpState(row: McpRow): McpState {
-  if (row.disabled) return 'disabled'
-  return row.worktree ? 'on' : 'outside'
-}
-
-function cellValue(cell: SettingRow | McpRow | null): string {
+function cellValue(cell: SettingRow | null): string {
   if (cell === null) return '\u0000none'
-  if ('session' in cell) return cell.session ?? '\u0000lost'
-  return mcpState(cell)
+  return cell.session ?? '\u0000lost'
 }
 
-export function filterRows<T extends SettingRow | McpRow>(rows: MatrixRow<T>[], { query, onlyDiff }: { query: string; onlyDiff: boolean }): MatrixRow<T>[] {
+export function filterRows<T extends SettingRow>(rows: MatrixRow<T>[], { query, onlyDiff }: { query: string; onlyDiff: boolean }): MatrixRow<T>[] {
   const needle = query.trim().toLowerCase()
   return rows.filter(
     (row) => (needle === '' || row.name.toLowerCase().includes(needle)) && (!onlyDiff || new Set(row.cells.map(cellValue)).size > 1),
@@ -86,7 +70,6 @@ export interface Problems {
   unreached: SettingRow[]
   claudeai: string[]
   mcpFailed: string[]
-  mcpOutside: string[]
 }
 
 export function problemsOf(view: ToolsView): Problems {
@@ -94,15 +77,14 @@ export function problemsOf(view: ToolsView): Problems {
     unreached: view.settings.filter((row) => row.session === null),
     claudeai: (view.received?.skills ?? []).filter((skill) => skill.source === 'claudeai').map((skill) => skill.name),
     mcpFailed: (view.received?.mcp ?? []).filter((server) => server.failed).map((server) => server.name),
-    mcpOutside: view.mcp.filter((row) => mcpState(row) === 'outside').map((row) => row.name),
   }
 }
 
 export function problemCount(problems: Problems): number {
-  return problems.unreached.length + problems.claudeai.length + problems.mcpFailed.length + problems.mcpOutside.length
+  return problems.unreached.length + problems.claudeai.length + problems.mcpFailed.length
 }
 
-export const PROBLEM_KINDS = ['unreached', 'claudeai', 'mcpFailed', 'mcpOutside'] as const
+export const PROBLEM_KINDS = ['unreached', 'claudeai', 'mcpFailed'] as const
 
 export interface SharedProblem {
   kind: (typeof PROBLEM_KINDS)[number]

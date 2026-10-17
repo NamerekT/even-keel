@@ -6,6 +6,7 @@ export const github: TrackerAdapter = {
   title: 'GitHub',
   variables: [GITHUB_TOKEN],
   mcpServer: 'github',
+  mcpKeys: { GITHUB_PERSONAL_ACCESS_TOKEN: GITHUB_TOKEN },
   projectKey: { key: 'github', pattern: /^[\w.-]+\/[\w.-]+$/, example: 'octo-org/example' },
   setup(env, projects) {
     const token = env[GITHUB_TOKEN]

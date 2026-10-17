@@ -1,6 +1,4 @@
-import { isInside, pathsOf, samePath } from '../paths.js'
-import { type McpSources, serversIn } from '../tracker/mcp.js'
-import type { McpRow, SettingKind, SettingRow, ToolScope } from './model.js'
+import type { SettingKind, SettingRow, ToolScope } from './model.js'
 
 type Json = Record<string, unknown>
 
@@ -40,23 +38,6 @@ export function trimSettings(hidden: string[], project: Json | undefined, local:
   }
 }
 
-/**
- * Servers of the main checkout's `.mcp.json` that a session in a worktree inside it would see but not have itself.
- * The CLI looks for `.mcp.json` in parent folders too, and the approval in `settings.local.json` does not reach
- * the worktree: a `--bg` session hangs on the approval dialog. Chain sessions get them in `disabledMcpjsonServers`.
- */
-export function strayMcpServers(
-  repo: string,
-  cwd: string,
-  read: (file: string) => Json | undefined,
-  platform: NodeJS.Platform = process.platform,
-): string[] {
-  if (samePath(cwd, repo, platform) || !isInside(cwd, repo, platform)) return []
-  const { join } = pathsOf(platform)
-  const own = serversIn(read(join(cwd, '.mcp.json')))
-  return Object.keys(serversIn(read(join(repo, '.mcp.json')))).filter((name) => !(name in own))
-}
-
 export interface SettingSources {
   user?: Json
   project?: Json
@@ -90,38 +71,6 @@ export function settingRows(sources: SettingSources): SettingRow[] {
 
   for (const row of rows.values()) row.session = SESSION_SCOPES.map((scope) => row.values[scope]).find((value) => value !== undefined) ?? null
   return [...rows.values()].sort((a, b) => KIND_ORDER.indexOf(a.kind) - KIND_ORDER.indexOf(b.kind) || a.name.localeCompare(b.name))
-}
-
-export function mcpRows(sources: McpSources, repo: string, platform: NodeJS.Platform = process.platform): McpRow[] {
-  const projects = sources.configs.flatMap((config) =>
-    Object.entries(objectOf(config.projects))
-      .filter(([path]) => samePath(path, repo, platform))
-      .map(([, project]) => objectOf(project)),
-  )
-  const listedIn = (key: string, name: string) => projects.some((project) => strings(project[key]).includes(name))
-  const rows: McpRow[] = []
-  const add = (row: McpRow) => {
-    if (!rows.some((each) => each.scope === row.scope && each.name === row.name && each.plugin === row.plugin)) rows.push(row)
-  }
-  for (const config of sources.configs) {
-    for (const name of Object.keys(objectOf(config.mcpServers))) {
-      add({ name, scope: 'user', plugin: null, disabled: listedIn('disabledMcpServers', name), worktree: true })
-    }
-  }
-  for (const project of projects) {
-    for (const name of Object.keys(objectOf(project.mcpServers))) {
-      add({ name, scope: 'local', plugin: null, disabled: listedIn('disabledMcpServers', name), worktree: false })
-    }
-  }
-  for (const name of Object.keys(sources.repoServers)) {
-    add({ name, scope: 'project', plugin: null, disabled: listedIn('disabledMcpjsonServers', name), worktree: true })
-  }
-  for (const plugin of sources.plugins) {
-    for (const name of Object.keys(plugin.servers)) {
-      add({ name, scope: 'plugin', plugin: plugin.name, disabled: listedIn('disabledMcpServers', `plugin:${plugin.name}:${name}`), worktree: true })
-    }
-  }
-  return rows
 }
 
 /** Key names only: values may hold secrets (`env`). */

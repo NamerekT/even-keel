@@ -31,12 +31,6 @@ export function fakeTools(project: string, trim: boolean, mode: string | null): 
     repo,
     trim,
     settings,
-    mcp: [
-      { name: 'forgejo', scope: 'user', plugin: null, disabled: false, worktree: true },
-      { name: 'db', scope: 'local', plugin: null, disabled: false, worktree: false },
-      { name: 'huly', scope: 'plugin', plugin: 'huly', disabled: false, worktree: true },
-      { name: 'playwright', scope: 'plugin', plugin: 'playwright', disabled: false, worktree: true },
-    ],
     accounts: bloated
       ? [
           { account: 'john.doe', keys: ['enabledPlugins', 'env', 'hooks'] },

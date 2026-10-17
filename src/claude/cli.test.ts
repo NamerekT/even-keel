@@ -5,7 +5,21 @@ import { resumeArgs, resumedAs, sessionArgs } from './cli.js'
 describe('sessionArgs', () => {
   it('passes the chain settings with --settings only when there are any', () => {
     expect(sessionArgs('ABC-1', 'opus')).toEqual(['--bg', '--permission-mode', 'auto', '-n', 'ABC-1', '--model', 'opus'])
-    expect(sessionArgs('ABC-1', 'opus', '{"syncClaudeAiSkills":false}').slice(-2)).toEqual(['--settings', '{"syncClaudeAiSkills":false}'])
+    expect(sessionArgs('ABC-1', 'opus', { settings: '{"syncClaudeAiSkills":false}' }).slice(-2)).toEqual(['--settings', '{"syncClaudeAiSkills":false}'])
+  })
+
+  it('passes the gateway servers first and strictly, plugin ones under the plugin, and a --plugin-dir per plugin', () => {
+    const mcp = [
+      { name: 'huly', plugin: 'huly', url: 'http://127.0.0.1:4748/mcp/p/huly%40even-keel@a/huly' },
+      { name: 'strata', plugin: null, url: 'http://127.0.0.1:4748/mcp/p/strata@b/strata' },
+    ]
+    const args = sessionArgs('ABC-1', null, { mcp, plugins: ['C:\cache\huly'] })
+    expect(args.slice(0, 4)).toEqual(['--bg', '--mcp-config', expect.any(String), '--strict-mcp-config'])
+    expect(JSON.parse(args[2]!)).toEqual({
+      mcpServers: { plugin_huly_huly: { type: 'http', url: mcp[0]!.url }, strata: { type: 'http', url: mcp[1]!.url } },
+    })
+    expect(args.slice(4, 6)).toEqual(['--plugin-dir', 'C:\cache\huly'])
+    expect(sessionArgs('ABC-1', null, { mcp: [] }).slice(0, 4)).toEqual(['--bg', '--mcp-config', '{"mcpServers":{}}', '--strict-mcp-config'])
   })
 
   it('passes no --model without a chosen model, so the CLI takes its configured one', () => {
@@ -15,7 +29,7 @@ describe('sessionArgs', () => {
 
 describe('resumeArgs', () => {
   it('passes no flags when the background session keeps its saved options, so it goes on under its own id', () => {
-    expect(resumeArgs('s-1', 'answer', true, 'ABC-1', 'opus', '{}')).toEqual(['--bg', '--resume', 's-1', 'answer'])
+    expect(resumeArgs('s-1', 'answer', true, 'ABC-1', 'opus', { settings: '{}' })).toEqual(['--bg', '--resume', 's-1', 'answer'])
   })
 
   it('passes the session flags when there is no saved background session', () => {

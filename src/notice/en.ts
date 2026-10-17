@@ -199,6 +199,7 @@ export const en = {
 
   'config.notJson': (p: { file: string }) => `config: ${p.file} is not JSON`,
   'config.port': (p: { value: string }) => `config: EVEN_KEEL_PORT must be an integer in 1..65535, got ${p.value}`,
+  'config.mcpPort': (p: { value: string }) => `config: EVEN_KEEL_MCP_PORT must be an integer in 1..65535, got ${p.value}`,
   'config.branch': (p: { where: string; value: string }) => `config: ${p.where} must be a branch name, got ${p.value}`,
   'config.projects': () => 'config: projects must be a list of project records',
   'config.projectEntry': (p: { where: string }) => `config: ${p.where} must be an object with the project's id, key and repo`,
@@ -215,6 +216,24 @@ export const en = {
   'storage.unknownProject': (p: { file: string; project: string }) =>
     `storage: ${p.file} names the project ${p.project}, which the config does not have, so nothing was migrated`,
   'storage.writeFailed': (p: { file: string }) => `storage: could not write ${p.file}; the files written before it are put back from their copies`,
+  'packages.unknown': (p: { name: string }) => `packages: there is no package ${p.name}`,
+  'packages.exists': (p: { name: string }) => `packages: ${p.name} is already in the catalog`,
+  'packages.busy': (p: { name: string }) => `packages: ${p.name} is being installed; wait until it is done`,
+  'packages.noMarketplace': (p: { marketplace: string }) => `packages: Claude Code knows no marketplace ${p.marketplace}`,
+  'packages.noPlugin': (p: { plugin: string; marketplace: string }) => `packages: the marketplace ${p.marketplace} has no plugin ${p.plugin}`,
+  'packages.installInClaude': (p: { plugin: string }) =>
+    `packages: ${p.plugin} comes from outside its marketplace's folder; install it in Claude Code first (claude plugin install ${p.plugin}), then here`,
+  'packages.copyFailed': (p: { name: string }) => `packages: could not copy the plugin ${p.name}`,
+  'packages.npmFailed': (p: { spec: string }) => `packages: npm could not install ${p.spec}`,
+  'packages.marketplaceUpdate': (p: { marketplace: string }) => `packages: claude plugin marketplace update ${p.marketplace} failed`,
+  'packages.upToDate': (p: { name: string }) => `packages: ${p.name} is already the latest version`,
+  'packages.updated': (p: { name: string; version: string }) => `packages: ${p.name} is updated to ${p.version}; running tasks stay on the version they started with`,
+  'packages.badServer': (p: { name: string }) => `packages: the server ${p.name} needs either a command or a url`,
+  'packages.badName': (p: { name: string }) => `packages: ${p.name} is not a name for a server: letters, digits, - and _ only`,
+  'packages.keyName': (p: { name: string }) => `packages: ${p.name} is not a variable name`,
+  'packages.keyValue': (p: { name: string }) => `packages: the value of ${p.name} may hold neither a line break nor a single quote`,
+  'packages.unknownKey': (p: { name: string }) => `packages: no package or tracker reads ${p.name}`,
+  'packages.port': (p: { port: number }) => `packages: the MCP gateway cannot listen on 127.0.0.1:${p.port}; set another EVEN_KEEL_MCP_PORT`,
   'config.repoEmpty': (p: { key: string }) => `config: repository path for ${p.key} is empty`,
   'config.slot': (p: { key: string }) => `config: ${p.key}.slot must be true, false or the number of slots`,
   'config.language': (p: { where: string; value: string; known: string[] }) =>

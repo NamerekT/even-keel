@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { accountDrift, mcpRows, settingRows, strayMcpServers, trimSettings } from './settings.js'
+import { accountDrift, settingRows, trimSettings } from './settings.js'
 
 describe('trimSettings', () => {
   it('turns claude.ai sync off and hides the listed skills', () => {
@@ -19,31 +19,6 @@ describe('trimSettings', () => {
       init: 'on',
       schedule: 'user-invocable-only',
     })
-  })
-})
-
-describe('strayMcpServers', () => {
-  const repo = 'D:\\repo'
-  const worktree = 'D:\\repo\\.claude\\worktrees\\abc-1'
-  const reader = (files: Record<string, unknown>) => (file: string) => files[file] as Record<string, unknown> | undefined
-
-  it('names the servers of the main checkout that the worktree does not have itself', () => {
-    const read = reader({
-      'D:\\repo\\.mcp.json': { mcpServers: { strata: {}, shared: {} } },
-      'D:\\repo\\.claude\\worktrees\\abc-1\\.mcp.json': { mcpServers: { shared: {} } },
-    })
-    expect(strayMcpServers(repo, worktree, read, 'win32')).toEqual(['strata'])
-  })
-
-  it('reads a file that lists servers without the mcpServers wrapper', () => {
-    expect(strayMcpServers(repo, worktree, reader({ 'D:\\repo\\.mcp.json': { strata: {} } }), 'win32')).toEqual(['strata'])
-  })
-
-  it('names nothing for a session in the main checkout, outside the repository or with no file', () => {
-    const read = reader({ 'D:\\repo\\.mcp.json': { mcpServers: { strata: {} } } })
-    expect(strayMcpServers(repo, 'd:/repo', read, 'win32')).toEqual([])
-    expect(strayMcpServers(repo, 'D:\\elsewhere\\slot', read, 'win32')).toEqual([])
-    expect(strayMcpServers(repo, worktree, reader({}), 'win32')).toEqual([])
   })
 })
 
@@ -80,26 +55,6 @@ describe('settingRows', () => {
       { kind: 'permission', name: 'mcp__huly', values: { project: 'allow' }, session: 'allow' },
       { kind: 'permission', name: 'mcp__huly__add_issue_label', values: { local: 'allow' }, session: null },
       { kind: 'permission', name: 'WebFetch', values: { local: 'allow' }, session: null },
-    ])
-  })
-})
-
-describe('mcpRows', () => {
-  it('lists servers by scope and marks local ones as missing in a worktree', () => {
-    const rows = mcpRows(
-      {
-        configs: [{ mcpServers: { forgejo: {} }, projects: { 'd:/repos/abc': { mcpServers: { db: {} }, disabledMcpServers: ['plugin:huly:huly'] } } }],
-        repoServers: { docs: {} },
-        plugins: [{ name: 'huly', servers: { huly: {} } }],
-      },
-      'D:\\repos\\abc',
-      'win32',
-    )
-    expect(rows).toEqual([
-      { name: 'forgejo', scope: 'user', plugin: null, disabled: false, worktree: true },
-      { name: 'db', scope: 'local', plugin: null, disabled: false, worktree: false },
-      { name: 'docs', scope: 'project', plugin: null, disabled: false, worktree: true },
-      { name: 'huly', scope: 'plugin', plugin: 'huly', disabled: true, worktree: true },
     ])
   })
 })

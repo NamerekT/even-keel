@@ -7,6 +7,8 @@ import { Basement } from '../layout/Basement.js'
 import { ProjectList } from '../ui/ProjectList.js'
 import { LastSessions } from './LastSessions.js'
 import { hiddenSkills, problemCount, problemsOf } from './matrix.js'
+import { problemCount as packageProblems } from './packageView.js'
+import { Packages } from './Packages.js'
 import { Problems } from './Problems.js'
 import { SettingsMatrix } from './SettingsMatrix.js'
 import { ToolsLoading } from './ToolsLoading.js'
@@ -37,7 +39,7 @@ export function ToolsPage({ state }: { state: EvenKeelState }) {
 
   const items = state.projects.map((project) => {
     const each = loaded.get(project)
-    const count = each?.state === 'ready' && each.view !== null ? problemCount(problemsOf(each.view)) : null
+    const count = each?.state === 'ready' && each.view !== null ? problemCount(problemsOf(each.view)) + packageProblems(state.packages, project) : null
     return { project, amount: count ?? 0, label: t.tools.pickerCount(count) }
   })
 
@@ -66,6 +68,7 @@ export function ToolsPage({ state }: { state: EvenKeelState }) {
               {failure}
             </p>
           ))}
+          {chosen.length > 0 && <Packages view={state.packages} projects={chosen} />}
           {chosen.length === 0 ? (
             <p className="placeholder">{t.tools.noneChosen}</p>
           ) : views.length === 0 ? (

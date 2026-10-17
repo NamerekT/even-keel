@@ -6,7 +6,7 @@ const SHAPE: [keyof typeof t.tools.section, number][] = [
   ['claude', 2],
   ['plugin', 3],
   ['skill', 4],
-  ['mcp', 2],
+  ['permission', 2],
 ]
 
 const NAME_WIDTHS = [62, 44, 78, 52, 36, 70]

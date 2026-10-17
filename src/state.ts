@@ -215,8 +215,7 @@ export interface EvenKeelState {
   fixes: Record<string, FixEpisode[]>
   context: ContextScale
   configError: Notice | null
-  mcpMissing: McpMissing[]
-  mcpFailed: McpFailed[]
+  packages: PackagesView
   language: Language | null
   unattended: boolean
   trimTools: boolean
@@ -232,15 +231,71 @@ export interface FallbackLaunch {
   notice: Notice
 }
 
-/** A project with `brief` off whose sessions see no MCP server of its tracker. */
-export interface McpMissing {
-  project: string
-  server: string
+/** The packages sessions get (`src/packages/`): the catalog, each project's set and its problems, the keys. */
+export interface PackagesView {
+  /** The MCP gateway could not listen: no session gets a server. */
+  gateway: Notice | null
+  packages: PackageView[]
+  /** By project key. */
+  projects: Record<string, ProjectPackages>
+  keys: KeyView[]
+  /** Plugins of the marketplaces Claude Code knows that are not in the catalog. */
+  available: { plugin: string; marketplace: string }[]
+  /** By project key: the servers of the repository's committed `.mcp.json` that are not in the catalog. */
+  imports: Record<string, string[]>
 }
 
-/** A project whose tracker MCP server the CLI cached as failed: its next session waits until `until`. */
-export interface McpFailed {
-  project: string
-  server: string
-  until: string
+export interface PackageView {
+  name: string
+  kind: 'plugin' | 'mcp'
+  version: string | null
+  installing: boolean
+  /** The last install or update failed. */
+  error: Notice | null
+  /** The outcome of the last update: `packages.upToDate` or `packages.updated`. */
+  note: Notice | null
+  default: boolean
+  /** The values projects start from. */
+  settings: Record<string, string>
+  servers: string[]
+  /** Skills, hooks, commands or agents: only Claude Code gets them. */
+  extras: boolean
+  /** Removed, still held by a running task. */
+  removed: boolean
+}
+
+export interface ProjectPackages {
+  /** By package name. */
+  cells: Record<string, PackageCell>
+  /** Problems of the set as a whole (`noTrackerMcp`). */
+  problems: PackageProblem[]
+  /** A problem holds the chain: it waits until the problem is gone. */
+  blocked: boolean
+}
+
+export interface PackageCell {
+  /** The project's own choice; `null` — the package's default. */
+  choice: 'on' | 'off' | null
+  enabled: boolean
+  /** The project's values over the package's. */
+  settings: Record<string, string>
+  problems: PackageProblem[]
+}
+
+export type PackageProblem =
+  | { kind: 'notInstalled' }
+  | { kind: 'installing' }
+  | { kind: 'installFailed'; notice: Notice }
+  | { kind: 'noKey'; variables: string[] }
+  | { kind: 'noResponse'; servers: string[] }
+  | { kind: 'noTrackerMcp'; server: string }
+  /** The project's agent does not read Claude Code plugins: their skills and hooks stay out. Does not hold the chain. */
+  | { kind: 'unsupported'; agent: string }
+
+/** A variable of the pool a package or a tracker reads; its value never leaves the service. */
+export interface KeyView {
+  name: string
+  set: boolean
+  /** The packages whose servers read it. */
+  packages: string[]
 }

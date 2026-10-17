@@ -95,8 +95,7 @@ Layout work on a fake state, without a tracker or sessions. The fake history sta
 | `?config=restart` | saved values that wait for a restart (the shared tracker and context, ABC's repository): the marks on `/settings` and in ABC's settings (`web/src/live/fakeConfig.ts`) |
 | `?config=edited` | a hand edit of the file 15 s after load (`fakeHandEdit`): ABC's branch becomes `trunk`, its prompt changes, the shared Claude model becomes `sonnet` — edit ABC's prompt before that to see "the file now has" |
 | `?ci=failure\|stuck\|push\|fixed\|error\|off\|none` | the CI badge of ABC (`web/src/live/fakeCi.ts`): a red last run; a run queued past `STUCK_MS`; a push no run has taken yet; the green run #41 of the landed fix `ABC-FIX.2` over the red #39 (`FAKE_FIX`); the API not answering; no token; no CI at all. Without it ABC has a running Forgejo run and a green GitHub Actions. ABC's archive always has two fixes that are over, `ABC-FIX.1` dropped and `ABC-FIX.2` landed; `?chain=fix` adds the open `ABC-FIX.3` |
-| `?mcp=missing` | the banner "brief is off, and sessions don't see the tracker MCP servers" |
-| `?mcp=failed` | the banner "Claude Code cached the tracker MCP server of ABC as failed", 12 minutes left |
+| `?packages=blocked\|gateway\|empty` | the packages (`web/src/live/fakePackages.ts`): `FORGEJO_TOKEN` is not set, so ABC, DEMO and XYZ wait under the banner; the gateway cannot listen and every chain waits under the red banner; an empty catalog. Without it everything is ready; OPS runs on Codex, so the Huly plugin is MCP only there, and DEMO has `.mcp.json` servers to import |
 | `?account=out\|expired\|login\|failed\|unknown` | states of the active Claude account; the `fail` code in the sign-in field is a failed sign-in |
 | `?account=pending` | the new configuration is waiting for the account's sessions to finish |
 | `?account=removing` | the folder is waiting for sessions to finish so it can be removed |

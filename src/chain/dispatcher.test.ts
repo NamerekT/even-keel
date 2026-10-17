@@ -419,8 +419,8 @@ describe('Dispatcher', () => {
     expect(dispatcher.state.active[0]?.limitUntil).toBeUndefined()
   })
 
-  it('holds the launch while the CLI skips the tracker MCP server as failed and launches it once the entry expires', async () => {
-    const options: { mcpFailed?: Record<string, string> } = { mcpFailed: { ABC: '2026-09-26T12:10:00.000Z' } }
+  it('holds the launch while the project set of packages has a problem and launches it once the problem is gone', async () => {
+    const options: { packagesBlocked?: Set<string> } = { packagesBlocked: new Set(['ABC']) }
     const { dispatcher, launched, saved } = setup(options)
     dispatcher.setTasks('ABC', [task('ABC-1')])
     dispatcher.start('ABC')
@@ -433,7 +433,7 @@ describe('Dispatcher', () => {
     await dispatcher.idle()
     expect(saved).toHaveLength(savedWhileHeld)
 
-    options.mcpFailed = {}
+    options.packagesBlocked = new Set()
     dispatcher.check()
     await dispatcher.idle()
     expect(launched).toEqual(['ABC/ABC-1'])

@@ -6,6 +6,7 @@ export const linear: TrackerAdapter = {
   title: 'Linear',
   variables: [LINEAR_TOKEN],
   mcpServer: 'linear',
+  mcpKeys: { LINEAR_API_KEY: LINEAR_TOKEN },
   projectKey: { key: 'linear', optional: true, pattern: /\S/, example: 'Web app' },
   setup(env, projects) {
     const token = env[LINEAR_TOKEN]

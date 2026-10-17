@@ -8,6 +8,8 @@ import { loadChainState, loadQuestions, readLaunches } from '../chain/store.js'
 import { parseSession } from '../codex/turns.js'
 import { parseConfig } from '../config.js'
 import { root } from '../locations.js'
+import { enabledPackages, installsFor, settingsOf } from '../packages/model.js'
+import { loadPackages } from '../packages/store.js'
 import { upgradeStorage } from './migrations.js'
 import { SCHEMA_VERSION } from './schema.js'
 
@@ -79,6 +81,16 @@ describe(`frozen samples of schema v${SCHEMA_VERSION}`, () => {
     const ledger = loadLedger(sample('state/account.json'))
     expect(ledger.accounts.global?.email).toBe('john.doe@example.com')
     expect(ledger.accounts['team-api']?.name).toBe('Team API')
+  })
+
+  it('reads the packages naming projects by their keys', () => {
+    const file = loadPackages(sample('state/packages.json'), { ABC, XYZ })!
+    expect(Object.keys(file.packages)).toEqual(['huly@even-keel', 'github'])
+    expect(file.packages['huly@even-keel']?.installs.map((install) => install.version)).toEqual(['0.4.1', '0.4.2'])
+    expect(enabledPackages(file, 'ABC')).toEqual(['huly@even-keel'])
+    expect(enabledPackages(file, 'XYZ')).toEqual(['huly@even-keel', 'github'])
+    expect(settingsOf(file, 'XYZ', 'huly@even-keel')).toEqual({ TOOLSETS: 'issues' })
+    expect(installsFor(file, 'ABC', 'ABC-2')).toEqual({ 'huly@even-keel': 'a1b2c3' })
   })
 
   it('is current: the migration writes nothing', () => {

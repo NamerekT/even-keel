@@ -11,7 +11,7 @@ import { AccountWatcher } from './account/watcher.js'
 import { AGENTS } from './agent/adapters.js'
 import type { Agent, SessionHandle, SessionStart } from './agent/contract.js'
 import { sessionBase } from './agent/env.js'
-import { readTrackerServer } from './agent/tracker.js'
+import { updateMarketplace } from './claude/cli.js'
 import { CLAUDE } from './claude/name.js'
 import { Dispatcher, type LaunchEntry } from './chain/dispatcher.js'
 import { fallbacksSince, fixEpisodes, handoffsOf, launchDays, launchedProjects, taskSessions } from './chain/launches.js'
@@ -25,7 +25,7 @@ import { appendLaunch, loadChainState, loadQuestions, readLaunches, saveChainSta
 import { CI_TOKENS, ciSource, projectTargets } from './ci/adapters.js'
 import { CiWatch } from './ci/watcher.js'
 import { ConfigFile } from './config-file.js'
-import { DEFAULT_BRANCH, DEFAULT_CI, listenOf, poolEntries, projectsByAccount, runSettings } from './config.js'
+import { DEFAULT_BRANCH, DEFAULT_CI, listenOf, mcpPortOf, poolEntries, projectsByAccount, runSettings } from './config.js'
 import { EventHub } from './events.js'
 import { runGit } from './git/run.js'
 import { finishSlot, prepareSlot, slotPaths, type SlotUse } from './git/slot.js'
@@ -34,6 +34,8 @@ import { exhaustedReset, limitResetAfter } from './limits/model.js'
 import { LimitsWatcher } from './limits/watcher.js'
 import { englishOf, fail, notice, noticeOf, type Notice } from './notice/notice.js'
 import { guardHosts, guardToken } from './guard.js'
+import { readJson } from './packages/plugins.js'
+import { Packages } from './packages/service.js'
 import { createEvenKeelServer } from './server.js'
 import { replyPrompt, type Reply } from './sessions/ask.js'
 import { saveInbox, type InboxFile } from './sessions/inbox.js'
@@ -51,9 +53,8 @@ import type { EvenKeelState, SessionView } from './state.js'
 import { StatsReader } from './stats/reader.js'
 import { TallyService } from './stats/tally.js'
 import { chainSettings, readToolsView } from './tools/panel.js'
-import { ADAPTERS } from './tracker/adapters.js'
+import { ADAPTERS, trackerKeyRules } from './tracker/adapters.js'
 import { cardOf } from './tracker/card.js'
-import { McpCheck, readFailures, readMcpSources } from './tracker/mcp.js'
 import type { TrackerView } from './tracker/health.js'
 import type { TrackerLink } from './tracker/link.js'
 import { parseTaskId, runLabelText, type Task } from './tracker/model.js'
@@ -84,6 +85,7 @@ const SHUTDOWN_MS = 15_000
 const CI_TICK_MS = 5_000
 const CI_TIMEOUT_MS = 15_000
 const UPDATE_POLL_MS = 12 * 60 * 60_000
+const PLUGIN_UPDATE_TIMEOUT_MS = 2 * 60_000
 
 const configFile = new ConfigFile({
   file: configPath(),
@@ -92,16 +94,15 @@ const configFile = new ConfigFile({
   onChange: () => {
     for (const [project, tasks] of tasksByProject) dispatcher.setTasks(project, tasks)
     dispatcher.check()
-    mcp.run()
     updates.configChanged()
     hub.broadcast('state', getState())
   },
 })
 const config = configFile.current
-const { listen, token } = (() => {
+const { listen, token, mcpPort } = (() => {
   try {
     const listen = listenOf(process.env)
-    return { listen, token: guardToken(process.env, listen.host) }
+    return { listen, token: guardToken(process.env, listen.host), mcpPort: mcpPortOf(process.env) }
   } catch (error) {
     console.error(englishOf(noticeOf(error)))
     process.exit(1)
@@ -132,8 +133,36 @@ const trackers = new Map<string, TrackerView>(
 const links = new Map<string, TrackerLink>()
 const hub = new EventHub()
 const homes = new AccountHomes(process.env, accountsRoot(process.env))
+/** The shared pool's Claude entry: whose `.claude.json` and tools the Claude-only checks read. */
+const claudeAccount = () => configFile.current.accounts[CLAUDE]!
+/** `.claude.json` files sessions read: the global one and the shared Claude account's. */
+const claudeConfigs = () =>
+  [...new Set([homes.global, homes.find(claudeAccount())].flatMap((home) => (home === undefined ? [] : [homes.configFile(home)])))]
+const packages: Packages = new Packages({
+  file: join(stateDir, 'packages.json'),
+  cache: join(stateDir, 'packages'),
+  envFile: join(root, '.env'),
+  ids: config.ids,
+  repos: config.projects,
+  globalDir: homes.global.dir,
+  claudeConfigs,
+  rules: trackerKeyRules(),
+  trackerServer: (project) => (configFile.current.briefs[project] ? undefined : ADAPTERS[config.trackers[project]!]!.mcpServer),
+  agentOf: (project) => homes.find(choiceFor(project).account)?.agent ?? CLAUDE,
+  updateMarketplace: (marketplace) => updateMarketplace(envOf(homes.global), marketplace, PLUGIN_UPDATE_TIMEOUT_MS),
+  baseEnv: (): NodeJS.ProcessEnv => sessionBase(process.env, packages.keyNames()),
+  port: mcpPort,
+  log: (line) => console.log(line),
+  onChange: () => {
+    dispatcher.check()
+    hub.broadcast('state', getState())
+  },
+})
 const runtimes = new Map<string, Agent>(
-  Object.entries(AGENTS).map(([name, adapter]) => [name, adapter.setup({ env: sessionBase(process.env), timeoutMs: AGENT_TIMEOUT_MS, workDir: stateDir })]),
+  Object.entries(AGENTS).map(([name, adapter]) => [
+    name,
+    adapter.setup({ env: sessionBase(process.env, packages.keyNames()), timeoutMs: AGENT_TIMEOUT_MS, workDir: stateDir }),
+  ]),
 )
 /** The agent of an account folder: every session of the folder runs on it. */
 const agentOf = (home: AccountHome): Agent => runtimes.get(home.agent)!
@@ -358,17 +387,11 @@ const planFor = (task: string, prompt: string, project = projectOf(task)): Launc
   return plan
 }
 
-/** What a session of an agent without Claude Code's plugins also gets: the global execution mode and the tracker's server. */
-const agentExtras = (home: AccountHome, project: string | undefined): Pick<SessionStart, 'bypassSandbox' | 'tracker'> => {
-  if (home.agent === CLAUDE) return {}
-  const adapter = project === undefined ? undefined : ADAPTERS[config.trackers[project]!]!
-  const tracker =
-    adapter?.mcpServer === undefined ? undefined : readTrackerServer(root, adapter.mcpServer, adapter.variables, homes.global.dir, process.env)
-  return {
-    ...(configFile.current.execution[home.agent] === 'bypass' ? { bypassSandbox: true } : {}),
-    ...(tracker === undefined ? {} : { tracker }),
-  }
-}
+/** What a session also gets: the project's packages, and the global execution mode for an agent other than Claude Code. */
+const agentExtras = (home: AccountHome, project: string | undefined, task: string): Pick<SessionStart, 'bypassSandbox' | 'mcp' | 'plugins'> => ({
+  ...(home.agent !== CLAUDE && configFile.current.execution[home.agent] === 'bypass' ? { bypassSandbox: true } : {}),
+  ...(project === undefined ? {} : packages.startOf(project, task, home.agent)),
+})
 
 const noAccountFor = (task: string, fallback: string, provider: string) =>
   notice('chain.noAccountFor', {
@@ -379,8 +402,6 @@ const noAccountFor = (task: string, fallback: string, provider: string) =>
 
 /** The account holding the Even Keel role, the one the header shows: the shared provider's entry of the shared pool. */
 const activeAccount = () => configFile.current.accounts[configFile.current.provider]!
-/** The shared pool's Claude entry: whose `.claude.json`, MCP failures and tools the Claude-only checks read. */
-const claudeAccount = () => configFile.current.accounts[CLAUDE]!
 
 const promptLanguage = () => configFile.current.promptLanguage
 
@@ -393,10 +414,7 @@ const trackerPlace = (project: string): TrackerPlace | null => {
 const briefed = async (task: string, given: string, project = projectOf(task)): Promise<string> => {
   if (project === undefined) return given
   const prompt = withTracker(given, trackerPlace(project), promptLanguage())
-  if (!configFile.current.briefs[project]) {
-    mcp.run()
-    return prompt
-  }
+  if (!configFile.current.briefs[project]) return prompt
   const link = links.get(config.trackers[project]!)
   return link === undefined ? prompt : withBrief(prompt, await link.run(async (tracker) => tracker.brief?.(task)), promptLanguage())
 }
@@ -405,33 +423,16 @@ const briefed = async (task: string, given: string, project = projectOf(task)): 
 const withProject = (prompt: string, project: string | undefined): string =>
   withProjectPrompt(prompt, project === undefined ? null : (configFile.current.settings[project]?.prompt ?? null), promptLanguage())
 
-/** `.claude.json` files sessions read: the global one and the shared Claude account's. */
-const claudeConfigs = () =>
-  [...new Set([homes.global, homes.find(claudeAccount())].flatMap((home) => (home === undefined ? [] : [homes.configFile(home)])))]
+/** The settings files whose `enabledPlugins` a chain session would read. */
+const pluginSettings = (repo: string) =>
+  [join(homes.global.dir, 'settings.json'), join(repo, '.claude', 'settings.json'), join(repo, '.claude', 'settings.local.json')].map(readJson)
 
-const mcp = new McpCheck({
-  targets: () =>
-    Object.entries(config.projects).flatMap(([project, repo]) => {
-      const server = ADAPTERS[config.trackers[project]!]!.mcpServer
-      return server === undefined ? [] : [{ project, repo, server, brief: configFile.current.briefs[project] === true }]
-    }),
-  read: (repo) =>
-    readMcpSources(repo, { claudeDir: homes.global.dir, configs: claudeConfigs() }),
-  failures: () => {
-    const home = homes.find(claudeAccount())
-    return home === undefined ? {} : readFailures(home.dir)
-  },
-  now: () => Date.now(),
-  warn: (line) => console.warn(line),
-  onChange: () => hub.broadcast('state', getState()),
-})
-
-const settingsFor = (task: string, cwd: string, project = projectOf(task)): string | undefined =>
+const settingsFor = (task: string, project = projectOf(task)): string | undefined =>
   project === undefined
     ? undefined
     : chainSettings(
         config.projects[project]!,
-        cwd,
+        packages.otherPlugins(project, task, pluginSettings(config.projects[project]!)),
         dispatcher.state.trimTools,
         configFile.current.hiddenSkills,
         homes.global.dir,
@@ -476,7 +477,8 @@ const dispatcher = new Dispatcher(loadChainState(chainFile, config.ids), {
       withProject(await briefed(task, startPrompt(task, place, promptLanguage(), branchOf(project)), project), project),
       project,
     )
-    const sessionId = await launchIn(home, { name: task, cwd: place.path, prompt, model, settings: settingsFor(task, place.path, project), ...agentExtras(home, project) })
+    const extras = agentExtras(home, project, task)
+    const sessionId = await launchIn(home, { name: task, cwd: place.path, prompt, model, settings: settingsFor(task, project), ...extras })
     if (fallback === null) return { sessionId }
     console.warn(englishOf(noAccountFor(task, fallback, provider)))
     return { sessionId, fallback }
@@ -506,10 +508,7 @@ const dispatcher = new Dispatcher(loadChainState(chainFile, config.ids), {
   accountAt: (key, at) => accountId(key, accountAt(ledger, key, at)),
   limitReset: (project, task) => exhaustedReset(limits.limits(choiceFor(project, task).account)),
   limitResetAfter: (key, at) => (account.apiKey(key) ? account.creditBackAfter(key, at) : limitResetAfter(limits.limits(key), at)),
-  mcpFailed: (project) => {
-    mcp.run()
-    return mcp.failed.find((each) => each.project === project)?.until ?? null
-  },
+  packagesBlocked: (project) => packages.blocked(project),
   promptLanguage,
   mainBranch: (task) => {
     const project = projectOf(task)
@@ -520,16 +519,16 @@ const dispatcher = new Dispatcher(loadChainState(chainFile, config.ids), {
     await stopIn(home, session)
     await daemons.prepare(home)
     const plan = planFor(task, resumePrompt(promptLanguage()))
-    const start = { name: task, cwd: session.cwd, prompt: plan.prompt, model: plan.model, settings: settingsFor(task, session.cwd) }
-    return resumeIn(home, session, { ...start, ...agentExtras(home, projectOf(task)) })
+    const extras = agentExtras(home, projectOf(task), task)
+    return resumeIn(home, session, { name: task, cwd: session.cwd, prompt: plan.prompt, model: plan.model, settings: settingsFor(task), ...extras })
   },
   reply: async (task, session, prompt) => {
     const home = homeOf(session.account)
     await stopIn(home, session)
     await daemons.prepare(home)
     const plan = planFor(task, prompt)
-    const start = { name: task, cwd: session.cwd, prompt: plan.prompt, model: plan.model, settings: settingsFor(task, session.cwd) }
-    return resumeIn(home, session, { ...start, ...agentExtras(home, projectOf(task)) })
+    const extras = agentExtras(home, projectOf(task), task)
+    return resumeIn(home, session, { name: task, cwd: session.cwd, prompt: plan.prompt, model: plan.model, settings: settingsFor(task), ...extras })
   },
   relay: async (task, session, handoff, reason) => {
     const previous = homes.find(session.account)
@@ -542,8 +541,8 @@ const dispatcher = new Dispatcher(loadChainState(chainFile, config.ids), {
     const notePath = noteOf(session)
     const note = await readNote(notePath)
     const at = new Date().toISOString()
-    const start = { name: task, cwd: session.workdir, prompt, model, settings: settingsFor(task, session.workdir) }
-    const sessionId = await launchIn(home, { ...start, ...agentExtras(home, project) })
+    const extras = agentExtras(home, project, task)
+    const sessionId = await launchIn(home, { name: task, cwd: session.workdir, prompt, model, settings: settingsFor(task, project), ...extras })
     const snapshot = { at, task, sessionId, previous: session.sessionId, reason: snapshotReason(reason), prompt, notePath, note }
     try {
       saveSnapshot(handoffsDir, snapshot)
@@ -557,7 +556,8 @@ const dispatcher = new Dispatcher(loadChainState(chainFile, config.ids), {
     await daemons.prepare(home)
     const place = await places.ready(project, name)
     const { prompt, model } = planFor(name, withProject(fixPrompt(report, place, promptLanguage(), branchOf(project)), project), project)
-    return launchIn(home, { name, cwd: place.path, prompt, model, settings: settingsFor(name, place.path, project), ...agentExtras(home, project) })
+    const extras = agentExtras(home, project, name)
+    return launchIn(home, { name, cwd: place.path, prompt, model, settings: settingsFor(name, project), ...extras })
   },
   stop: (session) => stopIn(homeOf(session.account), session),
   finish: async (project, task) => {
@@ -573,6 +573,7 @@ const dispatcher = new Dispatcher(loadChainState(chainFile, config.ids), {
       console.error(`git: cleanup after ${task} failed: ${englishOf(noticeOf(error))}`)
       throw error
     }
+    packages.release(project, task)
     const outcome = { ...finished, warnings: [...stopped, ...finished.warnings] }
     for (const warning of outcome.warnings) console.warn(`git: ${task}: ${englishOf(warning)}`)
     if (outcome.syncError !== null) console.error(`git: sync of ${project} after ${task} failed: ${englishOf(outcome.syncError)}`)
@@ -702,8 +703,7 @@ const getState = (): EvenKeelState => ({
   fixes: fixEpisodes(launches).episodes,
   context: config.context,
   configError: configFile.error,
-  mcpMissing: mcp.missing,
-  mcpFailed: mcp.failed,
+  packages: packages.view(),
   language: configFile.current.language,
   unattended: dispatcher.state.unattended,
   trimTools: dispatcher.state.trimTools,
@@ -739,6 +739,7 @@ const server = createEvenKeelServer({
     dismissUpdate: (version) => configFile.saveUpdates({ dismissed: version }),
     muteUpdates: () => configFile.saveUpdates({ notify: false }),
   },
+  packages,
   launches: () => launches,
   sessionRecord: async (sessionId) => {
     for (const home of homes.list()) {
@@ -897,7 +898,7 @@ updates.start()
 account.start()
 vscode.start()
 configFile.watch()
-mcp.run()
+void packages.start()
 tally.start()
 
 // The local Tally database closes cleanly on a stop signal; the Windows service host kills the process instead,

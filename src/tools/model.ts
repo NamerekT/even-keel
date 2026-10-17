@@ -11,17 +11,6 @@ export interface SettingRow {
   session: string | null
 }
 
-export type McpScope = 'user' | 'local' | 'project' | 'plugin'
-
-export interface McpRow {
-  name: string
-  scope: McpScope
-  plugin: string | null
-  disabled: boolean
-  /** Local scope servers belong to the main checkout's path: a worktree session does not get them. */
-  worktree: boolean
-}
-
 /** Top-level keys of an account folder's `settings.json` that differ from the global one. */
 export interface AccountDrift {
   account: string
@@ -65,7 +54,6 @@ export interface ToolsView {
   repo: string
   trim: boolean
   settings: SettingRow[]
-  mcp: McpRow[]
   accounts: AccountDrift[]
   received: ReceivedView | null
 }

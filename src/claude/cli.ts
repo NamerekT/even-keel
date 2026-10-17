@@ -7,6 +7,7 @@ import { setTimeout as delay } from 'node:timers/promises'
 import { promisify } from 'node:util'
 import type { AccountHome } from '../account/homes.js'
 import { parseAuthStatus, type AccountStatus } from '../account/model.js'
+import type { SessionStart } from '../agent/contract.js'
 import { fail, notice, NoticeError, type Notice } from '../notice/notice.js'
 import { samePath } from '../paths.js'
 import { blockedAsk, blockedOn, parseAgents, parseSessionRecord, withLiveRecords, type AgentEntry, type SessionRecord } from '../sessions/agents.js'
@@ -32,6 +33,11 @@ export function resolveClaudeBinary(env: NodeJS.ProcessEnv): string {
   const newest = newestExtensionBinary(dirs)
   if (newest === undefined) return 'claude'
   return join(extensions, newest, 'resources', 'native-binary', process.platform === 'win32' ? 'claude.exe' : 'claude')
+}
+
+/** `claude plugin marketplace update`: the CLI fetches the marketplace into the configuration folder `env` names. */
+export async function updateMarketplace(env: NodeJS.ProcessEnv, marketplace: string, timeoutMs: number): Promise<void> {
+  await run(resolveClaudeBinary(env), ['plugin', 'marketplace', 'update', marketplace], { env, timeout: timeoutMs, windowsHide: true })
 }
 
 export class ClaudeCli {
@@ -86,9 +92,9 @@ export class ClaudeCli {
     }
   }
 
-  async launch(home: AccountHome, task: string, cwd: string, prompt: string, model: string | null, settings?: string): Promise<AgentEntry> {
+  async launch(home: AccountHome, task: string, cwd: string, prompt: string, model: string | null, extras: SessionExtras = {}): Promise<AgentEntry> {
     const launchedAt = Date.now()
-    await this.start(home, [...sessionArgs(task, model, settings), prompt], cwd, notice('claude.startFailed', { task, cwd }))
+    await this.start(home, [...sessionArgs(task, model, extras), prompt], cwd, notice('claude.startFailed', { task, cwd }))
     return this.appear(home, launchedAs(task, cwd, launchedAt), notice('claude.notShown', { task }))
   }
 
@@ -100,11 +106,11 @@ export class ClaudeCli {
     cwd: string,
     prompt: string,
     model: string | null,
-    settings?: string,
+    extras: SessionExtras = {},
   ): Promise<AgentEntry> {
     const resumedAt = Date.now()
     const kept = existsSync(join(home.dir, 'jobs', agentId, 'state.json'))
-    const args = resumeArgs(sessionId, prompt, kept, task, model, settings)
+    const args = resumeArgs(sessionId, prompt, kept, task, model, extras)
     await this.start(home, args, cwd, notice('claude.resumeFailed', { task, cwd }))
     return this.appear(home, resumedAs(sessionId, task, cwd, resumedAt), notice('claude.resumedNotShown', { task }))
   }
@@ -156,9 +162,21 @@ export class ClaudeCli {
 
 export const SESSION_MODE = 'auto'
 
-export function sessionArgs(task: string, model: string | null, settings?: string): string[] {
+/** What a chain session gets besides its name, model and prompt. */
+export type SessionExtras = Pick<SessionStart, 'settings' | 'mcp' | 'plugins'>
+
+/**
+ * `--mcp-config` takes several values, so it goes first, closed by `--strict-mcp-config`: right before the prompt it
+ * would swallow it. A plugin's server keeps the name the CLI gives a plugin's own, `plugin_<plugin>_<server>`: its
+ * tools stay `mcp__plugin_<plugin>_<server>__*`, as the plugin's hooks and the permission rules name them.
+ */
+export function sessionArgs(task: string, model: string | null, extras: SessionExtras = {}): string[] {
+  const { settings, mcp, plugins = [] } = extras
+  const servers = Object.fromEntries((mcp ?? []).map((each) => [each.plugin === null ? each.name : `plugin_${each.plugin}_${each.name}`, { type: 'http', url: each.url }]))
   return [
     '--bg',
+    ...(mcp === undefined ? [] : ['--mcp-config', JSON.stringify({ mcpServers: servers }), '--strict-mcp-config']),
+    ...plugins.flatMap((dir) => ['--plugin-dir', dir]),
     '--permission-mode',
     SESSION_MODE,
     '-n',
@@ -172,8 +190,8 @@ export function sessionArgs(task: string, model: string | null, settings?: strin
  * A background session whose job is saved keeps its own options (model, mode, name, settings): with any flag
  * `--bg --resume` starts a copy under a new session id instead of going on in it (CLI 2.1.302, reason `own-options`).
  */
-export function resumeArgs(sessionId: string, prompt: string, kept: boolean, task: string, model: string | null, settings?: string): string[] {
-  return [...(kept ? ['--bg'] : sessionArgs(task, model, settings)), '--resume', sessionId, prompt]
+export function resumeArgs(sessionId: string, prompt: string, kept: boolean, task: string, model: string | null, extras: SessionExtras = {}): string[] {
+  return [...(kept ? ['--bg'] : sessionArgs(task, model, extras)), '--resume', sessionId, prompt]
 }
 
 function launchedAs(task: string, cwd: string, since: number): (agent: AgentEntry) => boolean {

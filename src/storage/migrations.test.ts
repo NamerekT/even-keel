@@ -152,7 +152,8 @@ describe('upgradeStorage', () => {
   // mark in the chain's `ci`), v5 → v6 (a project's agent, Codex sessions) and v6 → v7 (the bypass of the Codex sandbox)
   // only add optional fields, so each step only stamps the files. v7 → v8 (BTN-173) moves the run settings of the config
   // into maps by provider — the samples of v6 and v7 have them, see below — and the active account out of `account.json`.
-  describe.each([2, 3, 4, 5, 6, 7])('v%i to the current version', (from) => {
+  // v8 → v9 (BTN-174) adds the new file `state/packages.json` and stamps the others.
+  describe.each([2, 3, 4, 5, 6, 7, 8])('v%i to the current version', (from) => {
     const sample = join(root, 'test', 'fixtures', `schema-v${from}`)
     const names = ['even-keel.config.json', 'state/chain.json', 'state/questions.json', 'state/launches.jsonl', 'state/account.json']
 
@@ -228,6 +229,13 @@ describe('upgradeStorage', () => {
       expect(codeOf(upgrade)).toBe('storage.newer')
       expect(originals()).toEqual(before)
       expect(existsSync(`${configFile}.v1.bak`)).toBe(false)
+    })
+
+    it('when the packages file is newer than the code', () => {
+      putV1()
+      put(state('packages.json'), { version: SCHEMA_VERSION + 1, packages: {}, projects: {}, pins: {} })
+      expect(codeOf(upgrade)).toBe('storage.newer')
+      expect(json(configFile)).toEqual(v1Config)
     })
 
     it('when the launches log is newer than the code', () => {

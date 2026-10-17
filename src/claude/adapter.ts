@@ -19,9 +19,10 @@ export const claude: AgentAdapter = {
     return {
       mode: SESSION_MODE,
       env: envOf,
-      launch: async (home, { name, cwd, prompt, model, settings }) => (await cli.launch(home, name, cwd, prompt, model, settings)).sessionId,
-      resume: async (home, { agentId, sessionId }, { name, cwd, prompt, model, settings }) =>
-        (await cli.resume(home, agentId, sessionId, name, cwd, prompt, model, settings)).sessionId,
+      launch: async (home, { name, cwd, prompt, model, settings, mcp, plugins }) =>
+        (await cli.launch(home, name, cwd, prompt, model, { settings, mcp, plugins })).sessionId,
+      resume: async (home, { agentId, sessionId }, { name, cwd, prompt, model, settings, mcp, plugins }) =>
+        (await cli.resume(home, agentId, sessionId, name, cwd, prompt, model, { settings, mcp, plugins })).sessionId,
       stop: (home, { agentId, sessionId }) => cli.stop(home, agentId, sessionId),
       sessions: (home) => cli.agents(home),
       tail: (home, agent) => new TranscriptTail(projects(home), agent),

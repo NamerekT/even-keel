@@ -1183,6 +1183,12 @@ input[type='radio']:disabled {
   gap: 8px 16px;
 }
 
+.banner__link {
+  color: inherit;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
 @media (max-width: 760px) {
   .header__inner {
     grid-template-columns: minmax(0, 1fr) auto;

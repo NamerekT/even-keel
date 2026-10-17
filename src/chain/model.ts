@@ -182,8 +182,8 @@ export interface DispatcherDeps {
   limitReset: (project: string, task?: string) => string | null
   /** When the limit an account folder hit at `at` resets, by its polled limits (`limitResetAfter`); an API account's — when its key's credit came back. */
   limitResetAfter: (account: string, at: string) => string | null
-  /** Until when the CLI skips the project's tracker MCP server as failed (BTN-159); `null` — it does not. */
-  mcpFailed: (project: string) => string | null
+  /** The project's set of packages has a problem that holds its sessions (BTN-174): not installed, no key, no answer. */
+  packagesBlocked: (project: string) => boolean
   promptLanguage: () => Language
   /** The main branch of the task's project, which the prompts name. */
   mainBranch: (task: string) => string

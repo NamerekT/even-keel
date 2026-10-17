@@ -1,0 +1,45 @@
+# Packages (BTN-174, `src/packages/`)
+
+What chain sessions get besides the CLI's own tools: plugins and MCP servers, as a set per project, given by flags at every launch. Even Keel keeps the packages, their versions and the keys; the settings files of the accounts and the repositories are not written. Sessions started by hand live by their own `settings.json` and `settings.local.json` and get none of this.
+
+## The file and the cache
+
+- `state/packages.json` (schema v9): `packages` by name, `projects` and `pins` by project GUID like every file of `state/` (`store.ts` renames to keys and back). A package is `kind` (`plugin` — `plugin: { name, marketplace }`; `mcp` — `server`, an entry as `.mcp.json` writes it), `default` (in every project that does not turn it off), `settings` (the values projects start from: `env` of a stdio server, headers of an HTTP one), `installs` (oldest first, the last one current: `{ id, version, at, servers, extras }`), `removed`. A project has `on`, `off` and its own `settings` per package. `pins[<project>][<task>]` is the install of each package the task started on.
+- A plugin package is named as `enabledPlugins` names it, `<plugin>@<marketplace>`; an MCP package by its server's name.
+- The cache is `state/packages/<package>/<install id>/`: `plugin/` (a copy of the plugin) and `servers/<server>/` (an npm install of a pinned stdio server). An install no pin holds and that is not current loses its files (`prune`); a removed package stays while a running task holds it.
+- No file yet (the first start after the upgrade): the catalog is seeded from what sessions got before (`seedPackages` in `plugins.ts`) — the plugins enabled in the global `settings.json` (on by default), the plugins enabled only in a project's `.claude/settings.json` or `settings.local.json` (on in that project), the user scope servers of `.claude.json`; all of them are installed in the background. So the upgrade does not break a running chain.
+
+## Install and update
+
+- A plugin comes from a marketplace the global configuration knows (`known_marketplaces.json`): a source path inside the marketplace is copied from its folder, another source (github, url) from the CLI's cache (`installed_plugins.json`); a plugin the CLI has not installed is refused with "install it in Claude Code first" (`packages.installInClaude`).
+- A stdio server `npx -y <package>@<range>` is pinned (`npm.ts`): `npm view` gives the version, `npm install --prefix <cache>` installs it, the command becomes `node <bin of package.json>`. Other commands run as they are, unpinned.
+- "Update": for a git or github marketplace first `claude plugin marketplace update <m>` in the global configuration, then a new install next to the current one if the plugin's version or any npm server's changed; otherwise `packages.upToDate`. A running task, its `--resume` and its handoffs stay on the install they started on (`pins`); the task's pins go when it is done (`release`).
+
+## Keys
+
+- One pool: Even Keel's own `.env`, the same variables the tracker adapters read (`HULY_*`, `GITHUB_TOKEN`, `LINEAR_TOKEN`). The page writes a key into `.env` (`upsertEnv`) and `process.env`, and sees only whether it is set. The gateway takes a new key at once, a tracker adapter after a restart.
+- `${…}` placeholders of a server entry are filled from the pool (`keys.ts`). A placeholder that names the same key differently (`GITHUB_PERSONAL_ACCESS_TOKEN` ← `GITHUB_TOKEN`, `LINEAR_API_KEY` ← `LINEAR_TOKEN`) is declared by the adapter's `mcpKeys`. The tracker's stdio server (`mcpServer` of the adapter) gets the adapter's variables from the pool.
+- Sessions do not get the pool: `sessionBase` drops every variable a package or a tracker reads.
+
+## The gateway (`gateway.ts`)
+
+- `http://127.0.0.1:<EVEN_KEEL_MCP_PORT>` (4748 by default), never another interface: Tailscale Service forwards 4747 to localhost, not this port. The route is `/mcp/<project GUID>/<package>@<install id>/<server>`; the gateway finds the install and the project's current settings by it, so a session resumed with its saved flags reaches its server after a restart of the service.
+- A remote HTTP server is proxied with its headers filled from the pool. A stdio server with a known HTTP mode (`HTTP_MODES`, by npm package; Huly: `MCP_TRANSPORT=http`, `MCP_HTTP_HOST`, `MCP_HTTP_PORT`, `MCP_AUTH_TOKEN`, path `/mcp`) runs once per route and environment on a free port with a random bearer token. Any other stdio server gets a bridge in the gateway: a child process per MCP session (`Mcp-Session-Id`), JSON replies, `GET` for the server's own messages as SSE, closed by `DELETE` or after 30 minutes idle.
+- No token between the session and the gateway; instead `refusal()`: `Host` must be 127.0.0.1 or localhost (DNS rebinding), a request with `Origin` is refused (a browser page), a `POST` must be `application/json` (a browser cannot send it without a preflight).
+- The gateway cannot listen → `PackagesView.gateway` and every chain waits (the red banner).
+
+## Launch
+
+- Claude (`src/claude/cli.ts`): `--mcp-config <JSON>` and `--strict-mcp-config` before the other flags (`--mcp-config` takes several values and would swallow the prompt), `--plugin-dir` per plugin of the set, and in `--settings` `enabledPlugins: false` for every other enabled plugin (`otherPlugins`). `--strict-mcp-config` cuts off `.mcp.json` of the folder and its parents, user and local scope and the plugins' own MCP: every MCP server goes through `--mcp-config`. A plugin's server is named `plugin_<plugin>_<server>`, so its tools stay `mcp__plugin_huly_huly__*` and the plugin's hooks and permission rules keep working; an MCP package's server keeps its own name.
+- `--bg --resume` of a stopped session wakes it with its saved flags (`respawnFlags` in `jobs/<id>/state.json`).
+- Codex (`src/codex/mcp.ts`): `-c mcp_servers.<server>.url=<gateway address>` per server, no keys in the turn's environment. Codex does not read Claude Code plugins: their skills and hooks stay out, and the cell says so (`unsupported`, does not hold the chain).
+- `agentExtras` computes the packages before `settingsFor`: the first launch of a task pins it.
+
+## The check before a launch (`check.ts`)
+
+- Problems of a package in a project: `notInstalled`, `installing`, `installFailed`, `noKey` (with the variables), `noResponse` (the probe — `initialize` through the gateway; a success lives 5 minutes, a failure is retried in 30 seconds; the first probe of `huly` after an install can time out at 30 seconds while the server logs in to Huly, and the retry passes), and of the set: `noTrackerMcp` when `brief` is off and no enabled package brings the tracker's server. `unsupported` is only a mark.
+- While a project has a problem that holds it (`blocked`), the dispatcher launches nothing for it (`packagesBlocked`) and goes on by itself once the problem is gone; the banner `PackagesBanner` names the projects. A fix session of a red main does not wait.
+
+## The page
+
+`/tools` starts with the packages table (`web/src/tools/Packages.tsx`): a row per package (kind, version, install or update, the install's error), a column per chosen project with on / off / default and the problems; a row opens to its servers, the default switch, the settings (for all and per project) and "Remove". Below: the keys (set or not, a new value), an offer to import the servers of a repository's committed `.mcp.json` (dismissed in `localStorage` until the list changes), adding a plugin of a known marketplace or an MCP server. Commands: `POST /api/packages/{install,update,remove,plugin,server,import,project,default,setting,key}`; the data is `EvenKeelState.packages`.

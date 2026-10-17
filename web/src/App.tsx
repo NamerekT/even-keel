@@ -8,7 +8,7 @@ import { ConfigBanner } from './layout/ConfigBanner.js'
 import { UnattendedBanner } from './layout/UnattendedBanner.js'
 import { Header } from './layout/Header.js'
 import { LinkBanner } from './layout/LinkBanner.js'
-import { McpBanner } from './layout/McpBanner.js'
+import { PackagesBanner } from './layout/PackagesBanner.js'
 import { FallbackToasts } from './layout/Fallbacks.js'
 import { UpdateToast } from './layout/Updates.js'
 import { UsageBanner } from './layout/UsageBanner.js'
@@ -49,7 +49,7 @@ export function App() {
       <UsageBanner />
       <ConfigBanner />
       <UnattendedBanner />
-      <McpBanner />
+      <PackagesBanner />
       <main className="content">
         {state === null ? (
           <p className="placeholder">{link === 'stale' ? t.app.noServer : t.app.connecting}</p>

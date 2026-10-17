@@ -74,6 +74,18 @@ describe('Even Keel HTTP server', () => {
         },
       },
       settings: { save: record('settings'), saveShared: record('shared'), dismissUpdate: record('dismiss'), muteUpdates: record('mute') },
+      packages: {
+        install: async (name) => record('install')(name),
+        update: async (name) => record('update')(name),
+        remove: record('removePackage'),
+        addPlugin: record('addPlugin'),
+        addServer: record('addServer'),
+        importRepo: record('import'),
+        choose: record('choose'),
+        setDefault: record('default'),
+        setSetting: record('setting'),
+        setKey: record('key'),
+      },
       launches: () => [{ task: 'ABC-1' }],
       sessionRecord: async (id) => {
         if (id === 'bad') throw new Error('sessions: bad is not a session id')
@@ -483,6 +495,47 @@ describe('Even Keel HTTP server', () => {
     expect((await post('/api/account/code', { code: '  ' })).status).toBe(400)
     expect((await post('/api/account/renew', {})).status).toBe(400)
     expect((await post('/api/account/nope')).status).toBe(404)
+  })
+
+  it('drives the packages through POST commands, a project optional where the change may be for every project', async () => {
+    await post('/api/packages/install', { name: 'huly@even-keel' })
+    await post('/api/packages/update', { name: 'huly@even-keel' })
+    await post('/api/packages/remove', { name: 'db' })
+    await post('/api/packages/plugin', { plugin: 'huly', marketplace: 'even-keel' })
+    await post('/api/packages/server', { name: 'db', server: { command: 'db-mcp' }, project: 'ABC' })
+    await post('/api/packages/server', { name: 'web', server: { url: 'https://mcp.example.com' } })
+    await post('/api/packages/import', { project: 'ABC' })
+    await post('/api/packages/project', { project: 'ABC', name: 'db', choice: 'off' })
+    await post('/api/packages/project', { project: 'ABC', name: 'db', choice: null })
+    await post('/api/packages/default', { name: 'db', on: true })
+    await post('/api/packages/setting', { name: 'huly@even-keel', key: 'TOOLSETS', value: 'issues', project: 'ABC' })
+    await post('/api/packages/setting', { name: 'huly@even-keel', key: 'TOOLSETS', value: null })
+    await post('/api/packages/key', { name: 'GITHUB_TOKEN', value: 'token-1' })
+    expect(calls).toEqual([
+      ['install', 'huly@even-keel'],
+      ['update', 'huly@even-keel'],
+      ['removePackage', 'db'],
+      ['addPlugin', 'huly', 'even-keel'],
+      ['addServer', 'db', { command: 'db-mcp' }, 'ABC'],
+      ['addServer', 'web', { url: 'https://mcp.example.com' }, undefined],
+      ['import', 'ABC'],
+      ['choose', 'ABC', 'db', 'off'],
+      ['choose', 'ABC', 'db', null],
+      ['default', 'db', true],
+      ['setting', 'huly@even-keel', 'TOOLSETS', 'issues', 'ABC'],
+      ['setting', 'huly@even-keel', 'TOOLSETS', null, undefined],
+      ['key', 'GITHUB_TOKEN', 'token-1'],
+    ])
+  })
+
+  it('refuses a packages command of a wrong shape', async () => {
+    expect((await post('/api/packages/install', {})).status).toBe(400)
+    expect((await post('/api/packages/server', { name: 'db', server: 'db-mcp' })).status).toBe(400)
+    expect((await post('/api/packages/project', { project: 'ABC', name: 'db', choice: 'maybe' })).status).toBe(400)
+    expect((await post('/api/packages/default', { name: 'db' })).status).toBe(400)
+    expect((await post('/api/packages/setting', { name: 'db', key: 'A', value: 1 })).status).toBe(400)
+    expect((await post('/api/packages/key', { name: 'GITHUB_TOKEN' })).status).toBe(400)
+    expect(calls).toEqual([])
   })
 
   it('adds an account of the agent the page asks for', async () => {

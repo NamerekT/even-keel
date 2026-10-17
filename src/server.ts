@@ -116,6 +116,20 @@ export interface SettingsControl {
   muteUpdates(): void
 }
 
+/** The page's commands on packages (`src/packages/service.ts`); a project is named by its key. */
+export interface PackagesControl {
+  install(name: string): Promise<void>
+  update(name: string): Promise<void>
+  remove(name: string): void
+  addPlugin(plugin: string, marketplace: string): void
+  addServer(name: string, entry: Record<string, unknown>, project?: string): void
+  importRepo(project: string): void
+  choose(project: string, name: string, choice: 'on' | 'off' | null): void
+  setDefault(name: string, on: boolean): void
+  setSetting(name: string, key: string, value: string | null, project?: string): void
+  setKey(name: string, value: string): void
+}
+
 export interface ServerDeps {
   hub: EventHub
   publicDir: string
@@ -124,6 +138,7 @@ export interface ServerDeps {
   account: AccountControl
   sessions: SessionControl
   settings: SettingsControl
+  packages: PackagesControl
   launches: () => unknown
   sessionRecord: (sessionId: string) => Promise<unknown>
   /** Lines of the whole transcript from index `after` on. */
@@ -173,6 +188,17 @@ const COMMANDS: Record<string, Command> = {
   'account/keep': ({ account }, body) => account.keep(accountOf(body)),
   'account/code': ({ account }, body) => account.code(codeOf(body)),
   'account/cancel': ({ account }) => account.cancel(),
+  'packages/install': ({ packages }, body) => packages.install(nameOf(body)),
+  'packages/update': ({ packages }, body) => packages.update(nameOf(body)),
+  'packages/remove': ({ packages }, body) => packages.remove(nameOf(body)),
+  'packages/plugin': ({ packages }, body) => packages.addPlugin(textOf(body.plugin, 'plugin'), textOf(body.marketplace, 'marketplace')),
+  'packages/server': ({ packages }, body) => packages.addServer(nameOf(body), serverOf(body.server), optionalProjectOf(body)),
+  'packages/import': ({ packages }, body) => packages.importRepo(projectOf(body)),
+  'packages/project': ({ packages }, body) => packages.choose(projectOf(body), nameOf(body), choiceOf(body.choice)),
+  'packages/default': ({ packages }, body) => packages.setDefault(nameOf(body), flagOf(body)),
+  'packages/setting': ({ packages }, body) =>
+    packages.setSetting(nameOf(body), textOf(body.key, 'key'), body.value === null ? null : textOf(body.value, 'value'), optionalProjectOf(body)),
+  'packages/key': ({ packages }, body) => packages.setKey(nameOf(body), textOf(body.value, 'value')),
 }
 
 const MAX_BODY_BYTES = 64 * 1024
@@ -644,6 +670,26 @@ function accountOf(body: Record<string, unknown>): string {
 function appOf(body: Record<string, unknown>): string {
   if (typeof body.app !== 'string' || body.app === '') throw fail('request.required', { field: 'app' })
   return body.app
+}
+
+function nameOf(body: Record<string, unknown>): string {
+  if (typeof body.name !== 'string' || body.name === '') throw fail('request.required', { field: 'name' })
+  return body.name
+}
+
+function optionalProjectOf(body: Record<string, unknown>): string | undefined {
+  return body.project === undefined || body.project === null ? undefined : projectOf(body)
+}
+
+function choiceOf(raw: unknown): 'on' | 'off' | null {
+  if (raw !== 'on' && raw !== 'off' && raw !== null) throw fail('request.required', { field: 'choice' })
+  return raw
+}
+
+/** An entry as `.mcp.json` writes it; the package service checks it has a command or a url. */
+function serverOf(raw: unknown): Record<string, unknown> {
+  if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) throw fail('request.required', { field: 'server' })
+  return raw as Record<string, unknown>
 }
 
 function codeOf(body: Record<string, unknown>): string {

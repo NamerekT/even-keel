@@ -16,6 +16,7 @@ This file holds the rules and traps needed in every session. Reference on how th
 | `docs/trackers.md` | the `src/tracker/` layer, the Huly, GitHub and Linear adapters, `brief`/`complete`, Claude Code plugins |
 | `docs/ci.md` | the `src/ci/` layer, the Forgejo and GitHub Actions adapters, which remote gets a CI, polling, Forgejo API traps |
 | `docs/sessions.md` | the `claude` CLI, transcripts, the model by label, prompt assembly, limit polling |
+| `docs/packages.md` | plugins and MCP servers of a project's set, `state/packages.json`, install and update, the keys, the local MCP gateway, the launch flags, the check before a launch |
 | `docs/accounts.md` | account folders, sign-in and switching, the apps panel, transferring the shared configuration |
 | `docs/web.md` | the interface, translation (`language`, message codes), live config, `dev:fake` parameters |
 | `docs/stats.md` | the `/stats` page, its routes and URLs, rule changes; the collector is in `tally/CLAUDE.md` |
@@ -47,7 +48,7 @@ Behaviour written without a way to check it live (the situation never came up or
 - The CLI creates several keys for one folder in `.claude.json` (`d:/…`, `D:/…`, `D:\…`). Compare paths only through `src/paths.ts`.
 - An account folder's temporary daemon caches the configuration: a transfer (`share.ts`) reaches only sessions after the daemon restarts.
 - Do not poll `/usage` more often than once per 5 minutes: 429, and then the CLI does not query that token for ~45 min. No window lines means "no data", not an error.
-- `${…}` substitutions do not work in a stdio plugin's `.mcp.json`: an unset variable makes the session consider the server failed. Sessions take tracker credentials from `env` in `~/.claude/settings.json`; `envOf` removes the adapters' variables from the sessions' environment.
+- Chain sessions get plugins and MCP only as packages (`--strict-mcp-config`, `--plugin-dir`, `docs/packages.md`): a server in `.mcp.json` or a plugin enabled in settings does not reach them. Keys stay in Even Keel's `.env` behind the gateway on 127.0.0.1; `sessionBase` removes every key a package or a tracker reads from the sessions' environment.
 - A plugin change comes with a new `version` in its `plugin.json`, otherwise `claude plugin update` picks up nothing.
 - The Claude desktop app rewrites the profile in `~/.claude`: keep the same account there as in the app.
 - A second Even Keel instance from a Claude Code session — without its `CLAUDE*` variables: an inherited `CLAUDE_CONFIG_DIR` makes `global` the session's account folder.

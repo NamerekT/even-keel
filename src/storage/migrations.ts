@@ -45,7 +45,8 @@ export function upgradeStorage(options: UpgradeOptions): void {
   const questions = readStored(join(stateDir, 'questions.json'))
   const account = readStored(join(stateDir, 'account.json'))
   const launches = readLaunchLog(join(stateDir, 'launches.jsonl'))
-  const files = [config, chain, questions, account, launches].filter((stored) => stored !== undefined)
+  const packages = readStored(join(stateDir, 'packages.json'))
+  const files = [config, chain, questions, account, launches, packages].filter((stored) => stored !== undefined)
   for (const stored of files) refuseNewer(stored.file, stored.version)
 
   const rewrites: Rewrite[] = []
@@ -84,9 +85,12 @@ export function upgradeStorage(options: UpgradeOptions): void {
   // v6 → v7: the same, for `codexBypassSandbox` of a project in the config (BTN-171).
   // v7 → v8: the config by `configV8`, the account file without `active`; the other files are restamped, and the launch
   // log gains the optional `fallback` of a launch (BTN-173).
-  for (const stored of [chain, questions]) {
+  // v8 → v9: a new file, `state/packages.json` (BTN-174), which the service seeds when it is missing; the others are
+  // restamped, `account.json` too.
+  for (const stored of [chain, questions, packages]) {
     if (stored !== undefined && stored.version >= 2 && stored.version < SCHEMA_VERSION) rewrite(stored, jsonText(restamped(stored)))
   }
+  if (account !== undefined && account.version >= 8 && account.version < SCHEMA_VERSION) rewrite(account, jsonText(restamped(account)))
   if (launches !== undefined && launches.version >= 2 && launches.version < SCHEMA_VERSION) {
     rewrite(launches, launches.text.replace(/^[^\n]*\n?/, `${JSON.stringify({ version: SCHEMA_VERSION })}\n`))
   }

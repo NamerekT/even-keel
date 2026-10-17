@@ -29,7 +29,7 @@ Reference for sessions: how the tracker layer, the adapters and the Claude Code 
   - Huly: `milestone` of the issue; a task of another project gives none.
   - GitHub: GraphQL `updateIssue` with `milestoneId`; a milestone belongs to a repository, so a task of another project gives none.
   - Linear: `issueUpdate` with `projectMilestoneId`; a milestone belongs to a project, so an issue without a project gets the project together with it, and an issue of another project is left alone.
-- The `brief` key (`true` by default, global and per project — `{ "key", "repo", "brief" }`, applied on the fly) turns off the description in the prompt for projects where sessions read the task themselves through the tracker MCP. Then Even Keel checks whether the session sees the adapter's MCP server (`mcpServer`, for Huly `huly`) — at startup, on a config change and before a launch. The check is `src/tracker/mcp.ts`: user scope and the project's local scope from `.claude.json` of the global and the active account — by any spelling of the path, `.mcp.json` without `disabledMcpjsonServers`, enabled plugins, minus `disabledMcpServers`. If it does not see it — a warning in the log and the `McpBanner` banner (`mcpMissing` in the state): the session will get only the task number. Whatever `brief`, the same check reads the CLI's cache of failed plugin servers, and the chain waits while the tracker's server is in it (`mcpFailed`, `docs/sessions.md`).
+- The `brief` key (`true` by default, global and per project — `{ "key", "repo", "brief" }`, applied on the fly) turns off the description in the prompt for projects where sessions read the task themselves through the tracker MCP. Then the project's packages must bring the adapter's MCP server (`mcpServer`, for Huly `huly`): without it the set has the problem `noTrackerMcp`, the chain waits and the banner names the project (`docs/packages.md`).
 - Each tracker in use has its own connection and poll (`src/tracker/link.ts`, `poller.ts`) and a row in the "Status" menu. A task link goes by the tracker of its project (`trackerUrls`, the `issueUrl` template with `{id}` or `{number}`).
 
 ## Huly
@@ -60,24 +60,25 @@ The adapter `src/huly/` through `@hcengineering/api-client` — the same client 
 ## Claude Code plugins (BTN-64)
 
 - The repository is the marketplace `even-keel` (`.claude-plugin/marketplace.json`), one plugin per tracker in `plugins/<tracker>/`: the tracker MCP (`.mcp.json`) and skills (`skills/<name>`, invoked as `<tracker>:<name>`). `task` — working a task; Huly also has `split` — splitting into subtasks and `setup` — putting a repository on the tracker. The skills are in English and carry no foreign names or measurements. There is one non-tracker plugin there — `checkpoint` (the checkpoint hook, `docs/chain.md`), installed with `--scope user`.
-- Installed with the global configuration (without `CLAUDE_CONFIG_DIR`): `claude plugin marketplace add <repository>`, then in the project repository `claude plugin install huly@even-keel --scope project` — `enabledPlugins` in the project's `.claude/settings.json`, which must be committed, otherwise task worktrees will not see it. `share.ts` transfers the plugin registry into account folders; what is installed in an account folder will be overwritten. With the plugin, the project has `brief: false`.
+- Installed with the global configuration (without `CLAUDE_CONFIG_DIR`): `claude plugin marketplace add <repository>`. Chain sessions get a plugin as a package of the project (`docs/packages.md`): "Add" on `/tools` copies it from the marketplace, whatever `enabledPlugins` says. For sessions started by hand, `claude plugin install huly@even-keel --scope project` in the project repository — `enabledPlugins` in the project's `.claude/settings.json`; `share.ts` transfers the plugin registry into account folders. With the plugin, the project has `brief: false`.
 - A plugin change comes with a new `version` in its `plugin.json`: the installed copy sits in the cache by version, and `claude plugin update` with the same version picks up nothing. A marketplace added from a local path is the exception (CLI 2.1.301): `claude plugin list --json` shows `readFromFolder` and `folderVersion` next to the cached `version`, and sessions load the plugin from that folder, so a `git pull` there reaches the next sessions without `claude plugin update` (BTN-157: a session loaded the folder's `huly` skill while the cache held 0.4.0).
 
 ### `huly` — the model
 
 - The server is `@firfi/huly-mcp`. The credentials (`HULY_URL`, `HULY_WORKSPACE`, `HULY_TOKEN` or `HULY_EMAIL`/`HULY_PASSWORD`) are inherited from the session environment and are not in `.mcp.json`, which has only the constant `TOOLSETS` (the set for working a task).
-- `${…}` substitutions in a plugin's `.mcp.json` are unsuitable: an unset variable, even with a `:-` default, makes the session consider the server failed and not start it (`claude mcp list` still says "Connected"), and the server does not accept an empty `HULY_TOKEN`.
-- The user puts the credentials in `env` of their `~/.claude/settings.json`: the session applies it itself, and `share.ts` transfers the file into account folders. System variables do not work for the chain: `envOf` (BTN-34) removes `HULY_*` from the `claude` environment so that Even Keel's own credentials from `.env` do not reach sessions, and sessions are children of the folder's daemon, so their environment comes from whoever started the daemon.
+- `${…}` substitutions in a plugin's `.mcp.json` are unsuitable for a session that runs the server itself: an unset variable, even with a `:-` default, makes the session consider the server failed and not start it (`claude mcp list` still says "Connected"), and the server does not accept an empty `HULY_TOKEN`.
+- Chain sessions: the gateway runs the server in its HTTP mode with the adapter's `HULY_*` from Even Keel's `.env` (`docs/packages.md`); the session sees only the gateway's address. `sessionBase` removes `HULY_*` from the sessions' environment.
+- Sessions started by hand: the user puts the credentials in `env` of their `~/.claude/settings.json`: the session applies it itself, and `share.ts` transfers the file into account folders.
 - How to use it — `plugins/huly/README.md`.
 
 ### `github` (BTN-65)
 
-- The remote GitHub server (`api.githubcopilot.com/mcp/`, toolsets `issues,labels`). An HTTP server needs the token in a header, so a `${GITHUB_PERSONAL_ACCESS_TOKEN}` substitution is used here — without the variable the server is useless anyway. This is not Even Keel's `GITHUB_TOKEN`: `envOf` removes that one from sessions.
+- The remote GitHub server (`api.githubcopilot.com/mcp/`, toolsets `issues,labels`). An HTTP server needs the token in a header, so a `${GITHUB_PERSONAL_ACCESS_TOKEN}` substitution is used here — without the variable the server is useless anyway. For chain sessions the gateway fills it from Even Keel's `GITHUB_TOKEN` (the adapter's `mcpKeys`) and adds the header itself; a session started by hand needs `GITHUB_PERSONAL_ACCESS_TOKEN` of its own.
 - The MCP has no "blocked by" links — the skill sets them via `gh api …/dependencies/blocked_by`.
 - How to use it — `plugins/github/README.md`.
 
 ### `linear` (BTN-72)
 
-- The remote Linear server (`mcp.linear.app/mcp`). It accepts a personal key in a header — `Authorization: Bearer ${LINEAR_API_KEY}`; this is not Even Keel's `LINEAR_TOKEN`, which `envOf` removes from sessions.
+- The remote Linear server (`mcp.linear.app/mcp`). It accepts a personal key in a header — `Authorization: Bearer ${LINEAR_API_KEY}`; for chain sessions the gateway fills it from Even Keel's `LINEAR_TOKEN` (`mcpKeys`), a session started by hand needs `LINEAR_API_KEY` of its own.
 - The server sets "blocks" links itself: `save_issue` with `blockedBy`/`blocks`.
 - How to use it — `plugins/linear/README.md`.

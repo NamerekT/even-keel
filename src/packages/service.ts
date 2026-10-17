@@ -1,0 +1,447 @@
+import { execFile } from 'node:child_process'
+import { cpSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { join } from 'node:path'
+import { promisify } from 'node:util'
+import type { SessionStart } from '../agent/contract.js'
+import { fail, notice, noticeOf, type Notice } from '../notice/notice.js'
+import type { KeyView, PackagesView, PackageView, ProjectPackages } from '../state.js'
+import { byMap, inverted } from '../storage/projects.js'
+import { Probes, projectPackages } from './check.js'
+import { McpGateway, type GatewayTarget } from './gateway.js'
+import { applySettings, defaultSettings, keysOf, substitute, upsertEnv, type KeyRules } from './keys.js'
+import { otherPlugins, pluginDir, routeOf, sessionPackages } from './launch.js'
+import { current, enabledPackages, pluginKey, settingsOf, unpinned, type InstalledServer, type PackageInstall, type PackagesFile, type ServerEntry } from './model.js'
+import { installPinned, parseNpx, resolveVersion } from './npm.js'
+import { availablePlugins, hasExtras, locatePlugin, pluginServers, pluginVersion, readJson, seedPackages, serversIn } from './plugins.js'
+import { loadPackages, savePackages } from './store.js'
+
+const run = promisify(execFile)
+const SERVER_NAME = /^[\w-]+$/
+/** Marketplaces the CLI fetches: an update pulls them first. */
+const FETCHED = new Set(['github', 'git', 'url'])
+const AVAILABLE_MS = 60_000
+
+export interface PackagesDeps {
+  /** `state/packages.json`. */
+  file: string
+  /** `state/packages`. */
+  cache: string
+  /** Even Keel's own `.env`: the pool of keys. */
+  envFile: string
+  /** The id of each project key. */
+  ids: Record<string, string>
+  /** The repository of each project key. */
+  repos: Record<string, string>
+  /** The global configuration folder: its marketplaces and installed plugins, its `settings.json`. */
+  globalDir: string
+  /** `.claude.json` files sessions read: their user scope servers seed the catalog. */
+  claudeConfigs: () => string[]
+  rules: KeyRules
+  /** The tracker server the project's sessions cannot do without: `brief` is off. */
+  trackerServer: (project: string) => string | undefined
+  /** The agent of the account the project's next session runs on. */
+  agentOf: (project: string) => string
+  /** `claude plugin marketplace update <marketplace>` in the global configuration. */
+  updateMarketplace: (marketplace: string) => Promise<void>
+  /** The environment of a server process before its own variables. */
+  baseEnv: () => NodeJS.ProcessEnv
+  port: number
+  log: (line: string) => void
+  /** The view or what a project is held on changed. */
+  onChange: () => void
+}
+
+/** Packages of the projects (BTN-174): the catalog, each project's set, the pins of running tasks, the keys and the gateway. */
+export class Packages {
+  private file: PackagesFile
+  private readonly installing = new Set<string>()
+  private readonly errors = new Map<string, Notice>()
+  /** The outcome of each package's last update. */
+  private readonly notes = new Map<string, Notice>()
+  private readonly gateway: McpGateway
+  private readonly probes: Probes
+  private gatewayError: Notice | null = null
+  private imports: Record<string, string[]> = {}
+  private plugins: { at: number; list: PackagesView['available'] } | undefined
+  private readonly projectOf: (id: string) => string
+
+  constructor(private readonly deps: PackagesDeps) {
+    this.projectOf = byMap(inverted(deps.ids))
+    const loaded = loadPackages(deps.file, deps.ids)
+    this.file = loaded ?? this.seed()
+    if (loaded === undefined) savePackages(deps.file, this.file, deps.ids)
+    this.gateway = new McpGateway({ resolve: (route) => this.target(route), baseEnv: deps.baseEnv, log: deps.log })
+    this.probes = new Probes({
+      urlOf: (project, name, install, server) => `${this.gateway.origin}${routeOf(this.idOf(project), name, install, server)}`,
+      now: () => Date.now(),
+      onChange: deps.onChange,
+    })
+  }
+
+  /** Listens, installs every package with no install yet and reads the repositories' `.mcp.json` to offer. */
+  async start(): Promise<void> {
+    try {
+      await this.gateway.listen(this.deps.port)
+      this.deps.log(`mcp gateway: listening on ${this.gateway.origin}`)
+    } catch (error) {
+      this.gatewayError = noticeOf(error)
+      this.deps.log(`mcp gateway: ${(error as Error).message}`)
+    }
+    for (const [name, record] of Object.entries(this.file.packages)) if (record.removed !== true && record.installs.length === 0) void this.install(name).catch(() => {})
+    await this.readImports()
+  }
+
+  close(): Promise<void> {
+    return this.gateway.close()
+  }
+
+  view(): PackagesView {
+    const packages: PackageView[] = Object.entries(this.file.packages).map(([name, record]) => {
+      const install = current(record)
+      return {
+        name,
+        kind: record.kind,
+        version: install?.version ?? null,
+        installing: this.installing.has(name),
+        error: this.errors.get(name) ?? null,
+        note: this.notes.get(name) ?? null,
+        default: record.default,
+        settings: record.settings,
+        servers: Object.keys(install?.servers ?? {}),
+        extras: install?.extras ?? false,
+        removed: record.removed === true,
+      }
+    })
+    const projects = Object.fromEntries(Object.keys(this.deps.repos).map((project) => [project, this.check(project)]))
+    return { gateway: this.gatewayError, packages, projects, keys: this.keys(), available: this.available(), imports: this.imports }
+  }
+
+  /** The marketplaces' plugins not in the catalog; the files are read again at most once a minute. */
+  private available(): PackagesView['available'] {
+    if (this.plugins === undefined || Date.now() - this.plugins.at > AVAILABLE_MS) this.plugins = { at: Date.now(), list: availablePlugins(this.deps.globalDir) }
+    return this.plugins.list.filter((each) => {
+      const known = this.file.packages[pluginKey(each.plugin, each.marketplace)]
+      return known === undefined || known.removed === true
+    })
+  }
+
+  /** Every pool variable a package reads: sessions do not get them in their environment. */
+  keyNames(): string[] {
+    return this.keys().map((key) => key.name)
+  }
+
+  /** The chain waits while the project's set has a problem that holds it. */
+  blocked(project: string): boolean {
+    return this.gatewayError !== null || this.check(project).blocked
+  }
+
+  /** What a session of the task gets; the first one pins the task to the installs it starts on. */
+  startOf(project: string, task: string, agent: string): Pick<SessionStart, 'mcp' | 'plugins'> {
+    const places = { gateway: this.gateway.origin, cache: this.deps.cache, projectId: this.idOf(project) }
+    const found = sessionPackages(this.file, project, task, places)
+    if (this.file.pins[project]?.[task] === undefined && Object.keys(found.installs).length > 0) {
+      ;(this.file.pins[project] ??= {})[task] = found.installs
+      this.save()
+    }
+    return { mcp: found.mcp, ...(agent === 'claude' ? { plugins: found.plugins } : {}) }
+  }
+
+  /** `enabledPlugins: false` for every plugin the settings files enable and the task's set does not bring. */
+  otherPlugins(project: string, task: string, settings: (Record<string, unknown> | undefined)[]): Record<string, false> {
+    const pinned = this.file.pins[project]?.[task]
+    const names = pinned === undefined ? enabledPackages(this.file, project) : Object.keys(pinned)
+    const set = names.flatMap((name) => {
+      const plugin = this.file.packages[name]?.plugin
+      return plugin === undefined ? [] : [pluginKey(plugin.name, plugin.marketplace)]
+    })
+    return otherPlugins(settings, set)
+  }
+
+  /** The task is done: its pins go, and with them the installs nothing holds any more. */
+  release(project: string, task: string): void {
+    const tasks = this.file.pins[project]
+    if (tasks?.[task] === undefined) return
+    delete tasks[task]
+    if (Object.keys(tasks).length === 0) delete this.file.pins[project]
+    this.prune()
+    this.save()
+  }
+
+  async install(name: string): Promise<void> {
+    this.recordOf(name)
+    await this.installNew(name)
+  }
+
+  /** A new install next to the current one when the plugin's or a server's version changed; the page shows which. */
+  async update(name: string): Promise<void> {
+    const record = this.recordOf(name)
+    if (record.plugin !== undefined) {
+      const place = locatePlugin(this.deps.globalDir, record.plugin.name, record.plugin.marketplace)
+      if (FETCHED.has(place.kind)) {
+        try {
+          await this.deps.updateMarketplace(record.plugin.marketplace)
+        } catch (error) {
+          throw fail('packages.marketplaceUpdate', { marketplace: record.plugin.marketplace }, { detail: (error as Error).message }, { cause: error })
+        }
+      }
+    }
+    const install = await this.installNew(name)
+    this.notes.set(name, install === null ? notice('packages.upToDate', { name }) : notice('packages.updated', { name, version: install.version ?? install.id }))
+    this.deps.onChange()
+  }
+
+  remove(name: string): void {
+    this.recordOf(name).removed = true
+    for (const set of Object.values(this.file.projects)) {
+      set.on = set.on.filter((each) => each !== name)
+      set.off = set.off.filter((each) => each !== name)
+      delete set.settings[name]
+    }
+    this.prune()
+    this.save()
+  }
+
+  addPlugin(plugin: string, marketplace: string): void {
+    const name = pluginKey(plugin, marketplace)
+    const known = this.file.packages[name]
+    if (known !== undefined && known.removed !== true) throw fail('packages.exists', { name })
+    locatePlugin(this.deps.globalDir, plugin, marketplace)
+    this.file.packages[name] = { kind: 'plugin', plugin: { name: plugin, marketplace }, default: false, settings: {}, installs: known?.installs ?? [] }
+    this.save()
+    void this.install(name).catch(() => {})
+  }
+
+  addServer(name: string, entry: ServerEntry, project?: string): void {
+    this.projectKnown(project)
+    if (!SERVER_NAME.test(name)) throw fail('packages.badName', { name })
+    if (typeof entry.command !== 'string' && typeof entry.url !== 'string') throw fail('packages.badServer', { name })
+    const known = this.file.packages[name]
+    if (known !== undefined && known.removed !== true) throw fail('packages.exists', { name })
+    this.file.packages[name] = { kind: 'mcp', server: entry, default: project === undefined, settings: defaultSettings({ [name]: entry }), installs: known?.installs ?? [] }
+    if (project !== undefined) this.choose(project, name, 'on')
+    this.save()
+    void this.install(name).catch(() => {})
+  }
+
+  /** The servers of the repository's committed `.mcp.json` join the catalog, on for that project only. */
+  importRepo(project: string): void {
+    this.projectKnown(project)
+    const servers = serversIn(readJson(join(this.deps.repos[project]!, '.mcp.json')))
+    for (const [name, entry] of Object.entries(servers)) {
+      if (this.imports[project]?.includes(name) && typeof entry === 'object' && entry !== null) this.addServer(name, entry as ServerEntry, project)
+    }
+    this.imports = { ...this.imports, [project]: [] }
+    this.deps.onChange()
+  }
+
+  choose(project: string, name: string, choice: 'on' | 'off' | null): void {
+    this.projectKnown(project)
+    this.recordOf(name)
+    const set = (this.file.projects[project] ??= { on: [], off: [], settings: {} })
+    set.on = set.on.filter((each) => each !== name)
+    set.off = set.off.filter((each) => each !== name)
+    if (choice !== null) set[choice].push(name)
+    this.save()
+  }
+
+  setDefault(name: string, on: boolean): void {
+    this.recordOf(name).default = on
+    this.save()
+  }
+
+  /** A setting of the package, for every project (`project` undefined) or one; `null` — back to the package's value. */
+  setSetting(name: string, key: string, value: string | null, project?: string): void {
+    this.projectKnown(project)
+    const record = this.recordOf(name)
+    if (project === undefined) {
+      if (value === null) delete record.settings[key]
+      else record.settings[key] = value
+    } else {
+      const set = (this.file.projects[project] ??= { on: [], off: [], settings: {} })
+      const own = (set.settings[name] ??= {})
+      if (value === null || value === record.settings[key]) delete own[key]
+      else own[key] = value
+      if (Object.keys(own).length === 0) delete set.settings[name]
+    }
+    this.probes.forget(name)
+    this.save()
+  }
+
+  /** Into Even Keel's `.env` and the running service: the gateway uses it at once, a tracker adapter after a restart. */
+  setKey(name: string, value: string): void {
+    if (!this.keys().some((key) => key.name === name)) throw fail('packages.unknownKey', { name })
+    let text = ''
+    try {
+      text = readFileSync(this.deps.envFile, 'utf8')
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error
+    }
+    writeFileSync(this.deps.envFile, upsertEnv(text, name, value))
+    process.env[name] = value
+    for (const record of Object.keys(this.file.packages)) this.probes.forget(record)
+    this.deps.onChange()
+  }
+
+  private check(project: string): ProjectPackages {
+    const view = projectPackages({
+      file: this.file,
+      project,
+      agent: this.deps.agentOf(project),
+      installing: this.installing,
+      errors: this.errors,
+      keys: (server, entry) => keysOf(server, entry, this.deps.rules, process.env),
+      probe: (name, install, server) => this.probes.result(project, name, install, server),
+      trackerServer: this.deps.trackerServer(project),
+    })
+    return this.gatewayError === null ? view : { ...view, blocked: true }
+  }
+
+  private keys(): KeyView[] {
+    const keys = new Map<string, Set<string>>()
+    for (const [name, record] of Object.entries(this.file.packages)) {
+      if (record.removed === true) continue
+      for (const [server, { entry }] of Object.entries(current(record)?.servers ?? {})) {
+        for (const key of keysOf(server, entry, this.deps.rules, process.env).names) keys.set(key, (keys.get(key) ?? new Set()).add(name))
+      }
+    }
+    return [...keys].map(([name, packages]) => ({ name, set: Boolean(process.env[name]), packages: [...packages] })).sort((a, b) => a.name.localeCompare(b.name))
+  }
+
+  /** The install the route names, with the project's settings and the pool's keys in its entry. */
+  private target(route: { project: string; name: string; install: string; server: string }): GatewayTarget | null {
+    const project = this.projectOf(route.project)
+    const record = this.file.packages[route.name]
+    const server = record?.installs.find((each) => each.id === route.install)?.servers[route.server]
+    if (server === undefined) return null
+    const entry = applySettings(server.entry, settingsOf(this.file, project, route.name))
+    const keys = keysOf(route.server, entry, this.deps.rules, process.env)
+    return { entry: substitute(entry, keys.values), npm: server.npm?.name ?? null, env: keys.env }
+  }
+
+  /** `null` — the versions are those of the current install: nothing new is kept. */
+  private async installNew(name: string): Promise<PackageInstall | null> {
+    if (this.installing.has(name)) throw fail('packages.busy', { name })
+    const record = this.recordOf(name)
+    const id = Date.now().toString(36)
+    const home = join(this.deps.cache, name, id)
+    this.installing.add(name)
+    this.errors.delete(name)
+    this.deps.onChange()
+    try {
+      let entries: Record<string, ServerEntry>
+      let version: string | null = null
+      let extras = false
+      if (record.plugin !== undefined) {
+        const place = locatePlugin(this.deps.globalDir, record.plugin.name, record.plugin.marketplace)
+        const dir = pluginDir(this.deps.cache, name, id)
+        try {
+          cpSync(place.dir, dir, { recursive: true, filter: (source) => !/[\\/]\.git$/.test(source) })
+        } catch (error) {
+          throw fail('packages.copyFailed', { name }, { detail: (error as Error).message }, { cause: error })
+        }
+        entries = pluginServers(dir)
+        version = pluginVersion(dir)
+        extras = hasExtras(dir)
+      } else entries = { [name]: record.server ?? {} }
+      const planned: Record<string, { entry: ServerEntry; spec: ReturnType<typeof parseNpx>; npm: string | null }> = {}
+      for (const [server, entry] of Object.entries(entries)) {
+        const spec = parseNpx(entry)
+        planned[server] = { entry, spec, npm: spec === null ? null : await resolveVersion(spec) }
+      }
+      version ??= Object.values(planned).find((each) => each.npm !== null)?.npm ?? null
+      const last = current(record)
+      if (last !== undefined && last.version === version && sameServers(last.servers, planned)) {
+        rmSync(home, { recursive: true, force: true })
+        return null
+      }
+      const servers: Record<string, InstalledServer> = {}
+      for (const [server, { entry, spec, npm }] of Object.entries(planned)) {
+        servers[server] = spec === null || npm === null ? { entry, npm: null } : await installPinned(entry, spec, npm, join(home, 'servers', server))
+      }
+      const install: PackageInstall = { id, version, at: new Date().toISOString(), servers, extras }
+      record.installs.push(install)
+      record.settings = { ...defaultSettings(Object.fromEntries(Object.entries(servers).map(([server, each]) => [server, each.entry]))), ...record.settings }
+      this.prune()
+      this.save()
+      this.deps.log(`packages: ${name} ${version ?? id} installed`)
+      return install
+    } catch (error) {
+      rmSync(home, { recursive: true, force: true })
+      this.errors.set(name, noticeOf(error))
+      this.deps.log(`packages: ${name} not installed: ${(error as Error).message}`)
+      throw error
+    } finally {
+      this.installing.delete(name)
+      this.deps.onChange()
+    }
+  }
+
+  /** Old installs nothing pins lose their files; a removed package goes once none of its installs is pinned. */
+  private prune(): void {
+    for (const { name, id } of unpinned(this.file)) {
+      const record = this.file.packages[name]!
+      rmSync(join(this.deps.cache, name, id), { recursive: true, force: true })
+      record.installs = record.installs.filter((each) => each.id !== id)
+      if (record.removed === true && record.installs.length === 0) delete this.file.packages[name]
+    }
+  }
+
+  private seed(): PackagesFile {
+    const settingsOf = (repo: string) => [readJson(join(repo, '.claude', 'settings.json')), readJson(join(repo, '.claude', 'settings.local.json'))].filter((each) => each !== undefined)
+    const userServers = Object.assign({}, ...this.deps.claudeConfigs().map((file) => serversIn({ mcpServers: readJson(file)?.mcpServers })).reverse())
+    const seeded = seedPackages({
+      globalSettings: readJson(join(this.deps.globalDir, 'settings.json')),
+      projects: Object.entries(this.deps.repos).map(([key, repo]) => ({ key, settings: settingsOf(repo) })),
+      userServers,
+    })
+    this.deps.log(`packages: no ${this.deps.file}; the catalog is seeded with ${Object.keys(seeded.packages).join(', ') || 'nothing'}`)
+    return seeded
+  }
+
+  private async readImports(): Promise<void> {
+    const imports: Record<string, string[]> = {}
+    for (const [project, repo] of Object.entries(this.deps.repos)) {
+      try {
+        const { stdout } = await run('git', ['-C', repo, 'ls-files', '--', '.mcp.json'], { windowsHide: true })
+        if (stdout.trim() === '') continue
+      } catch {
+        continue
+      }
+      const names = Object.keys(serversIn(readJson(join(repo, '.mcp.json')))).filter((name) => {
+        const known = this.file.packages[name]
+        return SERVER_NAME.test(name) && (known === undefined || known.removed === true)
+      })
+      if (names.length > 0) imports[project] = names
+    }
+    this.imports = imports
+    this.deps.onChange()
+  }
+
+  private recordOf(name: string) {
+    const record = this.file.packages[name]
+    if (record === undefined || record.removed === true) throw fail('packages.unknown', { name })
+    return record
+  }
+
+  private projectKnown(project: string | undefined): void {
+    if (project !== undefined && this.deps.repos[project] === undefined) throw fail('chain.unknownProject', { project })
+  }
+
+  private idOf(project: string): string {
+    return this.deps.ids[project] ?? project
+  }
+
+  private save(): void {
+    savePackages(this.deps.file, this.file, this.deps.ids)
+    this.deps.onChange()
+  }
+}
+
+/** The same servers: a pinned one at the same npm version, any other with the same entry. */
+function sameServers(installed: Record<string, InstalledServer>, planned: Record<string, { entry: ServerEntry; npm: string | null }>): boolean {
+  if (JSON.stringify(Object.keys(installed).sort()) !== JSON.stringify(Object.keys(planned).sort())) return false
+  return Object.entries(planned).every(([name, { entry, npm }]) => {
+    const known = installed[name]!
+    return npm === null ? known.npm === null && JSON.stringify(known.entry) === JSON.stringify(entry) : known.npm?.version === npm
+  })
+}
