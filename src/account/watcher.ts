@@ -14,6 +14,7 @@ import {
   loginUrls,
   needsLogin,
   removeProblem,
+  secondFreeProblem,
   switchProblem,
   withIdentity,
   type AccountEntry,
@@ -154,9 +155,10 @@ export class AccountWatcher {
     this.options.onChange()
   }
 
-  add(): void {
+  /** A new account of the agent, signed in in a folder of its own. */
+  add(agent: string): void {
     this.requireIdle()
-    this.begin(this.options.homes.pending(this.options.now()), true)
+    this.begin(this.options.homes.pending(this.options.now(), agent), true)
   }
 
   async addApiKey(name: string, key: string): Promise<void> {
@@ -303,6 +305,7 @@ export class AccountWatcher {
     this.running = running
     this.output = ''
     this.current = {
+      agent: home.agent,
       target: adding ? null : home.key,
       startedAt: this.options.now().toISOString(),
       urls: [],
@@ -343,7 +346,14 @@ export class AccountWatcher {
   private async finish(running: Running): Promise<void> {
     try {
       if (running.adding) {
-        const status = await this.options.agentOf(running.home).authStatus(running.home)
+        const agent = this.options.agentOf(running.home)
+        const status = await agent.authStatus(running.home)
+        const refused = secondFreeProblem(this.view.accounts, running.home.agent, status)
+        if (refused !== undefined) {
+          await agent.logout(running.home).catch((error: unknown) => this.options.onError(error))
+          this.fail(running, refused)
+          return
+        }
         const home = this.options.homes.place(running.home, status.email)
         this.options.homes.share(home)
       }

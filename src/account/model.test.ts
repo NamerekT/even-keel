@@ -3,6 +3,7 @@ import type { ActiveChain } from '../chain/dispatcher.js'
 import type { AgentEntry } from '../sessions/agents.js'
 import {
   accountId,
+  extraFree,
   folderName,
   isApiKey,
   launchBlock,
@@ -14,6 +15,7 @@ import {
   parseAuthStatus,
   parseCredentialTimes,
   removeProblem,
+  secondFreeProblem,
   switchProblem,
   withIdentity,
   type AccountEntry,
@@ -239,7 +241,7 @@ describe('loginBlockNotice', () => {
 })
 
 describe('launchBlock', () => {
-  const login = { target: 'global', startedAt: '2026-09-27T10:00:00Z', urls: [], output: '', error: null, codeSent: false }
+  const login = { agent: 'claude', target: 'global', startedAt: '2026-09-27T10:00:00Z', urls: [], output: '', error: null, codeSent: false }
 
   it('lets sessions start when the active account is signed in or not known yet', () => {
     expect(launchBlock(view({}))).toBeUndefined()
@@ -352,15 +354,48 @@ describe('switchProblem', () => {
   })
 })
 
-describe('the Codex folder', () => {
-  const codex = view({ accounts: [entry({}), entry({ key: 'codex', agent: 'codex' })] })
+describe('the Codex folders', () => {
+  const codex = view({ accounts: [entry({}), entry({ key: 'codex', agent: 'codex' }), entry({ key: 'work', global: false, agent: 'codex' })] })
 
   it('takes the Even Keel role like a Claude folder', () => {
     expect(switchProblem(codex, 'codex')).toBeUndefined()
   })
 
-  it('is not removed from the page', () => {
-    expect(say(removeProblem(codex, 'codex'))).toMatch(/^codex: the account lives in CODEX_HOME/)
+  it("keeps Codex's own folder and lets an added one go", () => {
+    expect(say(removeProblem(codex, 'codex'))).toMatch(/^codex: Codex's own folder/)
+    expect(removeProblem(codex, 'work')).toBeUndefined()
+  })
+})
+
+describe('free Codex accounts', () => {
+  const free = (email: string): AccountStatus => ({ ...signedIn(email), authMethod: 'chatgpt', subscriptionType: 'free' })
+  const plus = (email: string): AccountStatus => ({ ...signedIn(email), authMethod: 'chatgpt', subscriptionType: 'plus' })
+  const codex = (key: string, status: AccountStatus) => entry({ key, global: key === 'codex', agent: 'codex', status })
+
+  it('lets one free account work and any number of paid ones', () => {
+    const accounts = [entry({}), codex('codex', free('john@example.com')), codex('work', plus('jane@example.com')), codex('team', plus('ci@example.com'))]
+    expect(extraFree(accounts)).toEqual([])
+    expect(secondFreeProblem(accounts, 'codex', plus('new@example.com'))).toBeUndefined()
+    expect(secondFreeProblem(accounts, 'claude', { ...signedIn('new@example.com'), subscriptionType: 'free' })).toBeUndefined()
+  })
+
+  it('refuses to add a second free account, naming the one already on the free plan', () => {
+    const accounts = [entry({}), codex('codex', free('john@example.com'))]
+    expect(say(secondFreeProblem(accounts, 'codex', free('jane@example.com')))).toMatch(/john@example\.com .*free plan/)
+    expect(secondFreeProblem([entry({})], 'codex', free('jane@example.com'))).toBeUndefined()
+  })
+
+  it('holds every free account past the first in the folders\' order: no launch, no Even Keel role', () => {
+    const accounts = [entry({}), codex('codex', free('john@example.com')), codex('work', free('jane@example.com'))]
+    expect(extraFree(accounts)).toEqual(['work'])
+    const held = view({ accounts })
+    expect(say(launchBlock(held, 'work'))).toMatch(/second free Codex account next to john@example\.com/)
+    expect(launchBlock(held, 'codex')).toBeUndefined()
+    expect(say(switchProblem(held, 'work'))).toMatch(/second free/)
+  })
+
+  it('does not count a free account that is signed out', () => {
+    expect(extraFree([codex('codex', { ...free('john@example.com'), loggedIn: false }), codex('work', free('jane@example.com'))])).toEqual([])
   })
 })
 
@@ -376,7 +411,7 @@ describe('removeProblem', () => {
   it('keeps the active and the global folder', () => {
     expect(say(removeProblem(view({ active: 'work' }), 'work'))).toMatch(/active/)
     expect(say(removeProblem(view({ active: 'work' }), 'global'))).toMatch(/global/)
-    const login = { target: 'work', startedAt: '2026-09-27T10:00:00Z', urls: [], output: '', error: null, codeSent: false }
+    const login = { agent: 'claude', target: 'work', startedAt: '2026-09-27T10:00:00Z', urls: [], output: '', error: null, codeSent: false }
     expect(say(removeProblem(view({ login }), 'work'))).toMatch(/sign-in/)
   })
 

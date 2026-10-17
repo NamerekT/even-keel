@@ -1,4 +1,4 @@
-import { mkdirSync, mkdtempSync, readFileSync, rmSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
@@ -67,7 +67,7 @@ describe('AccountHomes.list', () => {
     const root = mkdtempSync(join(tmpdir(), 'even-keel-homes-'))
     try {
       for (const name of ['john', 'john.lock', '.pending-1', 'global']) mkdirSync(join(root, name))
-      const homes = new AccountHomes({ ...env, CODEX_HOME: join(root, 'no-codex') }, root)
+      const homes = new AccountHomes({ ...env, CODEX_HOME: join(root, 'no-codex') }, root, join(root, 'no-codex-accounts'))
       expect(homes.list().map((home) => home.key)).toEqual(['global', 'john'])
     } finally {
       rmSync(root, { recursive: true, force: true })
@@ -78,11 +78,55 @@ describe('AccountHomes.list', () => {
     const root = mkdtempSync(join(tmpdir(), 'even-keel-homes-'))
     try {
       for (const name of ['john', 'codex', '.codex']) mkdirSync(join(root, name))
-      const homes = new AccountHomes({ ...env, CODEX_HOME: join(root, '.codex') }, root)
+      const homes = new AccountHomes({ ...env, CODEX_HOME: join(root, '.codex') }, root, join(root, 'no-codex-accounts'))
       expect(homes.list().map((home) => home.key)).toEqual(['global', 'john', 'codex'])
       expect(homes.find('codex')).toEqual({ key: 'codex', dir: join(root, '.codex'), global: true, agent: 'codex' })
     } finally {
       rmSync(root, { recursive: true, force: true })
     }
+  })
+
+  it("lists the Codex account folders after Codex's own, leaving out locks, sign-ins under way and keys a Claude folder holds", () => {
+    const root = mkdtempSync(join(tmpdir(), 'even-keel-homes-'))
+    const codexRoot = `${root}-codex`
+    try {
+      mkdirSync(join(root, 'john'))
+      for (const name of ['work', 'john', 'codex', '.pending-1', 'work.lock', 'alice']) mkdirSync(join(codexRoot, name), { recursive: true })
+      const homes = new AccountHomes({ ...env, CODEX_HOME: join(root, 'no-codex') }, root, codexRoot)
+      expect(homes.list().map((home) => home.key)).toEqual(['global', 'john', 'alice', 'work'])
+      expect(homes.find('work')).toEqual({ key: 'work', dir: join(codexRoot, 'work'), global: false, agent: 'codex' })
+      expect(homes.find('john')?.agent).toBe('claude')
+    } finally {
+      rmSync(root, { recursive: true, force: true })
+      rmSync(codexRoot, { recursive: true, force: true })
+    }
+  })
+})
+
+describe('AccountHomes adding a Codex account', () => {
+  it("signs in in a folder of its own under the Codex root and names it by the e-mail, apart from every Claude folder", () => {
+    const root = mkdtempSync(join(tmpdir(), 'even-keel-homes-'))
+    const codexRoot = `${root}-codex`
+    try {
+      mkdirSync(join(root, 'john'))
+      const homes = new AccountHomes({ ...env, CODEX_HOME: join(root, 'no-codex') }, root, codexRoot)
+      const pending = homes.pending(new Date('2026-10-17T10:00:00Z'), 'codex')
+      expect(pending.agent).toBe('codex')
+      expect(existsSync(pending.dir)).toBe(true)
+      expect(pending.dir.startsWith(codexRoot)).toBe(true)
+      const home = homes.place(pending, 'john@example.com')
+      expect(home).toEqual({ key: 'john-2', dir: join(codexRoot, 'john-2'), global: false, agent: 'codex' })
+      expect(homes.share(home)).toBe(false)
+      expect(readdirSync(home.dir)).toEqual([])
+      homes.remove(home)
+      expect(existsSync(home.dir)).toBe(false)
+    } finally {
+      rmSync(root, { recursive: true, force: true })
+      rmSync(codexRoot, { recursive: true, force: true })
+    }
+  })
+
+  it('refuses an agent it keeps no folders for', () => {
+    expect(() => new AccountHomes(env, 'root', 'codex-root').pending(new Date(), 'opencode')).toThrow()
   })
 })

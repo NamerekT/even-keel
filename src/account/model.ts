@@ -3,12 +3,15 @@ import type { RateLimits } from '../limits/model.js'
 import type { UsageHealth } from '../limits/usage.js'
 import { fail, notice, type Notice } from '../notice/notice.js'
 import { CLAUDE } from '../claude/name.js'
+import { CODEX } from '../codex/name.js'
 import { isLive, type AgentEntry } from '../sessions/agents.js'
 import { APP_LABELS, type AppAccount } from './apps.js'
 
 export const GLOBAL_ACCOUNT = 'global'
-/** The key of the one Codex account folder (`AccountHomes`). */
+/** The key of Codex's own account folder, `CODEX_HOME` or `~/.codex` (`AccountHomes`). */
 export const CODEX_ACCOUNT = 'codex'
+/** ChatGPT's `chatgpt_plan_type` of an account without a subscription. */
+const FREE_PLAN = 'free'
 
 /** What an account folder is signed in as, by its agent (`Agent.authStatus`). */
 export interface AccountStatus {
@@ -45,6 +48,8 @@ export interface AccountEntry {
 }
 
 export interface AccountLogin {
+  /** The agent signing in: a new account's too, which has no `target` yet. */
+  agent: string
   target: string | null
   startedAt: string
   urls: string[]
@@ -160,14 +165,13 @@ export function switchProblem(view: AccountView, key: string): Notice | undefine
   if (key === view.active) return notice('account.alreadyActive', { key })
   if (target.removing) return notice('account.removing', { account: target.status?.email ?? key })
   if (target.needsLogin || target.status?.loggedIn !== true) return notice('account.needsLogin', { account: target.status?.email ?? key })
-  return undefined
+  return freeHeld(view.accounts, key)
 }
 
 export function removeProblem(view: AccountView, key: string): Notice | undefined {
   const target = view.accounts.find((entry) => entry.key === key)
   if (target === undefined) return notice('account.unknown', { key })
-  if (target.agent !== CLAUDE) return notice('account.codexFolder', {})
-  if (target.global) return notice('account.globalKept', {})
+  if (target.global) return notice(target.agent === CLAUDE ? 'account.globalKept' : 'account.codexHomeKept', {})
   if (key === view.active) return notice('account.activeKept', {})
   if (view.login?.target === key && view.login.error === null) return notice('account.signInRunning', {})
   const user = view.apps.find((app) => app.account === key)
@@ -205,7 +209,38 @@ export function launchBlock(view: AccountView, key = view.active): Notice | unde
   if (view.login !== null && view.login.target === key && view.login.error === null) return notice('account.signingIn', {})
   if (active.status?.loggedIn === false) return notice('account.signedOut', {})
   if (active.needsLogin) return notice('account.loginExpired', { account: active.status?.email ?? active.key })
-  return undefined
+  return freeHeld(view.accounts, key)
+}
+
+/**
+ * The keys of the Codex accounts on the free plan past the first in the folders' order: OpenAI's terms forbid several
+ * free accounts to get round the limits, so only the first of them works (BTN-176).
+ */
+export function extraFree(accounts: AccountEntry[]): string[] {
+  return freeCodex(accounts)
+    .slice(1)
+    .map((entry) => entry.key)
+}
+
+/** Why a Codex sign-in on the free plan is not added: another account already holds the one free plan. */
+export function secondFreeProblem(accounts: AccountEntry[], agent: string, status: AccountStatus): Notice | undefined {
+  if (agent !== CODEX || !isFree(status)) return undefined
+  const first = freeCodex(accounts)[0]
+  return first === undefined ? undefined : notice('account.secondFree', { account: first.status?.email ?? first.key })
+}
+
+function freeHeld(accounts: AccountEntry[], key: string): Notice | undefined {
+  const [first, ...rest] = freeCodex(accounts)
+  if (first === undefined || !rest.some((entry) => entry.key === key)) return undefined
+  return notice('account.extraFree', { account: first.status?.email ?? first.key })
+}
+
+function freeCodex(accounts: AccountEntry[]): AccountEntry[] {
+  return accounts.filter((entry) => entry.agent === CODEX && isFree(entry.status))
+}
+
+function isFree(status: AccountStatus | null): boolean {
+  return status?.loggedIn === true && status.subscriptionType === FREE_PLAN
 }
 
 function stringOf(value: unknown): string | null {

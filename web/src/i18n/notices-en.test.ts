@@ -12,7 +12,7 @@ describe('noticesEn', () => {
   })
 
   it('names Codex and keeps the prefixes the Russian texts keep', () => {
-    expect(page(notice('account.codexFolder', {}))).toMatch(/^Codex: the account lives in CODEX_HOME/)
+    expect(page(notice('account.codexHomeKept', {}))).toMatch(/^Codex: Codex's own folder/)
     expect(page(notice('prompt.empty', { before: 'x', value: 'null' }))).toMatch(/^prompt: /)
   })
 })

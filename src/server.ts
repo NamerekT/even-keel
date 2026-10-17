@@ -28,6 +28,7 @@ import {
   type StatsRules,
 } from './stats/rules.js'
 import type { ChainRules } from './chain/rules.js'
+import { CLAUDE } from './claude/name.js'
 import type { Language } from './language.js'
 import type { CacheTtl, CiSettings, ContextScale, ProjectForm, SharedForm, StatsConfig } from './state.js'
 import type { CompareSettings } from './stats/rules.js'
@@ -70,7 +71,7 @@ export interface ChainControl {
 }
 
 export interface AccountControl {
-  add(): void
+  add(agent: string): void
   addApiKey(name: string, key: string): Promise<void>
   renew(account: string): void
   switchTo(account: string): void
@@ -163,7 +164,7 @@ const COMMANDS: Record<string, Command> = {
   settings: ({ settings }, body) => settings.saveShared(sharedFormOf(body), sharedFormOf(baseOf(body))),
   'updates/dismiss': ({ settings }, body) => settings.dismissUpdate(textOf(body.version, 'version')),
   'updates/mute': ({ settings }) => settings.muteUpdates(),
-  'account/add': ({ account }) => account.add(),
+  'account/add': ({ account }, body) => account.add(body.agent === undefined ? CLAUDE : textOf(body.agent, 'agent')),
   'account/api': ({ account }, body) => account.addApiKey(typeof body.name === 'string' ? body.name : '', textOf(body.key, 'key')),
   'account/renew': ({ account }, body) => account.renew(accountOf(body)),
   'account/switch': ({ account }, body) => account.switchTo(accountOf(body)),

@@ -134,8 +134,12 @@ export const en = {
   'account.activeKept': () => 'claude: the active account cannot be removed; switch to another one first',
   'account.signInRunning': () => 'claude: a sign-in into this account is running',
   'account.usedByApp': (p: { app: string }) => `claude: ${p.app} uses this account; switch it to another one first`,
-  'account.codexFolder': () =>
-    'codex: the account lives in CODEX_HOME or ~/.codex; it is not given to an app or removed from here',
+  'account.codexApp': () => 'codex: the apps run on Claude Code; a Codex account is not given to one',
+  'account.codexHomeKept': () => "codex: Codex's own folder (CODEX_HOME or ~/.codex) is not removed from here",
+  'account.secondFree': (p: { account: string }) =>
+    `codex: ${p.account} is already on the free plan; OpenAI's terms do not allow several free accounts to get round the limits, so add a paid one`,
+  'account.extraFree': (p: { account: string }) =>
+    `codex: a second free Codex account next to ${p.account}; OpenAI's terms do not allow several free accounts to get round the limits, so sessions do not start here until it is on a paid plan`,
   'account.notRemoving': (p: { key: string }) => `claude: ${p.key} is not being removed`,
   'account.apiKeyInvalid': () => 'claude: an API key is one word of more than 20 characters, like sk-ant-api03-…',
   'account.apiKeyRejected': () => "claude: Anthropic doesn't accept this key: it is wrong, revoked or its organization is disabled",

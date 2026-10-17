@@ -782,7 +782,7 @@ export function createFakeSource(search: string): LiveSource {
         if (index === 0) show()
         else setTimeout(show, index * (delay ?? START_STAGE_MS))
       })
-      if (name === 'account/renew' && deviceLogin(next.account)) {
+      if ((name === 'account/renew' || name === 'account/add') && deviceLogin(next.account)) {
         // The code goes on OpenAI's page, never through Even Keel: the sign-in ends by itself a while later.
         setTimeout(() => {
           const now = current.state

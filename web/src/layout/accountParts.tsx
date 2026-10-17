@@ -1,5 +1,5 @@
 import { useMemo, useState, type FormEvent, type ReactNode } from 'react'
-import { loginBlockNotice, removeProblem, type AccountEntry, type AccountLogin, type AccountView } from '../../../src/account/model.js'
+import { launchBlock, loginBlockNotice, removeProblem, type AccountEntry, type AccountLogin, type AccountView } from '../../../src/account/model.js'
 import { CLAUDE } from '../../../src/claude/name.js'
 import { CODEX } from '../../../src/codex/name.js'
 import type { Notice } from '../../../src/notice/notice.js'
@@ -116,10 +116,12 @@ export function AccountNotes({ entry, view, now, sending, send, bare = false }: 
   const left = loginLeft(entry.loginExpiresAt, now)
   const actions = (button: ReactNode) => (bare ? null : button)
   const stale = staleText(entry)
+  const held = launchBlock(view, entry.key)
 
   return (
     <>
       {!bare && stale !== null && <p className="accounts__note">{stale}</p>}
+      {held?.code === 'account.extraFree' && <p className="accounts__note accounts__note--warn">{say(held)}</p>}
       {entry.apiKey && entry.needsLogin && <p className="accounts__note accounts__note--warn">{t.account.apiKeyLost}</p>}
       {!entry.apiKey && (left.renew || entry.needsLogin) && (
         <div className="accounts__note accounts__note--warn">
@@ -280,7 +282,7 @@ export function LoginSteps({ login, device, sending, send }: StepsProps) {
   }
 
   if (login.error !== null) {
-    const retry = () => (login.target === null ? send('account/add') : send('account/renew', { account: login.target }))
+    const retry = () => (login.target === null ? send('account/add', { agent: login.agent }) : send('account/renew', { account: login.target }))
     return (
       <>
         <p className="notice notice--error">{say(login.error)}</p>

@@ -1,12 +1,13 @@
 import { useEffect, useRef } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router'
 import type { AccountView } from '../../../src/account/model.js'
+import { CLAUDE } from '../../../src/claude/name.js'
 import { CODEX } from '../../../src/codex/name.js'
 import type { EvenKeelState } from '../../../src/state.js'
 import { addStep, canAdd, CONNECTIONS, deviceLogin, PROVIDERS, type Connection, type Provider } from '../accounts.js'
 import { say, t } from '../i18n/index.js'
 import { useCommand } from '../live/useCommand.js'
-import { accountName, ApiKeyFields, LoginSteps } from '../layout/accountParts.js'
+import { ApiKeyFields, LoginSteps } from '../layout/accountParts.js'
 import './accounts.css'
 
 const LIST = '/accounts'
@@ -106,8 +107,15 @@ interface SignInProps {
 
 function SignIn({ account, provider, connection, onDone, onCancel }: SignInProps) {
   if (connection === 'apiKey') return <ApiKeyFields onDone={onDone} onCancel={onCancel} />
-  if (provider === 'codex') return <CodexSignIn account={account} onDone={onDone} />
-  return <CliSignIn account={account} hint={t.account.addHint} start={['account/add', {}]} onDone={onDone} />
+  if (provider === 'codex') {
+    return (
+      <>
+        <CliSignIn account={account} hint={t.account.codexHint} start={['account/add', { agent: CODEX }]} onDone={onDone} />
+        {account.login === null && <p className="queue__hint">{t.account.codexFree}</p>}
+      </>
+    )
+  }
+  return <CliSignIn account={account} hint={t.account.addHint} start={['account/add', { agent: CLAUDE }]} onDone={onDone} />
 }
 
 interface CliProps {
@@ -138,31 +146,6 @@ function CliSignIn({ account, hint, start, onDone }: CliProps) {
         </button>
       </div>
       {failure !== null && <p className="notice notice--error">{say(failure)}</p>}
-    </>
-  )
-}
-
-/** Even Keel has one Codex account, the folder Codex itself keeps: signing in there again replaces whoever was in it. */
-function CodexSignIn({ account, onDone }: { account: AccountView; onDone: () => void }) {
-  const codex = account.accounts.find((entry) => entry.agent === CODEX)
-  const missing = useRef(codex === undefined)
-
-  useEffect(() => {
-    if (missing.current && codex !== undefined) onDone()
-  }, [codex, onDone])
-
-  const terminal = (
-    <>
-      <p className="queue__hint">{codex === undefined ? t.account.codexMissing : t.account.codexTerminal}</p>
-      <pre className="add-window__command">codex login</pre>
-    </>
-  )
-  if (codex === undefined) return terminal
-  return (
-    <>
-      {codex.status?.loggedIn === true && <p className="accounts__note accounts__note--warn">{t.account.codexSignedIn(accountName(codex))}</p>}
-      <CliSignIn account={account} hint={t.account.codexHint} start={['account/renew', { account: codex.key }]} onDone={onDone} />
-      {account.login === null && terminal}
     </>
   )
 }
