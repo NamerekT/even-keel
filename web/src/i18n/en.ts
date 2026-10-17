@@ -250,6 +250,7 @@ export const en: Messages = {
     days: (days: number) => `${days} d`,
     sessions: (count: number) => `sessions: ${count}`,
     globalFolder: 'folder ~/.claude',
+    folder: (key: string) => `folder ${key}`,
     noLimits: 'Limits: no data',
     staleExpired: ' — the access token expired, the first session will refresh it',
     staleBusy: " — the limits service isn't answering now, they'll come from the first session",

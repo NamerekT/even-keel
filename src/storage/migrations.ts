@@ -72,6 +72,7 @@ export function upgradeStorage(options: UpgradeOptions): void {
   }
   // v2 → v3: the launch log gains the red commit of a fix's launch and its outcome (BTN-153), optional fields an older
   // reader does without; every file only takes the new version.
+  // v3 → v4: the same restamp, for the user's name of an account in `account.json` (`AccountRecord.name`).
   for (const stored of [chain, questions, account]) {
     if (stored !== undefined && stored.version >= 2 && stored.version < SCHEMA_VERSION) rewrite(stored, jsonText(restamped(stored)))
   }

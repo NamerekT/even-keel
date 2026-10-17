@@ -23,6 +23,8 @@ export interface CredentialTimes {
 
 export interface AccountEntry {
   key: string
+  /** The name the user gave the account (`AccountRecord.name`); the folder key stays its identity. */
+  name: string | null
   global: boolean
   status: ClaudeAccount | null
   error: Notice | null

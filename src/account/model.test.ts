@@ -34,6 +34,7 @@ const signedIn = (email: string | null = 'john.doe@example.com'): ClaudeAccount 
 
 const entry = (patch: Partial<AccountEntry>): AccountEntry => ({
   key: 'global',
+  name: null,
   global: true,
   status: signedIn(),
   error: null,

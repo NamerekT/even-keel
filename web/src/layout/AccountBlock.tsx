@@ -147,7 +147,7 @@ function CardHead({ account }: { account: AccountView }) {
   return (
     <>
       <span className="queue-toggle__dot" aria-hidden="true" />
-      <span className="account-card__name">{active?.status?.email ?? accountBadge(account).label}</span>
+      <span className="account-card__name">{active?.name ?? active?.status?.email ?? accountBadge(account).label}</span>
       {plan !== null && <span className="tag account-card__plan">{plan}</span>}
     </>
   )

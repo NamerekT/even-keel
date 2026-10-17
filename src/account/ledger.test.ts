@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { accountAt, activate, emptyLedger, forgetAccount, markRemoving, noteAccount, parseLedger, type AccountLedger } from './ledger.js'
+import { accountAt, activate, emptyLedger, forgetAccount, markRemoving, nameAccount, noteAccount, parseLedger, type AccountLedger } from './ledger.js'
 
 const now = new Date('2026-09-27T16:00:00.000Z')
 
@@ -38,6 +38,31 @@ describe('noteAccount', () => {
     const both = noteAccount(ledger, 'work', 'jane@example.com', now)!
     expect(both.accounts.global?.email).toBe('john@example.com')
     expect(both.accounts.work?.email).toBe('jane@example.com')
+  })
+
+  it('keeps the name of the account when its folder notes an e-mail', () => {
+    const named = nameAccount(emptyLedger(), 'work-api', 'Work API')
+    expect(noteAccount(named, 'work-api', 'work-api', now)?.accounts['work-api']).toEqual({
+      email: 'work-api',
+      since: '2026-09-27T16:00:00.000Z',
+      previous: null,
+      name: 'Work API',
+    })
+  })
+})
+
+describe('nameAccount', () => {
+  it('names a folder it has not seen yet without telling when its account began', () => {
+    expect(nameAccount(emptyLedger(), 'work-api', '  Work API ').accounts).toEqual({
+      'work-api': { email: null, since: null, previous: null, name: 'Work API' },
+    })
+  })
+
+  it('renames a known folder and drops the name when it is blank', () => {
+    const ledger = noteAccount(emptyLedger(), 'work', 'jane@example.com', now)!
+    const named = nameAccount(ledger, 'work', 'Work')
+    expect(named.accounts.work).toEqual({ ...ledger.accounts.work, name: 'Work' })
+    expect(nameAccount(named, 'work', ' ').accounts.work).toEqual(ledger.accounts.work)
   })
 })
 
@@ -83,6 +108,21 @@ describe('parseLedger', () => {
       removing: ['old'],
     }
     expect(parseLedger(raw)).toEqual(raw)
+  })
+
+  it('reads the name of an account and nothing that is not text', () => {
+    const raw = {
+      active: 'work',
+      accounts: {
+        work: { email: 'work', since: '2026-09-27T16:00:00.000Z', previous: null, name: 'Work API' },
+        spare: { email: null, since: null, previous: null, name: 7 },
+      },
+      removing: [],
+    }
+    expect(parseLedger(raw).accounts).toEqual({
+      work: raw.accounts.work,
+      spare: { email: null, since: null, previous: null },
+    })
   })
 
   it('reads a journal written before folders could wait for removal', () => {

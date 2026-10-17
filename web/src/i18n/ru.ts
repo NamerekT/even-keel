@@ -249,6 +249,7 @@ export const ru = {
     days: (days: number) => `${days} дн.`,
     sessions: (count: number) => `сессий: ${count}`,
     globalFolder: 'папка ~/.claude',
+    folder: (key: string) => `папка ${key}`,
     noLimits: 'Лимиты: нет данных',
     staleExpired: ' — токен доступа истёк, обновит первая сессия',
     staleBusy: ' — сервис лимитов сейчас не отвечает, придут из первой сессии',

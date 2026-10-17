@@ -1177,6 +1177,7 @@ const account = (loggedIn: boolean, email: string | null = null) => ({
 })
 const entry = (patch: Partial<AccountEntry>): AccountEntry => ({
   key: 'global',
+  name: null,
   global: true,
   status: null,
   error: null,
@@ -1204,6 +1205,10 @@ describe('accountBadge', () => {
   it('shows the mailbox name of the active account', () => {
     expect(accountBadge(view({ status: account(true, 'john.doe@example.com') }))).toEqual({ kind: 'in', label: 'john.doe' })
     expect(accountBadge(view({ status: account(true) }))).toEqual({ kind: 'in', label: 'Claude' })
+  })
+
+  it('shows the name the user gave the active account', () => {
+    expect(accountBadge(view({ name: 'Team API', status: account(true, 'team-api') }))).toEqual({ kind: 'in', label: 'Team API' })
   })
 
   it('flags a signed-out or run-out active account, a running sign-in and an unknown account', () => {

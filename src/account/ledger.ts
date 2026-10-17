@@ -7,6 +7,8 @@ export interface AccountRecord {
   email: string | null
   since: string | null
   previous: string | null
+  /** The name the user gave the account; the page shows it instead of the folder key (schema v4). */
+  name?: string
 }
 
 export interface AccountLedger {
@@ -22,8 +24,14 @@ export function emptyLedger(): AccountLedger {
 export function noteAccount(ledger: AccountLedger, key: string, email: string | null, now: Date): AccountLedger | undefined {
   const record = ledger.accounts[key]
   if (email === null || email === record?.email) return undefined
-  const noted = { email, since: now.toISOString(), previous: record?.email ?? null }
+  const noted = { ...record, email, since: now.toISOString(), previous: record?.email ?? null }
   return { ...ledger, accounts: { ...ledger.accounts, [key]: noted } }
+}
+
+export function nameAccount(ledger: AccountLedger, key: string, name: string): AccountLedger {
+  const { name: _old, ...record } = ledger.accounts[key] ?? { email: null, since: null, previous: null }
+  const named = name.trim() === '' ? record : { ...record, name: name.trim() }
+  return { ...ledger, accounts: { ...ledger.accounts, [key]: named } }
 }
 
 export function accountAt(ledger: AccountLedger, key: string, at: string): string | null {
@@ -75,7 +83,8 @@ export function saveLedger(file: string, ledger: AccountLedger): void {
 
 function recordOf(raw: Record<string, unknown>): AccountRecord {
   const text = (value: unknown) => (typeof value === 'string' ? value : null)
-  return { email: text(raw.email), since: text(raw.since), previous: text(raw.previous) }
+  const record: AccountRecord = { email: text(raw.email), since: text(raw.since), previous: text(raw.previous) }
+  return typeof raw.name === 'string' ? { ...record, name: raw.name } : record
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

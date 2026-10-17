@@ -157,14 +157,33 @@ describe('upgradeStorage', () => {
       upgrade()
       for (const name of names.filter((each) => each.endsWith('.json'))) {
         const { version, ...rest } = json(join(dir, name))
-        expect(version).toBe(3)
+        expect(version).toBe(SCHEMA_VERSION)
         const { version: _, ...old } = JSON.parse(readFileSync(join(v2, name), 'utf8'))
         expect(rest).toEqual(old)
       }
       const lines = text(state('launches.jsonl')).split('\n')
-      expect(lines[0]).toBe('{"version":3}')
+      expect(lines[0]).toBe(`{"version":${SCHEMA_VERSION}}`)
       expect(lines.slice(1).join('\n')).toBe(before[3]!.split('\n').slice(1).join('\n'))
       expect(names.map((name) => text(join(dir, `${name}.v2.bak`)))).toEqual(before)
+    })
+  })
+
+  describe('v3 to v4', () => {
+    const v3 = join(root, 'test', 'fixtures', 'schema-v3')
+    const names = ['even-keel.config.json', 'state/chain.json', 'state/questions.json', 'state/launches.jsonl', 'state/account.json']
+
+    it('stamps every file with the new version and changes nothing else', () => {
+      cpSync(v3, dir, { recursive: true })
+      const before = originals()
+      upgrade()
+      for (const name of names.filter((each) => each.endsWith('.json'))) {
+        const { version, ...rest } = json(join(dir, name))
+        expect(version).toBe(4)
+        const { version: _, ...old } = JSON.parse(readFileSync(join(v3, name), 'utf8'))
+        expect(rest).toEqual(old)
+      }
+      expect(text(state('launches.jsonl')).split('\n')[0]).toBe('{"version":4}')
+      expect(names.map((name) => text(join(dir, `${name}.v3.bak`)))).toEqual(before)
     })
   })
 
