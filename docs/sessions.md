@@ -2,6 +2,16 @@
 
 Reference for sessions: how Even Keel launches `claude` and watches it.
 
+## Agent adapters (BTN-167, `src/agent/`)
+
+The seam for a second agent (BTN-116: Codex), on the pattern of `src/tracker/`. The chain, the page, the accounts and the limits reach an agent only through `Agent` (`src/agent/contract.ts`); Claude Code is the one implementation (`src/claude/adapter.ts` over `ClaudeCli` in `src/claude/cli.ts`), registered by name in `AGENTS` (`src/agent/adapters.ts`) and set up once in `src/service.ts`.
+
+- Every account folder carries its agent (`AccountHome.agent`, `AccountEntry.agent`), and a session runs on the agent of its account: `agentOf(home)` in `src/service.ts` picks the runtime for a launch (the active account), a resume, a stop, the monitor and the transcript routes. A session shows it as `SessionView.agent`. Nothing about the agent is written to the config or `state/`: an account folder is Claude's because `AccountHomes` makes Claude's.
+- The contract: `launch`, `resume` (a limit resume, a reply and a checkpoint go on this way; a handoff is a `launch` in the same place), `stop`, `sessions` (the folder's sessions as `AgentEntry`), `tail` (a transcript read as it grows, `summary()` is the `TranscriptSummary` the page and the chain read: stage, action, context fill, the question, the API error), `record`, `feed`, `transcripts` (which sessions a folder holds, for `TranscriptOwners`), `authStatus`, `login`, `logout`, `env` (the session's environment: `sessionBase` without the trackers' and CIs' credentials plus `CLAUDE_CONFIG_DIR` for a folder other than the global one).
+- Optional, because only Claude has them: `usage` (`claude -p /usage`, parsed by `parseUsage` in the adapter; without it the account is not polled), `stopDaemon`, `liveRecords` (the apps panel), `remote` (Remote Control). `SessionStart.settings` is Claude's `--settings` and `model` is a model label an agent without such models ignores. The cache lifetime, `AskUserQuestion` and the job files stay inside the Claude adapter and the transcript fold.
+- The contract does not need a live process between turns: a session is its id and its transcript, `resume` may start a process per turn (`codex exec resume`).
+- The choice of a new session's agent by the project and a task label (BTN-116) goes where `launch`, `relay` and `launchFix` in `src/service.ts` take the active account; until then it is always the active account's agent. Still Claude's and left for the accounts page: `AccountHomes` (folders, `.claude.json`, `.credentials.json`, sharing), `parseAuthStatus`, `parseCredentialTimes`, the statusline's `rate-limits.json`.
+
 ## CLI and transcripts
 
 - Sessions are the `claude` CLI (`--bg`, `agents --json`). The binary: `EVEN_KEEL_CLAUDE_BIN`, otherwise the standalone CLI `~/.local/bin/claude.exe` (outside Windows — `claude`), otherwise the binary of the newest VS Code extension version (an extension update deletes its folder).

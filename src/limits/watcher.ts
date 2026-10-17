@@ -2,14 +2,15 @@ import { readFile } from 'node:fs/promises'
 import type { AccountHome } from '../account/homes.js'
 import { currentLimits, limitsFileDir, newestLimits, parseLimitsFile, type RateLimits } from './model.js'
 import { englishOf, notice, sameNotice, type Notice } from '../notice/notice.js'
-import { parseUsage, type UsageAnswer, type UsageHealth } from './usage.js'
+import type { UsageAnswer, UsageHealth } from './usage.js'
 
 export interface LimitsWatcherOptions {
   file: string
   intervalMs: number
   homes: () => AccountHome[]
   ownerOf: (configDir: string | null) => string | undefined
-  usage: (home: AccountHome) => Promise<string>
+  /** How the account's usage is asked for (`Agent.usage`); `undefined` — its agent cannot tell, and it is not polled. */
+  usage: (home: AccountHome) => ((at: string) => Promise<UsageAnswer>) | undefined
   usageIntervalMs: number
   notBefore: (account: string) => string | null
   accessExpired: (home: AccountHome) => boolean
@@ -91,7 +92,7 @@ export class LimitsWatcher {
   }
 
   private async pollAll(): Promise<void> {
-    const homes = this.options.homes().filter((home) => !this.options.apiKey(home.key))
+    const homes = this.options.homes().filter((home) => !this.options.apiKey(home.key) && this.options.usage(home) !== undefined)
     const keys = new Set(homes.map((home) => home.key))
     for (const key of this.accounts.keys()) if (!keys.has(key)) this.accounts.delete(key)
     for (const home of homes) {
@@ -106,7 +107,7 @@ export class LimitsWatcher {
     const at = new Date().toISOString()
     let answer: UsageAnswer
     try {
-      answer = parseUsage(await this.options.usage(home), at)
+      answer = await this.options.usage(home)!(at)
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error)
       answer = { kind: 'unknown', reason: notice('usage.callFailed', {}, { detail: message.trim().slice(0, 200) }) }

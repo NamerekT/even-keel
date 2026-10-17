@@ -71,6 +71,7 @@ function session(task: string, contextTokens: number, lamp: SessionView['lamp'] 
   return {
     task,
     sessionId: fakeSessionId(task),
+    agent: 'claude',
     cwd: 'C:\\repos\\example-project',
     lamp,
     checkpoint: false,

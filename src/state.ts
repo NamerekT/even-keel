@@ -19,6 +19,8 @@ import type { UpdateSettings, UpdatesView } from './updates/release.js'
 export interface SessionView {
   task: string
   sessionId: string
+  /** The agent the session runs on (`src/agent/adapters.ts`). */
+  agent: string
   cwd: string
   lamp: Lamp
   /** The last line of the session's last response is `CHECKPOINT: <path>`: it waits to be handed over, not for an answer. */

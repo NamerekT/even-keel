@@ -7,7 +7,8 @@ import { APP_LABELS, type AppAccount } from './apps.js'
 
 export const GLOBAL_ACCOUNT = 'global'
 
-export interface ClaudeAccount {
+/** What an account folder is signed in as, by its agent (`Agent.authStatus`). */
+export interface AccountStatus {
   loggedIn: boolean
   authMethod: string | null
   email: string | null
@@ -26,7 +27,9 @@ export interface AccountEntry {
   /** The name the user gave the account (`AccountRecord.name`); the folder key stays its identity. */
   name: string | null
   global: boolean
-  status: ClaudeAccount | null
+  /** The agent whose account folder it is (`src/agent/adapters.ts`). */
+  agent: string
+  status: AccountStatus | null
   error: Notice | null
   loginExpiresAt: string | null
   needsLogin: boolean
@@ -70,7 +73,7 @@ const ANSI = /\u001b\[[0-9;?]*[A-Za-z]|\u001b\][^\u0007]*\u0007/g
 const URL_PATTERN = /https:\/\/[^\s"'<>\u001b]+/g
 const TRAILING_PUNCTUATION = /[.,;:!?)\]]+$/
 
-export function parseAuthStatus(text: string): ClaudeAccount {
+export function parseAuthStatus(text: string): AccountStatus {
   let body: unknown
   try {
     body = JSON.parse(text)
@@ -90,12 +93,12 @@ export function parseAuthStatus(text: string): ClaudeAccount {
 }
 
 /** An API account signs in with a key from its folder's `settings.json`, not with claude.ai (`docs/accounts.md`). */
-export function isApiKey(status: ClaudeAccount | null): boolean {
+export function isApiKey(status: AccountStatus | null): boolean {
   return status?.authMethod === 'api_key' || status?.authMethod === 'api_key_helper'
 }
 
 /** An API account has no e-mail: its folder key stands in for it wherever an account is told apart by e-mail. */
-export function withIdentity(status: ClaudeAccount, key: string): ClaudeAccount {
+export function withIdentity(status: AccountStatus, key: string): AccountStatus {
   return status.loggedIn && status.email === null && isApiKey(status) ? { ...status, email: key } : status
 }
 
@@ -124,7 +127,7 @@ export function parseCredentialTimes(text: string | undefined): CredentialTimes 
   return { accessExpiresAt: time(expiresAt), loginExpiresAt: time(refreshTokenExpiresAt), erased: expiresAt === 0 }
 }
 
-export function needsLogin(status: ClaudeAccount | null, times: CredentialTimes, now: Date): boolean {
+export function needsLogin(status: AccountStatus | null, times: CredentialTimes, now: Date): boolean {
   if (status?.loggedIn === false || times.erased) return true
   return times.loginExpiresAt !== null && times.loginExpiresAt <= now.getTime()
 }

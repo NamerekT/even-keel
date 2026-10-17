@@ -1,4 +1,5 @@
 import type { ChildProcessWithoutNullStreams } from 'node:child_process'
+import type { Agent } from '../agent/contract.js'
 import type { RateLimits } from '../limits/model.js'
 import type { UsageHealth } from '../limits/usage.js'
 import { fail, notice, NoticeError, noticeOf, sameNotice, type Notice } from '../notice/notice.js'
@@ -17,18 +18,14 @@ import {
   type AccountEntry,
   type AccountLogin,
   type AccountView,
-  type ClaudeAccount,
+  type AccountStatus,
   type LoginBlock,
 } from './model.js'
 
 const MAX_OUTPUT_CHARS = 16 * 1024
 const SHOWN_OUTPUT_CHARS = 2 * 1024
 
-export interface AccountCli {
-  authStatus: (home: AccountHome) => Promise<ClaudeAccount>
-  authLogin: (home: AccountHome) => ChildProcessWithoutNullStreams
-  authLogout: (home: AccountHome) => Promise<void>
-}
+export type AccountAgent = Pick<Agent, 'authStatus' | 'login' | 'logout'>
 
 export interface AppControl {
   list: () => AppAccount[]
@@ -38,7 +35,8 @@ export interface AppControl {
 
 export interface AccountWatcherOptions {
   homes: AccountHomes
-  cli: AccountCli
+  /** The agent whose account folder it is, by `AccountHome.agent`. */
+  agentOf: (home: AccountHome) => AccountAgent
   apps: AppControl
   prepare: (home: AccountHome) => Promise<void>
   active: () => string
@@ -65,7 +63,7 @@ export interface AccountWatcherOptions {
 
 interface Known {
   home: AccountHome
-  status: ClaudeAccount | null
+  status: AccountStatus | null
   error: Notice | null
 }
 
@@ -95,6 +93,7 @@ export class AccountWatcher {
         key: home.key,
         name: this.options.nameOf(home.key),
         global: home.global,
+        agent: home.agent,
         status,
         error,
         loginExpiresAt: times.loginExpiresAt === null || times.erased ? null : new Date(times.loginExpiresAt).toISOString(),
@@ -235,7 +234,7 @@ export class AccountWatcher {
   private async drop(key: string): Promise<void> {
     const home = this.options.homes.find(key)!
     const status = this.known.find((known) => known.home.key === key)?.status
-    if (status?.loggedIn === true && !isApiKey(status)) await this.options.cli.authLogout(home)
+    if (status?.loggedIn === true && !isApiKey(status)) await this.options.agentOf(home).logout(home)
     this.options.homes.remove(home)
     this.options.forget(key)
     this.keys.forget(key)
@@ -260,7 +259,7 @@ export class AccountWatcher {
   private async check(home: AccountHome): Promise<Known> {
     const before = this.known.find((known) => known.home.key === home.key)
     try {
-      return { home, status: withIdentity(await this.options.cli.authStatus(home), home.key), error: null }
+      return { home, status: withIdentity(await this.options.agentOf(home).authStatus(home), home.key), error: null }
     } catch (reason) {
       const error = noticeOf(reason)
       if (!sameNotice(error, before?.error ?? null)) this.options.onError(reason)
@@ -273,7 +272,7 @@ export class AccountWatcher {
   }
 
   private begin(home: AccountHome, adding: boolean): void {
-    const child = this.options.cli.authLogin(home)
+    const child = this.options.agentOf(home).login(home)
     const running = { child, home, adding }
     this.running = running
     this.output = ''
@@ -318,7 +317,7 @@ export class AccountWatcher {
   private async finish(running: Running): Promise<void> {
     try {
       if (running.adding) {
-        const status = await this.options.cli.authStatus(running.home)
+        const status = await this.options.agentOf(running.home).authStatus(running.home)
         const home = this.options.homes.place(running.home, status.email)
         this.options.homes.share(home)
       }

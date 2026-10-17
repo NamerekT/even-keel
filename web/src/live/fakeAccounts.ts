@@ -6,7 +6,7 @@ import {
   type AccountEntry,
   type AccountLogin,
   type AccountView,
-  type ClaudeAccount,
+  type AccountStatus,
 } from '../../../src/account/model.js'
 import { appSwitchProblem, type AppAccount } from '../../../src/account/apps.js'
 import { fail, notice, NoticeError, textNotice } from '../../../src/notice/notice.js'
@@ -17,7 +17,7 @@ function ago(minutes: number): string {
   return new Date(Date.now() - minutes * 60_000).toISOString()
 }
 
-const FAKE_ACCOUNT: ClaudeAccount = {
+const FAKE_ACCOUNT: AccountStatus = {
   loggedIn: true,
   authMethod: 'claude.ai',
   email: 'john.doe@example.com',
@@ -69,6 +69,7 @@ function fakeEntry(patch: Partial<AccountEntry>): AccountEntry {
     key: 'global',
     name: null,
     global: true,
+    agent: 'claude',
     status: FAKE_ACCOUNT,
     error: null,
     loginExpiresAt: inDays(24),

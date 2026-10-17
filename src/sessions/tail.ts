@@ -3,7 +3,7 @@ import { join } from 'node:path'
 import type { AgentEntry } from './agents.js'
 import { readLines } from './lines.js'
 import { projectDirName } from './paths.js'
-import { TranscriptFold } from './transcript.js'
+import { TranscriptFold, type TranscriptSummary } from './transcript.js'
 
 interface Found {
   file: string
@@ -24,6 +24,10 @@ export class TranscriptTail {
 
   get path(): string | undefined {
     return this.file
+  }
+
+  summary(): TranscriptSummary {
+    return this.fold.summary()
   }
 
   follow(agent: AgentEntry): void {

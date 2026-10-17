@@ -12,7 +12,7 @@ Even Keel watches the CI of each project and shows it on the page (BTN-102). Aft
 | `remote.ts` | `parseRemote` (https, ssh and scp forms), `ciTargets`: which remote gets which CI |
 | `forgejo.ts`, `github.ts` | the two adapters |
 | `http.ts` | `getJson` and its notices `ci.denied`, `ci.http`, `ci.unreachable` |
-| `adapters.ts` | `CI_TOKENS`, `ciVariables` (kept out of the sessions' environment by `AccountHomes.envOf`), `ciSource`, `projectTargets` |
+| `adapters.ts` | `CI_TOKENS`, `ciVariables` (kept out of the sessions' environment by `sessionBase`), `ciSource`, `projectTargets` |
 | `watcher.ts` | `CiWatch`, one per CI of a repository |
 | `verdict.ts` | `verdictOf`: what the CIs say about a pushed commit — green, red, pending or unavailable |
 | `report.ts` | `redReport`: the fix session's prompt, the fix task's title, description and comment in en/ru; `logTail` |

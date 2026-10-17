@@ -49,6 +49,7 @@ function view(task: string, lamp: SessionView['lamp'], lastActivityAt: string | 
   return {
     task,
     sessionId: `session-${task}`,
+    agent: 'claude',
     cwd: 'C:\\repos\\example',
     lamp,
     checkpoint: false,
@@ -1178,6 +1179,7 @@ const account = (loggedIn: boolean, email: string | null = null) => ({
 const entry = (patch: Partial<AccountEntry>): AccountEntry => ({
   key: 'global',
   name: null,
+  agent: 'claude',
   global: true,
   status: null,
   error: null,

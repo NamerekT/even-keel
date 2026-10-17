@@ -6,12 +6,12 @@ import { join } from 'node:path'
 import { setTimeout as delay } from 'node:timers/promises'
 import { promisify } from 'node:util'
 import type { AccountHome } from '../account/homes.js'
-import { parseAuthStatus, type ClaudeAccount } from '../account/model.js'
+import { parseAuthStatus, type AccountStatus } from '../account/model.js'
 import { fail, notice, NoticeError, type Notice } from '../notice/notice.js'
 import { samePath } from '../paths.js'
 import type { ModelAlias } from '../tracker/model.js'
-import { blockedAsk, blockedOn, parseAgents, parseSessionRecord, withLiveRecords, type AgentEntry, type SessionRecord } from './agents.js'
-import { newestExtensionBinary } from './paths.js'
+import { blockedAsk, blockedOn, parseAgents, parseSessionRecord, withLiveRecords, type AgentEntry, type SessionRecord } from '../sessions/agents.js'
+import { newestExtensionBinary } from '../sessions/paths.js'
 
 const run = promisify(execFile)
 
@@ -52,7 +52,7 @@ export class ClaudeCli {
     return withJobFiles(home, withLiveRecords(parseAgents(stdout, home.key), await liveRecords(home)))
   }
 
-  async authStatus(home: AccountHome): Promise<ClaudeAccount> {
+  async authStatus(home: AccountHome): Promise<AccountStatus> {
     const options = { env: this.envOf(home), timeout: this.timeoutMs, windowsHide: true }
     const stdout = await run(this.bin(), ['auth', 'status', '--json'], options).then(
       (result) => result.stdout,

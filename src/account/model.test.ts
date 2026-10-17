@@ -18,13 +18,13 @@ import {
   withIdentity,
   type AccountEntry,
   type AccountView,
-  type ClaudeAccount,
+  type AccountStatus,
 } from './model.js'
 import { englishOf, textNotice, type Notice } from '../notice/notice.js'
 
 const say = (notice: Notice | undefined) => (notice === undefined ? undefined : englishOf(notice))
 
-const signedIn = (email: string | null = 'john.doe@example.com'): ClaudeAccount => ({
+const signedIn = (email: string | null = 'john.doe@example.com'): AccountStatus => ({
   loggedIn: true,
   authMethod: 'claude.ai',
   email,
@@ -36,6 +36,7 @@ const entry = (patch: Partial<AccountEntry>): AccountEntry => ({
   key: 'global',
   name: null,
   global: true,
+  agent: 'claude',
   status: signedIn(),
   error: null,
   loginExpiresAt: '2026-10-27T10:00:00.000Z',
@@ -50,7 +51,7 @@ const entry = (patch: Partial<AccountEntry>): AccountEntry => ({
 })
 
 describe('API accounts', () => {
-  const keyed = (authMethod: string): ClaudeAccount => ({ loggedIn: true, authMethod, email: null, orgName: null, subscriptionType: null })
+  const keyed = (authMethod: string): AccountStatus => ({ loggedIn: true, authMethod, email: null, orgName: null, subscriptionType: null })
 
   it('is an account that signs in with a key or a key helper, not with claude.ai', () => {
     expect(isApiKey(keyed('api_key'))).toBe(true)

@@ -12,28 +12,6 @@ const env = {
   HULY_PASSWORD: 'secret',
 }
 
-describe('AccountHomes.envOf', () => {
-  it('drops the Huly credentials for the global account', () => {
-    const homes = new AccountHomes(env, 'root')
-    const result = homes.envOf(homes.global)
-    expect(Object.keys(result).filter((name) => name.startsWith('HULY_'))).toEqual([])
-    expect(result.PATH).toBe('/bin')
-  })
-
-  it('drops the CI token', () => {
-    const homes = new AccountHomes({ ...env, FORGEJO_TOKEN: 'fake-token' }, 'root')
-    expect(homes.envOf(homes.global).FORGEJO_TOKEN).toBeUndefined()
-  })
-
-  it('drops the Huly credentials and sets the config dir for another account', () => {
-    const homes = new AccountHomes(env, 'root')
-    const result = homes.envOf({ key: 'a', dir: 'root/a', global: false })
-    expect(Object.keys(result).filter((name) => name.startsWith('HULY_'))).toEqual([])
-    expect(result.PATH).toBe('/bin')
-    expect(result.CLAUDE_CONFIG_DIR).toBe('root/a')
-  })
-})
-
 describe('AccountHomes.addApiKey', () => {
   const key = 'sk-ant-api03-FAKE0000000000000000000000000000-example'
 
@@ -41,7 +19,7 @@ describe('AccountHomes.addApiKey', () => {
     const root = mkdtempSync(join(tmpdir(), 'even-keel-homes-'))
     try {
       const home = new AccountHomes(env, root).addApiKey('Work API', `  ${key}\n`)
-      expect(home).toEqual({ key: 'work-api', dir: join(root, 'work-api'), global: false })
+      expect(home).toEqual({ key: 'work-api', dir: join(root, 'work-api'), global: false, agent: 'claude' })
       expect(JSON.parse(readFileSync(join(home.dir, 'settings.json'), 'utf8'))).toEqual({ env: { ANTHROPIC_API_KEY: key } })
       const config = JSON.parse(readFileSync(join(home.dir, '.claude.json'), 'utf8'))
       expect(config.customApiKeyResponses).toEqual({ approved: [key.slice(-20)], rejected: [] })

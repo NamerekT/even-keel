@@ -7,6 +7,9 @@ import { accountAt, activate, forgetAccount, loadLedger, markRemoving, nameAccou
 import { accountId, launchBlock, liveSessions, loginBlock, type LoginBlock } from './account/model.js'
 import { VsCodeAccount, vscodeSettingsFile } from './account/vscode.js'
 import { AccountWatcher } from './account/watcher.js'
+import { AGENTS } from './agent/adapters.js'
+import type { Agent, SessionHandle, SessionStart } from './agent/contract.js'
+import { sessionBase } from './agent/env.js'
 import { Dispatcher, type LaunchEntry } from './chain/dispatcher.js'
 import { fixEpisodes, handoffsOf, launchDays, launchedProjects, taskSessions } from './chain/launches.js'
 import { isFixName } from './chain/fix.js'
@@ -31,10 +34,8 @@ import { guardHosts, guardToken } from './guard.js'
 import { createEvenKeelServer } from './server.js'
 import { replyPrompt, type Reply } from './sessions/ask.js'
 import { saveInbox, type InboxFile } from './sessions/inbox.js'
-import { ClaudeCli, liveRecords, resolveClaudeBinary, SESSION_MODE } from './sessions/claude.js'
 import { turnStatus, type AgentEntry } from './sessions/agents.js'
 import { launchPlan, type LaunchPlan } from './sessions/launch.js'
-import { readSessionRecord, readTranscript } from './sessions/history.js'
 import { runAfterGreen, runBeforeStart, runCheck, systemShell, type SetupRun } from './sessions/setup.js'
 import { SessionMonitor } from './sessions/monitor.js'
 import { TranscriptOwners } from './sessions/owners.js'
@@ -59,7 +60,7 @@ import { updatesView } from './updates/release.js'
 import { installed, UpdateWatcher } from './updates/watcher.js'
 
 const SESSION_POLL_MS = 3_000
-const CLAUDE_TIMEOUT_MS = 30_000
+const AGENT_TIMEOUT_MS = 30_000
 const LIMITS_POLL_MS = 2_000
 const USAGE_POLL_MS = 5 * 60_000
 const LAUNCH_CHART_DAYS = 14
@@ -125,7 +126,15 @@ const trackers = new Map<string, TrackerView>(
 const links = new Map<string, TrackerLink>()
 const hub = new EventHub()
 const homes = new AccountHomes(process.env, accountsRoot(process.env))
-const cli = new ClaudeCli(() => resolveClaudeBinary(process.env), CLAUDE_TIMEOUT_MS, (home) => homes.envOf(home))
+const runtimes = new Map<string, Agent>(
+  Object.entries(AGENTS).map(([name, adapter]) => [name, adapter.setup({ env: sessionBase(process.env), timeoutMs: AGENT_TIMEOUT_MS, workDir: stateDir })]),
+)
+/** The agent of an account folder: every session of the folder runs on it. */
+const agentOf = (home: AccountHome): Agent => runtimes.get(home.agent)!
+const envOf = (home: AccountHome) => agentOf(home).env(home)
+const launchIn = (home: AccountHome, start: SessionStart) => agentOf(home).launch(home, start)
+const resumeIn = (home: AccountHome, session: SessionHandle, start: SessionStart) => agentOf(home).resume(home, session, start)
+const stopIn = (home: AccountHome, session: SessionHandle) => agentOf(home).stop(home, session)
 const startedAt = new Date().toISOString()
 const tasksByProject = new Map<string, Task[]>()
 const refreshers = new Map<string, () => Promise<void>>()
@@ -164,7 +173,10 @@ const limits = new LimitsWatcher({
   intervalMs: LIMITS_POLL_MS,
   homes: () => homes.list(),
   ownerOf: (configDir) => homes.ownerOf(configDir),
-  usage: (home) => cli.usage(home, stateDir),
+  usage: (home) => {
+    const { usage } = agentOf(home)
+    return usage === undefined ? undefined : (at) => usage(home, at)
+  },
   usageIntervalMs: USAGE_POLL_MS,
   notBefore: (key) => ledger.accounts[key]?.since ?? null,
   accessExpired: (home) => {
@@ -188,8 +200,8 @@ const updates = new UpdateWatcher({
 
 const daemons = new DaemonRefresh({
   share: (home) => homes.share(home),
-  running: async (home) => liveSessions(await cli.agents(home), home.key).length,
-  stopDaemon: (home) => cli.stopDaemon(home),
+  running: async (home) => liveSessions(await agentOf(home).sessions(home), home.key).length,
+  stopDaemon: async (home) => agentOf(home).stopDaemon?.(home),
   onChange: () => hub.broadcast('state', getState()),
   onError: (error) => console.error(`account: ${error instanceof Error ? error.message : String(error)}`),
 })
@@ -198,7 +210,7 @@ const vscode = new VsCodeAccount({
   file: vscodeSettingsFile(process.env),
   homes: () => homes.list(),
   ownerOf: (dir) => homes.ownerOf(dir),
-  records: liveRecords,
+  records: async (home) => (await agentOf(home).liveRecords?.(home)) ?? [],
   intervalMs: APP_POLL_MS,
   onChange: () => hub.broadcast('state', getState()),
   onError: (error) => console.error(`vscode: ${error instanceof Error ? error.message : String(error)}`),
@@ -206,7 +218,7 @@ const vscode = new VsCodeAccount({
 
 const account = new AccountWatcher({
   homes,
-  cli,
+  agentOf,
   apps: {
     list: () => [vscode.view],
     refresh: () => vscode.refresh(),
@@ -252,6 +264,7 @@ const account = new AccountWatcher({
 
 const owners = new TranscriptOwners({
   homes: () => homes.list(),
+  transcripts: (home) => agentOf(home).transcripts(home),
   rescanMs: OWNERS_RESCAN_MS,
   onChange: () => hub.broadcast('state', getState()),
   onError: (error) => console.error(`sessions: ${error instanceof Error ? error.message : String(error)}`),
@@ -277,7 +290,7 @@ const activeAccount = () => {
 }
 
 const monitor = new SessionMonitor({
-  cli,
+  agentOf,
   homes: () => homes.list(),
   emailOf: (key) => account.emailOf(key),
   apiKey: (key) => account.apiKey(key),
@@ -402,7 +415,7 @@ const places = new TaskPlaces({
 })
 
 function taskRun(task: string, cwd: string): SetupRun {
-  return { task, cwd, shell: systemShell(() => homes.envOf(homeOf(ledger.active))), log: (line) => console.log(line) }
+  return { task, cwd, shell: systemShell(() => envOf(homeOf(ledger.active))), log: (line) => console.log(line) }
 }
 
 const dispatcher = new Dispatcher(loadChainState(chainFile, config.ids), {
@@ -414,7 +427,7 @@ const dispatcher = new Dispatcher(loadChainState(chainFile, config.ids), {
     await daemons.prepare(home)
     const place = await places.ready(project, task)
     const { prompt, model } = planFor(task, withProject(await briefed(task, startPrompt(task, place, promptLanguage(), branchOf(project)), project), project))
-    return (await cli.launch(home, task, place.path, prompt, model, settingsFor(task, place.path, project))).sessionId
+    return launchIn(home, { name: task, cwd: place.path, prompt, model, settings: settingsFor(task, place.path, project) })
   },
   liveSession: (task) => sessions.find((view) => view.task === task && view.lamp !== 'finished')?.sessionId,
   blocked: () => launchBlock(account.view),
@@ -452,21 +465,21 @@ const dispatcher = new Dispatcher(loadChainState(chainFile, config.ids), {
   },
   resume: async (task, session) => {
     const home = homeOf(session.account)
-    await cli.stop(home, session.agentId, session.sessionId)
+    await stopIn(home, session)
     await daemons.prepare(home)
     const plan = planFor(task, resumePrompt(promptLanguage()))
-    return (await cli.resume(home, session.agentId, session.sessionId, task, session.cwd, plan.prompt, plan.model, settingsFor(task, session.cwd))).sessionId
+    return resumeIn(home, session, { name: task, cwd: session.cwd, prompt: plan.prompt, model: plan.model, settings: settingsFor(task, session.cwd) })
   },
   reply: async (task, session, prompt) => {
     const home = homeOf(session.account)
-    await cli.stop(home, session.agentId, session.sessionId)
+    await stopIn(home, session)
     await daemons.prepare(home)
     const plan = planFor(task, prompt)
-    return (await cli.resume(home, session.agentId, session.sessionId, task, session.cwd, plan.prompt, plan.model, settingsFor(task, session.cwd))).sessionId
+    return resumeIn(home, session, { name: task, cwd: session.cwd, prompt: plan.prompt, model: plan.model, settings: settingsFor(task, session.cwd) })
   },
   relay: async (task, session, handoff, reason) => {
     const previous = homes.find(session.account)
-    if (previous !== undefined) await cli.stop(previous, session.agentId, session.sessionId)
+    if (previous !== undefined) await stopIn(previous, session)
     const home = homeOf(ledger.active)
     await daemons.prepare(home)
     const project = projectOf(task)
@@ -475,7 +488,7 @@ const dispatcher = new Dispatcher(loadChainState(chainFile, config.ids), {
     const notePath = noteOf(session)
     const note = await readNote(notePath)
     const at = new Date().toISOString()
-    const { sessionId } = await cli.launch(home, task, session.workdir, prompt, model, settingsFor(task, session.workdir))
+    const sessionId = await launchIn(home, { name: task, cwd: session.workdir, prompt, model, settings: settingsFor(task, session.workdir) })
     const snapshot = { at, task, sessionId, previous: session.sessionId, reason: snapshotReason(reason), prompt, notePath, note }
     try {
       saveSnapshot(handoffsDir, snapshot)
@@ -489,9 +502,9 @@ const dispatcher = new Dispatcher(loadChainState(chainFile, config.ids), {
     await daemons.prepare(home)
     const place = await places.ready(project, name)
     const { prompt, model } = planFor(name, withProject(fixPrompt(report, place, promptLanguage(), branchOf(project)), project))
-    return (await cli.launch(home, name, place.path, prompt, model, settingsFor(name, place.path, project))).sessionId
+    return launchIn(home, { name, cwd: place.path, prompt, model, settings: settingsFor(name, place.path, project) })
   },
-  stop: (session) => cli.stop(homeOf(session.account), session.agentId, session.sessionId),
+  stop: (session) => stopIn(homeOf(session.account), session),
   finish: async (project, task) => {
     const repo = config.projects[project]!
     const count = isFixName(task) ? undefined : config.slots[project]
@@ -572,7 +585,7 @@ async function vacateSlot(slot: string, task: string): Promise<void> {
   if (busy.length > 0) throw fail('slot.busyStart', { slot, sessions: busy.map((each) => `${each.task} (${each.agent.sessionId})`), task })
   for (const { agent, task: owner } of idle) {
     try {
-      await cli.stop(homeOf(agent.account ?? 'global'), agent.id!, agent.sessionId)
+      await stopIn(homeOf(agent.account ?? 'global'), { agentId: agent.id!, sessionId: agent.sessionId })
     } catch (error) {
       throw fail('slot.stopFailed', { session: agent.sessionId, owner, slot, task }, { cause: noticeOf(error) }, { cause: error })
     }
@@ -594,7 +607,7 @@ async function stopTaskSessions(repo: string, task: string, count: number): Prom
   const warnings: Notice[] = []
   for (const agent of idle) {
     try {
-      await cli.stop(homeOf(agent.account ?? 'global'), agent.id!, agent.sessionId)
+      await stopIn(homeOf(agent.account ?? 'global'), { agentId: agent.id!, sessionId: agent.sessionId })
     } catch (error) {
       warnings.push(notice('cleanup.sessionNotStopped', { session: agent.sessionId }, { cause: noticeOf(error) }))
     }
@@ -669,12 +682,12 @@ const server = createEvenKeelServer({
   launches: () => launches,
   sessionRecord: async (sessionId) => {
     for (const home of homes.list()) {
-      const found = await readSessionRecord(join(home.dir, 'projects'), sessionId)
+      const found = await agentOf(home).record(home, sessionId)
       if (found !== undefined) return { ...found, account: sessionAccount(sessionId, found.startedAt) ?? emailAt(home.key, found.startedAt) }
     }
     return undefined
   },
-  transcript: (sessionId, after) => inHomes((projects) => readTranscript(projects, sessionId, after)),
+  transcript: (sessionId, after) => inHomes((home) => agentOf(home).feed(home, sessionId, after)),
   checkpoint: async (sessionId) => {
     const run = handoffsOf(launches, sessionId)
     if (run === undefined) return undefined
@@ -701,7 +714,7 @@ const server = createEvenKeelServer({
       homes: list.map((home) => home.dir),
       trim: dispatcher.state.trimTools,
       hidden: configFile.current.hiddenSkills,
-      mode: SESSION_MODE,
+      mode: agentOf(homes.find(ledger.active) ?? homes.global).mode,
     })
     const received = view.received
     return received === null ? view : { ...view, received: { ...received, account: sessionAccount(received.sessionId, received.at) } }
@@ -741,10 +754,10 @@ const server = createEvenKeelServer({
   guard: () => ({ hosts: guardHosts(listen.host, configFile.current.allowedHosts), token }),
 })
 
-/** The first answer `read` finds in the `projects` folder of any account. */
-async function inHomes<T>(read: (projectsDir: string) => Promise<T | undefined>): Promise<T | undefined> {
+/** The first answer `read` finds in any account folder. */
+async function inHomes<T>(read: (home: AccountHome) => Promise<T | undefined>): Promise<T | undefined> {
   for (const home of homes.list()) {
-    const found = await read(join(home.dir, 'projects'))
+    const found = await read(home)
     if (found !== undefined) return found
   }
   return undefined

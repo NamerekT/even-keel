@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import type { AgentEntry } from './agents.js'
-import { resumeArgs, resumedAs, sessionArgs } from './claude.js'
+import type { AgentEntry } from '../sessions/agents.js'
+import { resumeArgs, resumedAs, sessionArgs } from './cli.js'
 
 describe('sessionArgs', () => {
   it('passes the chain settings with --settings only when there are any', () => {

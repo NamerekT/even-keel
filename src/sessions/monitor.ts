@@ -1,16 +1,14 @@
-import { readFile } from 'node:fs/promises'
-import { join } from 'node:path'
 import type { AccountHome } from '../account/homes.js'
 import { GLOBAL_ACCOUNT } from '../account/model.js'
+import type { Agent, SessionTail } from '../agent/contract.js'
 import type { HandoffSession, LimitedSession } from '../chain/relay.js'
 import type { SessionView } from '../state.js'
 import { lampOf, sessionsByTask, type AgentEntry } from './agents.js'
-import type { ClaudeCli } from './claude.js'
-import { bridgeOfRecord, remoteAtStartup, remoteLink } from './remote.js'
-import { TranscriptTail } from './tail.js'
+import { remoteLink } from './remote.js'
 
 export interface SessionMonitorOptions {
-  cli: ClaudeCli
+  /** The agent of an account folder, by `AccountHome.agent`. */
+  agentOf: (home: AccountHome) => Pick<Agent, 'sessions' | 'tail' | 'remote'>
   homes: () => AccountHome[]
   emailOf: (account: string) => string | null
   /** An API account's session has no Remote Control and no usage window to wait out (`docs/accounts.md`). */
@@ -24,14 +22,16 @@ export interface SessionMonitorOptions {
 
 interface Tracked {
   agent: AgentEntry
+  /** The agent the session runs on: its account's. */
+  runsOn: string
   present: boolean
-  transcript: TranscriptTail
+  transcript: SessionTail
   bridge: string | null
 }
 
 export class SessionMonitor {
   private readonly tracked = new Map<string, Tracked>()
-  private readonly tails = new Map<string, TranscriptTail>()
+  private readonly tails = new Map<string, SessionTail>()
   private readonly remoteEnabled = new Map<string, boolean>()
   private lastSnapshot = ''
   private timer: NodeJS.Timeout | undefined
@@ -65,7 +65,7 @@ export class SessionMonitor {
     const tracked = this.tracked.get(task)
     if (tracked === undefined) return undefined
     const { agent, transcript } = tracked
-    const summary = transcript.fold.summary()
+    const summary = transcript.summary()
     return {
       sessionId: agent.sessionId,
       agentId: agent.id ?? agent.sessionId,
@@ -86,7 +86,7 @@ export class SessionMonitor {
     const session = this.handoff(task)
     if (tracked === undefined || session === undefined || !tracked.present) return undefined
     if (this.options.apiKey(tracked.agent.account ?? GLOBAL_ACCOUNT)) return undefined
-    const { apiError } = tracked.transcript.fold.summary()
+    const { apiError } = tracked.transcript.summary()
     if (apiError?.kind !== 'limit' || lampOf(tracked.agent, 'limit') !== 'limit') return undefined
     return { ...session, limit: { at: apiError.at, text: apiError.text } }
   }
@@ -102,13 +102,13 @@ export class SessionMonitor {
   private async tick(): Promise<void> {
     try {
       const homes = this.options.homes()
-      const dirOf = new Map(homes.map((home) => [home.key, home.dir]))
+      const homeOf = new Map(homes.map((home) => [home.key, home]))
       const agents = (await Promise.all(homes.map((home) => this.agentsOf(home)))).flat()
       this.options.onAgents(agents)
       for (const agent of agents) {
         const tail = this.tails.get(agent.sessionId)
-        const projects = join(dirOf.get(agent.account ?? GLOBAL_ACCOUNT)!, 'projects')
-        if (tail === undefined) this.tails.set(agent.sessionId, new TranscriptTail(projects, agent))
+        const home = homeOf.get(agent.account ?? GLOBAL_ACCOUNT)!
+        if (tail === undefined) this.tails.set(agent.sessionId, this.options.agentOf(home).tail(home, agent))
         else tail.follow(agent)
       }
       const tracked = new Set([...this.tracked.values()].map(({ agent }) => agent.sessionId))
@@ -117,14 +117,14 @@ export class SessionMonitor {
       const reads = await Promise.allSettled([...this.tails.values()].map((tail) => tail.read()))
       for (const read of reads) if (read.status === 'rejected') this.options.onError(read.reason)
 
-      for (const home of homes) this.remoteEnabled.set(home.key, remoteAtStartup(await readText(join(home.dir, 'settings.json'))))
-      const branchOf = (agent: AgentEntry) => this.tails.get(agent.sessionId)?.fold.summary().gitBranch ?? null
+      for (const home of homes) this.remoteEnabled.set(home.key, (await this.options.agentOf(home).remote?.enabled(home)) ?? false)
+      const branchOf = (agent: AgentEntry) => this.tails.get(agent.sessionId)?.summary().gitBranch ?? null
       const byTask = sessionsByTask(agents, this.options.projectKeys(), branchOf)
       for (const [task, agent] of byTask) {
-        const dir = dirOf.get(agent.account ?? GLOBAL_ACCOUNT)!
-        const record = agent.pid === undefined ? undefined : await readText(join(dir, 'sessions', `${agent.pid}.json`))
-        const bridge = bridgeOfRecord(record, agent.sessionId) ?? this.tracked.get(task)?.bridge ?? null
-        this.tracked.set(task, { agent, present: true, transcript: this.tails.get(agent.sessionId)!, bridge })
+        const home = homeOf.get(agent.account ?? GLOBAL_ACCOUNT)!
+        const live = (await this.options.agentOf(home).remote?.bridge(home, agent)) ?? null
+        const bridge = live ?? this.tracked.get(task)?.bridge ?? null
+        this.tracked.set(task, { agent, runsOn: home.agent, present: true, transcript: this.tails.get(agent.sessionId)!, bridge })
       }
       for (const [task, known] of this.tracked) if (!byTask.has(task)) known.present = false
 
@@ -141,22 +141,22 @@ export class SessionMonitor {
 
   private async agentsOf(home: AccountHome): Promise<AgentEntry[]> {
     try {
-      return await this.options.cli.agents(home)
+      return await this.options.agentOf(home).sessions(home)
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error)
-      throw new Error(`claude agents in ${home.key}: ${message}`, { cause: error })
+      throw new Error(`${home.agent} sessions in ${home.key}: ${message}`, { cause: error })
     }
   }
 }
 
 function toView(
   task: string,
-  { agent, present, transcript, bridge }: Tracked,
+  { agent, runsOn, present, transcript, bridge }: Tracked,
   remoteOf: { enabled: boolean; apiKey: boolean },
   email: string | null,
   now: number,
 ): SessionView {
-  const summary = transcript.fold.summary()
+  const summary = transcript.summary()
   const remote = remoteLink({
     bridge,
     transcriptUrl: summary.remoteUrl,
@@ -169,6 +169,7 @@ function toView(
   return {
     task,
     sessionId: agent.sessionId,
+    agent: runsOn,
     cwd: agent.cwd,
     lamp: lampOf(present ? agent : undefined, summary.apiError?.kind ?? null, now),
     checkpoint: summary.checkpoint !== null,
@@ -188,13 +189,5 @@ function toView(
     remoteUrl: remote.url,
     remoteOff: remote.off,
     account: email,
-  }
-}
-
-async function readText(file: string): Promise<string | undefined> {
-  try {
-    return await readFile(file, 'utf8')
-  } catch {
-    return undefined
   }
 }

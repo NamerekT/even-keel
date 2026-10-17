@@ -6,6 +6,7 @@ const entry = (key: string, email: string | null): AccountEntry => ({
   key,
   name: null,
   global: key === 'global',
+  agent: 'claude',
   status: email === null ? null : { loggedIn: true, authMethod: null, email, orgName: null, subscriptionType: null },
   error: null,
   loginExpiresAt: null,

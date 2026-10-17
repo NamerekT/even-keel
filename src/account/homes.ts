@@ -1,10 +1,9 @@
 import { mkdirSync, readdirSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { join } from 'node:path'
-import { ciVariables } from '../ci/adapters.js'
+import { CLAUDE } from '../claude/name.js'
 import { fail } from '../notice/notice.js'
 import { samePath } from '../paths.js'
-import { trackerVariables } from '../tracker/adapters.js'
 import { folderName, GLOBAL_ACCOUNT, parseCredentialTimes, type CredentialTimes } from './model.js'
 import { API_KEY_VARIABLE, shareConfig } from './share.js'
 
@@ -17,8 +16,11 @@ export interface AccountHome {
   key: string
   dir: string
   global: boolean
+  /** The agent the folder is an account of; its sessions run on that agent (`src/agent/adapters.ts`). */
+  agent: string
 }
 
+/** The account folders of Claude Code: the global `~/.claude` and one `CLAUDE_CONFIG_DIR` per account under the root. */
 export class AccountHomes {
   readonly global: AccountHome
 
@@ -26,7 +28,7 @@ export class AccountHomes {
     private readonly env: NodeJS.ProcessEnv,
     private readonly root: string,
   ) {
-    this.global = { key: GLOBAL_ACCOUNT, dir: env.CLAUDE_CONFIG_DIR ?? join(homedir(), '.claude'), global: true }
+    this.global = { key: GLOBAL_ACCOUNT, dir: env.CLAUDE_CONFIG_DIR ?? join(homedir(), '.claude'), global: true, agent: CLAUDE }
   }
 
   list(): AccountHome[] {
@@ -42,13 +44,6 @@ export class AccountHomes {
     return this.list().find((home) => samePath(home.dir, configDir))?.key
   }
 
-  envOf(home: AccountHome): NodeJS.ProcessEnv {
-    const env = { ...this.env }
-    for (const name of [...trackerVariables(), ...ciVariables()]) delete env[name]
-    if (!home.global) env.CLAUDE_CONFIG_DIR = home.dir
-    return env
-  }
-
   times(home: AccountHome): CredentialTimes {
     let text: string | undefined
     try {
@@ -62,7 +57,7 @@ export class AccountHomes {
   pending(now: Date): AccountHome {
     const name = `${PENDING_PREFIX}${now.getTime().toString(36)}`
     mkdirSync(join(this.root, name), { recursive: true })
-    return { key: name, dir: join(this.root, name), global: false }
+    return { key: name, dir: join(this.root, name), global: false, agent: CLAUDE }
   }
 
   place(pending: AccountHome, email: string | null): AccountHome {
@@ -112,7 +107,7 @@ export class AccountHomes {
   }
 
   private home(name: string): AccountHome {
-    return { key: name, dir: join(this.root, name), global: false }
+    return { key: name, dir: join(this.root, name), global: false, agent: CLAUDE }
   }
 
   private folders(): string[] {
