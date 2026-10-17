@@ -122,6 +122,7 @@ export const en = {
   'account.signInRunning': () => 'claude: a sign-in into this account is running',
   'account.usedByApp': (p: { app: string }) => `claude: ${p.app} uses this account; switch it to another one first`,
   'account.notRemoving': (p: { key: string }) => `claude: ${p.key} is not being removed`,
+  'account.apiKeyInvalid': () => 'claude: an API key is one word of more than 20 characters, like sk-ant-api03-…',
   'account.chainRunning': (p: { project: string }) => `claude: chain ${p.project} is running; stop it before switching the account`,
   'account.sessionsBusy': (p: { sessions: string[] }) =>
     `claude: sessions are in the middle of a turn (${list(p.sessions)}); switch the account once they finish`,
@@ -220,6 +221,7 @@ export const en = {
   'config.modelAlias': (p: { model: string }) => `config: modelPrompts.${p.model} is not a model alias`,
   'config.modelPromptEmpty': (p: { model: string }) => `config: modelPrompts.${p.model} is empty`,
   'config.hiddenSkills': () => 'config: hiddenSkills must be a list of skill names',
+  'config.cacheTtl': (p: { value: string }) => `config: cacheTtl ${p.value} must be "5m" or "1h", or left out`,
   'config.parallel': (p: { value: string }) => `config: parallel must be a positive integer, got ${p.value}`,
   'config.allowedHosts': () => 'config: allowedHosts must be a list of host names',
   'config.updatesKey': (p: { key: string; known: string[] }) => `config: updates.${p.key} is not an update setting, known: ${list(p.known)}`,

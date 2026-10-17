@@ -39,7 +39,12 @@ describe('remoteAtStartup', () => {
 
 describe('remoteLink', () => {
   const startedAt = Date.parse('2026-01-01T10:00:00Z')
-  const base = { bridge: null, transcriptUrl: null, lost: false, enabled: true, startedAt, now: startedAt + 60_000 }
+  const base = { bridge: null, transcriptUrl: null, lost: false, enabled: true, apiKey: false, startedAt, now: startedAt + 60_000 }
+
+  it('says a session on an API key has no Remote Control at all, whatever the startup setting', () => {
+    expect(remoteLink({ ...base, apiKey: true })).toEqual({ url: null, off: 'api-key' })
+    expect(remoteLink({ ...base, apiKey: true, enabled: false, now: startedAt + 10_000 })).toEqual({ url: null, off: 'api-key' })
+  })
 
   it('prefers the registry bridge over the transcript', () => {
     expect(remoteLink({ ...base, bridge: 'session_01Registry', transcriptUrl: 'https://claude.ai/code/session_01Old' })).toEqual({

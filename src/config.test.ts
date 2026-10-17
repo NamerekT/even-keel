@@ -95,6 +95,7 @@ describe('parseConfig', () => {
       language: null,
       promptLanguage: 'en',
       hiddenSkills: DEFAULT_HIDDEN_SKILLS,
+      cacheTtl: null,
       parallel: 1,
       updates: { check: true, notify: true, dismissed: null },
     })
@@ -134,6 +135,13 @@ describe('parseConfig', () => {
     expect(parse({ projects: {}, language: 'ru' })).toMatchObject({ language: 'ru', promptLanguage: 'ru' })
     expect(parse({ projects: {}, language: 'ru', promptLanguage: 'en' })).toMatchObject({ language: 'ru', promptLanguage: 'en' })
     expect(parse({ projects: {}, promptLanguage: 'ru' })).toMatchObject({ language: null, promptLanguage: 'ru' })
+  })
+
+  it('leaves the prompt cache TTL to the CLI unless it is 5m or 1h', () => {
+    expect(parse({ projects: {} }).cacheTtl).toBeNull()
+    expect(parse({ projects: {}, cacheTtl: '1h' }).cacheTtl).toBe('1h')
+    expect(parse({ projects: {}, cacheTtl: '5m' }).cacheTtl).toBe('5m')
+    expect(() => parse({ projects: {}, cacheTtl: '2h' })).toThrow(/cacheTtl.*"2h"/)
   })
 
   it('rejects a language it has no texts for', () => {
@@ -501,6 +509,12 @@ describe('reloading the config', () => {
   it('applies the languages at once', () => {
     const next = parse({ projects: { ABC: 'C:\\abc' }, language: 'ru', promptLanguage: 'en' })
     expect(liveConfig(base, next)).toMatchObject({ language: 'ru', promptLanguage: 'en' })
+    expect(restartChanges(base, next)).toEqual([])
+  })
+
+  it('applies the prompt cache TTL at once', () => {
+    const next = parse({ projects: { ABC: 'C:\\abc' }, cacheTtl: '1h' })
+    expect(liveConfig(base, next)).toMatchObject({ cacheTtl: '1h' })
     expect(restartChanges(base, next)).toEqual([])
   })
 

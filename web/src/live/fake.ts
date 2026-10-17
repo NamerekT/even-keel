@@ -18,7 +18,7 @@ import { FAKE_PROJECT_IDS, fakeConfig, fakeHandEdit, fakeRestart, fakeSettingsCo
 import { withFix } from './fakeFix.js'
 import { fakeCompare, fakeRuleDiff, fakeRules } from './fakeRules.js'
 import { fakeSteps } from './fakeSteps.js'
-import { fakeCheckpoints, fakeHistory, fakePeriod, fakeTask } from './fakeStats.js'
+import { fakeCheckpoints, fakeHistory, fakePeriod, fakeSpend, fakeTask } from './fakeStats.js'
 import { fakeCard, fakeReady } from './fakeCards.js'
 import { fakeAnswer, fakeOpenAsk, fakePastAsk, FAKE_ASK, FAKE_UNSAVED_ASK } from './fakeChat.js'
 import type { Ask } from '../../../src/sessions/ask.js'
@@ -803,6 +803,10 @@ export function createFakeSource(search: string): LiveSource {
     statsCheckpoints: async () => {
       await answer()
       return fakeCheckpoints(params.get('stats'))
+    },
+    statsSpend: async () => {
+      await answer()
+      return fakeSpend(params.get('stats'))
     },
     statsTask: async (task) => {
       await answer()

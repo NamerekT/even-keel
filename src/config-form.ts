@@ -39,9 +39,10 @@ export function formsOf(config: EvenKeelConfig, adapters: Adapters = ADAPTERS): 
       },
     ]),
   )
-  const { parallel, tracker, brief, chain, model, modelPrompts, language, promptLanguage, hiddenSkills, allowedHosts, context, stats } = config
+  const { parallel, tracker, brief, chain, model, modelPrompts, language, promptLanguage, hiddenSkills, cacheTtl, allowedHosts, context, stats } = config
   const updates = { check: config.updates.check, notify: config.updates.notify }
-  return { projects, shared: { parallel, tracker, brief, chain, model, modelPrompts, language, promptLanguage, hiddenSkills, allowedHosts, context, stats, updates } }
+  const shared = { parallel, tracker, brief, chain, model, modelPrompts, language, promptLanguage, hiddenSkills, cacheTtl, allowedHosts, context, stats, updates }
+  return { projects, shared }
 }
 
 export function trackerChoices(adapters: Adapters = ADAPTERS): TrackerChoice[] {
@@ -134,6 +135,7 @@ export function withSharedForm(raw: unknown, form: SharedForm, base: SharedForm)
   if (changed('language')) put('language', form.language, null)
   if (changed('language') || changed('promptLanguage')) put('promptLanguage', form.promptLanguage, form.language ?? DEFAULT_LANGUAGE)
   if (changed('hiddenSkills')) put('hiddenSkills', names(form.hiddenSkills), DEFAULT_HIDDEN_SKILLS)
+  if (changed('cacheTtl')) put('cacheTtl', form.cacheTtl, null)
   if (changed('allowedHosts')) put('allowedHosts', names(form.allowedHosts).map((name) => name.toLowerCase()), [])
   if (changed('context')) put('context', withDefaults(config.context, form.context, DEFAULT_CONTEXT), undefined)
   if (changed('stats')) {

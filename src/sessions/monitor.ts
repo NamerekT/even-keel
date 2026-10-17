@@ -13,6 +13,8 @@ export interface SessionMonitorOptions {
   cli: ClaudeCli
   homes: () => AccountHome[]
   emailOf: (account: string) => string | null
+  /** An API account's session has no Remote Control and no usage window to wait out (`docs/accounts.md`). */
+  apiKey: (account: string) => boolean
   projectKeys: () => string[]
   intervalMs: number
   onAgents: (agents: AgentEntry[]) => void
@@ -54,7 +56,8 @@ export class SessionMonitor {
     const now = Date.now()
     return [...this.tracked].map(([task, tracked]) => {
       const account = tracked.agent.account ?? GLOBAL_ACCOUNT
-      return toView(task, tracked, this.remoteEnabled.get(account) ?? false, this.options.emailOf(account), now)
+      const remote = { enabled: this.remoteEnabled.get(account) ?? false, apiKey: this.options.apiKey(account) }
+      return toView(task, tracked, remote, this.options.emailOf(account), now)
     })
   }
 
@@ -82,6 +85,7 @@ export class SessionMonitor {
     const tracked = this.tracked.get(task)
     const session = this.handoff(task)
     if (tracked === undefined || session === undefined || !tracked.present) return undefined
+    if (this.options.apiKey(tracked.agent.account ?? GLOBAL_ACCOUNT)) return undefined
     const { apiError } = tracked.transcript.fold.summary()
     if (apiError?.kind !== 'limit' || lampOf(tracked.agent, 'limit') !== 'limit') return undefined
     return { ...session, limit: { at: apiError.at, text: apiError.text } }
@@ -148,7 +152,7 @@ export class SessionMonitor {
 function toView(
   task: string,
   { agent, present, transcript, bridge }: Tracked,
-  remoteEnabled: boolean,
+  remoteOf: { enabled: boolean; apiKey: boolean },
   email: string | null,
   now: number,
 ): SessionView {
@@ -157,7 +161,7 @@ function toView(
     bridge,
     transcriptUrl: summary.remoteUrl,
     lost: summary.remoteLost,
-    enabled: remoteEnabled,
+    ...remoteOf,
     startedAt: agent.startedAt,
     now,
   })

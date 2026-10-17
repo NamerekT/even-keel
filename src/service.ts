@@ -168,8 +168,9 @@ const limits = new LimitsWatcher({
     const { accessExpiresAt } = homes.times(home)
     return accessExpiresAt !== null && accessExpiresAt <= Date.now()
   },
+  apiKey: (key): boolean => account.apiKey(key),
   onChange: () => hub.broadcast('state', getState()),
-  onError: (error) => console.error(`limits: ${error instanceof Error ? error.message : String(error)}`),
+  onError: (error) => console.error(`limits:${error instanceof Error ? error.message : String(error)}`),
 })
 
 const release = installed(root)
@@ -272,6 +273,7 @@ const monitor = new SessionMonitor({
   cli,
   homes: () => homes.list(),
   emailOf: (key) => account.emailOf(key),
+  apiKey: (key) => account.apiKey(key),
   projectKeys: () => Object.keys(config.projects),
   intervalMs: SESSION_POLL_MS,
   onAgents: (list) => {
@@ -363,7 +365,14 @@ const mcp = new McpCheck({
 const settingsFor = (task: string, cwd: string, project = projectOf(task)): string | undefined =>
   project === undefined
     ? undefined
-    : chainSettings(config.projects[project]!, cwd, dispatcher.state.trimTools, configFile.current.hiddenSkills, homes.global.dir)
+    : chainSettings(
+        config.projects[project]!,
+        cwd,
+        dispatcher.state.trimTools,
+        configFile.current.hiddenSkills,
+        homes.global.dir,
+        configFile.current.cacheTtl,
+      )
 
 function projectOf(task: string): string | undefined {
   for (const [project, tasks] of tasksByProject) if (tasks.some((each) => each.id === task)) return project

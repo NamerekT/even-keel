@@ -43,6 +43,13 @@ order by l.day, l.project`
 
 const ACCOUNTS = `select distinct account from messages order by account`
 
+// $1 time zone: the spend since local midnight, per account folder key.
+const SPEND = `
+select account, coalesce(sum(cost), 0) as cost
+from message_costs
+where at >= (now() at time zone $1::text)::date::timestamp at time zone $1::text
+group by account`
+
 // $1 time zone, $2 account or null.
 const COVERAGE = `
 select to_char(min(observed_at) at time zone $1::text, 'YYYY-MM-DD') as from_day,
@@ -479,6 +486,14 @@ export class StatsReader {
           },
         ]),
       )
+    })
+  }
+
+  /** Today's spend in dollars by account folder key, for the accounts panel; an API account pays it from its key. */
+  spend(tz: string): Promise<StatsAnswer<Record<string, number>>> {
+    return this.cached(`spend|${tz}`, async (pool) => {
+      const { rows } = await pool.query<Row>(SPEND, [tz])
+      return Object.fromEntries(rows.map((row) => [String(row.account), number(row.cost)]))
     })
   }
 

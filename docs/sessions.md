@@ -51,6 +51,13 @@ Assembled strictly: a value in the launch and handoff prompt goes through `fill`
 - Polling continues only if the answer says outright `num_turns: 0` and `total_cost_usd: 0`, otherwise it is switched off until restart. An unreadable answer or switched-off polling is shown by the page as a banner (`UsageBanner`).
 - While a window is used up, the next task is not started: the chain waits for the reset (`limitUntil`) and continues by itself.
 - A limit on a running session whose text gives no reset time (the `wrap_up` warning) takes it from these limits once they are newer than the limit (`docs/chain.md`, exception 1).
+- An API account (`docs/accounts.md`) has no windows: `/usage` is not polled for it (in its folder it answers free with no window lines), and exception 1 does not apply to its sessions.
+
+## Prompt cache lifetime (BTN-99)
+
+What the CLI 2.1.302 binary does, in order of precedence: the `FORCE_PROMPT_CACHING_5M` variable → 5 minutes; the variables `CLAUDE_CODE_PROMPT_CACHE_TTL` / `CLAUDE_CODE_SUBAGENT_PROMPT_CACHE_TTL`; the settings `promptCacheTtl` / `subagentPromptCacheTtl` (`"5m"` | `"1h"`), whatever the sign-in; the `ENABLE_PROMPT_CACHING_1H` variable → 1 hour. Without any of them: 1 hour on a subscription within its limits (5 minutes in overage), 5 minutes on an API key, Bedrock or Vertex. A 1-hour cache write is billed higher than a 5-minute one.
+
+The `cacheTtl` config key (`"5m"` | `"1h"`, absent or `null` — the CLI decides; `/settings`, the Sessions group) goes into the chain sessions' `--settings` as `promptCacheTtl` (`chainSettings` in `src/tools/panel.ts`), on every launch. It is live: the next launch takes the new value. It matters mostly on a key, where a chain waiting for a reply longer than 5 minutes otherwise writes the whole context again.
 
 ## Agent SDK and API keys (BTN-136, research)
 

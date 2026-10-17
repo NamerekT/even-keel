@@ -1,6 +1,6 @@
 import { useState, type ReactNode } from 'react'
 import { LANGUAGES, type Language } from '../../../src/language.js'
-import type { EvenKeelState, SharedForm } from '../../../src/state.js'
+import type { CacheTtl, EvenKeelState, SharedForm } from '../../../src/state.js'
 import { MODEL_ALIASES, type ModelAlias } from '../../../src/tracker/model.js'
 import { say, t } from '../i18n/index.js'
 import { useCommand } from '../live/useCommand.js'
@@ -39,7 +39,7 @@ const PROMPT_KEYS = MODEL_ALIASES.map(promptKey)
 const GROUPS = [
   { id: 'chain', keys: ['parallel', 'tracker', 'brief', ...RULE_KEYS] },
   { id: 'models', keys: ['model', ...PROMPT_KEYS, 'promptLanguage'] },
-  { id: 'sessions', keys: ['hiddenSkills', 'window', 'warn', 'danger', 'checkpointTokens'] },
+  { id: 'sessions', keys: ['hiddenSkills', 'cacheTtl', 'window', 'warn', 'danger', 'checkpointTokens'] },
   { id: 'page', keys: ['language', 'allowedHosts', 'updatesCheck', 'updatesNotify'] },
   { id: 'stats', keys: ['minTasks', 'minSessions', 'days', 'otherBelow', 'moves'] },
 ] as const
@@ -57,6 +57,7 @@ const valuesOf = (form: SharedForm): Values => ({
   language: form.language ?? '',
   promptLanguage: form.promptLanguage,
   hiddenSkills: form.hiddenSkills.join('\n'),
+  cacheTtl: form.cacheTtl ?? '',
   allowedHosts: form.allowedHosts.join('\n'),
   window: String(form.context.window),
   warn: String(form.context.warn),
@@ -94,6 +95,7 @@ function formOf(values: Values): SharedForm | undefined {
     language: language === '' ? null : (language as Language),
     promptLanguage: text('promptLanguage') as Language,
     hiddenSkills: linesOf(text('hiddenSkills')),
+    cacheTtl: text('cacheTtl') === '' ? null : (text('cacheTtl') as CacheTtl),
     allowedHosts: linesOf(text('allowedHosts')),
     context: { window: window!, warn, danger },
     stats: {
@@ -232,6 +234,16 @@ export function SharedSettings({ state }: { state: EvenKeelState }) {
           {marks.note('hiddenSkills')}
           <FieldNote error={errorOf('hiddenSkills')} />
         </div>
+        {select(
+          'cacheTtl',
+          t.shared.cacheTtl,
+          [
+            { value: '', label: t.shared.cacheTtlAuto },
+            { value: '5m', label: t.shared.cacheTtl5m },
+            { value: '1h', label: t.shared.cacheTtl1h },
+          ],
+          t.shared.cacheTtlHint,
+        )}
         <div className="settings__field">
           <FieldHead label={t.shared.context} hint={t.shared.contextHint} restart={config.restart.includes('context')} />
           <div className="settings__row">

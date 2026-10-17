@@ -51,6 +51,18 @@ function inDays(days: number): string {
   return new Date(Date.now() + days * 86_400_000).toISOString()
 }
 
+/** An API account: the CLI reports no e-mail, so the folder key stands in for it (`withIdentity`). */
+function apiEntry(key: string, patch: Partial<AccountEntry> = {}): AccountEntry {
+  return fakeEntry({
+    key,
+    global: false,
+    status: { loggedIn: true, authMethod: 'api_key', email: key, orgName: null, subscriptionType: null },
+    loginExpiresAt: null,
+    apiKey: true,
+    ...patch,
+  })
+}
+
 function fakeEntry(patch: Partial<AccountEntry>): AccountEntry {
   return {
     key: 'global',
@@ -62,6 +74,7 @@ function fakeEntry(patch: Partial<AccountEntry>): AccountEntry {
     sessions: [],
     removing: false,
     configPending: false,
+    apiKey: false,
     limits: null,
     usage: { state: 'ok', reason: null, since: ago(1) },
     ...patch,
@@ -127,6 +140,10 @@ export function fakeAccount(mode: string | null, idle: boolean, limits: RateLimi
     const spent = { ...global, limits: { ...limits, fiveHour: null, sevenDay: window(100, 10.5) } }
     return { ...signedIn, active: 'jane.roe', accounts: [spent, work, spare('richard.roe', 96, 36), spare('baby.doe', 99, 14)] }
   }
+  if (mode === 'api') {
+    const lost = apiEntry('old-key', { status: { loggedIn: false, authMethod: 'none', email: null, orgName: null, subscriptionType: null }, needsLogin: true })
+    return { ...signedIn, active: 'ci-key', accounts: [global, work, apiEntry('ci-key', { sessions: ['ABC-5'] }), lost] }
+  }
   if (mode === 'vscode-broken') {
     return { ...signedIn, apps: [{ ...vscode, account: null, dir: null, error: notice('vscode.notJson', {}) }] }
   }
@@ -139,6 +156,11 @@ export function accountCommand(account: AccountView, name: string, body: Record<
     if (account.login !== null && account.login.error === null) throw fail('login.running', {})
     if (name === 'account/renew' && key === account.active && account.loginBlock !== null) throw new NoticeError(loginBlockNotice(account.loginBlock))
     return { ...account, login: { ...FAKE_LOGIN, target: name === 'account/add' ? null : key, startedAt: ago(0) } }
+  }
+  if (name === 'account/api') {
+    if (!/^\S{21,}$/.test(String(body.key).trim())) throw fail('account.apiKeyInvalid', {})
+    const key = String(body.name).trim().toLowerCase() || 'api'
+    return { ...account, accounts: [...account.accounts, apiEntry(key)] }
   }
   if (name === 'account/switch') {
     const problem = switchProblem(account, key)

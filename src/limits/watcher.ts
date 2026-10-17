@@ -13,6 +13,8 @@ export interface LimitsWatcherOptions {
   usageIntervalMs: number
   notBefore: (account: string) => string | null
   accessExpired: (home: AccountHome) => boolean
+  /** An API account has no usage windows: it is not polled and shows no limits. */
+  apiKey: (account: string) => boolean
   onChange: () => void
   onError: (error: unknown) => void
 }
@@ -38,6 +40,7 @@ export class LimitsWatcher {
   constructor(private readonly options: LimitsWatcherOptions) {}
 
   limits(account: string): RateLimits | null {
+    if (this.options.apiKey(account)) return null
     const known = this.accounts.get(account)
     return currentLimits(newestLimits(known?.received, known?.polled), new Date(), this.options.notBefore(account))
   }
@@ -88,7 +91,7 @@ export class LimitsWatcher {
   }
 
   private async pollAll(): Promise<void> {
-    const homes = this.options.homes()
+    const homes = this.options.homes().filter((home) => !this.options.apiKey(home.key))
     const keys = new Set(homes.map((home) => home.key))
     for (const key of this.accounts.keys()) if (!keys.has(key)) this.accounts.delete(key)
     for (const home of homes) {

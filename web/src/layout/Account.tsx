@@ -10,12 +10,21 @@ import { useLive } from '../live/context.js'
 import { accountOrder, canWork, loginLeft, projectPath } from '../state.js'
 import { ProjectLabel } from '../ui/ProjectLabel.js'
 import { seriesStyle } from '../ui/series.js'
+import { formatUsd } from '../stats/format.js'
 import { Limits } from './Limits.js'
 import { useNow } from './useNow.js'
 
 type Send = (name: string, body?: Record<string, unknown>) => Promise<boolean>
 
-export function AccountPanel({ account, onClose }: { account: AccountView; onClose: () => void }) {
+/** Today's spend in dollars by account folder key; null while Tally has not answered. */
+export type Spend = Record<string, number> | null
+
+export function spendText(spend: Spend, key: string): string {
+  if (spend === null) return t.account.todayNone
+  return t.account.today(formatUsd(spend[key] ?? 0))
+}
+
+export function AccountPanel({ account, spend, onClose }: { account: AccountView; spend: Spend; onClose: () => void }) {
   const { send, sending, failure } = useCommand()
   const { state } = useLive()
   const now = useNow(60_000)
@@ -44,7 +53,7 @@ export function AccountPanel({ account, onClose }: { account: AccountView; onClo
               <span>{t.limits.week}</span>
             </li>
             {ordered.map((entry) => (
-              <AccountItem key={entry.key} entry={entry} view={account} now={now} sending={sending} send={send} />
+              <AccountItem key={entry.key} entry={entry} view={account} now={now} spend={spend} sending={sending} send={send} />
             ))}
           </ul>
         )}
@@ -54,6 +63,7 @@ export function AccountPanel({ account, onClose }: { account: AccountView; onClo
               + {t.account.add}
             </button>
             <p className="queue__hint">{t.account.addHint}</p>
+            <ApiKeyForm sending={sending} send={send} />
           </div>
         )}
       </section>
@@ -183,15 +193,70 @@ function loginHeading({ login, accounts }: AccountView): string {
   return t.account.loginTo(target?.status?.email ?? login.target)
 }
 
+function ApiKeyForm({ sending, send }: { sending: boolean; send: Send }) {
+  const [open, setOpen] = useState(false)
+  const [name, setName] = useState('')
+  const [key, setKey] = useState('')
+
+  const submit = async (event: FormEvent) => {
+    event.preventDefault()
+    if (!(await send('account/api', { name, key }))) return
+    setName('')
+    setKey('')
+    setOpen(false)
+  }
+
+  if (!open) {
+    return (
+      <button type="button" className="button" disabled={sending} onClick={() => setOpen(true)}>
+        + {t.account.addKey}
+      </button>
+    )
+  }
+  return (
+    <form className="account__key" onSubmit={(event) => void submit(event)}>
+      <input
+        className="account__input"
+        value={name}
+        onChange={(event) => setName(event.target.value)}
+        placeholder={t.account.keyName}
+        aria-label={t.account.keyName}
+        autoComplete="off"
+        spellCheck={false}
+      />
+      <input
+        className="account__input"
+        type="password"
+        value={key}
+        onChange={(event) => setKey(event.target.value)}
+        placeholder={t.account.keyValue}
+        aria-label={t.account.keyValue}
+        autoComplete="off"
+        spellCheck={false}
+      />
+      <div className="account__actions">
+        <button type="submit" className="button button--primary" disabled={sending || key.trim() === ''}>
+          {t.account.keyAdd}
+        </button>
+        <button type="button" className="button" disabled={sending} onClick={() => setOpen(false)}>
+          {t.common.cancel}
+        </button>
+      </div>
+      <p className="queue__hint">{t.account.keyHint}</p>
+    </form>
+  )
+}
+
 interface ItemProps {
   entry: AccountEntry
   view: AccountView
   now: Date
+  spend: Spend
   sending: boolean
   send: Send
 }
 
-function AccountItem({ entry, view, now, sending, send }: ItemProps) {
+function AccountItem({ entry, view, now, spend, sending, send }: ItemProps) {
   const [open, setOpen] = useState(false)
   const active = entry.key === view.active
   const left = loginLeft(entry.loginExpiresAt, now)
@@ -221,14 +286,22 @@ function AccountItem({ entry, view, now, sending, send }: ItemProps) {
           ⋯
         </button>
       </div>
-      <Limits limits={entry.limits} now={now} bare />
-      {entry.limits === null && entry.usage.state === 'stale' && (
+      {entry.apiKey ? (
+        <p className="accounts__note accounts__spend" title={t.account.todayTitle}>
+          <span className="tag">{t.account.apiKey}</span>
+          {spendText(spend, entry.key)}
+        </p>
+      ) : (
+        <Limits limits={entry.limits} now={now} bare />
+      )}
+      {!entry.apiKey && entry.limits === null && entry.usage.state === 'stale' && (
         <p className="accounts__note">
           {t.account.noLimits}
           {staleNote(entry.usage.reason)}
         </p>
       )}
-      {(left.renew || entry.needsLogin) && (
+      {entry.apiKey && entry.needsLogin && <p className="accounts__note accounts__note--warn">{t.account.apiKeyLost}</p>}
+      {!entry.apiKey && (left.renew || entry.needsLogin) && (
         <div className="accounts__note accounts__note--warn">
           <span>{entry.needsLogin ? t.account.needsLogin : t.account.expiry(left.text)}</span>
           <button
@@ -275,8 +348,14 @@ function AccountDetails({ entry, view, left, sending, send }: DetailsProps) {
   return (
     <div className="accounts__details">
       <div className="accounts__facts">
-        {entry.status?.subscriptionType != null && <span>{t.account.plan(entry.status.subscriptionType)}</span>}
-        <span>{t.account.expiry(left)}</span>
+        {entry.apiKey ? (
+          <span>{t.account.apiKey}</span>
+        ) : (
+          <>
+            {entry.status?.subscriptionType != null && <span>{t.account.plan(entry.status.subscriptionType)}</span>}
+            <span>{t.account.expiry(left)}</span>
+          </>
+        )}
         {entry.sessions.length > 0 && <span>{t.account.sessions(entry.sessions.length)}</span>}
         {entry.global && <span>{t.account.globalFolder}</span>}
       </div>
@@ -285,7 +364,7 @@ function AccountDetails({ entry, view, left, sending, send }: DetailsProps) {
       ) : confirming ? (
         <div className="account__actions">
           <span className="accounts__confirm">
-            {entry.sessions.length > 0 ? t.account.removeWhenDone(entry.sessions.join(', ')) : t.account.removeNow}
+            {removeQuestion(entry)}
           </span>
           <button
             type="button"
@@ -308,6 +387,12 @@ function AccountDetails({ entry, view, left, sending, send }: DetailsProps) {
       )}
     </div>
   )
+}
+
+function removeQuestion(entry: AccountEntry): string {
+  const sessions = entry.sessions.join(', ')
+  if (entry.apiKey) return sessions === '' ? t.account.removeKeyNow : t.account.removeKeyWhenDone(sessions)
+  return sessions === '' ? t.account.removeNow : t.account.removeWhenDone(sessions)
 }
 
 function staleNote(reason: Notice | null): string {

@@ -39,6 +39,7 @@ export interface LiveSource {
   statsPeriod(query: PeriodQuery): Promise<StatsAnswer<StatsPeriod>>
   statsSteps(query: PeriodQuery): Promise<StatsAnswer<StatsSteps>>
   statsCheckpoints(): Promise<StatsAnswer<CheckpointThreshold[]>>
+  statsSpend(tz: string): Promise<StatsAnswer<Record<string, number>>>
   statsTask(task: string): Promise<StatsAnswer<StatsTaskDetail>>
   statsRules(query: RulesQuery): Promise<StatsAnswer<StatsRules>>
   statsRuleDiff(changes: string[]): Promise<StatsAnswer<RuleDiffFile[]>>
@@ -140,6 +141,10 @@ export class LiveConnection implements LiveSource {
 
   statsCheckpoints(): Promise<StatsAnswer<CheckpointThreshold[]>> {
     return this.deps.fetchStats('checkpoints', new URLSearchParams())
+  }
+
+  statsSpend(tz: string): Promise<StatsAnswer<Record<string, number>>> {
+    return this.deps.fetchStats('spend', new URLSearchParams({ tz }))
   }
 
   statsTask(task: string): Promise<StatsAnswer<StatsTaskDetail>> {

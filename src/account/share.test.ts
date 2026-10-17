@@ -169,6 +169,19 @@ describe('mergeSettings', () => {
   it('starts from the global settings in a fresh folder', () => {
     expect(mergeSettings({ model: 'opus' }, undefined)).toEqual({ model: 'opus' })
   })
+
+  it("keeps the API key of an API account folder under the global env and its key helper over the global one", () => {
+    const global = { env: { HULY_TOKEN: 'fake-token', ANTHROPIC_API_KEY: 'sk-ant-global' }, apiKeyHelper: 'global-helper' }
+    const folder = { env: { ANTHROPIC_API_KEY: 'sk-ant-fake', OLD: '1' }, apiKeyHelper: 'folder-helper' }
+    expect(mergeSettings(global, folder)).toEqual({
+      env: { HULY_TOKEN: 'fake-token', ANTHROPIC_API_KEY: 'sk-ant-fake' },
+      apiKeyHelper: 'folder-helper',
+    })
+  })
+
+  it('adds no env to a folder with a key helper of its own when the global settings have none', () => {
+    expect(mergeSettings({ model: 'opus' }, { apiKeyHelper: 'folder-helper' })).toEqual({ model: 'opus', apiKeyHelper: 'folder-helper' })
+  })
 })
 
 describe('shareProjects', () => {

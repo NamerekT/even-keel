@@ -4,6 +4,7 @@ import type { AgentEntry } from '../sessions/agents.js'
 import {
   accountId,
   folderName,
+  isApiKey,
   launchBlock,
   liveSessions,
   loginBlock,
@@ -14,6 +15,7 @@ import {
   parseCredentialTimes,
   removeProblem,
   switchProblem,
+  withIdentity,
   type AccountEntry,
   type AccountView,
   type ClaudeAccount,
@@ -40,9 +42,27 @@ const entry = (patch: Partial<AccountEntry>): AccountEntry => ({
   sessions: [],
   removing: false,
   configPending: false,
+  apiKey: false,
   limits: null,
   usage: { state: 'ok', reason: null, since: null },
   ...patch,
+})
+
+describe('API accounts', () => {
+  const keyed = (authMethod: string): ClaudeAccount => ({ loggedIn: true, authMethod, email: null, orgName: null, subscriptionType: null })
+
+  it('is an account that signs in with a key or a key helper, not with claude.ai', () => {
+    expect(isApiKey(keyed('api_key'))).toBe(true)
+    expect(isApiKey(keyed('api_key_helper'))).toBe(true)
+    expect(isApiKey(signedIn())).toBe(false)
+    expect(isApiKey(null)).toBe(false)
+  })
+
+  it('is named by its folder in place of the e-mail it has none of', () => {
+    expect(withIdentity(keyed('api_key'), 'api-work').email).toBe('api-work')
+    expect(withIdentity(signedIn(), 'work').email).toBe('john.doe@example.com')
+    expect(withIdentity({ ...keyed('api_key'), loggedIn: false }, 'api-work').email).toBeNull()
+  })
 })
 
 const view = (patch: Partial<AccountView>): AccountView => ({

@@ -6,11 +6,13 @@ import { appSwitchProblem, type AppAccount, type AppId } from './apps.js'
 import type { AccountHome, AccountHomes } from './homes.js'
 import {
   cleanOutput,
+  isApiKey,
   loginBlockNotice,
   loginUrls,
   needsLogin,
   removeProblem,
   switchProblem,
+  withIdentity,
   type AccountEntry,
   type AccountLogin,
   type AccountView,
@@ -91,6 +93,7 @@ export class AccountWatcher {
         sessions: this.options.sessionsIn(home.key),
         removing: this.options.removing(home.key),
         configPending: this.options.configPending(home.key),
+        apiKey: isApiKey(status),
         limits: this.options.limits(home.key),
         usage: this.options.usage(home.key),
       }
@@ -106,6 +109,10 @@ export class AccountWatcher {
 
   emailOf(key: string): string | null {
     return this.known.find((known) => known.home.key === key)?.status?.email ?? null
+  }
+
+  apiKey(key: string): boolean {
+    return isApiKey(this.known.find((known) => known.home.key === key)?.status ?? null)
   }
 
   start(): void {
@@ -130,6 +137,11 @@ export class AccountWatcher {
   add(): void {
     this.requireIdle()
     this.begin(this.options.homes.pending(this.options.now()), true)
+  }
+
+  async addApiKey(name: string, key: string): Promise<void> {
+    this.options.homes.addApiKey(name, key)
+    await this.refresh()
   }
 
   renew(key: string): void {
@@ -191,7 +203,7 @@ export class AccountWatcher {
   private async drop(key: string): Promise<void> {
     const home = this.options.homes.find(key)!
     const status = this.known.find((known) => known.home.key === key)?.status
-    if (status?.loggedIn === true) await this.options.cli.authLogout(home)
+    if (status?.loggedIn === true && !isApiKey(status)) await this.options.cli.authLogout(home)
     this.options.homes.remove(home)
     this.options.forget(key)
   }
@@ -215,7 +227,7 @@ export class AccountWatcher {
   private async check(home: AccountHome): Promise<Known> {
     const before = this.known.find((known) => known.home.key === home.key)
     try {
-      return { home, status: await this.options.cli.authStatus(home), error: null }
+      return { home, status: withIdentity(await this.options.cli.authStatus(home), home.key), error: null }
     } catch (reason) {
       const error = noticeOf(reason)
       if (!sameNotice(error, before?.error ?? null)) this.options.onError(reason)

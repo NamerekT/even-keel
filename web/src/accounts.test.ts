@@ -12,6 +12,7 @@ const entry = (key: string, email: string | null): AccountEntry => ({
   sessions: [],
   removing: false,
   configPending: false,
+  apiKey: false,
   limits: null,
   usage: { state: 'ok', reason: null, since: null },
 })

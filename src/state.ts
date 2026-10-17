@@ -93,6 +93,9 @@ export interface CiSettings {
   fixTask: boolean
 }
 
+/** The prompt cache lifetime a chain session is started with; the CLI picks its own without one. */
+export type CacheTtl = '5m' | '1h'
+
 export interface ContextScale {
   window: number
   warn: number
@@ -134,6 +137,7 @@ export interface SharedForm {
   language: Language | null
   promptLanguage: Language
   hiddenSkills: string[]
+  cacheTtl: CacheTtl | null
   allowedHosts: string[]
   context: ContextScale
   stats: StatsConfig

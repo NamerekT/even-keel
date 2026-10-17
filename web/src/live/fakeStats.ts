@@ -91,6 +91,11 @@ export function fakeCheckpoints(mode: string | null): StatsAnswer<CheckpointThre
   )
 }
 
+/** Today's spend by account folder: the API accounts of `?account=api` and the one added in the fake. */
+export function fakeSpend(mode: string | null): StatsAnswer<Record<string, number>> {
+  return failure<Record<string, number>>(mode) ?? { state: 'ok', data: { global: 38.42, 'jane.roe': 4.1, 'ci-key': 12.07, api: 0.004 } }
+}
+
 const LIMIT_DAYS = 20
 
 function limitCoverage(): LimitCoverage {

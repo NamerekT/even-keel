@@ -87,6 +87,7 @@ const account = (patch: Partial<AccountEntry>): AccountEntry => ({
   sessions: [],
   removing: false,
   configPending: false,
+  apiKey: false,
   limits: null,
   usage: { state: 'ok', reason: null, since: null },
   ...patch,

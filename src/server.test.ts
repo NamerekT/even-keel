@@ -49,6 +49,9 @@ describe('Even Keel HTTP server', () => {
         if (calls.some(([name]) => name === 'add')) throw new Error('claude: a sign-in is already running')
         calls.push(['add'])
       },
+      addApiKey: async (...args) => {
+        record('api')(...args)
+      },
       renew: record('renew'),
       switchTo: record('switch'),
       remove: async (key) => {
@@ -107,6 +110,7 @@ describe('Even Keel HTTP server', () => {
         task: async (task) => ({ state: 'error', error: `task ${task}` }),
         calibration: async (project, task) => ({ state: 'off', reason: `calibration ${project} ${task ?? 'none'}` }),
         checkpoints: async () => ({ state: 'off', reason: 'checkpoints' }),
+        spend: async (tz) => ({ state: 'off', reason: `spend ${tz}` }),
         rules: async (query) => ({ state: 'off', reason: `rules ${query.projects?.join('+')} ${query.kinds?.join('+')}` }),
         ruleDiff: async (ids) => ({ state: 'off', reason: `diff ${ids.length}` }),
         compare: async (query) => ({ state: 'off', reason: `compare ${query.before} ${query.after} ${query.days}` }),
@@ -218,6 +222,7 @@ describe('Even Keel HTTP server', () => {
       language: null,
       promptLanguage: 'en',
       hiddenSkills: ['dataviz'],
+      cacheTtl: '1h',
       allowedHosts: [],
       context: { window: 600_000, warn: 50, danger: 80 },
       stats: { compare: { minTasks: 5, minSessions: 10, days: 7 }, moves: {}, otherBelow: 0, checkpointTokens: null },
@@ -455,6 +460,16 @@ describe('Even Keel HTTP server', () => {
     expect((await post('/api/account/code', { code: '  ' })).status).toBe(400)
     expect((await post('/api/account/renew', {})).status).toBe(400)
     expect((await post('/api/account/nope')).status).toBe(404)
+  })
+
+  it('adds an API account by a key, the name optional', async () => {
+    expect((await post('/api/account/api', { name: 'work', key: 'sk-ant-fake' })).status).toBe(200)
+    expect((await post('/api/account/api', { key: 'sk-ant-fake' })).status).toBe(200)
+    expect((await post('/api/account/api', { name: 'work' })).status).toBe(400)
+    expect(calls).toEqual([
+      ['api', 'work', 'sk-ant-fake'],
+      ['api', '', 'sk-ant-fake'],
+    ])
     expect((await post('/api/nope/start')).status).toBe(404)
   })
 
@@ -502,6 +517,12 @@ describe('Even Keel HTTP server', () => {
     const task = await fetch(base + '/api/stats/task/ABC-12')
     expect(await task.json()).toEqual({ state: 'error', error: 'task ABC-12' })
     expect((await fetch(base + '/api/stats/ABC')).status).toBe(404)
+  })
+
+  it("serves today's spend per account in the page's time zone", async () => {
+    const spend = await fetch(base + '/api/stats/spend?tz=Europe/Berlin')
+    expect(await spend.json()).toEqual({ state: 'off', reason: 'spend Europe/Berlin' })
+    expect((await fetch(base + '/api/stats/spend?tz=x%27;drop')).status).toBe(400)
   })
 
   it('serves the estimate calibration of any project key, for a task or for a new one', async () => {

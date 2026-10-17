@@ -31,6 +31,7 @@ export interface AccountEntry {
   sessions: string[]
   removing: boolean
   configPending: boolean
+  apiKey: boolean
   limits: RateLimits | null
   usage: UsageHealth
 }
@@ -84,6 +85,16 @@ export function parseAuthStatus(text: string): ClaudeAccount {
     orgName: stringOf(fields.orgName),
     subscriptionType: stringOf(fields.subscriptionType),
   }
+}
+
+/** An API account signs in with a key from its folder's `settings.json`, not with claude.ai (`docs/accounts.md`). */
+export function isApiKey(status: ClaudeAccount | null): boolean {
+  return status?.authMethod === 'api_key' || status?.authMethod === 'api_key_helper'
+}
+
+/** An API account has no e-mail: its folder key stands in for it wherever an account is told apart by e-mail. */
+export function withIdentity(status: ClaudeAccount, key: string): ClaudeAccount {
+  return status.loggedIn && status.email === null && isApiKey(status) ? { ...status, email: key } : status
 }
 
 export function cleanOutput(raw: string): string {

@@ -8,7 +8,7 @@ export function LiveProvider({ source, children }: { source: LiveSource; childre
   return <LiveContext.Provider value={source}>{children}</LiveContext.Provider>
 }
 
-export function useLive(): LiveSnapshot & Pick<LiveSource, 'retryNow' | 'command' | 'session' | 'transcript' | 'tools' | 'card' | 'statsHistory' | 'statsPeriod' | 'statsSteps' | 'statsCheckpoints' | 'statsTask' | 'statsRules' | 'statsRuleDiff' | 'statsCompare'> {
+export function useLive(): LiveSnapshot & Pick<LiveSource, 'retryNow' | 'command' | 'session' | 'transcript' | 'tools' | 'card' | 'statsHistory' | 'statsPeriod' | 'statsSteps' | 'statsCheckpoints' | 'statsSpend' | 'statsTask' | 'statsRules' | 'statsRuleDiff' | 'statsCompare'> {
   const source = useContext(LiveContext)
   if (source === null) throw new Error('useLive needs a LiveProvider')
   const subscribe = useCallback((listener: () => void) => source.subscribe(listener), [source])
@@ -25,6 +25,7 @@ export function useLive(): LiveSnapshot & Pick<LiveSource, 'retryNow' | 'command
     statsPeriod: (query) => source.statsPeriod(query),
     statsSteps: (query) => source.statsSteps(query),
     statsCheckpoints: () => source.statsCheckpoints(),
+    statsSpend: (tz) => source.statsSpend(tz),
     statsTask: (task) => source.statsTask(task),
     statsRules: (query) => source.statsRules(query),
     statsRuleDiff: (changes) => source.statsRuleDiff(changes),

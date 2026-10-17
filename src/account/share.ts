@@ -32,6 +32,7 @@ const PROJECT_KEYS = [
 const ONBOARDING_KEYS = ['hasCompletedOnboarding', 'lastOnboardingVersion']
 const LINKED_DIRS = ['agents', 'commands', 'hooks', 'output-styles']
 const OWN_SKILLS = new Set(['synced', '.trash'])
+export const API_KEY_VARIABLE = 'ANTHROPIC_API_KEY'
 const COPIED_FILES = ['CLAUDE.md', join('plugins', 'installed_plugins.json'), join('plugins', 'known_marketplaces.json')]
 
 export interface SharedSources {
@@ -39,8 +40,13 @@ export interface SharedSources {
   config: string
 }
 
+/** The global settings win, except the folder's own API key: it is what makes an API account (`docs/accounts.md`). */
 export function mergeSettings(global: Json, folder: Json | undefined): Json {
-  return { ...folder, ...global }
+  const merged = { ...folder, ...global }
+  const key = objectOf(folder?.env)[API_KEY_VARIABLE]
+  if (typeof key === 'string') merged.env = { ...objectOf(global.env), [API_KEY_VARIABLE]: key }
+  if (folder?.apiKeyHelper !== undefined) merged.apiKeyHelper = folder.apiKeyHelper
+  return merged
 }
 
 /**

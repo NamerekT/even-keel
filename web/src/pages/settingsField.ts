@@ -18,6 +18,7 @@ const SHARED: Partial<Record<Notice['code'], string>> = {
   'config.modelPromptEmpty': 'modelPrompts',
   'config.modelPromptPlaceholder': 'modelPrompts',
   'config.hiddenSkills': 'hiddenSkills',
+  'config.cacheTtl': 'cacheTtl',
   'config.allowedHosts': 'allowedHosts',
   'config.contextWindow': 'context',
   'config.contextPercents': 'context',

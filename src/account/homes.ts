@@ -1,4 +1,4 @@
-import { mkdirSync, readdirSync, readFileSync, renameSync, rmSync } from 'node:fs'
+import { mkdirSync, readdirSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { join } from 'node:path'
 import { ciVariables } from '../ci/adapters.js'
@@ -6,10 +6,12 @@ import { fail } from '../notice/notice.js'
 import { samePath } from '../paths.js'
 import { trackerVariables } from '../tracker/adapters.js'
 import { folderName, GLOBAL_ACCOUNT, parseCredentialTimes, type CredentialTimes } from './model.js'
-import { shareConfig } from './share.js'
+import { API_KEY_VARIABLE, shareConfig } from './share.js'
 
 const PENDING_PREFIX = '.pending-'
 const LOCK_SUFFIX = '.lock'
+const APPROVED_SUFFIX = 20
+const API_KEY_PATTERN = new RegExp(`^\\S{${APPROVED_SUFFIX + 1},}$`)
 
 export interface AccountHome {
   key: string
@@ -67,6 +69,21 @@ export class AccountHomes {
     const name = folderName(email, this.folders())
     renameSync(pending.dir, join(this.root, name))
     return this.home(name)
+  }
+
+  /**
+   * An API account: a folder whose `settings.json` carries the key (`mergeSettings` keeps it there) and whose
+   * `.claude.json` has it approved, or the CLI asks whether to use it (BTN-136).
+   */
+  addApiKey(name: string, key: string): AccountHome {
+    const value = key.trim()
+    if (!API_KEY_PATTERN.test(value)) throw fail('account.apiKeyInvalid', {})
+    const home = this.home(folderName(name.trim() === '' ? 'api' : name, this.folders()))
+    mkdirSync(home.dir, { recursive: true })
+    writeFileSync(join(home.dir, 'settings.json'), JSON.stringify({ env: { [API_KEY_VARIABLE]: value } }, null, 2))
+    const approved = { customApiKeyResponses: { approved: [value.slice(-APPROVED_SUFFIX)], rejected: [] } }
+    writeFileSync(join(home.dir, '.claude.json'), JSON.stringify(approved, null, 2))
+    return home
   }
 
   share(home: AccountHome): boolean {

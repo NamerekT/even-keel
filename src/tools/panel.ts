@@ -3,6 +3,7 @@ import { join } from 'node:path'
 import { createInterface } from 'node:readline'
 import { sharedMemory } from '../account/share.js'
 import { samePath } from '../paths.js'
+import type { CacheTtl } from '../state.js'
 import { projectDirName } from '../sessions/paths.js'
 import { readMcpSources } from '../tracker/mcp.js'
 import type { ReceivedTools, ToolsView } from './model.js'
@@ -34,11 +35,16 @@ export interface ToolsPlaces {
 
 /**
  * The `--settings` JSON for a chain session of the repository working in `cwd`: the shared memory folder, the main
- * checkout's MCP servers the worktree would hang on and, with trimming on, the trimming.
+ * checkout's MCP servers the worktree would hang on, the prompt cache TTL when the config pins one and, with trimming
+ * on, the trimming.
  */
-export function chainSettings(repo: string, cwd: string, trim: boolean, hidden: string[], globalDir: string): string {
+export function chainSettings(repo: string, cwd: string, trim: boolean, hidden: string[], globalDir: string, cacheTtl: CacheTtl | null): string {
   const stray = strayMcpServers(repo, cwd, readJson)
-  const always = { autoMemoryDirectory: sharedMemory(globalDir, repo), ...(stray.length > 0 && { disabledMcpjsonServers: stray }) }
+  const always = {
+    autoMemoryDirectory: sharedMemory(globalDir, repo),
+    ...(stray.length > 0 && { disabledMcpjsonServers: stray }),
+    ...(cacheTtl !== null && { promptCacheTtl: cacheTtl }),
+  }
   if (!trim) return JSON.stringify(always)
   const { project, local } = projectSettings(repo)
   return JSON.stringify({ ...trimSettings(hidden, project, local), ...always })

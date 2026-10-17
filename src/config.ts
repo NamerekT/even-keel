@@ -6,7 +6,7 @@ import { isLanguage, LANGUAGES, type Language } from './language.js'
 import { fail } from './notice/notice.js'
 import { isModelAlias, MODEL_ALIASES, type ModelAlias } from './tracker/model.js'
 import { placeholderIn } from './sessions/prompt.js'
-import type { CiSettings, ContextScale, ProjectSettings, StatsConfig } from './state.js'
+import type { CacheTtl, CiSettings, ContextScale, ProjectSettings, StatsConfig } from './state.js'
 import { CI_KINDS, type CiKind } from './ci/model.js'
 import type { CompareSettings } from './stats/rules.js'
 import { DEFAULT_HIDDEN_SKILLS } from './tools/settings.js'
@@ -46,6 +46,8 @@ export interface EvenKeelConfig {
   promptLanguage: Language
   /** Skills chain sessions get only for `/name` while trimming is on. */
   hiddenSkills: string[]
+  /** The prompt cache TTL of chain sessions (`promptCacheTtl`); null leaves the CLI's own choice. */
+  cacheTtl: CacheTtl | null
   /** Chains run at once; the rest wait in the queue. */
   parallel: number
   updates: UpdateSettings
@@ -142,6 +144,7 @@ export function parseConfig(raw: unknown, adapters: AdapterShapes = ADAPTERS): E
     language,
     promptLanguage: parseLanguage(input.promptLanguage, 'promptLanguage') ?? language ?? DEFAULT_LANGUAGE,
     hiddenSkills: parseHiddenSkills(input.hiddenSkills),
+    cacheTtl: parseCacheTtl(input.cacheTtl),
     parallel: parseParallel(input.parallel),
     updates: parseUpdates(input.updates),
   }
@@ -200,7 +203,7 @@ function parseUpdates(raw: unknown): UpdateSettings {
 export function liveConfig(current: EvenKeelConfig, next: EvenKeelConfig): EvenKeelConfig {
   const keep = <T>(field: Record<string, T>, fallback: Record<string, T>) =>
     Object.fromEntries(Object.keys(current.projects).map((key) => [key, field[key] ?? fallback[key]!]))
-  const { allowedHosts, names, chain, brief, model, modelPrompts, stats, language, promptLanguage, hiddenSkills, parallel, updates } = next
+  const { allowedHosts, names, chain, brief, model, modelPrompts, stats, language, promptLanguage, hiddenSkills, cacheTtl, parallel, updates } = next
   return {
     ...current,
     allowedHosts,
@@ -218,6 +221,7 @@ export function liveConfig(current: EvenKeelConfig, next: EvenKeelConfig): EvenK
     language,
     promptLanguage,
     hiddenSkills,
+    cacheTtl,
   }
 }
 
@@ -253,6 +257,12 @@ function parseHiddenSkills(raw: unknown): string[] {
   if (raw === undefined) return [...DEFAULT_HIDDEN_SKILLS]
   if (!Array.isArray(raw) || raw.some((name) => typeof name !== 'string' || name.trim() === '')) throw fail('config.hiddenSkills', {})
   return raw.map((name: string) => name.trim())
+}
+
+function parseCacheTtl(raw: unknown): CacheTtl | null {
+  if (raw === undefined || raw === null) return null
+  if (raw !== '5m' && raw !== '1h') throw fail('config.cacheTtl', { value: String(JSON.stringify(raw)) })
+  return raw
 }
 
 function parseModel(raw: unknown): ModelAlias {

@@ -29,7 +29,7 @@ import {
 } from './stats/rules.js'
 import type { ChainRules } from './chain/rules.js'
 import type { Language } from './language.js'
-import type { CiSettings, ContextScale, ProjectForm, SharedForm, StatsConfig } from './state.js'
+import type { CacheTtl, CiSettings, ContextScale, ProjectForm, SharedForm, StatsConfig } from './state.js'
 import type { CompareSettings } from './stats/rules.js'
 import type { ModelAlias } from './tracker/model.js'
 import { CI_KINDS, type CiKind } from './ci/model.js'
@@ -49,6 +49,7 @@ export interface StatsSource {
   task(task: string): Promise<StatsAnswer<StatsTaskDetail>>
   calibration(project: string, task: string | null): Promise<StatsAnswer<Calibration>>
   checkpoints(): Promise<StatsAnswer<CheckpointThreshold[]>>
+  spend(tz: string): Promise<StatsAnswer<Record<string, number>>>
   rules(query: RulesQuery): Promise<StatsAnswer<StatsRules>>
   ruleDiff(ids: string[]): Promise<StatsAnswer<RuleDiffFile[]>>
   compare(query: CompareQuery): Promise<StatsAnswer<StatsCompare>>
@@ -71,6 +72,7 @@ export interface ChainControl {
 
 export interface AccountControl {
   add(): void
+  addApiKey(name: string, key: string): Promise<void>
   renew(account: string): void
   switchTo(account: string): void
   switchApp(app: string, account: string): Promise<void>
@@ -163,6 +165,7 @@ const COMMANDS: Record<string, Command> = {
   'updates/dismiss': ({ settings }, body) => settings.dismissUpdate(textOf(body.version, 'version')),
   'updates/mute': ({ settings }) => settings.muteUpdates(),
   'account/add': ({ account }) => account.add(),
+  'account/api': ({ account }, body) => account.addApiKey(typeof body.name === 'string' ? body.name : '', textOf(body.key, 'key')),
   'account/renew': ({ account }, body) => account.renew(accountOf(body)),
   'account/switch': ({ account }, body) => account.switchTo(accountOf(body)),
   'account/app': ({ account }, body) => account.switchApp(appOf(body), accountOf(body)),
@@ -346,7 +349,7 @@ async function route(deps: ServerDeps, request: IncomingMessage, response: Serve
     return
   }
 
-  const stats = /^\/api\/stats\/(history|period|steps|checkpoints|rules|rules\/diff|rules\/compare|task\/([^/]+))$/.exec(path)
+  const stats = /^\/api\/stats\/(history|period|steps|checkpoints|spend|rules|rules\/diff|rules\/compare|task\/([^/]+))$/.exec(path)
   if (request.method === 'GET' && stats !== null) {
     let read: () => Promise<StatsAnswer<unknown>>
     try {
@@ -361,6 +364,9 @@ async function route(deps: ServerDeps, request: IncomingMessage, response: Serve
         read = () => deps.stats.steps(query)
       } else if (stats[1] === 'checkpoints') {
         read = () => deps.stats.checkpoints()
+      } else if (stats[1] === 'spend') {
+        const { tz } = parseStatsFilter(url.searchParams)
+        read = () => deps.stats.spend(tz)
       } else if (stats[1] === 'rules') {
         const query = parseRulesQuery(url.searchParams)
         read = () => deps.stats.rules(query)
@@ -535,8 +541,9 @@ function projectFormOf(body: Record<string, unknown>): ProjectForm {
 }
 
 function sharedFormOf(body: Record<string, unknown>): SharedForm {
-  const { parallel, tracker, brief, chain, model, modelPrompts, language, promptLanguage, hiddenSkills, allowedHosts, context, stats, updates } = body
+  const { parallel, tracker, brief, chain, model, modelPrompts, language, promptLanguage, hiddenSkills, cacheTtl, allowedHosts, context, stats, updates } = body
   if (language !== null && typeof language !== 'string') throw fail('request.required', { field: 'language' })
+  if (cacheTtl != null && typeof cacheTtl !== 'string') throw fail('request.required', { field: 'cacheTtl' })
   return {
     parallel: numberOf(parallel, 'parallel'),
     tracker: textOf(tracker, 'tracker'),
@@ -547,6 +554,8 @@ function sharedFormOf(body: Record<string, unknown>): SharedForm {
     language: language as Language | null,
     promptLanguage: textOf(promptLanguage, 'promptLanguage') as Language,
     hiddenSkills: linesOf(hiddenSkills, 'hiddenSkills'),
+    // A page from before the switch sends none: form and base then agree and nothing is written.
+    cacheTtl: (cacheTtl ?? null) as CacheTtl | null,
     allowedHosts: linesOf(allowedHosts, 'allowedHosts'),
     context: mapOf(context, 'context', (value) => typeof value === 'number') as unknown as ContextScale,
     stats: statsOf(stats),

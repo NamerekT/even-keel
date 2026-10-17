@@ -1246,6 +1246,17 @@ input[type='radio']:disabled {
   gap: 8px;
 }
 
+.account__key {
+  display: flex;
+  flex-direction: column;
+  align-self: stretch;
+  gap: 8px;
+}
+
+.account__key .queue__hint {
+  margin: 0;
+}
+
 .account__input {
   flex: 1;
   min-width: 0;

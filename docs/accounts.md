@@ -12,6 +12,15 @@ Reference for sessions: account folders, sign-in, switching, transferring the sh
 - `*.lock` folders are locks the CLI puts next to an account folder while a token is refreshed; they are not accounts.
 - The account e-mail in `auth status` is the saved profile from `.claude.json`, not the token owner: the Claude desktop app runs the CLI in `~/.claude` with its own account and rewrites the profile, so keep in `~/.claude` the same account as in the app, or launch the app on an account folder ("The Claude desktop app" below).
 
+## API accounts (BTN-99)
+
+- An API account is a folder whose sessions pay from an Anthropic API key instead of a subscription. "Add an API key" in the panel (command `account/api`, `AccountHomes.addApiKey`) creates `~/.claude-accounts/<name>` (`api` when no name is given) with `settings.json` = `{ "env": { "ANTHROPIC_API_KEY": "…" } }` and `.claude.json` with the key's last 20 characters in `customApiKeyResponses.approved`, otherwise the CLI asks whether to use the key. A key shorter than 21 characters or with spaces is refused (`account.apiKeyInvalid`). A folder set up by hand with `apiKeyHelper` instead of the variable works the same way.
+- `claude auth status --json` in such a folder says `loggedIn: true`, `authMethod: "api_key"` (`"api_key_helper"` with a helper) and no e-mail (`isApiKey`). The folder key stands in for the e-mail wherever an account is told apart by it (`withIdentity`): the limit owner, `state/account.json`, the session pills.
+- The transfer of the shared configuration keeps the folder's own `env.ANTHROPIC_API_KEY` and `apiKeyHelper` over the global settings (`mergeSettings`); every other key still comes from `~/.claude`.
+- What an API account does not have: limits — `/usage` is not polled for it (it would answer free with no window lines anyway), there are no limit bars, and limit exception 1 (`--resume` or a handoff) does not apply, so a session that runs out of credit stops like any error (invariant 1); sign-in renewal and `claude auth logout` on removal; Remote Control, which needs a claude.ai sign-in (`RemoteOff` `api-key`).
+- Instead of the limits, the panel row, the account card and the header (while the API account is the active one) show the folder's spend since local midnight, from Tally (`/api/stats/spend`, `docs/stats.md`), refreshed every 5 minutes and fetched only while some account is on a key. Without Tally there is no figure.
+- The prompt cache lifetime of sessions on a key is 5 minutes by default; the `cacheTtl` config key changes it (`docs/sessions.md`).
+
 ## Active account
 
 - The active account can be switched at any time, even with a chain running: the switch only picks the folder for new launches, so sessions of the active account, mid-turn or not (VS Code chats included), stay where they are and the chain's next session starts on the new account (`switchProblem`). The panel warns while chains run. Renewing the active one's sign-in rewrites the folder's tokens, so it waits until every chain is paused or stopped and no session of the active account is mid-turn — `busy` or `waiting`.
