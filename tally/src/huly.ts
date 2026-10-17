@@ -1,5 +1,6 @@
 import { createRequire } from 'node:module'
 import type { HulyCredentials } from '../../src/huly/credentials.js'
+import { quietModelNoise } from '../../src/huly/quiet.js'
 
 export interface TaskRecord {
   task: string
@@ -78,7 +79,6 @@ const require = createRequire(import.meta.url)
 const TAG_REFERENCE = 'tags:class:TagReference'
 const WON = 'task:statusCategory:Won'
 const PRIORITIES = ['no-priority', 'urgent', 'high', 'medium', 'low']
-const MODEL_NOISE = /^no document found, failed to apply model transaction/
 export const REPORT_DESCRIPTION = 'Tally: активное время агента по ходам транскриптов'
 
 export async function fetchTasks(credentials: HulyCredentials, identifiers: string[], timeoutMs: number): Promise<TaskRecord[]> {
@@ -148,31 +148,14 @@ export async function reportTimes(credentials: HulyCredentials, reports: TimeRep
 
 async function connect(credentials: HulyCredentials, timeoutMs: number): Promise<PlatformClient> {
   const api = require('@hcengineering/api-client') as ApiClientModule
-  return await withoutModelNoise(() =>
-    api.connect(credentials.url, {
-      email: credentials.email,
-      password: credentials.password,
-      workspace: credentials.workspace,
-      socketFactory: api.NodeWebSocketFactory,
-      connectionTimeout: timeoutMs,
-    }),
-  )
-}
-
-async function withoutModelNoise<T>(work: () => Promise<T>): Promise<T> {
-  const methods = ['log', 'info', 'warn'] as const
-  const original = methods.map((name) => console[name])
-  methods.forEach((name, index) => {
-    console[name] = (...args: unknown[]) => {
-      if (typeof args[0] === 'string' && MODEL_NOISE.test(args[0])) return
-      original[index]!(...args)
-    }
+  quietModelNoise()
+  return await api.connect(credentials.url, {
+    email: credentials.email,
+    password: credentials.password,
+    workspace: credentials.workspace,
+    socketFactory: api.NodeWebSocketFactory,
+    connectionTimeout: timeoutMs,
   })
-  try {
-    return await work()
-  } finally {
-    methods.forEach((name, index) => (console[name] = original[index]!))
-  }
 }
 
 export function unknownRelations(issues: IssueDoc[]): string[] {
