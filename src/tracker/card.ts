@@ -1,5 +1,5 @@
 import { sameName, type ChainRules } from '../chain/rules.js'
-import { isModelAlias, QUESTION_LABELS, type TaskMilestone, type TaskPriority, type TaskStatus } from './model.js'
+import { QUESTION_LABELS, runLabelOf, type TaskMilestone, type TaskPriority, type TaskStatus } from './model.js'
 
 /** A task in full for its card on the page (`TaskSource.card`). `description` and comment texts are Markdown. */
 export interface TrackerCard {
@@ -82,5 +82,5 @@ function roleOf(label: string, rules: ChainRules): LabelRole | null {
   if (listed(rules.excludedLabels)) return 'excluded'
   if (listed(rules.requiredLabels)) return 'required'
   if (listed(QUESTION_LABELS)) return 'question'
-  return isModelAlias(label.trim().toLocaleLowerCase()) ? 'model' : null
+  return runLabelOf(label) === null ? null : 'model'
 }

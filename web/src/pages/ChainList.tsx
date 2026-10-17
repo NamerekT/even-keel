@@ -270,7 +270,7 @@ function withGhost(blocks: ChainBlock[], ghost: Ghost | null): ChainBlock[] {
     estimate: null,
     parent: null,
     labels: [],
-    models: [],
+    runLabels: [],
     session: null,
     sessions: [],
     limit: null,
@@ -523,9 +523,9 @@ function Block(props: BlockProps) {
       </p>
       {action !== null && <ActionScreen line={action} delay={marks.has('take') ? marks.get('take')! + FRAME_MS : 0} />}
       <div className="block__side">
-        {block.models.map((model) => (
-          <span key={model} className="tag" title={t.card.roles.model}>
-            {model}
+        {block.runLabels.map((label) => (
+          <span key={label} className="tag" title={t.card.roles.model}>
+            {label}
           </span>
         ))}
         {block.skipped && <span className="chip">{t.chain.skipped}</span>}

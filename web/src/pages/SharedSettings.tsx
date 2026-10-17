@@ -1,7 +1,7 @@
-import { useState, type ReactNode } from 'react'
+import { Fragment, type ReactNode } from 'react'
+import { EXECUTION_MODES, PROVIDERS } from '../../../src/agent/providers.js'
 import { LANGUAGES, type Language } from '../../../src/language.js'
 import type { CacheTtl, EvenKeelState, SharedForm } from '../../../src/state.js'
-import { MODEL_ALIASES, type ModelAlias } from '../../../src/tracker/model.js'
 import { say, t } from '../i18n/index.js'
 import { useCommand } from '../live/useCommand.js'
 import { useToolsViews } from '../tools/useToolsViews.js'
@@ -24,21 +24,23 @@ import {
   unplaced,
   useFieldErrors,
   wholeOf,
-  type Marks,
 } from './settingsParts.js'
 import { lineOf, linesText, pairOf, ruleChoicesOf, rowsOf } from './settingsRows.js'
+import { accountOptions, providerKeys, providerMap, providerName, providerOptions, providerValues } from './settingsRun.js'
 import { useDraft, useTab } from './settingsStore.js'
 import { ListTable, RowsTable } from './settingsTable.js'
 import { SettingsNav } from './SettingsNav.js'
 import './settings.css'
 
 const SCOPE = 'shared'
-const promptKey = (model: ModelAlias) => `modelPrompt.${model}`
-const PROMPT_KEYS = MODEL_ALIASES.map(promptKey)
+const EXECUTED = Object.keys(EXECUTION_MODES)
 
 const GROUPS = [
   { id: 'chain', keys: ['parallel', 'tracker', 'brief', ...RULE_KEYS] },
-  { id: 'models', keys: ['model', ...PROMPT_KEYS, 'promptLanguage'] },
+  {
+    id: 'models',
+    keys: ['provider', ...providerKeys('models'), ...providerKeys('accounts'), ...providerKeys('execution', EXECUTED), 'modelLabels', 'modelPrompts', 'promptLanguage'],
+  },
   { id: 'sessions', keys: ['hiddenSkills', 'window', 'warn', 'danger', 'checkpointTokens'] },
   { id: 'claude', keys: ['cacheTtl'] },
   { id: 'page', keys: ['language', 'allowedHosts', 'updatesCheck', 'updatesNotify'] },
@@ -46,15 +48,25 @@ const GROUPS = [
 ] as const
 type GroupId = (typeof GROUPS)[number]['id']
 const keysOf = (id: GroupId): readonly string[] => GROUPS.find((group) => group.id === id)!.keys
-const same = sameBy(['hiddenSkills', 'allowedHosts', 'moves', ...RULE_KEYS])
+const sameLines = sameBy(['hiddenSkills', 'allowedHosts', 'moves', ...RULE_KEYS])
+const same = (key: string, a: Value, b: Value) =>
+  key === 'modelPrompts' ? JSON.stringify(promptsOf(a as string)) === JSON.stringify(promptsOf(b as string)) : sameLines(key, a, b)
+
+/** The prompt rows of the draft (a JSON list of `[model, prompt]`), blank ones left out. */
+const promptsOf = (text: string): [string, string][] =>
+  (JSON.parse(text) as [string, string][]).map(([model, prompt]): [string, string] => [model.trim(), prompt.trim()]).filter(([model, prompt]) => model !== '' && prompt !== '')
 
 const valuesOf = (form: SharedForm): Values => ({
   parallel: String(form.parallel),
   tracker: form.tracker,
   brief: form.brief,
   ...rulesText(form.chain),
-  model: form.model,
-  ...Object.fromEntries(MODEL_ALIASES.map((model) => [promptKey(model), form.modelPrompts[model] ?? ''])),
+  provider: form.provider,
+  ...providerValues('models', form.models),
+  ...providerValues('accounts', form.accounts),
+  ...providerValues('execution', form.execution, EXECUTED),
+  modelLabels: form.modelLabels,
+  modelPrompts: JSON.stringify(Object.entries(form.modelPrompts)),
   language: form.language ?? '',
   promptLanguage: form.promptLanguage,
   hiddenSkills: form.hiddenSkills.join('\n'),
@@ -91,8 +103,12 @@ function formOf(values: Values): SharedForm | undefined {
     tracker: text('tracker'),
     brief: values.brief as boolean,
     chain: rulesOf(values as Record<(typeof RULE_KEYS)[number], Value>),
-    model: text('model') as ModelAlias,
-    modelPrompts: Object.fromEntries(MODEL_ALIASES.flatMap((model) => (text(promptKey(model)).trim() === '' ? [] : [[model, text(promptKey(model)).trim()]]))),
+    provider: text('provider'),
+    models: providerMap('models', values),
+    accounts: providerMap('accounts', values),
+    execution: providerMap('execution', values, EXECUTED),
+    modelLabels: values.modelLabels as boolean,
+    modelPrompts: Object.fromEntries(promptsOf(text('modelPrompts'))),
     language: language === '' ? null : (language as Language),
     promptLanguage: text('promptLanguage') as Language,
     hiddenSkills: linesOf(text('hiddenSkills')),
@@ -127,7 +143,6 @@ export function SharedSettings({ state }: { state: EvenKeelState }) {
   const titleOf = (id: GroupId) => t.shared[id]
 
   const edit = (key: string, value: Value) => setDraft(edited(draft, key, value))
-  const editAll = (values: Values) => setDraft(Object.entries(values).reduce((each, [key, value]) => edited(each, key, value), draft))
   const revert = (keys: readonly string[]) => setDraft(reverted(draft, saved, keys))
   const marks = marksOf(draft, saved, same, revert)
   const save = async () => {
@@ -153,6 +168,22 @@ export function SharedSettings({ state }: { state: EvenKeelState }) {
       <FieldHead label={label} hint={hint} htmlFor={fieldId(key)} restart={restart} />
       <Select id={fieldId(key)} className="settings__text settings__short" value={text(key)} options={options} onChange={(value) => edit(key, value)} />
       {marks.note(key, (value) => options.find((option) => option.value === value)?.label ?? String(value))}
+      <FieldNote error={errorOf(key)} />
+    </div>
+  )
+  const model = (key: string, label: string) => (
+    <div className={marks.box(key, 'settings__field settings__grow')}>
+      <FieldHead label={label} hint={t.shared.modelHint} htmlFor={fieldId(key)} />
+      <input
+        id={fieldId(key)}
+        className="settings__text settings__text--mono"
+        spellCheck={false}
+        value={text(key)}
+        placeholder={t.settings.cliDefault}
+        aria-invalid={errorOf(key) !== null}
+        onChange={(event) => edit(key, event.target.value)}
+      />
+      {marks.note(key, (value) => ((value as string).trim() === '' ? t.settings.cliDefault : (value as string)))}
       <FieldNote error={errorOf(key)} />
     </div>
   )
@@ -204,15 +235,42 @@ export function SharedSettings({ state }: { state: EvenKeelState }) {
     ),
     models: () => (
       <>
-        {select(
-          'model',
-          t.shared.model,
-          MODEL_ALIASES.map((model) => ({ value: model, label: model })),
-          t.shared.modelHint,
-        )}
-        <div className={marks.box(PROMPT_KEYS)}>
+        {select('provider', t.settings.provider, providerOptions(), t.shared.providerHint)}
+        {PROVIDERS.map((provider) => (
+          <div key={provider} className="settings__row">
+            {model(`models.${provider}`, t.settings.modelOf(providerName(provider)))}
+            {select(
+              `accounts.${provider}`,
+              t.settings.accountOf(providerName(provider)),
+              accountOptions(state.account, provider, text(`accounts.${provider}`)),
+              t.shared.accountHint,
+            )}
+          </div>
+        ))}
+        {EXECUTED.map((provider) => (
+          <Fragment key={provider}>
+            {select(
+              `execution.${provider}`,
+              t.shared.executionOf(providerName(provider)),
+              EXECUTION_MODES[provider]!.map((mode) => ({ value: mode, label: t.shared.modes[mode] ?? mode })),
+              t.shared.executionHint,
+            )}
+          </Fragment>
+        ))}
+        <CheckField
+          className={marks.box('modelLabels')}
+          label={t.settings.modelLabels}
+          hint={t.shared.modelLabelsHint}
+          checked={draft.edit.modelLabels as boolean}
+          onChange={(on) => edit('modelLabels', on)}
+        >
+          {marks.note('modelLabels')}
+          <FieldNote error={errorOf('modelLabels')} />
+        </CheckField>
+        <div className={marks.box('modelPrompts')}>
           <FieldHead label={t.shared.modelPrompts} hint={t.shared.modelPromptsHint} />
-          <ModelPrompts text={text} onEdit={editAll} marks={marks} />
+          <ModelPrompts value={text('modelPrompts')} onChange={(value) => edit('modelPrompts', value)} />
+          {marks.note('modelPrompts', (value) => promptsOf(value as string).map(([name]) => name).join(', ') || t.shared.none)}
           <FieldNote error={errorOf('modelPrompts')} />
         </div>
         {select('promptLanguage', t.shared.promptLanguage, languages)}
@@ -370,37 +428,18 @@ export function SharedSettings({ state }: { state: EvenKeelState }) {
 }
 
 /** A row per model with a prompt, in the order they were added; a row cleared while typing stays until its bin. */
-function ModelPrompts({ text, onEdit, marks }: { text: (key: string) => string; onEdit: (values: Values) => void; marks: Marks }) {
-  const [listed, setListed] = useState<readonly ModelAlias[]>([])
-  const shown = [...listed, ...MODEL_ALIASES.filter((model) => !listed.includes(model) && text(promptKey(model)) !== '')]
-  const gone = MODEL_ALIASES.filter((model) => !shown.includes(model) && marks.note(promptKey(model)) !== null)
+function ModelPrompts({ value, onChange }: { value: string; onChange: (value: string) => void }) {
   return (
-    <>
-      <RowsTable
-        label={t.shared.modelPrompts}
-        columns={[
-          { title: t.shared.promptModel, placeholder: t.shared.promptModel, options: MODEL_ALIASES.map((model) => ({ value: model, label: model })), width: '9em' },
-          { title: t.shared.promptText, placeholder: t.shared.promptAdd, multiline: true },
-        ]}
-        rows={shown.map((model) => [model, text(promptKey(model))])}
-        empty={t.shared.none}
-        onChange={(rows) => {
-          setListed(rows.map(([model]) => model as ModelAlias))
-          onEdit(Object.fromEntries(MODEL_ALIASES.map((model) => [promptKey(model), rows.find(([each]) => each === model)?.[1] ?? ''])))
-        }}
-      />
-      {[...shown, ...gone].map((model) => {
-        const note = marks.note(promptKey(model))
-        return (
-          note !== null && (
-            <span key={model} className="settings__row-note">
-              <span className="tag">{model}</span>
-              {note}
-            </span>
-          )
-        )
-      })}
-    </>
+    <RowsTable
+      label={t.shared.modelPrompts}
+      columns={[
+        { title: t.shared.promptModel, placeholder: 'opus', mono: true, width: '11em' },
+        { title: t.shared.promptText, placeholder: t.shared.promptAdd, multiline: true },
+      ]}
+      rows={JSON.parse(value) as string[][]}
+      empty={t.shared.none}
+      onChange={(rows) => onChange(JSON.stringify(rows))}
+    />
   )
 }
 

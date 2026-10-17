@@ -31,7 +31,7 @@ How Linear maps onto the chain:
 | status | the team's workflow state, by its type: Triage and Backlog — backlog, outside the chain; Todo (`unstarted`) — ready; `started` — in progress; `completed` — done; `canceled` and Duplicate — canceled. The name is the state's name |
 | blocked by | "blocked by" relations |
 | parent, subtasks | sub-issues: an issue with sub-issues never enters the chain |
-| labels | as they are: `Sonnet`/`Opus`/`Haiku` pick the model, `Question` marks a question |
+| labels | as they are: `Claude \| sonnet`, `Codex \| gpt-6.1-sol` or a bare `Codex` pick what the session runs on (with `modelLabels` on), `Question` marks a question |
 | priority | Urgent, High, Medium, Low; No priority — none |
 | milestone | the project milestone and its target date (not the cycle: unfinished issues roll over to the next cycle on their own) |
 | estimate | none: Linear estimates are points |

@@ -21,9 +21,9 @@ const raw = (fields: Partial<TrackerCard> = {}): TrackerCard => ({
 
 describe('cardOf', () => {
   it('tells what each label means to Even Keel', () => {
-    const card = cardOf(raw({ labels: ['Opus', 'Вопрос', 'manual', 'UI'] }), DEFAULT_RULES, true)
+    const card = cardOf(raw({ labels: ['Claude | opus', 'Вопрос', 'manual', 'UI'] }), DEFAULT_RULES, true)
     expect(card.labels).toEqual([
-      { name: 'Opus', role: 'model' },
+      { name: 'Claude | opus', role: 'model' },
       { name: 'Вопрос', role: 'question' },
       { name: 'manual', role: 'excluded' },
       { name: 'UI', role: null },

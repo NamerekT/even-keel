@@ -31,7 +31,6 @@ import type { ChainRules } from './chain/rules.js'
 import type { Language } from './language.js'
 import type { CacheTtl, CiSettings, ContextScale, ProjectForm, SharedForm, StatsConfig } from './state.js'
 import type { CompareSettings } from './stats/rules.js'
-import type { ModelAlias } from './tracker/model.js'
 import { CI_KINDS, type CiKind } from './ci/model.js'
 import type { Calibration } from './stats/calibration.js'
 import type { CheckpointThreshold, SessionCheckpoint } from './stats/checkpoint.js'
@@ -519,7 +518,7 @@ function baseOf(body: Record<string, unknown>): Record<string, unknown> {
 
 // The shape only: the values are judged by `parseConfig` when the form is written into the config.
 function projectFormOf(body: Record<string, unknown>): ProjectForm {
-  const { name, prompt, beforeStart, check, afterGreen, ci, fillMilestone, agent, codexModel, codexBypassSandbox, branch, repo, tracker, trackerProject, slot, brief, chain } = body
+  const { name, prompt, beforeStart, check, afterGreen, ci, fillMilestone, provider, models, accounts, modelLabels, branch, repo, tracker, trackerProject, slot, brief, chain } = body
   if (name !== undefined && name !== null && typeof name !== 'string') throw fail('request.required', { field: 'name' })
   if (prompt !== null && typeof prompt !== 'string') throw fail('request.required', { field: 'prompt' })
   const settings = {
@@ -530,16 +529,18 @@ function projectFormOf(body: Record<string, unknown>): ProjectForm {
     ci: ciOf(ci),
   }
   if (typeof fillMilestone !== 'boolean') throw fail('request.required', { field: 'fillMilestone' })
-  if (codexModel !== null && typeof codexModel !== 'string') throw fail('request.required', { field: 'codexModel' })
+  if (provider !== null && typeof provider !== 'string') throw fail('request.required', { field: 'provider' })
+  if (modelLabels !== null && typeof modelLabels !== 'boolean') throw fail('request.required', { field: 'modelLabels' })
   if (trackerProject !== null && typeof trackerProject !== 'string') throw fail('request.required', { field: 'trackerProject' })
   if (!Number.isInteger(slot) || (slot as number) < 0) throw fail('request.required', { field: 'slot' })
   return {
     ...settings,
     name: name ?? null,
     fillMilestone,
-    agent: textOf(agent, 'agent'),
-    codexModel,
-    codexBypassSandbox: switchOf(codexBypassSandbox, 'codexBypassSandbox'),
+    provider,
+    models: mapOf(models, 'models', (value) => typeof value === 'string'),
+    accounts: mapOf(accounts, 'accounts', (value) => typeof value === 'string'),
+    modelLabels,
     branch: textOf(branch, 'branch'),
     repo: textOf(repo, 'repo'),
     tracker: textOf(tracker, 'tracker'),
@@ -551,7 +552,7 @@ function projectFormOf(body: Record<string, unknown>): ProjectForm {
 }
 
 function sharedFormOf(body: Record<string, unknown>): SharedForm {
-  const { parallel, tracker, brief, chain, model, modelPrompts, language, promptLanguage, hiddenSkills, cacheTtl, allowedHosts, context, stats, updates } = body
+  const { parallel, tracker, brief, chain, provider, models, accounts, execution, modelLabels, modelPrompts, language, promptLanguage, hiddenSkills, cacheTtl, allowedHosts, context, stats, updates } = body
   if (language !== null && typeof language !== 'string') throw fail('request.required', { field: 'language' })
   if (cacheTtl != null && typeof cacheTtl !== 'string') throw fail('request.required', { field: 'cacheTtl' })
   return {
@@ -559,7 +560,11 @@ function sharedFormOf(body: Record<string, unknown>): SharedForm {
     tracker: textOf(tracker, 'tracker'),
     brief: switchOf(brief, 'brief'),
     chain: rulesOf(chain),
-    model: textOf(model, 'model') as ModelAlias,
+    provider: textOf(provider, 'provider'),
+    models: mapOf(models, 'models', (value) => typeof value === 'string'),
+    accounts: mapOf(accounts, 'accounts', (value) => typeof value === 'string'),
+    execution: mapOf(execution, 'execution', (value) => typeof value === 'string'),
+    modelLabels: switchOf(modelLabels, 'modelLabels'),
     modelPrompts: mapOf(modelPrompts, 'modelPrompts', (value) => typeof value === 'string'),
     language: language as Language | null,
     promptLanguage: textOf(promptLanguage, 'promptLanguage') as Language,

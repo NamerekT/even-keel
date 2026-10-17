@@ -18,6 +18,15 @@ describe('Dispatcher', () => {
     expect(journal).toEqual([{ at: '2026-09-26T12:00:00.000Z', project: 'ABC', task: 'ABC-2', sessionId: 'session-1' }])
   })
 
+  it('notes in the launch log the provider of a run label the launch could not honour', async () => {
+    const { dispatcher, journal } = setup({ fallback: { 'ABC-1': 'codex' } })
+    dispatcher.setTasks('ABC', [task('ABC-1')])
+    dispatcher.start('ABC')
+    await dispatcher.idle()
+
+    expect(journal).toEqual([{ at: '2026-09-26T12:00:00.000Z', project: 'ABC', task: 'ABC-1', sessionId: 'session-1', fallback: 'codex' }])
+  })
+
   it('leaves a task labelled for a manual run out of the chain', async () => {
     const { dispatcher, launched } = setup()
     dispatcher.setTasks('ABC', [{ ...task('ABC-1'), labels: ['Вручную'] }, task('ABC-2')])

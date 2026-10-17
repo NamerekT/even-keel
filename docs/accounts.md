@@ -26,15 +26,16 @@ Reference for sessions: account folders, sign-in, switching, transferring the sh
 ## The Codex folder (BTN-168)
 
 - One Codex account: the folder `CODEX_HOME` or `~/.codex`, key `codex` (`AccountHomes`, `src/account/homes.ts`). It is listed only once it exists — Codex does not create it, and Even Keel does not either.
-- It is never the active account: it is not switched to, given to an app or removed from the panel (`account.codexFolder`). Every Codex session starts there whatever the active account, and the chain judges a Codex task's launch block, limits and handoff account by this folder, not by the active one.
+- It is never the active account: it is not switched to, given to an app or removed from the panel (`account.codexFolder`). A Codex session starts in the pool's `accounts.codex` (`codex` by default; `docs/sessions.md`, "Run profiles"), and the chain judges a Codex task's launch block, limits and handoff account by that folder, not by the active one.
 - Sign-in status is `codex login status` (`Logged in using ChatGPT` / `an API key` / `Not logged in`); the e-mail and plan come from the `id_token` claims in `auth.json`. "Renew sign-in" (and adding a Codex account on `/accounts/add`) runs `codex login --device-auth` through the same sign-in flow as Claude's, with a window of its own: no code field, the CLI output unfolded (not checked live, `docs/unverified.md`); sign-out is `codex logout`.
 - Limits are read from the folder's rollouts, not polled (`docs/sessions.md`, "Codex"). The shared configuration is not transferred: Codex reads its own `config.toml`, and the tracker's MCP server comes with every turn. To get the tracker's skills, the user installs the tracker's plugin from the even-keel marketplace in Codex themselves.
 
 ## Active account
 
+- The active account is the shared `accounts.claude` of the config (BTN-173; before schema v8 `active` of `state/account.json`): the account pool of the run profiles (`docs/sessions.md`). A switch in the header writes it (`ConfigFile.saveActive`), so it moves only projects without their own `accounts.claude`; a project with one runs on that folder whatever the header shows. The header shows the shared one.
 - The active account can be switched at any time, even with a chain running: the switch only picks the folder for new launches, so sessions of the active account, mid-turn or not (VS Code chats included), stay where they are and the chain's next session starts on the new account (`switchProblem`). The switch window warns while chains run. Renewing the active one's sign-in rewrites the folder's tokens, so it waits until every chain is paused or stopped and no session of the active account is mid-turn — `busy` or `waiting`.
 - While signing in to the active account is in progress, or it is not signed in or its sign-in has expired, new sessions are not started (the chain pauses with a reason).
-- `state/account.json` — the active account and, for each folder, its account, since when it has been in effect and which one was before it. Folder limits received before the account change in it are not shown; the account that hit a limit is the session's folder and its e-mail at the time of the limit, and `--resume` only if the same folder with the same e-mail is active.
+- `state/account.json` — for each folder, its account, since when it has been in effect and which one was before it. Folder limits received before the account change in it are not shown; the account that hit a limit is the session's folder and its e-mail at the time of the limit, and `--resume` only if the same folder with the same e-mail is active.
 
 ## Accounts: the drawer, the page, adding, switching (BTN-169)
 

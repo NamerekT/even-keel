@@ -4,7 +4,9 @@ import { refuseNewer } from './storage/schema.js'
 import { DEFAULT_RULES, sameName, type ChainRules } from './chain/rules.js'
 import { isLanguage, LANGUAGES, type Language } from './language.js'
 import { fail } from './notice/notice.js'
-import { isModelAlias, MODEL_ALIASES, type ModelAlias } from './tracker/model.js'
+import { CODEX_ACCOUNT, GLOBAL_ACCOUNT } from './account/model.js'
+import { DEFAULT_PROVIDER, EXECUTION_MODES, isProvider, PROVIDERS } from './agent/providers.js'
+import type { RunSettings } from './sessions/launch.js'
 import { placeholderIn } from './sessions/prompt.js'
 import type { CacheTtl, CiSettings, ContextScale, ProjectSettings, StatsConfig } from './state.js'
 import { CI_KINDS, type CiKind } from './ci/model.js'
@@ -41,8 +43,18 @@ export interface EvenKeelConfig {
   briefs: Record<string, boolean>
   settings: Record<string, ProjectSettings>
   context: ContextScale
-  model: ModelAlias
-  modelPrompts: Partial<Record<ModelAlias, string>>
+  /** The shared provider; a project's own `provider` goes over it. */
+  provider: string
+  /** The shared model by provider, defaults filled in; a project's own entries go over them. */
+  models: Record<string, string>
+  /** The shared account folder by provider, defaults filled in; `accounts.claude` is the active account of the header. */
+  accounts: Record<string, string>
+  /** The mode of each provider's sessions, defaults filled in; shared only: the Codex sandbox does not start under the service for any project. */
+  execution: Record<string, string>
+  /** Whether the tasks' run labels are read, unless a project says otherwise. */
+  modelLabels: boolean
+  /** Appended to the prompt of a new session by the name of its model, as the CLI gets it. */
+  modelPrompts: Record<string, string>
   stats: StatsConfig
   language: Language | null
   promptLanguage: Language
@@ -62,16 +74,21 @@ const RESTART_KEYS = ['projects', 'slots', 'tracker', 'trackers', 'trackerProjec
 /** Keys an older config had; the address now comes from `EVEN_KEEL_HOST` and `EVEN_KEEL_PORT`. */
 const IGNORED_KEYS = ['host', 'port'] as const
 export const DEFAULT_BRANCH = 'main'
-/** The agents a project may run on, by their names in `src/agent/adapters.ts`. */
-export const AGENT_NAMES: readonly string[] = [CLAUDE, CODEX]
-export const DEFAULT_AGENT = CLAUDE
+/**
+ * Claude's model unless the config names one: without `--model` the CLI takes it from `settings.json`, which an editor
+ * may have just changed. Codex has none: its own config's model.
+ */
+export const DEFAULT_MODELS: Readonly<Record<string, string>> = { [CLAUDE]: 'opus' }
+export const DEFAULT_ACCOUNTS: Readonly<Record<string, string>> = { [CLAUDE]: GLOBAL_ACCOUNT, [CODEX]: CODEX_ACCOUNT }
+export const DEFAULT_EXECUTION: Readonly<Record<string, string>> = Object.fromEntries(
+  Object.entries(EXECUTION_MODES).map(([provider, modes]) => [provider, modes[0]!]),
+)
 export const CONFIG_FILE = 'even-keel.config.json'
 const DEFAULT_HOST = '127.0.0.1'
 const DEFAULT_PORT = 4747
 // What `git check-ref-format --branch` refuses, short of the rarest cases.
 const BRANCH = /^(?!-)(?!.*\.\.)(?!.*@\{)(?!.*\/\/)(?!.*\/\.)(?!\.)[^\s~^:?*[\\\x00-\x1f\x7f]+(?<![/.])(?<!\.lock)$/
 export const DEFAULT_LANGUAGE: Language = 'en'
-export const DEFAULT_MODEL: ModelAlias = 'opus'
 export const DEFAULT_CONTEXT: Readonly<ContextScale> = { window: 600_000, warn: 50, danger: 80 }
 export const DEFAULT_COMPARE: Readonly<CompareSettings> = { minTasks: 5, minSessions: 10, days: 7 }
 const COMPARE_LIMITS: Record<keyof CompareSettings, number> = { minTasks: 10_000, minSessions: 10_000, days: 365 }
@@ -99,7 +116,7 @@ export function parseConfig(raw: unknown, adapters: AdapterShapes = ADAPTERS): E
   for (const [index, fields] of (input.projects as unknown[]).entries()) {
     const place = `projects[${index}]`
     if (!isPlainObject(fields)) throw fail('config.projectEntry', { where: place })
-    const { id, key, repo, name, branch, chain, slot, tracker, brief, prompt, commands, ci, fillMilestone, agent, codexModel, codexBypassSandbox } = fields
+    const { id, key, repo, name, branch, chain, slot, tracker, brief, prompt, commands, ci, fillMilestone, provider, models, accounts, modelLabels } = fields
     if (typeof key !== 'string' || !PROJECT_KEY.test(key)) throw fail('config.projectKey', { where: `${place}.key`, value: String(JSON.stringify(key)) })
     if (typeof id !== 'string' || id.trim() === '') throw fail('config.projectId', { where: `${place}.id` })
     for (const [field, value] of [['key', key], ['id', id]] as const) {
@@ -125,9 +142,10 @@ export function parseConfig(raw: unknown, adapters: AdapterShapes = ADAPTERS): E
       ...parseCommands(commands, `${key}.commands`),
       ci: parseCi(ci, `${key}.ci`),
       fillMilestone: fillMilestone === undefined ? false : parseBrief(fillMilestone, `${key}.fillMilestone`),
-      agent: parseAgent(agent, `${key}.agent`),
-      codexModel: parseCodexModel(codexModel, `${key}.codexModel`),
-      codexBypassSandbox: codexBypassSandbox === undefined ? false : parseBrief(codexBypassSandbox, `${key}.codexBypassSandbox`),
+      provider: provider === undefined ? null : parseProvider(provider, `${key}.provider`),
+      models: parseByProvider(models, `${key}.models`),
+      accounts: parseByProvider(accounts, `${key}.accounts`),
+      modelLabels: modelLabels === undefined ? null : parseBrief(modelLabels, `${key}.modelLabels`),
     }
   }
 
@@ -146,7 +164,11 @@ export function parseConfig(raw: unknown, adapters: AdapterShapes = ADAPTERS): E
     briefs,
     settings,
     context: parseContext(input.context),
-    model: parseModel(input.model),
+    provider: input.provider === undefined ? DEFAULT_PROVIDER : parseProvider(input.provider, 'provider'),
+    models: { ...DEFAULT_MODELS, ...parseByProvider(input.models, 'models') },
+    accounts: { ...DEFAULT_ACCOUNTS, ...parseByProvider(input.accounts, 'accounts') },
+    execution: { ...DEFAULT_EXECUTION, ...parseExecution(input.execution) },
+    modelLabels: input.modelLabels === undefined ? false : parseBrief(input.modelLabels, 'modelLabels'),
     modelPrompts: parseModelPrompts(input.modelPrompts),
     stats: parseStats(input.stats),
     language,
@@ -211,7 +233,7 @@ function parseUpdates(raw: unknown): UpdateSettings {
 export function liveConfig(current: EvenKeelConfig, next: EvenKeelConfig): EvenKeelConfig {
   const keep = <T>(field: Record<string, T>, fallback: Record<string, T>) =>
     Object.fromEntries(Object.keys(current.projects).map((key) => [key, field[key] ?? fallback[key]!]))
-  const { allowedHosts, names, chain, brief, model, modelPrompts, stats, language, promptLanguage, hiddenSkills, cacheTtl, parallel, updates } = next
+  const { allowedHosts, names, chain, brief, provider, models, accounts, execution, modelLabels, modelPrompts, stats, language, promptLanguage, hiddenSkills, cacheTtl, parallel, updates } = next
   return {
     ...current,
     allowedHosts,
@@ -223,7 +245,11 @@ export function liveConfig(current: EvenKeelConfig, next: EvenKeelConfig): EvenK
     rules: keep(next.rules, current.rules),
     briefs: keep(next.briefs, current.briefs),
     settings: keep(next.settings, current.settings),
-    model,
+    provider,
+    models,
+    accounts,
+    execution,
+    modelLabels,
     modelPrompts,
     stats,
     language,
@@ -273,13 +299,6 @@ function parseCacheTtl(raw: unknown): CacheTtl | null {
   return raw
 }
 
-function parseModel(raw: unknown): ModelAlias {
-  if (raw === undefined) return DEFAULT_MODEL
-  const model = typeof raw === 'string' ? raw.trim().toLowerCase() : ''
-  if (!isModelAlias(model)) throw fail('config.model', { value: String(JSON.stringify(raw)), known: [...MODEL_ALIASES] })
-  return model
-}
-
 function parseLanguage(raw: unknown, where: string): Language | null {
   if (raw === undefined) return null
   if (!isLanguage(raw)) throw fail('config.language', { where, value: String(JSON.stringify(raw)), known: [...LANGUAGES] })
@@ -307,17 +326,47 @@ function parseBrief(raw: unknown, where: string): boolean {
   return raw
 }
 
-function parseAgent(raw: unknown, where: string): string {
-  if (raw === undefined) return DEFAULT_AGENT
+function parseProvider(raw: unknown, where: string): string {
   const name = typeof raw === 'string' ? raw.trim().toLowerCase() : ''
-  if (!AGENT_NAMES.includes(name)) throw fail('config.agent', { where, value: String(JSON.stringify(raw)), known: [...AGENT_NAMES] })
+  if (!isProvider(name)) throw fail('config.provider', { where, value: String(JSON.stringify(raw)), known: [...PROVIDERS] })
   return name
 }
 
-function parseCodexModel(raw: unknown, where: string): string | null {
-  if (raw === undefined || raw === null) return null
-  if (typeof raw !== 'string') throw fail('config.codexModel', { where })
-  return raw.trim() === '' ? null : raw.trim()
+/** `models` or `accounts`: a name by provider, blanks left out. */
+function parseByProvider(raw: unknown, where: string): Record<string, string> {
+  if (raw === undefined) return {}
+  if (!isPlainObject(raw)) throw fail('config.notObject', { where })
+  const names: Record<string, string> = {}
+  for (const [provider, name] of Object.entries(raw)) {
+    if (!isProvider(provider)) throw fail('config.providerKey', { where, key: provider, known: [...PROVIDERS] })
+    if (typeof name !== 'string') throw fail('config.providerName', { where: `${where}.${provider}` })
+    if (name.trim() !== '') names[provider] = name.trim()
+  }
+  return names
+}
+
+function parseExecution(raw: unknown): Record<string, string> {
+  if (raw === undefined) return {}
+  if (!isPlainObject(raw)) throw fail('config.notObject', { where: 'execution' })
+  const modes: Record<string, string> = {}
+  for (const [provider, mode] of Object.entries(raw)) {
+    const known = EXECUTION_MODES[provider]
+    if (known === undefined) throw fail('config.providerKey', { where: 'execution', key: provider, known: Object.keys(EXECUTION_MODES) })
+    if (typeof mode !== 'string' || !known.includes(mode)) throw fail('config.execution', { provider, value: String(JSON.stringify(mode)), known: [...known] })
+    modes[provider] = mode
+  }
+  return modes
+}
+
+/** What the project's sessions run on: its own provider, models, accounts and labels switch over the shared ones. */
+export function runSettings(config: Pick<EvenKeelConfig, 'settings' | 'provider' | 'models' | 'accounts' | 'modelLabels'>, project: string | undefined): RunSettings {
+  const own = project === undefined ? undefined : config.settings[project]
+  return {
+    provider: own?.provider ?? config.provider,
+    models: { ...config.models, ...own?.models },
+    accounts: { ...config.accounts, ...own?.accounts },
+    labels: own?.modelLabels ?? config.modelLabels,
+  }
 }
 
 function parseProjectPrompt(raw: unknown, where: string): string | null {
@@ -390,16 +439,16 @@ function checkRules(rules: ChainRules, project: string): ChainRules {
   return rules
 }
 
-function parseModelPrompts(raw: unknown): Partial<Record<ModelAlias, string>> {
+function parseModelPrompts(raw: unknown): Record<string, string> {
   if (raw === undefined) return {}
-  if (typeof raw !== 'object' || raw === null) throw fail('config.modelPrompts', {})
-  const prompts: Partial<Record<ModelAlias, string>> = {}
+  if (!isPlainObject(raw)) throw fail('config.modelPrompts', {})
+  const prompts: Record<string, string> = {}
   for (const [model, text] of Object.entries(raw)) {
-    if (!isModelAlias(model)) throw fail('config.modelAlias', { model })
+    if (model.trim() === '') throw fail('config.modelPrompts', {})
     if (typeof text !== 'string' || text.trim() === '') throw fail('config.modelPromptEmpty', { model })
     const placeholder = placeholderIn(text)
     if (placeholder !== null) throw fail('config.modelPromptPlaceholder', { model, placeholder })
-    prompts[model] = text.trim()
+    prompts[model.trim()] = text.trim()
   }
   return prompts
 }
@@ -465,12 +514,13 @@ export function readRawConfig(file: string): unknown {
 }
 
 /**
- * The project's entry in the config file with `branch`, `prompt`, `commands`, `ci`, `fillMilestone`, `agent`, `codexModel` and
- * `codexBypassSandbox` set, or removed when empty or default; its other keys stay, and so do the settings `changed` leaves out.
+ * The project's entry in the config file with `branch`, `prompt`, `commands`, `ci`, `fillMilestone`, `provider`, `models`,
+ * `accounts` and `modelLabels` set, or removed when empty or inherited; its other keys stay, and so do the settings
+ * `changed` leaves out.
  */
 export function withProjectSettings(
   entry: unknown,
-  { branch, prompt, beforeStart, check, afterGreen, ci, fillMilestone, agent, codexModel, codexBypassSandbox }: ProjectSettings,
+  { branch, prompt, beforeStart, check, afterGreen, ci, fillMilestone, provider, models, accounts, modelLabels }: ProjectSettings,
   changed: (field: keyof ProjectSettings) => boolean = () => true,
 ): Record<string, unknown> {
   const fields: Record<string, unknown> = isPlainObject(entry) ? { ...entry } : { repo: entry }
@@ -501,9 +551,12 @@ export function withProjectSettings(
     put(fields, 'ci', Object.keys(written).length === 0 ? undefined : written)
   }
   if (changed('fillMilestone')) put(fields, 'fillMilestone', fillMilestone || undefined)
-  if (changed('agent')) put(fields, 'agent', agent === DEFAULT_AGENT ? undefined : agent)
-  if (changed('codexModel')) put(fields, 'codexModel', codexModel?.trim() || undefined)
-  if (changed('codexBypassSandbox')) put(fields, 'codexBypassSandbox', codexBypassSandbox || undefined)
+  if (changed('provider')) put(fields, 'provider', provider ?? undefined)
+  for (const [key, names] of [['models', models], ['accounts', accounts]] as const) {
+    const kept = Object.entries(names).flatMap(([each, name]) => (name.trim() === '' ? [] : [[each, name.trim()]]))
+    if (changed(key)) put(fields, key, kept.length === 0 ? undefined : Object.fromEntries(kept))
+  }
+  if (changed('modelLabels')) put(fields, 'modelLabels', modelLabels ?? undefined)
   return fields
 }
 

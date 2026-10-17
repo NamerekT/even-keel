@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto'
 import { copyFileSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
+import { GLOBAL_ACCOUNT } from '../account/model.js'
 import { parseConfig, withIds } from '../config.js'
 import { fail } from '../notice/notice.js'
 import { writeAtomic } from './atomic.js'
@@ -52,7 +53,9 @@ export function upgradeStorage(options: UpgradeOptions): void {
     if (after !== stored.text) rewrites.push({ file: stored.file, from: stored.version, before: stored.text, after })
   }
 
-  const raw = withIds(config.version < 2 ? configV2(config.value) : config.version < SCHEMA_VERSION ? restamped(config) : config.value, newId).raw
+  const active = account !== undefined && account.version < 8 && isRecord(account.value) ? account.value.active : undefined
+  const upgraded = config.version < 2 ? configV2(config.value) : config.version < SCHEMA_VERSION ? restamped(config) : config.value
+  const raw = withIds(config.version < 8 ? configV8(upgraded, typeof active === 'string' ? active : GLOBAL_ACCOUNT) : upgraded, newId).raw
   rewrite(config, raw === config.value ? config.text : jsonText(raw))
   if (rewrites.length === 0 && files.every((stored) => stored.version === SCHEMA_VERSION)) return
   parseConfig(raw)
@@ -64,7 +67,10 @@ export function upgradeStorage(options: UpgradeOptions): void {
   }
   if (chain !== undefined && chain.version < 2) rewrite(chain, jsonText(stamped(renameChainProjects(asRecord(chain), idOf(chain.file)))))
   if (questions !== undefined && questions.version < 2) rewrite(questions, jsonText({ version: SCHEMA_VERSION, questions: Array.isArray(questions.value) ? questions.value : [] }))
-  if (account !== undefined && account.version < 2) rewrite(account, jsonText(stamped(asRecord(account))))
+  if (account !== undefined && account.version < 8) {
+    const { active: _moved, ...rest } = asRecord(account)
+    rewrite(account, jsonText(stamped(rest)))
+  }
   if (launches !== undefined && launches.version < 2) {
     const rename = idOf(launches.file)
     const entries = (launches.value as Record<string, unknown>[]).map((entry) => ({ ...entry, project: rename(String(entry.project)) }))
@@ -76,7 +82,9 @@ export function upgradeStorage(options: UpgradeOptions): void {
   // v4 → v5: the same, for `commands.afterGreen` in the config and the commit they last ran on in the chain's `ci` (BTN-156).
   // v5 → v6: the same, for `agent` and `codexModel` of a project in the config and the Codex sessions of `state/codex/` (BTN-168).
   // v6 → v7: the same, for `codexBypassSandbox` of a project in the config (BTN-171).
-  for (const stored of [chain, questions, account]) {
+  // v7 → v8: the config by `configV8`, the account file without `active`; the other files are restamped, and the launch
+  // log gains the optional `fallback` of a launch (BTN-173).
+  for (const stored of [chain, questions]) {
     if (stored !== undefined && stored.version >= 2 && stored.version < SCHEMA_VERSION) rewrite(stored, jsonText(restamped(stored)))
   }
   if (launches !== undefined && launches.version >= 2 && launches.version < SCHEMA_VERSION) {
@@ -108,6 +116,42 @@ function configV2(raw: unknown): unknown {
   if (!isRecord(projects)) return stamped(raw)
   const records = Object.entries(projects).map(([key, entry]) => (isRecord(entry) ? { key, ...entry } : { key, repo: entry }))
   return stamped({ ...raw, projects: records })
+}
+
+/**
+ * v7 → v8: what a session runs on goes into maps by provider (BTN-173). A project's `agent` becomes its `provider`, its
+ * `codexModel` its `models.codex`; the shared `model` becomes `models.claude`; a project's `codexBypassSandbox` becomes
+ * the shared `execution.codex`, since the sandbox does not start under the service for any project; the active account
+ * of `account.json` becomes the shared `accounts.claude`.
+ */
+function configV8(raw: unknown, active: string): unknown {
+  if (!isRecord(raw)) return raw
+  const { model, ...config } = raw
+  let bypass = false
+  const projects = Array.isArray(config.projects)
+    ? config.projects.map((entry: unknown) => {
+        if (!isRecord(entry)) return entry
+        const { agent, codexModel, codexBypassSandbox, ...rest } = entry
+        if (codexBypassSandbox === true) bypass = true
+        const models = isRecord(rest.models) ? rest.models : {}
+        return {
+          ...rest,
+          ...(agent === undefined ? {} : { provider: agent }),
+          ...(typeof codexModel === 'string' && codexModel.trim() !== '' ? { models: { ...models, codex: codexModel.trim() } } : {}),
+        }
+      })
+    : config.projects
+  const merged = (key: string, entry: Record<string, unknown>) => {
+    const written = isRecord(config[key]) ? config[key] : {}
+    return Object.keys(entry).length === 0 ? {} : { [key]: { ...entry, ...written } }
+  }
+  return {
+    ...config,
+    projects,
+    ...merged('models', model === undefined ? {} : { claude: model }),
+    ...merged('accounts', active === GLOBAL_ACCOUNT ? {} : { claude: active }),
+    ...merged('execution', bypass ? { codex: 'bypass' } : {}),
+  }
 }
 
 function idsOf(raw: unknown): Record<string, string> {

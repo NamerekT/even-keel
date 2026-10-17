@@ -105,7 +105,8 @@ describe('upgradeStorage', () => {
       expect(json(state('questions.json'))).toEqual({ version: SCHEMA_VERSION, questions: v1Questions })
       const lines = text(state('launches.jsonl')).trim().split('\n').map((line) => JSON.parse(line))
       expect(lines).toEqual([{ version: SCHEMA_VERSION }, { ...v1Launches[0], project: 'guid-1' }, { ...v1Launches[1], project: 'guid-2' }])
-      expect(json(state('account.json'))).toEqual({ version: SCHEMA_VERSION, ...v1Account })
+      const { active: _active, ...account } = v1Account
+      expect(json(state('account.json'))).toEqual({ version: SCHEMA_VERSION, ...account })
     })
 
     it('keeps a copy of every file it rewrites and says so in the log', () => {
@@ -149,8 +150,9 @@ describe('upgradeStorage', () => {
 
   // v2 → v3 (the launch log's fix entries), v3 → v4 (the name of an account), v4 → v5 (`commands.afterGreen` and its
   // mark in the chain's `ci`), v5 → v6 (a project's agent, Codex sessions) and v6 → v7 (the bypass of the Codex sandbox)
-  // only add optional fields, so each step only stamps the files.
-  describe.each([2, 3, 4, 5, 6])('v%i to the current version', (from) => {
+  // only add optional fields, so each step only stamps the files. v7 → v8 (BTN-173) moves the run settings of the config
+  // into maps by provider — the samples of v6 and v7 have them, see below — and the active account out of `account.json`.
+  describe.each([2, 3, 4, 5, 6, 7])('v%i to the current version', (from) => {
     const sample = join(root, 'test', 'fixtures', `schema-v${from}`)
     const names = ['even-keel.config.json', 'state/chain.json', 'state/questions.json', 'state/launches.jsonl', 'state/account.json']
 
@@ -162,12 +164,52 @@ describe('upgradeStorage', () => {
         const { version, ...rest } = json(join(dir, name))
         expect(version).toBe(SCHEMA_VERSION)
         const { version: _, ...old } = JSON.parse(readFileSync(join(sample, name), 'utf8'))
-        expect(rest).toEqual(old)
+        if (name === 'state/account.json') delete old.active
+        if (name !== 'even-keel.config.json' || from < 6) expect(rest).toEqual(old)
       }
       const lines = text(state('launches.jsonl')).split('\n')
       expect(lines[0]).toBe(`{"version":${SCHEMA_VERSION}}`)
       expect(lines.slice(1).join('\n')).toBe(before[3]!.split('\n').slice(1).join('\n'))
       expect(names.map((name) => text(join(dir, `${name}.v${from}.bak`)))).toEqual(before)
+    })
+  })
+
+  describe('v7 to v8', () => {
+    const sample = join(root, 'test', 'fixtures', 'schema-v7')
+
+    it('moves agent, codexModel and the shared model into maps by provider and the bypass of the sandbox into the shared execution', () => {
+      cpSync(sample, dir, { recursive: true })
+      put(configFile, { ...json(configFile), model: 'sonnet' })
+      upgrade()
+      const config = json(configFile)
+      expect(config).toMatchObject({ version: SCHEMA_VERSION, models: { claude: 'sonnet' }, execution: { codex: 'bypass' } })
+      expect(config.model).toBeUndefined()
+      expect(config.projects[0]).toEqual(json(join(sample, 'even-keel.config.json')).projects[0])
+      expect(config.projects[1]).toEqual({
+        id: '22222222-2222-4222-8222-222222222222',
+        key: 'XYZ',
+        name: 'Other project',
+        repo: 'C:\\repos\\other-project',
+        branch: 'master',
+        slot: 2,
+        provider: 'codex',
+        models: { codex: 'gpt-5.6-luna' },
+      })
+    })
+
+    it('moves the active account of the account file into the config, the global folder being the default', () => {
+      cpSync(sample, dir, { recursive: true })
+      put(state('account.json'), { ...json(state('account.json')), active: 'team-api' })
+      upgrade()
+      expect(json(configFile).accounts).toEqual({ claude: 'team-api' })
+      expect(json(state('account.json')).active).toBeUndefined()
+    })
+
+    it('leaves the sandbox on and writes no account while no project bypassed it and the global folder was active', () => {
+      put(configFile, { version: 7, projects: [{ id: 'id-abc', key: 'ABC', repo: 'C:\\abc', codexBypassSandbox: false }] })
+      put(state('account.json'), { version: 7, active: 'global', accounts: {}, removing: [] })
+      upgrade()
+      expect(json(configFile)).toEqual({ version: SCHEMA_VERSION, projects: [{ id: 'id-abc', key: 'ABC', repo: 'C:\\abc' }] })
     })
   })
 

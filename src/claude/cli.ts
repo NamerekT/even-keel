@@ -9,7 +9,6 @@ import type { AccountHome } from '../account/homes.js'
 import { parseAuthStatus, type AccountStatus } from '../account/model.js'
 import { fail, notice, NoticeError, type Notice } from '../notice/notice.js'
 import { samePath } from '../paths.js'
-import type { ModelAlias } from '../tracker/model.js'
 import { blockedAsk, blockedOn, parseAgents, parseSessionRecord, withLiveRecords, type AgentEntry, type SessionRecord } from '../sessions/agents.js'
 import { newestExtensionBinary } from '../sessions/paths.js'
 
@@ -87,7 +86,7 @@ export class ClaudeCli {
     }
   }
 
-  async launch(home: AccountHome, task: string, cwd: string, prompt: string, model: ModelAlias, settings?: string): Promise<AgentEntry> {
+  async launch(home: AccountHome, task: string, cwd: string, prompt: string, model: string | null, settings?: string): Promise<AgentEntry> {
     const launchedAt = Date.now()
     await this.start(home, [...sessionArgs(task, model, settings), prompt], cwd, notice('claude.startFailed', { task, cwd }))
     return this.appear(home, launchedAs(task, cwd, launchedAt), notice('claude.notShown', { task }))
@@ -100,7 +99,7 @@ export class ClaudeCli {
     task: string,
     cwd: string,
     prompt: string,
-    model: ModelAlias,
+    model: string | null,
     settings?: string,
   ): Promise<AgentEntry> {
     const resumedAt = Date.now()
@@ -157,15 +156,23 @@ export class ClaudeCli {
 
 export const SESSION_MODE = 'auto'
 
-export function sessionArgs(task: string, model: ModelAlias, settings?: string): string[] {
-  return ['--bg', '--permission-mode', SESSION_MODE, '-n', task, '--model', model, ...(settings === undefined ? [] : ['--settings', settings])]
+export function sessionArgs(task: string, model: string | null, settings?: string): string[] {
+  return [
+    '--bg',
+    '--permission-mode',
+    SESSION_MODE,
+    '-n',
+    task,
+    ...(model === null ? [] : ['--model', model]),
+    ...(settings === undefined ? [] : ['--settings', settings]),
+  ]
 }
 
 /**
  * A background session whose job is saved keeps its own options (model, mode, name, settings): with any flag
  * `--bg --resume` starts a copy under a new session id instead of going on in it (CLI 2.1.302, reason `own-options`).
  */
-export function resumeArgs(sessionId: string, prompt: string, kept: boolean, task: string, model: ModelAlias, settings?: string): string[] {
+export function resumeArgs(sessionId: string, prompt: string, kept: boolean, task: string, model: string | null, settings?: string): string[] {
   return [...(kept ? ['--bg'] : sessionArgs(task, model, settings)), '--resume', sessionId, prompt]
 }
 

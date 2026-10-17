@@ -752,8 +752,8 @@ export class Dispatcher {
       this.take(chain, current)
       this.deps.save(this.state)
       try {
-        const sessionId = fix === undefined ? await this.deps.launch(chain.project, task) : await this.deps.launchFix(chain.project, task, fix.report)
-        this.deps.journal({ at: since, project: chain.project, task, sessionId, ...(fix !== undefined && { commit: fix.commit }) })
+        const { sessionId, fallback } = fix === undefined ? await this.deps.launch(chain.project, task) : { sessionId: await this.deps.launchFix(chain.project, task, fix.report) }
+        this.deps.journal({ at: since, project: chain.project, task, sessionId, ...(fix !== undefined && { commit: fix.commit }), ...(fallback !== undefined && { fallback }) })
         current.sessionId = sessionId
         delete current.starting
         delete chain.slotWait

@@ -2,14 +2,18 @@ import { DEFAULT_RULES, type ChainRules } from './chain/rules.js'
 import {
   DEFAULT_COMPARE,
   DEFAULT_CONTEXT,
+  DEFAULT_ACCOUNTS,
+  DEFAULT_EXECUTION,
   DEFAULT_LANGUAGE,
-  DEFAULT_MODEL,
+  DEFAULT_MODELS,
   isPlainObject,
   parseShared,
   RULE_KEYS,
   withProjectSettings,
   type EvenKeelConfig,
 } from './config.js'
+import { DEFAULT_PROVIDER } from './agent/providers.js'
+import { CLAUDE } from './claude/name.js'
 import { fail } from './notice/notice.js'
 import type { ConfigView, ProjectForm, SharedForm, TrackerChoice } from './state.js'
 import { DEFAULT_HIDDEN_SKILLS } from './tools/settings.js'
@@ -39,9 +43,12 @@ export function formsOf(config: EvenKeelConfig, adapters: Adapters = ADAPTERS): 
       },
     ]),
   )
-  const { parallel, tracker, brief, chain, model, modelPrompts, language, promptLanguage, hiddenSkills, cacheTtl, allowedHosts, context, stats } = config
+  const { parallel, tracker, brief, chain, provider, models, accounts, execution, modelLabels, modelPrompts, language, promptLanguage, hiddenSkills, cacheTtl, allowedHosts, context, stats } = config
   const updates = { check: config.updates.check, notify: config.updates.notify }
-  const shared = { parallel, tracker, brief, chain, model, modelPrompts, language, promptLanguage, hiddenSkills, cacheTtl, allowedHosts, context, stats, updates }
+  const shared = {
+    ...{ parallel, tracker, brief, chain, provider, models, accounts, execution, modelLabels, modelPrompts },
+    ...{ language, promptLanguage, hiddenSkills, cacheTtl, allowedHosts, context, stats, updates },
+  }
   return { projects, shared }
 }
 
@@ -127,7 +134,11 @@ export function withSharedForm(raw: unknown, form: SharedForm, base: SharedForm)
   if (changed('tracker')) put('tracker', form.tracker, DEFAULT_TRACKER)
   if (changed('brief')) put('brief', form.brief, true)
   if (changed('chain')) put('chain', withRules(config.chain, rulesOf(form.chain), DEFAULT_RULES, base.chain), undefined)
-  if (changed('model')) put('model', form.model, DEFAULT_MODEL)
+  if (changed('provider')) put('provider', form.provider, DEFAULT_PROVIDER)
+  for (const [key, defaults] of [['models', DEFAULT_MODELS], ['accounts', DEFAULT_ACCOUNTS], ['execution', DEFAULT_EXECUTION]] as const) {
+    if (changed(key)) put(key, withEntries(config[key], form[key], base[key], defaults), undefined)
+  }
+  if (changed('modelLabels')) put('modelLabels', form.modelLabels, false)
   if (changed('modelPrompts')) {
     const prompts = Object.entries(form.modelPrompts).flatMap(([model, text]) => (text?.trim() ? [[model, text.trim()]] : []))
     put('modelPrompts', Object.fromEntries(prompts), {})
@@ -158,6 +169,30 @@ export function withUpdates(raw: unknown, patch: Partial<UpdateSettings>): Recor
   if (updates === undefined) delete config.updates
   else config.updates = updates
   return config
+}
+
+/** The raw config with the shared Claude account set: what the header's switch writes. */
+export function withActiveAccount(raw: unknown, key: string): Record<string, unknown> {
+  const config: Record<string, unknown> = { ...(isPlainObject(raw) ? raw : {}) }
+  const accounts = withEntries(config.accounts, { [CLAUDE]: key }, {}, DEFAULT_ACCOUNTS)
+  if (accounts === undefined) delete config.accounts
+  else config.accounts = accounts
+  return config
+}
+
+/**
+ * A map by provider with the entries the form changed from `base` set, or removed where blank or the default; the
+ * entries it left, and providers it does not show, stay as written. `undefined` when it ends up empty.
+ */
+function withEntries(written: unknown, form: Record<string, string>, base: Record<string, string>, defaults: Readonly<Record<string, string>>): Record<string, unknown> | undefined {
+  const next: Record<string, unknown> = isPlainObject(written) ? { ...written } : {}
+  for (const provider of new Set([...Object.keys(form), ...Object.keys(base)])) {
+    const value = form[provider]?.trim() ?? ''
+    if (value === (base[provider]?.trim() ?? '')) continue
+    if (value === '' || value === defaults[provider]) delete next[provider]
+    else next[provider] = value
+  }
+  return Object.keys(next).length === 0 ? undefined : next
 }
 
 function inherit(entry: Record<string, unknown>, key: string, value: unknown, inherited: unknown): void {

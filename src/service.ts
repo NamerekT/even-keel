@@ -4,7 +4,7 @@ import { checkCredit } from './account/credit.js'
 import { DaemonRefresh } from './account/daemon.js'
 import { AccountHomes, accountsRoot, type AccountHome } from './account/homes.js'
 import { checkApiKey } from './account/keycheck.js'
-import { accountAt, activate, forgetAccount, loadLedger, markRemoving, nameAccount, noteAccount, saveLedger, type AccountLedger } from './account/ledger.js'
+import { accountAt, forgetAccount, loadLedger, markRemoving, nameAccount, noteAccount, saveLedger, type AccountLedger } from './account/ledger.js'
 import { accountId, launchBlock, liveSessions, loginBlock, type LoginBlock } from './account/model.js'
 import { VsCodeAccount, vscodeSettingsFile } from './account/vscode.js'
 import { AccountWatcher } from './account/watcher.js'
@@ -12,11 +12,9 @@ import { AGENTS } from './agent/adapters.js'
 import type { Agent, SessionHandle, SessionStart } from './agent/contract.js'
 import { sessionBase } from './agent/env.js'
 import { readTrackerServer } from './agent/tracker.js'
-import { CODEX_ACCOUNT } from './account/model.js'
 import { CLAUDE } from './claude/name.js'
-import { CODEX } from './codex/name.js'
 import { Dispatcher, type LaunchEntry } from './chain/dispatcher.js'
-import { fixEpisodes, handoffsOf, launchDays, launchedProjects, taskSessions } from './chain/launches.js'
+import { fallbacksSince, fixEpisodes, handoffsOf, launchDays, launchedProjects, taskSessions } from './chain/launches.js'
 import { fixName, fixTaskOf, isFixName } from './chain/fix.js'
 import { fixPrompt, noteOf, resumePrompt, startPrompt, withBrief, withProjectPrompt, withTracker, withUnattended, type TrackerPlace } from './chain/relay.js'
 import { launchLine } from './chain/log.js'
@@ -27,7 +25,7 @@ import { appendLaunch, loadChainState, loadQuestions, readLaunches, saveChainSta
 import { CI_TOKENS, ciSource, projectTargets } from './ci/adapters.js'
 import { CiWatch } from './ci/watcher.js'
 import { ConfigFile } from './config-file.js'
-import { DEFAULT_AGENT, DEFAULT_BRANCH, DEFAULT_CI, listenOf } from './config.js'
+import { DEFAULT_BRANCH, DEFAULT_CI, listenOf, runSettings } from './config.js'
 import { EventHub } from './events.js'
 import { runGit } from './git/run.js'
 import { finishSlot, prepareSlot, slotPaths, type SlotUse } from './git/slot.js'
@@ -40,7 +38,7 @@ import { createEvenKeelServer } from './server.js'
 import { replyPrompt, type Reply } from './sessions/ask.js'
 import { saveInbox, type InboxFile } from './sessions/inbox.js'
 import { isLive, turnStatus, type AgentEntry } from './sessions/agents.js'
-import { agentOfTask, launchPlan, type LaunchPlan } from './sessions/launch.js'
+import { launchPlan, runChoice, type LaunchPlan, type RunChoice } from './sessions/launch.js'
 import { runAfterGreen, runBeforeStart, runCheck, systemShell, type SetupRun } from './sessions/setup.js'
 import { SessionMonitor } from './sessions/monitor.js'
 import { TranscriptOwners } from './sessions/owners.js'
@@ -57,7 +55,7 @@ import { cardOf } from './tracker/card.js'
 import { McpCheck, readFailures, readMcpSources } from './tracker/mcp.js'
 import type { TrackerView } from './tracker/health.js'
 import type { TrackerLink } from './tracker/link.js'
-import { parseTaskId, type Task } from './tracker/model.js'
+import { parseTaskId, runLabelText, type Task } from './tracker/model.js'
 import { TrackerQuestions, type AskingSession } from './tracker/questions.js'
 import type { TrackerSetup } from './tracker/source.js'
 import { startTracker } from './tracker/start.js'
@@ -69,6 +67,7 @@ const AGENT_TIMEOUT_MS = 30_000
 const LIMITS_POLL_MS = 2_000
 const USAGE_POLL_MS = 5 * 60_000
 const LAUNCH_CHART_DAYS = 14
+const FALLBACK_TOAST_MS = 24 * 60 * 60_000
 const ACCOUNT_POLL_MS = 60_000
 const KEY_CHECK_MS = 60 * 60_000
 const KEY_CHECK_TIMEOUT_MS = 15_000
@@ -231,16 +230,16 @@ const account = new AccountWatcher({
     point: (_app, home) => vscode.point(home),
   },
   prepare: (home) => daemons.prepare(home),
-  active: () => ledger.active,
+  active: () => activeAccount(),
   activate: (key) => {
-    saveAccounts(activate(ledger, key))
+    configFile.saveActive(key)
     hub.broadcast('state', getState())
     dispatcher.check()
   },
   forget: (key) => saveAccounts(forgetAccount(ledger, key)),
   nameOf: (key) => ledger.accounts[key]?.name ?? null,
   name: (key, name) => saveAccounts(nameAccount(ledger, key, name)),
-  loginBlock: (): LoginBlock | null => loginBlock(dispatcher.state.active, agents, ledger.active),
+  loginBlock: (): LoginBlock | null => loginBlock(dispatcher.state.active, agents, activeAccount()),
   sessionsIn: (key) => liveSessions(agents, key),
   sessionsKnown: () => agentsRead,
   removing: (key) => ledger.removing.includes(key),
@@ -340,36 +339,41 @@ const agentStatus = (task: string) => {
 }
 
 const knownTask = (task: string) => [...tasksByProject.values()].flat().find((each) => each.id === task)
-const projectAgent = (project: string | undefined) => (project === undefined ? DEFAULT_AGENT : (configFile.current.settings[project]?.agent ?? DEFAULT_AGENT))
-/** The agent a new session of the task (or of the fix session `task`) starts on. */
-const agentFor = (project: string | undefined, task?: string) => agentOfTask(task === undefined ? undefined : knownTask(task), projectAgent(project))
+/** A pool entry counts only while its folder exists and belongs to the provider it is filed under. */
+const hasAccount = (provider: string, key: string) => homes.find(key)?.agent === provider
+
+/** What a new session of the task (or of the fix session `task`) runs on, and in which account folder. */
+const choiceFor = (project: string | undefined, task?: string): RunChoice =>
+  runChoice(task === undefined ? undefined : knownTask(task), runSettings(configFile.current, project), hasAccount)
 
 const planFor = (task: string, prompt: string, project = projectOf(task)): LaunchPlan => {
   const full = withUnattended(prompt, dispatcher.state.unattended, promptLanguage())
-  const plan = launchPlan(knownTask(task), full, configFile.current.model, configFile.current.modelPrompts, projectAgent(project))
+  const plan = launchPlan(knownTask(task), full, runSettings(configFile.current, project), configFile.current.modelPrompts, hasAccount)
   if (plan.warning !== null) console.warn(plan.warning)
   return plan
 }
 
-/** The folder a new session starts in: Codex has its one folder, Claude sessions start in the active account. */
-const startHomeKey = (agent: string) => (agent === CODEX ? CODEX_ACCOUNT : ledger.active)
-
-/**
- * What a session of an agent without Claude Code's plugins and model labels also gets: the project's model, its bypass
- * of the sandbox and the tracker's server.
- */
-const agentExtras = (home: AccountHome, project: string | undefined): Pick<SessionStart, 'modelName' | 'bypassSandbox' | 'tracker'> => {
-  if (home.agent === CLAUDE || project === undefined) return {}
-  const adapter = ADAPTERS[config.trackers[project]!]!
-  const tracker = adapter.mcpServer === undefined ? undefined : readTrackerServer(root, adapter.mcpServer, adapter.variables, homes.global.dir, process.env)
-  const settings = configFile.current.settings[project]
-  const modelName = settings?.codexModel ?? undefined
+/** What a session of an agent without Claude Code's plugins also gets: the global execution mode and the tracker's server. */
+const agentExtras = (home: AccountHome, project: string | undefined): Pick<SessionStart, 'bypassSandbox' | 'tracker'> => {
+  if (home.agent === CLAUDE) return {}
+  const adapter = project === undefined ? undefined : ADAPTERS[config.trackers[project]!]!
+  const tracker =
+    adapter?.mcpServer === undefined ? undefined : readTrackerServer(root, adapter.mcpServer, adapter.variables, homes.global.dir, process.env)
   return {
-    ...(modelName === undefined ? {} : { modelName }),
-    ...(settings?.codexBypassSandbox === true ? { bypassSandbox: true } : {}),
+    ...(configFile.current.execution[home.agent] === 'bypass' ? { bypassSandbox: true } : {}),
     ...(tracker === undefined ? {} : { tracker }),
   }
 }
+
+const noAccountFor = (task: string, fallback: string, provider: string) =>
+  notice('chain.noAccountFor', {
+    task,
+    label: runLabelText({ provider: fallback, model: null }),
+    provider: runLabelText({ provider, model: null }),
+  })
+
+/** The account the header shows and switches: the shared pool's Claude entry. */
+const activeAccount = () => configFile.current.accounts[CLAUDE]!
 
 const promptLanguage = () => configFile.current.promptLanguage
 
@@ -396,7 +400,7 @@ const withProject = (prompt: string, project: string | undefined): string =>
 
 /** `.claude.json` files sessions read: the global one and the active account's. */
 const claudeConfigs = () =>
-  [...new Set([homes.global, homes.find(ledger.active)].flatMap((home) => (home === undefined ? [] : [homes.configFile(home)])))]
+  [...new Set([homes.global, homes.find(activeAccount())].flatMap((home) => (home === undefined ? [] : [homes.configFile(home)])))]
 
 const mcp = new McpCheck({
   targets: () =>
@@ -407,7 +411,7 @@ const mcp = new McpCheck({
   read: (repo) =>
     readMcpSources(repo, { claudeDir: homes.global.dir, configs: claudeConfigs() }),
   failures: () => {
-    const home = homes.find(ledger.active)
+    const home = homes.find(activeAccount())
     return home === undefined ? {} : readFailures(home.dir)
   },
   now: () => Date.now(),
@@ -449,7 +453,7 @@ const places = new TaskPlaces({
 })
 
 function taskRun(task: string, cwd: string): SetupRun {
-  return { task, cwd, shell: systemShell(() => envOf(homeOf(ledger.active))), log: (line) => console.log(line) }
+  return { task, cwd, shell: systemShell(() => envOf(homeOf(activeAccount()))), log: (line) => console.log(line) }
 }
 
 const dispatcher = new Dispatcher(loadChainState(chainFile, config.ids), {
@@ -457,14 +461,21 @@ const dispatcher = new Dispatcher(loadChainState(chainFile, config.ids), {
   parallel: () => configFile.current.parallel,
   rules: rulesOf,
   launch: async (project, task) => {
-    const home = homeOf(startHomeKey(agentFor(project, task)))
+    const home = homeOf(choiceFor(project, task).account)
     await daemons.prepare(home)
     const place = await places.ready(project, task)
-    const { prompt, model } = planFor(task, withProject(await briefed(task, startPrompt(task, place, promptLanguage(), branchOf(project)), project), project), project)
-    return launchIn(home, { name: task, cwd: place.path, prompt, model, settings: settingsFor(task, place.path, project), ...agentExtras(home, project) })
+    const { prompt, model, provider, fallback } = planFor(
+      task,
+      withProject(await briefed(task, startPrompt(task, place, promptLanguage(), branchOf(project)), project), project),
+      project,
+    )
+    const sessionId = await launchIn(home, { name: task, cwd: place.path, prompt, model, settings: settingsFor(task, place.path, project), ...agentExtras(home, project) })
+    if (fallback === null) return { sessionId }
+    console.warn(englishOf(noAccountFor(task, fallback, provider)))
+    return { sessionId, fallback }
   },
   liveSession: (task) => sessions.find((view) => view.task === task && view.lamp !== 'finished')?.sessionId,
-  blocked: (project, task) => launchBlock(account.view, startHomeKey(agentFor(project, task))),
+  blocked: (project, task) => launchBlock(account.view, choiceFor(project, task).account),
   busy: (task) => {
     const status = agentStatus(task)
     return status === 'busy' || status === 'waiting'
@@ -484,9 +495,9 @@ const dispatcher = new Dispatcher(loadChainState(chainFile, config.ids), {
   limited: (task) => monitor.limited(task),
   handoff: (task) => monitor.handoff(task),
   locate: locateWorktree,
-  account: (project, task) => accountNow(startHomeKey(agentFor(project, task))),
+  account: (project, task) => accountNow(choiceFor(project, task).account),
   accountAt: (key, at) => accountId(key, accountAt(ledger, key, at)),
-  limitReset: (project, task) => exhaustedReset(limits.limits(startHomeKey(agentFor(project, task)))),
+  limitReset: (project, task) => exhaustedReset(limits.limits(choiceFor(project, task).account)),
   limitResetAfter: (key, at) => (account.apiKey(key) ? account.creditBackAfter(key, at) : limitResetAfter(limits.limits(key), at)),
   mcpFailed: (project) => {
     mcp.run()
@@ -517,7 +528,7 @@ const dispatcher = new Dispatcher(loadChainState(chainFile, config.ids), {
     const previous = homes.find(session.account)
     if (previous !== undefined) await stopIn(previous, session)
     const project = projectOf(task)
-    const home = homeOf(startHomeKey(agentFor(project, task)))
+    const home = homeOf(choiceFor(project, task).account)
     await daemons.prepare(home)
     const told = isFixName(task) ? handoff : await briefed(task, handoff)
     const { prompt, model } = planFor(task, withProject(told, project), project)
@@ -535,7 +546,7 @@ const dispatcher = new Dispatcher(loadChainState(chainFile, config.ids), {
     return sessionId
   },
   launchFix: async (project, name, report) => {
-    const home = homeOf(startHomeKey(agentFor(project)))
+    const home = homeOf(choiceFor(project).account)
     await daemons.prepare(home)
     const place = await places.ready(project, name)
     const { prompt, model } = planFor(name, withProject(fixPrompt(report, place, promptLanguage(), branchOf(project)), project), project)
@@ -670,8 +681,8 @@ const getState = (): EvenKeelState => ({
   sessions: sessions.map((view) =>
     view.lamp === 'finished' && !dispatcher.state.active.some((chain) => chain.current?.sessionId === view.sessionId) ? { ...view, feed: [] } : view,
   ),
-  limits: limits.limits(ledger.active),
-  usage: limits.usage(ledger.active),
+  limits: limits.limits(activeAccount()),
+  usage: limits.usage(activeAccount()),
   account: account.view,
   trackers: [...trackers.values()],
   trackerUrls: {
@@ -690,6 +701,11 @@ const getState = (): EvenKeelState => ({
   unattended: dispatcher.state.unattended,
   trimTools: dispatcher.state.trimTools,
   updates: updatesView(release.version, updates.latest, configFile.current.updates),
+  fallbacks: fallbacksSince(launches, new Date(Date.now() - FALLBACK_TOAST_MS)).map(({ at, task, project, fallback }) => ({
+    at,
+    task,
+    notice: noAccountFor(task, fallback, runSettings(configFile.current, project).provider),
+  })),
 })
 
 const server = createEvenKeelServer({
@@ -751,7 +767,7 @@ const server = createEvenKeelServer({
       homes: list.map((home) => home.dir),
       trim: dispatcher.state.trimTools,
       hidden: configFile.current.hiddenSkills,
-      mode: agentOf(homes.find(ledger.active) ?? homes.global).mode,
+      mode: agentOf(homes.find(activeAccount()) ?? homes.global).mode,
     })
     const received = view.received
     return received === null ? view : { ...view, received: { ...received, account: sessionAccount(received.sessionId, received.at) } }

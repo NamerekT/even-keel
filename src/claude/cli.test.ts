@@ -7,6 +7,10 @@ describe('sessionArgs', () => {
     expect(sessionArgs('ABC-1', 'opus')).toEqual(['--bg', '--permission-mode', 'auto', '-n', 'ABC-1', '--model', 'opus'])
     expect(sessionArgs('ABC-1', 'opus', '{"syncClaudeAiSkills":false}').slice(-2)).toEqual(['--settings', '{"syncClaudeAiSkills":false}'])
   })
+
+  it('passes no --model without a chosen model, so the CLI takes its configured one', () => {
+    expect(sessionArgs('ABC-1', null)).toEqual(['--bg', '--permission-mode', 'auto', '-n', 'ABC-1'])
+  })
 })
 
 describe('resumeArgs', () => {

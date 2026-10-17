@@ -11,14 +11,14 @@ export interface AccountRecord {
   name?: string
 }
 
+/** The accounts seen in each folder; the active one is the config's `accounts.claude` since schema v8. */
 export interface AccountLedger {
-  active: string
   accounts: Record<string, AccountRecord>
   removing: string[]
 }
 
 export function emptyLedger(): AccountLedger {
-  return { active: GLOBAL_ACCOUNT, accounts: {}, removing: [] }
+  return { accounts: {}, removing: [] }
 }
 
 export function noteAccount(ledger: AccountLedger, key: string, email: string | null, now: Date): AccountLedger | undefined {
@@ -40,10 +40,6 @@ export function accountAt(ledger: AccountLedger, key: string, at: string): strin
   return Date.parse(at) >= Date.parse(record.since) ? record.email : record.previous
 }
 
-export function activate(ledger: AccountLedger, key: string): AccountLedger {
-  return { ...ledger, active: key }
-}
-
 export function forgetAccount(ledger: AccountLedger, key: string): AccountLedger {
   const { [key]: _forgotten, ...accounts } = ledger.accounts
   return { ...ledger, accounts, removing: ledger.removing.filter((each) => each !== key) }
@@ -56,13 +52,13 @@ export function markRemoving(ledger: AccountLedger, key: string, on: boolean): A
 
 export function parseLedger(raw: unknown): AccountLedger {
   if (!isRecord(raw)) return emptyLedger()
-  if (typeof raw.active === 'string' && isRecord(raw.accounts)) {
+  if (isRecord(raw.accounts)) {
     const accounts: Record<string, AccountRecord> = {}
     for (const [key, value] of Object.entries(raw.accounts)) if (isRecord(value)) accounts[key] = recordOf(value)
     const removing = Array.isArray(raw.removing) ? raw.removing.filter((key): key is string => typeof key === 'string') : []
-    return { active: raw.active, accounts, removing }
+    return { accounts, removing }
   }
-  if ('email' in raw || 'since' in raw) return { active: GLOBAL_ACCOUNT, accounts: { [GLOBAL_ACCOUNT]: recordOf(raw) }, removing: [] }
+  if ('email' in raw || 'since' in raw) return { accounts: { [GLOBAL_ACCOUNT]: recordOf(raw) }, removing: [] }
   return emptyLedger()
 }
 

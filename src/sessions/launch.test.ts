@@ -1,59 +1,72 @@
 import { describe, expect, it } from 'vitest'
-import { launchPlan } from './launch.js'
+import type { RunLabel } from '../tracker/model.js'
+import { launchPlan, runChoice, type RunSettings } from './launch.js'
+
+describe('runChoice', () => {
+  const run: RunSettings = {
+    provider: 'claude',
+    models: { claude: 'opus', codex: 'gpt-6.1-sol' },
+    accounts: { claude: 'global', codex: 'codex' },
+    labels: true,
+  }
+  const task = (...runLabels: RunLabel[]) => ({ id: 'ABC-1', runLabels })
+  const any = () => true
+
+  it('runs a task without a run label on the provider of the project, with its model and account', () => {
+    expect(runChoice(task(), run, any)).toEqual({ provider: 'claude', account: 'global', model: 'opus', fallback: null, warning: null })
+    expect(runChoice(undefined, { ...run, provider: 'codex' }, any)).toMatchObject({ provider: 'codex', account: 'codex', model: 'gpt-6.1-sol' })
+  })
+
+  it('leaves the model to the CLI when no level of the config names one', () => {
+    expect(runChoice(task(), { ...run, provider: 'codex', models: { claude: 'opus' } }, any).model).toBeNull()
+  })
+
+  it('takes the provider and the model of the label', () => {
+    expect(runChoice(task({ provider: 'codex', model: 'gpt-6.1-luna' }), run, any)).toMatchObject({ provider: 'codex', account: 'codex', model: 'gpt-6.1-luna' })
+    expect(runChoice(task({ provider: 'claude', model: 'haiku' }), run, any)).toMatchObject({ provider: 'claude', model: 'haiku' })
+  })
+
+  it('takes the model of the label provider from the config for a bare provider', () => {
+    expect(runChoice(task({ provider: 'codex', model: null }), run, any)).toMatchObject({ provider: 'codex', model: 'gpt-6.1-sol' })
+  })
+
+  it('ignores the labels while they are off', () => {
+    expect(runChoice(task({ provider: 'codex', model: 'gpt-6.1-luna' }), { ...run, labels: false }, any)).toMatchObject({ provider: 'claude', model: 'opus' })
+  })
+
+  it('ignores labels that disagree, with a warning', () => {
+    const choice = runChoice(task({ provider: 'codex', model: null }, { provider: 'claude', model: 'haiku' }), run, any)
+    expect(choice).toMatchObject({ provider: 'claude', model: 'opus', fallback: null })
+    expect(choice.warning).toMatch(/ABC-1.*Codex.*Claude \| haiku/)
+  })
+
+  it('runs on the project provider and its model when the pool has no account for the label provider', () => {
+    const noCodex = (provider: string) => provider !== 'codex'
+    expect(runChoice(task({ provider: 'codex', model: 'gpt-6.1-luna' }), run, noCodex)).toEqual({
+      provider: 'claude',
+      account: 'global',
+      model: 'opus',
+      fallback: 'codex',
+      warning: null,
+    })
+    expect(runChoice(task({ provider: 'codex', model: null }), { ...run, accounts: { claude: 'global' } }, any).fallback).toBe('codex')
+  })
+})
 
 describe('launchPlan', () => {
-  const prompts = { sonnet: 'You are Sonnet.' }
-  const task = (models: ('sonnet' | 'opus' | 'haiku')[], labels: string[] = models) => ({ id: 'ABC-1', models, labels })
-
-  it('launches a task without a model label on the default model with the prompt as is', () => {
-    expect(launchPlan(task([]), 'ABC-1', 'opus', prompts)).toEqual({ agent: 'claude', model: 'opus', prompt: 'ABC-1', warning: null })
-  })
-
-  it('launches a task the chain no longer knows on the default model', () => {
-    expect(launchPlan(undefined, 'ABC-1', 'haiku', prompts)).toEqual({ agent: 'claude', model: 'haiku', prompt: 'ABC-1', warning: null })
-  })
-
-  it('appends the prompt of the default model to a task without a model label', () => {
-    expect(launchPlan(task([]), 'ABC-1', 'sonnet', prompts)).toEqual({
-      agent: 'claude',
-      model: 'sonnet',
-      prompt: 'ABC-1\n\nYou are Sonnet.',
-      warning: null,
-    })
-  })
-
-  it('passes the model of the label over the default one and appends its prompt', () => {
-    expect(launchPlan(task(['sonnet']), 'ABC-1', 'opus', prompts)).toEqual({
-      agent: 'claude',
-      model: 'sonnet',
-      prompt: 'ABC-1\n\nYou are Sonnet.',
-      warning: null,
-    })
-  })
+  const run: RunSettings = { provider: 'claude', models: { claude: 'opus' }, accounts: { claude: 'global' }, labels: true }
+  const prompts = { sonnet: 'You are Sonnet.', 'gpt-6.1-sol': 'You are Sol.' }
 
   it('keeps the prompt as is for a model without a configured prompt', () => {
-    expect(launchPlan(task(['haiku']), 'ABC-1', 'opus', prompts)).toEqual({ agent: 'claude', model: 'haiku', prompt: 'ABC-1', warning: null })
+    expect(launchPlan(undefined, 'ABC-1', run, prompts, () => true)).toMatchObject({ provider: 'claude', model: 'opus', prompt: 'ABC-1' })
   })
 
-  it('falls back to the default model with a warning when two model labels disagree', () => {
-    const plan = launchPlan(task(['sonnet', 'haiku']), 'ABC-1', 'opus', prompts)
-    expect(plan.model).toBe('opus')
-    expect(plan.prompt).toBe('ABC-1')
-    expect(plan.warning).toMatch(/ABC-1.*sonnet.*haiku.*opus/)
+  it('appends the prompt of the model it runs on, whatever the case of its name', () => {
+    const task = { id: 'ABC-1', runLabels: [{ provider: 'claude', model: 'Sonnet' }] }
+    expect(launchPlan(task, 'ABC-1', run, prompts, () => true).prompt).toBe('ABC-1\n\nYou are Sonnet.')
   })
 
-  it('launches a task on the agent of its project', () => {
-    expect(launchPlan(task([]), 'ABC-1', 'sonnet', prompts, 'codex')).toEqual({ agent: 'codex', model: 'sonnet', prompt: 'ABC-1', warning: null })
-    expect(launchPlan(undefined, 'ABC-1', 'opus', prompts, 'codex').agent).toBe('codex')
-  })
-
-  it('launches a task with the Codex label on Codex whatever the project runs on, its model labels left to Claude', () => {
-    expect(launchPlan(task(['sonnet', 'haiku'], ['codex', 'sonnet', 'haiku']), 'ABC-1', 'opus', prompts)).toEqual({
-      agent: 'codex',
-      model: 'opus',
-      prompt: 'ABC-1',
-      warning: null,
-    })
-    expect(launchPlan(task([], [' CODEX ']), 'ABC-1', 'opus', prompts, 'claude').agent).toBe('codex')
+  it('appends no prompt for a model left to the CLI', () => {
+    expect(launchPlan(undefined, 'ABC-1', { ...run, models: {} }, { ...prompts, '': 'never' }, () => true)).toMatchObject({ model: null, prompt: 'ABC-1' })
   })
 })

@@ -1,34 +1,65 @@
-import { CLAUDE } from '../claude/name.js'
-import { CODEX } from '../codex/name.js'
-import type { ModelAlias, Task } from '../tracker/model.js'
+import { runLabelText, type RunLabel, type Task } from '../tracker/model.js'
 
-export interface LaunchPlan {
-  /** The agent the session runs on: the project's, or Codex for a task with the `Codex` label. */
-  agent: string
-  model: ModelAlias
-  prompt: string
+/** What a project's sessions run on, the shared values filled in under its own (`runSettings`). */
+export interface RunSettings {
+  provider: string
+  /** The model by provider; a provider without one runs on its CLI's default. */
+  models: Record<string, string>
+  /** The account folder by provider: one per provider, no rotation on a spent limit. */
+  accounts: Record<string, string>
+  /** Whether the tasks' run labels are read. */
+  labels: boolean
+}
+
+export interface RunChoice {
+  provider: string
+  account: string
+  /** `null` — the CLI's own default. */
+  model: string | null
+  /** The provider of the task's label the pool has no account for; the session runs on the project's instead. */
+  fallback: string | null
   warning: string | null
 }
 
-/** The agent a session of the task starts on: Codex for a task with the `Codex` label, else the project's. */
-export function agentOfTask(task: Pick<Task, 'labels'> | undefined, projectAgent: string): string {
-  return task?.labels.some((label) => label.trim().toLowerCase() === CODEX) ? CODEX : projectAgent
+export interface LaunchPlan extends RunChoice {
+  prompt: string
 }
 
-// The model is always passed explicitly: without --model the CLI takes it from settings.json, which an editor may have just changed.
-// The model labels and their prompts are Claude's: a Codex session gets its model from the project's `codexModel`.
+type Labelled = Pick<Task, 'id' | 'runLabels'>
+
+/**
+ * What a new session of the task runs on: its run label while labels are on, else the project's provider; the model
+ * by the label, the project's then the shared one. A label of a provider the pool has no account for does not pause
+ * the chain: the task runs on the project's provider with the project's model. A handover keeps the choice — it is
+ * the task's and the project's, not the previous session's.
+ */
+export function runChoice(task: Labelled | undefined, run: RunSettings, hasAccount: (provider: string, account: string) => boolean): RunChoice {
+  const own = (provider: string, model: string | null = null, fallback: string | null = null, warning: string | null = null): RunChoice => ({
+    provider,
+    account: run.accounts[provider]!,
+    model: model ?? run.models[provider] ?? null,
+    fallback,
+    warning,
+  })
+  const labels = run.labels ? (task?.runLabels ?? []) : []
+  if (labels.length > 1) return own(run.provider, null, null, `chain: ${task!.id} carries run labels ${labels.map(runLabelText).join(', ')}; launching it as its project says`)
+  const label: RunLabel | undefined = labels[0]
+  if (label === undefined) return own(run.provider)
+  const account = run.accounts[label.provider]
+  if (account === undefined || !hasAccount(label.provider, account)) return own(run.provider, null, label.provider)
+  return own(label.provider, label.model)
+}
+
+// The prompt of a model is looked up by its name as the CLI gets it; a model left to the CLI has none.
 export function launchPlan(
-  task: Pick<Task, 'id' | 'models' | 'labels'> | undefined,
+  task: Labelled | undefined,
   prompt: string,
-  fallback: ModelAlias,
-  prompts: Partial<Record<ModelAlias, string>>,
-  projectAgent: string = CLAUDE,
+  run: RunSettings,
+  prompts: Record<string, string>,
+  hasAccount: (provider: string, account: string) => boolean,
 ): LaunchPlan {
-  const agent = agentOfTask(task, projectAgent)
-  if (agent !== CLAUDE) return { agent, model: fallback, prompt, warning: null }
-  const models = task?.models ?? []
-  const model = models.length === 1 ? models[0]! : fallback
-  const warning = models.length > 1 ? `chain: ${task!.id} carries model labels ${models.join(', ')}; launching it on ${fallback}` : null
-  const extra = prompts[model]
-  return { agent, model, prompt: extra === undefined ? prompt : `${prompt}\n\n${extra}`, warning }
+  const choice = runChoice(task, run, hasAccount)
+  const name = choice.model?.toLowerCase()
+  const extra = name === undefined ? undefined : Object.entries(prompts).find(([model]) => model.toLowerCase() === name)?.[1]
+  return { ...choice, prompt: extra === undefined ? prompt : `${prompt}\n\n${extra}` }
 }
