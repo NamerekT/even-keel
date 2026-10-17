@@ -592,6 +592,15 @@ describe('chainBlocks', () => {
     expect(loose(stateOf({ tasks, sessions, chain: chain({ active: running('ABC-1', true), projects }) }))).toEqual([])
   })
 
+  it('shows the session at work while the answer goes to it, not stopped by the delivery', () => {
+    const tasks = [task('ABC-1', 'Active')]
+    const projects = { ABC: { order: ['ABC-1'], waiting: [], backlog: [], error: null } }
+    const current = { task: 'ABC-1', sessionId: 'ABC-1-session', since: 't', starting: '2026-01-01T10:00:00.000Z', answering: true as const }
+    const stopped = { ...view('ABC-1', 'finished', null), sessionId: 'ABC-1-session' }
+    const [block] = chainBlocks(stateOf({ tasks, sessions: [stopped], chain: chain({ active: { ...running('ABC-1'), current }, projects }) }), 'ABC')
+    expect(block).toMatchObject({ start: null, lamp: 'working', session: { lamp: 'working', ask: null } })
+  })
+
   describe('the fix session of a red main', () => {
     const order = { ABC: { order: ['ABC-2', 'ABC-3'], waiting: [], backlog: [], error: null } }
     const tasks = [task('ABC-1', 'Won'), task('ABC-2', 'Active'), task('ABC-3', 'ToDo')]
@@ -985,6 +994,12 @@ describe('sessionStart', () => {
     const old = live({ sessionId: 'old', lamp: 'waiting', contextTokens: 170_000 })
     const handing = current({ sessionId: 'old', starting: '2026-01-01T10:00:00.000Z' })
     expect(sessionStart(handing, old, [], now)).toEqual({ phase: 'handover', since: '2026-01-01T10:00:00.000Z' })
+  })
+
+  it('is nothing while the answer goes to the same session', () => {
+    const old = live({ sessionId: 'old', lamp: 'finished', contextTokens: 170_000 })
+    const answering = current({ sessionId: 'old', starting: '2026-01-01T10:00:00.000Z', answering: true })
+    expect(sessionStart(answering, old, [], now)).toBeNull()
   })
 
   it('is a boot until the page sees the new session, counted from when the start began', () => {

@@ -364,6 +364,7 @@ export function projectSlot(projects: string[], project: string): number | null 
 
 export function sessionStart(current: CurrentTask, session: SessionView | null, runs: TaskSession[], now: Date): SessionStart | null {
   if (current.sessionId === null) return { phase: 'launch', since: current.starting ?? current.since }
+  if (current.answering) return null
   if (current.starting !== undefined) return { phase: 'handover', since: current.starting }
   const seen = session?.sessionId === current.sessionId ? session : null
   const since = runs.find((run) => run.sessionId === current.sessionId)?.at ?? seen?.startedAt
@@ -404,7 +405,9 @@ export function chainBlocks(state: EvenKeelState, project: string, now = new Dat
       return { ...fixRow(id, fixTitle(episode), 'fixed', null, session, sessions), fix: episode }
     }
     const task = byId.get(id)
-    const session = taskSession(state.sessions, id) ?? null
+    const seen = taskSession(state.sessions, id) ?? null
+    // Delivering an answer stops the session for a few seconds; to the page it is already at work on it.
+    const session = seen !== null && running?.task === id && running.answering ? { ...seen, lamp: 'working' as const, ask: null } : seen
     const sessions = state.taskSessions[id] ?? []
     return {
       id,

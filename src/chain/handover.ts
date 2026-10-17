@@ -97,6 +97,7 @@ export class Handovers {
     if (!this.state.active.includes(chain) || chain.current !== current || current.sessionId !== session.sessionId) return
     const at = this.deps.now().toISOString()
     current.starting = at
+    current.answering = true
     this.deps.save(this.state)
     try {
       const sessionId = await this.deps.reply(current.task, session, prompt)
@@ -104,6 +105,7 @@ export class Handovers {
       current.sessionId = sessionId
       current.resumedAt = at
       delete current.starting
+      delete current.answering
       this.deps.save(this.state)
     } catch (error) {
       this.halt(chain, noticeOf(error))

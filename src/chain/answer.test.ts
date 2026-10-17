@@ -51,7 +51,16 @@ describe('Dispatcher on an answer', () => {
     expect(relays).toEqual([{ kind: 'reply', task: 'ABC-1', sessionId: 'old-session', prompt: 'Answer: Blue' }])
     expect(dispatcher.state.active[0]?.current).toMatchObject({ sessionId: 'old-session', resumedAt: '2026-09-26T13:00:00.000Z' })
     expect(dispatcher.state.active[0]?.current?.starting).toBeUndefined()
+    expect(dispatcher.state.active[0]?.current?.answering).toBeUndefined()
     expect(journal.at(-1)).toEqual({ at: '2026-09-26T13:00:00.000Z', project: 'ABC', task: 'ABC-1', sessionId: 'old-session', reason: 'answer', previous: 'old-session' })
+  })
+
+  it('marks the delivery as an answer to the same session, so the page shows no new session starting', async () => {
+    const { dispatcher, saved } = await running()
+    dispatcher.answer('ABC', 'ABC-1', 'old-session', 'toolu_1', 'Answer: Blue')
+    await dispatcher.idle()
+    const during = saved.map((state) => state.active[0]?.current).find((current) => current?.starting !== undefined)
+    expect(during).toMatchObject({ sessionId: 'old-session', answering: true })
   })
 
   it('takes a plain reply to a session that ended its turn', async () => {

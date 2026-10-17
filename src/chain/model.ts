@@ -15,6 +15,8 @@ export interface CurrentTask {
   limit?: LimitHold
   /** When the dispatcher began launching or handing the task over; gone once the new session id is known. */
   starting?: string
+  /** The start is the user's answer going to the same session, not a new one. */
+  answering?: true
 }
 
 export interface ActiveChain {

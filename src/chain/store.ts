@@ -38,7 +38,7 @@ function activeOf(raw: unknown): ActiveChain[] | undefined {
 // A start cut short by a service restart is not running any more.
 function settled(current: CurrentTask | null | undefined): CurrentTask | null {
   if (current == null) return null
-  const { starting: _, ...rest } = current
+  const { starting: _, answering: __, ...rest } = current
   return rest
 }
 
