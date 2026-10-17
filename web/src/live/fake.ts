@@ -252,13 +252,13 @@ function fakeState(
       ? {}
       : {
           'ABC-5': [
-            { sessionId: session('ABC-5', 0).sessionId, at: ago(42), how: 'relay', resumed: 0, account: 'john.doe@example.com' },
-            { sessionId: '00000000-0000-4000-8000-000000000105', at: ago(400), how: 'launch', resumed: 1, account: 'jane.roe@example.com' },
+            { sessionId: session('ABC-5', 0).sessionId, at: ago(42), how: 'relay', resumed: 0, answers: 0, account: 'john.doe@example.com' },
+            { sessionId: '00000000-0000-4000-8000-000000000105', at: ago(400), how: 'launch', resumed: 1, answers: 2, account: 'jane.roe@example.com' },
           ],
-          'ABC-4': [{ sessionId: session('ABC-4', 0).sessionId, at: ago(900), how: 'launch', resumed: 0, account: 'john.doe@example.com' }],
-          'ABC-6': [{ sessionId: session('ABC-6', 0).sessionId, at: ago(60), how: 'manual', resumed: 0, account: 'jane.roe@example.com' }],
-          'ABC-FIX.1': [{ sessionId: '00000000-0000-4000-8000-000000000f01', at: ago(1_400), how: 'launch', resumed: 0, account: 'john.doe@example.com' }],
-          'ABC-FIX.2': [{ sessionId: '00000000-0000-4000-8000-000000000f02', at: ago(700), how: 'launch', resumed: 0, account: 'john.doe@example.com' }],
+          'ABC-4': [{ sessionId: session('ABC-4', 0).sessionId, at: ago(900), how: 'launch', resumed: 0, answers: 0, account: 'john.doe@example.com' }],
+          'ABC-6': [{ sessionId: session('ABC-6', 0).sessionId, at: ago(60), how: 'manual', resumed: 0, answers: 0, account: 'jane.roe@example.com' }],
+          'ABC-FIX.1': [{ sessionId: '00000000-0000-4000-8000-000000000f01', at: ago(1_400), how: 'launch', resumed: 0, answers: 0, account: 'john.doe@example.com' }],
+          'ABC-FIX.2': [{ sessionId: '00000000-0000-4000-8000-000000000f02', at: ago(700), how: 'launch', resumed: 0, answers: 0, account: 'john.doe@example.com' }],
         },
     fixes: idle
       ? {}
@@ -393,7 +393,7 @@ function takeNext(state: EvenKeelState, project: string): EvenKeelState {
     taskSessions:
       next === undefined
         ? state.taskSessions
-        : { ...state.taskSessions, [next]: [{ sessionId: session(next, 0).sessionId, at: since, how: 'launch', resumed: 0 }, ...(state.taskSessions[next] ?? [])] },
+        : { ...state.taskSessions, [next]: [{ sessionId: session(next, 0).sessionId, at: since, how: 'launch', resumed: 0, answers: 0 }, ...(state.taskSessions[next] ?? [])] },
   }
 }
 
@@ -434,7 +434,7 @@ function startChain(state: EvenKeelState, project: string, launches: LaunchEntry
     chain: { ...state.chain, active: [...active, { project, current: { task: first, sessionId, since }, paused: false, error: null }] },
     sessions: [...state.sessions.filter((view) => view.task !== first), session(first, 12_000)],
     launches: launchDays(launches, new Date(), LAUNCH_DAYS),
-    taskSessions: { ...state.taskSessions, [first]: [{ sessionId, at: since, how: 'launch', resumed: 0 }, ...(state.taskSessions[first] ?? [])] },
+    taskSessions: { ...state.taskSessions, [first]: [{ sessionId, at: since, how: 'launch', resumed: 0, answers: 0 }, ...(state.taskSessions[first] ?? [])] },
   }
 }
 
@@ -488,7 +488,7 @@ function restart(state: EvenKeelState, project: string, task: string): EvenKeelS
     ...state,
     chain: withChain(state, active, { ...active, current: { task, sessionId, since: current.since } }).chain,
     sessions: state.sessions.map((each) => (each === view ? fresh : each)),
-    taskSessions: { ...state.taskSessions, [task]: [{ sessionId, at: ago(0), how: 'restart', resumed: 0 }, ...rows] },
+    taskSessions: { ...state.taskSessions, [task]: [{ sessionId, at: ago(0), how: 'restart', resumed: 0, answers: 0 }, ...rows] },
   }
 }
 
@@ -628,6 +628,7 @@ export function createFakeSource(search: string): LiveSource {
         at: ago(300),
         how: 'launch',
         resumed: 0,
+        answers: 0,
         left: { at: ago(280), reason: 'postpone', blockers: ['ABC-7'] },
       },
     ]
@@ -700,9 +701,9 @@ export function createFakeSource(search: string): LiveSource {
   if (params.get('chain') === 'checkpoint' && current.state !== null && active?.current) {
     const { task, sessionId } = active.current
     current.state.taskSessions[task] = [
-      { sessionId: sessionId ?? crypto.randomUUID(), at: ago(20), how: 'checkpoint', resumed: 0 },
-      { sessionId: crypto.randomUUID(), at: ago(70), how: 'checkpoint', resumed: 0, replaced: { at: ago(20), how: 'checkpoint' } },
-      { sessionId: crypto.randomUUID(), at: ago(150), how: 'launch', resumed: 0, replaced: { at: ago(70), how: 'checkpoint' } },
+      { sessionId: sessionId ?? crypto.randomUUID(), at: ago(20), how: 'checkpoint', resumed: 0, answers: 0 },
+      { sessionId: crypto.randomUUID(), at: ago(70), how: 'checkpoint', resumed: 0, answers: 0, replaced: { at: ago(20), how: 'checkpoint' } },
+      { sessionId: crypto.randomUUID(), at: ago(150), how: 'launch', resumed: 0, answers: 0, replaced: { at: ago(70), how: 'checkpoint' } },
     ]
   }
   const notify = () => {

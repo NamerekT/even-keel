@@ -719,6 +719,7 @@ export const en: Messages = {
     list: 'Sessions of the task',
     handoffs: (count: number) => ` · checkpoint handoffs: ${count}`,
     resumed: (count: number) => ` · resumed after the limit${count > 1 ? ` ×${count}` : ''}`,
+    answered: (count: number) => ` · answered${count > 1 ? ` ×${count}` : ''}`,
     current: 'now',
     postponed: (blockers: string) => `postponed: waits for ${blockers}`,
     dialog: (id: string) => `Session ${id}`,

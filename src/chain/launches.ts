@@ -29,6 +29,8 @@ export interface TaskSession {
   at: string
   how: 'launch' | 'relay' | HandOver | 'manual'
   resumed: number
+  /** The user's answers that resumed it. */
+  answers: number
   left?: { at: string; reason: ReleaseReason; blockers: string[] }
   replaced?: { at: string; how: HandOver }
   /** The e-mail of the account the session ran on; `null` when it is not known. */
@@ -111,11 +113,12 @@ export function taskSessions(
     const rows = rowsOf(rowOf(entry))
     const known = rows.get(entry.sessionId)
     if (known !== undefined) {
-      if (entry.reason === 'resume' || entry.reason === 'answer') known.resumed++
+      if (entry.reason === 'resume') known.resumed++
+      if (entry.reason === 'answer') known.answers++
       continue
     }
     const how = entry.reason === 'relay' || entry.reason === 'restart' || entry.reason === 'checkpoint' ? entry.reason : 'launch'
-    rows.set(entry.sessionId, { sessionId: entry.sessionId, at: entry.at, how, resumed: 0 })
+    rows.set(entry.sessionId, { sessionId: entry.sessionId, at: entry.at, how, resumed: 0, answers: 0 })
     if ((how === 'restart' || how === 'checkpoint') && entry.previous !== undefined) {
       const old = rows.get(entry.previous)
       if (old !== undefined) old.replaced = { at: entry.at, how }
@@ -125,7 +128,7 @@ export function taskSessions(
     const fix = isFixName(view.task) ? fixTaskOf(view.task) : null
     const project = fix === null ? '' : fix.slice(0, -fixName('').length)
     const rows = rowsOf(fix === null ? view.task : liveFixId(project, fixes.episodes[project] ?? []))
-    if (!rows.has(view.sessionId)) rows.set(view.sessionId, { sessionId: view.sessionId, at: view.startedAt, how: 'manual', resumed: 0 })
+    if (!rows.has(view.sessionId)) rows.set(view.sessionId, { sessionId: view.sessionId, at: view.startedAt, how: 'manual', resumed: 0, answers: 0 })
   }
   for (const entry of releases) {
     const row = byTask.get(rowOf(entry))?.get(entry.sessionId)

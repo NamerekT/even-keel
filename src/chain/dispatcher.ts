@@ -234,7 +234,7 @@ export class Dispatcher {
   answer(project: string, task: string, sessionId: string, ask: string | null, prompt: string): void {
     const { chain, current, session } = this.answerable(project, task, sessionId, ask)
     this.work = this.work.then(() =>
-      chain === null || current === null ? this.handovers.deliverLoose(project, task, session, prompt) : this.handovers.deliver(chain, current, session, prompt),
+      chain === null || current === null ? this.handovers.deliverLoose(project, task, session, prompt) : this.handovers.deliver(chain, current, session, prompt, ask),
     )
   }
 
@@ -648,7 +648,7 @@ export class Dispatcher {
         if (isFixName(task)) {
           if (this.fixes === null) chain.current = null
           else if (!(await this.fixes.follow(chain, chain.current))) {
-            if (!(await this.handovers.followLimit(chain, chain.current))) await this.handovers.followCheckpoint(chain, chain.current)
+            await this.handovers.follow(chain, chain.current)
             return
           }
           continue
@@ -671,7 +671,7 @@ export class Dispatcher {
             if (!skipped.includes(task)) skipped.push(task)
             this.release(chain, 'skip', [])
           } else if (this.fixes === null || !(await this.fixes.yields(chain, chain.current))) {
-            if (!(await this.handovers.followLimit(chain, chain.current))) await this.handovers.followCheckpoint(chain, chain.current)
+            await this.handovers.follow(chain, chain.current)
             return
           }
           this.deps.save(this.state)

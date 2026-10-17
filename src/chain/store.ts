@@ -35,10 +35,12 @@ function activeOf(raw: unknown): ActiveChain[] | undefined {
   return valid ? (chains as ActiveChain[]) : undefined
 }
 
-// A start cut short by a service restart is not running any more.
+// A start cut short by a service restart is not running any more; a move of a running session is kept for the
+// chain to see through (`Handovers.recover`).
 function settled(current: CurrentTask | null | undefined): CurrentTask | null {
   if (current == null) return null
-  const { starting: _, answering: __, ...rest } = current
+  if (current.sessionId !== null && current.move !== undefined) return current
+  const { starting: _, answering: __, move: ___, reply: ____, ask: _____, ...rest } = current
   return rest
 }
 

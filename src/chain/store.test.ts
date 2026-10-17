@@ -59,6 +59,20 @@ describe('chain store', () => {
     expect(loadChainState(file).active[0]?.current).toEqual({ task: 'ABC-1', sessionId: 's1', since: 't' })
   })
 
+  it('keeps a transition of a running session the service did not live to finish, for the chain to see it through', () => {
+    const file = join(dir(), 'chain.json')
+    const current = { task: 'ABC-1', sessionId: 's1', since: 't', starting: 't', move: 'answer', answering: true, reply: 'Go', ask: 'toolu_1' }
+    writeFileSync(file, JSON.stringify({ active: [{ project: 'ABC', current, paused: false, error: null }], queue: [], orders: {} }))
+    expect(loadChainState(file).active[0]?.current).toEqual(current)
+  })
+
+  it('forgets a cut first launch even when it is marked as a move', () => {
+    const file = join(dir(), 'chain.json')
+    const current = { task: 'ABC-1', sessionId: null, since: 't', starting: 't', move: 'restart' }
+    writeFileSync(file, JSON.stringify({ active: [{ project: 'ABC', current, paused: false, error: null }], queue: [], orders: {} }))
+    expect(loadChainState(file).active[0]?.current).toEqual({ task: 'ABC-1', sessionId: null, since: 't' })
+  })
+
   it('refuses a damaged file instead of silently forgetting the chain', () => {
     const file = join(dir(), 'chain.json')
     writeFileSync(file, '{"active": 5}')

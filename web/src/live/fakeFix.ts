@@ -21,7 +21,7 @@ export function withFix(state: EvenKeelState, project: string, fixing: SessionVi
     ...state,
     chain: { ...state.chain, active: state.chain.active.map((chain) => (chain === active ? leading : chain)) },
     sessions: [...state.sessions.map((view) => (view.task === held.task && !aside ? stopped(view) : view)), { ...fixing, task: fix, startedAt: at }],
-    taskSessions: { ...state.taskSessions, [episode.id]: [{ sessionId: fixing.sessionId, at, how: 'launch', resumed: 0, account: fixing.account }] },
+    taskSessions: { ...state.taskSessions, [episode.id]: [{ sessionId: fixing.sessionId, at, how: 'launch', resumed: 0, answers: 0, account: fixing.account }] },
     fixes: { ...state.fixes, [project]: [...episodes, episode] },
   }
 }

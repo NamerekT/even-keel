@@ -597,7 +597,7 @@ describe('chainBlocks', () => {
       then: 'relay' as const,
       acted: null,
     }
-    const rows = [{ sessionId: 's2', at: '2026-01-01T13:00:00.000Z', how: 'relay' as const, resumed: 0 }]
+    const rows = [{ sessionId: 's2', at: '2026-01-01T13:00:00.000Z', how: 'relay' as const, resumed: 0, answers: 0 }]
     const state = stateOf({
       tasks: [task('ABC-1', 'Active'), task('ABC-2', 'ToDo')],
       chain: chain({
@@ -638,7 +638,7 @@ describe('chainBlocks', () => {
     const stopped = { task: 'ABC-2', sessionId: 's2', since: 't', at: '2026-01-01T10:00:00.000Z', commit: 'a1b2c3d' }
 
     it('leads the open tasks as a block of its own, with its session and launches', () => {
-      const rows = [{ sessionId: 's', at: '2026-01-01T10:01:00.000Z', how: 'launch' as const, resumed: 0 }]
+      const rows = [{ sessionId: 's', at: '2026-01-01T10:01:00.000Z', how: 'launch' as const, resumed: 0, answers: 0 }]
       const session = view('ABC-FIX', 'working', null)
       const state = stateOf({
         tasks,
@@ -707,7 +707,7 @@ describe('chainBlocks', () => {
   describe('the fixes of a red main that are over', () => {
     const order = { ABC: { order: ['ABC-2', 'ABC-3'], waiting: [], backlog: [], error: null } }
     const tasks = [task('ABC-1', 'Won'), task('ABC-4', 'Won'), task('ABC-2', 'Active'), task('ABC-3', 'ToDo')]
-    const row = (at: string, sessionId = 's') => ({ sessionId, at, how: 'launch' as const, resumed: 0 })
+    const row = (at: string, sessionId = 's') => ({ sessionId, at, how: 'launch' as const, resumed: 0, answers: 0 })
     const landed = {
       id: 'ABC-FIX.1',
       red: 'c6b3956aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
@@ -798,7 +798,7 @@ describe('chainBlocks', () => {
   })
 
   it('puts closed tasks the chain ran after the others, by their last launch, so the one closed last stays next to the open ones', () => {
-    const launch = (at: string) => ({ sessionId: `s-${at}`, at, how: 'launch' as const, resumed: 0 })
+    const launch = (at: string) => ({ sessionId: `s-${at}`, at, how: 'launch' as const, resumed: 0, answers: 0 })
     const state = stateOf({
       tasks: [task('ABC-1', 'Won'), task('ABC-2', 'Won', ['ABC-1']), task('ABC-3', 'Won'), task('ABC-4', 'Lost'), task('ABC-5', 'ToDo')],
       chain: chain({ projects: { ABC: { order: ['ABC-5'], waiting: [], backlog: [], error:null } } }),
@@ -1008,7 +1008,7 @@ describe('queuedAfter', () => {
 describe('sessionStart', () => {
   const now = new Date('2026-01-01T10:01:00.000Z')
   const current = (patch: Partial<CurrentTask> = {}): CurrentTask => ({ task: 'ABC-1', sessionId: 'new', since: '2026-01-01T08:00:00.000Z', ...patch })
-  const run = (sessionId: string, at: string): TaskSession => ({ sessionId, at, how: 'checkpoint', resumed: 0 })
+  const run = (sessionId: string, at: string): TaskSession => ({ sessionId, at, how: 'checkpoint', resumed: 0, answers: 0 })
   const live = (patch: Partial<SessionView> = {}): SessionView => ({
     ...view('ABC-1', 'working', null),
     sessionId: 'new',
