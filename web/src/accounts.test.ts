@@ -66,16 +66,17 @@ describe('connectionOf', () => {
 })
 
 describe('deviceLogin', () => {
-  const login = (target: string | null) => ({ target, startedAt: '', urls: [], output: '', error: null, codeSent: false })
+  const login = (agent: string, target: string | null) => ({ agent, target, startedAt: '', urls: [], output: '', error: null, codeSent: false })
   const accounts = [entry('global', 'john@example.com'), { ...entry('codex', 'john@example.com'), agent: 'codex' }]
 
-  it('is a sign-in into the Codex folder, where the code goes on the sign-in page, not here', () => {
-    expect(deviceLogin({ ...view(accounts), login: login('codex') })).toBe(true)
+  it("is Codex's sign-in, into a folder or a new account, where the code goes on the sign-in page, not here", () => {
+    expect(deviceLogin({ ...view(accounts), login: login('codex', 'codex') })).toBe(true)
+    expect(deviceLogin({ ...view(accounts), login: login('codex', null) })).toBe(true)
   })
 
-  it('is not a Claude sign-in, a new folder or no sign-in at all', () => {
-    expect(deviceLogin({ ...view(accounts), login: login('global') })).toBe(false)
-    expect(deviceLogin({ ...view(accounts), login: login(null) })).toBe(false)
+  it('is not a Claude sign-in or no sign-in at all', () => {
+    expect(deviceLogin({ ...view(accounts), login: login('claude', 'global') })).toBe(false)
+    expect(deviceLogin({ ...view(accounts), login: login('claude', null) })).toBe(false)
     expect(deviceLogin(view(accounts))).toBe(false)
   })
 })

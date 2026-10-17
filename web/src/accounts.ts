@@ -39,9 +39,8 @@ export function connectionOf(entry: AccountEntry): Connection {
 }
 
 /** Whether the running sign-in is Codex's device-auth: the one-time code from its output goes on the sign-in page, nothing is typed here. */
-export function deviceLogin({ login, accounts }: AccountView): boolean {
-  if (login === null || login.target === null) return false
-  return accounts.find((entry) => entry.key === login.target)?.agent === CODEX
+export function deviceLogin({ login }: AccountView): boolean {
+  return login?.agent === CODEX
 }
 
 /** Whether the page can add such an account; the rest are shown as not there yet. Without a connection — the provider at all. */

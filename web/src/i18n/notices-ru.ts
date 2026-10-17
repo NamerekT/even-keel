@@ -129,7 +129,12 @@ export const noticesRu: NoticeTexts = {
   'account.activeKept': () => 'активный аккаунт не удалить — сначала переключитесь на другой',
   'account.signInRunning': () => 'в этот аккаунт идёт вход',
   'account.usedByApp': (p) => `этот аккаунт использует ${p.app} — сначала переключите его на другой`,
-  'account.codexFolder': () => 'аккаунт Codex живёт в CODEX_HOME или ~/.codex: отсюда его не отдать приложению и не удалить',
+  'account.codexApp': () => 'приложения работают на Claude Code — аккаунт Codex им не отдать',
+  'account.codexHomeKept': () => 'собственная папка Codex (CODEX_HOME или ~/.codex) отсюда не удаляется',
+  'account.secondFree': (p) =>
+    `${p.account} уже на бесплатном плане: условия OpenAI не разрешают несколько бесплатных аккаунтов ради лимитов — добавьте аккаунт с подпиской`,
+  'account.extraFree': (p) =>
+    `второй бесплатный аккаунт Codex рядом с ${p.account}: условия OpenAI не разрешают несколько бесплатных аккаунтов ради лимитов — сессии здесь не запускаются, пока план не платный`,
   'account.notRemoving': (p) => `${p.key} не удаляется`,
   'account.apiKeyInvalid': () => 'API-ключ — одно слово длиннее 20 символов, вроде sk-ant-api03-…',
   'account.apiKeyRejected': () => 'Anthropic не принимает этот ключ: он неверный, отозван или организация отключена',

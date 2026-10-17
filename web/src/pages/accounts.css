@@ -179,12 +179,3 @@ a.add-choice:focus-visible {
   color: var(--fg-muted);
   cursor: not-allowed;
 }
-
-.add-window__command {
-  margin: 0;
-  padding: 8px 10px;
-  border-radius: 8px;
-  background: var(--surface-muted);
-  font-family: var(--mono);
-  font-size: 13px;
-}

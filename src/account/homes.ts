@@ -24,23 +24,35 @@ export interface AccountHome {
 }
 
 /**
- * The account folders: Claude Code's global `~/.claude` and one `CLAUDE_CONFIG_DIR` per account under the root, and
- * the one Codex folder (`CODEX_HOME` or `~/.codex`) once it exists — Codex does not create it.
+ * The account folders: Claude Code's global `~/.claude` and one `CLAUDE_CONFIG_DIR` per account under the root; Codex's
+ * own folder (`CODEX_HOME` or `~/.codex`) once it exists — Codex does not create it — and one `CODEX_HOME` per account
+ * under the Codex root (BTN-176). A folder's name is its key across both roots: a Codex folder named like a Claude one
+ * is left out, and a new one is named apart from both.
  */
 export class AccountHomes {
   readonly global: AccountHome
   private readonly codex: AccountHome
+  private readonly roots: Record<string, string>
 
   constructor(
     private readonly env: NodeJS.ProcessEnv,
-    private readonly root: string,
+    root: string,
+    codexRoot = codexAccountsRoot(env),
   ) {
     this.global = { key: GLOBAL_ACCOUNT, dir: env.CLAUDE_CONFIG_DIR ?? join(homedir(), '.claude'), global: true, agent: CLAUDE }
     this.codex = { key: CODEX_ACCOUNT, dir: env.CODEX_HOME ?? join(homedir(), '.codex'), global: true, agent: CODEX }
+    this.roots = { [CLAUDE]: root, [CODEX]: codexRoot }
   }
 
   list(): AccountHome[] {
-    return [this.global, ...this.folders().map((name) => this.home(name)), ...(existsSync(this.codex.dir) ? [this.codex] : [])]
+    const claude = this.folders(CLAUDE)
+    const codex = this.folders(CODEX).filter((name) => !claude.includes(name))
+    return [
+      this.global,
+      ...claude.map((name) => this.home(CLAUDE, name)),
+      ...(existsSync(this.codex.dir) ? [this.codex] : []),
+      ...codex.map((name) => this.home(CODEX, name)),
+    ]
   }
 
   find(key: string): AccountHome | undefined {
@@ -62,16 +74,18 @@ export class AccountHomes {
     return parseCredentialTimes(text)
   }
 
-  pending(now: Date): AccountHome {
-    const name = `${PENDING_PREFIX}${now.getTime().toString(36)}`
-    mkdirSync(join(this.root, name), { recursive: true })
-    return { key: name, dir: join(this.root, name), global: false, agent: CLAUDE }
+  /** A folder to sign a new account of the agent in; Codex does not create its folder, so it is made here for both. */
+  pending(now: Date, agent: string): AccountHome {
+    const home = this.home(agent, `${PENDING_PREFIX}${now.getTime().toString(36)}`)
+    mkdirSync(home.dir, { recursive: true })
+    return home
   }
 
   place(pending: AccountHome, email: string | null): AccountHome {
-    const name = folderName(email, this.folders())
-    renameSync(pending.dir, join(this.root, name))
-    return this.home(name)
+    const name = folderName(email, this.taken())
+    const home = this.home(pending.agent, name)
+    renameSync(pending.dir, home.dir)
+    return home
   }
 
   /**
@@ -80,7 +94,7 @@ export class AccountHomes {
    */
   addApiKey(name: string, key: string): AccountHome {
     const value = assertApiKey(key)
-    const home = this.home(folderName(name.trim() === '' ? 'api' : name, this.folders()))
+    const home = this.home(CLAUDE, folderName(name.trim() === '' ? 'api' : name, this.taken()))
     mkdirSync(home.dir, { recursive: true })
     writeFileSync(join(home.dir, 'settings.json'), JSON.stringify({ env: { [API_KEY_VARIABLE]: value } }, null, 2))
     const approved = { customApiKeyResponses: { approved: [value.slice(-APPROVED_SUFFIX)], rejected: [] } }
@@ -98,8 +112,9 @@ export class AccountHomes {
     }
   }
 
+  /** Claude's shared configuration into an account folder; Codex reads its own `config.toml`. */
   share(home: AccountHome): boolean {
-    if (home.global) return false
+    if (home.global || home.agent !== CLAUDE) return false
     return shareConfig({ dir: this.global.dir, config: this.configFile(this.global) }, home.dir)
   }
 
@@ -114,13 +129,19 @@ export class AccountHomes {
     rmSync(home.dir, { recursive: true, force: true, maxRetries: 3 })
   }
 
-  private home(name: string): AccountHome {
-    return { key: name, dir: join(this.root, name), global: false, agent: CLAUDE }
+  private home(agent: string, name: string): AccountHome {
+    const root = this.roots[agent]
+    if (root === undefined) throw fail('request.required', { field: 'agent' })
+    return { key: name, dir: join(root, name), global: false, agent }
   }
 
-  private folders(): string[] {
+  private taken(): string[] {
+    return Object.keys(this.roots).flatMap((agent) => this.folders(agent))
+  }
+
+  private folders(agent: string): string[] {
     try {
-      return readdirSync(this.root, { withFileTypes: true })
+      return readdirSync(this.roots[agent]!, { withFileTypes: true })
         .filter(
           (entry) => entry.isDirectory() && !entry.name.startsWith('.') && !entry.name.endsWith(LOCK_SUFFIX) && !RESERVED.includes(entry.name),
         )
@@ -141,4 +162,8 @@ export function assertApiKey(key: string): string {
 
 export function accountsRoot(env: NodeJS.ProcessEnv): string {
   return env.EVEN_KEEL_ACCOUNTS_DIR ?? join(homedir(), '.claude-accounts')
+}
+
+export function codexAccountsRoot(env: NodeJS.ProcessEnv): string {
+  return env.EVEN_KEEL_CODEX_ACCOUNTS_DIR ?? join(homedir(), '.codex-accounts')
 }

@@ -249,10 +249,9 @@ export const en: Messages = {
     sdkStub: 'Even Keel has no Agent SDK engine yet',
     codexKeyStub: "Codex on an API key isn't supported yet: sign in through the CLI",
     codexHint:
-      'Signs in to the Codex folder with ChatGPT: Codex gives a link and a one-time code — open the link, sign in and enter the code there.',
-    codexMissing: "There's no Codex folder yet: sign in once in a terminal on this machine, and the account shows up here within a minute.",
-    codexTerminal: 'Or in a terminal on this machine:',
-    codexSignedIn: (who: string) => `Codex is signed in as ${who}. Even Keel has one Codex account: signing in again replaces it.`,
+      'Signs a new Codex account in with ChatGPT, in a folder of its own: Codex gives a link and a one-time code — open the link, sign in and enter the code there.',
+    codexFree:
+      "One free Codex account at most: OpenAI's terms do not allow several free accounts to get round the limits. Paid plans — as many as you need.",
     globalOf: (folder: string) => `global ${folder}`,
     holds: (role: string) => `${role} works on this account`,
     roles: 'Where this account works: pick an app to move it here',

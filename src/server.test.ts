@@ -45,9 +45,9 @@ describe('Even Keel HTTP server', () => {
       setTrimTools: record('setTrimTools'),
     }
     const account: AccountControl = {
-      add: () => {
+      add: (agent) => {
         if (calls.some(([name]) => name === 'add')) throw new Error('claude: a sign-in is already running')
-        calls.push(['add'])
+        calls.push(['add', agent])
       },
       addApiKey: async (...args) => {
         record('api')(...args)
@@ -474,15 +474,21 @@ describe('Even Keel HTTP server', () => {
     await post('/api/account/code', { code: 'abc#def' })
     await post('/api/account/cancel')
     await post('/api/account/renew', { account: 'work' })
-    expect(calls).toEqual([['add'], ['code', 'abc#def'], ['cancel'], ['renew', 'work']])
+    expect(calls).toEqual([['add', 'claude'], ['code', 'abc#def'], ['cancel'], ['renew', 'work']])
 
-    const again = await post('/api/account/add')
+    const again = await post('/api/account/add', { agent: 'codex' })
     expect(again.status).toBe(400)
     expect(await again.json()).toEqual(refusal('claude: a sign-in is already running'))
     expect((await post('/api/account/code', {})).status).toBe(400)
     expect((await post('/api/account/code', { code: '  ' })).status).toBe(400)
     expect((await post('/api/account/renew', {})).status).toBe(400)
     expect((await post('/api/account/nope')).status).toBe(404)
+  })
+
+  it('adds an account of the agent the page asks for', async () => {
+    await post('/api/account/add', { agent: 'codex' })
+    expect(calls).toEqual([['add', 'codex']])
+    expect((await post('/api/account/add', { agent: 7 })).status).toBe(400)
   })
 
   it('adds an API account by a key, the name optional', async () => {

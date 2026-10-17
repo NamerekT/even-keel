@@ -12,7 +12,8 @@ import { appSwitchProblem, type AppAccount } from '../../../src/account/apps.js'
 import { fail, notice, NoticeError, textNotice } from '../../../src/notice/notice.js'
 import type { RateLimits } from '../../../src/limits/model.js'
 import type { UsageHealth } from '../../../src/limits/usage.js'
-import { deviceLogin } from '../accounts.js'
+import { CLAUDE } from '../../../src/claude/name.js'
+import { CODEX } from '../../../src/codex/name.js'
 
 function ago(minutes: number): string {
   return new Date(Date.now() - minutes * 60_000).toISOString()
@@ -27,6 +28,7 @@ const FAKE_ACCOUNT: AccountStatus = {
 }
 
 const FAKE_LOGIN: AccountLogin = {
+  agent: 'claude',
   target: null,
   startedAt: ago(1),
   urls: ['https://claude.example.com/oauth/authorize?code=true&state=example'],
@@ -37,6 +39,7 @@ const FAKE_LOGIN: AccountLogin = {
 
 const FAKE_DEVICE_LOGIN: AccountLogin = {
   ...FAKE_LOGIN,
+  agent: 'codex',
   urls: ['https://auth.openai.example.com/codex/device'],
   output: 'Follow these steps to sign in with ChatGPT using device code authorization:\n\n1. Open this link in your browser and sign in\n   https://auth.openai.example.com/codex/device\n\n2. Enter this one-time code\n   ABCD-1234',
 }
@@ -67,6 +70,17 @@ function apiEntry(key: string, patch: Partial<AccountEntry> = {}): AccountEntry 
     status: { loggedIn: true, authMethod: 'api_key', email: key, orgName: null, subscriptionType: null },
     loginExpiresAt: null,
     apiKey: true,
+    ...patch,
+  })
+}
+
+function codexEntry(key: string, email: string, plan: string, patch: Partial<AccountEntry> = {}): AccountEntry {
+  return fakeEntry({
+    key,
+    global: false,
+    agent: CODEX,
+    status: { loggedIn: true, authMethod: 'chatgpt', email, orgName: null, subscriptionType: plan },
+    loginExpiresAt: null,
     ...patch,
   })
 }
@@ -155,14 +169,14 @@ export function fakeAccount(mode: string | null, idle: boolean, limits: RateLimi
     return { ...signedIn, active: 'ci-key', accounts: [global, work, apiEntry('ci-key', { name: 'CI key', sessions: ['ABC-5'] }), lost] }
   }
   if (mode === 'codex') {
-    const codex = fakeEntry({
-      key: 'codex',
-      agent: 'codex',
-      status: { loggedIn: true, authMethod: 'chatgpt', email: 'john.doe@example.com', orgName: null, subscriptionType: 'free' },
-      loginExpiresAt: null,
+    const codex = codexEntry('codex', 'john.doe@example.com', 'free', {
+      global: true,
       limits: { ...limits, fiveHour: null, sevenDay: null, month: { usedPercentage: 12, resetsAt: new Date(Date.now() + 11 * 86_400_000).toISOString() } },
     })
-    return { ...signedIn, accounts: [global, work, apiEntry('ci-key', { name: 'CI key' }), codex] }
+    const paid = codexEntry('jane.roe-2', 'jane.roe@example.com', 'plus', { limits })
+    // A plan that turned free next to the free one: held, with the warning on its card.
+    const extra = codexEntry('baby.doe', 'baby.doe@example.com', 'free')
+    return { ...signedIn, accounts: [global, work, apiEntry('ci-key', { name: 'CI key' }), codex, paid, extra] }
   }
   if (mode === 'vscode-broken') {
     return { ...signedIn, apps: [{ ...vscode, account: null, dir: null, error: notice('vscode.notJson', {}) }] }
@@ -176,8 +190,8 @@ export function accountCommand(account: AccountView, name: string, body: Record<
     if (account.login !== null && account.login.error === null) throw fail('login.running', {})
     if (name === 'account/renew' && key === account.active && account.loginBlock !== null) throw new NoticeError(loginBlockNotice(account.loginBlock))
     const target = name === 'account/add' ? null : key
-    const device = deviceLogin({ ...account, login: { ...FAKE_LOGIN, target } })
-    return { ...account, login: { ...(device ? FAKE_DEVICE_LOGIN : FAKE_LOGIN), target, startedAt: ago(0) } }
+    const agent = name === 'account/add' ? String(body.agent ?? CLAUDE) : (account.accounts.find((entry) => entry.key === key)?.agent ?? CLAUDE)
+    return { ...account, login: { ...(agent === CODEX ? FAKE_DEVICE_LOGIN : FAKE_LOGIN), agent, target, startedAt: ago(0) } }
   }
   if (name === 'account/api') {
     const value = String(body.key).trim()
@@ -217,7 +231,10 @@ export function accountCommand(account: AccountView, name: string, body: Record<
     }
     const renewed = { loginExpiresAt: inDays(30), needsLogin: false }
     if (login.target === null) {
-      const added = fakeEntry({ key: 'richard.roe', global: false, status: { ...FAKE_ACCOUNT, email: 'richard.roe@example.com' }, ...renewed })
+      const added =
+        login.agent === CODEX
+          ? codexEntry('richard.roe', 'richard.roe@example.com', 'plus')
+          : fakeEntry({ key: 'richard.roe', global: false, status: { ...FAKE_ACCOUNT, email: 'richard.roe@example.com' }, ...renewed })
       return { ...account, accounts: [...account.accounts, added], login: null }
     }
     const accounts = account.accounts.map((entry) =>
