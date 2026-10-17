@@ -10,7 +10,7 @@ import { TallyDb } from './db.js'
 import { refreshHandoffs } from './handoffs.js'
 import { snapshotsOfFile, snapshotsOfState, type Snapshot } from './limits.js'
 import { loadFile, type Source } from './load.js'
-import { deniedLine } from './migrations.js'
+import { deniedLine, migratedLine } from './migrations.js'
 import { launchMap } from './parse.js'
 import { transcriptSession } from './rule-history.js'
 import { readBackup, ruleSources, skillsOf } from './rule-scan.js'
@@ -47,7 +47,8 @@ export async function collect(settings: DbSettings, root: string, log: Log): Pro
       log(deniedLine(migration))
       return HALTED
     }
-    if (migration.state === 'migrated') log(`tally: database schema ${migration.from === 0 ? 'unversioned' : `v${migration.from}`} → v${migration.to}`)
+    const migrated = migratedLine(migration)
+    if (migrated !== null) log(migrated)
     await db.syncPrices(config.prices)
 
     const projects = trackedProjects(root, log)

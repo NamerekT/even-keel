@@ -9,7 +9,7 @@ const port = parentPort!
 const post = (message: HostMessage) => port.postMessage(message)
 
 try {
-  const local = await openLocalTally((workerData as { dir: string }).dir)
+  const local = await openLocalTally((workerData as { dir: string }).dir, (message) => console.log(`${new Date().toISOString()} ${message}`))
   port.on('message', (request: HostRequest) => {
     if (request.type !== 'close') return
     local.close().then(
