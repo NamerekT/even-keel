@@ -17,6 +17,7 @@ If you run into one of these, please open an issue with what you saw: it is the 
 ## Sessions
 
 - **`--resume` after an unanswered question.** When a question (`AskUserQuestion`) did reach the transcript and the session is resumed with an answer, how the CLI treats the call left without a result is not known. The reply prompt repeats the questions and answers in plain text, so it does not depend on it (`docs/sessions.md`).
+- **A resume without flags goes on in place.** A reply or a limit resume of a session with a saved job passes no flags, because with flags the CLI starts a copy under a new id; that it then continues the same session was read from the CLI binary (2.1.302), not seen live. If it is wrong, every answer still opens a new session with the whole history again, as before (`docs/sessions.md`).
 - **Environment variables through the daemon.** Whether variables set for `claude --bg` reach the session through the background daemon was not checked, so Even Keel does not pass anything that way (`docs/sessions.md`).
 
 ## Trackers

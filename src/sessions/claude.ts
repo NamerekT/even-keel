@@ -95,6 +95,7 @@ export class ClaudeCli {
 
   async resume(
     home: AccountHome,
+    agentId: string,
     sessionId: string,
     task: string,
     cwd: string,
@@ -103,7 +104,8 @@ export class ClaudeCli {
     settings?: string,
   ): Promise<AgentEntry> {
     const resumedAt = Date.now()
-    const args = [...sessionArgs(task, model, settings), '--resume', sessionId, prompt]
+    const kept = existsSync(join(home.dir, 'jobs', agentId, 'state.json'))
+    const args = resumeArgs(sessionId, prompt, kept, task, model, settings)
     await this.start(home, args, cwd, notice('claude.resumeFailed', { task, cwd }))
     return this.appear(home, resumedAs(sessionId, task, cwd, resumedAt), notice('claude.resumedNotShown', { task }))
   }
@@ -157,6 +159,14 @@ export const SESSION_MODE = 'auto'
 
 export function sessionArgs(task: string, model: ModelAlias, settings?: string): string[] {
   return ['--bg', '--permission-mode', SESSION_MODE, '-n', task, '--model', model, ...(settings === undefined ? [] : ['--settings', settings])]
+}
+
+/**
+ * A background session whose job is saved keeps its own options (model, mode, name, settings): with any flag
+ * `--bg --resume` starts a copy under a new session id instead of going on in it (CLI 2.1.302, reason `own-options`).
+ */
+export function resumeArgs(sessionId: string, prompt: string, kept: boolean, task: string, model: ModelAlias, settings?: string): string[] {
+  return [...(kept ? ['--bg'] : sessionArgs(task, model, settings)), '--resume', sessionId, prompt]
 }
 
 function launchedAs(task: string, cwd: string, since: number): (agent: AgentEntry) => boolean {

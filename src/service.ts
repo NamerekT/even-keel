@@ -429,14 +429,14 @@ const dispatcher = new Dispatcher(loadChainState(chainFile, config.ids), {
     await cli.stop(home, session.agentId, session.sessionId)
     await daemons.prepare(home)
     const plan = planFor(task, resumePrompt(promptLanguage()))
-    return (await cli.resume(home, session.sessionId, task, session.cwd, plan.prompt, plan.model, settingsFor(task, session.cwd))).sessionId
+    return (await cli.resume(home, session.agentId, session.sessionId, task, session.cwd, plan.prompt, plan.model, settingsFor(task, session.cwd))).sessionId
   },
   reply: async (task, session, prompt) => {
     const home = homeOf(session.account)
     await cli.stop(home, session.agentId, session.sessionId)
     await daemons.prepare(home)
     const plan = planFor(task, prompt)
-    return (await cli.resume(home, session.sessionId, task, session.cwd, plan.prompt, plan.model, settingsFor(task, session.cwd))).sessionId
+    return (await cli.resume(home, session.agentId, session.sessionId, task, session.cwd, plan.prompt, plan.model, settingsFor(task, session.cwd))).sessionId
   },
   relay: async (task, session, handoff, reason) => {
     const previous = homes.find(session.account)

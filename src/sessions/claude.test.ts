@@ -1,11 +1,21 @@
 import { describe, expect, it } from 'vitest'
 import type { AgentEntry } from './agents.js'
-import { resumedAs, sessionArgs } from './claude.js'
+import { resumeArgs, resumedAs, sessionArgs } from './claude.js'
 
 describe('sessionArgs', () => {
   it('passes the chain settings with --settings only when there are any', () => {
     expect(sessionArgs('ABC-1', 'opus')).toEqual(['--bg', '--permission-mode', 'auto', '-n', 'ABC-1', '--model', 'opus'])
     expect(sessionArgs('ABC-1', 'opus', '{"syncClaudeAiSkills":false}').slice(-2)).toEqual(['--settings', '{"syncClaudeAiSkills":false}'])
+  })
+})
+
+describe('resumeArgs', () => {
+  it('passes no flags when the background session keeps its saved options, so it goes on under its own id', () => {
+    expect(resumeArgs('s-1', 'answer', true, 'ABC-1', 'opus', '{}')).toEqual(['--bg', '--resume', 's-1', 'answer'])
+  })
+
+  it('passes the session flags when there is no saved background session', () => {
+    expect(resumeArgs('s-1', 'answer', false, 'ABC-1', 'opus')).toEqual([...sessionArgs('ABC-1', 'opus'), '--resume', 's-1', 'answer'])
   })
 })
 
