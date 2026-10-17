@@ -75,10 +75,10 @@ describe('taskSessions', () => {
     )
     expect(list).toEqual({
       'ABC-1': [
-        { sessionId: 's3', at: '2026-09-27T17:20:00.000Z', how: 'relay', resumed: 0 },
-        { sessionId: 's1', at: '2026-09-27T10:00:00.000Z', how: 'launch', resumed: 0 },
+        { sessionId: 's3', at: '2026-09-27T17:20:00.000Z', how: 'relay', resumed: 0, answers: 0 },
+        { sessionId: 's1', at: '2026-09-27T10:00:00.000Z', how: 'launch', resumed: 0, answers: 0 },
       ],
-      'ABC-2': [{ sessionId: 's2', at: '2026-09-27T11:00:00.000Z', how: 'launch', resumed: 0 }],
+      'ABC-2': [{ sessionId: 's2', at: '2026-09-27T11:00:00.000Z', how: 'launch', resumed: 0, answers: 0 }],
     })
   })
 
@@ -87,7 +87,19 @@ describe('taskSessions', () => {
       [entry('2026-09-27T10:00:00.000Z', 'ABC-1', 's1'), entry('2026-09-27T15:00:00.000Z', 'ABC-1', 's1', { reason: 'resume', previous: 's1' })],
       [],
     )
-    expect(list['ABC-1']).toEqual([{ sessionId: 's1', at: '2026-09-27T10:00:00.000Z', how: 'launch', resumed: 1 }])
+    expect(list['ABC-1']).toEqual([{ sessionId: 's1', at: '2026-09-27T10:00:00.000Z', how: 'launch', resumed: 1, answers: 0 }])
+  })
+
+  it('counts the user\'s answers to a session apart from resumes after the limit', () => {
+    const list = taskSessions(
+      [
+        entry('2026-09-27T10:00:00.000Z', 'ABC-1', 's1'),
+        entry('2026-09-27T11:00:00.000Z', 'ABC-1', 's1', { reason: 'answer', previous: 's1' }),
+        entry('2026-09-27T12:00:00.000Z', 'ABC-1', 's1', { reason: 'answer', previous: 's1' }),
+      ],
+      [],
+    )
+    expect(list['ABC-1']).toEqual([{ sessionId: 's1', at: '2026-09-27T10:00:00.000Z', how: 'launch', resumed: 0, answers: 2 }])
   })
 
   it('names the account of each session as of its start', () => {
@@ -130,6 +142,7 @@ describe('taskSessions', () => {
           at: '2026-09-27T10:00:00.000Z',
           how: 'launch',
           resumed: 0,
+          answers: 0,
           left: { at: '2026-09-27T10:30:00.000Z', reason: 'postpone', blockers: ['ABC-3'] },
         },
       ],
@@ -139,6 +152,7 @@ describe('taskSessions', () => {
           at: '2026-09-27T10:40:00.000Z',
           how: 'manual',
           resumed: 0,
+          answers: 0,
           left: { at: '2026-09-27T11:00:00.000Z', reason: 'skip', blockers: [] },
         },
       ],
@@ -154,8 +168,8 @@ describe('taskSessions', () => {
       [],
     )
     expect(list['ABC-1']).toEqual([
-      { sessionId: 's2', at: '2026-09-27T12:00:00.000Z', how: 'restart', resumed: 0 },
-      { sessionId: 's1', at: '2026-09-27T10:00:00.000Z', how: 'launch', resumed: 0, replaced: { at: '2026-09-27T12:00:00.000Z', how: 'restart' } },
+      { sessionId: 's2', at: '2026-09-27T12:00:00.000Z', how: 'restart', resumed: 0, answers: 0 },
+      { sessionId: 's1', at: '2026-09-27T10:00:00.000Z', how: 'launch', resumed: 0, answers: 0, replaced: { at: '2026-09-27T12:00:00.000Z', how: 'restart' } },
     ])
   })
 
@@ -169,9 +183,9 @@ describe('taskSessions', () => {
       [],
     )
     expect(list['ABC-1']).toEqual([
-      { sessionId: 's3', at: '2026-09-27T12:00:00.000Z', how: 'checkpoint', resumed: 0 },
-      { sessionId: 's2', at: '2026-09-27T11:00:00.000Z', how: 'checkpoint', resumed: 0, replaced: { at: '2026-09-27T12:00:00.000Z', how: 'checkpoint' } },
-      { sessionId: 's1', at: '2026-09-27T10:00:00.000Z', how: 'launch', resumed: 0, replaced: { at: '2026-09-27T11:00:00.000Z', how: 'checkpoint' } },
+      { sessionId: 's3', at: '2026-09-27T12:00:00.000Z', how: 'checkpoint', resumed: 0, answers: 0 },
+      { sessionId: 's2', at: '2026-09-27T11:00:00.000Z', how: 'checkpoint', resumed: 0, answers: 0, replaced: { at: '2026-09-27T12:00:00.000Z', how: 'checkpoint' } },
+      { sessionId: 's1', at: '2026-09-27T10:00:00.000Z', how: 'launch', resumed: 0, answers: 0, replaced: { at: '2026-09-27T11:00:00.000Z', how: 'checkpoint' } },
     ])
   })
 })
@@ -308,12 +322,12 @@ describe('taskSessions of the fix of main', () => {
     )
     expect(list).toEqual({
       'ABC-FIX.1': [
-        { sessionId: 'f2', at: '2026-10-16T06:50:00.000Z', how: 'checkpoint', resumed: 1 },
-        { sessionId: 'f1', at: '2026-10-16T06:30:00.000Z', how: 'launch', resumed: 0, replaced: { at: '2026-10-16T06:50:00.000Z', how: 'checkpoint' } },
+        { sessionId: 'f2', at: '2026-10-16T06:50:00.000Z', how: 'checkpoint', resumed: 0, answers: 1 },
+        { sessionId: 'f1', at: '2026-10-16T06:30:00.000Z', how: 'launch', resumed: 0, answers: 0, replaced: { at: '2026-10-16T06:50:00.000Z', how: 'checkpoint' } },
       ],
       'ABC-FIX.2': [
-        { sessionId: 'f9', at: '2026-10-16T09:30:00.000Z', how: 'manual', resumed: 0 },
-        { sessionId: 'f3', at: '2026-10-16T09:00:00.000Z', how: 'launch', resumed: 0 },
+        { sessionId: 'f9', at: '2026-10-16T09:30:00.000Z', how: 'manual', resumed: 0, answers: 0 },
+        { sessionId: 'f3', at: '2026-10-16T09:00:00.000Z', how: 'launch', resumed: 0, answers: 0 },
       ],
     })
   })

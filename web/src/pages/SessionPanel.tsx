@@ -207,9 +207,11 @@ function Actions({ block }: { block: ChainBlock }) {
 
 function SessionBody({ session, limit, scale, whole }: { session: SessionView; limit: LimitHold | null; scale: ContextScale; whole: boolean }) {
   const now = useNow(1_000)
+  // A plain AskUserQuestion is not an alarm: the chat window shows it and the lamp says the session waits for a reply.
+  const waits = session.waitingFor !== null && !session.asking
   const note =
     session.apiError ??
-    (session.waitingFor !== null ? t.session.waits(session.waitingFor) : session.startupDialog !== null ? t.session.startupDialog(session.startupDialog) : null)
+    (waits ? t.session.waits(session.waitingFor!) : session.startupDialog !== null ? t.session.startupDialog(session.startupDialog) : null)
 
   return (
     <>
@@ -354,6 +356,7 @@ function SessionList({ rows, current, onOpen }: SessionListProps) {
               <span className="sessions__how">
                 {t.session.launches[row.how]}
                 {row.resumed > 0 && t.session.resumed(row.resumed)}
+                {row.answers > 0 && t.session.answered(row.answers)}
                 {row.left !== undefined && ` · ${leftText(row.left)}`}
                 {row.replaced !== undefined && ` · ${t.session.replaced[row.replaced.how]}`}
               </span>

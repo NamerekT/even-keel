@@ -722,6 +722,7 @@ export const ru = {
     list: 'Сессии по задаче',
     handoffs: (count: number) => ` · передач по контрольной точке: ${count}`,
     resumed: (count: number) => ` · продолжена после лимита${count > 1 ? ` ×${count}` : ''}`,
+    answered: (count: number) => ` · получила ответ${count > 1 ? ` ×${count}` : ''}`,
     current: 'сейчас',
     postponed: (blockers: string) => `отложена: ждёт ${blockers}`,
     dialog: (id: string) => `Сессия ${id}`,
