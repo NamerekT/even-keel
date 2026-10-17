@@ -892,8 +892,8 @@ export const en: Messages = {
     transcriptTitle: 'Transcript',
     transcriptDialog: (id: string) => `Transcript of session ${id}`,
     closeTranscript: 'Close the transcript',
-    prompt: 'Prompt',
-    answer: 'Answer',
+    showMore: 'Show more',
+    showLess: 'Show less',
     chat: {
       open: 'Chat',
       title: 'Chat',
@@ -916,6 +916,12 @@ export const en: Messages = {
       aside: 'The fix of main leads the chain. You can reply from the chat once it lands; until then — through Remote Control.',
       question: 'Question',
       pending: 'waits for a reply',
+      of: (index: number, count: number) => `${index} of ${count}`,
+      previous: 'Previous question',
+      nextQuestion: 'Next question',
+      skip: 'Skip',
+      next: 'Next',
+      submit: 'Submit',
     },
   },
   chain: {

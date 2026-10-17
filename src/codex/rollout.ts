@@ -2,7 +2,7 @@ import { readdir, readFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import type { LimitWindow, RateLimits } from '../limits/model.js'
 import { describeTool, flatten } from '../sessions/entry.js'
-import { checkpointOf, stageOfCommand, type FeedLine, type Stage, type TokenTotals, type TranscriptSummary } from '../sessions/transcript.js'
+import { checkpointOf, stageOfCommand, userLine, type FeedLine, type Stage, type TokenTotals, type TranscriptSummary } from '../sessions/transcript.js'
 
 /**
  * A Codex session's transcript: `<CODEX_HOME>/sessions/YYYY/MM/DD/rollout-<time>-<id>.jsonl`, lines
@@ -119,8 +119,8 @@ export class RolloutFold {
     if (item.type === 'UserMessage') {
       this.checkpoint = null
       this.apiError = null
-      const prompt = textOf(item.content).trim()
-      if (prompt !== '') this.addFeed({ at, kind: 'prompt', text: this.textOf(prompt) })
+      const line = userLine(at, textOf(item.content), null, (text) => this.textOf(text))
+      if (line !== null) this.addFeed(line)
       return
     }
     this.apiError = null

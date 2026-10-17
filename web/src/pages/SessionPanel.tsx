@@ -16,6 +16,7 @@ import { ContextMeter } from '../ui/ContextMeter.js'
 import { Lamp } from '../ui/Lamp.js'
 import { StartCard } from '../ui/SessionStart.js'
 import { useTip } from '../ui/useTip.js'
+import { feedText } from './feedLine.js'
 import './facts.css'
 
 const TranscriptWindow = lazy(async () => ({ default: (await import('./TranscriptWindow.js')).TranscriptWindow }))
@@ -524,7 +525,7 @@ function Feed({ lines, sessionId, account, live, whole: offered }: FeedProps) {
               <time className="feed__time" dateTime={line.at}>
                 {line.at === '' ? '' : FEED_TIME().format(new Date(line.at))}
               </time>
-              <span className="feed__text">{line.text}</span>
+              <span className="feed__text">{feedText(line)}</span>
             </li>
           ))}
         </ol>
