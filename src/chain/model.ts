@@ -154,7 +154,8 @@ export interface DispatcherDeps {
   rules: (project: string) => ChainRules
   launch: (project: string, task: string) => Promise<string>
   liveSession: (task: string) => string | undefined
-  blocked: () => Notice | undefined
+  /** Why no session of the project starts now; `task` — the one about to start, its label may pick another agent. */
+  blocked: (project: string, task?: string) => Notice | undefined
   busy: (task: string) => boolean
   midTurn: (task: string) => boolean
   /** The id of the `AskUserQuestion` the task's session waits on, `null` for none. */
@@ -165,9 +166,11 @@ export interface DispatcherDeps {
   limited: (task: string) => LimitedSession | undefined
   handoff: (task: string) => HandoffSession | undefined
   locate: (session: HandoffSession) => Promise<HandoffSession>
-  account: () => AccountNow
+  /** The account a new session of the project (or of `task`) would start on. */
+  account: (project: string, task?: string) => AccountNow
   accountAt: (account: string, at: string) => string | null
-  limitReset: () => string | null
+  /** When the spent limit of the account the project's session (or `task`'s) would start on resets; `null` — not spent. */
+  limitReset: (project: string, task?: string) => string | null
   /** When the limit an account folder hit at `at` resets, by its polled limits (`limitResetAfter`). */
   limitResetAfter: (account: string, at: string) => string | null
   /** Until when the CLI skips the project's tracker MCP server as failed (BTN-159); `null` — it does not. */

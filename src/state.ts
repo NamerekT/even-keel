@@ -67,7 +67,10 @@ export interface TrackerUrls {
   projects: Record<string, string | null>
 }
 
-/** What the user sets per project and the chain reads live: `branch`, `prompt`, `commands.beforeStart`, `commands.check`, `commands.afterGreen`, `ci` and `fillMilestone` in the config. */
+/**
+ * What the user sets per project and the chain reads live: `branch`, `prompt`, `commands.beforeStart`, `commands.check`,
+ * `commands.afterGreen`, `ci`, `fillMilestone`, `agent` and `codexModel` in the config.
+ */
 export interface ProjectSettings {
   /** The project's main branch: tasks branch off it and merge into it, the CI watches it. */
   branch: string
@@ -82,6 +85,10 @@ export interface ProjectSettings {
   ci: CiSettings
   /** A task that enters the chain without a milestone gets the active one in the tracker. */
   fillMilestone: boolean
+  /** The agent the project's sessions run on (`claude`, `codex`); a task's `Codex` label overrides it. */
+  agent: string
+  /** The model of the project's Codex sessions; `null` — the one of the Codex config. */
+  codexModel: string | null
 }
 
 /** Which CIs of the project the chain counts after a push of main, and how long it waits for them. */

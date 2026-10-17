@@ -5,6 +5,7 @@ import { afterEach, describe, expect, it } from 'vitest'
 import { loadLedger } from '../account/ledger.js'
 import { fixEpisodes, isLaunch } from '../chain/launches.js'
 import { loadChainState, loadQuestions, readLaunches } from '../chain/store.js'
+import { parseSession } from '../codex/turns.js'
 import { parseConfig } from '../config.js'
 import { root } from '../locations.js'
 import { upgradeStorage } from './migrations.js'
@@ -32,6 +33,13 @@ describe(`frozen samples of schema v${SCHEMA_VERSION}`, () => {
     expect(config.projects).toEqual({ ABC: 'C:\\repos\\example-project', XYZ: 'C:\\repos\\other-project' })
     expect(config.slots).toEqual({ XYZ: 2 })
     expect(config.settings.ABC?.afterGreen).toEqual(['npm run build', 'pwsh -File service/restart.ps1'])
+    expect(config.settings.ABC).toMatchObject({ agent: 'claude', codexModel: null })
+    expect(config.settings.XYZ).toMatchObject({ agent: 'codex', codexModel: 'gpt-5.6-luna' })
+  })
+
+  it('reads the record of a Codex session', () => {
+    const session = parseSession(readFileSync(sample('state/codex/sessions/00000000-0000-4000-8000-0000000000c1.json'), 'utf8'))
+    expect(session).toMatchObject({ sessionId: '00000000-0000-4000-8000-0000000000c1', name: 'XYZ-7', account: 'codex', pid: 4242 })
   })
 
   it('reads the chain naming projects by their keys', () => {

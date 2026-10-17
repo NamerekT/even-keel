@@ -7,7 +7,7 @@ export interface FieldError {
 }
 
 const RULES = ['active', 'terminal', 'requiredLabels', 'excludedLabels']
-const NAMED = ['branch', 'prompt', 'tracker', 'brief', 'fillMilestone', 'language', 'promptLanguage', 'context', 'stats']
+const NAMED = ['branch', 'prompt', 'tracker', 'brief', 'fillMilestone', 'agent', 'codexModel', 'language', 'promptLanguage', 'context', 'stats']
 const PROJECT_WHERE = /^([A-Z][A-Z0-9_]{0,4})\.(.+)$/
 
 const SHARED: Partial<Record<Notice['code'], string>> = {

@@ -10,9 +10,13 @@ import { AccountWatcher } from './account/watcher.js'
 import { AGENTS } from './agent/adapters.js'
 import type { Agent, SessionHandle, SessionStart } from './agent/contract.js'
 import { sessionBase } from './agent/env.js'
+import { readTrackerServer } from './agent/tracker.js'
+import { CODEX_ACCOUNT } from './account/model.js'
+import { CLAUDE } from './claude/name.js'
+import { CODEX } from './codex/name.js'
 import { Dispatcher, type LaunchEntry } from './chain/dispatcher.js'
 import { fixEpisodes, handoffsOf, launchDays, launchedProjects, taskSessions } from './chain/launches.js'
-import { isFixName } from './chain/fix.js'
+import { fixName, fixTaskOf, isFixName } from './chain/fix.js'
 import { fixPrompt, noteOf, resumePrompt, startPrompt, withBrief, withProjectPrompt, withTracker, withUnattended, type TrackerPlace } from './chain/relay.js'
 import { launchLine } from './chain/log.js'
 import { mainCheckDeps, mergeCheck } from './chain/mainci.js'
@@ -22,7 +26,7 @@ import { appendLaunch, loadChainState, loadQuestions, readLaunches, saveChainSta
 import { CI_TOKENS, ciSource, projectTargets } from './ci/adapters.js'
 import { CiWatch } from './ci/watcher.js'
 import { ConfigFile } from './config-file.js'
-import { DEFAULT_BRANCH, DEFAULT_CI, listenOf } from './config.js'
+import { DEFAULT_AGENT, DEFAULT_BRANCH, DEFAULT_CI, listenOf } from './config.js'
 import { EventHub } from './events.js'
 import { runGit } from './git/run.js'
 import { finishSlot, prepareSlot, slotPaths, type SlotUse } from './git/slot.js'
@@ -34,8 +38,8 @@ import { guardHosts, guardToken } from './guard.js'
 import { createEvenKeelServer } from './server.js'
 import { replyPrompt, type Reply } from './sessions/ask.js'
 import { saveInbox, type InboxFile } from './sessions/inbox.js'
-import { turnStatus, type AgentEntry } from './sessions/agents.js'
-import { launchPlan, type LaunchPlan } from './sessions/launch.js'
+import { isLive, turnStatus, type AgentEntry } from './sessions/agents.js'
+import { agentOfTask, launchPlan, type LaunchPlan } from './sessions/launch.js'
 import { runAfterGreen, runBeforeStart, runCheck, systemShell, type SetupRun } from './sessions/setup.js'
 import { SessionMonitor } from './sessions/monitor.js'
 import { TranscriptOwners } from './sessions/owners.js'
@@ -282,11 +286,12 @@ const sessionAccount = (sessionId: string | null, at: string | null): string | n
   return key === undefined ? null : emailAt(key, at)
 }
 
-const activeAccount = () => {
+/** The account folder `key` (the active one unless given) as the chain judges a launch in it. */
+const accountNow = (key = account.view.active) => {
   const view = account.view
-  const entry = view.accounts.find((each) => each.key === view.active)
+  const entry = view.accounts.find((each) => each.key === key)
   const email = entry?.status?.loggedIn === true ? entry.status.email : null
-  return { id: accountId(view.active, email), ready: email !== null && launchBlock(view) === undefined }
+  return { id: accountId(key, email), ready: email !== null && launchBlock(view, key) === undefined }
 }
 
 const monitor = new SessionMonitor({
@@ -330,12 +335,28 @@ const agentStatus = (task: string) => {
   return turnStatus(status, view.lastActivityAt, new Date(), view.lamp === 'limit')
 }
 
-const planFor = (task: string, prompt: string): LaunchPlan => {
-  const known = [...tasksByProject.values()].flat().find((each) => each.id === task)
+const knownTask = (task: string) => [...tasksByProject.values()].flat().find((each) => each.id === task)
+const projectAgent = (project: string | undefined) => (project === undefined ? DEFAULT_AGENT : (configFile.current.settings[project]?.agent ?? DEFAULT_AGENT))
+/** The agent a new session of the task (or of the fix session `task`) starts on. */
+const agentFor = (project: string | undefined, task?: string) => agentOfTask(task === undefined ? undefined : knownTask(task), projectAgent(project))
+
+const planFor = (task: string, prompt: string, project = projectOf(task)): LaunchPlan => {
   const full = withUnattended(prompt, dispatcher.state.unattended, promptLanguage())
-  const plan = launchPlan(known, full, configFile.current.model, configFile.current.modelPrompts)
+  const plan = launchPlan(knownTask(task), full, configFile.current.model, configFile.current.modelPrompts, projectAgent(project))
   if (plan.warning !== null) console.warn(plan.warning)
   return plan
+}
+
+/** The folder a new session starts in: Codex has its one folder, Claude sessions start in the active account. */
+const startHomeKey = (agent: string) => (agent === CODEX ? CODEX_ACCOUNT : ledger.active)
+
+/** What a session of an agent without Claude Code's plugins and model labels also gets: the project's model and the tracker's server. */
+const agentExtras = (home: AccountHome, project: string | undefined): Pick<SessionStart, 'modelName' | 'tracker'> => {
+  if (home.agent === CLAUDE || project === undefined) return {}
+  const adapter = ADAPTERS[config.trackers[project]!]!
+  const tracker = adapter.mcpServer === undefined ? undefined : readTrackerServer(root, adapter.mcpServer, adapter.variables, homes.global.dir, process.env)
+  const modelName = configFile.current.settings[project]?.codexModel ?? undefined
+  return { ...(modelName === undefined ? {} : { modelName }), ...(tracker === undefined ? {} : { tracker }) }
 }
 
 const promptLanguage = () => configFile.current.promptLanguage
@@ -396,7 +417,8 @@ const settingsFor = (task: string, cwd: string, project = projectOf(task)): stri
 
 function projectOf(task: string): string | undefined {
   for (const [project, tasks] of tasksByProject) if (tasks.some((each) => each.id === task)) return project
-  return dispatcher.state.active.find((chain) => chain.current?.task === task)?.project
+  const fixed = isFixName(task) ? Object.keys(config.projects).find((project) => fixName(project) === fixTaskOf(task)) : undefined
+  return fixed ?? dispatcher.state.active.find((chain) => chain.current?.task === task)?.project
 }
 
 const places = new TaskPlaces({
@@ -423,14 +445,14 @@ const dispatcher = new Dispatcher(loadChainState(chainFile, config.ids), {
   parallel: () => configFile.current.parallel,
   rules: rulesOf,
   launch: async (project, task) => {
-    const home = homeOf(ledger.active)
+    const home = homeOf(startHomeKey(agentFor(project, task)))
     await daemons.prepare(home)
     const place = await places.ready(project, task)
-    const { prompt, model } = planFor(task, withProject(await briefed(task, startPrompt(task, place, promptLanguage(), branchOf(project)), project), project))
-    return launchIn(home, { name: task, cwd: place.path, prompt, model, settings: settingsFor(task, place.path, project) })
+    const { prompt, model } = planFor(task, withProject(await briefed(task, startPrompt(task, place, promptLanguage(), branchOf(project)), project), project), project)
+    return launchIn(home, { name: task, cwd: place.path, prompt, model, settings: settingsFor(task, place.path, project), ...agentExtras(home, project) })
   },
   liveSession: (task) => sessions.find((view) => view.task === task && view.lamp !== 'finished')?.sessionId,
-  blocked: () => launchBlock(account.view),
+  blocked: (project, task) => launchBlock(account.view, startHomeKey(agentFor(project, task))),
   busy: (task) => {
     const status = agentStatus(task)
     return status === 'busy' || status === 'waiting'
@@ -450,9 +472,9 @@ const dispatcher = new Dispatcher(loadChainState(chainFile, config.ids), {
   limited: (task) => monitor.limited(task),
   handoff: (task) => monitor.handoff(task),
   locate: locateWorktree,
-  account: activeAccount,
+  account: (project, task) => accountNow(startHomeKey(agentFor(project, task))),
   accountAt: (key, at) => accountId(key, accountAt(ledger, key, at)),
-  limitReset: () => exhaustedReset(limits.limits(ledger.active)),
+  limitReset: (project, task) => exhaustedReset(limits.limits(startHomeKey(agentFor(project, task)))),
   limitResetAfter: (account, at) => limitResetAfter(limits.limits(account), at),
   mcpFailed: (project) => {
     mcp.run()
@@ -468,27 +490,30 @@ const dispatcher = new Dispatcher(loadChainState(chainFile, config.ids), {
     await stopIn(home, session)
     await daemons.prepare(home)
     const plan = planFor(task, resumePrompt(promptLanguage()))
-    return resumeIn(home, session, { name: task, cwd: session.cwd, prompt: plan.prompt, model: plan.model, settings: settingsFor(task, session.cwd) })
+    const start = { name: task, cwd: session.cwd, prompt: plan.prompt, model: plan.model, settings: settingsFor(task, session.cwd) }
+    return resumeIn(home, session, { ...start, ...agentExtras(home, projectOf(task)) })
   },
   reply: async (task, session, prompt) => {
     const home = homeOf(session.account)
     await stopIn(home, session)
     await daemons.prepare(home)
     const plan = planFor(task, prompt)
-    return resumeIn(home, session, { name: task, cwd: session.cwd, prompt: plan.prompt, model: plan.model, settings: settingsFor(task, session.cwd) })
+    const start = { name: task, cwd: session.cwd, prompt: plan.prompt, model: plan.model, settings: settingsFor(task, session.cwd) }
+    return resumeIn(home, session, { ...start, ...agentExtras(home, projectOf(task)) })
   },
   relay: async (task, session, handoff, reason) => {
     const previous = homes.find(session.account)
     if (previous !== undefined) await stopIn(previous, session)
-    const home = homeOf(ledger.active)
-    await daemons.prepare(home)
     const project = projectOf(task)
+    const home = homeOf(startHomeKey(agentFor(project, task)))
+    await daemons.prepare(home)
     const told = isFixName(task) ? handoff : await briefed(task, handoff)
-    const { prompt, model } = planFor(task, withProject(told, project))
+    const { prompt, model } = planFor(task, withProject(told, project), project)
     const notePath = noteOf(session)
     const note = await readNote(notePath)
     const at = new Date().toISOString()
-    const sessionId = await launchIn(home, { name: task, cwd: session.workdir, prompt, model, settings: settingsFor(task, session.workdir) })
+    const start = { name: task, cwd: session.workdir, prompt, model, settings: settingsFor(task, session.workdir) }
+    const sessionId = await launchIn(home, { ...start, ...agentExtras(home, project) })
     const snapshot = { at, task, sessionId, previous: session.sessionId, reason: snapshotReason(reason), prompt, notePath, note }
     try {
       saveSnapshot(handoffsDir, snapshot)
@@ -498,11 +523,11 @@ const dispatcher = new Dispatcher(loadChainState(chainFile, config.ids), {
     return sessionId
   },
   launchFix: async (project, name, report) => {
-    const home = homeOf(ledger.active)
+    const home = homeOf(startHomeKey(agentFor(project)))
     await daemons.prepare(home)
     const place = await places.ready(project, name)
-    const { prompt, model } = planFor(name, withProject(fixPrompt(report, place, promptLanguage(), branchOf(project)), project))
-    return launchIn(home, { name, cwd: place.path, prompt, model, settings: settingsFor(name, place.path, project) })
+    const { prompt, model } = planFor(name, withProject(fixPrompt(report, place, promptLanguage(), branchOf(project)), project), project)
+    return launchIn(home, { name, cwd: place.path, prompt, model, settings: settingsFor(name, place.path, project), ...agentExtras(home, project) })
   },
   stop: (session) => stopIn(homeOf(session.account), session),
   finish: async (project, task) => {
@@ -599,7 +624,7 @@ async function stopTaskSessions(repo: string, task: string, count: number): Prom
   const idle = agents.filter(
     (agent) =>
       agent.id !== undefined &&
-      agent.pid !== undefined &&
+      isLive(agent) &&
       (isInside(agent.cwd, taskPlace(repo, task).path) || (slots.some((slot) => isInside(agent.cwd, slot)) && own.has(agent.sessionId))) &&
       agent.status !== 'busy' &&
       agent.status !== 'waiting',

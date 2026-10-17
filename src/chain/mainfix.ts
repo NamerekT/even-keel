@@ -90,12 +90,12 @@ export class MainFix {
       return this.forget(chain)
     }
     if (this.host.heldByMain(chain, held.task)) return false
-    const blocked = this.deps.blocked()
+    const blocked = this.deps.blocked(project, held.task)
     if (blocked !== undefined) {
       this.host.halt(chain, blocked)
       return false
     }
-    const reset = this.deps.limitReset()
+    const reset = this.deps.limitReset(project, held.task)
     if (reset !== null) {
       if (chain.limitUntil !== reset) {
         chain.limitUntil = reset
@@ -103,7 +103,7 @@ export class MainFix {
       }
       return false
     }
-    const account = this.deps.account()
+    const account = this.deps.account(project, held.task)
     if (!account.ready) return false
     const session = this.deps.handoff(held.task)
     if (session === undefined || session.sessionId !== held.sessionId) {

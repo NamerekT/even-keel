@@ -8,6 +8,8 @@ import { isModelAlias, MODEL_ALIASES, type ModelAlias } from './tracker/model.js
 import { placeholderIn } from './sessions/prompt.js'
 import type { CacheTtl, CiSettings, ContextScale, ProjectSettings, StatsConfig } from './state.js'
 import { CI_KINDS, type CiKind } from './ci/model.js'
+import { CLAUDE } from './claude/name.js'
+import { CODEX } from './codex/name.js'
 import type { CompareSettings } from './stats/rules.js'
 import { DEFAULT_HIDDEN_SKILLS } from './tools/settings.js'
 import { ADAPTERS, DEFAULT_TRACKER } from './tracker/adapters.js'
@@ -60,6 +62,9 @@ const RESTART_KEYS = ['projects', 'slots', 'tracker', 'trackers', 'trackerProjec
 /** Keys an older config had; the address now comes from `EVEN_KEEL_HOST` and `EVEN_KEEL_PORT`. */
 const IGNORED_KEYS = ['host', 'port'] as const
 export const DEFAULT_BRANCH = 'main'
+/** The agents a project may run on, by their names in `src/agent/adapters.ts`. */
+export const AGENT_NAMES: readonly string[] = [CLAUDE, CODEX]
+export const DEFAULT_AGENT = CLAUDE
 export const CONFIG_FILE = 'even-keel.config.json'
 const DEFAULT_HOST = '127.0.0.1'
 const DEFAULT_PORT = 4747
@@ -94,7 +99,7 @@ export function parseConfig(raw: unknown, adapters: AdapterShapes = ADAPTERS): E
   for (const [index, fields] of (input.projects as unknown[]).entries()) {
     const place = `projects[${index}]`
     if (!isPlainObject(fields)) throw fail('config.projectEntry', { where: place })
-    const { id, key, repo, name, branch, chain, slot, tracker, brief, prompt, commands, ci, fillMilestone } = fields
+    const { id, key, repo, name, branch, chain, slot, tracker, brief, prompt, commands, ci, fillMilestone, agent, codexModel } = fields
     if (typeof key !== 'string' || !PROJECT_KEY.test(key)) throw fail('config.projectKey', { where: `${place}.key`, value: String(JSON.stringify(key)) })
     if (typeof id !== 'string' || id.trim() === '') throw fail('config.projectId', { where: `${place}.id` })
     for (const [field, value] of [['key', key], ['id', id]] as const) {
@@ -120,6 +125,8 @@ export function parseConfig(raw: unknown, adapters: AdapterShapes = ADAPTERS): E
       ...parseCommands(commands, `${key}.commands`),
       ci: parseCi(ci, `${key}.ci`),
       fillMilestone: fillMilestone === undefined ? false : parseBrief(fillMilestone, `${key}.fillMilestone`),
+      agent: parseAgent(agent, `${key}.agent`),
+      codexModel: parseCodexModel(codexModel, `${key}.codexModel`),
     }
   }
 
@@ -299,6 +306,19 @@ function parseBrief(raw: unknown, where: string): boolean {
   return raw
 }
 
+function parseAgent(raw: unknown, where: string): string {
+  if (raw === undefined) return DEFAULT_AGENT
+  const name = typeof raw === 'string' ? raw.trim().toLowerCase() : ''
+  if (!AGENT_NAMES.includes(name)) throw fail('config.agent', { where, value: String(JSON.stringify(raw)), known: [...AGENT_NAMES] })
+  return name
+}
+
+function parseCodexModel(raw: unknown, where: string): string | null {
+  if (raw === undefined || raw === null) return null
+  if (typeof raw !== 'string') throw fail('config.codexModel', { where })
+  return raw.trim() === '' ? null : raw.trim()
+}
+
 function parseProjectPrompt(raw: unknown, where: string): string | null {
   if (raw === undefined) return null
   if (typeof raw !== 'string') throw fail('config.projectPrompt', { where })
@@ -444,12 +464,12 @@ export function readRawConfig(file: string): unknown {
 }
 
 /**
- * The project's entry in the config file with `branch`, `prompt`, `commands`, `ci` and `fillMilestone` set, or removed when empty or default;
- * its other keys stay, and so do the settings `changed` leaves out.
+ * The project's entry in the config file with `branch`, `prompt`, `commands`, `ci`, `fillMilestone`, `agent` and `codexModel` set, or
+ * removed when empty or default; its other keys stay, and so do the settings `changed` leaves out.
  */
 export function withProjectSettings(
   entry: unknown,
-  { branch, prompt, beforeStart, check, afterGreen, ci, fillMilestone }: ProjectSettings,
+  { branch, prompt, beforeStart, check, afterGreen, ci, fillMilestone, agent, codexModel }: ProjectSettings,
   changed: (field: keyof ProjectSettings) => boolean = () => true,
 ): Record<string, unknown> {
   const fields: Record<string, unknown> = isPlainObject(entry) ? { ...entry } : { repo: entry }
@@ -480,6 +500,8 @@ export function withProjectSettings(
     put(fields, 'ci', Object.keys(written).length === 0 ? undefined : written)
   }
   if (changed('fillMilestone')) put(fields, 'fillMilestone', fillMilestone || undefined)
+  if (changed('agent')) put(fields, 'agent', agent === DEFAULT_AGENT ? undefined : agent)
+  if (changed('codexModel')) put(fields, 'codexModel', codexModel?.trim() || undefined)
   return fields
 }
 

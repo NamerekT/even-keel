@@ -44,7 +44,7 @@ export class Handovers {
       return false
     }
     if (current.limit?.at !== session.limit.at) {
-      if (this.deps.account().id === null) return true
+      if (this.deps.account(chain.project, current.task).id === null) return true
       const reset = this.deps.limitResetAfter(session.account, session.limit.at)
       current.limit = holdOf(session, this.deps.accountAt(session.account, session.limit.at), reset)
       this.deps.save(this.state)
@@ -57,7 +57,7 @@ export class Handovers {
     }
     const hold = current.limit
     const now = this.deps.now()
-    const step = relayStep(hold, now, this.deps.account())
+    const step = relayStep(hold, now, this.deps.account(chain.project, current.task))
     if (step === 'wait') return true
 
     hold.acted = step
@@ -92,7 +92,7 @@ export class Handovers {
     if (this.deps.busy(current.task)) return
     const session = this.deps.handoff(current.task)
     if (session === undefined || session.checkpoint === null || session.sessionId !== current.sessionId) return
-    if (this.deps.blocked() !== undefined || this.deps.limitReset() !== null) return
+    if (this.deps.blocked(chain.project, current.task) !== undefined || this.deps.limitReset(chain.project, current.task) !== null) return
     await this.handOverCurrent(chain, current, session, 'checkpoint')
   }
 

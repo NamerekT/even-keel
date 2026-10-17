@@ -198,10 +198,11 @@ export function loginBlockNotice(block: LoginBlock): Notice {
   return notice('account.sessionsBusy', { sessions: block.sessions.map((session) => session.name) })
 }
 
-export function launchBlock(view: AccountView): Notice | undefined {
-  const active = activeEntry(view)
-  if (active === undefined) return notice('account.activeGone', { key: view.active })
-  if (view.login !== null && view.login.target === view.active && view.login.error === null) return notice('account.signingIn', {})
+/** Why no session starts in the account folder `key` — the active one, where Claude sessions start, unless given. */
+export function launchBlock(view: AccountView, key = view.active): Notice | undefined {
+  const active = view.accounts.find((entry) => entry.key === key)
+  if (active === undefined) return key === view.active ? notice('account.activeGone', { key }) : notice('account.homeGone', { key })
+  if (view.login !== null && view.login.target === key && view.login.error === null) return notice('account.signingIn', {})
   if (active.status?.loggedIn === false) return notice('account.signedOut', {})
   if (active.needsLogin) return notice('account.loginExpired', { account: active.status?.email ?? active.key })
   return undefined

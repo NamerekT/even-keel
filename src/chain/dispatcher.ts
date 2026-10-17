@@ -138,7 +138,7 @@ export class Dispatcher {
     }
     const { active, queue } = this.state
     if (active.length < this.deps.parallel()) {
-      this.requireLaunches()
+      this.requireLaunches(project)
       active.push(newChain(project))
     } else queue.push(project)
     this.changed()
@@ -147,7 +147,7 @@ export class Dispatcher {
   resume(project: string): void {
     const chain = this.chainOf(project)
     if (chain === undefined) return
-    this.requireLaunches()
+    this.requireLaunches(project)
     chain.paused = false
     chain.error = null
     this.changed()
@@ -194,8 +194,8 @@ export class Dispatcher {
     if (chain === undefined || current === null) throw fail('chain.notCurrent', { task })
     if (current.sessionId === null) throw fail('chain.launching', { task })
     if (this.deps.busy(task)) throw fail('chain.midTurn', { task })
-    this.requireLaunches()
-    const reset = this.deps.limitReset()
+    this.requireLaunches(project, task)
+    const reset = this.deps.limitReset(project, task)
     if (reset !== null) throw fail('chain.limitSpent', { until: reset })
     const session = this.deps.handoff(task)
     if (session === undefined) throw fail('chain.noSession', { task })
@@ -224,8 +224,8 @@ export class Dispatcher {
       throw fail('answer.moved', { task })
     }
     if (this.deps.midTurn(task)) throw fail('answer.busy', { task })
-    this.requireLaunches()
-    const reset = this.deps.limitReset()
+    this.requireLaunches(project, task)
+    const reset = this.deps.limitReset(project, task)
     if (reset !== null) throw fail('chain.limitSpent', { until: reset })
     return { chain, current, session }
   }
@@ -605,8 +605,8 @@ export class Dispatcher {
     }
   }
 
-  private requireLaunches(): void {
-    const reason = this.deps.blocked()
+  private requireLaunches(project: string, task?: string): void {
+    const reason = this.deps.blocked(project, task)
     if (reason !== undefined) throw new NoticeError(reason)
   }
 
@@ -720,13 +720,13 @@ export class Dispatcher {
 
       if (fix === undefined && this.heldByMain(chain, task, listed)) return
 
-      const blocked = this.deps.blocked()
+      const blocked = this.deps.blocked(chain.project, task)
       if (blocked !== undefined) {
         this.halt(chain, blocked)
         return
       }
 
-      const reset = this.deps.limitReset()
+      const reset = this.deps.limitReset(chain.project, task)
       if (reset !== null) {
         if (chain.limitUntil !== reset) {
           chain.limitUntil = reset

@@ -42,6 +42,8 @@ const project = (repo: string, change: Partial<ProjectForm>): ProjectForm => ({
   afterGreen: [],
   ci: CI_ALL,
   fillMilestone: false,
+  agent: 'claude',
+  codexModel: null,
   ...change,
 })
 

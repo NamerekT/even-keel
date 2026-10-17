@@ -263,6 +263,13 @@ describe('launchBlock', () => {
     expect(launchBlock(view({ login: { ...login, target: 'work' } }))).toBeUndefined()
     expect(launchBlock(view({ login: { ...login, target: null } }))).toBeUndefined()
   })
+
+  it('judges the folder it is given rather than the active one: a Codex session starts in its own', () => {
+    const codex = entry({ key: 'codex', status: { ...signedIn(), loggedIn: false }, needsLogin: true })
+    expect(say(launchBlock(view({ accounts: [entry({}), codex] }), 'codex'))).toMatch(/not signed in/)
+    expect(launchBlock(view({ accounts: [entry({ needsLogin: true }), { ...codex, status: signedIn(), needsLogin: false }] }), 'codex')).toBeUndefined()
+    expect(say(launchBlock(view({}), 'codex'))).toMatch(/gone/)
+  })
 })
 
 describe('parseCredentialTimes', () => {

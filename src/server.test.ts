@@ -177,7 +177,7 @@ describe('Even Keel HTTP server', () => {
   })
 
   const chain = { active: null, terminal: ['Done'], requiredLabels: [], excludedLabels: ['Manual'] }
-  const form = { name: 'Web shop', branch: 'master', repo: 'C:\\abc', tracker: 'github', trackerProject: 'octo-org/abc', slot: 2, brief: false, chain }
+  const form = { name: 'Web shop', branch: 'master', repo: 'C:\\abc', tracker: 'github', trackerProject: 'octo-org/abc', slot: 2, brief: false, chain, agent: 'codex', codexModel: null }
 
   it('passes the settings of a project on with the values the form started from', async () => {
     const ci = { guard: false, kinds: ['github'], waitMinutes: 15, recheckMain: false, fixTask: true }
@@ -201,6 +201,8 @@ describe('Even Keel HTTP server', () => {
       ['trackerProject', { trackerProject: 5 }],
       ['name', { name: 5 }],
       ['brief', { brief: 'no' }],
+      ['agent', { agent: null }],
+      ['codexModel', { codexModel: 5 }],
       ['chain', { chain: { ...chain, active: 'Todo' } }],
     ] as const
     for (const [field, change] of bad) {

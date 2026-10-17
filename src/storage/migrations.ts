@@ -74,6 +74,7 @@ export function upgradeStorage(options: UpgradeOptions): void {
   // reader does without; every file only takes the new version.
   // v3 → v4: the same restamp, for the user's name of an account in `account.json` (`AccountRecord.name`).
   // v4 → v5: the same, for `commands.afterGreen` in the config and the commit they last ran on in the chain's `ci` (BTN-156).
+  // v5 → v6: the same, for `agent` and `codexModel` of a project in the config and the Codex sessions of `state/codex/` (BTN-168).
   for (const stored of [chain, questions, account]) {
     if (stored !== undefined && stored.version >= 2 && stored.version < SCHEMA_VERSION) rewrite(stored, jsonText(restamped(stored)))
   }

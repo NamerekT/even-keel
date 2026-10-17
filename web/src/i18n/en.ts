@@ -423,6 +423,11 @@ export const en: Messages = {
     beforeStartHint:
       "One per line. They run in order in the task's folder before a new session starts; a resumed session does not run them again. A failed command pauses the chain.",
     beforeStartPlaceholder: 'npm ci',
+    agent: 'Agent',
+    agentHint: 'What the new sessions of the project run on. A task with the Codex label runs on Codex whatever is chosen here.',
+    agents: { claude: 'Claude Code', codex: 'Codex' },
+    codexModel: 'Codex model',
+    codexModelHint: 'Empty — the model of the Codex config. The Sonnet, Opus and Haiku labels act only on Claude.',
     guard: 'Keep main green',
     guardHint:
       'Off: the chain does not watch main — after a push the next task starts at once, with no wait for CI, no check and no fix of a red main; CI itself still runs and reports as usual. For when the project’s CI serves other ends (deploys, releases, reports) or you watch main yourself. The fields below keep their values.',
