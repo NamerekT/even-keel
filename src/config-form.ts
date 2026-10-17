@@ -13,7 +13,6 @@ import {
   type EvenKeelConfig,
 } from './config.js'
 import { DEFAULT_PROVIDER } from './agent/providers.js'
-import { CLAUDE } from './claude/name.js'
 import { fail } from './notice/notice.js'
 import type { ConfigView, ProjectForm, SharedForm, TrackerChoice } from './state.js'
 import { DEFAULT_HIDDEN_SKILLS } from './tools/settings.js'
@@ -171,10 +170,15 @@ export function withUpdates(raw: unknown, patch: Partial<UpdateSettings>): Recor
   return config
 }
 
-/** The raw config with the shared Claude account set: what the header's switch writes. */
-export function withActiveAccount(raw: unknown, key: string): Record<string, unknown> {
+/**
+ * The raw config with the shared provider moved to `provider` and its shared account set: what moving the Even Keel
+ * role writes. Projects with their own provider or account keep them.
+ */
+export function withRunAccount(raw: unknown, provider: string, key: string): Record<string, unknown> {
   const config: Record<string, unknown> = { ...(isPlainObject(raw) ? raw : {}) }
-  const accounts = withEntries(config.accounts, { [CLAUDE]: key }, {}, DEFAULT_ACCOUNTS)
+  if (provider === DEFAULT_PROVIDER) delete config.provider
+  else config.provider = provider
+  const accounts = withEntries(config.accounts, { [provider]: key }, {}, DEFAULT_ACCOUNTS)
   if (accounts === undefined) delete config.accounts
   else config.accounts = accounts
   return config

@@ -7,7 +7,7 @@ import { say, t } from '../i18n/index.js'
 import { ChevronIcon, EditorIcon, EvenKeelIcon } from '../ui/icons.js'
 import { place } from '../ui/Select.js'
 import { Tipped } from '../ui/Tipped.js'
-import { accountName, type Send } from './accountParts.js'
+import { accountName, agentLabel, type Send } from './accountParts.js'
 import './roles.css'
 
 const APP_ICONS: Record<AppId, () => ReactNode> = { vscode: EditorIcon }
@@ -149,8 +149,8 @@ export function AccountRoles({ entry, view, sending, send }: RolesProps) {
   )
 }
 
+/** The Even Keel role on any account, moving the shared provider with it; the apps only on Claude's. */
 function rolesOf(entry: AccountEntry, view: AccountView, send: Send): Role[] {
-  if (entry.agent !== CLAUDE) return []
   const active = view.accounts.find((each) => each.key === view.active)
   const running = (view.loginBlock?.chains.length ?? 0) > 0
   const evenKeel: Role = {
@@ -158,9 +158,15 @@ function rolesOf(entry: AccountEntry, view: AccountView, send: Send): Role[] {
     icon: EvenKeelIcon,
     held: view.active === entry.key,
     problem: view.active === entry.key ? undefined : switchProblem(view, entry.key),
-    note: running && active !== undefined ? t.account.chainsStay(accountName(active)) : t.account.nextHere,
+    note:
+      active !== undefined && active.agent !== entry.agent
+        ? t.account.providerHere(agentLabel(entry.agent))
+        : running && active !== undefined
+          ? t.account.chainsStay(accountName(active))
+          : t.account.nextHere,
     pick: () => send('account/switch', { account: entry.key }),
   }
+  if (entry.agent !== CLAUDE) return [evenKeel]
   return [evenKeel, ...view.apps.map((app) => appRole(entry, view, app, send))]
 }
 

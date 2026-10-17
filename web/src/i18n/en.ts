@@ -260,6 +260,7 @@ export const en: Messages = {
     appOn: (where: string) => `now on ${where}`,
     nextHere: "The chains' next sessions start on this account",
     chainsStay: (account: string) => `Sessions already working stay on ${account}; the next ones start here`,
+    providerHere: (agent: string) => `Projects without a provider of their own move to ${agent}: their next sessions start here, those already working stay`,
     workingNow: 'Working now',
     workSessions: counted('session', 'sessions'),
     workBusy: (count: number) => `${count} working`,

@@ -54,6 +54,7 @@ export interface AccountLogin {
 }
 
 export interface AccountView {
+  /** The account holding the Even Keel role: the shared provider's entry of the shared pool, Claude's or Codex's. */
   active: string
   accounts: AccountEntry[]
   login: AccountLogin | null
@@ -156,7 +157,6 @@ export function activeEntry(view: AccountView): AccountEntry | undefined {
 export function switchProblem(view: AccountView, key: string): Notice | undefined {
   const target = view.accounts.find((entry) => entry.key === key)
   if (target === undefined) return notice('account.unknown', { key })
-  if (target.agent !== CLAUDE) return notice('account.codexFolder', {})
   if (key === view.active) return notice('account.alreadyActive', { key })
   if (target.removing) return notice('account.removing', { account: target.status?.email ?? key })
   if (target.needsLogin || target.status?.loggedIn !== true) return notice('account.needsLogin', { account: target.status?.email ?? key })

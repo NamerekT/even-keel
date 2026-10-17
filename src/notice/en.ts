@@ -135,7 +135,7 @@ export const en = {
   'account.signInRunning': () => 'claude: a sign-in into this account is running',
   'account.usedByApp': (p: { app: string }) => `claude: ${p.app} uses this account; switch it to another one first`,
   'account.codexFolder': () =>
-    'codex: the account lives in CODEX_HOME or ~/.codex; it is not made active, given to an app or removed from here',
+    'codex: the account lives in CODEX_HOME or ~/.codex; it is not given to an app or removed from here',
   'account.notRemoving': (p: { key: string }) => `claude: ${p.key} is not being removed`,
   'account.apiKeyInvalid': () => 'claude: an API key is one word of more than 20 characters, like sk-ant-api03-…',
   'account.apiKeyRejected': () => "claude: Anthropic doesn't accept this key: it is wrong, revoked or its organization is disabled",

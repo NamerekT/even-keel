@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { formsOf, restartPending, trackerChoices, withProjectForm, withSharedForm, withUpdates } from './config-form.js'
+import { formsOf, restartPending, trackerChoices, withProjectForm, withRunAccount, withSharedForm, withUpdates } from './config-form.js'
 import { parseConfig } from './config.js'
 import type { ProjectForm, SharedForm } from './state.js'
 
@@ -181,5 +181,22 @@ describe('restartPending', () => {
     })
     expect(restartPending(current, saved)).toEqual(['tracker', 'context', 'ABC.repo', 'ABC.slot', 'ABC.tracker', 'XYZ.tracker', 'XYZ.trackerProject', 'NEW'])
     expect(restartPending(current, current)).toEqual([])
+  })
+})
+
+describe('withRunAccount', () => {
+  const raw = { projects: [abc({ provider: 'claude', accounts: { claude: 'own' } })], accounts: { claude: 'work' } }
+
+  it('moves the shared provider to the account and sets its pool entry, leaving projects alone', () => {
+    const next = withRunAccount(raw, 'codex', 'codex')
+    expect(next).toEqual({ ...raw, provider: 'codex', accounts: { claude: 'work' } })
+    expect(parseConfig(next).provider).toBe('codex')
+  })
+
+  it('writes no provider for the default one and keeps the other providers entries', () => {
+    expect(withRunAccount({ ...raw, provider: 'codex', accounts: { claude: 'work', codex: 'codex-2' } }, 'claude', 'second')).toEqual({
+      ...raw,
+      accounts: { claude: 'second', codex: 'codex-2' },
+    })
   })
 })

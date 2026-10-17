@@ -257,6 +257,7 @@ export const ru = {
     appOn: (where: string) => `сейчас на ${where}`,
     nextHere: 'Следующие сессии цепочек начнутся на этом аккаунте',
     chainsStay: (account: string) => `Сессии, что уже работают, останутся на ${account}; следующие начнутся здесь`,
+    providerHere: (agent: string) => `Проекты без своего провайдера перейдут на ${agent}: их следующие сессии начнутся здесь, уже работающие останутся`,
     workingNow: 'Сейчас работают',
     workSessions: counted('сессия', 'сессии', 'сессий'),
     workBusy: (count: number) => `${count} ${forms('работает', 'работают', 'работают')(count)}`,

@@ -235,7 +235,7 @@ const account = new AccountWatcher({
   prepare: (home) => daemons.prepare(home),
   active: () => activeAccount(),
   activate: (key) => {
-    configFile.saveActive(key)
+    configFile.saveActive(homes.find(key)?.agent ?? CLAUDE, key)
     hub.broadcast('state', getState())
     dispatcher.check()
   },
@@ -375,8 +375,10 @@ const noAccountFor = (task: string, fallback: string, provider: string) =>
     provider: runLabelText({ provider, model: null }),
   })
 
-/** The account the header shows and switches: the shared pool's Claude entry. */
-const activeAccount = () => configFile.current.accounts[CLAUDE]!
+/** The account holding the Even Keel role, the one the header shows: the shared provider's entry of the shared pool. */
+const activeAccount = () => configFile.current.accounts[configFile.current.provider]!
+/** The shared pool's Claude entry: whose `.claude.json`, MCP failures and tools the Claude-only checks read. */
+const claudeAccount = () => configFile.current.accounts[CLAUDE]!
 
 const promptLanguage = () => configFile.current.promptLanguage
 
@@ -401,9 +403,9 @@ const briefed = async (task: string, given: string, project = projectOf(task)): 
 const withProject = (prompt: string, project: string | undefined): string =>
   withProjectPrompt(prompt, project === undefined ? null : (configFile.current.settings[project]?.prompt ?? null), promptLanguage())
 
-/** `.claude.json` files sessions read: the global one and the active account's. */
+/** `.claude.json` files sessions read: the global one and the shared Claude account's. */
 const claudeConfigs = () =>
-  [...new Set([homes.global, homes.find(activeAccount())].flatMap((home) => (home === undefined ? [] : [homes.configFile(home)])))]
+  [...new Set([homes.global, homes.find(claudeAccount())].flatMap((home) => (home === undefined ? [] : [homes.configFile(home)])))]
 
 const mcp = new McpCheck({
   targets: () =>
@@ -414,7 +416,7 @@ const mcp = new McpCheck({
   read: (repo) =>
     readMcpSources(repo, { claudeDir: homes.global.dir, configs: claudeConfigs() }),
   failures: () => {
-    const home = homes.find(activeAccount())
+    const home = homes.find(claudeAccount())
     return home === undefined ? {} : readFailures(home.dir)
   },
   now: () => Date.now(),
@@ -456,7 +458,7 @@ const places = new TaskPlaces({
 })
 
 function taskRun(task: string, cwd: string): SetupRun {
-  return { task, cwd, shell: systemShell(() => envOf(homeOf(activeAccount()))), log: (line) => console.log(line) }
+  return { task, cwd, shell: systemShell(() => envOf(homeOf(claudeAccount()))), log: (line) => console.log(line) }
 }
 
 const dispatcher = new Dispatcher(loadChainState(chainFile, config.ids), {
@@ -770,7 +772,7 @@ const server = createEvenKeelServer({
       homes: list.map((home) => home.dir),
       trim: dispatcher.state.trimTools,
       hidden: configFile.current.hiddenSkills,
-      mode: agentOf(homes.find(activeAccount()) ?? homes.global).mode,
+      mode: agentOf(homes.find(claudeAccount()) ?? homes.global).mode,
     })
     const received = view.received
     return received === null ? view : { ...view, received: { ...received, account: sessionAccount(received.sessionId, received.at) } }

@@ -355,8 +355,11 @@ describe('switchProblem', () => {
 describe('the Codex folder', () => {
   const codex = view({ accounts: [entry({}), entry({ key: 'codex', agent: 'codex' })] })
 
-  it('is neither made active nor removed from the page', () => {
-    expect(say(switchProblem(codex, 'codex'))).toMatch(/^codex: the account lives in CODEX_HOME/)
+  it('takes the Even Keel role like a Claude folder', () => {
+    expect(switchProblem(codex, 'codex')).toBeUndefined()
+  })
+
+  it('is not removed from the page', () => {
     expect(say(removeProblem(codex, 'codex'))).toMatch(/^codex: the account lives in CODEX_HOME/)
   })
 })

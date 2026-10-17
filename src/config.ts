@@ -47,7 +47,7 @@ export interface EvenKeelConfig {
   provider: string
   /** The shared model by provider, defaults filled in; a project's own entries go over them. */
   models: Record<string, string>
-  /** The shared account folder by provider, defaults filled in; `accounts.claude` is the active account of the header. */
+  /** The shared account folder by provider, defaults filled in; the shared provider's entry is the active account of the header. */
   accounts: Record<string, string>
   /** The mode of each provider's sessions, defaults filled in; shared only: the Codex sandbox does not start under the service for any project. */
   execution: Record<string, string>

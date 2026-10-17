@@ -1,5 +1,5 @@
 import { watchFile } from 'node:fs'
-import { formsOf, restartPending, trackerChoices, withActiveAccount, withProjectForm, withSharedForm, withUpdates } from './config-form.js'
+import { formsOf, restartPending, trackerChoices, withProjectForm, withRunAccount, withSharedForm, withUpdates } from './config-form.js'
 import { ignoredKeys, liveConfig, parseConfig, readRawConfig, restartChanges, withIds, type EvenKeelConfig } from './config.js'
 import { englishOf, fail, noticeOf, type Notice } from './notice/notice.js'
 import { writeAtomic } from './storage/atomic.js'
@@ -86,9 +86,9 @@ export class ConfigFile {
     this.write(withSharedForm(readRawConfig(this.options.file), form, base))
   }
 
-  /** Writes the shared Claude account (`accounts.claude`) the header switched to, by the same rule as `saveProject`. */
-  saveActive(key: string): void {
-    this.write(withActiveAccount(readRawConfig(this.options.file), key))
+  /** Writes the shared provider and its account the Even Keel role moved to, by the same rule as `saveProject`. */
+  saveActive(provider: string, key: string): void {
+    this.write(withRunAccount(readRawConfig(this.options.file), provider, key))
   }
 
   /** Writes the given keys of `updates` into the file, by the same rule as `saveProject`. */
