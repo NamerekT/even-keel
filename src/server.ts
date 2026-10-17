@@ -55,7 +55,7 @@ export interface StatsSource {
 }
 
 export interface ChainControl {
-  start(project: string): void
+  start(project: string): Promise<void>
   resume(project: string): void
   stop(project: string): void
   dequeue(project: string): void

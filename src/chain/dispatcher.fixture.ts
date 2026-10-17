@@ -70,6 +70,9 @@ export function setup(options: SetupOptions = {}) {
   const finished: string[] = []
   const saved: ChainState[] = []
   const journal: LaunchEntry[] = []
+  /** What a read of the tracker out of turn (`refresh`) hands over, by project; none — the tracker does not answer. */
+  const tracker: Record<string, Task[]> = {}
+  const refreshed: string[] = []
   let counter = 0
   const capacity = { parallel: options.parallel ?? 1 }
   const state = options.state ?? emptyChainState()
@@ -130,8 +133,34 @@ export function setup(options: SetupOptions = {}) {
       finished.push(`${project}/${id}`)
       return options.finish?.(id) ?? { warnings: [], syncError: null }
     },
+    refresh: async (project) => {
+      refreshed.push(project)
+      const tasks = tracker[project]
+      if (tasks !== undefined) dispatcher.setTasks(project, tasks)
+    },
     log: (message) => log.push(message),
     ...(options.main === undefined ? {} : { main: options.main }),
   })
-  return { dispatcher, launched, fixes, stopped, live, tried, refuse, log, finished, saved, journal, clock, account, limited, handoffs, relays, busy, capacity }
+  return {
+    dispatcher,
+    launched,
+    fixes,
+    stopped,
+    live,
+    tried,
+    refuse,
+    log,
+    finished,
+    saved,
+    journal,
+    clock,
+    account,
+    limited,
+    handoffs,
+    relays,
+    busy,
+    capacity,
+    tracker,
+    refreshed,
+  }
 }

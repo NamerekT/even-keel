@@ -33,6 +33,13 @@ export const en = {
   'chain.currentFirst': (p: { task: string }) => `chain: ${p.task} is running and stays first`,
   'chain.fixReportMissing': (p: { task: string }) => `chain: the report of ${p.task} is gone, so a new session cannot be told what to fix; check main and resume`,
   'chain.interrupted':(p: { task: string }) => `chain: launch of ${p.task} was interrupted by a restart; check its session, then resume`,
+  'chain.notRead': (p: { project: string }) => `chain: the tasks of ${p.project} are not read from the tracker yet; try again once it answers`,
+  'chain.empty': (p: { project: string }) => `chain: ${p.project} has no task to run, not started`,
+  'chain.emptyNone': () => 'it has no open tasks',
+  'chain.emptyStatus': () => 'none of its open tasks is in a status the chain takes',
+  'chain.emptyLabels': (p: { labels: string[] }) => `its ready tasks lack a required label (${list(p.labels)})`,
+  'chain.emptySkipped': () => 'all its ready tasks are skipped',
+  'chain.emptyBlocked': () => 'its ready tasks are skipped or wait for blockers outside the chain',
 
   'order.notOpen': (p: { task: string }) => `chain: ${p.task} is not an open task of this chain`,
   'order.twice': (p: { task: string }) => `chain: ${p.task} appears twice`,

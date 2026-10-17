@@ -32,11 +32,13 @@ export interface TrackerStartDeps {
   mainBranch: (project: string) => string
   /** Sends the page a fresh state. */
   broadcast: () => void
+  /** Filled here: a read of the project's tasks out of turn, for each project of the tracker. */
+  refreshers: Map<string, () => Promise<void>>
 }
 
 /** Connects a tracker, polls the statuses of its projects' tasks and refreshes them, closing merged tasks and done parents. */
 export function startTracker(view: TrackerView, setup: TrackerSetup, deps: TrackerStartDeps): void {
-  const { repos, rulesOf, links, tasksByProject, launches, dispatcher, fillsMilestone, mainBranch, broadcast } = deps
+  const { repos, rulesOf, links, tasksByProject, launches, dispatcher, fillsMilestone, mainBranch, broadcast, refreshers } = deps
   const { name, projects } = view
   let completes = false
   let closesParents = false
@@ -116,41 +118,53 @@ export function startTracker(view: TrackerView, setup: TrackerSetup, deps: Track
   })
 
   const unknownByProject = new Map<string, string>()
+  const refreshing = new Map<string, Promise<void>>()
+  /** One read of the project at a time: a read asked for during another goes after it, so its list is the newer one. */
+  const refreshProject = (project: string): Promise<void> => {
+    const next = (refreshing.get(project) ?? Promise.resolve()).then(() => readProject(project))
+    refreshing.set(project, next)
+    return next
+  }
+  const readProject = async (project: string): Promise<void> => {
+    try {
+      const { tasks, parents, unknownStatuses } = await link.run((tracker) => tracker.chainTasks(project, rulesOf(project)))
+      const unknown = unknownStatuses.join('", "')
+      if (unknown !== (unknownByProject.get(project) ?? '') && unknown !== '') {
+        console.warn(`config: ${view.title} has no status "${unknown}" named in the chain rules of ${project}`)
+      }
+      unknownByProject.set(project, unknown)
+      const listed = new Set([...tasks, ...parents].map((task) => task.id))
+      const missing = [...new Set(tasks.filter((task) => isOpen(task.status)).flatMap((task) => task.blockedBy))].filter((id) => !listed.has(id))
+      const others = missing.length === 0 ? [] : await link.run((tracker) => tracker.tasks(missing))
+      const unlisted = ranSince(launches, project, new Date(Date.now() - RAN_SHOWN_MS)).filter((id) => !listed.has(id))
+      const ran = unlisted.length === 0 ? [] : (await link.run((tracker) => tracker.tasks(unlisted))).filter((task) => !isOpen(task.status))
+      const shown = [...tasks, ...ran]
+      dispatcher.setOutside(project, [...parents, ...others])
+      tasksByProject.set(project, shown)
+      dispatcher.setTasks(project, shown)
+      const released = dispatcher.released(project)
+      if (released.length > 0) dispatcher.setReleased(project, await link.run((tracker) => tracker.tasks(released)))
+      await fillMilestones(project)
+      if (!completes) return
+      for (const task of await closer.sweep(project, dispatcher.held(project))) {
+        console.log(`${name}: closed ${task}, its branch is merged into main`)
+      }
+      if (!closesParents) return
+      for (const task of await parentCloser.sweep(parents, tasks)) {
+        console.log(`${name}: closed ${task}, all its subtasks are closed`)
+      }
+    } catch (error) {
+      report(error)
+    }
+  }
+  for (const project of projects) {
+    refreshers.set(project, async () => {
+      await refreshProject(project)
+      broadcast()
+    })
+  }
   const refreshTasks = async (): Promise<void> => {
-    await Promise.all(
-      projects.map(async (project) => {
-        try {
-          const { tasks, parents, unknownStatuses } = await link.run((tracker) => tracker.chainTasks(project, rulesOf(project)))
-          const unknown = unknownStatuses.join('", "')
-          if (unknown !== (unknownByProject.get(project) ?? '') && unknown !== '') {
-            console.warn(`config: ${view.title} has no status "${unknown}" named in the chain rules of ${project}`)
-          }
-          unknownByProject.set(project, unknown)
-          const listed = new Set([...tasks, ...parents].map((task) => task.id))
-          const missing = [...new Set(tasks.filter((task) => isOpen(task.status)).flatMap((task) => task.blockedBy))].filter((id) => !listed.has(id))
-          const others = missing.length === 0 ? [] : await link.run((tracker) => tracker.tasks(missing))
-          const unlisted = ranSince(launches, project, new Date(Date.now() - RAN_SHOWN_MS)).filter((id) => !listed.has(id))
-          const ran = unlisted.length === 0 ? [] : (await link.run((tracker) => tracker.tasks(unlisted))).filter((task) => !isOpen(task.status))
-          const shown = [...tasks, ...ran]
-          dispatcher.setOutside(project, [...parents, ...others])
-          tasksByProject.set(project, shown)
-          dispatcher.setTasks(project, shown)
-          const released = dispatcher.released(project)
-          if (released.length > 0) dispatcher.setReleased(project, await link.run((tracker) => tracker.tasks(released)))
-          await fillMilestones(project)
-          if (!completes) return
-          for (const task of await closer.sweep(project, dispatcher.held(project))) {
-            console.log(`${name}: closed ${task}, its branch is merged into main`)
-          }
-          if (!closesParents) return
-          for (const task of await parentCloser.sweep(parents, tasks)) {
-            console.log(`${name}: closed ${task}, all its subtasks are closed`)
-          }
-        } catch (error) {
-          report(error)
-        }
-      }),
-    )
+    await Promise.all(projects.map(refreshProject))
     broadcast()
     poller.start()
     setTimeout(() => void refreshTasks(), projects.some((project) => tasksByProject.has(project)) ? TASKS_REFRESH_MS : TRACKER_POLL_MS)
