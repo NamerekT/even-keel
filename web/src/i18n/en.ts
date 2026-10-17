@@ -450,6 +450,8 @@ export const en: Messages = {
     providerHint: 'What the new sessions of the project run on. With run labels on, a task labelled with another provider runs on that one.',
     agents: { claude: 'Claude Code', codex: 'Codex' },
     asShared: (value: string) => `As shared: ${value}`,
+    model: 'Model',
+    account: 'Account',
     modelOf: (provider: string) => `Model on ${provider}`,
     modelHint: 'As it goes to the CLI: opus, gpt-6.1-sol. Empty — the shared one.',
     cliDefault: "the CLI's default",
@@ -552,6 +554,7 @@ export const en: Messages = {
     modelHint:
       "As it goes to the CLI: opus, gpt-6.1-sol. For projects and tasks that name none of their own. Empty — the CLI's default: for Claude Code the model of settings.json, which an editor may have just changed.",
     accountHint: 'For projects that name none of their own; the Claude Code one is also switched from the header. One per provider, no rotation on a spent limit.',
+    execution: 'Execution',
     executionOf: (provider: string) => `Execution on ${provider}`,
     executionHint:
       'In the sandbox — the automatic reviewer approves actions inside the Codex sandbox. Under the Windows service that sandbox does not start, and a session can neither edit files nor run commands; without it, a session does everything without limits on this machine. For every project.',

@@ -1,4 +1,4 @@
-import { useId, type ReactNode } from 'react'
+import { Fragment, useId, type CSSProperties, type ReactNode } from 'react'
 import type { ChainRules } from '../../../src/chain/rules.js'
 import type { Notice } from '../../../src/notice/notice.js'
 import type { ConfigView } from '../../../src/state.js'
@@ -8,6 +8,7 @@ import { useTip } from '../ui/useTip.js'
 import type { Draft, Same, Value, Values } from './settingsDraft.js'
 import { fieldOf } from './settingsField.js'
 import { withoutListed } from './settingsRows.js'
+import { providerName } from './settingsRun.js'
 import { ListTable } from './settingsTable.js'
 
 export const RULE_KEYS = ['active', 'terminal', 'requiredLabels', 'excludedLabels'] as const
@@ -148,6 +149,43 @@ export function FieldNote({ error }: { error: Notice | null }) {
     <span className="settings__error" role="alert">
       {say(error)}
     </span>
+  )
+}
+
+/**
+ * The settings kept per provider as a table: a row per provider, a column per setting, so one setting lines up across providers.
+ * A cell holds its control without a visible name — the column heads name them; `cell` gives it an accessible one.
+ */
+export function ProviderGrid({
+  columns,
+  providers,
+  cell,
+}: {
+  columns: readonly { key: string; label: string; hint: string }[]
+  providers: readonly string[]
+  /** `null` — the provider has no such setting. */
+  cell: (column: string, provider: string) => ReactNode | null
+}) {
+  return (
+    <div className="provider-grid">
+      <div className="provider-grid__table" style={{ '--columns': columns.length } as CSSProperties}>
+        <span className="provider-grid__corner" />
+        {columns.map((column) => (
+          <span key={column.key} className="settings__head-row provider-grid__head">
+            <span className="settings__label">{column.label}</span>
+            <HelpTip text={column.hint} />
+          </span>
+        ))}
+        {providers.map((provider) => (
+          <Fragment key={provider}>
+            <span className="provider-grid__name">{providerName(provider)}</span>
+            {columns.map((column) => (
+              <Fragment key={column.key}>{cell(column.key, provider) ?? <span className="provider-grid__none">—</span>}</Fragment>
+            ))}
+          </Fragment>
+        ))}
+      </div>
+    </div>
   )
 }
 

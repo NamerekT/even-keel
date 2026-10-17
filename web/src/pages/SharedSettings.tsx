@@ -1,4 +1,4 @@
-import { Fragment, type ReactNode } from 'react'
+import type { ReactNode } from 'react'
 import { EXECUTION_MODES, PROVIDERS } from '../../../src/agent/providers.js'
 import { LANGUAGES, type Language } from '../../../src/language.js'
 import type { CacheTtl, EvenKeelState, SharedForm } from '../../../src/state.js'
@@ -15,6 +15,7 @@ import {
   HelpTip,
   linesOf,
   marksOf,
+  ProviderGrid,
   RULE_KEYS,
   RuleFields,
   rulesOf,
@@ -171,12 +172,13 @@ export function SharedSettings({ state }: { state: EvenKeelState }) {
       <FieldNote error={errorOf(key)} />
     </div>
   )
+  // A model and a pick in a cell of the provider table: its column names it.
   const model = (key: string, label: string) => (
-    <div className={marks.box(key, 'settings__field settings__grow')}>
-      <FieldHead label={label} hint={t.shared.modelHint} htmlFor={fieldId(key)} />
+    <div className={marks.box(key)}>
       <input
         id={fieldId(key)}
         className="settings__text settings__text--mono"
+        aria-label={label}
         spellCheck={false}
         value={text(key)}
         placeholder={t.settings.cliDefault}
@@ -184,6 +186,13 @@ export function SharedSettings({ state }: { state: EvenKeelState }) {
         onChange={(event) => edit(key, event.target.value)}
       />
       {marks.note(key, (value) => ((value as string).trim() === '' ? t.settings.cliDefault : (value as string)))}
+      <FieldNote error={errorOf(key)} />
+    </div>
+  )
+  const pick = (key: string, label: string, options: readonly { value: string; label: string }[]) => (
+    <div className={marks.box(key)}>
+      <Select id={fieldId(key)} className="settings__text" label={label} value={text(key)} options={options} onChange={(value) => edit(key, value)} />
+      {marks.note(key, (value) => options.find((option) => option.value === value)?.label ?? String(value))}
       <FieldNote error={errorOf(key)} />
     </div>
   )
@@ -236,27 +245,27 @@ export function SharedSettings({ state }: { state: EvenKeelState }) {
     models: () => (
       <>
         {select('provider', t.settings.provider, providerOptions(), t.shared.providerHint)}
-        {PROVIDERS.map((provider) => (
-          <div key={provider} className="settings__row">
-            {model(`models.${provider}`, t.settings.modelOf(providerName(provider)))}
-            {select(
-              `accounts.${provider}`,
-              t.settings.accountOf(providerName(provider)),
-              accountOptions(state.account, provider, text(`accounts.${provider}`)),
-              t.shared.accountHint,
-            )}
-          </div>
-        ))}
-        {EXECUTED.map((provider) => (
-          <Fragment key={provider}>
-            {select(
-              `execution.${provider}`,
-              t.shared.executionOf(providerName(provider)),
-              EXECUTION_MODES[provider]!.map((mode) => ({ value: mode, label: t.shared.modes[mode] ?? mode })),
-              t.shared.executionHint,
-            )}
-          </Fragment>
-        ))}
+        <ProviderGrid
+          columns={[
+            { key: 'models', label: t.settings.model, hint: t.shared.modelHint },
+            { key: 'accounts', label: t.settings.account, hint: t.shared.accountHint },
+            { key: 'execution', label: t.shared.execution, hint: t.shared.executionHint },
+          ]}
+          providers={PROVIDERS}
+          cell={(column, provider) => {
+            const name = providerName(provider)
+            if (column === 'models') return model(`models.${provider}`, t.settings.modelOf(name))
+            if (column === 'accounts') return pick(`accounts.${provider}`, t.settings.accountOf(name), accountOptions(state.account, provider, text(`accounts.${provider}`)))
+            const modes = EXECUTION_MODES[provider]
+            return modes === undefined
+              ? null
+              : pick(
+                  `execution.${provider}`,
+                  t.shared.executionOf(name),
+                  modes.map((mode) => ({ value: mode, label: t.shared.modes[mode] ?? mode })),
+                )
+          }}
+        />
         <CheckField
           className={marks.box('modelLabels')}
           label={t.settings.modelLabels}

@@ -19,6 +19,7 @@ import {
   GroupTabs,
   linesOf,
   marksOf,
+  ProviderGrid,
   RULE_KEYS,
   RuleFields,
   rulesOf,
@@ -313,28 +314,53 @@ export function SettingsPanel({
           { value: '', label: t.settings.asShared(providerName(config.shared.provider)) },
           ...providerOptions(),
         ])}
-        {PROVIDERS.map((provider) => (
-          <div key={provider} className="settings__row">
-            <div className={marks.box(`models.${provider}`, 'settings__field settings__grow')}>
-              <FieldHead label={t.settings.modelOf(providerName(provider))} hint={t.settings.modelHint} htmlFor={fieldId(`models.${provider}`)} />
-              <input
-                id={fieldId(`models.${provider}`)}
-                className="settings__text settings__text--mono"
-                spellCheck={false}
-                value={text(`models.${provider}`)}
-                placeholder={t.settings.asShared(config.shared.models[provider] ?? t.settings.cliDefault)}
-                aria-invalid={errorOf(`models.${provider}`) !== null}
-                onChange={(event) => edit(`models.${provider}`, event.target.value)}
-              />
-              {marks.note(`models.${provider}`)}
-              <FieldNote error={errorOf(`models.${provider}`)} />
-            </div>
-            {choice(`accounts.${provider}`, t.settings.accountOf(providerName(provider)), t.settings.accountHint, [
-              { value: '', label: t.settings.asShared(config.shared.accounts[provider] ?? '—') },
-              ...(state === null ? [] : accountOptions(state.account, provider, text(`accounts.${provider}`))),
-            ])}
-          </div>
-        ))}
+        <ProviderGrid
+          columns={[
+            { key: 'models', label: t.settings.model, hint: t.settings.modelHint },
+            { key: 'accounts', label: t.settings.account, hint: t.settings.accountHint },
+          ]}
+          providers={PROVIDERS}
+          cell={(column, provider) => {
+            const key = `${column}.${provider}`
+            if (column === 'accounts') {
+              const options = [
+                { value: '', label: t.settings.asShared(config.shared.accounts[provider] ?? '—') },
+                ...(state === null ? [] : accountOptions(state.account, provider, text(key))),
+              ]
+              return (
+                <div className={marks.box(key)}>
+                  <Select
+                    id={fieldId(key)}
+                    className="settings__text"
+                    label={t.settings.accountOf(providerName(provider))}
+                    value={text(key)}
+                    options={options}
+                    invalid={errorOf(key) !== null}
+                    onChange={(value) => edit(key, value)}
+                  />
+                  {marks.note(key, (value) => options.find((option) => option.value === value)?.label ?? String(value))}
+                  <FieldNote error={errorOf(key)} />
+                </div>
+              )
+            }
+            return (
+              <div className={marks.box(key)}>
+                <input
+                  id={fieldId(key)}
+                  className="settings__text settings__text--mono"
+                  aria-label={t.settings.modelOf(providerName(provider))}
+                  spellCheck={false}
+                  value={text(key)}
+                  placeholder={t.settings.asShared(config.shared.models[provider] ?? t.settings.cliDefault)}
+                  aria-invalid={errorOf(key) !== null}
+                  onChange={(event) => edit(key, event.target.value)}
+                />
+                {marks.note(key)}
+                <FieldNote error={errorOf(key)} />
+              </div>
+            )
+          }}
+        />
         {choice('modelLabels', t.settings.modelLabels, t.settings.modelLabelsHint, [
           { value: '', label: t.settings.asShared(config.shared.modelLabels ? t.settings.on : t.settings.off) },
           { value: 'true', label: t.settings.on },

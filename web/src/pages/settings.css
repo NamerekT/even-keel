@@ -83,6 +83,12 @@
   opacity: 0.7;
 }
 
+/* A placeholder is a phrase, not a value: it keeps the text font in a mono field. */
+.settings__text--mono::placeholder {
+  font-family: var(--font);
+  font-size: 14px;
+}
+
 .settings__text:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: -1px;
@@ -122,8 +128,10 @@
   resize: none;
 }
 
+/* One width for every standalone pick and short field, whatever its value, so their right edges line up. */
 .settings__short {
-  max-width: 16em;
+  width: 16em;
+  max-width: 100%;
 }
 
 /* A pick next to another field in a row would shrink to its current value. */
@@ -176,6 +184,64 @@
 
 .settings__grow {
   flex: 1 1 14em;
+}
+
+/* The settings kept per provider: the providers down, the settings across, every column one width. */
+.provider-grid {
+  container-type: inline-size;
+}
+
+.provider-grid__table {
+  display: grid;
+  grid-template-columns: max-content repeat(var(--columns), minmax(0, 1fr));
+  align-items: start;
+  gap: 8px 16px;
+}
+
+.provider-grid__head {
+  align-self: end;
+}
+
+.provider-grid__name,
+.provider-grid__none {
+  display: flex;
+  align-items: center;
+  min-height: 38px;
+}
+
+.provider-grid__name {
+  padding-right: 8px;
+  color: var(--fg-muted);
+  font-weight: 600;
+}
+
+.provider-grid__none {
+  padding-left: 10px;
+  color: var(--fg-muted);
+}
+
+.provider-grid .settings__text {
+  width: 100%;
+  min-width: 0;
+  margin-top: 0;
+}
+
+/* Too narrow for a column of names: each provider's name heads its own line of fields. */
+@container (max-width: 36em) {
+  .provider-grid__table {
+    grid-template-columns: repeat(var(--columns), minmax(0, 1fr));
+    row-gap: 4px;
+  }
+
+  .provider-grid__corner {
+    display: none;
+  }
+
+  .provider-grid__name {
+    grid-column: 1 / -1;
+    min-height: 0;
+    margin-top: 8px;
+  }
 }
 
 .settings__section {
