@@ -10,7 +10,7 @@ Reference for sessions: account folders, sign-in, switching, transferring the sh
 - Removing — `claude auth logout` and the folder goes away (not the active one, not the global one). If there are live sessions, the folder is marked (`removing` in `state/account.json`), cannot be switched to, and is deleted at the first check after they end (the menu names the ones holding it); "Don't remove" clears the mark.
 - A live session of a folder is one with a live process (a `sessions/<pid>.json` entry), not by `state` from `claude agents`: `blocked`/`working` stay there even for a session whose process and daemon died long ago, and such entries interfere neither with removing the folder nor with stopping its daemon (`liveSessions`).
 - `*.lock` folders are locks the CLI puts next to an account folder while a token is refreshed; they are not accounts.
-- The account e-mail in `auth status` is the saved profile from `.claude.json`, not the token owner: the Claude desktop app runs the CLI in `~/.claude` with its own account and rewrites the profile, so keep in `~/.claude` the same account as in the app.
+- The account e-mail in `auth status` is the saved profile from `.claude.json`, not the token owner: the Claude desktop app runs the CLI in `~/.claude` with its own account and rewrites the profile, so keep in `~/.claude` the same account as in the app, or launch the app on an account folder ("The Claude desktop app" below).
 
 ## Active account
 
@@ -28,7 +28,26 @@ Reference for sessions: account folders, sign-in, switching, transferring the sh
 - The file is rewritten only if it is pure JSON (with comments it is an error in the panel, fix by hand); other keys, indentation and line endings are preserved.
 - Switching is impossible while any Claude chat is open in VS Code — a live `sessions/<pid>.json` entry with `entrypoint: "claude-vscode"` in any account folder (polled every 5 s and again before writing); the chain and Even Keel sessions do not interfere. Before writing, the shared configuration is transferred to the folder (`DaemonRefresh.prepare`).
 - The account an app sits on is not removed. VS Code picks up the new account after Developer: Reload Window.
-- The Claude desktop app is not included: it passes its own sign-in to the CLI, and its configuration folder cannot be switched.
+- The Claude desktop app is not in the panel: it is launched on an account folder by hand, see below.
+
+## The Claude desktop app
+
+Even Keel does not switch the app's account (BTN-121): each profile needs its own sign-in by e-mail, and the usual ways of starting the app ignore the profile. Whoever needs it launches the app on an account folder by hand. Checked on Windows with the Store (MSIX) build 2.42304.0.0 on 2026-10-17:
+
+- By default the app keeps its data in `%APPDATA%\Claude`, and the Claude Code it starts (its Code tab) works in `~/.claude` with the app's sign-in.
+- The Electron flag `--user-data-dir=<folder>` opens a separate profile with its own sign-in, chats and settings. Several profiles run side by side; launching the same folder again focuses its window.
+- `CLAUDE_CONFIG_DIR` set when the app is launched reaches the Claude Code it starts: that folder, not `~/.claude`, gets `sessions`, `projects` and `.claude.json`.
+
+```powershell
+$env:CLAUDE_CONFIG_DIR = "$HOME\.claude-accounts\<name>"
+& "$env:LOCALAPPDATA\Microsoft\WindowsApps\claude-desktop.exe" --user-data-dir="$env:APPDATA\Claude-<name>"
+```
+
+- Sign in to a new profile only with "Continue with email". Google sign-in finishes in the browser with a `claude://` link, Windows hands the link to the app without the flag, and the sign-in lands in the default profile instead.
+- The Start menu, a taskbar pin, autostart and an update relaunch open the default profile. A Windows shortcut cannot set an environment variable, so a shortcut to a profile has to run the two lines above (e.g. `pwsh -WindowStyle Hidden -Command …`).
+- Even Keel cannot launch the app for you: from the service's Windows session 0 it does not start at all ("Access is denied").
+- The shared configuration in the folder is as fresh as the last Even Keel launch there: the app's launch does not transfer it.
+- Not checked: the installer (non-Store) build on Windows, macOS and Linux. On macOS the same is packaged by [claude-multiprofile](https://github.com/jmdarre-v/claude-multiprofile).
 
 ## Transferring the shared configuration (`src/account/share.ts`)
 
