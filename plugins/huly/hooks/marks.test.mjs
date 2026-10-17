@@ -26,6 +26,13 @@ describe("codeInsideMarks", () => {
     expect(codeInsideMarks("__a__ then `b` then __c__")).toEqual([]);
   });
 
+  it("does not take a closing delimiter before punctuation for an opening one", () => {
+    expect(codeInsideMarks("- **Один плагин**, не копия: `a`.\n- **Различия** — `b`")).toEqual([]);
+    expect(codeInsideMarks("- *one*, then `a`.\n- *two*")).toEqual([]);
+    expect(codeInsideMarks("- __one__, then `a`.\n- __two__")).toEqual([]);
+    expect(codeInsideMarks("- **one**, then **two `a`**")).toEqual(["**two `a`**"]);
+  });
+
   it("ignores emphasis characters inside code spans", () => {
     expect(codeInsideMarks("`**not bold**` and `a*b*c` and `snake_case_name`")).toEqual([]);
     expect(codeInsideMarks("`a_b` then `c_d`")).toEqual([]);

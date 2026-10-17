@@ -3,11 +3,18 @@
 
 const HOLE = "\u0000";
 
+// Flanking as CommonMark has it, so that `**a**, b` does not open a new span at its closing delimiter.
+const EDGE = String.raw`[\s\p{P}\p{S}]`;
+const WORD = String.raw`[^\s\p{P}\p{S}]`;
+const opens = (mark) => String.raw`(?:(?<=^|${EDGE})${mark}(?=\S)|${mark}(?=${WORD}))`;
+const closes = (mark) => String.raw`(?:(?<=${WORD})${mark}|(?<=\S)${mark}(?=$|${EDGE}))`;
+const marked = (source) => new RegExp(source, "gu");
+
 const MARKED = [
-  /\*\*(?=\S)(?:(?!\*\*)[^])*?\u0000(?:(?!\*\*)[^])*?\*\*/g,
-  /(?<![\w_])__(?=\S)(?:(?!__)[^])*?\u0000(?:(?!__)[^])*?__(?![\w_])/g,
-  /(?<!\*)\*(?![\s*])[^*]*?\u0000[^*]*?(?<![\s*])\*(?!\*)/g,
-  /(?<![\w_])_(?![\s_])[^_]*?\u0000[^_]*?(?<![\s_])_(?![\w_])/g,
+  marked(String.raw`${opens(String.raw`\*\*`)}(?:(?!\*\*)[^])*?\u0000(?:(?!\*\*)[^])*?${closes(String.raw`\*\*`)}`),
+  marked(String.raw`(?<![\w_])${opens("__")}(?:(?!__)[^])*?\u0000(?:(?!__)[^])*?${closes("__")}(?![\w_])`),
+  marked(String.raw`(?<!\*)${opens(String.raw`\*`)}(?!\*)[^*]*?\u0000[^*]*?(?<!\*)${closes(String.raw`\*`)}(?!\*)`),
+  marked(String.raw`(?<![\w_])${opens("_")}(?!_)[^_]*?\u0000[^_]*?(?<!_)${closes("_")}(?![\w_])`),
   /~~[^~]*?\u0000[^~]*?~~/g,
   /\[[^\]]*?\u0000[^\]]*?\]\(/g,
 ];
