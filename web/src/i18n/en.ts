@@ -728,6 +728,7 @@ export const en: Messages = {
       installFailed: 'install failed',
       noKey: (variables: string) => `no key ${variables}`,
       noResponse: (servers: string) => `${servers} does not answer`,
+      probing: 'checking',
       noTrackerMcp: (server: string) => `no tracker MCP ${server}`,
       unsupported: (agent: string) => `${agent}: MCP only`,
     },
@@ -737,6 +738,7 @@ export const en: Messages = {
       installFailed: (error: string) => `The chain waits. ${error}`,
       noKey: 'Enter the key in Keys below: the chain waits until it is set.',
       noResponse: 'The server behind the gateway did not answer initialize: check its command and settings. It is tried again every 30 seconds; the chain waits.',
+      probing: 'The gateway is asking the server for initialize for the first time; the chain waits for the answer, at most 30 seconds.',
       noTrackerMcp: (server: string) =>
         `Brief is off, so sessions get only the task ID and need the tracker’s MCP server ${server}. Turn on the package that brings it, or turn brief on in the project’s settings.`,
       unsupported: (agent: string) => `${agent} does not read Claude Code plugins: its sessions get the plugin’s MCP servers but not its skills and hooks. Does not hold the chain.`,

@@ -9,6 +9,10 @@ describe('placeholders', () => {
     expect(placeholders({ ...github, env: { A: '${GITHUB_PERSONAL_ACCESS_TOKEN}', B: '${OTHER}' } })).toEqual(['GITHUB_PERSONAL_ACCESS_TOKEN', 'OTHER'])
     expect(placeholders(huly)).toEqual([])
   })
+
+  it('names a ${…:-default} too', () => {
+    expect(placeholders({ type: 'http', url: '${BASE_URL}/mcp', headers: { Authorization: 'Bearer ${TOKEN:-}' } })).toEqual(['BASE_URL', 'TOKEN'])
+  })
 })
 
 describe('keysOf', () => {
@@ -28,6 +32,12 @@ describe('keysOf', () => {
     expect(keysOf('huly', huly, { aliases: {}, trackers: [tracker] }, {}).missing).toEqual(['HULY_URL', 'HULY_TOKEN', 'HULY_EMAIL'])
   })
 
+  it('does not miss a placeholder with a default, and fills it from the pool when set', () => {
+    const entry = { type: 'http', url: 'https://example.com/mcp', headers: { Authorization: 'Bearer ${TOKEN:-}' } }
+    expect(keysOf('x', entry, { aliases: {}, trackers: [] }, {})).toEqual({ values: {}, env: {}, missing: [], names: ['TOKEN'] })
+    expect(keysOf('x', entry, { aliases: {}, trackers: [] }, { TOKEN: 'secret' }).values).toEqual({ TOKEN: 'secret' })
+  })
+
   it('leaves an HTTP server named as a tracker to its placeholders', () => {
     const tracker = { server: 'github', variables: ['GITHUB_TOKEN'], ready: () => false }
     expect(keysOf('github', github, { aliases: { GITHUB_PERSONAL_ACCESS_TOKEN: 'GITHUB_TOKEN' }, trackers: [tracker] }, { GITHUB_TOKEN: 'x' }).missing).toEqual([])
@@ -37,6 +47,17 @@ describe('keysOf', () => {
 describe('substitute', () => {
   it('fills the placeholders it has values for', () => {
     expect(substitute(github, { GITHUB_PERSONAL_ACCESS_TOKEN: 'ghp_example' }).headers).toEqual({ Authorization: 'Bearer ghp_example', 'X-MCP-Toolsets': 'issues,labels' })
+  })
+
+  it('puts the default of a placeholder without a value', () => {
+    const entry = { headers: { A: 'Bearer ${TOKEN:-}', B: '${MODE:-fast}', C: '${MODE:-fast}' } }
+    expect(substitute(entry, { MODE: 'slow' }).headers).toEqual({ A: 'Bearer ', B: 'slow', C: 'slow' })
+  })
+})
+
+describe('settings with a defaulted key', () => {
+  it('are not settings', () => {
+    expect(defaultSettings({ strata: { type: 'http', url: 'https://example.com', headers: { Authorization: 'Bearer ${TOKEN:-}' } } })).toEqual({})
   })
 })
 

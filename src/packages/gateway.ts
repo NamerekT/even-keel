@@ -144,12 +144,14 @@ export class McpGateway {
     const { entry } = target
     const command = entry.command as string
     const node = command === 'node'
-    const child = spawn(node ? process.execPath : command, Array.isArray(entry.args) ? entry.args.map(String) : [], {
+    const shell = process.platform === 'win32' && !node && !/\.exe$/i.test(command)
+    const args = Array.isArray(entry.args) ? entry.args.map(String) : []
+    const child = spawn(node ? process.execPath : shell ? shellQuoted(command) : command, shell ? args.map(shellQuoted) : args, {
       env: { ...this.deps.baseEnv(), ...stringsOf(entry.env), ...target.env, ...extra },
       cwd: typeof entry.cwd === 'string' ? entry.cwd : undefined,
       stdio: ['pipe', 'pipe', 'pipe'],
       windowsHide: true,
-      shell: process.platform === 'win32' && !node && !/\.exe$/i.test(command),
+      shell,
     })
     let tail = ''
     child.stderr?.on('data', (chunk: Buffer) => (tail = (tail + chunk.toString()).slice(-2000)))
@@ -338,6 +340,15 @@ function readBody(req: IncomingMessage): Promise<Buffer> {
     req.on('end', () => resolve(Buffer.concat(chunks)))
     req.on('error', reject)
   })
+}
+
+/**
+ * An argument for `cmd.exe /s /c`: Node joins a shell command's arguments with spaces, so a path with a space
+ * (`…\Claude Extensions\…`) would fall apart. Quoted the way the program's own parser reads it back.
+ */
+export function shellQuoted(arg: string): string {
+  if (arg !== '' && !/[\s"&|<>^()]/.test(arg)) return arg
+  return `"${arg.replace(/(\\*)"/g, '$1$1\\"').replace(/(\\+)$/, '$1$1')}"`
 }
 
 function stringsOf(value: unknown): Record<string, string> {

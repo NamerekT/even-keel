@@ -82,7 +82,7 @@ interface RowProps {
 
 function PackageRow({ pkg, view, projects, open, onToggle }: RowProps) {
   const { send, sending, failure } = useCommand()
-  const meta = [t.packages.kind[pkg.kind], pkg.version ?? (pkg.installing ? null : t.packages.notInstalled)].filter(Boolean).join(' · ')
+  const meta = [t.packages.kind[pkg.kind], pkg.version ?? (pkg.installed || pkg.installing ? null : t.packages.notInstalled)].filter(Boolean).join(' · ')
 
   return (
     <tr className={pkg.removed ? 'packages__row packages__row--removed' : 'packages__row'}>
@@ -103,7 +103,7 @@ function PackageRow({ pkg, view, projects, open, onToggle }: RowProps) {
         </span>
         {!pkg.removed && !pkg.installing && (
           <span className="packages__actions">
-            {pkg.version === null || pkg.error !== null ? (
+            {!pkg.installed || pkg.error !== null ? (
               <button type="button" className="button button--small" disabled={sending} onClick={() => void send('packages/install', { name: pkg.name })}>
                 {t.packages.install}
               </button>

@@ -543,6 +543,7 @@ export const ru = {
       installFailed: 'установка не удалась',
       noKey: (variables: string) => `нет ключа ${variables}`,
       noResponse: (servers: string) => `${servers} не отвечает`,
+      probing: 'проверяется',
       noTrackerMcp: (server: string) => `нет MCP трекера ${server}`,
       unsupported: (agent: string) => `${agent}: только MCP`,
     },
@@ -552,6 +553,7 @@ export const ru = {
       installFailed: (error: string) => `Цепочка ждёт. ${error}`,
       noKey: 'Введите ключ в «Ключах» ниже: цепочка ждёт, пока он не задан.',
       noResponse: 'Сервер за шлюзом не ответил на initialize: проверьте его команду и настройки. Проба повторяется каждые 30 секунд; цепочка ждёт.',
+      probing: 'Шлюз впервые спрашивает сервер initialize; цепочка ждёт ответа, не дольше 30 секунд.',
       noTrackerMcp: (server: string) =>
         `brief выключен, поэтому сессии получают только номер задачи, и им нужен MCP-сервер трекера ${server}. Включите пакет, который его приносит, или включите brief в настройках проекта.`,
       unsupported: (agent: string) => `${agent} не читает плагины Claude Code: его сессии получают MCP-серверы плагина, но не навыки и хуки. Запуск не держит.`,

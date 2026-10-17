@@ -101,6 +101,7 @@ export class Packages {
       return {
         name,
         kind: record.kind,
+        installed: install !== undefined,
         version: install?.version ?? null,
         installing: this.installing.has(name),
         error: this.errors.get(name) ?? null,
@@ -207,8 +208,7 @@ export class Packages {
     if (known !== undefined && known.removed !== true) throw fail('packages.exists', { name })
     locatePlugin(this.deps.globalDir, plugin, marketplace)
     this.file.packages[name] = { kind: 'plugin', plugin: { name: plugin, marketplace }, default: false, settings: {}, installs: known?.installs ?? [] }
-    this.save()
-    void this.install(name).catch(() => {})
+    this.installAdded(name)
   }
 
   addServer(name: string, entry: ServerEntry, project?: string): void {
@@ -218,9 +218,14 @@ export class Packages {
     const known = this.file.packages[name]
     if (known !== undefined && known.removed !== true) throw fail('packages.exists', { name })
     this.file.packages[name] = { kind: 'mcp', server: entry, default: project === undefined, settings: defaultSettings({ [name]: entry }), installs: known?.installs ?? [] }
-    if (project !== undefined) this.choose(project, name, 'on')
-    this.save()
+    this.installAdded(name, project)
+  }
+
+  /** The install starts before the page is told: a new package shows as installing, not as not installed for a moment. */
+  private installAdded(name: string, project?: string): void {
     void this.install(name).catch(() => {})
+    if (project !== undefined) this.choose(project, name, 'on')
+    else this.save()
   }
 
   /** The servers of the repository's committed `.mcp.json` join the catalog, on for that project only. */

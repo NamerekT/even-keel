@@ -21,7 +21,7 @@ export interface CheckInput {
   /** The failure of each package's last install. */
   errors: ReadonlyMap<string, Notice>
   keys: (server: string, entry: ServerEntry) => ServerKeys
-  /** Whether the server answered `initialize` through the gateway; `undefined` — not probed yet, not held for it. */
+  /** Whether the server answered `initialize` through the gateway; `undefined` — not probed yet, held until it is. */
   probe: (name: string, install: string, server: string) => boolean | undefined
   /** The tracker's MCP server a session of a project with `brief` off cannot do without. */
   trackerServer?: string
@@ -49,14 +49,19 @@ export function projectPackages(input: CheckInput): ProjectPackages {
       if (install !== undefined) {
         const missing = new Set<string>()
         const silent: string[] = []
+        let probing = false
         for (const [server, { entry }] of Object.entries(install.servers)) {
           if (server === input.trackerServer) hasTracker = true
           const keys = input.keys(server, entry)
           keys.missing.forEach((each) => missing.add(each))
-          if (keys.missing.length === 0 && input.probe(name, install.id, server) === false) silent.push(server)
+          if (keys.missing.length > 0) continue
+          const answered = input.probe(name, install.id, server)
+          if (answered === false) silent.push(server)
+          else if (answered === undefined) probing = true
         }
         if (missing.size > 0) problems.push({ kind: 'noKey', variables: [...missing] })
         if (silent.length > 0) problems.push({ kind: 'noResponse', servers: silent })
+        if (probing) problems.push({ kind: 'probing' })
         if (install.extras && record.kind === 'plugin' && input.agent !== 'claude') problems.push({ kind: 'unsupported', agent: input.agent })
       }
     }

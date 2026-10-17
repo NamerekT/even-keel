@@ -1,6 +1,6 @@
 import { createServer, type Server } from 'node:http'
 import { afterEach, describe, expect, it } from 'vitest'
-import { McpGateway, refusal, type GatewayTarget } from './gateway.js'
+import { McpGateway, refusal, shellQuoted, type GatewayTarget } from './gateway.js'
 import { routeOf } from './launch.js'
 
 const ECHO = `
@@ -11,6 +11,20 @@ lines.on('line', (line) => {
   process.stdout.write(JSON.stringify({ jsonrpc: '2.0', id: message.id, result: { method: message.method, key: process.env.KEY ?? null } }) + '\\n')
 })
 `
+
+describe('shellQuoted', () => {
+  it('keeps a plain argument and quotes one with a space or a shell character', () => {
+    expect(shellQuoted('src/server.py')).toBe('src/server.py')
+    expect(shellQuoted('C:\\Users\\John\\Claude Extensions\\paperless')).toBe('"C:\\Users\\John\\Claude Extensions\\paperless"')
+    expect(shellQuoted('a&b')).toBe('"a&b"')
+    expect(shellQuoted('')).toBe('""')
+  })
+
+  it('escapes quotes and the backslashes before them and at the end', () => {
+    expect(shellQuoted('say "hi"')).toBe('"say \\"hi\\""')
+    expect(shellQuoted('C:\\dir with space\\')).toBe('"C:\\dir with space\\\\"')
+  })
+})
 
 describe('refusal', () => {
   const json = { host: '127.0.0.1:4748', 'content-type': 'application/json' }

@@ -18,13 +18,14 @@ What chain sessions get besides the CLI's own tools: plugins and MCP servers, as
 ## Keys
 
 - One pool: Even Keel's own `.env`, the same variables the tracker adapters read (`HULY_*`, `GITHUB_TOKEN`, `LINEAR_TOKEN`). The page writes a key into `.env` (`upsertEnv`) and `process.env`, and sees only whether it is set. The gateway takes a new key at once, a tracker adapter after a restart.
-- `${…}` placeholders of a server entry are filled from the pool (`keys.ts`). A placeholder that names the same key differently (`GITHUB_PERSONAL_ACCESS_TOKEN` ← `GITHUB_TOKEN`, `LINEAR_API_KEY` ← `LINEAR_TOKEN`) is declared by the adapter's `mcpKeys`. The tracker's stdio server (`mcpServer` of the adapter) gets the adapter's variables from the pool.
+- `${…}` placeholders of a server entry are filled from the pool (`keys.ts`). `${NAME:-default}` reads as in Claude Code: the key is listed, but the server is not held without it and gets the default. A placeholder that names the same key differently (`GITHUB_PERSONAL_ACCESS_TOKEN` ← `GITHUB_TOKEN`, `LINEAR_API_KEY` ← `LINEAR_TOKEN`) is declared by the adapter's `mcpKeys`. The tracker's stdio server (`mcpServer` of the adapter) gets the adapter's variables from the pool.
 - Sessions do not get the pool: `sessionBase` drops every variable a package or a tracker reads.
 
 ## The gateway (`gateway.ts`)
 
 - `http://127.0.0.1:<EVEN_KEEL_MCP_PORT>` (4748 by default), never another interface: Tailscale Service forwards 4747 to localhost, not this port. The route is `/mcp/<project GUID>/<package>@<install id>/<server>`; the gateway finds the install and the project's current settings by it, so a session resumed with its saved flags reaches its server after a restart of the service.
 - A remote HTTP server is proxied with its headers filled from the pool. A stdio server with a known HTTP mode (`HTTP_MODES`, by npm package; Huly: `MCP_TRANSPORT=http`, `MCP_HTTP_HOST`, `MCP_HTTP_PORT`, `MCP_AUTH_TOKEN`, path `/mcp`) runs once per route and environment on a free port with a random bearer token. Any other stdio server gets a bridge in the gateway: a child process per MCP session (`Mcp-Session-Id`), JSON replies, `GET` for the server's own messages as SSE, closed by `DELETE` or after 30 minutes idle.
+- On Windows a stdio command that is not `node` or an `.exe` (`uv`, `npx`) runs through `cmd.exe`, which gets one joined line: every argument with a space or a shell character is quoted (`shellQuoted`), otherwise a path like `…\Claude Extensions\…` falls apart.
 - No token between the session and the gateway; instead `refusal()`: `Host` must be 127.0.0.1 or localhost (DNS rebinding), a request with `Origin` is refused (a browser page), a `POST` must be `application/json` (a browser cannot send it without a preflight).
 - The gateway cannot listen → `PackagesView.gateway` and every chain waits (the red banner).
 
@@ -37,8 +38,8 @@ What chain sessions get besides the CLI's own tools: plugins and MCP servers, as
 
 ## The check before a launch (`check.ts`)
 
-- Problems of a package in a project: `notInstalled`, `installing`, `installFailed`, `noKey` (with the variables), `noResponse` (the probe — `initialize` through the gateway; a success lives 5 minutes, a failure is retried in 30 seconds; the first probe of `huly` after an install can time out at 30 seconds while the server logs in to Huly, and the retry passes), and of the set: `noTrackerMcp` when `brief` is off and no enabled package brings the tracker's server. `unsupported` is only a mark.
-- While a project has a problem that holds it (`blocked`), the dispatcher launches nothing for it (`packagesBlocked`) and goes on by itself once the problem is gone; the banner `PackagesBanner` names the projects. A fix session of a red main does not wait.
+- Problems of a package in a project: `notInstalled`, `installing`, `installFailed`, `noKey` (with the variables), `noResponse` (the probe — `initialize` through the gateway; a success lives 5 minutes, a failure is retried in 30 seconds; the first probe of `huly` after an install can time out at 30 seconds while the server logs in to Huly, and the retry passes), `probing` (the first probe of the install has not answered yet: held too, so the chain does not start on a server nobody has asked), and of the set: `noTrackerMcp` when `brief` is off and no enabled package brings the tracker's server. `unsupported` is only a mark.
+- While a project has a problem that holds it (`blocked`), the dispatcher launches nothing for it (`packagesBlocked`) and goes on by itself once the problem is gone; the banner `PackagesBanner` names the projects, except those held only by `installing` and `probing`: after an import they pass in a second, and a banner coming and going shook the whole page. A fix session of a red main does not wait.
 
 ## The page
 

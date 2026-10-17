@@ -248,6 +248,8 @@ export interface PackagesView {
 export interface PackageView {
   name: string
   kind: 'plugin' | 'mcp'
+  /** Has a current install; an MCP server outside npm has one without a version. */
+  installed: boolean
   version: string | null
   installing: boolean
   /** The last install or update failed. */
@@ -288,6 +290,8 @@ export type PackageProblem =
   | { kind: 'installFailed'; notice: Notice }
   | { kind: 'noKey'; variables: string[] }
   | { kind: 'noResponse'; servers: string[] }
+  /** A server's first probe has not answered yet. */
+  | { kind: 'probing' }
   | { kind: 'noTrackerMcp'; server: string }
   /** The project's agent does not read Claude Code plugins: their skills and hooks stay out. Does not hold the chain. */
   | { kind: 'unsupported'; agent: string }

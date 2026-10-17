@@ -1,7 +1,8 @@
 import { fail } from '../notice/notice.js'
 import type { ServerEntry } from './model.js'
 
-const PLACEHOLDER = /\$\{(\w+)\}/g
+/** `${NAME}` or `${NAME:-default}`, as Claude Code reads `.mcp.json`. */
+const PLACEHOLDER = /\$\{(\w+)(?::-([^}]*))?\}/g
 const PLAIN_VALUE = /^[\w.\-/:+=@~%,]*$/
 const NAME = /^[A-Za-z_]\w*$/
 
@@ -34,17 +35,25 @@ export function placeholders(entry: ServerEntry): string[] {
   return [...new Set([...JSON.stringify(entry).matchAll(PLACEHOLDER)].map((match) => match[1]!))]
 }
 
+/** Placeholders every occurrence of which has a default: the server starts without them. */
+function defaulted(entry: ServerEntry): Set<string> {
+  const matches = [...JSON.stringify(entry).matchAll(PLACEHOLDER)]
+  const bare = new Set(matches.filter((match) => match[2] === undefined).map((match) => match[1]!))
+  return new Set(matches.map((match) => match[1]!).filter((name) => !bare.has(name)))
+}
+
 /** What the server `name` needs from the pool and what of it is set; values never leave the service. */
 export function keysOf(name: string, entry: ServerEntry, rules: KeyRules, env: NodeJS.ProcessEnv): ServerKeys {
   const values: Record<string, string> = {}
   const missing: string[] = []
   const names: string[] = []
+  const optional = defaulted(entry)
   for (const placeholder of placeholders(entry)) {
     const pool = rules.aliases[placeholder] ?? placeholder
     names.push(pool)
     const value = env[pool] || env[placeholder]
     if (value) values[placeholder] = value
-    else missing.push(placeholder === pool ? pool : placeholder)
+    else if (!optional.has(placeholder)) missing.push(placeholder === pool ? pool : placeholder)
   }
   const tracker = typeof entry.command === 'string' ? rules.trackers.find((each) => each.server === name) : undefined
   const own: Record<string, string> = {}
@@ -60,7 +69,7 @@ export function keysOf(name: string, entry: ServerEntry, rules: KeyRules, env: N
 
 export function substitute(entry: ServerEntry, values: Record<string, string>): ServerEntry {
   return JSON.parse(JSON.stringify(entry), (_key, value: unknown) =>
-    typeof value === 'string' ? value.replace(PLACEHOLDER, (whole, name: string) => values[name] ?? whole) : value,
+    typeof value === 'string' ? value.replace(PLACEHOLDER, (whole, name: string, fallback?: string) => values[name] ?? fallback ?? whole) : value,
   ) as ServerEntry
 }
 

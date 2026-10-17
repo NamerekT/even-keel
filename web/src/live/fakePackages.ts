@@ -15,7 +15,7 @@ interface Catalog {
   gateway: boolean
 }
 
-const base = { installing: false, error: null, note: null, removed: false }
+const base = { installed: true, installing: false, error: null, note: null, removed: false }
 
 /**
  * `?packages=`: `blocked` — a key is missing and XYZ waits, `gateway` — the gateway cannot listen, `empty` — no
@@ -65,7 +65,7 @@ function projectOf(catalog: Catalog, project: string): PackagesView['projects'][
     const enabled = !each.removed && (choice === null ? each.default : choice === 'on')
     const problems: PackageProblem[] = []
     if (each.installing) problems.push({ kind: 'installing' })
-    else if (each.version === null) problems.push({ kind: 'notInstalled' })
+    else if (!each.installed) problems.push({ kind: 'notInstalled' })
     const missing = each.keys.filter((key) => !catalog.keys[key])
     if (missing.length > 0) problems.push({ kind: 'noKey', variables: missing })
     if (each.extras && project === 'OPS') problems.push({ kind: 'unsupported', agent: 'Codex' })
@@ -82,17 +82,17 @@ export function fakePackagesCommand(state: EvenKeelState, name: string, body: Re
   const catalog = structuredClone((state.packages as PackagesView & { catalog: Catalog }).catalog)
   const target = catalog.packages.find((each) => each.name === body.name)
   const project = typeof body.project === 'string' ? body.project : undefined
-  if (name === 'packages/install' && target !== undefined) target.version = target.version ?? '1.0.0'
+  if (name === 'packages/install' && target !== undefined) target.installed = true
   else if (name === 'packages/update' && target !== undefined) target.note = notice('packages.upToDate', { name: target.name })
   else if (name === 'packages/remove') catalog.packages = catalog.packages.filter((each) => each !== target)
   else if (name === 'packages/plugin') {
     const plugin = `${String(body.plugin)}@${String(body.marketplace)}`
     catalog.packages.push({ ...base, name: plugin, kind: 'plugin', version: '0.1.0', default: false, settings: {}, servers: [String(body.plugin)], extras: true, keys: [] })
   } else if (name === 'packages/server') {
-    catalog.packages.push({ ...base, name: String(body.name), kind: 'mcp', version: null, installing: true, default: project === undefined, settings: {}, servers: [String(body.name)], extras: false, keys: [] })
+    catalog.packages.push({ ...base, name: String(body.name), kind: 'mcp', installed: false, version: null, installing: true, default: project === undefined, settings: {}, servers: [String(body.name)], extras: false, keys: [] })
   } else if (name === 'packages/import' && project !== undefined) {
     for (const server of catalog.imports[project] ?? []) {
-      catalog.packages.push({ ...base, name: server, kind: 'mcp', version: '1.0.0', default: false, settings: {}, servers: [server], extras: false, keys: [] })
+      catalog.packages.push({ ...base, name: server, kind: 'mcp', version: null, default: false, settings: {}, servers: [server], extras: false, keys: [] })
       ;(catalog.choices[project] ??= {})[server] = 'on'
     }
     catalog.imports = { ...catalog.imports, [project]: [] }

@@ -1,4 +1,4 @@
-import type { PackagesView, PackageView } from '../../../src/state.js'
+import type { PackageProblem, PackagesView, PackageView } from '../../../src/state.js'
 
 /** What the "MCP server" field holds: an address is an HTTP server, anything else a command and its arguments. */
 export function serverEntry(text: string): Record<string, unknown> | null {
@@ -9,8 +9,17 @@ export function serverEntry(text: string): Record<string, unknown> | null {
   return { command, args }
 }
 
+/** Hold the chain for a moment after an install: not worth the banner, which would come and go. */
+const PASSING = new Set<PackageProblem['kind']>(['installing', 'probing'])
+
+/** The projects the banner names: held by their packages, not only for a moment. */
 export function blockedProjects(view: PackagesView, projects: string[]): string[] {
-  return projects.filter((project) => view.projects[project]?.blocked === true)
+  return projects.filter((project) => {
+    const found = view.projects[project]
+    if (found?.blocked !== true) return false
+    const problems = [...found.problems, ...Object.values(found.cells).flatMap((cell) => (cell.enabled ? cell.problems : []))].filter((each) => each.kind !== 'unsupported')
+    return problems.length === 0 || problems.some((each) => !PASSING.has(each.kind))
+  })
 }
 
 /** By project: the servers it was offered as they were when dismissed, joined by a comma. */

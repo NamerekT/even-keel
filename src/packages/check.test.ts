@@ -56,9 +56,11 @@ describe('projectPackages', () => {
     expect(view.blocked).toBe(true)
   })
 
-  it('holds the chain on a server that failed its probe, not on one not probed yet', () => {
+  it('holds the chain on a server that failed its probe, and on one not probed yet', () => {
     expect(projectPackages(input({ probe: () => false })).cells['huly@even-keel']!.problems).toEqual([{ kind: 'noResponse', servers: ['huly'] }])
-    expect(projectPackages(input({ probe: () => undefined })).blocked).toBe(false)
+    const unprobed = projectPackages(input({ probe: () => undefined }))
+    expect(unprobed.cells['huly@even-keel']!.problems).toEqual([{ kind: 'probing' }])
+    expect(unprobed.blocked).toBe(true)
   })
 
   it('wants the tracker server when brief is off', () => {

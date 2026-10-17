@@ -31,6 +31,16 @@ describe('blockedProjects', () => {
     const projects = { XYZ: project(true), ABC: project(true), DEMO: project(false) }
     expect(blockedProjects(view({ projects }), ['ABC', 'DEMO', 'XYZ'])).toEqual(['ABC', 'XYZ'])
   })
+
+  it('leaves out a project held only while a package installs or is probed: the banner would blink', () => {
+    const cell = (enabled: boolean, problems: ProjectPackages['problems']) => ({ choice: null, enabled, settings: {}, problems })
+    const held = (cells: ProjectPackages['cells']): ProjectPackages => ({ cells, problems: [], blocked: true })
+    const projects = {
+      ABC: held({ a: cell(true, [{ kind: 'installing' }]), b: cell(true, [{ kind: 'probing' }]), c: cell(false, [{ kind: 'notInstalled' }]) }),
+      XYZ: held({ a: cell(true, [{ kind: 'probing' }]), b: cell(true, [{ kind: 'noResponse', servers: ['b'] }]) }),
+    }
+    expect(blockedProjects(view({ projects }), ['ABC', 'XYZ'])).toEqual(['XYZ'])
+  })
 })
 
 describe('importOffers', () => {
@@ -63,7 +73,7 @@ describe('problemCount', () => {
 
 describe('shownPackages', () => {
   it('keeps a removed package only while it is held, after the others', () => {
-    const base = { kind: 'mcp' as const, version: null, installing: false, error: null, note: null, default: true, settings: {}, servers: [], extras: false }
+    const base = { kind: 'mcp' as const, installed: true, version: null, installing: false, error: null, note: null, default: true, settings: {}, servers: [], extras: false }
     const packages = [
       { ...base, name: 'old', removed: true },
       { ...base, name: 'web', removed: false },
