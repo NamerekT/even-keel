@@ -69,7 +69,13 @@ export function fakePastAsk(at: (minutes: number) => string): FeedLine[] {
   const question = PAST_ASK.questions[0]!.question
   return [
     { at: at(36), kind: 'tool', text: `AskUserQuestion ${question}`, ask: PAST_ASK },
-    { at: at(34), kind: 'answer', text: `${question} → В трекере`, answers: { ask: PAST_ASK.id, answers: { [question]: 'В трекере' } } },
+    {
+      at: at(34),
+      kind: 'answer',
+      text: 'Связи уже заведены, бери их.',
+      answers: { ask: PAST_ASK.id, answers: { [question]: 'В трекере' } },
+      files: ['C:\\repos\\example-project\\.temp\\inbox\\order.png'],
+    },
   ]
 }
 

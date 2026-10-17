@@ -1,19 +1,25 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import Markdown, { type Components } from 'react-markdown'
 import remarkGfm from 'remark-gfm'
-import type { AskAnswers } from '../../../src/sessions/ask.js'
+import type { Ask, AskAnswers } from '../../../src/sessions/ask.js'
 import type { FeedLine } from '../../../src/sessions/transcript.js'
 import type { SessionView } from '../../../src/state.js'
 import { localized, t } from '../i18n/index.js'
 import { useLive } from '../live/context.js'
 import { AccountTag } from '../ui/AccountTag.js'
-import { AskCard } from './AskPanel.js'
+import { Tipped } from '../ui/Tipped.js'
+import { AnswerCard, AskCard } from './AskPanel.js'
 import { ChatComposer } from './ChatComposer.js'
+import { fileName } from './feedLine.js'
 import '../ui/markdown.css'
 
-const LINE_TIME = localized((language) => new Intl.DateTimeFormat(language, { hour: '2-digit', minute: '2-digit', second: '2-digit' }))
+const LINE_TIME = localized((language) => new Intl.DateTimeFormat(language, { hour: '2-digit', minute: '2-digit' }))
+const FULL_TIME = localized((language) => new Intl.DateTimeFormat(language, { dateStyle: 'medium', timeStyle: 'medium' }))
 const POLL_MS = 3_000
 const PINNED_SLACK = 24
+/** A user's message longer than this is folded, like the task prompt a session starts with. */
+const FOLD_LINES = 8
+const FOLD_CHARS = 600
 
 const MARKDOWN: Components = {
   a: ({ href, children }) =>
@@ -62,9 +68,12 @@ export function TranscriptWindow({ sessionId, account, live, chat, onClose }: Pr
   const [lines, setLines] = useState<FeedLine[] | null | undefined>(undefined)
   const [error, setError] = useState<string | null>(null)
   const [sent, setSent] = useState<SentLine[]>([])
-  const shown = lines == null ? null : [...lines, ...sent.filter((each) => !lines.slice(each.after).some(isReply)).map((each) => each.line)]
+  const all = lines == null ? null : [...lines, ...sent.filter((each) => !lines.slice(each.after).some(isReply)).map((each) => each.line)]
   const remoteUrl = chat?.session.remoteUrl
-  const answered = new Map<string, AskAnswers>((shown ?? []).flatMap((line) => (line.answers === undefined ? [] : [[line.answers.ask, line.answers.answers]])))
+  const answered = new Map<string, AskAnswers>((all ?? []).flatMap((line) => (line.answers?.ask === undefined ? [] : [[line.answers.ask, line.answers.answers]])))
+  const asks = new Map<string, Ask>((all ?? []).flatMap((line) => (line.ask === undefined ? [] : [[line.ask.id, line.ask]])))
+  // An answered question shows as the card of its answer, the one the session waits on — in the panel under the chat.
+  const shown = all?.filter((line) => line.ask === undefined || !(answered.has(line.ask.id) || (chat !== undefined && chat.session.ask?.id === line.ask.id)))
 
   useEffect(() => {
     dialogRef.current?.showModal()
@@ -160,14 +169,17 @@ export function TranscriptWindow({ sessionId, account, live, chat, onClose }: Pr
           <ol ref={listRef} className="feed transcript__lines" onScroll={onScroll}>
             {shown.map((line, index) => (
               <li key={index} className={`feed__line feed__line--${line.kind}`}>
-                <time className="feed__time" dateTime={line.at}>
-                  {line.at === '' ? '' : LINE_TIME().format(new Date(line.at))}
-                </time>
+                <LineTime at={line.at} />
                 <div className="feed__text">
-                  {line.kind === 'prompt' && <span className="transcript__label">{t.session.prompt}</span>}
-                  {line.kind === 'answer' && <span className="transcript__label">{t.session.answer}</span>}
-                  {line.ask !== undefined && !(chat !== undefined && waitsOn(chat, line.ask.id, answered)) ? (
-                    <AskCard ask={line.ask} answers={answered.get(line.ask.id) ?? (chat?.session.ask?.id === line.ask.id ? null : {})} />
+                  {line.ask !== undefined ? (
+                    <AskCard ask={line.ask} answers={line.ask.id === chat?.session.ask?.id ? null : {}} />
+                  ) : line.kind === 'prompt' || line.kind === 'answer' ? (
+                    <>
+                      {line.answers !== undefined && Object.keys(line.answers.answers).length > 0 && (
+                        <AnswerCard answers={line.answers.answers} ask={line.answers.ask === undefined ? undefined : asks.get(line.answers.ask)} />
+                      )}
+                      {(line.text !== '' || (line.files?.length ?? 0) > 0) && <UserBubble text={line.text} files={line.files ?? []} />}
+                    </>
                   ) : line.kind === 'text' ? (
                     <div className="markdown">
                       <Markdown remarkPlugins={[remarkGfm]} components={MARKDOWN}>
@@ -201,9 +213,40 @@ export function TranscriptWindow({ sessionId, account, live, chat, onClose }: Pr
   )
 }
 
-/** The question the chat's answer panel shows: its card in the transcript would only repeat it. */
-function waitsOn(chat: ChatTarget, ask: string, answered: Map<string, AskAnswers>): boolean {
-  return chat.session.ask?.id === ask && !answered.has(ask)
+/** Hours and minutes; the date and the seconds in the tip. */
+function LineTime({ at }: { at: string }) {
+  if (at === '') return <span className="feed__time" />
+  const date = new Date(at)
+  return (
+    <Tipped inline align="start" className="feed__time" tip={FULL_TIME().format(date)}>
+      <time dateTime={at}>{LINE_TIME().format(date)}</time>
+    </Tipped>
+  )
+}
+
+/** A message of the user on the right: their words and the files they sent; a long one folds. */
+function UserBubble({ text, files }: { text: string; files: string[] }) {
+  const [open, setOpen] = useState(false)
+  const long = text.split('\n').length > FOLD_LINES || text.length > FOLD_CHARS
+  return (
+    <div className={`bubble${long && !open ? ' bubble--folded' : ''}`}>
+      {text !== '' && <span className="transcript__plain bubble__text">{text}</span>}
+      {files.length > 0 && (
+        <ul className="bubble__files">
+          {files.map((file, index) => (
+            <li key={`${file}-${index}`} className="chat__file">
+              📎 {fileName(file)}
+            </li>
+          ))}
+        </ul>
+      )}
+      {long && (
+        <button type="button" className="bubble__more" onClick={() => setOpen(!open)}>
+          {open ? t.session.showLess : t.session.showMore}
+        </button>
+      )}
+    </div>
+  )
 }
 
 function isReply(line: FeedLine): boolean {

@@ -867,8 +867,8 @@ export const ru = {
     transcriptTitle: 'Транскрипт',
     transcriptDialog: (id: string) => `Транскрипт сессии ${id}`,
     closeTranscript: 'Закрыть транскрипт',
-    prompt: 'Запрос',
-    answer: 'Ответ',
+    showMore: 'Показать целиком',
+    showLess: 'Свернуть',
     chat: {
       open: 'Чат',
       title: 'Чат',
@@ -891,6 +891,12 @@ export const ru = {
       aside: 'Цепочку ведёт починка main. Ответить из чата можно, когда она закончится; до тех пор — через Remote Control.',
       question: 'Вопрос',
       pending: 'ждёт ответа',
+      of: (index: number, count: number) => `${index} из ${count}`,
+      previous: 'Предыдущий вопрос',
+      nextQuestion: 'Следующий вопрос',
+      skip: 'Пропустить',
+      next: 'Дальше',
+      submit: 'Отправить',
     },
   },
   chain: {

@@ -35,7 +35,8 @@ export function ChatComposer({ project, task, session, aside, onSent }: Props) {
   const locked = lockReason(session, aside)
   const disabled = locked !== null || sending || sent.on
   const left = ask === null ? 0 : ask.questions.filter((question, index) => pickAnswer(question, picks[index] ?? NO_PICK) === '').length
-  const ready = ask === null ? text.trim() !== '' || files.length > 0 : left === 0
+  // A question may be skipped: any answer, words or file is a reply.
+  const ready = text.trim() !== '' || files.length > 0 || (ask !== null && left < ask.questions.length)
 
   const submit = async () => {
     const answers = ask === null ? {} : askAnswers(ask, picks)
@@ -55,7 +56,7 @@ export function ChatComposer({ project, task, session, aside, onSent }: Props) {
         if (ready && !disabled) void submit()
       }}
     >
-      {ask !== null && <AskPanel ask={ask} picks={picks} disabled={disabled} onPick={(index, pick) => setPicks((now) => now.map((each, at) => (at === index ? pick : each)))} />}
+      {ask !== null && <AskPanel ask={ask} picks={picks} disabled={disabled} ready={ready} onPick={(index, pick) => setPicks((now) => now.map((each, at) => (at === index ? pick : each)))} />}
       {ask?.unsaved && <p className="chat__hint">{t.session.chat.unsaved}</p>}
       <div className="chat__row">
         <textarea
@@ -136,11 +137,12 @@ async function encoded(file: File): Promise<{ name: string; data: string }> {
 
 /** The reply as the transcript will show it, put into the feed before the session reads it. */
 function sentLine(ask: string | null, answers: Record<string, string>, text: string, files: File[]): FeedLine {
-  const lines = [...Object.entries(answers).map(([question, answer]) => `${question} → ${answer}`), text.trim(), ...files.map((file) => `📎 ${file.name}`)]
+  const given = Object.fromEntries(Object.entries(answers).filter(([, answer]) => answer.trim() !== ''))
   return {
     at: new Date().toISOString(),
-    kind: 'answer',
-    text: lines.filter((line) => line !== '').join('\n'),
-    ...(ask === null ? {} : { answers: { ask, answers } }),
+    kind: ask === null ? 'prompt' : 'answer',
+    text: text.trim(),
+    ...(ask === null ? {} : { answers: { ask, answers: given } }),
+    ...(files.length === 0 ? {} : { files: files.map((file) => file.name) }),
   }
 }

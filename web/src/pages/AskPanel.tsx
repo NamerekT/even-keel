@@ -26,14 +26,21 @@ interface PanelProps {
   ask: Ask
   picks: Pick[]
   disabled: boolean
+  /** The reply can go: the last question's button submits the form. */
+  ready: boolean
   onPick: (index: number, pick: Pick) => void
 }
 
-/** The options of an `AskUserQuestion` to choose from: a tab per question, radios or checkboxes, "Other", the preview beside. */
-export function AskPanel({ ask, picks, disabled, onPick }: PanelProps) {
+/**
+ * The open `AskUserQuestion` as one card: a question at a time with arrows between them, radios or checkboxes, "Other"
+ * with its field, the preview beside; Skip and Next, Submit on the last question.
+ */
+export function AskPanel({ ask, picks, disabled, ready, onPick }: PanelProps) {
   const [tab, setTab] = useState(0)
   const [pointed, setPointed] = useState<string | null>(null)
-  const index = Math.min(tab, ask.questions.length - 1)
+  const count = ask.questions.length
+  const index = Math.min(tab, count - 1)
+  const last = index === count - 1
   const question = ask.questions[index]!
   const pick = picks[index] ?? NO_PICK
   const name = `ask-${ask.id}-${index}`
@@ -41,35 +48,41 @@ export function AskPanel({ ask, picks, disabled, onPick }: PanelProps) {
   const preview = (shown ?? question.options.find((option) => option.preview !== undefined))?.preview
 
   const choose = (label: string, on: boolean) => {
-    if (!question.multiSelect) {
-      onPick(index, { labels: [label], other: null })
-      if (index < ask.questions.length - 1) setTab(index + 1)
-      return
-    }
-    onPick(index, { ...pick, labels: on ? [...pick.labels, label] : pick.labels.filter((each) => each !== label) })
+    if (!question.multiSelect) onPick(index, { labels: [label], other: null })
+    else onPick(index, { ...pick, labels: on ? [...pick.labels, label] : pick.labels.filter((each) => each !== label) })
   }
   const toggleOther = (on: boolean) =>
     onPick(index, question.multiSelect ? { ...pick, other: on ? (pick.other ?? '') : null } : { labels: [], other: on ? (pick.other ?? '') : null })
+  const advance = (form: HTMLFormElement | null) => {
+    if (!last) setTab(index + 1)
+    else if (ready) form?.requestSubmit()
+  }
 
   return (
-    <fieldset className="ask" disabled={disabled}>
-      {ask.questions.length > 1 && (
-        <div className="ask__tabs" role="tablist">
-          {ask.questions.map((each, at) => (
-            <button
-              key={at}
-              type="button"
-              role="tab"
-              aria-selected={at === index}
-              className={`ask__tab${pickAnswer(each, picks[at] ?? NO_PICK) !== '' ? ' ask__tab--done' : ''}`}
-              onClick={() => setTab(at)}
-            >
-              {each.header || at + 1}
+    <fieldset
+      className="ask"
+      disabled={disabled}
+      onKeyDown={(event) => {
+        if (event.key !== 'Enter' || !(event.ctrlKey || event.metaKey)) return
+        event.preventDefault()
+        event.stopPropagation()
+        advance(event.currentTarget.form)
+      }}
+    >
+      <legend className="ask__head">
+        <span className="ask__question">{question.question}</span>
+        {count > 1 && (
+          <span className="ask__pager">
+            <button type="button" className="ask__step" aria-label={t.session.chat.previous} disabled={index === 0} onClick={() => setTab(index - 1)}>
+              ‹
             </button>
-          ))}
-        </div>
-      )}
-      <legend className="ask__question">{question.question}</legend>
+            {t.session.chat.of(index + 1, count)}
+            <button type="button" className="ask__step" aria-label={t.session.chat.nextQuestion} disabled={last} onClick={() => setTab(index + 1)}>
+              ›
+            </button>
+          </span>
+        )}
+      </legend>
       <div className={`ask__body${preview === undefined ? '' : ' ask__body--preview'}`}>
         <ul className="ask__options">
           {question.options.map((option) => (
@@ -106,7 +119,54 @@ export function AskPanel({ ask, picks, disabled, onPick }: PanelProps) {
         </ul>
         {preview !== undefined && <pre className="ask__preview">{preview}</pre>}
       </div>
+      <div className="ask__actions">
+        <button
+          type="button"
+          className="button"
+          onClick={() => {
+            onPick(index, NO_PICK)
+            if (!last) setTab(index + 1)
+          }}
+        >
+          {t.session.chat.skip}
+        </button>
+        <button type="button" className="button button--primary" disabled={last && !ready} onClick={(event) => advance(event.currentTarget.form)}>
+          {last ? t.session.chat.submit : t.session.chat.next}
+          <kbd className="ask__keys">Ctrl ↵</kbd>
+        </button>
+      </div>
     </fieldset>
+  )
+}
+
+/** An answer as the user gave it: the "Other" text first, then the options it chose. */
+function shownAnswer(question: AskQuestion, answer: string): string {
+  const parts = [otherAnswer(question, answer), ...chosenLabels(question, answer)].filter((part) => part !== '')
+  return parts.length === 0 ? answer : joinLabels(parts)
+}
+
+/**
+ * The answers of one `AskUserQuestion` call: each question in bold, its answer under it. With the call in the
+ * transcript, the card opens to its options with the chosen ones marked.
+ */
+export function AnswerCard({ answers, ask }: { answers: AskAnswers; ask: Ask | undefined }) {
+  const known = ask?.questions.filter((question) => answers[question.question] !== undefined) ?? []
+  const rows =
+    known.length > 0
+      ? known.map((question) => ({ question: question.question, answer: shownAnswer(question, answers[question.question]!) }))
+      : Object.entries(answers).map(([question, answer]) => ({ question, answer }))
+  const list = rows.map((row) => (
+    <span key={row.question} className="answer-card__row">
+      <span className="answer-card__question">{row.question}</span>
+      <span className="answer-card__answer">{row.answer}</span>
+    </span>
+  ))
+  if (ask === undefined || known.length === 0) return <div className="answer-card">{list}</div>
+  return (
+    <details className="answer-card">
+      <summary className="answer-card__summary">{list}</summary>
+      <AskCard ask={ask} answers={answers} />
+    </details>
   )
 }
 

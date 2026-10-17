@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { answersIn, chosenLabels, otherAnswer, questionComment, questionsOf, replyPrompt, toolAnswers, trackerAnswers, type Ask } from './ask.js'
+import { answersIn, chosenLabels, otherAnswer, questionComment, questionsOf, replyParts, replyPrompt, toolAnswers, trackerAnswers, type Ask } from './ask.js'
 
 const ASK: Ask = {
   id: 'toolu_1',
@@ -52,23 +52,17 @@ describe('otherAnswer', () => {
 })
 
 describe('replyPrompt', () => {
-  it('names the interrupted call and lists the answers, the comment and the files', () => {
+  it('gives only the answer lines, the comment and the files for a question in the transcript', () => {
     const prompt = replyPrompt(
       { from: 'page', answers: { 'Which color?': 'Blue', 'Which sizes?': 'S, L' }, text: 'Also tidy up', files: ['C:/w/.temp/inbox/a.png'] },
       ASK,
       'en',
     )
-    expect(prompt).toContain('AskUserQuestion')
-    expect(prompt).toContain('- "Which color?" → Blue\n- "Which sizes?" → S, L')
-    expect(prompt).toContain("The user's comment:\nAlso tidy up")
-    expect(prompt).toContain('Files from the user:\n- C:/w/.temp/inbox/a.png')
+    expect(prompt).toBe('- "Which color?" → Blue\n- "Which sizes?" → S, L\n\nAlso tidy up\n\nFiles from the user:\n- C:/w/.temp/inbox/a.png\n')
   })
 
-  it('gives a plain reply without the question block', () => {
-    const prompt = replyPrompt({ from: 'tracker', answers: {}, text: 'Go with B', files: [] }, null, 'ru')
-    expect(prompt).not.toContain('AskUserQuestion')
-    expect(prompt).toContain('комментарием в трекере')
-    expect(prompt.trim().endsWith('Go with B')).toBe(true)
+  it('gives a plain reply as the user wrote it', () => {
+    expect(replyPrompt({ from: 'tracker', answers: {}, text: 'Go with B', files: [] }, null, 'ru')).toBe('Go with B\n')
   })
 
   it('keeps an answer on one line', () => {
@@ -80,20 +74,20 @@ describe('replyPrompt', () => {
     expect(() => replyPrompt({ from: 'page', answers: { 'Which color?': ' ' }, text: ' ', files: [] }, ONE, 'en')).toThrow()
   })
 
-  it('repeats the questions of a call the stop lost with the message it was in', () => {
+  it('repeats a question the stop lost in one line, with the description of the chosen option', () => {
     const lost: Ask = { ...ASK, unsaved: true }
-    const prompt = replyPrompt({ from: 'page', answers: { 'Which color?': 'Blue', 'Which sizes?': 'S, L' }, text: '', files: [] }, lost, 'en')
+    const prompt = replyPrompt({ from: 'page', answers: { 'Which color?': 'Red (Recommended)', 'Which sizes?': 'S, L' }, text: '', files: [] }, lost, 'en')
 
-    expect(prompt).not.toContain('call above')
-    expect(prompt).toContain('1. Which color?\n   1. Red (Recommended) — Warm\n   2. Blue\n2. Which sizes?\n   1. S\n   2. L')
-    expect(answersIn(prompt, lost)).toEqual({ 'Which color?': 'Blue', 'Which sizes?': 'S, L' })
+    expect(prompt).toBe(
+      'The question you asked through AskUserQuestion was lost when the session restarted:\n- "Which color?" → Red (Recommended)\n  Red (Recommended) — Warm\n- "Which sizes?" → S, L\n',
+    )
+    expect(answersIn(prompt, lost)).toEqual({ 'Which color?': 'Red (Recommended)', 'Which sizes?': 'S, L' })
   })
 
   it('repeats a lost question for a reply that answers it in its own words', () => {
     const prompt = replyPrompt({ from: 'tracker', answers: {}, text: 'Neither, go green', files: [] }, { ...ONE, unsaved: true }, 'en')
 
-    expect(prompt).toContain('Which color?\n1. Red (Recommended) — Warm\n2. Blue')
-    expect(prompt.trim().endsWith('Neither, go green')).toBe(true)
+    expect(prompt).toBe('The question you asked through AskUserQuestion was lost when the session restarted:\n- "Which color?"\n\nNeither, go green\n')
   })
 })
 
@@ -101,6 +95,55 @@ describe('answersIn', () => {
   it('reads back the answers of a reply prompt', () => {
     const prompt = replyPrompt({ from: 'page', answers: { 'Which color?': 'Blue' }, text: '', files: [] }, ASK, 'ru')
     expect(answersIn(prompt, ASK)).toEqual({ 'Which color?': 'Blue' })
+  })
+})
+
+describe('replyParts', () => {
+  const FILES = ['C:/w/.temp/inbox/a.png']
+
+  it('takes the answers, the own words and the files out of a reply prompt', () => {
+    const prompt = replyPrompt({ from: 'page', answers: { 'Which color?': 'Blue' }, text: 'Also\n\ntidy up', files: FILES }, ASK, 'en')
+    expect(replyParts(prompt, ASK)).toEqual({ answers: { 'Which color?': 'Blue' }, text: 'Also\n\ntidy up', files: FILES })
+  })
+
+  it('reads the answers of a lost question without the call', () => {
+    const lost: Ask = { ...ASK, unsaved: true }
+    const prompt = replyPrompt({ from: 'page', answers: { 'Which color?': 'Red (Recommended)' }, text: 'Go', files: [] }, lost, 'ru')
+    expect(replyParts(prompt, null)).toEqual({ answers: { 'Which color?': 'Red (Recommended)' }, text: 'Go', files: [] })
+  })
+
+  it('leaves answer-like lines of a plain prompt in its text', () => {
+    expect(replyParts('- "Which color?" → Blue', null)).toEqual({ answers: {}, text: '- "Which color?" → Blue', files: [] })
+  })
+
+  it('reads a reply prompt of the old shape, with the source and the explanations', () => {
+    const page = [
+      "The user's reply from the Even Keel page.",
+      'Your AskUserQuestion call above got no answer in the tool itself: the session was stopped and resumed to pass the answer on. If the call ended in an error or an interruption, that is the stop; the answer is below.',
+      '',
+      '- "Which color?" → Blue',
+      '',
+      "The user's comment:",
+      'Also tidy up',
+      '',
+      'Files from the user:',
+      '- C:/w/.temp/inbox/a.png',
+      '',
+    ].join('\n')
+    expect(replyParts(page, ONE)).toEqual({ answers: { 'Which color?': 'Blue' }, text: 'Also tidy up', files: FILES })
+
+    const lost = [
+      'Ответ пользователя комментарием в трекере.',
+      'Ты задал пользователю вопрос через AskUserQuestion. Чтобы передать ответ, сессию остановили и продолжили, а сообщение с вызовом CLI записать не успел: выше нет ни вызова, ни текста, который ты написал перед ним. Вот что ты спросил, ответ ниже.',
+      '',
+      'Which color?',
+      '1. Red (Recommended) — Warm',
+      '2. Blue',
+      '',
+      'Neither, go green',
+      '',
+    ].join('\n')
+    expect(replyParts(lost, null)).toEqual({ answers: {}, text: 'Neither, go green', files: [] })
   })
 })
 

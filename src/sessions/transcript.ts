@@ -1,4 +1,4 @@
-import { answersIn, questionsOf, toolAnswers, type Ask, type AskAnswers } from './ask.js'
+import { questionsOf, replyParts, toolAnswers, type Ask, type AskAnswers } from './ask.js'
 import { blocksOf, describeTool, flatten, parseEntry, type ContentBlock, type Entry, type Usage } from './entry.js'
 import { remoteUrlOf } from './remote.js'
 
@@ -14,13 +14,16 @@ const API_ERROR_KINDS = new Map<unknown, ApiErrorKind>([
 export interface FeedLine {
   at: string
   kind: 'text' | 'tool' | 'error' | 'prompt' | 'answer'
+  /** For a prompt or an answer, only the user's own words: Even Keel's lines around a reply, its answers and files are left out. */
   text: string
   /** The whole shell command of a tool line, only in a whole transcript. */
   detail?: string
   /** The questions of an `AskUserQuestion` tool line, only in a whole transcript. */
   ask?: Ask
-  /** An answer line: the question it answers and the answers it carries, by question text. */
-  answers?: { ask: string; answers: AskAnswers }
+  /** An answer line: the question it answers (unknown for a question the transcript lost) and its answers, by question text. */
+  answers?: { ask?: string; answers: AskAnswers }
+  /** The paths of the files the user sent along with a prompt or an answer. */
+  files?: string[]
 }
 
 export interface TokenTotals {
@@ -224,7 +227,7 @@ export class TranscriptFold {
       this.openAsk = null
       const answers = toolAnswers(entry.toolUseResult)
       if (answers === null) this.strayAsk = ask
-      else this.addFeed({ at: entry.timestamp ?? '', kind: 'answer', text: this.textOf(answerText(answers)), answers: { ask: ask.id, answers } })
+      else this.addFeed({ at: entry.timestamp ?? '', kind: 'answer', text: '', answers: { ask: ask.id, answers } })
     }
     if (entry.usageLimitNote === 'wrap_up') {
       const at = entry.timestamp ?? ''
@@ -234,14 +237,11 @@ export class TranscriptFold {
       this.wrapUp = null
       this.checkpoint = null
       if (entry.origin?.kind !== undefined && entry.origin.kind !== 'human') return
-      const prompt = promptOf(entry.message?.content)
-      const text = this.textOf(prompt)
       const answered = this.openAsk ?? this.strayAsk
       this.openAsk = null
       this.strayAsk = null
-      if (text === '') return
-      if (answered === null) this.addFeed({ at: entry.timestamp ?? '', kind: 'prompt', text })
-      else this.addFeed({ at: entry.timestamp ?? '', kind: 'answer', text, answers: { ask: answered.id, answers: answersIn(prompt, answered) } })
+      const line = userLine(entry.timestamp ?? '', promptOf(entry.message?.content), answered, (text) => this.textOf(text))
+      if (line !== null) this.addFeed(line)
     }
   }
 
@@ -267,10 +267,19 @@ export class TranscriptFold {
   }
 }
 
-function answerText(answers: AskAnswers): string {
-  return Object.entries(answers)
-    .map(([question, answer]) => `${question} → ${answer}`)
-    .join('\n')
+/**
+ * The feed line of a prompt: an answer when it answers `answered` or carries the answers of a lost question, else a
+ * prompt; `null` for a prompt with nothing of the user's in it.
+ */
+export function userLine(at: string, prompt: string, answered: Ask | null, textOf: (text: string) => string): FeedLine | null {
+  if (prompt.trim() === '') return null
+  const reply = replyParts(prompt, answered)
+  const text = textOf(reply.text)
+  const files = reply.files.length > 0 ? { files: reply.files } : {}
+  if (answered !== null) return { at, kind: 'answer', text, answers: { ask: answered.id, answers: reply.answers }, ...files }
+  if (Object.keys(reply.answers).length > 0) return { at, kind: 'answer', text, answers: { answers: reply.answers }, ...files }
+  if (text === '' && reply.files.length === 0) return null
+  return { at, kind: 'prompt', text, ...files }
 }
 
 function writtenTtl(usage: Usage): CacheTtl | null {

@@ -519,21 +519,33 @@ describe('TranscriptFold', () => {
       expect(summary.ask).toBeNull()
       expect(summary.feed.at(-1)).toMatchObject({
         kind: 'answer',
+        text: '',
         answers: { ask: 'toolu_AskUserQuestion', answers: { 'Which color?': 'Blue', 'Which sizes?': 'S, L' } },
       })
     })
 
     it('takes the next prompt as the answer to a question the tool left without one', () => {
-      const reply = 'Answer:\n- "Which color?" → Blue\n- "Which sizes?" → L'
+      const reply = '- "Which color?" → Blue\n- "Which sizes?" → L\n\nThanks'
       for (const lines of [[ask(), result(undefined, true), prompt(reply)], [ask(), prompt(reply)]]) {
         const summary = whole(lines).summary()
         expect(summary.ask).toBeNull()
         expect(summary.feed.at(-1)).toMatchObject({
           kind: 'answer',
-          text: reply,
+          text: 'Thanks',
           answers: { ask: 'toolu_AskUserQuestion', answers: { 'Which color?': 'Blue', 'Which sizes?': 'L' } },
         })
       }
+    })
+
+    it('reads the answers of a question the stop lost from the prompt alone', () => {
+      const reply = 'The question you asked through AskUserQuestion was lost when the session restarted:\n- "Which color?" → Blue\n  Blue — Cold'
+      const line = whole([prompt(reply)]).summary().feed.at(-1)
+      expect(line).toEqual({ at: expect.any(String), kind: 'answer', text: '', answers: { answers: { 'Which color?': 'Blue' } } })
+    })
+
+    it('keeps only the own words and the files of a prompt, old replies included', () => {
+      const reply = "The user's reply from the Even Keel page.\n\nLook here\n\nFiles from the user:\n- C:/w/.temp/inbox/a.png\n"
+      expect(whole([prompt(reply)]).summary().feed.at(-1)).toMatchObject({ kind: 'prompt', text: 'Look here', files: ['C:/w/.temp/inbox/a.png'] })
     })
 
     it('takes a prompt as an ordinary one once the question is answered', () => {
