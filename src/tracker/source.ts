@@ -1,6 +1,6 @@
 import { isTerminal, unknownStatuses, type ChainRules } from '../chain/rules.js'
 import type { TrackerCard } from './card.js'
-import { isLeaf, toTask, type Task, type TaskPriority, type TaskStatus, type TrackerTask } from './model.js'
+import { isLeaf, toTask, type MilestonePick, type Task, type TaskPriority, type TaskStatus, type TrackerTask } from './model.js'
 
 export interface TaskFile {
   /** MIME type; empty when unknown. */
@@ -88,6 +88,14 @@ export interface TaskSource {
    * Must do nothing and return `false` for a task that has a milestone by now, and when `milestoneOf` has none.
    */
   setMilestone?(id: string, milestoneOf: string): Promise<boolean>
+  /**
+   * Optional, together with `moveMilestone`. The milestones the task can be put into — the open ones of the place a
+   * milestone belongs to (a Huly project, a GitHub repository, a Linear project), plus the task's own if it is closed —
+   * and the id of the task's own. With both the card's milestone becomes a pick.
+   */
+  milestones?(id: string): Promise<MilestonePick>
+  /** Optional, together with `milestones`. Puts the task into the milestone with this id from `milestones`; `null` — into none. */
+  moveMilestone?(id: string, milestone: string | null): Promise<void>
   /** Drops the connection. */
   close(): Promise<void>
 }
@@ -186,6 +194,8 @@ export interface Tracker {
   commentsAfter?(id: string, after: string): Promise<TrackerComment[]>
   create?(task: NewTask): Promise<string>
   setMilestone?(id: string, milestoneOf: string): Promise<boolean>
+  milestones?(id: string): Promise<MilestonePick>
+  moveMilestone?(id: string, milestone: string | null): Promise<void>
   close(): Promise<void>
 }
 
@@ -212,5 +222,9 @@ export function trackerOf(source: TaskSource): Tracker {
   if (source.commentsAfter !== undefined) tracker.commentsAfter = (id, after) => source.commentsAfter!(id, after)
   if (source.create !== undefined) tracker.create = (task) => source.create!(task)
   if (source.setMilestone !== undefined) tracker.setMilestone = (id, milestoneOf) => source.setMilestone!(id, milestoneOf)
+  if (source.milestones !== undefined && source.moveMilestone !== undefined) {
+    tracker.milestones = (id) => source.milestones!(id)
+    tracker.moveMilestone = (id, milestone) => source.moveMilestone!(id, milestone)
+  }
   return tracker
 }

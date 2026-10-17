@@ -124,6 +124,10 @@ function Actions({ block }: { block: ChainBlock }) {
   const aside = block.aside === true
   // Once the chain stopped, the session that lives on is still answered from the chat.
   const talking = live ?? (aside || block.loose === true ? session : null)
+  // A reply stops the session and resumes it: for those seconds it is gone from the state, the open chat stays on its last view.
+  const lastTalking = useRef(talking)
+  if (talking !== null) lastTalking.current = talking
+  const chatSession = talking ?? (chatting ? lastTalking.current : null)
   const midTurn = live !== null && (live.lamp === 'working' || live.waitingFor !== null)
   const remoteOff = session === null || session.remoteUrl !== null ? null : t.session.remote[session.remoteOff ?? 'no-bridge']
   const replacing = useHold(`${block.current}|${session?.sessionId ?? ''}`, REPLACE_WAIT_MS)
@@ -131,7 +135,7 @@ function Actions({ block }: { block: ChainBlock }) {
   const waiting = !aside && talking?.lamp === 'waiting'
 
   // "Skip" on the fix of main is only for the session the chain waits on.
-  if (talking === null && (!block.open || fix)) return null
+  if (chatSession === null && (!block.open || fix)) return null
   return (
     <>
       <div className="panel__actions">
@@ -189,14 +193,14 @@ function Actions({ block }: { block: ChainBlock }) {
         </p>
       )}
       {failure !== null && <p className="notice notice--error">{say(failure)}</p>}
-      {chatting && talking !== null && (
+      {chatting && chatSession !== null && (
         <Suspense fallback={null}>
           <TranscriptWindow
-            key={talking.sessionId}
-            sessionId={talking.sessionId}
-            account={talking.account}
-            live={talking.lamp !== 'finished'}
-            chat={{ project: body.project, task: body.task, session: talking, aside }}
+            key={chatSession.sessionId}
+            sessionId={chatSession.sessionId}
+            account={chatSession.account}
+            live={chatSession.lamp !== 'finished' || talking === null}
+            chat={{ project: body.project, task: body.task, session: chatSession, aside }}
             onClose={() => setChatting(false)}
           />
         </Suspense>

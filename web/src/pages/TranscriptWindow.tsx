@@ -185,7 +185,7 @@ export function TranscriptWindow({ sessionId, account, live, chat, onClose }: Pr
         )}
         {chat !== undefined && (
           <ChatComposer
-            key={`${chat.session.sessionId}|${chat.session.ask?.id ?? ''}`}
+            key={chat.session.sessionId}
             project={chat.project}
             task={chat.task}
             session={chat.session}

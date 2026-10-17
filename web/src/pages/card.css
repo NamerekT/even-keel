@@ -435,6 +435,25 @@ html:has(.task-card[open]) {
   font-size: 12px;
 }
 
+/* The milestone stands where the text was and reads like it; the frame shows on hover and focus. */
+.task-card__milestone-pick {
+  width: calc(100% + 16px);
+  margin: -5px -8px -1px;
+  padding: 4px 8px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: none;
+  color: inherit;
+  font: inherit;
+  font-size: 13px;
+}
+
+.task-card__milestone-pick:hover:not(:disabled),
+.task-card__milestone-pick[aria-expanded='true'] {
+  border-color: var(--border);
+  background: var(--surface-muted);
+}
+
 .task-card__priority {
   display: inline-flex;
   align-items: center;

@@ -1,7 +1,8 @@
+import { compareMilestones } from '../../../src/chain/order.js'
 import { fail } from '../../../src/notice/notice.js'
 import type { EvenKeelState } from '../../../src/state.js'
 import type { CardLabel, TaskCard, TaskRef } from '../../../src/tracker/card.js'
-import type { Task } from '../../../src/tracker/model.js'
+import type { MilestoneChoice, Task, TaskMilestone } from '../../../src/tracker/model.js'
 
 const DESCRIPTION = `## Goal
 
@@ -82,7 +83,22 @@ export function fakeCard(state: EvenKeelState, id: string, mode: string | null):
     attachments: plain ? [] : ATTACHMENTS,
     ready: task.status.category === 'UnStarted',
     requires: [],
+    milestones: { current: task.milestone?.label ?? null, choices: fakeMilestones(state, id) },
   }
+}
+
+/** The fake's milestones are those its tasks of the project have, each by its label. */
+function fakeMilestones(state: EvenKeelState, id: string): MilestoneChoice[] {
+  const project = id.split('-')[0]!
+  const found = new Map<string, TaskMilestone>()
+  for (const task of state.tasks) if (task.id.startsWith(`${project}-`) && task.milestone !== null) found.set(task.milestone.label, task.milestone)
+  return [...found.values()].sort(compareMilestones).map((milestone) => ({ id: milestone.label, ...milestone }))
+}
+
+export function fakeMoveMilestone(state: EvenKeelState, id: string, milestone: string | null): EvenKeelState {
+  const project = id.split('-')[0]!
+  const target = milestone === null ? null : (state.tasks.find((task) => task.id.startsWith(`${project}-`) && task.milestone?.label === milestone)?.milestone ?? null)
+  return { ...state, tasks: state.tasks.map((task) => (task.id === id ? { ...task, milestone: target } : task)) }
 }
 
 export function fakeReady(state: EvenKeelState, id: string): EvenKeelState {

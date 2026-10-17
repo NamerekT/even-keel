@@ -88,6 +88,10 @@ export interface TaskControl {
   /** `undefined` — no connected tracker gives the file, or the task has no such file. */
   file(task: string, file: string): Promise<TaskFile | undefined>
   ready(task: string): Promise<void>
+  /** `milestone` is an id from the card's `milestones`; `null` — out of any. */
+  moveMilestone(task: string, milestone: string | null): Promise<void>
+  /** Reads the project's tasks from its tracker now, out of turn. */
+  refresh(project: string): Promise<void>
 }
 
 export interface AnswerRequest {
@@ -173,7 +177,9 @@ const COMMANDS: Record<string, Command> = {
   'chain/dismiss': ({ control }, body) => control.dismiss(projectOf(body), taskOf(body)),
   'chain/unattended': ({ control }, body) => control.setUnattended(flagOf(body)),
   'chain/trim': ({ control }, body) => control.setTrimTools(flagOf(body)),
+  'chain/refresh': ({ tasks }, body) => tasks.refresh(projectOf(body)),
   'task/ready': ({ tasks }, body) => tasks.ready(taskOf(body)),
+  'task/milestone': ({ tasks }, body) => tasks.moveMilestone(taskOf(body), body.milestone === null ? null : textOf(body.milestone, 'milestone')),
   'session/answer': ({ sessions }, body) => sessions.answer(answerOf(body)),
   'project/settings': ({ settings }, body) => settings.save(projectOf(body), projectFormOf(body), projectFormOf(baseOf(body))),
   settings: ({ settings }, body) => settings.saveShared(sharedFormOf(body), sharedFormOf(baseOf(body))),

@@ -182,6 +182,34 @@ describe('github source', () => {
     expect(calls).toHaveLength(3)
   })
 
+  it('offers the open milestones of the repository and the closed one the issue is in', async () => {
+    const nodes = [{ id: 'MI_1', title: 'v0.1', dueOn: '2026-10-21T00:00:00Z' }, { id: 'MI_2', title: 'v0.2', dueOn: null }]
+    const { source, calls } = await connect([
+      { body: { data: { repository: { issue: { milestone: { id: 'MI_0', title: 'v0.0', dueOn: null, closed: true } }, milestones: { nodes } } } } },
+      { body: { data: { repository: { issue: { milestone: { id: 'MI_2', title: 'v0.2', dueOn: null, closed: false } }, milestones: { nodes } } } } },
+    ])
+    expect(await source.milestones!('ABC-9')).toEqual({
+      current: 'MI_0',
+      choices: [
+        { id: 'MI_1', label: 'v0.1', targetDate: Date.parse('2026-10-21T00:00:00Z') },
+        { id: 'MI_2', label: 'v0.2', targetDate: null },
+        { id: 'MI_0', label: 'v0.0', targetDate: null },
+      ],
+    })
+    expect(calls[1]!.variables).toEqual({ owner: 'octo-org', name: 'abc', number: 9 })
+    expect((await source.milestones!('ABC-9')).choices.map((choice) => choice.id)).toEqual(['MI_1', 'MI_2'])
+  })
+
+  it('moves an issue into a milestone or out of any', async () => {
+    const state = { body: { data: { repository: { issue: { id: 'I_kwDOexample9', state: 'OPEN' } } } } }
+    const done = { body: { data: { updateIssue: { issue: { number: 9 } } } } }
+    const { source, calls } = await connect([state, done, state, done])
+    await source.moveMilestone!('ABC-9', 'MI_2')
+    expect(calls[2]!.variables).toEqual({ id: 'I_kwDOexample9', milestone: 'MI_2' })
+    await source.moveMilestone!('ABC-9', null)
+    expect(calls[4]!.variables).toEqual({ id: 'I_kwDOexample9', milestone: null })
+  })
+
   it('gives the comments after a given one with the files they link to', async () => {
     const nodes = [
       { id: 'IC_0', body: 'earlier' },

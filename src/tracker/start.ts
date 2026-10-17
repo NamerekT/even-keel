@@ -142,6 +142,7 @@ export function startTracker(view: TrackerView, setup: TrackerSetup, deps: Track
       dispatcher.setOutside(project, [...parents, ...others])
       tasksByProject.set(project, shown)
       dispatcher.setTasks(project, shown)
+      view.readAt[project] = new Date().toISOString()
       const released = dispatcher.released(project)
       if (released.length > 0) dispatcher.setReleased(project, await link.run((tracker) => tracker.tasks(released)))
       await fillMilestones(project)

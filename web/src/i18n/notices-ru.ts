@@ -188,6 +188,8 @@ export const noticesRu: NoticeTexts = {
   'task.noTracker': (p) => `${p.task} не обслуживает ни один подключённый трекер`,
   'task.cannotReady': (p) => `трекер ${p.task} не умеет переводить задачи в Todo`,
   'task.pastBacklog': (p) => `${p.task} уже не в статусе бэклога`,
+  'task.cannotMoveMilestone': (p) => `трекер ${p.task} не умеет менять веху задачи`,
+  'tracker.noProject': (p) => `проект ${p.project} не обслуживает ни один подключённый трекер`,
 
   'config.notJson': (p) => `${p.file} — не JSON`,
   'config.port': (p) => `EVEN_KEEL_PORT должен быть целым в 1..65535, а не ${p.value}`,

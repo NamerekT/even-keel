@@ -235,6 +235,32 @@ describe('linear source', () => {
     expect(calls).toHaveLength(6)
   })
 
+  it('offers the milestones of the issue project, none for an issue without one', async () => {
+    const nodes = [{ id: 'milestone-1', name: 'v0.1', targetDate: '2026-10-21' }, { id: 'milestone-2', name: 'v0.2', targetDate: null }]
+    const { source } = await connect([
+      { body: { data: { issues: { nodes: [{ projectMilestone: { id: 'milestone-2' }, project: { projectMilestones: { nodes } } }] } } } },
+      { body: { data: { issues: { nodes: [{ projectMilestone: null, project: null }] } } } },
+    ])
+    expect(await source.milestones!('ENG-9')).toEqual({
+      current: 'milestone-2',
+      choices: [
+        { id: 'milestone-1', label: 'v0.1', targetDate: Date.parse('2026-10-21') },
+        { id: 'milestone-2', label: 'v0.2', targetDate: null },
+      ],
+    })
+    expect(await source.milestones!('ENG-9')).toEqual({ current: null, choices: [] })
+  })
+
+  it('moves an issue into a milestone or out of any', async () => {
+    const found = { body: { data: { issues: { nodes: [{ id: 'issue-9' }] } } } }
+    const moved = { body: { data: { issueUpdate: { success: true } } } }
+    const { source, calls } = await connect([found, moved, found, moved])
+    await source.moveMilestone!('ENG-9', 'milestone-1')
+    expect(calls[2]!.variables).toEqual({ id: 'issue-9', input: { projectMilestoneId: 'milestone-1' } })
+    await source.moveMilestone!('ENG-9', null)
+    expect(calls[4]!.variables).toEqual({ id: 'issue-9', input: { projectMilestoneId: null } })
+  })
+
   it('gives the comments after a given one, oldest first, with the files they link to', async () => {
     const nodes = [
       { id: 'c-2', body: '[logs.zip](https://uploads.linear.app/org/logs.zip)', createdAt: '2026-10-11T10:02:00.000Z' },

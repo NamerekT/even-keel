@@ -16,11 +16,19 @@ interface Props {
   onSent: (line: FeedLine) => void
 }
 
-/** The bottom of the chat window: the options of the open question or a free reply, with files; open only while the session waits. */
+/**
+ * The bottom of the chat window: the options of the open question or a free reply, with files. A reply can be typed
+ * at any time and is sent only while the session waits; the draft outlives a new question.
+ */
 export function ChatComposer({ project, task, session, aside, onSent }: Props) {
   const { send, sending, failure } = useCommand()
   const ask = session.ask
+  const [asked, setAsked] = useState(ask?.id ?? null)
   const [picks, setPicks] = useState<Pick[]>(() => ask?.questions.map(() => NO_PICK) ?? [])
+  if ((ask?.id ?? null) !== asked) {
+    setAsked(ask?.id ?? null)
+    setPicks(ask?.questions.map(() => NO_PICK) ?? [])
+  }
   const [text, setText] = useState('')
   const [files, setFiles] = useState<File[]>([])
   const sent = useHold(`${session.sessionId}|${session.lamp}|${ask?.id ?? ''}`, SENT_HOLD_MS)
@@ -54,7 +62,7 @@ export function ChatComposer({ project, task, session, aside, onSent }: Props) {
           className="chat__text"
           rows={ask === null ? 3 : 1}
           value={text}
-          disabled={disabled}
+          disabled={sending}
           placeholder={t.session.chat.placeholder}
           onChange={(event) => setText(event.target.value)}
           onKeyDown={(event) => {
@@ -62,12 +70,12 @@ export function ChatComposer({ project, task, session, aside, onSent }: Props) {
           }}
         />
         <div className="chat__buttons">
-          <label className={`button chat__attach${disabled ? ' chat__attach--off' : ''}`}>
+          <label className={`button chat__attach${sending ? ' chat__attach--off' : ''}`}>
             {t.session.chat.attach}
             <input
               type="file"
               multiple
-              disabled={disabled}
+              disabled={sending}
               onChange={(event) => {
                 const chosen = [...(event.target.files ?? [])]
                 setFiles((now) => [...now, ...chosen])
@@ -89,7 +97,7 @@ export function ChatComposer({ project, task, session, aside, onSent }: Props) {
                 type="button"
                 className="chat__unfile"
                 aria-label={t.session.chat.removeFile(file.name)}
-                disabled={disabled}
+                disabled={sending}
                 onClick={() => setFiles((now) => now.filter((_, at) => at !== index))}
               >
                 ×

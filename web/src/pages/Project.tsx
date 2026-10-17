@@ -1,7 +1,10 @@
 import { lazy, Suspense, useCallback, useEffect, useRef, type ReactNode } from 'react'
 import { useLocation, useNavigate } from 'react-router'
 import type { EvenKeelState } from '../../../src/state.js'
+import type { TrackerView } from '../../../src/tracker/health.js'
+import { formatAgo } from '../format.js'
 import { say, t } from '../i18n/index.js'
+import { useNow } from '../layout/useNow.js'
 import { isNarrow, useNarrow } from '../layout/useNarrow.js'
 import { useWide } from '../layout/useWide.js'
 import { useCommand } from '../live/useCommand.js'
@@ -26,6 +29,7 @@ import {
   type ChainControl,
 } from '../state.js'
 import { focusAfterClose, focusOnEntry } from '../ui/focus.js'
+import { RefreshIcon } from '../ui/icons.js'
 import { QuestionsChip } from '../ui/QuestionsChip.js'
 import { StatusChip } from '../ui/StatusChip.js'
 import { BACKLOG_HASH, BacklogChip, BacklogPanel } from './BacklogPanel.js'
@@ -103,6 +107,7 @@ export function Project({ state, project: key }: { state: EvenKeelState; project
     </>
   )
   const question = questionPath(state, [key])
+  const tracker = state.trackers.find((view) => view.projects.includes(key))
   const links = taskLinks(state.tasks, state.sessions)
   const opened = new URLSearchParams(location.search).get(CARD_PARAM)
   const openCard = (task: string) => {
@@ -124,6 +129,7 @@ export function Project({ state, project: key }: { state: EvenKeelState; project
           <h1 className="page__title project__title">{key}</h1>
           {settings !== undefined && <ProjectName project={key} form={settings} />}
           <QuestionsChip count={openQuestions(projectTasks(state, key))} to={question?.includes('#') ? question : null} />
+          {tracker !== undefined && <TrackerRead project={key} tracker={tracker} />}
           {narrow && tools !== false && <div className="hblock project__tools">{tools}</div>}
           <ChainControls state={state} project={key} narrow={narrow}>
             {look === 'tag' && tools}
@@ -206,6 +212,34 @@ export function Project({ state, project: key }: { state: EvenKeelState; project
         </Suspense>
       )}
     </section>
+  )
+}
+
+/** The tracker is read every 30 seconds; the button reads it now, for a change made there a moment ago. */
+function TrackerRead({ project, tracker }: { project: string; tracker: TrackerView }) {
+  const { send, sending, failure } = useCommand()
+  const now = useNow(5_000)
+  const at = tracker.readAt[project]
+
+  return (
+    <span className="project__read">
+      <button
+        type="button"
+        className="project__refresh"
+        aria-label={t.project.refresh(tracker.title)}
+        title={t.project.refresh(tracker.title)}
+        disabled={sending}
+        aria-busy={sending ? true : undefined}
+        onClick={() => void send('chain/refresh', { project })}
+      >
+        <RefreshIcon />
+      </button>
+      {failure !== null ? (
+        <span className="project__read-at project__read-at--failed">{say(failure)}</span>
+      ) : (
+        <span className="project__read-at">{at === undefined ? t.project.notRead : t.project.readAt(formatAgo(at, now))}</span>
+      )}
+    </span>
   )
 }
 

@@ -196,6 +196,8 @@ export const en = {
   'task.noTracker': (p: { task: string }) => `no connected tracker serves ${p.task}`,
   'task.cannotReady': (p: { task: string }) => `the tracker of ${p.task} cannot move it to Todo`,
   'task.pastBacklog': (p: { task: string }) => `${p.task} is no longer in a backlog status`,
+  'task.cannotMoveMilestone': (p: { task: string }) => `the tracker of ${p.task} cannot change its milestone`,
+  'tracker.noProject': (p: { project: string }) => `no connected tracker serves the project ${p.project}`,
 
   'config.notJson': (p: { file: string }) => `config: ${p.file} is not JSON`,
   'config.port': (p: { value: string }) => `config: EVEN_KEEL_PORT must be an integer in 1..65535, got ${p.value}`,

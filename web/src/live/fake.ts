@@ -20,7 +20,7 @@ import { withFix } from './fakeFix.js'
 import { fakeCompare, fakeRuleDiff, fakeRules } from './fakeRules.js'
 import { fakeSteps } from './fakeSteps.js'
 import { fakeCheckpoints, fakeHistory, fakePeriod, fakeSpend, fakeTask } from './fakeStats.js'
-import { fakeCard, fakeReady } from './fakeCards.js'
+import { fakeCard, fakeMoveMilestone, fakeReady } from './fakeCards.js'
 import { fakeAnswer, fakeOpenAsk, fakePastAsk, FAKE_ASK, FAKE_UNSAVED_ASK } from './fakeChat.js'
 import type { Ask } from '../../../src/sessions/ask.js'
 import { fakeTools } from './fakeTools.js'
@@ -142,10 +142,12 @@ function fakeFeed(): FeedLine[] {
 }
 
 function fakeHuly(state: TrackerLinkState): TrackerView {
-  const view = { name: 'huly', title: 'Huly', projects: ['ABC', 'DEMO', 'XYZ', 'OPS'], ready: true }
-  if (state === 'off' || state === 'connecting') return { ...view, health: { state, lastOkAt: null, error: null } }
-  if (state === 'down') return { ...view, health: { state, lastOkAt: ago(4), error: 'huly: call timed out after 15000 ms' } }
-  return { ...view, health: { state, lastOkAt: ago(0), error: null } }
+  const projects = ['ABC', 'DEMO', 'XYZ', 'OPS']
+  const view = { name: 'huly', title: 'Huly', projects, ready: true }
+  const readAt = (minutes: number) => Object.fromEntries(projects.map((project) => [project, ago(minutes)]))
+  if (state === 'off' || state === 'connecting') return { ...view, health: { state, lastOkAt: null, error: null }, readAt: {} }
+  if (state === 'down') return { ...view, health: { state, lastOkAt: ago(4), error: 'huly: call timed out after 15000 ms' }, readAt: readAt(4) }
+  return { ...view, health: { state, lastOkAt: ago(0), error: null }, readAt: readAt(0) }
 }
 
 const LAUNCH_PATTERN: Record<string, number[]> = {
@@ -516,6 +518,11 @@ function dequeue(state: EvenKeelState, project: string): EvenKeelState {
   return { ...state, chain: { ...state.chain, queue: state.chain.queue.filter((key) => key !== project) } }
 }
 
+function fakeRefresh(state: EvenKeelState, project: string): EvenKeelState {
+  const trackers = state.trackers.map((tracker) => (tracker.projects.includes(project) ? { ...tracker, readAt: { ...tracker.readAt, [project]: ago(0) } } : tracker))
+  return { ...state, trackers }
+}
+
 function fakeCommand(state: EvenKeelState, name: string, body: Record<string, unknown>, launches: LaunchEntry[]): EvenKeelState {
   if (name === 'chain/start') return startChain(state, String(body.project), launches)
   if (name === 'chain/resume') return setPaused(state, String(body.project), false)
@@ -531,6 +538,8 @@ function fakeCommand(state: EvenKeelState, name: string, body: Record<string, un
   if (name === 'chain/trim') return { ...state, trimTools: body.on === true }
   if (name === 'session/answer') return fakeAnswer(state, body)
   if (name === 'task/ready') return fakeReady(state, String(body.task))
+  if (name === 'task/milestone') return fakeMoveMilestone(state, String(body.task), body.milestone === null ? null : String(body.milestone))
+  if (name === 'chain/refresh') return fakeRefresh(state, String(body.project))
   const settings = fakeSettingsCommand(state, name, body) ?? fakeUpdatesCommand(state, name) ?? fakePackagesCommand(state, name, body)
   if (settings !== null) return settings
   if (name.startsWith('account/')) return { ...state, account: accountCommand(state.account, name, body) }

@@ -104,6 +104,17 @@ const SET_MILESTONE = `mutation($id: ID!, $milestone: ID!) {
   updateIssue(input: { id: $id, milestoneId: $milestone }) { issue { number } }
 }`
 
+const MILESTONE_CHOICES = `query($owner: String!, $name: String!, $number: Int!) {
+  repository(owner: $owner, name: $name) {
+    issue(number: $number) { milestone { id title dueOn closed } }
+    milestones(states: OPEN, first: 100) { nodes { id title dueOn } }
+  }
+}`
+
+const MOVE_MILESTONE = `mutation($id: ID!, $milestone: ID) {
+  updateIssue(input: { id: $id, milestoneId: $milestone }) { issue { number } }
+}`
+
 /** Where GitHub keeps the files dropped into a comment. */
 const UPLOADS = /^https:\/\/(github\.com\/user-attachments\/|private-user-images\.githubusercontent\.com\/)/
 
@@ -270,6 +281,29 @@ export async function connectGithub(settings: GithubSettings, timeoutMs: number,
       if (issue.milestone !== null || milestone == null) return false
       await graphql(SET_MILESTONE, { id: issue.id, milestone: milestone.id })
       return true
+    },
+
+    async milestones(id) {
+      type Choice = { id: string; title: string; dueOn: string | null }
+      const parsed = parseTaskId(id)
+      if (parsed === null) throw new Error(`github: ${id} is not a task id`)
+      const repo = repoOf(parsed.project)
+      const { repository } = await graphql<{
+        repository: { issue: { milestone: (Choice & { closed: boolean }) | null } | null; milestones: { nodes: Choice[] } } | null
+      }>(MILESTONE_CHOICES, { ...repo, number: parsed.number })
+      const issue = repository?.issue
+      if (repository == null || issue == null) throw new Error(`github: issue ${id} not found in ${repo.owner}/${repo.name}`)
+      const own = issue.milestone
+      const choices = [...repository.milestones.nodes, ...(own?.closed ? [own] : [])]
+      return {
+        current: own?.id ?? null,
+        choices: choices.map((each) => ({ id: each.id, label: each.title, targetDate: each.dueOn === null ? null : Date.parse(each.dueOn) })),
+      }
+    },
+
+    async moveMilestone(id, milestone) {
+      const { issue } = await issueOf<{ id: string }>(id, ISSUE_STATE)
+      await graphql(MOVE_MILESTONE, { id: issue.id, milestone })
     },
 
     // A file of a comment is its upload link; the token goes only to GitHub's own upload hosts.

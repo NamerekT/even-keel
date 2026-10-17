@@ -52,6 +52,7 @@ Checked live on 17.10.2026 (BTN-174) from a second instance in a terminal: plugi
 
 - **GitHub attachments.** Downloading a file attached to an issue or comment with the token has not been tried live; if it fails, the page cannot open that file (`docs/trackers.md`).
 - **Milestones on GitHub and Linear.** Filling the milestone of a task that entered the chain without one (`fillMilestone`) was checked only on Huly (`docs/trackers.md`).
+- **Changing a milestone from the task card on GitHub and Linear.** Checked only on Huly. On GitHub, `updateIssue` with `milestoneId: null` is assumed to clear the milestone; on Linear, the choices are the project milestones of the issue's project and `projectMilestoneId: null` is assumed to clear it. If the tracker refuses, the card puts the old milestone back and shows the error; nothing else changes. **Workaround:** change the milestone in the tracker and press the refresh button in the project head (`docs/trackers.md`).
 
 ## CI
 

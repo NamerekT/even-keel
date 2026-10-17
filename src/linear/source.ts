@@ -107,6 +107,10 @@ const ISSUE_PLACE = `query($filter: IssueFilter!) {
   issues(first: 1, filter: $filter) { nodes { id project { id } projectMilestone { id } } }
 }`
 
+const MILESTONE_CHOICES = `query($filter: IssueFilter!) {
+  issues(first: 1, filter: $filter) { nodes { projectMilestone { id } project { projectMilestones(first: 100) { nodes { id name targetDate } } } } }
+}`
+
 const PLACE_ISSUE = `mutation($id: String!, $input: IssueUpdateInput!) {
   issueUpdate(id: $id, input: $input) { success }
 }`
@@ -294,6 +298,26 @@ export async function connectLinear(settings: LinearSettings, timeoutMs: number,
       const { issueUpdate } = await graphql<{ issueUpdate: { success: boolean } }>(PLACE_ISSUE, { id: issue.id, input })
       if (!issueUpdate.success) throw new Error(`linear: ${id} was not put into the milestone of ${milestoneOf}`)
       return true
+    },
+
+    // Linear's milestones have no closed state: all of the project's are offered.
+    async milestones(id) {
+      type Choice = { id: string; name: string; targetDate: string | null }
+      const issue = await oneIssue<{ projectMilestone: { id: string } | null; project: { projectMilestones: { nodes: Choice[] } } | null }>(id, MILESTONE_CHOICES)
+      return {
+        current: issue.projectMilestone?.id ?? null,
+        choices: (issue.project?.projectMilestones.nodes ?? []).map((each) => ({
+          id: each.id,
+          label: each.name,
+          targetDate: each.targetDate === null ? null : Date.parse(each.targetDate),
+        })),
+      }
+    },
+
+    async moveMilestone(id, milestone) {
+      const issue = await oneIssue<{ id: string }>(id, ISSUE_ID)
+      const { issueUpdate } = await graphql<{ issueUpdate: { success: boolean } }>(PLACE_ISSUE, { id: issue.id, input: { projectMilestoneId: milestone } })
+      if (!issueUpdate.success) throw new Error(`linear: the milestone of ${id} was not changed`)
     },
 
     // A file of a comment is its upload link; the key goes only to Linear's upload host.

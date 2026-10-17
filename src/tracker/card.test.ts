@@ -45,6 +45,17 @@ describe('cardOf', () => {
     expect(cardOf(raw(), DEFAULT_RULES, true).requires).toEqual([])
   })
 
+  it('offers the milestones in the chain order, or none when the tracker cannot move a task', () => {
+    const choices = [
+      { id: 'm3', label: 'v0.10', targetDate: null },
+      { id: 'm1', label: 'v0.2', targetDate: 2 },
+      { id: 'm2', label: 'Later', targetDate: 1 },
+    ]
+    const card = cardOf(raw(), DEFAULT_RULES, true, { current: 'm1', choices })
+    expect(card.milestones).toEqual({ current: 'm1', choices: [choices[1], choices[0], choices[2]] })
+    expect(cardOf(raw(), DEFAULT_RULES, true).milestones).toBeNull()
+  })
+
   it('sends a file without its own link through the service', () => {
     const card = cardOf(
       raw({

@@ -127,7 +127,7 @@ const trackers = new Map<string, TrackerView>(
     .filter((name) => trackerProjects(name).length > 0)
     .map((name) => [
       name,
-      { name, title: ADAPTERS[name]!.title, projects: trackerProjects(name), ready: false, health: { state: 'off', lastOkAt: null, error: null } },
+      { name, title: ADAPTERS[name]!.title, projects: trackerProjects(name), ready: false, health: { state: 'off', lastOkAt: null, error: null }, readAt: {} },
     ]),
 )
 const links = new Map<string, TrackerLink>()
@@ -785,9 +785,11 @@ const server = createEvenKeelServer({
       const project = configuredProject(task)
       const link = project === undefined ? undefined : links.get(config.trackers[project]!)
       if (link === undefined) return undefined
-      return link.run(async (tracker) =>
-        tracker.card === undefined ? undefined : cardOf(await tracker.card(task), rulesOf(project!), tracker.ready !== undefined),
-      )
+      return link.run(async (tracker) => {
+        if (tracker.card === undefined) return undefined
+        const [card, milestones] = await Promise.all([tracker.card(task), tracker.milestones?.(task) ?? null])
+        return cardOf(card, rulesOf(project!), tracker.ready !== undefined, milestones)
+      })
     },
     file: async (task, file) => {
       const project = configuredProject(task)
@@ -809,6 +811,20 @@ const server = createEvenKeelServer({
         dispatcher.setTasks(project!, updated)
       }
       hub.broadcast('state', getState())
+    },
+    // The milestone moves the task in the chain's order: the project is read anew rather than patched.
+    moveMilestone: async (task, milestone) => {
+      const project = configuredProject(task)
+      const link = project === undefined ? undefined : links.get(config.trackers[project]!)
+      if (link === undefined) throw fail('task.noTracker', { task })
+      const moved = await link.run(async (tracker) => (tracker.moveMilestone === undefined ? false : (await tracker.moveMilestone(task, milestone), true)))
+      if (!moved) throw fail('task.cannotMoveMilestone', { task })
+      await refreshers.get(project!)?.()
+    },
+    refresh: async (project) => {
+      const refresh = refreshers.get(project)
+      if (refresh === undefined) throw fail('tracker.noProject', { project })
+      await refresh()
     },
   },
   stats,

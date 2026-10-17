@@ -12,6 +12,18 @@ export interface TaskMilestone {
   targetDate: number | null
 }
 
+/** A milestone a task can be put into from its card; `id` is the tracker's own. */
+export interface MilestoneChoice extends TaskMilestone {
+  id: string
+}
+
+/** The milestones a task can be put into, and the one it is in (`TaskSource.milestones`). */
+export interface MilestonePick {
+  /** The id of the task's milestone; `null` — it has none. */
+  current: string | null
+  choices: MilestoneChoice[]
+}
+
 export const PRIORITIES = ['urgent', 'high', 'medium', 'low', 'none'] as const
 export type TaskPriority = (typeof PRIORITIES)[number]
 

@@ -108,6 +108,12 @@ describe('Even Keel HTTP server', () => {
           if (task === 'ABC-9') throw new Error('huly: issue ABC-9 not found')
           calls.push(['ready', task])
         },
+        moveMilestone: async (task, milestone) => {
+          calls.push(['milestone', task, milestone])
+        },
+        refresh: async (project) => {
+          calls.push(['refresh', project])
+        },
         file: async (task, file) => {
           if (task === 'ABC-9') throw new Error('huly: issue ABC-9 not found')
           if (task !== 'ABC-1') return undefined
@@ -461,6 +467,18 @@ describe('Even Keel HTTP server', () => {
     expect(calls).toEqual([['ready', 'ABC-1']])
     expect((await post('/api/task/ready', {})).status).toBe(400)
     expect((await post('/api/task/ready', { task: 'ABC-9' })).status).toBe(400)
+  })
+
+  it('moves a task into a milestone or out of any, and reads a project out of turn', async () => {
+    expect((await post('/api/task/milestone', { task: 'ABC-1', milestone: 'm-1' })).status).toBe(200)
+    expect((await post('/api/task/milestone', { task: 'ABC-1', milestone: null })).status).toBe(200)
+    expect((await post('/api/task/milestone', { task: 'ABC-1' })).status).toBe(400)
+    expect((await post('/api/chain/refresh', { project: 'ABC' })).status).toBe(200)
+    expect(calls).toEqual([
+      ['milestone', 'ABC-1', 'm-1'],
+      ['milestone', 'ABC-1', null],
+      ['refresh', 'ABC'],
+    ])
   })
 
   it('answers 400 with the reason for a refused or malformed command', async () => {

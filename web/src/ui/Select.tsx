@@ -36,6 +36,8 @@ export function Select({ value, options, onChange, id, className = '', label, in
   const button = useRef<HTMLButtonElement>(null)
   const list = useRef<HTMLUListElement>(null)
   const typed = useRef({ text: '', at: -Infinity })
+  // A modal <dialog> makes everything outside it inert, so a list in the body would show but take no clicks.
+  const [host, setHost] = useState<HTMLElement | null>(null)
   const listId = useId()
   const chosen = options.findIndex((option) => option.value === value)
   const optionId = (index: number) => `${listId}-${index}`
@@ -61,6 +63,8 @@ export function Select({ value, options, onChange, id, className = '', label, in
       if (element.matches(':popover-open')) element.hidePopover()
     }
   }, [open])
+
+  useLayoutEffect(() => setHost(button.current?.closest('dialog') ?? document.body), [])
 
   useEffect(() => {
     if (open && active >= 0) list.current?.children[active]?.scrollIntoView({ block: 'nearest' })
@@ -136,30 +140,31 @@ export function Select({ value, options, onChange, id, className = '', label, in
         <span className="select__value">{current?.label ?? value}</span>
         <ChevronIcon />
       </button>
-      {/* In the body: inside a <label> a press on an option would also click the button and open the list again. */}
-      {createPortal(
-        <ul ref={list} id={listId} popover="manual" role="listbox" className="select__list" aria-label={label}>
-          {open &&
-            options.map((option, index) => (
-              <li
-                key={option.value}
-                id={optionId(index)}
-                role="option"
-                className="select__option"
-                aria-selected={index === chosen}
-                data-active={index === active}
-                // The focus stays on the button, whose keys drive the list.
-                onPointerDown={(event) => event.preventDefault()}
-                onPointerMove={() => index !== active && setActive(index)}
-                onClick={() => pick(index)}
-              >
-                <span className="select__label">{option.label}</span>
-                {index === chosen && <CheckIcon />}
-              </li>
-            ))}
-        </ul>,
-        document.body,
-      )}
+      {/* Out of the field: inside a <label> a press on an option would also click the button and open the list again. */}
+      {host !== null &&
+        createPortal(
+          <ul ref={list} id={listId} popover="manual" role="listbox" className="select__list" aria-label={label}>
+            {open &&
+              options.map((option, index) => (
+                <li
+                  key={option.value}
+                  id={optionId(index)}
+                  role="option"
+                  className="select__option"
+                  aria-selected={index === chosen}
+                  data-active={index === active}
+                  // The focus stays on the button, whose keys drive the list.
+                  onPointerDown={(event) => event.preventDefault()}
+                  onPointerMove={() => index !== active && setActive(index)}
+                  onClick={() => pick(index)}
+                >
+                  <span className="select__label">{option.label}</span>
+                  {index === chosen && <CheckIcon />}
+                </li>
+              ))}
+          </ul>,
+          host,
+        )}
     </>
   )
 }

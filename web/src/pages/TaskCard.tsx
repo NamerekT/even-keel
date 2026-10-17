@@ -6,13 +6,14 @@ import remarkGfm from 'remark-gfm'
 import { noticeOf, type Notice } from '../../../src/notice/notice.js'
 import { isTaskId } from '../../../src/stats/model.js'
 import type { CardLabel, TaskCard as Card, TaskRef } from '../../../src/tracker/card.js'
-import type { TaskStatus } from '../../../src/tracker/model.js'
+import type { MilestonePick as MilestonePickView, TaskStatus } from '../../../src/tracker/model.js'
 import { formatMoment } from '../format.js'
 import { localized, say, t } from '../i18n/index.js'
 import { useLive } from '../live/context.js'
 import { useCommand } from '../live/useCommand.js'
 import '../ui/markdown.css'
 import { PriorityIcon } from '../ui/Priority.js'
+import { Select } from '../ui/Select.js'
 import { Attachments } from './Attachments.js'
 import './card.css'
 
@@ -185,7 +186,9 @@ function CardBody({ card, refused, onOpen, onChanged }: { card: Card; refused: N
               </span>
             </Prop>
             <Prop name={t.card.milestone}>
-              {card.milestone === null ? (
+              {card.milestones !== null ? (
+                <MilestonePick task={card.id} pick={card.milestones} onChanged={onChanged} />
+              ) : card.milestone === null ? (
                 <span className="task-card__none">{t.card.noMilestone}</span>
               ) : (
                 <span className="task-card__milestone">
@@ -235,6 +238,33 @@ function CardBody({ card, refused, onOpen, onChanged }: { card: Card; refused: N
         </aside>
       </div>
     </>
+  )
+}
+
+/** The milestone changes at once on a pick, with no confirmation; the card is read anew after the tracker took it. */
+function MilestonePick({ task, pick, onChanged }: { task: string; pick: MilestonePickView; onChanged: () => void }) {
+  const { send, sending, failure } = useCommand()
+  const [value, setValue] = useState(pick.current ?? '')
+  useEffect(() => setValue(pick.current ?? ''), [pick.current])
+  const chosen = pick.choices.find((choice) => choice.id === value)
+  const options = [{ value: '', label: t.card.noMilestone }, ...pick.choices.map((choice) => ({ value: choice.id, label: choice.label }))]
+
+  return (
+    <div className="task-card__milestone">
+      <Select
+        className="task-card__milestone-pick"
+        label={t.card.milestone}
+        value={value}
+        options={options}
+        disabled={sending}
+        onChange={(next) => {
+          setValue(next)
+          void send('task/milestone', { task, milestone: next === '' ? null : next }).then((ok) => (ok ? onChanged() : setValue(pick.current ?? '')))
+        }}
+      />
+      {chosen?.targetDate ? <small>{t.card.due(DAY().format(chosen.targetDate))}</small> : null}
+      {failure !== null && <p className="notice notice--error">{say(failure)}</p>}
+    </div>
   )
 }
 

@@ -114,6 +114,16 @@ export function UndoIcon() {
   )
 }
 
+/** Read anew: a circular arrow. */
+export function RefreshIcon() {
+  return (
+    <svg className="icon" viewBox="0 0 16 16" aria-hidden="true">
+      <path d="M13 8a5 5 0 1 1-1.5-3.55" />
+      <path d="M12 1.5V5H8.5" />
+    </svg>
+  )
+}
+
 /** Add a row: a plus. */
 export function PlusIcon() {
   return (

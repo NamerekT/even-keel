@@ -105,6 +105,8 @@ const ISSUE_FIELDS = {
   estimation: 1,
 } as const
 const MILESTONE_FIELDS = { label: 1, targetDate: 1 } as const
+/** Huly's `MilestoneStatus.Completed` and `Canceled`. */
+const CLOSED_MILESTONES = [2, 3]
 const LABEL_FIELDS = { attachedTo: 1, title: 1 } as const
 const ATTACHMENT_FIELDS = { attachedTo: 1, file: 1, name: 1, type: 1, size: 1, modifiedOn: 1, createdOn: 1 } as const
 
@@ -337,6 +339,25 @@ export async function connectHuly(credentials: HulyCredentials, timeoutMs: numbe
       if (issue.milestone || !like.milestone || like.space !== issue.space) return false
       await client.updateDoc(tracker.class.Issue, issue.space, issue._id, { milestone: like.milestone })
       return true
+    },
+    async milestones(identifier) {
+      const issue = await findIssue(identifier)
+      const [open, own] = await Promise.all([
+        client.findAll<HulyMilestoneDoc>(tracker.class.Milestone, { space: issue.space, status: { $nin: CLOSED_MILESTONES } }, { projection: MILESTONE_FIELDS }),
+        issue.milestone ? client.findAll<HulyMilestoneDoc>(tracker.class.Milestone, { _id: issue.milestone }, { projection: MILESTONE_FIELDS }) : [],
+      ])
+      const choices = [...open, ...own.filter((doc) => !open.some((each) => each._id === doc._id))]
+      return {
+        current: issue.milestone || null,
+        choices: choices.map((doc) => ({ id: doc._id, label: doc.label, targetDate: doc.targetDate || null })),
+      }
+    },
+    async moveMilestone(identifier, milestone) {
+      const issue = await findIssue(identifier)
+      if (milestone !== null && (await client.findOne(tracker.class.Milestone, { _id: milestone, space: issue.space })) === undefined) {
+        throw new Error(`huly: milestone ${milestone} is not in the project of ${identifier}`)
+      }
+      await client.updateDoc(tracker.class.Issue, issue.space, issue._id, { milestone })
     },
     close: () => client.close(),
   }
