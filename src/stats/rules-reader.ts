@@ -161,7 +161,7 @@ group by side`
 const SIDE_FAMILIES = `${SIDED}, own as (
   select distinct task from picked where task is not null
 ), families as (
-  select task, mode() within group (order by substring(model from '(opus|sonnet|haiku)')) as family
+  select task, mode() within group (order by coalesce(substring(model from '(opus|sonnet|haiku)'), substring(model from '^(gpt)-'))) as family
   from audit_sessions
   where task is not null
   group by task

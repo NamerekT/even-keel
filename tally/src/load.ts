@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto'
 import { open, stat } from 'node:fs/promises'
 import { readLines } from '../../src/sessions/lines.js'
 import { BatchBuilder, emptyBatch, type Batch, type ParseContext } from './parse.js'
+import { RolloutBuilder, rolloutLines, rolloutSession } from './rollout.js'
 
 const HEAD_BYTES = 1024
 
@@ -56,6 +57,27 @@ export async function loadFile(
   const state = { ...source, size, mtime, ino, head: await headOf(source.path, headLen), headLen }
 
   return readChunks(source.path, from, size, chunkBytes, context, (batch, next) => store.write(batch, { ...state, offset: next }))
+}
+
+// A Codex rollout is read whole whenever it changed: a response's model is in the `turn_context` its turn began with.
+export async function loadRollout(source: Source, stored: FileState | undefined, store: Store, context: ParseContext): Promise<number> {
+  const session = rolloutSession(source.path)
+  if (session === null) return 0
+  const info = await stat(source.path, { bigint: true })
+  const size = Number(info.size)
+  const ino = info.ino.toString()
+  const mtime = info.mtime.toISOString()
+  if (stored !== undefined && stored.size === size && stored.mtime === mtime && stored.ino === ino) return 0
+
+  const builder = new RolloutBuilder(context, session)
+  let lines = 0
+  for await (const text of rolloutLines(source.path)) {
+    builder.push(text)
+    lines++
+  }
+  const headLen = Math.min(HEAD_BYTES, size)
+  await store.write(builder.finish(), { ...source, offset: size, size, mtime, ino, head: await headOf(source.path, headLen), headLen })
+  return lines
 }
 
 // Re-reads a whole transcript for rule rows only (the backfill of rule versions), without touching its read state.

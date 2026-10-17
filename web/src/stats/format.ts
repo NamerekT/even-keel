@@ -7,6 +7,7 @@ const MODELS: Record<string, string> = {
   sonnet: 'Sonnet',
   haiku: 'Haiku',
   fable: 'Fable',
+  gpt: 'GPT',
 }
 
 const ENTRYPOINTS: Record<string, string> = {
@@ -14,6 +15,9 @@ const ENTRYPOINTS: Record<string, string> = {
   vscode: 'VS Code',
   cli: 'CLI',
   'tally-classify': 'Tally',
+  codex: 'Codex',
+  'codex-exec': 'Codex CLI',
+  'codex-desktop': 'Codex Desktop',
 }
 
 const GROUPED = localized((language) => new Intl.NumberFormat(language, { maximumFractionDigits: 0 }))

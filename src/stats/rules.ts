@@ -104,7 +104,7 @@ export interface FamilySums {
   ratio: number | null
 }
 
-// family null — the task's main thread ran on no opus, sonnet or haiku model.
+// family null — the task's main thread ran on no opus, sonnet, haiku or gpt model.
 export interface CompareFamily {
   family: string | null
   thin: boolean
@@ -391,7 +391,7 @@ export function compareOf(
   }
 }
 
-const FAMILY_ORDER = ['opus', 'sonnet', 'haiku']
+const FAMILY_ORDER = ['opus', 'sonnet', 'haiku', 'gpt']
 
 function familiesOf(before: SideSums['families'], after: SideSums['families'], minTasks: number): CompareFamily[] {
   const none: FamilySums = { tasks: 0, closed: 0, cost: 0, closedCost: null, closedMinutes: null, estimated: 0, ratio: null }

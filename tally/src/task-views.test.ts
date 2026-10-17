@@ -70,6 +70,16 @@ describe('task of a message', () => {
       select session_id, task from session_tasks`)
     expect(rows.filter((row) => row.session_id !== 'orphan')).toEqual([])
   })
+
+  it('names the model family of a Codex task gpt', async () => {
+    await db.exec(`insert into sessions (session_id, account, launch_task) values ('codex', 'codex', 'ABC-7')`)
+    await db.query(
+      `insert into messages (message_id, session_id, account, model, at, input, cache_write_5m, cache_write_1h, cache_read, output)
+       values ('x1', 'codex', 'codex', 'gpt-5.6-luna', '2026-10-01T14:00:00Z', 1, 0, 0, 0, 1)`,
+    )
+    const { rows } = await db.query<{ model_family: string | null }>(`select model_family from task_estimates where task = 'ABC-7'`)
+    expect(rows).toEqual([{ model_family: 'gpt' }])
+  })
 })
 
 type Named = [session: string, branchTask: string | null, custom: string | null, ai: string | null, prompt: string | null, launch?: string]

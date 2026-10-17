@@ -9,13 +9,13 @@ import { parseConfig, type DbSettings } from './config.js'
 import { TallyDb } from './db.js'
 import { refreshHandoffs } from './handoffs.js'
 import { snapshotsOfFile, snapshotsOfState, type Snapshot } from './limits.js'
-import { loadFile, type Source } from './load.js'
+import { loadFile, loadRollout, type Source } from './load.js'
 import { deniedLine, migratedLine } from './migrations.js'
 import { launchMap } from './parse.js'
 import { transcriptSession } from './rule-history.js'
 import { readBackup, ruleSources, skillsOf } from './rule-scan.js'
 import { backfillRules, collectRuleHistory, importRuleHistory, refreshRuleChanges, snapshotRules } from './rule-steps.js'
-import { transcriptFiles } from './scan.js'
+import { rolloutFiles, transcriptFiles } from './scan.js'
 import { classifySpans, refreshSigns, refreshSteps, refreshTasks, refreshTurns, reportTaskTimes } from './steps.js'
 
 const CHUNK_BYTES = 8 * 1024 * 1024
@@ -67,17 +67,23 @@ export async function collect(settings: DbSettings, root: string, log: Log): Pro
     let files = 0
     let lines = 0
     let failed = 0
-    for (const source of sources) {
+    const rollouts = await rolloutFiles(homes.list())
+    const loads = [
+      ...sources.map((source) => () => loadFile(source, stored.get(source.path), db, contextOf(source), CHUNK_BYTES)),
+      ...rollouts.map((source) => () => loadRollout(source, stored.get(source.path), db, { account: source.account, launches })),
+    ]
+    const paths = [...sources, ...rollouts].map((source) => source.path)
+    for (const [index, load] of loads.entries()) {
       try {
-        const read = await loadFile(source, stored.get(source.path), db, contextOf(source), CHUNK_BYTES)
+        const read = await load()
         if (read > 0) files++
         lines += read
       } catch (error) {
         failed++
-        log(`tally: ${source.path}: ${(error as Error).message}`)
+        log(`tally: ${paths[index]}: ${(error as Error).message}`)
       }
     }
-    const forgotten = sources.length > 0 ? await db.forgetFilesExcept(sources.map((source) => source.path)) : 0
+    const forgotten = paths.length > 0 ? await db.forgetFilesExcept(paths) : 0
     const relabeled = await db.syncLaunches(launches)
     await db.fillSessionFolders()
     if ((await db.meta('efforts')) === null) {
@@ -102,7 +108,7 @@ export async function collect(settings: DbSettings, root: string, log: Log): Pro
 
     const seconds = ((Date.now() - started) / 1000).toFixed(1)
     log(
-      `tally: ${sources.length} files, ${files} read, ${lines} lines, ${failed} failed, ${forgotten} forgotten, ` +
+      `tally: ${paths.length} files (${rollouts.length} Codex), ${files} read, ${lines} lines, ${failed} failed, ${forgotten} forgotten, ` +
         `${relabeled} sessions relabeled, ${prompted} prompts, ${handoffs} handoffs, ${snapshots} limit snapshots,` +
         `${ruleFiles.length} rule files (${versions} new versions, ${history} from git, ${changes} new changes), ${imported} imported rule sets, ` +
         `${signed.sessions} sessions signed (${signed.spans} spans), ${turned} sessions split into turns, ${stepped} into steps, ${tasks} Huly tasks, ${reports} time reports, ${classified} spans classified, ${seconds} s`,

@@ -12,7 +12,7 @@ import type {
   StatsTaskDetail,
   StatsTotals,
 } from './model.js'
-import { BASE } from './base-sql.js'
+import { BASE, familyOf } from './base-sql.js'
 import { mapCalibration, type Calibration } from './calibration.js'
 import { checkpointThreshold, type CheckpointMeasure, type CheckpointThreshold } from './checkpoint.js'
 import { folderGroups, repoTail } from './model.js'
@@ -97,7 +97,7 @@ left join seven sv on sv.message_id = r.message_id
 group by r.cur`
 
 const MODELS = `${PERIOD}
-select coalesce(substring(r.model from '^claude-([a-z]+)'), 'other') as key, coalesce(sum(r.cost), 0) as cost
+select coalesce(${familyOf('r.model')}, 'other') as key, coalesce(sum(r.cost), 0) as cost
 from ranged r
 where r.cur
 group by 1
@@ -135,7 +135,7 @@ select c.task, min(c.project) as project, t.title, t.status, coalesce(sum(c.cost
   coalesce(max(st.spans), 0) as spans,
   coalesce('Переделка' = any(t.labels), false) as rework,
   t.estimate_h, tt.active_s, tt.wait_s, tt.total_s, t.done, t.component,
-  mode() within group (order by substring(c.model from '^claude-([a-z]+)')) as model
+  mode() within group (order by ${familyOf('c.model')}) as model
 from cur c
 left join seven sv on sv.message_id = c.message_id
 left join tasks t on t.task = c.task

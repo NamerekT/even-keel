@@ -38,6 +38,7 @@ Checked live on codex-cli 0.162.1 (BTN-168): a detached turn outlives its parent
 - **Sign-in from the page.** `codex login --device-auth` runs through the panel's sign-in flow, whose reading of the link was written for Claude's output; the one-time code is not parsed out, the window only shows the CLI output unfolded (`deviceLogin`), and the fake mode's output is a guess at Codex's wording. If the window shows no link, sign in with `codex login` in a terminal with the same `CODEX_HOME` (`docs/accounts.md`).
 - **A crashed turn and a service restart mid-turn.** Liveness is the pid of the last turn: a pid reused by another process after a crash would keep the session busy. A service restart mid-turn was checked with a parent process killed hard, not with the real service.
 - **Stopping a turn on macOS and Linux.** The turn's process group is killed with `process.kill(-pid)`; it was run only on Windows (`taskkill /T`).
+- **Codex stats (BTN-170).** Checked on the rollouts on disk: 0.148 desktop sessions and 0.162 exec ones. Never seen: a non-zero `cache_write_input_tokens` — it is assumed to be inside `input_tokens` and is subtracted from it; a rollout in `archived_sessions/`; a 0.162 rollout that has `token_count` lines without a matching `token_usage_record` (the fallback was run only on 0.148 files). If one of these differs, a Codex response is counted twice or its input is off. **Workaround:** none needed for the chain; compare `/stats` with the `usage` in the rollout and fix `src/rollout.ts` (`tally/CLAUDE.md`).
 
 ## Trackers
 
