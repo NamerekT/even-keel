@@ -20,7 +20,7 @@ const log = (message: string) => console.log(`${new Date().toISOString()} ${mess
 async function run(): Promise<number> {
   const server = dbSettings(process.env)
   if (server !== null) return collect(server, root, log)
-  const local = await openLocalTally(tallyDir(process.env.EVEN_KEEL_STATE_DIR ?? join(root, 'state')))
+  const local = await openLocalTally(tallyDir(process.env.EVEN_KEEL_STATE_DIR ?? join(root, 'state')), log)
   try {
     return await collect(local.settings, root, log)
   } finally {

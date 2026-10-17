@@ -1,7 +1,7 @@
 import { PGlite } from '@electric-sql/pglite'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { TALLY_SCHEMA_VERSION, tallyVersion } from '../../src/stats/tally-schema.js'
-import { migrate, pgliteDb, STEPS } from './migrations.js'
+import { migrate, migratedLine, pgliteDb, STEPS } from './migrations.js'
 
 const BASE = `create table if not exists notes (id integer primary key, text text not null);`
 const SECOND = `alter table notes add column author text;`
@@ -85,5 +85,17 @@ describe('schema migrations', () => {
 
   it('knows as many versions as it has steps', () => {
     expect(STEPS.length).toBe(TALLY_SCHEMA_VERSION)
+  })
+})
+
+describe('migration log line', () => {
+  it('names the versions of a migrated database', () => {
+    expect(migratedLine({ state: 'migrated', from: 0, to: 2 })).toBe('tally: database schema unversioned → v2')
+    expect(migratedLine({ state: 'migrated', from: 1, to: 2 })).toBe('tally: database schema v1 → v2')
+  })
+
+  it('is silent when nothing was migrated', () => {
+    expect(migratedLine({ state: 'current', version: 2 })).toBeNull()
+    expect(migratedLine({ state: 'newer', version: 3, known: 2 })).toBeNull()
   })
 })

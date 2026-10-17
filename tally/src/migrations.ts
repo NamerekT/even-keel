@@ -85,6 +85,12 @@ async function missingRights(db: SchemaDb): Promise<{ user: string; fixes: Fix[]
 
 const KINDS: Record<string, string> = { v: 'view', m: 'materialized view', S: 'sequence' }
 
+/** One log line for a database that was migrated; null when nothing changed. */
+export function migratedLine(migration: Migration): string | null {
+  if (migration.state !== 'migrated') return null
+  return `tally: database schema ${migration.from === 0 ? 'unversioned' : `v${migration.from}`} → v${migration.to}`
+}
+
 /** One log line: what the database needs before the collector can migrate it. */
 export function deniedLine(migration: Extract<Migration, { state: 'denied' }>): string {
   const roles = [...new Set(migration.fixes.map((fix) => fix.role))]

@@ -4,7 +4,7 @@ import { join } from 'node:path'
 import { PGlite } from '@electric-sql/pglite'
 import { PGLiteSocketServer } from '@electric-sql/pglite-socket'
 import type { DbSettings } from './config.js'
-import { migrate, pgliteDb } from './migrations.js'
+import { migrate, migratedLine, pgliteDb } from './migrations.js'
 
 // The local Tally database: PGlite in <state>/tally/pgdata, served to pg clients on a loopback port.
 // PGlite has one session per process, so one process owns the folder; owner.json names it and its port.
@@ -64,7 +64,7 @@ function listening(port: number): Promise<boolean> {
   })
 }
 
-export async function openLocalTally(dir: string): Promise<LocalTally> {
+export async function openLocalTally(dir: string, log: (message: string) => void): Promise<LocalTally> {
   const owner = await readOwner(dir)
   if (owner !== null && owner.pid !== process.pid) {
     throw new Error(`tally: process ${owner.pid} (the Even Keel service) holds the local database in ${dir}; stop it first`)
@@ -75,7 +75,8 @@ export async function openLocalTally(dir: string): Promise<LocalTally> {
     // Days and weeks without an explicit zone are UTC, as on the server.
     await db.exec(`set timezone = 'UTC'`)
     // A newer database still opens: the page says so, and the collector stops on it with a line in the log.
-    await migrate(pgliteDb(db))
+    const migrated = migratedLine(await migrate(pgliteDb(db)))
+    if (migrated !== null) log(migrated)
     const server = new PGLiteSocketServer({ db, host: '127.0.0.1', port: 0, maxConnections: MAX_CONNECTIONS })
     await server.start()
     const port = Number(server.getServerConn().split(':').at(-1))

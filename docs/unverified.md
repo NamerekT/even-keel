@@ -7,7 +7,10 @@ If you run into one of these, please open an issue with what you saw: it is the 
 ## Platforms
 
 - **macOS.** `service/install.sh` installs a launchd agent there, but Even Keel has never run on a Mac: neither the agent nor finding the CLI and its folders.
-- **Linux outside WSL.** Linux was checked end to end under WSL (Ubuntu 26.04), not on a native installation (`docs/service.md`).
+
+## Updating
+
+- **Plugins from a git URL marketplace.** A marketplace added from a local path is read from its folder, so an update of the code reaches the plugins by itself; that was checked. One added from a git URL (`owner/repo`, `https://…`) keeps a copy by version, and README tells you to run `claude plugin marketplace update even-keel` and `claude plugin update <plugin>@even-keel` in each project. The commands were run, but a copy that is actually behind was never brought up to date with them. If sessions still run the old plugin, `claude plugin uninstall … --scope project` and `claude plugin install … --scope project` in the project install the current one.
 
 ## Claude limits
 
