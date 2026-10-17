@@ -171,7 +171,7 @@ export interface DispatcherDeps {
   accountAt: (account: string, at: string) => string | null
   /** When the spent limit of the account the project's session (or `task`'s) would start on resets; `null` — not spent. */
   limitReset: (project: string, task?: string) => string | null
-  /** When the limit an account folder hit at `at` resets, by its polled limits (`limitResetAfter`). */
+  /** When the limit an account folder hit at `at` resets, by its polled limits (`limitResetAfter`); an API account's — when its key's credit came back. */
   limitResetAfter: (account: string, at: string) => string | null
   /** Until when the CLI skips the project's tracker MCP server as failed (BTN-159); `null` — it does not. */
   mcpFailed: (project: string) => string | null

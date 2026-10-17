@@ -5,6 +5,7 @@ import type { UsageHealth } from '../limits/usage.js'
 import { fail, notice, NoticeError, noticeOf, sameNotice, type Notice } from '../notice/notice.js'
 import { appSwitchProblem, type AppAccount, type AppId } from './apps.js'
 import { assertApiKey, type AccountHome, type AccountHomes } from './homes.js'
+import { CreditChecks, type CreditVerdict } from './credit.js'
 import { KeyChecks, type KeyVerdict } from './keycheck.js'
 import {
   cleanOutput,
@@ -54,6 +55,8 @@ export interface AccountWatcherOptions {
   usage: (key: string) => UsageHealth
   checkKey: (key: string) => Promise<KeyVerdict>
   keyCheckMs: number
+  checkCredit: (key: string) => Promise<CreditVerdict>
+  creditCheckMs: number
   intervalMs: number
   loginTimeoutMs: number
   now: () => Date
@@ -80,9 +83,11 @@ export class AccountWatcher {
   private output = ''
   private timer: NodeJS.Timeout | undefined
   private readonly keys: KeyChecks
+  private readonly credit: CreditChecks
 
   constructor(private readonly options: AccountWatcherOptions) {
     this.keys = new KeyChecks(options.keyCheckMs)
+    this.credit = new CreditChecks(options.creditCheckMs)
   }
 
   get view(): AccountView {
@@ -123,6 +128,11 @@ export class AccountWatcher {
     return isApiKey(this.known.find((known) => known.home.key === key)?.status ?? null)
   }
 
+  /** When the credit of an API account's key came back after its session stopped on it at `at`; asking keeps it checked. */
+  creditBackAfter(key: string, at: string): string | null {
+    return this.credit.restoredAfter(key, at, this.options.now())
+  }
+
   start(): void {
     if (this.timer !== undefined) return
     const tick = () => {
@@ -138,6 +148,7 @@ export class AccountWatcher {
     const homes = this.options.homes.list()
     const known = await Promise.all(homes.map((home) => this.check(home)))
     const keysChanged = await this.checkKeys(known)
+    await this.checkCredit(homes)
     if (!keysChanged && JSON.stringify(known) === JSON.stringify(this.known)) return
     this.known = known
     this.options.onChange()
@@ -231,6 +242,20 @@ export class AccountWatcher {
     return changes.includes(true)
   }
 
+  private async checkCredit(homes: AccountHome[]): Promise<void> {
+    const now = this.options.now()
+    await Promise.all(
+      this.credit.due(now).map(async (account) => {
+        const home = homes.find((each) => each.key === account)
+        const key = home === undefined ? null : this.options.homes.apiKeyOf(home)
+        if (key === null) return
+        const verdict = await this.options.checkCredit(key)
+        if (verdict.state === 'unknown') this.options.onError(new Error(`credit check of ${account}: ${verdict.reason}`))
+        this.credit.note(account, verdict, now)
+      }),
+    )
+  }
+
   private async drop(key: string): Promise<void> {
     const home = this.options.homes.find(key)!
     const status = this.known.find((known) => known.home.key === key)?.status
@@ -238,6 +263,7 @@ export class AccountWatcher {
     this.options.homes.remove(home)
     this.options.forget(key)
     this.keys.forget(key)
+    this.credit.forget(key)
   }
 
   code(code: string): void {

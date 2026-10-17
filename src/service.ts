@@ -1,5 +1,6 @@
 import { mkdirSync } from 'node:fs'
 import { join } from 'node:path'
+import { checkCredit } from './account/credit.js'
 import { DaemonRefresh } from './account/daemon.js'
 import { AccountHomes, accountsRoot, type AccountHome } from './account/homes.js'
 import { checkApiKey } from './account/keycheck.js'
@@ -71,6 +72,7 @@ const LAUNCH_CHART_DAYS = 14
 const ACCOUNT_POLL_MS = 60_000
 const KEY_CHECK_MS = 60 * 60_000
 const KEY_CHECK_TIMEOUT_MS = 15_000
+const CREDIT_CHECK_MS = 5 * 60_000
 const APP_POLL_MS = 5_000
 const LOGIN_TIMEOUT_MS = 10 * 60_000
 const LIMIT_CHECK_MS = 30_000
@@ -248,6 +250,8 @@ const account = new AccountWatcher({
   usage: (key) => limits.usage(key),
   checkKey: (key) => checkApiKey(key, KEY_CHECK_TIMEOUT_MS),
   keyCheckMs: KEY_CHECK_MS,
+  checkCredit: (key) => checkCredit(key, KEY_CHECK_TIMEOUT_MS),
+  creditCheckMs: CREDIT_CHECK_MS,
   intervalMs: ACCOUNT_POLL_MS,
   loginTimeoutMs: LOGIN_TIMEOUT_MS,
   now: () => new Date(),
@@ -483,7 +487,7 @@ const dispatcher = new Dispatcher(loadChainState(chainFile, config.ids), {
   account: (project, task) => accountNow(startHomeKey(agentFor(project, task))),
   accountAt: (key, at) => accountId(key, accountAt(ledger, key, at)),
   limitReset: (project, task) => exhaustedReset(limits.limits(startHomeKey(agentFor(project, task)))),
-  limitResetAfter: (account, at) => limitResetAfter(limits.limits(account), at),
+  limitResetAfter: (key, at) => (account.apiKey(key) ? account.creditBackAfter(key, at) : limitResetAfter(limits.limits(key), at)),
   mcpFailed: (project) => {
     mcp.run()
     return mcp.failed.find((each) => each.project === project)?.until ?? null

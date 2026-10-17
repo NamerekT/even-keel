@@ -68,6 +68,7 @@ Layout work on a fake state, without a tracker or sessions. The fake history sta
 | `?parallel=2` | two chains at once: DEMO, taken from the queue, runs next to ABC |
 | `?chain=paused` | the chain is paused: "Resume" is the filled button and "Stop" stays pressable |
 | `?chain=limit` | the chain is waiting for the limit reset |
+| `?limit=resume\|relay\|unknown\|credit` | ABC-5 is held on a limit: a warm resume or a handoff after a known reset, an unknown reset, or an API key out of credit |
 | `?chain=slot` | an unattended chain is waiting for a free slot |
 | `?chain=ci` | the chain is waiting for the CI of a pushed main |
 | `?chain=check` | the chain is running the project's own check on a pushed main in the next task's folder |

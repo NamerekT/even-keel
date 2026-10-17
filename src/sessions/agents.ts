@@ -204,8 +204,9 @@ export function lampOf(agent: AgentEntry | undefined, apiError: ApiErrorKind | n
   if (agent === undefined || agent.state === 'done' || agent.state === 'stopped') return 'finished'
   if (agent.state === 'failed') return 'error'
   if (!isLive(agent) && agent.state !== 'blocked' && now - agent.startedAt > LAUNCH_GRACE_MS) return 'finished'
-  if (agent.status === 'busy' || (agent.status === 'shell' && apiError !== 'limit')) return 'working'
-  if (apiError !== null) return apiError
+  const error = apiError === 'credit' ? 'limit' : apiError
+  if (agent.status === 'busy' || (agent.status === 'shell' && error !== 'limit')) return 'working'
+  if (error !== null) return error
   if (agent.status === 'waiting' || agent.state === 'blocked') return 'waiting'
   if (agent.status === 'idle') return 'waiting'
   return 'working'

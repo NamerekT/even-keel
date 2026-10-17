@@ -237,7 +237,7 @@ function fakeState(
       ? []
       : [
           session('ABC-4', 212_000, 'finished'),
-          limit === null ? session('ABC-5', contextTokens) : limitedSession(session('ABC-5', contextTokens, 'limit')),
+          limit === null ? session('ABC-5', contextTokens) : limitedSession(session('ABC-5', contextTokens, 'limit'), limit),
           session('ABC-6', 96_000, 'waiting'),
           session('ABC-7', 188_000, 'error'),
           session('ABC-8', 74_000, 'limit'),
@@ -283,14 +283,18 @@ function fakeState(
 }
 
 function fakeLimit(kind: string | null): { limit: LimitHold } | Record<string, never> {
-  if (kind !== 'relay' && kind !== 'resume' && kind !== 'unknown') return {}
-  const resetsAt = kind === 'unknown' ? null : new Date(Date.now() + 95 * 60_000).toISOString()
+  if (kind !== 'relay' && kind !== 'resume' && kind !== 'unknown' && kind !== 'credit') return {}
+  const resetsAt = kind === 'unknown' || kind === 'credit' ? null : new Date(Date.now() + 95 * 60_000).toISOString()
+  const account = kind === 'credit' ? 'api-work' : 'john@example.com'
   return {
-    limit: { at: ago(3), account: 'john@example.com', resetsAt, lastReplyAt: ago(4), then: kind === 'resume' ? 'resume' : 'relay', acted: null },
+    limit: { at: ago(3), account, resetsAt, lastReplyAt: ago(4), then: kind === 'resume' ? 'resume' : 'relay', acted: null },
   }
 }
 
-function limitedSession(view: SessionView): SessionView {
+function limitedSession(view: SessionView, kind: string): SessionView {
+  if (kind === 'credit') {
+    return { ...view, apiError: 'Credit balance is too low', lastActivityAt: ago(3), remoteUrl: null, remoteOff: 'api-key', account: 'api-work' }
+  }
   return { ...view, apiError: "You've hit your session limit · resets 7:20pm (Europe/Berlin)", lastActivityAt: ago(3) }
 }
 

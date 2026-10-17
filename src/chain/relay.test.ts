@@ -11,6 +11,7 @@ import {
   relayStep,
   resumePrompt,
   startPrompt,
+  warmCacheMs,
   withBrief,
   withProjectPrompt,
   withReport,
@@ -72,6 +73,13 @@ describe('holdOf', () => {
     const limited = session({ limit: { at: '2026-09-27T17:10:00.000Z', text: 'resets 7:20pm (Europe/Berlin)' }, lastReplyAt: '2026-09-27T17:05:00.000Z' })
     expect(holdOf(limited, 'john@example.com', null).then).toBe('resume')
   })
+
+  it('plans by the session’s own cache lifetime when it has one', () => {
+    const empty = session({ limit: { at: '2026-09-27T14:39:02.453Z', text: 'Credit balance is too low' }, warmMs: warmCacheMs('5m') })
+    expect(holdOf(empty, 'api-key', null)).toMatchObject({ resetsAt: null, then: 'relay' })
+    expect(holdOf(empty, 'api-key', '2026-09-27T14:40:00.000Z').then).toBe('resume')
+    expect(holdOf(empty, 'api-key', '2026-09-27T14:50:00.000Z').then).toBe('relay')
+  })
 })
 
 describe('withReset', () => {
@@ -79,6 +87,12 @@ describe('withReset', () => {
     const unknown = hold({ resetsAt: null, lastReplyAt: '2026-09-27T14:38:50.000Z' })
     expect(withReset(unknown, '2026-09-27T15:00:00.000Z')).toEqual(hold({ resetsAt: '2026-09-27T15:00:00.000Z', then: 'resume' }))
     expect(withReset(unknown, '2026-09-27T17:20:00.000Z')).toEqual(hold())
+  })
+
+  it('plans a handover when the reset comes after a shorter cache lifetime', () => {
+    const unknown = hold({ resetsAt: null, lastReplyAt: '2026-09-27T14:38:50.000Z' })
+    expect(withReset(unknown, '2026-09-27T14:41:00.000Z', warmCacheMs('5m')).then).toBe('resume')
+    expect(withReset(unknown, '2026-09-27T14:45:00.000Z', warmCacheMs('5m')).then).toBe('relay')
   })
 })
 
@@ -119,6 +133,13 @@ describe('relayStep', () => {
     const unknown = hold({ resetsAt: null })
     expect(relayStep(unknown, new Date('2026-09-30T00:00:00Z'), ready)).toBe('wait')
     expect(relayStep(unknown, new Date('2026-09-30T00:00:00Z'), { id: 'jane@example.com', ready: true })).toBe('relay')
+  })
+
+  it('takes the cache lifetime of the session when it is shorter, as on an API key', () => {
+    const credit = hold({ resetsAt: '2026-09-27T14:40:00.000Z' })
+    expect(relayStep(credit, new Date('2026-09-27T14:42:00Z'), ready, warmCacheMs('5m'))).toBe('resume')
+    expect(relayStep(credit, new Date('2026-09-27T14:43:00Z'), ready, warmCacheMs('5m'))).toBe('relay')
+    expect(relayStep(credit, new Date('2026-09-27T15:30:00Z'), ready, warmCacheMs('1h'))).toBe('resume')
   })
 
   it('does nothing once the limit was acted on', () => {

@@ -3,7 +3,13 @@ import { blocksOf, describeTool, flatten, parseEntry, type ContentBlock, type En
 import { remoteUrlOf } from './remote.js'
 
 export type Stage = 'task' | 'recon' | 'edit' | 'test' | 'commit' | 'merge'
-export type ApiErrorKind = 'limit' | 'error'
+/** `credit` — an API key whose organization has no credit left: the CLI's `billing_error` ("Credit balance is too low"). */
+export type ApiErrorKind = 'limit' | 'credit' | 'error'
+
+const API_ERROR_KINDS = new Map<unknown, ApiErrorKind>([
+  ['rate_limit', 'limit'],
+  ['billing_error', 'credit'],
+])
 
 export interface FeedLine {
   at: string
@@ -167,7 +173,7 @@ export class TranscriptFold {
 
     if (entry.isApiErrorMessage === true) {
       const text = flatten(blocks.map((block) => block.text ?? '').join(' '), TEXT_LIMIT) || String(entry.error)
-      this.apiError = { kind: entry.error === 'rate_limit' ? 'limit' : 'error', text, at }
+      this.apiError = { kind: API_ERROR_KINDS.get(entry.error) ?? 'error', text, at }
       this.addFeed({ at, kind: 'error', text })
       return
     }

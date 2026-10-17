@@ -51,13 +51,13 @@ export class Handovers {
     } else if (current.limit.resetsAt === null) {
       const reset = this.deps.limitResetAfter(session.account, current.limit.at)
       if (reset !== null) {
-        current.limit = withReset(current.limit, reset)
+        current.limit = withReset(current.limit, reset, session.warmMs)
         this.deps.save(this.state)
       }
     }
     const hold = current.limit
     const now = this.deps.now()
-    const step = relayStep(hold, now, this.deps.account(chain.project, current.task))
+    const step = relayStep(hold, now, this.deps.account(chain.project, current.task), session.warmMs)
     if (step === 'wait') return true
 
     hold.acted = step

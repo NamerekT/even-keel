@@ -3,7 +3,7 @@ import { englishOf, notice, textNotice } from '../notice/notice.js'
 import type { Task } from '../tracker/model.js'
 import { active, backlog, canceled, done, pause, review, setup, task, todo, type SetupOptions } from './dispatcher.fixture.js'
 import { emptyChainState, type ChainState, type Dispatcher } from './dispatcher.js'
-import type { LimitedSession } from './relay.js'
+import { warmCacheMs, type LimitedSession } from './relay.js'
 import { DEFAULT_RULES } from './rules.js'
 
 describe('Dispatcher', () => {
@@ -718,6 +718,33 @@ describe('Dispatcher on a limit', () => {
     clock.now = new Date('2026-09-26T14:00:00Z')
     await check(dispatcher)
     expect(relays).toMatchObject([{ kind: 'relay', task: 'ABC-1', sessionId: 'session-1' }])
+  })
+
+  it('continues an API session once its key has credit again, by the five-minute cache of the key', async () => {
+    const credit = { back: null as string | null }
+    const out = (lastReplyAt: string) => ({
+      ...limitedSession('session-1', '2026-09-26T12:00:00.000Z', lastReplyAt),
+      limit: { at: '2026-09-26T12:00:00.000Z', text: 'Credit balance is too low' },
+      warmMs: warmCacheMs('5m'),
+    })
+    const warm = await running({ limitResetAfter: () => credit.back })
+    warm.limited['ABC-1'] = out('2026-09-26T11:59:00.000Z')
+    await check(warm.dispatcher)
+    expect(warm.dispatcher.state.active[0]?.current?.limit?.resetsAt).toBeNull()
+
+    warm.clock.now = new Date('2026-09-26T12:02:00Z')
+    credit.back = '2026-09-26T12:02:00.000Z'
+    await check(warm.dispatcher)
+    expect(warm.relays).toMatchObject([{ kind: 'resume', sessionId: 'session-1' }])
+
+    credit.back = null
+    const cold = await running({ limitResetAfter: () => credit.back })
+    cold.limited['ABC-1'] = out('2026-09-26T11:59:00.000Z')
+    await check(cold.dispatcher)
+    cold.clock.now = new Date('2026-09-26T12:30:00Z')
+    credit.back = '2026-09-26T12:30:00.000Z'
+    await check(cold.dispatcher)
+    expect(cold.relays).toMatchObject([{ kind: 'relay', task: 'ABC-1', sessionId: 'session-1' }])
   })
 
   it('hands the task to a new session in the old worktree once the limit resets with a cold cache', async () => {

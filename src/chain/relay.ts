@@ -3,14 +3,20 @@ import type { Language } from '../language.js'
 import { resetTimeOf } from '../limits/reset.js'
 import { fail } from '../notice/notice.js'
 import { fill } from '../sessions/prompt.js'
-import type { FeedLine } from '../sessions/transcript.js'
+import type { CacheTtl, FeedLine } from '../sessions/transcript.js'
 import type { TaskBrief } from '../tracker/source.js'
 import { PROMPTS, type HandoffReason } from './prompts.js'
 
 export type { HandoffReason } from './prompts.js'
 
 export const WARM_CACHE_MS = 55 * 60_000
+const WARM_SHORT_CACHE_MS = 4 * 60_000
 const HANDOFF_STEPS = 10
+
+/** How long after its last reply an API session's cache stays warm: an hour's cache as a subscription's, else five minutes. */
+export function warmCacheMs(ttl: CacheTtl | null): number {
+  return ttl === '1h' ? WARM_CACHE_MS : WARM_SHORT_CACHE_MS
+}
 
 export function resumePrompt(language: Language): string {
   return PROMPTS[language].resume
@@ -88,6 +94,8 @@ export interface HandoffSession {
 
 export interface LimitedSession extends HandoffSession {
   limit: { at: string; text: string }
+  /** How long the cache stays warm after the last reply (`warmCacheMs`); absent — `WARM_CACHE_MS`, a subscription's. */
+  warmMs?: number
 }
 
 export interface LimitHold {
@@ -106,17 +114,18 @@ export interface AccountNow {
 
 export function holdOf(session: LimitedSession, account: string | null, fallbackReset: string | null): LimitHold {
   const resetsAt = resetTimeOf(session.limit.text, session.limit.at) ?? fallbackReset
-  return withReset({ at: session.limit.at, account, resetsAt: null, lastReplyAt: session.lastReplyAt, then: 'relay', acted: null }, resetsAt)
+  const hold: LimitHold = { at: session.limit.at, account, resetsAt: null, lastReplyAt: session.lastReplyAt, then: 'relay', acted: null }
+  return withReset(hold, resetsAt, session.warmMs)
 }
 
-export function withReset(hold: LimitHold, resetsAt: string | null): LimitHold {
+export function withReset(hold: LimitHold, resetsAt: string | null, warmMs = WARM_CACHE_MS): LimitHold {
   const { account, lastReplyAt } = hold
   const warmAtReset =
-    account !== null && resetsAt !== null && lastReplyAt !== null && Date.parse(resetsAt) - Date.parse(lastReplyAt) < WARM_CACHE_MS
+    account !== null && resetsAt !== null && lastReplyAt !== null && Date.parse(resetsAt) - Date.parse(lastReplyAt) < warmMs
   return { ...hold, resetsAt, then: warmAtReset ? 'resume' : 'relay' }
 }
 
-export function relayStep(hold: LimitHold, now: Date, account: AccountNow): RelayStep {
+export function relayStep(hold: LimitHold, now: Date, account: AccountNow, warmMs = WARM_CACHE_MS): RelayStep {
   if (hold.acted !== null || !account.ready) return 'wait'
   const switched = hold.account !== null && account.id !== null && account.id !== hold.account
   const reset = hold.resetsAt !== null && now.getTime() >= Date.parse(hold.resetsAt)
@@ -126,7 +135,7 @@ export function relayStep(hold: LimitHold, now: Date, account: AccountNow): Rela
     hold.account !== null &&
     account.id === hold.account &&
     hold.lastReplyAt !== null &&
-    now.getTime() - Date.parse(hold.lastReplyAt) < WARM_CACHE_MS
+    now.getTime() - Date.parse(hold.lastReplyAt) < warmMs
   return warm ? 'resume' : 'relay'
 }
 

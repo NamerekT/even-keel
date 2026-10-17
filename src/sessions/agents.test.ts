@@ -241,6 +241,11 @@ describe('lampOf', () => {
     expect(lampOf({ ...background, status: 'shell' }, 'limit')).toBe('limit')
   })
 
+  it('shows a key out of credit as a limit: the session waits for money as for a reset', () => {
+    expect(lampOf(interactive, 'credit')).toBe('limit')
+    expect(lampOf({ ...background, status: 'shell' }, 'credit')).toBe('limit')
+  })
+
   it('shows the API error the idle session stopped on', () => {
     expect(lampOf(interactive, 'limit')).toBe('limit')
     expect(lampOf(interactive, 'error')).toBe('error')

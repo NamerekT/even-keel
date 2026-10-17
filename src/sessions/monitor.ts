@@ -1,7 +1,7 @@
 import type { AccountHome } from '../account/homes.js'
 import { GLOBAL_ACCOUNT } from '../account/model.js'
 import type { Agent, SessionTail } from '../agent/contract.js'
-import type { HandoffSession, LimitedSession } from '../chain/relay.js'
+import { warmCacheMs, type HandoffSession, type LimitedSession } from '../chain/relay.js'
 import type { SessionView } from '../state.js'
 import { lampOf, sessionsByTask, type AgentEntry } from './agents.js'
 import { remoteLink } from './remote.js'
@@ -11,7 +11,7 @@ export interface SessionMonitorOptions {
   agentOf: (home: AccountHome) => Pick<Agent, 'sessions' | 'tail' | 'remote'>
   homes: () => AccountHome[]
   emailOf: (account: string) => string | null
-  /** An API account's session has no Remote Control and no usage window to wait out (`docs/accounts.md`). */
+  /** An API account's session has no Remote Control and no usage window: it waits out only a key out of credit (`docs/accounts.md`). */
   apiKey: (account: string) => boolean
   projectKeys: () => string[]
   intervalMs: number
@@ -85,10 +85,11 @@ export class SessionMonitor {
     const tracked = this.tracked.get(task)
     const session = this.handoff(task)
     if (tracked === undefined || session === undefined || !tracked.present) return undefined
-    if (this.options.apiKey(tracked.agent.account ?? GLOBAL_ACCOUNT)) return undefined
-    const { apiError } = tracked.transcript.summary()
-    if (apiError?.kind !== 'limit' || lampOf(tracked.agent, 'limit') !== 'limit') return undefined
-    return { ...session, limit: { at: apiError.at, text: apiError.text } }
+    const apiKey = this.options.apiKey(tracked.agent.account ?? GLOBAL_ACCOUNT)
+    const { apiError, cache } = tracked.transcript.summary()
+    if (apiError?.kind !== (apiKey ? 'credit' : 'limit') || lampOf(tracked.agent, apiError.kind) !== 'limit') return undefined
+    const limited = { ...session, limit: { at: apiError.at, text: apiError.text } }
+    return apiKey ? { ...limited, warmMs: warmCacheMs(cache?.ttl ?? null) } : limited
   }
 
   private schedule(delay: number): void {

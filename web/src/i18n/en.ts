@@ -744,6 +744,8 @@ export const en: Messages = {
     cacheRead: 'cache read',
     cacheWrite: 'cache write',
     limitUnknown: 'The limit reset time is unknown — a new session starts as soon as you switch the account.',
+    creditOut:
+      'The API key is out of credit. The dispatcher checks it every 5 minutes and goes on once it is topped up; switching the account starts a new session at once.',
     limitResume: (at: string) => `After the limit resets at ${at} the dispatcher continues this session — the cache will still be warm.`,
     limitRelay: (at: string) =>
       `After the limit resets at ${at} (or right after an account switch) the dispatcher starts a new session in the same working folder.`,

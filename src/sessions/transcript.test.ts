@@ -277,6 +277,13 @@ describe('TranscriptFold', () => {
     expect(summary.feed.at(-1)).toMatchObject({ kind: 'error' })
   })
 
+  it('tells an API key out of credit from the other key errors', () => {
+    const empty = fold([assistant('m1', [text('working')]), apiError('billing_error', 'Credit balance is too low')]).summary()
+    expect(empty.apiError).toMatchObject({ kind: 'credit', text: 'Credit balance is too low' })
+    expect(fold([apiError('rate_limit', 'Request rejected (429)')]).summary().apiError).toMatchObject({ kind: 'limit' })
+    expect(fold([apiError('authentication_failed', 'Invalid API key')]).summary().apiError).toMatchObject({ kind: 'error' })
+  })
+
   it('reports other API errors and forgets them once the session answers again', () => {
     const failed = fold([assistant('m1', [text('working')]), apiError('authentication_failed', 'OAuth session expired')])
     expect(failed.summary().apiError).toMatchObject({ kind: 'error' })

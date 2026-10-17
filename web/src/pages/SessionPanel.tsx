@@ -216,7 +216,7 @@ function SessionBody({ session, limit, scale, whole }: { session: SessionView; l
   return (
     <>
       {note !== null && <p className="notice notice--error">{note}</p>}
-      {limit !== null && <p className="notice notice--warn">{limitPlan(limit, now)}</p>}
+      {limit !== null && <p className="notice notice--warn">{limitPlan(limit, now, session.remoteOff === 'api-key')}</p>}
       <dl className="panel__facts">
         <div className="panel__fact">
           <dt>{t.session.session}</dt>
@@ -326,8 +326,9 @@ function TokensFact({ tokens }: { tokens: TokenTotals }) {
   )
 }
 
-function limitPlan(hold: LimitHold, now: Date): string {
-  if (hold.resetsAt === null) return t.session.limitUnknown
+// A session on an API key is held only by its key's credit: the service checks it and goes on once it is back.
+function limitPlan(hold: LimitHold, now: Date, apiKey: boolean): string {
+  if (hold.resetsAt === null) return apiKey ? t.session.creditOut : t.session.limitUnknown
   const at = formatMoment(hold.resetsAt, now)
   return hold.then === 'resume' ? t.session.limitResume(at) : t.session.limitRelay(at)
 }
