@@ -1,0 +1,67 @@
+name: CLI update broke something
+description: Even Keel worked, then Claude Code (or Codex) updated and a part of it stopped working.
+title: "CLI <version>: "
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Even Keel reads undocumented parts of the Claude Code CLI — `claude agents --json`, `sessions/<pid>.json`, the background daemon, the transcript format, the text of `/usage`, `~/.claude.json` — so a CLI update can break it until it is adapted. The README names the CLI version it was last checked on.
+
+  - type: input
+    id: cli-now
+    attributes:
+      label: CLI version now
+      description: "`claude --version` (or `codex --version`)"
+    validations:
+      required: true
+
+  - type: input
+    id: cli-before
+    attributes:
+      label: Last version that worked
+      description: If you know it.
+
+  - type: textarea
+    id: what
+    attributes:
+      label: What broke
+      description: For example sessions not seen as live, a stage or context fill stuck, limits not shown, a session not started or not resumed.
+    validations:
+      required: true
+
+  - type: textarea
+    id: changed
+    attributes:
+      label: What the CLI does differently
+      description: If you looked — a changed field in `claude agents --json`, a new line in the transcript, a different `/usage` text. Paste the relevant piece, not whole files.
+      render: text
+
+  - type: dropdown
+    id: os
+    attributes:
+      label: OS
+      options:
+        - Windows
+        - Linux
+        - macOS
+        - WSL
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: Even Keel version
+      description: The version in the page header, or `git rev-parse --short HEAD` of your clone.
+    validations:
+      required: true
+
+  - type: textarea
+    id: log
+    attributes:
+      label: Service log
+      description: |
+        The lines around the problem: `logs/even-keel.log` on Windows and macOS, `journalctl --user -u even-keel` on Linux, the terminal for `npm start`.
+        **Remove anything personal first**: task titles and texts, repository paths, host names, account names and emails.
+      render: text

@@ -1,0 +1,88 @@
+name: Bug
+description: Something in Even Keel does not work as the README says.
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Broke right after a Claude Code CLI or Codex CLI update? Use the **CLI update broke something** template instead.
+        A security hole goes to [SECURITY.md](https://github.com/NamerekT/even-keel/blob/main/SECURITY.md), not here.
+
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: What you saw, and what you expected instead.
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. A project on GitHub Issues, two tasks, B blocked by A
+        2. Start the chain
+        3. …
+    validations:
+      required: true
+
+  - type: dropdown
+    id: os
+    attributes:
+      label: OS
+      options:
+        - Windows
+        - Linux
+        - macOS
+        - WSL
+    validations:
+      required: true
+
+  - type: dropdown
+    id: run
+    attributes:
+      label: How it runs
+      options:
+        - As a service
+        - npm start
+        - Development (npm run dev)
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: Even Keel version
+      description: The version in the page header, or `git rev-parse --short HEAD` of your clone.
+    validations:
+      required: true
+
+  - type: input
+    id: cli
+    attributes:
+      label: Claude Code CLI version
+      description: "`claude --version`; add `codex --version` if the task ran on Codex."
+    validations:
+      required: true
+
+  - type: dropdown
+    id: tracker
+    attributes:
+      label: Tracker
+      options:
+        - Huly
+        - GitHub Issues
+        - Linear
+        - My own adapter
+    validations:
+      required: true
+
+  - type: textarea
+    id: log
+    attributes:
+      label: Service log
+      description: |
+        The lines around the problem: `logs/even-keel.log` on Windows and macOS, `journalctl --user -u even-keel` on Linux, the terminal for `npm start`.
+        **Remove anything personal first**: task titles and texts, repository paths, host names, account names and emails.
+      render: text

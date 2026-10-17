@@ -317,6 +317,12 @@ npm run dev:web     # the page with hot reload, proxying /api to a running serve
 npm run dev:fake    # the page on fake data
 ```
 
+## Security
+
+A vulnerability is reported privately, not as an issue: [SECURITY.md](SECURITY.md).
+
 ## License
 
 [MIT](LICENSE)
+
+Even Keel is an independent project, not affiliated with or endorsed by Anthropic or OpenAI. Claude and Claude Code are trademarks of Anthropic; Codex and OpenAI are trademarks of OpenAI.
