@@ -67,8 +67,20 @@ describe('AccountHomes.list', () => {
     const root = mkdtempSync(join(tmpdir(), 'even-keel-homes-'))
     try {
       for (const name of ['john', 'john.lock', '.pending-1', 'global']) mkdirSync(join(root, name))
-      const homes = new AccountHomes(env, root)
+      const homes = new AccountHomes({ ...env, CODEX_HOME: join(root, 'no-codex') }, root)
       expect(homes.list().map((home) => home.key)).toEqual(['global', 'john'])
+    } finally {
+      rmSync(root, { recursive: true, force: true })
+    }
+  })
+
+  it('adds the Codex folder once it exists, and no Claude folder takes its key', () => {
+    const root = mkdtempSync(join(tmpdir(), 'even-keel-homes-'))
+    try {
+      for (const name of ['john', 'codex', '.codex']) mkdirSync(join(root, name))
+      const homes = new AccountHomes({ ...env, CODEX_HOME: join(root, '.codex') }, root)
+      expect(homes.list().map((home) => home.key)).toEqual(['global', 'john', 'codex'])
+      expect(homes.find('codex')).toEqual({ key: 'codex', dir: join(root, '.codex'), global: true, agent: 'codex' })
     } finally {
       rmSync(root, { recursive: true, force: true })
     }

@@ -115,6 +115,15 @@ export const en = {
   'claude.statusNotObject': () => 'claude: auth status is not an object',
   'claude.statusNoFlag': () => 'claude: auth status has no loggedIn flag',
 
+  'codex.startFailed': (p: { task: string; cwd: string }) => `codex: could not start ${p.task} in ${p.cwd}`,
+  'codex.resumeFailed': (p: { task: string; cwd: string }) => `codex: could not resume ${p.task} in ${p.cwd}`,
+  'codex.otherThread': (p: { task: string; asked: string; got: string }) =>
+    `codex: ${p.task} was resumed as ${p.asked} but came up as the new thread ${p.got}`,
+  'codex.unknownSession': (p: { session: string }) => `codex: Even Keel did not start the session ${p.session}`,
+  'codex.stillRunning': (p: { session: string }) => `codex: the turn of ${p.session} was killed but is still running`,
+  'codex.statusUnreadable': () => 'codex: login status printed neither "Logged in" nor "Not logged in"',
+  'codex.signOutFailed': (p: { account: string }) => `codex: could not sign out of ${p.account}`,
+
   'account.unknown': (p: { key: string }) => `claude: there is no account ${p.key}`,
   'account.alreadyActive': (p: { key: string }) => `claude: ${p.key} is already active`,
   'account.removing': (p: { account: string }) => `claude: ${p.account} is being removed; keep it first`,
@@ -123,6 +132,8 @@ export const en = {
   'account.activeKept': () => 'claude: the active account cannot be removed; switch to another one first',
   'account.signInRunning': () => 'claude: a sign-in into this account is running',
   'account.usedByApp': (p: { app: string }) => `claude: ${p.app} uses this account; switch it to another one first`,
+  'account.codexFolder': () =>
+    'codex: the Codex account lives in CODEX_HOME or ~/.codex; it is not made active, given to an app or removed from here',
   'account.notRemoving': (p: { key: string }) => `claude: ${p.key} is not being removed`,
   'account.apiKeyInvalid': () => 'claude: an API key is one word of more than 20 characters, like sk-ant-api03-…',
   'account.apiKeyRejected': () => "claude: Anthropic doesn't accept this key: it is wrong, revoked or its organization is disabled",
@@ -160,6 +171,7 @@ export const en = {
   'usage.noSession': () => 'no readable "Current session" line',
   'usage.noWeek': () => 'no readable "Current week (all models)" line',
   'usage.callFailed': () => 'the call failed',
+  'usage.noRollout': () => 'no Codex session of this account has reported its limits yet',
 
   'prompt.empty': (p: { before: string; value: string }) => `prompt: nothing to put after "${p.before}" (got ${p.value})`,
 

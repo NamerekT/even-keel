@@ -41,6 +41,19 @@ export interface SessionStart {
   model: ModelAlias
   /** Optional. Claude's `--settings` JSON for chain sessions (`src/tools/panel.ts`). */
   settings?: string
+  /** Optional. The agent's own model name (the project's `codexModel`); without it the agent's configured default. */
+  modelName?: string
+  /** Optional. The tracker's MCP server for an agent that does not read Claude Code plugins. */
+  tracker?: TrackerServer
+}
+
+/** A tracker's MCP server as its Claude Code plugin declares it, with the credentials the session must not see. */
+export interface TrackerServer {
+  name: string
+  /** The server's entry of the plugin's `.mcp.json`. */
+  server: unknown
+  /** The tracker's variables and their values. */
+  env: Record<string, string>
 }
 
 /** A session as the agent knows it: the id of its job or process and the id of its conversation. */

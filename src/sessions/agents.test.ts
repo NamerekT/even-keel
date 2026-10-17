@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { blockedAsk, blockedOn, lampOf, parseAgents, parseSessionRecord, sessionsByTask, turnStatus, withLiveRecords, type AgentEntry } from './agents.js'
+import { blockedAsk, blockedOn, isLive, lampOf, parseAgents, parseSessionRecord, sessionsByTask, turnStatus, withLiveRecords, type AgentEntry } from './agents.js'
 
 const interactive: AgentEntry = {
   pid: 100,
@@ -264,5 +264,19 @@ describe('lampOf', () => {
 
   it('keeps a fresh job without a process yet working', () => {
     expect(lampOf(jobOnly, null, background.startedAt + 60_000)).toBe('working')
+  })
+
+  it('waits on a session resting between turns, however long ago it started', () => {
+    const resting = { ...jobOnly, status: 'idle' as const, resting: true }
+    expect(lampOf(resting, null, background.startedAt + 60 * 60_000)).toBe('waiting')
+    expect(lampOf(resting, 'limit', background.startedAt + 60 * 60_000)).toBe('limit')
+  })
+})
+
+describe('isLive', () => {
+  it('is a process or a rest between turns', () => {
+    expect(isLive(interactive)).toBe(true)
+    expect(isLive(jobOnly)).toBe(false)
+    expect(isLive({ ...jobOnly, resting: true })).toBe(true)
   })
 })

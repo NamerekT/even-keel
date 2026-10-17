@@ -52,6 +52,11 @@ describe('slotOccupants', () => {
     expect(slotOccupants(agents, owners, slot, 'ABC-7')).toEqual({ idle: [], busy: [] })
   })
 
+  it('counts a session resting between turns as idle, so it is stopped before the slot is taken', () => {
+    const resting = agent('s6', { pid: undefined, status: 'idle', resting: true })
+    expect(slotOccupants([resting], owners, slot, 'ABC-7')).toEqual({ idle: [{ agent: resting, task: 'ABC-6' }], busy: [] })
+  })
+
   it('counts a waiting session of another task as mid-turn', () => {
     const agents = [agent('s6', { status: 'waiting' })]
     expect(slotOccupants(agents, owners, slot, 'ABC-7').busy).toHaveLength(1)

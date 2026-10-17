@@ -1,5 +1,5 @@
 import { isInside } from '../paths.js'
-import type { AgentEntry } from './agents.js'
+import { isLive, type AgentEntry } from './agents.js'
 
 export interface Occupant {
   agent: AgentEntry
@@ -17,7 +17,7 @@ export function slotOccupants(
   for (const agent of agents) {
     const owner = owners.get(agent.sessionId)
     if (owner === undefined || owner === task || agent.id === undefined || !isInside(agent.cwd, slot)) continue
-    if (agent.pid === undefined) continue
+    if (!isLive(agent)) continue
     ;(agent.status === 'busy' || agent.status === 'shell' || agent.status === 'waiting' ? busy : idle).push({ agent, task: owner })
   }
   return { idle, busy }

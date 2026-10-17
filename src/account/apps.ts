@@ -1,3 +1,4 @@
+import { CLAUDE } from '../claude/name.js'
 import { fail, notice, type Notice } from '../notice/notice.js'
 import type { AgentStatus, SessionRecord } from '../sessions/agents.js'
 import type { AccountView } from './model.js'
@@ -67,6 +68,7 @@ export function appSwitchProblem(view: AccountView, app: string, key: string): N
   if (current.error !== null) return current.error
   const target = view.accounts.find((entry) => entry.key === key)
   if (target === undefined) return notice('account.unknown', { key })
+  if (target.agent !== CLAUDE) return notice('account.codexFolder', {})
   const email = target.status?.email ?? key
   if (current.account === key) return notice('app.alreadyUses', { app: label, account: email })
   if (target.removing) return notice('account.removing', { account: email })

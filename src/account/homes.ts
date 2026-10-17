@@ -1,38 +1,46 @@
-import { mkdirSync, readdirSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, readdirSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { join } from 'node:path'
 import { CLAUDE } from '../claude/name.js'
+import { CODEX } from '../codex/name.js'
 import { fail } from '../notice/notice.js'
 import { samePath } from '../paths.js'
-import { folderName, GLOBAL_ACCOUNT, parseCredentialTimes, type CredentialTimes } from './model.js'
+import { CODEX_ACCOUNT, folderName, GLOBAL_ACCOUNT, parseCredentialTimes, type CredentialTimes } from './model.js'
 import { API_KEY_VARIABLE, shareConfig } from './share.js'
 
 const PENDING_PREFIX = '.pending-'
 const LOCK_SUFFIX = '.lock'
 const APPROVED_SUFFIX = 20
 const API_KEY_PATTERN = new RegExp(`^\\S{${APPROVED_SUFFIX + 1},}$`)
+const RESERVED = [GLOBAL_ACCOUNT, CODEX_ACCOUNT]
 
 export interface AccountHome {
   key: string
   dir: string
+  /** The agent's own default folder (`~/.claude`, `~/.codex`), not one Even Keel made: it is never removed from here. */
   global: boolean
   /** The agent the folder is an account of; its sessions run on that agent (`src/agent/adapters.ts`). */
   agent: string
 }
 
-/** The account folders of Claude Code: the global `~/.claude` and one `CLAUDE_CONFIG_DIR` per account under the root. */
+/**
+ * The account folders: Claude Code's global `~/.claude` and one `CLAUDE_CONFIG_DIR` per account under the root, and
+ * the one Codex folder (`CODEX_HOME` or `~/.codex`) once it exists — Codex does not create it.
+ */
 export class AccountHomes {
   readonly global: AccountHome
+  private readonly codex: AccountHome
 
   constructor(
     private readonly env: NodeJS.ProcessEnv,
     private readonly root: string,
   ) {
     this.global = { key: GLOBAL_ACCOUNT, dir: env.CLAUDE_CONFIG_DIR ?? join(homedir(), '.claude'), global: true, agent: CLAUDE }
+    this.codex = { key: CODEX_ACCOUNT, dir: env.CODEX_HOME ?? join(homedir(), '.codex'), global: true, agent: CODEX }
   }
 
   list(): AccountHome[] {
-    return [this.global, ...this.folders().map((name) => this.home(name))]
+    return [this.global, ...this.folders().map((name) => this.home(name)), ...(existsSync(this.codex.dir) ? [this.codex] : [])]
   }
 
   find(key: string): AccountHome | undefined {
@@ -114,7 +122,7 @@ export class AccountHomes {
     try {
       return readdirSync(this.root, { withFileTypes: true })
         .filter(
-          (entry) => entry.isDirectory() && !entry.name.startsWith('.') && !entry.name.endsWith(LOCK_SUFFIX) && entry.name !== GLOBAL_ACCOUNT,
+          (entry) => entry.isDirectory() && !entry.name.startsWith('.') && !entry.name.endsWith(LOCK_SUFFIX) && !RESERVED.includes(entry.name),
         )
         .map((entry) => entry.name)
         .sort()

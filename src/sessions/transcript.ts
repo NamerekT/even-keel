@@ -274,7 +274,7 @@ function writtenTtl(usage: Usage): CacheTtl | null {
   return null
 }
 
-function checkpointOf(text: string): string | null {
+export function checkpointOf(text: string): string | null {
   const last = text.trimEnd().split('\n').pop() ?? ''
   return CHECKPOINT_LINE.exec(last.trim())?.[1] ?? null
 }
@@ -309,7 +309,7 @@ function stageOf(name: string, input: Record<string, unknown>): Stage | undefine
   return undefined
 }
 
-function stageOfCommand(command: string): Stage | undefined {
+export function stageOfCommand(command: string): Stage | undefined {
   if (/\bgit\b[^|;&\n]*\bmerge\b/.test(command)) return 'merge'
   if (/\bgit\b[^|;&\n]*\bcommit\b/.test(command)) return 'commit'
   if (/\b(vitest|jest|pytest|playwright\s+test|(npm|pnpm|yarn)\s+(run\s+)?test|dotnet\s+test|go\s+test|cargo\s+test)\b/.test(command)) {

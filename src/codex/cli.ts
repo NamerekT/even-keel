@@ -1,0 +1,235 @@
+import { execFile, spawn, type ChildProcessWithoutNullStreams } from 'node:child_process'
+import { closeSync, existsSync, openSync } from 'node:fs'
+import { readFile } from 'node:fs/promises'
+import { join } from 'node:path'
+import { setTimeout as delay } from 'node:timers/promises'
+import { promisify } from 'node:util'
+import type { AccountHome } from '../account/homes.js'
+import type { AccountStatus } from '../account/model.js'
+import type { SessionStart } from '../agent/contract.js'
+import { fail, notice, NoticeError, type Notice } from '../notice/notice.js'
+import type { AgentEntry } from '../sessions/agents.js'
+import { mcpArgs } from './mcp.js'
+import { entryOf, outputTail, threadOf, turnEnded, type CodexSession, type TurnRegistry } from './turns.js'
+
+const run = promisify(execFile)
+
+const APPEAR_TIMEOUT_MS = 60_000
+const POLL_MS = 500
+const STOP_TIMEOUT_MS = 30_000
+const TRIPLES: Record<string, string> = { x64: 'x86_64-pc-windows-msvc', arm64: 'aarch64-pc-windows-msvc' }
+
+/** Chain sessions run without a human: the model approves its own actions (BTN-168; the sandbox is BTN-171). */
+export const SESSION_MODE = 'approve-for-me'
+
+/**
+ * `EVEN_KEEL_CODEX_BIN`, else on Windows the native `codex.exe` of the global npm package (its `codex.cmd` needs a
+ * shell), else `codex` on the PATH.
+ */
+export function resolveCodexBinary(env: NodeJS.ProcessEnv): string {
+  if (env.EVEN_KEEL_CODEX_BIN) return env.EVEN_KEEL_CODEX_BIN
+  const triple = TRIPLES[process.arch]
+  if (process.platform !== 'win32' || env.APPDATA === undefined || triple === undefined) return 'codex'
+  const scope = join(env.APPDATA, 'npm', 'node_modules', '@openai', 'codex', 'node_modules', '@openai')
+  const native = join(scope, `codex-win32-${process.arch}`, 'vendor', triple, 'bin', 'codex.exe')
+  return existsSync(native) ? native : 'codex'
+}
+
+/** Every flag of `codex exec` goes before `resume`: the subcommand has none of its own. */
+export function turnArgs(start: Pick<SessionStart, 'modelName' | 'tracker'>, prompt: string, resumeId?: string): string[] {
+  const { modelName, tracker } = start
+  const variables = Object.keys(tracker?.env ?? {})
+  return [
+    'exec',
+    '--json',
+    `--${SESSION_MODE}`,
+    ...(modelName === undefined ? [] : ['-m', modelName]),
+    ...(tracker === undefined ? [] : mcpArgs(tracker.name, tracker.server, variables)),
+    ...(variables.length > 0 ? ['-c', `shell_environment_policy.exclude=${JSON.stringify(variables)}`] : []),
+    ...(resumeId === undefined ? [] : ['resume', resumeId]),
+    prompt,
+  ]
+}
+
+export function parseLoginStatus(text: string, authFile: string | undefined): AccountStatus {
+  const none = { email: null, orgName: null, subscriptionType: null }
+  if (/^Not logged in/m.test(text)) return { loggedIn: false, authMethod: null, ...none }
+  if (/^Logged in using an API key/m.test(text)) return { loggedIn: true, authMethod: 'api_key', ...none }
+  if (!/^Logged in using ChatGPT/m.test(text)) throw fail('codex.statusUnreadable', {}, { detail: text.trim().slice(0, 200) })
+  const claims = tokenClaims(authFile)
+  const plan = (claims?.['https://api.openai.com/auth'] as Record<string, unknown> | undefined)?.chatgpt_plan_type
+  return {
+    loggedIn: true,
+    authMethod: 'chatgpt',
+    email: typeof claims?.email === 'string' ? claims.email : null,
+    orgName: null,
+    subscriptionType: typeof plan === 'string' ? plan : null,
+  }
+}
+
+function tokenClaims(authFile: string | undefined): Record<string, unknown> | undefined {
+  try {
+    const token: unknown = JSON.parse(authFile ?? '')?.tokens?.id_token
+    if (typeof token !== 'string') return undefined
+    const claims: unknown = JSON.parse(Buffer.from(token.split('.')[1] ?? '', 'base64url').toString('utf8'))
+    return typeof claims === 'object' && claims !== null ? (claims as Record<string, unknown>) : undefined
+  } catch {
+    return undefined
+  }
+}
+
+export class CodexCli {
+  constructor(
+    private readonly bin: () => string,
+    private readonly timeoutMs: number,
+    private readonly envOf: (home: AccountHome) => NodeJS.ProcessEnv,
+    private readonly registry: TurnRegistry,
+  ) {}
+
+  async launch(home: AccountHome, start: SessionStart): Promise<string> {
+    const { name, cwd } = start
+    const turn = await this.turn(home, start, turnArgs(start, start.prompt), cwd, notice('codex.startFailed', { task: name, cwd }))
+    this.registry.save({ sessionId: turn.thread, name, cwd, account: home.key, startedAt: turn.at, pid: turn.pid, out: turn.out })
+    return turn.thread
+  }
+
+  /** Codex resumes in the process's folder: the session's own, whatever `start.cwd` says. */
+  async resume(home: AccountHome, sessionId: string, start: SessionStart): Promise<string> {
+    const session = await this.known(sessionId)
+    const { name, cwd } = session
+    const turn = await this.turn(home, start, turnArgs(start, start.prompt, sessionId), cwd, notice('codex.resumeFailed', { task: name, cwd }))
+    if (turn.thread !== sessionId) throw fail('codex.otherThread', { task: name, asked: sessionId, got: turn.thread })
+    const { stopped: _, ...kept } = session
+    this.registry.save({ ...kept, account: home.key, pid: turn.pid, out: turn.out })
+    return sessionId
+  }
+
+  async stop(sessionId: string): Promise<void> {
+    const session = await this.registry.get(sessionId)
+    if (session === undefined || session.stopped === true) return
+    if (await this.turnLive(session)) {
+      await killTree(session.pid)
+      const deadline = Date.now() + STOP_TIMEOUT_MS
+      while (isAlive(session.pid)) {
+        if (Date.now() > deadline) throw fail('codex.stillRunning', { session: sessionId })
+        await delay(POLL_MS)
+      }
+    }
+    this.registry.save({ ...session, stopped: true })
+  }
+
+  async sessions(home: AccountHome): Promise<AgentEntry[]> {
+    const sessions = await this.registry.list(home.key)
+    return Promise.all(sessions.map(async (session) => entryOf(session, session.stopped !== true && (await this.turnLive(session)))))
+  }
+
+  async authStatus(home: AccountHome): Promise<AccountStatus> {
+    const options = { env: this.envOf(home), timeout: this.timeoutMs, windowsHide: true }
+    const output = await run(this.bin(), ['login', 'status'], options).then(
+      ({ stdout, stderr }) => `${stdout}\n${stderr}`,
+      (error: unknown) => {
+        const { stdout = '', stderr = '' } = error as { stdout?: string; stderr?: string }
+        if (`${stdout}${stderr}`.trim() === '') throw error
+        return `${stdout}\n${stderr}`
+      },
+    )
+    return parseLoginStatus(output.trim(), await readFile(join(home.dir, 'auth.json'), 'utf8').catch(() => undefined))
+  }
+
+  /** The device code flow: the page shows the link and the code Codex prints. */
+  login(home: AccountHome): ChildProcessWithoutNullStreams {
+    return spawn(this.bin(), ['login', '--device-auth'], { env: this.envOf(home), windowsHide: true, stdio: 'pipe' })
+  }
+
+  async logout(home: AccountHome): Promise<void> {
+    try {
+      await run(this.bin(), ['logout'], { env: this.envOf(home), timeout: this.timeoutMs, windowsHide: true })
+    } catch (error) {
+      throw fail('codex.signOutFailed', { account: home.key }, { detail: outputOf(error) }, { cause: error })
+    }
+  }
+
+  private async known(sessionId: string): Promise<CodexSession> {
+    const session = await this.registry.get(sessionId)
+    if (session === undefined) throw fail('codex.unknownSession', { session: sessionId })
+    return session
+  }
+
+  private async turnLive(session: CodexSession): Promise<boolean> {
+    return isAlive(session.pid) && !turnEnded(await outputTail(session.out))
+  }
+
+  /**
+   * A turn is a detached process writing its `--json` stream into a file, not a pipe: it outlives the service, and
+   * a pipe closed by a dead parent would kill it. Its thread id is its first event.
+   */
+  private async turn(
+    home: AccountHome,
+    start: SessionStart,
+    args: string[],
+    cwd: string,
+    failure: Notice,
+  ): Promise<{ thread: string; pid: number; out: string; at: number }> {
+    const at = Date.now()
+    const out = this.registry.turnFile(start.name, at)
+    const fd = openSync(out, 'a')
+    let exited = false
+    let child
+    try {
+      child = spawn(this.bin(), args, {
+        cwd,
+        env: { ...this.envOf(home), ...start.tracker?.env },
+        detached: true,
+        stdio: ['ignore', fd, fd],
+        windowsHide: true,
+      })
+      child.on('error', () => (exited = true))
+      child.on('exit', () => (exited = true))
+      child.unref()
+    } catch (error) {
+      throw new NoticeError({ ...failure, detail: (error as Error).message }, { cause: error })
+    } finally {
+      closeSync(fd)
+    }
+    const deadline = at + APPEAR_TIMEOUT_MS
+    for (;;) {
+      const text = await readFile(out, 'utf8').catch(() => '')
+      const thread = threadOf(text)
+      if (thread !== undefined && child.pid !== undefined) return { thread, pid: child.pid, out, at }
+      if (exited || Date.now() > deadline) {
+        if (!exited && child.pid !== undefined) await killTree(child.pid)
+        throw new NoticeError({ ...failure, detail: text.trim().slice(-500) })
+      }
+      await delay(POLL_MS)
+    }
+  }
+}
+
+async function killTree(pid: number): Promise<void> {
+  try {
+    if (process.platform === 'win32') await run('taskkill', ['/PID', String(pid), '/T', '/F'], { windowsHide: true })
+    else process.kill(-pid, 'SIGTERM')
+  } catch {
+    if (process.platform !== 'win32') {
+      try {
+        process.kill(pid, 'SIGTERM')
+      } catch {
+        // already gone
+      }
+    }
+  }
+}
+
+function isAlive(pid: number): boolean {
+  try {
+    process.kill(pid, 0)
+    return true
+  } catch (error) {
+    return (error as NodeJS.ErrnoException).code === 'EPERM'
+  }
+}
+
+function outputOf(error: unknown): string {
+  const { stdout, stderr } = error as { stdout?: string; stderr?: string }
+  return [stderr, stdout].map((text) => text?.trim()).filter(Boolean).join(' / ')
+}

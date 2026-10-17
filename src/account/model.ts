@@ -2,10 +2,13 @@ import type { ActiveChain } from '../chain/dispatcher.js'
 import type { RateLimits } from '../limits/model.js'
 import type { UsageHealth } from '../limits/usage.js'
 import { fail, notice, type Notice } from '../notice/notice.js'
-import type { AgentEntry } from '../sessions/agents.js'
+import { CLAUDE } from '../claude/name.js'
+import { isLive, type AgentEntry } from '../sessions/agents.js'
 import { APP_LABELS, type AppAccount } from './apps.js'
 
 export const GLOBAL_ACCOUNT = 'global'
+/** The key of the one Codex account folder (`AccountHomes`). */
+export const CODEX_ACCOUNT = 'codex'
 
 /** What an account folder is signed in as, by its agent (`Agent.authStatus`). */
 export interface AccountStatus {
@@ -135,7 +138,7 @@ export function needsLogin(status: AccountStatus | null, times: CredentialTimes,
 export function folderName(email: string | null, taken: string[]): string {
   const local = (email ?? '').split('@')[0]!.toLowerCase()
   const base = local.replace(/[^a-z0-9._-]+/g, '-').replace(/^[.-]+|[.-]+$/g, '') || 'account'
-  const used = new Set([...taken.map((name) => name.toLowerCase()), GLOBAL_ACCOUNT])
+  const used = new Set([...taken.map((name) => name.toLowerCase()), GLOBAL_ACCOUNT, CODEX_ACCOUNT])
   if (!used.has(base)) return base
   let index = 2
   while (used.has(`${base}-${index}`)) index++
@@ -153,6 +156,7 @@ export function activeEntry(view: AccountView): AccountEntry | undefined {
 export function switchProblem(view: AccountView, key: string): Notice | undefined {
   const target = view.accounts.find((entry) => entry.key === key)
   if (target === undefined) return notice('account.unknown', { key })
+  if (target.agent !== CLAUDE) return notice('account.codexFolder', {})
   if (key === view.active) return notice('account.alreadyActive', { key })
   if (target.removing) return notice('account.removing', { account: target.status?.email ?? key })
   if (target.needsLogin || target.status?.loggedIn !== true) return notice('account.needsLogin', { account: target.status?.email ?? key })
@@ -162,6 +166,7 @@ export function switchProblem(view: AccountView, key: string): Notice | undefine
 export function removeProblem(view: AccountView, key: string): Notice | undefined {
   const target = view.accounts.find((entry) => entry.key === key)
   if (target === undefined) return notice('account.unknown', { key })
+  if (target.agent !== CLAUDE) return notice('account.codexFolder', {})
   if (target.global) return notice('account.globalKept', {})
   if (key === view.active) return notice('account.activeKept', {})
   if (view.login?.target === key && view.login.error === null) return notice('account.signInRunning', {})
@@ -172,7 +177,7 @@ export function removeProblem(view: AccountView, key: string): Notice | undefine
 
 export function liveSessions(agents: AgentEntry[], key: string): string[] {
   return agents
-    .filter((agent) => (agent.account ?? GLOBAL_ACCOUNT) === key && agent.pid !== undefined)
+    .filter((agent) => (agent.account ?? GLOBAL_ACCOUNT) === key && isLive(agent))
     .map((agent) => agent.name ?? agent.sessionId.slice(0, 8))
 }
 

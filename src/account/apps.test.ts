@@ -81,6 +81,7 @@ const account = (patch: Partial<AccountEntry>): AccountEntry => ({
   key: 'global',
   name: null,
   global: true,
+  agent: 'claude',
   status: { loggedIn: true, authMethod: 'claude.ai', email: 'john.doe@example.com', orgName: null, subscriptionType: 'max' },
   error: null,
   loginExpiresAt: null,

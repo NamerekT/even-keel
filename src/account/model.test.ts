@@ -154,6 +154,10 @@ describe('liveSessions', () => {
     expect(liveSessions(agents, 'global')).toEqual(['ABC-4'])
   })
 
+  it('names a session resting between turns', () => {
+    expect(liveSessions([agent({ name: 'ABC-5', resting: true, account: 'codex' })], 'codex')).toEqual(['ABC-5'])
+  })
+
   it('ignores records left behind by dead processes, even blocked or working ones', () => {
     const agents = [
       agent({ name: 'ABC-1', kind: 'background', state: 'blocked', account: 'work' }),
@@ -338,6 +342,15 @@ describe('switchProblem', () => {
   it('refuses an account whose folder waits to be removed', () => {
     const removing = view({ accounts: [entry({}), entry({ key: 'work', global: false, removing: true })] })
     expect(say(switchProblem(removing, 'work'))).toMatch(/removed/)
+  })
+})
+
+describe('the Codex folder', () => {
+  const codex = view({ accounts: [entry({}), entry({ key: 'codex', agent: 'codex' })] })
+
+  it('is neither made active nor removed from the page', () => {
+    expect(say(switchProblem(codex, 'codex'))).toMatch(/Codex account/)
+    expect(say(removeProblem(codex, 'codex'))).toMatch(/Codex account/)
   })
 })
 

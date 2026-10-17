@@ -22,6 +22,13 @@ export interface AgentEntry {
   startupDialog?: string
   /** The `AskUserQuestion` the waiting session has open, by its job file. */
   ask?: Ask
+  /** The turn ended and no process is left, yet the session goes on with the next `resume` (Codex). */
+  resting?: boolean
+}
+
+/** A live session has a process, or rests between turns without one. */
+export function isLive(agent: AgentEntry): boolean {
+  return agent.pid !== undefined || agent.resting === true
 }
 
 /**
@@ -196,7 +203,7 @@ const LAUNCH_GRACE_MS = 5 * 60_000
 export function lampOf(agent: AgentEntry | undefined, apiError: ApiErrorKind | null, now = Date.now()): Lamp {
   if (agent === undefined || agent.state === 'done' || agent.state === 'stopped') return 'finished'
   if (agent.state === 'failed') return 'error'
-  if (agent.pid === undefined && agent.state !== 'blocked' && now - agent.startedAt > LAUNCH_GRACE_MS) return 'finished'
+  if (!isLive(agent) && agent.state !== 'blocked' && now - agent.startedAt > LAUNCH_GRACE_MS) return 'finished'
   if (agent.status === 'busy' || (agent.status === 'shell' && apiError !== 'limit')) return 'working'
   if (apiError !== null) return apiError
   if (agent.status === 'waiting' || agent.state === 'blocked') return 'waiting'

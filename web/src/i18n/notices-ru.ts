@@ -110,6 +110,14 @@ export const noticesRu: NoticeTexts = {
   'claude.statusNotObject': () => 'ответ auth status — не объект',
   'claude.statusNoFlag': () => 'в ответе auth status нет признака loggedIn',
 
+  'codex.startFailed': (p) => `Codex: не удалось запустить ${p.task} в ${p.cwd}`,
+  'codex.resumeFailed': (p) => `Codex: не удалось продолжить ${p.task} в ${p.cwd}`,
+  'codex.otherThread': (p) => `Codex: ${p.task} продолжали как ${p.asked}, а поднялся новый поток ${p.got}`,
+  'codex.unknownSession': (p) => `Codex: сессию ${p.session} запускал не Even Keel`,
+  'codex.stillRunning': (p) => `Codex: ход ${p.session} убит, но ещё идёт`,
+  'codex.statusUnreadable': () => 'Codex: login status не сказал ни «Logged in», ни «Not logged in»',
+  'codex.signOutFailed': (p) => `Codex: не удалось выйти из ${p.account}`,
+
   'account.unknown': (p) => `аккаунта ${p.key} нет`,
   'account.alreadyActive': (p) => `${p.key} уже активен`,
   'account.removing': (p) => `${p.account} удаляется — сначала отмените удаление`,
@@ -118,6 +126,7 @@ export const noticesRu: NoticeTexts = {
   'account.activeKept': () => 'активный аккаунт не удалить — сначала переключитесь на другой',
   'account.signInRunning': () => 'в этот аккаунт идёт вход',
   'account.usedByApp': (p) => `этот аккаунт использует ${p.app} — сначала переключите его на другой`,
+  'account.codexFolder': () => 'аккаунт Codex живёт в CODEX_HOME или ~/.codex: отсюда его не сделать активным, не отдать приложению и не удалить',
   'account.notRemoving': (p) => `${p.key} не удаляется`,
   'account.apiKeyInvalid': () => 'API-ключ — одно слово длиннее 20 символов, вроде sk-ant-api03-…',
   'account.apiKeyRejected': () => 'Anthropic не принимает этот ключ: он неверный, отозван или организация отключена',
@@ -154,6 +163,7 @@ export const noticesRu: NoticeTexts = {
   'usage.noSession': () => 'нет читаемой строки «Current session»',
   'usage.noWeek': () => 'нет читаемой строки «Current week (all models)»',
   'usage.callFailed': () => 'вызов не удался',
+  'usage.noRollout': () => 'ни одна сессия Codex этого аккаунта ещё не сообщила лимиты',
 
   'prompt.empty': (p) => `промт: нечего подставить после «${p.before}» (пришло ${p.value})`,
 
