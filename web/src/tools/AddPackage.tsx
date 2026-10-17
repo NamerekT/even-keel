@@ -117,6 +117,7 @@ function PluginStep({ view, projects, onBack, onClose }: StepProps) {
                 value={picked}
                 options={view.available.map((each, index) => ({ value: names[index]!, label: `${each.plugin} · ${each.marketplace}` }))}
                 onChange={setPicked}
+                search={{ placeholder: t.packages.pluginSearch, none: t.packages.pluginNone }}
               />
             )}
           </Field>

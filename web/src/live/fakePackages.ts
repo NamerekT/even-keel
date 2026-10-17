@@ -53,6 +53,10 @@ function viewOf(catalog: Catalog, projects: string[]): PackagesView {
     available: [
       { plugin: 'linear', marketplace: 'even-keel' },
       { plugin: 'github', marketplace: 'even-keel' },
+      // Long enough for the search to matter, as the official marketplaces are.
+      ...['playwright', 'context7', 'figma', 'sentry', 'supabase', 'vercel', 'stripe', 'notion', 'slack', 'asana', 'atlassian', 'firebase', 'gitlab', 'greptile'].map(
+        (plugin) => ({ plugin, marketplace: 'claude-plugins-official' }),
+      ),
     ].filter((each) => !catalog.packages.some((known) => known.name === `${each.plugin}@${each.marketplace}`)),
     imports: catalog.imports,
   }

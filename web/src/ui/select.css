@@ -37,15 +37,48 @@ button.select {
   max-height: min(280px, calc(100dvh - 16px));
   margin: 0;
   padding: 4px;
-  overflow-y: auto;
   border: 1px solid var(--border);
   border-radius: 8px;
   background: var(--surface);
   box-shadow: 0 8px 24px rgb(0 0 0 / 0.25);
   color: var(--fg);
   font: 14px/1.45 var(--font);
-  list-style: none;
   animation: fade-in var(--motion-fast) ease-out;
+}
+
+.select__list:popover-open {
+  display: flex;
+  flex-direction: column;
+}
+
+.select__options {
+  min-height: 0;
+  margin: 0;
+  padding: 0;
+  overflow-y: auto;
+  list-style: none;
+}
+
+.select__search {
+  flex: none;
+  margin: 0 0 4px;
+  padding: 6px 8px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg);
+  color: var(--fg);
+  font: inherit;
+}
+
+.select__search:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -1px;
+}
+
+.select__none {
+  margin: 0;
+  padding: 6px 8px;
+  color: var(--fg-muted);
 }
 
 .select__option {

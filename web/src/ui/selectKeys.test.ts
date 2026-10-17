@@ -1,5 +1,29 @@
 import { describe, expect, it } from 'vitest'
-import { matchOf, stepOf } from './selectKeys.js'
+import { filterOf, matchOf, stepOf } from './selectKeys.js'
+
+describe('filterOf', () => {
+  const labels = ['huly · even-keel', 'github · claude-plugins-official', 'Playwright · claude-plugins-official']
+
+  it('keeps every label for an empty or blank query', () => {
+    expect(filterOf(labels, '')).toEqual([0, 1, 2])
+    expect(filterOf(labels, '   ')).toEqual([0, 1, 2])
+  })
+
+  it('finds a part anywhere in the label, ignoring case', () => {
+    expect(filterOf(labels, 'WRIGHT')).toEqual([2])
+    expect(filterOf(labels, 'keel')).toEqual([0])
+  })
+
+  it('needs every word of the query, in any order', () => {
+    expect(filterOf(labels, 'official git')).toEqual([1])
+    expect(filterOf(labels, 'official keel')).toEqual([])
+  })
+
+  it('puts the labels that start with the query first, then a word that does, then the rest', () => {
+    const plugins = ['context7 · official', 'figma · official', 'sentry · official', 'web-fi · local', 'proxy · fi-market']
+    expect(filterOf(plugins, 'fi')).toEqual([1, 3, 4, 0, 2])
+  })
+})
 
 describe('stepOf', () => {
   it('moves one option down and up, stopping at the ends', () => {

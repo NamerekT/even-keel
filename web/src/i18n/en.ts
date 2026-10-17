@@ -774,6 +774,8 @@ export const en: Messages = {
     cancel: 'Cancel',
     close: 'Close',
     plugin: 'Plugin',
+    pluginSearch: 'Plugin or marketplace',
+    pluginNone: 'Nothing found',
     noAvailable: 'Every plugin of the marketplaces Claude Code knows is in the catalog already. Add a marketplace in Claude Code first.',
     serverName: 'Name',
     serverNameHint: 'Letters, digits, - and _. Sessions see its tools as mcp__<name>__….',

@@ -591,6 +591,8 @@ export const ru = {
     cancel: 'Отмена',
     close: 'Закрыть',
     plugin: 'Плагин',
+    pluginSearch: 'Плагин или маркетплейс',
+    pluginNone: 'Ничего не нашлось',
     noAvailable: 'Все плагины маркетплейсов, известных Claude Code, уже в каталоге. Сначала добавьте маркетплейс в Claude Code.',
     serverName: 'Имя',
     serverNameHint: 'Буквы, цифры, - и _. Сессии видят его инструменты как mcp__<имя>__….',
