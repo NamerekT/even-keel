@@ -598,7 +598,10 @@ const getState = (): EvenKeelState => ({
     leftovers: dispatcher.state.leftovers,
   },
   tasks: [...tasksByProject.values()].flat(),
-  sessions: sessions.map((view) => (view.lamp === 'finished' ? { ...view, feed: [] } : view)),
+  // A finished session's feed is read from its record; the one the chain waits on keeps it: delivering an answer stops it for a while.
+  sessions: sessions.map((view) =>
+    view.lamp === 'finished' && !dispatcher.state.active.some((chain) => chain.current?.sessionId === view.sessionId) ? { ...view, feed: [] } : view,
+  ),
   limits: limits.limits(ledger.active),
   usage: limits.usage(ledger.active),
   account: account.view,

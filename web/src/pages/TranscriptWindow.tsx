@@ -57,6 +57,8 @@ export function TranscriptWindow({ sessionId, account, live, chat, onClose }: Pr
   const dialogRef = useRef<HTMLDialogElement>(null)
   const listRef = useRef<HTMLOListElement>(null)
   const pinned = useRef(true)
+  /** How many lines of the session's transcript are read. */
+  const count = useRef(0)
   const [lines, setLines] = useState<FeedLine[] | null | undefined>(undefined)
   const [error, setError] = useState<string | null>(null)
   const [sent, setSent] = useState<SentLine[]>([])
@@ -69,26 +71,31 @@ export function TranscriptWindow({ sessionId, account, live, chat, onClose }: Pr
   }, [])
 
   useEffect(() => {
+    count.current = 0
+    setLines(undefined)
+  }, [sessionId])
+
+  // Delivering an answer stops the session for a while: the lines read so far stay, reading goes on from them.
+  useEffect(() => {
     let alive = true
     let timer: ReturnType<typeof setTimeout> | undefined
-    let count = 0
     const read = async () => {
+      const from = count.current
       try {
-        const found = await transcript(sessionId, count)
+        const found = await transcript(sessionId, from)
         if (!alive) return
         setError(null)
         if (found === null) {
-          if (count === 0) setLines(null)
-        } else if (count === 0 || found.length > 0) {
-          count += found.length
-          setLines((current) => (current == null ? found : [...current, ...found]))
+          if (from === 0) setLines(null)
+        } else if (from === 0 || found.length > 0) {
+          count.current = from + found.length
+          setLines((current) => (from === 0 || current == null ? found : [...current, ...found]))
         }
       } catch (reason) {
         if (alive) setError(reason instanceof Error ? reason.message : String(reason))
       }
       if (alive && live) timer = setTimeout(() => void read(), POLL_MS)
     }
-    setLines(undefined)
     void read()
     return () => {
       alive = false
