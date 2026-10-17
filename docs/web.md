@@ -128,7 +128,7 @@ npm run shot -- '?chain=ask&card=empty' .cards 'dialog[open]' --click '.card__ke
 - The report per selector: the match count, the box, and three lists of hints, each capped at `--limit` (8): `spill` — content wider or taller than a box with `overflow: visible` (the deepest such box), `cut` — content clipped by `hidden`/`clip`, marked when it is an ellipsis, `overlap` — in-flow siblings whose boxes cross. SVG shapes, boxes of 1 px or less and 2 px of slack are ignored. A hint is not a defect by itself (a stretched hit area spills by design): the picture decides.
 - `--eval <js>` prints an expression's value from the page (a computed colour, a width); `--no-image` gives only the report.
 - Exit code 1 when a selector is not found or the page logged an error (both printed), 2 when a step or the launch failed.
-- The browser is Playwright's Chromium, else the installed Chrome (`channel: 'chrome'`); with neither, `npx playwright install chromium`. The page side is `scripts/shot.page.js`, plain JS as an init script: tsx would wrap functions passed to `evaluate` in an undefined `__name`.
+- The browser is only Playwright's headless shell (`npx playwright install chromium-headless-shell` after a Playwright bump). Never the installed Chrome: on Windows a fresh Chrome profile checks for a blank OS password with `LogonUser`, each launch is a failed logon (Security 4625 from `chrome.exe`), and a few runs lock the account and the service with it. The page side is `scripts/shot.page.js`, plain JS as an init script: tsx would wrap functions passed to `evaluate` in an undefined `__name`.
 
 ## Motion frame sheets (BTN-95)
 

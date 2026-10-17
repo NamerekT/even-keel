@@ -72,15 +72,15 @@ function parse(args: string[]): Options {
 
 const slug = (text: string): string => text.replace(/[^a-z0-9]+/gi, '-').replace(/^-|-$/g, '').slice(0, 60).toLowerCase()
 
+/**
+ * Only Playwright's headless shell, never the installed Chrome: on Windows a fresh Chrome profile checks
+ * for a blank OS password with LogonUser, so every launch was a failed logon and a few runs locked the account.
+ */
 async function launch(): Promise<Browser> {
   try {
     return await chromium.launch()
-  } catch {
-    try {
-      return await chromium.launch({ channel: 'chrome' })
-    } catch {
-      throw new Error('no browser: run `npx playwright install chromium` (or install Google Chrome)')
-    }
+  } catch (error) {
+    throw new Error(`no browser: run \`npx playwright install chromium-headless-shell\`\n${String(error)}`)
   }
 }
 
