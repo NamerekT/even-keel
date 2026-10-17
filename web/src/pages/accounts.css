@@ -43,9 +43,9 @@
 }
 
 /* What the card changes stays in one row at its bottom, level across a row of cards: Remove, Renew, then the roles field. */
+/* Never wraps: a second row would lift the buttons above their neighbours' in the row of cards. */
 .account-card-item__foot {
   display: flex;
-  flex-wrap: wrap;
   align-items: stretch;
   gap: 8px;
   margin-top: auto;
@@ -63,8 +63,12 @@
   text-underline-offset: 3px;
 }
 
+.account-card-item__foot > * {
+  flex: none;
+}
+
 .account-card-item__foot > .roles {
-  flex: 1 1 100px;
+  flex: 1 1 0;
 }
 
 .add-steps {
