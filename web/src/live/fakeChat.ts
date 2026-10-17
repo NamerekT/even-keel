@@ -2,6 +2,7 @@ import { fail } from '../../../src/notice/notice.js'
 import type { Ask } from '../../../src/sessions/ask.js'
 import type { FeedLine } from '../../../src/sessions/transcript.js'
 import type { EvenKeelState } from '../../../src/state.js'
+import { picture } from './fakeCards.js'
 
 /** The question ABC-5 waits on in `?chain=ask`: a single choice with previews and a multi-select. */
 export const FAKE_ASK: Ask = {
@@ -77,6 +78,32 @@ export function fakePastAsk(at: (minutes: number) => string): FeedLine[] {
       files: ['C:\\repos\\example-project\\.temp\\inbox\\order.png'],
     },
   ]
+}
+
+/** Two screenshots read in one turn and a browser shot: tool lines first, then the image lines of their results. */
+export function fakeShots(at: (minutes: number) => string): FeedLine[] {
+  return [
+    { at: at(25), kind: 'tool', text: 'Read .temp/shots/chain-dark.png', tool: 'toolu_fake_dark' },
+    { at: at(25), kind: 'tool', text: 'Read .temp/shots/chain-light.png', tool: 'toolu_fake_light' },
+    { at: at(25), kind: 'image', text: 'chain-dark.png', tool: 'toolu_fake_dark', images: 1 },
+    { at: at(25), kind: 'image', text: 'chain-light.png', tool: 'toolu_fake_light', images: 1 },
+    { at: at(24), kind: 'tool', text: 'mcp playwright browser_take_screenshot', tool: 'toolu_fake_browser' },
+    { at: at(24), kind: 'image', text: '', tool: 'toolu_fake_browser', images: 1 },
+  ]
+}
+
+const SHOTS: Record<string, string> = {
+  toolu_fake_dark: picture(1280, 720, '#1c1c1a', '#2f5fd0', 'dark'),
+  toolu_fake_light: picture(1280, 720, '#f4f3ef', '#1baf7a', 'light'),
+  toolu_fake_browser: picture(390, 844, '#6b4fd0', '#eb6834', 'browser'),
+}
+
+export function fakeImageUrl(tool: string, index: number): string {
+  return SHOTS[tool] ?? picture(640, 480, '#d2443a', '#1c1c1a', `${tool} ${index}`)
+}
+
+export function fakeSentFileUrl(name: string): string {
+  return picture(800, 600, '#2a78d6', '#1baf7a', name)
 }
 
 /** The tool line of the question the session waits on, at the end of the transcript; an unsaved one has none. */

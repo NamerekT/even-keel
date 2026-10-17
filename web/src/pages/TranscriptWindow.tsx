@@ -11,6 +11,9 @@ import { Tipped } from '../ui/Tipped.js'
 import { AnswerCard, AskCard } from './AskPanel.js'
 import { ChatComposer } from './ChatComposer.js'
 import { fileName } from './feedLine.js'
+import { MediaViewer } from './MediaViewer.js'
+import { Thumb, Thumbs } from './Thumbs.js'
+import { transcriptMedia, type TranscriptMedia } from './transcriptMedia.js'
 import '../ui/markdown.css'
 
 const LINE_TIME = localized((language) => new Intl.DateTimeFormat(language, { hour: '2-digit', minute: '2-digit' }))
@@ -59,7 +62,7 @@ interface SentLine {
 
 /** The whole transcript of a session: prompts, texts uncut, tool calls with their shell commands; with `chat`, a reply box under it. */
 export function TranscriptWindow({ sessionId, account, live, chat, onClose }: Props) {
-  const { transcript } = useLive()
+  const { transcript, imageUrl, sentFileUrl } = useLive()
   const dialogRef = useRef<HTMLDialogElement>(null)
   const listRef = useRef<HTMLOListElement>(null)
   const pinned = useRef(true)
@@ -68,12 +71,24 @@ export function TranscriptWindow({ sessionId, account, live, chat, onClose }: Pr
   const [lines, setLines] = useState<FeedLine[] | null | undefined>(undefined)
   const [error, setError] = useState<string | null>(null)
   const [sent, setSent] = useState<SentLine[]>([])
+  const [viewing, setViewing] = useState<number | null>(null)
   const all = lines == null ? null : [...lines, ...sent.filter((each) => !lines.slice(each.after).some(isReply)).map((each) => each.line)]
   const remoteUrl = chat?.session.remoteUrl
   const answered = new Map<string, AskAnswers>((all ?? []).flatMap((line) => (line.answers?.ask === undefined ? [] : [[line.answers.ask, line.answers.answers]])))
   const asks = new Map<string, Ask>((all ?? []).flatMap((line) => (line.ask === undefined ? [] : [[line.ask.id, line.ask]])))
+  const calls = new Set((all ?? []).flatMap((line) => (line.kind === 'tool' && line.tool !== undefined ? [line.tool] : [])))
+  const media = transcriptMedia(
+    all ?? [],
+    { image: (tool, index) => imageUrl(sessionId, tool, index), file: (name) => sentFileUrl(sessionId, name) },
+    t.session.chat.picture,
+  )
   // An answered question shows as the card of its answer, the one the session waits on — in the panel under the chat.
-  const shown = all?.filter((line) => line.ask === undefined || !(answered.has(line.ask.id) || (chat !== undefined && chat.session.ask?.id === line.ask.id)))
+  // The pictures of a call show on its tool line.
+  const shown = all?.filter(
+    (line) =>
+      (line.ask === undefined || !(answered.has(line.ask.id) || (chat !== undefined && chat.session.ask?.id === line.ask.id))) &&
+      !(line.kind === 'image' && calls.has(line.tool ?? '')),
+  )
 
   useEffect(() => {
     dialogRef.current?.showModal()
@@ -178,7 +193,9 @@ export function TranscriptWindow({ sessionId, account, live, chat, onClose }: Pr
                       {line.answers !== undefined && Object.keys(line.answers.answers).length > 0 && (
                         <AnswerCard answers={line.answers.answers} ask={line.answers.ask === undefined ? undefined : asks.get(line.answers.ask)} />
                       )}
-                      {(line.text !== '' || (line.files?.length ?? 0) > 0) && <UserBubble text={line.text} files={line.files ?? []} />}
+                      {(line.text !== '' || (line.files?.length ?? 0) > 0) && (
+                        <UserBubble text={line.text} files={line.files ?? []} media={media} onOpen={setViewing} />
+                      )}
                     </>
                   ) : line.kind === 'text' ? (
                     <div className="markdown">
@@ -186,8 +203,13 @@ export function TranscriptWindow({ sessionId, account, live, chat, onClose }: Pr
                         {line.text}
                       </Markdown>
                     </div>
+                  ) : line.kind === 'image' ? (
+                    <Thumbs places={media.byTool.get(line.tool ?? '') ?? []} items={media.items} onOpen={setViewing} />
                   ) : (
-                    <span className="transcript__plain">{line.text}</span>
+                    <span className="transcript__tool">
+                      <span className="transcript__plain">{line.text}</span>
+                      <Thumbs places={media.byTool.get(line.tool ?? '') ?? []} items={media.items} onOpen={setViewing} />
+                    </span>
                   )}
                   {line.detail !== undefined && <pre className="transcript__detail">{line.detail}</pre>}
                 </div>
@@ -209,6 +231,9 @@ export function TranscriptWindow({ sessionId, account, live, chat, onClose }: Pr
           />
         )}
       </div>
+      {viewing !== null && media.items[viewing] !== undefined && (
+        <MediaViewer items={media.items} index={viewing} onIndex={setViewing} onClose={() => setViewing(null)} />
+      )}
     </dialog>
   )
 }
@@ -224,8 +249,15 @@ function LineTime({ at }: { at: string }) {
   )
 }
 
-/** A message of the user on the right: their words and the files they sent; a long one folds. */
-function UserBubble({ text, files }: { text: string; files: string[] }) {
+interface BubbleProps {
+  text: string
+  files: string[]
+  media: TranscriptMedia
+  onOpen: (place: number) => void
+}
+
+/** A message of the user on the right: their words and the files they sent, pictures as thumbnails; a long one folds. */
+function UserBubble({ text, files, media, onOpen }: BubbleProps) {
   const [open, setOpen] = useState(false)
   const long = text.split('\n').length > FOLD_LINES || text.length > FOLD_CHARS
   return (
@@ -233,11 +265,15 @@ function UserBubble({ text, files }: { text: string; files: string[] }) {
       {text !== '' && <span className="transcript__plain bubble__text">{text}</span>}
       {files.length > 0 && (
         <ul className="bubble__files">
-          {files.map((file, index) => (
-            <li key={`${file}-${index}`} className="chat__file">
-              📎 {fileName(file)}
-            </li>
-          ))}
+          {files.map((file, index) => {
+            const place = media.byFile.get(file)
+            const chip = <span className="chat__file">📎 {fileName(file)}</span>
+            return (
+              <li key={`${file}-${index}`}>
+                {place === undefined ? chip : <Thumb item={media.items[place]!} onOpen={() => onOpen(place)} fallback={chip} />}
+              </li>
+            )
+          })}
         </ul>
       )}
       {long && (

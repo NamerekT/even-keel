@@ -31,7 +31,7 @@ const COMMENTS = [
   { author: null, text: 'Checked on a narrow screen:\n\n```\nnpm run dev:fake\n```' },
 ]
 
-const picture = (width: number, height: number, from: string, to: string, text: string): string =>
+export const picture = (width: number, height: number, from: string, to: string, text: string): string =>
   'data:image/svg+xml,' +
   encodeURIComponent(
     `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">` +

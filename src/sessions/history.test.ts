@@ -2,7 +2,7 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { readSessionRecord, readTranscript } from './history.js'
+import { readSessionRecord, readTranscript, readTranscriptImage } from './history.js'
 
 const SESSION = '0a1b2c3d-1e04-43ce-b2ed-9b4a4eb36c23'
 
@@ -75,5 +75,24 @@ describe('readSessionRecord', () => {
     const tail = await readTranscript(projects, SESSION, 39)
     expect(tail?.map((line) => line.text)).toEqual([`${long} 38`, `${long} 39`])
     expect(await readTranscript(projects, SESSION, 41)).toEqual([])
+  })
+
+  it('reads a picture of a tool result by the call id and its place', async () => {
+    const dir = join(projects, 'C--repos-example')
+    mkdirSync(dir)
+    const image = (data: string) => ({ type: 'image', source: { type: 'base64', media_type: 'image/png', data } })
+    const result = (id: string, content: unknown[]) =>
+      JSON.stringify({ type: 'user', timestamp: '2026-09-27T10:01:00.000Z', message: { role: 'user', content: [{ type: 'tool_result', tool_use_id: id, content }] } })
+    const lines = [
+      entry('2026-09-27T10:00:00.000Z', [{ type: 'tool_use', id: 'toolu_1', name: 'Read', input: { file_path: 'a.png' } }]),
+      result('toolu_2', [{ type: 'text', text: 'toolu_1' }]),
+      result('toolu_1', [image('Zmlyc3Q='), image('c2Vjb25k')]),
+    ]
+    writeFileSync(join(dir, `${SESSION}.jsonl`), lines.join('\n') + '\n')
+
+    expect(await readTranscriptImage(projects, SESSION, 'toolu_1', 1)).toEqual({ type: 'image/png', data: 'c2Vjb25k' })
+    expect(await readTranscriptImage(projects, SESSION, 'toolu_1', 2)).toBeUndefined()
+    expect(await readTranscriptImage(projects, SESSION, 'toolu_2', 0)).toBeUndefined()
+    await expect(readTranscriptImage(projects, '../secrets', 'toolu_1', 0)).rejects.toThrow('not a session id')
   })
 })

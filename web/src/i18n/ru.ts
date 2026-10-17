@@ -902,6 +902,8 @@ export const ru = {
     chat: {
       open: 'Чат',
       title: 'Чат',
+      picture: 'Картинка',
+      openPicture: (name: string) => `Открыть ${name}`,
       waiting: 'Сессия ждёт ответа — открыть чат',
       idle: 'Открыть чат с сессией',
       placeholder: 'Ответ сессии…',

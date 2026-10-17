@@ -9,6 +9,13 @@ const run = promisify(execFile)
 export const INBOX = join('.temp', 'inbox')
 const UNZIP_TIMEOUT_MS = 60_000
 const NAME_LIMIT = 120
+const IMAGE_TYPES: Record<string, string> = {
+  '.png': 'image/png',
+  '.jpg': 'image/jpeg',
+  '.jpeg': 'image/jpeg',
+  '.gif': 'image/gif',
+  '.webp': 'image/webp',
+}
 
 export interface InboxFile {
   name: string
@@ -50,6 +57,20 @@ export async function saveInbox(workdir: string, files: InboxFile[], unzip = ext
     }
   }
   return paths
+}
+
+/**
+ * The picture `name` among the files a session was sent (paths from its transcript), with its type; only one that lies in
+ * an inbox folder, so the page reaches no other file of the machine.
+ */
+export function inboxImage(sent: string[], name: string): { path: string; type: string } | undefined {
+  const type = IMAGE_TYPES[extname(name).toLowerCase()]
+  if (type === undefined) return undefined
+  const path = sent.find((file) => {
+    const parts = file.split(/[\\/]/)
+    return parts.at(-1) === name && parts.at(-2) === 'inbox' && parts.at(-3) === '.temp'
+  })
+  return path === undefined ? undefined : { path, type }
 }
 
 /** A file name safe on every system: no folders, no reserved characters, not empty. */

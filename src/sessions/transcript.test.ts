@@ -44,6 +44,11 @@ function assistant(id: string, content: unknown[], usage: Usage = {}, extra: Rec
 
 const text = (value: string) => ({ type: 'text', text: value })
 const tool = (name: string, input: Record<string, unknown>) => ({ type: 'tool_use', id: `toolu_${name}`, name, input })
+const IMAGE = { type: 'image', source: { type: 'base64', media_type: 'image/png', data: 'iVBORw0KGgo=' } }
+
+function toolResult(id: string, content: unknown[]): string {
+  return JSON.stringify({ type: 'user', timestamp: at(), message: { role: 'user', content: [{ type: 'tool_result', tool_use_id: id, content }] } })
+}
 
 function apiError(error: string, message: string): string {
   return JSON.stringify({
@@ -238,9 +243,28 @@ describe('TranscriptFold', () => {
     expect(whole.summary().feed.map(({ at: _, ...line }) => line)).toEqual([
       { kind: 'prompt', text: `ABC-7\n\n${long}` },
       { kind: 'text', text: long },
-      { kind: 'tool', text: 'Bash Build and test', detail: 'npm run build\nnpm test' },
-      { kind: 'tool', text: 'Read a.ts' },
+      { kind: 'tool', text: 'Bash Build and test', detail: 'npm run build\nnpm test', tool: 'toolu_Bash' },
+      { kind: 'tool', text: 'Read a.ts', tool: 'toolu_Read' },
     ])
+  })
+
+  it('adds an image line after a tool result with pictures, in a whole transcript only, the data left out', () => {
+    const lines = [
+      assistant('m1', [tool('Read', { file_path: `${CWD}\\.temp\\shot.png` }), tool('Grep', { pattern: 'x' })]),
+      toolResult('toolu_Grep', [text('a.ts:1')]),
+      toolResult('toolu_Read', [IMAGE, IMAGE]),
+      toolResult('toolu_mcp', [IMAGE]),
+    ]
+    const whole = new TranscriptFold(Infinity, true)
+    for (const line of lines) whole.push(line)
+
+    expect(whole.summary().feed.map(({ at: _, ...line }) => line)).toEqual([
+      { kind: 'tool', text: 'Read .temp/shot.png', tool: 'toolu_Read' },
+      { kind: 'tool', text: 'Grep x', tool: 'toolu_Grep' },
+      { kind: 'image', text: 'shot.png', tool: 'toolu_Read', images: 2 },
+      { kind: 'image', text: '', tool: 'toolu_mcp', images: 1 },
+    ])
+    expect(fold(lines).summary().feed.map((line) => line.kind)).toEqual(['tool', 'tool'])
   })
 
   it('tracks the stage and does not step back to reading once editing started', () => {

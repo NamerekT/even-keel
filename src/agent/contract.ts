@@ -3,6 +3,7 @@ import type { AccountHome } from '../account/homes.js'
 import type { AccountStatus } from '../account/model.js'
 import type { UsageAnswer } from '../limits/usage.js'
 import type { AgentEntry, SessionRecord as LiveRecord } from '../sessions/agents.js'
+import type { TranscriptImage } from '../sessions/entry.js'
 import type { FeedLine, TranscriptSummary } from '../sessions/transcript.js'
 import type { SessionRecord } from '../state.js'
 
@@ -108,6 +109,8 @@ export interface Agent {
   login(home: AccountHome): ChildProcessWithoutNullStreams
   logout(home: AccountHome): Promise<void>
 
+  /** Optional. Picture `index` of the result of call `tool`, for the image lines of `feed`; without it the page shows none. */
+  image?(home: AccountHome, sessionId: string, tool: string, index: number): Promise<TranscriptImage | undefined>
   /** Optional. The account's usage limits; without it the account shows none and the chain waits a limit out by the transcript. */
   usage?(home: AccountHome, at: string): Promise<UsageAnswer>
   /** Optional. Stops the account's daemon so that its sessions read the shared configuration anew. */

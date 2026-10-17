@@ -33,6 +33,10 @@ export interface LiveSource {
   session(sessionId: string): Promise<SessionRecord | null>
   /** Lines of the whole transcript from index `after` on. */
   transcript(sessionId: string, after: number): Promise<FeedLine[] | null>
+  /** The address of picture `index` of the result of call `tool`, for an image line of the transcript. */
+  imageUrl(sessionId: string, tool: string, index: number): string
+  /** The address of a picture the user sent the session, by its file name. */
+  sentFileUrl(sessionId: string, name: string): string
   tools(project: string): Promise<ToolsView | null>
   card(task: string): Promise<TaskCard | null>
   statsHistory(filter: StatsFilter): Promise<StatsAnswer<StatsHistory>>
@@ -117,6 +121,14 @@ export class LiveConnection implements LiveSource {
 
   transcript(sessionId: string, after: number): Promise<FeedLine[] | null> {
     return this.deps.fetchTranscript(sessionId, after)
+  }
+
+  imageUrl(sessionId: string, tool: string, index: number): string {
+    return `/api/sessions/${encodeURIComponent(sessionId)}/images/${encodeURIComponent(tool)}/${index}`
+  }
+
+  sentFileUrl(sessionId: string, name: string): string {
+    return `/api/sessions/${encodeURIComponent(sessionId)}/files/${encodeURIComponent(name)}`
   }
 
   tools(project: string): Promise<ToolsView | null> {

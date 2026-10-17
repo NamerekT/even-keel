@@ -1,5 +1,7 @@
-import { mkdirSync } from 'node:fs'
+import { createReadStream, mkdirSync } from 'node:fs'
+import { stat } from 'node:fs/promises'
 import { join } from 'node:path'
+import { Readable } from 'node:stream'
 import { checkCredit } from './account/credit.js'
 import { DaemonRefresh } from './account/daemon.js'
 import { AccountHomes, accountsRoot, type AccountHome } from './account/homes.js'
@@ -38,7 +40,7 @@ import { readJson } from './packages/plugins.js'
 import { Packages } from './packages/service.js'
 import { createEvenKeelServer } from './server.js'
 import { replyPrompt, type Reply } from './sessions/ask.js'
-import { saveInbox, type InboxFile } from './sessions/inbox.js'
+import { inboxImage, saveInbox, type InboxFile } from './sessions/inbox.js'
 import { isLive, turnStatus, type AgentEntry } from './sessions/agents.js'
 import { launchPlan, runChoice, type LaunchPlan, type RunChoice } from './sessions/launch.js'
 import { runAfterGreen, runBeforeStart, runCheck, systemShell, type SetupRun } from './sessions/setup.js'
@@ -749,6 +751,19 @@ const server = createEvenKeelServer({
     return undefined
   },
   transcript: (sessionId, after) => inHomes((home) => agentOf(home).feed(home, sessionId, after)),
+  transcriptImage: async (sessionId, tool, index) => {
+    const image = await inHomes(async (home) => agentOf(home).image?.(home, sessionId, tool, index))
+    if (image === undefined) return undefined
+    const data = Buffer.from(image.data, 'base64')
+    return { type: image.type, size: data.length, body: Readable.from([data]) }
+  },
+  inboxFile: async (sessionId, name) => {
+    const feed = await inHomes((home) => agentOf(home).feed(home, sessionId, 0))
+    const found = inboxImage(feed?.flatMap((line) => line.files ?? []) ?? [], name)
+    if (found === undefined) return undefined
+    const size = await stat(found.path).then((info) => info.size, () => null)
+    return size === null ? undefined : { type: found.type, size, body: createReadStream(found.path) }
+  },
   checkpoint: async (sessionId) => {
     const run = handoffsOf(launches, sessionId)
     if (run === undefined) return undefined
