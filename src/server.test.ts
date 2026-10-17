@@ -519,7 +519,7 @@ describe('Even Keel HTTP server', () => {
     await post('/api/packages/install', { name: 'huly@even-keel' })
     await post('/api/packages/update', { name: 'huly@even-keel' })
     await post('/api/packages/remove', { name: 'db' })
-    await post('/api/packages/plugin', { plugin: 'huly', marketplace: 'even-keel' })
+    await post('/api/packages/plugin', { plugin: 'huly', marketplace: 'even-keel', project: 'ABC' })
     await post('/api/packages/server', { name: 'db', server: { command: 'db-mcp' }, project: 'ABC' })
     await post('/api/packages/server', { name: 'web', server: { url: 'https://mcp.example.com' } })
     await post('/api/packages/import', { project: 'ABC' })
@@ -533,7 +533,7 @@ describe('Even Keel HTTP server', () => {
       ['install', 'huly@even-keel'],
       ['update', 'huly@even-keel'],
       ['removePackage', 'db'],
-      ['addPlugin', 'huly', 'even-keel'],
+      ['addPlugin', 'huly', 'even-keel', 'ABC'],
       ['addServer', 'db', { command: 'db-mcp' }, 'ABC'],
       ['addServer', 'web', { url: 'https://mcp.example.com' }, undefined],
       ['import', 'ABC'],

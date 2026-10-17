@@ -1,4 +1,4 @@
-import { notice } from '../../../src/notice/notice.js'
+import { fail, notice } from '../../../src/notice/notice.js'
 import type { EvenKeelState, PackageCell, PackageProblem, PackagesView, PackageView } from '../../../src/state.js'
 
 interface FakePackage extends PackageView {
@@ -15,7 +15,8 @@ interface Catalog {
   gateway: boolean
 }
 
-const base = { installed: true, installing: false, error: null, note: null, removed: false }
+const base = { installed: true, latest: null, fetched: null, installing: false, error: null, note: null, removed: false }
+const fetched = new Date(Date.now() - 3 * 3_600_000).toISOString()
 
 /**
  * `?packages=`: `blocked` — a key is missing and XYZ waits, `gateway` — the gateway cannot listen, `empty` — no
@@ -24,8 +25,8 @@ const base = { installed: true, installing: false, error: null, note: null, remo
 export function fakePackages(projects: string[], mode: string | null): PackagesView {
   const catalog: Catalog = {
     packages: [
-      { ...base, name: 'huly@even-keel', kind: 'plugin', version: '0.4.2', default: true, settings: { TOOLSETS: 'issues,projects,comments' }, servers: ['huly'], extras: true, keys: ['HULY_EMAIL', 'HULY_PASSWORD'] },
-      { ...base, name: 'playwright@claude-plugins-official', kind: 'plugin', version: '1.0.0', default: false, settings: {}, servers: ['playwright'], extras: false, keys: [] },
+      { ...base, name: 'huly@even-keel', kind: 'plugin', version: '0.4.2', latest: '0.4.3', default: true, settings: { TOOLSETS: 'issues,projects,comments' }, servers: ['huly'], extras: true, keys: ['HULY_EMAIL', 'HULY_PASSWORD'] },
+      { ...base, name: 'playwright@claude-plugins-official', kind: 'plugin', version: '1.0.0', fetched, default: false, settings: {}, servers: ['playwright'], extras: false, keys: [] },
       { ...base, name: 'forgejo', kind: 'mcp', version: '2.3.0', default: true, settings: { FORGEJO_URL: 'https://git.example.com' }, servers: ['forgejo'], extras: false, keys: ['FORGEJO_TOKEN'] },
     ],
     choices: { DEMO: { 'playwright@claude-plugins-official': 'on' }, OPS: { forgejo: 'off' } },
@@ -82,14 +83,23 @@ export function fakePackagesCommand(state: EvenKeelState, name: string, body: Re
   const catalog = structuredClone((state.packages as PackagesView & { catalog: Catalog }).catalog)
   const target = catalog.packages.find((each) => each.name === body.name)
   const project = typeof body.project === 'string' ? body.project : undefined
+  if (name === 'packages/server' && target !== undefined) throw fail('packages.exists', { name: target.name })
   if (name === 'packages/install' && target !== undefined) target.installed = true
-  else if (name === 'packages/update' && target !== undefined) target.note = notice('packages.upToDate', { name: target.name })
-  else if (name === 'packages/remove') catalog.packages = catalog.packages.filter((each) => each !== target)
+  else if (name === 'packages/update' && target !== undefined) {
+    if (target.latest === null) target.note = notice('packages.upToDate', { name: target.name })
+    else {
+      target.note = notice('packages.updated', { name: target.name, version: target.latest })
+      target.version = target.latest
+      target.latest = null
+    }
+  } else if (name === 'packages/remove') catalog.packages = catalog.packages.filter((each) => each !== target)
   else if (name === 'packages/plugin') {
     const plugin = `${String(body.plugin)}@${String(body.marketplace)}`
-    catalog.packages.push({ ...base, name: plugin, kind: 'plugin', version: '0.1.0', default: false, settings: {}, servers: [String(body.plugin)], extras: true, keys: [] })
+    catalog.packages.push({ ...base, name: plugin, kind: 'plugin', version: '0.1.0', default: project === undefined, settings: {}, servers: [String(body.plugin)], extras: true, keys: [] })
+    if (project !== undefined) (catalog.choices[project] ??= {})[plugin] = 'on'
   } else if (name === 'packages/server') {
     catalog.packages.push({ ...base, name: String(body.name), kind: 'mcp', installed: false, version: null, installing: true, default: project === undefined, settings: {}, servers: [String(body.name)], extras: false, keys: [] })
+    if (project !== undefined) (catalog.choices[project] ??= {})[String(body.name)] = 'on'
   } else if (name === 'packages/import' && project !== undefined) {
     for (const server of catalog.imports[project] ?? []) {
       catalog.packages.push({ ...base, name: server, kind: 'mcp', version: null, default: false, settings: {}, servers: [server], extras: false, keys: [] })

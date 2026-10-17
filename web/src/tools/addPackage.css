@@ -1,0 +1,264 @@
+.add-package {
+  width: min(560px, calc(100vw - 32px));
+  max-height: calc(100dvh - 64px);
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--surface);
+  color: var(--fg);
+  box-shadow:
+    0 24px 64px rgb(0 0 0 / 0.35),
+    0 2px 6px rgb(0 0 0 / 0.2);
+}
+
+.add-package[open] {
+  animation: add-package-in var(--motion-appear) ease-out;
+}
+
+@keyframes add-package-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.99);
+  }
+}
+
+.add-package::backdrop {
+  background: var(--scrim);
+  backdrop-filter: var(--scrim-blur);
+}
+
+.add-package__frame {
+  display: flex;
+  flex-direction: column;
+  max-height: calc(100dvh - 66px);
+}
+
+.add-package__head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 14px 10px 20px;
+}
+
+.add-package__title {
+  flex: 1;
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+/* Step 1: the kind */
+
+.add-package__kinds {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 12px;
+  padding: 6px 20px 20px;
+}
+
+.add-package__kind {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-content: start;
+  gap: 6px 10px;
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--fg);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition:
+    border-color var(--motion-fast) ease,
+    background-color var(--motion-fast) ease;
+}
+
+.add-package__kind:hover,
+.add-package__kind:focus-visible {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 8%, var(--surface));
+  outline: none;
+}
+
+.add-package__kind-icon {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+  color: var(--accent);
+}
+
+.add-package__kind-icon .icon {
+  width: 16px;
+  height: 16px;
+}
+
+.add-package__kind-title {
+  align-self: center;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.add-package__kind-hint {
+  grid-column: 1 / -1;
+  color: var(--fg-muted);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+/* Step 2: the fields */
+
+.add-package__form {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.add-package__body {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 6px 20px 16px;
+  overflow-y: auto;
+}
+
+.add-package__body > .notice {
+  margin: 0;
+}
+
+.add-package__field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.add-package__label-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.add-package__label {
+  padding: 0;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+/* A legend takes no gap from its fieldset. */
+.add-package__legend {
+  margin-bottom: 4px;
+}
+
+.add-package__error {
+  color: var(--error-fg);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.add-package__input {
+  width: 100%;
+  min-width: 0;
+  padding: 7px 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg);
+  color: var(--fg);
+  font: 14px/1.45 var(--font);
+  resize: vertical;
+}
+
+.add-package__input--mono {
+  font-family: var(--mono);
+  font-size: 13px;
+}
+
+.add-package__input::placeholder {
+  color: var(--fg-muted);
+  opacity: 0.7;
+}
+
+.add-package__input:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -1px;
+}
+
+.add-package__input[aria-invalid='true'] {
+  border-color: var(--error-fg);
+}
+
+.add-package__switch {
+  display: inline-flex;
+  align-self: flex-start;
+  padding: 2px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg);
+}
+
+.add-package__option {
+  padding: 4px 14px;
+  border-radius: 6px;
+  color: var(--fg-muted);
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.add-package__option input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.add-package__option:has(input:checked) {
+  background: var(--surface-muted);
+  color: var(--fg);
+  font-weight: 600;
+}
+
+.add-package__option:has(input:focus-visible) {
+  outline: 2px solid var(--accent);
+}
+
+.add-package__empty {
+  margin: 0;
+  color: var(--fg-muted);
+  font-size: 14px;
+}
+
+.add-package__foot {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 20px;
+  border-top: 1px solid var(--border);
+}
+
+.add-package__foot .button {
+  border-color: var(--border);
+}
+
+.add-package__foot .button--primary {
+  border-color: var(--accent);
+}
+
+.add-package__foot .button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.add-package__spacer {
+  flex: 1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .add-package[open] {
+    animation: none;
+  }
+}

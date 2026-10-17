@@ -125,7 +125,7 @@ export interface PackagesControl {
   install(name: string): Promise<void>
   update(name: string): Promise<void>
   remove(name: string): void
-  addPlugin(plugin: string, marketplace: string): void
+  addPlugin(plugin: string, marketplace: string, project?: string): void
   addServer(name: string, entry: Record<string, unknown>, project?: string): void
   importRepo(project: string): void
   choose(project: string, name: string, choice: 'on' | 'off' | null): void
@@ -197,7 +197,7 @@ const COMMANDS: Record<string, Command> = {
   'packages/install': ({ packages }, body) => packages.install(nameOf(body)),
   'packages/update': ({ packages }, body) => packages.update(nameOf(body)),
   'packages/remove': ({ packages }, body) => packages.remove(nameOf(body)),
-  'packages/plugin': ({ packages }, body) => packages.addPlugin(textOf(body.plugin, 'plugin'), textOf(body.marketplace, 'marketplace')),
+  'packages/plugin': ({ packages }, body) => packages.addPlugin(textOf(body.plugin, 'plugin'), textOf(body.marketplace, 'marketplace'), optionalProjectOf(body)),
   'packages/server': ({ packages }, body) => packages.addServer(nameOf(body), serverOf(body.server), optionalProjectOf(body)),
   'packages/import': ({ packages }, body) => packages.importRepo(projectOf(body)),
   'packages/project': ({ packages }, body) => packages.choose(projectOf(body), nameOf(body), choiceOf(body.choice)),

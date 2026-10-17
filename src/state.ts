@@ -251,6 +251,10 @@ export interface PackageView {
   /** Has a current install; an MCP server outside npm has one without a version. */
   installed: boolean
   version: string | null
+  /** A later version a plugin's marketplace holds than the install: what Update would bring. */
+  latest: string | null
+  /** When Claude Code last fetched the plugin's marketplace (ISO): `latest` is as of then. `null` for a folder marketplace and an MCP server. */
+  fetched: string | null
   installing: boolean
   /** The last install or update failed. */
   error: Notice | null

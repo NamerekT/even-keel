@@ -15,14 +15,38 @@ const view = (over: Partial<PackagesView> = {}): PackagesView => ({
 })
 
 describe('serverEntry', () => {
-  it('makes an address a url entry and anything else a command with its arguments', () => {
-    expect(serverEntry(' https://mcp.example.com/mcp ')).toEqual({ type: 'http', url: 'https://mcp.example.com/mcp' })
-    expect(serverEntry('npx -y @example/db-mcp@1')).toEqual({ command: 'npx', args: ['-y', '@example/db-mcp@1'] })
-    expect(serverEntry('db-mcp')).toEqual({ command: 'db-mcp', args: [] })
+  it('makes an address a url entry', () => {
+    expect(serverEntry('http', ' https://mcp.example.com/mcp ', '')).toEqual({ type: 'http', url: 'https://mcp.example.com/mcp' })
   })
 
-  it('gives nothing for an empty line', () => {
-    expect(serverEntry('   ')).toBeNull()
+  it('makes a command an entry with its arguments, a quoted argument whole', () => {
+    expect(serverEntry('stdio', 'npx -y @example/db-mcp@1', '')).toEqual({ command: 'npx', args: ['-y', '@example/db-mcp@1'] })
+    expect(serverEntry('stdio', 'db-mcp', '')).toEqual({ command: 'db-mcp', args: [] })
+    expect(serverEntry('stdio', 'uv --directory "C:\\Program Files\\db mcp" run server.py', '')).toEqual({
+      command: 'uv',
+      args: ['--directory', 'C:\\Program Files\\db mcp', 'run', 'server.py'],
+    })
+  })
+
+  it('puts the lines into the headers of an address and the environment of a command', () => {
+    expect(serverEntry('http', 'https://mcp.example.com/mcp', 'Authorization: Bearer ${DB_TOKEN}\n\n X-Team : core ')).toEqual({
+      type: 'http',
+      url: 'https://mcp.example.com/mcp',
+      headers: { Authorization: 'Bearer ${DB_TOKEN}', 'X-Team': 'core' },
+    })
+    expect(serverEntry('stdio', 'db-mcp', 'DB_URL=postgres://db.example.com/app?a=b\nDB_TOKEN=${DB_TOKEN}')).toEqual({
+      command: 'db-mcp',
+      args: [],
+      env: { DB_URL: 'postgres://db.example.com/app?a=b', DB_TOKEN: '${DB_TOKEN}' },
+    })
+  })
+
+  it('gives nothing for an empty field, an address that is not one, or a line without its separator', () => {
+    expect(serverEntry('stdio', '   ', '')).toBeNull()
+    expect(serverEntry('http', 'mcp.example.com', '')).toBeNull()
+    expect(serverEntry('http', 'https://mcp.example.com/mcp', 'Authorization Bearer x')).toBeNull()
+    expect(serverEntry('stdio', 'db-mcp', 'DB_URL: x')).toBeNull()
+    expect(serverEntry('stdio', 'db-mcp', '=x')).toBeNull()
   })
 })
 
@@ -73,7 +97,7 @@ describe('problemCount', () => {
 
 describe('shownPackages', () => {
   it('keeps a removed package only while it is held, after the others', () => {
-    const base = { kind: 'mcp' as const, installed: true, version: null, installing: false, error: null, note: null, default: true, settings: {}, servers: [], extras: false }
+    const base = { kind: 'mcp' as const, installed: true, version: null, latest: null, fetched: null, installing: false, error: null, note: null, default: true, settings: {}, servers: [], extras: false }
     const packages = [
       { ...base, name: 'old', removed: true },
       { ...base, name: 'web', removed: false },

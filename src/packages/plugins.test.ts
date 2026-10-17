@@ -2,7 +2,7 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
-import { availablePlugins, hasExtras, locatePlugin, pluginServers, seedPackages } from './plugins.js'
+import { availablePlugins, hasExtras, locatePlugin, pluginOffer, pluginServers, seedPackages } from './plugins.js'
 
 let dir: string | undefined
 afterEach(() => {
@@ -24,7 +24,7 @@ function registry(): { globalDir: string; local: string; cached: string } {
   const cached = join(globalDir, 'plugins', 'cache', 'remote', 'far', '1.2.0')
   write(join(globalDir, 'plugins', 'known_marketplaces.json'), {
     local: { source: { source: 'directory', path: local }, installLocation: local },
-    remote: { source: { source: 'github', repo: 'octo-org/remote' }, installLocation: remote },
+    remote: { source: { source: 'github', repo: 'octo-org/remote' }, installLocation: remote, lastUpdated: '2026-10-17T22:36:50.421Z' },
   })
   write(join(local, '.claude-plugin', 'marketplace.json'), { name: 'local', plugins: [{ name: 'tracker', source: './plugins/tracker' }] })
   write(join(remote, '.claude-plugin', 'marketplace.json'), {
@@ -66,6 +66,27 @@ describe('locatePlugin', () => {
       { plugin: 'far', marketplace: 'remote' },
       { plugin: 'gone', marketplace: 'remote' },
     ])
+  })
+})
+
+describe('pluginOffer', () => {
+  it('gives the version in the marketplace folder, with no fetch time for a folder marketplace', () => {
+    const { globalDir, local } = registry()
+    write(join(local, 'plugins', 'tracker', '.claude-plugin', 'plugin.json'), { name: 'tracker', version: '0.5.2' })
+    expect(pluginOffer(globalDir, 'tracker', 'local')).toEqual({ version: '0.5.2', fetched: null })
+  })
+
+  it('gives the fetch time of a marketplace the CLI fetches', () => {
+    const { globalDir } = registry()
+    write(join(globalDir, 'plugins', 'marketplaces', 'remote', 'near', '.claude-plugin', 'plugin.json'), { name: 'near', version: '2.0.0' })
+    expect(pluginOffer(globalDir, 'near', 'remote')).toEqual({ version: '2.0.0', fetched: '2026-10-17T22:36:50.421Z' })
+    expect(pluginOffer(globalDir, 'far', 'remote')).toEqual({ version: '1.2.0', fetched: '2026-10-17T22:36:50.421Z' })
+  })
+
+  it('gives nothing for a plugin it cannot find', () => {
+    const { globalDir } = registry()
+    expect(pluginOffer(globalDir, 'gone', 'remote')).toBeUndefined()
+    expect(pluginOffer(globalDir, 'tracker', 'elsewhere')).toBeUndefined()
   })
 })
 

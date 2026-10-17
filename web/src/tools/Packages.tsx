@@ -1,10 +1,12 @@
 import { Fragment, useState, type FormEvent } from 'react'
 import type { PackageCell, PackageProblem, PackagesView, PackageView } from '../../../src/state.js'
+import { formatAgo } from '../format.js'
 import { say, t } from '../i18n/index.js'
 import { useCommand } from '../live/useCommand.js'
 import { HelpTip } from '../pages/settingsParts.js'
 import { Tipped } from '../ui/Tipped.js'
-import { AddPackage, ImportOffers, Keys } from './PackagesParts.js'
+import { AddPackage } from './AddPackage.js'
+import { ImportOffers, Keys } from './PackagesParts.js'
 import { shownPackages } from './packageView.js'
 import './packages.css'
 
@@ -21,6 +23,7 @@ export function Packages({ view, projects }: { view: PackagesView; projects: str
         <Tipped className="packages__manual" tip={t.packages.manualTip} align="start" focusable inline>
           {t.packages.manual}
         </Tipped>
+        <AddPackage view={view} projects={projects} />
       </div>
       {view.gateway !== null && <p className="notice notice--error">{say(view.gateway)}</p>}
       <ImportOffers view={view} projects={projects} />
@@ -49,7 +52,6 @@ export function Packages({ view, projects }: { view: PackagesView; projects: str
         </div>
       )}
       <Keys view={view} />
-      <AddPackage view={view} />
     </section>
   )
 }
@@ -93,6 +95,11 @@ function PackageRow({ pkg, view, projects, open, onToggle }: RowProps) {
         </button>
         <span className="packages__meta">
           <span className="tools__muted">{meta}</span>
+          {pkg.latest !== null && !pkg.installing && (
+            <Tipped className="packages__latest" tip={t.packages.latestTip(pkg.latest, pkg.fetched === null ? null : formatAgo(pkg.fetched, new Date()))} focusable inline>
+              → {pkg.latest}
+            </Tipped>
+          )}
           {pkg.extras && (
             <Tipped className="packages__extras" tip={t.packages.extrasTip} focusable inline>
               {t.packages.extras}
@@ -107,10 +114,22 @@ function PackageRow({ pkg, view, projects, open, onToggle }: RowProps) {
               <button type="button" className="button button--small" disabled={sending} onClick={() => void send('packages/install', { name: pkg.name })}>
                 {t.packages.install}
               </button>
-            ) : (
-              <button type="button" className="button button--small" disabled={sending} onClick={() => void send('packages/update', { name: pkg.name })}>
+            ) : pkg.latest !== null ? (
+              <button
+                type="button"
+                className="button button--small button--primary"
+                aria-label={t.packages.updateTo(pkg.latest)}
+                disabled={sending}
+                onClick={() => void send('packages/update', { name: pkg.name })}
+              >
                 {t.packages.update}
               </button>
+            ) : (
+              <Tipped tip={checkTip(pkg)} inline>
+                <button type="button" className="button button--small packages__check" disabled={sending} onClick={() => void send('packages/update', { name: pkg.name })}>
+                  {t.packages.check}
+                </button>
+              </Tipped>
             )}
           </span>
         )}
@@ -124,6 +143,11 @@ function PackageRow({ pkg, view, projects, open, onToggle }: RowProps) {
       })}
     </tr>
   )
+}
+
+function checkTip(pkg: PackageView): string {
+  if (pkg.kind === 'mcp') return t.packages.checkTip.mcp
+  return pkg.fetched === null ? t.packages.checkTip.folder : t.packages.checkTip.fetched(formatAgo(pkg.fetched, new Date()))
 }
 
 function ChoiceCell({ pkg, project, cell }: { pkg: PackageView; project: string; cell: PackageCell }) {

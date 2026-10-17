@@ -33,6 +33,24 @@ export function locatePlugin(globalDir: string, plugin: string, marketplace: str
   return { dir: install, kind }
 }
 
+/** Marketplaces the CLI fetches: an update pulls them first. */
+export const FETCHED = new Set(['github', 'git', 'url'])
+
+/**
+ * The version an update would install now, and when the CLI last fetched the marketplace that version comes from
+ * (`null` for a folder, which is always current); `undefined` when the plugin cannot be found.
+ */
+export function pluginOffer(globalDir: string, plugin: string, marketplace: string): { version: string | null; fetched: string | null } | undefined {
+  let place: PluginPlace
+  try {
+    place = locatePlugin(globalDir, plugin, marketplace)
+  } catch {
+    return undefined
+  }
+  const fetched = objectOf(readJson(join(globalDir, 'plugins', 'known_marketplaces.json'))?.[marketplace]).lastUpdated
+  return { version: pluginVersion(place.dir), fetched: FETCHED.has(place.kind) && typeof fetched === 'string' ? fetched : null }
+}
+
 /** Every plugin of every marketplace the global configuration knows: the page offers them to add. */
 export function availablePlugins(globalDir: string): { plugin: string; marketplace: string }[] {
   const known = objectOf(readJson(join(globalDir, 'plugins', 'known_marketplaces.json')))

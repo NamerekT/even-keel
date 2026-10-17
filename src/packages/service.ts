@@ -12,14 +12,16 @@ import { applySettings, defaultSettings, keysOf, substitute, upsertEnv, type Key
 import { otherPlugins, pluginDir, routeOf, sessionPackages } from './launch.js'
 import { current, enabledPackages, pluginKey, settingsOf, unpinned, type InstalledServer, type PackageInstall, type PackagesFile, type ServerEntry } from './model.js'
 import { installPinned, parseNpx, resolveVersion } from './npm.js'
-import { availablePlugins, hasExtras, locatePlugin, pluginServers, pluginVersion, readJson, seedPackages, serversIn } from './plugins.js'
+import { availablePlugins, FETCHED, hasExtras, locatePlugin, pluginOffer, pluginServers, pluginVersion, readJson, seedPackages, serversIn } from './plugins.js'
 import { loadPackages, savePackages } from './store.js'
+import { isNewer } from './version.js'
 
 const run = promisify(execFile)
 const SERVER_NAME = /^[\w-]+$/
-/** Marketplaces the CLI fetches: an update pulls them first. */
-const FETCHED = new Set(['github', 'git', 'url'])
+/** How long the marketplaces' plugin lists and versions are kept before they are read again. */
 const AVAILABLE_MS = 60_000
+
+type Offer = ReturnType<typeof pluginOffer>
 
 export interface PackagesDeps {
   /** `state/packages.json`. */
@@ -63,6 +65,7 @@ export class Packages {
   private gatewayError: Notice | null = null
   private imports: Record<string, string[]> = {}
   private plugins: { at: number; list: PackagesView['available'] } | undefined
+  private offers: { at: number; byName: Map<string, Offer> } | undefined
   private readonly projectOf: (id: string) => string
 
   constructor(private readonly deps: PackagesDeps) {
@@ -98,11 +101,14 @@ export class Packages {
   view(): PackagesView {
     const packages: PackageView[] = Object.entries(this.file.packages).map(([name, record]) => {
       const install = current(record)
+      const offer = record.plugin === undefined || record.removed === true ? undefined : this.offerOf(name, record.plugin)
       return {
         name,
         kind: record.kind,
         installed: install !== undefined,
         version: install?.version ?? null,
+        latest: install !== undefined && offer !== undefined && isNewer(offer.version, install.version) ? offer.version : null,
+        fetched: offer?.fetched ?? null,
         installing: this.installing.has(name),
         error: this.errors.get(name) ?? null,
         note: this.notes.get(name) ?? null,
@@ -124,6 +130,13 @@ export class Packages {
       const known = this.file.packages[pluginKey(each.plugin, each.marketplace)]
       return known === undefined || known.removed === true
     })
+  }
+
+  /** What the plugin's marketplace holds now; read again at most once a minute, or after an update fetched it. */
+  private offerOf(name: string, plugin: { name: string; marketplace: string }): Offer {
+    if (this.offers === undefined || Date.now() - this.offers.at > AVAILABLE_MS) this.offers = { at: Date.now(), byName: new Map() }
+    if (!this.offers.byName.has(name)) this.offers.byName.set(name, pluginOffer(this.deps.globalDir, plugin.name, plugin.marketplace))
+    return this.offers.byName.get(name)
   }
 
   /** Every pool variable a package reads: sessions do not get them in their environment. */
@@ -184,6 +197,7 @@ export class Packages {
         } catch (error) {
           throw fail('packages.marketplaceUpdate', { marketplace: record.plugin.marketplace }, { detail: (error as Error).message }, { cause: error })
         }
+        this.offers = undefined
       }
     }
     const install = await this.installNew(name)
@@ -202,13 +216,15 @@ export class Packages {
     this.save()
   }
 
-  addPlugin(plugin: string, marketplace: string): void {
+  /** On in every project, or only in `project`. */
+  addPlugin(plugin: string, marketplace: string, project?: string): void {
+    this.projectKnown(project)
     const name = pluginKey(plugin, marketplace)
     const known = this.file.packages[name]
     if (known !== undefined && known.removed !== true) throw fail('packages.exists', { name })
     locatePlugin(this.deps.globalDir, plugin, marketplace)
-    this.file.packages[name] = { kind: 'plugin', plugin: { name: plugin, marketplace }, default: false, settings: {}, installs: known?.installs ?? [] }
-    this.installAdded(name)
+    this.file.packages[name] = { kind: 'plugin', plugin: { name: plugin, marketplace }, default: project === undefined, settings: {}, installs: known?.installs ?? [] }
+    this.installAdded(name, project)
   }
 
   addServer(name: string, entry: ServerEntry, project?: string): void {

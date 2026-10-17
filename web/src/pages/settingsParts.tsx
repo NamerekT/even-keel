@@ -4,7 +4,7 @@ import type { Notice } from '../../../src/notice/notice.js'
 import type { ConfigView } from '../../../src/state.js'
 import { say, t } from '../i18n/index.js'
 import { CheckIcon, QuestionIcon, UndoIcon } from '../ui/icons.js'
-import { useTip } from '../ui/useTip.js'
+import { useTip, type TipAlign } from '../ui/useTip.js'
 import type { Draft, Same, Value, Values } from './settingsDraft.js'
 import { fieldOf } from './settingsField.js'
 import { withoutListed } from './settingsRows.js'
@@ -60,8 +60,8 @@ export function RestartMark({ on }: { on: boolean }) {
 }
 
 /** A question mark after a setting's name: pointed at or focused, it tells what the setting does. */
-export function HelpTip({ text }: { text: string }) {
-  const { shown, anchor, tip, show, hide, close } = useTip<HTMLButtonElement, HTMLSpanElement>()
+export function HelpTip({ text, align }: { text: string; align?: TipAlign }) {
+  const { shown, anchor, tip, show, hide, close } = useTip<HTMLButtonElement, HTMLSpanElement>(true, align)
   const id = useId()
   return (
     <button

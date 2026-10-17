@@ -127,7 +127,7 @@ claude plugin marketplace add <git URL or local path of this repository>
 
 or inside a session: `/plugin marketplace add …`. Then:
 
-1. On the `/tools` page, under **Packages → Add**, pick `huly@even-keel` (or `github@even-keel`, `linear@even-keel`). Even Keel copies the plugin, installs a pinned version of its MCP server and gives both to every chain session at launch; turn it off per project in the table. A plugin your projects already had enabled when you upgraded is in the table already.
+1. On the `/tools` page, press **Add a package** under Packages, choose **Plugin** and pick `huly@even-keel` (or `github@even-keel`, `linear@even-keel`) for every project or one. Even Keel copies the plugin, installs a pinned version of its MCP server and gives both to every chain session at launch; turn it off per project in the table. A plugin your projects already had enabled when you upgraded is in the table already.
 2. The MCP server takes the tracker's credentials Even Keel already has in its `.env` (`HULY_*`, `GITHUB_TOKEN`, `LINEAR_TOKEN`): it runs behind a local gateway on `127.0.0.1:4748` (`EVEN_KEEL_MCP_PORT`), so the sessions never see them. A missing key shows in **Keys** on the same page, and the project's chain waits until it is set.
 3. Turn the brief off for the project, or the session reads its task twice: `{ "repo": "…", "brief": false }`. With `brief` off the chain waits while no package of the project brings the tracker's MCP server.
 
@@ -192,7 +192,7 @@ The gear menu in the header ends with the installed version. Even Keel asks GitH
 
 On Windows a running Even Keel holds files in `node_modules`: `npm ci` next to it fails with `EPERM` and leaves the folder half-removed. Stop Even Keel and run `npm ci` again. Running sessions are not stopped by any of this: they belong to the CLI's daemon, and the restarted Even Keel picks them up.
 
-The plugins come with the code. Chain sessions run the version of a package installed on `/tools`: press **Update** on its row there (for a git URL marketplace it runs `claude plugin marketplace update` first). For sessions you start by hand, a marketplace added from the local path of this folder is read from the folder, so they get the new plugins by themselves; one added from a git URL keeps its own copy: `claude plugin marketplace update even-keel`, then `claude plugin update huly@even-keel` (or `github@…`, `linear@…`, `checkpoint@…`) in each project repository that installed it.
+The plugins come with the code. Chain sessions run the version of a package installed on `/tools`: its row shows the newer version the marketplace has and an **Update** button, or **Check** when it knows of none (for a git URL marketplace both run `claude plugin marketplace update` first). For sessions you start by hand, a marketplace added from the local path of this folder is read from the folder, so they get the new plugins by themselves; one added from a git URL keeps its own copy: `claude plugin marketplace update even-keel`, then `claude plugin update huly@even-keel` (or `github@…`, `linear@…`, `checkpoint@…`) in each project repository that installed it.
 
 A new version may store the config and `state/` in a newer format: at startup, before anything else, Even Keel rewrites them to it and keeps each old file next to it as `<file>.v<N>.bak` (the log names them). It rewrites all of them or none; a file it cannot read, or one written by a newer version, leaves the service with only the page, which shows the reason.
 

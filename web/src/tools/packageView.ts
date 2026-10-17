@@ -1,12 +1,37 @@
 import type { PackageProblem, PackagesView, PackageView } from '../../../src/state.js'
 
-/** What the "MCP server" field holds: an address is an HTTP server, anything else a command and its arguments. */
-export function serverEntry(text: string): Record<string, unknown> | null {
-  const line = text.trim()
-  if (line === '') return null
-  if (/^https?:\/\//i.test(line)) return { type: 'http', url: line }
-  const [command, ...args] = line.split(/\s+/)
-  return { command, args }
+export type Transport = 'http' | 'stdio'
+
+const WORD = /"([^"]*)"|'([^']*)'|(\S+)/g
+const HEADER = /^[\w!#$%&'*+.^`|~-]+$/
+const VARIABLE = /^[A-Za-z_]\w*$/
+
+/**
+ * The entry of an MCP server from the add dialog: an address with its headers (`Name: value` lines), or a command with
+ * its environment (`NAME=value` lines), split into arguments with a quoted one kept whole. `null` while anything is wrong.
+ */
+export function serverEntry(transport: Transport, target: string, lines: string): Record<string, unknown> | null {
+  const line = target.trim()
+  const pairs = serverPairs(transport, lines)
+  if (line === '' || pairs === null) return null
+  const extra = Object.keys(pairs).length === 0 ? {} : { [transport === 'http' ? 'headers' : 'env']: pairs }
+  if (transport === 'http') return /^https?:\/\/\S+$/i.test(line) ? { type: 'http', url: line, ...extra } : null
+  const [command, ...args] = [...line.matchAll(WORD)].map((match) => match[1] ?? match[2] ?? match[3]!)
+  return { command, args, ...extra }
+}
+
+/** The headers or the environment lines; `null` when a line is not `Name: value` or `NAME=value`. */
+export function serverPairs(transport: Transport, text: string): Record<string, string> | null {
+  const [separator, name] = transport === 'http' ? [':', HEADER] : ['=', VARIABLE]
+  const pairs: Record<string, string> = {}
+  for (const line of text.split(/\r?\n/)) {
+    if (line.trim() === '') continue
+    const at = line.indexOf(separator)
+    const key = line.slice(0, at).trim()
+    if (at < 0 || !name.test(key)) return null
+    pairs[key] = line.slice(at + 1).trim()
+  }
+  return pairs
 }
 
 /** Hold the chain for a moment after an install: not worth the banner, which would come and go. */

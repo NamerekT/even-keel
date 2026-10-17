@@ -208,3 +208,25 @@ export function BracesIcon() {
     </svg>
   )
 }
+
+/** A plugin package: a plug. */
+export function PlugIcon() {
+  return (
+    <svg className="icon" viewBox="0 0 16 16" aria-hidden="true">
+      <path d="M6 1.75v3M10 1.75v3" />
+      <path d="M3.75 4.75h8.5v2.5a4.25 4.25 0 0 1-8.5 0z" />
+      <path d="M8 11.5v2.75" />
+    </svg>
+  )
+}
+
+/** An MCP server package: a rack of two units. */
+export function ServerIcon() {
+  return (
+    <svg className="icon" viewBox="0 0 16 16" aria-hidden="true">
+      <rect x="2" y="2.25" width="12" height="5" rx="1.25" />
+      <rect x="2" y="8.75" width="12" height="5" rx="1.25" />
+      <path d="M4.75 4.75h.01M4.75 11.25h.01M8 4.75h3.25M8 11.25h3.25" />
+    </svg>
+  )
+}
