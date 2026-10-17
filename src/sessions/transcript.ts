@@ -1,5 +1,5 @@
 import { questionsOf, replyParts, toolAnswers, type Ask, type AskAnswers } from './ask.js'
-import { blocksOf, describeTool, flatten, parseEntry, type ContentBlock, type Entry, type Usage } from './entry.js'
+import { blocksOf, describeTool, flatten, imagesOf, parseEntry, type ContentBlock, type Entry, type Usage } from './entry.js'
 import { remoteUrlOf } from './remote.js'
 
 export type Stage = 'task' | 'recon' | 'edit' | 'test' | 'commit' | 'merge'
@@ -13,11 +13,19 @@ const API_ERROR_KINDS = new Map<unknown, ApiErrorKind>([
 
 export interface FeedLine {
   at: string
-  kind: 'text' | 'tool' | 'error' | 'prompt' | 'answer'
-  /** For a prompt or an answer, only the user's own words: Even Keel's lines around a reply, its answers and files are left out. */
+  /** `image` only in a whole transcript: the result of call `tool` holds pictures. */
+  kind: 'text' | 'tool' | 'error' | 'prompt' | 'answer' | 'image'
+  /**
+   * For a prompt or an answer, only the user's own words: Even Keel's lines around a reply, its answers and files are
+   * left out. For an image line, the name of the file the call read, empty for other tools.
+   */
   text: string
   /** The whole shell command of a tool line, only in a whole transcript. */
   detail?: string
+  /** The id of the call of a tool line or an image line, only in a whole transcript. */
+  tool?: string
+  /** How many pictures an image line has; the page fetches them by the call's id, the data stays in the transcript. */
+  images?: number
   /** The questions of an `AskUserQuestion` tool line, only in a whole transcript. */
   ask?: Ask
   /** An answer line: the question it answers (unknown for a question the transcript lost) and its answers, by question text. */
@@ -99,6 +107,8 @@ export class TranscriptFold {
   private lastReplyAt: string | null = null
   private gitBranch: string | null = null
   private workdir: string | null = null
+  /** The file name of each `Read` call of a whole transcript, until its result comes. */
+  private readonly readFiles = new Map<string, string>()
 
   /** `whole` keeps texts and prompts as written and adds shell commands to tool lines. */
   constructor(
@@ -210,6 +220,10 @@ export class TranscriptFold {
         const input = block.input ?? {}
         const line: FeedLine = { at, kind: 'tool', text: describeTool(block.name, input, entry.cwd) }
         if (this.whole && SHELLS.has(block.name) && typeof input.command === 'string') line.detail = input.command
+        if (this.whole && typeof block.id === 'string') {
+          line.tool = block.id
+          if (block.name === 'Read' && typeof input.file_path === 'string') this.readFiles.set(block.id, input.file_path.split(/[\\/]/).pop()!)
+        }
         if (block.name === ASK_TOOL) {
           this.openAsk = { id: block.id ?? ASK_TOOL, questions: questionsOf(input) }
           this.strayAsk = null
@@ -222,6 +236,7 @@ export class TranscriptFold {
   }
 
   private pushUser(entry: Entry): void {
+    if (this.whole) this.pushImages(entry)
     const ask = this.openAsk
     if (ask !== null && blocksOf(entry.message?.content).some((block) => block.type === 'tool_result' && block.tool_use_id === ask.id)) {
       this.openAsk = null
@@ -242,6 +257,18 @@ export class TranscriptFold {
       this.strayAsk = null
       const line = userLine(entry.timestamp ?? '', promptOf(entry.message?.content), answered, (text) => this.textOf(text))
       if (line !== null) this.addFeed(line)
+    }
+  }
+
+  // A line of its own after the tool line, not a mark on it: the page reads lines only once, and the result comes later.
+  private pushImages(entry: Entry): void {
+    for (const block of blocksOf(entry.message?.content)) {
+      if (block.type !== 'tool_result' || typeof block.tool_use_id !== 'string') continue
+      const images = imagesOf(block.content).length
+      if (images === 0) continue
+      const text = this.readFiles.get(block.tool_use_id) ?? ''
+      this.readFiles.delete(block.tool_use_id)
+      this.addFeed({ at: entry.timestamp ?? '', kind: 'image', text, tool: block.tool_use_id, images })
     }
   }
 

@@ -2890,6 +2890,17 @@ a:focus-visible {
   white-space: pre-wrap;
 }
 
+.transcript__tool {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.transcript__tool .transcript__plain {
+  flex: 1;
+  min-width: 0;
+}
+
 .transcript__label {
   display: block;
   color: var(--accent);

@@ -147,6 +147,10 @@ export interface ServerDeps {
   sessionRecord: (sessionId: string) => Promise<unknown>
   /** Lines of the whole transcript from index `after` on. */
   transcript: (sessionId: string, after: number) => Promise<unknown>
+  /** Picture `index` of the result of call `tool` in the session's transcript; `undefined` — none. */
+  transcriptImage: (sessionId: string, tool: string, index: number) => Promise<TaskFile | undefined>
+  /** A file the user sent the session, by its name; `undefined` — the transcript names no such file or it is gone. */
+  inboxFile: (sessionId: string, name: string) => Promise<TaskFile | undefined>
   /** For the checkpoint hook; `undefined` for a session the chain did not start. */
   checkpoint: (sessionId: string) => Promise<SessionCheckpoint | undefined>
   /**
@@ -305,6 +309,21 @@ async function route(deps: ServerDeps, request: IncomingMessage, response: Serve
     const check = deps.mergeCheck(decodeURIComponent(mergeCheck[1]!))
     if (check === undefined) response.writeHead(404).end()
     else sendJson(response, 200, check)
+    return
+  }
+
+  const sessionFile = /^\/api\/sessions\/([^/]+)\/(?:images\/([^/]+)\/(\d+)|files\/([^/]+))$/.exec(path)
+  if (request.method === 'GET' && sessionFile !== null) {
+    const [, id, tool, index, name] = sessionFile.map((part) => (part === undefined ? undefined : decodeURIComponent(part)))
+    let found: TaskFile | undefined
+    try {
+      found = await (tool === undefined ? deps.inboxFile(id!, name!) : deps.transcriptImage(id!, tool, Number(index)))
+    } catch (error) {
+      sendFailure(response, error)
+      return
+    }
+    if (found === undefined) response.writeHead(404).end()
+    else await sendFile(response, found)
     return
   }
 

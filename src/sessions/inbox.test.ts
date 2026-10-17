@@ -2,7 +2,7 @@ import { mkdtempSync, readFileSync, rmSync, existsSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
-import { freeName, inboxName, saveInbox } from './inbox.js'
+import { freeName, inboxImage, inboxName, saveInbox } from './inbox.js'
 
 const dirs: string[] = []
 const workdir = () => {
@@ -60,5 +60,25 @@ describe('saveInbox', () => {
     })
     expect(kept).toEqual([join(dir, '.temp', 'inbox', 'logs.zip')])
     expect(existsSync(join(dir, '.temp', 'inbox', 'logs (2)'))).toBe(false)
+  })
+})
+
+describe('inboxImage', () => {
+  const sent = [
+    'C:\\repos\\example\\.temp\\inbox\\order.png',
+    '/home/john/example/.temp/inbox/shot.JPG',
+    'C:\\repos\\example\\notes.png',
+    'C:\\repos\\example\\.temp\\inbox\\log.txt',
+  ]
+
+  it('finds a picture the session was sent in an inbox folder, by its name', () => {
+    expect(inboxImage(sent, 'order.png')).toEqual({ path: sent[0], type: 'image/png' })
+    expect(inboxImage(sent, 'shot.JPG')).toEqual({ path: sent[1], type: 'image/jpeg' })
+  })
+
+  it('refuses a file outside an inbox folder, one not sent and one that is not a picture', () => {
+    expect(inboxImage(sent, 'notes.png')).toBeUndefined()
+    expect(inboxImage(sent, 'other.png')).toBeUndefined()
+    expect(inboxImage(sent, 'log.txt')).toBeUndefined()
   })
 })

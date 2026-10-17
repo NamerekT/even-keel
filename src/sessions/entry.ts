@@ -16,6 +16,22 @@ export interface ContentBlock {
   tool_use_id?: string
   is_error?: boolean
   content?: unknown
+  /** The picture of an `image` block: the CLI keeps it whole in the transcript, base64. */
+  source?: { type?: string; media_type?: string; data?: string }
+}
+
+export interface TranscriptImage {
+  type: string
+  data: string
+}
+
+/** The base64 pictures of a tool result's content. */
+export function imagesOf(content: unknown): TranscriptImage[] {
+  return blocksOf(content).flatMap(({ type, source }) =>
+    type === 'image' && source?.type === 'base64' && typeof source.data === 'string' && typeof source.media_type === 'string'
+      ? [{ type: source.media_type, data: source.data }]
+      : [],
+  )
 }
 
 export interface Entry {

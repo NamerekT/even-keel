@@ -899,6 +899,8 @@ export const en: Messages = {
     chat: {
       open: 'Chat',
       title: 'Chat',
+      picture: 'Picture',
+      openPicture: (name: string) => `Open ${name}`,
       waiting: 'The session waits for a reply — open the chat',
       idle: 'Open the chat with the session',
       placeholder: 'Reply to the session…',

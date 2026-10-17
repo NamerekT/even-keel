@@ -21,7 +21,7 @@ import { fakeCompare, fakeRuleDiff, fakeRules } from './fakeRules.js'
 import { fakeSteps } from './fakeSteps.js'
 import { fakeCheckpoints, fakeHistory, fakePeriod, fakeSpend, fakeTask } from './fakeStats.js'
 import { fakeCard, fakeMoveMilestone, fakeReady } from './fakeCards.js'
-import { fakeAnswer, fakeOpenAsk, fakePastAsk, FAKE_ASK, FAKE_UNSAVED_ASK } from './fakeChat.js'
+import { fakeAnswer, fakeImageUrl, fakeOpenAsk, fakePastAsk, fakeSentFileUrl, fakeShots, FAKE_ASK, FAKE_UNSAVED_ASK } from './fakeChat.js'
 import type { Ask } from '../../../src/sessions/ask.js'
 import { fakeTools } from './fakeTools.js'
 import { fakePackages, fakePackagesCommand } from './fakePackages.js'
@@ -128,6 +128,7 @@ function fakeTranscript(open: Ask | null): FeedLine[] {
       kind: 'text',
       text: 'Порядок строится топологической сортировкой.\n\n- цикл сейчас роняет сервер;\n- сначала тест на цикл, потом правка.\n\n' + 'Длинное объяснение. '.repeat(40),
     },
+    ...fakeShots(at),
     { at: at(20), kind: 'prompt', text: 'А почему цикл не ловится раньше?' },
     ...fakeFeed(),
     ...fakeOpenAsk(open),
@@ -803,6 +804,8 @@ export function createFakeSource(search: string): LiveSource {
       if (after === 0) return fakeTranscript(current.state?.sessions.find((view) => view.sessionId === sessionId)?.ask ?? null)
       return [{ at: ago(0), kind: 'tool', text: `Read src/example-${Date.now() % 1000}.ts` }]
     },
+    imageUrl: (_sessionId, tool, index) => fakeImageUrl(tool, index),
+    sentFileUrl: (_sessionId, name) => fakeSentFileUrl(name),
     tools: async (project) => {
       await answer()
       return current.state?.projects.includes(project) ? fakeTools(project, current.state.trimTools, params.get('tools')) : null

@@ -95,6 +95,12 @@ describe('Even Keel HTTP server', () => {
         if (id === 'bad') throw new Error('sessions: bad is not a session id')
         return id === '0a1b2c3d' ? [{ kind: 'prompt', text: 'ABC-1' }, { kind: 'text', text: 'On it.' }].slice(after) : undefined
       },
+      transcriptImage: async (id, tool, index) => {
+        if (id === 'bad') throw new Error('sessions: bad is not a session id')
+        return id === '0a1b2c3d' && tool === 'toolu_1' && index === 0 ? { type: 'image/png', size: 4, body: Readable.from([Buffer.from('PNG!')]) } : undefined
+      },
+      inboxFile: async (id, name) =>
+        id === '0a1b2c3d' && name === 'order 1.png' ? { type: 'image/png', size: 4, body: Readable.from([Buffer.from('PNG!')]) } : undefined,
       checkpoint: async (id) =>
         id === '0a1b2c3d' ? { project: 'ABC', task: 'ABC-1', handoffs: 2, first: 193_000, source: 'calibrated' } : undefined,
       mergeCheck: (id) => (id === 'chain-session' ? { commands: ['npm test'], branch: 'master' } : undefined),
@@ -607,6 +613,21 @@ describe('Even Keel HTTP server', () => {
     expect(await (await fetch(base + '/api/sessions/0a1b2c3d/transcript?after=junk')).json()).toHaveLength(2)
     expect((await fetch(base + '/api/sessions/ffffffff/transcript')).status).toBe(404)
     expect((await fetch(base + '/api/sessions/bad/transcript')).status).toBe(400)
+  })
+
+  it('serves a picture of a tool result and a file the user sent, by the session', async () => {
+    const image = await fetch(base + '/api/sessions/0a1b2c3d/images/toolu_1/0')
+    expect(image.status).toBe(200)
+    expect(image.headers.get('content-type')).toBe('image/png')
+    expect(await image.text()).toBe('PNG!')
+    expect((await fetch(base + '/api/sessions/0a1b2c3d/images/toolu_1/1')).status).toBe(404)
+    expect((await fetch(base + '/api/sessions/0a1b2c3d/images/toolu_1/x')).status).toBe(404)
+    expect((await fetch(base + '/api/sessions/bad/images/toolu_1/0')).status).toBe(400)
+
+    const file = await fetch(base + '/api/sessions/0a1b2c3d/files/order%201.png')
+    expect(file.status).toBe(200)
+    expect(await file.text()).toBe('PNG!')
+    expect((await fetch(base + '/api/sessions/0a1b2c3d/files/other.png')).status).toBe(404)
   })
 
   it('serves the Tally history, a period and a task', async () => {
