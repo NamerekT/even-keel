@@ -268,9 +268,12 @@ describe('chainOrder on a long chain', () => {
     const tasks = Array.from({ length: 300 }, (_, index) =>
       inMilestone(index < 150 ? v1 : v2, `ABC-${index + 1}`, ...(index % 3 === 0 && index > 0 ? [`ABC-${index}`] : [])),
     )
-    const started = performance.now()
-    const order = chainOrder(tasks)
-    expect(performance.now() - started).toBeLessThan(60)
+    // CPU time, not the wall clock: a full parallel run deschedules the worker. ~8 ms a run, the quadratic order took ~475 ms
+    const runs = 5
+    const before = process.cpuUsage()
+    let order: string[] = []
+    for (let run = 0; run < runs; run++) order = chainOrder(tasks)
+    expect(process.cpuUsage(before).user / 1000 / runs).toBeLessThan(60)
     expect(order).toHaveLength(300)
     expect(order.indexOf('ABC-150')).toBeLessThan(order.indexOf('ABC-151'))
   })
