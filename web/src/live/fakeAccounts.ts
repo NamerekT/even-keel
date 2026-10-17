@@ -158,9 +158,9 @@ export function fakeAccount(mode: string | null, idle: boolean, limits: RateLimi
     const codex = fakeEntry({
       key: 'codex',
       agent: 'codex',
-      status: { loggedIn: true, authMethod: 'chatgpt', email: 'john.doe@example.com', orgName: null, subscriptionType: 'plus' },
+      status: { loggedIn: true, authMethod: 'chatgpt', email: 'john.doe@example.com', orgName: null, subscriptionType: 'free' },
       loginExpiresAt: null,
-      limits: { ...limits, fiveHour: { ...limits.fiveHour!, usedPercentage: 12 }, source: 'statusline' },
+      limits: { ...limits, fiveHour: null, sevenDay: null, month: { usedPercentage: 12, resetsAt: new Date(Date.now() + 11 * 86_400_000).toISOString() } },
     })
     return { ...signedIn, accounts: [global, work, apiEntry('ci-key', { name: 'CI key' }), codex] }
   }

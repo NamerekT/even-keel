@@ -1,5 +1,6 @@
 import { Link } from 'react-router'
 import type { AccountEntry, AccountView } from '../../../src/account/model.js'
+import { limitSpans } from '../../../src/limits/model.js'
 import type { EvenKeelState } from '../../../src/state.js'
 import { accountGroups, canAdd, deviceLogin, entrySlot, PROVIDERS, type Provider } from '../accounts.js'
 import { say, t } from '../i18n/index.js'
@@ -21,7 +22,7 @@ import {
   type Send,
   type Spend,
 } from '../layout/accountParts.js'
-import { Limits } from '../layout/Limits.js'
+import { Limits, spanNames } from '../layout/Limits.js'
 import { useNow } from '../layout/useNow.js'
 import { canWork } from '../state.js'
 import { seriesStyle } from '../ui/series.js'
@@ -115,8 +116,9 @@ function AccountCard({ entry, view, now, spend, sending, send }: CardProps) {
       ) : (
         <>
           <div className="accounts__columns" aria-hidden="true">
-            <span>{t.limits.fiveHour}</span>
-            <span>{t.limits.week}</span>
+            {limitSpans(entry.limits).map((span) => (
+              <span key={span}>{spanNames(span).label}</span>
+            ))}
           </div>
           {stale === null ? (
             limits

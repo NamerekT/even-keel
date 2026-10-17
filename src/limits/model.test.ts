@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { currentLimits, exhaustedReset, limitResetAfter, limitsFileDir, newestLimits, parseLimitsFile } from './model.js'
+import { currentLimits, exhaustedReset, limitResetAfter, limitsFileDir, limitSpans, newestLimits, parseLimitsFile } from './model.js'
 
 const RECEIVED_AT = '2026-01-01T12:00:00.000Z'
 const FIVE_HOUR_RESET = Date.UTC(2026, 0, 1, 15, 0, 0) / 1000
@@ -97,6 +97,31 @@ describe('currentLimits', () => {
   it('returns null when nothing has been received yet', () => {
     expect(currentLimits(undefined, new Date(RECEIVED_AT))).toBeNull()
   })
+
+  it('drops a spent month but keeps the plan monthly', () => {
+    const monthly = { fiveHour: null, sevenDay: null, month: { usedPercentage: 12, resetsAt: '2026-01-20T00:00:00.000Z' }, updatedAt: RECEIVED_AT, source: 'usage' as const }
+    expect(currentLimits(monthly, new Date('2026-01-19T00:00:00.000Z'))).toEqual(monthly)
+    expect(currentLimits(monthly, new Date('2026-01-21T00:00:00.000Z'))).toEqual({ ...monthly, month: null })
+    expect(currentLimits(limits, new Date('2026-01-01T14:00:00.000Z'))).not.toHaveProperty('month')
+  })
+})
+
+describe('limitSpans', () => {
+  const window = { usedPercentage: 1, resetsAt: '2026-01-20T00:00:00.000Z' }
+
+  it('shows the five-hour and the weekly window by default, with or without data', () => {
+    expect(limitSpans(null)).toEqual(['fiveHour', 'sevenDay'])
+    expect(limitSpans({ fiveHour: null, sevenDay: window, updatedAt: RECEIVED_AT, source: 'usage' })).toEqual(['fiveHour', 'sevenDay'])
+  })
+
+  it('shows only the month for a monthly plan, even once it reset', () => {
+    expect(limitSpans({ fiveHour: null, sevenDay: null, month: window, updatedAt: RECEIVED_AT, source: 'usage' })).toEqual(['month'])
+    expect(limitSpans({ fiveHour: null, sevenDay: null, month: null, updatedAt: RECEIVED_AT, source: 'usage' })).toEqual(['month'])
+  })
+
+  it('puts the month after the windows a plan has besides it', () => {
+    expect(limitSpans({ fiveHour: window, sevenDay: null, month: window, updatedAt: RECEIVED_AT, source: 'usage' })).toEqual(['fiveHour', 'month'])
+  })
 })
 
 describe('newestLimits', () => {
@@ -124,6 +149,12 @@ describe('exhaustedReset', () => {
       updatedAt: RECEIVED_AT, source: 'statusline' as const,
     }
     expect(exhaustedReset(limits)).toBe('2026-09-30T08:00:00.000Z')
+  })
+
+  it('counts a spent month', () => {
+    expect(exhaustedReset({ fiveHour: null, sevenDay: null, month: window(100, '2026-10-28T21:15:48.000Z'), updatedAt: RECEIVED_AT, source: 'usage' })).toBe(
+      '2026-10-28T21:15:48.000Z',
+    )
   })
 
   it('knows nothing when no window is exhausted', () => {
@@ -162,6 +193,12 @@ describe('limitResetAfter', () => {
 
   it('sees the reset in a five-hour window that /usage reports as not started', () => {
     expect(limitResetAfter(limits(null, '2026-10-16T05:01:14.834Z'), HIT)).toBe('2026-10-16T05:01:14.834Z')
+  })
+
+  it('waits for the end of the month on a monthly plan that is not quite at 100%', () => {
+    const monthly = { fiveHour: null, sevenDay: null, month: window(98, '2026-10-28T21:15:48.000Z'), updatedAt: '2026-10-16T00:00:00.000Z', source: 'usage' as const }
+    expect(limitResetAfter(monthly, HIT)).toBe('2026-10-28T21:15:48.000Z')
+    expect(limitResetAfter({ ...monthly, month: null }, HIT)).toBeNull()
   })
 
   it('does not take a statusline snapshot without the five-hour window for a reset', () => {

@@ -154,8 +154,21 @@ describe('limitsOfRollout', () => {
     })
   })
 
+  it('maps the free plan 30-day window to the month, with no five-hour or weekly one', () => {
+    expect(limitsOfRollout(tokens(1, 0, [1, 0, 1], { used: 12, minutes: 43200, resets }))).toMatchObject({
+      fiveHour: null,
+      sevenDay: null,
+      month: { usedPercentage: 12, resetsAt: '2026-01-01T14:00:00.000Z' },
+    })
+  })
+
+  it('has no month for a plan without the 30-day window', () => {
+    expect(limitsOfRollout(tokens(1, 0, [1, 0, 1], { used: 1, minutes: 300, resets }))).not.toHaveProperty('month')
+  })
+
   it('leaves out windows of other lengths', () => {
-    expect(limitsOfRollout(tokens(1, 0, [1, 0, 1], { used: 6, minutes: 43200, resets }))).toMatchObject({ fiveHour: null, sevenDay: null })
+    expect(limitsOfRollout(tokens(1, 0, [1, 0, 1], { used: 6, minutes: 1440, resets }))).toEqual(expect.objectContaining({ fiveHour: null, sevenDay: null }))
+    expect(limitsOfRollout(tokens(1, 0, [1, 0, 1], { used: 6, minutes: 1440, resets }))).not.toHaveProperty('month')
   })
 
   it('is undefined without any rate limits', () => {

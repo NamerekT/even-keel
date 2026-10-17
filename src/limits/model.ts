@@ -6,8 +6,18 @@ export interface LimitWindow {
 export interface RateLimits {
   fiveHour: LimitWindow | null
   sevenDay: LimitWindow | null
+  /** The 30-day window of Codex's free plan: absent for a plan without one, `null` when it has one with no data. */
+  month?: LimitWindow | null
   updatedAt: string
   source: 'usage' | 'statusline'
+}
+
+export type LimitSpan = 'fiveHour' | 'sevenDay' | 'month'
+
+/** The windows the account's plan has, in the order they are shown: five hours and a week unless the plan is monthly. */
+export function limitSpans(limits: RateLimits | null | undefined): LimitSpan[] {
+  if (limits?.month === undefined) return ['fiveHour', 'sevenDay']
+  return [...(['fiveHour', 'sevenDay'] as const).filter((span) => limits[span] !== null), 'month']
 }
 
 export function parseLimitsFile(raw: unknown): RateLimits | undefined {
@@ -31,7 +41,8 @@ export function currentLimits(limits: RateLimits | undefined, now: Date, notBefo
   if (limits === undefined) return null
   if (notBefore !== null && Date.parse(limits.updatedAt) < Date.parse(notBefore)) return null
   const live = (window: LimitWindow | null) => (window !== null && Date.parse(window.resetsAt) > now.getTime() ? window : null)
-  return { ...limits, fiveHour: live(limits.fiveHour), sevenDay: live(limits.sevenDay) }
+  const current = { ...limits, fiveHour: live(limits.fiveHour), sevenDay: live(limits.sevenDay) }
+  return limits.month === undefined ? current : { ...current, month: live(limits.month) }
 }
 
 export function newestLimits(a: RateLimits | undefined, b: RateLimits | undefined): RateLimits | undefined {
@@ -40,7 +51,7 @@ export function newestLimits(a: RateLimits | undefined, b: RateLimits | undefine
 }
 
 export function exhaustedReset(limits: RateLimits | null): string | null {
-  const resets = [limits?.fiveHour, limits?.sevenDay].flatMap((window) =>
+  const resets = [limits?.fiveHour, limits?.sevenDay, limits?.month].flatMap((window) =>
     window !== null && window !== undefined && window.usedPercentage >= 100 ? [window.resetsAt] : [],
   )
   return resets.sort().at(-1) ?? null
@@ -58,6 +69,8 @@ export function limitResetAfter(limits: RateLimits | null, at: string): string |
   const exhausted = exhaustedReset(limits)
   if (exhausted !== null) return exhausted
   if (limits === null || Date.parse(limits.updatedAt) <= Date.parse(at)) return null
+  // A monthly plan with no five-hour window waits for the month: under 100% only means the snapshot lags behind.
+  if (limits.month !== undefined && limits.fiveHour === null) return limits.month?.resetsAt ?? null
   const window = limits.fiveHour
   if (window === null) return limits.source === 'usage' ? limits.updatedAt : null
   const start = Date.parse(window.resetsAt) - FIVE_HOURS_MS

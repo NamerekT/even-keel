@@ -91,6 +91,8 @@ export const ru = {
     fiveHourTitle: 'Лимит 5 часов',
     week: 'Неделя',
     weekTitle: 'Недельный лимит',
+    month: 'Месяц',
+    monthTitle: 'Лимит на 30 дней',
     sources: { usage: 'по /usage', statusline: 'по statusline' },
     noData: 'нет данных',
     empty: (title: string, source: string) => `${title}: нет данных${source}`,

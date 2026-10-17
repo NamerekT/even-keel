@@ -7,7 +7,7 @@ import { accountOrder, canWork } from '../state.js'
 import { seriesStyle } from '../ui/series.js'
 import { AccountMark, AccountName, AccountNotes, LoginSteps, loginHeading, spendText, type Send, type Spend } from './accountParts.js'
 import { AccountRoles } from './AccountRoles.js'
-import { Limits } from './Limits.js'
+import { Limits, usualSpans } from './Limits.js'
 import { useNow } from './useNow.js'
 
 /** The accounts drawer: a row per account with its limits, where it works and its exceptions; adding and the details are elsewhere. */
@@ -84,7 +84,7 @@ function AccountItem({ entry, view, now, spend, sending, send }: ItemProps) {
           {spendText(spend, entry.key)}
         </p>
       ) : (
-        <Limits limits={entry.limits} now={now} bare />
+        <Limits limits={entry.limits} now={now} bare named={!usualSpans(entry.limits)} />
       )}
       <AccountRoles entry={entry} view={view} sending={sending} send={send} />
       <AccountNotes entry={entry} view={view} now={now} sending={sending} send={send} />

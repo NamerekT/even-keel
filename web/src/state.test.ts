@@ -1272,6 +1272,11 @@ describe('limitedUntil', () => {
     expect(limitedUntil(entry({ limits: limits([100, '2026-10-10T09:00:00.000Z'], null) }), now)).toBeNull()
     expect(limitedUntil(entry({ limits: null }), now)).toBeNull()
   })
+
+  it('counts a used-up month', () => {
+    const monthly = { ...limits(null, null), month: { usedPercentage: 100, resetsAt: '2026-10-28T21:15:48.000Z' } }
+    expect(limitedUntil(entry({ limits: monthly }), now)).toBe('2026-10-28T21:15:48.000Z')
+  })
 })
 
 describe('accountOrder', () => {

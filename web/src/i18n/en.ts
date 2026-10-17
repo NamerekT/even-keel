@@ -93,6 +93,8 @@ export const en: Messages = {
     fiveHourTitle: '5-hour limit',
     week: 'Week',
     weekTitle: 'Weekly limit',
+    month: 'Month',
+    monthTitle: '30-day limit',
     sources: { usage: 'from /usage', statusline: 'from the statusline' },
     noData: 'no data',
     empty: (title: string, source: string) => `${title}: no data${source}`,

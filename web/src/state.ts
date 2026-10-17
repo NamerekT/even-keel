@@ -40,7 +40,7 @@ export function loginLeft(expiresAt: string | null, now: Date): { text: string; 
 }
 
 export function limitedUntil(entry: AccountEntry, now: Date): string | null {
-  const spent = [entry.limits?.fiveHour, entry.limits?.sevenDay]
+  const spent = [entry.limits?.fiveHour, entry.limits?.sevenDay, entry.limits?.month]
     .filter((window) => window != null && window.usedPercentage >= 100 && Date.parse(window.resetsAt) > now.getTime())
     .map((window) => window!.resetsAt)
   return spent.length === 0 ? null : spent.reduce((later, each) => (Date.parse(each) > Date.parse(later) ? each : later))

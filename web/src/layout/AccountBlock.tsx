@@ -1,6 +1,6 @@
 import type { CSSProperties } from 'react'
 import type { AccountView } from '../../../src/account/model.js'
-import type { LimitWindow, RateLimits } from '../../../src/limits/model.js'
+import { limitSpans, type LimitWindow, type RateLimits } from '../../../src/limits/model.js'
 import { entrySlot } from '../accounts.js'
 import { formatAgo, formatMoment, formatSpan } from '../format.js'
 import { t } from '../i18n/index.js'
@@ -8,7 +8,7 @@ import { accountBadge, loginLeft } from '../state.js'
 import { AccountPanel } from './Account.js'
 import { spendText, useSpend, type Spend } from './accountParts.js'
 import { seriesStyle } from '../ui/series.js'
-import { FULL_PERCENT, WARM_PERCENT } from './Limits.js'
+import { FULL_PERCENT, spanNames, WARM_PERCENT } from './Limits.js'
 import { usePopover } from './usePopover.js'
 
 const RING_RADIUS = 8
@@ -49,10 +49,7 @@ export function AccountBlock({ account, limits, now }: BlockProps) {
             <span className="limit__value">{spendText(spend, active.key)}</span>
           </span>
         ) : (
-          <>
-            <LimitSegment window={limits?.fiveHour ?? null} title={t.limits.fiveHourTitle} now={now} />
-            <LimitSegment window={limits?.sevenDay ?? null} title={t.limits.weekTitle} now={now} />
-          </>
+          limitSpans(limits).map((span) => <LimitSegment key={span} window={limits?.[span] ?? null} title={spanNames(span).title} now={now} />)
         )}
       </button>
       {!open && <AccountCard account={account} limits={limits} now={now} spend={spend} />}
@@ -163,8 +160,9 @@ function CardBody({ account, limits, now, spend }: CardProps) {
   }
   return (
     <>
-      <CardWindow label={t.limits.fiveHour} window={limits?.fiveHour ?? null} now={now} />
-      <CardWindow label={t.limits.week} window={limits?.sevenDay ?? null} now={now} />
+      {limitSpans(limits).map((span) => (
+        <CardWindow key={span} label={spanNames(span).label} window={limits?.[span] ?? null} now={now} />
+      ))}
       <div className="account-card__foot">
         <span>{limits === null ? t.limits.noData : t.limits.updated(t.limits.sources[limits.source], formatAgo(limits.updatedAt, now))}</span>
         {active !== undefined && <span>{t.account.expiry(loginLeft(active.loginExpiresAt, now).text)}</span>}

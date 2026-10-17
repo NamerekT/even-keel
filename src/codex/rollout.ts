@@ -17,6 +17,7 @@ const LIMIT_TEXT = /usage limit|rate limit|quota/i
 const STAGE_RANK: Record<Stage, number> = { task: 0, recon: 1, edit: 2, test: 3, commit: 4, merge: 5 }
 const FIVE_HOURS = 300
 const WEEK = 10_080
+const MONTH = 43_200
 const ROLLOUT = /^rollout-.+-([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\.jsonl$/i
 
 interface Line {
@@ -185,7 +186,8 @@ export function rolloutSessionId(text: string): string | undefined {
 
 /**
  * The account's limits as of its newest `token_count` with `rate_limits`: the 300-minute window is the five-hour one,
- * the 10080-minute window the weekly one; a window of another length (the free plan's 30 days) is not shown.
+ * the 10080-minute window the weekly one, the 43200-minute window (the free plan's) the month; a window of another
+ * length is not shown.
  */
 export function limitsOfRollout(text: string): RateLimits | undefined {
   const lines = text.split('\n')
@@ -194,9 +196,11 @@ export function limitsOfRollout(text: string): RateLimits | undefined {
     const limits = record(line?.payload?.rate_limits)
     if (line?.type !== 'event_msg' || line.payload?.type !== 'token_count' || limits === undefined) continue
     const windows = [record(limits.primary), record(limits.secondary)]
+    const monthly = windows.some((window) => window?.window_minutes === MONTH)
     return {
       fiveHour: windowOf(windows, FIVE_HOURS),
       sevenDay: windowOf(windows, WEEK),
+      ...(monthly ? { month: windowOf(windows, MONTH) } : {}),
       updatedAt: new Date(Date.parse(line.timestamp ?? '') || 0).toISOString(),
       source: 'usage',
     }
