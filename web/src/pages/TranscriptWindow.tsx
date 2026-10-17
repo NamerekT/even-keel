@@ -2,9 +2,11 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import Markdown, { type Components } from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import type { Ask, AskAnswers } from '../../../src/sessions/ask.js'
-import type { FeedLine } from '../../../src/sessions/transcript.js'
+import type { FeedLine, Turn } from '../../../src/sessions/transcript.js'
 import type { SessionView } from '../../../src/state.js'
+import { formatElapsed, formatTokens } from '../format.js'
 import { localized, t } from '../i18n/index.js'
+import { useNow } from '../layout/useNow.js'
 import { useLive } from '../live/context.js'
 import { AccountTag } from '../ui/AccountTag.js'
 import { Tipped } from '../ui/Tipped.js'
@@ -19,6 +21,7 @@ import '../ui/markdown.css'
 const LINE_TIME = localized((language) => new Intl.DateTimeFormat(language, { hour: '2-digit', minute: '2-digit' }))
 const FULL_TIME = localized((language) => new Intl.DateTimeFormat(language, { dateStyle: 'medium', timeStyle: 'medium' }))
 const POLL_MS = 3_000
+const TICK_MS = 1_000
 const PINNED_SLACK = 24
 /** A user's message longer than this is folded, like the task prompt a session starts with. */
 const FOLD_LINES = 8
@@ -217,6 +220,7 @@ export function TranscriptWindow({ sessionId, account, live, chat, onClose }: Pr
             ))}
           </ol>
         )}
+        {chat?.session.lamp === 'working' && chat.session.turn !== null && <TurnLine turn={chat.session.turn} />}
         {chat !== undefined && (
           <ChatComposer
             key={chat.session.sessionId}
@@ -235,6 +239,22 @@ export function TranscriptWindow({ sessionId, account, live, chat, onClose }: Pr
         <MediaViewer items={media.items} index={viewing} onIndex={setViewing} onClose={() => setViewing(null)} />
       )}
     </dialog>
+  )
+}
+
+/** The turn in progress, as the Claude app shows it: "23с · 81 токен · Думает", the clock ticking every second. */
+function TurnLine({ turn }: { turn: Turn }) {
+  const now = useNow(TICK_MS)
+  const elapsed = turn.startedAt === '' ? null : formatElapsed(now.getTime() - Date.parse(turn.startedAt))
+  return (
+    <Tipped inline align="start" className="transcript__turn" tip={t.session.chat.turnTip}>
+      <span className="lamp lamp--working" aria-hidden="true" />
+      <span className="transcript__turn-text">
+        {[elapsed, t.session.chat.turnTokens(formatTokens(turn.outputTokens), turn.outputTokens), turn.tool ?? t.session.chat.thinking]
+          .filter((part) => part !== null)
+          .join(' · ')}
+      </span>
+    </Tipped>
   )
 }
 

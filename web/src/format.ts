@@ -51,6 +51,16 @@ export function formatClock(ms: number): string {
   return `${minutes}:${tail}`
 }
 
+/** A running span short, as the Claude app counts a turn: "23с", "1м 05с", "2ч 03м". */
+export function formatElapsed(ms: number): string {
+  const seconds = Math.max(0, Math.floor(ms / 1000))
+  const { hour, minuteShort: minute, second } = t.units
+  const two = (value: number) => String(value).padStart(2, '0')
+  if (seconds < 60) return `${seconds}${second}`
+  if (seconds < 3_600) return `${Math.floor(seconds / 60)}${minute} ${two(seconds % 60)}${second}`
+  return `${Math.floor(seconds / 3_600)}${hour} ${two(Math.floor((seconds % 3_600) / 60))}${minute}`
+}
+
 function pair(major: number, majorUnit: string, minor: number, minorUnit: string): string {
   return minor === 0 ? `${major}${majorUnit}` : `${major}${majorUnit} ${minor}${minorUnit}`
 }

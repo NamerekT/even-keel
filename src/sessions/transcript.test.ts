@@ -229,6 +229,27 @@ describe('TranscriptFold', () => {
     expect(summary.action).toMatchObject({ kind: 'tool' })
   })
 
+  it('follows the turn from the last prompt: the answers’ output tokens and the call still running', () => {
+    const prompt = (content: string) => JSON.stringify({ type: 'user', timestamp: at(), message: { role: 'user', content } })
+    const lines = [prompt('ABC-7'), assistant('m1', [text('first')], { output: 40 })]
+    const second = prompt('Go on.')
+    lines.push(
+      second,
+      assistant('m2', [{ type: 'thinking', thinking: '' }], { output: 12 }),
+      assistant('m2', [tool('Bash', { command: 'npm test' })], { output: 30 }),
+    )
+    const running = fold(lines).summary()
+
+    expect(running.turn).toEqual({ startedAt: JSON.parse(second).timestamp, outputTokens: 30, tool: 'Bash npm test' })
+
+    lines.push(toolResult('toolu_Bash', [text('ok')]), assistant('m3', [text('done')], { output: 9 }))
+    expect(fold(lines).summary().turn).toMatchObject({ outputTokens: 39, tool: null })
+  })
+
+  it('knows no turn before the first prompt', () => {
+    expect(fold([assistant('m1', [text('hello')])]).summary().turn).toBeNull()
+  })
+
   it('keeps texts, prompts and shell commands whole when folding the whole transcript', () => {
     const long = `Plan:\n- one\n- two\n${'x'.repeat(700)}`
     const whole = new TranscriptFold(Infinity, true)

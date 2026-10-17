@@ -65,6 +65,7 @@ function view(task: string, lamp: SessionView['lamp'], lastActivityAt: string | 
     contextTokens: 0,
     cache: null,
     tokens: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
+    turn: null,
     stage: null,
     action: null,
     feed: [],

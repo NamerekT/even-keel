@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { formatAgo, formatClock, formatMoment, formatSpan, formatTokens } from './format.js'
+import { formatAgo, formatClock, formatElapsed, formatMoment, formatSpan, formatTokens } from './format.js'
 import { setLanguage } from './i18n/index.js'
 
 setLanguage('ru')
@@ -94,6 +94,18 @@ describe('formatClock', () => {
 
   it('never goes below zero when the clocks disagree', () => {
     expect(formatClock(-3_000)).toBe('0:00')
+  })
+})
+
+describe('formatElapsed', () => {
+  it('counts seconds, then minutes with seconds, then hours with minutes, units against the numbers', () => {
+    expect(formatElapsed(23_400)).toBe('23с')
+    expect(formatElapsed(MIN + 5_000)).toBe('1м 05с')
+    expect(formatElapsed(2 * HOUR + 3 * MIN + 40_000)).toBe('2ч 03м')
+  })
+
+  it('never goes below zero when the clocks disagree', () => {
+    expect(formatElapsed(-3_000)).toBe('0с')
   })
 })
 

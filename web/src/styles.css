@@ -2901,6 +2901,23 @@ a:focus-visible {
   min-width: 0;
 }
 
+.transcript__turn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  align-self: flex-start;
+  max-width: 100%;
+  color: var(--fg-muted);
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;
+}
+
+.transcript__turn-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .transcript__label {
   display: block;
   color: var(--accent);
