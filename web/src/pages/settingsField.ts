@@ -1,3 +1,4 @@
+import { EXECUTION_MODES, PROVIDERS } from '../../../src/agent/providers.js'
 import type { Notice } from '../../../src/notice/notice.js'
 
 /** The field of the settings a config error points at: of a project's panel, or of the shared page when `project` is null. */
@@ -7,14 +8,14 @@ export interface FieldError {
 }
 
 const RULES = ['active', 'terminal', 'requiredLabels', 'excludedLabels']
-const NAMED = ['branch', 'prompt', 'tracker', 'brief', 'fillMilestone', 'agent', 'codexModel', 'codexBypassSandbox', 'language', 'promptLanguage', 'context', 'stats']
+const NAMED = ['branch', 'prompt', 'tracker', 'brief', 'fillMilestone', 'provider', 'modelLabels', 'language', 'promptLanguage', 'context', 'stats']
+/** Maps by provider: an error points at the provider's own field, or the first one for a key that names no provider. */
+const BY_PROVIDER: Record<string, readonly string[]> = { models: PROVIDERS, accounts: PROVIDERS, execution: Object.keys(EXECUTION_MODES) }
 const PROJECT_WHERE = /^([A-Z][A-Z0-9_]{0,4})\.(.+)$/
 
 const SHARED: Partial<Record<Notice['code'], string>> = {
   'config.parallel': 'parallel',
-  'config.model': 'model',
   'config.modelPrompts': 'modelPrompts',
-  'config.modelAlias': 'modelPrompts',
   'config.modelPromptEmpty': 'modelPrompts',
   'config.modelPromptPlaceholder': 'modelPrompts',
   'config.hiddenSkills': 'hiddenSkills',
@@ -39,6 +40,7 @@ export function fieldOf(notice: Notice, trackerKeys: string[]): FieldError | nul
   if (notice.code === 'config.trackerLocked') return { project: notice.params.key, field: 'tracker' }
   if (notice.code === 'config.statusBoth') return { project: notice.params.project, field: 'chain.terminal' }
   if (notice.code === 'config.labelBoth') return { project: notice.params.project, field: 'chain.excludedLabels' }
+  if (notice.code === 'config.execution') return { project: null, field: `execution.${notice.params.provider}` }
   if (typeof params.where !== 'string') return null
   const own = PROJECT_WHERE.exec(params.where)
   const project = own?.[1] ?? null
@@ -46,6 +48,8 @@ export function fieldOf(notice: Notice, trackerKeys: string[]): FieldError | nul
   if (head === 'chain') return { project, field: `chain.${RULES.includes(String(params.key)) ? params.key : 'active'}` }
   if (head === 'commands') return { project, field: sub === 'check' || sub === 'afterGreen' ? sub : 'beforeStart' }
   if (head === 'ci') return { project, field: 'ci' }
+  const providers = head === undefined ? undefined : BY_PROVIDER[head]
+  if (providers !== undefined) return { project, field: `${head}.${sub !== undefined && providers.includes(sub) ? sub : providers[0]}` }
   if (head !== undefined && trackerKeys.includes(head)) return { project, field: 'trackerProject' }
   if (head !== undefined && NAMED.includes(head)) return { project, field: head }
   return null

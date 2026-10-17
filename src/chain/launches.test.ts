@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { LaunchEntry } from './dispatcher.js'
-import { fixEpisodes, handoffsOf, launchDays, launchedProjects, ranSince, taskSessions } from './launches.js'
+import { fallbacksSince, fixEpisodes, handoffsOf, launchDays, launchedProjects, ranSince, taskSessions } from './launches.js'
 
 function launch(at: Date, project: string): LaunchEntry {
   return { at: at.toISOString(), project, task: `${project}-1`, sessionId: 's' }
@@ -269,6 +269,20 @@ describe('launchedProjects', () => {
 
   it('does not count releases or the fix session of main, which start no task of the tracker', () => {
     expect(launchedProjects([entry('ABC', 'ABC-1', 'skip'), entry('XYZ', 'XYZ-FIX'), entry('OPS', 'OPS-1', 'postpone')])).toEqual([])
+  })
+})
+
+describe('fallbacksSince', () => {
+  const entry = (task: string, at: string, fallback?: string): LaunchEntry => ({ at, project: 'ABC', task, sessionId: task, ...(fallback ? { fallback } : {}) })
+
+  it('keeps the launches since the moment that ran on the project provider instead of the label, newest first', () => {
+    const entries = [
+      entry('ABC-1', '2026-01-09T10:00:00Z', 'codex'),
+      entry('ABC-2', '2026-01-10T01:00:00Z', 'codex'),
+      entry('ABC-3', '2026-01-10T02:00:00Z'),
+      entry('ABC-4', '2026-01-10T03:00:00Z', 'codex'),
+    ]
+    expect(fallbacksSince(entries, new Date('2026-01-10T00:00:00Z')).map((each) => each.task)).toEqual(['ABC-4', 'ABC-2'])
   })
 })
 

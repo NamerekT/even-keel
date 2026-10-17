@@ -13,7 +13,7 @@ import type { CompareSettings } from './stats/rules.js'
 import type { RemoteOff } from './sessions/remote.js'
 import type { CacheWindow, FeedLine, Stage, TokenTotals } from './sessions/transcript.js'
 import type { TrackerView } from './tracker/health.js'
-import type { ModelAlias, Task } from './tracker/model.js'
+import type { Task } from './tracker/model.js'
 import type { UpdateSettings, UpdatesView } from './updates/release.js'
 
 export interface SessionView {
@@ -69,7 +69,7 @@ export interface TrackerUrls {
 
 /**
  * What the user sets per project and the chain reads live: `branch`, `prompt`, `commands.beforeStart`, `commands.check`,
- * `commands.afterGreen`, `ci`, `fillMilestone`, `agent`, `codexModel` and `codexBypassSandbox` in the config.
+ * `commands.afterGreen`, `ci`, `fillMilestone`, `provider`, `models`, `accounts` and `modelLabels` in the config.
  */
 export interface ProjectSettings {
   /** The project's main branch: tasks branch off it and merge into it, the CI watches it. */
@@ -85,15 +85,14 @@ export interface ProjectSettings {
   ci: CiSettings
   /** A task that enters the chain without a milestone gets the active one in the tracker. */
   fillMilestone: boolean
-  /** The agent the project's sessions run on (`claude`, `codex`); a task's `Codex` label overrides it. */
-  agent: string
-  /** The model of the project's Codex sessions; `null` — the one of the Codex config. */
-  codexModel: string | null
-  /**
-   * The project's Codex sessions run without Codex's sandbox and automatic reviewer: from the Windows service the
-   * sandbox does not start (BTN-171). Claude ignores it.
-   */
-  codexBypassSandbox: boolean
+  /** The provider the project's sessions run on (`claude`, `codex`); `null` — the shared one. A task's run label may override it. */
+  provider: string | null
+  /** The project's own model by provider, over the shared `models`. */
+  models: Record<string, string>
+  /** The project's own account folder by provider, over the shared `accounts`. */
+  accounts: Record<string, string>
+  /** Whether the tasks' run labels are read; `null` — as the shared `modelLabels` says. */
+  modelLabels: boolean | null
 }
 
 /** Which CIs of the project the chain counts after a push of main, and how long it waits for them. */
@@ -148,8 +147,15 @@ export interface SharedForm {
   tracker: string
   brief: boolean
   chain: ChainRules
-  model: ModelAlias
-  modelPrompts: Partial<Record<ModelAlias, string>>
+  provider: string
+  /** By provider, defaults filled in; a blank one leaves the provider to its CLI's default. */
+  models: Record<string, string>
+  /** By provider, defaults filled in; `claude` is also switched from the header. */
+  accounts: Record<string, string>
+  execution: Record<string, string>
+  modelLabels: boolean
+  /** By the model's name as the CLI gets it. */
+  modelPrompts: Record<string, string>
   language: Language | null
   promptLanguage: Language
   hiddenSkills: string[]
@@ -215,6 +221,15 @@ export interface EvenKeelState {
   unattended: boolean
   trimTools: boolean
   updates: UpdatesView
+  /** The last day's launches whose run label had no account in the pool, newest first: a toast each until dismissed. */
+  fallbacks: FallbackLaunch[]
+}
+
+export interface FallbackLaunch {
+  at: string
+  task: string
+  /** `chain.noAccountFor`. */
+  notice: Notice
 }
 
 /** A project with `brief` off whose sessions see no MCP server of its tracker. */

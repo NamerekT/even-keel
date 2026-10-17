@@ -110,9 +110,10 @@ describe('ConfigFile', () => {
       afterGreen: [],
       ci: { guard: true, kinds: ['github'], waitMinutes: 20, recheckMain: true, fixTask: false },
       fillMilestone: true,
-      agent: 'claude',
-      codexModel: null,
-      codexBypassSandbox: false,
+      provider: null,
+      models: {},
+      accounts: {},
+      modelLabels: null,
     })
   })
 

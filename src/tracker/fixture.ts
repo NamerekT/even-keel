@@ -14,6 +14,6 @@ export const fakeTask = (id: string, fields: Partial<Task> = {}): Task => ({
   labels: [],
   estimate: null,
   question: false,
-  models: [],
+  runLabels: [],
   ...fields,
 })

@@ -183,7 +183,7 @@ function fakeState(
     task('ABC-7', 'Разбор транскриптов сессий', 'In Progress', 'Active', ['ABC-6'], 'v0.1 — каркас', { estimate: minutes(80), parent: 'ABC-16' }),
     task('ABC-8', 'Лимиты подписки в шапке', 'In Progress', 'Active', [], 'v0.1 — каркас', { ...REWORK, priority: 'low', estimate: minutes(20) }),
     task('ABC-9', 'Журнал запусков', 'In Progress', 'Active', ['ABC-7'], 'v0.1 — каркас', { estimate: minutes(10), parent: 'ABC-16' }),
-    task('ABC-10', 'Очередь цепочек', 'Todo', 'ToDo', [], 'v0.2 — удобство', { estimate: 1.5, parent: 'ABC-17', labels: ['Sonnet'], models: ['sonnet'] }),
+    task('ABC-10', 'Очередь цепочек', 'Todo', 'ToDo', [], 'v0.2 — удобство', { estimate: 1.5, parent: 'ABC-17', labels: ['Claude | sonnet'], runLabels: [{ provider: 'claude', model: 'sonnet' }] }),
     task('ABC-11', 'Панель сессии', 'Todo', 'ToDo', ['ABC-8', 'ABC-10'], 'v0.2 — удобство', { estimate: minutes(5), parent: 'ABC-17' }),
     { ...task('ABC-12', 'Вопрос: служба Windows или планировщик задач', 'Todo', 'ToDo', [], null, { priority: 'low' }), question: true },
     { ...task('ABC-13', 'Уведомления на телефон', 'Todo', 'ToDo', ['ABC-6'], 'v0.2 — удобство', { estimate: 3 }), question: true },
@@ -279,6 +279,7 @@ function fakeState(
     unattended: false,
     trimTools: true,
     updates: fakeUpdates(null),
+    fallbacks: [],
   }
 }
 
@@ -564,6 +565,10 @@ export function createFakeSource(search: string): LiveSource {
   if (isLanguage(language) && current.state !== null) current.state.language = language
   if (params.has('ci') && current.state !== null) current.state.ci = fakeCi(params.get('ci'))
   if (params.has('update') && current.state !== null) current.state.updates = fakeUpdates(params.get('update'))
+  if (params.get('fallback') === 'on' && current.state !== null) {
+    const notice = { code: 'chain.noAccountFor' as const, params: { task: 'ABC-10', label: 'Codex', provider: 'Claude' } }
+    current.state.fallbacks = [{ at: new Date().toISOString(), task: 'ABC-10', notice }]
+  }
   if (params.get('limits') === 'hot' && current.state !== null) {
     const { fiveHour, sevenDay } = FAKE_LIMITS
     current.state.limits = { ...FAKE_LIMITS, fiveHour: { ...fiveHour!, usedPercentage: 86 }, sevenDay: { ...sevenDay!, usedPercentage: 100 } }

@@ -1,6 +1,6 @@
 {
   "name": "linear",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "description": "Linear for Even Keel sessions: Linear's remote MCP server and the task skill. The session reads its issue itself, so turn Even Keel's brief off for the project (\"brief\": false) — or it reads the issue twice. The API key comes from the environment: LINEAR_API_KEY.",
   "author": {
     "name": "Even Keel"

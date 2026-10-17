@@ -63,6 +63,10 @@ export const en: Messages = {
     mute: "Don't show again",
     close: 'Close',
   },
+  fallback: {
+    toastTitle: (task: string) => `${task} ran without its run label`,
+    close: 'Close',
+  },
   toast: {
     region: 'Notifications',
   },
@@ -441,14 +445,19 @@ export const en: Messages = {
     beforeStartHint:
       "One per line. They run in order in the task's folder before a new session starts; a resumed session does not run them again. A failed command pauses the chain.",
     beforeStartPlaceholder: 'npm ci',
-    agent: 'Agent',
-    agentHint: 'What the new sessions of the project run on. A task with the Codex label runs on Codex whatever is chosen here.',
+    provider: 'Provider',
+    providerHint: 'What the new sessions of the project run on. With run labels on, a task labelled with another provider runs on that one.',
     agents: { claude: 'Claude Code', codex: 'Codex' },
-    codexModel: 'Codex model',
-    codexModelHint: 'Empty — the model of the Codex config. The Sonnet, Opus and Haiku labels act only on Claude.',
-    codexBypassSandbox: 'Run Codex sessions without the sandbox',
-    codexBypassSandboxHint:
-      'Off — the automatic reviewer approves actions inside the Codex sandbox. Under the Windows service that sandbox does not start, and a session can neither edit files nor run commands; on, a session does everything without limits on this machine. Claude sessions are not affected.',
+    asShared: (value: string) => `As shared: ${value}`,
+    modelOf: (provider: string) => `Model on ${provider}`,
+    modelHint: 'As it goes to the CLI: opus, gpt-6.1-sol. Empty — the shared one.',
+    cliDefault: "the CLI's default",
+    accountOf: (provider: string) => `Account on ${provider}`,
+    accountHint:
+      'The account folder sessions on that provider start in. One per provider: on a spent limit the chain waits for the reset or for this field to change, then goes on in a new session with a handoff.',
+    modelLabels: 'Run labels',
+    modelLabelsHint:
+      "On — a task's label picks its session: Claude | sonnet, Codex | gpt-6.1-sol, or a bare Codex for the provider's model. Off — such labels are ignored.",
     guard: 'Keep main green',
     guardHint:
       'Off: the chain does not watch main — after a push the next task starts at once, with no wait for CI, no check and no fix of a red main; CI itself still runs and reports as usual. For when the project’s CI serves other ends (deploys, releases, reports) or you watch main yourself. The fields below keep their values.',
@@ -538,10 +547,17 @@ export const en: Messages = {
     trackerHint: 'For projects that name no tracker of their own.',
     sessions: 'Sessions',
     claude: 'Claude Code',
-    model: 'Default model',
-    modelHint: 'For tasks without a Sonnet, Opus or Haiku label.',
+    providerHint: 'For projects that name none of their own.',
+    modelHint:
+      "As it goes to the CLI: opus, gpt-6.1-sol. For projects and tasks that name none of their own. Empty — the CLI's default: for Claude Code the model of settings.json, which an editor may have just changed.",
+    accountHint: 'For projects that name none of their own; the Claude Code one is also switched from the header. One per provider, no rotation on a spent limit.',
+    executionOf: (provider: string) => `Execution on ${provider}`,
+    executionHint:
+      'In the sandbox — the automatic reviewer approves actions inside the Codex sandbox. Under the Windows service that sandbox does not start, and a session can neither edit files nor run commands; without it, a session does everything without limits on this machine. For every project.',
+    modes: { sandbox: 'In the sandbox', bypass: 'Without the sandbox' } as Record<string, string>,
+    modelLabelsHint: "For projects that don't set it. On — a task's label Claude | sonnet, Codex | gpt-6.1-sol or a bare Codex picks its session.",
     modelPrompts: 'Model prompts',
-    modelPromptsHint: 'Added to the prompt of sessions on its model.',
+    modelPromptsHint: 'Added to the prompt of sessions on its model, by the name as it goes to the CLI.',
     promptModel: 'Model',
     promptText: 'Prompt',
     promptAdd: 'A prompt for this model',
@@ -560,7 +576,7 @@ export const en: Messages = {
       'For chain sessions, from the next launch. Claude Code writes the cache for 1 hour on a subscription within its limits and for 5 minutes on an API key. A 1-hour write costs more but survives a longer pause between turns.',
     hiddenSkillsAdd: 'Add a skill',
     page: 'Interface',
-    models: 'Models and prompts',
+    models: 'Providers and models',
     allowedHosts: 'Other names of the page',
     allowedHostsHint: 'Names besides loopback and EVEN_KEEL_HOST the page may be reached by, such as a proxy name.',
     allowedHostsAdd: 'Add a name',

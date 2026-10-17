@@ -128,6 +128,14 @@ export interface LaunchEntry {
   blockers?: string[]
   /** The commit of main the entry of a fix is about: red at its launch, the one main went out at when it landed. */
   commit?: string
+  /** The provider of the task's run label the pool had no account for: the session started on the project's (schema v8). */
+  fallback?: string
+}
+
+/** A session the chain started: its id, and the provider of a run label it could not honour (`LaunchEntry.fallback`). */
+export interface Launched {
+  sessionId: string
+  fallback?: string
 }
 
 export interface ProjectOrder {
@@ -152,7 +160,8 @@ export interface DispatcherDeps {
   /** How many chains run at once; the rest wait in the queue. */
   parallel: () => number
   rules: (project: string) => ChainRules
-  launch: (project: string, task: string) => Promise<string>
+  /** Starts a new session of the task; `fallback` — its run label named a provider without an account in the pool. */
+  launch: (project: string, task: string) => Promise<Launched>
   liveSession: (task: string) => string | undefined
   /** Why no session of the project starts now; `task` — the one about to start, its label may pick another agent. */
   blocked: (project: string, task?: string) => Notice | undefined

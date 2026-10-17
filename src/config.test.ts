@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { DEFAULT_RULES } from './chain/rules.js'
-import { DEFAULT_CI, ignoredKeys, liveConfig, listenOf, parseConfig, restartChanges, withIds, withProjectSettings } from './config.js'
+import { DEFAULT_CI, ignoredKeys, liveConfig, listenOf, parseConfig, restartChanges, runSettings, withIds, withProjectSettings } from './config.js'
 import { SCHEMA_VERSION } from './storage/schema.js'
 import { DEFAULT_HIDDEN_SKILLS } from './tools/settings.js'
 
@@ -87,9 +87,13 @@ describe('parseConfig', () => {
       trackerProjects: {},
       brief: true,
       briefs: { ABC: true },
-      settings: { ABC: { branch: 'main', prompt: null, beforeStart: [], check: [], afterGreen: [], ci: DEFAULT_CI, fillMilestone: false, agent: 'claude', codexModel: null, codexBypassSandbox: false } },
+      settings: { ABC: { branch: 'main', prompt: null, beforeStart: [], check: [], afterGreen: [], ci: DEFAULT_CI, fillMilestone: false, provider: null, models: {}, accounts: {}, modelLabels: null } },
       context: { window: 600_000, warn: 50, danger: 80 },
-      model: 'opus',
+      provider: 'claude',
+      models: { claude: 'opus' },
+      accounts: { claude: 'global', codex: 'codex' },
+      execution: { codex: 'sandbox' },
+      modelLabels: false,
       modelPrompts: {},
       stats: { compare: { minTasks: 5, minSessions: 10, days: 7 }, moves: {}, otherBelow: 0, checkpointTokens: null },
       language: null,
@@ -210,11 +214,12 @@ describe('parseConfig', () => {
         afterGreen: ['npm run build'],
         ci: DEFAULT_CI,
         fillMilestone: false,
-        agent: 'claude',
-        codexModel: null,
-        codexBypassSandbox: false,
+        provider: null,
+        models: {},
+        accounts: {},
+        modelLabels: null,
       },
-      XYZ: { branch: 'main', prompt: null, beforeStart: [], check: [], afterGreen: [], ci: DEFAULT_CI, fillMilestone: false, agent: 'claude', codexModel: null, codexBypassSandbox: false },
+      XYZ: { branch: 'main', prompt: null, beforeStart: [], check: [], afterGreen: [], ci: DEFAULT_CI, fillMilestone: false, provider: null, models: {}, accounts: {}, modelLabels: null },
     })
   })
 
@@ -253,19 +258,47 @@ describe('parseConfig', () => {
     expect(() => parse({ projects: { ABC: { repo: 'C:\\abc', fillMilestone: 'yes' } } })).toThrow(/ABC.fillMilestone/)
   })
 
-  it('reads the agent of a project, Claude by default, and the Codex model, blank is none', () => {
-    const config = parse({ projects: { ABC: { repo: 'C:\\abc', agent: ' Codex ', codexModel: ' gpt-5.6-luna ' }, XYZ: { repo: 'C:\\xyz', codexModel: ' ' } } })
-    expect(config.settings.ABC).toMatchObject({ agent: 'codex', codexModel: 'gpt-5.6-luna' })
-    expect(config.settings.XYZ).toMatchObject({ agent: 'claude', codexModel: null, codexBypassSandbox: false })
-    expect(() => parse({ projects: { ABC: { repo: 'C:\\abc', agent: 'gemini' } } })).toThrow(expect.objectContaining({ notice: expect.objectContaining({ code: 'config.agent' }) }))
-    expect(() => parse({ projects: { ABC: { repo: 'C:\\abc', codexModel: 5 } } })).toThrow(expect.objectContaining({ notice: expect.objectContaining({ code: 'config.codexModel' }) }))
+  it('reads the run settings of a project by provider, trimmed, blank names left out', () => {
+    const config = parse({
+      projects: {
+        ABC: { repo: 'C:\\abc', provider: ' Codex ', models: { codex: ' gpt-5.6-luna ', claude: ' ' }, accounts: { claude: 'team-api' }, modelLabels: true },
+        XYZ: 'C:\\xyz',
+      },
+    })
+    expect(config.settings.ABC).toMatchObject({ provider: 'codex', models: { codex: 'gpt-5.6-luna' }, accounts: { claude: 'team-api' }, modelLabels: true })
+    expect(config.settings.XYZ).toMatchObject({ provider: null, models: {}, accounts: {}, modelLabels: null })
+    expect(() => parse({ projects: { ABC: { repo: 'C:\\abc', provider: 'gemini' } } })).toThrow(/ABC.provider.*gemini.*claude, codex/)
+    expect(() => parse({ projects: { ABC: { repo: 'C:\\abc', models: { gemini: 'pro' } } } })).toThrow(/ABC.models.gemini is not a provider/)
+    expect(() => parse({ projects: { ABC: { repo: 'C:\\abc', accounts: { claude: 5 } } } })).toThrow(/ABC.accounts.claude must be text/)
+    expect(() => parse({ projects: { ABC: { repo: 'C:\\abc', modelLabels: 'yes' } } })).toThrow(/ABC.modelLabels/)
   })
 
-  it('keeps the Codex sandbox unless the project bypasses it', () => {
-    const config = parse({ projects: { ABC: { repo: 'C:\\abc', codexBypassSandbox: true }, XYZ: { repo: 'C:\\xyz' } } })
-    expect(config.settings.ABC?.codexBypassSandbox).toBe(true)
-    expect(config.settings.XYZ?.codexBypassSandbox).toBe(false)
-    expect(() => parse({ projects: { ABC: { repo: 'C:\\abc', codexBypassSandbox: 'yes' } } })).toThrow(/ABC.codexBypassSandbox/)
+  it('reads the shared run settings over the defaults: Claude on opus in the global folder, Codex in its own, the sandbox on', () => {
+    const config = parse({ projects: {}, provider: 'codex', models: { codex: 'gpt-5.6-sol' }, accounts: { claude: 'team-api' }, execution: { codex: 'bypass' }, modelLabels: true })
+    expect(config).toMatchObject({
+      provider: 'codex',
+      models: { claude: 'opus', codex: 'gpt-5.6-sol' },
+      accounts: { claude: 'team-api', codex: 'codex' },
+      execution: { codex: 'bypass' },
+      modelLabels: true,
+    })
+    expect(() => parse({ projects: {}, execution: { codex: 'yolo' } })).toThrow(/execution.codex.*yolo.*sandbox, bypass/)
+    expect(() => parse({ projects: {}, execution: { claude: 'bypass' } })).toThrow(/execution.claude is not a provider/)
+  })
+
+  it('fills the run settings of a project with the shared ones, entry by entry', () => {
+    const config = parse({
+      projects: { ABC: { repo: 'C:\\abc', provider: 'codex', models: { codex: 'gpt-5.6-luna' }, accounts: { claude: 'team-api' } }, XYZ: 'C:\\xyz' },
+      models: { codex: 'gpt-5.6-sol' },
+      modelLabels: true,
+    })
+    expect(runSettings(config, 'ABC')).toEqual({
+      provider: 'codex',
+      models: { claude: 'opus', codex: 'gpt-5.6-luna' },
+      accounts: { claude: 'team-api', codex: 'codex' },
+      labels: true,
+    })
+    expect(runSettings(config, 'XYZ')).toEqual({ provider: 'claude', models: { claude: 'opus', codex: 'gpt-5.6-sol' }, accounts: { claude: 'global', codex: 'codex' }, labels: true })
   })
 
   it('rejects an unknown CI and a wait that is not whole minutes', () => {
@@ -307,22 +340,13 @@ describe('parseConfig', () => {
     }
   })
 
-  it('takes the default model as an alias, in any case', () => {
-    expect(parse({ projects: {}, model: ' Sonnet ' }).model).toBe('sonnet')
+  it('keeps model prompts keyed by the name of any model', () => {
+    const config = parse({ projects: {}, modelPrompts: { sonnet: 'You are Sonnet.', 'gpt-5.6-sol': ' You are Sol. ' } })
+    expect(config.modelPrompts).toEqual({ sonnet: 'You are Sonnet.', 'gpt-5.6-sol': 'You are Sol.' })
   })
 
-  it('rejects a default model that is not an alias', () => {
-    expect(() => parse({ projects: {}, model: 'claude-opus-5-5' })).toThrow(/model.*claude-opus-5-5.*sonnet, opus, haiku/)
-    expect(() => parse({ projects: {}, model: 5 })).toThrow(/model/)
-  })
-
-  it('keeps model prompts keyed by model alias', () => {
-    const config = parse({ projects: {}, modelPrompts: { sonnet: 'You are Sonnet.' } })
-    expect(config.modelPrompts).toEqual({ sonnet: 'You are Sonnet.' })
-  })
-
-  it('rejects a model prompt under an unknown alias or with an empty text', () => {
-    expect(() => parse({ projects: {}, modelPrompts: { gpt: 'x' } })).toThrow(/gpt/)
+  it('rejects a model prompt under a blank name or with an empty text', () => {
+    expect(() => parse({ projects: {}, modelPrompts: { ' ': 'x' } })).toThrow(/modelPrompts/)
     expect(() => parse({ projects: {}, modelPrompts: { sonnet: ' ' } })).toThrow(/sonnet/)
     expect(() => parse({ projects: {}, modelPrompts: 'x' })).toThrow(/modelPrompts/)
   })
@@ -480,11 +504,16 @@ describe('chain rules in the config', () => {
 describe('reloading the config', () => {
   const base = parse({ projects: { ABC: 'C:\\abc' }, modelPrompts: { sonnet: 'Old.' } })
 
-  it('applies new chain rules, the default model and model prompts at once', () => {
-    const next = parse({ chain: { requiredLabels: ['Auto'] }, projects: { ABC: 'C:\\abc' }, model: 'sonnet', modelPrompts: { opus: 'New.' } })
+  it('applies new chain rules, the shared run settings and model prompts at once', () => {
+    const next = parse({
+      chain: { requiredLabels: ['Auto'] },
+      projects: { ABC: 'C:\\abc' },
+      ...{ provider: 'codex', models: { claude: 'sonnet' }, accounts: { claude: 'team-api' }, execution: { codex: 'bypass' }, modelLabels: true },
+      modelPrompts: { opus: 'New.' },
+    })
     const live = liveConfig(base, { ...next, stats: { compare: { minTasks: 3, minSessions: 6, days: 7 }, moves: {}, otherBelow: 0, checkpointTokens: null } })
     expect(live.rules.ABC?.requiredLabels).toEqual(['Auto'])
-    expect(live.model).toBe('sonnet')
+    expect(live).toMatchObject({ provider: 'codex', models: { claude: 'sonnet' }, accounts: { claude: 'team-api' }, execution: { codex: 'bypass' }, modelLabels: true })
     expect(live.modelPrompts).toEqual({ opus: 'New.' })
     expect(live.stats.compare.minTasks).toBe(3)
     expect(restartChanges(base, next)).toEqual([])
@@ -522,7 +551,7 @@ describe('reloading the config', () => {
 
   it('applies the project prompt and the commands before start at once', () => {
     const next = parse({ projects: { ABC: { repo: 'C:\\abc', prompt: 'Mind Library.', commands: { beforeStart: ['npm ci'] } } } })
-    expect(liveConfig(base, next).settings).toEqual({ ABC: { branch: 'main', prompt: 'Mind Library.', beforeStart: ['npm ci'], check: [], afterGreen: [], ci: DEFAULT_CI, fillMilestone: false, agent: 'claude', codexModel: null, codexBypassSandbox: false } })
+    expect(liveConfig(base, next).settings).toEqual({ ABC: { branch: 'main', prompt: 'Mind Library.', beforeStart: ['npm ci'], check: [], afterGreen: [], ci: DEFAULT_CI, fillMilestone: false, provider: null, models: {}, accounts: {}, modelLabels: null } })
     expect(restartChanges(base, next)).toEqual([])
   })
 
@@ -566,13 +595,13 @@ describe('reloading the config', () => {
 
 describe('withProjectSettings', () => {
   it('writes the main branch only when it is not main', () => {
-    const settings = { branch: 'master', prompt: null, beforeStart: [], check: [], afterGreen: [], ci: DEFAULT_CI, fillMilestone: false, agent: 'claude', codexModel: null, codexBypassSandbox: false }
+    const settings = { branch: 'master', prompt: null, beforeStart: [], check: [], afterGreen: [], ci: DEFAULT_CI, fillMilestone: false, provider: null, models: {}, accounts: {}, modelLabels: null }
     expect(withProjectSettings('C:\\abc', settings)).toEqual({ repo: 'C:\\abc', branch: 'master' })
     expect(withProjectSettings({ repo: 'C:\\abc', branch: 'master' }, { ...settings, branch: ' main ' })).toEqual({ repo: 'C:\\abc' })
   })
 
   it('writes the CI settings only when they differ from the default, keeping the other keys', () => {
-    const settings = { branch: 'main', prompt: null, beforeStart: [], check: [], afterGreen: [], ci: DEFAULT_CI, fillMilestone: false, agent: 'claude', codexModel: null, codexBypassSandbox: false }
+    const settings = { branch: 'main', prompt: null, beforeStart: [], check: [], afterGreen: [], ci: DEFAULT_CI, fillMilestone: false, provider: null, models: {}, accounts: {}, modelLabels: null }
     expect(withProjectSettings({ repo: 'C:\\abc', ci: { kinds: ['github'] } }, settings)).toEqual({ repo: 'C:\\abc' })
     expect(withProjectSettings('C:\\abc', { ...settings, ci: { guard: true, kinds: ['github', 'forgejo'], waitMinutes: 10, recheckMain: true, fixTask: false } })).toEqual({
       repo: 'C:\\abc',
@@ -585,31 +614,29 @@ describe('withProjectSettings', () => {
   })
 
   it('writes the guard of main only when it is off, and keeps the CI keys it covers', () => {
-    const settings = { branch: 'main', prompt: null, beforeStart: [], check: ['npm test'], afterGreen: [], ci: { ...DEFAULT_CI, guard: false, waitMinutes: 10 }, fillMilestone: false, agent: 'claude', codexModel: null, codexBypassSandbox: false }
+    const settings = { branch: 'main', prompt: null, beforeStart: [], check: ['npm test'], afterGreen: [], ci: { ...DEFAULT_CI, guard: false, waitMinutes: 10 }, fillMilestone: false, provider: null, models: {}, accounts: {}, modelLabels: null }
     expect(withProjectSettings('C:\\abc', settings)).toEqual({ repo: 'C:\\abc', commands: { check: ['npm test'] }, ci: { guard: false, waitMinutes: 10 } })
     expect(withProjectSettings({ repo: 'C:\\abc', ci: { guard: false } }, { ...settings, check: [], ci: DEFAULT_CI })).toEqual({ repo: 'C:\\abc' })
   })
 
   it('writes the milestone switch only when it is on', () => {
-    const settings = { branch: 'main', prompt: null, beforeStart: [], check: [], afterGreen: [], ci: DEFAULT_CI, fillMilestone: true, agent: 'claude', codexModel: null, codexBypassSandbox: false }
+    const settings = { branch: 'main', prompt: null, beforeStart: [], check: [], afterGreen: [], ci: DEFAULT_CI, fillMilestone: true, provider: null, models: {}, accounts: {}, modelLabels: null }
     expect(withProjectSettings('C:\\abc', settings)).toEqual({ repo: 'C:\\abc', fillMilestone: true })
     expect(withProjectSettings({ repo: 'C:\\abc', fillMilestone: true }, { ...settings, fillMilestone: false })).toEqual({ repo: 'C:\\abc' })
   })
 
-  it('writes the agent only when it is not Claude, and the Codex model only when set', () => {
-    const settings = { branch: 'main', prompt: null, beforeStart: [], check: [], afterGreen: [], ci: DEFAULT_CI, fillMilestone: false, agent: 'codex', codexModel: ' gpt-5.6-luna ', codexBypassSandbox: false }
-    expect(withProjectSettings('C:\\abc', settings)).toEqual({ repo: 'C:\\abc', agent: 'codex', codexModel: 'gpt-5.6-luna' })
-    expect(withProjectSettings({ repo: 'C:\\abc', agent: 'codex', codexModel: 'x' }, { ...settings, agent: 'claude', codexModel: ' ' })).toEqual({ repo: 'C:\\abc' })
-  })
-
-  it('writes the bypass of the Codex sandbox only when it is on', () => {
-    const settings = { branch: 'main', prompt: null, beforeStart: [], check: [], afterGreen: [], ci: DEFAULT_CI, fillMilestone: false, agent: 'codex', codexModel: null, codexBypassSandbox: true }
-    expect(withProjectSettings('C:\\abc', settings)).toEqual({ repo: 'C:\\abc', agent: 'codex', codexBypassSandbox: true })
-    expect(withProjectSettings({ repo: 'C:\\abc', codexBypassSandbox: true }, { ...settings, agent: 'claude', codexBypassSandbox: false })).toEqual({ repo: 'C:\\abc' })
+  it('writes the run settings the project has of its own, blank names left out', () => {
+    const settings = {
+      ...{ branch: 'main', prompt: null, beforeStart: [], check: [], afterGreen: [], ci: DEFAULT_CI, fillMilestone: false },
+      ...{ provider: 'codex', models: { codex: ' gpt-5.6-luna ', claude: ' ' }, accounts: { claude: 'team-api' }, modelLabels: false },
+    }
+    expect(withProjectSettings('C:\\abc', settings)).toEqual({ repo: 'C:\\abc', provider: 'codex', models: { codex: 'gpt-5.6-luna' }, accounts: { claude: 'team-api' }, modelLabels: false })
+    const inherited = { ...settings, provider: null, models: { codex: ' ' }, accounts: {}, modelLabels: null }
+    expect(withProjectSettings({ repo: 'C:\\abc', provider: 'codex', models: { codex: 'x' }, accounts: { claude: 'y' }, modelLabels: true }, inherited)).toEqual({ repo: 'C:\\abc' })
   })
 
   it('writes the check commands and the commands after a green main next to the commands before start', () => {
-    const settings = { branch: 'main', prompt: null, beforeStart: ['npm ci'], check: [' npm test ', ''], afterGreen: ['npm run build '], ci: DEFAULT_CI, fillMilestone: false, agent: 'claude', codexModel: null, codexBypassSandbox: false }
+    const settings = { branch: 'main', prompt: null, beforeStart: ['npm ci'], check: [' npm test ', ''], afterGreen: ['npm run build '], ci: DEFAULT_CI, fillMilestone: false, provider: null, models: {}, accounts: {}, modelLabels: null }
     expect(withProjectSettings({ repo: 'C:\\abc', commands: { check: ['old'] } }, settings)).toEqual({
       repo: 'C:\\abc',
       commands: { beforeStart: ['npm ci'], check: ['npm test'], afterGreen: ['npm run build'] },

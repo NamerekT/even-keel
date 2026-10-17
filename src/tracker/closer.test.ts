@@ -8,7 +8,7 @@ import { trackerOf, type TaskSource } from './source.js'
 function fakeAdapter(ids: string[]): TaskSource & { statuses: Map<string, TaskStatus> } {
   const statuses = new Map(ids.map((id) => [id, todo]))
   const raw = (id: string): TrackerTask => {
-    const { question: _question, models: _models, ...task } = fakeTask(id, { status: statuses.get(id)! })
+    const { question: _question, runLabels: _runLabels, ...task } = fakeTask(id, { status: statuses.get(id)! })
     return task
   }
   return {

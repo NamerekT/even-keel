@@ -15,7 +15,11 @@ export const FAKE_SHARED: SharedForm = {
   tracker: 'huly',
   brief: true,
   chain: DEFAULT_RULES,
-  model: 'opus',
+  provider: 'claude',
+  models: { claude: 'opus' },
+  accounts: { claude: 'global', codex: 'codex' },
+  execution: { codex: 'sandbox' },
+  modelLabels: false,
   modelPrompts: {},
   language: null,
   promptLanguage: 'en',
@@ -42,9 +46,10 @@ const project = (repo: string, change: Partial<ProjectForm>): ProjectForm => ({
   afterGreen: [],
   ci: CI_ALL,
   fillMilestone: false,
-  agent: 'claude',
-  codexModel: null,
-  codexBypassSandbox: false,
+  provider: null,
+  models: {},
+  accounts: {},
+  modelLabels: null,
   ...change,
 })
 
@@ -60,7 +65,7 @@ export function fakeConfig(): ConfigView {
         afterGreen: ['npm run build', 'pwsh -File service/restart.ps1'],
         ci: { guard: true, kinds: ['github'], waitMinutes: 15, recheckMain: true, fixTask: true },
       }),
-      XYZ: project('D:/Projects/xyz', { slot: 2, chain: { ...DEFAULT_RULES, requiredLabels: ['Auto'] } }),
+      XYZ: project('D:/Projects/xyz', { slot: 2, chain: { ...DEFAULT_RULES, requiredLabels: ['Auto'] }, provider: 'codex', models: { codex: 'gpt-6.1-sol' }, modelLabels: true }),
       OPS: project('D:/Projects/ops', { beforeStart: ['npm ci'], check: ['npm run typecheck', 'npm test'], ci: { guard: false, kinds: [], waitMinutes: 0, recheckMain: false, fixTask: false } }),
     },
     restart: [],
@@ -81,7 +86,7 @@ export const fakeHandEdit = (config: ConfigView): ConfigView => {
   const abc = config.projects.ABC!
   return {
     ...config,
-    shared: { ...config.shared, model: 'sonnet' },
+    shared: { ...config.shared, models: { ...config.shared.models, claude: 'sonnet' } },
     projects: { ...config.projects, ABC: { ...abc, branch: 'trunk', prompt: 'Run npm test and npm run lint before merging.' } },
   }
 }

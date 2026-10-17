@@ -35,17 +35,17 @@ describe('parseLoginStatus', () => {
 
 describe('turnArgs', () => {
   it('starts a session in the chain mode with the JSON stream', () => {
-    expect(turnArgs({}, 'BTN-1')).toEqual(['exec', '--json', '--approve-for-me', 'BTN-1'])
+    expect(turnArgs({ model: null }, 'BTN-1')).toEqual(['exec', '--json', '--approve-for-me', 'BTN-1'])
   })
 
-  it('runs without the sandbox and the reviewer when the project bypasses them', () => {
-    expect(turnArgs({ bypassSandbox: true }, 'BTN-1')).toEqual(['exec', '--json', '--dangerously-bypass-approvals-and-sandbox', 'BTN-1'])
-    expect(turnArgs({ bypassSandbox: false }, 'BTN-1', 'thread-1')).toEqual(['exec', '--json', '--approve-for-me', 'resume', 'thread-1', 'BTN-1'])
+  it('runs without the sandbox and the reviewer when the execution mode bypasses them', () => {
+    expect(turnArgs({ model: null, bypassSandbox: true }, 'BTN-1')).toEqual(['exec', '--json', '--dangerously-bypass-approvals-and-sandbox', 'BTN-1'])
+    expect(turnArgs({ model: null, bypassSandbox: false }, 'BTN-1', 'thread-1')).toEqual(['exec', '--json', '--approve-for-me', 'resume', 'thread-1', 'BTN-1'])
   })
 
   it('puts the model, the tracker and every other flag before resume', () => {
     const tracker = { name: 'huly', server: { command: 'npx' }, env: { HULY_URL: 'https://example.com' } }
-    expect(turnArgs({ modelName: 'gpt-5.6-luna', tracker }, 'go on', 'thread-1')).toEqual([
+    expect(turnArgs({ model: 'gpt-5.6-luna', tracker }, 'go on', 'thread-1')).toEqual([
       'exec',
       '--json',
       '--approve-for-me',

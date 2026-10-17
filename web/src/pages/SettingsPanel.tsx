@@ -1,15 +1,16 @@
 import { useEffect, useRef, type ReactNode } from 'react'
 import { CI_KINDS, type CiKind } from '../../../src/ci/model.js'
-import { CLAUDE } from '../../../src/claude/name.js'
-import { CODEX } from '../../../src/codex/name.js'
+import { PROVIDERS } from '../../../src/agent/providers.js'
 import type { Notice } from '../../../src/notice/notice.js'
 import type { ConfigView, ProjectForm } from '../../../src/state.js'
 import type { Task } from '../../../src/tracker/model.js'
 import { say, t } from '../i18n/index.js'
+import { useLive } from '../live/context.js'
 import { useCommand } from '../live/useCommand.js'
 import { SlidersIcon } from '../ui/icons.js'
 import { Select } from '../ui/Select.js'
 import { changed, edited, reverted, sent, type Value, type Values } from './settingsDraft.js'
+import { accountOptions, providerKeys, providerMap, providerName, providerOptions, providerValues } from './settingsRun.js'
 import {
   CheckField,
   FieldHead,
@@ -38,8 +39,6 @@ import './settings.css'
 /** The address hash that opens the settings panel; a task id never equals it. */
 export const SETTINGS_HASH = 'settings'
 
-const AGENT_NAMES = [CLAUDE, CODEX] as const
-
 const CHIP_CLASS: Record<ChipLook, string> = { tag: 'tag tag--settings', tab: 'side-tab side-tab--wide', seg: SEG_CLASS }
 
 export function SettingsChip({ open, look = 'tag', dirty, onToggle }: { open: boolean; look?: ChipLook; dirty: boolean; onToggle: () => void }) {
@@ -64,7 +63,7 @@ export function SettingsChip({ open, look = 'tag', dirty, onToggle }: { open: bo
 const GROUPS = [
   { id: 'repo', keys: ['repo', 'branch', 'slot'] },
   { id: 'tracker', keys: ['tracker', 'trackerProject', 'fillMilestone', ...RULE_KEYS] },
-  { id: 'sessions', keys: ['agent', 'codexModel', 'codexBypassSandbox', 'brief', 'prompt', 'beforeStart'] },
+  { id: 'sessions', keys: ['provider', ...providerKeys('models'), ...providerKeys('accounts'), 'modelLabels', 'brief', 'prompt', 'beforeStart'] },
   { id: 'ci', keys: ['guard', 'check', 'afterGreen', 'kinds', 'wait', 'recheck', 'fixTask'] },
 ] as const
 type GroupId = (typeof GROUPS)[number]['id']
@@ -91,9 +90,10 @@ const valuesOf = (form: ProjectForm): Values => ({
   recheck: form.ci.recheckMain,
   fixTask: form.ci.fixTask,
   fillMilestone: form.fillMilestone,
-  agent: form.agent,
-  codexModel: form.codexModel ?? '',
-  codexBypassSandbox: form.codexBypassSandbox,
+  provider: form.provider ?? '',
+  ...providerValues('models', form.models),
+  ...providerValues('accounts', form.accounts),
+  modelLabels: form.modelLabels === null ? '' : String(form.modelLabels),
 })
 /** Empty — wait as long as it takes; `undefined` — not a whole number of minutes. */
 const minutesOf = (text: string): number | null | undefined => (text.trim() === '' ? null : wholeOf(text, 0))
@@ -107,7 +107,7 @@ function formOf(values: Values, name: string | null): ProjectForm | undefined {
   if (waitMinutes === undefined || slot === undefined) return undefined
   const trackerProject = text('trackerProject').trim()
   const kinds = values.kinds as readonly string[]
-  const codexModel = text('codexModel').trim()
+  const labels = text('modelLabels')
   return {
     name,
     repo: text('repo').trim(),
@@ -123,9 +123,10 @@ function formOf(values: Values, name: string | null): ProjectForm | undefined {
     afterGreen: linesOf(text('afterGreen')),
     ci: { guard: on('guard'), kinds: CI_KINDS.filter((kind) => kinds.includes(kind)), waitMinutes, recheckMain: on('recheck'), fixTask: on('fixTask') },
     fillMilestone: on('fillMilestone'),
-    agent: text('agent'),
-    codexModel: codexModel === '' ? null : codexModel,
-    codexBypassSandbox: on('codexBypassSandbox'),
+    provider: text('provider') === '' ? null : text('provider'),
+    models: providerMap('models', values),
+    accounts: providerMap('accounts', values),
+    modelLabels: labels === '' ? null : labels === 'true',
   }
 }
 
@@ -153,6 +154,7 @@ export function SettingsPanel({
 }) {
   const closeRef = useRef<HTMLButtonElement>(null)
   const { send, sending, failure } = useCommand()
+  const { state } = useLive()
   const saved = valuesOf(form)
   const [current, setDraft] = useDraft(scopeOf(project), saved, same)
   const draft = current!
@@ -194,6 +196,22 @@ export function SettingsPanel({
       {marks.note(key)}
       {error !== undefined && <FieldNote error={errorOf(error)} />}
     </CheckField>
+  )
+
+  const choice = (key: string, label: string, hint: string, options: { value: string; label: string }[]) => (
+    <div className={marks.box(key)}>
+      <FieldHead label={label} hint={hint} htmlFor={fieldId(key)} />
+      <Select
+        id={fieldId(key)}
+        className="settings__text settings__short"
+        value={text(key)}
+        options={options}
+        invalid={errorOf(key) !== null}
+        onChange={(value) => edit(key, value)}
+      />
+      {marks.note(key, (value) => options.find((option) => option.value === value)?.label ?? String(value))}
+      <FieldNote error={errorOf(key)} />
+    </div>
   )
 
   const groups: Record<GroupId, () => ReactNode> = {
@@ -291,36 +309,37 @@ export function SettingsPanel({
     ),
     sessions: () => (
       <>
-        <div className="settings__row">
-          <div className={marks.box('agent')}>
-            <FieldHead label={t.settings.agent} hint={t.settings.agentHint} htmlFor={fieldId('agent')} />
-            <Select
-              id={fieldId('agent')}
-              className="settings__text settings__short"
-              value={text('agent')}
-              options={AGENT_NAMES.map((name) => ({ value: name, label: t.settings.agents[name] }))}
-              invalid={errorOf('agent') !== null}
-              onChange={(value) => edit('agent', value)}
-            />
-            {marks.note('agent')}
-            <FieldNote error={errorOf('agent')} />
+        {choice('provider', t.settings.provider, t.settings.providerHint, [
+          { value: '', label: t.settings.asShared(providerName(config.shared.provider)) },
+          ...providerOptions(),
+        ])}
+        {PROVIDERS.map((provider) => (
+          <div key={provider} className="settings__row">
+            <div className={marks.box(`models.${provider}`, 'settings__field settings__grow')}>
+              <FieldHead label={t.settings.modelOf(providerName(provider))} hint={t.settings.modelHint} htmlFor={fieldId(`models.${provider}`)} />
+              <input
+                id={fieldId(`models.${provider}`)}
+                className="settings__text settings__text--mono"
+                spellCheck={false}
+                value={text(`models.${provider}`)}
+                placeholder={t.settings.asShared(config.shared.models[provider] ?? t.settings.cliDefault)}
+                aria-invalid={errorOf(`models.${provider}`) !== null}
+                onChange={(event) => edit(`models.${provider}`, event.target.value)}
+              />
+              {marks.note(`models.${provider}`)}
+              <FieldNote error={errorOf(`models.${provider}`)} />
+            </div>
+            {choice(`accounts.${provider}`, t.settings.accountOf(providerName(provider)), t.settings.accountHint, [
+              { value: '', label: t.settings.asShared(config.shared.accounts[provider] ?? '—') },
+              ...(state === null ? [] : accountOptions(state.account, provider, text(`accounts.${provider}`))),
+            ])}
           </div>
-          <div className={marks.box('codexModel', 'settings__field settings__grow')}>
-            <FieldHead label={t.settings.codexModel} hint={t.settings.codexModelHint} htmlFor={fieldId('codexModel')} />
-            <input
-              id={fieldId('codexModel')}
-              className="settings__text settings__text--mono"
-              spellCheck={false}
-              value={text('codexModel')}
-              placeholder="gpt-5.6-luna"
-              aria-invalid={errorOf('codexModel') !== null}
-              onChange={(event) => edit('codexModel', event.target.value)}
-            />
-            {marks.note('codexModel')}
-            <FieldNote error={errorOf('codexModel')} />
-          </div>
-        </div>
-        {check('codexBypassSandbox', t.settings.codexBypassSandbox, t.settings.codexBypassSandboxHint, 'codexBypassSandbox')}
+        ))}
+        {choice('modelLabels', t.settings.modelLabels, t.settings.modelLabelsHint, [
+          { value: '', label: t.settings.asShared(config.shared.modelLabels ? t.settings.on : t.settings.off) },
+          { value: 'true', label: t.settings.on },
+          { value: 'false', label: t.settings.off },
+        ])}
         {check('brief', t.settings.brief, t.settings.briefHint, 'brief')}
         <div className={marks.box('prompt')}>
           <FieldHead label={t.settings.prompt} hint={t.settings.promptHint} htmlFor={fieldId('prompt')} />

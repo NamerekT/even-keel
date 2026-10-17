@@ -5,7 +5,6 @@ import type { UsageAnswer } from '../limits/usage.js'
 import type { AgentEntry, SessionRecord as LiveRecord } from '../sessions/agents.js'
 import type { FeedLine, TranscriptSummary } from '../sessions/transcript.js'
 import type { SessionRecord } from '../state.js'
-import type { ModelAlias } from '../tracker/model.js'
 
 /**
  * The contract of an agent adapter. Even Keel runs chain sessions, reads their transcripts and signs accounts in
@@ -37,13 +36,11 @@ export interface SessionStart {
   name: string
   cwd: string
   prompt: string
-  /** From the task's model label; an agent without such models ignores it. */
-  model: ModelAlias
+  /** The model as it goes to the agent's CLI (`runChoice`); `null` — the agent's configured default. */
+  model: string | null
   /** Optional. Claude's `--settings` JSON for chain sessions (`src/tools/panel.ts`). */
   settings?: string
-  /** Optional. The agent's own model name (the project's `codexModel`); without it the agent's configured default. */
-  modelName?: string
-  /** Optional. Run without the agent's own sandbox and approvals (the project's `codexBypassSandbox`). */
+  /** Optional. Run without the agent's own sandbox and approvals (the global `execution` of the agent is `bypass`). */
   bypassSandbox?: boolean
   /** Optional. The tracker's MCP server for an agent that does not read Claude Code plugins. */
   tracker?: TrackerServer

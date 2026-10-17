@@ -25,6 +25,8 @@ export const en = {
   'chain.notCurrent': (p: { task: string }) => `chain: ${p.task} is not the current task of a chain`,
   'chain.limitSpent': (p: { until: string }) => `chain: the usage limit is spent until ${p.until}; switch the account or wait`,
   'chain.noSession': (p: { task: string }) => `chain: no session of ${p.task} is known`,
+  'chain.noAccountFor': (p: { task: string; label: string; provider: string }) =>
+    `chain: ${p.task} is labelled ${p.label}, but no account of that provider is in the pool; it runs on ${p.provider}, as its project does`,
   'answer.moved': (p: { task: string }) => `answer: the session of ${p.task} has moved on since the question; the answer was not sent`,
   'answer.busy': (p: { task: string }) => `answer: the session of ${p.task} is working; answer once it waits`,
   'answer.empty': () => 'answer: the reply is empty',
@@ -221,8 +223,11 @@ export const en = {
   'config.ruleList': (p: { where: string; key: string }) => `config: ${p.where}.${p.key} must be a list of non-empty names`,
   'config.projectPrompt': (p: { where: string }) => `config: ${p.where} must be text`,
   'config.projectName': (p: { where: string }) => `config: ${p.where} must be text`,
-  'config.agent': (p: { where: string; value: string; known: string[] }) => `config: ${p.where}: there is no agent ${p.value}, known: ${list(p.known)}`,
-  'config.codexModel': (p: { where: string }) => `config: ${p.where} must be the name of a Codex model, or left out`,
+  'config.provider': (p: { where: string; value: string; known: string[] }) => `config: ${p.where}: there is no provider ${p.value}, known: ${list(p.known)}`,
+  'config.providerKey': (p: { where: string; key: string; known: string[] }) => `config: ${p.where}.${p.key} is not a provider, known: ${list(p.known)}`,
+  'config.providerName': (p: { where: string }) => `config: ${p.where} must be text`,
+  'config.execution': (p: { provider: string; value: string; known: string[] }) =>
+    `config: execution.${p.provider}: there is no mode ${p.value}, known: ${list(p.known)}`,
   'config.trackerLocked': (p: { key: string }) =>
     `config: the chain has started tasks of ${p.key}, so its tracker is not switched from the page; that comes in v0.2`,
   'config.commandKey': (p: { where: string; key: string; known: string[] }) =>
@@ -235,9 +240,7 @@ export const en = {
   'config.writeFailed': (p: { file: string }) => `config: could not write ${p.file}`,
   'config.statusBoth': (p: { project: string; status: string }) => `config: ${p.project}: status "${p.status}" is both active and terminal`,
   'config.labelBoth': (p: { project: string; label: string }) => `config: ${p.project}: label "${p.label}" is both required and excluded`,
-  'config.model': (p: { value: string; known: string[] }) => `config: model ${p.value} is not a model alias, known: ${list(p.known)}`,
-  'config.modelPrompts': () => 'config: modelPrompts must map a model alias to a prompt',
-  'config.modelAlias': (p: { model: string }) => `config: modelPrompts.${p.model} is not a model alias`,
+  'config.modelPrompts': () => 'config: modelPrompts must map the name of a model to a prompt',
   'config.modelPromptEmpty': (p: { model: string }) => `config: modelPrompts.${p.model} is empty`,
   'config.hiddenSkills': () => 'config: hiddenSkills must be a list of skill names',
   'config.cacheTtl': (p: { value: string }) => `config: cacheTtl ${p.value} must be "5m" or "1h", or left out`,

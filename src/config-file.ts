@@ -1,5 +1,5 @@
 import { watchFile } from 'node:fs'
-import { formsOf, restartPending, trackerChoices, withProjectForm, withSharedForm, withUpdates } from './config-form.js'
+import { formsOf, restartPending, trackerChoices, withActiveAccount, withProjectForm, withSharedForm, withUpdates } from './config-form.js'
 import { ignoredKeys, liveConfig, parseConfig, readRawConfig, restartChanges, withIds, type EvenKeelConfig } from './config.js'
 import { englishOf, fail, noticeOf, type Notice } from './notice/notice.js'
 import { writeAtomic } from './storage/atomic.js'
@@ -84,6 +84,11 @@ export class ConfigFile {
   /** Writes the shared settings into the file, by the same rule as `saveProject`. */
   saveShared(form: SharedForm, base: SharedForm): void {
     this.write(withSharedForm(readRawConfig(this.options.file), form, base))
+  }
+
+  /** Writes the shared Claude account (`accounts.claude`) the header switched to, by the same rule as `saveProject`. */
+  saveActive(key: string): void {
+    this.write(withActiveAccount(readRawConfig(this.options.file), key))
   }
 
   /** Writes the given keys of `updates` into the file, by the same rule as `saveProject`. */

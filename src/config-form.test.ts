@@ -109,11 +109,12 @@ describe('withProjectForm', () => {
 
 describe('withSharedForm', () => {
   it('writes what differs from the defaults and removes what goes back to them', () => {
-    const raw = { projects: [abc()], model: 'sonnet', hiddenSkills: ['a'], custom: true, stats: { compare: { days: 14 }, extra: 1 } }
+    const raw = { projects: [abc()], models: { claude: 'sonnet' }, hiddenSkills: ['a'], custom: true, stats: { compare: { days: 14 }, extra: 1 } }
     const form: SharedForm = {
       ...sharedOf(raw),
       parallel: 2,
-      model: 'opus',
+      models: { claude: 'opus', codex: ' gpt-6.1-sol ' },
+      execution: { codex: 'bypass' },
       hiddenSkills: formsOf(parseConfig({ projects: [] })).shared.hiddenSkills,
       language: 'ru',
       promptLanguage: 'ru',
@@ -127,6 +128,8 @@ describe('withSharedForm', () => {
       projects: [abc()],
       custom: true,
       parallel: 2,
+      models: { codex: 'gpt-6.1-sol' },
+      execution: { codex: 'bypass' },
       language: 'ru',
       allowedHosts: ['box.example.com'],
       context: { window: 1_000_000 },
@@ -137,7 +140,7 @@ describe('withSharedForm', () => {
   })
 
   it('keeps shared keys the form leaves as they were', () => {
-    const raw = { projects: [], model: 'opus', parallel: 1, promptLanguage: 'en' }
+    const raw = { projects: [], models: { claude: 'opus' }, parallel: 1, promptLanguage: 'en' }
     expect(withSharedForm(raw, sharedOf(raw), sharedOf(raw))).toEqual(raw)
   })
 

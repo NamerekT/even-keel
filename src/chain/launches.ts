@@ -179,6 +179,13 @@ export function launchedProjects(entries: LaunchEntry[]): string[] {
   return [...new Set(entries.filter((entry) => !isRelease(entry) && !isFixName(entry.task)).map((entry) => entry.project))]
 }
 
+/** The launches since `since` whose run label named a provider without an account in the pool, newest first: the page's toast. */
+export function fallbacksSince(entries: LaunchEntry[], since: Date): (LaunchEntry & { fallback: string })[] {
+  return entries
+    .filter((entry): entry is LaunchEntry & { fallback: string } => entry.fallback !== undefined && Date.parse(entry.at) >= since.getTime())
+    .reverse()
+}
+
 /** An entry of a session the chain started or continued: not a release, not the outcome of a fix. */
 export function isLaunch(entry: LaunchEntry): boolean {
   return !isRelease(entry) && !isOutcome(entry)

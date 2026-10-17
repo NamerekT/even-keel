@@ -31,7 +31,7 @@ How GitHub maps onto the chain:
 | status | open — `Open` (ready); closed as completed — `Completed` (done); closed as not planned — `Not planned`, as duplicate — `Duplicate` (canceled) |
 | blocked by | the issue's "blocked by" dependencies |
 | parent, subtasks | sub-issues: an issue with sub-issues never enters the chain |
-| labels | as they are: `Sonnet`/`Opus`/`Haiku` pick the model, `Question` marks a question |
+| labels | as they are: `Claude \| sonnet`, `Codex \| gpt-6.1-sol` or a bare `Codex` pick what the session runs on (with `modelLabels` on), `Question` marks a question |
 | priority | a label `priority: urgent`, `priority: high`, `priority: medium` or `priority: low` (also `priority/high`); none — no priority |
 | milestone | the milestone and its due date |
 | estimate | none |

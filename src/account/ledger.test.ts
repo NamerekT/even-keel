@@ -1,12 +1,11 @@
 import { describe, expect, it } from 'vitest'
-import { accountAt, activate, emptyLedger, forgetAccount, markRemoving, nameAccount, noteAccount, parseLedger, type AccountLedger } from './ledger.js'
+import { accountAt, emptyLedger, forgetAccount, markRemoving, nameAccount, noteAccount, parseLedger, type AccountLedger } from './ledger.js'
 
 const now = new Date('2026-09-27T16:00:00.000Z')
 
 describe('noteAccount', () => {
   it('starts the first seen account of a folder now, since nothing tells when it began', () => {
     expect(noteAccount(emptyLedger(), 'work', 'john@example.com', now)).toEqual({
-      active: 'global',
       accounts: { work: { email: 'john@example.com', since: '2026-09-27T16:00:00.000Z', previous: null } },
       removing: [],
     })
@@ -14,8 +13,8 @@ describe('noteAccount', () => {
 
   it('moves the folder account to previous when another one signs in there', () => {
     const ledger: AccountLedger = {
-      active: 'global',
       accounts: { global: { email: 'john@example.com', since: '2026-09-27T10:00:00.000Z', previous: null } },
+      removing: [],
     }
     expect(noteAccount(ledger, 'global', 'jane@example.com', now)?.accounts.global).toEqual({
       email: 'jane@example.com',
@@ -26,8 +25,8 @@ describe('noteAccount', () => {
 
   it('reports no change for the same account or an unknown one', () => {
     const ledger: AccountLedger = {
-      active: 'global',
       accounts: { global: { email: 'john@example.com', since: '2026-09-27T10:00:00.000Z', previous: null } },
+      removing: [],
     }
     expect(noteAccount(ledger, 'global', 'john@example.com', now)).toBeUndefined()
     expect(noteAccount(ledger, 'global', null, now)).toBeUndefined()
@@ -68,8 +67,8 @@ describe('nameAccount', () => {
 
 describe('accountAt', () => {
   const ledger: AccountLedger = {
-    active: 'global',
     accounts: { global: { email: 'jane@example.com', since: '2026-09-27T16:00:00.000Z', previous: 'john@example.com' } },
+    removing: [],
   }
 
   it('names the account that was signed in to the folder at that moment', () => {
@@ -80,15 +79,14 @@ describe('accountAt', () => {
   it('knows nothing before the first account it saw or for a folder it never saw', () => {
     expect(accountAt(ledger, 'work', '2026-09-27T16:00:00.000Z')).toBeNull()
     expect(accountAt(emptyLedger(), 'global', '2026-09-27T14:00:00.000Z')).toBeNull()
-    const fresh: AccountLedger = { active: 'global', accounts: { global: { email: 'john@example.com', since: now.toISOString(), previous: null } } }
+    const fresh: AccountLedger = { accounts: { global: { email: 'john@example.com', since: now.toISOString(), previous: null } }, removing: [] }
     expect(accountAt(fresh, 'global', '2026-09-27T14:00:00.000Z')).toBeNull()
   })
 })
 
-describe('activate and forgetAccount', () => {
-  it('switches the active folder and forgets a removed one', () => {
+describe('forgetAccount', () => {
+  it('forgets a removed folder', () => {
     const ledger = noteAccount(emptyLedger(), 'work', 'jane@example.com', now)!
-    expect(activate(ledger, 'work').active).toBe('work')
     expect(forgetAccount(ledger, 'work').accounts).toEqual({})
   })
 
@@ -103,16 +101,15 @@ describe('activate and forgetAccount', () => {
 describe('parseLedger', () => {
   it('reads the per-folder journal', () => {
     const raw = {
-      active: 'work',
       accounts: { work: { email: 'jane@example.com', since: '2026-09-27T16:00:00.000Z', previous: null } },
       removing: ['old'],
     }
     expect(parseLedger(raw)).toEqual(raw)
+    expect(parseLedger({ ...raw, active: 'work' })).toEqual(raw)
   })
 
   it('reads the name of an account and nothing that is not text', () => {
     const raw = {
-      active: 'work',
       accounts: {
         work: { email: 'work', since: '2026-09-27T16:00:00.000Z', previous: null, name: 'Work API' },
         spare: { email: null, since: null, previous: null, name: 7 },
@@ -126,12 +123,12 @@ describe('parseLedger', () => {
   })
 
   it('reads a journal written before folders could wait for removal', () => {
-    expect(parseLedger({ active: 'work', accounts: {} }).removing).toEqual([])
+    expect(parseLedger({ accounts: {} }).removing).toEqual([])
   })
 
   it('carries the single-account journal over as the global folder', () => {
     const raw = { email: 'john@example.com', since: '2026-09-27T10:00:00.000Z', previous: 'jane@example.com' }
-    expect(parseLedger(raw)).toEqual({ active: 'global', accounts: { global: raw }, removing: [] })
+    expect(parseLedger(raw)).toEqual({ accounts: { global: raw }, removing: [] })
   })
 
   it('starts empty from anything else', () => {

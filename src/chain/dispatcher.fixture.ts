@@ -27,6 +27,8 @@ export function pause(dispatcher: Dispatcher, project: string): void {
 export interface SetupOptions {
   state?: ChainState
   failLaunch?: string
+  /** The provider whose run label a task's launch could not honour, by task. */
+  fallback?: Record<string, string>
   /** Launch errors by task; the test deletes an entry to let the next attempt through. */
   refuse?: Record<string, Error>
   live?: Record<string, string>
@@ -86,7 +88,7 @@ export function setup(options: SetupOptions = {}) {
       if (id === options.failLaunch) throw new Error(`claude: could not start ${id}`)
       if (refuse[id] !== undefined) throw refuse[id]
       launched.push(`${project}/${id}`)
-      return `session-${++counter}`
+      return { sessionId: `session-${++counter}`, ...(options.fallback?.[id] !== undefined && { fallback: options.fallback[id] }) }
     },
     liveSession: (id) => live[id],
     blocked: () => (options.blocked === undefined ? undefined : textNotice(options.blocked)),

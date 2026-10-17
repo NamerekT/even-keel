@@ -32,7 +32,7 @@ describe('a moved folder', () => {
 
 describe('choices for the chain rules', () => {
   const task = (status: string, labels: string[]): Task =>
-    ({ id: 'ABC-1', title: '', status: { name: status, category: 'ToDo' }, labels, blockedBy: [], parent: null, subtasks: 0, milestone: null, priority: 'none', estimate: null, question: false, models: [] }) as unknown as Task
+    ({ id: 'ABC-1', title: '', status: { name: status, category: 'ToDo' }, labels, blockedBy: [], parent: null, subtasks: 0, milestone: null, priority: 'none', estimate: null, question: false, runLabels: [] }) as unknown as Task
 
   it('lists the statuses and labels the tasks have, once each, sorted', () => {
     expect(ruleChoicesOf([task('Todo', ['ui', 'Bug']), task('In Progress', ['ui']), task('Todo', [])])).toEqual({

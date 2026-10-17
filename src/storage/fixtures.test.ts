@@ -33,8 +33,15 @@ describe(`frozen samples of schema v${SCHEMA_VERSION}`, () => {
     expect(config.projects).toEqual({ ABC: 'C:\\repos\\example-project', XYZ: 'C:\\repos\\other-project' })
     expect(config.slots).toEqual({ XYZ: 2 })
     expect(config.settings.ABC?.afterGreen).toEqual(['npm run build', 'pwsh -File service/restart.ps1'])
-    expect(config.settings.ABC).toMatchObject({ agent: 'claude', codexModel: null, codexBypassSandbox: false })
-    expect(config.settings.XYZ).toMatchObject({ agent: 'codex', codexModel: 'gpt-5.6-luna', codexBypassSandbox: true })
+    expect(config.settings.ABC).toMatchObject({ provider: null, models: {}, accounts: {}, modelLabels: null })
+    expect(config.settings.XYZ).toMatchObject({ provider: 'codex', models: { codex: 'gpt-5.6-luna' }, accounts: { claude: 'global' }, modelLabels: false })
+    expect(config).toMatchObject({
+      provider: 'claude',
+      models: { claude: 'sonnet' },
+      accounts: { claude: 'team-api', codex: 'codex' },
+      execution: { codex: 'bypass' },
+      modelLabels: true,
+    })
   })
 
   it('reads the record of a Codex session', () => {
@@ -63,6 +70,7 @@ describe(`frozen samples of schema v${SCHEMA_VERSION}`, () => {
       ['ABC', 'ABC-FIX'],
       ['ABC', 'ABC-FIX'],
     ])
+    expect(launches[0]?.fallback).toBe('codex')
     expect(fixEpisodes(launches).episodes.ABC?.map((episode) => [episode.id, episode.red?.slice(0, 7), episode.end?.how, episode.end?.commit?.slice(0, 7)])).toEqual([
       ['ABC-FIX.1', 'c6b3956', 'landed', '15945fe'],
       ['ABC-FIX.2', 'd00d000', 'dropped', undefined],

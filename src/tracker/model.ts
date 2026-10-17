@@ -1,3 +1,5 @@
+import { isProvider } from '../agent/providers.js'
+
 export type StatusCategory = 'UnStarted' | 'ToDo' | 'Active' | 'Won' | 'Lost'
 
 export interface TaskStatus {
@@ -28,14 +30,33 @@ export interface TrackerTask {
 
 export interface Task extends TrackerTask {
   question: boolean
-  models: ModelAlias[]
+  /** What the task's run labels ask its sessions to run on; the chain reads them only where `modelLabels` is on. */
+  runLabels: RunLabel[]
 }
 
-export const MODEL_ALIASES = ['sonnet', 'opus', 'haiku'] as const
-export type ModelAlias = (typeof MODEL_ALIASES)[number]
+/** A label `<provider> | <model>`, or a bare `<provider>` that leaves the model to the config. */
+export interface RunLabel {
+  provider: string
+  /** As written, for the CLI: a typo is the session's error on its first turn. */
+  model: string | null
+}
 
-export function isModelAlias(value: string): value is ModelAlias {
-  return (MODEL_ALIASES as readonly string[]).includes(value)
+const RUN_LABEL = /^([^|]+?)\s*(?:\|\s*(.*?))?$/
+
+/** The run label a task's label is, or `null` for a label of no known provider. */
+export function runLabelOf(label: string): RunLabel | null {
+  const match = RUN_LABEL.exec(label.trim())
+  if (match === null) return null
+  const provider = match[1]!.toLowerCase()
+  const model = match[2]
+  if (!isProvider(provider) || model === '') return null
+  return { provider, model: model ?? null }
+}
+
+/** The label as the user would write it: `Claude | opus`, `Codex`. */
+export function runLabelText({ provider, model }: RunLabel): string {
+  const name = `${provider.charAt(0).toUpperCase()}${provider.slice(1)}`
+  return model === null ? name : `${name} | ${model}`
 }
 
 export const QUESTION_LABELS = ['Question', 'Вопрос']
@@ -56,8 +77,17 @@ export function toTask(raw: TrackerTask): Task {
     ...raw,
     labels: [...labels.values()],
     question: QUESTION_LABELS.some((label) => labels.has(label.toLocaleLowerCase())),
-    models: MODEL_ALIASES.filter((model) => labels.has(model)),
+    runLabels: runLabelsOf([...labels.values()]),
   }
+}
+
+function runLabelsOf(labels: string[]): RunLabel[] {
+  const found = new Map<string, RunLabel>()
+  for (const label of labels) {
+    const run = runLabelOf(label)
+    if (run !== null) found.set(`${run.provider}|${run.model ?? ''}`, run)
+  }
+  return [...found.values()]
 }
 
 export function parseTaskId(id: string): { project: string; number: number } | null {
