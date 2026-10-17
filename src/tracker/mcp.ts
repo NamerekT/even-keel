@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import { samePath } from '../paths.js'
-import type { McpMissing } from '../state.js'
+import type { McpFailed, McpMissing } from '../state.js'
 
 type Json = Record<string, unknown>
 
@@ -29,41 +29,84 @@ export interface McpTarget {
   project: string
   repo: string
   server: string
+  brief: boolean
 }
 
 export interface McpCheckDeps {
-  /** Projects with `brief` off whose tracker has an MCP server. */
+  /** Projects whose tracker has an MCP server. */
   targets: () => McpTarget[]
   read: (repo: string) => McpSources | undefined
+  /** The CLI's cache of failed MCP servers in the account folder sessions start in. */
+  failures: () => Json
+  now: () => number
   warn: (line: string) => void
   onChange: () => void
 }
 
+/** How long the CLI skips a stdio plugin server that failed to start, when its entry names no `ttlMs` (CLI 2.1.302). */
+const FAILURE_TTL_MS = 15 * 60_000
+/** The CLI takes an entry up to a minute in the future as fresh: the clocks of two processes may differ. */
+const CLOCK_SKEW_MS = 60_000
+
 export class McpCheck {
   missing: McpMissing[] = []
+  failed: McpFailed[] = []
   private readonly unreadable = new Set<string>()
 
   constructor(private readonly deps: McpCheckDeps) {}
 
   run(): void {
-    const next: McpMissing[] = []
-    for (const { project, repo, server } of this.deps.targets()) {
+    const missing: McpMissing[] = []
+    const failed: McpFailed[] = []
+    const cache = this.deps.failures()
+    for (const { project, repo, server, brief } of this.deps.targets()) {
       const sources = this.deps.read(repo)
       if (sources === undefined) {
-        if (!this.unreadable.has(project)) this.deps.warn(`mcp: cannot tell whether sessions of ${project} see the "${server}" MCP server: no .claude.json to read`)
+        if (!brief && !this.unreadable.has(project)) this.deps.warn(`mcp: cannot tell whether sessions of ${project} see the "${server}" MCP server: no .claude.json to read`)
         this.unreadable.add(project)
         continue
       }
-      if (mcpVisible(server, repo, sources)) continue
-      next.push({ project, server })
+      const until = failedUntil(server, sources, cache, this.deps.now())
+      if (until !== null) {
+        const at = new Date(until).toISOString()
+        failed.push({ project, server, until: at })
+        if (!this.failed.some((each) => each.project === project && each.until === at)) {
+          this.deps.warn(`mcp: sessions of ${project} wait until ${at}: the CLI cached the "${server}" MCP server as failed; check the tracker credentials in env of settings.json`)
+        }
+      }
+      if (brief || mcpVisible(server, repo, sources)) continue
+      missing.push({ project, server })
       if (!this.missing.some((each) => each.project === project)) {
         this.deps.warn(`mcp: brief is off for ${project}, but its sessions see no "${server}" MCP server: they get only the task id`)
       }
     }
-    if (JSON.stringify(next) === JSON.stringify(this.missing)) return
-    this.missing = next
+    if (JSON.stringify({ missing, failed }) === JSON.stringify({ missing: this.missing, failed: this.failed })) return
+    this.missing = missing
+    this.failed = failed
     this.deps.onChange()
   }
+}
+
+/**
+ * Until when a session skips `server` without trying it: the CLI caches a stdio plugin server that failed to start
+ * under `plugin:<plugin>:<server>` and does not retry it for `ttlMs`. The entry's `id` is a hash of the server's
+ * config the CLI compares with its own; it is not checked here (`docs/unverified.md`).
+ */
+export function failedUntil(server: string, sources: McpSources, cache: Json, now: number): number | null {
+  const ends = sources.plugins
+    .filter((plugin) => server in plugin.servers)
+    .flatMap((plugin) => {
+      const entry = objectOf(cache[`plugin:${plugin.name}:${server}`])
+      if (typeof entry.timestamp !== 'number') return []
+      const ttl = typeof entry.ttlMs === 'number' ? entry.ttlMs : FAILURE_TTL_MS
+      const age = now - entry.timestamp
+      return age > -CLOCK_SKEW_MS && age < ttl ? [entry.timestamp + ttl] : []
+    })
+  return ends.length === 0 ? null : Math.max(...ends)
+}
+
+export function readFailures(claudeDir: string): Json {
+  return readJson(join(claudeDir, 'mcp-needs-auth-cache.json')) ?? {}
 }
 
 export function mcpVisible(server: string, repo: string, sources: McpSources, platform: NodeJS.Platform = process.platform): boolean {

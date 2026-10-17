@@ -156,6 +156,8 @@ export interface DispatcherDeps {
   limitReset: () => string | null
   /** When the limit an account folder hit at `at` resets, by its polled limits (`limitResetAfter`). */
   limitResetAfter: (account: string, at: string) => string | null
+  /** Until when the CLI skips the project's tracker MCP server as failed (BTN-159); `null` — it does not. */
+  mcpFailed: (project: string) => string | null
   promptLanguage: () => Language
   /** The main branch of the task's project, which the prompts name. */
   mainBranch: (task: string) => string

@@ -271,6 +271,7 @@ function fakeState(
     context: { window: 600_000, warn: 50, danger: 80 },
     configError: null,
     mcpMissing: [],
+    mcpFailed: [],
     language: null,
     unattended: false,
     trimTools: true,
@@ -570,6 +571,9 @@ export function createFakeSource(search: string): LiveSource {
       { project: 'ABC', server: 'huly' },
       { project: 'XYZ', server: 'huly' },
     ]
+  }
+  if (params.get('mcp') === 'failed' && current.state !== null) {
+    current.state.mcpFailed = [{ project: 'ABC', server: 'huly', until: new Date(Date.now() + 12 * 60_000).toISOString() }]
   }
   const active = current.state?.chain.active[0]
   if (params.get('chain') === 'limit' && active) {

@@ -77,6 +77,8 @@ export const ru = {
     checkHold: (commit: string, since: string) => `Проверяет main на ${commit} с ${since} в папке следующей задачи — задача запустится, когда проверка пройдёт.`,
     mcp: (projects: string, server: string) =>
       `В ${projects} выключен brief, но сессии не видят MCP-сервер «${server}» — они получат только номер задачи. Включите brief или подключите сервер.`,
+    mcpFailed: (projects: string, server: string, at: string) =>
+      `Claude Code запомнил MCP-сервер «${server}» как упавший и не пробует его снова до ${at} — следующая задача ${projects} запустится после этого. Проверьте учётные данные трекера в env файла ~/.claude/settings.json.`,
     unattended: 'Включён режим без присмотра: сессии не задают вопросов. Выключается в настройках → Цепочка.',
   },
   limits: {

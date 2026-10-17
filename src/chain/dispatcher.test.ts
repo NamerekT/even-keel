@@ -326,6 +326,26 @@ describe('Dispatcher', () => {
     expect(dispatcher.state.active[0]?.limitUntil).toBeUndefined()
   })
 
+  it('holds the launch while the CLI skips the tracker MCP server as failed and launches it once the entry expires', async () => {
+    const options: { mcpFailed?: Record<string, string> } = { mcpFailed: { ABC: '2026-09-26T12:10:00.000Z' } }
+    const { dispatcher, launched, saved } = setup(options)
+    dispatcher.setTasks('ABC', [task('ABC-1')])
+    dispatcher.start('ABC')
+    await dispatcher.idle()
+    expect(launched).toEqual([])
+    expect(dispatcher.state.active[0]).toEqual({ project: 'ABC', current: null, paused: false, error: null })
+
+    const savedWhileHeld = saved.length
+    dispatcher.check()
+    await dispatcher.idle()
+    expect(saved).toHaveLength(savedWhileHeld)
+
+    options.mcpFailed = {}
+    dispatcher.check()
+    await dispatcher.idle()
+    expect(launched).toEqual(['ABC/ABC-1'])
+  })
+
   it('takes over a live session of the next task even while the limit is used up', async () => {
     const { dispatcher, launched } = setup({ limitReset: '2026-09-26T17:00:00.000Z', live: { 'ABC-1': 'session-9' } })
     dispatcher.setTasks('ABC', [task('ABC-1')])

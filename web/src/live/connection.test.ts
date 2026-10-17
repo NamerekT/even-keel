@@ -57,6 +57,7 @@ function state(startedAt: string): EvenKeelState {
     context: { window: 600_000, warn: 50, danger: 80 },
     configError: null,
     mcpMissing: [],
+    mcpFailed: [],
     language: null,
     unattended: false,
     trimTools: true,

@@ -665,6 +665,9 @@ export class Dispatcher {
         return
       }
 
+      // A session would start without the tracker's MCP server; the page shows until when (`mcpFailed` in the state).
+      if (fix === undefined && this.deps.mcpFailed(chain.project) !== null) return
+
       const lastTry = chain.slotWait === undefined ? undefined : Date.parse(chain.slotWait.at)
       if (lastTry !== undefined && this.deps.now().getTime() - lastTry < SLOT_RETRY_MS) return
 

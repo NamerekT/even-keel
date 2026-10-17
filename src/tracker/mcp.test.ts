@@ -2,7 +2,7 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterAll, describe, expect, it } from 'vitest'
-import { McpCheck, mcpVisible, readMcpSources, type McpSources } from './mcp.js'
+import { failedUntil, McpCheck, mcpVisible, readMcpSources, type McpSources } from './mcp.js'
 
 const REPO = 'D:\\repos\\abc'
 const none: McpSources = { configs: [{}], repoServers: {}, plugins: [] }
@@ -39,14 +39,39 @@ describe('mcpVisible', () => {
   })
 })
 
+describe('failedUntil', () => {
+  const now = Date.parse('2026-10-16T12:00:00Z')
+  const plugged: McpSources = { ...none, plugins: [{ name: 'tracker', servers: { huly: {} } }] }
+  const at = (minutesAgo: number) => now - minutesAgo * 60_000
+
+  it('gives the end of the 15 minutes the CLI skips a failed plugin server for', () => {
+    const cache = { 'plugin:tracker:huly': { timestamp: at(5), id: '0123456789abcdef' } }
+    expect(failedUntil('huly', plugged, cache, now)).toBe(at(5) + 15 * 60_000)
+  })
+
+  it('takes the ttl the CLI wrote into the entry', () => {
+    expect(failedUntil('huly', plugged, { 'plugin:tracker:huly': { timestamp: at(5), ttlMs: 60 * 60_000 } }, now)).toBe(at(5) + 60 * 60_000)
+  })
+
+  it('forgets an entry once it expired', () => {
+    expect(failedUntil('huly', plugged, { 'plugin:tracker:huly': { timestamp: at(16) } }, now)).toBeNull()
+  })
+
+  it('ignores entries of other servers and plugins and of servers outside plugins', () => {
+    const cache = { huly: { timestamp: at(1) }, 'plugin:other:huly': { timestamp: at(1) }, 'plugin:tracker:forgejo': { timestamp: at(1) } }
+    expect(failedUntil('huly', plugged, cache, now)).toBeNull()
+  })
+})
+
 describe('McpCheck', () => {
-  const target = { project: 'ABC', repo: REPO, server: 'huly' }
+  const target = { project: 'ABC', repo: REPO, server: 'huly', brief: false }
+  const quiet = { failures: () => ({}), now: () => Date.parse('2026-10-16T12:00:00Z') }
 
   it('reports a missing server once and clears it when the server shows up', () => {
     let sources: McpSources | undefined = none
     const warnings: string[] = []
     let changes = 0
-    const check = new McpCheck({ targets: () => [target], read: () => sources, warn: (line) => warnings.push(line), onChange: () => changes++ })
+    const check = new McpCheck({ ...quiet, targets: () => [target], read: () => sources, warn: (line) => warnings.push(line), onChange: () => changes++ })
     check.run()
     check.run()
     expect(check.missing).toEqual([{ project: 'ABC', server: 'huly' }])
@@ -59,11 +84,35 @@ describe('McpCheck', () => {
 
   it('only logs, once, when the CLI config cannot be read', () => {
     const warnings: string[] = []
-    const check = new McpCheck({ targets: () => [target], read: () => undefined, warn: (line) => warnings.push(line), onChange: () => {} })
+    const check = new McpCheck({ ...quiet, targets: () => [target], read: () => undefined, warn: (line) => warnings.push(line), onChange: () => {} })
     check.run()
     check.run()
     expect(check.missing).toEqual([])
     expect(warnings).toEqual([expect.stringMatching(/ABC.*huly/)])
+  })
+
+  it('reports a server the CLI cached as failed, with brief on too, until the entry expires', () => {
+    const clock = { now: Date.parse('2026-10-16T12:00:00Z') }
+    const warnings: string[] = []
+    let changes = 0
+    const check = new McpCheck({
+      targets: () => [{ ...target, brief: true }],
+      read: () => ({ ...none, plugins: [{ name: 'tracker', servers: { huly: {} } }] }),
+      failures: () => ({ 'plugin:tracker:huly': { timestamp: Date.parse('2026-10-16T11:55:00Z') } }),
+      now: () => clock.now,
+      warn: (line) => warnings.push(line),
+      onChange: () => changes++,
+    })
+    check.run()
+    check.run()
+    expect(check.failed).toEqual([{ project: 'ABC', server: 'huly', until: '2026-10-16T12:10:00.000Z' }])
+    expect(check.missing).toEqual([])
+    expect(warnings).toEqual([expect.stringMatching(/ABC.*2026-10-16T12:10:00.000Z.*huly/)])
+
+    clock.now = Date.parse('2026-10-16T12:10:00Z')
+    check.run()
+    expect(check.failed).toEqual([])
+    expect(changes).toBe(2)
   })
 })
 

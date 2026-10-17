@@ -20,6 +20,7 @@ If you run into one of these, please open an issue with what you saw: it is the 
 ## Sessions
 
 - **`--resume` after an unanswered question.** When a question (`AskUserQuestion`) did reach the transcript and the session is resumed with an answer, how the CLI treats the call left without a result is not known. The reply prompt repeats the questions and answers in plain text, so it does not depend on it (`docs/sessions.md`).
+- **A tracker MCP server cached as failed.** The format of `mcp-needs-auth-cache.json` and the 15 minutes were read from CLI 2.1.302 and an entry was written live with a failing plugin server, but a chain launch held by it and started after the wait was never seen; the skip itself was seen in a session of the BTN-143 trial. Even Keel does not compare the entry's `id` with the server's config: after an edit of the plugin's `.mcp.json` the CLI would retry at once, yet the chain still waits out the 15 minutes. If the CLI changes the file or its keys, the chain launches as before and the session reports the server did not connect. **Workaround:** delete the server's entry from `<account folder>/mcp-needs-auth-cache.json` — the next check launches the task (`docs/sessions.md`).
 - **Environment variables through the daemon.** Whether variables set for `claude --bg` reach the session through the background daemon was not checked, so Even Keel does not pass anything that way (`docs/sessions.md`).
 
 ## Trackers

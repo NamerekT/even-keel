@@ -47,7 +47,7 @@ import { TallyService } from './stats/tally.js'
 import { chainSettings, readToolsView } from './tools/panel.js'
 import { ADAPTERS } from './tracker/adapters.js'
 import { cardOf } from './tracker/card.js'
-import { McpCheck, readMcpSources } from './tracker/mcp.js'
+import { McpCheck, readFailures, readMcpSources } from './tracker/mcp.js'
 import type { TrackerView } from './tracker/health.js'
 import type { TrackerLink } from './tracker/link.js'
 import { parseTaskId, type Task } from './tracker/model.js'
@@ -346,10 +346,15 @@ const mcp = new McpCheck({
   targets: () =>
     Object.entries(config.projects).flatMap(([project, repo]) => {
       const server = ADAPTERS[config.trackers[project]!]!.mcpServer
-      return server === undefined || configFile.current.briefs[project] ? [] : [{ project, repo, server }]
+      return server === undefined ? [] : [{ project, repo, server, brief: configFile.current.briefs[project] === true }]
     }),
   read: (repo) =>
     readMcpSources(repo, { claudeDir: homes.global.dir, configs: claudeConfigs() }),
+  failures: () => {
+    const home = homes.find(ledger.active)
+    return home === undefined ? {} : readFailures(home.dir)
+  },
+  now: () => Date.now(),
   warn: (line) => console.warn(line),
   onChange: () => hub.broadcast('state', getState()),
 })
@@ -419,6 +424,10 @@ const dispatcher = new Dispatcher(loadChainState(chainFile, config.ids), {
   accountAt: (key, at) => accountId(key, accountAt(ledger, key, at)),
   limitReset: () => exhaustedReset(limits.limits(ledger.active)),
   limitResetAfter: (account, at) => limitResetAfter(limits.limits(account), at),
+  mcpFailed: (project) => {
+    mcp.run()
+    return mcp.failed.find((each) => each.project === project)?.until ?? null
+  },
   promptLanguage,
   mainBranch: (task) => {
     const project = projectOf(task)
@@ -603,6 +612,7 @@ const getState = (): EvenKeelState => ({
   context: config.context,
   configError: configFile.error,
   mcpMissing: mcp.missing,
+  mcpFailed: mcp.failed,
   language: configFile.current.language,
   unattended: dispatcher.state.unattended,
   trimTools: dispatcher.state.trimTools,

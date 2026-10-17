@@ -78,6 +78,8 @@ export const en: Messages = {
     checkHold: (commit: string, since: string) => `Checking main at ${commit} since ${since} in the next task's folder — the task starts when the check passes.`,
     mcp: (projects: string, server: string) =>
       `Brief is off in ${projects}, but sessions don't see the MCP server "${server}" — they get only the task ID. Turn brief on or add the server.`,
+    mcpFailed: (projects: string, server: string, at: string) =>
+      `Claude Code cached the MCP server "${server}" as failed and won't retry it until ${at} — the next task of ${projects} starts after that. Check the tracker credentials in env of ~/.claude/settings.json.`,
     unattended: 'Unattended mode is on: sessions ask no questions. Turn it off in Settings → Chain.',
   },
   limits: {

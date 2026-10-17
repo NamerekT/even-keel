@@ -40,6 +40,8 @@ export interface SetupOptions {
   failStop?: boolean
   limitReset?: string | null
   limitResetAfter?: (account: string, at: string) => string | null
+  /** Until when the CLI skips the tracker MCP server as failed, by project. */
+  mcpFailed?: Record<string, string>
   busy?: Set<string>
   waiting?: Set<string>
   /** The open `AskUserQuestion` of a task's session, by task. */
@@ -98,6 +100,7 @@ export function setup(options: SetupOptions = {}) {
     accountAt: options.accountAt ?? (() => account.id),
     limitReset: () => options.limitReset ?? null,
     limitResetAfter: options.limitResetAfter ?? (() => options.limitReset ?? null),
+    mcpFailed: (project) => options.mcpFailed?.[project] ?? null,
     promptLanguage: () => 'ru',
     mainBranch: () => 'main',
     resume: async (_task, session) => {

@@ -190,6 +190,7 @@ export interface EvenKeelState {
   context: ContextScale
   configError: Notice | null
   mcpMissing: McpMissing[]
+  mcpFailed: McpFailed[]
   language: Language | null
   unattended: boolean
   trimTools: boolean
@@ -200,4 +201,11 @@ export interface EvenKeelState {
 export interface McpMissing {
   project: string
   server: string
+}
+
+/** A project whose tracker MCP server the CLI cached as failed: its next session waits until `until`. */
+export interface McpFailed {
+  project: string
+  server: string
+  until: string
 }
