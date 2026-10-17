@@ -63,7 +63,7 @@ export function AccountPanel({ account, spend, onClose }: { account: AccountView
               + {t.account.add}
             </button>
             <p className="queue__hint">{t.account.addHint}</p>
-            <ApiKeyForm sending={sending} send={send} />
+            <ApiKeyForm sending={sending} />
           </div>
         )}
       </section>
@@ -193,18 +193,8 @@ function loginHeading({ login, accounts }: AccountView): string {
   return t.account.loginTo(target === undefined ? login.target : accountName(target))
 }
 
-function ApiKeyForm({ sending, send }: { sending: boolean; send: Send }) {
+function ApiKeyForm({ sending }: { sending: boolean }) {
   const [open, setOpen] = useState(false)
-  const [name, setName] = useState('')
-  const [key, setKey] = useState('')
-
-  const submit = async (event: FormEvent) => {
-    event.preventDefault()
-    if (!(await send('account/api', { name, key }))) return
-    setName('')
-    setKey('')
-    setOpen(false)
-  }
 
   if (!open) {
     return (
@@ -213,6 +203,21 @@ function ApiKeyForm({ sending, send }: { sending: boolean; send: Send }) {
       </button>
     )
   }
+  return <ApiKeyFields busy={sending} onClose={() => setOpen(false)} />
+}
+
+/** Its own command, so a refused key shows under the form rather than at the foot of the panel; closing it clears that. */
+function ApiKeyFields({ busy, onClose }: { busy: boolean; onClose: () => void }) {
+  const { send, sending: checking, failure } = useCommand()
+  const sending = busy || checking
+  const [name, setName] = useState('')
+  const [key, setKey] = useState('')
+
+  const submit = async (event: FormEvent) => {
+    event.preventDefault()
+    if (await send('account/api', { name, key })) onClose()
+  }
+
   return (
     <form className="account__key" onSubmit={(event) => void submit(event)}>
       <input
@@ -238,10 +243,15 @@ function ApiKeyForm({ sending, send }: { sending: boolean; send: Send }) {
         <button type="submit" className="button button--primary" disabled={sending || key.trim() === ''}>
           {t.account.keyAdd}
         </button>
-        <button type="button" className="button" disabled={sending} onClick={() => setOpen(false)}>
+        <button type="button" className="button" disabled={sending} onClick={onClose}>
           {t.common.cancel}
         </button>
       </div>
+      {failure !== null && (
+        <p className="notice notice--error" role="alert">
+          {say(failure)}
+        </p>
+      )}
       <p className="queue__hint">{t.account.keyHint}</p>
     </form>
   )
