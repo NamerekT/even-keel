@@ -42,29 +42,26 @@
   background: var(--surface);
 }
 
-/* What the card changes — the roles and the buttons — stays at its bottom, level across a row of cards, whatever the notes above. */
+/* What the card changes stays in one row at its bottom, level across a row of cards: Remove, Renew, then the roles field. */
 .account-card-item__foot {
   display: flex;
-  flex-direction: column;
+  flex-wrap: wrap;
+  align-items: stretch;
   gap: 8px;
   margin-top: auto;
   padding-top: 4px;
 }
 
-.account-card-item__actions {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 8px;
-}
-
-.account-card-item__actions:empty {
+.account-card-item__foot:empty {
   display: none;
 }
 
-.account-card-item__actions > .accounts__note {
+.account-card-item__foot > .accounts__note {
   flex-basis: 100%;
-  order: -1;
+}
+
+.account-card-item__foot > .roles {
+  flex: 1 1 100px;
 }
 
 .add-steps {

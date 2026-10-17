@@ -104,10 +104,8 @@ function AccountCard({ entry, view, now, spend, sending, send }: CardProps) {
         <span>{t.account.folder(entry.global ? globalFolder(entry.agent) : entry.key)}</span>
       </div>
       <div className="account-card-item__foot">
-        <div className="account-card-item__actions">
-          <NoteActions entry={entry} view={view} now={now} sending={sending} send={send} />
-          <RemoveAction entry={entry} view={view} sending={sending} send={send} />
-        </div>
+        <RemoveAction entry={entry} view={view} sending={sending} send={send} />
+        <NoteActions entry={entry} view={view} now={now} sending={sending} send={send} />
         <AccountRoles entry={entry} view={view} sending={sending} send={send} />
       </div>
     </li>
