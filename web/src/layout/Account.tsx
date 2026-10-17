@@ -76,7 +76,7 @@ function AccountItem({ entry, view, now, spend, sending, send }: ItemProps) {
   return (
     <li className={`accounts__item${canWork(entry, now) ? '' : ' accounts__item--off'}`} style={seriesStyle(entrySlot(view, entry))}>
       <div className="accounts__head">
-        <AccountMark entry={entry} />
+        <AccountMark entry={entry} now={now} />
         <AccountName entry={entry} />
       </div>
       {entry.apiKey ? (

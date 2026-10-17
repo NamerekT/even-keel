@@ -1065,14 +1065,6 @@ input[type='radio']:disabled {
   color: var(--warn-fg);
 }
 
-.accounts__facts {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 2px 12px;
-  color: var(--fg-muted);
-  font-size: 13px;
-}
-
 .accounts__add {
   display: flex;
   flex-wrap: wrap;
@@ -1450,7 +1442,8 @@ a:focus-visible {
   outline-offset: 2px;
 }
 
-.button:disabled {
+.button:disabled,
+.button[aria-disabled='true'] {
   cursor: default;
   opacity: 0.5;
 }

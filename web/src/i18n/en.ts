@@ -282,6 +282,7 @@ export const en: Messages = {
     removing: "I'll sign out and remove the folder once this account's session processes finish",
     removingAlive: (sessions: string) => `, still alive: ${sessions}`,
     checkFailed: (error: string) => `The last check failed: ${error}`,
+    checkFailedShort: 'The last check failed',
     login: 'Sign in',
     renew: 'Renew sign-in',
     removeWhenDone: (sessions: string) => `Sign out and remove the folder once its sessions finish (${sessions})?`,

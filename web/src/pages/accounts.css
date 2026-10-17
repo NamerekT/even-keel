@@ -56,8 +56,11 @@
   display: none;
 }
 
-.account-card-item__foot > .accounts__note {
-  flex-basis: 100%;
+/* Cells that say why on pointing are underlined with dots, like any term with a tip. */
+.account-card-item__stale .meter__value,
+.accounts__note--tipped {
+  text-decoration: underline dotted;
+  text-underline-offset: 3px;
 }
 
 .account-card-item__foot > .roles {

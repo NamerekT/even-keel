@@ -1,0 +1,37 @@
+.tipped {
+  min-width: 0;
+}
+
+.tipped[tabindex] {
+  cursor: help;
+}
+
+.tip {
+  position: fixed;
+  inset: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  width: max-content;
+  max-width: min(320px, calc(100vw - 16px));
+  margin: 0;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  box-shadow: 0 8px 24px rgb(0 0 0 / 0.25);
+  color: var(--fg);
+  font: 13px/1.45 var(--font);
+  letter-spacing: normal;
+  text-align: left;
+  white-space: normal;
+  cursor: auto;
+}
+
+.tip__head {
+  font-weight: 600;
+}
+
+.tip__muted {
+  color: var(--fg-muted);
+}

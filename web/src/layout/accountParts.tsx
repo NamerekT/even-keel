@@ -11,6 +11,7 @@ import { loginLeft } from '../state.js'
 import { loadedData, useStatsAnswer } from '../stats/common.js'
 import { formatUsd } from '../stats/format.js'
 import { BracesIcon, ClaudeIcon, CodexIcon, KeyIcon, TerminalIcon } from '../ui/icons.js'
+import { Tipped } from '../ui/Tipped.js'
 
 export type Send = (name: string, body?: Record<string, unknown>) => Promise<boolean>
 
@@ -48,17 +49,35 @@ const CONNECTION_ICONS: Record<Connection, () => ReactNode> = { cli: TerminalIco
 
 /**
  * Whose account it is and how it signs in, as two icons before the name: the agent's in the account's colour, so two
- * folders of one e-mail (Claude and Codex) or of look-alike names still read apart.
+ * folders of one e-mail (Claude and Codex) or of look-alike names still read apart. Pointed at, it names both and
+ * gives the account's quiet details: the sign-in left, the folder, a configuration still on its way.
  */
-export function AccountMark({ entry }: { entry: AccountEntry }) {
+export function AccountMark({ entry, now }: { entry: AccountEntry; now: Date }) {
   const connection = connectionOf(entry)
   const Connected = CONNECTION_ICONS[connection]
+  const left = loginLeft(entry.loginExpiresAt, now)
+  const tip = (
+    <>
+      <span className="tip__head">
+        {agentLabel(entry.agent)} · {t.account.connections[connection]}
+      </span>
+      {!entry.apiKey && entry.loginExpiresAt !== null && !left.renew && !entry.needsLogin && <span>{t.account.expiry(left.text)}</span>}
+      <span>{t.account.folder(entry.global ? globalFolder(entry.agent) : entry.key)}</span>
+      {entry.configPending && <span className="tip__muted">{t.account.configPending}</span>}
+    </>
+  )
   return (
-    <span className="account-mark" title={`${agentLabel(entry.agent)} · ${t.account.connections[connection]}`}>
+    <Tipped className="account-mark" tip={tip} align="start" focusable>
       <span className="account-mark__agent">{entry.agent === CODEX ? <CodexIcon /> : entry.agent === CLAUDE ? <ClaudeIcon /> : <span className="accounts__dot" />}</span>
       <Connected />
-    </span>
+    </Tipped>
   )
+}
+
+/** Why an account without limits has none, as one sentence; null when it has them or pays from a key. */
+export function staleText(entry: AccountEntry): string | null {
+  if (entry.apiKey || entry.limits !== null || entry.usage.state !== 'stale') return null
+  return `${t.account.noLimits}${staleNote(entry.usage.reason)}`
 }
 
 /** The name with the e-mail's domain dimmed, so that a column of accounts reads by the part that differs. */
@@ -79,7 +98,10 @@ interface NotesProps {
   now: Date
   sending: boolean
   send: Send
-  /** Leave the actions out: the card puts them in its foot (`NoteActions`). */
+  /**
+   * The card's way: the actions go to its foot (`NoteActions`), why there are no limits to their cells, a configuration
+   * on its way to the mark's tip, a failed check is one short line with the error on pointing.
+   */
   bare?: boolean
 }
 
@@ -87,15 +109,11 @@ interface NotesProps {
 export function AccountNotes({ entry, view, now, sending, send, bare = false }: NotesProps) {
   const left = loginLeft(entry.loginExpiresAt, now)
   const actions = (button: ReactNode) => (bare ? null : button)
+  const stale = staleText(entry)
 
   return (
     <>
-      {!entry.apiKey && entry.limits === null && entry.usage.state === 'stale' && (
-        <p className="accounts__note">
-          {t.account.noLimits}
-          {staleNote(entry.usage.reason)}
-        </p>
-      )}
+      {!bare && stale !== null && <p className="accounts__note">{stale}</p>}
       {entry.apiKey && entry.needsLogin && <p className="accounts__note accounts__note--warn">{t.account.apiKeyLost}</p>}
       {!entry.apiKey && (left.renew || entry.needsLogin) && (
         <div className="accounts__note accounts__note--warn">
@@ -112,8 +130,15 @@ export function AccountNotes({ entry, view, now, sending, send, bare = false }: 
           {actions(<KeepButton entry={entry} sending={sending} send={send} />)}
         </div>
       )}
-      {entry.configPending && <p className="accounts__note">{t.account.configPending}</p>}
-      {entry.error !== null && <p className="accounts__note">{t.account.checkFailed(say(entry.error))}</p>}
+      {!bare && entry.configPending && <p className="accounts__note">{t.account.configPending}</p>}
+      {entry.error !== null &&
+        (bare ? (
+          <Tipped className="accounts__note accounts__note--tipped" tip={say(entry.error)} align="start" focusable>
+            {t.account.checkFailedShort}
+          </Tipped>
+        ) : (
+          <p className="accounts__note">{t.account.checkFailed(say(entry.error))}</p>
+        ))}
     </>
   )
 }
@@ -157,13 +182,21 @@ interface RemoveProps {
   send: Send
 }
 
-/** "Remove" behind a confirmation, or why the folder is kept. */
+/** "Remove" behind a confirmation; a folder that is kept has it greyed, with why on pointing or focus. */
 export function RemoveAction({ entry, view, sending, send }: RemoveProps) {
   const [confirming, setConfirming] = useState(false)
   const kept = removeProblem(view, entry.key)
 
   if (entry.removing) return null
-  if (kept !== undefined) return <p className="accounts__note">{say(kept)}</p>
+  if (kept !== undefined) {
+    return (
+      <Tipped className="account__actions" tip={say(kept)} align="start">
+        <button type="button" className="button button--small" aria-disabled="true">
+          {t.common.remove}
+        </button>
+      </Tipped>
+    )
+  }
   if (!confirming) {
     return (
       <div className="account__actions">

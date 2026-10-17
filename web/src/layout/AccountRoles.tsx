@@ -175,7 +175,7 @@ export function AccountWork({ entry, view }: { entry: AccountEntry; view: Accoun
           </li>
         ))}
         {chats.map((chat, index) => (
-          <li key={`chat-${chat.session}-${index}`} className="work__item">
+          <li key={`chat-${chat.session}-${index}`} className="work__item work__item--chat">
             <span className="work__name" title={chat.name}>
               {chat.name}
             </span>

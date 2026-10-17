@@ -9,20 +9,21 @@ import {
   AccountMark,
   AccountName,
   AccountNotes,
-  globalFolder,
   LoginSteps,
   loginHeading,
   NoteActions,
   RemoveAction,
   spendText,
+  staleText,
   useSpend,
   type Send,
   type Spend,
 } from '../layout/accountParts.js'
 import { Limits } from '../layout/Limits.js'
 import { useNow } from '../layout/useNow.js'
-import { accountOrder, canWork, loginLeft } from '../state.js'
+import { accountOrder, canWork } from '../state.js'
 import { seriesStyle } from '../ui/series.js'
+import { Tipped } from '../ui/Tipped.js'
 import './accounts.css'
 
 /** Every account folder as a card: whose agent it is, how it signs in, where it works and what runs on it, its limits and details. */
@@ -74,13 +75,15 @@ interface CardProps {
   send: Send
 }
 
+/** What needs a look or an action stays in sight; the quiet details and the reasons open on pointing. */
 function AccountCard({ entry, view, now, spend, sending, send }: CardProps) {
-  const left = loginLeft(entry.loginExpiresAt, now)
+  const stale = staleText(entry)
+  const limits = <Limits limits={entry.limits} now={now} bare />
 
   return (
     <li className={`account-card-item${canWork(entry, now) ? '' : ' accounts__item--off'}`} style={seriesStyle(entrySlot(view, entry))}>
       <div className="accounts__head">
-        <AccountMark entry={entry} />
+        <AccountMark entry={entry} now={now} />
         <AccountName entry={entry} />
         {entry.status?.subscriptionType != null && <span className="tag">{entry.status.subscriptionType}</span>}
       </div>
@@ -94,15 +97,17 @@ function AccountCard({ entry, view, now, spend, sending, send }: CardProps) {
             <span>{t.limits.fiveHour}</span>
             <span>{t.limits.week}</span>
           </div>
-          <Limits limits={entry.limits} now={now} bare />
+          {stale === null ? (
+            limits
+          ) : (
+            <Tipped className="account-card-item__stale" tip={stale} align="start" focusable>
+              {limits}
+            </Tipped>
+          )}
         </>
       )}
       <AccountWork entry={entry} view={view} />
       <AccountNotes entry={entry} view={view} now={now} sending={sending} send={send} bare />
-      <div className="accounts__facts">
-        {!entry.apiKey && entry.loginExpiresAt !== null && !left.renew && !entry.needsLogin && <span>{t.account.expiry(left.text)}</span>}
-        <span>{t.account.folder(entry.global ? globalFolder(entry.agent) : entry.key)}</span>
-      </div>
       <div className="account-card-item__foot">
         <RemoveAction entry={entry} view={view} sending={sending} send={send} />
         <NoteActions entry={entry} view={view} now={now} sending={sending} send={send} />

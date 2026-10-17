@@ -279,6 +279,7 @@ export const ru = {
     removing: 'Выйду и удалю папку, когда завершатся процессы сессий этого аккаунта',
     removingAlive: (sessions: string) => `, ещё живы: ${sessions}`,
     checkFailed: (error: string) => `Последняя проверка не удалась: ${error}`,
+    checkFailedShort: 'Последняя проверка не удалась',
     login: 'Войти',
     renew: 'Продлить вход',
     removeWhenDone: (sessions: string) => `Выйти и удалить папку, когда завершатся её сессии (${sessions})?`,
