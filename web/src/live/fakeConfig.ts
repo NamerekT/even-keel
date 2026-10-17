@@ -39,6 +39,7 @@ const project = (repo: string, change: Partial<ProjectForm>): ProjectForm => ({
   prompt: null,
   beforeStart: [],
   check: [],
+  afterGreen: [],
   ci: CI_ALL,
   fillMilestone: false,
   ...change,
@@ -53,6 +54,7 @@ export function fakeConfig(): ConfigView {
         branch: 'master',
         tracker: 'github',
         trackerProject: 'octo-org/demo',
+        afterGreen: ['npm run build', 'pwsh -File service/restart.ps1'],
         ci: { guard: true, kinds: ['github'], waitMinutes: 15, recheckMain: true, fixTask: true },
       }),
       XYZ: project('D:/Projects/xyz', { slot: 2, chain: { ...DEFAULT_RULES, requiredLabels: ['Auto'] } }),
@@ -90,6 +92,13 @@ export function fakeSettingsCommand(state: EvenKeelState, name: string, body: Re
   const { project: key, ...form } = sent as unknown as ProjectForm & { project: string }
   const prompt = form.prompt?.trim() ?? ''
   const title = form.name?.trim() ?? ''
-  const saved: ProjectForm = { ...form, name: title === '' ? null : title, prompt: prompt === '' ? null : prompt, beforeStart: lines(form.beforeStart), check: lines(form.check) }
+  const saved: ProjectForm = {
+    ...form,
+    name: title === '' ? null : title,
+    prompt: prompt === '' ? null : prompt,
+    beforeStart: lines(form.beforeStart),
+    check: lines(form.check),
+    afterGreen: lines(form.afterGreen),
+  }
   return { ...state, config: { ...state.config, projects: { ...state.config.projects, [key]: saved } } }
 }

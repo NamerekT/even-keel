@@ -27,12 +27,21 @@ export async function runBeforeStart(commands: string[], { task, cwd, shell, log
 }
 
 /** The project's `commands.check` on main, in order, in the task's folder; the first failure is returned, the rest do not run. */
-export async function runCheck(commands: string[], { task, cwd, shell, log }: SetupRun): Promise<CheckFailure | null> {
+export function runCheck(commands: string[], run: SetupRun): Promise<CheckFailure | null> {
+  return runUntilFailure('check', commands, run)
+}
+
+/** The project's `commands.afterGreen`, in order, in its checkout (`task` is the project); the first failure is returned, the rest do not run. */
+export function runAfterGreen(commands: string[], run: SetupRun): Promise<CheckFailure | null> {
+  return runUntilFailure('afterGreen', commands, run)
+}
+
+async function runUntilFailure(stage: string, commands: string[], { task, cwd, shell, log }: SetupRun): Promise<CheckFailure | null> {
   for (const command of commands) {
-    log(`check: ${task}: ${command} in ${cwd}`)
+    log(`${stage}: ${task}: ${command} in ${cwd}`)
     const { code, out } = await shell(command, cwd)
     if (code === 0) continue
-    for (const line of out.split(/\r?\n/).filter((each) => each.trim() !== '')) log(`check: ${task}: | ${line}`)
+    for (const line of out.split(/\r?\n/).filter((each) => each.trim() !== '')) log(`${stage}: ${task}: | ${line}`)
     return { command, code, output: out }
   }
   return null

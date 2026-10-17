@@ -27,8 +27,11 @@ export interface ActiveChain {
   limitUntil?: string
   /** Unattended, a launch refused for want of a slot leaves the chain running; `at` is the last attempt. */
   slotWait?: { notice: Notice; at: string }
-  /** The next launch waits for the CI's verdict on this push of main; `local` — for the project's own check of it. */
-  ciWait?: { commit: string; since: string; local?: true }
+  /**
+   * The next launch waits for the CI's verdict on this push of main; `local` — for the project's own check of it,
+   * `after` — for the project's `commands.afterGreen` on it.
+   */
+  ciWait?: { commit: string; since: string; local?: true; after?: true }
   closing?: string
   /** The task whose working session a red main stopped (BTN-115); it goes on once the fix is judged. */
   interrupted?: Interrupted
@@ -92,6 +95,8 @@ export interface MainGate {
    * (`ci.fixTask` off) `task` is the fix session's name and `report` its prompt, kept until its branch lands.
    */
   fix?: { task: string; at: string; commit: string; report?: string }
+  /** The last green commit the project's `commands.afterGreen` were started on, written before they start. */
+  afterGreen?: string
 }
 
 /** The fix of a red main a session without a task does or is about to do. */
@@ -203,7 +208,13 @@ export interface MainCheckDeps {
   fixTask: (project: string) => boolean
   /** Whether the branch of the task, or of the fix session, is in main with commits of its own. */
   merged: (project: string, task: string) => Promise<boolean>
+  /** Whether the project has `commands.afterGreen` (BTN-156). */
+  afterGreen: (project: string) => boolean
+  /** Runs them in the project's checkout, if it is on main at `commit`. */
+  runAfterGreen: (project: string, commit: string) => Promise<AfterGreenRun>
 }
+
+export type AfterGreenRun = { state: 'done' } | { state: 'failed'; failure: CheckFailure } | { state: 'skipped'; reason: string }
 
 /** The first command of the project's check that failed, with its output. */
 export interface CheckFailure {

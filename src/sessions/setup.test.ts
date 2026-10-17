@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { NoticeError } from '../notice/notice.js'
-import { runBeforeStart, type Shell } from './setup.js'
+import { runAfterGreen, runBeforeStart, type Shell } from './setup.js'
 
 function shell(results: Record<string, { code: number; out: string }>) {
   const calls: { command: string; cwd: string }[] = []
@@ -44,5 +44,16 @@ describe('runBeforeStart', () => {
     const { run, calls } = shell({})
     await runBeforeStart([], { task: 'ABC-1', cwd: 'D:/w', shell: run, log: () => {} })
     expect(calls).toEqual([])
+  })
+})
+
+describe('runAfterGreen', () => {
+  it('runs the commands in order in the project checkout and returns the first failure with the output in the log', async () => {
+    const { run, calls } = shell({ 'npm run build': { code: 2, out: 'error TS2304' } })
+    const log: string[] = []
+    const failure = await runAfterGreen(['npm ci', 'npm run build', 'pwsh -File restart.ps1'], { task: 'ABC', cwd: 'D:/repo', shell: run, log: (line) => log.push(line) })
+    expect(calls.map((call) => call.command)).toEqual(['npm ci', 'npm run build'])
+    expect(failure).toEqual({ command: 'npm run build', code: 2, output: 'error TS2304' })
+    expect(log).toEqual(['afterGreen: ABC: npm ci in D:/repo', 'afterGreen: ABC: npm run build in D:/repo', 'afterGreen: ABC: | error TS2304'])
   })
 })

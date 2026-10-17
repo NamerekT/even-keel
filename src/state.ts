@@ -65,7 +65,7 @@ export interface TrackerUrls {
   projects: Record<string, string | null>
 }
 
-/** What the user sets per project and the chain reads live: `branch`, `prompt`, `commands.beforeStart`, `commands.check`, `ci` and `fillMilestone` in the config. */
+/** What the user sets per project and the chain reads live: `branch`, `prompt`, `commands.beforeStart`, `commands.check`, `commands.afterGreen`, `ci` and `fillMilestone` in the config. */
 export interface ProjectSettings {
   /** The project's main branch: tasks branch off it and merge into it, the CI watches it. */
   branch: string
@@ -75,6 +75,8 @@ export interface ProjectSettings {
   beforeStart: string[]
   /** The project's check, run in order when no counted CI judges main: before a session merges, and on main if it moved. */
   check: string[]
+  /** Run in order in the project's checkout once a push of main is green, if the checkout is on main at that commit. */
+  afterGreen: string[]
   ci: CiSettings
   /** A task that enters the chain without a milestone gets the active one in the tracker. */
   fillMilestone: boolean

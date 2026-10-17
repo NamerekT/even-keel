@@ -585,8 +585,8 @@ export function createFakeSource(search: string): LiveSource {
     const slotWait = { notice: notice('slot.waiting', { task: 'ABC-12' }, { items: [dirty] }), at: new Date().toISOString() }
     current.state!.chain.active = [{ ...active, current: null, slotWait }]
   }
-  if ((params.get('chain') === 'ci' || params.get('chain') === 'check') && active) {
-    const local = params.get('chain') === 'check' ? { local: true as const } : {}
+  if ((params.get('chain') === 'ci' || params.get('chain') === 'check' || params.get('chain') === 'afterGreen') && active) {
+    const local = params.get('chain') === 'check' ? { local: true as const } : params.get('chain') === 'afterGreen' ? { after: true as const } : {}
     const ciWait = { commit: '9f77142a5c0e3d1b7e6f4a2c8d9b0e1f2a3b4c5d', since: new Date(Date.now() - 4 * 60_000).toISOString(), ...local }
     current.state!.chain.active = [{ ...active, current: null, ciWait }]
   }

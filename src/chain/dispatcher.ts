@@ -53,7 +53,8 @@ export class Dispatcher {
     private readonly deps: DispatcherDeps,
   ) {
     this.handovers = new Handovers(state, deps, (chain, error) => this.halt(chain, error))
-    this.main = deps.main === undefined ? null : new MainCheck(state, deps.main, deps.now, deps.log)
+    this.main =
+      deps.main === undefined ? null : new MainCheck(state, deps.main, deps.now, deps.log, { save: () => deps.save(state), wake: () => this.changed() })
     this.fixes =
       this.main === null
         ? null
@@ -566,17 +567,22 @@ export class Dispatcher {
     if (changed) this.deps.save(this.state)
   }
 
-  /** Whether the launch of `task` waits for the CI's verdict on main; with `ahead` the task's place is prepared meanwhile. */
+  /**
+   * Whether the launch of `task` waits for the CI's verdict on main or for the project's `commands.afterGreen`;
+   * with `ahead` the task's place is prepared meanwhile.
+   */
   private heldByMain(chain: ActiveChain, task: string, listed: string[], ahead = true): boolean {
+    const after = this.main?.afterGreenRun(chain.project)
     const hold = this.main?.holds(chain.project, listed) ?? null
-    const wait = hold === null || hold === 'fix' ? undefined : { commit: hold.commit, since: hold.at }
-    if (chain.ciWait?.commit !== wait?.commit) {
+    const wait: ActiveChain['ciWait'] =
+      after !== undefined ? { ...after, after: true } : hold === null || hold === 'fix' ? undefined : { commit: hold.commit, since: hold.at }
+    if (chain.ciWait?.commit !== wait?.commit || chain.ciWait?.after !== wait?.after) {
       if (wait === undefined) delete chain.ciWait
       else chain.ciWait = wait
       this.deps.save(this.state)
     }
     if (wait !== undefined && ahead) this.main!.ahead(chain.project, task)
-    return hold !== null
+    return after !== undefined || hold !== null
   }
 
   /** Runs the project's check on a push of main no CI judged, in the place of `task`; false — the chain is stopped. */

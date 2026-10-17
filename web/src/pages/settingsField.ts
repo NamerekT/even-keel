@@ -44,7 +44,7 @@ export function fieldOf(notice: Notice, trackerKeys: string[]): FieldError | nul
   const project = own?.[1] ?? null
   const [head, sub] = (own?.[2] ?? params.where).split('.')
   if (head === 'chain') return { project, field: `chain.${RULES.includes(String(params.key)) ? params.key : 'active'}` }
-  if (head === 'commands') return { project, field: sub === 'check' ? 'check' : 'beforeStart' }
+  if (head === 'commands') return { project, field: sub === 'check' || sub === 'afterGreen' ? sub : 'beforeStart' }
   if (head === 'ci') return { project, field: 'ci' }
   if (head !== undefined && trackerKeys.includes(head)) return { project, field: 'trackerProject' }
   if (head !== undefined && NAMED.includes(head)) return { project, field: head }

@@ -70,8 +70,9 @@ export function upgradeStorage(options: UpgradeOptions): void {
     const entries = (launches.value as Record<string, unknown>[]).map((entry) => ({ ...entry, project: rename(String(entry.project)) }))
     rewrite(launches, [{ version: SCHEMA_VERSION }, ...entries].map((line) => `${JSON.stringify(line)}\n`).join(''))
   }
-  // v2 → v3: the launch log gains the red commit of a fix's launch and its outcome (BTN-153), optional fields an older
-  // reader does without; every file only takes the new version.
+  // v2 → v3: the launch log gains the red commit of a fix's launch and its outcome (BTN-153); v3 → v4: the config gains
+  // `commands.afterGreen` and the chain's `ci` the commit they last ran on (BTN-156). Optional fields an older reader
+  // does without; every file only takes the new version.
   for (const stored of [chain, questions, account]) {
     if (stored !== undefined && stored.version >= 2 && stored.version < SCHEMA_VERSION) rewrite(stored, jsonText(restamped(stored)))
   }

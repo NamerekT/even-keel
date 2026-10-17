@@ -55,7 +55,7 @@ export interface EvenKeelConfig {
 
 const PROJECT_KEY = /^[A-Z][A-Z0-9_]{0,4}$/
 export const RULE_KEYS = ['active', 'terminal', 'requiredLabels', 'excludedLabels'] as const
-const COMMAND_KEYS = ['beforeStart', 'check'] as const
+const COMMAND_KEYS = ['beforeStart', 'check', 'afterGreen'] as const
 const RESTART_KEYS = ['projects', 'slots', 'tracker', 'trackers', 'trackerProjects', 'context'] as const
 /** Keys an older config had; the address now comes from `EVEN_KEEL_HOST` and `EVEN_KEEL_PORT`. */
 const IGNORED_KEYS = ['host', 'port'] as const
@@ -330,9 +330,9 @@ function parseCi(raw: unknown, where: string): CiSettings {
   return { guard, kinds: CI_KINDS.filter((kind) => kinds.includes(kind)), waitMinutes: waitMinutes as number | null, recheckMain, fixTask }
 }
 
-// An object rather than a list, so each moment of a task gets its own key: `beforeStart`, `check`.
+// An object rather than a list, so each moment of a task gets its own key: `beforeStart`, `check`, `afterGreen`.
 function parseCommands(raw: unknown, where: string): Record<(typeof COMMAND_KEYS)[number], string[]> {
-  const commands = { beforeStart: [] as string[], check: [] as string[] }
+  const commands = { beforeStart: [] as string[], check: [] as string[], afterGreen: [] as string[] }
   if (raw === undefined) return commands
   if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) throw fail('config.notObject', { where })
   for (const [key, value] of Object.entries(raw)) {
@@ -449,7 +449,7 @@ export function readRawConfig(file: string): unknown {
  */
 export function withProjectSettings(
   entry: unknown,
-  { branch, prompt, beforeStart, check, ci, fillMilestone }: ProjectSettings,
+  { branch, prompt, beforeStart, check, afterGreen, ci, fillMilestone }: ProjectSettings,
   changed: (field: keyof ProjectSettings) => boolean = () => true,
 ): Record<string, unknown> {
   const fields: Record<string, unknown> = isPlainObject(entry) ? { ...entry } : { repo: entry }
@@ -463,11 +463,11 @@ export function withProjectSettings(
   const name = branch.trim()
   if (changed('branch')) put(fields, 'branch', name === DEFAULT_BRANCH ? undefined : name)
   if (changed('prompt')) put(fields, 'prompt', prompt?.trim() || undefined)
-  for (const [key, list] of [['beforeStart', beforeStart], ['check', check]] as const) {
+  for (const [key, list] of [['beforeStart', beforeStart], ['check', check], ['afterGreen', afterGreen]] as const) {
     const lines = list.map((line) => line.trim()).filter((line) => line !== '')
     if (changed(key)) put(commands, key, lines.length === 0 ? undefined : lines)
   }
-  if (changed('beforeStart') || changed('check')) put(fields, 'commands', Object.keys(commands).length === 0 ? undefined : commands)
+  if (COMMAND_KEYS.some(changed)) put(fields, 'commands', Object.keys(commands).length === 0 ? undefined : commands)
   if (changed('ci')) {
     const kinds = CI_KINDS.filter((kind) => ci.kinds.includes(kind))
     const written = {

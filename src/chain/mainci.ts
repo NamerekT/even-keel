@@ -1,6 +1,6 @@
 import type { CiView } from '../ci/model.js'
 import { redReport, type FailedRun } from '../ci/report.js'
-import { verdictOf, type RedRun } from '../ci/verdict.js'
+import { shortCommit, verdictOf, type RedRun } from '../ci/verdict.js'
 import { branchMerged } from '../git/merged.js'
 import type { Git } from '../git/types.js'
 import type { Language } from '../language.js'
@@ -37,6 +37,10 @@ export interface MainCiDeps {
   place: (project: string, task: string) => Promise<string>
   /** Runs the project's check commands in a folder; `null` — all passed. */
   runCheck: (project: string, task: string, cwd: string) => Promise<CheckFailure | null>
+  /** The project's commands after a green main (`commands.afterGreen`). */
+  afterGreen: (project: string) => string[]
+  /** Runs them in a folder; `null` — all passed. */
+  runAfterGreen: (project: string, cwd: string) => Promise<CheckFailure | null>
   now: () => Date
 }
 
@@ -108,5 +112,17 @@ export function mainCheckDeps(deps: MainCiDeps): MainCheckDeps {
     },
     fixTask: (project) => deps.settings(project).fixTask,
     merged: (project, task) => branchMerged(deps.git, deps.repo(project), task, deps.main(project)),
+    afterGreen: (project) => deps.settings(project).guard && deps.afterGreen(project).length > 0,
+    // The only place the dispatcher touches the project's own checkout, so only when it stands on main at the green commit.
+    async runAfterGreen(project, commit) {
+      const repo = deps.repo(project)
+      const branch = deps.main(project)
+      const [on, head] = await Promise.all([deps.git(repo, ['symbolic-ref', '--quiet', '--short', 'HEAD']), revision(repo, 'HEAD')])
+      const current = on.code === 0 ? on.out.trim() : null
+      if (current !== branch) return { state: 'skipped', reason: `the checkout ${repo} is on ${current ?? 'no branch'}, not on ${branch}` }
+      if (head !== commit) return { state: 'skipped', reason: `the checkout ${repo} is at ${shortCommit(head ?? 'nothing')}, past the green commit` }
+      const failure = await deps.runAfterGreen(project, repo)
+      return failure === null ? { state: 'done' } : { state: 'failed', failure }
+    },
   }
 }

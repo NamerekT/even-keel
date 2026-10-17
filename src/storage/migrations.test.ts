@@ -147,24 +147,26 @@ describe('upgradeStorage', () => {
     })
   })
 
-  describe('v2 to v3', () => {
-    const v2 = join(root, 'test', 'fixtures', 'schema-v2')
+  // v2 → v3 (the launch log's fix entries) and v3 → v4 (`commands.afterGreen` and its mark in the chain's `ci`) only add
+  // optional fields, so both steps only stamp the files.
+  describe.each([2, 3])('v%i to the current version', (from) => {
+    const sample = join(root, 'test', 'fixtures', `schema-v${from}`)
     const names = ['even-keel.config.json', 'state/chain.json', 'state/questions.json', 'state/launches.jsonl', 'state/account.json']
 
     it('stamps every file with the new version and changes nothing else', () => {
-      cpSync(v2, dir, { recursive: true })
+      cpSync(sample, dir, { recursive: true })
       const before = originals()
       upgrade()
       for (const name of names.filter((each) => each.endsWith('.json'))) {
         const { version, ...rest } = json(join(dir, name))
-        expect(version).toBe(3)
-        const { version: _, ...old } = JSON.parse(readFileSync(join(v2, name), 'utf8'))
+        expect(version).toBe(SCHEMA_VERSION)
+        const { version: _, ...old } = JSON.parse(readFileSync(join(sample, name), 'utf8'))
         expect(rest).toEqual(old)
       }
       const lines = text(state('launches.jsonl')).split('\n')
-      expect(lines[0]).toBe('{"version":3}')
+      expect(lines[0]).toBe(`{"version":${SCHEMA_VERSION}}`)
       expect(lines.slice(1).join('\n')).toBe(before[3]!.split('\n').slice(1).join('\n'))
-      expect(names.map((name) => text(join(dir, `${name}.v2.bak`)))).toEqual(before)
+      expect(names.map((name) => text(join(dir, `${name}.v${from}.bak`)))).toEqual(before)
     })
   })
 

@@ -54,8 +54,10 @@ export function accountOrder(entries: AccountEntry[], now: Date): AccountEntry[]
   return [...entries.filter((entry) => canWork(entry, now)), ...entries.filter((entry) => !canWork(entry, now))]
 }
 
+type CiWait = NonNullable<ActiveChain['ciWait']>
+
 export type ChainStatus =
-  | { kind: 'running'; limitUntil: string | null; slotWait?: Notice; ciWait?: { commit: string; since: string; local?: true } }
+  | { kind: 'running'; limitUntil: string | null; slotWait?: Notice; ciWait?: CiWait }
   | { kind: 'paused'; error: Notice | null }
   | { kind: 'queued'; position: number }
   | { kind: 'idle' }
@@ -340,8 +342,9 @@ export function limitWaitText(until: string, now: Date): string {
   return t.banner.limitHold(formatMoment(until, now))
 }
 
-export function ciWaitText(wait: { commit: string; since: string; local?: true }, now: Date): string {
-  return (wait.local === true ? t.banner.checkHold : t.banner.ciHold)(wait.commit.slice(0, 7), formatMoment(wait.since, now))
+export function ciWaitText(wait: CiWait, now: Date): string {
+  const text = wait.after === true ? t.banner.afterGreenHold : wait.local === true ? t.banner.checkHold : t.banner.ciHold
+  return text(wait.commit.slice(0, 7), formatMoment(wait.since, now))
 }
 
 export function cardTask(state: EvenKeelState, project: string): CardTask | null {

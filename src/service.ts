@@ -34,7 +34,7 @@ import { ClaudeCli, liveRecords, resolveClaudeBinary, SESSION_MODE } from './ses
 import { turnStatus, type AgentEntry } from './sessions/agents.js'
 import { launchPlan, type LaunchPlan } from './sessions/launch.js'
 import { readSessionRecord, readTranscript } from './sessions/history.js'
-import { runBeforeStart, runCheck, systemShell, type SetupRun } from './sessions/setup.js'
+import { runAfterGreen, runBeforeStart, runCheck, systemShell, type SetupRun } from './sessions/setup.js'
 import { SessionMonitor } from './sessions/monitor.js'
 import { TranscriptOwners } from './sessions/owners.js'
 import { configPath, root, stateDirOf } from './locations.js'
@@ -523,6 +523,8 @@ const dispatcher = new Dispatcher(loadChainState(chainFile, config.ids), {
     prepare: (project, task) => places.prepare(project, task),
     place: async (project, task) => (await places.readyAhead(project, task)).path,
     runCheck: (project, task, cwd) => runCheck(configFile.current.settings[project]?.check ?? [], taskRun(task, cwd)),
+    afterGreen: (project) => configFile.current.settings[project]?.afterGreen ?? [],
+    runAfterGreen: (project, cwd) => runAfterGreen(configFile.current.settings[project]?.afterGreen ?? [], taskRun(project, cwd)),
     now: () => new Date(),
   }),
 })

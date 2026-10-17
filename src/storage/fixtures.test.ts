@@ -31,6 +31,7 @@ describe(`frozen samples of schema v${SCHEMA_VERSION}`, () => {
     expect(config.ids).toEqual({ ABC, XYZ })
     expect(config.projects).toEqual({ ABC: 'C:\\repos\\example-project', XYZ: 'C:\\repos\\other-project' })
     expect(config.slots).toEqual({ XYZ: 2 })
+    expect(config.settings.ABC?.afterGreen).toEqual(['npm run build', 'pwsh -File service/restart.ps1'])
   })
 
   it('reads the chain naming projects by their keys', () => {
@@ -42,6 +43,7 @@ describe(`frozen samples of schema v${SCHEMA_VERSION}`, () => {
     expect(state.leftovers.XYZ?.[0]?.task).toBe('XYZ-1')
     expect(state.released).toEqual({ ABC: ['ABC-1'] })
     expect(Object.keys(state.ci)).toEqual(['ABC'])
+    expect(state.ci.ABC?.afterGreen).toBe(state.ci.ABC?.green)
   })
 
   it('reads the questions, the launches and the accounts', () => {

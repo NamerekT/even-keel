@@ -76,6 +76,8 @@ export const en: Messages = {
     limitHold: (at: string) => `Usage limit reached — the next task starts after the reset at ${at}.`,
     ciHold: (commit: string, since: string) => `Waiting for the CI of main on ${commit} since ${since} — the next task starts when it is green.`,
     checkHold: (commit: string, since: string) => `Checking main at ${commit} since ${since} in the next task's folder — the task starts when the check passes.`,
+    afterGreenHold: (commit: string, since: string) =>
+      `Running the commands after the green main at ${commit} since ${since} — the next task starts when they end.`,
     mcp: (projects: string, server: string) =>
       `Brief is off in ${projects}, but sessions don't see the MCP server "${server}" — they get only the task ID. Turn brief on or add the server.`,
     mcpFailed: (projects: string, server: string, at: string) =>
@@ -342,7 +344,7 @@ export const en: Messages = {
     chainEmpty: 'No tasks in the chain.',
     backlog: (count: number) => `Backlog · ${count}`,
     backlogHint: 'Open tasks the chain does not take yet because of their status or labels.',
-    leftover: (task: string) => `${task} is closed, but not everything after it was cleaned up — check by hand.`,
+    leftover: (task: string) => `${task} is closed, but not everything after it went through — check by hand.`,
     dismiss: 'Done',
     resume: 'Resume',
     stop: 'Stop',
@@ -434,6 +436,10 @@ export const en: Messages = {
     checkHint:
       "For when no CI above judges main. One per line, in order: a session's merge into main waits until they pass in the task's folder; a failure is sent back to the session to fix.",
     checkPlaceholder: 'npm run typecheck && npm test',
+    afterGreen: 'Commands after a green main',
+    afterGreenHint:
+      "One per line, in order, in the project's own checkout once a push of main is green by CI or the check — say, to build and restart the project's service on this machine. They run only while the checkout is on main at that commit; the next task waits for them. A failure is a warning, not a red main.",
+    afterGreenPlaceholder: 'npm run build',
     recheckMain: 'Check main again if it moved',
     recheckMainHint: "If main after the merge is not what the check passed on, the check runs in the next task's folder before it starts; a failure is fixed like a red CI.",
     fixTask: 'Create a task when CI fails',

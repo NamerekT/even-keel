@@ -85,6 +85,7 @@ export const noticesRu: NoticeTexts = {
   'check.fixFailed': (p) => `проверка проекта падает на main в ${p.commit} — это пуш починки ${p.task}; цепочка ждёт вас`,
   'check.cannotCreate': (p) => `проверка проекта падает на main в ${p.commit}, а трекер не умеет заводить задачу на починку`,
   'check.fixNotCreated': (p) => `проверка проекта падает на main в ${p.commit}; задача на починку не заведена`,
+  'afterGreen.failed': (p) => `команда «${p.command}» после зелёного main в ${p.commit} завершилась с кодом ${p.code} — main остаётся зелёным, вывод в логе сервиса`,
 
   'slot.dirty': (p) => `в слоте ${p.path} незакоммиченные изменения — закоммитьте или уберите их`,
   'slot.busy': (p) => `слот ${p.path} занят посреди хода: ${list(p.sessions)} — дождитесь или остановите`,

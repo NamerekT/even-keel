@@ -46,6 +46,10 @@ function setup(settings: CiSettings, views: CiView[] | null, heads: Record<strin
       const head = heads[`${cwd} ${ref}`]
       return head === undefined ? { code: 0, out: 'c2\n' } : { code: 0, out: `${head}\n` }
     }
+    if (args[0] === 'symbolic-ref') {
+      const branch = heads[`${cwd} branch`] ?? 'main'
+      return branch === '' ? { code: 1, out: '' } : { code: 0, out: `${branch}\n` }
+    }
     if (args[0] === 'for-each-ref') return { code: 0, out: args.at(-1) === 'refs/heads/abc-1' ? 'b1\n' : '' }
     return { code: 0, out: 'c2abc [ABC-2] Second\nc1abc [ABC-1] First\n' }
   }
@@ -66,6 +70,11 @@ function setup(settings: CiSettings, views: CiView[] | null, heads: Record<strin
     place: async (_project, task) => `D:/repos/abc/.claude/worktrees/${task.toLowerCase()}`,
     runCheck: async (_project, task, cwd) => {
       checks.push(`${task} in ${cwd}`)
+      return failure
+    },
+    afterGreen: () => ['npm run build'],
+    runAfterGreen: async (project, cwd) => {
+      checks.push(`afterGreen of ${project} in ${cwd}`)
       return failure
     },
     now: () => new Date('2026-10-12T10:05:00Z'),
@@ -168,7 +177,27 @@ describe('mainCheckDeps', () => {
     expect(deps.verdict('ABC', 'c2', '2026-10-12T10:00:00Z')).toEqual({ state: 'none' })
     expect(deps.checking('ABC')).toEqual({ commands: [], recheck: true })
     expect(await deps.checkMain('ABC', 'ABC-2', 'c2')).toEqual({ state: 'skipped', reason: 'the guard of main is off' })
+    expect(deps.afterGreen('ABC')).toBe(false)
     expect(checks).toEqual([])
+  })
+
+  it('runs the commands after a green main in the project checkout only when it is on main at that commit', async () => {
+    const repo = 'D:/repos/abc'
+    const done = setup(all([]), [], { [`${repo} HEAD`]: 'c2' })
+    expect(done.deps.afterGreen('ABC')).toBe(true)
+    expect(await done.deps.runAfterGreen('ABC', 'c2')).toEqual({ state: 'done' })
+    expect(done.checks).toEqual([`afterGreen of ABC in ${repo}`])
+
+    const failure = { command: 'npm run build', code: 2, output: 'error' }
+    expect(await setup(all([]), [], { [`${repo} HEAD`]: 'c2' }, failure).deps.runAfterGreen('ABC', 'c2')).toEqual({ state: 'failed', failure })
+
+    const moved = setup(all([]), [], { [`${repo} HEAD`]: 'c3abcdef12' })
+    expect(await moved.deps.runAfterGreen('ABC', 'c2')).toEqual({ state: 'skipped', reason: `the checkout ${repo} is at c3abcde, past the green commit` })
+    const elsewhere = setup(all([]), [], { [`${repo} HEAD`]: 'c2', [`${repo} branch`]: 'dev' })
+    expect(await elsewhere.deps.runAfterGreen('ABC', 'c2')).toEqual({ state: 'skipped', reason: `the checkout ${repo} is on dev, not on main` })
+    const detached = setup(all([]), [], { [`${repo} HEAD`]: 'c2', [`${repo} branch`]: '' })
+    expect(await detached.deps.runAfterGreen('ABC', 'c2')).toEqual({ state: 'skipped', reason: `the checkout ${repo} is on no branch, not on main` })
+    expect([...moved.checks, ...elsewhere.checks, ...detached.checks]).toEqual([])
   })
 })
 

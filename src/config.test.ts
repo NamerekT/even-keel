@@ -87,7 +87,7 @@ describe('parseConfig', () => {
       trackerProjects: {},
       brief: true,
       briefs: { ABC: true },
-      settings: { ABC: { branch: 'main', prompt: null, beforeStart: [], check: [], ci: DEFAULT_CI, fillMilestone: false } },
+      settings: { ABC: { branch: 'main', prompt: null, beforeStart: [], check: [], afterGreen: [], ci: DEFAULT_CI, fillMilestone: false } },
       context: { window: 600_000, warn: 50, danger: 80 },
       model: 'opus',
       modelPrompts: {},
@@ -196,14 +196,22 @@ describe('parseConfig', () => {
         ABC: {
           repo: 'C:\\abc',
           prompt: '  Run npm test before merging.\n',
-          commands: { beforeStart: [' npm ci ', '', 'npm run build'], check: [' npm test ', ''] },
+          commands: { beforeStart: [' npm ci ', '', 'npm run build'], check: [' npm test ', ''], afterGreen: ['npm run build', ' '] },
         },
         XYZ: 'C:\\xyz',
       },
     })
     expect(config.settings).toEqual({
-      ABC: { branch: 'main', prompt: 'Run npm test before merging.', beforeStart: ['npm ci', 'npm run build'], check: ['npm test'], ci: DEFAULT_CI, fillMilestone: false },
-      XYZ: { branch: 'main', prompt: null, beforeStart: [], check: [], ci: DEFAULT_CI, fillMilestone: false },
+      ABC: {
+        branch: 'main',
+        prompt: 'Run npm test before merging.',
+        beforeStart: ['npm ci', 'npm run build'],
+        check: ['npm test'],
+        afterGreen: ['npm run build'],
+        ci: DEFAULT_CI,
+        fillMilestone: false,
+      },
+      XYZ: { branch: 'main', prompt: null, beforeStart: [], check: [], afterGreen: [], ci: DEFAULT_CI, fillMilestone: false },
     })
   })
 
@@ -496,7 +504,7 @@ describe('reloading the config', () => {
 
   it('applies the project prompt and the commands before start at once', () => {
     const next = parse({ projects: { ABC: { repo: 'C:\\abc', prompt: 'Mind Library.', commands: { beforeStart: ['npm ci'] } } } })
-    expect(liveConfig(base, next).settings).toEqual({ ABC: { branch: 'main', prompt: 'Mind Library.', beforeStart: ['npm ci'], check: [], ci: DEFAULT_CI, fillMilestone: false } })
+    expect(liveConfig(base, next).settings).toEqual({ ABC: { branch: 'main', prompt: 'Mind Library.', beforeStart: ['npm ci'], check: [], afterGreen: [], ci: DEFAULT_CI, fillMilestone: false } })
     expect(restartChanges(base, next)).toEqual([])
   })
 
@@ -540,13 +548,13 @@ describe('reloading the config', () => {
 
 describe('withProjectSettings', () => {
   it('writes the main branch only when it is not main', () => {
-    const settings = { branch: 'master', prompt: null, beforeStart: [], check: [], ci: DEFAULT_CI, fillMilestone: false }
+    const settings = { branch: 'master', prompt: null, beforeStart: [], check: [], afterGreen: [], ci: DEFAULT_CI, fillMilestone: false }
     expect(withProjectSettings('C:\\abc', settings)).toEqual({ repo: 'C:\\abc', branch: 'master' })
     expect(withProjectSettings({ repo: 'C:\\abc', branch: 'master' }, { ...settings, branch: ' main ' })).toEqual({ repo: 'C:\\abc' })
   })
 
   it('writes the CI settings only when they differ from the default, keeping the other keys', () => {
-    const settings = { branch: 'main', prompt: null, beforeStart: [], check: [], ci: DEFAULT_CI, fillMilestone: false }
+    const settings = { branch: 'main', prompt: null, beforeStart: [], check: [], afterGreen: [], ci: DEFAULT_CI, fillMilestone: false }
     expect(withProjectSettings({ repo: 'C:\\abc', ci: { kinds: ['github'] } }, settings)).toEqual({ repo: 'C:\\abc' })
     expect(withProjectSettings('C:\\abc', { ...settings, ci: { guard: true, kinds: ['github', 'forgejo'], waitMinutes: 10, recheckMain: true, fixTask: false } })).toEqual({
       repo: 'C:\\abc',
@@ -559,24 +567,26 @@ describe('withProjectSettings', () => {
   })
 
   it('writes the guard of main only when it is off, and keeps the CI keys it covers', () => {
-    const settings = { branch: 'main', prompt: null, beforeStart: [], check: ['npm test'], ci: { ...DEFAULT_CI, guard: false, waitMinutes: 10 }, fillMilestone: false }
+    const settings = { branch: 'main', prompt: null, beforeStart: [], check: ['npm test'], afterGreen: [], ci: { ...DEFAULT_CI, guard: false, waitMinutes: 10 }, fillMilestone: false }
     expect(withProjectSettings('C:\\abc', settings)).toEqual({ repo: 'C:\\abc', commands: { check: ['npm test'] }, ci: { guard: false, waitMinutes: 10 } })
     expect(withProjectSettings({ repo: 'C:\\abc', ci: { guard: false } }, { ...settings, check: [], ci: DEFAULT_CI })).toEqual({ repo: 'C:\\abc' })
   })
 
   it('writes the milestone switch only when it is on', () => {
-    const settings = { branch: 'main', prompt: null, beforeStart: [], check: [], ci: DEFAULT_CI, fillMilestone: true }
+    const settings = { branch: 'main', prompt: null, beforeStart: [], check: [], afterGreen: [], ci: DEFAULT_CI, fillMilestone: true }
     expect(withProjectSettings('C:\\abc', settings)).toEqual({ repo: 'C:\\abc', fillMilestone: true })
     expect(withProjectSettings({ repo: 'C:\\abc', fillMilestone: true }, { ...settings, fillMilestone: false })).toEqual({ repo: 'C:\\abc' })
   })
 
-  it('writes the check commands next to the commands before start', () => {
-    const settings = { branch: 'main', prompt: null, beforeStart: ['npm ci'], check: [' npm test ', ''], ci: DEFAULT_CI, fillMilestone: false }
+  it('writes the check commands and the commands after a green main next to the commands before start', () => {
+    const settings = { branch: 'main', prompt: null, beforeStart: ['npm ci'], check: [' npm test ', ''], afterGreen: ['npm run build '], ci: DEFAULT_CI, fillMilestone: false }
     expect(withProjectSettings({ repo: 'C:\\abc', commands: { check: ['old'] } }, settings)).toEqual({
       repo: 'C:\\abc',
-      commands: { beforeStart: ['npm ci'], check: ['npm test'] },
+      commands: { beforeStart: ['npm ci'], check: ['npm test'], afterGreen: ['npm run build'] },
     })
-    expect(withProjectSettings({ repo: 'C:\\abc', commands: { check: ['old'] } }, { ...settings, beforeStart: [], check: [] })).toEqual({ repo: 'C:\\abc' })
+    const none = { ...settings, beforeStart: [], check: [], afterGreen: [] }
+    expect(withProjectSettings({ repo: 'C:\\abc', commands: { check: ['old'], afterGreen: ['old'] } }, none)).toEqual({ repo: 'C:\\abc' })
+    expect(withProjectSettings({ repo: 'C:\\abc', commands: { afterGreen: ['old'] } }, none, (field) => field === 'afterGreen')).toEqual({ repo: 'C:\\abc' })
   })
 })
 

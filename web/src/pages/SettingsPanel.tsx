@@ -61,12 +61,12 @@ const GROUPS = [
   { id: 'repo', keys: ['repo', 'branch', 'slot'] },
   { id: 'tracker', keys: ['tracker', 'trackerProject', 'fillMilestone', ...RULE_KEYS] },
   { id: 'sessions', keys: ['brief', 'prompt', 'beforeStart'] },
-  { id: 'ci', keys: ['guard', 'check', 'kinds', 'wait', 'recheck', 'fixTask'] },
+  { id: 'ci', keys: ['guard', 'check', 'afterGreen', 'kinds', 'wait', 'recheck', 'fixTask'] },
 ] as const
 type GroupId = (typeof GROUPS)[number]['id']
 const KEYS: readonly string[] = GROUPS.flatMap((group) => group.keys)
 const keysOf = (id: GroupId): readonly string[] => GROUPS.find((group) => group.id === id)!.keys
-const same = sameBy(['beforeStart', 'check', ...RULE_KEYS])
+const same = sameBy(['beforeStart', 'check', 'afterGreen', ...RULE_KEYS])
 const scopeOf = (project: string) => `project:${project}`
 
 const valuesOf = (form: ProjectForm): Values => ({
@@ -80,6 +80,7 @@ const valuesOf = (form: ProjectForm): Values => ({
   prompt: form.prompt ?? '',
   beforeStart: form.beforeStart.join('\n'),
   check: form.check.join('\n'),
+  afterGreen: form.afterGreen.join('\n'),
   guard: form.ci.guard,
   kinds: form.ci.kinds,
   wait: form.ci.waitMinutes === null ? '' : String(form.ci.waitMinutes),
@@ -111,6 +112,7 @@ function formOf(values: Values, name: string | null): ProjectForm | undefined {
     prompt: text('prompt').trim(),
     beforeStart: linesOf(text('beforeStart')),
     check: linesOf(text('check')),
+    afterGreen: linesOf(text('afterGreen')),
     ci: { guard: on('guard'), kinds: CI_KINDS.filter((kind) => kinds.includes(kind)), waitMinutes, recheckMain: on('recheck'), fixTask: on('fixTask') },
     fillMilestone: on('fillMilestone'),
   }
@@ -327,6 +329,21 @@ export function SettingsPanel({
             />
             {marks.note('check')}
             <FieldNote error={errorOf('check')} />
+          </div>
+          <div className={marks.box('afterGreen')}>
+            <FieldHead label={t.settings.afterGreen} hint={t.settings.afterGreenHint} htmlFor={fieldId('afterGreen')} />
+            <textarea
+              id={fieldId('afterGreen')}
+              className="settings__text settings__text--mono"
+              rows={3}
+              spellCheck={false}
+              value={text('afterGreen')}
+              placeholder={t.settings.afterGreenPlaceholder}
+              disabled={unguarded}
+              onChange={(event) => edit('afterGreen', event.target.value)}
+            />
+            {marks.note('afterGreen')}
+            <FieldNote error={errorOf('afterGreen')} />
           </div>
           <fieldset className={marks.box('kinds', 'settings__field settings__group')}>
             <legend>

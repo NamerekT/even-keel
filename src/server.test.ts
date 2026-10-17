@@ -181,7 +181,7 @@ describe('Even Keel HTTP server', () => {
 
   it('passes the settings of a project on with the values the form started from', async () => {
     const ci = { guard: false, kinds: ['github'], waitMinutes: 15, recheckMain: false, fixTask: true }
-    const settings = { prompt: 'Run npm test.', beforeStart: ['npm ci'], check: ['npm test'], ci, fillMilestone: true, ...form }
+    const settings = { prompt: 'Run npm test.', beforeStart: ['npm ci'], check: ['npm test'], afterGreen: ['npm run build'], ci, fillMilestone: true, ...form }
     const started = { ...settings, prompt: null, slot: 0 }
     const response = await fetch(base + '/api/project/settings', { method: 'POST', body: JSON.stringify({ project: 'ABC', ...settings, base: started }) })
     expect(response.status).toBe(200)
@@ -204,7 +204,7 @@ describe('Even Keel HTTP server', () => {
       ['chain', { chain: { ...chain, active: 'Todo' } }],
     ] as const
     for (const [field, change] of bad) {
-      const body = { project: 'ABC', prompt: '', beforeStart: [], check: [], ci, fillMilestone: false, ...form, ...change }
+      const body = { project: 'ABC', prompt: '', beforeStart: [], check: [], afterGreen: [], ci, fillMilestone: false, ...form, ...change }
       const response = await fetch(base + '/api/project/settings', { method: 'POST', body: JSON.stringify(body) })
       expect(response.status).toBe(400)
       expect((await response.json()).notice).toMatchObject({ code: 'request.required', params: { field } })
@@ -257,7 +257,15 @@ describe('Even Keel HTTP server', () => {
   })
 
   it('refuses settings without the milestone switch', async () => {
-    const body = { project: 'ABC', prompt: '', beforeStart: [], check: [], ci: { guard: true, kinds: [], waitMinutes: null, recheckMain: true, fixTask: false }, fillMilestone: 'yes' }
+    const body = {
+      project: 'ABC',
+      prompt: '',
+      beforeStart: [],
+      check: [],
+      afterGreen: [],
+      ci: { guard: true, kinds: [], waitMinutes: null, recheckMain: true, fixTask: false },
+      fillMilestone: 'yes',
+    }
     const response = await fetch(base + '/api/project/settings', { method: 'POST', body: JSON.stringify(body) })
     expect(response.status).toBe(400)
     expect((await response.json()).notice).toMatchObject({ code: 'request.required', params: { field: 'fillMilestone' } })
@@ -274,7 +282,7 @@ describe('Even Keel HTTP server', () => {
       { kinds: [], waitMinutes: null, recheckMain: true, fixTask: false },
     ]
     for (const ci of bad) {
-      const body = { project: 'ABC', prompt: '', beforeStart: [], check: [], ci }
+      const body = { project: 'ABC', prompt: '', beforeStart: [], check: [], afterGreen: [], ci }
       const response = await fetch(base + '/api/project/settings', { method: 'POST', body: JSON.stringify(body) })
       expect(response.status).toBe(400)
       expect((await response.json()).notice).toMatchObject({ code: 'request.required', params: { field: 'ci' } })
@@ -282,7 +290,12 @@ describe('Even Keel HTTP server', () => {
   })
 
   it('refuses settings whose commands are not a list of strings', async () => {
-    for (const [field, lists] of [['beforeStart', { beforeStart: 'npm ci', check: [] }], ['check', { beforeStart: [], check: [1] }]] as const) {
+    const cases = [
+      ['beforeStart', { beforeStart: 'npm ci', check: [], afterGreen: [] }],
+      ['check', { beforeStart: [], check: [1], afterGreen: [] }],
+      ['afterGreen', { beforeStart: [], check: [] }],
+    ] as const
+    for (const [field, lists] of cases) {
       const body = { project: 'ABC', prompt: '', ...lists, ci: { guard: true, kinds: [], waitMinutes: null, recheckMain: true, fixTask: false } }
       const response = await fetch(base + '/api/project/settings', { method: 'POST', body: JSON.stringify(body) })
       expect(response.status).toBe(400)

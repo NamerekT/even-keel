@@ -107,6 +107,7 @@ describe('ConfigFile', () => {
       prompt: 'Mind Library.',
       beforeStart: ['npm ci'],
       check: ['npm test'],
+      afterGreen: [],
       ci: { guard: true, kinds: ['github'], waitMinutes: 20, recheckMain: true, fixTask: false },
       fillMilestone: true,
     })

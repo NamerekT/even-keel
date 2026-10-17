@@ -1,7 +1,7 @@
 import { shortCommit } from '../ci/verdict.js'
 import { englishOf, notice, noticeOf, type Notice } from '../notice/notice.js'
 import { fixName, isFixName } from './fix.js'
-import type { ChainState, MainCheckDeps, MainCheckRun, MainFailure, MainGate, MainPush, RedReport, SessionFix } from './model.js'
+import type { AfterGreenRun, ChainState, MainCheckDeps, MainCheckRun, MainFailure, MainGate, MainPush, RedReport, SessionFix } from './model.js'
 
 /** How long the chain waits for the tracker to list the fix task it has just created. */
 export const FIX_LISTED_MS = 5 * 60_000
@@ -17,15 +17,26 @@ type IsOpen = (project: string, task: string) => boolean
 // and a red push of that fix stops the chain instead of filing another. Without a CI to judge it, the project's
 // own check does (BTN-104): before the merge on the task's branch, and on main in the next task's place if main moved.
 // With `ci.fixTask` off (BTN-115) the fix is a session without a task, which the dispatcher starts (`MainFix`).
+// A green main runs the project's `commands.afterGreen` in its checkout (BTN-156), one run at a time per project.
 export class MainCheck {
   private readonly prepared = new Map<string, string>()
+  /** The run of `commands.afterGreen` going on, by project, and the green push due after it. */
+  private readonly afterRuns = new Map<string, { commit: string; since: string; next?: MainPush }>()
 
   constructor(
     private readonly state: ChainState,
     private readonly deps: MainCheckDeps,
     private readonly now: () => Date,
     private readonly log: (message: string) => void,
+    /** `save` — the state must reach the disk now; `wake` — a run of `commands.afterGreen` ended. */
+    private readonly hooks: { save: () => void; wake: () => void },
   ) {}
+
+  /** The run of the project's `commands.afterGreen` the next launch waits for. */
+  afterGreenRun(project: string): { commit: string; since: string } | undefined {
+    const run = this.afterRuns.get(project)
+    return run === undefined ? undefined : { commit: run.commit, since: run.since }
+  }
 
   /** The tree of the task's branch, read before its cleanup deletes the branch; `null` — unknown. */
   async taskTree(project: string, task: string): Promise<string | null> {
@@ -199,6 +210,41 @@ export class MainCheck {
     gate.green = push.commit
     if (this.fixed(gate, push)) delete gate.fix
     this.log(`ci: ${project}: ${shortCommit(push.commit)} ${how}`)
+    this.afterGreen(project, gate, push)
+  }
+
+  /** The mark goes to the disk before the commands start: one of them may restart the service itself. */
+  private afterGreen(project: string, gate: MainGate, push: MainPush): void {
+    if (gate.afterGreen === push.commit || !this.deps.afterGreen(project)) return
+    const running = this.afterRuns.get(project)
+    if (running !== undefined) {
+      running.next = push
+      return
+    }
+    gate.afterGreen = push.commit
+    this.afterRuns.set(project, { commit: push.commit, since: this.now().toISOString() })
+    this.hooks.save()
+    this.log(`afterGreen: ${project}: running the commands after ${shortCommit(push.commit)}`)
+    void this.deps
+      .runAfterGreen(project, push.commit)
+      .catch((error: unknown): AfterGreenRun => ({ state: 'skipped', reason: englishOf(noticeOf(error)) }))
+      .then((run) => this.afterGreenEnded(project, push, run))
+  }
+
+  private afterGreenEnded(project: string, push: MainPush, run: AfterGreenRun): void {
+    const next = this.afterRuns.get(project)?.next
+    this.afterRuns.delete(project)
+    const commit = shortCommit(push.commit)
+    if (run.state === 'done') this.log(`afterGreen: ${project}: the commands after ${commit} are done`)
+    else if (run.state === 'skipped') this.log(`afterGreen: ${project}: skipped after ${commit}: ${run.reason}`)
+    else {
+      const { command, code } = run.failure
+      this.log(`afterGreen: ${project}: ${command} after ${commit} exited with ${code}`)
+      const leftovers = (this.state.leftovers[project] ??= [])
+      leftovers.push({ task: push.tasks.at(-1) ?? project, at: this.now().toISOString(), notice: notice('afterGreen.failed', { command, code, commit }) })
+    }
+    if (next !== undefined) this.afterGreen(project, this.gate(project), next)
+    this.hooks.wake()
   }
 
   private unchecked(project: string, gate: MainGate, push: MainPush, why: string): void {
