@@ -22,6 +22,13 @@ Reference for sessions: account folders, sign-in, switching, transferring the sh
 - Instead of the limits, the panel row, the account card and the header (while the API account is the active one) show the folder's spend since local midnight, from Tally (`/api/stats/spend`, `docs/stats.md`), refreshed every 5 minutes and fetched only while some account is on a key. Without Tally there is no figure.
 - The prompt cache lifetime of sessions on a key is 5 minutes by default; the `cacheTtl` config key changes it (`docs/sessions.md`).
 
+## The Codex folder (BTN-168)
+
+- One Codex account: the folder `CODEX_HOME` or `~/.codex`, key `codex` (`AccountHomes`, `src/account/homes.ts`). It is listed only once it exists — Codex does not create it, and Even Keel does not either.
+- It is never the active account: it is not switched to, given to an app or removed from the panel (`account.codexFolder`). Every Codex session starts there whatever the active account, and the chain judges a Codex task's launch block, limits and handoff account by this folder, not by the active one.
+- Sign-in status is `codex login status` (`Logged in using ChatGPT` / `an API key` / `Not logged in`); the e-mail and plan come from the `id_token` claims in `auth.json`. "Renew sign-in" runs `codex login --device-auth` through the same sign-in flow as Claude's (not checked live, `docs/unverified.md`); sign-out is `codex logout`.
+- Limits are read from the folder's rollouts, not polled (`docs/sessions.md`, "Codex"). The shared configuration is not transferred: Codex reads its own `config.toml`, and the tracker's MCP server comes with every turn. To get the tracker's skills, the user installs the tracker's plugin from the even-keel marketplace in Codex themselves.
+
 ## Active account
 
 - The active account can be switched at any time, even with a chain running: the switch only picks the folder for new launches, so sessions of the active account, mid-turn or not (VS Code chats included), stay where they are and the chain's next session starts on the new account (`switchProblem`). The panel warns while chains run. Renewing the active one's sign-in rewrites the folder's tokens, so it waits until every chain is paused or stopped and no session of the active account is mid-turn — `busy` or `waiting`.

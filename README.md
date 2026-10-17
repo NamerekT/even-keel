@@ -28,6 +28,7 @@ Sequential within a project, not across them: different projects are different r
 
 - **The chain.** Tasks enter the chain by status (by default: ready and in-progress tasks — not the backlog, not closed ones) and by labels you choose. Order: open blockers first, then the order you set by dragging on the page, then milestone, priority, task number. A task with an open blocker waits; a task with subtasks never runs itself — its subtasks do, and on Huly Even Keel closes it once they are all closed.
 - **Sessions.** Each task gets a background session (`claude --bg`) in its own git worktree `.claude/worktrees/<key>-<number>` on a branch `<key>-<number>/task`, made from `main` (or the project's `branch`; `main` below means that branch). The session does the task and merges its branch into `main`; Even Keel sees the merge, closes the task in the tracker, stops the session, removes the worktree and the branch, and syncs `main` with the remote. Labels `Sonnet`, `Opus` or `Haiku` on a task pick the model; without one the session runs on the `model` of the config (Opus by default), whatever `/model` last saved in the CLI settings.
+- **Codex (preview).** A project's `agent` key, or a `Codex` label on a task, runs the task's sessions on the OpenAI Codex CLI instead: one `codex exec --json` per turn, the transcript, context fill and 5-hour and weekly limits read from Codex's own session files, the tracker's MCP server passed on every turn. Codex has no question tool, so a turn that ends without the task done waits for your reply in the chat window. Not yet run as a whole chain: from the Windows service the Codex sandbox does not start ([docs/unverified.md](docs/unverified.md#codex)).
 - **Slots.** For repositories with heavy ignored caches (Unity's `Library`, big `node_modules`) a project can use a pool of permanent worktrees instead of a fresh one per task, so the next task rebuilds only the difference.
 - **Handoffs.** A session that hit the usage limit is resumed after the reset if its prompt cache is still warm, otherwise stopped and replaced by a new session in the same worktree with a handoff prompt. The same handoff happens when a session ends its turn with a `CHECKPOINT: <path to a note>` line — the [checkpoint](plugins/checkpoint) plugin asks for it once the context grows past a threshold, 200k tokens until the project's own statistics give a better one, and stops asking below 300k after three handoffs of a task — and when you press **New session** on the page.
 - **Chat with the session.** The **Chat** button of the current session opens its whole transcript with a reply box: the options of the session's question as tabs and radio buttons or checkboxes, free text and files, which land in the task's `.temp/inbox/`. The button turns amber while the session waits for you. Even Keel stops the session and resumes it with your answer. A question with options is also posted to the tracker as a numbered comment; reply with `2`, `1, 3` or text. Remote Control still works: the page links each session's Remote Control.
@@ -53,6 +54,7 @@ Sequential within a project, not across them: different projects are different r
 
 - **Node.js 24** or newer ([nodejs.org](https://nodejs.org/en/download); on Linux nvm needs no `sudo`), and git with your name and email set (`git config --global user.name` and `user.email`): sessions commit and merge under them.
 - **Claude Code CLI** ([install](https://docs.claude.com/en/docs/claude-code/setup)), logged in with a Claude subscription (`claude` once in a terminal). Even Keel finds the native install in `~/.local/bin` (`claude.exe` on Windows), then the binary of the VS Code extension, then `claude` on `PATH`; `EVEN_KEEL_CLAUDE_BIN` overrides.
+- **Codex CLI** (optional, only for projects or tasks on Codex): `npm install -g @openai/codex`, signed in with `codex login`. Its folder is `CODEX_HOME` or `~/.codex`; `EVEN_KEEL_CODEX_BIN` overrides the binary. Checked on **codex-cli 0.162.1**.
 - **A tracker:** a Huly workspace, GitHub repositories with Issues, or a Linear workspace.
 - **Statistics** need nothing more: the database is embedded. An external Postgres is optional.
 - Windows, Linux or macOS. Windows is where it runs every day; Linux was checked end to end under WSL and on a clean Ubuntu server, by this README; macOS is expected to work but has not been checked.
@@ -62,7 +64,7 @@ Sequential within a project, not across them: different projects are different r
 - **Even Keel depends on undocumented behaviour of the Claude Code CLI**: `claude agents --json`, the `sessions/<pid>.json` records, the background daemon (`claude --bg`, `claude daemon`), the transcript format, the text of `/usage`, the layout of `~/.claude.json` and `.credentials.json`. None of it is a public API. Last checked against **Claude Code 2.1.301**. A CLI update may break a part of Even Keel until it is adapted — please open an issue when it does.
 - **Sessions run with `--permission-mode auto`**: they act without asking you on each tool call. Set up the permissions and hooks you want in your Claude Code settings before you start a chain.
 - Even Keel reads only the expiry dates from `.credentials.json`; tokens stay with the CLI and are never read, copied or sent anywhere.
-- **Some behaviour has never been checked live** — macOS, an early reset of Claude limits, a few tracker and CI paths. Read [What has not been verified](docs/unverified.md) before relying on any of them.
+- **Some behaviour has never been checked live** — macOS, an early reset of Claude limits, a chain on Codex, a few tracker and CI paths. Read [What has not been verified](docs/unverified.md) before relying on any of them.
 
 ## Install
 
@@ -215,6 +217,8 @@ The statistics database is versioned too: the collector brings its schema up to 
 | `FORGEJO_TOKEN` | CI runs on a Forgejo remote: a token with read access to repositories. GitHub Actions on a `github.com` remote takes `GITHUB_TOKEN`, which then also needs **Actions: Read**. Without its token a CI shows as not connected |
 | `EVEN_KEEL_ACCOUNTS_DIR` | folder of the extra Claude account folders; default `~/.claude-accounts` |
 | `EVEN_KEEL_CLAUDE_BIN` | path to the `claude` binary |
+| `EVEN_KEEL_CODEX_BIN` | path to the `codex` binary; default the native one of the global npm package on Windows, `codex` elsewhere |
+| `CODEX_HOME` | Codex's own folder, the one Codex account; default `~/.codex` |
 | `EVEN_KEEL_CONFIG` | path to the config; default `even-keel.config.json` in the root |
 | `EVEN_KEEL_HOST`, `EVEN_KEEL_PORT` | where the page listens; default `127.0.0.1` and `4747`. Any other address than loopback needs `EVEN_KEEL_TOKEN` ([Reaching the page from another machine](#reaching-the-page-from-another-machine)). Read at startup; `host` and `port` left in an older config are not read, the log says so once |
 | `EVEN_KEEL_TOKEN` | the page's token for requests from other machines; required when `EVEN_KEEL_HOST` is not loopback, 16+ characters of `A-Z a-z 0-9 . _ ~ + / = -`, e.g. `node -e "console.log(crypto.randomBytes(24).toString('hex'))"`. Read at startup |
@@ -256,6 +260,8 @@ The statistics database is versioned too: the collector brings its schema up to 
 | `projects[].ci.waitMinutes` | none | how long the next task waits for that verdict, in minutes; none — as long as it takes, `0` — not at all (faster, but a task may start on a broken `main`) |
 | `projects[].ci.recheckMain` | `true` | `false` — do not run `commands.check` again on a `main` that moved during the task |
 | `projects[].ci.fixTask` | `false` | who fixes a red `main`. `false` — a session without a tracker task; the session working on the current task is stopped until the fix is merged and then continued. `true` — a high-priority task created in the tracker, taken after the current one |
+| `projects[].agent` | `claude` | the agent of the project's sessions: `claude` or `codex`; a `Codex` label on a task runs that task on Codex whatever the key |
+| `projects[].codexModel` | none | model of the project's Codex sessions (`-m`), such as `gpt-5.6-luna`; none — the model of Codex's own `config.toml`. Model labels and `model` act only on Claude |
 | `projects[].fillMilestone` | `false` | `true` — a task that enters the chain without a milestone gets, in the tracker, the milestone of the current task, or the earliest one in the chain; once, so a milestone you change or clear afterwards stays |
 | `context` | `{ "window": 600000, "warn": 50, "danger": 80 }` | context bar on the page: window size in tokens, warning and danger thresholds in percent |
 | `model` | `opus` | model of sessions whose task has no model label: `sonnet`, `opus` or `haiku` |
@@ -278,7 +284,7 @@ Statuses are matched by name, case-insensitively. Without `active` and `terminal
 
 Planned for the next release, v0.2:
 
-- **Codex as a second agent.** Sessions, accounts and limits through the `codex` CLI, next to Claude Code.
+- **Codex in full.** Several Codex accounts and adding them from the page, and chain sessions that run under the Windows service despite the Codex sandbox.
 - **Setup without a config file.** A wizard on the page adds a project and checks it on the way: the repository and its main branch, the project in the tracker, Claude Code's trust in the folder. Even Keel keeps the settings itself, so there is no file to copy or edit.
 - **One executable.** A single downloaded file that runs Even Keel, installs the service and updates it, instead of a clone, Node.js and a build. Windows first, Linux if it works out; macOS keeps `service/install.sh`.
 

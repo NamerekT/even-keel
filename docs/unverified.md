@@ -28,6 +28,17 @@ If you run into one of these, please open an issue with what you saw: it is the 
 - **A key refused after it was added.** The check of a key was seen live answering 200 for a working key and 401 for a made-up one; 403 (a disabled organization or a key without the permission) and a key revoked after it was added were never seen. If a revoked key still answers 200 on the models list, the account looks fine until its first session fails on authentication and stops like any error (`docs/accounts.md`). **Workaround:** remove the account and add a working key.
 - **An API key out of credit.** What the transcript says when the key's organization runs out of credit was never seen. Such a session stops like any other error and waits for the user (invariant 1); nothing resumes it after a top-up (planned in BTN-165). **Workaround:** top up and press "New session" on the task, or answer the session from the chat window.
 
+## Codex
+
+Checked live on codex-cli 0.162.1 (BTN-168): a detached turn outlives its parent killed hard, `exec resume <id>` goes on with the history, a resume of an unknown id fails instead of starting a new thread, `CODEX_HOME`, `rate_limits` and the context fill in the rollout. The rest:
+
+- **The chain end to end on Codex.** From the service's Windows session 0 the Codex sandbox does not start, so a chain session cannot run commands there (BTN-171). Every piece of the chain on Codex was checked by tests, not by a real chain.
+- **Errors and limits in the rollout.** An API error is taken from an `event_msg` of type `error`, and a limit by its text (`usage limit`, `rate limit`, `quota`); neither was ever seen. If the shape differs, a session that hit a limit looks finished without Done and waits for the user. **Workaround:** press "New session" on the task after the reset.
+- **The tracker's MCP server inside a real session.** The `-c mcp_servers.<name>.…` overrides were checked against `codex exec` parsing, not with a session that called the tracker. If Codex also has the tracker's plugin installed under the same server name, which one wins is unknown. **Workaround:** uninstall the plugin in Codex or give the tracker's tools through it alone.
+- **Sign-in from the page.** `codex login --device-auth` runs through the panel's sign-in flow, whose reading of the link and the code was written for Claude's output. If the panel shows no link, sign in with `codex login` in a terminal with the same `CODEX_HOME` (`docs/accounts.md`).
+- **A crashed turn and a service restart mid-turn.** Liveness is the pid of the last turn: a pid reused by another process after a crash would keep the session busy. A service restart mid-turn was checked with a parent process killed hard, not with the real service.
+- **Stopping a turn on macOS and Linux.** The turn's process group is killed with `process.kill(-pid)`; it was run only on Windows (`taskkill /T`).
+
 ## Trackers
 
 - **GitHub attachments.** Downloading a file attached to an issue or comment with the token has not been tried live; if it fails, the page cannot open that file (`docs/trackers.md`).
