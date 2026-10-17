@@ -178,14 +178,20 @@ function appRole(entry: AccountEntry, view: AccountView, app: AppAccount, send: 
   }
 }
 
-/** What runs on the account now: app chats by the titles of their tabs, the rest — chain and terminal sessions — by name. */
+/**
+ * What runs on the account now, in one line of a fixed height: sessions coming and going would otherwise resize the card and its whole row.
+ * The list — app chats by the titles of their tabs, the rest (chain and terminal sessions) by name — is in its tip.
+ */
 export function AccountWork({ entry, view }: { entry: AccountEntry; view: AccountView }) {
   const chats = view.apps.flatMap((app) => app.sessions.filter((chat) => chat.account === entry.key).map((chat) => ({ ...chat, app: APP_LABELS[app.app] })))
   const inChats = new Set(chats.map((chat) => chat.session))
   const others = entry.sessions.filter((name) => !inChats.has(name))
-  if (chats.length === 0 && others.length === 0) return null
-  return (
-    <div className="work">
+  const total = chats.length + others.length
+  if (total === 0) return <div className="work work--none">{t.account.workNone}</div>
+  const busy = chats.filter((chat) => chat.status === 'busy' || chat.status === 'shell').length
+  const waiting = chats.filter((chat) => chat.status === 'waiting').length
+  const list = (
+    <div className="work__tip">
       <span className="work__label">{t.account.workingNow}</span>
       <ul className="work__list">
         {others.map((name, index) => (
@@ -195,9 +201,7 @@ export function AccountWork({ entry, view }: { entry: AccountEntry; view: Accoun
         ))}
         {chats.map((chat, index) => (
           <li key={`chat-${chat.session}-${index}`} className="work__item work__item--chat">
-            <span className="work__name" title={chat.name}>
-              {chat.name}
-            </span>
+            <span className="work__name">{chat.name}</span>
             <span className="work__where">
               {chat.app} · {t.account.chats[chat.status ?? 'idle']}
             </span>
@@ -205,5 +209,12 @@ export function AccountWork({ entry, view }: { entry: AccountEntry; view: Accoun
         ))}
       </ul>
     </div>
+  )
+  return (
+    <Tipped className="work" tip={list} align="start" focusable>
+      <span className="work__count">{t.account.workSessions(total)}</span>
+      {busy > 0 && <span className="work__busy">{t.account.workBusy(busy)}</span>}
+      {waiting > 0 && <span className="work__waiting">{t.account.workWaiting(waiting)}</span>}
+    </Tipped>
   )
 }

@@ -164,12 +164,56 @@
   color: var(--warn-fg);
 }
 
-/* What runs on the account now: sessions by name run on in one wrapping line, a chat takes a row with where it is open. */
+/* What runs on the account now: one line that never wraps, so the card keeps its height; the list is in its tip. */
 .work {
   display: flex;
-  flex-direction: column;
-  gap: 2px;
+  align-items: center;
+  gap: 6px;
+  align-self: flex-start;
+  max-width: 100%;
+  min-height: 20px;
+  overflow: hidden;
+  color: var(--fg-muted);
   font-size: 13px;
+  white-space: nowrap;
+}
+
+/* Dotted like any term with a tip. */
+.work__count {
+  color: var(--fg);
+  text-decoration: underline dotted;
+  text-underline-offset: 3px;
+}
+
+.work__busy,
+.work__waiting {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.work__busy::before,
+.work__waiting::before {
+  content: '·';
+  color: var(--fg-muted);
+}
+
+.work__busy {
+  color: var(--accent);
+}
+
+.work__waiting {
+  color: var(--warn-fg);
+}
+
+.tip:has(.work__tip) {
+  max-width: min(420px, calc(100vw - 16px));
+}
+
+.work__tip {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
 }
 
 .work__label {
@@ -196,16 +240,16 @@
   flex-basis: 100%;
 }
 
+/* In the tip the whole title is read: it wraps instead of being cut. */
 .work__name {
   min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  overflow-wrap: anywhere;
 }
 
 .work__where {
   flex: none;
   margin-left: auto;
+  white-space: nowrap;
   color: var(--fg-muted);
   font-size: 12px;
 }

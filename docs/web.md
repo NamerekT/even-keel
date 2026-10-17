@@ -100,7 +100,7 @@ Layout work on a fake state, without a tracker or sessions. The fake history sta
 | `?account=out\|expired\|login\|failed\|unknown` | states of the active Claude account; the `fail` code in the sign-in field is a failed sign-in |
 | `?account=pending` | the new configuration is waiting for the account's sessions to finish |
 | `?account=removing` | the folder is waiting for sessions to finish so it can be removed |
-| `?account=vscode-chats` | VS Code cannot move because of two open chats on jane.roe, listed by their tab titles under "Working now" |
+| `?account=vscode-chats` | VS Code cannot move because of two open chats on jane.roe, counted in the card's sessions line and listed by their tab titles in its tip |
 | `?account=vscode-broken` | VS Code `settings.json` is unreadable |
 | `?account=many` | four accounts: one with the week used up, two near the 5-hour limit, the chain on a second folder |
 | `?account=api` | API accounts: the active `ci-key` named "CI key" with today's spend and `old-key` whose key is not accepted; in the add form a key containing `rejected` is refused by Anthropic, one containing `offline` cannot be checked |
