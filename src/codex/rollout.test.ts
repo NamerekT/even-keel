@@ -121,6 +121,16 @@ describe('RolloutFold', () => {
     expect(limit.feed.at(-1)?.kind).toBe('error')
   })
 
+  it('reads the error of a failed turn from task_complete, unwrapping the JSON of the API answer', () => {
+    const body = JSON.stringify({ type: 'error', status: 400, error: { type: 'invalid_request_error', message: "The 'example-model' model is not supported." } })
+    const failed = event({ type: 'task_complete', last_agent_message: null, error: { message: body, codex_error_info: 'other' } })
+    const summary = fold([meta(), started(), user('TSK-1'), failed]).summary()
+    expect(summary.apiError).toMatchObject({ kind: 'error', text: "The 'example-model' model is not supported." })
+    expect(summary.feed.at(-1)?.kind).toBe('error')
+    const plain = event({ type: 'task_complete', last_agent_message: null, error: { message: 'plain text' } })
+    expect(fold([plain]).summary().apiError?.text).toBe('plain text')
+  })
+
   it('clears the API error once the session answers again', () => {
     expect(fold([event({ type: 'error', message: 'boom' }), agent('Back.')]).summary().apiError).toBeNull()
   })

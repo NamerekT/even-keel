@@ -64,7 +64,8 @@ export class RolloutFold {
     if (line.type !== 'event_msg') return
     const at = line.timestamp ?? ''
     if (payload.type === 'token_count') this.pushTokens(record(payload.info))
-    else if (payload.type === 'error') this.pushError(at, payload.message)
+    else if (payload.type === 'error') this.pushError(at, errorText(payload.message))
+    else if (payload.type === 'task_complete' && record(payload.error) !== undefined) this.pushError(at, errorText(record(payload.error)?.message))
     else if (payload.type === 'item_completed') this.pushItem(at, record(payload.item))
   }
 
@@ -269,6 +270,17 @@ function parseLine(text: string): Line | undefined {
     return typeof value === 'object' && value !== null ? (value as Line) : undefined
   } catch {
     return undefined
+  }
+}
+
+/** The message of a failed turn is often the API's JSON answer as a string: its inner `error.message` is what a human reads. */
+function errorText(message: unknown): unknown {
+  if (typeof message !== 'string' || !message.trimStart().startsWith('{')) return message
+  try {
+    const inner = record(record(JSON.parse(message))?.error)?.message
+    return typeof inner === 'string' && inner !== '' ? inner : message
+  } catch {
+    return message
   }
 }
 

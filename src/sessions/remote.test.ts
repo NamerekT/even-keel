@@ -69,6 +69,11 @@ describe('remoteLink', () => {
     expect(remoteLink({ ...base, enabled: false, now: startedAt + 10_000 })).toEqual({ url: null, off: 'disabled' })
   })
 
+  it('says nothing about Remote Control for an agent without it', () => {
+    expect(remoteLink({ ...base, enabled: null })).toEqual({ url: null, off: null })
+    expect(remoteLink({ ...base, enabled: null, apiKey: true })).toEqual({ url: null, off: null })
+  })
+
   it('reports a session that never brought its bridge up', () => {
     expect(remoteLink(base)).toEqual({ url: null, off: 'no-bridge' })
   })

@@ -9,7 +9,8 @@ export interface RemoteFacts {
   bridge: string | null
   transcriptUrl: string | null
   lost: boolean
-  enabled: boolean
+  /** `null` — the session's agent has no Remote Control at all (Codex): no link and no note. */
+  enabled: boolean | null
   /** Remote Control needs a claude.ai sign-in: a session on an API key never has it (BTN-136). */
   apiKey: boolean
   startedAt: number
@@ -34,6 +35,7 @@ export function remoteAtStartup(rawSettings: string | undefined): boolean {
 }
 
 export function remoteLink(facts: RemoteFacts): RemoteLink {
+  if (facts.enabled === null) return { url: null, off: null }
   if (facts.apiKey) return { url: null, off: 'api-key' }
   if (facts.lost) return { url: null, off: 'lost' }
   const url = facts.bridge !== null ? remoteUrlOf(facts.bridge) : facts.transcriptUrl

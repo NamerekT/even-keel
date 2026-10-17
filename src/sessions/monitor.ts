@@ -32,7 +32,8 @@ interface Tracked {
 export class SessionMonitor {
   private readonly tracked = new Map<string, Tracked>()
   private readonly tails = new Map<string, SessionTail>()
-  private readonly remoteEnabled = new Map<string, boolean>()
+  /** By account; `null` when its agent has no Remote Control. */
+  private readonly remoteEnabled = new Map<string, boolean | null>()
   private lastSnapshot = ''
   private timer: NodeJS.Timeout | undefined
   private running: Promise<void> | undefined
@@ -56,7 +57,8 @@ export class SessionMonitor {
     const now = Date.now()
     return [...this.tracked].map(([task, tracked]) => {
       const account = tracked.agent.account ?? GLOBAL_ACCOUNT
-      const remote = { enabled: this.remoteEnabled.get(account) ?? false, apiKey: this.options.apiKey(account) }
+      const enabled = this.remoteEnabled.has(account) ? this.remoteEnabled.get(account)! : false
+      const remote = { enabled, apiKey: this.options.apiKey(account) }
       return toView(task, tracked, remote, this.options.emailOf(account), now)
     })
   }
@@ -118,7 +120,10 @@ export class SessionMonitor {
       const reads = await Promise.allSettled([...this.tails.values()].map((tail) => tail.read()))
       for (const read of reads) if (read.status === 'rejected') this.options.onError(read.reason)
 
-      for (const home of homes) this.remoteEnabled.set(home.key, (await this.options.agentOf(home).remote?.enabled(home)) ?? false)
+      for (const home of homes) {
+        const remote = this.options.agentOf(home).remote
+        this.remoteEnabled.set(home.key, remote === undefined ? null : await remote.enabled(home))
+      }
       const branchOf = (agent: AgentEntry) => this.tails.get(agent.sessionId)?.summary().gitBranch ?? null
       const byTask = sessionsByTask(agents, this.options.projectKeys(), branchOf)
       for (const [task, agent] of byTask) {
@@ -153,7 +158,7 @@ export class SessionMonitor {
 function toView(
   task: string,
   { agent, runsOn, present, transcript, bridge }: Tracked,
-  remoteOf: { enabled: boolean; apiKey: boolean },
+  remoteOf: { enabled: boolean | null; apiKey: boolean },
   email: string | null,
   now: number,
 ): SessionView {
