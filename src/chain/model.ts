@@ -17,7 +17,14 @@ export interface CurrentTask {
   starting?: string
   /** The start is the user's answer going to the same session, not a new one. */
   answering?: true
+  /** What the start of a running task's session is; a service restart cut short keeps it for the chain to see it through. */
+  move?: Move
+  /** The answer being delivered, and the question it answers. */
+  reply?: string
+  ask?: string
 }
+
+export type Move = 'answer' | RelayAction | 'restart' | 'checkpoint'
 
 export interface ActiveChain {
   project: string
