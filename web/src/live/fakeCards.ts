@@ -97,7 +97,7 @@ export function fakeReady(state: EvenKeelState, id: string): EvenKeelState {
   const placed = at < 0 ? [...order.order, id] : [...order.order.slice(0, at), id, ...order.order.slice(at)]
   const projects = {
     ...state.chain.projects,
-    [project]: { ...order, order: placed, backlog: order.backlog.filter((each) => each !== id), landing },
+    [project]: { ...order, order: placed, waiting: order.waiting.filter((each) => each !== id), backlog: order.backlog.filter((each) => each !== id), landing },
   }
   return { ...state, tasks, chain: { ...state.chain, projects } }
 }

@@ -74,7 +74,8 @@ Layout work on a fake state, without a tracker or sessions. The fake history sta
 | `?chain=fix` | main is red: the fix session `ABC-FIX` leads the chain, the session of ABC-5 is stopped until it is done |
 | `?chain=aside` | main is red while ABC-5 waited on a question: `ABC-FIX` leads the chain, the chat of ABC-5 opens with the reply box shut |
 | `?chain=skip` | a skipped task and a session postponed by a blocker |
-| `?chain=backlog` | blockers from Backlog under a lock in front of the held task (milestone v0.2) |
+| `?chain=backlog` | blockers from Backlog under a lock in front of the held task (milestone v0.2): ABC-16 and ABC-17 with "Move to Todo", ABC-21 from v0.3 with it off (`refused`, also in its card) |
+| `?chain=later` | ABC-10 of v0.2 is blocked by ABC-21 of v0.3 in Todo: the order does not build, the chain is paused with `order.later` |
 | `?chain=restart` | a session ended on a limit and lost Remote Control, the "New session" button |
 | `?chain=close` | the current task closes every 10 s, the chain takes the next one and a new task enters third — for the motion of changes |
 | `?chain=handover` | as `close`, but in two pushes: Done first, the next task and the new one a second later, mid-motion |

@@ -39,6 +39,10 @@ export const en = {
   'order.blocked': (p: { task: string; blocker: string }) => `chain: ${p.task} cannot go before ${p.blocker}, which blocks it`,
   'order.milestone': (p: { task: string; milestone: string; earlier: string; earlierMilestone: string }) =>
     `chain: ${p.task} in ${p.milestone} cannot go before ${p.earlier} in the earlier ${p.earlierMilestone}`,
+  'order.cycle': (p: { path: string }) => `blocker cycle: ${p.path}`,
+  'order.later': (p: { task: string; milestone: string; blocker: string; blockerMilestone: string }) =>
+    `${p.task} in ${p.milestone} is blocked by ${p.blocker} in the later ${p.blockerMilestone}`,
+  'order.against': (p: { path: string }) => `blockers go against the milestone order: ${p.path}`,
 
   'cleanup.failed': () => 'cleanup failed',
   'cleanup.syncFailed': () => 'sync of the main branch failed',

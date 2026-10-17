@@ -1,5 +1,6 @@
 import { useEffect, useRef, type SyntheticEvent } from 'react'
 import type { TrackerUrls } from '../../../src/state.js'
+import type { Notice } from '../../../src/notice/notice.js'
 import type { Task } from '../../../src/tracker/model.js'
 import { say, t } from '../i18n/index.js'
 import { useCommand } from '../live/useCommand.js'
@@ -40,6 +41,8 @@ interface Props {
   trackerUrls: TrackerUrls
   /** The project's tracker can move a backlog task to Todo. */
   canReady: boolean
+  /** Why a task cannot be moved to Todo: the chain would lose its order. */
+  refused: Record<string, Notice>
   links: (task: string) => TaskLinks
   onCard: (task: string) => void
   onClose: () => void
@@ -50,7 +53,7 @@ interface Props {
   onSettled: (task: string) => void
 }
 
-export function BacklogPanel({ tasks, trackerUrls, canReady, links, onCard, onClose, onPoint, onMove, onSettled }: Props) {
+export function BacklogPanel({ tasks, trackerUrls, canReady, refused, links, onCard, onClose, onPoint, onMove, onSettled }: Props) {
   const closeRef = useRef<HTMLButtonElement>(null)
   const { send, sending, failure } = useCommand()
   const point = useRef(onPoint)
@@ -98,15 +101,17 @@ export function BacklogPanel({ tasks, trackerUrls, canReady, links, onCard, onCl
       >
         {tasks.map((task) => {
           const link = issueLink(trackerUrls, task.id)
+          const reason = refused[task.id]
           return (
             <li key={task.id} className={`backlog__row backlog__row--${task.priority}`}>
               {canReady && task.status.category === 'UnStarted' && (
                 <button
                   type="button"
                   className="backlog__ready"
-                  disabled={sending}
+                  disabled={sending || reason !== undefined}
                   aria-label={t.card.ready}
-                  data-ready={task.id}
+                  title={reason === undefined ? undefined : t.chain.readyRefused(say(reason))}
+                  data-ready={reason === undefined ? task.id : undefined}
                   onClick={(event) => ready(task, event.currentTarget)}
                 >
                   <IntoChainIcon />

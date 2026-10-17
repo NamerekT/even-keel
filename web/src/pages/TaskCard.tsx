@@ -25,11 +25,13 @@ interface Props {
   task: string
   link: string | null
   tracker: string | null
+  /** Why the task cannot be moved to Todo: the chain would lose its order. */
+  refused: Notice | null
   onOpen: (task: string) => void
   onClose: () => void
 }
 
-export function TaskCard({ task, link, tracker, onOpen, onClose }: Props) {
+export function TaskCard({ task, link, tracker, refused, onOpen, onClose }: Props) {
   const { card: load } = useLive()
   const [card, setCard] = useState<Card | null | undefined>(undefined)
   const [error, setError] = useState<Notice | null>(null)
@@ -85,7 +87,7 @@ export function TaskCard({ task, link, tracker, onOpen, onClose }: Props) {
           {error !== null && <p className="notice notice--error">{say(error)}</p>}
           {card === undefined && error === null && <Loading />}
           {card === null && <p className="placeholder task-card__empty">{t.card.none}</p>}
-          {card != null && <CardBody card={card} onOpen={onOpen} onChanged={() => setRound((n) => n + 1)} />}
+          {card != null && <CardBody card={card} refused={refused} onOpen={onOpen} onChanged={() => setRound((n) => n + 1)} />}
         </div>
       </div>
     </dialog>
@@ -103,7 +105,7 @@ function Loading() {
   )
 }
 
-function CardBody({ card, onOpen, onChanged }: { card: Card; onOpen: (task: string) => void; onChanged: () => void }) {
+function CardBody({ card, refused, onOpen, onChanged }: { card: Card; refused: Notice | null; onOpen: (task: string) => void; onChanged: () => void }) {
   const { send, sending, failure } = useCommand()
   const markdown = useMarkdown(onOpen)
   const loud = card.labels.filter((label) => LOUD.has(label.role))
@@ -166,12 +168,12 @@ function CardBody({ card, onOpen, onChanged }: { card: Card; onOpen: (task: stri
               <button
                 type="button"
                 className="button button--primary"
-                disabled={sending}
+                disabled={sending || refused !== null}
                 onClick={() => void send('task/ready', { task: card.id }).then((ok) => ok && onChanged())}
               >
                 {t.card.ready}
               </button>
-              <span className="task-card__hint">{t.card.readyHint}</span>
+              <span className="task-card__hint">{refused === null ? t.card.readyHint : t.chain.readyRefused(say(refused))}</span>
             </div>
           )}
           {failure !== null && <p className="notice notice--error">{say(failure)}</p>}

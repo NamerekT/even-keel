@@ -756,8 +756,10 @@ export const en: Messages = {
     help: 'Marks and hints',
     linksHint: 'The selected task or the task under the cursor highlights its blockers and the tasks waiting for it.',
     dragHint: 'Reorder by dragging a card, on a phone — after a long press.',
-    lockedHint: 'Locked rows are blockers outside the chain: the tasks behind them wait. Move a blocker to an active status and the chain takes it; close a manual one yourself.',
+    lockedHint:
+      'Locked rows are blockers outside the chain: the tasks behind them wait. Move a blocker to an active status (the button on the left, or in the tracker) and the chain takes it; close a manual one yourself.',
     lockedTitle: 'Blocker outside the chain: open the task in the tracker',
+    readyRefused: (reason: string) => `Moving it to Todo would stop the chain: ${reason}`,
     tasks,
     noMilestone: 'No milestone',
     hidden: (tasks: string) => `hidden · ${tasks}`,

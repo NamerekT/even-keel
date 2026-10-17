@@ -227,6 +227,23 @@ export function canReady(state: EvenKeelState, project: string): boolean {
   return state.trackers.some((view) => view.ready && view.projects.includes(project))
 }
 
+/**
+ * The "Move to Todo" button of a backlog task or a locked blocker, `null` for none: a locked one has it only where the service
+ * worked out its place, which leaves out manual tasks, parents and other projects. `refused` — why it is off: once taken,
+ * the task would leave the chain without an order.
+ */
+export interface ReadyButton {
+  refused: Notice | null
+}
+
+export function readyButton(state: EvenKeelState, project: string, task: { id: string; stage: StatusCategory | null; locked: boolean }): ReadyButton | null {
+  if (!canReady(state, project) || task.stage !== 'UnStarted') return null
+  const order = state.chain.projects[project]
+  const refused = order?.refused?.[task.id] ?? null
+  if (task.locked && refused === null && !Object.hasOwn(order?.landing ?? {}, task.id)) return null
+  return { refused }
+}
+
 export function openQuestions(tasks: Task[]): number {
   return tasks.filter((task) => task.question && isOpen(task.status)).length
 }

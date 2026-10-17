@@ -19,6 +19,7 @@ import {
   projectTasks,
   questionPath,
   queuedAfter,
+  readyButton,
   startsNow,
   taskLinks,
   taskProject,
@@ -145,6 +146,7 @@ export function Project({ state, project: key }: { state: EvenKeelState; project
             arrival={arrival.arrival}
             incoming={arrival.incoming}
             links={links}
+            ready={(block) => readyButton(state, key, block)}
             onCard={openCard}
           />
         )}
@@ -162,6 +164,7 @@ export function Project({ state, project: key }: { state: EvenKeelState; project
               tasks={backlog}
               trackerUrls={state.trackerUrls}
               canReady={canReady(state, key)}
+              refused={order?.refused ?? {}}
               links={links}
               onCard={openCard}
               onClose={close}
@@ -196,6 +199,7 @@ export function Project({ state, project: key }: { state: EvenKeelState; project
             task={opened}
             link={issueLink(state.trackerUrls, opened)}
             tracker={state.trackers.find((view) => view.projects.includes(taskProject(opened)))?.title ?? null}
+            refused={state.chain.projects[taskProject(opened)]?.refused?.[opened] ?? null}
             onOpen={openCard}
             onClose={closeCard}
           />

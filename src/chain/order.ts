@@ -217,7 +217,7 @@ function compareVersions(a: number[], b: number[]): number {
 
 function deadlock(pending: Graph, plan: Plan, tasks: Task[]): Error {
   const blockerKnot = knot(new Map([...pending.keys()].map((id) => [id, new Set(plan.blockers.get(id)!.filter((other) => pending.has(other)))])))
-  if (blockerKnot.size > 0) return new Error(`chain: cycle: ${findCycle(blockerKnot).join(' → ')}`)
+  if (blockerKnot.size > 0) return fail('order.cycle', { path: findCycle(blockerKnot).join(' → ') })
 
   const milestones = milestonesById(tasks)
   for (const id of [...pending.keys()].sort(byNumber)) {
@@ -225,10 +225,10 @@ function deadlock(pending: Graph, plan: Plan, tasks: Task[]): Error {
     if (own === undefined) continue
     const blocker = plan.blockers.get(id)!.find((other) => (plan.ranks.get(other) ?? -1) > own)
     if (blocker !== undefined) {
-      return new Error(`chain: ${id} in ${milestones.get(id)} is blocked by ${blocker} in the later ${milestones.get(blocker)}`)
+      return fail('order.later', { task: id, milestone: String(milestones.get(id)), blocker, blockerMilestone: String(milestones.get(blocker)) })
     }
   }
-  return new Error(`chain: blockers go against the milestone order: ${findCycle(pending).join(' → ')}`)
+  return fail('order.against', { path: findCycle(pending).join(' → ') })
 }
 
 function knot(graph: Graph): Graph {

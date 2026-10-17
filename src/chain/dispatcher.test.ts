@@ -44,7 +44,7 @@ describe('Dispatcher', () => {
     dispatcher.start('ABC')
     await dispatcher.idle()
 
-    expect(dispatcher.orders()['ABC']).toEqual({ order: ['ABC-2', 'ABC-3'], waiting: ['ABC-1'], backlog: [], error: null })
+    expect(dispatcher.orders()['ABC']).toEqual({ order: ['ABC-2', 'ABC-3'], waiting: ['ABC-1'], backlog: [], landing: { 'ABC-1': 'ABC-2' }, error: null })
     expect(launched).toEqual(['ABC/ABC-3'])
   })
 
@@ -120,6 +120,32 @@ describe('Dispatcher', () => {
     const { dispatcher } = setup({ rules: { ABC: { ...DEFAULT_RULES, requiredLabels: ['ready'] } } })
     dispatcher.setTasks('ABC', [{ ...task('ABC-1'), labels: ['ready'] }, task('ABC-2', backlog), { ...task('ABC-3', backlog), labels: ['ready'] }])
     expect(dispatcher.orders()['ABC']?.landing).toEqual({ 'ABC-3': null })
+  })
+
+  it('tells the place of a waiting blocker the chain would take, but not of one it would not', () => {
+    const { dispatcher } = setup({ rules: { ABC: { ...DEFAULT_RULES, excludedLabels: ['Manual'] } } })
+    dispatcher.setOutside('ABC', [task('XYZ-1', backlog)])
+    dispatcher.setTasks('ABC', [
+      task('ABC-1'),
+      task('ABC-2', todo, 'ABC-3', 'ABC-4', 'XYZ-1'),
+      task('ABC-3', backlog),
+      { ...task('ABC-4', backlog), labels: ['Manual'] },
+    ])
+    expect(dispatcher.orders()['ABC']).toMatchObject({ waiting: ['ABC-3', 'ABC-4', 'XYZ-1'], landing: { 'ABC-3': 'ABC-2' } })
+    expect(dispatcher.orders()['ABC']?.refused).toBeUndefined()
+  })
+
+  it('names why a task would stop the chain once taken: a blocker from a later milestone', () => {
+    const v1 = { label: 'v0.1', targetDate: null }
+    const v2 = { label: 'v0.2', targetDate: null }
+    const { dispatcher } = setup()
+    dispatcher.setTasks('ABC', [{ ...task('ABC-1', todo, 'ABC-2'), milestone: v1 }, { ...task('ABC-2', backlog), milestone: v2 }, task('ABC-3', backlog)])
+    expect(dispatcher.orders()['ABC']).toMatchObject({
+      order: ['ABC-1'],
+      landing: { 'ABC-3': null },
+      refused: { 'ABC-2': notice('order.later', { task: 'ABC-1', milestone: 'v0.1', blocker: 'ABC-2', blockerMilestone: 'v0.2' }) },
+      error: null,
+    })
   })
 
   it('lists the backlog by number without the tasks the labels keep out or the chain waits on', () => {
@@ -819,7 +845,7 @@ describe('Dispatcher with a blocker in the backlog', () => {
     await dispatcher.idle()
 
     expect(launched).toEqual(['ABC/ABC-3'])
-    expect(dispatcher.orders()['ABC']).toEqual({ order: ['ABC-2', 'ABC-3'], waiting: ['ABC-1'], backlog: [], error: null })
+    expect(dispatcher.orders()['ABC']).toEqual({ order: ['ABC-2', 'ABC-3'], waiting: ['ABC-1'], backlog: [], landing: { 'ABC-1': 'ABC-2' }, error: null })
   })
 
   it('shows the backlog blockers of a backlog blocker too', async () => {

@@ -39,6 +39,9 @@ export const noticesRu: NoticeTexts = {
   'order.twice': (p) => `${p.task} встречается дважды`,
   'order.blocked': (p) => `${p.task} не может идти раньше ${p.blocker}: та её блокирует`,
   'order.milestone': (p) => `${p.task} из ${p.milestone} не может идти раньше ${p.earlier} из более раннего ${p.earlierMilestone}`,
+  'order.cycle': (p) => `блокеры замкнулись в кольцо: ${p.path}`,
+  'order.later': (p) => `${p.task} из ${p.milestone} ждёт ${p.blocker} из более позднего ${p.blockerMilestone}`,
+  'order.against': (p) => `блокеры идут против порядка вех: ${p.path}`,
 
   'cleanup.failed': () => 'уборка не удалась',
   'cleanup.syncFailed': () => 'синхронизация главной ветки не удалась',

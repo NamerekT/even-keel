@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { noticeOf } from '../notice/notice.js'
 import { fakeTask } from '../tracker/fixture.js'
 import type { Task, TaskMilestone, TaskPriority } from '../tracker/model.js'
 import { chainOrder, checkOrder, compareMilestones, nextTask, openBlockers, precedence, waitingBlockers, withFresh, withWaiting } from './order.js'
@@ -73,7 +74,7 @@ describe('chainOrder with milestones', () => {
 
   it('names a blocker from a later milestone', () => {
     const tasks = [inMilestone(v1, 'ABC-1', 'ABC-2'), inMilestone(v2, 'ABC-2')]
-    expect(() => chainOrder(tasks)).toThrow('chain: ABC-1 in v0.1 — first slice is blocked by ABC-2 in the later v0.2 — second slice')
+    expect(() => chainOrder(tasks)).toThrow('ABC-1 in v0.1 — first slice is blocked by ABC-2 in the later v0.2 — second slice')
   })
 
   it('names blockers that go against the milestone order through a task without one', () => {
@@ -84,6 +85,25 @@ describe('chainOrder with milestones', () => {
   it('still names a plain blocker cycle as a cycle', () => {
     const tasks = [inMilestone(v1, 'ABC-1', 'ABC-2'), inMilestone(v1, 'ABC-2', 'ABC-1'), inMilestone(v2, 'ABC-3')]
     expect(() => chainOrder(tasks)).toThrow(/cycle: ABC-1 → ABC-2 → ABC-1$/)
+  })
+
+  it('gives the page codes, not text, for an order that does not build', () => {
+    const orderNotice = (tasks: Task[]) => {
+      try {
+        chainOrder(tasks)
+      } catch (error) {
+        return noticeOf(error)
+      }
+    }
+    expect(orderNotice([task('ABC-1', 'ABC-2'), task('ABC-2', 'ABC-1')])).toEqual({ code: 'order.cycle', params: { path: 'ABC-1 → ABC-2 → ABC-1' } })
+    expect(orderNotice([inMilestone(v1, 'ABC-1', 'ABC-2'), inMilestone(v2, 'ABC-2')])).toEqual({
+      code: 'order.later',
+      params: { task: 'ABC-1', milestone: v1.label, blocker: 'ABC-2', blockerMilestone: v2.label },
+    })
+    expect(orderNotice([inMilestone(v1, 'ABC-1', 'ABC-3'), inMilestone(v2, 'ABC-2'), task('ABC-3', 'ABC-2')])).toEqual({
+      code: 'order.against',
+      params: { path: 'ABC-1 → ABC-3 → ABC-2 → ABC-1' },
+    })
   })
 })
 

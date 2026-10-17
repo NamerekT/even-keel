@@ -5,12 +5,12 @@ import { withWaiting } from '../../../src/chain/order.js'
 import type { ContextScale, TrackerUrls } from '../../../src/state.js'
 import { say, t } from '../i18n/index.js'
 import { useCommand } from '../live/useCommand.js'
-import { blockMetered, checkpointHandoffs, issueLink, type ChainBlock, type Ghost, type TaskLinks } from '../state.js'
+import { blockMetered, checkpointHandoffs, issueLink, type ChainBlock, type Ghost, type ReadyButton, type TaskLinks } from '../state.js'
 import { AccountTag } from '../ui/AccountTag.js'
 import { ARCHIVE_PAGE, archiveView } from '../ui/archive.js'
 import { CacheClock } from '../ui/CacheClock.js'
 import { ContextMeter } from '../ui/ContextMeter.js'
-import { HandoffIcon } from '../ui/icons.js'
+import { HandoffIcon, IntoChainIcon } from '../ui/icons.js'
 import { Lamp } from '../ui/Lamp.js'
 import { landingIndex, revealElement } from '../ui/landing.js'
 import { Links } from '../ui/Links.js'
@@ -46,6 +46,8 @@ interface Props {
   arrival: Arrival | null
   incoming: string | null
   links: (task: string) => TaskLinks
+  /** The "Move to Todo" button of a locked blocker, `null` for none. */
+  ready: (block: ChainBlock) => ReadyButton | null
   onCard: (task: string) => void
 }
 
@@ -61,7 +63,7 @@ interface Relation {
   badge: boolean
 }
 
-export function ChainList({ project, chain, scale, trackerUrls, focus, ci, ghost: aimed, arrival, incoming, links, onCard }: Props) {
+export function ChainList({ project, chain, scale, trackerUrls, focus, ci, ghost: aimed, arrival, incoming, links, ready, onCard }: Props) {
   const { ghost, leaving } = useLingering(aimed)
   const [pages, setPages] = useState(0)
   const [revealed, setRevealed] = useState(0)
@@ -214,6 +216,8 @@ export function ChainList({ project, chain, scale, trackerUrls, focus, ci, ghost
                     offset={landing?.id === block.id ? landing.offset : drag?.offsets.get(block.id)}
                     onHover={(inside) => setHovered((current) => (inside ? block.id : current === block.id ? null : current))}
                     onReturn={sending ? undefined : () => void send('chain/unskip', { project, task: block.id })}
+                    ready={block.locked ? ready(block) : null}
+                    onReady={sending ? undefined : () => void send('task/ready', { task: block.id })}
                     onCard={onCard}
                   />
                 ),
@@ -402,11 +406,14 @@ interface BlockProps {
   offset: Point | undefined
   onHover: (inside: boolean) => void
   onReturn: (() => void) | undefined
+  ready: ReadyButton | null
+  onReady: (() => void) | undefined
   onCard: (task: string) => void
 }
 
 function Block(props: BlockProps) {
-  const { block, link, number, waits, links, scale, ci, tier, rails, kin, marks, focused, movable, relation, arrival, offset, onHover, onReturn, onCard } = props
+  const { block, link, number, waits, links, scale, ci, tier, rails, kin, marks, focused, movable, relation, arrival, offset, onHover, onReturn, ready, onReady, onCard } =
+    props
   const classes = ['block', `block--${block.lamp}`, `block--${tier}`, `block--priority-${block.priority}`]
   if (isRework(block.labels)) classes.push('block--rework')
   if (block.question) classes.push('block--question')
@@ -458,9 +465,23 @@ function Block(props: BlockProps) {
       {block.question && <span className="block__corner" aria-hidden="true" />}
       {share !== null && <span className="block__estimate" aria-hidden="true" />}
       {marks.has('take') && <span className="block__frame" aria-hidden="true" />}
-      <span className={`block__number block__number--${block.priority}`} title={priorityTitle(block)}>
-        {fix ? null : block.current ? <PlayIcon /> : number}
-      </span>
+      {ready === null ? (
+        <span className={`block__number block__number--${block.priority}`} title={priorityTitle(block)}>
+          {fix ? null : block.current ? <PlayIcon /> : number}
+        </span>
+      ) : (
+        <button
+          type="button"
+          className="block__ready"
+          disabled={onReady === undefined || ready.refused !== null}
+          aria-label={t.card.ready}
+          title={ready.refused === null ? t.card.ready : t.chain.readyRefused(say(ready.refused))}
+          draggable={false}
+          onClick={onReady}
+        >
+          <IntoChainIcon />
+        </button>
+      )}
       <div className="block__head">
         {marks.has('finish') && <CheckIcon />}
         {fix ? <Forge lamp={block.lamp} /> : block.locked ? <LockIcon /> : <Lamp lamp={block.lamp} />}

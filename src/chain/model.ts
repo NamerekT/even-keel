@@ -126,10 +126,12 @@ export interface ProjectOrder {
   /** Open tasks the chain does not take yet by their status or a missing required label, and that no chain task waits on. */
   backlog: string[]
   /**
-   * For the backlog tasks the chain would take once their status is active: the chain task each would stand right before,
-   * `null` for the end. Set when there are any.
+   * For the backlog tasks and the project's own waiting blockers the chain would take once their status is active: the chain
+   * task each would stand right before, `null` for the end. Set when there are any.
    */
   landing?: Record<string, string | null>
+  /** Those of them whose move would leave the chain without an order, with the reason. Set when there are any. */
+  refused?: Record<string, Notice>
   error: Notice | null
 }
 

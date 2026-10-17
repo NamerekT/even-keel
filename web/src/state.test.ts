@@ -30,6 +30,7 @@ import {
   projectPath,
   questionPath,
   queuedAfter,
+  readyButton,
   sessionElapsed,
   sessionStart,
   startsNow,
@@ -352,6 +353,35 @@ describe('canReady', () => {
   it('is false when the tracker cannot or the project has no tracker', () => {
     expect(canReady(stateOf({ trackers: [tracker(false)] }), 'ABC')).toBe(false)
     expect(canReady(stateOf({ trackers: [tracker(true)] }), 'XYZ')).toBe(false)
+  })
+})
+
+describe('readyButton', () => {
+  const tracker = (ready: boolean) => ({ name: 'huly', title: 'Huly', projects: ['ABC'], ready, health: { state: 'live' as const, lastOkAt: null, error: null } })
+  const later = notice('order.later', { task: 'ABC-2', milestone: 'v0.1', blocker: 'ABC-8', blockerMilestone: 'v0.2' })
+  const stateWith = (ready: boolean) =>
+    stateOf({
+      trackers: [tracker(ready)],
+      chain: chain({
+        projects: {
+          ABC: { order: ['ABC-2'], waiting: ['ABC-7', 'ABC-8', 'XYZ-1'], backlog: ['ABC-5'], landing: { 'ABC-5': null, 'ABC-7': 'ABC-2' }, refused: { 'ABC-8': later }, error: null },
+        },
+      }),
+    })
+
+  it('shows on a backlog task and on a locked blocker the chain would take', () => {
+    expect(readyButton(stateWith(true), 'ABC', { id: 'ABC-5', stage: 'UnStarted', locked: false })).toEqual({ refused: null })
+    expect(readyButton(stateWith(true), 'ABC', { id: 'ABC-7', stage: 'UnStarted', locked: true })).toEqual({ refused: null })
+  })
+
+  it('is off with the reason when the move would leave the chain without an order', () => {
+    expect(readyButton(stateWith(true), 'ABC', { id: 'ABC-8', stage: 'UnStarted', locked: true })).toEqual({ refused: later })
+  })
+
+  it('is not there for a locked blocker the chain would not take, a task past the backlog or a tracker that cannot move it', () => {
+    expect(readyButton(stateWith(true), 'ABC', { id: 'XYZ-1', stage: 'UnStarted', locked: true })).toBeNull()
+    expect(readyButton(stateWith(true), 'ABC', { id: 'ABC-7', stage: 'ToDo', locked: true })).toBeNull()
+    expect(readyButton(stateWith(false), 'ABC', { id: 'ABC-5', stage: 'UnStarted', locked: false })).toBeNull()
   })
 })
 

@@ -597,11 +597,28 @@ export function createFakeSource(search: string): LiveSource {
   if (params.get('chain') === 'backlog' && current.state !== null) {
     const { tasks, chain } = current.state
     current.state.tasks = [
-      ...tasks.map((each) => (each.id === 'ABC-10' ? { ...each, blockedBy: ['ABC-16'] } : each)),
+      ...tasks.map((each) => (each.id === 'ABC-10' ? { ...each, blockedBy: ['ABC-16', 'ABC-21'] } : each)),
       task('ABC-16', 'Схема базы статистики', 'Backlog', 'UnStarted', ['ABC-17']),
       task('ABC-17', 'Выбор хранилища', 'Backlog', 'UnStarted'),
+      task('ABC-21', 'Новая схема ключей', 'Backlog', 'UnStarted', [], 'v0.3 — служба'),
     ]
-    chain.projects['ABC'] = { ...chain.projects['ABC']!, waiting: ['ABC-16', 'ABC-17'] }
+    const order = chain.projects['ABC']!
+    chain.projects['ABC'] = {
+      ...order,
+      waiting: ['ABC-16', 'ABC-17', 'ABC-21'],
+      landing: { ...order.landing, 'ABC-16': 'ABC-10', 'ABC-17': null },
+      refused: { 'ABC-21': notice('order.later', { task: 'ABC-10', milestone: 'v0.2 — удобство', blocker: 'ABC-21', blockerMilestone: 'v0.3 — служба' }) },
+    }
+  }
+  if (params.get('chain') === 'later' && current.state !== null) {
+    const { tasks, chain } = current.state
+    current.state.tasks = [
+      ...tasks.map((each) => (each.id === 'ABC-10' ? { ...each, blockedBy: ['ABC-21'] } : each)),
+      task('ABC-21', 'Новая схема ключей', 'Todo', 'ToDo', [], 'v0.3 — служба'),
+    ]
+    const error = notice('order.later', { task: 'ABC-10', milestone: 'v0.2 — удобство', blocker: 'ABC-21', blockerMilestone: 'v0.3 — служба' })
+    chain.projects['ABC'] = { ...chain.projects['ABC']!, order: [], waiting: [], error }
+    chain.active = chain.active.map((each) => (each.project === 'ABC' ? { ...each, current: null, paused: true, error } : each))
   }
   if (params.get('chain') === 'skip' && current.state !== null) {
     current.state.chain.skipped = { ABC: ['ABC-12'] }

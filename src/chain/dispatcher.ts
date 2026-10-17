@@ -291,8 +291,16 @@ export class Dispatcher {
       const extra = outside.length > 0 ? { outside } : {}
       try {
         const order = chainOrder(tasks, this.preferred(project))
-        const landing = this.landing(project)
-        result[project] = { order, waiting, ...extra, backlog, ...(Object.keys(landing).length > 0 ? { landing } : {}), error: null }
+        const { landing, refused } = this.landing(project)
+        result[project] = {
+          order,
+          waiting,
+          ...extra,
+          backlog,
+          ...(Object.keys(landing).length > 0 ? { landing } : {}),
+          ...(Object.keys(refused).length > 0 ? { refused } : {}),
+          error: null,
+        }
       } catch (error) {
         result[project] = { order: [], waiting, ...extra, backlog, error: noticeOf(error) }
       }
@@ -384,21 +392,25 @@ export class Dispatcher {
     }
   }
 
-  private landing(project: string): Record<string, string | null> {
+  /** Called only once the chain's own order builds, so a refusal is the task's doing. */
+  private landing(project: string): Pick<Required<ProjectOrder>, 'landing' | 'refused'> {
     const rules = this.deps.rules(project)
     const chain = this.tasks.get(project) ?? []
-    const result: Record<string, string | null> = {}
-    for (const task of this.backlog.get(project) ?? []) {
+    const outside = this.outside.get(project) ?? []
+    const blockers = (this.waiting.get(project) ?? []).filter((task) => !outside.some((each) => each.id === task.id))
+    const landing: Record<string, string | null> = {}
+    const refused: Record<string, Notice> = {}
+    for (const task of [...(this.backlog.get(project) ?? []), ...blockers]) {
       if (!admits(rules, task)) continue
       const tasks = [...chain, task]
       try {
         const order = chainOrder(tasks, this.preferred(project, this.placed(project, tasks) ?? this.state.orders[project]))
-        result[task.id] = order[order.indexOf(task.id) + 1] ?? null
-      } catch {
-        continue
+        landing[task.id] = order[order.indexOf(task.id) + 1] ?? null
+      } catch (error) {
+        refused[task.id] = noticeOf(error)
       }
     }
-    return result
+    return { landing, refused }
   }
 
   private forgetClosed(project: string): boolean {
