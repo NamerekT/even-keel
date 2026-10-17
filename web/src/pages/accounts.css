@@ -22,6 +22,41 @@
   background: var(--surface);
 }
 
+/* One section per provider: its name and its own "Add", the connection is picked on the add page. */
+.account-group {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.account-group__head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 30px;
+}
+
+.account-group__title {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  color: var(--fg-muted);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.account-group__title .icon {
+  width: 15px;
+  height: 15px;
+}
+
+.account-group > .queue__empty {
+  margin: 0;
+}
+
 .account-cards {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));

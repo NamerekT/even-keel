@@ -1,5 +1,6 @@
 import type { AccountEntry, AccountView } from '../../src/account/model.js'
 import { CODEX } from '../../src/codex/name.js'
+import { accountOrder } from './state.js'
 
 const SERIES = 8
 
@@ -48,6 +49,26 @@ export function canAdd(provider: Provider, connection?: Connection): boolean {
   if (provider === 'opencode') return false
   if (connection === undefined || connection === 'cli') return true
   return connection === 'apiKey' && provider === 'claude'
+}
+
+export interface AccountGroup {
+  agent: string
+  entries: AccountEntry[]
+}
+
+/**
+ * The accounts by provider, in the order of `PROVIDERS`, an agent the page does not know after them. A provider that can be
+ * added has its group even with no account, so the page can offer to add one there. Inside a group the chain's account
+ * comes first, then the ones that can work now.
+ */
+export function accountGroups(view: AccountView, now: Date): AccountGroup[] {
+  const ordered = accountOrder(view.accounts, now)
+  const sorted = [...ordered.filter((entry) => entry.key === view.active), ...ordered.filter((entry) => entry.key !== view.active)]
+  const known: string[] = PROVIDERS.filter((provider) => canAdd(provider))
+  const agents = [...known, ...new Set(sorted.map((entry) => entry.agent).filter((agent) => !known.includes(agent)))]
+  return agents
+    .map((agent) => ({ agent, entries: sorted.filter((entry) => entry.agent === agent) }))
+    .filter((group) => group.entries.length > 0 || known.includes(group.agent))
 }
 
 export interface AddStep {

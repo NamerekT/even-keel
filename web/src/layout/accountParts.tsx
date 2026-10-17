@@ -68,10 +68,16 @@ export function AccountMark({ entry, now }: { entry: AccountEntry; now: Date }) 
   )
   return (
     <Tipped className="account-mark" tip={tip} align="start" focusable>
-      <span className="account-mark__agent">{entry.agent === CODEX ? <CodexIcon /> : entry.agent === CLAUDE ? <ClaudeIcon /> : <span className="accounts__dot" />}</span>
+      <span className="account-mark__agent">
+        <AgentIcon agent={entry.agent} />
+      </span>
       <Connected />
     </Tipped>
   )
+}
+
+export function AgentIcon({ agent }: { agent: string }) {
+  return agent === CODEX ? <CodexIcon /> : agent === CLAUDE ? <ClaudeIcon /> : <span className="accounts__dot" />
 }
 
 /** Why an account without limits has none, as one sentence; null when it has them or pays from a key. */
@@ -158,17 +164,25 @@ export function NoteActions({ entry, view, now, sending, send }: Omit<NotesProps
 function RenewButton({ entry, view, sending, send }: Omit<NotesProps, 'now' | 'bare'>) {
   const held = entry.key === view.active && view.loginBlock !== null ? view.loginBlock : null
   const label = entry.needsLogin ? t.account.login : t.account.renew
+  // Short on the button, next to the "sign-in: 4d" it renews; the full name is for screen readers.
+  const name = entry.needsLogin ? undefined : t.account.renewFull
   if (held !== null) {
     return (
       <Tipped className="account__actions" tip={say(loginBlockNotice(held))} align="start">
-        <button type="button" className="button button--small" aria-disabled="true">
+        <button type="button" className="button button--small" aria-disabled="true" aria-label={name}>
           {label}
         </button>
       </Tipped>
     )
   }
   return (
-    <button type="button" className="button button--small" disabled={sending || view.login !== null} onClick={() => void send('account/renew', { account: entry.key })}>
+    <button
+      type="button"
+      className="button button--small"
+      aria-label={name}
+      disabled={sending || view.login !== null}
+      onClick={() => void send('account/renew', { account: entry.key })}
+    >
       {label}
     </button>
   )

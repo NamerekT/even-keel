@@ -77,8 +77,13 @@
   height: 14px;
 }
 
+/* Cut, not wrapped: a second line would make the field, and with it the card's foot, taller. */
 .roles__none {
+  min-width: 0;
+  overflow: hidden;
   padding: 0 4px;
+  white-space: nowrap;
+  text-overflow: ellipsis;
   color: var(--fg-muted);
   font-size: 13px;
 }

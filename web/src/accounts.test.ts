@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { AccountEntry, AccountView } from '../../src/account/model.js'
-import { accountSlot, addStep, canAdd, connectionOf, deviceLogin, entrySlot, folderEmail } from './accounts.js'
+import { accountGroups, accountSlot, addStep, canAdd, connectionOf, deviceLogin, entrySlot, folderEmail } from './accounts.js'
 
 const entry = (key: string, email: string | null): AccountEntry => ({
   key,
@@ -117,5 +117,34 @@ describe('addStep', () => {
 
   it('does not go past a provider that cannot be added', () => {
     expect(step('provider=opencode&connection=cli')).toEqual({ provider: 'opencode', connection: null })
+  })
+})
+
+describe('accountGroups', () => {
+  const now = new Date('2026-10-10T10:00:00.000Z')
+  const of = (key: string, agent: string, patch: Partial<AccountEntry> = {}) => ({ ...entry(key, `${key}@example.com`), agent, ...patch })
+  const groups = (accounts: AccountEntry[], active = 'global') =>
+    accountGroups({ ...view(accounts), active }, now).map((group) => [group.agent, group.entries.map((each) => each.key)])
+
+  it('groups the accounts by provider in the providers order, the chain account first in its group', () => {
+    expect(groups([of('codex', 'codex'), of('work', 'claude'), of('global', 'claude')], 'global')).toEqual([
+      ['claude', ['global', 'work']],
+      ['codex', ['codex']],
+    ])
+  })
+
+  it('keeps the accounts that cannot work last inside a group', () => {
+    expect(groups([of('spent', 'claude', { needsLogin: true }), of('work', 'claude')], 'none')).toEqual([
+      ['claude', ['work', 'spent']],
+      ['codex', []],
+    ])
+  })
+
+  it('lists an addable provider with no account as an empty group, and an agent it does not know after the rest', () => {
+    expect(groups([of('global', 'claude'), of('other', 'gemini')])).toEqual([
+      ['claude', ['global']],
+      ['codex', []],
+      ['gemini', ['other']],
+    ])
   })
 })
