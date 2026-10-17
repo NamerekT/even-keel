@@ -21,13 +21,16 @@ function Invoke-Native {
 }
 
 # A restart between a task's Done and the next launch pauses that chain, so wait until no unpaused chain is in a launch,
-# a handover or a closing. A chain that never settles is not waited for past WaitSeconds.
+# a handover or a closing. A chain waiting for the CI of main is settled: that CI is the run calling this script, so
+# waiting for it would only stall both until WaitSeconds; the wait is in the state file and survives the restart.
+# A chain that never settles is not waited for past WaitSeconds.
 function Wait-ChainsSettled {
     $deadline = (Get-Date).AddSeconds($WaitSeconds)
     while ((Get-Date) -lt $deadline) {
         try { $chains = (Invoke-RestMethod $State -TimeoutSec 10).chain.active } catch { return }
         $busy = @($chains | Where-Object {
-                -not $_.paused -and ($null -eq $_.current -or -not $_.current.sessionId -or $_.current.starting -or $_.closing)
+                $ci = $null -eq $_.current -and $_.ciWait -and -not $_.ciWait.local
+                -not $_.paused -and -not $ci -and ($null -eq $_.current -or -not $_.current.sessionId -or $_.current.starting -or $_.closing)
             })
         if ($busy.Count -eq 0) { return }
         Write-Host "waiting for $(($busy | ForEach-Object project) -join ', ') to settle"
