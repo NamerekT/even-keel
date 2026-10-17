@@ -6,7 +6,6 @@
 
 /* Nothing to offer: the same frame as the field, without the chevron, so the cards' bottom rows match. */
 .roles--fixed {
-  flex-wrap: wrap;
   align-items: center;
   gap: 6px;
   min-height: 30px;
@@ -18,11 +17,11 @@
 .roles__field {
   display: flex;
   flex: 1;
-  flex-wrap: wrap;
   align-items: center;
   gap: 6px;
   min-width: 0;
   min-height: 30px;
+  overflow: hidden;
   padding: 3px 6px 3px 4px;
   border: 1px solid var(--border);
   border-radius: 8px;
@@ -59,15 +58,23 @@
   transform: rotate(180deg);
 }
 
+/* A role is an icon in a pill, its name in the tip: however many roles, the field stays one line and the foot one height. */
 .roles__chip {
-  padding: 0 8px;
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 22px;
   border: 1px solid color-mix(in srgb, var(--accent) 60%, transparent);
   border-radius: 999px;
   background: color-mix(in srgb, var(--accent) 14%, transparent);
-  font-size: 12px;
-  font-weight: 600;
-  line-height: 20px;
-  white-space: nowrap;
+  cursor: inherit;
+}
+
+.roles__chip .icon {
+  width: 14px;
+  height: 14px;
 }
 
 .roles__none {
@@ -91,6 +98,21 @@
   font: 14px/1.45 var(--font);
   list-style: none;
   animation: fade-in var(--motion-fast) ease-out;
+}
+
+.roles__here {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 8px;
+  color: var(--fg-muted);
+  font-size: 13px;
+}
+
+.roles__here + li:not(.roles__here) {
+  margin-top: 4px;
+  padding-top: 4px;
+  border-top: 1px solid var(--border);
 }
 
 .roles__offer {
@@ -123,6 +145,9 @@
 }
 
 .roles__label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
   font-weight: 600;
 }
 

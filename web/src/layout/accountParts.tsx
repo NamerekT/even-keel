@@ -1,5 +1,5 @@
 import { useMemo, useState, type FormEvent, type ReactNode } from 'react'
-import { removeProblem, type AccountEntry, type AccountLogin, type AccountView } from '../../../src/account/model.js'
+import { loginBlockNotice, removeProblem, type AccountEntry, type AccountLogin, type AccountView } from '../../../src/account/model.js'
 import { CLAUDE } from '../../../src/claude/name.js'
 import { CODEX } from '../../../src/codex/name.js'
 import type { Notice } from '../../../src/notice/notice.js'
@@ -154,11 +154,22 @@ export function NoteActions({ entry, view, now, sending, send }: Omit<NotesProps
   )
 }
 
+/** Greyed while a chain holds the active account, with why on pointing or focus. */
 function RenewButton({ entry, view, sending, send }: Omit<NotesProps, 'now' | 'bare'>) {
-  const blocked = view.login !== null || (entry.key === view.active && view.loginBlock !== null)
+  const held = entry.key === view.active && view.loginBlock !== null ? view.loginBlock : null
+  const label = entry.needsLogin ? t.account.login : t.account.renew
+  if (held !== null) {
+    return (
+      <Tipped className="account__actions" tip={say(loginBlockNotice(held))} align="start">
+        <button type="button" className="button button--small" aria-disabled="true">
+          {label}
+        </button>
+      </Tipped>
+    )
+  }
   return (
-    <button type="button" className="button button--small" disabled={sending || blocked} onClick={() => void send('account/renew', { account: entry.key })}>
-      {entry.needsLogin ? t.account.login : t.account.renew}
+    <button type="button" className="button button--small" disabled={sending || view.login !== null} onClick={() => void send('account/renew', { account: entry.key })}>
+      {label}
     </button>
   )
 }

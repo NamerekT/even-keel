@@ -3,7 +3,18 @@
 }
 
 .tipped[tabindex] {
+  position: relative;
   cursor: help;
+}
+
+/* A small anchor such as the account mark still gets a 24 px target for a finger. */
+.tipped[tabindex]::after {
+  position: absolute;
+  inset: 50% auto auto 50%;
+  width: max(100%, 24px);
+  height: max(100%, 24px);
+  content: '';
+  translate: -50% -50%;
 }
 
 .tip {

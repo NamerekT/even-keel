@@ -1,16 +1,21 @@
-import { useLayoutEffect, useRef, useState, type KeyboardEvent } from 'react'
-import { APP_LABELS, appSwitchProblem, type AppAccount } from '../../../src/account/apps.js'
+import { useLayoutEffect, useRef, useState, type KeyboardEvent, type ReactNode } from 'react'
+import { APP_LABELS, appSwitchProblem, type AppAccount, type AppId } from '../../../src/account/apps.js'
 import { switchProblem, type AccountEntry, type AccountView } from '../../../src/account/model.js'
 import { CLAUDE } from '../../../src/claude/name.js'
 import type { Notice } from '../../../src/notice/notice.js'
 import { say, t } from '../i18n/index.js'
-import { ChevronIcon } from '../ui/icons.js'
+import { ChevronIcon, EditorIcon, EvenKeelIcon } from '../ui/icons.js'
 import { place } from '../ui/Select.js'
+import { Tipped } from '../ui/Tipped.js'
 import { accountName, type Send } from './accountParts.js'
 import './roles.css'
 
+const APP_ICONS: Record<AppId, () => ReactNode> = { vscode: EditorIcon }
+
 interface Role {
   label: string
+  /** What stands for the role in the field, so two roles take no more room than one; the label is in its tip and the menu. */
+  icon: () => ReactNode
   held: boolean
   problem: Notice | undefined
   /** What moving it here does; shown while it can move. */
@@ -66,11 +71,12 @@ export function AccountRoles({ entry, view, sending, send }: RolesProps) {
       <span className="roles__none">{t.account.rolesNone}</span>
     ) : (
       held.map((role) => (
-        <span key={role.label} className="roles__chip" title={t.account.holds(role.label)}>
-          {role.label}
-        </span>
+        <Tipped key={role.label} className="roles__chip" tip={t.account.holds(role.label)} align="start" inline off={open} focusable={offers.length === 0}>
+          <role.icon />
+        </Tipped>
       ))
     )
+  const heldText = held.length === 0 ? t.account.rolesNone : held.map((role) => role.label).join(', ')
   if (offers.length === 0) return <div className="roles roles--fixed">{chips}</div>
 
   const onKeyDown = (event: KeyboardEvent<HTMLUListElement>) => {
@@ -99,7 +105,7 @@ export function AccountRoles({ entry, view, sending, send }: RolesProps) {
         className="roles__field"
         aria-haspopup="menu"
         aria-expanded={open}
-        title={t.account.roles}
+        aria-label={`${t.account.roles}. ${heldText}`}
         disabled={sending}
         onClick={() => setOpen(!open)}
       >
@@ -107,6 +113,14 @@ export function AccountRoles({ entry, view, sending, send }: RolesProps) {
         <ChevronIcon />
       </button>
       <ul ref={menu} popover="manual" role="menu" className="roles__menu" onKeyDown={onKeyDown}>
+        {/* The field shows the held roles as icons only; on a touch screen, with no pointing, this is where they are named. */}
+        {open &&
+          held.map((role) => (
+            <li key={role.label} role="none" className="roles__here">
+              <role.icon />
+              {t.account.holds(role.label)}
+            </li>
+          ))}
         {open &&
           offers.map((role) => (
             <li key={role.label} role="none">
@@ -122,7 +136,10 @@ export function AccountRoles({ entry, view, sending, send }: RolesProps) {
                   void role.pick()
                 }}
               >
-                <span className="roles__label">{role.label}</span>
+                <span className="roles__label">
+                  <role.icon />
+                  {role.label}
+                </span>
                 {role.problem === undefined ? <span className="roles__note">{role.note}</span> : <span className="roles__why">{say(role.problem)}</span>}
               </button>
             </li>
@@ -138,6 +155,7 @@ function rolesOf(entry: AccountEntry, view: AccountView, send: Send): Role[] {
   const running = (view.loginBlock?.chains.length ?? 0) > 0
   const evenKeel: Role = {
     label: 'Even Keel',
+    icon: EvenKeelIcon,
     held: view.active === entry.key,
     problem: view.active === entry.key ? undefined : switchProblem(view, entry.key),
     note: running && active !== undefined ? t.account.chainsStay(accountName(active)) : t.account.nextHere,
@@ -152,6 +170,7 @@ function appRole(entry: AccountEntry, view: AccountView, app: AppAccount, send: 
   const elsewhere = app.account === null && app.dir !== null ? `; ${t.account.appOn(t.account.unknownDir(app.dir))}` : ''
   return {
     label,
+    icon: APP_ICONS[app.app],
     held,
     problem: held ? undefined : appSwitchProblem(view, app.app, entry.key),
     note: `${t.account.reload(label)}${elsewhere}`,

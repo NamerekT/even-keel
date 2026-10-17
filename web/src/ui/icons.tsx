@@ -160,6 +160,25 @@ export function CodexIcon() {
   )
 }
 
+/** Even Keel itself: the sail and the keel of its logo, drawn in lines. */
+export function EvenKeelIcon() {
+  return (
+    <svg className="icon" viewBox="0 0 16 16" aria-hidden="true">
+      <path d="M8.5 1.75v6h4.25ZM7 3.5v4.25H3.75ZM1.75 9.25h12.5l-1.75 2.5h-9ZM7.25 11.75h1.5L8 14.25Z" />
+    </svg>
+  )
+}
+
+/** A code editor app such as VS Code: a window with a side bar and lines of code — not the app's own trademarked logo. */
+export function EditorIcon() {
+  return (
+    <svg className="icon" viewBox="0 0 16 16" aria-hidden="true">
+      <rect x="1.75" y="2.5" width="12.5" height="11" rx="1.5" />
+      <path d="M5.25 2.5v11M7.75 6h4M7.75 8.25h2.75M7.75 10.5h3.5" />
+    </svg>
+  )
+}
+
 /** Signed in through the agent's CLI: a terminal. */
 export function TerminalIcon() {
   return (
