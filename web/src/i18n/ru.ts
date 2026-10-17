@@ -275,7 +275,7 @@ export const ru = {
     todayTitle: 'Потрачено сегодня с ключа этого аккаунта, по Tally',
     apiKeyLost: 'Ключ не принят: удалите аккаунт и добавьте ключ заново',
     addKey: 'Добавить API-ключ',
-    keyName: 'Имя папки',
+    keyName: 'Имя аккаунта',
     keyValue: 'Ключ',
     keyAdd: 'Добавить',
     keyHint:

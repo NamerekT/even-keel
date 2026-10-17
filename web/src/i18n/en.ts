@@ -276,7 +276,7 @@ export const en: Messages = {
     todayTitle: "Spent today on this account's key, by Tally",
     apiKeyLost: "The key isn't accepted: remove the account and add the key again",
     addKey: 'Add API key',
-    keyName: 'Folder name',
+    keyName: 'Account name',
     keyValue: 'Key',
     keyAdd: 'Add',
     keyHint:
