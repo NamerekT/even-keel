@@ -160,7 +160,10 @@ export function accountCommand(account: AccountView, name: string, body: Record<
     return { ...account, login: { ...FAKE_LOGIN, target: name === 'account/add' ? null : key, startedAt: ago(0) } }
   }
   if (name === 'account/api') {
-    if (!/^\S{21,}$/.test(String(body.key).trim())) throw fail('account.apiKeyInvalid', {})
+    const value = String(body.key).trim()
+    if (!/^\S{21,}$/.test(value)) throw fail('account.apiKeyInvalid', {})
+    if (value.includes('rejected')) throw fail('account.apiKeyRejected', {})
+    if (value.includes('offline')) throw fail('account.apiKeyUnchecked', { reason: 'fetch failed' })
     const name = String(body.name ?? '').trim()
     const key = folderName(name || 'api', account.accounts.map((entry) => entry.key))
     return { ...account, accounts: [...account.accounts, apiEntry(key, { name: name || null })] }

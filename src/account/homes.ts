@@ -76,14 +76,23 @@ export class AccountHomes {
    * `.claude.json` has it approved, or the CLI asks whether to use it (BTN-136).
    */
   addApiKey(name: string, key: string): AccountHome {
-    const value = key.trim()
-    if (!API_KEY_PATTERN.test(value)) throw fail('account.apiKeyInvalid', {})
+    const value = assertApiKey(key)
     const home = this.home(folderName(name.trim() === '' ? 'api' : name, this.folders()))
     mkdirSync(home.dir, { recursive: true })
     writeFileSync(join(home.dir, 'settings.json'), JSON.stringify({ env: { [API_KEY_VARIABLE]: value } }, null, 2))
     const approved = { customApiKeyResponses: { approved: [value.slice(-APPROVED_SUFFIX)], rejected: [] } }
     writeFileSync(join(home.dir, '.claude.json'), JSON.stringify(approved, null, 2))
     return home
+  }
+
+  /** The key in the folder's `settings.json`; a folder with `apiKeyHelper` has none to read. */
+  apiKeyOf(home: AccountHome): string | null {
+    try {
+      const key = JSON.parse(readFileSync(join(home.dir, 'settings.json'), 'utf8'))?.env?.[API_KEY_VARIABLE]
+      return typeof key === 'string' && key !== '' ? key : null
+    } catch {
+      return null
+    }
   }
 
   share(home: AccountHome): boolean {
@@ -118,6 +127,13 @@ export class AccountHomes {
       return []
     }
   }
+}
+
+/** The trimmed key, or a refusal of one that is not a single word long enough to approve. */
+export function assertApiKey(key: string): string {
+  const value = key.trim()
+  if (!API_KEY_PATTERN.test(value)) throw fail('account.apiKeyInvalid', {})
+  return value
 }
 
 export function accountsRoot(env: NodeJS.ProcessEnv): string {

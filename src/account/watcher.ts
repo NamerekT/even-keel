@@ -3,7 +3,8 @@ import type { RateLimits } from '../limits/model.js'
 import type { UsageHealth } from '../limits/usage.js'
 import { fail, notice, NoticeError, noticeOf, sameNotice, type Notice } from '../notice/notice.js'
 import { appSwitchProblem, type AppAccount, type AppId } from './apps.js'
-import type { AccountHome, AccountHomes } from './homes.js'
+import { assertApiKey, type AccountHome, type AccountHomes } from './homes.js'
+import { KeyChecks, type KeyVerdict } from './keycheck.js'
 import {
   cleanOutput,
   isApiKey,
@@ -53,6 +54,8 @@ export interface AccountWatcherOptions {
   configPending: (key: string) => boolean
   limits: (key: string) => RateLimits | null
   usage: (key: string) => UsageHealth
+  checkKey: (key: string) => Promise<KeyVerdict>
+  keyCheckMs: number
   intervalMs: number
   loginTimeoutMs: number
   now: () => Date
@@ -78,8 +81,11 @@ export class AccountWatcher {
   private running: Running | undefined
   private output = ''
   private timer: NodeJS.Timeout | undefined
+  private readonly keys: KeyChecks
 
-  constructor(private readonly options: AccountWatcherOptions) {}
+  constructor(private readonly options: AccountWatcherOptions) {
+    this.keys = new KeyChecks(options.keyCheckMs)
+  }
 
   get view(): AccountView {
     const now = this.options.now()
@@ -92,7 +98,7 @@ export class AccountWatcher {
         status,
         error,
         loginExpiresAt: times.loginExpiresAt === null || times.erased ? null : new Date(times.loginExpiresAt).toISOString(),
-        needsLogin: needsLogin(status, times, now),
+        needsLogin: needsLogin(status, times, now) || (isApiKey(status) && this.keys.rejected(home.key)),
         sessions: this.options.sessionsIn(home.key),
         removing: this.options.removing(home.key),
         configPending: this.options.configPending(home.key),
@@ -132,7 +138,8 @@ export class AccountWatcher {
     await this.removeFinished()
     const homes = this.options.homes.list()
     const known = await Promise.all(homes.map((home) => this.check(home)))
-    if (JSON.stringify(known) === JSON.stringify(this.known)) return
+    const keysChanged = await this.checkKeys(known)
+    if (!keysChanged && JSON.stringify(known) === JSON.stringify(this.known)) return
     this.known = known
     this.options.onChange()
   }
@@ -143,7 +150,12 @@ export class AccountWatcher {
   }
 
   async addApiKey(name: string, key: string): Promise<void> {
-    const home = this.options.homes.addApiKey(name, key)
+    const value = assertApiKey(key)
+    const verdict = await this.options.checkKey(value)
+    if (verdict.state === 'rejected') throw fail('account.apiKeyRejected', {})
+    if (verdict.state === 'unknown') throw fail('account.apiKeyUnchecked', { reason: verdict.reason })
+    const home = this.options.homes.addApiKey(name, value)
+    this.keys.note(home.key, verdict, this.options.now())
     this.options.name(home.key, name)
     await this.refresh()
   }
@@ -204,12 +216,29 @@ export class AccountWatcher {
     }
   }
 
+  /** Asks Anthropic about each API account's key once per `keyCheckMs`; true when a verdict changed. */
+  private async checkKeys(known: Known[]): Promise<boolean> {
+    const now = this.options.now()
+    const due = known.filter(({ home, status }) => isApiKey(status) && this.keys.due(home.key, now))
+    const changes = await Promise.all(
+      due.map(async ({ home }) => {
+        const key = this.options.homes.apiKeyOf(home)
+        if (key === null) return false
+        const before = this.keys.rejected(home.key)
+        this.keys.note(home.key, await this.options.checkKey(key), now)
+        return this.keys.rejected(home.key) !== before
+      }),
+    )
+    return changes.includes(true)
+  }
+
   private async drop(key: string): Promise<void> {
     const home = this.options.homes.find(key)!
     const status = this.known.find((known) => known.home.key === key)?.status
     if (status?.loggedIn === true && !isApiKey(status)) await this.options.cli.authLogout(home)
     this.options.homes.remove(home)
     this.options.forget(key)
+    this.keys.forget(key)
   }
 
   code(code: string): void {

@@ -2,7 +2,7 @@ import { mkdirSync, mkdtempSync, readFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
-import { AccountHomes } from './homes.js'
+import { AccountHomes, assertApiKey } from './homes.js'
 
 const env = {
   PATH: '/bin',
@@ -64,6 +64,23 @@ describe('AccountHomes.addApiKey', () => {
     const homes = new AccountHomes(env, 'root')
     expect(() => homes.addApiKey('api', 'sk-ant short key')).toThrow()
     expect(() => homes.addApiKey('api', 'sk-ant-short')).toThrow()
+    expect(() => assertApiKey('sk-ant short key')).toThrow()
+    expect(assertApiKey(`  ${key}\n`)).toBe(key)
+  })
+})
+
+describe('AccountHomes.apiKeyOf', () => {
+  it("reads the key from the folder's settings and nothing from a folder without one", () => {
+    const root = mkdtempSync(join(tmpdir(), 'even-keel-homes-'))
+    try {
+      const homes = new AccountHomes(env, root)
+      const home = homes.addApiKey('Work API', 'sk-ant-api03-FAKE0000000000000000000000000000-example')
+      expect(homes.apiKeyOf(home)).toBe('sk-ant-api03-FAKE0000000000000000000000000000-example')
+      mkdirSync(join(root, 'plain'))
+      expect(homes.apiKeyOf({ key: 'plain', dir: join(root, 'plain'), global: false })).toBeNull()
+    } finally {
+      rmSync(root, { recursive: true, force: true })
+    }
   })
 })
 

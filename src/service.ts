@@ -2,6 +2,7 @@ import { mkdirSync } from 'node:fs'
 import { join } from 'node:path'
 import { DaemonRefresh } from './account/daemon.js'
 import { AccountHomes, accountsRoot, type AccountHome } from './account/homes.js'
+import { checkApiKey } from './account/keycheck.js'
 import { accountAt, activate, forgetAccount, loadLedger, markRemoving, nameAccount, noteAccount, saveLedger, type AccountLedger } from './account/ledger.js'
 import { accountId, launchBlock, liveSessions, loginBlock, type LoginBlock } from './account/model.js'
 import { VsCodeAccount, vscodeSettingsFile } from './account/vscode.js'
@@ -63,6 +64,8 @@ const LIMITS_POLL_MS = 2_000
 const USAGE_POLL_MS = 5 * 60_000
 const LAUNCH_CHART_DAYS = 14
 const ACCOUNT_POLL_MS = 60_000
+const KEY_CHECK_MS = 60 * 60_000
+const KEY_CHECK_TIMEOUT_MS = 15_000
 const APP_POLL_MS = 5_000
 const LOGIN_TIMEOUT_MS = 10 * 60_000
 const LIMIT_CHECK_MS = 30_000
@@ -227,6 +230,8 @@ const account = new AccountWatcher({
   configPending: (key) => daemons.pending(key),
   limits: (key) => limits.limits(key),
   usage: (key) => limits.usage(key),
+  checkKey: (key) => checkApiKey(key, KEY_CHECK_TIMEOUT_MS),
+  keyCheckMs: KEY_CHECK_MS,
   intervalMs: ACCOUNT_POLL_MS,
   loginTimeoutMs: LOGIN_TIMEOUT_MS,
   now: () => new Date(),
