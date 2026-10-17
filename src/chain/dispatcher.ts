@@ -119,18 +119,23 @@ export class Dispatcher {
     return this.currentOf(project) === task.id && this.deps.busy(task.id)
   }
 
-  start(project: string): void {
+  /**
+   * Starts or queues the project's chain. With nothing to run by the last task list, it reads the tracker anew
+   * first — a task created a moment ago is not in the list yet — and refuses if there is still nothing.
+   */
+  async start(project: string): Promise<void> {
     this.requireProject(project)
-    const { active, queue } = this.state
-    const chain = this.chainOf(project)
-    if (chain !== undefined || queue.includes(project)) {
-      // A chain started only for the fix of a red main goes on with the tasks once the user starts it.
-      if (chain?.fixOnly) {
-        delete chain.fixOnly
-        this.changed()
+    if (this.going(project)) return
+    if (!this.hasWork(project)) {
+      await this.deps.refresh(project)
+      if (this.going(project)) return
+      const empty = this.emptyReason(project)
+      if (empty !== undefined) {
+        this.deps.log(englishOf(empty))
+        throw new NoticeError(empty)
       }
-      return
     }
+    const { active, queue } = this.state
     if (active.length < this.deps.parallel()) {
       this.requireLaunches()
       active.push(newChain(project))
@@ -319,6 +324,54 @@ export class Dispatcher {
 
   private requireProject(project: string): void {
     if (!this.deps.projects.includes(project)) throw fail('chain.unknownProject', { project })
+  }
+
+  /** The project's chain runs or is queued already; a chain started only for the fix of a red main now goes on with the tasks. */
+  private going(project: string): boolean {
+    const chain = this.chainOf(project)
+    if (chain === undefined && !this.state.queue.includes(project)) return false
+    if (chain?.fixOnly) {
+      delete chain.fixOnly
+      this.changed()
+    }
+    return true
+  }
+
+  private hasWork(project: string): boolean {
+    const tasks = this.tasks.get(project)
+    if (tasks === undefined) return false
+    if (this.main?.sessionFix(project) !== undefined) return true
+    try {
+      return this.nextOf(project, tasks) !== undefined
+    } catch {
+      // A broken order halts the chain, which shows why.
+      return true
+    }
+  }
+
+  /** Why the project's chain has nothing to run; `undefined` — it has. */
+  private emptyReason(project: string): Notice | undefined {
+    if (this.hasWork(project)) return undefined
+    const tasks = this.tasks.get(project)
+    if (tasks === undefined) return notice('chain.notRead', { project })
+    return notice('chain.empty', { project }, { cause: this.whyEmpty(project, tasks) })
+  }
+
+  private whyEmpty(project: string, tasks: Task[]): Notice {
+    const skipped = this.state.skipped[project] ?? []
+    if (tasks.length > 0) return tasks.every((task) => skipped.includes(task.id)) ? notice('chain.emptySkipped', {}) : notice('chain.emptyBlocked', {})
+    const rules = this.deps.rules(project)
+    const backlog = this.backlog.get(project) ?? []
+    if (backlog.some((task) => isActive(rules, task.status))) return notice('chain.emptyLabels', { labels: rules.requiredLabels })
+    return backlog.length > 0 ? notice('chain.emptyStatus', {}) : notice('chain.emptyNone', {})
+  }
+
+  /** The task the chain takes next by its list, the fix of a red main first; `undefined` — none. Throws on a broken order. */
+  private nextOf(project: string, tasks: Task[]): string | undefined {
+    const order = chainOrder(tasks, this.state.orders[project])
+    const skipped = this.state.skipped[project] ?? []
+    const fixTask = this.main?.fixOf(project, tasks.map((open) => open.id).filter((id) => !skipped.includes(id)))
+    return fixTask ?? nextTask(tasks, order, [...skipped, ...this.waitingIds(project)])
   }
 
   private waitingIds(project: string): string[] {
@@ -619,19 +672,18 @@ export class Dispatcher {
         return
       }
 
-      let order: string[]
+      let next: string | undefined
       try {
-        order = chainOrder(tasks, this.state.orders[chain.project])
+        next = this.nextOf(chain.project, tasks)
       } catch (error) {
         this.halt(chain, noticeOf(error))
         return
       }
 
-      const skipped = this.state.skipped[chain.project] ?? []
       const listed = tasks.map((open) => open.id)
-      const fixTask = this.main?.fixOf(chain.project, listed.filter((id) => !skipped.includes(id)))
-      const task = fix?.task ?? fixTask ?? nextTask(tasks, order, [...skipped, ...this.waitingIds(chain.project)])
+      const task = fix?.task ?? next
       if (task === undefined) {
+        this.deps.log(`chain: ${chain.project} ended, no task left to run`)
         this.drop(chain)
         this.deps.save(this.state)
         return

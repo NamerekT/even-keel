@@ -158,15 +158,71 @@ describe('Dispatcher', () => {
     expect(launched).toEqual(['ABC/ABC-1', 'ABC/ABC-2'])
   })
 
-  it('waits for the task list before launching', async () => {
-    const { dispatcher, launched } = setup()
-    dispatcher.start('ABC')
+  it('reads the tracker before starting a chain whose task list is not read yet', async () => {
+    const { dispatcher, launched, tracker, refreshed } = setup()
+    tracker.ABC = [task('ABC-1')]
+    await dispatcher.start('ABC')
     await dispatcher.idle()
-    expect(launched).toEqual([])
-
-    dispatcher.setTasks('ABC', [task('ABC-1')])
-    await dispatcher.idle()
+    expect(refreshed).toEqual(['ABC'])
     expect(launched).toEqual(['ABC/ABC-1'])
+  })
+
+  it('reads the tracker anew when a chain starts with nothing to run, so a task created a moment ago is taken', async () => {
+    const { dispatcher, launched, tracker, refreshed, log } = setup()
+    dispatcher.setTasks('ABC', [])
+    tracker.ABC = [task('ABC-1')]
+    await dispatcher.start('ABC')
+    await dispatcher.idle()
+    expect(refreshed).toEqual(['ABC'])
+    expect(launched).toEqual(['ABC/ABC-1'])
+    expect(log).toEqual([])
+  })
+
+  it('does not read the tracker when the task list already has a task to run', async () => {
+    const { dispatcher, refreshed } = setup()
+    dispatcher.setTasks('ABC', [task('ABC-1')])
+    await dispatcher.start('ABC')
+    expect(refreshed).toEqual([])
+  })
+
+  it('refuses to start, saying why, when the tracker still has nothing to run', async () => {
+    const { dispatcher, tracker, saved, log } = setup()
+    tracker.ABC = [task('ABC-1', backlog)]
+    await expect(dispatcher.start('ABC')).rejects.toMatchObject({
+      notice: notice('chain.empty', { project: 'ABC' }, { cause: notice('chain.emptyStatus', {}) }),
+    })
+    expect(dispatcher.state.active).toEqual([])
+    expect(saved).toEqual([])
+    expect(log).toEqual(['chain: ABC has no task to run, not started: none of its open tasks is in a status the chain takes'])
+  })
+
+  it('refuses to start while the tracker has not answered with the task list', async () => {
+    const { dispatcher } = setup()
+    await expect(dispatcher.start('ABC')).rejects.toMatchObject({ notice: notice('chain.notRead', { project: 'ABC' }) })
+    expect(dispatcher.state.active).toEqual([])
+  })
+
+  it.each([
+    ['no open task', [] as Task[], {}, notice('chain.emptyNone', {})],
+    ['ready tasks without the required label', [task('ABC-1')], { requiredLabels: ['Auto'] }, notice('chain.emptyLabels', { labels: ['Auto'] })],
+    ['only skipped tasks', [task('ABC-1')], {}, notice('chain.emptySkipped', {})],
+    ['a ready task held by a blocker outside the chain', [task('ABC-1', todo, 'ABC-2'), task('ABC-2', review)], { active: ['Todo'] }, notice('chain.emptyBlocked', {})],
+  ])('names the reason of an empty chain: %s', async (_name, tasks, rules, why) => {
+    const { dispatcher, tracker } = setup({ rules: { ABC: { ...DEFAULT_RULES, ...rules } } })
+    if (why.code === 'chain.emptySkipped') dispatcher.state.skipped.ABC = ['ABC-1']
+    tracker.ABC = tasks
+    await expect(dispatcher.start('ABC')).rejects.toMatchObject({ notice: notice('chain.empty', { project: 'ABC' }, { cause: why }) })
+  })
+
+  it('logs a chain that ends with no task left', async () => {
+    const { dispatcher, log } = setup()
+    dispatcher.setTasks('ABC', [task('ABC-1')])
+    await dispatcher.start('ABC')
+    await dispatcher.idle()
+    dispatcher.setTasks('ABC', [task('ABC-1', done)])
+    await dispatcher.idle()
+    expect(dispatcher.state.active).toEqual([])
+    expect(log).toContain('chain: ABC ended, no task left to run')
   })
 
   it('launches the next task when the current one is done', async () => {
@@ -263,7 +319,7 @@ describe('Dispatcher', () => {
     const options: { blocked?: string } = { blocked: 'claude: not signed in' }
     const { dispatcher, launched, saved } = setup(options)
     dispatcher.setTasks('ABC', [task('ABC-1')])
-    expect(() => dispatcher.start('ABC')).toThrow('claude: not signed in')
+    await expect(dispatcher.start('ABC')).rejects.toThrow('claude: not signed in')
     expect(saved).toEqual([])
 
     options.blocked = undefined
@@ -279,6 +335,8 @@ describe('Dispatcher', () => {
   it('still queues a project behind a running chain while launches are blocked', () => {
     const options: { blocked?: string } = {}
     const { dispatcher } = setup(options)
+    dispatcher.setTasks('ABC', [task('ABC-1')])
+    dispatcher.setTasks('XYZ', [task('XYZ-1')])
     dispatcher.start('ABC')
     options.blocked = 'claude: not signed in'
     dispatcher.start('XYZ')
@@ -398,8 +456,11 @@ describe('Dispatcher', () => {
 
   it('removes a project from the queue', async () => {
     const { dispatcher } = setup()
+    dispatcher.setTasks('ABC', [task('ABC-1')])
+    dispatcher.setTasks('XYZ', [task('XYZ-1')])
     dispatcher.start('ABC')
     dispatcher.start('XYZ')
+    expect(dispatcher.state.queue).toEqual(['XYZ'])
     dispatcher.dequeue('XYZ')
     expect(dispatcher.state.queue).toEqual([])
   })
@@ -424,9 +485,10 @@ describe('Dispatcher', () => {
 
   it('refuses a queue order that does not list exactly the queued projects', () => {
     const { dispatcher, saved } = setup({ projects: ['ABC', 'XYZ', 'OPS'] })
-    dispatcher.start('ABC')
-    dispatcher.start('XYZ')
-    dispatcher.start('OPS')
+    for (const project of ['ABC', 'XYZ', 'OPS']) {
+      dispatcher.setTasks(project, [task(`${project}-1`)])
+      dispatcher.start(project)
+    }
     const before = saved.length
     const refusal = /queue has changed/
     expect(() => dispatcher.requeue(['XYZ'])).toThrow(refusal)
@@ -436,9 +498,9 @@ describe('Dispatcher', () => {
     expect(saved.length).toBe(before)
   })
 
-  it('rejects an unknown project', () => {
+  it('rejects an unknown project', async () => {
     const { dispatcher } = setup()
-    expect(() => dispatcher.start('QQQ')).toThrow('QQQ is not a configured project')
+    await expect(dispatcher.start('QQQ')).rejects.toThrow('QQQ is not a configured project')
   })
 
   it('keeps a manual order and refuses one that breaks a blocker', async () => {
@@ -456,6 +518,7 @@ describe('Dispatcher', () => {
   it('saves every change and picks up where it left off after a restart', async () => {
     const first = setup()
     first.dispatcher.setTasks('ABC', [task('ABC-1'), task('ABC-2')])
+    first.dispatcher.setTasks('XYZ', [task('XYZ-1')])
     first.dispatcher.start('ABC')
     first.dispatcher.start('XYZ')
     await first.dispatcher.idle()
@@ -843,10 +906,10 @@ describe('Dispatcher with a blocker in the backlog', () => {
     expect(dispatcher.view('XYZ')).toEqual({ tasks: [], blockers: [], current: undefined })
   })
 
-  it('ends the chain when every task left waits on the backlog', async () => {
+  it('does not start a chain when every task left waits on the backlog', async () => {
     const { dispatcher, launched } = setup()
     dispatcher.setTasks('ABC', [task('ABC-1', backlog), task('ABC-2', todo, 'ABC-1')])
-    dispatcher.start('ABC')
+    await expect(dispatcher.start('ABC')).rejects.toMatchObject({ notice: { code: 'chain.empty', cause: { code: 'chain.emptyBlocked' } } })
     await dispatcher.idle()
 
     expect(launched).toEqual([])
@@ -890,7 +953,7 @@ describe('Dispatcher with a blocker in the backlog', () => {
   it('holds a task on an open blocker without a required label', async () => {
     const { dispatcher, launched } = setup({ rules: { ABC: { ...DEFAULT_RULES, requiredLabels: ['auto'] } } })
     dispatcher.setTasks('ABC', [task('ABC-1', todo), { ...task('ABC-2', todo, 'ABC-1'), labels: ['auto'] }])
-    dispatcher.start('ABC')
+    await expect(dispatcher.start('ABC')).rejects.toMatchObject({ notice: { code: 'chain.empty' } })
     await dispatcher.idle()
 
     expect(launched).toEqual([])

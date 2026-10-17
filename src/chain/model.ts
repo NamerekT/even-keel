@@ -170,6 +170,8 @@ export interface DispatcherDeps {
   /** Stops a session, mid-turn too (`claude stop`): only for a red main, invariant 1's exception 7. */
   stop: (session: HandoffSession) => Promise<void>
   finish: (project: string, task: string) => Promise<FinishOutcome>
+  /** Reads the project's tasks from its tracker anew and hands them over (`setTasks`); resolves once done or failed. */
+  refresh: (project: string) => Promise<void>
   log: (message: string) => void
   /** Without it the chain neither waits for the CI after a push of main nor reacts to a red one. */
   main?: MainCheckDeps

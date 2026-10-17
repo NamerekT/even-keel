@@ -125,6 +125,7 @@ const homes = new AccountHomes(process.env, accountsRoot(process.env))
 const cli = new ClaudeCli(() => resolveClaudeBinary(process.env), CLAUDE_TIMEOUT_MS, (home) => homes.envOf(home))
 const startedAt = new Date().toISOString()
 const tasksByProject = new Map<string, Task[]>()
+const refreshers = new Map<string, () => Promise<void>>()
 const ciWatches = new Map<string, CiWatch[]>()
 /** Every project's remotes are read and its CIs are in `ciWatches`. */
 let ciFound = false
@@ -493,6 +494,7 @@ const dispatcher = new Dispatcher(loadChainState(chainFile, config.ids), {
     if (outcome.syncError !== null) console.error(`git: sync of ${project} after ${task} failed: ${englishOf(outcome.syncError)}`)
     return outcome
   },
+  refresh: async (project) => refreshers.get(project)?.(),
   log: (message) => console.log(message),
   main: mainCheckDeps({
     repo: (project) => config.projects[project]!,
@@ -831,6 +833,7 @@ for (const view of trackers.values()) {
       fillsMilestone: (project) => configFile.current.settings[project]?.fillMilestone ?? false,
       mainBranch: branchOf,
       broadcast: () => hub.broadcast('state', getState()),
+      refreshers,
     })
   }
 }
