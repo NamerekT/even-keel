@@ -1,0 +1,95 @@
+.switch-window {
+  width: min(520px, calc(100vw - 32px));
+  max-height: calc(100dvh - 48px);
+  padding: 0;
+  background: var(--surface);
+  color: var(--fg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.switch-window::backdrop {
+  background: var(--scrim);
+  backdrop-filter: var(--scrim-blur);
+}
+
+.switch-window[open] {
+  animation: appear var(--motion-appear) ease-out;
+}
+
+.switch-window__body {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  padding: 16px;
+}
+
+.switch-window__role {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.switch-window__label {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.switch-window__list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.switch-window__pick {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 2px 8px;
+  width: 100%;
+  padding: 6px 10px;
+  border: 1px solid color-mix(in srgb, var(--fg-muted) 75%, transparent);
+  border-radius: 8px;
+  background: var(--surface-muted);
+  color: var(--fg);
+  font: inherit;
+  font-size: 14px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.switch-window__pick:enabled:hover,
+.switch-window__pick:focus-visible {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 12%, var(--surface-muted));
+  outline: none;
+}
+
+.switch-window__pick--off {
+  border-style: dashed;
+  border-color: color-mix(in srgb, var(--fg-muted) 55%, transparent);
+  background: transparent;
+  color: var(--fg-muted);
+  cursor: not-allowed;
+}
+
+.switch-window__pick--on {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 18%, transparent);
+  cursor: default;
+}
+
+.switch-window__check {
+  color: var(--accent);
+  font-weight: 700;
+}
+
+.switch-window__why {
+  flex-basis: 100%;
+  padding-left: 17px;
+  font-size: 12px;
+}

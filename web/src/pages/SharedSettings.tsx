@@ -39,7 +39,8 @@ const PROMPT_KEYS = MODEL_ALIASES.map(promptKey)
 const GROUPS = [
   { id: 'chain', keys: ['parallel', 'tracker', 'brief', ...RULE_KEYS] },
   { id: 'models', keys: ['model', ...PROMPT_KEYS, 'promptLanguage'] },
-  { id: 'sessions', keys: ['hiddenSkills', 'cacheTtl', 'window', 'warn', 'danger', 'checkpointTokens'] },
+  { id: 'sessions', keys: ['hiddenSkills', 'window', 'warn', 'danger', 'checkpointTokens'] },
+  { id: 'claude', keys: ['cacheTtl'] },
   { id: 'page', keys: ['language', 'allowedHosts', 'updatesCheck', 'updatesNotify'] },
   { id: 'stats', keys: ['minTasks', 'minSessions', 'days', 'otherBelow', 'moves'] },
 ] as const
@@ -234,16 +235,6 @@ export function SharedSettings({ state }: { state: EvenKeelState }) {
           {marks.note('hiddenSkills')}
           <FieldNote error={errorOf('hiddenSkills')} />
         </div>
-        {select(
-          'cacheTtl',
-          t.shared.cacheTtl,
-          [
-            { value: '', label: t.shared.cacheTtlAuto },
-            { value: '5m', label: t.shared.cacheTtl5m },
-            { value: '1h', label: t.shared.cacheTtl1h },
-          ],
-          t.shared.cacheTtlHint,
-        )}
         <div className="settings__field">
           <FieldHead label={t.shared.context} hint={t.shared.contextHint} restart={config.restart.includes('context')} />
           <div className="settings__row">
@@ -269,6 +260,17 @@ export function SharedSettings({ state }: { state: EvenKeelState }) {
         </div>
       </>
     ),
+    claude: () =>
+      select(
+        'cacheTtl',
+        t.shared.cacheTtl,
+        [
+          { value: '', label: t.shared.cacheTtlAuto },
+          { value: '5m', label: t.shared.cacheTtl5m },
+          { value: '1h', label: t.shared.cacheTtl1h },
+        ],
+        t.shared.cacheTtlHint,
+      ),
     page: () => (
       <>
         {select('language', t.shared.language, [{ value: '', label: t.shared.languageAuto }, ...languages])}

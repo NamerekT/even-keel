@@ -12,6 +12,7 @@ import { appSwitchProblem, type AppAccount } from '../../../src/account/apps.js'
 import { fail, notice, NoticeError, textNotice } from '../../../src/notice/notice.js'
 import type { RateLimits } from '../../../src/limits/model.js'
 import type { UsageHealth } from '../../../src/limits/usage.js'
+import { deviceLogin } from '../accounts.js'
 
 function ago(minutes: number): string {
   return new Date(Date.now() - minutes * 60_000).toISOString()
@@ -32,6 +33,12 @@ const FAKE_LOGIN: AccountLogin = {
   output: "Browser didn't open? Use the url below to sign in:\n\nhttps://claude.example.com/oauth/authorize?code=true&state=example",
   error: null,
   codeSent: false,
+}
+
+const FAKE_DEVICE_LOGIN: AccountLogin = {
+  ...FAKE_LOGIN,
+  urls: ['https://auth.openai.example.com/codex/device'],
+  output: 'Follow these steps to sign in with ChatGPT using device code authorization:\n\n1. Open this link in your browser and sign in\n   https://auth.openai.example.com/codex/device\n\n2. Enter this one-time code\n   ABCD-1234',
 }
 
 export function fakeUsage(mode: string | null): UsageHealth {
@@ -147,6 +154,16 @@ export function fakeAccount(mode: string | null, idle: boolean, limits: RateLimi
     const lost = apiEntry('old-key', { status: { loggedIn: false, authMethod: 'none', email: null, orgName: null, subscriptionType: null }, needsLogin: true })
     return { ...signedIn, active: 'ci-key', accounts: [global, work, apiEntry('ci-key', { name: 'CI key', sessions: ['ABC-5'] }), lost] }
   }
+  if (mode === 'codex') {
+    const codex = fakeEntry({
+      key: 'codex',
+      agent: 'codex',
+      status: { loggedIn: true, authMethod: 'chatgpt', email: 'john.doe@example.com', orgName: null, subscriptionType: 'plus' },
+      loginExpiresAt: null,
+      limits: { ...limits, fiveHour: { ...limits.fiveHour!, usedPercentage: 12 }, source: 'statusline' },
+    })
+    return { ...signedIn, accounts: [global, work, apiEntry('ci-key', { name: 'CI key' }), codex] }
+  }
   if (mode === 'vscode-broken') {
     return { ...signedIn, apps: [{ ...vscode, account: null, dir: null, error: notice('vscode.notJson', {}) }] }
   }
@@ -158,7 +175,9 @@ export function accountCommand(account: AccountView, name: string, body: Record<
   if (name === 'account/add' || name === 'account/renew') {
     if (account.login !== null && account.login.error === null) throw fail('login.running', {})
     if (name === 'account/renew' && key === account.active && account.loginBlock !== null) throw new NoticeError(loginBlockNotice(account.loginBlock))
-    return { ...account, login: { ...FAKE_LOGIN, target: name === 'account/add' ? null : key, startedAt: ago(0) } }
+    const target = name === 'account/add' ? null : key
+    const device = deviceLogin({ ...account, login: { ...FAKE_LOGIN, target } })
+    return { ...account, login: { ...(device ? FAKE_DEVICE_LOGIN : FAKE_LOGIN), target, startedAt: ago(0) } }
   }
   if (name === 'account/api') {
     const value = String(body.key).trim()

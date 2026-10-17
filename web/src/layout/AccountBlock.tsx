@@ -1,12 +1,10 @@
-import { useMemo } from 'react'
 import type { AccountView } from '../../../src/account/model.js'
 import type { LimitWindow, RateLimits } from '../../../src/limits/model.js'
 import { formatAgo, formatMoment, formatSpan } from '../format.js'
 import { t } from '../i18n/index.js'
-import { useLive } from '../live/context.js'
 import { accountBadge, loginLeft } from '../state.js'
-import { loadedData, useStatsAnswer } from '../stats/common.js'
-import { AccountPanel, spendText, type Spend } from './Account.js'
+import { AccountPanel } from './Account.js'
+import { spendText, useSpend, type Spend } from './accountParts.js'
 import { FULL_PERCENT, WARM_PERCENT } from './Limits.js'
 import { usePopover } from './usePopover.js'
 
@@ -17,14 +15,6 @@ interface BlockProps {
   account: AccountView
   limits: RateLimits | null
   now: Date
-}
-
-/** Today's spend by account folder from Tally, read only while there is an API account to show it for. */
-function useSpend(account: AccountView): Spend {
-  const { statsSpend } = useLive()
-  const tz = useMemo(() => Intl.DateTimeFormat().resolvedOptions().timeZone, [])
-  const wanted = account.accounts.some((entry) => entry.apiKey)
-  return loadedData(useStatsAnswer(wanted ? `spend|${tz}` : null, () => statsSpend(tz)))
 }
 
 /**

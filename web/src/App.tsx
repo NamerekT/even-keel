@@ -14,6 +14,8 @@ import { UsageBanner } from './layout/UsageBanner.js'
 import { ToastStack } from './ui/Toast.js'
 import { useLive } from './live/context.js'
 import { projectOfPath, projectPath } from './state.js'
+import { AccountAddPage } from './pages/AccountAdd.js'
+import { AccountsPage } from './pages/Accounts.js'
 import { Home } from './pages/Home.js'
 import { NotFound } from './pages/NotFound.js'
 import { Project } from './pages/Project.js'
@@ -58,6 +60,8 @@ export function App() {
               <Route path="/stats" element={<StatsPage state={state} />} />
               <Route path="/tools" element={<ToolsPage state={state} />} />
               <Route path="/settings" element={<SharedSettings state={state} />} />
+              <Route path="/accounts" element={<AccountsPage state={state} />} />
+              <Route path="/accounts/add" element={<AccountAddPage state={state} />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
           </BasementSlot.Provider>

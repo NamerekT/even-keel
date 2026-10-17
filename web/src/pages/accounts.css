@@ -1,0 +1,137 @@
+.accounts-page__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.accounts-page__head .page__title {
+  margin: 0;
+}
+
+.accounts-page__login,
+.add-window {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-width: 560px;
+  padding: 14px 16px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+
+.account-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.account-card-item {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 14px 16px;
+  border: 1px solid var(--border);
+  border-top: 3px solid var(--series);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+
+.account-card-item__tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.account-card-item__role {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.add-steps {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 20px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  color: var(--fg-muted);
+  font-size: 14px;
+  counter-reset: step;
+}
+
+.add-steps li {
+  counter-increment: step;
+}
+
+.add-steps li::before {
+  content: counter(step) '. ';
+}
+
+.add-steps li[aria-current='step'] {
+  color: var(--fg);
+  font-weight: 600;
+}
+
+.add-choices {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 12px;
+  max-width: 760px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.add-choice {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  height: 100%;
+  padding: 14px 16px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--fg);
+  text-decoration: none;
+  transition:
+    border-color var(--motion-fast) ease,
+    background-color var(--motion-fast) ease;
+}
+
+a.add-choice:hover,
+a.add-choice:focus-visible {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 8%, var(--surface));
+}
+
+.add-choice__title {
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.add-choice__hint {
+  color: var(--fg-muted);
+  font-size: 13px;
+}
+
+.add-choice--off {
+  border-style: dashed;
+  background: transparent;
+  color: var(--fg-muted);
+  cursor: not-allowed;
+}
+
+.add-window__command {
+  margin: 0;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: var(--surface-muted);
+  font-family: var(--mono);
+  font-size: 13px;
+}

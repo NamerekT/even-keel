@@ -11,6 +11,7 @@ import type { LimitHold } from '../../../src/chain/relay.js'
 import { isLanguage } from '../../../src/language.js'
 import type { EvenKeelState, SessionRecord, SessionView } from '../../../src/state.js'
 import type { Link, LiveSnapshot, LiveSource } from './connection.js'
+import { deviceLogin } from '../accounts.js'
 import { accountCommand, fakeAccount, fakeUsage, FAKE_LIMITS } from './fakeAccounts.js'
 import { FAKE_FIX, fakeCi } from './fakeCi.js'
 import { fakeUpdates, fakeUpdatesCommand } from './fakeUpdates.js'
@@ -28,6 +29,7 @@ const TICK_MS = 2_000
 const ANSWER_MS = 300
 const CLOSE_TICKS = 5
 const HANDOVER_MS = 1_000
+const DEVICE_MS = 8_000
 const START_STAGE_MS = 3_000
 /** `?config=edited`: time to open the settings and start a draft before the file changes under it. */
 const HAND_EDIT_MS = 15_000
@@ -771,6 +773,15 @@ export function createFakeSource(search: string): LiveSource {
         if (index === 0) show()
         else setTimeout(show, index * (delay ?? START_STAGE_MS))
       })
+      if (name === 'account/renew' && deviceLogin(next.account)) {
+        // The code goes on OpenAI's page, never through Even Keel: the sign-in ends by itself a while later.
+        setTimeout(() => {
+          const now = current.state
+          if (now === null || now.account.login?.startedAt !== next.account.login?.startedAt) return
+          current = { ...current, state: { ...now, account: accountCommand(now.account, 'account/code', { code: 'ok' }) } }
+          notify()
+        }, DEVICE_MS)
+      }
     },
     session: async (sessionId) => {
       await answer()

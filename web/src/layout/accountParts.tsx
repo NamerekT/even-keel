@@ -1,0 +1,306 @@
+import { useMemo, useState, type FormEvent } from 'react'
+import { removeProblem, type AccountEntry, type AccountLogin, type AccountView } from '../../../src/account/model.js'
+import { CODEX } from '../../../src/codex/name.js'
+import type { Notice } from '../../../src/notice/notice.js'
+import { PROVIDERS } from '../accounts.js'
+import { say, t } from '../i18n/index.js'
+import { useLive } from '../live/context.js'
+import { useCommand } from '../live/useCommand.js'
+import { loginLeft } from '../state.js'
+import { loadedData, useStatsAnswer } from '../stats/common.js'
+import { formatUsd } from '../stats/format.js'
+
+export type Send = (name: string, body?: Record<string, unknown>) => Promise<boolean>
+
+/** Today's spend in dollars by account folder key; null while Tally has not answered. */
+export type Spend = Record<string, number> | null
+
+/** Today's spend by account folder from Tally, read only while there is an API account to show it for. */
+export function useSpend(account: AccountView): Spend {
+  const { statsSpend } = useLive()
+  const tz = useMemo(() => Intl.DateTimeFormat().resolvedOptions().timeZone, [])
+  const wanted = account.accounts.some((entry) => entry.apiKey)
+  return loadedData(useStatsAnswer(wanted ? `spend|${tz}` : null, () => statsSpend(tz)))
+}
+
+export function spendText(spend: Spend, key: string): string {
+  if (spend === null) return t.account.todayNone
+  return t.account.today(formatUsd(spend[key] ?? 0))
+}
+
+export function accountName(entry: AccountEntry): string {
+  return entry.name ?? entry.status?.email ?? (entry.global ? t.account.globalOf(globalFolder(entry.agent)) : entry.key)
+}
+
+export function globalFolder(agent: string): string {
+  return agent === CODEX ? '~/.codex' : '~/.claude'
+}
+
+/** The agent of an account as the page names it; one the page does not know yet by its registry name. */
+export function agentLabel(agent: string): string {
+  const provider = PROVIDERS.find((each) => each === agent)
+  return provider === undefined ? agent : t.account.agents[provider]
+}
+
+/** The name with the e-mail's domain dimmed, so that a column of accounts reads by the part that differs. */
+export function AccountName({ entry }: { entry: AccountEntry }) {
+  const name = accountName(entry)
+  const at = entry.name === null ? name.lastIndexOf('@') : -1
+  return (
+    <span className="accounts__email" title={name}>
+      {at > 0 ? name.slice(0, at) : name}
+      {at > 0 && <span className="accounts__domain">{name.slice(at)}</span>}
+    </span>
+  )
+}
+
+interface NotesProps {
+  entry: AccountEntry
+  view: AccountView
+  now: Date
+  sending: boolean
+  send: Send
+}
+
+/** The exceptions of an account, each with its action: sign-in needed or ending, removal pending, configuration pending, a failed check. */
+export function AccountNotes({ entry, view, now, sending, send }: NotesProps) {
+  const left = loginLeft(entry.loginExpiresAt, now)
+  const renewBlocked = view.login !== null || (entry.key === view.active && view.loginBlock !== null)
+
+  return (
+    <>
+      {!entry.apiKey && entry.limits === null && entry.usage.state === 'stale' && (
+        <p className="accounts__note">
+          {t.account.noLimits}
+          {staleNote(entry.usage.reason)}
+        </p>
+      )}
+      {entry.apiKey && entry.needsLogin && <p className="accounts__note accounts__note--warn">{t.account.apiKeyLost}</p>}
+      {!entry.apiKey && (left.renew || entry.needsLogin) && (
+        <div className="accounts__note accounts__note--warn">
+          <span>{entry.needsLogin ? t.account.needsLogin : t.account.expiry(left.text)}</span>
+          <button
+            type="button"
+            className="button button--small"
+            disabled={sending || renewBlocked}
+            onClick={() => void send('account/renew', { account: entry.key })}
+          >
+            {entry.needsLogin ? t.account.login : t.account.renew}
+          </button>
+        </div>
+      )}
+      {entry.removing && (
+        <div className="accounts__note accounts__note--warn">
+          <span>
+            {t.account.removing}
+            {entry.sessions.length > 0 ? t.account.removingAlive(entry.sessions.join(', ')) : ''}
+          </span>
+          <button type="button" className="button button--small" disabled={sending} onClick={() => void send('account/keep', { account: entry.key })}>
+            {t.account.keep}
+          </button>
+        </div>
+      )}
+      {entry.configPending && <p className="accounts__note">{t.account.configPending}</p>}
+      {entry.error !== null && <p className="accounts__note">{t.account.checkFailed(say(entry.error))}</p>}
+    </>
+  )
+}
+
+function staleNote(reason: Notice | null): string {
+  return reason === null ? t.account.staleExpired : t.account.staleBusy
+}
+
+interface RemoveProps {
+  entry: AccountEntry
+  view: AccountView
+  sending: boolean
+  send: Send
+}
+
+/** "Remove" behind a confirmation, or why the folder is kept. */
+export function RemoveAction({ entry, view, sending, send }: RemoveProps) {
+  const [confirming, setConfirming] = useState(false)
+  const kept = removeProblem(view, entry.key)
+
+  if (entry.removing) return null
+  if (kept !== undefined) return <p className="accounts__note">{say(kept)}</p>
+  if (!confirming) {
+    return (
+      <div className="account__actions">
+        <button type="button" className="button button--small" disabled={sending} onClick={() => setConfirming(true)}>
+          {t.common.remove}
+        </button>
+      </div>
+    )
+  }
+  return (
+    <div className="account__actions">
+      <span className="accounts__confirm">{removeQuestion(entry)}</span>
+      <button
+        type="button"
+        className="button button--small button--danger"
+        disabled={sending}
+        onClick={() => void send('account/remove', { account: entry.key }).then(() => setConfirming(false))}
+      >
+        {t.common.remove}
+      </button>
+      <button type="button" className="button button--small" disabled={sending} onClick={() => setConfirming(false)}>
+        {t.common.cancel}
+      </button>
+    </div>
+  )
+}
+
+function removeQuestion(entry: AccountEntry): string {
+  const sessions = entry.sessions.join(', ')
+  if (entry.apiKey) return sessions === '' ? t.account.removeKeyNow : t.account.removeKeyWhenDone(sessions)
+  return sessions === '' ? t.account.removeNow : t.account.removeWhenDone(sessions)
+}
+
+export function loginHeading({ login, accounts }: AccountView): string {
+  if (login === null) return t.account.add
+  if (login.target === null) return t.account.loginNew
+  const target = accounts.find((entry) => entry.key === login.target)
+  return t.account.loginTo(target === undefined ? login.target : accountName(target))
+}
+
+interface StepsProps {
+  login: AccountLogin
+  /** Codex's device-auth: the code is in the CLI output and goes on the sign-in page, so no code field. */
+  device: boolean
+  sending: boolean
+  send: Send
+}
+
+/** The sign-in through an agent's CLI: the link it printed, the code field, the way out. */
+export function LoginSteps({ login, device, sending, send }: StepsProps) {
+  const [code, setCode] = useState('')
+
+  const submit = async (event: FormEvent) => {
+    event.preventDefault()
+    if (await send('account/code', { code })) setCode('')
+  }
+
+  if (login.error !== null) {
+    const retry = () => (login.target === null ? send('account/add') : send('account/renew', { account: login.target }))
+    return (
+      <>
+        <p className="notice notice--error">{say(login.error)}</p>
+        <div className="account__actions">
+          <button type="button" className="button button--primary" disabled={sending} onClick={() => void retry()}>
+            {t.common.retry}
+          </button>
+          <button type="button" className="button" disabled={sending} onClick={() => void send('account/cancel')}>
+            {t.common.close}
+          </button>
+        </div>
+        {login.output !== '' && <Output text={login.output} />}
+      </>
+    )
+  }
+
+  return (
+    <>
+      {login.urls.length === 0 ? (
+        <p className="queue__hint">{t.account.waitingLink}</p>
+      ) : (
+        <ul className="account__links">
+          {login.urls.map((url) => (
+            <li key={url}>
+              <a href={url} target="_blank" rel="noreferrer">
+                {login.urls.length === 1 ? t.account.openLogin : new URL(url).host}
+              </a>
+            </li>
+          ))}
+        </ul>
+      )}
+      {device ? (
+        <p className="queue__hint">{t.account.deviceHint}</p>
+      ) : (
+        <>
+          <form className="account__code" onSubmit={(event) => void submit(event)}>
+            <input
+              className="account__input"
+              value={code}
+              onChange={(event) => setCode(event.target.value)}
+              placeholder={t.account.code}
+              aria-label={t.account.code}
+              autoComplete="off"
+              spellCheck={false}
+            />
+            <button type="submit" className="button" disabled={sending || code.trim() === ''}>
+              {t.account.send}
+            </button>
+          </form>
+          <p className="queue__hint">{login.codeSent ? t.account.codeSent : t.account.codeHint}</p>
+        </>
+      )}
+      {device && login.output !== '' && <Output text={login.output} open />}
+      <div className="account__actions">
+        <button type="button" className="button" disabled={sending} onClick={() => void send('account/cancel')}>
+          {t.account.cancelLogin}
+        </button>
+      </div>
+      {!device && login.output !== '' && <Output text={login.output} />}
+    </>
+  )
+}
+
+function Output({ text, open = false }: { text: string; open?: boolean }) {
+  return (
+    <details className="account__output" open={open}>
+      <summary>{t.account.output}</summary>
+      <pre>{text}</pre>
+    </details>
+  )
+}
+
+/** Its own command, so a refused key shows under the form rather than elsewhere on the page. */
+export function ApiKeyFields({ onDone, onCancel }: { onDone: () => void; onCancel: () => void }) {
+  const { send, sending, failure } = useCommand()
+  const [name, setName] = useState('')
+  const [key, setKey] = useState('')
+
+  const submit = async (event: FormEvent) => {
+    event.preventDefault()
+    if (await send('account/api', { name, key })) onDone()
+  }
+
+  return (
+    <form className="account__key" onSubmit={(event) => void submit(event)}>
+      <input
+        className="account__input"
+        value={name}
+        onChange={(event) => setName(event.target.value)}
+        placeholder={t.account.keyName}
+        aria-label={t.account.keyName}
+        autoComplete="off"
+        spellCheck={false}
+      />
+      <input
+        className="account__input"
+        type="password"
+        value={key}
+        onChange={(event) => setKey(event.target.value)}
+        placeholder={t.account.keyValue}
+        aria-label={t.account.keyValue}
+        autoComplete="off"
+        spellCheck={false}
+      />
+      <div className="account__actions">
+        <button type="submit" className="button button--primary" disabled={sending || key.trim() === ''}>
+          {t.account.keyAdd}
+        </button>
+        <button type="button" className="button" disabled={sending} onClick={onCancel}>
+          {t.common.cancel}
+        </button>
+      </div>
+      {failure !== null && (
+        <p className="notice notice--error" role="alert">
+          {say(failure)}
+        </p>
+      )}
+      <p className="queue__hint">{t.account.keyHint}</p>
+    </form>
+  )
+}
