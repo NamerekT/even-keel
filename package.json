@@ -19,7 +19,8 @@
     "build": "tsc -p tsconfig.json && tsc -p web/tsconfig.json && vite build --config web/vite.config.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p web/tsconfig.json && tsc -p tally/tsconfig.json",
     "test": "vitest run",
-    "tally": "tsx tally/src/main.ts"
+    "tally": "tsx tally/src/main.ts",
+    "shot": "tsx scripts/shot.ts"
   },
   "devDependencies": {
     "@types/node": "^24.19.0",
@@ -27,6 +28,7 @@
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
     "@vitejs/plugin-react": "^6.1.1",
+    "playwright": "^1.64.1",
     "tsx": "^4.23.15",
     "typescript": "^5.9.3",
     "vite": "^8.3.1",

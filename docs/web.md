@@ -113,6 +113,23 @@ Layout work on a fake state, without a tracker or sessions. The fake history sta
 | `?lang=en\|ru` | the page language from the config (without it — the browser language) |
 | `?delay=<ms>` | answers (stats, tools, card, session) take that long instead of 0.3 s, and each start phase after "Start" or "New session" lasts that long — for skeletons, dimming and the busy button |
 
+## Screenshots (`npm run shot`)
+
+`scripts/shot.ts` is the cheap way for a session to look at the page: a Playwright MCP step returns the page's whole accessibility tree into the context, the script returns a few lines and the PNGs of the elements asked for, read only when needed. One run is ~4 s.
+
+```sh
+npm run shot -- '?chain=ask&card=empty' .cards 'dialog[open]' --click '.card__key >> nth=0' --size 390x844
+```
+
+- The first argument starting with `?`, `/` or `#` is the route; it opens on a `dev:fake` server the script starts in-process on a free port (no port 5173, nothing left running), or on `--url <base>` (`http://localhost:4747` — the service).
+- Every other argument is a selector: it is waited for (5 s), and its first match is shot alone into `.temp/shot/<name>/<n>-<selector>.png`; without selectors, the viewport into `page.png` (`--full` for the whole page). `<name>` is the route as a slug or `--name`; the folder is emptied on each run.
+- Steps run in the order given, before the shots: `--click <sel>`, `--hover <sel>`, `--press <key>`, `--fill <sel>=<text>`, `--wait <sel|ms>`; then `--settle` ms (500).
+- Dark theme, 1280×800 by default: `--light`, `--size WxH`. CSS animations are finished for the shot (`animations: 'disabled'`); motion is the frame sheet below.
+- The report per selector: the match count, the box, and three lists of hints, each capped at `--limit` (8): `spill` — content wider or taller than a box with `overflow: visible` (the deepest such box), `cut` — content clipped by `hidden`/`clip`, marked when it is an ellipsis, `overlap` — in-flow siblings whose boxes cross. SVG shapes, boxes of 1 px or less and 2 px of slack are ignored. A hint is not a defect by itself (a stretched hit area spills by design): the picture decides.
+- `--eval <js>` prints an expression's value from the page (a computed colour, a width); `--no-image` gives only the report.
+- Exit code 1 when a selector is not found or the page logged an error (both printed), 2 when a step or the launch failed.
+- The browser is Playwright's Chromium, else the installed Chrome (`channel: 'chrome'`); with neither, `npx playwright install chromium`. The page side is `scripts/shot.page.js`, plain JS as an init script: tsx would wrap functions passed to `evaluate` in an undefined `__name`.
+
 ## Motion frame sheets (BTN-95)
 
 An animation is checked by eye on one sheet of captioned frames, not frame by frame. Everything runs in one `browser_run_code_unsafe` call, without new dependencies.

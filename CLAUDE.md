@@ -101,4 +101,4 @@ Without the service: `npm install`, `npm run build`, `npm start`. On Windows —
 
 ## Tests
 
-TDD for logic: chain order, status transitions, parsing transcripts and tracker answers. Process handling, network and layout are not covered by tests — they are checked live, with Playwright screenshots in `.temp/`. The user works only in the dark theme: screenshot it first (`browser_emulate_media` with `colorScheme: 'dark'`), the light one only must not break.
+TDD for logic: chain order, status transitions, parsing transcripts and tracker answers. Process handling, network and layout are not covered by tests — they are checked live, with screenshots in `.temp/`. The user works only in the dark theme: screenshot it first, the light one only must not break. Look through `npm run shot` (element shots and a text report, dark by default, `docs/web.md`), not the Playwright MCP: each MCP step puts the page's whole accessibility tree into the context; the MCP only for what the script cannot do.

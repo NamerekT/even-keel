@@ -323,6 +323,7 @@ npm run typecheck
 npm run dev         # the server, restarting on changes
 npm run dev:web     # the page with hot reload, proxying /api to a running server
 npm run dev:fake    # the page on fake data
+npm run shot -- '?chain=ask' .cards   # a dark screenshot of an element on fake data, into .temp/shot/
 ```
 
 ## Security
