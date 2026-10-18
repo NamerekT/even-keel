@@ -693,11 +693,15 @@ const dispatcher = new Dispatcher(await loadChainState(db, configStore.current.i
 function resumeWith(task: string, session: HandoffSession, prompt: string): Promise<string> {
   return monitor.holds.during(session.sessionId, async () => {
     const home = homeOf(session.account)
+    const started = Date.now()
     await stopIn(home, session)
+    const stopped = Date.now()
     await daemons.prepare(home)
     const plan = planFor(task, prompt)
     const extras = agentExtras(home, projectOf(task), task)
-    return resumeIn(home, session, { name: task, cwd: session.cwd, prompt: plan.prompt, model: plan.model, settings: settingsFor(task), ...extras })
+    const sessionId = await resumeIn(home, session, { name: task, cwd: session.cwd, prompt: plan.prompt, model: plan.model, settings: settingsFor(task), ...extras })
+    console.log(`sessions: ${task} resumed in ${Date.now() - started} ms (stop ${stopped - started} ms)`)
+    return sessionId
   })
 }
 
