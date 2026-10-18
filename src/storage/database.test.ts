@@ -10,6 +10,7 @@ import { closedTasks, loadChainState, loadQuestions, readLaunches } from '../cha
 import { parseConfig } from '../config.js'
 import { root } from '../locations.js'
 import { noticeOf } from '../notice/notice.js'
+import { readProfiles } from '../profiles/store.js'
 import { Mailbox } from '../sessions/mailbox.js'
 import { fileOf } from '../settings/file.js'
 import { readSettings } from '../settings/store.js'
@@ -20,7 +21,8 @@ import { stateValue } from './service-state.js'
 import { IMPORTED_SUFFIX, prepareDatabase } from './state-files.js'
 
 // Frozen samples of the database. Versions 1 and 2 were `node:sqlite` files: they are imported at the first start.
-// Version 3 is the first PGlite one, version 4 adds the settings: a later step must migrate each, and each step itself
+// Version 3 is the first PGlite one, version 4 adds the settings, version 5 the tracker profiles: a later step must
+// migrate each, and each step itself
 // must still make exactly the tables of its sample.
 // A schema change is a new step and a new sample next to these, never an edit of either.
 const fixture = (version: number) => readFileSync(join(root, 'test', 'fixtures', `database-v${version}`, 'even-keel.sql'), 'utf8')
@@ -192,6 +194,53 @@ describe('frozen samples of the database', { timeout: 120_000 }, () => {
       try {
         expect(await readSettings(copy)).toEqual(await readSettings(opened.db))
         expect(await stateValue(copy, 'updates.dismissed')).toBe('0.2.0')
+      } finally {
+        await copy.close()
+      }
+    } finally {
+      await opened.close()
+    }
+    expect(logs).toEqual([])
+  })
+
+  it('of version 5 has the tables step 5 makes', async () => {
+    const frozen = await PGlite.create()
+    const made = await openDatabase(undefined, STEPS.slice(0, 3))
+    try {
+      await frozen.exec(fixture(5))
+      expect(await databaseVersion(frozen)).toBe(5)
+      expect(await schemaOf(made)).toEqual(await schemaOf(frozen))
+    } finally {
+      await frozen.close()
+      await made.close()
+    }
+  })
+
+  it('of version 5 is brought to the current schema and read whole, the profiles with it', async () => {
+    const dataDir = dataDirOf(databaseDirOf(stateDir))
+    mkdirSync(dataDir, { recursive: true })
+    const frozen = await PGlite.create({ dataDir })
+    await frozen.exec(fixture(5))
+    await frozen.close()
+    const opened = await prepare()
+    try {
+      await readsWhole(opened.db)
+      const profiles = await readProfiles(opened.db)
+      expect(profiles.profiles.map((profile) => [profile.kind, profile.name, profile.isDefault])).toEqual([
+        ['huly', 'Huly · example', true],
+        ['github', 'GitHub · john-doe', true],
+        ['github', 'GitHub · octo-org', false],
+      ])
+      expect(profiles.profiles[0]?.values.HULY_WORKSPACE).toBe('example')
+      expect(profiles.profiles[1]?.expiresAt).toBe('2026-11-18T00:00:00.000Z')
+      expect(profiles.links).toEqual({ [ABC]: '33333333-3333-4333-8333-333333333333', [XYZ]: '55555555-5555-4555-8555-555555555555' })
+      expect(await stateValue(opened.db, 'profiles.imported')).toBe('2026-10-18T09:00:00.000Z')
+      const copyDir = join(stateDir, 'copy')
+      await backupDatabase(opened.db, copyDir)
+      const copy = await PGlite.create({ dataDir: dataDirOf(copyDir) })
+      try {
+        expect(await readProfiles(copy)).toEqual(profiles)
+        expect(await readSettings(copy)).toEqual(await readSettings(opened.db))
       } finally {
         await copy.close()
       }

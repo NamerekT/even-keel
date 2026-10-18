@@ -150,11 +150,48 @@ export interface TrackerProjectKey {
   example: string
 }
 
+/** Whom a profile's credentials sign in as (`TrackerAdapter.account`). */
+export interface ProfileAccount {
+  /** The login or the person's name, for "signed in as …". */
+  login: string
+  /** The profile's name to offer: `GitHub · octo-org`. */
+  name: string
+  /** When the credentials expire, if the tracker says (GitHub's fine-grained tokens); ISO. */
+  expiresAt: string | null
+}
+
+/** The tracker refused the credentials, as opposed to not answering: a profile with them is red and its chains wait. */
+export class CredentialsRefused extends Error {}
+
+/** A project of the tracker a profile sees, for the wizard to pick from (`TrackerAdapter.projects`). */
+export interface TrackerProject {
+  /** What the project's entry takes: the Huly identifier, GitHub's `owner/name`, the Linear team key. */
+  key: string
+  name: string
+  /** Linear: the team's project the entry narrows the team to (`projectKey`); the key is the team's then. */
+  within?: string
+}
+
 export interface TrackerAdapter {
   /** The name on the page and in the log. */
   title: string
-  /** Environment variables the adapter reads; Even Keel keeps them out of the sessions it launches. */
+  /**
+   * The variables a profile of the adapter holds, by name; they were environment variables before profiles (BTN-200)
+   * and are still the names the tracker's MCP server reads. Even Keel keeps them out of the sessions it launches.
+   */
   variables: readonly string[]
+  /** The variables that say where the tracker is (Huly: the address and the workspace): fixed while projects use the profile. */
+  hostVariables: readonly string[]
+  /** Optional. Sets of variables of which a profile fills one (Huly: a token, or an e-mail and a password). */
+  alternatives?: readonly (readonly string[])[]
+  /** Where to get the credentials, with the rights a profile needs. */
+  help: string
+  /** The name a profile of these values gets before the user names it; `account` — what the tracker answered, if it did. */
+  profileName(values: Readonly<Record<string, string>>, account: ProfileAccount | null): string
+  /** Whom the values sign in as; throws `CredentialsRefused` when the tracker refuses them, another error when it does not answer. */
+  account(values: Readonly<Record<string, string>>, timeoutMs: number): Promise<ProfileAccount>
+  /** The tracker's projects the values see whose key or name has `query` in it (case-insensitively), at most 50. */
+  projects(values: Readonly<Record<string, string>>, query: string, timeoutMs: number): Promise<TrackerProject[]>
   /**
    * Optional. The name of the tracker's MCP server. With `brief` off Even Keel looks for it where the CLI would
    * for the project folder and warns when it is missing: the sessions would get nothing but the task id.
@@ -168,8 +205,9 @@ export interface TrackerAdapter {
   /** Optional. For a tracker whose projects are not named by the project key alone (GitHub: `owner/name`). */
   projectKey?: TrackerProjectKey
   /**
-   * `undefined` — none of its variables are set and the tracker is off; throws when they are set only in part.
-   * `projects` — the value of `projectKey` by project key, for the projects on this tracker that have it; empty without `projectKey`.
+   * `env` — a profile's values. `undefined` — none of its variables are set and the tracker is off; throws when they are
+   * set only in part. `projects` — the value of `projectKey` by project key, for the projects on this profile that have
+   * it; empty without `projectKey`.
    */
   setup(env: Record<string, string | undefined>, projects: Readonly<Record<string, string>>): TrackerSetup | undefined
 }

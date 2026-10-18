@@ -22,7 +22,9 @@ export interface Queryable {
  * with the new version; an empty database runs them all. A step is never edited or removed once merged: a schema change
  * is a new step. A project is named by its id (`projects[].id` of the config); the JSON columns hold what the code keeps
  * as it is. Step 3 is the tables of the SQLite versions in Postgres; step 4 the project records and the settings
- * (BTN-199), `unattended` and `trimTools` moving from `chain_flags` into Even Keel's setting rows.
+ * (BTN-199), `unattended` and `trimTools` moving from `chain_flags` into Even Keel's setting rows; step 5 the tracker
+ * profiles and each project's profile (BTN-200). A foreign key between tables is deferred, so that a copy inserts the
+ * tables in any order (`insertRows`).
  */
 export const STEPS: readonly string[] = [
   `
@@ -133,6 +135,21 @@ export const STEPS: readonly string[] = [
   insert into setting_values (key, project_id, qualifier, value, updated_at, updated_by)
     select name, null, '', value, to_char(now() at time zone 'utc', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'), 'import' from chain_flags;
   drop table chain_flags;
+  `,
+  `
+  create table tracker_profiles (
+    id          text primary key,
+    kind        text not null,
+    name        text not null,
+    credentials text not null,
+    is_default  boolean not null default false,
+    login       text,
+    expires_at  text,
+    position    integer not null,
+    created_at  text not null
+  );
+  create unique index tracker_profiles_default on tracker_profiles (kind) where is_default;
+  alter table projects add column profile_id text references tracker_profiles (id) deferrable initially deferred;
   `,
 ]
 

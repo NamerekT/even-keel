@@ -1,5 +1,5 @@
 import { createRequire } from 'node:module'
-import type { HulyCredentials } from '../../src/huly/credentials.js'
+import { authOf, type HulyCredentials } from '../../src/huly/credentials.js'
 import { quietModelNoise } from '../../src/huly/quiet.js'
 
 export interface TaskRecord {
@@ -150,9 +150,7 @@ async function connect(credentials: HulyCredentials, timeoutMs: number): Promise
   const api = require('@hcengineering/api-client') as ApiClientModule
   quietModelNoise()
   return await api.connect(credentials.url, {
-    email: credentials.email,
-    password: credentials.password,
-    workspace: credentials.workspace,
+    ...authOf(credentials),
     socketFactory: api.NodeWebSocketFactory,
     connectionTimeout: timeoutMs,
   })

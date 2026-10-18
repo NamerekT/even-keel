@@ -1,24 +1,36 @@
 export interface HulyCredentials {
   url: string
   workspace: string
-  email: string
-  password: string
+  /** A token signs in by itself; without one, the e-mail and the password. */
+  token: string | null
+  email: string | null
+  password: string | null
 }
 
-export const VARIABLES =['HULY_URL', 'HULY_WORKSPACE', 'HULY_EMAIL', 'HULY_PASSWORD'] as const
+export const HOST_VARIABLES = ['HULY_URL', 'HULY_WORKSPACE'] as const
+export const VARIABLES = [...HOST_VARIABLES, 'HULY_TOKEN', 'HULY_EMAIL', 'HULY_PASSWORD'] as const
+/** A profile fills one of them: the token, or the e-mail and the password. */
+export const ALTERNATIVES = [['HULY_TOKEN'], ['HULY_EMAIL', 'HULY_PASSWORD']] as const
 
-export function readHulyCredentials(env: Record<string, string | undefined>): HulyCredentials | undefined {
-  const missing = VARIABLES.filter((name) => !env[name])
-  if (missing.length === VARIABLES.length) return undefined
-  if (missing.length > 0) throw new Error(`set ${missing.join(', ')} or none of the HULY_* variables`)
+export function readHulyCredentials(env: Readonly<Record<string, string | undefined>>): HulyCredentials | undefined {
+  if (VARIABLES.every((name) => !env[name])) return undefined
+  const missing: string[] = HOST_VARIABLES.filter((name) => !env[name])
+  if (!env.HULY_TOKEN) missing.push(...ALTERNATIVES[1].filter((name) => !env[name]))
+  if (missing.length > 0) throw new Error(`set ${missing.join(', ')}${env.HULY_TOKEN ? '' : ' (or HULY_TOKEN)'}, or none of the HULY_* variables`)
   return {
     url: env.HULY_URL!,
     workspace: env.HULY_WORKSPACE!,
-    email: env.HULY_EMAIL!,
-    password: env.HULY_PASSWORD!,
+    token: env.HULY_TOKEN || null,
+    email: env.HULY_TOKEN ? null : env.HULY_EMAIL!,
+    password: env.HULY_TOKEN ? null : env.HULY_PASSWORD!,
   }
 }
 
-export function issueUrlBase({ url, workspace }: HulyCredentials): string {
+/** What `@hcengineering/api-client` signs in with: the token when there is one. */
+export function authOf({ workspace, token, email, password }: HulyCredentials): Record<string, string> {
+  return token !== null ? { token, workspace } : { email: email!, password: password!, workspace }
+}
+
+export function issueUrlBase({ url, workspace }: Pick<HulyCredentials, 'url' | 'workspace'>): string {
   return `${url.replace(/\/+$/, '')}/workbench/${encodeURIComponent(workspace)}/tracker/`
 }

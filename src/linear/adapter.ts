@@ -5,7 +5,12 @@ export const LINEAR_TOKEN = 'LINEAR_TOKEN'
 export const linear: TrackerAdapter = {
   title: 'Linear',
   variables: [LINEAR_TOKEN],
+  hostVariables: [],
+  help: 'https://linear.app/settings/account/security',
   mcpServer: 'linear',
+  profileName: (_values, account) => account?.name ?? 'Linear',
+  account: async (values, timeoutMs) => (await import('./profile.js')).linearAccount(values, timeoutMs),
+  projects: async (values, query, timeoutMs) => (await import('./profile.js')).linearProjects(values, query, timeoutMs),
   mcpKeys: { LINEAR_API_KEY: LINEAR_TOKEN },
   projectKey: { key: 'linear', optional: true, pattern: /\S/, example: 'Web app' },
   setup(env, projects) {

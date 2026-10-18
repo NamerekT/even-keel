@@ -1,7 +1,7 @@
 import { createRequire } from 'node:module'
 import type { TrackerTask } from '../tracker/model.js'
 import type { TaskSource } from '../tracker/source.js'
-import type { HulyCredentials } from './credentials.js'
+import { authOf, type HulyCredentials } from './credentials.js'
 import { quietModelNoise } from './quiet.js'
 import {
   cardLinks,
@@ -111,7 +111,7 @@ const LABEL_FIELDS = { attachedTo: 1, title: 1 } as const
 const ATTACHMENT_FIELDS = { attachedTo: 1, file: 1, name: 1, type: 1, size: 1, modifiedOn: 1, createdOn: 1 } as const
 
 export async function connectHuly(credentials: HulyCredentials, timeoutMs: number): Promise<TaskSource> {
-  const account = { email: credentials.email, password: credentials.password, workspace: credentials.workspace }
+  const account = authOf(credentials)
   quietModelNoise()
   const client = await api.connect(credentials.url, {
     ...account,
