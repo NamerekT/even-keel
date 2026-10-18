@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { MilestoneTask } from '../tracker/source.js'
-import { changelogPrompt, materialOf, MAX_COMMENT_CHARS } from './draft.js'
+import { changelogPrompt, materialOf, MAX_COMMENT_CHARS, type ChangelogRequest } from './draft.js'
 
 const DONE = { name: 'Done', category: 'Won' } as const
 const OPEN = { name: 'Todo', category: 'ToDo' } as const
@@ -29,25 +29,60 @@ describe('materialOf', () => {
   })
 })
 
+const request = (fields: Partial<ChangelogRequest> = {}): ChangelogRequest => ({
+  milestone: 'v0.1',
+  mode: 'fresh',
+  section: null,
+  heading: '## [Unreleased]',
+  tasks: [],
+  released: [],
+  tags: [],
+  file: 'docs/CHANGELOG.md',
+  ...fields,
+})
+
 describe('changelogPrompt', () => {
-  it('names the milestone, the format and the language source, and lists each task with its comment', () => {
+  it('names the milestone, the format, the heading and the language source, and lists each task with its comment', () => {
     const prompt = changelogPrompt(
-      materialOf('v0.1', [
-        task('ABC-1', { labels: ['Bug'], lastComment: 'Fixed the crash on start.' }),
-        task('ABC-2', { parent: 'ABC-1' }),
-      ]),
+      request({ tasks: [task('ABC-1', { labels: ['Bug'], lastComment: 'Fixed the crash on start.' }), task('ABC-2', { parent: 'ABC-1' })] }),
     )
     expect(prompt).toContain('milestone v0.1')
     expect(prompt).toContain('Keep a Changelog')
-    expect(prompt).toContain('CHANGELOG.md')
+    expect(prompt).toContain('`docs/CHANGELOG.md`')
     expect(prompt).toContain('README.md')
-    expect(prompt).toContain('Unreleased')
+    expect(prompt).toContain('starting with its heading `## [Unreleased]`')
     expect(prompt).toContain('### ABC-1 · Title of ABC-1\nLabels: Bug\n\nFixed the crash on start.')
     expect(prompt).toContain('### ABC-2 · Title of ABC-2\nSubtask of ABC-1\n\n(no comment)')
+    expect(prompt).not.toContain('## The section now')
+  })
+
+  it('forbids questions in every mode', () => {
+    for (const mode of ['fresh', 'update', 'edit'] as const) {
+      expect(changelogPrompt(request({ mode, section: '## [Unreleased]\n\n- A' }))).toContain('Ask no questions')
+    }
+  })
+
+  it('gives an update the section and the tasks to work in, keeping the wording', () => {
+    const prompt = changelogPrompt(request({ mode: 'update', section: '## [Unreleased]\n\n### Added\n\n- Mine', tasks: [task('ABC-3')] }))
+    expect(prompt).toContain('## The section now\n\n## [Unreleased]\n\n### Added\n\n- Mine')
+    expect(prompt).toContain('### ABC-3 · Title of ABC-3')
+    expect(prompt).toContain('A task the section already describes needs nothing')
+  })
+
+  it('gives an edit the section and the user\'s words without tasks', () => {
+    const prompt = changelogPrompt(request({ mode: 'edit', section: '## [Unreleased]\n\n- A', instruction: ' Shorter, please ', tasks: [task('ABC-3')] }))
+    expect(prompt).toContain('## What the user asks\n\nShorter, please')
+    expect(prompt).not.toContain('ABC-3')
+  })
+
+  it('lists the tags and the released sections to leave out', () => {
+    const prompt = changelogPrompt(request({ heading: '## [0.1.1]', tags: ['v0.1.0'], released: ['## [0.1.0] - 2026-10-21\n\n- Old'] }))
+    expect(prompt).toContain('Tags of the repository: v0.1.0.')
+    expect(prompt).toContain('## Already released — leave out what this section describes\n\n## [0.1.0] - 2026-10-21\n\n- Old')
   })
 
   it('cuts a long comment', () => {
-    const prompt = changelogPrompt(materialOf('v0.1', [task('ABC-1', { lastComment: 'x'.repeat(MAX_COMMENT_CHARS + 50) })]))
+    const prompt = changelogPrompt(request({ tasks: [task('ABC-1', { lastComment: 'x'.repeat(MAX_COMMENT_CHARS + 50) })] }))
     expect(prompt).toContain(`${'x'.repeat(MAX_COMMENT_CHARS)}…`)
     expect(prompt).not.toContain('x'.repeat(MAX_COMMENT_CHARS + 1))
   })

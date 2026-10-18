@@ -6,6 +6,7 @@ import { PGlite } from '@electric-sql/pglite'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { fixEpisodes, isLaunch } from '../chain/launches.js'
 import { readSnapshots } from '../chain/snapshots.js'
+import { latestVersion, writtenTasks } from '../changelog/store.js'
 import { closedTasks, loadChainState, loadQuestions, readLaunches } from '../chain/store.js'
 import { parseConfig } from '../config.js'
 import { root } from '../locations.js'
@@ -21,9 +22,8 @@ import { stateValue } from './service-state.js'
 import { IMPORTED_SUFFIX, prepareDatabase } from './state-files.js'
 
 // Frozen samples of the database. Versions 1 and 2 were `node:sqlite` files: they are imported at the first start.
-// Version 3 is the first PGlite one, version 4 adds the settings, version 5 the tracker profiles: a later step must
-// migrate each, and each step itself
-// must still make exactly the tables of its sample.
+// Version 3 is the first PGlite one, version 4 adds the settings, version 5 the tracker profiles, version 6 the
+// changelog drafts: a later step must migrate each, and each step itself must still make exactly the tables of its sample.
 // A schema change is a new step and a new sample next to these, never an edit of either.
 const fixture = (version: number) => readFileSync(join(root, 'test', 'fixtures', `database-v${version}`, 'even-keel.sql'), 'utf8')
 
@@ -244,6 +244,36 @@ describe('frozen samples of the database', { timeout: 120_000 }, () => {
       } finally {
         await copy.close()
       }
+    } finally {
+      await opened.close()
+    }
+    expect(logs).toEqual([])
+  })
+
+  it('of version 6 has the tables step 6 makes', async () => {
+    const frozen = await PGlite.create()
+    const made = await openDatabase(undefined, STEPS.slice(0, 4))
+    try {
+      await frozen.exec(fixture(6))
+      expect(await databaseVersion(frozen)).toBe(6)
+      expect(await schemaOf(made)).toEqual(await schemaOf(frozen))
+    } finally {
+      await frozen.close()
+      await made.close()
+    }
+  })
+
+  it('of version 6 is brought to the current schema and read whole, the changelog drafts with it', async () => {
+    const dataDir = dataDirOf(databaseDirOf(stateDir))
+    mkdirSync(dataDir, { recursive: true })
+    const frozen = await PGlite.create({ dataDir })
+    await frozen.exec(fixture(6))
+    await frozen.close()
+    const opened = await prepare()
+    try {
+      await readsWhole(opened.db)
+      expect(await latestVersion(opened.db, 'ABC', 'v0.1', { ABC, XYZ })).toMatchObject({ number: 2, kind: 'edit', instruction: 'Say how it runs', written: null })
+      expect(await writtenTasks(opened.db, { ABC, XYZ })).toEqual({ ABC: { 'v0.1': ['ABC-1', 'ABC-2'] } })
     } finally {
       await opened.close()
     }
