@@ -55,24 +55,6 @@ export function trackerChoices(adapters: Adapters = ADAPTERS): TrackerChoice[] {
   }))
 }
 
-/** What is saved in the file but not applied until the service restarts. */
-export function restartPending(current: EvenKeelConfig, saved: EvenKeelConfig): string[] {
-  const pending: string[] = []
-  if (current.tracker !== saved.tracker) pending.push('tracker')
-  if (!same(current.context, saved.context)) pending.push('context')
-  for (const key of Object.keys(saved.projects)) {
-    if (!Object.hasOwn(current.projects, key)) {
-      pending.push(key)
-      continue
-    }
-    if (current.projects[key] !== saved.projects[key]) pending.push(`${key}.repo`)
-    if (current.slots[key] !== saved.slots[key]) pending.push(`${key}.slot`)
-    if (current.trackers[key] !== saved.trackers[key]) pending.push(`${key}.tracker`)
-    if (current.trackerProjects[key] !== saved.trackerProjects[key]) pending.push(`${key}.trackerProject`)
-  }
-  return pending
-}
-
 /**
  * The raw config with the project's entry set from the form. `base` is what the form started from: a value the form left
  * as it was keeps its key as written, even if the file changed since; a changed one is written only where it differs

@@ -21,7 +21,8 @@ export interface TallyOptions {
   env: Record<string, string | undefined>
   intervalMs: number
   firstDelayMs: number
-  evenKeelUrl: string
+  /** Read at each pass: the address changes on the fly. */
+  evenKeelUrl: () => string
   log: (message: string) => void
 }
 
@@ -110,7 +111,7 @@ export class TallyService {
     const { root, env, evenKeelUrl, log } = this.options
     const run = new Worker(workerFile('collect-worker'), {
       workerData: { root, settings } satisfies CollectRun,
-      env: { ...process.env, EVEN_KEEL_URL: env.EVEN_KEEL_URL ?? evenKeelUrl },
+      env: { ...process.env, EVEN_KEEL_URL: env.EVEN_KEEL_URL ?? evenKeelUrl() },
     })
     this.running = run
     let halted = false

@@ -80,7 +80,7 @@ export function setup(options: SetupOptions = {}) {
   const state = options.state ?? emptyChainState()
   if (options.unattended !== undefined) state.unattended = options.unattended
   const dispatcher = new Dispatcher(state, {
-    projects: options.projects ?? ['ABC', 'XYZ', 'DEF'],
+    projects: () => options.projects ?? ['ABC', 'XYZ', 'DEF'],
     parallel: () => capacity.parallel,
     rules: (project) => options.rules?.[project] ?? DEFAULT_RULES,
     launch: async (project, id) => {

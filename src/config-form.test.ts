@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { formsOf, restartPending, trackerChoices, withProjectForm, withRunAccount, withSharedForm, withUpdates } from './config-form.js'
+import { formsOf, trackerChoices, withProjectForm, withRunAccount, withSharedForm, withUpdates } from './config-form.js'
 import { parseConfig } from './config.js'
 import type { ProjectForm, SharedForm } from './state.js'
 
@@ -168,19 +168,6 @@ describe('withUpdates', () => {
       updates: { check: false, dismissed: '0.2.0', notify: false },
     })
     expect(withUpdates({ projects: [], updates: { notify: false } }, { notify: true })).toEqual({ projects: [] })
-  })
-})
-
-describe('restartPending', () => {
-  it('names what is saved but waits for a restart', () => {
-    const current = parseConfig({ projects: [abc(), xyz()] })
-    const saved = parseConfig({
-      tracker: 'linear',
-      context: { window: 1_000_000 },
-      projects: [abc({ repo: 'D:\\abc', slot: 2 }), xyz({ tracker: 'github', github: 'o/x' }), { id: 'id-new', key: 'NEW', repo: 'C:\\new' }],
-    })
-    expect(restartPending(current, saved)).toEqual(['tracker', 'context', 'ABC.repo', 'ABC.slot', 'ABC.tracker', 'XYZ.tracker', 'XYZ.trackerProject', 'NEW'])
-    expect(restartPending(current, current)).toEqual([])
   })
 })
 

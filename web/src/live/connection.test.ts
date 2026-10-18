@@ -41,7 +41,7 @@ function state(startedAt: string): EvenKeelState {
     startedAt,
     projects: [],
     projectIds: {},
-    config: { shared: FAKE_SHARED, projects: {}, restart: [], trackers: [], trackerLocked: [] },
+    config: { shared: FAKE_SHARED, projects: {}, trackers: [], trackerLocked: [] },
     chain: { active: [], parallel: 1, queue: [], projects: {}, skipped: {}, leftovers: {} },
     tasks: [],
     sessions: [],

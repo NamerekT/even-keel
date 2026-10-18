@@ -1,10 +1,11 @@
 import { createReadStream, mkdirSync } from 'node:fs'
 import { stat } from 'node:fs/promises'
+import { createServer } from 'node:http'
 import { join } from 'node:path'
 import { Readable } from 'node:stream'
 import { checkCredit } from './account/credit.js'
 import { DaemonRefresh } from './account/daemon.js'
-import { AccountHomes, accountsRoot, type AccountHome } from './account/homes.js'
+import { AccountHomes, accountsRoot, codexAccountsRoot, type AccountHome } from './account/homes.js'
 import { checkApiKey } from './account/keycheck.js'
 import { accountAt, forgetAccount, loadLedger, markRemoving, nameAccount, noteAccount, saveLedger, type AccountLedger } from './account/ledger.js'
 import { accountId, launchBlock, liveSessions, loginBlock, type LoginBlock } from './account/model.js'
@@ -26,11 +27,13 @@ import { readNote, saveSnapshot, snapshotReason } from './chain/snapshots.js'
 import { appendLaunch, loadChainState, loadQuestions, readLaunches, saveChainState, saveClosedTask, saveQuestions } from './chain/store.js'
 import { CI_TOKENS, ciSource, projectTargets } from './ci/adapters.js'
 import { CiWatch } from './ci/watcher.js'
+import { CiWatches } from './ci/watches.js'
 import { ConfigFile } from './config-file.js'
-import { DEFAULT_BRANCH, DEFAULT_CI, listenOf, mcpPortOf, poolEntries, projectsByAccount, runSettings } from './config.js'
+import { DEFAULT_BRANCH, DEFAULT_CI, listenOf, mcpPortOf, poolEntries, projectsByAccount, runSettings, type EvenKeelConfig } from './config.js'
+import { envTargets } from './env-file.js'
 import { EventHub } from './events.js'
 import { runGit } from './git/run.js'
-import { finishSlot, prepareSlot, slotPaths, type SlotUse } from './git/slot.js'
+import { finishSlot, heldSlot, prepareSlot, slotPaths, type SlotUse } from './git/slot.js'
 import { ensureIgnored, finishWorktree, prepareWorktree, requireBranch, taskPlace } from './git/worktree.js'
 import { exhaustedReset, limitResetAfter } from './limits/model.js'
 import { LimitsWatcher } from './limits/watcher.js'
@@ -49,23 +52,23 @@ import { noteAtEnd } from './sessions/note.js'
 import { TranscriptOwners } from './sessions/owners.js'
 import { ChatTitles } from './sessions/title.js'
 import { TranscriptWatch } from './sessions/watch.js'
-import { configPath, root, stateDirOf } from './locations.js'
+import { configPath, loadEnv, root, stateDirOf } from './locations.js'
 import { isInside } from './paths.js'
 import { slotOccupants } from './sessions/occupants.js'
 import { locateWorktree } from './sessions/place.js'
 import type { EvenKeelState, SessionView } from './state.js'
 import { StatsReader } from './stats/reader.js'
 import { DATABASE_FILE, openDatabase } from './storage/database.js'
+import { rekeyed } from './storage/projects.js'
 import { TallyService } from './stats/tally.js'
 import { chainSettings, readToolsView } from './tools/panel.js'
 import { ADAPTERS, trackerKeyRules } from './tracker/adapters.js'
 import { cardOf } from './tracker/card.js'
-import type { TrackerView } from './tracker/health.js'
 import type { TrackerLink } from './tracker/link.js'
 import { issueLink, parseTaskId, runLabelText, type Task } from './tracker/model.js'
 import { TrackerQuestions, type AskingSession } from './tracker/questions.js'
-import type { TrackerSetup } from './tracker/source.js'
 import { startTracker } from './tracker/start.js'
+import { Trackers } from './tracker/trackers.js'
 import { updatesView } from './updates/release.js'
 import { installed, UpdateWatcher } from './updates/watcher.js'
 
@@ -96,15 +99,16 @@ const configFile = new ConfigFile({
   file: configPath(),
   intervalMs: CONFIG_POLL_MS,
   warn: (message) => console.warn(message),
-  onChange: () => {
+  onChange: (before) => {
+    if (before !== configFile.current) projectsChanged(before)
     for (const [project, tasks] of tasksByProject) dispatcher.setTasks(project, tasks)
     dispatcher.check()
     updates.configChanged()
     hub.broadcast('state', getState())
   },
 })
-const config = configFile.current
-const { listen, token, mcpPort } = (() => {
+const envFile = loadEnv()
+let { listen, token, mcpPort } = (() => {
   try {
     const listen = listenOf(process.env)
     return { listen, token: guardToken(process.env, listen.host), mcpPort: mcpPortOf(process.env) }
@@ -113,6 +117,8 @@ const { listen, token, mcpPort } = (() => {
     process.exit(1)
   }
 })()
+/** A new address that could not be taken: the service stays on the old one. */
+let listenError: Notice | null = null
 const branchOf = (project: string) => configFile.current.settings[project]?.branch ?? DEFAULT_BRANCH
 const rulesOf = (project: string) => configFile.current.rules[project]!
 const stateDir = stateDirOf()
@@ -120,20 +126,9 @@ mkdirSync(stateDir, { recursive: true })
 const db = openDatabase(join(stateDir, DATABASE_FILE))
 const limitsFile = join(stateDir, 'rate-limits.json')
 const accountFile = join(stateDir, 'account.json')
-const trackerNames = [...new Set([config.tracker, ...Object.values(config.trackers)])]
-const trackerProjects = (name: string) => Object.keys(config.projects).filter((project) => config.trackers[project] === name)
-const trackerNamesOf = (name: string) =>
-  Object.fromEntries(trackerProjects(name).flatMap((project) => (project in config.trackerProjects ? [[project, config.trackerProjects[project]!]] : [])))
-const setups = new Map<string, TrackerSetup | undefined>(trackerNames.map((name) => [name, ADAPTERS[name]!.setup(process.env, trackerNamesOf(name))]))
-const trackers = new Map<string, TrackerView>(
-  trackerNames
-    .filter((name) => trackerProjects(name).length > 0)
-    .map((name) => [
-      name,
-      { name, title: ADAPTERS[name]!.title, projects: trackerProjects(name), ready: false, health: { state: 'off', lastOkAt: null, error: null }, readAt: {} },
-    ]),
-)
 const links = new Map<string, TrackerLink>()
+/** The link of the project's tracker; `undefined` while that tracker is off. */
+const linkOf = (project: string) => links.get(configFile.current.trackers[project]!)
 const hub = new EventHub()
 const transcriptWatch = new TranscriptWatch(
   (sessionId) => hub.signal('transcript', { sessionId }),
@@ -149,12 +144,16 @@ const packages: Packages = new Packages({
   file: join(stateDir, 'packages.json'),
   cache: join(stateDir, 'packages'),
   envFile: join(root, '.env'),
-  ids: config.ids,
-  repos: config.projects,
+  get ids() {
+    return configFile.current.ids
+  },
+  get repos() {
+    return configFile.current.projects
+  },
   globalDir: homes.global.dir,
   claudeConfigs,
   rules: trackerKeyRules(),
-  trackerServer: (project) => (configFile.current.briefs[project] ? undefined : ADAPTERS[config.trackers[project]!]!.mcpServer),
+  trackerServer: (project) => (configFile.current.briefs[project] ? undefined : ADAPTERS[configFile.current.trackers[project]!]!.mcpServer),
   agentOf: (project) => homes.find(choiceFor(project).account)?.agent ?? CLAUDE,
   updateMarketplace: (marketplace) => updateMarketplace(envOf(homes.global), marketplace, PLUGIN_UPDATE_TIMEOUT_MS),
   baseEnv: (): NodeJS.ProcessEnv => sessionBase(process.env, packages.keyNames()),
@@ -168,7 +167,7 @@ const packages: Packages = new Packages({
 const runtimes = new Map<string, Agent>(
   Object.entries(AGENTS).map(([name, adapter]) => [
     name,
-    adapter.setup({ env: sessionBase(process.env, packages.keyNames()), timeoutMs: AGENT_TIMEOUT_MS, workDir: stateDir }),
+    adapter.setup({ env: () => sessionBase(process.env, packages.keyNames()), timeoutMs: AGENT_TIMEOUT_MS, workDir: stateDir }),
   ]),
 )
 /** The agent of an account folder: every session of the folder runs on it. */
@@ -180,23 +179,60 @@ const stopIn = (home: AccountHome, session: SessionHandle) => agentOf(home).stop
 const startedAt = new Date().toISOString()
 const tasksByProject = new Map<string, Task[]>()
 const refreshers = new Map<string, () => Promise<void>>()
-const ciWatches = new Map<string, CiWatch[]>()
-/** Every project's remotes are read and its CIs are in `ciWatches`. */
-let ciFound = false
 let sessions: SessionView[] = []
 let agents: AgentEntry[] = []
 let agentsRead = false
-const launches: LaunchEntry[] = readLaunches(db, config.ids)
-const tally = new TallyService({
-  root,
-  stateDir,
-  env: process.env,
-  intervalMs: TALLY_INTERVAL_MS,
-  firstDelayMs: TALLY_FIRST_DELAY_MS,
-  evenKeelUrl: `http://${['0.0.0.0', '::'].includes(listen.host) ? '127.0.0.1' : listen.host}:${listen.port}`,
+const launches: LaunchEntry[] = readLaunches(db, configFile.current.ids)
+const trackers = new Trackers({
+  adapters: ADAPTERS,
+  start: (view, setup) =>
+    startTracker(view, setup, {
+      repoOf: (project) => configFile.current.projects[project]!,
+      rulesOf,
+      links,
+      tasksByProject,
+      launches,
+      dispatcher,
+      fillsMilestone: (project) => configFile.current.settings[project]?.fillMilestone ?? false,
+      mainBranch: branchOf,
+      broadcast: () => hub.broadcast('state', getState()),
+      refreshers,
+    }),
+  tasksByProject,
+  refreshers,
+  log: (line) => console.log(line),
+})
+const ciWatches = new CiWatches({
+  targets: (repo) => projectTargets(runGit, repo),
+  watch: (project, repo, target) =>
+    new CiWatch({
+      target,
+      source: ciSource(target, process.env, CI_TIMEOUT_MS),
+      variable: CI_TOKENS[target.kind],
+      git: runGit,
+      repo,
+      main: () => branchOf(project),
+      log: (message) => console.log(message),
+      onChange: () => {
+        hub.broadcast('state', getState())
+        dispatcher.check()
+      },
+    }),
+  source: (target) => ciSource(target, process.env, CI_TIMEOUT_MS),
   log: (message) => console.log(message),
 })
-const stats = new StatsReader(tally.reader, config.projects, () => configFile.current.stats)
+const newTally = () =>
+  new TallyService({
+    root,
+    stateDir,
+    env: process.env,
+    intervalMs: TALLY_INTERVAL_MS,
+    firstDelayMs: TALLY_FIRST_DELAY_MS,
+    evenKeelUrl: () => `http://${['0.0.0.0', '::'].includes(listen.host) ? '127.0.0.1' : listen.host}:${listen.port}`,
+    log: (message) => console.log(message),
+  })
+let tally = newTally()
+const stats = new StatsReader(tally.reader, () => configFile.current.projects, () => configFile.current.stats)
 let ledger = loadLedger(accountFile)
 
 const saveAccounts = (next: AccountLedger) => {
@@ -280,8 +316,8 @@ const account = new AccountWatcher({
   name: (key, name) => saveAccounts(nameAccount(ledger, key, name)),
   loginBlock: (): LoginBlock | null => loginBlock(dispatcher.state.active, agents, activeAccount()),
   sessionsIn: (key) => liveSessions(agents, key),
-  projectsOn: (key) => projectsByAccount(configFile.current, Object.keys(config.projects))[key] ?? [],
-  pool: () => poolEntries(configFile.current, Object.keys(config.projects)),
+  projectsOn: (key) => projectsByAccount(configFile.current, Object.keys(configFile.current.projects))[key] ?? [],
+  pool: () => poolEntries(configFile.current, Object.keys(configFile.current.projects)),
   sessionsKnown: () => agentsRead,
   removing: (key) => ledger.removing.includes(key),
   markRemoving: (key, on) => saveAccounts(markRemoving(ledger, key, on)),
@@ -343,7 +379,7 @@ const monitor = new SessionMonitor({
   homes: () => homes.list(),
   emailOf: (key) => account.emailOf(key),
   apiKey: (key) => account.apiKey(key),
-  projectKeys: () => Object.keys(config.projects),
+  projectKeys: () => Object.keys(configFile.current.projects),
   intervalMs: SESSION_POLL_MS,
   onAgents: (list) => {
     const before = JSON.stringify(account.view.loginBlock)
@@ -413,8 +449,8 @@ const activeAccount = () => configFile.current.accounts[configFile.current.provi
 const promptLanguage = () => configFile.current.promptLanguage
 
 const trackerPlace = (project: string): TrackerPlace | null => {
-  const name = config.trackers[project]!
-  const place = config.trackerProjects[project]
+  const name = configFile.current.trackers[project]!
+  const place = configFile.current.trackerProjects[project]
   return place === undefined ? null : { title: ADAPTERS[name]!.title, project: place }
 }
 
@@ -422,7 +458,7 @@ const briefed = async (task: string, given: string, project = projectOf(task)): 
   if (project === undefined) return given
   const prompt = withTracker(given, trackerPlace(project), promptLanguage())
   if (!configFile.current.briefs[project]) return prompt
-  const link = links.get(config.trackers[project]!)
+  const link = linkOf(project)
   return link === undefined ? prompt : withBrief(prompt, await link.run(async (tracker) => tracker.brief?.(task)), promptLanguage())
 }
 
@@ -438,8 +474,8 @@ const settingsFor = (task: string, project = projectOf(task)): string | undefine
   project === undefined
     ? undefined
     : chainSettings(
-        config.projects[project]!,
-        packages.otherPlugins(project, task, pluginSettings(config.projects[project]!)),
+        configFile.current.projects[project]!,
+        packages.otherPlugins(project, task, pluginSettings(configFile.current.projects[project]!)),
         dispatcher.state.trimTools,
         configFile.current.hiddenSkills,
         homes.global.dir,
@@ -448,21 +484,31 @@ const settingsFor = (task: string, project = projectOf(task)): string | undefine
 
 function projectOf(task: string): string | undefined {
   for (const [project, tasks] of tasksByProject) if (tasks.some((each) => each.id === task)) return project
-  const fixed = isFixName(task) ? Object.keys(config.projects).find((project) => fixName(project) === fixTaskOf(task)) : undefined
+  const fixed = isFixName(task) ? Object.keys(configFile.current.projects).find((project) => fixName(project) === fixTaskOf(task)) : undefined
   return fixed ?? dispatcher.state.active.find((chain) => chain.current?.task === task)?.project
+}
+
+const slotsSeen = new Map<string, number>()
+/** How many slots the project's tasks may be in: the most it had since the start, so a pool shrunk on the fly still finds its busy slots. */
+function slotSpan(project: string): number {
+  const span = Math.max(slotsSeen.get(project) ?? 0, configFile.current.slots[project] ?? 0)
+  slotsSeen.set(project, span)
+  return span
 }
 
 const places = new TaskPlaces({
   git: runGit,
   main: branchOf,
   place: async (project, task, { ahead = false, at } = {}) => {
-    const repo = config.projects[project]!
+    const repo = configFile.current.projects[project]!
     const main = branchOf(project)
     await requireBranch(runGit, repo, project, main)
     await ensureIgnored(runGit, repo)
-    const count = config.slots[project]
-    if (count === undefined || isFixName(task)) return prepareWorktree(runGit, repo, task, main, ahead)
-    const pool = { count, main, ahead, occupancy: (path: string) => slotUse(path, task), vacate: (path: string) => vacateSlot(path, task) }
+    const count = configFile.current.slots[project]
+    const span = slotSpan(project)
+    if (isFixName(task)) return prepareWorktree(runGit, repo, task, main, ahead)
+    if (count === undefined) return (span > 0 ? await heldSlot(runGit, repo, task, span) : undefined) ?? prepareWorktree(runGit, repo, task, main, ahead)
+    const pool = { count, span, main, ahead, occupancy: (path: string) => slotUse(path, task), vacate: (path: string) => vacateSlot(path, task) }
     return prepareSlot(runGit, repo, task, at === undefined ? pool : { ...pool, at })
   },
   setUp: (project, task, path) => runBeforeStart(configFile.current.settings[project]?.beforeStart ?? [], taskRun(task, path)),
@@ -470,11 +516,11 @@ const places = new TaskPlaces({
 
 /** Keeps a done task the chain ran in the database's archive, by what its tracker last said of it. */
 function archiveClosed(project: string, task: string): void {
-  const tracker = config.trackers[project]!
+  const tracker = configFile.current.trackers[project]!
   const title = tasksByProject.get(project)?.find((each) => each.id === task)?.title ?? ''
-  const url = issueLink(setups.get(tracker)?.issueUrl(project) ?? null, task)
+  const url = issueLink(trackers.setup(tracker)?.issueUrl(project) ?? null, task)
   try {
-    saveClosedTask(db, { project, task, tracker, title, url, closedAt: new Date().toISOString() }, config.ids)
+    saveClosedTask(db, { project, task, tracker, title, url, closedAt: new Date().toISOString() }, configFile.current.ids)
   } catch (error) {
     console.warn(`chain: ${task} not archived: ${(error as Error).message}`)
   }
@@ -484,8 +530,8 @@ function taskRun(task: string, cwd: string): SetupRun {
   return { task, cwd, shell: systemShell(() => envOf(homeOf(claudeAccount()))), log: (line) => console.log(line) }
 }
 
-const dispatcher = new Dispatcher(loadChainState(db, config.ids), {
-  projects: Object.keys(config.projects),
+const dispatcher = new Dispatcher(loadChainState(db, configFile.current.ids), {
+  projects: () => Object.keys(configFile.current.projects),
   parallel: () => configFile.current.parallel,
   rules: rulesOf,
   launch: async (project, task) => {
@@ -512,11 +558,11 @@ const dispatcher = new Dispatcher(loadChainState(db, config.ids), {
   midTurn: (task) => agentStatus(task) === 'busy',
   asked: (task) => liveView(task)?.ask?.id ?? null,
   save: (state) => {
-    saveChainState(db, state, config.ids)
+    saveChainState(db, state, configFile.current.ids)
     hub.broadcast('state', getState())
   },
   journal: (entry) => {
-    appendLaunch(db, entry, config.ids)
+    appendLaunch(db, entry, configFile.current.ids)
     launches.push(entry)
     console.log(launchLine(entry))
   },
@@ -568,14 +614,14 @@ const dispatcher = new Dispatcher(loadChainState(db, config.ids), {
   stop: (session) => stopIn(homeOf(session.account), session),
   finish: async (project, task) => {
     if (!isFixName(task)) archiveClosed(project, task)
-    const repo = config.projects[project]!
-    const count = isFixName(task) ? undefined : config.slots[project]
+    const repo = configFile.current.projects[project]!
+    const span = isFixName(task) ? 0 : slotSpan(project)
     let stopped: Notice[]
     let finished: Awaited<ReturnType<typeof finishWorktree>>
     try {
-      stopped = await stopTaskSessions(repo, task, count ?? 1)
+      stopped = await stopTaskSessions(repo, task, Math.max(span, 1))
       const main = branchOf(project)
-      finished = await (count !== undefined ? finishSlot(runGit, repo, task, count, main) : finishWorktree(runGit, repo, task, main))
+      finished = await (span > 0 ? finishSlot(runGit, repo, task, span, main) : finishWorktree(runGit, repo, task, main))
     } catch (error) {
       console.error(`git: cleanup after ${task} failed: ${englishOf(noticeOf(error))}`)
       throw error
@@ -589,18 +635,18 @@ const dispatcher = new Dispatcher(loadChainState(db, config.ids), {
   refresh: async (project) => refreshers.get(project)?.(),
   log: (message) => console.log(message),
   main: mainCheckDeps({
-    repo: (project) => config.projects[project]!,
+    repo: (project) => configFile.current.projects[project]!,
     main: branchOf,
     git: runGit,
-    watches: (project) => (ciFound ? (ciWatches.get(project) ?? []) : null),
+    watches: (project) => (ciWatches.found ? (ciWatches.byProject.get(project) ?? []) : null),
     settings: (project) => configFile.current.settings[project]?.ci ?? DEFAULT_CI,
     commands: (project) => configFile.current.settings[project]?.check ?? [],
     language: () => configFile.current.language ?? promptLanguage(),
     promptLanguage,
-    create: async (task) => (await links.get(config.trackers[task.project]!)?.run(async (tracker) => tracker.create?.(task))) ?? null,
+    create: async (task) => (await linkOf(task.project)?.run(async (tracker) => tracker.create?.(task))) ?? null,
     comment: async (task, body) => {
       const project = configuredProject(task)
-      const link = project === undefined ? undefined : links.get(config.trackers[project]!)
+      const link = project === undefined ? undefined : linkOf(project)
       await link?.run(async (tracker) => tracker.comment?.(task, body))
     },
     prepare: (project, task) => places.prepare(project, task),
@@ -692,8 +738,8 @@ async function stopTaskSessions(repo: string, task: string, count: number): Prom
 
 const getState = (): EvenKeelState => ({
   startedAt,
-  projects: Object.keys(config.projects),
-  projectIds: config.ids,
+  projects: Object.keys(configFile.current.projects),
+  projectIds: configFile.current.ids,
   config: configFile.view(launchedProjects(launches)),
   chain: {
     active: dispatcher.state.active,
@@ -711,17 +757,17 @@ const getState = (): EvenKeelState => ({
   limits: limits.limits(activeAccount()),
   usage: limits.usage(activeAccount()),
   account: account.view,
-  trackers: [...trackers.values()],
+  trackers: trackers.views(),
   trackerUrls: {
-    default: setups.get(config.tracker)?.issueUrl(null) ?? null,
-    projects: Object.fromEntries(Object.keys(config.projects).map((project) => [project, setups.get(config.trackers[project]!)?.issueUrl(project) ?? null])),
+    default: trackers.setup(configFile.current.tracker)?.issueUrl(null) ?? null,
+    projects: Object.fromEntries(Object.keys(configFile.current.projects).map((project) => [project, trackers.setup(configFile.current.trackers[project]!)?.issueUrl(project) ?? null])),
   },
-  ci: Object.fromEntries([...ciWatches].map(([project, watches]) => [project, watches.map((watch) => watch.view)])),
+  ci: Object.fromEntries([...ciWatches.byProject].map(([project, watches]) => [project, watches.map((watch) => watch.view)])),
   launches: launchDays(launches, new Date(), LAUNCH_CHART_DAYS),
   taskSessions: taskSessions(launches, sessions, sessionAccount),
   fixes: fixEpisodes(launches).episodes,
-  context: config.context,
-  configError: configFile.error,
+  context: configFile.current.context,
+  configError: configFile.error ?? listenError,
   packages: packages.view(),
   language: configFile.current.language,
   unattended: dispatcher.state.unattended,
@@ -734,7 +780,7 @@ const getState = (): EvenKeelState => ({
   })),
 })
 
-const server = createEvenKeelServer({
+let server = createEvenKeelServer({
   hub,
   publicDir: join(root, 'dist', 'web'),
   getState,
@@ -745,7 +791,7 @@ const server = createEvenKeelServer({
   },
   settings: {
     save: (project, form, base) => {
-      if (config.projects[project] === undefined) throw fail('config.unknownProject', { key: project })
+      if (configFile.current.projects[project] === undefined) throw fail('config.unknownProject', { key: project })
       const moved = form.tracker !== base.tracker || form.trackerProject !== base.trackerProject
       if (moved && launchedProjects(launches).includes(project)) throw fail('config.trackerLocked', { key: project })
       configFile.saveProject(project, form, base)
@@ -802,12 +848,12 @@ const server = createEvenKeelServer({
     const run = handoffsOf(launches, sessionId)
     if (run === undefined) return undefined
     const settings = configFile.current.settings[run.project]
-    const views = (ciWatches.get(run.project) ?? []).map((watch) => watch.view)
+    const views = (ciWatches.byProject.get(run.project) ?? []).map((watch) => watch.view)
     const commands = settings === undefined ? [] : mergeCheck(settings.check, settings.ci, views)
     return { commands, branch: branchOf(run.project) }
   },
   tools: async (project) => {
-    const repo = config.projects[project]
+    const repo = configFile.current.projects[project]
     if (repo === undefined) return undefined
     const list = homes.list()
     const view = await readToolsView(project, {
@@ -826,7 +872,7 @@ const server = createEvenKeelServer({
   tasks: {
     card: async (task) => {
       const project = configuredProject(task)
-      const link = project === undefined ? undefined : links.get(config.trackers[project]!)
+      const link = project === undefined ? undefined : linkOf(project)
       if (link === undefined) return undefined
       return link.run(async (tracker) => {
         if (tracker.card === undefined) return undefined
@@ -836,13 +882,13 @@ const server = createEvenKeelServer({
     },
     file: async (task, file) => {
       const project = configuredProject(task)
-      const link = project === undefined ? undefined : links.get(config.trackers[project]!)
+      const link = project === undefined ? undefined : linkOf(project)
       if (link === undefined) return undefined
       return link.run(async (tracker) => (await tracker.file?.(task, file)) ?? undefined)
     },
     ready: async (task) => {
       const project = configuredProject(task)
-      const link = project === undefined ? undefined : links.get(config.trackers[project]!)
+      const link = project === undefined ? undefined : linkOf(project)
       if (link === undefined) throw fail('task.noTracker', { task })
       const status = await link.run(async (tracker) => tracker.ready?.(task))
       if (status === undefined) throw fail('task.cannotReady', { task })
@@ -858,7 +904,7 @@ const server = createEvenKeelServer({
     // The milestone moves the task in the chain's order: the project is read anew rather than patched.
     moveMilestone: async (task, milestone) => {
       const project = configuredProject(task)
-      const link = project === undefined ? undefined : links.get(config.trackers[project]!)
+      const link = project === undefined ? undefined : linkOf(project)
       if (link === undefined) throw fail('task.noTracker', { task })
       const moved = await link.run(async (tracker) => (tracker.moveMilestone === undefined ? false : (await tracker.moveMilestone(task, milestone), true)))
       if (!moved) throw fail('task.cannotMoveMilestone', { task })
@@ -871,7 +917,7 @@ const server = createEvenKeelServer({
     },
   },
   stats,
-  guard: () => ({ hosts: guardHosts(listen.host, configFile.current.allowedHosts), token }),
+  guard: () => ({ hosts: guardHosts(listen.host, configFile.current.allowedHosts), token, language: configFile.current.language ?? promptLanguage() }),
 })
 
 /** The first answer `read` finds in any account folder. */
@@ -885,7 +931,7 @@ async function inHomes<T>(read: (home: AccountHome) => Promise<T | undefined>): 
 
 function configuredProject(task: string): string | undefined {
   const project = parseTaskId(task)?.project
-  return project !== undefined && Object.hasOwn(config.projects, project) ? project : undefined
+  return project !== undefined && Object.hasOwn(configFile.current.projects, project) ? project : undefined
 }
 
 const questions = new TrackerQuestions({
@@ -903,7 +949,7 @@ const questions = new TrackerQuestions({
     })
     return [...current, ...aside]
   },
-  tracker: (project, call) => links.get(config.trackers[project]!)?.run(call),
+  tracker: (project, call) => linkOf(project)?.run(call),
   language: () => configFile.current.language ?? promptLanguage(),
   load: () => loadQuestions(db),
   save: (posted) => saveQuestions(db, posted),
@@ -916,38 +962,43 @@ setInterval(() => void questions.tick(), 15_000).unref()
 
 setInterval(() => dispatcher.check(), LIMIT_CHECK_MS).unref()
 
-void (async () => {
-  for (const [project, repo] of Object.entries(config.projects)) {
-    const targets = await projectTargets(runGit, repo)
-    if (targets.length === 0) continue
-    ciWatches.set(
-      project,
-      targets.map(
-        (target) =>
-          new CiWatch({
-            target,
-            source: ciSource(target, process.env, CI_TIMEOUT_MS),
-            variable: CI_TOKENS[target.kind],
-            git: runGit,
-            repo,
-            main: () => branchOf(project),
-            log: (message) => console.log(message),
-            onChange: () => {
-              hub.broadcast('state', getState())
-              dispatcher.check()
-            },
-          }),
-      ),
-    )
-    console.log(`ci: ${project} watches ${targets.map((target) => `${target.kind} on ${target.remote}`).join(', ')}`)
+const applyCi = () =>
+  void ciWatches.apply(configFile.current.projects).then(() => {
+    dispatcher.check()
+    hub.broadcast('state', getState())
+  })
+applyCi()
+setInterval(() => {
+  for (const watch of ciWatches.all()) void watch.tick()
+}, CI_TICK_MS).unref()
+
+/** The config's projects changed: renamed keys carry their state, removed ones let their chain go, the rest follows the config. */
+function projectsChanged(before: EvenKeelConfig): void {
+  const after = configFile.current
+  const rename = rekeyed(before.ids, after.ids)
+  const renamed = Object.keys(before.ids).filter((key) => rename(key) !== key)
+  if (renamed.length > 0) {
+    dispatcher.rekey(rename)
+    for (const entry of launches) entry.project = rename(entry.project)
+    for (const [key, tasks] of [...tasksByProject]) {
+      tasksByProject.delete(key)
+      tasksByProject.set(rename(key), tasks)
+    }
+    console.log(`config: renamed ${renamed.map((key) => `${key} to ${rename(key)}`).join(', ')}`)
   }
-  ciFound = true
-  dispatcher.check()
-  setInterval(() => {
-    for (const watch of [...ciWatches.values()].flat()) void watch.tick()
-  }, CI_TICK_MS).unref()
-  for (const watch of [...ciWatches.values()].flat()) void watch.tick()
-})()
+  for (const key of Object.keys(before.projects).map(rename)) {
+    if (Object.hasOwn(after.projects, key)) continue
+    dispatcher.forget(key)
+    tasksByProject.delete(key)
+    console.log(`config: ${key} is gone from the config; its chain is let go, its sessions are left as they are`)
+  }
+  for (const key of Object.keys(after.projects)) if (!Object.hasOwn(before.projects, key) && !renamed.some((old) => rename(old) === key)) console.log(`config: ${key} joined`)
+  trackers.apply(after, process.env)
+  if (JSON.stringify(before.projects) !== JSON.stringify(after.projects)) {
+    void packages.projectsChanged(rename).catch((error: unknown) => console.warn(`packages: ${(error as Error).message}`))
+    applyCi()
+  }
+}
 
 monitor.start()
 void owners.scan()
@@ -958,6 +1009,8 @@ vscode.start()
 configFile.watch()
 void packages.start()
 tally.start()
+envFile.subscribe((changed) => void envChanged(changed))
+envFile.watch()
 
 // The local Tally database closes cleanly on a stop signal; the Windows service host kills the process instead,
 // and PGlite recovers from its WAL on the next start.
@@ -972,22 +1025,81 @@ server.listen(listen.port, listen.host, () => {
   console.log(`even-keel listening on http://${listen.host}:${listen.port}`)
 })
 
-for (const view of trackers.values()) {
-  const setup = setups.get(view.name)
-  if (setup === undefined) console.log(`${view.name}: ${ADAPTERS[view.name]!.variables.join(', ')} not set, tracker is off`)
-  else {
-    startTracker(view, setup, {
-      repos: config.projects,
-      rulesOf,
-      links,
-      tasksByProject,
-      launches,
-      dispatcher,
-      fillsMilestone: (project) => configFile.current.settings[project]?.fillMilestone ?? false,
-      mainBranch: branchOf,
-      broadcast: () => hub.broadcast('state', getState()),
-      refreshers,
-    })
+trackers.apply(configFile.current, process.env)
+
+/** `.env` changed: whoever reads the changed variables takes them now (`docs/service.md`). */
+async function envChanged(changed: string[]): Promise<void> {
+  console.log(`env: ${changed.join(', ')} changed in .env`)
+  const targets = envTargets(changed)
+  if (targets.trackers.length > 0) trackers.apply(configFile.current, process.env)
+  if (targets.ci) ciWatches.tokensChanged()
+  if (targets.accounts) {
+    homes.setRoots(accountsRoot(process.env), codexAccountsRoot(process.env))
+    account.refresh()
+    limits.refresh()
+    void owners.scan()
   }
+  if (targets.guard) applyGuard()
+  if (targets.listen) await rebind()
+  if (targets.tally) {
+    await tally.stop()
+    tally = newTally()
+    stats.setReader(tally.reader)
+    tally.start()
+    console.log('tally: the stats database changed, the collector starts anew')
+  }
+  dispatcher.check()
+  hub.broadcast('state', getState())
+}
+
+/** The token as the environment has it now; a wrong one keeps the last good token and says why. */
+function applyGuard(): void {
+  let next: string | null
+  try {
+    next = guardToken(process.env, listenOf(process.env).host)
+  } catch (error) {
+    console.error(`guard: ${englishOf(noticeOf(error))}; the previous token stays`)
+    return
+  }
+  if (next === token) return
+  token = next
+  console.log(next === null ? 'guard: no token now' : 'guard: the token changed, open pages are asked for it again')
+  hub.closeAll()
+}
+
+/** Moves the page to the address the environment has now: the new server first, the old one closes only once it listens. */
+async function rebind(): Promise<void> {
+  let next: { host: string; port: number }
+  try {
+    next = listenOf(process.env)
+  } catch (error) {
+    listenError = noticeOf(error)
+    console.error(`server: ${englishOf(listenError)}; staying on http://${listen.host}:${listen.port}`)
+    return
+  }
+  if (next.host === listen.host && next.port === listen.port) {
+    listenError = null
+    return
+  }
+  const moved = createServer()
+  for (const listener of server.listeners('request')) moved.on('request', listener as (...args: unknown[]) => void)
+  try {
+    await new Promise<void>((resolve, reject) => {
+      moved.once('error', reject)
+      moved.listen(next.port, next.host, () => resolve())
+    })
+  } catch (error) {
+    listenError = notice('server.rebindFailed', { address: `${next.host}:${next.port}`, current: `${listen.host}:${listen.port}` }, { detail: (error as Error).message })
+    console.error(englishOf(listenError))
+    return
+  }
+  const old = server
+  server = moved
+  listen = next
+  listenError = null
+  hub.closeAll()
+  old.close()
+  old.closeAllConnections()
+  console.log(`even-keel listening on http://${listen.host}:${listen.port}, moved from the previous address`)
 }
 

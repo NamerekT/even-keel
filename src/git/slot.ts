@@ -18,16 +18,29 @@ export interface SlotPool {
   ahead: boolean
   /** The slot taken ahead for the task: while it is still detached, it is the task's, dirty or not. */
   at: string
+  /**
+   * How many slots the task may already be in: the pool shrunk on the fly keeps its busy slots past `count` until they
+   * are free. A free slot is chosen only within `count`.
+   */
+  span: number
 }
 
 export function slotPaths(repo: string, count: number): string[] {
   return Array.from({ length: count }, (_, index) => join(repo, '.claude', 'worktrees', index === 0 ? 'even-keel' : `even-keel-${index + 1}`))
 }
 
+/** The slot among the first `span` that is on the task's branch; `undefined` — none. */
+export async function heldSlot(git: Git, repo: string, task: string, span: number): Promise<TaskPlace | undefined> {
+  const paths = slotPaths(repo, span)
+  const slots = await worktreesAt(git, repo, paths)
+  const holding = slots.findIndex((slot) => isTaskBranch(slot?.branch ?? null, task))
+  return holding === -1 ? undefined : { path: paths[holding]!, branch: slots[holding]!.branch! }
+}
+
 export async function prepareSlot(git: Git, repo: string, task: string, options: Partial<SlotPool> = {}): Promise<TaskPlace> {
   const { count = 1, occupancy = () => ({ idle: false, busy: [] }), vacate = async () => {}, main = 'main', at } = options
   const place = taskPlace(repo, task)
-  const paths = slotPaths(repo, count)
+  const paths = slotPaths(repo, Math.max(count, options.span ?? count))
   const [own, ...slots] = await worktreesAt(git, repo, [place.path, ...paths])
   if (own !== undefined) return { path: place.path, branch: own.branch }
   const holding = slots.findIndex((slot) => isTaskBranch(slot?.branch ?? null, task))
@@ -45,6 +58,7 @@ export async function prepareSlot(git: Git, repo: string, task: string, options:
   const free: { path: string; rank: number }[] = []
   const refusals: Notice[] = []
   for (const [index, slot] of slots.entries()) {
+    if (index >= count) break
     const path = paths[index]!
     if (slot === undefined) {
       free.push({ path, rank: 2 })

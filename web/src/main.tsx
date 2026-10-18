@@ -14,6 +14,8 @@ import './styles.css'
 
 async function fetchState(): Promise<EvenKeelState> {
   const response = await fetch('/api/state', { cache: 'no-store' })
+  // The token changed under the page: loaded anew, the page gets the form that asks for the new one.
+  if (response.status === 401) location.reload()
   if (!response.ok) throw new Error(`/api/state answered ${response.status}`)
   return (await response.json()) as EvenKeelState
 }

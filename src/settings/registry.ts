@@ -13,7 +13,6 @@ import { DEFAULT_ACCOUNTS, DEFAULT_CI, DEFAULT_COMPARE, DEFAULT_CONTEXT, DEFAULT
 
 /** `global` — Even Keel's own value, the top level of the file; `project` — a project's, its entry in `projects`. */
 export type Scope = 'global' | 'project'
-export type Apply = 'live' | 'restart'
 export type Kind = 'boolean' | 'integer' | 'number' | 'string' | 'enum' | 'list' | 'json'
 export type TaskLabel = 'run'
 
@@ -37,7 +36,6 @@ export interface SettingDefinition {
   qualifier?: 'provider'
   /** The parser of the task's labels that feeds the task level. */
   taskLabel?: TaskLabel
-  apply: Apply
   /** The fields of `EvenKeelConfig` the value ends up in. */
   lands: readonly (keyof EvenKeelConfig)[]
   /** The built-in value, by qualifier for a qualified key; `undefined` when the code computes it from other settings. */
@@ -90,7 +88,6 @@ const compare = (key: keyof typeof COMPARE_LIMITS): SettingDefinition => ({
   key: `stats.compare.${key}`,
   kind: 'integer',
   scopes: ['global'],
-  apply: 'live',
   lands: ['stats'],
   default: DEFAULT_COMPARE[key],
   check: (value) => {
@@ -104,7 +101,6 @@ const command = (key: 'beforeStart' | 'check' | 'afterGreen'): SettingDefinition
   key: `commands.${key}`,
   kind: 'list',
   scopes: ['project'],
-  apply: 'live',
   lands: ['settings'],
   default: [],
   check: (value, place) => {
@@ -117,7 +113,6 @@ const ciSwitch = (key: 'guard' | 'recheckMain' | 'fixTask'): SettingDefinition =
   key: `ci.${key}`,
   kind: 'boolean',
   scopes: ['project'],
-  apply: 'live',
   lands: ['settings'],
   default: DEFAULT_CI[key],
   check: boolean(`ci.${key}`),
@@ -127,7 +122,6 @@ const rule = (key: 'active' | 'terminal' | 'requiredLabels' | 'excludedLabels'):
   key: `chain.${key}`,
   kind: 'list',
   scopes: ['global', 'project'],
-  apply: 'live',
   lands: ['chain', 'rules'],
   default: DEFAULT_RULES[key],
   check: key === 'active' || key === 'terminal' ? statuses(key) : labels(key),
@@ -137,7 +131,6 @@ const update = (key: 'check' | 'notify'): SettingDefinition => ({
   key: `updates.${key}`,
   kind: 'boolean',
   scopes: ['global'],
-  apply: 'live',
   lands: ['updates'],
   default: DEFAULT_UPDATES[key],
   check: boolean(`updates.${key}`),
@@ -147,7 +140,6 @@ const context = (key: 'window' | 'warn' | 'danger'): SettingDefinition => ({
   key: `context.${key}`,
   kind: key === 'window' ? 'integer' : 'number',
   scopes: ['global'],
-  apply: 'restart',
   lands: ['context'],
   default: DEFAULT_CONTEXT[key],
   check:
@@ -161,42 +153,42 @@ const context = (key: 'window' | 'warn' | 'danger'): SettingDefinition => ({
 
 /** Every setting of Even Keel, in the order of the file. Project record fields (`id`, `key`, `name`, `repo`, `branch`, the tracker's project) are not here. */
 export const DEFINITIONS: readonly SettingDefinition[] = [
-  { key: 'allowedHosts', kind: 'list', scopes: ['global'], apply: 'live', lands: ['allowedHosts'], default: [], check: (value) => {
+  { key: 'allowedHosts', kind: 'list', scopes: ['global'], lands: ['allowedHosts'], default: [], check: (value) => {
     const names = Array.isArray(value) ? value.map((name) => (typeof name === 'string' ? name.trim().toLowerCase() : '')) : ['']
     if (names.some((name) => name === '' || /[/\\@?#\s]/.test(name))) throw fail('config.allowedHosts', {})
     return names
   } },
-  { key: 'parallel', kind: 'integer', scopes: ['global'], apply: 'live', lands: ['parallel'], default: 1, check: (value) => {
+  { key: 'parallel', kind: 'integer', scopes: ['global'], lands: ['parallel'], default: 1, check: (value) => {
     if (!Number.isInteger(value) || (value as number) < 1) throw fail('config.parallel', { value: json(value) })
     return value
   } },
-  { key: 'tracker', kind: 'enum', scopes: ['global', 'project'], apply: 'restart', lands: ['tracker', 'trackers'], default: DEFAULT_TRACKER, check: (value, place, { trackers }) => {
+  { key: 'tracker', kind: 'enum', scopes: ['global', 'project'], lands: ['tracker', 'trackers'], default: DEFAULT_TRACKER, check: (value, place, { trackers }) => {
     const where = at(place, 'tracker')
     if (typeof value !== 'string' || value.trim() === '') throw fail('config.trackerName', { where })
     const name = value.trim().toLowerCase()
     if (!trackers.includes(name)) throw fail('config.trackerUnknown', { where, name, known: trackers })
     return name
   } },
-  { key: 'brief', kind: 'boolean', scopes: ['global', 'project'], apply: 'live', lands: ['brief', 'briefs'], default: true, check: boolean('brief') },
+  { key: 'brief', kind: 'boolean', scopes: ['global', 'project'], lands: ['brief', 'briefs'], default: true, check: boolean('brief') },
   rule('active'),
   rule('terminal'),
   rule('requiredLabels'),
   rule('excludedLabels'),
-  { key: 'provider', kind: 'enum', scopes: ['global', 'project'], taskLabel: 'run', apply: 'live', lands: ['provider', 'settings'], default: DEFAULT_PROVIDER, check: (value, place) => {
+  { key: 'provider', kind: 'enum', scopes: ['global', 'project'], taskLabel: 'run', lands: ['provider', 'settings'], default: DEFAULT_PROVIDER, check: (value, place) => {
     const name = typeof value === 'string' ? value.trim().toLowerCase() : ''
     if (!isProvider(name)) throw fail('config.provider', { where: at(place, 'provider'), value: json(value), known: [...PROVIDERS] })
     return name
   } },
-  { key: 'models', kind: 'string', scopes: ['global', 'project'], qualifier: 'provider', taskLabel: 'run', apply: 'live', lands: ['models', 'settings'], default: DEFAULT_MODELS, check: providerName('models') },
-  { key: 'accounts', kind: 'string', scopes: ['global', 'project'], qualifier: 'provider', apply: 'live', lands: ['accounts', 'settings'], default: DEFAULT_ACCOUNTS, check: providerName('accounts') },
-  { key: 'execution', kind: 'enum', scopes: ['global'], qualifier: 'provider', apply: 'live', lands: ['execution'], default: DEFAULT_EXECUTION, check: (value, { qualifier: provider }) => {
+  { key: 'models', kind: 'string', scopes: ['global', 'project'], qualifier: 'provider', taskLabel: 'run', lands: ['models', 'settings'], default: DEFAULT_MODELS, check: providerName('models') },
+  { key: 'accounts', kind: 'string', scopes: ['global', 'project'], qualifier: 'provider', lands: ['accounts', 'settings'], default: DEFAULT_ACCOUNTS, check: providerName('accounts') },
+  { key: 'execution', kind: 'enum', scopes: ['global'], qualifier: 'provider', lands: ['execution'], default: DEFAULT_EXECUTION, check: (value, { qualifier: provider }) => {
     const known = EXECUTION_MODES[provider]
     if (known === undefined) throw fail('config.providerKey', { where: 'execution', key: provider, known: Object.keys(EXECUTION_MODES) })
     if (typeof value !== 'string' || !known.includes(value)) throw fail('config.execution', { provider, value: json(value), known: [...known] })
     return value
   } },
-  { key: 'modelLabels', kind: 'boolean', scopes: ['global', 'project'], apply: 'live', lands: ['modelLabels', 'settings'], default: false, check: boolean('modelLabels') },
-  { key: 'modelPrompts', kind: 'json', scopes: ['global'], apply: 'live', lands: ['modelPrompts'], default: {}, check: (value) => {
+  { key: 'modelLabels', kind: 'boolean', scopes: ['global', 'project'], lands: ['modelLabels', 'settings'], default: false, check: boolean('modelLabels') },
+  { key: 'modelPrompts', kind: 'json', scopes: ['global'], lands: ['modelPrompts'], default: {}, check: (value) => {
     if (typeof value !== 'object' || value === null || Array.isArray(value)) throw fail('config.modelPrompts', {})
     const prompts: Record<string, string> = {}
     for (const [model, text] of Object.entries(value)) {
@@ -208,13 +200,13 @@ export const DEFINITIONS: readonly SettingDefinition[] = [
     }
     return prompts
   } },
-  { key: 'language', kind: 'enum', scopes: ['global'], apply: 'live', lands: ['language', 'promptLanguage'], default: null, check: language('language') },
-  { key: 'promptLanguage', kind: 'enum', scopes: ['global'], apply: 'live', lands: ['promptLanguage'], default: undefined, check: language('promptLanguage') },
-  { key: 'hiddenSkills', kind: 'list', scopes: ['global'], apply: 'live', lands: ['hiddenSkills'], default: DEFAULT_HIDDEN_SKILLS, check: (value) => {
+  { key: 'language', kind: 'enum', scopes: ['global'], lands: ['language', 'promptLanguage'], default: null, check: language('language') },
+  { key: 'promptLanguage', kind: 'enum', scopes: ['global'], lands: ['promptLanguage'], default: undefined, check: language('promptLanguage') },
+  { key: 'hiddenSkills', kind: 'list', scopes: ['global'], lands: ['hiddenSkills'], default: DEFAULT_HIDDEN_SKILLS, check: (value) => {
     if (!Array.isArray(value) || value.some((name) => typeof name !== 'string' || name.trim() === '')) throw fail('config.hiddenSkills', {})
     return value.map((name: string) => name.trim())
   } },
-  { key: 'cacheTtl', kind: 'enum', scopes: ['global'], apply: 'live', lands: ['cacheTtl'], default: null, check: (value) => {
+  { key: 'cacheTtl', kind: 'enum', scopes: ['global'], lands: ['cacheTtl'], default: null, check: (value) => {
     if (value !== null && value !== '5m' && value !== '1h') throw fail('config.cacheTtl', { value: json(value) })
     return value
   } },
@@ -224,32 +216,32 @@ export const DEFINITIONS: readonly SettingDefinition[] = [
   compare('minTasks'),
   compare('minSessions'),
   compare('days'),
-  { key: 'stats.moves', kind: 'json', scopes: ['global'], apply: 'live', lands: ['stats'], default: {}, check: (value) => {
+  { key: 'stats.moves', kind: 'json', scopes: ['global'], lands: ['stats'], default: {}, check: (value) => {
     if (typeof value !== 'object' || value === null || Array.isArray(value)) throw fail('config.notObject', { where: 'stats.moves' })
     for (const [from, to] of Object.entries(value)) {
       if (from.trim() === '' || typeof to !== 'string' || to.trim() === '') throw fail('config.statsMove', { from })
     }
     return value
   } },
-  { key: 'stats.otherBelow', kind: 'number', scopes: ['global'], apply: 'live', lands: ['stats'], default: 0, check: (value) => {
+  { key: 'stats.otherBelow', kind: 'number', scopes: ['global'], lands: ['stats'], default: 0, check: (value) => {
     if (typeof value !== 'number' || !Number.isFinite(value) || value < 0) throw fail('config.otherBelow', { value: json(value) })
     return value
   } },
-  { key: 'stats.checkpointTokens', kind: 'integer', scopes: ['global'], apply: 'live', lands: ['stats'], default: null, check: (value) => {
+  { key: 'stats.checkpointTokens', kind: 'integer', scopes: ['global'], lands: ['stats'], default: null, check: (value) => {
     if (value !== null && (!Number.isInteger(value) || (value as number) < CHECKPOINT_ASK_FROM)) throw fail('config.checkpointTokens', { from: CHECKPOINT_ASK_FROM, value: json(value) })
     return value
   } },
   update('check'),
   update('notify'),
-  { key: 'updates.dismissed', kind: 'string', scopes: ['global'], apply: 'live', lands: ['updates'], default: DEFAULT_UPDATES.dismissed, check: (value) => {
+  { key: 'updates.dismissed', kind: 'string', scopes: ['global'], lands: ['updates'], default: DEFAULT_UPDATES.dismissed, check: (value) => {
     if (value !== null && (typeof value !== 'string' || compareVersions(value, value) === null)) throw fail('config.updatesDismissed', { value: json(value) })
     return value
   } },
-  { key: 'slot', kind: 'integer', scopes: ['project'], apply: 'restart', lands: ['slots'], default: false, check: (value, { project }) => {
+  { key: 'slot', kind: 'integer', scopes: ['project'], lands: ['slots'], default: false, check: (value, { project }) => {
     if (typeof value !== 'boolean' && !(Number.isInteger(value) && (value as number) > 0)) throw fail('config.slot', { key: project ?? '' })
     return value
   } },
-  { key: 'prompt', kind: 'string', scopes: ['project'], apply: 'live', lands: ['settings'], default: null, check: (value, place) => {
+  { key: 'prompt', kind: 'string', scopes: ['project'], lands: ['settings'], default: null, check: (value, place) => {
     if (typeof value !== 'string') throw fail('config.projectPrompt', { where: at(place, 'prompt') })
     return value.trim() === '' ? null : value.trim()
   } },
@@ -257,17 +249,17 @@ export const DEFINITIONS: readonly SettingDefinition[] = [
   command('check'),
   command('afterGreen'),
   ciSwitch('guard'),
-  { key: 'ci.kinds', kind: 'list', scopes: ['project'], apply: 'live', lands: ['settings'], default: DEFAULT_CI.kinds, check: (value, place) => {
+  { key: 'ci.kinds', kind: 'list', scopes: ['project'], lands: ['settings'], default: DEFAULT_CI.kinds, check: (value, place) => {
     if (!Array.isArray(value) || value.some((kind) => !(CI_KINDS as readonly unknown[]).includes(kind))) throw fail('config.ciKinds', { where: at(place, 'ci.kinds'), known: [...CI_KINDS] })
     return CI_KINDS.filter((kind) => value.includes(kind))
   } },
-  { key: 'ci.waitMinutes', kind: 'integer', scopes: ['project'], apply: 'live', lands: ['settings'], default: DEFAULT_CI.waitMinutes, check: (value, place) => {
+  { key: 'ci.waitMinutes', kind: 'integer', scopes: ['project'], lands: ['settings'], default: DEFAULT_CI.waitMinutes, check: (value, place) => {
     if (value !== null && !(Number.isInteger(value) && (value as number) >= 0)) throw fail('config.ciWait', { where: at(place, 'ci.waitMinutes') })
     return value
   } },
   ciSwitch('recheckMain'),
   ciSwitch('fixTask'),
-  { key: 'fillMilestone', kind: 'boolean', scopes: ['project'], apply: 'live', lands: ['settings'], default: false, check: boolean('fillMilestone') },
+  { key: 'fillMilestone', kind: 'boolean', scopes: ['project'], lands: ['settings'], default: false, check: boolean('fillMilestone') },
 ]
 
 /** The nested objects of the file whose parts are settings of their own. */
@@ -280,14 +272,6 @@ export const OBJECTS: Readonly<Record<string, ObjectDefinition>> = {
   commands: { unknown: (where, key, known) => fail('config.commandKey', { where, key, known }) },
   ci: { unknown: (where, key, known) => fail('config.ciKey', { where, key, known }) },
 }
-
-/** The project record fields the service reads only at its start, and where they land. */
-export const RECORD_RESTART: readonly (keyof EvenKeelConfig)[] = ['projects', 'trackerProjects']
-
-/** The fields of `EvenKeelConfig` that keep their start-up values until the service restarts. */
-export const RESTART_FIELDS: readonly (keyof EvenKeelConfig)[] = [
-  ...new Set([...RECORD_RESTART, ...DEFINITIONS.filter((definition) => definition.apply === 'restart').flatMap((definition) => definition.lands)]),
-]
 
 const BY_KEY = new Map(DEFINITIONS.map((definition) => [definition.key, definition]))
 

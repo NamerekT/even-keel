@@ -231,7 +231,10 @@ export class LiveConnection implements LiveSource {
     stream.onerror = () => {
       if (stream !== this.stream) return
       this.markStale()
-      if (stream.readyState === CLOSED) this.scheduleRetry()
+      if (stream.readyState !== CLOSED) return
+      // EventSource does not say why it closed: a plain request does, a refused token included.
+      this.deps.fetchState().catch(() => {})
+      this.scheduleRetry()
     }
   }
 

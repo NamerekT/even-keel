@@ -379,17 +379,21 @@ export function rulesKey(query: RulesQuery, settings: CompareSettings): string {
 
 export class StatsReader {
   // A string is why the stats are off; the local database comes as a promise that settles once it is open.
-  private readonly pool: Promise<pg.Pool | string>
+  private pool!: Promise<pg.Pool | string>
   private readonly cache = new Map<string, { at: number; answer: StatsAnswer<unknown> }>()
-  private readonly keys: string[]
-  private readonly dirs: string[]
   private folders: { at: number; key: string; groups: Promise<Folders> } | null = null
 
   constructor(
     settings: ReaderSettings | string | Promise<ReaderSettings>,
-    projects: Record<string, string>,
+    private readonly projects: () => Record<string, string>,
     private readonly statsConfig: () => StatsConfig,
   ) {
+    this.setReader(settings)
+  }
+
+  /** The database moved (`TALLY_*` changed): the old pool ends, the answers read from it go. */
+  setReader(settings: ReaderSettings | string | Promise<ReaderSettings>): void {
+    const before = this.pool
     this.pool = Promise.resolve(settings).then((each) => {
       if (typeof each === 'string') return `${each} not set in .env`
       const pool = new pg.Pool({ ...each, max: 4, connectionTimeoutMillis: 5_000, statement_timeout: 20_000, idleTimeoutMillis: 60_000 })
@@ -397,8 +401,18 @@ export class StatsReader {
       return pool
     })
     this.pool.catch(() => {})
-    this.keys = Object.keys(projects)
-    this.dirs = this.keys.map((key) => repoTail(projects[key]!))
+    this.cache.clear()
+    this.folders = null
+    void before?.then((pool) => (typeof pool === 'string' ? undefined : pool.end())).catch(() => {})
+  }
+
+  private get keys(): string[] {
+    return Object.keys(this.projects())
+  }
+
+  private get dirs(): string[] {
+    const projects = this.projects()
+    return Object.keys(projects).map((key) => repoTail(projects[key]!))
   }
 
   history(filter: StatsFilter): Promise<StatsAnswer<StatsHistory>> {

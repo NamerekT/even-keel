@@ -164,9 +164,9 @@ export function SharedSettings({ state }: { state: EvenKeelState }) {
       {marks.note(key)}
     </div>
   )
-  const select = (key: string, label: string, options: readonly { value: string; label: string }[], hint?: string, restart = false) => (
+  const select = (key: string, label: string, options: readonly { value: string; label: string }[], hint?: string) => (
     <div className={marks.box(key)}>
-      <FieldHead label={label} hint={hint} htmlFor={fieldId(key)} restart={restart} />
+      <FieldHead label={label} hint={hint} htmlFor={fieldId(key)} />
       <Select id={fieldId(key)} className="settings__text settings__short" value={text(key)} options={options} onChange={(value) => edit(key, value)} />
       {marks.note(key, (value) => options.find((option) => option.value === value)?.label ?? String(value))}
       <FieldNote error={errorOf(key)} />
@@ -233,7 +233,6 @@ export function SharedSettings({ state }: { state: EvenKeelState }) {
           t.shared.tracker,
           config.trackers.map((each) => ({ value: each.name, label: each.name })),
           t.shared.trackerHint,
-          config.restart.includes('tracker'),
         )}
         <CheckField className={marks.box('brief')} label={t.settings.brief} hint={t.settings.briefHint} checked={draft.edit.brief as boolean} onChange={(on) => edit('brief', on)}>
           {marks.note('brief')}
@@ -303,7 +302,7 @@ export function SharedSettings({ state }: { state: EvenKeelState }) {
           <FieldNote error={errorOf('hiddenSkills')} />
         </div>
         <div className="settings__field">
-          <FieldHead label={t.shared.context} hint={t.shared.contextHint} restart={config.restart.includes('context')} />
+          <FieldHead label={t.shared.context} hint={t.shared.contextHint} />
           <div className="settings__row">
             {number('window', t.shared.contextWindow, wholeOf(text('window'), 1) === undefined)}
             {number('warn', t.shared.contextWarn, amountOf(text('warn')) === undefined)}

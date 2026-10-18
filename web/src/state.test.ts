@@ -84,7 +84,7 @@ function stateOf(patch: Partial<EvenKeelState>): EvenKeelState {
     startedAt: '2026-01-01T08:00:00.000Z',
     projects: ['ABC', 'XYZ'],
     projectIds: { ABC: 'id-abc', XYZ: 'id-xyz' },
-    config: { shared: FAKE_SHARED, projects: {}, restart: [], trackers: [], trackerLocked: [] },
+    config: { shared: FAKE_SHARED, projects: {}, trackers: [], trackerLocked: [] },
     chain: { active: [], parallel: 1, queue: [], projects: {}, skipped: {}, leftovers: {} },
     tasks: [],
     sessions: [],

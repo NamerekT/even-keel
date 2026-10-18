@@ -32,7 +32,7 @@ export interface AccountHome {
 export class AccountHomes {
   readonly global: AccountHome
   private readonly codex: AccountHome
-  private readonly roots: Record<string, string>
+  private roots: Record<string, string> = {}
 
   constructor(
     private readonly env: NodeJS.ProcessEnv,
@@ -41,6 +41,11 @@ export class AccountHomes {
   ) {
     this.global = { key: GLOBAL_ACCOUNT, dir: env.CLAUDE_CONFIG_DIR ?? join(homedir(), '.claude'), global: true, agent: CLAUDE }
     this.codex = { key: CODEX_ACCOUNT, dir: env.CODEX_HOME ?? join(homedir(), '.codex'), global: true, agent: CODEX }
+    this.setRoots(root, codexRoot)
+  }
+
+  /** The folders under the new roots count from the next `list`: `EVEN_KEEL_ACCOUNTS_DIR` changes on the fly. */
+  setRoots(root: string, codexRoot: string): void {
     this.roots = { [CLAUDE]: root, [CODEX]: codexRoot }
   }
 

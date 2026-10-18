@@ -148,15 +148,6 @@
   font-size: 13px;
 }
 
-.settings__restart {
-  margin-left: 8px;
-  padding: 1px 6px;
-  border-radius: 6px;
-  background: var(--warn-bg);
-  color: var(--warn-fg);
-  font-size: 12px;
-  font-weight: 400;
-}
 
 .settings__text:disabled {
   opacity: 0.6;

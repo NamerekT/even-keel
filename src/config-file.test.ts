@@ -54,7 +54,7 @@ describe('ConfigFile', () => {
     const [, entry] = read().projects
     expect(entry).toEqual({ id: expect.stringMatching(/^[0-9a-f-]{36}$/), key: 'XYZ', repo: 'C:\\xyz' })
     expect(JSON.parse(readFileSync(`${file}.bak`, 'utf8'))).toEqual(added)
-    expect(config.saved.ids.XYZ).toBe(entry.id)
+    expect(config.current.ids.XYZ).toBe(entry.id)
     expect(warnings).toContain(`config: XYZ had no id, gave it ${entry.id} in ${file}`)
   })
 
@@ -69,14 +69,15 @@ describe('ConfigFile', () => {
     expect(read()).toEqual(broken)
   })
 
-  it('warns about the parts that wait for a restart', () => {
+  it('applies the context scale and the projects at once, without a warning', () => {
     write({ projects: [abc()] })
     const config = open()
 
-    write({ context: { window: 1_000_000 }, projects: [abc()] })
+    write({ context: { window: 1_000_000 }, projects: [abc(), { id: 'id-xyz', key: 'XYZ', repo: 'C:\\xyz' }] })
     config.reload()
-    expect(config.current.context.window).toBe(600_000)
-    expect(warnings).toEqual(['config: changed, waiting for a restart of Even Keel: context'])
+    expect(config.current.context.window).toBe(1_000_000)
+    expect(config.current.projects).toEqual({ ABC: abc().repo, XYZ: 'C:\\xyz' })
+    expect(warnings).toEqual([])
   })
 
   it('warns once that the address is no longer read from the file', () => {
@@ -142,14 +143,14 @@ describe('ConfigFile', () => {
     expect(read()).toEqual({ projects: [abc()] })
   })
 
-  it('writes the shared settings and shows what waits for a restart', () => {
+  it('writes the shared settings and applies them at once, the tracker too', () => {
     write({ projects: [abc()] })
     const config = open()
 
     config.saveShared({ ...config.view().shared, parallel: 2, tracker: 'linear' }, config.view().shared)
     expect(read()).toEqual({ projects: [abc()], parallel: 2, tracker: 'linear' })
     expect(config.current.parallel).toBe(2)
-    expect(config.current.tracker).toBe('huly')
-    expect(config.view()).toMatchObject({ shared: { tracker: 'linear' }, projects: { ABC: { tracker: 'linear' } }, restart: ['tracker', 'ABC.tracker'] })
+    expect(config.current.tracker).toBe('linear')
+    expect(config.view()).toMatchObject({ shared: { tracker: 'linear' }, projects: { ABC: { tracker: 'linear' } } })
   })
 })

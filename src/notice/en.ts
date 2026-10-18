@@ -202,6 +202,7 @@ export const en = {
 
   'config.notJson': (p: { file: string }) => `config: ${p.file} is not JSON`,
   'config.port': (p: { value: string }) => `config: EVEN_KEEL_PORT must be an integer in 1..65535, got ${p.value}`,
+  'server.rebindFailed': (p: { address: string; current: string }) => `server: cannot listen on ${p.address} from .env, staying on ${p.current}`,
   'config.mcpPort': (p: { value: string }) => `config: EVEN_KEEL_MCP_PORT must be an integer in 1..65535, got ${p.value}`,
   'config.branch': (p: { where: string; value: string }) => `config: ${p.where} must be a branch name, got ${p.value}`,
   'config.projects': () => 'config: projects must be a list of project records',

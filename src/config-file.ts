@@ -1,6 +1,6 @@
 import { watchFile } from 'node:fs'
-import { formsOf, restartPending, trackerChoices, withProjectForm, withRunAccount, withSharedForm, withUpdates } from './config-form.js'
-import { ignoredKeys, liveConfig, parseConfig, readRawConfig, restartChanges, withIds, type EvenKeelConfig } from './config.js'
+import { formsOf, trackerChoices, withProjectForm, withRunAccount, withSharedForm, withUpdates } from './config-form.js'
+import { ignoredKeys, parseConfig, readRawConfig, withIds, type EvenKeelConfig } from './config.js'
 import { englishOf, fail, noticeOf, type Notice } from './notice/notice.js'
 import { writeAtomic } from './storage/atomic.js'
 import type { ConfigView, ProjectForm, SharedForm } from './state.js'
@@ -9,21 +9,19 @@ import type { UpdateSettings } from './updates/release.js'
 export interface ConfigFileOptions {
   file: string
   intervalMs: number
-  onChange: () => void
+  /** `before` — the config the service ran on until now; the same as `current` when the file did not parse. */
+  onChange: (before: EvenKeelConfig) => void
   warn: (message: string) => void
 }
 
 export class ConfigFile {
-  /** What the service runs on: the file's last working parse, with the keys that wait for a restart as they were at the start. */
+  /** What the service runs on: the file's last working parse, applied as a whole on the fly. */
   current: EvenKeelConfig
-  /** The file's last working parse as it is. */
-  saved: EvenKeelConfig
   error: Notice | null = null
 
   constructor(private readonly options: ConfigFileOptions) {
     const raw = readRawConfig(options.file)
     this.current = this.parseFilled(raw)
-    this.saved = this.current
     const ignored = ignoredKeys(raw)
     if (ignored.length > 0) {
       options.warn(`config: ${ignored.join(' and ')} in ${options.file} are not read; the address comes from EVEN_KEEL_HOST and EVEN_KEEL_PORT`)
@@ -43,24 +41,22 @@ export class ConfigFile {
     } catch (error) {
       this.error = noticeOf(error)
       this.options.warn(`config: ${this.options.file} is not applied, the last working config stays: ${englishOf(this.error)}`)
-      this.options.onChange()
+      this.options.onChange(this.current)
       return
     }
-    const waiting = restartChanges(this.saved, next)
-    if (waiting.length > 0) this.options.warn(`config: changed, waiting for a restart of Even Keel: ${waiting.join(', ')}`)
-    this.saved = next
-    this.current = liveConfig(this.current, next)
+    const before = this.current
+    this.current = next
     this.error = null
-    this.options.onChange()
+    this.options.onChange(before)
   }
 
   view(trackerLocked: string[] = []): ConfigView {
-    return { ...formsOf(this.saved), restart: restartPending(this.current, this.saved), trackers: trackerChoices(), trackerLocked }
+    return { ...formsOf(this.current), trackers: trackerChoices(), trackerLocked }
   }
 
   /** Writes the project's settings into its entry of the file, only if the whole config still parses, and applies what is live at once. */
   saveProject(project: string, form: ProjectForm, base: ProjectForm): void {
-    const id = this.saved.ids[project]
+    const id = this.current.ids[project]
     if (id === undefined) throw fail('config.unknownProject', { key: project })
     this.write(withProjectForm(readRawConfig(this.options.file), id, form, base))
   }

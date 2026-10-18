@@ -1,7 +1,7 @@
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
-import { finishSlot, prepareSlot, slotPaths, type SlotUse } from './slot.js'
+import { finishSlot, heldSlot, prepareSlot, slotPaths, type SlotUse } from './slot.js'
 import type { GitResult } from './types.js'
 import { englishOf } from '../notice/notice.js'
 
@@ -187,6 +187,14 @@ describe('prepareSlot with a pool of two', () => {
     const { git, calls } = fakeGit({ [LIST]: listing([porcelain(slot), null], [porcelain(slot2), 'abc-7/task']) })
     expect(await prepareSlot(git, repo, 'ABC-7', pooled().pool)).toEqual({ path: slot2, branch: 'abc-7/task' })
     expect(changing(calls)).toEqual([])
+  })
+
+  it('finds the task in a slot past a shrunk pool, and never takes a free one there', async () => {
+    const { git } = fakeGit({ [LIST]: listing([porcelain(slot), null], [porcelain(slot2), 'abc-7/task']) })
+    expect(await prepareSlot(git, repo, 'ABC-7', { ...pooled().pool, count: 1, span: 2 })).toEqual({ path: slot2, branch: 'abc-7/task' })
+    expect(await heldSlot(git, repo, 'ABC-7', 2)).toEqual({ path: slot2, branch: 'abc-7/task' })
+    const other = fakeGit({ [LIST]: listing([porcelain(slot), 'abc-6/task'], [porcelain(slot2), null]), [HAS_BRANCH]: { code: 1 } })
+    await expect(prepareSlot(other.git, repo, 'ABC-7', { ...pooled(held({ [slot]: busy })).pool, count: 1, span: 2 })).rejects.toThrow()
   })
 
   it('leaves a slot taken ahead of the launch detached at main, without the task branch', async () => {

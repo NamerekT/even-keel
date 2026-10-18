@@ -13,8 +13,8 @@ import { ClaudeCli, liveRecords, resolveClaudeBinary, SESSION_MODE } from './cli
 export const claude: AgentAdapter = {
   title: 'Claude Code',
   setup({ env, timeoutMs, workDir }) {
-    const envOf = (home: AccountHome) => claudeEnv(env, home)
-    const cli = new ClaudeCli(() => resolveClaudeBinary(env), timeoutMs, envOf)
+    const envOf = (home: AccountHome) => claudeEnv(env(), home)
+    const cli = new ClaudeCli(() => resolveClaudeBinary(env()), timeoutMs, envOf)
     const projects = (home: AccountHome) => join(home.dir, 'projects')
     return {
       mode: SESSION_MODE,

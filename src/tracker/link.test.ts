@@ -128,4 +128,18 @@ describe('TrackerLink', () => {
     expect(source.closed).toBe(true)
     await expect(link.run(async () => 1)).rejects.toThrow(/closed/)
   })
+
+  it('closes the live connection on a reset, and the next call connects again', async () => {
+    const first = fakeSource()
+    const connect = vi.fn().mockResolvedValueOnce(first).mockResolvedValueOnce(fakeSource())
+    const onHealth = vi.fn<(health: TrackerHealth) => void>()
+    const link = new TrackerLink({ name: 'huly', connect, timeoutMs: 1000, onHealth })
+    await link.run(async () => 1)
+    link.reset()
+    await vi.waitFor(() => expect(first.closed).toBe(true))
+    expect(link.health.state).toBe('connecting')
+    expect(onHealth).toHaveBeenLastCalledWith(expect.objectContaining({ state: 'connecting' }))
+    await link.run(async () => 2)
+    expect(connect).toHaveBeenCalledTimes(2)
+  })
 })

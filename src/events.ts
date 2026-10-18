@@ -6,15 +6,29 @@ export function formatEvent(event: string, data: unknown): string {
 
 export class EventHub {
   private readonly subscribers = new Set<Subscriber>()
+  private readonly ends = new Map<Subscriber, () => void>()
   private readonly last = new Map<string, string>()
 
   get size(): number {
     return this.subscribers.size
   }
 
-  subscribe(subscriber: Subscriber): () => void {
+  /** `end` closes the subscriber's stream when the hub lets every page go. */
+  subscribe(subscriber: Subscriber, end?: () => void): () => void {
     this.subscribers.add(subscriber)
-    return () => this.subscribers.delete(subscriber)
+    if (end !== undefined) this.ends.set(subscriber, end)
+    return () => {
+      this.subscribers.delete(subscriber)
+      this.ends.delete(subscriber)
+    }
+  }
+
+  /** Closes every stream: the pages connect again and meet the guard as it is now (a new token). */
+  closeAll(): void {
+    const ends = [...this.ends.values()]
+    this.subscribers.clear()
+    this.ends.clear()
+    for (const end of ends) end()
   }
 
   broadcast(event: string, data: unknown): void {

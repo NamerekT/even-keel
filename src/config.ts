@@ -10,7 +10,6 @@ import { CI_KINDS } from './ci/model.js'
 import { changesOf, type FormValue } from './settings/changes.js'
 import { DEFAULT_BRANCH, DEFAULT_LANGUAGE } from './settings/defaults.js'
 import { fileRows, isPlainObject, writeRows } from './settings/file.js'
-import { RESTART_FIELDS } from './settings/registry.js'
 import { checkRows, inherit, resolve, type ProjectRecord, type Resolved, type Values } from './settings/resolve.js'
 import { ADAPTERS } from './tracker/adapters.js'
 import type { TrackerAdapter } from './tracker/source.js'
@@ -208,23 +207,6 @@ export function withIds(raw: unknown, newId: () => string = randomUUID): { raw: 
   return keys.length === 0 ? { raw, keys } : { raw: { ...(raw as Record<string, unknown>), projects: filled }, keys }
 }
 
-/**
- * The config the service runs on once the file changed: the next one, with the fields of the settings applied only at a
- * restart (`apply: 'restart'` in the registry) as they were. A project's own values reach only the projects it runs.
- */
-export function liveConfig(current: EvenKeelConfig, next: EvenKeelConfig): EvenKeelConfig {
-  const keep = <T>(field: Record<string, T>, fallback: Record<string, T>) =>
-    Object.fromEntries(Object.keys(current.projects).map((key) => [key, field[key] ?? fallback[key]!]))
-  const kept = Object.fromEntries([...RESTART_FIELDS, 'ids'].map((field) => [field, current[field as keyof EvenKeelConfig]])) as Partial<EvenKeelConfig>
-  return {
-    ...next,
-    ...kept,
-    rules: keep(next.rules, current.rules),
-    briefs: keep(next.briefs, current.briefs),
-    settings: keep(next.settings, current.settings),
-  }
-}
-
 /** Where the service listens: `EVEN_KEEL_HOST` and `EVEN_KEEL_PORT`, loopback and 4747 without them. */
 export function listenOf(env: NodeJS.ProcessEnv): { host: string; port: number } {
   const host = env.EVEN_KEEL_HOST?.trim() || DEFAULT_HOST
@@ -245,11 +227,6 @@ export function mcpPortOf(env: NodeJS.ProcessEnv): number {
 /** The keys of the raw config that are no longer read. */
 export function ignoredKeys(raw: unknown): string[] {
   return isPlainObject(raw) ? IGNORED_KEYS.filter((key) => Object.hasOwn(raw, key)) : []
-}
-
-/** The fields of the config that differ between the two and wait for a restart. */
-export function restartChanges(current: EvenKeelConfig, next: EvenKeelConfig): string[] {
-  return RESTART_FIELDS.filter((key) => JSON.stringify(current[key]) !== JSON.stringify(next[key]))
 }
 
 /** What the project's sessions run on: its own provider, models, accounts and labels switch over the shared ones. */

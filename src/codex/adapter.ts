@@ -21,8 +21,8 @@ const LIMIT_ROLLOUTS = 20
 export const codex: AgentAdapter = {
   title: 'Codex',
   setup({ env, timeoutMs, workDir }) {
-    const envOf = (home: AccountHome) => codexEnv(env, home)
-    const bin = () => resolveCodexBinary(env)
+    const envOf = (home: AccountHome) => codexEnv(env(), home)
+    const bin = () => resolveCodexBinary(env())
     const cli = new CodexCli(bin, timeoutMs, envOf, new TurnRegistry(join(workDir, 'codex')), new CodexPlugins(bin, envOf))
     return {
       mode: SESSION_MODE,

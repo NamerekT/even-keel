@@ -15,7 +15,7 @@ import { deviceLogin } from '../accounts.js'
 import { accountCommand, fakeAccount, fakeUsage, FAKE_LIMITS } from './fakeAccounts.js'
 import { FAKE_FIX, fakeCi } from './fakeCi.js'
 import { fakeUpdates, fakeUpdatesCommand } from './fakeUpdates.js'
-import { FAKE_PROJECT_IDS, fakeConfig, fakeHandEdit, fakeRestart, fakeSettingsCommand } from './fakeConfig.js'
+import { FAKE_PROJECT_IDS, fakeConfig, fakeHandEdit, fakeSettingsCommand } from './fakeConfig.js'
 import { withFix } from './fakeFix.js'
 import { fakeCompare, fakeRuleDiff, fakeRules } from './fakeRules.js'
 import { fakeSteps } from './fakeSteps.js'
@@ -592,7 +592,6 @@ export function createFakeSource(search: string): LiveSource {
   if (params.get('config') === 'broken' && current.state !== null) {
     current.state.configError = notice('config.statusBoth', { project: 'ABC', status: 'In Review' })
   }
-  if (params.get('config') === 'restart' && current.state !== null) current.state.config = fakeRestart(current.state.config)
   if (params.has('packages') && current.state !== null) current.state.packages = fakePackages(current.state.projects, params.get('packages'))
   const active = current.state?.chain.active[0]
   if (params.get('chain') === 'limit' && active) {

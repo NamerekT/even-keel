@@ -66,10 +66,8 @@ export class Packages {
   private imports: Record<string, string[]> = {}
   private plugins: { at: number; list: PackagesView['available'] } | undefined
   private offers: { at: number; byName: Map<string, Offer> } | undefined
-  private readonly projectOf: (id: string) => string
 
   constructor(private readonly deps: PackagesDeps) {
-    this.projectOf = byMap(inverted(deps.ids))
     const loaded = loadPackages(deps.file, deps.ids)
     this.file = loaded ?? this.seed()
     if (loaded === undefined) savePackages(deps.file, this.file, deps.ids)
@@ -96,6 +94,18 @@ export class Packages {
 
   close(): Promise<void> {
     return this.gateway.close()
+  }
+
+  /** The projects of the config changed: renamed keys carry their sets and pins, the repositories are read for servers anew. */
+  async projectsChanged(rename: (project: string) => string): Promise<void> {
+    const renamed = <T>(records: Record<string, T>) => Object.fromEntries(Object.entries(records).map(([project, value]) => [rename(project), value]))
+    this.file = { ...this.file, projects: renamed(this.file.projects), pins: renamed(this.file.pins) }
+    this.save()
+    await this.readImports()
+  }
+
+  private projectOf(id: string): string {
+    return byMap(inverted(this.deps.ids))(id)
   }
 
   view(): PackagesView {

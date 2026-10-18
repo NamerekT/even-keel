@@ -1,5 +1,6 @@
 import type { FinishOutcome } from '../git/types.js'
 import { englishOf, fail, notice, NoticeError, noticeOf, sameNotice, type Notice } from '../notice/notice.js'
+import { renameChainProjects } from '../storage/projects.js'
 import { isOpen, type Task } from '../tracker/model.js'
 import {
   newChain,
@@ -169,6 +170,31 @@ export class Dispatcher {
     this.changed()
   }
 
+  /**
+   * The project left the config: its chain stops and leaves the queue as with Stop, its sessions are not touched
+   * (invariant 1); the order, skips and leftovers it had stay saved for its return.
+   */
+  forget(project: string): void {
+    this.stop(project)
+    this.dequeue(project)
+    for (const map of this.byProject()) map.delete(project)
+  }
+
+  /** Project keys renamed in the config: the chain state and the tasks read follow the new keys. */
+  rekey(rename: (project: string) => string): void {
+    Object.assign(this.state, renameChainProjects(this.state as unknown as Record<string, unknown>, rename))
+    for (const map of this.byProject()) {
+      const entries = [...map.entries()]
+      map.clear()
+      for (const [project, value] of entries) (map as Map<string, unknown>).set(rename(project), value)
+    }
+    this.changed()
+  }
+
+  private byProject(): Map<string, unknown>[] {
+    return [this.tasks, this.waiting, this.outside, this.backlog, this.done, this.releasedDone]
+  }
+
   skip(project: string, task: string): void {
     this.requireProject(project)
     if (this.fixes !== null && isFixName(task)) {
@@ -332,7 +358,7 @@ export class Dispatcher {
   }
 
   private requireProject(project: string): void {
-    if (!this.deps.projects.includes(project)) throw fail('chain.unknownProject', { project })
+    if (!this.deps.projects().includes(project)) throw fail('chain.unknownProject', { project })
   }
 
   /** The project's chain runs or is queued already; a chain started only for the fix of a red main now goes on with the tasks. */

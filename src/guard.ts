@@ -10,6 +10,21 @@ export interface GuardSettings {
   hosts: ReadonlySet<string>
   /** `null` — the service listens on loopback only and takes no token. */
   token: string | null
+  /** The language of the form that asks for the token; English without it. */
+  language?: 'en' | 'ru'
+}
+
+const TOKEN_FORM = {
+  en: { title: 'Even Keel', ask: 'The page needs the access token: EVEN_KEEL_TOKEN in the .env of Even Keel.', open: 'Open' },
+  ru: { title: 'Even Keel', ask: 'Странице нужен токен доступа: EVEN_KEEL_TOKEN в .env самого Even Keel.', open: 'Открыть' },
+}
+
+/** The page a browser gets without a valid token: a form that opens the same address with `?token=`. */
+export function tokenForm(language: 'en' | 'ru' = 'en'): string {
+  const text = TOKEN_FORM[language]
+  return `<!doctype html><html lang="${language}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${text.title}</title>
+<style>body{font:15px system-ui,sans-serif;background:#16181d;color:#e6e6e6;display:grid;place-items:center;min-height:100vh;margin:0}form{display:grid;gap:12px;max-width:360px;padding:24px}input,button{font:inherit;padding:8px 10px;border-radius:6px;border:1px solid #3a3f4b;background:#20232a;color:inherit}button{cursor:pointer}</style></head>
+<body><form method="get"><p>${text.ask}</p><input name="token" type="password" autocomplete="current-password" required autofocus><button type="submit">${text.open}</button></form></body></html>`
 }
 
 export interface GuardRequest {

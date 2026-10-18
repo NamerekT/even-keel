@@ -166,7 +166,6 @@ export function SettingsPanel({
   const base = formOf(outgoing.base, form.name)
   const locked = config.trackerLocked.includes(project)
   const errorOf = useFieldErrors(project, [failure, configError], config)
-  const restart = (field: string) => config.restart.includes(`${project}.${field}`)
   const text = (key: string) => draft.edit[key] as string
   const on = (key: string) => draft.edit[key] as boolean
   const tracker = config.trackers.find((each) => each.name === text('tracker'))
@@ -219,7 +218,7 @@ export function SettingsPanel({
     repo: () => (
       <>
         <div className={marks.box('repo')}>
-          <FieldHead label={t.settings.repo} hint={t.settings.repoHint} htmlFor={fieldId('repo')} restart={restart('repo')} />
+          <FieldHead label={t.settings.repo} hint={t.settings.repoHint} htmlFor={fieldId('repo')} />
           <input
             id={fieldId('repo')}
             className="settings__text settings__text--mono"
@@ -246,7 +245,7 @@ export function SettingsPanel({
           <FieldNote error={errorOf('branch')} />
         </div>
         <div className={marks.box('slot')}>
-          <FieldHead label={t.settings.slot} hint={t.settings.slotHint} htmlFor={fieldId('slot')} restart={restart('slot')} />
+          <FieldHead label={t.settings.slot} hint={t.settings.slotHint} htmlFor={fieldId('slot')} />
           <input
             id={fieldId('slot')}
             className="settings__text settings__number"
@@ -267,7 +266,7 @@ export function SettingsPanel({
       <>
         <div className="settings__row">
           <div className={marks.box('tracker')}>
-            <FieldHead label={t.settings.tracker} htmlFor={fieldId('tracker')} restart={restart('tracker')} soon={locked ? t.settings.trackerSoon : undefined} />
+            <FieldHead label={t.settings.tracker} htmlFor={fieldId('tracker')} soon={locked ? t.settings.trackerSoon : undefined} />
             <Select
               id={fieldId('tracker')}
               className="settings__text settings__short"
@@ -286,7 +285,6 @@ export function SettingsPanel({
                 label={t.settings.trackerProject(tracker.projectKey.key)}
                 hint={tracker.projectKey.optional ? t.settings.trackerProjectOptional : undefined}
                 htmlFor={fieldId('trackerProject')}
-                restart={restart('trackerProject')}
               />
               <input
                 id={fieldId('trackerProject')}

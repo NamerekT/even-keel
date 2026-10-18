@@ -194,6 +194,7 @@ export const noticesRu: NoticeTexts = {
 
   'config.notJson': (p) => `${p.file} — не JSON`,
   'config.port': (p) => `EVEN_KEEL_PORT должен быть целым в 1..65535, а не ${p.value}`,
+  'server.rebindFailed': (p) => `Не удалось слушать ${p.address} из .env, служба остаётся на ${p.current}`,
   'config.mcpPort': (p) => `EVEN_KEEL_MCP_PORT должен быть целым в 1..65535, а не ${p.value}`,
   'config.branch': (p) => `${p.where} должен быть именем ветки, а не ${p.value}`,
   'config.projects': () => 'projects должен быть списком записей проектов',

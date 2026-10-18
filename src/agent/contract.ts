@@ -19,12 +19,13 @@ import type { SessionRecord } from '../state.js'
 export interface AgentAdapter {
   /** For the log and the page. */
   title: string
-  /** Sets the agent up; `env` is the service's environment without the trackers' and CIs' credentials. */
+  /** Sets the agent up; `env` gives the service's environment without the trackers' and CIs' credentials. */
   setup(options: AgentOptions): Agent
 }
 
 export interface AgentOptions {
-  env: NodeJS.ProcessEnv
+  /** Read at each call: `.env` changes on the fly. */
+  env: () => NodeJS.ProcessEnv
   /** How long one call of the agent's CLI may take. */
   timeoutMs: number
   /** The service's state folder: a call that needs a working folder but belongs to no project runs there. */

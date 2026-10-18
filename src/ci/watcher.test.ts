@@ -168,6 +168,19 @@ describe('CiWatch', () => {
     await t.watch.tick()
     expect(t.watch.view).toMatchObject({ health: 'off', error: { code: 'ci.noToken', params: { variable: 'FORGEJO_TOKEN' } } })
   })
+
+  it('asks at once when a token appears, and goes off again when it is removed', async () => {
+    const t = setup({ source: false })
+    await t.watch.tick()
+    const source: CiSource = { runs: async () => [run(3)], jobs: async () => [] }
+    t.watch.setSource(source)
+    expect(t.watch.view).toMatchObject({ health: 'ok', error: null })
+    await t.watch.tick()
+    expect(t.watch.view.history.map((each) => each.id)).toEqual([3])
+    t.watch.setSource(null)
+    expect(t.watch.view).toMatchObject({ health: 'off', error: { code: 'ci.noToken' } })
+    expect(t.changes()).toBeGreaterThan(0)
+  })
 })
 
 describe('CiWatch.failed', () => {

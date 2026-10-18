@@ -22,6 +22,15 @@ export function byMap(map: Record<string, string>): (project: string) => string 
   return (project) => map[project] ?? project
 }
 
+/** The keys of `before` renamed to the keys `after` gives the same ids; any other name passes through. */
+export function rekeyed(before: Record<string, string>, after: Record<string, string>): (project: string) => string {
+  const keyOf = inverted(after)
+  return (project) => {
+    const id = before[project]
+    return id === undefined ? project : (keyOf[id] ?? project)
+  }
+}
+
 /** The map turned around: key by id from id by key. */
 export function inverted(map: Record<string, string>): Record<string, string> {
   return Object.fromEntries(Object.entries(map).map(([key, value]) => [value, key]))

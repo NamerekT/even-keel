@@ -19,8 +19,8 @@ const RAN_SHOWN_MS = 7 * 24 * 60 * 60_000
 const TRACKER_TIMEOUT_MS = 15_000
 
 export interface TrackerStartDeps {
-  /** Path to the main checkout of each project. */
-  repos: Record<string, string>
+  /** Path to the main checkout of the project. */
+  repoOf: (project: string) => string
   rulesOf: (project: string) => ChainRules
   links: Map<string, TrackerLink>
   tasksByProject: Map<string, Task[]>
@@ -36,10 +36,20 @@ export interface TrackerStartDeps {
   refreshers: Map<string, () => Promise<void>>
 }
 
+/** A running tracker: its credentials change on the fly, and it stops when its projects or variables are gone. */
+export interface TrackerHandle {
+  /** Closes the connection; the next call connects with `setup`. */
+  update(setup: TrackerSetup): void
+  stop(): void
+}
+
 /** Connects a tracker, polls the statuses of its projects' tasks and refreshes them, closing merged tasks and done parents. */
-export function startTracker(view: TrackerView, setup: TrackerSetup, deps: TrackerStartDeps): void {
-  const { repos, rulesOf, links, tasksByProject, launches, dispatcher, fillsMilestone, mainBranch, broadcast, refreshers } = deps
+export function startTracker(view: TrackerView, setup: TrackerSetup, deps: TrackerStartDeps): TrackerHandle {
+  const { repoOf, rulesOf, links, tasksByProject, launches, dispatcher, fillsMilestone, mainBranch, broadcast, refreshers } = deps
   const { name, projects } = view
+  let current = setup
+  let stopped = false
+  let timer: NodeJS.Timeout | undefined
   let completes = false
   let closesParents = false
   let setsMilestones = false
@@ -47,7 +57,7 @@ export function startTracker(view: TrackerView, setup: TrackerSetup, deps: Track
   const link = new TrackerLink({
     name,
     connect: async () => {
-      const tracker = trackerOf(await setup.connect(TRACKER_TIMEOUT_MS))
+      const tracker = trackerOf(await current.connect(TRACKER_TIMEOUT_MS))
       completes = tracker.complete !== undefined
       closesParents = completes && tracker.children !== undefined
       setsMilestones = tracker.setMilestone !== undefined
@@ -63,11 +73,13 @@ export function startTracker(view: TrackerView, setup: TrackerSetup, deps: Track
   })
   links.set(name, link)
   view.health = link.health
-  const report = (error: unknown) => console.error(`${name}: ${errorText(error)}`)
+  const report = (error: unknown) => {
+    if (!stopped) console.error(`${name}: ${errorText(error)}`)
+  }
   const ownTasks = () => projects.flatMap((project) => tasksByProject.get(project) ?? [])
 
   const closer = new MergeCloser({
-    merged: (project, task) => branchMerged(runGit, repos[project]!, task, mainBranch(project)),
+    merged: (project, task) => branchMerged(runGit, repoOf(project), task, mainBranch(project)),
     complete: (task) => link.run((tracker) => tracker.complete!(task)),
     onError: report,
   })
@@ -139,6 +151,7 @@ export function startTracker(view: TrackerView, setup: TrackerSetup, deps: Track
       const unlisted = ranSince(launches, project, new Date(Date.now() - RAN_SHOWN_MS)).filter((id) => !listed.has(id))
       const ran = unlisted.length === 0 ? [] : (await link.run((tracker) => tracker.tasks(unlisted))).filter((task) => !isOpen(task.status))
       const shown = [...tasks, ...ran]
+      if (stopped) return
       dispatcher.setOutside(project, [...parents, ...others])
       tasksByProject.set(project, shown)
       dispatcher.setTasks(project, shown)
@@ -158,17 +171,35 @@ export function startTracker(view: TrackerView, setup: TrackerSetup, deps: Track
       report(error)
     }
   }
+  const own = new Map<string, () => Promise<void>>()
   for (const project of projects) {
-    refreshers.set(project, async () => {
+    const refresh = async () => {
       await refreshProject(project)
       broadcast()
-    })
+    }
+    own.set(project, refresh)
+    refreshers.set(project, refresh)
   }
   const refreshTasks = async (): Promise<void> => {
     await Promise.all(projects.map(refreshProject))
+    if (stopped) return
     broadcast()
     poller.start()
-    setTimeout(() => void refreshTasks(), projects.some((project) => tasksByProject.has(project)) ? TASKS_REFRESH_MS : TRACKER_POLL_MS)
+    timer = setTimeout(() => void refreshTasks(), projects.some((project) => tasksByProject.has(project)) ? TASKS_REFRESH_MS : TRACKER_POLL_MS)
   }
   void refreshTasks()
+  return {
+    update: (next) => {
+      current = next
+      link.reset()
+    },
+    stop: () => {
+      stopped = true
+      clearTimeout(timer)
+      void poller.stop()
+      for (const [project, refresh] of own) if (refreshers.get(project) === refresh) refreshers.delete(project)
+      if (links.get(name) === link) links.delete(name)
+      void link.close()
+    },
+  }
 }

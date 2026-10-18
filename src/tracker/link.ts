@@ -34,6 +34,14 @@ export class TrackerLink {
     }
   }
 
+  /** Closes the connection, if any: the next call connects again, with what `connect` reads by then (new credentials). */
+  reset(): void {
+    const pending = this.source
+    this.source = undefined
+    pending?.then((source) => source.close()).catch(() => {})
+    this.report({ state: 'connecting', lastOkAt: this.current.lastOkAt, error: null })
+  }
+
   async close(): Promise<void> {
     this.closed = true
     const pending = this.source

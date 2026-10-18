@@ -4,7 +4,7 @@ import { extname, join, normalize, sep } from 'node:path'
 import { Readable } from 'node:stream'
 import { pipeline } from 'node:stream/promises'
 import { formatEvent, type EventHub } from './events.js'
-import { guard, type GuardSettings } from './guard.js'
+import { guard, tokenForm, type GuardSettings } from './guard.js'
 import { englishOf, fail, noticeOf, type Notice, type NoticeCode } from './notice/notice.js'
 import {
   isTaskId,
@@ -254,7 +254,8 @@ export function createBlockedServer(deps: { guard: () => GuardSettings; publicDi
 function guardedServer(settings: () => GuardSettings, handle: (request: IncomingMessage, response: ServerResponse) => Promise<void>): Server {
   const reported = new Set<string>()
   return createServer((request, response) => {
-    const verdict = guard(settings(), {
+    const current = settings()
+    const verdict = guard(current, {
       method: request.method ?? 'GET',
       url: request.url ?? '/',
       host: request.headers.host,
@@ -273,6 +274,10 @@ function guardedServer(settings: () => GuardSettings, handle: (request: Incoming
       if (!reported.has(verdict.reason) && reported.size < MAX_REPORTED) {
         reported.add(verdict.reason)
         console.warn(`guard: refused ${request.method} ${request.url?.split('?')[0]}: ${verdict.reason}`)
+      }
+      if (verdict.status === 401 && current.token !== null && request.method === 'GET' && !(request.url ?? '/').startsWith('/api/')) {
+        response.writeHead(401, { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store' }).end(tokenForm(current.language))
+        return
       }
       response.writeHead(verdict.status, { 'content-type': 'text/plain; charset=utf-8', 'cache-control': 'no-store' }).end(verdict.reason)
       return
@@ -746,7 +751,10 @@ function streamEvents(deps: ServerDeps, request: IncomingMessage, response: Serv
     connection: 'keep-alive',
   })
   response.write(formatEvent('state', deps.getState()))
-  const unsubscribe = deps.hub.subscribe((frame) => response.write(frame))
+  const unsubscribe = deps.hub.subscribe(
+    (frame) => response.write(frame),
+    () => response.end(),
+  )
   request.on('close', unsubscribe)
 }
 

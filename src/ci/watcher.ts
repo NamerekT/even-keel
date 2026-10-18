@@ -36,9 +36,11 @@ export class CiWatch {
   private jobsOf: string | null = null
   private tasksOf: { run: number; tasks: string[] } | null = null
   private busy = false
+  private source: CiSource | null
 
   constructor(private readonly deps: CiWatchDeps) {
     const { kind, remote, web, owner, repo } = deps.target
+    this.source = deps.source
     this.view = {
       kind,
       remote,
@@ -53,8 +55,18 @@ export class CiWatch {
     }
   }
 
+  /** The token changed: a new source is asked at the next tick, `null` turns the watch off. */
+  setSource(source: CiSource | null): void {
+    this.source = source
+    this.polledAt = -Infinity
+    this.view.checkedAt = null
+    this.view.health = source === null ? 'off' : 'ok'
+    this.view.error = source === null ? notice('ci.noToken', { variable: this.deps.variable }) : null
+    this.deps.onChange()
+  }
+
   async tick(): Promise<void> {
-    const source = this.deps.source
+    const source = this.source
     if (source === null || this.busy) return
     this.busy = true
     try {
@@ -72,7 +84,7 @@ export class CiWatch {
 
   /** A failed run with its jobs and the log tail of its first failed job, for the fix task; what cannot be read stays `null`. */
   async failed(run: CiRun): Promise<FailedRun> {
-    const source = this.deps.source
+    const source = this.source
     const failed: FailedRun = { kind: this.view.kind, run, jobs: null, log: null }
     if (source === null) return failed
     const current = this.view.current

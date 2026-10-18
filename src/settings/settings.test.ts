@@ -7,7 +7,7 @@ import { ADAPTERS } from '../tracker/adapters.js'
 import { changesOf, type RowChange } from './changes.js'
 import { fileRows, withRows } from './file.js'
 import { FULL } from './full.fixture.js'
-import { DEFINITIONS, RESTART_FIELDS } from './registry.js'
+import { DEFINITIONS } from './registry.js'
 import { checkRows, resolve, type SettingRow } from './resolve.js'
 
 const fixtures = join(root, 'test', 'fixtures')
@@ -121,10 +121,6 @@ describe('changes of a form', () => {
 })
 
 describe('the registry', () => {
-  it('waits for a restart on the same fields the config did before it', () => {
-    expect(new Set(RESTART_FIELDS)).toEqual(new Set(['projects', 'slots', 'tracker', 'trackers', 'trackerProjects', 'context']))
-  })
-
   it('has one definition per key, each at a level', () => {
     expect(new Set(DEFINITIONS.map((definition) => definition.key)).size).toBe(DEFINITIONS.length)
     expect(DEFINITIONS.filter((definition) => definition.scopes.length === 0)).toEqual([])

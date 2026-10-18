@@ -68,7 +68,6 @@ export function fakeConfig(): ConfigView {
       XYZ: project('D:/Projects/xyz', { slot: 2, chain: { ...DEFAULT_RULES, requiredLabels: ['Auto'] }, provider: 'codex', models: { codex: 'gpt-6.1-sol' }, modelLabels: true }),
       OPS: project('D:/Projects/ops', { beforeStart: ['npm ci'], check: ['npm run typecheck', 'npm test'], ci: { guard: false, kinds: [], waitMinutes: 0, recheckMain: false, fixTask: false } }),
     },
-    restart: [],
     trackers: [
       { name: 'huly', projectKey: null },
       { name: 'github', projectKey: { key: 'github', example: 'octo-org/example', optional: false } },
@@ -77,9 +76,6 @@ export function fakeConfig(): ConfigView {
     trackerLocked: ['ABC', 'DEMO'],
   }
 }
-
-/** `?config=restart` — saved values that wait for a restart of the service. */
-export const fakeRestart = (config: ConfigView): ConfigView => ({ ...config, restart: ['tracker', 'context', 'ABC.repo', 'XYZ.slot'] })
 
 /** `?config=edited`, a few seconds after the page opens — the file edited by hand under the forms: ABC's prompt and branch, the shared model. */
 export const fakeHandEdit = (config: ConfigView): ConfigView => {

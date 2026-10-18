@@ -175,12 +175,10 @@ export interface TrackerChoice {
   projectKey: { key: string; example: string; optional: boolean } | null
 }
 
-/** The config file as the settings show it: saved values, which may wait for a restart. */
+/** The config file as the settings show it: the saved values, all applied on the fly. */
 export interface ConfigView {
   shared: SharedForm
   projects: Record<string, ProjectForm>
-  /** What is saved but waits for a restart of the service: `tracker`, `context`, `ABC.repo`, `ABC.slot`, `ABC.tracker`, `ABC.trackerProject`, or `ABC` for a new project. */
-  restart: string[]
   trackers: TrackerChoice[]
   /** Projects the chain has started a task of: the page does not switch their tracker or tracker project until BTN-66. */
   trackerLocked: string[]

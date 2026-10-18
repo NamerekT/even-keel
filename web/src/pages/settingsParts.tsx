@@ -55,10 +55,6 @@ export function unplaced(project: string | null, error: Notice | null, config: C
   return at !== null && at.project === project ? null : error
 }
 
-export function RestartMark({ on }: { on: boolean }) {
-  return on ? <span className="settings__restart">{t.settings.restart}</span> : null
-}
-
 /** A question mark after a setting's name: pointed at or focused, it tells what the setting does. */
 export function HelpTip({ text, align }: { text: string; align?: TipAlign }) {
   const { shown, anchor, tip, show, hide, close } = useTip<HTMLButtonElement, HTMLSpanElement>(true, align)
@@ -90,9 +86,9 @@ export function HelpTip({ text, align }: { text: string; align?: TipAlign }) {
   )
 }
 
-/** A setting's name, its help and whether it waits for a restart. `htmlFor` ties the name to its control. */
+/** A setting's name and its help. `htmlFor` ties the name to its control. */
 /** `soon` — a badge for a field that is fixed for now: the version that will let it change. */
-export function FieldHead({ label, hint, htmlFor, restart = false, soon }: { label: string; hint?: string; htmlFor?: string; restart?: boolean; soon?: string }) {
+export function FieldHead({ label, hint, htmlFor, soon }: { label: string; hint?: string; htmlFor?: string; soon?: string }) {
   return (
     <span className="settings__head-row">
       {htmlFor === undefined ? (
@@ -103,7 +99,6 @@ export function FieldHead({ label, hint, htmlFor, restart = false, soon }: { lab
         </label>
       )}
       {hint !== undefined && <HelpTip text={hint} />}
-      <RestartMark on={restart} />
       {soon !== undefined && <span className="settings__soon">{soon}</span>}
     </span>
   )

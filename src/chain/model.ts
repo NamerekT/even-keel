@@ -156,7 +156,8 @@ export interface ProjectOrder {
 }
 
 export interface DispatcherDeps {
-  projects: string[]
+  /** The projects of the config as it is now. */
+  projects: () => string[]
   /** How many chains run at once; the rest wait in the queue. */
   parallel: () => number
   rules: (project: string) => ChainRules

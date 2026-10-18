@@ -3,12 +3,10 @@ import { DEFAULT_RULES } from './chain/rules.js'
 import {
   DEFAULT_CI,
   ignoredKeys,
-  liveConfig,
   listenOf,
   parseConfig,
   poolEntries,
   projectsByAccount,
-  restartChanges,
   runSettings,
   withIds,
   withProjectSettings,
@@ -533,98 +531,6 @@ describe('chain rules in the config', () => {
 
   it('reject a label that is both required and excluded', () => {
     expect(() => parse({ chain: { requiredLabels: ['Вручную'] }, projects: { ABC: 'C:\\abc' } })).toThrow(/ABC.*Вручную/)
-  })
-})
-
-describe('reloading the config', () => {
-  const base = parse({ projects: { ABC: 'C:\\abc' }, modelPrompts: { sonnet: 'Old.' } })
-
-  it('applies new chain rules, the shared run settings and model prompts at once', () => {
-    const next = parse({
-      chain: { requiredLabels: ['Auto'] },
-      projects: { ABC: 'C:\\abc' },
-      ...{ provider: 'codex', models: { claude: 'sonnet' }, accounts: { claude: 'team-api' }, execution: { codex: 'bypass' }, modelLabels: true },
-      modelPrompts: { opus: 'New.' },
-    })
-    const live = liveConfig(base, { ...next, stats: { compare: { minTasks: 3, minSessions: 6, days: 7 }, moves: {}, otherBelow: 0, checkpointTokens: null } })
-    expect(live.rules.ABC?.requiredLabels).toEqual(['Auto'])
-    expect(live).toMatchObject({ provider: 'codex', models: { claude: 'sonnet' }, accounts: { claude: 'team-api' }, execution: { codex: 'bypass' }, modelLabels: true })
-    expect(live.modelPrompts).toEqual({ opus: 'New.' })
-    expect(live.stats.compare.minTasks).toBe(3)
-    expect(restartChanges(base, next)).toEqual([])
-  })
-
-  it('applies the hidden skills at once', () => {
-    const next = parse({ projects: { ABC: 'C:\\abc' }, hiddenSkills: ['loop'] })
-    expect(liveConfig(base, next).hiddenSkills).toEqual(['loop'])
-    expect(restartChanges(base, next)).toEqual([])
-  })
-
-  it('applies the allowed host names at once', () => {
-    const next = parse({ projects: { ABC: 'C:\\abc' }, allowedHosts: ['pult.example.com'] })
-    expect(liveConfig(base, next).allowedHosts).toEqual(['pult.example.com'])
-    expect(restartChanges(base, next)).toEqual([])
-  })
-
-  it('applies the update settings at once', () => {
-    const next = parse({ projects: { ABC: 'C:\\abc' }, updates: { notify: false } })
-    expect(liveConfig(base, next).updates.notify).toBe(false)
-    expect(restartChanges(base, next)).toEqual([])
-  })
-
-  it('applies the number of parallel chains at once', () => {
-    const next = parse({ projects: { ABC: 'C:\\abc' }, parallel: 2 })
-    expect(liveConfig(base, next).parallel).toBe(2)
-    expect(restartChanges(base, next)).toEqual([])
-  })
-
-  it('applies brief at once', () => {
-    const next = parse({ projects: { ABC: { repo: 'C:\\abc', brief: false } } })
-    expect(liveConfig(base, next).briefs).toEqual({ ABC: false })
-    expect(restartChanges(base, next)).toEqual([])
-  })
-
-  it('applies the project prompt and the commands before start at once', () => {
-    const next = parse({ projects: { ABC: { repo: 'C:\\abc', prompt: 'Mind Library.', commands: { beforeStart: ['npm ci'] } } } })
-    expect(liveConfig(base, next).settings).toEqual({ ABC: { branch: 'main', prompt: 'Mind Library.', beforeStart: ['npm ci'], check: [], afterGreen: [], ci: DEFAULT_CI, fillMilestone: false, provider: null, models: {}, accounts: {}, modelLabels: null } })
-    expect(restartChanges(base, next)).toEqual([])
-  })
-
-  it('applies the main branch and the shared rules at once', () => {
-    const next = parse({ brief: false, chain: { requiredLabels: ['Auto'] }, projects: { ABC: { repo: 'C:\\abc', branch: 'master' } } })
-    expect(liveConfig(base, next)).toMatchObject({ brief: false, chain: { requiredLabels: ['Auto'] }, settings: { ABC: { branch: 'master' } } })
-    expect(restartChanges(base, next)).toEqual([])
-  })
-
-  it('applies the languages at once', () => {
-    const next = parse({ projects: { ABC: 'C:\\abc' }, language: 'ru', promptLanguage: 'en' })
-    expect(liveConfig(base, next)).toMatchObject({ language: 'ru', promptLanguage: 'en' })
-    expect(restartChanges(base, next)).toEqual([])
-  })
-
-  it('applies the prompt cache TTL at once', () => {
-    const next = parse({ projects: { ABC: 'C:\\abc' }, cacheTtl: '1h' })
-    expect(liveConfig(base, next)).toMatchObject({ cacheTtl: '1h' })
-    expect(restartChanges(base, next)).toEqual([])
-  })
-
-  it('keeps projects and context until a restart and names what waits for it', () => {
-    const next = parse({
-      projects: { ABC: 'C:\\moved', XYZ: { repo: 'C:\\xyz', chain: { requiredLabels: ['Auto'] } } },
-      context: { window: 1_000_000 },
-    })
-    const live = liveConfig(base, next)
-    expect(live.projects).toEqual({ ABC: 'C:\\abc' })
-    expect(live.rules).toEqual({ ABC: DEFAULT_RULES })
-    expect(live.context).toEqual(base.context)
-    expect(live.trackers).toEqual({ ABC: 'huly' })
-    expect(restartChanges(base, next)).toEqual(['projects', 'trackers', 'context'])
-  })
-
-  it('keeps the rules of a project the new file drops until a restart', () => {
-    const shaped = parse({ chain: { requiredLabels: ['Auto'] }, projects: { ABC: 'C:\\abc' } })
-    const next = parse({ projects: { XYZ: 'C:\\xyz' } })
-    expect(liveConfig(shaped, next).rules).toEqual({ ABC: shaped.rules.ABC })
   })
 })
 
