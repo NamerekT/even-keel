@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, onTestFinished } from 'vitest'
 import { Writes } from '../storage/database.js'
 import { memoryDatabase } from '../storage/memory.js'
 import { Mailbox } from './mailbox.js'
@@ -9,7 +9,10 @@ const OTHER = '66666666-7777-4888-8999-000000000000'
 
 async function relay(live: { sessionId: string; midTurn: boolean; asking: boolean } | undefined, resume: MailRelay['resume'] = () => {}) {
   let now = Date.parse('2026-10-18T10:00:00.000Z')
-  const mailbox = await Mailbox.open(await memoryDatabase(), new Writes(() => {}), () => new Date(now))
+  const writes = new Writes(() => {})
+  const mailbox = await Mailbox.open(await memoryDatabase(), writes, () => new Date(now))
+  // Runs before the database closes: hooks of a test finish last registered first.
+  onTestFinished(() => writes.settled())
   const resumed: { task: string; sessionId: string; prompt: string }[] = []
   const log: string[] = []
   let changes = 0
