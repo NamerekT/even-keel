@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { mailMessage } from './mail.js'
 import { TranscriptFold } from './transcript.js'
 
 const CWD = 'C:\\repos\\example-project'
@@ -632,6 +633,72 @@ describe('TranscriptFold', () => {
     it('takes a prompt as an ordinary one once the question is answered', () => {
       const summary = whole([ask(), result({ answers: { 'Which color?': 'Blue' } }), prompt('next')]).summary()
       expect(summary.feed.at(-1)).toMatchObject({ kind: 'prompt', text: 'next' })
+    })
+  })
+
+  describe('chat mailbox', () => {
+    const mail = (id: number, text: string, files: string[] = []) => ({
+      id,
+      task: 'ABC-1',
+      sessionId: 's',
+      text,
+      files,
+      postedAt: '2026-10-18T10:00:00.000Z',
+      fate: 'delivered' as const,
+      event: null,
+      settledAt: null,
+    })
+    const hookContext = (message: string) =>
+      JSON.stringify({ type: 'attachment', timestamp: at(), attachment: { type: 'hook_additional_context', content: [message], hookName: 'PostToolUse:Bash' } })
+    const whole = (lines: string[]) => {
+      const result = new TranscriptFold(Infinity, true)
+      for (const line of lines) result.push(line)
+      return result
+    }
+    const prompts = (fold: TranscriptFold) => fold.summary().feed.filter((line) => line.kind === 'prompt')
+
+    it('shows a message a hook put into the context as the user prompt, once per id', () => {
+      const message = mailMessage([mail(7, 'Use the other parser.', ['C:/w/.temp/inbox/a.png']), mail(8, 'And skip the cache.')], 'PostToolUse', 'en')
+      const summary = whole([hookContext(message), hookContext(message)])
+      expect(prompts(summary)).toEqual([
+        { at: expect.any(String), kind: 'prompt', text: 'Use the other parser.', files: ['C:/w/.temp/inbox/a.png'] },
+        { at: expect.any(String), kind: 'prompt', text: 'And skip the cache.' },
+      ])
+    })
+
+    it('ignores other attachments that happen to hold the mark', () => {
+      const message = mailMessage([mail(7, 'From a file.')], 'PostToolUse', 'en')
+      const edited = JSON.stringify({ type: 'attachment', timestamp: at(), attachment: { type: 'edited_text_file', snippet: message } })
+      expect(prompts(whole([edited]))).toEqual([])
+    })
+
+    it('shows a message given at a stop, without starting a new turn on the feedback', () => {
+      const feedback = JSON.stringify({
+        type: 'user',
+        timestamp: at(),
+        isMeta: true,
+        message: { role: 'user', content: `Stop hook feedback:\n${mailMessage([mail(9, 'One more thing.')], 'Stop', 'en')}` },
+      })
+      expect(prompts(whole([feedback]))).toEqual([{ at: expect.any(String), kind: 'prompt', text: 'One more thing.' }])
+    })
+
+    it('shows a message that turned a question down, and the question is not left waiting for an answer', () => {
+      const denied = JSON.stringify({
+        type: 'user',
+        timestamp: at(),
+        message: {
+          role: 'user',
+          content: [{ type: 'tool_result', tool_use_id: 'toolu_AskUserQuestion', content: mailMessage([mail(10, 'Not now.')], 'AskUserQuestion', 'en'), is_error: true }],
+        },
+      })
+      const summary = whole([assistant('m1', [tool('AskUserQuestion', { questions: [] })]), denied, JSON.stringify({ type: 'user', timestamp: at(), message: { role: 'user', content: 'later' } })])
+      expect(summary.summary().ask).toBeNull()
+      expect(prompts(summary).map((line) => line.text)).toEqual(['Not now.', 'later'])
+    })
+
+    it('does not read the mark out of an ordinary tool result', () => {
+      const read = toolResult('toolu_Read', [text(mailMessage([mail(11, 'In the source.')], 'PostToolUse', 'en'))])
+      expect(prompts(whole([assistant('m1', [tool('Read', { file_path: 'mail.ts' })]), read]))).toEqual([])
     })
   })
 

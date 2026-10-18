@@ -1,4 +1,5 @@
 import { questionsOf, replyParts, toolAnswers, type Ask, type AskAnswers } from './ask.js'
+import { mailIn } from './mail.js'
 import {
   blocksOf,
   describeTool,
@@ -144,6 +145,7 @@ export class TranscriptFold {
   /** The file name of each `Read` call of a whole transcript, until its result comes. */
   private readonly readFiles = new Map<string, string>()
   private turnStartedAt: string | null = null
+  private readonly mailSeen = new Set<number>()
   /** The tool lines of the turn's calls that have no result yet, by call id. */
   private readonly runningTools = new Map<string, string>()
 
@@ -170,6 +172,10 @@ export class TranscriptFold {
     }
     if (entry.type === 'system' && typeof entry.content === 'string' && entry.content.startsWith(REMOTE_DROPPED)) {
       this.remoteLost = true
+      return
+    }
+    if (entry.type === 'attachment' && entry.attachment?.type?.startsWith('hook_') === true) {
+      this.pushMail(entry.timestamp ?? '', stringsOf(entry.attachment).join('\n'))
       return
     }
     if (entry.type !== 'assistant' && entry.type !== 'user') return
@@ -291,12 +297,16 @@ export class TranscriptFold {
       }
     }
     const ask = this.openAsk
-    if (ask !== null && blocksOf(entry.message?.content).some((block) => block.type === 'tool_result' && block.tool_use_id === ask.id)) {
+    const askResult = ask === null ? undefined : blocksOf(entry.message?.content).find((block) => block.type === 'tool_result' && block.tool_use_id === ask.id)
+    if (ask !== null && askResult !== undefined) {
       this.openAsk = null
       const answers = toolAnswers(entry.toolUseResult)
-      if (answers === null) this.strayAsk = ask
-      else this.addFeed({ at: entry.timestamp ?? '', kind: 'answer', text: '', answers: { ask: ask.id, answers } })
+      // The mailbox hook turned the question down with the user's message: nothing is left to answer (BTN-181).
+      const declined = askResult.is_error === true && this.pushMail(entry.timestamp ?? '', failureText(askResult.content, Infinity))
+      if (answers !== null) this.addFeed({ at: entry.timestamp ?? '', kind: 'answer', text: '', answers: { ask: ask.id, answers } })
+      else if (!declined) this.strayAsk = ask
     }
+    if (isPrompt(entry.message?.content) && this.pushMail(entry.timestamp ?? '', promptOf(entry.message?.content))) return
     if (entry.usageLimitNote === 'wrap_up') {
       const at = entry.timestamp ?? ''
       this.wrapUp = { kind: 'limit', text: WRAP_UP_TEXT, at }
@@ -325,6 +335,21 @@ export class TranscriptFold {
       this.readFiles.delete(block.tool_use_id)
       this.addFeed({ at: entry.timestamp ?? '', kind: 'image', text, tool: block.tool_use_id, images })
     }
+  }
+
+  /**
+   * The chat's messages a hook of the mailbox gave the session, as the user's prompts, each id once; whether `text`
+   * held any. Read only where a hook's text lands, never from a tool's output: a Read of the source holds the mark too.
+   */
+  private pushMail(at: string, text: string): boolean {
+    const found = mailIn(text)
+    for (const { id, prompt } of found) {
+      if (this.mailSeen.has(id)) continue
+      this.mailSeen.add(id)
+      const line = userLine(at, prompt, null, (each) => this.textOf(each))
+      if (line !== null) this.addFeed(line)
+    }
+    return found.length > 0
   }
 
   private textOf(text: string): string {
@@ -371,10 +396,18 @@ export function callFacts(name: string, input: Record<string, unknown>, size: Ed
 }
 
 /** The start of a failed call's output; the rest stays in the transcript. */
-export function failureText(content: unknown): string {
+export function failureText(content: unknown, limit = ERROR_LIMIT): string {
   const text = typeof content === 'string' ? content : blocksOf(content).map((block) => block.text ?? '').join('\n')
   const trimmed = text.trim()
-  return trimmed.length > ERROR_LIMIT ? `${trimmed.slice(0, ERROR_LIMIT - 1)}…` : trimmed
+  return trimmed.length > limit ? `${trimmed.slice(0, limit - 1)}…` : trimmed
+}
+
+/** Every string inside a value, depth first: where a hook's text sits in an attachment differs between versions. */
+function stringsOf(value: unknown): string[] {
+  if (typeof value === 'string') return [value]
+  if (Array.isArray(value)) return value.flatMap(stringsOf)
+  if (typeof value === 'object' && value !== null) return Object.values(value).flatMap(stringsOf)
+  return []
 }
 
 function writtenTtl(usage: Usage): CacheTtl | null {
