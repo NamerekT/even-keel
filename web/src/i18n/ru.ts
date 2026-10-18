@@ -1159,6 +1159,16 @@ export const ru = {
     writeTip: (file: string) => `Положить раздел в ${file} и закоммитить в главную ветку`,
     since: (n: number) => `+${n} после записи`,
     sinceTip: 'Закрытые задачи вехи, появившиеся после последней записи ченджлога',
+    tokens: (amount: string) => `${amount} токенов`,
+    spentAll: (total: string) => `всего ${total}`,
+    tokensDetail: (input: string, output: string, cacheRead: string, cacheWrite: string) =>
+      `Токены: ${input} на вход, ${output} на выход, ${cacheRead} из кэша, ${cacheWrite} в кэш`,
+    paidByLimits: 'Списано с 5-часового и недельного лимитов аккаунта; доллары — по ценам API.',
+    paidByLimitsNoCost: 'Списано с лимитов аккаунта; этот агент не считает стоимость, только токены.',
+    paidByKey: 'Оплачено с баланса API-ключа аккаунта.',
+    spentTotal: (turns: number, total: string, unpriced: number) =>
+      `Все версии вехи: ${counted('ход', 'хода', 'ходов')(turns)}, ${total}${unpriced > 0 ? `, ещё ${unpriced} без стоимости` : ''}`,
+    notInStats: 'Эти ходы не оставляют транскрипта, поэтому /stats их не видит.',
   },
   chain: {
     legend: {

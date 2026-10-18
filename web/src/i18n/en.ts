@@ -1144,6 +1144,16 @@ export const en: Messages = {
     writeTip: (file: string) => `Put the section into ${file} and commit it to the main branch`,
     since: (n: number) => `+${n} since written`,
     sinceTip: 'Done tasks of the milestone closed after its changelog was last written',
+    tokens: (amount: string) => `${amount} tokens`,
+    spentAll: (total: string) => `${total} in all`,
+    tokensDetail: (input: string, output: string, cacheRead: string, cacheWrite: string) =>
+      `Tokens: ${input} in, ${output} out, ${cacheRead} read from cache, ${cacheWrite} written to cache`,
+    paidByLimits: "Spent from the account's 5-hour and weekly limits; the dollars are at API prices.",
+    paidByLimitsNoCost: "Spent from the account's limits; this agent counts no cost, only tokens.",
+    paidByKey: "Paid from the account's API key credit.",
+    spentTotal: (turns: number, total: string, unpriced: number) =>
+      `All versions of the milestone: ${counted('turn', 'turns')(turns)}, ${total}${unpriced > 0 ? `, ${unpriced} more without a cost` : ''}`,
+    notInStats: 'These turns keep no transcript, so /stats does not count them.',
   },
   chain: {
     legend: {

@@ -1,12 +1,16 @@
 import { useEffect, useId, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { diffSection, type DiffLine } from '../../../src/changelog/diff.js'
+import type { AccountEntry } from '../../../src/account/model.js'
 import { noticeOf, type Notice } from '../../../src/notice/notice.js'
-import type { ChangelogView } from '../../../src/state.js'
+import type { TokenTotals } from '../../../src/sessions/transcript.js'
+import type { ChangelogSpend, ChangelogSpent, ChangelogView } from '../../../src/state.js'
 import { sinceWritten, unaccounted } from '../changelog.js'
-import { formatMoment } from '../format.js'
+import { formatElapsed, formatMoment, formatTokens } from '../format.js'
 import { say, t } from '../i18n/index.js'
+import { accountName } from '../layout/accountParts.js'
 import { useLive } from '../live/context.js'
+import { formatUsd, modelVersionLabel } from '../stats/format.js'
 import { ChangelogIcon } from '../ui/icons.js'
 import { Tipped } from '../ui/Tipped.js'
 import '../tools/addPackage.css'
@@ -166,6 +170,12 @@ function ChangelogDialog({ project, milestone, onClose }: DialogProps) {
               {version.written === null
                 ? t.changelog.at(version.number, formatMoment(version.at, new Date()))
                 : t.changelog.written(view.file, version.written.commit.slice(0, SHORT_COMMIT))}
+              {(version.spend !== null || view.spent.turns > 0) && (
+                <>
+                  {' · '}
+                  <Spend spend={version.spend} spent={view.spent} accounts={state?.account.accounts ?? []} />
+                </>
+              )}
             </span>
           )}
           <span className="add-package__spacer" />
@@ -196,6 +206,45 @@ function ChangelogDialog({ project, milestone, onClose }: DialogProps) {
         </footer>
       </div>
     </dialog>
+  )
+}
+
+const allTokens = (tokens: TokenTotals) => tokens.input + tokens.output + tokens.cacheRead + tokens.cacheWrite
+
+/** A cost, or the tokens where the agent counts none (Codex). */
+const costText = (cost: number | null, tokens: TokenTotals) => (cost !== null ? formatUsd(cost) : t.changelog.tokens(formatTokens(allTokens(tokens))))
+
+/**
+ * What the version's turn cost and, past one turn, the milestone's all together; pointed at, whose limits or credit
+ * paid it, the model, the tokens by kind and the time.
+ */
+function Spend({ spend, spent, accounts }: { spend: ChangelogSpend | null; spent: ChangelogSpent; accounts: AccountEntry[] }) {
+  const entry = spend === null ? undefined : accounts.find((each) => each.key === spend.account)
+  const total = spent.unpriced === spent.turns ? costText(null, spent.tokens) : formatUsd(spent.cost)
+  const label = [spend === null ? '' : costText(spend.cost, spend.tokens), spent.turns > 1 || spend === null ? t.changelog.spentAll(total) : '']
+    .filter((part) => part !== '')
+    .join(' · ')
+  const tip = (
+    <>
+      {spend !== null && (
+        <>
+          <span className="tip__head">
+            {[entry === undefined ? spend.account : accountName(entry), spend.model === null ? '' : modelVersionLabel(spend.model), formatElapsed(spend.durationMs)]
+              .filter((part) => part !== '')
+              .join(' · ')}
+          </span>
+          <span>{t.changelog.tokensDetail(formatTokens(spend.tokens.input), formatTokens(spend.tokens.output), formatTokens(spend.tokens.cacheRead), formatTokens(spend.tokens.cacheWrite))}</span>
+          <span>{entry?.apiKey === true ? t.changelog.paidByKey : spend.cost === null ? t.changelog.paidByLimitsNoCost : t.changelog.paidByLimits}</span>
+        </>
+      )}
+      {spent.turns > 0 && <span>{t.changelog.spentTotal(spent.turns, total, spent.unpriced === spent.turns ? 0 : spent.unpriced)}</span>}
+      <span className="tip__muted">{t.changelog.notInStats}</span>
+    </>
+  )
+  return (
+    <Tipped tip={tip} inline focusable align="start">
+      {label}
+    </Tipped>
   )
 }
 

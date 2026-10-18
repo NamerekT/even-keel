@@ -304,6 +304,33 @@ export interface ChangelogVersion {
   at: string
   /** When it was written to the file, by which commit (empty when the file already had the text). */
   written: { at: string; commit: string } | null
+  /** What the agent's turn that wrote it cost; `null` — kept before the cost was. */
+  spend: ChangelogSpend | null
+}
+
+/** What a turn of its own cost (`Agent.write`). */
+export interface TurnSpend {
+  /** The model that answered, as the agent names it; `null` — the agent does not say. */
+  model: string | null
+  tokens: TokenTotals
+  /** In dollars at API prices, as the agent counts it; `null` — the agent counts none (Codex). */
+  cost: number | null
+  durationMs: number
+}
+
+/** A changelog turn's cost and the account folder whose limits or credit paid it. */
+export interface ChangelogSpend extends TurnSpend {
+  account: string
+}
+
+/** Every turn of a milestone's changelog versions together. */
+export interface ChangelogSpent {
+  turns: number
+  /** Of the turns with a cost. */
+  cost: number
+  /** Turns whose agent counts no cost: only their tokens are in. */
+  unpriced: number
+  tokens: TokenTotals
 }
 
 /** What the page asks of the milestone's changelog draft (`src/changelog/drafts.ts`). */
@@ -319,6 +346,7 @@ export interface ChangelogView {
   /** The milestone's newest tag; `null` — not released. */
   released: string | null
   version: ChangelogVersion
+  spent: ChangelogSpent
 }
 
 export interface FallbackLaunch {

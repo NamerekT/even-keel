@@ -7,7 +7,7 @@ import { setTimeout as delay } from 'node:timers/promises'
 import { promisify } from 'node:util'
 import type { AccountHome } from '../account/homes.js'
 import { parseAuthStatus, type AccountStatus } from '../account/model.js'
-import { gatewayName, type OneTurn, type SessionStart } from '../agent/contract.js'
+import { gatewayName, type OneTurn, type OneTurnAnswer, type SessionStart } from '../agent/contract.js'
 import { runWithInput } from '../agent/oneturn.js'
 import { fail, notice, NoticeError, type Notice } from '../notice/notice.js'
 import { samePath } from '../paths.js'
@@ -83,7 +83,7 @@ export class ClaudeCli {
     return stdout
   }
 
-  async write(home: AccountHome, { cwd, prompt, model, timeoutMs }: OneTurn): Promise<string> {
+  async write(home: AccountHome, { cwd, prompt, model, timeoutMs }: OneTurn): Promise<OneTurnAnswer> {
     return parseWriteAnswer(await runWithInput(this.bin(), writeArgs(model), prompt, { cwd, env: this.envOf(home), timeoutMs }))
   }
 
@@ -202,13 +202,36 @@ export function writeArgs(model: string | null): string[] {
   ]
 }
 
-/** The answer of `writeArgs`' turn; throws with the CLI's own words when the turn failed. */
-export function parseWriteAnswer(stdout: string): string {
-  const answer = JSON.parse(stdout) as { subtype?: string; is_error?: boolean; result?: unknown }
+type ModelUsage = { inputTokens?: number; outputTokens?: number; cacheReadInputTokens?: number; cacheCreationInputTokens?: number; costUSD?: number }
+
+/**
+ * The answer of `writeArgs`' turn and its cost; throws with the CLI's own words when the turn failed. The tokens come
+ * from `modelUsage`, every call of the turn by model: the top `usage` counts only the last call.
+ */
+export function parseWriteAnswer(stdout: string): OneTurnAnswer {
+  const answer = JSON.parse(stdout) as {
+    subtype?: string
+    is_error?: boolean
+    result?: unknown
+    duration_ms?: number
+    total_cost_usd?: number
+    modelUsage?: Record<string, ModelUsage>
+  }
   if (answer.is_error === true || typeof answer.result !== 'string') {
     throw new Error(typeof answer.result === 'string' && answer.result !== '' ? answer.result : `the turn ended with ${answer.subtype ?? 'no result'}`)
   }
-  return answer.result
+  const models = Object.entries(answer.modelUsage ?? {})
+  const sum = (field: keyof ModelUsage) => models.reduce((total, [, usage]) => total + (usage[field] ?? 0), 0)
+  const costliest = models.reduce<[string, ModelUsage] | null>((best, each) => (best === null || (each[1].costUSD ?? 0) > (best[1].costUSD ?? 0) ? each : best), null)
+  return {
+    text: answer.result,
+    spend: {
+      model: costliest?.[0] ?? null,
+      tokens: { input: sum('inputTokens'), output: sum('outputTokens'), cacheRead: sum('cacheReadInputTokens'), cacheWrite: sum('cacheCreationInputTokens') },
+      cost: typeof answer.total_cost_usd === 'number' ? answer.total_cost_usd : null,
+      durationMs: answer.duration_ms ?? 0,
+    },
+  }
 }
 
 /**

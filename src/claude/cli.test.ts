@@ -25,7 +25,37 @@ describe('writeArgs', () => {
 
 describe('parseWriteAnswer', () => {
   it('gives the result text of a successful turn', () => {
-    expect(parseWriteAnswer(JSON.stringify({ type: 'result', subtype: 'success', is_error: false, result: '## [v0.1]' }))).toBe('## [v0.1]')
+    expect(parseWriteAnswer(JSON.stringify({ type: 'result', subtype: 'success', is_error: false, result: '## [v0.1]' })).text).toBe('## [v0.1]')
+  })
+
+  // Shaped as CLI 2.1.302 prints it: `modelUsage` counts every call of the turn, the top `usage` only the last one.
+  it('gives the cost, the tokens of every model and the model that cost the most', () => {
+    const answer = parseWriteAnswer(
+      JSON.stringify({
+        type: 'result',
+        subtype: 'success',
+        is_error: false,
+        result: '## [v0.1]',
+        duration_ms: 29_000,
+        total_cost_usd: 0.42,
+        usage: { input_tokens: 2, output_tokens: 4, cache_read_input_tokens: 0, cache_creation_input_tokens: 0 },
+        modelUsage: {
+          'claude-haiku-5-5': { inputTokens: 100, outputTokens: 10, cacheReadInputTokens: 0, cacheCreationInputTokens: 0, costUSD: 0.01 },
+          'claude-sonnet-5-5': { inputTokens: 1_000, outputTokens: 2_000, cacheReadInputTokens: 150_000, cacheCreationInputTokens: 40_000, costUSD: 0.41 },
+        },
+      }),
+    )
+    expect(answer.spend).toEqual({
+      model: 'claude-sonnet-5-5',
+      tokens: { input: 1_100, output: 2_010, cacheRead: 150_000, cacheWrite: 40_000 },
+      cost: 0.42,
+      durationMs: 29_000,
+    })
+  })
+
+  it('gives no model and no cost when the answer has none', () => {
+    const answer = parseWriteAnswer(JSON.stringify({ type: 'result', subtype: 'success', is_error: false, result: 'x' }))
+    expect(answer.spend).toEqual({ model: null, tokens: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 }, cost: null, durationMs: 0 })
   })
 
   it('throws on an error turn and on output that is not the result', () => {

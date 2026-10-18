@@ -1,10 +1,40 @@
 import { describe, expect, it } from 'vitest'
-import { parseLoginStatus, turnArgs, writeArgs } from './cli.js'
+import { parseLoginStatus, parseWriteAnswer, turnArgs, writeArgs } from './cli.js'
 
 describe('writeArgs', () => {
-  it('asks for one read-only turn that keeps no rollout and reads the prompt from stdin', () => {
-    expect(writeArgs(null)).toEqual(['exec', '--sandbox', 'read-only', '--ephemeral', '--color', 'never', '-'])
-    expect(writeArgs('gpt-6.1-sol')).toEqual(['exec', '--sandbox', 'read-only', '--ephemeral', '--color', 'never', '-m', 'gpt-6.1-sol', '-'])
+  it('asks for one read-only turn that keeps no rollout, prints its events and reads the prompt from stdin', () => {
+    expect(writeArgs(null)).toEqual(['exec', '--json', '--sandbox', 'read-only', '--ephemeral', '--color', 'never', '-'])
+    expect(writeArgs('gpt-6.1-sol')).toEqual(['exec', '--json', '--sandbox', 'read-only', '--ephemeral', '--color', 'never', '-m', 'gpt-6.1-sol', '-'])
+  })
+})
+
+describe('parseWriteAnswer', () => {
+  const events = (...lines: object[]) => lines.map((line) => JSON.stringify(line)).join('\n')
+
+  it('gives the last message and the tokens of the turn, no cost', () => {
+    const answer = parseWriteAnswer(
+      events(
+        { type: 'thread.started', thread_id: 't' },
+        { type: 'turn.started' },
+        { type: 'item.completed', item: { id: 'item_0', type: 'agent_message', text: 'Reading the tasks.' } },
+        { type: 'item.completed', item: { id: 'item_1', type: 'command_execution', command: 'ls' } },
+        { type: 'item.completed', item: { id: 'item_2', type: 'agent_message', text: '## [0.1.0]\n\n- A' } },
+        { type: 'turn.completed', usage: { input_tokens: 50_000, cached_input_tokens: 30_000, output_tokens: 2_000 } },
+      ),
+      'gpt-6.1-sol',
+      12_000,
+    )
+    expect(answer).toEqual({
+      text: '## [0.1.0]\n\n- A',
+      spend: { model: 'gpt-6.1-sol', tokens: { input: 20_000, output: 2_000, cacheRead: 30_000, cacheWrite: 0 }, cost: null, durationMs: 12_000 },
+    })
+  })
+
+  it("throws with Codex's words when the turn failed or said nothing", () => {
+    expect(() =>
+      parseWriteAnswer(events({ type: 'turn.started' }, { type: 'turn.failed', error: { message: 'model not supported' } }), null, 0),
+    ).toThrow('model not supported')
+    expect(() => parseWriteAnswer(events({ type: 'turn.started' }, { type: 'turn.completed', usage: {} }), null, 0)).toThrow('no message')
   })
 })
 

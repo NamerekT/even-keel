@@ -87,6 +87,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
   - **Add N** works in only the tasks closed since the last version, an edit can be asked for in words, and the changes against the previous version are highlighted.
   - **Write** puts the section into the file and commits only that file to the main branch. A released section (one with a tag) stays frozen, and new tasks go into the next one.
   - The milestone's head counts the tasks done since the section was written, and the drafts survive a restart.
+  - Each version shows what its turn cost, on which account and model, and the milestone's total.
 
 ### Security
 

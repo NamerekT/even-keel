@@ -578,7 +578,9 @@ const changelogs = new ChangelogDrafts({
     if (agent.write === undefined) throw fail('changelog.noAgent', { project })
     console.log(`changelog: ${project} writes a draft on ${home.key}`)
     try {
-      return await agent.write(home, { cwd: configStore.current.projects[project]!, prompt, model, timeoutMs: CHANGELOG_TIMEOUT_MS })
+      const { text, spend } = await agent.write(home, { cwd: configStore.current.projects[project]!, prompt, model, timeoutMs: CHANGELOG_TIMEOUT_MS })
+      console.log(`changelog: ${project} draft on ${home.key} cost ${spend.cost === null ? 'unknown' : `$${spend.cost.toFixed(2)}`}`)
+      return { text, spend: { ...spend, account: home.key } }
     } catch (error) {
       throw fail('changelog.failed', { project }, { detail: error instanceof Error ? error.message : String(error) }, { cause: error })
     }

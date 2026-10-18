@@ -5,7 +5,7 @@ import type { UsageAnswer } from '../limits/usage.js'
 import type { AgentEntry, SessionRecord as LiveRecord } from '../sessions/agents.js'
 import type { TranscriptImage } from '../sessions/entry.js'
 import type { Feed, TranscriptSummary } from '../sessions/transcript.js'
-import type { SessionRecord } from '../state.js'
+import type { SessionRecord, TurnSpend } from '../state.js'
 
 /**
  * The contract of an agent adapter. Even Keel runs chain sessions, reads their transcripts and signs accounts in
@@ -60,6 +60,12 @@ export interface OneTurn {
   /** As `SessionStart.model`. */
   model: string | null
   timeoutMs: number
+}
+
+/** The answer of `Agent.write` and what its turn cost. */
+export interface OneTurnAnswer {
+  text: string
+  spend: TurnSpend
 }
 
 /** A server of the gateway: the session reaches it at `url` with no credentials of its own. */
@@ -151,8 +157,8 @@ export interface Agent {
   stopDaemon?(home: AccountHome): Promise<void>
   /** Optional. The live sessions' own records, for the apps panel (which account an editor's chats run on). */
   liveRecords?(home: AccountHome): Promise<LiveRecord[]>
-  /** Optional. Runs a turn of its own and returns the answer's text; Even Keel writes changelog drafts with it (`src/changelog/`). */
-  write?(home: AccountHome, turn: OneTurn): Promise<string>
+  /** Optional. Runs a turn of its own and returns the answer's text and cost; Even Keel writes changelog drafts with it (`src/changelog/`). */
+  write?(home: AccountHome, turn: OneTurn): Promise<OneTurnAnswer>
   /** Optional. Remote Control: whether the account starts sessions with it, and the bridge of a live session. */
   remote?: RemoteControl
 }

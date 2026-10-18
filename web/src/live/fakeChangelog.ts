@@ -1,5 +1,5 @@
 import { fail } from '../../../src/notice/notice.js'
-import type { ChangelogKind, ChangelogVersion, ChangelogView, EvenKeelState } from '../../../src/state.js'
+import type { ChangelogKind, ChangelogSpend, ChangelogSpent, ChangelogVersion, ChangelogView, EvenKeelState } from '../../../src/state.js'
 import { unaccounted } from '../changelog.js'
 import { projectTasks } from '../state.js'
 
@@ -56,7 +56,30 @@ function version(
   tasks: string[],
   written: ChangelogVersion['written'] = null,
 ): ChangelogVersion {
-  return { project, milestone, number, kind, text, base, instruction, tasks, open: 2, at: written?.at ?? new Date().toISOString(), written }
+  // The written one stands for a version kept before its spend was; an edit costs less than a draft from all tasks.
+  const spend: ChangelogSpend | null =
+    written !== null
+      ? null
+      : {
+          account: 'jane.roe',
+          model: 'claude-sonnet-5-5',
+          tokens: kind === 'edit' ? { input: 6, output: 900, cacheRead: 18_000, cacheWrite: 4_200 } : { input: 12, output: 2_600, cacheRead: 152_000, cacheWrite: 48_000 },
+          cost: kind === 'edit' ? 0.04 : 0.42,
+          durationMs: kind === 'edit' ? 11_000 : 29_000,
+        }
+  return { project, milestone, number, kind, text, base, instruction, tasks, open: 2, at: written?.at ?? new Date().toISOString(), written, spend }
+}
+
+function spentOf(history: ChangelogVersion[]): ChangelogSpent {
+  const spent: ChangelogSpent = { turns: 0, cost: 0, unpriced: 0, tokens: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 } }
+  for (const { spend } of history) {
+    if (spend === null) continue
+    spent.turns += 1
+    spent.cost += spend.cost ?? 0
+    spent.unpriced += spend.cost === null ? 1 : 0
+    for (const key of ['input', 'output', 'cacheRead', 'cacheWrite'] as const) spent.tokens[key] += spend.tokens[key]
+  }
+  return spent
 }
 
 function ago(minutes: number): string {
@@ -82,7 +105,7 @@ export async function fakeChangelog(state: EvenKeelState, name: string, body: Re
   const milestone = String(body.milestone)
   const history = historyOf(project, milestone)
   const latest = history.at(-1) ?? null
-  const view = (each: ChangelogVersion): ChangelogView => ({ project, milestone, file: FILE, released: null, version: each })
+  const view = (each: ChangelogVersion): ChangelogView => ({ project, milestone, file: FILE, released: null, version: each, spent: spentOf(history) })
   if (op === 'open' && latest !== null) return view(latest)
   if (op === 'write') {
     if (latest === null) throw fail('changelog.noDraft', { milestone })
