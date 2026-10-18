@@ -101,11 +101,11 @@ Each project needs:
 
 #### 1. Minimum: the adapter only
 
-Even Keel reads the tasks itself, puts the title and description of the task into the session's prompt, and closes the task when its branch lands in `main`. You set the tracker's variables in `.env`, or on `/settings` → **Access**, and nothing else.
+Even Keel reads the tasks itself, puts the title and description of the task into the session's prompt, and closes the task when its branch lands in `main`. You add a **tracker profile** on `/settings` → **Access** → **Add profile**, and nothing else: pick the tracker, fill in its fields, press **Check** — Even Keel signs in and shows whom as — then **Save**. A profile is saved only once the tracker took it; the page never shows a saved token or password again. Profiles live in Even Keel's state database on your machine, not in git.
 
-- **Huly:** `HULY_URL`, `HULY_WORKSPACE`, `HULY_EMAIL`, `HULY_PASSWORD`. The project key in the config is the Huly project identifier (`ABC` for `ABC-12`).
-- **GitHub:** `GITHUB_TOKEN` — a [fine-grained token](https://github.com/settings/personal-access-tokens) with **Issues: Read and write** on the repositories. A project names its repository: `{ "repo": "…", "tracker": "github", "github": "octo-org/abc" }`. GitHub has no backlog, so keep entry to the chain on a label: `"chain": { "requiredLabels": ["ready"] }`. Details and the mapping of statuses, blockers, sub-issues and priorities: [plugins/github/README.md](plugins/github/README.md).
-- **Linear:** `LINEAR_TOKEN` — a [personal API key](https://linear.app/settings/account/security). The project key in the config is the team key (`ENG` for `ENG-12`); `"linear": "Web app"` narrows the team down to one Linear project: `{ "repo": "…", "tracker": "linear", "linear": "Web app" }`. Details and the mapping: [plugins/linear/README.md](plugins/linear/README.md).
+- **Huly:** the server address, the workspace, and a token or an e-mail and a password of an account with access to the projects. The project key in the config is the Huly project identifier (`ABC` for `ABC-12`).
+- **GitHub:** a [fine-grained token](https://github.com/settings/personal-access-tokens/new) with **Issues: Read and write** on the repositories, and **Actions: Read** if you want to see their GitHub Actions. A fine-grained token covers one owner: a personal repository and an organization's need a profile each. The profile shows when its token expires. A project names its repository: `{ "repo": "…", "tracker": "github", "github": "octo-org/abc" }`. GitHub has no backlog, so keep entry to the chain on a label: `"chain": { "requiredLabels": ["ready"] }`. Details and the mapping of statuses, blockers, sub-issues and priorities: [plugins/github/README.md](plugins/github/README.md).
+- **Linear:** a [personal API key](https://linear.app/settings/account/security) with write access. The project key in the config is the team key (`ENG` for `ENG-12`); `"linear": "Web app"` narrows the team down to one Linear project: `{ "repo": "…", "tracker": "linear", "linear": "Web app" }`. Details and the mapping: [plugins/linear/README.md](plugins/linear/README.md).
 
 On this level the session does not write to the tracker. What you do not get:
 
@@ -127,16 +127,18 @@ claude plugin marketplace add <git URL or local path of this repository>
 or inside a session: `/plugin marketplace add …`. Then:
 
 1. On the `/tools` page, press **Add a package** under Packages, choose **Plugin** and pick `huly@even-keel` (or `github@even-keel`, `linear@even-keel`) for every project or one. Even Keel copies the plugin, installs a pinned version of its MCP server and gives both to every chain session at launch; turn it off per project in the table. A plugin your projects already had enabled when you upgraded is in the table already.
-2. The MCP server takes the tracker's credentials Even Keel already has in its `.env` (`HULY_*`, `GITHUB_TOKEN`, `LINEAR_TOKEN`): it runs behind a local gateway on `127.0.0.1:4748` (`EVEN_KEEL_MCP_PORT`), so the sessions never see them. A missing key shows in **Keys** on the same page, and the project's chain waits until it is set.
+2. The MCP server takes the credentials of the project's tracker profile: it runs behind a local gateway on `127.0.0.1:4748` (`EVEN_KEEL_MCP_PORT`), so the sessions never see them. Another key a package needs shows in **Keys** on the same page, and the project's chain waits until it is set.
 3. Turn the brief off for the project, or the session reads its task twice: `{ "repo": "…", "brief": false }`. With `brief` off the chain waits while no package of the project brings the tracker's MCP server.
 
-Sessions you start by hand get none of this: for them, `claude plugin install huly@even-keel --scope project` in the project and the credentials in the `env` of `~/.claude/settings.json` (`HULY_URL`, `HULY_WORKSPACE`, `HULY_TOKEN` or `HULY_EMAIL` and `HULY_PASSWORD`; `GITHUB_PERSONAL_ACCESS_TOKEN`; `LINEAR_API_KEY`).
+Sessions you start by hand get none of this: for them, `claude plugin install huly@even-keel --scope project` in the project and the credentials in the `env` of `~/.claude/settings.json` (`HULY_URL`, `HULY_WORKSPACE`, `HULY_TOKEN` or `HULY_EMAIL` and `HULY_PASSWORD`; `GITHUB_PERSONAL_ACCESS_TOKEN`; `LINEAR_API_KEY`). Even Keel writes the default profile of each tracker there itself; a session started by hand never gets another profile.
 
 The GitHub skill sets "blocked by" links through the [GitHub CLI](https://cli.github.com/), so `gh auth login` once. Everything else — troubleshooting, what the skills do — is in [plugins/huly/README.md](plugins/huly/README.md), [plugins/github/README.md](plugins/github/README.md) and [plugins/linear/README.md](plugins/linear/README.md).
 
 ### Several trackers
 
-Each project has its own tracker (`tracker` in the project's entry, or one for all at the top level), and they work at the same time: project A on Huly, project B on GitHub. There is one connection per kind of tracker — one Huly workspace, one GitHub token, one Linear key. Several connections of the same tracker are not supported yet.
+Each project has its own tracker (`tracker` in the project's entry, or one for all at the top level), and they work at the same time: project A on Huly, project B on GitHub. A tracker can have several profiles — two Huly workspaces, a personal GitHub token and an organization's — and each project picks one (the **Profile** field when you add it, or in its settings until its first task runs). One profile of each tracker is the default: projects without a choice run on it, it is the one sessions started by hand get, and it gives the GitHub Actions token to projects of other trackers. A profile whose token is refused turns red on **Access**, and the chains on it pause until it is fixed.
+
+Git is not part of this: pushes go through your own git and its credentials (SSH, the credential manager), whatever the profiles are. A project on Huly with a remote on GitHub works as is, and its CI is found by the remote.
 
 ### 4. Run
 
@@ -211,16 +213,15 @@ The statistics database is versioned too: the collector brings its schema up to 
 
 ## Environment
 
-`.env` in the repository root. Even Keel watches it and applies a change without a restart: a tracker connects again with its new credentials, a CI watch takes its new token, the page moves to a new address. Only the variables marked "read at startup" below need a restart. A tracker whose variables are all empty is off; set in part, it is off too, and the log says what is missing.
+`.env` in the repository root. Even Keel watches it and applies a change without a restart: a CI watch takes its new token, the page moves to a new address. Only the variables marked "read at startup" below need a restart.
 
-The credentials can also be set on the page: `/settings` → **Access** has a row per variable, each with its own field and **Apply**. It edits only that line of `.env`, comments and order kept; a tracker key also goes into the `env` of `~/.claude/settings.json`, so that sessions you start by hand get it too. The page never shows the value of a password, token or key, only whether it is set; addresses, workspaces and e-mails are shown as they are. A variable set in the service's own environment rather than in `.env` cannot be changed there.
+The trackers' credentials are not here but in the profiles (see [Several trackers](#several-trackers)); a profile's change applies at once too. On the first start Even Keel turns the tracker variables it finds in `.env` (`HULY_URL`, `HULY_WORKSPACE`, `HULY_TOKEN` or `HULY_EMAIL` and `HULY_PASSWORD`; `GITHUB_TOKEN`; `LINEAR_TOKEN`) into the default profile of each tracker, once, and says so in the log; after that it no longer reads them.
+
+The variables below can also be set on the page: `/settings` → **Access** has a row per variable, each with its own field and **Apply**. It edits only that line of `.env`, comments and order kept. The page never shows the value of a password, token or key, only whether it is set; addresses and names are shown as they are. A variable set in the service's own environment rather than in `.env` cannot be changed there.
 
 | Variable | |
 | --- | --- |
-| `HULY_URL`, `HULY_WORKSPACE`, `HULY_EMAIL`, `HULY_PASSWORD` | Huly adapter |
-| `GITHUB_TOKEN` | GitHub adapter |
-| `LINEAR_TOKEN` | Linear adapter |
-| `FORGEJO_TOKEN` | CI runs on a Forgejo remote: a token with read access to repositories. GitHub Actions on a `github.com` remote takes `GITHUB_TOKEN`, which then also needs **Actions: Read**. Without its token a CI shows as not connected |
+| `FORGEJO_TOKEN` | CI runs on a Forgejo remote: a token with read access to repositories; without it that CI shows as not connected. GitHub Actions on a `github.com` remote takes the token of the project's GitHub profile, or of the default GitHub profile for a project on another tracker; it needs **Actions: Read**. Without a GitHub profile that reaches the repository's Actions, that CI is not shown at all |
 | `EVEN_KEEL_ACCOUNTS_DIR` | folder of the extra Claude account folders; default `~/.claude-accounts` |
 | `EVEN_KEEL_CLAUDE_BIN` | path to the `claude` binary |
 | `EVEN_KEEL_CODEX_BIN` | path to the `codex` binary; default the native one of the global npm package on Windows, `codex` elsewhere |
@@ -310,7 +311,7 @@ The chain never talks to a tracker directly: it reads tasks through an adapter. 
 
 ### A plugin for it
 
-A plugin gives sessions the tracker's MCP server and a skill for working a task. Use [plugins/huly](plugins/huly) as the pattern: `.claude-plugin/plugin.json`, `.mcp.json` with the server, `skills/task/SKILL.md`; add an entry to [.claude-plugin/marketplace.json](.claude-plugin/marketplace.json) and name the server in the adapter's `mcpServer`, so that Even Keel can check sessions see it. When the server's `${…}` placeholder names the adapter's key differently, declare it in the adapter's `mcpKeys` (`{ LINEAR_API_KEY: 'LINEAR_TOKEN' }`), so the gateway fills it from the same `.env`. Raise the plugin's `version` on every change: installed copies are cached by version.
+A plugin gives sessions the tracker's MCP server and a skill for working a task. Use [plugins/huly](plugins/huly) as the pattern: `.claude-plugin/plugin.json`, `.mcp.json` with the server, `skills/task/SKILL.md`; add an entry to [.claude-plugin/marketplace.json](.claude-plugin/marketplace.json) and name the server in the adapter's `mcpServer`, so that Even Keel can check sessions see it. When the server's `${…}` placeholder names the adapter's key differently, declare it in the adapter's `mcpKeys` (`{ LINEAR_API_KEY: 'LINEAR_TOKEN' }`), so the gateway fills it from the project's profile. Raise the plugin's `version` on every change: installed copies are cached by version.
 
 ### Where it could grow
 

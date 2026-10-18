@@ -53,13 +53,16 @@ The contract is two calls: `runs(limit)` — the latest runs, newest first; `job
 
 ## Which CI a project has
 
-Read from `git config --get-regexp ^remote\..*\.url$` and the workflow folders of the project's checkout when the project appears in the config or its `repo` changes (`CiWatches.apply`, `src/ci/watches.ts`); a new remote or a first workflow in the same checkout is picked up only after a restart. A changed `GITHUB_TOKEN`/`FORGEJO_TOKEN` in `.env` gives every watch a new source at once (`CiWatches.tokensChanged`).
+Read from `git config --get-regexp ^remote\..*\.url$` and the workflow folders of the project's checkout when the project appears in the config or its `repo` changes (`CiWatches.apply`, `src/ci/watches.ts`); a new remote or a first workflow in the same checkout is picked up only after a restart. A changed `FORGEJO_TOKEN` in `.env` or a changed profile gives every watch a new source at once (`CiWatches.tokensChanged`).
 
 - A `github.com` remote with `.github/workflows` — GitHub Actions.
 - Any other host — Forgejo, if the repository has `.forgejo/workflows`, or `.github/workflows` (Forgejo falls back to it when it has none of its own).
 - No remote or no workflows — no CI and no badge.
 
-Tokens come only from the environment: `FORGEJO_TOKEN` for Forgejo, `GITHUB_TOKEN` (shared with the GitHub tracker, needs **Actions: Read**) for GitHub. Without one the CI shows as `off` with the notice `ci.noToken` and is never asked.
+The token is chosen per remote (`ciToken`, `src/ci/adapters.ts`). The CI is a property of the remote, not of the tracker: a project on Huly with a `github.com` remote has GitHub Actions too (Even Keel itself).
+
+- Forgejo: `FORGEJO_TOKEN` of `.env` (a Forgejo profile is BTN-201). Without it the CI shows as `off` with the notice `ci.noToken` and is never asked.
+- GitHub Actions: the project's tracker profile if it is a GitHub one, else the default GitHub profile (`docs/trackers.md`, "Profiles"); the token needs **Actions: Read**. With no GitHub profile at all, or when the token does not reach the repository's Actions (`ci.denied`, HTTP 404), the CI of that remote is not shown at all, with no error (`CiWatch.hidden`): the page and the main check take only `CiWatches.shown(project)`, and the profile's card on Access says why in its tip (`ProfileView.hiddenCi`). A choice of profile per remote is v0.2 (BTN-66).
 
 ## A push of Markdown only (this repository's workflows)
 

@@ -77,9 +77,10 @@ schema version of a file of the format.
 
 ### Not settings
 
-- **Credentials** — `HULY_*`, `GITHUB_TOKEN`, `LINEAR_TOKEN`, `FORGEJO_TOKEN`, `EVEN_KEEL_TOKEN`, Tally's own Postgres
-  and classifier: stay in `.env` (invariant 3), written from the "Access" tab of `/settings` one at a time (BTN-131,
-  "Credentials" below), never in a draft or the database.
+- **Credentials** — never in a draft or the settings tables. The trackers' (`HULY_*`, `GITHUB_TOKEN`, `LINEAR_TOKEN`)
+  are profiles in the state database (BTN-200, `docs/trackers.md`, "Profiles"); `FORGEJO_TOKEN`, `EVEN_KEEL_TOKEN`,
+  Tally's own Postgres and classifier stay in `.env`, written from the "Access" tab of `/settings` one at a time
+  (BTN-131, "Credentials" below). Both are outside git (invariant 3).
 - **The address** — `EVEN_KEEL_HOST`, `EVEN_KEEL_PORT`, `EVEN_KEEL_MCP_PORT`: read before anything else, from the
   environment.
 - **Locations and binaries** — `EVEN_KEEL_CONFIG` (since BTN-199 only the file imported at the first start),
@@ -229,14 +230,14 @@ database ─────────── readSettings ──┘               
 
 ## Credentials (BTN-131)
 
-The "Access" tab of `/settings` (`web/src/pages/SettingsSecrets.tsx`) is a row per variable with its own field and its
-own "Apply"; nothing of it goes into the drafts of the other groups, and an empty field is not a removal ("Remove" is).
+The "Access" tab of `/settings` (`web/src/pages/SettingsSecrets.tsx`) starts with the trackers' profiles (cards and the
+"Add profile" dialog, BTN-200, `docs/trackers.md`), then a row per `.env` variable with its own field and its own
+"Apply"; nothing of it goes into the drafts of the other groups, and an empty field is not a removal ("Remove" is).
 
-- **The catalog** — `secretCatalog` in `src/secrets/catalog.ts`, built from the adapters (`TrackerAdapter.variables`,
-  `CI_TOKENS`), Tally's list and `EVEN_KEEL_TOKEN`; a variable read by several parts (`GITHUB_TOKEN`: the tracker and the
-  CI) is one row with all its readers.
-- **Places** — a tracker key goes to `.env` and to the `env` of the global `settings.json` (sessions read it there, the
-  tracker plugin with them); the CI tokens, Tally's and the page token only to `.env`. `.env` is edited one line at a
+- **The catalog** — `secretCatalog` in `src/secrets/catalog.ts`: the Forgejo token (`FORGEJO_TOKEN`; the GitHub Actions
+  token is a profile's), Tally's list and `EVEN_KEEL_TOKEN`. No tracker variable is a row any more.
+- **Places** — the default profile of each tracker goes to the `env` of the global `settings.json` (sessions started by
+  hand read it there, the tracker plugin with them); the CI token, Tally's and the page token only to `.env`. `.env` is edited one line at a
   time (`upsertEnv`, `removeEnv`), comments and order kept, then `EnvFile.reload` applies it (BTN-130). A written key
   reaches new sessions at their start; a removed one marks the global folder's daemon stale (`DaemonRefresh.expire`,
   `docs/accounts.md`) and the tab says so while live sessions hold its stop.
@@ -245,12 +246,12 @@ own "Apply"; nothing of it goes into the drafts of the other groups, and an empt
   service, whole or in part.
 - **From outside `.env`** — a variable the service's own environment sets (`EnvFile.isOuter`) wins over the file: the
   row says so and offers no field.
-- **The sessions' copy** — a tracker key's row says when the global `settings.json` holds another value or none; "Apply"
-  writes both places.
+- **The sessions' copy** — a row of a key that also goes to the sessions says when the global `settings.json` holds
+  another value or none; "Apply" writes both places.
 - **The page token** — set only in the shape the start accepts (`guardToken`), and not removed while the service listens
   beyond loopback (`secrets.tokenRequired`).
-- **Packages** — the MCP gateway gives packages the same `.env`, so a key is shared by the service and the packages that
-  read it (the row's tip names them). Splitting one off is a variable of its own for the packages, named in the adapter's
+- **Packages** — the MCP gateway gives packages the same `.env` (without the tracker variables) and the project's
+  profile on top, so a key is shared by the service and the packages that read it (the row's tip names them). Splitting one off is a variable of its own for the packages, named in the adapter's
   `mcpKeys` (the gateway already passes a key under another name); its catalog entry then gets its own places.
 
 ## Labels as values
@@ -296,3 +297,6 @@ parsers — not a table.
 - BTN-198 (2026-10-18): the engine is PGlite, its own folder `state/even-keel/`, not Tally's database; the service's
   main thread owns it and serves it to readers on a loopback port; the SQLite file is imported once
   (`docs/storage.md`). A settings step is a new entry of `STEPS` there.
+- BTN-200 (2026-10-18, the user): the trackers' credentials are profiles in the state database, not `.env` lines; this
+  replaces "never in the database" for them. Invariant 3 holds — the database is outside git. A secret goes to the page
+  only as "set"; `config-export` leaves profiles out, the database's backup holds them (`docs/storage.md`).

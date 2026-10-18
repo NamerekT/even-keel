@@ -96,6 +96,8 @@ The rules are `signs` in `tally.config.json` over the defaults, integers ≥ 1. 
 
 ## Tasks from Huly (`src/huly.ts`)
 
+The credentials come from the service, not the environment (BTN-200): the run gets `huly` (`HulyProfiles`, `src/huly-profiles.ts`) — the Huly profile of each task's project — and `refreshTasks`/`reportTaskTimes` group the tasks by credentials, one connection per profile. `npm run tally` by hand has no service and uses the `HULY_*` of the environment.
+
 Its own small client (Even Keel's `HulyTask` without relations, its model is not touched): by the task identifiers from `session_tasks` — title, status, labels (no duplicates, case-insensitive) and `relations`, made symmetric; related tasks outside the selection are fetched by id with a second query. A task is requested if it is not in `tasks` or its record is older than an hour; one not found in Huly is written with an empty title so as not to be requested on every run. If Huly is unavailable — a line in the log, the run goes on. The api-client noise "no document found, failed to apply model transaction" on connecting is filtered out.
 
 More fields (BTN-55): `priority` (`urgent`, `high`, `medium`, `low`, `no-priority`), `estimate_h` (the `estimation` in hours; 0 — no estimate), `component` (the name), `done` (a status of the `Won` category). Records taken before these fields (`title` is present, `priority` is empty) are requested again without waiting for the hour.

@@ -34,7 +34,16 @@ Reference for sessions: how the tracker layer, the adapters and the Claude Code 
   - GitHub: the repository's open milestones (GraphQL `milestones(states: OPEN)`), plus the issue's own when it is closed; `updateIssue` with `milestoneId`, `null` clears it.
   - Linear: every project milestone of the issue's project (Linear's have no closed state); an issue without a project has no choices. `issueUpdate` with `projectMilestoneId`.
 - The `brief` key (`true` by default, global and per project — `{ "key", "repo", "brief" }`, applied on the fly) turns off the description in the prompt for projects where sessions read the task themselves through the tracker MCP. Then the project's packages must bring the adapter's MCP server (`mcpServer`, for Huly `huly`): without it the set has the problem `noTrackerMcp`, the chain waits and the banner names the project (`docs/packages.md`).
-- Each tracker in use has its own connection and poll (`src/tracker/link.ts`, `poller.ts`) and a row in the "Status" menu. A task link goes by the tracker of its project (`trackerUrls`, the `issueUrl` template with `{id}` or `{number}`).
+- Each profile in use has its own connection and poll (`src/tracker/link.ts`, `poller.ts`) and a row in the "Status" menu. A task link goes by the tracker of its project (`trackerUrls`, the `issueUrl` template with `{id}` or `{number}`).
+
+## Profiles (BTN-200, `src/profiles/`)
+
+- A profile is one tracker account: id (GUID), kind (`huly`, `github`, `linear`), name, values, default flag, whom it signs in as and when its token expires. It lives in the state database (`tracker_profiles`, `docs/storage.md`); the values are kept under the adapter's variable names (`HULY_URL`, `GITHUB_TOKEN` …), so `setup`, the gateway and Tally take them as they are. The adapter's `variables`, `hostVariables`, `alternatives` (Huly: `HULY_TOKEN`, or `HULY_EMAIL` and `HULY_PASSWORD`), `help`, `profileName`, `account` and `projects` serve the profile's sign-in and its project list (`src/{huly,github,linear}/profile.ts`).
+- A project runs on the profile in `projects.profile_id`; without one, or with one of another kind, on its kind's default profile. `Trackers` and `trackerPlans` go by profile id: two projects of one tracker on two profiles are two connections. A kind with projects but no profile is `none:<kind>`, and the wizard's check says to add a profile.
+- The first profile of a kind is its default, and the only one stays so. The default profile's values are written into the `env` of the global `~/.claude/settings.json`: a session started by hand gets only the default profile of each kind, never another one — a limit, not a bug (until BTN-66). It also gives the GitHub Actions token to projects of other trackers (`docs/ci.md`).
+- `/settings` → Access: a card per profile and "Add profile". A save goes only after the tracker took the values (`profiles/check`, then `profiles/save`); a same account on the same host (kind, host, workspace, login) is a warning. The page gets a secret as "set", never its value; an empty secret field of a stored profile keeps the stored value. While projects use a profile, its host fields stay and it cannot be removed (`profiles.hostLocked`, `profiles.inUse`); a project's profile is closed for change once the chain ran a task of it, like its tracker (`trackerLocked`).
+- Every profile is checked again every 15 minutes. A refusal by the tracker (`CredentialsRefused`) turns it red and pauses the chains on it with `profiles.paused`, which names the profile; a host that does not answer does not pause.
+- Import at the first start: the tracker variables of `.env` become the default profile of their kind, and every project of that kind runs on it; the mark `profiles.imported` keeps a second start from importing again, and the log says so. After the import the tracker, the CI and Tally no longer read the tracker variables of `.env`.
 
 ## Huly
 
@@ -42,7 +51,7 @@ The adapter `src/huly/` through `@hcengineering/api-client` — the same client 
 
 ## GitHub Issues (BTN-65, `src/github/`)
 
-- GraphQL `api.github.com` with the `GITHUB_TOKEN` token (fine-grained, Issues: Read and write).
+- GraphQL `api.github.com` with the profile's `GITHUB_TOKEN` (fine-grained, Issues: Read and write; Actions: Read for the CI). A fine-grained token covers one owner: a personal repository and an organization's need two profiles. The expiry comes from the `github-authentication-token-expiration` header (`2026-11-03 13:47:15 UTC`, `expirationOf`; checked live on 2026-10-18 with a classic token, a fine-grained one is in `docs/unverified.md`).
 - An open issue is `Open` (`ToDo`), one closed as completed (or without a reason) is `Completed` (`Won`), not planned and duplicate are `Lost`.
 - Blockers are the native "blocked by", the parent and subtasks are sub-issues, priority is the label `priority: <level>` (or `priority/<level>`), there is no estimate (0). A blocker or parent from a repository without a project has the ID `owner/name#number`.
 - `complete` closes the issue as completed. GitHub has no backlog — keep entry into the chain on a label (`requiredLabels`). A pull request is never a task.
@@ -51,7 +60,7 @@ The adapter `src/huly/` through `@hcengineering/api-client` — the same client 
 
 ## Linear (BTN-72, `src/linear/`)
 
-- GraphQL `api.linear.app` with the personal key `LINEAR_TOKEN` — in `Authorization` without `Bearer`.
+- GraphQL `api.linear.app` with the profile's personal key `LINEAR_TOKEN` — in `Authorization` without `Bearer`.
 - The project key is the Linear team key, the task ID is the Linear identifier as is (`NAM-12`): the branch, the commit and the MCP in the session name the task the same way. Hence one Even Keel project per team (several is BTN-73's question). The optional `linear` in the project object is the Linear project name (case-insensitive) that the team is narrowed to.
 - The status goes by the team's workflow state type: `triage` and `backlog` — `UnStarted`, `unstarted` — `ToDo`, `started` — `Active`, `completed` — `Won`, `canceled` and `duplicate` — `Lost`, an unfamiliar type — `UnStarted`; the name is the state's name. Linear has its own backlog, entry into the chain is as in Huly.
 - Blockers are the inverse `blocks` relations, the parent and subtasks are native, priority is native (1 Urgent … 4 Low, 0 — none), there is no estimate (0: Linear has points).
@@ -71,18 +80,18 @@ The adapter `src/huly/` through `@hcengineering/api-client` — the same client 
 
 - The server is `@firfi/huly-mcp`. The credentials (`HULY_URL`, `HULY_WORKSPACE`, `HULY_TOKEN` or `HULY_EMAIL`/`HULY_PASSWORD`) are inherited from the session environment and are not in `.mcp.json`, which has only the constant `TOOLSETS` (the set for working a task).
 - `${…}` substitutions in a plugin's `.mcp.json` are unsuitable for a session that runs the server itself: an unset variable, even with a `:-` default, makes the session consider the server failed and not start it (`claude mcp list` still says "Connected"), and the server does not accept an empty `HULY_TOKEN`.
-- Chain sessions: the gateway runs the server in its HTTP mode with the adapter's `HULY_*` from Even Keel's `.env` (`docs/packages.md`); the session sees only the gateway's address. `sessionBase` removes `HULY_*` from the sessions' environment.
-- Sessions started by hand: the credentials are in `env` of `~/.claude/settings.json`: the session applies it itself, and `share.ts` transfers the file into account folders. `/settings` → Access writes a tracker key into both `.env` and that `env` in one go (BTN-131, `docs/settings.md`).
+- Chain sessions: the gateway runs the server in its HTTP mode with the `HULY_*` of the project's profile (`docs/packages.md`); the session sees only the gateway's address. `sessionBase` removes `HULY_*` from the sessions' environment.
+- Sessions started by hand: the default Huly profile's credentials are in `env` of `~/.claude/settings.json`: the session applies it itself, and `share.ts` transfers the file into account folders.
 - How to use it — `plugins/huly/README.md`.
 
 ### `github` (BTN-65)
 
-- The remote GitHub server (`api.githubcopilot.com/mcp/`, toolsets `issues,labels`). An HTTP server needs the token in a header, so a `${GITHUB_PERSONAL_ACCESS_TOKEN}` substitution is used here — without the variable the server is useless anyway. For chain sessions the gateway fills it from Even Keel's `GITHUB_TOKEN` (the adapter's `mcpKeys`) and adds the header itself; a session started by hand needs `GITHUB_PERSONAL_ACCESS_TOKEN` of its own.
+- The remote GitHub server (`api.githubcopilot.com/mcp/`, toolsets `issues,labels`). An HTTP server needs the token in a header, so a `${GITHUB_PERSONAL_ACCESS_TOKEN}` substitution is used here — without the variable the server is useless anyway. For chain sessions the gateway fills it from the `GITHUB_TOKEN` of the project's profile (the adapter's `mcpKeys`) and adds the header itself; a session started by hand needs `GITHUB_PERSONAL_ACCESS_TOKEN` of its own.
 - The MCP has no "blocked by" links — the skill sets them via `gh api …/dependencies/blocked_by`.
 - How to use it — `plugins/github/README.md`.
 
 ### `linear` (BTN-72)
 
-- The remote Linear server (`mcp.linear.app/mcp`). It accepts a personal key in a header — `Authorization: Bearer ${LINEAR_API_KEY}`; for chain sessions the gateway fills it from Even Keel's `LINEAR_TOKEN` (`mcpKeys`), a session started by hand needs `LINEAR_API_KEY` of its own.
+- The remote Linear server (`mcp.linear.app/mcp`). It accepts a personal key in a header — `Authorization: Bearer ${LINEAR_API_KEY}`; for chain sessions the gateway fills it from the `LINEAR_TOKEN` of the project's profile (`mcpKeys`), a session started by hand needs `LINEAR_API_KEY` of its own.
 - The server sets "blocks" links itself: `save_issue` with `blockedBy`/`blocks`.
 - How to use it — `plugins/linear/README.md`.
