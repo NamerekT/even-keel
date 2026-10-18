@@ -399,6 +399,56 @@ button.tools__toggle:hover {
   cursor: pointer;
 }
 
+.chat__mail {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.chat__letter {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 10px;
+  padding: 6px 10px;
+  border-radius: 8px;
+  background: var(--surface-muted);
+  font-size: 13px;
+}
+
+.chat__letter--returned {
+  border: 1px solid var(--warn-fg);
+}
+
+.chat__letter-text {
+  flex: 1 1 60%;
+  min-width: 0;
+  overflow: hidden;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+}
+
+.chat__letter-fate {
+  color: var(--fg-muted);
+  font-size: 12px;
+}
+
+.chat__letter--returned .chat__letter-fate {
+  flex-basis: 100%;
+}
+
+.chat__letter-actions {
+  display: flex;
+  gap: 6px;
+  margin-left: auto;
+}
+
 .chat__hint {
   min-height: 1.3em;
   margin: 0;

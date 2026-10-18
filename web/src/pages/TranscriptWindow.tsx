@@ -2,6 +2,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import Markdown, { type Components } from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import type { Ask, AskAnswers } from '../../../src/sessions/ask.js'
+import type { SessionMail } from '../../../src/sessions/mail.js'
 import type { FeedLine, Turn } from '../../../src/sessions/transcript.js'
 import type { ContextScale, SessionView } from '../../../src/state.js'
 import { formatElapsed, formatTokens } from '../format.js'
@@ -58,6 +59,8 @@ export interface ChatTarget {
   answeredAt: string | null
   /** The service is delivering that answer now. */
   delivering: boolean
+  /** The session's chat mailbox: messages sent to it mid-turn and whether its hooks take them. */
+  mail?: SessionMail
 }
 
 interface Props {
@@ -259,6 +262,7 @@ export function TranscriptWindow({ sessionId, account, live, chat, onClose }: Pr
               task={chat.task}
               session={chat.session}
               aside={chat.aside}
+              mail={chat.mail}
               onSent={(line) => {
                 pinned.current = true
                 setSent((now) => [...now, { line, after: lines?.length ?? 0 }])

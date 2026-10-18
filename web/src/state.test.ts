@@ -105,6 +105,7 @@ function stateOf(patch: Partial<EvenKeelState>): EvenKeelState {
     trimTools: true,
     updates: { current: '0.1.0', available: null, toast: false },
     fallbacks: [],
+    mailbox: {},
     ...patch,
   }
 }

@@ -18,7 +18,7 @@ import { fakeCompare, fakeRuleDiff, fakeRules } from './fakeRules.js'
 import { fakeSteps } from './fakeSteps.js'
 import { fakeCheckpoints, fakeHistory, fakePeriod, fakeSpend, fakeTask } from './fakeStats.js'
 import { fakeCard } from './fakeCards.js'
-import { fakeCalls, fakeImageUrl, fakeOpenAsk, fakePastAsk, fakeSentFileUrl, fakeShots, FAKE_UNSAVED_ASK } from './fakeChat.js'
+import { fakeCalls, fakeDeliverMail, fakeImageUrl, fakeMailbox, fakeOpenAsk, fakePastAsk, fakeSentFileUrl, fakeShots, FAKE_UNSAVED_ASK } from './fakeChat.js'
 import type { Ask } from '../../../src/sessions/ask.js'
 import { fakeTools } from './fakeTools.js'
 import { fakePackages } from './fakePackages.js'
@@ -32,6 +32,8 @@ const CLOSE_TICKS = 5
 const HANDOVER_MS = 1_000
 const DEVICE_MS = 8_000
 const START_STAGE_MS = 3_000
+/** How long a message waits in the fake mailbox before the hook takes it. */
+const MAIL_MS = 4_000
 /** `?config=edited`: time to open the settings and start a draft before the file changes under it. */
 const HAND_EDIT_MS = 15_000
 
@@ -198,6 +200,7 @@ function fakeState(
     trimTools: true,
     updates: fakeUpdates(null),
     fallbacks: [],
+    mailbox: {},
   }
 }
 
@@ -372,6 +375,12 @@ export function createFakeSource(search: string): LiveSource {
     current.state.sessions = current.state.sessions.map((each) => (each.task === 'ABC-5' ? asking : each))
     current.state.chain.active = [{ ...active, current: { task: 'ABC-5', sessionId: asking.sessionId, since: ago(42) } }]
   }
+  if (params.get('chain') === 'mail' && current.state !== null && active) {
+    const working = session('ABC-5', contextTokens)
+    current.state.sessions = current.state.sessions.map((each) => (each.task === 'ABC-5' ? working : each))
+    current.state.chain.active = [{ ...active, current: { task: 'ABC-5', sessionId: working.sessionId, since: ago(42) } }]
+    current.state.mailbox = { [working.sessionId]: fakeMailbox('ABC-5', working.sessionId, Date.now()) }
+  }
   if (params.get('chain') === 'dialog' && current.state !== null && active) {
     const wedged: SessionView = {
       ...session('ABC-5', 0, 'waiting'),
@@ -472,6 +481,13 @@ export function createFakeSource(search: string): LiveSource {
         if (index === 0) show()
         else setTimeout(show, index * (delay ?? START_STAGE_MS))
       })
+      if (name === 'session/answer') {
+        setTimeout(() => {
+          if (current.state === null) return
+          current = { ...current, state: fakeDeliverMail(current.state) }
+          notify()
+        }, MAIL_MS)
+      }
       if ((name === 'account/renew' || name === 'account/add') && deviceLogin(next.account)) {
         // The code goes on OpenAI's page, never through Even Keel: the sign-in ends by itself a while later.
         setTimeout(() => {

@@ -62,6 +62,7 @@ function state(startedAt: string): EvenKeelState {
     trimTools: true,
     updates: { current: '0.1.0', available: null, toast: false },
     fallbacks: [],
+    mailbox: {},
   }
 }
 

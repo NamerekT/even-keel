@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import type { SessionMail } from '../../../src/sessions/mail.js'
 import type { FeedLine } from '../../../src/sessions/transcript.js'
 import type { SessionView } from '../../../src/state.js'
 import { say, t } from '../i18n/index.js'
@@ -6,6 +7,7 @@ import { useCommand, useHold } from '../live/useCommand.js'
 import { PlusIcon, SendIcon } from '../ui/icons.js'
 import { Tipped } from '../ui/Tipped.js'
 import { askAnswers, AskPanel, NO_PICK, pickAnswer, type Pick } from './AskPanel.js'
+import { ChatMail } from './ChatMail.js'
 
 /** How long the composer stays shut after a reply went out, unless the session moves on sooner. */
 const SENT_HOLD_MS = 90_000
@@ -15,14 +17,17 @@ interface Props {
   task: string
   session: SessionView
   aside: boolean
+  /** The session's mailbox; `listens` — its hooks take a message mid-turn. */
+  mail: SessionMail | undefined
   onSent: (line: FeedLine) => void
 }
 
 /**
  * The bottom of the chat window: the options of the open question or a free reply, with files. A reply can be typed
- * at any time and is sent only while the session waits; the draft outlives a new question.
+ * at any time and is sent while the session waits, or mid-turn into its mailbox when its hooks listen; the draft
+ * outlives a new question.
  */
-export function ChatComposer({ project, task, session, aside, onSent }: Props) {
+export function ChatComposer({ project, task, session, aside, mail, onSent }: Props) {
   const { send, sending, failure } = useCommand()
   const ask = session.ask
   const [asked, setAsked] = useState(ask?.id ?? null)
@@ -34,7 +39,9 @@ export function ChatComposer({ project, task, session, aside, onSent }: Props) {
   const [text, setText] = useState('')
   const [files, setFiles] = useState<File[]>([])
   const sent = useHold(`${session.sessionId}|${session.lamp}|${ask?.id ?? ''}`, SENT_HOLD_MS)
-  const locked = lockReason(session, aside)
+  // A message to a working session waits in its mailbox: the list below tells its fate, so nothing is held or echoed.
+  const mailing = session.lamp === 'working' && mail?.listens === true
+  const locked = mailing ? (aside ? t.session.chat.aside : null) : lockReason(session, aside)
   const disabled = locked !== null || sending || sent.on
   const left = ask === null ? 0 : ask.questions.filter((question, index) => pickAnswer(question, picks[index] ?? NO_PICK) === '').length
   // A question may be skipped: any answer, words or file is a reply.
@@ -44,8 +51,10 @@ export function ChatComposer({ project, task, session, aside, onSent }: Props) {
     const answers = ask === null ? {} : askAnswers(ask, picks)
     const body = { project, task, sessionId: session.sessionId, ask: ask?.id ?? null, answers, text, files: await Promise.all(files.map(encoded)) }
     if (!(await send('session/answer', body))) return
-    sent.begin()
-    onSent(sentLine(ask === null ? null : ask.id, answers, text, files))
+    if (!mailing) {
+      sent.begin()
+      onSent(sentLine(ask === null ? null : ask.id, answers, text, files))
+    }
     setText('')
     setFiles([])
   }
@@ -60,6 +69,7 @@ export function ChatComposer({ project, task, session, aside, onSent }: Props) {
     >
       {ask !== null && <AskPanel ask={ask} picks={picks} disabled={disabled} ready={ready} onPick={(index, pick) => setPicks((now) => now.map((each, at) => (at === index ? pick : each)))} />}
       {ask?.unsaved && <p className="chat__hint">{t.session.chat.unsaved}</p>}
+      {mail !== undefined && <ChatMail sessionId={session.sessionId} mail={mail.mail} onReply={setText} />}
       <div className="chat__box">
         {files.length > 0 && (
           <ul className="chat__files">
@@ -121,7 +131,9 @@ export function ChatComposer({ project, task, session, aside, onSent }: Props) {
       {failure !== null ? (
         <p className="notice notice--error">{say(failure)}</p>
       ) : (
-        <p className="chat__hint">{sent.on ? t.session.chat.sent : (locked ?? (left > 0 ? t.session.chat.unanswered(left) : ''))}</p>
+        <p className="chat__hint">
+          {sent.on ? t.session.chat.sent : (locked ?? (left > 0 ? t.session.chat.unanswered(left) : mailing ? t.session.chat.mailbox : ''))}
+        </p>
       )}
     </form>
   )

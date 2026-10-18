@@ -1,5 +1,6 @@
 import { fail } from '../../../src/notice/notice.js'
 import type { Ask } from '../../../src/sessions/ask.js'
+import type { Mail, SessionMail } from '../../../src/sessions/mail.js'
 import type { FeedLine } from '../../../src/sessions/transcript.js'
 import type { EvenKeelState } from '../../../src/state.js'
 import { picture } from './fakeCards.js'
@@ -131,12 +132,62 @@ export function fakeOpenAsk(open: Ask | null): FeedLine[] {
   return open === null || open.unsaved ? [] : [{ at: new Date().toISOString(), kind: 'tool', text: `AskUserQuestion ${open.questions[0]!.question}`, ask: open }]
 }
 
-/** `session/answer`: the waiting session takes the reply and goes back to work. */
+/**
+ * `session/answer`: the waiting session takes the reply and goes back to work; a working one whose hooks listen gets
+ * the message into its mailbox, for `fakeDeliverMail` to hand over a few seconds later.
+ */
 export function fakeAnswer(state: EvenKeelState, body: Record<string, unknown>): EvenKeelState {
   const task = String(body.task)
   const view = state.sessions.find((each) => each.task === task && each.sessionId === body.sessionId)
   if (view === undefined || (view.ask?.id ?? null) !== body.ask) throw fail('answer.moved', { task })
+  const box = state.mailbox[view.sessionId]
+  if (view.lamp === 'working' && box?.listens === true && body.ask === null) {
+    const mail = fakeMail(task, view.sessionId, Date.now(), String(body.text), 'waiting')
+    return { ...state, mailbox: { ...state.mailbox, [view.sessionId]: { ...box, mail: [...box.mail, mail] } } }
+  }
   if (view.lamp === 'working') throw fail('answer.busy', { task })
   const working = { ...view, lamp: 'working' as const, asking: false, ask: null, waitingFor: null }
-  return { ...state, sessions: state.sessions.map((each) => (each === view ? working : each)) }
+  const dismissed = withMail(state, view.sessionId, (each) => (each.fate === 'returned' ? { ...each, fate: 'dismissed' } : each))
+  return { ...dismissed, sessions: state.sessions.map((each) => (each === view ? working : each)) }
+}
+
+/** The fake hook: every message that waits is taken after a tool call. */
+export function fakeDeliverMail(state: EvenKeelState): EvenKeelState {
+  const settledAt = new Date().toISOString()
+  return Object.keys(state.mailbox).reduce(
+    (now, sessionId) => withMail(now, sessionId, (each) => (each.fate === 'waiting' ? { ...each, fate: 'delivered', event: 'PostToolUse', settledAt } : each)),
+    state,
+  )
+}
+
+/** `session/mail/dismiss`: the returned messages leave the chat. */
+export function fakeDismissMail(state: EvenKeelState, sessionId: string): EvenKeelState {
+  return withMail(state, sessionId, (each) => (each.fate === 'returned' ? { ...each, fate: 'dismissed' } : each))
+}
+
+/** `?chain=mail`: the working session of ABC-5 listens, one message was delivered, one waits for the hook, one came back. */
+export function fakeMailbox(task: string, sessionId: string, now: number): SessionMail {
+  const minutes = (count: number) => now - count * 60_000
+  return {
+    listens: true,
+    mail: [
+      { ...fakeMail(task, sessionId, minutes(6), 'Не трогай миграции, только чтение.', 'delivered'), event: 'PostToolUse', settledAt: new Date(minutes(5)).toISOString() },
+      fakeMail(task, sessionId, minutes(3), 'И проверь тёмную тему на узком экране — карточки там переносятся в две строки.', 'returned'),
+      fakeMail(task, sessionId, minutes(0.2), 'Ещё учти: порядок задач берём из blocks, не из приоритета.', 'waiting'),
+    ],
+  }
+}
+
+let mailIds = 100
+
+function fakeMail(task: string, sessionId: string, at: number, text: string, fate: Mail['fate']): Mail {
+  const postedAt = new Date(at).toISOString()
+  return { id: mailIds++, task, sessionId, text, files: [], postedAt, fate, event: null, settledAt: fate === 'waiting' ? null : postedAt }
+}
+
+function withMail(state: EvenKeelState, sessionId: string, change: (mail: Mail) => Mail): EvenKeelState {
+  const box = state.mailbox[sessionId]
+  if (box === undefined) return state
+  const mail = box.mail.map(change).filter((each) => each.fate !== 'dismissed')
+  return { ...state, mailbox: { ...state.mailbox, [sessionId]: { ...box, mail } } }
 }

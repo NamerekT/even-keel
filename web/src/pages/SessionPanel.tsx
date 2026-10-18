@@ -115,6 +115,7 @@ export function SessionPanel({ block, scale, onCard, onClose }: Props) {
 
 function Actions({ block, scale }: { block: ChainBlock; scale: ContextScale }) {
   const { send, sending, failure } = useCommand()
+  const { state } = useLive()
   const [chatting, setChatting] = useState(false)
   const fix = isFixName(block.id)
   // The row of a fix is one of its episodes; the service knows the fix by its name.
@@ -209,6 +210,7 @@ function Actions({ block, scale }: { block: ChainBlock; scale: ContextScale }) {
               scale,
               answeredAt: block.answering ?? block.sessions.find((run) => run.sessionId === chatSession.sessionId)?.answeredAt ?? null,
               delivering: block.answering !== undefined,
+              mail: state?.mailbox[chatSession.sessionId],
             }}
             onClose={() => setChatting(false)}
           />
