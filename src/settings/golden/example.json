@@ -1,0 +1,223 @@
+{
+  "allowedHosts": [],
+  "projects": {
+    "ABC": "C:\\repos\\example-project",
+    "XYZ": "C:\\repos\\other-project",
+    "GHB": "C:\\repos\\github-project"
+  },
+  "ids": {
+    "ABC": "00000000-0000-4000-8000-000000000001",
+    "XYZ": "00000000-0000-4000-8000-000000000002",
+    "GHB": "00000000-0000-4000-8000-000000000003"
+  },
+  "names": {
+    "XYZ": "Other project"
+  },
+  "chain": {
+    "active": [
+      "Todo",
+      "In Progress",
+      "In Review"
+    ],
+    "terminal": [
+      "Done",
+      "Canceled"
+    ],
+    "requiredLabels": [],
+    "excludedLabels": [
+      "Manual"
+    ]
+  },
+  "rules": {
+    "ABC": {
+      "active": [
+        "Todo",
+        "In Progress",
+        "In Review"
+      ],
+      "terminal": [
+        "Done",
+        "Canceled"
+      ],
+      "requiredLabels": [],
+      "excludedLabels": [
+        "Manual"
+      ]
+    },
+    "XYZ": {
+      "active": [
+        "Todo",
+        "In Progress",
+        "In Review"
+      ],
+      "terminal": [
+        "Done",
+        "Canceled"
+      ],
+      "requiredLabels": [
+        "Auto"
+      ],
+      "excludedLabels": [
+        "Manual"
+      ]
+    },
+    "GHB": {
+      "active": [
+        "Open"
+      ],
+      "terminal": [
+        "Completed",
+        "Not planned",
+        "Duplicate"
+      ],
+      "requiredLabels": [
+        "ready"
+      ],
+      "excludedLabels": [
+        "Manual"
+      ]
+    }
+  },
+  "slots": {
+    "XYZ": 1
+  },
+  "tracker": "huly",
+  "trackers": {
+    "ABC": "huly",
+    "XYZ": "huly",
+    "GHB": "github"
+  },
+  "trackerProjects": {
+    "GHB": "octo-org/github-project"
+  },
+  "brief": true,
+  "briefs": {
+    "ABC": true,
+    "XYZ": false,
+    "GHB": true
+  },
+  "settings": {
+    "ABC": {
+      "branch": "main",
+      "prompt": null,
+      "beforeStart": [],
+      "check": [],
+      "afterGreen": [],
+      "ci": {
+        "guard": true,
+        "kinds": [
+          "forgejo",
+          "github"
+        ],
+        "waitMinutes": null,
+        "recheckMain": true,
+        "fixTask": false
+      },
+      "fillMilestone": false,
+      "provider": null,
+      "models": {},
+      "accounts": {},
+      "modelLabels": null
+    },
+    "XYZ": {
+      "branch": "master",
+      "prompt": "Run npm test before merging.",
+      "beforeStart": [
+        "npm ci"
+      ],
+      "check": [],
+      "afterGreen": [],
+      "ci": {
+        "guard": true,
+        "kinds": [
+          "forgejo",
+          "github"
+        ],
+        "waitMinutes": null,
+        "recheckMain": true,
+        "fixTask": false
+      },
+      "fillMilestone": false,
+      "provider": null,
+      "models": {},
+      "accounts": {},
+      "modelLabels": null
+    },
+    "GHB": {
+      "branch": "main",
+      "prompt": null,
+      "beforeStart": [],
+      "check": [],
+      "afterGreen": [],
+      "ci": {
+        "guard": true,
+        "kinds": [
+          "forgejo",
+          "github"
+        ],
+        "waitMinutes": null,
+        "recheckMain": true,
+        "fixTask": false
+      },
+      "fillMilestone": false,
+      "provider": null,
+      "models": {},
+      "accounts": {},
+      "modelLabels": null
+    }
+  },
+  "context": {
+    "window": 400000,
+    "warn": 50,
+    "danger": 80
+  },
+  "provider": "claude",
+  "models": {
+    "claude": "opus"
+  },
+  "accounts": {
+    "claude": "global",
+    "codex": "codex"
+  },
+  "execution": {
+    "codex": "sandbox"
+  },
+  "modelLabels": false,
+  "modelPrompts": {
+    "sonnet": "You are Sonnet. Do not split the task into subtasks and do not put model labels on tasks. If the task turns out bigger than it looked, stop and write what you found; Opus or the user will split it. File question tasks and bugs found on the way as usual, without a model label."
+  },
+  "stats": {
+    "compare": {
+      "minTasks": 5,
+      "minSessions": 10,
+      "days": 7
+    },
+    "moves": {},
+    "otherBelow": 0,
+    "checkpointTokens": null
+  },
+  "language": null,
+  "promptLanguage": "en",
+  "hiddenSkills": [
+    "update-config",
+    "keybindings-help",
+    "fewer-permission-prompts",
+    "loop",
+    "schedule",
+    "init",
+    "claude-api",
+    "claude-in-chrome",
+    "plugin-authoring",
+    "artifact-design",
+    "artifact-diagramming",
+    "artifact-capabilities",
+    "dataviz"
+  ],
+  "cacheTtl": null,
+  "parallel": 1,
+  "updates": {
+    "check": true,
+    "notify": true,
+    "dismissed": null
+  }
+}

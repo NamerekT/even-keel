@@ -21,7 +21,7 @@ Some settings are maps whose entries override one by one: `models`, `accounts` a
 ## Inventory
 
 As of 2026-10-18 (schema version 9). "Levels": G — Even Keel, P — project, T — task label. "Apply": live — at once,
-restart — after a restart of the service (`RESTART_KEYS` in `src/config.ts`). "Written by": page, hand (the file), service.
+restart — after a restart of the service (`apply` of the definition in `src/settings/registry.ts`). "Written by": page, hand (the file), service.
 
 ### `even-keel.config.json`
 
@@ -171,7 +171,28 @@ a primary key over a nullable column.
 
 ## Reading and writing
 
-One place reads and one place writes, so that BTN-147 swaps the source and not the callers (BTN-186):
+One place reads and one place writes, so that BTN-147 swaps the source and not the callers. Since BTN-186 this is the
+code in `src/settings/`, with the file as the only source:
+
+- `registry.ts` — `DEFINITIONS` (key, kind, scopes, qualifier, task label, `apply`, the `EvenKeelConfig` fields it lands
+  in, default, check), `OBJECTS` (the nested objects and their unknown keys), `LABEL_PARSERS`, `RESTART_FIELDS`;
+  `defaults.ts` — the built-in values.
+- `file.ts` — `fileRows` (the file → project records and unchecked rows, the shape checked), `withRows` (changes → the
+  file's JSON paths, an unset dropping the objects it empties).
+- `resolve.ts` — `SettingRow`, `ProjectRecord`, `checkRows`, `resolve` (`shared`, each project's `own` and `values`, the
+  task's labels optional), `inherit` (the one merge rule, also behind `runSettings`).
+- `changes.ts` — `RowChange` and `changesOf`: a form as `FormValue`s by group, a changed group's values set or unset
+  against what having no row gives.
+
+`parseConfig` is `fileRows` + `checkRows` + `resolve` + the cross-setting checks; the forms' writers (`withSharedForm`,
+`withProjectForm`, `withProjectSettings`, `withUpdates`, `withRunAccount`) map their fields to `FormValue`s and write
+through `withRows`. `src/settings/golden/` holds the output of `parseConfig` from before the registry for every frozen
+sample, the example config and `full.fixture.ts`; a difference there is a change of behaviour.
+
+The service does not read task labels through `resolve` yet: launches still go through `runChoice`, which also falls
+back when the pool has no account for the label's provider.
+
+The design it follows:
 
 ```
 even-keel.config.json ── fileRows ──┐
@@ -186,7 +207,10 @@ database ─────────────── dbRows ────┘   
   qualifier for qualified keys. Cross-setting checks run after it, where `parseConfig` runs them now (`checkRules` on
   the merged rules, `promptLanguage` falling back to `language`). Its output is today's `EvenKeelConfig`, so `runSettings`,
   the dispatcher and the page do not change.
-- `apply` of the definitions replaces `RESTART_KEYS`; `liveConfig` keeps the start-up values of the `restart` keys.
+- `apply` of the definitions replaces `RESTART_KEYS` (now `RESTART_FIELDS`); `liveConfig` keeps the start-up values of
+  the `restart` keys.
+- The unit of change of a form is its group: a field of the form (`ci`, `context`, `stats`, `updates` are written whole),
+  one rule of `chain`, one provider of the shared `models`, `accounts`, `execution`.
 - A save of the page becomes a diff of rows (`set`, `unset`) between the form and its base; the file writer turns the
   diff back into JSON paths (replacing `withSharedForm` and `withProjectSettings`), the database writer into an upsert and
   a delete. A key the form did not change keeps the file's spelling, as now.

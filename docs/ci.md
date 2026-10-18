@@ -28,7 +28,7 @@ The contract is two calls: `runs(limit)` — the latest runs, newest first; `job
 ```
 
 - `guard` — the guard of `main` as a whole, `true` by default. `false`: no counted CI and no check (`mainCheckDeps` gives the verdict `none`, `checking` no commands, `checkMain` is `skipped`, `mergeCheck` `[]`) — a push is not waited for, nothing is checked before the merge or on `main`, and no fix is made. The other keys are kept and apply again once it is back on. A wait from before it was turned off is released at the next settle; a fix session already running is left alone.
-- `kinds` — the CIs whose verdict the chain waits for; without the key — both (`DEFAULT_CI` in `src/config.ts`); empty — none, and the project's own check takes over (below).
+- `kinds` — the CIs whose verdict the chain waits for; without the key — both (`DEFAULT_CI` in `src/settings/defaults.ts`); empty — none, and the project's own check takes over (below).
 - `waitMinutes` — how long the next launch waits after the push: `null` or no key — as long as it takes, `0` — not at all (faster, but the next task may start on a broken `main`).
 - `recheckMain` — `false` turns off the second run of the project's check on a `main` that moved (below).
 - `fixTask` (BTN-115) — who fixes a red `main`, for a red CI and a failed check alike. `false`, the default — a session without a tracker task, started by the dispatcher, and the working session of the current task is stopped until it is done. `true` — a task created in the tracker, taken after the current one; the adapter then needs `create`. Read at the red verdict, so a change applies to the next one.
