@@ -162,6 +162,7 @@ describe('Even Keel HTTP server', () => {
 
   afterEach(async () => {
     await close()
+    rmSync(publicDir, { recursive: true, force: true })
   })
 
   it('refuses a foreign Host and a foreign Origin before any route', async () => {
