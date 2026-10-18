@@ -26,7 +26,8 @@ import { mainCheckDeps, mergeCheck } from './chain/mainci.js'
 import { TaskPlaces } from './chain/places.js'
 import { readNote, saveSnapshot, snapshotReason } from './chain/snapshots.js'
 import { appendLaunch, loadChainState, loadQuestions, readLaunches, saveChainState, saveClosedTask, saveQuestions } from './chain/store.js'
-import { CI_TOKENS, ciSource, ciToken, FORGEJO_TOKEN, projectTargets } from './ci/adapters.js'
+import { CI_TOKENS, ciSource, ciToken, projectTargets } from './ci/adapters.js'
+import { FORGEJO_PROFILE } from './ci/forgejo-profile.js'
 import type { CiTarget } from './ci/remote.js'
 import { CiWatch } from './ci/watcher.js'
 import { CiWatches } from './ci/watches.js'
@@ -63,9 +64,9 @@ import { ChatTitles } from './sessions/title.js'
 import { TranscriptWatch } from './sessions/watch.js'
 import { configPath, loadEnv, root, stateDirOf } from './locations.js'
 import { isInside } from './paths.js'
-import { defaultProfile, keyPool, profileFor } from './profiles/model.js'
+import { defaultProfile, keyPool, profileFor, profileKinds } from './profiles/model.js'
 import { Profiles } from './profiles/service.js'
-import { importProfiles } from './profiles/store.js'
+import { importForgejo, importProfiles } from './profiles/store.js'
 import { slotOccupants } from './sessions/occupants.js'
 import { locateWorktree } from './sessions/place.js'
 import type { EvenKeelState, SessionView } from './state.js'
@@ -132,12 +133,23 @@ const configStore = await ConfigStore.open({
 /** The version whose toast the user closed: state, not a setting (BTN-199). */
 let dismissedUpdate = (await stateValue(db, 'updates.dismissed')) as string | null | undefined
 const envFile = loadEnv()
-/** The trackers' credentials (BTN-200); the first start makes them of the trackers' variables of `.env`. */
-const importedProfiles = await importProfiles({
+/** What a profile is made for: the trackers, then Forgejo's CI (BTN-201). */
+const profileKindsOf = profileKinds(ADAPTERS, { forgejo: FORGEJO_PROFILE })
+/** The trackers' and Forgejo's credentials (BTN-200, BTN-201); the first start makes them of the variables of `.env`. */
+await importProfiles({
   db,
   env: process.env,
   adapters: ADAPTERS,
   trackers: Object.fromEntries(Object.entries(configStore.current.trackers).map(([key, kind]) => [configStore.current.ids[key]!, kind])),
+  log: (line) => console.log(line),
+})
+const importedProfiles = await importForgejo({
+  db,
+  env: process.env,
+  webs: async () => {
+    const targets = await Promise.all(Object.values(configStore.current.projects).map((repo) => projectTargets(runGit, repo).catch(() => [])))
+    return targets.flat().flatMap((target) => (target.kind === 'forgejo' ? [target.web] : []))
+  },
   log: (line) => console.log(line),
 })
 let { listen, token, mcpPort } = (() => {
@@ -192,7 +204,7 @@ const packages: Packages = new Packages({
   agentOf: (project) => homes.find(choiceFor(project).account)?.agent ?? CLAUDE,
   updateMarketplace: (marketplace) => updateMarketplace(envOf(homes.global), marketplace, PLUGIN_UPDATE_TIMEOUT_MS),
   baseEnv: (): NodeJS.ProcessEnv => sessionBase(process.env, packages.keyNames()),
-  poolOf: (project) => keyPool(profiles.current(), ADAPTERS, process.env, configStore.current.ids[project], configStore.current.trackers[project]!),
+  poolOf: (project) => keyPool(profiles.current(), profileKindsOf, process.env, configStore.current.ids[project], configStore.current.trackers[project]!),
   port: mcpPort,
   log: (line) => console.log(line),
   onChange: () => {
@@ -238,9 +250,15 @@ const trackers = new Trackers({
   refreshers,
   log: (line) => console.log(line),
 })
-/** The token of the project's CI on the remote: GitHub Actions take a GitHub profile's (BTN-200). */
+/** The token of the project's CI on the remote: a GitHub profile's (BTN-200) or the Forgejo profile's on its host (BTN-201). */
 const ciTokenOf = (project: string, target: CiTarget) =>
-  ciToken(target.kind, profiles.current(), configStore.current.ids[project], configStore.current.trackers[project]!, process.env)
+  ciToken(target, profiles.current(), configStore.current.ids[project], configStore.current.trackers[project]!)
+/** The remotes whose CI takes the profile's token, shown or not. */
+const ciOn = (profileId: string, hidden: boolean) =>
+  ciWatches
+    .places(hidden)
+    .filter(({ project, target }) => ciTokenOf(project, target)?.profile === profileId)
+    .map(({ project, target }) => ({ project, remote: target.remote }))
 const ciWatches = new CiWatches({
   targets: (repo) => projectTargets(runGit, repo),
   watch: (project, repo, target) =>
@@ -333,7 +351,7 @@ const daemons = new DaemonRefresh({
 })
 
 const secrets = new Secrets({
-  catalog: secretCatalog({ forgejo: FORGEJO_TOKEN }),
+  catalog: secretCatalog(),
   envFile: join(root, '.env'),
   settingsFile: () => join(homes.global.dir, 'settings.json'),
   env: process.env,
@@ -348,7 +366,7 @@ const secrets = new Secrets({
 const profiles: Profiles = new Profiles({
   db,
   writes,
-  adapters: ADAPTERS,
+  kinds: profileKindsOf,
   set: importedProfiles,
   projects: () => {
     const { ids, trackers: kinds } = configStore.current
@@ -356,11 +374,8 @@ const profiles: Profiles = new Profiles({
   },
   settingsFile: () => join(homes.global.dir, 'settings.json'),
   expired: () => void daemons.expire(homes.global),
-  hiddenCi: (id) =>
-    ciWatches
-      .hidden()
-      .filter(({ project, target }) => ciTokenOf(project, target)?.profile === id)
-      .map(({ project, target }) => ({ project, remote: target.remote })),
+  ci: (id) => ciOn(id, false),
+  hiddenCi: (id) => ciOn(id, true),
   timeoutMs: TRACKER_CHECK_MS,
   log: (line) => console.log(line),
   onChange: (set) => {
@@ -1258,7 +1273,6 @@ profiles.start()
 async function envChanged(changed: string[]): Promise<void> {
   console.log(`env: ${changed.join(', ')} changed in .env`)
   const targets = envTargets(changed)
-  if (targets.ci) ciWatches.tokensChanged()
   if (targets.accounts) {
     homes.setRoots(accountsRoot(process.env), codexAccountsRoot(process.env))
     account.refresh()

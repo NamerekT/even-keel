@@ -5,6 +5,7 @@ import { alternativeOf, daysLeft, draftValues, shownFields } from './profileForm
 const HULY: ProfileKindView = {
   kind: 'huly',
   title: 'Huly',
+  tracker: true,
   fields: [
     { name: 'HULY_URL', secret: false },
     { name: 'HULY_WORKSPACE', secret: false },
@@ -28,6 +29,7 @@ function stored(set: string[]): ProfileView {
     expiresAt: null,
     check: { state: 'ok', error: null, at: null },
     projects: [],
+    ci: [],
     hiddenCi: [],
   }
 }

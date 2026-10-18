@@ -50,8 +50,9 @@ export class CiWatches<W extends Watch> {
     return (this.byProject.get(project) ?? []).filter((watch) => !watch.hidden)
   }
 
-  hidden(): { project: string; target: CiTarget }[] {
-    return [...this.targets].flatMap(([watch, place]) => (watch.hidden ? [place] : []))
+  /** The CIs not shown (`hidden`: `true`) or those shown, each with its project. */
+  places(hidden: boolean): { project: string; target: CiTarget }[] {
+    return [...this.targets].flatMap(([watch, place]) => (watch.hidden === hidden ? [place] : []))
   }
 
   private async reconcile(projects: Record<string, string>): Promise<void> {

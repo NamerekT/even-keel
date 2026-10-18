@@ -831,8 +831,7 @@ export const ru = {
     movesTo: 'Новый путь',
   },
   secrets: {
-    hint: 'Профили трекеров, ключи CI, статистики и доступа к странице. Всё применяется сразу, без перезапуска службы. Значения секретов страница не показывает: новое вводится целиком.',
-    ci: 'CI',
+    hint: 'Профили трекеров и CI, ключи статистики и доступа к странице. Всё применяется сразу, без перезапуска службы. Значения секретов страница не показывает: новое вводится целиком.',
     tally: 'Статистика (Tally)',
     page: 'Доступ к странице',
     set: 'задана',
@@ -851,11 +850,6 @@ export const ru = {
     tokenHint: 'После смены токена страницы, открытые с других машин, попросят новый. Пока служба слушает не только localhost (EVEN_KEEL_HOST), токен не удалить.',
     pending: 'Удалённый ключ пока доходит до новых сессий: демон глобальной папки перезапустится, когда завершатся её живые сессии.',
     packages: (names: string) => `Его же читают пакеты: ${names}`,
-    live: (who: string) => `${who} отвечает`,
-    down: (who: string) => `${who} не отвечает`,
-    connecting: (who: string) => `${who} подключается`,
-    off: (who: string) => `${who} выключен`,
-    ciKinds: { forgejo: 'Forgejo', github: 'GitHub Actions' } as Record<string, string>,
     purpose: {
       HULY_URL: 'Адрес сервера Huly',
       HULY_WORKSPACE: 'Рабочее пространство Huly',
@@ -864,7 +858,6 @@ export const ru = {
       HULY_PASSWORD: 'Пароль для входа в Huly',
       GITHUB_TOKEN: 'Токен GitHub: задачи (Issues) и, с правом Actions: Read, CI',
       LINEAR_TOKEN: 'Личный ключ API Linear',
-      FORGEJO_TOKEN: 'Токен Forgejo с чтением репозиториев: CI',
       TALLY_DB_HOST: 'Свой сервер Postgres для статистики; без него — локальная база',
       TALLY_DB_PORT: 'Порт своего Postgres',
       TALLY_DB_NAME: 'Имя базы на своём Postgres',
@@ -877,8 +870,8 @@ export const ru = {
     } as Record<string, string>,
   },
   profiles: {
-    title: 'Профили трекеров',
-    hint: 'Проект работает на профиле своего трекера. Профиль по умолчанию идёт и сессиям, запущенным вручную (env ~/.claude/settings.json), и CI GitHub Actions проектов других трекеров.',
+    title: 'Профили трекеров и CI',
+    hint: 'Проект работает на профиле своего трекера. Профиль трекера по умолчанию идёт и сессиям, запущенным вручную (env ~/.claude/settings.json), и CI GitHub Actions проектов других трекеров. CI Forgejo берёт профиль Forgejo на хосте своего remote.',
     none: 'Профилей нет: без профиля цепочка не читает задачи трекера.',
     add: 'Добавить профиль',
     isDefault: 'по умолчанию',
@@ -890,13 +883,24 @@ export const ru = {
     login: (login: string) => `Вошли как ${login}`,
     projects: (keys: string) => `Проекты: ${keys}`,
     noProjects: 'Проектов на нём нет',
+    ci: (remotes: string) => `CI: ${remotes}`,
+    noCi: 'Ни один remote проектов не на его хосте',
     ciHidden: 'CI скрыт',
-    hiddenCi: (remotes: string) => `GitHub Actions не показываются (${remotes}): токен не достаёт до Actions репозитория, нужно право Actions: Read`,
-    kindHint: { huly: 'Свой сервер или облако Huly', github: 'Issues и Actions на github.com', linear: 'Рабочее пространство Linear' } as Record<string, string>,
+    hiddenCi: (remotes: string, kind: string) =>
+      kind === 'forgejo'
+        ? `CI Forgejo не показывается (${remotes}): токен не видит репозиторий или его Actions, нужно право read:repository`
+        : `GitHub Actions не показываются (${remotes}): токен не достаёт до Actions репозитория, нужно право Actions: Read`,
+    kindHint: {
+      huly: 'Свой сервер или облако Huly',
+      github: 'Issues и Actions на github.com',
+      linear: 'Рабочее пространство Linear',
+      forgejo: 'CI своего сервера Forgejo, не трекер',
+    } as Record<string, string>,
     rights: {
       huly: 'Учётка с доступом к проектам: токен или почта и пароль.',
       github: 'Fine-grained токен на владельца репозиториев: Issues — Read and write; для GitHub Actions ещё Actions — Read.',
       linear: 'Личный ключ API с правом записи.',
+      forgejo: 'Адрес сервера и токен с правами read:repository (репозитории и их Actions) и read:user (проверка входа). CI берёт профиль, чей хост совпадает с хостом remote.',
     } as Record<string, string>,
     howTo: 'Где получить',
     signIn: 'Вход',

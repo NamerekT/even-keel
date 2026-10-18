@@ -663,8 +663,7 @@ export const en: Messages = {
     movesTo: 'New path',
   },
   secrets: {
-    hint: 'Tracker profiles, the keys of the CI, the stats and the page access. Everything applies at once, with no restart of the service. The page does not show the value of a secret: a new one is typed in whole.',
-    ci: 'CI',
+    hint: 'Tracker and CI profiles, the keys of the stats and the page access. Everything applies at once, with no restart of the service. The page does not show the value of a secret: a new one is typed in whole.',
     tally: 'Stats (Tally)',
     page: 'Page access',
     set: 'set',
@@ -683,11 +682,6 @@ export const en: Messages = {
     tokenHint: 'Once the token changes, pages open from other machines ask for the new one. While the service listens beyond localhost (EVEN_KEEL_HOST), the token cannot be removed.',
     pending: 'A removed key still reaches new sessions: the daemon of the global folder restarts once its live sessions end.',
     packages: (names) => `Packages read it too: ${names}`,
-    live: (who) => `${who} answers`,
-    down: (who) => `${who} does not answer`,
-    connecting: (who) => `${who} is connecting`,
-    off: (who) => `${who} is off`,
-    ciKinds: { forgejo: 'Forgejo', github: 'GitHub Actions' },
     purpose: {
       HULY_URL: 'The address of the Huly server',
       HULY_WORKSPACE: 'The Huly workspace',
@@ -696,7 +690,6 @@ export const en: Messages = {
       HULY_PASSWORD: 'The password to sign in to Huly with',
       GITHUB_TOKEN: 'The GitHub token: Issues and, with Actions: Read, the CI',
       LINEAR_TOKEN: 'A personal Linear API key',
-      FORGEJO_TOKEN: 'A Forgejo token with read access to repositories: the CI',
       TALLY_DB_HOST: 'An own Postgres server for the stats; without it, the local database',
       TALLY_DB_PORT: 'The port of the own Postgres',
       TALLY_DB_NAME: 'The database name on the own Postgres',
@@ -709,8 +702,8 @@ export const en: Messages = {
     },
   },
   profiles: {
-    title: 'Tracker profiles',
-    hint: "A project runs on a profile of its tracker. The default profile also goes to sessions started by hand (the env of ~/.claude/settings.json) and to the GitHub Actions CI of other trackers' projects.",
+    title: 'Tracker and CI profiles',
+    hint: "A project runs on a profile of its tracker. The default tracker profile also goes to sessions started by hand (the env of ~/.claude/settings.json) and to the GitHub Actions CI of other trackers' projects. A Forgejo CI takes the Forgejo profile on its remote's host.",
     none: "No profiles: without one the chain does not read the tracker's tasks.",
     add: 'Add profile',
     isDefault: 'default',
@@ -722,13 +715,19 @@ export const en: Messages = {
     login: (login) => `Signed in as ${login}`,
     projects: (keys) => `Projects: ${keys}`,
     noProjects: 'No projects on it',
+    ci: (remotes) => `CI: ${remotes}`,
+    noCi: "No project's remote is on its host",
     ciHidden: 'CI hidden',
-    hiddenCi: (remotes) => `GitHub Actions not shown (${remotes}): the token does not reach the repository's Actions, it needs Actions: Read`,
-    kindHint: { huly: 'An own Huly server or the cloud', github: 'Issues and Actions on github.com', linear: 'A Linear workspace' },
+    hiddenCi: (remotes, kind) =>
+      kind === 'forgejo'
+        ? `Forgejo CI not shown (${remotes}): the token does not see the repository or its Actions, it needs read:repository`
+        : `GitHub Actions not shown (${remotes}): the token does not reach the repository's Actions, it needs Actions: Read`,
+    kindHint: { huly: 'An own Huly server or the cloud', github: 'Issues and Actions on github.com', linear: 'A Linear workspace', forgejo: 'The CI of an own Forgejo server, no tracker' },
     rights: {
       huly: 'An account with access to the projects: a token, or an e-mail and a password.',
       github: "A fine-grained token for the repositories' owner: Issues — Read and write; for GitHub Actions also Actions — Read.",
       linear: 'A personal API key with write access.',
+      forgejo: "The server's address and a token with read:repository (the repositories and their Actions) and read:user (the sign-in check). A CI takes the profile whose host is its remote's.",
     },
     howTo: 'Where to get it',
     signIn: 'Sign-in',
