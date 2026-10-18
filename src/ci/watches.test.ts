@@ -61,12 +61,13 @@ describe('CiWatches', () => {
     expect(asked).toEqual(['ABC'])
   })
 
-  it('shows a project only the watches that are not hidden, and lists the hidden ones', async () => {
+  it('shows a project only the watches that are not hidden, and lists the hidden ones and the shown ones', async () => {
     const { watches, made } = context()
     await watches.apply({ ABC: 'D:/abc', XYZ: 'D:/xyz' })
     made[1]!.hidden = true
     expect(watches.shown('ABC')).toEqual([made[0]])
     expect(watches.shown('XYZ')).toEqual([])
-    expect(watches.hidden()).toEqual([{ project: 'XYZ', target: target('D:/xyz') }])
+    expect(watches.places(true)).toEqual([{ project: 'XYZ', target: target('D:/xyz') }])
+    expect(watches.places(false)).toEqual([{ project: 'ABC', target: target('D:/abc') }])
   })
 })

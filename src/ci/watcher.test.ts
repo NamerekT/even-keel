@@ -229,12 +229,19 @@ describe('CiWatch.failed', () => {
     expect(t.watch.hidden).toBe(true)
   })
 
-  it('keeps a Forgejo watch shown without a token or with a refused one: it says what to set', async () => {
-    const off = setup({ source: false })
-    expect(off.watch.hidden).toBe(false)
+  it('hides a Forgejo watch by the same rule: no profile on its host, a refused token or a repository it does not see', async () => {
+    expect(setup({ source: false }).watch.hidden).toBe(true)
     const t = setup()
     t.fail(fail('ci.denied', { ci: 'Forgejo', status: 401 }))
     await t.watch.tick()
-    expect(t.watch).toMatchObject({ hidden: false, view: { health: 'error' } })
+    expect(t.watch.hidden).toBe(true)
+    const unseen = setup()
+    unseen.fail(fail('ci.http', { ci: 'Forgejo', status: 404 }))
+    await unseen.watch.tick()
+    expect(unseen.watch.hidden).toBe(true)
+    const down = setup()
+    down.fail(fail('ci.http', { ci: 'Forgejo', status: 502 }))
+    await down.watch.tick()
+    expect(down.watch).toMatchObject({ hidden: false, view: { health: 'error' } })
   })
 })

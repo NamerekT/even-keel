@@ -2,15 +2,15 @@ import { fail } from '../../../src/notice/notice.js'
 import { secretCatalog } from '../../../src/secrets/catalog.js'
 import type { EvenKeelState, SecretsView } from '../../../src/state.js'
 
-const SET = new Set(['FORGEJO_TOKEN', 'TALLY_DB_HOST'])
+const SET = new Set(['TALLY_DB_HOST', 'TALLY_WRITER_PASSWORD'])
 
 /**
- * The "Access" tab's keys besides the trackers' profiles: the Forgejo token and Tally's host set, the rest not.
+ * The "Access" tab's keys besides the profiles: Tally's host and writer password set, the rest not.
  * `?secrets=` adds `outer` — `TALLY_DB_HOST` from the service's environment, `pending` — a removal waits.
  */
 export function fakeSecrets(mode: string | null): SecretsView {
   return {
-    variables: secretCatalog({ forgejo: 'FORGEJO_TOKEN' }).map((spec) => {
+    variables: secretCatalog().map((spec) => {
       const outer = mode === 'outer' && spec.name === 'TALLY_DB_HOST'
       const set = SET.has(spec.name)
       return {

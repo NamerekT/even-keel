@@ -4,7 +4,7 @@ import { openDatabase } from '../storage/database.js'
 import { stateValue } from '../storage/service-state.js'
 import { ADAPTERS } from '../tracker/adapters.js'
 import type { TrackerProfile } from './model.js'
-import { importProfiles, readProfiles, saveProfiles } from './store.js'
+import { importForgejo, importProfiles, readProfiles, saveProfiles } from './store.js'
 
 const ABC = '11111111-1111-4111-8111-111111111111'
 const XYZ = '22222222-2222-4222-8222-222222222222'
@@ -70,6 +70,35 @@ describe('profile store', { timeout: 60_000 }, () => {
     const next = { profiles: [profile('b', 'github', true), profile('c', 'huly', true, HULY_ENV)], links: { [XYZ]: 'b' } }
     await saveProfiles(db, next)
     expect(await readProfiles(db)).toEqual(next)
+  })
+
+  describe('importForgejo', () => {
+    const forgejoFrom = (env: Record<string, string | undefined>, webs: string[]) =>
+      importForgejo({ db, env, webs: async () => webs, log: (line) => logs.push(line) })
+
+    it('makes FORGEJO_TOKEN a profile per host of the projects\' Forgejo remotes, the first one default, once', async () => {
+      await importFrom({ ...HULY_ENV })
+      const env = { FORGEJO_TOKEN: 'forgejo-token' }
+      const imported = await forgejoFrom(env, ['https://git.example.com', 'https://GIT.example.com/sub', 'https://forgejo.example.org'])
+      expect(imported.profiles.map((each) => [each.kind, each.name, each.values, each.isDefault])).toEqual([
+        ['huly', 'Huly · example', HULY_ENV, true],
+        ['forgejo', 'Forgejo · git.example.com', { FORGEJO_URL: 'https://git.example.com', FORGEJO_TOKEN: 'forgejo-token' }, true],
+        ['forgejo', 'Forgejo · forgejo.example.org', { FORGEJO_URL: 'https://forgejo.example.org', FORGEJO_TOKEN: 'forgejo-token' }, false],
+      ])
+      expect(await readProfiles(db)).toEqual(imported)
+      expect(logs.at(-1)).toContain('FORGEJO_TOKEN of .env became the profiles Forgejo · git.example.com, Forgejo · forgejo.example.org')
+
+      expect(await forgejoFrom({ FORGEJO_TOKEN: 'other' }, ['https://other.example.com'])).toEqual(imported)
+    })
+
+    it('without the variable makes nothing and says nothing; without a Forgejo remote it says the token is left', async () => {
+      expect(await forgejoFrom({}, ['https://git.example.com'])).toEqual({ profiles: [], links: {} })
+      expect(logs).toEqual([])
+      await db.query("delete from service_state where name = 'profiles.forgejo.imported'")
+      expect(await forgejoFrom({ FORGEJO_TOKEN: 'forgejo-token' }, [])).toEqual({ profiles: [], links: {} })
+      expect(logs).toEqual([expect.stringContaining('no project has a Forgejo remote')])
+      expect(await stateValue(db, 'profiles.forgejo.imported')).toBeDefined()
+    })
   })
 
   it('refuses to drop a profile a project still runs on', async () => {

@@ -6,8 +6,8 @@ import { isSecret, secretCatalog, type SecretSpec } from './catalog.js'
 import { Secrets, withSessionEnv } from './service.js'
 
 /** The catalog has no variable the sessions read since the trackers' went into profiles; the place is kept for one. */
-const sessionSpec = (name: string): SecretSpec => ({ name, secret: isSecret(name), places: ['env', 'sessions'], readers: { ci: [], tally: false, page: false } })
-const catalog = [sessionSpec('HULY_URL'), sessionSpec('HULY_PASSWORD'), ...secretCatalog({ forgejo: 'FORGEJO_TOKEN', github: 'GITHUB_TOKEN' })]
+const sessionSpec = (name: string): SecretSpec => ({ name, secret: isSecret(name), places: ['env', 'sessions'], readers: { tally: false, page: false } })
+const catalog = [sessionSpec('HULY_URL'), sessionSpec('HULY_PASSWORD'), ...secretCatalog()]
 
 describe('withSessionEnv', () => {
   it('sets one key of env and keeps every other key of the file', () => {
@@ -71,16 +71,16 @@ describe('Secrets', () => {
   it('never gives a secret’s value, in whole or in part, and shows the plain ones as they are', () => {
     env.HULY_URL = 'https://huly.example.com'
     env.HULY_PASSWORD = 'hunter2-very-secret'
-    env.FORGEJO_TOKEN = 'forgejo-token-value'
+    env.TALLY_LLM_KEY = 'llm-key-value'
     writeFileSync(settingsFile, JSON.stringify({ env: { HULY_PASSWORD: 'hunter2-very-secret' } }))
     const view = open().view()
     const text = JSON.stringify(view)
-    for (const value of ['hunter2', 'very-secret', 'forgejo-token']) expect(text).not.toContain(value)
+    for (const value of ['hunter2', 'very-secret', 'llm-key']) expect(text).not.toContain(value)
     const row = (name: string) => view.variables.find((each) => each.name === name)!
     expect(row('HULY_URL')).toMatchObject({ set: true, value: 'https://huly.example.com' })
     expect(row('HULY_PASSWORD')).toMatchObject({ set: true, value: null, sessions: 'same' })
-    expect(row('FORGEJO_TOKEN')).toMatchObject({ set: true, value: null, sessions: null })
-    expect(row('GITHUB_TOKEN')).toMatchObject({ set: false, value: null })
+    expect(row('TALLY_LLM_KEY')).toMatchObject({ set: true, value: null, sessions: null })
+    expect(row('EVEN_KEEL_TOKEN')).toMatchObject({ set: false, value: null })
   })
 
   it('tells when the sessions’ settings hold another value or none', () => {
@@ -100,10 +100,10 @@ describe('Secrets', () => {
     expect(applied).toBe(1)
   })
 
-  it('writes a CI token only into .env', () => {
+  it('writes a key of the service\'s own only into .env', () => {
     writeFileSync(settingsFile, '{}')
-    open().set('FORGEJO_TOKEN', 'abc')
-    expect(readFileSync(envFile, 'utf8')).toBe('FORGEJO_TOKEN=abc\n')
+    open().set('TALLY_LLM_KEY', 'abc')
+    expect(readFileSync(envFile, 'utf8')).toBe('TALLY_LLM_KEY=abc\n')
     expect(readFileSync(settingsFile, 'utf8')).toBe('{}')
   })
 

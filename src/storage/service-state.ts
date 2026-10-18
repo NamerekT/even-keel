@@ -3,9 +3,10 @@ import type { Queryable } from './database.js'
 /**
  * Single values of the service's own state, `service_state` (BTN-199): `updates.dismissed` — the version whose toast the
  * user closed; `config.imported` — when the first start looked for `even-keel.config.json` to import;
- * `profiles.imported` — when the first start made tracker profiles of the trackers' variables of `.env` (BTN-200).
+ * `profiles.imported` — when the first start made tracker profiles of the trackers' variables of `.env` (BTN-200);
+ * `profiles.forgejo.imported` — when the first start made Forgejo profiles of `FORGEJO_TOKEN` (BTN-201).
  */
-export type StateName = 'updates.dismissed' | 'config.imported' | 'profiles.imported'
+export type StateName = 'updates.dismissed' | 'config.imported' | 'profiles.imported' | 'profiles.forgejo.imported'
 
 /** `undefined` — never written. */
 export async function stateValue(db: Queryable, name: StateName): Promise<unknown> {

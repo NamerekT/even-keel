@@ -242,12 +242,24 @@ export function ServerIcon() {
   )
 }
 
-const TRACKER_ICONS: Record<string, () => ReactNode> = { huly: BoardsIcon, github: BranchIcon, linear: ChecklistIcon }
+const TRACKER_ICONS: Record<string, () => ReactNode> = { huly: BoardsIcon, github: BranchIcon, linear: ChecklistIcon, forgejo: PipelineIcon }
 
-/** A tracker's own icon by its kind; a key for a kind without one. */
+/** A profile's own icon by its kind, a tracker's or a CI's; a key for a kind without one. */
 export function TrackerIcon({ kind }: { kind: string }) {
   const Icon = TRACKER_ICONS[kind] ?? KeyIcon
   return <Icon />
+}
+
+/** A Forgejo profile: a CI run of three jobs, the last one passed, not Forgejo's mark. */
+export function PipelineIcon() {
+  return (
+    <svg className="icon" viewBox="0 0 16 16" aria-hidden="true">
+      <circle cx="3" cy="8" r="1.75" />
+      <circle cx="8" cy="8" r="1.75" />
+      <circle cx="13" cy="8" r="2.25" />
+      <path d="M4.75 8h1.5M9.75 8h1M12 8l.75.75L14 7.25" />
+    </svg>
+  )
 }
 
 /** A Huly profile: four boards of a workspace, not Huly's mark. */

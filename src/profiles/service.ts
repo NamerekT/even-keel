@@ -3,10 +3,10 @@ import { readFileSync, writeFileSync } from 'node:fs'
 import { englishOf, fail, noticeOf } from '../notice/notice.js'
 import { withSessionEnv } from '../secrets/service.js'
 import { isSecret } from '../secrets/catalog.js'
-import type { CheckResult, HiddenCi, ProfileCheck, ProfilesView } from '../state.js'
+import type { CheckResult, CiRemote, ProfileCheck, ProfilesView } from '../state.js'
 import type { Db, Writes } from '../storage/database.js'
-import { CredentialsRefused, type ProfileAccount, type TrackerAdapter, type TrackerProject } from '../tracker/source.js'
-import { defaultProfile, profileFor, sameAccount, valuesOf, type Adapters, type ProfileSet, type TrackerProfile } from './model.js'
+import { CredentialsRefused, type ProfileAccount, type TrackerProject } from '../tracker/source.js'
+import { defaultProfile, profileFor, sameAccount, valuesOf, type ProfileKind, type ProfileKinds, type ProfileSet, type TrackerProfile } from './model.js'
 import { saveProfiles } from './store.js'
 
 /** How often every profile is checked again: a revoked token turns its profile red and pauses its chains. */
@@ -18,7 +18,8 @@ const SOON_MS = 60_000
 export interface ProfilesDeps {
   db: Db
   writes: Writes
-  adapters: Adapters
+  /** The trackers' kinds and the CIs' (`profileKinds`). */
+  kinds: ProfileKinds
   /** As stored at the start. */
   set: ProfileSet
   /** The projects by id, each with its key and its tracker. */
@@ -27,8 +28,10 @@ export interface ProfilesDeps {
   settingsFile: () => string
   /** A variable left the sessions' settings: the daemon of the global folder still hands it out until it restarts. */
   expired: () => void
-  /** The remotes whose GitHub Actions the profile does not reach (`CiWatches`). */
-  hiddenCi?: (profileId: string) => HiddenCi[]
+  /** The remotes whose CI takes the profile's token and shows (`CiWatches`). */
+  ci?: (profileId: string) => CiRemote[]
+  /** The remotes whose CI takes the profile's token but does not show: the token does not reach it. */
+  hiddenCi?: (profileId: string) => CiRemote[]
   timeoutMs: number
   now?: () => Date
   log: (line: string) => void
@@ -49,8 +52,9 @@ export interface ProfileDraft {
 }
 
 /**
- * The trackers' profiles (BTN-200) while the service runs: the page's edits, each written behind to the state database
- * whole, the checks against the trackers, and the default profiles' values in the `env` of the global `settings.json`.
+ * The trackers' profiles (BTN-200) and the CIs' (BTN-201) while the service runs: the page's edits, each written behind to
+ * the state database whole, the checks against the trackers and the CIs, and the default tracker profiles' values in the
+ * `env` of the global `settings.json`.
  */
 export class Profiles {
   private set: ProfileSet
@@ -72,7 +76,7 @@ export class Profiles {
         kind: profile.kind,
         name: profile.name,
         isDefault: profile.isDefault,
-        fields: (this.deps.adapters[profile.kind]?.variables ?? Object.keys(profile.values)).map((name) => {
+        fields: (this.deps.kinds[profile.kind]?.variables ?? Object.keys(profile.values)).map((name) => {
           const value = profile.values[name] || null
           return { name, secret: isSecret(name), set: value !== null, value: isSecret(name) ? null : value }
         }),
@@ -80,15 +84,17 @@ export class Profiles {
         expiresAt: profile.expiresAt,
         check: this.checks.get(profile.id) ?? { state: 'unchecked', error: null, at: null },
         projects: this.projectsOn(profile).map(([, project]) => project.key),
+        ci: this.deps.ci?.(profile.id) ?? [],
         hiddenCi: this.deps.hiddenCi?.(profile.id) ?? [],
       })),
-      kinds: Object.entries(this.deps.adapters).map(([kind, adapter]) => ({
+      kinds: Object.entries(this.deps.kinds).map(([kind, each]) => ({
         kind,
-        title: adapter.title,
-        fields: adapter.variables.map((name) => ({ name, secret: isSecret(name) })),
-        hostVariables: [...adapter.hostVariables],
-        alternatives: (adapter.alternatives ?? []).map((names) => [...names]),
-        help: adapter.help,
+        title: each.title,
+        tracker: each.projects !== undefined,
+        fields: each.variables.map((name) => ({ name, secret: isSecret(name) })),
+        hostVariables: [...each.hostVariables],
+        alternatives: (each.alternatives ?? []).map((names) => [...names]),
+        help: each.help,
       })),
     }
   }
@@ -170,9 +176,10 @@ export class Profiles {
   /** The tracker's projects the profile sees whose key or name has `query` in it. */
   async projects(id: string, query: string): Promise<TrackerProject[]> {
     const profile = this.profile(id)
-    const adapter = profile === undefined ? undefined : this.deps.adapters[profile.kind]
-    if (profile === undefined || adapter === undefined) throw fail('profiles.unknown', {})
-    return adapter.projects(profile.values, query, this.deps.timeoutMs)
+    const kind = profile === undefined ? undefined : this.deps.kinds[profile.kind]
+    if (profile === undefined || kind === undefined) throw fail('profiles.unknown', {})
+    if (kind.projects === undefined) throw fail('profiles.unknownKind', { kind: profile.kind })
+    return kind.projects(profile.values, query, this.deps.timeoutMs)
   }
 
   /** The profile the project runs on, if its tracker refused its credentials at the last check: its chain waits. */
@@ -211,7 +218,7 @@ export class Profiles {
   }
 
   private async recheckOne(profile: TrackerProfile): Promise<void> {
-    const adapter = this.deps.adapters[profile.kind]
+    const adapter = this.deps.kinds[profile.kind]
     if (adapter === undefined) return
     const before = this.checks.get(profile.id)
     this.checks.set(profile.id, { state: 'checking', error: before?.error ?? null, at: before?.at ?? null })
@@ -233,8 +240,8 @@ export class Profiles {
     } else this.deps.onCheck?.()
   }
 
-  private valuesOf(draft: ProfileDraft): { adapter: TrackerAdapter; values: Record<string, string> } {
-    const adapter = this.deps.adapters[draft.kind]
+  private valuesOf(draft: ProfileDraft): { adapter: ProfileKind; values: Record<string, string> } {
+    const adapter = this.deps.kinds[draft.kind]
     if (adapter === undefined) throw fail('profiles.unknownKind', { kind: draft.kind })
     const stored = draft.id === undefined ? undefined : this.profile(draft.id)
     if (draft.id !== undefined && stored === undefined) throw fail('profiles.unknown', {})
@@ -247,7 +254,7 @@ export class Profiles {
     const values = valuesOf(adapter, merged)
     let complete: boolean
     try {
-      complete = adapter.setup(values, {}) !== undefined
+      complete = adapter.complete(values)
     } catch (error) {
       throw fail('profiles.incomplete', { tracker: adapter.title }, { detail: (error as Error).message })
     }
@@ -255,7 +262,7 @@ export class Profiles {
     return { adapter, values }
   }
 
-  private async account(adapter: TrackerAdapter, values: Record<string, string>): Promise<ProfileAccount> {
+  private async account(adapter: ProfileKind, values: Record<string, string>): Promise<ProfileAccount> {
     try {
       return await adapter.account(values, this.deps.timeoutMs)
     } catch (error) {
@@ -273,9 +280,10 @@ export class Profiles {
     this.deps.onChange(set)
   }
 
+  /** A CI's kind is left out: its token is the service's alone (`sessionBase` keeps it from the sessions too). */
   private writeSessionEnv(kind: string): void {
-    const adapter = this.deps.adapters[kind]
-    if (adapter === undefined) return
+    const adapter = this.deps.kinds[kind]
+    if (adapter?.projects === undefined) return
     const file = this.deps.settingsFile()
     const values = defaultProfile(this.set, kind)?.values ?? {}
     try {

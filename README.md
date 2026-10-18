@@ -140,6 +140,8 @@ Each project has its own tracker (`tracker` in the project's entry, or one for a
 
 Git is not part of this: pushes go through your own git and its credentials (SSH, the credential manager), whatever the profiles are. A project on Huly with a remote on GitHub works as is, and its CI is found by the remote.
 
+The CI is read with a profile too. GitHub Actions on a `github.com` remote takes the token of the project's GitHub profile, or of the default GitHub profile for a project on another tracker; it needs **Actions: Read**. CI on a Forgejo remote takes a **Forgejo** profile (**Add profile** → Forgejo: the server's address and an access token with read access to repositories and to the user) on the remote's host. A CI that no profile reaches is not shown at all. A `FORGEJO_TOKEN` left in `.env` from an older install becomes a Forgejo profile on the first start, one per host of the projects' Forgejo remotes; after that it is not read.
+
 ### 4. Run
 
 Without a service, on any system:
@@ -213,15 +215,14 @@ The statistics database is versioned too: the collector brings its schema up to 
 
 ## Environment
 
-`.env` in the repository root. Even Keel watches it and applies a change without a restart: a CI watch takes its new token, the page moves to a new address. Only the variables marked "read at startup" below need a restart.
+`.env` in the repository root. Even Keel watches it and applies a change without a restart: the page moves to a new address, the collector reconnects. Only the variables marked "read at startup" below need a restart.
 
-The trackers' credentials are not here but in the profiles (see [Several trackers](#several-trackers)); a profile's change applies at once too. On the first start Even Keel turns the tracker variables it finds in `.env` (`HULY_URL`, `HULY_WORKSPACE`, `HULY_TOKEN` or `HULY_EMAIL` and `HULY_PASSWORD`; `GITHUB_TOKEN`; `LINEAR_TOKEN`) into the default profile of each tracker, once, and says so in the log; after that it no longer reads them.
+The trackers' and the CIs' credentials are not here but in the profiles (see [Several trackers](#several-trackers)); a profile's change applies at once too. On the first start Even Keel turns the tracker variables it finds in `.env` (`HULY_URL`, `HULY_WORKSPACE`, `HULY_TOKEN` or `HULY_EMAIL` and `HULY_PASSWORD`; `GITHUB_TOKEN`; `LINEAR_TOKEN`) into the default profile of each tracker, once, and says so in the log; after that it no longer reads them.
 
 The variables below can also be set on the page: `/settings` → **Access** has a row per variable, each with its own field and **Apply**. It edits only that line of `.env`, comments and order kept. The page never shows the value of a password, token or key, only whether it is set; addresses and names are shown as they are. A variable set in the service's own environment rather than in `.env` cannot be changed there.
 
 | Variable | |
 | --- | --- |
-| `FORGEJO_TOKEN` | CI runs on a Forgejo remote: a token with read access to repositories; without it that CI shows as not connected. GitHub Actions on a `github.com` remote takes the token of the project's GitHub profile, or of the default GitHub profile for a project on another tracker; it needs **Actions: Read**. Without a GitHub profile that reaches the repository's Actions, that CI is not shown at all |
 | `EVEN_KEEL_ACCOUNTS_DIR` | folder of the extra Claude account folders; default `~/.claude-accounts` |
 | `EVEN_KEEL_CLAUDE_BIN` | path to the `claude` binary |
 | `EVEN_KEEL_CODEX_BIN` | path to the `codex` binary; default the native one of the global npm package on Windows, `codex` elsewhere |

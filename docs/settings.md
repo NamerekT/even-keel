@@ -78,8 +78,8 @@ schema version of a file of the format.
 ### Not settings
 
 - **Credentials** — never in a draft or the settings tables. The trackers' (`HULY_*`, `GITHUB_TOKEN`, `LINEAR_TOKEN`)
-  are profiles in the state database (BTN-200, `docs/trackers.md`, "Profiles"); `FORGEJO_TOKEN`, `EVEN_KEEL_TOKEN`,
-  Tally's own Postgres and classifier stay in `.env`, written from the "Access" tab of `/settings` one at a time
+  are profiles in the state database (BTN-200, `docs/trackers.md`, "Profiles"), and so is Forgejo's
+  (`FORGEJO_URL`, `FORGEJO_TOKEN`, BTN-201); `EVEN_KEEL_TOKEN`, Tally's own Postgres and classifier stay in `.env`, written from the "Access" tab of `/settings` one at a time
   (BTN-131, "Credentials" below). Both are outside git (invariant 3).
 - **The address** — `EVEN_KEEL_HOST`, `EVEN_KEEL_PORT`, `EVEN_KEEL_MCP_PORT`: read before anything else, from the
   environment.
@@ -231,13 +231,13 @@ database ─────────── readSettings ──┘               
 ## Credentials (BTN-131)
 
 The "Access" tab of `/settings` (`web/src/pages/SettingsSecrets.tsx`) starts with the trackers' profiles (cards and the
-"Add profile" dialog, BTN-200, `docs/trackers.md`), then a row per `.env` variable with its own field and its own
+"Add profile" dialog, BTN-200, `docs/trackers.md`; Forgejo's for the CI among them, BTN-201), then a row per `.env` variable with its own field and its own
 "Apply"; nothing of it goes into the drafts of the other groups, and an empty field is not a removal ("Remove" is).
 
-- **The catalog** — `secretCatalog` in `src/secrets/catalog.ts`: the Forgejo token (`FORGEJO_TOKEN`; the GitHub Actions
-  token is a profile's), Tally's list and `EVEN_KEEL_TOKEN`. No tracker variable is a row any more.
+- **The catalog** — `secretCatalog` in `src/secrets/catalog.ts`: Tally's list and `EVEN_KEEL_TOKEN`. No tracker or CI
+  variable is a row any more: both CI tokens are profiles'.
 - **Places** — the default profile of each tracker goes to the `env` of the global `settings.json` (sessions started by
-  hand read it there, the tracker plugin with them); the CI token, Tally's and the page token only to `.env`. `.env` is edited one line at a
+  hand read it there, the tracker plugin with them); a Forgejo profile does not; Tally's and the page token only to `.env`. `.env` is edited one line at a
   time (`upsertEnv`, `removeEnv`), comments and order kept, then `EnvFile.reload` applies it (BTN-130). A written key
   reaches new sessions at their start; a removed one marks the global folder's daemon stale (`DaemonRefresh.expire`,
   `docs/accounts.md`) and the tab says so while live sessions hold its stop.

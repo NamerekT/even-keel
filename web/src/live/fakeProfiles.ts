@@ -22,10 +22,24 @@ const KINDS: ProfileKindView[] = [
     hostVariables: ['HULY_URL', 'HULY_WORKSPACE'],
     alternatives: [['HULY_TOKEN'], ['HULY_EMAIL', 'HULY_PASSWORD']],
     help: 'https://github.com/hcengineering/platform/tree/develop/packages/api-client',
+    tracker: true,
   },
-  { kind: 'github', title: 'GitHub', fields: [{ name: 'GITHUB_TOKEN', secret: true }], hostVariables: [], alternatives: [], help: 'https://github.com/settings/personal-access-tokens/new' },
-  { kind: 'linear', title: 'Linear', fields: [{ name: 'LINEAR_TOKEN', secret: true }], hostVariables: [], alternatives: [], help: 'https://linear.app/settings/account/security' },
+  { kind: 'github', title: 'GitHub', tracker: true, fields: [{ name: 'GITHUB_TOKEN', secret: true }], hostVariables: [], alternatives: [], help: 'https://github.com/settings/personal-access-tokens/new' },
+  { kind: 'linear', title: 'Linear', tracker: true, fields: [{ name: 'LINEAR_TOKEN', secret: true }], hostVariables: [], alternatives: [], help: 'https://linear.app/settings/account/security' },
+  {
+    kind: 'forgejo',
+    title: 'Forgejo',
+    tracker: false,
+    fields: [
+      { name: 'FORGEJO_URL', secret: false },
+      { name: 'FORGEJO_TOKEN', secret: true },
+    ],
+    hostVariables: ['FORGEJO_URL'],
+    alternatives: [],
+    help: 'https://forgejo.org/docs/latest/user/token-scope/',
+  },
 ]
+const FORGEJO_PROFILE = '3f0c2b9e-0000-4000-8000-000000000003'
 
 const PROJECTS: Record<string, TrackerProject[]> = {
   huly: [
@@ -47,8 +61,9 @@ function fields(kind: string, values: Record<string, string>): ProfileField[] {
 }
 
 /**
- * The trackers' profiles: Huly by default for the fake projects, a GitHub profile whose token runs out in 5 days and does
- * not reach the Actions of ABC's `github` remote. `?profiles=` — `none`: no profiles, `refused`: Huly refuses its token.
+ * The profiles: Huly by default for the fake projects, a GitHub profile whose token runs out in 5 days and does not reach
+ * the Actions of ABC's `github` remote, and a Forgejo profile ABC's and DEMO's `origin` CI takes. `?profiles=` — `none`:
+ * no profiles, `refused`: Huly refuses its token.
  */
 export function fakeProfiles(mode: string | null): ProfilesView {
   if (mode === 'none') return { profiles: [], kinds: KINDS }
@@ -65,6 +80,7 @@ export function fakeProfiles(mode: string | null): ProfilesView {
         ? { state: 'refused', error: notice('profiles.refused', { tracker: 'Huly' }), at: ago(3) }
         : { state: 'ok', error: null, at: ago(3) },
     projects: ['ABC', 'DEMO', 'XYZ', 'OPS'],
+    ci: [],
     hiddenCi: [],
   }
   const github: ProfileView = {
@@ -77,9 +93,26 @@ export function fakeProfiles(mode: string | null): ProfilesView {
     expiresAt: new Date(Date.now() + 5 * DAY_MS).toISOString(),
     check: { state: 'ok', error: null, at: ago(3) },
     projects: [],
+    ci: [],
     hiddenCi: [{ project: 'ABC', remote: 'github' }],
   }
-  return { profiles: [huly, github], kinds: KINDS }
+  const forgejo: ProfileView = {
+    id: FORGEJO_PROFILE,
+    kind: 'forgejo',
+    name: 'Forgejo · git.example.com',
+    isDefault: true,
+    fields: fields('forgejo', { FORGEJO_URL: 'https://git.example.com', FORGEJO_TOKEN: '' }),
+    login: 'johndoe',
+    expiresAt: null,
+    check: { state: 'ok', error: null, at: ago(3) },
+    projects: [],
+    ci: [
+      { project: 'ABC', remote: 'origin' },
+      { project: 'DEMO', remote: 'origin' },
+    ],
+    hiddenCi: [],
+  }
+  return { profiles: [huly, github, forgejo], kinds: KINDS }
 }
 
 export function fakeProfilesCommand(state: EvenKeelState, name: string, body: Record<string, unknown>): EvenKeelState | null {
@@ -143,6 +176,7 @@ export function fakeSaved(state: EvenKeelState, id: string, body: Record<string,
     expiresAt: kind === 'github' ? new Date(Date.now() + 30 * DAY_MS).toISOString() : null,
     check: { state: 'ok', error: null, at: ago(0) },
     projects: stored?.projects ?? [],
+    ci: stored?.ci ?? [],
     hiddenCi: stored?.hiddenCi ?? [],
   }
   const profiles = stored === undefined ? [...view.profiles, profile] : view.profiles.map((each) => (each.id === id ? profile : each))

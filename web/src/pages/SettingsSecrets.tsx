@@ -4,7 +4,7 @@ import { say, t } from '../i18n/index.js'
 import { useCommand } from '../live/useCommand.js'
 import { Tipped } from '../ui/Tipped.js'
 import { HelpTip } from './settingsParts.js'
-import { readerLinks, secretGroups, type ReaderLink } from './secretsRows.js'
+import { secretGroups } from './secretsRows.js'
 import { SettingsProfiles } from './SettingsProfiles.js'
 import '../tools/tools.css'
 import './secrets.css'
@@ -69,7 +69,6 @@ function SecretRow({ variable, state }: { variable: SecretView; state: EvenKeelS
             <span className="tools__chip tools__chip--lost">{variable.sessions === 'other' ? t.secrets.sessionsOther : t.secrets.sessionsNone}</span>
           </Tipped>
         )}
-        {variable.set && readerLinks(variable, state.ci).map((link) => <ReaderChip key={link.who.ci} link={link} />)}
       </div>
       {!variable.outer && (
         <form className="secrets__form" onSubmit={(event) => void submit(event)}>
@@ -96,17 +95,5 @@ function SecretRow({ variable, state }: { variable: SecretView; state: EvenKeelS
       )}
       {failure !== null && <p className="notice notice--error secrets__error">{say(failure)}</p>}
     </li>
-  )
-}
-
-function ReaderChip({ link }: { link: ReaderLink }) {
-  const who = t.secrets.ciKinds[link.who.ci] ?? link.who.ci
-  const look = link.state === 'live' ? 'tools__chip--on' : link.state === 'down' ? 'tools__chip--lost' : 'tools__chip--off'
-  const chip = <span className={`tools__chip ${look}`}>{t.secrets[link.state](who)}</span>
-  if (link.error === null) return chip
-  return (
-    <Tipped tip={say(link.error)} focusable inline>
-      {chip}
-    </Tipped>
   )
 }

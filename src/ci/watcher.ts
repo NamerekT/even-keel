@@ -56,11 +56,10 @@ export class CiWatch {
   }
 
   /**
-   * GitHub Actions no profile's token reaches — none at all, or the API refuses it or does not show the repository —
-   * are not shown and do not judge a main (BTN-200); a Forgejo watch stays to say which token to set.
+   * A CI no profile's token reaches — none at all, or the API refuses it or does not show the repository — is not shown
+   * and does not judge a main: GitHub Actions since BTN-200, Forgejo since BTN-201.
    */
   get hidden(): boolean {
-    if (this.deps.target.kind !== 'github') return false
     if (this.source === null) return true
     const error = this.view.health === 'error' ? this.view.error : null
     return error?.code === 'ci.denied' || (error?.code === 'ci.http' && (error.params as { status: number }).status === 404)
