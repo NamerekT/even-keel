@@ -2394,6 +2394,20 @@ a:focus-visible {
   padding-left: 18px;
 }
 
+/* Two lines at most, so the cards of a row keep one height; the whole title is in the tip. */
+.card__task-clamp {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+}
+
+.card__task-title--cut {
+  position: relative;
+  z-index: 1;
+}
+
 .card__error {
   margin: 0;
   padding: 6px 10px;

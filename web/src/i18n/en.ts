@@ -336,6 +336,12 @@ export const en: Messages = {
     title: 'Projects',
     empty: 'There are no projects yet.',
     add: 'Add project',
+    grouping: 'Group projects',
+    groupings: {
+      remote: 'By repository: clones of one remote together',
+      tracker: 'By tracker',
+      both: 'By repository, then by tracker',
+    },
     memes: {
       self: ['Even Keel: memes about vibe coders...', ' Written by a vibe coder?!', ' Bruh.'],
       peak: (day: string, count: number) => [`${day}: ${launches(count)}.`, ' Did you even sleep?'],

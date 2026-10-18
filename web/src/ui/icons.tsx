@@ -242,6 +242,40 @@ export function ServerIcon() {
   )
 }
 
+/** Home grouped by remote: one repository above two clones of it. */
+export function ClonesIcon() {
+  return (
+    <svg className="icon" viewBox="0 0 16 16" aria-hidden="true">
+      <circle cx="8" cy="3.25" r="1.75" />
+      <circle cx="3.5" cy="12.75" r="1.75" />
+      <circle cx="12.5" cy="12.75" r="1.75" />
+      <path d="M8 5v2.5M8 7.5 4.5 11.25M8 7.5l3.5 3.75" />
+    </svg>
+  )
+}
+
+/** Home grouped by tracker: a board of three columns. */
+export function ColumnsIcon() {
+  return (
+    <svg className="icon" viewBox="0 0 16 16" aria-hidden="true">
+      <rect x="2" y="2.5" width="12" height="11" rx="1.5" />
+      <path d="M6 2.5v11M10 2.5v11M3.75 5h.5M7.75 5h.5M7.75 7.25h.5M11.75 5h.5" />
+    </svg>
+  )
+}
+
+/** Home grouped by both: groups inside a group. */
+export function NestedIcon() {
+  return (
+    <svg className="icon" viewBox="0 0 16 16" aria-hidden="true">
+      <rect x="2" y="2" width="12" height="12" rx="1.5" />
+      <rect x="4.5" y="5.5" width="3" height="6" rx="0.75" />
+      <rect x="8.5" y="5.5" width="3" height="6" rx="0.75" />
+      <path d="M4.5 3.75h3" />
+    </svg>
+  )
+}
+
 const TRACKER_ICONS: Record<string, () => ReactNode> = { huly: BoardsIcon, github: BranchIcon, linear: ChecklistIcon, forgejo: PipelineIcon }
 
 /** A profile's own icon by its kind, a tracker's or a CI's; a key for a kind without one. */

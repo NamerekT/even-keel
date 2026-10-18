@@ -1,12 +1,18 @@
-import { useState } from 'react'
+import { type ReactNode, useState } from 'react'
 import { Link, Navigate } from 'react-router'
 import type { EvenKeelState } from '../../../src/state.js'
 import { localized, t } from '../i18n/index.js'
 import { openQuestions, projectSlots, questionPath } from '../state.js'
+import { ClonesIcon, ColumnsIcon, NestedIcon } from '../ui/icons.js'
 import { emptyTurns, type HarborMeme, harborMemes } from '../ui/memes.js'
+import { Tipped } from '../ui/Tipped.js'
 import { Typed, Typists } from '../ui/Typed.js'
+import { GROUPINGS, type Grouping, homeBlocks, zoned, zoneOf } from './homeGroups.js'
 import { LaunchChart, localDate } from './LaunchChart.js'
 import { emptyKind, ProjectCard } from './ProjectCard.js'
+import { QuietRow } from './QuietRow.js'
+import { useGrouping } from './useGrouping.js'
+import './home.css'
 
 const PEAK_DAY = localized((language) => new Intl.DateTimeFormat(language, { day: 'numeric', month: 'long' }))
 const HOME_PACE = { charMs: 45, pauseMs: 3000 }
@@ -22,7 +28,15 @@ export function Home({ state }: { state: EvenKeelState }) {
     fiveHour: state.limits?.fiveHour?.usedPercentage ?? null,
   })
   const meme = memes[Math.floor(draw * memes.length)]!
-  const turns = emptyTurns(state.projects.map((key) => emptyKind(state, key)))
+  const [grouping, setGrouping] = useGrouping()
+  const blocks = homeBlocks(grouping, state.projects, state).map((block) => ({
+    title: block.title,
+    sections: block.sections.map((section) => ({ title: section.title, zones: zoned(section.projects, (key) => zoneOf(state, key)) })),
+  }))
+  // The punchlines go by the cards' order on the page, quiet rows included.
+  const order = blocks.flatMap((block) => block.sections.flatMap(({ zones }) => [...zones.working, ...zones.cards, ...zones.quiet]))
+  const turns = emptyTurns(order.map((key) => emptyKind(state, key)))
+  const turnOf = new Map(order.map((key, index) => [key, turns[index]!]))
 
   // A config that does not parse has its projects unknown, not none: the banner speaks, the wizard waits.
   if (state.projects.length === 0 && state.configError === null) return <Navigate to={ADD_PROJECT} replace />
@@ -31,9 +45,12 @@ export function Home({ state }: { state: EvenKeelState }) {
     <section className="page">
       <header className="home__head">
         <h1 className="page__title">{t.home.title}</h1>
-        <Link to={ADD_PROJECT} className="button button--small">
-          + {t.home.add}
-        </Link>
+        <div className="home__tools">
+          {state.projects.length > 1 && <GroupingSwitch value={grouping} onChange={setGrouping} />}
+          <Link to={ADD_PROJECT} className="button button--small">
+            + {t.home.add}
+          </Link>
+        </div>
       </header>
       {/* The lines type the way the chains run: as many at once as `parallel` allows, in page order. */}
       <Typists count={state.chain.parallel}>
@@ -47,15 +64,61 @@ export function Home({ state }: { state: EvenKeelState }) {
         {state.projects.length === 0 ? (
           <p className="placeholder">{t.home.empty}</p>
         ) : (
-          <div className="cards">
-            {state.projects.map((key, index) => (
-              <ProjectCard key={key} state={state} project={key} turn={turns[index]!} />
+          <div className="home__groups">
+            {blocks.map((block, index) => (
+              <section key={block.title ?? `lone-${index}`} className="home__group" aria-label={block.title ?? undefined}>
+                {block.title !== null && <h2 className="home__group-title">{block.title}</h2>}
+                {block.sections.map(({ title, zones }, at) => (
+                  <div key={title ?? `all-${at}`} className="home__section">
+                    {title !== null && <h3 className="home__section-title">{title}</h3>}
+                    {zones.working.length + zones.cards.length > 0 && (
+                      <div className="cards">
+                        {[...zones.working, ...zones.cards].map((key) => (
+                          <ProjectCard key={key} state={state} project={key} turn={turnOf.get(key)!} />
+                        ))}
+                      </div>
+                    )}
+                    {zones.quiet.length > 0 && (
+                      <div className="quiet-list">
+                        {zones.quiet.map((key) => (
+                          <QuietRow key={key} state={state} project={key} turn={turnOf.get(key)!} />
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </section>
             ))}
           </div>
         )}
       </Typists>
       <LaunchChart days={state.launches} slots={projectSlots(state)} />
     </section>
+  )
+}
+
+const GROUPING_ICONS: Record<Grouping, () => ReactNode> = { remote: ClonesIcon, tracker: ColumnsIcon, both: NestedIcon }
+
+function GroupingSwitch({ value, onChange }: { value: Grouping; onChange: (grouping: Grouping) => void }) {
+  return (
+    <div className="segmented home__grouping" role="group" aria-label={t.home.grouping}>
+      {GROUPINGS.map((grouping) => {
+        const Icon = GROUPING_ICONS[grouping]
+        return (
+          <Tipped key={grouping} tip={t.home.groupings[grouping]} inline>
+            <button
+              type="button"
+              className={grouping === value ? 'segmented__item segmented__item--on' : 'segmented__item'}
+              aria-label={t.home.groupings[grouping]}
+              aria-pressed={grouping === value}
+              onClick={() => onChange(grouping)}
+            >
+              <Icon />
+            </button>
+          </Tipped>
+        )
+      })}
+    </div>
   )
 }
 

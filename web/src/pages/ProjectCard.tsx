@@ -1,3 +1,4 @@
+import { useLayoutEffect, useRef, useState } from 'react'
 import { Link } from 'react-router'
 import type { EvenKeelState } from '../../../src/state.js'
 import { say, t } from '../i18n/index.js'
@@ -87,7 +88,7 @@ export function ProjectCard({ state, project, turn }: { state: EvenKeelState; pr
           <Lamp lamp={task.lamp} />
           {task.next && <span className="card__task-label">{t.project.next}</span>}
           <span className="card__task-id">{task.id}</span>
-          {task.title !== null && <span className="card__task-title">{task.title}</span>}
+          {task.title !== null && <TaskTitle title={task.title} />}
         </p>
       )}
 
@@ -107,6 +108,28 @@ export function ProjectCard({ state, project, turn }: { state: EvenKeelState; pr
   )
 }
 
+/** The task's title in two lines; one cut short gives the whole of it in a tip. */
+function TaskTitle({ title }: { title: string }) {
+  const text = useRef<HTMLSpanElement>(null)
+  const [cut, setCut] = useState(false)
+  useLayoutEffect(() => {
+    const element = text.current
+    if (element === null) return
+    const measure = () => setCut(element.scrollHeight > element.clientHeight + 1)
+    measure()
+    const observer = new ResizeObserver(measure)
+    observer.observe(element)
+    return () => observer.disconnect()
+  }, [title])
+  return (
+    <Tipped className={cut ? 'card__task-title card__task-title--cut' : 'card__task-title'} tip={title} align="start" inline off={!cut}>
+      <span ref={text} className="card__task-clamp">
+        {title}
+      </span>
+    </Tipped>
+  )
+}
+
 /** What the card says with no task to show; `null` — it shows a task or the chain is not read yet. */
 export function emptyKind(state: EvenKeelState, project: string): EmptyCard | null {
   const order = state.chain.projects[project]
@@ -118,15 +141,27 @@ export function emptyKind(state: EvenKeelState, project: string): EmptyCard | nu
  * Stands still, so the cards do not type all at once: the setup, then the punchline of the card's `turn` among the cards
  * of its kind.
  */
-function EmptyLine({ progress, turn }: { progress: { done: number; total: number; backlog: number }; turn: number }) {
-  const kind = emptyCard(progress)
-  if (kind === 'held') return <p className="card__task card__task--empty">{t.project.noTasks}</p>
-  const { setup, punchlines } = t.project.emptyCard[kind]
-  const line = punchline(punchlines, turn)
+function EmptyLine({ progress, turn }: { progress: Progress; turn: number }) {
+  const quip = quipOf(progress, turn)
+  if (quip === null) return <p className="card__task card__task--empty">{t.project.noTasks}</p>
   return (
     <p className="card__quip">
-      {setup(kind === 'shelved' ? progress.backlog : progress.done)}
-      {line !== null && <span className="card__punchline">{line}</span>}
+      {quip.setup}
+      {quip.punchline !== null && <span className="card__punchline">{quip.punchline}</span>}
     </p>
   )
+}
+
+interface Progress {
+  done: number
+  total: number
+  backlog: number
+}
+
+/** The joke of an empty card; `null` — its tasks are held, which is no joke. */
+export function quipOf(progress: Progress, turn: number): { setup: string; punchline: string | null } | null {
+  const kind = emptyCard(progress)
+  if (kind === 'held') return null
+  const { setup, punchlines } = t.project.emptyCard[kind]
+  return { setup: setup(kind === 'shelved' ? progress.backlog : progress.done), punchline: punchline(punchlines, turn) }
 }

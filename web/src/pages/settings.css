@@ -123,6 +123,39 @@
   resize: none;
 }
 
+/* The padding keeps the ring of the chosen color inside a scrolling panel. */
+.settings__colors {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 4px;
+}
+
+.settings__color {
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: var(--series);
+  cursor: pointer;
+  transition: box-shadow var(--motion-fast);
+}
+
+.settings__color:hover {
+  box-shadow: 0 0 0 2px var(--surface), 0 0 0 3px var(--border);
+}
+
+.settings__color--on,
+.settings__color--on:hover {
+  box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px var(--fg);
+}
+
+.settings__color:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 4px;
+}
+
 .settings__wide-number {
   width: 12em;
   resize: none;
