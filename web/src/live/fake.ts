@@ -21,7 +21,7 @@ import { fakeCompare, fakeRuleDiff, fakeRules } from './fakeRules.js'
 import { fakeSteps } from './fakeSteps.js'
 import { fakeCheckpoints, fakeHistory, fakePeriod, fakeSpend, fakeTask } from './fakeStats.js'
 import { fakeCard, fakeMoveMilestone, fakeReady } from './fakeCards.js'
-import { fakeAnswer, fakeImageUrl, fakeOpenAsk, fakePastAsk, fakeSentFileUrl, fakeShots, FAKE_ASK, FAKE_UNSAVED_ASK } from './fakeChat.js'
+import { fakeAnswer, fakeCalls, fakeImageUrl, fakeOpenAsk, fakePastAsk, fakeSentFileUrl, fakeShots, FAKE_ASK, FAKE_UNSAVED_ASK } from './fakeChat.js'
 import type { Ask } from '../../../src/sessions/ask.js'
 import { fakeTools } from './fakeTools.js'
 import { fakePackages, fakePackagesCommand } from './fakePackages.js'
@@ -123,7 +123,7 @@ function fakeTranscript(open: Ask | null): FeedLine[] {
   return [
     { at: at(40), kind: 'prompt', text: 'ABC-5\n\nWorking folder: C:\\repos\\example-project\\.claude\\worktrees\\abc-5' },
     { at: at(39), kind: 'text', text: 'Читаю описание задачи и вложения.' },
-    { at: at(38), kind: 'tool', text: 'Bash Run the chain tests', detail: 'npx vitest run src/chain\nnpx tsc --noEmit' },
+    { at: at(38), kind: 'tool', text: 'Bash Run the chain tests', detail: 'npx vitest run src/chain\nnpx tsc --noEmit', name: 'Bash', subject: 'Run the chain tests' },
     ...fakePastAsk(at),
     {
       at: at(30),
@@ -132,6 +132,7 @@ function fakeTranscript(open: Ask | null): FeedLine[] {
     },
     ...fakeShots(at),
     { at: at(20), kind: 'prompt', text: 'А почему цикл не ловится раньше?' },
+    ...fakeCalls(at),
     ...fakeFeed(),
     ...fakeOpenAsk(open),
   ]

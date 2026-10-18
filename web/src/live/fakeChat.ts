@@ -83,12 +83,32 @@ export function fakePastAsk(at: (minutes: number) => string): FeedLine[] {
 /** Two screenshots read in one turn and a browser shot: tool lines first, then the image lines of their results. */
 export function fakeShots(at: (minutes: number) => string): FeedLine[] {
   return [
-    { at: at(25), kind: 'tool', text: 'Read .temp/shots/chain-dark.png', tool: 'toolu_fake_dark' },
-    { at: at(25), kind: 'tool', text: 'Read .temp/shots/chain-light.png', tool: 'toolu_fake_light' },
+    { at: at(25), kind: 'tool', text: 'Read .temp/shots/chain-dark.png', tool: 'toolu_fake_dark', name: 'Read', subject: `${ROOT}\\.temp\\shots\\chain-dark.png` },
+    { at: at(25), kind: 'tool', text: 'Read .temp/shots/chain-light.png', tool: 'toolu_fake_light', name: 'Read', subject: `${ROOT}\\.temp\\shots\\chain-light.png` },
     { at: at(25), kind: 'image', text: 'chain-dark.png', tool: 'toolu_fake_dark', images: 1 },
     { at: at(25), kind: 'image', text: 'chain-light.png', tool: 'toolu_fake_light', images: 1 },
-    { at: at(24), kind: 'tool', text: 'mcp playwright browser_take_screenshot', tool: 'toolu_fake_browser' },
+    { at: at(24), kind: 'tool', text: 'playwright browser_take_screenshot', tool: 'toolu_fake_browser', name: 'mcp__playwright__browser_take_screenshot' },
     { at: at(24), kind: 'image', text: '', tool: 'toolu_fake_browser', images: 1 },
+  ]
+}
+
+const ROOT = 'C:\\repos\\example-project'
+
+/** A long run of calls between two texts, one of them failed: the group line of the chat and what it opens into. */
+export function fakeCalls(at: (minutes: number) => string): FeedLine[] {
+  const call = (id: string, name: string, text: string, extra: Partial<FeedLine> = {}): FeedLine => ({ at: at(12), kind: 'tool', text, tool: id, name, ...extra })
+  return [
+    { at: at(13), kind: 'text', text: 'Ловлю цикл в `chainOrder` до сортировки: тест, правка, прогон.' },
+    call('toolu_fake_c1', 'Read', 'Read src/chain/order.ts', { subject: `${ROOT}\\src\\chain\\order.ts` }),
+    call('toolu_fake_c2', 'Grep', 'Grep blockedBy', { subject: 'blockedBy' }),
+    call('toolu_fake_c3', 'Edit', 'Edit src/chain/order.test.ts', { subject: `${ROOT}\\src\\chain\\order.test.ts`, added: 21, removed: 0 }),
+    call('toolu_fake_c4', 'Bash', 'Bash Run the chain tests', { subject: 'Run the chain tests', detail: 'npx vitest run src/chain' }),
+    { at: at(12), kind: 'failed', text: 'Exit code 1\n FAIL  src/chain/order.test.ts > chainOrder > stops on a cycle\nAssertionError: expected [Function] to throw', tool: 'toolu_fake_c4' },
+    call('toolu_fake_c5', 'Edit', 'Edit src/chain/order.ts', { subject: `${ROOT}\\src\\chain\\order.ts`, added: 8, removed: 3 }),
+    call('toolu_fake_c6', 'Edit', 'Edit src/chain/order.ts', { subject: `${ROOT}\\src\\chain\\order.ts`, added: 2, removed: 1 }),
+    call('toolu_fake_c7', 'Bash', 'Bash npx vitest run src/chain && npx tsc --noEmit', { detail: 'npx vitest run src/chain && npx tsc --noEmit' }),
+    { at: at(11), kind: 'text', text: 'Тесты зелёные. Цикл теперь — ошибка над цепочкой с задачами цикла.' },
+    call('toolu_fake_c8', 'Read', 'Read docs/chain.md', { subject: `${ROOT}\\docs\\chain.md` }),
   ]
 }
 
