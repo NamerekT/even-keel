@@ -456,14 +456,15 @@ function projectOf(task: string): string | undefined {
 const places = new TaskPlaces({
   git: runGit,
   main: branchOf,
-  place: async (project, task) => {
+  place: async (project, task, { ahead = false, at } = {}) => {
     const repo = config.projects[project]!
     const main = branchOf(project)
     await requireBranch(runGit, repo, project, main)
     await ensureIgnored(runGit, repo)
     const count = config.slots[project]
-    if (count === undefined || isFixName(task)) return prepareWorktree(runGit, repo, task, main)
-    return prepareSlot(runGit, repo, task, { count, main, occupancy: (path) => slotUse(path, task), vacate: (path) => vacateSlot(path, task) })
+    if (count === undefined || isFixName(task)) return prepareWorktree(runGit, repo, task, main, ahead)
+    const pool = { count, main, ahead, occupancy: (path: string) => slotUse(path, task), vacate: (path: string) => vacateSlot(path, task) }
+    return prepareSlot(runGit, repo, task, at === undefined ? pool : { ...pool, at })
   },
   setUp: (project, task, path) => runBeforeStart(configFile.current.settings[project]?.beforeStart ?? [], taskRun(task, path)),
 })

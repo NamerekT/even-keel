@@ -79,6 +79,38 @@ describe('prepareWorktree', () => {
     expect(calls).toContain(`worktree add ${place} abc-7/task`)
   })
 
+  it('leaves a worktree made ahead of the launch detached at main, without the task branch', async () => {
+    const { git, calls } = fakeGit({ 'worktree list --porcelain': listing(main), 'rev-parse --verify --quiet refs/heads/abc-7/task': { code: 1 } })
+    expect(await prepareWorktree(git, repo, 'ABC-7', 'master', true)).toEqual({ path: place, branch: null })
+    expect(calls).toContain(`worktree add --detach ${place} master`)
+    expect(calls.some((call) => call.includes('switch'))).toBe(false)
+  })
+
+  it('puts the branch a task already has into a worktree made ahead', async () => {
+    const { git, calls } = fakeGit({ 'worktree list --porcelain': listing(main) })
+    expect(await prepareWorktree(git, repo, 'ABC-7', 'main', true)).toEqual({ path: place, branch: 'abc-7/task' })
+    expect(calls).toContain(`worktree add ${place} abc-7/task`)
+  })
+
+  it('makes the task branch at the launch in the worktree made ahead', async () => {
+    const { git, calls } = fakeGit({
+      'worktree list --porcelain': listing(main, [porcelainPath, null]),
+      'rev-parse --verify --quiet refs/heads/abc-7/task': { code: 1 },
+    })
+    expect(await prepareWorktree(git, repo, 'ABC-7')).toEqual({ path: place, branch: 'abc-7/task' })
+    expect(calls).toContain(`-C ${place} switch -c abc-7/task`)
+    expect(calls.some((call) => call.startsWith('worktree add'))).toBe(false)
+  })
+
+  it('keeps a worktree made ahead detached when it is asked for ahead again', async () => {
+    const { git, calls } = fakeGit({
+      'worktree list --porcelain': listing(main, [porcelainPath, null]),
+      'rev-parse --verify --quiet refs/heads/abc-7/task': { code: 1 },
+    })
+    expect(await prepareWorktree(git, repo, 'ABC-7', 'main', true)).toEqual({ path: place, branch: null })
+    expect(calls.some((call) => call.includes('switch') || call.startsWith('worktree add'))).toBe(false)
+  })
+
   it('prunes stale worktrees before looking', async () => {
     const { git, calls } = fakeGit({ 'worktree list --porcelain': listing(main) })
     await prepareWorktree(git, repo, 'ABC-7')

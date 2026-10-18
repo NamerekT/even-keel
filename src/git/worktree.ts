@@ -52,15 +52,27 @@ export async function requireBranch(git: Git, repo: string, project: string, bra
   if (!(await hasBranch(git, repo, branch))) throw fail('git.noBranch', { project, branch, repo })
 }
 
-export async function prepareWorktree(git: Git, repo: string, task: string, main = 'main'): Promise<TaskPlace> {
+/**
+ * `ahead` — the place is made before the launch, while the chain waits for main: a new one stays detached at main and
+ * gets the task branch only at the launch, so whatever starts the task on the checkout of its branch (a tracker's git hook) does it then.
+ */
+export async function prepareWorktree(git: Git, repo: string, task: string, main = 'main', ahead = false): Promise<TaskPlace> {
   const place = taskPlace(repo, task)
   const found = await worktreeAt(git, repo, place.path)
-  if (found !== undefined) return { path: place.path, branch: found.branch }
-  const args = (await hasBranch(git, repo, place.branch))
+  const branched = await hasBranch(git, repo, place.branch)
+  if (found !== undefined) {
+    if (found.branch !== null || ahead) return { path: place.path, branch: found.branch }
+    await must(git, repo, ['-C', place.path, 'switch', ...(branched ? [] : ['-c']), place.branch], 'switch', place.branch)
+    return place
+  }
+  const detached = ahead && !branched
+  const args = branched
     ? ['worktree', 'add', place.path, place.branch]
-    : ['worktree', 'add', '-b', place.branch, place.path, main]
+    : detached
+      ? ['worktree', 'add', '--detach', place.path, main]
+      : ['worktree', 'add', '-b', place.branch, place.path, main]
   await must(git, repo, args, 'addWorktree', task)
-  return place
+  return detached ? { path: place.path, branch: null } : place
 }
 
 /**

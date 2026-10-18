@@ -189,6 +189,48 @@ describe('prepareSlot with a pool of two', () => {
     expect(changing(calls)).toEqual([])
   })
 
+  it('leaves a slot taken ahead of the launch detached at main, without the task branch', async () => {
+    const { git, calls } = fakeGit({ [LIST]: listing([porcelain(slot), 'abc-6/task']), [HAS_BRANCH]: { code: 1 } })
+    expect(await prepareSlot(git, repo, 'ABC-7', { ...pooled().pool, ahead: true })).toEqual({ path: slot, branch: null })
+    expect(changing(calls)).toEqual(['@slot clean -fd', '@slot switch --detach main'])
+  })
+
+  it('does not move a detached slot taken ahead: the launch brings it up to main', async () => {
+    const { git, calls } = fakeGit({ [LIST]: listing([porcelain(slot), null]), [HAS_BRANCH]: { code: 1 } })
+    expect(await prepareSlot(git, repo, 'ABC-7', { ...pooled().pool, ahead: true })).toEqual({ path: slot, branch: null })
+    expect(changing(calls)).toEqual(['@slot clean -fd'])
+  })
+
+  it('switches to the branch a task already has even ahead of the launch', async () => {
+    const { git, calls } = fakeGit({ [LIST]: listing([porcelain(slot), null]) })
+    expect(await prepareSlot(git, repo, 'ABC-7', { ...pooled().pool, ahead: true })).toEqual({ path: slot, branch: 'abc-7/task' })
+    expect(changing(calls)).toEqual(['@slot clean -fd', '@slot switch abc-7/task'])
+  })
+
+  it('makes the task branch at the launch in the slot taken ahead, dirty or not, off its own commit', async () => {
+    const { git, calls } = fakeGit({
+      [LIST]: listing([porcelain(slot), null], [porcelain(slot2), null]),
+      [HAS_BRANCH]: { code: 1 },
+      '@slot2 status --porcelain': { out: ' M package-lock.json' },
+    })
+    const { pool, vacated } = pooled()
+    expect(await prepareSlot(git, repo, 'ABC-7', { ...pool, at: slot2 })).toEqual({ path: slot2, branch: 'abc-7/task' })
+    expect(changing(calls)).toEqual(['@slot2 switch -c abc-7/task'])
+    expect(vacated).toEqual([])
+  })
+
+  it('keeps the slot taken ahead as it is when it is asked for ahead again', async () => {
+    const { git, calls } = fakeGit({ [LIST]: listing([porcelain(slot), null], [porcelain(slot2), null]), [HAS_BRANCH]: { code: 1 } })
+    expect(await prepareSlot(git, repo, 'ABC-7', { ...pooled().pool, ahead: true, at: slot2 })).toEqual({ path: slot2, branch: null })
+    expect(changing(calls)).toEqual([])
+  })
+
+  it('picks a slot anew at the launch when the one taken ahead is on a branch by now', async () => {
+    const { git, calls } = fakeGit({ [LIST]: listing([porcelain(slot), null], [porcelain(slot2), 'abc-9/task']), [HAS_BRANCH]: { code: 1 } })
+    expect(await prepareSlot(git, repo, 'ABC-7', { ...pooled().pool, at: slot2 })).toEqual({ path: slot, branch: 'abc-7/task' })
+    expect(changing(calls)).toEqual(['@slot clean -fd', '@slot switch -c abc-7/task main'])
+  })
+
   it('adds the second slot rather than stop a session of another task in the first', async () => {
     const { git, calls } = fakeGit({ [LIST]: listing([porcelain(slot), 'abc-6/task']), [HAS_BRANCH]: { code: 1 } })
     const { pool, vacated } = pooled(held({ [slot]: idle }))

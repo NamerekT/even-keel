@@ -14,6 +14,10 @@ export interface SlotPool {
   vacate: (path: string) => Promise<void>
   /** The project's main branch: a new slot and a new task branch start from it. */
   main: string
+  /** The slot is taken before the launch: as in `prepareWorktree`, a task without a branch gets it only at the launch. */
+  ahead: boolean
+  /** The slot taken ahead for the task: while it is still detached, it is the task's, dirty or not. */
+  at: string
 }
 
 export function slotPaths(repo: string, count: number): string[] {
@@ -21,13 +25,22 @@ export function slotPaths(repo: string, count: number): string[] {
 }
 
 export async function prepareSlot(git: Git, repo: string, task: string, options: Partial<SlotPool> = {}): Promise<TaskPlace> {
-  const { count = 1, occupancy = () => ({ idle: false, busy: [] }), vacate = async () => {}, main = 'main' } = options
+  const { count = 1, occupancy = () => ({ idle: false, busy: [] }), vacate = async () => {}, main = 'main', at } = options
   const place = taskPlace(repo, task)
   const paths = slotPaths(repo, count)
   const [own, ...slots] = await worktreesAt(git, repo, [place.path, ...paths])
   if (own !== undefined) return { path: place.path, branch: own.branch }
   const holding = slots.findIndex((slot) => isTaskBranch(slot?.branch ?? null, task))
   if (holding !== -1) return { path: paths[holding]!, branch: slots[holding]!.branch! }
+  const branched = await hasBranch(git, repo, place.branch)
+  const detached = options.ahead === true && !branched
+
+  const taken = at === undefined ? -1 : paths.indexOf(at)
+  if (taken !== -1 && slots[taken] !== undefined && slots[taken].branch === null) {
+    if (detached) return { path: at!, branch: null }
+    await must(git, at!, ['switch', ...(branched ? [] : ['-c']), place.branch], 'switch', place.branch)
+    return { path: at!, branch: place.branch }
+  }
 
   const free: { path: string; rank: number }[] = []
   const refusals: Notice[] = []
@@ -55,7 +68,11 @@ export async function prepareSlot(git: Git, repo: string, task: string, options:
   if (chosen.rank === 2) await must(git, repo, ['worktree', 'add', '--detach', chosen.path, main], 'addSlot')
   else await vacate(chosen.path)
   await must(git, chosen.path, ['clean', '-fd'], 'clean')
-  const args = (await hasBranch(git, repo, place.branch)) ? ['switch', place.branch] : ['switch', '-c', place.branch, main]
+  if (detached) {
+    if ((slots[paths.indexOf(chosen.path)]?.branch ?? null) !== null) await must(git, chosen.path, ['switch', '--detach', main], 'switch', main)
+    return { path: chosen.path, branch: null }
+  }
+  const args = branched ? ['switch', place.branch] : ['switch', '-c', place.branch, main]
   await must(git, chosen.path, args, 'switch', place.branch)
   return { path: chosen.path, branch: place.branch }
 }
