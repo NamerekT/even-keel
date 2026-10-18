@@ -242,12 +242,24 @@ export function ServerIcon() {
   )
 }
 
-const TRACKER_ICONS: Record<string, () => ReactNode> = { huly: BoardsIcon, github: BranchIcon, linear: ChecklistIcon }
+const TRACKER_ICONS: Record<string, () => ReactNode> = { huly: BoardsIcon, github: BranchIcon, linear: ChecklistIcon, forgejo: PipelineIcon }
 
-/** A tracker's own icon by its kind; a key for a kind without one. */
+/** A profile's own icon by its kind, a tracker's or a CI's; a key for a kind without one. */
 export function TrackerIcon({ kind }: { kind: string }) {
   const Icon = TRACKER_ICONS[kind] ?? KeyIcon
   return <Icon />
+}
+
+/** A Forgejo profile: a CI run of three jobs, the last one passed, not Forgejo's mark. */
+export function PipelineIcon() {
+  return (
+    <svg className="icon" viewBox="0 0 16 16" aria-hidden="true">
+      <circle cx="3" cy="8" r="1.75" />
+      <circle cx="8" cy="8" r="1.75" />
+      <circle cx="13" cy="8" r="2.25" />
+      <path d="M4.75 8h1.5M9.75 8h1M12 8l.75.75L14 7.25" />
+    </svg>
+  )
 }
 
 /** A Huly profile: four boards of a workspace, not Huly's mark. */
@@ -279,6 +291,17 @@ export function ChecklistIcon() {
   return (
     <svg className="icon" viewBox="0 0 16 16" aria-hidden="true">
       <path d="m2.25 4 1.25 1.25L5.75 3M2.25 9.5l1.25 1.25L5.75 8.5M8 4.25h5.75M8 9.75h5.75M8 13.25h3.5" />
+    </svg>
+  )
+}
+
+/** A milestone's changelog draft: a sheet with lines and a pen over its corner. */
+export function ChangelogIcon() {
+  return (
+    <svg className="icon" viewBox="0 0 16 16" aria-hidden="true">
+      <path d="M8.5 14.25H4a1.25 1.25 0 0 1-1.25-1.25V3A1.25 1.25 0 0 1 4 1.75h6A1.25 1.25 0 0 1 11.25 3v3" />
+      <path d="M5.25 5h3.5M5.25 7.75h2.5" />
+      <path d="m13.6 8.4.9.9-4.4 4.4-1.6.4.4-1.6z" />
     </svg>
   )
 }

@@ -277,7 +277,7 @@ export function SettingsPanel({
               id={fieldId('tracker')}
               className="settings__text settings__short"
               value={text('tracker')}
-              options={config.trackers.map((each) => ({ value: each.name, label: each.name }))}
+              options={config.trackers.map((each) => ({ value: each.name, label: each.title }))}
               invalid={errorOf('tracker') !== null}
               disabled={locked}
               onChange={(value) => edit('tracker', value)}
@@ -289,7 +289,7 @@ export function SettingsPanel({
           {tracker?.projectKey != null && (
             <div className={marks.box('trackerProject', 'settings__field settings__grow')}>
               <FieldHead
-                label={t.settings.trackerProject(tracker.projectKey.key)}
+                label={t.settings.trackerProject(tracker.name, tracker.title)}
                 hint={tracker.projectKey.optional ? t.settings.trackerProjectOptional : undefined}
                 htmlFor={fieldId('trackerProject')}
               />

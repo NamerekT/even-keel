@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto'
+import { FORGEJO_PROFILE, FORGEJO_TOKEN, FORGEJO_URL, hostOf } from '../ci/forgejo-profile.js'
 import { inTransaction, type Db, type Queryable } from '../storage/database.js'
 import { setStateValue, stateValue } from '../storage/service-state.js'
 import { profilesOfEnv, type Adapters, type ProfileSet, type TrackerProfile } from './model.js'
@@ -98,5 +99,42 @@ export async function importProfiles({ db, env, adapters, trackers, log }: Impor
     const names = profiles.map((profile) => `${profile.name} (${Object.values(links).filter((id) => id === profile.id).length} projects)`)
     log(`profiles: the trackers' variables of .env became the profiles ${names.join(', ')}; .env is not read for them any more`)
   }
+  return set
+}
+
+export interface ImportForgejoOptions {
+  db: Db
+  env: Record<string, string | undefined>
+  /** The web addresses of the projects' Forgejo remotes as they are now (`CiTarget.web`). */
+  webs: () => Promise<string[]>
+  log: (line: string) => void
+}
+
+/**
+ * At the first start with Forgejo profiles (BTN-201), `FORGEJO_TOKEN` of the environment becomes a Forgejo profile per
+ * host of the projects' Forgejo remotes, the first one the default; later starts do not read the variable. Returns the
+ * stored set.
+ */
+export async function importForgejo({ db, env, webs, log }: ImportForgejoOptions): Promise<ProfileSet> {
+  const stored = await readProfiles(db)
+  if ((await stateValue(db, 'profiles.forgejo.imported')) !== undefined) return stored
+  const token = env[FORGEJO_TOKEN]
+  const byHost = new Map<string, string>()
+  for (const web of token ? await webs() : []) {
+    const host = hostOf(web)
+    if (host !== null && !byHost.has(host)) byHost.set(host, web)
+  }
+  const hasDefault = stored.profiles.some((profile) => profile.kind === 'forgejo' && profile.isDefault)
+  const made: TrackerProfile[] = [...byHost.values()].map((web, index) => {
+    const values = { [FORGEJO_URL]: web, [FORGEJO_TOKEN]: token! }
+    return { id: randomUUID(), kind: 'forgejo', name: FORGEJO_PROFILE.profileName(values, null), values, isDefault: !hasDefault && index === 0, login: null, expiresAt: null }
+  })
+  const set = { ...stored, profiles: [...stored.profiles, ...made] }
+  await inTransaction(db, async (tx) => {
+    if (made.length > 0) await saveProfiles(tx, set)
+    await setStateValue(tx, 'profiles.forgejo.imported', new Date().toISOString())
+  })
+  if (made.length > 0) log(`profiles: FORGEJO_TOKEN of .env became the profiles ${made.map((profile) => profile.name).join(', ')}; .env is not read for it any more`)
+  else if (token) log('profiles: FORGEJO_TOKEN of .env made no profile: no project has a Forgejo remote; add a Forgejo profile on the Access tab')
   return set
 }

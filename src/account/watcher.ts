@@ -62,7 +62,8 @@ export interface AccountWatcherOptions {
   /** Whether the agent's provider takes the key. */
   checkKey: (agent: string, key: string) => Promise<KeyVerdict>
   keyCheckMs: number
-  checkCredit: (key: string) => Promise<CreditVerdict>
+  /** Whether the key can pay again, asked of the agent's provider. */
+  checkCredit: (agent: string, key: string) => Promise<CreditVerdict>
   creditCheckMs: number
   intervalMs: number
   loginTimeoutMs: number
@@ -258,10 +259,9 @@ export class AccountWatcher {
     await Promise.all(
       this.credit.due(now).map(async (account) => {
         const home = homes.find((each) => each.key === account)
-        // The credit check asks Anthropic; a Codex session never stops on `credit`.
-        const key = home === undefined || home.agent === CODEX ? null : this.options.homes.apiKeyOf(home)
-        if (key === null) return
-        const verdict = await this.options.checkCredit(key)
+        const key = home === undefined ? null : this.options.homes.apiKeyOf(home)
+        if (home === undefined || key === null) return
+        const verdict = await this.options.checkCredit(home.agent, key)
         if (verdict.state === 'unknown') this.options.onError(new Error(`credit check of ${account}: ${verdict.reason}`))
         this.credit.note(account, verdict, now)
       }),

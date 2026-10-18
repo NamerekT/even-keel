@@ -29,11 +29,13 @@ export function fakeNoProjects(state: EvenKeelState): EvenKeelState {
  */
 export function fakeCheck(state: EvenKeelState, draft: ProjectDraft, mode: string | null): ProjectCheck {
   const path = draft.repo.trim()
-  if (path === '') return { repo: { root: null, current: null, notice: null }, entry: null, tracker: null, trusted: null }
-  if (path.includes('nope')) return { repo: { root: null, current: null, notice: notice('wizard.notRepo', { path }, { detail: 'fatal: not a git repository' }) }, entry: null, tracker: null, trusted: null }
+  const none = { root: null, current: null, suggested: null }
+  if (path === '') return { repo: { ...none, notice: null }, entry: null, tracker: null, trusted: null }
+  if (path.includes('nope')) return { repo: { ...none, notice: notice('wizard.notRepo', { path }, { detail: 'fatal: not a git repository' }) }, entry: null, tracker: null, trusted: null }
   const root = path.replace(/\\/g, '/').replace(/\/+$/, '')
   const current = root.includes('master') ? 'master' : 'main'
-  const repo = { root, current, notice: repoNotice(state, root, draft.branch.trim()) }
+  const suggested = draft.tracker === 'github' ? `octo-org/${root.split('/').pop()}` : null
+  const repo = { root, current, suggested, notice: repoNotice(state, root, draft.branch.trim()) }
   const entry = entryNotice(state, draft)
   const trusted = mode !== 'untrusted'
   if (entry !== null || repo.notice !== null) return { repo, entry, tracker: null, trusted }

@@ -1,4 +1,5 @@
 import { isTerminal, unknownStatuses, type ChainRules } from '../chain/rules.js'
+import type { RemoteRepo } from '../ci/remote.js'
 import type { TrackerCard } from './card.js'
 import { isLeaf, toTask, type MilestonePick, type Task, type TaskPriority, type TaskStatus, type TrackerTask } from './model.js'
 
@@ -97,12 +98,23 @@ export interface TaskSource {
   /** Optional, together with `milestones`. Puts the task into the milestone with this id from `milestones`; `null` — into none. */
   moveMilestone?(id: string, milestone: string | null): Promise<void>
   /**
+   * Optional. Every task of the project's milestone named `milestone`, whatever its status, each with its last comment;
+   * `[]` — the project has no such milestone. With it the page offers a changelog draft of the milestone (`src/changelog/`).
+   */
+  milestoneTasks?(project: string, milestone: string): Promise<MilestoneTask[]>
+  /**
    * Optional. The status names and the labels a task of the project can have, whether or not a task has them now;
    * the settings offer them in the chain rules. Without it the rules offer only what the loaded tasks carry.
    */
   vocabulary?(project: string): Promise<TrackerVocabulary>
   /** Drops the connection. */
   close(): Promise<void>
+}
+
+/** A task of a milestone for its changelog draft (`TaskSource.milestoneTasks`). */
+export interface MilestoneTask extends TrackerTask {
+  /** Markdown of the task's last comment, the closing one of its session as a rule; `null` — it has none. */
+  lastComment: string | null
 }
 
 export interface TrackerVocabulary {
@@ -214,6 +226,8 @@ export interface TrackerAdapter {
   mcpKeys?: Readonly<Record<string, string>>
   /** Optional. For a tracker whose projects are not named by the project key alone (GitHub: `owner/name`). */
   projectKey?: TrackerProjectKey
+  /** Optional. The value of `projectKey` a git remote of the repository suggests (GitHub: `owner/name` of a github.com remote). */
+  projectOfRemote?(remote: RemoteRepo): string | undefined
   /**
    * `env` — a profile's values. `undefined` — none of its variables are set and the tracker is off; throws when they are
    * set only in part. `projects` — the value of `projectKey` by project key, for the projects on this profile that have
@@ -244,6 +258,7 @@ export interface Tracker {
   setMilestone?(id: string, milestoneOf: string): Promise<boolean>
   milestones?(id: string): Promise<MilestonePick>
   moveMilestone?(id: string, milestone: string | null): Promise<void>
+  milestoneTasks?(project: string, milestone: string): Promise<MilestoneTask[]>
   vocabulary?(project: string): Promise<TrackerVocabulary>
   close(): Promise<void>
 }
@@ -275,6 +290,7 @@ export function trackerOf(source: TaskSource): Tracker {
     tracker.milestones = (id) => source.milestones!(id)
     tracker.moveMilestone = (id, milestone) => source.moveMilestone!(id, milestone)
   }
+  if (source.milestoneTasks !== undefined) tracker.milestoneTasks = (project, milestone) => source.milestoneTasks!(project, milestone)
   if (source.vocabulary !== undefined) tracker.vocabulary = (project) => source.vocabulary!(project)
   return tracker
 }

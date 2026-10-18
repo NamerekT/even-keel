@@ -227,3 +227,13 @@ export function milestonesOf(issues: HulyIssueDoc[]): string[] {
 export function labeled(issues: HulyIssueDoc[]): string[] {
   return issues.filter((issue) => (issue.labels ?? 0) > 0).map((issue) => issue._id)
 }
+
+/** The markup of each issue's newest comment, by the issue's `_id`. */
+export function latestMessages(messages: { attachedTo: string; createdOn: number; message: string }[]): Map<string, string> {
+  const newest = new Map<string, { createdOn: number; message: string }>()
+  for (const doc of messages) {
+    const kept = newest.get(doc.attachedTo)
+    if (kept === undefined || doc.createdOn > kept.createdOn) newest.set(doc.attachedTo, doc)
+  }
+  return new Map([...newest].map(([issue, doc]) => [issue, doc.message]))
+}

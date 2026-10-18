@@ -53,6 +53,11 @@ export function turnArgs(start: Pick<SessionStart, 'model' | 'bypassSandbox' | '
   ]
 }
 
+/** `Agent.write`: `codex exec` prints the progress to stderr and only the last message to stdout. */
+export function writeArgs(model: string | null): string[] {
+  return ['exec', '--sandbox', 'read-only', '--ephemeral', '--color', 'never', ...(model === null ? [] : ['-m', model]), '-']
+}
+
 export function parseLoginStatus(text: string, authFile: string | undefined): AccountStatus {
   const none = { email: null, orgName: null, subscriptionType: null }
   if (/^Not logged in/m.test(text)) return { loggedIn: false, authMethod: null, ...none }

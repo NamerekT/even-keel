@@ -48,9 +48,10 @@ export function formsOf(config: EvenKeelConfig, adapters: Adapters = ADAPTERS): 
   return { projects, shared }
 }
 
-export function trackerChoices(adapters: Adapters = ADAPTERS): TrackerChoice[] {
-  return Object.entries(adapters).map(([name, { projectKey }]) => ({
+export function trackerChoices(adapters: Readonly<Record<string, Pick<TrackerAdapter, 'title' | 'projectKey'>>> = ADAPTERS): TrackerChoice[] {
+  return Object.entries(adapters).map(([name, { title, projectKey }]) => ({
     name,
+    title,
     projectKey: projectKey === undefined ? null : { key: projectKey.key, example: projectKey.example, optional: projectKey.optional === true },
   }))
 }

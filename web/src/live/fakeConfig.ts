@@ -76,9 +76,9 @@ export function fakeConfig(): ConfigView {
       OPS: project('D:/Projects/ops', { beforeStart: ['npm ci'], check: ['npm run typecheck', 'npm test'], ci: { guard: false, kinds: [], waitMinutes: 0, recheckMain: false, fixTask: false } }),
     },
     trackers: [
-      { name: 'huly', projectKey: null },
-      { name: 'github', projectKey: { key: 'github', example: 'octo-org/example', optional: false } },
-      { name: 'linear', projectKey: { key: 'linear', example: 'Web app', optional: true } },
+      { name: 'huly', title: 'Huly', projectKey: null },
+      { name: 'github', title: 'GitHub', projectKey: { key: 'github', example: 'octo-org/example', optional: false } },
+      { name: 'linear', title: 'Linear', projectKey: { key: 'linear', example: 'Web app', optional: true } },
     ],
     trackerLocked: ['ABC', 'DEMO'],
   }

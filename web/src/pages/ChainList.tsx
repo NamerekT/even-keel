@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type CSSProperties } from 'react'
+import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router'
 import { isFixName } from '../../../src/chain/fix.js'
 import { withWaiting } from '../../../src/chain/order.js'
@@ -22,6 +22,7 @@ import { StartPill } from '../ui/SessionStart.js'
 import { ActionScreen } from './ActionScreen.js'
 import './chain.css'
 import { ChainLegend } from './ChainLegend.js'
+import { ChangelogButton } from './ChangelogDialog.js'
 import { ciHash } from './CiChip.js'
 import { Forge } from './Forge.js'
 import type { Arrival } from './useArrival.js'
@@ -182,6 +183,7 @@ export function ChainList({ project, chain, scale, trackerUrls, focus, ci, ghost
                     ? undefined
                     : { expanded: true, title: t.chain.foldMilestone, run: () => foldMilestones(index - view.fixed) }
                 }
+                action={section.milestone === null ? undefined : <ChangelogButton project={project} milestone={section.milestone} />}
               />
             )}
             <ol className="chain__blocks">
@@ -354,9 +356,11 @@ interface DividerProps {
   bump?: number
   /** Makes the whole line a button that folds or reveals what the line stands for. */
   toggle?: { expanded: boolean; title: string; run: () => void }
+  /** A button of its own after the line, outside the toggle. */
+  action?: ReactNode
 }
 
-function Divider({ name, count, hidden = false, bump, toggle }: DividerProps) {
+function Divider({ name, count, hidden = false, bump, toggle, action }: DividerProps) {
   const line = (
     <>
       {toggle !== undefined && (
@@ -381,6 +385,7 @@ function Divider({ name, count, hidden = false, bump, toggle }: DividerProps) {
           {line}
         </button>
       )}
+      {action}
     </h2>
   )
 }

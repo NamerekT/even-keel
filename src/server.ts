@@ -28,6 +28,7 @@ import {
   type StatsRules,
 } from './stats/rules.js'
 import type { ChainRules } from './chain/rules.js'
+import type { ChangelogDraft } from './changelog/drafts.js'
 import { CLAUDE } from './claude/name.js'
 import type { Language } from './language.js'
 import { HOOK_EVENTS, type MailEvent } from './sessions/mail.js'
@@ -202,6 +203,8 @@ export interface ServerDeps {
   /** By the project's id; `undefined` when the config does not know it or its tracker is off or names nothing. */
   vocabulary: (projectId: string) => Promise<TrackerVocabulary | undefined>
   tasks: TaskControl
+  /** The milestone's changelog draft: the last one, or a new one with `again` (`src/changelog/drafts.ts`). */
+  changelog: (project: string, milestone: string, again: boolean) => Promise<ChangelogDraft>
   stats: StatsSource
   /** Read per request: `allowedHosts` is live. */
   guard: () => GuardSettings
@@ -266,6 +269,7 @@ const QUERIES: Record<string, (deps: ServerDeps, body: Record<string, unknown>) 
   'profiles/check': ({ profiles }, body) => profiles.check(profileDraftOf(body)),
   'profiles/save': async ({ profiles }, body) => ({ id: await profiles.save({ ...profileDraftOf(body), name: typeof body.name === 'string' ? body.name : '' }) }),
   'profiles/projects': ({ profiles }, body) => profiles.projects(textOf(body.id, 'id'), typeof body.query === 'string' ? body.query : ''),
+  'milestone/changelog': ({ changelog }, body) => changelog(projectOf(body), textOf(body.milestone, 'milestone'), body.again === true),
 }
 
 const MAX_BODY_BYTES = 64 * 1024

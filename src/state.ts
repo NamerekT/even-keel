@@ -174,6 +174,8 @@ export interface SharedForm {
 /** A tracker the settings can pick, and the key a project on it names its tracker project with. */
 export interface TrackerChoice {
   name: string
+  /** The name on the page: `GitHub`, not `github`. */
+  title: string
   projectKey: { key: string; example: string; optional: boolean } | null
 }
 
@@ -199,6 +201,8 @@ export interface ProjectCheck {
     root: string | null
     /** The branch the checkout is on, the suggestion for the main branch; `null` — detached or not a repository. */
     current: string | null
+    /** The draft tracker's project its remotes suggest (GitHub: `owner/name` of a github.com remote); `null` — none. */
+    suggested: string | null
     notice: Notice | null
   }
   /** What `parseConfig` says of the config with the draft added; `null` — it parses. */
@@ -372,11 +376,11 @@ export interface SecretView {
 
 export interface ProfilesView {
   profiles: ProfileView[]
-  /** Each tracker a profile can be made for, in the adapters' order. */
+  /** Each tracker a profile can be made for, in the adapters' order, then each CI. */
   kinds: ProfileKindView[]
 }
 
-/** A tracker's profile (`src/profiles/`); a secret's value never leaves the service. */
+/** A tracker's or a CI's profile (`src/profiles/`); a secret's value never leaves the service. */
 export interface ProfileView {
   id: string
   kind: string
@@ -390,8 +394,10 @@ export interface ProfileView {
   check: ProfileCheck
   /** The keys of the projects that run on it: while there are any, its host fields stay and it cannot be removed. */
   projects: string[]
-  /** The remotes whose GitHub Actions are not shown: the profile does not reach them (or no GitHub profile does). */
-  hiddenCi: HiddenCi[]
+  /** The remotes whose CI takes its token and shows: what a CI's profile (Forgejo) is used by. */
+  ci: CiRemote[]
+  /** The remotes whose CI takes its token but is not shown: the token does not reach the repository or its runs. */
+  hiddenCi: CiRemote[]
 }
 
 export interface ProfileField {
@@ -419,7 +425,8 @@ export interface CheckResult {
   duplicate: string | null
 }
 
-export interface HiddenCi {
+/** A project's remote with a CI. */
+export interface CiRemote {
   project: string
   remote: string
 }
@@ -427,6 +434,8 @@ export interface HiddenCi {
 export interface ProfileKindView {
   kind: string
   title: string
+  /** A tracker's kind; else a CI's (Forgejo): no project runs on its profiles, a remote's CI takes one by its host. */
+  tracker: boolean
   fields: { name: string; secret: boolean }[]
   /** Fixed while projects use a profile. */
   hostVariables: string[]

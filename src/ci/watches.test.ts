@@ -51,6 +51,64 @@ describe('CiWatches', () => {
     expect(made).toHaveLength(4)
   })
 
+  it('rereads the remotes of the same repository: a changed list adds and drops watches, the same one touches nothing', async () => {
+    const remotes: Record<string, CiTarget[]> = { 'D:/abc': [], 'D:/xyz': [target('xyz')] }
+    const made: CiTarget[] = []
+    const log = vi.fn()
+    const watches = new CiWatches({
+      targets: async (repo) => remotes[repo]!,
+      watch: (_project, _repo, place) => {
+        made.push(place)
+        return { hidden: false, place, setSource: () => {}, tick: vi.fn(async () => {}) }
+      },
+      source: () => null,
+      log,
+    })
+    await watches.apply({ ABC: 'D:/abc', XYZ: 'D:/xyz' })
+    const kept = watches.byProject.get('XYZ')![0]!
+    log.mockClear()
+
+    expect(await watches.refresh()).toBe(false)
+    expect(made).toHaveLength(1)
+    expect(log).not.toHaveBeenCalled()
+
+    const github: CiTarget = { kind: 'github', remote: 'github', web: 'https://github.com', owner: 'john', repo: 'abc' }
+    remotes['D:/abc'] = [github]
+    remotes['D:/xyz'] = []
+    expect(await watches.refresh()).toBe(true)
+    expect(watches.found).toBe(true)
+    expect(watches.byProject.get('ABC')!.map((watch) => watch.place)).toEqual([github])
+    expect(watches.byProject.has('XYZ')).toBe(false)
+    expect(watches.places(false)).toEqual([{ project: 'ABC', target: github }])
+    expect(log).toHaveBeenCalledWith('ci: ABC watches github on github')
+
+    remotes['D:/xyz'] = [target('xyz'), github]
+    await watches.refresh()
+    expect(watches.byProject.get('XYZ')!.map((watch) => watch.place)).toEqual([target('xyz'), github])
+    expect(watches.byProject.get('XYZ')![0]).not.toBe(kept)
+    const again = watches.byProject.get('XYZ')!
+    remotes['D:/xyz'] = [github]
+    await watches.refresh()
+    expect(watches.byProject.get('XYZ')).toEqual([again[1]])
+  })
+
+  it('keeps the watches of a repository whose remotes are not read on a refresh', async () => {
+    let fail = false
+    const watches = new CiWatches({
+      targets: async (repo) => {
+        if (fail) throw new Error('git is gone')
+        return [target(repo)]
+      },
+      watch: () => ({ hidden: false, setSource: () => {}, tick: vi.fn(async () => {}) }),
+      source: () => null,
+      log: () => {},
+    })
+    await watches.apply({ ABC: 'D:/abc' })
+    fail = true
+    await watches.refresh()
+    expect(watches.byProject.get('ABC')).toHaveLength(1)
+  })
+
   it('gives every watch the source of the new token of its project', async () => {
     const { watches, made, asked, setToken } = context()
     await watches.apply({ ABC: 'D:/abc' })
@@ -61,12 +119,13 @@ describe('CiWatches', () => {
     expect(asked).toEqual(['ABC'])
   })
 
-  it('shows a project only the watches that are not hidden, and lists the hidden ones', async () => {
+  it('shows a project only the watches that are not hidden, and lists the hidden ones and the shown ones', async () => {
     const { watches, made } = context()
     await watches.apply({ ABC: 'D:/abc', XYZ: 'D:/xyz' })
     made[1]!.hidden = true
     expect(watches.shown('ABC')).toEqual([made[0]])
     expect(watches.shown('XYZ')).toEqual([])
-    expect(watches.hidden()).toEqual([{ project: 'XYZ', target: target('D:/xyz') }])
+    expect(watches.places(true)).toEqual([{ project: 'XYZ', target: target('D:/xyz') }])
+    expect(watches.places(false)).toEqual([{ project: 'ABC', target: target('D:/abc') }])
   })
 })

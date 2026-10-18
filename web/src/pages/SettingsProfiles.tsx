@@ -12,6 +12,8 @@ import './profiles.css'
 
 const EXPIRY_WARN_DAYS = 14
 
+const remotesOf = (remotes: ProfileView['ci']): string => remotes.map((each) => `${each.project} · ${each.remote}`).join(', ')
+
 /** Which dialog is up: a new profile, or the profile of that id. */
 type Editing = { id: string | null } | null
 
@@ -34,7 +36,12 @@ export function SettingsProfiles({ state }: { state: EvenKeelState }) {
       ) : (
         <ul className="account-cards">
           {profiles.map((profile) => (
-            <ProfileCard key={profile.id} profile={profile} onEdit={() => setEditing({ id: profile.id })} />
+            <ProfileCard
+              key={profile.id}
+              profile={profile}
+              tracker={kinds.find((each) => each.kind === profile.kind)?.tracker ?? true}
+              onEdit={() => setEditing({ id: profile.id })}
+            />
           ))}
         </ul>
       )}
@@ -44,8 +51,11 @@ export function SettingsProfiles({ state }: { state: EvenKeelState }) {
   )
 }
 
-/** What needs a look stays in sight (the state, the expiry, a refusal); whom it signs in as and its projects open on pointing. */
-function ProfileCard({ profile, onEdit }: { profile: ProfileView; onEdit: () => void }) {
+/**
+ * What needs a look stays in sight (the state, the expiry, a refusal); whom it signs in as and its projects open on
+ * pointing — a CI's profile (`tracker` off) names the remotes whose CI takes it instead.
+ */
+function ProfileCard({ profile, tracker, onEdit }: { profile: ProfileView; tracker: boolean; onEdit: () => void }) {
   const { send, sending, failure } = useCommand()
   const { state, error } = profile.check
   const look = state === 'ok' ? 'tools__chip--on' : state === 'refused' || state === 'unreachable' ? 'tools__chip--lost' : 'tools__chip--off'
@@ -53,10 +63,12 @@ function ProfileCard({ profile, onEdit }: { profile: ProfileView; onEdit: () => 
   const details = (
     <>
       <span className="profiles__line">{profile.login === null ? t.profiles.states.unchecked : t.profiles.login(profile.login)}</span>
-      <span className="profiles__line">{profile.projects.length === 0 ? t.profiles.noProjects : t.profiles.projects(profile.projects.join(', '))}</span>
-      {profile.hiddenCi.length > 0 && (
-        <span className="profiles__line">{t.profiles.hiddenCi(profile.hiddenCi.map((each) => `${each.project} · ${each.remote}`).join(', '))}</span>
+      {tracker ? (
+        <span className="profiles__line">{profile.projects.length === 0 ? t.profiles.noProjects : t.profiles.projects(profile.projects.join(', '))}</span>
+      ) : (
+        <span className="profiles__line">{profile.ci.length === 0 ? t.profiles.noCi : t.profiles.ci(remotesOf(profile.ci))}</span>
       )}
+      {profile.hiddenCi.length > 0 && <span className="profiles__line">{t.profiles.hiddenCi(remotesOf(profile.hiddenCi), profile.kind)}</span>}
     </>
   )
 

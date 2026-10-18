@@ -56,6 +56,56 @@
   color: var(--lamp-done);
 }
 
+.project-add__profile {
+  width: 20em;
+}
+
+/* The profile's state sits level with the list, whatever it says. */
+.project-add__profile-row {
+  align-items: flex-end;
+}
+
+.project-add__profile-state {
+  display: inline-flex;
+  align-items: center;
+  min-height: 32px;
+}
+
+.project-add__input-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.project-add__aside {
+  color: var(--fg-muted);
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+/* The tracker's answer has a line of its own even while empty: a new answer does not move the steps below. */
+.project-add__slot {
+  min-height: 1lh;
+}
+
+.project-add__advanced {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+}
+
+.project-add__advanced > summary {
+  color: var(--fg-muted);
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.project-add__advanced[open] > summary {
+  margin-bottom: 12px;
+}
+
 .project-add__trust {
   font-size: 14px;
 }

@@ -25,6 +25,8 @@ const TEXT_LIMIT = 500
 const MESSAGE_LIMIT = 6000
 const SHELL = 'Shell'
 const LIMIT_TEXT = /usage limit|rate limit|quota/i
+// An OpenAI key out of money: the API's 429 `insufficient_quota`, which codex-cli 0.162.1 words as its `QuotaExceeded`.
+const CREDIT_TEXT = /quota exceeded|exceeded your current quota|insufficient_quota/i
 const STAGE_RANK: Record<Stage, number> = { task: 0, recon: 1, edit: 2, test: 3, commit: 4, merge: 5 }
 const FIVE_HOURS = 300
 const WEEK = 10_080
@@ -129,7 +131,7 @@ export class RolloutFold {
   private pushError(at: string, message: unknown): void {
     const text = flatten(typeof message === 'string' ? message : 'error', TEXT_LIMIT)
     this.touch(at)
-    this.apiError = { kind: LIMIT_TEXT.test(text) ? 'limit' : 'error', text, at }
+    this.apiError = { kind: CREDIT_TEXT.test(text) ? 'credit' : LIMIT_TEXT.test(text) ? 'limit' : 'error', text, at }
     this.addFeed({ at, kind: 'error', text })
   }
 

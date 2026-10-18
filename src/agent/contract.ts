@@ -53,6 +53,15 @@ export interface SessionStart {
   plugins?: SessionPlugin[]
 }
 
+/** A turn of its own (`Agent.write`): it keeps no session, gets no MCP server or skill, and its tools only read. */
+export interface OneTurn {
+  cwd: string
+  prompt: string
+  /** As `SessionStart.model`. */
+  model: string | null
+  timeoutMs: number
+}
+
 /** A server of the gateway: the session reaches it at `url` with no credentials of its own. */
 export interface SessionMcp {
   name: string
@@ -142,6 +151,8 @@ export interface Agent {
   stopDaemon?(home: AccountHome): Promise<void>
   /** Optional. The live sessions' own records, for the apps panel (which account an editor's chats run on). */
   liveRecords?(home: AccountHome): Promise<LiveRecord[]>
+  /** Optional. Runs a turn of its own and returns the answer's text; Even Keel writes changelog drafts with it (`src/changelog/`). */
+  write?(home: AccountHome, turn: OneTurn): Promise<string>
   /** Optional. Remote Control: whether the account starts sessions with it, and the bridge of a live session. */
   remote?: RemoteControl
 }

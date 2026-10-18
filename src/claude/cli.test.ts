@@ -1,6 +1,36 @@
 import { describe, expect, it } from 'vitest'
 import type { AgentEntry } from '../sessions/agents.js'
-import { promptArg, resumeArgs, resumedAs, sessionArgs } from './cli.js'
+import { parseWriteAnswer, promptArg, resumeArgs, resumedAs, sessionArgs, writeArgs } from './cli.js'
+
+describe('writeArgs', () => {
+  it('asks for one printed turn with read-only tools, no session file, no MCP and no skills', () => {
+    expect(writeArgs(null)).toEqual([
+      '-p',
+      '--output-format',
+      'json',
+      '--no-session-persistence',
+      '--strict-mcp-config',
+      '--disable-slash-commands',
+      '--tools',
+      'Read,Glob,Grep',
+    ])
+    expect(writeArgs('sonnet').slice(-2)).toEqual(['--model', 'sonnet'])
+  })
+})
+
+describe('parseWriteAnswer', () => {
+  it('gives the result text of a successful turn', () => {
+    expect(parseWriteAnswer(JSON.stringify({ type: 'result', subtype: 'success', is_error: false, result: '## [v0.1]' }))).toBe('## [v0.1]')
+  })
+
+  it('throws on an error turn and on output that is not the result', () => {
+    expect(() => parseWriteAnswer(JSON.stringify({ type: 'result', subtype: 'success', is_error: true, result: 'Credit balance is too low' }))).toThrow(
+      'Credit balance is too low',
+    )
+    expect(() => parseWriteAnswer(JSON.stringify({ type: 'result', subtype: 'error_max_turns', is_error: true }))).toThrow('error_max_turns')
+    expect(() => parseWriteAnswer('not json')).toThrow()
+  })
+})
 
 describe('sessionArgs', () => {
   it('passes the chain settings with --settings only when there are any', () => {

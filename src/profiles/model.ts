@@ -29,6 +29,38 @@ export interface ProfileSet {
 
 export type Adapters = Readonly<Record<string, TrackerAdapter>>
 
+/** What the profiles need of a kind: a tracker adapter's, or a CI's that is no tracker (Forgejo, BTN-201). */
+export interface ProfileKind extends Pick<TrackerAdapter, 'title' | 'variables' | 'hostVariables' | 'alternatives' | 'help' | 'profileName' | 'account'> {
+  /** Whether the values make a profile: `false` — none of them is set; throws when they are set only in part. */
+  complete(values: Record<string, string | undefined>): boolean
+  /**
+   * A tracker's: the projects its profiles see. None — a CI's kind: no project runs on its profiles, a remote's CI takes
+   * one by its host, and the sessions never get its values.
+   */
+  projects?: TrackerAdapter['projects']
+}
+
+export type ProfileKinds = Readonly<Record<string, ProfileKind>>
+
+/** The trackers' kinds in the adapters' order, then the CIs'. */
+export function profileKinds(trackers: Adapters, cis: ProfileKinds = {}): ProfileKinds {
+  const own = Object.entries(trackers).map(([kind, adapter]): [string, ProfileKind] => [
+    kind,
+    {
+      title: adapter.title,
+      variables: adapter.variables,
+      hostVariables: adapter.hostVariables,
+      ...(adapter.alternatives === undefined ? {} : { alternatives: adapter.alternatives }),
+      help: adapter.help,
+      profileName: (values, account) => adapter.profileName(values, account),
+      account: (values, timeoutMs) => adapter.account(values, timeoutMs),
+      projects: (values, query, timeoutMs) => adapter.projects(values, query, timeoutMs),
+      complete: (values) => adapter.setup(values, {}) !== undefined,
+    },
+  ])
+  return { ...Object.fromEntries(own), ...cis }
+}
+
 /** The profile a project runs on: the one it chose while that is of the project's tracker, else the tracker's default. */
 export function profileFor(set: ProfileSet, projectId: string | undefined, kind: string): TrackerProfile | undefined {
   const linked = projectId === undefined ? undefined : set.profiles.find((profile) => profile.id === set.links[projectId])
@@ -39,12 +71,18 @@ export const defaultProfile = (set: ProfileSet, kind: string): TrackerProfile | 
   set.profiles.find((profile) => profile.kind === kind && profile.isDefault)
 
 /**
- * The keys a project's MCP servers take (BTN-200): the environment without any tracker's variables, then each tracker's
+ * The keys a project's MCP servers take (BTN-200): the environment without any kind's variables, then each kind's
  * default profile, then the profile the project runs on — its tracker server signs in as that one.
  */
-export function keyPool(set: ProfileSet, adapters: Adapters, env: NodeJS.ProcessEnv, projectId: string | undefined, kind: string): NodeJS.ProcessEnv {
+export function keyPool(
+  set: ProfileSet,
+  kinds: Readonly<Record<string, Pick<ProfileKind, 'variables'>>>,
+  env: NodeJS.ProcessEnv,
+  projectId: string | undefined,
+  kind: string,
+): NodeJS.ProcessEnv {
   const pool: NodeJS.ProcessEnv = { ...env }
-  for (const adapter of Object.values(adapters)) for (const name of adapter.variables) delete pool[name]
+  for (const each of Object.values(kinds)) for (const name of each.variables) delete pool[name]
   for (const profile of set.profiles) if (profile.isDefault) Object.assign(pool, profile.values)
   return Object.assign(pool, profileFor(set, projectId, kind)?.values)
 }
@@ -73,7 +111,7 @@ export function profilesOfEnv(env: Record<string, string | undefined>, adapters:
 }
 
 /** The profile of the same tracker, host and login as the values, other than `id`: a second profile of one account. */
-export function sameAccount(set: ProfileSet, adapter: TrackerAdapter, kind: string, values: Record<string, string>, login: string, id: string | null): TrackerProfile | undefined {
+export function sameAccount(set: ProfileSet, adapter: Pick<ProfileKind, 'hostVariables'>, kind: string, values: Record<string, string>, login: string, id: string | null): TrackerProfile | undefined {
   const host = (each: Record<string, string>) => JSON.stringify(adapter.hostVariables.map((name) => (each[name] ?? '').trim().replace(/\/+$/, '').toLowerCase()))
   return set.profiles.find((profile) => profile.id !== id && profile.kind === kind && profile.login === login && host(profile.values) === host(values))
 }

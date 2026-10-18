@@ -2,35 +2,41 @@ import { readdir } from 'node:fs/promises'
 import { join } from 'node:path'
 import { GITHUB_TOKEN } from '../github/adapter.js'
 import type { Git } from '../git/types.js'
-import { defaultProfile, profileFor, type ProfileSet } from '../profiles/model.js'
+import { defaultProfile, profileFor, type ProfileSet, type TrackerProfile } from '../profiles/model.js'
+import { FORGEJO_TOKEN, FORGEJO_URL, hostOf } from './forgejo-profile.js'
 import { forgejoSource } from './forgejo.js'
 import { githubActionsSource } from './github.js'
 import type { CiKind, CiSource } from './model.js'
 import { ciTargets, remotesOf, type CiTarget } from './remote.js'
 
-export const FORGEJO_TOKEN = 'FORGEJO_TOKEN'
-
-/** The variable with the token of each CI: Forgejo's is the environment's, GitHub Actions' a GitHub profile's (`ciToken`). */
+/** The variable with the token of each CI in its profile's values: a Forgejo profile's or a GitHub one's (`ciToken`). */
 export const CI_TOKENS: Readonly<Record<CiKind, string>> = { forgejo: FORGEJO_TOKEN, github: GITHUB_TOKEN }
 
 /** The variables of the CI layer, kept out of the sessions' environment. */
-export const ciVariables = (): string[] => Object.values(CI_TOKENS)
+export const ciVariables = (): string[] => [...Object.values(CI_TOKENS), FORGEJO_URL]
 
 export interface CiToken {
   token: string
-  /** The profile it is of; `null` — of the environment. */
-  profile: string | null
+  /** The profile it is of. */
+  profile: string
 }
 
 /**
- * The token of a project's CI (BTN-200): CI is a remote's, not the tracker's, so GitHub Actions take the project's
- * tracker profile when it is a GitHub one and the default GitHub profile otherwise; Forgejo — `FORGEJO_TOKEN`.
+ * The token of a project's CI: CI is a remote's, not the tracker's. GitHub Actions take the project's tracker profile
+ * when it is a GitHub one and the default GitHub profile otherwise (BTN-200); Forgejo — the Forgejo profile on the
+ * remote's host, the default one when several are (BTN-201).
  */
-export function ciToken(kind: CiKind, set: ProfileSet, projectId: string | undefined, tracker: string, env: NodeJS.ProcessEnv): CiToken | null {
-  if (kind === 'forgejo') return env[FORGEJO_TOKEN] ? { token: env[FORGEJO_TOKEN], profile: null } : null
-  const own = profileFor(set, projectId, tracker)
-  const profile = own?.kind === 'github' ? own : defaultProfile(set, 'github')
-  const token = profile?.values[GITHUB_TOKEN]
+export function ciToken(target: Pick<CiTarget, 'kind' | 'web'>, set: ProfileSet, projectId: string | undefined, tracker: string): CiToken | null {
+  let profile: TrackerProfile | undefined
+  if (target.kind === 'forgejo') {
+    const host = hostOf(target.web)
+    const onHost = set.profiles.filter((each) => each.kind === 'forgejo' && host !== null && hostOf(each.values[FORGEJO_URL] ?? '') === host)
+    profile = onHost.find((each) => each.isDefault) ?? onHost[0]
+  } else {
+    const own = profileFor(set, projectId, tracker)
+    profile = own?.kind === 'github' ? own : defaultProfile(set, 'github')
+  }
+  const token = profile?.values[CI_TOKENS[target.kind]]
   return profile !== undefined && token ? { token, profile: profile.id } : null
 }
 

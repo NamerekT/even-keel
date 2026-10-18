@@ -18,12 +18,11 @@ describe('envChanges', () => {
 
 describe('envTargets', () => {
   it('names nobody for a variable no part of the service reads', () => {
-    expect(envTargets(['SOME_OTHER_KEY'])).toEqual({ ci: false, guard: false, listen: false, tally: false, accounts: false })
+    expect(envTargets(['SOME_OTHER_KEY'])).toEqual({ guard: false, listen: false, tally: false, accounts: false })
   })
 
-  it('names the CI by the Forgejo token; the trackers\' variables, GitHub\'s included, are the profiles\' now', () => {
-    expect(envTargets(['FORGEJO_TOKEN'])).toMatchObject({ ci: true })
-    expect(envTargets(['GITHUB_TOKEN', 'HULY_PASSWORD'])).toEqual({ ci: false, guard: false, listen: false, tally: false, accounts: false })
+  it('names nobody for the trackers\' variables or the Forgejo token: they are the profiles\' now', () => {
+    expect(envTargets(['GITHUB_TOKEN', 'HULY_PASSWORD', 'FORGEJO_TOKEN'])).toEqual({ guard: false, listen: false, tally: false, accounts: false })
   })
 
   it('names the guard, the address, Tally and the account folders by their own variables', () => {

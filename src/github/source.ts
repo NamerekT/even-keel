@@ -43,6 +43,19 @@ const MILESTONE_ISSUES = `query($owner: String!, $name: String!, $number: Int!, 
   }
 }`
 
+// `query` matches titles loosely: the exact one is picked from the answer.
+const MILESTONE_NUMBERS = `query($owner: String!, $name: String!, $title: String!) {
+  repository(owner: $owner, name: $name) { milestones(first: 100, query: $title, states: [OPEN, CLOSED]) { nodes { number title } } }
+}`
+
+const MILESTONE_TASKS = `query($owner: String!, $name: String!, $number: Int!, $after: String) {
+  repository(owner: $owner, name: $name) {
+    milestone(number: $number) {
+      issues(first: ${PAGE}, after: $after) { pageInfo { hasNextPage endCursor } nodes { ${ISSUE} comments(last: 1) { nodes { body } } } }
+    }
+  }
+}`
+
 const ISSUE_BRIEF = `query($owner: String!, $name: String!, $number: Int!) {
   repository(owner: $owner, name: $name) { issue(number: $number) { title body } }
 }`
@@ -308,6 +321,23 @@ export async function connectGithub(settings: GithubSettings, timeoutMs: number,
     async moveMilestone(id, milestone) {
       const { issue } = await issueOf<{ id: string }>(id, ISSUE_STATE)
       await graphql(MOVE_MILESTONE, { id: issue.id, milestone })
+    },
+
+    async milestoneTasks(project, milestone) {
+      const repo = repoOf(project)
+      const { repository } = await graphql<{ repository: { milestones: { nodes: { number: number; title: string }[] } } | null }>(MILESTONE_NUMBERS, {
+        ...repo,
+        title: milestone,
+      })
+      const found = repository?.milestones.nodes.find((each) => each.title === milestone)
+      if (found === undefined) return []
+      const issues = (await collect(
+        MILESTONE_TASKS,
+        { ...repo, number: found.number },
+        (data) => (data.repository?.milestone as { issues: Connection<GithubIssue> } | null)?.issues,
+        `milestone ${found.number} of ${repo.owner}/${repo.name}`,
+      )) as (GithubIssue & { comments: { nodes: { body: string }[] } })[]
+      return issues.map((issue) => ({ ...toTrackerTask(issue, repos), lastComment: issue.comments.nodes[0]?.body ?? null }))
     },
 
     async vocabulary(project) {

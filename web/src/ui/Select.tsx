@@ -1,4 +1,4 @@
-import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react'
+import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import { CheckIcon, ChevronIcon } from './icons.js'
 import { filterOf, matchOf, stepOf } from './selectKeys.js'
@@ -7,6 +7,8 @@ import './select.css'
 export interface SelectOption {
   value: string
   label: string
+  /** Before the label, in the list and in the field. */
+  icon?: ReactNode
 }
 
 interface SelectProps {
@@ -192,6 +194,7 @@ export function Select({ value, options, onChange, id, className = '', label, in
         // Space on a button clicks it on release; the press already opened or picked.
         onKeyUp={(event) => event.key === ' ' && event.preventDefault()}
       >
+        {current?.icon !== undefined && <span className="select__icon">{current.icon}</span>}
         <span className="select__value">{current?.label ?? value}</span>
         <ChevronIcon />
       </button>
@@ -230,6 +233,7 @@ export function Select({ value, options, onChange, id, className = '', label, in
                     onPointerMove={() => index !== active && setActive(index)}
                     onClick={() => pick(index)}
                   >
+                    {option.icon !== undefined && <span className="select__icon">{option.icon}</span>}
                     <span className="select__label">{option.label}</span>
                     {option.value === value && <CheckIcon />}
                   </li>

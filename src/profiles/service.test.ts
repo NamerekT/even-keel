@@ -6,7 +6,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { NoticeError } from '../notice/notice.js'
 import { openDatabase, Writes } from '../storage/database.js'
 import { CredentialsRefused, type TrackerAdapter } from '../tracker/source.js'
-import type { ProfileSet, TrackerProfile } from './model.js'
+import { profileKinds, type ProfileKind, type ProfileSet, type TrackerProfile } from './model.js'
 import { Profiles, type ProfilesDeps } from './service.js'
 import { readProfiles } from './store.js'
 
@@ -33,6 +33,17 @@ const fake = {
     return { connect: () => Promise.reject(new Error('not here')), issueUrl: () => null }
   },
 } as unknown as TrackerAdapter
+
+/** A CI's kind: no projects, so no project runs on it and the sessions never get its values. */
+const ciFake: ProfileKind = {
+  title: 'CI fake',
+  variables: ['CIFAKE_URL', 'CIFAKE_TOKEN'],
+  hostVariables: ['CIFAKE_URL'],
+  help: 'https://ci.example.com/tokens',
+  profileName: (values) => `CI fake · ${values.CIFAKE_URL}`,
+  account: async (values) => ({ login: `${values.CIFAKE_TOKEN}-user`, name: 'CI fake', expiresAt: null }),
+  complete: (values) => Boolean(values.CIFAKE_URL && values.CIFAKE_TOKEN),
+}
 
 const profile = (id: string, token: string, isDefault: boolean): TrackerProfile => ({
   id,
@@ -74,7 +85,7 @@ describe('Profiles', { timeout: 60_000 }, () => {
     new Profiles({
       db,
       writes,
-      adapters: { fake },
+      kinds: profileKinds({ fake }, { cifake: ciFake }),
       set,
       projects: () => ({ [ABC]: { key: 'ABC', kind: 'fake' }, [XYZ]: { key: 'XYZ', kind: 'fake' } }),
       settingsFile: () => settingsFile,
@@ -217,11 +228,24 @@ describe('Profiles', { timeout: 60_000 }, () => {
       { name: 'FAKE_TOKEN', secret: true, set: true, value: null },
     ])
     expect(view.kinds).toEqual([
-      { kind: 'fake', title: 'Fake', fields: [{ name: 'FAKE_URL', secret: false }, { name: 'FAKE_TOKEN', secret: true }], hostVariables: ['FAKE_URL'], alternatives: [], help: 'https://fake.example.com/tokens' },
+      { kind: 'fake', title: 'Fake', tracker: true, fields: [{ name: 'FAKE_URL', secret: false }, { name: 'FAKE_TOKEN', secret: true }], hostVariables: ['FAKE_URL'], alternatives: [], help: 'https://fake.example.com/tokens' },
+      { kind: 'cifake', title: 'CI fake', tracker: false, fields: [{ name: 'CIFAKE_URL', secret: false }, { name: 'CIFAKE_TOKEN', secret: true }], hostVariables: ['CIFAKE_URL'], alternatives: [], help: 'https://ci.example.com/tokens' },
     ])
   })
 
   it('lists the projects a profile sees', async () => {
     expect(await make({ profiles: [profile('p1', 'abc', true)], links: {} }).projects('p1', 'x')).toEqual([{ key: 'ABC', name: 'Project x' }])
+  })
+
+  it('a CI\'s profile: no project runs on it, its values stay out of the sessions, it shows the CIs that take it', async () => {
+    const profiles = make(undefined, { ci: () => [{ project: 'ABC', remote: 'origin' }] })
+    const id = await profiles.save({ kind: 'cifake', name: '', values: { CIFAKE_URL: 'https://ci.example.com', CIFAKE_TOKEN: 'abc' } })
+    expect(profiles.current().profiles[0]).toMatchObject({ id, kind: 'cifake', isDefault: true, login: 'abc-user' })
+    expect(sessionEnv()).toEqual({ OTHER: 'x' })
+    expect(profiles.view().profiles[0]).toMatchObject({ projects: [], ci: [{ project: 'ABC', remote: 'origin' }] })
+    expect(await codeOf(profiles.projects(id, ''))).toBe('profiles.unknownKind')
+    expect(() => profiles.link(ABC, id)).toThrow(NoticeError)
+    profiles.remove(id)
+    expect(profiles.current().profiles).toEqual([])
   })
 })

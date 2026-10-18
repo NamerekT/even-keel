@@ -1,6 +1,5 @@
 import { readFileSync, watchFile } from 'node:fs'
 import { parseEnv } from 'node:util'
-import { FORGEJO_TOKEN } from './ci/adapters.js'
 
 export interface EnvFileOptions {
   file: string
@@ -12,7 +11,6 @@ export interface EnvFileOptions {
 
 /** Who reads a changed variable: what the service sets up again once the file changed. */
 export interface EnvTargets {
-  ci: boolean
   /** `EVEN_KEEL_TOKEN`, and the address: whether a token is required depends on the host. */
   guard: boolean
   listen: boolean
@@ -93,12 +91,14 @@ export function envChanges(before: Record<string, string>, after: Record<string,
   return [...names].filter((name) => !outer.has(name) && before[name] !== after[name]).sort()
 }
 
-/** The trackers' variables are not here: their credentials are the profiles' (BTN-200), `.env` is not read for them. */
+/**
+ * The trackers' variables and the Forgejo token are not here: their credentials are the profiles' (BTN-200, BTN-201),
+ * `.env` is not read for them.
+ */
 export function envTargets(changed: readonly string[]): EnvTargets {
   const has = (names: readonly string[]) => changed.some((name) => names.includes(name))
   const listen = has(LISTEN)
   return {
-    ci: has([FORGEJO_TOKEN]),
     guard: listen || has(['EVEN_KEEL_TOKEN']),
     listen,
     tally: changed.some((name) => TALLY_DATABASE.test(name)),

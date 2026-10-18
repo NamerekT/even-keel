@@ -3,7 +3,7 @@ import { stat } from 'node:fs/promises'
 import { createServer } from 'node:http'
 import { join } from 'node:path'
 import { Readable } from 'node:stream'
-import { checkCredit } from './account/credit.js'
+import { checkCredit, checkOpenAiCredit } from './account/credit.js'
 import { DaemonRefresh } from './account/daemon.js'
 import { AccountHomes, accountsRoot, codexAccountsRoot, type AccountHome } from './account/homes.js'
 import { checkApiKey, checkOpenAiKey } from './account/keycheck.js'
@@ -26,7 +26,9 @@ import { mainCheckDeps, mergeCheck } from './chain/mainci.js'
 import { TaskPlaces } from './chain/places.js'
 import { readNote, saveSnapshot, snapshotReason } from './chain/snapshots.js'
 import { appendLaunch, loadChainState, loadQuestions, readLaunches, saveChainState, saveClosedTask, saveQuestions } from './chain/store.js'
-import { CI_TOKENS, ciSource, ciToken, FORGEJO_TOKEN, projectTargets } from './ci/adapters.js'
+import { ChangelogDrafts } from './changelog/drafts.js'
+import { CI_TOKENS, ciSource, ciToken, projectTargets } from './ci/adapters.js'
+import { FORGEJO_PROFILE } from './ci/forgejo-profile.js'
 import type { CiTarget } from './ci/remote.js'
 import { CiWatch } from './ci/watcher.js'
 import { CiWatches } from './ci/watches.js'
@@ -63,9 +65,9 @@ import { ChatTitles } from './sessions/title.js'
 import { TranscriptWatch } from './sessions/watch.js'
 import { configPath, loadEnv, root, stateDirOf } from './locations.js'
 import { isInside } from './paths.js'
-import { defaultProfile, keyPool, profileFor } from './profiles/model.js'
+import { defaultProfile, keyPool, profileFor, profileKinds } from './profiles/model.js'
 import { Profiles } from './profiles/service.js'
-import { importProfiles } from './profiles/store.js'
+import { importForgejo, importProfiles } from './profiles/store.js'
 import { slotOccupants } from './sessions/occupants.js'
 import { locateWorktree } from './sessions/place.js'
 import type { EvenKeelState, SessionView } from './state.js'
@@ -89,6 +91,7 @@ import { installed, UpdateWatcher } from './updates/watcher.js'
 
 const SESSION_POLL_MS = 3_000
 const AGENT_TIMEOUT_MS = 30_000
+const CHANGELOG_TIMEOUT_MS = 10 * 60_000
 const LIMITS_POLL_MS = 2_000
 const USAGE_POLL_MS = 5 * 60_000
 const LAUNCH_CHART_DAYS = 14
@@ -107,6 +110,7 @@ const TALLY_INTERVAL_MS = 5 * 60_000
 const TALLY_FIRST_DELAY_MS = 15_000
 const SHUTDOWN_MS = 15_000
 const CI_TICK_MS = 5_000
+const CI_TARGETS_MS = 60_000
 const CI_TIMEOUT_MS = 15_000
 const UPDATE_POLL_MS = 12 * 60 * 60_000
 const PLUGIN_UPDATE_TIMEOUT_MS = 2 * 60_000
@@ -133,12 +137,23 @@ const configStore = await ConfigStore.open({
 /** The version whose toast the user closed: state, not a setting (BTN-199). */
 let dismissedUpdate = (await stateValue(db, 'updates.dismissed')) as string | null | undefined
 const envFile = loadEnv()
-/** The trackers' credentials (BTN-200); the first start makes them of the trackers' variables of `.env`. */
-const importedProfiles = await importProfiles({
+/** What a profile is made for: the trackers, then Forgejo's CI (BTN-201). */
+const profileKindsOf = profileKinds(ADAPTERS, { forgejo: FORGEJO_PROFILE })
+/** The trackers' and Forgejo's credentials (BTN-200, BTN-201); the first start makes them of the variables of `.env`. */
+await importProfiles({
   db,
   env: process.env,
   adapters: ADAPTERS,
   trackers: Object.fromEntries(Object.entries(configStore.current.trackers).map(([key, kind]) => [configStore.current.ids[key]!, kind])),
+  log: (line) => console.log(line),
+})
+const importedProfiles = await importForgejo({
+  db,
+  env: process.env,
+  webs: async () => {
+    const targets = await Promise.all(Object.values(configStore.current.projects).map((repo) => projectTargets(runGit, repo).catch(() => [])))
+    return targets.flat().flatMap((target) => (target.kind === 'forgejo' ? [target.web] : []))
+  },
   log: (line) => console.log(line),
 })
 let { listen, token, mcpPort } = (() => {
@@ -194,7 +209,7 @@ const packages: Packages = new Packages({
   agentOf: (project) => homes.find(choiceFor(project).account)?.agent ?? CLAUDE,
   updateMarketplace: (marketplace) => updateMarketplace(envOf(homes.global), marketplace, PLUGIN_UPDATE_TIMEOUT_MS),
   baseEnv: (): NodeJS.ProcessEnv => sessionBase(process.env, packages.keyNames()),
-  poolOf: (project) => keyPool(profiles.current(), ADAPTERS, process.env, configStore.current.ids[project], configStore.current.trackers[project]!),
+  poolOf: (project) => keyPool(profiles.current(), profileKindsOf, process.env, configStore.current.ids[project], configStore.current.trackers[project]!),
   port: mcpPort,
   log: (line) => console.log(line),
   onChange: () => {
@@ -240,9 +255,15 @@ const trackers = new Trackers({
   refreshers,
   log: (line) => console.log(line),
 })
-/** The token of the project's CI on the remote: GitHub Actions take a GitHub profile's (BTN-200). */
+/** The token of the project's CI on the remote: a GitHub profile's (BTN-200) or the Forgejo profile's on its host (BTN-201). */
 const ciTokenOf = (project: string, target: CiTarget) =>
-  ciToken(target.kind, profiles.current(), configStore.current.ids[project], configStore.current.trackers[project]!, process.env)
+  ciToken(target, profiles.current(), configStore.current.ids[project], configStore.current.trackers[project]!)
+/** The remotes whose CI takes the profile's token, shown or not. */
+const ciOn = (profileId: string, hidden: boolean) =>
+  ciWatches
+    .places(hidden)
+    .filter(({ project, target }) => ciTokenOf(project, target)?.profile === profileId)
+    .map(({ project, target }) => ({ project, remote: target.remote }))
 const ciWatches = new CiWatches({
   targets: (repo) => projectTargets(runGit, repo),
   watch: (project, repo, target) =>
@@ -335,7 +356,7 @@ const daemons = new DaemonRefresh({
 })
 
 const secrets = new Secrets({
-  catalog: secretCatalog({ forgejo: FORGEJO_TOKEN }),
+  catalog: secretCatalog(),
   envFile: join(root, '.env'),
   settingsFile: () => join(homes.global.dir, 'settings.json'),
   env: process.env,
@@ -350,7 +371,7 @@ const secrets = new Secrets({
 const profiles: Profiles = new Profiles({
   db,
   writes,
-  adapters: ADAPTERS,
+  kinds: profileKindsOf,
   set: importedProfiles,
   projects: () => {
     const { ids, trackers: kinds } = configStore.current
@@ -358,11 +379,8 @@ const profiles: Profiles = new Profiles({
   },
   settingsFile: () => join(homes.global.dir, 'settings.json'),
   expired: () => void daemons.expire(homes.global),
-  hiddenCi: (id) =>
-    ciWatches
-      .hidden()
-      .filter(({ project, target }) => ciTokenOf(project, target)?.profile === id)
-      .map(({ project, target }) => ({ project, remote: target.remote })),
+  ci: (id) => ciOn(id, false),
+  hiddenCi: (id) => ciOn(id, true),
   timeoutMs: TRACKER_CHECK_MS,
   log: (line) => console.log(line),
   onChange: (set) => {
@@ -424,7 +442,7 @@ const account = new AccountWatcher({
   usage: (key) => limits.usage(key),
   checkKey: (agent, key) => (agent === CODEX ? checkOpenAiKey : checkApiKey)(key, KEY_CHECK_TIMEOUT_MS),
   keyCheckMs: KEY_CHECK_MS,
-  checkCredit: (key) => checkCredit(key, KEY_CHECK_TIMEOUT_MS),
+  checkCredit: (agent, key) => (agent === CODEX ? checkOpenAiCredit : checkCredit)(key, KEY_CHECK_TIMEOUT_MS),
   creditCheckMs: CREDIT_CHECK_MS,
   intervalMs: ACCOUNT_POLL_MS,
   loginTimeoutMs: LOGIN_TIMEOUT_MS,
@@ -541,6 +559,30 @@ const noAccountFor = (task: string, fallback: string, provider: string) =>
     label: runLabelText({ provider: fallback, model: null }),
     provider: runLabelText({ provider, model: null }),
   })
+
+/** A draft is written in the project's main checkout, on the account and model a new session of its chain would get. */
+const changelogs = new ChangelogDrafts({
+  tasks: async (project, milestone) => {
+    const link = linkOf(project)
+    if (link === undefined) throw fail('tracker.noProject', { project })
+    const tasks = await link.run(async (tracker) => tracker.milestoneTasks?.(project, milestone))
+    if (tasks === undefined) throw fail('changelog.cannotList', { project })
+    return tasks
+  },
+  write: async (project, prompt) => {
+    const { account, model } = choiceFor(project)
+    const home = homeOf(account)
+    const agent = agentOf(home)
+    if (agent.write === undefined) throw fail('changelog.noAgent', { project })
+    console.log(`changelog: ${project} writes a draft on ${home.key}`)
+    try {
+      return await agent.write(home, { cwd: configStore.current.projects[project]!, prompt, model, timeoutMs: CHANGELOG_TIMEOUT_MS })
+    } catch (error) {
+      throw fail('changelog.failed', { project }, { detail: error instanceof Error ? error.message : String(error) }, { cause: error })
+    }
+  },
+  now: () => new Date(),
+})
 
 /** The account holding the Even Keel role, the one the header shows: the shared provider's entry of the shared pool. */
 const activeAccount = () => configStore.current.accounts[configStore.current.provider]!
@@ -1146,6 +1188,10 @@ let server = createEvenKeelServer({
       await refresh()
     },
   },
+  changelog: (project, milestone, again) => {
+    if (!Object.hasOwn(configStore.current.projects, project)) throw fail('chain.unknownProject', { project })
+    return changelogs.draft(project, milestone, again)
+  },
   stats,
   guard: () => ({ hosts: guardHosts(listen.host, configStore.current.allowedHosts), token, language: configStore.current.language ?? promptLanguage() }),
 })
@@ -1203,6 +1249,15 @@ applyCi()
 setInterval(() => {
   for (const watch of ciWatches.all()) void watch.tick()
 }, CI_TICK_MS).unref()
+setInterval(
+  () =>
+    void ciWatches.refresh().then((changed) => {
+      if (!changed) return
+      dispatcher.check()
+      hub.broadcast('state', getState())
+    }),
+  CI_TARGETS_MS,
+).unref()
 
 /** The config's projects changed: renamed keys carry their state, removed ones let their chain go, the rest follows the config. */
 function projectsChanged(before: EvenKeelConfig): void {
@@ -1264,7 +1319,6 @@ profiles.start()
 async function envChanged(changed: string[]): Promise<void> {
   console.log(`env: ${changed.join(', ')} changed in .env`)
   const targets = envTargets(changed)
-  if (targets.ci) ciWatches.tokensChanged()
   if (targets.accounts) {
     homes.setRoots(accountsRoot(process.env), codexAccountsRoot(process.env))
     account.refresh()

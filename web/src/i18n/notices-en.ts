@@ -1,6 +1,6 @@
 import { en } from '../../../src/notice/en.js'
 
-const AREA = /^(answer|chain|claude|config|storage|sync|vscode): /
+const AREA = /^(answer|chain|changelog|claude|config|storage|sync|vscode): /
 
 /**
  * The server's English texts as the page shows them: the area a line starts with ("claude: ", "chain: ") is for the log,

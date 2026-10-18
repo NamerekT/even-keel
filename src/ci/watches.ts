@@ -50,8 +50,31 @@ export class CiWatches<W extends Watch> {
     return (this.byProject.get(project) ?? []).filter((watch) => !watch.hidden)
   }
 
-  hidden(): { project: string; target: CiTarget }[] {
-    return [...this.targets].flatMap(([watch, place]) => (watch.hidden ? [place] : []))
+  /** The CIs not shown (`hidden`: `true`) or those shown, each with its project. */
+  places(hidden: boolean): { project: string; target: CiTarget }[] {
+    return [...this.targets].flatMap(([watch, place]) => (watch.hidden === hidden ? [place] : []))
+  }
+
+  /**
+   * Rereads the remotes and workflows of every project's checkout (BTN-191): a remote added or a first workflow
+   * gets its watch, a CI gone loses it, an unchanged one keeps its watch. `found` stays as it is.
+   * Resolves `true` when any project's watches changed.
+   */
+  async refresh(): Promise<boolean> {
+    let changed = false
+    this.queue = this.queue.then(async () => {
+      for (const [project, repo] of [...this.repos]) {
+        let targets: CiTarget[]
+        try {
+          targets = await this.deps.targets(repo)
+        } catch {
+          continue
+        }
+        if (this.repos.get(project) === repo && this.watch(project, repo, targets)) changed = true
+      }
+    })
+    await this.queue
+    return changed
   }
 
   private async reconcile(projects: Record<string, string>): Promise<void> {
@@ -71,16 +94,35 @@ export class CiWatches<W extends Watch> {
         this.deps.log(`ci: the remotes of ${project} are not read: ${(error as Error).message}`)
         continue
       }
-      if (targets.length === 0) continue
-      const watches = targets.map((target) => {
-        const watch = this.deps.watch(project, repo, target)
-        this.targets.set(watch, { project, target })
-        return watch
-      })
-      this.byProject.set(project, watches)
-      this.deps.log(`ci: ${project} watches ${targets.map((target) => `${target.kind} on ${target.remote}`).join(', ')}`)
-      for (const watch of watches) void watch.tick()
+      this.watch(project, repo, targets)
     }
     this.found = true
+  }
+
+  /** Brings the project's watches to the targets: a watch whose target stays is kept, the rest are made anew or dropped. */
+  private watch(project: string, repo: string, targets: CiTarget[]): boolean {
+    const before = this.byProject.get(project) ?? []
+    const keyOf = (target: CiTarget) => JSON.stringify([target.kind, target.remote, target.web, target.owner, target.repo])
+    const old = new Map(before.map((watch) => [keyOf(this.targets.get(watch)!.target), watch]))
+    if (old.size === targets.length && targets.every((target) => old.has(keyOf(target)))) return false
+    for (const watch of before) this.targets.delete(watch)
+    const made: W[] = []
+    const watches = targets.map((target) => {
+      const kept = old.get(keyOf(target))
+      if (kept !== undefined) {
+        this.targets.set(kept, { project, target })
+        return kept
+      }
+      const watch = this.deps.watch(project, repo, target)
+      this.targets.set(watch, { project, target })
+      made.push(watch)
+      return watch
+    })
+    if (watches.length === 0) this.byProject.delete(project)
+    else this.byProject.set(project, watches)
+    if (targets.length > 0) this.deps.log(`ci: ${project} watches ${targets.map((target) => `${target.kind} on ${target.remote}`).join(', ')}`)
+    else if (before.length > 0) this.deps.log(`ci: ${project} watches no CI`)
+    for (const watch of made) void watch.tick()
+    return true
   }
 }

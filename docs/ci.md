@@ -53,7 +53,7 @@ The contract is two calls: `runs(limit)` — the latest runs, newest first; `job
 
 ## Which CI a project has
 
-Read from `git config --get-regexp ^remote\..*\.url$` and the workflow folders of the project's checkout when the project appears in the config or its `repo` changes (`CiWatches.apply`, `src/ci/watches.ts`); a new remote or a first workflow in the same checkout is picked up only after a restart. A changed `FORGEJO_TOKEN` in `.env` or a changed profile gives every watch a new source at once (`CiWatches.tokensChanged`).
+Read from `git config --get-regexp ^remote\..*\.url$` and the workflow folders of the project's checkout when the project appears in the config or its `repo` changes (`CiWatches.apply`, `src/ci/watches.ts`), and again every minute for every project (`CiWatches.refresh`): a remote added or a first workflow in the same checkout gets its watch, a CI gone loses it, and a watch whose remote stays keeps its state. Only a change is logged (`ci: <KEY> watches …`, or `watches no CI` when the last one went); a checkout whose remotes cannot be read on a refresh keeps its watches. A changed profile gives every watch a new source at once (`CiWatches.tokensChanged`).
 
 - A `github.com` remote with `.github/workflows` — GitHub Actions.
 - Any other host — Forgejo, if the repository has `.forgejo/workflows`, or `.github/workflows` (Forgejo falls back to it when it has none of its own).
@@ -61,8 +61,10 @@ Read from `git config --get-regexp ^remote\..*\.url$` and the workflow folders o
 
 The token is chosen per remote (`ciToken`, `src/ci/adapters.ts`). The CI is a property of the remote, not of the tracker: a project on Huly with a `github.com` remote has GitHub Actions too (Even Keel itself).
 
-- Forgejo: `FORGEJO_TOKEN` of `.env` (a Forgejo profile is BTN-201). Without it the CI shows as `off` with the notice `ci.noToken` and is never asked.
-- GitHub Actions: the project's tracker profile if it is a GitHub one, else the default GitHub profile (`docs/trackers.md`, "Profiles"); the token needs **Actions: Read**. With no GitHub profile at all, or when the token does not reach the repository's Actions (`ci.denied`, HTTP 404), the CI of that remote is not shown at all, with no error (`CiWatch.hidden`): the page and the main check take only `CiWatches.shown(project)`, and the profile's card on Access says why in its tip (`ProfileView.hiddenCi`). A choice of profile per remote is v0.2 (BTN-66).
+- Forgejo: a Forgejo profile (`FORGEJO_URL`, `FORGEJO_TOKEN`; `src/ci/forgejo-profile.ts`) whose `FORGEJO_URL` has the remote's host — the default one when several do, else the first. `.env` is not read for it: at the first start `importForgejo` (`src/profiles/store.ts`) turns a `FORGEJO_TOKEN` of `.env` into one profile per host of the projects' Forgejo remotes (`docs/storage.md`).
+- GitHub Actions: the project's tracker profile if it is a GitHub one, else the default GitHub profile (`docs/trackers.md`, "Profiles"); the token needs **Actions: Read**.
+
+With no profile for it, or when the token does not reach the repository's runs (`ci.denied`, HTTP 404), the CI of that remote is not shown at all, with no error (`CiWatch.hidden`, both CIs): the page and the main check take only `CiWatches.shown(project)`. On Access a profile's card lists the CIs it serves (`ProfileView.ci`) and says in its tip which ones it does not reach (`ProfileView.hiddenCi`). A choice of profile per remote is v0.2 (BTN-66).
 
 ## A push of Markdown only (this repository's workflows)
 
@@ -88,6 +90,7 @@ A finished run's jobs are not fetched again. The tasks of a run are the ids in `
 Checked on Forgejo 16.0.3 (`+gitea-1.22.0`) and code.forgejo.org (17.0-dev):
 
 - With `REQUIRE_SIGNIN` the API is closed without a token.
+- The profile's check is `GET /api/v1/user`: a token without the `read:user` scope gets 403 there (`CredentialsRefused`), even when it reads the runs.
 - `limit` without `page` is ignored and the whole history comes back — hundreds of MB of `event_payload`. Always send `page=1`.
 - Runs and jobs exist, steps do not: the panel lists Forgejo's jobs and links the run page for the steps. A job's times come from `/actions/tasks` (`run_started_at`, `updated_at`) by its `task_id`.
 - An unset time is the zero time of Go or of Unix (`0001-01-01`, `1970-01-01`): read as none, and a run's start falls back to `created`.
