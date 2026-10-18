@@ -13,7 +13,7 @@ This file holds the rules and traps needed in every session. Reference on how th
 | Document | What is in it |
 | --- | --- |
 | `docs/chain.md` | entry into the chain, order, task worktrees, cleanup after Done, "slot" mode, the exceptions to invariant 1 in detail, state files and their schema version |
-| `docs/storage.md` | the state database `state/even-keel.db`: tables, schema steps, the import of the v0.1 files, backup and export, readers outside the service |
+| `docs/storage.md` | the state database `state/even-keel/` (PGlite): its owner and port, tables, schema steps, the import of the SQLite file and the v0.1 files, backup and export, readers outside the service |
 | `docs/trackers.md` | the `src/tracker/` layer, the Huly, GitHub and Linear adapters, `brief`/`complete`, Claude Code plugins |
 | `docs/ci.md` | the `src/ci/` layer, the Forgejo and GitHub Actions adapters, which remote gets a CI, polling, Forgejo API traps |
 | `docs/sessions.md` | the `claude` CLI, transcripts, the model by label, prompt assembly, limit polling |
@@ -59,7 +59,7 @@ Behaviour written without a way to check it live (the situation never came up or
 - A server message for the page is a code, not text: a new code goes into `src/notice/en.ts` and `web/src/i18n/notices-ru.ts` (the type checks that they are equal). The service log is in English.
 - A project key is not its id: the files of `state/` and the page's URLs name a project by its GUID (`projects[].id`, `config.ids`), the running service, the tracker and branches by its key; `src/chain/store.ts` translates.
 - A change of a file format in the config or `state/` is a new `SCHEMA_VERSION`, a migration step in `src/storage/migrations.ts` and a new frozen sample in `test/fixtures/` — never an edit of an old step or sample. A change of the state database is a new step in `STEPS` (`src/storage/database.ts`) and a new `test/fixtures/database-v<N>/` — never an edit of a merged step.
-- The chain state, the questions, the launch log and the handoff snapshots are in `state/even-keel.db`, not in files (`docs/storage.md`): the `*.imported` files next to it are not read.
+- The chain state, the questions, the launch log and the handoff snapshots are in the PGlite folder `state/even-keel/`, not in files (`docs/storage.md`): the `*.imported` files next to it are not read. One process owns the folder (`owner.json`); anything else reads it through `readStateDatabase`, never by opening `pgdata/` while the service runs.
 - The service serves the built `dist/web`: after a code change — `npm run build` and a service restart, otherwise the page is stale or 503.
 
 ## Hosting

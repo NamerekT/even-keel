@@ -124,7 +124,7 @@ A switch on `/settings`, the Chain group — for when nobody is there to answer,
 
 ## State files and the schema version (BTN-132)
 
-Since BTN-147 the chain state, the questions, the launch log and the handoff snapshots are in the state database (`state/even-keel.db`, `docs/storage.md`); the files below are what v0.1 kept and what the first start of the new version imports. The config, `account.json`, `packages.json`, `rate-limits.json` and `codex/` stay files.
+Since BTN-147 the chain state, the questions, the launch log and the handoff snapshots are in the state database (`state/even-keel/`, `docs/storage.md`); the files below are what v0.1 kept and what the first start of the new version imports. The config, `account.json`, `packages.json`, `rate-limits.json` and `codex/` stay files.
 
 - A project has a key (the tracker's, `ABC`) and an id (`projects[].id`, a GUID that never changes). The state names a project by its id: the database (`project_id` of its tables) and before it `state/chain.json` (`active[].project`, `queue`, the keys of `orders`, `skipped`, `leftovers`, `released`, `ci`) and `state/launches.jsonl` (`project`). The running service, the tracker, task IDs, branches and worktrees go by the key; `src/chain/store.ts` translates at the edge with `config.ids` (key → id), and an id the config does not have — a removed project — stays as it is.
 - Every file carries the schema version (`SCHEMA_VERSION`, `src/storage/schema.ts`): `version` in the config, `chain.json`, `questions.json` (`{ version, questions }`), `account.json`, and the first line `{"version":<N>}` of `launches.jsonl`. A file newer than the code is refused (`storage.newer`). The database has its own version (`PRAGMA user_version`, `docs/storage.md`).

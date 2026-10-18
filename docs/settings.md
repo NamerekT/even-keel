@@ -150,8 +150,8 @@ CREATE TABLE setting_values (
 CREATE UNIQUE INDEX setting_values_target ON setting_values (key, COALESCE(project_id, ''), qualifier);
 ```
 
-The SQL is the same for `node:sqlite` and PGlite (the engine becomes PGlite in BTN-198); the expression index stands in for
-a primary key over a nullable column.
+The SQL is for PGlite, the engine since BTN-198; the expression index stands in for a primary key over a nullable
+column.
 
 - **A setting is a leaf replaced whole.** A nested object of today's file becomes one key per part wherever the parts
   merge or default on their own — all of them do now: `chain.*`, `ci.*`, `commands.*`, `context.*`, `stats.compare.*`,
@@ -276,3 +276,6 @@ parsers — not a table.
 - BTN-190 (2026-10-18, the user): settings and project records move into the database now, before the v0.1 release
   (BTN-199), on the tables above; the engine becomes PGlite (BTN-198, done first, so the settings tables are written
   there). The wizard writes through the BTN-186 writer with no intermediate JSON, as BTN-118 already does.
+- BTN-198 (2026-10-18): the engine is PGlite, its own folder `state/even-keel/`, not Tally's database; the service's
+  main thread owns it and serves it to readers on a loopback port; the SQLite file is imported once
+  (`docs/storage.md`). A settings step is a new entry of `STEPS` there.
