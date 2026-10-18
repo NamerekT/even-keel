@@ -31,7 +31,7 @@ The contract is two calls: `runs(limit)` — the latest runs, newest first; `job
 - `kinds` — the CIs whose verdict the chain waits for; without the key — both (`DEFAULT_CI` in `src/settings/defaults.ts`); empty — none, and the project's own check takes over (below).
 - `waitMinutes` — how long the next launch waits after the push: `null` or no key — as long as it takes, `0` — not at all (faster, but the next task may start on a broken `main`).
 - `recheckMain` — `false` turns off the second run of the project's check on a `main` that moved (below).
-- `fixTask` (BTN-115) — who fixes a red `main`, for a red CI and a failed check alike. `false`, the default — a session without a tracker task, started by the dispatcher, and the working session of the current task is stopped until it is done. `true` — a task created in the tracker, taken after the current one; the adapter then needs `create`. Read at the red verdict, so a change applies to the next one.
+- `fixTask` (BTN-115) — who fixes a red `main`, for a red CI and a failed check alike. `false`, the default — a session without a tracker task, started by the dispatcher, and the working session of the current task is stopped until it is done. The fix is over once its branch is in `main` and the session is not working or waiting: a turn that ended with a background command still running (`shell`, a loop waiting on a CI log) does not hold it, the cleanup stops the session and kills the command (`docs/chain.md`, "Background command"). `true` — a task created in the tracker, taken after the current one; the adapter then needs `create`. Read at the red verdict, so a change applies to the next one.
 - The settings panel writes the key only when it differs from the default.
 
 ## The check without a CI (BTN-104)
@@ -82,6 +82,7 @@ Checked on Forgejo 16.0.3 (`+gitea-1.22.0`) and code.forgejo.org (17.0-dev):
 - `limit` without `page` is ignored and the whole history comes back — hundreds of MB of `event_payload`. Always send `page=1`.
 - Runs and jobs exist, steps do not: the panel lists Forgejo's jobs and links the run page for the steps. A job's times come from `/actions/tasks` (`run_started_at`, `updated_at`) by its `task_id`.
 - An unset time is the zero time of Go or of Unix (`0001-01-01`, `1970-01-01`): read as none, and a run's start falls back to `created`.
+- A job's log is not in the API. On the Forgejo host it lies in the data folder as `actions_log/<owner>/<repo>/<task_id % 256, two hex digits>/<task_id>.log.zst`; the `task_id` comes from `GET /repos/<owner>/<repo>/actions/runs/<id>/jobs`. The run number in the page's URL is not the run's id.
 
 GitHub sets `run_started_at` when the run is created, before a runner takes it, so a queued GitHub run has no start.
 

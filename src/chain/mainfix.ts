@@ -58,12 +58,16 @@ export class MainFix {
     return true
   }
 
-  /** The fix session leads the chain: `true` — it is over, its branch landed and cleaned up, or the fix is no longer wanted. */
+  /**
+   * The fix session leads the chain: `true` — it is over, its branch landed and cleaned up, or the fix is no longer wanted.
+   * A session whose turn ended on a background command does not hold a landed fix: the cleanup stops it.
+   */
   async follow(chain: ActiveChain, current: CurrentTask): Promise<boolean> {
     const { project } = chain
     const fix = this.main.sessionFix(project)
     if (fix !== undefined && fix.task === current.task) {
-      if (this.deps.busy(current.task) || !(await this.main.merged(project, fix.task))) return false
+      const working = this.deps.busy(current.task) && !this.deps.shell(current.task)
+      if (working || !(await this.main.merged(project, fix.task))) return false
       await this.host.closeUp(project, fix.task)
       const head = this.main.fixLanded(project)
       if (chain.interrupted !== undefined && head !== null) chain.interrupted.fixed = head

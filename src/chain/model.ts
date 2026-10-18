@@ -168,6 +168,11 @@ export interface DispatcherDeps {
   blocked: (project: string, task?: string) => Notice | undefined
   busy: (task: string) => boolean
   midTurn: (task: string) => boolean
+  /**
+   * The session's turn has ended and only its own background command runs (`shell`); `busy` and `midTurn` count it
+   * until the command looks hung. A merged fix or a done task does not wait for it.
+   */
+  shell: (task: string) => boolean
   /** The id of the `AskUserQuestion` the task's session waits on, `null` for none. */
   asked: (task: string) => string | null
   save: (state: ChainState) => void

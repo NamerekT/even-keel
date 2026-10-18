@@ -559,12 +559,17 @@ export class Dispatcher {
   private async sweep(): Promise<void> {
     for (const [project, done] of this.releasedDone) {
       for (const task of done) {
-        if (this.deps.busy(task)) continue
+        if (this.working(task)) continue
         await this.closeUp(project, task)
         this.keepReleased(project, this.released(project).filter((id) => id !== task))
         this.deps.save(this.state)
       }
     }
+  }
+
+  /** Whether a done task's session holds its cleanup: a session whose turn ended on a background command does not. */
+  private working(task: string): boolean {
+    return this.deps.busy(task) && !this.deps.shell(task)
   }
 
   /** Cleans up after a done task and, once main is pushed, awaits the CI's verdict on it. */
@@ -804,7 +809,7 @@ export class Dispatcher {
       this.deps.save(this.state)
       return true
     }
-    if (this.deps.busy(task)) {
+    if (this.working(task)) {
       if (!this.handovers.quietTooLong(task)) return false
       delete chain.closing
       const released = (this.state.released[chain.project] ??= [])

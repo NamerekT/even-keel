@@ -587,6 +587,10 @@ const dispatcher = new Dispatcher(await loadChainState(db, configStore.current.i
     return status === 'busy' || status === 'waiting'
   },
   midTurn: (task) => agentStatus(task) === 'busy',
+  shell: (task) => {
+    const view = liveView(task)
+    return view !== undefined && agents.find((agent) => agent.sessionId === view.sessionId)?.status === 'shell'
+  },
   asked: (task) => liveView(task)?.ask?.id ?? null,
   save: (state) => {
     writes.add('the chain state', saveChainState(db, state, configStore.current.ids))

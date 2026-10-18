@@ -340,6 +340,7 @@ describe('prompts in English', () => {
     expect(prompt).toContain('git log master..HEAD')
     expect(prompt).not.toMatch(/\bmain\.\.HEAD|в main\b/)
     expect(fixPrompt('Broken.', place, 'en', 'trunk')).toContain('Merge the fix into trunk of the main checkout')
+    expect(fixPrompt('Broken.', place, 'en', 'trunk')).toContain('stop your background commands')
     expect(mainFixedPrompt('c1c1c1c1c1', 'c2c2c2c2c2', 'en', 'trunk')).toContain('Merge trunk into your branch')
   })
 

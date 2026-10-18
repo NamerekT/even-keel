@@ -46,6 +46,8 @@ export interface SetupOptions {
   packagesBlocked?: Set<string>
   busy?: Set<string>
   waiting?: Set<string>
+  /** Sessions whose turn has ended while their own background command runs: busy and mid-turn to the chain. */
+  shell?: Set<string>
   /** The open `AskUserQuestion` of a task's session, by task. */
   asked?: Record<string, string>
   unattended?: boolean
@@ -57,6 +59,8 @@ export interface SetupOptions {
 
 export function setup(options: SetupOptions = {}) {
   const busy = options.busy ?? new Set<string>()
+  const shell = options.shell ?? new Set<string>()
+  const waiting = options.waiting ?? new Set<string>()
   const live: Record<string, string> = options.live ?? {}
   const clock = { now: new Date('2026-09-26T12:00:00Z') }
   const account: AccountNow = options.account ?? { id: 'john@example.com', ready: true }
@@ -92,8 +96,9 @@ export function setup(options: SetupOptions = {}) {
     },
     liveSession: (id) => live[id],
     blocked: () => (options.blocked === undefined ? undefined : textNotice(options.blocked)),
-    busy: (id) => busy.has(id) || (options.waiting?.has(id) ?? false),
-    midTurn: (id) => busy.has(id) && !(options.waiting?.has(id) ?? false),
+    busy: (id) => busy.has(id) || shell.has(id) || waiting.has(id),
+    midTurn: (id) => (busy.has(id) || shell.has(id)) && !waiting.has(id),
+    shell: (id) => shell.has(id),
     asked: (id) => options.asked?.[id] ?? null,
     save: (state) => saved.push(structuredClone(state)),
     journal: (entry) => journal.push(entry),
@@ -161,6 +166,8 @@ export function setup(options: SetupOptions = {}) {
     handoffs,
     relays,
     busy,
+    shell,
+    waiting,
     capacity,
     tracker,
     refreshed,

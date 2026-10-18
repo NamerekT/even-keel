@@ -85,6 +85,38 @@ describe('Dispatcher and a red main without a fix task', () => {
     expect(dispatcher.state.active[0]?.current?.task).toBe('ABC-FIX')
   })
 
+  it('closes a merged fix whose session ended its turn with a background command still running', async () => {
+    const { dispatcher, shell, finished, journal, ci } = await withoutTask()
+    ci.verdict = red
+    dispatcher.check()
+    await dispatcher.idle()
+    shell.add('ABC-FIX')
+    dispatcher.check()
+    await dispatcher.idle()
+    expect(finished).toEqual(['ABC/ABC-1'])
+
+    ci.verdict = { state: 'pending' }
+    ci.merged.add('ABC-FIX')
+    dispatcher.check()
+    await dispatcher.idle()
+    expect(finished).toEqual(['ABC/ABC-1', 'ABC/ABC-FIX'])
+    expect(dispatcher.state.active[0]?.current).toBeNull()
+    expect(journal.at(-1)).toMatchObject({ task: 'ABC-FIX', reason: 'landed' })
+  })
+
+  it('keeps a merged fix whose session waits for an answer', async () => {
+    const { dispatcher, waiting, finished, ci } = await withoutTask()
+    ci.verdict = red
+    dispatcher.check()
+    await dispatcher.idle()
+    ci.merged.add('ABC-FIX')
+    waiting.add('ABC-FIX')
+    dispatcher.check()
+    await dispatcher.idle()
+    expect(finished).toEqual(['ABC/ABC-1'])
+    expect(dispatcher.state.active[0]?.current?.task).toBe('ABC-FIX')
+  })
+
   it('stops the chain when the push of the fix is red, without another fix', async () => {
     const { dispatcher, fixes, ci } = await withoutTask()
     ci.verdict = red

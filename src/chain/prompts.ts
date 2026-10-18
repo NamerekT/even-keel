@@ -65,6 +65,7 @@ export const PROMPTS: Record<Language, PromptTexts> = {
       [
         '- Задачи в трекере на эту починку нет: не заводи её и статусы не трогай, в сообщениях коммитов ID задач не пиши.',
         fill`- Починку слей в ${main} основного чекаута (git merge --no-edit в основной рабочей копии). Worktree и ветку после этого не трогай и ${main} не пушь — уборку сделает Even Keel, он же проверит пуш.`,
+        '- Перед концом хода останови свои фоновые команды (циклы ожидания, наблюдение за логом CI): пока они работают, Even Keel считает тебя занятым.',
       ].join('\n'),
     mainFixed: (red, fixed, main) =>
       fixed === null
@@ -109,6 +110,7 @@ export const PROMPTS: Record<Language, PromptTexts> = {
       [
         '- There is no tracker task for this fix: do not create one or move statuses, and put no task id into commit messages.',
         fill`- Merge the fix into ${main} of the main checkout (git merge --no-edit in the main working copy). After that leave the worktree and the branch alone and do not push ${main} — Even Keel cleans up and checks the push.`,
+        '- Before you end the turn, stop your background commands (wait loops, watching a CI log): while they run, Even Keel takes you for busy.',
       ].join('\n'),
     mainFixed: (red, fixed, main) =>
       fixed === null

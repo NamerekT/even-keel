@@ -42,6 +42,7 @@ If you run into one of these, please open an issue with what you saw: it is the 
   - a long Bash call: the message waits for its end, the chat shows it waiting for the hook all that time.
 
   **Workaround:** if mail is not acted on or not shown, send the message after the turn ends; it then goes by resume, as before.
+- **Background commands of a stopped session on Linux and macOS (BTN-202).** On Windows `claude stop` was seen to leave the `bash.exe` of a `run_in_background` command alive, and Even Keel now kills the session's process tree after the stop; that was checked there. On Linux and macOS it takes the tree from `ps` the same way and sends each process `SIGTERM`, but it never ran there, and whether the CLI already ends those commands itself was not seen. If a stopped session's command lives on, it holds the worktree and the cleanup leaves it in `leftovers`. **Workaround:** kill the command by hand and press "Done" on the warning; the next cleanup removes the folder.
 - **VS Code chat titles.** A chat under "Working now" is named by the last `custom-title` of its transcript, else the last `ai-title` (`src/sessions/title.ts`); that this is the title on the VS Code tab was read from transcripts, not compared with the tabs. If VS Code titles a tab otherwise, the page shows a different name than the tab, nothing else breaks (`docs/accounts.md`).
 
 ## Codex

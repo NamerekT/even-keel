@@ -12,6 +12,7 @@ import { fail, notice, NoticeError, type Notice } from '../notice/notice.js'
 import { samePath } from '../paths.js'
 import { blockedAsk, blockedOn, parseAgents, parseSessionRecord, withLiveRecords, type AgentEntry, type SessionRecord } from '../sessions/agents.js'
 import { newestExtensionBinary } from '../sessions/paths.js'
+import { descendantsOf, killLeftovers } from './tree.js'
 
 const run = promisify(execFile)
 
@@ -118,6 +119,7 @@ export class ClaudeCli {
   async stop(home: AccountHome, agentId: string, sessionId: string): Promise<void> {
     const running = (await this.agents(home)).find((entry) => entry.sessionId === sessionId)
     if (running === undefined || isGone(running)) return
+    const children = running.pid === undefined ? [] : await descendantsOf(running.pid)
     try {
       await run(this.bin(), ['stop', agentId], { env: this.envOf(home), timeout: this.timeoutMs, windowsHide: true })
     } catch (error) {
@@ -126,7 +128,10 @@ export class ClaudeCli {
     const deadline = Date.now() + APPEAR_TIMEOUT_MS
     while (Date.now() < deadline) {
       const agent = (await this.agents(home)).find((entry) => entry.sessionId === sessionId)
-      if (isGone(agent) && !isAlive(running.pid)) return
+      if (isGone(agent) && !isAlive(running.pid)) {
+        await killLeftovers(children)
+        return
+      }
       await delay(APPEAR_POLL_MS)
     }
     throw fail('claude.stillRunning', { agent: agentId })

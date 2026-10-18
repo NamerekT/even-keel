@@ -42,6 +42,34 @@ describe('Dispatcher finishing a done task', () => {
     expect(launched).toEqual(['ABC/ABC-1', 'ABC/ABC-2'])
   })
 
+  it('cleans up at once after a done task whose session ended its turn with a background command still running', async () => {
+    const shell = new Set<string>()
+    const { dispatcher, launched, finished } = setup({ shell })
+    dispatcher.setTasks('ABC', [task('ABC-1'), task('ABC-2')])
+    dispatcher.start('ABC')
+    await dispatcher.idle()
+
+    shell.add('ABC-1')
+    dispatcher.setTasks('ABC', [task('ABC-1', done), task('ABC-2')])
+    await dispatcher.idle()
+    expect(finished).toEqual(['ABC/ABC-1'])
+    expect(launched).toEqual(['ABC/ABC-1', 'ABC/ABC-2'])
+  })
+
+  it('waits for the session of a done task that waits for an answer', async () => {
+    const waiting = new Set<string>()
+    const { dispatcher, finished } = setup({ waiting })
+    dispatcher.setTasks('ABC', [task('ABC-1'), task('ABC-2')])
+    dispatcher.start('ABC')
+    await dispatcher.idle()
+
+    waiting.add('ABC-1')
+    dispatcher.setTasks('ABC', [task('ABC-1', done), task('ABC-2')])
+    await dispatcher.idle()
+    expect(finished).toEqual([])
+    expect(dispatcher.state.active[0]?.closing).toBe('ABC-1')
+  })
+
   describe('in the unattended mode', () => {
     const quiet = (lastReplyAt: string): HandoffSession => ({
       sessionId: 'session-1',
@@ -229,6 +257,21 @@ describe('Dispatcher finishing a task it let go of', () => {
 
     busy.clear()
     dispatcher.check()
+    await dispatcher.idle()
+    expect(finished).toEqual(['ABC/ABC-1'])
+  })
+
+  it('cleans up after a released done task whose session runs only its background command', async () => {
+    const shell = new Set<string>()
+    const { dispatcher, finished } = setup({ shell })
+    dispatcher.setTasks('ABC', [task('ABC-1'), task('ABC-2')])
+    dispatcher.start('ABC')
+    await dispatcher.idle()
+    dispatcher.skip('ABC', 'ABC-1')
+    await dispatcher.idle()
+
+    shell.add('ABC-1')
+    dispatcher.setReleased('ABC', [task('ABC-1', done)])
     await dispatcher.idle()
     expect(finished).toEqual(['ABC/ABC-1'])
   })
