@@ -16,7 +16,7 @@ const row = (name: string, readers: Partial<SecretView['readers']>): SecretView 
   required: false,
 })
 
-const huly: TrackerView = { name: 'huly', title: 'Huly', projects: ['ABC'], ready: true, health: { state: 'down', lastOkAt: null, error: 'huly: 401' }, readAt: {} }
+const huly: TrackerView = { name: 'huly', kind: 'huly', title: 'Huly', projects: ['ABC'], ready: true, health: { state: 'down', lastOkAt: null, error: 'huly: 401' }, readAt: {} }
 const ci = (kind: 'forgejo' | 'github', health: CiView['health']) => ({ kind, health, error: null, checkedAt: '2026-10-18T10:00:00Z' }) as CiView
 
 describe('secretGroups', () => {

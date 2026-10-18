@@ -60,9 +60,12 @@ function fakeTranscript(open: Ask | null): FeedLine[] {
   ]
 }
 
+/** The id of the fake Huly profile the fake projects run on. */
+export const FAKE_HULY_PROFILE = '3f0c2b9e-0000-4000-8000-000000000001'
+
 function fakeHuly(state: TrackerLinkState): TrackerView {
   const projects = ['ABC', 'DEMO', 'XYZ', 'OPS']
-  const view = { name: 'huly', title: 'Huly', projects, ready: true }
+  const view = { name: FAKE_HULY_PROFILE, kind: 'huly', title: 'Huly · example', projects, ready: true }
   const readAt = (minutes: number) => Object.fromEntries(projects.map((project) => [project, ago(minutes)]))
   if (state === 'off' || state === 'connecting') return { ...view, health: { state, lastOkAt: null, error: null }, readAt: {} }
   if (state === 'down') return { ...view, health: { state, lastOkAt: ago(4), error: 'huly: call timed out after 15000 ms' }, readAt: readAt(4) }

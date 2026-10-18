@@ -7,7 +7,11 @@ export interface TrackerHealth {
 }
 
 export interface TrackerView {
+  /** The id of the profile it runs on; `none:<kind>` for a tracker whose projects have no profile (`noProfile`). */
   name: string
+  /** The adapter's name: `huly`, `github`, `linear`. */
+  kind: string
+  /** The profile's name; the adapter's title without a profile. */
   title: string
   projects: string[]
   /** The connected adapter can move a backlog task to `ToDo`. */

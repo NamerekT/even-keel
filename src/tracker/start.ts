@@ -46,7 +46,7 @@ export interface TrackerHandle {
 /** Connects a tracker, polls the statuses of its projects' tasks and refreshes them, closing merged tasks and done parents. */
 export function startTracker(view: TrackerView, setup: TrackerSetup, deps: TrackerStartDeps): TrackerHandle {
   const { repoOf, rulesOf, links, tasksByProject, launches, dispatcher, fillsMilestone, mainBranch, broadcast, refreshers } = deps
-  const { name, projects } = view
+  const { name, title, projects } = view
   let current = setup
   let stopped = false
   let timer: NodeJS.Timeout | undefined
@@ -55,7 +55,7 @@ export function startTracker(view: TrackerView, setup: TrackerSetup, deps: Track
   let setsMilestones = false
   const unfilled = new Set<string>()
   const link = new TrackerLink({
-    name,
+    name: title,
     connect: async () => {
       const tracker = trackerOf(await current.connect(TRACKER_TIMEOUT_MS))
       completes = tracker.complete !== undefined
@@ -74,7 +74,7 @@ export function startTracker(view: TrackerView, setup: TrackerSetup, deps: Track
   links.set(name, link)
   view.health = link.health
   const report = (error: unknown) => {
-    if (!stopped) console.error(`${name}: ${errorText(error)}`)
+    if (!stopped) console.error(`${title}: ${errorText(error)}`)
   }
   const ownTasks = () => projects.flatMap((project) => tasksByProject.get(project) ?? [])
 
@@ -104,7 +104,7 @@ export function startTracker(view: TrackerView, setup: TrackerSetup, deps: Track
       return
     }
     for (const { task, like, milestone } of await filler.sweep(project, dispatcher.view(project))) {
-      console.log(`${name}: put ${task} into the milestone ${milestone} of ${like}, it entered the chain without one`)
+      console.log(`${title}: put ${task} into the milestone ${milestone} of ${like}, it entered the chain without one`)
     }
   }
 
@@ -161,11 +161,11 @@ export function startTracker(view: TrackerView, setup: TrackerSetup, deps: Track
       await fillMilestones(project)
       if (!completes) return
       for (const task of await closer.sweep(project, dispatcher.held(project))) {
-        console.log(`${name}: closed ${task}, its branch is merged into main`)
+        console.log(`${title}: closed ${task}, its branch is merged into main`)
       }
       if (!closesParents) return
       for (const task of await parentCloser.sweep(parents, tasks)) {
-        console.log(`${name}: closed ${task}, all its subtasks are closed`)
+        console.log(`${title}: closed ${task}, all its subtasks are closed`)
       }
     } catch (error) {
       report(error)

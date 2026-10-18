@@ -62,6 +62,7 @@ import { ChatTitles } from './sessions/title.js'
 import { TranscriptWatch } from './sessions/watch.js'
 import { configPath, loadEnv, root, stateDirOf } from './locations.js'
 import { isInside } from './paths.js'
+import { importProfiles } from './profiles/store.js'
 import { slotOccupants } from './sessions/occupants.js'
 import { locateWorktree } from './sessions/place.js'
 import type { EvenKeelState, SessionView } from './state.js'
@@ -128,6 +129,14 @@ const configStore = await ConfigStore.open({
 /** The version whose toast the user closed: state, not a setting (BTN-199). */
 let dismissedUpdate = (await stateValue(db, 'updates.dismissed')) as string | null | undefined
 const envFile = loadEnv()
+/** The trackers' credentials (BTN-200); the first start makes them of the trackers' variables of `.env`. */
+let profileSet = await importProfiles({
+  db,
+  env: process.env,
+  adapters: ADAPTERS,
+  trackers: Object.fromEntries(Object.entries(configStore.current.trackers).map(([key, kind]) => [configStore.current.ids[key]!, kind])),
+  log: (line) => console.log(line),
+})
 let { listen, token, mcpPort } = (() => {
   try {
     const listen = listenOf(process.env)
@@ -148,7 +157,10 @@ const limitsFile = join(stateDir, 'rate-limits.json')
 const accountFile = join(stateDir, 'account.json')
 const links = new Map<string, TrackerLink>()
 /** The link of the project's tracker; `undefined` while that tracker is off. */
-const linkOf = (project: string) => links.get(configStore.current.trackers[project]!)
+const linkOf = (project: string): TrackerLink | undefined => {
+  const key = trackers.keyOf(project)
+  return key === undefined ? undefined : links.get(key)
+}
 const hub = new EventHub()
 const transcriptWatch = new TranscriptWatch(
   (sessionId) => hub.signal('transcript', { sessionId }),
@@ -553,7 +565,7 @@ const places = new TaskPlaces({
 function archiveClosed(project: string, task: string): void {
   const tracker = configStore.current.trackers[project]!
   const title = tasksByProject.get(project)?.find((each) => each.id === task)?.title ?? ''
-  const url = issueLink(trackers.setup(tracker)?.issueUrl(project) ?? null, task)
+  const url = issueLink(trackers.setupOf(project)?.issueUrl(project) ?? null, task)
   writes.add(`the archive of ${task}`, saveClosedTask(db, { project, task, tracker, title, url, closedAt: new Date().toISOString() }, configStore.current.ids))
 }
 
@@ -838,8 +850,8 @@ const getState = (): EvenKeelState => ({
   account: account.view,
   trackers: trackers.views(),
   trackerUrls: {
-    default: trackers.setup(configStore.current.tracker)?.issueUrl(null) ?? null,
-    projects: Object.fromEntries(Object.keys(configStore.current.projects).map((project) => [project, trackers.setup(configStore.current.trackers[project]!)?.issueUrl(project) ?? null])),
+    default: trackers.setupOf(null)?.issueUrl(null) ?? null,
+    projects: Object.fromEntries(Object.keys(configStore.current.projects).map((project) => [project, trackers.setupOf(project)?.issueUrl(project) ?? null])),
   },
   ci: Object.fromEntries([...ciWatches.byProject].map(([project, watches]) => [project, watches.map((watch) => watch.view)])),
   launches: launchDays(launches, new Date(), LAUNCH_CHART_DAYS),
@@ -1134,7 +1146,7 @@ function projectsChanged(before: EvenKeelConfig): void {
     console.log(`config: ${key} is gone from the config; its chain is let go, its sessions are left as they are`)
   }
   for (const key of Object.keys(after.projects)) if (!Object.hasOwn(before.projects, key) && !renamed.some((old) => rename(old) === key)) console.log(`config: ${key} joined`)
-  trackers.apply(after, process.env)
+  trackers.apply(after, profileSet)
   if (JSON.stringify(before.projects) !== JSON.stringify(after.projects)) {
     void packages.projectsChanged(rename).catch((error: unknown) => console.warn(`packages: ${(error as Error).message}`))
     applyCi()
@@ -1166,13 +1178,13 @@ server.listen(listen.port, listen.host, () => {
   console.log(`even-keel listening on http://${listen.host}:${listen.port}`)
 })
 
-trackers.apply(configStore.current, process.env)
+trackers.apply(configStore.current, profileSet)
 
 /** `.env` changed: whoever reads the changed variables takes them now (`docs/service.md`). */
 async function envChanged(changed: string[]): Promise<void> {
   console.log(`env: ${changed.join(', ')} changed in .env`)
   const targets = envTargets(changed)
-  if (targets.trackers.length > 0) trackers.apply(configStore.current, process.env)
+  if (targets.trackers.length > 0) trackers.apply(configStore.current, profileSet)
   if (targets.ci) ciWatches.tokensChanged()
   if (targets.accounts) {
     homes.setRoots(accountsRoot(process.env), codexAccountsRoot(process.env))

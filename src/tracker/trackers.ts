@@ -1,26 +1,43 @@
 import type { EvenKeelConfig } from '../config.js'
+import { defaultProfile, profileFor, type ProfileSet, type TrackerProfile } from '../profiles/model.js'
 import type { TrackerView } from './health.js'
 import type { TrackerAdapter, TrackerSetup } from './source.js'
 import type { TrackerHandle } from './start.js'
 
-export type TrackerConfig = Pick<EvenKeelConfig, 'projects' | 'tracker' | 'trackers' | 'trackerProjects'>
+export type TrackerConfig = Pick<EvenKeelConfig, 'projects' | 'ids' | 'tracker' | 'trackers' | 'trackerProjects'>
 
-/** What a tracker serves: its projects, sorted, and the name of each in the tracker, for those that have one. */
+/** What one profile of a tracker serves: its projects, sorted, and the name of each in the tracker, for those that have one. */
 export interface TrackerPlan {
+  kind: string
+  /** `undefined` — the tracker has projects but no profile to run them on. */
+  profile: TrackerProfile | undefined
   projects: string[]
   names: Record<string, string>
 }
 
-/** Every tracker the config names, the default one too, even without projects: its setup gives the links of other projects' tasks. */
-export function trackerPlans(config: TrackerConfig): Map<string, TrackerPlan> {
+/** The key of a tracker that has projects and no profile. */
+export const noProfile = (kind: string): string => `none:${kind}`
+
+/**
+ * A plan per profile the projects run on, by the profile's id; a tracker whose projects have no profile gets one by
+ * `noProfile`. The default profile of the default tracker is there even without projects: its setup gives the links of
+ * other projects' tasks.
+ */
+export function trackerPlans(config: TrackerConfig, set: ProfileSet): Map<string, TrackerPlan> {
   const plans = new Map<string, TrackerPlan>()
-  for (const name of [config.tracker, ...Object.values(config.trackers)]) {
-    if (plans.has(name)) continue
-    const projects = Object.keys(config.projects)
-      .filter((project) => config.trackers[project] === name)
-      .sort()
-    const names = Object.fromEntries(projects.flatMap((project) => (project in config.trackerProjects ? [[project, config.trackerProjects[project]!]] : [])))
-    plans.set(name, { projects, names })
+  const planOf = (kind: string, profile: TrackerProfile | undefined): TrackerPlan => {
+    const key = profile?.id ?? noProfile(kind)
+    const plan = plans.get(key) ?? { kind, profile, projects: [], names: {} }
+    plans.set(key, plan)
+    return plan
+  }
+  const fallback = defaultProfile(set, config.tracker)
+  if (fallback !== undefined) planOf(config.tracker, fallback)
+  for (const project of Object.keys(config.projects).sort()) {
+    const kind = config.trackers[project]!
+    const plan = planOf(kind, profileFor(set, config.ids[project], kind))
+    plan.projects.push(project)
+    if (project in config.trackerProjects) plan.names[project] = config.trackerProjects[project]!
   }
   return plans
 }
@@ -35,7 +52,7 @@ export interface TrackersDeps {
 }
 
 interface Running {
-  /** The projects and the variables' values it was set up with. */
+  /** The projects and the profile's values it was set up with. */
   projects: string
   signature: string
   view: TrackerView | undefined
@@ -43,13 +60,16 @@ interface Running {
 }
 
 /**
- * The trackers the service runs, brought in line with the config and the environment on the fly: a tracker starts once it
- * has projects and variables, reconnects when only its credentials or its projects' names in it changed, starts again for
- * a project added or moved, and stops when its variables or projects are gone.
+ * The trackers the service runs, one per profile, brought in line with the config and the profiles on the fly: a
+ * profile's tracker starts once it has projects, reconnects when only its credentials or its projects' names in it
+ * changed, starts again for a project added or moved, and stops when its profile or projects are gone.
  */
 export class Trackers {
   private readonly setups = new Map<string, TrackerSetup | undefined>()
   private readonly running = new Map<string, Running>()
+  /** The plan key of each project, and of the default tracker's default profile. */
+  private keys = new Map<string, string>()
+  private defaultKey: string | undefined
 
   constructor(private readonly deps: TrackersDeps) {}
 
@@ -57,64 +77,78 @@ export class Trackers {
     return [...this.running.values()].flatMap((each) => (each.view === undefined ? [] : [each.view]))
   }
 
-  setup(name: string): TrackerSetup | undefined {
-    return this.setups.get(name)
+  /** The key of the tracker that runs the project: the key of its link. */
+  keyOf(project: string): string | undefined {
+    return this.keys.get(project)
   }
 
-  apply(config: TrackerConfig, env: Record<string, string | undefined>): void {
-    const plans = trackerPlans(config)
-    for (const name of [...this.running.keys()]) {
-      if (plans.has(name)) continue
-      this.retire(name, [])
-      this.running.delete(name)
-      this.setups.delete(name)
+  /** The setup of the project's profile; without a project, of the default tracker's default profile. */
+  setupOf(project: string | null): TrackerSetup | undefined {
+    const key = project === null ? this.defaultKey : this.keys.get(project)
+    return key === undefined ? undefined : this.setups.get(key)
+  }
+
+  apply(config: TrackerConfig, set: ProfileSet): void {
+    const plans = trackerPlans(config, set)
+    for (const key of [...this.running.keys()]) {
+      if (plans.has(key)) continue
+      this.retire(key, [])
+      this.running.delete(key)
+      this.setups.delete(key)
     }
-    for (const [name, plan] of plans) this.applyOne(name, plan, env)
+    this.keys = new Map([...plans].flatMap(([key, plan]) => plan.projects.map((project): [string, string] => [project, key])))
+    this.defaultKey = defaultProfile(set, config.tracker)?.id
+    for (const [key, plan] of plans) this.applyOne(key, plan)
   }
 
-  private applyOne(name: string, plan: TrackerPlan, env: Record<string, string | undefined>): void {
-    const adapter = this.deps.adapters[name]!
+  private applyOne(key: string, plan: TrackerPlan): void {
+    const adapter = this.deps.adapters[plan.kind]!
+    const title = plan.profile?.name ?? adapter.title
+    const values = plan.profile?.values ?? {}
     const projects = JSON.stringify(plan.projects)
-    const signature = JSON.stringify({ values: adapter.variables.map((variable) => env[variable] ?? null), names: plan.names })
-    const before = this.running.get(name)
+    const signature = JSON.stringify({ values: adapter.variables.map((variable) => values[variable] ?? null), names: plan.names })
+    const before = this.running.get(key)
+    if (before?.view !== undefined) before.view.title = title
     if (before?.projects === projects && before.signature === signature) return
     let setup: TrackerSetup | undefined
     let failed = false
     try {
-      setup = adapter.setup(env, plan.names)
+      setup = adapter.setup(values, plan.names)
     } catch (error) {
       failed = true
-      this.deps.log(`${name}: ${(error as Error).message}, tracker is off`)
+      this.deps.log(`${title}: ${(error as Error).message}, tracker is off`)
     }
-    this.setups.set(name, setup)
+    this.setups.set(key, setup)
     if (before?.projects === projects && before.handle !== undefined && setup !== undefined) {
       before.handle.update(setup)
-      this.running.set(name, { ...before, signature })
-      this.deps.log(`${name}: its variables changed, the tracker connects again`)
+      this.running.set(key, { ...before, signature })
+      this.deps.log(`${title}: its credentials changed, the tracker connects again`)
       for (const project of plan.projects) void this.deps.refreshers.get(project)?.()
       return
     }
-    this.retire(name, plan.projects)
+    this.retire(key, plan.projects)
     if (plan.projects.length === 0) {
-      this.running.set(name, { projects, signature, view: undefined, handle: undefined })
+      this.running.set(key, { projects, signature, view: undefined, handle: undefined })
       return
     }
     const view: TrackerView = {
-      name,
-      title: adapter.title,
+      name: key,
+      kind: plan.kind,
+      title,
       projects: plan.projects,
       ready: false,
       health: { state: 'off', lastOkAt: null, error: null },
       readAt: {},
     }
-    if (setup === undefined && !failed) this.deps.log(`${name}: ${adapter.variables.join(', ')} not set, tracker is off`)
+    if (plan.profile === undefined) this.deps.log(`${title}: ${plan.projects.join(', ')} have no profile, tracker is off`)
+    else if (setup === undefined && !failed) this.deps.log(`${title}: the profile has no credentials, tracker is off`)
     const handle = setup === undefined ? undefined : this.deps.start(view, setup)
-    this.running.set(name, { projects, signature, view, handle })
+    this.running.set(key, { projects, signature, view, handle })
   }
 
   /** Stops the tracker; the tasks of its projects that are not in `staying` go: another tracker reads them, or none. */
-  private retire(name: string, staying: string[]): void {
-    const before = this.running.get(name)
+  private retire(key: string, staying: string[]): void {
+    const before = this.running.get(key)
     before?.handle?.stop()
     for (const project of before?.view?.projects ?? []) if (!staying.includes(project)) this.deps.tasksByProject.delete(project)
   }

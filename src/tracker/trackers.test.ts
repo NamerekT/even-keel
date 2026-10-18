@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
+import type { ProfileSet, TrackerProfile } from '../profiles/model.js'
 import type { TrackerView } from './health.js'
 import type { TrackerAdapter, TrackerSetup } from './source.js'
 import type { TrackerHandle } from './start.js'
@@ -6,7 +7,16 @@ import { trackerPlans, Trackers, type TrackerConfig } from './trackers.js'
 
 const setupOf = (token: string): TrackerSetup => ({ connect: async () => Promise.reject(new Error(token)), issueUrl: () => `https://${token}/{id}` })
 
+const unchecked = {
+  hostVariables: [],
+  help: 'https://example.com/help',
+  profileName: () => 'profile',
+  account: () => Promise.reject(new Error('not here')),
+  projects: async () => [],
+}
+
 const huly: TrackerAdapter = {
+  ...unchecked,
   title: 'Huly',
   variables: ['HULY_TOKEN', 'HULY_URL'],
   setup: (env) => {
@@ -16,18 +26,35 @@ const huly: TrackerAdapter = {
   },
 }
 const github: TrackerAdapter = {
+  ...unchecked,
   title: 'GitHub',
   variables: ['GITHUB_TOKEN'],
-  setup: (env, projects) => (env.GITHUB_TOKEN === undefined ? undefined : { ...setupOf(env.GITHUB_TOKEN), issueUrl: (project) => (project === null ? null : (projects[project] ?? null)) }),
+  setup: (env, projects) =>
+    env.GITHUB_TOKEN === undefined ? undefined : { ...setupOf(env.GITHUB_TOKEN), issueUrl: (project) => (project === null ? `https://${env.GITHUB_TOKEN}` : (projects[project] ?? null)) },
 }
+
+const IDS = { ABC: 'id-abc', XYZ: 'id-xyz' }
 
 const config = (more: Partial<TrackerConfig> = {}): TrackerConfig => ({
   projects: { ABC: 'D:/abc', XYZ: 'D:/xyz' },
+  ids: IDS,
   tracker: 'huly',
   trackers: { ABC: 'huly', XYZ: 'huly' },
   trackerProjects: {},
   ...more,
 })
+
+const profile = (id: string, kind: string, values: Record<string, string>, isDefault = true): TrackerProfile => ({
+  id,
+  kind,
+  name: `${kind} · ${id}`,
+  values,
+  isDefault,
+  login: null,
+  expiresAt: null,
+})
+
+const hulyOnly = (values: Record<string, string>): ProfileSet => ({ profiles: [profile('work', 'huly', values)], links: {} })
 
 function context() {
   const started: { view: TrackerView; setup: TrackerSetup; handle: TrackerHandle & { updates: TrackerSetup[]; stopped: boolean } }[] = []
@@ -53,94 +80,120 @@ function context() {
 }
 
 describe('trackerPlans', () => {
-  it('gives each tracker its projects, sorted, and their names in it; the default tracker is there without projects', () => {
-    const plans = trackerPlans(config({ trackers: { XYZ: 'github', ABC: 'github' }, trackerProjects: { XYZ: 'octo/xyz', ABC: 'octo/abc' } }))
-    expect(plans.get('huly')).toEqual({ projects: [], names: {} })
-    expect(plans.get('github')).toEqual({ projects: ['ABC', 'XYZ'], names: { ABC: 'octo/abc', XYZ: 'octo/xyz' } })
+  it('gives each profile its projects, sorted, and their names in it; the default profile of the default tracker is there without projects', () => {
+    const set: ProfileSet = { profiles: [profile('work', 'huly', {}), profile('octo', 'github', {})], links: {} }
+    const plans = trackerPlans(config({ trackers: { XYZ: 'github', ABC: 'github' }, trackerProjects: { XYZ: 'octo/xyz', ABC: 'octo/abc' } }), set)
+    expect(plans.get('work')).toMatchObject({ kind: 'huly', projects: [], names: {} })
+    expect(plans.get('octo')).toMatchObject({ kind: 'github', projects: ['ABC', 'XYZ'], names: { ABC: 'octo/abc', XYZ: 'octo/xyz' } })
+  })
+
+  it('puts projects whose tracker has no profile under one key of the tracker', () => {
+    const plans = trackerPlans(config({ trackers: { ABC: 'github', XYZ: 'huly' } }), hulyOnly({}))
+    expect([...plans.keys()]).toEqual(['work', 'none:github'])
+    expect(plans.get('none:github')).toEqual({ kind: 'github', profile: undefined, projects: ['ABC'], names: {} })
   })
 })
 
 describe('Trackers', () => {
-  it('starts a tracker with projects and variables, and keeps the setup of the default one for its links', () => {
+  it('starts a profile with projects, and keeps the setup of the default one for its links', () => {
     const { trackers, started } = context()
-    trackers.apply(config(), { HULY_TOKEN: 't1', HULY_URL: 'u' })
-    expect(started.map((each) => each.view.projects)).toEqual([['ABC', 'XYZ']])
+    trackers.apply(config(), hulyOnly({ HULY_TOKEN: 't1', HULY_URL: 'u' }))
+    expect(started.map((each) => [each.view.name, each.view.kind, each.view.title, each.view.projects])).toEqual([['work', 'huly', 'huly · work', ['ABC', 'XYZ']]])
     expect(trackers.views()).toHaveLength(1)
-    expect(trackers.setup('huly')?.issueUrl(null)).toBe('https://t1/{id}')
+    expect(trackers.setupOf(null)?.issueUrl(null)).toBe('https://t1/{id}')
+    expect(trackers.keyOf('ABC')).toBe('work')
   })
 
-  it('shows a tracker without its variables as off, and starts it once they appear', () => {
+  it('runs two profiles of one tracker for two projects, each with its own credentials', () => {
+    const { trackers, started } = context()
+    const set: ProfileSet = {
+      profiles: [profile('personal', 'github', { GITHUB_TOKEN: 'g1' }), profile('org', 'github', { GITHUB_TOKEN: 'g2' }, false), profile('work', 'huly', {})],
+      links: { [IDS.XYZ]: 'org' },
+    }
+    trackers.apply(config({ trackers: { ABC: 'github', XYZ: 'github' } }), set)
+    expect(started.map((each) => [each.view.name, each.view.projects, each.setup.issueUrl(null)])).toEqual([
+      ['personal', ['ABC'], 'https://g1'],
+      ['org', ['XYZ'], 'https://g2'],
+    ])
+    expect([trackers.keyOf('ABC'), trackers.keyOf('XYZ')]).toEqual(['personal', 'org'])
+    expect(trackers.setupOf('XYZ')?.issueUrl(null)).toBe('https://g2')
+  })
+
+  it('shows a tracker without a profile as off, and starts it once one appears', () => {
     const { trackers, started, log } = context()
-    trackers.apply(config(), {})
+    trackers.apply(config(), { profiles: [], links: {} })
     expect(started).toHaveLength(0)
-    expect(trackers.views()[0]?.health.state).toBe('off')
-    expect(log).toHaveBeenCalledWith('huly: HULY_TOKEN, HULY_URL not set, tracker is off')
-    trackers.apply(config(), { HULY_TOKEN: 't1', HULY_URL: 'u' })
+    expect(trackers.views()[0]).toMatchObject({ name: 'none:huly', title: 'Huly', health: { state: 'off' } })
+    expect(log).toHaveBeenCalledWith('Huly: ABC, XYZ have no profile, tracker is off')
+    trackers.apply(config(), hulyOnly({ HULY_TOKEN: 't1', HULY_URL: 'u' }))
     expect(started).toHaveLength(1)
+    expect(trackers.views().map((view) => view.name)).toEqual(['work'])
   })
 
   it('reconnects with new credentials rather than starting the tracker again, and reads its projects anew', () => {
     const { trackers, started, refreshers } = context()
     const refresh = vi.fn(async () => {})
     refreshers.set('ABC', refresh)
-    trackers.apply(config(), { HULY_TOKEN: 't1', HULY_URL: 'u' })
-    trackers.apply(config(), { HULY_TOKEN: 't2', HULY_URL: 'u' })
+    trackers.apply(config(), hulyOnly({ HULY_TOKEN: 't1', HULY_URL: 'u' }))
+    trackers.apply(config(), hulyOnly({ HULY_TOKEN: 't2', HULY_URL: 'u' }))
     expect(started).toHaveLength(1)
     expect(started[0]!.handle.updates.map((setup) => setup.issueUrl(null))).toEqual(['https://t2/{id}'])
     expect(refresh).toHaveBeenCalled()
   })
 
-  it('does nothing when neither its projects nor its variables changed', () => {
+  it('a renamed profile keeps its connection and shows the new name', () => {
     const { trackers, started } = context()
-    trackers.apply(config(), { HULY_TOKEN: 't1', HULY_URL: 'u', OTHER: 'a' })
-    trackers.apply(config(), { HULY_TOKEN: 't1', HULY_URL: 'u', OTHER: 'b' })
+    const set = hulyOnly({ HULY_TOKEN: 't1', HULY_URL: 'u' })
+    trackers.apply(config(), set)
+    trackers.apply(config(), { ...set, profiles: [{ ...set.profiles[0]!, name: 'Work' }] })
     expect(started).toHaveLength(1)
     expect(started[0]!.handle.updates).toEqual([])
+    expect(trackers.views()[0]?.title).toBe('Work')
   })
 
-  it('stops the tracker once its variables are removed, and leaves it off', () => {
+  it('stops the tracker once its profile is gone, and leaves it off', () => {
     const { trackers, started } = context()
-    trackers.apply(config(), { HULY_TOKEN: 't1', HULY_URL: 'u' })
-    trackers.apply(config(), {})
+    trackers.apply(config(), hulyOnly({ HULY_TOKEN: 't1', HULY_URL: 'u' }))
+    trackers.apply(config(), { profiles: [], links: {} })
     expect(started[0]!.handle.stopped).toBe(true)
     expect(trackers.views()[0]?.health.state).toBe('off')
-    expect(trackers.setup('huly')).toBeUndefined()
+    expect(trackers.setupOf('ABC')).toBeUndefined()
   })
 
-  it('turns a tracker off and says why when its variables are set only in part', () => {
+  it('turns a tracker off and says why when its profile is set only in part', () => {
     const { trackers, started, log } = context()
-    trackers.apply(config(), { HULY_TOKEN: 't1', HULY_URL: 'u' })
-    trackers.apply(config(), { HULY_TOKEN: 't1' })
+    trackers.apply(config(), hulyOnly({ HULY_TOKEN: 't1', HULY_URL: 'u' }))
+    trackers.apply(config(), hulyOnly({ HULY_TOKEN: 't1' }))
     expect(started[0]!.handle.stopped).toBe(true)
-    expect(log).toHaveBeenCalledWith('huly: HULY_TOKEN and HULY_URL go together, tracker is off')
+    expect(log).toHaveBeenCalledWith('huly · work: HULY_TOKEN and HULY_URL go together, tracker is off')
   })
 
   it('starts the tracker again for a project added or moved, and forgets the tasks of a project that left it', () => {
     const { trackers, started, tasksByProject } = context()
-    const env = { HULY_TOKEN: 't1', HULY_URL: 'u', GITHUB_TOKEN: 'g' }
-    trackers.apply(config({ projects: { ABC: 'D:/abc' }, trackers: { ABC: 'huly' } }), env)
+    const set: ProfileSet = { profiles: [profile('work', 'huly', { HULY_TOKEN: 't1', HULY_URL: 'u' }), profile('octo', 'github', { GITHUB_TOKEN: 'g' })], links: {} }
+    trackers.apply(config({ projects: { ABC: 'D:/abc' }, trackers: { ABC: 'huly' } }), set)
     tasksByProject.set('ABC', [])
-    trackers.apply(config(), env)
+    trackers.apply(config(), set)
     expect(started.map((each) => each.view.projects)).toEqual([['ABC'], ['ABC', 'XYZ']])
     expect(started[0]!.handle.stopped).toBe(true)
     expect(tasksByProject.has('ABC')).toBe(true)
-    trackers.apply(config({ trackers: { ABC: 'github', XYZ: 'huly' }, trackerProjects: { ABC: 'octo/abc' } }), env)
+    trackers.apply(config({ trackers: { ABC: 'github', XYZ: 'huly' }, trackerProjects: { ABC: 'octo/abc' } }), set)
     expect(started.map((each) => [each.view.name, each.view.projects])).toEqual([
-      ['huly', ['ABC']],
-      ['huly', ['ABC', 'XYZ']],
-      ['huly', ['XYZ']],
-      ['github', ['ABC']],
+      ['work', ['ABC']],
+      ['work', ['ABC', 'XYZ']],
+      ['work', ['XYZ']],
+      ['octo', ['ABC']],
     ])
     expect(tasksByProject.has('ABC')).toBe(false)
   })
 
   it('stops a tracker left without projects', () => {
     const { trackers, started } = context()
-    const env = { HULY_TOKEN: 't1', HULY_URL: 'u' }
-    trackers.apply(config(), env)
-    trackers.apply(config({ projects: {}, trackers: {} }), env)
+    const set = hulyOnly({ HULY_TOKEN: 't1', HULY_URL: 'u' })
+    trackers.apply(config(), set)
+    trackers.apply(config({ projects: {}, trackers: {} }), set)
     expect(started[0]!.handle.stopped).toBe(true)
     expect(trackers.views()).toEqual([])
-    expect(trackers.setup('huly')).toBeDefined()
+    expect(trackers.setupOf(null)).toBeDefined()
   })
 })

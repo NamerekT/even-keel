@@ -91,7 +91,7 @@ function stateOf(patch: Partial<EvenKeelState>): EvenKeelState {
     limits: null,
     usage: { state: 'ok', reason: null, since: null },
     account: { active: 'global', accounts: [], login: null, loginBlock: null, apps: [], pool: [] },
-    trackers: [{ name: 'huly', title: 'Huly', projects: ['ABC', 'XYZ'], ready: true, health: { state: 'live', lastOkAt: null, error: null }, readAt: {} }],
+    trackers: [{ name: 'huly', kind: 'huly', title: 'Huly', projects: ['ABC', 'XYZ'], ready: true, health: { state: 'live', lastOkAt: null, error: null }, readAt: {} }],
     trackerUrls: { default: null, projects: {} },
     ci: {},
     launches: [],
@@ -350,7 +350,7 @@ describe('taskLinks', () => {
 })
 
 describe('canReady', () => {
-  const tracker = (ready: boolean) => ({ name: 'huly', title: 'Huly', projects: ['ABC'], ready, health: { state: 'live' as const, lastOkAt: null, error: null }, readAt: {} })
+  const tracker = (ready: boolean) => ({ name: 'huly', kind: 'huly', title: 'Huly', projects: ['ABC'], ready, health: { state: 'live' as const, lastOkAt: null, error: null }, readAt: {} })
 
   it('is true when the tracker of the project can move a task to Todo', () => {
     expect(canReady(stateOf({ trackers: [tracker(true)] }), 'ABC')).toBe(true)
@@ -363,8 +363,8 @@ describe('canReady', () => {
 })
 
 describe('readyButton', () => {
-  const tracker = (ready: boolean) => ({ name: 'huly', title: 'Huly', projects: ['ABC'], ready, health: { state: 'live' as const, lastOkAt: null, error: null }, readAt: {} })
-  const later = notice('order.later', { task: 'ABC-2', milestone: 'v0.1', blocker: 'ABC-8', blockerMilestone: 'v0.2' })
+  const tracker = (ready: boolean) => ({ name: 'huly', kind: 'huly', title: 'Huly', projects: ['ABC'], ready, health: { state: 'live' as const, lastOkAt: null, error: null }, readAt: {} })
+const later = notice('order.later', { task: 'ABC-2', milestone: 'v0.1', blocker: 'ABC-8', blockerMilestone: 'v0.2' })
   const stateWith = (ready: boolean) =>
     stateOf({
       trackers: [tracker(ready)],
