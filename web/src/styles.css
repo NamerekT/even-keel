@@ -1362,6 +1362,18 @@ input[type='radio']:disabled {
   line-height: 1.25;
 }
 
+.home__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 12px;
+}
+
+.home__head .page__title {
+  margin: 0;
+}
+
 .page__meme {
   margin: -6px 0 2px;
   padding: 2px 0 2px 12px;

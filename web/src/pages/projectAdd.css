@@ -1,0 +1,82 @@
+.project-add__form {
+  max-width: 720px;
+  gap: 20px;
+}
+
+.project-add__step {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  counter-increment: step;
+}
+
+.project-add__step + .project-add__step {
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+}
+
+.project-add__form {
+  counter-reset: step;
+}
+
+/* A step's title stays quieter than its fields' labels: it names the section, the labels name what to type. */
+.project-add__legend {
+  float: left;
+  width: 100%;
+  margin-bottom: 4px;
+  padding: 0;
+  color: var(--fg-muted);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.project-add__legend::before {
+  content: counter(step) '. ';
+}
+
+.project-add__status {
+  color: var(--lamp-error);
+  font-size: 13px;
+  white-space: pre-line;
+  overflow-wrap: anywhere;
+}
+
+.project-add__status--ok {
+  color: var(--fg-muted);
+}
+
+.project-add__status--ok::before {
+  content: '✓ ';
+  color: var(--lamp-done);
+}
+
+.project-add__trust {
+  font-size: 14px;
+}
+
+.project-add__key {
+  width: 7em;
+  text-transform: uppercase;
+}
+
+.project-add__places {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.project-add__slots {
+  width: 5em;
+  padding-block: 2px;
+}
+
+.project-add__actions {
+  align-items: center;
+  gap: 12px;
+}

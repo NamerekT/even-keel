@@ -25,6 +25,7 @@ import { fakeAnswer, fakeCalls, fakeImageUrl, fakeOpenAsk, fakePastAsk, fakeSent
 import type { Ask } from '../../../src/sessions/ask.js'
 import { fakeTools } from './fakeTools.js'
 import { fakePackages, fakePackagesCommand } from './fakePackages.js'
+import { fakeCheck, fakeNoProjects, fakeProjectCommand } from './fakeProjects.js'
 
 const TICK_MS = 2_000
 const ANSWER_MS = 300
@@ -546,7 +547,8 @@ function fakeCommand(state: EvenKeelState, name: string, body: Record<string, un
   if (name === 'task/ready') return fakeReady(state, String(body.task))
   if (name === 'task/milestone') return fakeMoveMilestone(state, String(body.task), body.milestone === null ? null : String(body.milestone))
   if (name === 'chain/refresh') return fakeRefresh(state, String(body.project))
-  const settings = fakeSettingsCommand(state, name, body) ?? fakeUpdatesCommand(state, name) ?? fakePackagesCommand(state, name, body)
+  const settings =
+    fakeSettingsCommand(state, name, body) ?? fakeProjectCommand(state, name, body) ?? fakeUpdatesCommand(state, name) ?? fakePackagesCommand(state, name, body)
   if (settings !== null) return settings
   if (name.startsWith('account/')) return { ...state, account: accountCommand(state.account, name, body) }
   throw new Error(`fake: ${name} is not supported`)
@@ -592,6 +594,7 @@ export function createFakeSource(search: string): LiveSource {
   if (params.get('config') === 'broken' && current.state !== null) {
     current.state.configError = notice('config.statusBoth', { project: 'ABC', status: 'In Review' })
   }
+  if (params.get('projects') === 'none' && current.state !== null) current.state = fakeNoProjects(current.state)
   if (params.has('packages') && current.state !== null) current.state.packages = fakePackages(current.state.projects, params.get('packages'))
   const active = current.state?.chain.active[0]
   if (params.get('chain') === 'limit' && active) {
@@ -820,6 +823,11 @@ export function createFakeSource(search: string): LiveSource {
     card: async (task) => {
       await answer()
       return current.state === null ? null : fakeCard(current.state, task, params.get('card'))
+    },
+    checkProject: async (draft) => {
+      await answer()
+      if (current.state === null) throw new Error('fake: no state yet')
+      return fakeCheck(current.state, draft, params.get('wizard'))
     },
     statsHistory: async (filter) => {
       await answer()

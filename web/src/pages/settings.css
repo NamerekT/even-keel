@@ -177,6 +177,17 @@
   flex: 1 1 14em;
 }
 
+.project-remove {
+  margin-top: 12px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+}
+
+/* The service lists every reason the project is still held, one per line. */
+.project-remove__failure {
+  white-space: pre-line;
+}
+
 /* The settings kept per provider: the providers down, the settings across, every column one width. */
 .provider-grid {
   container-type: inline-size;

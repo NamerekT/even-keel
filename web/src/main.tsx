@@ -3,7 +3,7 @@ import { createRoot } from 'react-dom/client'
 import { BrowserRouter } from 'react-router'
 import { asNotice, NoticeError } from '../../src/notice/notice.js'
 import type { Feed } from '../../src/sessions/transcript.js'
-import type { EvenKeelState, SessionRecord } from '../../src/state.js'
+import type { EvenKeelState, ProjectCheck, ProjectDraft, SessionRecord } from '../../src/state.js'
 import type { StatsAnswer } from '../../src/stats/model.js'
 import type { ToolsView } from '../../src/tools/model.js'
 import type { TaskCard } from '../../src/tracker/card.js'
@@ -53,6 +53,17 @@ async function fetchCard(task: string): Promise<TaskCard | null> {
   return answer
 }
 
+async function checkProject(draft: ProjectDraft): Promise<ProjectCheck> {
+  const response = await fetch('/api/project/check', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify(draft),
+  })
+  const answer = (await response.json().catch(() => null)) as (ProjectCheck & { error?: string; notice?: unknown }) | null
+  if (!response.ok) throw new NoticeError(asNotice(answer?.notice ?? answer?.error ?? `/api/project/check answered ${response.status}`))
+  return answer!
+}
+
 async function fetchStats<T>(path: string, search: URLSearchParams): Promise<StatsAnswer<T>> {
   const response = await fetch(`/api/stats/${path}?${search}`, { cache: 'no-store' })
   const answer = (await response.json().catch(() => null)) as (StatsAnswer<T> & { error?: string }) | null
@@ -71,6 +82,7 @@ async function createSource(): Promise<LiveSource> {
     fetchTranscript,
     fetchTools,
     fetchCard,
+    checkProject,
     fetchStats,
   })
   connection.start()

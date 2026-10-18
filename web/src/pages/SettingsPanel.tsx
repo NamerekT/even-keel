@@ -33,6 +33,7 @@ import {
   wholeOf,
 } from './settingsParts.js'
 import { ruleChoicesOf } from './settingsRows.js'
+import { ProjectRemove } from './ProjectRemove.js'
 import { useDraft, useTab } from './settingsStore.js'
 import { SEG_CLASS, type ChipLook } from './chipLook.js'
 import './settings.css'
@@ -260,6 +261,7 @@ export function SettingsPanel({
           {marks.note('slot')}
           <FieldNote error={errorOf('slot')} />
         </div>
+        <ProjectRemove project={project} />
       </>
     ),
     tracker: () => (

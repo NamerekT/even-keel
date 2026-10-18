@@ -1,6 +1,6 @@
 import type { Notice } from '../../../src/notice/notice.js'
 import type { Feed } from '../../../src/sessions/transcript.js'
-import type { EvenKeelState, SessionRecord } from '../../../src/state.js'
+import type { EvenKeelState, ProjectCheck, ProjectDraft, SessionRecord } from '../../../src/state.js'
 import type { PeriodQuery, StatsAnswer, StatsFilter, StatsHistory, StatsPeriod, StatsTaskDetail } from '../../../src/stats/model.js'
 import type { CompareQuery, RuleDiffFile, RulesQuery, StatsCompare, StatsRules } from '../../../src/stats/rules.js'
 import type { CheckpointThreshold } from '../../../src/stats/checkpoint.js'
@@ -41,6 +41,8 @@ export interface LiveSource {
   sentFileUrl(sessionId: string, name: string): string
   tools(project: string): Promise<ToolsView | null>
   card(task: string): Promise<TaskCard | null>
+  /** What the project wizard's draft would come to; changes nothing. */
+  checkProject(draft: ProjectDraft): Promise<ProjectCheck>
   statsHistory(filter: StatsFilter): Promise<StatsAnswer<StatsHistory>>
   statsPeriod(query: PeriodQuery): Promise<StatsAnswer<StatsPeriod>>
   statsSteps(query: PeriodQuery): Promise<StatsAnswer<StatsSteps>>
@@ -60,6 +62,7 @@ export interface LiveDeps {
   fetchTranscript: (sessionId: string, after: number) => Promise<Feed | null>
   fetchTools: (project: string) => Promise<ToolsView | null>
   fetchCard: (task: string) => Promise<TaskCard | null>
+  checkProject: (draft: ProjectDraft) => Promise<ProjectCheck>
   fetchStats: <T>(path: string, search: URLSearchParams) => Promise<StatsAnswer<T>>
 }
 
@@ -149,6 +152,10 @@ export class LiveConnection implements LiveSource {
 
   card(task: string): Promise<TaskCard | null> {
     return this.deps.fetchCard(task)
+  }
+
+  checkProject(draft: ProjectDraft): Promise<ProjectCheck> {
+    return this.deps.checkProject(draft)
   }
 
   statsHistory(filter: StatsFilter): Promise<StatsAnswer<StatsHistory>> {
