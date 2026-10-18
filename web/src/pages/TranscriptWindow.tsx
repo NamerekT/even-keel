@@ -289,14 +289,14 @@ function TurnLine({ facts }: { facts: TurnFacts }) {
   const elapsed = phase.since === null ? null : formatElapsed(now.getTime() - Date.parse(phase.since))
   const doing = phase.kind === 'delivering' ? t.session.chat.delivering : phase.kind === 'thinking' ? t.session.chat.thinking : t.session.chat.running(phase.tool)
   return (
-    <Tipped inline align="start" className="transcript__turn" tip={t.session.chat.turnTip}>
+    <span className="transcript__turn">
       <span className="lamp lamp--working" aria-hidden="true" />
       <span className="transcript__turn-text">
         {[elapsed, doing]
           .filter((part) => part !== null)
           .join(' · ')}
       </span>
-    </Tipped>
+    </span>
   )
 }
 

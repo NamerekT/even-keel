@@ -947,14 +947,30 @@ input[type='radio']:disabled {
   font-size: 12px;
 }
 
+/* A flat band per account, edge to edge: a rule in its colour on the left and a tint of it fading to the right. */
 .accounts__item {
+  --rule: var(--series);
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  margin: 0 -10px;
-  padding: 10px;
-  border-top: 1px solid color-mix(in srgb, var(--fg-muted) 55%, transparent);
+  gap: 8px;
+  margin: 0 -16px;
+  padding: 12px 16px 14px;
+  border-top: 1px solid var(--border);
+  background: linear-gradient(90deg, color-mix(in srgb, var(--rule) 13%, transparent), transparent 75%);
+  box-shadow: inset 3px 0 0 var(--rule);
   transition: background-color var(--motion-fast) ease, box-shadow var(--motion-fast) ease;
+}
+
+.accounts__item:last-child {
+  border-bottom: 1px solid var(--border);
+}
+
+.accounts__item--off {
+  --rule: color-mix(in srgb, var(--series) 40%, transparent);
+}
+
+.accounts__item .accounts__email {
+  font-size: 15px;
 }
 
 .accounts__dot {

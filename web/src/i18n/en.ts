@@ -1038,7 +1038,6 @@ export const en: Messages = {
       thinking: 'Thinking',
       running: (tool: string) => `Running: ${tool}`,
       delivering: 'Delivering the answer, the session is starting up',
-      turnTip: 'Time since the answer was sent or the turn began, and what the session is doing',
       finished: 'The session has finished — it cannot be replied to.',
       limit: 'The session hit a limit — Even Keel resumes it by itself.',
       error: 'The session stopped on an API error. You can reply once it waits again.',
