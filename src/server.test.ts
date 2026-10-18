@@ -119,6 +119,10 @@ describe('Even Keel HTTP server', () => {
       mergeCheck: (id) => (id === 'chain-session' ? { commands: ['npm test'], branch: 'master' } : undefined),
       mail: (id, event) => (id !== 'chain-session' ? undefined : event === 'PostToolUse' ? `mail on ${event}` : null),
       tools: async (project) => (project === 'ABC' ? { project } : undefined),
+      vocabulary: async (id) => {
+        if (id === 'down') throw new Error('github: HTTP 502')
+        return id === '0b1c2d3e' ? { statuses: ['Open'], labels: ['bug'] } : undefined
+      },
       tasks: {
         card: async (task) => {
           if (task === 'ABC-9') throw new Error('huly: issue ABC-9 not found')
@@ -489,6 +493,16 @@ describe('Even Keel HTTP server', () => {
     expect(response.status).toBe(200)
     expect(await response.json()).toEqual({ project: 'ABC' })
     expect((await fetch(base + '/api/projects/QQQ/tools')).status).toBe(404)
+  })
+
+  it("serves the tracker's statuses and labels of a project by its id, 404 when the tracker gives none", async () => {
+    const response = await fetch(base + '/api/projects/0b1c2d3e/vocabulary')
+    expect(response.status).toBe(200)
+    expect(await response.json()).toEqual({ statuses: ['Open'], labels: ['bug'] })
+    expect((await fetch(base + '/api/projects/QQQ/vocabulary')).status).toBe(404)
+    const failed = await fetch(base + '/api/projects/down/vocabulary')
+    expect(failed.status).toBe(400)
+    expect(await failed.json()).toEqual(refusal('github: HTTP 502'))
   })
 
   it('serves the card of a task, 404 when no tracker gives one', async () => {

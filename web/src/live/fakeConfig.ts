@@ -1,11 +1,18 @@
 import { DEFAULT_RULES } from '../../../src/chain/rules.js'
 import type { ConfigView, EvenKeelState, ProjectForm, SharedForm } from '../../../src/state.js'
+import type { TrackerVocabulary } from '../../../src/tracker/source.js'
 
 export const FAKE_PROJECT_IDS: Record<string, string> = {
   ABC: '6f1c2a4e-1b3d-4c5e-8f70-9a1b2c3d4e01',
   DEMO: '6f1c2a4e-1b3d-4c5e-8f70-9a1b2c3d4e02',
   XYZ: '6f1c2a4e-1b3d-4c5e-8f70-9a1b2c3d4e03',
   OPS: '6f1c2a4e-1b3d-4c5e-8f70-9a1b2c3d4e04',
+}
+
+/** What the fake tracker names for every project: some of it no fake task carries (`?vocabulary=none|fail`). */
+export const FAKE_VOCABULARY: TrackerVocabulary = {
+  statuses: ['Backlog', 'Todo', 'In Progress', 'In Review', 'Done', 'Canceled', 'Blocked'],
+  labels: ['Bug', 'Feature', 'Docs', 'Manual', 'Question', 'Research', 'UI'],
 }
 
 const CI_ALL: ProjectForm['ci'] = { guard: true, kinds: ['forgejo', 'github'], waitMinutes: null, recheckMain: true, fixTask: false }

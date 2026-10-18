@@ -41,6 +41,17 @@ describe('choices for the chain rules', () => {
     })
   })
 
+  it("adds the trackers' statuses and labels no task has, a name once whatever its case", () => {
+    const vocabularies = [
+      { statuses: ['Backlog', 'todo'], labels: ['UI', 'Docs'] },
+      { statuses: ['Done'], labels: ['docs', 'Research'] },
+    ]
+    expect(ruleChoicesOf([task('Todo', ['ui', 'Bug'])], vocabularies)).toEqual({
+      statuses: ['Backlog', 'Done', 'Todo'],
+      labels: ['Bug', 'Docs', 'Research', 'ui'],
+    })
+  })
+
   it('does not offer a name the opposite list has, whatever its case and spaces', () => {
     expect(withoutListed(['Bug', 'Manual', 'ui'], ' manual \n\nUI')).toEqual(['Bug'])
     expect(withoutListed(['Bug'], '')).toEqual(['Bug'])

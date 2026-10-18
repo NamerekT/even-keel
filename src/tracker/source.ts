@@ -96,8 +96,18 @@ export interface TaskSource {
   milestones?(id: string): Promise<MilestonePick>
   /** Optional, together with `milestones`. Puts the task into the milestone with this id from `milestones`; `null` — into none. */
   moveMilestone?(id: string, milestone: string | null): Promise<void>
+  /**
+   * Optional. The status names and the labels a task of the project can have, whether or not a task has them now;
+   * the settings offer them in the chain rules. Without it the rules offer only what the loaded tasks carry.
+   */
+  vocabulary?(project: string): Promise<TrackerVocabulary>
   /** Drops the connection. */
   close(): Promise<void>
+}
+
+export interface TrackerVocabulary {
+  statuses: string[]
+  labels: string[]
 }
 
 export interface NewTask {
@@ -234,6 +244,7 @@ export interface Tracker {
   setMilestone?(id: string, milestoneOf: string): Promise<boolean>
   milestones?(id: string): Promise<MilestonePick>
   moveMilestone?(id: string, milestone: string | null): Promise<void>
+  vocabulary?(project: string): Promise<TrackerVocabulary>
   close(): Promise<void>
 }
 
@@ -264,5 +275,6 @@ export function trackerOf(source: TaskSource): Tracker {
     tracker.milestones = (id) => source.milestones!(id)
     tracker.moveMilestone = (id, milestone) => source.moveMilestone!(id, milestone)
   }
+  if (source.vocabulary !== undefined) tracker.vocabulary = (project) => source.vocabulary!(project)
   return tracker
 }

@@ -10,6 +10,7 @@ import {
   readyStatus,
   toCard,
   toTasks,
+  vocabularyOf,
   type HulyCardDocs,
   type HulyIssueDoc,
   type HulyStatusDoc,
@@ -311,6 +312,20 @@ describe('cardLinks', () => {
       }),
     ).toEqual(['i5', 'i2', 'i4'])
     expect(cardLinks({ ...issue('i1', 'ABC-1', 'tracker:status:Todo'), attachedTo: 'tracker:ids:NoParent' })).toEqual([])
+  })
+})
+
+describe('vocabularyOf', () => {
+  it('names the statuses of the project type in its order and the workspace labels once each', () => {
+    const allowed = ['tracker:status:Todo', 'tracker:status:Backlog', 'custom-review', 'tracker:status:Done']
+    expect(vocabularyOf(statuses, allowed, [{ title: 'UI' }, { title: 'Bug' }, { title: 'UI' }])).toEqual({
+      statuses: ['Todo', 'Backlog', 'In Review', 'Done'],
+      labels: ['UI', 'Bug'],
+    })
+  })
+
+  it('names every status when the project type is unknown', () => {
+    expect(vocabularyOf(statuses, null, []).statuses).toEqual(statuses.map((doc) => doc.name))
   })
 })
 

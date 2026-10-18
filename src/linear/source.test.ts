@@ -277,4 +277,18 @@ describe('linear source', () => {
     const { source } = await connect([])
     expect(await source.file!('ENG-7', 'https://example.com/steal')).toBeNull()
   })
+
+  it('names the states of the team and the labels of the team and the workspace, without label groups', async () => {
+    const { source, calls } = await connect([
+      team(),
+      { body: { data: { issueLabels: page([{ name: 'Bug', isGroup: false }, { name: 'Area', isGroup: true }], 'cursor-1') } } },
+      { body: { data: { issueLabels: page([{ name: 'Question', isGroup: false }, { name: 'Bug', isGroup: false }]) } } },
+    ])
+    expect(await source.vocabulary!('ENG')).toEqual({
+      statuses: ['Backlog', 'Todo', 'In Progress', 'Done', 'Canceled'],
+      labels: ['Bug', 'Question'],
+    })
+    expect(calls[2]!.variables).toEqual({ team: 'team-eng', after: null })
+    expect(calls[3]!.variables).toEqual({ team: 'team-eng', after: 'cursor-1' })
+  })
 })

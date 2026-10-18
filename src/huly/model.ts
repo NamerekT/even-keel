@@ -1,5 +1,6 @@
 import type { TaskRef, TrackerCard } from '../tracker/card.js'
 import type { StatusCategory, TaskPriority, TaskStatus, TrackerTask } from '../tracker/model.js'
+import type { TrackerVocabulary } from '../tracker/source.js'
 
 const HULY_PRIORITIES: readonly TaskPriority[] = ['none', 'urgent', 'high', 'medium', 'low']
 
@@ -147,6 +148,13 @@ export function todoStatus(statuses: HulyStatusDoc[], allowed: string[] | null):
   const ready = candidates.find((doc) => toStatus(doc).category === 'ToDo')
   if (ready === undefined) throw new Error('huly: the project has no ToDo status')
   return ready
+}
+
+/** `allowed` as in `closingStatus`; `tags` — the workspace's labels of issues. */
+export function vocabularyOf(statuses: HulyStatusDoc[], allowed: string[] | null, tags: { title: string }[]): TrackerVocabulary {
+  const byId = new Map(statuses.map((doc) => [doc._id, doc]))
+  const named = allowed === null ? statuses : allowed.flatMap((id) => byId.get(id) ?? [])
+  return { statuses: named.map((doc) => doc.name), labels: [...new Set(tags.map((tag) => tag.title))] }
 }
 
 /** Huly keeps the priority as an index: 0 none, 1 urgent, 2 high, 3 medium, 4 low. */

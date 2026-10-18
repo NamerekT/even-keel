@@ -83,6 +83,7 @@ import { issueLink, parseTaskId, runLabelText, type Task } from './tracker/model
 import { TrackerQuestions, type AskingSession } from './tracker/questions.js'
 import { startTracker } from './tracker/start.js'
 import { Trackers } from './tracker/trackers.js'
+import { Vocabularies } from './tracker/vocabulary.js'
 import { updatesView } from './updates/release.js'
 import { installed, UpdateWatcher } from './updates/watcher.js'
 
@@ -164,6 +165,7 @@ const linkOf = (project: string): TrackerLink | undefined => {
   const key = trackers.keyOf(project)
   return key === undefined ? undefined : links.get(key)
 }
+const vocabularies = new Vocabularies(async (project) => linkOf(project)?.run(async (tracker) => tracker.vocabulary?.(project)))
 const hub = new EventHub()
 const transcriptWatch = new TranscriptWatch(
   (sessionId) => hub.signal('transcript', { sessionId }),
@@ -1092,6 +1094,10 @@ let server = createEvenKeelServer({
     })
     const received = view.received
     return received === null ? view : { ...view, received: { ...received, account: sessionAccount(received.sessionId, received.at) } }
+  },
+  vocabulary: (id) => {
+    const project = Object.keys(configStore.current.ids).find((key) => configStore.current.ids[key] === id)
+    return project === undefined ? Promise.resolve(undefined) : vocabularies.get(project)
   },
   tasks: {
     card: async (task) => {

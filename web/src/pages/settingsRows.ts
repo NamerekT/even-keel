@@ -1,5 +1,6 @@
 import { sameName } from '../../../src/chain/rules.js'
 import type { Task } from '../../../src/tracker/model.js'
+import type { TrackerVocabulary } from '../../../src/tracker/source.js'
 
 const ARROW = '=>'
 
@@ -14,10 +15,17 @@ export function pairOf(line: string): [string, string] {
 }
 export const lineOf = ([from, to]: readonly string[]): string => `${from} ${ARROW} ${to}`
 
-/** What the chain rules may name, from the tasks at hand; the user may still type one they lack. */
-export function ruleChoicesOf(tasks: readonly Task[]): { statuses: string[]; labels: string[] } {
-  const sorted = (names: string[]) => [...new Set(names)].sort((a, b) => a.localeCompare(b))
-  return { statuses: sorted(tasks.map((task) => task.status.name)), labels: sorted(tasks.flatMap((task) => task.labels)) }
+/**
+ * What the chain rules may name: what the tasks at hand carry and what the trackers name, a name once whatever its case
+ * (the tasks' spelling first); the user may still type one they all lack.
+ */
+export function ruleChoicesOf(tasks: readonly Task[], vocabularies: readonly TrackerVocabulary[] = []): TrackerVocabulary {
+  const sorted = (names: string[]) =>
+    names.filter((name, index) => names.findIndex((each) => sameName(each, name)) === index).sort((a, b) => a.localeCompare(b))
+  return {
+    statuses: sorted([...tasks.map((task) => task.status.name), ...vocabularies.flatMap((each) => each.statuses)]),
+    labels: sorted([...tasks.flatMap((task) => task.labels), ...vocabularies.flatMap((each) => each.labels)]),
+  }
 }
 
 /** The choices less those the opposite list (a draft text, one per line) already has: the config refuses a name in both. */

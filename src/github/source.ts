@@ -115,6 +115,10 @@ const MOVE_MILESTONE = `mutation($id: ID!, $milestone: ID) {
   updateIssue(input: { id: $id, milestoneId: $milestone }) { issue { number } }
 }`
 
+const REPOSITORY_LABELS = `query($owner: String!, $name: String!, $after: String) {
+  repository(owner: $owner, name: $name) { labels(first: ${PAGE}, after: $after) { pageInfo { hasNextPage endCursor } nodes { name } } }
+}`
+
 /** Where GitHub keeps the files dropped into a comment. */
 const UPLOADS = /^https:\/\/(github\.com\/user-attachments\/|private-user-images\.githubusercontent\.com\/)/
 
@@ -143,13 +147,13 @@ export async function connectGithub(settings: GithubSettings, timeoutMs: number,
     return repo
   }
 
-  async function collect(
+  async function collect<T = GithubIssue>(
     query: string,
     variables: Record<string, unknown>,
-    pick: (data: { repository: Record<string, unknown> | null }) => Connection<GithubIssue> | null | undefined,
+    pick: (data: { repository: Record<string, unknown> | null }) => Connection<T> | null | undefined,
     what: string,
-  ): Promise<GithubIssue[]> {
-    const issues: GithubIssue[] = []
+  ): Promise<T[]> {
+    const issues: T[] = []
     let after: string | null = null
     do {
       const connection = pick(await graphql(query, { ...variables, after }))
@@ -304,6 +308,12 @@ export async function connectGithub(settings: GithubSettings, timeoutMs: number,
     async moveMilestone(id, milestone) {
       const { issue } = await issueOf<{ id: string }>(id, ISSUE_STATE)
       await graphql(MOVE_MILESTONE, { id: issue.id, milestone })
+    },
+
+    async vocabulary(project) {
+      const repo = repoOf(project)
+      const labels = await collect<{ name: string }>(REPOSITORY_LABELS, { ...repo }, (data) => data.repository?.labels as Connection<{ name: string }>, `${repo.owner}/${repo.name}`)
+      return { statuses: GITHUB_STATUSES.map((status) => status.name), labels: labels.map((label) => label.name) }
     },
 
     // A file of a comment is its upload link; the token goes only to GitHub's own upload hosts.

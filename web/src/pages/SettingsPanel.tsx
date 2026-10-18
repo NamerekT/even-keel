@@ -33,6 +33,7 @@ import {
   wholeOf,
 } from './settingsParts.js'
 import { ruleChoicesOf } from './settingsRows.js'
+import { useVocabularies } from './useVocabularies.js'
 import { ProjectRemove } from './ProjectRemove.js'
 import { ProfileLink } from './ProfileSelect.js'
 import { useDraft, useTab } from './settingsStore.js'
@@ -162,6 +163,8 @@ export function SettingsPanel({
   const [current, setDraft] = useDraft(scopeOf(project), saved, same)
   const draft = current!
   const [open, setOpen] = useTab<GroupId>(scopeOf(project), 'repo')
+  const projectId = state?.projectIds[project]
+  const vocabularies = useVocabularies(projectId === undefined ? [] : [projectId])
   const dirty = (id: GroupId) => changed(draft, keysOf(id), same).length > 0
   const outgoing = sent(draft, keysOf(open))
   const next = formOf(outgoing.form, form.name)
@@ -307,7 +310,7 @@ export function SettingsPanel({
         </div>
         {locked && <p className="settings__hint">{t.settings.trackerLocked}</p>}
         {check('fillMilestone', t.settings.fillMilestone, t.settings.fillMilestoneHint, 'fillMilestone')}
-        <RuleFields text={text} onEdit={edit} errorOf={errorOf} marks={marks} choices={ruleChoicesOf(tasks)} />
+        <RuleFields text={text} onEdit={edit} errorOf={errorOf} marks={marks} choices={ruleChoicesOf(tasks, vocabularies)} />
       </>
     ),
     sessions: () => (

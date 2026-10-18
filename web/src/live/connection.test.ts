@@ -87,6 +87,7 @@ describe('LiveConnection', () => {
       fetchTranscript: async () => null,
       fetchTools: async () => null,
       fetchCard: async () => null,
+      fetchVocabulary: async () => null,
       checkProject: async () => ({ repo: { root: null, current: null, notice: null }, entry: null, tracker: null, trusted: null }),
       sendQuery: async () => null,
       fetchStats: async () => ({ state: 'off', reason: 'test' }),
