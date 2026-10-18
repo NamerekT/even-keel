@@ -107,6 +107,7 @@ const TALLY_INTERVAL_MS = 5 * 60_000
 const TALLY_FIRST_DELAY_MS = 15_000
 const SHUTDOWN_MS = 15_000
 const CI_TICK_MS = 5_000
+const CI_TARGETS_MS = 60_000
 const CI_TIMEOUT_MS = 15_000
 const UPDATE_POLL_MS = 12 * 60 * 60_000
 const PLUGIN_UPDATE_TIMEOUT_MS = 2 * 60_000
@@ -1212,6 +1213,15 @@ applyCi()
 setInterval(() => {
   for (const watch of ciWatches.all()) void watch.tick()
 }, CI_TICK_MS).unref()
+setInterval(
+  () =>
+    void ciWatches.refresh().then((changed) => {
+      if (!changed) return
+      dispatcher.check()
+      hub.broadcast('state', getState())
+    }),
+  CI_TARGETS_MS,
+).unref()
 
 /** The config's projects changed: renamed keys carry their state, removed ones let their chain go, the rest follows the config. */
 function projectsChanged(before: EvenKeelConfig): void {
