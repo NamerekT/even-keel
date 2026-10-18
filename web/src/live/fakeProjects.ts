@@ -20,6 +20,7 @@ export function fakeNoProjects(state: EvenKeelState): EvenKeelState {
     tasks: [],
     sessions: [],
     ci: {},
+    remotes: {},
     taskSessions: {},
     fixes: {},
     launches: [],

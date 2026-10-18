@@ -96,6 +96,7 @@ function stateOf(patch: Partial<EvenKeelState>): EvenKeelState {
     trackers: [{ name: 'huly', kind: 'huly', title: 'Huly', projects: ['ABC', 'XYZ'], ready: true, health: { state: 'live', lastOkAt: null, error: null }, readAt: {} }],
     trackerUrls: { default: null, projects: {} },
     ci: {},
+    remotes: {},
     launches: [],
     taskSessions: {},
     fixes: {},

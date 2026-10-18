@@ -9,6 +9,17 @@ export const FAKE_PROJECT_IDS: Record<string, string> = {
   OPS: '6f1c2a4e-1b3d-4c5e-8f70-9a1b2c3d4e04',
 }
 
+/** ABC and XYZ are clones of one repository, so Home shows them as a group; OPS has no remote. */
+export const FAKE_REMOTES: EvenKeelState['remotes'] = {
+  ABC: [{ id: 'git.example.com/john/app', path: 'john/app' }],
+  DEMO: [{ id: 'git.example.com/john/demo', path: 'john/demo' }],
+  XYZ: [
+    { id: 'git.example.com/john/app', path: 'john/app' },
+    { id: 'github.com/octo-org/app', path: 'octo-org/app' },
+  ],
+  OPS: [],
+}
+
 /** What the fake tracker names for every project: some of it no fake task carries (`?vocabulary=none|fail`). */
 export const FAKE_VOCABULARY: TrackerVocabulary = {
   statuses: ['Backlog', 'Todo', 'In Progress', 'In Review', 'Done', 'Canceled', 'Blocked'],

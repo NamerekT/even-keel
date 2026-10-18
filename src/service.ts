@@ -50,6 +50,7 @@ import { guardHosts, guardToken } from './guard.js'
 import { readJson } from './packages/plugins.js'
 import { checkDraft } from './projects/check.js'
 import { removalBlock, type RemovalFacts } from './projects/removal.js'
+import { ProjectRemotes } from './projects/remotes.js'
 import { Packages } from './packages/service.js'
 import { secretCatalog } from './secrets/catalog.js'
 import { Secrets } from './secrets/service.js'
@@ -269,6 +270,7 @@ const ciOn = (profileId: string, hidden: boolean) =>
     .places(hidden)
     .filter(({ project, target }) => ciTokenOf(project, target)?.profile === profileId)
     .map(({ project, target }) => ({ project, remote: target.remote }))
+const remotes = new ProjectRemotes(runGit)
 const ciWatches = new CiWatches({
   targets: (repo) => projectTargets(runGit, repo),
   watch: (project, repo, target) =>
@@ -992,6 +994,7 @@ const getState = (): EvenKeelState => ({
     projects: Object.fromEntries(Object.keys(configStore.current.projects).map((project) => [project, trackers.setupOf(project)?.issueUrl(project) ?? null])),
   },
   ci: Object.fromEntries([...ciWatches.byProject.keys()].map((project) => [project, ciWatches.shown(project).map((watch) => watch.view)])),
+  remotes: remotes.view,
   launches: launchDays(launches, new Date(), LAUNCH_CHART_DAYS),
   taskSessions: taskSessions(launches, sessions, sessionAccount),
   fixes: fixEpisodes(launches).episodes,
@@ -1289,7 +1292,7 @@ setInterval(() => dispatcher.check(), LIMIT_CHECK_MS).unref()
 setInterval(() => void dispatcher.pollReviews().catch((error) => console.error(`review: the poll failed: ${englishOf(noticeOf(error))}`)), 60_000).unref()
 
 const applyCi = () =>
-  void ciWatches.apply(configStore.current.projects).then(() => {
+  void Promise.all([ciWatches.apply(configStore.current.projects), remotes.apply(configStore.current.projects)]).then(() => {
     dispatcher.check()
     hub.broadcast('state', getState())
   })
@@ -1299,10 +1302,9 @@ setInterval(() => {
 }, CI_TICK_MS).unref()
 setInterval(
   () =>
-    void ciWatches.refresh().then((changed) => {
-      if (!changed) return
-      dispatcher.check()
-      hub.broadcast('state', getState())
+    void Promise.all([ciWatches.refresh(), remotes.apply(configStore.current.projects)]).then(([changed, moved]) => {
+      if (changed) dispatcher.check()
+      if (changed || moved) hub.broadcast('state', getState())
     }),
   CI_TARGETS_MS,
 ).unref()

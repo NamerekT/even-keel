@@ -235,6 +235,14 @@ export interface ConfigView {
   trackerLocked: string[]
 }
 
+/** A repository a checkout's remote points at. */
+export interface RemoteRef {
+  /** The same for every url of one repository: host and path in lower case, or a local remote's resolved path. */
+  id: string
+  /** What a group of its projects is titled with: `owner/repo`, or a local remote's folder name. */
+  path: string
+}
+
 export interface EvenKeelState {
   startedAt: string
   projects: string[]
@@ -259,6 +267,8 @@ export interface EvenKeelState {
   trackerUrls: TrackerUrls
   /** The CIs of each project that has any; a project without CI has no key. */
   ci: Record<string, CiView[]>
+  /** The remotes of each project's checkout: Home groups the projects that share one (BTN-207). */
+  remotes: Record<string, RemoteRef[]>
   launches: LaunchDay[]
   /** The sessions of each task by its id; a fix of a red main by the id of its episode (`fixes`). */
   taskSessions: Record<string, TaskSession[]>

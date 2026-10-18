@@ -12,7 +12,7 @@ import { deviceLogin } from '../accounts.js'
 import { accountCommand, fakeAccount, fakeUsage, FAKE_LIMITS } from './fakeAccounts.js'
 import { FAKE_FIX, fakeCi } from './fakeCi.js'
 import { fakeUpdates } from './fakeUpdates.js'
-import { FAKE_PROJECT_IDS, FAKE_VOCABULARY, fakeConfig, fakeHandEdit } from './fakeConfig.js'
+import { FAKE_PROJECT_IDS, FAKE_REMOTES, FAKE_VOCABULARY, fakeConfig, fakeHandEdit } from './fakeConfig.js'
 import { withFix } from './fakeFix.js'
 import { fakeCompare, fakeRuleDiff, fakeRules } from './fakeRules.js'
 import { fakeSteps } from './fakeSteps.js'
@@ -181,6 +181,7 @@ function fakeState(
     trackers: [fakeHuly(huly)],
     trackerUrls: { default: 'https://huly.example.com/workbench/example/tracker/{id}', projects: {} },
     ci: fakeCi(null),
+    remotes: FAKE_REMOTES,
     launches: launchDays(launches, new Date(), LAUNCH_DAYS),
     taskSessions: idle
       ? {}
