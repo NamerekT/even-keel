@@ -370,7 +370,7 @@
   text-align: left;
   text-transform: none;
   white-space: normal;
-  cursor: auto;
+  pointer-events: none;
   animation: fade-in var(--motion-fast) ease-out;
 }
 

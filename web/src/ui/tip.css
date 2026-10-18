@@ -36,7 +36,8 @@
   letter-spacing: normal;
   text-align: left;
   white-space: normal;
-  cursor: auto;
+  /* The popover sits inside its anchor in the DOM: a pointer over it would keep the anchor hovered and the tip open. */
+  pointer-events: none;
 }
 
 .tip__head {

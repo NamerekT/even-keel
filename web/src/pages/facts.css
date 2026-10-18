@@ -183,7 +183,7 @@
   font-weight: 400;
   line-height: 1.35;
   text-align: left;
-  cursor: default;
+  pointer-events: none;
 }
 
 .panel__part {
