@@ -6,6 +6,7 @@ dist/
 /state/
 /even-keel.config.json
 /even-keel.config.json.v*.bak
+/even-keel.config.json.imported
 .claude/launch.json
 logs/
 service/bin/
