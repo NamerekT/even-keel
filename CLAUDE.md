@@ -19,6 +19,7 @@ This file holds the rules and traps needed in every session. Reference on how th
 | `docs/packages.md` | plugins and MCP servers of a project's set, `state/packages.json`, install and update, the keys, the local MCP gateway, the launch flags, the check before a launch |
 | `docs/accounts.md` | account folders, sign-in and switching, the apps panel, transferring the shared configuration |
 | `docs/web.md` | the interface, translation (`language`, message codes), live config, `dev:fake` parameters |
+| `docs/settings.md` | every setting and the levels it is set at (Even Keel, project, task label), what is not a setting, the settings tables for the database and how labels become values |
 | `docs/stats.md` | the `/stats` page, its routes and URLs, rule changes; the collector is in `tally/CLAUDE.md` |
 | `docs/service.md` | the service on Windows, Linux and macOS |
 | `docs/releases.md` | milestones as versions, a release as a tag on `main`, a fix of a released version, Tally across clones |
