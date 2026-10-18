@@ -8,8 +8,8 @@ export interface DaemonRefreshOptions {
   onError: (error: unknown) => void
 }
 
-// The transient daemon of an account folder keeps the config it read at start,
-// so a changed share reaches new sessions only after that daemon is restarted.
+// Sessions inherit the environment the transient daemon of an account folder started with,
+// so an env key the share removed stays in new sessions until that daemon is restarted.
 export class DaemonRefresh {
   private readonly stale = new Set<string>()
 
