@@ -21,11 +21,17 @@ jobs:
     steps:
       - uses: https://github.com/actions/checkout@v4
 
-      - run: npm ci
+      - id: changes
+        run: sh scripts/ci-code-changed.sh "${{ github.event_name }}" "${{ github.event.before }}" "${{ github.sha }}"
 
-      - run: npm run typecheck
+      - if: steps.changes.outputs.code == 'true'
+        run: npm ci
 
-      - run: npm test
+      - if: steps.changes.outputs.code == 'true'
+        run: npm run typecheck
+
+      - if: steps.changes.outputs.code == 'true'
+        run: npm test
 
       # Builds and restarts the service on the workstation that runs it (service/rebuild.ps1), once a push of
       # main is green. Off unless the repository sets the DEPLOY_SSH_* variables and the DEPLOY_SSH_KEY secret;

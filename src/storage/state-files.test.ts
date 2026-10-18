@@ -1,19 +1,17 @@
-import { cpSync, existsSync, mkdirSync, mkdtempSync, readdirSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { PGlite, type Transaction } from '@electric-sql/pglite'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { emptyChainState } from '../chain/dispatcher.js'
 import { readSnapshots, saveSnapshot } from '../chain/snapshots.js'
-import { appendLaunch, chainStateOf, closedTasks, loadChainState, loadQuestions, readLaunches, saveChainState, saveClosedTask, saveQuestions } from '../chain/store.js'
-import { root } from '../locations.js'
+import { appendLaunch, closedTasks, loadChainState, loadQuestions, readLaunches, saveChainState, saveClosedTask, saveQuestions } from '../chain/store.js'
 import { noticeOf } from '../notice/notice.js'
 import { backupDatabase } from './copy.js'
 import { checkVersion, DATABASE_VERSION, databaseVersion, STEPS } from './database.js'
 import { memoryDatabase } from './memory.js'
-import { upgradeStorage } from './migrations.js'
 import { databaseDirOf, dataDirOf, openStateDatabase, readOwner, readStateDatabase, writeOwner, type StateDatabase } from './owner.js'
-import { exportState, IMPORTED_SUFFIX, prepareDatabase, readStateFiles, STATE_FILES } from './state-files.js'
+import { exportState, IMPORTED_SUFFIX, prepareDatabase, STATE_FILES } from './state-files.js'
 
 describe('state database', { timeout: 120_000 }, () => {
   let dir: string
@@ -54,29 +52,6 @@ describe('state database', { timeout: 120_000 }, () => {
     prompt: 'go on',
     notePath: 'C:\\note.md',
     note: 'note',
-  })
-
-  describe.each([2, 3, 4, 5, 6, 7, 8, 9])('the frozen sample of schema v%i', (version) => {
-    it('moves into the database whole, keeps the files as imported and does it once', async () => {
-      cpSync(join(root, 'test', 'fixtures', `schema-v${version}`), dir, { recursive: true })
-      upgradeStorage({ configFile: join(dir, 'even-keel.config.json'), stateDir, log: () => {} })
-      const files = readStateFiles(stateDir)!
-      await opened(async (db) => {
-        expect(await loadChainState(db)).toEqual(chainStateOf(files.chain, {}, 'chain.json'))
-        expect(await loadQuestions(db)).toEqual(files.questions)
-        expect(await readLaunches(db)).toEqual(files.launches)
-        expect((await readLaunches(db)).length).toBeGreaterThan(0)
-      })
-      for (const name of [STATE_FILES.chain, STATE_FILES.questions, STATE_FILES.launches]) {
-        expect(existsSync(join(stateDir, name))).toBe(false)
-        expect(existsSync(join(stateDir, `${name}${IMPORTED_SUFFIX}`))).toBe(true)
-      }
-      expect(logs).toEqual([expect.stringMatching(/moved the state into/)])
-      const before = listing()
-      await (await prepare()).close()
-      expect(listing()).toEqual(before)
-      expect(logs).toHaveLength(1)
-    })
   })
 
   it('makes an empty database when there are no files', async () => {

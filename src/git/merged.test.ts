@@ -1,7 +1,7 @@
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { cpSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import { branchMerged } from './merged.js'
 import { runGit } from './run.js'
 
@@ -19,20 +19,32 @@ const commit = async (name: string) => {
   await git('commit', '-q', '-m', name)
 }
 
-beforeEach(async () => {
-  repo = mkdtempSync(join(tmpdir(), 'even-keel-merged-'))
-  await git('init', '-q', '-b', 'main')
+// Each test starts from a copy of one repository with a first commit: git is slow to start on Windows under a full run.
+let base: string
+
+beforeAll(async () => {
+  base = repo = mkdtempSync(join(tmpdir(), 'even-keel-merged-'))
+  await git('init', '-q', '--template=', '-b', 'main')
   await git('config', 'user.email', 'john.doe@example.com')
   await git('config', 'user.name', 'John Doe')
   await git('config', 'core.hooksPath', join(repo, 'no-hooks'))
   await commit('base')
 })
 
+afterAll(() => {
+  rmSync(base, { recursive: true, force: true })
+})
+
+beforeEach(() => {
+  repo = mkdtempSync(join(tmpdir(), 'even-keel-merged-'))
+  cpSync(base, repo, { recursive: true })
+})
+
 afterEach(() => {
   rmSync(repo, { recursive: true, force: true })
 })
 
-describe('branchMerged', () => {
+describe('branchMerged', { timeout: 30_000 }, () => {
   it('says no while the task has no branch', async () => {
     expect(await branchMerged(runGit, repo, 'ABC-7')).toBe(false)
   })

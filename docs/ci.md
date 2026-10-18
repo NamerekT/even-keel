@@ -61,6 +61,12 @@ Read from `git config --get-regexp ^remote\..*\.url$` and the workflow folders o
 
 Tokens come only from the environment: `FORGEJO_TOKEN` for Forgejo, `GITHUB_TOKEN` (shared with the GitHub tracker, needs **Actions: Read**) for GitHub. Without one the CI shows as `off` with the notice `ci.noToken` and is never asked.
 
+## A push of Markdown only (this repository's workflows)
+
+A push to `main` that changes only `*.md` outside `plugins/` skips the install, the typecheck and the tests: `scripts/ci-code-changed.sh` diffs the commit before the push (`github.event.before`, fetched at depth 1) with the pushed one, and the later steps run on `code == 'true'`. The run itself still happens and comes out green in seconds. A `paths-ignore` filter would not do: Even Keel waits for a run of every commit it pushes, and a push the CI never takes holds the next launch for `STUCK_MS` and then goes to the project's own check. A pull request, a manual run, a new branch or a `before` the runner cannot fetch run everything. The rebuild of the service on Forgejo still runs: a push before it may have been skipped as no longer `HEAD`.
+
+The cost: the skip trusts the commit before the push. If that one is red and its verdict is never read — the chain stopped waiting for it after `waitMinutes`, then pushed Markdown over it — the push of Markdown comes out green, and the break shows up at the next push with code.
+
 ## Polling
 
 `main.ts` ticks every watch every 5 s. A tick reads `refs/remotes/<remote>/main` locally — `git push` and `git fetch` (including Even Keel's own `git sync`) move it — and asks the API only when:

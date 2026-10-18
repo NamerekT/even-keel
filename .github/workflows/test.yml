@@ -21,13 +21,20 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: actions/setup-node@v4
+      - id: changes
+        run: sh scripts/ci-code-changed.sh "${{ github.event_name }}" "${{ github.event.before }}" "${{ github.sha }}"
+
+      - if: steps.changes.outputs.code == 'true'
+        uses: actions/setup-node@v4
         with:
           node-version: 24
           cache: npm
 
-      - run: npm ci
+      - if: steps.changes.outputs.code == 'true'
+        run: npm ci
 
-      - run: npm run typecheck
+      - if: steps.changes.outputs.code == 'true'
+        run: npm run typecheck
 
-      - run: npm test
+      - if: steps.changes.outputs.code == 'true'
+        run: npm test
