@@ -295,6 +295,7 @@ const daemons = new DaemonRefresh({
 
 const secrets = new Secrets({
   catalog: secretCatalog(ADAPTERS, CI_TOKENS),
+  trackers: Object.fromEntries(Object.entries(ADAPTERS).map(([name, adapter]) => [name, adapter.title])),
   envFile: join(root, '.env'),
   settingsFile: () => join(homes.global.dir, 'settings.json'),
   env: process.env,

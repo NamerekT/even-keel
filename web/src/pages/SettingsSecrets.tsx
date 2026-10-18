@@ -11,7 +11,7 @@ import './secrets.css'
 /** The "Access" tab: a row per credential with its own field and button; nothing of it goes into the group drafts. */
 export function SettingsSecrets({ state }: { state: EvenKeelState }) {
   const titleOf = (group: SecretGroup) =>
-    group.kind === 'tracker' ? t.secrets.tracker(state.trackers.find((each) => each.name === group.tracker)?.title ?? group.tracker) : t.secrets[group.kind]
+    group.kind === 'tracker' ? t.secrets.tracker(state.secrets.trackers[group.tracker] ?? group.tracker) : t.secrets[group.kind]
   return (
     <>
       <p className="settings__hint secrets__hint">{t.secrets.hint}</p>

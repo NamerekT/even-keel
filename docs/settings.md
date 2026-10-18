@@ -76,8 +76,9 @@ the file.
 
 ### Not settings
 
-- **Secrets** — `HULY_*`, `GITHUB_TOKEN`, `LINEAR_TOKEN`, `FORGEJO_TOKEN`, `EVEN_KEEL_TOKEN`, `TALLY_WRITER_PASSWORD`,
-  `TALLY_READER_PASSWORD`, `TALLY_LLM_KEY`: stay in `.env` (invariant 3, BTN-131).
+- **Credentials** — `HULY_*`, `GITHUB_TOKEN`, `LINEAR_TOKEN`, `FORGEJO_TOKEN`, `EVEN_KEEL_TOKEN`, Tally's own Postgres
+  and classifier: stay in `.env` (invariant 3), written from the "Access" tab of `/settings` one at a time (BTN-131,
+  "Credentials" below), never in a draft or the database.
 - **The address** — `EVEN_KEEL_HOST`, `EVEN_KEEL_PORT`, `EVEN_KEEL_MCP_PORT`: read before anything else, from the
   environment.
 - **Locations and binaries** — `EVEN_KEEL_CONFIG`, `EVEN_KEEL_STATE_DIR`, `EVEN_KEEL_ACCOUNTS_DIR`,
@@ -214,6 +215,32 @@ database ─────────────── dbRows ────┘   
   a delete. A key the form did not change keeps the file's spelling, as now.
 - Renaming or removing a setting stays what it is now: a new `SCHEMA_VERSION` and a migration step that moves or drops its
   rows.
+
+## Credentials (BTN-131)
+
+The "Access" tab of `/settings` (`web/src/pages/SettingsSecrets.tsx`) is a row per variable with its own field and its
+own "Apply"; nothing of it goes into the drafts of the other groups, and an empty field is not a removal ("Remove" is).
+
+- **The catalog** — `secretCatalog` in `src/secrets/catalog.ts`, built from the adapters (`TrackerAdapter.variables`,
+  `CI_TOKENS`), Tally's list and `EVEN_KEEL_TOKEN`; a variable read by several parts (`GITHUB_TOKEN`: the tracker and the
+  CI) is one row with all its readers.
+- **Places** — a tracker key goes to `.env` and to the `env` of the global `settings.json` (sessions read it there, the
+  tracker plugin with them); the CI tokens, Tally's and the page token only to `.env`. `.env` is edited one line at a
+  time (`upsertEnv`, `removeEnv`), comments and order kept, then `EnvFile.reload` applies it (BTN-130). A written key
+  reaches new sessions at their start; a removed one marks the global folder's daemon stale (`DaemonRefresh.expire`,
+  `docs/accounts.md`) and the tab says so while live sessions hold its stop.
+- **Secret or not** — by the name (`isSecret`): only `_URL`, `_WORKSPACE`, `_EMAIL`, `_HOST`, `_PORT`, `_NAME`,
+  `_MODEL` are shown as they are; anything else, a new unknown name included, is a secret whose value never leaves the
+  service, whole or in part.
+- **From outside `.env`** — a variable the service's own environment sets (`EnvFile.isOuter`) wins over the file: the
+  row says so and offers no field.
+- **The sessions' copy** — a tracker key's row says when the global `settings.json` holds another value or none; "Apply"
+  writes both places.
+- **The page token** — set only in the shape the start accepts (`guardToken`), and not removed while the service listens
+  beyond loopback (`secrets.tokenRequired`).
+- **Packages** — the MCP gateway gives packages the same `.env`, so a key is shared by the service and the packages that
+  read it (the row's tip names them). Splitting one off is a variable of its own for the packages, named in the adapter's
+  `mcpKeys` (the gateway already passes a key under another name); its catalog entry then gets its own places.
 
 ## Labels as values
 

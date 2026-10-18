@@ -72,7 +72,7 @@ The adapter `src/huly/` through `@hcengineering/api-client` — the same client 
 - The server is `@firfi/huly-mcp`. The credentials (`HULY_URL`, `HULY_WORKSPACE`, `HULY_TOKEN` or `HULY_EMAIL`/`HULY_PASSWORD`) are inherited from the session environment and are not in `.mcp.json`, which has only the constant `TOOLSETS` (the set for working a task).
 - `${…}` substitutions in a plugin's `.mcp.json` are unsuitable for a session that runs the server itself: an unset variable, even with a `:-` default, makes the session consider the server failed and not start it (`claude mcp list` still says "Connected"), and the server does not accept an empty `HULY_TOKEN`.
 - Chain sessions: the gateway runs the server in its HTTP mode with the adapter's `HULY_*` from Even Keel's `.env` (`docs/packages.md`); the session sees only the gateway's address. `sessionBase` removes `HULY_*` from the sessions' environment.
-- Sessions started by hand: the user puts the credentials in `env` of their `~/.claude/settings.json`: the session applies it itself, and `share.ts` transfers the file into account folders.
+- Sessions started by hand: the credentials are in `env` of `~/.claude/settings.json`: the session applies it itself, and `share.ts` transfers the file into account folders. `/settings` → Access writes a tracker key into both `.env` and that `env` in one go (BTN-131, `docs/settings.md`).
 - How to use it — `plugins/huly/README.md`.
 
 ### `github` (BTN-65)

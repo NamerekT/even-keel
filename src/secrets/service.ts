@@ -7,6 +7,8 @@ import { PAGE_TOKEN, type SecretSpec } from './catalog.js'
 
 export interface SecretsDeps {
   catalog: readonly SecretSpec[]
+  /** The title of each tracker adapter by its name. */
+  trackers: Readonly<Record<string, string>>
   envFile: string
   /** The global `settings.json`: sessions read its `env` at their start. */
   settingsFile: () => string
@@ -54,7 +56,7 @@ export class Secrets {
         required: spec.name === PAGE_TOKEN && required,
       }
     })
-    return { variables, sessionsPending: this.deps.sessionsPending() }
+    return { variables, trackers: this.deps.trackers, sessionsPending: this.deps.sessionsPending() }
   }
 
   set(name: string, value: string): void {

@@ -302,7 +302,7 @@ export class Packages {
     this.save()
   }
 
-  /** Into Even Keel's `.env` and the running service: the gateway uses it at once, a tracker adapter after a restart. */
+  /** Into Even Keel's `.env` and the running service: the gateway uses it at once, a tracker adapter once the watch of `.env` applies it. */
   setKey(name: string, value: string): void {
     if (!this.keys().some((key) => key.name === name)) throw fail('packages.unknownKey', { name })
     let text = ''

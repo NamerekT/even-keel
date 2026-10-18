@@ -345,6 +345,8 @@ export type PackageProblem =
 
 export interface SecretsView {
   variables: SecretView[]
+  /** The title of each tracker adapter by its name, including those no project uses. */
+  trackers: Record<string, string>
   /** A removed key still reaches new sessions: the daemon of the global folder waits for its live sessions to end. */
   sessionsPending: boolean
 }

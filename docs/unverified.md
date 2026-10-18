@@ -71,6 +71,8 @@ Checked live on 17.10.2026 (BTN-174) from a second instance in a terminal: plugi
 
 ## Trackers
 
+- **A credential changed on `/settings` → Access.** Covered by tests, not run live on the sandbox (it would change the real keys): that the tracker connects again with the new key once `.env` is reloaded, and that a new session finds the key in the `env` of the global `settings.json`. If the tracker does not connect again, its chips stay "does not answer". **Workaround:** restart the service. A removed key also stops the global folder's daemon (`claude daemon stop --any` with the global `CLAUDE_CONFIG_DIR`, from the service); that stop was never run from the service — if it fails, the log has the error and the removed key stays with sessions of that folder until its daemon exits (`docs/accounts.md`). **Workaround:** stop the daemon by hand once no session of the folder is live.
+
 - **GitHub attachments.** Downloading a file attached to an issue or comment with the token has not been tried live; if it fails, the page cannot open that file (`docs/trackers.md`).
 - **Milestones on GitHub and Linear.** Filling the milestone of a task that entered the chain without one (`fillMilestone`) was checked only on Huly (`docs/trackers.md`).
 - **Changing a milestone from the task card on GitHub and Linear.** Checked only on Huly. On GitHub, `updateIssue` with `milestoneId: null` is assumed to clear the milestone; on Linear, the choices are the project milestones of the issue's project and `projectMilestoneId: null` is assumed to clear it. If the tracker refuses, the card puts the old milestone back and shows the error; nothing else changes. **Workaround:** change the milestone in the tracker and press the refresh button in the project head (`docs/trackers.md`).

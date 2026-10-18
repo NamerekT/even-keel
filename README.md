@@ -101,7 +101,7 @@ Each project needs:
 
 #### 1. Minimum: the adapter only
 
-Even Keel reads the tasks itself, puts the title and description of the task into the session's prompt, and closes the task when its branch lands in `main`. You set the tracker's variables in `.env` and nothing else.
+Even Keel reads the tasks itself, puts the title and description of the task into the session's prompt, and closes the task when its branch lands in `main`. You set the tracker's variables in `.env`, or on `/settings` → **Access**, and nothing else.
 
 - **Huly:** `HULY_URL`, `HULY_WORKSPACE`, `HULY_EMAIL`, `HULY_PASSWORD`. The project key in the config is the Huly project identifier (`ABC` for `ABC-12`).
 - **GitHub:** `GITHUB_TOKEN` — a [fine-grained token](https://github.com/settings/personal-access-tokens) with **Issues: Read and write** on the repositories. A project names its repository: `{ "repo": "…", "tracker": "github", "github": "octo-org/abc" }`. GitHub has no backlog, so keep entry to the chain on a label: `"chain": { "requiredLabels": ["ready"] }`. Details and the mapping of statuses, blockers, sub-issues and priorities: [plugins/github/README.md](plugins/github/README.md).
@@ -212,6 +212,8 @@ The statistics database is versioned too: the collector brings its schema up to 
 ## Environment
 
 `.env` in the repository root. Even Keel watches it and applies a change without a restart: a tracker connects again with its new credentials, a CI watch takes its new token, the page moves to a new address. Only the variables marked "read at startup" below need a restart. A tracker whose variables are all empty is off; set in part, it is off too, and the log says what is missing.
+
+The credentials can also be set on the page: `/settings` → **Access** has a row per variable, each with its own field and **Apply**. It edits only that line of `.env`, comments and order kept; a tracker key also goes into the `env` of `~/.claude/settings.json`, so that sessions you start by hand get it too. The page never shows the value of a password, token or key, only whether it is set; addresses, workspaces and e-mails are shown as they are. A variable set in the service's own environment rather than in `.env` cannot be changed there.
 
 | Variable | |
 | --- | --- |

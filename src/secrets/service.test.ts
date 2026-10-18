@@ -48,6 +48,7 @@ describe('Secrets', () => {
   const open = (outer: string[] = []) =>
     new Secrets({
       catalog,
+      trackers: { huly: 'Huly' },
       envFile,
       settingsFile: () => settingsFile,
       env,
@@ -79,6 +80,10 @@ describe('Secrets', () => {
     expect(row('HULY_PASSWORD')).toMatchObject({ set: true, value: null, sessions: 'same' })
     expect(row('FORGEJO_TOKEN')).toMatchObject({ set: true, value: null, sessions: null })
     expect(row('GITHUB_TOKEN')).toMatchObject({ set: false, value: null })
+  })
+
+  it('names every tracker of the catalog by its title, configured or not', () => {
+    expect(open().view().trackers).toEqual({ huly: 'Huly' })
   })
 
   it('tells when the sessions’ settings hold another value or none', () => {

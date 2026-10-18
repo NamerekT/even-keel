@@ -28,6 +28,7 @@ export function fakeSecrets(mode: string | null): SecretsView {
         required: false,
       }
     }),
+    trackers: { huly: 'Huly', github: 'GitHub', linear: 'Linear' },
     sessionsPending: mode === 'pending',
   }
 }
@@ -42,5 +43,5 @@ export function fakeSecretsCommand(state: EvenKeelState, name: string, body: Rec
       ? each
       : { ...each, set, value: each.secret || !set ? null : String(body.value), sessions: each.sessions === null ? null : set ? ('same' as const) : ('none' as const) },
   )
-  return { ...state, secrets: { variables, sessionsPending: state.secrets.sessionsPending || (!set && variables.some((each) => each.name === variable && each.places.includes('sessions'))) } }
+  return { ...state, secrets: { ...state.secrets, variables, sessionsPending: state.secrets.sessionsPending || (!set && variables.some((each) => each.name === variable && each.places.includes('sessions'))) } }
 }
