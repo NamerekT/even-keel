@@ -1,5 +1,5 @@
--- Frozen sample of the state database at schema step 7 (BTN-205): the chain's list of pull requests, `reviews`, on top
--- of the rows of the step 6 sample. A later step migrates it; this file is never edited.
+-- Frozen sample of the state database at schema step 7: what each changelog version's turn cost, a version kept before
+-- step 7 without it, on top of the rows of the step 6 sample. A later step migrates it; this file is never edited.
 create table schema_version (
   only_row    boolean primary key default true check (only_row),
   version     integer not null,
@@ -19,11 +19,13 @@ create table changelog_versions (
   at          text not null,
   written_at  text,
   commit_sha  text,
+  spend       text,
   primary key (project_id, milestone, version)
 );
-insert into changelog_versions (project_id, milestone, version, kind, text, base, instruction, tasks, open_tasks, at, written_at, commit_sha) values
-  ('11111111-1111-4111-8111-111111111111', 'v0.1', 1, 'draft', E'## [Unreleased]\n\n### Added\n\n- The chain of tasks.', null, null, '["ABC-1","ABC-2"]', 1, '2026-10-18T11:00:00.000Z', '2026-10-18T11:05:00.000Z', '0123456789abcdef0123456789abcdef01234567'),
-  ('11111111-1111-4111-8111-111111111111', 'v0.1', 2, 'edit', E'## [Unreleased]\n\n### Added\n\n- A chain of tasks run one by one.', E'## [Unreleased]\n\n### Added\n\n- The chain of tasks.', 'Say how it runs', '["ABC-1","ABC-2"]', 1, '2026-10-18T11:10:00.000Z', null, null);
+insert into changelog_versions (project_id, milestone, version, kind, text, base, instruction, tasks, open_tasks, at, written_at, commit_sha, spend) values
+  ('11111111-1111-4111-8111-111111111111', 'v0.1', 1, 'draft', E'## [Unreleased]\n\n### Added\n\n- The chain of tasks.', null, null, '["ABC-1","ABC-2"]', 1, '2026-10-18T11:00:00.000Z', '2026-10-18T11:05:00.000Z', '0123456789abcdef0123456789abcdef01234567', null),
+  ('11111111-1111-4111-8111-111111111111', 'v0.1', 2, 'edit', E'## [Unreleased]\n\n### Added\n\n- A chain of tasks run one by one.', E'## [Unreleased]\n\n### Added\n\n- The chain of tasks.', 'Say how it runs', '["ABC-1","ABC-2"]', 1, '2026-10-18T11:10:00.000Z', null, null, '{"model":"claude-sonnet-5-5","tokens":{"input":1200,"output":800,"cacheRead":30000,"cacheWrite":6000},"cost":0.12,"durationMs":21000,"account":"work"}'),
+  ('11111111-1111-4111-8111-111111111111', 'v0.1', 3, 'edit', E'## [Unreleased]\n\n### Added\n\n- A chain of tasks, run one by one.', E'## [Unreleased]\n\n### Added\n\n- A chain of tasks run one by one.', 'A comma', '["ABC-1","ABC-2"]', 1, '2026-10-18T11:20:00.000Z', null, null, '{"model":"gpt-6.1-sol","tokens":{"input":900,"output":300,"cacheRead":4000,"cacheWrite":0},"cost":null,"durationMs":15000,"account":"codex"}');
 create table tracker_profiles (
   id          text primary key,
   kind        text not null,
@@ -47,10 +49,9 @@ create table chain_queue (
 );
 create table chain_lists (
   project_id text not null,
-  list       text not null,
+  list       text not null check (list in ('orders', 'skipped', 'leftovers', 'released', 'ci')),
   value      text not null,
-  primary key (project_id, list),
-  constraint chain_lists_list_check check (list in ('orders', 'skipped', 'leftovers', 'released', 'ci', 'reviews'))
+  primary key (project_id, list)
 );
 create table questions (
   position   integer primary key,
@@ -163,8 +164,7 @@ insert into chain_lists (project_id, list, value) values
   ('11111111-1111-4111-8111-111111111111', 'skipped', '["ABC-9"]'),
   ('22222222-2222-4222-8222-222222222222', 'leftovers', '[{"task":"XYZ-1","at":"2026-10-01T09:00:00.000Z","notice":{"code":"text","params":{"text":"dirty worktree"}}}]'),
   ('11111111-1111-4111-8111-111111111111', 'released', '["ABC-1"]'),
-  ('11111111-1111-4111-8111-111111111111', 'ci', '{"green":"0123456789abcdef0123456789abcdef01234567","afterGreen":"0123456789abcdef0123456789abcdef01234567"}'),
-  ('11111111-1111-4111-8111-111111111111', 'reviews', '[{"task":"ABC-3","remote":"origin","number":12,"url":"https://github.com/example/project/pull/12","branch":"abc-3/task","at":"2026-10-06T10:00:00.000Z","pushedAt":"2026-10-06T10:00:00.000Z","markAt":"2026-10-06T09:59:00.000Z","seen":["review:41"],"feedback":"Rename it."}]');
+  ('11111111-1111-4111-8111-111111111111', 'ci', '{"green":"0123456789abcdef0123456789abcdef01234567","afterGreen":"0123456789abcdef0123456789abcdef01234567"}');
 insert into chain_queue (position, project_id) values
   (0, '22222222-2222-4222-8222-222222222222');
 insert into chains (position, project_id, chain) values

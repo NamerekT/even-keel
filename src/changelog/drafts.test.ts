@@ -1,5 +1,6 @@
 import type { PGlite } from '@electric-sql/pglite'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import type { ChangelogSpend } from '../state.js'
 import { openDatabase } from '../storage/database.js'
 import type { MilestoneTask } from '../tracker/source.js'
 import { ChangelogDrafts, type ChangelogDeps } from './drafts.js'
@@ -20,6 +21,14 @@ const task = (id: string, category: 'Won' | 'ToDo' = 'Won'): MilestoneTask => ({
 
 const HEAD = '# Changelog\n\nIntro\n\n'
 
+const SPEND: ChangelogSpend = {
+  account: 'work',
+  model: 'claude-sonnet-5-5',
+  tokens: { input: 1_000, output: 500, cacheRead: 20_000, cacheWrite: 4_000 },
+  cost: 0.25,
+  durationMs: 30_000,
+}
+
 describe('ChangelogDrafts', { timeout: 60_000 }, () => {
   let db: PGlite
   beforeEach(async () => {
@@ -31,7 +40,7 @@ describe('ChangelogDrafts', { timeout: 60_000 }, () => {
     const state = { tasks: fields.tasks ?? [task('ABC-1'), task('ABC-2', 'ToDo')], file: fields.file ?? null, tags: fields.tags ?? [], turns: 0 }
     const deps: ChangelogDeps = {
       tasks: vi.fn(async () => state.tasks),
-      write: vi.fn(async () => `Here it is:\n\n## [Unreleased]\n\n- Change #${++state.turns}`),
+      write: vi.fn(async () => ({ text: `Here it is:\n\n## [Unreleased]\n\n- Change #${++state.turns}`, spend: SPEND })),
       file: async () => ({ path: 'CHANGELOG.md', text: state.file }),
       tags: async () => state.tags,
       commit: vi.fn(async (_project: string, _path: string, _message: string, change: (text: string | null) => string) => {
@@ -74,6 +83,16 @@ describe('ChangelogDrafts', { timeout: 60_000 }, () => {
     expect(view.version).toMatchObject({ number: 2, kind: 'edit', base: '## [Unreleased]\n\n- Change #1', instruction: 'Shorter', tasks: ['ABC-1'] })
     expect(prompt(1)).toContain('## What the user asks\n\nShorter')
     expect(deps.tasks).toHaveBeenCalledTimes(1)
+  })
+
+  it("keeps each turn's spend with its version and gives the milestone's sum, the written version's too", async () => {
+    const { drafts } = setup()
+    await drafts.run('ABC', 'v0.1', { op: 'open' })
+    const view = await drafts.run('ABC', 'v0.1', { op: 'edit', instruction: 'Shorter' })
+    expect(view.version.spend).toEqual(SPEND)
+    const sum = { turns: 2, cost: 0.5, unpriced: 0, tokens: { input: 2_000, output: 1_000, cacheRead: 40_000, cacheWrite: 8_000 } }
+    expect(view.spent).toEqual(sum)
+    expect((await drafts.run('ABC', 'v0.1', { op: 'write' })).spent).toEqual(sum)
   })
 
   it('writes the newest version into the file by a commit, once', async () => {

@@ -6,7 +6,7 @@ import { setTimeout as delay } from 'node:timers/promises'
 import { promisify } from 'node:util'
 import type { AccountHome } from '../account/homes.js'
 import type { AccountStatus } from '../account/model.js'
-import type { SessionStart } from '../agent/contract.js'
+import type { OneTurnAnswer, SessionStart } from '../agent/contract.js'
 import { fail, notice, NoticeError, type Notice } from '../notice/notice.js'
 import type { AgentEntry } from '../sessions/agents.js'
 import { mcpArgs } from './mcp.js'
@@ -54,11 +54,43 @@ export function turnArgs(start: Pick<SessionStart, 'model' | 'bypassSandbox' | '
 }
 
 /**
- * `Agent.write`: one read-only turn with no one to answer it (the changelog, BTN-209). `codex exec` prints the progress
- * to stderr and only the last message to stdout.
+ * `Agent.write`: one read-only turn with no one to answer it (the changelog, BTN-209). `--json` prints its events, for
+ * the tokens of `turn.completed`.
  */
 export function writeArgs(model: string | null): string[] {
-  return ['exec', '--sandbox', 'read-only', '--ephemeral', '--color', 'never', ...(model === null ? [] : ['-m', model]), '-']
+  return ['exec', '--json', '--sandbox', 'read-only', '--ephemeral', '--color', 'never', ...(model === null ? [] : ['-m', model]), '-']
+}
+
+/**
+ * The last message of `writeArgs`' turn and its tokens; Codex counts no cost. `input_tokens` holds the cached ones;
+ * the events do not name the model, so it is the one asked for.
+ */
+export function parseWriteAnswer(stdout: string, model: string | null, durationMs: number): OneTurnAnswer {
+  let text: string | null = null
+  let usage: Record<string, unknown> = {}
+  for (const line of stdout.split('\n')) {
+    const event = parseEvent(line)
+    const item = event?.item as Record<string, unknown> | undefined
+    if (event?.type === 'item.completed' && item?.type === 'agent_message' && typeof item.text === 'string') text = item.text
+    if (event?.type === 'turn.completed') usage = (event.usage as Record<string, unknown> | undefined) ?? {}
+    if (event?.type === 'turn.failed') throw new Error(String((event.error as { message?: unknown } | undefined)?.message ?? 'the turn failed'))
+  }
+  if (text === null) throw new Error('the turn ended with no message')
+  const count = (value: unknown) => (typeof value === 'number' ? value : 0)
+  const cached = count(usage.cached_input_tokens)
+  return {
+    text: text.trim(),
+    spend: { model, tokens: { input: count(usage.input_tokens) - cached, output: count(usage.output_tokens), cacheRead: cached, cacheWrite: 0 }, cost: null, durationMs },
+  }
+}
+
+function parseEvent(line: string): Record<string, unknown> | undefined {
+  try {
+    const value: unknown = JSON.parse(line)
+    return typeof value === 'object' && value !== null ? (value as Record<string, unknown>) : undefined
+  } catch {
+    return undefined
+  }
 }
 
 export function parseLoginStatus(text: string, authFile: string | undefined): AccountStatus {

@@ -5,7 +5,7 @@ import type { AccountHome } from '../account/homes.js'
 import type { AgentAdapter } from '../agent/contract.js'
 import { runWithInput } from '../agent/oneturn.js'
 import { notice } from '../notice/notice.js'
-import { CodexCli, resolveCodexBinary, SESSION_MODE, writeArgs } from './cli.js'
+import { CodexCli, parseWriteAnswer, resolveCodexBinary, SESSION_MODE, writeArgs } from './cli.js'
 import { CodexPlugins } from './plugins.js'
 import { foldRollout, limitsOfRollout, RolloutFold, rolloutFile, rolloutFiles } from './rollout.js'
 import { RolloutTail } from './tail.js'
@@ -66,7 +66,11 @@ export const codex: AgentAdapter = {
         }
         return { kind: 'missing', reason: notice('usage.noRollout', {}) }
       },
-      write: async (home, { cwd, prompt, model, timeoutMs }) => (await runWithInput(bin(), writeArgs(model), prompt, { cwd, env: envOf(home), timeoutMs })).trim(),
+      write: async (home, { cwd, prompt, model, timeoutMs }) => {
+        const started = Date.now()
+        const stdout = await runWithInput(bin(), writeArgs(model), prompt, { cwd, env: envOf(home), timeoutMs })
+        return parseWriteAnswer(stdout, model, Date.now() - started)
+      },
     }
   },
 }

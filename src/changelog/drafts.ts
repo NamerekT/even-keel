@@ -1,16 +1,16 @@
 import { fail } from '../notice/notice.js'
-import type { ChangelogKind, ChangelogOp, ChangelogVersion, ChangelogView } from '../state.js'
+import type { ChangelogKind, ChangelogOp, ChangelogSpend, ChangelogVersion, ChangelogView } from '../state.js'
 import type { Db } from '../storage/database.js'
 import type { MilestoneTask } from '../tracker/source.js'
 import { changelogPrompt, materialOf, type ChangelogMode } from './draft.js'
 import { answerSection, changelogPlan, withSection, type ChangelogPlan } from './file.js'
-import { addVersion, latestVersion, markWritten, writtenTasks } from './store.js'
+import { addVersion, latestVersion, markWritten, spentOn, writtenTasks } from './store.js'
 
 export interface ChangelogDeps {
   /** Every task of the project's milestone with its last comment; throws when the project's tracker cannot list them. */
   tasks(project: string, milestone: string): Promise<MilestoneTask[]>
-  /** One read-only turn of the agent in the project's main checkout; its answer. */
-  write(project: string, prompt: string): Promise<string>
+  /** One read-only turn of the agent in the project's main checkout; its answer and what it cost on which account. */
+  write(project: string, prompt: string): Promise<{ text: string; spend: ChangelogSpend }>
   /** The project's changelog file in its main checkout: the path the setting names and its text with LF line ends. */
   file(project: string): Promise<{ path: string; text: string | null }>
   /** The tags of the project's repository. */
@@ -62,7 +62,14 @@ export class ChangelogDrafts {
     const latest = await latestVersion(db, project, milestone, ids)
     const [file, tags] = await Promise.all([this.deps.file(project), this.deps.tags(project)])
     const plan = changelogPlan(file.text, milestone, tags)
-    const view = (version: ChangelogVersion): ChangelogView => ({ project, milestone, file: file.path, released: plan.tag, version })
+    const view = async (version: ChangelogVersion): Promise<ChangelogView> => ({
+      project,
+      milestone,
+      file: file.path,
+      released: plan.tag,
+      version,
+      spent: await spentOn(db, project, milestone, ids),
+    })
     if (op.op === 'open' && latest !== null) return view(latest)
     if (op.op === 'open' || op.op === 'again') return view(await this.fresh(project, milestone, plan, file.path, tags, op.op === 'open' ? 'draft' : 'again'))
     if (latest === null) throw fail('changelog.noDraft', { milestone })
@@ -75,8 +82,8 @@ export class ChangelogDrafts {
     if (op.op === 'edit') {
       const section = start ?? latest.text
       const heading = headingOf(section)
-      const text = await this.turn(project, heading, { milestone, mode: 'edit', section, heading, tasks: [], released: plan.released.map((each) => each.text), tags, instruction: op.instruction, file: file.path })
-      return view(await this.store(project, milestone, { kind: 'edit', text, base: section, instruction: op.instruction.trim(), tasks: latest.tasks, open: latest.open }))
+      const answer = await this.turn(project, heading, { milestone, mode: 'edit', section, heading, tasks: [], released: plan.released.map((each) => each.text), tags, instruction: op.instruction, file: file.path })
+      return view(await this.store(project, milestone, { kind: 'edit', ...answer, base: section, instruction: op.instruction.trim(), tasks: latest.tasks, open: latest.open }))
     }
     const material = materialOf(milestone, await this.deps.tasks(project, milestone))
     const accounted = new Set(latest.tasks)
@@ -84,9 +91,9 @@ export class ChangelogDrafts {
     if (missing.length === 0) throw fail('changelog.nothingNew', { milestone })
     const mode: ChangelogMode = start === null ? 'fresh' : 'update'
     const heading = start === null ? plan.heading : headingOf(start)
-    const text = await this.turn(project, heading, { milestone, mode, section: start, heading, tasks: missing, released: plan.released.map((each) => each.text), tags, file: file.path })
+    const answer = await this.turn(project, heading, { milestone, mode, section: start, heading, tasks: missing, released: plan.released.map((each) => each.text), tags, file: file.path })
     const tasks = [...latest.tasks, ...missing.map((task) => task.id)]
-    return view(await this.store(project, milestone, { kind: 'add', text, base: start, instruction: null, tasks, open: material.open }))
+    return view(await this.store(project, milestone, { kind: 'add', ...answer, base: start, instruction: null, tasks, open: material.open }))
   }
 
   /** The first draft or "write again": all done tasks; the section in the file, if there is one, is what it replaces. */
@@ -98,14 +105,15 @@ export class ChangelogDrafts {
     const mode: ChangelogMode = kind === 'draft' && section !== null ? 'update' : 'fresh'
     const heading = plan.section?.heading ?? plan.heading
     const released = plan.released.map((each) => each.text)
-    const text = await this.turn(project, heading, { milestone, mode, section: mode === 'update' ? section : null, heading, tasks: material.done, released, tags, file })
-    return this.store(project, milestone, { kind, text, base: section, instruction: null, tasks: material.done.map((task) => task.id), open: material.open })
+    const answer = await this.turn(project, heading, { milestone, mode, section: mode === 'update' ? section : null, heading, tasks: material.done, released, tags, file })
+    return this.store(project, milestone, { kind, ...answer, base: section, instruction: null, tasks: material.done.map((task) => task.id), open: material.open })
   }
 
-  private async turn(project: string, heading: string, request: Parameters<typeof changelogPrompt>[0]): Promise<string> {
-    const text = answerSection(await this.deps.write(project, changelogPrompt(request)), heading)
+  private async turn(project: string, heading: string, request: Parameters<typeof changelogPrompt>[0]): Promise<{ text: string; spend: ChangelogSpend }> {
+    const { text: answer, spend } = await this.deps.write(project, changelogPrompt(request))
+    const text = answerSection(answer, heading)
     if (text === heading) throw fail('changelog.failed', { project })
-    return text
+    return { text, spend }
   }
 
   private async store(project: string, milestone: string, fields: Omit<ChangelogVersion, 'project' | 'milestone' | 'number' | 'at' | 'written'>): Promise<ChangelogVersion> {

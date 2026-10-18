@@ -12,12 +12,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - Rules for which tasks enter the chain: active and terminal statuses, required labels, and excluded labels (`Manual` by default). Backlog tasks stay out of the chain.
 - Drag tasks to reorder the chain on the project page, within the limits of their blockers and milestones. With `fillMilestone` on, a task that enters the chain without a milestone gets the active milestone.
 - Several chains of different projects can run at once (`parallel`). The other projects wait in a queue, which you can reorder or trim from the header.
-- **Task worktrees.** Even Keel prepares `.claude/worktrees/<key>-<number>` on the branch `<key>-<number>/task` before the launch. After Done it stops the task's sessions, removes the worktree and the branch, and syncs the main branch with every remote. It uses the `git sync` alias if there is one, otherwise its own fetch, merge and push. A project can use a pool of permanent slots instead, for repositories with heavy ignored caches. Anything it could not clean up is listed on the project page. The main branch is a project setting (`branch`, `main` by default).
+- **Task worktrees.** Even Keel prepares `.claude/worktrees/<key>-<number>` on the branch `<key>-<number>/task` before the launch. After Done it stops the task's sessions, removes the worktree and the branch, and syncs the main branch with every remote. It uses the `git sync` alias if there is one, otherwise its own fetch, merge and push. A project can use a pool of permanent slots instead, for repositories with heavy ignored caches. Anything it could not clean up is listed on the project page. The main branch is a project setting (`branch`, `main` by default). A session that is only running a background command does not hold up Done, and stopping a session also ends its background commands.
 - **Handoffs.**
   - A session that hit the usage limit is resumed after the reset while its prompt cache is still warm. Otherwise it is replaced by a new session with a handoff prompt.
   - A session that ends its turn with `CHECKPOINT: <path>` is handed over to a fresh session the same way.
   - The checkpoint plugin asks for a checkpoint from 200k tokens of context, or from a threshold calibrated from the project's statistics, and stops asking below 300k after three handoffs.
   - The **New session** button replaces a session by hand.
+  - If the service restarts in the middle of a handoff, an answer or a **New session**, it finishes the step after the restart.
 - **Skip** and **Return to chain** for a task. A task whose session filed a blocker for it is postponed until the blocker is done. **Stop** ends a running chain.
 - **Unattended mode**, a switch in **Settings → Chain** for when nobody will answer. Sessions are told to ask nothing and to park a task a question holds: committed on its branch, unmerged, the question left in the task, the task moved to Backlog. A session that sits 10 minutes without the task done is skipped, so one stuck session does not stop the whole run.
 - **Chat with the session.**
@@ -36,16 +37,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
   - The header shows the limits, the tracker connection and the sessions waiting for an answer.
 - The page and the session prompts are in English or Russian, set separately (`language`, `promptLanguage`).
 - **Accounts.**
-  - The `/accounts` page manages several Claude subscriptions, one config folder each: add, sign in again, switch and remove.
+  - The `/accounts` page manages several Claude subscriptions, one config folder each: add, sign in again, switch and remove. An account that a run profile names cannot be removed, and the page lists the projects that use it.
   - The shared configuration (MCP servers, folder trust, project memory) is carried over to every account folder.
   - An account can also be an Anthropic API key. It shows today's spend instead of limits, and a session whose key runs out of credit waits until the key is topped up.
   - Prompt cache lifetime setting: `cacheTtl`.
 - **Limits.** The 5-hour and weekly windows of every account are read with the CLI's `/usage` command. While a window is exhausted, the next task waits for its reset. The header shows rings for every account a project uses.
-- **Run profiles.** The provider, model and account are set for all projects and per project. With `modelLabels` on, a task label `Provider | model` (for example `Claude | sonnet`) picks them for that task. A project can add its own prompt and run its own commands before each session starts.
+- **Run profiles.** The provider, model and account are set for all projects and per project. With `modelLabels` on, a task label `Provider | model` (for example `Claude | sonnet`) picks them for that task. If the label names a provider with no account, the task runs on the project's provider and the page says so. A project can add its own prompt and run its own commands before each session starts.
 - **Codex (preview).** Sessions can run on the OpenAI Codex CLI (`codex exec --json` per turn):
   - The transcript, context and limits are read from Codex's own files.
   - The project's MCP servers, plugin skills and hooks are passed on every turn.
-  - Accounts can be several subscriptions (at most one on the free plan) or an OpenAI API key.
+  - Accounts can be several subscriptions (at most one on the free plan) or an OpenAI API key. A session whose key runs out of quota waits until the key is topped up, as with Claude.
   - `execution.codex: bypass` turns the Codex sandbox off, which the Windows service needs.
 - **Trackers.**
   - There are adapters for Huly, GitHub Issues and Linear. Each project chooses its own tracker.
@@ -82,6 +83,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - Runs as a service: the Windows service (`service/install.ps1`), a `systemd --user` unit on Linux and a launchd agent on macOS (`service/install.sh`).
 - The page shows Even Keel's version and announces a new GitHub release with a toast.
 - **Changelog drafts.** A button on a milestone's head has the agent draft the milestone's changelog section from its done tasks.
+  - The draft starts from the milestone's section in the repository's changelog file (the project setting `changelog`, `CHANGELOG.md` by default), so hand edits are kept.
+  - **Add N** works in only the tasks closed since the last version, an edit can be asked for in words, and the changes against the previous version are highlighted.
+  - **Write** puts the section into the file and commits only that file to the main branch. A released section (one with a tag) stays frozen, and new tasks go into the next one.
+  - The milestone's head counts the tasks done since the section was written, and the drafts survive a restart.
+  - Each version shows what its turn cost, on which account and model, and the milestone's total.
 
 ### Security
 
