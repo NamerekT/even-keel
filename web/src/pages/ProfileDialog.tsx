@@ -12,10 +12,12 @@ interface DialogProps {
   /** The profile to edit; none — a new one. */
   profile: ProfileView | undefined
   onClose: () => void
+  /** The id of the profile saved, before the dialog closes. */
+  onSaved?: (id: string) => void
 }
 
 /** "Add profile" and a profile's edit: the kind's tiles first for a new one, then its fields, Check, and Save once the check passed. */
-export function ProfileDialog({ kinds, profile, onClose }: DialogProps) {
+export function ProfileDialog({ kinds, profile, onClose, onSaved }: DialogProps) {
   const dialog = useRef<HTMLDialogElement>(null)
   const [kind, setKind] = useState<string | null>(profile?.kind ?? null)
   const title = useId()
@@ -52,7 +54,7 @@ export function ProfileDialog({ kinds, profile, onClose }: DialogProps) {
         {view === undefined ? (
           <KindStep kinds={kinds} onPick={setKind} />
         ) : (
-          <FieldsStep kind={view} profile={profile} onBack={profile === undefined ? () => setKind(null) : undefined} onClose={onClose} />
+          <FieldsStep kind={view} profile={profile} onBack={profile === undefined ? () => setKind(null) : undefined} onClose={onClose} onSaved={onSaved} />
         )}
       </div>
     </dialog>
@@ -81,6 +83,7 @@ interface FieldsProps {
   /** None for an edit: the kind of a stored profile stays. */
   onBack: (() => void) | undefined
   onClose: () => void
+  onSaved: ((id: string) => void) | undefined
 }
 
 interface Checked {
@@ -89,7 +92,7 @@ interface Checked {
   result: CheckResult
 }
 
-function FieldsStep({ kind, profile, onBack, onClose }: FieldsProps) {
+function FieldsStep({ kind, profile, onBack, onClose, onSaved }: FieldsProps) {
   const { query } = useLive()
   const [alternative, setAlternative] = useState(() => alternativeOf(kind, profile))
   const [typed, setTyped] = useState<Record<string, string>>(() =>
@@ -127,7 +130,11 @@ function FieldsStep({ kind, profile, onBack, onClose }: FieldsProps) {
 
   const save = async (event: FormEvent) => {
     event.preventDefault()
-    if (fresh && (await run<{ id: string }>('profiles/save', { name: name.trim() })) !== null) onClose()
+    if (!fresh) return
+    const saved = await run<{ id: string }>('profiles/save', { name: name.trim() })
+    if (saved === null) return
+    onSaved?.(saved.id)
+    onClose()
   }
 
   return (

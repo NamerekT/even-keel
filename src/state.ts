@@ -174,6 +174,8 @@ export interface SharedForm {
 /** A tracker the settings can pick, and the key a project on it names its tracker project with. */
 export interface TrackerChoice {
   name: string
+  /** The name on the page: `GitHub`, not `github`. */
+  title: string
   projectKey: { key: string; example: string; optional: boolean } | null
 }
 
@@ -199,6 +201,8 @@ export interface ProjectCheck {
     root: string | null
     /** The branch the checkout is on, the suggestion for the main branch; `null` — detached or not a repository. */
     current: string | null
+    /** The draft tracker's project its remotes suggest (GitHub: `owner/name` of a github.com remote); `null` — none. */
+    suggested: string | null
     notice: Notice | null
   }
   /** What `parseConfig` says of the config with the draft added; `null` — it parses. */

@@ -53,8 +53,13 @@ const PROJECTS: Record<string, TrackerProject[]> = {
     { key: 'octo-org/example', name: 'example' },
     { key: 'octo-org/website', name: 'website' },
   ],
-  linear: [{ key: 'ENG', name: 'Engineering' }],
+  linear: [
+    { key: 'ENG', name: 'Engineering' },
+    { key: 'ENG', name: 'Web app', within: 'Web app' },
+    { key: 'OPS', name: 'Operations' },
+  ],
 }
+const LINEAR_PROFILE = '3f0c2b9e-0000-4000-8000-000000000004'
 
 function fields(kind: string, values: Record<string, string>): ProfileField[] {
   return KINDS.find((each) => each.kind === kind)!.fields.map(({ name, secret }) => ({ name, secret, set: name in values, value: secret ? null : (values[name] ?? null) }))
@@ -63,7 +68,7 @@ function fields(kind: string, values: Record<string, string>): ProfileField[] {
 /**
  * The profiles: Huly by default for the fake projects, a GitHub profile whose token runs out in 5 days and does not reach
  * the Actions of ABC's `github` remote, and a Forgejo profile ABC's and DEMO's `origin` CI takes. `?profiles=` — `none`:
- * no profiles, `refused`: Huly refuses its token.
+ * no profiles, `refused`: Huly refuses its token, `all`: a Linear profile too, `github`: the GitHub and the Forgejo one only.
  */
 export function fakeProfiles(mode: string | null): ProfilesView {
   if (mode === 'none') return { profiles: [], kinds: KINDS }
@@ -112,7 +117,21 @@ export function fakeProfiles(mode: string | null): ProfilesView {
     ],
     hiddenCi: [],
   }
-  return { profiles: [huly, github, forgejo], kinds: KINDS }
+  const linear: ProfileView = {
+    id: LINEAR_PROFILE,
+    kind: 'linear',
+    name: 'Linear · example',
+    isDefault: true,
+    fields: fields('linear', { LINEAR_TOKEN: '' }),
+    login: 'John Doe',
+    expiresAt: null,
+    check: { state: 'ok', error: null, at: ago(3) },
+    projects: [],
+    ci: [],
+    hiddenCi: [],
+  }
+  if (mode === 'github') return { profiles: [github, forgejo], kinds: KINDS }
+  return { profiles: mode === 'all' ? [huly, github, linear, forgejo] : [huly, github, forgejo], kinds: KINDS }
 }
 
 export function fakeProfilesCommand(state: EvenKeelState, name: string, body: Record<string, unknown>): EvenKeelState | null {

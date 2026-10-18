@@ -21,6 +21,12 @@ button.select {
   white-space: nowrap;
 }
 
+.select__icon {
+  display: inline-flex;
+  flex: none;
+  color: var(--fg-muted);
+}
+
 .select > .icon {
   color: var(--fg-muted);
   transition: transform var(--motion-fast);

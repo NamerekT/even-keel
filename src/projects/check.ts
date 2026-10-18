@@ -1,4 +1,5 @@
 import type { ChainRules } from '../chain/rules.js'
+import { parseRemote, remotesOf } from '../ci/remote.js'
 import { withNewProject } from '../config-form.js'
 import { DEFAULT_BRANCH, isPlainObject, parseConfig } from '../config.js'
 import { hasBranch } from '../git/worktree.js'
@@ -33,7 +34,8 @@ const ENTRY_ID = 'wizard-check'
 export async function checkDraft(deps: CheckDeps, draft: ProjectDraft): Promise<ProjectCheck> {
   const platform = deps.platform ?? process.platform
   const raw = deps.raw()
-  const repo = await checkRepo(deps.git, draft, raw, platform)
+  const adapter = deps.adapters[draft.tracker]
+  const repo = await checkRepo(deps.git, draft, raw, platform, adapter)
   const branch = draft.branch.trim() || repo.current || DEFAULT_BRANCH
   let entry: Notice | null = null
   let rules: ChainRules | undefined
@@ -43,7 +45,6 @@ export async function checkDraft(deps: CheckDeps, draft: ProjectDraft): Promise<
   } catch (error) {
     entry = noticeOf(error)
   }
-  const adapter = deps.adapters[draft.tracker]
   const tracker =
     entry === null && rules !== undefined && adapter !== undefined && repo.root !== null && repo.notice === null
       ? await checkTracker(adapter, deps, draft.key.trim(), draft.trackerProject.trim(), rules)
@@ -51,19 +52,38 @@ export async function checkDraft(deps: CheckDeps, draft: ProjectDraft): Promise<
   return { repo, entry, tracker, trusted: repo.root === null ? null : isTrusted(deps.claudeConfig(), repo.root, platform) }
 }
 
-async function checkRepo(git: Git, draft: ProjectDraft, raw: unknown, platform: NodeJS.Platform): Promise<ProjectCheck['repo']> {
+async function checkRepo(
+  git: Git,
+  draft: ProjectDraft,
+  raw: unknown,
+  platform: NodeJS.Platform,
+  adapter: TrackerAdapter | undefined,
+): Promise<ProjectCheck['repo']> {
   const path = draft.repo.trim()
-  if (path === '') return { root: null, current: null, notice: null }
+  if (path === '') return { root: null, current: null, suggested: null, notice: null }
   const top = await git(path, ['rev-parse', '--show-toplevel'])
-  if (top.code !== 0) return { root: null, current: null, notice: notice('wizard.notRepo', { path }, { detail: top.out }) }
+  if (top.code !== 0) return { root: null, current: null, suggested: null, notice: notice('wizard.notRepo', { path }, { detail: top.out }) }
   const root = pathsOf(platform).normalize(top.out.trim())
   const head = await git(root, ['symbolic-ref', '--quiet', '--short', 'HEAD'])
   const current = head.code === 0 && head.out.trim() !== '' ? head.out.trim() : null
+  const suggested = await suggestedOf(git, root, adapter)
   const taken = projectOfRepo(raw, root, platform)
-  if (taken !== undefined) return { root, current, notice: notice('wizard.repoTaken', { project: taken }) }
+  if (taken !== undefined) return { root, current, suggested, notice: notice('wizard.repoTaken', { project: taken }) }
   const branch = draft.branch.trim()
-  if (branch !== '' && !(await hasBranch(git, root, branch))) return { root, current, notice: notice('wizard.noBranch', { branch }) }
-  return { root, current, notice: null }
+  if (branch !== '' && !(await hasBranch(git, root, branch))) return { root, current, suggested, notice: notice('wizard.noBranch', { branch }) }
+  return { root, current, suggested, notice: null }
+}
+
+async function suggestedOf(git: Git, root: string, adapter: TrackerAdapter | undefined): Promise<string | null> {
+  if (adapter?.projectOfRemote === undefined) return null
+  const urls = await git(root, ['config', '--get-regexp', '^remote\\..*\\.url$'])
+  if (urls.code !== 0) return null
+  for (const { url } of remotesOf(urls.out)) {
+    const remote = parseRemote(url)
+    const place = remote === null ? undefined : adapter.projectOfRemote(remote)
+    if (place !== undefined) return place
+  }
+  return null
 }
 
 function projectOfRepo(raw: unknown, root: string, platform: NodeJS.Platform): string | undefined {

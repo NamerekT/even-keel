@@ -1,4 +1,5 @@
 import { isTerminal, unknownStatuses, type ChainRules } from '../chain/rules.js'
+import type { RemoteRepo } from '../ci/remote.js'
 import type { TrackerCard } from './card.js'
 import { isLeaf, toTask, type MilestonePick, type Task, type TaskPriority, type TaskStatus, type TrackerTask } from './model.js'
 
@@ -204,6 +205,8 @@ export interface TrackerAdapter {
   mcpKeys?: Readonly<Record<string, string>>
   /** Optional. For a tracker whose projects are not named by the project key alone (GitHub: `owner/name`). */
   projectKey?: TrackerProjectKey
+  /** Optional. The value of `projectKey` a git remote of the repository suggests (GitHub: `owner/name` of a github.com remote). */
+  projectOfRemote?(remote: RemoteRepo): string | undefined
   /**
    * `env` — a profile's values. `undefined` — none of its variables are set and the tracker is off; throws when they are
    * set only in part. `projects` — the value of `projectKey` by project key, for the projects on this profile that have

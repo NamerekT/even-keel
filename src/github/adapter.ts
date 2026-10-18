@@ -13,6 +13,7 @@ export const github: TrackerAdapter = {
   projects: async (values, query, timeoutMs) => (await import('./profile.js')).githubProjects(values, query, timeoutMs),
   mcpKeys: { GITHUB_PERSONAL_ACCESS_TOKEN: GITHUB_TOKEN },
   projectKey: { key: 'github', pattern: /^[\w.-]+\/[\w.-]+$/, example: 'octo-org/example' },
+  projectOfRemote: (remote) => (remote.host === 'github.com' ? `${remote.owner}/${remote.repo}` : undefined),
   setup(env, projects) {
     const token = env[GITHUB_TOKEN]
     if (!token) return undefined

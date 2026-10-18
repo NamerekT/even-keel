@@ -319,7 +319,7 @@ export const en = {
   'wizard.repoTaken': (p: { project: string }) => `this repository is already the project ${p.project}`,
   'wizard.noBranch': (p: { branch: string }) => `the repository has no branch ${p.branch}`,
   'wizard.trackerOff': (p: { tracker: string; variables: string[] }) =>
-    `${p.tracker} has no profile with ${list(p.variables)}: add one in Settings → Access`,
+    `no ${p.tracker} profile with ${list(p.variables)}: add one with "Add profile" in the Profile list`,
   'wizard.trackerFailed': (p: { tracker: string }) => `${p.tracker} did not give the project's tasks`,
   'project.removeBlocked': (p: { project: string }) => `${p.project} is not removed, it is still in use`,
   'project.removeChain': () => 'its chain runs or waits in the queue; stop it first',

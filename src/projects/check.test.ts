@@ -73,7 +73,7 @@ describe('checkDraft', () => {
   it('takes the top of the repository, suggests its branch, asks the tracker and the trust', async () => {
     const check = await checkDraft(deps(), draft)
     expect(check).toEqual({
-      repo: { root: 'D:\\new', current: 'trunk', notice: null },
+      repo: { root: 'D:\\new', current: 'trunk', suggested: null, notice: null },
       entry: null,
       tracker: { ok: true, missing: [], open: 2, notice: null },
       trusted: true,
@@ -82,13 +82,13 @@ describe('checkDraft', () => {
 
   it('says a folder is not a git repository and checks nothing that needs one', async () => {
     const check = await checkDraft(deps(), { ...draft, repo: 'E:\\plain' })
-    expect(check.repo).toEqual({ root: null, current: null, notice: expect.objectContaining({ code: 'wizard.notRepo', params: { path: 'E:\\plain' } }) })
+    expect(check.repo).toEqual({ root: null, current: null, suggested: null, notice: expect.objectContaining({ code: 'wizard.notRepo', params: { path: 'E:\\plain' } }) })
     expect(check.trusted).toBeNull()
   })
 
   it('leaves a blank folder unchecked, without a notice', async () => {
     const check = await checkDraft(deps(), { ...draft, repo: ' ' })
-    expect(check.repo).toEqual({ root: null, current: null, notice: null })
+    expect(check.repo).toEqual({ root: null, current: null, suggested: null, notice: null })
     expect(check.tracker).toBeNull()
   })
 
@@ -136,6 +136,22 @@ describe('checkDraft', () => {
     const check = await checkDraft(deps({ adapters: { fake: adapter } }), { ...draft, trackerProject: 'org/new' })
     expect(check.tracker?.ok).toBe(true)
     expect(adapter.asked).toEqual(['NEW=org/new', 'NEW'])
+  })
+
+  it("suggests the tracker's project by the first remote the adapter takes", async () => {
+    const adapter = fakeAdapter()
+    adapter.projectOfRemote = (remote) => (remote.host === 'github.com' ? `${remote.owner}/${remote.repo}` : undefined)
+    const remotes = { code: 0, out: 'remote.origin.url https://git.example.com/john/new.git\nremote.github.url git@github.com:octo-org/new.git\n' }
+    const check = await checkDraft(deps({ adapters: { fake: adapter } }, { 'D:\\new config --get-regexp ^remote\\..*\\.url$': remotes }), draft)
+    expect(check.repo.suggested).toBe('octo-org/new')
+  })
+
+  it('suggests nothing when no remote fits or the adapter takes none', async () => {
+    const remotes = { 'D:\\new config --get-regexp ^remote\\..*\\.url$': { code: 0, out: 'remote.origin.url https://git.example.com/john/new.git\n' } }
+    const adapter = fakeAdapter()
+    adapter.projectOfRemote = (remote) => (remote.host === 'github.com' ? `${remote.owner}/${remote.repo}` : undefined)
+    expect((await checkDraft(deps({ adapters: { fake: adapter } }, remotes), draft)).repo.suggested).toBeNull()
+    expect((await checkDraft(deps({}, remotes), draft)).repo.suggested).toBeNull()
   })
 })
 
