@@ -526,6 +526,23 @@ describe('TranscriptFold', () => {
     })
   })
 
+  describe('pull request mark', () => {
+    const prompt = (content: string) => JSON.stringify({ type: 'user', timestamp: at(), message: { role: 'user', content } })
+
+    it('takes the path from the last line of the last answer, apart from a checkpoint', () => {
+      const summary = fold([assistant('m1', [text('Ready for review.\n\n`PULL REQUEST: .temp/pull-request.md`\n')])]).summary()
+      expect(summary.pullRequest).toBe('.temp/pull-request.md')
+      expect(summary.checkpoint).toBeNull()
+    })
+
+    it('forgets the mark once the session calls a tool or someone writes to it', () => {
+      expect(fold([assistant('m1', [text('PULL REQUEST: .temp/pull-request.md'), tool('Bash', { command: 'git push' })])]).summary().pullRequest).toBeNull()
+      const marked = fold([assistant('m1', [text('PULL REQUEST: .temp/pull-request.md')])])
+      marked.push(prompt('One more thing.'))
+      expect(marked.summary().pullRequest).toBeNull()
+    })
+  })
+
   describe('asking', () => {
     const answer = (name: string) =>
       JSON.stringify({

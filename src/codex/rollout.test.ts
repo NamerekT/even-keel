@@ -148,6 +148,13 @@ describe('RolloutFold', () => {
     expect(marked.summary().checkpoint).toBeNull()
   })
 
+  it('finds a pull request mark on the last line of the last message, and a new prompt clears it', () => {
+    const marked = fold([agent('Ready.\nPULL REQUEST: .temp/pull-request.md')])
+    expect(marked.summary().pullRequest).toBe('.temp/pull-request.md')
+    marked.push(user('go on'))
+    expect(marked.summary().pullRequest).toBeNull()
+  })
+
   it('reads an error event as an API error and a limit by its text', () => {
     expect(fold([event({ type: 'error', message: 'stream disconnected' })]).summary().apiError).toMatchObject({ kind: 'error', text: 'stream disconnected' })
     const limit = fold([event({ type: 'error', message: "You've hit your usage limit. Try again later." })]).summary()

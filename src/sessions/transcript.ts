@@ -94,6 +94,8 @@ export interface TranscriptSummary {
   apiError: { kind: ApiErrorKind; text: string; at: string } | null
   lastMessage: string | null
   checkpoint: string | null
+  /** The path of the last response's `PULL REQUEST: <path>` line: PR mode's mark of a task done (BTN-205). */
+  pullRequest: string | null
   /** An `AskUserQuestion` is waiting for the user's choice. */
   asking: boolean
   /** The `AskUserQuestion` waiting for the user's choice. */
@@ -112,6 +114,7 @@ const ERROR_LIMIT = 2000
 const WRAP_UP_TEXT = 'Usage limit reached: Claude Code told the session to wrap up the turn'
 const REMOTE_DROPPED = 'Remote Control disconnected'
 const CHECKPOINT_LINE = /^[`*_]*CHECKPOINT:[`*_]*\s*[`*_]*([^`*\s][^`*]*?)[`*_]*$/
+const PULL_REQUEST_LINE = /^[`*_]*PULL REQUEST:[`*_]*\s*[`*_]*([^`*\s][^`*]*?)[`*_]*$/
 const CONTEXT_BLOCK = /^<([a-z][\w-]*)\b[^>]*>[\s\S]*<\/\1>$/
 const ASK_TOOL = 'AskUserQuestion'
 const SHELLS =new Set(['Bash', 'PowerShell'])
@@ -133,6 +136,7 @@ export class TranscriptFold {
   private wrapUp: TranscriptSummary['apiError'] = null
   private lastMessage: string | null = null
   private checkpoint: string | null = null
+  private pullRequest: string | null = null
   /** The `AskUserQuestion` call that has no result yet. */
   private openAsk: Ask | null = null
   /** An `AskUserQuestion` whose call ended without the user's answer: the next prompt answers it. */
@@ -224,6 +228,7 @@ export class TranscriptFold {
       apiError: this.apiError ?? this.wrapUp,
       lastMessage: this.lastMessage,
       checkpoint: this.checkpoint,
+      pullRequest: this.pullRequest,
       asking: this.openAsk !== null,
       ask: this.openAsk,
       firstActivityAt: this.firstActivityAt,
@@ -269,8 +274,10 @@ export class TranscriptFold {
         this.addAction({ at, kind: 'text', text })
         this.lastMessage = (block.text ?? '').trim().slice(0, MESSAGE_LIMIT)
         this.checkpoint = checkpointOf(block.text ?? '')
+        this.pullRequest = pullRequestOf(block.text ?? '')
       } else if (block.type === 'tool_use' && typeof block.name === 'string') {
         this.checkpoint = null
+        this.pullRequest = null
         const input = block.input ?? {}
         const line: FeedLine = { at, kind: 'tool', text: describeTool(block.name, input, entry.cwd) }
         if (this.whole && SHELLS.has(block.name) && typeof input.command === 'string') line.detail = input.command
@@ -318,6 +325,7 @@ export class TranscriptFold {
     } else if (entry.isMeta !== true && isPrompt(entry.message?.content)) {
       this.wrapUp = null
       this.checkpoint = null
+      this.pullRequest = null
       this.turnStartedAt = entry.timestamp ?? ''
       this.runningTools.clear()
       if (entry.origin?.kind !== undefined && entry.origin.kind !== 'human') return
@@ -432,8 +440,17 @@ function writtenTtl(usage: Usage): CacheTtl | null {
 }
 
 export function checkpointOf(text: string): string | null {
+  return lastLineMark(text, CHECKPOINT_LINE)
+}
+
+/** The path a response's last line `PULL REQUEST: <path>` names. */
+export function pullRequestOf(text: string): string | null {
+  return lastLineMark(text, PULL_REQUEST_LINE)
+}
+
+function lastLineMark(text: string, mark: RegExp): string | null {
   const last = text.trimEnd().split('\n').pop() ?? ''
-  return CHECKPOINT_LINE.exec(last.trim())?.[1] ?? null
+  return mark.exec(last.trim())?.[1] ?? null
 }
 
 export function isPrompt(content: unknown): boolean {

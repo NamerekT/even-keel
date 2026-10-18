@@ -7,6 +7,7 @@ import {
   callFacts,
   checkpointOf,
   failureText,
+  pullRequestOf,
   stageOfCommand,
   userLine,
   type FeedLine,
@@ -48,6 +49,7 @@ export class RolloutFold {
   private apiError: TranscriptSummary['apiError'] = null
   private lastMessage: string | null = null
   private checkpoint: string | null = null
+  private pullRequest: string | null = null
   private firstActivityAt: string | null = null
   private lastActivityAt: string | null = null
   private lastReplyAt: string | null = null
@@ -104,6 +106,7 @@ export class RolloutFold {
       apiError: this.apiError,
       lastMessage: this.lastMessage,
       checkpoint: this.checkpoint,
+      pullRequest: this.pullRequest,
       asking: false,
       ask: null,
       firstActivityAt: this.firstActivityAt,
@@ -141,6 +144,7 @@ export class RolloutFold {
     if (item.type === 'UserMessage') {
       if (this.pushMail(at, textOf(item.content))) return
       this.checkpoint = null
+      this.pullRequest = null
       this.apiError = null
       const line = userLine(at, textOf(item.content), null, (text) => this.textOf(text))
       if (line !== null) this.addFeed(line)
@@ -155,9 +159,11 @@ export class RolloutFold {
       this.addAction({ at, kind: 'text', text })
       this.lastMessage = message.trim().slice(0, MESSAGE_LIMIT)
       this.checkpoint = checkpointOf(message)
+      this.pullRequest = pullRequestOf(message)
       return
     }
     this.checkpoint = null
+    this.pullRequest = null
     if (item.type === 'CommandExecution') {
       const command = commandOf(item.command)
       const line: FeedLine = { at, kind: 'tool', text: describeTool(SHELL, { command }, undefined) }

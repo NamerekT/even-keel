@@ -90,6 +90,7 @@ export class SessionMonitor {
       recent: summary.feed,
       lastMessage: summary.lastMessage,
       checkpoint: summary.checkpoint,
+      pullRequest: summary.pullRequest,
     }
   }
 
