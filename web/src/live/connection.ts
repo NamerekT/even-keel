@@ -43,6 +43,8 @@ export interface LiveSource {
   card(task: string): Promise<TaskCard | null>
   /** What the project wizard's draft would come to; changes nothing. */
   checkProject(draft: ProjectDraft): Promise<ProjectCheck>
+  /** A request that answers with its own result instead of the state (`profiles/check` and the like); changes no state. */
+  query<T>(name: string, body: Record<string, unknown>): Promise<T>
   statsHistory(filter: StatsFilter): Promise<StatsAnswer<StatsHistory>>
   statsPeriod(query: PeriodQuery): Promise<StatsAnswer<StatsPeriod>>
   statsSteps(query: PeriodQuery): Promise<StatsAnswer<StatsSteps>>
@@ -63,6 +65,7 @@ export interface LiveDeps {
   fetchTools: (project: string) => Promise<ToolsView | null>
   fetchCard: (task: string) => Promise<TaskCard | null>
   checkProject: (draft: ProjectDraft) => Promise<ProjectCheck>
+  sendQuery: (name: string, body: Record<string, unknown>) => Promise<unknown>
   fetchStats: <T>(path: string, search: URLSearchParams) => Promise<StatsAnswer<T>>
 }
 
@@ -156,6 +159,10 @@ export class LiveConnection implements LiveSource {
 
   checkProject(draft: ProjectDraft): Promise<ProjectCheck> {
     return this.deps.checkProject(draft)
+  }
+
+  async query<T>(name: string, body: Record<string, unknown>): Promise<T> {
+    return (await this.deps.sendQuery(name, body)) as T
   }
 
   statsHistory(filter: StatsFilter): Promise<StatsAnswer<StatsHistory>> {

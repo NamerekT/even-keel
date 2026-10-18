@@ -8,11 +8,13 @@ export interface WizardFields {
   name: string
   tracker: string
   trackerProject: string
+  /** The tracker's profile; blank — its default one. */
+  profile: string
   place: 'worktree' | 'slots'
   slots: string
 }
 
-export const EMPTY_FIELDS: WizardFields = { repo: '', branch: '', key: '', name: '', tracker: '', trackerProject: '', place: 'worktree', slots: '2' }
+export const EMPTY_FIELDS: WizardFields = { repo: '', branch: '', key: '', name: '', tracker: '', trackerProject: '', profile: '', place: 'worktree', slots: '2' }
 
 const KEY_LENGTH = 5
 
@@ -31,6 +33,7 @@ export function draftOfFields(fields: WizardFields): ProjectDraft | undefined {
     name: fields.name.trim(),
     tracker: fields.tracker,
     trackerProject: fields.trackerProject.trim(),
+    profile: fields.profile === '' ? null : fields.profile,
     slot,
   }
 }

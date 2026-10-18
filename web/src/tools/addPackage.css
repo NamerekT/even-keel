@@ -193,6 +193,14 @@
   border-color: var(--error-fg);
 }
 
+/* A profile's host while projects use it: shown, not changed. */
+.add-package__input:disabled {
+  border-style: dashed;
+  background: transparent;
+  color: var(--fg-muted);
+  cursor: not-allowed;
+}
+
 .add-package__switch {
   display: inline-flex;
   align-self: flex-start;

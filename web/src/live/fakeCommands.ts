@@ -12,6 +12,7 @@ import { fakeMoveMilestone, fakeReady } from './fakeCards.js'
 import { fakeAnswer, fakeDismissMail } from './fakeChat.js'
 import { fakePackagesCommand } from './fakePackages.js'
 import { fakeSecretsCommand } from './fakeSecrets.js'
+import { fakeProfilesCommand } from './fakeProfiles.js'
 import { fakeProjectCommand } from './fakeProjects.js'
 import { ago, minutes, session, task } from './fakeSessions.js'
 
@@ -246,7 +247,8 @@ export function fakeCommand(state: EvenKeelState, name: string, body: Record<str
     fakeProjectCommand(state, name, body) ??
     fakeUpdatesCommand(state, name) ??
     fakePackagesCommand(state, name, body) ??
-    fakeSecretsCommand(state, name, body)
+    fakeSecretsCommand(state, name, body) ??
+    fakeProfilesCommand(state, name, body)
   if (settings !== null) return settings
   if (name.startsWith('account/')) return { ...state, account: accountCommand(state.account, name, body) }
   throw new Error(`fake: ${name} is not supported`)

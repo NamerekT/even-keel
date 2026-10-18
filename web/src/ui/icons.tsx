@@ -1,3 +1,5 @@
+import type { ReactNode } from 'react'
+
 export function HandoffIcon() {
   return (
     <svg className="icon" viewBox="0 0 16 16" aria-hidden="true">
@@ -236,6 +238,47 @@ export function ServerIcon() {
       <rect x="2" y="2.25" width="12" height="5" rx="1.25" />
       <rect x="2" y="8.75" width="12" height="5" rx="1.25" />
       <path d="M4.75 4.75h.01M4.75 11.25h.01M8 4.75h3.25M8 11.25h3.25" />
+    </svg>
+  )
+}
+
+const TRACKER_ICONS: Record<string, () => ReactNode> = { huly: BoardsIcon, github: BranchIcon, linear: ChecklistIcon }
+
+/** A tracker's own icon by its kind; a key for a kind without one. */
+export function TrackerIcon({ kind }: { kind: string }) {
+  const Icon = TRACKER_ICONS[kind] ?? KeyIcon
+  return <Icon />
+}
+
+/** A Huly profile: four boards of a workspace, not Huly's mark. */
+export function BoardsIcon() {
+  return (
+    <svg className="icon" viewBox="0 0 16 16" aria-hidden="true">
+      <rect x="2" y="2" width="5.25" height="5.25" rx="1.25" />
+      <rect x="8.75" y="2" width="5.25" height="5.25" rx="1.25" />
+      <rect x="2" y="8.75" width="5.25" height="5.25" rx="1.25" />
+      <rect x="8.75" y="8.75" width="5.25" height="5.25" rx="1.25" />
+    </svg>
+  )
+}
+
+/** A GitHub profile: a branch that forks off and back, not GitHub's mark. */
+export function BranchIcon() {
+  return (
+    <svg className="icon" viewBox="0 0 16 16" aria-hidden="true">
+      <circle cx="4.5" cy="3.25" r="1.5" />
+      <circle cx="4.5" cy="12.75" r="1.5" />
+      <circle cx="11.5" cy="5.25" r="1.5" />
+      <path d="M4.5 4.75v6.5M11.5 6.75c0 2.5-2 3.25-4.5 3.75-1.25.25-2.25.75-2.5 1" />
+    </svg>
+  )
+}
+
+/** A Linear profile: a checklist, not Linear's mark. */
+export function ChecklistIcon() {
+  return (
+    <svg className="icon" viewBox="0 0 16 16" aria-hidden="true">
+      <path d="m2.25 4 1.25 1.25L5.75 3M2.25 9.5l1.25 1.25L5.75 8.5M8 4.25h5.75M8 9.75h5.75M8 13.25h3.5" />
     </svg>
   )
 }

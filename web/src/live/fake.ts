@@ -23,6 +23,7 @@ import type { Ask } from '../../../src/sessions/ask.js'
 import { fakeTools } from './fakeTools.js'
 import { fakePackages } from './fakePackages.js'
 import { fakeSecrets } from './fakeSecrets.js'
+import { FAKE_HULY_PROFILE, fakeProfiles, fakeProfilesQuery, fakeSaved } from './fakeProfiles.js'
 import { fakeCheck, fakeNoProjects } from './fakeProjects.js'
 import { ago, fakeFeed, FEED_STEPS, minutes, session, task, turnStartedAt } from './fakeSessions.js'
 import { closeCurrent, fakeCommand, finishCurrent, LAUNCH_DAYS, setPaused, startChain, startStages, takeNext } from './fakeCommands.js'
@@ -59,9 +60,6 @@ function fakeTranscript(open: Ask | null): FeedLine[] {
     ...fakeOpenAsk(open),
   ]
 }
-
-/** The id of the fake Huly profile the fake projects run on. */
-export const FAKE_HULY_PROFILE = '3f0c2b9e-0000-4000-8000-000000000001'
 
 function fakeHuly(state: TrackerLinkState): TrackerView {
   const projects = ['ABC', 'DEMO', 'XYZ', 'OPS']
@@ -200,6 +198,7 @@ function fakeState(
     configError: null,
     packages: fakePackages(['ABC', 'DEMO', 'XYZ', 'OPS'], null),
     secrets: fakeSecrets(null),
+    profiles: fakeProfiles(null),
     language: null,
     unattended: false,
     trimTools: true,
@@ -286,6 +285,7 @@ export function createFakeSource(search: string): LiveSource {
   if (params.get('projects') === 'none' && current.state !== null) current.state = fakeNoProjects(current.state)
   if (params.has('packages') && current.state !== null) current.state.packages = fakePackages(current.state.projects, params.get('packages'))
   if (params.has('secrets') && current.state !== null) current.state.secrets = fakeSecrets(params.get('secrets'))
+  if (params.has('profiles') && current.state !== null) current.state.profiles = fakeProfiles(params.get('profiles'))
   const active = current.state?.chain.active[0]
   if (params.get('chain') === 'limit' && active) {
     current.state!.chain.active = [{ ...active, current: null, limitUntil: new Date(Date.now() + 95 * 60_000).toISOString() }]
@@ -531,6 +531,16 @@ export function createFakeSource(search: string): LiveSource {
       await answer()
       if (current.state === null) throw new Error('fake: no state yet')
       return fakeCheck(current.state, draft, params.get('wizard'))
+    },
+    query: async <T>(name: string, body: Record<string, unknown>) => {
+      await answer()
+      if (current.state === null) throw new Error('fake: no state yet')
+      const result = fakeProfilesQuery(current.state, name, body)
+      if (name === 'profiles/save') {
+        current = { ...current, state: fakeSaved(current.state, (result as { id: string }).id, body) }
+        notify()
+      }
+      return result as T
     },
     statsHistory: async (filter) => {
       await answer()

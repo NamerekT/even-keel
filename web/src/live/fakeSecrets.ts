@@ -2,33 +2,26 @@ import { fail } from '../../../src/notice/notice.js'
 import { secretCatalog } from '../../../src/secrets/catalog.js'
 import type { EvenKeelState, SecretsView } from '../../../src/state.js'
 
-const ADAPTERS = {
-  huly: { variables: ['HULY_URL', 'HULY_WORKSPACE', 'HULY_EMAIL', 'HULY_PASSWORD'] },
-  github: { variables: ['GITHUB_TOKEN'] },
-  linear: { variables: ['LINEAR_TOKEN'] },
-}
-const PLAIN: Record<string, string> = { HULY_URL: 'https://huly.example.com', HULY_WORKSPACE: 'example', HULY_EMAIL: 'john.doe@example.com' }
-const SET = new Set([...Object.keys(PLAIN), 'HULY_PASSWORD', 'FORGEJO_TOKEN'])
+const SET = new Set(['FORGEJO_TOKEN', 'TALLY_DB_HOST'])
 
 /**
- * The "Access" tab: Huly and the Forgejo token set, the rest not. `?secrets=` adds `outer` — `TALLY_DB_HOST` from the
- * service's environment, `stale` — the sessions' settings hold another Huly password, `pending` — a removal waits.
+ * The "Access" tab's keys besides the trackers' profiles: the Forgejo token and Tally's host set, the rest not.
+ * `?secrets=` adds `outer` — `TALLY_DB_HOST` from the service's environment, `pending` — a removal waits.
  */
 export function fakeSecrets(mode: string | null): SecretsView {
   return {
-    variables: secretCatalog(ADAPTERS, { forgejo: 'FORGEJO_TOKEN', github: 'GITHUB_TOKEN' }).map((spec) => {
+    variables: secretCatalog({ forgejo: 'FORGEJO_TOKEN' }).map((spec) => {
       const outer = mode === 'outer' && spec.name === 'TALLY_DB_HOST'
-      const set = SET.has(spec.name) || outer
+      const set = SET.has(spec.name)
       return {
         ...spec,
         set,
-        value: spec.secret || !set ? null : (PLAIN[spec.name] ?? '100.64.0.1'),
+        value: spec.secret || !set ? null : '100.64.0.1',
         outer,
-        sessions: !spec.places.includes('sessions') ? null : !set ? 'none' : mode === 'stale' && spec.name === 'HULY_PASSWORD' ? 'other' : 'same',
+        sessions: spec.places.includes('sessions') ? (set ? 'same' : 'none') : null,
         required: false,
       }
     }),
-    trackers: { huly: 'Huly', github: 'GitHub', linear: 'Linear' },
     sessionsPending: mode === 'pending',
   }
 }

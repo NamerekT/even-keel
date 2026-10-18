@@ -57,7 +57,8 @@ function state(startedAt: string): EvenKeelState {
     context: { window: 600_000, warn: 50, danger: 80 },
     configError: null,
     packages: { gateway: null, packages: [], projects: {}, keys: [], available: [], imports: {} },
-    secrets: { variables: [], trackers: {}, sessionsPending: false },
+    secrets: { variables: [], sessionsPending: false },
+    profiles: { profiles: [], kinds: [] },
     language: null,
     unattended: false,
     trimTools: true,
@@ -87,6 +88,7 @@ describe('LiveConnection', () => {
       fetchTools: async () => null,
       fetchCard: async () => null,
       checkProject: async () => ({ repo: { root: null, current: null, notice: null }, entry: null, tracker: null, trusted: null }),
+      sendQuery: async () => null,
       fetchStats: async () => ({ state: 'off', reason: 'test' }),
       sendCommand: (name, body) => {
         commands.push({ name, body })

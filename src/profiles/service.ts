@@ -3,7 +3,7 @@ import { readFileSync, writeFileSync } from 'node:fs'
 import { englishOf, fail, noticeOf } from '../notice/notice.js'
 import { withSessionEnv } from '../secrets/service.js'
 import { isSecret } from '../secrets/catalog.js'
-import type { HiddenCi, ProfileCheck, ProfilesView } from '../state.js'
+import type { CheckResult, HiddenCi, ProfileCheck, ProfilesView } from '../state.js'
 import type { Db, Writes } from '../storage/database.js'
 import { CredentialsRefused, type ProfileAccount, type TrackerAdapter, type TrackerProject } from '../tracker/source.js'
 import { defaultProfile, profileFor, sameAccount, valuesOf, type Adapters, type ProfileSet, type TrackerProfile } from './model.js'
@@ -46,15 +46,6 @@ export interface ProfileDraft {
   id?: string
   kind: string
   values: ProfileValues
-}
-
-export interface CheckResult {
-  login: string
-  /** The name to offer. */
-  name: string
-  expiresAt: string | null
-  /** The name of a profile already signed in as the same account on the same host. */
-  duplicate: string | null
 }
 
 /**

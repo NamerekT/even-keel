@@ -211,7 +211,7 @@ function WhereField({ projects, value, onChange }: { projects: string[]; value: 
 }
 
 /** A label with its help behind a tip, the control, and the error under it when there is one. */
-function Field({ label, hint, error, children }: { label: string; hint?: string; error?: string; children: (id: string) => ReactNode }) {
+export function Field({ label, hint, error, children }: { label: string; hint?: string; error?: string; children: (id: string) => ReactNode }) {
   const id = useId()
   return (
     <div className="add-package__field">

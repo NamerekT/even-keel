@@ -9,6 +9,7 @@ import { projectPath } from '../state.js'
 import { Select } from '../ui/Select.js'
 import { draftOfFields, EMPTY_FIELDS, keyOfFolder, readyToAdd, type WizardFields } from './projectWizard.js'
 import { FieldHead } from './settingsParts.js'
+import { ProfileField } from './ProfileSelect.js'
 import './accounts.css'
 import './settings.css'
 import './projectAdd.css'
@@ -166,9 +167,10 @@ export function ProjectAddPage({ state }: { state: EvenKeelState }) {
                 className="settings__text settings__short"
                 value={fields.tracker}
                 options={state.config.trackers.map((each) => ({ value: each.name, label: each.name }))}
-                onChange={(value) => set({ tracker: value, trackerProject: '' })}
+                onChange={(value) => set({ tracker: value, trackerProject: '', profile: '' })}
               />
             </div>
+            <ProfileField id="wizard-profile" profiles={state.profiles.profiles} kind={fields.tracker} value={fields.profile} onChange={(profile) => set({ profile })} />
             {tracker?.projectKey != null && (
               <div className="settings__field settings__grow">
                 <FieldHead

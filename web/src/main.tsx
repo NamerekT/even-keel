@@ -53,16 +53,18 @@ async function fetchCard(task: string): Promise<TaskCard | null> {
   return answer
 }
 
-async function checkProject(draft: ProjectDraft): Promise<ProjectCheck> {
-  const response = await fetch('/api/project/check', {
+async function sendQuery(name: string, body: object): Promise<unknown> {
+  const response = await fetch(`/api/${name}`, {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
-    body: JSON.stringify(draft),
+    body: JSON.stringify(body),
   })
-  const answer = (await response.json().catch(() => null)) as (ProjectCheck & { error?: string; notice?: unknown }) | null
-  if (!response.ok) throw new NoticeError(asNotice(answer?.notice ?? answer?.error ?? `/api/project/check answered ${response.status}`))
-  return answer!
+  const answer = (await response.json().catch(() => null)) as { error?: string; notice?: unknown } | null
+  if (!response.ok) throw new NoticeError(asNotice(answer?.notice ?? answer?.error ?? `/api/${name} answered ${response.status}`))
+  return answer
 }
+
+const checkProject = (draft: ProjectDraft) => sendQuery('project/check', draft) as Promise<ProjectCheck>
 
 async function fetchStats<T>(path: string, search: URLSearchParams): Promise<StatsAnswer<T>> {
   const response = await fetch(`/api/stats/${path}?${search}`, { cache: 'no-store' })
@@ -83,6 +85,7 @@ async function createSource(): Promise<LiveSource> {
     fetchTools,
     fetchCard,
     checkProject,
+    sendQuery,
     fetchStats,
   })
   connection.start()

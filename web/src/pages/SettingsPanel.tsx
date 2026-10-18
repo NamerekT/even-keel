@@ -34,6 +34,7 @@ import {
 } from './settingsParts.js'
 import { ruleChoicesOf } from './settingsRows.js'
 import { ProjectRemove } from './ProjectRemove.js'
+import { ProfileLink } from './ProfileSelect.js'
 import { useDraft, useTab } from './settingsStore.js'
 import { SEG_CLASS, type ChipLook } from './chipLook.js'
 import './settings.css'
@@ -281,6 +282,7 @@ export function SettingsPanel({
             {marks.note('tracker')}
             <FieldNote error={errorOf('tracker')} />
           </div>
+          {state !== null && <ProfileLink id={fieldId('profile')} state={state} project={project} />}
           {tracker?.projectKey != null && (
             <div className={marks.box('trackerProject', 'settings__field settings__grow')}>
               <FieldHead

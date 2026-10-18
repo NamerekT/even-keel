@@ -1,0 +1,71 @@
+.profiles__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.profiles .settings__hint {
+  margin: 0;
+}
+
+/* The top stripe says the state: a refused profile pauses the chains on it. */
+.profile-card {
+  --series: var(--border);
+}
+
+.profile-card--ok {
+  --series: var(--lamp-done);
+}
+
+.profile-card--refused,
+.profile-card--unreachable {
+  --series: var(--lamp-error);
+}
+
+.profile-card__head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.profile-card__icon {
+  display: inline-flex;
+  flex: none;
+  color: var(--fg-muted);
+}
+
+.profile-card__icon .icon {
+  width: 18px;
+  height: 18px;
+}
+
+.profile-card__name {
+  overflow: hidden;
+  font-weight: 600;
+  text-decoration: underline dotted;
+  text-underline-offset: 3px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: help;
+}
+
+.profiles__line {
+  display: block;
+}
+
+.profiles__error {
+  margin: 0;
+}
+
+.profiles__ok {
+  margin: 0;
+  color: var(--fg-muted);
+  font-size: 13px;
+}
+
+.profiles__ok::before {
+  content: '✓ ';
+  color: var(--lamp-done);
+}

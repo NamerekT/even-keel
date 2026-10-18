@@ -409,6 +409,16 @@ export interface ProfileCheck {
   at: string | null
 }
 
+/** What `profiles/check` answers: the values sign in. */
+export interface CheckResult {
+  login: string
+  /** The name to offer. */
+  name: string
+  expiresAt: string | null
+  /** The name of a profile already signed in as the same account on the same host. */
+  duplicate: string | null
+}
+
 export interface HiddenCi {
   project: string
   remote: string

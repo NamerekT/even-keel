@@ -20,8 +20,14 @@ describe('draftOfFields', () => {
       name: 'Shop',
       tracker: 'huly',
       trackerProject: 'org/shop',
+      profile: null,
       slot: 0,
     })
+  })
+
+  it('gives the chosen profile, and none for the default one', () => {
+    expect(draftOfFields(fields({ profile: 'p-1' }))?.profile).toBe('p-1')
+    expect(draftOfFields(fields({ profile: '' }))?.profile).toBeNull()
   })
 
   it('gives the pool size for slots', () => {

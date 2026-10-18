@@ -31,7 +31,7 @@ import type { ChainRules } from './chain/rules.js'
 import { CLAUDE } from './claude/name.js'
 import type { Language } from './language.js'
 import { HOOK_EVENTS, type MailEvent } from './sessions/mail.js'
-import type { CacheTtl, CiSettings, ContextScale, ProjectCheck, ProjectDraft, ProjectForm, SharedForm, StatsConfig } from './state.js'
+import type { CacheTtl, CheckResult, CiSettings, ContextScale, ProjectCheck, ProjectDraft, ProjectForm, SharedForm, StatsConfig } from './state.js'
 import type { CompareSettings } from './stats/rules.js'
 import { CI_KINDS, type CiKind } from './ci/model.js'
 import type { Calibration } from './stats/calibration.js'
@@ -40,7 +40,7 @@ import type { StatsSteps } from './stats/steps.js'
 import type { TaskCard } from './tracker/card.js'
 import type { TaskFile, TrackerProject } from './tracker/source.js'
 import { profileDraftOf } from './profiles/request.js'
-import type { CheckResult, ProfileDraft } from './profiles/service.js'
+import type { ProfileDraft } from './profiles/service.js'
 
 /** Files the browser may show in place; anything else is a download, so a tracker file never runs as the page. */
 const SHOWN_IN_PLACE = /^(image\/(png|jpeg|gif|webp|avif|bmp)|video\/[\w.+-]+|audio\/[\w.+-]+|application\/pdf)$/
