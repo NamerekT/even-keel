@@ -12,7 +12,7 @@ This file holds the rules and traps needed in every session. Reference on how th
 
 | Document | What is in it |
 | --- | --- |
-| `docs/chain.md` | entry into the chain, order, task worktrees, cleanup after Done, "slot" mode, the exceptions to invariant 1 in detail, state files and their schema version |
+| `docs/chain.md` | entry into the chain, order, task worktrees, cleanup after Done, why one folder holds one project, "slot" mode, the exceptions to invariant 1 in detail, state files and their schema version |
 | `docs/storage.md` | the state database `state/even-keel/` (PGlite): its owner and port, tables, schema steps, the import of the SQLite file and the v0.1 files, backup and export, readers outside the service |
 | `docs/trackers.md` | the `src/tracker/` layer, the Huly, GitHub and Linear adapters, `brief`/`complete`, Claude Code plugins |
 | `docs/ci.md` | the `src/ci/` layer, the Forgejo and GitHub Actions adapters, which remote gets a CI, polling, Forgejo API traps |

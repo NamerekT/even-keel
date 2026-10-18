@@ -85,6 +85,16 @@ With `ci.fixTask` off nothing is created in the tracker, and the adapter needs n
 - The account limit is shared and is not split between chains: all take tasks until the window is used up; once it is used up, all wait for the reset (`limitUntil` on each), and the continuation after the reset is per chain.
 - Renewing the active account's sign-in is blocked by any chain that is not paused (`LoginBlock.chains`, `src/account/model.ts`). Switching the account is not: the session working now stays on its folder, the next launches go to the new one, as the roles menu says under "Even Keel" (`docs/accounts.md`).
 
+## One folder, one project
+
+The wizard refuses a repository another project already has (`wizard.repoTaken`, `checkRepo` in `src/projects/check.ts`). Two projects on the same code — one per tracker, say — take separate clones with the same remotes. Two chains in one folder would get in each other's way:
+
+- **Slots.** The pool's folders do not carry the project's key (`.claude/worktrees/even-keel`, `even-keel-2`, below): the chain of one project would switch a slot to its branch under a live session of the other.
+- **The main checkout.** Everything that touches `main` runs in it: the session's merge of its branch, `git sync` after Done, `commands.afterGreen`. Two chains running at once (`parallel`) would merge into the working copy while the other one syncs it, and a session would stop on a checkout that is not on `main` or has local changes.
+- **What is counted by folder.** Tally groups sessions by folder; the tools panel reads `.claude/` and the `.claude.json` entries of the folder. Task worktrees are named by key and stay apart, but whatever runs in the main checkout would merge into one.
+
+Lifting it would take slots named by key and the work on `main` serialized per folder; a clone costs only disk space.
+
 ## "Slot" mode (`src/git/slot.ts`)
 
 - `"slot": true` or a number of slots on a project — a pool of permanent worktrees per repository instead of a new one for each task: `.claude/worktrees/even-keel`, then `even-keel-2`, `even-keel-3`… (`true` — one). Ignored caches (Unity `Library`, `node_modules`) survive a task, and the first run of a new one processes only the difference; an extra slot is needed so that the live session of a released task (skipped, postponed by a blocker) stays in its own and is not stopped. The chain still leads one task at a time.
