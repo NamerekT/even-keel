@@ -90,7 +90,16 @@ export async function catchUp(git: Git, path: string, main = 'main'): Promise<bo
   return (await git(path, ['merge', '--ff-only', main])).code === 0
 }
 
-export async function finishWorktree(git: Git, repo: string, task: string, main = 'main'): Promise<FinishOutcome> {
+/**
+ * How a task's branch goes after it (BTN-205): `force` — deleted though not merged into main (the pull request was
+ * merged on the forge, or closed); `remote` — the remote it was pushed to, `origin` by default.
+ */
+export interface BranchDrop {
+  force?: boolean
+  remote?: string
+}
+
+export async function finishWorktree(git: Git, repo: string, task: string, main = 'main', drop: BranchDrop = {}): Promise<FinishOutcome> {
   const place = taskPlace(repo, task)
   const warnings: Notice[] = []
   const found = await worktreeAt(git, repo, place.path)
@@ -110,7 +119,7 @@ export async function finishWorktree(git: Git, repo: string, task: string, main 
     }
   }
 
-  return dropBranch(git, repo, branch, warnings, main)
+  return dropBranch(git, repo, branch, warnings, main, drop)
 }
 
 /**
@@ -138,17 +147,24 @@ async function unlinkLinks(path: string): Promise<void> {
   }
 }
 
-export async function dropBranch(git: Git, repo: string, branch: string | null, warnings: Notice[], main = 'main'): Promise<FinishOutcome> {
+export async function dropBranch(
+  git: Git,
+  repo: string,
+  branch: string | null,
+  warnings: Notice[],
+  main = 'main',
+  { force = false, remote = 'origin' }: BranchDrop = {},
+): Promise<FinishOutcome> {
   let gone: string | null = null
   if (branch !== null) {
-    const deleted = await git(repo, ['branch', '-d', branch])
+    const deleted = await git(repo, ['branch', force ? '-D' : '-d', branch])
     if (deleted.code === 0) gone = branch
     else warnings.push(notice('cleanup.branchKept', { branch }, { detail: deleted.out }))
   }
 
   const remotes = (await must(git, repo, ['remote'], 'listRemotes')).out.split(/\s+/).filter(Boolean)
-  if (gone !== null && remotes.includes('origin')) {
-    const warning = await deleteOnOrigin(git, repo, gone)
+  if (gone !== null && remotes.includes(remote)) {
+    const warning = await deleteOnRemote(git, repo, remote, gone)
     if (warning !== null) warnings.push(warning)
   }
 
@@ -156,12 +172,12 @@ export async function dropBranch(git: Git, repo: string, branch: string | null, 
   return { warnings, syncError: await syncMain(git, repo, remotes, main) }
 }
 
-async function deleteOnOrigin(git: Git, repo: string, branch: string): Promise<Notice | null> {
-  const listed = await git(repo, ['ls-remote', '--exit-code', '--heads', 'origin', `refs/heads/${branch}`])
+async function deleteOnRemote(git: Git, repo: string, remote: string, branch: string): Promise<Notice | null> {
+  const listed = await git(repo, ['ls-remote', '--exit-code', '--heads', remote, `refs/heads/${branch}`])
   if (listed.code === 2) return null
-  if (listed.code !== 0) return notice('cleanup.originUnchecked', { branch }, { detail: listed.out })
-  const pushed = await git(repo, ['push', 'origin', '--delete', branch])
-  return pushed.code === 0 ? null : notice('cleanup.originKept', { branch }, { detail: pushed.out })
+  if (listed.code !== 0) return notice('cleanup.originUnchecked', { branch, remote }, { detail: listed.out })
+  const pushed = await git(repo, ['push', remote, '--delete', branch])
+  return pushed.code === 0 ? null : notice('cleanup.originKept', { branch, remote }, { detail: pushed.out })
 }
 
 export async function worktreeAt(git: Git, repo: string, path: string): Promise<Worktree | undefined> {

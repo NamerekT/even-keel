@@ -25,6 +25,7 @@ import { launchLine } from './chain/log.js'
 import { mainCheckDeps, mergeCheck } from './chain/mainci.js'
 import { TaskPlaces } from './chain/places.js'
 import { readNote, saveSnapshot, snapshotReason } from './chain/snapshots.js'
+import { reviewDeps } from './review/wiring.js'
 import { appendLaunch, loadChainState, loadQuestions, readLaunches, saveChainState, saveClosedTask, saveQuestions } from './chain/store.js'
 import { ChangelogDrafts } from './changelog/drafts.js'
 import { DEFAULT_CHANGELOG } from './changelog/file.js'
@@ -170,6 +171,7 @@ let { listen, token, mcpPort } = (() => {
 /** A new address that could not be taken: the service stays on the old one. */
 let listenError: Notice | null = null
 const branchOf = (project: string) => configStore.current.settings[project]?.branch ?? DEFAULT_BRANCH
+const pullRequestsOn = (project: string) => configStore.current.settings[project]?.pullRequests ?? false
 const rulesOf = (project: string) => configStore.current.rules[project]!
 const stateDir = stateDirOf()
 mkdirSync(stateDir, { recursive: true })
@@ -694,15 +696,12 @@ const dispatcher = new Dispatcher(await loadChainState(db, configStore.current.i
   projects: () => Object.keys(configStore.current.projects),
   parallel: () => configStore.current.parallel,
   rules: rulesOf,
-  launch: async (project, task) => {
+  launch: async (project, task, extra) => {
     const home = homeOf(choiceFor(project, task).account)
     await daemons.prepare(home)
     const place = await places.ready(project, task)
-    const { prompt, model, provider, fallback } = planFor(
-      task,
-      withProject(await briefed(task, startPrompt(task, place, promptLanguage(), branchOf(project)), project), project),
-      project,
-    )
+    const started = withProject(await briefed(task, startPrompt(task, place, promptLanguage(), branchOf(project), pullRequestsOn(project)), project), project)
+    const { prompt, model, provider, fallback } = planFor(task, extra === undefined ? started : `${started}\n${extra}\n`, project)
     const extras = agentExtras(home, project, task)
     const sessionId = await launchIn(home, { name: task, cwd: place.path, prompt, model, settings: settingsFor(task, project), ...extras })
     if (fallback === null) return { sessionId }
@@ -744,6 +743,10 @@ const dispatcher = new Dispatcher(await loadChainState(db, configStore.current.i
     const project = projectOf(task)
     return project === undefined ? DEFAULT_BRANCH : branchOf(project)
   },
+  pullRequests: (task) => {
+    const project = projectOf(task)
+    return project !== undefined && pullRequestsOn(project)
+  },
   resume: (task, session) => resumeWith(task, session, resumePrompt(promptLanguage())),
   reply: (task, session, prompt) => resumeWith(task, session, prompt),
   relay: async (task, session, handoff, reason) => {
@@ -772,8 +775,8 @@ const dispatcher = new Dispatcher(await loadChainState(db, configStore.current.i
     return launchIn(home, { name, cwd: place.path, prompt, model, settings: settingsFor(name, project), ...extras })
   },
   stop: (session) => stopIn(homeOf(session.account), session),
-  finish: async (project, task) => {
-    if (!isFixName(task)) archiveClosed(project, task)
+  finish: async (project, task, pull) => {
+    if (!isFixName(task) && pull?.unmerged !== true) archiveClosed(project, task)
     const repo = configStore.current.projects[project]!
     const span = isFixName(task) ? 0 : slotSpan(project)
     let stopped: Notice[]
@@ -781,7 +784,8 @@ const dispatcher = new Dispatcher(await loadChainState(db, configStore.current.i
     try {
       stopped = await stopTaskSessions(repo, task, Math.max(span, 1))
       const main = branchOf(project)
-      finished = await (span > 0 ? finishSlot(runGit, repo, task, span, main) : finishWorktree(runGit, repo, task, main))
+      const drop = pull === undefined ? {} : { force: pull.force, remote: pull.remote }
+      finished = await (span > 0 ? finishSlot(runGit, repo, task, span, main, drop) : finishWorktree(runGit, repo, task, main, drop))
     } catch (error) {
       console.error(`git: cleanup after ${task} failed: ${englishOf(noticeOf(error))}`)
       throw error
@@ -794,6 +798,18 @@ const dispatcher = new Dispatcher(await loadChainState(db, configStore.current.i
   },
   refresh: async (project) => refreshers.get(project)?.(),
   log: (message) => console.log(message),
+  reviews: reviewDeps({
+    git: runGit,
+    repo: (project) => configStore.current.projects[project]!,
+    main: branchOf,
+    on: pullRequestsOn,
+    token: (project, target) => ciTokenOf(project, target)?.token ?? null,
+    complete: async (project, task) => {
+      await linkOf(project)?.run(async (tracker) => tracker.complete?.(task))
+    },
+    now: () => new Date(),
+    timeoutMs: CI_TIMEOUT_MS,
+  }),
   main: mainCheckDeps({
     repo: (project) => configStore.current.projects[project]!,
     main: branchOf,
@@ -1265,6 +1281,7 @@ setInterval(() => void questions.tick(), 15_000).unref()
 setInterval(() => settleMail(mailRelay), 15_000).unref()
 
 setInterval(() => dispatcher.check(), LIMIT_CHECK_MS).unref()
+setInterval(() => void dispatcher.pollReviews().catch((error) => console.error(`review: the poll failed: ${englishOf(noticeOf(error))}`)), 60_000).unref()
 
 const applyCi = () =>
   void ciWatches.apply(configStore.current.projects).then(() => {

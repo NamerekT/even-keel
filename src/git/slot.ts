@@ -1,7 +1,7 @@
 import { join } from 'node:path'
 import { fail, notice, type Notice } from '../notice/notice.js'
 import type { FinishOutcome, Git, TaskPlace } from './types.js'
-import { dropBranch, finishWorktree, hasBranch, must, taskPlace, worktreesAt } from './worktree.js'
+import { dropBranch, finishWorktree, hasBranch, must, taskPlace, worktreesAt, type BranchDrop } from './worktree.js'
 
 export interface SlotUse {
   idle: boolean
@@ -91,19 +91,19 @@ export async function prepareSlot(git: Git, repo: string, task: string, options:
   return { path: chosen.path, branch: place.branch }
 }
 
-export async function finishSlot(git: Git, repo: string, task: string, count = 1, main = 'main'): Promise<FinishOutcome> {
+export async function finishSlot(git: Git, repo: string, task: string, count = 1, main = 'main', drop: BranchDrop = {}): Promise<FinishOutcome> {
   const place = taskPlace(repo, task)
   const paths = slotPaths(repo, count)
   const [own, ...slots] = await worktreesAt(git, repo, [place.path, ...paths])
-  if (own !== undefined) return finishWorktree(git, repo, task, main)
+  if (own !== undefined) return finishWorktree(git, repo, task, main, drop)
 
   const holding = slots.findIndex((slot) => isTaskBranch(slot?.branch ?? null, task))
-  if (holding === -1) return dropBranch(git, repo, (await hasBranch(git, repo, place.branch)) ? place.branch : null, [], main)
+  if (holding === -1) return dropBranch(git, repo, (await hasBranch(git, repo, place.branch)) ? place.branch : null, [], main, drop)
   const path = paths[holding]!
   const branch = slots[holding]!.branch!
   const kept = await leaveBranch(git, path, branch, main)
-  if (kept === null) return dropBranch(git, repo, branch, [], main)
-  return dropBranch(git, repo, null, [kept], main)
+  if (kept === null) return dropBranch(git, repo, branch, [], main, drop)
+  return dropBranch(git, repo, null, [kept], main, drop)
 }
 
 async function leaveBranch(git: Git, path: string, branch: string, main: string): Promise<Notice | null> {

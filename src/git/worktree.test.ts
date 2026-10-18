@@ -205,6 +205,14 @@ describe('finishWorktree', () => {
     ])
   })
 
+  it('forces the branch of a pull request off, here and on the remote it was pushed to', async () => {
+    const { git, calls } = fakeGit({ ...clean, remote: { out: 'origin\ngithub\n' } })
+    expect(await finishWorktree(git, repo, 'ABC-7', 'main', { force: true, remote: 'github' })).toEqual({ warnings: [], syncError: null })
+    expect(calls).toContain('branch -D abc-7/task')
+    expect(calls).toContain('push github --delete abc-7/task')
+    expect(calls).not.toContain('push origin --delete abc-7/task')
+  })
+
   it('syncs the project’s main branch when it is not main', async () => {
     const { git, calls } = fakeGit({ ...clean, 'config --local --get alias.sync': { code: 1 }, 'branch --show-current': { out: 'master' } })
     expect(await finishWorktree(git, repo, 'ABC-7', 'master')).toEqual({ warnings: [], syncError: null })
