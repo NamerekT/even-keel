@@ -35,7 +35,7 @@ export async function collect(settings: DbSettings, root: string, log: Log): Pro
   const config = parseConfig(JSON.parse(readFileSync(process.env.TALLY_CONFIG ?? join(root, 'tally', 'tally.config.json'), 'utf8')))
   const stateDir = process.env.EVEN_KEEL_STATE_DIR ?? join(root, 'state')
   const homes = new AccountHomes(process.env, accountsRoot(process.env))
-  const { launches: journal, handoffs: saved } = await evenKeelState(stateDir, log)
+  const { launches: journal, handoffs: saved, repos } = await evenKeelState(stateDir, log)
   const launches = launchMap(journal)
 
   const db = await TallyDb.connect(settings)
@@ -57,7 +57,7 @@ export async function collect(settings: DbSettings, root: string, log: Log): Pro
     if (migrated !== null) log(migrated)
     await db.syncPrices(config.prices)
 
-    const projects = trackedProjects(root, log)
+    const projects = repos ?? trackedProjects(root, log)
     const ruleScan = await ruleSources(homes.list(), projects, homedir(), log)
     const ruleFiles = ruleScan.sources
     const rules = { home: homedir(), skills: skillsOf(ruleFiles) }
@@ -128,17 +128,20 @@ export async function collect(settings: DbSettings, root: string, log: Log): Pro
 /**
  * The launch log and the handoff snapshots from Even Keel's database, through the service's port while it runs.
  * Without one — a merge reaches the collector before the service restarts and imports the old state — from the
- * `node:sqlite` file of versions 1–2, otherwise from the v0.1 files of the state folder.
+ * `node:sqlite` file of versions 1–2, otherwise from the v0.1 files of the state folder. `repos` — the folders of the
+ * projects of the database (BTN-199); `undefined` without it, when the config file still holds them.
  */
-async function evenKeelState(stateDir: string, log: Log): Promise<{ launches: LaunchEntry[]; handoffs: HandoffSnapshot[] }> {
+async function evenKeelState(stateDir: string, log: Log): Promise<{ launches: LaunchEntry[]; handoffs: HandoffSnapshot[]; repos?: string[] }> {
   try {
-    const reader = (await readStateDatabase(stateDir)) ?? (await legacyReader(stateDir))
+    const database = await readStateDatabase(stateDir)
+    const reader = database ?? (await legacyReader(stateDir))
     if (reader === undefined) {
       const files = readStateFiles(stateDir)
       return { launches: files?.launches ?? [], handoffs: files?.handoffs ?? [] }
     }
     try {
-      return { launches: await readLaunches(reader.db), handoffs: await readSnapshots(reader.db) }
+      const repos = database === undefined ? undefined : (await reader.db.query<{ repo: string }>('select repo from projects order by position')).rows.map((row) => row.repo)
+      return { launches: await readLaunches(reader.db), handoffs: await readSnapshots(reader.db), repos }
     } finally {
       await reader.close()
     }

@@ -3,6 +3,8 @@ export const FULL = {
   version: 9,
   allowedHosts: [' Box.Example.com '],
   parallel: 2,
+  unattended: true,
+  trimTools: false,
   tracker: 'github',
   brief: false,
   chain: { active: ['Todo', ' In Progress '], terminal: ['Done'], requiredLabels: ['Auto'], excludedLabels: [] },
@@ -18,7 +20,7 @@ export const FULL = {
   cacheTtl: '1h',
   context: { window: 1_000_000, danger: 90 },
   stats: { compare: { days: 14 }, moves: { 'C:\\old': 'C:\\new' }, otherBelow: 2, checkpointTokens: 150_000 },
-  updates: { notify: false, dismissed: '0.2.0' },
+  updates: { notify: false },
   projects: [
     {
       id: '11111111-1111-4111-8111-111111111111',

@@ -21,7 +21,8 @@ export interface Queryable {
  * Numbered schema steps: STEPS[n] takes the database from version SQLITE_VERSIONS + n to the next one, in one transaction
  * with the new version; an empty database runs them all. A step is never edited or removed once merged: a schema change
  * is a new step. A project is named by its id (`projects[].id` of the config); the JSON columns hold what the code keeps
- * as it is. Step 3 is the tables of the SQLite versions in Postgres.
+ * as it is. Step 3 is the tables of the SQLite versions in Postgres; step 4 the project records and the settings
+ * (BTN-199), `unattended` and `trimTools` moving from `chain_flags` into Even Keel's setting rows.
  */
 export const STEPS: readonly string[] = [
   `
@@ -94,6 +95,44 @@ export const STEPS: readonly string[] = [
     settled_at text
   );
   create index mailbox_session on mailbox (session_id);
+  `,
+  `
+  create table projects (
+    id               text primary key,
+    key              text not null unique,
+    name             text,
+    repo             text not null,
+    branch           text not null,
+    tracker_projects text not null default '{}',
+    position         integer not null
+  );
+  create table setting_definitions (
+    key           text primary key,
+    kind          text not null,
+    spec          text not null,
+    default_value text,
+    scopes        text not null,
+    qualifier     text,
+    task_label    text
+  );
+  create table setting_values (
+    key        text not null references setting_definitions (key),
+    project_id text references projects (id) on delete cascade,
+    qualifier  text not null default '',
+    value      text not null,
+    updated_at text not null,
+    updated_by text not null
+  );
+  create unique index setting_values_target on setting_values (key, (coalesce(project_id, '')), qualifier);
+  create table service_state (
+    name  text primary key,
+    value text not null
+  );
+  insert into setting_definitions (key, kind, spec, default_value, scopes)
+    select name, 'boolean', '{}', case name when 'unattended' then 'false' else 'true' end, 'global' from chain_flags;
+  insert into setting_values (key, project_id, qualifier, value, updated_at, updated_by)
+    select name, null, '', value, to_char(now() at time zone 'utc', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'), 'import' from chain_flags;
+  drop table chain_flags;
   `,
 ]
 

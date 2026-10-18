@@ -12,6 +12,7 @@ import {
   saveQuestions,
 } from './store.js'
 import { notice, textNotice } from '../notice/notice.js'
+import { mirrorDefinitions, putSettings } from '../settings/store.js'
 import { Writes } from '../storage/database.js'
 import { memoryDatabase } from '../storage/memory.js'
 
@@ -35,12 +36,21 @@ describe('chain store', { timeout: 30_000 }, () => {
       skipped: { ABC: ['ABC-3'] },
       leftovers: { ABC: [{ task: 'ABC-0', at: 't', notice: notice('cleanup.worktreeKept', { path: 'C:\\abc' }) }] },
       released: { ABC: ['ABC-4'] },
-      unattended: true,
-      trimTools: false,
+      unattended: false,
+      trimTools: true,
       ci: { ABC: { green: 'abc123', check: { commit: 'def456', at: 't', tasks: ['ABC-5'] } } },
     }
     await saveChainState(store, state)
     expect(await loadChainState(store)).toEqual(state)
+  })
+
+  it('reads the switches from the settings, not from what it saved', async () => {
+    const store = await db()
+    await saveChainState(store, { ...emptyChainState(), unattended: true, trimTools: false })
+    expect(await loadChainState(store)).toMatchObject({ unattended: false, trimTools: true })
+    await mirrorDefinitions(store)
+    await putSettings(store, [{ key: 'unattended', project: null, qualifier: '', value: true }, { key: 'trimTools', project: null, qualifier: '', value: false }], 'page')
+    expect(await loadChainState(store)).toMatchObject({ unattended: true, trimTools: false })
   })
 
   it('replaces the stored chain state whole', async () => {

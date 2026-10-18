@@ -111,16 +111,18 @@ describe('parseConfig', () => {
       hiddenSkills: DEFAULT_HIDDEN_SKILLS,
       cacheTtl: null,
       parallel: 1,
-      updates: { check: true, notify: true, dismissed: null },
+      updates: { check: true, notify: true },
+      unattended: false,
+      trimTools: true,
     })
   })
 
-  it('takes the release check, its toasts and the closed version from updates', () => {
-    expect(parse({ projects: {}, updates: { check: false } }).updates).toEqual({ check: false, notify: true, dismissed: null })
-    expect(parse({ projects: {}, updates: { notify: false, dismissed: '0.2.0' } }).updates).toEqual({ check: true, notify: false, dismissed: '0.2.0' })
+  it('takes the release check and its toasts from updates', () => {
+    expect(parse({ projects: {}, updates: { check: false } }).updates).toEqual({ check: false, notify: true })
+    expect(parse({ projects: {}, updates: { notify: false } }).updates).toEqual({ check: true, notify: false })
     expect(() => parse({ projects: {}, updates: true })).toThrow(/updates must be an object/)
     expect(() => parse({ projects: {}, updates: { check: 'no' } })).toThrow(/updates\.check/)
-    expect(() => parse({ projects: {}, updates: { dismissed: 'soon' } })).toThrow(/updates\.dismissed/)
+    expect(() => parse({ projects: {}, updates: { dismissed: '0.2.0' } })).toThrow(/updates\.dismissed/)
     expect(() => parse({ projects: {}, updates: { channel: 'beta' } })).toThrow(/updates\.channel/)
   })
 

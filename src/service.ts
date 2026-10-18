@@ -29,8 +29,8 @@ import { appendLaunch, loadChainState, loadQuestions, readLaunches, saveChainSta
 import { CI_TOKENS, ciSource, projectTargets } from './ci/adapters.js'
 import { CiWatch } from './ci/watcher.js'
 import { CiWatches } from './ci/watches.js'
-import { ConfigFile } from './config-file.js'
-import { DEFAULT_BRANCH, DEFAULT_CI, listenOf, mcpPortOf, poolEntries, projectsByAccount, readRawConfig, runSettings, type EvenKeelConfig } from './config.js'
+import { ConfigStore } from './config-store.js'
+import { DEFAULT_BRANCH, DEFAULT_CI, listenOf, mcpPortOf, poolEntries, projectsByAccount, runSettings, type EvenKeelConfig } from './config.js'
 import { envTargets } from './env-file.js'
 import { EventHub } from './events.js'
 import { runGit } from './git/run.js'
@@ -46,7 +46,7 @@ import { removalBlock, type RemovalFacts } from './projects/removal.js'
 import { Packages } from './packages/service.js'
 import { secretCatalog } from './secrets/catalog.js'
 import { Secrets } from './secrets/service.js'
-import { createEvenKeelServer } from './server.js'
+import { createEvenKeelServer, type ChainControl } from './server.js'
 import { replyPrompt, type Reply } from './sessions/ask.js'
 import { inboxImage, saveInbox, type InboxFile } from './sessions/inbox.js'
 import type { SessionMail } from './sessions/mail.js'
@@ -68,6 +68,7 @@ import type { EvenKeelState, SessionView } from './state.js'
 import { StatsReader } from './stats/reader.js'
 import { Writes } from './storage/database.js'
 import { keptDatabase } from './storage/owner.js'
+import { setStateValue, stateValue } from './storage/service-state.js'
 import { rekeyed } from './storage/projects.js'
 import { TallyService } from './stats/tally.js'
 import { chainSettings, readToolsView } from './tools/panel.js'
@@ -105,18 +106,27 @@ const CI_TIMEOUT_MS = 15_000
 const UPDATE_POLL_MS = 12 * 60 * 60_000
 const PLUGIN_UPDATE_TIMEOUT_MS = 2 * 60_000
 
-const configFile = new ConfigFile({
-  file: configPath(),
+const stateDb = keptDatabase()
+const db = stateDb.db
+/** The database's writes are not waited for: the dispatcher and the page go on from what they hold in memory. */
+const writes = new Writes((line) => console.warn(line))
+const configStore = await ConfigStore.open({
+  db,
+  writes,
   intervalMs: CONFIG_POLL_MS,
   warn: (message) => console.warn(message),
   onChange: (before) => {
-    if (before !== configFile.current) projectsChanged(before)
+    if (before !== configStore.current) projectsChanged(before)
+    dispatcher.setUnattended(configStore.current.unattended)
+    dispatcher.setTrimTools(configStore.current.trimTools)
     for (const [project, tasks] of tasksByProject) dispatcher.setTasks(project, tasks)
     dispatcher.check()
     updates.configChanged()
     hub.broadcast('state', getState())
   },
 })
+/** The version whose toast the user closed: state, not a setting (BTN-199). */
+let dismissedUpdate = (await stateValue(db, 'updates.dismissed')) as string | null | undefined
 const envFile = loadEnv()
 let { listen, token, mcpPort } = (() => {
   try {
@@ -129,20 +139,16 @@ let { listen, token, mcpPort } = (() => {
 })()
 /** A new address that could not be taken: the service stays on the old one. */
 let listenError: Notice | null = null
-const branchOf = (project: string) => configFile.current.settings[project]?.branch ?? DEFAULT_BRANCH
-const rulesOf = (project: string) => configFile.current.rules[project]!
+const branchOf = (project: string) => configStore.current.settings[project]?.branch ?? DEFAULT_BRANCH
+const rulesOf = (project: string) => configStore.current.rules[project]!
 const stateDir = stateDirOf()
 mkdirSync(stateDir, { recursive: true })
-const stateDb = keptDatabase()
-const db = stateDb.db
-/** The database's writes are not waited for: the dispatcher and the page go on from what they hold in memory. */
-const writes = new Writes((line) => console.warn(line))
 const mailbox = await Mailbox.open(db, writes, () => new Date())
 const limitsFile = join(stateDir, 'rate-limits.json')
 const accountFile = join(stateDir, 'account.json')
 const links = new Map<string, TrackerLink>()
 /** The link of the project's tracker; `undefined` while that tracker is off. */
-const linkOf = (project: string) => links.get(configFile.current.trackers[project]!)
+const linkOf = (project: string) => links.get(configStore.current.trackers[project]!)
 const hub = new EventHub()
 const transcriptWatch = new TranscriptWatch(
   (sessionId) => hub.signal('transcript', { sessionId }),
@@ -150,7 +156,7 @@ const transcriptWatch = new TranscriptWatch(
 )
 const homes = new AccountHomes(process.env, accountsRoot(process.env))
 /** The shared pool's Claude entry: whose `.claude.json` and tools the Claude-only checks read. */
-const claudeAccount = () => configFile.current.accounts[CLAUDE]!
+const claudeAccount = () => configStore.current.accounts[CLAUDE]!
 /** `.claude.json` files sessions read: the global one and the shared Claude account's. */
 const claudeConfigs = () =>
   [...new Set([homes.global, homes.find(claudeAccount())].flatMap((home) => (home === undefined ? [] : [homes.configFile(home)])))]
@@ -159,15 +165,15 @@ const packages: Packages = new Packages({
   cache: join(stateDir, 'packages'),
   envFile: join(root, '.env'),
   get ids() {
-    return configFile.current.ids
+    return configStore.current.ids
   },
   get repos() {
-    return configFile.current.projects
+    return configStore.current.projects
   },
   globalDir: homes.global.dir,
   claudeConfigs,
   rules: trackerKeyRules(),
-  trackerServer: (project) => (configFile.current.briefs[project] ? undefined : ADAPTERS[configFile.current.trackers[project]!]!.mcpServer),
+  trackerServer: (project) => (configStore.current.briefs[project] ? undefined : ADAPTERS[configStore.current.trackers[project]!]!.mcpServer),
   agentOf: (project) => homes.find(choiceFor(project).account)?.agent ?? CLAUDE,
   updateMarketplace: (marketplace) => updateMarketplace(envOf(homes.global), marketplace, PLUGIN_UPDATE_TIMEOUT_MS),
   baseEnv: (): NodeJS.ProcessEnv => sessionBase(process.env, packages.keyNames()),
@@ -196,18 +202,18 @@ const refreshers = new Map<string, () => Promise<void>>()
 let sessions: SessionView[] = []
 let agents: AgentEntry[] = []
 let agentsRead = false
-const launches: LaunchEntry[] = await readLaunches(db, configFile.current.ids)
+const launches: LaunchEntry[] = await readLaunches(db, configStore.current.ids)
 const trackers = new Trackers({
   adapters: ADAPTERS,
   start: (view, setup) =>
     startTracker(view, setup, {
-      repoOf: (project) => configFile.current.projects[project]!,
+      repoOf: (project) => configStore.current.projects[project]!,
       rulesOf,
       links,
       tasksByProject,
       launches,
       dispatcher,
-      fillsMilestone: (project) => configFile.current.settings[project]?.fillMilestone ?? false,
+      fillsMilestone: (project) => configStore.current.settings[project]?.fillMilestone ?? false,
       mainBranch: branchOf,
       broadcast: () => hub.broadcast('state', getState()),
       refreshers,
@@ -246,7 +252,7 @@ const newTally = () =>
     log: (message) => console.log(message),
   })
 let tally = newTally()
-const stats = new StatsReader(tally.reader, () => configFile.current.projects, () => configFile.current.stats)
+const stats = new StatsReader(tally.reader, () => configStore.current.projects, () => configStore.current.stats)
 let ledger = loadLedger(accountFile)
 
 const saveAccounts = (next: AccountLedger) => {
@@ -284,7 +290,7 @@ const release = installed(root)
 const updates = new UpdateWatcher({
   repo: release.repo,
   current: release.version,
-  enabled: () => configFile.current.updates.check,
+  enabled: () => configStore.current.updates.check,
   intervalMs: UPDATE_POLL_MS,
   onChange: () => hub.broadcast('state', getState()),
   log: (line) => console.log(line),
@@ -335,7 +341,7 @@ const account = new AccountWatcher({
   prepare: (home) => daemons.prepare(home),
   active: () => activeAccount(),
   activate: (key) => {
-    configFile.saveActive(homes.find(key)?.agent ?? CLAUDE, key)
+    configStore.saveActive(homes.find(key)?.agent ?? CLAUDE, key)
     hub.broadcast('state', getState())
     dispatcher.check()
   },
@@ -344,8 +350,8 @@ const account = new AccountWatcher({
   name: (key, name) => saveAccounts(nameAccount(ledger, key, name)),
   loginBlock: (): LoginBlock | null => loginBlock(dispatcher.state.active, agents, activeAccount()),
   sessionsIn: (key) => liveSessions(agents, key),
-  projectsOn: (key) => projectsByAccount(configFile.current, Object.keys(configFile.current.projects))[key] ?? [],
-  pool: () => poolEntries(configFile.current, Object.keys(configFile.current.projects)),
+  projectsOn: (key) => projectsByAccount(configStore.current, Object.keys(configStore.current.projects))[key] ?? [],
+  pool: () => poolEntries(configStore.current, Object.keys(configStore.current.projects)),
   sessionsKnown: () => agentsRead,
   removing: (key) => ledger.removing.includes(key),
   markRemoving: (key, on) => saveAccounts(markRemoving(ledger, key, on)),
@@ -407,7 +413,7 @@ const monitor = new SessionMonitor({
   homes: () => homes.list(),
   emailOf: (key) => account.emailOf(key),
   apiKey: (key) => account.apiKey(key),
-  projectKeys: () => Object.keys(configFile.current.projects),
+  projectKeys: () => Object.keys(configStore.current.projects),
   intervalMs: SESSION_POLL_MS,
   onAgents: (list) => {
     const before = JSON.stringify(account.view.loginBlock)
@@ -450,18 +456,18 @@ const hasAccount = (provider: string, key: string) => homes.find(key)?.agent ===
 
 /** What a new session of the task (or of the fix session `task`) runs on, and in which account folder. */
 const choiceFor = (project: string | undefined, task?: string): RunChoice =>
-  runChoice(task === undefined ? undefined : knownTask(task), runSettings(configFile.current, project), hasAccount)
+  runChoice(task === undefined ? undefined : knownTask(task), runSettings(configStore.current, project), hasAccount)
 
 const planFor = (task: string, prompt: string, project = projectOf(task)): LaunchPlan => {
   const full = withUnattended(prompt, dispatcher.state.unattended, promptLanguage())
-  const plan = launchPlan(knownTask(task), full, runSettings(configFile.current, project), configFile.current.modelPrompts, hasAccount)
+  const plan = launchPlan(knownTask(task), full, runSettings(configStore.current, project), configStore.current.modelPrompts, hasAccount)
   if (plan.warning !== null) console.warn(plan.warning)
   return plan
 }
 
 /** What a session also gets: the project's packages, and the global execution mode for an agent other than Claude Code. */
 const agentExtras = (home: AccountHome, project: string | undefined, task: string): Pick<SessionStart, 'bypassSandbox' | 'mcp' | 'plugins'> => ({
-  ...(home.agent !== CLAUDE && configFile.current.execution[home.agent] === 'bypass' ? { bypassSandbox: true } : {}),
+  ...(home.agent !== CLAUDE && configStore.current.execution[home.agent] === 'bypass' ? { bypassSandbox: true } : {}),
   ...(project === undefined ? {} : packages.startOf(project, task)),
 })
 
@@ -473,27 +479,27 @@ const noAccountFor = (task: string, fallback: string, provider: string) =>
   })
 
 /** The account holding the Even Keel role, the one the header shows: the shared provider's entry of the shared pool. */
-const activeAccount = () => configFile.current.accounts[configFile.current.provider]!
+const activeAccount = () => configStore.current.accounts[configStore.current.provider]!
 
-const promptLanguage = () => configFile.current.promptLanguage
+const promptLanguage = () => configStore.current.promptLanguage
 
 const trackerPlace = (project: string): TrackerPlace | null => {
-  const name = configFile.current.trackers[project]!
-  const place = configFile.current.trackerProjects[project]
+  const name = configStore.current.trackers[project]!
+  const place = configStore.current.trackerProjects[project]
   return place === undefined ? null : { title: ADAPTERS[name]!.title, project: place }
 }
 
 const briefed = async (task: string, given: string, project = projectOf(task)): Promise<string> => {
   if (project === undefined) return given
   const prompt = withTracker(given, trackerPlace(project), promptLanguage())
-  if (!configFile.current.briefs[project]) return prompt
+  if (!configStore.current.briefs[project]) return prompt
   const link = linkOf(project)
   return link === undefined ? prompt : withBrief(prompt, await link.run(async (tracker) => tracker.brief?.(task)), promptLanguage())
 }
 
 /** The project's own prompt, for a new session only: a resumed one already has it. */
 const withProject = (prompt: string, project: string | undefined): string =>
-  withProjectPrompt(prompt, project === undefined ? null : (configFile.current.settings[project]?.prompt ?? null), promptLanguage())
+  withProjectPrompt(prompt, project === undefined ? null : (configStore.current.settings[project]?.prompt ?? null), promptLanguage())
 
 /** The settings files whose `enabledPlugins` a chain session would read. */
 const pluginSettings = (repo: string) =>
@@ -503,24 +509,24 @@ const settingsFor = (task: string, project = projectOf(task)): string | undefine
   project === undefined
     ? undefined
     : chainSettings(
-        configFile.current.projects[project]!,
-        packages.otherPlugins(project, task, pluginSettings(configFile.current.projects[project]!)),
+        configStore.current.projects[project]!,
+        packages.otherPlugins(project, task, pluginSettings(configStore.current.projects[project]!)),
         dispatcher.state.trimTools,
-        configFile.current.hiddenSkills,
+        configStore.current.hiddenSkills,
         homes.global.dir,
-        configFile.current.cacheTtl,
+        configStore.current.cacheTtl,
       )
 
 function projectOf(task: string): string | undefined {
   for (const [project, tasks] of tasksByProject) if (tasks.some((each) => each.id === task)) return project
-  const fixed = isFixName(task) ? Object.keys(configFile.current.projects).find((project) => fixName(project) === fixTaskOf(task)) : undefined
+  const fixed = isFixName(task) ? Object.keys(configStore.current.projects).find((project) => fixName(project) === fixTaskOf(task)) : undefined
   return fixed ?? dispatcher.state.active.find((chain) => chain.current?.task === task)?.project
 }
 
 const slotsSeen = new Map<string, number>()
 /** How many slots the project's tasks may be in: the most it had since the start, so a pool shrunk on the fly still finds its busy slots. */
 function slotSpan(project: string): number {
-  const span = Math.max(slotsSeen.get(project) ?? 0, configFile.current.slots[project] ?? 0)
+  const span = Math.max(slotsSeen.get(project) ?? 0, configStore.current.slots[project] ?? 0)
   slotsSeen.set(project, span)
   return span
 }
@@ -529,35 +535,35 @@ const places = new TaskPlaces({
   git: runGit,
   main: branchOf,
   place: async (project, task, { ahead = false, at } = {}) => {
-    const repo = configFile.current.projects[project]!
+    const repo = configStore.current.projects[project]!
     const main = branchOf(project)
     await requireBranch(runGit, repo, project, main)
     await ensureIgnored(runGit, repo)
-    const count = configFile.current.slots[project]
+    const count = configStore.current.slots[project]
     const span = slotSpan(project)
     if (isFixName(task)) return prepareWorktree(runGit, repo, task, main, ahead)
     if (count === undefined) return (span > 0 ? await heldSlot(runGit, repo, task, span) : undefined) ?? prepareWorktree(runGit, repo, task, main, ahead)
     const pool = { count, span, main, ahead, occupancy: (path: string) => slotUse(path, task), vacate: (path: string) => vacateSlot(path, task) }
     return prepareSlot(runGit, repo, task, at === undefined ? pool : { ...pool, at })
   },
-  setUp: (project, task, path) => runBeforeStart(configFile.current.settings[project]?.beforeStart ?? [], taskRun(task, path)),
+  setUp: (project, task, path) => runBeforeStart(configStore.current.settings[project]?.beforeStart ?? [], taskRun(task, path)),
 })
 
 /** Keeps a done task the chain ran in the database's archive, by what its tracker last said of it. */
 function archiveClosed(project: string, task: string): void {
-  const tracker = configFile.current.trackers[project]!
+  const tracker = configStore.current.trackers[project]!
   const title = tasksByProject.get(project)?.find((each) => each.id === task)?.title ?? ''
   const url = issueLink(trackers.setup(tracker)?.issueUrl(project) ?? null, task)
-  writes.add(`the archive of ${task}`, saveClosedTask(db, { project, task, tracker, title, url, closedAt: new Date().toISOString() }, configFile.current.ids))
+  writes.add(`the archive of ${task}`, saveClosedTask(db, { project, task, tracker, title, url, closedAt: new Date().toISOString() }, configStore.current.ids))
 }
 
 function taskRun(task: string, cwd: string): SetupRun {
   return { task, cwd, shell: systemShell(() => envOf(homeOf(claudeAccount()))), log: (line) => console.log(line) }
 }
 
-const dispatcher = new Dispatcher(await loadChainState(db, configFile.current.ids), {
-  projects: () => Object.keys(configFile.current.projects),
-  parallel: () => configFile.current.parallel,
+const dispatcher = new Dispatcher(await loadChainState(db, configStore.current.ids), {
+  projects: () => Object.keys(configStore.current.projects),
+  parallel: () => configStore.current.parallel,
   rules: rulesOf,
   launch: async (project, task) => {
     const home = homeOf(choiceFor(project, task).account)
@@ -583,11 +589,11 @@ const dispatcher = new Dispatcher(await loadChainState(db, configFile.current.id
   midTurn: (task) => agentStatus(task) === 'busy',
   asked: (task) => liveView(task)?.ask?.id ?? null,
   save: (state) => {
-    writes.add('the chain state', saveChainState(db, state, configFile.current.ids))
+    writes.add('the chain state', saveChainState(db, state, configStore.current.ids))
     hub.broadcast('state', getState())
   },
   journal: (entry) => {
-    writes.add(`the launch of ${entry.task}`, appendLaunch(db, entry, configFile.current.ids))
+    writes.add(`the launch of ${entry.task}`, appendLaunch(db, entry, configStore.current.ids))
     launches.push(entry)
     console.log(launchLine(entry))
   },
@@ -635,7 +641,7 @@ const dispatcher = new Dispatcher(await loadChainState(db, configFile.current.id
   stop: (session) => stopIn(homeOf(session.account), session),
   finish: async (project, task) => {
     if (!isFixName(task)) archiveClosed(project, task)
-    const repo = configFile.current.projects[project]!
+    const repo = configStore.current.projects[project]!
     const span = isFixName(task) ? 0 : slotSpan(project)
     let stopped: Notice[]
     let finished: Awaited<ReturnType<typeof finishWorktree>>
@@ -656,13 +662,13 @@ const dispatcher = new Dispatcher(await loadChainState(db, configFile.current.id
   refresh: async (project) => refreshers.get(project)?.(),
   log: (message) => console.log(message),
   main: mainCheckDeps({
-    repo: (project) => configFile.current.projects[project]!,
+    repo: (project) => configStore.current.projects[project]!,
     main: branchOf,
     git: runGit,
     watches: (project) => (ciWatches.found ? (ciWatches.byProject.get(project) ?? []) : null),
-    settings: (project) => configFile.current.settings[project]?.ci ?? DEFAULT_CI,
-    commands: (project) => configFile.current.settings[project]?.check ?? [],
-    language: () => configFile.current.language ?? promptLanguage(),
+    settings: (project) => configStore.current.settings[project]?.ci ?? DEFAULT_CI,
+    commands: (project) => configStore.current.settings[project]?.check ?? [],
+    language: () => configStore.current.language ?? promptLanguage(),
     promptLanguage,
     create: async (task) => (await linkOf(task.project)?.run(async (tracker) => tracker.create?.(task))) ?? null,
     comment: async (task, body) => {
@@ -672,9 +678,9 @@ const dispatcher = new Dispatcher(await loadChainState(db, configFile.current.id
     },
     prepare: (project, task) => places.prepare(project, task),
     place: async (project, task) => (await places.readyAhead(project, task)).path,
-    runCheck: (project, task, cwd) => runCheck(configFile.current.settings[project]?.check ?? [], taskRun(task, cwd)),
-    afterGreen: (project) => configFile.current.settings[project]?.afterGreen ?? [],
-    runAfterGreen: (project, cwd) => runAfterGreen(configFile.current.settings[project]?.afterGreen ?? [], taskRun(project, cwd)),
+    runCheck: (project, task, cwd) => runCheck(configStore.current.settings[project]?.check ?? [], taskRun(task, cwd)),
+    afterGreen: (project) => configStore.current.settings[project]?.afterGreen ?? [],
+    runAfterGreen: (project, cwd) => runAfterGreen(configStore.current.settings[project]?.afterGreen ?? [], taskRun(project, cwd)),
     now: () => new Date(),
   }),
 })
@@ -787,7 +793,7 @@ async function stopTaskSessions(repo: string, task: string, count: number): Prom
 /** What holds a project the page asks to remove: its chain, live sessions of its tasks or in its folders, the places it keeps. */
 function removalFacts(project: string, repo: string): RemovalFacts {
   const own = new Map(launches.filter((entry) => entry.project === project).map((entry) => [entry.sessionId, entry.task]))
-  const slots = slotPaths(repo, configFile.current.slots[project] ?? 0)
+  const slots = slotPaths(repo, configStore.current.slots[project] ?? 0)
   const sessions = agents
     .filter((agent) => isLive(agent) && (own.has(agent.sessionId) || [repo, ...slots].some((folder) => isInside(agent.cwd, folder))))
     .map((agent) => `${own.get(agent.sessionId) ?? agent.cwd} (${agent.sessionId})`)
@@ -803,12 +809,12 @@ function removalFacts(project: string, repo: string): RemovalFacts {
 
 const getState = (): EvenKeelState => ({
   startedAt,
-  projects: Object.keys(configFile.current.projects),
-  projectIds: configFile.current.ids,
-  config: configFile.view(launchedProjects(launches)),
+  projects: Object.keys(configStore.current.projects),
+  projectIds: configStore.current.ids,
+  config: configStore.view(launchedProjects(launches)),
   chain: {
     active: dispatcher.state.active,
-    parallel: configFile.current.parallel,
+    parallel: configStore.current.parallel,
     queue: dispatcher.state.queue,
     projects: dispatcher.orders(),
     skipped: dispatcher.state.skipped,
@@ -824,25 +830,25 @@ const getState = (): EvenKeelState => ({
   account: account.view,
   trackers: trackers.views(),
   trackerUrls: {
-    default: trackers.setup(configFile.current.tracker)?.issueUrl(null) ?? null,
-    projects: Object.fromEntries(Object.keys(configFile.current.projects).map((project) => [project, trackers.setup(configFile.current.trackers[project]!)?.issueUrl(project) ?? null])),
+    default: trackers.setup(configStore.current.tracker)?.issueUrl(null) ?? null,
+    projects: Object.fromEntries(Object.keys(configStore.current.projects).map((project) => [project, trackers.setup(configStore.current.trackers[project]!)?.issueUrl(project) ?? null])),
   },
   ci: Object.fromEntries([...ciWatches.byProject].map(([project, watches]) => [project, watches.map((watch) => watch.view)])),
   launches: launchDays(launches, new Date(), LAUNCH_CHART_DAYS),
   taskSessions: taskSessions(launches, sessions, sessionAccount),
   fixes: fixEpisodes(launches).episodes,
-  context: configFile.current.context,
-  configError: configFile.error ?? listenError,
+  context: configStore.current.context,
+  configError: configStore.error ?? listenError,
   packages: packages.view(),
   secrets: secrets.view(),
-  language: configFile.current.language,
+  language: configStore.current.language,
   unattended: dispatcher.state.unattended,
   trimTools: dispatcher.state.trimTools,
-  updates: updatesView(release.version, updates.latest, configFile.current.updates),
+  updates: updatesView(release.version, updates.latest, { ...configStore.current.updates, dismissed: dismissedUpdate ?? null }),
   fallbacks: fallbacksSince(launches, new Date(Date.now() - FALLBACK_TOAST_MS)).map(({ at, task, project, fallback }) => ({
     at,
     task,
-    notice: noAccountFor(task, fallback, runSettings(configFile.current, project).provider),
+    notice: noAccountFor(task, fallback, runSettings(configStore.current, project).provider),
   })),
   mailbox: Object.fromEntries(
     sessions.flatMap((view): [string, SessionMail][] => {
@@ -853,11 +859,20 @@ const getState = (): EvenKeelState => ({
   ),
 })
 
+// The chain's switches are Even Keel's setting rows: the page's switches write them, and `onChange` hands them to the dispatcher.
+const SWITCHES: Partial<Record<keyof ChainControl, (on: boolean) => void>> = {
+  setUnattended: (on) => configStore.saveChainSwitches({ unattended: on }),
+  setTrimTools: (on) => configStore.saveChainSwitches({ trimTools: on }),
+}
+const chainControl: ChainControl = new Proxy(dispatcher, {
+  get: (target, key, receiver) => SWITCHES[key as keyof ChainControl] ?? Reflect.get(target, key, receiver),
+})
+
 let server = createEvenKeelServer({
   hub,
   publicDir: join(root, 'dist', 'web'),
   getState,
-  control: dispatcher,
+  control: chainControl,
   account,
   sessions: {
     answer: ({ project, task, sessionId, ask, answers, text, files }) => answerSession(project, task, sessionId, ask, { from: 'page', answers, text, files }),
@@ -868,21 +883,21 @@ let server = createEvenKeelServer({
   },
   settings: {
     save: (project, form, base) => {
-      if (configFile.current.projects[project] === undefined) throw fail('config.unknownProject', { key: project })
+      if (configStore.current.projects[project] === undefined) throw fail('config.unknownProject', { key: project })
       const moved = form.tracker !== base.tracker || form.trackerProject !== base.trackerProject
       if (moved && launchedProjects(launches).includes(project)) throw fail('config.trackerLocked', { key: project })
-      configFile.saveProject(project, form, base)
+      configStore.saveProject(project, form, base)
       console.log(`page: the settings of ${project} are written to the config`)
     },
     saveShared: (form, base) => {
-      configFile.saveShared(form, base)
+      configStore.saveShared(form, base)
       console.log('page: the shared settings are written to the config')
     },
     check: (draft) =>
       checkDraft(
         {
           git: runGit,
-          raw: () => readRawConfig(configPath()),
+          raw: () => configStore.raw(),
           adapters: ADAPTERS,
           env: process.env,
           claudeConfig: () => readJson(homes.configFile(homes.global)),
@@ -891,19 +906,23 @@ let server = createEvenKeelServer({
         draft,
       ),
     add: (draft) => {
-      configFile.addProject(draft)
+      configStore.addProject(draft)
       console.log(`page: the project ${draft.key.trim()} is added to the config`)
     },
     remove: (project) => {
-      const repo = configFile.current.projects[project]
+      const repo = configStore.current.projects[project]
       if (repo === undefined) throw fail('config.unknownProject', { key: project })
       const blocked = removalBlock(removalFacts(project, repo))
       if (blocked !== null) throw new NoticeError(blocked)
-      configFile.removeProject(project)
+      configStore.removeProject(project)
       console.log(`page: the project ${project} is removed from the config; its repository, worktrees and branches are left as they are`)
     },
-    dismissUpdate: (version) => configFile.saveUpdates({ dismissed: version }),
-    muteUpdates: () => configFile.saveUpdates({ notify: false }),
+    dismissUpdate: (version) => {
+      dismissedUpdate = version
+      writes.add('the dismissed update', setStateValue(db, 'updates.dismissed', version))
+      hub.broadcast('state', getState())
+    },
+    muteUpdates: () => configStore.saveUpdates({ notify: false }),
   },
   packages,
   secrets: {
@@ -959,13 +978,13 @@ let server = createEvenKeelServer({
   mergeCheck: (sessionId) => {
     const run = handoffsOf(launches, sessionId)
     if (run === undefined) return undefined
-    const settings = configFile.current.settings[run.project]
+    const settings = configStore.current.settings[run.project]
     const views = (ciWatches.byProject.get(run.project) ?? []).map((watch) => watch.view)
     const commands = settings === undefined ? [] : mergeCheck(settings.check, settings.ci, views)
     return { commands, branch: branchOf(run.project) }
   },
   tools: async (project) => {
-    const repo = configFile.current.projects[project]
+    const repo = configStore.current.projects[project]
     if (repo === undefined) return undefined
     const list = homes.list()
     const view = await readToolsView(project, {
@@ -975,7 +994,7 @@ let server = createEvenKeelServer({
       accounts: list.filter((home) => !home.global).map(({ key, dir }) => ({ key, dir })),
       homes: list.map((home) => home.dir),
       trim: dispatcher.state.trimTools,
-      hidden: configFile.current.hiddenSkills,
+      hidden: configStore.current.hiddenSkills,
       mode: agentOf(homes.find(claudeAccount()) ?? homes.global).mode,
     })
     const received = view.received
@@ -1029,7 +1048,7 @@ let server = createEvenKeelServer({
     },
   },
   stats,
-  guard: () => ({ hosts: guardHosts(listen.host, configFile.current.allowedHosts), token, language: configFile.current.language ?? promptLanguage() }),
+  guard: () => ({ hosts: guardHosts(listen.host, configStore.current.allowedHosts), token, language: configStore.current.language ?? promptLanguage() }),
 })
 
 /** The first answer `read` finds in any account folder. */
@@ -1043,7 +1062,7 @@ async function inHomes<T>(read: (home: AccountHome) => Promise<T | undefined>): 
 
 function configuredProject(task: string): string | undefined {
   const project = parseTaskId(task)?.project
-  return project !== undefined && Object.hasOwn(configFile.current.projects, project) ? project : undefined
+  return project !== undefined && Object.hasOwn(configStore.current.projects, project) ? project : undefined
 }
 
 const postedQuestions = await loadQuestions(db)
@@ -1063,7 +1082,7 @@ const questions = new TrackerQuestions({
     return [...current, ...aside]
   },
   tracker: (project, call) => linkOf(project)?.run(call),
-  language: () => configFile.current.language ?? promptLanguage(),
+  language: () => configStore.current.language ?? promptLanguage(),
   load: () => postedQuestions,
   save: (posted) => writes.add('the posted questions', saveQuestions(db, posted)),
   answer: (project, task, sessionId, ask, reply) => answerSession(project, task, sessionId, ask, { from: 'tracker', ...reply }),
@@ -1077,7 +1096,7 @@ setInterval(() => settleMail(mailRelay), 15_000).unref()
 setInterval(() => dispatcher.check(), LIMIT_CHECK_MS).unref()
 
 const applyCi = () =>
-  void ciWatches.apply(configFile.current.projects).then(() => {
+  void ciWatches.apply(configStore.current.projects).then(() => {
     dispatcher.check()
     hub.broadcast('state', getState())
   })
@@ -1088,7 +1107,7 @@ setInterval(() => {
 
 /** The config's projects changed: renamed keys carry their state, removed ones let their chain go, the rest follows the config. */
 function projectsChanged(before: EvenKeelConfig): void {
-  const after = configFile.current
+  const after = configStore.current
   const rename = rekeyed(before.ids, after.ids)
   const renamed = Object.keys(before.ids).filter((key) => rename(key) !== key)
   if (renamed.length > 0) {
@@ -1120,7 +1139,7 @@ limits.start()
 updates.start()
 account.start()
 vscode.start()
-configFile.watch()
+configStore.watch()
 void packages.start()
 tally.start()
 envFile.subscribe((changed) => void envChanged(changed))
@@ -1139,13 +1158,13 @@ server.listen(listen.port, listen.host, () => {
   console.log(`even-keel listening on http://${listen.host}:${listen.port}`)
 })
 
-trackers.apply(configFile.current, process.env)
+trackers.apply(configStore.current, process.env)
 
 /** `.env` changed: whoever reads the changed variables takes them now (`docs/service.md`). */
 async function envChanged(changed: string[]): Promise<void> {
   console.log(`env: ${changed.join(', ')} changed in .env`)
   const targets = envTargets(changed)
-  if (targets.trackers.length > 0) trackers.apply(configFile.current, process.env)
+  if (targets.trackers.length > 0) trackers.apply(configStore.current, process.env)
   if (targets.ci) ciWatches.tokensChanged()
   if (targets.accounts) {
     homes.setRoots(accountsRoot(process.env), codexAccountsRoot(process.env))

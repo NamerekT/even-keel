@@ -44,13 +44,7 @@ The tracker tools must appear in this project and in every worktree made from it
 
 ## 4. Even Keel
 
-If the user runs Even Keel, the project needs an entry in the `projects` array of its `even-keel.config.json`. The session reads the task through the plugin itself, so the brief is off:
-
-```json
-{ "key": "ABC", "repo": "<absolute path of the main checkout>", "brief": false }
-```
-
-Leave out `id`: Even Keel gives the entry one at its next start. That file belongs to the user's Even Keel install: change it only when they say so, otherwise hand them the entry. `projects` takes effect after Even Keel restarts.
+If the user runs Even Keel, the project is added on its page: **+ Add project** on the home page opens the wizard (the main checkout, its branch, the key `ABC`, the tracker `huly`). The session reads the task through the plugin itself, so the brief is off: untick it afterwards in the project's **Settings**. Even Keel keeps its settings in its own database, not in a file of the repository: hand the user these steps rather than editing anything of their install. It applies at once, no restart.
 
 ## 5. Report
 

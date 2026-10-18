@@ -7,15 +7,21 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { fixEpisodes, isLaunch } from '../chain/launches.js'
 import { readSnapshots } from '../chain/snapshots.js'
 import { closedTasks, loadChainState, loadQuestions, readLaunches } from '../chain/store.js'
+import { parseConfig } from '../config.js'
 import { root } from '../locations.js'
 import { noticeOf } from '../notice/notice.js'
 import { Mailbox } from '../sessions/mailbox.js'
+import { fileOf } from '../settings/file.js'
+import { readSettings } from '../settings/store.js'
+import { backupDatabase } from './copy.js'
 import { DATABASE_VERSION, databaseVersion, openDatabase, SQLITE_FILE, STEPS, Writes, type Queryable } from './database.js'
 import { databaseDirOf, dataDirOf } from './owner.js'
+import { stateValue } from './service-state.js'
 import { IMPORTED_SUFFIX, prepareDatabase } from './state-files.js'
 
 // Frozen samples of the database. Versions 1 and 2 were `node:sqlite` files: they are imported at the first start.
-// Version 3 is the first PGlite one: a later step must migrate it, and step 3 itself must still make exactly its tables.
+// Version 3 is the first PGlite one, version 4 adds the settings: a later step must migrate each, and each step itself
+// must still make exactly the tables of its sample.
 // A schema change is a new step and a new sample next to these, never an edit of either.
 const fixture = (version: number) => readFileSync(join(root, 'test', 'fixtures', `database-v${version}`, 'even-keel.sql'), 'utf8')
 
@@ -140,6 +146,55 @@ describe('frozen samples of the database', { timeout: 120_000 }, () => {
     try {
       await readsWhole(opened.db)
       expect((await mailboxOf(opened.db)).waiting).toEqual(['And run the slow tests.'])
+      expect((await readSettings(opened.db)).rows.map(({ key, value }) => [key, value])).toEqual([
+        ['trimTools', true],
+        ['unattended', false],
+      ])
+      expect(await opened.db.query("select 1 from information_schema.tables where table_name = 'chain_flags'")).toMatchObject({ rows: [] })
+    } finally {
+      await opened.close()
+    }
+    expect(logs).toEqual([])
+  })
+
+  it('of version 4 has the tables step 4 makes', async () => {
+    const frozen = await PGlite.create()
+    const made = await openDatabase(undefined, STEPS.slice(0, 2))
+    try {
+      await frozen.exec(fixture(4))
+      expect(await databaseVersion(frozen)).toBe(4)
+      expect(await schemaOf(made)).toEqual(await schemaOf(frozen))
+    } finally {
+      await frozen.close()
+      await made.close()
+    }
+  })
+
+  it('of version 4 is brought to the current schema and read whole, the settings with it', async () => {
+    const dataDir = dataDirOf(databaseDirOf(stateDir))
+    mkdirSync(dataDir, { recursive: true })
+    const frozen = await PGlite.create({ dataDir })
+    await frozen.exec(fixture(4))
+    await frozen.close()
+    const opened = await prepare()
+    try {
+      await readsWhole(opened.db)
+      const config = parseConfig(fileOf(await readSettings(opened.db)))
+      expect(config).toMatchObject({ parallel: 2, unattended: true, trimTools: true, projects: { ABC: 'C:\\repos\\example-project', XYZ: 'C:\\repos\\other-project' } })
+      expect(config.ids).toEqual({ ABC, XYZ })
+      expect(config.trackers).toEqual({ ABC: 'huly', XYZ: 'github' })
+      expect(config.settings.ABC?.models).toEqual({ claude: 'sonnet' })
+      expect(config.settings.XYZ?.branch).toBe('trunk')
+      expect(await stateValue(opened.db, 'updates.dismissed')).toBe('0.2.0')
+      const copyDir = join(stateDir, 'copy')
+      await backupDatabase(opened.db, copyDir)
+      const copy = await PGlite.create({ dataDir: dataDirOf(copyDir) })
+      try {
+        expect(await readSettings(copy)).toEqual(await readSettings(opened.db))
+        expect(await stateValue(copy, 'updates.dismissed')).toBe('0.2.0')
+      } finally {
+        await copy.close()
+      }
     } finally {
       await opened.close()
     }

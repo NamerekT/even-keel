@@ -16,6 +16,7 @@ export function loadEnv(): EnvFile {
 
 const ENV_POLL_MS = 2_000
 
+/** The config file of an install from before BTN-199: imported into the database at the first start, never read after. */
 export function configPath(env: NodeJS.ProcessEnv = process.env): string {
   return env.EVEN_KEEL_CONFIG ?? join(root, CONFIG_FILE)
 }

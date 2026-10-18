@@ -1,6 +1,6 @@
 # Storage
 
-Even Keel's state is one PGlite database, the folder `state/even-keel/` (`EVEN_KEEL_STATE_DIR`): since BTN-147 a database, since BTN-198 PGlite instead of the `node:sqlite` file `state/even-keel.db`. The config stays the file `even-keel.config.json`; `account.json`, `packages.json` (and its cache `packages/`), `rate-limits.json`, `codex/` and `rule-history.jsonl` stay files of `state/`; Tally's database is its own (`docs/stats.md`). Settings and projects move into the database before the v0.1 release (BTN-199): the user's answer in BTN-190.
+Even Keel's state is one PGlite database, the folder `state/even-keel/` (`EVEN_KEEL_STATE_DIR`): since BTN-147 a database, since BTN-198 PGlite instead of the `node:sqlite` file `state/even-keel.db`, since BTN-199 with the settings and the project records instead of the file `even-keel.config.json` (imported once, below). `account.json`, `packages.json` (and its cache `packages/`), `rate-limits.json`, `codex/` and `rule-history.jsonl` stay files of `state/`; Tally's database is its own (`docs/stats.md`).
 
 ## The database (`src/storage/database.ts`, `src/storage/owner.ts`)
 
@@ -9,13 +9,16 @@ Even Keel's state is one PGlite database, the folder `state/even-keel/` (`EVEN_K
 - Queries are small: no worker thread. Readers through the port see whole transactions: the server gets a proxy of the database whose `runExclusive` also takes the transaction lock (`wholeTransactions`), so a read never lands between the statements of the service's transaction.
 - Writes are not awaited by the service: `Writes` tracks them, logs a failure (`storage: … not saved`) and is settled on shutdown before the database closes. Order holds because PGlite runs queries and transactions in the order they were called, and every write starts its first query at the call. Writes of several rows go through `inTransaction` (a call inside another joins it).
 - `Mailbox` keeps its rows in memory (`Mailbox.open`) and writes behind, so `settle` stays atomic in one thread and `getState` stays synchronous; the posted questions are loaded at start (`loadQuestions`) and saved behind.
-- A project is named by its id (`projects[].id` of the config) in every `project_id`; `src/chain/store.ts` renames to keys and back with `config.ids`, as it did for the files (`docs/chain.md`).
+- A project is named by its id (`projects.id`) in every `project_id`; `src/chain/store.ts` renames to keys and back with `config.ids`, as it did for the files (`docs/chain.md`). Only `setting_values` has a foreign key to `projects`: the chain's tables keep the rows of a removed project as they did.
 - Tests use `memoryDatabase()` (`src/storage/memory.ts`): a clone of a database migrated once per test file. The first one of a file takes seconds under a full run, hence the 30 s timeouts of those files.
 
 | Table | What it holds | Code |
 | --- | --- | --- |
-| `chain_flags` | `unattended`, `trimTools` (JSON values) | `src/chain/store.ts` |
-| `chains` | the active chains in order: `project_id` and the rest of `ActiveChain` as JSON | same |
+| `projects` | the project records in their order: `id` (GUID), `key` (unique), `name`, `repo`, `branch`, `tracker_projects` (JSON: the tracker's project per adapter, `github` …), `position` | `src/settings/store.ts`, `docs/settings.md` |
+| `setting_definitions` | the registry's definitions, mirrored at every start (`mirrorDefinitions`): `kind`, `default_value` (JSON), `scopes`, `qualifier`, `task_label`; `spec` is `{}`, the checks are code | same |
+| `setting_values` | the rows of the settings: `key`, `project_id` (null — Even Keel's level; deleted with its project), `qualifier` (`''` when the key has none), `value` (JSON), `updated_at`, `updated_by` (`page`, `service`, `import`, `hand`); unique on key, project and qualifier | same |
+| `service_state` | the service's own values (`src/storage/service-state.ts`): `updates.dismissed` (the version whose toast was closed), `config.imported` (when the config file was imported) | `src/storage/service-state.ts` |
+| `chains` | the active chains in order: `project_id` and the rest of `ActiveChain` as JSON | `src/chain/store.ts` |
 | `chain_queue` | projects waiting for a chain slot, in order | same |
 | `chain_lists` | per project: `orders`, `skipped`, `leftovers`, `released`, `ci` (JSON values) | same |
 | `questions` | questions posted to the tracker (`docs/trackers.md`) | same |
@@ -24,15 +27,22 @@ Even Keel's state is one PGlite database, the folder `state/even-keel/` (`EVEN_K
 | `closed_tasks` | the archive of tasks the chain ran and saw done: project, task, tracker, title, link, when; one row per task, a reopen and a new Done keep the latest | `saveClosedTask` |
 | `mailbox` | chat messages to working sessions (BTN-181): `task`, `session_id`, `text`, `files` (JSON paths), `posted_at`, `fate` (`waiting`, `delivered`, `returned`, `dismissed`), `event`, `settled_at`; settled rows go a week after they settled, at the next post | `src/sessions/mailbox.ts`, `docs/sessions.md` |
 
-- The chain state is written whole on every save (`writeChainRecord`: delete and insert in one transaction), as the file was; the launch log is appended to.
+- The chain state is written whole on every save (`writeChainRecord`: delete and insert in one transaction), as the file was; the launch log is appended to. Its switches `unattended` and `trimTools` are Even Keel's setting rows since step 4: `loadChainState` reads them from `setting_values`, the page writes them through the settings (`ConfigStore.saveChainSwitches`).
+- The settings are written whole in one statement (`saveSettings`: data-modifying CTEs, so a write through the port is whole too); a row whose value did not change keeps its `updated_at`.
 - `closed_tasks` is filled by the chain's `finish` (`archiveClosed` in `src/service.ts`) for every task but a fix of main, with the title the tracker last gave. Nothing reads it yet: it is for the page and the tracker profiles to come (BTN-66).
 
 ## Schema steps
 
-- Versions 1 and 2 were the SQLite file (`PRAGMA user_version`); the numbering goes on in PGlite from 3. The version is the one row of `schema_version`. `STEPS[n]` takes the database from version `2 + n` to the next one in one transaction together with the new version, so a step that fails leaves the old version and none of its tables. Step 3 is the tables of the SQLite versions in Postgres; `DATABASE_VERSION` is `2 + STEPS.length`.
+- Versions 1 and 2 were the SQLite file (`PRAGMA user_version`); the numbering goes on in PGlite from 3. The version is the one row of `schema_version`. `STEPS[n]` takes the database from version `2 + n` to the next one in one transaction together with the new version, so a step that fails leaves the old version and none of its tables. Step 3 is the tables of the SQLite versions in Postgres; step 4 (BTN-199) adds `projects`, `setting_definitions`, `setting_values` and `service_state` and moves the rows of `chain_flags` into setting rows (with their two definitions, only when it had rows) before dropping it; `DATABASE_VERSION` is `2 + STEPS.length`.
 - A database newer than the code is refused before anything is written: `storage.newerDatabase`, the blocked page (`src/main.ts`). So is a SQLite file of a version above 2.
-- A step is never edited or removed once merged. A schema change is a new step and a new frozen sample `test/fixtures/database-v<N>/even-keel.sql` (the SQL of the tables and rows of that version). `src/storage/database.test.ts` checks that step 3 still makes exactly the schema of the v3 sample (columns, indexes, constraints), that the sample migrates and reads whole, and that the SQLite samples `database-v1/`, `database-v2/` are imported whole.
-- The database's version is separate from `SCHEMA_VERSION` of the files (`src/storage/schema.ts`), which still versions the config and the files that stay.
+- A step is never edited or removed once merged. A schema change is a new step and a new frozen sample `test/fixtures/database-v<N>/even-keel.sql` (the SQL of the tables and rows of that version). `src/storage/database.test.ts` checks that steps 3 and 4 still make exactly the schema of the v3 and v4 samples (columns, indexes, constraints), that each sample migrates and reads whole (the v4 one with its settings, also through a backup), and that the SQLite samples `database-v1/`, `database-v2/` are imported whole.
+- The database's version is separate from `SCHEMA_VERSION` of the files (`src/storage/schema.ts`), which still versions the config's format (the imported file, `config-export`/`config-import`) and the files that stay.
+
+## Settings at the first start (`src/settings/import.ts`)
+
+After `prepareDatabase`, `src/main.ts` runs `prepareSettings`: it mirrors the definitions and, the first time (no `config.imported` in `service_state`), imports the config file (`EVEN_KEEL_CONFIG`, `even-keel.config.json` of the root by default) whole in one transaction: brought to the current schema (`currentConfig`), entries without an id given one, checked as the service would run it, `updates.dismissed` taken out into `service_state`. The switches step 4 moved from `chain_flags` stay unless the file sets them. The file is renamed to `even-keel.config.json.imported`; the log line counts projects and settings. A file that does not parse stops the start with its notice (the blocked page) and stays as it is; no file — an empty start, marked imported too.
+
+Later starts never read the file: one found there is logged as not read. `upgradeStorage` still runs first, so a pre-v9 config file of an old install is migrated together with the state files before the import.
 
 ## Import at the first start (`src/storage/state-files.ts`)
 
@@ -47,12 +57,14 @@ Tested on every frozen sample `test/fixtures/schema-v2` … `v9` and `database-v
 
 ## Backup, export, rollback
 
-- `npm run storage -- backup <dir>` — a copy into a new folder laid out like `state/even-keel` (`<dir>/pgdata`), also while the service runs: all tables read in one statement (`rowsOf`), so the copy is consistent, then written into a fresh database (`backupDatabase` in `src/storage/copy.ts`). To restore, stop the service and put the folder in place of `state/even-keel`. With the config it is everything a move to another machine needs.
-- `npm run storage -- export <dir>` — the state as the v0.1 files, into an empty folder. A v0.1 Even Keel reads them, and so does the import: to roll back, stop the service, export, put the files into `state/` of the old version.
+- `npm run storage -- backup <dir>` — a copy into a new folder laid out like `state/even-keel` (`<dir>/pgdata`), also while the service runs: all tables read in one statement (`rowsOf`), so the copy is consistent, then written into a fresh database (`backupDatabase` in `src/storage/copy.ts`). To restore, stop the service and put the folder in place of `state/even-keel`. It holds the settings and projects too: with `.env` it is everything a move to another machine needs.
+- `npm run storage -- export <dir>` — the state as the v0.1 files, into an empty folder. A v0.1 Even Keel reads them, and so does the import: to roll back, stop the service, export, put the files into `state/` of the old version, and the settings as its `even-keel.config.json` (`config-export`).
+- `npm run storage -- config-export <file>` — the settings and projects as a file of the config's format, into a new file (`exportConfig`).
+- `npm run storage -- config-import <file>` — such a file (of any schema version) in place of the settings and projects, whole: a key it lacks goes back to its default, a project it lacks goes with its setting rows (`importConfig`, writer `hand`). The file is read and checked before anything is written. Through the port of a running service; the service picks it up at its next look (`ConfigStore`, every 2 s). It is the way to edit the settings by hand: export, edit, import.
 - Both read the database of `EVEN_KEEL_STATE_DIR` (the checkout's `state/` by default; `.env` is loaded) through `readStateDatabase`. `closed_tasks` has no file: only the backup keeps it.
 
 ## Readers outside the service
 
 `readStateDatabase` (`src/storage/owner.ts`) neither migrates nor reads a database of another version (`checkVersion`). With a live owner it connects to its port; a live owner always means "connect", even with the reader's own pid, because Tally's collector runs in a worker thread of the service. With no owner it opens the folder itself and, while open, owns it the same way: `owner.json` and a port, so a second reader connects to it.
 
-Tally's collector (`evenKeelState` in `tally/src/collect.ts`) reads the launch log and the snapshots this way. Without a database it reads the SQLite file (`sqliteInMemory`: its rows in a database in memory) or else the v0.1 files: a merge reaches the collector before the restarted service has imported them.
+Tally's collector (`evenKeelState` in `tally/src/collect.ts`) reads the launch log, the snapshots and the projects' folders (`select repo from projects`) this way; the config file only when there is no database yet. Without a database it reads the SQLite file (`sqliteInMemory`: its rows in a database in memory) or else the v0.1 files: a merge reaches the collector before the restarted service has imported them.

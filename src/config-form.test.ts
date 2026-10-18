@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { formsOf, trackerChoices, withNewProject, withoutProject, withProjectForm, withRunAccount, withSharedForm, withUpdates } from './config-form.js'
+import { formsOf, trackerChoices, withNewProject, withoutProject, withProjectForm, withRunAccount, withSharedForm, withUpdates, withChainSwitches } from './config-form.js'
 import { parseConfig } from './config.js'
 import type { ProjectDraft, ProjectForm, SharedForm } from './state.js'
 
@@ -151,23 +151,28 @@ describe('withSharedForm', () => {
     expect(withSharedForm(edited, form, base)).toEqual({ projects: [], model: 'opus', parallel: 3, chain: { requiredLabels: ['Auto'], excludedLabels: [] } })
   })
 
-  it('writes the update switches and keeps the closed version', () => {
-    const raw = { projects: [], updates: { notify: false, dismissed: '0.2.0' } }
+  it('writes the update switches', () => {
+    const raw = { projects: [], updates: { notify: false } }
     const base = sharedOf(raw)
     expect(base.updates).toEqual({ check: true, notify: false })
-    expect(withSharedForm(raw, { ...base, updates: { check: false, notify: true } }, base)).toEqual({ projects: [], updates: { check: false, dismissed: '0.2.0' } })
+    expect(withSharedForm(raw, { ...base, updates: { check: false, notify: true } }, base)).toEqual({ projects: [], updates: { check: false } })
     expect(withSharedForm({ projects: [], updates: { check: false } }, { ...base, updates: { check: true, notify: true } }, base)).toEqual({ projects: [] })
   })
 })
 
 describe('withUpdates', () => {
   it('sets the given update settings and removes what goes back to the defaults', () => {
-    expect(withUpdates({ projects: [] }, { dismissed: '0.2.0' })).toEqual({ projects: [], updates: { dismissed: '0.2.0' } })
-    expect(withUpdates({ projects: [], updates: { check: false, dismissed: '0.2.0' } }, { notify: false })).toEqual({
-      projects: [],
-      updates: { check: false, dismissed: '0.2.0', notify: false },
-    })
+    expect(withUpdates({ projects: [] }, { check: false })).toEqual({ projects: [], updates: { check: false } })
+    expect(withUpdates({ projects: [], updates: { check: false } }, { notify: false })).toEqual({ projects: [], updates: { check: false, notify: false } })
     expect(withUpdates({ projects: [], updates: { notify: false } }, { notify: true })).toEqual({ projects: [] })
+  })
+})
+
+describe('withChainSwitches', () => {
+  it('sets the chain switches and removes what goes back to the defaults', () => {
+    expect(withChainSwitches({ projects: [] }, { unattended: true })).toEqual({ projects: [], unattended: true })
+    expect(withChainSwitches({ projects: [], unattended: true }, { trimTools: false })).toEqual({ projects: [], unattended: true, trimTools: false })
+    expect(withChainSwitches({ projects: [], unattended: true, trimTools: false }, { unattended: false, trimTools: true })).toEqual({ projects: [] })
   })
 })
 

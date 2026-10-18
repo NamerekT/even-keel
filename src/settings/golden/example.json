@@ -215,9 +215,10 @@
   ],
   "cacheTtl": null,
   "parallel": 1,
+  "unattended": false,
+  "trimTools": true,
   "updates": {
     "check": true,
-    "notify": true,
-    "dismissed": null
+    "notify": true
   }
 }

@@ -9,8 +9,7 @@ import { emptyChainState, type ActiveChain, type ChainState, type CurrentTask, t
  * An id the config does not have — a removed project — stays as it is.
  */
 export async function loadChainState(db: Queryable, ids: Record<string, string> = {}): Promise<ChainState> {
-  const stored = await readChainRecord(db)
-  return stored === undefined ? emptyChainState() : chainStateOf(stored, ids, 'the chain state')
+  return chainStateOf(await readChainRecord(db), ids, 'the chain state')
 }
 
 /**
@@ -76,11 +75,15 @@ export function saveChainState(db: Db, state: ChainState, ids: Record<string, st
 
 const LISTS = ['orders', 'skipped', 'leftovers', 'released', 'ci'] as const
 
-/** The chain state as stored, projects by id; `undefined` — nothing was ever saved. */
-async function readChainRecord(db: Queryable): Promise<Record<string, unknown> | undefined> {
-  const { rows: flags } = await db.query<{ name: string; value: string }>('select name, value from chain_flags')
-  if (flags.length === 0) return undefined
-  const record: Record<string, unknown> = Object.fromEntries(flags.map(({ name, value }) => [name, JSON.parse(value)]))
+/**
+ * The chain state as stored, projects by id. The switches are Even Keel's setting rows since BTN-199, written by the
+ * settings' writer, not by `writeChainRecord`; they are read here for the v0.1 `chain.json` of the export.
+ */
+async function readChainRecord(db: Queryable): Promise<Record<string, unknown>> {
+  const { rows: flags } = await db.query<{ key: string; value: string }>(
+    "select key, value from setting_values where key in ('unattended', 'trimTools') and project_id is null and qualifier = ''",
+  )
+  const record: Record<string, unknown> = Object.fromEntries(flags.map(({ key, value }) => [key, JSON.parse(value)]))
   const { rows: chains } = await db.query<{ project_id: string; chain: string }>('select project_id, chain from chains order by position')
   record.active = chains.map(({ project_id, chain }) => ({ project: project_id, ...(JSON.parse(chain) as object) }))
   record.queue = (await db.query<{ project_id: string }>('select project_id from chain_queue order by position')).rows.map((row) => row.project_id)
@@ -90,14 +93,10 @@ async function readChainRecord(db: Queryable): Promise<Record<string, unknown> |
   return record
 }
 
-/** Writes the whole chain state, projects by id, in place of the stored one. */
+/** Writes the whole chain state but its switches (`readChainRecord`), projects by id, in place of the stored one. */
 export function writeChainRecord(db: Db, state: ChainState): Promise<void> {
   return inTransaction(db, async (tx) => {
-    await tx.exec('delete from chain_flags; delete from chains; delete from chain_queue; delete from chain_lists')
-    await insertList(tx, 'chain_flags', [
-      { name: 'unattended', value: JSON.stringify(state.unattended) },
-      { name: 'trimTools', value: JSON.stringify(state.trimTools) },
-    ])
+    await tx.exec('delete from chains; delete from chain_queue; delete from chain_lists')
     await insertList(tx, 'chains', state.active.map(({ project, ...rest }, position) => ({ position, project_id: project, chain: JSON.stringify(rest) })))
     await insertList(tx, 'chain_queue', state.queue.map((project, position) => ({ position, project_id: project })))
     await insertList(

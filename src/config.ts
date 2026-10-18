@@ -74,7 +74,11 @@ export interface EvenKeelConfig {
   cacheTtl: CacheTtl | null
   /** Chains run at once; the rest wait in the queue. */
   parallel: number
-  updates: UpdateSettings
+  /** Even Keel's setting rows the chain's switches write (`chain/unattended`, `chain/trim`), not the forms. */
+  unattended: boolean
+  trimTools: boolean
+  /** The switches only: the version whose toast was closed is state (`service_state`). */
+  updates: Pick<UpdateSettings, 'check' | 'notify'>
 }
 
 export const RULE_KEYS = ['active', 'terminal', 'requiredLabels', 'excludedLabels'] as const
@@ -147,7 +151,9 @@ function configOf(records: ProjectRecord[], { shared, own, values }: Resolved, a
     hiddenSkills: shared.hiddenSkills as string[],
     cacheTtl: shared.cacheTtl as CacheTtl | null,
     parallel: shared.parallel as number,
-    updates: { check: shared['updates.check'], notify: shared['updates.notify'], dismissed: shared['updates.dismissed'] } as UpdateSettings,
+    unattended: shared.unattended as boolean,
+    trimTools: shared.trimTools as boolean,
+    updates: { check: shared['updates.check'] as boolean, notify: shared['updates.notify'] as boolean },
   }
 }
 

@@ -8,7 +8,8 @@ import { fail } from '../notice/notice.js'
 import type { PostedQuestion } from '../tracker/questions.js'
 import { writeAtomic } from './atomic.js'
 import { insertRows, sqliteRows, type Rows } from './copy.js'
-import { inTransaction, openDatabase, SQLITE_FILE, type Db, type Queryable } from './database.js'
+import { mirrorDefinitions, putSettings } from '../settings/store.js'
+import { inTransaction, openDatabase, SQLITE_FILE, STEPS, type Db, type Queryable } from './database.js'
 import { databaseDirOf, databaseExists, dataDirOf, openStateDatabase, type StateDatabase } from './owner.js'
 import { isRecord } from './projects.js'
 import { isVersionLine, refuseNewer, SCHEMA_VERSION, versionOf } from './schema.js'
@@ -45,7 +46,8 @@ export async function prepareDatabase(options: PrepareOptions): Promise<StateDat
   }
   if (existsSync(legacy)) {
     const rows = await sqliteRows(legacy, true)
-    await importInto(dir, (tx) => insertRows(tx, rows), options)
+    // The file's tables are those of step 3: its rows go into a database of that step, which the open migrates on.
+    await importInto(dir, (tx) => insertRows(tx, rows), options, STEPS.slice(0, 1))
     keepImported(stateDir, [SQLITE_FILE], log)
     log(`storage: moved ${legacy} into ${dir}: ${counted(rows)}; the file is kept as ${SQLITE_FILE}${IMPORTED_SUFFIX}`)
     return openStateDatabase(dir)
@@ -63,11 +65,11 @@ export async function prepareDatabase(options: PrepareOptions): Promise<StateDat
 }
 
 /** A new database in `dir`, filled in one transaction and moved into place only once complete. */
-async function importInto(dir: string, fill: (tx: Transaction) => Promise<void>, options: PrepareOptions): Promise<void> {
+async function importInto(dir: string, fill: (tx: Transaction) => Promise<void>, options: PrepareOptions, steps: readonly string[] = STEPS): Promise<void> {
   const temp = `${dir}.import`
   rmSync(temp, { recursive: true, force: true })
   try {
-    const db = await openDatabase(dataDirOf(temp))
+    const db = await openDatabase(dataDirOf(temp), steps)
     try {
       await db.transaction(async (tx) => {
         await fill(tx)
@@ -131,7 +133,14 @@ export function readStateFiles(stateDir: string, log: (line: string) => void = (
 }
 
 async function writeState(db: Db, files: StateFiles): Promise<void> {
-  if (files.chain !== undefined) await writeChainRecord(db, chainStateOf(files.chain, {}, STATE_FILES.chain))
+  if (files.chain !== undefined) {
+    const state = chainStateOf(files.chain, {}, STATE_FILES.chain)
+    await writeChainRecord(db, state)
+    // The chain's switches are Even Keel's setting rows since BTN-199.
+    await mirrorDefinitions(db)
+    const row = (key: 'unattended' | 'trimTools') => ({ key, project: null, qualifier: '', value: state[key] })
+    await putSettings(db, [row('unattended'), row('trimTools')], 'import')
+  }
   await saveQuestions(db, files.questions)
   for (const entry of files.launches) await appendLaunch(db, entry)
   for (const snapshot of files.handoffs) await saveSnapshot(db, snapshot)
