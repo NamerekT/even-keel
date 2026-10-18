@@ -136,7 +136,7 @@ const trackers = new Map<string, TrackerView>(
 const links = new Map<string, TrackerLink>()
 const hub = new EventHub()
 const transcriptWatch = new TranscriptWatch(
-  (sessionId) => hub.broadcast('transcript', { sessionId }),
+  (sessionId) => hub.signal('transcript', { sessionId }),
   (error) => console.error(`sessions: watching a transcript: ${error instanceof Error ? error.message : String(error)}`),
 )
 const homes = new AccountHomes(process.env, accountsRoot(process.env))

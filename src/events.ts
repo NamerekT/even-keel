@@ -23,4 +23,10 @@ export class EventHub {
     this.last.set(event, frame)
     for (const subscriber of this.subscribers) subscriber(frame)
   }
+
+  /** Sends the event every time, unlike `broadcast`: it says something happened, not what the data is now. */
+  signal(event: string, data: unknown): void {
+    const frame = formatEvent(event, data)
+    for (const subscriber of this.subscribers) subscriber(frame)
+  }
 }

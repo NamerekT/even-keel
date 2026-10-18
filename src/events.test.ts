@@ -42,4 +42,15 @@ describe('EventHub', () => {
       formatEvent('state', { a: 1 }),
     ])
   })
+
+  it('sends a signal every time, even with the same data', () => {
+    const hub = new EventHub()
+    const frames: string[] = []
+    hub.subscribe((frame) => frames.push(frame))
+
+    hub.signal('transcript', { sessionId: 's-1' })
+    hub.signal('transcript', { sessionId: 's-1' })
+
+    expect(frames).toEqual([formatEvent('transcript', { sessionId: 's-1' }), formatEvent('transcript', { sessionId: 's-1' })])
+  })
 })
