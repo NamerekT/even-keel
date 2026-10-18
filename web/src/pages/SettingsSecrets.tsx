@@ -4,21 +4,21 @@ import { say, t } from '../i18n/index.js'
 import { useCommand } from '../live/useCommand.js'
 import { Tipped } from '../ui/Tipped.js'
 import { HelpTip } from './settingsParts.js'
-import { readerLinks, secretGroups, type ReaderLink, type SecretGroup } from './secretsRows.js'
+import { readerLinks, secretGroups, type ReaderLink } from './secretsRows.js'
+import { SettingsProfiles } from './SettingsProfiles.js'
 import '../tools/tools.css'
 import './secrets.css'
 
 /** The "Access" tab: a row per credential with its own field and button; nothing of it goes into the group drafts. */
 export function SettingsSecrets({ state }: { state: EvenKeelState }) {
-  const titleOf = (group: SecretGroup) =>
-    group.kind === 'tracker' ? t.secrets.tracker(state.secrets.trackers[group.tracker] ?? group.tracker) : t.secrets[group.kind]
   return (
     <>
       <p className="settings__hint secrets__hint">{t.secrets.hint}</p>
       {state.secrets.sessionsPending && <p className="notice notice--warn">{t.secrets.pending}</p>}
+      <SettingsProfiles state={state} />
       {secretGroups(state.secrets.variables).map(({ group, variables }) => (
-        <section key={group.kind === 'tracker' ? group.tracker : group.kind} className="secrets__group">
-          <h3 className="secrets__title">{titleOf(group)}</h3>
+        <section key={group} className="secrets__group">
+          <h3 className="secrets__title">{t.secrets[group]}</h3>
           <ul className="secrets__rows">
             {variables.map((variable) => (
               <SecretRow key={variable.name} variable={variable} state={state} />
@@ -69,7 +69,7 @@ function SecretRow({ variable, state }: { variable: SecretView; state: EvenKeelS
             <span className="tools__chip tools__chip--lost">{variable.sessions === 'other' ? t.secrets.sessionsOther : t.secrets.sessionsNone}</span>
           </Tipped>
         )}
-        {variable.set && readerLinks(variable, state.trackers, state.ci).map((link) => <ReaderChip key={JSON.stringify(link.who)} link={link} />)}
+        {variable.set && readerLinks(variable, state.ci).map((link) => <ReaderChip key={link.who.ci} link={link} />)}
       </div>
       {!variable.outer && (
         <form className="secrets__form" onSubmit={(event) => void submit(event)}>
@@ -100,12 +100,12 @@ function SecretRow({ variable, state }: { variable: SecretView; state: EvenKeelS
 }
 
 function ReaderChip({ link }: { link: ReaderLink }) {
-  const who = 'tracker' in link.who ? link.who.tracker : (t.secrets.ciKinds[link.who.ci] ?? link.who.ci)
+  const who = t.secrets.ciKinds[link.who.ci] ?? link.who.ci
   const look = link.state === 'live' ? 'tools__chip--on' : link.state === 'down' ? 'tools__chip--lost' : 'tools__chip--off'
   const chip = <span className={`tools__chip ${look}`}>{t.secrets[link.state](who)}</span>
   if (link.error === null) return chip
   return (
-    <Tipped tip={typeof link.error === 'string' ? link.error : say(link.error)} focusable inline>
+    <Tipped tip={say(link.error)} focusable inline>
       {chip}
     </Tipped>
   )

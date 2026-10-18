@@ -3,6 +3,8 @@ import type { CiTarget } from './remote.js'
 
 /** What `CiWatches` needs of a watch. */
 export interface Watch {
+  /** Not shown and not judging a main: no token reaches the CI (`CiWatch.hidden`). */
+  readonly hidden: boolean
   setSource(source: CiSource | null): void
   tick(): Promise<void>
 }
@@ -11,8 +13,8 @@ export interface CiWatchesDeps<W extends Watch> {
   /** The CIs of the repository's remotes. */
   targets: (repo: string) => Promise<CiTarget[]>
   watch: (project: string, repo: string, target: CiTarget) => W
-  /** The source by the token the environment has now; `null` without it. */
-  source: (target: CiTarget) => CiSource | null
+  /** The source by the token the project's CI gets now (`ciToken`); `null` without one. */
+  source: (project: string, target: CiTarget) => CiSource | null
   log: (message: string) => void
 }
 
@@ -22,7 +24,7 @@ export class CiWatches<W extends Watch> {
   /** Every project of the last config is read; until then the chain does not judge a main by its CI. */
   found = false
   private readonly repos = new Map<string, string>()
-  private readonly targets = new Map<W, CiTarget>()
+  private readonly targets = new Map<W, { project: string; target: CiTarget }>()
   private queue: Promise<void> = Promise.resolve()
 
   constructor(private readonly deps: CiWatchesDeps<W>) {}
@@ -34,13 +36,22 @@ export class CiWatches<W extends Watch> {
     return this.queue
   }
 
-  /** The tokens changed: every watch gets the source the environment gives now. */
+  /** The tokens or the profiles changed: every watch gets the source its project's token gives now. */
   tokensChanged(): void {
-    for (const [watch, target] of this.targets) watch.setSource(this.deps.source(target))
+    for (const [watch, { project, target }] of this.targets) watch.setSource(this.deps.source(project, target))
   }
 
   all(): W[] {
     return [...this.byProject.values()].flat()
+  }
+
+  /** The project's watches the page shows and the chain judges its main by. */
+  shown(project: string): W[] {
+    return (this.byProject.get(project) ?? []).filter((watch) => !watch.hidden)
+  }
+
+  hidden(): { project: string; target: CiTarget }[] {
+    return [...this.targets].flatMap(([watch, place]) => (watch.hidden ? [place] : []))
   }
 
   private async reconcile(projects: Record<string, string>): Promise<void> {
@@ -63,7 +74,7 @@ export class CiWatches<W extends Watch> {
       if (targets.length === 0) continue
       const watches = targets.map((target) => {
         const watch = this.deps.watch(project, repo, target)
-        this.targets.set(watch, target)
+        this.targets.set(watch, { project, target })
         return watch
       })
       this.byProject.set(project, watches)

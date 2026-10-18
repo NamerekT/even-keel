@@ -38,6 +38,17 @@ export function profileFor(set: ProfileSet, projectId: string | undefined, kind:
 export const defaultProfile = (set: ProfileSet, kind: string): TrackerProfile | undefined =>
   set.profiles.find((profile) => profile.kind === kind && profile.isDefault)
 
+/**
+ * The keys a project's MCP servers take (BTN-200): the environment without any tracker's variables, then each tracker's
+ * default profile, then the profile the project runs on — its tracker server signs in as that one.
+ */
+export function keyPool(set: ProfileSet, adapters: Adapters, env: NodeJS.ProcessEnv, projectId: string | undefined, kind: string): NodeJS.ProcessEnv {
+  const pool: NodeJS.ProcessEnv = { ...env }
+  for (const adapter of Object.values(adapters)) for (const name of adapter.variables) delete pool[name]
+  for (const profile of set.profiles) if (profile.isDefault) Object.assign(pool, profile.values)
+  return Object.assign(pool, profileFor(set, projectId, kind)?.values)
+}
+
 /** The kind's values that are set, in the adapter's order: a profile's credentials as `setup` takes them. */
 export function valuesOf(adapter: Pick<TrackerAdapter, 'variables'>, env: Record<string, string | undefined>): Record<string, string> {
   return Object.fromEntries(adapter.variables.flatMap((name) => (env[name] ? [[name, env[name]]] : [])))

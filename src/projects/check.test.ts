@@ -5,7 +5,7 @@ import type { TaskSource, TrackerAdapter } from '../tracker/source.js'
 import type { TrackerTask } from '../tracker/model.js'
 import { checkDraft, isTrusted, type CheckDeps } from './check.js'
 
-const draft: ProjectDraft = { repo: 'D:\\new\\src', branch: '', key: 'NEW', name: '', tracker: 'fake', trackerProject: '', slot: 0 }
+const draft: ProjectDraft = { repo: 'D:\\new\\src', branch: '', key: 'NEW', name: '', tracker: 'fake', trackerProject: '', profile: null, slot: 0 }
 
 function task(id: string, category: 'ToDo' | 'Won'): TrackerTask {
   return {

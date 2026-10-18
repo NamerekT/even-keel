@@ -14,6 +14,7 @@ import { readStateFiles } from '../../src/storage/state-files.js'
 import { parseConfig, type DbSettings } from './config.js'
 import { TallyDb } from './db.js'
 import { refreshHandoffs } from './handoffs.js'
+import type { HulyOf } from './huly-profiles.js'
 import { snapshotsOfFile, snapshotsOfState, type Snapshot } from './limits.js'
 import { loadFile, loadRollout, type Source } from './load.js'
 import { deniedLine, migratedLine } from './migrations.js'
@@ -30,7 +31,7 @@ const EVEN_KEEL_TIMEOUT_MS = 5_000
 export type Log = (message: string) => void
 
 // One collector run: the exit code is 1 when a file failed to load, everything else is written anyway.
-export async function collect(settings: DbSettings, root: string, log: Log): Promise<number> {
+export async function collect(settings: DbSettings, root: string, log: Log, hulyOf: HulyOf): Promise<number> {
   const started = Date.now()
   const config = parseConfig(JSON.parse(readFileSync(process.env.TALLY_CONFIG ?? join(root, 'tally', 'tally.config.json'), 'utf8')))
   const stateDir = process.env.EVEN_KEEL_STATE_DIR ?? join(root, 'state')
@@ -106,8 +107,8 @@ export async function collect(settings: DbSettings, root: string, log: Log): Pro
     const signed = await refreshSigns(db, config.signs)
     const turned = await refreshTurns(db)
     const stepped = await refreshSteps(db, config.steps)
-    const tasks = await refreshTasks(db, log)
-    const reports = await reportTaskTimes(db, config.reportsSince, log)
+    const tasks = await refreshTasks(db, hulyOf, log)
+    const reports = await reportTaskTimes(db, config.reportsSince, hulyOf, log)
     const classified = await classifySpans(db, config.classify, log)
     const unpriced = await db.unpricedModels()
     if (unpriced.length > 0) log(`tally: no price for ${unpriced.join(', ')} — add them to tally.config.json`)

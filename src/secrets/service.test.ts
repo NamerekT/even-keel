@@ -2,10 +2,12 @@ import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { secretCatalog } from './catalog.js'
+import { isSecret, secretCatalog, type SecretSpec } from './catalog.js'
 import { Secrets, withSessionEnv } from './service.js'
 
-const catalog = secretCatalog({ huly: { variables: ['HULY_URL', 'HULY_PASSWORD'] } }, { forgejo: 'FORGEJO_TOKEN', github: 'GITHUB_TOKEN' })
+/** The catalog has no variable the sessions read since the trackers' went into profiles; the place is kept for one. */
+const sessionSpec = (name: string): SecretSpec => ({ name, secret: isSecret(name), places: ['env', 'sessions'], readers: { ci: [], tally: false, page: false } })
+const catalog = [sessionSpec('HULY_URL'), sessionSpec('HULY_PASSWORD'), ...secretCatalog({ forgejo: 'FORGEJO_TOKEN', github: 'GITHUB_TOKEN' })]
 
 describe('withSessionEnv', () => {
   it('sets one key of env and keeps every other key of the file', () => {
@@ -48,7 +50,6 @@ describe('Secrets', () => {
   const open = (outer: string[] = []) =>
     new Secrets({
       catalog,
-      trackers: { huly: 'Huly' },
       envFile,
       settingsFile: () => settingsFile,
       env,
@@ -80,10 +81,6 @@ describe('Secrets', () => {
     expect(row('HULY_PASSWORD')).toMatchObject({ set: true, value: null, sessions: 'same' })
     expect(row('FORGEJO_TOKEN')).toMatchObject({ set: true, value: null, sessions: null })
     expect(row('GITHUB_TOKEN')).toMatchObject({ set: false, value: null })
-  })
-
-  it('names every tracker of the catalog by its title, configured or not', () => {
-    expect(open().view().trackers).toEqual({ huly: 'Huly' })
   })
 
   it('tells when the sessions’ settings hold another value or none', () => {

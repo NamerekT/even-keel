@@ -7,8 +7,6 @@ import { PAGE_TOKEN, type SecretSpec } from './catalog.js'
 
 export interface SecretsDeps {
   catalog: readonly SecretSpec[]
-  /** The title of each tracker adapter by its name. */
-  trackers: Readonly<Record<string, string>>
   envFile: string
   /** The global `settings.json`: sessions read its `env` at their start. */
   settingsFile: () => string
@@ -29,8 +27,8 @@ export interface SecretsDeps {
 type Json = Record<string, unknown>
 
 /**
- * The credentials of the "Access" tab: each is written alone, into one line of `.env` and, for a tracker key, into the
- * `env` of the global `settings.json`. A secret's value goes in only: the view says whether it is set, never what it is.
+ * The `.env` credentials of the "Access" tab: each is written alone, into one line of `.env` and, for one the sessions
+ * read, into the `env` of the global `settings.json`. A secret's value goes in only: the view says whether it is set, never what it is.
  */
 export class Secrets {
   private settings: { stamp: string; env: Json } = { stamp: '', env: {} }
@@ -56,7 +54,7 @@ export class Secrets {
         required: spec.name === PAGE_TOKEN && required,
       }
     })
-    return { variables, trackers: this.deps.trackers, sessionsPending: this.deps.sessionsPending() }
+    return { variables, sessionsPending: this.deps.sessionsPending() }
   }
 
   set(name: string, value: string): void {

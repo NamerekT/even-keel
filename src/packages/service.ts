@@ -47,6 +47,8 @@ export interface PackagesDeps {
   updateMarketplace: (marketplace: string) => Promise<void>
   /** The environment of a server process before its own variables. */
   baseEnv: () => NodeJS.ProcessEnv
+  /** The keys the project's servers take, its tracker profile's among them (`keyPool`); by project key. */
+  poolOf: (project: string) => NodeJS.ProcessEnv
   port: number
   log: (line: string) => void
   /** The view or what a project is held on changed. */
@@ -324,7 +326,7 @@ export class Packages {
       agent: this.deps.agentOf(project),
       installing: this.installing,
       errors: this.errors,
-      keys: (server, entry) => keysOf(server, entry, this.deps.rules, process.env),
+      keys: (server, entry) => keysOf(server, entry, this.deps.rules, this.deps.poolOf(project)),
       probe: (name, install, server) => this.probes.result(project, name, install, server),
       trackerServer: this.deps.trackerServer(project),
     })
@@ -333,10 +335,12 @@ export class Packages {
 
   private keys(): KeyView[] {
     const keys = new Map<string, Set<string>>()
+    // A tracker's variables are its profiles' (BTN-200), set on the "Access" tab, not here.
+    const trackers = new Set([...this.deps.rules.trackers.flatMap((tracker) => tracker.variables), ...Object.values(this.deps.rules.aliases)])
     for (const [name, record] of Object.entries(this.file.packages)) {
       if (record.removed === true) continue
       for (const [server, { entry }] of Object.entries(current(record)?.servers ?? {})) {
-        for (const key of keysOf(server, entry, this.deps.rules, process.env).names) keys.set(key, (keys.get(key) ?? new Set()).add(name))
+        for (const key of keysOf(server, entry, this.deps.rules, process.env).names) if (!trackers.has(key)) keys.set(key, (keys.get(key) ?? new Set()).add(name))
       }
     }
     return [...keys].map(([name, packages]) => ({ name, set: Boolean(process.env[name]), packages: [...packages] })).sort((a, b) => a.name.localeCompare(b.name))
@@ -349,7 +353,7 @@ export class Packages {
     const server = record?.installs.find((each) => each.id === route.install)?.servers[route.server]
     if (server === undefined) return null
     const entry = applySettings(server.entry, settingsOf(this.file, project, route.name))
-    const keys = keysOf(route.server, entry, this.deps.rules, process.env)
+    const keys = keysOf(route.server, entry, this.deps.rules, this.deps.poolOf(project))
     return { entry: substitute(entry, keys.values), npm: server.npm?.name ?? null, env: keys.env }
   }
 

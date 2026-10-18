@@ -1,8 +1,6 @@
 import { readFileSync, watchFile } from 'node:fs'
 import { parseEnv } from 'node:util'
-import { CI_TOKENS } from './ci/adapters.js'
-import { ADAPTERS } from './tracker/adapters.js'
-import type { TrackerAdapter } from './tracker/source.js'
+import { FORGEJO_TOKEN } from './ci/adapters.js'
 
 export interface EnvFileOptions {
   file: string
@@ -14,8 +12,6 @@ export interface EnvFileOptions {
 
 /** Who reads a changed variable: what the service sets up again once the file changed. */
 export interface EnvTargets {
-  /** The trackers whose variables changed, by adapter name. */
-  trackers: string[]
   ci: boolean
   /** `EVEN_KEEL_TOKEN`, and the address: whether a token is required depends on the host. */
   guard: boolean
@@ -97,12 +93,12 @@ export function envChanges(before: Record<string, string>, after: Record<string,
   return [...names].filter((name) => !outer.has(name) && before[name] !== after[name]).sort()
 }
 
-export function envTargets(changed: readonly string[], adapters: Readonly<Record<string, Pick<TrackerAdapter, 'variables'>>> = ADAPTERS): EnvTargets {
+/** The trackers' variables are not here: their credentials are the profiles' (BTN-200), `.env` is not read for them. */
+export function envTargets(changed: readonly string[]): EnvTargets {
   const has = (names: readonly string[]) => changed.some((name) => names.includes(name))
   const listen = has(LISTEN)
   return {
-    trackers: Object.entries(adapters).flatMap(([name, adapter]) => (has(adapter.variables) ? [name] : [])),
-    ci: has(Object.values(CI_TOKENS)),
+    ci: has([FORGEJO_TOKEN]),
     guard: listen || has(['EVEN_KEEL_TOKEN']),
     listen,
     tally: changed.some((name) => TALLY_DATABASE.test(name)),

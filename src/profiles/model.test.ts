@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { ADAPTERS } from '../tracker/adapters.js'
-import { profileFor, sameAccount, type ProfileSet, type TrackerProfile } from './model.js'
+import { keyPool, profileFor, sameAccount, type ProfileSet, type TrackerProfile } from './model.js'
 
 const profile = (id: string, kind: string, isDefault: boolean, values: Record<string, string> = {}, login: string | null = null): TrackerProfile => ({
   id,
@@ -31,6 +31,27 @@ describe('profileFor', () => {
   it('a link to a profile of another tracker is not taken', () => {
     expect(profileFor(SET, 'xyz', 'github')?.id).toBe('personal')
     expect(profileFor(SET, 'abc', 'linear')).toBeUndefined()
+  })
+})
+
+describe('keyPool', () => {
+  const set: ProfileSet = {
+    profiles: [
+      profile('personal', 'github', true, { GITHUB_TOKEN: 'personal-token' }),
+      profile('org', 'github', false, { GITHUB_TOKEN: 'org-token' }),
+      profile('work', 'huly', true, { HULY_URL: 'https://huly.example.com', HULY_TOKEN: 'h' }),
+    ],
+    links: { abc: 'org' },
+  }
+  const env = { PATH: '/bin', CONTEXT7_KEY: 'c7', GITHUB_TOKEN: 'stale', HULY_EMAIL: 'stale@example.com' }
+
+  it('gives a project its own profile over the defaults, and no tracker variable of the environment', () => {
+    expect(keyPool(set, ADAPTERS, env, 'abc', 'github')).toEqual({ PATH: '/bin', CONTEXT7_KEY: 'c7', GITHUB_TOKEN: 'org-token', HULY_URL: 'https://huly.example.com', HULY_TOKEN: 'h' })
+  })
+
+  it('gives a project of another tracker the default profiles', () => {
+    expect(keyPool(set, ADAPTERS, env, 'xyz', 'huly')).toMatchObject({ GITHUB_TOKEN: 'personal-token', HULY_TOKEN: 'h' })
+    expect(keyPool(set, ADAPTERS, env, 'xyz', 'huly').HULY_EMAIL).toBeUndefined()
   })
 })
 

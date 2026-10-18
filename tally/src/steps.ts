@@ -1,8 +1,8 @@
-import { readHulyCredentials } from '../../src/huly/credentials.js'
 import { askModel, costRows, excerptOf, llmSettings, parseVerdict, PROMPT_VERSION, promptOf } from './classify.js'
 import type { ClassifySettings } from './config.js'
 import type { TallyDb } from './db.js'
 import { fetchTasks, reportTimes } from './huly.js'
+import { byCredentials, type HulyOf } from './huly-profiles.js'
 import { findSigns, signKey, spansOf, type SignRules } from './signs.js'
 import { rulesFor, runsOf, stepsKey, type StepSettings } from './step-runs.js'
 import { turnsKey, turnsOf } from './turns.js'
@@ -53,34 +53,36 @@ export async function refreshSteps(db: TallyDb, settings: StepSettings): Promise
   return sessions
 }
 
-export async function refreshTasks(db: TallyDb, log: Log): Promise<number> {
-  const credentials = readHulyCredentials(process.env)
-  if (credentials === undefined) return 0
+/** Each set of credentials asks for the tasks of its projects; a task no profile reaches stays unasked. */
+export async function refreshTasks(db: TallyDb, hulyOf: HulyOf, log: Log): Promise<number> {
   const asked = await db.staleTasks(TASK_MAX_AGE_MINUTES)
-  if (asked.length === 0) return 0
-  try {
-    const records = await fetchTasks(credentials, asked, HULY_TIMEOUT_MS)
-    await db.writeTasks(asked, records)
-    return records.length
-  } catch (error) {
-    log(`tally: Huly tasks not fetched: ${(error as Error).message}`)
-    return 0
+  let fetched = 0
+  for (const { credentials, items } of byCredentials(asked, (task) => task, hulyOf)) {
+    try {
+      const records = await fetchTasks(credentials, items, HULY_TIMEOUT_MS)
+      await db.writeTasks(items, records)
+      fetched += records.length
+    } catch (error) {
+      log(`tally: Huly tasks of ${credentials.workspace} not fetched: ${(error as Error).message}`)
+    }
   }
+  return fetched
 }
 
-export async function reportTaskTimes(db: TallyDb, since: string | null, log: Log): Promise<number> {
-  const credentials = readHulyCredentials(process.env)
-  if (since === null || credentials === undefined) return 0
+export async function reportTaskTimes(db: TallyDb, since: string | null, hulyOf: HulyOf, log: Log): Promise<number> {
+  if (since === null) return 0
   const pending = await db.pendingReports(since, REPORT_IDLE_MINUTES)
-  if (pending.length === 0) return 0
-  try {
-    const reported = await reportTimes(credentials, pending, HULY_TIMEOUT_MS)
-    await db.markReported(reported)
-    return reported.size
-  } catch (error) {
-    log(`tally: Huly time reports not written: ${(error as Error).message}`)
-    return 0
+  let written = 0
+  for (const { credentials, items } of byCredentials(pending, (report) => report.task, hulyOf)) {
+    try {
+      const reported = await reportTimes(credentials, items, HULY_TIMEOUT_MS)
+      await db.markReported(reported)
+      written += reported.size
+    } catch (error) {
+      log(`tally: Huly time reports of ${credentials.workspace} not written: ${(error as Error).message}`)
+    }
   }
+  return written
 }
 
 export async function classifySpans(db: TallyDb, settings: ClassifySettings, log: Log): Promise<number> {

@@ -13,6 +13,15 @@ export type HostMessage = { type: 'ready'; settings: ReaderSettings } | { type: 
 export interface CollectRun {
   root: string
   settings: ReaderSettings | null
+  huly: HulyProfiles
+}
+
+/** The Huly profiles' values the collector reads task titles and writes times with (BTN-200), not the environment's. */
+export interface HulyProfiles {
+  /** By the key of each project on Huly: the profile it runs on. */
+  projects: Record<string, Record<string, string>>
+  /** The default Huly profile, for a task of a project the config no longer has; `null` — none. */
+  fallback: Record<string, string> | null
 }
 
 export interface TallyOptions {
@@ -23,6 +32,8 @@ export interface TallyOptions {
   firstDelayMs: number
   /** Read at each pass: the address changes on the fly. */
   evenKeelUrl: () => string
+  /** Read at each pass: the profiles change on the fly. */
+  huly: () => HulyProfiles
   log: (message: string) => void
 }
 
@@ -108,9 +119,9 @@ export class TallyService {
         return
       }
     }
-    const { root, env, evenKeelUrl, log } = this.options
+    const { root, env, evenKeelUrl, huly, log } = this.options
     const run = new Worker(workerFile('collect-worker'), {
-      workerData: { root, settings } satisfies CollectRun,
+      workerData: { root, settings, huly: huly() } satisfies CollectRun,
       env: { ...process.env, EVEN_KEEL_URL: env.EVEN_KEEL_URL ?? evenKeelUrl() },
     })
     this.running = run

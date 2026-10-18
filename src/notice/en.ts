@@ -248,6 +248,17 @@ export const en = {
   'secrets.outer': (p: { name: string }) => `secrets: ${p.name} comes from the service's environment, not .env; change it there`,
   'secrets.tokenRequired': () => 'secrets: EVEN_KEEL_TOKEN stays while the service listens beyond loopback (EVEN_KEEL_HOST)',
   'secrets.settingsJson': () => 'secrets: the global settings.json is not a plain JSON object; Even Keel does not rewrite it',
+  'profiles.unknownKind': (p: { kind: string }) => `profiles: there is no tracker "${p.kind}"`,
+  'profiles.unknown': () => 'profiles: there is no such profile; the page may be out of date',
+  'profiles.incomplete': (p: { tracker: string }) => `profiles: the ${p.tracker} fields are not filled in full`,
+  'profiles.refused': (p: { tracker: string }) => `profiles: ${p.tracker} refused the credentials`,
+  'profiles.unreachable': (p: { tracker: string }) => `profiles: ${p.tracker} did not answer`,
+  'profiles.hostLocked': (p: { profile: string; projects: string }) =>
+    `profiles: ${p.profile} is used by ${p.projects}; its address and workspace stay, only the credentials change`,
+  'profiles.inUse': (p: { profile: string; projects: string }) => `profiles: ${p.profile} is used by ${p.projects}; it cannot be removed`,
+  'profiles.otherTracker': (p: { profile: string; project: string }) => `profiles: ${p.profile} is a profile of another tracker than ${p.project}'s`,
+  'profiles.paused': (p: { profile: string; project: string }) =>
+    `${p.project}: the chain waits: the tracker refused the credentials of the profile ${p.profile}; renew them in Settings → Access`,
   'config.repoEmpty': (p: { key: string }) => `config: repository path for ${p.key} is empty`,
   'config.slot': (p: { key: string }) => `config: ${p.key}.slot must be true, false or the number of slots`,
   'config.language': (p: { where: string; value: string; known: string[] }) =>
@@ -308,7 +319,7 @@ export const en = {
   'wizard.repoTaken': (p: { project: string }) => `this repository is already the project ${p.project}`,
   'wizard.noBranch': (p: { branch: string }) => `the repository has no branch ${p.branch}`,
   'wizard.trackerOff': (p: { tracker: string; variables: string[] }) =>
-    `${p.tracker} has no credentials: set ${list(p.variables)} in .env, the service reads it on the fly`,
+    `${p.tracker} has no profile with ${list(p.variables)}: add one in Settings → Access`,
   'wizard.trackerFailed': (p: { tracker: string }) => `${p.tracker} did not give the project's tasks`,
   'project.removeBlocked': (p: { project: string }) => `${p.project} is not removed, it is still in use`,
   'project.removeChain': () => 'its chain runs or waits in the queue; stop it first',

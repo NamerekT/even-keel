@@ -5,6 +5,7 @@ import type { CiJob, CiRun, CiSource } from './model.js'
 import { CiWatch, ERROR_RETRY_MS, POLL_MS, PUSH_WINDOW_MS } from './watcher.js'
 
 const TARGET = { kind: 'forgejo' as const, remote: 'origin', web: 'https://forgejo.example.com', owner: 'john', repo: 'app' }
+const GITHUB = { kind: 'github' as const, remote: 'github', web: 'https://github.com', owner: 'john', repo: 'app' }
 
 function run(id: number, overrides: Partial<CiRun> = {}): CiRun {
   return {
@@ -22,7 +23,7 @@ function run(id: number, overrides: Partial<CiRun> = {}): CiRun {
   }
 }
 
-function setup(options: { runs?: CiRun[]; source?: false; jobs?: CiJob[]; log?: CiSource['log']; main?: string } = {}) {
+function setup(options: { runs?: CiRun[]; source?: false; jobs?: CiJob[]; log?: CiSource['log']; main?: string; target?: typeof TARGET | typeof GITHUB } = {}) {
   let clock = Date.parse('2026-10-12T12:00:00Z')
   let head = 'sha2'
   const refs: string[] = []
@@ -53,7 +54,7 @@ function setup(options: { runs?: CiRun[]; source?: false; jobs?: CiJob[]; log?: 
     return { code: 1, out: '' }
   }
   const watch = new CiWatch({
-    target: TARGET,
+    target: options.target ?? TARGET,
     source: options.source === false ? null : source,
     variable: 'FORGEJO_TOKEN',
     git,
@@ -210,5 +211,30 @@ describe('CiWatch.failed', () => {
     const t = setup({ runs: [red], jobs: failedJobs, log: async () => { throw fail('ci.http', { ci: 'GitHub Actions', status: 410 }) } })
     expect(await t.watch.failed(red)).toEqual({ kind: 'forgejo', run: red, jobs: failedJobs, log: null })
     expect(t.logs).toHaveLength(1)
+  })
+
+  it('hides GitHub Actions without a token and while the token does not reach them, and shows them once it does', async () => {
+    expect(setup({ target: GITHUB, source: false }).watch.hidden).toBe(true)
+    const t = setup({ target: GITHUB })
+    expect(t.watch.hidden).toBe(false)
+    t.fail(fail('ci.http', { ci: 'GitHub Actions', status: 404 }))
+    await t.watch.tick()
+    expect(t.watch.hidden).toBe(true)
+    t.fail(null)
+    t.advance(ERROR_RETRY_MS)
+    await t.watch.tick()
+    expect(t.watch.hidden).toBe(false)
+    t.fail(fail('ci.denied', { ci: 'GitHub Actions', status: 403 }))
+    t.watch.setSource(null)
+    expect(t.watch.hidden).toBe(true)
+  })
+
+  it('keeps a Forgejo watch shown without a token or with a refused one: it says what to set', async () => {
+    const off = setup({ source: false })
+    expect(off.watch.hidden).toBe(false)
+    const t = setup()
+    t.fail(fail('ci.denied', { ci: 'Forgejo', status: 401 }))
+    await t.watch.tick()
+    expect(t.watch).toMatchObject({ hidden: false, view: { health: 'error' } })
   })
 })

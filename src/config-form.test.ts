@@ -177,7 +177,7 @@ describe('withChainSwitches', () => {
 })
 
 describe('withNewProject', () => {
-  const draft: ProjectDraft = { repo: ' D:\\new ', branch: 'main', key: 'NEW', name: '', tracker: 'huly', trackerProject: '', slot: 0 }
+  const draft: ProjectDraft = { repo: ' D:\\new ', branch: 'main', key: 'NEW', name: '', tracker: 'huly', trackerProject: '', profile: null, slot: 0 }
 
   it('appends an entry with only what differs from what the project would inherit', () => {
     const raw = { projects: [abc()], custom: 1 }

@@ -1,5 +1,4 @@
 import type { CiKind } from '../ci/model.js'
-import type { TrackerAdapter } from '../tracker/source.js'
 
 /**
  * Where a variable is written: Even Keel's `.env`, and the `env` of the global `~/.claude/settings.json` sessions read at
@@ -10,8 +9,6 @@ export type SecretPlace = 'env' | 'sessions'
 
 /** The parts of the service that read the variable: the page shows whether each answered with the new value. */
 export interface SecretReaders {
-  /** Tracker adapters by name. */
-  trackers: string[]
   ci: CiKind[]
   tally: boolean
   /** `EVEN_KEEL_TOKEN`: the page's own access token. */
@@ -44,18 +41,17 @@ const PLAIN = /_(URL|WORKSPACE|EMAIL|HOST|PORT|NAME|MODEL)$/
 export const isSecret = (name: string): boolean => !PLAIN.test(name)
 
 /**
- * The credentials the page's "Access" tab offers: the trackers' variables, the CI tokens, Tally's and the page token,
- * each once with all its readers. A tracker key also goes to the sessions: their tracker plugin reads it from there.
+ * The `.env` credentials the page's "Access" tab offers: the CI tokens of the environment, Tally's and the page token,
+ * each once with all its readers. The trackers' credentials are their profiles' (`src/profiles/`), not variables.
  */
-export function secretCatalog(adapters: Readonly<Record<string, Pick<TrackerAdapter, 'variables'>>>, ciTokens: Readonly<Record<CiKind, string>>): SecretSpec[] {
+export function secretCatalog(ciTokens: Readonly<Partial<Record<CiKind, string>>>): SecretSpec[] {
   const specs = new Map<string, SecretSpec>()
   const add = (name: string, places: SecretPlace[]): SecretReaders => {
-    const spec = specs.get(name) ?? { name, secret: isSecret(name), places: [], readers: { trackers: [], ci: [], tally: false, page: false } }
+    const spec = specs.get(name) ?? { name, secret: isSecret(name), places: [], readers: { ci: [], tally: false, page: false } }
     for (const place of places) if (!spec.places.includes(place)) spec.places.push(place)
     specs.set(name, spec)
     return spec.readers
   }
-  for (const [tracker, adapter] of Object.entries(adapters)) for (const name of adapter.variables) add(name, ['env', 'sessions']).trackers.push(tracker)
   for (const [kind, name] of Object.entries(ciTokens) as [CiKind, string][]) add(name, ['env']).ci.push(kind)
   for (const name of TALLY) add(name, ['env']).tally = true
   add(PAGE_TOKEN, ['env']).page = true

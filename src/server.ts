@@ -38,7 +38,9 @@ import type { Calibration } from './stats/calibration.js'
 import type { CheckpointThreshold, SessionCheckpoint } from './stats/checkpoint.js'
 import type { StatsSteps } from './stats/steps.js'
 import type { TaskCard } from './tracker/card.js'
-import type { TaskFile } from './tracker/source.js'
+import type { TaskFile, TrackerProject } from './tracker/source.js'
+import { profileDraftOf } from './profiles/request.js'
+import type { CheckResult, ProfileDraft } from './profiles/service.js'
 
 /** Files the browser may show in place; anything else is a download, so a tracker file never runs as the page. */
 const SHOWN_IN_PLACE = /^(image\/(png|jpeg|gif|webp|avif|bmp)|video\/[\w.+-]+|audio\/[\w.+-]+|application\/pdf)$/
@@ -150,6 +152,18 @@ export interface SecretsControl {
   remove(name: string): void
 }
 
+/** The trackers' profiles of the same tab (`src/profiles/`); a project is named by its key. */
+export interface ProfilesControl {
+  check(draft: ProfileDraft): Promise<CheckResult>
+  /** Returns the profile's id. */
+  save(draft: ProfileDraft & { name: string }): Promise<string>
+  remove(id: string): void
+  setDefault(id: string): void
+  /** `null` — the project runs on its tracker's default profile. */
+  link(project: string, profile: string | null): void
+  projects(id: string, query: string): Promise<TrackerProject[]>
+}
+
 export interface ServerDeps {
   hub: EventHub
   publicDir: string
@@ -160,6 +174,7 @@ export interface ServerDeps {
   settings: SettingsControl
   packages: PackagesControl
   secrets: SecretsControl
+  profiles: ProfilesControl
   launches: () => unknown
   sessionRecord: (sessionId: string) => Promise<unknown>
   /** Lines of the whole transcript from index `after` on, and its last turn. */
@@ -239,6 +254,16 @@ const COMMANDS: Record<string, Command> = {
   'packages/key': ({ packages }, body) => packages.setKey(nameOf(body), textOf(body.value, 'value')),
   'secrets/set': ({ secrets }, body) => secrets.set(nameOf(body), textOf(body.value, 'value')),
   'secrets/remove': ({ secrets }, body) => secrets.remove(nameOf(body)),
+  'profiles/remove': ({ profiles }, body) => profiles.remove(textOf(body.id, 'id')),
+  'profiles/default': ({ profiles }, body) => profiles.setDefault(textOf(body.id, 'id')),
+  'profiles/link': ({ profiles }, body) => profiles.link(projectOf(body), body.profile === null ? null : textOf(body.profile, 'profile')),
+}
+
+/** POST calls that answer with their own result rather than the state. */
+const QUERIES: Record<string, (deps: ServerDeps, body: Record<string, unknown>) => Promise<unknown>> = {
+  'profiles/check': ({ profiles }, body) => profiles.check(profileDraftOf(body)),
+  'profiles/save': async ({ profiles }, body) => ({ id: await profiles.save({ ...profileDraftOf(body), name: typeof body.name === 'string' ? body.name : '' }) }),
+  'profiles/projects': ({ profiles }, body) => profiles.projects(textOf(body.id, 'id'), typeof body.query === 'string' ? body.query : ''),
 }
 
 const MAX_BODY_BYTES = 64 * 1024
@@ -511,6 +536,19 @@ async function route(deps: ServerDeps, request: IncomingMessage, response: Serve
     return
   }
 
+  const query = request.method === 'POST' ? QUERIES[path.slice('/api/'.length)] : undefined
+  if (query !== undefined) {
+    let result: unknown
+    try {
+      result = await query(deps, await readJsonBody(request, MAX_BODY_BYTES))
+    } catch (error) {
+      sendFailure(response, error)
+      return
+    }
+    sendJson(response, 200, result)
+    return
+  }
+
   if (request.method === 'POST' && path.startsWith('/api/')) {
     const command = COMMANDS[path.slice('/api/'.length)]
     if (command === undefined) {
@@ -644,7 +682,8 @@ function draftOf(body: Record<string, unknown>): ProjectDraft {
   const { slot } = body
   if (!Number.isInteger(slot) || (slot as number) < 0) throw fail('request.required', { field: 'slot' })
   const text = (field: keyof ProjectDraft) => textOf(body[field], field)
-  return { repo: text('repo'), branch: text('branch'), key: text('key'), name: text('name'), tracker: text('tracker'), trackerProject: text('trackerProject'), slot: slot as number }
+  const profile = body.profile === undefined || body.profile === null ? null : text('profile')
+  return { repo: text('repo'), branch: text('branch'), key: text('key'), name: text('name'), tracker: text('tracker'), trackerProject: text('trackerProject'), profile, slot: slot as number }
 }
 
 function projectFormOf(body: Record<string, unknown>): ProjectForm {

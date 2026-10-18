@@ -186,6 +186,8 @@ export interface ProjectDraft {
   name: string
   tracker: string
   trackerProject: string
+  /** The tracker's profile the project runs on (`ProfileView.id`); `null` — the tracker's default profile. */
+  profile: string | null
   /** Slots of the pool; `0` — a worktree per task. */
   slot: number
 }
@@ -257,6 +259,8 @@ export interface EvenKeelState {
   packages: PackagesView
   /** The credentials of the "Access" tab of /settings (BTN-131). */
   secrets: SecretsView
+  /** The trackers' profiles of the same tab (BTN-200). */
+  profiles: ProfilesView
   language: Language | null
   unattended: boolean
   trimTools: boolean
@@ -345,8 +349,6 @@ export type PackageProblem =
 
 export interface SecretsView {
   variables: SecretView[]
-  /** The title of each tracker adapter by its name, including those no project uses. */
-  trackers: Record<string, string>
   /** A removed key still reaches new sessions: the daemon of the global folder waits for its live sessions to end. */
   sessionsPending: boolean
 }
@@ -366,6 +368,61 @@ export interface SecretView {
   sessions: 'same' | 'other' | 'none' | null
   /** The page token while the service listens beyond loopback: it cannot be removed. */
   required: boolean
+}
+
+export interface ProfilesView {
+  profiles: ProfileView[]
+  /** Each tracker a profile can be made for, in the adapters' order. */
+  kinds: ProfileKindView[]
+}
+
+/** A tracker's profile (`src/profiles/`); a secret's value never leaves the service. */
+export interface ProfileView {
+  id: string
+  kind: string
+  name: string
+  /** The kind's profile for the sessions started by hand, the GitHub Actions of other trackers' projects and new projects. */
+  isDefault: boolean
+  /** The kind's variables, each with what the profile holds. */
+  fields: ProfileField[]
+  login: string | null
+  expiresAt: string | null
+  check: ProfileCheck
+  /** The keys of the projects that run on it: while there are any, its host fields stay and it cannot be removed. */
+  projects: string[]
+  /** The remotes whose GitHub Actions are not shown: the profile does not reach them (or no GitHub profile does). */
+  hiddenCi: HiddenCi[]
+}
+
+export interface ProfileField {
+  name: string
+  secret: boolean
+  set: boolean
+  /** The value of a field that is not a secret; `null` for a secret or one not set. */
+  value: string | null
+}
+
+export interface ProfileCheck {
+  state: 'unchecked' | 'checking' | 'ok' | 'refused' | 'unreachable'
+  /** Why it is not `ok`. */
+  error: Notice | null
+  at: string | null
+}
+
+export interface HiddenCi {
+  project: string
+  remote: string
+}
+
+export interface ProfileKindView {
+  kind: string
+  title: string
+  fields: { name: string; secret: boolean }[]
+  /** Fixed while projects use a profile. */
+  hostVariables: string[]
+  /** Sets of fields of which a profile fills one (Huly: a token, or an e-mail and a password). */
+  alternatives: string[][]
+  help: string
 }
 
 /** A variable of the pool a package or a tracker reads; its value never leaves the service. */

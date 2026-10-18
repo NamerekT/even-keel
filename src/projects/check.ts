@@ -15,6 +15,7 @@ export interface CheckDeps {
   /** The config file as it is now. */
   raw: () => unknown
   adapters: Readonly<Record<string, TrackerAdapter>>
+  /** The values of the tracker profile the draft would run on. */
   env: Record<string, string | undefined>
   /** The global `.claude.json`, whose trust the account folders get; `undefined` — none. */
   claudeConfig: () => unknown

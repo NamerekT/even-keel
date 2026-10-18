@@ -232,7 +232,7 @@ describe('Even Keel HTTP server', () => {
   })
 
   it('checks and adds the wizard project, removes a project, and refuses a draft of a wrong shape', async () => {
-    const draft = { repo: 'D:\\new', branch: '', key: 'NEW', name: '', tracker: 'huly', trackerProject: '', slot: 0 }
+    const draft = { repo: 'D:\\new', branch: '', key: 'NEW', name: '', tracker: 'huly', trackerProject: '', profile: null, slot: 0 }
     const check = await fetch(base + '/api/project/check', { method: 'POST', body: JSON.stringify(draft) })
     expect(check.status).toBe(200)
     expect(await check.json()).toEqual({ repo: { root: 'D:\\new', current: 'main', notice: null }, entry: null, tracker: null, trusted: true })
