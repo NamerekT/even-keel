@@ -78,6 +78,8 @@ The rules, statuses and order of actions are in the `huly-tracker` skill; read i
 
 An exception to the skill: working with the Huly API directly is allowed here — it is the point of the project.
 
+A live check of the GitHub adapter: Even Keel's project `EVK` runs the issues of `NamerekT/even-keel` in the clone `even-keel-github`. An `EVK-<number>` task is a GitHub issue, worked per the `github` plugin's skill, not Huly's: commit `[EVK-<number>] Message`, content in English.
+
 ## Task worktrees
 
 Even Keel prepares the worktree itself (`src/git/worktree.ts`, `src/git/slot.ts`), sessions do not create it: `.claude/worktrees/<key>-<number>` on the branch `<key>-<number>/task`, or a slot from the pool. After Done it stops the task's sessions, removes the worktree and the branch and runs `git sync`; it leaves dirty or occupied ones alone and writes them to `leftovers`. In detail — `docs/chain.md`.
