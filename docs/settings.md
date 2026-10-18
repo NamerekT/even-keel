@@ -263,8 +263,8 @@ parsers — not a table.
 
 - Definitions in code, mirrored into `setting_definitions` on start; values in `setting_values`. Recorded 2026-10-18 by
   this research; the user's two-table idea kept.
-- BTN-118 "Storage without a hand-edited file" (2026-10-18, unattended, the cheapest to undo; the user confirms in
-  BTN-192): no intermediate JSON in the state folder. The wizard and the removal write the project record into the same
+- BTN-118 "Storage without a hand-edited file" (2026-10-18, unattended, the cheapest to undo; the user confirmed it in
+  BTN-190, closing BTN-192): no intermediate JSON in the state folder. The wizard and the removal write the project record into the same
   `even-keel.config.json` through `ConfigFile`, which becomes the database's writer once settings move (BTN-199).
   Without a file at start, the service creates an empty one (`version`, `projects: []`) and logs it; the one-time
   import and `EVEN_KEEL_CONFIG` go with that move.
