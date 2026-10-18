@@ -177,6 +177,7 @@ function toView(
     sessionId: agent.sessionId,
     agent: runsOn,
     cwd: agent.cwd,
+    branch: summary.gitBranch,
     lamp: lampOf(present ? agent : undefined, summary.apiError?.kind ?? null, now),
     checkpoint: summary.checkpoint !== null,
     waitingFor: present && agent.status === 'waiting' ? (agent.waitingFor ?? null) : null,

@@ -96,6 +96,70 @@ export function describeTool(name: string, input: Record<string, unknown>, cwd: 
   return short === '' ? label : `${label} ${short}`
 }
 
+const SUBJECT_KEYS: Record<string, string> = {
+  Read: 'file_path',
+  Edit: 'file_path',
+  MultiEdit: 'file_path',
+  Write: 'file_path',
+  NotebookEdit: 'notebook_path',
+  Bash: 'description',
+  PowerShell: 'description',
+  Grep: 'pattern',
+  Glob: 'pattern',
+  WebFetch: 'url',
+  WebSearch: 'query',
+  Skill: 'skill',
+}
+
+/** What a call is about, for the page to show beside its verb: a file's path as given, a command's description, a pattern. */
+export function subjectOf(name: string, input: Record<string, unknown>): string | undefined {
+  const key = SUBJECT_KEYS[name]
+  const value = key === undefined ? undefined : input[key]
+  return typeof value === 'string' && value.trim() !== '' ? value.trim() : undefined
+}
+
+export interface EditSize {
+  added: number
+  removed: number
+}
+
+/** The lines an edit adds and removes; `undefined` for a call that edits nothing. */
+export function editSize(name: string, input: Record<string, unknown>): EditSize | undefined {
+  const text = (value: unknown) => (typeof value === 'string' ? value : '')
+  if (name === 'Edit') return diffSize(text(input.old_string), text(input.new_string))
+  if (name === 'Write') return { added: lineCount(text(input.content)), removed: 0 }
+  if (name === 'NotebookEdit') return { added: input.edit_mode === 'delete' ? 0 : lineCount(text(input.new_source)), removed: 0 }
+  if (name === 'MultiEdit' && Array.isArray(input.edits)) {
+    return (input.edits as Record<string, unknown>[]).reduce<EditSize>(
+      (sum, edit) => {
+        const size = diffSize(text(edit.old_string), text(edit.new_string))
+        return { added: sum.added + size.added, removed: sum.removed + size.removed }
+      },
+      { added: 0, removed: 0 },
+    )
+  }
+  return undefined
+}
+
+/** The lines of `after` and `before` left once their common first and last lines are put aside. */
+export function diffSize(before: string, after: string): EditSize {
+  const old = linesOf(before)
+  const next = linesOf(after)
+  let head = 0
+  while (head < old.length && head < next.length && old[head] === next[head]) head += 1
+  let tail = 0
+  while (tail < old.length - head && tail < next.length - head && old[old.length - 1 - tail] === next[next.length - 1 - tail]) tail += 1
+  return { added: next.length - head - tail, removed: old.length - head - tail }
+}
+
+export function lineCount(text: string): number {
+  return linesOf(text).length
+}
+
+function linesOf(text: string): string[] {
+  return text === '' ? [] : text.replace(/\r?\n$/, '').split(/\r?\n/)
+}
+
 function relativePath(file: string, cwd: string | undefined): string {
   const path = file.replace(/\\/g, '/')
   if (cwd === undefined) return path

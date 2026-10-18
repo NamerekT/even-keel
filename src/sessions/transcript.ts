@@ -1,5 +1,17 @@
 import { questionsOf, replyParts, toolAnswers, type Ask, type AskAnswers } from './ask.js'
-import { blocksOf, describeTool, flatten, imagesOf, parseEntry, type ContentBlock, type Entry, type Usage } from './entry.js'
+import {
+  blocksOf,
+  describeTool,
+  editSize,
+  flatten,
+  imagesOf,
+  parseEntry,
+  subjectOf,
+  type ContentBlock,
+  type EditSize,
+  type Entry,
+  type Usage,
+} from './entry.js'
 import { remoteUrlOf } from './remote.js'
 
 export type Stage = 'task' | 'recon' | 'edit' | 'test' | 'commit' | 'merge'
@@ -13,17 +25,24 @@ const API_ERROR_KINDS = new Map<unknown, ApiErrorKind>([
 
 export interface FeedLine {
   at: string
-  /** `image` only in a whole transcript: the result of call `tool` holds pictures. */
-  kind: 'text' | 'tool' | 'error' | 'prompt' | 'answer' | 'image'
+  /** `image` and `failed` only in a whole transcript: the result of call `tool` holds pictures, or is an error. */
+  kind: 'text' | 'tool' | 'error' | 'prompt' | 'answer' | 'image' | 'failed'
   /**
    * For a prompt or an answer, only the user's own words: Even Keel's lines around a reply, its answers and files are
-   * left out. For an image line, the name of the file the call read, empty for other tools.
+   * left out. For an image line, the name of the file the call read, empty for other tools. For a failed line, the error.
    */
   text: string
   /** The whole shell command of a tool line, only in a whole transcript. */
   detail?: string
-  /** The id of the call of a tool line or an image line, only in a whole transcript. */
+  /** The id of the call of a tool line, an image line or a failed line, only in a whole transcript. */
   tool?: string
+  /** The tool a tool line calls, only in a whole transcript. */
+  name?: string
+  /** What the call is about (`subjectOf`), only in a whole transcript. */
+  subject?: string
+  /** The lines an edit of a tool line adds and removes, only in a whole transcript. */
+  added?: number
+  removed?: number
   /** How many pictures an image line has; the page fetches them by the call's id, the data stays in the transcript. */
   images?: number
   /** The questions of an `AskUserQuestion` tool line, only in a whole transcript. */
@@ -84,6 +103,7 @@ export interface TranscriptSummary {
 const FEED_SIZE = 30
 const TEXT_LIMIT = 500
 const MESSAGE_LIMIT = 6000
+const ERROR_LIMIT = 2000
 const WRAP_UP_TEXT = 'Usage limit reached: Claude Code told the session to wrap up the turn'
 const REMOTE_DROPPED = 'Remote Control disconnected'
 const CHECKPOINT_LINE = /^[`*_]*CHECKPOINT:[`*_]*\s*[`*_]*([^`*\s][^`*]*?)[`*_]*$/
@@ -243,6 +263,7 @@ export class TranscriptFold {
         const input = block.input ?? {}
         const line: FeedLine = { at, kind: 'tool', text: describeTool(block.name, input, entry.cwd) }
         if (this.whole && SHELLS.has(block.name) && typeof input.command === 'string') line.detail = input.command
+        if (this.whole) Object.assign(line, callFacts(block.name, input, editSize(block.name, input)))
         if (this.whole && typeof block.id === 'string') {
           line.tool = block.id
           if (block.name === 'Read' && typeof input.file_path === 'string') this.readFiles.set(block.id, input.file_path.split(/[\\/]/).pop()!)
@@ -262,7 +283,11 @@ export class TranscriptFold {
   private pushUser(entry: Entry): void {
     if (this.whole) this.pushImages(entry)
     for (const block of blocksOf(entry.message?.content)) {
-      if (block.type === 'tool_result' && typeof block.tool_use_id === 'string') this.runningTools.delete(block.tool_use_id)
+      if (block.type !== 'tool_result' || typeof block.tool_use_id !== 'string') continue
+      this.runningTools.delete(block.tool_use_id)
+      if (this.whole && block.is_error === true) {
+        this.addFeed({ at: entry.timestamp ?? '', kind: 'failed', text: failureText(block.content), tool: block.tool_use_id })
+      }
     }
     const ask = this.openAsk
     if (ask !== null && blocksOf(entry.message?.content).some((block) => block.type === 'tool_result' && block.tool_use_id === ask.id)) {
@@ -337,6 +362,19 @@ export function userLine(at: string, prompt: string, answered: Ask | null, textO
   if (Object.keys(reply.answers).length > 0) return { at, kind: 'answer', text, answers: { answers: reply.answers }, ...files }
   if (text === '' && reply.files.length === 0) return null
   return { at, kind: 'prompt', text, ...files }
+}
+
+/** The name, the subject and the size of an edit of a call, for a tool line of a whole transcript. */
+export function callFacts(name: string, input: Record<string, unknown>, size: EditSize | undefined): Partial<FeedLine> {
+  const subject = subjectOf(name, input)
+  return { name, ...(subject === undefined ? {} : { subject }), ...size }
+}
+
+/** The start of a failed call's output; the rest stays in the transcript. */
+export function failureText(content: unknown): string {
+  const text = typeof content === 'string' ? content : blocksOf(content).map((block) => block.text ?? '').join('\n')
+  const trimmed = text.trim()
+  return trimmed.length > ERROR_LIMIT ? `${trimmed.slice(0, ERROR_LIMIT - 1)}…` : trimmed
 }
 
 function writtenTtl(usage: Usage): CacheTtl | null {

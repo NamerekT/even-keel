@@ -124,6 +124,15 @@ export function RefreshIcon() {
   )
 }
 
+/** Send a message: an arrow up. */
+export function SendIcon() {
+  return (
+    <svg className="icon" viewBox="0 0 16 16" aria-hidden="true">
+      <path d="M8 13V3M3.75 7.25 8 3l4.25 4.25" />
+    </svg>
+  )
+}
+
 /** Add a row: a plus. */
 export function PlusIcon() {
   return (

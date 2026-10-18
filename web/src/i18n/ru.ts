@@ -3,6 +3,14 @@ import { plural } from './plural.js'
 
 const forms = (one: string, few: string, many: string) => (count: number) => plural('ru', count, { one, few, many, other: few })
 const counted = (one: string, few: string, many: string) => (count: number) => `${count} ${forms(one, few, many)(count)}`
+/** The parts that are not empty, joined with commas, the first letter capital. */
+const sentence = (parts: string[]) => {
+  const text = parts.filter((part) => part !== '').join(', ')
+  return text.charAt(0).toUpperCase() + text.slice(1)
+}
+
+/** The calls of a group in the chat by kind: files for edits and reads, calls for the rest. */
+export type ToolCounts = Record<'edit' | 'read' | 'search' | 'run' | 'other', number>
 
 const launches = counted('запуск', 'запуска', 'запусков')
 const tasks = counted('задача', 'задачи', 'задач')
@@ -908,16 +916,38 @@ export const ru = {
       openPicture: (name: string) => `Открыть ${name}`,
       waiting: 'Сессия ждёт ответа — открыть чат',
       idle: 'Открыть чат с сессией',
-      placeholder: 'Ответ сессии…',
+      placeholder: 'Ответ сессии… Ctrl+Enter — отправить',
       send: 'Отправить',
-      attach: 'Файлы',
+      attach: 'Приложить файлы',
+      tools: {
+        read: 'Прочитал',
+        edit: 'Отредактировал',
+        write: 'Записал',
+        search: 'Искал',
+        ran: 'Запустил команду',
+        summary: (counts: ToolCounts) =>
+          sentence([
+            counts.edit === 0 ? '' : `отредактировал ${counts.edit === 1 ? 'файл' : counted('файл', 'файла', 'файлов')(counts.edit)}`,
+            counts.read === 0 ? '' : `прочитал ${counts.read === 1 ? 'файл' : counted('файл', 'файла', 'файлов')(counts.read)}`,
+            counts.search === 0 ? '' : `искал${counts.search === 1 ? '' : ` ${counted('раз', 'раза', 'раз')(counts.search)}`}`,
+            counts.run === 0 ? '' : `запустил ${counts.run === 1 ? 'команду' : counted('команду', 'команды', 'команд')(counts.run)}`,
+            counts.other === 0 ? '' : `вызвал ${counts.other === 1 ? 'инструмент' : counted('инструмент', 'инструмента', 'инструментов')(counts.other)}`,
+          ]),
+        failed: (count: number) => `(${count} с ошибкой)`,
+        failure: 'ошибка',
+        size: (added: number, removed: number) => `Добавлено строк: ${added}, удалено: ${removed}`,
+      },
+      head: {
+        branch: (name: string) => `Ветка ${name}`,
+        edits: (added: number, removed: number) => `Правки за сессию: +${added} −${removed} строк`,
+      },
       removeFile: (name: string) => `Убрать ${name}`,
       other: 'Другое',
       otherPlaceholder: 'Свой ответ…',
       unanswered: (count: number) => `Осталось ответить: ${count}`,
       unsaved: 'Claude Code записывает сообщение с этим вопросом только после ответа. Ответ отсюда продолжит сессию без него, с вопросом и вашим ответом; ответ через Remote Control его сохранит.',
       sent: 'Ответ отправлен — сессия продолжит с ним.',
-      working: 'Сессия работает. Писать можно уже сейчас, отправить — когда она остановится.',
+      working: 'Отправить можно, когда сессия остановится.',
       turnTokens: (shown: string, count: number) => `${shown} ${count < 1_000 ? forms('токен', 'токена', 'токенов')(count) : 'токенов'}`,
       thinking: 'Думает',
       turnTip: 'Время с начала хода, токены ответа за ход и чем сессия занята сейчас',

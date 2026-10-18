@@ -3,6 +3,8 @@ import type { FeedLine } from '../../../src/sessions/transcript.js'
 import type { SessionView } from '../../../src/state.js'
 import { say, t } from '../i18n/index.js'
 import { useCommand, useHold } from '../live/useCommand.js'
+import { PlusIcon, SendIcon } from '../ui/icons.js'
+import { Tipped } from '../ui/Tipped.js'
 import { askAnswers, AskPanel, NO_PICK, pickAnswer, type Pick } from './AskPanel.js'
 
 /** How long the composer stays shut after a reply went out, unless the session moves on sooner. */
@@ -58,55 +60,64 @@ export function ChatComposer({ project, task, session, aside, onSent }: Props) {
     >
       {ask !== null && <AskPanel ask={ask} picks={picks} disabled={disabled} ready={ready} onPick={(index, pick) => setPicks((now) => now.map((each, at) => (at === index ? pick : each)))} />}
       {ask?.unsaved && <p className="chat__hint">{t.session.chat.unsaved}</p>}
-      <div className="chat__row">
-        <textarea
-          className="chat__text"
-          rows={ask === null ? 3 : 1}
-          value={text}
-          disabled={sending}
-          placeholder={t.session.chat.placeholder}
-          onChange={(event) => setText(event.target.value)}
-          onKeyDown={(event) => {
-            if (event.key === 'Enter' && (event.ctrlKey || event.metaKey)) event.currentTarget.form?.requestSubmit()
-          }}
-        />
-        <div className="chat__buttons">
-          <label className={`button chat__attach${sending ? ' chat__attach--off' : ''}`}>
-            {t.session.chat.attach}
-            <input
-              type="file"
-              multiple
-              disabled={sending}
-              onChange={(event) => {
-                const chosen = [...(event.target.files ?? [])]
-                setFiles((now) => [...now, ...chosen])
-                event.target.value = ''
-              }}
-            />
-          </label>
-          <button type="submit" className="button button--primary" disabled={disabled || !ready} aria-busy={sending ? true : undefined}>
-            {t.session.chat.send}
+      <div className="chat__box">
+        {files.length > 0 && (
+          <ul className="chat__files">
+            {files.map((file, index) => (
+              <li key={`${file.name}-${index}`} className="chat__file">
+                {file.name}
+                <button
+                  type="button"
+                  className="chat__unfile"
+                  aria-label={t.session.chat.removeFile(file.name)}
+                  disabled={sending}
+                  onClick={() => setFiles((now) => now.filter((_, at) => at !== index))}
+                >
+                  ×
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+        <div className="chat__row">
+          <Tipped inline align="start" tip={t.session.chat.attach}>
+            <label className={`chat__icon chat__attach${sending ? ' chat__attach--off' : ''}`}>
+              <PlusIcon />
+              <input
+                type="file"
+                multiple
+                disabled={sending}
+                aria-label={t.session.chat.attach}
+                onChange={(event) => {
+                  const chosen = [...(event.target.files ?? [])]
+                  setFiles((now) => [...now, ...chosen])
+                  event.target.value = ''
+                }}
+              />
+            </label>
+          </Tipped>
+          <textarea
+            className="chat__text"
+            rows={ask === null ? 2 : 1}
+            value={text}
+            disabled={sending}
+            placeholder={t.session.chat.placeholder}
+            onChange={(event) => setText(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key === 'Enter' && (event.ctrlKey || event.metaKey)) event.currentTarget.form?.requestSubmit()
+            }}
+          />
+          <button
+            type="submit"
+            className="chat__icon chat__send"
+            disabled={disabled || !ready}
+            aria-busy={sending ? true : undefined}
+            aria-label={t.session.chat.send}
+          >
+            <SendIcon />
           </button>
         </div>
       </div>
-      {files.length > 0 && (
-        <ul className="chat__files">
-          {files.map((file, index) => (
-            <li key={`${file.name}-${index}`} className="chat__file">
-              {file.name}
-              <button
-                type="button"
-                className="chat__unfile"
-                aria-label={t.session.chat.removeFile(file.name)}
-                disabled={sending}
-                onClick={() => setFiles((now) => now.filter((_, at) => at !== index))}
-              >
-                ×
-              </button>
-            </li>
-          ))}
-        </ul>
-      )}
       {failure !== null ? (
         <p className="notice notice--error">{say(failure)}</p>
       ) : (

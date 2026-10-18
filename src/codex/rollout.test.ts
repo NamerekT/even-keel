@@ -95,6 +95,33 @@ describe('RolloutFold', () => {
     expect(summary.stage).toBe('edit')
   })
 
+  it('names the tool, the file and the size of each change in a whole transcript', () => {
+    const changes = {
+      'C:\\repos\\example\\a.ts': { type: 'add', content: 'one\ntwo\n' },
+      'C:\\repos\\example\\b.ts': { type: 'delete', content: 'gone\n' },
+      'C:\\repos\\example\\c.ts': { type: 'update', unified_diff: '--- a/c.ts\n+++ b/c.ts\n@@ -1,2 +1,2 @@\n-old\n+new\n+more\n same\n' },
+      'C:\\repos\\example\\d.ts': { type: 'update' },
+    }
+    const summary = fold([meta(), item({ id: 'exec-1', type: 'FileChange', changes, status: 'completed' }), shell('git status')], true).summary()
+    expect(summary.feed.map(({ name, subject, added, removed, tool }) => ({ name, subject, added, removed, tool }))).toEqual([
+      { name: 'Edit', subject: 'C:\\repos\\example\\a.ts', added: 2, removed: 0, tool: 'exec-1' },
+      { name: 'Edit', subject: 'C:\\repos\\example\\b.ts', added: 0, removed: 1, tool: 'exec-1' },
+      { name: 'Edit', subject: 'C:\\repos\\example\\c.ts', added: 2, removed: 1, tool: 'exec-1' },
+      { name: 'Edit', subject: 'C:\\repos\\example\\d.ts', added: undefined, removed: undefined, tool: 'exec-1' },
+      { name: 'Shell', subject: undefined, added: undefined, removed: undefined, tool: undefined },
+    ])
+    expect(fold([meta(), item({ id: 'exec-1', type: 'FileChange', changes, status: 'completed' })]).summary().feed[0]?.added).toBeUndefined()
+  })
+
+  it('adds a failed line after a call that failed, in a whole transcript only', () => {
+    const failed = item({ id: 'exec-2', type: 'CommandExecution', command: ['pwsh', '-Command', 'npm test'], status: 'failed', exit_code: 1, aggregated_output: 'FAIL a.test.ts\n' })
+    expect(fold([failed], true).summary().feed.map(({ at: _, ...value }) => value)).toEqual([
+      { kind: 'tool', text: 'Shell npm test', detail: 'npm test', name: 'Shell', tool: 'exec-2' },
+      { kind: 'failed', text: 'FAIL a.test.ts', tool: 'exec-2' },
+    ])
+    expect(fold([failed]).summary().feed.map((value) => value.kind)).toEqual(['tool'])
+  })
+
   it('reads a tracker call as the task stage', () => {
     const summary = fold([item({ type: 'McpToolCall', server: 'huly', tool: 'get_issue', arguments: { identifier: 'BTN-1' } })]).summary()
     expect(summary.feed[0]?.text).toBe('huly get_issue BTN-1')

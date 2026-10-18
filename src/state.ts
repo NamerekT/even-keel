@@ -22,6 +22,8 @@ export interface SessionView {
   /** The agent the session runs on (`src/agent/adapters.ts`). */
   agent: string
   cwd: string
+  /** The git branch of the session's last line, for the head of the chat window. */
+  branch: string | null
   lamp: Lamp
   /** The last line of the session's last response is `CHECKPOINT: <path>`: it waits to be handed over, not for an answer. */
   checkpoint: boolean

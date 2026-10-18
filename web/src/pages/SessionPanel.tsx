@@ -84,7 +84,7 @@ export function SessionPanel({ block, scale, onCard, onClose }: Props) {
           {block.interrupted && <span className="panel__flag">{t.session.interrupted}</span>}
         </p>
       )}
-      <Actions block={block} />
+      <Actions block={block} scale={scale} />
       {block.start !== null ? (
         <>
           <StartCard start={block.start} />
@@ -113,7 +113,7 @@ export function SessionPanel({ block, scale, onCard, onClose }: Props) {
   )
 }
 
-function Actions({ block }: { block: ChainBlock }) {
+function Actions({ block, scale }: { block: ChainBlock; scale: ContextScale }) {
   const { send, sending, failure } = useCommand()
   const [chatting, setChatting] = useState(false)
   const fix = isFixName(block.id)
@@ -201,7 +201,7 @@ function Actions({ block }: { block: ChainBlock }) {
             sessionId={chatSession.sessionId}
             account={chatSession.account}
             live={chatSession.lamp !== 'finished' || talking === null}
-            chat={{ project: body.project, task: body.task, session: chatSession, aside }}
+            chat={{ project: body.project, task: body.task, session: chatSession, aside, scale }}
             onClose={() => setChatting(false)}
           />
         </Suspense>

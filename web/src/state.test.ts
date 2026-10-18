@@ -53,6 +53,7 @@ function view(task: string, lamp: SessionView['lamp'], lastActivityAt: string | 
     sessionId: `session-${task}`,
     agent: 'claude',
     cwd: 'C:\\repos\\example',
+    branch: null,
     lamp,
     checkpoint: false,
     waitingFor: null,

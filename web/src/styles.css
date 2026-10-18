@@ -2861,80 +2861,10 @@ a:focus-visible {
   text-decoration: underline;
 }
 
+/* The rest of the transcript window is in web/src/pages/transcript.css; its size stays here, before the small-screen rules. */
 .session-window.transcript {
   width: min(1100px, calc(100vw - 32px));
   height: calc(100dvh - 48px);
-}
-
-.transcript .session-window__body {
-  overflow: hidden;
-}
-
-.transcript__lines {
-  font-size: 15px;
-}
-
-.transcript__lines .feed__line {
-  padding: 5px 0;
-}
-
-.transcript__lines .feed__text {
-  overflow-wrap: anywhere;
-}
-
-.transcript__lines .markdown {
-  font-size: inherit;
-}
-
-.transcript__plain {
-  white-space: pre-wrap;
-}
-
-.transcript__tool {
-  display: flex;
-  align-items: flex-start;
-  gap: 8px;
-}
-
-.transcript__tool .transcript__plain {
-  flex: 1;
-  min-width: 0;
-}
-
-.transcript__turn {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  align-self: flex-start;
-  max-width: 100%;
-  color: var(--fg-muted);
-  font-size: 14px;
-  font-variant-numeric: tabular-nums;
-}
-
-.transcript__turn-text {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.transcript__label {
-  display: block;
-  color: var(--accent);
-  font-size: 12px;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-}
-
-.transcript__detail {
-  margin: 4px 0 0;
-  padding: 6px 8px;
-  background: var(--surface);
-  border-radius: 6px;
-  font-family: var(--mono);
-  font-size: 14px;
-  white-space: pre-wrap;
-  overflow-wrap: anywhere;
 }
 
 .notice--warn {

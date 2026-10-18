@@ -76,6 +76,7 @@ function session(task: string, contextTokens: number, lamp: SessionView['lamp'] 
     sessionId: fakeSessionId(task),
     agent: 'claude',
     cwd: 'C:\\repos\\example-project',
+    branch: `${task.toLowerCase()}/task`,
     lamp,
     checkpoint: false,
     waitingFor: lamp === 'waiting' && task !== 'ABC-5' ? 'permission' : null,

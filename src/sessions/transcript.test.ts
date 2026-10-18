@@ -264,8 +264,8 @@ describe('TranscriptFold', () => {
     expect(whole.summary().feed.map(({ at: _, ...line }) => line)).toEqual([
       { kind: 'prompt', text: `ABC-7\n\n${long}` },
       { kind: 'text', text: long },
-      { kind: 'tool', text: 'Bash Build and test', detail: 'npm run build\nnpm test', tool: 'toolu_Bash' },
-      { kind: 'tool', text: 'Read a.ts', tool: 'toolu_Read' },
+      { kind: 'tool', text: 'Bash Build and test', detail: 'npm run build\nnpm test', tool: 'toolu_Bash', name: 'Bash', subject: 'Build and test' },
+      { kind: 'tool', text: 'Read a.ts', tool: 'toolu_Read', name: 'Read', subject: 'a.ts' },
     ])
   })
 
@@ -280,12 +280,52 @@ describe('TranscriptFold', () => {
     for (const line of lines) whole.push(line)
 
     expect(whole.summary().feed.map(({ at: _, ...line }) => line)).toEqual([
-      { kind: 'tool', text: 'Read .temp/shot.png', tool: 'toolu_Read' },
-      { kind: 'tool', text: 'Grep x', tool: 'toolu_Grep' },
+      { kind: 'tool', text: 'Read .temp/shot.png', tool: 'toolu_Read', name: 'Read', subject: `${CWD}\\.temp\\shot.png` },
+      { kind: 'tool', text: 'Grep x', tool: 'toolu_Grep', name: 'Grep', subject: 'x' },
       { kind: 'image', text: 'shot.png', tool: 'toolu_Read', images: 2 },
       { kind: 'image', text: '', tool: 'toolu_mcp', images: 1 },
     ])
     expect(fold(lines).summary().feed.map((line) => line.kind)).toEqual(['tool', 'tool'])
+  })
+
+  it('names the tool, its subject and the size of an edit on the tool lines of a whole transcript', () => {
+    const file = `${CWD}\\web\\a.ts`
+    const lines = [
+      assistant('m1', [
+        tool('Edit', { file_path: file, old_string: 'one\ntwo\nthree', new_string: 'one\n2\n2.5\nthree' }),
+        tool('Write', { file_path: file, content: 'a\nb\nc\n' }),
+        tool('MultiEdit', { file_path: file, edits: [{ old_string: 'x', new_string: 'y\nz' }, { old_string: 'p\nq', new_string: '' }] }),
+        tool('Grep', { pattern: 'needle' }),
+        tool('Bash', { command: 'npm test' }),
+      ]),
+    ]
+    const whole = new TranscriptFold(Infinity, true)
+    for (const line of lines) whole.push(line)
+
+    expect(whole.summary().feed.map(({ name, subject, added, removed }) => ({ name, subject, added, removed }))).toEqual([
+      { name: 'Edit', subject: file, added: 2, removed: 1 },
+      { name: 'Write', subject: file, added: 3, removed: 0 },
+      { name: 'MultiEdit', subject: file, added: 2, removed: 3 },
+      { name: 'Grep', subject: 'needle', added: undefined, removed: undefined },
+      { name: 'Bash', subject: undefined, added: undefined, removed: undefined },
+    ])
+    expect(fold(lines).summary().feed.every((line) => line.name === undefined && line.added === undefined)).toBe(true)
+  })
+
+  it('adds a failed line after a tool result that is an error, in a whole transcript only', () => {
+    const lines = [
+      assistant('m1', [tool('Bash', { command: 'npm test', description: 'Run tests' })]),
+      JSON.stringify({
+        type: 'user',
+        timestamp: at(),
+        message: { role: 'user', content: [{ type: 'tool_result', tool_use_id: 'toolu_Bash', is_error: true, content: 'Exit code 1\n  FAIL a.test.ts' }] },
+      }),
+    ]
+    const whole = new TranscriptFold(Infinity, true)
+    for (const line of lines) whole.push(line)
+
+    expect(whole.summary().feed.at(-1)).toMatchObject({ kind: 'failed', tool: 'toolu_Bash', text: 'Exit code 1\n  FAIL a.test.ts' })
+    expect(fold(lines).summary().feed.map((line) => line.kind)).toEqual(['tool'])
   })
 
   it('tracks the stage and does not step back to reading once editing started', () => {

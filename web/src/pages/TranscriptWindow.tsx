@@ -3,20 +3,25 @@ import Markdown, { type Components } from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import type { Ask, AskAnswers } from '../../../src/sessions/ask.js'
 import type { FeedLine, Turn } from '../../../src/sessions/transcript.js'
-import type { SessionView } from '../../../src/state.js'
+import type { ContextScale, SessionView } from '../../../src/state.js'
 import { formatElapsed, formatTokens } from '../format.js'
 import { localized, t } from '../i18n/index.js'
 import { useNow } from '../layout/useNow.js'
 import { useLive } from '../live/context.js'
+import { contextFill } from '../state.js'
 import { AccountTag } from '../ui/AccountTag.js'
+import { ContextMeter } from '../ui/ContextMeter.js'
 import { Tipped } from '../ui/Tipped.js'
 import { AnswerCard, AskCard } from './AskPanel.js'
 import { ChatComposer } from './ChatComposer.js'
 import { fileName } from './feedLine.js'
 import { MediaViewer } from './MediaViewer.js'
 import { Thumb, Thumbs } from './Thumbs.js'
+import { EditSize, ToolGroup } from './ToolCalls.js'
+import { editTotals, feedEntries, type EditTotal } from './toolGroups.js'
 import { transcriptMedia, type TranscriptMedia } from './transcriptMedia.js'
 import '../ui/markdown.css'
+import './transcript.css'
 
 const LINE_TIME = localized((language) => new Intl.DateTimeFormat(language, { hour: '2-digit', minute: '2-digit' }))
 const FULL_TIME = localized((language) => new Intl.DateTimeFormat(language, { dateStyle: 'medium', timeStyle: 'medium' }))
@@ -46,6 +51,8 @@ export interface ChatTarget {
   session: SessionView
   /** The task made way for the fix of a red main: the chat shows its question and takes no answer until the chain is back. */
   aside: boolean
+  /** For the head's meter of the session's context. */
+  scale: ContextScale
 }
 
 interface Props {
@@ -67,7 +74,7 @@ interface SentLine {
 export function TranscriptWindow({ sessionId, account, live, chat, onClose }: Props) {
   const { transcript, imageUrl, sentFileUrl } = useLive()
   const dialogRef = useRef<HTMLDialogElement>(null)
-  const listRef = useRef<HTMLOListElement>(null)
+  const listRef = useRef<HTMLDivElement>(null)
   const pinned = useRef(true)
   /** How many lines of the session's transcript are read. */
   const count = useRef(0)
@@ -79,19 +86,17 @@ export function TranscriptWindow({ sessionId, account, live, chat, onClose }: Pr
   const remoteUrl = chat?.session.remoteUrl
   const answered = new Map<string, AskAnswers>((all ?? []).flatMap((line) => (line.answers?.ask === undefined ? [] : [[line.answers.ask, line.answers.answers]])))
   const asks = new Map<string, Ask>((all ?? []).flatMap((line) => (line.ask === undefined ? [] : [[line.ask.id, line.ask]])))
-  const calls = new Set((all ?? []).flatMap((line) => (line.kind === 'tool' && line.tool !== undefined ? [line.tool] : [])))
   const media = transcriptMedia(
     all ?? [],
     { image: (tool, index) => imageUrl(sessionId, tool, index), file: (name) => sentFileUrl(sessionId, name) },
     t.session.chat.picture,
   )
   // An answered question shows as the card of its answer, the one the session waits on — in the panel under the chat.
-  // The pictures of a call show on its tool line.
-  const shown = all?.filter(
-    (line) =>
-      (line.ask === undefined || !(answered.has(line.ask.id) || (chat !== undefined && chat.session.ask?.id === line.ask.id))) &&
-      !(line.kind === 'image' && calls.has(line.tool ?? '')),
-  )
+  const entries =
+    all == null
+      ? null
+      : feedEntries(all.filter((line) => line.ask === undefined || !(answered.has(line.ask.id) || (chat !== undefined && chat.session.ask?.id === line.ask.id))))
+  const edits = editTotals(all ?? [])
 
   useEffect(() => {
     dialogRef.current?.showModal()
@@ -164,6 +169,7 @@ export function TranscriptWindow({ sessionId, account, live, chat, onClose }: Pr
             <span className="panel__title">{chat === undefined ? t.session.transcriptTitle : `${t.session.chat.title} · ${sessionId.slice(0, 8)}`}</span>
             <AccountTag email={account} />
           </h2>
+          <HeadFacts session={chat?.session ?? null} scale={chat?.scale ?? null} edits={edits} />
           {remoteUrl != null && (
             <a
               className="panel__remote"
@@ -183,56 +189,44 @@ export function TranscriptWindow({ sessionId, account, live, chat, onClose }: Pr
         {error !== null && <p className="notice notice--error">{error}</p>}
         {error === null && lines === undefined && <p className="placeholder">{t.common.reading}</p>}
         {lines === null && <p className="placeholder">{t.session.notFound}</p>}
-        {shown != null && (
-          <ol ref={listRef} className="feed transcript__lines" onScroll={onScroll}>
-            {shown.map((line, index) => (
-              <li key={index} className={`feed__line feed__line--${line.kind}`}>
-                <LineTime at={line.at} />
-                <div className="feed__text">
-                  {line.ask !== undefined ? (
-                    <AskCard ask={line.ask} answers={line.ask.id === chat?.session.ask?.id ? null : {}} />
-                  ) : line.kind === 'prompt' || line.kind === 'answer' ? (
-                    <>
-                      {line.answers !== undefined && Object.keys(line.answers.answers).length > 0 && (
-                        <AnswerCard answers={line.answers.answers} ask={line.answers.ask === undefined ? undefined : asks.get(line.answers.ask)} />
-                      )}
-                      {(line.text !== '' || (line.files?.length ?? 0) > 0) && (
-                        <UserBubble text={line.text} files={line.files ?? []} media={media} onOpen={setViewing} />
-                      )}
-                    </>
-                  ) : line.kind === 'text' ? (
-                    <div className="markdown">
-                      <Markdown remarkPlugins={[remarkGfm]} components={MARKDOWN}>
-                        {line.text}
-                      </Markdown>
-                    </div>
-                  ) : line.kind === 'image' ? (
-                    <Thumbs places={media.byTool.get(line.tool ?? '') ?? []} items={media.items} onOpen={setViewing} />
-                  ) : (
-                    <span className="transcript__tool">
-                      <span className="transcript__plain">{line.text}</span>
-                      <Thumbs places={media.byTool.get(line.tool ?? '') ?? []} items={media.items} onOpen={setViewing} />
-                    </span>
-                  )}
-                  {line.detail !== undefined && <pre className="transcript__detail">{line.detail}</pre>}
-                </div>
-              </li>
-            ))}
-          </ol>
+        {entries != null && (
+          <div ref={listRef} className="transcript__scroll" onScroll={onScroll}>
+            <ol className="transcript__lines">
+              {entries.map((entry, index) =>
+                entry.kind === 'gap' ? (
+                  <li key={index} className="transcript__gap">
+                    <LineTime at={entry.at} />
+                  </li>
+                ) : entry.kind === 'tools' ? (
+                  <li key={index} className="transcript__entry transcript__entry--tools">
+                    <LineTime at={entry.calls[0]!.line.at} hover />
+                    <ToolGroup calls={entry.calls} media={media} onOpen={setViewing} />
+                  </li>
+                ) : (
+                  <li key={index} className={`transcript__entry transcript__entry--${entry.line.kind}`}>
+                    <LineTime at={entry.line.at} hover={!isReply(entry.line)} />
+                    <Line line={entry.line} chat={chat} asks={asks} media={media} onOpen={setViewing} />
+                  </li>
+                ),
+              )}
+            </ol>
+          </div>
         )}
-        {chat?.session.lamp === 'working' && chat.session.turn !== null && <TurnLine turn={chat.session.turn} />}
         {chat !== undefined && (
-          <ChatComposer
-            key={chat.session.sessionId}
-            project={chat.project}
-            task={chat.task}
-            session={chat.session}
-            aside={chat.aside}
-            onSent={(line) => {
-              pinned.current = true
-              setSent((now) => [...now, { line, after: lines?.length ?? 0 }])
-            }}
-          />
+          <div className="transcript__foot">
+            {chat.session.lamp === 'working' && chat.session.turn !== null && <TurnLine turn={chat.session.turn} />}
+            <ChatComposer
+              key={chat.session.sessionId}
+              project={chat.project}
+              task={chat.task}
+              session={chat.session}
+              aside={chat.aside}
+              onSent={(line) => {
+                pinned.current = true
+                setSent((now) => [...now, { line, after: lines?.length ?? 0 }])
+              }}
+            />
+          </div>
         )}
       </div>
       {viewing !== null && media.items[viewing] !== undefined && (
@@ -258,12 +252,68 @@ function TurnLine({ turn }: { turn: Turn }) {
   )
 }
 
-/** Hours and minutes; the date and the seconds in the tip. */
-function LineTime({ at }: { at: string }) {
-  if (at === '') return <span className="feed__time" />
+interface LineProps {
+  line: FeedLine
+  chat: ChatTarget | undefined
+  asks: Map<string, Ask>
+  media: TranscriptMedia
+  onOpen: (place: number) => void
+}
+
+/** A line that is no call: a text of the session, a reply of the user, a question, an error. */
+function Line({ line, chat, asks, media, onOpen }: LineProps) {
+  if (line.ask !== undefined) return <AskCard ask={line.ask} answers={line.ask.id === chat?.session.ask?.id ? null : {}} />
+  if (isReply(line)) {
+    return (
+      <>
+        {line.answers !== undefined && Object.keys(line.answers.answers).length > 0 && (
+          <AnswerCard answers={line.answers.answers} ask={line.answers.ask === undefined ? undefined : asks.get(line.answers.ask)} />
+        )}
+        {(line.text !== '' || (line.files?.length ?? 0) > 0) && <UserBubble text={line.text} files={line.files ?? []} media={media} onOpen={onOpen} />}
+      </>
+    )
+  }
+  if (line.kind === 'text') {
+    return (
+      <div className="markdown">
+        <Markdown remarkPlugins={[remarkGfm]} components={MARKDOWN}>
+          {line.text}
+        </Markdown>
+      </div>
+    )
+  }
+  if (line.kind === 'image') return <Thumbs places={media.byTool.get(line.tool ?? '') ?? []} items={media.items} onOpen={onOpen} />
+  return <span className="transcript__plain">{line.text}</span>
+}
+
+/**
+ * The head's facts of a chat: how full the context is and the branch, and the edits of the session in any transcript;
+ * their figures in full in the tip.
+ */
+function HeadFacts({ session, scale, edits }: { session: SessionView | null; scale: ContextScale | null; edits: EditTotal | null }) {
+  const branch = session?.branch ?? null
+  const context = session !== null && scale !== null && session.contextTokens > 0
+  if (!context && branch === null && edits === null) return null
+  const tip = [
+    context ? `${t.context.label}: ${t.context.of(formatTokens(session.contextTokens), formatTokens(scale.window), Math.round(contextFill(session.contextTokens, scale).percent))}` : null,
+    branch === null ? null : t.session.chat.head.branch(branch),
+    edits === null ? null : t.session.chat.head.edits(edits.added, edits.removed),
+  ].filter((part) => part !== null)
+  return (
+    <Tipped className="transcript__facts" tip={tip.map((part) => <div key={part}>{part}</div>)} focusable>
+      {context && <ContextMeter tokens={session.contextTokens} scale={scale} />}
+      {branch !== null && <span className="transcript__branch">{branch}</span>}
+      {edits !== null && <EditSize {...edits} />}
+    </Tipped>
+  )
+}
+
+/** Hours and minutes, the date and the seconds in the tip; `hover` shows it only while the line is pointed at. */
+function LineTime({ at, hover = false }: { at: string; hover?: boolean }) {
+  if (at === '') return null
   const date = new Date(at)
   return (
-    <Tipped inline align="start" className="feed__time" tip={FULL_TIME().format(date)}>
+    <Tipped inline align="start" className={`transcript__time${hover ? ' transcript__time--hover' : ''}`} tip={FULL_TIME().format(date)}>
       <time dateTime={at}>{LINE_TIME().format(date)}</time>
     </Tipped>
   )

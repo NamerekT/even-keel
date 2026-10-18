@@ -1,8 +1,18 @@
 import { readdir, readFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import type { LimitWindow, RateLimits } from '../limits/model.js'
-import { describeTool, flatten } from '../sessions/entry.js'
-import { checkpointOf, stageOfCommand, userLine, type FeedLine, type Stage, type TokenTotals, type TranscriptSummary } from '../sessions/transcript.js'
+import { describeTool, flatten, lineCount, type EditSize } from '../sessions/entry.js'
+import {
+  callFacts,
+  checkpointOf,
+  failureText,
+  stageOfCommand,
+  userLine,
+  type FeedLine,
+  type Stage,
+  type TokenTotals,
+  type TranscriptSummary,
+} from '../sessions/transcript.js'
 
 /**
  * A Codex session's transcript: `<CODEX_HOME>/sessions/YYYY/MM/DD/rollout-<time>-<id>.jsonl`, lines
@@ -144,19 +154,34 @@ export class RolloutFold {
     if (item.type === 'CommandExecution') {
       const command = commandOf(item.command)
       const line: FeedLine = { at, kind: 'tool', text: describeTool(SHELL, { command }, undefined) }
-      if (this.whole) line.detail = command
+      if (this.whole) Object.assign(line, { detail: command, ...this.callOf(item, SHELL, {}) })
       this.addAction(line)
       this.advanceStage(stageOfCommand(command))
     } else if (item.type === 'FileChange') {
-      for (const path of Object.keys(record(item.changes) ?? {})) {
-        this.addAction({ at, kind: 'tool', text: describeTool('Edit', { file_path: path }, this.workdir ?? undefined) })
+      for (const [path, change] of Object.entries(record(item.changes) ?? {})) {
+        const line: FeedLine = { at, kind: 'tool', text: describeTool('Edit', { file_path: path }, this.workdir ?? undefined) }
+        if (this.whole) Object.assign(line, this.callOf(item, 'Edit', { file_path: path }, changeSize(record(change))))
+        this.addAction(line)
       }
       this.advanceStage('edit')
     } else if (typeof item.server === 'string' && typeof item.tool === 'string') {
       const name = `mcp__${item.server}__${item.tool}`
-      this.addAction({ at, kind: 'tool', text: describeTool(name, record(item.arguments) ?? {}, undefined) })
+      const input = record(item.arguments) ?? {}
+      const line: FeedLine = { at, kind: 'tool', text: describeTool(name, input, undefined) }
+      if (this.whole) Object.assign(line, this.callOf(item, name, input))
+      this.addAction(line)
       if (item.tool === 'get_issue') this.advanceStage('task')
+    } else {
+      return
     }
+    if (this.whole && item.status === 'failed') {
+      this.addFeed({ at, kind: 'failed', text: failureText(failureOf(item)), ...(typeof item.id === 'string' ? { tool: item.id } : {}) })
+    }
+  }
+
+  /** The facts of a whole transcript's tool line; the rollout writes a call once it has finished, so it knows its outcome. */
+  private callOf(item: Record<string, unknown>, name: string, input: Record<string, unknown>, size?: EditSize): Partial<FeedLine> {
+    return { ...callFacts(name, input, size), ...(typeof item.id === 'string' ? { tool: item.id } : {}) }
   }
 
   private touch(at: string): void {
@@ -258,6 +283,28 @@ function windowOf(windows: (Record<string, unknown> | undefined)[], minutes: num
 function commandOf(command: unknown): string {
   if (typeof command === 'string') return command
   return Array.isArray(command) && typeof command.at(-1) === 'string' ? (command.at(-1) as string) : ''
+}
+
+/**
+ * The lines of one file of a `FileChange`: an `add` or a `delete` carries the file's `content`, an `update` its
+ * `unified_diff`; no size when neither is there.
+ */
+function changeSize(change: Record<string, unknown> | undefined): EditSize | undefined {
+  if (typeof change?.content === 'string') {
+    const lines = lineCount(change.content)
+    return change.type === 'delete' ? { added: 0, removed: lines } : { added: lines, removed: 0 }
+  }
+  if (typeof change?.unified_diff !== 'string') return undefined
+  const lines = change.unified_diff.split(/\r?\n/)
+  return {
+    added: lines.filter((line) => line.startsWith('+') && !line.startsWith('+++')).length,
+    removed: lines.filter((line) => line.startsWith('-') && !line.startsWith('---')).length,
+  }
+}
+
+/** What a failed call printed: a command's output, a patch's error. */
+function failureOf(item: Record<string, unknown>): string {
+  return [item.stderr, item.aggregated_output, item.stdout].find((value): value is string => typeof value === 'string' && value.trim() !== '') ?? ''
 }
 
 function textOf(content: unknown): string {

@@ -1,9 +1,13 @@
 import { noticesEn } from './notices-en.js'
 import { plural } from './plural.js'
-import type { Messages } from './ru.js'
+import type { Messages, ToolCounts } from './ru.js'
 
 const forms = (one: string, other: string) => (count: number) => plural('en', count, { one, other })
 const counted = (one: string, other: string) => (count: number) => `${count} ${forms(one, other)(count)}`
+const sentence = (parts: string[]) => {
+  const text = parts.filter((part) => part !== '').join(', ')
+  return text.charAt(0).toUpperCase() + text.slice(1)
+}
 
 const launches = counted('launch', 'launches')
 const tasks = counted('task', 'tasks')
@@ -903,16 +907,38 @@ export const en: Messages = {
       openPicture: (name: string) => `Open ${name}`,
       waiting: 'The session waits for a reply — open the chat',
       idle: 'Open the chat with the session',
-      placeholder: 'Reply to the session…',
+      placeholder: 'Reply to the session… Ctrl+Enter to send',
       send: 'Send',
-      attach: 'Files',
+      attach: 'Attach files',
+      tools: {
+        read: 'Read',
+        edit: 'Edited',
+        write: 'Wrote',
+        search: 'Searched',
+        ran: 'Ran a command',
+        summary: (counts: ToolCounts) =>
+          sentence([
+            counts.edit === 0 ? '' : `edited ${counts.edit === 1 ? 'a file' : counted('file', 'files')(counts.edit)}`,
+            counts.read === 0 ? '' : `read ${counts.read === 1 ? 'a file' : counted('file', 'files')(counts.read)}`,
+            counts.search === 0 ? '' : `searched${counts.search === 1 ? '' : ` ${counts.search} times`}`,
+            counts.run === 0 ? '' : `ran ${counts.run === 1 ? 'a command' : counted('command', 'commands')(counts.run)}`,
+            counts.other === 0 ? '' : `used ${counts.other === 1 ? 'a tool' : counted('tool', 'tools')(counts.other)}`,
+          ]),
+        failed: (count: number) => `(${count} failed)`,
+        failure: 'failed',
+        size: (added: number, removed: number) => `${added} ${forms('line', 'lines')(added)} added, ${removed} removed`,
+      },
+      head: {
+        branch: (name: string) => `Branch ${name}`,
+        edits: (added: number, removed: number) => `Edits of the session: +${added} −${removed} lines`,
+      },
       removeFile: (name: string) => `Remove ${name}`,
       other: 'Other',
       otherPlaceholder: 'Your own answer…',
       unanswered: (count: number) => `Left to answer: ${count}`,
       unsaved: 'Claude Code saves the message with this question only once it is answered. A reply from here resumes the session without it, with the question and your answer; a reply through Remote Control keeps it.',
       sent: 'The reply is sent — the session goes on with it.',
-      working: 'The session is working. You can type now and send once it stops.',
+      working: 'You can send once the session stops.',
       turnTokens: (shown: string, count: number) => `${shown} ${count === 1 ? 'token' : 'tokens'}`,
       thinking: 'Thinking',
       turnTip: 'Time since the prompt of the turn, the output tokens of the turn and what the session is doing',
