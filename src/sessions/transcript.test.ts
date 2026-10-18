@@ -702,6 +702,41 @@ describe('TranscriptFold', () => {
     })
   })
 
+  describe('a message sent mid-turn', () => {
+    const queued = (prompt: unknown, origin: Record<string, unknown>) =>
+      JSON.stringify({ type: 'attachment', timestamp: at(), attachment: { type: 'queued_command', prompt, commandMode: 'prompt', origin } })
+    const thinking = (value: string) => ({ type: 'thinking', thinking: value, signature: 'c2ln' })
+
+    it('shows a message the CLI took into the running turn as the user prompt, without starting a new turn', () => {
+      const started = fold([JSON.stringify({ type: 'user', timestamp: at(), message: { role: 'user', content: 'ABC-1' } })])
+      const turn = started.summary().turn
+      started.push(queued([IMAGE, text('Should these settings go?')], { kind: 'human' }))
+      const summary = started.summary()
+      expect(summary.feed.at(-1)).toMatchObject({ kind: 'prompt', text: 'Should these settings go?' })
+      expect(summary.turn).toEqual(turn)
+    })
+
+    it('takes a plain string prompt too', () => {
+      expect(fold([queued('Skip the cache.', { kind: 'human' })]).summary().feed).toEqual([
+        { at: expect.any(String), kind: 'prompt', text: 'Skip the cache.' },
+      ])
+    })
+
+    it('leaves out what the session queued for itself', () => {
+      const notice = queued('<task-notification>done</task-notification>', { kind: 'task-notification', producer: 'session-task' })
+      expect(fold([notice]).summary().feed).toEqual([])
+    })
+
+    it('shows the narration of a thinking block as text and leaves the hidden thinking out', () => {
+      const summary = fold([assistant('m1', [thinking(''), thinking('Confirmed: the keys come from the profile.'), tool('Read', { file_path: 'a.ts' })])]).summary()
+      expect(summary.feed.map((line) => [line.kind, line.text])).toEqual([
+        ['text', 'Confirmed: the keys come from the profile.'],
+        ['tool', expect.any(String)],
+      ])
+      expect(summary.lastMessage).toBeNull()
+    })
+  })
+
   it('skips blank and broken lines', () => {
     const summary = fold(['', '{not json', assistant('m1', [text('ok')], { input: 1 })]).summary()
     expect(summary.contextTokens).toBe(1)
