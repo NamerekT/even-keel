@@ -7,7 +7,7 @@ import { setTimeout as delay } from 'node:timers/promises'
 import { promisify } from 'node:util'
 import type { AccountHome } from '../account/homes.js'
 import { parseAuthStatus, type AccountStatus } from '../account/model.js'
-import type { SessionStart } from '../agent/contract.js'
+import { gatewayName, type SessionStart } from '../agent/contract.js'
 import { fail, notice, NoticeError, type Notice } from '../notice/notice.js'
 import { samePath } from '../paths.js'
 import { blockedAsk, blockedOn, parseAgents, parseSessionRecord, withLiveRecords, type AgentEntry, type SessionRecord } from '../sessions/agents.js'
@@ -167,16 +167,15 @@ export type SessionExtras = Pick<SessionStart, 'settings' | 'mcp' | 'plugins'>
 
 /**
  * `--mcp-config` takes several values, so it goes first, closed by `--strict-mcp-config`: right before the prompt it
- * would swallow it. A plugin's server keeps the name the CLI gives a plugin's own, `plugin_<plugin>_<server>`: its
- * tools stay `mcp__plugin_<plugin>_<server>__*`, as the plugin's hooks and the permission rules name them.
+ * would swallow it. A server goes under its `gatewayName`.
  */
 export function sessionArgs(task: string, model: string | null, extras: SessionExtras = {}): string[] {
   const { settings, mcp, plugins = [] } = extras
-  const servers = Object.fromEntries((mcp ?? []).map((each) => [each.plugin === null ? each.name : `plugin_${each.plugin}_${each.name}`, { type: 'http', url: each.url }]))
+  const servers = Object.fromEntries((mcp ?? []).map((each) => [gatewayName(each), { type: 'http', url: each.url }]))
   return [
     '--bg',
     ...(mcp === undefined ? [] : ['--mcp-config', JSON.stringify({ mcpServers: servers }), '--strict-mcp-config']),
-    ...plugins.flatMap((dir) => ['--plugin-dir', dir]),
+    ...plugins.flatMap(({ dir }) => ['--plugin-dir', dir]),
     '--permission-mode',
     SESSION_MODE,
     '-n',

@@ -45,6 +45,7 @@ import { isLive, turnStatus, type AgentEntry } from './sessions/agents.js'
 import { launchPlan, runChoice, type LaunchPlan, type RunChoice } from './sessions/launch.js'
 import { runAfterGreen, runBeforeStart, runCheck, systemShell, type SetupRun } from './sessions/setup.js'
 import { SessionMonitor } from './sessions/monitor.js'
+import { noteAtEnd } from './sessions/note.js'
 import { TranscriptOwners } from './sessions/owners.js'
 import { ChatTitles } from './sessions/title.js'
 import { TranscriptWatch } from './sessions/watch.js'
@@ -397,7 +398,7 @@ const planFor = (task: string, prompt: string, project = projectOf(task)): Launc
 /** What a session also gets: the project's packages, and the global execution mode for an agent other than Claude Code. */
 const agentExtras = (home: AccountHome, project: string | undefined, task: string): Pick<SessionStart, 'bypassSandbox' | 'mcp' | 'plugins'> => ({
   ...(home.agent !== CLAUDE && configFile.current.execution[home.agent] === 'bypass' ? { bypassSandbox: true } : {}),
-  ...(project === undefined ? {} : packages.startOf(project, task, home.agent)),
+  ...(project === undefined ? {} : packages.startOf(project, task)),
 })
 
 const noAccountFor = (task: string, fallback: string, provider: string) =>
@@ -779,7 +780,12 @@ const server = createEvenKeelServer({
     const run = handoffsOf(launches, sessionId)
     if (run === undefined) return undefined
     const { first, source } = await stats.checkpoint(run.project)
-    return { ...run, first, source }
+    return { ...run, first, source, context: monitor.contextOf(sessionId) ?? null }
+  },
+  handoffNote: async (sessionId) => {
+    if (handoffsOf(launches, sessionId) === undefined) return undefined
+    const feed = await inHomes((home) => agentOf(home).feed(home, sessionId, 0))
+    return feed !== undefined && noteAtEnd(feed.lines)
   },
   mergeCheck: (sessionId) => {
     const run = handoffsOf(launches, sessionId)

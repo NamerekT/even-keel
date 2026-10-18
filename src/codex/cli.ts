@@ -10,6 +10,7 @@ import type { SessionStart } from '../agent/contract.js'
 import { fail, notice, NoticeError, type Notice } from '../notice/notice.js'
 import type { AgentEntry } from '../sessions/agents.js'
 import { mcpArgs } from './mcp.js'
+import type { CodexPlugins } from './plugins.js'
 import { entryOf, outputTail, threadOf, turnEnded, type CodexSession, type TurnRegistry } from './turns.js'
 
 const run = promisify(execFile)
@@ -37,8 +38,8 @@ export function resolveCodexBinary(env: NodeJS.ProcessEnv): string {
   return existsSync(native) ? native : 'codex'
 }
 
-/** Every flag of `codex exec` goes before `resume`: the subcommand has none of its own. */
-export function turnArgs(start: Pick<SessionStart, 'model' | 'bypassSandbox' | 'mcp'>, prompt: string, resumeId?: string): string[] {
+/** Every flag of `codex exec` goes before `resume`: the subcommand has none of its own. `plugins` — `CodexPlugins.args`. */
+export function turnArgs(start: Pick<SessionStart, 'model' | 'bypassSandbox' | 'mcp'>, prompt: string, resumeId?: string, plugins: string[] = []): string[] {
   const { model, bypassSandbox, mcp = [] } = start
   return [
     'exec',
@@ -46,6 +47,7 @@ export function turnArgs(start: Pick<SessionStart, 'model' | 'bypassSandbox' | '
     `--${bypassSandbox === true ? BYPASS_MODE : SESSION_MODE}`,
     ...(model === null ? [] : ['-m', model]),
     ...mcpArgs(mcp),
+    ...plugins,
     ...(resumeId === undefined ? [] : ['resume', resumeId]),
     prompt,
   ]
@@ -84,11 +86,13 @@ export class CodexCli {
     private readonly timeoutMs: number,
     private readonly envOf: (home: AccountHome) => NodeJS.ProcessEnv,
     private readonly registry: TurnRegistry,
+    private readonly plugins: CodexPlugins,
   ) {}
 
   async launch(home: AccountHome, start: SessionStart): Promise<string> {
     const { name, cwd } = start
-    const turn = await this.turn(home, start, turnArgs(start, start.prompt), cwd, notice('codex.startFailed', { task: name, cwd }))
+    const plugins = await this.pluginArgs(home, start, cwd)
+    const turn = await this.turn(home, start, turnArgs(start, start.prompt, undefined, plugins), cwd, notice('codex.startFailed', { task: name, cwd }))
     this.registry.save({ sessionId: turn.thread, name, cwd, account: home.key, startedAt: turn.at, pid: turn.pid, out: turn.out })
     return turn.thread
   }
@@ -97,7 +101,8 @@ export class CodexCli {
   async resume(home: AccountHome, sessionId: string, start: SessionStart): Promise<string> {
     const session = await this.known(sessionId)
     const { name, cwd } = session
-    const turn = await this.turn(home, start, turnArgs(start, start.prompt, sessionId), cwd, notice('codex.resumeFailed', { task: name, cwd }))
+    const plugins = await this.pluginArgs(home, start, cwd)
+    const turn = await this.turn(home, start, turnArgs(start, start.prompt, sessionId, plugins), cwd, notice('codex.resumeFailed', { task: name, cwd }))
     if (turn.thread !== sessionId) throw fail('codex.otherThread', { task: name, asked: sessionId, got: turn.thread })
     const { stopped: _, ...kept } = session
     this.registry.save({ ...kept, account: home.key, pid: turn.pid, out: turn.out })
@@ -146,6 +151,15 @@ export class CodexCli {
       await run(this.bin(), ['logout'], { env: this.envOf(home), timeout: this.timeoutMs, windowsHide: true })
     } catch (error) {
       throw fail('codex.signOutFailed', { account: home.key }, { detail: outputOf(error) }, { cause: error })
+    }
+  }
+
+  private async pluginArgs(home: AccountHome, start: SessionStart, cwd: string): Promise<string[]> {
+    if (start.plugins === undefined) return []
+    try {
+      return await this.plugins.args(home, cwd, start.plugins)
+    } catch (error) {
+      throw fail('codex.pluginsFailed', { task: start.name, account: home.key }, { detail: (error as Error).message }, { cause: error })
     }
   }
 

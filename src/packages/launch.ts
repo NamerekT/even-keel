@@ -1,5 +1,6 @@
-import { join } from 'node:path'
-import type { SessionMcp } from '../agent/contract.js'
+import { existsSync, mkdirSync, writeFileSync } from 'node:fs'
+import { dirname, join } from 'node:path'
+import type { SessionMcp, SessionPlugin } from '../agent/contract.js'
 import { installsFor, type PackagesFile } from './model.js'
 
 const ROUTE = /^\/mcp\/([^/]+)\/([^/]+)@([^/@]+)\/([^/]+)$/
@@ -16,7 +17,7 @@ export interface LaunchPlaces {
 /** What a session of the task gets: the gateway's servers, the plugin folders, and the install of each package. */
 export interface SessionPackages {
   mcp: SessionMcp[]
-  plugins: string[]
+  plugins: SessionPlugin[]
   installs: Record<string, string>
 }
 
@@ -43,16 +44,46 @@ export function pluginDir(cache: string, name: string, install: string): string 
   return join(cache, name, install, 'plugin')
 }
 
+/** The marketplace of one install of a plugin package. */
+export function marketplaceName(install: string): string {
+  return `ek-${install}`
+}
+
+export function marketplaceFile(cache: string, name: string, install: string): string {
+  return join(cache, name, install, '.claude-plugin', 'marketplace.json')
+}
+
+/** `marketplace.json` beside the install's `plugin` folder: Codex installs a plugin only from a marketplace. */
+export function installMarketplace(plugin: string, install: string): Record<string, unknown> {
+  return { name: marketplaceName(install), owner: { name: 'Even Keel' }, plugins: [{ name: plugin, source: './plugin' }] }
+}
+
+/** Written on the first session of an install, so installs made before Codex read plugins get one too. */
+export function ensureMarketplace(cache: string, name: string, install: string, plugin: string): void {
+  const file = marketplaceFile(cache, name, install)
+  if (existsSync(file)) return
+  mkdirSync(dirname(file), { recursive: true })
+  writeFileSync(file, `${JSON.stringify(installMarketplace(plugin, install), null, 2)}\n`)
+}
+
 export function sessionPackages(file: PackagesFile, project: string, task: string, places: LaunchPlaces): SessionPackages {
   const mcp: SessionMcp[] = []
-  const plugins: string[] = []
+  const plugins: SessionPlugin[] = []
   const installs: Record<string, string> = {}
   for (const [name, id] of Object.entries(installsFor(file, project, task))) {
     const record = file.packages[name]
     const install = record?.installs.find((each) => each.id === id)
     if (record === undefined || install === undefined) continue
     installs[name] = id
-    if (record.kind === 'plugin') plugins.push(pluginDir(places.cache, name, id))
+    if (record.kind === 'plugin' && record.plugin !== undefined) {
+      plugins.push({
+        dir: pluginDir(places.cache, name, id),
+        name: record.plugin.name,
+        marketplace: marketplaceName(id),
+        marketplaceFile: marketplaceFile(places.cache, name, id),
+        servers: Object.keys(install.servers),
+      })
+    }
     for (const server of Object.keys(install.servers)) {
       mcp.push({ name: server, plugin: record.plugin?.name ?? null, url: `${places.gateway}${routeOf(places.projectId, name, id, server)}` })
     }

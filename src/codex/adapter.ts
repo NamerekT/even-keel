@@ -5,6 +5,7 @@ import type { AccountHome } from '../account/homes.js'
 import type { AgentAdapter } from '../agent/contract.js'
 import { notice } from '../notice/notice.js'
 import { CodexCli, resolveCodexBinary, SESSION_MODE } from './cli.js'
+import { CodexPlugins } from './plugins.js'
 import { foldRollout, limitsOfRollout, RolloutFold, rolloutFile, rolloutFiles } from './rollout.js'
 import { RolloutTail } from './tail.js'
 import { TurnRegistry } from './turns.js'
@@ -21,7 +22,8 @@ export const codex: AgentAdapter = {
   title: 'Codex',
   setup({ env, timeoutMs, workDir }) {
     const envOf = (home: AccountHome) => codexEnv(env, home)
-    const cli = new CodexCli(() => resolveCodexBinary(env), timeoutMs, envOf, new TurnRegistry(join(workDir, 'codex')))
+    const bin = () => resolveCodexBinary(env)
+    const cli = new CodexCli(bin, timeoutMs, envOf, new TurnRegistry(join(workDir, 'codex')), new CodexPlugins(bin, envOf))
     return {
       mode: SESSION_MODE,
       env: envOf,

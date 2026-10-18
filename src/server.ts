@@ -153,6 +153,8 @@ export interface ServerDeps {
   inboxFile: (sessionId: string, name: string) => Promise<TaskFile | undefined>
   /** For the checkpoint hook; `undefined` for a session the chain did not start. */
   checkpoint: (sessionId: string) => Promise<SessionCheckpoint | undefined>
+  /** For the checkpoint mark hook: the turn wrote the handoff note near its end (`noteAtEnd`); `undefined` as above. */
+  handoffNote: (sessionId: string) => Promise<boolean | undefined>
   /**
    * For the merge hook: the project's check commands to run before the merge, empty — none, and its main branch;
    * `undefined` for a session the chain did not start.
@@ -301,6 +303,14 @@ async function route(deps: ServerDeps, request: IncomingMessage, response: Serve
     const found = await deps.checkpoint(decodeURIComponent(checkpoint[1]!))
     if (found === undefined) response.writeHead(404).end()
     else sendJson(response, 200, found)
+    return
+  }
+
+  const handoffNote = /^\/api\/sessions\/([^/]+)\/note$/.exec(path)
+  if (request.method === 'GET' && handoffNote !== null) {
+    const note = await deps.handoffNote(decodeURIComponent(handoffNote[1]!))
+    if (note === undefined) response.writeHead(404).end()
+    else sendJson(response, 200, { note })
     return
   }
 

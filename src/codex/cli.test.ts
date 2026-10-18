@@ -52,10 +52,15 @@ describe('turnArgs', () => {
       '-m',
       'gpt-5.6-luna',
       '-c',
-      'mcp_servers.huly.url="http://127.0.0.1:4748/mcp/p/huly%40even-keel@a/huly"',
+      'mcp_servers.plugin_huly_huly.url="http://127.0.0.1:4748/mcp/p/huly%40even-keel@a/huly"',
       'resume',
       'thread-1',
       'go on',
     ])
+  })
+
+  it('puts the plugin flags after the servers and before resume', () => {
+    const plugins = ['-c', 'plugins.huly@ek-b.enabled=true']
+    expect(turnArgs({ model: null }, 'go on', 'thread-1', plugins)).toEqual(['exec', '--json', '--approve-for-me', ...plugins, 'resume', 'thread-1', 'go on'])
   })
 })

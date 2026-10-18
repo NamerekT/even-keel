@@ -9,7 +9,7 @@ import { byMap, inverted } from '../storage/projects.js'
 import { Probes, projectPackages } from './check.js'
 import { McpGateway, type GatewayTarget } from './gateway.js'
 import { applySettings, defaultSettings, keysOf, substitute, upsertEnv, type KeyRules } from './keys.js'
-import { otherPlugins, pluginDir, routeOf, sessionPackages } from './launch.js'
+import { ensureMarketplace, otherPlugins, pluginDir, routeOf, sessionPackages } from './launch.js'
 import { current, enabledPackages, pluginKey, settingsOf, unpinned, type InstalledServer, type PackageInstall, type PackagesFile, type ServerEntry } from './model.js'
 import { installPinned, parseNpx, resolveVersion } from './npm.js'
 import { availablePlugins, FETCHED, hasExtras, locatePlugin, pluginOffer, pluginServers, pluginVersion, readJson, seedPackages, serversIn } from './plugins.js'
@@ -150,14 +150,18 @@ export class Packages {
   }
 
   /** What a session of the task gets; the first one pins the task to the installs it starts on. */
-  startOf(project: string, task: string, agent: string): Pick<SessionStart, 'mcp' | 'plugins'> {
+  startOf(project: string, task: string): Pick<SessionStart, 'mcp' | 'plugins'> {
     const places = { gateway: this.gateway.origin, cache: this.deps.cache, projectId: this.idOf(project) }
     const found = sessionPackages(this.file, project, task, places)
     if (this.file.pins[project]?.[task] === undefined && Object.keys(found.installs).length > 0) {
       ;(this.file.pins[project] ??= {})[task] = found.installs
       this.save()
     }
-    return { mcp: found.mcp, ...(agent === 'claude' ? { plugins: found.plugins } : {}) }
+    for (const [name, id] of Object.entries(found.installs)) {
+      const plugin = this.file.packages[name]?.plugin
+      if (plugin !== undefined) ensureMarketplace(this.deps.cache, name, id, plugin.name)
+    }
+    return { mcp: found.mcp, plugins: found.plugins }
   }
 
   /** `enabledPlugins: false` for every plugin the settings files enable and the task's set does not bring. */

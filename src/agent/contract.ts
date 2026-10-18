@@ -48,8 +48,8 @@ export interface SessionStart {
    * gets these and no other. `undefined` — the agent's own configuration decides.
    */
   mcp?: SessionMcp[]
-  /** Optional. The folders of the project's plugin packages, for an agent that reads Claude Code plugins. */
-  plugins?: string[]
+  /** Optional. The project's plugin packages, for an agent that reads Claude Code plugins. */
+  plugins?: SessionPlugin[]
 }
 
 /** A server of the gateway: the session reaches it at `url` with no credentials of its own. */
@@ -58,6 +58,28 @@ export interface SessionMcp {
   /** The plugin it comes with: Claude Code names its tools after the plugin, and the plugin's hooks match them so. */
   plugin: string | null
   url: string
+}
+
+/** A plugin package's install: its copy, and the marketplace of that copy alone for an agent that installs from one. */
+export interface SessionPlugin {
+  /** The plugin's folder. */
+  dir: string
+  /** The plugin's own name. */
+  name: string
+  /** The marketplace of this install alone, `ek-<install>`: the plugin is `<name>@<marketplace>` to an agent. */
+  marketplace: string
+  /** Its `.claude-plugin/marketplace.json`, the plugin's folder beside `.claude-plugin`. */
+  marketplaceFile: string
+  /** The plugin's own MCP servers: the session reaches them through the gateway, never as the plugin starts them. */
+  servers: string[]
+}
+
+/**
+ * The name a gateway server goes under: a plugin's keeps the one Claude Code gives a plugin's own, so its tools are
+ * `mcp__plugin_<plugin>_<server>__*` in every agent, as the plugin's hooks and the permission rules name them.
+ */
+export function gatewayName(server: SessionMcp): string {
+  return server.plugin === null ? server.name : `plugin_${server.plugin}_${server.name}`
 }
 
 /** A session as the agent knows it: the id of its job or process and the id of its conversation. */

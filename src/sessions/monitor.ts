@@ -63,6 +63,11 @@ export class SessionMonitor {
     })
   }
 
+  /** The context of a live session as of the last poll; `undefined` — its transcript is not followed. */
+  contextOf(sessionId: string): number | undefined {
+    return this.tails.get(sessionId)?.summary().contextTokens
+  }
+
   handoff(task: string): HandoffSession | undefined {
     const tracked = this.tracked.get(task)
     if (tracked === undefined) return undefined

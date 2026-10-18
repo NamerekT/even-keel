@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { askFrom, isDue, markOf, nudge, planOf } from "./nudges.mjs";
+import { markOf, nudge, planOf } from "./nudges.mjs";
 
 const marksOf = (plan, sizes) => sizes.map((size) => markOf(size, plan));
 
@@ -76,21 +76,5 @@ describe("nudge", () => {
     expect(text).toMatch(/already been handed over 4 times/);
     expect(text).not.toMatch(/next stable point/);
     expect(nudge(326_000, 300_000, plan)).toMatch(/You were already asked/);
-  });
-});
-
-describe("asking Even Keel", () => {
-  it("starts at 100k, or at the first threshold when that is lower", () => {
-    expect(askFrom({})).toBe(100_000);
-    expect(askFrom({ CHECKPOINT_FIRST_TOKENS: "60000" })).toBe(60_000);
-  });
-
-  it("asks once, again in an hour after an answer and in five minutes after a failure", () => {
-    const now = 10 * 60 * 60 * 1000;
-    expect(isDue({ mark: 0 }, now)).toBe(true);
-    expect(isDue({ mark: 0, askedAt: now - 59 * 60 * 1000, ok: true }, now)).toBe(false);
-    expect(isDue({ mark: 0, askedAt: now - 61 * 60 * 1000, ok: true }, now)).toBe(true);
-    expect(isDue({ mark: 0, askedAt: now - 4 * 60 * 1000, ok: false }, now)).toBe(false);
-    expect(isDue({ mark: 0, askedAt: now - 6 * 60 * 1000, ok: false }, now)).toBe(true);
   });
 });

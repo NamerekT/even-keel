@@ -115,6 +115,7 @@ export const noticesRu: NoticeTexts = {
 
   'codex.startFailed': (p) => `Codex: не удалось запустить ${p.task} в ${p.cwd}`,
   'codex.resumeFailed': (p) => `Codex: не удалось продолжить ${p.task} в ${p.cwd}`,
+  'codex.pluginsFailed': (p) => `Codex: не удалось установить плагины ${p.task} в ${p.account}`,
   'codex.otherThread': (p) => `Codex: ${p.task} продолжали как ${p.asked}, а поднялся новый поток ${p.got}`,
   'codex.unknownSession': (p) => `Codex: сессию ${p.session} запускал не Even Keel`,
   'codex.stillRunning': (p) => `Codex: ход ${p.session} убит, но ещё идёт`,

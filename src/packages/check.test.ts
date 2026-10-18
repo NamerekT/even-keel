@@ -74,9 +74,13 @@ describe('projectPackages', () => {
   })
 
   it('notes a plugin with skills for an agent without plugins, and does not hold the chain for it', () => {
-    const view = projectPackages(input({ agent: 'codex' }))
-    expect(view.cells['huly@even-keel']!.problems).toEqual([{ kind: 'unsupported', agent: 'codex' }])
+    const view = projectPackages(input({ agent: 'other' }))
+    expect(view.cells['huly@even-keel']!.problems).toEqual([{ kind: 'unsupported', agent: 'other' }])
     expect(view.blocked).toBe(false)
+  })
+
+  it('has no note for Codex, which reads the plugins too', () => {
+    expect(projectPackages(input({ agent: 'codex' })).cells['huly@even-keel']!.problems).toEqual([])
   })
 
   it('leaves removed packages out', () => {

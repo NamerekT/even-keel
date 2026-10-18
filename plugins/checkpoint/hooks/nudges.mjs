@@ -10,9 +10,6 @@ const VARIABLES = {
   hard: "CHECKPOINT_HARD_TOKENS",
   maxHandoffs: "CHECKPOINT_MAX_HANDOFFS",
 };
-const ASK_FROM = 100_000;
-const FRESH_MS = 60 * 60 * 1000;
-const RETRY_MS = 5 * 60 * 1000;
 
 const positive = (value) => (Number.isFinite(value) && value > 0 ? value : null);
 
@@ -36,16 +33,6 @@ export function markOf(context, plan) {
   if (context >= plan.late) return plan.late + Math.floor((context - plan.late) / plan.lateStep) * plan.lateStep;
   const mark = plan.first + Math.floor((context - plan.first) / plan.step) * plan.step;
   return mark > plan.first && plan.late - mark < plan.lateStep ? mark - plan.step : mark;
-}
-
-/** Below this context size Even Keel is not asked: no threshold is that low, and a session that stays small never waits for it. */
-export function askFrom(env) {
-  return Math.min(ASK_FROM, planOf(env, null).first);
-}
-
-/** An answer holds for an hour; after a failure the next try is in five minutes, on what was known before. */
-export function isDue(state, now) {
-  return state.askedAt === undefined || now - state.askedAt > (state.ok ? FRESH_MS : RETRY_MS);
 }
 
 const HOW =

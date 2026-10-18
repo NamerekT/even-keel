@@ -35,13 +35,17 @@ export interface CheckpointThreshold {
   sessions: number
 }
 
-/** What the hook of one chain session gets: the project's threshold and how many handoffs the task has had. */
+/**
+ * What the hook of one chain session gets: the project's threshold, how many handoffs the task has had, and the
+ * session's context, read by the agent's adapter so the hook reads no transcript; `null` — not known yet.
+ */
 export interface SessionCheckpoint {
   project: string
   task: string
   handoffs: number
   first: number
   source: CheckpointThreshold['source']
+  context: number | null
 }
 
 function calibrated(measure: CheckpointMeasure): number | null {

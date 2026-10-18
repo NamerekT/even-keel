@@ -1,7 +1,7 @@
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { emptyPackages, type PackageInstall, type PackageRecord } from './model.js'
-import { otherPlugins, parseRoute, routeOf, sessionPackages } from './launch.js'
+import { installMarketplace, otherPlugins, parseRoute, routeOf, sessionPackages } from './launch.js'
 
 const install = (id: string, servers: string[], extras = true): PackageInstall => ({
   id,
@@ -42,7 +42,15 @@ describe('sessionPackages', () => {
   it('gives the current install of every package of the project, plugin servers under the plugin', () => {
     const got = sessionPackages(catalog(), 'ABC', 'ABC-1', places)
     expect(got.installs).toEqual({ 'huly@even-keel': 'b', strata: 's1' })
-    expect(got.plugins).toEqual([join(places.cache, 'huly@even-keel', 'b', 'plugin')])
+    expect(got.plugins).toEqual([
+      {
+        dir: join(places.cache, 'huly@even-keel', 'b', 'plugin'),
+        name: 'huly',
+        marketplace: 'ek-b',
+        marketplaceFile: join(places.cache, 'huly@even-keel', 'b', '.claude-plugin', 'marketplace.json'),
+        servers: ['huly'],
+      },
+    ])
     expect(got.mcp).toEqual([
       { name: 'huly', plugin: 'huly', url: `http://127.0.0.1:4748${routeOf(places.projectId, 'huly@even-keel', 'b', 'huly')}` },
       { name: 'strata', plugin: null, url: `http://127.0.0.1:4748${routeOf(places.projectId, 'strata', 's1', 'strata')}` },
@@ -61,6 +69,12 @@ describe('sessionPackages', () => {
     const file = catalog()
     file.pins.ABC = { 'ABC-1': { 'huly@even-keel': 'zzz' } }
     expect(sessionPackages(file, 'ABC', 'ABC-1', places).mcp).toEqual([])
+  })
+})
+
+describe('installMarketplace', () => {
+  it('is a marketplace of the install alone, its plugin in the folder beside it', () => {
+    expect(installMarketplace('huly', 'b')).toEqual({ name: 'ek-b', owner: { name: 'Even Keel' }, plugins: [{ name: 'huly', source: './plugin' }] })
   })
 })
 
