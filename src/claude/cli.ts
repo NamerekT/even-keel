@@ -12,12 +12,13 @@ import { fail, notice, NoticeError, type Notice } from '../notice/notice.js'
 import { samePath } from '../paths.js'
 import { blockedAsk, blockedOn, parseAgents, parseSessionRecord, withLiveRecords, type AgentEntry, type SessionRecord } from '../sessions/agents.js'
 import { newestExtensionBinary } from '../sessions/paths.js'
-import { descendantsOf, killLeftovers } from './tree.js'
+import { descendantsOf, isAlive, killLeftovers } from './tree.js'
 
 const run = promisify(execFile)
 
 const APPEAR_TIMEOUT_MS = 30_000
-const APPEAR_POLL_MS = 1_000
+const APPEAR_POLL_MS = 250
+const EXIT_POLL_MS = 100
 const CLOCK_SKEW_MS = 5_000
 
 export function resolveClaudeBinary(env: NodeJS.ProcessEnv): string {
@@ -116,10 +117,16 @@ export class ClaudeCli {
     return this.appear(home, resumedAs(agentId, sessionId, task, cwd, resumedAt), notice('claude.resumedNotShown', { task }))
   }
 
+  /**
+   * `claude stop`, then waits for the session's process to exit and kills what it left. The exit is watched by its pid,
+   * `claude agents` only confirms it. The Windows process listing takes 1–2 s, so it runs alongside the stop: an orphan
+   * keeps its `ParentProcessId` there, while `ps` is taken first, before orphans are reparented.
+   */
   async stop(home: AccountHome, agentId: string, sessionId: string): Promise<void> {
     const running = (await this.agents(home)).find((entry) => entry.sessionId === sessionId)
     if (running === undefined || isGone(running)) return
-    const children = running.pid === undefined ? [] : await descendantsOf(running.pid)
+    const children = running.pid === undefined ? Promise.resolve([]) : descendantsOf(running.pid)
+    if (process.platform !== 'win32') await children
     try {
       await run(this.bin(), ['stop', agentId], { env: this.envOf(home), timeout: this.timeoutMs, windowsHide: true })
     } catch (error) {
@@ -127,9 +134,12 @@ export class ClaudeCli {
     }
     const deadline = Date.now() + APPEAR_TIMEOUT_MS
     while (Date.now() < deadline) {
-      const agent = (await this.agents(home)).find((entry) => entry.sessionId === sessionId)
-      if (isGone(agent) && !isAlive(running.pid)) {
-        await killLeftovers(children)
+      if (isAlive(running.pid)) {
+        await delay(EXIT_POLL_MS)
+        continue
+      }
+      if (isGone((await this.agents(home)).find((entry) => entry.sessionId === sessionId))) {
+        await killLeftovers(await children)
         return
       }
       await delay(APPEAR_POLL_MS)
@@ -262,16 +272,6 @@ async function withJobFiles(home: AccountHome, agents: AgentEntry[]): Promise<Ag
       return ask === null ? agent : { ...agent, ask }
     }),
   )
-}
-
-function isAlive(pid: number | undefined): boolean {
-  if (pid === undefined) return false
-  try {
-    process.kill(pid, 0)
-    return true
-  } catch (error) {
-    return (error as NodeJS.ErrnoException).code === 'EPERM'
-  }
 }
 
 function outputOf(error: unknown): string {

@@ -29,7 +29,10 @@ export function descendants(table: [number, number][], root: number): number[] {
   return found
 }
 
-/** The processes a session started, taken while it lives: once it is gone, its orphans no longer lead back to it. */
+/**
+ * The processes a session started. On Linux and macOS it is taken while the session lives: once it is gone, its orphans
+ * are reparented and no longer lead back to it. Windows keeps an orphan's `ParentProcessId`, so there it may finish later.
+ */
 export async function descendantsOf(pid: number): Promise<number[]> {
   try {
     const { stdout } =
@@ -49,15 +52,28 @@ export async function descendantsOf(pid: number): Promise<number[]> {
 /**
  * Kills what is left of a stopped session's processes. `claude stop` ends the session's own process but leaves the
  * background commands it started running (CLI 2.1.302 on Windows: the `bash.exe` of a `run_in_background` command
- * outlives it), and they keep the worktree busy.
+ * outlives it), and they keep the worktree busy. Most exit with the session, and a `taskkill` costs about half a second
+ * even on a dead pid, so only the live ones get one, all at once.
  */
 export async function killLeftovers(pids: number[]): Promise<void> {
-  for (const pid of pids) {
-    try {
-      if (process.platform === 'win32') await run('taskkill', ['/PID', String(pid), '/T', '/F'], { windowsHide: true })
-      else process.kill(pid, 'SIGTERM')
-    } catch {
-      // already gone, or taken down with its parent's tree
-    }
+  await Promise.all(
+    pids.filter(isAlive).map(async (pid) => {
+      try {
+        if (process.platform === 'win32') await run('taskkill', ['/PID', String(pid), '/T', '/F'], { windowsHide: true })
+        else process.kill(pid, 'SIGTERM')
+      } catch {
+        // already gone, or taken down with its parent's tree
+      }
+    }),
+  )
+}
+
+export function isAlive(pid: number | undefined): boolean {
+  if (pid === undefined) return false
+  try {
+    process.kill(pid, 0)
+    return true
+  } catch (error) {
+    return (error as NodeJS.ErrnoException).code === 'EPERM'
   }
 }
