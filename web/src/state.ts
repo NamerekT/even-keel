@@ -1,5 +1,5 @@
 import type { AccountEntry, AccountLogin, AccountView } from '../../src/account/model.js'
-import type { ActiveChain, CurrentTask, ProjectOrder } from '../../src/chain/dispatcher.js'
+import type { ActiveChain, CurrentTask, ProjectOrder, ReviewView } from '../../src/chain/dispatcher.js'
 import { fixName, isFixName, liveFixId } from '../../src/chain/fix.js'
 import type { FixEpisode, TaskSession } from '../../src/chain/launches.js'
 import { chainOrder, nextTask, precedence, withWaiting } from '../../src/chain/order.js'
@@ -129,6 +129,8 @@ export interface ChainBlock {
   loose?: true
   /** The row of a fix of a red main that is over. */
   fix?: FixEpisode
+  /** The task is out of the chain, waiting on its pull request. */
+  review?: ReviewView
 }
 
 /**
@@ -448,8 +450,12 @@ export function chainBlocks(state: EvenKeelState, project: string, now = new Dat
   const episodes = state.fixes[project] ?? []
   const ended = new Map(episodes.flatMap((episode) => (episode.end === null ? [] : [[episode.id, episode]])))
   const fixSession = taskSession(state.sessions, fix) ?? null
+  const reviews = new Map((order?.reviews ?? []).map((review) => [review.task, review]))
+  const shut = closedOrder(closed, state.taskSessions, [...ended.values()])
+  // A task waiting on its pull request is out of the chain: its row stands between the closed tasks and the open ones.
+  const pulls = [...reviews.keys()].filter((id) => !shut.includes(id) && !open.includes(id)).sort(byNumber)
 
-  const blocks = [...closedOrder(closed, state.taskSessions, [...ended.values()]), ...open].map((id): ChainBlock => {
+  const blocks = [...shut, ...pulls, ...open].map((id): ChainBlock => {
     const episode = ended.get(id)
     if (episode !== undefined) {
       const sessions = state.taskSessions[id] ?? []
@@ -467,7 +473,7 @@ export function chainBlocks(state: EvenKeelState, project: string, now = new Dat
       status: task?.status.name ?? null,
       stage: task?.status.category ?? null,
       lamp: taskLamp(task, session),
-      open: task !== undefined && isOpen(task.status) && !waiting.has(id),
+      open: task !== undefined && isOpen(task.status) && !waiting.has(id) && !pulls.includes(id),
       locked: waiting.has(id),
       blockedBy: task?.blockedBy ?? [],
       milestone: task?.milestone?.label ?? null,
@@ -488,6 +494,7 @@ export function chainBlocks(state: EvenKeelState, project: string, now = new Dat
       ...(id === active?.interrupted?.task && { interrupted: true as const }),
       ...(id === next && session !== null && session.lamp !== 'finished' && { aside: true as const }),
       ...(active === undefined && session !== null && session.lamp !== 'finished' && { loose: true as const }),
+      ...(reviews.has(id) && { review: reviews.get(id)! }),
     }
   })
   for (let index = blocks.length - 2; index >= 0; index--) {

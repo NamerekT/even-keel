@@ -615,6 +615,19 @@ describe('chainBlocks', () => {
     ])
   })
 
+  it('shows the tasks waiting on their pull requests between the closed tasks and the chain', () => {
+    const pull = { task: 'ABC-2', number: 7, url: 'https://example.com/pulls/7', feedback: true }
+    const state = stateOf({
+      tasks: [task('ABC-1', 'Won'), task('ABC-2', 'Active'), task('ABC-3', 'ToDo')],
+      chain: chain({ projects: { ABC: { order: ['ABC-3'], waiting: [], backlog: [], reviews: [pull], error: null } } }),
+    })
+    expect(chainBlocks(state, 'ABC').map((block) => [block.id, block.open, block.review ?? null])).toEqual([
+      ['ABC-1', false, null],
+      ['ABC-2', false, pull],
+      ['ABC-3', true, null],
+    ])
+  })
+
   it('carries the sessions of each task and the pending limit of the current one', () => {
     const hold = {
       at: '2026-01-01T10:00:00.000Z',

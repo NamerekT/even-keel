@@ -17,6 +17,7 @@ import { Links } from '../ui/Links.js'
 import { estimateShare, isRework, railsOf, showsAction, tiersOf, type Rail, type Tier } from '../ui/look.js'
 import { milestoneView, type Section } from '../ui/milestones.js'
 import { placeLeaving, type Mark } from '../ui/motion.js'
+import { PullChip } from '../ui/PullChip.js'
 import { relatives, type Point } from '../ui/reorder.js'
 import { StartPill } from '../ui/SessionStart.js'
 import { ActionScreen } from './ActionScreen.js'
@@ -428,6 +429,7 @@ function Block(props: BlockProps) {
   if (block.start !== null) classes.push('block--starting')
   if (block.skipped) classes.push('block--skipped')
   if (block.locked) classes.push('block--locked')
+  if (block.review !== undefined && !block.open) classes.push('block--review')
   if (focused) classes.push('block--focus')
   if (movable) classes.push('block--movable')
   if (waits.length > 0) classes.push('block--blocked')
@@ -539,6 +541,7 @@ function Block(props: BlockProps) {
             {t.chain.interrupted}
           </span>
         )}
+        {block.review !== undefined && <PullChip review={block.review} />}
         {block.question && (
           <span className="chip chip--question" title={t.chain.questionTitle}>
             {t.chain.question}

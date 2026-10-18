@@ -1774,6 +1774,20 @@ a:focus-visible {
   opacity: 0.6;
 }
 
+.chip--pull,
+.chip--feedback {
+  position: relative;
+  z-index: 1;
+}
+
+.chip--pull {
+  text-decoration: none;
+}
+
+.chip--pull:hover {
+  color: var(--fg);
+}
+
 .block--locked .block__title,
 .block--locked .block__key {
   color: var(--fg-muted);
@@ -2263,6 +2277,7 @@ a:focus-visible {
 
 .chip--paused,
 .chip--question,
+.chip--feedback,
 .chip--questions {
   background: var(--warn-bg);
   color: var(--warn-fg);

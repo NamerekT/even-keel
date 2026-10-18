@@ -34,6 +34,7 @@ export {
   type Leftover,
   type ProjectOrder,
   type ReleaseReason,
+  type ReviewView,
 } from './model.js'
 
 const SLOT_RETRY_MS = 30_000

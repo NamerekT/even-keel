@@ -243,6 +243,14 @@
   cursor: help;
 }
 
+.chain .block--review {
+  border-style: dashed;
+}
+
+.chain .block--review .block__title {
+  color: var(--fg-muted);
+}
+
 .chain .block__ready .icon {
   width: 13px;
   height: 13px;
