@@ -28,6 +28,7 @@ import {
   fixBlockOf,
   issueLink,
   projectSlot,
+  projectTracker,
   projectOfPath,
   projectPath,
   questionPath,
@@ -576,8 +577,26 @@ describe('projectSlot', () => {
   })
 })
 
+describe('projectTracker', () => {
+  const github = { name: 'work', kind: 'github', title: 'GitHub · work', projects: ['XYZ'], ready: true, health: { state: 'live' as const, lastOkAt: null, error: null }, readAt: {} }
+
+  it('names the tracker as its view does', () => {
+    expect(projectTracker(stateOf({}), 'ABC')).toEqual({ kind: 'huly', label: 'Huly' })
+  })
+
+  it('adds the tracker project when there is one', () => {
+    const projects = { XYZ: { trackerProject: 'example/repo' } as EvenKeelState['config']['projects'][string] }
+    const state = stateOf({ config: { shared: FAKE_SHARED, projects, trackers: [], trackerLocked: [] }, trackers: [github] })
+    expect(projectTracker(state, 'XYZ')).toEqual({ kind: 'github', label: 'GitHub · work · example/repo' })
+  })
+
+  it('is null for a project no tracker reads', () => {
+    expect(projectTracker(stateOf({ trackers: [] }), 'ABC')).toBeNull()
+  })
+})
+
 describe('chainBlocks', () => {
-  const running = (current: string, paused = false) => ({
+  const running =(current: string, paused = false) => ({
     project: 'ABC',
     current: { task: current, sessionId: 's', since: 't' },
     paused,

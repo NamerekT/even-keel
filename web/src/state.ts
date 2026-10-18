@@ -395,6 +395,14 @@ export function projectName(state: EvenKeelState, project: string): string | nul
   return state.config.projects[project]?.name ?? null
 }
 
+/** The tracker a project's card marks it with: its kind for the icon, the tracker with its profile and the tracker project for the tip. */
+export function projectTracker(state: EvenKeelState, project: string): { kind: string; label: string } | null {
+  const view = state.trackers.find((each) => each.projects.includes(project))
+  if (view === undefined) return null
+  const trackerProject = state.config.projects[project]?.trackerProject ?? null
+  return { kind: view.kind, label: trackerProject === null ? view.title : `${view.title} · ${trackerProject}` }
+}
+
 export function projectSlot(projects: string[], project: string): number | null {
   const index = projects.indexOf(project)
   return index < 0 || index >= PROJECT_SLOTS ? null : index + 1

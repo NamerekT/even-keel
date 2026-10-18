@@ -12,16 +12,18 @@ import {
   projectPath,
   projectSlot,
   projectTasks,
+  projectTracker,
   questionPath,
   startsNow,
 } from '../state.js'
-import { StackIcon } from '../ui/icons.js'
+import { StackIcon, TrackerIcon } from '../ui/icons.js'
 import { Lamp } from '../ui/Lamp.js'
 import { type EmptyCard, emptyCard, punchline } from '../ui/memes.js'
 import { ProjectLabel } from '../ui/ProjectLabel.js'
 import { QuestionsChip } from '../ui/QuestionsChip.js'
 import { seriesStyle } from '../ui/series.js'
 import { StatusChip } from '../ui/StatusChip.js'
+import { Tipped } from '../ui/Tipped.js'
 
 /** `turn` — which card of its empty kind this one is on the page (`emptyTurns`). */
 export function ProjectCard({ state, project, turn }: { state: EvenKeelState; project: string; turn: number }) {
@@ -32,6 +34,7 @@ export function ProjectCard({ state, project, turn }: { state: EvenKeelState; pr
   const { done, total, backlog } = chainProgress(projectTasks(state, project), order)
   const task = cardTask(state, project)
   const slot = projectSlot(state.projects, project)
+  const tracker = projectTracker(state, project)
   const canStart = status.kind === 'idle' && order !== undefined && order.error === null && order.order.length > 0
   const error = order?.error ?? (status.kind === 'paused' ? status.error : null) ?? failure
 
@@ -44,6 +47,11 @@ export function ProjectCard({ state, project, turn }: { state: EvenKeelState; pr
         </Link>
         {(status.kind === 'paused' || status.kind === 'queued') && <StatusChip status={status} />}
         <QuestionsChip count={openQuestions(projectTasks(state, project))} to={questionPath(state, [project])} />
+        {tracker !== null && (
+          <Tipped className="card__tracker" tip={t.project.tracker(tracker.label)} inline focusable>
+            <TrackerIcon kind={tracker.kind} />
+          </Tipped>
+        )}
       </header>
 
       <div className="card__progress">

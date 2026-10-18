@@ -35,7 +35,7 @@ export function LaunchChart({ days, projects }: { days: LaunchDay[]; projects: s
       </header>
 
       {shown.length > 1 && (
-        <ul className="chart__legend">
+        <ul className="chart__legend chart__legend--projects">
           {shown.map((project) => (
             <li key={project} className="chart__key" style={style(project)}>
               <span className="chart__swatch" aria-hidden="true" />

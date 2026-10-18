@@ -411,6 +411,7 @@ export const en: Messages = {
     refresh: (tracker: string) => `Read the tasks from ${tracker} now`,
     readAt: (ago: string) => `updated ${ago}`,
     notRead: 'not read yet',
+    tracker: (label: string) => `Tracker: ${label}`,
     done: 'Tasks done',
     notLoaded: 'Tasks are not loaded yet',
     noTasks: 'No open tasks',
@@ -434,8 +435,8 @@ export const en: Messages = {
         setup: (count: number) => `The chain is empty, ${tasks(count)} in the backlog.`,
         punchlines: [
           ' Get the hint?',
-          " They won't move to Todo on their own!",
-          " They're getting bored in there.",
+          ' Nothing moves to Todo on its own!',
+          " It's getting boring in there.",
           ' Someday. Maybe. Probably not.',
           ' The ship is ready, the crew is still ashore.',
         ],
