@@ -1134,6 +1134,17 @@ export const ru = {
       submit: 'Отправить',
     },
   },
+  changelog: {
+    button: 'Черновик changelog по вехе',
+    title: (milestone: string) => `Changelog · ${milestone}`,
+    writing: 'Агент пишет черновик по закрытым задачам вехи — это займёт минуту-другую.',
+    counts: (done: number, open: number) =>
+      open === 0 ? `По ${tasks(done)} в Done.` : `По ${tasks(done)} в Done; ещё открыто: ${tasks(open)} — в черновик не вошли.`,
+    at: (moment: string) => `Написан ${moment}`,
+    again: 'Написать заново',
+    copy: 'Копировать',
+    copied: 'Скопировано',
+  },
   chain: {
     legend: {
       done: 'готово',

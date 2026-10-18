@@ -1119,6 +1119,17 @@ export const en: Messages = {
       submit: 'Submit',
     },
   },
+  changelog: {
+    button: 'Changelog draft of the milestone',
+    title: (milestone: string) => `Changelog · ${milestone}`,
+    writing: "The agent is writing the draft from the milestone's closed tasks — this takes a minute or two.",
+    counts: (done: number, open: number) =>
+      open === 0 ? `From ${tasks(done)} in Done.` : `From ${tasks(done)} in Done; ${tasks(open)} still open — not in the draft.`,
+    at: (moment: string) => `Written ${moment}`,
+    again: 'Write again',
+    copy: 'Copy',
+    copied: 'Copied',
+  },
   chain: {
     legend: {
       done: 'done',

@@ -294,3 +294,14 @@ export function ChecklistIcon() {
     </svg>
   )
 }
+
+/** A milestone's changelog draft: a sheet with lines and a pen over its corner. */
+export function ChangelogIcon() {
+  return (
+    <svg className="icon" viewBox="0 0 16 16" aria-hidden="true">
+      <path d="M8.5 14.25H4a1.25 1.25 0 0 1-1.25-1.25V3A1.25 1.25 0 0 1 4 1.75h6A1.25 1.25 0 0 1 11.25 3v3" />
+      <path d="M5.25 5h3.5M5.25 7.75h2.5" />
+      <path d="m13.6 8.4.9.9-4.4 4.4-1.6.4.4-1.6z" />
+    </svg>
+  )
+}
