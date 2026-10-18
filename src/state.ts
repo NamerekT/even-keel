@@ -175,6 +175,43 @@ export interface TrackerChoice {
   projectKey: { key: string; example: string; optional: boolean } | null
 }
 
+/** A project the wizard of `/projects/add` is about to add; blank text — not given. */
+export interface ProjectDraft {
+  repo: string
+  /** Blank — not chosen yet: the check suggests the checkout's current branch. */
+  branch: string
+  key: string
+  name: string
+  tracker: string
+  trackerProject: string
+  /** Slots of the pool; `0` — a worktree per task. */
+  slot: number
+}
+
+/** What the wizard's check found for a draft; a step that could not be checked yet is `null`. */
+export interface ProjectCheck {
+  repo: {
+    /** The top of the repository the folder is in, as the entry will name it; `null` — not a git repository. */
+    root: string | null
+    /** The branch the checkout is on, the suggestion for the main branch; `null` — detached or not a repository. */
+    current: string | null
+    notice: Notice | null
+  }
+  /** What `parseConfig` says of the config with the draft added; `null` — it parses. */
+  entry: Notice | null
+  /** Asked once the entry parses. */
+  tracker: {
+    ok: boolean
+    /** The tracker's variables, when none of them is set. */
+    missing: string[]
+    /** Open tasks of the project in the tracker. */
+    open: number | null
+    notice: Notice | null
+  } | null
+  /** Whether Claude Code trusts the folder; `null` — no repository to ask about. */
+  trusted: boolean | null
+}
+
 /** The config file as the settings show it: the saved values, all applied on the fly. */
 export interface ConfigView {
   shared: SharedForm

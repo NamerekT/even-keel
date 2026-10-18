@@ -1,11 +1,11 @@
 import type { ChainRules } from './chain/rules.js'
-import { DEFAULT_LANGUAGE, isPlainObject, RULE_KEYS, withProjectSettings, type EvenKeelConfig } from './config.js'
+import { DEFAULT_BRANCH, DEFAULT_LANGUAGE, isPlainObject, RULE_KEYS, withProjectSettings, type EvenKeelConfig } from './config.js'
 import { fail } from './notice/notice.js'
 import { changesOf, type FormValue } from './settings/changes.js'
 import { sharedRows, withRows, writeRows } from './settings/file.js'
 import { defaultOf } from './settings/registry.js'
 import { checkRows, resolve, type Values } from './settings/resolve.js'
-import type { ConfigView, ProjectForm, SharedForm, TrackerChoice } from './state.js'
+import type { ConfigView, ProjectDraft, ProjectForm, SharedForm, TrackerChoice } from './state.js'
 import { ADAPTERS } from './tracker/adapters.js'
 import type { TrackerAdapter } from './tracker/source.js'
 import type { UpdateSettings } from './updates/release.js'
@@ -96,6 +96,31 @@ export function withProjectForm(raw: unknown, id: string, form: ProjectForm, bas
     else if (own !== undefined) entry[own] = value
   }
   return { ...config, projects: list.map((each, at) => (at === index ? entry : each)) }
+}
+
+/** The raw config with an entry for the wizard's draft appended: the record and only what differs from what the project would inherit. */
+export function withNewProject(raw: unknown, draft: ProjectDraft, id: string, adapters: Adapters = ADAPTERS): Record<string, unknown> {
+  const config = isPlainObject(raw) ? raw : {}
+  const shared = sharedValues(config, adapters)
+  const entry: Record<string, unknown> = { id, key: draft.key.trim(), repo: draft.repo.trim() }
+  const name = draft.name.trim()
+  if (name !== '') entry.name = name
+  const branch = draft.branch.trim()
+  if (branch !== '' && branch !== DEFAULT_BRANCH) entry.branch = branch
+  if (draft.tracker !== shared.tracker) entry.tracker = draft.tracker
+  const own = adapters[draft.tracker]?.projectKey?.key
+  if (own !== undefined && draft.trackerProject.trim() !== '') entry[own] = draft.trackerProject.trim()
+  if (draft.slot > 0) entry.slot = draft.slot
+  return { ...config, projects: [...(Array.isArray(config.projects) ? config.projects : []), entry] }
+}
+
+/** The raw config without the entry of the project with the id; the rest stays as written. */
+export function withoutProject(raw: unknown, id: string): Record<string, unknown> {
+  const config = isPlainObject(raw) ? raw : {}
+  const projects = Array.isArray(config.projects) ? (config.projects as unknown[]) : []
+  const kept = projects.filter((entry) => !(isPlainObject(entry) && entry.id === id))
+  if (kept.length === projects.length) throw fail('config.unknownProject', { key: id })
+  return { ...config, projects: kept }
 }
 
 /** The raw config with the shared keys set from the form, by the same rule as `withProjectForm`, against the defaults. */

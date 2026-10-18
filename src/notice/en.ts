@@ -297,4 +297,15 @@ export const en = {
   'config.otherBelow': (p: { value: string }) => `config: stats.otherBelow must be a number of dollars from 0, got ${p.value}`,
   'config.checkpointTokens': (p: { from: number; value: string }) =>
     `config: stats.checkpointTokens must be an integer number of tokens from ${p.from}, or null, got ${p.value}`,
+  'wizard.notRepo': (p: { path: string }) => `${p.path} is not in a git repository`,
+  'wizard.repoTaken': (p: { project: string }) => `this repository is already the project ${p.project}`,
+  'wizard.noBranch': (p: { branch: string }) => `the repository has no branch ${p.branch}`,
+  'wizard.trackerOff': (p: { tracker: string; variables: string[] }) =>
+    `${p.tracker} has no credentials: set ${list(p.variables)} in .env, the service reads it on the fly`,
+  'wizard.trackerFailed': (p: { tracker: string }) => `${p.tracker} did not give the project's tasks`,
+  'project.removeBlocked': (p: { project: string }) => `${p.project} is not removed, it is still in use`,
+  'project.removeChain': () => 'its chain runs or waits in the queue; stop it first',
+  'project.removeSessions': (p: { sessions: string[] }) => `live sessions: ${list(p.sessions)}`,
+  'project.removePlaces': (p: { tasks: string[] }) => `the chain holds the worktree or slot of ${list(p.tasks)}`,
+  'project.removeLeftovers': (p: { tasks: string[] }) => `the cleanup after Done left the place of ${list(p.tasks)}`,
 }

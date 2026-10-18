@@ -1,9 +1,11 @@
-import { watchFile } from 'node:fs'
-import { formsOf, trackerChoices, withProjectForm, withRunAccount, withSharedForm, withUpdates } from './config-form.js'
+import { randomUUID } from 'node:crypto'
+import { existsSync, watchFile } from 'node:fs'
+import { formsOf, trackerChoices, withNewProject, withoutProject, withProjectForm, withRunAccount, withSharedForm, withUpdates } from './config-form.js'
 import { ignoredKeys, parseConfig, readRawConfig, withIds, type EvenKeelConfig } from './config.js'
 import { englishOf, fail, noticeOf, type Notice } from './notice/notice.js'
 import { writeAtomic } from './storage/atomic.js'
-import type { ConfigView, ProjectForm, SharedForm } from './state.js'
+import { SCHEMA_VERSION } from './storage/schema.js'
+import type { ConfigView, ProjectDraft, ProjectForm, SharedForm } from './state.js'
 import type { UpdateSettings } from './updates/release.js'
 
 export interface ConfigFileOptions {
@@ -20,6 +22,10 @@ export class ConfigFile {
   error: Notice | null = null
 
   constructor(private readonly options: ConfigFileOptions) {
+    if (!existsSync(options.file)) {
+      this.writeFile({ version: SCHEMA_VERSION, projects: [] })
+      options.warn(`config: there was no ${options.file}, wrote an empty one; add a project on the page`)
+    }
     const raw = readRawConfig(options.file)
     this.current = this.parseFilled(raw)
     const ignored = ignoredKeys(raw)
@@ -92,14 +98,32 @@ export class ConfigFile {
     this.write(withUpdates(readRawConfig(this.options.file), patch))
   }
 
+  /** Appends the wizard's project with a new id, by the same rule as `saveProject`; returns the id. */
+  addProject(draft: ProjectDraft): string {
+    const id = randomUUID()
+    this.write(withNewProject(readRawConfig(this.options.file), draft, id))
+    return id
+  }
+
+  /** Drops the project's entry, by the same rule as `saveProject`; whether anything still holds it is the caller's to ask. */
+  removeProject(project: string): void {
+    const id = this.current.ids[project]
+    if (id === undefined) throw fail('config.unknownProject', { key: project })
+    this.write(withoutProject(readRawConfig(this.options.file), id))
+  }
+
   private write(next: Record<string, unknown>): void {
-    const { file } = this.options
     parseConfig(next)
+    this.writeFile(next)
+    this.reload()
+  }
+
+  private writeFile(next: Record<string, unknown>): void {
+    const { file } = this.options
     try {
       writeAtomic(file, `${JSON.stringify(next, null, 2)}\n`)
     } catch (error) {
       throw fail('config.writeFailed', { file }, { detail: (error as Error).message }, { cause: error })
     }
-    this.reload()
   }
 }

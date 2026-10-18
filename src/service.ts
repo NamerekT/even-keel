@@ -29,7 +29,7 @@ import { CI_TOKENS, ciSource, projectTargets } from './ci/adapters.js'
 import { CiWatch } from './ci/watcher.js'
 import { CiWatches } from './ci/watches.js'
 import { ConfigFile } from './config-file.js'
-import { DEFAULT_BRANCH, DEFAULT_CI, listenOf, mcpPortOf, poolEntries, projectsByAccount, runSettings, type EvenKeelConfig } from './config.js'
+import { DEFAULT_BRANCH, DEFAULT_CI, listenOf, mcpPortOf, poolEntries, projectsByAccount, readRawConfig, runSettings, type EvenKeelConfig } from './config.js'
 import { envTargets } from './env-file.js'
 import { EventHub } from './events.js'
 import { runGit } from './git/run.js'
@@ -37,9 +37,11 @@ import { finishSlot, heldSlot, prepareSlot, slotPaths, type SlotUse } from './gi
 import { ensureIgnored, finishWorktree, prepareWorktree, requireBranch, taskPlace } from './git/worktree.js'
 import { exhaustedReset, limitResetAfter } from './limits/model.js'
 import { LimitsWatcher } from './limits/watcher.js'
-import { englishOf, fail, notice, noticeOf, type Notice } from './notice/notice.js'
+import { englishOf, fail, notice, NoticeError, noticeOf, type Notice } from './notice/notice.js'
 import { guardHosts, guardToken } from './guard.js'
 import { readJson } from './packages/plugins.js'
+import { checkDraft } from './projects/check.js'
+import { removalBlock, type RemovalFacts } from './projects/removal.js'
 import { Packages } from './packages/service.js'
 import { createEvenKeelServer } from './server.js'
 import { replyPrompt, type Reply } from './sessions/ask.js'
@@ -87,6 +89,7 @@ const LOGIN_TIMEOUT_MS = 10 * 60_000
 const LIMIT_CHECK_MS = 30_000
 const OWNERS_RESCAN_MS = 5 * 60_000
 const CONFIG_POLL_MS = 2_000
+const TRACKER_CHECK_MS = 15_000
 const TALLY_INTERVAL_MS = 5 * 60_000
 const TALLY_FIRST_DELAY_MS = 15_000
 const SHUTDOWN_MS = 15_000
@@ -736,6 +739,23 @@ async function stopTaskSessions(repo: string, task: string, count: number): Prom
   return warnings
 }
 
+/** What holds a project the page asks to remove: its chain, live sessions of its tasks or in its folders, the places it keeps. */
+function removalFacts(project: string, repo: string): RemovalFacts {
+  const own = new Map(launches.filter((entry) => entry.project === project).map((entry) => [entry.sessionId, entry.task]))
+  const slots = slotPaths(repo, configFile.current.slots[project] ?? 0)
+  const sessions = agents
+    .filter((agent) => isLive(agent) && (own.has(agent.sessionId) || [repo, ...slots].some((folder) => isInside(agent.cwd, folder))))
+    .map((agent) => `${own.get(agent.sessionId) ?? agent.cwd} (${agent.sessionId})`)
+  const { active, queue, leftovers } = dispatcher.state
+  return {
+    project,
+    chain: active.some((chain) => chain.project === project) || queue.includes(project),
+    sessions,
+    held: dispatcher.held(project),
+    leftovers: (leftovers[project] ?? []).map((leftover) => leftover.task),
+  }
+}
+
 const getState = (): EvenKeelState => ({
   startedAt,
   projects: Object.keys(configFile.current.projects),
@@ -800,6 +820,30 @@ let server = createEvenKeelServer({
     saveShared: (form, base) => {
       configFile.saveShared(form, base)
       console.log('page: the shared settings are written to the config')
+    },
+    check: (draft) =>
+      checkDraft(
+        {
+          git: runGit,
+          raw: () => readRawConfig(configPath()),
+          adapters: ADAPTERS,
+          env: process.env,
+          claudeConfig: () => readJson(homes.configFile(homes.global)),
+          timeoutMs: TRACKER_CHECK_MS,
+        },
+        draft,
+      ),
+    add: (draft) => {
+      configFile.addProject(draft)
+      console.log(`page: the project ${draft.key.trim()} is added to the config`)
+    },
+    remove: (project) => {
+      const repo = configFile.current.projects[project]
+      if (repo === undefined) throw fail('config.unknownProject', { key: project })
+      const blocked = removalBlock(removalFacts(project, repo))
+      if (blocked !== null) throw new NoticeError(blocked)
+      configFile.removeProject(project)
+      console.log(`page: the project ${project} is removed from the config; its repository, worktrees and branches are left as they are`)
     },
     dismissUpdate: (version) => configFile.saveUpdates({ dismissed: version }),
     muteUpdates: () => configFile.saveUpdates({ notify: false }),

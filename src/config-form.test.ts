@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
-import { formsOf, trackerChoices, withProjectForm, withRunAccount, withSharedForm, withUpdates } from './config-form.js'
+import { formsOf, trackerChoices, withNewProject, withoutProject, withProjectForm, withRunAccount, withSharedForm, withUpdates } from './config-form.js'
 import { parseConfig } from './config.js'
-import type { ProjectForm, SharedForm } from './state.js'
+import type { ProjectDraft, ProjectForm, SharedForm } from './state.js'
 
 const formOf = (raw: Record<string, unknown>, project: string): ProjectForm => formsOf(parseConfig(raw)).projects[project]!
 const sharedOf = (raw: Record<string, unknown>): SharedForm => formsOf(parseConfig(raw)).shared
@@ -168,6 +168,39 @@ describe('withUpdates', () => {
       updates: { check: false, dismissed: '0.2.0', notify: false },
     })
     expect(withUpdates({ projects: [], updates: { notify: false } }, { notify: true })).toEqual({ projects: [] })
+  })
+})
+
+describe('withNewProject', () => {
+  const draft: ProjectDraft = { repo: ' D:\\new ', branch: 'main', key: 'NEW', name: '', tracker: 'huly', trackerProject: '', slot: 0 }
+
+  it('appends an entry with only what differs from what the project would inherit', () => {
+    const raw = { projects: [abc()], custom: 1 }
+    const next = withNewProject(raw, draft, 'id-new')
+    expect(next).toEqual({ projects: [abc(), { id: 'id-new', key: 'NEW', repo: 'D:\\new' }], custom: 1 })
+    expect(parseConfig(next).projects).toEqual({ ABC: 'C:\\abc', NEW: 'D:\\new' })
+  })
+
+  it('writes the name, the branch, the tracker, its project and the slots when they are the project own', () => {
+    const next = withNewProject({ projects: [] }, { ...draft, name: ' New ', branch: 'master', tracker: 'github', trackerProject: ' octo-org/new ', slot: 2 }, 'id-new')
+    expect(next.projects).toEqual([{ id: 'id-new', key: 'NEW', repo: 'D:\\new', name: 'New', branch: 'master', tracker: 'github', github: 'octo-org/new', slot: 2 }])
+    expect(withNewProject({ tracker: 'github', projects: [] }, { ...draft, tracker: 'github', trackerProject: 'octo-org/new' }, 'id-new').projects).toEqual([
+      { id: 'id-new', key: 'NEW', repo: 'D:\\new', github: 'octo-org/new' },
+    ])
+  })
+
+  it('starts the list of projects in a config that has none', () => {
+    expect(withNewProject({}, draft, 'id-new')).toEqual({ projects: [{ id: 'id-new', key: 'NEW', repo: 'D:\\new' }] })
+  })
+})
+
+describe('withoutProject', () => {
+  it('drops the entry with the id and keeps the rest of the file', () => {
+    expect(withoutProject({ projects: [abc(), xyz()], parallel: 2 }, 'id-abc')).toEqual({ projects: [xyz()], parallel: 2 })
+  })
+
+  it('refuses an id the file does not have', () => {
+    expect(() => withoutProject({ projects: [abc()] }, 'id-xyz')).toThrow(expect.objectContaining({ notice: expect.objectContaining({ code: 'config.unknownProject' }) }))
   })
 })
 

@@ -30,7 +30,7 @@ import {
 import type { ChainRules } from './chain/rules.js'
 import { CLAUDE } from './claude/name.js'
 import type { Language } from './language.js'
-import type { CacheTtl, CiSettings, ContextScale, ProjectForm, SharedForm, StatsConfig } from './state.js'
+import type { CacheTtl, CiSettings, ContextScale, ProjectCheck, ProjectDraft, ProjectForm, SharedForm, StatsConfig } from './state.js'
 import type { CompareSettings } from './stats/rules.js'
 import { CI_KINDS, type CiKind } from './ci/model.js'
 import type { Calibration } from './stats/calibration.js'
@@ -114,6 +114,12 @@ export interface SettingsControl {
   save(project: string, form: ProjectForm, base: ProjectForm): void
   /** Writes into the config file the shared settings that differ from `base`. */
   saveShared(form: SharedForm, base: SharedForm): void
+  /** What the wizard's draft comes to: the repository, the config with it, the tracker's answer, Claude Code's trust. */
+  check(draft: ProjectDraft): Promise<ProjectCheck>
+  /** Adds the wizard's project to the config; refuses one the config would not parse. */
+  add(draft: ProjectDraft): void
+  /** Drops the project from the config; refuses while its chain, sessions or places still hold it. */
+  remove(project: string): void
   /** The toast's "Close": no toast for this version, a later one shows it again. */
   dismissUpdate(version: string): void
   /** The toast's "Don't show again": no toasts about new versions until the switch on /settings. */
@@ -188,6 +194,8 @@ const COMMANDS: Record<string, Command> = {
   'task/milestone': ({ tasks }, body) => tasks.moveMilestone(taskOf(body), body.milestone === null ? null : textOf(body.milestone, 'milestone')),
   'session/answer': ({ sessions }, body) => sessions.answer(answerOf(body)),
   'project/settings': ({ settings }, body) => settings.save(projectOf(body), projectFormOf(body), projectFormOf(baseOf(body))),
+  'project/add': ({ settings }, body) => settings.add(draftOf(body)),
+  'project/remove': ({ settings }, body) => settings.remove(projectOf(body)),
   settings: ({ settings }, body) => settings.saveShared(sharedFormOf(body), sharedFormOf(baseOf(body))),
   'updates/dismiss': ({ settings }, body) => settings.dismissUpdate(textOf(body.version, 'version')),
   'updates/mute': ({ settings }) => settings.muteUpdates(),
@@ -455,6 +463,18 @@ async function route(deps: ServerDeps, request: IncomingMessage, response: Serve
     return
   }
 
+  if (request.method === 'POST' && path === '/api/project/check') {
+    let check: ProjectCheck
+    try {
+      check = await deps.settings.check(draftOf(await readJsonBody(request, MAX_BODY_BYTES)))
+    } catch (error) {
+      sendFailure(response, error)
+      return
+    }
+    sendJson(response, 200, check)
+    return
+  }
+
   if (request.method === 'POST' && path.startsWith('/api/')) {
     const command = COMMANDS[path.slice('/api/'.length)]
     if (command === undefined) {
@@ -584,6 +604,13 @@ function baseOf(body: Record<string, unknown>): Record<string, unknown> {
 }
 
 // The shape only: the values are judged by `parseConfig` when the form is written into the config.
+function draftOf(body: Record<string, unknown>): ProjectDraft {
+  const { slot } = body
+  if (!Number.isInteger(slot) || (slot as number) < 0) throw fail('request.required', { field: 'slot' })
+  const text = (field: keyof ProjectDraft) => textOf(body[field], field)
+  return { repo: text('repo'), branch: text('branch'), key: text('key'), name: text('name'), tracker: text('tracker'), trackerProject: text('trackerProject'), slot: slot as number }
+}
+
 function projectFormOf(body: Record<string, unknown>): ProjectForm {
   const { name, prompt, beforeStart, check, afterGreen, ci, fillMilestone, provider, models, accounts, modelLabels, branch, repo, tracker, trackerProject, slot, brief, chain } = body
   if (name !== undefined && name !== null && typeof name !== 'string') throw fail('request.required', { field: 'name' })

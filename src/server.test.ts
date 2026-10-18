@@ -73,7 +73,18 @@ describe('Even Keel HTTP server', () => {
           calls.push(['answer', { ...request, files: request.files.map((file) => ({ name: file.name, text: Buffer.from(file.data).toString('utf8') })) }])
         },
       },
-      settings: { save: record('settings'), saveShared: record('shared'), dismissUpdate: record('dismiss'), muteUpdates: record('mute') },
+      settings: {
+        save: record('settings'),
+        saveShared: record('shared'),
+        check: async (draft) => {
+          calls.push(['check', draft])
+          return { repo: { root: draft.repo, current: 'main', notice: null }, entry: null, tracker: null, trusted: true }
+        },
+        add: record('add'),
+        remove: record('removeProject'),
+        dismissUpdate: record('dismiss'),
+        muteUpdates: record('mute'),
+      },
       packages: {
         install: async (name) => record('install')(name),
         update: async (name) => record('update')(name),
@@ -214,6 +225,27 @@ describe('Even Keel HTTP server', () => {
     const missing = await fetch(base + '/api/project/settings', { method: 'POST', body: JSON.stringify({ project: 'ABC', ...settings }) })
     expect(missing.status).toBe(400)
     expect((await missing.json()).notice).toMatchObject({ code: 'request.required', params: { field: 'base' } })
+  })
+
+  it('checks and adds the wizard project, removes a project, and refuses a draft of a wrong shape', async () => {
+    const draft = { repo: 'D:\\new', branch: '', key: 'NEW', name: '', tracker: 'huly', trackerProject: '', slot: 0 }
+    const check = await fetch(base + '/api/project/check', { method: 'POST', body: JSON.stringify(draft) })
+    expect(check.status).toBe(200)
+    expect(await check.json()).toEqual({ repo: { root: 'D:\\new', current: 'main', notice: null }, entry: null, tracker: null, trusted: true })
+
+    expect((await fetch(base + '/api/project/add', { method: 'POST', body: JSON.stringify(draft) })).status).toBe(200)
+    expect((await fetch(base + '/api/project/remove', { method: 'POST', body: JSON.stringify({ project: 'ABC' }) })).status).toBe(200)
+    expect(calls).toEqual([
+      ['check', draft],
+      ['add', draft],
+      ['removeProject', 'ABC'],
+    ])
+
+    for (const [field, change] of [['slot', { slot: -1 }], ['key', { key: 5 }], ['branch', { branch: undefined }]] as const) {
+      const response = await fetch(base + '/api/project/check', { method: 'POST', body: JSON.stringify({ ...draft, ...change }) })
+      expect(response.status).toBe(400)
+      expect((await response.json()).notice).toMatchObject({ code: 'request.required', params: { field } })
+    }
   })
 
   it('refuses project settings of a wrong shape', async () => {

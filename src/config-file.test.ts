@@ -4,6 +4,7 @@ import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { ConfigFile } from './config-file.js'
 import { DEFAULT_CI } from './config.js'
+import { SCHEMA_VERSION } from './storage/schema.js'
 
 const ci = DEFAULT_CI
 const abc = (fields: Record<string, unknown> = {}) => ({ id: 'id-abc', key: 'ABC', repo: 'C:\\abc', ...fields })
@@ -141,6 +142,44 @@ describe('ConfigFile', () => {
 
     expect(() => config.saveProject('ABC', { ...config.view().projects.ABC!, tracker: 'github' }, config.view().projects.ABC!)).toThrow(expect.objectContaining({ notice: expect.objectContaining({ code: 'config.trackerProject' }) }))
     expect(read()).toEqual({ projects: [abc()] })
+  })
+
+  it('starts without a file: writes an empty one of the current version and says so', () => {
+    const config = open()
+
+    expect(read()).toEqual({ version: SCHEMA_VERSION, projects: [] })
+    expect(config.current.projects).toEqual({})
+    expect(warnings).toEqual([`config: there was no ${file}, wrote an empty one; add a project on the page`])
+  })
+
+  it('adds a project the wizard checked, with an id of its own, and applies it at once', () => {
+    write({ projects: [abc()] })
+    const config = open()
+
+    const id = config.addProject({ repo: 'D:\\new', branch: 'main', key: 'NEW', name: '', tracker: 'huly', trackerProject: '', slot: 1 })
+    expect(read()).toEqual({ projects: [abc(), { id, key: 'NEW', repo: 'D:\\new', slot: 1 }] })
+    expect(config.current.ids.NEW).toBe(id)
+    expect(config.current.slots.NEW).toBe(1)
+  })
+
+  it('refuses a project the config would not parse and leaves the file as it is', () => {
+    write({ projects: [abc()] })
+    const config = open()
+
+    expect(() => config.addProject({ repo: 'D:\\new', branch: 'main', key: 'ABC', name: '', tracker: 'huly', trackerProject: '', slot: 0 })).toThrow(
+      expect.objectContaining({ notice: expect.objectContaining({ code: 'config.projectTwice' }) }),
+    )
+    expect(read()).toEqual({ projects: [abc()] })
+  })
+
+  it('removes a project from the file and applies it at once', () => {
+    write({ projects: [abc(), xyz()] })
+    const config = open()
+
+    config.removeProject('ABC')
+    expect(read()).toEqual({ projects: [xyz()] })
+    expect(config.current.projects).toEqual({ XYZ: 'C:\\xyz' })
+    expect(() => config.removeProject('ABC')).toThrow(expect.objectContaining({ notice: expect.objectContaining({ code: 'config.unknownProject' }) }))
   })
 
   it('writes the shared settings and applies them at once, the tracker too', () => {
