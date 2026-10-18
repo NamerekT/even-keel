@@ -167,8 +167,14 @@ export function withSharedForm(raw: unknown, form: SharedForm, base: SharedForm)
 }
 
 /** The raw config with the given keys of `updates` set, against the defaults: what the toast's buttons write. */
-export function withUpdates(raw: unknown, patch: Partial<UpdateSettings>): Record<string, unknown> {
+export function withUpdates(raw: unknown, patch: Partial<Pick<UpdateSettings, 'check' | 'notify'>>): Record<string, unknown> {
   const values = Object.entries(patch).map(([key, setting]) => value('updates', `updates.${key}`, setting))
+  return withRows(raw, changesOf(null, values, () => true))
+}
+
+/** The raw config with the chain's switches set, against the defaults: what the "Unattended" and "Trim the tools" switches write. */
+export function withChainSwitches(raw: unknown, patch: Partial<Pick<EvenKeelConfig, 'unattended' | 'trimTools'>>): Record<string, unknown> {
+  const values = Object.entries(patch).map(([key, setting]) => value(key, key, setting))
   return withRows(raw, changesOf(null, values, () => true))
 }
 

@@ -40,7 +40,6 @@ interface Rewrite {
 export function upgradeStorage(options: UpgradeOptions): void {
   const { configFile, stateDir, log, newId = randomUUID, write = writeAtomic } = options
   const config = readStored(configFile)
-  if (config === undefined) return
   const chain = readStored(join(stateDir, 'chain.json'))
   const questions = readStored(join(stateDir, 'questions.json'))
   const account = readStored(join(stateDir, 'account.json'))
@@ -55,11 +54,13 @@ export function upgradeStorage(options: UpgradeOptions): void {
   }
 
   const active = account !== undefined && account.version < 8 && isRecord(account.value) ? account.value.active : undefined
-  const upgraded = config.version < 2 ? configV2(config.value) : config.version < SCHEMA_VERSION ? restamped(config) : config.value
-  const raw = withIds(config.version < 8 ? configV8(upgraded, typeof active === 'string' ? active : GLOBAL_ACCOUNT) : upgraded, newId).raw
-  rewrite(config, raw === config.value ? config.text : jsonText(raw))
+  let raw: unknown = { projects: [] }
+  if (config !== undefined) {
+    raw = withIds(currentConfig(config.value, typeof active === 'string' ? active : GLOBAL_ACCOUNT), newId).raw
+    rewrite(config, raw === config.value ? config.text : jsonText(raw))
+  }
   if (rewrites.length === 0 && files.every((stored) => stored.version === SCHEMA_VERSION)) return
-  parseConfig(raw)
+  if (config !== undefined) parseConfig(raw)
   const ids = idsOf(raw)
   const idOf = (file: string) => (project: string) => {
     const id = ids[project]
@@ -111,6 +112,16 @@ export function upgradeStorage(options: UpgradeOptions): void {
     if (each.from === SCHEMA_VERSION) log(`storage: gave an id to the projects of ${each.file} without one, the previous file is kept at ${copyOf(each)}`)
     else log(`storage: ${each.file} is now v${SCHEMA_VERSION}, the v${each.from} file is kept at ${copyOf(each)}`)
   }
+}
+
+/**
+ * A config of an older schema brought to the current one, as the start brings the file: also what `config-import`
+ * reads. `active` — the active account of an `account.json` older than v8, which v8 moved into the config.
+ */
+export function currentConfig(raw: unknown, active: string = GLOBAL_ACCOUNT): unknown {
+  const version = versionOf(raw)
+  const upgraded = version < 2 ? configV2(raw) : version < SCHEMA_VERSION && isRecord(raw) ? stamped(raw) : raw
+  return version < 8 ? configV8(upgraded, active) : upgraded
 }
 
 /** v1 → v2: the `projects` object by key becomes an array of records in the same order, the key a field of each. */

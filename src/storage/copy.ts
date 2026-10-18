@@ -1,6 +1,6 @@
 import { existsSync, readdirSync } from 'node:fs'
 import type { PGlite } from '@electric-sql/pglite'
-import { insertList, inTransaction, openDatabase, refuseNewer, SQLITE_VERSIONS, type Db, type Queryable } from './database.js'
+import { insertList, inTransaction, openDatabase, refuseNewer, SQLITE_VERSIONS, STEPS, type Db, type Queryable } from './database.js'
 import { dataDirOf } from './owner.js'
 
 /** The rows of a database, by table: what a copy carries over. */
@@ -66,10 +66,13 @@ export async function sqliteRows(file: string, fold = false): Promise<Rows> {
   }
 }
 
-/** The SQLite file's state in a database of its own in memory: for a reader that finds no state database yet. */
+/**
+ * The SQLite file's state in a database of its own in memory, of step 3 like the file's tables: for a reader that finds
+ * no state database yet.
+ */
 export async function sqliteInMemory(file: string): Promise<PGlite> {
   const rows = await sqliteRows(file)
-  const db = await openDatabase(undefined)
+  const db = await openDatabase(undefined, STEPS.slice(0, 1))
   await insertRows(db, rows)
   return db
 }

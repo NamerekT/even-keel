@@ -1,5 +1,5 @@
 import { fail } from '../notice/notice.js'
-import { refuseNewer } from '../storage/schema.js'
+import { refuseNewer, SCHEMA_VERSION } from '../storage/schema.js'
 import type { RowChange } from './changes.js'
 import { CONFIG_FILE, DEFAULT_BRANCH } from './defaults.js'
 import { at, DEFINITIONS, OBJECTS, type Scope } from './registry.js'
@@ -37,6 +37,22 @@ export function fileRows(raw: unknown, trackerKeys: string[]): FileContents {
     rows.push(...levelRows(fields as Record<string, unknown>, record.id, record.key, 'project'))
   }
   return { records, rows }
+}
+
+/**
+ * The project records and rows as the file of today's format: the shape the writers of the forms take, `config-export`
+ * writes and `fileRows` reads back. A default branch is left out, as the forms leave it.
+ */
+export function fileOf({ records, rows }: FileContents): Record<string, unknown> {
+  const level = (project: string | null, target: Record<string, unknown>) =>
+    writeRows(
+      target,
+      rows.filter((row) => row.project === project).map(({ key, qualifier, value }) => ({ op: 'set', key, project, qualifier, value })),
+    )
+  const projects = records.map(({ id, key, name, repo, branch, trackerProjects }) =>
+    level(id, { id, key, ...(name === null ? {} : { name }), repo, ...(branch === DEFAULT_BRANCH ? {} : { branch }), ...trackerProjects }),
+  )
+  return { ...level(null, { version: SCHEMA_VERSION }), projects }
 }
 
 /** Even Keel's own rows of the file, without its projects. */

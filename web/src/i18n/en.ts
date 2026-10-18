@@ -75,7 +75,7 @@ export const en: Messages = {
     region: 'Notifications',
   },
   banner: {
-    config: (error: string) => `even-keel.config.json is not applied, the last valid one is in use: ${error}`,
+    config: (error: string) => `The settings are not applied, the last valid ones are in use: ${error}`,
     stale: 'The data is stale: no connection to the server, reconnecting.',
     usageUnread: (reason: string | null) =>
       `Limits from /usage can't be read — showing the latest from the statusline, the CLI may have changed the format. Reason: ${reason}`,
@@ -328,12 +328,12 @@ export const en: Messages = {
   notFound: {
     title: 'You took the wrong stairs.',
     page: 'There is no such page down here.',
-    project: (key: string) => `Project ${key} is not in even-keel.config.json.`,
+    project: (key: string) => `Project ${key} is not in the settings.`,
     back: 'The way up is here.',
   },
   home: {
     title: 'Projects',
-    empty: 'even-keel.config.json has no projects.',
+    empty: 'There are no projects yet.',
     add: 'Add project',
     memes: {
       self: ['Even Keel: memes about vibe coders...', ' Written by a vibe coder?!', ' Bruh.'],
@@ -347,7 +347,7 @@ export const en: Messages = {
     title: 'Add a project',
     back: 'Projects',
     first: 'No projects yet. Point Even Keel at a repository and its project in the tracker: the chain takes the open tasks from there.',
-    hint: 'The project goes into even-keel.config.json; the rest of its settings are in its Settings panel afterwards.',
+    hint: 'The project goes into the settings; the rest of them are in its Settings panel afterwards.',
     stepRepo: 'Repository',
     path: 'Folder',
     service: 'Service',
@@ -373,7 +373,7 @@ export const en: Messages = {
     add: 'Add project',
     checking: 'Checking…',
     remove: 'Remove project',
-    removeHint: 'Takes the entry out of even-keel.config.json. The repository, its worktrees and branches and the tasks in the tracker stay as they are.',
+    removeHint: 'Takes the project and its settings out of Even Keel. The repository, its worktrees and branches and the tasks in the tracker stay as they are.',
     removeQuestion: (key: string) => `Remove ${key} from Even Keel?`,
   },
   project: {
@@ -490,7 +490,7 @@ export const en: Messages = {
   settings: {
     open: 'Settings',
     title: 'Project settings',
-    hint: 'Written to even-keel.config.json, editing the file by hand works too. They apply at once, no restart of the service: the next session of the project gets them, a changed tracker connects anew and the slots follow — a busy slot stays until it is free.',
+    hint: 'Kept in the database of Even Keel; npm run storage -- config-export and config-import edit them as a file. They apply at once, no restart of the service: the next session of the project gets them, a changed tracker connects anew and the slots follow — a busy slot stays until it is free.',
     prompt: 'Prompt',
     promptHint: 'Added to the prompt of every new session of the project.',
     promptPlaceholder: 'Run npm test before merging.',
@@ -547,7 +547,7 @@ export const en: Messages = {
     revert: 'Put this tab back as it was',
     revertField: 'Put this field back as it was',
     was: 'was:',
-    inFile: 'the file now has:',
+    inFile: 'now saved:',
     empty: 'empty',
     on: 'on',
     off: 'off',
@@ -592,8 +592,8 @@ export const en: Messages = {
   },
   shared: {
     title: 'Shared settings',
-    hint: 'Written to even-keel.config.json and used by every project that has no value of its own; editing the file by hand works too. They apply at once, except the marked ones.',
-    elsewhere: "The service's address and port are the variables EVEN_KEEL_HOST and EVEN_KEEL_PORT in .env; the credentials are on the Access tab. A project is added as a line in the file.",
+    hint: 'Kept in the database of Even Keel and used by every project that has no value of its own; npm run storage -- config-export and config-import edit them as a file. They apply at once, except the marked ones.',
+    elsewhere: "The service's address and port are the variables EVEN_KEEL_HOST and EVEN_KEEL_PORT in .env; the credentials are on the Access tab. A project is added with \"+ Add project\" on the home page.",
     secrets: 'Access',
     chain: 'Chain',
     parallel: 'Chains at once',

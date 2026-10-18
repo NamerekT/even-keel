@@ -8,7 +8,7 @@ import { placeholderIn } from '../sessions/prompt.js'
 import { DEFAULT_HIDDEN_SKILLS } from '../tools/settings.js'
 import { DEFAULT_TRACKER } from '../tracker/adapters.js'
 import { runLabelOf, type RunLabel } from '../tracker/model.js'
-import { compareVersions, DEFAULT_UPDATES } from '../updates/release.js'
+import { DEFAULT_UPDATES } from '../updates/release.js'
 import { DEFAULT_ACCOUNTS, DEFAULT_CI, DEFAULT_COMPARE, DEFAULT_CONTEXT, DEFAULT_EXECUTION, DEFAULT_MODELS } from './defaults.js'
 
 /** `global` — Even Keel's own value, the top level of the file; `project` — a project's, its entry in `projects`. */
@@ -162,6 +162,8 @@ export const DEFINITIONS: readonly SettingDefinition[] = [
     if (!Number.isInteger(value) || (value as number) < 1) throw fail('config.parallel', { value: json(value) })
     return value
   } },
+  { key: 'unattended', kind: 'boolean', scopes: ['global'], lands: ['unattended'], default: false, check: boolean('unattended') },
+  { key: 'trimTools', kind: 'boolean', scopes: ['global'], lands: ['trimTools'], default: true, check: boolean('trimTools') },
   { key: 'tracker', kind: 'enum', scopes: ['global', 'project'], lands: ['tracker', 'trackers'], default: DEFAULT_TRACKER, check: (value, place, { trackers }) => {
     const where = at(place, 'tracker')
     if (typeof value !== 'string' || value.trim() === '') throw fail('config.trackerName', { where })
@@ -233,10 +235,6 @@ export const DEFINITIONS: readonly SettingDefinition[] = [
   } },
   update('check'),
   update('notify'),
-  { key: 'updates.dismissed', kind: 'string', scopes: ['global'], lands: ['updates'], default: DEFAULT_UPDATES.dismissed, check: (value) => {
-    if (value !== null && (typeof value !== 'string' || compareVersions(value, value) === null)) throw fail('config.updatesDismissed', { value: json(value) })
-    return value
-  } },
   { key: 'slot', kind: 'integer', scopes: ['project'], lands: ['slots'], default: false, check: (value, { project }) => {
     if (typeof value !== 'boolean' && !(Number.isInteger(value) && (value as number) > 0)) throw fail('config.slot', { key: project ?? '' })
     return value

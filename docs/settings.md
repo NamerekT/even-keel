@@ -9,8 +9,9 @@ setting on three levels); the "Mismatches" and "Decisions" sections are what the
 
 There are three levels and a default, narrowest wins: **task** → **project** → **Even Keel** → the built-in default.
 
-- **Even Keel** (shared) — the top level of `even-keel.config.json`, written by the page `/settings`.
-- **Project** — the project's entry in `projects[]`, written by the project's settings panel. A project's own value
+- **Even Keel** (shared) — the rows of `setting_values` without a project (the top level of the config's format),
+  written by the page `/settings`.
+- **Project** — the project's rows (its entry in `projects[]` of the format), written by the project's settings panel. A project's own value
   goes over the shared one; a value left out means "as shared".
 - **Task** — only through a tracker label. Labels are the tracker's, not Even Keel's: nothing of the task level is
   stored, it is read off `Task.labels` on every launch.
@@ -20,10 +21,11 @@ Some settings are maps whose entries override one by one: `models`, `accounts` a
 
 ## Inventory
 
-As of 2026-10-18 (schema version 9). "Levels": G — Even Keel, P — project, T — task label. "Written by": page, hand (the
-file), service. Every key applies at once, without a restart of the service (BTN-130).
+As of 2026-10-18 (schema version 9, database step 4). "Levels": G — Even Keel, P — project, T — task label. "Written
+by": page, hand (a file through `config-import`, `docs/storage.md`), service. Every key applies at once, without a
+restart of the service (BTN-130). The keys are those of the config's format, which the database's rows keep (BTN-199).
 
-### `even-keel.config.json`
+### The settings (`setting_values`)
 
 | Key | Levels | Merge | Written by | Default |
 | --- | --- | --- | --- | --- |
@@ -48,7 +50,8 @@ file), service. Every key applies at once, without a restart of the service (BTN
 | `stats.compare.*`, `stats.moves`, `stats.otherBelow` | G | — | page, hand | `DEFAULT_COMPARE`, `{}`, 0 |
 | `stats.checkpointTokens` | G | — (pins the threshold, calibration off) | page, hand | `null` (calibrated per project) |
 | `updates.check`, `updates.notify` | G | — | page, hand, service (`muteUpdates`) | true, true |
-| `updates.dismissed` | G | — | service (`dismissUpdate`) | `null` |
+| `unattended` | G | — | page (a switch on `/settings`, sent at once, `chain/unattended`), hand | false |
+| `trimTools` | G | — | page (a switch on `/settings`, `chain/trim`), hand | true |
 | `slot` | P | — | page, hand | none (a worktree per task) |
 | `branch` | P | — | page, hand | `main` |
 | `prompt` | P | — | page, hand | `null` |
@@ -57,15 +60,13 @@ file), service. Every key applies at once, without a restart of the service (BTN
 | `fillMilestone` | P | — | page, hand | false |
 
 Project record fields, not settings: `id` (written by the service for an entry without one, `withIds`), `key`, `name`,
-`repo`, the tracker's project (`github`, `linear` by `TrackerAdapter.projectKey`). `version` is the schema version of
-the file.
+`repo`, the tracker's project (`github`, `linear` by `TrackerAdapter.projectKey`): the table `projects`. `version` is the
+schema version of a file of the format.
 
-### Outside the config
+### Outside the settings tables
 
 | What | Where | Levels | Note |
 | --- | --- | --- | --- |
-| `unattended` | `chain_flags` of the database | G | a switch on `/settings`, sent at once (`chain/unattended`) |
-| `trimTools` | `chain_flags` of the database | G | a switch on `/settings` (`chain/trim`) |
 | a package's `default`, `settings` | `state/packages.json` `packages.<name>` | G | the package level: projects start from it |
 | a project's `on`, `off`, `settings` | `state/packages.json` `projects.<id>` | P | over the package's, `settings` by variable |
 | the run label `<Provider> \| <model>`, bare `<Provider>` | tracker label | T | sets `provider` and `models.<provider>`, read only while `modelLabels` is on |
@@ -81,13 +82,15 @@ the file.
   "Credentials" below), never in a draft or the database.
 - **The address** — `EVEN_KEEL_HOST`, `EVEN_KEEL_PORT`, `EVEN_KEEL_MCP_PORT`: read before anything else, from the
   environment.
-- **Locations and binaries** — `EVEN_KEEL_CONFIG`, `EVEN_KEEL_STATE_DIR`, `EVEN_KEEL_ACCOUNTS_DIR`,
+- **Locations and binaries** — `EVEN_KEEL_CONFIG` (since BTN-199 only the file imported at the first start),
+  `EVEN_KEEL_STATE_DIR`, `EVEN_KEEL_ACCOUNTS_DIR`,
   `EVEN_KEEL_CODEX_ACCOUNTS_DIR`, `EVEN_KEEL_CLAUDE_BIN`, `EVEN_KEEL_CODEX_BIN`: needed before the storage is open (the
   database lives in the state folder), so they stay in the environment.
 - **Tally's connection** — `TALLY_DB_*`, `TALLY_*_USER`, `TALLY_LLM_URL`, `TALLY_LLM_MODEL`, `TALLY_CONFIG`,
   `EVEN_KEEL_URL`: the collector's, which can run against an external Postgres. Tally's own file stays its own; its
   prices are reference data, already loaded into its `model_prices` table.
-- **State that sits among settings** — `updates.dismissed` (the service writes it when a toast is closed), a package's
+- **State that sits among settings** — `updates.dismissed` (the service writes it when a toast is closed; `service_state`
+  since BTN-199, a key of the config before), a package's
   catalog entry, installs and the task pins of `state/packages.json`, the account pool's sign-ins in `state/account.json`.
 - **Project record fields** — `id`, `key`, `name`, `repo`, `branch`, the tracker's project. `branch` is a fact about the
   repository like `repo`, not a choice that could be shared; under BTN-66 `tracker` with the tracker's project becomes the
@@ -107,9 +110,9 @@ What sits at a level it should not, or misses one it should have. BTN-187 takes 
 - `chain.excludedLabels` carries `Manual`/`Вручную` only as its default, and a list is replaced whole: a project, or a
   hand-written shared list, with its own excluded labels silently runs the manual tasks. Make the manual labels
   built-in like `QUESTION_LABELS` and the default list empty.
-- `unattended` and `trimTools` are user settings kept with the chain state (`chain_flags` of the database since BTN-147,
-  `state/chain.json` before), and `updates.dismissed` is state kept in the config. Each moves to its own side when the
-  settings move into the database (BTN-199).
+- `unattended` and `trimTools` were user settings kept with the chain state (`chain_flags` of the database since BTN-147,
+  `state/chain.json` before), and `updates.dismissed` was state kept in the config. Each moved to its own side with the
+  settings (BTN-199): the switches are Even Keel rows, the closed version is in `service_state`.
 - The model's project level, which the task's text missed, exists since BTN-173 (`models` in the project entry).
 
 Levels that stay as they are: `parallel`, `execution` (the Codex sandbox does not start under the service for any project,
@@ -151,7 +154,8 @@ CREATE UNIQUE INDEX setting_values_target ON setting_values (key, COALESCE(proje
 ```
 
 The SQL is for PGlite, the engine since BTN-198; the expression index stands in for a primary key over a nullable
-column.
+column. Step 4 of the database makes these tables (BTN-199); `spec` is written as `{}` for now, since the checks are
+code (`mirrorDefinitions`).
 
 - **A setting is a leaf replaced whole.** A nested object of today's file becomes one key per part wherever the parts
   merge or default on their own — all of them do now: `chain.*`, `ci.*`, `commands.*`, `context.*`, `stats.compare.*`,
@@ -164,29 +168,36 @@ column.
 - **Packages**: `packages.enabled` (qualifier: the package) with the catalog's `default` as its Even Keel value and a
   project's `on`/`off` as its project rows; `packages.setting` (qualifier `<package>/<variable>`) with the package's
   values as Even Keel rows and a project's differing ones as project rows. The catalog, installs and pins stay state.
-- **`unattended`, `trimTools`** become Even Keel rows; `updates.dismissed` goes to state. Both moves happen in BTN-199's
-  import.
-- **Project records** are a table of their own (`projects`: `id`, `key`, `name`, `repo`, `branch`, the tracker
-  reference, `position` for the order of the file) — BTN-199.
+- **`unattended`, `trimTools`** become Even Keel rows (step 4 moves the rows of `chain_flags`); `updates.dismissed`
+  goes to state (`service_state`, taken out of the file at the import).
+- **Project records** are a table of their own (`projects`: `id`, `key`, `name`, `repo`, `branch`,
+  `tracker_projects`, `position` for the order of the file) — BTN-199.
 
 ## Reading and writing
 
-One place reads and one place writes, so that BTN-147 swaps the source and not the callers. Since BTN-186 this is the
-code in `src/settings/`, with the file as the only source:
+One place reads and one place writes, so that BTN-199 swapped the source and not the callers. Since BTN-186 this is the
+code in `src/settings/`; since BTN-199 the source is the database:
 
 - `registry.ts` — `DEFINITIONS` (key, kind, scopes, qualifier, task label, the `EvenKeelConfig` fields it lands in,
   default, check), `OBJECTS` (the nested objects and their unknown keys), `LABEL_PARSERS`;
   `defaults.ts` — the built-in values.
-- `file.ts` — `fileRows` (the file → project records and unchecked rows, the shape checked), `withRows` (changes → the
-  file's JSON paths, an unset dropping the objects it empties).
+- `file.ts` — `fileRows` (the format → project records and unchecked rows, the shape checked), `fileOf` (back: records
+  and rows → the format), `withRows` (changes → the format's JSON paths, an unset dropping the objects it empties).
+- `store.ts` — the tables: `mirrorDefinitions` (the registry → `setting_definitions`, every start), `readSettings` (one
+  statement → records and rows), `saveSettings` (whole replace in one statement), `putSettings` (upsert only).
+- `import.ts` — `configOfFile` (a file of any schema → records and rows, `updates.dismissed` taken out), `prepareSettings`
+  (the import at the first start), `exportConfig`, `importConfig` (`docs/storage.md`).
+- `src/config-store.ts` — `ConfigStore`, the service's copy: the contents in memory, `current` the last valid parse, a
+  save written behind (`Writes`), and every 2 s a look at the database that applies a change written by someone else
+  (`config-import`) at once, as the watch of the file did.
 - `resolve.ts` — `SettingRow`, `ProjectRecord`, `checkRows`, `resolve` (`shared`, each project's `own` and `values`, the
   task's labels optional), `inherit` (the one merge rule, also behind `runSettings`).
 - `changes.ts` — `RowChange` and `changesOf`: a form as `FormValue`s by group, a changed group's values set or unset
   against what having no row gives.
 
 `parseConfig` is `fileRows` + `checkRows` + `resolve` + the cross-setting checks; the forms' writers (`withSharedForm`,
-`withProjectForm`, `withProjectSettings`, `withUpdates`, `withRunAccount`) map their fields to `FormValue`s and write
-through `withRows`. `src/settings/golden/` holds the output of `parseConfig` from before the registry for every frozen
+`withProjectForm`, `withProjectSettings`, `withUpdates`, `withChainSwitches`, `withRunAccount`) map their fields to
+`FormValue`s and write through `withRows` on the format (`ConfigStore.raw()`), which the store turns back into rows. `src/settings/golden/` holds the output of `parseConfig` from before the registry for every frozen
 sample, the example config and `full.fixture.ts`; a difference there is a change of behaviour.
 
 The service does not read task labels through `resolve` yet: launches still go through `runChoice`, which also falls
@@ -195,9 +206,9 @@ back when the pool has no account for the label's provider.
 The design it follows:
 
 ```
-even-keel.config.json ── fileRows ──┐
+a file (import) ──── fileRows ─────┐
                                     ├─► project records + rows ── check each row by the registry ── resolve ──► EvenKeelConfig
-database ─────────────── dbRows ────┘                                                    ▲
+database ─────────── readSettings ──┘                                                    ▲
                                                                   task labels ── label parsers (task level, at launch)
 ```
 
@@ -276,6 +287,12 @@ parsers — not a table.
 - BTN-190 (2026-10-18, the user): settings and project records move into the database now, before the v0.1 release
   (BTN-199), on the tables above; the engine becomes PGlite (BTN-198, done first, so the settings tables are written
   there). The wizard writes through the BTN-186 writer with no intermediate JSON, as BTN-118 already does.
+- BTN-199 (2026-10-18): the settings and project records are in the database (step 4). The config file is imported
+  once, at the first start, and renamed `*.imported`; `EVEN_KEEL_CONFIG` stays only as its location. `unattended` and
+  `trimTools` are Even Keel rows, `updates.dismissed` is in `service_state`. A hand edit is `config-export`, edit,
+  `config-import`, which replaces the settings whole; the service looks at the database every 2 s, so an import applies
+  at once. The page's writers still work on the format (`fileOf` → `withRows` → `fileRows`), so their tests and the
+  golden samples hold.
 - BTN-198 (2026-10-18): the engine is PGlite, its own folder `state/even-keel/`, not Tally's database; the service's
   main thread owns it and serves it to readers on a loopback port; the SQLite file is imported once
   (`docs/storage.md`). A settings step is a new entry of `STEPS` there.

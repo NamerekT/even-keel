@@ -21,7 +21,7 @@ The contract is two calls: `runs(limit)` — the latest runs, newest first; `job
 
 ## Which CIs the chain counts
 
-`projects[].ci` in `even-keel.config.json`, read live, also set from the project's settings panel:
+`projects[].ci` of the settings, read live, also set from the project's settings panel:
 
 ```json
 "ci": { "guard": true, "kinds": ["forgejo", "github"], "waitMinutes": 30, "recheckMain": true, "fixTask": false }
