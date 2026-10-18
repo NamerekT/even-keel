@@ -53,6 +53,7 @@ const project = (repo: string, change: Partial<ProjectForm>): ProjectForm => ({
   afterGreen: [],
   ci: CI_ALL,
   fillMilestone: false,
+  changelog: 'CHANGELOG.md',
   provider: null,
   models: {},
   accounts: {},

@@ -28,11 +28,11 @@ import {
   type StatsRules,
 } from './stats/rules.js'
 import type { ChainRules } from './chain/rules.js'
-import type { ChangelogDraft } from './changelog/drafts.js'
+import { DEFAULT_CHANGELOG } from './changelog/file.js'
 import { CLAUDE } from './claude/name.js'
 import type { Language } from './language.js'
 import { HOOK_EVENTS, type MailEvent } from './sessions/mail.js'
-import type { CacheTtl, CheckResult, CiSettings, ContextScale, ProjectCheck, ProjectDraft, ProjectForm, SharedForm, StatsConfig } from './state.js'
+import type { CacheTtl, ChangelogOp, ChangelogView, CheckResult, CiSettings, ContextScale, ProjectCheck, ProjectDraft, ProjectForm, SharedForm, StatsConfig } from './state.js'
 import type { CompareSettings } from './stats/rules.js'
 import { CI_KINDS, type CiKind } from './ci/model.js'
 import type { Calibration } from './stats/calibration.js'
@@ -203,8 +203,8 @@ export interface ServerDeps {
   /** By the project's id; `undefined` when the config does not know it or its tracker is off or names nothing. */
   vocabulary: (projectId: string) => Promise<TrackerVocabulary | undefined>
   tasks: TaskControl
-  /** The milestone's changelog draft: the last one, or a new one with `again` (`src/changelog/drafts.ts`). */
-  changelog: (project: string, milestone: string, again: boolean) => Promise<ChangelogDraft>
+  /** An operation on the milestone's changelog draft; its newest version (`src/changelog/drafts.ts`). */
+  changelog: (project: string, milestone: string, op: ChangelogOp) => Promise<ChangelogView>
   stats: StatsSource
   /** Read per request: `allowedHosts` is live. */
   guard: () => GuardSettings
@@ -269,7 +269,12 @@ const QUERIES: Record<string, (deps: ServerDeps, body: Record<string, unknown>) 
   'profiles/check': ({ profiles }, body) => profiles.check(profileDraftOf(body)),
   'profiles/save': async ({ profiles }, body) => ({ id: await profiles.save({ ...profileDraftOf(body), name: typeof body.name === 'string' ? body.name : '' }) }),
   'profiles/projects': ({ profiles }, body) => profiles.projects(textOf(body.id, 'id'), typeof body.query === 'string' ? body.query : ''),
-  'milestone/changelog': ({ changelog }, body) => changelog(projectOf(body), textOf(body.milestone, 'milestone'), body.again === true),
+  'changelog/open': ({ changelog }, body) => changelog(projectOf(body), textOf(body.milestone, 'milestone'), { op: 'open' }),
+  'changelog/again': ({ changelog }, body) => changelog(projectOf(body), textOf(body.milestone, 'milestone'), { op: 'again' }),
+  'changelog/add': ({ changelog }, body) => changelog(projectOf(body), textOf(body.milestone, 'milestone'), { op: 'add' }),
+  'changelog/edit': ({ changelog }, body) =>
+    changelog(projectOf(body), textOf(body.milestone, 'milestone'), { op: 'edit', instruction: textOf(body.instruction, 'instruction') }),
+  'changelog/write': ({ changelog }, body) => changelog(projectOf(body), textOf(body.milestone, 'milestone'), { op: 'write' }),
 }
 
 const MAX_BODY_BYTES = 64 * 1024
@@ -707,7 +712,7 @@ function draftOf(body: Record<string, unknown>): ProjectDraft {
 }
 
 function projectFormOf(body: Record<string, unknown>): ProjectForm {
-  const { name, prompt, beforeStart, check, afterGreen, ci, fillMilestone, provider, models, accounts, modelLabels, branch, repo, tracker, trackerProject, slot, brief, chain } = body
+  const { name, prompt, beforeStart, check, afterGreen, ci, fillMilestone, changelog, provider, models, accounts, modelLabels, branch, repo, tracker, trackerProject, slot, brief, chain } = body
   if (name !== undefined && name !== null && typeof name !== 'string') throw fail('request.required', { field: 'name' })
   if (prompt !== null && typeof prompt !== 'string') throw fail('request.required', { field: 'prompt' })
   const settings = {
@@ -718,6 +723,7 @@ function projectFormOf(body: Record<string, unknown>): ProjectForm {
     ci: ciOf(ci),
   }
   if (typeof fillMilestone !== 'boolean') throw fail('request.required', { field: 'fillMilestone' })
+  if (typeof changelog !== 'string') throw fail('request.required', { field: 'changelog' })
   if (provider !== null && typeof provider !== 'string') throw fail('request.required', { field: 'provider' })
   if (modelLabels !== null && typeof modelLabels !== 'boolean') throw fail('request.required', { field: 'modelLabels' })
   if (trackerProject !== null && typeof trackerProject !== 'string') throw fail('request.required', { field: 'trackerProject' })
@@ -726,6 +732,7 @@ function projectFormOf(body: Record<string, unknown>): ProjectForm {
     ...settings,
     name: name ?? null,
     fillMilestone,
+    changelog: changelog.trim() === '' ? DEFAULT_CHANGELOG : changelog,
     provider,
     models: mapOf(models, 'models', (value) => typeof value === 'string'),
     accounts: mapOf(accounts, 'accounts', (value) => typeof value === 'string'),

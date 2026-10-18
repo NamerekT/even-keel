@@ -16,6 +16,11 @@ describe('writeArgs', () => {
     ])
     expect(writeArgs('sonnet').slice(-2)).toEqual(['--model', 'sonnet'])
   })
+
+  it('gives the turn no tool to ask, edit or run anything with', () => {
+    const tools = writeArgs(null)[writeArgs(null).indexOf('--tools') + 1]!.split(',')
+    for (const tool of ['AskUserQuestion', 'Edit', 'Write', 'Bash', 'NotebookEdit']) expect(tools).not.toContain(tool)
+  })
 })
 
 describe('parseWriteAnswer', () => {

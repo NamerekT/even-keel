@@ -1,5 +1,5 @@
 import { createReadStream, mkdirSync } from 'node:fs'
-import { stat } from 'node:fs/promises'
+import { readFile, stat } from 'node:fs/promises'
 import { createServer } from 'node:http'
 import { join } from 'node:path'
 import { Readable } from 'node:stream'
@@ -27,6 +27,8 @@ import { TaskPlaces } from './chain/places.js'
 import { readNote, saveSnapshot, snapshotReason } from './chain/snapshots.js'
 import { appendLaunch, loadChainState, loadQuestions, readLaunches, saveChainState, saveClosedTask, saveQuestions } from './chain/store.js'
 import { ChangelogDrafts } from './changelog/drafts.js'
+import { DEFAULT_CHANGELOG } from './changelog/file.js'
+import { commitChangelog } from './git/changelog.js'
 import { CI_TOKENS, ciSource, ciToken, projectTargets } from './ci/adapters.js'
 import { FORGEJO_PROFILE } from './ci/forgejo-profile.js'
 import type { CiTarget } from './ci/remote.js'
@@ -581,8 +583,29 @@ const changelogs = new ChangelogDrafts({
       throw fail('changelog.failed', { project }, { detail: error instanceof Error ? error.message : String(error) }, { cause: error })
     }
   },
+  file: async (project) => {
+    const path = configStore.current.settings[project]?.changelog ?? DEFAULT_CHANGELOG
+    const file = join(configStore.current.projects[project]!, ...path.split('/'))
+    const text = await readFile(file, 'utf8').catch((error: NodeJS.ErrnoException) => {
+      if (error.code === 'ENOENT') return null
+      throw error
+    })
+    return { path, text: text?.replace(/\r\n/g, '\n') ?? null }
+  },
+  tags: async (project) => {
+    const listed = await runGit(configStore.current.projects[project]!, ['tag', '--list'])
+    return listed.code === 0 ? listed.out.split('\n').map((tag) => tag.trim()).filter(Boolean) : []
+  },
+  commit: async (project, path, message, change) => {
+    const sha = await commitChangelog(runGit, configStore.current.projects[project]!, { branch: branchOf(project), path, message, change })
+    console.log(sha === null ? `changelog: ${project} ${path} is already as written` : `changelog: ${project} committed ${path} as ${sha.slice(0, 7)}`)
+    return sha
+  },
+  db,
+  ids: () => configStore.current.ids,
   now: () => new Date(),
 })
+await changelogs.load()
 
 /** The account holding the Even Keel role, the one the header shows: the shared provider's entry of the shared pool. */
 const activeAccount = () => configStore.current.accounts[configStore.current.provider]!
@@ -972,6 +995,7 @@ const getState = (): EvenKeelState => ({
       return listens || mail.length > 0 ? [[view.sessionId, { listens, mail }]] : []
     }),
   ),
+  changelogs: changelogs.writtenTasks(),
 })
 
 // The chain's switches are Even Keel's setting rows: the page's switches write them, and `onChange` hands them to the dispatcher.
@@ -1188,9 +1212,11 @@ let server = createEvenKeelServer({
       await refresh()
     },
   },
-  changelog: (project, milestone, again) => {
+  changelog: async (project, milestone, op) => {
     if (!Object.hasOwn(configStore.current.projects, project)) throw fail('chain.unknownProject', { project })
-    return changelogs.draft(project, milestone, again)
+    const view = await changelogs.run(project, milestone, op)
+    if (op.op === 'write') hub.broadcast('state', getState())
+    return view
   },
   stats,
   guard: () => ({ hosts: guardHosts(listen.host, configStore.current.allowedHosts), token, language: configStore.current.language ?? promptLanguage() }),

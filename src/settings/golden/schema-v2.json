@@ -72,6 +72,7 @@
         "fixTask": false
       },
       "fillMilestone": false,
+      "changelog": "CHANGELOG.md",
       "provider": null,
       "models": {},
       "accounts": {},
@@ -94,6 +95,7 @@
         "fixTask": false
       },
       "fillMilestone": false,
+      "changelog": "CHANGELOG.md",
       "provider": null,
       "models": {},
       "accounts": {},

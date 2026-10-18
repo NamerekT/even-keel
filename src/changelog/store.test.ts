@@ -1,7 +1,8 @@
 import type { PGlite } from '@electric-sql/pglite'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import type { ChangelogVersion } from '../state.js'
 import { openDatabase } from '../storage/database.js'
-import { addVersion, latestVersion, markWritten, writtenTasks, type ChangelogVersion } from './store.js'
+import { addVersion, latestVersion, markWritten, writtenTasks } from './store.js'
 
 const IDS = { ABC: '11111111-1111-4111-8111-111111111111' }
 

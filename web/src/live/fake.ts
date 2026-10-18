@@ -206,6 +206,7 @@ function fakeState(
     updates: fakeUpdates(null),
     fallbacks: [],
     mailbox: {},
+    changelogs: fakeWrittenChangelogs(),
   }
 }
 

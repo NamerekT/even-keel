@@ -184,7 +184,10 @@ export const SESSION_MODE = 'auto'
 /** What a chain session gets besides its name, model and prompt. */
 export type SessionExtras = Pick<SessionStart, 'settings' | 'mcp' | 'plugins'>
 
-/** `Agent.write`: `claude -p` with the prompt on stdin. `--tools` takes several values, so nothing but options follows it. */
+/**
+ * `Agent.write`: `claude -p` with the prompt on stdin — one read-only turn with no one to answer it, so no tool to ask,
+ * edit or run anything (the changelog, BTN-209). `--tools` takes several values, so nothing but options follows it.
+ */
 export function writeArgs(model: string | null): string[] {
   return [
     '-p',

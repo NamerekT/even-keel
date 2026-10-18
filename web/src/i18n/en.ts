@@ -593,6 +593,8 @@ export const en: Messages = {
     briefHint: "Even Keel puts the task's title and description into the prompt. Turn it off when the session reads its task through the tracker's plugin, or it reads it twice.",
     slot: 'Slots',
     slotHint: '0 — a worktree of its own for every task. Above zero — a pool of permanent folders: a task switches the branch in a slot, and only the difference is rebuilt.',
+    changelog: 'Changelog file',
+    changelogHint: 'Relative to the repository root, e.g. docs/CHANGELOG.md. The milestone draft is written into it with a commit to the main branch.',
     rules: 'Chain rules',
     rulesHint: "Which tasks the chain takes. An empty list of statuses goes by the tracker's status categories: in work are ToDo and Active, closed are Won and Lost.",
     ruleHint: {

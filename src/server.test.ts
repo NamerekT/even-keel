@@ -224,7 +224,7 @@ describe('Even Keel HTTP server', () => {
 
   it('passes the settings of a project on with the values the form started from', async () => {
     const ci = { guard: false, kinds: ['github'], waitMinutes: 15, recheckMain: false, fixTask: true }
-    const settings = { prompt: 'Run npm test.', beforeStart: ['npm ci'], check: ['npm test'], afterGreen: ['npm run build'], ci, fillMilestone: true, ...form }
+    const settings = { prompt: 'Run npm test.', beforeStart: ['npm ci'], check: ['npm test'], afterGreen: ['npm run build'], ci, fillMilestone: true, changelog: 'docs/CHANGELOG.md', ...form }
     const started = { ...settings, prompt: null, slot: 0 }
     const response = await fetch(base + '/api/project/settings', { method: 'POST', body: JSON.stringify({ project: 'ABC', ...settings, base: started }) })
     expect(response.status).toBe(200)
@@ -272,7 +272,7 @@ describe('Even Keel HTTP server', () => {
       ['chain', { chain: { ...chain, active: 'Todo' } }],
     ] as const
     for (const [field, change] of bad) {
-      const body = { project: 'ABC', prompt: '', beforeStart: [], check: [], afterGreen: [], ci, fillMilestone: false, ...form, ...change }
+      const body = { project: 'ABC', prompt: '', beforeStart: [], check: [], afterGreen: [], ci, fillMilestone: false, changelog: 'CHANGELOG.md', ...form, ...change }
       const response = await fetch(base + '/api/project/settings', { method: 'POST', body: JSON.stringify(body) })
       expect(response.status).toBe(400)
       expect((await response.json()).notice).toMatchObject({ code: 'request.required', params: { field } })

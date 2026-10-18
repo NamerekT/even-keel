@@ -1,5 +1,6 @@
 import { EXECUTION_MODES, DEFAULT_PROVIDER, isProvider, PROVIDERS } from '../agent/providers.js'
 import { DEFAULT_RULES } from '../chain/rules.js'
+import { changelogPath, DEFAULT_CHANGELOG } from '../changelog/file.js'
 import { CI_KINDS } from '../ci/model.js'
 import type { EvenKeelConfig } from '../config.js'
 import { isLanguage, LANGUAGES } from '../language.js'
@@ -258,6 +259,11 @@ export const DEFINITIONS: readonly SettingDefinition[] = [
   ciSwitch('recheckMain'),
   ciSwitch('fixTask'),
   { key: 'fillMilestone', kind: 'boolean', scopes: ['project'], lands: ['settings'], default: false, check: boolean('fillMilestone') },
+  { key: 'changelog', kind: 'string', scopes: ['project'], lands: ['settings'], default: DEFAULT_CHANGELOG, check: (value, place) => {
+    const path = typeof value === 'string' ? changelogPath(value) : null
+    if (path === null) throw fail('config.changelogPath', { where: at(place, 'changelog'), value: json(value) })
+    return path
+  } },
 ]
 
 /** The nested objects of the file whose parts are settings of their own. */

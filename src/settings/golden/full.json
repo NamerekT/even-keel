@@ -107,6 +107,7 @@
         "fixTask": true
       },
       "fillMilestone": true,
+      "changelog": "docs/CHANGELOG.md",
       "provider": "claude",
       "models": {
         "claude": "haiku"
@@ -133,6 +134,7 @@
         "fixTask": false
       },
       "fillMilestone": false,
+      "changelog": "CHANGELOG.md",
       "provider": null,
       "models": {},
       "accounts": {},
@@ -155,6 +157,7 @@
         "fixTask": false
       },
       "fillMilestone": false,
+      "changelog": "CHANGELOG.md",
       "provider": null,
       "models": {},
       "accounts": {},

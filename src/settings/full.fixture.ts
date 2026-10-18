@@ -36,6 +36,7 @@ export const FULL = {
       commands: { beforeStart: ['npm ci', ' '], check: [' npm test '] },
       ci: { guard: false, kinds: ['github', 'forgejo'], waitMinutes: 5, recheckMain: false, fixTask: true },
       fillMilestone: true,
+      changelog: '\\docs\\CHANGELOG.md',
       provider: 'claude',
       models: { claude: 'haiku' },
       accounts: { codex: 'codex-2' },

@@ -65,7 +65,7 @@ export function SettingsChip({ open, look = 'tag', dirty, onToggle }: { open: bo
 
 // Related fields share a group, so a save of one group never leaves another half-agreeing with it.
 const GROUPS = [
-  { id: 'repo', keys: ['repo', 'branch', 'slot'] },
+  { id: 'repo', keys: ['repo', 'branch', 'slot', 'changelog'] },
   { id: 'tracker', keys: ['tracker', 'trackerProject', 'fillMilestone', ...RULE_KEYS] },
   { id: 'sessions', keys: ['provider', ...providerKeys('models'), ...providerKeys('accounts'), 'modelLabels', 'brief', 'prompt', 'beforeStart'] },
   { id: 'ci', keys: ['guard', 'check', 'afterGreen', 'kinds', 'wait', 'recheck', 'fixTask'] },
@@ -94,6 +94,7 @@ const valuesOf = (form: ProjectForm): Values => ({
   recheck: form.ci.recheckMain,
   fixTask: form.ci.fixTask,
   fillMilestone: form.fillMilestone,
+  changelog: form.changelog,
   provider: form.provider ?? '',
   ...providerValues('models', form.models),
   ...providerValues('accounts', form.accounts),
@@ -127,6 +128,7 @@ function formOf(values: Values, name: string | null): ProjectForm | undefined {
     afterGreen: linesOf(text('afterGreen')),
     ci: { guard: on('guard'), kinds: CI_KINDS.filter((kind) => kinds.includes(kind)), waitMinutes, recheckMain: on('recheck'), fixTask: on('fixTask') },
     fillMilestone: on('fillMilestone'),
+    changelog: text('changelog').trim(),
     provider: text('provider') === '' ? null : text('provider'),
     models: providerMap('models', values),
     accounts: providerMap('accounts', values),
@@ -264,6 +266,20 @@ export function SettingsPanel({
           />
           {marks.note('slot')}
           <FieldNote error={errorOf('slot')} />
+        </div>
+        <div className={marks.box('changelog')}>
+          <FieldHead label={t.settings.changelog} hint={t.settings.changelogHint} htmlFor={fieldId('changelog')} />
+          <input
+            id={fieldId('changelog')}
+            className="settings__text settings__text--mono"
+            spellCheck={false}
+            value={text('changelog')}
+            placeholder="CHANGELOG.md"
+            aria-invalid={errorOf('changelog') !== null}
+            onChange={(event) => edit('changelog', event.target.value)}
+          />
+          {marks.note('changelog')}
+          <FieldNote error={errorOf('changelog')} />
         </div>
         <ProjectRemove project={project} />
       </>

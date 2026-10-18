@@ -53,7 +53,10 @@ export function turnArgs(start: Pick<SessionStart, 'model' | 'bypassSandbox' | '
   ]
 }
 
-/** `Agent.write`: `codex exec` prints the progress to stderr and only the last message to stdout. */
+/**
+ * `Agent.write`: one read-only turn with no one to answer it (the changelog, BTN-209). `codex exec` prints the progress
+ * to stderr and only the last message to stdout.
+ */
 export function writeArgs(model: string | null): string[] {
   return ['exec', '--sandbox', 'read-only', '--ephemeral', '--color', 'never', ...(model === null ? [] : ['-m', model]), '-']
 }

@@ -205,12 +205,21 @@ export const en = {
   'changelog.empty': (p: { milestone: string }) => `changelog: ${p.milestone} has no done task to write a draft from`,
   'changelog.noAgent': (p: { project: string }) => `changelog: the agent of the account ${p.project} runs on cannot write a draft`,
   'changelog.failed': (p: { project: string }) => `changelog: the agent did not write the draft of ${p.project}`,
+  'changelog.noDraft': (p: { milestone: string }) => `changelog: ${p.milestone} has no draft yet`,
+  'changelog.released': (p: { milestone: string; tag: string }) => `changelog: the section of ${p.milestone} is released as ${p.tag} and is not changed`,
+  'changelog.nothingNew': (p: { milestone: string }) => `changelog: every done task of ${p.milestone} is already in the draft`,
+  'changelog.notOnBranch': (p: { branch: string; current: string }) =>
+    `changelog: the main checkout is on ${p.current || 'a detached HEAD'}, not on ${p.branch}; the changelog is not written`,
+  'changelog.dirty': (p: { file: string }) => `changelog: ${p.file} has uncommitted changes in the main checkout; the changelog is not written`,
+  'changelog.commitFailed': (p: { file: string }) => `changelog: git could not commit ${p.file}`,
 
   'config.notJson': (p: { file: string }) => `config: ${p.file} is not JSON`,
   'config.port': (p: { value: string }) => `config: EVEN_KEEL_PORT must be an integer in 1..65535, got ${p.value}`,
   'server.rebindFailed': (p: { address: string; current: string }) => `server: cannot listen on ${p.address} from .env, staying on ${p.current}`,
   'config.mcpPort': (p: { value: string }) => `config: EVEN_KEEL_MCP_PORT must be an integer in 1..65535, got ${p.value}`,
   'config.branch': (p: { where: string; value: string }) => `config: ${p.where} must be a branch name, got ${p.value}`,
+  'config.changelogPath': (p: { where: string; value: string }) =>
+    `config: ${p.where} must be a file path inside the repository, got ${p.value}`,
   'config.projects': () => 'config: projects must be a list of project records',
   'config.projectEntry': (p: { where: string }) => `config: ${p.where} must be an object with the project's id, key and repo`,
   'config.projectKey': (p: { where: string; value: string }) =>

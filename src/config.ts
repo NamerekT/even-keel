@@ -7,6 +7,7 @@ import type { PoolEntry } from './account/model.js'
 import type { RunSettings } from './sessions/launch.js'
 import type { CacheTtl, CiSettings, ContextScale, ProjectSettings, StatsConfig } from './state.js'
 import { CI_KINDS } from './ci/model.js'
+import { DEFAULT_CHANGELOG } from './changelog/file.js'
 import { changesOf, type FormValue } from './settings/changes.js'
 import { DEFAULT_BRANCH, DEFAULT_LANGUAGE } from './settings/defaults.js'
 import { fileRows, isPlainObject, writeRows } from './settings/file.js'
@@ -172,6 +173,7 @@ function settingsOf(record: ProjectRecord, values: Values, own: Values): Project
       fixTask: values['ci.fixTask'],
     } as CiSettings,
     fillMilestone: values.fillMilestone as boolean,
+    changelog: values.changelog as string,
     provider: (own.provider as string | undefined) ?? null,
     models: (own.models as Record<string, string> | undefined) ?? {},
     accounts: (own.accounts as Record<string, string> | undefined) ?? {},
@@ -303,6 +305,7 @@ export function projectSettingValues(settings: ProjectSettings, written: Record<
     value('ci', 'ci.recheckMain', ci.recheckMain, true),
     value('ci', 'ci.fixTask', ci.fixTask, false),
     value('fillMilestone', 'fillMilestone', settings.fillMilestone, false),
+    value('changelog', 'changelog', settings.changelog, DEFAULT_CHANGELOG),
     value('provider', 'provider', settings.provider ?? undefined),
     ...byProvider('models'),
     ...byProvider('accounts'),

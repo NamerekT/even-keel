@@ -1,32 +1,6 @@
+import type { ChangelogKind, ChangelogVersion } from '../state.js'
 import type { Db, Queryable } from '../storage/database.js'
 import { byMap, inverted } from '../storage/projects.js'
-
-/** How a version came: the first draft, "write again", the user's edit, the new tasks added. */
-export type ChangelogKind = 'draft' | 'again' | 'edit' | 'add'
-
-/** One version of a milestone's changelog draft (BTN-209): the history of the dialog, not a copy of the file. */
-export interface ChangelogVersion {
-  /** The project key. */
-  project: string
-  milestone: string
-  /** From 1, per project and milestone. */
-  number: number
-  kind: ChangelogKind
-  /** The section, Markdown. */
-  text: string
-  /** What the page shows the changes against; `null` — nothing, the whole text is new. */
-  base: string | null
-  /** The user's words of an edit. */
-  instruction: string | null
-  /** The ids of the tasks the version accounts for. */
-  tasks: string[]
-  /** How many of the milestone's tasks were open. */
-  open: number
-  /** ISO. */
-  at: string
-  /** When it was written to the file, by which commit. */
-  written: { at: string; commit: string } | null
-}
 
 type Row = {
   project_id: string

@@ -97,7 +97,7 @@ describe('parseConfig', () => {
       trackerProjects: {},
       brief: true,
       briefs: { ABC: true },
-      settings: { ABC: { branch: 'main', prompt: null, beforeStart: [], check: [], afterGreen: [], ci: DEFAULT_CI, fillMilestone: false, provider: null, models: {}, accounts: {}, modelLabels: null } },
+      settings: { ABC: { branch: 'main', prompt: null, beforeStart: [], check: [], afterGreen: [], ci: DEFAULT_CI, fillMilestone: false, changelog: 'CHANGELOG.md', provider: null, models: {}, accounts: {}, modelLabels: null } },
       context: { window: 600_000, warn: 50, danger: 80 },
       provider: 'claude',
       models: { claude: 'opus' },
@@ -226,13 +226,21 @@ describe('parseConfig', () => {
         afterGreen: ['npm run build'],
         ci: DEFAULT_CI,
         fillMilestone: false,
+        changelog: 'CHANGELOG.md',
         provider: null,
         models: {},
         accounts: {},
         modelLabels: null,
       },
-      XYZ: { branch: 'main', prompt: null, beforeStart: [], check: [], afterGreen: [], ci: DEFAULT_CI, fillMilestone: false, provider: null, models: {}, accounts: {}, modelLabels: null },
+      XYZ: { branch: 'main', prompt: null, beforeStart: [], check: [], afterGreen: [], ci: DEFAULT_CI, fillMilestone: false, changelog: 'CHANGELOG.md', provider: null, models: {}, accounts: {}, modelLabels: null },
     })
+  })
+
+  it('takes the changelog file inside the repository with any slashes and refuses one outside it', () => {
+    expect(parse({ projects: { ABC: { repo: 'C:\\abc', changelog: '\\docs\\CHANGELOG.md/' } } }).settings.ABC?.changelog).toBe('docs/CHANGELOG.md')
+    for (const changelog of ['../CHANGELOG.md', 'C:\\CHANGELOG.md', '  ', 7]) {
+      expect(() => parse({ projects: { ABC: { repo: 'C:\\abc', changelog } } })).toThrow(/ABC.changelog/)
+    }
   })
 
   it('counts both CIs and waits for them as long as it takes unless the project says otherwise', () => {

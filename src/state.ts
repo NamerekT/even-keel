@@ -73,7 +73,7 @@ export interface TrackerUrls {
 
 /**
  * What the user sets per project and the chain reads live: `branch`, `prompt`, `commands.beforeStart`, `commands.check`,
- * `commands.afterGreen`, `ci`, `fillMilestone`, `provider`, `models`, `accounts` and `modelLabels` in the config.
+ * `commands.afterGreen`, `ci`, `fillMilestone`, `changelog`, `provider`, `models`, `accounts` and `modelLabels` in the config.
  */
 export interface ProjectSettings {
   /** The project's main branch: tasks branch off it and merge into it, the CI watches it. */
@@ -89,6 +89,8 @@ export interface ProjectSettings {
   ci: CiSettings
   /** A task that enters the chain without a milestone gets the active one in the tracker. */
   fillMilestone: boolean
+  /** The changelog file, relative to the repository's root (BTN-209). */
+  changelog: string
   /** The provider the project's sessions run on (`claude`, `codex`); `null` — the shared one. A task's run label may override it. */
   provider: string | null
   /** The project's own model by provider, over the shared `models`. */
@@ -273,6 +275,50 @@ export interface EvenKeelState {
   fallbacks: FallbackLaunch[]
   /** The chat mailbox of each live session whose hooks ask for mail or that has messages to show, by session id (BTN-181). */
   mailbox: Record<string, SessionMail>
+  /** The tasks the changelog written last accounts for, by project key and milestone (BTN-209). */
+  changelogs: Record<string, Record<string, string[]>>
+}
+
+/** How a changelog version came: the first draft, "write again", the user's edit, the new tasks added. */
+export type ChangelogKind = 'draft' | 'again' | 'edit' | 'add'
+
+/** One version of a milestone's changelog draft (BTN-209): the history of the dialog, not a copy of the file. */
+export interface ChangelogVersion {
+  /** The project key. */
+  project: string
+  milestone: string
+  /** From 1, per project and milestone. */
+  number: number
+  kind: ChangelogKind
+  /** The section, Markdown. */
+  text: string
+  /** What the page shows the changes against; `null` — nothing, the whole text is new. */
+  base: string | null
+  /** The user's words of an edit. */
+  instruction: string | null
+  /** The ids of the tasks the version accounts for. */
+  tasks: string[]
+  /** How many of the milestone's tasks were open. */
+  open: number
+  /** ISO. */
+  at: string
+  /** When it was written to the file, by which commit (empty when the file already had the text). */
+  written: { at: string; commit: string } | null
+}
+
+/** What the page asks of the milestone's changelog draft (`src/changelog/drafts.ts`). */
+export type ChangelogOp = { op: 'open' } | { op: 'again' } | { op: 'add' } | { op: 'edit'; instruction: string } | { op: 'write' }
+
+/** A milestone's changelog draft as the page shows it: its newest version. */
+export interface ChangelogView {
+  /** The project key. */
+  project: string
+  milestone: string
+  /** The changelog file, relative to the repository's root. */
+  file: string
+  /** The milestone's newest tag; `null` — not released. */
+  released: string | null
+  version: ChangelogVersion
 }
 
 export interface FallbackLaunch {
