@@ -1029,6 +1029,7 @@ export const en: Messages = {
       placeholder: 'Reply to the session… Ctrl+Enter to send',
       send: 'Send',
       attach: 'Attach files',
+      drop: 'Drop the files to attach them',
       tools: {
         read: 'Read',
         edit: 'Edited',

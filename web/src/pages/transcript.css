@@ -371,6 +371,26 @@ button.tools__toggle:hover {
   outline-offset: 2px;
 }
 
+/* Files dragged over the chat window: the whole window is the drop zone. */
+.transcript--chat .session-window__body {
+  position: relative;
+}
+
+.chat__drop {
+  position: absolute;
+  inset: 8px;
+  z-index: 2;
+  display: grid;
+  place-items: center;
+  border: 2px dashed var(--accent);
+  border-radius: var(--radius);
+  background: color-mix(in srgb, var(--surface) 82%, transparent);
+  color: var(--fg);
+  font-size: 17px;
+  font-weight: 600;
+  pointer-events: none;
+}
+
 .chat__files {
   display: flex;
   flex-wrap: wrap;

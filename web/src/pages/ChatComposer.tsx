@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useImperativeHandle, useState, type Ref } from 'react'
 import type { SessionMail } from '../../../src/sessions/mail.js'
 import type { FeedLine } from '../../../src/sessions/transcript.js'
 import type { SessionView } from '../../../src/state.js'
@@ -7,10 +7,16 @@ import { useCommand, useHold } from '../live/useCommand.js'
 import { PlusIcon, SendIcon } from '../ui/icons.js'
 import { Tipped } from '../ui/Tipped.js'
 import { askAnswers, AskPanel, NO_PICK, pickAnswer, type Pick } from './AskPanel.js'
+import { takenFiles } from './chatFiles.js'
 import { ChatMail } from './ChatMail.js'
 
 /** How long the composer stays shut after a reply went out, unless the session moves on sooner. */
 const SENT_HOLD_MS = 90_000
+
+/** What the chat window hands the composer: files dropped anywhere on it. */
+export interface ComposerHandle {
+  attach: (files: File[]) => void
+}
 
 interface Props {
   project: string
@@ -20,6 +26,7 @@ interface Props {
   /** The session's mailbox; `listens` — its hooks take a message mid-turn. */
   mail: SessionMail | undefined
   onSent: (line: FeedLine) => void
+  handle?: Ref<ComposerHandle>
 }
 
 /**
@@ -27,7 +34,7 @@ interface Props {
  * at any time and is sent while the session waits, or mid-turn into its mailbox when its hooks listen; the draft
  * outlives a new question.
  */
-export function ChatComposer({ project, task, session, aside, mail, onSent }: Props) {
+export function ChatComposer({ project, task, session, aside, mail, onSent, handle }: Props) {
   const { send, sending, failure } = useCommand()
   const ask = session.ask
   const [asked, setAsked] = useState(ask?.id ?? null)
@@ -38,6 +45,11 @@ export function ChatComposer({ project, task, session, aside, mail, onSent }: Pr
   }
   const [text, setText] = useState('')
   const [files, setFiles] = useState<File[]>([])
+  // Files come in the same states as through the "+" button: any time but while a reply is being sent.
+  const attach = (more: File[]) => {
+    if (!sending) setFiles((now) => [...now, ...more])
+  }
+  useImperativeHandle(handle, () => ({ attach }))
   const sent = useHold(`${session.sessionId}|${session.lamp}|${ask?.id ?? ''}`, SENT_HOLD_MS)
   // A message to a working session waits in its mailbox: the list below tells its fate, so nothing is held or echoed.
   const mailing = session.lamp === 'working' && mail?.listens === true
@@ -99,8 +111,7 @@ export function ChatComposer({ project, task, session, aside, mail, onSent }: Pr
                 disabled={sending}
                 aria-label={t.session.chat.attach}
                 onChange={(event) => {
-                  const chosen = [...(event.target.files ?? [])]
-                  setFiles((now) => [...now, ...chosen])
+                  attach([...(event.target.files ?? [])])
                   event.target.value = ''
                 }}
               />
@@ -113,6 +124,11 @@ export function ChatComposer({ project, task, session, aside, mail, onSent }: Pr
             disabled={sending}
             placeholder={t.session.chat.placeholder}
             onChange={(event) => setText(event.target.value)}
+            onPaste={(event) => {
+              // Text goes into the field as usual; a picture or files copied in Explorer go into the list.
+              const pasted = takenFiles(event.clipboardData.items, new Date())
+              if (pasted.length > 0) attach(pasted)
+            }}
             onKeyDown={(event) => {
               if (event.key === 'Enter' && (event.ctrlKey || event.metaKey)) event.currentTarget.form?.requestSubmit()
             }}

@@ -14,7 +14,7 @@ import { AccountTag } from '../ui/AccountTag.js'
 import { ContextMeter } from '../ui/ContextMeter.js'
 import { Tipped } from '../ui/Tipped.js'
 import { AnswerCard, AskCard } from './AskPanel.js'
-import { ChatComposer } from './ChatComposer.js'
+import { ChatComposer, type ComposerHandle } from './ChatComposer.js'
 import { fileName } from './feedLine.js'
 import { MediaViewer } from './MediaViewer.js'
 import { Thumb, Thumbs } from './Thumbs.js'
@@ -22,6 +22,7 @@ import { EditSize, ToolGroup } from './ToolCalls.js'
 import { editTotals, feedEntries, type EditTotal } from './toolGroups.js'
 import { transcriptMedia, type TranscriptMedia } from './transcriptMedia.js'
 import { turnPhase, type TurnFacts } from './turnPhase.js'
+import { useFileDrop } from './useFileDrop.js'
 import '../ui/markdown.css'
 import './transcript.css'
 
@@ -84,6 +85,7 @@ export function TranscriptWindow({ sessionId, account, live, chat, onClose }: Pr
   const dialogRef = useRef<HTMLDialogElement>(null)
   const listRef = useRef<HTMLDivElement>(null)
   const closeRef = useRef<HTMLButtonElement>(null)
+  const composerRef = useRef<ComposerHandle>(null)
   const pinned = useRef(true)
   /** How many lines of the session's transcript are read. */
   const count = useRef(0)
@@ -107,6 +109,8 @@ export function TranscriptWindow({ sessionId, account, live, chat, onClose }: Pr
       ? null
       : feedEntries(all.filter((line) => line.ask === undefined || !(answered.has(line.ask.id) || (chat !== undefined && chat.session.ask?.id === line.ask.id))))
   const edits = editTotals(all ?? [])
+  // Files dropped anywhere on the chat window join the composer's list, not only on its small field.
+  const drop = useFileDrop(chat !== undefined, (files) => composerRef.current?.attach(files))
 
   useEffect(() => {
     // Otherwise the dialog focuses its first focusable element, the head's facts, and their tip opens at once.
@@ -205,7 +209,12 @@ export function TranscriptWindow({ sessionId, account, live, chat, onClose }: Pr
         if (event.target === dialogRef.current) dialogRef.current.close()
       }}
     >
-      <div className="session-window__body">
+      <div className="session-window__body" {...drop.handlers}>
+        {drop.over && (
+          <div className="chat__drop" aria-hidden="true">
+            {t.session.chat.drop}
+          </div>
+        )}
         <header className="panel__head">
           <h2 className="panel__task">
             <span className="panel__key">{chat?.task ?? sessionId.slice(0, 8)}</span>
@@ -275,6 +284,7 @@ export function TranscriptWindow({ sessionId, account, live, chat, onClose }: Pr
               session={chat.session}
               aside={chat.aside}
               mail={chat.mail}
+              handle={composerRef}
               onSent={(line) => {
                 pinned.current = true
                 setSent((now) => [...now, { line, after: lines?.length ?? 0 }])
