@@ -20,9 +20,17 @@ export class DaemonRefresh {
   }
 
   async prepare(home: AccountHome): Promise<void> {
-    if (home.global) return
-    const changed = this.options.share(home)
+    const changed = !home.global && this.options.share(home)
     if (!changed && !this.stale.has(home.key)) return
+    await this.settle(home)
+  }
+
+  /** A key left the folder's settings outside the share — the page removed it from the global one (BTN-131). */
+  async expire(home: AccountHome): Promise<void> {
+    await this.settle(home)
+  }
+
+  private async settle(home: AccountHome): Promise<void> {
     const wasStale = this.stale.has(home.key)
     this.stale.add(home.key)
     try {

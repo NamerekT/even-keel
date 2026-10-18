@@ -58,9 +58,22 @@ describe('DaemonRefresh', () => {
     expect(refresh.pending(home.key)).toBe(true)
   })
 
-  it('never touches the global daemon', async () => {
+  const global: AccountHome = { key: 'global', dir: 'C:/Users/john/.claude', global: true }
+
+  it('shares nothing into the global folder and leaves its daemon alone until a key is removed from it', async () => {
     const { refresh, stopped } = setup([true], [0])
-    await refresh.prepare({ key: 'global', dir: 'C:/Users/john/.claude', global: true })
+    await refresh.prepare(global)
     expect(stopped).toEqual([])
+  })
+
+  it('stops the global daemon by the same rule once a key left its settings: at once, or at the first launch after its sessions', async () => {
+    const { refresh, stopped } = setup([], [1, 0])
+    await refresh.expire(global)
+    expect(stopped).toEqual([])
+    expect(refresh.pending('global')).toBe(true)
+
+    await refresh.prepare(global)
+    expect(stopped).toEqual(['global'])
+    expect(refresh.pending('global')).toBe(false)
   })
 })

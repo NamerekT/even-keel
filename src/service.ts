@@ -43,6 +43,8 @@ import { readJson } from './packages/plugins.js'
 import { checkDraft } from './projects/check.js'
 import { removalBlock, type RemovalFacts } from './projects/removal.js'
 import { Packages } from './packages/service.js'
+import { secretCatalog } from './secrets/catalog.js'
+import { Secrets } from './secrets/service.js'
 import { createEvenKeelServer } from './server.js'
 import { replyPrompt, type Reply } from './sessions/ask.js'
 import { inboxImage, saveInbox, type InboxFile } from './sessions/inbox.js'
@@ -289,6 +291,19 @@ const daemons = new DaemonRefresh({
   stopDaemon: async (home) => agentOf(home).stopDaemon?.(home),
   onChange: () => hub.broadcast('state', getState()),
   onError: (error) => console.error(`account: ${error instanceof Error ? error.message : String(error)}`),
+})
+
+const secrets = new Secrets({
+  catalog: secretCatalog(ADAPTERS, CI_TOKENS),
+  envFile: join(root, '.env'),
+  settingsFile: () => join(homes.global.dir, 'settings.json'),
+  env: process.env,
+  outer: (name) => envFile.isOuter(name),
+  applied: () => envFile.reload(),
+  host: () => listen.host,
+  expired: () => void daemons.expire(homes.global),
+  sessionsPending: () => daemons.pending(homes.global.key),
+  onChange: () => hub.broadcast('state', getState()),
 })
 
 const chatTitles = new ChatTitles()
@@ -821,6 +836,7 @@ const getState = (): EvenKeelState => ({
   context: configFile.current.context,
   configError: configFile.error ?? listenError,
   packages: packages.view(),
+  secrets: secrets.view(),
   language: configFile.current.language,
   unattended: dispatcher.state.unattended,
   trimTools: dispatcher.state.trimTools,
@@ -892,6 +908,16 @@ let server = createEvenKeelServer({
     muteUpdates: () => configFile.saveUpdates({ notify: false }),
   },
   packages,
+  secrets: {
+    set: (name, value) => {
+      secrets.set(name, value)
+      console.log(`page: ${name} is written`)
+    },
+    remove: (name) => {
+      secrets.remove(name)
+      console.log(`page: ${name} is removed`)
+    },
+  },
   launches: () => launches,
   sessionRecord: async (sessionId) => {
     for (const home of homes.list()) {

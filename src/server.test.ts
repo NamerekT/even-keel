@@ -98,6 +98,7 @@ describe('Even Keel HTTP server', () => {
         setSetting: record('setting'),
         setKey: record('key'),
       },
+      secrets: { set: record('secretSet'), remove: record('secretRemove') },
       launches: () => [{ task: 'ABC-1' }],
       sessionRecord: async (id) => {
         if (id === 'bad') throw new Error('sessions: bad is not a session id')
@@ -612,6 +613,18 @@ describe('Even Keel HTTP server', () => {
     expect((await post('/api/packages/setting', { name: 'db', key: 'A', value: 1 })).status).toBe(400)
     expect((await post('/api/packages/key', { name: 'GITHUB_TOKEN' })).status).toBe(400)
     expect(calls).toEqual([])
+  })
+
+  it('writes and removes one credential at a time, and answers without its value', async () => {
+    const written = await post('/api/secrets/set', { name: 'HULY_PASSWORD', value: 'hunter2-secret' })
+    expect(await written.text()).not.toContain('hunter2')
+    await post('/api/secrets/remove', { name: 'HULY_PASSWORD' })
+    expect(calls).toEqual([
+      ['secretSet', 'HULY_PASSWORD', 'hunter2-secret'],
+      ['secretRemove', 'HULY_PASSWORD'],
+    ])
+    expect((await post('/api/secrets/set', { name: 'HULY_PASSWORD' })).status).toBe(400)
+    expect((await post('/api/secrets/remove', {})).status).toBe(400)
   })
 
   it('adds an account of the agent the page asks for', async () => {

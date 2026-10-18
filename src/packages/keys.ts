@@ -97,12 +97,21 @@ function settable(entry: ServerEntry): Record<string, unknown> {
 /** `.env` with the variable's line replaced, or added at the end; every other line stays as it is. */
 export function upsertEnv(text: string, name: string, value: string): string {
   const line = envLine(name, value)
-  const lines = text === '' ? [] : text.replace(/\r?\n$/, '').split(/\r?\n/)
-  const at = lines.findIndex((each) => new RegExp(`^\\s*(export\\s+)?${name}\\s*=`).test(each))
+  const lines = envLines(text)
+  const at = lines.findIndex(assigns(name))
   if (at >= 0) lines[at] = line
   else lines.push(line)
   return `${lines.join('\n')}\n`
 }
+
+/** `.env` without the variable's lines; every other line, comments included, stays as it is. */
+export function removeEnv(text: string, name: string): string {
+  const lines = envLines(text).filter((line) => !assigns(name)(line))
+  return lines.length === 0 ? '' : `${lines.join('\n')}\n`
+}
+
+const envLines = (text: string): string[] => (text === '' ? [] : text.replace(/\r?\n$/, '').split(/\r?\n/))
+const assigns = (name: string) => (line: string) => new RegExp(`^\\s*(export\\s+)?${name}\\s*=`).test(line)
 
 /** `NAME=value`, the value in single quotes when `process.loadEnvFile` would cut it otherwise. */
 export function envLine(name: string, value: string): string {

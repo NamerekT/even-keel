@@ -31,6 +31,7 @@ import { accountOptions, providerKeys, providerMap, providerName, providerOption
 import { useDraft, useTab } from './settingsStore.js'
 import { ListTable, RowsTable } from './settingsTable.js'
 import { SettingsNav } from './SettingsNav.js'
+import { SettingsSecrets } from './SettingsSecrets.js'
 import './settings.css'
 
 const SCOPE = 'shared'
@@ -46,6 +47,8 @@ const GROUPS = [
   { id: 'claude', keys: ['cacheTtl'] },
   { id: 'page', keys: ['language', 'allowedHosts', 'updatesCheck', 'updatesNotify'] },
   { id: 'stats', keys: ['minTasks', 'minSessions', 'days', 'otherBelow', 'moves'] },
+  // Each credential is applied on its own and never kept in a draft.
+  { id: 'secrets', keys: [] },
 ] as const
 type GroupId = (typeof GROUPS)[number]['id']
 const keysOf = (id: GroupId): readonly string[] => GROUPS.find((group) => group.id === id)!.keys
@@ -402,6 +405,7 @@ export function SharedSettings({ state }: { state: EvenKeelState }) {
         <FieldNote error={errorOf('stats')} />
       </>
     ),
+    secrets: () => <SettingsSecrets state={state} />,
   }
 
   return (
@@ -414,6 +418,15 @@ export function SharedSettings({ state }: { state: EvenKeelState }) {
       </header>
       <div className="settings-page__body">
         <SettingsNav groups={GROUPS.map(({ id }) => ({ id, title: titleOf(id) }))} open={open} dirty={dirty} onOpen={setOpen} />
+        {open === 'secrets' ? (
+          // Every row is a form of its own, so the tab is not one.
+          <section key={open} className="settings__form settings-page__form" aria-labelledby="settings-group">
+            <h2 id="settings-group" className="settings-page__group">
+              {titleOf(open)}
+            </h2>
+            {groups[open]()}
+          </section>
+        ) : (
         <form
           key={open}
           className="settings__form settings-page__form"
@@ -430,6 +443,7 @@ export function SharedSettings({ state }: { state: EvenKeelState }) {
           {leftover !== null && <p className="notice notice--error">{say(leftover)}</p>}
           {dirty(open) && <SaveBar canSave={!sending && next !== undefined} onRevert={() => revert(keysOf(open))} />}
         </form>
+        )}
       </div>
     </div>
   )

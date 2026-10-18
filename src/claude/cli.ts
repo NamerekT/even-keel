@@ -133,7 +133,6 @@ export class ClaudeCli {
   }
 
   async stopDaemon(home: AccountHome): Promise<void> {
-    if (home.global) throw fail('claude.globalDaemon', {})
     try {
       await run(this.bin(), ['daemon', 'stop', '--any'], { env: this.envOf(home), timeout: this.timeoutMs, windowsHide: true })
     } catch (error) {

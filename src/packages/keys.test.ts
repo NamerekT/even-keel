@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { applySettings, defaultSettings, envLine, keysOf, placeholders, substitute, upsertEnv } from './keys.js'
+import { applySettings, defaultSettings, envLine, keysOf, placeholders, removeEnv, substitute, upsertEnv } from './keys.js'
 
 const github = { type: 'http', url: 'https://api.example.com/mcp/', headers: { Authorization: 'Bearer ${GITHUB_PERSONAL_ACCESS_TOKEN}', 'X-MCP-Toolsets': 'issues,labels' } }
 const huly = { command: 'node', args: ['C:\\cache\\huly\\index.cjs'], env: { TOOLSETS: 'issues,projects' } }
@@ -81,6 +81,12 @@ describe('upsertEnv', () => {
     expect(upsertEnv('# GITHUB_TOKEN=change-me\n', 'GITHUB_TOKEN', 'ghp_x')).toBe('# GITHUB_TOKEN=change-me\nGITHUB_TOKEN=ghp_x\n')
     expect(upsertEnv('A=1', 'B', '2')).toBe('A=1\nB=2\n')
     expect(upsertEnv('', 'B', '2')).toBe('B=2\n')
+  })
+
+  it('removes every line of the variable and keeps the comments and the order of the rest', () => {
+    expect(removeEnv('# Huly\nHULY_URL=a\r\n# GITHUB_TOKEN=x\nGITHUB_TOKEN=gh\nexport GITHUB_TOKEN = gh2\nZ=1', 'GITHUB_TOKEN')).toBe('# Huly\nHULY_URL=a\n# GITHUB_TOKEN=x\nZ=1\n')
+    expect(removeEnv('A=1\n', 'B')).toBe('A=1\n')
+    expect(removeEnv('B=1\n', 'B')).toBe('')
   })
 
   it('quotes a value the parser would cut, and refuses one it cannot hold', () => {

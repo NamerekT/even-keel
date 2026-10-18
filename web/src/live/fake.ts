@@ -22,6 +22,7 @@ import { fakeCalls, fakeDeliverMail, fakeImageUrl, fakeMailbox, fakeOpenAsk, fak
 import type { Ask } from '../../../src/sessions/ask.js'
 import { fakeTools } from './fakeTools.js'
 import { fakePackages } from './fakePackages.js'
+import { fakeSecrets } from './fakeSecrets.js'
 import { fakeCheck, fakeNoProjects } from './fakeProjects.js'
 import { ago, fakeFeed, FEED_STEPS, minutes, session, task, turnStartedAt } from './fakeSessions.js'
 import { closeCurrent, fakeCommand, finishCurrent, LAUNCH_DAYS, setPaused, startChain, startStages, takeNext } from './fakeCommands.js'
@@ -195,6 +196,7 @@ function fakeState(
     context: { window: 600_000, warn: 50, danger: 80 },
     configError: null,
     packages: fakePackages(['ABC', 'DEMO', 'XYZ', 'OPS'], null),
+    secrets: fakeSecrets(null),
     language: null,
     unattended: false,
     trimTools: true,
@@ -280,6 +282,7 @@ export function createFakeSource(search: string): LiveSource {
   }
   if (params.get('projects') === 'none' && current.state !== null) current.state = fakeNoProjects(current.state)
   if (params.has('packages') && current.state !== null) current.state.packages = fakePackages(current.state.projects, params.get('packages'))
+  if (params.has('secrets') && current.state !== null) current.state.secrets = fakeSecrets(params.get('secrets'))
   const active = current.state?.chain.active[0]
   if (params.get('chain') === 'limit' && active) {
     current.state!.chain.active = [{ ...active, current: null, limitUntil: new Date(Date.now() + 95 * 60_000).toISOString() }]

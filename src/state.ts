@@ -10,6 +10,7 @@ import type { Notice } from './notice/notice.js'
 import type { Lamp } from './sessions/agents.js'
 import type { Ask } from './sessions/ask.js'
 import type { SessionMail } from './sessions/mail.js'
+import type { SecretPlace, SecretReaders } from './secrets/catalog.js'
 import type { CompareSettings } from './stats/rules.js'
 import type { RemoteOff } from './sessions/remote.js'
 import type { CacheWindow, FeedLine, Stage, TokenTotals } from './sessions/transcript.js'
@@ -254,6 +255,8 @@ export interface EvenKeelState {
   context: ContextScale
   configError: Notice | null
   packages: PackagesView
+  /** The credentials of the "Access" tab of /settings (BTN-131). */
+  secrets: SecretsView
   language: Language | null
   unattended: boolean
   trimTools: boolean
@@ -339,6 +342,29 @@ export type PackageProblem =
   | { kind: 'noTrackerMcp'; server: string }
   /** The project's agent does not read Claude Code plugins: their skills and hooks stay out. Does not hold the chain. */
   | { kind: 'unsupported'; agent: string }
+
+export interface SecretsView {
+  variables: SecretView[]
+  /** A removed key still reaches new sessions: the daemon of the global folder waits for its live sessions to end. */
+  sessionsPending: boolean
+}
+
+/** A credential the page writes (`src/secrets/`); a secret's value never leaves the service. */
+export interface SecretView {
+  name: string
+  secret: boolean
+  places: SecretPlace[]
+  readers: SecretReaders
+  set: boolean
+  /** The value of a variable that is not a secret; `null` for a secret or one not set. */
+  value: string | null
+  /** Set from outside `.env`: the page cannot change it. */
+  outer: boolean
+  /** What the global `settings.json` holds for a key that goes to the sessions too; `null` — it does not go there. */
+  sessions: 'same' | 'other' | 'none' | null
+  /** The page token while the service listens beyond loopback: it cannot be removed. */
+  required: boolean
+}
 
 /** A variable of the pool a package or a tracker reads; its value never leaves the service. */
 export interface KeyView {

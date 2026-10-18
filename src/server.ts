@@ -143,6 +143,12 @@ export interface PackagesControl {
   setKey(name: string, value: string): void
 }
 
+/** The page's "Access" tab (`src/secrets/`): each variable is written or removed alone. */
+export interface SecretsControl {
+  set(name: string, value: string): void
+  remove(name: string): void
+}
+
 export interface ServerDeps {
   hub: EventHub
   publicDir: string
@@ -152,6 +158,7 @@ export interface ServerDeps {
   sessions: SessionControl
   settings: SettingsControl
   packages: PackagesControl
+  secrets: SecretsControl
   launches: () => unknown
   sessionRecord: (sessionId: string) => Promise<unknown>
   /** Lines of the whole transcript from index `after` on, and its last turn. */
@@ -228,6 +235,8 @@ const COMMANDS: Record<string, Command> = {
   'packages/setting': ({ packages }, body) =>
     packages.setSetting(nameOf(body), textOf(body.key, 'key'), body.value === null ? null : textOf(body.value, 'value'), optionalProjectOf(body)),
   'packages/key': ({ packages }, body) => packages.setKey(nameOf(body), textOf(body.value, 'value')),
+  'secrets/set': ({ secrets }, body) => secrets.set(nameOf(body), textOf(body.value, 'value')),
+  'secrets/remove': ({ secrets }, body) => secrets.remove(nameOf(body)),
 }
 
 const MAX_BODY_BYTES = 64 * 1024

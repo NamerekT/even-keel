@@ -45,6 +45,11 @@ export class EnvFile {
     for (const [name, value] of Object.entries(this.current)) if (!this.outer.has(name)) options.env[name] = value
   }
 
+  /** The process got the variable from outside: whatever the file says does not reach it. */
+  isOuter(name: string): boolean {
+    return this.outer.has(name)
+  }
+
   /** `listener` gets the variables whose value the file changed, sorted. */
   subscribe(listener: (changed: string[]) => void): void {
     this.listeners.add(listener)
