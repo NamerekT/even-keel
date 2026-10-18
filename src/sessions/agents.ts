@@ -123,6 +123,33 @@ export function withLiveRecords(agents: AgentEntry[], records: SessionRecord[]):
   })
 }
 
+/** The session id a job was last seen under, a new one seen once, and its earliest start (`steadyJobs`). */
+export type JobIds = Map<string, { sessionId: string; next?: string; startedAt: number }>
+
+/**
+ * A job the daemon respawns for `--resume` shows a fresh session id for under a second before it loads its session,
+ * and while its process lives `startedAt` is that process's start, not the job's (CLI 2.1.302). A job's new session
+ * id is taken only once two polls in a row show it, until then the entry keeps the id it had; its start is the
+ * earliest seen. `known` carries over between polls.
+ */
+export function steadyJobs(agents: AgentEntry[], known: JobIds): AgentEntry[] {
+  const seen = new Set<string>()
+  const steady = agents.map((agent) => {
+    if (agent.id === undefined) return agent
+    seen.add(agent.id)
+    const before = known.get(agent.id)
+    const startedAt = Math.min(agent.startedAt, before?.startedAt ?? agent.startedAt)
+    if (before === undefined || before.sessionId === agent.sessionId || before.next === agent.sessionId) {
+      known.set(agent.id, { sessionId: agent.sessionId, startedAt })
+      return { ...agent, startedAt }
+    }
+    known.set(agent.id, { sessionId: before.sessionId, next: agent.sessionId, startedAt })
+    return { ...agent, sessionId: before.sessionId, startedAt }
+  })
+  for (const id of known.keys()) if (!seen.has(id)) known.delete(id)
+  return steady
+}
+
 const SHELL_HANG_MS = 60 * 60_000
 
 /**
@@ -198,10 +225,11 @@ const LAUNCH_GRACE_MS = 5 * 60_000
 
 /**
  * `claude agents` keeps `state: working` for a job whose process died long ago: past its launch, a job with no live
- * `sessions/<pid>.json` (no `pid`) is finished unless it hangs on a startup dialog.
+ * `sessions/<pid>.json` (no `pid`) is finished unless it hangs on a startup dialog. `state: done` is the CLI's guess
+ * that the job did its work: a turn that ends on a question in plain text gets it too, and the process lives on for a reply.
  */
 export function lampOf(agent: AgentEntry | undefined, apiError: ApiErrorKind | null, now = Date.now()): Lamp {
-  if (agent === undefined || agent.state === 'done' || agent.state === 'stopped') return 'finished'
+  if (agent === undefined || agent.state === 'stopped' || (agent.state === 'done' && !isLive(agent))) return 'finished'
   if (agent.state === 'failed') return 'error'
   if (!isLive(agent) && agent.state !== 'blocked' && now - agent.startedAt > LAUNCH_GRACE_MS) return 'finished'
   const error = apiError === 'credit' ? 'limit' : apiError

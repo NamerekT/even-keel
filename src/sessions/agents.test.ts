@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { blockedAsk, blockedOn, isLive, lampOf, parseAgents, parseSessionRecord, sessionsByTask, turnStatus, withLiveRecords, type AgentEntry } from './agents.js'
+import { blockedAsk, blockedOn, isLive, lampOf, parseAgents, parseSessionRecord, sessionsByTask, steadyJobs, turnStatus, withLiveRecords, type AgentEntry } from './agents.js'
 
 const interactive: AgentEntry = {
   pid: 100,
@@ -219,8 +219,13 @@ describe('turnStatus', () => {
 describe('lampOf', () => {
   it('is finished when the session is gone or completed', () => {
     expect(lampOf(undefined, null)).toBe('finished')
-    expect(lampOf({ ...background, state: 'done' }, null)).toBe('finished')
+    expect(lampOf({ ...jobOnly, state: 'done' }, null)).toBe('finished')
     expect(lampOf({ ...background, state: 'stopped' }, null)).toBe('finished')
+  })
+
+  it('waits when the job is done but its process lives on for a reply', () => {
+    expect(lampOf({ ...background, state: 'done' }, null)).toBe('waiting')
+    expect(lampOf({ ...background, state: 'done', status: 'busy' }, null)).toBe('working')
   })
 
   it('is an error when the background job failed', () => {
@@ -283,5 +288,35 @@ describe('isLive', () => {
     expect(isLive(interactive)).toBe(true)
     expect(isLive(jobOnly)).toBe(false)
     expect(isLive({ ...jobOnly, resting: true })).toBe(true)
+  })
+})
+
+describe('steadyJobs', () => {
+  const fresh = '00000000-0000-4000-8000-000000000002'
+
+  it('keeps the session id a job had while it shows a new one for a single poll', () => {
+    const known = new Map()
+    steadyJobs([background], known)
+    expect(steadyJobs([{ ...background, sessionId: fresh }], known)).toEqual([background])
+    expect(steadyJobs([background], known)).toEqual([background])
+  })
+
+  it('takes the new id once two polls in a row show it', () => {
+    const known = new Map()
+    steadyJobs([background], known)
+    steadyJobs([{ ...background, sessionId: fresh }], known)
+    expect(steadyJobs([{ ...background, sessionId: fresh }], known)).toEqual([{ ...background, sessionId: fresh }])
+  })
+
+  it('keeps the start of the job while its respawned process shows its own', () => {
+    const known = new Map()
+    steadyJobs([jobOnly], known)
+    expect(steadyJobs([{ ...background, startedAt: background.startedAt + 60_000 }], known)).toEqual([background])
+  })
+
+  it('leaves a new job and a session without a job as they are', () => {
+    const known = new Map()
+    expect(steadyJobs([background, interactive], known)).toEqual([background, interactive])
+    expect(steadyJobs([{ ...background, id: 'other', sessionId: fresh }], known)).toEqual([{ ...background, id: 'other', sessionId: fresh }])
   })
 })

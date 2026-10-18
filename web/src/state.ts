@@ -402,8 +402,10 @@ export function sessionStart(current: CurrentTask, session: SessionView | null, 
   if (current.sessionId === null) return { phase: 'launch', since: current.starting ?? current.since }
   if (current.answering) return null
   if (current.starting !== undefined) return { phase: 'handover', since: current.starting }
+  const run = runs.find((each) => each.sessionId === current.sessionId)
+  if (run !== undefined && run.answers + run.resumed > 0) return null
   const seen = session?.sessionId === current.sessionId ? session : null
-  const since = runs.find((run) => run.sessionId === current.sessionId)?.at ?? seen?.startedAt
+  const since = run?.at ?? seen?.startedAt
   if (since === undefined || now.getTime() - Date.parse(since) > BOOT_WAIT_MS) return null
   if (seen === null) return { phase: 'boot', since }
   return seen.lamp === 'working' && seen.contextTokens === 0 ? { phase: 'answer', since } : null

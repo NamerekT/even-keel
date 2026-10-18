@@ -18,7 +18,7 @@ import { CLAUDE } from './claude/name.js'
 import { Dispatcher, type LaunchEntry } from './chain/dispatcher.js'
 import { fallbacksSince, fixEpisodes, handoffsOf, launchDays, launchedProjects, taskSessions } from './chain/launches.js'
 import { fixName, fixTaskOf, isFixName } from './chain/fix.js'
-import { fixPrompt, noteOf, resumePrompt, startPrompt, withBrief, withProjectPrompt, withTracker, withUnattended, type TrackerPlace } from './chain/relay.js'
+import { fixPrompt, noteOf, resumePrompt, startPrompt, withBrief, withProjectPrompt, withTracker, withUnattended, type HandoffSession, type TrackerPlace } from './chain/relay.js'
 import { launchLine } from './chain/log.js'
 import { mainCheckDeps, mergeCheck } from './chain/mainci.js'
 import { TaskPlaces } from './chain/places.js'
@@ -523,22 +523,8 @@ const dispatcher = new Dispatcher(loadChainState(chainFile, config.ids), {
     const project = projectOf(task)
     return project === undefined ? DEFAULT_BRANCH : branchOf(project)
   },
-  resume: async (task, session) => {
-    const home = homeOf(session.account)
-    await stopIn(home, session)
-    await daemons.prepare(home)
-    const plan = planFor(task, resumePrompt(promptLanguage()))
-    const extras = agentExtras(home, projectOf(task), task)
-    return resumeIn(home, session, { name: task, cwd: session.cwd, prompt: plan.prompt, model: plan.model, settings: settingsFor(task), ...extras })
-  },
-  reply: async (task, session, prompt) => {
-    const home = homeOf(session.account)
-    await stopIn(home, session)
-    await daemons.prepare(home)
-    const plan = planFor(task, prompt)
-    const extras = agentExtras(home, projectOf(task), task)
-    return resumeIn(home, session, { name: task, cwd: session.cwd, prompt: plan.prompt, model: plan.model, settings: settingsFor(task), ...extras })
-  },
+  resume: (task, session) => resumeWith(task, session, resumePrompt(promptLanguage())),
+  reply: (task, session, prompt) => resumeWith(task, session, prompt),
   relay: async (task, session, handoff, reason) => {
     const previous = homes.find(session.account)
     if (previous !== undefined) await stopIn(previous, session)
@@ -613,6 +599,18 @@ const dispatcher = new Dispatcher(loadChainState(chainFile, config.ids), {
     now: () => new Date(),
   }),
 })
+
+/** Stops the session and resumes it with `prompt`; the page keeps it working, not finished, while it is respawned. */
+function resumeWith(task: string, session: HandoffSession, prompt: string): Promise<string> {
+  return monitor.holds.during(session.sessionId, async () => {
+    const home = homeOf(session.account)
+    await stopIn(home, session)
+    await daemons.prepare(home)
+    const plan = planFor(task, prompt)
+    const extras = agentExtras(home, projectOf(task), task)
+    return resumeIn(home, session, { name: task, cwd: session.cwd, prompt: plan.prompt, model: plan.model, settings: settingsFor(task), ...extras })
+  })
+}
 
 /** Saves the files into the task's folder and resumes the waiting session with the reply (invariant 1, exception 6). */
 async function answerSession(

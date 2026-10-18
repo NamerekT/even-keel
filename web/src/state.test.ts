@@ -1057,6 +1057,14 @@ describe('sessionStart', () => {
     expect(sessionStart(current(), live({ lamp: 'waiting' }), runs, now)).toBeNull()
   })
 
+  it('is nothing for a session that goes on after an answer or a resume, however fresh its process', () => {
+    const answered = [{ ...run('new', '2026-01-01T10:00:00.000Z'), answers: 1 }]
+    const resumed = [{ ...run('new', '2026-01-01T10:00:00.000Z'), resumed: 1 }]
+    expect(sessionStart(current(), live(), answered, now)).toBeNull()
+    expect(sessionStart(current(), null, answered, now)).toBeNull()
+    expect(sessionStart(current(), live(), resumed, now)).toBeNull()
+  })
+
   it('gives up on a boot that took too long to be one', () => {
     const runs = [run('new', '2026-01-01T09:50:00.000Z')]
     expect(sessionStart(current(), null, runs, now)).toBeNull()

@@ -3,7 +3,8 @@ import { GLOBAL_ACCOUNT } from '../account/model.js'
 import type { Agent, SessionTail } from '../agent/contract.js'
 import { warmCacheMs, type HandoffSession, type LimitedSession } from '../chain/relay.js'
 import type { SessionView } from '../state.js'
-import { lampOf, sessionsByTask, type AgentEntry } from './agents.js'
+import { isLive, lampOf, sessionsByTask, steadyJobs, type AgentEntry, type JobIds } from './agents.js'
+import { ResumeHolds } from './holds.js'
 import { remoteLink } from './remote.js'
 
 export interface SessionMonitorOptions {
@@ -32,6 +33,9 @@ interface Tracked {
 export class SessionMonitor {
   private readonly tracked = new Map<string, Tracked>()
   private readonly tails = new Map<string, SessionTail>()
+  private readonly jobIds: JobIds = new Map()
+  /** The sessions the chain is resuming: shown working, not finished, while the daemon respawns them. */
+  readonly holds = new ResumeHolds()
   /** By account; `null` when its agent has no Remote Control. */
   private readonly remoteEnabled = new Map<string, boolean | null>()
   private lastSnapshot = ''
@@ -59,7 +63,8 @@ export class SessionMonitor {
       const account = tracked.agent.account ?? GLOBAL_ACCOUNT
       const enabled = this.remoteEnabled.has(account) ? this.remoteEnabled.get(account)! : false
       const remote = { enabled, apiKey: this.options.apiKey(account) }
-      return toView(task, tracked, remote, this.options.emailOf(account), now)
+      const view = toView(task, tracked, remote, this.options.emailOf(account), now)
+      return view.lamp === 'finished' && this.holds.held(view.sessionId) ? { ...view, lamp: 'working' as const } : view
     })
   }
 
@@ -111,8 +116,9 @@ export class SessionMonitor {
     try {
       const homes = this.options.homes()
       const homeOf = new Map(homes.map((home) => [home.key, home]))
-      const agents = (await Promise.all(homes.map((home) => this.agentsOf(home)))).flat()
+      const agents = steadyJobs((await Promise.all(homes.map((home) => this.agentsOf(home)))).flat(), this.jobIds)
       this.options.onAgents(agents)
+      this.holds.sweep((sessionId) => agents.some((agent) => agent.sessionId === sessionId && isLive(agent)))
       for (const agent of agents) {
         const tail = this.tails.get(agent.sessionId)
         const home = homeOf.get(agent.account ?? GLOBAL_ACCOUNT)!
