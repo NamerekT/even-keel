@@ -24,7 +24,7 @@ describe('readHulyCredentials', () => {
 
   it('names every missing variable when the set is incomplete', () => {
     expect(() => readHulyCredentials({ HULY_URL: full.HULY_URL, HULY_EMAIL: '' })).toThrow(
-      /HULY_WORKSPACE, HULY_EMAIL, HULY_PASSWORD/,
+      /^set HULY_WORKSPACE, HULY_EMAIL, HULY_PASSWORD/,
     )
   })
 })
