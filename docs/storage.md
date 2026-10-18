@@ -1,6 +1,6 @@
 # Storage
 
-Even Keel's state is one SQLite database, `state/even-keel.db` (`EVEN_KEEL_STATE_DIR`), since BTN-147. The config stays the file `even-keel.config.json`; `account.json`, `packages.json` (and its cache `packages/`), `rate-limits.json`, `codex/` and `rule-history.jsonl` stay files of `state/`; Tally's database is its own (`docs/stats.md`). Whether settings and projects move into the database, and when, is the question BTN-190.
+Even Keel's state is one SQLite database, `state/even-keel.db` (`EVEN_KEEL_STATE_DIR`), since BTN-147. The config stays the file `even-keel.config.json`; `account.json`, `packages.json` (and its cache `packages/`), `rate-limits.json`, `codex/` and `rule-history.jsonl` stay files of `state/`; Tally's database is its own (`docs/stats.md`). Settings and projects move into the database before the v0.1 release (BTN-199), and the engine becomes PGlite (BTN-198, first): the user's answer in BTN-190.
 
 ## The database (`src/storage/database.ts`)
 

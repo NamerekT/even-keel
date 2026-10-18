@@ -109,7 +109,7 @@ What sits at a level it should not, or misses one it should have. BTN-187 takes 
   built-in like `QUESTION_LABELS` and the default list empty.
 - `unattended` and `trimTools` are user settings kept with the chain state (`chain_flags` of the database since BTN-147,
   `state/chain.json` before), and `updates.dismissed` is state kept in the config. Each moves to its own side when the
-  settings move into the database (BTN-190).
+  settings move into the database (BTN-199).
 - The model's project level, which the task's text missed, exists since BTN-173 (`models` in the project entry).
 
 Levels that stay as they are: `parallel`, `execution` (the Codex sandbox does not start under the service for any project,
@@ -150,7 +150,7 @@ CREATE TABLE setting_values (
 CREATE UNIQUE INDEX setting_values_target ON setting_values (key, COALESCE(project_id, ''), qualifier);
 ```
 
-The SQL is the same for `node:sqlite` and PGlite (the engine is BTN-147's question); the expression index stands in for
+The SQL is the same for `node:sqlite` and PGlite (the engine becomes PGlite in BTN-198); the expression index stands in for
 a primary key over a nullable column.
 
 - **A setting is a leaf replaced whole.** A nested object of today's file becomes one key per part wherever the parts
@@ -164,10 +164,10 @@ a primary key over a nullable column.
 - **Packages**: `packages.enabled` (qualifier: the package) with the catalog's `default` as its Even Keel value and a
   project's `on`/`off` as its project rows; `packages.setting` (qualifier `<package>/<variable>`) with the package's
   values as Even Keel rows and a project's differing ones as project rows. The catalog, installs and pins stay state.
-- **`unattended`, `trimTools`** become Even Keel rows; `updates.dismissed` goes to state. Both moves happen in BTN-147's
+- **`unattended`, `trimTools`** become Even Keel rows; `updates.dismissed` goes to state. Both moves happen in BTN-199's
   import.
 - **Project records** are a table of their own (`projects`: `id`, `key`, `name`, `repo`, `branch`, the tracker
-  reference, `position` for the order of the file) — BTN-147.
+  reference, `position` for the order of the file) — BTN-199.
 
 ## Reading and writing
 
@@ -265,12 +265,14 @@ parsers — not a table.
   this research; the user's two-table idea kept.
 - BTN-118 "Storage without a hand-edited file" (2026-10-18, unattended, the cheapest to undo; the user confirms in
   BTN-192): no intermediate JSON in the state folder. The wizard and the removal write the project record into the same
-  `even-keel.config.json` through `ConfigFile`, which becomes the database's writer once settings move (BTN-190).
+  `even-keel.config.json` through `ConfigFile`, which becomes the database's writer once settings move (BTN-199).
   Without a file at start, the service creates an empty one (`version`, `projects: []`) and logs it; the one-time
   import and `EVEN_KEEL_CONFIG` go with that move.
 - BTN-186 sits in milestone v0.1 because it blocks BTN-147 and BTN-118, which are there; a blocker in a later milestone
   would stop the chain.
 - BTN-147 (2026-10-18, unattended, the cheapest to undo): the engine is `node:sqlite`; the database holds the state
   (`docs/storage.md`), while settings and project records stay in `even-keel.config.json`, since without the wizard a
-  project is added only by editing that file. When they move, and whether PGlite would be better, is the question
-  BTN-190; the tables above are its schema.
+  project is added only by editing that file.
+- BTN-190 (2026-10-18, the user): settings and project records move into the database now, before the v0.1 release
+  (BTN-199), on the tables above; the engine becomes PGlite (BTN-198, done first, so the settings tables are written
+  there). The wizard writes through the BTN-186 writer with no intermediate JSON, as BTN-118 already does.
