@@ -1,5 +1,6 @@
 import type { ChildProcessWithoutNullStreams } from 'node:child_process'
 import type { Agent } from '../agent/contract.js'
+import { CODEX } from '../codex/name.js'
 import type { RateLimits } from '../limits/model.js'
 import type { UsageHealth } from '../limits/usage.js'
 import { fail, notice, NoticeError, noticeOf, sameNotice, type Notice } from '../notice/notice.js'
@@ -58,7 +59,8 @@ export interface AccountWatcherOptions {
   configPending: (key: string) => boolean
   limits: (key: string) => RateLimits | null
   usage: (key: string) => UsageHealth
-  checkKey: (key: string) => Promise<KeyVerdict>
+  /** Whether the agent's provider takes the key. */
+  checkKey: (agent: string, key: string) => Promise<KeyVerdict>
   keyCheckMs: number
   checkCredit: (key: string) => Promise<CreditVerdict>
   creditCheckMs: number
@@ -167,12 +169,13 @@ export class AccountWatcher {
     this.begin(this.options.homes.pending(this.options.now(), agent), true)
   }
 
-  async addApiKey(name: string, key: string): Promise<void> {
-    const value = assertApiKey(key)
-    const verdict = await this.options.checkKey(value)
-    if (verdict.state === 'rejected') throw fail('account.apiKeyRejected', {})
-    if (verdict.state === 'unknown') throw fail('account.apiKeyUnchecked', { reason: verdict.reason })
-    const home = this.options.homes.addApiKey(name, value)
+  async addApiKey(name: string, key: string, agent: string): Promise<void> {
+    const value = assertApiKey(key, agent)
+    const verdict = await this.options.checkKey(agent, value)
+    const codex = agent === CODEX
+    if (verdict.state === 'rejected') throw fail(codex ? 'account.codexKeyRejected' : 'account.apiKeyRejected', {})
+    if (verdict.state === 'unknown') throw fail(codex ? 'account.codexKeyUnchecked' : 'account.apiKeyUnchecked', { reason: verdict.reason })
+    const home = this.options.homes.addApiKey(name, value, agent)
     this.keys.note(home.key, verdict, this.options.now())
     this.options.name(home.key, name)
     await this.refresh()
@@ -234,7 +237,7 @@ export class AccountWatcher {
     }
   }
 
-  /** Asks Anthropic about each API account's key once per `keyCheckMs`; true when a verdict changed. */
+  /** Asks Anthropic or OpenAI about each API account's key once per `keyCheckMs`; true when a verdict changed. */
   private async checkKeys(known: Known[]): Promise<boolean> {
     const now = this.options.now()
     const due = known.filter(({ home, status }) => isApiKey(status) && this.keys.due(home.key, now))
@@ -243,7 +246,7 @@ export class AccountWatcher {
         const key = this.options.homes.apiKeyOf(home)
         if (key === null) return false
         const before = this.keys.rejected(home.key)
-        this.keys.note(home.key, await this.options.checkKey(key), now)
+        this.keys.note(home.key, await this.options.checkKey(home.agent, key), now)
         return this.keys.rejected(home.key) !== before
       }),
     )
@@ -255,7 +258,8 @@ export class AccountWatcher {
     await Promise.all(
       this.credit.due(now).map(async (account) => {
         const home = homes.find((each) => each.key === account)
-        const key = home === undefined ? null : this.options.homes.apiKeyOf(home)
+        // The credit check asks Anthropic; a Codex session never stops on `credit`.
+        const key = home === undefined || home.agent === CODEX ? null : this.options.homes.apiKeyOf(home)
         if (key === null) return
         const verdict = await this.options.checkCredit(key)
         if (verdict.state === 'unknown') this.options.onError(new Error(`credit check of ${account}: ${verdict.reason}`))

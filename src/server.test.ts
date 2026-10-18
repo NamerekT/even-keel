@@ -637,9 +637,12 @@ describe('Even Keel HTTP server', () => {
     expect((await post('/api/account/api', { name: 'work', key: 'sk-ant-fake' })).status).toBe(200)
     expect((await post('/api/account/api', { key: 'sk-ant-fake' })).status).toBe(200)
     expect((await post('/api/account/api', { name: 'work' })).status).toBe(400)
+    expect((await post('/api/account/api', { name: 'openai', key: 'sk-proj-fake', agent: 'codex' })).status).toBe(200)
+    expect((await post('/api/account/api', { key: 'sk-proj-fake', agent: 7 })).status).toBe(400)
     expect(calls).toEqual([
-      ['api', 'work', 'sk-ant-fake'],
-      ['api', '', 'sk-ant-fake'],
+      ['api', 'work', 'sk-ant-fake', 'claude'],
+      ['api', '', 'sk-ant-fake', 'claude'],
+      ['api', 'openai', 'sk-proj-fake', 'codex'],
     ])
     expect((await post('/api/nope/start')).status).toBe(404)
   })

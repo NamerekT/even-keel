@@ -1,16 +1,23 @@
 const MODELS_URL = 'https://api.anthropic.com/v1/models?limit=1'
+const OPENAI_MODELS_URL = 'https://api.openai.com/v1/models'
 const API_VERSION = '2023-06-01'
 
 export type KeyVerdict = { state: 'ok' } | { state: 'rejected' } | { state: 'unknown'; reason: string }
 
 /** Asks Anthropic whether it takes the key: the models list costs no tokens. 401 and 403 are a refused key. */
-export async function checkApiKey(key: string, timeoutMs: number, fetchImpl: typeof fetch = fetch): Promise<KeyVerdict> {
+export function checkApiKey(key: string, timeoutMs: number, fetchImpl: typeof fetch = fetch): Promise<KeyVerdict> {
+  return askModels(MODELS_URL, { 'x-api-key': key, 'anthropic-version': API_VERSION }, timeoutMs, fetchImpl)
+}
+
+/** The same question to OpenAI for a Codex key (BTN-177). */
+export function checkOpenAiKey(key: string, timeoutMs: number, fetchImpl: typeof fetch = fetch): Promise<KeyVerdict> {
+  return askModels(OPENAI_MODELS_URL, { authorization: `Bearer ${key}` }, timeoutMs, fetchImpl)
+}
+
+async function askModels(url: string, headers: Record<string, string>, timeoutMs: number, fetchImpl: typeof fetch): Promise<KeyVerdict> {
   let response: Response
   try {
-    response = await fetchImpl(MODELS_URL, {
-      headers: { 'x-api-key': key, 'anthropic-version': API_VERSION },
-      signal: AbortSignal.timeout(timeoutMs),
-    })
+    response = await fetchImpl(url, { headers, signal: AbortSignal.timeout(timeoutMs) })
   } catch (error) {
     return { state: 'unknown', reason: error instanceof Error ? error.message : String(error) }
   }

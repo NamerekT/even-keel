@@ -355,15 +355,23 @@ function Output({ text, open = false }: { text: string; open?: boolean }) {
   )
 }
 
+interface ApiKeyProps {
+  /** Whose key: Anthropic's for Claude, OpenAI's for Codex. */
+  agent: string
+  hint: string
+  onDone: () => void
+  onCancel: () => void
+}
+
 /** Its own command, so a refused key shows under the form rather than elsewhere on the page. */
-export function ApiKeyFields({ onDone, onCancel }: { onDone: () => void; onCancel: () => void }) {
+export function ApiKeyFields({ agent, hint, onDone, onCancel }: ApiKeyProps) {
   const { send, sending, failure } = useCommand()
   const [name, setName] = useState('')
   const [key, setKey] = useState('')
 
   const submit = async (event: FormEvent) => {
     event.preventDefault()
-    if (await send('account/api', { name, key })) onDone()
+    if (await send('account/api', { name, key, agent })) onDone()
   }
 
   return (
@@ -400,7 +408,7 @@ export function ApiKeyFields({ onDone, onCancel }: { onDone: () => void; onCance
           {say(failure)}
         </p>
       )}
-      <p className="queue__hint">{t.account.keyHint}</p>
+      <p className="queue__hint">{hint}</p>
     </form>
   )
 }

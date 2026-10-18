@@ -6,7 +6,7 @@ import { Readable } from 'node:stream'
 import { checkCredit } from './account/credit.js'
 import { DaemonRefresh } from './account/daemon.js'
 import { AccountHomes, accountsRoot, codexAccountsRoot, type AccountHome } from './account/homes.js'
-import { checkApiKey } from './account/keycheck.js'
+import { checkApiKey, checkOpenAiKey } from './account/keycheck.js'
 import { accountAt, forgetAccount, loadLedger, markRemoving, nameAccount, noteAccount, saveLedger, type AccountLedger } from './account/ledger.js'
 import { accountId, launchBlock, liveSessions, loginBlock, type LoginBlock } from './account/model.js'
 import { VsCodeAccount, vscodeSettingsFile } from './account/vscode.js'
@@ -16,6 +16,7 @@ import type { Agent, SessionHandle, SessionStart } from './agent/contract.js'
 import { sessionBase } from './agent/env.js'
 import { updateMarketplace } from './claude/cli.js'
 import { CLAUDE } from './claude/name.js'
+import { CODEX } from './codex/name.js'
 import { Dispatcher, type LaunchEntry } from './chain/dispatcher.js'
 import { fallbacksSince, fixEpisodes, handoffsOf, launchDays, launchedProjects, taskSessions } from './chain/launches.js'
 import { fixName, fixTaskOf, isFixName } from './chain/fix.js'
@@ -347,7 +348,7 @@ const account = new AccountWatcher({
   configPending: (key) => daemons.pending(key),
   limits: (key) => limits.limits(key),
   usage: (key) => limits.usage(key),
-  checkKey: (key) => checkApiKey(key, KEY_CHECK_TIMEOUT_MS),
+  checkKey: (agent, key) => (agent === CODEX ? checkOpenAiKey : checkApiKey)(key, KEY_CHECK_TIMEOUT_MS),
   keyCheckMs: KEY_CHECK_MS,
   checkCredit: (key) => checkCredit(key, KEY_CHECK_TIMEOUT_MS),
   creditCheckMs: CREDIT_CHECK_MS,

@@ -47,7 +47,7 @@ export function AccountAddPage({ state }: { state: EvenKeelState }) {
           items={CONNECTIONS.map((each) => ({
             id: each,
             title: t.account.connections[each],
-            hint: canAdd(provider, each) ? t.account.connectionHints[each] : stubHint(provider, each),
+            hint: canAdd(provider, each) ? t.account.connectionHints[each] : each === 'sdk' ? t.account.sdkStub : t.account.soon,
             ready: canAdd(provider, each),
             to: `${ADD}?provider=${provider}&connection=${each}`,
           }))}
@@ -59,10 +59,6 @@ export function AccountAddPage({ state }: { state: EvenKeelState }) {
       )}
     </div>
   )
-}
-
-function stubHint(provider: Provider, connection: Connection): string {
-  return connection === 'sdk' ? t.account.sdkStub : provider === 'codex' && connection === 'apiKey' ? t.account.codexKeyStub : t.account.soon
 }
 
 interface Choice {
@@ -106,7 +102,10 @@ interface SignInProps {
 }
 
 function SignIn({ account, provider, connection, onDone, onCancel }: SignInProps) {
-  if (connection === 'apiKey') return <ApiKeyFields onDone={onDone} onCancel={onCancel} />
+  if (connection === 'apiKey') {
+    const agent = provider === 'codex' ? CODEX : CLAUDE
+    return <ApiKeyFields agent={agent} hint={agent === CODEX ? t.account.codexKeyHint : t.account.keyHint} onDone={onDone} onCancel={onCancel} />
+  }
   if (provider === 'codex') {
     return (
       <>

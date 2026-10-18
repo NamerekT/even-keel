@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { checkApiKey, KeyChecks } from './keycheck.js'
+import { checkApiKey, checkOpenAiKey, KeyChecks } from './keycheck.js'
 
 const answer = (status: number): typeof fetch => async () => new Response('{}', { status })
 
@@ -28,6 +28,25 @@ describe('checkApiKey', () => {
       throw new TypeError('fetch failed')
     }
     expect(await checkApiKey('sk-ant-fake-0000000000000000', 1000, down)).toEqual({ state: 'unknown', reason: 'fetch failed' })
+  })
+})
+
+describe('checkOpenAiKey', () => {
+  it("asks OpenAI's models list with the key as a bearer token", async () => {
+    let seen: { url: string; headers: Headers } | undefined
+    const fetchImpl: typeof fetch = async (url, init) => {
+      seen = { url: String(url), headers: new Headers(init?.headers) }
+      return new Response('{}', { status: 200 })
+    }
+    expect(await checkOpenAiKey('sk-proj-fake-0000000000000000', 1000, fetchImpl)).toEqual({ state: 'ok' })
+    expect(seen?.url).toBe('https://api.openai.com/v1/models')
+    expect(seen?.headers.get('authorization')).toBe('Bearer sk-proj-fake-0000000000000000')
+  })
+
+  it('takes 401 and 403 for a refused key and anything else for no verdict', async () => {
+    expect(await checkOpenAiKey('sk-proj-fake-0000000000000000', 1000, answer(401))).toEqual({ state: 'rejected' })
+    expect(await checkOpenAiKey('sk-proj-fake-0000000000000000', 1000, answer(403))).toEqual({ state: 'rejected' })
+    expect(await checkOpenAiKey('sk-proj-fake-0000000000000000', 1000, answer(503))).toEqual({ state: 'unknown', reason: 'HTTP 503' })
   })
 })
 

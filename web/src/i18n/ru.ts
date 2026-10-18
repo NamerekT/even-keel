@@ -242,7 +242,7 @@ export const ru = {
     connections: { cli: 'CLI', sdk: 'Agent SDK', apiKey: 'API-ключ' },
     providerHints: {
       claude: 'Anthropic: подписка Claude или API-ключ',
-      codex: 'OpenAI: подписка ChatGPT',
+      codex: 'OpenAI: подписка ChatGPT или API-ключ',
       opencode: 'Пока не поддерживается',
     },
     connectionHints: {
@@ -252,7 +252,6 @@ export const ru = {
     },
     soon: 'пока нет',
     sdkStub: 'Движка Agent SDK в Even Keel пока нет',
-    codexKeyStub: 'Codex на API-ключе пока не поддерживается: войдите через CLI',
     codexHint:
       'Вход нового аккаунта Codex через ChatGPT в отдельную папку: Codex выдаст ссылку и одноразовый код — откройте ссылку, войдите и введите там код.',
     codexFree:
@@ -322,7 +321,9 @@ export const ru = {
     keyValue: 'Ключ',
     keyAdd: 'Добавить',
     keyHint:
-      'Новая папка с ключом в её settings.json. Сессии на ней платят за токены: лимитов на 5 часов и неделю нет, Remote Control нет, а сессия, у которой кончились деньги, останавливается как при любой ошибке.',
+      'Новая папка с ключом в её settings.json. Сессии на ней платят за токены: лимитов на 5 часов и неделю нет, Remote Control нет, а сессия, у которой кончились деньги, ждёт, пока они снова появятся на ключе.',
+    codexKeyHint:
+      'API-ключ OpenAI — в auth.json новой папки Codex. Сессии на нём платят за токены по условиям API OpenAI, правило одного бесплатного аккаунта к нему не относится; сессия, у которой кончились деньги, останавливается как при любой ошибке.',
     removeKeyWhenDone: (sessions: string) => `Удалить папку с ключом, когда завершатся её сессии (${sessions})?`,
     removeKeyNow: 'Удалить папку с ключом?',
   },

@@ -46,8 +46,7 @@ export function deviceLogin({ login }: AccountView): boolean {
 /** Whether the page can add such an account; the rest are shown as not there yet. Without a connection — the provider at all. */
 export function canAdd(provider: Provider, connection?: Connection): boolean {
   if (provider === 'opencode') return false
-  if (connection === undefined || connection === 'cli') return true
-  return connection === 'apiKey' && provider === 'claude'
+  return connection !== 'sdk'
 }
 
 export interface AccountGroup {

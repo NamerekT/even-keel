@@ -222,12 +222,14 @@ export function accountCommand(account: AccountView, name: string, body: Record<
   }
   if (name === 'account/api') {
     const value = String(body.key).trim()
-    if (!/^\S{21,}$/.test(value)) throw fail('account.apiKeyInvalid', {})
-    if (value.includes('rejected')) throw fail('account.apiKeyRejected', {})
-    if (value.includes('offline')) throw fail('account.apiKeyUnchecked', { reason: 'fetch failed' })
+    const codex = body.agent === CODEX
+    if (!/^\S{21,}$/.test(value)) throw fail(codex ? 'account.codexKeyInvalid' : 'account.apiKeyInvalid', {})
+    if (value.includes('rejected')) throw fail(codex ? 'account.codexKeyRejected' : 'account.apiKeyRejected', {})
+    if (value.includes('offline')) throw fail(codex ? 'account.codexKeyUnchecked' : 'account.apiKeyUnchecked', { reason: 'fetch failed' })
     const name = String(body.name ?? '').trim()
     const key = folderName(name || 'api', account.accounts.map((entry) => entry.key))
-    return { ...account, accounts: [...account.accounts, apiEntry(key, { name: name || null })] }
+    const entry = apiEntry(key, { name: name || null, ...(codex ? { agent: CODEX } : {}) })
+    return { ...account, accounts: [...account.accounts, entry] }
   }
   if (name === 'account/switch') {
     const problem = switchProblem(account, key)

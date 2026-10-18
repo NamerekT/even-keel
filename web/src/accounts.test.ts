@@ -83,16 +83,16 @@ describe('deviceLogin', () => {
 })
 
 describe('canAdd', () => {
-  it('adds Claude through the CLI or a key and Codex through its CLI', () => {
+  it('adds Claude and Codex through the CLI or a key', () => {
     expect(canAdd('claude', 'cli')).toBe(true)
     expect(canAdd('claude', 'apiKey')).toBe(true)
     expect(canAdd('codex', 'cli')).toBe(true)
+    expect(canAdd('codex', 'apiKey')).toBe(true)
   })
 
-  it('shows the Agent SDK, a Codex key and OpenCode as not there yet', () => {
+  it('shows the Agent SDK and OpenCode as not there yet', () => {
     expect(canAdd('claude', 'sdk')).toBe(false)
     expect(canAdd('codex', 'sdk')).toBe(false)
-    expect(canAdd('codex', 'apiKey')).toBe(false)
     expect(canAdd('opencode')).toBe(false)
     expect(canAdd('opencode', 'cli')).toBe(false)
     expect(canAdd('claude')).toBe(true)

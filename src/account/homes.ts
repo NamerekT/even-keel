@@ -13,6 +13,8 @@ const LOCK_SUFFIX = '.lock'
 const APPROVED_SUFFIX = 20
 const API_KEY_PATTERN = new RegExp(`^\\S{${APPROVED_SUFFIX + 1},}$`)
 const RESERVED = [GLOBAL_ACCOUNT, CODEX_ACCOUNT]
+const CODEX_AUTH = 'auth.json'
+const CODEX_KEY_FIELD = 'OPENAI_API_KEY'
 
 export interface AccountHome {
   key: string
@@ -94,23 +96,31 @@ export class AccountHomes {
   }
 
   /**
-   * An API account: a folder whose `settings.json` carries the key (`mergeSettings` keeps it there) and whose
-   * `.claude.json` has it approved, or the CLI asks whether to use it (BTN-136).
+   * An API account. Claude's: a folder whose `settings.json` carries the key (`mergeSettings` keeps it there) and whose
+   * `.claude.json` has it approved, or the CLI asks whether to use it (BTN-136). Codex's: an `auth.json` the way
+   * `codex login --with-api-key` writes it (BTN-177).
    */
-  addApiKey(name: string, key: string): AccountHome {
-    const value = assertApiKey(key)
-    const home = this.home(CLAUDE, folderName(name.trim() === '' ? 'api' : name, this.taken()))
+  addApiKey(name: string, key: string, agent: string = CLAUDE): AccountHome {
+    const value = assertApiKey(key, agent)
+    const home = this.home(agent, folderName(name.trim() === '' ? 'api' : name, this.taken()))
     mkdirSync(home.dir, { recursive: true })
+    if (agent === CODEX) {
+      writeFileSync(join(home.dir, CODEX_AUTH), JSON.stringify({ auth_mode: 'apikey', [CODEX_KEY_FIELD]: value }, null, 2))
+      return home
+    }
     writeFileSync(join(home.dir, 'settings.json'), JSON.stringify({ env: { [API_KEY_VARIABLE]: value } }, null, 2))
     const approved = { customApiKeyResponses: { approved: [value.slice(-APPROVED_SUFFIX)], rejected: [] } }
     writeFileSync(join(home.dir, '.claude.json'), JSON.stringify(approved, null, 2))
     return home
   }
 
-  /** The key in the folder's `settings.json`; a folder with `apiKeyHelper` has none to read. */
+  /** The key in Claude's `settings.json` or Codex's `auth.json`; a folder with `apiKeyHelper` has none to read. */
   apiKeyOf(home: AccountHome): string | null {
     try {
-      const key = JSON.parse(readFileSync(join(home.dir, 'settings.json'), 'utf8'))?.env?.[API_KEY_VARIABLE]
+      const key =
+        home.agent === CODEX
+          ? JSON.parse(readFileSync(join(home.dir, CODEX_AUTH), 'utf8'))?.[CODEX_KEY_FIELD]
+          : JSON.parse(readFileSync(join(home.dir, 'settings.json'), 'utf8'))?.env?.[API_KEY_VARIABLE]
       return typeof key === 'string' && key !== '' ? key : null
     } catch {
       return null
@@ -159,9 +169,9 @@ export class AccountHomes {
 }
 
 /** The trimmed key, or a refusal of one that is not a single word long enough to approve. */
-export function assertApiKey(key: string): string {
+export function assertApiKey(key: string, agent: string = CLAUDE): string {
   const value = key.trim()
-  if (!API_KEY_PATTERN.test(value)) throw fail('account.apiKeyInvalid', {})
+  if (!API_KEY_PATTERN.test(value)) throw fail(agent === CODEX ? 'account.codexKeyInvalid' : 'account.apiKeyInvalid', {})
   return value
 }
 

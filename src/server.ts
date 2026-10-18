@@ -73,7 +73,8 @@ export interface ChainControl {
 
 export interface AccountControl {
   add(agent: string): void
-  addApiKey(name: string, key: string): Promise<void>
+  /** An account of the agent paying from a key: Anthropic's for Claude, OpenAI's for Codex. */
+  addApiKey(name: string, key: string, agent: string): Promise<void>
   renew(account: string): void
   switchTo(account: string): void
   switchApp(app: string, account: string): Promise<void>
@@ -216,7 +217,8 @@ const COMMANDS: Record<string, Command> = {
   'updates/dismiss': ({ settings }, body) => settings.dismissUpdate(textOf(body.version, 'version')),
   'updates/mute': ({ settings }) => settings.muteUpdates(),
   'account/add': ({ account }, body) => account.add(body.agent === undefined ? CLAUDE : textOf(body.agent, 'agent')),
-  'account/api': ({ account }, body) => account.addApiKey(typeof body.name === 'string' ? body.name : '', textOf(body.key, 'key')),
+  'account/api': ({ account }, body) =>
+    account.addApiKey(typeof body.name === 'string' ? body.name : '', textOf(body.key, 'key'), body.agent === undefined ? CLAUDE : textOf(body.agent, 'agent')),
   'account/renew': ({ account }, body) => account.renew(accountOf(body)),
   'account/switch': ({ account }, body) => account.switchTo(accountOf(body)),
   'account/app': ({ account }, body) => account.switchApp(appOf(body), accountOf(body)),

@@ -240,7 +240,7 @@ export const en: Messages = {
     connections: { cli: 'CLI', sdk: 'Agent SDK', apiKey: 'API key' },
     providerHints: {
       claude: 'Anthropic: a Claude subscription or an API key',
-      codex: 'OpenAI: a ChatGPT subscription',
+      codex: 'OpenAI: a ChatGPT subscription or an API key',
       opencode: 'Not supported yet',
     },
     connectionHints: {
@@ -250,7 +250,6 @@ export const en: Messages = {
     },
     soon: 'not yet',
     sdkStub: 'Even Keel has no Agent SDK engine yet',
-    codexKeyStub: "Codex on an API key isn't supported yet: sign in through the CLI",
     codexHint:
       'Signs a new Codex account in with ChatGPT, in a folder of its own: Codex gives a link and a one-time code — open the link, sign in and enter the code there.',
     codexFree:
@@ -320,7 +319,9 @@ export const en: Messages = {
     keyValue: 'Key',
     keyAdd: 'Add',
     keyHint:
-      "A new folder with the key in its settings.json. Sessions on it pay per token: no 5-hour or weekly limits, no Remote Control, and a session that runs out of money stops like on any error.",
+      "A new folder with the key in its settings.json. Sessions on it pay per token: no 5-hour or weekly limits, no Remote Control, and a session that runs out of money waits until the key has credit again.",
+    codexKeyHint:
+      "An OpenAI API key, in a new Codex folder's auth.json. Sessions on it pay per token under OpenAI's API terms, the one-free-account rule doesn't apply; a session that runs out of money stops like on any error.",
     removeKeyWhenDone: (sessions: string) => `Remove the folder with the key once its sessions finish (${sessions})?`,
     removeKeyNow: 'Remove the folder with the key?',
   },

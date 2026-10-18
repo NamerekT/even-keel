@@ -38,6 +38,22 @@ describe('AccountHomes.addApiKey', () => {
     }
   })
 
+  it("makes a Codex folder under the Codex root with the key in auth.json as `codex login --with-api-key` writes it", () => {
+    const root = mkdtempSync(join(tmpdir(), 'even-keel-homes-'))
+    try {
+      mkdirSync(join(root, 'claude', 'openai'), { recursive: true })
+      const homes = new AccountHomes(env, join(root, 'claude'), join(root, 'codex'))
+      const openAi = 'sk-proj-FAKE0000000000000000000000000000-example'
+      const home = homes.addApiKey('OpenAI', ` ${openAi}\n`, 'codex')
+      expect(home).toEqual({ key: 'openai-2', dir: join(root, 'codex', 'openai-2'), global: false, agent: 'codex' })
+      expect(JSON.parse(readFileSync(join(home.dir, 'auth.json'), 'utf8'))).toEqual({ auth_mode: 'apikey', OPENAI_API_KEY: openAi })
+      expect(readdirSync(home.dir)).toEqual(['auth.json'])
+      expect(homes.apiKeyOf(home)).toBe(openAi)
+    } finally {
+      rmSync(root, { recursive: true, force: true })
+    }
+  })
+
   it('refuses a key with spaces inside or too short to approve', () => {
     const homes = new AccountHomes(env, 'root')
     expect(() => homes.addApiKey('api', 'sk-ant short key')).toThrow()
@@ -55,7 +71,8 @@ describe('AccountHomes.apiKeyOf', () => {
       const home = homes.addApiKey('Work API', 'sk-ant-api03-FAKE0000000000000000000000000000-example')
       expect(homes.apiKeyOf(home)).toBe('sk-ant-api03-FAKE0000000000000000000000000000-example')
       mkdirSync(join(root, 'plain'))
-      expect(homes.apiKeyOf({ key: 'plain', dir: join(root, 'plain'), global: false })).toBeNull()
+      expect(homes.apiKeyOf({ key: 'plain', dir: join(root, 'plain'), global: false, agent: 'claude' })).toBeNull()
+      expect(homes.apiKeyOf({ key: 'plain', dir: join(root, 'plain'), global: false, agent: 'codex' })).toBeNull()
     } finally {
       rmSync(root, { recursive: true, force: true })
     }
