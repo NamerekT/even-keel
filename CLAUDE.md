@@ -64,7 +64,7 @@ Behaviour written without a way to check it live (the situation never came up or
 
 ## Hosting
 
-Two remotes — `origin` (self-hosted Forgejo) and `github` (`github.com/NamerekT/even-keel`, an organization, private for now). `main` is pushed only by `git sync` (a global alias: fetches `main` from all remotes, merges and pushes to all) — not `git push origin main`, otherwise the remotes diverge. Task branches are not pushed to a remote.
+Two remotes — `origin` (self-hosted Forgejo) and `github` (`github.com/NamerekT/even-keel`, an organization, private for now). `main` is pushed only by `git sync` (a global alias: fetches `main` from all remotes, merges and pushes to all) — not `git push origin main`, otherwise the remotes diverge. Task branches are not pushed to a remote, except in PR mode (`pullRequests`), where Even Keel pushes a task's branch to the pull request's remote.
 
 ## Tasks
 
@@ -94,11 +94,12 @@ Even Keel prepares the worktree itself (`src/git/worktree.ts`, `src/git/slot.ts`
    5. a slot is switched to another task's branch — the idle sessions of released tasks in it are stopped; mid-turn, the slot is not switched;
    6. the user's explicit answer — from the chat window or a tracker comment posted after the question — only while the session waits, not mid-turn: `--resume` with the answer;
    7. a red main with `ci.fixTask` off — the only one that stops a session mid-turn: the working (`busy`) session of the current task is stopped, a fix session `<KEY>-FIX` without a tracker task leads the chain, and after its merge the stopped one goes on with a message. A session that waits for an answer is not stopped.
+   8. PR mode (`pullRequests`, BTN-205): feedback on a task's pull request (a review, a failed run, a conflict) goes to its session only while it is not mid-turn — `--resume` while the cache is warm, otherwise a new session with a handoff; a pull request closed unmerged stops the task's resting sessions at its cleanup, as a Done does.
 
    The one write without a stop (BTN-181): a chat message to a working (`busy`) session whose hooks ask for mail goes into its mailbox, and a hook of `checkpoint` hands it over mid-turn; one the hooks missed goes by `--resume` if the turn ended without a question, or back to the chat if the session asked one.
 
    The dispatcher may stop waiting for a session that is not mid-turn (`busy`/`waiting`): the task got an open blocker from the chain (`postpone`) or the user pressed "Skip" (`skip`). In unattended mode (`unattended`) it may also stop waiting for a session that has sat idle for 10 minutes without Done (including `waiting`); in detail — `docs/chain.md`.
-2. **The tracker is the source of truth for statuses.** The dispatcher owns only the chain order, the pause, the list of skipped tasks, released tasks awaiting cleanup, cleanup warnings, unattended mode, the "trim the tools" switch, the questions it posted to the tracker and the CI verdicts on main: the last green commit, the push it waits on (for the CI or for the project's own check) and the fix of a red main — the session it started for it, or the task it created — with the task whose session it stopped for the fix.
+2. **The tracker is the source of truth for statuses.** The dispatcher owns only the chain order, the pause, the list of skipped tasks, released tasks awaiting cleanup, cleanup warnings, unattended mode, the "trim the tools" switch, the questions it posted to the tracker, the pull requests it opened for tasks in PR mode and the CI verdicts on main: the last green commit, the push it waits on (for the CI or for the project's own check) and the fix of a red main — the session it started for it, or the task it created — with the task whose session it stopped for the fix.
 3. **There are no secrets in the repository.** Addresses and credentials come from the environment or a local store outside git (`.env`, the trackers' profiles in the state database); the repository has only `.env.example` with fakes.
 4. **The dispatcher does not accept or store the Windows password.** The user enters the service account themselves.
 

@@ -44,7 +44,7 @@ When the code is written and the checks the project's `CLAUDE.md` names pass:
 
 1. Commit to the task branch.
 2. `add_issue_comment(owner, repo, issue_number, body)` — what was done, in a few lines. Anything left undone becomes its own issue or a question issue (§3), not a line in the comment: no later session reads comments.
-3. Merge: in the main checkout, which must be on `main`, `git merge --no-edit <branch>`. If it is not on `main`, or git refuses because of local changes there, stop and report — never stash, reset or force over someone else's work. If the project's `CLAUDE.md` says the user merges, hand them the command instead.
+3. Merge: in the main checkout, which must be on `main`, `git merge --no-edit <branch>`. If it is not on `main`, or git refuses because of local changes there, stop and report — never stash, reset or force over someone else's work. If the project's `CLAUDE.md` says the user merges, hand them the command instead. If Even Keel's prompt says the project is in PR mode, its rule outranks this step: do not merge.
 4. Started by Even Keel: before the merge, stop the background processes this session started in the worktree (dev servers, watchers) and copy anything worth keeping out of it. After the merge do not remove the worktree, do not delete the branch, do not push `main` — Even Keel waits for the turn to end, closes the issue and cleans up.
 5. Started by hand: after the merge remove the worktree and delete the branch yourself, from the main checkout; push only if the project says so.
 6. Sub-issues: the session that merges the last open sub-issue of a parent closes the parent by hand (`issue_write(method: "update", state: "closed", state_reason: "completed")`). Never mention the parent's id in a commit.

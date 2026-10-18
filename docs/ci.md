@@ -33,6 +33,7 @@ The contract is two calls: `runs(limit)` — the latest runs, newest first; `job
 - `recheckMain` — `false` turns off the second run of the project's check on a `main` that moved (below).
 - `fixTask` (BTN-115) — who fixes a red `main`, for a red CI and a failed check alike. `false`, the default — a session without a tracker task, started by the dispatcher, and the working session of the current task is stopped until it is done. The fix is over once its branch is in `main` and the session is not working or waiting: a turn that ended with a background command still running (`shell`, a loop waiting on a CI log) does not hold it, the cleanup stops the session and kills the command (`docs/chain.md`, "Background command"). `true` — a task created in the tracker, taken after the current one; the adapter then needs `create`. Read at the red verdict, so a change applies to the next one.
 - The settings panel writes the key only when it differs from the default.
+- In PR mode (`pullRequests`, `docs/chain.md`) Even Keel pushes task branches to the pull request's remote, so a workflow `on: push` without a branch filter runs on them too; the failed runs of a pull request's head commit are feedback to the task's session, not a verdict on `main`.
 
 ## The check without a CI (BTN-104)
 

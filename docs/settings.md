@@ -59,6 +59,7 @@ restart of the service (BTN-130). The keys are those of the config's format, whi
 | `commands.beforeStart`, `.check`, `.afterGreen` | P | each key on its own | page, hand | `[]` |
 | `ci.guard`, `.kinds`, `.waitMinutes`, `.recheckMain`, `.fixTask` | P | each key on its own over `DEFAULT_CI` | page, hand | `DEFAULT_CI` |
 | `fillMilestone` | P | — | page, hand | false |
+| `pullRequests` | P | — | page, hand | false (PR mode, BTN-205, `docs/chain.md`) |
 
 Project record fields, not settings: `id` (written by the service for an entry without one, `withIds`), `key`, `name`,
 `repo`, the tracker's project (`github`, `linear` by `TrackerAdapter.projectKey`): the table `projects`. `version` is the
