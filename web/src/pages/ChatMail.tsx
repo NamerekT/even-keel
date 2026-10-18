@@ -1,10 +1,9 @@
+import { useEffect, useReducer } from 'react'
 import type { Mail } from '../../../src/sessions/mail.js'
 import { formatMoment } from '../format.js'
 import { t } from '../i18n/index.js'
 import { useCommand } from '../live/useCommand.js'
-
-/** How long a delivered message keeps its line: the feed shows it as the user's prompt from then on. */
-const DELIVERED_SHOWN_MS = 10 * 60_000
+import { letterPhase, nextLetterChange } from './letterPhase.js'
 
 interface Props {
   sessionId: string
@@ -15,13 +14,21 @@ interface Props {
 /** The fate of the messages sent to the session mid-turn (BTN-181): waiting for the hook, delivered, or back. */
 export function ChatMail({ sessionId, mail, onReply }: Props) {
   const { send, sending } = useCommand()
+  // A delivered line fades on its own clock, not only when the state changes.
+  const [, tick] = useReducer((count: number) => count + 1, 0)
+  useEffect(() => {
+    const wait = nextLetterChange(mail, Date.now())
+    if (wait === null) return
+    const timer = window.setTimeout(tick, wait)
+    return () => window.clearTimeout(timer)
+  })
   const now = new Date()
-  const shown = mail.filter((each) => each.fate !== 'delivered' || now.getTime() - Date.parse(each.settledAt ?? each.postedAt) < DELIVERED_SHOWN_MS)
+  const shown = mail.map((each) => ({ each, phase: letterPhase(each, now.getTime()) })).filter(({ phase }) => phase !== 'gone')
   if (shown.length === 0) return null
   return (
     <ul className="chat__mail">
-      {shown.map((each) => (
-        <li key={each.id} className={`chat__letter chat__letter--${each.fate}`}>
+      {shown.map(({ each, phase }) => (
+        <li key={each.id} className={`chat__letter chat__letter--${each.fate}${phase === 'leaving' ? ' chat__letter--leaving' : ''}`}>
           <span className="chat__letter-text">{each.text}</span>
           {each.fate === 'returned' ? (
             <>

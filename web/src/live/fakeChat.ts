@@ -171,7 +171,7 @@ export function fakeMailbox(task: string, sessionId: string, now: number): Sessi
   return {
     listens: true,
     mail: [
-      { ...fakeMail(task, sessionId, minutes(6), 'Не трогай миграции, только чтение.', 'delivered'), event: 'PostToolUse', settledAt: new Date(minutes(5)).toISOString() },
+      { ...fakeMail(task, sessionId, minutes(1), 'Не трогай миграции, только чтение.', 'delivered'), event: 'PostToolUse', settledAt: new Date(now).toISOString() },
       fakeMail(task, sessionId, minutes(3), 'И проверь тёмную тему на узком экране — карточки там переносятся в две строки.', 'returned'),
       fakeMail(task, sessionId, minutes(0.2), 'Ещё учти: порядок задач берём из blocks, не из приоритета.', 'waiting'),
     ],

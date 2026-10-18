@@ -169,6 +169,25 @@ describe('RolloutFold', () => {
     expect(fold([event({ type: 'error', message: 'boom' }), agent('Back.')]).summary().apiError).toBeNull()
   })
 
+  it('feeds each chat message a hook gave the session as the user prompt, once', () => {
+    const marked = (id: number, text: string) => `<even-keel-message id="${id}">\n${text}\n</even-keel-message>`
+    const context = (text: string) => line('response_item', { type: 'message', role: 'developer', content: [{ type: 'input_text', text }] })
+    const hook = context(`The user wrote to you.\n\n${marked(10, 'first')}\n\n${marked(11, 'second')}`)
+    const summary = fold([meta(), started(), user('BTN-1'), shell('Start-Sleep 5'), hook, hook, context('Plain instructions.'), agent('Seen.')]).summary()
+    expect(summary.feed.map((value) => [value.kind, value.text])).toEqual([
+      ['prompt', 'BTN-1'],
+      ['tool', 'Shell Start-Sleep 5'],
+      ['prompt', 'first'],
+      ['prompt', 'second'],
+      ['text', 'Seen.'],
+    ])
+  })
+
+  it('feeds the chat messages of a marked prompt instead of the prompt itself', () => {
+    const summary = fold([meta(), user(`Go on.\n\n<even-keel-message id="3">\nthird\n</even-keel-message>`)]).summary()
+    expect(summary.feed.map((value) => [value.kind, value.text])).toEqual([['prompt', 'third']])
+  })
+
   it('skips reasoning, response items and lines that are not JSON', () => {
     const summary = fold(['not json', line('response_item', { type: 'message' }), item({ type: 'Reasoning' }), '']).summary()
     expect(summary.feed).toEqual([])

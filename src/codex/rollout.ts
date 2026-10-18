@@ -2,6 +2,7 @@ import { readdir, readFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import type { LimitWindow, RateLimits } from '../limits/model.js'
 import { describeTool, flatten, lineCount, type EditSize } from '../sessions/entry.js'
+import { mailIn } from '../sessions/mail.js'
 import {
   callFacts,
   checkpointOf,
@@ -51,6 +52,7 @@ export class RolloutFold {
   private gitBranch: string | null = null
   private workdir: string | null = null
   private turnStartedAt: string | null = null
+  private readonly mailSeen = new Set<number>()
 
   /** `whole` keeps texts and prompts as written and adds shell commands to tool lines. */
   constructor(
@@ -72,8 +74,13 @@ export class RolloutFold {
       if (typeof payload.cwd === 'string') this.workdir = payload.cwd
       return
     }
-    if (line.type !== 'event_msg') return
     const at = line.timestamp ?? ''
+    // A hook's `additionalContext` reaches the rollout only as a developer message, with no event of its own.
+    if (line.type === 'response_item' && payload.type === 'message' && payload.role === 'developer') {
+      this.pushMail(at, textOf(payload.content))
+      return
+    }
+    if (line.type !== 'event_msg') return
     if (payload.type === 'task_started') this.turnStartedAt = at
     else if (payload.type === 'token_count') this.pushTokens(record(payload.info))
     else if (payload.type === 'error') this.pushError(at, errorText(payload.message))
@@ -130,6 +137,7 @@ export class RolloutFold {
     if (item === undefined || item.type === 'Reasoning') return
     this.touch(at)
     if (item.type === 'UserMessage') {
+      if (this.pushMail(at, textOf(item.content))) return
       this.checkpoint = null
       this.apiError = null
       const line = userLine(at, textOf(item.content), null, (text) => this.textOf(text))
@@ -174,6 +182,18 @@ export class RolloutFold {
     if (this.whole && item.status === 'failed') {
       this.addFeed({ at, kind: 'failed', text: failureText(failureOf(item)), ...(typeof item.id === 'string' ? { tool: item.id } : {}) })
     }
+  }
+
+  /** The chat's messages a hook of the mailbox gave the session, as the user's prompts, each id once; whether `text` held any. */
+  private pushMail(at: string, text: string): boolean {
+    const found = mailIn(text)
+    for (const { id, prompt } of found) {
+      if (this.mailSeen.has(id)) continue
+      this.mailSeen.add(id)
+      const line = userLine(at, prompt, null, (each) => this.textOf(each))
+      if (line !== null) this.addFeed(line)
+    }
+    return found.length > 0
   }
 
   /** The facts of a whole transcript's tool line; the rollout writes a call once it has finished, so it knows its outcome. */

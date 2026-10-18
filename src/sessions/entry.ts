@@ -54,7 +54,8 @@ export interface Entry {
   customTitle?: string
   aiTitle?: string
   content?: unknown
-  attachment?: { type?: string; url?: unknown }
+  /** `prompt` and `origin` — of a `queued_command`: a message the CLI took into a running turn. */
+  attachment?: { type?: string; url?: unknown; prompt?: unknown; origin?: { kind?: string } }
   origin?: { kind?: string }
   toolUseResult?: unknown
   message?: { id?: string; model?: string; content?: unknown; usage?: Usage }

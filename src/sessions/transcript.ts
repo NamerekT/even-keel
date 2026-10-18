@@ -178,6 +178,10 @@ export class TranscriptFold {
       this.pushMail(entry.timestamp ?? '', stringsOf(entry.attachment).join('\n'))
       return
     }
+    if (entry.type === 'attachment' && entry.attachment?.type === 'queued_command') {
+      this.pushQueued(entry.timestamp ?? '', entry.attachment)
+      return
+    }
     if (entry.type !== 'assistant' && entry.type !== 'user') return
     if (typeof entry.timestamp === 'string') {
       this.firstActivityAt ??= entry.timestamp
@@ -350,6 +354,16 @@ export class TranscriptFold {
       if (line !== null) this.addFeed(line)
     }
     return found.length > 0
+  }
+
+  /** A message from Remote Control or the terminal that came mid-turn: no `user` line, only this attachment. */
+  private pushQueued(at: string, attachment: NonNullable<Entry['attachment']>): void {
+    const kind = attachment.origin?.kind
+    if (kind !== undefined && kind !== 'human') return
+    const prompt = promptOf(attachment.prompt)
+    if (this.pushMail(at, prompt)) return
+    const line = userLine(at, prompt, null, (text) => this.textOf(text))
+    if (line !== null) this.addFeed(line)
   }
 
   private textOf(text: string): string {
