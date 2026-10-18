@@ -279,6 +279,36 @@ describe('frozen samples of the database', { timeout: 120_000 }, () => {
     }
     expect(logs).toEqual([])
   })
+
+  it('of version 7 has the schema step 7 makes', async () => {
+    const frozen = await PGlite.create()
+    const made = await openDatabase(undefined, STEPS.slice(0, 5))
+    try {
+      await frozen.exec(fixture(7))
+      expect(await databaseVersion(frozen)).toBe(7)
+      expect(await schemaOf(made)).toEqual(await schemaOf(frozen))
+    } finally {
+      await frozen.close()
+      await made.close()
+    }
+  })
+
+  it('of version 7 is brought to the current schema and read whole, the pull requests with it', async () => {
+    const dataDir = dataDirOf(databaseDirOf(stateDir))
+    mkdirSync(dataDir, { recursive: true })
+    const frozen = await PGlite.create({ dataDir })
+    await frozen.exec(fixture(7))
+    await frozen.close()
+    const opened = await prepare()
+    try {
+      await readsWhole(opened.db)
+      const chain = await loadChainState(opened.db, { ABC, XYZ })
+      expect(chain.reviews).toEqual({ ABC: [expect.objectContaining({ task: 'ABC-3', number: 12, seen: ['review:41'], feedback: 'Rename it.' })] })
+    } finally {
+      await opened.close()
+    }
+    expect(logs).toEqual([])
+  })
 })
 
 async function schemaOf(db: Queryable) {

@@ -39,6 +39,9 @@ describe('chain store', { timeout: 30_000 }, () => {
       unattended: false,
       trimTools: true,
       ci: { ABC: { green: 'abc123', check: { commit: 'def456', at: 't', tasks: ['ABC-5'] } } },
+      reviews: {
+        ABC: [{ task: 'ABC-6', remote: 'origin', number: 3, url: 'https://github.com/john/abc/pull/3', branch: 'abc-6/task', at: 't', pushedAt: 't', markAt: 't', seen: [] }],
+      },
     }
     await saveChainState(store, state)
     expect(await loadChainState(store)).toEqual(state)

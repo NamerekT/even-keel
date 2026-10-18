@@ -22,11 +22,12 @@ export function resumePrompt(language: Language): string {
   return PROMPTS[language].resume
 }
 
-export function startPrompt(task: string, place: TaskPlace, language: Language, main = 'main'): string {
+/** `pullRequests` — PR mode: the session does not merge, it marks its turn's end for Even Keel to open a pull request. */
+export function startPrompt(task: string, place: TaskPlace, language: Language, main = 'main', pullRequests = false): string {
   const text = PROMPTS[language]
   const lines = [fill`${task}`, '', text.worktree(place.path)]
   if (place.branch !== null) lines.push(text.branch(place.branch))
-  lines.push(text.cleanup(main))
+  lines.push(pullRequests ? text.pullRequest(main) : text.cleanup(main))
   return lines.join('\n') + '\n'
 }
 
@@ -90,6 +91,8 @@ export interface HandoffSession {
   recent: FeedLine[]
   lastMessage: string | null
   checkpoint: string | null
+  /** The pull request description the last response's `PULL REQUEST: <path>` line names (BTN-205); absent or `null` — none. */
+  pullRequest?: string | null
 }
 
 export interface LimitedSession extends HandoffSession {
@@ -140,11 +143,18 @@ export function relayStep(hold: LimitHold, now: Date, account: AccountNow, warmM
 }
 
 
-export function handoffPrompt(task: string, session: HandoffSession, reason: HandoffReason, language: Language, main = 'main'): string {
+export function handoffPrompt(
+  task: string,
+  session: HandoffSession,
+  reason: HandoffReason,
+  language: Language,
+  main = 'main',
+  pullRequests = false,
+): string {
   const text = PROMPTS[language]
   const lines = [fill`${task}`, '', text.why[reason], text.workdir(session.workdir)]
   if (session.branch !== null) lines.push(text.branch(session.branch))
-  lines.push(text.cleanup(main))
+  lines.push(pullRequests ? text.pullRequest(main) : text.cleanup(main))
   if (session.transcript !== null) lines.push(text.transcript(session.transcript))
   const note = noteOf(session)
   if (note !== null) lines.push(text.note(note))

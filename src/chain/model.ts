@@ -4,6 +4,8 @@ import type { Language } from '../language.js'
 import type { Notice } from '../notice/notice.js'
 import type { Task } from '../tracker/model.js'
 import type { NewTask } from '../tracker/source.js'
+import type { PullRequest, ReviewCheck } from '../review/model.js'
+import type { Opened } from '../review/open.js'
 import type { ChainRules } from './rules.js'
 import type { AccountNow, HandoffReason, HandoffSession, LimitedSession, LimitHold, RelayAction } from './relay.js'
 
@@ -24,7 +26,7 @@ export interface CurrentTask {
   ask?: string
 }
 
-export type Move = 'answer' | RelayAction | 'restart' | 'checkpoint'
+export type Move = 'answer' | RelayAction | 'restart' | 'checkpoint' | 'review'
 
 export interface ActiveChain {
   project: string
@@ -78,6 +80,8 @@ export interface ChainState {
   trimTools: boolean
   /** What the CI said of each project's main and what the chain waits on. */
   ci: Record<string, MainGate>
+  /** The pull requests Even Keel opened for the project's tasks in PR mode (BTN-205), until each is closed and cleaned up after. */
+  reviews: Record<string, PullRequest[]>
 }
 
 /** A push of main by the cleanup after Done that the CI has not judged yet. */
@@ -123,7 +127,8 @@ export interface LaunchEntry {
   project: string
   task: string
   sessionId: string
-  reason?: RelayAction | ReleaseReason | FixOutcome | 'restart' | 'checkpoint' | 'answer'
+  /** `review` — a pull request opened on the session's mark, or its feedback delivered to the task's session. */
+  reason?: RelayAction | ReleaseReason | FixOutcome | 'restart' | 'checkpoint' | 'answer' | 'review'
   previous?: string
   blockers?: string[]
   /** The commit of main the entry of a fix is about: red at its launch, the one main went out at when it landed. */
@@ -152,7 +157,37 @@ export interface ProjectOrder {
   landing?: Record<string, string | null>
   /** Those of them whose move would leave the chain without an order, with the reason. Set when there are any. */
   refused?: Record<string, Notice>
+  /** The project's tasks with a pull request open or closed but not cleaned up after; set when there are any. */
+  reviews?: ReviewView[]
   error: Notice | null
+}
+
+export interface ReviewView {
+  task: string
+  number: number
+  url: string
+  /** Feedback waits for the task's session. */
+  feedback: boolean
+  closed?: PullRequest['closed']
+}
+
+/** How the cleanup after a task with a pull request goes: its branch is deleted unmerged and on the pull request's remote. */
+export interface PullCleanup {
+  force: true
+  remote: string
+  /** Closed without a merge: the task is not done, so it is not archived. */
+  unmerged?: true
+}
+
+/** PR mode (BTN-205): a task's session marks its turn's end, Even Keel pushes its branch and opens a pull request. */
+export interface ReviewDeps {
+  /** The project's `pullRequests` setting. */
+  on: (project: string) => boolean
+  /** Pushes the branch of the session's folder and opens its pull request, or finds the open one. */
+  open: (project: string, task: string, session: HandoffSession) => Promise<Opened & { remote: string }>
+  check: (project: string, pull: PullRequest) => Promise<ReviewCheck>
+  /** Moves the task of a merged pull request to Done in the tracker; one closed already is fine. */
+  complete: (project: string, task: string) => Promise<void>
 }
 
 export interface DispatcherDeps {
@@ -161,8 +196,11 @@ export interface DispatcherDeps {
   /** How many chains run at once; the rest wait in the queue. */
   parallel: () => number
   rules: (project: string) => ChainRules
-  /** Starts a new session of the task; `fallback` — its run label named a provider without an account in the pool. */
-  launch: (project: string, task: string) => Promise<Launched>
+  /**
+   * Starts a new session of the task; `fallback` — its run label named a provider without an account in the pool.
+   * `extra` goes at the end of the prompt: the feedback on the task's pull request.
+   */
+  launch: (project: string, task: string, extra?: string) => Promise<Launched>
   liveSession: (task: string) => string | undefined
   /** Why no session of the project starts now; `task` — the one about to start, its label may pick another agent. */
   blocked: (project: string, task?: string) => Notice | undefined
@@ -193,6 +231,8 @@ export interface DispatcherDeps {
   promptLanguage: () => Language
   /** The main branch of the task's project, which the prompts name. */
   mainBranch: (task: string) => string
+  /** Whether the task's project is in PR mode, which the prompts name; absent — it is not. */
+  pullRequests?: (task: string) => boolean
   resume:(task: string, session: LimitedSession) => Promise<string>
   /** Stops the waiting session and resumes it with the user's reply; returns the session id it came up under. */
   reply: (task: string, session: HandoffSession, prompt: string) => Promise<string>
@@ -201,12 +241,15 @@ export interface DispatcherDeps {
   launchFix: (project: string, name: string, report: string) => Promise<string>
   /** Stops a session, mid-turn too (`claude stop`): only for a red main, invariant 1's exception 7. */
   stop: (session: HandoffSession) => Promise<void>
-  finish: (project: string, task: string) => Promise<FinishOutcome>
+  /** Cleans up after the task; `pull` — after a task whose pull request was closed. */
+  finish: (project: string, task: string, pull?: PullCleanup) => Promise<FinishOutcome>
   /** Reads the project's tasks from its tracker anew and hands them over (`setTasks`); resolves once done or failed. */
   refresh: (project: string) => Promise<void>
   log: (message: string) => void
   /** Without it the chain neither waits for the CI after a push of main nor reacts to a red one. */
   main?: MainCheckDeps
+  /** Without it no project is in PR mode. */
+  reviews?: ReviewDeps
 }
 
 export interface MainCheckDeps {
@@ -262,7 +305,7 @@ export interface RedReport {
 }
 
 export function emptyChainState(): ChainState {
-  return { active: [], queue: [], orders: {}, skipped: {}, leftovers: {}, released: {}, unattended: false, trimTools: true, ci: {} }
+  return { active: [], queue: [], orders: {}, skipped: {}, leftovers: {}, released: {}, unattended: false, trimTools: true, ci: {}, reviews: {} }
 }
 
 export function newChain(project: string): ActiveChain {

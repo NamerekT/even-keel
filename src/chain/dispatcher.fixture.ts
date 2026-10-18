@@ -3,7 +3,7 @@ import { textNotice } from '../notice/notice.js'
 import { fakeTask } from '../tracker/fixture.js'
 import type { Task, TaskStatus } from '../tracker/model.js'
 import { Dispatcher, emptyChainState, type ChainState, type LaunchEntry } from './dispatcher.js'
-import type { MainCheckDeps } from './model.js'
+import type { MainCheckDeps, PullCleanup, ReviewDeps } from './model.js'
 import type { AccountNow, HandoffSession, LimitedSession } from './relay.js'
 import { DEFAULT_RULES, type ChainRules } from './rules.js'
 
@@ -55,6 +55,7 @@ export interface SetupOptions {
   finish?: (task: string) => FinishOutcome
   rules?: Record<string, ChainRules>
   main?: MainCheckDeps
+  reviews?: ReviewDeps
 }
 
 export function setup(options: SetupOptions = {}) {
@@ -74,6 +75,10 @@ export function setup(options: SetupOptions = {}) {
   const refuse = options.refuse ?? {}
   const log: string[] = []
   const finished: string[] = []
+  /** The cleanups after tasks with a pull request, by task. */
+  const pulled: Record<string, PullCleanup> = {}
+  /** The text each launch carried at the end of its prompt, by task. */
+  const extras: Record<string, string> = {}
   const saved: ChainState[] = []
   const journal: LaunchEntry[] = []
   /** What a read of the tracker out of turn (`refresh`) hands over, by project; none — the tracker does not answer. */
@@ -87,8 +92,9 @@ export function setup(options: SetupOptions = {}) {
     projects: () => options.projects ?? ['ABC', 'XYZ', 'DEF'],
     parallel: () => capacity.parallel,
     rules: (project) => options.rules?.[project] ?? DEFAULT_RULES,
-    launch: async (project, id) => {
+    launch: async (project, id, extra) => {
       tried.push(`${project}/${id}`)
+      if (extra !== undefined) extras[id] = extra
       if (id === options.failLaunch) throw new Error(`claude: could not start ${id}`)
       if (refuse[id] !== undefined) throw refuse[id]
       launched.push(`${project}/${id}`)
@@ -136,8 +142,9 @@ export function setup(options: SetupOptions = {}) {
       if (options.failStop) throw new Error(`claude: could not stop ${session.agentId}`)
       stopped.push(session.sessionId)
     },
-    finish: async (project, id) => {
+    finish: async (project, id, pull) => {
       finished.push(`${project}/${id}`)
+      if (pull !== undefined) pulled[id] = pull
       return options.finish?.(id) ?? { warnings: [], syncError: null }
     },
     refresh: async (project) => {
@@ -147,6 +154,7 @@ export function setup(options: SetupOptions = {}) {
     },
     log: (message) => log.push(message),
     ...(options.main === undefined ? {} : { main: options.main }),
+    ...(options.reviews === undefined ? {} : { reviews: options.reviews, pullRequests: () => true }),
   })
   return {
     dispatcher,
@@ -158,6 +166,8 @@ export function setup(options: SetupOptions = {}) {
     refuse,
     log,
     finished,
+    pulled,
+    extras,
     saved,
     journal,
     clock,

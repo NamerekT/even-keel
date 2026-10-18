@@ -101,16 +101,24 @@ export class Handovers {
     await this.handOverCurrent(chain, current, session, 'restart')
   }
 
-  async deliver(chain: ActiveChain, current: CurrentTask, session: HandoffSession, prompt: string, ask: string | null): Promise<void> {
+  /** The user's answer, or with `review` the feedback on the task's pull request, resumes the waiting session. */
+  async deliver(
+    chain: ActiveChain,
+    current: CurrentTask,
+    session: HandoffSession,
+    prompt: string,
+    ask: string | null,
+    move: 'answer' | 'review' = 'answer',
+  ): Promise<void> {
     if (!this.state.active.includes(chain) || chain.current !== current || current.sessionId !== session.sessionId) return
-    begin(current, this.deps.now().toISOString(), 'answer')
+    begin(current, this.deps.now().toISOString(), move)
     current.answering = true
     current.reply = prompt
     if (ask !== null) current.ask = ask
     this.deps.save(this.state)
     try {
       const sessionId = await this.deps.reply(current.task, session, prompt)
-      this.moved(chain, current, 'answer', sessionId, session.sessionId)
+      this.moved(chain, current, move, sessionId, session.sessionId)
     } catch (error) {
       this.halt(chain, noticeOf(error))
     }
@@ -128,17 +136,20 @@ export class Handovers {
     }
   }
 
-  private async handOverCurrent(
+  /** `extra` — the feedback a `review` handover carries, kept in `reply` for a service restart to make the move again. */
+  async handOverCurrent(
     chain: ActiveChain,
     current: CurrentTask,
     session: HandoffSession,
-    reason: 'restart' | 'checkpoint',
+    reason: 'restart' | 'checkpoint' | 'review',
+    extra?: string,
   ): Promise<void> {
     delete current.limit
     begin(current, this.deps.now().toISOString(), reason)
+    if (extra !== undefined) current.reply = extra
     this.deps.save(this.state)
     try {
-      const sessionId = await this.handOver(current.task, session, reason)
+      const sessionId = await this.handOver(current.task, session, reason, extra)
       this.moved(chain, current, reason, sessionId, session.sessionId)
     } catch (error) {
       this.halt(chain, noticeOf(error))
@@ -151,7 +162,7 @@ export class Handovers {
    * the move went through; otherwise the move is made again. Returns whether the chain may go on following the task.
    */
   async recover(chain: ActiveChain, current: CurrentTask): Promise<boolean> {
-    const { starting, move, reply, ask } = current
+    const { starting, move, reply, ask, answering } = current
     if (starting === undefined || move === undefined) return true
     const session = this.deps.handoff(current.task)
     if (session === undefined) return false
@@ -166,7 +177,7 @@ export class Handovers {
       (session.lastReplyAt !== null && Date.parse(session.lastReplyAt) > Date.parse(starting)) ||
       (asked !== null && asked !== ask)
     if (through) {
-      if (move === 'answer' || move === 'resume') this.moved(chain, current, move, session.sessionId, session.sessionId, starting)
+      if (move === 'answer' || move === 'resume' || (move === 'review' && answering)) this.moved(chain, current, move, session.sessionId, session.sessionId, starting)
       else settle(current)
       this.deps.save(this.state)
       return true
@@ -175,6 +186,11 @@ export class Handovers {
     settle(current)
     if (move === 'answer' && reply !== undefined) {
       await this.deliver(chain, current, session, reply, ask ?? null)
+      return false
+    }
+    if (move === 'review' && reply !== undefined) {
+      if (answering) await this.deliver(chain, current, session, reply, null, 'review')
+      else await this.handOverCurrent(chain, current, session, 'review', reply)
       return false
     }
     if (move === 'restart') {
@@ -197,7 +213,7 @@ export class Handovers {
   async handOver(task: string, session: HandoffSession, reason: HandoffReason, extra?: string): Promise<string> {
     const report = isFixName(task) ? withReport(task, '', this.reportOf(task)) : ''
     const located = await this.deps.locate(session)
-    const prompt = handoffPrompt(task, located, reason, this.deps.promptLanguage(), this.deps.mainBranch(task))
+    const prompt = handoffPrompt(task, located, reason, this.deps.promptLanguage(), this.deps.mainBranch(task), this.deps.pullRequests?.(task) ?? false)
     const told = extra === undefined ? prompt : `${prompt}\n${extra}\n`
     return this.deps.relay(task, located, told + report, reason)
   }
