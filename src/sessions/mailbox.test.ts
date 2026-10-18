@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, onTestFinished } from 'vitest'
 import { Writes } from '../storage/database.js'
 import { memoryDatabase } from '../storage/memory.js'
 import { mailIn, mailMessage } from './mail.js'
@@ -13,6 +13,8 @@ async function box(start = Date.parse('2026-10-18T10:00:00.000Z')) {
   const writes = new Writes((line) => {
     throw new Error(line)
   })
+  // Runs before the database closes: hooks of a test finish last registered first.
+  onTestFinished(() => writes.settled())
   const mailbox = await Mailbox.open(db, writes, () => new Date(now))
   /** A new service on the same database, once what was written behind has landed. */
   const reopened = async () => {
