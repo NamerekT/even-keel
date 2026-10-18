@@ -263,6 +263,7 @@ The settings are kept in the state database; the keys below are those of their f
 | `projects[].github` | — | `owner/name` of the repository, for a project on GitHub |
 | `projects[].linear` | the whole team | name of the Linear project the team is narrowed down to, for a project on Linear (the key is the team key) |
 | `projects[].slot` | off | `true` or a number: a pool of permanent worktrees instead of one per task |
+| `projects[].color` | the first free one | 1–8: the project's colour on the home cards, the queue, the launch chart and `/stats`; a new project gets the first one no other project has |
 | `projects[].prompt` | none | text added to the prompt of every new session of the project (first start and handoff; a resumed session already has it); empty — none |
 | `projects[].commands.beforeStart` | `[]` | shell commands (`cmd.exe` on Windows) run in order in the task's worktree or slot before a new session starts, such as `npm ci`; output goes to the service log. A failed one pauses the chain with its output on the page; a resumed session does not run them again |
 | `projects[].ci.guard` | `true` | `false` — do not guard `main` at all: no wait for a CI, no `commands.check`, no fix of a red `main`; the other `ci` keys are kept for when it is back on |

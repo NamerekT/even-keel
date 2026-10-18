@@ -21,7 +21,7 @@ Some settings are maps whose entries override one by one: `models`, `accounts` a
 
 ## Inventory
 
-As of 2026-10-18 (schema version 9, database step 4). "Levels": G — Even Keel, P — project, T — task label. "Written
+As of 2026-10-19 (schema version 9, database step 9). "Levels": G — Even Keel, P — project, T — task label. "Written
 by": page, hand (a file through `config-import`, `docs/storage.md`), service. Every key applies at once, without a
 restart of the service (BTN-130). The keys are those of the config's format, which the database's rows keep (BTN-199).
 
@@ -53,6 +53,7 @@ restart of the service (BTN-130). The keys are those of the config's format, whi
 | `unattended` | G | — | page (a switch on `/settings`, sent at once, `chain/unattended`), hand | false |
 | `trimTools` | G | — | page (a switch on `/settings`, `chain/trim`), hand | true |
 | `slot` | P | — | page, hand | none (a worktree per task) |
+| `color` | P | — | page (with the repository), hand, the wizard (the first free one) | none: the first slot of 1–8 no project has as its own, in config order (`colorsOf`, `src/projects/colors.ts`); none left — `--series-other`. Database step 9 wrote the slots of the positions (BTN-207) |
 | `branch` | P | — | page, hand | `main` |
 | `changelog` | P | — | page, hand | `CHANGELOG.md` (a path relative to the repository's root; absolute or `..` is `config.changelogPath`; BTN-209, `docs/sessions.md`) |
 | `prompt` | P | — | page, hand | `null` |
