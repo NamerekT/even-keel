@@ -11,7 +11,7 @@ import type { Lamp } from './sessions/agents.js'
 import type { Ask } from './sessions/ask.js'
 import type { CompareSettings } from './stats/rules.js'
 import type { RemoteOff } from './sessions/remote.js'
-import type { CacheWindow, FeedLine, Stage, TokenTotals, Turn } from './sessions/transcript.js'
+import type { CacheWindow, FeedLine, Stage, TokenTotals } from './sessions/transcript.js'
 import type { TrackerView } from './tracker/health.js'
 import type { Task } from './tracker/model.js'
 import type { UpdateSettings, UpdatesView } from './updates/release.js'
@@ -38,8 +38,6 @@ export interface SessionView {
   contextTokens: number
   cache: CacheWindow | null
   tokens: TokenTotals
-  /** The last turn, for the turn line of the chat window while the lamp is `working`. */
-  turn: Turn | null
   stage: Stage | null
   action: FeedLine | null
   feed: FeedLine[]

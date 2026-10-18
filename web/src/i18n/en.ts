@@ -914,6 +914,7 @@ export const en: Messages = {
       sent: 'The reply is sent — the session goes on with it.',
       working: 'The session is working. You can type now and send once it stops.',
       thinking: 'Thinking',
+      running: (tool: string) => `Running: ${tool}`,
       turnTip: 'Time since the prompt of the turn and what the session is doing',
       finished: 'The session has finished — it cannot be replied to.',
       limit: 'The session hit a limit — Even Keel resumes it by itself.',

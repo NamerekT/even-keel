@@ -2,7 +2,7 @@ import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { BrowserRouter } from 'react-router'
 import { asNotice, NoticeError } from '../../src/notice/notice.js'
-import type { FeedLine } from '../../src/sessions/transcript.js'
+import type { Feed } from '../../src/sessions/transcript.js'
 import type { EvenKeelState, SessionRecord } from '../../src/state.js'
 import type { StatsAnswer } from '../../src/stats/model.js'
 import type { ToolsView } from '../../src/tools/model.js'
@@ -39,7 +39,7 @@ async function fetchOrNull<T>(path: string): Promise<T | null> {
 
 const fetchSession = (sessionId: string) => fetchOrNull<SessionRecord>(`/api/sessions/${encodeURIComponent(sessionId)}`)
 const fetchTranscript = (sessionId: string, after: number) =>
-  fetchOrNull<FeedLine[]>(`/api/sessions/${encodeURIComponent(sessionId)}/transcript?after=${after}`)
+  fetchOrNull<Feed>(`/api/sessions/${encodeURIComponent(sessionId)}/transcript?after=${after}`)
 const fetchTools = (project: string) => fetchOrNull<ToolsView>(`/api/projects/${encodeURIComponent(project)}/tools`)
 
 async function fetchCard(task: string): Promise<TaskCard | null> {

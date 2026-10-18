@@ -55,6 +55,12 @@ export interface Turn {
   tool: string | null
 }
 
+/** The lines of a whole transcript from some line on, and its last turn for the chat's turn line. */
+export interface Feed {
+  lines: FeedLine[]
+  turn: Turn | null
+}
+
 export interface TranscriptSummary {
   contextTokens: number
   cache: CacheWindow | null

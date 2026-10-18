@@ -5,7 +5,7 @@ import type { AccountHome } from '../account/homes.js'
 import type { AgentAdapter } from '../agent/contract.js'
 import { notice } from '../notice/notice.js'
 import { CodexCli, resolveCodexBinary, SESSION_MODE } from './cli.js'
-import { foldRollout, limitsOfRollout, RolloutFold, rolloutFiles } from './rollout.js'
+import { foldRollout, limitsOfRollout, RolloutFold, rolloutFile, rolloutFiles } from './rollout.js'
 import { RolloutTail } from './tail.js'
 import { TurnRegistry } from './turns.js'
 
@@ -47,7 +47,11 @@ export const codex: AgentAdapter = {
           account: null,
         }
       },
-      feed: async (home, sessionId, after) => (await foldRollout(home.dir, sessionId, new RolloutFold(Infinity, true)))?.feed.slice(after),
+      feed: async (home, sessionId, after) => {
+        const summary = await foldRollout(home.dir, sessionId, new RolloutFold(Infinity, true))
+        return summary === undefined ? undefined : { lines: summary.feed.slice(after), turn: summary.turn }
+      },
+      feedFile: (home, sessionId) => rolloutFile(home.dir, sessionId),
       transcripts: async (home) => (await rolloutFiles(home.dir)).map((rollout) => rollout.id),
       authStatus: (home) => cli.authStatus(home),
       login: (home) => cli.login(home),
