@@ -2,9 +2,13 @@ import { readFileSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { AccountHomes, accountsRoot } from '../../src/account/homes.js'
+import type { LaunchEntry } from '../../src/chain/model.js'
+import { readSnapshots, type HandoffSnapshot } from '../../src/chain/snapshots.js'
 import { readLaunches } from '../../src/chain/store.js'
 import { loadConfig } from '../../src/config.js'
 import { HALTED } from '../../src/stats/tally-schema.js'
+import { DATABASE_FILE, readDatabase } from '../../src/storage/database.js'
+import { readStateFiles } from '../../src/storage/state-files.js'
 import { parseConfig, type DbSettings } from './config.js'
 import { TallyDb } from './db.js'
 import { refreshHandoffs } from './handoffs.js'
@@ -29,7 +33,7 @@ export async function collect(settings: DbSettings, root: string, log: Log): Pro
   const config = parseConfig(JSON.parse(readFileSync(process.env.TALLY_CONFIG ?? join(root, 'tally', 'tally.config.json'), 'utf8')))
   const stateDir = process.env.EVEN_KEEL_STATE_DIR ?? join(root, 'state')
   const homes = new AccountHomes(process.env, accountsRoot(process.env))
-  const journal = readLaunches(join(stateDir, 'launches.jsonl'))
+  const { launches: journal, handoffs: saved } = evenKeelState(stateDir, log)
   const launches = launchMap(journal)
 
   const db = await TallyDb.connect(settings)
@@ -91,7 +95,7 @@ export async function collect(settings: DbSettings, root: string, log: Log): Pro
       await db.setMeta('efforts', new Date().toISOString())
     }
     const prompted = await db.fillPrompts()
-    const handoffs = await refreshHandoffs(db, stateDir, sources, journal)
+    const handoffs = await refreshHandoffs(db, saved, sources, journal)
     const snapshots = await db.addSnapshots(await limitSnapshots(config.evenKeelUrl, stateDir, homes, log))
     const versions = await snapshotRules(db, ruleScan, new Date())
     const history = await collectRuleHistory(db, homes.list(), projects, homedir(), log)
@@ -116,6 +120,28 @@ export async function collect(settings: DbSettings, root: string, log: Log): Pro
     return failed > 0 ? 1 : 0
   } finally {
     await db.close()
+  }
+}
+
+/**
+ * The launch log and the handoff snapshots from Even Keel's database. Without one — a merge reaches the collector
+ * before the service restarts and imports the files — from the v0.1 files of the state folder.
+ */
+function evenKeelState(stateDir: string, log: Log): { launches: LaunchEntry[]; handoffs: HandoffSnapshot[] } {
+  try {
+    const db = readDatabase(join(stateDir, DATABASE_FILE))
+    if (db === undefined) {
+      const files = readStateFiles(stateDir)
+      return { launches: files?.launches ?? [], handoffs: files?.handoffs ?? [] }
+    }
+    try {
+      return { launches: readLaunches(db), handoffs: readSnapshots(db) }
+    } finally {
+      db.close()
+    }
+  } catch (error) {
+    log(`tally: Even Keel's launch log is not read (${(error as Error).message})`)
+    return { launches: [], handoffs: [] }
   }
 }
 

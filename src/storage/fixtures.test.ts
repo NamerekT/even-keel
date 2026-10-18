@@ -10,8 +10,10 @@ import { parseConfig } from '../config.js'
 import { root } from '../locations.js'
 import { enabledPackages, installsFor, settingsOf } from '../packages/model.js'
 import { loadPackages } from '../packages/store.js'
+import { DATABASE_FILE, openDatabase } from './database.js'
 import { upgradeStorage } from './migrations.js'
 import { SCHEMA_VERSION } from './schema.js'
+import { prepareDatabase } from './state-files.js'
 
 // Frozen samples of the files as the current schema version writes them: a change of the format that breaks reading
 // them needs a new version, a migration step and a new sample next to this one, not an edit of this one.
@@ -51,8 +53,18 @@ describe(`frozen samples of schema v${SCHEMA_VERSION}`, () => {
     expect(session).toMatchObject({ sessionId: '00000000-0000-4000-8000-0000000000c1', name: 'XYZ-7', account: 'codex', pid: 4242 })
   })
 
+  // The chain, the questions and the launches are read the way the service gets them: imported into the database.
+  const imported = () => {
+    dir = mkdtempSync(join(tmpdir(), 'even-keel-samples-'))
+    cpSync(samples, dir, { recursive: true })
+    prepareDatabase({ stateDir: join(dir, 'state'), log: () => {} })
+    return openDatabase(join(dir, 'state', DATABASE_FILE))
+  }
+
   it('reads the chain naming projects by their keys', () => {
-    const state = loadChainState(sample('state/chain.json'), { ABC, XYZ })
+    const db = imported()
+    const state = loadChainState(db, { ABC, XYZ })
+    db.close()
     expect(state.active.map((chain) => [chain.project, chain.current?.task])).toEqual([['ABC', 'ABC-2']])
     expect(state.queue).toEqual(['XYZ'])
     expect(state.orders).toEqual({ ABC: ['ABC-1', 'ABC-2', 'ABC-3'], XYZ: ['XYZ-7'] })
@@ -64,8 +76,9 @@ describe(`frozen samples of schema v${SCHEMA_VERSION}`, () => {
   })
 
   it('reads the questions, the launches and the accounts', () => {
-    expect(loadQuestions(sample('state/questions.json')).map((question) => question.task)).toEqual(['ABC-2'])
-    const launches = readLaunches(sample('state/launches.jsonl'), { ABC, XYZ })
+    const db = imported()
+    expect(loadQuestions(db).map((question) => question.task)).toEqual(['ABC-2'])
+    const launches = readLaunches(db, { ABC, XYZ })
     expect(launches.filter(isLaunch).map((entry) => [entry.project, entry.task])).toEqual([
       ['ABC', 'ABC-1'],
       ['ABC', 'ABC-2'],
@@ -77,7 +90,8 @@ describe(`frozen samples of schema v${SCHEMA_VERSION}`, () => {
       ['ABC-FIX.1', 'c6b3956', 'landed', '15945fe'],
       ['ABC-FIX.2', 'd00d000', 'dropped', undefined],
     ])
-    expect(new Set(readLaunches(sample('state/launches.jsonl')).map((entry) => entry.project))).toEqual(new Set([ABC]))
+    expect(new Set(readLaunches(db).map((entry) => entry.project))).toEqual(new Set([ABC]))
+    db.close()
     const ledger = loadLedger(sample('state/account.json'))
     expect(ledger.accounts.global?.email).toBe('john.doe@example.com')
     expect(ledger.accounts['team-api']?.name).toBe('Team API')

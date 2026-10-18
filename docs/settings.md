@@ -64,8 +64,8 @@ schema version of the file.
 
 | What | Where | Levels | Note |
 | --- | --- | --- | --- |
-| `unattended` | `state/chain.json` | G | a switch on `/settings`, sent at once (`chain/unattended`) |
-| `trimTools` | `state/chain.json` | G | a switch on `/settings` (`chain/trim`) |
+| `unattended` | `chain_flags` of the database | G | a switch on `/settings`, sent at once (`chain/unattended`) |
+| `trimTools` | `chain_flags` of the database | G | a switch on `/settings` (`chain/trim`) |
 | a package's `default`, `settings` | `state/packages.json` `packages.<name>` | G | the package level: projects start from it |
 | a project's `on`, `off`, `settings` | `state/packages.json` `projects.<id>` | P | over the package's, `settings` by variable |
 | the run label `<Provider> \| <model>`, bare `<Provider>` | tracker label | T | sets `provider` and `models.<provider>`, read only while `modelLabels` is on |
@@ -107,8 +107,9 @@ What sits at a level it should not, or misses one it should have. BTN-187 takes 
 - `chain.excludedLabels` carries `Manual`/`Вручную` only as its default, and a list is replaced whole: a project, or a
   hand-written shared list, with its own excluded labels silently runs the manual tasks. Make the manual labels
   built-in like `QUESTION_LABELS` and the default list empty.
-- `unattended` and `trimTools` are user settings kept in `state/chain.json`, and `updates.dismissed` is state kept in
-  the config. Each moves to its own side with BTN-147.
+- `unattended` and `trimTools` are user settings kept with the chain state (`chain_flags` of the database since BTN-147,
+  `state/chain.json` before), and `updates.dismissed` is state kept in the config. Each moves to its own side when the
+  settings move into the database (BTN-190).
 - The model's project level, which the task's text missed, exists since BTN-173 (`models` in the project entry).
 
 Levels that stay as they are: `parallel`, `execution` (the Codex sandbox does not start under the service for any project,
@@ -244,3 +245,7 @@ parsers — not a table.
   the one-time import and `EVEN_KEEL_CONFIG` move to BTN-147.
 - BTN-186 sits in milestone v0.1 because it blocks BTN-147 and BTN-118, which are there; a blocker in a later milestone
   would stop the chain.
+- BTN-147 (2026-10-18, unattended, the cheapest to undo): the engine is `node:sqlite`; the database holds the state
+  (`docs/storage.md`), while settings and project records stay in `even-keel.config.json`, since without the wizard a
+  project is added only by editing that file. When they move, and whether PGlite would be better, is the question
+  BTN-190; the tables above are its schema.

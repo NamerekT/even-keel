@@ -23,7 +23,7 @@ import { launchLine } from './chain/log.js'
 import { mainCheckDeps, mergeCheck } from './chain/mainci.js'
 import { TaskPlaces } from './chain/places.js'
 import { readNote, saveSnapshot, snapshotReason } from './chain/snapshots.js'
-import { appendLaunch, loadChainState, loadQuestions, readLaunches, saveChainState, saveQuestions } from './chain/store.js'
+import { appendLaunch, loadChainState, loadQuestions, readLaunches, saveChainState, saveClosedTask, saveQuestions } from './chain/store.js'
 import { CI_TOKENS, ciSource, projectTargets } from './ci/adapters.js'
 import { CiWatch } from './ci/watcher.js'
 import { ConfigFile } from './config-file.js'
@@ -55,13 +55,14 @@ import { slotOccupants } from './sessions/occupants.js'
 import { locateWorktree } from './sessions/place.js'
 import type { EvenKeelState, SessionView } from './state.js'
 import { StatsReader } from './stats/reader.js'
+import { DATABASE_FILE, openDatabase } from './storage/database.js'
 import { TallyService } from './stats/tally.js'
 import { chainSettings, readToolsView } from './tools/panel.js'
 import { ADAPTERS, trackerKeyRules } from './tracker/adapters.js'
 import { cardOf } from './tracker/card.js'
 import type { TrackerView } from './tracker/health.js'
 import type { TrackerLink } from './tracker/link.js'
-import { parseTaskId, runLabelText, type Task } from './tracker/model.js'
+import { issueLink, parseTaskId, runLabelText, type Task } from './tracker/model.js'
 import { TrackerQuestions, type AskingSession } from './tracker/questions.js'
 import type { TrackerSetup } from './tracker/source.js'
 import { startTracker } from './tracker/start.js'
@@ -116,9 +117,7 @@ const branchOf = (project: string) => configFile.current.settings[project]?.bran
 const rulesOf = (project: string) => configFile.current.rules[project]!
 const stateDir = stateDirOf()
 mkdirSync(stateDir, { recursive: true })
-const chainFile = join(stateDir, 'chain.json')
-const launchesFile = join(stateDir, 'launches.jsonl')
-const handoffsDir = join(stateDir, 'handoffs')
+const db = openDatabase(join(stateDir, DATABASE_FILE))
 const limitsFile = join(stateDir, 'rate-limits.json')
 const accountFile = join(stateDir, 'account.json')
 const trackerNames = [...new Set([config.tracker, ...Object.values(config.trackers)])]
@@ -187,7 +186,7 @@ let ciFound = false
 let sessions: SessionView[] = []
 let agents: AgentEntry[] = []
 let agentsRead = false
-const launches: LaunchEntry[] = readLaunches(launchesFile, config.ids)
+const launches: LaunchEntry[] = readLaunches(db, config.ids)
 const tally = new TallyService({
   root,
   stateDir,
@@ -469,11 +468,23 @@ const places = new TaskPlaces({
   setUp: (project, task, path) => runBeforeStart(configFile.current.settings[project]?.beforeStart ?? [], taskRun(task, path)),
 })
 
+/** Keeps a done task the chain ran in the database's archive, by what its tracker last said of it. */
+function archiveClosed(project: string, task: string): void {
+  const tracker = config.trackers[project]!
+  const title = tasksByProject.get(project)?.find((each) => each.id === task)?.title ?? ''
+  const url = issueLink(setups.get(tracker)?.issueUrl(project) ?? null, task)
+  try {
+    saveClosedTask(db, { project, task, tracker, title, url, closedAt: new Date().toISOString() }, config.ids)
+  } catch (error) {
+    console.warn(`chain: ${task} not archived: ${(error as Error).message}`)
+  }
+}
+
 function taskRun(task: string, cwd: string): SetupRun {
   return { task, cwd, shell: systemShell(() => envOf(homeOf(claudeAccount()))), log: (line) => console.log(line) }
 }
 
-const dispatcher = new Dispatcher(loadChainState(chainFile, config.ids), {
+const dispatcher = new Dispatcher(loadChainState(db, config.ids), {
   projects: Object.keys(config.projects),
   parallel: () => configFile.current.parallel,
   rules: rulesOf,
@@ -501,11 +512,11 @@ const dispatcher = new Dispatcher(loadChainState(chainFile, config.ids), {
   midTurn: (task) => agentStatus(task) === 'busy',
   asked: (task) => liveView(task)?.ask?.id ?? null,
   save: (state) => {
-    saveChainState(chainFile, state, config.ids)
+    saveChainState(db, state, config.ids)
     hub.broadcast('state', getState())
   },
   journal: (entry) => {
-    appendLaunch(launchesFile, entry, config.ids)
+    appendLaunch(db, entry, config.ids)
     launches.push(entry)
     console.log(launchLine(entry))
   },
@@ -540,7 +551,7 @@ const dispatcher = new Dispatcher(loadChainState(chainFile, config.ids), {
     const sessionId = await launchIn(home, { name: task, cwd: session.workdir, prompt, model, settings: settingsFor(task, project), ...extras })
     const snapshot = { at, task, sessionId, previous: session.sessionId, reason: snapshotReason(reason), prompt, notePath, note }
     try {
-      saveSnapshot(handoffsDir, snapshot)
+      saveSnapshot(db, snapshot)
     } catch (error) {
       console.warn(`chain: handoff snapshot of ${task} not saved: ${(error as Error).message}`)
     }
@@ -556,6 +567,7 @@ const dispatcher = new Dispatcher(loadChainState(chainFile, config.ids), {
   },
   stop: (session) => stopIn(homeOf(session.account), session),
   finish: async (project, task) => {
+    if (!isFixName(task)) archiveClosed(project, task)
     const repo = config.projects[project]!
     const count = isFixName(task) ? undefined : config.slots[project]
     let stopped: Notice[]
@@ -876,7 +888,6 @@ function configuredProject(task: string): string | undefined {
   return project !== undefined && Object.hasOwn(config.projects, project) ? project : undefined
 }
 
-const questionsFile = join(stateDir, 'questions.json')
 const questions = new TrackerQuestions({
   sessions: () => {
     const current = dispatcher.state.active.flatMap((chain): AskingSession[] => {
@@ -894,8 +905,8 @@ const questions = new TrackerQuestions({
   },
   tracker: (project, call) => links.get(config.trackers[project]!)?.run(call),
   language: () => configFile.current.language ?? promptLanguage(),
-  load: () => loadQuestions(questionsFile),
-  save: (posted) => saveQuestions(questionsFile, posted),
+  load: () => loadQuestions(db),
+  save: (posted) => saveQuestions(db, posted),
   answer: (project, task, sessionId, ask, reply) => answerSession(project, task, sessionId, ask, { from: 'tracker', ...reply }),
   log: (message) => console.log(message),
 })

@@ -11,6 +11,7 @@ If you run into one of these, please open an issue with what you saw: it is the 
 ## Updating
 
 - **Plugins from a git URL marketplace.** A marketplace added from a local path is read from its folder, so an update of the code reaches the plugins by itself; that was checked. One added from a git URL (`owner/repo`, `https://…`) keeps a copy by version, and README tells you to run `claude plugin marketplace update even-keel` and `claude plugin update <plugin>@even-keel` in each project. The commands were run, but a copy that is actually behind was never brought up to date with them. If sessions still run the old plugin, `claude plugin uninstall … --scope project` and `claude plugin install … --scope project` in the project install the current one.
+- **The first start with the state database.** Moving the state files into `state/even-keel.db` was tested on every frozen sample and run on a copy of the author's live state (862 launches, 83 handoff snapshots: everything read back the same), but not yet by the service itself after an update, with its page, the Tally collector reading the database while the service writes it, and a restart in the middle (`docs/storage.md`). If the start stops on the page with an import error, the files are untouched and nothing was written. **Workaround:** if the state looks wrong after the import, stop Even Keel, delete `state/even-keel.db`, rename the `*.imported` files back and start the previous version.
 
 ## Claude limits
 

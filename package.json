@@ -20,7 +20,8 @@
     "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p web/tsconfig.json && tsc -p tally/tsconfig.json",
     "test": "vitest run",
     "tally": "tsx tally/src/main.ts",
-    "shot": "tsx scripts/shot.ts"
+    "shot": "tsx scripts/shot.ts",
+    "storage": "tsx scripts/storage.ts"
   },
   "devDependencies": {
     "@types/node": "^24.19.0",

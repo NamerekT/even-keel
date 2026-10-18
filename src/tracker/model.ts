@@ -107,6 +107,12 @@ export function parseTaskId(id: string): { project: string; number: number } | n
   return match === null ? null : { project: match[1]!, number: Number(match[2]) }
 }
 
+/** The task's link by its project's template (`TrackerSetup.issueUrl`), as the page fills it. */
+export function issueLink(template: string | null, task: string): string | null {
+  const parsed = parseTaskId(task)
+  return template === null || parsed === null ? null : template.replaceAll('{id}', task).replaceAll('{number}', String(parsed.number))
+}
+
 export function isLeaf(task: TrackerTask): boolean {
   return task.subtasks === 0
 }

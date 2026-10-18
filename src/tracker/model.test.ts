@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { DEFAULT_RULES } from '../chain/rules.js'
 import { fakeTask } from './fixture.js'
-import { diffStatuses, isOpen, parseTaskId, toTask, type TaskStatus, type TrackerTask } from './model.js'
+import { diffStatuses, isOpen, issueLink, parseTaskId, toTask, type TaskStatus, type TrackerTask } from './model.js'
 import { trackerOf, type TaskSource } from './source.js'
 
 const todo: TaskStatus = { name: 'Todo', category: 'ToDo' }
@@ -58,6 +58,15 @@ describe('parseTaskId', () => {
     expect(parseTaskId('ABC-0')).toBeNull()
     expect(parseTaskId('ABC-x')).toBeNull()
     expect(parseTaskId('abc')).toBeNull()
+  })
+})
+
+describe('issueLink', () => {
+  it('fills the task id and its number into the template', () => {
+    expect(issueLink('https://github.com/example/repo/issues/{number}', 'ABC-12')).toBe('https://github.com/example/repo/issues/12')
+    expect(issueLink('https://huly.example.com/browse/{id}', 'ABC-12')).toBe('https://huly.example.com/browse/ABC-12')
+    expect(issueLink(null, 'ABC-12')).toBeNull()
+    expect(issueLink('https://huly.example.com/browse/{id}', 'ABC-FIX')).toBeNull()
   })
 })
 

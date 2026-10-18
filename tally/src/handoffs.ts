@@ -1,5 +1,5 @@
-import { readdirSync, readFileSync } from 'node:fs'
-import { basename, join } from 'node:path'
+import { readFileSync } from 'node:fs'
+import { basename } from 'node:path'
 import type { LaunchEntry } from '../../src/chain/dispatcher.js'
 import type { HandoffSnapshot } from '../../src/chain/snapshots.js'
 import { blocksOf, parseEntry, type Entry } from '../../src/sessions/entry.js'
@@ -81,17 +81,15 @@ export function rowOfTranscripts(
   }
 }
 
-/** Snapshots Even Keel saved in `<state>/handoffs`, then the journal's handoffs without one, from transcripts while they last. */
-export async function refreshHandoffs(db: HandoffStore, stateDir: string, sources: Source[], launches: LaunchEntry[]): Promise<number> {
+/** Snapshots Even Keel saved in its database, then the journal's handoffs without one, from transcripts while they last. */
+export async function refreshHandoffs(db: HandoffStore, snapshots: HandoffSnapshot[], sources: Source[], launches: LaunchEntry[]): Promise<number> {
   const known = await db.handoffSources()
   const rows: HandoffRow[] = []
   const saved = new Set<string>()
-  const dir = join(stateDir, 'handoffs')
-  for (const name of jsonFiles(dir)) {
-    const sessionId = name.slice(0, -'.json'.length)
-    saved.add(sessionId)
-    if (known.get(sessionId) === 'even-keel') continue
-    const row = rowOfSnapshot(readJson(join(dir, name)))
+  for (const snapshot of snapshots) {
+    saved.add(snapshot.sessionId)
+    if (known.get(snapshot.sessionId) === 'even-keel') continue
+    const row = rowOfSnapshot(snapshot)
     if (row !== null) rows.push(row)
   }
 
@@ -132,21 +130,5 @@ function* entriesOf(path: string, needle?: string): Generator<Entry> {
     if (needle !== undefined && !line.includes(needle)) continue
     const entry = parseEntry(line)
     if (entry !== undefined) yield entry
-  }
-}
-
-function jsonFiles(dir: string): string[] {
-  try {
-    return readdirSync(dir).filter((name) => name.endsWith('.json'))
-  } catch {
-    return []
-  }
-}
-
-function readJson(path: string): unknown {
-  try {
-    return JSON.parse(readFileSync(path, 'utf8'))
-  } catch {
-    return null
   }
 }

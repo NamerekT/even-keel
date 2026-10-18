@@ -219,6 +219,9 @@ export const en = {
   'storage.unknownProject': (p: { file: string; project: string }) =>
     `storage: ${p.file} names the project ${p.project}, which the config does not have, so nothing was migrated`,
   'storage.writeFailed': (p: { file: string }) => `storage: could not write ${p.file}; the files written before it are put back from their copies`,
+  'storage.newerDatabase': (p: { file: string; version: number; known: number }) =>
+    `storage: the database ${p.file} is from a newer version of Even Keel (schema ${p.version}, this one knows up to ${p.known}); update Even Keel`,
+  'storage.importFailed': (p: { file: string }) => `storage: could not move the state files into ${p.file}; no database was made and the files are as they were`,
   'packages.unknown': (p: { name: string }) => `packages: there is no package ${p.name}`,
   'packages.exists': (p: { name: string }) => `packages: ${p.name} is already in the catalog`,
   'packages.busy': (p: { name: string }) => `packages: ${p.name} is being installed; wait until it is done`,

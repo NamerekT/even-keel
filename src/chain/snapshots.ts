@@ -1,6 +1,5 @@
-import { mkdirSync, writeFileSync } from 'node:fs'
 import { readFile } from 'node:fs/promises'
-import { join } from 'node:path'
+import type { DatabaseSync } from 'node:sqlite'
 import type { HandoffReason } from './prompts.js'
 
 const NOTE_LIMIT = 512 * 1024
@@ -34,7 +33,24 @@ export async function readNote(path: string | null): Promise<string | null> {
   }
 }
 
-export function saveSnapshot(dir: string, snapshot: HandoffSnapshot): void {
-  mkdirSync(dir, { recursive: true })
-  writeFileSync(join(dir, `${snapshot.sessionId}.json`), JSON.stringify(snapshot, null, 2) + '\n')
+export function saveSnapshot(db: DatabaseSync, snapshot: HandoffSnapshot): void {
+  const { at, task, sessionId, previous, reason, prompt, notePath, note } = snapshot
+  db.prepare(
+    'INSERT OR REPLACE INTO handoffs (session_id, at, task, previous, reason, prompt, note_path, note) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+  ).run(sessionId, at ?? null, task ?? null, previous ?? null, reason ?? null, prompt ?? null, notePath ?? null, note ?? null)
+}
+
+/** The saved snapshots, oldest first; a snapshot imported from an older file may lack fields. */
+export function readSnapshots(db: DatabaseSync): HandoffSnapshot[] {
+  const rows = db.prepare('SELECT session_id, at, task, previous, reason, prompt, note_path, note FROM handoffs ORDER BY at, rowid').all() as Record<string, string | null>[]
+  return rows.map((row) => ({
+    at: row.at!,
+    task: row.task!,
+    sessionId: row.session_id!,
+    previous: row.previous!,
+    reason: row.reason as SnapshotReason,
+    prompt: row.prompt!,
+    notePath: row.note_path!,
+    note: row.note!,
+  }))
 }

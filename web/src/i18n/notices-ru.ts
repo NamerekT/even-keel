@@ -208,6 +208,9 @@ export const noticesRu: NoticeTexts = {
   'storage.damaged': (p) => `${p.file} не читается, поэтому миграция ничего не записала`,
   'storage.unknownProject': (p) => `${p.file} называет проект ${p.project}, которого нет в конфиге, поэтому миграция ничего не записала`,
   'storage.writeFailed': (p) => `не удалось записать ${p.file}; записанные до него файлы возвращены из копий`,
+  'storage.newerDatabase': (p) =>
+    `база ${p.file} записана более новой версией Even Keel (схема ${p.version}, эта знает до ${p.known}): обновите Even Keel`,
+  'storage.importFailed': (p) => `не удалось перенести файлы состояния в ${p.file}; база не создана, файлы остались как были`,
   'packages.unknown': (p) => `пакета ${p.name} нет`,
   'packages.exists': (p) => `${p.name} уже есть в каталоге`,
   'packages.busy': (p) => `${p.name} ещё ставится — дождитесь конца установки`,

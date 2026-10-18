@@ -1,31 +1,41 @@
-import { appendFileSync, mkdirSync, readFileSync } from 'node:fs'
-import { dirname } from 'node:path'
+import type { DatabaseSync } from 'node:sqlite'
 import { asNotice, type Notice } from '../notice/notice.js'
-import { writeAtomic } from '../storage/atomic.js'
+import { inTransaction } from '../storage/database.js'
 import { byMap, inverted, isRecord, renameChainProjects } from '../storage/projects.js'
-import { isVersionLine, refuseNewer, SCHEMA_VERSION, versionOf } from '../storage/schema.js'
 import type { PostedQuestion } from '../tracker/questions.js'
 import { emptyChainState, type ActiveChain, type ChainState, type CurrentTask, type LaunchEntry, type Leftover } from './dispatcher.js'
 
 /**
- * The files name a project by its id, the running service by its key: `ids` is the id of each key from the config.
+ * The database names a project by its id, the running service by its key: `ids` is the id of each key from the config.
  * An id the config does not have — a removed project — stays as it is.
  */
-export function loadChainState(file: string, ids: Record<string, string> = {}): ChainState {
-  const raw = readIfExists(file)
-  if (raw === undefined) return emptyChainState()
-  let parsed: unknown = {}
-  try {
-    parsed = JSON.parse(raw) ?? {}
-  } catch {}
-  refuseNewer(file, versionOf(parsed))
+export function loadChainState(db: DatabaseSync, ids: Record<string, string> = {}): ChainState {
+  const stored = readChainRecord(db)
+  return stored === undefined ? emptyChainState() : chainStateOf(stored, ids, 'the chain state')
+}
+
+/**
+ * The chain state of a stored record — the database's, or a `state/chain.json` of v0.1 being imported — with the
+ * projects renamed from their ids by `ids`. `where` names the record in the error of a damaged one.
+ */
+export function chainStateOf(parsed: unknown, ids: Record<string, string>, where: string): ChainState {
   const { version: _, ...stored } = isRecord(parsed) ? renameChainProjects(parsed, byMap(inverted(ids))) : {}
   const state = stored as Omit<Partial<ChainState>, 'active'> & { active?: unknown }
   const chains = activeOf(state.active)
   const valid = chains !== undefined && Array.isArray(state.queue) && typeof state.orders === 'object' && state.orders !== null
-  if (!valid) throw new Error(`chain: ${file} is damaged; fix or delete it`)
+  if (!valid) throw new Error(`chain: ${where} is damaged; fix or delete it`)
   const active = chains.map((chain) => ({ ...chain, current: settled(chain.current), error: noticeOrNull(chain.error) }))
-  return { ...state, active, skipped: state.skipped ?? {}, leftovers: leftoversOf(state.leftovers), released: state.released ?? {}, unattended: state.unattended === true, trimTools: state.trimTools !== false, ci: state.ci ?? {} } as ChainState
+  return {
+    active,
+    queue: state.queue!,
+    orders: state.orders!,
+    skipped: state.skipped ?? {},
+    leftovers: leftoversOf(state.leftovers),
+    released: state.released ?? {},
+    unattended: state.unattended === true,
+    trimTools: state.trimTools !== false,
+    ci: state.ci ?? {},
+  }
 }
 
 // Before BTN-67 one chain ran at a time and `active` was that chain or null.
@@ -60,51 +70,124 @@ function leftoversOf(stored: Record<string, unknown[]> | undefined): Record<stri
   return result
 }
 
-export function saveChainState(file: string, state: ChainState, ids: Record<string, string> = {}): void {
-  const stored = renameChainProjects(state as unknown as Record<string, unknown>, byMap(ids))
-  writeAtomic(file, JSON.stringify({ version: SCHEMA_VERSION, ...stored }, null, 2))
+export function saveChainState(db: DatabaseSync, state: ChainState, ids: Record<string, string> = {}): void {
+  writeChainRecord(db, renameChainProjects(state as unknown as Record<string, unknown>, byMap(ids)) as unknown as ChainState)
 }
 
-/** A new log opens with the line `{"version":2}`. */
-export function appendLaunch(file: string, entry: LaunchEntry, ids: Record<string, string> = {}): void {
-  mkdirSync(dirname(file), { recursive: true })
-  const head = (readIfExists(file) ?? '').trim() === '' ? `${JSON.stringify({ version: SCHEMA_VERSION })}\n` : ''
-  appendFileSync(file, head + JSON.stringify({ ...entry, project: byMap(ids)(entry.project) }) + '\n')
+const LISTS = ['orders', 'skipped', 'leftovers', 'released', 'ci'] as const
+
+/** The chain state as stored, projects by id; `undefined` — nothing was ever saved. */
+function readChainRecord(db: DatabaseSync): Record<string, unknown> | undefined {
+  const flags = db.prepare('SELECT name, value FROM chain_flags').all() as { name: string; value: string }[]
+  if (flags.length === 0) return undefined
+  const record: Record<string, unknown> = Object.fromEntries(flags.map(({ name, value }) => [name, JSON.parse(value)]))
+  const chains = db.prepare('SELECT project_id, chain FROM chains ORDER BY position').all() as { project_id: string; chain: string }[]
+  record.active = chains.map(({ project_id, chain }) => ({ project: project_id, ...(JSON.parse(chain) as object) }))
+  record.queue = (db.prepare('SELECT project_id FROM chain_queue ORDER BY position').all() as { project_id: string }[]).map((row) => row.project_id)
+  for (const list of LISTS) record[list] = {}
+  const rows = db.prepare('SELECT project_id, list, value FROM chain_lists ORDER BY rowid').all() as { project_id: string; list: (typeof LISTS)[number]; value: string }[]
+  for (const { project_id, list, value } of rows) (record[list] as Record<string, unknown>)[project_id] = JSON.parse(value)
+  return record
 }
 
-/** Without `ids` the entries name projects as the file does — by id; Tally reads them so. */
-export function readLaunches(file: string, ids?: Record<string, string>): LaunchEntry[] {
-  const raw = readIfExists(file)
-  if (raw === undefined) return []
-  const lines = raw
-    .split('\n')
-    .filter((line) => line.trim() !== '')
-    .map((line) => JSON.parse(line) as unknown)
-  if (isVersionLine(lines[0])) refuseNewer(file, versionOf(lines.shift()))
-  if (ids === undefined) return lines as LaunchEntry[]
+/** Writes the whole chain state, projects by id, in place of the stored one. */
+export function writeChainRecord(db: DatabaseSync, state: ChainState): void {
+  inTransaction(db, () => {
+    for (const table of ['chain_flags', 'chains', 'chain_queue', 'chain_lists']) db.exec(`DELETE FROM ${table}`)
+    const flag = db.prepare('INSERT INTO chain_flags (name, value) VALUES (?, ?)')
+    flag.run('unattended', JSON.stringify(state.unattended))
+    flag.run('trimTools', JSON.stringify(state.trimTools))
+    const chain = db.prepare('INSERT INTO chains (position, project_id, chain) VALUES (?, ?, ?)')
+    state.active.forEach(({ project, ...rest }, position) => chain.run(position, project, JSON.stringify(rest)))
+    const queued = db.prepare('INSERT INTO chain_queue (position, project_id) VALUES (?, ?)')
+    state.queue.forEach((project, position) => queued.run(position, project))
+    const list = db.prepare('INSERT INTO chain_lists (project_id, list, value) VALUES (?, ?, ?)')
+    for (const name of LISTS) {
+      for (const [project, value] of Object.entries(state[name] as Record<string, unknown>)) list.run(project, name, JSON.stringify(value))
+    }
+  })
+}
+
+export function appendLaunch(db: DatabaseSync, entry: LaunchEntry, ids: Record<string, string> = {}): void {
+  const { at, project, task, sessionId, reason, ...extra } = entry
+  db.prepare('INSERT INTO launches (at, project_id, task, session_id, reason, extra) VALUES (?, ?, ?, ?, ?, ?)').run(
+    at,
+    byMap(ids)(project),
+    task,
+    sessionId,
+    reason ?? null,
+    JSON.stringify(extra),
+  )
+}
+
+/** Without `ids` the entries name projects as the database does — by id; Tally reads them so. */
+export function readLaunches(db: DatabaseSync, ids?: Record<string, string>): LaunchEntry[] {
+  const keyOf = ids === undefined ? (project: string) => project : byMap(inverted(ids))
+  const rows = db.prepare('SELECT at, project_id, task, session_id, reason, extra FROM launches ORDER BY id').all() as {
+    at: string
+    project_id: string
+    task: string
+    session_id: string
+    reason: string | null
+    extra: string
+  }[]
+  return rows.map((row) => ({
+    at: row.at,
+    project: keyOf(row.project_id),
+    task: row.task,
+    sessionId: row.session_id,
+    ...(row.reason === null ? {} : { reason: row.reason as LaunchEntry['reason'] }),
+    ...(JSON.parse(row.extra) as Partial<LaunchEntry>),
+  }))
+}
+
+/** The questions Even Keel posted to the tracker. */
+export function loadQuestions(db: DatabaseSync): PostedQuestion[] {
+  const rows = db.prepare('SELECT task, session_id, ask, comment, done FROM questions ORDER BY position').all() as {
+    task: string
+    session_id: string
+    ask: string
+    comment: string
+    done: number
+  }[]
+  return rows.map((row) => ({ task: row.task, sessionId: row.session_id, ask: row.ask, comment: row.comment, ...(row.done === 1 ? { done: true } : {}) }))
+}
+
+export function saveQuestions(db: DatabaseSync, questions: PostedQuestion[]): void {
+  inTransaction(db, () => {
+    db.exec('DELETE FROM questions')
+    const insert = db.prepare('INSERT INTO questions (position, task, session_id, ask, comment, done) VALUES (?, ?, ?, ?, ?, ?)')
+    questions.forEach((question, position) => insert.run(position, question.task, question.sessionId, question.ask, question.comment, question.done === true ? 1 : 0))
+  })
+}
+
+/** A task of the tracker the chain ran and saw closed: kept after the tracker forgets it or the project goes. */
+export interface ClosedTask {
+  project: string
+  task: string
+  tracker: string
+  title: string
+  url: string | null
+  closedAt: string
+}
+
+/** A task closed again after a reopen keeps the latest title and time. */
+export function saveClosedTask(db: DatabaseSync, closed: ClosedTask, ids: Record<string, string> = {}): void {
+  db.prepare(
+    `INSERT INTO closed_tasks (project_id, task, tracker, title, url, closed_at) VALUES (?, ?, ?, ?, ?, ?)
+     ON CONFLICT (project_id, task) DO UPDATE SET tracker = excluded.tracker, title = excluded.title, url = excluded.url, closed_at = excluded.closed_at`,
+  ).run(byMap(ids)(closed.project), closed.task, closed.tracker, closed.title, closed.url, closed.closedAt)
+}
+
+export function closedTasks(db: DatabaseSync, ids: Record<string, string> = {}): ClosedTask[] {
   const keyOf = byMap(inverted(ids))
-  return (lines as LaunchEntry[]).map((entry) => ({ ...entry, project: keyOf(entry.project) }))
-}
-
-/** The questions Even Keel posted to the tracker; an older file was the bare list. */
-export function loadQuestions(file: string): PostedQuestion[] {
-  const raw = readIfExists(file)
-  if (raw === undefined) return []
-  const parsed = JSON.parse(raw) as unknown
-  if (Array.isArray(parsed)) return parsed as PostedQuestion[]
-  refuseNewer(file, versionOf(parsed))
-  return isRecord(parsed) && Array.isArray(parsed.questions) ? (parsed.questions as PostedQuestion[]) : []
-}
-
-export function saveQuestions(file: string, questions: PostedQuestion[]): void {
-  writeAtomic(file, `${JSON.stringify({ version: SCHEMA_VERSION, questions }, null, 2)}\n`)
-}
-
-function readIfExists(file: string): string | undefined {
-  try {
-    return readFileSync(file, 'utf8')
-  } catch (error) {
-    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return undefined
-    throw error
-  }
+  const rows = db.prepare('SELECT project_id, task, tracker, title, url, closed_at FROM closed_tasks ORDER BY closed_at, rowid').all() as {
+    project_id: string
+    task: string
+    tracker: string
+    title: string
+    url: string | null
+    closed_at: string
+  }[]
+  return rows.map((row) => ({ project: keyOf(row.project_id), task: row.task, tracker: row.tracker, title: row.title, url: row.url, closedAt: row.closed_at }))
 }
