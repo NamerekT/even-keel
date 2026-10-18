@@ -23,7 +23,7 @@ import type { Ask } from '../../../src/sessions/ask.js'
 import { fakeTools } from './fakeTools.js'
 import { fakePackages } from './fakePackages.js'
 import { fakeSecrets } from './fakeSecrets.js'
-import { fakeChangelog } from './fakeChangelog.js'
+import { fakeChangelog, fakeWrittenChangelogs } from './fakeChangelog.js'
 import { FAKE_HULY_PROFILE, fakeProfiles, fakeProfilesQuery, fakeSaved } from './fakeProfiles.js'
 import { fakeCheck, fakeNoProjects } from './fakeProjects.js'
 import { ago, fakeFeed, FEED_STEPS, minutes, session, task, turnStartedAt } from './fakeSessions.js'
@@ -543,7 +543,7 @@ export function createFakeSource(search: string): LiveSource {
     query: async <T>(name: string, body: Record<string, unknown>) => {
       await answer()
       if (current.state === null) throw new Error('fake: no state yet')
-      const draft = await fakeChangelog(name, body, params.get('changelog'))
+      const draft = await fakeChangelog(current.state, name, body, params.get('changelog'))
       if (draft !== null) return draft as T
       const result = fakeProfilesQuery(current.state, name, body)
       if (name === 'profiles/save') {

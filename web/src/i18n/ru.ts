@@ -1143,10 +1143,22 @@ export const ru = {
     writing: 'Агент пишет черновик по закрытым задачам вехи — это займёт минуту-другую.',
     counts: (done: number, open: number) =>
       open === 0 ? `По ${tasks(done)} в Done.` : `По ${tasks(done)} в Done; ещё открыто: ${tasks(open)} — в черновик не вошли.`,
-    at: (moment: string) => `Написан ${moment}`,
+    working: 'Агент меняет раздел — это займёт минуту-другую.',
+    at: (number: number, moment: string) => `Версия ${number}, ${moment}`,
+    written: (file: string, commit: string) => (commit === '' ? `Уже в ${file}` : `Записан в ${file}, коммит ${commit}`),
+    released: (tag: string) => `Выпущено как ${tag}: раздел заморожен, новые задачи пойдут в следующий.`,
+    instruction: (text: string) => `Правка: «${text}»`,
+    edit: 'Что поменять',
+    editHint: 'Что и как поменять — Enter отправляет, Shift+Enter — новая строка',
+    add: (n: number) => `Дописать ${n}`,
+    addTip: 'Вписать в раздел задачи, закрытые после этой версии, остальное не трогать',
     again: 'Написать заново',
     copy: 'Копировать',
     copied: 'Скопировано',
+    write: 'Записать',
+    writeTip: (file: string) => `Положить раздел в ${file} и закоммитить в главную ветку`,
+    since: (n: number) => `+${n} после записи`,
+    sinceTip: 'Закрытые задачи вехи, появившиеся после последней записи ченджлога',
   },
   chain: {
     legend: {

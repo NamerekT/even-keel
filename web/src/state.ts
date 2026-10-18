@@ -150,7 +150,7 @@ export const PROJECT_SLOTS = 8
 
 const byNumber = (a: string, b: string) => a.localeCompare(b, 'en', { numeric: true })
 
-export function projectTasks(state: EvenKeelState, project: string): Task[] {
+export function projectTasks(state: Pick<EvenKeelState, 'tasks'>, project: string): Task[] {
   return state.tasks.filter((task) => task.id.startsWith(`${project}-`))
 }
 

@@ -13,7 +13,7 @@ How a version of Even Keel is made and released, and what a fix of an already re
 The release is the user's: no session bumps the version, tags or publishes.
 
 1. Every task of the milestone is closed and the CI of `main` is green.
-2. `version` in `package.json` is set to the release (`0.1.0`): the service shows it in the gear menu and compares it with the latest release (`docs/web.md`, "Updates"). In `CHANGELOG.md` the `Unreleased` section becomes `## [0.1.0] - <date>`; the changelog draft of the milestone's head lists the tasks that section misses.
+2. `version` in `package.json` is set to the release (`0.1.0`): the service shows it in the gear menu and compares it with the latest release (`docs/web.md`, "Updates"). In `CHANGELOG.md` the `Unreleased` section becomes `## [0.1.0] - <date>`. The section itself is written from the milestone's head in the chain (BTN-209, `docs/web.md`): the agent drafts it from the done tasks, the user edits it in words or in the file, "Write" commits it to the main branch, and "Add N" works in the tasks closed since. Once the tag exists the section is frozen: tasks closed after it go into a new section above, headed as the next patch (`## [0.1.1]`), never into the released one.
 3. A tag `v0.1.0` on that commit of `main`, pushed to both remotes.
 4. A GitHub release from the tag. Drafts and prereleases are not offered to installed copies; a published release is, within 12 h.
 

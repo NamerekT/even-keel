@@ -1128,10 +1128,22 @@ export const en: Messages = {
     writing: "The agent is writing the draft from the milestone's closed tasks — this takes a minute or two.",
     counts: (done: number, open: number) =>
       open === 0 ? `From ${tasks(done)} in Done.` : `From ${tasks(done)} in Done; ${tasks(open)} still open — not in the draft.`,
-    at: (moment: string) => `Written ${moment}`,
+    working: 'The agent is changing the section — this takes a minute or two.',
+    at: (number: number, moment: string) => `Version ${number}, ${moment}`,
+    written: (file: string, commit: string) => (commit === '' ? `Already in ${file}` : `Written to ${file}, commit ${commit}`),
+    released: (tag: string) => `Released as ${tag}: its section is frozen, new tasks go into the next one.`,
+    instruction: (text: string) => `Edit: “${text}”`,
+    edit: 'What to change',
+    editHint: 'What to change and how — Enter sends, Shift+Enter is a new line',
+    add: (n: number) => `Add ${n}`,
+    addTip: 'Work the tasks closed since this version into the section, leave the rest as it is',
     again: 'Write again',
     copy: 'Copy',
     copied: 'Copied',
+    write: 'Write',
+    writeTip: (file: string) => `Put the section into ${file} and commit it to the main branch`,
+    since: (n: number) => `+${n} since written`,
+    sinceTip: 'Done tasks of the milestone closed after its changelog was last written',
   },
   chain: {
     legend: {

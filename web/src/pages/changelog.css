@@ -29,27 +29,95 @@
   height: 16px;
 }
 
+.chain__changelog-since {
+  color: var(--fg-muted);
+  font-size: 12px;
+  font-weight: 400;
+  white-space: nowrap;
+}
+
 .changelog.add-package {
+  --diff-added: color-mix(in srgb, #2ea043 22%, transparent);
+  --diff-removed: color-mix(in srgb, #e5534b 20%, transparent);
   width: min(760px, calc(100vw - 32px));
 }
 
 .changelog__counts,
-.changelog__writing {
+.changelog__writing,
+.changelog__instruction {
   margin: 0;
   color: var(--fg-muted);
   font-size: 13px;
   font-weight: 400;
 }
 
+.changelog__instruction {
+  font-style: italic;
+}
+
 .changelog__text {
-  min-height: 320px;
-  padding: 12px;
+  min-height: 240px;
+  max-height: 52vh;
+  overflow: auto;
+  padding: 12px 0;
   border: 1px solid var(--border);
   border-radius: var(--radius);
   background: var(--bg);
   color: var(--fg);
-  font: 13px/1.5 var(--mono);
+  font: 400 13px/1.5 var(--mono);
+}
+
+.changelog__text:focus-visible {
+  outline: 2px solid var(--accent);
+}
+
+.changelog__line {
+  padding: 0 12px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.changelog__line--added {
+  background: var(--diff-added);
+}
+
+.changelog__line--removed {
+  background: var(--diff-removed);
+  color: var(--fg-muted);
+}
+
+.changelog__line ins,
+.changelog__line del {
+  border-radius: 3px;
+  color: inherit;
+}
+
+.changelog__line ins {
+  text-decoration: none;
+}
+
+.changelog__line--changed ins {
+  background: var(--diff-added);
+}
+
+.changelog__line--changed del {
+  background: var(--diff-removed);
+}
+
+.changelog__edit {
+  padding: 8px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg);
+  color: var(--fg);
+  font: inherit;
+  font-size: 13px;
   resize: vertical;
+}
+
+.changelog__edit:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -1px;
 }
 
 .changelog__at {

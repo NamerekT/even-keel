@@ -54,6 +54,7 @@ restart of the service (BTN-130). The keys are those of the config's format, whi
 | `trimTools` | G | — | page (a switch on `/settings`, `chain/trim`), hand | true |
 | `slot` | P | — | page, hand | none (a worktree per task) |
 | `branch` | P | — | page, hand | `main` |
+| `changelog` | P | — | page, hand | `CHANGELOG.md` (a path relative to the repository's root; absolute or `..` is `config.changelogPath`; BTN-209, `docs/sessions.md`) |
 | `prompt` | P | — | page, hand | `null` |
 | `commands.beforeStart`, `.check`, `.afterGreen` | P | each key on its own | page, hand | `[]` |
 | `ci.guard`, `.kinds`, `.waitMinutes`, `.recheckMain`, `.fixTask` | P | each key on its own over `DEFAULT_CI` | page, hand | `DEFAULT_CI` |
