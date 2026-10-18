@@ -18,6 +18,7 @@ Even Keel's state is one SQLite database, `state/even-keel.db` (`EVEN_KEEL_STATE
 | `launches` | the launch log: `at`, `project_id`, `task`, `session_id`, `reason`, the other fields of `LaunchEntry` as JSON in `extra` | same |
 | `handoffs` | a snapshot per handoff for Tally, keyed by the new session | `src/chain/snapshots.ts` |
 | `closed_tasks` | the archive of tasks the chain ran and saw done: project, task, tracker, title, link, when; one row per task, a reopen and a new Done keep the latest | `saveClosedTask` |
+| `mailbox` | chat messages to working sessions (step 2, BTN-181): `task`, `session_id`, `text`, `files` (JSON paths), `posted_at`, `fate` (`waiting`, `delivered`, `returned`, `dismissed`), `event`, `settled_at`; settled rows go a week after they settled, at the next post | `src/sessions/mailbox.ts`, `docs/sessions.md` |
 
 - The chain state is written whole on every save (`writeChainRecord`: delete and insert in one transaction), as the file was; the launch log is appended to.
 - `closed_tasks` is filled by the chain's `finish` (`archiveClosed` in `src/service.ts`) for every task but a fix of main, with the title the tracker last gave. Nothing reads it yet: it is for the page and the tracker profiles to come (BTN-66).
@@ -27,6 +28,7 @@ Even Keel's state is one SQLite database, `state/even-keel.db` (`EVEN_KEEL_STATE
 - The version is `PRAGMA user_version`. `STEPS[n]` takes the database from version n to n + 1 in one transaction together with the new version, so a step that fails leaves the old version and none of its tables.
 - A database newer than the code is refused before anything is written: `storage.newerDatabase`, the blocked page (`src/main.ts`).
 - A step is never edited or removed once merged. A schema change is a new step and a new frozen sample `test/fixtures/database-v<N>/even-keel.sql` (the SQL of the tables and rows of that version); `src/storage/database.test.ts` checks that step 1 still makes exactly the tables of the v1 sample and that the sample migrates and reads.
+- Step 2 (`database-v2/`, BTN-181) adds the `mailbox` table.
 - The database's version is separate from `SCHEMA_VERSION` of the files (`src/storage/schema.ts`), which still versions the config and the files that stay.
 
 ## Import of the v0.1 files (`src/storage/state-files.ts`)
