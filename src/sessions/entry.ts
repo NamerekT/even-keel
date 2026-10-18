@@ -10,8 +10,6 @@ export interface Usage {
 export interface ContentBlock {
   type?: string
   text?: string
-  /** Empty for hidden thinking; with `display: "updates"` the narration the user is shown sits here. */
-  thinking?: string
   id?: string
   name?: string
   input?: Record<string, unknown>

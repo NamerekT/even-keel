@@ -727,13 +727,9 @@ describe('TranscriptFold', () => {
       expect(fold([notice]).summary().feed).toEqual([])
     })
 
-    it('shows the narration of a thinking block as text and leaves the hidden thinking out', () => {
-      const summary = fold([assistant('m1', [thinking(''), thinking('Confirmed: the keys come from the profile.'), tool('Read', { file_path: 'a.ts' })])]).summary()
-      expect(summary.feed.map((line) => [line.kind, line.text])).toEqual([
-        ['text', 'Confirmed: the keys come from the profile.'],
-        ['tool', expect.any(String)],
-      ])
-      expect(summary.lastMessage).toBeNull()
+    it('leaves thinking blocks out of the feed, even those with text', () => {
+      const summary = fold([assistant('m1', [thinking(''), thinking('Some thinking.'), tool('Read', { file_path: 'a.ts' })])]).summary()
+      expect(summary.feed.map((line) => line.kind)).toEqual(['tool'])
     })
   })
 

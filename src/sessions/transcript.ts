@@ -263,11 +263,7 @@ export class TranscriptFold {
     }
 
     for (const block of blocks) {
-      if (block.type === 'thinking') {
-        // Not a last message: a question or a checkpoint is read only from what the session wrote as its answer.
-        const text = this.textOf(block.thinking ?? '')
-        if (text !== '') this.addAction({ at, kind: 'text', text })
-      } else if (block.type === 'text') {
+      if (block.type === 'text') {
         const text = this.textOf(block.text ?? '')
         if (text === '') continue
         this.addAction({ at, kind: 'text', text })
