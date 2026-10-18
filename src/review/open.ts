@@ -4,7 +4,7 @@ import type { CiTarget, Remote } from '../ci/remote.js'
 import { parseRemote } from '../ci/remote.js'
 import type { Git } from '../git/types.js'
 import { fail } from '../notice/notice.js'
-import type { Forge, PullRef } from './model.js'
+import type { Forge, Opened } from './model.js'
 
 /** The remote a project's pull requests go to: `origin` if its address parses, else the first one that does (BTN-205). */
 export function pullTarget(remotes: Remote[]): CiTarget | null {
@@ -25,11 +25,6 @@ export function describedBy(note: string): { title: string; body: string } | nul
   if (first === -1) return null
   const title = lines[first]!.replace(/^#+\s*/, '').trim()
   return { title, body: lines.slice(first + 1).join('\n').trim() }
-}
-
-export interface Opened extends PullRef {
-  branch: string
-  pushedAt: string
 }
 
 /**

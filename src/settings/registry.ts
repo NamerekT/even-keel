@@ -258,6 +258,7 @@ export const DEFINITIONS: readonly SettingDefinition[] = [
   } },
   ciSwitch('recheckMain'),
   ciSwitch('fixTask'),
+  { key: 'pullRequests', kind: 'boolean', scopes: ['project'], lands: ['settings'], default: false, check: boolean('pullRequests') },
   { key: 'fillMilestone', kind: 'boolean', scopes: ['project'], lands: ['settings'], default: false, check: boolean('fillMilestone') },
   { key: 'changelog', kind: 'string', scopes: ['project'], lands: ['settings'], default: DEFAULT_CHANGELOG, check: (value, place) => {
     const path = typeof value === 'string' ? changelogPath(value) : null

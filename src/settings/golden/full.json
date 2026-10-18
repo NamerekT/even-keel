@@ -106,6 +106,7 @@
         "recheckMain": false,
         "fixTask": true
       },
+      "pullRequests": true,
       "fillMilestone": true,
       "changelog": "docs/CHANGELOG.md",
       "provider": "claude",
@@ -133,6 +134,7 @@
         "recheckMain": true,
         "fixTask": false
       },
+      "pullRequests": false,
       "fillMilestone": false,
       "changelog": "CHANGELOG.md",
       "provider": null,
@@ -156,6 +158,7 @@
         "recheckMain": true,
         "fixTask": false
       },
+      "pullRequests": false,
       "fillMilestone": false,
       "changelog": "CHANGELOG.md",
       "provider": null,

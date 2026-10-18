@@ -97,7 +97,7 @@ describe('parseConfig', () => {
       trackerProjects: {},
       brief: true,
       briefs: { ABC: true },
-      settings: { ABC: { branch: 'main', prompt: null, beforeStart: [], check: [], afterGreen: [], ci: DEFAULT_CI, fillMilestone: false, changelog: 'CHANGELOG.md', provider: null, models: {}, accounts: {}, modelLabels: null } },
+      settings: { ABC: { branch: 'main', prompt: null, beforeStart: [], check: [], afterGreen: [], ci: DEFAULT_CI, pullRequests: false, fillMilestone: false, changelog: 'CHANGELOG.md', provider: null, models: {}, accounts: {}, modelLabels: null } },
       context: { window: 600_000, warn: 50, danger: 80 },
       provider: 'claude',
       models: { claude: 'opus' },
@@ -225,6 +225,7 @@ describe('parseConfig', () => {
         check: ['npm test'],
         afterGreen: ['npm run build'],
         ci: DEFAULT_CI,
+        pullRequests: false,
         fillMilestone: false,
         changelog: 'CHANGELOG.md',
         provider: null,
@@ -232,7 +233,7 @@ describe('parseConfig', () => {
         accounts: {},
         modelLabels: null,
       },
-      XYZ: { branch: 'main', prompt: null, beforeStart: [], check: [], afterGreen: [], ci: DEFAULT_CI, fillMilestone: false, changelog: 'CHANGELOG.md', provider: null, models: {}, accounts: {}, modelLabels: null },
+      XYZ: { branch: 'main', prompt: null, beforeStart: [], check: [], afterGreen: [], ci: DEFAULT_CI, pullRequests: false, fillMilestone: false, changelog: 'CHANGELOG.md', provider: null, models: {}, accounts: {}, modelLabels: null },
     })
   })
 

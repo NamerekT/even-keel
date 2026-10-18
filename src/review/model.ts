@@ -54,6 +54,12 @@ export interface PullRef {
   url: string
 }
 
+/** A pull request opened or found for the branch Even Keel has just pushed. */
+export interface Opened extends PullRef {
+  branch: string
+  pushedAt: string
+}
+
 export interface NewPull {
   branch: string
   base: string

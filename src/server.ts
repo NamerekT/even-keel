@@ -712,7 +712,7 @@ function draftOf(body: Record<string, unknown>): ProjectDraft {
 }
 
 function projectFormOf(body: Record<string, unknown>): ProjectForm {
-  const { name, prompt, beforeStart, check, afterGreen, ci, fillMilestone, changelog, provider, models, accounts, modelLabels, branch, repo, tracker, trackerProject, slot, brief, chain } = body
+  const { name, prompt, beforeStart, check, afterGreen, ci, pullRequests, fillMilestone, changelog, provider, models, accounts, modelLabels, branch, repo, tracker, trackerProject, slot, brief, chain } = body
   if (name !== undefined && name !== null && typeof name !== 'string') throw fail('request.required', { field: 'name' })
   if (prompt !== null && typeof prompt !== 'string') throw fail('request.required', { field: 'prompt' })
   const settings = {
@@ -722,6 +722,7 @@ function projectFormOf(body: Record<string, unknown>): ProjectForm {
     afterGreen: linesOf(afterGreen, 'afterGreen'),
     ci: ciOf(ci),
   }
+  if (typeof pullRequests !== 'boolean') throw fail('request.required', { field: 'pullRequests' })
   if (typeof fillMilestone !== 'boolean') throw fail('request.required', { field: 'fillMilestone' })
   if (typeof changelog !== 'string') throw fail('request.required', { field: 'changelog' })
   if (provider !== null && typeof provider !== 'string') throw fail('request.required', { field: 'provider' })
@@ -731,6 +732,7 @@ function projectFormOf(body: Record<string, unknown>): ProjectForm {
   return {
     ...settings,
     name: name ?? null,
+    pullRequests,
     fillMilestone,
     changelog: changelog.trim() === '' ? DEFAULT_CHANGELOG : changelog,
     provider,

@@ -68,7 +68,7 @@ const GROUPS = [
   { id: 'repo', keys: ['repo', 'branch', 'slot', 'changelog'] },
   { id: 'tracker', keys: ['tracker', 'trackerProject', 'fillMilestone', ...RULE_KEYS] },
   { id: 'sessions', keys: ['provider', ...providerKeys('models'), ...providerKeys('accounts'), 'modelLabels', 'brief', 'prompt', 'beforeStart'] },
-  { id: 'ci', keys: ['guard', 'check', 'afterGreen', 'kinds', 'wait', 'recheck', 'fixTask'] },
+  { id: 'ci', keys: ['guard', 'check', 'afterGreen', 'kinds', 'wait', 'recheck', 'fixTask', 'pullRequests'] },
 ] as const
 type GroupId = (typeof GROUPS)[number]['id']
 const KEYS: readonly string[] = GROUPS.flatMap((group) => group.keys)
@@ -93,6 +93,7 @@ const valuesOf = (form: ProjectForm): Values => ({
   wait: form.ci.waitMinutes === null ? '' : String(form.ci.waitMinutes),
   recheck: form.ci.recheckMain,
   fixTask: form.ci.fixTask,
+  pullRequests: form.pullRequests,
   fillMilestone: form.fillMilestone,
   changelog: form.changelog,
   provider: form.provider ?? '',
@@ -127,6 +128,7 @@ function formOf(values: Values, name: string | null): ProjectForm | undefined {
     check: linesOf(text('check')),
     afterGreen: linesOf(text('afterGreen')),
     ci: { guard: on('guard'), kinds: CI_KINDS.filter((kind) => kinds.includes(kind)), waitMinutes, recheckMain: on('recheck'), fixTask: on('fixTask') },
+    pullRequests: on('pullRequests'),
     fillMilestone: on('fillMilestone'),
     changelog: text('changelog').trim(),
     provider: text('provider') === '' ? null : text('provider'),
@@ -487,6 +489,7 @@ export function SettingsPanel({
           {check('recheck', t.settings.recheckMain, t.settings.recheckMainHint, undefined, unguarded)}
           {check('fixTask', t.settings.fixTask, t.settings.fixTaskHint, undefined, unguarded)}
         </div>
+        {check('pullRequests', t.settings.pullRequests, t.settings.pullRequestsHint, 'pullRequests')}
       </>
     ),
   }

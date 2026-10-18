@@ -113,6 +113,7 @@
         "recheckMain": true,
         "fixTask": false
       },
+      "pullRequests": false,
       "fillMilestone": false,
       "changelog": "CHANGELOG.md",
       "provider": null,
@@ -138,6 +139,7 @@
         "recheckMain": true,
         "fixTask": false
       },
+      "pullRequests": false,
       "fillMilestone": false,
       "changelog": "CHANGELOG.md",
       "provider": null,
@@ -161,6 +163,7 @@
         "recheckMain": true,
         "fixTask": false
       },
+      "pullRequests": false,
       "fillMilestone": false,
       "changelog": "CHANGELOG.md",
       "provider": null,

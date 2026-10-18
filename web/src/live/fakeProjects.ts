@@ -98,6 +98,7 @@ function withProject(state: EvenKeelState, draft: ProjectDraft): EvenKeelState {
     check: [],
     afterGreen: [],
     ci: { guard: true, kinds: [], waitMinutes: null, recheckMain: true, fixTask: false },
+    pullRequests: false,
     fillMilestone: false,
     changelog: 'CHANGELOG.md',
     provider: null,

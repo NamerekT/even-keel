@@ -220,7 +220,7 @@ describe('Even Keel HTTP server', () => {
   })
 
   const chain = { active: null, terminal: ['Done'], requiredLabels: [], excludedLabels: ['Manual'] }
-  const form = { name: 'Web shop', branch: 'master', repo: 'C:\\abc', tracker: 'github', trackerProject: 'octo-org/abc', slot: 2, brief: false, chain, provider: 'codex', models: { codex: 'gpt-6.1-sol' }, accounts: {}, modelLabels: true }
+  const form = { name: 'Web shop', branch: 'master', repo: 'C:\\abc', tracker: 'github', trackerProject: 'octo-org/abc', slot: 2, brief: false, chain, provider: 'codex', models: { codex: 'gpt-6.1-sol' }, accounts: {}, modelLabels: true, pullRequests: false }
 
   it('passes the settings of a project on with the values the form started from', async () => {
     const ci = { guard: false, kinds: ['github'], waitMinutes: 15, recheckMain: false, fixTask: true }
@@ -338,6 +338,7 @@ describe('Even Keel HTTP server', () => {
       check: [],
       afterGreen: [],
       ci: { guard: true, kinds: [], waitMinutes: null, recheckMain: true, fixTask: false },
+      pullRequests: false,
       fillMilestone: 'yes',
     }
     const response = await fetch(base + '/api/project/settings', { method: 'POST', body: JSON.stringify(body) })

@@ -35,6 +35,7 @@ export const FULL = {
       prompt: ' Mind the Library. ',
       commands: { beforeStart: ['npm ci', ' '], check: [' npm test '] },
       ci: { guard: false, kinds: ['github', 'forgejo'], waitMinutes: 5, recheckMain: false, fixTask: true },
+      pullRequests: true,
       fillMilestone: true,
       changelog: '\\docs\\CHANGELOG.md',
       provider: 'claude',
