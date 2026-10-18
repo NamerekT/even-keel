@@ -46,6 +46,9 @@ import { Packages } from './packages/service.js'
 import { createEvenKeelServer } from './server.js'
 import { replyPrompt, type Reply } from './sessions/ask.js'
 import { inboxImage, saveInbox, type InboxFile } from './sessions/inbox.js'
+import type { SessionMail } from './sessions/mail.js'
+import { Mailbox } from './sessions/mailbox.js'
+import { mailFor, settleMail, type MailRelay } from './sessions/mailRelay.js'
 import { isLive, turnStatus, type AgentEntry } from './sessions/agents.js'
 import { launchPlan, runChoice, type LaunchPlan, type RunChoice } from './sessions/launch.js'
 import { runAfterGreen, runBeforeStart, runCheck, systemShell, type SetupRun } from './sessions/setup.js'
@@ -127,6 +130,7 @@ const rulesOf = (project: string) => configFile.current.rules[project]!
 const stateDir = stateDirOf()
 mkdirSync(stateDir, { recursive: true })
 const db = openDatabase(join(stateDir, DATABASE_FILE))
+const mailbox = new Mailbox(db, () => new Date())
 const limitsFile = join(stateDir, 'rate-limits.json')
 const accountFile = join(stateDir, 'account.json')
 const links = new Map<string, TrackerLink>()
@@ -395,6 +399,7 @@ const monitor = new SessionMonitor({
     logStartupDialogs(views)
     hub.broadcast('state', getState())
     dispatcher.check()
+    settleMail(mailRelay)
   },
   onError: (error) => console.error(`sessions: ${error instanceof Error ? error.message : String(error)}`),
 })
@@ -673,7 +678,27 @@ function resumeWith(task: string, session: HandoffSession, prompt: string): Prom
   })
 }
 
-/** Saves the files into the task's folder and resumes the waiting session with the reply (invariant 1, exception 6). */
+const mailRelay: MailRelay = {
+  mailbox,
+  live: (task) => {
+    const view = liveView(task)
+    return view === undefined ? undefined : { sessionId: view.sessionId, midTurn: agentStatus(task) === 'busy', asking: view.asking }
+  },
+  resume: (task, sessionId, prompt) => {
+    const project = configuredProject(task)
+    if (project === undefined) throw fail('config.unknownProject', { key: task })
+    dispatcher.answer(project, task, sessionId, null, prompt)
+  },
+  language: promptLanguage,
+  changed: () => hub.broadcast('state', getState()),
+  log: (line) => console.log(line),
+  now: () => new Date(),
+}
+
+/**
+ * Saves the files into the task's folder and resumes the waiting session with the reply (invariant 1, exception 6);
+ * a page message to a working session whose hooks take mail goes into its mailbox instead (BTN-181).
+ */
 async function answerSession(
   project: string,
   task: string,
@@ -681,7 +706,7 @@ async function answerSession(
   ask: string | null,
   reply: Omit<Reply, 'files'> & { files: InboxFile[] },
 ): Promise<void> {
-  const { session } = dispatcher.answerable(project, task, sessionId, ask)
+  const { session, midTurn } = dispatcher.answerable(project, task, sessionId, ask, reply.from === 'page' && mailbox.listens(sessionId))
   const question = ask === null ? null : (liveView(task)?.ask ?? null)
   let files: string[]
   try {
@@ -690,7 +715,14 @@ async function answerSession(
     throw fail('answer.file', { name: reply.files.map((file) => file.name).join(', ') }, { detail: (error as Error).message }, { cause: error })
   }
   const prompt = replyPrompt({ ...reply, files }, question, promptLanguage())
+  if (midTurn) {
+    mailbox.post(task, sessionId, reply.text, files)
+    console.log(`chain: ${task}: the user's message from the page waits in the mailbox of the session ${sessionId}${files.length > 0 ? ` with ${files.length} file(s)` : ''}`)
+    hub.broadcast('state', getState())
+    return
+  }
   dispatcher.answer(project, task, sessionId, ask, prompt)
+  mailbox.dismiss(sessionId)
   console.log(`chain: ${task}: the user's answer from the ${reply.from} goes to the session ${sessionId}${files.length > 0 ? ` with ${files.length} file(s)` : ''}`)
 }
 
@@ -798,6 +830,13 @@ const getState = (): EvenKeelState => ({
     task,
     notice: noAccountFor(task, fallback, runSettings(configFile.current, project).provider),
   })),
+  mailbox: Object.fromEntries(
+    sessions.flatMap((view): [string, SessionMail][] => {
+      const mail = mailbox.of(view.sessionId)
+      const listens = mailbox.listens(view.sessionId)
+      return listens || mail.length > 0 ? [[view.sessionId, { listens, mail }]] : []
+    }),
+  ),
 })
 
 let server = createEvenKeelServer({
@@ -808,6 +847,10 @@ let server = createEvenKeelServer({
   account,
   sessions: {
     answer: ({ project, task, sessionId, ask, answers, text, files }) => answerSession(project, task, sessionId, ask, { from: 'page', answers, text, files }),
+    dismissMail: (sessionId) => {
+      mailbox.dismiss(sessionId)
+      hub.broadcast('state', getState())
+    },
   },
   settings: {
     save: (project, form, base) => {
@@ -888,6 +931,7 @@ let server = createEvenKeelServer({
     const feed = await inHomes((home) => agentOf(home).feed(home, sessionId, 0))
     return feed !== undefined && noteAtEnd(feed.lines)
   },
+  mail: (sessionId, event) => (handoffsOf(launches, sessionId) === undefined ? undefined : mailFor(mailRelay, sessionId, event)),
   mergeCheck: (sessionId) => {
     const run = handoffsOf(launches, sessionId)
     if (run === undefined) return undefined
@@ -1003,6 +1047,7 @@ const questions = new TrackerQuestions({
 
 setInterval(() => hub.broadcast('ping', { at: new Date().toISOString() }), 15_000).unref()
 setInterval(() => void questions.tick(), 15_000).unref()
+setInterval(() => settleMail(mailRelay), 15_000).unref()
 
 setInterval(() => dispatcher.check(), LIMIT_CHECK_MS).unref()
 

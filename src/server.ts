@@ -30,6 +30,7 @@ import {
 import type { ChainRules } from './chain/rules.js'
 import { CLAUDE } from './claude/name.js'
 import type { Language } from './language.js'
+import { HOOK_EVENTS, type MailEvent } from './sessions/mail.js'
 import type { CacheTtl, CiSettings, ContextScale, ProjectCheck, ProjectDraft, ProjectForm, SharedForm, StatsConfig } from './state.js'
 import type { CompareSettings } from './stats/rules.js'
 import { CI_KINDS, type CiKind } from './ci/model.js'
@@ -107,6 +108,8 @@ export interface AnswerRequest {
 
 export interface SessionControl {
   answer(request: AnswerRequest): Promise<void>
+  /** The chat's "Dismiss": the session's returned messages leave the chat window. */
+  dismissMail(sessionId: string): void
 }
 
 export interface SettingsControl {
@@ -166,6 +169,11 @@ export interface ServerDeps {
    * `undefined` for a session the chain did not start.
    */
   mergeCheck: (sessionId: string) => { commands: string[]; branch: string } | undefined
+  /**
+   * For the mailbox hook: the chat's messages that waited for the session, delivered now on `event`, as one text;
+   * `null` — none wait; `undefined` for a session the chain did not start (BTN-181).
+   */
+  mail: (sessionId: string, event: MailEvent) => string | null | undefined
   /** `undefined` for a project the config does not know. */
   tools: (project: string) => Promise<unknown>
   tasks: TaskControl
@@ -193,6 +201,7 @@ const COMMANDS: Record<string, Command> = {
   'task/ready': ({ tasks }, body) => tasks.ready(taskOf(body)),
   'task/milestone': ({ tasks }, body) => tasks.moveMilestone(taskOf(body), body.milestone === null ? null : textOf(body.milestone, 'milestone')),
   'session/answer': ({ sessions }, body) => sessions.answer(answerOf(body)),
+  'session/mail/dismiss': ({ sessions }, body) => sessions.dismissMail(textOf(body.sessionId, 'sessionId')),
   'project/settings': ({ settings }, body) => settings.save(projectOf(body), projectFormOf(body), projectFormOf(baseOf(body))),
   'project/add': ({ settings }, body) => settings.add(draftOf(body)),
   'project/remove': ({ settings }, body) => settings.remove(projectOf(body)),
@@ -460,6 +469,22 @@ async function route(deps: ServerDeps, request: IncomingMessage, response: Serve
       return
     }
     sendJson(response, 200, await read())
+    return
+  }
+
+  const mail = /^\/api\/sessions\/([^/]+)\/mail$/.exec(path)
+  if (request.method === 'POST' && mail !== null) {
+    let message: string | null | undefined
+    try {
+      const body = await readJsonBody(request, MAX_BODY_BYTES)
+      if (!HOOK_EVENTS.includes(body.event as MailEvent)) throw fail('request.required', { field: 'event' })
+      message = deps.mail(decodeURIComponent(mail[1]!), body.event as MailEvent)
+    } catch (error) {
+      sendFailure(response, error)
+      return
+    }
+    if (message === undefined) response.writeHead(404).end()
+    else sendJson(response, 200, { message })
     return
   }
 

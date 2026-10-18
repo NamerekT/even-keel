@@ -1,0 +1,105 @@
+import { describe, expect, it } from 'vitest'
+import { openDatabase } from '../storage/database.js'
+import { Mailbox } from './mailbox.js'
+import { mailFor, settleMail, type MailRelay } from './mailRelay.js'
+
+const SESSION = '11111111-2222-4333-8444-555555555555'
+const OTHER = '66666666-7777-4888-8999-000000000000'
+
+function relay(live: { sessionId: string; midTurn: boolean; asking: boolean } | undefined, resume: MailRelay['resume'] = () => {}) {
+  let now = Date.parse('2026-10-18T10:00:00.000Z')
+  const mailbox = new Mailbox(openDatabase(':memory:'), () => new Date(now))
+  const resumed: { task: string; sessionId: string; prompt: string }[] = []
+  const log: string[] = []
+  let changes = 0
+  const deps: MailRelay = {
+    mailbox,
+    live: () => live,
+    resume: (task, sessionId, prompt) => {
+      resume(task, sessionId, prompt)
+      resumed.push({ task, sessionId, prompt })
+    },
+    language: () => 'en',
+    changed: () => changes++,
+    log: (line) => log.push(line),
+    now: () => new Date(now),
+  }
+  return { deps, mailbox, resumed, log, changes: () => changes, later: (seconds: number) => (now += seconds * 1000) }
+}
+
+describe('settleMail', () => {
+  it('leaves a message to the hooks while the session works', () => {
+    const { deps, mailbox, later, changes } = relay({ sessionId: SESSION, midTurn: true, asking: false })
+    mailbox.post('ABC-1', SESSION, 'one', [])
+    later(60)
+    settleMail(deps)
+    expect(mailbox.waiting().map((mail) => mail.text)).toEqual(['one'])
+    expect(changes()).toBe(0)
+  })
+
+  it('resumes a session that ended its turn without taking the messages, all of them in one prompt', () => {
+    const { deps, mailbox, later, resumed } = relay({ sessionId: SESSION, midTurn: false, asking: false })
+    mailbox.post('ABC-1', SESSION, 'one', [])
+    mailbox.post('ABC-1', SESSION, 'two', [])
+    later(11)
+    settleMail(deps)
+    expect(resumed).toHaveLength(1)
+    expect(resumed[0]!.prompt).toContain('one')
+    expect(resumed[0]!.prompt).toContain('two')
+    expect(mailbox.of(SESSION).map((mail) => [mail.fate, mail.event])).toEqual([
+      ['delivered', 'resume'],
+      ['delivered', 'resume'],
+    ])
+  })
+
+  it('gives the message back when the session asked a question meanwhile', () => {
+    const { deps, mailbox, later, resumed, changes } = relay({ sessionId: SESSION, midTurn: false, asking: true })
+    mailbox.post('ABC-1', SESSION, 'one', [])
+    later(11)
+    settleMail(deps)
+    expect(resumed).toEqual([])
+    expect(mailbox.of(SESSION).map((mail) => mail.fate)).toEqual(['returned'])
+    expect(changes()).toBe(1)
+  })
+
+  it('gives the message back when the session is gone or another one took the task', () => {
+    const { deps, mailbox, later } = relay({ sessionId: OTHER, midTurn: false, asking: false })
+    mailbox.post('ABC-1', SESSION, 'one', [])
+    later(11)
+    settleMail(deps)
+    expect(mailbox.of(SESSION).map((mail) => mail.fate)).toEqual(['returned'])
+  })
+
+  it('gives the message back when the resume is refused', () => {
+    const { deps, mailbox, later, log } = relay({ sessionId: SESSION, midTurn: false, asking: false }, () => {
+      throw new Error('limit')
+    })
+    mailbox.post('ABC-1', SESSION, 'one', [])
+    later(11)
+    settleMail(deps)
+    expect(mailbox.of(SESSION).map((mail) => mail.fate)).toEqual(['returned'])
+    expect(log.join('\n')).toContain('limit')
+  })
+
+  it('waits out the grace period after the post', () => {
+    const { deps, mailbox, later, resumed } = relay({ sessionId: SESSION, midTurn: false, asking: false })
+    mailbox.post('ABC-1', SESSION, 'one', [])
+    later(5)
+    settleMail(deps)
+    expect(resumed).toEqual([])
+    expect(mailbox.waiting()).toHaveLength(1)
+  })
+})
+
+describe('mailFor', () => {
+  it('gives the hook what waits, with the lead of its event, and nothing the second time', () => {
+    const { deps, mailbox, changes } = relay({ sessionId: SESSION, midTurn: true, asking: false })
+    const { id } = mailbox.post('ABC-1', SESSION, 'Use the other parser.', [])
+    const message = mailFor(deps, SESSION, 'Stop')
+    expect(message).toContain(`<even-keel-message id="${id}">`)
+    expect(message).toContain('Use the other parser.')
+    expect(changes()).toBe(1)
+    expect(mailFor(deps, SESSION, 'PostToolUse')).toBeNull()
+    expect(mailbox.listens(SESSION)).toBe(true)
+  })
+})

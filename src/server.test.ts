@@ -72,6 +72,7 @@ describe('Even Keel HTTP server', () => {
         answer: async (request) => {
           calls.push(['answer', { ...request, files: request.files.map((file) => ({ name: file.name, text: Buffer.from(file.data).toString('utf8') })) }])
         },
+        dismissMail: record('dismissMail'),
       },
       settings: {
         save: record('settings'),
@@ -115,6 +116,7 @@ describe('Even Keel HTTP server', () => {
       checkpoint: async (id) =>
         id === '0a1b2c3d' ? { project: 'ABC', task: 'ABC-1', handoffs: 2, first: 193_000, source: 'calibrated' } : undefined,
       mergeCheck: (id) => (id === 'chain-session' ? { commands: ['npm test'], branch: 'master' } : undefined),
+      mail: (id, event) => (id !== 'chain-session' ? undefined : event === 'PostToolUse' ? `mail on ${event}` : null),
       tools: async (project) => (project === 'ABC' ? { project } : undefined),
       tasks: {
         card: async (task) => {
@@ -374,6 +376,24 @@ describe('Even Keel HTTP server', () => {
     expect(found.status).toBe(200)
     expect(await found.json()).toEqual({ commands: ['npm test'], branch: 'master' })
     expect((await fetch(base + '/api/sessions/other/check')).status).toBe(404)
+  })
+
+  it('gives the mailbox hook what waits for a chain session on its event and 404 for any other', async () => {
+    const post = (id: string, body: unknown) => fetch(base + `/api/sessions/${id}/mail`, { method: 'POST', body: JSON.stringify(body) })
+    const found = await post('chain-session', { event: 'PostToolUse' })
+    expect(found.status).toBe(200)
+    expect(await found.json()).toEqual({ message: 'mail on PostToolUse' })
+    expect(await (await post('chain-session', { event: 'Stop' })).json()).toEqual({ message: null })
+    expect((await post('other', { event: 'Stop' })).status).toBe(404)
+    const bad = await post('chain-session', { event: 'resume' })
+    expect(bad.status).toBe(400)
+    expect((await bad.json()).notice).toMatchObject({ code: 'request.required', params: { field: 'event' } })
+  })
+
+  it('dismisses the returned messages of a session', async () => {
+    const response = await fetch(base + '/api/session/mail/dismiss', { method: 'POST', body: JSON.stringify({ sessionId: '0a1b2c3d' }) })
+    expect(response.status).toBe(200)
+    expect(calls).toContainEqual(['dismissMail', '0a1b2c3d'])
   })
 
   it('serves the state as JSON', async () => {

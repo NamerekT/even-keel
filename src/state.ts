@@ -9,6 +9,7 @@ import type { UsageHealth } from './limits/usage.js'
 import type { Notice } from './notice/notice.js'
 import type { Lamp } from './sessions/agents.js'
 import type { Ask } from './sessions/ask.js'
+import type { SessionMail } from './sessions/mail.js'
 import type { CompareSettings } from './stats/rules.js'
 import type { RemoteOff } from './sessions/remote.js'
 import type { CacheWindow, FeedLine, Stage, TokenTotals } from './sessions/transcript.js'
@@ -259,6 +260,8 @@ export interface EvenKeelState {
   updates: UpdatesView
   /** The last day's launches whose run label had no account in the pool, newest first: a toast each until dismissed. */
   fallbacks: FallbackLaunch[]
+  /** The chat mailbox of each live session whose hooks ask for mail or that has messages to show, by session id (BTN-181). */
+  mailbox: Record<string, SessionMail>
 }
 
 export interface FallbackLaunch {
