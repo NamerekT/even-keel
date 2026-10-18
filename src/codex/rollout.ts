@@ -41,7 +41,6 @@ export class RolloutFold {
   private gitBranch: string | null = null
   private workdir: string | null = null
   private turnStartedAt: string | null = null
-  private turnOutputFrom = 0
 
   /** `whole` keeps texts and prompts as written and adds shell commands to tool lines. */
   constructor(
@@ -65,10 +64,8 @@ export class RolloutFold {
     }
     if (line.type !== 'event_msg') return
     const at = line.timestamp ?? ''
-    if (payload.type === 'task_started') {
-      this.turnStartedAt = at
-      this.turnOutputFrom = this.tokens.output
-    } else if (payload.type === 'token_count') this.pushTokens(record(payload.info))
+    if (payload.type === 'task_started') this.turnStartedAt = at
+    else if (payload.type === 'token_count') this.pushTokens(record(payload.info))
     else if (payload.type === 'error') this.pushError(at, errorText(payload.message))
     else if (payload.type === 'task_complete' && record(payload.error) !== undefined) this.pushError(at, errorText(record(payload.error)?.message))
     else if (payload.type === 'item_completed') this.pushItem(at, record(payload.item))
@@ -79,7 +76,7 @@ export class RolloutFold {
       contextTokens: this.contextTokens,
       cache: null,
       tokens: { ...this.tokens },
-      turn: this.turnStartedAt === null ? null : { startedAt: this.turnStartedAt, outputTokens: this.tokens.output - this.turnOutputFrom, tool: null },
+      turn: this.turnStartedAt === null ? null : { startedAt: this.turnStartedAt, tool: null },
       action: this.action,
       stage: this.stage,
       feed: [...this.feed],

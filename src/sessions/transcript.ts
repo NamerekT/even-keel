@@ -51,8 +51,6 @@ export interface CacheWindow {
 /** The last turn of a session, begun by the last prompt; whether it still runs is the lamp's call. */
 export interface Turn {
   startedAt: string
-  /** The output tokens of the answers since the prompt. */
-  outputTokens: number
   /** The tool line of a call that has no result yet; `null` while the model writes or thinks. */
   tool: string | null
 }
@@ -120,7 +118,6 @@ export class TranscriptFold {
   /** The file name of each `Read` call of a whole transcript, until its result comes. */
   private readonly readFiles = new Map<string, string>()
   private turnStartedAt: string | null = null
-  private readonly turnAnswers = new Set<string>()
   /** The tool lines of the turn's calls that have no result yet, by call id. */
   private readonly runningTools = new Map<string, string>()
 
@@ -181,7 +178,6 @@ export class TranscriptFold {
           ? null
           : {
               startedAt: this.turnStartedAt,
-              outputTokens: [...this.turnAnswers].reduce((sum, id) => sum + (this.usageById.get(id)?.output_tokens ?? 0), 0),
               tool: [...this.runningTools.values()].pop() ?? null,
             },
       action: this.action,
@@ -223,7 +219,6 @@ export class TranscriptFold {
       const id = entry.message?.id
       if (typeof id === 'string') {
         this.usageById.set(id, usage)
-        if (this.turnStartedAt !== null) this.turnAnswers.add(id)
         if (id !== this.lastAnswerId) {
           this.lastAnswerId = id
           this.lastRequestAt = entry.timestamp ?? null
@@ -279,7 +274,6 @@ export class TranscriptFold {
       this.wrapUp = null
       this.checkpoint = null
       this.turnStartedAt = entry.timestamp ?? ''
-      this.turnAnswers.clear()
       this.runningTools.clear()
       if (entry.origin?.kind !== undefined && entry.origin.kind !== 'human') return
       const answered = this.openAsk ?? this.strayAsk

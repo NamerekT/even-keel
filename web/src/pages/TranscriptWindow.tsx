@@ -4,7 +4,7 @@ import remarkGfm from 'remark-gfm'
 import type { Ask, AskAnswers } from '../../../src/sessions/ask.js'
 import type { FeedLine, Turn } from '../../../src/sessions/transcript.js'
 import type { SessionView } from '../../../src/state.js'
-import { formatElapsed, formatTokens } from '../format.js'
+import { formatElapsed } from '../format.js'
 import { localized, t } from '../i18n/index.js'
 import { useNow } from '../layout/useNow.js'
 import { useLive } from '../live/context.js'
@@ -242,7 +242,7 @@ export function TranscriptWindow({ sessionId, account, live, chat, onClose }: Pr
   )
 }
 
-/** The turn in progress, as the Claude app shows it: "23с · 81 токен · Думает", the clock ticking every second. */
+/** The turn in progress, as the Claude app shows it: "23с · Думает", the clock ticking every second. */
 function TurnLine({ turn }: { turn: Turn }) {
   const now = useNow(TICK_MS)
   const elapsed = turn.startedAt === '' ? null : formatElapsed(now.getTime() - Date.parse(turn.startedAt))
@@ -250,7 +250,7 @@ function TurnLine({ turn }: { turn: Turn }) {
     <Tipped inline align="start" className="transcript__turn" tip={t.session.chat.turnTip}>
       <span className="lamp lamp--working" aria-hidden="true" />
       <span className="transcript__turn-text">
-        {[elapsed, t.session.chat.turnTokens(formatTokens(turn.outputTokens), turn.outputTokens), turn.tool ?? t.session.chat.thinking]
+        {[elapsed, turn.tool ?? t.session.chat.thinking]
           .filter((part) => part !== null)
           .join(' · ')}
       </span>

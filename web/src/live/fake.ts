@@ -88,7 +88,7 @@ function session(task: string, contextTokens: number, lamp: SessionView['lamp'] 
     contextTokens,
     cache: fakeCache(lamp),
     tokens: { input: 18_400, output: 9_200, cacheRead: 1_240_000, cacheWrite: 96_000 },
-    turn: { startedAt: ago(0.4), outputTokens: 81, tool: task === 'ABC-5' ? 'Bash npx vitest run src/chain' : null },
+    turn: { startedAt: ago(0.4), tool: task === 'ABC-5' ? 'Bash npx vitest run src/chain' : null },
     stage: 'edit',
     action: { at: ago(0), kind: 'tool', text: 'Edit src/example.ts' },
     feed: fakeFeed(),
