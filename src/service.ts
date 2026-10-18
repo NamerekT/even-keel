@@ -41,6 +41,7 @@ import { envTargets } from './env-file.js'
 import { EventHub } from './events.js'
 import { runGit } from './git/run.js'
 import { finishSlot, heldSlot, prepareSlot, slotPaths, type SlotUse } from './git/slot.js'
+import { fastForwardMain } from './git/sync.js'
 import { ensureIgnored, finishWorktree, prepareWorktree, requireBranch, taskPlace } from './git/worktree.js'
 import { exhaustedReset, limitResetAfter } from './limits/model.js'
 import { LimitsWatcher } from './limits/watcher.js'
@@ -672,6 +673,8 @@ const places = new TaskPlaces({
     const main = branchOf(project)
     await requireBranch(runGit, repo, project, main)
     await ensureIgnored(runGit, repo)
+    // Not ahead: while the chain waits for the CI or the commands after green, main must stay at the commit they judge.
+    if (!ahead) await fastForwardMain(runGit, repo, main)
     const count = configStore.current.slots[project]
     const span = slotSpan(project)
     if (isFixName(task)) return prepareWorktree(runGit, repo, task, main, ahead)

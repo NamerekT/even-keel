@@ -67,6 +67,8 @@ The token is chosen per remote (`ciToken`, `src/ci/adapters.ts`). The CI is a pr
 
 With no profile for it, or when the token does not reach the repository's runs (`ci.denied`, HTTP 404), the CI of that remote is not shown at all, with no error (`CiWatch.hidden`, both CIs): the page and the main check take only `CiWatches.shown(project)`. On Access a profile's card lists the CIs it serves (`ProfileView.ci`) and says in its tip which ones it does not reach (`ProfileView.hiddenCi`). A choice of profile per remote is v0.2 (BTN-66).
 
+Projects in separate clones of one remote (BTN-210) each get their own watches of the same repository, polled apart, and each judges `main` only by its own pushes: a red run of another project's push shows on the CI panel but neither holds nor fixes this one (`docs/chain.md`, "Projects of one remote"; the shared verdict is BTN-217).
+
 ## A push of Markdown only (this repository's workflows)
 
 A push to `main` that changes only `*.md` outside `plugins/` skips the install, the typecheck and the tests: `scripts/ci-code-changed.sh` diffs the commit before the push (`github.event.before`, fetched at depth 1) with the pushed one, and the later steps run on `code == 'true'`. The run itself still happens and comes out green in seconds. A `paths-ignore` filter would not do: Even Keel waits for a run of every commit it pushes, and a push the CI never takes holds the next launch for `STUCK_MS` and then goes to the project's own check. A pull request, a manual run, a new branch or a `before` the runner cannot fetch run everything. The rebuild of the service on Forgejo still runs: a push before it may have been skipped as no longer `HEAD`.
