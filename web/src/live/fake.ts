@@ -1,11 +1,8 @@
-import { fail, notice, textNotice } from '../../../src/notice/notice.js'
-import type { ActiveChain, LaunchEntry } from '../../../src/chain/dispatcher.js'
-import { fixName, isFixName } from '../../../src/chain/fix.js'
+import { notice, textNotice } from '../../../src/notice/notice.js'
+import type { LaunchEntry } from '../../../src/chain/dispatcher.js'
+import { fixName } from '../../../src/chain/fix.js'
 import { launchDays } from '../../../src/chain/launches.js'
-import { checkOrder } from '../../../src/chain/order.js'
 import type { TrackerLinkState, TrackerView } from '../../../src/tracker/health.js'
-import { fakeTask as trackerTask } from '../../../src/tracker/fixture.js'
-import type { StatusCategory, Task } from '../../../src/tracker/model.js'
 import type { FeedLine } from '../../../src/sessions/transcript.js'
 import type { LimitHold } from '../../../src/chain/relay.js'
 import { isLanguage } from '../../../src/language.js'
@@ -14,18 +11,20 @@ import type { Link, LiveSnapshot, LiveSource } from './connection.js'
 import { deviceLogin } from '../accounts.js'
 import { accountCommand, fakeAccount, fakeUsage, FAKE_LIMITS } from './fakeAccounts.js'
 import { FAKE_FIX, fakeCi } from './fakeCi.js'
-import { fakeUpdates, fakeUpdatesCommand } from './fakeUpdates.js'
-import { FAKE_PROJECT_IDS, fakeConfig, fakeHandEdit, fakeSettingsCommand } from './fakeConfig.js'
+import { fakeUpdates } from './fakeUpdates.js'
+import { FAKE_PROJECT_IDS, fakeConfig, fakeHandEdit } from './fakeConfig.js'
 import { withFix } from './fakeFix.js'
 import { fakeCompare, fakeRuleDiff, fakeRules } from './fakeRules.js'
 import { fakeSteps } from './fakeSteps.js'
 import { fakeCheckpoints, fakeHistory, fakePeriod, fakeSpend, fakeTask } from './fakeStats.js'
-import { fakeCard, fakeMoveMilestone, fakeReady } from './fakeCards.js'
-import { fakeAnswer, fakeCalls, fakeImageUrl, fakeOpenAsk, fakePastAsk, fakeSentFileUrl, fakeShots, FAKE_ASK, FAKE_UNSAVED_ASK } from './fakeChat.js'
+import { fakeCard } from './fakeCards.js'
+import { fakeCalls, fakeImageUrl, fakeOpenAsk, fakePastAsk, fakeSentFileUrl, fakeShots, FAKE_UNSAVED_ASK } from './fakeChat.js'
 import type { Ask } from '../../../src/sessions/ask.js'
 import { fakeTools } from './fakeTools.js'
-import { fakePackages, fakePackagesCommand } from './fakePackages.js'
-import { fakeCheck, fakeNoProjects, fakeProjectCommand } from './fakeProjects.js'
+import { fakePackages } from './fakePackages.js'
+import { fakeCheck, fakeNoProjects } from './fakeProjects.js'
+import { ago, fakeFeed, FEED_STEPS, minutes, session, task, turnStartedAt } from './fakeSessions.js'
+import { closeCurrent, fakeCommand, finishCurrent, LAUNCH_DAYS, setPaused, startChain, startStages, takeNext } from './fakeCommands.js'
 
 const TICK_MS = 2_000
 const ANSWER_MS = 300
@@ -35,91 +34,8 @@ const DEVICE_MS = 8_000
 const START_STAGE_MS = 3_000
 /** `?config=edited`: time to open the settings and start a draft before the file changes under it. */
 const HAND_EDIT_MS = 15_000
-const LAUNCH_DAYS = 14
 
-function task(
-  id: string,
-  title: string,
-  name: string,
-  category: StatusCategory,
-  blockedBy: string[] = [],
-  milestone: string | null = null,
-  extra: Partial<Task> = {},
-): Task {
-  return trackerTask(id, {
-    title,
-    status: { name, category },
-    blockedBy,
-    milestone: milestone === null ? null : { label: milestone, targetDate: 0 },
-    priority: 'medium',
-    ...extra,
-  })
-}
-
-const minutes = (count: number) => count / 60
 const REWORK = { labels: ['Переделка'] }
-
-const FRESH_TITLES = ['Сводка за ночь на главной', 'Подсветка новых задач', 'Экспорт журнала запусков', 'Повтор упавшей сессии']
-
-function ago(minutes: number): string {
-  return new Date(Date.now() - minutes * 60_000).toISOString()
-}
-
-/** When the turn of every working fake session began: the turn line's clock runs on from it. */
-const turnStartedAt = ago(0.4)
-
-function fakeSessionId(task: string): string {
-  const [project = '', number = ''] = task.split('-')
-  const projectHex = Array.from(project.slice(0, 4), (char) => char.charCodeAt(0).toString(16).padStart(2, '0')).join('')
-  return `${projectHex.padStart(8, '0')}-0000-4000-8000-${number.replace(/\D/g, '').padStart(12, '0')}`
-}
-
-function session(task: string, contextTokens: number, lamp: SessionView['lamp'] = 'working'): SessionView {
-  return {
-    task,
-    sessionId: fakeSessionId(task),
-    agent: 'claude',
-    cwd: 'C:\\repos\\example-project',
-    branch: `${task.toLowerCase()}/task`,
-    lamp,
-    checkpoint: false,
-    waitingFor: lamp === 'waiting' && task !== 'ABC-5' ? 'permission' : null,
-    startupDialog: null,
-    asking: lamp === 'waiting' && task === 'ABC-5',
-    ask: lamp === 'waiting' && task === 'ABC-5' ? FAKE_ASK : null,
-    apiError: null,
-    startedAt: ago(42),
-    lastActivityAt: ago(0),
-    contextTokens,
-    cache: fakeCache(lamp),
-    tokens: { input: 18_400, output: 9_200, cacheRead: 1_240_000, cacheWrite: 96_000 },
-    stage: 'edit',
-    action: { at: ago(0), kind: 'tool', text: 'Edit src/example.ts' },
-    feed: fakeFeed(),
-    remoteUrl: lamp === 'working' || lamp === 'waiting' ? 'https://claude.ai/code/session_example' : null,
-    remoteOff: lamp === 'working' || lamp === 'waiting' ? null : 'no-bridge',
-    account: task === 'ABC-6' ? 'jane.roe@example.com' : 'john.doe@example.com',
-  }
-}
-
-function fakeCache(lamp: SessionView['lamp']): SessionView['cache'] {
-  if (lamp === 'working') return { ttl: '1h', until: ago(-58) }
-  if (lamp === 'waiting') return { ttl: '5m', until: ago(-2) }
-  return { ttl: '1h', until: ago(20) }
-}
-
-const FEED_STEPS: [FeedLine['kind'], string][] = [
-  ['text', 'Читаю описание задачи и вложения.'],
-  ['tool', 'huly get_issue ABC-5'],
-  ['tool', 'Bash git checkout -b abc-5/chain-order'],
-  ['tool', 'Read src/chain/order.ts'],
-  ['tool', 'Grep blockedBy'],
-  ['text', 'Порядок строится топологической сортировкой, цикл сейчас роняет сервер. Сначала тест на цикл.'],
-  ['tool', 'Edit src/chain/order.test.ts'],
-  ['tool', 'Bash npx vitest run src/chain'],
-  ['tool', 'Edit src/chain/order.ts'],
-  ['error', 'API Error: 529 overloaded, повтор через 4 с'],
-]
 
 function fakeTranscript(open: Ask | null): FeedLine[] {
   const at = (minutes: number) => new Date(Date.now() - minutes * 60_000).toISOString()
@@ -139,13 +55,6 @@ function fakeTranscript(open: Ask | null): FeedLine[] {
     ...fakeFeed(),
     ...fakeOpenAsk(open),
   ]
-}
-
-function fakeFeed(): FeedLine[] {
-  return Array.from({ length: 30 }, (_, index) => {
-    const [kind, text] = FEED_STEPS[index % FEED_STEPS.length]!
-    return { at: new Date(Date.now() - (30 - index) * 25_000).toISOString(), kind, text }
-  })
 }
 
 function fakeHuly(state: TrackerLinkState): TrackerView {
@@ -324,234 +233,6 @@ function fakeRecord(state: EvenKeelState, sessionId: string): SessionRecord | nu
     apiError: live?.apiError ?? "You've hit your session limit · resets 7:20pm (Europe/Berlin)",
     account: live?.account ?? state.taskSessions['ABC-5']?.find((row) => row.sessionId === sessionId)?.account ?? 'jane.roe@example.com',
   }
-}
-
-function chainIn(state: EvenKeelState, project: string): ActiveChain | undefined {
-  return state.chain.active.find((chain) => chain.project === project)
-}
-
-function withChain(state: EvenKeelState, chain: ActiveChain, next: ActiveChain | null): EvenKeelState {
-  const active = state.chain.active.flatMap((each) => (each !== chain ? [each] : next === null ? [] : [next]))
-  return { ...state, chain: { ...state.chain, active } }
-}
-
-/**
- * What the page sees after a start or a restart, as in the service: the dispatcher starting the session,
- * the session not seen yet, the session up and silent, then its first answer.
- */
-function startStages(before: EvenKeelState, after: EvenKeelState, project: string): EvenKeelState[] {
-  const chain = chainIn(after, project)
-  const current = chain?.current
-  if (chain === undefined || current == null || current.sessionId === null) return [after]
-  const prior = chainIn(before, project)?.current
-  const replaced = prior?.task === current.task ? prior.sessionId : null
-  const fresh = after.sessions.find((view) => view.sessionId === current.sessionId && view.task === current.task)
-  if (fresh === undefined) return [after]
-  const silent: SessionView = { ...fresh, startedAt: ago(0), contextTokens: 0, cache: null, action: null, feed: fresh.feed.slice(0, 1) }
-  const withSession = (view: SessionView) => after.sessions.map((each) => (each === fresh ? view : each))
-  return [
-    {
-      ...withChain(after, chain, { ...chain, current: { ...current, sessionId: replaced, starting: ago(0) } }),
-      sessions: before.sessions,
-      taskSessions: before.taskSessions,
-    },
-    { ...after, sessions: before.sessions },
-    { ...after, sessions: withSession(silent) },
-    { ...after, sessions: withSession({ ...silent, contextTokens: 12_000, feed: fresh.feed }) },
-  ]
-}
-
-function closeCurrent(state: EvenKeelState): EvenKeelState {
-  const project = state.chain.active[0]?.project
-  return project === undefined ? state : takeNext(finishCurrent(state), project)
-}
-
-/** The first half of a close: the current task is done and leaves the chain, nothing is taken yet. */
-function finishCurrent(state: EvenKeelState): EvenKeelState {
-  const active = state.chain.active[0]
-  const done = active?.current?.task
-  const project = active?.project
-  if (done === undefined || project === undefined) return state
-  const kept = state.chain.projects[project] ?? { order: [], waiting: [], backlog: [], error: null }
-  const moved = withChain(state, active!, { ...active!, current: null })
-  return {
-    ...state,
-    tasks: state.tasks.map((each) => (each.id === done ? { ...each, status: { name: 'Done', category: 'Won' as const } } : each)),
-    chain: {
-      ...moved.chain,
-      projects: { ...state.chain.projects, [project]: { ...kept, order: kept.order.filter((id) => id !== done), error: null } },
-    },
-    sessions: state.sessions.map((view) => (view.task === done ? { ...view, lamp: 'finished' as const } : view)),
-  }
-}
-
-/** The second half: the chain takes its first task and a new task enters third. */
-function takeNext(state: EvenKeelState, project: string): EvenKeelState {
-  const active = chainIn(state, project)
-  const kept = state.chain.projects[project]
-  if (active === undefined || kept === undefined) return state
-  const fresh = freshTask(state, project)
-  const order = [...kept.order]
-  order.splice(2, 0, fresh.id)
-  const next = order[0]
-  const since = ago(0)
-  const moved = withChain(state, active, { ...active, current: next === undefined ? null : { task: next, sessionId: session(next, 0).sessionId, since } })
-  return {
-    ...state,
-    tasks: [...state.tasks, fresh],
-    chain: {
-      ...moved.chain,
-      projects: { ...state.chain.projects, [project]: { ...kept, order } },
-    },
-    sessions: [
-      ...state.sessions,
-      ...(next === undefined || state.sessions.some((view) => view.task === next) ? [] : [session(next, 12_000)]),
-    ],
-    taskSessions:
-      next === undefined
-        ? state.taskSessions
-        : { ...state.taskSessions, [next]: [{ sessionId: session(next, 0).sessionId, at: since, how: 'launch', resumed: 0, answers: 0 }, ...(state.taskSessions[next] ?? [])] },
-  }
-}
-
-/** A task that shows up in the chain with each close, so the page has an entry to mark. */
-function freshTask(state: EvenKeelState, project: string): Task {
-  const count = state.tasks.filter((each) => each.id.startsWith(`${project}-`)).length
-  const number = 100 + count
-  const milestone = state.tasks.find((each) => each.id === state.chain.projects[project]?.order[1])?.milestone?.label ?? null
-  return task(`${project}-${number}`, FRESH_TITLES[count % FRESH_TITLES.length]!, 'Todo', 'ToDo', [], milestone, { estimate: minutes(20) })
-}
-
-function setPaused(state: EvenKeelState, project: string, paused: boolean): EvenKeelState {
-  const active = chainIn(state, project)
-  if (active === undefined) return state
-  return withChain(state, active, { ...active, paused, error: paused ? active.error : null })
-}
-
-function stopChain(state: EvenKeelState, project: string, launches: LaunchEntry[]): EvenKeelState {
-  const active = chainIn(state, project)
-  if (active === undefined) return state
-  const [next, ...rest] = state.chain.queue
-  const stopped = withChain(state, active, null)
-  return next === undefined ? stopped : startChain({ ...stopped, chain: { ...stopped.chain, queue: rest } }, next, launches)
-}
-
-function startChain(state: EvenKeelState, project: string, launches: LaunchEntry[]): EvenKeelState {
-  if (!state.projects.includes(project)) throw fail('chain.unknownProject', { project })
-  const { active, queue } = state.chain
-  if (chainIn(state, project) !== undefined || queue.includes(project)) return state
-  if (active.length >= state.chain.parallel) return { ...state, chain: { ...state.chain, queue: [...queue, project] } }
-  const first = state.chain.projects[project]?.order[0]
-  if (first === undefined) return state
-  const since = ago(0)
-  const { sessionId } = session(first, 0)
-  launches.push({ at: since, project, task: first, sessionId })
-  return {
-    ...state,
-    chain: { ...state.chain, active: [...active, { project, current: { task: first, sessionId, since }, paused: false, error: null }] },
-    sessions: [...state.sessions.filter((view) => view.task !== first), session(first, 12_000)],
-    launches: launchDays(launches, new Date(), LAUNCH_DAYS),
-    taskSessions: { ...state.taskSessions, [first]: [{ sessionId, at: since, how: 'launch', resumed: 0, answers: 0 }, ...(state.taskSessions[first] ?? [])] },
-  }
-}
-
-function requeue(state: EvenKeelState, order: string[]): EvenKeelState {
-  const queue = state.chain.queue
-  if (order.length !== queue.length || !order.every((key) => queue.includes(key))) {
-    throw fail('chain.queueChanged', { queue })
-  }
-  return { ...state, chain: { ...state.chain, queue: [...order] } }
-}
-
-function reorder(state: EvenKeelState, project: string, order: string[]): EvenKeelState {
-  const tasks = state.tasks.filter((task) => task.id.startsWith(`${project}-`) && order.includes(task.id))
-  checkOrder(tasks, order)
-  const current = chainIn(state, project)?.current?.task
-  if (current !== undefined && !isFixName(current) && order[0] !== current) throw fail('chain.currentFirst', { task: current })
-  const kept = state.chain.projects[project] ?? { waiting: [], backlog: [] }
-  return { ...state, chain: { ...state.chain, projects: { ...state.chain.projects, [project]: { ...kept, order: [...order], error: null } } } }
-}
-
-function skip(state: EvenKeelState, project: string, task: string): EvenKeelState {
-  const active = chainIn(state, project)
-  const holder = active?.current?.task === task ? active : undefined
-  const view = state.sessions.find((each) => each.task === task && each.lamp !== 'finished')
-  if (holder !== undefined && (view?.lamp === 'working' || view?.waitingFor != null)) {
-    throw fail('chain.midTurn', { task })
-  }
-  const skipped = state.chain.skipped[project] ?? []
-  const released = holder === undefined ? state : withChain(state, holder, { ...holder, current: null })
-  if (isFixName(task)) return released
-  return {
-    ...state,
-    chain: {
-      ...released.chain,
-      skipped: { ...state.chain.skipped, [project]: skipped.includes(task) ? skipped : [...skipped, task] },
-    },
-  }
-}
-
-function restart(state: EvenKeelState, project: string, task: string): EvenKeelState {
-  const active = chainIn(state, project)
-  const current = active?.current?.task === task ? active.current : null
-  if (active === undefined || current === null) throw fail('chain.notCurrent', { task })
-  const view = state.sessions.find((each) => each.task === task)
-  if (view === undefined) throw fail('chain.noSession', { task })
-  if (view.lamp === 'working' || view.waitingFor !== null) throw fail('chain.midTurn', { task })
-  const sessionId = crypto.randomUUID()
-  const fresh: SessionView = { ...view, sessionId, lamp: 'working', startupDialog: null, apiError: null, startedAt: ago(0), remoteUrl: 'https://claude.ai/code/session_example', remoteOff: null }
-  const rows = (state.taskSessions[task] ?? []).map((row) => (row.sessionId === view.sessionId ? { ...row, replaced: { at: ago(0), how: 'restart' as const } } : row))
-  return {
-    ...state,
-    chain: withChain(state, active, { ...active, current: { task, sessionId, since: current.since } }).chain,
-    sessions: state.sessions.map((each) => (each === view ? fresh : each)),
-    taskSessions: { ...state.taskSessions, [task]: [{ sessionId, at: ago(0), how: 'restart', resumed: 0, answers: 0 }, ...rows] },
-  }
-}
-
-function unskip(state: EvenKeelState, project: string, task: string): EvenKeelState {
-  const { [project]: skipped = [], ...rest } = state.chain.skipped
-  const kept = skipped.filter((id) => id !== task)
-  return { ...state, chain: { ...state.chain, skipped: kept.length === 0 ? rest : { ...rest, [project]: kept } } }
-}
-
-function dismiss(state: EvenKeelState, project: string, task: string): EvenKeelState {
-  const { [project]: leftovers = [], ...rest } = state.chain.leftovers
-  const kept = leftovers.filter((each) => each.task !== task)
-  return { ...state, chain: { ...state.chain, leftovers: kept.length === 0 ? rest : { ...rest, [project]: kept } } }
-}
-
-function dequeue(state: EvenKeelState, project: string): EvenKeelState {
-  return { ...state, chain: { ...state.chain, queue: state.chain.queue.filter((key) => key !== project) } }
-}
-
-function fakeRefresh(state: EvenKeelState, project: string): EvenKeelState {
-  const trackers = state.trackers.map((tracker) => (tracker.projects.includes(project) ? { ...tracker, readAt: { ...tracker.readAt, [project]: ago(0) } } : tracker))
-  return { ...state, trackers }
-}
-
-function fakeCommand(state: EvenKeelState, name: string, body: Record<string, unknown>, launches: LaunchEntry[]): EvenKeelState {
-  if (name === 'chain/start') return startChain(state, String(body.project), launches)
-  if (name === 'chain/resume') return setPaused(state, String(body.project), false)
-  if (name === 'chain/stop') return stopChain(state, String(body.project), launches)
-  if (name === 'chain/queue') return requeue(state, body.order as string[])
-  if (name === 'chain/dequeue') return dequeue(state, String(body.project))
-  if (name === 'chain/order') return reorder(state, String(body.project), body.order as string[])
-  if (name === 'chain/skip') return skip(state, String(body.project), String(body.task))
-  if (name === 'chain/unskip') return unskip(state, String(body.project), String(body.task))
-  if (name === 'chain/dismiss') return dismiss(state, String(body.project), String(body.task))
-  if (name === 'chain/restart') return restart(state, String(body.project), String(body.task))
-  if (name === 'chain/unattended') return { ...state, unattended: body.on === true }
-  if (name === 'chain/trim') return { ...state, trimTools: body.on === true }
-  if (name === 'session/answer') return fakeAnswer(state, body)
-  if (name === 'task/ready') return fakeReady(state, String(body.task))
-  if (name === 'task/milestone') return fakeMoveMilestone(state, String(body.task), body.milestone === null ? null : String(body.milestone))
-  if (name === 'chain/refresh') return fakeRefresh(state, String(body.project))
-  const settings =
-    fakeSettingsCommand(state, name, body) ?? fakeProjectCommand(state, name, body) ?? fakeUpdatesCommand(state, name) ?? fakePackagesCommand(state, name, body)
-  if (settings !== null) return settings
-  if (name.startsWith('account/')) return { ...state, account: accountCommand(state.account, name, body) }
-  throw new Error(`fake: ${name} is not supported`)
 }
 
 function isLink(value: string | null): value is Link {
