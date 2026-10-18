@@ -85,10 +85,9 @@ npm run build
 
 ```sh
 cp .env.example .env
-cp even-keel.config.example.json even-keel.config.json
 ```
 
-`.env` holds the tracker credentials ([below](#environment)); `even-keel.config.json` lists your projects ([reference](#configuration)). Both are ignored by git.
+`.env` holds the tracker credentials ([below](#environment)) and is ignored by git. The projects and the settings live in `even-keel.config.json` ([reference](#configuration)), which you do not have to create: without it the service starts with an empty one and the page opens the wizard that adds a project. The wizard checks the repository and its main branch (it suggests the checkout's current branch), the project in the tracker (it shows how many open tasks it sees), Claude Code's trust in the folder and where tasks run — a worktree per task or a pool of slots. A project is removed at the bottom of its **Settings** → **Repository**; the page refuses while its chain runs or waits in the queue, a session works for it or in its folders, or a task still holds a place, and says which. Removal does not touch the repository, its worktrees or branches.
 
 Each project needs:
 
@@ -236,7 +235,7 @@ The statistics database is versioned too: the collector brings its schema up to 
 
 ## Configuration
 
-`even-keel.config.json`, starting from [even-keel.config.example.json](even-keel.config.example.json). Everything in it except adding a project can be edited on the page: a project's keys on its page (**Settings**), the shared ones on `/settings`, behind the gear in the header. Once the chain has started a task of a project, the page no longer switches that project's tracker or tracker project; moving a live project to another tracker is planned for v0.2. The page writes only the keys you changed and keeps the rest of the file as it is; editing the file by hand works too, even with a form open: a save does not overwrite a hand edit of a field you did not touch, and a field changed in both places is marked. The service rereads it on the fly and applies every key at once, a project added or removed included. A broken file keeps the last good one running and shows the error on the page, next to the field when it has one.
+`even-keel.config.json`; the service writes an empty one when there is none, and [even-keel.config.example.json](even-keel.config.example.json) shows the keys at work. Everything in it can be edited on the page: projects are added by the wizard (**+ Add project** on the home page) and removed in their settings, a project's keys on its page (**Settings**), the shared ones on `/settings`, behind the gear in the header. Once the chain has started a task of a project, the page no longer switches that project's tracker or tracker project; moving a live project to another tracker is planned for v0.2. The page writes only the keys you changed and keeps the rest of the file as it is; editing the file by hand works too, even with a form open: a save does not overwrite a hand edit of a field you did not touch, and a field changed in both places is marked. The service rereads it on the fly and applies every key at once, a project added or removed included. A broken file keeps the last good one running and shows the error on the page, next to the field when it has one.
 
 | Key | Default | |
 | --- | --- | --- |
@@ -296,7 +295,6 @@ Statuses are matched by name, case-insensitively. Without `active` and `terminal
 Planned for the next release, v0.2:
 
 - **Codex in full.** Chain sessions that keep the Codex sandbox under the Windows service once Codex fixes it there.
-- **Setup without a config file.** A wizard on the page adds a project and checks it on the way: the repository and its main branch, the project in the tracker, Claude Code's trust in the folder. Even Keel keeps the settings itself, so there is no file to copy or edit.
 - **One executable.** A single downloaded file that runs Even Keel, installs the service and updates it, instead of a clone, Node.js and a build. Windows first, Linux if it works out; macOS keeps `service/install.sh`.
 
 Looked at, not promised: running in Docker, a cap on how much of the usage limit one task may spend, several connections to one tracker (two Huly workspaces, for example).
