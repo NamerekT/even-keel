@@ -20,45 +20,45 @@ Some settings are maps whose entries override one by one: `models`, `accounts` a
 
 ## Inventory
 
-As of 2026-10-18 (schema version 9). "Levels": G — Even Keel, P — project, T — task label. "Apply": live — at once,
-restart — after a restart of the service (`apply` of the definition in `src/settings/registry.ts`). "Written by": page, hand (the file), service.
+As of 2026-10-18 (schema version 9). "Levels": G — Even Keel, P — project, T — task label. "Written by": page, hand (the
+file), service. Every key applies at once, without a restart of the service (BTN-130).
 
 ### `even-keel.config.json`
 
-| Key | Levels | Merge | Apply | Written by | Default |
-| --- | --- | --- | --- | --- | --- |
-| `parallel` | G | — | live | page, hand | 1 |
-| `tracker` | G, P | P over G | restart | page, hand | `huly` |
-| `brief` | G, P | P over G | live | page, hand | true |
-| `chain.active`, `chain.terminal` | G, P | each key P over G; `null` — back to the status categories | live | page, hand | `null` |
-| `chain.requiredLabels` | G, P | each key P over G, the list replaced whole | live | page, hand | `[]` |
-| `chain.excludedLabels` | G, P | each key P over G, the list replaced whole | live | page, hand | `['Manual', 'Вручную']` |
-| `provider` | G, P | P over G | live | page, hand, service (the "Even Keel" role, `saveActive`) | `claude` |
-| `models.<provider>` | G, P | by provider, P over G | live | page, hand | `{ claude: 'opus' }` |
-| `accounts.<provider>` | G, P | by provider, P over G | live | page, hand, service (`saveActive`) | `{ claude: 'global', codex: 'codex' }` |
-| `execution.<provider>` | G | — | live | page, hand | the first mode of each provider |
-| `modelLabels` | G, P | P over G | live | page, hand | false |
-| `modelPrompts.<model>` | G | — | live | page, hand | `{}` |
-| `language` | G | — | live | page, hand | `null` (the browser's) |
-| `promptLanguage` | G | — | live | page, hand | `language`, else `en` |
-| `hiddenSkills` | G | — | live | page, hand | `DEFAULT_HIDDEN_SKILLS` |
-| `cacheTtl` | G | — | live | page, hand | `null` (the CLI's) |
-| `allowedHosts` | G | — | live | page, hand | `[]` |
-| `context.window`, `.warn`, `.danger` | G | — | restart | page, hand | 600000, 50, 80 |
-| `stats.compare.*`, `stats.moves`, `stats.otherBelow` | G | — | live | page, hand | `DEFAULT_COMPARE`, `{}`, 0 |
-| `stats.checkpointTokens` | G | — (pins the threshold, calibration off) | live | page, hand | `null` (calibrated per project) |
-| `updates.check`, `updates.notify` | G | — | live | page, hand, service (`muteUpdates`) | true, true |
-| `updates.dismissed` | G | — | live | service (`dismissUpdate`) | `null` |
-| `slot` | P | — | restart | page, hand | none (a worktree per task) |
-| `branch` | P | — | live | page, hand | `main` |
-| `prompt` | P | — | live | page, hand | `null` |
-| `commands.beforeStart`, `.check`, `.afterGreen` | P | each key on its own | live | page, hand | `[]` |
-| `ci.guard`, `.kinds`, `.waitMinutes`, `.recheckMain`, `.fixTask` | P | each key on its own over `DEFAULT_CI` | live | page, hand | `DEFAULT_CI` |
-| `fillMilestone` | P | — | live | page, hand | false |
+| Key | Levels | Merge | Written by | Default |
+| --- | --- | --- | --- | --- |
+| `parallel` | G | — | page, hand | 1 |
+| `tracker` | G, P | P over G | page, hand | `huly` |
+| `brief` | G, P | P over G | page, hand | true |
+| `chain.active`, `chain.terminal` | G, P | each key P over G; `null` — back to the status categories | page, hand | `null` |
+| `chain.requiredLabels` | G, P | each key P over G, the list replaced whole | page, hand | `[]` |
+| `chain.excludedLabels` | G, P | each key P over G, the list replaced whole | page, hand | `['Manual', 'Вручную']` |
+| `provider` | G, P | P over G | page, hand, service (the "Even Keel" role, `saveActive`) | `claude` |
+| `models.<provider>` | G, P | by provider, P over G | page, hand | `{ claude: 'opus' }` |
+| `accounts.<provider>` | G, P | by provider, P over G | page, hand, service (`saveActive`) | `{ claude: 'global', codex: 'codex' }` |
+| `execution.<provider>` | G | — | page, hand | the first mode of each provider |
+| `modelLabels` | G, P | P over G | page, hand | false |
+| `modelPrompts.<model>` | G | — | page, hand | `{}` |
+| `language` | G | — | page, hand | `null` (the browser's) |
+| `promptLanguage` | G | — | page, hand | `language`, else `en` |
+| `hiddenSkills` | G | — | page, hand | `DEFAULT_HIDDEN_SKILLS` |
+| `cacheTtl` | G | — | page, hand | `null` (the CLI's) |
+| `allowedHosts` | G | — | page, hand | `[]` |
+| `context.window`, `.warn`, `.danger` | G | — | page, hand | 600000, 50, 80 |
+| `stats.compare.*`, `stats.moves`, `stats.otherBelow` | G | — | page, hand | `DEFAULT_COMPARE`, `{}`, 0 |
+| `stats.checkpointTokens` | G | — (pins the threshold, calibration off) | page, hand | `null` (calibrated per project) |
+| `updates.check`, `updates.notify` | G | — | page, hand, service (`muteUpdates`) | true, true |
+| `updates.dismissed` | G | — | service (`dismissUpdate`) | `null` |
+| `slot` | P | — | page, hand | none (a worktree per task) |
+| `branch` | P | — | page, hand | `main` |
+| `prompt` | P | — | page, hand | `null` |
+| `commands.beforeStart`, `.check`, `.afterGreen` | P | each key on its own | page, hand | `[]` |
+| `ci.guard`, `.kinds`, `.waitMinutes`, `.recheckMain`, `.fixTask` | P | each key on its own over `DEFAULT_CI` | page, hand | `DEFAULT_CI` |
+| `fillMilestone` | P | — | page, hand | false |
 
 Project record fields, not settings: `id` (written by the service for an entry without one, `withIds`), `key`, `name`,
-`repo` (restart), the tracker's project (`github`, `linear` by `TrackerAdapter.projectKey`, restart). `version` is the
-schema version of the file.
+`repo`, the tracker's project (`github`, `linear` by `TrackerAdapter.projectKey`). `version` is the schema version of
+the file.
 
 ### Outside the config
 
@@ -102,8 +102,7 @@ What sits at a level it should not, or misses one it should have. BTN-187 takes 
   and it steers sessions, though it lives under `stats`. Add the project level; move the key under `sessions.` at the
   import into the database, where the keys are translated anyway.
 - `cacheTtl` lacks the project level, `fillMilestone` the shared one.
-- `context` is read once from the start-up config (`context: config.context` in `src/service.ts`), which alone makes it
-  a restart key. Its `window` is a property of the model, not of Even Keel: by model, with a fallback row.
+- `context.window` is a property of the model, not of Even Keel: by model, with a fallback row.
 - `chain.excludedLabels` carries `Manual`/`Вручную` only as its default, and a list is replaced whole: a project, or a
   hand-written shared list, with its own excluded labels silently runs the manual tasks. Make the manual labels
   built-in like `QUESTION_LABELS` and the default list empty.
@@ -136,8 +135,7 @@ CREATE TABLE setting_definitions (
   default_value TEXT,               -- JSON; NULL when the code computes it (promptLanguage from language)
   scopes        TEXT NOT NULL,      -- 'global' | 'project' | 'global,project'
   qualifier     TEXT,               -- NULL | 'provider' | 'model' | 'package'
-  task_label    TEXT,               -- NULL | 'run' | 'effort': the label parser that feeds the task level
-  apply         TEXT NOT NULL       -- 'live' | 'restart'
+  task_label    TEXT                -- NULL | 'run' | 'effort': the label parser that feeds the task level
 );
 
 CREATE TABLE setting_values (
@@ -175,8 +173,8 @@ a primary key over a nullable column.
 One place reads and one place writes, so that BTN-147 swaps the source and not the callers. Since BTN-186 this is the
 code in `src/settings/`, with the file as the only source:
 
-- `registry.ts` — `DEFINITIONS` (key, kind, scopes, qualifier, task label, `apply`, the `EvenKeelConfig` fields it lands
-  in, default, check), `OBJECTS` (the nested objects and their unknown keys), `LABEL_PARSERS`, `RESTART_FIELDS`;
+- `registry.ts` — `DEFINITIONS` (key, kind, scopes, qualifier, task label, the `EvenKeelConfig` fields it lands in,
+  default, check), `OBJECTS` (the nested objects and their unknown keys), `LABEL_PARSERS`;
   `defaults.ts` — the built-in values.
 - `file.ts` — `fileRows` (the file → project records and unchecked rows, the shape checked), `withRows` (changes → the
   file's JSON paths, an unset dropping the objects it empties).
@@ -208,8 +206,7 @@ database ─────────────── dbRows ────┘   
   qualifier for qualified keys. Cross-setting checks run after it, where `parseConfig` runs them now (`checkRules` on
   the merged rules, `promptLanguage` falling back to `language`). Its output is today's `EvenKeelConfig`, so `runSettings`,
   the dispatcher and the page do not change.
-- `apply` of the definitions replaces `RESTART_KEYS` (now `RESTART_FIELDS`); `liveConfig` keeps the start-up values of
-  the `restart` keys.
+- A definition has no `apply`: since BTN-130 every key applies at once, so there is no restart key to mark.
 - The unit of change of a form is its group: a field of the form (`ci`, `context`, `stats`, `updates` are written whole),
   one rule of `chain`, one provider of the shared `models`, `accounts`, `execution`.
 - A save of the page becomes a diff of rows (`set`, `unset`) between the form and its base; the file writer turns the

@@ -4,6 +4,14 @@ Reference for sessions: installing and running the service on different systems.
 
 The Tally stats collector runs inside the service (every 5 minutes, in its own thread), so no separate scheduler or cron task is needed.
 
+## What applies on the fly
+
+A restart is needed only for a new version of Even Keel (BTN-130). The service watches `even-keel.config.json` (`ConfigFile`) and `.env` (`EnvFile`, `src/env-file.ts`, every 2 s) and applies a change at once:
+
+- **The config.** Every key (`docs/settings.md`). A project added gets its tracker, CI watches and packages; a removed one has its chain let go (`Dispatcher.forget`) while its sessions are left as they are; a key renamed under the same `id` carries its chain state, launches and packages (`rekeyed`, `Dispatcher.rekey`). A changed `repo` or tracker rebuilds that project's tracker link (`Trackers.apply`) and CI watches (`CiWatches.apply`). A smaller `slot` keeps finding the slots busy tasks are in: the pool spans the most slots it had since the start (`slotSpan`).
+- **`.env`.** A variable the process got from outside the file stays as it was, as at the start. `envTargets` says who reads a changed one: a tracker's variables rebuild that tracker's links; `GITHUB_TOKEN`/`FORGEJO_TOKEN` give every CI watch a new source; `EVEN_KEEL_ACCOUNTS_DIR`/`EVEN_KEEL_CODEX_ACCOUNTS_DIR` move the account roots; `EVEN_KEEL_TOKEN` changes the page guard and closes the open event streams, so pages ask for the token again; `EVEN_KEEL_HOST`/`EVEN_KEEL_PORT` move the page to a new server (the old one closes once the new one listens; a refusal keeps the old address and shows `server.rebindFailed` in the config banner); `TALLY_DB_*`/`TALLY_READER_*`/`TALLY_WRITER_*` restart the collector against the new database. The sessions' environment is built at each launch (`AgentOptions.env`), so a removed key never reaches a new session.
+- **Start-only.** `EVEN_KEEL_MCP_PORT` (live sessions have the gateway's address in their flags), `EVEN_KEEL_CONFIG` and `EVEN_KEEL_STATE_DIR` (the files and the database the service has open), `CLAUDE_CONFIG_DIR` and `CODEX_HOME` (the `global`/`codex` account folders). These are read once; change them with a restart. So is the list of CI remotes and workflows of a checkout whose `repo` stays the same (`docs/ci.md`).
+
 ## Windows
 
 - The service host is `service/EvenKeelService.cs`, compiled during installation by the stock `csc.exe` from .NET Framework; there are no third-party wrappers. It keeps `node --import tsx src/main.ts` running in the repository root, restarts it on a crash and writes the output to `logs/even-keel.log`. To debug without the service: `EvenKeelService.exe <root> <node.exe> --console`.

@@ -212,7 +212,7 @@ The statistics database is versioned too: the collector brings its schema up to 
 
 ## Environment
 
-`.env` in the repository root. A tracker whose variables are all empty is off; set in part, it is a startup error.
+`.env` in the repository root. Even Keel watches it and applies a change without a restart: a tracker connects again with its new credentials, a CI watch takes its new token, the page moves to a new address. Only the variables marked "read at startup" below need a restart. A tracker whose variables are all empty is off; set in part, it is off too, and the log says what is missing.
 
 | Variable | |
 | --- | --- |
@@ -223,20 +223,20 @@ The statistics database is versioned too: the collector brings its schema up to 
 | `EVEN_KEEL_ACCOUNTS_DIR` | folder of the extra Claude account folders; default `~/.claude-accounts` |
 | `EVEN_KEEL_CLAUDE_BIN` | path to the `claude` binary |
 | `EVEN_KEEL_CODEX_BIN` | path to the `codex` binary; default the native one of the global npm package on Windows, `codex` elsewhere |
-| `CODEX_HOME` | Codex's own folder, its first account; default `~/.codex` |
+| `CODEX_HOME` | Codex's own folder, its first account; default `~/.codex`. Read at startup |
 | `EVEN_KEEL_CODEX_ACCOUNTS_DIR` | folder of the Codex account folders added from the page; default `~/.codex-accounts` |
-| `EVEN_KEEL_CONFIG` | path to the config; default `even-keel.config.json` in the root |
-| `EVEN_KEEL_HOST`, `EVEN_KEEL_PORT` | where the page listens; default `127.0.0.1` and `4747`. Any other address than loopback needs `EVEN_KEEL_TOKEN` ([Reaching the page from another machine](#reaching-the-page-from-another-machine)). Read at startup; `host` and `port` left in an older config are not read, the log says so once |
+| `EVEN_KEEL_CONFIG` | path to the config; default `even-keel.config.json` in the root. Read at startup |
+| `EVEN_KEEL_HOST`, `EVEN_KEEL_PORT` | where the page listens; default `127.0.0.1` and `4747`. Any other address than loopback needs `EVEN_KEEL_TOKEN` ([Reaching the page from another machine](#reaching-the-page-from-another-machine)). Changed, the page moves to the new address; if it cannot listen there, it stays on the old one and says so on the page. `host` and `port` left in an older config are not read, the log says so once |
 | `EVEN_KEEL_MCP_PORT` | port of the local MCP gateway the chain sessions reach their packages' servers through; default `4748`, always on `127.0.0.1`. Read at startup |
 | other keys | whatever a package's MCP server reads (a `${…}` placeholder of its entry), entered on `/tools` under **Keys** or by hand |
-| `EVEN_KEEL_TOKEN` | the page's token for requests from other machines; required when `EVEN_KEEL_HOST` is not loopback, 16+ characters of `A-Z a-z 0-9 . _ ~ + / = -`, e.g. `node -e "console.log(crypto.randomBytes(24).toString('hex'))"`. Read at startup |
-| `EVEN_KEEL_STATE_DIR` | where state lives (the state database with the chain and the launch log, accounts, packages, statistics database); default `state/` |
+| `EVEN_KEEL_TOKEN` | the page's token for requests from other machines; required when `EVEN_KEEL_HOST` is not loopback, 16+ characters of `A-Z a-z 0-9 . _ ~ + / = -`, e.g. `node -e "console.log(crypto.randomBytes(24).toString('hex'))"`. Changed, open pages ask for the new one |
+| `EVEN_KEEL_STATE_DIR` | where state lives (the state database with the chain and the launch log, accounts, packages, statistics database); default `state/`. Read at startup |
 | `TALLY_DB_HOST`, `TALLY_DB_PORT`, `TALLY_DB_NAME`, `TALLY_WRITER_PASSWORD`, `TALLY_READER_PASSWORD` | your own Postgres for the statistics instead of the embedded one: the collector writes as `tally_writer`, the page reads as `tally_reader`. `tally/deploy/` has a Compose file that creates both roles |
 | `TALLY_LLM_URL`, `TALLY_LLM_KEY`, `TALLY_LLM_MODEL` | optional classifier of the stuck spans on `/stats`: an OpenAI-compatible endpoint, its key and a model it serves; without them the spans are found but not explained |
 
 ## Configuration
 
-`even-keel.config.json`, starting from [even-keel.config.example.json](even-keel.config.example.json). Everything in it except adding a project can be edited on the page: a project's keys on its page (**Settings**), the shared ones on `/settings`, behind the gear in the header. Once the chain has started a task of a project, the page no longer switches that project's tracker or tracker project; moving a live project to another tracker is planned for v0.2. The page writes only the keys you changed and keeps the rest of the file as it is; editing the file by hand works too, even with a form open: a save does not overwrite a hand edit of a field you did not touch, and a field changed in both places is marked. The service rereads it on the fly: `tracker`, `context`, `projects` and a project's `repo`, `slot`, `tracker`, `github` and `linear` apply after a restart (the page marks them), the rest at once. A broken file keeps the last good one running and shows the error on the page, next to the field when it has one.
+`even-keel.config.json`, starting from [even-keel.config.example.json](even-keel.config.example.json). Everything in it except adding a project can be edited on the page: a project's keys on its page (**Settings**), the shared ones on `/settings`, behind the gear in the header. Once the chain has started a task of a project, the page no longer switches that project's tracker or tracker project; moving a live project to another tracker is planned for v0.2. The page writes only the keys you changed and keeps the rest of the file as it is; editing the file by hand works too, even with a form open: a save does not overwrite a hand edit of a field you did not touch, and a field changed in both places is marked. The service rereads it on the fly and applies every key at once, a project added or removed included. A broken file keeps the last good one running and shows the error on the page, next to the field when it has one.
 
 | Key | Default | |
 | --- | --- | --- |
@@ -251,7 +251,7 @@ The statistics database is versioned too: the collector brings its schema up to 
 | `version` | — | version of the file's format; Even Keel writes it and [migrates](#updating) an older file itself. A file newer than the code is not read |
 | `projects` | — | an array of projects, each an object with the keys below |
 | `projects[].key` | — | the tracker's project key (a letter, then up to four letters, digits or `_`) |
-| `projects[].id` | given at startup | the project's own id, a GUID that never changes; the files of `state/` and the page's links name the project by it. Add a project without one: Even Keel writes it into the file at the next start |
+| `projects[].id` | given by Even Keel | the project's own id, a GUID that never changes; the files of `state/` and the page's links name the project by it. Add a project without one: Even Keel writes it into the file as soon as it reads the file |
 | `projects[].repo` | — | path to the main checkout |
 | `projects[].name` | none | display name shown next to the key; the page edits it in the project head |
 | `projects[].branch` | `main` | the project's main branch: tasks branch off it and merge into it, the CI and the check judge it. A branch missing from the repository pauses the chain |

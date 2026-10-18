@@ -38,7 +38,7 @@ Behaviour written without a way to check it live (the situation never came up or
 - The tracker is reached only through the `src/tracker/` layer: the chain, the order, the rules and the page know the neutral model and the adapter contract, not Huly. The repository has the Huly (`src/huly/`), GitHub (`src/github/`) and Linear (`src/linear/`) adapters.
 - Sessions are the `claude --bg` CLI, with a configuration folder per account (`CLAUDE_CONFIG_DIR`). The agent is reached only through the `src/agent/` layer (`Agent`, `AGENTS`); Claude Code is the adapter in `src/claude/` (`docs/sessions.md`).
 - Stats are Tally (`tally/`); the collector and the embedded database run inside the service.
-- The service rereads `even-keel.config.json` on the fly (the page edits it too); `projects`, a project's `repo`/`slot`/tracker, `tracker`, `context` only after a restart. The address is `EVEN_KEEL_HOST`/`EVEN_KEEL_PORT`, not the config.
+- The service applies `even-keel.config.json` (the page edits it too) and `.env` on the fly, every key (BTN-130): a restart is only for a new version and a few start-only variables (`docs/service.md`). A new setting must apply live too. The address is `EVEN_KEEL_HOST`/`EVEN_KEEL_PORT`, not the config.
 - A project's main branch is its `branch` key (`main` by default): never write a literal `main` into git calls or session prompts.
 
 ## Traps

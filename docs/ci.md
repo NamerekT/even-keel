@@ -53,7 +53,7 @@ The contract is two calls: `runs(limit)` — the latest runs, newest first; `job
 
 ## Which CI a project has
 
-Read once at startup from `git config --get-regexp ^remote\..*\.url$` and the workflow folders of the project's checkout; a new remote or a first workflow needs a restart.
+Read from `git config --get-regexp ^remote\..*\.url$` and the workflow folders of the project's checkout when the project appears in the config or its `repo` changes (`CiWatches.apply`, `src/ci/watches.ts`); a new remote or a first workflow in the same checkout is picked up only after a restart. A changed `GITHUB_TOKEN`/`FORGEJO_TOKEN` in `.env` gives every watch a new source at once (`CiWatches.tokensChanged`).
 
 - A `github.com` remote with `.github/workflows` — GitHub Actions.
 - Any other host — Forgejo, if the repository has `.forgejo/workflows`, or `.github/workflows` (Forgejo falls back to it when it has none of its own).
