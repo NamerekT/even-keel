@@ -112,7 +112,7 @@ export class ClaudeCli {
     const kept = existsSync(join(home.dir, 'jobs', agentId, 'state.json'))
     const args = resumeArgs(sessionId, prompt, kept, task, model, extras)
     await this.start(home, args, cwd, notice('claude.resumeFailed', { task, cwd }))
-    return this.appear(home, resumedAs(sessionId, task, cwd, resumedAt), notice('claude.resumedNotShown', { task }))
+    return this.appear(home, resumedAs(agentId, sessionId, task, cwd, resumedAt), notice('claude.resumedNotShown', { task }))
   }
 
   async stop(home: AccountHome, agentId: string, sessionId: string): Promise<void> {
@@ -197,10 +197,14 @@ function launchedAs(task: string, cwd: string, since: number): (agent: AgentEntr
   return (agent) => agent.name === task && samePath(agent.cwd, cwd) && agent.startedAt >= since - CLOCK_SKEW_MS
 }
 
-/** A `--bg --resume` session may come up under a new session id (CLI 2.1.296), so it is also recognised the way a launch is. */
-export function resumedAs(sessionId: string, task: string, cwd: string, since: number): (agent: AgentEntry) => boolean {
+/**
+ * A `--bg --resume` session may come up as a copy under a new session id and job (CLI 2.1.296), so a new job is also
+ * recognised the way a launch is. The resumed job itself is taken only under its own session id: its respawned
+ * process first shows a fresh id for under a second, until it loads the session (CLI 2.1.302).
+ */
+export function resumedAs(agentId: string, sessionId: string, task: string, cwd: string, since: number): (agent: AgentEntry) => boolean {
   const launched = launchedAs(task, cwd, since)
-  return (agent) => !isOver(agent) && (agent.sessionId === sessionId || launched(agent))
+  return (agent) => !isOver(agent) && (agent.sessionId === sessionId || (agent.id !== agentId && launched(agent)))
 }
 
 function isOver(agent: AgentEntry): boolean {

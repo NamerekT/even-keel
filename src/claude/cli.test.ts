@@ -41,6 +41,7 @@ describe('resumeArgs', () => {
 describe('resumedAs', () => {
   const since = Date.parse('2026-10-10T08:40:29Z')
   const agent = (fields: Partial<AgentEntry>): AgentEntry => ({
+    id: 'job-old',
     cwd: '/repo/.claude/worktrees/ABC-1',
     kind: 'bg',
     startedAt: since + 1_000,
@@ -49,14 +50,18 @@ describe('resumedAs', () => {
     state: 'running',
     ...fields,
   })
-  const match = resumedAs('old', 'ABC-1', '/repo/.claude/worktrees/ABC-1', since)
+  const match = resumedAs('job-old', 'old', 'ABC-1', '/repo/.claude/worktrees/ABC-1', since)
 
   it('finds the resumed session under its own id', () => {
     expect(match(agent({}))).toBe(true)
   })
 
-  it('finds the resumed session under the new id the CLI gave it', () => {
-    expect(match(agent({ sessionId: 'new' }))).toBe(true)
+  it('finds the copy the CLI started under a new id', () => {
+    expect(match(agent({ id: 'job-new', sessionId: 'new' }))).toBe(true)
+  })
+
+  it('does not take the fresh id the respawned process of the same job shows before it loads the session', () => {
+    expect(match(agent({ sessionId: 'fresh' }))).toBe(false)
   })
 
   it('does not take the stopped session that was resumed', () => {
