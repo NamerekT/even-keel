@@ -1,0 +1,155 @@
+{
+  "allowedHosts": [],
+  "projects": {
+    "ABC": "C:\\repos\\example-project",
+    "XYZ": "C:\\repos\\other-project"
+  },
+  "ids": {
+    "ABC": "11111111-1111-4111-8111-111111111111",
+    "XYZ": "22222222-2222-4222-8222-222222222222"
+  },
+  "names": {
+    "XYZ": "Other project"
+  },
+  "chain": {
+    "active": null,
+    "terminal": null,
+    "requiredLabels": [],
+    "excludedLabels": [
+      "Manual",
+      "Вручную"
+    ]
+  },
+  "rules": {
+    "ABC": {
+      "active": null,
+      "terminal": null,
+      "requiredLabels": [],
+      "excludedLabels": [
+        "Manual",
+        "Вручную"
+      ]
+    },
+    "XYZ": {
+      "active": null,
+      "terminal": null,
+      "requiredLabels": [],
+      "excludedLabels": [
+        "Manual",
+        "Вручную"
+      ]
+    }
+  },
+  "slots": {
+    "XYZ": 2
+  },
+  "tracker": "huly",
+  "trackers": {
+    "ABC": "huly",
+    "XYZ": "huly"
+  },
+  "trackerProjects": {},
+  "brief": true,
+  "briefs": {
+    "ABC": true,
+    "XYZ": true
+  },
+  "settings": {
+    "ABC": {
+      "branch": "main",
+      "prompt": null,
+      "beforeStart": [],
+      "check": [],
+      "afterGreen": [],
+      "ci": {
+        "guard": true,
+        "kinds": [
+          "forgejo",
+          "github"
+        ],
+        "waitMinutes": null,
+        "recheckMain": true,
+        "fixTask": false
+      },
+      "fillMilestone": false,
+      "provider": null,
+      "models": {},
+      "accounts": {},
+      "modelLabels": null
+    },
+    "XYZ": {
+      "branch": "master",
+      "prompt": null,
+      "beforeStart": [],
+      "check": [],
+      "afterGreen": [],
+      "ci": {
+        "guard": true,
+        "kinds": [
+          "forgejo",
+          "github"
+        ],
+        "waitMinutes": null,
+        "recheckMain": true,
+        "fixTask": false
+      },
+      "fillMilestone": false,
+      "provider": null,
+      "models": {},
+      "accounts": {},
+      "modelLabels": null
+    }
+  },
+  "context": {
+    "window": 600000,
+    "warn": 50,
+    "danger": 80
+  },
+  "provider": "claude",
+  "models": {
+    "claude": "opus"
+  },
+  "accounts": {
+    "claude": "global",
+    "codex": "codex"
+  },
+  "execution": {
+    "codex": "sandbox"
+  },
+  "modelLabels": false,
+  "modelPrompts": {},
+  "stats": {
+    "compare": {
+      "minTasks": 5,
+      "minSessions": 10,
+      "days": 7
+    },
+    "moves": {},
+    "otherBelow": 0,
+    "checkpointTokens": null
+  },
+  "language": "en",
+  "promptLanguage": "en",
+  "hiddenSkills": [
+    "update-config",
+    "keybindings-help",
+    "fewer-permission-prompts",
+    "loop",
+    "schedule",
+    "init",
+    "claude-api",
+    "claude-in-chrome",
+    "plugin-authoring",
+    "artifact-design",
+    "artifact-diagramming",
+    "artifact-capabilities",
+    "dataviz"
+  ],
+  "cacheTtl": null,
+  "parallel": 1,
+  "updates": {
+    "check": true,
+    "notify": true,
+    "dismissed": null
+  }
+}
