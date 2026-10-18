@@ -72,7 +72,7 @@ function QueuePanel({ state }: { state: EvenKeelState }) {
         <h2 className="queue__heading">{t.queue.now}</h2>
         {active.length === 0 && <p className="queue__empty">{t.queue.idle}</p>}
         {active.map(({ project }) => (
-          <div key={project} className="queue__row queue__row--active" style={seriesStyle(projectSlot(state.projects, project))}>
+          <div key={project} className="queue__row queue__row--active" style={seriesStyle(projectSlot(state, project))}>
             <span className="card__swatch" aria-hidden="true" />
             <ProjectLink state={state} project={project} />
             <StatusChip status={chainStatus(state.chain, project)} />
@@ -184,7 +184,7 @@ function QueueList({ state, queue, disabled, onMove, onRemove }: ListProps) {
             key={project}
             className={dragged ? 'queue__row queue__row--dragged' : 'queue__row'}
             style={{
-              ...seriesStyle(projectSlot(state.projects, project)),
+              ...seriesStyle(projectSlot(state, project)),
               transform: offset === 0 ? undefined : `translateY(${offset}px)`,
             }}
           >

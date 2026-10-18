@@ -87,6 +87,15 @@ describe('withProjectForm', () => {
     })
   })
 
+  it('shows the color a project ends up with and writes a changed one as its own', () => {
+    const raw = { projects: [abc(), xyz({ color: 1 })] }
+    expect(formOf(raw, 'ABC').color).toBe(2)
+    expect(formOf({ projects: Array.from({ length: 9 }, (_, index) => abc({ id: `id-${index}`, key: `P${index}` })) }, 'P8').color).toBeNull()
+    const next = withProjectForm(raw, 'id-abc', { ...formOf(raw, 'ABC'), color: 5 }, formOf(raw, 'ABC'))
+    expect(next.projects).toEqual([abc({ color: 5 }), xyz({ color: 1 })])
+    expect(withProjectForm(raw, 'id-abc', { ...formOf(raw, 'ABC'), prompt: 'Hi.' }, formOf(raw, 'ABC')).projects).toEqual([abc({ prompt: 'Hi.' }), xyz({ color: 1 })])
+  })
+
   it('writes a field changed both in the form and in the file over the file', () => {
     const base = formOf({ projects: [abc()] }, 'ABC')
     const form: ProjectForm = { ...base, prompt: 'Mine.', slot: 4 }
@@ -182,20 +191,27 @@ describe('withNewProject', () => {
   it('appends an entry with only what differs from what the project would inherit', () => {
     const raw = { projects: [abc()], custom: 1 }
     const next = withNewProject(raw, draft, 'id-new')
-    expect(next).toEqual({ projects: [abc(), { id: 'id-new', key: 'NEW', repo: 'D:\\new' }], custom: 1 })
+    expect(next).toEqual({ projects: [abc(), { id: 'id-new', key: 'NEW', repo: 'D:\\new', color: 2 }], custom: 1 })
     expect(parseConfig(next).projects).toEqual({ ABC: 'C:\\abc', NEW: 'D:\\new' })
+  })
+
+  it('gives the new project the first color no project has', () => {
+    const next = withNewProject({ projects: [abc({ color: 1 }), xyz({ color: 3 })] }, draft, 'id-new')
+    expect((next.projects as Record<string, unknown>[])[2]).toMatchObject({ key: 'NEW', color: 2 })
+    const full = { projects: Array.from({ length: 8 }, (_, index) => abc({ id: `id-${index}`, key: `P${index}`, color: index + 1 })) }
+    expect((withNewProject(full, draft, 'id-new').projects as Record<string, unknown>[])[8]).not.toHaveProperty('color')
   })
 
   it('writes the name, the branch, the tracker, its project and the slots when they are the project own', () => {
     const next = withNewProject({ projects: [] }, { ...draft, name: ' New ', branch: 'master', tracker: 'github', trackerProject: ' octo-org/new ', slot: 2 }, 'id-new')
-    expect(next.projects).toEqual([{ id: 'id-new', key: 'NEW', repo: 'D:\\new', name: 'New', branch: 'master', tracker: 'github', github: 'octo-org/new', slot: 2 }])
+    expect(next.projects).toEqual([{ id: 'id-new', key: 'NEW', repo: 'D:\\new', name: 'New', branch: 'master', tracker: 'github', github: 'octo-org/new', slot: 2, color: 1 }])
     expect(withNewProject({ tracker: 'github', projects: [] }, { ...draft, tracker: 'github', trackerProject: 'octo-org/new' }, 'id-new').projects).toEqual([
-      { id: 'id-new', key: 'NEW', repo: 'D:\\new', github: 'octo-org/new' },
+      { id: 'id-new', key: 'NEW', repo: 'D:\\new', github: 'octo-org/new', color: 1 },
     ])
   })
 
   it('starts the list of projects in a config that has none', () => {
-    expect(withNewProject({}, draft, 'id-new')).toEqual({ projects: [{ id: 'id-new', key: 'NEW', repo: 'D:\\new' }] })
+    expect(withNewProject({}, draft, 'id-new')).toEqual({ projects: [{ id: 'id-new', key: 'NEW', repo: 'D:\\new', color: 1 }] })
   })
 })
 

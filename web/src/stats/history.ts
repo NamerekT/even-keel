@@ -1,6 +1,6 @@
 import type { StatsHistory } from '../../../src/stats/model.js'
 import { t } from '../i18n/index.js'
-import { PROJECT_SLOTS, projectSlot } from '../state.js'
+import { PROJECT_SLOTS } from '../state.js'
 import { bucketOf, buckets as listBuckets, type DayRange, type Step } from './period.js'
 
 export type Metric = 'cost' | 'limit' | 'sessions'
@@ -54,14 +54,10 @@ export function projectTotals(history: StatsHistory, range: DayRange): ProjectTo
     .sort((a, b) => b.cost - a.cost || a.project.localeCompare(b.project))
 }
 
-export function projectColors(history: StatsHistory): Map<string, number | null> {
-  const colors = new Map<string, number | null>()
-  const taken = new Set<number>()
-  for (const key of history.tracked) {
-    const slot = projectSlot(history.tracked, key)
-    colors.set(key, slot)
-    if (slot !== null) taken.add(slot)
-  }
+/** Even Keel's projects keep their own slots (`projectSlots`); the other folders of the stats take the free ones by rank. */
+export function projectColors(history: StatsHistory, own: Record<string, number | null>): Map<string, number | null> {
+  const colors = new Map(Object.entries(own))
+  const taken = new Set(Object.values(own).filter((slot) => slot !== null))
   const free = Array.from({ length: PROJECT_SLOTS }, (_, index) => index + 1).filter((slot) => !taken.has(slot))
   for (const project of history.projects) {
     if (!colors.has(project)) colors.set(project, free.shift() ?? null)
@@ -91,6 +87,7 @@ export function chartData(
   step: Step,
   metric: Metric,
   projects: string[] | null,
+  colors: Map<string, number | null>,
   limit = SERIES_LIMIT,
 ): ChartData {
   const within = inRange(history, range)
@@ -103,7 +100,6 @@ export function chartData(
   }
   const ranked = [...present].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])).map(([name]) => name)
   const own = ranked.slice(0, limit)
-  const colors = projectColors(history)
   const series: ChartSeries[] = own.map((key) => ({ key, label: key, slot: colors.get(key) ?? null }))
   if (ranked.length > own.length) series.push({ key: OTHER, label: t.stats.others, slot: null })
   const seriesIndex = new Map(own.map((key, index) => [key, index]))

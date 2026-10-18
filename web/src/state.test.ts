@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { notice, textNotice, type Notice } from '../../src/notice/notice.js'
 import { fakeTask } from '../../src/tracker/fixture.js'
 import { setLanguage } from './i18n/index.js'
-import { FAKE_SHARED } from './live/fakeConfig.js'
+import { FAKE_SHARED, fakeConfig } from './live/fakeConfig.js'
 import type { StatusCategory, Task } from '../../src/tracker/model.js'
 import type { AccountEntry, AccountLogin, AccountView } from '../../src/account/model.js'
 import type { EvenKeelState, SessionView } from '../../src/state.js'
@@ -28,6 +28,7 @@ import {
   fixBlockOf,
   issueLink,
   projectSlot,
+  projectSlots,
   projectTracker,
   projectOfPath,
   projectPath,
@@ -569,12 +570,13 @@ describe('cardTask', () => {
 })
 
 describe('projectSlot', () => {
-  it('numbers projects from one in config order and gives none past the eighth', () => {
-    const projects = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I']
-    expect(projectSlot(projects, 'A')).toBe(1)
-    expect(projectSlot(projects, 'H')).toBe(8)
-    expect(projectSlot(projects, 'I')).toBeNull()
-    expect(projectSlot(projects, 'Z')).toBeNull()
+  it('takes the color of the project settings, not its place', () => {
+    const state = stateOf({})
+    state.config.projects = { ABC: { ...fakeConfig().projects.ABC!, color: 5 }, XYZ: { ...fakeConfig().projects.XYZ!, color: null } }
+    expect(projectSlot(state, 'ABC')).toBe(5)
+    expect(projectSlot(state, 'XYZ')).toBeNull()
+    expect(projectSlot(state, 'ZZZ')).toBeNull()
+    expect(projectSlots(state)).toEqual({ ABC: 5, XYZ: null })
   })
 })
 

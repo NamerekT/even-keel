@@ -267,6 +267,7 @@ export const noticesRu: NoticeTexts = {
   'profiles.paused': (p) => `${p.project}: цепочка ждёт — трекер не принял учётные данные профиля ${p.profile}; обновите их в Настройки → Доступ`,
   'config.repoEmpty': (p) => `путь к репозиторию ${p.key} пуст`,
   'config.slot': (p) => `${p.key}.slot должен быть true, false или числом слотов`,
+  'config.color': (p) => `${p.key}.color должен быть целым числом от 1 до 8`,
   'config.language': (p) => `${p.where}: языка ${p.value} нет, есть: ${list(p.known)}`,
   'config.trackerName': (p) => `${p.where} должен быть именем адаптера трекера`,
   'config.brief': (p) => `${p.where} должен быть true или false`,

@@ -4,6 +4,7 @@ import { fixName, isFixName, liveFixId } from '../../src/chain/fix.js'
 import type { FixEpisode, TaskSession } from '../../src/chain/launches.js'
 import { chainOrder, nextTask, precedence, withWaiting } from '../../src/chain/order.js'
 import type { LimitHold } from '../../src/chain/relay.js'
+import { PROJECT_COLORS } from '../../src/projects/colors.js'
 import { isOpen, runLabelText, type StatusCategory, type Task, type TaskPriority } from '../../src/tracker/model.js'
 import type { Lamp } from '../../src/sessions/agents.js'
 import type { CacheTtl, CacheWindow, TokenTotals } from '../../src/sessions/transcript.js'
@@ -148,7 +149,7 @@ const BOOT_WAIT_MS = 5 * 60_000
 
 export type ContextLevel = 'ok' | 'warn' | 'danger'
 
-export const PROJECT_SLOTS = 8
+export const PROJECT_SLOTS = PROJECT_COLORS
 
 const byNumber = (a: string, b: string) => a.localeCompare(b, 'en', { numeric: true })
 
@@ -405,9 +406,14 @@ export function projectTracker(state: EvenKeelState, project: string): { kind: s
   return { kind: view.kind, label: trackerProject === null ? view.title : `${view.title} · ${trackerProject}` }
 }
 
-export function projectSlot(projects: string[], project: string): number | null {
-  const index = projects.indexOf(project)
-  return index < 0 || index >= PROJECT_SLOTS ? null : index + 1
+/** The palette slot of a project: its `color` setting (BTN-207); `null` — none, or not a project of the config. */
+export function projectSlot(state: Pick<EvenKeelState, 'config'>, project: string): number | null {
+  return state.config.projects[project]?.color ?? null
+}
+
+/** The slot of every project of the config by its key. */
+export function projectSlots(state: Pick<EvenKeelState, 'config'>): Record<string, number | null> {
+  return Object.fromEntries(Object.keys(state.config.projects).map((project) => [project, projectSlot(state, project)]))
 }
 
 export function sessionStart(current: CurrentTask, session: SessionView | null, runs: TaskSession[], now: Date): SessionStart | null {

@@ -5,7 +5,7 @@ import { t } from '../i18n/index.js'
 import { useLive } from '../live/context.js'
 import { AnswerNotice, loadedData, useStatsAnswer } from '../stats/common.js'
 import { formatShare, formatUsd, weeklyLimit } from '../stats/format.js'
-import { chartData, projectColors } from '../stats/history.js'
+import { chartData } from '../stats/history.js'
 import { formatDay, formatRange, localDay, resolvePeriod } from '../stats/period.js'
 import { seriesStyle } from '../ui/series.js'
 import '../stats/stats.css'
@@ -14,8 +14,8 @@ const DAYS = 30
 
 export type StripData = ReturnType<typeof useStrip>
 
-/** The project's last 30 days from the stats; the page reads it once for the strip and the idle panel. */
-export function useStrip(project: string) {
+/** The project's last 30 days from the stats, drawn in its `slot`; the page reads it once for the strip and the idle panel. */
+export function useStrip(project: string, slot: number | null) {
   const { statsHistory } = useLive()
   const filter: StatsFilter = useMemo(() => ({ scope: 'all', account: null, tz: Intl.DateTimeFormat().resolvedOptions().timeZone }), [])
   const loaded = useStatsAnswer(JSON.stringify(filter), () => statsHistory(filter))
@@ -31,10 +31,10 @@ export function useStrip(project: string) {
       cost: sum(2),
       sessions: sum(3),
       limit: weeklyLimit(cells.length === 0 ? null : sum(4), range, history.limits),
-      days: chartData(history, range, 'day', 'cost', [project]).buckets.map((each) => each.total),
-      slot: projectColors(history).get(project) ?? null,
+      days: chartData(history, range, 'day', 'cost', [project], new Map([[project, slot]])).buckets.map((each) => each.total),
+      slot,
     }
-  }, [history, project, range.from])
+  }, [history, project, slot, range.from])
 
   return { loaded, summary, range }
 }

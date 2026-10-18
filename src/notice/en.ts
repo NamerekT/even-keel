@@ -282,6 +282,7 @@ export const en = {
     `${p.project}: the chain waits: the tracker refused the credentials of the profile ${p.profile}; renew them in Settings → Access`,
   'config.repoEmpty': (p: { key: string }) => `config: repository path for ${p.key} is empty`,
   'config.slot': (p: { key: string }) => `config: ${p.key}.slot must be true, false or the number of slots`,
+  'config.color': (p: { key: string }) => `config: ${p.key}.color must be a whole number from 1 to 8`,
   'config.language': (p: { where: string; value: string; known: string[] }) =>
     `config: ${p.where}: there is no language ${p.value}, known: ${list(p.known)}`,
   'config.trackerName': (p: { where: string }) => `config: ${p.where} must be the name of a tracker adapter`,

@@ -33,7 +33,7 @@ export function ProjectCard({ state, project, turn }: { state: EvenKeelState; pr
   const order = state.chain.projects[project]
   const { done, total, backlog } = chainProgress(projectTasks(state, project), order)
   const task = cardTask(state, project)
-  const slot = projectSlot(state.projects, project)
+  const slot = projectSlot(state, project)
   const tracker = projectTracker(state, project)
   const canStart = status.kind === 'idle' && order !== undefined && order.error === null && order.order.length > 0
   const error = order?.error ?? (status.kind === 'paused' ? status.error : null) ?? failure

@@ -5,6 +5,7 @@ import { CI_KINDS } from '../ci/model.js'
 import type { EvenKeelConfig } from '../config.js'
 import { isLanguage, LANGUAGES } from '../language.js'
 import { fail } from '../notice/notice.js'
+import { isColor } from '../projects/colors.js'
 import { placeholderIn } from '../sessions/prompt.js'
 import { DEFAULT_HIDDEN_SKILLS } from '../tools/settings.js'
 import { DEFAULT_TRACKER } from '../tracker/adapters.js'
@@ -238,6 +239,11 @@ export const DEFINITIONS: readonly SettingDefinition[] = [
   update('notify'),
   { key: 'slot', kind: 'integer', scopes: ['project'], lands: ['slots'], default: false, check: (value, { project }) => {
     if (typeof value !== 'boolean' && !(Number.isInteger(value) && (value as number) > 0)) throw fail('config.slot', { key: project ?? '' })
+    return value
+  } },
+  // No default: a project without its own color gets a free one (`colorsOf`).
+  { key: 'color', kind: 'integer', scopes: ['project'], lands: ['colors'], default: undefined, check: (value, { project }) => {
+    if (!isColor(value)) throw fail('config.color', { key: project ?? '' })
     return value
   } },
   { key: 'prompt', kind: 'string', scopes: ['project'], lands: ['settings'], default: null, check: (value, place) => {

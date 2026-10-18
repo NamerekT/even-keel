@@ -712,7 +712,7 @@ function draftOf(body: Record<string, unknown>): ProjectDraft {
 }
 
 function projectFormOf(body: Record<string, unknown>): ProjectForm {
-  const { name, prompt, beforeStart, check, afterGreen, ci, pullRequests, fillMilestone, changelog, provider, models, accounts, modelLabels, branch, repo, tracker, trackerProject, slot, brief, chain } = body
+  const { name, prompt, beforeStart, check, afterGreen, ci, pullRequests, fillMilestone, changelog, provider, models, accounts, modelLabels, branch, repo, tracker, trackerProject, slot, color, brief, chain } = body
   if (name !== undefined && name !== null && typeof name !== 'string') throw fail('request.required', { field: 'name' })
   if (prompt !== null && typeof prompt !== 'string') throw fail('request.required', { field: 'prompt' })
   const settings = {
@@ -729,6 +729,7 @@ function projectFormOf(body: Record<string, unknown>): ProjectForm {
   if (modelLabels !== null && typeof modelLabels !== 'boolean') throw fail('request.required', { field: 'modelLabels' })
   if (trackerProject !== null && typeof trackerProject !== 'string') throw fail('request.required', { field: 'trackerProject' })
   if (!Number.isInteger(slot) || (slot as number) < 0) throw fail('request.required', { field: 'slot' })
+  if (color !== null && !Number.isInteger(color)) throw fail('request.required', { field: 'color' })
   return {
     ...settings,
     name: name ?? null,
@@ -744,6 +745,7 @@ function projectFormOf(body: Record<string, unknown>): ProjectForm {
     tracker: textOf(tracker, 'tracker'),
     trackerProject,
     slot: slot as number,
+    color: color as number | null,
     brief: switchOf(brief, 'brief'),
     chain: rulesOf(chain),
   }

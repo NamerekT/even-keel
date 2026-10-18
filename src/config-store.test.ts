@@ -133,7 +133,7 @@ describe('ConfigStore', { timeout: 30_000 }, () => {
     const config = await open()
 
     const id = config.addProject({ repo: 'D:\\new', branch: 'main', key: 'NEW', name: '', tracker: 'huly', trackerProject: '', profile: null, slot: 1 })
-    expect(await read()).toEqual(stored({ projects: [abc(), { id, key: 'NEW', repo: 'D:\\new', slot: 1 }] }))
+    expect(await read()).toEqual(stored({ projects: [abc(), { id, key: 'NEW', repo: 'D:\\new', slot: 1, color: 2 }] }))
     expect(config.current.ids.NEW).toBe(id)
     expect(config.current.slots.NEW).toBe(1)
   })

@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs'
 import { sameName, type ChainRules } from './chain/rules.js'
 import type { Language } from './language.js'
 import { fail } from './notice/notice.js'
+import { colorsOf } from './projects/colors.js'
 import type { PoolEntry } from './account/model.js'
 import type { RunSettings } from './sessions/launch.js'
 import type { CacheTtl, CiSettings, ContextScale, ProjectSettings, StatsConfig } from './state.js'
@@ -46,6 +47,8 @@ export interface EvenKeelConfig {
   chain: ChainRules
   rules: Record<string, ChainRules>
   slots: Record<string, number>
+  /** The palette slot of each project (`colorsOf`): its own `color` or a free one; a project past the free ones has none. */
+  colors: Record<string, number>
   tracker: string
   trackers: Record<string, string>
   trackerProjects: Record<string, string>
@@ -128,6 +131,10 @@ function configOf(records: ProjectRecord[], { shared, own, values }: Resolved, a
     chain: rulesOf(shared),
     rules: byKey((record, project) => checkRules(rulesOf(project), record.key)),
     slots: byKey((_, { slot }) => (slot === true ? 1 : typeof slot === 'number' ? slot : undefined)),
+    colors: colorsOf(
+      records.map((record) => record.key),
+      byKey((_, { color }) => color as number | undefined),
+    ),
     tracker: shared.tracker as string,
     trackers: byKey((_, project) => project.tracker as string),
     trackerProjects: byKey((record, project) => trackerProjectOf(record, project.tracker as string, adapters)),

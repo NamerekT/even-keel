@@ -91,6 +91,7 @@ describe('parseConfig', () => {
       names: {},
       rules: { ABC: DEFAULT_RULES },
       slots: {},
+      colors: { ABC: 1 },
       chain: DEFAULT_RULES,
       tracker: 'huly',
       trackers: { ABC: 'huly' },
@@ -381,6 +382,26 @@ describe('parseConfig', () => {
   it('rejects a slot that is neither a flag nor a positive whole count', () => {
     for (const slot of ['yes', 0, -1, 1.5]) {
       expect(() => parse({ projects: { ABC: { repo: 'C:\\abc', slot } } })).toThrow(/ABC.slot/)
+    }
+  })
+
+  it('keeps the color a project has and gives one without the first color no project has, in the order of the file', () => {
+    const config = parse({
+      projects: { ABC: { repo: 'C:\\abc', color: 2 }, XYZ: 'C:\\xyz', QRS: 'C:\\qrs', DEF: { repo: 'C:\\def', color: 1 }, GHI: { repo: 'C:\\ghi', color: 2 } },
+    })
+    expect(config.colors).toEqual({ ABC: 2, XYZ: 3, QRS: 4, DEF: 1, GHI: 2 })
+  })
+
+  it('leaves a project without a color once all colors are taken', () => {
+    const projects = Object.fromEntries(Array.from({ length: 9 }, (_, index) => [`P${index}`, `C:\\p${index}`]))
+    const config = parse({ projects })
+    expect(config.colors.P7).toBe(8)
+    expect(config.colors.P8).toBeUndefined()
+  })
+
+  it('rejects a color that is not one of the eight', () => {
+    for (const color of ['red', 0, 9, 1.5, null]) {
+      expect(() => parse({ projects: { ABC: { repo: 'C:\\abc', color } } })).toThrow(/ABC.color/)
     }
   })
 

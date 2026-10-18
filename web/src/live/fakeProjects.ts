@@ -1,6 +1,10 @@
 import { fail, notice, NoticeError } from '../../../src/notice/notice.js'
 import type { EvenKeelState, ProjectCheck, ProjectDraft, ProjectForm } from '../../../src/state.js'
 import { DEFAULT_RULES } from '../../../src/chain/rules.js'
+import { colorsOf } from '../../../src/projects/colors.js'
+
+const ownColors = (forms: Record<string, ProjectForm>): Record<string, number> =>
+  Object.fromEntries(Object.entries(forms).flatMap(([key, form]) => (form.color === null ? [] : [[key, form.color]])))
 
 const BRANCHES = ['main', 'master', 'develop']
 const KEY = /^[A-Z][A-Z0-9_]{0,4}$/
@@ -91,6 +95,7 @@ function withProject(state: EvenKeelState, draft: ProjectDraft): EvenKeelState {
     tracker: draft.tracker,
     trackerProject: draft.trackerProject.trim() || null,
     slot: draft.slot,
+    color: colorsOf([...state.projects, key], ownColors(state.config.projects))[key] ?? null,
     brief: state.config.shared.brief,
     chain: DEFAULT_RULES,
     prompt: null,

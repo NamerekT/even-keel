@@ -45,6 +45,7 @@ const project = (repo: string, change: Partial<ProjectForm>): ProjectForm => ({
   tracker: 'huly',
   trackerProject: null,
   slot: 0,
+  color: null,
   brief: true,
   chain: DEFAULT_RULES,
   prompt: null,
@@ -66,16 +67,17 @@ export function fakeConfig(): ConfigView {
   return {
     shared: { ...FAKE_SHARED, brief: false, modelPrompts: { haiku: 'Keep answers short.' } },
     projects: {
-      ABC: project('D:/Projects/abc', { name: 'Storefront', brief: false, prompt: 'Run npm test before merging.', beforeStart: ['npm ci'], fillMilestone: true }),
+      ABC: project('D:/Projects/abc', { color: 1, name: 'Storefront', brief: false, prompt: 'Run npm test before merging.', beforeStart: ['npm ci'], fillMilestone: true }),
       DEMO: project('D:/Projects/demo', {
+        color: 2,
         branch: 'master',
         tracker: 'github',
         trackerProject: 'octo-org/demo',
         afterGreen: ['npm run build', 'pwsh -File service/restart.ps1'],
         ci: { guard: true, kinds: ['github'], waitMinutes: 15, recheckMain: true, fixTask: true },
       }),
-      XYZ: project('D:/Projects/xyz', { slot: 2, chain: { ...DEFAULT_RULES, requiredLabels: ['Auto'] }, provider: 'codex', models: { codex: 'gpt-6.1-sol' }, modelLabels: true }),
-      OPS: project('D:/Projects/ops', { beforeStart: ['npm ci'], check: ['npm run typecheck', 'npm test'], ci: { guard: false, kinds: [], waitMinutes: 0, recheckMain: false, fixTask: false } }),
+      XYZ: project('D:/Projects/xyz', { color: 3, slot: 2, chain: { ...DEFAULT_RULES, requiredLabels: ['Auto'] }, provider: 'codex', models: { codex: 'gpt-6.1-sol' }, modelLabels: true }),
+      OPS: project('D:/Projects/ops', { color: 4, beforeStart: ['npm ci'], check: ['npm run typecheck', 'npm test'], ci: { guard: false, kinds: [], waitMinutes: 0, recheckMain: false, fixTask: false } }),
     },
     trackers: [
       { name: 'huly', title: 'Huly', projectKey: null },

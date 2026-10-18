@@ -29,6 +29,7 @@ export const FULL = {
       repo: 'C:\\repos\\abc',
       branch: ' trunk ',
       slot: true,
+      color: 4,
       tracker: 'huly',
       brief: true,
       chain: { active: null, excludedLabels: ['Manual'] },

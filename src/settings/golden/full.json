@@ -70,6 +70,11 @@
     "ABC": 1,
     "XYZ": 3
   },
+  "colors": {
+    "ABC": 4,
+    "XYZ": 1,
+    "LIN": 2
+  },
   "tracker": "github",
   "trackers": {
     "ABC": "huly",

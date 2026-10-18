@@ -81,6 +81,11 @@
   "slots": {
     "XYZ": 1
   },
+  "colors": {
+    "ABC": 1,
+    "XYZ": 2,
+    "GHB": 3
+  },
   "tracker": "huly",
   "trackers": {
     "ABC": "huly",

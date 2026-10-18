@@ -19,6 +19,7 @@ import {
   issueLink,
   limitWaitText,
   openQuestions,
+  projectSlot,
   projectTasks,
   questionPath,
   queuedAfter,
@@ -76,7 +77,7 @@ export function Project({ state, project: key }: { state: EvenKeelState; project
     if (focus !== '') document.getElementById(focus)?.scrollIntoView({ block: 'nearest' })
   }, [focus])
   const arrival = useArrival(state, key, blocks, close)
-  const strip = useStrip(key)
+  const strip = useStrip(key, projectSlot(state, key))
   const wide = useWide()
   const narrow = useNarrow()
   const settings = state.config.projects[key]

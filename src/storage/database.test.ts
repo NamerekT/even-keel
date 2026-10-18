@@ -340,6 +340,40 @@ describe('frozen samples of the database', { timeout: 120_000 }, () => {
       await readsWhole(opened.db)
       const chain = await loadChainState(opened.db, { ABC, XYZ })
       expect(chain.reviews).toEqual({ ABC: [expect.objectContaining({ task: 'ABC-3', number: 12, seen: ['review:41'], feedback: 'Rename it.' })] })
+      const colors = (await readSettings(opened.db)).rows.filter((row) => row.key === 'color')
+      expect(colors).toEqual([
+        { key: 'color', project: ABC, qualifier: '', value: 1 },
+        { key: 'color', project: XYZ, qualifier: '', value: 2 },
+      ])
+    } finally {
+      await opened.close()
+    }
+    expect(logs).toEqual([])
+  })
+
+  it('of version 9 has the schema step 9 makes', async () => {
+    const frozen = await PGlite.create()
+    const made = await openDatabase(undefined, STEPS.slice(0, 7))
+    try {
+      await frozen.exec(fixture(9))
+      expect(await databaseVersion(frozen)).toBe(9)
+      expect(await schemaOf(made)).toEqual(await schemaOf(frozen))
+    } finally {
+      await frozen.close()
+      await made.close()
+    }
+  })
+
+  it('of version 9 is brought to the current schema and read whole, the colors with it', async () => {
+    const dataDir = dataDirOf(databaseDirOf(stateDir))
+    mkdirSync(dataDir, { recursive: true })
+    const frozen = await PGlite.create({ dataDir })
+    await frozen.exec(fixture(9))
+    await frozen.close()
+    const opened = await prepare()
+    try {
+      await readsWhole(opened.db)
+      expect(parseConfig(fileOf(await readSettings(opened.db))).colors).toEqual({ ABC: 3, XYZ: 2 })
     } finally {
       await opened.close()
     }

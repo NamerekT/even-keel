@@ -1,5 +1,5 @@
 import type { ChainRules } from './chain/rules.js'
-import { DEFAULT_BRANCH, DEFAULT_LANGUAGE, isPlainObject, RULE_KEYS, withProjectSettings, type EvenKeelConfig } from './config.js'
+import { DEFAULT_BRANCH, DEFAULT_LANGUAGE, isPlainObject, parseConfig, RULE_KEYS, withProjectSettings, type EvenKeelConfig } from './config.js'
 import { fail } from './notice/notice.js'
 import { changesOf, type FormValue } from './settings/changes.js'
 import { sharedRows, withRows, writeRows } from './settings/file.js'
@@ -34,6 +34,7 @@ export function formsOf(config: EvenKeelConfig, adapters: Adapters = ADAPTERS): 
         tracker: config.trackers[key]!,
         trackerProject: adapters[config.trackers[key]!]?.projectKey === undefined ? null : (config.trackerProjects[key] ?? null),
         slot: config.slots[key] ?? 0,
+        color: config.colors[key] ?? null,
         brief: config.briefs[key]!,
         chain: config.rules[key]!,
       },
@@ -76,6 +77,7 @@ export function withProjectForm(raw: unknown, id: string, form: ProjectForm, bas
     inherited('brief', form.brief),
     ...RULE_KEYS.map((rule) => inherited(`chain.${rule}`, rules[rule])),
     { group: 'slot', key: 'slot', qualifier: '', value: form.slot === 0 ? undefined : form.slot },
+    { group: 'color', key: 'color', qualifier: '', value: form.color ?? undefined },
   ]
   const rule = (group: string) => group.slice('chain.'.length) as keyof ChainRules
   const changedGroup = (group: string) => (group.startsWith('chain.') ? !same(base.chain[rule(group)], rules[rule(group)]) : changed(group as keyof ProjectForm))
@@ -112,7 +114,11 @@ export function withNewProject(raw: unknown, draft: ProjectDraft, id: string, ad
   const own = adapters[draft.tracker]?.projectKey?.key
   if (own !== undefined && draft.trackerProject.trim() !== '') entry[own] = draft.trackerProject.trim()
   if (draft.slot > 0) entry.slot = draft.slot
-  return { ...config, projects: [...(Array.isArray(config.projects) ? config.projects : []), entry] }
+  const next = { ...config, projects: [...(Array.isArray(config.projects) ? config.projects : []), entry] }
+  // Written, so that the color stays when a project before it goes and frees a lower one.
+  const color = parseConfig(next, adapters).colors[entry.key as string]
+  if (color !== undefined) entry.color = color
+  return next
 }
 
 /** The raw config without the entry of the project with the id; the rest stays as written. */

@@ -7,8 +7,10 @@ import type { Task } from '../../../src/tracker/model.js'
 import { say, t } from '../i18n/index.js'
 import { useLive } from '../live/context.js'
 import { useCommand } from '../live/useCommand.js'
+import { PROJECT_SLOTS } from '../state.js'
 import { SlidersIcon } from '../ui/icons.js'
 import { Select } from '../ui/Select.js'
+import { seriesStyle } from '../ui/series.js'
 import { changed, edited, reverted, sent, type Value, type Values } from './settingsDraft.js'
 import { accountOptions, providerKeys, providerMap, providerName, providerOptions, providerValues } from './settingsRun.js'
 import {
@@ -65,7 +67,7 @@ export function SettingsChip({ open, look = 'tag', dirty, onToggle }: { open: bo
 
 // Related fields share a group, so a save of one group never leaves another half-agreeing with it.
 const GROUPS = [
-  { id: 'repo', keys: ['repo', 'branch', 'slot', 'changelog'] },
+  { id: 'repo', keys: ['repo', 'branch', 'slot', 'changelog', 'color'] },
   { id: 'tracker', keys: ['tracker', 'trackerProject', 'fillMilestone', ...RULE_KEYS] },
   { id: 'sessions', keys: ['provider', ...providerKeys('models'), ...providerKeys('accounts'), 'modelLabels', 'brief', 'prompt', 'beforeStart'] },
   { id: 'ci', keys: ['guard', 'check', 'afterGreen', 'kinds', 'wait', 'recheck', 'fixTask', 'pullRequests'] },
@@ -82,6 +84,7 @@ const valuesOf = (form: ProjectForm): Values => ({
   tracker: form.tracker,
   trackerProject: form.trackerProject ?? '',
   slot: String(form.slot),
+  color: form.color === null ? '' : String(form.color),
   brief: form.brief,
   ...rulesText(form.chain),
   prompt: form.prompt ?? '',
@@ -121,6 +124,7 @@ function formOf(values: Values, name: string | null): ProjectForm | undefined {
     tracker: text('tracker'),
     trackerProject: trackerProject === '' ? null : trackerProject,
     slot,
+    color: text('color') === '' ? null : Number(text('color')),
     brief: on('brief'),
     chain: rulesOf(values as Record<(typeof RULE_KEYS)[number], Value>),
     prompt: text('prompt').trim(),
@@ -282,6 +286,25 @@ export function SettingsPanel({
           />
           {marks.note('changelog')}
           <FieldNote error={errorOf('changelog')} />
+        </div>
+        <div className={marks.box('color')}>
+          <FieldHead label={t.settings.color} hint={t.settings.colorHint} />
+          <div className="settings__colors" role="radiogroup" aria-label={t.settings.color}>
+            {Array.from({ length: PROJECT_SLOTS }, (_, index) => String(index + 1)).map((color) => (
+              <button
+                key={color}
+                type="button"
+                role="radio"
+                aria-checked={text('color') === color}
+                aria-label={t.settings.colorSlot(Number(color))}
+                className={text('color') === color ? 'settings__color settings__color--on' : 'settings__color'}
+                style={seriesStyle(Number(color))}
+                onClick={() => edit('color', color)}
+              />
+            ))}
+          </div>
+          {marks.note('color')}
+          <FieldNote error={errorOf('color')} />
         </div>
         <ProjectRemove project={project} />
       </>

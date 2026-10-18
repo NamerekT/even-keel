@@ -145,6 +145,8 @@ export interface ProjectForm extends ProjectSettings {
   trackerProject: string | null
   /** Slots of the pool; `0` — a worktree per task. */
   slot: number
+  /** The palette slot the page draws the project with, 1–8 (BTN-207); `null` — none was free, grey. */
+  color: number | null
   brief: boolean
   chain: ChainRules
 }

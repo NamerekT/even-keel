@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Link, Navigate } from 'react-router'
 import type { EvenKeelState } from '../../../src/state.js'
 import { localized, t } from '../i18n/index.js'
-import { openQuestions, questionPath } from '../state.js'
+import { openQuestions, projectSlots, questionPath } from '../state.js'
 import { emptyTurns, type HarborMeme, harborMemes } from '../ui/memes.js'
 import { Typed, Typists } from '../ui/Typed.js'
 import { LaunchChart, localDate } from './LaunchChart.js'
@@ -54,7 +54,7 @@ export function Home({ state }: { state: EvenKeelState }) {
           </div>
         )}
       </Typists>
-      <LaunchChart days={state.launches} projects={state.projects} />
+      <LaunchChart days={state.launches} slots={projectSlots(state)} />
     </section>
   )
 }

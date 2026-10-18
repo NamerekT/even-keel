@@ -1,7 +1,6 @@
 import { useState } from 'react'
 import type { LaunchDay } from '../../../src/chain/launches.js'
 import { localized, t } from '../i18n/index.js'
-import { projectSlot } from '../state.js'
 import { ProjectLabel } from '../ui/ProjectLabel.js'
 import { seriesStyle } from '../ui/series.js'
 
@@ -17,10 +16,11 @@ function dayTotal(day: LaunchDay): number {
   return Object.values(day.counts).reduce((sum, count) => sum + count, 0)
 }
 
-export function LaunchChart({ days, projects }: { days: LaunchDay[]; projects: string[] }) {
+/** `slots` — the projects of the config in its order, each with its slot (`projectSlots`). */
+export function LaunchChart({ days, slots }: { days: LaunchDay[]; slots: Record<string, number | null> }) {
   const [hovered, setHovered] = useState<number | null>(null)
-  const shown = [...new Set([...projects, ...days.flatMap((day) => Object.keys(day.counts))])]
-  const style = (project: string) => seriesStyle(projectSlot(projects, project))
+  const shown = [...new Set([...Object.keys(slots), ...days.flatMap((day) => Object.keys(day.counts))])]
+  const style = (project: string) => seriesStyle(slots[project] ?? null)
   const totals = new Map(shown.map((project) => [project, days.reduce((sum, day) => sum + (day.counts[project] ?? 0), 0)]))
   const total = days.reduce((sum, day) => sum + dayTotal(day), 0)
   const max = Math.max(0, ...days.map(dayTotal))

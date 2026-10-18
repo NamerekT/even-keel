@@ -34,17 +34,17 @@ describe('projectTotals', () => {
 })
 
 describe('projectColors', () => {
-  it('gives Even Keel projects their chart slots and the rest free slots by rank', () => {
-    const colors = projectColors(history)
-    expect(colors.get('GAME')).toBe(1)
-    expect(colors.get('BTN')).toBe(2)
-    expect(colors.get('yaml')).toBe(3)
+  it('gives Even Keel projects their own slots and the rest free slots by rank', () => {
+    const colors = projectColors(history, { GAME: 3, BTN: 1 })
+    expect(colors.get('GAME')).toBe(3)
+    expect(colors.get('BTN')).toBe(1)
+    expect(colors.get('yaml')).toBe(2)
     expect(colors.get('notes')).toBe(4)
   })
 
   it('runs out of slots after eight', () => {
-    const many = { ...history, tracked: [],projects: Array.from({ length: 10 }, (_, index) => `p${index}`) }
-    const colors = projectColors(many)
+    const many = { ...history, tracked: [], projects: Array.from({ length: 10 }, (_, index) => `p${index}`) }
+    const colors = projectColors(many, {})
     expect(colors.get('p7')).toBe(8)
     expect(colors.get('p8')).toBeNull()
   })
@@ -74,8 +74,11 @@ describe('firstDay', () => {
 })
 
 describe('chartData', () => {
+  const colors = projectColors(history, { GAME: 1, BTN: 2 })
+
   it('stacks the chosen projects by bucket, the most expensive at the bottom', () => {
-    const chart = chartData(history, { from: '2026-09-28', to: '2026-10-03' }, 'week', 'cost', ['BTN', 'GAME'], 6)
+    const chart = chartData(history, { from: '2026-09-28', to: '2026-10-03' }, 'week', 'cost', ['BTN', 'GAME'], colors, 6)
+    expect(chart.series.map((each) => each.slot)).toEqual([2, 1])
     expect(chart.series.map((each) => each.key)).toEqual(['BTN', 'GAME'])
     expect(chart.buckets).toEqual([
       { bucket: '2026-09-28', values: [13, 6], total: 19 },
@@ -83,7 +86,7 @@ describe('chartData', () => {
   })
 
   it('folds projects past the limit into others', () => {
-    const chart = chartData(history, { from: '2026-09-28', to: '2026-10-03' }, 'day', 'cost', null, 2)
+    const chart = chartData(history, { from: '2026-09-28', to: '2026-10-03' }, 'day', 'cost', null, colors, 2)
     expect(chart.series.map((each) => each.key)).toEqual(['BTN', 'GAME', OTHER])
     expect(chart.series[2]!.slot).toBeNull()
     expect(chart.buckets.map((each) => each.values)).toEqual([
@@ -97,9 +100,9 @@ describe('chartData', () => {
   })
 
   it('counts limit shares and sessions as well', () => {
-    const limit = chartData(history, { from: '2026-10-03', to: '2026-10-03' }, 'day', 'limit', ['BTN'], 6)
+    const limit = chartData(history, { from: '2026-10-03', to: '2026-10-03' }, 'day', 'limit', ['BTN'], colors, 6)
     expect(limit.buckets[0]!.total).toBe(1)
-    const sessions = chartData(history, { from: '2026-10-03', to: '2026-10-03' }, 'day', 'sessions', null, 6)
+    const sessions = chartData(history, { from: '2026-10-03', to: '2026-10-03' }, 'day', 'sessions', null, colors, 6)
     expect(sessions.buckets[0]!.total).toBe(3)
   })
 })
