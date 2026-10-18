@@ -720,7 +720,7 @@ export const en: Messages = {
     notInstalled: 'not installed',
     removed: 'removed — a running task still uses it',
     extras: 'skills and hooks',
-    extrasTip: 'Besides its MCP servers the plugin brings skills, hooks, commands or agents: only Claude Code sessions get them.',
+    extrasTip: 'Besides its MCP servers the plugin brings skills, hooks, commands or agents: Claude Code sessions get them all, Codex sessions the skills and hooks.',
     servers: (list: string) => `MCP servers: ${list}`,
     noServers: 'No MCP servers',
     choice: { default: 'default', on: 'on', off: 'off' },
