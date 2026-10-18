@@ -3,7 +3,7 @@ import { stat } from 'node:fs/promises'
 import { createServer } from 'node:http'
 import { join } from 'node:path'
 import { Readable } from 'node:stream'
-import { checkCredit } from './account/credit.js'
+import { checkCredit, checkOpenAiCredit } from './account/credit.js'
 import { DaemonRefresh } from './account/daemon.js'
 import { AccountHomes, accountsRoot, codexAccountsRoot, type AccountHome } from './account/homes.js'
 import { checkApiKey, checkOpenAiKey } from './account/keycheck.js'
@@ -438,7 +438,7 @@ const account = new AccountWatcher({
   usage: (key) => limits.usage(key),
   checkKey: (agent, key) => (agent === CODEX ? checkOpenAiKey : checkApiKey)(key, KEY_CHECK_TIMEOUT_MS),
   keyCheckMs: KEY_CHECK_MS,
-  checkCredit: (key) => checkCredit(key, KEY_CHECK_TIMEOUT_MS),
+  checkCredit: (agent, key) => (agent === CODEX ? checkOpenAiCredit : checkCredit)(key, KEY_CHECK_TIMEOUT_MS),
   creditCheckMs: CREDIT_CHECK_MS,
   intervalMs: ACCOUNT_POLL_MS,
   loginTimeoutMs: LOGIN_TIMEOUT_MS,

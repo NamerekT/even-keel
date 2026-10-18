@@ -155,6 +155,18 @@ describe('RolloutFold', () => {
     expect(limit.feed.at(-1)?.kind).toBe('error')
   })
 
+  it('reads an API key out of money as credit, not as a limit', () => {
+    const quota = fold([event({ type: 'error', message: 'Quota exceeded. Check your plan and billing details.' })]).summary()
+    expect(quota.apiError).toMatchObject({ kind: 'credit', text: 'Quota exceeded. Check your plan and billing details.' })
+    const body = JSON.stringify({
+      type: 'error',
+      status: 429,
+      error: { type: 'insufficient_quota', code: 'insufficient_quota', message: 'You exceeded your current quota, please check your plan and billing details.' },
+    })
+    const failed = event({ type: 'task_complete', last_agent_message: null, error: { message: body, codex_error_info: 'other' } })
+    expect(fold([meta(), started(), user('TSK-1'), failed]).summary().apiError?.kind).toBe('credit')
+  })
+
   it('reads the error of a failed turn from task_complete, unwrapping the JSON of the API answer', () => {
     const body = JSON.stringify({ type: 'error', status: 400, error: { type: 'invalid_request_error', message: "The 'example-model' model is not supported." } })
     const failed = event({ type: 'task_complete', last_agent_message: null, error: { message: body, codex_error_info: 'other' } })

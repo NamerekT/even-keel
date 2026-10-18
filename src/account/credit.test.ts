@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { checkCredit, CreditChecks } from './credit.js'
+import { checkCredit, checkOpenAiCredit, CreditChecks } from './credit.js'
 
 const KEY = 'sk-ant-fake-0000000000000000'
 const MODELS = { data: [{ id: 'claude-opus-fake' }, { id: 'claude-haiku-fake' }, { id: 'claude-sonnet-fake' }] }
@@ -66,6 +66,50 @@ describe('checkCredit', () => {
       throw new TypeError('fetch failed')
     }
     expect(await checkCredit(KEY, 1000, down)).toEqual({ state: 'unknown', reason: 'fetch failed' })
+  })
+})
+
+describe('checkOpenAiCredit', () => {
+  const OPENAI_KEY = 'sk-proj-fake-0000000000000000'
+  const OPENAI_MODELS = {
+    data: [{ id: 'gpt-fake' }, { id: 'gpt-fake-mini-tts' }, { id: 'gpt-fake-mini' }, { id: 'gpt-fake-nano-transcribe' }, { id: 'gpt-fake-nano' }],
+  }
+  const QUOTA = {
+    error: {
+      message: 'You exceeded your current quota, please check your plan and billing details.',
+      type: 'insufficient_quota',
+      code: 'insufficient_quota',
+    },
+  }
+  const openAi = (message: { status: number; body: unknown }, models = { status: 200, body: OPENAI_MODELS }) => api(message, models)
+
+  it('asks the cheapest text model the key lists for a few output tokens', async () => {
+    const { seen, fetchImpl } = openAi({ status: 200, body: { object: 'response' } })
+    expect(await checkOpenAiCredit(OPENAI_KEY, 1000, fetchImpl)).toEqual({ state: 'ok' })
+    expect(seen[0]!.url).toBe('https://api.openai.com/v1/models')
+    expect(seen[1]).toMatchObject({ url: 'https://api.openai.com/v1/responses', method: 'POST' })
+    expect(seen[1]!.body).toMatchObject({ model: 'gpt-fake-nano', max_output_tokens: 16 })
+    expect(seen[1]!.headers.get('authorization')).toBe(`Bearer ${OPENAI_KEY}`)
+  })
+
+  it('takes a mini model when the key lists no nano', async () => {
+    const { seen, fetchImpl } = openAi({ status: 200, body: {} }, { status: 200, body: { data: [{ id: 'gpt-fake' }, { id: 'gpt-fake-mini' }] } })
+    await checkOpenAiCredit(OPENAI_KEY, 1000, fetchImpl)
+    expect(seen[1]!.body).toMatchObject({ model: 'gpt-fake-mini' })
+  })
+
+  it('says the key is still out of money on insufficient_quota', async () => {
+    expect(await checkOpenAiCredit(OPENAI_KEY, 1000, openAi({ status: 429, body: QUOTA }).fetchImpl)).toEqual({ state: 'empty' })
+  })
+
+  it('knows nothing from a rate limit or a key with no text model', async () => {
+    const rate = { error: { message: 'Rate limit reached', type: 'requests', code: 'rate_limit_exceeded' } }
+    expect(await checkOpenAiCredit(OPENAI_KEY, 1000, openAi({ status: 429, body: rate }).fetchImpl)).toEqual({ state: 'unknown', reason: 'HTTP 429' })
+    const none = { status: 200, body: { data: [{ id: 'whisper-fake' }, { id: 'gpt-fake-mini-tts' }] } }
+    expect(await checkOpenAiCredit(OPENAI_KEY, 1000, openAi({ status: 200, body: {} }, none).fetchImpl)).toEqual({
+      state: 'unknown',
+      reason: 'the key lists no models',
+    })
   })
 })
 
