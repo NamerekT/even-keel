@@ -29,6 +29,16 @@ Even Keel takes it from there: it stops the session and starts a new one in the 
 
 A third hook, on `PreToolUse` of Bash, guards the merge of a chain session. When a command runs `git … merge … <branch>` with the branch of the session's own worktree — the session bringing its task into `main` — the hook asks Even Keel for the project's check (`/api/sessions/<id>/check`, the `commands.check` of the project). Even Keel gives the commands only when no CI it counts will judge `main`: the project counts none, or one does not answer. The hook runs them in order in the worktree, through the system shell, 20 minutes each at most; the first that fails blocks the merge, and its command, exit code and the last 60 lines of output go back to the session to fix. A command without `merge`, a merge of another branch, `--abort`, a session Even Keel did not start, or Even Keel not answering within two seconds — the hook lets the command through.
 
+## Messages from the chat
+
+A message the user writes from Even Keel's chat window to a session in the middle of a turn waits in Even Keel's mailbox; the fourth hook, `mailbox.mjs`, takes it (`POST /api/sessions/<id>/mail` with the event) and hands it to the session without stopping it:
+
+- on `PreToolUse` and `PostToolUse` of any tool — into the context (`additionalContext`);
+- on `Stop` — the stop is blocked with the message as its reason, and the turn goes on;
+- on `PreToolUse` of `AskUserQuestion` — the question is turned down with the message, and the session asks again only if it still needs to.
+
+Each message comes inside `<even-keel-message id="N">…</even-keel-message>`, so the chat shows it as the user's message. The hook says nothing in a subagent (the message waits for the main thread), for a session Even Keel did not start, or when Even Keel does not answer within two seconds (five on `Stop`). Even Keel counts a session as listening only once its hook has asked: a session of an older version of the plugin is answered only between turns.
+
 ## Install
 
 As a package of the project's set on Even Keel's `/tools` page: chain sessions of both agents get it from there (`docs/packages.md`). Installed into Claude Code by hand, it does nothing outside a chain.

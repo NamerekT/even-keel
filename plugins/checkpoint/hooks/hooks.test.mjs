@@ -10,11 +10,18 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 // The hooks as the agents run them: a script, the event's JSON on stdin, Even Keel on EVEN_KEEL_URL.
 const HOOKS = dirname(fileURLToPath(import.meta.url));
 const answers = new Map();
+/** The bodies of the POST requests by URL, in order. */
+const posted = new Map();
 let server;
 let url;
 
 beforeAll(async () => {
-  server = createServer((request, response) => {
+  server = createServer(async (request, response) => {
+    if (request.method === "POST") {
+      let text = "";
+      for await (const chunk of request) text += chunk;
+      posted.set(request.url, [...(posted.get(request.url) ?? []), JSON.parse(text)]);
+    }
     const body = answers.get(request.url);
     if (body === undefined) response.writeHead(404).end();
     else response.writeHead(200, { "content-type": "application/json" }).end(JSON.stringify(body));
@@ -103,5 +110,40 @@ describe.each(Object.entries(agents))("hooks on %s input", (_agent, input) => {
     expect(await run("checkpoint-mark.mjs", stop(session, "Done."))).toEqual({ code: 0, stdout: "" });
     answers.set(`/api/sessions/${session}/note`, { note: false });
     expect(await run("checkpoint-mark.mjs", stop(session, "Done."))).toEqual({ code: 0, stdout: "" });
+  });
+
+  it("puts a chat message into the context before or after a tool call and names the event", async () => {
+    const session = sessionOf();
+    const mail = `/api/sessions/${session}/mail`;
+    answers.set(mail, { message: "Use the other parser." });
+    const after = JSON.parse((await run("mailbox.mjs", toolUse(session))).stdout);
+    expect(after).toEqual({ hookSpecificOutput: { hookEventName: "PostToolUse", additionalContext: "Use the other parser." } });
+    const before = JSON.parse((await run("mailbox.mjs", input(session, "PreToolUse", { tool_name: "Read", tool_input: {} }))).stdout);
+    expect(before).toEqual({ hookSpecificOutput: { hookEventName: "PreToolUse", additionalContext: "Use the other parser." } });
+    expect(posted.get(mail)).toEqual([{ event: "PostToolUse" }, { event: "PreToolUse" }]);
+  });
+
+  it("keeps the turn going at a stop, even a stop a hook already held, and turns a question down", async () => {
+    const session = sessionOf();
+    const mail = `/api/sessions/${session}/mail`;
+    answers.set(mail, { message: "One more thing." });
+    expect(JSON.parse((await run("mailbox.mjs", stop(session, "Done."))).stdout)).toEqual({ decision: "block", reason: "One more thing." });
+    expect(JSON.parse((await run("mailbox.mjs", { ...stop(session, "Done."), stop_hook_active: true })).stdout)).toMatchObject({ decision: "block" });
+    const asked = JSON.parse((await run("mailbox.mjs", input(session, "PreToolUse", { tool_name: "AskUserQuestion", tool_input: {} }))).stdout);
+    expect(asked).toEqual({
+      hookSpecificOutput: { hookEventName: "PreToolUse", permissionDecision: "deny", permissionDecisionReason: "One more thing." },
+    });
+    expect(posted.get(mail).map((body) => body.event)).toEqual(["Stop", "Stop", "AskUserQuestion"]);
+  });
+
+  it("stays silent when nothing waits, without Even Keel, and in a subagent", async () => {
+    const session = sessionOf();
+    expect(await run("mailbox.mjs", toolUse(session))).toEqual({ code: 0, stdout: "" });
+    answers.set(`/api/sessions/${session}/mail`, { message: null });
+    expect(await run("mailbox.mjs", stop(session, "Done."))).toEqual({ code: 0, stdout: "" });
+    answers.set(`/api/sessions/${session}/mail`, { message: "Later." });
+    const before = posted.get(`/api/sessions/${session}/mail`).length;
+    expect(await run("mailbox.mjs", { ...toolUse(session), agent_id: "agent-1" })).toEqual({ code: 0, stdout: "" });
+    expect(posted.get(`/api/sessions/${session}/mail`)).toHaveLength(before);
   });
 });
