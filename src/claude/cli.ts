@@ -7,7 +7,8 @@ import { setTimeout as delay } from 'node:timers/promises'
 import { promisify } from 'node:util'
 import type { AccountHome } from '../account/homes.js'
 import { parseAuthStatus, type AccountStatus } from '../account/model.js'
-import { gatewayName, type SessionStart } from '../agent/contract.js'
+import { gatewayName, type OneTurn, type SessionStart } from '../agent/contract.js'
+import { runWithInput } from '../agent/oneturn.js'
 import { fail, notice, NoticeError, type Notice } from '../notice/notice.js'
 import { samePath } from '../paths.js'
 import { blockedAsk, blockedOn, parseAgents, parseSessionRecord, withLiveRecords, type AgentEntry, type SessionRecord } from '../sessions/agents.js'
@@ -80,6 +81,10 @@ export class ClaudeCli {
       windowsHide: true,
     })
     return stdout
+  }
+
+  async write(home: AccountHome, { cwd, prompt, model, timeoutMs }: OneTurn): Promise<string> {
+    return parseWriteAnswer(await runWithInput(this.bin(), writeArgs(model), prompt, { cwd, env: this.envOf(home), timeoutMs }))
   }
 
   authLogin(home: AccountHome): ChildProcessWithoutNullStreams {
@@ -178,6 +183,30 @@ export const SESSION_MODE = 'auto'
 
 /** What a chain session gets besides its name, model and prompt. */
 export type SessionExtras = Pick<SessionStart, 'settings' | 'mcp' | 'plugins'>
+
+/** `Agent.write`: `claude -p` with the prompt on stdin. `--tools` takes several values, so nothing but options follows it. */
+export function writeArgs(model: string | null): string[] {
+  return [
+    '-p',
+    '--output-format',
+    'json',
+    '--no-session-persistence',
+    '--strict-mcp-config',
+    '--disable-slash-commands',
+    '--tools',
+    'Read,Glob,Grep',
+    ...(model === null ? [] : ['--model', model]),
+  ]
+}
+
+/** The answer of `writeArgs`' turn; throws with the CLI's own words when the turn failed. */
+export function parseWriteAnswer(stdout: string): string {
+  const answer = JSON.parse(stdout) as { subtype?: string; is_error?: boolean; result?: unknown }
+  if (answer.is_error === true || typeof answer.result !== 'string') {
+    throw new Error(typeof answer.result === 'string' && answer.result !== '' ? answer.result : `the turn ended with ${answer.subtype ?? 'no result'}`)
+  }
+  return answer.result
+}
 
 /**
  * `--mcp-config` takes several values, so it goes first, closed by `--strict-mcp-config`: right before the prompt it

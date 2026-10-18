@@ -9,6 +9,7 @@ import {
   hulyPriority,
   ISSUE_CLASS,
   labeled,
+  latestMessages,
   milestonesOf,
   missingBlockers,
   readyStatus,
@@ -358,6 +359,28 @@ export async function connectHuly(credentials: HulyCredentials, timeoutMs: numbe
         throw new Error(`huly: milestone ${milestone} is not in the project of ${identifier}`)
       }
       await client.updateDoc(tracker.class.Issue, issue.space, issue._id, { milestone })
+    },
+    async milestoneTasks(project, milestone) {
+      const space = await client.findOne<{ _id: string }>(tracker.class.Project, { identifier: project })
+      if (space === undefined) throw new Error(`huly: project ${project} not found`)
+      const milestones = await client.findAll<{ _id: string }>(tracker.class.Milestone, { space: space._id, label: milestone }, { projection: { _id: 1 } })
+      if (milestones.length === 0) return []
+      const [issues, statuses] = await Promise.all([findIssues({ space: space._id, milestone: { $in: milestones.map((doc) => doc._id) } }), findStatuses()])
+      if (issues.length === 0) return []
+      const [tasks, messages] = await Promise.all([
+        resolve(issues, statuses),
+        client.findAll<ChatMessageDoc & { attachedTo: string }>(
+          CHAT_MESSAGE,
+          { attachedTo: { $in: issues.map((issue) => issue._id) } },
+          { projection: { attachedTo: 1, message: 1, createdOn: 1 } },
+        ),
+      ])
+      const latest = latestMessages(messages)
+      const idOf = new Map(issues.map((issue) => [issue.identifier, issue._id]))
+      return tasks.map((task) => {
+        const markup = latest.get(idOf.get(task.id) ?? '')
+        return { ...task, lastComment: markup === undefined ? null : markupToMarkdown(markupToJSON(markup)) }
+      })
     },
     close: () => client.close(),
   }

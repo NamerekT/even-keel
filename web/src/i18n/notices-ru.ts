@@ -193,6 +193,10 @@ export const noticesRu: NoticeTexts = {
   'task.pastBacklog': (p) => `${p.task} уже не в статусе бэклога`,
   'task.cannotMoveMilestone': (p) => `трекер ${p.task} не умеет менять веху задачи`,
   'tracker.noProject': (p) => `проект ${p.project} не обслуживает ни один подключённый трекер`,
+  'changelog.cannotList': (p) => `трекер ${p.project} не умеет перечислять задачи вехи`,
+  'changelog.empty': (p) => `в ${p.milestone} нет ни одной сделанной задачи, черновик писать не из чего`,
+  'changelog.noAgent': (p) => `агент аккаунта, на котором идёт ${p.project}, не умеет писать черновик`,
+  'changelog.failed': (p) => `агент не написал черновик ${p.project}`,
 
   'config.notJson': (p) => `${p.file} — не JSON`,
   'config.port': (p) => `EVEN_KEEL_PORT должен быть целым в 1..65535, а не ${p.value}`,

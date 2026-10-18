@@ -54,6 +54,17 @@ const ISSUES = `query($filter: IssueFilter!, $after: String) {
   issues(first: ${PAGE}, after: $after, filter: $filter) { pageInfo { hasNextPage endCursor } nodes { ${ISSUE} } }
 }`
 
+// Which end of `comments` is the newest is not checked live: both ends are taken and compared.
+const MILESTONE_ISSUES = `query($filter: IssueFilter!, $after: String) {
+  issues(first: ${PAGE}, after: $after, filter: $filter) {
+    pageInfo { hasNextPage endCursor }
+    nodes { ${ISSUE} oldest: comments(first: 1) { nodes { body createdAt } } newest: comments(last: 1) { nodes { body createdAt } } }
+  }
+}`
+
+type CommentNode = { body: string; createdAt: string }
+type MilestoneIssue = LinearIssue & { oldest: { nodes: CommentNode[] }; newest: { nodes: CommentNode[] } }
+
 const ISSUE_BRIEF = `query($filter: IssueFilter!) {
   issues(first: 1, filter: $filter) { nodes { title description } }
 }`
@@ -139,11 +150,11 @@ export async function connectLinear(settings: LinearSettings, timeoutMs: number,
     return body.data
   }
 
-  async function collect(filter: IssueFilter): Promise<LinearIssue[]> {
-    const issues: LinearIssue[] = []
+  async function collect<T extends LinearIssue = LinearIssue>(filter: IssueFilter, query = ISSUES): Promise<T[]> {
+    const issues: T[] = []
     let after: string | null = null
     do {
-      const { issues: connection }: { issues: Connection<LinearIssue> } = await graphql(ISSUES, { filter, after })
+      const { issues: connection }: { issues: Connection<T> } = await graphql(query, { filter, after })
       issues.push(...connection.nodes)
       after = connection.pageInfo.hasNextPage ? connection.pageInfo.endCursor : null
     } while (after !== null)
@@ -320,6 +331,17 @@ export async function connectLinear(settings: LinearSettings, timeoutMs: number,
       if (!issueUpdate.success) throw new Error(`linear: the milestone of ${id} was not changed`)
     },
 
+    async milestoneTasks(key, milestone) {
+      const team = await teamOf(key)
+      const filter: IssueFilter = {
+        team: { id: { eq: team.id } },
+        projectMilestone: { name: { eq: milestone } },
+        ...(team.project === undefined ? {} : { project: { id: { eq: team.project } } }),
+      }
+      const issues = await collect<MilestoneIssue>(filter, MILESTONE_ISSUES)
+      return issues.map((issue) => ({ ...toTrackerTask(issue), lastComment: newestBody([...issue.oldest.nodes, ...issue.newest.nodes]) }))
+    },
+
     // A file of a comment is its upload link; the key goes only to Linear's upload host.
     async file(_id, file) {
       if (!UPLOADS.test(file)) return null
@@ -331,4 +353,9 @@ export async function connectLinear(settings: LinearSettings, timeoutMs: number,
 
     close: async () => {},
   }
+}
+
+function newestBody(comments: CommentNode[]): string | null {
+  const newest = comments.reduce<CommentNode | null>((kept, each) => (kept === null || Date.parse(each.createdAt) > Date.parse(kept.createdAt) ? each : kept), null)
+  return newest?.body ?? null
 }

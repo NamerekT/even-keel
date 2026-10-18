@@ -201,6 +201,10 @@ export const en = {
   'task.pastBacklog': (p: { task: string }) => `${p.task} is no longer in a backlog status`,
   'task.cannotMoveMilestone': (p: { task: string }) => `the tracker of ${p.task} cannot change its milestone`,
   'tracker.noProject': (p: { project: string }) => `no connected tracker serves the project ${p.project}`,
+  'changelog.cannotList': (p: { project: string }) => `changelog: the tracker of ${p.project} cannot list the tasks of a milestone`,
+  'changelog.empty': (p: { milestone: string }) => `changelog: ${p.milestone} has no done task to write a draft from`,
+  'changelog.noAgent': (p: { project: string }) => `changelog: the agent of the account ${p.project} runs on cannot write a draft`,
+  'changelog.failed': (p: { project: string }) => `changelog: the agent did not write the draft of ${p.project}`,
 
   'config.notJson': (p: { file: string }) => `config: ${p.file} is not JSON`,
   'config.port': (p: { value: string }) => `config: EVEN_KEEL_PORT must be an integer in 1..65535, got ${p.value}`,

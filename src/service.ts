@@ -26,6 +26,7 @@ import { mainCheckDeps, mergeCheck } from './chain/mainci.js'
 import { TaskPlaces } from './chain/places.js'
 import { readNote, saveSnapshot, snapshotReason } from './chain/snapshots.js'
 import { appendLaunch, loadChainState, loadQuestions, readLaunches, saveChainState, saveClosedTask, saveQuestions } from './chain/store.js'
+import { ChangelogDrafts } from './changelog/drafts.js'
 import { CI_TOKENS, ciSource, ciToken, projectTargets } from './ci/adapters.js'
 import { FORGEJO_PROFILE } from './ci/forgejo-profile.js'
 import type { CiTarget } from './ci/remote.js'
@@ -89,6 +90,7 @@ import { installed, UpdateWatcher } from './updates/watcher.js'
 
 const SESSION_POLL_MS = 3_000
 const AGENT_TIMEOUT_MS = 30_000
+const CHANGELOG_TIMEOUT_MS = 10 * 60_000
 const LIMITS_POLL_MS = 2_000
 const USAGE_POLL_MS = 5 * 60_000
 const LAUNCH_CHART_DAYS = 14
@@ -555,6 +557,30 @@ const noAccountFor = (task: string, fallback: string, provider: string) =>
     label: runLabelText({ provider: fallback, model: null }),
     provider: runLabelText({ provider, model: null }),
   })
+
+/** A draft is written in the project's main checkout, on the account and model a new session of its chain would get. */
+const changelogs = new ChangelogDrafts({
+  tasks: async (project, milestone) => {
+    const link = linkOf(project)
+    if (link === undefined) throw fail('tracker.noProject', { project })
+    const tasks = await link.run(async (tracker) => tracker.milestoneTasks?.(project, milestone))
+    if (tasks === undefined) throw fail('changelog.cannotList', { project })
+    return tasks
+  },
+  write: async (project, prompt) => {
+    const { account, model } = choiceFor(project)
+    const home = homeOf(account)
+    const agent = agentOf(home)
+    if (agent.write === undefined) throw fail('changelog.noAgent', { project })
+    console.log(`changelog: ${project} writes a draft on ${home.key}`)
+    try {
+      return await agent.write(home, { cwd: configStore.current.projects[project]!, prompt, model, timeoutMs: CHANGELOG_TIMEOUT_MS })
+    } catch (error) {
+      throw fail('changelog.failed', { project }, { detail: error instanceof Error ? error.message : String(error) }, { cause: error })
+    }
+  },
+  now: () => new Date(),
+})
 
 /** The account holding the Even Keel role, the one the header shows: the shared provider's entry of the shared pool. */
 const activeAccount = () => configStore.current.accounts[configStore.current.provider]!
@@ -1155,6 +1181,10 @@ let server = createEvenKeelServer({
       if (refresh === undefined) throw fail('tracker.noProject', { project })
       await refresh()
     },
+  },
+  changelog: (project, milestone, again) => {
+    if (!Object.hasOwn(configStore.current.projects, project)) throw fail('chain.unknownProject', { project })
+    return changelogs.draft(project, milestone, again)
   },
   stats,
   guard: () => ({ hosts: guardHosts(listen.host, configStore.current.allowedHosts), token, language: configStore.current.language ?? promptLanguage() }),

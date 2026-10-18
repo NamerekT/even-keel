@@ -97,8 +97,19 @@ export interface TaskSource {
   milestones?(id: string): Promise<MilestonePick>
   /** Optional, together with `milestones`. Puts the task into the milestone with this id from `milestones`; `null` — into none. */
   moveMilestone?(id: string, milestone: string | null): Promise<void>
+  /**
+   * Optional. Every task of the project's milestone named `milestone`, whatever its status, each with its last comment;
+   * `[]` — the project has no such milestone. With it the page offers a changelog draft of the milestone (`src/changelog/`).
+   */
+  milestoneTasks?(project: string, milestone: string): Promise<MilestoneTask[]>
   /** Drops the connection. */
   close(): Promise<void>
+}
+
+/** A task of a milestone for its changelog draft (`TaskSource.milestoneTasks`). */
+export interface MilestoneTask extends TrackerTask {
+  /** Markdown of the task's last comment, the closing one of its session as a rule; `null` — it has none. */
+  lastComment: string | null
 }
 
 export interface NewTask {
@@ -237,6 +248,7 @@ export interface Tracker {
   setMilestone?(id: string, milestoneOf: string): Promise<boolean>
   milestones?(id: string): Promise<MilestonePick>
   moveMilestone?(id: string, milestone: string | null): Promise<void>
+  milestoneTasks?(project: string, milestone: string): Promise<MilestoneTask[]>
   close(): Promise<void>
 }
 
@@ -267,5 +279,6 @@ export function trackerOf(source: TaskSource): Tracker {
     tracker.milestones = (id) => source.milestones!(id)
     tracker.moveMilestone = (id, milestone) => source.moveMilestone!(id, milestone)
   }
+  if (source.milestoneTasks !== undefined) tracker.milestoneTasks = (project, milestone) => source.milestoneTasks!(project, milestone)
   return tracker
 }

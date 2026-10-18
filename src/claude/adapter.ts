@@ -36,6 +36,7 @@ export const claude: AgentAdapter = {
       logout: (home) => cli.authLogout(home),
       usage: async (home, at) => parseUsage(await cli.usage(home, workDir), at),
       stopDaemon: (home) => cli.stopDaemon(home),
+      write: (home, turn) => cli.write(home, turn),
       liveRecords,
       remote: {
         enabled: async (home) => remoteAtStartup(await readText(join(home.dir, 'settings.json'))),

@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest'
-import { parseLoginStatus, turnArgs } from './cli.js'
+import { parseLoginStatus, turnArgs, writeArgs } from './cli.js'
+
+describe('writeArgs', () => {
+  it('asks for one read-only turn that keeps no rollout and reads the prompt from stdin', () => {
+    expect(writeArgs(null)).toEqual(['exec', '--sandbox', 'read-only', '--ephemeral', '--color', 'never', '-'])
+    expect(writeArgs('gpt-6.1-sol')).toEqual(['exec', '--sandbox', 'read-only', '--ephemeral', '--color', 'never', '-m', 'gpt-6.1-sol', '-'])
+  })
+})
 
 const token = (claims: Record<string, unknown>) => `e30.${Buffer.from(JSON.stringify(claims)).toString('base64url')}.sig`
 

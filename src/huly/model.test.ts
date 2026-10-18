@@ -3,6 +3,7 @@ import {
   cardLinks,
   closingStatus,
   labeled,
+  latestMessages,
   milestonesOf,
   missingBlockers,
   hulyPriority,
@@ -322,5 +323,17 @@ describe('labeled', () => {
       issue('i3', 'ABC-3', 'tracker:status:Todo'),
     ]
     expect(labeled(issues)).toEqual(['i1'])
+  })
+})
+
+describe('latestMessages', () => {
+  it('keeps the newest message of each issue', () => {
+    const messages = [
+      { attachedTo: 'a', createdOn: 2, message: 'a2' },
+      { attachedTo: 'b', createdOn: 1, message: 'b1' },
+      { attachedTo: 'a', createdOn: 3, message: 'a3' },
+      { attachedTo: 'a', createdOn: 1, message: 'a1' },
+    ]
+    expect(latestMessages(messages)).toEqual(new Map([['a', 'a3'], ['b', 'b1']]))
   })
 })
