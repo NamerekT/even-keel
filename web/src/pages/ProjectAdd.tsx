@@ -43,6 +43,11 @@ export function ProjectAddPage({ state }: { state: EvenKeelState }) {
   const draftText = JSON.stringify(draft ?? null)
   const fresh = checked !== null && JSON.stringify(checked.draft) === draftText
   const check = fresh ? checked.result : null
+  // The folder's lines depend on the folder and the branch only: they hold while another field is checked again.
+  const repoCheck =
+    checked !== null && draft !== undefined && checked.draft.repo === draft.repo && checked.draft.branch === draft.branch
+      ? checked.result
+      : null
   const set = (change: Partial<WizardFields>) => setFields((before) => ({ ...before, ...change }))
 
   useEffect(() => {
@@ -75,6 +80,12 @@ export function ProjectAddPage({ state }: { state: EvenKeelState }) {
     setFields((before) => suggestOfRepo(before, shape, { root, current, suggested }))
   }, [root, current, suggested, shape])
 
+  // A branch the repository lacks opens the field, and it stays open while the branch is typed again.
+  const noBranch = repoCheck?.repo.notice?.code === 'wizard.noBranch'
+  useEffect(() => {
+    if (noBranch) setBranchOpen(true)
+  }, [noBranch])
+
   useEffect(() => {
     if (added !== null && state.projectIds[added] !== undefined) void navigate(projectPath(state, added))
   }, [added, state, navigate])
@@ -86,7 +97,7 @@ export function ProjectAddPage({ state }: { state: EvenKeelState }) {
 
   const ready = readyToAdd(check)
   const missing = ready ? null : missingOf(fields, shape, check)
-  const branchShown = branchOpen || (root !== null && current === null) || check?.repo.notice?.code === 'wizard.noBranch'
+  const branchShown = branchOpen || noBranch || (root !== null && current === null)
   const keyText = fields.key.trim() || 'KEY'
 
   return (
@@ -117,12 +128,12 @@ export function ProjectAddPage({ state }: { state: EvenKeelState }) {
               autoFocus
               value={fields.repo}
               placeholder={t.wizard.repoPlaceholder}
-              aria-invalid={check?.repo.notice != null}
+              aria-invalid={repoCheck?.repo.notice != null}
               onChange={(event) => set({ repo: event.target.value })}
             />
-            {check !== null && check.repo.root !== null && check.repo.notice === null && (
+            {repoCheck !== null && repoCheck.repo.root !== null && repoCheck.repo.notice === null && (
               <Status ok>
-                {t.wizard.repoFound(check.repo.root)}
+                {t.wizard.repoFound(repoCheck.repo.root)}
                 {!branchShown && (
                   <>
                     {' · '}
@@ -134,7 +145,7 @@ export function ProjectAddPage({ state }: { state: EvenKeelState }) {
                 )}
               </Status>
             )}
-            {check?.repo.notice != null && <Status>{say(check.repo.notice)}</Status>}
+            {repoCheck?.repo.notice != null && <Status>{say(repoCheck.repo.notice)}</Status>}
           </div>
           {branchShown && (
             <div className="settings__field">
@@ -149,8 +160,8 @@ export function ProjectAddPage({ state }: { state: EvenKeelState }) {
               />
             </div>
           )}
-          {check?.trusted === false && <p className="notice notice--warn project-add__trust">{t.wizard.untrusted}</p>}
-          {check?.trusted === true && <Status ok>{t.wizard.trusted}</Status>}
+          {repoCheck?.trusted === false && <p className="notice notice--warn project-add__trust">{t.wizard.untrusted}</p>}
+          {repoCheck?.trusted === true && <Status ok>{t.wizard.trusted}</Status>}
         </Step>
         <Step title={t.wizard.stepTracker}>
           <TrackerStep state={state} fields={fields} shape={shape} choice={choice} check={check} onChange={setFields} />

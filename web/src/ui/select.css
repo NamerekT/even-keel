@@ -21,6 +21,11 @@ button.select {
   white-space: nowrap;
 }
 
+/* Nothing picked yet: the button keeps a line's height, so picking does not push the fields below down. */
+.select__value:empty::before {
+  content: '\200b';
+}
+
 .select__icon {
   display: inline-flex;
   flex: none;

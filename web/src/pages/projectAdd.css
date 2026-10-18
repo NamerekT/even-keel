@@ -85,7 +85,7 @@
 
 /* The tracker's answer has a line of its own even while empty: a new answer does not move the steps below. */
 .project-add__slot {
-  min-height: 20px;
+  min-height: 1lh;
 }
 
 .project-add__advanced {
