@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { AgentEntry } from '../sessions/agents.js'
-import { resumeArgs, resumedAs, sessionArgs } from './cli.js'
+import { promptArg, resumeArgs, resumedAs, sessionArgs } from './cli.js'
 
 describe('sessionArgs', () => {
   it('passes the chain settings with --settings only when there are any', () => {
@@ -35,6 +35,20 @@ describe('resumeArgs', () => {
 
   it('passes the session flags when there is no saved background session', () => {
     expect(resumeArgs('s-1', 'answer', false, 'ABC-1', 'opus')).toEqual([...sessionArgs('ABC-1', 'opus'), '--resume', 's-1', 'answer'])
+  })
+
+  it('keeps a reply that starts with an answer line from being read as an option', () => {
+    expect(resumeArgs('s-1', '- "Which color?" → Red\n', true, 'ABC-1', null).at(-1)).toBe('\n- "Which color?" → Red\n')
+  })
+})
+
+describe('promptArg', () => {
+  it('leaves a prompt that does not start with a dash as it is', () => {
+    expect(promptArg('ABC-1\n- note')).toBe('ABC-1\n- note')
+  })
+
+  it('puts a line break before a prompt that starts with a dash', () => {
+    expect(promptArg('-x')).toBe('\n-x')
   })
 })
 

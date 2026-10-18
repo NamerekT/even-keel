@@ -94,7 +94,7 @@ export class ClaudeCli {
 
   async launch(home: AccountHome, task: string, cwd: string, prompt: string, model: string | null, extras: SessionExtras = {}): Promise<AgentEntry> {
     const launchedAt = Date.now()
-    await this.start(home, [...sessionArgs(task, model, extras), prompt], cwd, notice('claude.startFailed', { task, cwd }))
+    await this.start(home, [...sessionArgs(task, model, extras), promptArg(prompt)], cwd, notice('claude.startFailed', { task, cwd }))
     return this.appear(home, launchedAs(task, cwd, launchedAt), notice('claude.notShown', { task }))
   }
 
@@ -189,7 +189,15 @@ export function sessionArgs(task: string, model: string | null, extras: SessionE
  * `--bg --resume` starts a copy under a new session id instead of going on in it (CLI 2.1.302, reason `own-options`).
  */
 export function resumeArgs(sessionId: string, prompt: string, kept: boolean, task: string, model: string | null, extras: SessionExtras = {}): string[] {
-  return [...(kept ? ['--bg'] : sessionArgs(task, model, extras)), '--resume', sessionId, prompt]
+  return [...(kept ? ['--bg'] : sessionArgs(task, model, extras)), '--resume', sessionId, promptArg(prompt)]
+}
+
+/**
+ * A prompt as the CLI's last argument. The process the daemon spawns for a job reads one that starts with a dash as an
+ * unknown option and exits before init (CLI 2.1.302, a reply's `- "question" → answer` line), so it gets a line break first.
+ */
+export function promptArg(prompt: string): string {
+  return prompt.startsWith('-') ? `\n${prompt}` : prompt
 }
 
 function launchedAs(task: string, cwd: string, since: number): (agent: AgentEntry) => boolean {

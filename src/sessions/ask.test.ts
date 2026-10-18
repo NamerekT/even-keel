@@ -106,6 +106,11 @@ describe('replyParts', () => {
     expect(replyParts(prompt, ASK)).toEqual({ answers: { 'Which color?': 'Blue' }, text: 'Also\n\ntidy up', files: FILES })
   })
 
+  it('reads a reply the CLI got with a line break first, so it did not start with a dash', () => {
+    const prompt = replyPrompt({ from: 'page', answers: { 'Which color?': 'Blue' }, text: 'Go', files: [] }, ASK, 'en')
+    expect(replyParts(`\n${prompt}`, ASK)).toEqual({ answers: { 'Which color?': 'Blue' }, text: 'Go', files: [] })
+  })
+
   it('reads the answers of a lost question without the call', () => {
     const lost: Ask = { ...ASK, unsaved: true }
     const prompt = replyPrompt({ from: 'page', answers: { 'Which color?': 'Red (Recommended)' }, text: 'Go', files: [] }, lost, 'ru')
