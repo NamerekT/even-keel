@@ -1,13 +1,15 @@
 import { existsSync, mkdirSync, readdirSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
-import type { DatabaseSync } from 'node:sqlite'
+import type { Transaction } from '@electric-sql/pglite'
 import type { LaunchEntry } from '../chain/model.js'
 import { readSnapshots, saveSnapshot, type HandoffSnapshot } from '../chain/snapshots.js'
 import { appendLaunch, chainStateOf, loadChainState, loadQuestions, readLaunches, saveQuestions, writeChainRecord } from '../chain/store.js'
 import { fail } from '../notice/notice.js'
 import type { PostedQuestion } from '../tracker/questions.js'
 import { writeAtomic } from './atomic.js'
-import { DATABASE_FILE, inTransaction, openDatabase } from './database.js'
+import { insertRows, sqliteRows, type Rows } from './copy.js'
+import { inTransaction, openDatabase, SQLITE_FILE, type Db, type Queryable } from './database.js'
+import { databaseDirOf, databaseExists, dataDirOf, openStateDatabase, type StateDatabase } from './owner.js'
 import { isRecord } from './projects.js'
 import { isVersionLine, refuseNewer, SCHEMA_VERSION, versionOf } from './schema.js'
 
@@ -21,47 +23,68 @@ export interface PrepareOptions {
   stateDir: string
   log: (line: string) => void
   /** Runs inside the import's transaction after the last insert; a test throws there to break it midway. */
-  beforeCommit?: (db: DatabaseSync) => void
+  beforeCommit?: (db: Transaction) => Promise<void>
 }
 
 /**
- * Brings the state database to the current schema, after `upgradeStorage` has brought the files to theirs. Without a
- * database the v0.1 files of `state/` are imported first: read and checked whole, written into a new database in one
- * transaction, which takes its place only once complete; then each file is renamed to `<name>.imported`. A file that
- * is still there next to an existing database is not read, and the log says so once per start.
+ * Opens the state database as its owner and brings it to the current schema, after `upgradeStorage` has brought the
+ * files to theirs. Without a database, what the state folder holds is imported first — the `node:sqlite` file of
+ * versions 1–2, otherwise the v0.1 files: read and checked whole, written into a new database in one transaction, which
+ * takes its place only once complete; then each imported file is renamed to `<name>.imported`. A file that is still
+ * there next to an existing database is not read, and the log says so once per start.
  */
-export function prepareDatabase(options: PrepareOptions): void {
+export async function prepareDatabase(options: PrepareOptions): Promise<StateDatabase> {
   const { stateDir, log } = options
-  const file = join(stateDir, DATABASE_FILE)
-  if (existsSync(file)) {
-    openDatabase(file).close()
-    const stray = Object.values(STATE_FILES).filter((name) => existsSync(join(stateDir, name)))
-    if (stray.length > 0) log(`storage: ${stray.join(', ')} in ${stateDir} are not read: the state is in ${file} (BTN-147)`)
-    return
+  const dir = databaseDirOf(stateDir)
+  const legacy = join(stateDir, SQLITE_FILE)
+  if (databaseExists(dir)) {
+    const opened = await openStateDatabase(dir)
+    const stray = [...Object.values(STATE_FILES), SQLITE_FILE].filter((name) => existsSync(join(stateDir, name)))
+    if (stray.length > 0) log(`storage: ${stray.join(', ')} in ${stateDir} are not read: the state is in ${dir} (BTN-198)`)
+    return opened
+  }
+  if (existsSync(legacy)) {
+    const rows = await sqliteRows(legacy, true)
+    await importInto(dir, (tx) => insertRows(tx, rows), options)
+    keepImported(stateDir, [SQLITE_FILE], log)
+    log(`storage: moved ${legacy} into ${dir}: ${counted(rows)}; the file is kept as ${SQLITE_FILE}${IMPORTED_SUFFIX}`)
+    return openStateDatabase(dir)
   }
   const files = readStateFiles(stateDir, log)
-  if (files === undefined) {
-    openDatabase(file).close()
-    return
-  }
-  const temp = `${file}.import`
-  removeDatabase(temp)
+  await importInto(dir, (tx) => (files === undefined ? Promise.resolve() : writeState(tx, files)), options)
+  if (files === undefined) return openStateDatabase(dir)
+  keepImported(stateDir, Object.values(STATE_FILES), log)
+  const { chain, questions, launches, handoffs } = files
+  log(
+    `storage: moved the state into ${dir}: the chain${chain === undefined ? ' (none saved)' : ''}, ${questions.length} questions, ` +
+      `${launches.length} launches, ${handoffs.length} handoff snapshots; the files are kept as *${IMPORTED_SUFFIX}`,
+  )
+  return openStateDatabase(dir)
+}
+
+/** A new database in `dir`, filled in one transaction and moved into place only once complete. */
+async function importInto(dir: string, fill: (tx: Transaction) => Promise<void>, options: PrepareOptions): Promise<void> {
+  const temp = `${dir}.import`
+  rmSync(temp, { recursive: true, force: true })
   try {
-    const db = openDatabase(temp)
+    const db = await openDatabase(dataDirOf(temp))
     try {
-      inTransaction(db, () => {
-        writeState(db, files)
-        options.beforeCommit?.(db)
+      await db.transaction(async (tx) => {
+        await fill(tx)
+        await options.beforeCommit?.(tx)
       })
     } finally {
-      db.close()
+      await db.close()
     }
-    renameSync(temp, file)
+    renameSync(temp, dir)
   } catch (error) {
-    removeDatabase(temp)
-    throw fail('storage.importFailed', { file }, {}, { cause: error })
+    rmSync(temp, { recursive: true, force: true })
+    throw fail('storage.importFailed', { file: dir }, {}, { cause: error })
   }
-  for (const name of Object.values(STATE_FILES)) {
+}
+
+function keepImported(stateDir: string, names: string[], log: (line: string) => void): void {
+  for (const name of names) {
     const path = join(stateDir, name)
     if (!existsSync(path)) continue
     try {
@@ -70,11 +93,11 @@ export function prepareDatabase(options: PrepareOptions): void {
       log(`storage: ${path} was imported but not renamed (${(error as Error).message}); it is not read any more`)
     }
   }
-  const { chain, questions, launches, handoffs } = files
-  log(
-    `storage: moved the state into ${file}: the chain${chain === undefined ? ' (none saved)' : ''}, ${questions.length} questions, ` +
-      `${launches.length} launches, ${handoffs.length} handoff snapshots; the files are kept as *${IMPORTED_SUFFIX}`,
-  )
+}
+
+function counted(rows: Rows): string {
+  const tables = Object.entries(rows).filter(([, list]) => list.length > 0)
+  return tables.length === 0 ? 'no rows' : tables.map(([table, list]) => `${list.length} ${table}`).join(', ')
 }
 
 /** The state of v0.1 files, projects by id as the files name them. */
@@ -107,11 +130,11 @@ export function readStateFiles(stateDir: string, log: (line: string) => void = (
   }
 }
 
-function writeState(db: DatabaseSync, files: StateFiles): void {
-  if (files.chain !== undefined) writeChainRecord(db, chainStateOf(files.chain, {}, STATE_FILES.chain))
-  saveQuestions(db, files.questions)
-  for (const entry of files.launches) appendLaunch(db, entry)
-  for (const snapshot of files.handoffs) saveSnapshot(db, snapshot)
+async function writeState(db: Db, files: StateFiles): Promise<void> {
+  if (files.chain !== undefined) await writeChainRecord(db, chainStateOf(files.chain, {}, STATE_FILES.chain))
+  await saveQuestions(db, files.questions)
+  for (const entry of files.launches) await appendLaunch(db, entry)
+  for (const snapshot of files.handoffs) await saveSnapshot(db, snapshot)
 }
 
 function readQuestionsFile(file: string): PostedQuestion[] {
@@ -164,23 +187,13 @@ function readHandoffDir(dir: string, log: (line: string) => void): HandoffSnapsh
  * Writes the database's state into `dir` as v0.1 files — what a v0.1 Even Keel reads, and what the import reads back.
  * The closed tasks have no such file; a copy of the database (`backupDatabase`) keeps everything.
  */
-export function exportState(db: DatabaseSync, dir: string): void {
-  writeAtomic(join(dir, STATE_FILES.chain), `${JSON.stringify({ version: SCHEMA_VERSION, ...loadChainState(db) }, null, 2)}\n`)
-  writeAtomic(join(dir, STATE_FILES.questions), `${JSON.stringify({ version: SCHEMA_VERSION, questions: loadQuestions(db) }, null, 2)}\n`)
-  writeAtomic(join(dir, STATE_FILES.launches), [{ version: SCHEMA_VERSION }, ...readLaunches(db)].map((line) => `${JSON.stringify(line)}\n`).join(''))
+export async function exportState(db: Queryable, dir: string): Promise<void> {
+  writeAtomic(join(dir, STATE_FILES.chain), `${JSON.stringify({ version: SCHEMA_VERSION, ...(await loadChainState(db)) }, null, 2)}\n`)
+  writeAtomic(join(dir, STATE_FILES.questions), `${JSON.stringify({ version: SCHEMA_VERSION, questions: await loadQuestions(db) }, null, 2)}\n`)
+  writeAtomic(join(dir, STATE_FILES.launches), [{ version: SCHEMA_VERSION }, ...(await readLaunches(db))].map((line) => `${JSON.stringify(line)}\n`).join(''))
   const handoffs = join(dir, STATE_FILES.handoffs)
   mkdirSync(handoffs, { recursive: true })
-  for (const snapshot of readSnapshots(db)) writeFileSync(join(handoffs, `${snapshot.sessionId}.json`), `${JSON.stringify(snapshot, null, 2)}\n`)
-}
-
-/** A consistent copy of the database into a new file, while the service may be writing it. */
-export function backupDatabase(db: DatabaseSync, file: string): void {
-  if (existsSync(file)) throw new Error(`storage: ${file} exists; give a new file`)
-  db.prepare('VACUUM INTO ?').run(file)
-}
-
-function removeDatabase(file: string): void {
-  for (const suffix of ['', '-wal', '-shm', '-journal']) rmSync(`${file}${suffix}`, { force: true })
+  for (const snapshot of await readSnapshots(db)) writeFileSync(join(handoffs, `${snapshot.sessionId}.json`), `${JSON.stringify(snapshot, null, 2)}\n`)
 }
 
 function readJson(file: string): unknown {

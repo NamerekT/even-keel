@@ -66,7 +66,8 @@ import { slotOccupants } from './sessions/occupants.js'
 import { locateWorktree } from './sessions/place.js'
 import type { EvenKeelState, SessionView } from './state.js'
 import { StatsReader } from './stats/reader.js'
-import { DATABASE_FILE, openDatabase } from './storage/database.js'
+import { Writes } from './storage/database.js'
+import { keptDatabase } from './storage/owner.js'
 import { rekeyed } from './storage/projects.js'
 import { TallyService } from './stats/tally.js'
 import { chainSettings, readToolsView } from './tools/panel.js'
@@ -132,8 +133,11 @@ const branchOf = (project: string) => configFile.current.settings[project]?.bran
 const rulesOf = (project: string) => configFile.current.rules[project]!
 const stateDir = stateDirOf()
 mkdirSync(stateDir, { recursive: true })
-const db = openDatabase(join(stateDir, DATABASE_FILE))
-const mailbox = new Mailbox(db, () => new Date())
+const stateDb = keptDatabase()
+const db = stateDb.db
+/** The database's writes are not waited for: the dispatcher and the page go on from what they hold in memory. */
+const writes = new Writes((line) => console.warn(line))
+const mailbox = await Mailbox.open(db, writes, () => new Date())
 const limitsFile = join(stateDir, 'rate-limits.json')
 const accountFile = join(stateDir, 'account.json')
 const links = new Map<string, TrackerLink>()
@@ -192,7 +196,7 @@ const refreshers = new Map<string, () => Promise<void>>()
 let sessions: SessionView[] = []
 let agents: AgentEntry[] = []
 let agentsRead = false
-const launches: LaunchEntry[] = readLaunches(db, configFile.current.ids)
+const launches: LaunchEntry[] = await readLaunches(db, configFile.current.ids)
 const trackers = new Trackers({
   adapters: ADAPTERS,
   start: (view, setup) =>
@@ -544,18 +548,14 @@ function archiveClosed(project: string, task: string): void {
   const tracker = configFile.current.trackers[project]!
   const title = tasksByProject.get(project)?.find((each) => each.id === task)?.title ?? ''
   const url = issueLink(trackers.setup(tracker)?.issueUrl(project) ?? null, task)
-  try {
-    saveClosedTask(db, { project, task, tracker, title, url, closedAt: new Date().toISOString() }, configFile.current.ids)
-  } catch (error) {
-    console.warn(`chain: ${task} not archived: ${(error as Error).message}`)
-  }
+  writes.add(`the archive of ${task}`, saveClosedTask(db, { project, task, tracker, title, url, closedAt: new Date().toISOString() }, configFile.current.ids))
 }
 
 function taskRun(task: string, cwd: string): SetupRun {
   return { task, cwd, shell: systemShell(() => envOf(homeOf(claudeAccount()))), log: (line) => console.log(line) }
 }
 
-const dispatcher = new Dispatcher(loadChainState(db, configFile.current.ids), {
+const dispatcher = new Dispatcher(await loadChainState(db, configFile.current.ids), {
   projects: () => Object.keys(configFile.current.projects),
   parallel: () => configFile.current.parallel,
   rules: rulesOf,
@@ -583,11 +583,11 @@ const dispatcher = new Dispatcher(loadChainState(db, configFile.current.ids), {
   midTurn: (task) => agentStatus(task) === 'busy',
   asked: (task) => liveView(task)?.ask?.id ?? null,
   save: (state) => {
-    saveChainState(db, state, configFile.current.ids)
+    writes.add('the chain state', saveChainState(db, state, configFile.current.ids))
     hub.broadcast('state', getState())
   },
   journal: (entry) => {
-    appendLaunch(db, entry, configFile.current.ids)
+    writes.add(`the launch of ${entry.task}`, appendLaunch(db, entry, configFile.current.ids))
     launches.push(entry)
     console.log(launchLine(entry))
   },
@@ -621,11 +621,7 @@ const dispatcher = new Dispatcher(loadChainState(db, configFile.current.ids), {
     const extras = agentExtras(home, project, task)
     const sessionId = await launchIn(home, { name: task, cwd: session.workdir, prompt, model, settings: settingsFor(task, project), ...extras })
     const snapshot = { at, task, sessionId, previous: session.sessionId, reason: snapshotReason(reason), prompt, notePath, note }
-    try {
-      saveSnapshot(db, snapshot)
-    } catch (error) {
-      console.warn(`chain: handoff snapshot of ${task} not saved: ${(error as Error).message}`)
-    }
+    writes.add(`the handoff snapshot of ${task}`, saveSnapshot(db, snapshot))
     return sessionId
   },
   launchFix: async (project, name, report) => {
@@ -1050,6 +1046,7 @@ function configuredProject(task: string): string | undefined {
   return project !== undefined && Object.hasOwn(configFile.current.projects, project) ? project : undefined
 }
 
+const postedQuestions = await loadQuestions(db)
 const questions = new TrackerQuestions({
   sessions: () => {
     const current = dispatcher.state.active.flatMap((chain): AskingSession[] => {
@@ -1067,8 +1064,8 @@ const questions = new TrackerQuestions({
   },
   tracker: (project, call) => linkOf(project)?.run(call),
   language: () => configFile.current.language ?? promptLanguage(),
-  load: () => loadQuestions(db),
-  save: (posted) => saveQuestions(db, posted),
+  load: () => postedQuestions,
+  save: (posted) => writes.add('the posted questions', saveQuestions(db, posted)),
   answer: (project, task, sessionId, ask, reply) => answerSession(project, task, sessionId, ask, { from: 'tracker', ...reply }),
   log: (message) => console.log(message),
 })
@@ -1129,12 +1126,12 @@ tally.start()
 envFile.subscribe((changed) => void envChanged(changed))
 envFile.watch()
 
-// The local Tally database closes cleanly on a stop signal; the Windows service host kills the process instead,
-// and PGlite recovers from its WAL on the next start.
+// The local Tally database and the state database close cleanly on a stop signal; the Windows service host kills the
+// process instead, and PGlite recovers from its WAL on the next start.
 for (const signal of ['SIGINT', 'SIGTERM'] as const) {
   process.once(signal, () => {
     setTimeout(() => process.exit(0), SHUTDOWN_MS).unref()
-    void tally.stop().finally(() => process.exit(0))
+    void Promise.allSettled([tally.stop(), writes.settled().then(() => stateDb.close())]).finally(() => process.exit(0))
   })
 }
 

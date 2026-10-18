@@ -1,14 +1,15 @@
 import { describe, expect, it } from 'vitest'
-import { openDatabase } from '../storage/database.js'
+import { Writes } from '../storage/database.js'
+import { memoryDatabase } from '../storage/memory.js'
 import { Mailbox } from './mailbox.js'
 import { mailFor, settleMail, type MailRelay } from './mailRelay.js'
 
 const SESSION = '11111111-2222-4333-8444-555555555555'
 const OTHER = '66666666-7777-4888-8999-000000000000'
 
-function relay(live: { sessionId: string; midTurn: boolean; asking: boolean } | undefined, resume: MailRelay['resume'] = () => {}) {
+async function relay(live: { sessionId: string; midTurn: boolean; asking: boolean } | undefined, resume: MailRelay['resume'] = () => {}) {
   let now = Date.parse('2026-10-18T10:00:00.000Z')
-  const mailbox = new Mailbox(openDatabase(':memory:'), () => new Date(now))
+  const mailbox = await Mailbox.open(await memoryDatabase(), new Writes(() => {}), () => new Date(now))
   const resumed: { task: string; sessionId: string; prompt: string }[] = []
   const log: string[] = []
   let changes = 0
@@ -27,9 +28,10 @@ function relay(live: { sessionId: string; midTurn: boolean; asking: boolean } | 
   return { deps, mailbox, resumed, log, changes: () => changes, later: (seconds: number) => (now += seconds * 1000) }
 }
 
-describe('settleMail', () => {
-  it('leaves a message to the hooks while the session works', () => {
-    const { deps, mailbox, later, changes } = relay({ sessionId: SESSION, midTurn: true, asking: false })
+// The first database of a file migrates the template, which under a full run takes longer than the default 5 s.
+describe('settleMail', { timeout: 30_000 }, () => {
+  it('leaves a message to the hooks while the session works', async () => {
+    const { deps, mailbox, later, changes } = await relay({ sessionId: SESSION, midTurn: true, asking: false })
     mailbox.post('ABC-1', SESSION, 'one', [])
     later(60)
     settleMail(deps)
@@ -37,8 +39,8 @@ describe('settleMail', () => {
     expect(changes()).toBe(0)
   })
 
-  it('resumes a session that ended its turn without taking the messages, all of them in one prompt', () => {
-    const { deps, mailbox, later, resumed } = relay({ sessionId: SESSION, midTurn: false, asking: false })
+  it('resumes a session that ended its turn without taking the messages, all of them in one prompt', async () => {
+    const { deps, mailbox, later, resumed } = await relay({ sessionId: SESSION, midTurn: false, asking: false })
     mailbox.post('ABC-1', SESSION, 'one', [])
     mailbox.post('ABC-1', SESSION, 'two', [])
     later(11)
@@ -52,8 +54,8 @@ describe('settleMail', () => {
     ])
   })
 
-  it('gives the message back when the session asked a question meanwhile', () => {
-    const { deps, mailbox, later, resumed, changes } = relay({ sessionId: SESSION, midTurn: false, asking: true })
+  it('gives the message back when the session asked a question meanwhile', async () => {
+    const { deps, mailbox, later, resumed, changes } = await relay({ sessionId: SESSION, midTurn: false, asking: true })
     mailbox.post('ABC-1', SESSION, 'one', [])
     later(11)
     settleMail(deps)
@@ -62,16 +64,16 @@ describe('settleMail', () => {
     expect(changes()).toBe(1)
   })
 
-  it('gives the message back when the session is gone or another one took the task', () => {
-    const { deps, mailbox, later } = relay({ sessionId: OTHER, midTurn: false, asking: false })
+  it('gives the message back when the session is gone or another one took the task', async () => {
+    const { deps, mailbox, later } = await relay({ sessionId: OTHER, midTurn: false, asking: false })
     mailbox.post('ABC-1', SESSION, 'one', [])
     later(11)
     settleMail(deps)
     expect(mailbox.of(SESSION).map((mail) => mail.fate)).toEqual(['returned'])
   })
 
-  it('gives the message back when the resume is refused', () => {
-    const { deps, mailbox, later, log } = relay({ sessionId: SESSION, midTurn: false, asking: false }, () => {
+  it('gives the message back when the resume is refused', async () => {
+    const { deps, mailbox, later, log } = await relay({ sessionId: SESSION, midTurn: false, asking: false }, () => {
       throw new Error('limit')
     })
     mailbox.post('ABC-1', SESSION, 'one', [])
@@ -81,8 +83,8 @@ describe('settleMail', () => {
     expect(log.join('\n')).toContain('limit')
   })
 
-  it('waits out the grace period after the post', () => {
-    const { deps, mailbox, later, resumed } = relay({ sessionId: SESSION, midTurn: false, asking: false })
+  it('waits out the grace period after the post', async () => {
+    const { deps, mailbox, later, resumed } = await relay({ sessionId: SESSION, midTurn: false, asking: false })
     mailbox.post('ABC-1', SESSION, 'one', [])
     later(5)
     settleMail(deps)
@@ -91,9 +93,9 @@ describe('settleMail', () => {
   })
 })
 
-describe('mailFor', () => {
-  it('gives the hook what waits, with the lead of its event, and nothing the second time', () => {
-    const { deps, mailbox, changes } = relay({ sessionId: SESSION, midTurn: true, asking: false })
+describe('mailFor', { timeout: 30_000 }, () => {
+  it('gives the hook what waits, with the lead of its event, and nothing the second time', async () => {
+    const { deps, mailbox, changes } = await relay({ sessionId: SESSION, midTurn: true, asking: false })
     const { id } = mailbox.post('ABC-1', SESSION, 'Use the other parser.', [])
     const message = mailFor(deps, SESSION, 'Stop')
     expect(message).toContain(`<even-keel-message id="${id}">`)

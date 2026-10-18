@@ -6,6 +6,7 @@ import { configPath, loadEnv, root, stateDirOf } from './locations.js'
 import { englishOf, noticeOf, type Notice } from './notice/notice.js'
 import { createBlockedServer } from './server.js'
 import { upgradeStorage } from './storage/migrations.js'
+import { keepDatabase } from './storage/owner.js'
 import { prepareDatabase } from './storage/state-files.js'
 
 // The storage is brought to the current schema before the service reads any of it; when it cannot be, the service
@@ -14,7 +15,7 @@ loadEnv()
 let blocked: Notice | undefined
 try {
   upgradeStorage({ configFile: configPath(), stateDir: stateDirOf(), log: (line) => console.log(line) })
-  prepareDatabase({ stateDir: stateDirOf(), log: (line) => console.log(line) })
+  keepDatabase(await prepareDatabase({ stateDir: stateDirOf(), log: (line) => console.log(line) }))
 } catch (error) {
   blocked = noticeOf(error)
 }

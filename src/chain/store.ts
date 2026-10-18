@@ -1,6 +1,5 @@
-import type { DatabaseSync } from 'node:sqlite'
 import { asNotice, type Notice } from '../notice/notice.js'
-import { inTransaction } from '../storage/database.js'
+import { insertList, inTransaction, type Db, type Queryable } from '../storage/database.js'
 import { byMap, inverted, isRecord, renameChainProjects } from '../storage/projects.js'
 import type { PostedQuestion } from '../tracker/questions.js'
 import { emptyChainState, type ActiveChain, type ChainState, type CurrentTask, type LaunchEntry, type Leftover } from './dispatcher.js'
@@ -9,8 +8,8 @@ import { emptyChainState, type ActiveChain, type ChainState, type CurrentTask, t
  * The database names a project by its id, the running service by its key: `ids` is the id of each key from the config.
  * An id the config does not have — a removed project — stays as it is.
  */
-export function loadChainState(db: DatabaseSync, ids: Record<string, string> = {}): ChainState {
-  const stored = readChainRecord(db)
+export async function loadChainState(db: Queryable, ids: Record<string, string> = {}): Promise<ChainState> {
+  const stored = await readChainRecord(db)
   return stored === undefined ? emptyChainState() : chainStateOf(stored, ids, 'the chain state')
 }
 
@@ -70,67 +69,68 @@ function leftoversOf(stored: Record<string, unknown[]> | undefined): Record<stri
   return result
 }
 
-export function saveChainState(db: DatabaseSync, state: ChainState, ids: Record<string, string> = {}): void {
-  writeChainRecord(db, renameChainProjects(state as unknown as Record<string, unknown>, byMap(ids)) as unknown as ChainState)
+/** Starts its write at the call: see `Writes`. */
+export function saveChainState(db: Db, state: ChainState, ids: Record<string, string> = {}): Promise<void> {
+  return writeChainRecord(db, renameChainProjects(state as unknown as Record<string, unknown>, byMap(ids)) as unknown as ChainState)
 }
 
 const LISTS = ['orders', 'skipped', 'leftovers', 'released', 'ci'] as const
 
 /** The chain state as stored, projects by id; `undefined` — nothing was ever saved. */
-function readChainRecord(db: DatabaseSync): Record<string, unknown> | undefined {
-  const flags = db.prepare('SELECT name, value FROM chain_flags').all() as { name: string; value: string }[]
+async function readChainRecord(db: Queryable): Promise<Record<string, unknown> | undefined> {
+  const { rows: flags } = await db.query<{ name: string; value: string }>('select name, value from chain_flags')
   if (flags.length === 0) return undefined
   const record: Record<string, unknown> = Object.fromEntries(flags.map(({ name, value }) => [name, JSON.parse(value)]))
-  const chains = db.prepare('SELECT project_id, chain FROM chains ORDER BY position').all() as { project_id: string; chain: string }[]
+  const { rows: chains } = await db.query<{ project_id: string; chain: string }>('select project_id, chain from chains order by position')
   record.active = chains.map(({ project_id, chain }) => ({ project: project_id, ...(JSON.parse(chain) as object) }))
-  record.queue = (db.prepare('SELECT project_id FROM chain_queue ORDER BY position').all() as { project_id: string }[]).map((row) => row.project_id)
+  record.queue = (await db.query<{ project_id: string }>('select project_id from chain_queue order by position')).rows.map((row) => row.project_id)
   for (const list of LISTS) record[list] = {}
-  const rows = db.prepare('SELECT project_id, list, value FROM chain_lists ORDER BY rowid').all() as { project_id: string; list: (typeof LISTS)[number]; value: string }[]
+  const { rows } = await db.query<{ project_id: string; list: (typeof LISTS)[number]; value: string }>('select project_id, list, value from chain_lists order by list, project_id')
   for (const { project_id, list, value } of rows) (record[list] as Record<string, unknown>)[project_id] = JSON.parse(value)
   return record
 }
 
 /** Writes the whole chain state, projects by id, in place of the stored one. */
-export function writeChainRecord(db: DatabaseSync, state: ChainState): void {
-  inTransaction(db, () => {
-    for (const table of ['chain_flags', 'chains', 'chain_queue', 'chain_lists']) db.exec(`DELETE FROM ${table}`)
-    const flag = db.prepare('INSERT INTO chain_flags (name, value) VALUES (?, ?)')
-    flag.run('unattended', JSON.stringify(state.unattended))
-    flag.run('trimTools', JSON.stringify(state.trimTools))
-    const chain = db.prepare('INSERT INTO chains (position, project_id, chain) VALUES (?, ?, ?)')
-    state.active.forEach(({ project, ...rest }, position) => chain.run(position, project, JSON.stringify(rest)))
-    const queued = db.prepare('INSERT INTO chain_queue (position, project_id) VALUES (?, ?)')
-    state.queue.forEach((project, position) => queued.run(position, project))
-    const list = db.prepare('INSERT INTO chain_lists (project_id, list, value) VALUES (?, ?, ?)')
-    for (const name of LISTS) {
-      for (const [project, value] of Object.entries(state[name] as Record<string, unknown>)) list.run(project, name, JSON.stringify(value))
-    }
+export function writeChainRecord(db: Db, state: ChainState): Promise<void> {
+  return inTransaction(db, async (tx) => {
+    await tx.exec('delete from chain_flags; delete from chains; delete from chain_queue; delete from chain_lists')
+    await insertList(tx, 'chain_flags', [
+      { name: 'unattended', value: JSON.stringify(state.unattended) },
+      { name: 'trimTools', value: JSON.stringify(state.trimTools) },
+    ])
+    await insertList(tx, 'chains', state.active.map(({ project, ...rest }, position) => ({ position, project_id: project, chain: JSON.stringify(rest) })))
+    await insertList(tx, 'chain_queue', state.queue.map((project, position) => ({ position, project_id: project })))
+    await insertList(
+      tx,
+      'chain_lists',
+      LISTS.flatMap((list) => Object.entries(state[list] as Record<string, unknown>).map(([project, value]) => ({ project_id: project, list, value: JSON.stringify(value) }))),
+    )
   })
 }
 
-export function appendLaunch(db: DatabaseSync, entry: LaunchEntry, ids: Record<string, string> = {}): void {
+export async function appendLaunch(db: Db, entry: LaunchEntry, ids: Record<string, string> = {}): Promise<void> {
   const { at, project, task, sessionId, reason, ...extra } = entry
-  db.prepare('INSERT INTO launches (at, project_id, task, session_id, reason, extra) VALUES (?, ?, ?, ?, ?, ?)').run(
+  await db.query('insert into launches (at, project_id, task, session_id, reason, extra) values ($1, $2, $3, $4, $5, $6)', [
     at,
     byMap(ids)(project),
     task,
     sessionId,
     reason ?? null,
     JSON.stringify(extra),
-  )
+  ])
 }
 
 /** Without `ids` the entries name projects as the database does — by id; Tally reads them so. */
-export function readLaunches(db: DatabaseSync, ids?: Record<string, string>): LaunchEntry[] {
+export async function readLaunches(db: Queryable, ids?: Record<string, string>): Promise<LaunchEntry[]> {
   const keyOf = ids === undefined ? (project: string) => project : byMap(inverted(ids))
-  const rows = db.prepare('SELECT at, project_id, task, session_id, reason, extra FROM launches ORDER BY id').all() as {
+  const { rows } = await db.query<{
     at: string
     project_id: string
     task: string
     session_id: string
     reason: string | null
     extra: string
-  }[]
+  }>('select at, project_id, task, session_id, reason, extra from launches order by id')
   return rows.map((row) => ({
     at: row.at,
     project: keyOf(row.project_id),
@@ -142,22 +142,25 @@ export function readLaunches(db: DatabaseSync, ids?: Record<string, string>): La
 }
 
 /** The questions Even Keel posted to the tracker. */
-export function loadQuestions(db: DatabaseSync): PostedQuestion[] {
-  const rows = db.prepare('SELECT task, session_id, ask, comment, done FROM questions ORDER BY position').all() as {
+export async function loadQuestions(db: Queryable): Promise<PostedQuestion[]> {
+  const { rows } = await db.query<{
     task: string
     session_id: string
     ask: string
     comment: string
-    done: number
-  }[]
-  return rows.map((row) => ({ task: row.task, sessionId: row.session_id, ask: row.ask, comment: row.comment, ...(row.done === 1 ? { done: true } : {}) }))
+    done: boolean
+  }>('select task, session_id, ask, comment, done from questions order by position')
+  return rows.map((row) => ({ task: row.task, sessionId: row.session_id, ask: row.ask, comment: row.comment, ...(row.done ? { done: true } : {}) }))
 }
 
-export function saveQuestions(db: DatabaseSync, questions: PostedQuestion[]): void {
-  inTransaction(db, () => {
-    db.exec('DELETE FROM questions')
-    const insert = db.prepare('INSERT INTO questions (position, task, session_id, ask, comment, done) VALUES (?, ?, ?, ?, ?, ?)')
-    questions.forEach((question, position) => insert.run(position, question.task, question.sessionId, question.ask, question.comment, question.done === true ? 1 : 0))
+export function saveQuestions(db: Db, questions: PostedQuestion[]): Promise<void> {
+  return inTransaction(db, async (tx) => {
+    await tx.query('delete from questions')
+    await insertList(
+      tx,
+      'questions',
+      questions.map((question, position) => ({ position, task: question.task, session_id: question.sessionId, ask: question.ask, comment: question.comment, done: question.done === true })),
+    )
   })
 }
 
@@ -172,22 +175,23 @@ export interface ClosedTask {
 }
 
 /** A task closed again after a reopen keeps the latest title and time. */
-export function saveClosedTask(db: DatabaseSync, closed: ClosedTask, ids: Record<string, string> = {}): void {
-  db.prepare(
-    `INSERT INTO closed_tasks (project_id, task, tracker, title, url, closed_at) VALUES (?, ?, ?, ?, ?, ?)
-     ON CONFLICT (project_id, task) DO UPDATE SET tracker = excluded.tracker, title = excluded.title, url = excluded.url, closed_at = excluded.closed_at`,
-  ).run(byMap(ids)(closed.project), closed.task, closed.tracker, closed.title, closed.url, closed.closedAt)
+export async function saveClosedTask(db: Db, closed: ClosedTask, ids: Record<string, string> = {}): Promise<void> {
+  await db.query(
+    `insert into closed_tasks (project_id, task, tracker, title, url, closed_at) values ($1, $2, $3, $4, $5, $6)
+     on conflict (project_id, task) do update set tracker = excluded.tracker, title = excluded.title, url = excluded.url, closed_at = excluded.closed_at`,
+    [byMap(ids)(closed.project), closed.task, closed.tracker, closed.title, closed.url, closed.closedAt],
+  )
 }
 
-export function closedTasks(db: DatabaseSync, ids: Record<string, string> = {}): ClosedTask[] {
+export async function closedTasks(db: Queryable, ids: Record<string, string> = {}): Promise<ClosedTask[]> {
   const keyOf = byMap(inverted(ids))
-  const rows = db.prepare('SELECT project_id, task, tracker, title, url, closed_at FROM closed_tasks ORDER BY closed_at, rowid').all() as {
+  const { rows } = await db.query<{
     project_id: string
     task: string
     tracker: string
     title: string
     url: string | null
     closed_at: string
-  }[]
+  }>('select project_id, task, tracker, title, url, closed_at from closed_tasks order by closed_at, project_id, task')
   return rows.map((row) => ({ project: keyOf(row.project_id), task: row.task, tracker: row.tracker, title: row.title, url: row.url, closedAt: row.closed_at }))
 }

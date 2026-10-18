@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs'
+import { existsSync, readFileSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { AccountHomes, accountsRoot } from '../../src/account/homes.js'
@@ -7,7 +7,9 @@ import { readSnapshots, type HandoffSnapshot } from '../../src/chain/snapshots.j
 import { readLaunches } from '../../src/chain/store.js'
 import { loadConfig } from '../../src/config.js'
 import { HALTED } from '../../src/stats/tally-schema.js'
-import { DATABASE_FILE, readDatabase } from '../../src/storage/database.js'
+import { sqliteInMemory } from '../../src/storage/copy.js'
+import { SQLITE_FILE } from '../../src/storage/database.js'
+import { readStateDatabase, type StateReader } from '../../src/storage/owner.js'
 import { readStateFiles } from '../../src/storage/state-files.js'
 import { parseConfig, type DbSettings } from './config.js'
 import { TallyDb } from './db.js'
@@ -33,7 +35,7 @@ export async function collect(settings: DbSettings, root: string, log: Log): Pro
   const config = parseConfig(JSON.parse(readFileSync(process.env.TALLY_CONFIG ?? join(root, 'tally', 'tally.config.json'), 'utf8')))
   const stateDir = process.env.EVEN_KEEL_STATE_DIR ?? join(root, 'state')
   const homes = new AccountHomes(process.env, accountsRoot(process.env))
-  const { launches: journal, handoffs: saved } = evenKeelState(stateDir, log)
+  const { launches: journal, handoffs: saved } = await evenKeelState(stateDir, log)
   const launches = launchMap(journal)
 
   const db = await TallyDb.connect(settings)
@@ -124,25 +126,33 @@ export async function collect(settings: DbSettings, root: string, log: Log): Pro
 }
 
 /**
- * The launch log and the handoff snapshots from Even Keel's database. Without one — a merge reaches the collector
- * before the service restarts and imports the files — from the v0.1 files of the state folder.
+ * The launch log and the handoff snapshots from Even Keel's database, through the service's port while it runs.
+ * Without one — a merge reaches the collector before the service restarts and imports the old state — from the
+ * `node:sqlite` file of versions 1–2, otherwise from the v0.1 files of the state folder.
  */
-function evenKeelState(stateDir: string, log: Log): { launches: LaunchEntry[]; handoffs: HandoffSnapshot[] } {
+async function evenKeelState(stateDir: string, log: Log): Promise<{ launches: LaunchEntry[]; handoffs: HandoffSnapshot[] }> {
   try {
-    const db = readDatabase(join(stateDir, DATABASE_FILE))
-    if (db === undefined) {
+    const reader = (await readStateDatabase(stateDir)) ?? (await legacyReader(stateDir))
+    if (reader === undefined) {
       const files = readStateFiles(stateDir)
       return { launches: files?.launches ?? [], handoffs: files?.handoffs ?? [] }
     }
     try {
-      return { launches: readLaunches(db), handoffs: readSnapshots(db) }
+      return { launches: await readLaunches(reader.db), handoffs: await readSnapshots(reader.db) }
     } finally {
-      db.close()
+      await reader.close()
     }
   } catch (error) {
     log(`tally: Even Keel's launch log is not read (${(error as Error).message})`)
     return { launches: [], handoffs: [] }
   }
+}
+
+async function legacyReader(stateDir: string): Promise<StateReader | undefined> {
+  const file = join(stateDir, SQLITE_FILE)
+  if (!existsSync(file)) return undefined
+  const db = await sqliteInMemory(file)
+  return { db, close: () => db.close() }
 }
 
 function trackedProjects(root: string, log: Log): string[] {

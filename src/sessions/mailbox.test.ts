@@ -1,21 +1,31 @@
 import { describe, expect, it } from 'vitest'
-import { openDatabase } from '../storage/database.js'
+import { Writes } from '../storage/database.js'
+import { memoryDatabase } from '../storage/memory.js'
 import { mailIn, mailMessage } from './mail.js'
 import { Mailbox, mailOutcome } from './mailbox.js'
 
 const SESSION = '11111111-2222-4333-8444-555555555555'
 const OTHER = '66666666-7777-4888-8999-000000000000'
 
-function box(start = Date.parse('2026-10-18T10:00:00.000Z')) {
+async function box(start = Date.parse('2026-10-18T10:00:00.000Z')) {
   let now = start
-  const db = openDatabase(':memory:')
-  const mailbox = new Mailbox(db, () => new Date(now))
-  return { db, mailbox, later: (seconds: number) => (now += seconds * 1000) }
+  const db = await memoryDatabase()
+  const writes = new Writes((line) => {
+    throw new Error(line)
+  })
+  const mailbox = await Mailbox.open(db, writes, () => new Date(now))
+  /** A new service on the same database, once what was written behind has landed. */
+  const reopened = async () => {
+    await writes.settled()
+    return Mailbox.open(db, writes, () => new Date(now))
+  }
+  return { mailbox, reopened, later: (seconds: number) => (now += seconds * 1000) }
 }
 
-describe('Mailbox', () => {
-  it('keeps a message waiting until the session takes it, once', () => {
-    const { mailbox, later } = box()
+// The first database of a file migrates the template, which under a full run takes longer than the default 5 s.
+describe('Mailbox', { timeout: 30_000 }, () => {
+  it('keeps a message waiting until the session takes it, once', async () => {
+    const { mailbox, later } = await box()
     const posted = mailbox.post('ABC-1', SESSION, 'Use the other parser.', ['C:\\repo\\.temp\\inbox\\a.png'])
     expect(posted).toMatchObject({ task: 'ABC-1', sessionId: SESSION, fate: 'waiting', event: null, files: ['C:\\repo\\.temp\\inbox\\a.png'] })
     expect(mailbox.take(OTHER, 'PostToolUse')).toEqual([])
@@ -25,23 +35,38 @@ describe('Mailbox', () => {
     expect(mailbox.take(SESSION, 'Stop')).toEqual([])
   })
 
-  it('outlives the service: a new mailbox on the same database sees what waits', () => {
-    const { db, mailbox } = box()
+  it('outlives the service: a new mailbox on the same database sees what waits', async () => {
+    const { mailbox, reopened } = await box()
     mailbox.post('ABC-1', SESSION, 'one', [])
-    const again = new Mailbox(db, () => new Date('2026-10-18T10:01:00.000Z'))
-    expect(again.waiting().map((mail) => mail.text)).toEqual(['one'])
+    expect((await reopened()).waiting().map((mail) => mail.text)).toEqual(['one'])
   })
 
-  it('knows a session listens only once its hook asked', () => {
-    const { mailbox } = box()
+  it('writes every change through to the database', async () => {
+    const { mailbox, reopened, later } = await box()
+    for (const text of ['a', 'b', 'c']) mailbox.post('ABC-1', SESSION, text, ['C:\\repo\\.temp\\inbox\\a.png'])
+    mailbox.settle(mailbox.waiting().slice(0, 1), 'returned')
+    mailbox.dismiss(SESSION)
+    later(5)
+    mailbox.take(SESSION, 'Stop')
+    const again = await reopened()
+    expect(again.of(SESSION)).toEqual(mailbox.of(SESSION))
+    expect(again.of(SESSION).map((mail) => [mail.text, mail.fate, mail.event])).toEqual([
+      ['b', 'delivered', 'Stop'],
+      ['c', 'delivered', 'Stop'],
+    ])
+    expect(again.post('ABC-1', SESSION, 'd', []).id).toBe(4)
+  })
+
+  it('knows a session listens only once its hook asked', async () => {
+    const { mailbox } = await box()
     expect(mailbox.listens(SESSION)).toBe(false)
     mailbox.take(SESSION, 'PreToolUse')
     expect(mailbox.listens(SESSION)).toBe(true)
     expect(mailbox.listens(OTHER)).toBe(false)
   })
 
-  it('settles only what still waits', () => {
-    const { mailbox } = box()
+  it('settles only what still waits', async () => {
+    const { mailbox } = await box()
     const first = mailbox.post('ABC-1', SESSION, 'one', [])
     const second = mailbox.post('ABC-1', SESSION, 'two', [])
     mailbox.take(SESSION, 'Stop')
@@ -54,8 +79,8 @@ describe('Mailbox', () => {
     ])
   })
 
-  it('shows a session its waiting and returned messages and the last delivered ones; a dismissed one goes', () => {
-    const { mailbox } = box()
+  it('shows a session its waiting and returned messages and the last delivered ones; a dismissed one goes', async () => {
+    const { mailbox } = await box()
     for (const text of ['a', 'b', 'c', 'd']) {
       mailbox.post('ABC-1', SESSION, text, [])
       mailbox.take(SESSION, 'PostToolUse')
@@ -68,14 +93,15 @@ describe('Mailbox', () => {
     expect(mailbox.of(SESSION).map((mail) => mail.text)).toEqual(['b', 'c', 'd', 'new'])
   })
 
-  it('forgets settled messages after a week', () => {
-    const { mailbox, later } = box()
+  it('forgets settled messages after a week', async () => {
+    const { mailbox, reopened, later } = await box()
     mailbox.post('ABC-1', SESSION, 'old', [])
     mailbox.take(SESSION, 'Stop')
     mailbox.post('ABC-1', SESSION, 'still waiting', [])
     later(8 * 24 * 60 * 60)
     mailbox.post('ABC-1', SESSION, 'fresh', [])
     expect(mailbox.of(SESSION).map((mail) => mail.text)).toEqual(['still waiting', 'fresh'])
+    expect((await reopened()).of(SESSION).map((mail) => mail.text)).toEqual(['still waiting', 'fresh'])
   })
 })
 

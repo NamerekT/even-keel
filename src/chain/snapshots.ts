@@ -1,5 +1,5 @@
 import { readFile } from 'node:fs/promises'
-import type { DatabaseSync } from 'node:sqlite'
+import type { Db, Queryable } from '../storage/database.js'
 import type { HandoffReason } from './prompts.js'
 
 const NOTE_LIMIT = 512 * 1024
@@ -33,16 +33,21 @@ export async function readNote(path: string | null): Promise<string | null> {
   }
 }
 
-export function saveSnapshot(db: DatabaseSync, snapshot: HandoffSnapshot): void {
+export async function saveSnapshot(db: Db, snapshot: HandoffSnapshot): Promise<void> {
   const { at, task, sessionId, previous, reason, prompt, notePath, note } = snapshot
-  db.prepare(
-    'INSERT OR REPLACE INTO handoffs (session_id, at, task, previous, reason, prompt, note_path, note) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-  ).run(sessionId, at ?? null, task ?? null, previous ?? null, reason ?? null, prompt ?? null, notePath ?? null, note ?? null)
+  await db.query(
+    `insert into handoffs (session_id, at, task, previous, reason, prompt, note_path, note) values ($1, $2, $3, $4, $5, $6, $7, $8)
+     on conflict (session_id) do update set at = excluded.at, task = excluded.task, previous = excluded.previous, reason = excluded.reason,
+       prompt = excluded.prompt, note_path = excluded.note_path, note = excluded.note`,
+    [sessionId, at ?? null, task ?? null, previous ?? null, reason ?? null, prompt ?? null, notePath ?? null, note ?? null],
+  )
 }
 
 /** The saved snapshots, oldest first; a snapshot imported from an older file may lack fields. */
-export function readSnapshots(db: DatabaseSync): HandoffSnapshot[] {
-  const rows = db.prepare('SELECT session_id, at, task, previous, reason, prompt, note_path, note FROM handoffs ORDER BY at, rowid').all() as Record<string, string | null>[]
+export async function readSnapshots(db: Queryable): Promise<HandoffSnapshot[]> {
+  const { rows } = await db.query<Record<string, string | null>>(
+    'select session_id, at, task, previous, reason, prompt, note_path, note from handoffs order by at nulls first, session_id',
+  )
   return rows.map((row) => ({
     at: row.at!,
     task: row.task!,

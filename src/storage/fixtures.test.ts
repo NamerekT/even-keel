@@ -10,7 +10,6 @@ import { parseConfig } from '../config.js'
 import { root } from '../locations.js'
 import { enabledPackages, installsFor, settingsOf } from '../packages/model.js'
 import { loadPackages } from '../packages/store.js'
-import { DATABASE_FILE, openDatabase } from './database.js'
 import { upgradeStorage } from './migrations.js'
 import { SCHEMA_VERSION } from './schema.js'
 import { prepareDatabase } from './state-files.js'
@@ -24,7 +23,7 @@ const json = (name: string) => JSON.parse(readFileSync(sample(name), 'utf8'))
 const ABC = '11111111-1111-4111-8111-111111111111'
 const XYZ = '22222222-2222-4222-8222-222222222222'
 
-describe(`frozen samples of schema v${SCHEMA_VERSION}`, () => {
+describe(`frozen samples of schema v${SCHEMA_VERSION}`, { timeout: 60_000 }, () => {
   let dir: string | undefined
   afterEach(() => {
     if (dir !== undefined) rmSync(dir, { recursive: true, force: true })
@@ -57,14 +56,13 @@ describe(`frozen samples of schema v${SCHEMA_VERSION}`, () => {
   const imported = () => {
     dir = mkdtempSync(join(tmpdir(), 'even-keel-samples-'))
     cpSync(samples, dir, { recursive: true })
-    prepareDatabase({ stateDir: join(dir, 'state'), log: () => {} })
-    return openDatabase(join(dir, 'state', DATABASE_FILE))
+    return prepareDatabase({ stateDir: join(dir, 'state'), log: () => {} })
   }
 
-  it('reads the chain naming projects by their keys', () => {
-    const db = imported()
-    const state = loadChainState(db, { ABC, XYZ })
-    db.close()
+  it('reads the chain naming projects by their keys', async () => {
+    const { db, close } = await imported()
+    const state = await loadChainState(db, { ABC, XYZ })
+    await close()
     expect(state.active.map((chain) => [chain.project, chain.current?.task])).toEqual([['ABC', 'ABC-2']])
     expect(state.queue).toEqual(['XYZ'])
     expect(state.orders).toEqual({ ABC: ['ABC-1', 'ABC-2', 'ABC-3'], XYZ: ['XYZ-7'] })
@@ -75,10 +73,10 @@ describe(`frozen samples of schema v${SCHEMA_VERSION}`, () => {
     expect(state.ci.ABC?.afterGreen).toBe(state.ci.ABC?.green)
   })
 
-  it('reads the questions, the launches and the accounts', () => {
-    const db = imported()
-    expect(loadQuestions(db).map((question) => question.task)).toEqual(['ABC-2'])
-    const launches = readLaunches(db, { ABC, XYZ })
+  it('reads the questions, the launches and the accounts', async () => {
+    const { db, close } = await imported()
+    expect((await loadQuestions(db)).map((question) => question.task)).toEqual(['ABC-2'])
+    const launches = await readLaunches(db, { ABC, XYZ })
     expect(launches.filter(isLaunch).map((entry) => [entry.project, entry.task])).toEqual([
       ['ABC', 'ABC-1'],
       ['ABC', 'ABC-2'],
@@ -90,8 +88,8 @@ describe(`frozen samples of schema v${SCHEMA_VERSION}`, () => {
       ['ABC-FIX.1', 'c6b3956', 'landed', '15945fe'],
       ['ABC-FIX.2', 'd00d000', 'dropped', undefined],
     ])
-    expect(new Set(readLaunches(db).map((entry) => entry.project))).toEqual(new Set([ABC]))
-    db.close()
+    expect(new Set((await readLaunches(db)).map((entry) => entry.project))).toEqual(new Set([ABC]))
+    await close()
     const ledger = loadLedger(sample('state/account.json'))
     expect(ledger.accounts.global?.email).toBe('john.doe@example.com')
     expect(ledger.accounts['team-api']?.name).toBe('Team API')
