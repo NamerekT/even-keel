@@ -171,6 +171,18 @@ export function TranscriptWindow({ sessionId, account, live, chat, onClose }: Pr
     if (list !== null && pinned.current) list.scrollTop = list.scrollHeight
   }, [lines, sent])
 
+  // The feed also shrinks without new lines — a message joins the mail list, the composer grows: keep a pinned feed at its end.
+  const listed = entries != null
+  useEffect(() => {
+    const list = listRef.current
+    if (list === null) return
+    const observer = new ResizeObserver(() => {
+      if (pinned.current) list.scrollTop = list.scrollHeight
+    })
+    observer.observe(list)
+    return () => observer.disconnect()
+  }, [listed])
+
   const onScroll = () => {
     const list = listRef.current
     if (list !== null) pinned.current = list.scrollHeight - list.scrollTop - list.clientHeight < PINNED_SLACK
