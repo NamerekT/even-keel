@@ -39,7 +39,7 @@ import type { Calibration } from './stats/calibration.js'
 import type { CheckpointThreshold, SessionCheckpoint } from './stats/checkpoint.js'
 import type { StatsSteps } from './stats/steps.js'
 import type { TaskCard } from './tracker/card.js'
-import type { TaskFile, TrackerProject } from './tracker/source.js'
+import type { TaskFile, TrackerProject, TrackerVocabulary } from './tracker/source.js'
 import { profileDraftOf } from './profiles/request.js'
 import type { ProfileDraft } from './profiles/service.js'
 
@@ -200,6 +200,8 @@ export interface ServerDeps {
   mail: (sessionId: string, event: MailEvent) => string | null | undefined
   /** `undefined` for a project the config does not know. */
   tools: (project: string) => Promise<unknown>
+  /** By the project's id; `undefined` when the config does not know it or its tracker is off or names nothing. */
+  vocabulary: (projectId: string) => Promise<TrackerVocabulary | undefined>
   tasks: TaskControl
   /** The milestone's changelog draft: the last one, or a new one with `again` (`src/changelog/drafts.ts`). */
   changelog: (project: string, milestone: string, again: boolean) => Promise<ChangelogDraft>
@@ -426,6 +428,20 @@ async function route(deps: ServerDeps, request: IncomingMessage, response: Serve
     }
     if (view === undefined) response.writeHead(404).end()
     else sendJson(response, 200, view)
+    return
+  }
+
+  const vocabulary = /^\/api\/projects\/([^/]+)\/vocabulary$/.exec(path)
+  if (request.method === 'GET' && vocabulary !== null) {
+    let found: TrackerVocabulary | undefined
+    try {
+      found = await deps.vocabulary(decodeURIComponent(vocabulary[1]!))
+    } catch (error) {
+      sendFailure(response, error)
+      return
+    }
+    if (found === undefined) response.writeHead(404).end()
+    else sendJson(response, 200, found)
     return
   }
 

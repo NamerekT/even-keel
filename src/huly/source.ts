@@ -17,6 +17,7 @@ import {
   toStatus,
   todoStatus,
   toTasks,
+  vocabularyOf,
   type HulyAttachmentDoc,
   type HulyCardIssue,
   type HulyIssueDoc,
@@ -85,6 +86,7 @@ const { markupToMarkdown, markdownToMarkup } = require('@hcengineering/text-mark
 }
 
 const TAG_REFERENCE = 'tags:class:TagReference'
+const TAG_ELEMENT = 'tags:class:TagElement'
 const PROJECT_TYPE = 'task:class:ProjectType'
 const CHAT_MESSAGE = 'chunter:class:ChatMessage'
 const ATTACHMENT = 'attachment:class:Attachment'
@@ -381,6 +383,16 @@ export async function connectHuly(credentials: HulyCredentials, timeoutMs: numbe
         const markup = latest.get(idOf.get(task.id) ?? '')
         return { ...task, lastComment: markup === undefined ? null : markupToMarkdown(markupToJSON(markup)) }
       })
+    },
+    async vocabulary(project) {
+      const space = await client.findOne<{ _id: string }>(tracker.class.Project, { identifier: project })
+      if (space === undefined) throw new Error(`huly: project ${project} not found`)
+      const [statuses, allowed, tags] = await Promise.all([
+        findStatuses(),
+        projectStatuses(space._id),
+        client.findAll<{ title: string }>(TAG_ELEMENT, { targetClass: tracker.class.Issue }, { projection: { title: 1 } }),
+      ])
+      return vocabularyOf(statuses, allowed, tags)
     },
     close: () => client.close(),
   }

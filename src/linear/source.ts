@@ -126,6 +126,13 @@ const PLACE_ISSUE = `mutation($id: String!, $input: IssueUpdateInput!) {
   issueUpdate(id: $id, input: $input) { success }
 }`
 
+// A workspace label has no team. A group only gathers labels and cannot go on an issue itself.
+const TEAM_LABELS = `query($team: ID!, $after: String) {
+  issueLabels(first: ${PAGE}, after: $after, filter: { or: [{ team: { id: { eq: $team } } }, { team: { null: true } }] }) {
+    pageInfo { hasNextPage endCursor } nodes { name isGroup }
+  }
+}`
+
 const CREATE_ISSUE = `mutation($input: IssueCreateInput!) {
   issueCreate(input: $input) { success issue { identifier } }
 }`
@@ -340,6 +347,18 @@ export async function connectLinear(settings: LinearSettings, timeoutMs: number,
       }
       const issues = await collect<MilestoneIssue>(filter, MILESTONE_ISSUES)
       return issues.map((issue) => ({ ...toTrackerTask(issue), lastComment: newestBody([...issue.oldest.nodes, ...issue.newest.nodes]) }))
+    },
+
+    async vocabulary(key) {
+      const team = await teamOf(key)
+      const labels = new Set<string>()
+      let after: string | null = null
+      do {
+        const { issueLabels }: { issueLabels: Connection<{ name: string; isGroup: boolean }> } = await graphql(TEAM_LABELS, { team: team.id, after })
+        for (const label of issueLabels.nodes) if (!label.isGroup) labels.add(label.name)
+        after = issueLabels.pageInfo.hasNextPage ? issueLabels.pageInfo.endCursor : null
+      } while (after !== null)
+      return { statuses: team.states.map((state) => state.name), labels: [...labels] }
     },
 
     // A file of a comment is its upload link; the key goes only to Linear's upload host.

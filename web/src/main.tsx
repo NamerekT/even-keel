@@ -7,6 +7,7 @@ import type { EvenKeelState, ProjectCheck, ProjectDraft, SessionRecord } from '.
 import type { StatsAnswer } from '../../src/stats/model.js'
 import type { ToolsView } from '../../src/tools/model.js'
 import type { TaskCard } from '../../src/tracker/card.js'
+import type { TrackerVocabulary } from '../../src/tracker/source.js'
 import { App } from './App.js'
 import { LiveConnection, type LiveSource } from './live/connection.js'
 import { LiveProvider } from './live/context.js'
@@ -43,6 +44,7 @@ const fetchSession = (sessionId: string) => fetchOrNull<SessionRecord>(`/api/ses
 const fetchTranscript = (sessionId: string, after: number) =>
   fetchOrNull<Feed>(`/api/sessions/${encodeURIComponent(sessionId)}/transcript?after=${after}`)
 const fetchTools = (project: string) => fetchOrNull<ToolsView>(`/api/projects/${encodeURIComponent(project)}/tools`)
+const fetchVocabulary = (projectId: string) => fetchOrNull<TrackerVocabulary>(`/api/projects/${encodeURIComponent(projectId)}/vocabulary`)
 
 async function fetchCard(task: string): Promise<TaskCard | null> {
   const path = `/api/tasks/${encodeURIComponent(task)}`
@@ -84,6 +86,7 @@ async function createSource(): Promise<LiveSource> {
     fetchTranscript,
     fetchTools,
     fetchCard,
+    fetchVocabulary,
     checkProject,
     sendQuery,
     fetchStats,

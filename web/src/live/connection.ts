@@ -7,6 +7,7 @@ import type { CheckpointThreshold } from '../../../src/stats/checkpoint.js'
 import type { StatsSteps } from '../../../src/stats/steps.js'
 import type { ToolsView } from '../../../src/tools/model.js'
 import type { TaskCard } from '../../../src/tracker/card.js'
+import type { TrackerVocabulary } from '../../../src/tracker/source.js'
 
 export type Link = 'connecting' | 'live' | 'stale'
 
@@ -41,6 +42,8 @@ export interface LiveSource {
   sentFileUrl(sessionId: string, name: string): string
   tools(project: string): Promise<ToolsView | null>
   card(task: string): Promise<TaskCard | null>
+  /** The statuses and labels the project's tracker names, by the project's id; `null` — it names none. */
+  vocabulary(projectId: string): Promise<TrackerVocabulary | null>
   /** What the project wizard's draft would come to; changes nothing. */
   checkProject(draft: ProjectDraft): Promise<ProjectCheck>
   /** A request that answers with its own result instead of the state (`profiles/check` and the like); changes no state. */
@@ -64,6 +67,7 @@ export interface LiveDeps {
   fetchTranscript: (sessionId: string, after: number) => Promise<Feed | null>
   fetchTools: (project: string) => Promise<ToolsView | null>
   fetchCard: (task: string) => Promise<TaskCard | null>
+  fetchVocabulary: (projectId: string) => Promise<TrackerVocabulary | null>
   checkProject: (draft: ProjectDraft) => Promise<ProjectCheck>
   sendQuery: (name: string, body: Record<string, unknown>) => Promise<unknown>
   fetchStats: <T>(path: string, search: URLSearchParams) => Promise<StatsAnswer<T>>
@@ -155,6 +159,10 @@ export class LiveConnection implements LiveSource {
 
   card(task: string): Promise<TaskCard | null> {
     return this.deps.fetchCard(task)
+  }
+
+  vocabulary(projectId: string): Promise<TrackerVocabulary | null> {
+    return this.deps.fetchVocabulary(projectId)
   }
 
   checkProject(draft: ProjectDraft): Promise<ProjectCheck> {

@@ -12,7 +12,7 @@ import { deviceLogin } from '../accounts.js'
 import { accountCommand, fakeAccount, fakeUsage, FAKE_LIMITS } from './fakeAccounts.js'
 import { FAKE_FIX, fakeCi } from './fakeCi.js'
 import { fakeUpdates } from './fakeUpdates.js'
-import { FAKE_PROJECT_IDS, fakeConfig, fakeHandEdit } from './fakeConfig.js'
+import { FAKE_PROJECT_IDS, FAKE_VOCABULARY, fakeConfig, fakeHandEdit } from './fakeConfig.js'
 import { withFix } from './fakeFix.js'
 import { fakeCompare, fakeRuleDiff, fakeRules } from './fakeRules.js'
 import { fakeSteps } from './fakeSteps.js'
@@ -527,6 +527,12 @@ export function createFakeSource(search: string): LiveSource {
     card: async (task) => {
       await answer()
       return current.state === null ? null : fakeCard(current.state, task, params.get('card'))
+    },
+    vocabulary: async (projectId) => {
+      await answer()
+      const mode = params.get('vocabulary')
+      if (mode === 'fail') throw new Error('huly: not connected')
+      return mode === 'none' || !Object.values(FAKE_PROJECT_IDS).includes(projectId) ? null : FAKE_VOCABULARY
     },
     checkProject: async (draft) => {
       await answer()

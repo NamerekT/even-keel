@@ -102,6 +102,11 @@ export interface TaskSource {
    * `[]` — the project has no such milestone. With it the page offers a changelog draft of the milestone (`src/changelog/`).
    */
   milestoneTasks?(project: string, milestone: string): Promise<MilestoneTask[]>
+  /**
+   * Optional. The status names and the labels a task of the project can have, whether or not a task has them now;
+   * the settings offer them in the chain rules. Without it the rules offer only what the loaded tasks carry.
+   */
+  vocabulary?(project: string): Promise<TrackerVocabulary>
   /** Drops the connection. */
   close(): Promise<void>
 }
@@ -110,6 +115,11 @@ export interface TaskSource {
 export interface MilestoneTask extends TrackerTask {
   /** Markdown of the task's last comment, the closing one of its session as a rule; `null` — it has none. */
   lastComment: string | null
+}
+
+export interface TrackerVocabulary {
+  statuses: string[]
+  labels: string[]
 }
 
 export interface NewTask {
@@ -249,6 +259,7 @@ export interface Tracker {
   milestones?(id: string): Promise<MilestonePick>
   moveMilestone?(id: string, milestone: string | null): Promise<void>
   milestoneTasks?(project: string, milestone: string): Promise<MilestoneTask[]>
+  vocabulary?(project: string): Promise<TrackerVocabulary>
   close(): Promise<void>
 }
 
@@ -280,5 +291,6 @@ export function trackerOf(source: TaskSource): Tracker {
     tracker.moveMilestone = (id, milestone) => source.moveMilestone!(id, milestone)
   }
   if (source.milestoneTasks !== undefined) tracker.milestoneTasks = (project, milestone) => source.milestoneTasks!(project, milestone)
+  if (source.vocabulary !== undefined) tracker.vocabulary = (project) => source.vocabulary!(project)
   return tracker
 }

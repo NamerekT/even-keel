@@ -32,6 +32,7 @@ import { useDraft, useTab } from './settingsStore.js'
 import { ListTable, RowsTable } from './settingsTable.js'
 import { SettingsNav } from './SettingsNav.js'
 import { SettingsSecrets } from './SettingsSecrets.js'
+import { useVocabularies } from './useVocabularies.js'
 import './settings.css'
 
 const SCOPE = 'shared'
@@ -137,6 +138,7 @@ export function SharedSettings({ state }: { state: EvenKeelState }) {
   const [current, setDraft] = useDraft(SCOPE, saved, same)
   const draft = current!
   const [open, setOpen] = useTab<GroupId>(SCOPE, 'chain')
+  const vocabularies = useVocabularies(state.projects.flatMap((project) => state.projectIds[project] ?? []))
   const dirty = (id: GroupId) => changed(draft, keysOf(id), same).length > 0
   const outgoing = sent(draft, keysOf(open))
   const next = formOf(outgoing.form)
@@ -241,7 +243,7 @@ export function SharedSettings({ state }: { state: EvenKeelState }) {
           {marks.note('brief')}
           <FieldNote error={errorOf('brief')} />
         </CheckField>
-        <RuleFields text={text} onEdit={edit} errorOf={errorOf} marks={marks} choices={ruleChoicesOf(state.tasks)} />
+        <RuleFields text={text} onEdit={edit} errorOf={errorOf} marks={marks} choices={ruleChoicesOf(state.tasks, vocabularies)} />
       </>
     ),
     models: () => (

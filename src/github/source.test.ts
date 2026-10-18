@@ -226,4 +226,22 @@ describe('github source', () => {
     const { source } = await connect([])
     expect(await source.file!('ABC-7', 'https://example.com/steal')).toBeNull()
   })
+
+  it('names its own statuses and every label of the repository, page by page', async () => {
+    const { source, calls } = await connect([
+      { body: { data: { repository: { labels: page([{ name: 'bug' }, { name: 'priority: high' }], 'cursor-1') } } } },
+      { body: { data: { repository: { labels: page([{ name: 'Question' }]) } } } },
+    ])
+    expect(await source.vocabulary!('ABC')).toEqual({
+      statuses: ['Open', 'Completed', 'Not planned', 'Duplicate'],
+      labels: ['bug', 'priority: high', 'Question'],
+    })
+    expect(calls[1]!.variables).toMatchObject({ owner: 'octo-org', name: 'abc', after: null })
+    expect(calls[2]!.variables).toMatchObject({ after: 'cursor-1' })
+  })
+
+  it('fails the vocabulary of a repository the token cannot see', async () => {
+    const { source } = await connect([{ body: { data: { repository: null }, errors: [{ type: 'NOT_FOUND', message: 'Could not resolve to a Repository' }] } }])
+    await expect(source.vocabulary!('ABC')).rejects.toThrow(/octo-org\/abc not found/)
+  })
 })
