@@ -1,0 +1,135 @@
+import { describe, expect, it } from 'vitest'
+import { openDatabase } from '../storage/database.js'
+import { mailIn, mailMessage } from './mail.js'
+import { Mailbox, mailOutcome } from './mailbox.js'
+
+const SESSION = '11111111-2222-4333-8444-555555555555'
+const OTHER = '66666666-7777-4888-8999-000000000000'
+
+function box(start = Date.parse('2026-10-18T10:00:00.000Z')) {
+  let now = start
+  const db = openDatabase(':memory:')
+  const mailbox = new Mailbox(db, () => new Date(now))
+  return { db, mailbox, later: (seconds: number) => (now += seconds * 1000) }
+}
+
+describe('Mailbox', () => {
+  it('keeps a message waiting until the session takes it, once', () => {
+    const { mailbox, later } = box()
+    const posted = mailbox.post('ABC-1', SESSION, 'Use the other parser.', ['C:\\repo\\.temp\\inbox\\a.png'])
+    expect(posted).toMatchObject({ task: 'ABC-1', sessionId: SESSION, fate: 'waiting', event: null, files: ['C:\\repo\\.temp\\inbox\\a.png'] })
+    expect(mailbox.take(OTHER, 'PostToolUse')).toEqual([])
+    later(5)
+    const taken = mailbox.take(SESSION, 'PostToolUse')
+    expect(taken.map((mail) => [mail.text, mail.fate, mail.event, mail.settledAt])).toEqual([['Use the other parser.', 'delivered', 'PostToolUse', '2026-10-18T10:00:05.000Z']])
+    expect(mailbox.take(SESSION, 'Stop')).toEqual([])
+  })
+
+  it('outlives the service: a new mailbox on the same database sees what waits', () => {
+    const { db, mailbox } = box()
+    mailbox.post('ABC-1', SESSION, 'one', [])
+    const again = new Mailbox(db, () => new Date('2026-10-18T10:01:00.000Z'))
+    expect(again.waiting().map((mail) => mail.text)).toEqual(['one'])
+  })
+
+  it('knows a session listens only once its hook asked', () => {
+    const { mailbox } = box()
+    expect(mailbox.listens(SESSION)).toBe(false)
+    mailbox.take(SESSION, 'PreToolUse')
+    expect(mailbox.listens(SESSION)).toBe(true)
+    expect(mailbox.listens(OTHER)).toBe(false)
+  })
+
+  it('settles only what still waits', () => {
+    const { mailbox } = box()
+    const first = mailbox.post('ABC-1', SESSION, 'one', [])
+    const second = mailbox.post('ABC-1', SESSION, 'two', [])
+    mailbox.take(SESSION, 'Stop')
+    const third = mailbox.post('ABC-1', SESSION, 'three', [])
+    expect(mailbox.settle([first, second, third], 'returned').map((mail) => mail.text)).toEqual(['three'])
+    expect(mailbox.of(SESSION).map((mail) => [mail.text, mail.fate])).toEqual([
+      ['one', 'delivered'],
+      ['two', 'delivered'],
+      ['three', 'returned'],
+    ])
+  })
+
+  it('shows a session its waiting and returned messages and the last delivered ones; a dismissed one goes', () => {
+    const { mailbox } = box()
+    for (const text of ['a', 'b', 'c', 'd']) {
+      mailbox.post('ABC-1', SESSION, text, [])
+      mailbox.take(SESSION, 'PostToolUse')
+    }
+    const returned = mailbox.post('ABC-1', SESSION, 'back', [])
+    mailbox.settle([returned], 'returned')
+    mailbox.post('ABC-1', SESSION, 'new', [])
+    expect(mailbox.of(SESSION).map((mail) => mail.text)).toEqual(['b', 'c', 'd', 'back', 'new'])
+    mailbox.dismiss(SESSION)
+    expect(mailbox.of(SESSION).map((mail) => mail.text)).toEqual(['b', 'c', 'd', 'new'])
+  })
+
+  it('forgets settled messages after a week', () => {
+    const { mailbox, later } = box()
+    mailbox.post('ABC-1', SESSION, 'old', [])
+    mailbox.take(SESSION, 'Stop')
+    mailbox.post('ABC-1', SESSION, 'still waiting', [])
+    later(8 * 24 * 60 * 60)
+    mailbox.post('ABC-1', SESSION, 'fresh', [])
+    expect(mailbox.of(SESSION).map((mail) => mail.text)).toEqual(['still waiting', 'fresh'])
+  })
+})
+
+describe('mailOutcome', () => {
+  const posted = '2026-10-18T10:00:00.000Z'
+  const at = (seconds: number) => new Date(Date.parse(posted) + seconds * 1000)
+
+  it('leaves the message to the hooks while the session works', () => {
+    expect(mailOutcome(posted, { midTurn: true, asking: false }, at(600))).toBe('wait')
+  })
+
+  it('gives the hooks a moment after the post before judging a session that looks idle', () => {
+    expect(mailOutcome(posted, { midTurn: false, asking: false }, at(3))).toBe('wait')
+  })
+
+  it('resumes a session that ended its turn without a question, and returns one that asks', () => {
+    expect(mailOutcome(posted, { midTurn: false, asking: false }, at(30))).toBe('resume')
+    expect(mailOutcome(posted, { midTurn: false, asking: true }, at(30))).toBe('return')
+  })
+
+  it('returns a message whose session is gone', () => {
+    expect(mailOutcome(posted, undefined, at(30))).toBe('return')
+  })
+})
+
+describe('mailMessage and mailIn', () => {
+  const mail = (id: number, text: string, files: string[] = []) => ({
+    id,
+    task: 'ABC-1',
+    sessionId: SESSION,
+    text,
+    files,
+    postedAt: '2026-10-18T10:00:00.000Z',
+    fate: 'delivered' as const,
+    event: 'PostToolUse' as const,
+    settledAt: '2026-10-18T10:00:05.000Z',
+  })
+
+  it('wraps each message for the session and reads it back', () => {
+    const message = mailMessage([mail(3, 'Use the other parser.'), mail(4, '', ['C:\\repo\\.temp\\inbox\\a.png'])], 'PostToolUse', 'en')
+    expect(message).toMatch(/^The user wrote to you from Even Keel's chat/)
+    expect(mailIn(message)).toEqual([
+      { id: 3, prompt: 'Use the other parser.\n' },
+      { id: 4, prompt: 'Files from the user:\n- C:\\repo\\.temp\\inbox\\a.png\n' },
+    ])
+  })
+
+  it('tells a session why its question did not go out', () => {
+    expect(mailMessage([mail(1, 'Stop.')], 'AskUserQuestion', 'en')).toMatch(/^Your question did not go out/)
+    expect(mailMessage([mail(1, 'Стоп.')], 'Stop', 'ru')).toMatch(/^Пользователь написал тебе/)
+  })
+
+  it('finds nothing in a text that only names the mark', () => {
+    expect(mailIn('<even-keel-message id="${mail.id}">\nx\n</even-keel-message>')).toEqual([])
+    expect(mailIn('plain text')).toEqual([])
+  })
+})

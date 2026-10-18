@@ -7,6 +7,7 @@ import { fixEpisodes, isLaunch } from '../chain/launches.js'
 import { readSnapshots } from '../chain/snapshots.js'
 import { closedTasks, loadChainState, loadQuestions, readLaunches } from '../chain/store.js'
 import { root } from '../locations.js'
+import { Mailbox } from '../sessions/mailbox.js'
 import { databaseVersion, openDatabase, STEPS } from './database.js'
 
 // The frozen sample of the database at schema step 1: a later step must migrate it, and step 1 itself must still make
@@ -22,11 +23,6 @@ describe('frozen sample of the database at step 1', () => {
     if (dir !== undefined) rmSync(dir, { recursive: true, force: true })
     dir = undefined
   })
-
-  const schemaOf = (db: DatabaseSync) =>
-    (db.prepare("SELECT name, sql FROM sqlite_master WHERE sql IS NOT NULL ORDER BY name").all() as { name: string; sql: string }[]).map(
-      ({ name, sql }) => [name, sql.replace(/\s+/g, ' ')],
-    )
 
   it('has the tables step 1 makes', () => {
     const frozen = new DatabaseSync(':memory:')
@@ -67,8 +63,51 @@ describe('frozen sample of the database at step 1', () => {
       expect(closedTasks(db, { ABC, XYZ })).toEqual([
         { project: 'ABC', task: 'ABC-1', tracker: 'huly', title: 'Parse the example input', url: 'https://huly.example.com/workbench/example/browse/ABC-1', closedAt: '2026-10-04T12:00:00.000Z' },
       ])
+      expect(new Mailbox(db, () => new Date()).waiting()).toEqual([])
     } finally {
       db.close()
     }
   })
 })
+
+const sampleV2 = readFileSync(join(root, 'test', 'fixtures', 'database-v2', 'even-keel.sql'), 'utf8')
+
+describe('frozen sample of the database at step 2', () => {
+  it('has the tables steps 1 and 2 make', () => {
+    const frozen = new DatabaseSync(':memory:')
+    frozen.exec(sampleV2)
+    const made = openDatabase(':memory:', STEPS.slice(0, 2))
+    expect(databaseVersion(frozen)).toBe(2)
+    expect(schemaOf(made)).toEqual(schemaOf(frozen))
+  })
+
+  it('is brought to the current schema with its mailbox', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'even-keel-db-sample-'))
+    const file = join(dir, 'even-keel.db')
+    const frozen = new DatabaseSync(file)
+    frozen.exec(sampleV2)
+    frozen.close()
+    const db = openDatabase(file)
+    try {
+      expect(databaseVersion(db)).toBe(STEPS.length)
+      expect(loadChainState(db, { ABC, XYZ }).active.map((chain) => chain.current?.task)).toEqual(['ABC-2'])
+      const mailbox = new Mailbox(db, () => new Date('2026-10-18T10:10:00.000Z'))
+      expect(mailbox.waiting().map((mail) => mail.text)).toEqual(['And run the slow tests.'])
+      expect(mailbox.of('aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee').map((mail) => [mail.fate, mail.event, mail.files])).toEqual([
+        ['delivered', 'PostToolUse', []],
+        ['returned', null, ['C:\\repos\\example-project\\.temp\\inbox\\case.png']],
+        ['waiting', null, []],
+      ])
+    } finally {
+      db.close()
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
+})
+
+function schemaOf(db: DatabaseSync) {
+  return (db.prepare("SELECT name, sql FROM sqlite_master WHERE sql IS NOT NULL ORDER BY name").all() as { name: string; sql: string }[]).map(({ name, sql }) => [
+    name,
+    sql.replace(/\s+/g, ' '),
+  ])
+}

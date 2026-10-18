@@ -73,6 +73,20 @@ export const STEPS: readonly string[] = [
     PRIMARY KEY (project_id, task)
   );
   `,
+  `
+  CREATE TABLE mailbox (
+    id         INTEGER PRIMARY KEY,
+    task       TEXT NOT NULL,
+    session_id TEXT NOT NULL,
+    text       TEXT NOT NULL,
+    files      TEXT NOT NULL DEFAULT '[]',
+    posted_at  TEXT NOT NULL,
+    fate       TEXT NOT NULL CHECK (fate IN ('waiting', 'delivered', 'returned', 'dismissed')),
+    event      TEXT,
+    settled_at TEXT
+  );
+  CREATE INDEX mailbox_session ON mailbox (session_id);
+  `,
 ]
 
 export function databaseVersion(db: DatabaseSync): number {

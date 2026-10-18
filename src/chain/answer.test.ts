@@ -75,6 +75,20 @@ describe('Dispatcher on an answer', () => {
     expect(refusal(() => dispatcher.answer('ABC', 'ABC-1', 'old-session', 'toolu_1', 'x'))).toBe('answer.busy')
   })
 
+  it('lets a plain message reach a working session whose hooks take mail, without a resume', async () => {
+    const { dispatcher, relays } = await running({ waiting: new Set(), asked: {}, blocked: 'not signed in', limitReset: '2026-09-26T15:00:00.000Z' })
+    expect(dispatcher.answerable('ABC', 'ABC-1', 'old-session', null, true).midTurn).toBe(true)
+    expect(refusal(() => dispatcher.answerable('ABC', 'ABC-1', 'old-session', null))).toBe('answer.busy')
+    expect(refusal(() => dispatcher.answerable('ABC', 'ABC-1', 'older-session', null, true))).toBe('answer.moved')
+    await dispatcher.idle()
+    expect(relays).toEqual([])
+  })
+
+  it('tells a waiting session from a working one for the mailbox', async () => {
+    const { dispatcher } = await running()
+    expect(dispatcher.answerable('ABC', 'ABC-1', 'old-session', 'toolu_1', true).midTurn).toBe(false)
+  })
+
   it('refuses once the session moved on: another session, another question or none', async () => {
     const { dispatcher } = await running()
     expect(refusal(() => dispatcher.answer('ABC', 'ABC-1', 'older-session', 'toolu_1', 'x'))).toBe('answer.moved')

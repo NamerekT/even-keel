@@ -232,14 +232,16 @@ export class Dispatcher {
   /**
    * Throws unless the user may answer the session now: it is the current one of the task — of its chain or, once
    * the chain stopped, the one that lives on — waits rather than works, and still waits on the question `ask`
-   * (`null` — on none, the turn ended in plain text).
+   * (`null` — on none, the turn ended in plain text). With `mailbox` — the session's hooks take mail — a plain
+   * message to a working session passes as `midTurn`: it goes into the mailbox, nothing is launched (BTN-181).
    */
   answerable(
     project: string,
     task: string,
     sessionId: string,
     ask: string | null,
-  ): { chain: ActiveChain | null; current: CurrentTask | null; session: HandoffSession } {
+    mailbox = false,
+  ): { chain: ActiveChain | null; current: CurrentTask | null; session: HandoffSession; midTurn: boolean } {
     this.requireProject(project)
     const chain = this.chainOf(project) ?? null
     const current = chain?.current?.task === task ? chain.current : null
@@ -249,11 +251,14 @@ export class Dispatcher {
     if ((current !== null && current.sessionId !== sessionId) || session?.sessionId !== sessionId || this.deps.asked(task) !== ask) {
       throw fail('answer.moved', { task })
     }
-    if (this.deps.midTurn(task)) throw fail('answer.busy', { task })
+    if (this.deps.midTurn(task)) {
+      if (!mailbox || ask !== null) throw fail('answer.busy', { task })
+      return { chain, current, session, midTurn: true }
+    }
     this.requireLaunches(project, task)
     const reset = this.deps.limitReset(project, task)
     if (reset !== null) throw fail('chain.limitSpent', { until: reset })
-    return { chain, current, session }
+    return { chain, current, session, midTurn: false }
   }
 
   /** Invariant 1, exception 6: the user's own answer resumes the session that waits for it. */
