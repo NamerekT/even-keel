@@ -423,6 +423,27 @@ button.tools__toggle:hover {
   border: 1px solid var(--warn-fg);
 }
 
+/* The feed already shows a delivered message as the user's prompt: its line fades and folds a few seconds later. */
+@media (prefers-reduced-motion: no-preference) {
+  .chat__letter--leaving {
+    overflow: hidden;
+    animation: chat-letter-out 0.3s ease-in forwards;
+  }
+}
+
+@keyframes chat-letter-out {
+  from {
+    max-height: 8em;
+  }
+
+  to {
+    max-height: 0;
+    margin-bottom: -6px;
+    padding-block: 0;
+    opacity: 0;
+  }
+}
+
 .chat__letter-text {
   flex: 1 1 60%;
   min-width: 0;
