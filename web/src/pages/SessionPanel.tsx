@@ -201,7 +201,15 @@ function Actions({ block, scale }: { block: ChainBlock; scale: ContextScale }) {
             sessionId={chatSession.sessionId}
             account={chatSession.account}
             live={chatSession.lamp !== 'finished' || talking === null}
-            chat={{ project: body.project, task: body.task, session: chatSession, aside, scale }}
+            chat={{
+              project: body.project,
+              task: body.task,
+              session: chatSession,
+              aside,
+              scale,
+              answeredAt: block.answering ?? block.sessions.find((run) => run.sessionId === chatSession.sessionId)?.answeredAt ?? null,
+              delivering: block.answering !== undefined,
+            }}
             onClose={() => setChatting(false)}
           />
         </Suspense>

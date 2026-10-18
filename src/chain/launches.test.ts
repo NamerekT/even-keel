@@ -99,7 +99,9 @@ describe('taskSessions', () => {
       ],
       [],
     )
-    expect(list['ABC-1']).toEqual([{ sessionId: 's1', at: '2026-09-27T10:00:00.000Z', how: 'launch', resumed: 0, answers: 2 }])
+    expect(list['ABC-1']).toEqual([
+      { sessionId: 's1', at: '2026-09-27T10:00:00.000Z', how: 'launch', resumed: 0, answers: 2, answeredAt: '2026-09-27T12:00:00.000Z' },
+    ])
   })
 
   it('names the account of each session as of its start', () => {
@@ -336,7 +338,7 @@ describe('taskSessions of the fix of main', () => {
     )
     expect(list).toEqual({
       'ABC-FIX.1': [
-        { sessionId: 'f2', at: '2026-10-16T06:50:00.000Z', how: 'checkpoint', resumed: 0, answers: 1 },
+        { sessionId: 'f2', at: '2026-10-16T06:50:00.000Z', how: 'checkpoint', resumed: 0, answers: 1, answeredAt: '2026-10-16T06:55:00.000Z' },
         { sessionId: 'f1', at: '2026-10-16T06:30:00.000Z', how: 'launch', resumed: 0, answers: 0, replaced: { at: '2026-10-16T06:50:00.000Z', how: 'checkpoint' } },
       ],
       'ABC-FIX.2': [

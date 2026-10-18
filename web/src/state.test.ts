@@ -633,7 +633,15 @@ describe('chainBlocks', () => {
     const current = { task: 'ABC-1', sessionId: 'ABC-1-session', since: 't', starting: '2026-01-01T10:00:00.000Z', answering: true as const }
     const stopped = { ...view('ABC-1', 'finished', null), sessionId: 'ABC-1-session' }
     const [block] = chainBlocks(stateOf({ tasks, sessions: [stopped], chain: chain({ active: { ...running('ABC-1'), current }, projects }) }), 'ABC')
-    expect(block).toMatchObject({ start: null, lamp: 'working', session: { lamp: 'working', ask: null } })
+    expect(block).toMatchObject({ start: null, lamp: 'working', session: { lamp: 'working', ask: null }, answering: '2026-01-01T10:00:00.000Z' })
+  })
+
+  it('tells of no delivery once the answer reached the session', () => {
+    const tasks = [task('ABC-1', 'Active')]
+    const projects = { ABC: { order: ['ABC-1'], waiting: [], backlog: [], error: null } }
+    const current = { task: 'ABC-1', sessionId: 'ABC-1-session', since: 't', resumedAt: '2026-01-01T10:00:00.000Z' }
+    const [block] = chainBlocks(stateOf({ tasks, sessions: [view('ABC-1', 'working', null)], chain: chain({ active: { ...running('ABC-1'), current }, projects }) }), 'ABC')
+    expect(block?.answering).toBeUndefined()
   })
 
   describe('the fix session of a red main', () => {

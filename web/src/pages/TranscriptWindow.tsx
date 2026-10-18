@@ -20,6 +20,7 @@ import { Thumb, Thumbs } from './Thumbs.js'
 import { EditSize, ToolGroup } from './ToolCalls.js'
 import { editTotals, feedEntries, type EditTotal } from './toolGroups.js'
 import { transcriptMedia, type TranscriptMedia } from './transcriptMedia.js'
+import { turnPhase, type TurnFacts } from './turnPhase.js'
 import '../ui/markdown.css'
 import './transcript.css'
 
@@ -53,6 +54,10 @@ export interface ChatTarget {
   aside: boolean
   /** For the head's meter of the session's context. */
   scale: ContextScale
+  /** When the service began delivering the last answer to the session, for the turn line; `null` without one. */
+  answeredAt: string | null
+  /** The service is delivering that answer now. */
+  delivering: boolean
 }
 
 interface Props {
@@ -237,7 +242,17 @@ export function TranscriptWindow({ sessionId, account, live, chat, onClose }: Pr
         )}
         {chat !== undefined && (
           <div className="transcript__foot">
-            {chat.session.lamp === 'working' && turn !== null && <TurnLine turn={turn} />}
+            {chat.session.lamp === 'working' && (
+              <TurnLine
+                facts={{
+                  working: true,
+                  turn,
+                  lastReplyAt: lines?.findLast(isReply)?.at ?? null,
+                  answers: [chat.answeredAt, sent.at(-1)?.line.at ?? null].filter((at) => at !== null),
+                  delivering: chat.delivering,
+                }}
+              />
+            )}
             <ChatComposer
               key={chat.session.sessionId}
               project={chat.project}
@@ -259,15 +274,21 @@ export function TranscriptWindow({ sessionId, account, live, chat, onClose }: Pr
   )
 }
 
-/** The turn in progress, as the Claude app shows it: "23с · Думает" or "23с · Выполняет: Bash npm test", the clock ticking every second. */
-function TurnLine({ turn }: { turn: Turn }) {
+/**
+ * The turn in progress, as the Claude app shows it: "23с · Думает" or "23с · Выполняет: Bash npm test", and while an
+ * answer is on its way "3с · Передаю ответ…", the clock ticking every second.
+ */
+function TurnLine({ facts }: { facts: TurnFacts }) {
   const now = useNow(TICK_MS)
-  const elapsed = turn.startedAt === '' ? null : formatElapsed(now.getTime() - Date.parse(turn.startedAt))
+  const phase = turnPhase(facts, now.getTime())
+  if (phase === null) return null
+  const elapsed = phase.since === null ? null : formatElapsed(now.getTime() - Date.parse(phase.since))
+  const doing = phase.kind === 'delivering' ? t.session.chat.delivering : phase.kind === 'thinking' ? t.session.chat.thinking : t.session.chat.running(phase.tool)
   return (
     <Tipped inline align="start" className="transcript__turn" tip={t.session.chat.turnTip}>
       <span className="lamp lamp--working" aria-hidden="true" />
       <span className="transcript__turn-text">
-        {[elapsed, turn.tool === null ? t.session.chat.thinking : t.session.chat.running(turn.tool)]
+        {[elapsed, doing]
           .filter((part) => part !== null)
           .join(' · ')}
       </span>

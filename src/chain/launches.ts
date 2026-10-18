@@ -31,6 +31,8 @@ export interface TaskSession {
   resumed: number
   /** The user's answers that resumed it. */
   answers: number
+  /** When the service began delivering the last of them. */
+  answeredAt?: string
   left?: { at: string; reason: ReleaseReason; blockers: string[] }
   replaced?: { at: string; how: HandOver }
   /** The e-mail of the account the session ran on; `null` when it is not known. */
@@ -114,7 +116,10 @@ export function taskSessions(
     const known = rows.get(entry.sessionId)
     if (known !== undefined) {
       if (entry.reason === 'resume') known.resumed++
-      if (entry.reason === 'answer') known.answers++
+      if (entry.reason === 'answer') {
+        known.answers++
+        known.answeredAt = entry.at
+      }
       continue
     }
     const how = entry.reason === 'relay' || entry.reason === 'restart' || entry.reason === 'checkpoint' ? entry.reason : 'launch'

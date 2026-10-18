@@ -119,6 +119,8 @@ export interface ChainBlock {
   sessions: TaskSession[]
   limit: LimitHold | null
   start: SessionStart | null
+  /** Since when the chain is delivering the user's answer to the task's session: stopping it and resuming it with the answer. */
+  answering?: string
   /** A red main stopped the task's session; it goes on once main is fixed. */
   interrupted?: true
   /** The fix of a red main leads the chain and this task is next: its live session takes no answer from the chat until the fix lands. */
@@ -411,6 +413,10 @@ export function sessionStart(current: CurrentTask, session: SessionView | null, 
   return seen.lamp === 'working' && seen.contextTokens === 0 ? { phase: 'answer', since } : null
 }
 
+function answeringSince(current: CurrentTask): Pick<ChainBlock, 'answering'> {
+  return current.answering && current.starting !== undefined ? { answering: current.starting } : {}
+}
+
 export function chainBlocks(state: EvenKeelState, project: string, now = new Date()): ChainBlock[] {
   const tasks = projectTasks(state, project)
   const order = state.chain.projects[project]
@@ -470,6 +476,7 @@ export function chainBlocks(state: EvenKeelState, project: string, now = new Dat
       sessions,
       limit: id === current ? pending : null,
       start: running?.task === id ? sessionStart(running, session, sessions, now) : null,
+      ...(running?.task === id && answeringSince(running)),
       ...(id === active?.interrupted?.task && { interrupted: true as const }),
       ...(id === next && session !== null && session.lamp !== 'finished' && { aside: true as const }),
       ...(active === undefined && session !== null && session.lamp !== 'finished' && { loose: true as const }),
@@ -495,6 +502,7 @@ export function chainBlocks(state: EvenKeelState, project: string, now = new Dat
     current: fix === current,
     limit: fix === current ? pending : null,
     start: running?.task === fix ? sessionStart(running, fixSession, fixSessions, now) : null,
+    ...(running?.task === fix && answeringSince(running)),
   }
   return blocks.toSpliced(ahead, 0, fixBlock)
 }
