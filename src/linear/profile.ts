@@ -6,7 +6,8 @@ const API = 'https://api.linear.app/graphql'
 const LIMIT = 50
 
 const ACCOUNT = '{ viewer { name email } organization { name } }'
-const TEAMS = '{ teams(first: 100) { nodes { key name projects(first: 100) { nodes { name } } } } }'
+/** 100 × 100 is over Linear's query complexity of 10000 (checked live on 2026-10-18). */
+const TEAMS = '{ teams(first: 50) { nodes { key name projects(first: 50) { nodes { name } } } } }'
 
 interface GraphqlError {
   message: string
