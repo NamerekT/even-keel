@@ -1,12 +1,25 @@
 import type { Language } from '../language.js'
 import { fill } from '../sessions/prompt.js'
 
-export type HandoffReason = 'limit' | 'restart' | 'checkpoint' | 'mainFixed'
+export type HandoffReason = 'limit' | 'restart' | 'checkpoint' | 'mainFixed' | 'review'
+
+/** What a session is told of its pull request's feedback (BTN-205). */
+export interface ReviewTexts {
+  head: (url: string) => string
+  changes: (author: string) => string
+  comment: (path: string, line: number | null) => string
+  ci: (title: string, url: string) => string
+  conflict: (main: string) => string
+  after: string
+}
 
 /** `main` in the texts is the project's main branch, whatever it is called. */
 export interface PromptTexts {
   resume: string
   cleanup: (main: string) => string
+  /** In PR mode, in place of `cleanup`: the session marks its turn's end, Even Keel pushes and opens the pull request. */
+  pullRequest: (main: string) => string
+  review: ReviewTexts
   worktree: (path: string) => string
   branch: (branch: string) => string
   brief: (title: string) => string
@@ -31,6 +44,19 @@ export const PROMPTS: Record<Language, PromptTexts> = {
     resume: 'Лимит сброшен — продолжай с того же места.',
     cleanup: (main) =>
       fill`- Задачу закрывает слияние ветки в ${main} основного чекаута. Worktree и ветку после этого не трогай и ${main} не пушь — уборку сделает Even Keel.`,
+    pullRequest: (main) =>
+      [
+        fill`- Режим PR: ветку в ${main} не сливай — её сольёт человек через pull request. Это правило важнее шага слияния в навыке трекера, проверка перед слиянием тоже не нужна: проверяет CI на pull request.`,
+        '- Когда работа готова и одобрена ревьюером: закоммить всё (git status пуст), опиши pull request в .temp/pull-request.md (первая строка — заголовок, дальше тело) и закончи ход последней строкой `PULL REQUEST: .temp/pull-request.md`. Ветку пушит и pull request открывает Even Keel; статус задачи не трогай.',
+      ].join('\n'),
+    review: {
+      head: (url) => fill`На pull request ${url} пришли замечания:`,
+      changes: (author) => fill`- Ревью ${author} просит правок:`,
+      comment: (path, line) => (line === null ? fill`  - ${path}:` : fill`  - ${path}:${String(line)}:`),
+      ci: (title, url) => fill`- Упал CI: ${title} — ${url}`,
+      conflict: (main) => fill`- Pull request конфликтует с ${main}: слей свежий ${main} в свою ветку и разреши конфликты.`,
+      after: 'Исправь, закоммить и снова закончи ход строкой `PULL REQUEST: .temp/pull-request.md` (описание обнови, если нужно): Even Keel запушит ветку в тот же pull request.',
+    },
     worktree: (path) => fill`- Worktree готов: ${path} — работай в нём, новый worktree не создавай.`,
     branch: (branch) => fill`- Ветка: ${branch} — не меняй её.`,
     brief: (title) => fill`Задача из трекера: ${title}`,
@@ -42,6 +68,7 @@ export const PROMPTS: Record<Language, PromptTexts> = {
       checkpoint:
         'Продолжение: прошлая сессия по этой задаче поставила контрольную точку, чтобы не тащить раздутый контекст дальше, и остановлена — задачу доводишь ты.',
       mainFixed: 'Продолжение: прошлую сессию по этой задаче остановил Even Keel, потому что упала проверка main, — задачу доводишь ты.',
+      review: 'Продолжение: прошлая сессия по этой задаче открыла pull request, на него пришли замечания, а её кэш уже остыл — замечания отрабатываешь ты.',
     },
     workdir: (path) => fill`- Рабочая папка: ${path} — работай в ней, новый worktree не создавай.`,
     transcript: (path) => fill`- Транскрипт прошлой сессии: ${path} — целиком не читай, ищи в нём grep, если чего-то не хватает.`,
@@ -76,6 +103,19 @@ export const PROMPTS: Record<Language, PromptTexts> = {
     resume: 'The usage limit has reset — carry on from where you stopped.',
     cleanup: (main) =>
       fill`- Merging the branch into ${main} of the main checkout closes the task. After that leave the worktree and the branch alone and do not push ${main} — Even Keel cleans up.`,
+    pullRequest: (main) =>
+      [
+        fill`- PR mode: do not merge the branch into ${main} — a human merges it through a pull request. This rule outranks the merge step of the tracker's skill, and the check before a merge is not needed either: the CI checks the pull request.`,
+        '- Once the work is done and approved by the reviewer: commit everything (git status is clean), describe the pull request in .temp/pull-request.md (the first line is the title, the body follows) and end the turn with the last line `PULL REQUEST: .temp/pull-request.md`. Even Keel pushes the branch and opens the pull request; leave the task status alone.',
+      ].join('\n'),
+    review: {
+      head: (url) => fill`The pull request ${url} got feedback:`,
+      changes: (author) => fill`- A review by ${author} asks for changes:`,
+      comment: (path, line) => (line === null ? fill`  - ${path}:` : fill`  - ${path}:${String(line)}:`),
+      ci: (title, url) => fill`- The CI failed: ${title} — ${url}`,
+      conflict: (main) => fill`- The pull request conflicts with ${main}: merge the fresh ${main} into your branch and resolve the conflicts.`,
+      after: 'Fix it, commit and end the turn with the line `PULL REQUEST: .temp/pull-request.md` again (update the description if needed): Even Keel pushes the branch to the same pull request.',
+    },
     worktree: (path) => fill`- Worktree is ready: ${path} — work in it, do not create a new worktree.`,
     branch: (branch) => fill`- Branch: ${branch} — do not change it.`,
     brief: (title) => fill`Task from the tracker: ${title}`,
@@ -87,6 +127,7 @@ export const PROMPTS: Record<Language, PromptTexts> = {
       checkpoint:
         'Continuation: the previous session on this task set a checkpoint so as not to carry a bloated context further, and was stopped; you finish the task.',
       mainFixed: 'Continuation: Even Keel stopped the previous session on this task because the check of main failed; you finish the task.',
+      review: 'Continuation: the previous session on this task opened a pull request, it got feedback, and that session\'s cache has gone cold; you work the feedback.',
     },
     workdir: (path) => fill`- Working folder: ${path} — work in it, do not create a new worktree.`,
     transcript: (path) => fill`- Transcript of the previous session: ${path} — do not read it whole; grep it if something is missing.`,
