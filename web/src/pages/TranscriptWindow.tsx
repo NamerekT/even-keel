@@ -75,6 +75,7 @@ export function TranscriptWindow({ sessionId, account, live, chat, onClose }: Pr
   const { transcript, imageUrl, sentFileUrl } = useLive()
   const dialogRef = useRef<HTMLDialogElement>(null)
   const listRef = useRef<HTMLDivElement>(null)
+  const closeRef = useRef<HTMLButtonElement>(null)
   const pinned = useRef(true)
   /** How many lines of the session's transcript are read. */
   const count = useRef(0)
@@ -99,6 +100,9 @@ export function TranscriptWindow({ sessionId, account, live, chat, onClose }: Pr
   const edits = editTotals(all ?? [])
 
   useEffect(() => {
+    // Otherwise the dialog focuses its first focusable element, the head's facts, and their tip opens at once.
+    // React's `autoFocus` sets no attribute, and the dialog looks only at the attribute.
+    closeRef.current?.setAttribute('autofocus', '')
     dialogRef.current?.showModal()
   }, [])
 
@@ -182,7 +186,7 @@ export function TranscriptWindow({ sessionId, account, live, chat, onClose }: Pr
               ↗
             </a>
           )}
-          <button type="button" className="panel__close" aria-label={t.session.closeTranscript} onClick={() => dialogRef.current?.close()}>
+          <button ref={closeRef} type="button" className="panel__close" aria-label={t.session.closeTranscript} onClick={() => dialogRef.current?.close()}>
             ×
           </button>
         </header>
