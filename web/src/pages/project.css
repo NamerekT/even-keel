@@ -328,9 +328,11 @@
 }
 
 @media (min-width: 761px) {
+  /* Over `.flight` (backlog.css): a backlog task enters the chain from behind the column. */
   .project__side {
     position: sticky;
     top: calc(var(--header-height) + 24px);
+    z-index: 3;
   }
 
   .project__side > .panel,

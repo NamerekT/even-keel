@@ -3,7 +3,6 @@ import type { EvenKeelState } from '../../../src/state.js'
 import { isNarrow } from '../layout/useNarrow.js'
 import { ghostOf, type ChainBlock, type Ghost } from '../state.js'
 import { stillMotion } from '../ui/landing.js'
-import type { Box } from '../ui/reorder.js'
 
 /** `--motion-mark` in styles.css: the glow of a landed block. */
 const LANDED_MS = 1600
@@ -12,7 +11,8 @@ const REST_MS = 250
 interface Moving {
   id: string
   title: string
-  from: Box
+  /** `performance.now()` of the press: the row leaves the backlog first, the copy enters the chain after it. */
+  since: number
   /** The command has been answered: without the task in the chain by now there is nothing to wait for. */
   settled: boolean
 }
@@ -25,7 +25,7 @@ export interface Arrival {
 
 /**
  * A backlog task's way into the chain: a ghost where it would stand while its button is pointed at or pressed,
- * then the flight of its row to the block it became and a mark on that block.
+ * then its row sliding out of the backlog, a copy entering from behind the side column to the block it became, and a mark on that block.
  * On a narrow screen the panel covers the chain, so it is closed instead of the flight.
  */
 export function useArrival(state: EvenKeelState, project: string, blocks: ChainBlock[], closePanel: () => void) {
@@ -72,12 +72,14 @@ export function useArrival(state: EvenKeelState, project: string, blocks: ChainB
     ghost,
     arrival,
     flight,
+    /** The backlog row that slides out: it stays hidden until the task arrives or the press comes to nothing. */
+    leaving: moving?.id ?? null,
     /** The task on its way from the backlog: its own flight marks it, the chain's entry motion must not. */
     incoming: moving?.id ?? flight?.id ?? landed,
     point: setAimed,
-    move: (id: string, title: string, from: Box) => {
+    move: (id: string, title: string) => {
       setLanded(null)
-      setMoving({ id, title, from, settled: false })
+      setMoving({ id, title, since: performance.now(), settled: false })
     },
     settle: (id: string) => setMoving((current) => (current?.id === id ? { ...current, settled: true } : current)),
     land: (id: string) => {

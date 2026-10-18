@@ -175,7 +175,8 @@ export function Project({ state, project: key }: { state: EvenKeelState; project
               onCard={openCard}
               onClose={close}
               onPoint={arrival.point}
-              onMove={(task, from) => arrival.move(task.id, task.title, from)}
+              leaving={arrival.leaving}
+              onMove={(task) => arrival.move(task.id, task.title)}
               onSettled={arrival.settle}
             />
           )}
@@ -197,7 +198,7 @@ export function Project({ state, project: key }: { state: EvenKeelState; project
         </div>
       )}
       {flight !== null && (
-        <Flight key={flight.id} task={flight.id} title={flight.title} from={flight.from} onLand={() => arrival.land(flight.id)} />
+        <Flight key={flight.id} task={flight.id} title={flight.title} since={flight.since} onLand={() => arrival.land(flight.id)} />
       )}
       {opened !== null && (
         <Suspense fallback={null}>

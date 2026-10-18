@@ -190,6 +190,25 @@ a.backlog__key:hover {
   }
 }
 
+/* Slides out to the left past the panel's edge, fading, then folds so the rows under it close up. */
+.backlog__row.backlog__row--leaving {
+  interpolate-size: allow-keywords;
+  height: 0;
+  margin-bottom: -6px;
+  padding-block: 0;
+  border-width: 0;
+  opacity: 0;
+  transform: translateX(calc(-100% - 32px));
+  pointer-events: none;
+  transition:
+    transform 0.28s ease-in,
+    opacity 0.28s ease-in,
+    height 0.2s ease 0.28s,
+    margin 0.2s ease 0.28s,
+    padding 0.2s ease 0.28s,
+    border-width 0.2s ease 0.28s;
+}
+
 .block.block--ghost,
 .block.block--arriving {
   border: 1px dashed var(--accent);
@@ -282,11 +301,12 @@ a.backlog__key:hover {
   animation: block-glow var(--motion-mark) ease-out;
 }
 
+/* Under the side column (project.css), so the copy comes out from behind it, and under the header. */
 .flight {
   position: fixed;
   top: 0;
   left: 0;
-  z-index: 35;
+  z-index: 2;
   display: flex;
   align-items: center;
   gap: 12px;
@@ -314,7 +334,8 @@ a.backlog__key:hover {
 
 @media (prefers-reduced-motion: reduce) {
   .chain .block.block--ghost,
-  .chain__section--ghost {
+  .chain__section--ghost,
+  .backlog__row.backlog__row--leaving {
     transition: none;
   }
 

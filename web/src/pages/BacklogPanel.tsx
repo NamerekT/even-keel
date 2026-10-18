@@ -1,4 +1,4 @@
-import { useEffect, useRef, type SyntheticEvent } from 'react'
+import { useEffect, useRef, useState, type SyntheticEvent } from 'react'
 import type { TrackerUrls } from '../../../src/state.js'
 import type { Notice } from '../../../src/notice/notice.js'
 import type { Task } from '../../../src/tracker/model.js'
@@ -8,12 +8,14 @@ import { issueLink, type TaskLinks } from '../state.js'
 import { FlagIcon, IntoChainIcon, StackIcon } from '../ui/icons.js'
 import { Links } from '../ui/Links.js'
 import { PriorityIcon } from '../ui/Priority.js'
-import type { Box } from '../ui/reorder.js'
 import { SEG_CLASS, type ChipLook } from './chipLook.js'
 import './backlog.css'
 
 /** The address hash that opens the backlog panel; a task id never equals it. */
 export const BACKLOG_HASH = 'backlog'
+
+/** `.backlog__row--leaving` in backlog.css: the slide and the fold after it. */
+const LEAVE_MS = 480
 
 /** A tag in the head row, a tab on the side column's card, or a segment showing only the count. */
 const BACKLOG_CLASS: Record<ChipLook, string> = { tag: 'tag tag--backlog', tab: 'side-tab side-tab--wide', seg: SEG_CLASS }
@@ -48,26 +50,37 @@ interface Props {
   onClose: () => void
   /** The task whose Todo button is pointed at, `null` when none is. */
   onPoint: (task: string | null) => void
-  onMove: (task: Task, from: Box) => void
+  /** The task whose row slides out on its way into the chain. */
+  leaving: string | null
+  onMove: (task: Task) => void
   /** The Todo command for the task has been answered. */
   onSettled: (task: string) => void
 }
 
-export function BacklogPanel({ tasks, trackerUrls, canReady, refused, links, onCard, onClose, onPoint, onMove, onSettled }: Props) {
+export function BacklogPanel({ tasks, trackerUrls, canReady, refused, links, onCard, onClose, onPoint, leaving, onMove, onSettled }: Props) {
   const closeRef = useRef<HTMLButtonElement>(null)
   const { send, sending, failure } = useCommand()
   const point = useRef(onPoint)
   point.current = onPoint
+  const [out, setOut] = useState<{ task: Task; index: number } | null>(null)
   const mixed = new Set(tasks.map((task) => task.status.name)).size > 1
+  // The row finishes sliding out even when the chain takes the task before it is gone.
+  const rows =
+    out === null || tasks.some((task) => task.id === out.task.id) ? tasks : [...tasks.slice(0, out.index), out.task, ...tasks.slice(out.index)]
 
   useEffect(() => closeRef.current?.focus({ preventScroll: true }), [])
   useEffect(() => () => point.current(null), [])
+  useEffect(() => {
+    if (out === null) return
+    const timer = setTimeout(() => setOut(null), LEAVE_MS)
+    return () => clearTimeout(timer)
+  }, [out])
 
   // mousemove, not mouseenter: Chrome fires a synthetic enter when the row under a still cursor disappears.
   const pointAt = (event: SyntheticEvent) => onPoint((event.target as HTMLElement).closest<HTMLElement>('[data-ready]')?.dataset.ready ?? null)
-  const ready = (task: Task, button: HTMLElement) => {
-    const row = button.closest('li')?.getBoundingClientRect()
-    if (row !== undefined) onMove(task, { left: row.left, top: row.top, width: row.width, height: row.height })
+  const ready = (task: Task) => {
+    setOut({ task, index: tasks.indexOf(task) })
+    onMove(task)
     void send('task/ready', { task: task.id }).then(() => onSettled(task.id))
   }
 
@@ -99,11 +112,12 @@ export function BacklogPanel({ tasks, trackerUrls, canReady, refused, links, onC
         onMouseLeave={() => onPoint(null)}
         onBlur={() => onPoint(null)}
       >
-        {tasks.map((task) => {
+        {rows.map((task) => {
           const link = issueLink(trackerUrls, task.id)
           const reason = refused[task.id]
+          const gone = task.id === leaving || task.id === out?.task.id
           return (
-            <li key={task.id} className={`backlog__row backlog__row--${task.priority}`}>
+            <li key={task.id} className={`backlog__row backlog__row--${task.priority}${gone ? ' backlog__row--leaving' : ''}`}>
               {canReady && task.status.category === 'UnStarted' && (
                 <button
                   type="button"
@@ -112,7 +126,7 @@ export function BacklogPanel({ tasks, trackerUrls, canReady, refused, links, onC
                   aria-label={t.card.ready}
                   title={reason === undefined ? undefined : t.chain.readyRefused(say(reason))}
                   data-ready={reason === undefined ? task.id : undefined}
-                  onClick={(event) => ready(task, event.currentTarget)}
+                  onClick={() => ready(task)}
                 >
                   <IntoChainIcon />
                 </button>
