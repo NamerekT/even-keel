@@ -25,7 +25,7 @@ import './transcript.css'
 
 const LINE_TIME = localized((language) => new Intl.DateTimeFormat(language, { hour: '2-digit', minute: '2-digit' }))
 const FULL_TIME = localized((language) => new Intl.DateTimeFormat(language, { dateStyle: 'medium', timeStyle: 'medium' }))
-const POLL_MS = 3_000
+const POLL_MS = 5_000
 const TICK_MS = 1_000
 const PINNED_SLACK = 24
 /** A user's message longer than this is folded, like the task prompt a session starts with. */
@@ -72,7 +72,7 @@ interface SentLine {
 
 /** The whole transcript of a session: prompts, texts uncut, tool calls with their shell commands; with `chat`, a reply box under it. */
 export function TranscriptWindow({ sessionId, account, live, chat, onClose }: Props) {
-  const { transcript, imageUrl, sentFileUrl } = useLive()
+  const { transcript, onTranscript, imageUrl, sentFileUrl } = useLive()
   const dialogRef = useRef<HTMLDialogElement>(null)
   const listRef = useRef<HTMLDivElement>(null)
   const closeRef = useRef<HTMLButtonElement>(null)
@@ -80,6 +80,7 @@ export function TranscriptWindow({ sessionId, account, live, chat, onClose }: Pr
   /** How many lines of the session's transcript are read. */
   const count = useRef(0)
   const [lines, setLines] = useState<FeedLine[] | null | undefined>(undefined)
+  const [turn, setTurn] = useState<Turn | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [sent, setSent] = useState<SentLine[]>([])
   const [viewing, setViewing] = useState<number | null>(null)
@@ -109,33 +110,51 @@ export function TranscriptWindow({ sessionId, account, live, chat, onClose }: Pr
   useEffect(() => {
     count.current = 0
     setLines(undefined)
+    setTurn(null)
   }, [sessionId])
 
   // Delivering an answer stops the session for a while: the lines read so far stay, reading goes on from them.
+  // A live transcript is read when the service says its file changed; the poll only covers a missed word.
   useEffect(() => {
     let alive = true
     let timer: ReturnType<typeof setTimeout> | undefined
+    let reading = false
+    let again = false
     const read = async () => {
+      if (reading) {
+        again = true
+        return
+      }
+      reading = true
+      clearTimeout(timer)
       const from = count.current
       try {
         const found = await transcript(sessionId, from)
         if (!alive) return
         setError(null)
+        setTurn(found?.turn ?? null)
         if (found === null) {
           if (from === 0) setLines(null)
-        } else if (from === 0 || found.length > 0) {
-          count.current = from + found.length
-          setLines((current) => (from === 0 || current == null ? found : [...current, ...found]))
+        } else if (from === 0 || found.lines.length > 0) {
+          count.current = from + found.lines.length
+          setLines((current) => (from === 0 || current == null ? found.lines : [...current, ...found.lines]))
         }
       } catch (reason) {
         if (alive) setError(reason instanceof Error ? reason.message : String(reason))
       }
-      if (alive && live) timer = setTimeout(() => void read(), POLL_MS)
+      reading = false
+      if (!alive) return
+      if (again) {
+        again = false
+        void read()
+      } else if (live) timer = setTimeout(() => void read(), POLL_MS)
     }
+    const off = live ? onTranscript(sessionId, () => void read()) : undefined
     void read()
     return () => {
       alive = false
       clearTimeout(timer)
+      off?.()
     }
   }, [sessionId, live])
 
@@ -218,7 +237,7 @@ export function TranscriptWindow({ sessionId, account, live, chat, onClose }: Pr
         )}
         {chat !== undefined && (
           <div className="transcript__foot">
-            {chat.session.lamp === 'working' && chat.session.turn !== null && <TurnLine turn={chat.session.turn} />}
+            {chat.session.lamp === 'working' && turn !== null && <TurnLine turn={turn} />}
             <ChatComposer
               key={chat.session.sessionId}
               project={chat.project}
@@ -240,7 +259,7 @@ export function TranscriptWindow({ sessionId, account, live, chat, onClose }: Pr
   )
 }
 
-/** The turn in progress, as the Claude app shows it: "23с · 81 токен · Думает", the clock ticking every second. */
+/** The turn in progress, as the Claude app shows it: "23с · Думает" or "23с · Выполняет: Bash npm test", the clock ticking every second. */
 function TurnLine({ turn }: { turn: Turn }) {
   const now = useNow(TICK_MS)
   const elapsed = turn.startedAt === '' ? null : formatElapsed(now.getTime() - Date.parse(turn.startedAt))
@@ -248,7 +267,7 @@ function TurnLine({ turn }: { turn: Turn }) {
     <Tipped inline align="start" className="transcript__turn" tip={t.session.chat.turnTip}>
       <span className="lamp lamp--working" aria-hidden="true" />
       <span className="transcript__turn-text">
-        {[elapsed, t.session.chat.turnTokens(formatTokens(turn.outputTokens), turn.outputTokens), turn.tool ?? t.session.chat.thinking]
+        {[elapsed, turn.tool === null ? t.session.chat.thinking : t.session.chat.running(turn.tool)]
           .filter((part) => part !== null)
           .join(' · ')}
       </span>

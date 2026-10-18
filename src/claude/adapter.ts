@@ -3,7 +3,7 @@ import { join } from 'node:path'
 import type { AccountHome } from '../account/homes.js'
 import type { AgentAdapter } from '../agent/contract.js'
 import { parseUsage } from '../limits/usage.js'
-import { readSessionRecord, readTranscript, readTranscriptImage } from '../sessions/history.js'
+import { readSessionRecord, readTranscript, readTranscriptImage, transcriptFile } from '../sessions/history.js'
 import { transcriptIds } from '../sessions/owners.js'
 import { bridgeOfRecord, remoteAtStartup } from '../sessions/remote.js'
 import { TranscriptTail } from '../sessions/tail.js'
@@ -28,6 +28,7 @@ export const claude: AgentAdapter = {
       tail: (home, agent) => new TranscriptTail(projects(home), agent),
       record: (home, sessionId) => readSessionRecord(projects(home), sessionId),
       feed: (home, sessionId, after) => readTranscript(projects(home), sessionId, after),
+      feedFile: (home, sessionId) => transcriptFile(projects(home), sessionId),
       image: (home, sessionId, tool, index) => readTranscriptImage(projects(home), sessionId, tool, index),
       transcripts: (home) => transcriptIds(projects(home)),
       authStatus: (home) => cli.authStatus(home),

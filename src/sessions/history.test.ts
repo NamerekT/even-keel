@@ -2,7 +2,7 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { readSessionRecord, readTranscript, readTranscriptImage } from './history.js'
+import { readSessionRecord, readTranscript, readTranscriptImage, transcriptFile } from './history.js'
 
 const SESSION = '0a1b2c3d-1e04-43ce-b2ed-9b4a4eb36c23'
 
@@ -53,6 +53,8 @@ describe('readSessionRecord', () => {
     await expect(readSessionRecord(projects, '../secrets')).rejects.toThrow('not a session id')
     expect(await readTranscript(projects, SESSION)).toBeUndefined()
     await expect(readTranscript(projects, '../secrets')).rejects.toThrow('not a session id')
+    expect(await transcriptFile(projects, SESSION)).toBeUndefined()
+    await expect(transcriptFile(projects, '../secrets')).rejects.toThrow('not a session id')
   })
 
   it('reads the whole transcript with the first prompt and texts uncut', async () => {
@@ -68,13 +70,15 @@ describe('readSessionRecord', () => {
     writeFileSync(join(dir, `${SESSION}.jsonl`), lines.join('\n') + '\n')
 
     const feed = await readTranscript(projects, SESSION)
-    expect(feed).toHaveLength(41)
-    expect(feed?.[0]).toMatchObject({ kind: 'prompt', text: 'ABC-1' })
-    expect(feed?.[40]?.text).toBe(`${long} 39`)
+    expect(feed?.lines).toHaveLength(41)
+    expect(feed?.lines[0]).toMatchObject({ kind: 'prompt', text: 'ABC-1' })
+    expect(feed?.lines[40]?.text).toBe(`${long} 39`)
+    expect(feed?.turn).toEqual({ startedAt: '2026-09-27T09:59:00.000Z', tool: null })
 
     const tail = await readTranscript(projects, SESSION, 39)
-    expect(tail?.map((line) => line.text)).toEqual([`${long} 38`, `${long} 39`])
-    expect(await readTranscript(projects, SESSION, 41)).toEqual([])
+    expect(tail?.lines.map((line) => line.text)).toEqual([`${long} 38`, `${long} 39`])
+    expect((await readTranscript(projects, SESSION, 41))?.lines).toEqual([])
+    expect(await transcriptFile(projects, SESSION)).toBe(join(dir, `${SESSION}.jsonl`))
   })
 
   it('reads a picture of a tool result by the call id and its place', async () => {

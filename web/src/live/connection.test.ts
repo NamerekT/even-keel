@@ -257,4 +257,17 @@ describe('LiveConnection', () => {
     expect(streams).toHaveLength(1)
     expect(streams[0]!.closed).toBe(true)
   })
+
+  it('tells the listeners of a session that its transcript changed, and no one else', () => {
+    const calls: string[] = []
+    const off = live.onTranscript('s-1', () => calls.push('first'))
+    live.onTranscript('s-1', () => calls.push('second'))
+    live.onTranscript('s-2', () => calls.push('other'))
+
+    last().emit('transcript', { sessionId: 's-1' })
+    off()
+    last().emit('transcript', { sessionId: 's-1' })
+
+    expect(calls).toEqual(['first', 'second', 'second'])
+  })
 })

@@ -1,5 +1,5 @@
 import type { Notice } from '../../../src/notice/notice.js'
-import type { FeedLine } from '../../../src/sessions/transcript.js'
+import type { Feed } from '../../../src/sessions/transcript.js'
 import type { EvenKeelState, SessionRecord } from '../../../src/state.js'
 import type { PeriodQuery, StatsAnswer, StatsFilter, StatsHistory, StatsPeriod, StatsTaskDetail } from '../../../src/stats/model.js'
 import type { CompareQuery, RuleDiffFile, RulesQuery, StatsCompare, StatsRules } from '../../../src/stats/rules.js'
@@ -31,8 +31,10 @@ export interface LiveSource {
   retryNow(): void
   command(name: string, body?: Record<string, unknown>): Promise<void>
   session(sessionId: string): Promise<SessionRecord | null>
-  /** Lines of the whole transcript from index `after` on. */
-  transcript(sessionId: string, after: number): Promise<FeedLine[] | null>
+  /** Lines of the whole transcript from index `after` on, and its last turn. */
+  transcript(sessionId: string, after: number): Promise<Feed | null>
+  /** Calls `listener` each time the service says the session's transcript changed; returns the unsubscribe. */
+  onTranscript(sessionId: string, listener: () => void): () => void
   /** The address of picture `index` of the result of call `tool`, for an image line of the transcript. */
   imageUrl(sessionId: string, tool: string, index: number): string
   /** The address of a picture the user sent the session, by its file name. */
@@ -55,7 +57,7 @@ export interface LiveDeps {
   openEvents: () => EventStream
   sendCommand: (name: string, body: Record<string, unknown>) => Promise<EvenKeelState>
   fetchSession: (sessionId: string) => Promise<SessionRecord | null>
-  fetchTranscript: (sessionId: string, after: number) => Promise<FeedLine[] | null>
+  fetchTranscript: (sessionId: string, after: number) => Promise<Feed | null>
   fetchTools: (project: string) => Promise<ToolsView | null>
   fetchCard: (task: string) => Promise<TaskCard | null>
   fetchStats: <T>(path: string, search: URLSearchParams) => Promise<StatsAnswer<T>>
@@ -69,6 +71,7 @@ const SILENCE_MS = 45_000
 export class LiveConnection implements LiveSource {
   private current: LiveSnapshot = { state: null, link: 'connecting' }
   private readonly listeners = new Set<() => void>()
+  private readonly transcriptListeners = new Map<string, Set<() => void>>()
   private stream: EventStream | null = null
   private streamed = false
   private retryMs = FIRST_RETRY_MS
@@ -119,8 +122,17 @@ export class LiveConnection implements LiveSource {
     return this.deps.fetchSession(sessionId)
   }
 
-  transcript(sessionId: string, after: number): Promise<FeedLine[] | null> {
+  transcript(sessionId: string, after: number): Promise<Feed | null> {
     return this.deps.fetchTranscript(sessionId, after)
+  }
+
+  onTranscript(sessionId: string, listener: () => void): () => void {
+    const set = this.transcriptListeners.get(sessionId) ?? new Set()
+    this.transcriptListeners.set(sessionId, set.add(listener))
+    return () => {
+      set.delete(listener)
+      if (set.size === 0 && this.transcriptListeners.get(sessionId) === set) this.transcriptListeners.delete(sessionId)
+    }
   }
 
   imageUrl(sessionId: string, tool: string, index: number): string {
@@ -205,6 +217,11 @@ export class LiveConnection implements LiveSource {
       this.streamed = true
       clearTimeout(this.silenceTimer)
       this.update({ state: null, link: 'live', blocked: JSON.parse(event.data as string) as Notice })
+    })
+    stream.addEventListener('transcript', (event) => {
+      if (stream !== this.stream) return
+      const { sessionId } = JSON.parse(event.data as string) as { sessionId: string }
+      for (const listener of this.transcriptListeners.get(sessionId) ?? []) listener()
     })
     stream.addEventListener('ping', () => {
       if (stream !== this.stream) return

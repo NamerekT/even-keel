@@ -64,6 +64,9 @@ function ago(minutes: number): string {
   return new Date(Date.now() - minutes * 60_000).toISOString()
 }
 
+/** When the turn of every working fake session began: the turn line's clock runs on from it. */
+const turnStartedAt = ago(0.4)
+
 function fakeSessionId(task: string): string {
   const [project = '', number = ''] = task.split('-')
   const projectHex = Array.from(project.slice(0, 4), (char) => char.charCodeAt(0).toString(16).padStart(2, '0')).join('')
@@ -89,7 +92,6 @@ function session(task: string, contextTokens: number, lamp: SessionView['lamp'] 
     contextTokens,
     cache: fakeCache(lamp),
     tokens: { input: 18_400, output: 9_200, cacheRead: 1_240_000, cacheWrite: 96_000 },
-    turn: { startedAt: ago(0.4), outputTokens: 81, tool: task === 'ABC-5' ? 'Bash npx vitest run src/chain' : null },
     stage: 'edit',
     action: { at: ago(0), kind: 'tool', text: 'Edit src/example.ts' },
     feed: fakeFeed(),
@@ -804,9 +806,12 @@ export function createFakeSource(search: string): LiveSource {
     transcript: async (sessionId, after) => {
       await new Promise((resolve) => setTimeout(resolve, ANSWER_MS))
       if (sessionId.endsWith('999')) return null
-      if (after === 0) return fakeTranscript(current.state?.sessions.find((view) => view.sessionId === sessionId)?.ask ?? null)
-      return [{ at: ago(0), kind: 'tool', text: `Read src/example-${Date.now() % 1000}.ts` }]
+      const view = current.state?.sessions.find((each) => each.sessionId === sessionId)
+      const turn = view?.lamp === 'working' ? { startedAt: turnStartedAt, tool: view.task === 'ABC-5' ? 'Bash npx vitest run src/chain' : null } : null
+      if (after === 0) return { lines: fakeTranscript(view?.ask ?? null), turn }
+      return { lines: [{ at: ago(0), kind: 'tool', text: `Read src/example-${Date.now() % 1000}.ts` }], turn }
     },
+    onTranscript: () => () => {},
     imageUrl: (_sessionId, tool, index) => fakeImageUrl(tool, index),
     sentFileUrl: (_sessionId, name) => fakeSentFileUrl(name),
     tools: async (project) => {

@@ -4,7 +4,7 @@ import type { AccountStatus } from '../account/model.js'
 import type { UsageAnswer } from '../limits/usage.js'
 import type { AgentEntry, SessionRecord as LiveRecord } from '../sessions/agents.js'
 import type { TranscriptImage } from '../sessions/entry.js'
-import type { FeedLine, TranscriptSummary } from '../sessions/transcript.js'
+import type { Feed, TranscriptSummary } from '../sessions/transcript.js'
 import type { SessionRecord } from '../state.js'
 
 /**
@@ -99,8 +99,10 @@ export interface Agent {
   tail(home: AccountHome, agent: AgentEntry): SessionTail
   /** A finished or live session's transcript in brief; `undefined` — the folder has no such session. */
   record(home: AccountHome, sessionId: string): Promise<SessionRecord | undefined>
-  /** Every line of the session's transcript from line `after` on; `undefined` — the folder has no such session. */
-  feed(home: AccountHome, sessionId: string, after: number): Promise<FeedLine[] | undefined>
+  /** Every line of the session's transcript from line `after` on, and its last turn; `undefined` — the folder has no such session. */
+  feed(home: AccountHome, sessionId: string, after: number): Promise<Feed | undefined>
+  /** Optional. The file `feed` reads, watched while a chat window reads it; without it the window only polls. */
+  feedFile?(home: AccountHome, sessionId: string): Promise<string | undefined>
   /** The ids of every session whose transcript the folder holds: those sessions ran on its account. */
   transcripts(home: AccountHome): Promise<string[]>
 

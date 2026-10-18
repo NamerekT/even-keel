@@ -190,7 +190,6 @@ function toView(
     contextTokens: summary.contextTokens,
     cache: summary.cache,
     tokens: summary.tokens,
-    turn: summary.turn,
     stage: summary.stage,
     action: summary.action,
     feed: summary.feed,

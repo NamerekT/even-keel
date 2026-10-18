@@ -8,7 +8,7 @@ export function LiveProvider({ source, children }: { source: LiveSource; childre
   return <LiveContext.Provider value={source}>{children}</LiveContext.Provider>
 }
 
-export function useLive(): LiveSnapshot & Pick<LiveSource, 'retryNow' | 'command' | 'session' | 'transcript' | 'imageUrl' | 'sentFileUrl' | 'tools' | 'card' | 'statsHistory' | 'statsPeriod' | 'statsSteps' | 'statsCheckpoints' | 'statsSpend' | 'statsTask' | 'statsRules' | 'statsRuleDiff' | 'statsCompare'> {
+export function useLive(): LiveSnapshot & Pick<LiveSource, 'retryNow' | 'command' | 'session' | 'transcript' | 'onTranscript' | 'imageUrl' | 'sentFileUrl' | 'tools' | 'card' | 'statsHistory' | 'statsPeriod' | 'statsSteps' | 'statsCheckpoints' | 'statsSpend' | 'statsTask' | 'statsRules' | 'statsRuleDiff' | 'statsCompare'> {
   const source = useContext(LiveContext)
   if (source === null) throw new Error('useLive needs a LiveProvider')
   const subscribe = useCallback((listener: () => void) => source.subscribe(listener), [source])
@@ -19,6 +19,7 @@ export function useLive(): LiveSnapshot & Pick<LiveSource, 'retryNow' | 'command
     command: (name, body) => activity.track(source.command(name, body)),
     session: (sessionId) => activity.track(source.session(sessionId)),
     transcript: (sessionId, after) => source.transcript(sessionId, after),
+    onTranscript: (sessionId, listener) => source.onTranscript(sessionId, listener),
     imageUrl: (sessionId, tool, index) => source.imageUrl(sessionId, tool, index),
     sentFileUrl: (sessionId, name) => source.sentFileUrl(sessionId, name),
     tools: (project) => activity.track(source.tools(project)),

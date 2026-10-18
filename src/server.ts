@@ -145,7 +145,7 @@ export interface ServerDeps {
   packages: PackagesControl
   launches: () => unknown
   sessionRecord: (sessionId: string) => Promise<unknown>
-  /** Lines of the whole transcript from index `after` on. */
+  /** Lines of the whole transcript from index `after` on, and its last turn. */
   transcript: (sessionId: string, after: number) => Promise<unknown>
   /** Picture `index` of the result of call `tool` in the session's transcript; `undefined` — none. */
   transcriptImage: (sessionId: string, tool: string, index: number) => Promise<TaskFile | undefined>

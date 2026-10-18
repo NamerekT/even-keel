@@ -134,10 +134,10 @@ describe('RolloutFold', () => {
     expect(summary.tokens).toEqual({ input: 15000, cacheRead: 24000, cacheWrite: 0, output: 120 })
   })
 
-  it('follows the turn from its start, with the output tokens since and no call known to be running', () => {
+  it('follows the turn from its start, with no call known to be running', () => {
     const turn = started()
-    const summary = fold([started(), tokens(14000, 0, [14000, 0, 100]), turn, user('Go on.'), tokens(25000, 24000, [39000, 24000, 130])]).summary()
-    expect(summary.turn).toEqual({ startedAt: JSON.parse(turn).timestamp, outputTokens: 30, tool: null })
+    const summary = fold([started(), tokens(14000, 0, [14000, 0, 100]), turn, user('Go on.')]).summary()
+    expect(summary.turn).toEqual({ startedAt: JSON.parse(turn).timestamp, tool: null })
     expect(fold([meta(), user('BTN-1')]).summary().turn).toBeNull()
   })
 

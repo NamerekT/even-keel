@@ -1,8 +1,8 @@
-import { readdir, readFile } from 'node:fs/promises'
+import { readdir, readFile, stat } from 'node:fs/promises'
 import { join } from 'node:path'
 import type { SessionRecord } from '../state.js'
 import { blocksOf, imagesOf, parseEntry, type TranscriptImage } from './entry.js'
-import { TranscriptFold, type FeedLine, type TranscriptSummary } from './transcript.js'
+import { TranscriptFold, type Feed, type TranscriptSummary } from './transcript.js'
 
 const SESSION_ID = /^[0-9a-f][0-9a-f-]{7,63}$/i
 const HISTORY_FEED = 5_000
@@ -26,8 +26,19 @@ export async function readSessionRecord(projectsDir: string, sessionId: string):
 }
 
 /** Every prompt, text and tool call of the session, uncut, from line `after` on: lines are only ever appended. */
-export async function readTranscript(projectsDir: string, sessionId: string, after = 0): Promise<FeedLine[] | undefined> {
-  return (await foldTranscript(projectsDir, sessionId, new TranscriptFold(Infinity, true)))?.feed.slice(after)
+export async function readTranscript(projectsDir: string, sessionId: string, after = 0): Promise<Feed | undefined> {
+  const summary = await foldTranscript(projectsDir, sessionId, new TranscriptFold(Infinity, true))
+  return summary === undefined ? undefined : { lines: summary.feed.slice(after), turn: summary.turn }
+}
+
+/** The path of the session's transcript; `undefined` — the folder has none. */
+export async function transcriptFile(projectsDir: string, sessionId: string): Promise<string | undefined> {
+  if (!SESSION_ID.test(sessionId)) throw new Error(`sessions: ${sessionId} is not a session id`)
+  for (const dir of await readdir(projectsDir).catch(() => [])) {
+    const file = join(projectsDir, dir, `${sessionId}.jsonl`)
+    if (await stat(file).then((info) => info.isFile(), () => false)) return file
+  }
+  return undefined
 }
 
 /** Picture `index` of the result of call `tool`, as the transcript holds it; `undefined` — there is no such picture. */

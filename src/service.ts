@@ -47,6 +47,7 @@ import { runAfterGreen, runBeforeStart, runCheck, systemShell, type SetupRun } f
 import { SessionMonitor } from './sessions/monitor.js'
 import { TranscriptOwners } from './sessions/owners.js'
 import { ChatTitles } from './sessions/title.js'
+import { TranscriptWatch } from './sessions/watch.js'
 import { configPath, root, stateDirOf } from './locations.js'
 import { isInside } from './paths.js'
 import { slotOccupants } from './sessions/occupants.js'
@@ -134,6 +135,10 @@ const trackers = new Map<string, TrackerView>(
 )
 const links = new Map<string, TrackerLink>()
 const hub = new EventHub()
+const transcriptWatch = new TranscriptWatch(
+  (sessionId) => hub.broadcast('transcript', { sessionId }),
+  (error) => console.error(`sessions: watching a transcript: ${error instanceof Error ? error.message : String(error)}`),
+)
 const homes = new AccountHomes(process.env, accountsRoot(process.env))
 /** The shared pool's Claude entry: whose `.claude.json` and tools the Claude-only checks read. */
 const claudeAccount = () => configFile.current.accounts[CLAUDE]!
@@ -750,7 +755,13 @@ const server = createEvenKeelServer({
     }
     return undefined
   },
-  transcript: (sessionId, after) => inHomes((home) => agentOf(home).feed(home, sessionId, after)),
+  transcript: (sessionId, after) =>
+    inHomes(async (home) => {
+      const agent = agentOf(home)
+      const feed = await agent.feed(home, sessionId, after)
+      if (feed !== undefined && agent.feedFile !== undefined) void transcriptWatch.keep(sessionId, () => agent.feedFile!(home, sessionId))
+      return feed
+    }),
   transcriptImage: async (sessionId, tool, index) => {
     const image = await inHomes(async (home) => agentOf(home).image?.(home, sessionId, tool, index))
     if (image === undefined) return undefined
@@ -759,7 +770,7 @@ const server = createEvenKeelServer({
   },
   inboxFile: async (sessionId, name) => {
     const feed = await inHomes((home) => agentOf(home).feed(home, sessionId, 0))
-    const found = inboxImage(feed?.flatMap((line) => line.files ?? []) ?? [], name)
+    const found = inboxImage(feed?.lines.flatMap((line) => line.files ?? []) ?? [], name)
     if (found === undefined) return undefined
     const size = await stat(found.path).then((info) => info.size, () => null)
     return size === null ? undefined : { type: found.type, size, body: createReadStream(found.path) }
