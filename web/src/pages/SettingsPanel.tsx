@@ -1,9 +1,9 @@
 import { useEffect, useRef, type ReactNode } from 'react'
 import { CI_KINDS, type CiKind } from '../../../src/ci/model.js'
-import { PROVIDERS } from '../../../src/agent/providers.js'
 import type { Notice } from '../../../src/notice/notice.js'
 import type { ConfigView, ProjectForm } from '../../../src/state.js'
 import type { Task } from '../../../src/tracker/model.js'
+import { offeredProviders } from '../accounts.js'
 import { say, t } from '../i18n/index.js'
 import { useLive } from '../live/context.js'
 import { useCommand } from '../live/useCommand.js'
@@ -12,7 +12,7 @@ import { SlidersIcon } from '../ui/icons.js'
 import { Select } from '../ui/Select.js'
 import { seriesStyle } from '../ui/series.js'
 import { changed, edited, reverted, sent, type Value, type Values } from './settingsDraft.js'
-import { accountOptions, providerKeys, providerMap, providerName, providerOptions, providerValues } from './settingsRun.js'
+import { accountOptions, namedProviders, providerKeys, providerMap, providerName, providerOptions, providerValues } from './settingsRun.js'
 import {
   CheckField,
   FieldHead,
@@ -183,6 +183,7 @@ export function SettingsPanel({
   const on = (key: string) => draft.edit[key] as boolean
   const tracker = config.trackers.find((each) => each.name === text('tracker'))
   const kinds = draft.edit.kinds as readonly CiKind[]
+  const offered = offeredProviders(state?.account ?? null, namedProviders(text, [config.shared.provider, text('provider')], ['models', 'accounts']))
 
   useEffect(() => closeRef.current?.focus({ preventScroll: true }), [])
 
@@ -358,14 +359,14 @@ export function SettingsPanel({
       <>
         {choice('provider', t.settings.provider, t.settings.providerHint, [
           { value: '', label: t.settings.asShared(providerName(config.shared.provider)) },
-          ...providerOptions(),
+          ...providerOptions(offered),
         ])}
         <ProviderGrid
           columns={[
             { key: 'models', label: t.settings.model, hint: t.settings.modelHint },
             { key: 'accounts', label: t.settings.account, hint: t.settings.accountHint },
           ]}
-          providers={PROVIDERS}
+          providers={offered}
           cell={(column, provider) => {
             const key = `${column}.${provider}`
             if (column === 'accounts') {

@@ -1,7 +1,8 @@
 import type { ReactNode } from 'react'
-import { EXECUTION_MODES, PROVIDERS } from '../../../src/agent/providers.js'
+import { EXECUTION_MODES } from '../../../src/agent/providers.js'
 import { LANGUAGES, type Language } from '../../../src/language.js'
 import type { CacheTtl, EvenKeelState, SharedForm } from '../../../src/state.js'
+import { offeredProviders } from '../accounts.js'
 import { say, t } from '../i18n/index.js'
 import { useCommand } from '../live/useCommand.js'
 import { useToolsViews } from '../tools/useToolsViews.js'
@@ -27,7 +28,7 @@ import {
   wholeOf,
 } from './settingsParts.js'
 import { lineOf, linesText, pairOf, ruleChoicesOf, rowsOf } from './settingsRows.js'
-import { accountOptions, providerKeys, providerMap, providerName, providerOptions, providerValues } from './settingsRun.js'
+import { accountOptions, namedProviders, providerKeys, providerMap, providerName, providerOptions, providerValues } from './settingsRun.js'
 import { useDraft, useTab } from './settingsStore.js'
 import { ListTable, RowsTable } from './settingsTable.js'
 import { SettingsNav } from './SettingsNav.js'
@@ -146,6 +147,7 @@ export function SharedSettings({ state }: { state: EvenKeelState }) {
   const errorOf = useFieldErrors(null, [failure, configError], config)
   const leftover = unplaced(null, failure, config)
   const text = (key: string) => draft.edit[key] as string
+  const offered = offeredProviders(state.account, namedProviders(text, [text('provider')], ['models']))
   const titleOf = (id: GroupId) => t.shared[id]
 
   const edit = (key: string, value: Value) => setDraft(edited(draft, key, value))
@@ -254,14 +256,14 @@ export function SharedSettings({ state }: { state: EvenKeelState }) {
     ),
     models: () => (
       <>
-        {select('provider', t.settings.provider, providerOptions(), t.shared.providerHint)}
+        {select('provider', t.settings.provider, providerOptions(offered), t.shared.providerHint)}
         <ProviderGrid
           columns={[
             { key: 'models', label: t.settings.model, hint: t.shared.modelHint },
             { key: 'accounts', label: t.settings.account, hint: t.shared.accountHint },
             { key: 'execution', label: t.shared.execution, hint: t.shared.executionHint },
           ]}
-          providers={PROVIDERS}
+          providers={offered}
           cell={(column, provider) => {
             const name = providerName(provider)
             if (column === 'models') return model(`models.${provider}`, t.settings.modelOf(name))

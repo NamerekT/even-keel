@@ -13,10 +13,12 @@ import {
   isApiKey,
   loginBlockNotice,
   loginUrls,
+  missingNotice,
   needsLogin,
   removeProblem,
   secondFreeProblem,
   switchProblem,
+  takesShared,
   withIdentity,
   type AccountEntry,
   type AccountLogin,
@@ -53,6 +55,10 @@ export interface AccountWatcherOptions {
   /** The projects whose sessions run in the folder, by the pool. */
   projectsOn: (key: string) => string[]
   pool: () => PoolEntry[]
+  /** Writes the shared pool's entry of the agent: the first account added while it names no folder takes it (`takesShared`). */
+  makeShared: (agent: string, key: string) => void
+  /** The agents whose CLI is not found, asked at each refresh. */
+  missing: () => string[]
   sessionsKnown: () => boolean
   removing: (key: string) => boolean
   markRemoving: (key: string, on: boolean) => void
@@ -86,6 +92,7 @@ interface Running {
 
 export class AccountWatcher {
   private known: Known[] = []
+  private absent: string[] = []
   private current: AccountLogin | null = null
   private running: Running | undefined
   private output = ''
@@ -127,6 +134,7 @@ export class AccountWatcher {
       loginBlock: this.options.loginBlock(),
       apps: this.options.apps.list(),
       pool: this.options.pool(),
+      missing: this.absent,
     }
   }
 
@@ -159,14 +167,17 @@ export class AccountWatcher {
     const known = await Promise.all(homes.map((home) => this.check(home)))
     const keysChanged = await this.checkKeys(known)
     await this.checkCredit(homes)
-    if (!keysChanged && JSON.stringify(known) === JSON.stringify(this.known)) return
+    const absent = this.options.missing()
+    if (!keysChanged && JSON.stringify(known) === JSON.stringify(this.known) && absent.join() === this.absent.join()) return
     this.known = known
+    this.absent = absent
     this.options.onChange()
   }
 
   /** A new account of the agent, signed in in a folder of its own. */
   add(agent: string): void {
     this.requireIdle()
+    if (this.options.missing().includes(agent)) throw new NoticeError(missingNotice(agent))
     this.begin(this.options.homes.pending(this.options.now(), agent), true)
   }
 
@@ -179,6 +190,7 @@ export class AccountWatcher {
     const home = this.options.homes.addApiKey(name, value, agent)
     this.keys.note(home.key, verdict, this.options.now())
     this.options.name(home.key, name)
+    this.claimShared(home)
     await this.refresh()
   }
 
@@ -339,7 +351,8 @@ export class AccountWatcher {
     child.stderr.on('data', read)
     child.on('error', (error) => {
       clearTimeout(timeout)
-      this.fail(running, notice('login.startFailed', {}, { detail: error.message }))
+      const absent = (error as NodeJS.ErrnoException).code === 'ENOENT'
+      this.fail(running, absent ? missingNotice(home.agent) : notice('login.startFailed', {}, { detail: error.message }))
     })
     child.on('close', (code) => {
       clearTimeout(timeout)
@@ -366,6 +379,7 @@ export class AccountWatcher {
         }
         const home = this.options.homes.place(running.home, status.email)
         this.options.homes.share(home)
+        this.claimShared(home)
       }
     } catch (error) {
       running.adding = false
@@ -385,6 +399,10 @@ export class AccountWatcher {
     this.current = { ...this.current, error }
     if (running.adding) this.discard(running.home)
     this.options.onChange()
+  }
+
+  private claimShared(home: AccountHome): void {
+    if (takesShared(this.options.pool(), this.options.homes.list(), home.agent)) this.options.makeShared(home.agent, home.key)
   }
 
   private discard(home: AccountHome): void {

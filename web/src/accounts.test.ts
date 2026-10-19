@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { AccountEntry, AccountView } from '../../src/account/model.js'
-import { accountGroups, accountSlot, addStep, canAdd, connectionOf, deviceLogin, entrySlot, folderEmail } from './accounts.js'
+import { accountGroups, accountSlot, addStep, canAdd, cliMissing, connectionOf, deviceLogin, entrySlot, folderEmail, offeredProviders } from './accounts.js'
 
 const entry = (key: string, email: string | null): AccountEntry => ({
   key,
@@ -20,7 +20,7 @@ const entry = (key: string, email: string | null): AccountEntry => ({
   usage: { state: 'ok', reason: null, since: null },
 })
 
-const view = (accounts: AccountEntry[]): AccountView => ({ active: 'global', accounts, login: null, loginBlock: null, apps: [], pool: [] })
+const view = (accounts: AccountEntry[]): AccountView => ({ active: 'global', accounts, login: null, loginBlock: null, apps: [], pool: [], missing: [] })
 
 describe('accountSlot', () => {
   const accounts = view([entry('work', 'jane@example.com'), entry('global', 'john@example.com'), entry('spare', null)])
@@ -148,5 +148,37 @@ describe('accountGroups', () => {
       ['codex', []],
       ['gemini', ['other']],
     ])
+  })
+
+  it('drops the empty group of a provider whose CLI is not found, and keeps one that has accounts', () => {
+    const missing = (accounts: AccountEntry[]) =>
+      accountGroups({ ...view(accounts), missing: ['codex'] }, now).map((group) => [group.agent, group.entries.map((each) => each.key)])
+    expect(missing([of('global', 'claude')])).toEqual([['claude', ['global']]])
+    expect(missing([of('global', 'claude'), of('work', 'codex')])).toEqual([
+      ['claude', ['global']],
+      ['codex', ['work']],
+    ])
+  })
+})
+
+describe('cliMissing', () => {
+  it('names a provider whose CLI the service does not find', () => {
+    expect(cliMissing({ ...view([]), missing: ['codex'] }, 'codex')).toBe(true)
+    expect(cliMissing({ ...view([]), missing: ['codex'] }, 'claude')).toBe(false)
+  })
+})
+
+describe('offeredProviders', () => {
+  const of = (key: string, agent: string) => ({ ...entry(key, `${key}@example.com`), agent })
+
+  it('offers a provider only once it has an account, or while a setting already names it', () => {
+    const account = view([of('global', 'claude')])
+    expect(offeredProviders(account, [])).toEqual(['claude'])
+    expect(offeredProviders(account, ['', 'codex'])).toEqual(['claude', 'codex'])
+    expect(offeredProviders(view([of('global', 'claude'), of('work', 'codex')]), [])).toEqual(['claude', 'codex'])
+  })
+
+  it('offers every provider until the accounts are known', () => {
+    expect(offeredProviders(null, [])).toEqual(['claude', 'codex'])
   })
 })

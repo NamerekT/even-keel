@@ -17,6 +17,7 @@ import {
   removeProblem,
   secondFreeProblem,
   switchProblem,
+  takesShared,
   withIdentity,
   type AccountEntry,
   type AccountView,
@@ -77,6 +78,7 @@ const view = (patch: Partial<AccountView>): AccountView => ({
   loginBlock: null,
   apps: [],
   pool: [],
+  missing: [],
   ...patch,
 })
 
@@ -366,6 +368,29 @@ describe('the Codex folders', () => {
   it("keeps Codex's own folder and lets an added one go", () => {
     expect(say(removeProblem(codex, 'codex'))).toMatch(/^codex: Codex's own folder/)
     expect(removeProblem(codex, 'work')).toBeUndefined()
+  })
+})
+
+describe('takesShared', () => {
+  const shared = (provider: string, account: string) => ({ project: null, provider, account })
+
+  it('gives the first added Codex account the shared entry while that names a folder that was never there', () => {
+    const homes = [{ key: 'global', agent: 'claude' }, { key: 'work', agent: 'codex' }]
+    expect(takesShared([shared('claude', 'global'), shared('codex', 'codex')], homes, 'codex')).toBe(true)
+  })
+
+  it('leaves a shared entry alone while its folder is there', () => {
+    const homes = [{ key: 'codex', agent: 'codex' }, { key: 'work', agent: 'codex' }]
+    expect(takesShared([shared('codex', 'codex')], homes, 'codex')).toBe(false)
+  })
+
+  it("does not count a project's own entry or another agent's folder of the same key", () => {
+    const homes = [{ key: 'codex', agent: 'claude' }, { key: 'work', agent: 'codex' }]
+    expect(takesShared([{ project: 'abc', provider: 'codex', account: 'work' }, shared('codex', 'codex')], homes, 'codex')).toBe(true)
+  })
+
+  it('takes the entry when the shared pool has none for the agent', () => {
+    expect(takesShared([], [{ key: 'work', agent: 'claude' }], 'claude')).toBe(true)
   })
 })
 

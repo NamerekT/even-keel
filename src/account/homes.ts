@@ -26,10 +26,10 @@ export interface AccountHome {
 }
 
 /**
- * The account folders: Claude Code's global `~/.claude` and one `CLAUDE_CONFIG_DIR` per account under the root; Codex's
- * own folder (`CODEX_HOME` or `~/.codex`) once it exists — Codex does not create it — and one `CODEX_HOME` per account
- * under the Codex root (BTN-176). A folder's name is its key across both roots: a Codex folder named like a Claude one
- * is left out, and a new one is named apart from both.
+ * The account folders: Claude Code's global `~/.claude` once it exists and one `CLAUDE_CONFIG_DIR` per account under the
+ * root; Codex's own folder (`CODEX_HOME` or `~/.codex`) once it exists — Codex does not create it — and one
+ * `CODEX_HOME` per account under the Codex root (BTN-176). A folder's name is its key across both roots: a Codex folder
+ * named like a Claude one is left out, and a new one is named apart from both.
  */
 export class AccountHomes {
   readonly global: AccountHome
@@ -55,7 +55,7 @@ export class AccountHomes {
     const claude = this.folders(CLAUDE)
     const codex = this.folders(CODEX).filter((name) => !claude.includes(name))
     return [
-      this.global,
+      ...(existsSync(this.global.dir) ? [this.global] : []),
       ...claude.map((name) => this.home(CLAUDE, name)),
       ...(existsSync(this.codex.dir) ? [this.codex] : []),
       ...codex.map((name) => this.home(CODEX, name)),

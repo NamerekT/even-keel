@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto'
-import { formsOf, trackerChoices, withChainSwitches, withNewProject, withoutProject, withProjectForm, withRunAccount, withSharedForm, withUpdates } from './config-form.js'
+import { formsOf, trackerChoices, withChainSwitches, withNewProject, withoutProject, withProjectForm, withRunAccount, withSharedAccount, withSharedForm, withUpdates } from './config-form.js'
 import { parseConfig, trackerKeysOf, type EvenKeelConfig } from './config.js'
 import { englishOf, fail, noticeOf, type Notice } from './notice/notice.js'
 import { fileOf, fileRows, type FileContents } from './settings/file.js'
@@ -112,6 +112,11 @@ export class ConfigStore {
   /** Writes the shared provider and its account the Even Keel role moved to, by the same rule as `saveProject`. */
   saveActive(provider: string, key: string): void {
     this.write(withRunAccount(this.raw(), provider, key))
+  }
+
+  /** Writes the shared pool's account of the provider alone, by the same rule as `saveProject`. */
+  saveSharedAccount(provider: string, key: string): void {
+    this.write(withSharedAccount(this.raw(), provider, key))
   }
 
   /** Writes the given switches of `updates`, by the same rule as `saveProject`. */

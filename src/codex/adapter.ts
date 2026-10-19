@@ -5,6 +5,7 @@ import type { AccountHome } from '../account/homes.js'
 import type { AgentAdapter } from '../agent/contract.js'
 import { runWithInput } from '../agent/oneturn.js'
 import { notice } from '../notice/notice.js'
+import { findBinary } from '../paths.js'
 import { CodexCli, parseWriteAnswer, resolveCodexBinary, SESSION_MODE, writeArgs } from './cli.js'
 import { CodexPlugins } from './plugins.js'
 import { foldRollout, limitsOfRollout, RolloutFold, rolloutFile, rolloutFiles } from './rollout.js'
@@ -59,6 +60,7 @@ export const codex: AgentAdapter = {
       authStatus: (home) => cli.authStatus(home),
       login: (home) => cli.login(home),
       logout: (home) => cli.logout(home),
+      installed: () => findBinary(bin(), env()),
       usage: async (home, at) => {
         for (const { file } of (await rolloutFiles(home.dir)).slice(0, LIMIT_ROLLOUTS)) {
           const limits = limitsOfRollout(await readFile(file, 'utf8').catch(() => ''))

@@ -129,6 +129,7 @@ export function fakeAccount(mode: string | null, idle: boolean, limits: RateLimi
     accounts: [global, work],
     apps: [vscode],
     pool: SHARED_POOL,
+    missing: [],
     login: null,
     loginBlock: idle
       ? null

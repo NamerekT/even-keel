@@ -166,6 +166,8 @@ export const noticesRu: NoticeTexts = {
   'login.running': () => 'вход уже идёт',
   'login.timeout': (p) => `вход не завершился за ${p.minutes} мин`,
   'login.startFailed': () => 'не удалось начать вход',
+  'login.codexMissing': () => 'Codex CLI не найден: установите его — npm install -g @openai/codex — или укажите путь в EVEN_KEEL_CODEX_BIN',
+  'login.claudeMissing': () => 'Claude Code CLI не найден: установите его или укажите путь в EVEN_KEEL_CLAUDE_BIN',
   'login.exited': (p) => `вход завершился с кодом ${p.code}`,
   'login.setupFailed': (p) => `вход выполнен, но папку ${p.dir} не удалось подготовить`,
 

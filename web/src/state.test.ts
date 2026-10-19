@@ -92,7 +92,7 @@ function stateOf(patch: Partial<EvenKeelState>): EvenKeelState {
     sessions: [],
     limits: null,
     usage: { state: 'ok', reason: null, since: null },
-    account: { active: 'global', accounts: [], login: null, loginBlock: null, apps: [], pool: [] },
+    account: { active: 'global', accounts: [], login: null, loginBlock: null, apps: [], pool: [], missing: [] },
     trackers: [{ name: 'huly', kind: 'huly', title: 'Huly', projects: ['ABC', 'XYZ'], ready: true, health: { state: 'live', lastOkAt: null, error: null }, readAt: {} }],
     trackerUrls: { default: null, projects: {} },
     ci: {},
@@ -1261,6 +1261,7 @@ describe('accountBadge', () => {
     loginBlock: null,
     apps: [],
     pool: [],
+    missing: [],
   })
   const login = { agent: 'claude', target: 'global', startedAt: '2026-09-27T10:00:00Z', urls: [], output: '', error: null, codeSent: false }
 
@@ -1288,6 +1289,13 @@ describe('accountBadge', () => {
     expect(accountBadge({ ...view({}), active: 'gone' })).toEqual({ kind: 'unknown', label: 'Claude' })
   })
 
+  it('keeps the active account as it is while a new account is added, failed or not', () => {
+    const adding = { ...login, agent: 'codex', target: null }
+    const signedIn = { status: account(true, 'john.doe@example.com') }
+    expect(accountBadge(view(signedIn, adding))).toEqual({ kind: 'in', label: 'john.doe' })
+    expect(accountBadge(view(signedIn, { ...adding, error: textNotice('spawn codex ENOENT') }))).toEqual({ kind: 'in', label: 'john.doe' })
+  })
+
   it('names any account by itself, its own sign-in only', () => {
     const work = entry({ key: 'work', global: false, status: account(true, 'jane.roe@example.com') })
     expect(entryBadge(work, null)).toEqual({ kind: 'in', label: 'jane.roe' })
@@ -1298,7 +1306,7 @@ describe('accountBadge', () => {
 })
 
 describe('headerAccounts', () => {
-  const view = (active: string, accounts: AccountEntry[]): AccountView => ({ active, accounts, login: null, loginBlock: null, apps: [], pool: [] })
+  const view = (active: string, accounts: AccountEntry[]): AccountView => ({ active, accounts, login: null, loginBlock: null, apps: [], pool: [], missing: [] })
 
   it('puts the active account first, then every account a project runs on', () => {
     const accounts = [

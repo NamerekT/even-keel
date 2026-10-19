@@ -1,4 +1,5 @@
 import type { AccountEntry, AccountView } from '../../src/account/model.js'
+import { PROVIDERS as RUN_PROVIDERS } from '../../src/agent/providers.js'
 import { CODEX } from '../../src/codex/name.js'
 import { accountOrder } from './state.js'
 
@@ -49,6 +50,20 @@ export function canAdd(provider: Provider, connection?: Connection): boolean {
   return connection !== 'sdk'
 }
 
+/** Whether the service does not find the provider's CLI: no account of it is added, the page says where to get it. */
+export function cliMissing(view: AccountView, provider: Provider): boolean {
+  return view.missing.includes(provider)
+}
+
+/**
+ * The providers a project's or the shared settings offer to run on: the ones with an account, and any a setting there
+ * already names (`named`); every one until the accounts are known.
+ */
+export function offeredProviders(view: AccountView | null, named: string[]): string[] {
+  if (view === null) return [...RUN_PROVIDERS]
+  return RUN_PROVIDERS.filter((provider) => named.includes(provider) || view.accounts.some((entry) => entry.agent === provider))
+}
+
 export interface AccountGroup {
   agent: string
   entries: AccountEntry[]
@@ -56,13 +71,13 @@ export interface AccountGroup {
 
 /**
  * The accounts by provider, in the order of `PROVIDERS`, an agent the page does not know after them. A provider that can be
- * added has its group even with no account, so the page can offer to add one there. Inside a group the chain's account
+ * added and whose CLI is found has its group even with no account, so the page can offer to add one there. Inside a group the chain's account
  * comes first, then the ones that can work now.
  */
 export function accountGroups(view: AccountView, now: Date): AccountGroup[] {
   const ordered = accountOrder(view.accounts, now)
   const sorted = [...ordered.filter((entry) => entry.key === view.active), ...ordered.filter((entry) => entry.key !== view.active)]
-  const known: string[] = PROVIDERS.filter((provider) => canAdd(provider))
+  const known: string[] = PROVIDERS.filter((provider) => canAdd(provider) && !cliMissing(view, provider))
   const agents = [...known, ...new Set(sorted.map((entry) => entry.agent).filter((agent) => !known.includes(agent)))]
   return agents
     .map((agent) => ({ agent, entries: sorted.filter((entry) => entry.agent === agent) }))

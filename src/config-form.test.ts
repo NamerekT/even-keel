@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { formsOf, trackerChoices, withNewProject, withoutProject, withProjectForm, withRunAccount, withSharedForm, withUpdates, withChainSwitches } from './config-form.js'
+import { formsOf, trackerChoices, withNewProject, withoutProject, withProjectForm, withRunAccount, withSharedAccount, withSharedForm, withUpdates, withChainSwitches } from './config-form.js'
 import { parseConfig } from './config.js'
 import type { ProjectDraft, ProjectForm, SharedForm } from './state.js'
 
@@ -239,5 +239,14 @@ describe('withRunAccount', () => {
       ...raw,
       accounts: { claude: 'second', codex: 'codex-2' },
     })
+  })
+})
+
+describe('withSharedAccount', () => {
+  it("sets the shared pool's entry of the provider, leaving the shared provider and the projects alone", () => {
+    const raw = { projects: [abc({ accounts: { codex: 'own' } })], accounts: { claude: 'work' } }
+    const next = withSharedAccount(raw, 'codex', 'john')
+    expect(next).toEqual({ ...raw, accounts: { claude: 'work', codex: 'john' } })
+    expect(parseConfig(next).provider).toBe('claude')
   })
 })

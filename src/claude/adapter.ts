@@ -3,6 +3,7 @@ import { join } from 'node:path'
 import type { AccountHome } from '../account/homes.js'
 import type { AgentAdapter } from '../agent/contract.js'
 import { parseUsage } from '../limits/usage.js'
+import { findBinary } from '../paths.js'
 import { readSessionRecord, readTranscript, readTranscriptImage, transcriptFile } from '../sessions/history.js'
 import { transcriptIds } from '../sessions/owners.js'
 import { bridgeOfRecord, remoteAtStartup } from '../sessions/remote.js'
@@ -14,7 +15,8 @@ export const claude: AgentAdapter = {
   title: 'Claude Code',
   setup({ env, timeoutMs, workDir }) {
     const envOf = (home: AccountHome) => claudeEnv(env(), home)
-    const cli = new ClaudeCli(() => resolveClaudeBinary(env()), timeoutMs, envOf)
+    const bin = () => resolveClaudeBinary(env())
+    const cli = new ClaudeCli(bin, timeoutMs, envOf)
     const projects = (home: AccountHome) => join(home.dir, 'projects')
     return {
       mode: SESSION_MODE,
@@ -34,6 +36,7 @@ export const claude: AgentAdapter = {
       authStatus: (home) => cli.authStatus(home),
       login: (home) => cli.authLogin(home),
       logout: (home) => cli.authLogout(home),
+      installed: () => findBinary(bin(), env()),
       usage: async (home, at) => parseUsage(await cli.usage(home, workDir), at),
       stopDaemon: (home) => cli.stopDaemon(home),
       write: (home, turn) => cli.write(home, turn),

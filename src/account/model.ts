@@ -69,6 +69,8 @@ export interface AccountView {
   apps: AppAccount[]
   /** Every pool entry of the config: the account folders it names cannot be removed. */
   pool: PoolEntry[]
+  /** The agents whose CLI is not found (`Agent.installed`): no account of theirs is added from the page. */
+  missing: string[]
 }
 
 /** A pool entry naming an account folder for a provider: the shared pool's (`project` null) or a project's own. */
@@ -234,6 +236,21 @@ export function extraFree(accounts: AccountEntry[]): string[] {
   return freeCodex(accounts)
     .slice(1)
     .map((entry) => entry.key)
+}
+
+/**
+ * Whether an account of the agent just added takes the shared pool's entry for it: it does while that entry names no
+ * folder of the agent, so an install that signed in only from the page does not stay on a built-in folder that was
+ * never there (BTN-227).
+ */
+export function takesShared(pool: PoolEntry[], homes: { key: string; agent: string }[], agent: string): boolean {
+  const shared = pool.find((entry) => entry.project === null && entry.provider === agent)?.account
+  return shared === undefined || !homes.some((home) => home.key === shared && home.agent === agent)
+}
+
+/** Why no account of the agent is added: its CLI is not found, with where to get it. */
+export function missingNotice(agent: string): Notice {
+  return notice(agent === CODEX ? 'login.codexMissing' : 'login.claudeMissing', {})
 }
 
 /** Why a Codex sign-in on the free plan is not added: another account already holds the one free plan. */

@@ -47,7 +47,7 @@ function state(startedAt: string): EvenKeelState {
     sessions: [],
     limits: null,
     usage: { state: 'ok', reason: null, since: null },
-    account: { active: 'global', accounts: [], login: null, loginBlock: null, apps: [], pool: [] },
+    account: { active: 'global', accounts: [], login: null, loginBlock: null, apps: [], pool: [], missing: [] },
     trackers: [],
     trackerUrls: { default: null, projects: {} },
     ci: {},

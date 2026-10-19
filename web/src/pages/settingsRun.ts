@@ -20,7 +20,17 @@ export const providerMap = (map: string, values: Values, providers: readonly str
 
 export const providerName = (provider: string): string => (t.settings.agents as Record<string, string>)[provider] ?? provider
 
-export const providerOptions = (): { value: string; label: string }[] => PROVIDERS.map((provider) => ({ value: provider, label: providerName(provider) }))
+export const providerOptions = (providers: readonly string[] = PROVIDERS): { value: string; label: string }[] =>
+  providers.map((provider) => ({ value: provider, label: providerName(provider) }))
+
+/**
+ * The providers the form already names (`offeredProviders`): the given values and the providers with a cell of the maps
+ * filled — only maps without a default, or every provider would count.
+ */
+export const namedProviders = (text: (key: string) => string, values: string[], maps: string[]): string[] => [
+  ...values,
+  ...PROVIDERS.filter((provider) => maps.some((map) => text(`${map}.${provider}`).trim() !== '')),
+]
 
 /** The account folders of the provider, by the name the user gave them; a key no longer listed stays choosable. */
 export function accountOptions(view: AccountView, provider: string, current: string): { value: string; label: string }[] {

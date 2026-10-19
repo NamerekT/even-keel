@@ -194,6 +194,11 @@ export function withRunAccount(raw: unknown, provider: string, key: string): Rec
   return withRows(raw, changesOf(null, values, () => true))
 }
 
+/** The raw config with only the shared pool's entry of `provider` set: the first account added while it names no folder. */
+export function withSharedAccount(raw: unknown, provider: string, key: string): Record<string, unknown> {
+  return withRows(raw, changesOf(null, [value('accounts', 'accounts', key.trim() || undefined, provider)], () => true))
+}
+
 /** Names trimmed, blanks dropped; an empty `active` or `terminal` goes by the categories of the statuses. */
 function rulesOf(rules: ChainRules): ChainRules {
   const statuses = (list: string[] | null) => (list === null || names(list).length === 0 ? null : names(list))

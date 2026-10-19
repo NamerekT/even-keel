@@ -107,6 +107,7 @@ const view = (app: AppAccount, accounts: AccountEntry[] = [account({}), account(
   loginBlock: null,
   apps: [app],
   pool: [],
+  missing: [],
 })
 
 describe('appSwitchProblem', () => {

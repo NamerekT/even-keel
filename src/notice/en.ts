@@ -173,6 +173,8 @@ export const en = {
   'login.running': () => 'claude: a sign-in is already running',
   'login.timeout': (p: { minutes: number }) => `claude: sign-in did not finish in ${p.minutes} min`,
   'login.startFailed': () => 'claude: could not start the sign-in',
+  'login.codexMissing': () => 'codex: the CLI is not found; install it with npm install -g @openai/codex or name its path in EVEN_KEEL_CODEX_BIN',
+  'login.claudeMissing': () => 'claude: the CLI is not found; install it or name its path in EVEN_KEEL_CLAUDE_BIN',
   'login.exited': (p: { code: string }) => `claude: sign-in exited with code ${p.code}`,
   'login.setupFailed': (p: { dir: string }) => `claude: signed in, but could not set up the folder ${p.dir}`,
 

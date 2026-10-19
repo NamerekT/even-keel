@@ -19,12 +19,10 @@ export interface AccountBadge {
   label: string
 }
 
+/** The header's badge of the active account: a sign-in shows on it only when it is into that folder, not a new account's. */
 export function accountBadge(view: AccountView): AccountBadge {
-  if (view.login !== null) {
-    return view.login.error === null ? { kind: 'login', label: t.account.loggingIn } : { kind: 'out', label: t.account.loginFailed }
-  }
   const active = view.accounts.find((entry) => entry.key === view.active)
-  return active === undefined ? { kind: 'unknown', label: 'Claude' } : entryBadge(active, null)
+  return active === undefined ? { kind: 'unknown', label: 'Claude' } : entryBadge(active, view.login)
 }
 
 /** The badge of one account: only a sign-in into this very folder shows on it. */

@@ -4,7 +4,7 @@ import type { AccountView } from '../../../src/account/model.js'
 import { CLAUDE } from '../../../src/claude/name.js'
 import { CODEX } from '../../../src/codex/name.js'
 import type { EvenKeelState } from '../../../src/state.js'
-import { addStep, canAdd, CONNECTIONS, deviceLogin, PROVIDERS, type Connection, type Provider } from '../accounts.js'
+import { addStep, canAdd, cliMissing, CONNECTIONS, deviceLogin, PROVIDERS, type Connection, type Provider } from '../accounts.js'
 import { say, t } from '../i18n/index.js'
 import { useCommand } from '../live/useCommand.js'
 import { ApiKeyFields, LoginSteps } from '../layout/accountParts.js'
@@ -17,7 +17,10 @@ const ADD = '/accounts/add'
 export function AccountAddPage({ state }: { state: EvenKeelState }) {
   const [search] = useSearchParams()
   const navigate = useNavigate()
-  const { provider, connection } = addStep(search)
+  const step = addStep(search)
+  const { provider } = step
+  const open = provider !== null && canAdd(provider) && !cliMissing(state.account, provider)
+  const connection = open ? step.connection : null
   const toList = () => void navigate(LIST)
   const back = connection !== null ? `${ADD}?provider=${provider}` : provider !== null ? ADD : LIST
 
@@ -30,18 +33,16 @@ export function AccountAddPage({ state }: { state: EvenKeelState }) {
         </Link>
       </header>
       <ol className="add-steps">
-        <li aria-current={provider === null || !canAdd(provider) ? 'step' : undefined}>
+        <li aria-current={!open ? 'step' : undefined}>
           {provider === null ? t.account.stepProvider : `${t.account.stepProvider}: ${t.account.agents[provider]}`}
         </li>
-        <li aria-current={provider !== null && canAdd(provider) && connection === null ? 'step' : undefined}>
+        <li aria-current={open && connection === null ? 'step' : undefined}>
           {connection === null ? t.account.stepConnection : `${t.account.stepConnection}: ${t.account.connections[connection]}`}
         </li>
         <li aria-current={connection !== null ? 'step' : undefined}>{t.account.stepSignIn}</li>
       </ol>
-      {provider === null || !canAdd(provider) ? (
-        <Choices
-          items={PROVIDERS.map((each) => ({ id: each, title: t.account.agents[each], hint: t.account.providerHints[each], ready: canAdd(each), to: `${ADD}?provider=${each}` }))}
-        />
+      {!open ? (
+        <Choices items={PROVIDERS.map((each) => providerChoice(state.account, each))} />
       ) : connection === null ? (
         <Choices
           items={CONNECTIONS.map((each) => ({
@@ -67,6 +68,18 @@ interface Choice {
   hint: string
   ready: boolean
   to: string
+  /** The tag of a choice that is not ready; "not yet" unless given. */
+  tag?: string
+}
+
+/** A provider whose CLI the service does not find is off, its hint saying where to get the CLI. */
+function providerChoice(account: AccountView, provider: Provider): Choice {
+  const base = { id: provider, title: t.account.agents[provider], to: `${ADD}?provider=${provider}` }
+  if (canAdd(provider) && cliMissing(account, provider)) {
+    const missing = say({ code: provider === 'codex' ? 'login.codexMissing' : 'login.claudeMissing', params: {} })
+    return { ...base, hint: missing, ready: false, tag: t.account.cliNotFound }
+  }
+  return { ...base, hint: t.account.providerHints[provider], ready: canAdd(provider) }
 }
 
 function Choices({ items }: { items: Choice[] }) {
@@ -82,7 +95,7 @@ function Choices({ items }: { items: Choice[] }) {
           ) : (
             <div className="add-choice add-choice--off" aria-disabled="true">
               <span className="add-choice__title">
-                {item.title} <span className="tag">{t.account.soon}</span>
+                {item.title} <span className="tag">{item.tag ?? t.account.soon}</span>
               </span>
               <span className="add-choice__hint">{item.hint}</span>
             </div>

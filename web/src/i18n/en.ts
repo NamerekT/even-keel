@@ -250,6 +250,7 @@ export const en: Messages = {
       apiKey: 'Sessions pay per token from the key',
     },
     soon: 'not yet',
+    cliNotFound: 'CLI not found',
     sdkStub: 'Even Keel has no Agent SDK engine yet',
     codexHint:
       'Signs a new Codex account in with ChatGPT, in a folder of its own: Codex gives a link and a one-time code — open the link, sign in and enter the code there.',

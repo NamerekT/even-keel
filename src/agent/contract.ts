@@ -148,6 +148,8 @@ export interface Agent {
   /** Starts the sign-in; the page shows its output and passes the code the user types to its stdin. */
   login(home: AccountHome): ChildProcessWithoutNullStreams
   logout(home: AccountHome): Promise<void>
+  /** Optional. Whether the agent's CLI is found; without it, it is taken as there. */
+  installed?(): boolean
 
   /** Optional. Picture `index` of the result of call `tool`, for the image lines of `feed`; without it the page shows none. */
   image?(home: AccountHome, sessionId: string, tool: string, index: number): Promise<TranscriptImage | undefined>

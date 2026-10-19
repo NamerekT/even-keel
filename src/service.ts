@@ -450,6 +450,12 @@ const account = new AccountWatcher({
   sessionsIn: (key) => liveSessions(agents, key),
   projectsOn: (key) => projectsByAccount(configStore.current, Object.keys(configStore.current.projects))[key] ?? [],
   pool: () => poolEntries(configStore.current, Object.keys(configStore.current.projects)),
+  makeShared: (agent, key) => {
+    configStore.saveSharedAccount(agent, key)
+    console.log(`accounts: ${key} is the shared ${agent} account, the shared one named no folder`)
+    dispatcher.check()
+  },
+  missing: () => [...runtimes].flatMap(([name, agent]) => (agent.installed?.() === false ? [name] : [])),
   sessionsKnown: () => agentsRead,
   removing: (key) => ledger.removing.includes(key),
   markRemoving: (key, on) => saveAccounts(markRemoving(ledger, key, on)),

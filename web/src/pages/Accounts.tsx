@@ -2,7 +2,7 @@ import { Link } from 'react-router'
 import type { AccountEntry, AccountView } from '../../../src/account/model.js'
 import { limitSpans } from '../../../src/limits/model.js'
 import type { EvenKeelState } from '../../../src/state.js'
-import { accountGroups, canAdd, deviceLogin, entrySlot, PROVIDERS, type Provider } from '../accounts.js'
+import { accountGroups, canAdd, cliMissing, deviceLogin, entrySlot, PROVIDERS, type Provider } from '../accounts.js'
 import { say, t } from '../i18n/index.js'
 import { useCommand } from '../live/useCommand.js'
 import { AccountRoles, AccountWork } from '../layout/AccountRoles.js'
@@ -62,7 +62,7 @@ export function AccountsPage({ state }: { state: EvenKeelState }) {
                 {agentLabel(agent)}
               </h2>
               {/* The connection is picked on the add page; the provider is the section's. */}
-              {login === null && isProvider(agent) && canAdd(agent) && (
+              {login === null && isProvider(agent) && canAdd(agent) && !cliMissing(account, agent) && (
                 <Link to={`/accounts/add?provider=${agent}`} className="button button--small">
                   + {t.account.addHere}
                 </Link>
