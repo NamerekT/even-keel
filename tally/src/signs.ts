@@ -10,7 +10,7 @@ const HANDOFF_REASONS: ReadonlySet<string> = new Set(['relay', 'checkpoint', 're
 const EDIT_TOOLS: ReadonlySet<string> = new Set(['Edit', 'Write', 'MultiEdit', 'NotebookEdit'])
 const COMMIT = /\bgit\b(?:\s+-[cC]\s+\S+)*\s+commit\b/
 const DETAIL_LIMIT = 200
-const SIGNS_VERSION = 1
+const SIGNS_VERSION = 2
 
 export interface SignRules {
   failureRun: number
@@ -52,7 +52,7 @@ export function findSigns(entries: TranscriptEntry[], rules: SignRules, launchRe
       ...failureRuns(stream.agentId, calls, (call) => call.result?.isError === true, 'failures', rules.failureRun),
       ...failureRuns(stream.agentId, calls, (call) => call.result?.kind === 'denied', 'denied', rules.deniedRun),
       ...repeats(stream.agentId, calls, rules.repeatRun),
-      ...rereads(stream.agentId, calls, rules.rereadCount),
+      ...segmentsOf(stream).flatMap((segment) => rereads(stream.agentId, segment, rules.rereadCount)),
       ...rewinds(stream),
       ...stream.events.flatMap((event) => (event.type === 'compact' ? [point('compact', stream.agentId, event, 'compacted')] : [])),
     )
@@ -135,6 +135,16 @@ function repeats(agentId: string | null, calls: Call[], min: number): Sign[] {
   }
   flush()
   return signs
+}
+
+/** The calls of a stream split at its compactions: after one the agent has lost what it read, as a new session has. */
+function segmentsOf(stream: Stream): Call[][] {
+  const segments: Call[][] = [[]]
+  for (const event of stream.events) {
+    if (event.type === 'compact') segments.push([])
+    else if (event.type === 'call') segments.at(-1)!.push(event.call)
+  }
+  return segments
 }
 
 function rereads(agentId: string | null, calls: Call[], min: number): Sign[] {

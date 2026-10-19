@@ -117,6 +117,20 @@ describe('findSigns rereads', () => {
     for (let i = 0; i < 4; i++) t.call('Read', { file_path: 'a.ts' })
     expect(findSigns(t.entries(), rules)).toEqual([])
   })
+
+  it('counts the reads of each stretch between compactions apart, as a new session would', () => {
+    const t = new Transcript()
+    for (let i = 0; i < 3; i++) t.call('Read', { file_path: 'a.ts' })
+    t.compact()
+    for (let i = 0; i < 3; i++) t.call('Read', { file_path: 'a.ts' })
+    expect(kinds(findSigns(t.entries(), rules))).toEqual(['compact:1'])
+  })
+
+  it('still marks a file read many times after a compaction', () => {
+    const t = new Transcript().call('Read', { file_path: 'a.ts' }).compact()
+    for (let i = 0; i < 5; i++) t.call('Read', { file_path: 'a.ts' })
+    expect(findSigns(t.entries(), rules)).toMatchObject([{ kind: 'compact' }, { kind: 'reread', count: 5, fromUuid: 'u4' }])
+  })
 })
 
 describe('findSigns long stretches without a commit', () => {
