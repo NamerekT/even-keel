@@ -64,7 +64,7 @@ const promptsOf = (text: string): [string, string][] =>
 const valuesOf = (form: SharedForm): Values => ({
   parallel: String(form.parallel),
   tracker: form.tracker,
-  brief: form.brief,
+  brief: form.brief === null ? '' : String(form.brief),
   ...rulesText(form.chain),
   provider: form.provider,
   ...providerValues('models', form.models),
@@ -106,7 +106,7 @@ function formOf(values: Values): SharedForm | undefined {
   return {
     parallel: parallel!,
     tracker: text('tracker'),
-    brief: values.brief as boolean,
+    brief: text('brief') === '' ? null : text('brief') === 'true',
     chain: rulesOf(values as Record<(typeof RULE_KEYS)[number], Value>),
     provider: text('provider'),
     models: providerMap('models', values),
@@ -239,10 +239,16 @@ export function SharedSettings({ state }: { state: EvenKeelState }) {
           config.trackers.map((each) => ({ value: each.name, label: each.name })),
           t.shared.trackerHint,
         )}
-        <CheckField className={marks.box('brief')} label={t.settings.brief} hint={t.settings.briefHint} checked={draft.edit.brief as boolean} onChange={(on) => edit('brief', on)}>
-          {marks.note('brief')}
-          <FieldNote error={errorOf('brief')} />
-        </CheckField>
+        {select(
+          'brief',
+          t.settings.brief,
+          [
+            { value: '', label: t.settings.briefAuto },
+            { value: 'true', label: t.settings.on },
+            { value: 'false', label: t.settings.off },
+          ],
+          t.settings.briefHint,
+        )}
         <RuleFields text={text} onEdit={edit} errorOf={errorOf} marks={marks} choices={ruleChoicesOf(state.tasks, vocabularies)} />
       </>
     ),

@@ -95,11 +95,11 @@
   "trackerProjects": {
     "GHB": "octo-org/github-project"
   },
-  "brief": true,
+  "brief": null,
   "briefs": {
-    "ABC": true,
+    "ABC": null,
     "XYZ": false,
-    "GHB": true
+    "GHB": null
   },
   "settings": {
     "ABC": {

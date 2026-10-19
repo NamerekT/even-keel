@@ -85,7 +85,7 @@ const valuesOf = (form: ProjectForm): Values => ({
   trackerProject: form.trackerProject ?? '',
   slot: String(form.slot),
   color: form.color === null ? '' : String(form.color),
-  brief: form.brief,
+  brief: form.brief === null ? '' : String(form.brief),
   ...rulesText(form.chain),
   prompt: form.prompt ?? '',
   beforeStart: form.beforeStart.join('\n'),
@@ -125,7 +125,7 @@ function formOf(values: Values, name: string | null): ProjectForm | undefined {
     trackerProject: trackerProject === '' ? null : trackerProject,
     slot,
     color: text('color') === '' ? null : Number(text('color')),
-    brief: on('brief'),
+    brief: text('brief') === '' ? null : text('brief') === 'true',
     chain: rulesOf(values as Record<(typeof RULE_KEYS)[number], Value>),
     prompt: text('prompt').trim(),
     beforeStart: linesOf(text('beforeStart')),
@@ -412,7 +412,11 @@ export function SettingsPanel({
           { value: 'true', label: t.settings.on },
           { value: 'false', label: t.settings.off },
         ])}
-        {check('brief', t.settings.brief, t.settings.briefHint, 'brief')}
+        {choice('brief', t.settings.brief, t.settings.briefHint, [
+          { value: '', label: t.settings.briefAuto },
+          { value: 'true', label: t.settings.on },
+          { value: 'false', label: t.settings.off },
+        ])}
         <div className={marks.box('prompt')}>
           <FieldHead label={t.settings.prompt} hint={t.settings.promptHint} htmlFor={fieldId('prompt')} />
           <textarea

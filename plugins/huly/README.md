@@ -46,13 +46,7 @@ Install with your default Claude Code config (no `CLAUDE_CONFIG_DIR` set). Even 
 
 ## Even Keel config
 
-The session reads the task itself, so turn Even Keel's brief off for the project — otherwise the task is read twice:
-
-```json
-{ "projects": [{ "key": "ABC", "repo": "D:/work/abc", "brief": false }] }
-```
-
-With `brief` off, Even Keel checks that the project's sessions see the `huly` server and warns on the page if they do not.
+The session reads the task itself. Nothing to switch: while a package of the project brings the `huly` server, Even Keel leaves the task's description out of the prompt (`brief` left as auto). With `brief: false` set explicitly, Even Keel checks that the project's sessions see the `huly` server and warns on the page if they do not.
 
 ## The session has no Huly tools
 

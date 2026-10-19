@@ -20,7 +20,7 @@ describe('formsOf', () => {
       brief: false,
       chain: { active: null, terminal: null, requiredLabels: ['Auto'], excludedLabels: ['Manual', 'Вручную'] },
     })
-    expect(formOf({ projects: [abc()] }, 'ABC')).toMatchObject({ name: null, tracker: 'huly', trackerProject: null, slot: 0, brief: true })
+    expect(formOf({ projects: [abc()] }, 'ABC')).toMatchObject({ name: null, tracker: 'huly', trackerProject: null, slot: 0, brief: null })
   })
 
   it('names the project key of each tracker', () => {

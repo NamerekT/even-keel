@@ -746,7 +746,7 @@ function projectFormOf(body: Record<string, unknown>): ProjectForm {
     trackerProject,
     slot: slot as number,
     color: color as number | null,
-    brief: switchOf(brief, 'brief'),
+    brief: briefOf(brief),
     chain: rulesOf(chain),
   }
 }
@@ -758,7 +758,7 @@ function sharedFormOf(body: Record<string, unknown>): SharedForm {
   return {
     parallel: numberOf(parallel, 'parallel'),
     tracker: textOf(tracker, 'tracker'),
-    brief: switchOf(brief, 'brief'),
+    brief: briefOf(brief),
     chain: rulesOf(chain),
     provider: textOf(provider, 'provider'),
     models: mapOf(models, 'models', (value) => typeof value === 'string'),
@@ -820,6 +820,10 @@ function numberOf(raw: unknown, field: string): number {
 function switchOf(raw: unknown, field: string): boolean {
   if (typeof raw !== 'boolean') throw fail('request.required', { field })
   return raw
+}
+
+function briefOf(raw: unknown): boolean | null {
+  return raw === null ? null : switchOf(raw, 'brief')
 }
 
 function mapOf<T>(raw: unknown, field: string, fits: (value: unknown) => boolean): Record<string, T> {

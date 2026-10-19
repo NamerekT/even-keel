@@ -147,7 +147,8 @@ export interface ProjectForm extends ProjectSettings {
   slot: number
   /** The palette slot the page draws the project with, 1–8 (BTN-207); `null` — none was free, grey. */
   color: number | null
-  brief: boolean
+  /** `null` — on exactly when no package of the project brings its tracker's MCP server. */
+  brief: boolean | null
   chain: ChainRules
 }
 
@@ -155,7 +156,7 @@ export interface ProjectForm extends ProjectSettings {
 export interface SharedForm {
   parallel: number
   tracker: string
-  brief: boolean
+  brief: boolean | null
   chain: ChainRules
   provider: string
   /** By provider, defaults filled in; a blank one leaves the provider to its CLI's default. */

@@ -52,9 +52,9 @@ export interface EvenKeelConfig {
   tracker: string
   trackers: Record<string, string>
   trackerProjects: Record<string, string>
-  /** The shared `brief`; `briefs` — what each project ends up with. */
-  brief: boolean
-  briefs: Record<string, boolean>
+  /** The shared `brief`; `briefs` — what each project ends up with. `null` — left to the project's packages (`briefOn`). */
+  brief: boolean | null
+  briefs: Record<string, boolean | null>
   settings: Record<string, ProjectSettings>
   context: ContextScale
   /** The shared provider; a project's own `provider` goes over it. */
@@ -138,8 +138,8 @@ function configOf(records: ProjectRecord[], { shared, own, values }: Resolved, a
     tracker: shared.tracker as string,
     trackers: byKey((_, project) => project.tracker as string),
     trackerProjects: byKey((record, project) => trackerProjectOf(record, project.tracker as string, adapters)),
-    brief: shared.brief as boolean,
-    briefs: byKey((_, project) => project.brief as boolean),
+    brief: shared.brief as boolean | null,
+    briefs: byKey((_, project) => project.brief as boolean | null),
     settings: byKey(settingsOf),
     context,
     provider: shared.provider as string,

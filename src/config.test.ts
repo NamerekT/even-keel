@@ -96,8 +96,8 @@ describe('parseConfig', () => {
       tracker: 'huly',
       trackers: { ABC: 'huly' },
       trackerProjects: {},
-      brief: true,
-      briefs: { ABC: true },
+      brief: null,
+      briefs: { ABC: null },
       settings: { ABC: { branch: 'main', prompt: null, beforeStart: [], check: [], afterGreen: [], ci: DEFAULT_CI, pullRequests: false, fillMilestone: false, changelog: 'CHANGELOG.md', provider: null, models: {}, accounts: {}, modelLabels: null } },
       context: { window: 600_000, warn: 50, danger: 80 },
       provider: 'claude',
@@ -202,7 +202,14 @@ describe('parseConfig', () => {
     expect(parse({ projects: { ABC: { repo: 'C:\\abc', brief: false } } }).briefs).toEqual({ ABC: false })
   })
 
-  it('rejects a brief that is not true or false', () => {
+  it('leaves brief to the packages when it is not set or null', () => {
+    const config = parse({ projects: { ABC: 'C:\\abc', XYZ: { repo: 'C:\\xyz', brief: null } } })
+    expect(config.brief).toBeNull()
+    expect(config.briefs).toEqual({ ABC: null, XYZ: null })
+    expect(parse({ brief: false, projects: { ABC: { repo: 'C:\\abc', brief: null } } }).briefs).toEqual({ ABC: null })
+  })
+
+  it('rejects a brief that is not true, false or null', () => {
     expect(() => parse({ brief: 'no', projects: { ABC: 'C:\\abc' } })).toThrow(/brief/)
     expect(() => parse({ projects: { ABC: { repo: 'C:\\abc', brief: 0 } } })).toThrow(/ABC.brief/)
   })

@@ -53,10 +53,10 @@
     "XYZ": "huly"
   },
   "trackerProjects": {},
-  "brief": true,
+  "brief": null,
   "briefs": {
-    "ABC": true,
-    "XYZ": true
+    "ABC": null,
+    "XYZ": null
   },
   "settings": {
     "ABC": {

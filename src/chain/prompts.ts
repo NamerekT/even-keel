@@ -45,7 +45,7 @@ export const PROMPTS: Record<Language, PromptTexts> = {
   ru: {
     resume: 'Лимит сброшен — продолжай с того же места.',
     cleanup: (main) =>
-      fill`- Задачу закрывает слияние ветки в ${main} основного чекаута. Worktree и ветку после этого не трогай и ${main} не пушь — уборку сделает Even Keel.`,
+      fill`- Когда задача готова и проверки проходят, закоммить работу и сам влей ветку в ${main} основного чекаута (git merge --no-edit в основной рабочей копии): слияние закрывает задачу. Worktree и ветку после этого не трогай и ${main} не пушь — уборку сделает Even Keel.`,
     pullRequest: (main) =>
       [
         fill`- Режим PR: ветку в ${main} не сливай — её сольёт человек через pull request. Это правило важнее шага слияния в навыке трекера, проверка перед слиянием тоже не нужна: проверяет CI на pull request.`,
@@ -106,7 +106,7 @@ export const PROMPTS: Record<Language, PromptTexts> = {
   en: {
     resume: 'The usage limit has reset — carry on from where you stopped.',
     cleanup: (main) =>
-      fill`- Merging the branch into ${main} of the main checkout closes the task. After that leave the worktree and the branch alone and do not push ${main} — Even Keel cleans up.`,
+      fill`- When the task is done and the checks pass, commit it and merge the branch into ${main} of the main checkout yourself (git merge --no-edit in the main working copy): the merge closes the task. After that leave the worktree and the branch alone and do not push ${main} — Even Keel cleans up.`,
     pullRequest: (main) =>
       [
         fill`- PR mode: do not merge the branch into ${main} — a human merges it through a pull request. This rule outranks the merge step of the tracker's skill, and the check before a merge is not needed either: the CI checks the pull request.`,

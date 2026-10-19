@@ -6,7 +6,7 @@ import type { SessionStart } from '../agent/contract.js'
 import { fail, notice, noticeOf, type Notice } from '../notice/notice.js'
 import type { KeyView, PackagesView, PackageView, ProjectPackages } from '../state.js'
 import { byMap, inverted } from '../storage/projects.js'
-import { Probes, projectPackages } from './check.js'
+import { bringsServer, Probes, projectPackages } from './check.js'
 import { McpGateway, type GatewayTarget } from './gateway.js'
 import { applySettings, defaultSettings, keysOf, substitute, upsertEnv, type KeyRules } from './keys.js'
 import { ensureMarketplace, otherPlugins, pluginDir, routeOf, sessionPackages } from './launch.js'
@@ -154,6 +154,11 @@ export class Packages {
   /** Every pool variable a package reads: sessions do not get them in their environment. */
   keyNames(): string[] {
     return this.keys().map((key) => key.name)
+  }
+
+  /** Whether a package the project's sessions get brings the server. */
+  bringsServer(project: string, server: string): boolean {
+    return bringsServer(this.file, project, server)
   }
 
   /** The chain waits while the project's set has a problem that holds it. */

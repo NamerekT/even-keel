@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { fail, noticeOf } from '../notice/notice.js'
-import { projectPackages, type CheckInput } from './check.js'
+import { bringsServer, projectPackages, type CheckInput } from './check.js'
 import type { PackageInstall, PackagesFile } from './model.js'
 
 const install = (servers: string[], extras = false): PackageInstall => ({
@@ -71,6 +71,17 @@ describe('projectPackages', () => {
     expect(view.problems).toEqual([{ kind: 'noTrackerMcp', server: 'huly' }])
     expect(view.cells['huly@even-keel']).toMatchObject({ choice: 'off', enabled: false })
     expect(view.blocked).toBe(true)
+  })
+
+  it('tells whether an enabled package of the project brings a server', () => {
+    expect(bringsServer(file(), 'p-1', 'huly')).toBe(true)
+    expect(bringsServer(file(), 'p-1', 'linear')).toBe(false)
+    const off = file()
+    off.projects['p-1'] = { on: [], off: ['huly@even-keel'], settings: {} }
+    expect(bringsServer(off, 'p-1', 'huly')).toBe(false)
+    const removed = file()
+    removed.packages['huly@even-keel']!.removed = true
+    expect(bringsServer(removed, 'p-1', 'huly')).toBe(false)
   })
 
   it('notes a plugin with skills for an agent without plugins, and does not hold the chain for it', () => {

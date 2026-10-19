@@ -68,10 +68,4 @@ Install with your default Claude Code config (no `CLAUDE_CONFIG_DIR` set). Even 
 
 ### Even Keel config
 
-The session reads the issue itself, so turn Even Keel's brief off for the project — otherwise the issue is read twice:
-
-```json
-{ "projects": [{ "key": "ABC", "repo": "D:/work/abc", "tracker": "github", "github": "octo-org/abc", "brief": false }] }
-```
-
-With `brief` off, Even Keel checks that the project's sessions see the `github` server and warns on the page if they do not.
+The session reads the issue itself. Nothing to switch: while a package of the project brings the `github` server, Even Keel leaves the issue's description out of the prompt (`brief` left as auto). With `brief: false` set explicitly, Even Keel checks that the project's sessions see the `github` server and warns on the page if they do not.

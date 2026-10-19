@@ -93,10 +93,9 @@ cp .env.example .env
 Each project needs:
 
 - a git repository with a main branch — `main` unless the project names another in `branch`; with a remote, Even Keel pushes it after every task;
-- the repository trusted by Claude Code: open `claude` in it once and accept the trust prompt, or the first launch pauses the chain and asks for it (accepting it in the repository covers the task worktrees the message names; then press **Resume**: the chain does not retry by itself);
-- a rule that the session merges its branch when done. Without the plugin ([level 2](#2-with-the-plugin)) put it into the project's `CLAUDE.md`, for example:
+- the repository trusted by Claude Code: open `claude` in it once and accept the trust prompt, or the first launch pauses the chain and asks for it (accepting it in the repository covers the task worktrees the message names; then press **Resume**: the chain does not retry by itself).
 
-  > When the task is done and the checks pass, commit, then merge the branch into `main` (the project's main branch) in the main checkout with `git merge --no-edit <branch>`. Do not remove the worktree or the branch afterwards.
+The rule that a session commits and merges its branch into `main` when the task is done comes with the launch and handoff prompts, plugin or not (in PR mode the prompt says to end the turn for a pull request instead).
 
 ### 3. Pick how sessions work with the tracker
 
@@ -129,7 +128,7 @@ or inside a session: `/plugin marketplace add …`. Then:
 
 1. On the `/tools` page, press **Add a package** under Packages, choose **Plugin** and pick `huly@even-keel` (or `github@even-keel`, `linear@even-keel`) for every project or one. Even Keel copies the plugin, installs a pinned version of its MCP server and gives both to every chain session at launch; turn it off per project in the table. A plugin your projects already had enabled when you upgraded is in the table already.
 2. The MCP server takes the credentials of the project's tracker profile: it runs behind a local gateway on `127.0.0.1:4748` (`EVEN_KEEL_MCP_PORT`), so the sessions never see them. Another key a package needs shows in **Keys** on the same page, and the project's chain waits until it is set.
-3. Turn the brief off for the project, or the session reads its task twice: `{ "repo": "…", "brief": false }`. With `brief` off the chain waits while no package of the project brings the tracker's MCP server.
+3. Nothing to switch off: once a package of the project brings the tracker's MCP server, the prompt carries only the task ID and the session reads the task itself (`brief` left as auto). `brief: true` or `false` overrides that; with `false` the chain waits while no package of the project brings the server.
 
 Sessions you start by hand get none of this: for them, `claude plugin install huly@even-keel --scope project` in the project and the credentials in the `env` of `~/.claude/settings.json` (`HULY_URL`, `HULY_WORKSPACE`, `HULY_TOKEN` or `HULY_EMAIL` and `HULY_PASSWORD`; `GITHUB_PERSONAL_ACCESS_TOKEN`; `LINEAR_API_KEY`). Even Keel writes the default profile of each tracker there itself; a session started by hand never gets another profile.
 
@@ -246,7 +245,7 @@ The settings are kept in the state database; the keys below are those of their f
 | --- | --- | --- |
 | `allowedHosts` | `[]` | host names the page may be opened by besides `localhost`, `127.0.0.1`, `[::1]` and `EVEN_KEEL_HOST`, such as a proxy's name; any other `Host` gets 403 |
 | `tracker` | `huly` | tracker of every project that does not name its own: `huly`, `github` or `linear` |
-| `brief` | `true` | put the task's title and description into the prompt; `false` for projects whose sessions read the task through the tracker's plugin |
+| `brief` | `null` | put the task's title and description into the prompt. `null` — auto: exactly when no package of the project brings the tracker's MCP server; `true` or `false` overrides it |
 | `parallel` | `1` | how many chains on different projects run at once; the rest wait in the queue. Lowered, it stops nothing: no new chain starts until fewer run |
 | `chain.active` | ready and in-progress categories | status names that enter the chain |
 | `chain.terminal` | done and canceled categories | status names that close a task |

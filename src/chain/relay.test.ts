@@ -335,7 +335,7 @@ describe('prompts in English', () => {
   })
 
   it('names the project’s main branch when it is not main', () => {
-    expect(startPrompt('ABC-1', place, 'en', 'master')).toContain('Merging the branch into master of the main checkout closes the task.')
+    expect(startPrompt('ABC-1', place, 'en', 'master')).toContain('commit it and merge the branch into master of the main checkout yourself')
     const prompt = handoffPrompt('ABC-1', session(), 'limit', 'ru', 'master')
     expect(prompt).toContain('git log master..HEAD')
     expect(prompt).not.toMatch(/\bmain\.\.HEAD|в main\b/)

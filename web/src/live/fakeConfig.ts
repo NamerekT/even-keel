@@ -31,7 +31,7 @@ const CI_ALL: ProjectForm['ci'] = { guard: true, kinds: ['forgejo', 'github'], w
 export const FAKE_SHARED: SharedForm = {
   parallel: 1,
   tracker: 'huly',
-  brief: true,
+  brief: null,
   chain: DEFAULT_RULES,
   provider: 'claude',
   models: { claude: 'opus' },
@@ -57,7 +57,7 @@ const project = (repo: string, change: Partial<ProjectForm>): ProjectForm => ({
   trackerProject: null,
   slot: 0,
   color: null,
-  brief: true,
+  brief: null,
   chain: DEFAULT_RULES,
   prompt: null,
   beforeStart: [],

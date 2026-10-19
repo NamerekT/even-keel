@@ -68,10 +68,4 @@ Install with your default Claude Code config (no `CLAUDE_CONFIG_DIR` set). Even 
 
 ### Even Keel config
 
-The session reads the issue itself, so turn Even Keel's brief off for the project — otherwise the issue is read twice:
-
-```json
-{ "projects": [{ "key": "ENG", "repo": "D:/work/web", "tracker": "linear", "linear": "Web app", "brief": false }] }
-```
-
-With `brief` off, Even Keel checks that the project's sessions see the `linear` server and warns on the page if they do not.
+The session reads the issue itself. Nothing to switch: while a package of the project brings the `linear` server, Even Keel leaves the issue's description out of the prompt (`brief` left as auto). With `brief: false` set explicitly, Even Keel checks that the project's sessions see the `linear` server and warns on the page if they do not.

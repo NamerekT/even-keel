@@ -288,6 +288,7 @@ export const en = {
     `config: ${p.where}: there is no language ${p.value}, known: ${list(p.known)}`,
   'config.trackerName': (p: { where: string }) => `config: ${p.where} must be the name of a tracker adapter`,
   'config.brief': (p: { where: string }) => `config: ${p.where} must be true or false`,
+  'config.briefValue': (p: { where: string }) => `config: ${p.where} must be true, false or null`,
   'config.trackerUnknown': (p: { where: string; name: string; known: string[] }) =>
     `config: ${p.where}: there is no tracker "${p.name}", known: ${list(p.known)}`,
   'config.trackerProject': (p: { where: string; example: string }) =>

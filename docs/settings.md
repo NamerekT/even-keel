@@ -31,7 +31,7 @@ restart of the service (BTN-130). The keys are those of the config's format, whi
 | --- | --- | --- | --- | --- |
 | `parallel` | G | — | page, hand | 1 |
 | `tracker` | G, P | P over G | page, hand | `huly` |
-| `brief` | G, P | P over G | page, hand | true |
+| `brief` | G, P | P over G; `null` — auto: on exactly when no enabled package of the project brings its tracker's MCP server (`bringsServer`, BTN-225) | page, hand | `null` |
 | `chain.active`, `chain.terminal` | G, P | each key P over G; `null` — back to the status categories | page, hand | `null` |
 | `chain.requiredLabels` | G, P | each key P over G, the list replaced whole | page, hand | `[]` |
 | `chain.excludedLabels` | G, P | each key P over G, the list replaced whole | page, hand | `['Manual', 'Вручную']` |

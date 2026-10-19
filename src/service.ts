@@ -211,7 +211,7 @@ const packages: Packages = new Packages({
   globalDir: homes.global.dir,
   claudeConfigs,
   rules: trackerKeyRules(),
-  trackerServer: (project) => (configStore.current.briefs[project] ? undefined : ADAPTERS[configStore.current.trackers[project]!]!.mcpServer),
+  trackerServer: (project) => (briefOn(project) ? undefined : ADAPTERS[configStore.current.trackers[project]!]!.mcpServer),
   agentOf: (project) => homes.find(choiceFor(project).account)?.agent ?? CLAUDE,
   updateMarketplace: (marketplace) => updateMarketplace(envOf(homes.global), marketplace, PLUGIN_UPDATE_TIMEOUT_MS),
   baseEnv: (): NodeJS.ProcessEnv => sessionBase(process.env, packages.keyNames()),
@@ -223,6 +223,13 @@ const packages: Packages = new Packages({
     hub.broadcast('state', getState())
   },
 })
+/** Whether the project's prompts carry its task: its own `brief`, else on exactly when no package brings the tracker's MCP server (BTN-225). */
+function briefOn(project: string): boolean {
+  const own = configStore.current.briefs[project]
+  if (typeof own === 'boolean') return own
+  const server = ADAPTERS[configStore.current.trackers[project]!]!.mcpServer
+  return server === undefined || !packages.bringsServer(project, server)
+}
 const runtimes = new Map<string, Agent>(
   Object.entries(AGENTS).map(([name, adapter]) => [
     name,
@@ -628,7 +635,7 @@ const trackerPlace = (project: string): TrackerPlace | null => {
 const briefed = async (task: string, given: string, project = projectOf(task)): Promise<string> => {
   if (project === undefined) return given
   const prompt = withTracker(given, trackerPlace(project), promptLanguage())
-  if (!configStore.current.briefs[project]) return prompt
+  if (!briefOn(project)) return prompt
   const link = linkOf(project)
   return link === undefined ? prompt : withBrief(prompt, await link.run(async (tracker) => tracker.brief?.(task)), promptLanguage())
 }

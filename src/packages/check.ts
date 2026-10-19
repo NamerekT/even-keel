@@ -31,6 +31,11 @@ export interface CheckInput {
   trackerServer?: string
 }
 
+/** Whether a package the project's sessions get brings the server; `brief` left to itself is on exactly when none does. */
+export function bringsServer(file: PackagesFile, project: string, server: string): boolean {
+  return Object.entries(file.packages).some(([name, record]) => enabledIn(file, project, name) && current(record)?.servers[server] !== undefined)
+}
+
 /** The project's cells and problems for its next session: the current install of each package its set has. */
 export function projectPackages(input: CheckInput): ProjectPackages {
   const { file, project } = input

@@ -173,7 +173,11 @@ export const DEFINITIONS: readonly SettingDefinition[] = [
     if (!trackers.includes(name)) throw fail('config.trackerUnknown', { where, name, known: trackers })
     return name
   } },
-  { key: 'brief', kind: 'boolean', scopes: ['global', 'project'], lands: ['brief', 'briefs'], default: true, check: boolean('brief') },
+  // `null` — on exactly when no package of the project brings its tracker's MCP server (BTN-225).
+  { key: 'brief', kind: 'boolean', scopes: ['global', 'project'], lands: ['brief', 'briefs'], default: null, check: (value, place) => {
+    if (value !== null && typeof value !== 'boolean') throw fail('config.briefValue', { where: at(place, 'brief') })
+    return value
+  } },
   rule('active'),
   rule('terminal'),
   rule('requiredLabels'),

@@ -599,7 +599,9 @@ export const en: Messages = {
     trackerSoon: 'v0.2',
     trackerLocked: "The chain has started tasks of this project, so its tracker stays: task IDs from two trackers would collide and their branches, folders and stats would mix. Switching the tracker comes in v0.2.",
     brief: 'Task description in the prompt',
-    briefHint: "Even Keel puts the task's title and description into the prompt. Turn it off when the session reads its task through the tracker's plugin, or it reads it twice.",
+    briefHint:
+      "Even Keel puts the task's title and description into the prompt. Auto: only when no package of the project brings the tracker's MCP server — with the tracker's plugin the session reads its task itself. On or off overrides that.",
+    briefAuto: 'auto',
     slot: 'Slots',
     slotHint: '0 — a worktree of its own for every task. Above zero — a pool of permanent folders: a task switches the branch in a slot, and only the difference is rebuilt.',
     color: 'Color',
@@ -914,7 +916,7 @@ export const en: Messages = {
       noResponse: 'The server behind the gateway did not answer initialize: check its command and settings. It is tried again every 30 seconds; the chain waits.',
       probing: 'The gateway is asking the server for initialize for the first time; the chain waits for the answer, at most 30 seconds.',
       noTrackerMcp: (server: string) =>
-        `Brief is off, so sessions get only the task ID and need the tracker’s MCP server ${server}. Turn on the package that brings it, or turn brief on in the project’s settings.`,
+        `Brief is off, so sessions get only the task ID and need the tracker’s MCP server ${server}. Turn on the package that brings it, or set brief to auto or on in the project’s settings.`,
       unsupported: (agent: string) => `${agent} does not read Claude Code plugins: its sessions get the plugin’s MCP servers but not its skills and hooks. Does not hold the chain.`,
     },
     keys: 'Keys',
