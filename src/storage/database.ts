@@ -185,6 +185,10 @@ export const STEPS: readonly string[] = [
       from projects where position < 8
     on conflict do nothing;
   `,
+  `
+  alter table chain_lists drop constraint chain_lists_list_check;
+  alter table chain_lists add constraint chain_lists_list_check check (list in ('orders', 'skipped', 'leftovers', 'released', 'shelved', 'ci', 'reviews'));
+  `,
 ]
 
 /** The version this code reads and writes. */

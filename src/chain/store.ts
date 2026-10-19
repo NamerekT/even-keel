@@ -30,6 +30,7 @@ export function chainStateOf(parsed: unknown, ids: Record<string, string>, where
     skipped: state.skipped ?? {},
     leftovers: leftoversOf(state.leftovers),
     released: state.released ?? {},
+    shelved: state.shelved ?? {},
     unattended: state.unattended === true,
     trimTools: state.trimTools !== false,
     ci: state.ci ?? {},
@@ -74,7 +75,7 @@ export function saveChainState(db: Db, state: ChainState, ids: Record<string, st
   return writeChainRecord(db, renameChainProjects(state as unknown as Record<string, unknown>, byMap(ids)) as unknown as ChainState)
 }
 
-const LISTS = ['orders', 'skipped', 'leftovers', 'released', 'ci', 'reviews'] as const
+const LISTS = ['orders', 'skipped', 'leftovers', 'released', 'shelved', 'ci', 'reviews'] as const
 
 /**
  * The chain state as stored, projects by id. The switches are Even Keel's setting rows since BTN-199, written by the

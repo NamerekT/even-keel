@@ -23,6 +23,9 @@ export class Cleanups {
   keepReleased(project: string, released: string[]): void {
     if (released.length === 0) delete this.state.released[project]
     else this.state.released[project] = released
+    const shelved = this.state.shelved[project]?.filter((each) => released.includes(each.task)) ?? []
+    if (shelved.length === 0) delete this.state.shelved[project]
+    else this.state.shelved[project] = shelved
     const done = this.done.get(project)
     for (const id of done ?? []) if (!released.includes(id)) done!.delete(id)
   }

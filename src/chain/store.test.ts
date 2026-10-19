@@ -36,6 +36,7 @@ describe('chain store', { timeout: 30_000 }, () => {
       skipped: { ABC: ['ABC-3'] },
       leftovers: { ABC: [{ task: 'ABC-0', at: 't', notice: notice('cleanup.worktreeKept', { path: 'C:\\abc' }) }] },
       released: { ABC: ['ABC-4'] },
+      shelved: { ABC: [{ task: 'ABC-4', sessionId: 'session-4', at: 't' }] },
       unattended: false,
       trimTools: true,
       ci: { ABC: { green: 'abc123', check: { commit: 'def456', at: 't', tasks: ['ABC-5'] } } },

@@ -490,6 +490,32 @@ export class Dispatcher {
     if (!released.includes(task)) released.push(task)
   }
 
+  /**
+   * The current task left the chain for an inactive status (BTN-245) with no question of its own session open: most
+   * likely the session asked in the tracker, so once the task is back a new session takes it (`returned`). A busy
+   * session keeps its task in the chain (`enters`), so the task leaves only once the turn has ended.
+   */
+  private shelve(project: string, current: CurrentTask): void {
+    const { task, sessionId } = current
+    if (sessionId === null || this.deps.asked(task) !== null) return
+    const shelved = (this.state.shelved[project] ?? []).filter((each) => each.task !== task)
+    this.state.shelved[project] = [...shelved, { task, sessionId, at: this.deps.now().toISOString() }]
+  }
+
+  /**
+   * The session a shelved task left behind, to be replaced now the task is back (invariant 1, exception 9): only while
+   * it is not mid-turn, waits on no question of its own and got no prompt or answer since — then someone talked to it.
+   */
+  private returned(project: string, task: string, live: string): HandoffSession | undefined {
+    const shelved = this.state.shelved[project]?.find((each) => each.task === task)
+    if (shelved?.sessionId !== live || this.deps.midTurn(task) || this.deps.asked(task) !== null) return undefined
+    const session = this.deps.handoff(task)
+    if (session?.sessionId !== live) return undefined
+    const since = Date.parse(shelved.at)
+    const talked = session.recent.some((line) => (line.kind === 'prompt' || line.kind === 'answer') && Date.parse(line.at) > since)
+    return talked ? undefined : session
+  }
+
   private take(chain: ActiveChain, current: CurrentTask): void {
     chain.current = current
     const released = this.released(chain.project)
@@ -601,6 +627,7 @@ export class Dispatcher {
             this.deps.save(this.state)
             continue
           }
+          this.shelve(chain.project, chain.current)
           this.letGo(chain)
           this.deps.save(this.state)
         } else {
@@ -660,7 +687,8 @@ export class Dispatcher {
 
       const since = this.deps.now().toISOString()
       const live = this.deps.liveSession(task)
-      if (live !== undefined) {
+      const returned = fix === undefined && live !== undefined ? this.returned(chain.project, task, live) : undefined
+      if (live !== undefined && returned === undefined) {
         delete chain.limitUntil
         delete chain.slotWait
         delete chain.ciWait
@@ -671,7 +699,8 @@ export class Dispatcher {
         return
       }
 
-      if (fix === undefined && this.heldByMain(chain, task, listed)) return
+      // A handover keeps the task's place and branch: like a relay after a limit, it does not wait for main.
+      if (fix === undefined && returned === undefined && this.heldByMain(chain, task, listed)) return
 
       const blocked = this.deps.blocked(chain.project, task)
       if (blocked !== undefined) {
@@ -690,6 +719,17 @@ export class Dispatcher {
 
       // A session would start without some of its tools; the page shows why (`packages` in the state).
       if (fix === undefined && this.deps.packagesBlocked(chain.project)) return
+
+      if (returned !== undefined) {
+        delete chain.limitUntil
+        delete chain.slotWait
+        delete chain.ciWait
+        const current: CurrentTask = { task, sessionId: returned.sessionId, since }
+        this.take(chain, current)
+        this.deps.save(this.state)
+        await this.handovers.handOverCurrent(chain, current, returned, 'returned')
+        return
+      }
 
       const lastTry = chain.slotWait === undefined ? undefined : Date.parse(chain.slotWait.at)
       if (lastTry !== undefined && this.deps.now().getTime() - lastTry < SLOT_RETRY_MS) return

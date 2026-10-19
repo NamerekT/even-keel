@@ -25,7 +25,7 @@ export interface CurrentTask {
   ask?: string
 }
 
-export type Move = 'answer' | RelayAction | 'restart' | 'checkpoint' | 'review'
+export type Move = 'answer' | RelayAction | 'restart' | 'checkpoint' | 'review' | 'returned'
 
 export interface ActiveChain {
   project: string
@@ -76,6 +76,8 @@ export interface ChainState {
   skipped: Record<string, string[]>
   leftovers: Record<string, Leftover[]>
   released: Record<string, string[]>
+  /** Released tasks that left the chain for an inactive status after their session's turn (BTN-245): back, they get a new session. */
+  shelved: Record<string, Shelved[]>
   unattended: boolean
   /** Chain sessions start without claude.ai skills and plugins and with the hidden skills only for `/name`. */
   trimTools: boolean
@@ -116,6 +118,13 @@ export interface SessionFix {
   task: string
   commit: string
   report: string
+}
+
+/** The session a task left behind when it went to an inactive status, and when; one someone talked to since is not replaced. */
+export interface Shelved {
+  task: string
+  sessionId: string
+  at: string
 }
 
 export type ReleaseReason = 'postpone' | 'skip'
@@ -309,7 +318,7 @@ export interface RedReport {
 }
 
 export function emptyChainState(): ChainState {
-  return { active: [], queue: [], orders: {}, skipped: {}, leftovers: {}, released: {}, unattended: false, trimTools: true, ci: {}, reviews: {} }
+  return { active: [], queue: [], orders: {}, skipped: {}, leftovers: {}, released: {}, shelved: {}, unattended: false, trimTools: true, ci: {}, reviews: {} }
 }
 
 export function newChain(project: string): ActiveChain {

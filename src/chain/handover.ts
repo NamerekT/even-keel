@@ -19,8 +19,8 @@ function settle(current: CurrentTask): void {
 }
 
 // The session of a chain's current task that the dispatcher continues or replaces itself (invariant 1, exceptions
-// 1–3 and 6): after a limit, on a checkpoint, by "New session" and with the user's answer (also once the chain stopped); and how long an
-// unattended chain waits for a quiet one.
+// 1–3, 6 and 9): after a limit, on a checkpoint, by "New session", with the user's answer (also once the chain stopped)
+// and when the task is back from an inactive status; and how long an unattended chain waits for a quiet one.
 export class Handovers {
   constructor(
     private readonly state: ChainState,
@@ -141,7 +141,7 @@ export class Handovers {
     chain: ActiveChain,
     current: CurrentTask,
     session: HandoffSession,
-    reason: 'restart' | 'checkpoint' | 'review',
+    reason: 'restart' | 'checkpoint' | 'review' | 'returned',
     extra?: string,
   ): Promise<void> {
     delete current.limit
@@ -193,8 +193,8 @@ export class Handovers {
       else await this.handOverCurrent(chain, current, session, 'review', reply)
       return false
     }
-    if (move === 'restart') {
-      await this.handOverCurrent(chain, current, session, 'restart')
+    if (move === 'restart' || move === 'returned') {
+      await this.handOverCurrent(chain, current, session, move)
       return false
     }
     if (current.limit !== undefined) current.limit.acted = null
@@ -202,7 +202,9 @@ export class Handovers {
     return true
   }
 
-  private moved(chain: ActiveChain, current: CurrentTask, reason: Move, sessionId: string, previous: string, at = current.starting!): void {
+  /** The journal knows a task back from an inactive status as a `relay`: a handover for a cold cache, as after a limit. */
+  private moved(chain: ActiveChain, current: CurrentTask, move: Move, sessionId: string, previous: string, at = current.starting!): void {
+    const reason = move === 'returned' ? 'relay' : move
     this.deps.journal({ at, project: chain.project, task: current.task, sessionId, reason, previous })
     current.sessionId = sessionId
     current.resumedAt = at

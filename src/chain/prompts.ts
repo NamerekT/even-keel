@@ -1,7 +1,7 @@
 import type { Language } from '../language.js'
 import { fill } from '../sessions/prompt.js'
 
-export type HandoffReason = 'limit' | 'restart' | 'checkpoint' | 'mainFixed' | 'review'
+export type HandoffReason = 'limit' | 'restart' | 'checkpoint' | 'mainFixed' | 'review' | 'returned'
 
 /** What a session is told of its pull request's feedback (BTN-205). */
 export interface ReviewTexts {
@@ -91,6 +91,8 @@ export const PROMPTS: Record<Language, PromptTexts> = {
         'Продолжение: прошлая сессия по этой задаче поставила контрольную точку, чтобы не тащить раздутый контекст дальше, и остановлена — задачу доводишь ты.',
       mainFixed: 'Продолжение: прошлую сессию по этой задаче остановил Even Keel, потому что упала проверка main, — задачу доводишь ты.',
       review: 'Продолжение: прошлая сессия по этой задаче открыла pull request, на него пришли замечания, а её кэш уже остыл — замечания отрабатываешь ты.',
+      returned:
+        'Продолжение: прошлая сессия по этой задаче закончила ход и увела задачу из цепочки — скорее всего, с вопросом пользователю. Пользователь вернул её в цепочку: ответ — в описании задачи или в комментариях к ней после вопроса. Прочитай эти комментарии в трекере, даже если навык трекера велит не читать ленту задачи. Прошлая сессия остановлена, задачу доводишь ты.',
     },
     workdir: (path) => fill`- Рабочая папка: ${path} — работай в ней, новый worktree не создавай.`,
     transcript: (path) => fill`- Транскрипт прошлой сессии: ${path} — целиком не читай, ищи в нём grep, если чего-то не хватает.`,
@@ -160,6 +162,8 @@ export const PROMPTS: Record<Language, PromptTexts> = {
         'Continuation: the previous session on this task set a checkpoint so as not to carry a bloated context further, and was stopped; you finish the task.',
       mainFixed: 'Continuation: Even Keel stopped the previous session on this task because the check of main failed; you finish the task.',
       review: 'Continuation: the previous session on this task opened a pull request, it got feedback, and that session\'s cache has gone cold; you work the feedback.',
+      returned:
+        'Continuation: the previous session on this task ended its turn and let the task leave the chain, most likely with a question to the user. The user brought the task back into the chain: the answer is in the task\'s description or in its comments after the question. Read those comments in the tracker, even where the tracker\'s skill says not to read the task\'s activity. The previous session is stopped; you finish the task.',
     },
     workdir: (path) => fill`- Working folder: ${path} — work in it, do not create a new worktree.`,
     transcript: (path) => fill`- Transcript of the previous session: ${path} — do not read it whole; grep it if something is missing.`,

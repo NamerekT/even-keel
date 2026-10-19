@@ -23,7 +23,8 @@ import { IMPORTED_SUFFIX, prepareDatabase } from './state-files.js'
 
 // Frozen samples of the database. Versions 1 and 2 were `node:sqlite` files: they are imported at the first start.
 // Version 3 is the first PGlite one, version 4 adds the settings, version 5 the tracker profiles, version 6 the
-// changelog drafts, version 7 their turns' spend: a later step must migrate each, and each step itself must still make exactly the tables of its sample.
+// changelog drafts, version 7 their turns' spend, version 8 the pull requests, version 9 the colors, version 10 the
+// shelved tasks: a later step must migrate each, and each step itself must still make exactly the tables of its sample.
 // A schema change is a new step and a new sample next to these, never an edit of either.
 const fixture = (version: number) => readFileSync(join(root, 'test', 'fixtures', `database-v${version}`, 'even-keel.sql'), 'utf8')
 
@@ -374,6 +375,36 @@ describe('frozen samples of the database', { timeout: 120_000 }, () => {
     try {
       await readsWhole(opened.db)
       expect(parseConfig(fileOf(await readSettings(opened.db))).colors).toEqual({ ABC: 3, XYZ: 2 })
+    } finally {
+      await opened.close()
+    }
+    expect(logs).toEqual([])
+  })
+
+  it('of version 10 has the schema step 10 makes', async () => {
+    const frozen = await PGlite.create()
+    const made = await openDatabase(undefined, STEPS.slice(0, 8))
+    try {
+      await frozen.exec(fixture(10))
+      expect(await databaseVersion(frozen)).toBe(10)
+      expect(await schemaOf(made)).toEqual(await schemaOf(frozen))
+    } finally {
+      await frozen.close()
+      await made.close()
+    }
+  })
+
+  it('of version 10 is brought to the current schema and read whole, the shelved tasks with it', async () => {
+    const dataDir = dataDirOf(databaseDirOf(stateDir))
+    mkdirSync(dataDir, { recursive: true })
+    const frozen = await PGlite.create({ dataDir })
+    await frozen.exec(fixture(10))
+    await frozen.close()
+    const opened = await prepare()
+    try {
+      await readsWhole(opened.db)
+      const chain = await loadChainState(opened.db, { ABC, XYZ })
+      expect(chain.shelved).toEqual({ ABC: [{ task: 'ABC-1', sessionId: 'aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee', at: '2026-10-19T09:00:00.000Z' }] })
     } finally {
       await opened.close()
     }

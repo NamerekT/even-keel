@@ -15,7 +15,7 @@ export function renameChainProjects(raw: Record<string, unknown>, rename: (proje
   return result
 }
 
-const PER_PROJECT = ['orders', 'skipped', 'leftovers', 'released', 'ci', 'reviews'] as const
+const PER_PROJECT = ['orders', 'skipped', 'leftovers', 'released', 'shelved', 'ci', 'reviews'] as const
 
 /** A rename by a map that passes a name not in it through: an id of a removed project stays as it is. */
 export function byMap(map: Record<string, string>): (project: string) => string {
