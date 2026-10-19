@@ -136,6 +136,8 @@ try {
 }
 pg.types.setTypeParser(1700, (text) => text)
 pg.types.setTypeParser(20, (text) => text)
+// `date` as the database prints it: pg makes it a local midnight, and `cell` prints dates in UTC.
+pg.types.setTypeParser(1082, (text) => text)
 
 const client = new pg.Client(settings(root))
 try {
