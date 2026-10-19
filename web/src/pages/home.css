@@ -62,7 +62,8 @@
 
 .quiet__row {
   display: inline-flex;
-  align-items: center;
+  /* The mono key and the sans count have different metrics: centred boxes put them on different baselines. */
+  align-items: baseline;
   gap: 8px;
   padding: 4px 10px;
   border: 1px solid var(--border);
@@ -74,6 +75,10 @@
 
 .quiet__row:hover {
   border-color: var(--fg-muted);
+}
+
+.quiet__row .card__swatch {
+  align-self: center;
 }
 
 .quiet__key {
