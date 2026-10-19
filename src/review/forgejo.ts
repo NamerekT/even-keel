@@ -1,5 +1,5 @@
 import { getJson, sendJson } from '../ci/http.js'
-import type { ChangeRequest, Forge, PullRef, PullState } from './model.js'
+import { byTime, said, type Forge, type PullRef, type PullState, type Remark } from './model.js'
 
 export interface ForgejoPullSettings {
   web: string
@@ -33,6 +33,17 @@ interface ForgejoComment {
   body: string
 }
 
+/** A comment in the pull request's conversation, from the comments of the issue it is. */
+interface ForgejoIssueComment {
+  id: number
+  user: { login: string } | null
+  body: string
+  created_at: string
+}
+
+/** The review states that are remarks; an approval, a pending review or a review request is not. */
+const REMARK_STATES: Record<string, Remark['kind']> = { REQUEST_CHANGES: 'changes', COMMENT: 'review' }
+
 const TITLE = 'Forgejo'
 // Open pull requests of the repository looked through for the branch's.
 const OPEN_LIMIT = 50
@@ -63,14 +74,20 @@ export function forgejoPulls(settings: ForgejoPullSettings, timeoutMs: number, f
       return { state, mergeable: pull.mergeable ?? null, head: pull.head.sha }
     },
 
-    async changes(number, wanted) {
-      const reviews = (await get<ForgejoReview[] | null>(`/pulls/${number}/reviews?page=1&limit=50`)) ?? []
-      const asked = reviews.filter((review) => review.state === 'REQUEST_CHANGES' && review.dismissed !== true && wanted(String(review.id), review.submitted_at))
-      return Promise.all(
-        asked.map(async (review): Promise<ChangeRequest> => {
+    async remarks(number, since, wanted) {
+      const [reviews, talk] = await Promise.all([
+        get<ForgejoReview[] | null>(`/pulls/${number}/reviews?page=1&limit=50`),
+        get<ForgejoIssueComment[] | null>(`/issues/${number}/comments?since=${encodeURIComponent(since)}`),
+      ])
+      const asked = (reviews ?? []).filter(
+        (review) => REMARK_STATES[review.state] !== undefined && review.dismissed !== true && wanted(`review:${review.id}`, review.submitted_at),
+      )
+      const fromReviews = await Promise.all(
+        asked.map(async (review): Promise<Remark> => {
           const comments = (await get<ForgejoComment[] | null>(`/pulls/${number}/reviews/${review.id}/comments`)) ?? []
           return {
-            id: String(review.id),
+            key: `review:${review.id}`,
+            kind: REMARK_STATES[review.state]!,
             author: review.user?.login ?? '',
             body: review.body,
             at: review.submitted_at,
@@ -78,6 +95,10 @@ export function forgejoPulls(settings: ForgejoPullSettings, timeoutMs: number, f
           }
         }),
       )
+      const fromTalk = (talk ?? [])
+        .filter((comment) => comment.body.trim() !== '' && wanted(`comment:${comment.id}`, comment.created_at))
+        .map((comment): Remark => ({ key: `comment:${comment.id}`, kind: 'comment', author: comment.user?.login ?? '', body: comment.body, at: comment.created_at, comments: [] }))
+      return byTime([...fromReviews.filter(said), ...fromTalk])
     },
   }
 }

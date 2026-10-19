@@ -44,7 +44,7 @@ const runningState = (reviews: PullRequest[] = []): ChainState => ({
   ...(reviews.length > 0 && { reviews: { ABC: reviews } }),
 })
 
-const openCheck = (extra: Partial<ReviewCheck> = {}): ReviewCheck => ({ state: { state: 'open', mergeable: true, head: 'abc1234' }, changes: [], failed: [], ...extra })
+const openCheck = (extra: Partial<ReviewCheck> = {}): ReviewCheck => ({ state: { state: 'open', mergeable: true, head: 'abc1234' }, remarks: [], failed: [], ...extra })
 
 function forge(check: () => ReviewCheck = () => openCheck(), on = true) {
   const opened: { task: string; session: HandoffSession }[] = []
@@ -332,12 +332,36 @@ describe('Dispatcher polling pull requests', () => {
     expect(dispatcher.state.skipped.ABC).toEqual(['ABC-1'])
     expect(finished).toContain('ABC/ABC-1')
     expect(pulled['ABC-1']).toEqual({ force: true, remote: 'origin', unmerged: true })
-    expect(dispatcher.state.reviews.ABC).toBeUndefined()
+    expect(dispatcher.state.reviews.ABC).toEqual([expect.objectContaining({ task: 'ABC-1', closed: 'unmerged', cleaned: true })])
+    expect(dispatcher.orders().ABC?.reviews).toBeUndefined()
     expect(dispatcher.released('ABC')).not.toContain('ABC-1')
   })
 
+  it('tells the next launch of a task whose pull request was closed unmerged of it and its remarks, once', async () => {
+    const closing = () =>
+      openCheck({
+        state: { state: 'closed', mergeable: null, head: 'abc1234' },
+        remarks: [{ key: 'comment:9', kind: 'comment', author: 'jane', body: 'Not this way, see the issue.', at: '2026-09-26T11:40:00.000Z', comments: [] }],
+      })
+    const { dispatcher, extras, launched, live, journal, log } = await opened(closing)
+    delete live['ABC-1']
+    await dispatcher.pollReviews()
+    await dispatcher.idle()
+    expect(log).toContain(`review: ABC-1: ${URL} is closed unmerged with 1 remark(s), the task is skipped`)
+
+    dispatcher.unskip('ABC', 'ABC-1')
+    await dispatcher.start('ABC')
+    await dispatcher.idle()
+
+    expect(launched).toEqual(['ABC/ABC-1'])
+    expect(extras['ABC-1']).toContain(`Прошлый pull request этой задачи, ${URL}, закрыт без слияния.`)
+    expect(extras['ABC-1']).toContain('Not this way, see the issue.')
+    expect(journal.at(-1)).toMatchObject({ task: 'ABC-1', reason: 'review' })
+    expect(dispatcher.state.reviews.ABC).toBeUndefined()
+  })
+
   const changes = () =>
-    openCheck({ changes: [{ id: '41', author: 'jane', body: 'Rename it.', at: '2026-09-26T11:55:00.000Z', comments: [{ path: 'src/a.ts', line: 3, body: 'here' }] }] })
+    openCheck({ remarks: [{ key: 'review:41', kind: 'changes', author: 'jane', body: 'Rename it.', at: '2026-09-26T11:55:00.000Z', comments: [{ path: 'src/a.ts', line: 3, body: 'here' }] }] })
 
   it('resumes the warm session of the task with the feedback and remembers the review as seen', async () => {
     const opening = await opened(changes)

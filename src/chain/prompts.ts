@@ -7,12 +7,22 @@ export type HandoffReason = 'limit' | 'restart' | 'checkpoint' | 'mainFixed' | '
 export interface ReviewTexts {
   head: (url: string) => string
   changes: (author: string) => string
+  /** A review that only comments. */
+  reviewed: (author: string) => string
+  /** A comment in the pull request's conversation. */
+  talk: (author: string) => string
   comment: (path: string, line: number | null) => string
   ci: (title: string, url: string) => string
   conflict: (main: string) => string
   after: string
   /** The mark came on a branch with no commits beyond main: nothing was pushed or opened (BTN-222). */
   nothingAhead: (main: string) => string
+  /** The task's previous pull request was closed unmerged; its remarks follow (BTN-223). */
+  closed: (url: string) => string
+  /** How many earlier remarks of the closed pull request are left out. */
+  earlier: (count: number) => string
+  noRemarks: string
+  closedAfter: (main: string) => string
 }
 
 /** `main` in the texts is the project's main branch, whatever it is called. */
@@ -55,12 +65,19 @@ export const PROMPTS: Record<Language, PromptTexts> = {
     review: {
       head: (url) => fill`На pull request ${url} пришли замечания:`,
       changes: (author) => fill`- Ревью ${author} просит правок:`,
+      reviewed: (author) => fill`- Ревью ${author} с комментариями:`,
+      talk: (author) => fill`- Комментарий ${author}:`,
       comment: (path, line) => (line === null ? fill`  - ${path}:` : fill`  - ${path}:${String(line)}:`),
       ci: (title, url) => fill`- Упал CI: ${title} — ${url}`,
       conflict: (main) => fill`- Pull request конфликтует с ${main}: слей свежий ${main} в свою ветку и разреши конфликты.`,
       after: 'Исправь, закоммить и снова закончи ход строкой `PULL REQUEST: .temp/pull-request.md` (описание обнови, если нужно, но не коммить): Even Keel запушит ветку в тот же pull request.',
       nothingAhead: (main) =>
         fill`Pull request не открыт: в ветке нет коммитов сверх ${main}, а в worktree есть незакоммиченные изменения. Закоммить работу и снова закончи ход строкой \`PULL REQUEST: .temp/pull-request.md\`. Если эти изменения не нужны — убери их, и по той же строке Even Keel закроет задачу без pull request.`,
+      closed: (url) => fill`Прошлый pull request этой задачи, ${url}, закрыт без слияния. Замечания на нём:`,
+      earlier: (count) => fill`- (более ранних замечаний не показано: ${String(count)} — они в самом pull request)`,
+      noRemarks: '- (замечаний нет)',
+      closedAfter: (main) =>
+        fill`Его ветка удалена: задачу делаешь заново, на свежей ветке от ${main}. Учти замечания — в них может быть, почему pull request закрыли и что сделать иначе.`,
     },
     worktree: (path) => fill`- Worktree готов: ${path} — работай в нём, новый worktree не создавай.`,
     branch: (branch) => fill`- Ветка: ${branch} — не меняй её.`,
@@ -117,12 +134,19 @@ export const PROMPTS: Record<Language, PromptTexts> = {
     review: {
       head: (url) => fill`The pull request ${url} got feedback:`,
       changes: (author) => fill`- A review by ${author} asks for changes:`,
+      reviewed: (author) => fill`- A review by ${author} comments:`,
+      talk: (author) => fill`- A comment by ${author}:`,
       comment: (path, line) => (line === null ? fill`  - ${path}:` : fill`  - ${path}:${String(line)}:`),
       ci: (title, url) => fill`- The CI failed: ${title} — ${url}`,
       conflict: (main) => fill`- The pull request conflicts with ${main}: merge the fresh ${main} into your branch and resolve the conflicts.`,
       after: 'Fix it, commit and end the turn with the line `PULL REQUEST: .temp/pull-request.md` again (update the description if needed, without committing it): Even Keel pushes the branch to the same pull request.',
       nothingAhead: (main) =>
         fill`The pull request was not opened: the branch has no commits beyond ${main}, and the worktree has uncommitted changes. Commit the work and end the turn with the line \`PULL REQUEST: .temp/pull-request.md\` again. If those changes are not needed, remove them, and on the same line Even Keel closes the task without a pull request.`,
+      closed: (url) => fill`The previous pull request of this task, ${url}, was closed without a merge. The remarks on it:`,
+      earlier: (count) => fill`- (earlier remarks not shown: ${String(count)} — they are in the pull request itself)`,
+      noRemarks: '- (none)',
+      closedAfter: (main) =>
+        fill`Its branch is removed: you do the task over, on a fresh branch from ${main}. Take the remarks into account — they may say why the pull request was closed and what to do differently.`,
     },
     worktree: (path) => fill`- Worktree is ready: ${path} — work in it, do not create a new worktree.`,
     branch: (branch) => fill`- Branch: ${branch} — do not change it.`,

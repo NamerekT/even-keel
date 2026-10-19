@@ -1,5 +1,5 @@
 import { getJson, sendJson } from '../ci/http.js'
-import type { ChangeRequest, Forge, PullRef, PullState } from './model.js'
+import { byTime, said, type Forge, type PullRef, type PullState, type Remark } from './model.js'
 
 export interface GithubPullSettings {
   owner: string
@@ -16,9 +16,14 @@ interface GithubPull {
   head: { sha: string; ref: string }
 }
 
+interface GithubUser {
+  login: string
+  type?: string
+}
+
 interface GithubReview {
   id: number
-  user: { login: string } | null
+  user: GithubUser | null
   body: string | null
   state: string
   submitted_at: string | null
@@ -30,6 +35,17 @@ interface GithubComment {
   original_line?: number | null
   body: string
 }
+
+/** A comment in the pull request's conversation: GitHub keeps them as the comments of the issue it is. */
+interface GithubIssueComment {
+  id: number
+  user: GithubUser | null
+  body: string | null
+  created_at: string
+}
+
+/** The review states that are remarks; an approval, a dismissed or a pending review is not. */
+const REMARK_STATES: Record<string, Remark['kind']> = { CHANGES_REQUESTED: 'changes', COMMENTED: 'review' }
 
 const TITLE = 'GitHub'
 const API = 'https://api.github.com'
@@ -59,14 +75,20 @@ export function githubPulls(settings: GithubPullSettings, timeoutMs: number, fet
       return { state, mergeable: pull.mergeable ?? null, head: pull.head.sha }
     },
 
-    async changes(number, wanted) {
-      const reviews = await get<GithubReview[]>(`/pulls/${number}/reviews?per_page=100`)
-      const asked = reviews.filter((review) => review.state === 'CHANGES_REQUESTED' && review.submitted_at !== null && wanted(String(review.id), review.submitted_at))
-      return Promise.all(
-        asked.map(async (review): Promise<ChangeRequest> => {
+    async remarks(number, since, wanted) {
+      const [reviews, talk] = await Promise.all([
+        get<GithubReview[]>(`/pulls/${number}/reviews?per_page=100`),
+        get<GithubIssueComment[]>(`/issues/${number}/comments?since=${encodeURIComponent(since)}&per_page=100`),
+      ])
+      const asked = reviews.filter(
+        (review) => REMARK_STATES[review.state] !== undefined && review.submitted_at !== null && wanted(`review:${review.id}`, review.submitted_at),
+      )
+      const fromReviews = await Promise.all(
+        asked.map(async (review): Promise<Remark> => {
           const comments = await get<GithubComment[]>(`/pulls/${number}/reviews/${review.id}/comments?per_page=100`)
           return {
-            id: String(review.id),
+            key: `review:${review.id}`,
+            kind: REMARK_STATES[review.state]!,
             author: review.user?.login ?? '',
             body: review.body ?? '',
             at: review.submitted_at!,
@@ -74,6 +96,11 @@ export function githubPulls(settings: GithubPullSettings, timeoutMs: number, fet
           }
         }),
       )
+      // A bot's comment comes again on each push (coverage, previews): taken as a remark, it would loop the session.
+      const fromTalk = talk
+        .filter((comment) => comment.user?.type !== 'Bot' && (comment.body ?? '').trim() !== '' && wanted(`comment:${comment.id}`, comment.created_at))
+        .map((comment): Remark => ({ key: `comment:${comment.id}`, kind: 'comment', author: comment.user?.login ?? '', body: comment.body ?? '', at: comment.created_at, comments: [] }))
+      return byTime([...fromReviews.filter(said), ...fromTalk])
     },
   }
 }

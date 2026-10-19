@@ -1,6 +1,6 @@
 import { englishOf, notice, noticeOf, type Notice } from '../notice/notice.js'
 import { eventKey, outcomeOf } from '../review/events.js'
-import { feedbackText, withFeedback } from '../review/feedback.js'
+import { closedText, feedbackText, withFeedback } from '../review/feedback.js'
 import type { PullRequest, ReviewCheck } from '../review/model.js'
 import type { Handovers } from './handover.js'
 import type { ActiveChain, ChainState, CurrentTask, DispatcherDeps, PullCleanup, ReviewDeps, ReviewView } from './model.js'
@@ -57,7 +57,13 @@ export class Reviews {
   /** Whether the task waits on its pull request out of the chain: open without feedback, or closed and not cleaned up after. */
   holds(project: string, task: string): boolean {
     const pull = this.recordOf(project, task)
-    return pull !== undefined && (pull.closed !== undefined || pull.feedback === undefined)
+    return pull !== undefined && pull.cleaned !== true && (pull.closed !== undefined || pull.feedback === undefined)
+  }
+
+  /** What the task's next launch is told of its pull request closed unmerged and cleaned up after. */
+  closedNoteOf(project: string, task: string): string | undefined {
+    const pull = this.recordOf(project, task)
+    return pull?.cleaned === true ? pull.closedNote : undefined
   }
 
   /** The feedback that waits for the task's session, while the pull request is open. */
@@ -72,7 +78,7 @@ export class Reviews {
   }
 
   views(project: string): ReviewView[] {
-    return (this.state.reviews[project] ?? []).map((pull) => ({
+    return (this.state.reviews[project] ?? []).filter((pull) => pull.cleaned !== true).map((pull) => ({
       task: pull.task,
       number: pull.number,
       url: pull.url,
@@ -84,7 +90,7 @@ export class Reviews {
   /** How the cleanup after the task goes when it has a pull request; `undefined` — it has none. */
   cleanupOf(project: string, task: string): PullCleanup | undefined {
     const pull = this.recordOf(project, task)
-    return pull === undefined ? undefined : { force: true, remote: pull.remote }
+    return pull === undefined || pull.cleaned === true ? undefined : { force: true, remote: pull.remote }
   }
 
   /**
@@ -113,7 +119,7 @@ export class Reviews {
     const { task } = current
     if (this.review === undefined || this.deps.busy(task)) return false
     const pull = this.recordOf(project, task)
-    if (pull?.closed === 'unmerged') {
+    if (pull?.closed === 'unmerged' && pull.cleaned !== true) {
       this.host.letGo(chain)
       return true
     }
@@ -152,7 +158,8 @@ export class Reviews {
     }
     if (opened === null) return this.doneWithout(chain, current, session)
     this.refused.delete(task)
-    const before = this.recordOf(project, task)
+    const record = this.recordOf(project, task)
+    const before = record?.closed === undefined ? record : undefined
     const { number, url, branch, pushedAt, remote } = opened
     const pull: PullRequest = { seen: [], at, ...before, task, remote, number, url, branch, pushedAt, markAt: session.lastReplyAt }
     delete pull.feedback
@@ -204,10 +211,11 @@ export class Reviews {
     }
   }
 
-  /** A launch of the task carried its feedback. */
+  /** A launch of the task carried its feedback, or the note of its pull request closed unmerged. */
   delivered(project: string, task: string): void {
     const pull = this.recordOf(project, task)
-    if (pull !== undefined) delete pull.feedback
+    if (pull?.cleaned === true) this.drop(project, task)
+    else if (pull !== undefined) delete pull.feedback
   }
 
   /** Asks the forges about every open pull request; nothing of the chain is touched while the answers come. */
@@ -246,7 +254,8 @@ export class Reviews {
       } else if (outcome.kind === 'closed') {
         pull.closed = 'unmerged'
         delete pull.feedback
-        this.deps.log(`review: ${pull.task}: ${pull.url} is closed unmerged, the task is skipped`)
+        pull.closedNote = closedText(pull.url, outcome.remarks, this.deps.promptLanguage(), this.deps.mainBranch(pull.task))
+        this.deps.log(`review: ${pull.task}: ${pull.url} is closed unmerged with ${outcome.remarks.length} remark(s), the task is skipped`)
       } else {
         const language = this.deps.promptLanguage()
         const text = feedbackText(pull.url, outcome.items, language, this.deps.mainBranch(pull.task))
@@ -270,15 +279,17 @@ export class Reviews {
 
   /**
    * Cleans up after the tasks whose pull requests were closed unmerged, once no chain leads them and their sessions
-   * rest. The task, open still, comes back to the chain skipped: it is the user's to run again.
+   * rest. The task, open still, comes back to the chain skipped: it is the user's to run again, and its next launch is
+   * told of the closed pull request (`closedNote`).
    */
   async sweep(): Promise<void> {
     for (const [project, pulls] of Object.entries(this.state.reviews)) {
-      for (const pull of pulls.filter((each) => each.closed === 'unmerged')) {
+      for (const pull of pulls.filter((each) => each.closed === 'unmerged' && each.cleaned !== true)) {
         const led = this.state.active.some((chain) => chain.project === project && chain.current?.task === pull.task)
         if (led || this.host.working(pull.task)) continue
         await this.host.dropUnmerged(project, pull.task, { force: true, remote: pull.remote, unmerged: true })
-        this.drop(project, pull.task)
+        if (pull.closedNote === undefined) this.drop(project, pull.task)
+        else pull.cleaned = true
         const skipped = (this.state.skipped[project] ??= [])
         if (!skipped.includes(pull.task)) skipped.push(pull.task)
         this.deps.save(this.state)

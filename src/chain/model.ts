@@ -200,7 +200,7 @@ export interface DispatcherDeps {
   rules: (project: string) => ChainRules
   /**
    * Starts a new session of the task; `fallback` — its run label named a provider without an account in the pool.
-   * `extra` goes at the end of the prompt: the feedback on the task's pull request.
+   * `extra` goes at the end of the prompt: the feedback on the task's pull request, or its pull request closed unmerged.
    */
   launch: (project: string, task: string, extra?: string) => Promise<Launched>
   liveSession: (task: string) => string | undefined

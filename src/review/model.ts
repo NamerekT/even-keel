@@ -23,6 +23,10 @@ export interface PullRequest {
   feedback?: string
   /** Closed on the forge; its cleanup is still due. */
   closed?: 'merged' | 'unmerged'
+  /** Closed unmerged: what the task's next launch is told of it — its link and its remarks (BTN-223). */
+  closedNote?: string
+  /** Closed unmerged and cleaned up after: the record stays only for `closedNote`, until the task launches or is done. */
+  cleaned?: true
 }
 
 /** The pull request as the forge has it now. */
@@ -39,9 +43,15 @@ export interface ReviewComment {
   body: string
 }
 
-/** A review that asks for changes. */
-export interface ChangeRequest {
-  id: string
+/**
+ * What someone said on the pull request: a review that asks for changes, a review that only comments, or a comment in
+ * its conversation (BTN-223). The pull request's author cannot ask for changes on it, so a user who opened it with their
+ * own token gives feedback by commenting.
+ */
+export interface Remark {
+  /** The key it is remembered by in `PullRequest.seen`: `review:<id>` or `comment:<id>`. */
+  key: string
+  kind: 'changes' | 'review' | 'comment'
   author: string
   body: string
   at: string
@@ -74,21 +84,35 @@ export interface Forge {
   find(branch: string): Promise<PullRef | null>
   create(pull: NewPull): Promise<PullRef>
   state(number: number): Promise<PullState>
-  /** The reviews that ask for changes and that `wanted` takes, with their comments, oldest first. */
-  changes(number: number, wanted: (id: string, at: string) => boolean): Promise<ChangeRequest[]>
+  /**
+   * The remarks made since `since` that `wanted` takes by key and time, oldest first: reviews that ask for changes or
+   * comment, with their line comments, and the comments of the conversation. An approval, a review without a word and
+   * a bot's comment in the conversation are not remarks.
+   */
+  remarks(number: number, since: string, wanted: (key: string, at: string) => boolean): Promise<Remark[]>
 }
 
-/** What a poll of an open pull request found. */
+/**
+ * What a poll of an open pull request found. `remarks` — the new ones after the last push; for a pull request closed
+ * unmerged, every one since it was opened.
+ */
 export interface ReviewCheck {
   state: PullState
-  changes: ChangeRequest[]
+  remarks: Remark[]
   /** The failed CI runs on the head commit. */
   failed: CiRun[]
 }
 
-export type Feedback =
-  | { kind: 'changes'; request: ChangeRequest }
-  | { kind: 'ci'; run: CiRun }
-  | { kind: 'conflict'; head: string }
+export type Feedback = { kind: 'remark'; remark: Remark } | { kind: 'ci'; run: CiRun } | { kind: 'conflict'; head: string }
 
-export type ReviewOutcome = { kind: 'merged' } | { kind: 'closed' } | { kind: 'feedback'; items: Feedback[] } | { kind: 'none' }
+export type ReviewOutcome = { kind: 'merged' } | { kind: 'closed'; remarks: Remark[] } | { kind: 'feedback'; items: Feedback[] } | { kind: 'none' }
+
+/** Whether a review says something: one asking for changes always does, one that comments needs words or line comments. */
+export function said(remark: Remark): boolean {
+  return remark.kind === 'changes' || remark.body.trim() !== '' || remark.comments.length > 0
+}
+
+/** The remarks of a list sorted oldest first. */
+export function byTime(remarks: Remark[]): Remark[] {
+  return [...remarks].sort((a, b) => Date.parse(a.at) - Date.parse(b.at))
+}

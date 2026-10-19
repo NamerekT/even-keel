@@ -51,6 +51,9 @@ describe('githubPulls', () => {
     expect((await forge({ 'GET /pulls/12': pull({ state: 'closed' }) }).forge.state(12)).state).toBe('closed')
   })
 
+  const SINCE = '2026-10-18T10:00:00Z'
+  const TALK = `GET /issues/12/comments?since=${encodeURIComponent(SINCE)}&per_page=100`
+
   it('gives the reviews asking for changes with their comments', async () => {
     const { forge: pulls } = forge({
       'GET /pulls/12/reviews?per_page=100': [
@@ -59,10 +62,12 @@ describe('githubPulls', () => {
         { id: 3, user: { login: 'jdoe' }, body: 'Old', state: 'CHANGES_REQUESTED', submitted_at: '2026-10-18T09:00:00Z' },
       ],
       'GET /pulls/12/reviews/2/comments?per_page=100': [{ path: 'src/a.ts', line: 4, body: 'here' }, { path: 'src/b.ts', line: null, original_line: 9, body: 'and here' }],
+      [TALK]: [],
     })
-    expect(await pulls.changes(12, (_, at) => at > '2026-10-18T10:00:00Z')).toEqual([
+    expect(await pulls.remarks(12, SINCE, (_, at) => at > SINCE)).toEqual([
       {
-        id: '2',
+        key: 'review:2',
+        kind: 'changes',
         author: 'jdoe',
         body: 'Rename it',
         at: '2026-10-18T11:00:00Z',
@@ -71,6 +76,27 @@ describe('githubPulls', () => {
           { path: 'src/b.ts', line: 9, body: 'and here' },
         ],
       },
+    ])
+  })
+
+  it('gives the reviews that only comment and the comments of the conversation, oldest first, not a bot or a silent review', async () => {
+    const { forge: pulls } = forge({
+      'GET /pulls/12/reviews?per_page=100': [
+        { id: 4, user: { login: 'jdoe' }, body: 'Looks off', state: 'COMMENTED', submitted_at: '2026-10-18T12:00:00Z' },
+        { id: 5, user: { login: 'jdoe' }, body: '', state: 'COMMENTED', submitted_at: '2026-10-18T12:30:00Z' },
+        { id: 6, user: { login: 'jdoe' }, body: '', state: 'PENDING', submitted_at: null },
+      ],
+      'GET /pulls/12/reviews/4/comments?per_page=100': [],
+      'GET /pulls/12/reviews/5/comments?per_page=100': [],
+      [TALK]: [
+        { id: 31, user: { login: 'jdoe', type: 'User' }, body: 'Make another file l.txt', created_at: '2026-10-18T11:30:00Z' },
+        { id: 32, user: { login: 'coverage-app[bot]', type: 'Bot' }, body: 'Coverage 90%', created_at: '2026-10-18T11:40:00Z' },
+        { id: 33, user: { login: 'jdoe', type: 'User' }, body: 'Seen', created_at: '2026-10-18T11:50:00Z' },
+      ],
+    })
+    expect(await pulls.remarks(12, SINCE, (key) => key !== 'comment:33')).toEqual([
+      { key: 'comment:31', kind: 'comment', author: 'jdoe', body: 'Make another file l.txt', at: '2026-10-18T11:30:00Z', comments: [] },
+      { key: 'review:4', kind: 'review', author: 'jdoe', body: 'Looks off', at: '2026-10-18T12:00:00Z', comments: [] },
     ])
   })
 
@@ -114,17 +140,27 @@ describe('forgejoPulls', () => {
     expect(await pulls.state(5)).toEqual({ state: 'merged', mergeable: false, head: 'a1' })
   })
 
-  it('gives the reviews asking for changes, not the dismissed ones', async () => {
+  const SINCE = '2026-10-18T10:00:00Z'
+  const TALK = `GET /issues/5/comments?since=${encodeURIComponent(SINCE)}`
+
+  it('gives the reviews asking for changes or commenting and the comments of the conversation, not the dismissed or silent ones', async () => {
     const { forge: pulls } = forge({
       'GET /pulls/5/reviews?page=1&limit=50': [
         { id: 7, user: { login: 'jdoe' }, body: 'Rename it', state: 'REQUEST_CHANGES', submitted_at: '2026-10-18T11:00:00Z' },
         { id: 8, user: { login: 'jdoe' }, body: 'Gone', state: 'REQUEST_CHANGES', submitted_at: '2026-10-18T11:00:00Z', dismissed: true },
-        { id: 9, user: { login: 'jdoe' }, body: '', state: 'COMMENT', submitted_at: '2026-10-18T11:00:00Z' },
+        { id: 9, user: { login: 'jdoe' }, body: '', state: 'COMMENT', submitted_at: '2026-10-18T11:10:00Z' },
+        { id: 10, user: { login: 'jdoe' }, body: '', state: 'COMMENT', submitted_at: '2026-10-18T11:20:00Z' },
+        { id: 11, user: { login: 'jdoe' }, body: 'Fine', state: 'APPROVED', submitted_at: '2026-10-18T11:30:00Z' },
       ],
       'GET /pulls/5/reviews/7/comments': [{ path: 'src/a.ts', position: 0, original_position: 3, body: 'here' }],
+      'GET /pulls/5/reviews/9/comments': [{ path: 'src/b.ts', position: 5, body: 'and here' }],
+      'GET /pulls/5/reviews/10/comments': [],
+      [TALK]: [{ id: 21, user: { login: 'jdoe' }, body: 'Make another file l.txt', created_at: '2026-10-18T10:30:00Z' }],
     })
-    expect(await pulls.changes(5, all)).toEqual([
-      { id: '7', author: 'jdoe', body: 'Rename it', at: '2026-10-18T11:00:00Z', comments: [{ path: 'src/a.ts', line: 3, body: 'here' }] },
+    expect(await pulls.remarks(5, SINCE, all)).toEqual([
+      { key: 'comment:21', kind: 'comment', author: 'jdoe', body: 'Make another file l.txt', at: '2026-10-18T10:30:00Z', comments: [] },
+      { key: 'review:7', kind: 'changes', author: 'jdoe', body: 'Rename it', at: '2026-10-18T11:00:00Z', comments: [{ path: 'src/a.ts', line: 3, body: 'here' }] },
+      { key: 'review:9', kind: 'review', author: 'jdoe', body: '', at: '2026-10-18T11:10:00Z', comments: [{ path: 'src/b.ts', line: 5, body: 'and here' }] },
     ])
   })
 

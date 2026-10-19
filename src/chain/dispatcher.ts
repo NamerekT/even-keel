@@ -690,7 +690,7 @@ export class Dispatcher {
       const current: CurrentTask = { task, sessionId: null, since, starting: since }
       this.take(chain, current)
       this.deps.save(this.state)
-      const feedback = fix === undefined ? this.reviews.feedbackOf(chain.project, task) : undefined
+      const feedback = fix === undefined ? (this.reviews.feedbackOf(chain.project, task) ?? this.reviews.closedNoteOf(chain.project, task)) : undefined
       try {
         const { sessionId, fallback } =
           fix !== undefined

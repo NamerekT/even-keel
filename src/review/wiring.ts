@@ -58,14 +58,15 @@ export function reviewDeps(wiring: ReviewWiring): ReviewDeps {
       const target = await targetOf(project, pull.remote)
       const token = tokenOf(project, target)
       const forge = forgeOf(target, token)
+      const state = await forge.state(pull.number)
+      if (state.state === 'merged') return { state, remarks: [], failed: [] }
+      // A pull request closed unmerged: the task's next session gets every remark made on it (BTN-223).
+      if (state.state === 'closed') return { state, remarks: await forge.remarks(pull.number, pull.at, () => true), failed: [] }
       const pushed = Date.parse(pull.pushedAt)
-      const [state, changes] = await Promise.all([
-        forge.state(pull.number),
-        forge.changes(pull.number, (id, at) => Date.parse(at) > pushed && !pull.seen.includes(`review:${id}`)),
-      ])
-      // A CI that does not answer leaves the poll to the reviews and the conflict.
+      const remarks = await forge.remarks(pull.number, pull.pushedAt, (key, at) => Date.parse(at) > pushed && !pull.seen.includes(key))
+      // A CI that does not answer leaves the poll to the remarks and the conflict.
       const runs = await (ciSource(target, token, timeoutMs)?.runs(RUNS_POLLED) ?? Promise.resolve([])).catch(() => [])
-      return { state, changes, failed: runs.filter((run) => run.commit === state.head && run.status === 'failure') }
+      return { state, remarks, failed: runs.filter((run) => run.commit === state.head && run.status === 'failure') }
     },
     complete: wiring.complete,
   }
