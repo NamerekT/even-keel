@@ -1,6 +1,24 @@
 import { describe, expect, it } from 'vitest'
 import type { AgentEntry } from '../sessions/agents.js'
-import { parseWriteAnswer, promptArg, resumeArgs, resumedAs, sessionArgs, writeArgs } from './cli.js'
+import { callFailure, parseWriteAnswer, promptArg, resumeArgs, resumedAs, sessionArgs, writeArgs } from './cli.js'
+
+describe('callFailure', () => {
+  const failed = (fields: object) => Object.assign(new Error('Command failed: C:\\cli\\claude.exe -p /usage\nnoise'), fields)
+
+  it('names the exit code and what the CLI printed, not the command line', () => {
+    expect(callFailure(failed({ code: 1, killed: false, stdout: '{"is_error":true,"result":"API Error: fetch failed"}\n', stderr: '' }))).toBe(
+      'exit code 1 / {"is_error":true,"result":"API Error: fetch failed"}',
+    )
+  })
+
+  it('tells a timeout from an exit', () => {
+    expect(callFailure(failed({ code: null, killed: true, signal: 'SIGTERM', stdout: '', stderr: 'slow' }))).toBe('timed out / slow')
+  })
+
+  it('keeps a spawn error as is', () => {
+    expect(callFailure(Object.assign(new Error('spawn claude ENOENT'), { code: 'ENOENT' }))).toBe('spawn claude ENOENT')
+  })
+})
 
 describe('writeArgs', () => {
   it('asks for one printed turn with read-only tools, no session file, no MCP and no skills', () => {

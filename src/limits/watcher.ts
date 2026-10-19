@@ -24,6 +24,8 @@ interface AccountLimits {
   received: RateLimits | undefined
   polled: RateLimits | undefined
   health: UsageHealth
+  /** Failed calls in a row. */
+  failures: number
 }
 
 const WAITING: UsageHealth = { state: 'waiting', reason: null, since: null }
@@ -108,9 +110,15 @@ export class LimitsWatcher {
     let answer: UsageAnswer
     try {
       answer = await this.options.usage(home)!(at)
+      account.failures = 0
     } catch (error) {
-      const message = error instanceof Error ? error.message : String(error)
-      answer = { kind: 'unknown', reason: notice('usage.callFailed', {}, { detail: message.trim().slice(0, 200) }) }
+      const detail = (error instanceof Error ? error.message : String(error)).trim().slice(0, 200)
+      // A lone failure is usually the network: what was known stays until the next poll fails too.
+      if (++account.failures < 2) {
+        this.options.onError(new Error(`claude -p /usage in ${home.key} failed, retrying at the next poll: ${detail}`))
+        return
+      }
+      answer = { kind: 'unknown', reason: notice('usage.callFailed', {}, { detail }) }
     }
     if (answer.kind === 'spent') {
       this.usageOff = { state: 'off', reason: answer.reason, since: at }
@@ -138,7 +146,7 @@ export class LimitsWatcher {
   private of(key: string): AccountLimits {
     let known = this.accounts.get(key)
     if (known === undefined) {
-      known = { received: undefined, polled: undefined, health: WAITING }
+      known = { received: undefined, polled: undefined, health: WAITING, failures: 0 }
       this.accounts.set(key, known)
     }
     return known

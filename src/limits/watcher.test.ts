@@ -1,0 +1,60 @@
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import type { AccountHome } from '../account/homes.js'
+import type { UsageAnswer } from './usage.js'
+import { LimitsWatcher } from './watcher.js'
+
+const HOME: AccountHome = { key: 'global', dir: '/home/john/.claude', global: true, agent: 'claude' }
+const LIMITS: UsageAnswer = {
+  kind: 'limits',
+  limits: { fiveHour: { usedPercentage: 16, resetsAt: 2_000_000_000 }, sevenDay: { usedPercentage: 36, resetsAt: 2_000_000_000 } },
+} as unknown as UsageAnswer
+
+function watcherOf(answers: (() => UsageAnswer)[]) {
+  const errors: string[] = []
+  const watcher = new LimitsWatcher({
+    file: '/nonexistent/limits.json',
+    intervalMs: 60_000,
+    homes: () => [HOME],
+    ownerOf: () => undefined,
+    usage: () => async () => answers.shift()!(),
+    usageIntervalMs: 300_000,
+    notBefore: () => null,
+    accessExpired: () => false,
+    apiKey: () => false,
+    onChange: () => {},
+    onError: (error) => errors.push(String(error)),
+  })
+  const poll = async () => {
+    watcher.refresh()
+    for (let i = 0; i < 5; i++) await new Promise((resolve) => setImmediate(resolve))
+  }
+  return { watcher, errors, poll }
+}
+
+const failing = () => {
+  throw new Error('exit code 1 / network down')
+}
+
+describe('LimitsWatcher', () => {
+  beforeEach(() => vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] }))
+  afterEach(() => {
+    vi.clearAllTimers()
+    vi.useRealTimers()
+  })
+
+  it('shows a failed /usage call only when the next poll fails too', async () => {
+    const { watcher, errors, poll } = watcherOf([failing, failing])
+    await poll()
+    expect(watcher.usage('global').state).toBe('waiting')
+    expect(errors).toEqual([expect.stringContaining('retrying at the next poll: exit code 1 / network down')])
+    await poll()
+    expect(watcher.usage('global').state).toBe('unread')
+    expect(watcher.usage('global').reason?.detail).toBe('exit code 1 / network down')
+  })
+
+  it('forgets a failed call once a poll answers', async () => {
+    const { watcher, poll } = watcherOf([() => LIMITS, failing, () => LIMITS, failing])
+    for (let i = 0; i < 4; i++) await poll()
+    expect(watcher.usage('global').state).toBe('ok')
+  })
+})

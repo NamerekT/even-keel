@@ -87,13 +87,19 @@ export class ClaudeCli {
   }
 
   async usage(home: AccountHome, cwd: string): Promise<string> {
-    const { stdout } = await run(this.bin(), ['-p', '/usage', '--output-format', 'json', '--no-session-persistence'], {
+    const call = run(this.bin(), ['-p', '/usage', '--output-format', 'json', '--no-session-persistence'], {
       cwd,
       env: this.envOf(home),
       timeout: this.timeoutMs,
       windowsHide: true,
     })
-    return stdout
+    // An open stdin makes `-p` wait 3 s for input and print a warning.
+    call.child.stdin?.end()
+    try {
+      return (await call).stdout
+    } catch (error) {
+      throw new Error(callFailure(error), { cause: error })
+    }
   }
 
   async write(home: AccountHome, { cwd, prompt, model, timeoutMs }: OneTurn): Promise<OneTurnAnswer> {
@@ -346,6 +352,14 @@ async function withJobFiles(home: AccountHome, agents: AgentEntry[]): Promise<Ag
       return ask === null ? agent : { ...agent, ask }
     }),
   )
+}
+
+/** A failed `execFile` in a line: how it ended and what the CLI printed, without the command line `message` starts with. */
+export function callFailure(error: unknown): string {
+  const { code, killed } = error as { code?: unknown; killed?: boolean }
+  const ended = killed === true ? 'timed out' : typeof code === 'number' ? `exit code ${code}` : undefined
+  if (ended === undefined) return error instanceof Error ? error.message : String(error)
+  return [ended, outputOf(error)].filter(Boolean).join(' / ')
 }
 
 function outputOf(error: unknown): string {
