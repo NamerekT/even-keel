@@ -105,18 +105,28 @@ export class McpGateway {
     const target = route === null ? null : this.deps.resolve(route)
     if (route === null || target === null) return void res.writeHead(404).end()
     const label = `${route.name}/${route.server}`
+    const started = Date.now()
+    let body: Buffer | undefined
+    let local = false
     try {
+      if (req.method === 'POST') body = await readBody(req)
       const { entry } = target
-      if (typeof entry.url === 'string') return await proxy(req, res, entry.url, stringsOf(entry.headers))
+      if (typeof entry.url === 'string') return await proxy(req, res, entry.url, stringsOf(entry.headers), body)
       if (typeof entry.command !== 'string') return void res.writeHead(404).end()
+      local = true
       const mode = target.npm === null ? undefined : HTTP_MODES[target.npm]
       if (mode !== undefined) {
         const shared = await this.sharedFor(`${route.name}@${route.install}/${route.server}`, target, mode, label)
-        return await proxy(req, res, `http://127.0.0.1:${shared.port}${mode.path}`, { authorization: `Bearer ${shared.token}` })
+        return await proxy(req, res, `http://127.0.0.1:${shared.port}${mode.path}`, { authorization: `Bearer ${shared.token}` }, body)
       }
-      await this.bridge(req, res, target, label)
+      await this.bridge(req, res, target, label, body)
     } catch (error) {
-      this.deps.log(`mcp gateway: ${label}: ${(error as Error).message}`)
+      if ((error as Error).name === 'AbortError') {
+        // The client gave up waiting, the process is still there: a cold `npx` start can take a minute.
+        const seconds = Math.round((Date.now() - started) / 1000)
+        const methods = methodsOf(body) ?? req.method
+        this.deps.log(`mcp gateway: ${label} did not answer ${methods} in ${seconds} s${local && methods === 'initialize' ? ', still starting' : ''}`)
+      } else this.deps.log(`mcp gateway: ${label}: ${(error as Error).message}`)
       if (!res.headersSent) res.writeHead(502)
       res.end()
     }
@@ -160,7 +170,7 @@ export class McpGateway {
     return child
   }
 
-  private async bridge(req: IncomingMessage, res: ServerResponse, target: GatewayTarget, label: string): Promise<void> {
+  private async bridge(req: IncomingMessage, res: ServerResponse, target: GatewayTarget, label: string, raw: Buffer | undefined): Promise<void> {
     const id = req.headers['mcp-session-id']
     const known = typeof id === 'string' ? this.bridges.get(id) : undefined
     if (req.method === 'DELETE') {
@@ -174,7 +184,7 @@ export class McpGateway {
     if (req.method !== 'POST') return void res.writeHead(405).end()
     let body: unknown
     try {
-      body = JSON.parse((await readBody(req)).toString('utf8'))
+      body = JSON.parse((raw ?? Buffer.alloc(0)).toString('utf8'))
     } catch {
       return void res.writeHead(400).end()
     }
@@ -313,7 +323,7 @@ class Bridge {
   }
 }
 
-async function proxy(req: IncomingMessage, res: ServerResponse, url: string, headers: Record<string, string>): Promise<void> {
+async function proxy(req: IncomingMessage, res: ServerResponse, url: string, headers: Record<string, string>, body: Buffer | undefined): Promise<void> {
   const forward: Record<string, string> = {}
   for (const name of FORWARD) {
     const value = req.headers[name]
@@ -321,8 +331,14 @@ async function proxy(req: IncomingMessage, res: ServerResponse, url: string, hea
   }
   const abort = new AbortController()
   res.on('close', () => abort.abort())
-  const body = req.method === 'POST' ? new Uint8Array(await readBody(req)) : undefined
-  const response = await fetch(url, { method: req.method, headers: { ...forward, ...headers }, body, signal: abort.signal })
+  // The client may have left while a shared server was still coming up.
+  if (req.socket.destroyed) abort.abort()
+  const response = await fetch(url, {
+    method: req.method,
+    headers: { ...forward, ...headers },
+    body: body === undefined ? undefined : new Uint8Array(body),
+    signal: abort.signal,
+  })
   const back: Record<string, string> = {}
   for (const name of BACK) {
     const value = response.headers.get(name)
@@ -331,6 +347,17 @@ async function proxy(req: IncomingMessage, res: ServerResponse, url: string, hea
   res.writeHead(response.status, back)
   if (response.body === null) return void res.end()
   Readable.fromWeb(response.body as import('node:stream/web').ReadableStream).on('error', () => res.end()).pipe(res)
+}
+
+/** The JSON-RPC methods of a request body, joined by a comma; `null` when it has none. */
+function methodsOf(body: Buffer | undefined): string | null {
+  try {
+    const parsed: unknown = JSON.parse(body?.toString('utf8') ?? '')
+    const methods = (Array.isArray(parsed) ? parsed : [parsed]).map((each) => (each as Record<string, unknown> | null)?.method).filter((each) => typeof each === 'string')
+    return methods.length === 0 ? null : methods.join(', ')
+  } catch {
+    return null
+  }
 }
 
 function readBody(req: IncomingMessage): Promise<Buffer> {

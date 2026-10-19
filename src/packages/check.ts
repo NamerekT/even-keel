@@ -25,7 +25,7 @@ export interface CheckInput {
   /** The failure of each package's last install. */
   errors: ReadonlyMap<string, Notice>
   keys: (server: string, entry: ServerEntry) => ServerKeys
-  /** Whether the server answered `initialize` through the gateway; `undefined` — not probed yet, held until it is. */
+  /** Whether the server answered `initialize` through the gateway; `undefined` — not probed yet or still starting, held until it answers. */
   probe: (name: string, install: string, server: string) => boolean | undefined
   /** The tracker's MCP server a session of a project with `brief` off cannot do without. */
   trackerServer?: string
@@ -83,10 +83,12 @@ export function projectPackages(input: CheckInput): ProjectPackages {
 
 /**
  * `initialize` through the gateway, the way a session opens a server: a good answer holds for 5 minutes, a failed one
- * is asked again after 30 seconds.
+ * is asked again after 30 seconds. Silence before the server's first answer is a start that takes long (a cold `npx`),
+ * not a failure: it stays `undefined` until the server answers or the gateway says it is gone.
  */
 export class Probes {
-  private readonly results = new Map<string, { ok: boolean; at: number }>()
+  private readonly results = new Map<string, { ok: boolean | undefined; at: number }>()
+  private readonly answered = new Set<string>()
   private readonly running = new Set<string>()
 
   constructor(
@@ -95,6 +97,7 @@ export class Probes {
       now: () => number
       /** A result changed. */
       onChange: () => void
+      timeoutMs?: number
     },
   ) {}
 
@@ -102,26 +105,29 @@ export class Probes {
   result(project: string, name: string, install: string, server: string): boolean | undefined {
     const key = `${name}\u0000${install}\u0000${server}`
     const known = this.results.get(key)
-    const stale = known === undefined || this.deps.now() - known.at > (known.ok ? PROBE_OK_MS : PROBE_FAILED_MS)
+    const stale = known === undefined || this.deps.now() - known.at > (known.ok === true ? PROBE_OK_MS : PROBE_FAILED_MS)
     if (stale && !this.running.has(key)) void this.run(key, this.deps.urlOf(project, name, install, server))
     return known?.ok
   }
 
   forget(name: string): void {
     for (const key of this.results.keys()) if (key.startsWith(`${name}\u0000`)) this.results.delete(key)
+    for (const key of this.answered) if (key.startsWith(`${name}\u0000`)) this.answered.delete(key)
   }
 
   private async run(key: string, url: string): Promise<void> {
     this.running.add(key)
-    const ok = await probe(url)
+    const outcome = await probe(url, this.deps.timeoutMs ?? PROBE_TIMEOUT_MS)
     this.running.delete(key)
+    if (outcome === 'ok') this.answered.add(key)
+    const ok = outcome === 'silent' && !this.answered.has(key) ? undefined : outcome === 'ok'
     const before = this.results.get(key)?.ok
     this.results.set(key, { ok, at: this.deps.now() })
     if (before !== ok) this.deps.onChange()
   }
 }
 
-async function probe(url: string): Promise<boolean> {
+async function probe(url: string, timeoutMs: number): Promise<'ok' | 'failed' | 'silent'> {
   const initialize = {
     jsonrpc: '2.0',
     id: 0,
@@ -133,13 +139,13 @@ async function probe(url: string): Promise<boolean> {
       method: 'POST',
       headers: { 'content-type': 'application/json', accept: 'application/json, text/event-stream' },
       body: JSON.stringify(initialize),
-      signal: AbortSignal.timeout(PROBE_TIMEOUT_MS),
+      signal: AbortSignal.timeout(timeoutMs),
     })
     const text = await response.text()
     const session = response.headers.get('mcp-session-id')
     if (session !== null) void fetch(url, { method: 'DELETE', headers: { 'mcp-session-id': session } }).catch(() => {})
-    return response.ok && text.includes('"result"')
-  } catch {
-    return false
+    return response.ok && text.includes('"result"') ? 'ok' : 'failed'
+  } catch (error) {
+    return (error as Error).name === 'TimeoutError' ? 'silent' : 'failed'
   }
 }

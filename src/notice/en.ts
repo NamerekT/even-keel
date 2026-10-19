@@ -346,7 +346,8 @@ export const en = {
     `config: stats.checkpointTokens must be an integer number of tokens from ${p.from}, or null, got ${p.value}`,
   'wizard.notRepo': (p: { path: string }) => `${p.path} is not in a git repository`,
   'wizard.repoTaken': (p: { project: string }) => `this repository is already the project ${p.project}`,
-  'wizard.noBranch': (p: { branch: string }) => `the repository has no branch ${p.branch}`,
+  'wizard.noBranch': (p: { branch: string; branches: string[] }) => `the repository has no branch ${p.branch}, it has ${p.branches.join(', ')}`,
+  'wizard.noCommits': () => 'the repository has no commits yet: make the first one',
   'wizard.trackerOff': (p: { tracker: string; variables: string[] }) =>
     `no ${p.tracker} profile with ${list(p.variables)}: add one with "Add profile" in the Profile list`,
   'wizard.trackerFailed': (p: { tracker: string }) => `${p.tracker} did not give the project's tasks`,

@@ -50,7 +50,7 @@ export function fakeCheck(state: EvenKeelState, draft: ProjectDraft, mode: strin
 function repoNotice(state: EvenKeelState, root: string, branch: string): ProjectCheck['repo']['notice'] {
   const taken = Object.entries(state.config.projects).find(([, form]) => form.repo.toLowerCase() === root.toLowerCase())
   if (taken !== undefined) return notice('wizard.repoTaken', { project: taken[0] })
-  if (branch !== '' && !BRANCHES.includes(branch)) return notice('wizard.noBranch', { branch })
+  if (branch !== '' && !BRANCHES.includes(branch)) return notice('wizard.noBranch', { branch, branches: BRANCHES })
   return null
 }
 

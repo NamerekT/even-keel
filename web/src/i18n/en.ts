@@ -88,6 +88,8 @@ export const en: Messages = {
     afterGreenHold: (commit: string, since: string) =>
       `Running the commands after the green main at ${commit} since ${since} — the next task starts when they end.`,
     packages: (projects: string) => `The next task of ${projects} waits: a package of its set is not ready.`,
+    trackerMcp: (projects: string, server: string) =>
+      `The next task of ${projects} waits: brief is off, so the task’s text does not go into the prompt, and no package brings the tracker’s MCP server ${server}. Turn on a package with it or turn brief on in the project’s settings.`,
     gateway: (error: string) => `The chains wait: the MCP gateway does not run — ${error}`,
     packagesLink: 'Packages →',
     unattended: 'Unattended mode is on: sessions ask no questions. Turn it off in Settings → Chain.',
@@ -905,7 +907,7 @@ export const en: Messages = {
       installFailed: 'install failed',
       noKey: (variables: string) => `no key ${variables}`,
       noResponse: (servers: string) => `${servers} does not answer`,
-      probing: 'checking',
+      probing: 'starting',
       noTrackerMcp: (server: string) => `no tracker MCP ${server}`,
       unsupported: (agent: string) => `${agent}: MCP only`,
     },
@@ -914,8 +916,10 @@ export const en: Messages = {
       installing: 'The chain waits until the install ends.',
       installFailed: (error: string) => `The chain waits. ${error}`,
       noKey: 'Enter the key in Keys below: the chain waits until it is set.',
-      noResponse: 'The server behind the gateway did not answer initialize: check its command and settings. It is tried again every 30 seconds; the chain waits.',
-      probing: 'The gateway is asking the server for initialize for the first time; the chain waits for the answer, at most 30 seconds.',
+      noResponse:
+        'The server behind the gateway failed initialize, stopped answering it or exited:check its command and settings. A tracker’s server takes its credentials from the tracker profile in Settings, the package has no field for them. It is tried again every 30 seconds; the chain waits.',
+      probing:
+        'The gateway is waiting for the server’s first answer to initialize: the first start through npx can take a minute. A tracker’s server takes its credentials from the tracker profile in Settings. The chain waits for the answer.',
       noTrackerMcp: (server: string) =>
         `Brief is off, so sessions get only the task ID and need the tracker’s MCP server ${server}. Turn on the package that brings it, or set brief to auto or on in the project’s settings.`,
       unsupported: (agent: string) => `${agent} does not read Claude Code plugins: its sessions get the plugin’s MCP servers but not its skills and hooks. Does not hold the chain.`,

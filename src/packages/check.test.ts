@@ -1,6 +1,7 @@
-import { describe, expect, it } from 'vitest'
+import { createServer, type Server } from 'node:http'
+import { afterEach, describe, expect, it } from 'vitest'
 import { fail, noticeOf } from '../notice/notice.js'
-import { bringsServer, projectPackages, type CheckInput } from './check.js'
+import { bringsServer, Probes, projectPackages, type CheckInput } from './check.js'
 import type { PackageInstall, PackagesFile } from './model.js'
 
 const install = (servers: string[], extras = false): PackageInstall => ({
@@ -98,5 +99,44 @@ describe('projectPackages', () => {
     const own = file()
     own.packages.db!.removed = true
     expect(projectPackages(input({ file: own })).cells.db).toBeUndefined()
+  })
+})
+
+describe('Probes', () => {
+  let server: Server | undefined
+
+  afterEach(async () => {
+    server?.closeAllConnections()
+    await new Promise((resolve) => (server === undefined ? resolve(undefined) : server.close(resolve)))
+    server = undefined
+  })
+
+  it('counts a server silent until its first answer as starting, and silence after an answer as a failure', async () => {
+    let mode: 'hang' | 'ok' | 'fail' = 'hang'
+    server = createServer((_req, res) => {
+      if (mode === 'ok') res.writeHead(200, { 'content-type': 'application/json' }).end('{"jsonrpc":"2.0","id":0,"result":{}}')
+      else if (mode === 'fail') res.writeHead(502).end()
+    })
+    await new Promise<void>((resolve) => server!.listen(0, '127.0.0.1', resolve))
+    const url = `http://127.0.0.1:${(server.address() as { port: number }).port}/mcp`
+    let now = 0
+    const probes = new Probes({ urlOf: () => url, now: () => now, onChange: () => {}, timeoutMs: 50 })
+    const settle = async () => {
+      probes.result('p-1', 'huly', 'i1', 'huly')
+      await new Promise((resolve) => setTimeout(resolve, 250))
+      return probes.result('p-1', 'huly', 'i1', 'huly')
+    }
+    expect(await settle()).toBeUndefined()
+    now += 31_000
+    mode = 'ok'
+    expect(await settle()).toBe(true)
+    now += 6 * 60_000
+    mode = 'hang'
+    expect(await settle()).toBe(false)
+    probes.forget('huly')
+    expect(await settle()).toBeUndefined()
+    now += 31_000
+    mode = 'fail'
+    expect(await settle()).toBe(false)
   })
 })

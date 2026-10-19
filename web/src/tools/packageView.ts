@@ -47,6 +47,22 @@ export function blockedProjects(view: PackagesView, projects: string[]): string[
   })
 }
 
+/**
+ * The held projects by reason for the banner: those with `brief` off and no package bringing the tracker's server, by
+ * the server (`noTrackerMcp`), and the rest under `null`; groups in the order of their first project.
+ */
+export function heldFor(view: PackagesView, blocked: string[]): { server: string | null; projects: string[] }[] {
+  const groups: { server: string | null; projects: string[] }[] = []
+  for (const project of blocked) {
+    const missing = view.projects[project]?.problems.find((each) => each.kind === 'noTrackerMcp')
+    const server = missing?.kind === 'noTrackerMcp' ? missing.server : null
+    const group = groups.find((each) => each.server === server)
+    if (group === undefined) groups.push({ server, projects: [project] })
+    else group.projects.push(project)
+  }
+  return groups
+}
+
 /** By project: the servers it was offered as they were when dismissed, joined by a comma. */
 export type Dismissed = Record<string, string>
 

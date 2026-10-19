@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { PackagesView, ProjectPackages } from '../../../src/state.js'
-import { blockedProjects, importOffers, marketplaceCommand, problemCount, serverEntry, shownPackages } from './packageView.js'
+import { blockedProjects, heldFor, importOffers, marketplaceCommand, problemCount, serverEntry, shownPackages } from './packageView.js'
 
 const project = (blocked: boolean, problems: ProjectPackages['problems'] = []): ProjectPackages => ({ cells: {}, problems, blocked })
 
@@ -65,6 +65,22 @@ describe('blockedProjects', () => {
       XYZ: held({ a: cell(true, [{ kind: 'probing' }]), b: cell(true, [{ kind: 'noResponse', servers: ['b'] }]) }),
     }
     expect(blockedProjects(view({ projects }), ['ABC', 'XYZ'])).toEqual(['XYZ'])
+  })
+})
+
+describe('heldFor', () => {
+  it('groups the held projects that lack the tracker server by the server, the others together', () => {
+    const projects = {
+      ABC: project(true, [{ kind: 'noTrackerMcp', server: 'huly' }]),
+      XYZ: project(true),
+      DEMO: project(true, [{ kind: 'noTrackerMcp', server: 'huly' }]),
+      GH: project(true, [{ kind: 'noTrackerMcp', server: 'github' }]),
+    }
+    expect(heldFor(view({ projects }), ['ABC', 'XYZ', 'DEMO', 'GH'])).toEqual([
+      { server: 'huly', projects: ['ABC', 'DEMO'] },
+      { server: null, projects: ['XYZ'] },
+      { server: 'github', projects: ['GH'] },
+    ])
   })
 })
 

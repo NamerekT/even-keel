@@ -1,5 +1,5 @@
 import { createServer, type Server } from 'node:http'
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { McpGateway, refusal, shellQuoted, type GatewayTarget } from './gateway.js'
 import { routeOf } from './launch.js'
 
@@ -98,6 +98,20 @@ describe('McpGateway', () => {
     expect(response.headers.get('mcp-session-id')).toBe('up-1')
     expect(await response.json()).toEqual({ ok: true })
     expect(seen.authorization).toBe('Bearer t')
+  })
+
+  it('says in the log which request a server left unanswered when the client gave up on it', async () => {
+    upstream = createServer(() => {})
+    await new Promise<void>((resolve) => upstream!.listen(0, '127.0.0.1', resolve))
+    const address = upstream.address() as { port: number }
+    const lines: string[] = []
+    gateway = new McpGateway({ resolve: () => ({ entry: { type: 'http', url: `http://127.0.0.1:${address.port}/mcp` }, npm: null, env: {} }), baseEnv: () => ({}), log: (line) => lines.push(line) })
+    await gateway.listen(0)
+    const url = `${gateway.origin}${routeOf('p-1', 'echo', 'i1', 'echo')}`
+    const body = JSON.stringify({ jsonrpc: '2.0', id: 0, method: 'initialize' })
+    await expect(fetch(url, { method: 'POST', headers: { 'content-type': 'application/json' }, body, signal: AbortSignal.timeout(100) })).rejects.toThrow()
+    await vi.waitFor(() => expect(lines).toEqual(['mcp gateway: echo/echo did not answer initialize in 0 s']))
+    upstream.closeAllConnections()
   })
 
   it('answers 404 to a route it does not know', async () => {

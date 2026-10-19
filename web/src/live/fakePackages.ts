@@ -22,7 +22,8 @@ const fetched = new Date(Date.now() - 3 * 3_600_000).toISOString()
 
 /**
  * `?packages=`: `blocked` — a key is missing and XYZ waits, `gateway` — the gateway cannot listen, `empty` — no
- * packages, `marketplace` — Claude Code does not know Even Keel's marketplace; without it everything is ready. OPS runs on Codex, so the Huly plugin is MCP only there.
+ * packages, `marketplace` — Claude Code does not know Even Keel's marketplace, `tracker` — DEMO turns the Huly plugin
+ * off and lacks the tracker's server; without it everything is ready. OPS runs on Codex, so the Huly plugin is MCP only there.
  */
 export function fakePackages(projects: string[], mode: string | null): PackagesView {
   const catalog: Catalog = {
@@ -31,7 +32,7 @@ export function fakePackages(projects: string[], mode: string | null): PackagesV
       { ...base, name: 'playwright@claude-plugins-official', kind: 'plugin', version: '1.0.0', fetched, default: false, settings: {}, servers: ['playwright'], extras: false, keys: [] },
       { ...base, name: 'forgejo', kind: 'mcp', version: '2.3.0', default: true, settings: { FORGEJO_URL: 'https://git.example.com' }, servers: ['forgejo'], extras: false, keys: ['FORGEJO_TOKEN'] },
     ],
-    choices: { DEMO: { 'playwright@claude-plugins-official': 'on' }, OPS: { forgejo: 'off' } },
+    choices: { DEMO: { 'playwright@claude-plugins-official': 'on', ...(mode === 'tracker' ? { 'huly@even-keel': 'off' as const } : {}) }, OPS: { forgejo: 'off' } },
     own: { DEMO: { 'huly@even-keel': { TOOLSETS: 'issues' } } },
     keys: { HULY_EMAIL: true, HULY_PASSWORD: true, FORGEJO_TOKEN: mode !== 'blocked', GITHUB_TOKEN: true },
     imports: { DEMO: ['sentry', 'db'] },

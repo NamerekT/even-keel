@@ -2,7 +2,6 @@ import type { ChainRules } from '../chain/rules.js'
 import { parseRemote, remotesOf } from '../ci/remote.js'
 import { withNewProject } from '../config-form.js'
 import { DEFAULT_BRANCH, isPlainObject, parseConfig } from '../config.js'
-import { hasBranch } from '../git/worktree.js'
 import type { Git } from '../git/types.js'
 import { notice, noticeOf, type Notice } from '../notice/notice.js'
 import { pathsOf, samePath } from '../paths.js'
@@ -69,9 +68,22 @@ async function checkRepo(
   const suggested = await suggestedOf(git, root, adapter)
   const taken = projectOfRepo(raw, root, platform)
   if (taken !== undefined) return { root, current, suggested, notice: notice('wizard.repoTaken', { project: taken }) }
+  const branches = await branchesOf(git, root)
+  // A fresh `git init` has a current branch that is not born yet: no commit, so no branch at all.
+  if (branches?.length === 0) return { root, current, suggested, notice: notice('wizard.noCommits', {}) }
   const branch = draft.branch.trim()
-  if (branch !== '' && !(await hasBranch(git, root, branch))) return { root, current, suggested, notice: notice('wizard.noBranch', { branch }) }
+  if (branch !== '' && branches !== null && !branches.includes(branch)) return { root, current, suggested, notice: notice('wizard.noBranch', { branch, branches }) }
   return { root, current, suggested, notice: null }
+}
+
+/** The local branches; `null` when git cannot list them. */
+async function branchesOf(git: Git, root: string): Promise<string[] | null> {
+  const listed = await git(root, ['for-each-ref', '--format=%(refname:short)', 'refs/heads/'])
+  if (listed.code !== 0) return null
+  return listed.out
+    .split('\n')
+    .map((line) => line.trim())
+    .filter((line) => line !== '')
 }
 
 async function suggestedOf(git: Git, root: string, adapter: TrackerAdapter | undefined): Promise<string | null> {

@@ -54,7 +54,7 @@ function deps(fields: Partial<CheckDeps> = {}, answers: Record<string, GitResult
     if (answer !== undefined) return answer
     if (cwd.startsWith('D:\\new') && args[0] === 'rev-parse' && args[1] === '--show-toplevel') return { code: 0, out: 'D:/new' }
     if (cwd === 'D:\\new' && args[0] === 'symbolic-ref') return { code: 0, out: 'trunk' }
-    if (cwd === 'D:\\new' && args.join(' ') === 'rev-parse --verify --quiet refs/heads/trunk') return { code: 0, out: 'abc' }
+    if (cwd === 'D:\\new' && args.join(' ') === 'for-each-ref --format=%(refname:short) refs/heads/') return { code: 0, out: 'trunk\ndev\n' }
     return { code: 128, out: `fatal: not a git repository: ${cwd}` }
   }
   return {
@@ -92,9 +92,18 @@ describe('checkDraft', () => {
     expect(check.tracker).toBeNull()
   })
 
-  it('refuses a branch the repository does not have', async () => {
+  it('refuses a branch the repository does not have and names the ones it has', async () => {
     const check = await checkDraft(deps(), { ...draft, branch: 'main' })
-    expect(check.repo.notice).toEqual(expect.objectContaining({ code: 'wizard.noBranch', params: { branch: 'main' } }))
+    expect(check.repo.notice).toEqual(expect.objectContaining({ code: 'wizard.noBranch', params: { branch: 'main', branches: ['trunk', 'dev'] } }))
+  })
+
+  it('says a repository without a commit needs one, whatever the branch, and asks no tracker', async () => {
+    const empty = { 'D:\\new for-each-ref --format=%(refname:short) refs/heads/': { code: 0, out: '' } }
+    for (const branch of ['', 'main']) {
+      const check = await checkDraft(deps({}, empty), { ...draft, branch })
+      expect(check.repo).toEqual({ root: 'D:\\new', current: 'trunk', suggested: null, notice: expect.objectContaining({ code: 'wizard.noCommits' }) })
+      expect(check.tracker).toBeNull()
+    }
   })
 
   it('refuses a repository another project already has', async () => {
