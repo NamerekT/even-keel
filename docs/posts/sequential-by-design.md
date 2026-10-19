@@ -1,0 +1,105 @@
+<!--
+Draft of the release post (BTN-69). Not published from here: the author posts it by hand.
+
+Before posting:
+- the repository must be public: the link below points at github.com/NamerekT/even-keel;
+- re-run docs/posts/sequential-by-design.sql if the period is moved; every number below comes from it;
+- the comparison table is as of 2026-10-19 — check the rivals' READMEs again on the day;
+- "MIT licensed" in the last section follows LICENSE: change it if the license question (BTN-241) ends otherwise.
+
+Where to post, in this order:
+1. Show HN — title "Show HN: Even Keel – run your issue tracker's backlog through Claude Code, one task at a time";
+   the first comment is the "Why sequential" and "The numbers" sections, shortened.
+2. r/ClaudeCode — the whole post.
+3. r/ClaudeAI — the whole post, flair "Built with Claude".
+4. The Claude Code Discord, the channel for projects built with it — two lines and the link.
+5. Pull requests to awesome lists: hesreallyhim/awesome-claude-code (section of orchestrators / tooling),
+   and any awesome-codex list once Codex leaves preview.
+-->
+
+# Ten agents at once is the wrong unit: running a backlog one task at a time on a Claude subscription
+
+OpenAI's Symphony spec sets `max_concurrent_agents` to 10 by default. Most orchestrators for coding agents sell the same thing: width. Ten agents, ten worktrees, ten tasks at once.
+
+I went the other way. [Even Keel](https://github.com/NamerekT/even-keel) takes the open tasks of a project from the tracker (Huly, GitHub Issues or Linear), orders them by their `blocks` links and runs them through Claude Code **one at a time**: a session on the first task, and when its branch lands in `main`, cleanup and the next. It runs as a service on my own machine, on my own subscription, through the unmodified `claude` CLI.
+
+This post is about why, with numbers from three weeks of running it.
+
+## Why sequential
+
+On a subscription the constraint is not how many agents you can start. It is the weekly usage window. Ten agents don't make the window bigger; they empty it sooner. So the question is not "how wide" but "what does the window buy, and does the work keep going when I'm not there".
+
+Three more reasons, which I believed before I had numbers:
+
+- **Backlog tasks are connected.** An agent working on task B in parallel guesses what task A, not yet done, will look like. The agent that runs B after A reads A's merged code.
+- **The bottleneck is my attention.** Questions, reviews and merges are mine. Ten agents produce ten queues of them at once.
+- **A worktree isolates the work, not the result.** Conflicts, especially the semantic ones git doesn't see, move to merge time.
+
+So Even Keel bets on time instead of width: the agent keeps working while I'm away, and the chain survives what usually stops it — a spent usage limit (it waits for the reset and resumes the same session while its prompt cache is warm), a context that has grown too large (the session writes a handoff note and a fresh session continues in the same worktree), a question (it waits for me on a web page, in the tracker or on my phone, and only that task waits).
+
+## The numbers
+
+Even Keel ships with a stats collector, Tally, that reads every session transcript into an embedded Postgres. That is where these numbers come from. The period is 2026-09-28 to 2026-10-18 — three full weeks. Read them with the caveats in mind: **this is one user, my own projects and my own workload**, mostly on Opus, and the dollar figures are API-equivalent prices of the tokens, not a subscription bill. Every number has a query next to it in the repository (`docs/posts/sequential-by-design.sql`).
+
+**Throughput.** The chain ran 428 tasks; 421 of them are closed. The median task cost $4.63 in API-equivalent tokens and took 15 minutes of active agent time. It used a median of **1.76 % of a weekly window** (p90: 4.33 %) — about 57 median tasks per window. My windows did run out in most weeks. That is the point: the window is the budget, and the chain spends it on finished tasks.
+
+**The entry tax.** Before a session makes its first edit, it reads: the task, the rules, the area of the code. Across all chain sessions, **37 % of the spend ($929 of $2,521) went before the first edit.** That is per session, not per hour of work, and width does not make it smaller: ten agents pay it ten times, at once, in the same window.
+
+What does make it smaller is not starting from zero. A long task that outgrows its context is handed to a fresh session in the same worktree, with a note from the previous one. Compare the two kinds of Opus sessions up to their first edit:
+
+| | Sessions | Spend to first edit (median) | Context at first edit | Context at start |
+| --- | ---: | ---: | ---: | ---: |
+| Fresh session on a task | 371 | $1.51 | 114k | 33k |
+| Continuation after a handoff | 318 | $0.74 | 74k | 35k |
+
+A fresh session reads about 80k tokens of context before its first edit; a continuation about 40k. Half the entry.
+
+**Waiting for me.** Of 170 hours of chain task time, **23 hours (13 %) were waiting for a human** — a question, a permission, the gap until I replied. 335 of 425 tasks never waited at all. Of 982 turns in chain sessions, 87 began with a message from me; the rest were started by the dispatcher, a background notification or another session.
+
+**Going all night.** The longest stretch of uninterrupted chain work ran **16.4 hours, from 14:50 to 07:17 UTC the next morning.** In it: 12 tasks, all 12 closed; 32 handoffs at the context threshold across 9 of those tasks; one usage limit hit and waited out; three messages from me. On my workload, over this period, that is what a night looks like. It is not a claim that the problem is solved.
+
+## Gas Town, and two lessons I take seriously
+
+Steve Yegge built Gas Town, the most ambitious open orchestrator in this space — Beads, the worker roles, the merge queue. Much of what this category looks like comes from it. In August he wrote, in [*The Shape of Things to Come, Part 1: The Continuous Thunderdome*](https://yegge.ai/essays/the-shape-of-things-to-come/):
+
+> "I did know that Gas Town never quite succeeded in getting my workers to go all night long."
+>
+> "It took too much elbow grease to keep it running."
+>
+> "Gas Town was intended to be reusable, but I only ever wound up using it to build itself."
+
+He also writes that it "fell apart at the seams with Opus 4.7". I read that essay as an engineering report, not as a contrast to brag about: even with everything Gas Town had, the workers did not go all night. The numbers above are what it took for mine to, and most of it is unglamorous — waiting for limits, handing over context, keeping one question from stopping everything.
+
+Two of his points apply to Even Keel too, and I want to answer them honestly.
+
+**1. A change in the model's behaviour breaks the orchestrator.** Even Keel keeps the model out of the orchestration: the order comes from the tracker's `blocks` links, "done" is a branch merged into `main`, and the model decides nothing about the chain. A model that fiddles with the wrong thing produces a bad task, not a broken dispatcher. But Even Keel has its own version of this fragility, and it is worse in one way: **it depends on undocumented behaviour of the Claude Code CLI** — `claude agents --json`, the `sessions/<pid>.json` records, the background daemon, the transcript format, the text of `/usage`. None of it is a public API. A CLI update can break part of Even Keel until it is adapted. The README says so up front and names the CLI version it was last checked on.
+
+**2. A harness should be part of the application, not reusable.** I agree with the premise and I think Even Keel sits on the other side of it. It does not decide what to build or how: a human writes the tasks, and the per-application part — the rules, the checks, the definition of done — lives in each repository's own `CLAUDE.md`, skills and CI. Even Keel is the plumbing between the tracker and the sessions: order, limits, handoffs, cleanup. That part is the same in every repository.
+
+## How it compares
+
+Checked against each project's own documentation as of October 2026; a dash means I found nothing about it there. Corrections welcome — this moves fast.
+
+| | Even Keel | OpenAI Symphony | Sortie | Cyrus | Gas Town |
+| --- | --- | --- | --- | --- | --- |
+| Shape | one task at a time per project | a spec with a reference implementation; 10 agents by default | a Go daemon, configurable concurrency | Linear/GitHub agent, hosted tiers or self-managed | many workers with a merge queue |
+| Order by dependencies | yes, `blocks` | left to the tracker adapter | yes, holds issues with an open `blocked_by` | sub-issues in dependency order | dependency-aware ready lists (Beads) |
+| A usage limit | waits for the reset, resumes the warm session or hands over | tracks the rate-limit payload, no pause defined | a failed run is retried | — | rate-limit scheduler, off by default |
+| A long context | handoff to a fresh session in the same worktree | — | — | — | — |
+| An agent's question | answer on the page, in the tracker or on the phone; only that task waits | reference policy: a hard failure | no answer channel | a dropdown in Linear | `gt escalate` |
+| What you see | each session's stage, current action and context fill | tracker activity | logs and metrics | the tracker | a dashboard |
+| Stats | per-task cost and time, stuck spans, before/after of rule changes | — | budgets, Prometheus metrics | — | — |
+| Trackers × agents | Huly, GitHub, Linear × Claude Code, Codex (preview) | Linear × Codex | 5 trackers × 6 agents | several trackers × several agents | Beads × 11 agent presets |
+
+Where the others are stronger: Sortie covers far more trackers and agents and has retries and budgets; Cyrus lives natively in the tracker; Gas Town does scale and a merge queue, which a sequential chain deliberately does not. A blocks-ordered chain is not unique any more either — Sortie and Cyrus both do a version of it. What I have not found elsewhere is the combination around a subscription: limits, a warm resume, handoffs and the page in one dispatcher, plus the statistics to see whether a change to your rules made sessions cheaper or not.
+
+## Try it
+
+```sh
+git clone https://github.com/NamerekT/even-keel && cd even-keel
+npm install && npm run build && npm start
+```
+
+The first start opens a wizard that adds a project. `npm run dev:fake` shows the page on fake data first, with no tracker and no sessions. Windows is where it runs every day; Linux was checked end to end; macOS should work but has not been checked. MIT licensed.
+
+If you run it, I'd like to hear where the chain stopped and why — that is the part that took the most work and still has the most to learn.

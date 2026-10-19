@@ -25,6 +25,7 @@ This file holds the rules and traps needed in every session. Reference on how th
 | `docs/service.md` | the service on Windows, Linux and macOS |
 | `docs/releases.md` | milestones as versions, a release as a tag on `main`, a fix of a released version, Tally across clones |
 | `docs/unverified.md` | behaviour never checked live, linked from the README: what is assumed, what breaks if it is wrong, the workaround |
+| `docs/posts/` | drafts of posts about the project, each with a `.sql` of the Tally queries behind its numbers; the user publishes them |
 
 Behaviour written without a way to check it live (the situation never came up or cannot be created) gets an entry in `docs/unverified.md`; an entry goes once it is checked.
 
