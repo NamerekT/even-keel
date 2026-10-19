@@ -115,6 +115,7 @@ describe('parseConfig', () => {
       updates: { check: true, notify: true },
       unattended: false,
       trimTools: true,
+      tally: null,
     })
   })
 

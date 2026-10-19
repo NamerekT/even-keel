@@ -1,0 +1,117 @@
+/* The choice cards as buttons: the setup sets a mode on a click, the settings show the one picked pressed. */
+button.add-choice {
+  width: 100%;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+button.add-choice:hover:not(:disabled),
+button.add-choice:focus-visible,
+button.add-choice[aria-pressed='true'] {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 8%, var(--surface));
+}
+
+button.add-choice:disabled {
+  cursor: progress;
+}
+
+.tally-modes {
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  max-width: 1100px;
+}
+
+.tally-server {
+  display: grid;
+  grid-template-columns: 1fr 7em;
+  gap: 10px 12px;
+  max-width: 560px;
+}
+
+.tally-server__field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.tally-server__field--name,
+.tally-server__field--readerPassword,
+.tally-server__field--writerPassword,
+.tally-server__actions,
+.tally-server__failure {
+  grid-column: 1 / -1;
+}
+
+.tally-server__label {
+  color: var(--fg-muted);
+  font-size: 13px;
+}
+
+.tally-server__failure {
+  margin: 0;
+}
+
+.stats-setup__about {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);
+  gap: 20px;
+  align-items: start;
+  max-width: 1100px;
+}
+
+@media (max-width: 860px) {
+  .stats-setup__about {
+    grid-template-columns: 1fr;
+  }
+}
+
+.stats-setup__preview {
+  width: 100%;
+  height: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.stats-setup__lead {
+  margin: 0 0 10px;
+}
+
+.stats-setup__facts {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0;
+  padding-left: 18px;
+  color: var(--fg-muted);
+  font-size: 14px;
+}
+
+.stats-setup__intro {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* Each step slides in as it opens. */
+.tally-step {
+  animation: tally-step-in var(--motion-appear) ease-out;
+}
+
+@keyframes tally-step-in {
+  from {
+    opacity: 0;
+    transform: translateX(16px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tally-step {
+    animation: none;
+  }
+}

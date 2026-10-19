@@ -29,14 +29,15 @@ import {
 } from './settingsParts.js'
 import { lineOf, linesText, pairOf, ruleChoicesOf, rowsOf } from './settingsRows.js'
 import { accountOptions, namedProviders, providerKeys, providerMap, providerName, providerOptions, providerValues } from './settingsRun.js'
-import { useDraft, useTab } from './settingsStore.js'
+import { SHARED_SCOPE, useDraft, useTab } from './settingsStore.js'
 import { ListTable, RowsTable } from './settingsTable.js'
 import { SettingsNav } from './SettingsNav.js'
 import { SettingsSecrets } from './SettingsSecrets.js'
+import { TallySettings } from './TallyChoice.js'
 import { useVocabularies } from './useVocabularies.js'
 import './settings.css'
 
-const SCOPE = 'shared'
+const SCOPE = SHARED_SCOPE
 const EXECUTED = Object.keys(EXECUTION_MODES)
 
 const GROUPS = [
@@ -418,6 +419,27 @@ export function SharedSettings({ state }: { state: EvenKeelState }) {
     secrets: () => <SettingsSecrets state={state} />,
   }
 
+  const draftForm = (titled: boolean) => (
+    <form
+      key={open}
+      className={titled ? 'settings__form settings-page__form' : 'settings__form'}
+      aria-labelledby={titled ? 'settings-group' : undefined}
+      onSubmit={(event) => {
+        event.preventDefault()
+        void save()
+      }}
+    >
+      {titled && (
+        <h2 id="settings-group" className="settings-page__group">
+          {titleOf(open)}
+        </h2>
+      )}
+      {groups[open]()}
+      {leftover !== null && <p className="notice notice--error">{say(leftover)}</p>}
+      {dirty(open) && <SaveBar canSave={!sending && next !== undefined} onRevert={() => revert(keysOf(open))} />}
+    </form>
+  )
+
   return (
     <div className="page settings-page">
       <header>
@@ -428,31 +450,21 @@ export function SharedSettings({ state }: { state: EvenKeelState }) {
       </header>
       <div className="settings-page__body">
         <SettingsNav groups={GROUPS.map(({ id }) => ({ id, title: titleOf(id) }))} open={open} dirty={dirty} onOpen={setOpen} />
-        {open === 'secrets' ? (
-          // Every row is a form of its own, so the tab is not one.
+        {open === 'secrets' || open === 'stats' ? (
+          // Every row is a form of its own, so the tab is not one; Tally's place is applied on its own, ahead of the draft.
           <section key={open} className="settings__form settings-page__form" aria-labelledby="settings-group">
             <h2 id="settings-group" className="settings-page__group">
               {titleOf(open)}
             </h2>
-            {groups[open]()}
+            {open === 'secrets' ? groups[open]() : (
+              <>
+                <TallySettings state={state} />
+                {draftForm(false)}
+              </>
+            )}
           </section>
         ) : (
-        <form
-          key={open}
-          className="settings__form settings-page__form"
-          aria-labelledby="settings-group"
-          onSubmit={(event) => {
-            event.preventDefault()
-            void save()
-          }}
-        >
-          <h2 id="settings-group" className="settings-page__group">
-            {titleOf(open)}
-          </h2>
-          {groups[open]()}
-          {leftover !== null && <p className="notice notice--error">{say(leftover)}</p>}
-          {dirty(open) && <SaveBar canSave={!sending && next !== undefined} onRevert={() => revert(keysOf(open))} />}
-        </form>
+          draftForm(true)
         )}
       </div>
     </div>

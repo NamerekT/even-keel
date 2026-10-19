@@ -164,6 +164,7 @@
   "parallel": 1,
   "unattended": false,
   "trimTools": true,
+  "tally": null,
   "updates": {
     "check": true,
     "notify": true

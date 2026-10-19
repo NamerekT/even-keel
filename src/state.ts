@@ -11,6 +11,7 @@ import type { Lamp } from './sessions/agents.js'
 import type { Ask } from './sessions/ask.js'
 import type { SessionMail } from './sessions/mail.js'
 import type { SecretPlace, SecretReaders } from './secrets/catalog.js'
+import type { TallyMode } from './stats/mode.js'
 import type { CompareSettings } from './stats/rules.js'
 import type { RemoteOff } from './sessions/remote.js'
 import type { CacheWindow, FeedLine, Stage, TokenTotals } from './sessions/transcript.js'
@@ -289,6 +290,8 @@ export interface EvenKeelState {
   language: Language | null
   unattended: boolean
   trimTools: boolean
+  /** Where Tally writes (BTN-247); `null` — not chosen yet: the page offers the stats setup before anything else. */
+  tally: TallyMode | null
   updates: UpdatesView
   /** The last day's launches whose run label had no account in the pool, newest first: a toast each until dismissed. */
   fallbacks: FallbackLaunch[]

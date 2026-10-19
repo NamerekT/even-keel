@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { formsOf, trackerChoices, withNewProject, withoutProject, withProjectForm, withRunAccount, withSharedAccount, withSharedForm, withUpdates, withChainSwitches } from './config-form.js'
+import { formsOf, trackerChoices, withNewProject, withoutProject, withProjectForm, withRunAccount, withSharedAccount, withSharedForm, withUpdates, withChainSwitches, withTally } from './config-form.js'
 import { parseConfig } from './config.js'
 import type { ProjectDraft, ProjectForm, SharedForm } from './state.js'
 
@@ -182,6 +182,13 @@ describe('withChainSwitches', () => {
     expect(withChainSwitches({ projects: [] }, { unattended: true })).toEqual({ projects: [], unattended: true })
     expect(withChainSwitches({ projects: [], unattended: true }, { trimTools: false })).toEqual({ projects: [], unattended: true, trimTools: false })
     expect(withChainSwitches({ projects: [], unattended: true, trimTools: false }, { unattended: false, trimTools: true })).toEqual({ projects: [] })
+  })
+})
+
+describe('withTally', () => {
+  it('sets where Tally writes, off included, and leaves the rest', () => {
+    expect(withTally({ projects: [], unattended: true }, 'off')).toEqual({ projects: [], unattended: true, tally: 'off' })
+    expect(withTally({ projects: [], tally: 'off' }, 'server')).toEqual({ projects: [], tally: 'server' })
   })
 })
 

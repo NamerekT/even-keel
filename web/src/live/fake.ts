@@ -6,6 +6,7 @@ import type { TrackerLinkState, TrackerView } from '../../../src/tracker/health.
 import type { FeedLine } from '../../../src/sessions/transcript.js'
 import type { LimitHold } from '../../../src/chain/relay.js'
 import { isLanguage } from '../../../src/language.js'
+import { isTallyMode, TALLY_DISABLED, TALLY_UNCHOSEN } from '../../../src/stats/mode.js'
 import type { EvenKeelState, SessionRecord, SessionView } from '../../../src/state.js'
 import type { Link, LiveSnapshot, LiveSource } from './connection.js'
 import { deviceLogin } from '../accounts.js'
@@ -211,6 +212,7 @@ function fakeState(
     language: null,
     unattended: false,
     trimTools: true,
+    tally: 'local',
     updates: fakeUpdates(null),
     fallbacks: [],
     mailbox: {},
@@ -272,6 +274,8 @@ export function createFakeSource(search: string): LiveSource {
   const contextTokens = Number(params.get('ctx') ?? 61_000)
   const delay = params.has('delay') ? Number(params.get('delay')) : null
   const answer = () => new Promise((resolve) => setTimeout(resolve, delay ?? ANSWER_MS))
+  // Stats turned off or never chosen answer as the service does, whatever `stats=` asks for.
+  const statsMode = () => (current.state?.tally === 'off' ? TALLY_DISABLED : current.state?.tally === null ? TALLY_UNCHOSEN : params.get('stats'))
   let current: LiveSnapshot = {
     state: link === 'connecting' ? null : fakeState(huly, idle, contextTokens, launches, params.get('account'), params.get('limit'), params.get('usage')),
     link,
@@ -293,6 +297,10 @@ export function createFakeSource(search: string): LiveSource {
     current.state.configError = notice('config.statusBoth', { project: 'ABC', status: 'In Review' })
   }
   if (params.get('projects') === 'none' && current.state !== null) current.state = fakeNoProjects(current.state)
+  if (params.has('tally') && current.state !== null) {
+    const mode = params.get('tally')
+    current.state.tally = isTallyMode(mode) ? mode : null
+  }
   if (params.has('packages') && current.state !== null) current.state.packages = fakePackages(current.state.projects, params.get('packages'))
   if (params.has('secrets') && current.state !== null) current.state.secrets = fakeSecrets(params.get('secrets'))
   if (params.has('profiles') && current.state !== null) current.state.profiles = fakeProfiles(params.get('profiles'))
@@ -562,39 +570,39 @@ export function createFakeSource(search: string): LiveSource {
     },
     statsHistory: async (filter) => {
       await answer()
-      return fakeHistory(params.get('stats'), filter)
+      return fakeHistory(statsMode(), filter)
     },
     statsPeriod: async (query) => {
       await answer()
-      return fakePeriod(params.get('stats'), query)
+      return fakePeriod(statsMode(), query)
     },
     statsSteps: async (query) => {
       await answer()
-      return fakeSteps(params.get('stats'), query)
+      return fakeSteps(statsMode(), query)
     },
     statsCheckpoints: async () => {
       await answer()
-      return fakeCheckpoints(params.get('stats'))
+      return fakeCheckpoints(statsMode())
     },
     statsSpend: async () => {
       await answer()
-      return fakeSpend(params.get('stats'))
+      return fakeSpend(statsMode())
     },
     statsTask: async (task) => {
       await answer()
-      return fakeTask(params.get('stats'), task)
+      return fakeTask(statsMode(), task)
     },
     statsRules: async (query) => {
       await answer()
-      return fakeRules(params.get('stats'), params.get('rules'), query)
+      return fakeRules(statsMode(), params.get('rules'), query)
     },
     statsRuleDiff: async (changes) => {
       await answer()
-      return fakeRuleDiff(params.get('stats'), changes)
+      return fakeRuleDiff(statsMode(), changes)
     },
     statsCompare: async (query) => {
       await answer()
-      return fakeCompare(params.get('stats'), params.get('rules'), query)
+      return fakeCompare(statsMode(), params.get('rules'), query)
     },
   }
 }

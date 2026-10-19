@@ -150,11 +150,8 @@ describe('readerSettings', () => {
     expect(readerSettings({ ...env, TALLY_DB_PORT: '6543', TALLY_READER_USER: 'viewer' })).toMatchObject({ port: 6543, user: 'viewer' })
   })
 
-  it('names what is missing', () => {
+  it('names what is missing, the host too', () => {
     expect(readerSettings({ TALLY_DB_HOST: 'db.example.com' })).toBe('TALLY_DB_NAME, TALLY_READER_PASSWORD')
-  })
-
-  it('leaves the database local without a server host', () => {
-    expect(readerSettings({ TALLY_READER_PASSWORD: 'secret' })).toBeNull()
+    expect(readerSettings({ TALLY_READER_PASSWORD: 'secret' })).toBe('TALLY_DB_HOST, TALLY_DB_NAME')
   })
 })

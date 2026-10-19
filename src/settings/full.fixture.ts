@@ -5,6 +5,7 @@ export const FULL = {
   parallel: 2,
   unattended: true,
   trimTools: false,
+  tally: 'server',
   tracker: 'github',
   brief: false,
   chain: { active: ['Todo', ' In Progress '], terminal: ['Done'], requiredLabels: ['Auto'], excludedLabels: [] },

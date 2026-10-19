@@ -2,12 +2,22 @@
 
 Reference for sessions: the `/stats` page, its server and rule changes. The collector and the database themselves are in `tally/CLAUDE.md`.
 
+## Optional: the mode (BTN-247)
+
+- Tally is optional. The global setting `tally` (`off` | `local` | `server`, `src/stats/mode.ts`) picks where it writes; its default is `null`, not chosen, and until the user chooses the service starts no collector and creates no database.
+- An install that had no `tally` yet gets one inferred at startup and saved as the setting (`inferredTallyMode`): `TALLY_DB_HOST` set → `server`, `state/tally/pgdata` exists → `local`, otherwise it stays `null`. So an install where Tally already ran never sees the setup screen.
+- While `tally` is `null` (and the config parses), `/` sends the page to `/setup/stats` (`StatsSetup.tsx`) before the project wizard: a picture of `/stats` (`web/public/stats-preview.png`, shot from `dev:fake`), what is collected, where, the room it takes, that without stats the checkpoint threshold stays at 200k, then the three modes as the account wizard's cards (`TallyChoice.tsx`). `off` and `local` apply at once; `server` is a second step with the connection fields.
+- Settings → Stats has the same cards (`TallySettings`) above the stats fields: the mode in force is tagged "now", another one applies with a button, `server` through its fields. Everything applies live: the service restarts the collector and the reader on the new mode (`applyTally` in `src/service.ts`) on a config change and on a `.env` change of `TALLY_DB_*`/`TALLY_READER_*`/`TALLY_WRITER_*`.
+- `POST /api/stats/tally` `{ mode, server? }` (`TallyControl`): `server` takes `{ host, port, name, readerPassword, writerPassword }` — a blank password keeps the one in `.env`, a blank port is 5432 (`serverValues` in `src/stats/connect.ts`); without `server`, the `.env` values. The service signs in as the reader and as the writer first (`checkServer`, `tally.unreachable`), writes the changed variables to `.env` in one write (`Secrets.setAll`), then saves the setting.
+- Turning stats off deletes nothing: the embedded folder and the `TALLY_*` lines stay, and switching back starts Tally on them without the setup.
+- Off, the `/stats` answers are `{ state: 'off', reason }`: `disabled` (turned off — a plain note with a link to Settings → Stats), `unchosen` (a link to the setup), or the comma-separated `.env` variables the `server` mode is missing (a warning).
+
 ## Database and collector (BTN-70)
 
-- By default the embedded one, PGlite in `state/tally/pgdata`: a service thread owns it and exposes it to the ordinary `pg` on a free `127.0.0.1` port (`owner.json` next to it), and the service starts the collector itself every 5 minutes (`src/stats/tally.ts`); no server or scheduler is needed, the same on all systems.
+- `local` is the embedded one, PGlite in `state/tally/pgdata`: a service thread owns it and exposes it to the ordinary `pg` on a free `127.0.0.1` port (`owner.json` next to it), and the service starts the collector itself every 5 minutes (`src/stats/tally.ts`); no server or scheduler is needed, the same on all systems.
 - While the service process is alive, a manual `npm run tally` refuses with the embedded database, and `tally/bin/sql.mjs` reads it through the service's port. The database survives a hard kill of the process (which is how the Windows service stops it).
-- With `TALLY_DB_HOST`, `TALLY_DB_PORT`, `TALLY_DB_NAME`, `TALLY_READER_PASSWORD` (and `TALLY_WRITER_PASSWORD` for the collector) set, it is an external Postgres, and Even Keel reads it with the `tally_reader` role.
-- `TALLY_DB_HOST` set without `TALLY_DB_NAME` or a password — the page and the strip say stats are off; the database does not answer or the embedded one failed to open — they show an error, and the rest of Even Keel works.
+- `server` is an external Postgres from `TALLY_DB_HOST`, `TALLY_DB_PORT`, `TALLY_DB_NAME`, `TALLY_READER_PASSWORD` (and `TALLY_WRITER_PASSWORD` for the collector), and Even Keel reads it with the `tally_reader` role. The variables alone no longer pick it: the mode does.
+- `server` with a variable missing — the page and the strip say stats are off and name the variables; the database does not answer or the embedded one failed to open — they show an error, and the rest of Even Keel works.
 - The session audit (and the weekly one) is the global skill `session-audit`, its queries are `tally/bin/sql.mjs`, read-only, the `audit_*` views (`tally/CLAUDE.md`).
 
 ## The `/stats` page (BTN-44, BTN-49, `web/src/stats/`)

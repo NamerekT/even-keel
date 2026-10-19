@@ -11,7 +11,7 @@ import { fakeSettingsCommand } from './fakeConfig.js'
 import { fakeMoveMilestone, fakeReady } from './fakeCards.js'
 import { fakeAnswer, fakeDismissMail } from './fakeChat.js'
 import { fakePackagesCommand } from './fakePackages.js'
-import { fakeSecretsCommand } from './fakeSecrets.js'
+import { fakeSecretsCommand, fakeTally } from './fakeSecrets.js'
 import { fakeProfilesCommand } from './fakeProfiles.js'
 import { fakeProjectCommand } from './fakeProjects.js'
 import { ago, minutes, session, task } from './fakeSessions.js'
@@ -245,6 +245,7 @@ export function fakeCommand(state: EvenKeelState, name: string, body: Record<str
   if (name === 'chain/restart') return restart(state, String(body.project), String(body.task))
   if (name === 'chain/unattended') return { ...state, unattended: body.on === true }
   if (name === 'chain/trim') return { ...state, trimTools: body.on === true }
+  if (name === 'stats/tally') return fakeTally(state, body)
   if (name === 'session/answer') return fakeAnswer(state, body)
   if (name === 'session/mail/dismiss') return fakeDismissMail(state, String(body.sessionId))
   if (name === 'task/ready') return fakeReady(state, String(body.task))

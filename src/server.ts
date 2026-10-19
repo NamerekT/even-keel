@@ -37,6 +37,8 @@ import type { CompareSettings } from './stats/rules.js'
 import { CI_KINDS, type CiKind } from './ci/model.js'
 import type { Calibration } from './stats/calibration.js'
 import type { CheckpointThreshold, SessionCheckpoint } from './stats/checkpoint.js'
+import type { TallyServerDraft } from './stats/connect.js'
+import { isTallyMode, type TallyMode } from './stats/mode.js'
 import type { StatsSteps } from './stats/steps.js'
 import type { TaskCard } from './tracker/card.js'
 import type { TaskFile, TrackerProject, TrackerVocabulary } from './tracker/source.js'
@@ -156,6 +158,12 @@ export interface SecretsControl {
   remove(name: string): void
 }
 
+/** Where Tally writes (BTN-247): the page's stats setup and the stats settings. */
+export interface TallyControl {
+  /** `server` checks the connection first; `null` fields — the ones `.env` has. */
+  set(mode: TallyMode, server: TallyServerDraft | null): Promise<void>
+}
+
 /** The trackers' profiles of the same tab (`src/profiles/`); a project is named by its key. */
 export interface ProfilesControl {
   check(draft: ProfileDraft): Promise<CheckResult>
@@ -178,6 +186,7 @@ export interface ServerDeps {
   settings: SettingsControl
   packages: PackagesControl
   secrets: SecretsControl
+  tally: TallyControl
   profiles: ProfilesControl
   launches: () => unknown
   sessionRecord: (sessionId: string) => Promise<unknown>
@@ -264,6 +273,7 @@ const COMMANDS: Record<string, Command> = {
   'packages/key': ({ packages }, body) => packages.setKey(nameOf(body), textOf(body.value, 'value')),
   'secrets/set': ({ secrets }, body) => secrets.set(nameOf(body), textOf(body.value, 'value')),
   'secrets/remove': ({ secrets }, body) => secrets.remove(nameOf(body)),
+  'stats/tally': ({ tally }, body) => tally.set(tallyModeOf(body.mode), tallyDraftOf(body.server)),
   'profiles/remove': ({ profiles }, body) => profiles.remove(textOf(body.id, 'id')),
   'profiles/default': ({ profiles }, body) => profiles.setDefault(textOf(body.id, 'id')),
   'profiles/link': ({ profiles }, body) => profiles.link(projectOf(body), body.profile === null ? null : textOf(body.profile, 'profile')),
@@ -867,6 +877,19 @@ function optionalProjectOf(body: Record<string, unknown>): string | undefined {
 function choiceOf(raw: unknown): 'on' | 'off' | null {
   if (raw !== 'on' && raw !== 'off' && raw !== null) throw fail('request.required', { field: 'choice' })
   return raw
+}
+
+function tallyModeOf(raw: unknown): TallyMode {
+  if (!isTallyMode(raw)) throw fail('request.required', { field: 'mode' })
+  return raw
+}
+
+function tallyDraftOf(raw: unknown): TallyServerDraft | null {
+  if (raw === undefined || raw === null) return null
+  if (typeof raw !== 'object' || Array.isArray(raw)) throw fail('request.required', { field: 'server' })
+  const fields = raw as Record<string, unknown>
+  const [host, port, name, readerPassword, writerPassword] = (['host', 'port', 'name', 'readerPassword', 'writerPassword'] as const).map((field) => textOf(fields[field], field))
+  return { host: host!, port: port!, name: name!, readerPassword: readerPassword!, writerPassword: writerPassword! }
 }
 
 /** An entry as `.mcp.json` writes it; the package service checks it has a command or a url. */

@@ -6,6 +6,7 @@ import { sharedRows, withRows, writeRows } from './settings/file.js'
 import { defaultOf } from './settings/registry.js'
 import { checkRows, resolve, type Values } from './settings/resolve.js'
 import type { ConfigView, ProjectDraft, ProjectForm, SharedForm, TrackerChoice } from './state.js'
+import type { TallyMode } from './stats/mode.js'
 import { ADAPTERS } from './tracker/adapters.js'
 import type { TrackerAdapter } from './tracker/source.js'
 import type { UpdateSettings } from './updates/release.js'
@@ -183,6 +184,11 @@ export function withUpdates(raw: unknown, patch: Partial<Pick<UpdateSettings, 'c
 export function withChainSwitches(raw: unknown, patch: Partial<Pick<EvenKeelConfig, 'unattended' | 'trimTools'>>): Record<string, unknown> {
   const values = Object.entries(patch).map(([key, setting]) => value(key, key, setting))
   return withRows(raw, changesOf(null, values, () => true))
+}
+
+/** The raw config with Tally's place set: what the page's stats setup and settings write. */
+export function withTally(raw: unknown, mode: TallyMode): Record<string, unknown> {
+  return withRows(raw, changesOf(null, [value('tally', 'tally', mode)], () => true))
 }
 
 /**

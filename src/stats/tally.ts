@@ -1,10 +1,11 @@
 import { join } from 'node:path'
 import { Worker } from 'node:worker_threads'
+import { TALLY_DISABLED, TALLY_UNCHOSEN, type TallyMode } from './mode.js'
 import { readerSettings, type ReaderSettings } from './model.js'
 import { HALTED } from './tally-schema.js'
 
-// Tally inside the service (BTN-70): the collector runs every few minutes on a thread of its own, and without
-// TALLY_DB_HOST the database is PGlite in <state>/tally, owned by another thread and served on a loopback port.
+// Tally inside the service (BTN-70): the collector runs every few minutes on a thread of its own, and in the local mode
+// the database is PGlite in <state>/tally, owned by another thread and served on a loopback port.
 
 export type HostRequest = { type: 'close' }
 export type HostMessage = { type: 'ready'; settings: ReaderSettings } | { type: 'failed'; error: string } | { type: 'closed' }
@@ -25,6 +26,8 @@ export interface HulyProfiles {
 }
 
 export interface TallyOptions {
+  /** `off` and `null` (not chosen) neither collect nor open a database (BTN-247). */
+  mode: TallyMode | null
   root: string
   stateDir: string
   env: Record<string, string | undefined>
@@ -49,9 +52,9 @@ export class TallyService {
   private stopped = false
 
   constructor(private readonly options: TallyOptions) {
-    const server = readerSettings(options.env)
-    if (server !== null) {
-      this.reader = server
+    const { mode } = options
+    if (mode !== 'local') {
+      this.reader = mode === 'server' ? readerSettings(options.env) : mode === 'off' ? TALLY_DISABLED : TALLY_UNCHOSEN
       return
     }
     this.local = this.openHost()
@@ -60,9 +63,13 @@ export class TallyService {
   }
 
   start(): void {
-    const { env, log } = this.options
-    if (this.local === null && (!env.TALLY_WRITER_PASSWORD || !env.TALLY_DB_NAME)) {
-      log('tally: TALLY_DB_NAME or TALLY_WRITER_PASSWORD is not set, the service does not collect')
+    const { env, log, mode } = this.options
+    if (mode === null || mode === 'off') {
+      log(mode === null ? 'tally: stats are not set up yet, the service does not collect' : 'tally: stats are off')
+      return
+    }
+    if (mode === 'server' && (!env.TALLY_DB_HOST || !env.TALLY_WRITER_PASSWORD || !env.TALLY_DB_NAME)) {
+      log('tally: TALLY_DB_HOST, TALLY_DB_NAME or TALLY_WRITER_PASSWORD is not set, the service does not collect')
       return
     }
     this.schedule(this.options.firstDelayMs)

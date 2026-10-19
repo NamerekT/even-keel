@@ -128,7 +128,8 @@ export interface StatsTaskDetail {
   steps: StatsTaskStep[]
 }
 
-// newer — the database is at a schema version this code does not know (BTN-133).
+// newer — the database is at a schema version this code does not know (BTN-133). The reason of off is `disabled`,
+// `unchosen` (`src/stats/mode.ts`) or the `.env` variables the user's own Postgres lacks.
 export type StatsAnswer<T> =
   | { state: 'ok'; data: T }
   | { state: 'off'; reason: string }
@@ -252,9 +253,8 @@ export function folderGroups(
   )
 }
 
-// null — no server: the service serves its local database itself (src/stats/tally.ts).
-export function readerSettings(env: Record<string, string | undefined>): ReaderSettings | string | null {
-  if (!env.TALLY_DB_HOST) return null
+/** The reader role of the user's own Postgres; a string names the variables `.env` lacks for it. */
+export function readerSettings(env: Record<string, string | undefined>): ReaderSettings | string {
   const missing = ['TALLY_DB_HOST', 'TALLY_DB_NAME', 'TALLY_READER_PASSWORD'].filter((name) => !env[name])
   if (missing.length > 0) return missing.join(', ')
   return {

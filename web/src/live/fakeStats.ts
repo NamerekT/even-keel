@@ -13,6 +13,7 @@ import type {
   StatsTotals,
 } from '../../../src/stats/model.js'
 import type { CheckpointThreshold } from '../../../src/stats/checkpoint.js'
+import { TALLY_DISABLED, TALLY_UNCHOSEN } from '../../../src/stats/mode.js'
 import { addDays, bucketOf, dayCount, localDay, previousRange, type DayRange } from '../stats/period.js'
 import { fakeTaskSteps } from './fakeSteps.js'
 
@@ -71,7 +72,8 @@ function scale(filter: StatsFilter, project: string): number {
 }
 
 export function failure<T>(mode: string | null): StatsAnswer<T> | null {
-  if (mode === 'off') return { state: 'off', reason: 'TALLY_DB_HOST, TALLY_DB_NAME, TALLY_READER_PASSWORD not set in .env' }
+  if (mode === 'off') return { state: 'off', reason: 'TALLY_DB_NAME, TALLY_READER_PASSWORD' }
+  if (mode === TALLY_DISABLED || mode === TALLY_UNCHOSEN) return { state: 'off', reason: mode }
   if (mode === 'error') return { state: 'error', error: 'connect ETIMEDOUT 100.64.0.1:5432' }
   if (mode === 'newer') return { state: 'newer', version: 3, known: 2 }
   return null

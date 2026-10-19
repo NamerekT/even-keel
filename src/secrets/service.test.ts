@@ -115,6 +115,19 @@ describe('Secrets', () => {
     expect(applied).toBe(0)
   })
 
+  it('writes several variables of .env at once and applies them once', () => {
+    writeFileSync(envFile, 'TALLY_DB_HOST=old.example.com\n')
+    open().setAll({ TALLY_DB_HOST: 'db.example.com', TALLY_DB_NAME: 'tally', TALLY_READER_PASSWORD: 'secret' })
+    expect(readFileSync(envFile, 'utf8')).toBe('TALLY_DB_HOST=db.example.com\nTALLY_DB_NAME=tally\nTALLY_READER_PASSWORD=secret\n')
+    expect(applied).toBe(1)
+  })
+
+  it('writes none of them when one is refused', () => {
+    expect(() => open(['TALLY_DB_NAME']).setAll({ TALLY_DB_HOST: 'db.example.com', TALLY_DB_NAME: 'tally' })).toThrow()
+    expect(() => open().setAll({ TALLY_DB_HOST: 'db.example.com', HULY_URL: 'https://huly.example.com' })).toThrow()
+    expect(applied).toBe(0)
+  })
+
   it('removes the variable from both places and tells the sessions’ daemon to restart', () => {
     writeFileSync(envFile, 'HULY_PASSWORD=old\nZ=1\n')
     writeFileSync(settingsFile, JSON.stringify({ env: { HULY_PASSWORD: 'old', OTHER: '1' } }))

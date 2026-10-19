@@ -220,6 +220,7 @@
   "parallel": 2,
   "unattended": true,
   "trimTools": false,
+  "tally": "server",
   "updates": {
     "check": true,
     "notify": false

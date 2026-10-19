@@ -22,6 +22,8 @@ import { NotFound } from './pages/NotFound.js'
 import { Project } from './pages/Project.js'
 import { ProjectAddPage } from './pages/ProjectAdd.js'
 import { SharedSettings } from './pages/SharedSettings.js'
+import { StatsSetupPage } from './pages/StatsSetup.js'
+import { STATS_SETUP } from './pages/TallyChoice.js'
 import { StatsPage } from './stats/StatsPage.js'
 import { ToolsPage } from './tools/ToolsPage.js'
 
@@ -61,6 +63,7 @@ export function App() {
               <Route path="/p/:id" element={<ProjectRoute state={state} />} />
               <Route path="/projects/add" element={<ProjectAddPage state={state} />} />
               <Route path="/stats" element={<StatsPage state={state} />} />
+              <Route path={STATS_SETUP} element={<StatsSetupPage state={state} />} />
               <Route path="/tools" element={<ToolsPage state={state} />} />
               <Route path="/settings" element={<SharedSettings state={state} />} />
               <Route path="/accounts" element={<AccountsPage state={state} />} />

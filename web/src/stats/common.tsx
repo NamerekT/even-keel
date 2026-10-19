@@ -1,8 +1,12 @@
 import type { TrackerUrls } from '../../../src/state.js'
 import { useEffect, useState, type ReactNode } from 'react'
+import { Link } from 'react-router'
+import { TALLY_DISABLED, TALLY_UNCHOSEN } from '../../../src/stats/mode.js'
 import type { StatsAnswer } from '../../../src/stats/model.js'
 import { t } from '../i18n/index.js'
 import { activity } from '../live/activity.js'
+import { openTab, SHARED_SCOPE } from '../pages/settingsStore.js'
+import { STATS_SETUP } from '../pages/TallyChoice.js'
 import { issueLink } from '../state.js'
 
 const REFRESH_MS = 5 * 60_000
@@ -61,10 +65,30 @@ export function Skeleton({ shape }: { shape: SkeletonShape }) {
 export function AnswerNotice({ loaded, shape = 'lines' }: { loaded: Loaded<unknown> | null; shape?: SkeletonShape }) {
   if (loaded === null) return <Skeleton shape={shape} />
   if ('failure' in loaded) return <p className="notice notice--error">{t.stats.failed(loaded.failure)}</p>
-  if (loaded.answer.state === 'off') return <p className="notice notice--warn">{t.stats.off(loaded.answer.reason)}</p>
+  if (loaded.answer.state === 'off') return <OffNotice reason={loaded.answer.reason} />
   if (loaded.answer.state === 'error') return <p className="notice notice--error">{t.stats.dbError(loaded.answer.error)}</p>
   if (loaded.answer.state === 'newer') return <p className="notice notice--error">{t.stats.newer(loaded.answer.version, loaded.answer.known)}</p>
   return null
+}
+
+/** Stats the user turned off or has not chosen are not an error: a plain note with the way to turn them on. */
+function OffNotice({ reason }: { reason: string }) {
+  if (reason === TALLY_DISABLED)
+    return (
+      <p className="notice">
+        {t.stats.disabled}{' '}
+        <Link to="/settings" onClick={() => openTab(SHARED_SCOPE, 'stats')}>
+          {t.stats.disabledLink}
+        </Link>
+      </p>
+    )
+  if (reason === TALLY_UNCHOSEN)
+    return (
+      <p className="notice">
+        {t.stats.unchosen} <Link to={STATS_SETUP}>{t.stats.unchosenLink}</Link>
+      </p>
+    )
+  return <p className="notice notice--warn">{t.stats.off(reason)}</p>
 }
 
 export function Segmented<T extends string>({

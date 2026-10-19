@@ -100,6 +100,7 @@ describe('Even Keel HTTP server', () => {
         setKey: record('key'),
       },
       secrets: { set: record('secretSet'), remove: record('secretRemove') },
+      tally: { set: async (mode, server) => record('tally')(mode, server) },
       launches: () => [{ task: 'ABC-1' }],
       sessionRecord: async (id) => {
         if (id === 'bad') throw new Error('sessions: bad is not a session id')
@@ -645,6 +646,20 @@ describe('Even Keel HTTP server', () => {
     ])
     expect((await post('/api/secrets/set', { name: 'HULY_PASSWORD' })).status).toBe(400)
     expect((await post('/api/secrets/remove', {})).status).toBe(400)
+  })
+
+  it('sets where the stats go, with the fields of the own Postgres or without', async () => {
+    const server = { host: 'db.example.com', port: '', name: 'tally', readerPassword: 'read-secret', writerPassword: '' }
+    expect(await (await post('/api/stats/tally', { mode: 'server', server })).text()).not.toContain('read-secret')
+    await post('/api/stats/tally', { mode: 'off' })
+    await post('/api/stats/tally', { mode: 'server' })
+    expect(calls).toEqual([
+      ['tally', 'server', server],
+      ['tally', 'off', null],
+      ['tally', 'server', null],
+    ])
+    expect((await post('/api/stats/tally', { mode: 'everywhere' })).status).toBe(400)
+    expect((await post('/api/stats/tally', { mode: 'server', server: { host: 'db.example.com' } })).status).toBe(400)
   })
 
   it('adds an account of the agent the page asks for', async () => {

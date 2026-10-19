@@ -49,6 +49,7 @@ restart of the service (BTN-130). The keys are those of the config's format, whi
 | `context.window`, `.warn`, `.danger` | G | — | page, hand | 600000, 50, 80 |
 | `stats.compare.*`, `stats.moves`, `stats.otherBelow` | G | — | page, hand | `DEFAULT_COMPARE`, `{}`, 0 |
 | `stats.checkpointTokens` | G | — (pins the threshold, calibration off) | page, hand | `null` (calibrated per project) |
+| `tally` | G | — (`off`, `local`, `server`) | page (the stats setup and Settings → Stats, sent at once, `stats/tally`), hand, service (the mode an older install ran on, at startup) | `null` — not chosen, nothing collected (`docs/stats.md`) |
 | `updates.check`, `updates.notify` | G | — | page, hand, service (`muteUpdates`) | true, true |
 | `unattended` | G | — | page (a switch on `/settings`, sent at once, `chain/unattended`), hand | false |
 | `trimTools` | G | — | page (a switch on `/settings`, `chain/trim`), hand | true |

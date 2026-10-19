@@ -66,6 +66,17 @@ export class Secrets {
     this.writeEnv((text) => upsertEnv(text, name, value))
   }
 
+  /** Several `.env`-only variables in one write, so their readers restart once: the stats' own Postgres (BTN-247). */
+  setAll(values: Record<string, string>): void {
+    const entries = Object.entries(values)
+    for (const [name, value] of entries) {
+      if (this.writable(name).places.includes('sessions')) throw fail('secrets.unknown', { name })
+      if (value === '') throw fail('secrets.empty', { name })
+      envLine(name, value)
+    }
+    this.writeEnv((text) => entries.reduce((next, [name, value]) => upsertEnv(next, name, value), text))
+  }
+
   remove(name: string): void {
     const spec = this.writable(name)
     if (name === PAGE_TOKEN && guardRequired(this.deps.host())) throw fail('secrets.tokenRequired', {})

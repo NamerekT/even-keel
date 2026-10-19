@@ -7,6 +7,7 @@ import { isLanguage, LANGUAGES } from '../language.js'
 import { fail } from '../notice/notice.js'
 import { isColor } from '../projects/colors.js'
 import { placeholderIn } from '../sessions/prompt.js'
+import { isTallyMode } from '../stats/mode.js'
 import { DEFAULT_HIDDEN_SKILLS } from '../tools/settings.js'
 import { DEFAULT_TRACKER } from '../tracker/adapters.js'
 import { runLabelOf, type RunLabel } from '../tracker/model.js'
@@ -237,6 +238,11 @@ export const DEFINITIONS: readonly SettingDefinition[] = [
   } },
   { key: 'stats.checkpointTokens', kind: 'integer', scopes: ['global'], lands: ['stats'], default: null, check: (value) => {
     if (value !== null && (!Number.isInteger(value) || (value as number) < CHECKPOINT_ASK_FROM)) throw fail('config.checkpointTokens', { from: CHECKPOINT_ASK_FROM, value: json(value) })
+    return value
+  } },
+  // `null` — not chosen yet: Tally collects nothing and creates nothing until the page's setup or the settings choose (BTN-247).
+  { key: 'tally', kind: 'enum', scopes: ['global'], lands: ['tally'], default: null, check: (value) => {
+    if (value !== null && !isTallyMode(value)) throw fail('tally.mode', { value: json(value) })
     return value
   } },
   update('check'),

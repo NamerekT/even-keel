@@ -1,11 +1,12 @@
 import { randomUUID } from 'node:crypto'
-import { formsOf, trackerChoices, withChainSwitches, withNewProject, withoutProject, withProjectForm, withRunAccount, withSharedAccount, withSharedForm, withUpdates } from './config-form.js'
+import { formsOf, trackerChoices, withChainSwitches, withNewProject, withoutProject, withProjectForm, withRunAccount, withSharedAccount, withSharedForm, withTally, withUpdates } from './config-form.js'
 import { parseConfig, trackerKeysOf, type EvenKeelConfig } from './config.js'
 import { englishOf, fail, noticeOf, type Notice } from './notice/notice.js'
 import { fileOf, fileRows, type FileContents } from './settings/file.js'
 import { readSettings, saveSettings, settingsText } from './settings/store.js'
 import type { Queryable, Writes } from './storage/database.js'
 import type { ConfigView, ProjectDraft, ProjectForm, SharedForm } from './state.js'
+import type { TallyMode } from './stats/mode.js'
 import { ADAPTERS } from './tracker/adapters.js'
 import type { UpdateSettings } from './updates/release.js'
 
@@ -128,6 +129,10 @@ export class ConfigStore {
   saveChainSwitches(patch: Partial<Pick<EvenKeelConfig, 'unattended' | 'trimTools'>>): void {
     const changed = Object.entries(patch).filter(([key, on]) => this.current[key as keyof typeof patch] !== on)
     if (changed.length > 0) this.write(withChainSwitches(this.raw(), Object.fromEntries(changed)))
+  }
+
+  saveTally(mode: TallyMode): void {
+    if (this.current.tally !== mode) this.write(withTally(this.raw(), mode))
   }
 
   /** Adds the wizard's project last, with a new id, by the same rule as `saveProject`; returns the id. */

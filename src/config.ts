@@ -11,6 +11,7 @@ import { CI_KINDS, type RemoteProfiles } from './ci/model.js'
 import { DEFAULT_CHANGELOG } from './changelog/file.js'
 import { changesOf, type FormValue } from './settings/changes.js'
 import { DEFAULT_BRANCH, DEFAULT_LANGUAGE } from './settings/defaults.js'
+import type { TallyMode } from './stats/mode.js'
 import { fileRows, isPlainObject, writeRows } from './settings/file.js'
 import { checkRows, inherit, resolve, type ProjectRecord, type Resolved, type Values } from './settings/resolve.js'
 import { ADAPTERS } from './tracker/adapters.js'
@@ -81,6 +82,8 @@ export interface EvenKeelConfig {
   /** Even Keel's setting rows the chain's switches write (`chain/unattended`, `chain/trim`), not the forms. */
   unattended: boolean
   trimTools: boolean
+  /** Where Tally writes, set by the page's stats setup and settings (`stats/tally`); `null` — not chosen yet. */
+  tally: TallyMode | null
   /** The switches only: the version whose toast was closed is state (`service_state`). */
   updates: Pick<UpdateSettings, 'check' | 'notify'>
 }
@@ -161,6 +164,7 @@ function configOf(records: ProjectRecord[], { shared, own, values }: Resolved, a
     parallel: shared.parallel as number,
     unattended: shared.unattended as boolean,
     trimTools: shared.trimTools as boolean,
+    tally: shared.tally as TallyMode | null,
     updates: { check: shared['updates.check'] as boolean, notify: shared['updates.notify'] as boolean },
   }
 }

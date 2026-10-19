@@ -1,4 +1,4 @@
-import { createReadStream, mkdirSync } from 'node:fs'
+import { createReadStream, existsSync, mkdirSync } from 'node:fs'
 import { readFile, stat } from 'node:fs/promises'
 import { createServer } from 'node:http'
 import { join } from 'node:path'
@@ -81,6 +81,8 @@ import { Writes } from './storage/database.js'
 import { keptDatabase } from './storage/owner.js'
 import { setStateValue, stateValue } from './storage/service-state.js'
 import { rekeyed } from './storage/projects.js'
+import { checkServer, serverValues } from './stats/connect.js'
+import { inferredTallyMode, tallyKey } from './stats/mode.js'
 import { TallyService } from './stats/tally.js'
 import { chainSettings, readToolsView } from './tools/panel.js'
 import { ADAPTERS, trackerKeyRules } from './tracker/adapters.js'
@@ -136,6 +138,7 @@ const configStore = await ConfigStore.open({
     for (const [project, tasks] of tasksByProject) dispatcher.setTasks(project, tasks)
     dispatcher.check()
     updates.configChanged()
+    void applyTally()
     hub.broadcast('state', getState())
   },
 })
@@ -302,8 +305,11 @@ const ciWatches = new CiWatches({
   source: (project, target) => ciSource(target, ciTokenOf(project, target)?.token ?? null, CI_TIMEOUT_MS),
   log: (message) => console.log(message),
 })
+/** The setting; an installation from before it that has not chosen keeps what Tally already ran on (BTN-247). */
+const tallyMode = () => configStore.current.tally ?? inferredTallyMode(process.env, existsSync(join(stateDir, 'tally', 'pgdata')))
 const newTally = () =>
   new TallyService({
+    mode: tallyMode(),
     root,
     stateDir,
     env: process.env,
@@ -322,6 +328,9 @@ const newTally = () =>
     log: (message) => console.log(message),
   })
 let tally = newTally()
+/** What `tally` runs on (`tallyKey`), and the restarts in turn: the page and `.env` may change it at once. */
+let tallyRuns = tallyKey(tallyMode(), process.env)
+let tallyRestarts = Promise.resolve()
 const stats = new StatsReader(tally.reader, () => configStore.current.projects, () => configStore.current.stats)
 let ledger = loadLedger(accountFile)
 
@@ -1024,6 +1033,7 @@ const getState = (): EvenKeelState => ({
   language: configStore.current.language,
   unattended: dispatcher.state.unattended,
   trimTools: dispatcher.state.trimTools,
+  tally: tallyMode(),
   updates: updatesView(release.version, updates.latest, { ...configStore.current.updates, dismissed: dismissedUpdate ?? null }),
   fallbacks: fallbacksSince(launches, new Date(Date.now() - FALLBACK_TOAST_MS)).map(({ at, task, project, fallback }) => ({
     at,
@@ -1115,6 +1125,19 @@ let server = createEvenKeelServer({
     remove: (name) => {
       secrets.remove(name)
       console.log(`page: ${name} is removed`)
+    },
+  },
+  tally: {
+    set: async (mode, draft) => {
+      if (mode === 'server') {
+        const values = serverValues(draft, process.env)
+        await checkServer(values, process.env)
+        const changed = Object.fromEntries(Object.entries(values).filter(([name, value]) => process.env[name] !== value))
+        if (Object.keys(changed).length > 0) secrets.setAll(changed)
+      }
+      configStore.saveTally(mode)
+      console.log(`page: stats are ${mode === 'off' ? 'off' : `on, ${mode}`}`)
+      await applyTally()
     },
   },
   profiles: {
@@ -1367,6 +1390,11 @@ vscode.start()
 configStore.watch()
 void packages.start()
 tally.start()
+// What an installation from before the choice already ran on becomes its setting, so a later `.env` edit does not move it.
+if (configStore.current.tally === null && tallyMode() !== null) {
+  configStore.saveTally(tallyMode()!)
+  console.log(`tally: stats stay ${tallyMode()}, as they ran before the setting`)
+}
 envFile.subscribe((changed) => void envChanged(changed))
 envFile.watch()
 
@@ -1398,15 +1426,27 @@ async function envChanged(changed: string[]): Promise<void> {
   }
   if (targets.guard) applyGuard()
   if (targets.listen) await rebind()
-  if (targets.tally) {
-    await tally.stop()
-    tally = newTally()
-    stats.setReader(tally.reader)
-    tally.start()
-    console.log('tally: the stats database changed, the collector starts anew')
-  }
+  if (targets.tally) await applyTally()
   dispatcher.check()
   hub.broadcast('state', getState())
+}
+
+/** Tally's mode or its database changed: the collector and the reader start anew on them; nothing when neither did. */
+function applyTally(): Promise<void> {
+  tallyRestarts = tallyRestarts
+    .then(async () => {
+      const key = tallyKey(tallyMode(), process.env)
+      if (key === tallyRuns) return
+      tallyRuns = key
+      await tally.stop()
+      tally = newTally()
+      stats.setReader(tally.reader)
+      tally.start()
+      console.log('tally: the stats mode or database changed, the collector starts anew')
+      hub.broadcast('state', getState())
+    })
+    .catch((error: unknown) => console.error(`tally: ${(error as Error).message}`))
+  return tallyRestarts
 }
 
 /** The token as the environment has it now; a wrong one keeps the last good token and says why. */

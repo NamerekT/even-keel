@@ -22,12 +22,17 @@ export function useDraft(scope: string, saved: Values | undefined, same: Same): 
   return [saved === undefined ? undefined : rebase(stored, saved, same), set]
 }
 
+/** The scope of Even Keel's own settings page. */
+export const SHARED_SCOPE = 'shared'
+
+/** Opens a tab of a settings form before going there, e.g. from a link on another page. */
+export function openTab(scope: string, tab: string) {
+  tabs.set(scope, tab)
+  notify()
+}
+
 /** The open tab of a settings form; it stays when the form closes. */
 export function useTab<T extends string>(scope: string, first: T): [T, (tab: T) => void] {
   const open = useSyncExternalStore(subscribe, () => tabs.get(scope)) as T | undefined
-  const set = (tab: T) => {
-    tabs.set(scope, tab)
-    notify()
-  }
-  return [open ?? first, set]
+  return [open ?? first, (tab: T) => openTab(scope, tab)]
 }

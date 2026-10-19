@@ -378,7 +378,8 @@ export function rulesKey(query: RulesQuery, settings: CompareSettings): string {
 }
 
 export class StatsReader {
-  // A string is why the stats are off; the local database comes as a promise that settles once it is open.
+  // A string is why the stats are off (`TALLY_DISABLED`, `TALLY_UNCHOSEN` or the missing variables); the local database
+  // comes as a promise that settles once it is open.
   private pool!: Promise<pg.Pool | string>
   private readonly cache = new Map<string, { at: number; answer: StatsAnswer<unknown> }>()
   private folders: { at: number; key: string; groups: Promise<Folders> } | null = null
@@ -391,11 +392,11 @@ export class StatsReader {
     this.setReader(settings)
   }
 
-  /** The database moved (`TALLY_*` changed): the old pool ends, the answers read from it go. */
+  /** The database moved (`TALLY_*` or the mode changed): the old pool ends, the answers read from it go. */
   setReader(settings: ReaderSettings | string | Promise<ReaderSettings>): void {
     const before = this.pool
     this.pool = Promise.resolve(settings).then((each) => {
-      if (typeof each === 'string') return `${each} not set in .env`
+      if (typeof each === 'string') return each
       const pool = new pg.Pool({ ...each, max: 4, connectionTimeoutMillis: 5_000, statement_timeout: 20_000, idleTimeoutMillis: 60_000 })
       pool.on('error', () => {})
       return pool
