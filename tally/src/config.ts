@@ -29,6 +29,8 @@ export interface TallyConfig {
   classify: ClassifySettings
   ruleHistory: string | null
   reportsSince: string | null
+  // Exact model names with no public price: their cost stays empty and the run does not log them.
+  unpriced: string[]
   steps: StepSettings
 }
 
@@ -52,6 +54,7 @@ export function parseConfig(raw: unknown): TallyConfig {
     classify?: unknown
     ruleHistory?: unknown
     reportsSince?: unknown
+    unpriced?: unknown
     steps?: unknown
   }
   const since = record.reportsSince
@@ -65,6 +68,14 @@ export function parseConfig(raw: unknown): TallyConfig {
   if (typeof prices !== 'object' || prices === null || Object.keys(prices).length === 0) {
     throw new Error('tally: config needs "prices" per model prefix')
   }
+  const unpriced = record.unpriced ?? []
+  if (!Array.isArray(unpriced) || unpriced.some((model) => typeof model !== 'string' || model === '')) {
+    throw new Error('tally: "unpriced" must be a list of model names')
+  }
+  for (const model of unpriced as string[]) {
+    const covering = Object.keys(prices).find((prefix) => model.startsWith(prefix))
+    if (covering !== undefined) throw new Error(`tally: unpriced ${model} has a price by prices.${covering}`)
+  }
   return {
     evenKeelUrl: typeof record.evenKeelUrl === 'string' && record.evenKeelUrl !== '' ? record.evenKeelUrl : DEFAULT_EVEN_KEEL_URL,
     prices: Object.entries(prices as Record<string, Record<string, unknown>>).map(([model, value]) => ({
@@ -76,8 +87,13 @@ export function parseConfig(raw: unknown): TallyConfig {
     classify: integers('classify', record.classify, DEFAULT_CLASSIFY, 0),
     ruleHistory: (record.ruleHistory as string | undefined) ?? null,
     reportsSince: (since as string | null | undefined) ?? null,
+    unpriced: unpriced as string[],
     steps: parseSteps(record.steps),
   }
+}
+
+export function unpricedToLog(models: string[], known: string[]): string[] {
+  return models.filter((model) => !known.includes(model))
 }
 
 function rates(name: string, raw: Record<string, unknown> | undefined): Rates {

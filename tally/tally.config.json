@@ -3,6 +3,7 @@
   "signs": { "failureRun": 3, "deniedRun": 1, "repeatRun": 2, "rereadCount": 5, "noCommitReplies": 150 },
   "classify": { "perRun": 10, "idleMinutes": 60, "sinceDays": 14 },
   "reportsSince": "2026-10-03",
+  "unpriced": ["codex-auto-review", "gpt-reserve"],
   "prices": {
     "claude-fable-5-1": { "input": 10, "output": 50, "cacheRead": 0.25, "cacheWrite5m": 12.5, "cacheWrite1h": 20 },
     "claude-fable-5": { "input": 10, "output": 50, "cacheRead": 1, "cacheWrite5m": 12.5, "cacheWrite1h": 20 },

@@ -77,7 +77,7 @@ schema version of a file of the format.
 | `Manual`/`Вручную` and other excluded labels | tracker label | T | matched by `chain.excludedLabels`, a G/P setting |
 | required labels | tracker label | T | matched by `chain.requiredLabels` |
 | `Question`/`Вопрос` | tracker label | T | `QUESTION_LABELS`: the card's mark and the prompts' wording; it changes neither the order nor the launch |
-| Tally's `evenKeelUrl`, `signs`, `classify`, `reportsSince`, `prices` | `tally/tally.config.json` | — | the collector's own settings (`tally/CLAUDE.md`) |
+| Tally's `evenKeelUrl`, `signs`, `classify`, `reportsSince`, `prices`, `unpriced` | `tally/tally.config.json` | — | the collector's own settings (`tally/CLAUDE.md`) |
 
 ### Not settings
 
