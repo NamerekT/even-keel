@@ -63,6 +63,12 @@ describe('RolloutFold', () => {
     expect(summary.cache).toBeNull()
   })
 
+  it('names the model of the last turn', () => {
+    const context = (model: string) => line('turn_context', { cwd: CWD, model, effort: 'medium' })
+    expect(fold([meta(), context('gpt-6-luna'), started(), context('gpt-6.1-sol')]).summary().model).toBe('gpt-6.1-sol')
+    expect(fold([meta(), started()]).summary().model).toBeNull()
+  })
+
   it('feeds the prompt, the texts and the tool calls with a stage', () => {
     const summary = fold([
       meta(),

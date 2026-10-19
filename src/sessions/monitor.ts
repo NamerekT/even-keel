@@ -188,6 +188,7 @@ function toView(
     task,
     sessionId: agent.sessionId,
     agent: runsOn,
+    model: summary.model,
     cwd: agent.cwd,
     branch: summary.gitBranch,
     lamp: lampOf(present ? agent : undefined, summary.apiError?.kind ?? null, now),

@@ -105,6 +105,8 @@ export interface TranscriptSummary {
   lastReplyAt: string | null
   gitBranch: string | null
   workdir: string | null
+  /** The model of the last answer (Claude) or turn (Codex), as the agent names it; `null` — none yet. */
+  model: string | null
 }
 
 const FEED_SIZE = 30
@@ -146,6 +148,7 @@ export class TranscriptFold {
   private lastReplyAt: string | null = null
   private gitBranch: string | null = null
   private workdir: string | null = null
+  private model: string | null = null
   /** The file name of each `Read` call of a whole transcript, until its result comes. */
   private readonly readFiles = new Map<string, string>()
   private turnStartedAt: string | null = null
@@ -236,6 +239,7 @@ export class TranscriptFold {
       lastReplyAt: this.lastReplyAt,
       gitBranch: this.gitBranch,
       workdir: this.workdir,
+      model: this.model,
     }
   }
 
@@ -251,6 +255,7 @@ export class TranscriptFold {
     }
     if (entry.message?.model === '<synthetic>') return
 
+    if (typeof entry.message?.model === 'string' && entry.message.model !== '') this.model = entry.message.model
     this.apiError = null
     if (entry.timestamp !== undefined) this.lastReplyAt = entry.timestamp
     const usage = entry.message?.usage

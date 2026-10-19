@@ -23,6 +23,8 @@ export interface SessionView {
   sessionId: string
   /** The agent the session runs on (`src/agent/adapters.ts`). */
   agent: string
+  /** The model of its last answer, from the transcript; `null` — it has not answered yet. */
+  model: string | null
   cwd: string
   /** The git branch of the session's last line, for the head of the chat window. */
   branch: string | null

@@ -53,6 +53,8 @@ What a session runs on is three dictionaries keyed by provider (`claude`, `codex
 
 The choice is the task's and the project's, not the previous session's: a handoff (limit, checkpoint, "New session", reply) stays on the same provider. `launchPlan` appends `modelPrompts.<model>` to the prompt: the key is any model name as the CLI gets it (`opus`, `gpt-6.1-sol`), compared case-insensitively; a model left to the CLI has none. The model goes on every launch — first, `--resume` without a saved job, handoff, "New session".
 
+The session panel shows the model a session actually answers with (BTN-229, `SessionView.model`), not the one it was launched with: the fold takes `message.model` of the last main-thread answer of a Claude transcript (not a subagent's, not `<synthetic>`) and `model` of the last `turn_context` of a Codex rollout. So it answers for a session started by hand too, and shows the full id (`claude-haiku-5-5` for `--model haiku`) and the model a launch without `--model` got from the CLI's settings. Until a Claude session's first answer it is `—`; Codex writes `turn_context` at the start of the turn.
+
 ## Extra tools (BTN-74, `src/tools/`)
 
 Plugins and MCP servers are the project's packages, given by flags at every launch (`docs/packages.md`). What stays here is the rest of `--settings` and the "What sessions get" page.

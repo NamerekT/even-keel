@@ -1045,6 +1045,11 @@ export const en: Messages = {
     output: 'output',
     cacheRead: 'cache read',
     cacheWrite: 'cache write',
+    model: 'Model',
+    provider: 'provider',
+    modelOf: 'model',
+    modelFrom: "By the session's last answer in its transcript",
+    modelYet: 'The session has not answered yet: the model shows from its first answer',
     limitUnknown: 'The limit reset time is unknown — a new session starts as soon as you switch the account.',
     creditOut:
       'The API key is out of credit. The dispatcher checks it every 5 minutes and goes on once it is topped up; switching the account starts a new session at once.',

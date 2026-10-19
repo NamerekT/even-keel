@@ -55,6 +55,7 @@ export class RolloutFold {
   private lastReplyAt: string | null = null
   private gitBranch: string | null = null
   private workdir: string | null = null
+  private model: string | null = null
   private turnStartedAt: string | null = null
   private readonly mailSeen = new Set<number>()
 
@@ -76,6 +77,7 @@ export class RolloutFold {
     }
     if (line.type === 'turn_context') {
       if (typeof payload.cwd === 'string') this.workdir = payload.cwd
+      if (typeof payload.model === 'string' && payload.model !== '') this.model = payload.model
       return
     }
     const at = line.timestamp ?? ''
@@ -114,6 +116,7 @@ export class RolloutFold {
       lastReplyAt: this.lastReplyAt,
       gitBranch: this.gitBranch,
       workdir: this.workdir,
+      model: this.model,
     }
   }
 

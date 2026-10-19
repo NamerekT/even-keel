@@ -1,11 +1,13 @@
-import { lazy, Suspense, useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { lazy, Suspense, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react'
 import { fixTaskOf, isFixName } from '../../../src/chain/fix.js'
+import { CLAUDE } from '../../../src/claude/name.js'
 import type { TaskSession } from '../../../src/chain/launches.js'
 import type { LimitHold } from '../../../src/chain/relay.js'
 import type { CacheWindow, FeedLine, TokenTotals } from '../../../src/sessions/transcript.js'
 import type { ContextScale, SessionRecord, SessionView } from '../../../src/state.js'
 import { formatClock, formatMoment, formatTokens } from '../format.js'
 import { localized, say, t } from '../i18n/index.js'
+import { agentLabel } from '../layout/accountParts.js'
 import { useNow } from '../layout/useNow.js'
 import { useLive } from '../live/context.js'
 import { useCommand, useHold } from '../live/useCommand.js'
@@ -254,6 +256,7 @@ function SessionBody({ session, limit, scale, whole }: { session: SessionView; l
             <ContextMeter tokens={session.contextTokens} scale={scale} full />
           </dd>
         </div>
+        <ModelFact agent={session.agent} model={session.model} />
         <TokensFact tokens={session.tokens} />
       </dl>
       {session.lamp === 'finished' ? (
@@ -294,9 +297,32 @@ function CacheFact({ cache }: { cache: CacheWindow }) {
   )
 }
 
+/** The model the session answers with; the provider beside it when not Claude. */
+function ModelFact({ agent, model }: { agent: string; model: string | null }) {
+  const provider = agentLabel(agent)
+  const value = model === null ? '—' : agent === CLAUDE ? model : `${provider} · ${model}`
+  return (
+    <div className="panel__fact panel__fact--wide panel__inline">
+      <dt>{t.session.model}</dt>
+      <TipValue value={value}>
+        <span className="panel__part">
+          <span className="panel__part-label">{t.session.provider}</span>
+          <b>{provider}</b>
+        </span>
+        {model !== null && (
+          <span className="panel__part">
+            <span className="panel__part-label">{t.session.modelOf}</span>
+            <b>{model}</b>
+          </span>
+        )}
+        <span className="panel__tip-note">{model === null ? t.session.modelYet : t.session.modelFrom}</span>
+      </TipValue>
+    </div>
+  )
+}
+
 /** The total alone; the split by kind is a tip under it, opened by pointing at the number or pressing it. */
 function TokensFact({ tokens }: { tokens: TokenTotals }) {
-  const { shown, anchor, tip, show, hide, close } = useTip<HTMLButtonElement, HTMLSpanElement>()
   const parts: [string, number][] = [
     [t.session.input, tokens.input],
     [t.session.output, tokens.output],
@@ -304,40 +330,50 @@ function TokensFact({ tokens }: { tokens: TokenTotals }) {
     [t.session.cacheWrite, tokens.cacheWrite],
   ]
   return (
-    <div className="panel__fact panel__fact--wide panel__tokens">
+    <div className="panel__fact panel__fact--wide panel__inline">
       <dt>{t.session.tokens}</dt>
-      <dd className="panel__value">
-        <button
-          ref={anchor}
-          type="button"
-          className="panel__total"
-          aria-expanded={shown}
-          onMouseEnter={show}
-          onMouseLeave={hide}
-          onFocus={show}
-          onBlur={hide}
-          onClick={show}
-          onKeyDown={(event) => {
-            if (event.key !== 'Escape' || !shown) return
-            event.preventDefault()
-            event.stopPropagation()
-            close()
-          }}
-        >
-          {formatTokens(tokenTotal(tokens))}
-          {shown && (
-            <span ref={tip} popover="manual" className="panel__split" role="tooltip">
-              {parts.map(([label, value]) => (
-                <span key={label} className="panel__part">
-                  <span className="panel__part-label">{label}</span>
-                  <b>{formatTokens(value)}</b>
-                </span>
-              ))}
-            </span>
-          )}
-        </button>
-      </dd>
+      <TipValue value={formatTokens(tokenTotal(tokens))}>
+        {parts.map(([label, value]) => (
+          <span key={label} className="panel__part">
+            <span className="panel__part-label">{label}</span>
+            <b>{formatTokens(value)}</b>
+          </span>
+        ))}
+      </TipValue>
     </div>
+  )
+}
+
+/** A fact's value whose details are a tip under it, opened by pointing at the value or pressing it. */
+function TipValue({ value, children }: { value: string; children: ReactNode }) {
+  const { shown, anchor, tip, show, hide, close } = useTip<HTMLButtonElement, HTMLSpanElement>()
+  return (
+    <dd className="panel__value">
+      <button
+        ref={anchor}
+        type="button"
+        className="panel__total"
+        aria-expanded={shown}
+        onMouseEnter={show}
+        onMouseLeave={hide}
+        onFocus={show}
+        onBlur={hide}
+        onClick={show}
+        onKeyDown={(event) => {
+          if (event.key !== 'Escape' || !shown) return
+          event.preventDefault()
+          event.stopPropagation()
+          close()
+        }}
+      >
+        {value}
+        {shown && (
+          <span ref={tip} popover="manual" className="panel__split" role="tooltip">
+            {children}
+          </span>
+        )}
+      </button>
+    </dd>
   )
 }
 

@@ -390,6 +390,18 @@ describe('TranscriptFold', () => {
     expect(fold([assistant('m1', [text('a')])]).summary().gitBranch).toBeNull()
   })
 
+  it('names the model of the last answer, not of a subagent or a synthetic message', () => {
+    const on = (model: string, line: string) => line.replace('claude-opus-5-5', model)
+    const summary = fold([
+      assistant('m1', [text('a')]),
+      on('claude-haiku-5-5', assistant('m2', [text('b')])),
+      on('claude-sonnet-5-5', assistant('m3', [text('c')], {}, { isSidechain: true })),
+      on('<synthetic>', assistant('m4', [text('d')])),
+    ]).summary()
+    expect(summary.model).toBe('claude-haiku-5-5')
+    expect(fold([JSON.stringify({ type: 'user', timestamp: at(), message: { role: 'user', content: 'ABC-1' } })]).summary().model).toBeNull()
+  })
+
   it('remembers the last real answer apart from a limit error that came after it', () => {
     const lines = [assistant('m1', [text('a')])]
     const answeredAt = new Date(Date.UTC(2026, 0, 1, 12, 0, 0) + clock).toISOString()
