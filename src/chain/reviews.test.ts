@@ -314,6 +314,17 @@ describe('Dispatcher polling pull requests', () => {
     expect(dispatcher.state.reviews.ABC).toBeUndefined()
   })
 
+  it('polls only the pull requests of the project asked for, as the page\'s refresh does', async () => {
+    let asked = 0
+    const { dispatcher, pulls } = await opened(() => (asked++, openCheck({ state: { state: 'merged', mergeable: null, head: 'abc1234' } })))
+    await dispatcher.pollReviews('XYZ')
+    expect(asked).toBe(0)
+
+    await dispatcher.pollReviews('ABC')
+    expect(asked).toBe(1)
+    expect(pulls.completed).toEqual(['ABC-1'])
+  })
+
   it('tells in the log a task done in the tracker before a poll saw its pull request merged', async () => {
     const { dispatcher, finished, log } = await opened(() => openCheck())
     dispatcher.setReleased('ABC', [task('ABC-1', done)])

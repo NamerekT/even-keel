@@ -16,6 +16,7 @@ import { AccountTag } from '../ui/AccountTag.js'
 import { CacheClock } from '../ui/CacheClock.js'
 import { ContextMeter } from '../ui/ContextMeter.js'
 import { Lamp } from '../ui/Lamp.js'
+import { PullButton } from '../ui/PullChip.js'
 import { StartCard } from '../ui/SessionStart.js'
 import { useTip } from '../ui/useTip.js'
 import { feedText } from './feedLine.js'
@@ -139,7 +140,7 @@ function Actions({ block, scale }: { block: ChainBlock; scale: ContextScale }) {
   const waiting = !aside && talking?.lamp === 'waiting'
 
   // "Skip" on the fix of main is only for the session the chain waits on.
-  if (chatSession === null && (!block.open || fix)) return null
+  if (chatSession === null && (!block.open || fix) && block.review === undefined) return null
   return (
     <>
       <div className="panel__actions">
@@ -153,6 +154,7 @@ function Actions({ block, scale }: { block: ChainBlock; scale: ContextScale }) {
             {t.session.chat.open}
           </button>
         )}
+        {block.review !== undefined && <PullButton review={block.review} />}
         {block.open && live !== null && (
           <button
             type="button"
@@ -213,6 +215,7 @@ function Actions({ block, scale }: { block: ChainBlock; scale: ContextScale }) {
               answeredAt: block.answering ?? block.sessions.find((run) => run.sessionId === chatSession.sessionId)?.answeredAt ?? null,
               delivering: block.answering !== undefined,
               mail: state?.mailbox[chatSession.sessionId],
+              review: block.review,
             }}
             onClose={() => setChatting(false)}
           />

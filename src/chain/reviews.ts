@@ -218,11 +218,13 @@ export class Reviews {
     else if (pull !== undefined) delete pull.feedback
   }
 
-  /** Asks the forges about every open pull request; nothing of the chain is touched while the answers come. */
-  async poll(): Promise<Polled[]> {
+  /** Asks the forges about every open pull request, or only the project's; nothing of the chain is touched while the answers come. */
+  async poll(only?: string): Promise<Polled[]> {
     const review = this.review
     if (review === undefined) return []
-    const open = Object.entries(this.state.reviews).flatMap(([project, pulls]) => pulls.filter((pull) => pull.closed === undefined).map((pull) => ({ project, pull })))
+    const open = Object.entries(this.state.reviews)
+      .filter(([project]) => only === undefined || project === only)
+      .flatMap(([project, pulls]) => pulls.filter((pull) => pull.closed === undefined).map((pull) => ({ project, pull })))
     const polled = await Promise.all(
       open.map(async ({ project, pull }): Promise<Polled | null> => {
         try {

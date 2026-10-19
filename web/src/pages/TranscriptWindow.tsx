@@ -1,6 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import Markdown, { type Components } from 'react-markdown'
 import remarkGfm from 'remark-gfm'
+import type { ReviewView } from '../../../src/chain/dispatcher.js'
 import type { Ask, AskAnswers } from '../../../src/sessions/ask.js'
 import type { SessionMail } from '../../../src/sessions/mail.js'
 import type { FeedLine, Turn } from '../../../src/sessions/transcript.js'
@@ -12,6 +13,7 @@ import { useLive } from '../live/context.js'
 import { contextFill } from '../state.js'
 import { AccountTag } from '../ui/AccountTag.js'
 import { ContextMeter } from '../ui/ContextMeter.js'
+import { PullButton } from '../ui/PullChip.js'
 import { Tipped } from '../ui/Tipped.js'
 import { AnswerCard, AskCard } from './AskPanel.js'
 import { ChatComposer, type ComposerHandle } from './ChatComposer.js'
@@ -62,6 +64,8 @@ export interface ChatTarget {
   delivering: boolean
   /** The session's chat mailbox: messages sent to it mid-turn and whether its hooks take them. */
   mail?: SessionMail
+  /** The task's pull request in PR mode: the head links to it. */
+  review?: ReviewView
 }
 
 interface Props {
@@ -222,6 +226,7 @@ export function TranscriptWindow({ sessionId, account, live, chat, onClose }: Pr
             <AccountTag email={account} />
           </h2>
           <HeadFacts session={chat?.session ?? null} scale={chat?.scale ?? null} edits={edits} />
+          {chat?.review !== undefined && <PullButton review={chat.review} compact />}
           {remoteUrl != null && (
             <a
               className="panel__remote"

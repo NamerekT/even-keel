@@ -1027,6 +1027,7 @@ export const ru = {
     none: 'Сессии по этой задаче ещё не было.',
     onlyIn: (account: string) => `\nRemote Control покажет её только в аккаунте ${account}`,
     openRemote: 'Открыть сессию через Remote Control',
+    openPull: (number: number) => `Открыть pull request #${number} задачи в новой вкладке`,
     restartTitle: 'Остановит эту сессию и запустит новую в той же рабочей папке с передачей дел. Статус в трекере не меняется.',
     restart: 'Новая сессия',
     skippedTitle: 'Задача пропущена — цепочка её не берёт, пока не вернёшь.',

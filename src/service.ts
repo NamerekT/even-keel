@@ -1251,7 +1251,8 @@ let server = createEvenKeelServer({
     refresh: async (project) => {
       const refresh = refreshers.get(project)
       if (refresh === undefined) throw fail('tracker.noProject', { project })
-      await refresh()
+      // The page's refresh asks the forges too: otherwise a pull request is seen only by the minute's poll.
+      await Promise.all([refresh(), dispatcher.pollReviews(project)])
     },
   },
   changelog: async (project, milestone, op) => {

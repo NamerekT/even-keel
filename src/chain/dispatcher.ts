@@ -141,12 +141,12 @@ export class Dispatcher {
     if (tasks !== undefined) this.setTasks(project, tasks)
   }
 
-  /** Polls the open pull requests of PR mode (BTN-205) and applies what their forges say. */
-  async pollReviews(): Promise<void> {
-    const polled = await this.reviews.poll()
+  /** Polls the open pull requests of PR mode (BTN-205), every project's or only `project`'s, and applies what their forges say. */
+  async pollReviews(project?: string): Promise<void> {
+    const polled = await this.reviews.poll(project)
     if (polled.length === 0) return
     this.work = this.work.then(async () => {
-      for (const project of await this.reviews.apply(polled)) this.refilter(project)
+      for (const touched of await this.reviews.apply(polled)) this.refilter(touched)
     })
     await this.work
   }

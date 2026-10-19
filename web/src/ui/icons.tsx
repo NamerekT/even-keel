@@ -320,6 +320,18 @@ export function BranchIcon() {
   )
 }
 
+/** A task's pull request: a branch with an arrow back into the main line. */
+export function PullRequestIcon() {
+  return (
+    <svg className="icon" viewBox="0 0 16 16" aria-hidden="true">
+      <circle cx="4" cy="3.25" r="1.5" />
+      <circle cx="4" cy="12.75" r="1.5" />
+      <circle cx="12" cy="12.75" r="1.5" />
+      <path d="M4 4.75v6.5M12 11.25V6a1.75 1.75 0 0 0-1.75-1.75H7.5M9.25 2.5 7.5 4.25 9.25 6" />
+    </svg>
+  )
+}
+
 /** A Linear profile: a checklist, not Linear's mark. */
 export function ChecklistIcon() {
   return (

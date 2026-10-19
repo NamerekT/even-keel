@@ -1012,6 +1012,7 @@ export const en: Messages = {
     none: 'No session for this task yet.',
     onlyIn: (account: string) => `\nRemote Control shows it only in account ${account}`,
     openRemote: 'Open the session through Remote Control',
+    openPull: (number: number) => `Open pull request #${number} of the task in a new tab`,
     restartTitle: "Stops this session and starts a new one in the same working folder with a handoff. The tracker status doesn't change.",
     restart: 'New session',
     skippedTitle: "The task is skipped — the chain won't take it until you restore it.",

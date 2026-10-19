@@ -1787,6 +1787,22 @@ a:focus-visible {
   color: var(--fg);
 }
 
+.pull-button {
+  flex: none;
+  display: inline-flex;
+}
+
+a.button.pull-button__link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.pull-button--compact .icon {
+  width: 16px;
+  height: 16px;
+}
+
 .block--locked .block__title,
 .block--locked .block__key {
   color: var(--fg-muted);
