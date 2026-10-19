@@ -14,7 +14,7 @@ import { AccountWatcher } from './account/watcher.js'
 import { AGENTS } from './agent/adapters.js'
 import type { Agent, SessionHandle, SessionStart } from './agent/contract.js'
 import { sessionBase } from './agent/env.js'
-import { VersionWatcher } from './agent/versions.js'
+import { outdatedDaemonView, VersionWatcher } from './agent/versions.js'
 import { addMarketplace, updateMarketplace } from './claude/cli.js'
 import { CLAUDE } from './claude/name.js'
 import { CODEX } from './codex/name.js'
@@ -240,7 +240,14 @@ function briefOn(project: string): boolean {
 const runtimes = new Map<string, Agent>(
   Object.entries(AGENTS).map(([name, adapter]) => [
     name,
-    adapter.setup({ env: () => sessionBase(process.env, packages.keyNames()), timeoutMs: AGENT_TIMEOUT_MS, workDir: stateDir }),
+    adapter.setup({
+      env: () => sessionBase(process.env, packages.keyNames()),
+      timeoutMs: AGENT_TIMEOUT_MS,
+      workDir: stateDir,
+      checkedCli: () => configStore.current.cli[name] !== 'system',
+      log: (line) => console.log(line),
+      onCliChange: () => void cliVersions.check(),
+    }),
   ]),
 )
 /** The agent of an account folder: every session of the folder runs on it. */
@@ -392,6 +399,12 @@ const cliVersions = new VersionWatcher({
 const daemons = new DaemonRefresh({
   share: (home) => homes.share(home),
   running: async (home) => liveSessions(await agentOf(home).sessions(home), home.key).length,
+  daemon: async (home) => {
+    const agent = agentOf(home)
+    const wanted = agent.pinned?.() ?? null
+    const running = wanted === null ? null : ((await agent.daemonVersion?.(home)) ?? null)
+    return running === null ? null : { running, wanted: wanted! }
+  },
   stopDaemon: async (home) => agentOf(home).stopDaemon?.(home),
   onChange: () => hub.broadcast('state', getState()),
   onError: (error) => console.error(`account: ${error instanceof Error ? error.message : String(error)}`),
@@ -1049,7 +1062,7 @@ const getState = (): EvenKeelState => ({
   trimTools: dispatcher.state.trimTools,
   tally: tallyMode(),
   updates: updatesView(release.version, updates.latest, { ...configStore.current.updates, dismissed: dismissedUpdate ?? null }),
-  cliVersions: cliVersions.view(),
+  cliVersions: [...cliVersions.view(), ...daemons.outdated().map((daemon) => outdatedDaemonView(daemon, AGENTS[daemon.agent]!.title))],
   fallbacks: fallbacksSince(launches, new Date(Date.now() - FALLBACK_TOAST_MS)).map(({ at, task, project, fallback }) => ({
     at,
     task,

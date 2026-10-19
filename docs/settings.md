@@ -39,6 +39,7 @@ restart of the service (BTN-130). The keys are those of the config's format, whi
 | `models.<provider>` | G, P | by provider, P over G | page, hand | `{ claude: 'opus' }` |
 | `accounts.<provider>` | G, P | by provider, P over G | page, hand, service (`saveActive`) | `{ claude: 'global', codex: 'codex' }` |
 | `execution.<provider>` | G | — | page, hand | the first mode of each provider |
+| `cli.<provider>` | G | — | page, hand | `checked` for every provider (BTN-250, `docs/sessions.md`) |
 | `modelLabels` | G, P | P over G | page, hand | false |
 | `modelPrompts.<model>` | G | — | page, hand | `{}` |
 | `language` | G | — | page, hand | `null` (the browser's) |
@@ -122,7 +123,8 @@ What sits at a level it should not, or misses one it should have. BTN-187 takes 
 - The model's project level, which the task's text missed, exists since BTN-173 (`models` in the project entry).
 
 Levels that stay as they are: `parallel`, `execution` (the Codex sandbox does not start under the service for any project, so
-there a command runs only by escalation or with `bypass`, `docs/sessions.md`), `modelPrompts`, `hiddenSkills`, `language`, `allowedHosts`, `stats.*` besides the threshold,
+there a command runs only by escalation or with `bypass`, `docs/sessions.md`), `cli` (an account folder has one daemon, on one
+version, whatever project its sessions are for), `modelPrompts`, `hiddenSkills`, `language`, `allowedHosts`, `stats.*` besides the threshold,
 `updates.*` — Even Keel only; `prompt`, `commands.*`, `slot` — project only.
 
 A task level makes sense only for what runs the session: `provider`, `models` (the run label), `effort` (BTN-146). Not

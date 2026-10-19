@@ -169,6 +169,8 @@ export interface SharedForm {
   /** By provider, defaults filled in; `claude` is also switched from the header. */
   accounts: Record<string, string>
   execution: Record<string, string>
+  /** By provider: `checked` or `system` (BTN-250). */
+  cli: Record<string, string>
   modelLabels: boolean
   /** By the model's name as the CLI gets it. */
   modelPrompts: Record<string, string>
@@ -303,10 +305,16 @@ export interface EvenKeelState {
   changelogs: Record<string, Record<string, string[]>>
 }
 
-/** A CLI whose version differs from the one Even Keel was last checked against (BTN-249, `src/agent/versions.ts`). */
+/**
+ * A CLI whose version differs from the one Even Keel was last checked against (BTN-249, `src/agent/versions.ts`), or an
+ * account's daemon on another version than the pin (BTN-250).
+ */
 export interface CliVersionView {
   /** The agent's name in `AGENTS`. */
   agent: string
+  /** The account folder of a daemon; `null` — the installed CLI. */
+  account: string | null
+  /** The version the installed CLI or the daemon runs. */
   installed: string
   checked: string
   notice: Notice

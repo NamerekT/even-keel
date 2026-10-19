@@ -112,6 +112,8 @@ export const noticesRu: NoticeTexts = {
 
   'agent.uncheckedVersion': (p) =>
     `Установлен ${p.title} ${p.installed}, а Even Keel последний раз проверяли на ${p.checked}: часть его может не работать, пока его не доработают`,
+  'agent.daemonVersion': (p) =>
+    `Демон ${p.title} аккаунта ${p.account} работает на ${p.running}, а не на проверенной ${p.wanted}: его сессии идут на ${p.running}, пока в аккаунте есть живые сессии, потом Even Keel его перезапустит`,
 
   'claude.startFailed': (p) => `не удалось запустить ${p.task} в ${p.cwd}`,
   'claude.resumeFailed': (p) => `не удалось продолжить ${p.task} в ${p.cwd}`,
@@ -296,6 +298,7 @@ export const noticesRu: NoticeTexts = {
   'config.providerKey': (p) => `${p.where}.${p.key} — не провайдер, есть: ${list(p.known)}`,
   'config.providerName': (p) => `${p.where} должен быть текстом`,
   'config.execution': (p) => `execution.${p.provider}: режима ${p.value} нет, есть: ${list(p.known)}`,
+  'config.cli': (p) => `cli.${p.provider}: варианта ${p.value} нет, есть: ${list(p.known)}`,
   'config.trackerLocked': (p) => `цепочка уже запускала задачи ${p.key}, поэтому трекер со страницы не меняется — это будет в v0.2`,
   'config.commandKey': (p) => `${p.where}.${p.key} — не вид команд, есть: ${list(p.known)}`,
   'config.commandList': (p) => `${p.where} должен быть списком команд`,

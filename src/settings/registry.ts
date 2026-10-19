@@ -1,4 +1,4 @@
-import { EXECUTION_MODES, DEFAULT_PROVIDER, isProvider, PROVIDERS } from '../agent/providers.js'
+import { CLI_SOURCES, EXECUTION_MODES, DEFAULT_PROVIDER, isProvider, PROVIDERS } from '../agent/providers.js'
 import { DEFAULT_RULES } from '../chain/rules.js'
 import { changelogPath, DEFAULT_CHANGELOG } from '../changelog/file.js'
 import { CI_KINDS, type CiKind, type RemoteProfiles } from '../ci/model.js'
@@ -12,7 +12,7 @@ import { DEFAULT_HIDDEN_SKILLS } from '../tools/settings.js'
 import { DEFAULT_TRACKER } from '../tracker/adapters.js'
 import { runLabelOf, type RunLabel } from '../tracker/model.js'
 import { DEFAULT_UPDATES } from '../updates/release.js'
-import { DEFAULT_ACCOUNTS, DEFAULT_CI, DEFAULT_COMPARE, DEFAULT_CONTEXT, DEFAULT_EXECUTION, DEFAULT_MODELS } from './defaults.js'
+import { DEFAULT_ACCOUNTS, DEFAULT_CI, DEFAULT_CLI, DEFAULT_COMPARE, DEFAULT_CONTEXT, DEFAULT_EXECUTION, DEFAULT_MODELS } from './defaults.js'
 
 /** `global` — Even Keel's own value, the top level of the file; `project` — a project's, its entry in `projects`. */
 export type Scope = 'global' | 'project'
@@ -194,6 +194,11 @@ export const DEFINITIONS: readonly SettingDefinition[] = [
     const known = EXECUTION_MODES[provider]
     if (known === undefined) throw fail('config.providerKey', { where: 'execution', key: provider, known: Object.keys(EXECUTION_MODES) })
     if (typeof value !== 'string' || !known.includes(value)) throw fail('config.execution', { provider, value: json(value), known: [...known] })
+    return value
+  } },
+  { key: 'cli', kind: 'enum', scopes: ['global'], qualifier: 'provider', lands: ['cli'], default: DEFAULT_CLI, check: (value, { qualifier: provider }) => {
+    if (!isProvider(provider)) throw fail('config.providerKey', { where: 'cli', key: provider, known: [...PROVIDERS] })
+    if (typeof value !== 'string' || !CLI_SOURCES.includes(value)) throw fail('config.cli', { provider, value: json(value), known: [...CLI_SOURCES] })
     return value
   } },
   { key: 'modelLabels', kind: 'boolean', scopes: ['global', 'project'], lands: ['modelLabels', 'settings'], default: false, check: boolean('modelLabels') },

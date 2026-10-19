@@ -66,6 +66,8 @@ export interface EvenKeelConfig {
   accounts: Record<string, string>
   /** The mode of each provider's sessions, defaults filled in; shared only: the Codex sandbox does not start under the service for any project. */
   execution: Record<string, string>
+  /** Which CLI each provider's sessions run on (`CLI_SOURCES`), defaults filled in; shared only: an account folder has one daemon. */
+  cli: Record<string, string>
   /** Whether the tasks' run labels are read, unless a project says otherwise. */
   modelLabels: boolean
   /** Appended to the prompt of a new session by the name of its model, as the CLI gets it. */
@@ -149,6 +151,7 @@ function configOf(records: ProjectRecord[], { shared, own, values }: Resolved, a
     models: shared.models as Record<string, string>,
     accounts: shared.accounts as Record<string, string>,
     execution: shared.execution as Record<string, string>,
+    cli: shared.cli as Record<string, string>,
     modelLabels: shared.modelLabels as boolean,
     modelPrompts: shared.modelPrompts as Record<string, string>,
     stats: {

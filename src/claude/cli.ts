@@ -13,6 +13,7 @@ import { fail, notice, NoticeError, type Notice } from '../notice/notice.js'
 import { samePath } from '../paths.js'
 import { blockedAsk, blockedOn, parseAgents, parseSessionRecord, withLiveRecords, type AgentEntry, type SessionRecord } from '../sessions/agents.js'
 import { newestExtensionBinary } from '../sessions/paths.js'
+import { daemonVersionOf } from './release.js'
 import { descendantsOf, isAlive, killLeftovers } from './tree.js'
 
 const run = promisify(execFile)
@@ -22,8 +23,10 @@ const APPEAR_POLL_MS = 250
 const EXIT_POLL_MS = 100
 const CLOCK_SKEW_MS = 5_000
 
-export function resolveClaudeBinary(env: NodeJS.ProcessEnv): string {
+/** `EVEN_KEEL_CLAUDE_BIN`, else Even Keel's own copy of the checked version (`pinned`), else the installed CLI. */
+export function resolveClaudeBinary(env: NodeJS.ProcessEnv, pinned?: string): string {
   if (env.EVEN_KEEL_CLAUDE_BIN) return env.EVEN_KEEL_CLAUDE_BIN
+  if (pinned !== undefined) return pinned
   const standalone = join(homedir(), '.local', 'bin', process.platform === 'win32' ? 'claude.exe' : 'claude')
   if (existsSync(standalone)) return standalone
   const extensions = join(homedir(), '.vscode', 'extensions')
@@ -160,6 +163,12 @@ export class ClaudeCli {
       await delay(APPEAR_POLL_MS)
     }
     throw fail('claude.stillRunning', { agent: agentId })
+  }
+
+  /** `claude daemon status`: the version of the folder's daemon, `null` — none runs. */
+  async daemonVersion(home: AccountHome): Promise<string | null> {
+    const { stdout } = await run(this.bin(), ['daemon', 'status'], { env: this.envOf(home), timeout: this.timeoutMs, windowsHide: true })
+    return daemonVersionOf(stdout)
   }
 
   async stopDaemon(home: AccountHome): Promise<void> {

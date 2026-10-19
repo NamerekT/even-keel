@@ -33,8 +33,13 @@ export interface AgentOptions {
   env: () => NodeJS.ProcessEnv
   /** How long one call of the agent's CLI may take. */
   timeoutMs: number
-  /** The service's state folder: a call that needs a working folder but belongs to no project runs there. */
+  /** The service's state folder: a call that needs a working folder but belongs to no project runs there; `cli/<agent>` keeps the agent's own CLI copies. */
   workDir: string
+  /** Read at each call: whether sessions run on Even Keel's own copy of `checked` (the `cli` setting) rather than the installed CLI. */
+  checkedCli: () => boolean
+  log: (line: string) => void
+  /** The CLI the agent runs changed: its own copy finished downloading. */
+  onCliChange: () => void
 }
 
 /** What a session is started or resumed with. */
@@ -164,6 +169,13 @@ export interface Agent {
   usage?(home: AccountHome, at: string): Promise<UsageAnswer>
   /** Optional. Stops the account's daemon so that its sessions read the shared configuration anew. */
   stopDaemon?(home: AccountHome): Promise<void>
+  /** Optional. The version sessions run on while they run on Even Keel's own copy of `checked` (BTN-250); `null` — they don't. */
+  pinned?(): string | null
+  /**
+   * Optional. The version of the account's daemon, `null` — none runs. A session runs on its daemon's version, not on
+   * the client's that started it, so a daemon on another version than `pinned` is restarted once it is free.
+   */
+  daemonVersion?(home: AccountHome): Promise<string | null>
   /** Optional. The live sessions' own records, for the apps panel (which account an editor's chats run on). */
   liveRecords?(home: AccountHome): Promise<LiveRecord[]>
   /** Optional. Runs a turn of its own and returns the answer's text and cost; Even Keel writes changelog drafts with it (`src/changelog/`). */

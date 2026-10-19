@@ -116,6 +116,8 @@ export const en = {
 
   'agent.uncheckedVersion': (p: { title: string; installed: string; checked: string }) =>
     `${p.title} ${p.installed} is installed, Even Keel was last checked against ${p.checked}; a part of it may not work until it is adapted`,
+  'agent.daemonVersion': (p: { title: string; account: string; running: string; wanted: string }) =>
+    `The ${p.title} daemon of ${p.account} runs ${p.running}, not the checked ${p.wanted}: its sessions run on ${p.running} until no session of the account is live, then Even Keel restarts it`,
 
   'claude.startFailed': (p: { task: string; cwd: string }) => `claude: could not start ${p.task} in ${p.cwd}`,
   'claude.resumeFailed': (p: { task: string; cwd: string }) => `claude: could not resume ${p.task} in ${p.cwd}`,
@@ -315,6 +317,8 @@ export const en = {
   'config.providerName': (p: { where: string }) => `config: ${p.where} must be text`,
   'config.execution': (p: { provider: string; value: string; known: string[] }) =>
     `config: execution.${p.provider}: there is no mode ${p.value}, known: ${list(p.known)}`,
+  'config.cli': (p: { provider: string; value: string; known: string[] }) =>
+    `config: cli.${p.provider}: there is no choice ${p.value}, known: ${list(p.known)}`,
   'config.trackerLocked': (p: { key: string }) =>
     `config: the chain has started tasks of ${p.key}, so its tracker is not switched from the page; that comes in v0.2`,
   'config.commandKey': (p: { where: string; key: string; known: string[] }) =>

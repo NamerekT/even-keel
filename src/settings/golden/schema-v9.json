@@ -135,6 +135,10 @@
   "execution": {
     "codex": "bypass"
   },
+  "cli": {
+    "claude": "checked",
+    "codex": "checked"
+  },
   "modelLabels": true,
   "modelPrompts": {},
   "stats": {

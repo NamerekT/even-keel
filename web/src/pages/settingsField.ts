@@ -10,7 +10,7 @@ export interface FieldError {
 const RULES = ['active', 'terminal', 'requiredLabels', 'excludedLabels']
 const NAMED = ['branch', 'prompt', 'tracker', 'brief', 'pullRequests', 'fillMilestone', 'changelog', 'provider', 'modelLabels', 'language', 'promptLanguage', 'context', 'stats']
 /** Maps by provider: an error points at the provider's own field, or the first one for a key that names no provider. */
-const BY_PROVIDER: Record<string, readonly string[]> = { models: PROVIDERS, accounts: PROVIDERS, execution: Object.keys(EXECUTION_MODES) }
+const BY_PROVIDER: Record<string, readonly string[]> = { models: PROVIDERS, accounts: PROVIDERS, execution: Object.keys(EXECUTION_MODES), cli: PROVIDERS }
 const PROJECT_WHERE = /^([A-Z][A-Z0-9_]{0,4})\.(.+)$/
 
 const SHARED: Partial<Record<Notice['code'], string>> = {
@@ -42,6 +42,7 @@ export function fieldOf(notice: Notice, trackerKeys: string[]): FieldError | nul
   if (notice.code === 'config.statusBoth') return { project: notice.params.project, field: 'chain.terminal' }
   if (notice.code === 'config.labelBoth') return { project: notice.params.project, field: 'chain.excludedLabels' }
   if (notice.code === 'config.execution') return { project: null, field: `execution.${notice.params.provider}` }
+  if (notice.code === 'config.cli') return { project: null, field: `cli.${notice.params.provider}` }
   if (typeof params.where !== 'string') return null
   const own = PROJECT_WHERE.exec(params.where)
   const project = own?.[1] ?? null

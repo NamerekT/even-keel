@@ -768,7 +768,7 @@ function projectFormOf(body: Record<string, unknown>): ProjectForm {
 }
 
 function sharedFormOf(body: Record<string, unknown>): SharedForm {
-  const { parallel, tracker, brief, chain, provider, models, accounts, execution, modelLabels, modelPrompts, language, promptLanguage, hiddenSkills, cacheTtl, allowedHosts, context, stats, updates } = body
+  const { parallel, tracker, brief, chain, provider, models, accounts, execution, cli, modelLabels, modelPrompts, language, promptLanguage, hiddenSkills, cacheTtl, allowedHosts, context, stats, updates } = body
   if (language !== null && typeof language !== 'string') throw fail('request.required', { field: 'language' })
   if (cacheTtl != null && typeof cacheTtl !== 'string') throw fail('request.required', { field: 'cacheTtl' })
   return {
@@ -780,6 +780,7 @@ function sharedFormOf(body: Record<string, unknown>): SharedForm {
     models: mapOf(models, 'models', (value) => typeof value === 'string'),
     accounts: mapOf(accounts, 'accounts', (value) => typeof value === 'string'),
     execution: mapOf(execution, 'execution', (value) => typeof value === 'string'),
+    cli: mapOf(cli, 'cli', (value) => typeof value === 'string'),
     modelLabels: switchOf(modelLabels, 'modelLabels'),
     modelPrompts: mapOf(modelPrompts, 'modelPrompts', (value) => typeof value === 'string'),
     language: language as Language | null,

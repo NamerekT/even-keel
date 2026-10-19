@@ -4,10 +4,13 @@ import { join } from 'node:path'
 import type { AccountHome } from '../account/homes.js'
 import type { AgentAdapter } from '../agent/contract.js'
 import { runWithInput } from '../agent/oneturn.js'
+import { PIN_RETRY_MS, PinnedCli } from '../agent/pinned.js'
 import { notice } from '../notice/notice.js'
 import { findBinary } from '../paths.js'
 import { CodexCli, parseWriteAnswer, resolveCodexBinary, SESSION_MODE, writeArgs } from './cli.js'
+import { CODEX } from './name.js'
 import { CodexPlugins } from './plugins.js'
+import { codexBinaryIn, codexTarget, fetchCodex } from './release.js'
 import { foldRollout, limitsOfRollout, RolloutFold, rolloutFile, rolloutFiles } from './rollout.js'
 import { RolloutTail } from './tail.js'
 import { TurnRegistry } from './turns.js'
@@ -15,6 +18,8 @@ import { TurnRegistry } from './turns.js'
 const HISTORY_FEED = 5_000
 /** How many of the newest rollouts are searched for the account's limits. */
 const LIMIT_ROLLOUTS = 20
+/** The version the README's "Before you run it" names; raised after the live run of each release (`docs/releases.md`). */
+const CHECKED = '0.162.1'
 
 /**
  * Codex CLI through `codex exec --json`: a turn is a detached process, a session lives between turns in Even Keel's
@@ -22,10 +27,23 @@ const LIMIT_ROLLOUTS = 20
  */
 export const codex: AgentAdapter = {
   title: 'Codex',
-  checked: '0.162.1',
-  setup({ env, timeoutMs, workDir }) {
+  checked: CHECKED,
+  setup({ env, timeoutMs, workDir, checkedCli, log, onCliChange }) {
+    const target = codexTarget(process.platform, process.arch)
+    const copy =
+      target === null
+        ? undefined
+        : new PinnedCli({
+            dir: join(workDir, 'cli', CODEX),
+            version: CHECKED,
+            binary: (folder) => codexBinaryIn(folder, target),
+            fetch: (into) => fetchCodex(CHECKED, into),
+            log,
+            onReady: onCliChange,
+            retryMs: PIN_RETRY_MS,
+          })
     const envOf = (home: AccountHome) => codexEnv(env(), home)
-    const bin = () => resolveCodexBinary(env())
+    const bin = () => resolveCodexBinary(env(), env().EVEN_KEEL_CODEX_BIN || !checkedCli() ? undefined : copy?.path())
     const cli = new CodexCli(bin, timeoutMs, envOf, new TurnRegistry(join(workDir, 'codex')), new CodexPlugins(bin, envOf))
     return {
       mode: SESSION_MODE,

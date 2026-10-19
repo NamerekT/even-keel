@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react'
-import { EXECUTION_MODES } from '../../../src/agent/providers.js'
+import { CLI_SOURCES, EXECUTION_MODES } from '../../../src/agent/providers.js'
 import { LANGUAGES, type Language } from '../../../src/language.js'
 import type { CacheTtl, EvenKeelState, SharedForm } from '../../../src/state.js'
 import { offeredProviders } from '../accounts.js'
@@ -44,7 +44,7 @@ const GROUPS = [
   { id: 'chain', keys: ['parallel', 'tracker', 'brief', ...RULE_KEYS] },
   {
     id: 'models',
-    keys: ['provider', ...providerKeys('models'), ...providerKeys('accounts'), ...providerKeys('execution', EXECUTED), 'modelLabels', 'modelPrompts', 'promptLanguage'],
+    keys: ['provider', ...providerKeys('models'), ...providerKeys('accounts'), ...providerKeys('execution', EXECUTED), ...providerKeys('cli'), 'modelLabels', 'modelPrompts', 'promptLanguage'],
   },
   { id: 'sessions', keys: ['hiddenSkills', 'window', 'warn', 'danger', 'checkpointTokens'] },
   { id: 'claude', keys: ['cacheTtl'] },
@@ -72,6 +72,7 @@ const valuesOf = (form: SharedForm): Values => ({
   ...providerValues('models', form.models),
   ...providerValues('accounts', form.accounts),
   ...providerValues('execution', form.execution, EXECUTED),
+  ...providerValues('cli', form.cli),
   modelLabels: form.modelLabels,
   modelPrompts: JSON.stringify(Object.entries(form.modelPrompts)),
   language: form.language ?? '',
@@ -114,6 +115,7 @@ function formOf(values: Values): SharedForm | undefined {
     models: providerMap('models', values),
     accounts: providerMap('accounts', values),
     execution: providerMap('execution', values, EXECUTED),
+    cli: providerMap('cli', values),
     modelLabels: values.modelLabels as boolean,
     modelPrompts: Object.fromEntries(promptsOf(text('modelPrompts'))),
     language: language === '' ? null : (language as Language),
@@ -263,12 +265,19 @@ export function SharedSettings({ state }: { state: EvenKeelState }) {
             { key: 'models', label: t.settings.model, hint: t.shared.modelHint },
             { key: 'accounts', label: t.settings.account, hint: t.shared.accountHint },
             { key: 'execution', label: t.shared.execution, hint: t.shared.executionHint },
+            { key: 'cli', label: t.shared.cli, hint: t.shared.cliHint },
           ]}
           providers={offered}
           cell={(column, provider) => {
             const name = providerName(provider)
             if (column === 'models') return model(`models.${provider}`, t.settings.modelOf(name))
             if (column === 'accounts') return pick(`accounts.${provider}`, t.settings.accountOf(name), accountOptions(state.account, provider, text(`accounts.${provider}`)))
+            if (column === 'cli')
+              return pick(
+                `cli.${provider}`,
+                t.shared.cliOf(name),
+                CLI_SOURCES.map((source) => ({ value: source, label: t.shared.cliSources[source] ?? source })),
+              )
             const modes = EXECUTION_MODES[provider]
             return modes === undefined
               ? null

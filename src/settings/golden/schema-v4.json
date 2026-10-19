@@ -126,6 +126,10 @@
   "execution": {
     "codex": "sandbox"
   },
+  "cli": {
+    "claude": "checked",
+    "codex": "checked"
+  },
   "modelLabels": false,
   "modelPrompts": {},
   "stats": {

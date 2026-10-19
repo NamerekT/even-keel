@@ -194,6 +194,10 @@
   "execution": {
     "codex": "bypass"
   },
+  "cli": {
+    "claude": "checked",
+    "codex": "system"
+  },
   "modelLabels": true,
   "modelPrompts": {
     "haiku": "Be brief."

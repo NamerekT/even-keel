@@ -104,6 +104,7 @@ describe('parseConfig', () => {
       models: { claude: 'opus' },
       accounts: { claude: 'global', codex: 'codex' },
       execution: { codex: 'sandbox' },
+      cli: { claude: 'checked', codex: 'checked' },
       modelLabels: false,
       modelPrompts: {},
       stats: { compare: { minTasks: 5, minSessions: 10, days: 7 }, moves: {}, otherBelow: 0, checkpointTokens: null },
@@ -326,6 +327,13 @@ describe('parseConfig', () => {
     })
     expect(() => parse({ projects: {}, execution: { codex: 'yolo' } })).toThrow(/execution.codex.*yolo.*sandbox, bypass/)
     expect(() => parse({ projects: {}, execution: { claude: 'bypass' } })).toThrow(/execution.claude is not a provider/)
+  })
+
+  it('runs every provider on the checked CLI unless the config says system', () => {
+    expect(parse({ projects: {} }).cli).toEqual({ claude: 'checked', codex: 'checked' })
+    expect(parse({ projects: {}, cli: { codex: 'system' } }).cli).toEqual({ claude: 'checked', codex: 'system' })
+    expect(() => parse({ projects: {}, cli: { claude: 'latest' } })).toThrow(/cli.claude.*latest.*checked, system/)
+    expect(() => parse({ projects: {}, cli: { gemini: 'system' } })).toThrow(/cli.gemini is not a provider/)
   })
 
   it('fills the run settings of a project with the shared ones, entry by entry', () => {

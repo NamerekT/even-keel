@@ -41,10 +41,10 @@ export function formsOf(config: EvenKeelConfig, adapters: Adapters = ADAPTERS): 
       },
     ]),
   )
-  const { parallel, tracker, brief, chain, provider, models, accounts, execution, modelLabels, modelPrompts, language, promptLanguage, hiddenSkills, cacheTtl, allowedHosts, context, stats } = config
+  const { parallel, tracker, brief, chain, provider, models, accounts, execution, cli, modelLabels, modelPrompts, language, promptLanguage, hiddenSkills, cacheTtl, allowedHosts, context, stats } = config
   const updates = { check: config.updates.check, notify: config.updates.notify }
   const shared = {
-    ...{ parallel, tracker, brief, chain, provider, models, accounts, execution, modelLabels, modelPrompts },
+    ...{ parallel, tracker, brief, chain, provider, models, accounts, execution, cli, modelLabels, modelPrompts },
     ...{ language, promptLanguage, hiddenSkills, cacheTtl, allowedHosts, context, stats, updates },
   }
   return { projects, shared }
@@ -135,7 +135,7 @@ export function withoutProject(raw: unknown, id: string): Record<string, unknown
 export function withSharedForm(raw: unknown, form: SharedForm, base: SharedForm): Record<string, unknown> {
   const changed = (field: keyof SharedForm) => !same(base[field], form[field])
   const rules = rulesOf(form.chain)
-  const byProvider = ['models', 'accounts', 'execution'] as const
+  const byProvider = ['models', 'accounts', 'execution', 'cli'] as const
   const trimmed = (names: Record<string, string>, provider: string) => names[provider]?.trim() ?? ''
   const prompts = Object.entries(form.modelPrompts).flatMap(([model, text]) => (text?.trim() ? [[model, text.trim()]] : []))
   const values: FormValue[] = [

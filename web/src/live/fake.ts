@@ -288,11 +288,16 @@ export function createFakeSource(search: string): LiveSource {
   if (params.get('cli') === 'unchecked' && current.state !== null) {
     const unchecked = (agent: string, title: string, installed: string, checked: string) => ({
       agent,
+      account: null,
       installed,
       checked,
       notice: { code: 'agent.uncheckedVersion' as const, params: { title, installed, checked } },
     })
     current.state.cliVersions = [unchecked('claude', 'Claude Code', '2.1.303', '2.1.301'), unchecked('codex', 'Codex', '0.163.0', '0.162.1')]
+  }
+  if (params.get('cli') === 'daemon' && current.state !== null) {
+    const params = { title: 'Claude Code', account: 'global', running: '2.1.303', wanted: '2.1.301' }
+    current.state.cliVersions = [{ agent: 'claude', account: 'global', installed: '2.1.303', checked: '2.1.301', notice: { code: 'agent.daemonVersion', params } }]
   }
   if (params.get('fallback') === 'on' && current.state !== null) {
     const notice = { code: 'chain.noAccountFor' as const, params: { task: 'ABC-10', label: 'Codex', provider: 'Claude' } }

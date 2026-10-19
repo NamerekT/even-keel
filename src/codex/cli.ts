@@ -26,11 +26,12 @@ export const SESSION_MODE = 'approve-for-me'
 const BYPASS_MODE = 'dangerously-bypass-approvals-and-sandbox'
 
 /**
- * `EVEN_KEEL_CODEX_BIN`, else on Windows the native `codex.exe` of the global npm package (its `codex.cmd` needs a
- * shell), else `codex` on the PATH.
+ * `EVEN_KEEL_CODEX_BIN`, else Even Keel's own copy of the checked version (`pinned`), else on Windows the native
+ * `codex.exe` of the global npm package (its `codex.cmd` needs a shell), else `codex` on the PATH.
  */
-export function resolveCodexBinary(env: NodeJS.ProcessEnv): string {
+export function resolveCodexBinary(env: NodeJS.ProcessEnv, pinned?: string): string {
   if (env.EVEN_KEEL_CODEX_BIN) return env.EVEN_KEEL_CODEX_BIN
+  if (pinned !== undefined) return pinned
   const triple = TRIPLES[process.arch]
   if (process.platform !== 'win32' || env.APPDATA === undefined || triple === undefined) return 'codex'
   const scope = join(env.APPDATA, 'npm', 'node_modules', '@openai', 'codex', 'node_modules', '@openai')

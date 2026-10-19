@@ -671,6 +671,11 @@ export const en: Messages = {
     executionHint:
       'In the sandbox — the automatic reviewer approves actions inside the Codex sandbox. Under the Windows service that sandbox does not start, and a session can neither edit files nor run commands; without it, a session does everything without limits on this machine. For every project.',
     modes: { sandbox: 'In the sandbox', bypass: 'Without the sandbox' } as Record<string, string>,
+    cli: 'CLI version',
+    cliOf: (provider: string) => `CLI version of ${provider}`,
+    cliHint:
+      "Checked — Even Keel downloads the version it was last checked against into its own folder and runs sessions on it; until the download ends they run on the installed CLI. Installed — the CLI on this machine, on whatever version it updated itself to. Claude Code sessions move to another version once no session of the account folder is live: a running daemon keeps its own. For every project.",
+    cliSources: { checked: 'Checked', system: 'Installed' } as Record<string, string>,
     modelLabelsHint: "For projects that don't set it. On — a task's label Claude | sonnet, Codex | gpt-6.1-sol or a bare Codex picks its session.",
     modelPrompts: 'Model prompts',
     modelPromptsHint: 'Added to the prompt of sessions on its model, by the name as it goes to the CLI.',

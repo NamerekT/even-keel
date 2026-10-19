@@ -35,4 +35,10 @@ describe('claudeEnv', () => {
     expect(result.PATH).toBe('/bin')
     expect(result.CLAUDE_CONFIG_DIR).toBe('root/a')
   })
+
+  it('turns the auto-updater off only for sessions on the checked copy', () => {
+    const home = { key: 'a', dir: 'root/a', global: false, agent: 'claude' }
+    expect(claudeEnv(base, home, true).DISABLE_AUTOUPDATER).toBe('1')
+    expect(claudeEnv(base, home).DISABLE_AUTOUPDATER).toBeUndefined()
+  })
 })

@@ -38,6 +38,7 @@ export const FAKE_SHARED: SharedForm = {
   models: { claude: 'opus' },
   accounts: { claude: 'global', codex: 'codex' },
   execution: { codex: 'sandbox' },
+  cli: { claude: 'checked', codex: 'checked' },
   modelLabels: false,
   modelPrompts: {},
   language: null,

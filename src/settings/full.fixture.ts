@@ -13,6 +13,7 @@ export const FULL = {
   models: { claude: 'sonnet', codex: 'gpt-6.1-sol' },
   accounts: { claude: 'team-api', codex: ' ' },
   execution: { codex: 'bypass' },
+  cli: { codex: 'system' },
   modelLabels: true,
   modelPrompts: { haiku: ' Be brief. ' },
   language: 'ru',

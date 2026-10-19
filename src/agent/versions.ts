@@ -1,3 +1,4 @@
+import type { OutdatedDaemon } from '../account/daemon.js'
 import { englishOf, notice } from '../notice/notice.js'
 import type { CliVersionView } from '../state.js'
 
@@ -87,6 +88,11 @@ export class VersionWatcher {
   private viewOf({ name, title, checked }: VersionedAgent): CliVersionView | null {
     const installed = this.installed.get(name)
     if (installed === undefined || installed === checked) return null
-    return { agent: name, installed, checked, notice: notice('agent.uncheckedVersion', { title, installed, checked }) }
+    return { agent: name, account: null, installed, checked, notice: notice('agent.uncheckedVersion', { title, installed, checked }) }
   }
+}
+
+/** A daemon on another version than the pin (BTN-250): its folder's sessions run on `running` until it is restarted. */
+export function outdatedDaemonView({ agent, account, running, wanted }: OutdatedDaemon, title: string): CliVersionView {
+  return { agent, account, installed: running, checked: wanted, notice: notice('agent.daemonVersion', { title, account, running, wanted }) }
 }

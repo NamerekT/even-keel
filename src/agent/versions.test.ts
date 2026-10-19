@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import { claude } from '../claude/adapter.js'
 import { codex } from '../codex/adapter.js'
-import { cliVersionOf, VersionWatcher, type VersionedAgent } from './versions.js'
+import { cliVersionOf, outdatedDaemonView, VersionWatcher, type VersionedAgent } from './versions.js'
 
 describe('the checked versions', () => {
   it('are the ones the README names under "Before you run it"', () => {
@@ -54,6 +54,7 @@ describe('VersionWatcher', () => {
     expect(watch.view()).toEqual([
       {
         agent: 'claude',
+        account: null,
         installed: '2.1.303',
         checked: '2.1.301',
         notice: { code: 'agent.uncheckedVersion', params: { title: 'Claude Code', installed: '2.1.303', checked: '2.1.301' } },
@@ -100,5 +101,17 @@ describe('VersionWatcher', () => {
     claude.answer = 'garbage'
     await watch.check()
     expect(log.at(-1)).toBe('agents: could not read the version of Claude Code: no version in "garbage"')
+  })
+})
+
+describe('outdatedDaemonView', () => {
+  it('names the account whose daemon runs another version than the pin', () => {
+    expect(outdatedDaemonView({ agent: 'claude', account: 'jane.roe', running: '2.1.303', wanted: '2.1.301' }, 'Claude Code')).toEqual({
+      agent: 'claude',
+      account: 'jane.roe',
+      installed: '2.1.303',
+      checked: '2.1.301',
+      notice: { code: 'agent.daemonVersion', params: { title: 'Claude Code', account: 'jane.roe', running: '2.1.303', wanted: '2.1.301' } },
+    })
   })
 })
