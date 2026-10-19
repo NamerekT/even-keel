@@ -63,6 +63,23 @@ select count(*) as tasks, round(sum(active_s) / 3600) as active_h, round(sum(wai
   count(*) filter (where wait_s < 60) as no_wait_tasks
 from task_times join ct using (task);
 
+-- 5b. The same waiting split into single waits by length (session_times' wait_s, turn by turn).
+--     Post: about 200 waits; 143 under 5 min, 50 of 5-30 min, 3 over an hour with 6.2 of the 23 h.
+with ct as (select distinct task from audit_sessions
+  where launch_reason is not null and task is not null and first_at >= '2026-09-28' and first_at < '2026-10-19'),
+cs as (select distinct st.session_id from session_tasks st join ct using (task)),
+x as (select t.*,
+    greatest(extract(epoch from t.ended_at - t.started_at) - t.ask_s, 0) as turn_s,
+    extract(epoch from t.started_at - lag(t.ended_at) over w) as gap,
+    coalesce(lag(t.limited) over w, false) as prev_limited
+  from turns t join cs using (session_id)
+  window w as (partition by t.session_id order by t.started_at, t.start_uuid)),
+p as (select case when start = 'prompt' and not prev_limited and gap > 0 then gap else 0 end
+  + ask_s + greatest(turn_s - coalesce(cli_s, turn_s), 0) as w from x)
+select case when w < 300 then '1 <5m' when w < 1800 then '2 5-30m' when w < 3600 then '3 30-60m' else '4 >1h' end as len,
+  count(*) as waits, round(sum(w) / 3600, 1) as h
+from p where w > 0 group by 1 order by 1;
+
 -- 6. What started the turns of chain sessions: the dispatcher (launch, resume), a background
 --    notification, a message from another session, or a human prompt.
 --    Post: 87 of 982 turns, about 3 of 153 turn hours, began with a human prompt.
