@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
-import { DEFAULT_CLASSIFY, dbSettings, parseConfig } from './config.js'
+import { DEFAULT_CLASSIFY, dbSettings, parseConfig, unpricedToLog } from './config.js'
 import { DEFAULT_SIGN_RULES } from './signs.js'
 import { DEFAULT_STEPS } from './step-runs.js'
 
@@ -15,6 +15,7 @@ describe('parseConfig', () => {
       classify: DEFAULT_CLASSIFY,
       ruleHistory: null,
       reportsSince: null,
+      unpriced: [],
       steps: DEFAULT_STEPS,
     })
   })
@@ -71,6 +72,18 @@ describe('parseConfig', () => {
     expect(() => parseConfig({ prices, reportsSince: '3 Oct' })).toThrow(/reportsSince/)
   })
 
+  it('takes the models known to have no price', () => {
+    const prices = { 'claude-opus-5-5': price }
+    expect(parseConfig({ prices }).unpriced).toEqual([])
+    expect(parseConfig({ prices, unpriced: ['codex-auto-review'] }).unpriced).toEqual(['codex-auto-review'])
+    expect(() => parseConfig({ prices, unpriced: 'codex-auto-review' })).toThrow(/unpriced/)
+    expect(() => parseConfig({ prices, unpriced: [''] })).toThrow(/unpriced/)
+  })
+
+  it('rejects an unpriced model that a price covers', () => {
+    expect(() => parseConfig({ prices: { 'claude-opus-5': price }, unpriced: ['claude-opus-5-5'] })).toThrow(/unpriced.*claude-opus-5-5/)
+  })
+
   it('lays step rules over the defaults and drops a rule set to null', () => {
     const prices = { 'claude-opus-5-5': price }
     const steps = parseConfig({
@@ -111,6 +124,11 @@ describe('the shipped tally.config.json', () => {
       expect(priceOf(model)?.longPrompt?.over).toBe(272_000)
     }
     expect(priceOf('gpt-5.4-mini')).toMatchObject({ model: 'gpt-5.4-mini', input: 0.75, output: 4.5, longPrompt: null })
+  })
+
+  it("leaves Codex's hidden models unpriced without a log line", () => {
+    expect(shipped.unpriced).toEqual(['codex-auto-review', 'gpt-reserve'])
+    expect(unpricedToLog(['codex-auto-review', 'gpt-7', 'gpt-reserve'], shipped.unpriced)).toEqual(['gpt-7'])
   })
 })
 

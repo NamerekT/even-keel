@@ -11,7 +11,7 @@ import { sqliteInMemory } from '../../src/storage/copy.js'
 import { SQLITE_FILE } from '../../src/storage/database.js'
 import { readStateDatabase, type StateReader } from '../../src/storage/owner.js'
 import { readStateFiles } from '../../src/storage/state-files.js'
-import { parseConfig, type DbSettings } from './config.js'
+import { parseConfig, unpricedToLog, type DbSettings } from './config.js'
 import { TallyDb } from './db.js'
 import { refreshHandoffs } from './handoffs.js'
 import type { HulyOf } from './huly-profiles.js'
@@ -110,7 +110,7 @@ export async function collect(settings: DbSettings, root: string, log: Log, huly
     const tasks = await refreshTasks(db, hulyOf, log)
     const reports = await reportTaskTimes(db, config.reportsSince, hulyOf, log)
     const classified = await classifySpans(db, config.classify, log)
-    const unpriced = await db.unpricedModels()
+    const unpriced = unpricedToLog(await db.unpricedModels(), config.unpriced)
     if (unpriced.length > 0) log(`tally: no price for ${unpriced.join(', ')} — add them to tally.config.json`)
 
     const seconds = ((Date.now() - started) / 1000).toFixed(1)
