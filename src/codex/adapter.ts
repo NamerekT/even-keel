@@ -19,7 +19,7 @@ const HISTORY_FEED = 5_000
 /** How many of the newest rollouts are searched for the account's limits. */
 const LIMIT_ROLLOUTS = 20
 /** The version the README's "Before you run it" names; raised after the live run of each release (`docs/releases.md`). */
-const CHECKED = '0.162.1'
+const CHECKED = '0.163.0'
 
 /**
  * Codex CLI through `codex exec --json`: a turn is a detached process, a session lives between turns in Even Keel's
@@ -28,16 +28,16 @@ const CHECKED = '0.162.1'
 export const codex: AgentAdapter = {
   title: 'Codex',
   checked: CHECKED,
-  setup({ env, timeoutMs, workDir, checkedCli, log, onCliChange }) {
+  setup({ env, timeoutMs, workDir, checkedCli, version = CHECKED, log, onCliChange }) {
     const target = codexTarget(process.platform, process.arch)
     const copy =
       target === null
         ? undefined
         : new PinnedCli({
             dir: join(workDir, 'cli', CODEX),
-            version: CHECKED,
+            version,
             binary: (folder) => codexBinaryIn(folder, target),
-            fetch: (into) => fetchCodex(CHECKED, into),
+            fetch: (into) => fetchCodex(version, into),
             log,
             onReady: onCliChange,
             retryMs: PIN_RETRY_MS,

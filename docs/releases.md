@@ -13,10 +13,21 @@ How a version of Even Keel is made and released, and what a fix of an already re
 The release is the user's: no session bumps the version, tags or publishes.
 
 1. Every task of the milestone is closed and the CI of `main` is green.
-2. After the live run of the release, both checked CLI versions are raised to the ones it ran on: `checked` of the Claude Code adapter (`src/claude/adapter.ts`) and of the Codex one (`src/codex/adapter.ts`), and the two "Last checked against" lines of the README's "Before you run it" — a test keeps them equal. The page warns about any other installed version (BTN-249, `docs/web.md`).
+2. The CLI check ("Checking a CLI version" below) passes on the newest Claude Code and Codex, and both checked CLI versions are raised to the ones it passed on: `checked` of the Claude Code adapter (`src/claude/adapter.ts`) and of the Codex one (`src/codex/adapter.ts`), and the two "Last checked against" lines of the README's "Before you run it" — a test keeps them equal. The page warns about any other installed version (BTN-249, `docs/web.md`).
 3. `version` in `package.json` is set to the release (`0.1.0`): the service shows it in the gear menu and compares it with the latest release (`docs/web.md`, "Updates"). In `CHANGELOG.md` the `Unreleased` section becomes `## [0.1.0] - <date>`. The section itself is written from the milestone's head in the chain (BTN-209, `docs/web.md`): the agent drafts it from the done tasks, the user edits it in words or in the file, "Write" commits it to the main branch, and "Add N" works in the tasks closed since. Once the tag exists the section is frozen: tasks closed after it go into a new section above, headed as the next patch (`## [0.1.1]`), never into the released one.
 4. A tag `v0.1.0` on that commit of `main`, pushed to both remotes.
 5. A GitHub release from the tag. Drafts and prereleases are not offered to installed copies; a published release is, within 12 h.
+
+## Checking a CLI version
+
+`npm run cli-check -- claude <account> [version]` (or `codex`) runs one live session of a cheap model (`haiku`, `gpt-5.6-luna`) through the `Agent` calls the chain and the page use (BTN-253, `scripts/cli-check.ts`): Even Keel's copy of the version, the sign-in, a launch, the daemon's version, an `AskUserQuestion` seen as the page sees it (Codex asks in text), the answer sent as the chat sends it (stop, then `resume` with `replyPrompt`), the file it writes, the `CHECKPOINT:` line, the chat's feed with the question, the answer and the last reply, the transcript, the stop, and `/usage` once (`--no-usage` leaves it out). The version is the adapter's `checked` by default. Two Haiku runs did not move a five-hour window by a whole percent.
+
+- The account folder must have no live session: the check refuses one that has. A Claude daemon on the checked version takes the folder over, so the check stops it at the end, and the next chain launch there starts one on the pinned version.
+- Its copies and its working folder are under `<state>/cli-check/`, not the service's `cli/`: the service downloads its own once `checked` is raised. The working folder is no repository of its own, so it takes the trust of the Even Keel checkout it lies in; an account that has not trusted the checkout fails the launch with "Workspace not trusted".
+- It runs from a terminal, not from the service: what differs in the Windows service's session 0 (the Codex sandbox, BTN-171) is not covered.
+- The CLI is released every day or two, and a new model may need a newer one (an old version does not know its alias, Codex lists models by the client's version). A version need not wait for a release of Even Keel: the check passes, `checked` is raised in a task of its own, and the service downloads the copy at its next call after the restart.
+
+Passed on 2026-10-19: Claude Code 2.1.303 and codex-cli 0.163.0 on Windows x64. On 2.1.303 a stopped `AskUserQuestion` is in the transcript after the resume, with the result "Tool call interrupted"; the reply still repeats the question, and the session answered it.
 
 ## A fix of a released version
 
