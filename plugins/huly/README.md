@@ -14,19 +14,21 @@ A second `PreToolUse` hook (`hooks/show-calibration.mjs`) runs when a session se
 
 ## Credentials
 
+Create a separate account in Huly for Even Keel and its sessions, give it access to the projects, and use its e-mail and password — in an Even Keel profile and here alike. A token is the alternative only if your Huly shows an API tokens page in the account settings: released self-hosted Huly has no such page, and the token it signs in with is obtained from the e-mail and password anyway.
+
 The MCP server reads them from the environment of the session:
 
 | Variable | |
 | --- | --- |
 | `HULY_URL` | Huly address, e.g. `https://huly.example.com` |
 | `HULY_WORKSPACE` | workspace identifier |
-| `HULY_TOKEN` | API token, where your Huly has them |
-| `HULY_EMAIL`, `HULY_PASSWORD` | instead of the token |
+| `HULY_EMAIL`, `HULY_PASSWORD` | the account's e-mail and password |
+| `HULY_TOKEN` | instead of them, an API token where your Huly has them |
 
 Put them into the `env` of your Claude Code user settings, `~/.claude/settings.json`:
 
 ```json
-{ "env": { "HULY_URL": "https://huly.example.com", "HULY_WORKSPACE": "example", "HULY_TOKEN": "…" } }
+{ "env": { "HULY_URL": "https://huly.example.com", "HULY_WORKSPACE": "example", "HULY_EMAIL": "john.doe@example.com", "HULY_PASSWORD": "…" } }
 ```
 
 Every session applies that `env` itself, and Even Keel carries `settings.json` over to every account folder before a launch. System environment variables do not work for the chain: Even Keel strips `HULY_*` from the environment of the sessions it starts, so that its own account from its `.env` never reaches them — the sessions work under the account you give the plugin.

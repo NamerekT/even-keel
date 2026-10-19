@@ -9,13 +9,13 @@ export interface HulyCredentials {
 
 export const HOST_VARIABLES = ['HULY_URL', 'HULY_WORKSPACE'] as const
 export const VARIABLES = [...HOST_VARIABLES, 'HULY_TOKEN', 'HULY_EMAIL', 'HULY_PASSWORD'] as const
-/** A profile fills one of them: the token, or the e-mail and the password. */
-export const ALTERNATIVES = [['HULY_TOKEN'], ['HULY_EMAIL', 'HULY_PASSWORD']] as const
+/** A profile fills one of them: the e-mail and the password, or the token. The dialog opens on the first: released Huly has no API tokens page. */
+export const ALTERNATIVES = [['HULY_EMAIL', 'HULY_PASSWORD'], ['HULY_TOKEN']] as const
 
 export function readHulyCredentials(env: Readonly<Record<string, string | undefined>>): HulyCredentials | undefined {
   if (VARIABLES.every((name) => !env[name])) return undefined
   const missing: string[] = HOST_VARIABLES.filter((name) => !env[name])
-  if (!env.HULY_TOKEN) missing.push(...ALTERNATIVES[1].filter((name) => !env[name]))
+  if (!env.HULY_TOKEN) missing.push(...ALTERNATIVES[0].filter((name) => !env[name]))
   if (missing.length > 0) throw new Error(`set ${missing.join(', ')}${env.HULY_TOKEN ? '' : ' (or HULY_TOKEN)'}, or none of the HULY_* variables`)
   return {
     url: env.HULY_URL!,

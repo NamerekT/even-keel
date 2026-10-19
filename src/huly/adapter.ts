@@ -6,7 +6,7 @@ export const huly: TrackerAdapter = {
   variables: VARIABLES,
   hostVariables: HOST_VARIABLES,
   alternatives: ALTERNATIVES,
-  help: 'https://github.com/hcengineering/platform/tree/develop/packages/api-client',
+  help: 'https://github.com/NamerekT/even-keel/blob/main/plugins/huly/README.md#credentials',
   mcpServer: 'huly',
   profileName: (values, account) => account?.name ?? `Huly · ${values.HULY_WORKSPACE ?? ''}`,
   account: async (values, timeoutMs) => (await import('./profile.js')).hulyAccount(values, timeoutMs),

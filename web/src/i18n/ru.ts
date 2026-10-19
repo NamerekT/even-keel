@@ -957,7 +957,7 @@ export const ru = {
       forgejo: 'CI своего сервера Forgejo, не трекер',
     } as Record<string, string>,
     rights: {
-      huly: 'Учётка с доступом к проектам: токен или почта и пароль.',
+      huly: 'Отдельная учётка с доступом к проектам: её почта и пароль или токен, если в настройках аккаунта вашего Huly есть страница API-токенов.',
       github: 'Fine-grained токен на владельца репозиториев: Issues — Read and write; для GitHub Actions ещё Actions — Read.',
       linear: 'Личный ключ API с правом записи.',
       forgejo: 'Адрес сервера и токен с правами read:repository (репозитории и их Actions) и read:user (проверка входа). CI берёт профиль, чей хост совпадает с хостом remote.',

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { authOf, issueUrlBase, readHulyCredentials } from './credentials.js'
+import { huly } from './adapter.js'
+import { ALTERNATIVES, authOf, issueUrlBase, readHulyCredentials } from './credentials.js'
 
 const full = {
   HULY_URL: 'https://huly.example.com',
@@ -7,6 +8,16 @@ const full = {
   HULY_EMAIL: 'john.doe@example.com',
   HULY_PASSWORD: 'not-a-real-password',
 }
+
+describe('the Huly profile dialog', () => {
+  it('offers the e-mail and the password first: released Huly has no API tokens page', () => {
+    expect(ALTERNATIVES[0]).toEqual(['HULY_EMAIL', 'HULY_PASSWORD'])
+  })
+
+  it("points to the plugin README's credentials section for help", () => {
+    expect(huly.help).toBe('https://github.com/NamerekT/even-keel/blob/main/plugins/huly/README.md#credentials')
+  })
+})
 
 describe('readHulyCredentials', () => {
   it('reads the address, the workspace, the e-mail and the password', () => {

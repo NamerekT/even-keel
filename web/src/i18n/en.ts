@@ -777,7 +777,7 @@ export const en: Messages = {
         : `GitHub Actions not shown (${remotes}): the token does not reach the repository's Actions, it needs Actions: Read`,
     kindHint: { huly: 'An own Huly server or the cloud', github: 'Issues and Actions on github.com', linear: 'A Linear workspace', forgejo: 'The CI of an own Forgejo server, no tracker' },
     rights: {
-      huly: 'An account with access to the projects: a token, or an e-mail and a password.',
+      huly: "A separate account with access to the projects: its e-mail and password, or a token if your Huly's account settings have an API tokens page.",
       github: "A fine-grained token for the repositories' owner: Issues — Read and write; for GitHub Actions also Actions — Read.",
       linear: 'A personal API key with write access.',
       forgejo: "The server's address and a token with read:repository (the repositories and their Actions) and read:user (the sign-in check). A CI takes the profile whose host is its remote's.",
