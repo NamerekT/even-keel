@@ -84,6 +84,23 @@ describe('MergeCloser', () => {
     expect(asked).toBe(1)
   })
 
+  it('closes a reopened task again once its branch is merged again', async () => {
+    const adapter = fakeAdapter(['ABC-1'])
+    let merged = true
+    const closer = new MergeCloser({ merged: async () => merged, complete: (task) => adapter.complete!(task) })
+    expect(await closer.sweep('ABC', ['ABC-1'], ['ABC-1'])).toEqual(['ABC-1'])
+    expect(await closer.sweep('ABC', ['ABC-1'], [])).toEqual([])
+
+    adapter.statuses.set('ABC-1', todo)
+    merged = false
+    expect(await closer.sweep('ABC', ['ABC-1'], ['ABC-1'])).toEqual([])
+    expect(adapter.statuses.get('ABC-1')).toEqual(todo)
+
+    merged = true
+    expect(await closer.sweep('ABC', ['ABC-1'], ['ABC-1'])).toEqual(['ABC-1'])
+    expect(adapter.statuses.get('ABC-1')).toEqual(done)
+  })
+
   it('tries again next time when the tracker refused to close the task', async () => {
     let fail = true
     const errors: unknown[] = []

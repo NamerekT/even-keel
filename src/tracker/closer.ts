@@ -10,7 +10,9 @@ export class MergeCloser {
 
   constructor(private readonly options: MergeCloserOptions) {}
 
-  async sweep(project: string, tasks: string[]): Promise<string[]> {
+  /** `open` — the tasks the tracker's last read shows open: one closed before and open again was reopened, and is closed again once merged. */
+  async sweep(project: string, tasks: string[], open: string[] = []): Promise<string[]> {
+    for (const task of open) this.closed.delete(task)
     const closed: string[] = []
     for (const task of tasks) {
       if (this.closed.has(task)) continue

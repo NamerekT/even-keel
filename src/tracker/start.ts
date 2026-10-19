@@ -160,7 +160,8 @@ export function startTracker(view: TrackerView, setup: TrackerSetup, deps: Track
       if (released.length > 0) dispatcher.setReleased(project, await link.run((tracker) => tracker.tasks(released)))
       await fillMilestones(project)
       if (!completes) return
-      for (const task of await closer.sweep(project, dispatcher.held(project))) {
+      const open = shown.filter((task) => isOpen(task.status)).map((task) => task.id)
+      for (const task of await closer.sweep(project, dispatcher.held(project), open)) {
         console.log(`${title}: closed ${task}, its branch is merged into main`)
       }
       if (!closesParents) return
