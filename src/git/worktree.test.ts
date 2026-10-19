@@ -177,10 +177,22 @@ describe('ensureIgnored', () => {
     expect(readFileSync(exclude, 'utf8')).toBe('# git ls-files --others --exclude-from=.git/info/exclude\n.claude/worktrees/\n')
   })
 
-  it('leaves the exclude file alone when the folder is already ignored', async () => {
-    const { git, calls } = fakeGit({ 'check-ignore -q .claude/worktrees/probe': { code: 0 } })
+  it('adds the scratch folder too, so a pull request description written there leaves the worktree clean', async () => {
+    dir = mkdtempSync(join(tmpdir(), 'even-keel-exclude-'))
+    const exclude = join(dir, 'exclude')
+    const { git } = fakeGit({
+      'check-ignore -q .claude/worktrees/probe': { code: 1 },
+      'check-ignore -q .temp/probe': { code: 1 },
+      'rev-parse --git-path info/exclude': { out: exclude },
+    })
     await ensureIgnored(git, repo)
-    expect(calls).toEqual(['check-ignore -q .claude/worktrees/probe'])
+    expect(readFileSync(exclude, 'utf8')).toBe('.claude/worktrees/\n.temp/\n')
+  })
+
+  it('leaves the exclude file alone when both folders are already ignored', async () => {
+    const { git, calls } = fakeGit({ 'check-ignore -q .claude/worktrees/probe': { code: 0 }, 'check-ignore -q .temp/probe': { code: 0 } })
+    await ensureIgnored(git, repo)
+    expect(calls).toEqual(['check-ignore -q .claude/worktrees/probe', 'check-ignore -q .temp/probe'])
   })
 })
 

@@ -49,7 +49,7 @@ export const PROMPTS: Record<Language, PromptTexts> = {
     pullRequest: (main) =>
       [
         fill`- Режим PR: ветку в ${main} не сливай — её сольёт человек через pull request. Это правило важнее шага слияния в навыке трекера, проверка перед слиянием тоже не нужна: проверяет CI на pull request.`,
-        '- Когда работа готова и одобрена ревьюером: закоммить всё (git status пуст), опиши pull request в .temp/pull-request.md (первая строка — заголовок, дальше тело) и закончи ход последней строкой `PULL REQUEST: .temp/pull-request.md`. Ветку пушит и pull request открывает Even Keel; статус задачи не трогай.',
+        '- Когда работа готова (и одобрена, если в проекте есть ревьюер): закоммить всю работу (git status пуст), опиши pull request в .temp/pull-request.md (первая строка — заголовок, дальше тело) и закончи ход последней строкой `PULL REQUEST: .temp/pull-request.md`. Файл описания не коммить: Even Keel читает его из worktree, а `.temp/` git игнорирует. Ветку пушит и pull request открывает Even Keel; статус задачи не трогай.',
         fill`- Если задача не требует правок в репозитории (исследование, работа уже в ${main}) — всё равно закончи ход строкой \`PULL REQUEST: .temp/pull-request.md\`, файл описания тогда не нужен: Even Keel закроет задачу без pull request.`,
       ].join('\n'),
     review: {
@@ -58,7 +58,7 @@ export const PROMPTS: Record<Language, PromptTexts> = {
       comment: (path, line) => (line === null ? fill`  - ${path}:` : fill`  - ${path}:${String(line)}:`),
       ci: (title, url) => fill`- Упал CI: ${title} — ${url}`,
       conflict: (main) => fill`- Pull request конфликтует с ${main}: слей свежий ${main} в свою ветку и разреши конфликты.`,
-      after: 'Исправь, закоммить и снова закончи ход строкой `PULL REQUEST: .temp/pull-request.md` (описание обнови, если нужно): Even Keel запушит ветку в тот же pull request.',
+      after: 'Исправь, закоммить и снова закончи ход строкой `PULL REQUEST: .temp/pull-request.md` (описание обнови, если нужно, но не коммить): Even Keel запушит ветку в тот же pull request.',
       nothingAhead: (main) =>
         fill`Pull request не открыт: в ветке нет коммитов сверх ${main}, а в worktree есть незакоммиченные изменения. Закоммить работу и снова закончи ход строкой \`PULL REQUEST: .temp/pull-request.md\`. Если эти изменения не нужны — убери их, и по той же строке Even Keel закроет задачу без pull request.`,
     },
@@ -111,7 +111,7 @@ export const PROMPTS: Record<Language, PromptTexts> = {
     pullRequest: (main) =>
       [
         fill`- PR mode: do not merge the branch into ${main} — a human merges it through a pull request. This rule outranks the merge step of the tracker's skill, and the check before a merge is not needed either: the CI checks the pull request.`,
-        '- Once the work is done and approved by the reviewer: commit everything (git status is clean), describe the pull request in .temp/pull-request.md (the first line is the title, the body follows) and end the turn with the last line `PULL REQUEST: .temp/pull-request.md`. Even Keel pushes the branch and opens the pull request; leave the task status alone.',
+        '- Once the work is done (and approved, where your project has a reviewer): commit all the work (git status is clean), describe the pull request in .temp/pull-request.md (the first line is the title, the body follows) and end the turn with the last line `PULL REQUEST: .temp/pull-request.md`. Do not commit the description file: Even Keel reads it from the worktree, and git ignores `.temp/`. Even Keel pushes the branch and opens the pull request; leave the task status alone.',
         fill`- If the task needs no change in the repository (research, work already in ${main}), still end the turn with the line \`PULL REQUEST: .temp/pull-request.md\`; the description file is not needed then: Even Keel closes the task without a pull request.`,
       ].join('\n'),
     review: {
@@ -120,7 +120,7 @@ export const PROMPTS: Record<Language, PromptTexts> = {
       comment: (path, line) => (line === null ? fill`  - ${path}:` : fill`  - ${path}:${String(line)}:`),
       ci: (title, url) => fill`- The CI failed: ${title} — ${url}`,
       conflict: (main) => fill`- The pull request conflicts with ${main}: merge the fresh ${main} into your branch and resolve the conflicts.`,
-      after: 'Fix it, commit and end the turn with the line `PULL REQUEST: .temp/pull-request.md` again (update the description if needed): Even Keel pushes the branch to the same pull request.',
+      after: 'Fix it, commit and end the turn with the line `PULL REQUEST: .temp/pull-request.md` again (update the description if needed, without committing it): Even Keel pushes the branch to the same pull request.',
       nothingAhead: (main) =>
         fill`The pull request was not opened: the branch has no commits beyond ${main}, and the worktree has uncommitted changes. Commit the work and end the turn with the line \`PULL REQUEST: .temp/pull-request.md\` again. If those changes are not needed, remove them, and on the same line Even Keel closes the task without a pull request.`,
     },

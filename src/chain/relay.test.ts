@@ -247,6 +247,19 @@ describe('startPrompt', () => {
   it('fails instead of leaving a blank where the worktree should be', () => {
     expect(() => start('ABC-1', { path: '', branch: 'abc-1/task' })).toThrow(/Worktree готов/)
   })
+
+  it('in PR mode asks for a reviewer only where the project has one and keeps the description out of the commits', () => {
+    const place = { path: 'D:/work/repo/.claude/worktrees/abc-1', branch: 'abc-1/task' }
+    const ru = startPrompt('ABC-1', place, 'ru', 'main', true)
+    expect(ru).toContain('одобрена, если в проекте есть ревьюер')
+    expect(ru).toContain('Файл описания не коммить')
+    const en = startPrompt('ABC-1', place, 'en', 'main', true)
+    expect(en).toContain('approved, where your project has a reviewer')
+    expect(en).toContain('Do not commit the description file')
+    expect(en).not.toContain('approved by the reviewer')
+    expect(PROMPTS.en.review.after).toContain('without committing it')
+    expect(PROMPTS.ru.review.after).toContain('не коммить')
+  })
 })
 
 describe('withBrief', () => {

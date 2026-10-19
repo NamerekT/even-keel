@@ -33,10 +33,17 @@ export function parseWorktrees(text: string): Worktree[] {
     })
 }
 
+/** `.temp/` holds a session's scratch, the pull request's description among it: written there, it must not make the worktree dirty (BTN-221). */
+const IGNORED = [WORKTREES, '.temp/']
+
 export async function ensureIgnored(git: Git, repo: string): Promise<void> {
-  const probe = await git(repo, ['check-ignore', '-q', `${WORKTREES}probe`])
-  if (probe.code === 0) return
-  if (probe.code !== 1) throw fail('git.ignoreUnknown', { repo, dir: WORKTREES }, { detail: probe.out })
+  const missing: string[] = []
+  for (const dir of IGNORED) {
+    const probe = await git(repo, ['check-ignore', '-q', `${dir}probe`])
+    if (probe.code === 1) missing.push(dir)
+    else if (probe.code !== 0) throw fail('git.ignoreUnknown', { repo, dir }, { detail: probe.out })
+  }
+  if (missing.length === 0) return
   const file = resolve(repo, (await must(git, repo, ['rev-parse', '--git-path', 'info/exclude'], 'excludeFile')).out)
   let text = ''
   try {
@@ -44,7 +51,7 @@ export async function ensureIgnored(git: Git, repo: string): Promise<void> {
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error
   }
-  appendFileSync(file, `${text === '' || text.endsWith('\n') ? '' : '\n'}${WORKTREES}\n`)
+  appendFileSync(file, `${text === '' || text.endsWith('\n') ? '' : '\n'}${missing.map((dir) => `${dir}\n`).join('')}`)
 }
 
 /** The project's main branch must be there before any task branches off it. */
