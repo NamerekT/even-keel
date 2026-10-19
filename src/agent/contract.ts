@@ -37,6 +37,8 @@ export interface AgentOptions {
   workDir: string
   /** Read at each call: whether sessions run on Even Keel's own copy of `checked` (the `cli` setting) rather than the installed CLI. */
   checkedCli: () => boolean
+  /** Optional. The version Even Keel's own copy is of, `checked` by default; the CLI check runs a candidate this way (`scripts/cli-check.ts`). */
+  version?: string
   log: (line: string) => void
   /** The CLI the agent runs changed: its own copy finished downloading. */
   onCliChange: () => void

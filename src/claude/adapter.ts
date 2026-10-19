@@ -14,18 +14,18 @@ import { CLAUDE } from './name.js'
 import { claudeBinaryIn, fetchClaude } from './release.js'
 
 /** The version the README's "Before you run it" names; raised after the live run of each release (`docs/releases.md`). */
-const CHECKED = '2.1.301'
+const CHECKED = '2.1.303'
 
 /** Claude Code through the `claude` CLI: `--bg` sessions, one `CLAUDE_CONFIG_DIR` per account (`docs/sessions.md`). */
 export const claude: AgentAdapter = {
   title: 'Claude Code',
   checked: CHECKED,
-  setup({ env, timeoutMs, workDir, checkedCli, log, onCliChange }) {
+  setup({ env, timeoutMs, workDir, checkedCli, version = CHECKED, log, onCliChange }) {
     const copy = new PinnedCli({
       dir: join(workDir, 'cli', CLAUDE),
-      version: CHECKED,
+      version,
       binary: claudeBinaryIn,
-      fetch: (into) => fetchClaude(CHECKED, into),
+      fetch: (into) => fetchClaude(version, into),
       log,
       onReady: onCliChange,
       retryMs: PIN_RETRY_MS,
@@ -57,7 +57,7 @@ export const claude: AgentAdapter = {
       version: () => cli.version(env()),
       usage: async (home, at) => parseUsage(await cli.usage(home, workDir), at),
       stopDaemon: (home) => cli.stopDaemon(home),
-      pinned: () => (pinned() === undefined ? null : CHECKED),
+      pinned: () => (pinned() === undefined ? null : version),
       daemonVersion: (home) => cli.daemonVersion(home),
       write: (home, turn) => cli.write(home, turn),
       liveRecords,

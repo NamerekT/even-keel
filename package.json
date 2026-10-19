@@ -21,7 +21,8 @@
     "test": "vitest run",
     "tally": "tsx tally/src/main.ts",
     "shot": "tsx scripts/shot.ts",
-    "storage": "tsx scripts/storage.ts"
+    "storage": "tsx scripts/storage.ts",
+    "cli-check": "tsx scripts/cli-check.ts"
   },
   "devDependencies": {
     "@types/node": "^24.19.0",
