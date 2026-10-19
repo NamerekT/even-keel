@@ -14,6 +14,7 @@ import { AccountWatcher } from './account/watcher.js'
 import { AGENTS } from './agent/adapters.js'
 import type { Agent, SessionHandle, SessionStart } from './agent/contract.js'
 import { sessionBase } from './agent/env.js'
+import { VersionWatcher } from './agent/versions.js'
 import { addMarketplace, updateMarketplace } from './claude/cli.js'
 import { CLAUDE } from './claude/name.js'
 import { CODEX } from './codex/name.js'
@@ -120,6 +121,7 @@ const CI_TICK_MS = 5_000
 const CI_TARGETS_MS = 60_000
 const CI_TIMEOUT_MS = 15_000
 const UPDATE_POLL_MS = 12 * 60 * 60_000
+const CLI_VERSION_POLL_MS = 15 * 60_000
 const PLUGIN_UPDATE_TIMEOUT_MS = 2 * 60_000
 
 const stateDb = keptDatabase()
@@ -371,6 +373,18 @@ const updates = new UpdateWatcher({
   current: release.version,
   enabled: () => configStore.current.updates.check,
   intervalMs: UPDATE_POLL_MS,
+  onChange: () => hub.broadcast('state', getState()),
+  log: (line) => console.log(line),
+})
+
+const cliVersions = new VersionWatcher({
+  agents: () =>
+    [...runtimes].flatMap(([name, agent]) => {
+      const version = agent.version?.bind(agent)
+      if (version === undefined) return []
+      return [{ name, title: AGENTS[name]!.title, checked: AGENTS[name]!.checked, installed: () => agent.installed?.() !== false, version }]
+    }),
+  intervalMs: CLI_VERSION_POLL_MS,
   onChange: () => hub.broadcast('state', getState()),
   log: (line) => console.log(line),
 })
@@ -1035,6 +1049,7 @@ const getState = (): EvenKeelState => ({
   trimTools: dispatcher.state.trimTools,
   tally: tallyMode(),
   updates: updatesView(release.version, updates.latest, { ...configStore.current.updates, dismissed: dismissedUpdate ?? null }),
+  cliVersions: cliVersions.view(),
   fallbacks: fallbacksSince(launches, new Date(Date.now() - FALLBACK_TOAST_MS)).map(({ at, task, project, fallback }) => ({
     at,
     task,
@@ -1385,6 +1400,7 @@ monitor.start()
 void owners.scan()
 limits.start()
 updates.start()
+cliVersions.start()
 account.start()
 vscode.start()
 configStore.watch()

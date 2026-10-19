@@ -111,6 +111,7 @@ function stateOf(patch: Partial<EvenKeelState>): EvenKeelState {
     trimTools: true,
     tally: 'local',
     updates: { current: '0.1.0', available: null, toast: false },
+    cliVersions: [],
     fallbacks: [],
     mailbox: {},
     changelogs: {},

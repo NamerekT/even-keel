@@ -22,6 +22,7 @@ const LIMIT_ROLLOUTS = 20
  */
 export const codex: AgentAdapter = {
   title: 'Codex',
+  checked: '0.162.1',
   setup({ env, timeoutMs, workDir }) {
     const envOf = (home: AccountHome) => codexEnv(env(), home)
     const bin = () => resolveCodexBinary(env())
@@ -61,6 +62,7 @@ export const codex: AgentAdapter = {
       login: (home) => cli.login(home),
       logout: (home) => cli.logout(home),
       installed: () => findBinary(bin(), env()),
+      version: () => cli.version(env()),
       usage: async (home, at) => {
         for (const { file } of (await rolloutFiles(home.dir)).slice(0, LIMIT_ROLLOUTS)) {
           const limits = limitsOfRollout(await readFile(file, 'utf8').catch(() => ''))

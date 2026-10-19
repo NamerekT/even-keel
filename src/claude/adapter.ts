@@ -13,6 +13,7 @@ import { ClaudeCli, liveRecords, resolveClaudeBinary, SESSION_MODE } from './cli
 /** Claude Code through the `claude` CLI: `--bg` sessions, one `CLAUDE_CONFIG_DIR` per account (`docs/sessions.md`). */
 export const claude: AgentAdapter = {
   title: 'Claude Code',
+  checked: '2.1.301',
   setup({ env, timeoutMs, workDir }) {
     const envOf = (home: AccountHome) => claudeEnv(env(), home)
     const bin = () => resolveClaudeBinary(env())
@@ -37,6 +38,7 @@ export const claude: AgentAdapter = {
       login: (home) => cli.authLogin(home),
       logout: (home) => cli.authLogout(home),
       installed: () => findBinary(bin(), env()),
+      version: () => cli.version(env()),
       usage: async (home, at) => parseUsage(await cli.usage(home, workDir), at),
       stopDaemon: (home) => cli.stopDaemon(home),
       write: (home, turn) => cli.write(home, turn),

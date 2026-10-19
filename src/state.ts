@@ -293,12 +293,23 @@ export interface EvenKeelState {
   /** Where Tally writes (BTN-247); `null` — not chosen yet: the page offers the stats setup before anything else. */
   tally: TallyMode | null
   updates: UpdatesView
+  /** The installed CLIs whose version is not the one Even Keel was last checked against (BTN-249): a banner each until closed. */
+  cliVersions: CliVersionView[]
   /** The last day's launches whose run label had no account in the pool, newest first: a toast each until dismissed. */
   fallbacks: FallbackLaunch[]
   /** The chat mailbox of each live session whose hooks ask for mail or that has messages to show, by session id (BTN-181). */
   mailbox: Record<string, SessionMail>
   /** The tasks the changelog written last accounts for, by project key and milestone (BTN-209). */
   changelogs: Record<string, Record<string, string[]>>
+}
+
+/** A CLI whose version differs from the one Even Keel was last checked against (BTN-249, `src/agent/versions.ts`). */
+export interface CliVersionView {
+  /** The agent's name in `AGENTS`. */
+  agent: string
+  installed: string
+  checked: string
+  notice: Notice
 }
 
 /** How a changelog version came: the first draft, "write again", the user's edit, the new tasks added. */

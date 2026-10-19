@@ -19,6 +19,11 @@ import type { SessionRecord, TurnSpend } from '../state.js'
 export interface AgentAdapter {
   /** For the log and the page. */
   title: string
+  /**
+   * The CLI version Even Keel was last checked against live, as the README's "Before you run it" names it; the page warns
+   * when another one is installed (BTN-249). Raised after the live run of each release (`docs/releases.md`).
+   */
+  checked: string
   /** Sets the agent up; `env` gives the service's environment without the trackers' and CIs' credentials. */
   setup(options: AgentOptions): Agent
 }
@@ -150,6 +155,8 @@ export interface Agent {
   logout(home: AccountHome): Promise<void>
   /** Optional. Whether the agent's CLI is found; without it, it is taken as there. */
   installed?(): boolean
+  /** Optional. What the CLI's `--version` prints; without it the installed version is not compared with `checked`. */
+  version?(): Promise<string>
 
   /** Optional. Picture `index` of the result of call `tool`, for the image lines of `feed`; without it the page shows none. */
   image?(home: AccountHome, sessionId: string, tool: string, index: number): Promise<TranscriptImage | undefined>

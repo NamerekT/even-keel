@@ -214,6 +214,7 @@ function fakeState(
     trimTools: true,
     tally: 'local',
     updates: fakeUpdates(null),
+    cliVersions: [],
     fallbacks: [],
     mailbox: {},
     changelogs: fakeWrittenChangelogs(),
@@ -284,6 +285,15 @@ export function createFakeSource(search: string): LiveSource {
   if (isLanguage(language) && current.state !== null) current.state.language = language
   if (params.has('ci') && current.state !== null) current.state.ci = fakeCi(params.get('ci'))
   if (params.has('update') && current.state !== null) current.state.updates = fakeUpdates(params.get('update'))
+  if (params.get('cli') === 'unchecked' && current.state !== null) {
+    const unchecked = (agent: string, title: string, installed: string, checked: string) => ({
+      agent,
+      installed,
+      checked,
+      notice: { code: 'agent.uncheckedVersion' as const, params: { title, installed, checked } },
+    })
+    current.state.cliVersions = [unchecked('claude', 'Claude Code', '2.1.303', '2.1.301'), unchecked('codex', 'Codex', '0.163.0', '0.162.1')]
+  }
   if (params.get('fallback') === 'on' && current.state !== null) {
     const notice = { code: 'chain.noAccountFor' as const, params: { task: 'ABC-10', label: 'Codex', provider: 'Claude' } }
     current.state.fallbacks = [{ at: new Date().toISOString(), task: 'ABC-10', notice }]

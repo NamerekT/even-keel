@@ -168,6 +168,11 @@ export class CodexCli {
     return Promise.all(sessions.map(async (session) => entryOf(session, session.stopped !== true && (await this.turnLive(session)))))
   }
 
+  /** `codex --version`: `codex-cli 0.162.1`. */
+  async version(env: NodeJS.ProcessEnv): Promise<string> {
+    return (await run(this.bin(), ['--version'], { env, timeout: this.timeoutMs, windowsHide: true })).stdout
+  }
+
   async authStatus(home: AccountHome): Promise<AccountStatus> {
     const options = { env: this.envOf(home), timeout: this.timeoutMs, windowsHide: true }
     const output = await run(this.bin(), ['login', 'status'], options).then(

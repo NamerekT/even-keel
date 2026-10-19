@@ -114,6 +114,9 @@ export const en = {
   'setup.failed': (p: { task: string; command: string; code: number }) =>
     `setup: "${p.command}" before the start of ${p.task} exited with code ${p.code}; the session was not started, fix it and resume`,
 
+  'agent.uncheckedVersion': (p: { title: string; installed: string; checked: string }) =>
+    `${p.title} ${p.installed} is installed, Even Keel was last checked against ${p.checked}; a part of it may not work until it is adapted`,
+
   'claude.startFailed': (p: { task: string; cwd: string }) => `claude: could not start ${p.task} in ${p.cwd}`,
   'claude.resumeFailed': (p: { task: string; cwd: string }) => `claude: could not resume ${p.task} in ${p.cwd}`,
   'claude.notShown': (p: { task: string }) => `claude: ${p.task} was started but did not show up in claude agents`,

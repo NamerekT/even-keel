@@ -12,6 +12,7 @@ import { PackagesBanner } from './layout/PackagesBanner.js'
 import { FallbackToasts } from './layout/Fallbacks.js'
 import { UpdateToast } from './layout/Updates.js'
 import { UsageBanner } from './layout/UsageBanner.js'
+import { CliVersionBanner } from './layout/CliVersionBanner.js'
 import { ToastStack } from './ui/Toast.js'
 import { useLive } from './live/context.js'
 import { projectOfPath, projectPath } from './state.js'
@@ -50,6 +51,7 @@ export function App() {
       <Header />
       <LinkBanner />
       <UsageBanner />
+      <CliVersionBanner />
       <ConfigBanner />
       <UnattendedBanner />
       <PackagesBanner />

@@ -110,6 +110,9 @@ export const noticesRu: NoticeTexts = {
 
   'setup.failed': (p) => `команда «${p.command}» перед стартом ${p.task} завершилась с кодом ${p.code} — сессия не запущена, исправьте и снимите с паузы`,
 
+  'agent.uncheckedVersion': (p) =>
+    `Установлен ${p.title} ${p.installed}, а Even Keel последний раз проверяли на ${p.checked}: часть его может не работать, пока его не доработают`,
+
   'claude.startFailed': (p) => `не удалось запустить ${p.task} в ${p.cwd}`,
   'claude.resumeFailed': (p) => `не удалось продолжить ${p.task} в ${p.cwd}`,
   'claude.notShown': (p) => `${p.task} запущена, но не появилась в claude agents`,
