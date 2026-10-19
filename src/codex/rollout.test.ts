@@ -117,9 +117,21 @@ describe('RolloutFold', () => {
     const failed = item({ id: 'exec-2', type: 'CommandExecution', command: ['pwsh', '-Command', 'npm test'], status: 'failed', exit_code: 1, aggregated_output: 'FAIL a.test.ts\n' })
     expect(fold([failed], true).summary().feed.map(({ at: _, ...value }) => value)).toEqual([
       { kind: 'tool', text: 'Shell npm test', detail: 'npm test', name: 'Shell', tool: 'exec-2' },
-      { kind: 'failed', text: 'FAIL a.test.ts', tool: 'exec-2' },
+      { kind: 'failed', text: 'Exit code 1\nFAIL a.test.ts', tool: 'exec-2' },
     ])
     expect(fold([failed]).summary().feed.map((value) => value.kind)).toEqual(['tool'])
+  })
+
+  it('names the exit code of a failed command whose output is ordinary, and of one the sandbox did not start', () => {
+    const quiet = item({ id: 'exec-3', type: 'CommandExecution', command: ['pwsh', '-Command', 'git status; rg --files -g AGENTS.md'], status: 'failed', exit_code: 1, aggregated_output: 'On branch main\nnothing to commit\n' })
+    const unstarted = item({ id: 'exec-4', type: 'CommandExecution', command: ['pwsh', '-Command', 'git status'], status: 'failed', exit_code: -1, aggregated_output: 'Failed to create unified exec process: helper_unknown_error: setup refresh had errors' })
+    const patch = item({ id: 'exec-5', type: 'FileChange', changes: { 'C:\\repos\\example\\a.ts': { type: 'add', content: 'x\n' } }, status: 'failed', stderr: 'patch rejected' })
+    const failures = fold([quiet, unstarted, patch], true).summary().feed.filter((line) => line.kind === 'failed').map((line) => line.text)
+    expect(failures).toEqual([
+      'Exit code 1\nOn branch main\nnothing to commit',
+      'Exit code -1\nFailed to create unified exec process: helper_unknown_error: setup refresh had errors',
+      'patch rejected',
+    ])
   })
 
   it('reads a tracker call as the task stage', () => {

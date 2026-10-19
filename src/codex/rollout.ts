@@ -327,9 +327,13 @@ function changeSize(change: Record<string, unknown> | undefined): EditSize | und
   }
 }
 
-/** What a failed call printed: a command's output, a patch's error. */
+/**
+ * What a failed call printed: a command's output, a patch's error. A command's exit code goes first, as Claude's
+ * `Exit code N` does: its output alone may be an ordinary one (BTN-233), and `-1` is a command that never started.
+ */
 function failureOf(item: Record<string, unknown>): string {
-  return [item.stderr, item.aggregated_output, item.stdout].find((value): value is string => typeof value === 'string' && value.trim() !== '') ?? ''
+  const output = [item.stderr, item.aggregated_output, item.stdout].find((value): value is string => typeof value === 'string' && value.trim() !== '') ?? ''
+  return typeof item.exit_code === 'number' ? `Exit code ${item.exit_code}\n${output}` : output
 }
 
 function textOf(content: unknown): string {
