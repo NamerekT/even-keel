@@ -14,6 +14,8 @@ function task(id: string, fields: Partial<StatsTaskRow> = {}): StatsTaskRow {
     relays: 0,
     checkpoints: 0,
     restarts: 0,
+    compactsAuto: 0,
+    compactsManual: 0,
     spans: 0,
     rework: false,
     estimateH: null,
@@ -41,9 +43,13 @@ describe('shownColumns', () => {
   it('shows a column as soon as one task fills it', () => {
     const rows = [
       task('ABC-1'),
-      task('ABC-2', { limit: 3, estimateH: 1, activeS: 600, waitS: 60, checkpoints: 1, spans: 2, rework: true }),
+      task('ABC-2', { limit: 3, estimateH: 1, activeS: 600, waitS: 60, checkpoints: 1, compactsManual: 1, spans: 2, rework: true }),
     ]
-    expect(keys(rows)).toEqual(['task', 'status', 'cost', 'limit', 'estimate', 'active', 'wait', 'sessions', 'handoffs', 'spans', 'rework'])
+    expect(keys(rows)).toEqual(['task', 'status', 'cost', 'limit', 'estimate', 'active', 'wait', 'sessions', 'handoffs', 'compacts', 'spans', 'rework'])
+  })
+
+  it('counts automatic and manual compactions together', () => {
+    expect(keys([task('ABC-1', { compactsAuto: 2 })])).toContain('compacts')
   })
 
   it('does not count a zero wait or an empty status as a value', () => {

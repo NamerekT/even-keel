@@ -65,6 +65,9 @@ export interface StatsTaskRow {
   relays: number
   checkpoints: number
   restarts: number
+  /** Context compactions of the task's main threads in the period, by the CLI itself and by `/compact`. */
+  compactsAuto: number
+  compactsManual: number
   spans: number
   rework: boolean
   // Times of the whole task (BTN-55), not only of the period; null when the task has no turns yet.
@@ -121,11 +124,20 @@ export interface StatsTaskSession {
   account: string | null
 }
 
+export interface StatsCompaction {
+  sessionId: string
+  at: string
+  trigger: string | null
+  preTokens: number | null
+  postTokens: number | null
+}
+
 export interface StatsTaskDetail {
   task: string
   sessions: StatsTaskSession[]
   spans: StatsStuck[]
   steps: StatsTaskStep[]
+  compactions: StatsCompaction[]
 }
 
 // newer — the database is at a schema version this code does not know (BTN-133). The reason of off is `disabled`,

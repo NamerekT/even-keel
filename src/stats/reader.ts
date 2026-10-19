@@ -126,6 +126,15 @@ const TASKS = `${PERIOD}, cur as (
   cross join bounds
   where sp.to_at >= bounds.lo and sp.from_at < bounds.hi
   group by t.task
+), compacted as (
+  select t.task,
+    count(*) filter (where k.trigger = 'auto') as compacts_auto,
+    count(*) filter (where k.trigger is distinct from 'auto') as compacts_manual
+  from compactions k
+  join (select distinct session_id, task from cur) t on t.session_id = k.session_id
+  cross join bounds
+  where k.agent_id is null and k.at >= bounds.lo and k.at < bounds.hi
+  group by t.task
 )
 select c.task, min(c.project) as project, t.title, t.status, coalesce(sum(c.cost), 0) as cost, sum(sv.share) as limit_share,
   count(distinct c.session_id) as sessions,
@@ -133,6 +142,8 @@ select c.task, min(c.project) as project, t.title, t.status, coalesce(sum(c.cost
   count(distinct c.session_id) filter (where c.launch_reason = 'checkpoint') as checkpoints,
   count(distinct c.session_id) filter (where c.launch_reason = 'restart') as restarts,
   coalesce(max(st.spans), 0) as spans,
+  coalesce(max(cp.compacts_auto), 0) as compacts_auto,
+  coalesce(max(cp.compacts_manual), 0) as compacts_manual,
   coalesce('Переделка' = any(t.labels), false) as rework,
   t.estimate_h, tt.active_s, tt.wait_s, tt.total_s, t.done, t.component,
   mode() within group (order by ${familyOf('c.model')}) as model
@@ -141,6 +152,7 @@ left join seven sv on sv.message_id = c.message_id
 left join tasks t on t.task = c.task
 left join task_times tt on tt.task = c.task
 left join stuck st on st.task = c.task
+left join compacted cp on cp.task = c.task
 group by c.task, t.title, t.status, t.labels, t.estimate_h, t.done, t.component, tt.active_s, tt.wait_s, tt.total_s
 order by cost desc, c.task`
 
@@ -180,6 +192,12 @@ select sp.id, sp.task, null as project, sp.session_id, sp.from_at, sp.to_at, sp.
 from stuck_spans sp
 where sp.session_id in (select session_id from message_costs where task = $1::text)
 order by sp.from_at`
+
+const TASK_COMPACTIONS = `
+select k.session_id, k.at, k.trigger, k.pre_tokens, k.post_tokens
+from compactions k
+where k.agent_id is null and k.session_id in (select session_id from message_costs where task = $1::text)
+order by k.at`
 
 const CALIBRATION = `
 select task, title, component, estimate_h, active_min
@@ -340,6 +358,8 @@ export function mapPeriod(query: PeriodQuery, rows: PeriodRows, at: Date): Stats
       relays: number(row.relays),
       checkpoints: number(row.checkpoints),
       restarts: number(row.restarts),
+      compactsAuto: number(row.compacts_auto),
+      compactsManual: number(row.compacts_manual),
       spans: number(row.spans),
       rework: row.rework === true,
       estimateH: maybe(row.estimate_h),
@@ -355,7 +375,7 @@ export function mapPeriod(query: PeriodQuery, rows: PeriodRows, at: Date): Stats
   }
 }
 
-export function mapTask(task: string, sessions: Row[], spans: Row[], steps: StatsTaskStep[] = []): StatsTaskDetail {
+export function mapTask(task: string, sessions: Row[], spans: Row[], steps: StatsTaskStep[] = [], compactions: Row[] = []): StatsTaskDetail {
   return {
     task,
     sessions: sessions.map((row) => ({
@@ -370,6 +390,13 @@ export function mapTask(task: string, sessions: Row[], spans: Row[], steps: Stat
     })),
     spans: spans.map(stuck),
     steps,
+    compactions: compactions.map((row) => ({
+      sessionId: String(row.session_id),
+      at: iso(row.at),
+      trigger: text(row.trigger),
+      preTokens: maybe(row.pre_tokens),
+      postTokens: maybe(row.post_tokens),
+    })),
   }
 }
 
@@ -444,11 +471,11 @@ export class StatsReader {
 
   task(task: string): Promise<StatsAnswer<StatsTaskDetail>> {
     return this.cached(`task|${task}`, async (pool) => {
-      const [[sessions, spans], steps] = await Promise.all([
-        Promise.all([TASK_SESSIONS, TASK_SPANS].map((sql) => pool.query<Row>(sql, [task]).then((result) => result.rows))),
+      const [[sessions, spans, compactions], steps] = await Promise.all([
+        Promise.all([TASK_SESSIONS, TASK_SPANS, TASK_COMPACTIONS].map((sql) => pool.query<Row>(sql, [task]).then((result) => result.rows))),
         readTaskSteps(this.db(pool), task),
       ])
-      return mapTask(task, sessions!, spans!, steps)
+      return mapTask(task, sessions!, spans!, steps, compactions)
     })
   }
 

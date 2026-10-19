@@ -1518,6 +1518,7 @@ export const en: Messages = {
         wait: ['Waiting', 'How long the task waited for your reply, over the whole task'],
         sessions: ['Sessions'],
         handoffs: ['Handoffs', 'Limit handoffs, checkpoints and manual replacements'],
+        compacts: ['Compactions', 'Context compactions in the sessions of the task: the session goes on with a summary instead of its history'],
         spans: ['Stuck'],
         rework: ['Rework'],
       },
@@ -1531,6 +1532,9 @@ export const en: Messages = {
       open: ', task not closed',
       handoffs: (relays: number, checkpoints: number, restarts: number) =>
         `limit: ${relays}, checkpoints: ${checkpoints}, by hand: ${restarts}`,
+      compacts: (auto: number, manual: number) => `automatic: ${auto}, /compact: ${manual}`,
+      compaction: (trigger: string | null, pre: string, post: string) =>
+        `${trigger === 'auto' ? 'Automatic compaction' : 'Compaction by /compact'}: ${pre} → ${post} tokens`,
       noSessions: 'No sessions for the task.',
       steps: 'Steps:',
       stepsNote: ' — share of the task time',

@@ -14,6 +14,8 @@ function task(id: string, fields: Partial<StatsTaskRow>): StatsTaskRow {
     relays: 0,
     checkpoints: 0,
     restarts: 0,
+    compactsAuto: 0,
+    compactsManual: 0,
     spans: 0,
     rework: false,
     estimateH: null,

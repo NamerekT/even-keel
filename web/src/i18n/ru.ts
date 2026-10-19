@@ -1533,6 +1533,7 @@ export const ru = {
         wait: ['Ожидание', 'Сколько задача ждала вашего ответа, за всю задачу'],
         sessions: ['Сессии'],
         handoffs: ['Передачи', 'Передачи по лимиту, контрольные точки и замены вручную'],
+        compacts: ['Компакции', 'Сжатия контекста в сессиях задачи: сессия продолжает работу со сводкой вместо истории'],
         spans: ['Застревания'],
         rework: ['Переделка'],
       } as Record<string, [string, string?]>,
@@ -1546,6 +1547,9 @@ export const ru = {
       open: ', задача не закрыта',
       handoffs: (relays: number, checkpoints: number, restarts: number) =>
         `по лимиту: ${relays}, контрольные точки: ${checkpoints}, вручную: ${restarts}`,
+      compacts: (auto: number, manual: number) => `автоматически: ${auto}, через /compact: ${manual}`,
+      compaction: (trigger: string | null, pre: string, post: string) =>
+        `${trigger === 'auto' ? 'Автоматическая компакция' : 'Компакция через /compact'}: ${pre} → ${post} токенов`,
       noSessions: 'Сессий по задаче нет.',
       steps: 'Шаги:',
       stepsNote: ' — доля времени задачи',

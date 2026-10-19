@@ -2,15 +2,16 @@ import type { TrackerUrls } from '../../../src/state.js'
 import { Fragment, useState, type CSSProperties, type ReactNode } from 'react'
 import type { StatsTaskDetail, StatsTaskRow } from '../../../src/stats/model.js'
 import { folderEmail } from '../accounts.js'
-import { formatMoment } from '../format.js'
+import { formatMoment, formatTokens } from '../format.js'
 import { t } from '../i18n/index.js'
 import { useLive } from '../live/context.js'
 import { AccountTag } from '../ui/AccountTag.js'
 import { seriesStyle } from '../ui/series.js'
+import { Tipped } from '../ui/Tipped.js'
 import { AnswerNotice, Section, TaskKey, loadedData, useStatsAnswer, type FoldControl } from './common.js'
 import { formatDuration, formatRatio, formatSeconds, formatShare, formatUsd, kindLabel, launchLabel, modelLabel, reasonLabel } from './format.js'
 import { tasksRemark, type TasksRemark } from './remarks.js'
-import { compare, handoffs, shownColumns, type Column } from './taskColumns.js'
+import { compacts, compare, handoffs, shownColumns, type Column } from './taskColumns.js'
 
 const FIRST_ROWS = 20
 
@@ -96,6 +97,16 @@ export function TaskTable({ tasks, trackerUrls, fold }: { tasks: StatsTaskRow[];
         return (
           <td key={column} className="tasks__num" title={handoffTitle(row)}>
             {handoffs(row) || ''}
+          </td>
+        )
+      case 'compacts':
+        return (
+          <td key={column} className="tasks__num">
+            {compacts(row) > 0 && (
+              <Tipped tip={t.stats.tasks.compacts(row.compactsAuto, row.compactsManual)} inline>
+                {compacts(row)}
+              </Tipped>
+            )}
           </td>
         )
       case 'spans':
@@ -189,6 +200,8 @@ function handoffTitle(row: StatsTaskRow): string {
   return t.stats.tasks.handoffs(row.relays, row.checkpoints, row.restarts)
 }
 
+const tokens = (count: number | null) => (count === null ? '?' : formatTokens(count))
+
 function TaskDetail({ task }: { task: string }) {
   const { statsTask } = useLive()
   const loaded = useStatsAnswer(`task:${task}`, () => statsTask(task), false)
@@ -234,6 +247,21 @@ function Timeline({ detail }: { detail: StatsTaskDetail }) {
                     style={{ left: at(span.fromAt), width: width(span.fromAt, span.toAt) }}
                     title={`${reasonLabel(span.reason)}: ${span.kinds.map(kindLabel).join(', ')}`}
                   />
+                ))}
+              {detail.compactions
+                .filter((compaction) => compaction.sessionId === session.sessionId)
+                .map((compaction) => (
+                  <span key={compaction.at} className="timeline__compact" style={{ left: at(compaction.at) }}>
+                    <Tipped
+                      className="timeline__compact-hit"
+                      tip={t.stats.tasks.compaction(compaction.trigger, tokens(compaction.preTokens), tokens(compaction.postTokens))}
+                      align="start"
+                      inline
+                      focusable
+                    >
+                      <span className="timeline__compact-tick" />
+                    </Tipped>
+                  </span>
                 ))}
             </span>
           </li>

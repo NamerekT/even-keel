@@ -1,7 +1,7 @@
 import type { StatsTaskRow } from '../../../src/stats/model.js'
 import { language } from '../i18n/index.js'
 
-export type Column = 'task' | 'project' | 'status' | 'cost' | 'limit' | 'estimate' | 'active' | 'wait' | 'sessions' | 'handoffs' | 'spans' | 'rework'
+export type Column = 'task' | 'project' | 'status' | 'cost' | 'limit' | 'estimate' | 'active' | 'wait' | 'sessions' | 'handoffs' | 'compacts' | 'spans' | 'rework'
 
 export interface TaskColumn {
   key: Column
@@ -19,11 +19,13 @@ export const COLUMNS: TaskColumn[] = [
   { key: 'wait', numeric: true },
   { key: 'sessions', numeric: true },
   { key: 'handoffs', numeric: true },
+  { key: 'compacts', numeric: true },
   { key: 'spans', numeric: true },
   { key: 'rework', numeric: true },
 ]
 
 export const handoffs = (row: StatsTaskRow) => row.relays + row.checkpoints + row.restarts
+export const compacts = (row: StatsTaskRow) => row.compactsAuto + row.compactsManual
 
 function value(row: StatsTaskRow, column: Column): string | number {
   switch (column) {
@@ -43,6 +45,8 @@ function value(row: StatsTaskRow, column: Column): string | number {
       return row.waitS ?? -1
     case 'handoffs':
       return handoffs(row)
+    case 'compacts':
+      return compacts(row)
     case 'rework':
       return row.rework ? 1 : 0
     default:
@@ -75,6 +79,8 @@ function filled(row: StatsTaskRow, column: Column): boolean {
       return (row.waitS ?? 0) > 0
     case 'handoffs':
       return handoffs(row) > 0
+    case 'compacts':
+      return compacts(row) > 0
     case 'spans':
       return row.spans > 0
     case 'rework':

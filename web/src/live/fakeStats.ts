@@ -234,6 +234,8 @@ export function fakePeriod(mode: string | null, query: PeriodQuery): StatsAnswer
         relays: next() > 0.8 ? 1 : 0,
         checkpoints: sessions > 3 ? sessions - 2 : 0,
         restarts: next() > 0.9 ? 1 : 0,
+        compactsAuto: next() > 0.75 ? 1 + Math.floor(next() * 2) : 0,
+        compactsManual: next() > 0.9 ? 1 : 0,
         spans: next() > 0.7 ? 1 + Math.floor(next() * 3) : 0,
         rework: next() > 0.9,
         estimateH,
@@ -311,5 +313,12 @@ export function fakeTask(mode: string | null, task: string): StatsAnswer<StatsTa
       const from = Date.parse(session.firstAt) + (Date.parse(session.lastAt) - Date.parse(session.firstAt)) * 0.3
       return { ...span, sessionId: session.sessionId, fromAt: new Date(from).toISOString(), toAt: new Date(from + 25 * 60_000).toISOString() }
     })
-  return { state: 'ok', data: { task, sessions, spans, steps: fakeTaskSteps(task) } }
+  const compactions = sessions
+    .filter(() => next() > 0.6)
+    .map((session) => {
+      const at = Date.parse(session.firstAt) + (Date.parse(session.lastAt) - Date.parse(session.firstAt)) * 0.7
+      const manual = next() > 0.8
+      return { sessionId: session.sessionId, at: new Date(at).toISOString(), trigger: manual ? 'manual' : 'auto', preTokens: manual ? 180_000 : 217_000, postTokens: 29_000 }
+    })
+  return { state: 'ok', data: { task, sessions, spans, steps: fakeTaskSteps(task), compactions } }
 }

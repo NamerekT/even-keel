@@ -85,6 +85,8 @@ describe('mapPeriod', () => {
             relays: '0',
             checkpoints: '1',
             restarts: '0',
+            compacts_auto: '2',
+            compacts_manual: '1',
             spans: '1',
             rework: true,
             estimate_h: '1.5',
@@ -126,6 +128,8 @@ describe('mapPeriod', () => {
       relays: 0,
       checkpoints: 1,
       restarts: 0,
+      compactsAuto: 2,
+      compactsManual: 1,
       spans: 1,
       rework: true,
       estimateH: 1.5,
@@ -136,7 +140,7 @@ describe('mapPeriod', () => {
       component: 'Web',
       model: 'opus',
     })
-    expect(period.tasks[1]).toMatchObject({ estimateH: null, activeS: null, waitS: null, totalS: null, done: null, component: null, model: null })
+    expect(period.tasks[1]).toMatchObject({ estimateH: null, activeS: null, waitS: null, totalS: null, done: null, component: null, model: null, compactsAuto: 0, compactsManual: 0 })
     expect(period.weeks).toEqual([{ week: '2026-09-28', reason: null, spans: 2 }])
     expect(period.stuck[0]).toMatchObject({ project: 'Example', sessionId: 'session-1', toAt: '2026-10-01T10:05:00.000Z', kinds: ['repeat'] })
   })
@@ -159,6 +163,8 @@ describe('mapTask', () => {
         },
       ],
       [],
+      [],
+      [{ session_id: 'session-1', at: new Date('2026-10-01T10:30:00Z'), trigger: 'auto', pre_tokens: 217631, post_tokens: '29155' }],
     )
     expect(detail).toEqual({
       task: 'ABC-1',
@@ -176,6 +182,7 @@ describe('mapTask', () => {
       ],
       spans: [],
       steps: [],
+      compactions: [{ sessionId: 'session-1', at: '2026-10-01T10:30:00.000Z', trigger: 'auto', preTokens: 217631, postTokens: 29155 }],
     })
   })
 })

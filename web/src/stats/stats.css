@@ -887,6 +887,27 @@ a.stats__key:hover {
   background: color-mix(in srgb, var(--lamp-error) 30%, transparent);
 }
 
+/* A compaction: a tick across the bar inside a hit area wide enough to point at. */
+.timeline__compact {
+  position: absolute;
+  top: -4px;
+  bottom: -4px;
+  width: 12px;
+  margin-left: -6px;
+}
+
+.timeline__compact-hit {
+  display: flex;
+  justify-content: center;
+  height: 100%;
+}
+
+.timeline__compact-tick {
+  width: 3px;
+  border-radius: 2px;
+  background: var(--fg);
+}
+
 /* Stuck */
 
 .stuck-weeks {
