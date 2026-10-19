@@ -119,8 +119,8 @@ What sits at a level it should not, or misses one it should have. BTN-187 takes 
   settings (BTN-199): the switches are Even Keel rows, the closed version is in `service_state`.
 - The model's project level, which the task's text missed, exists since BTN-173 (`models` in the project entry).
 
-Levels that stay as they are: `parallel`, `execution` (the Codex sandbox does not start under the service for any project,
-`docs/sessions.md`), `modelPrompts`, `hiddenSkills`, `language`, `allowedHosts`, `stats.*` besides the threshold,
+Levels that stay as they are: `parallel`, `execution` (the Codex sandbox does not start under the service for any project, so
+there a command runs only by escalation or with `bypass`, `docs/sessions.md`), `modelPrompts`, `hiddenSkills`, `language`, `allowedHosts`, `stats.*` besides the threshold,
 `updates.*` — Even Keel only; `prompt`, `commands.*`, `slot` — project only.
 
 A task level makes sense only for what runs the session: `provider`, `models` (the run label), `effort` (BTN-146). Not
