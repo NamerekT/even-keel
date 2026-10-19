@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import { DEFAULT_CLASSIFY, dbSettings, parseConfig } from './config.js'
 import { DEFAULT_SIGN_RULES } from './signs.js'
@@ -95,6 +96,21 @@ describe('parseConfig', () => {
     expect(() => parseConfig({ prices, steps: { growth: { ratio: 1 } } })).toThrow(/growth\.ratio/)
     expect(() => parseConfig({ prices, steps: { growth: { minRuns: 1.5 } } })).toThrow(/growth\.minRuns/)
     expect(() => parseConfig({ prices, steps: { speed: 1 } })).toThrow(/steps\.speed/)
+  })
+})
+
+describe('the shipped tally.config.json', () => {
+  const shipped = parseConfig(JSON.parse(readFileSync(new URL('../tally.config.json', import.meta.url), 'utf8')))
+  // The longest matching prefix, as message_costs picks it.
+  const priceOf = (model: string) =>
+    shipped.prices.filter((price) => model.startsWith(price.model)).sort((a, b) => b.model.length - a.model.length)[0]
+
+  it('prices the models Codex runs by their own entry, with the long prompt over 272k', () => {
+    for (const model of ['gpt-6-astra', 'gpt-6.1-sol', 'gpt-6-sol', 'gpt-6-luna', 'gpt-5.6-sol', 'gpt-5.6-terra', 'gpt-5.6-luna']) {
+      expect(priceOf(model)?.model).toBe(model)
+      expect(priceOf(model)?.longPrompt?.over).toBe(272_000)
+    }
+    expect(priceOf('gpt-5.4-mini')).toMatchObject({ model: 'gpt-5.4-mini', input: 0.75, output: 4.5, longPrompt: null })
   })
 })
 
