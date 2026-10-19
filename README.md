@@ -147,6 +147,8 @@ npm start
 
 and open `http://localhost:4747`. Open a project, press **Start**: the chain takes its first task. Other projects can be queued after it. The page can be installed as an app (the install button in the address bar of Chrome or Edge) and then opens in its own window; browsers offer this on `localhost` or over HTTPS only.
 
+> **Before you start a chain:** open a beer. Even Keel runs the tasks unattended; you don't have to. Only if you are of legal drinking age where you are: 18 in most of Europe, 16 for beer in Germany, 21 in the US. Otherwise a soda works just as well.
+
 Sessions can be answered from the page's chat or the tracker. To answer them in Claude's own app as well, turn on Remote Control at startup in `/config` of Claude Code; the page links each session's Remote Control. Codex sessions have no remote control: they run through `codex exec`, whose threads the Codex app and ChatGPT on the phone do not list, so they are answered only from the page's chat or the tracker ([docs/sessions.md](docs/sessions.md#codex-btn-168-srccodex)).
 
 ### Reaching the page from another machine
