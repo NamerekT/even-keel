@@ -50,6 +50,7 @@ export const PROMPTS: Record<Language, PromptTexts> = {
       [
         fill`- Режим PR: ветку в ${main} не сливай — её сольёт человек через pull request. Это правило важнее шага слияния в навыке трекера, проверка перед слиянием тоже не нужна: проверяет CI на pull request.`,
         '- Когда работа готова и одобрена ревьюером: закоммить всё (git status пуст), опиши pull request в .temp/pull-request.md (первая строка — заголовок, дальше тело) и закончи ход последней строкой `PULL REQUEST: .temp/pull-request.md`. Ветку пушит и pull request открывает Even Keel; статус задачи не трогай.',
+        fill`- Если задача не требует правок в репозитории (исследование, работа уже в ${main}) — всё равно закончи ход строкой \`PULL REQUEST: .temp/pull-request.md\`, файл описания тогда не нужен: Even Keel закроет задачу без pull request.`,
       ].join('\n'),
     review: {
       head: (url) => fill`На pull request ${url} пришли замечания:`,
@@ -59,7 +60,7 @@ export const PROMPTS: Record<Language, PromptTexts> = {
       conflict: (main) => fill`- Pull request конфликтует с ${main}: слей свежий ${main} в свою ветку и разреши конфликты.`,
       after: 'Исправь, закоммить и снова закончи ход строкой `PULL REQUEST: .temp/pull-request.md` (описание обнови, если нужно): Even Keel запушит ветку в тот же pull request.',
       nothingAhead: (main) =>
-        fill`Pull request не открыт: в ветке нет коммитов сверх ${main}, открывать нечего. Если работа не закоммичена — закоммить её и снова закончи ход строкой \`PULL REQUEST: .temp/pull-request.md\`. Если работа задачи уже в ${main} — так и напиши и закончи ход без этой строки: задачу закроет пользователь.`,
+        fill`Pull request не открыт: в ветке нет коммитов сверх ${main}, а в worktree есть незакоммиченные изменения. Закоммить работу и снова закончи ход строкой \`PULL REQUEST: .temp/pull-request.md\`. Если эти изменения не нужны — убери их, и по той же строке Even Keel закроет задачу без pull request.`,
     },
     worktree: (path) => fill`- Worktree готов: ${path} — работай в нём, новый worktree не создавай.`,
     branch: (branch) => fill`- Ветка: ${branch} — не меняй её.`,
@@ -111,6 +112,7 @@ export const PROMPTS: Record<Language, PromptTexts> = {
       [
         fill`- PR mode: do not merge the branch into ${main} — a human merges it through a pull request. This rule outranks the merge step of the tracker's skill, and the check before a merge is not needed either: the CI checks the pull request.`,
         '- Once the work is done and approved by the reviewer: commit everything (git status is clean), describe the pull request in .temp/pull-request.md (the first line is the title, the body follows) and end the turn with the last line `PULL REQUEST: .temp/pull-request.md`. Even Keel pushes the branch and opens the pull request; leave the task status alone.',
+        fill`- If the task needs no change in the repository (research, work already in ${main}), still end the turn with the line \`PULL REQUEST: .temp/pull-request.md\`; the description file is not needed then: Even Keel closes the task without a pull request.`,
       ].join('\n'),
     review: {
       head: (url) => fill`The pull request ${url} got feedback:`,
@@ -120,7 +122,7 @@ export const PROMPTS: Record<Language, PromptTexts> = {
       conflict: (main) => fill`- The pull request conflicts with ${main}: merge the fresh ${main} into your branch and resolve the conflicts.`,
       after: 'Fix it, commit and end the turn with the line `PULL REQUEST: .temp/pull-request.md` again (update the description if needed): Even Keel pushes the branch to the same pull request.',
       nothingAhead: (main) =>
-        fill`The pull request was not opened: the branch has no commits beyond ${main}, there is nothing to open. If the work is not committed, commit it and end the turn with the line \`PULL REQUEST: .temp/pull-request.md\` again. If the task's work is already in ${main}, say so and end the turn without that line: the user closes the task.`,
+        fill`The pull request was not opened: the branch has no commits beyond ${main}, and the worktree has uncommitted changes. Commit the work and end the turn with the line \`PULL REQUEST: .temp/pull-request.md\` again. If those changes are not needed, remove them, and on the same line Even Keel closes the task without a pull request.`,
     },
     worktree: (path) => fill`- Worktree is ready: ${path} — work in it, do not create a new worktree.`,
     branch: (branch) => fill`- Branch: ${branch} — do not change it.`,

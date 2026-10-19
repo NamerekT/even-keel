@@ -182,10 +182,13 @@ export interface PullCleanup {
 export interface ReviewDeps {
   /** The project's `pullRequests` setting. */
   on: (project: string) => boolean
-  /** Pushes the branch of the session's folder and opens its pull request, or finds the open one. */
-  open: (project: string, task: string, session: HandoffSession) => Promise<Opened & { remote: string }>
+  /**
+   * Pushes the branch of the session's folder and opens its pull request, or finds the open one. `null` — the branch
+   * has nothing beyond main and its worktree is clean: there is nothing to open.
+   */
+  open: (project: string, task: string, session: HandoffSession) => Promise<(Opened & { remote: string }) | null>
   check: (project: string, pull: PullRequest) => Promise<ReviewCheck>
-  /** Moves the task of a merged pull request to Done in the tracker; one closed already is fine. */
+  /** Moves the task of a merged pull request, or of one with nothing to open, to Done in the tracker; one closed already is fine. */
   complete: (project: string, task: string) => Promise<void>
 }
 

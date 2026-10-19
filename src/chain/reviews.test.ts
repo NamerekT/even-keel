@@ -184,7 +184,66 @@ describe('Dispatcher in PR mode', () => {
     expect(dispatcher.state.reviews.ABC).toHaveLength(1)
   })
 
-  it('tells the session of a branch with nothing beyond main instead of opening, and does not pause', async () => {
+  /** ABC-1 marks on a branch with nothing to open; the tracker's next read shows what `complete` did. */
+  async function nothingToOpen(complete: () => Promise<void> = async () => {}) {
+    const pulls = forge()
+    pulls.deps.open = async () => null
+    const context = setup({ state: runningState(), live: { 'ABC-1': 'old-session' }, reviews: pulls.deps })
+    context.handoffs['ABC-1'] = handoff('old-session')
+    const completeOf = pulls.deps.complete
+    pulls.deps.complete = async (project, id) => {
+      await complete()
+      await completeOf(project, id)
+      context.tracker.ABC = [task('ABC-1', done), task('ABC-2')]
+    }
+    context.dispatcher.setTasks('ABC', [task('ABC-1'), task('ABC-2')])
+    await context.dispatcher.idle()
+    // The tracker's read after `complete` queues the chain's next step.
+    await context.dispatcher.idle()
+    return { ...context, pulls }
+  }
+
+  it('moves the task of a clean branch with nothing beyond main to done without a pull request, cleans up and goes on', async () => {
+    const { dispatcher, pulls, finished, pulled, launched, relays, log } = await nothingToOpen()
+
+    expect(pulls.completed).toEqual(['ABC-1'])
+    expect(finished).toEqual(['ABC/ABC-1'])
+    expect(pulled['ABC-1']).toBeUndefined()
+    expect(launched).toEqual(['ABC/ABC-2'])
+    expect(relays).toEqual([])
+    expect(dispatcher.state.reviews.ABC).toBeUndefined()
+    expect(dispatcher.state.active[0]).toMatchObject({ paused: false, current: { task: 'ABC-2' } })
+    expect(log).toEqual(
+      expect.arrayContaining([
+        'review: ABC-1: no pull request opened, its branch has nothing beyond main and its worktree is clean; the task is done',
+        'review: ABC-1 is moved to done in the tracker',
+      ]),
+    )
+  })
+
+  it('pauses the chain on a task with nothing to open that the tracker would not move to done, and does not try again', async () => {
+    const { dispatcher, pulls, launched, finished } = await nothingToOpen(async () => {
+      throw new Error('Huly: the server answered HTTP 503')
+    })
+
+    expect(launched).toEqual([])
+    expect(dispatcher.state.active[0]).toMatchObject({
+      paused: true,
+      current: { task: 'ABC-1', sessionId: 'old-session' },
+      error: { code: 'review.notCompleted', params: { task: 'ABC-1' }, cause: { code: 'text' } },
+    })
+    dispatcher.resume('ABC')
+    await dispatcher.idle()
+    expect(pulls.completed).toEqual([])
+    expect(dispatcher.state.active[0]?.current?.task).toBe('ABC-1')
+
+    dispatcher.setTasks('ABC', [task('ABC-1', done), task('ABC-2')])
+    await dispatcher.idle()
+    expect(finished).toEqual(['ABC/ABC-1'])
+    expect(launched).toEqual(['ABC/ABC-2'])
+  })
+
+  it('tells the session of a branch with nothing beyond main and work left uncommitted, and does not pause', async () => {
     const pulls = forge()
     pulls.deps.open = async () => {
       throw fail('review.nothingAhead', { branch: 'abc-1/task', base: 'main' })

@@ -81,6 +81,7 @@ export const noticesRu: NoticeTexts = {
   'ci.unreachable': (p) => `${p.ci}: API не отвечает`,
   'review.denied': (p) => `${p.ci}: токен отклонён (HTTP ${p.status}) — ему нужна запись pull request репозитория`,
   'review.notOpened': (p) => `pull request задачи ${p.task} не открыт (ответьте её сессии в чате или пропустите задачу)`,
+  'review.notCompleted': (p) => `у задачи ${p.task} нечего открывать как pull request, но в трекере она не переведена в Done (переведите её сами и продолжите цепочку или пропустите задачу)`,
   'review.noRemote': (p) => `у ${p.project} нет remote на GitHub или Forgejo, где открыть pull request`,
   'review.noToken': (p) => `ни у одного профиля нет токена для remote ${p.remote}; добавьте профиль GitHub или Forgejo его хоста`,
   'review.noNote': (p) => `сессия не оставила описание pull request в ${p.path}`,

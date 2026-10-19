@@ -9,14 +9,16 @@ import { describedBy, openPull, pullTarget } from './open.js'
 describe('openPull', () => {
   const now = () => new Date('2026-10-19T12:00:00Z')
 
-  async function opening(ahead: GitResult) {
+  /** `status` — what `git status` lists; `note` — whether the session wrote the pull request's note. */
+  async function opening(ahead: GitResult, status = '', note = true) {
     const dir = await mkdtemp(join(tmpdir(), 'open-pull-'))
-    await writeFile(join(dir, 'pull.md'), 'Fix the parser\n')
+    if (note) await writeFile(join(dir, 'pull.md'), 'Fix the parser\n')
     const asked: string[] = []
     const git = async (_cwd: string, args: string[]): Promise<GitResult> => {
       asked.push(args.join(' '))
       if (args[0] === 'symbolic-ref') return { code: 0, out: 'abc-7/task\n' }
       if (args[0] === 'rev-list') return ahead
+      if (args[0] === 'status') return { code: 0, out: status }
       return { code: 0, out: '' }
     }
     const created: string[] = []
@@ -34,13 +36,24 @@ describe('openPull', () => {
     return { result, asked, created }
   }
 
-  it('opens nothing for a branch with no commits beyond the remote base, and does not push it', async () => {
-    const { result, asked, created } = await opening({ code: 0, out: '0\n' })
-    await expect(result).rejects.toMatchObject({ notice: { code: 'review.nothingAhead', params: { branch: 'abc-7/task', base: 'trunk' } } })
-    expect(asked).toContain('fetch --quiet origin trunk')
-    expect(asked).toContain('rev-list --count refs/remotes/origin/trunk..HEAD')
-    expect(asked.some((each) => each.startsWith('push'))).toBe(false)
-    expect(created).toEqual([])
+  it('opens nothing for a branch with no commits beyond the remote base and a clean worktree, note or not, and pushes nothing', async () => {
+    for (const note of [true, false]) {
+      const { result, asked, created } = await opening({ code: 0, out: '0\n' }, '?? pull.md\n', note)
+      await expect(result).resolves.toBeNull()
+      expect(asked).toContain('fetch --quiet origin trunk')
+      expect(asked).toContain('rev-list --count refs/remotes/origin/trunk..HEAD')
+      expect(asked.some((each) => each.startsWith('push'))).toBe(false)
+      expect(created).toEqual([])
+    }
+  })
+
+  it('refuses a branch with no commits beyond the base whose work is not committed, new files included', async () => {
+    for (const status of [' M src/parser.ts\n', '?? src/quotes.ts\n']) {
+      const { result, asked, created } = await opening({ code: 0, out: '0\n' }, status)
+      await expect(result).rejects.toMatchObject({ notice: { code: 'review.nothingAhead', params: { branch: 'abc-7/task', base: 'trunk' } } })
+      expect(asked.some((each) => each.startsWith('push'))).toBe(false)
+      expect(created).toEqual([])
+    }
   })
 
   it('pushes and opens a branch ahead of the base, and leaves the judgement to the forge when git cannot count', async () => {

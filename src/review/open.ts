@@ -1,5 +1,5 @@
 import { readFile } from 'node:fs/promises'
-import { isAbsolute, join } from 'node:path'
+import { isAbsolute, join, relative } from 'node:path'
 import type { CiTarget, Remote } from '../ci/remote.js'
 import { parseRemote } from '../ci/remote.js'
 import type { Git } from '../git/types.js'
@@ -29,15 +29,20 @@ export function describedBy(note: string): { title: string; body: string } | nul
 
 /**
  * Pushes the branch the session's folder is on and opens its pull request, or finds the one already open: a session
- * that fixed what the review asked marks again, and its branch goes to the same pull request.
+ * that fixed what the review asked marks again, and its branch goes to the same pull request. `null` — the branch has
+ * nothing beyond the base and its worktree is clean: the task changed nothing in the repository, nothing is pushed
+ * (BTN-222).
  */
-export async function openPull(git: Git, workdir: string, note: string, remote: string, forge: Forge, base: string, now: () => Date): Promise<Opened> {
+export async function openPull(git: Git, workdir: string, note: string, remote: string, forge: Forge, base: string, now: () => Date): Promise<Opened | null> {
   const branch = (await git(workdir, ['symbolic-ref', '--quiet', '--short', 'HEAD'])).out.trim()
   if (branch === '') throw fail('review.noBranch', { path: workdir })
+  const notePath = isAbsolute(note) ? note : join(workdir, note)
+  if ((await aheadOf(git, workdir, remote, base)) === 0) {
+    if (await committed(git, workdir, notePath)) return null
+    throw fail('review.nothingAhead', { branch, base })
+  }
   const status = await git(workdir, ['status', '--porcelain', '--untracked-files=no'])
   if (status.code !== 0 || status.out.trim() !== '') throw fail('review.dirty', { path: workdir }, { detail: status.out })
-  if ((await aheadOf(git, workdir, remote, base)) === 0) throw fail('review.nothingAhead', { branch, base })
-  const notePath = isAbsolute(note) ? note : join(workdir, note)
   const described = describedBy(await readFile(notePath, 'utf8').catch(() => ''))
   if (described === null) throw fail('review.noNote', { path: notePath })
 
@@ -57,4 +62,12 @@ async function aheadOf(git: Git, workdir: string, remote: string, base: string):
   const counted = await git(workdir, ['rev-list', '--count', `refs/remotes/${remote}/${base}..HEAD`])
   const count = Number(counted.out.trim())
   return counted.code === 0 && counted.out.trim() !== '' && Number.isInteger(count) ? count : null
+}
+
+/** Whether the worktree holds no work left out of a commit, new files included; the pull request's note is not work. */
+async function committed(git: Git, workdir: string, notePath: string): Promise<boolean> {
+  const status = await git(workdir, ['status', '--porcelain', '--untracked-files=all'])
+  if (status.code !== 0) return false
+  const note = relative(workdir, notePath).replace(/\\/g, '/')
+  return status.out.split(/\r?\n/).every((line) => line.trim() === '' || line === `?? ${note}`)
 }

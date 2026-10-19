@@ -142,14 +142,15 @@ export class Reviews {
       this.refused.set(task, session.lastReplyAt)
       const why = noticeOf(error)
       if (why.code === 'review.nothingAhead') {
-        // Even Keel cannot tell work already in main from work never committed: the session says which (BTN-222).
-        // It is told as a chat answer is, by `--resume` whatever its cache: the reply belongs to its own turn.
+        // The work is not committed (BTN-222). The session is told as a chat answer is, by `--resume` whatever its
+        // cache: the reply belongs to its own turn.
         this.deps.log(`review: ${task}: no pull request opened, ${englishOf(why)}; the session is told`)
         const text = PROMPTS[this.deps.promptLanguage()].review.nothingAhead(this.deps.mainBranch(task))
         await this.handovers.deliver(chain, current, session, text, null, 'review')
       } else this.host.hold(chain, notice('review.notOpened', { task }, { cause: why }))
       return
     }
+    if (opened === null) return this.doneWithout(chain, current, session)
     this.refused.delete(task)
     const before = this.recordOf(project, task)
     const { number, url, branch, pushedAt, remote } = opened
@@ -162,6 +163,26 @@ export class Reviews {
     this.host.letGo(chain)
     this.deps.save(this.state)
     this.host.refilter(project)
+  }
+
+  /**
+   * A task that changed nothing in the repository — research, work already in main — is done without a pull request
+   * (BTN-222): moved to Done in the tracker, it goes through the chain's own Done, cleanup included. The mark counts as
+   * tried meanwhile, so the steps before the tracker's next read do not move it again.
+   */
+  private async doneWithout(chain: ActiveChain, current: CurrentTask, session: HandoffSession): Promise<void> {
+    const { project } = chain
+    const { task } = current
+    this.refused.set(task, session.lastReplyAt)
+    this.deps.log(`review: ${task}: no pull request opened, its branch has nothing beyond ${this.deps.mainBranch(task)} and its worktree is clean; the task is done`)
+    try {
+      await this.review!.complete(project, task)
+    } catch (error) {
+      this.host.hold(chain, notice('review.notCompleted', { task }, { cause: noticeOf(error) }))
+      return
+    }
+    this.deps.log(`review: ${task} is moved to done in the tracker`)
+    await this.deps.refresh(project).catch(() => undefined)
   }
 
   /** The feedback resumes the session while its cache is warm, else a new session takes the task with it. */

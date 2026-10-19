@@ -82,6 +82,7 @@ export const en = {
   'ci.unreachable': (p: { ci: string }) => `${p.ci}: the API did not answer`,
   'review.denied': (p: { ci: string; status: number }) => `${p.ci}: the token was refused (HTTP ${p.status}); it needs to write pull requests of the repository`,
   'review.notOpened': (p: { task: string }) => `the pull request of ${p.task} was not opened (answer its session from the chat, or skip the task)`,
+  'review.notCompleted': (p: { task: string }) => `${p.task} has nothing to open as a pull request, but it was not moved to done in the tracker (move it there yourself and resume the chain, or skip the task)`,
   'review.noRemote': (p: { project: string }) => `${p.project} has no remote on GitHub or Forgejo to open a pull request on`,
   'review.noToken': (p: { remote: string }) => `no profile has a token for the remote ${p.remote}; add a GitHub or Forgejo profile for its host`,
   'review.noNote': (p: { path: string }) => `the session left no pull request description at ${p.path}`,

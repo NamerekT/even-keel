@@ -52,7 +52,7 @@ export function reviewDeps(wiring: ReviewWiring): ReviewDeps {
       const target = await targetOf(project)
       const forge = forgeOf(target, tokenOf(project, target))
       const opened = await openPull(git, session.workdir, session.pullRequest ?? '', target.remote, forge, wiring.main(project), wiring.now)
-      return { ...opened, remote: target.remote }
+      return opened === null ? null : { ...opened, remote: target.remote }
     },
     check: async (project, pull) => {
       const target = await targetOf(project, pull.remote)
