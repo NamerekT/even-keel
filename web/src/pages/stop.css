@@ -1,0 +1,71 @@
+.stop {
+  display: contents;
+}
+
+.stop__button {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.stop__button .icon {
+  width: 14px;
+  height: 14px;
+}
+
+.stop__menu {
+  position: fixed;
+  inset: auto;
+  width: max-content;
+  max-width: min(340px, calc(100vw - 16px));
+  margin: 0;
+  padding: 4px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  box-shadow: 0 8px 24px rgb(0 0 0 / 0.25);
+  color: var(--fg);
+  font: 14px/1.45 var(--font);
+  /* The narrow head's block keeps its segments on one line, and the menu inherits from it. */
+  white-space: normal;
+  list-style: none;
+  animation: fade-in var(--motion-fast) ease-out;
+}
+
+.stop__keeps {
+  margin-bottom: 4px;
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--border);
+  color: var(--fg-muted);
+  font-size: 13px;
+}
+
+.stop__item {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  width: 100%;
+  padding: 6px 8px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--fg);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.stop__item:hover,
+.stop__item:focus-visible {
+  background: var(--surface-muted);
+  outline: none;
+}
+
+.stop__label {
+  font-weight: 600;
+}
+
+.stop__note {
+  color: var(--fg-muted);
+  font-size: 12px;
+}

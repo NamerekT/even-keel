@@ -45,6 +45,7 @@ import { ProjectName } from './ProjectName.js'
 import { SessionPanel } from './SessionPanel.js'
 import { SETTINGS_HASH, SettingsChip, SettingsPanel, useSettingsDirty } from './SettingsPanel.js'
 import { StatsStrip, useStrip } from './StatsStrip.js'
+import { StopMenu } from './StopMenu.js'
 import { ToolsLink } from './ToolsLink.js'
 import { useArrival } from './useArrival.js'
 import './project.css'
@@ -304,18 +305,16 @@ function ChainControls({ state, project, narrow, children }: { state: EvenKeelSt
   const chain = activeChain(state.chain, project)
   const stopsAfter = chain?.stopAfter === true
   const stop = (
-    <>
-      {button(t.project.stop, 'stop')}
-      <button
-        type="button"
-        className={base}
-        disabled={sending || !active}
-        title={active ? undefined : t.project.off.idle}
-        onClick={() => void send('chain/stopAfter', { project, on: !stopsAfter })}
-      >
-        {stopsAfter ? t.project.keepGoing : t.project.stopAfter}
-      </button>
-    </>
+    <StopMenu
+      className={controls.primary === 'stop' ? `${base} ${narrow ? 'seg-button--primary' : 'button--primary'}` : base}
+      enabled={controls.enabled.includes('stop')}
+      off={off}
+      sending={sending}
+      stopsAfter={stopsAfter}
+      task={chain?.current?.task ?? chain?.closing ?? null}
+      stop={() => void send('chain/stop', { project })}
+      setStopAfter={(on) => void send('chain/stopAfter', { project, on })}
+    />
   )
   return (
     <>
