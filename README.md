@@ -5,7 +5,7 @@
   </picture>
 </h1>
 
-**Hand your backlog to [Claude Code](https://docs.claude.com/en/docs/claude-code/overview) and stop babysitting it.** Even Keel takes the open tasks of a project from your tracker, in the order of their `blocks` links, and works through them one at a time while you do something else: a session on the first task, and when its branch lands in `main`, cleanup and the next. It waits out a spent usage limit, hands a long session over to a fresh one and keeps going while you are away. Only what really needs you — a question, a decision — waits for you: on its page, in the tracker or on your phone.
+**Hand your backlog to [Claude Code](https://docs.claude.com/en/docs/claude-code/overview) or [Codex](https://github.com/openai/codex) and stop babysitting it.** Even Keel takes the open tasks of a project from your tracker, in the order of their `blocks` links, and works through them one at a time while you do something else: a session on the first task, and when its branch lands in `main`, cleanup and the next. It waits out a spent usage limit, hands a long session over to a fresh one and keeps going while you are away. Only what really needs you — a question, a decision — waits for you: on its page, in the tracker or on your phone.
 
 **And it shows what each change did.** Built-in statistics show what every task cost, where sessions got stuck and how full their context ran, and compare before and after every change to your rule files. A web page shows the chain and, for every session, what it is doing right now.
 
@@ -320,7 +320,7 @@ A plugin gives sessions the tracker's MCP server and a skill for working a task.
 
 - Other trackers: Jira, GitLab, YouTrack…
 - Your own classifier for the statistics, or a different model behind it.
-- Other APIs and other agents: today Even Keel is built around the Claude Code CLI and its subscription limits.
+- Other APIs and other agents: today Even Keel runs the Claude Code and Codex CLIs and is built around their subscription limits.
 
 ## Development
 
