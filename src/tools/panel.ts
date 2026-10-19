@@ -2,6 +2,7 @@ import { createReadStream, readdirSync, readFileSync, statSync } from 'node:fs'
 import { join } from 'node:path'
 import { createInterface } from 'node:readline'
 import { sharedMemory } from '../account/share.js'
+import { CLAUDE } from '../claude/name.js'
 import { samePath } from '../paths.js'
 import type { CacheTtl } from '../state.js'
 import { projectDirName } from '../sessions/paths.js'
@@ -22,8 +23,8 @@ export interface ToolsPlaces {
   globalDir: string
   /** `.claude.json` files whose MCP servers and project entries sessions read. */
   configs: string[]
-  /** Account folders other than the global one. */
-  accounts: { key: string; dir: string }[]
+  /** Account folders other than the global one; only Claude's are compared with the global `settings.json`. */
+  accounts: { key: string; dir: string; agent: string }[]
   /** Every config folder: transcripts are looked for in all of them. */
   homes: string[]
   trim: boolean
@@ -67,6 +68,7 @@ export async function readToolsView(project: string, places: ToolsPlaces): Promi
   })
 
   const accounts = places.accounts
+    .filter(({ agent }) => agent === CLAUDE)
     .map(({ key, dir }) => ({ account: key, keys: accountDrift(user ?? {}, readJson(join(dir, 'settings.json')) ?? {}) }))
     .filter((drift) => drift.keys.length > 0)
 

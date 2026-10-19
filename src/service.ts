@@ -1194,7 +1194,7 @@ let server = createEvenKeelServer({
       repo,
       globalDir: homes.global.dir,
       configs: claudeConfigs(),
-      accounts: list.filter((home) => !home.global).map(({ key, dir }) => ({ key, dir })),
+      accounts: list.filter((home) => !home.global).map(({ key, dir, agent }) => ({ key, dir, agent })),
       homes: list.map((home) => home.dir),
       trim: dispatcher.state.trimTools,
       hidden: configStore.current.hiddenSkills,
