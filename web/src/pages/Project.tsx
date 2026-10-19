@@ -34,6 +34,7 @@ import { focusAfterClose, focusOnEntry } from '../ui/focus.js'
 import { RefreshIcon } from '../ui/icons.js'
 import { QuestionsChip } from '../ui/QuestionsChip.js'
 import { StatusChip } from '../ui/StatusChip.js'
+import { Tipped } from '../ui/Tipped.js'
 import { BACKLOG_HASH, BacklogChip, BacklogPanel } from './BacklogPanel.js'
 import { ChainList } from './ChainList.js'
 import { SEG_CLASS, type ChipLook } from './chipLook.js'
@@ -45,7 +46,6 @@ import { ProjectName } from './ProjectName.js'
 import { SessionPanel } from './SessionPanel.js'
 import { SETTINGS_HASH, SettingsChip, SettingsPanel, useSettingsDirty } from './SettingsPanel.js'
 import { StatsStrip, useStrip } from './StatsStrip.js'
-import { StopMenu } from './StopMenu.js'
 import { ToolsLink } from './ToolsLink.js'
 import { useArrival } from './useArrival.js'
 import './project.css'
@@ -288,13 +288,13 @@ function ChainControls({ state, project, narrow, children }: { state: EvenKeelSt
 
   const active = status.kind === 'running' || status.kind === 'paused'
   const base = narrow ? SEG_CLASS : 'button'
-  const button = (label: string, name: ChainControl) => (
+  const button = (label: ReactNode, name: ChainControl, onClick = () => void send(`chain/${name}`, { project })) => (
     <button
       type="button"
       className={controls.primary === name ? `${base} ${narrow ? 'seg-button--primary' : 'button--primary'}` : base}
       disabled={sending || !controls.enabled.includes(name)}
       title={controls.enabled.includes(name) ? undefined : off}
-      onClick={() => void send(`chain/${name}`, { project })}
+      onClick={onClick}
     >
       {label}
     </button>
@@ -304,18 +304,17 @@ function ChainControls({ state, project, narrow, children }: { state: EvenKeelSt
   const first = active ? button(t.project.resume, 'resume') : button(startsNow(state.chain) ? t.project.start : t.project.enqueue, 'start')
   const chain = activeChain(state.chain, project)
   const stopsAfter = chain?.stopAfter === true
-  const stop = (
-    <StopMenu
-      className={controls.primary === 'stop' ? `${base} ${narrow ? 'seg-button--primary' : 'button--primary'}` : base}
-      enabled={controls.enabled.includes('stop')}
-      off={off}
-      sending={sending}
-      stopsAfter={stopsAfter}
-      task={chain?.current?.task ?? chain?.closing ?? null}
-      stop={() => void send('chain/stop', { project })}
-      setStopAfter={(on) => void send('chain/stopAfter', { project, on })}
-    />
-  )
+  // A running chain stops only after its current task, whose session is never touched; a paused one runs nothing, so it stops at once.
+  const stop =
+    status.kind === 'running'
+      ? button(
+          <Tipped tip={stopsAfter ? t.project.keepGoingTip : t.project.stopTip(chain?.current?.task ?? chain?.closing ?? null)} inline>
+            {stopsAfter ? t.project.keepGoing : t.project.stop}
+          </Tipped>,
+          'stop',
+          () => void send('chain/stopAfter', { project, on: !stopsAfter }),
+        )
+      : button(t.project.stop, 'stop')
   return (
     <>
       <div className="project__controls">

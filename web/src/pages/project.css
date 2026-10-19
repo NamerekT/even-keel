@@ -200,7 +200,8 @@
   cursor: default;
 }
 
-.seg-button.seg-button--primary {
+.seg-button.seg-button--primary,
+.seg-button.seg-button--primary:hover:not(:disabled) {
   background: var(--accent);
   color: var(--surface);
   font-weight: 600;

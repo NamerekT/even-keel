@@ -465,14 +465,10 @@ export const en: Messages = {
     dismiss: 'Done',
     resume: 'Resume',
     stop: 'Stop',
-    stopKeeps: 'Either way the session of the current task is not stopped: it works on, and the task closes as usual.',
-    stopNow: 'Now',
-    stopNowNote: 'The chain takes no next task.',
-    stopAfter: 'After this task',
-    stopAfterNote: (task: string | null) =>
-      `The chain waits until ${task ?? 'the current task'} is done and cleaned up, then stops before the next one.`,
+    stopTip: (task: string | null) =>
+      `The chain stops once ${task ?? 'the current task'} is done and cleaned up. Its session is not stopped: it works on.`,
     keepGoing: 'Keep going',
-    keepGoingNote: 'The chain takes the next task as usual.',
+    keepGoingTip: 'The chain takes the next task as usual.',
     stopsAfter: (task: string | null) =>
       task === null ? 'The chain stops before it takes the next task.' : `The chain stops once ${task} is done and cleaned up, before it takes the next task.`,
     off: {
