@@ -462,6 +462,10 @@ export const en: Messages = {
     dismiss: 'Done',
     resume: 'Resume',
     stop: 'Stop',
+    stopAfter: 'After this task',
+    keepGoing: 'Keep going',
+    stopsAfter: (task: string | null) =>
+      task === null ? 'The chain stops before it takes the next task.' : `The chain stops once ${task} is done and cleaned up, before it takes the next task.`,
     off: {
       running: 'The chain is running — nothing to resume.',
       idle: 'The chain is not running — nothing to stop.',

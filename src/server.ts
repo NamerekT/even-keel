@@ -63,6 +63,8 @@ export interface ChainControl {
   start(project: string): Promise<void>
   resume(project: string): void
   stop(project: string): void
+  /** "Stop after this task": on — the chain stops once its current task is done and cleaned up instead of taking the next. */
+  stopAfter(project: string, on: boolean): void
   dequeue(project: string): void
   reorder(project: string, order: string[]): void
   requeue(order: string[]): void
@@ -217,6 +219,7 @@ const COMMANDS: Record<string, Command> = {
   'chain/start': ({ control }, body) => control.start(projectOf(body)),
   'chain/resume': ({ control }, body) => control.resume(projectOf(body)),
   'chain/stop': ({ control }, body) => control.stop(projectOf(body)),
+  'chain/stopAfter': ({ control }, body) => control.stopAfter(projectOf(body), flagOf(body)),
   'chain/dequeue': ({ control }, body) => control.dequeue(projectOf(body)),
   'chain/order': ({ control }, body) => control.reorder(projectOf(body), listOf(body, 'request.taskList')),
   'chain/queue': ({ control }, body) => control.requeue(listOf(body, 'request.projectList')),

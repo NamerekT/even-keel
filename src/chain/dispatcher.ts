@@ -193,6 +193,14 @@ export class Dispatcher {
     this.changed()
   }
 
+  stopAfter(project: string, on: boolean): void {
+    const chain = this.chainOf(project)
+    if (chain === undefined || (chain.stopAfter === true) === on) return
+    if (on) chain.stopAfter = true
+    else delete chain.stopAfter
+    this.changed()
+  }
+
   dequeue(project: string): void {
     const index = this.state.queue.indexOf(project)
     if (index < 0) return
@@ -614,6 +622,12 @@ export class Dispatcher {
           this.deps.save(this.state)
           if (chain.paused) return
         }
+      }
+
+      if (chain.stopAfter) {
+        this.deps.log(`chain: ${chain.project} stopped after its task, as asked`)
+        this.stop(chain.project)
+        return
       }
 
       const fix = this.main?.sessionFix(chain.project)

@@ -122,6 +122,13 @@ export function setPaused(state: EvenKeelState, project: string, paused: boolean
   return withChain(state, active, { ...active, paused, error: paused ? active.error : null })
 }
 
+function setStopAfter(state: EvenKeelState, project: string, on: boolean): EvenKeelState {
+  const active = chainIn(state, project)
+  if (active === undefined) return state
+  const { stopAfter: _, ...rest } = active
+  return withChain(state, active, on ? { ...rest, stopAfter: true } : rest)
+}
+
 function stopChain(state: EvenKeelState, project: string, launches: LaunchEntry[]): EvenKeelState {
   const active = chainIn(state, project)
   if (active === undefined) return state
@@ -228,6 +235,7 @@ export function fakeCommand(state: EvenKeelState, name: string, body: Record<str
   if (name === 'chain/start') return startChain(state, String(body.project), launches)
   if (name === 'chain/resume') return setPaused(state, String(body.project), false)
   if (name === 'chain/stop') return stopChain(state, String(body.project), launches)
+  if (name === 'chain/stopAfter') return setStopAfter(state, String(body.project), body.on === true)
   if (name === 'chain/queue') return requeue(state, body.order as string[])
   if (name === 'chain/dequeue') return dequeue(state, String(body.project))
   if (name === 'chain/order') return reorder(state, String(body.project), body.order as string[])

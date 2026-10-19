@@ -45,6 +45,8 @@ export interface ActiveChain {
   interrupted?: Interrupted
   /** The chain exists only for the fix session of a red main and ends with it. */
   fixOnly?: true
+  /** "Stop after this task" (BTN-230): the chain sees its current task through Done and the cleanup, then stops instead of taking the next one. */
+  stopAfter?: true
 }
 
 export interface Interrupted {

@@ -9,6 +9,7 @@ import { isNarrow, useNarrow } from '../layout/useNarrow.js'
 import { useWide } from '../layout/useWide.js'
 import { useCommand } from '../live/useCommand.js'
 import {
+  activeChain,
   backlogTasks,
   canReady,
   chainBlocks,
@@ -298,9 +299,24 @@ function ChainControls({ state, project, narrow, children }: { state: EvenKeelSt
     </button>
   )
 
-  // Both buttons stay in place whatever the status, so a repeated click never lands on the other one.
+  // The buttons stay in place whatever the status, so a repeated click never lands on another one.
   const first = active ? button(t.project.resume, 'resume') : button(startsNow(state.chain) ? t.project.start : t.project.enqueue, 'start')
-  const stop = button(t.project.stop, 'stop')
+  const chain = activeChain(state.chain, project)
+  const stopsAfter = chain?.stopAfter === true
+  const stop = (
+    <>
+      {button(t.project.stop, 'stop')}
+      <button
+        type="button"
+        className={base}
+        disabled={sending || !active}
+        title={active ? undefined : t.project.off.idle}
+        onClick={() => void send('chain/stopAfter', { project, on: !stopsAfter })}
+      >
+        {stopsAfter ? t.project.keepGoing : t.project.stopAfter}
+      </button>
+    </>
+  )
   return (
     <>
       <div className="project__controls">
@@ -324,6 +340,7 @@ function ChainControls({ state, project, narrow, children }: { state: EvenKeelSt
       )}
       {status.kind === 'running' && status.slotWait !== undefined && <p className="project__wait">{say(status.slotWait)}</p>}
       {status.kind === 'running' && status.ciWait !== undefined && <p className="project__wait">{ciWaitText(status.ciWait, new Date())}</p>}
+      {stopsAfter && <p className="project__wait">{t.project.stopsAfter(chain?.current?.task ?? chain?.closing ?? null)}</p>}
       {error !== null && <p className="project__error">{say(error)}</p>}
     </>
   )

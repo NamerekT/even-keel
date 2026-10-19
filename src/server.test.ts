@@ -34,6 +34,7 @@ describe('Even Keel HTTP server', () => {
       start: record('start'),
       resume: record('resume'),
       stop: record('stop'),
+      stopAfter: record('stopAfter'),
       dequeue: record('dequeue'),
       reorder: record('reorder'),
       requeue: record('requeue'),
@@ -465,6 +466,7 @@ describe('Even Keel HTTP server', () => {
 
     await post('/api/chain/resume', { project: 'ABC' })
     await post('/api/chain/stop', { project: 'ABC' })
+    await post('/api/chain/stopAfter', { project: 'ABC', on: true })
     await post('/api/chain/dequeue', { project: 'XYZ' })
     await post('/api/chain/order', { project: 'ABC', order: ['ABC-2', 'ABC-1'] })
     await post('/api/chain/queue', { order: ['XYZ', 'OPS'] })
@@ -478,6 +480,7 @@ describe('Even Keel HTTP server', () => {
       ['start', 'ABC'],
       ['resume', 'ABC'],
       ['stop', 'ABC'],
+      ['stopAfter', 'ABC', true],
       ['dequeue', 'XYZ'],
       ['reorder', 'ABC', ['ABC-2', 'ABC-1']],
       ['requeue', ['XYZ', 'OPS']],
