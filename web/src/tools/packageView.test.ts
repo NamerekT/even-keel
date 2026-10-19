@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { PackagesView, ProjectPackages } from '../../../src/state.js'
-import { blockedProjects, importOffers, problemCount, serverEntry, shownPackages } from './packageView.js'
+import { blockedProjects, importOffers, marketplaceCommand, problemCount, serverEntry, shownPackages } from './packageView.js'
 
 const project = (blocked: boolean, problems: ProjectPackages['problems'] = []): ProjectPackages => ({ cells: {}, problems, blocked })
 
@@ -10,6 +10,7 @@ const view = (over: Partial<PackagesView> = {}): PackagesView => ({
   projects: {},
   keys: [],
   available: [],
+  marketplace: null,
   imports: {},
   ...over,
 })
@@ -75,6 +76,12 @@ describe('importOffers', () => {
 
   it('offers again once the repository has a server the dismissal did not see', () => {
     expect(importOffers(view({ imports: { ABC: ['db', 'web'] } }), ['ABC'], { ABC: 'db' })).toEqual([{ project: 'ABC', servers: ['db', 'web'] }])
+  })
+})
+
+describe('marketplaceCommand', () => {
+  it('quotes the folder, which may hold spaces', () => {
+    expect(marketplaceCommand('C:\\Program Files\\even-keel')).toBe('claude plugin marketplace add "C:\\Program Files\\even-keel"')
   })
 })
 

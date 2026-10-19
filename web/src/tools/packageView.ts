@@ -57,6 +57,11 @@ export function importOffers(view: PackagesView, projects: string[], dismissed: 
   })
 }
 
+/** What the "Add to Claude Code" button runs, for a terminal of the user's own. */
+export function marketplaceCommand(dir: string): string {
+  return `claude plugin marketplace add "${dir}"`
+}
+
 /** The problems that reach the project's sessions: of its enabled packages and of the set as a whole. */
 export function problemCount(view: PackagesView, project: string): number {
   const found = view.projects[project]

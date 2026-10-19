@@ -57,7 +57,7 @@ function state(startedAt: string): EvenKeelState {
     fixes: {},
     context: { window: 600_000, warn: 50, danger: 80 },
     configError: null,
-    packages: { gateway: null, packages: [], projects: {}, keys: [], available: [], imports: {} },
+    packages: { gateway: null, packages: [], projects: {}, keys: [], available: [], marketplace: null, imports: {} },
     secrets: { variables: [], sessionsPending: false },
     profiles: { profiles: [], kinds: [] },
     language: null,

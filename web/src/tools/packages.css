@@ -267,6 +267,11 @@
   font-size: 13px;
 }
 
+.packages__command {
+  user-select: all;
+  overflow-wrap: anywhere;
+}
+
 .packages__block {
   display: flex;
   flex-direction: column;

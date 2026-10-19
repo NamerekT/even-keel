@@ -4,7 +4,7 @@ import { say, t } from '../i18n/index.js'
 import { useCommand } from '../live/useCommand.js'
 import { HelpTip } from '../pages/settingsParts.js'
 import { Tipped } from '../ui/Tipped.js'
-import { importOffers, type Dismissed } from './packageView.js'
+import { importOffers, marketplaceCommand, type Dismissed } from './packageView.js'
 
 const DISMISSED_KEY = 'even-keel.packages.imports'
 
@@ -44,6 +44,38 @@ export function ImportOffers({ view, projects }: { view: PackagesView; projects:
           </button>
         </div>
       ))}
+      {failure !== null && <p className="notice notice--error">{say(failure)}</p>}
+    </div>
+  )
+}
+
+const MARKETPLACE_DISMISSED_KEY = 'even-keel.packages.marketplace'
+
+/** Claude Code does not know Even Keel's marketplace: the command for sessions started by hand, and a button that runs it. */
+export function MarketplaceOffer({ view }: { view: PackagesView }) {
+  const { send, sending, failure } = useCommand()
+  const [dismissed, setDismissed] = useState(() => localStorage.getItem(MARKETPLACE_DISMISSED_KEY))
+  const own = view.marketplace
+  if (own === null || own.known || dismissed === own.name) return null
+
+  const dismiss = () => {
+    localStorage.setItem(MARKETPLACE_DISMISSED_KEY, own.name)
+    setDismissed(own.name)
+  }
+
+  return (
+    <div className="packages__offers">
+      <div className="packages__offer">
+        <span>{t.packages.marketplace(own.name)}</span>
+        <HelpTip text={t.packages.marketplaceTip} />
+        <code className="packages__command">{marketplaceCommand(own.dir)}</code>
+        <button type="button" className="button button--small button--primary" disabled={sending} onClick={() => void send('packages/marketplace', {})}>
+          {t.packages.marketplaceAdd}
+        </button>
+        <button type="button" className="button button--small" onClick={dismiss}>
+          {t.packages.importDismiss}
+        </button>
+      </div>
       {failure !== null && <p className="notice notice--error">{say(failure)}</p>}
     </div>
   )

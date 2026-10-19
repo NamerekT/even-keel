@@ -14,7 +14,7 @@ import { AccountWatcher } from './account/watcher.js'
 import { AGENTS } from './agent/adapters.js'
 import type { Agent, SessionHandle, SessionStart } from './agent/contract.js'
 import { sessionBase } from './agent/env.js'
-import { updateMarketplace } from './claude/cli.js'
+import { addMarketplace, updateMarketplace } from './claude/cli.js'
 import { CLAUDE } from './claude/name.js'
 import { CODEX } from './codex/name.js'
 import { Dispatcher, type LaunchEntry } from './chain/dispatcher.js'
@@ -209,11 +209,13 @@ const packages: Packages = new Packages({
     return configStore.current.projects
   },
   globalDir: homes.global.dir,
+  ownDir: root,
   claudeConfigs,
   rules: trackerKeyRules(),
   trackerServer: (project) => (briefOn(project) ? undefined : ADAPTERS[configStore.current.trackers[project]!]!.mcpServer),
   agentOf: (project) => homes.find(choiceFor(project).account)?.agent ?? CLAUDE,
   updateMarketplace: (marketplace) => updateMarketplace(envOf(homes.global), marketplace, PLUGIN_UPDATE_TIMEOUT_MS),
+  addMarketplace: (dir) => addMarketplace(envOf(homes.global), dir, PLUGIN_UPDATE_TIMEOUT_MS),
   baseEnv: (): NodeJS.ProcessEnv => sessionBase(process.env, packages.keyNames()),
   poolOf: (project) => keyPool(profiles.current(), profileKindsOf, process.env, configStore.current.ids[project], configStore.current.trackers[project]!),
   port: mcpPort,

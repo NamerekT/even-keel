@@ -12,7 +12,7 @@ import { applySettings, defaultSettings, keysOf, substitute, upsertEnv, type Key
 import { ensureMarketplace, otherPlugins, pluginDir, routeOf, sessionPackages } from './launch.js'
 import { current, enabledPackages, pluginKey, settingsOf, unpinned, type InstalledServer, type PackageInstall, type PackagesFile, type ServerEntry } from './model.js'
 import { installPinned, parseNpx, resolveVersion } from './npm.js'
-import { availablePlugins, FETCHED, hasExtras, locatePlugin, pluginOffer, pluginServers, pluginVersion, readJson, seedPackages, serversIn } from './plugins.js'
+import { availablePlugins, FETCHED, hasExtras, knowsMarketplace, locatePlugin, ownMarketplace, pluginOffer, pluginServers, pluginVersion, readJson, seedPackages, serversIn } from './plugins.js'
 import { loadPackages, savePackages } from './store.js'
 import { isNewer } from './version.js'
 
@@ -36,6 +36,8 @@ export interface PackagesDeps {
   repos: Record<string, string>
   /** The global configuration folder: its marketplaces and installed plugins, its `settings.json`. */
   globalDir: string
+  /** Even Keel's checkout: its `.claude-plugin/marketplace.json` offers its own plugins. */
+  ownDir: string
   /** `.claude.json` files sessions read: their user scope servers seed the catalog. */
   claudeConfigs: () => string[]
   rules: KeyRules
@@ -45,6 +47,8 @@ export interface PackagesDeps {
   agentOf: (project: string) => string
   /** `claude plugin marketplace update <marketplace>` in the global configuration. */
   updateMarketplace: (marketplace: string) => Promise<void>
+  /** `claude plugin marketplace add <dir>` in the global configuration. */
+  addMarketplace: (dir: string) => Promise<void>
   /** The environment of a server process before its own variables. */
   baseEnv: () => NodeJS.ProcessEnv
   /** The keys the project's servers take, its tracker profile's among them (`keyPool`); by project key. */
@@ -66,7 +70,7 @@ export class Packages {
   private readonly probes: Probes
   private gatewayError: Notice | null = null
   private imports: Record<string, string[]> = {}
-  private plugins: { at: number; list: PackagesView['available'] } | undefined
+  private plugins: { at: number; list: PackagesView['available']; marketplace: PackagesView['marketplace'] } | undefined
   private offers: { at: number; byName: Map<string, Offer> } | undefined
 
   constructor(private readonly deps: PackagesDeps) {
@@ -132,22 +136,46 @@ export class Packages {
       }
     })
     const projects = Object.fromEntries(Object.keys(this.deps.repos).map((project) => [project, this.check(project)]))
-    return { gateway: this.gatewayError, packages, projects, keys: this.keys(), available: this.available(), imports: this.imports }
+    return { gateway: this.gatewayError, packages, projects, keys: this.keys(), available: this.available(), marketplace: this.marketplaces().marketplace, imports: this.imports }
   }
 
-  /** The marketplaces' plugins not in the catalog; the files are read again at most once a minute. */
+  /** The marketplaces' plugins not in the catalog. */
   private available(): PackagesView['available'] {
-    if (this.plugins === undefined || Date.now() - this.plugins.at > AVAILABLE_MS) this.plugins = { at: Date.now(), list: availablePlugins(this.deps.globalDir) }
-    return this.plugins.list.filter((each) => {
+    return this.marketplaces().list.filter((each) => {
       const known = this.file.packages[pluginKey(each.plugin, each.marketplace)]
       return known === undefined || known.removed === true
     })
   }
 
+  /** The marketplaces' plugins and whether Claude Code knows Even Keel's own; the files are read again at most once a minute. */
+  private marketplaces(): NonNullable<Packages['plugins']> {
+    if (this.plugins === undefined || Date.now() - this.plugins.at > AVAILABLE_MS) {
+      const name = ownMarketplace(this.deps.ownDir)
+      const marketplace = name === undefined ? null : { name, dir: this.deps.ownDir, known: knowsMarketplace(this.deps.globalDir, name) }
+      this.plugins = { at: Date.now(), list: availablePlugins(this.deps.globalDir, this.deps.ownDir), marketplace }
+    }
+    return this.plugins
+  }
+
+  /** Even Keel's own marketplace into Claude Code, for the sessions started by hand; chain sessions do without it. */
+  async addMarketplace(): Promise<void> {
+    const name = ownMarketplace(this.deps.ownDir)
+    if (name === undefined) throw fail('packages.noOwnMarketplace', { dir: this.deps.ownDir })
+    try {
+      await this.deps.addMarketplace(this.deps.ownDir)
+    } catch (error) {
+      throw fail('packages.marketplaceAdd', { marketplace: name }, { detail: (error as Error).message }, { cause: error })
+    }
+    this.deps.log(`packages: the marketplace ${name} added to Claude Code from ${this.deps.ownDir}`)
+    this.plugins = undefined
+    this.offers = undefined
+    this.deps.onChange()
+  }
+
   /** What the plugin's marketplace holds now; read again at most once a minute, or after an update fetched it. */
   private offerOf(name: string, plugin: { name: string; marketplace: string }): Offer {
     if (this.offers === undefined || Date.now() - this.offers.at > AVAILABLE_MS) this.offers = { at: Date.now(), byName: new Map() }
-    if (!this.offers.byName.has(name)) this.offers.byName.set(name, pluginOffer(this.deps.globalDir, plugin.name, plugin.marketplace))
+    if (!this.offers.byName.has(name)) this.offers.byName.set(name, pluginOffer(this.deps.globalDir, plugin.name, plugin.marketplace, this.deps.ownDir))
     return this.offers.byName.get(name)
   }
 
@@ -211,7 +239,7 @@ export class Packages {
   async update(name: string): Promise<void> {
     const record = this.recordOf(name)
     if (record.plugin !== undefined) {
-      const place = locatePlugin(this.deps.globalDir, record.plugin.name, record.plugin.marketplace)
+      const place = locatePlugin(this.deps.globalDir, record.plugin.name, record.plugin.marketplace, this.deps.ownDir)
       if (FETCHED.has(place.kind)) {
         try {
           await this.deps.updateMarketplace(record.plugin.marketplace)
@@ -243,7 +271,7 @@ export class Packages {
     const name = pluginKey(plugin, marketplace)
     const known = this.file.packages[name]
     if (known !== undefined && known.removed !== true) throw fail('packages.exists', { name })
-    locatePlugin(this.deps.globalDir, plugin, marketplace)
+    locatePlugin(this.deps.globalDir, plugin, marketplace, this.deps.ownDir)
     this.file.packages[name] = { kind: 'plugin', plugin: { name: plugin, marketplace }, default: project === undefined, settings: {}, installs: known?.installs ?? [] }
     this.installAdded(name, project)
   }
@@ -376,7 +404,7 @@ export class Packages {
       let version: string | null = null
       let extras = false
       if (record.plugin !== undefined) {
-        const place = locatePlugin(this.deps.globalDir, record.plugin.name, record.plugin.marketplace)
+        const place = locatePlugin(this.deps.globalDir, record.plugin.name, record.plugin.marketplace, this.deps.ownDir)
         const dir = pluginDir(this.deps.cache, name, id)
         try {
           cpSync(place.dir, dir, { recursive: true, filter: (source) => !/[\\/]\.git$/.test(source) })

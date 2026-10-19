@@ -13,6 +13,8 @@ interface Catalog {
   keys: Record<string, boolean>
   imports: Record<string, string[]>
   gateway: boolean
+  /** Claude Code knows Even Keel's marketplace. */
+  marketplace: boolean
 }
 
 const base = { installed: true, latest: null, fetched: null, installing: false, error: null, note: null, removed: false }
@@ -20,7 +22,7 @@ const fetched = new Date(Date.now() - 3 * 3_600_000).toISOString()
 
 /**
  * `?packages=`: `blocked` — a key is missing and XYZ waits, `gateway` — the gateway cannot listen, `empty` — no
- * packages; without it everything is ready. OPS runs on Codex, so the Huly plugin is MCP only there.
+ * packages, `marketplace` — Claude Code does not know Even Keel's marketplace; without it everything is ready. OPS runs on Codex, so the Huly plugin is MCP only there.
  */
 export function fakePackages(projects: string[], mode: string | null): PackagesView {
   const catalog: Catalog = {
@@ -34,6 +36,7 @@ export function fakePackages(projects: string[], mode: string | null): PackagesV
     keys: { HULY_EMAIL: true, HULY_PASSWORD: true, FORGEJO_TOKEN: mode !== 'blocked', GITHUB_TOKEN: true },
     imports: { DEMO: ['sentry', 'db'] },
     gateway: mode !== 'gateway',
+    marketplace: mode !== 'marketplace',
   }
   if (mode === 'empty') catalog.packages = []
   return viewOf(catalog, projects)
@@ -58,6 +61,7 @@ function viewOf(catalog: Catalog, projects: string[]): PackagesView {
         (plugin) => ({ plugin, marketplace: 'claude-plugins-official' }),
       ),
     ].filter((each) => !catalog.packages.some((known) => known.name === `${each.plugin}@${each.marketplace}`)),
+    marketplace: { name: 'even-keel', dir: 'C:\\even-keel', known: catalog.marketplace },
     imports: catalog.imports,
   }
   return view
@@ -96,7 +100,8 @@ export function fakePackagesCommand(state: EvenKeelState, name: string, body: Re
       target.version = target.latest
       target.latest = null
     }
-  } else if (name === 'packages/remove') catalog.packages = catalog.packages.filter((each) => each !== target)
+  } else if (name === 'packages/marketplace') catalog.marketplace = true
+  else if (name === 'packages/remove') catalog.packages = catalog.packages.filter((each) => each !== target)
   else if (name === 'packages/plugin') {
     const plugin = `${String(body.plugin)}@${String(body.marketplace)}`
     catalog.packages.push({ ...base, name: plugin, kind: 'plugin', version: '0.1.0', default: project === undefined, settings: {}, servers: [String(body.plugin)], extras: true, keys: [] })

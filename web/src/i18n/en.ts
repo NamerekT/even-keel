@@ -931,10 +931,14 @@ export const en: Messages = {
     importTip: 'Chain sessions no longer read the repository’s .mcp.json: its servers reach them only as packages. They join the catalog on for this project only.',
     importAdd: 'Add to the project',
     importDismiss: 'Dismiss',
+    marketplace: (name: string) => `Sessions you start by hand do not see Even Keel’s plugins: Claude Code does not know the marketplace ${name}.`,
+    marketplaceTip:
+      'Chain sessions get Even Keel’s plugins without it, as packages. The button runs this command in your default Claude Code config; then install a plugin in a repository as usual (claude plugin install huly@even-keel).',
+    marketplaceAdd: 'Add to Claude Code',
     add: 'Add',
     addOpen: 'Add a package',
     addKind: {
-      plugin: { title: 'Plugin', hint: 'From a marketplace Claude Code knows: its skills, hooks and commands, and its MCP servers.' },
+      plugin: { title: 'Plugin', hint: 'Even Keel’s own or from a marketplace Claude Code knows: its skills, hooks and commands, and its MCP servers.' },
       mcp: { title: 'MCP server', hint: 'An address or a command: Even Keel reaches it through its gateway and keeps its keys.' },
     },
     back: 'Back',
@@ -942,8 +946,9 @@ export const en: Messages = {
     close: 'Close',
     plugin: 'Plugin',
     pluginSearch: 'Plugin or marketplace',
-    pluginNone: 'Nothing found',
-    noAvailable: 'Every plugin of the marketplaces Claude Code knows is in the catalog already. Add a marketplace in Claude Code first.',
+    pluginNone: 'Nothing found. The list is Even Keel’s plugins and those of the marketplaces Claude Code knows; a marketplace just added there shows up within a minute.',
+    noAvailable:
+      'Every plugin of Even Keel and of the marketplaces Claude Code knows is in the catalog already. A marketplace added in Claude Code (claude plugin marketplace add) shows up here within a minute.',
     serverName: 'Name',
     serverNameHint: 'Letters, digits, - and _. Sessions see its tools as mcp__<name>__….',
     transport: 'Connection',

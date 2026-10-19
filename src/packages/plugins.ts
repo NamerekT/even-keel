@@ -15,15 +15,53 @@ export interface PluginPlace {
   kind: string
 }
 
+interface Marketplace {
+  location: string
+  kind: string
+  /** When the CLI last fetched it. */
+  fetched: unknown
+}
+
+/** The name in the `.claude-plugin/marketplace.json` of a folder: Even Keel's own plugins, read from its checkout. */
+export function ownMarketplace(root: string): string | undefined {
+  const name = readJson(join(root, '.claude-plugin', 'marketplace.json'))?.name
+  return typeof name === 'string' ? name : undefined
+}
+
+/** Whether the global configuration knows the marketplace: sessions started by hand install plugins only from those. */
+export function knowsMarketplace(globalDir: string, marketplace: string): boolean {
+  return marketplace in knownMarketplaces(globalDir)
+}
+
+function knownMarketplaces(globalDir: string): Json {
+  return objectOf(readJson(join(globalDir, 'plugins', 'known_marketplaces.json')))
+}
+
 /**
- * A plugin of a marketplace the global configuration knows (`plugins/known_marketplaces.json`): a path inside the
- * marketplace is its folder there, any other source is the copy the CLI installed (`plugins/installed_plugins.json`).
+ * The marketplaces of the global configuration (`plugins/known_marketplaces.json`), with Even Keel's own folder first
+ * when given: chain sessions get copies, so its plugins need no `claude plugin marketplace add`, and the checkout's
+ * version wins over a marketplace of the same name the CLI keeps elsewhere.
  */
-export function locatePlugin(globalDir: string, plugin: string, marketplace: string): PluginPlace {
-  const known = objectOf(readJson(join(globalDir, 'plugins', 'known_marketplaces.json'))?.[marketplace])
-  const location = known.installLocation
-  if (typeof location !== 'string') throw fail('packages.noMarketplace', { marketplace })
-  const kind = String(objectOf(known.source).source ?? 'unknown')
+function marketplaces(globalDir: string, own?: string): Map<string, Marketplace> {
+  const found = new Map<string, Marketplace>()
+  const ownName = own === undefined ? undefined : ownMarketplace(own)
+  if (ownName !== undefined) found.set(ownName, { location: own!, kind: 'directory', fetched: undefined })
+  for (const [name, value] of Object.entries(knownMarketplaces(globalDir))) {
+    const known = objectOf(value)
+    if (found.has(name) || typeof known.installLocation !== 'string') continue
+    found.set(name, { location: known.installLocation, kind: String(objectOf(known.source).source ?? 'unknown'), fetched: known.lastUpdated })
+  }
+  return found
+}
+
+/**
+ * A plugin of Even Keel's own marketplace or of one the global configuration knows: a path inside the marketplace is
+ * its folder there, any other source is the copy the CLI installed (`plugins/installed_plugins.json`).
+ */
+export function locatePlugin(globalDir: string, plugin: string, marketplace: string, own?: string): PluginPlace {
+  const found = marketplaces(globalDir, own).get(marketplace)
+  if (found === undefined) throw fail('packages.noMarketplace', { marketplace })
+  const { location, kind } = found
   const entry = pluginsOf(location).find((each) => each.name === plugin)
   if (entry === undefined) throw fail('packages.noPlugin', { plugin, marketplace })
   if (typeof entry.source === 'string') return { dir: resolve(location, entry.source), kind }
@@ -40,24 +78,20 @@ export const FETCHED = new Set(['github', 'git', 'url'])
  * The version an update would install now, and when the CLI last fetched the marketplace that version comes from
  * (`null` for a folder, which is always current); `undefined` when the plugin cannot be found.
  */
-export function pluginOffer(globalDir: string, plugin: string, marketplace: string): { version: string | null; fetched: string | null } | undefined {
+export function pluginOffer(globalDir: string, plugin: string, marketplace: string, own?: string): { version: string | null; fetched: string | null } | undefined {
   let place: PluginPlace
   try {
-    place = locatePlugin(globalDir, plugin, marketplace)
+    place = locatePlugin(globalDir, plugin, marketplace, own)
   } catch {
     return undefined
   }
-  const fetched = objectOf(readJson(join(globalDir, 'plugins', 'known_marketplaces.json'))?.[marketplace]).lastUpdated
+  const fetched = marketplaces(globalDir, own).get(marketplace)?.fetched
   return { version: pluginVersion(place.dir), fetched: FETCHED.has(place.kind) && typeof fetched === 'string' ? fetched : null }
 }
 
-/** Every plugin of every marketplace the global configuration knows: the page offers them to add. */
-export function availablePlugins(globalDir: string): { plugin: string; marketplace: string }[] {
-  const known = objectOf(readJson(join(globalDir, 'plugins', 'known_marketplaces.json')))
-  return Object.entries(known).flatMap(([marketplace, value]) => {
-    const location = objectOf(value).installLocation
-    return typeof location === 'string' ? pluginsOf(location).map((each) => ({ plugin: each.name, marketplace })) : []
-  })
+/** Every plugin of Even Keel's own marketplace and of every one the global configuration knows: the page offers them to add. */
+export function availablePlugins(globalDir: string, own?: string): { plugin: string; marketplace: string }[] {
+  return [...marketplaces(globalDir, own)].flatMap(([marketplace, { location }]) => pluginsOf(location).map((each) => ({ plugin: each.name, marketplace })))
 }
 
 function pluginsOf(location: string): { name: string; source: unknown }[] {

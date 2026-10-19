@@ -2,7 +2,7 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
-import { availablePlugins, hasExtras, locatePlugin, pluginOffer, pluginServers, seedPackages } from './plugins.js'
+import { availablePlugins, hasExtras, knowsMarketplace, locatePlugin, ownMarketplace, pluginOffer, pluginServers, seedPackages } from './plugins.js'
 
 let dir: string | undefined
 afterEach(() => {
@@ -87,6 +87,52 @@ describe('pluginOffer', () => {
     const { globalDir } = registry()
     expect(pluginOffer(globalDir, 'gone', 'remote')).toBeUndefined()
     expect(pluginOffer(globalDir, 'tracker', 'elsewhere')).toBeUndefined()
+  })
+})
+
+describe("Even Keel's own marketplace", () => {
+  /** Even Keel's folder with the marketplace `keel`; the global folder knows a `keel` from GitHub with an older copy. */
+  function own(): { globalDir: string; root: string } {
+    const { globalDir } = registry()
+    const root = join(dir!, 'even-keel')
+    write(join(root, '.claude-plugin', 'marketplace.json'), { name: 'keel', plugins: [{ name: 'huly', source: './plugins/huly' }] })
+    write(join(root, 'plugins', 'huly', '.claude-plugin', 'plugin.json'), { name: 'huly', version: '0.9.0' })
+    return { globalDir, root }
+  }
+
+  it('is named by its marketplace.json, and none without one', () => {
+    const { root } = own()
+    expect(ownMarketplace(root)).toBe('keel')
+    expect(ownMarketplace(join(dir!, 'nowhere'))).toBeUndefined()
+  })
+
+  it('lists its plugins first, with no step in Claude Code', () => {
+    const { globalDir, root } = own()
+    expect(availablePlugins(globalDir, root)).toEqual([
+      { plugin: 'huly', marketplace: 'keel' },
+      { plugin: 'tracker', marketplace: 'local' },
+      { plugin: 'near', marketplace: 'remote' },
+      { plugin: 'far', marketplace: 'remote' },
+      { plugin: 'gone', marketplace: 'remote' },
+    ])
+  })
+
+  it('finds its plugins in its own folder, over a marketplace of the same name Claude Code knows', () => {
+    const { globalDir, root } = own()
+    const remote = join(globalDir, 'plugins', 'marketplaces', 'keel')
+    write(join(globalDir, 'plugins', 'known_marketplaces.json'), {
+      keel: { source: { source: 'github', repo: 'octo-org/keel' }, installLocation: remote, lastUpdated: '2026-10-17T22:36:50.421Z' },
+    })
+    write(join(remote, '.claude-plugin', 'marketplace.json'), { name: 'keel', plugins: [{ name: 'huly', source: './plugins/huly' }, { name: 'old', source: './old' }] })
+    expect(locatePlugin(globalDir, 'huly', 'keel', root)).toEqual({ dir: join(root, 'plugins', 'huly'), kind: 'directory' })
+    expect(pluginOffer(globalDir, 'huly', 'keel', root)).toEqual({ version: '0.9.0', fetched: null })
+    expect(availablePlugins(globalDir, root)).toEqual([{ plugin: 'huly', marketplace: 'keel' }])
+  })
+
+  it('tells whether Claude Code knows the marketplace, for sessions started by hand', () => {
+    const { globalDir } = own()
+    expect(knowsMarketplace(globalDir, 'keel')).toBe(false)
+    expect(knowsMarketplace(globalDir, 'local')).toBe(true)
   })
 })
 

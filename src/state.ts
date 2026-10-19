@@ -379,8 +379,13 @@ export interface PackagesView {
   /** By project key. */
   projects: Record<string, ProjectPackages>
   keys: KeyView[]
-  /** Plugins of the marketplaces Claude Code knows that are not in the catalog. */
+  /** Plugins of Even Keel's own marketplace and of those Claude Code knows that are not in the catalog. */
   available: { plugin: string; marketplace: string }[]
+  /**
+   * Even Keel's own marketplace (the `.claude-plugin/marketplace.json` of its checkout): chain sessions get its plugins
+   * without it, sessions started by hand only once Claude Code knows it (`known`); `null` when the checkout has none.
+   */
+  marketplace: { name: string; dir: string; known: boolean } | null
   /** By project key: the servers of the repository's committed `.mcp.json` that are not in the catalog. */
   imports: Record<string, string[]>
 }

@@ -43,6 +43,11 @@ export async function updateMarketplace(env: NodeJS.ProcessEnv, marketplace: str
   await run(resolveClaudeBinary(env), ['plugin', 'marketplace', 'update', marketplace], { env, timeout: timeoutMs, windowsHide: true })
 }
 
+/** `claude plugin marketplace add <dir>`: the configuration folder `env` names learns a marketplace kept in a folder. */
+export async function addMarketplace(env: NodeJS.ProcessEnv, dir: string, timeoutMs: number): Promise<void> {
+  await run(resolveClaudeBinary(env), ['plugin', 'marketplace', 'add', dir], { env, timeout: timeoutMs, windowsHide: true })
+}
+
 export class ClaudeCli {
   constructor(
     private readonly bin: () => string,
