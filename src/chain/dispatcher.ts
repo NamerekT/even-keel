@@ -1,4 +1,3 @@
-import type { FinishOutcome } from '../git/types.js'
 import { englishOf, fail, notice, NoticeError, noticeOf, sameNotice, type Notice } from '../notice/notice.js'
 import { renameChainProjects } from '../storage/projects.js'
 import { isOpen, type Task } from '../tracker/model.js'
@@ -11,16 +10,17 @@ import {
   type LaunchEntry,
   type MainPush,
   type ProjectOrder,
-  type PullCleanup,
   type ReleaseReason,
 } from './model.js'
+import { Cleanups } from './cleanup.js'
 import { isFixName } from './fix.js'
 import { Handovers } from './handover.js'
+import { TaskLists } from './lists.js'
 import { MainCheck } from './maincheck.js'
 import { MainFix } from './mainfix.js'
 import { Reviews } from './reviews.js'
 import type { ChainView } from './milestones.js'
-import { byNumber, chainOrder, checkOrder, nextTask, openBlockers, waitingBlockers, withFresh } from './order.js'
+import { byNumber, chainOrder, checkOrder, nextTask, openBlockers, waitingBlockers } from './order.js'
 import { admits, excludes, isActive, isDone, isTerminal, type ChainRules } from './rules.js'
 import type { HandoffSession } from './relay.js'
 
@@ -41,19 +41,13 @@ const SLOT_RETRY_MS = 30_000
 const SLOT_REFUSALS = new Set(['slot.noneFree', 'slot.busyStart'])
 
 export class Dispatcher {
-  /** The project's open tasks as the tracker last gave them, before the chain's filter. */
-  private readonly listed = new Map<string, Task[]>()
-  private readonly tasks = new Map<string, Task[]>()
-  private readonly waiting = new Map<string, Task[]>()
-  private readonly outside = new Map<string, Task[]>()
-  private readonly backlog = new Map<string, Task[]>()
-  private readonly done = new Map<string, Set<string>>()
-  private readonly releasedDone = new Map<string, Set<string>>()
   private work: Promise<void> = Promise.resolve()
   private readonly main: MainCheck | null
   private readonly fixes: MainFix | null
   private readonly handovers: Handovers
   private readonly reviews: Reviews
+  private readonly lists: TaskLists
+  private readonly cleanups: Cleanups
 
   constructor(
     readonly state: ChainState,
@@ -65,11 +59,13 @@ export class Dispatcher {
       letGo: (chain) => this.letGo(chain),
       release: (project, task) => this.remember(project, task),
       refilter: (project) => this.refilter(project),
-      working: (task) => this.working(task),
-      dropUnmerged: (project, task, pull) => this.dropUnmerged(project, task, pull),
+      working: (task) => this.cleanups.working(task),
+      dropUnmerged: (project, task, pull) => this.cleanups.dropUnmerged(project, task, pull),
     })
+    this.lists = new TaskLists(state, deps, this.reviews, (project) => this.currentOf(project))
     this.main =
       deps.main === undefined ? null : new MainCheck(state, deps.main, deps.now, deps.log, { save: () => deps.save(state), wake: () => this.changed() })
+    this.cleanups = new Cleanups(state, deps, this.main, this.reviews)
     this.fixes =
       this.main === null
         ? null
@@ -78,38 +74,38 @@ export class Dispatcher {
             letGo: (chain) => this.letGo(chain),
             take: (chain, current) => this.take(chain, current),
             release: (project, task) => this.remember(project, task),
-            closeUp: (project, task) => this.closeUp(project, task),
+            closeUp: (project, task) => this.cleanups.closeUp(project, task),
             handOver: (task, session, reason, extra) => this.handovers.handOver(task, session, reason, extra),
-            heldByMain: (chain, task) => this.heldByMain(chain, task, (this.tasks.get(chain.project) ?? []).map((open) => open.id), false),
+            heldByMain: (chain, task) => this.heldByMain(chain, task, (this.lists.tasks.get(chain.project) ?? []).map((open) => open.id), false),
           })
   }
 
   setTasks(project: string, tasks: Task[]): void {
-    this.listed.set(project, tasks)
+    this.lists.listed.set(project, tasks)
     const rules = this.deps.rules(project)
     const admitted = tasks.filter((task) => admits(rules, task))
     const chain = admitted.filter((task) => this.enters(project, task, rules))
-    const outside = (this.outside.get(project) ?? []).filter((task) => isOpen(task.status))
+    const outside = (this.lists.outside.get(project) ?? []).filter((task) => isOpen(task.status))
     const waiting = waitingBlockers(chain, [...tasks, ...outside].filter((task) => !isTerminal(rules, task.status) && !chain.includes(task)))
     const backlog = tasks.filter(
       (task) => !excludes(rules, task) && !chain.includes(task) && !waiting.includes(task) && !this.reviews.holds(project, task.id),
     )
-    this.tasks.set(project, chain)
-    this.waiting.set(project, waiting)
-    this.backlog.set(project, backlog.sort((a, b) => byNumber(a.id, b.id)))
-    this.done.set(project, new Set(tasks.filter((task) => isDone(rules, task.status)).map((task) => task.id)))
-    const placed = this.placeNew(project)
+    this.lists.tasks.set(project, chain)
+    this.lists.waiting.set(project, waiting)
+    this.lists.backlog.set(project, backlog.sort((a, b) => byNumber(a.id, b.id)))
+    this.lists.done.set(project, new Set(tasks.filter((task) => isDone(rules, task.status)).map((task) => task.id)))
+    const placed = this.lists.placeNew(project)
     if (this.forgetClosed(project) || placed) this.deps.save(this.state)
     this.kick()
   }
 
   /** Blockers of the project tasks that its task list lacks: open parents and tasks of other projects, whatever their status. */
   setOutside(project: string, tasks: Task[]): void {
-    this.outside.set(project, tasks)
+    this.lists.outside.set(project, tasks)
   }
 
   released(project: string): string[] {
-    return [...(this.state.released[project] ?? [])]
+    return this.cleanups.released(project)
   }
 
   held(project: string): string[] {
@@ -125,9 +121,9 @@ export class Dispatcher {
       const status = statuses.get(id)
       return status !== undefined && (isDone(rules, status) || !isTerminal(rules, status))
     })
-    this.releasedDone.set(project, new Set(kept.filter((id) => isDone(rules, statuses.get(id)!))))
+    this.cleanups.done.set(project, new Set(kept.filter((id) => isDone(rules, statuses.get(id)!))))
     if (kept.length !== this.released(project).length) {
-      this.keepReleased(project, kept)
+      this.cleanups.keepReleased(project, kept)
       this.deps.save(this.state)
     }
     this.kick()
@@ -141,7 +137,7 @@ export class Dispatcher {
   }
 
   private refilter(project: string): void {
-    const tasks = this.listed.get(project)
+    const tasks = this.lists.listed.get(project)
     if (tasks !== undefined) this.setTasks(project, tasks)
   }
 
@@ -226,7 +222,7 @@ export class Dispatcher {
   }
 
   private byProject(): Map<string, unknown>[] {
-    return [this.listed, this.tasks, this.waiting, this.outside, this.backlog, this.done, this.releasedDone]
+    return [...this.lists.maps(), this.cleanups.done]
   }
 
   skip(project: string, task: string): void {
@@ -236,7 +232,7 @@ export class Dispatcher {
       this.changed()
       return
     }
-    if (!(this.tasks.get(project) ?? []).some((open) => open.id === task)) throw fail('chain.notOpen', { task, project })
+    if (!(this.lists.tasks.get(project) ?? []).some((open) => open.id === task)) throw fail('chain.notOpen', { task, project })
     const chain = this.chainOf(project)
     const holder = chain !== undefined && chain.current?.task === task ? chain : null
     if (holder?.current?.sessionId === null) throw fail('chain.launching', { task })
@@ -354,7 +350,7 @@ export class Dispatcher {
 
   reorder(project: string, order: string[]): void {
     this.requireProject(project)
-    const tasks = this.tasks.get(project) ?? []
+    const tasks = this.lists.tasks.get(project) ?? []
     checkOrder(tasks, order)
     const current = this.currentOf(project)
     if (current !== undefined && tasks.some((task) => task.id === current) && order[0] !== current) {
@@ -365,40 +361,11 @@ export class Dispatcher {
   }
 
   orders(): Record<string, ProjectOrder> {
-    const result: Record<string, ProjectOrder> = {}
-    for (const [project, tasks] of this.tasks) {
-      const waiting = this.waitingIds(project)
-      const backlog = (this.backlog.get(project) ?? []).map((task) => task.id)
-      const listed = this.outside.get(project) ?? []
-      const outside = (this.waiting.get(project) ?? []).filter((task) => listed.includes(task))
-      const reviews = this.reviews.views(project)
-      const extra = { ...(outside.length > 0 && { outside }), ...(reviews.length > 0 && { reviews }) }
-      try {
-        const order = chainOrder(tasks, this.preferred(project))
-        const { landing, refused } = this.landing(project)
-        result[project] = {
-          order,
-          waiting,
-          ...extra,
-          backlog,
-          ...(Object.keys(landing).length > 0 ? { landing } : {}),
-          ...(Object.keys(refused).length > 0 ? { refused } : {}),
-          error: null,
-        }
-      } catch (error) {
-        result[project] = { order: [], waiting, ...extra, backlog, error: noticeOf(error) }
-      }
-    }
-    return result
+    return this.lists.orders()
   }
 
   view(project: string): ChainView {
-    const listed = this.outside.get(project) ?? []
-    return {
-      tasks: this.tasks.get(project) ?? [],
-      blockers: (this.waiting.get(project) ?? []).filter((task) => !listed.includes(task)),
-      current: this.currentOf(project),
-    }
+    return this.lists.view(project)
   }
 
   check(): void {
@@ -425,7 +392,7 @@ export class Dispatcher {
   }
 
   private hasWork(project: string): boolean {
-    const tasks = this.tasks.get(project)
+    const tasks = this.lists.tasks.get(project)
     if (tasks === undefined) return false
     if (this.main?.sessionFix(project) !== undefined) return true
     try {
@@ -439,18 +406,9 @@ export class Dispatcher {
   /** Why the project's chain has nothing to run; `undefined` — it has. */
   private emptyReason(project: string): Notice | undefined {
     if (this.hasWork(project)) return undefined
-    const tasks = this.tasks.get(project)
+    const tasks = this.lists.tasks.get(project)
     if (tasks === undefined) return notice('chain.notRead', { project })
-    return notice('chain.empty', { project }, { cause: this.whyEmpty(project, tasks) })
-  }
-
-  private whyEmpty(project: string, tasks: Task[]): Notice {
-    const skipped = this.state.skipped[project] ?? []
-    if (tasks.length > 0) return tasks.every((task) => skipped.includes(task.id)) ? notice('chain.emptySkipped', {}) : notice('chain.emptyBlocked', {})
-    const rules = this.deps.rules(project)
-    const backlog = this.backlog.get(project) ?? []
-    if (backlog.some((task) => isActive(rules, task.status))) return notice('chain.emptyLabels', { labels: rules.requiredLabels })
-    return backlog.length > 0 ? notice('chain.emptyStatus', {}) : notice('chain.emptyNone', {})
+    return notice('chain.empty', { project }, { cause: this.lists.whyEmpty(project, tasks) })
   }
 
   /** The task the chain takes next by its list, the fix of a red main first; `undefined` — none. Throws on a broken order. */
@@ -458,11 +416,7 @@ export class Dispatcher {
     const order = chainOrder(tasks, this.state.orders[project])
     const skipped = this.state.skipped[project] ?? []
     const open = tasks.map((task) => task.id).filter((id) => !skipped.includes(id))
-    return this.main?.fixOf(project, open) ?? this.reviews.next(project, open) ?? nextTask(tasks, order, [...skipped, ...this.waitingIds(project)])
-  }
-
-  private waitingIds(project: string): string[] {
-    return (this.waiting.get(project) ?? []).map((task) => task.id)
+    return this.main?.fixOf(project, open) ?? this.reviews.next(project, open) ?? nextTask(tasks, order, [...skipped, ...this.lists.waitingIds(project)])
   }
 
   private chainOf(project: string): ActiveChain | undefined {
@@ -492,63 +446,10 @@ export class Dispatcher {
     if (taken) this.deps.save(this.state)
   }
 
-  private preferred(project: string, stored = this.state.orders[project]): string[] | undefined {
-    const current = this.currentOf(project)
-    if (stored === undefined || current === undefined) return stored
-    return [current, ...stored.filter((id) => id !== current)]
-  }
-
-  private placeNew(project: string): boolean {
-    const placed = this.placed(project, this.tasks.get(project) ?? [])
-    if (placed === undefined) return false
-    this.state.orders[project] = placed
-    return true
-  }
-
-  /** The manual order with the chain's new tasks put in and the gone ones dropped; `undefined` — there is none or nothing changes. */
-  private placed(project: string, tasks: Task[]): string[] | undefined {
-    const stored = this.state.orders[project]
-    if (stored === undefined) return undefined
-    const open = new Set(tasks.map((task) => task.id))
-    const kept = stored.filter((id) => open.has(id))
-    const fresh = [...open].filter((id) => !stored.includes(id))
-    if (fresh.length === 0 && kept.length === stored.length) return undefined
-
-    const preferred = this.preferred(project, kept)!.filter((id) => open.has(id))
-    const current = this.currentOf(project)
-    const base = withFresh(tasks, preferred, fresh, current !== undefined && preferred[0] === current ? 1 : 0)
-    try {
-      return chainOrder(tasks, base)
-    } catch {
-      return base
-    }
-  }
-
-  /** Called only once the chain's own order builds, so a refusal is the task's doing. */
-  private landing(project: string): Pick<Required<ProjectOrder>, 'landing' | 'refused'> {
-    const rules = this.deps.rules(project)
-    const chain = this.tasks.get(project) ?? []
-    const outside = this.outside.get(project) ?? []
-    const blockers = (this.waiting.get(project) ?? []).filter((task) => !outside.some((each) => each.id === task.id))
-    const landing: Record<string, string | null> = {}
-    const refused: Record<string, Notice> = {}
-    for (const task of [...(this.backlog.get(project) ?? []), ...blockers]) {
-      if (!admits(rules, task)) continue
-      const tasks = [...chain, task]
-      try {
-        const order = chainOrder(tasks, this.preferred(project, this.placed(project, tasks) ?? this.state.orders[project]))
-        landing[task.id] = order[order.indexOf(task.id) + 1] ?? null
-      } catch (error) {
-        refused[task.id] = noticeOf(error)
-      }
-    }
-    return { landing, refused }
-  }
-
   private forgetClosed(project: string): boolean {
     const skipped = this.state.skipped[project]
     if (skipped === undefined) return false
-    const open = new Set((this.tasks.get(project) ?? []).map((task) => task.id))
+    const open = new Set((this.lists.tasks.get(project) ?? []).map((task) => task.id))
     const kept = skipped.filter((id) => open.has(id))
     if (kept.length === skipped.length) return false
     this.keepSkipped(project, kept)
@@ -584,57 +485,12 @@ export class Dispatcher {
   private take(chain: ActiveChain, current: CurrentTask): void {
     chain.current = current
     const released = this.released(chain.project)
-    if (released.includes(current.task)) this.keepReleased(chain.project, released.filter((id) => id !== current.task))
+    if (released.includes(current.task)) this.cleanups.keepReleased(chain.project, released.filter((id) => id !== current.task))
   }
-
-  private keepReleased(project: string, released: string[]): void {
-    if (released.length === 0) delete this.state.released[project]
-    else this.state.released[project] = released
-    const done = this.releasedDone.get(project)
-    for (const id of done ?? []) if (!released.includes(id)) done!.delete(id)
-  }
-
-  private keepOutcome(project: string, task: string, outcome: FinishOutcome): void {
-    const sync = outcome.syncError === null ? [] : [notice('cleanup.syncFailed', {}, { cause: outcome.syncError })]
-    const warnings = [...outcome.warnings, ...sync]
-    if (warnings.length === 0) return
-    const at = this.deps.now().toISOString()
-    const leftovers = (this.state.leftovers[project] ??= [])
-    leftovers.push(...warnings.map((notice) => ({ task, at, notice })))
-  }
-
-  private async sweep(): Promise<void> {
-    for (const [project, done] of this.releasedDone) {
-      for (const task of done) {
-        if (this.working(task)) continue
-        await this.closeUp(project, task)
-        this.keepReleased(project, this.released(project).filter((id) => id !== task))
-        this.deps.save(this.state)
-      }
-    }
-  }
-
-  /** Whether a done task's session holds its cleanup: a session whose turn ended on a background command does not. */
-  private working(task: string): boolean {
-    return this.deps.busy(task) && !this.deps.shell(task)
-  }
-
-  /** Cleans up after a done task and, once main is pushed, awaits the CI's verdict on it. */
-  private async closeUp(project: string, task: string): Promise<void> {
-    const tree = (await this.main?.taskTree(project, task)) ?? null
-    const outcome = await this.cleanUp(project, task, this.reviews.cleanupOf(project, task))
-    this.reviews.closedUp(project, task)
-    this.keepOutcome(project, task, outcome)
-    if (outcome.syncError === null) await this.main?.pushed(project, task, tree)
-  }
-
-  /** Whether the task is open in the tracker, in the chain or out of it. */
-  private readonly listedOpen = (project: string, task: string): boolean =>
-    [...(this.tasks.get(project) ?? []), ...(this.waiting.get(project) ?? []), ...(this.backlog.get(project) ?? [])].some((each) => each.id === task)
 
   private async settleMain(): Promise<void> {
     if (this.main === null) return
-    const { changed, stops, fixes } = await this.main.settle(this.listedOpen)
+    const { changed, stops, fixes } = await this.main.settle(this.lists.listedOpen)
     for (const { project, notice } of stops) {
       let chain = this.chainOf(project)
       if (chain === undefined) {
@@ -673,26 +529,12 @@ export class Dispatcher {
   private async checkMain(chain: ActiveChain, task: string, push: MainPush): Promise<boolean> {
     chain.ciWait = { commit: push.commit, since: this.deps.now().toISOString(), local: true }
     this.deps.save(this.state)
-    const stop = await this.main!.checkLocally(chain.project, task, this.listedOpen)
+    const stop = await this.main!.checkLocally(chain.project, task, this.lists.listedOpen)
     delete chain.ciWait
     this.deps.save(this.state)
     if (stop === null) return true
     this.halt(chain, stop)
     return false
-  }
-
-  /** A task whose pull request was closed unmerged: its place and branch go, main is not pushed, the task stays open. */
-  private async dropUnmerged(project: string, task: string, pull: PullCleanup): Promise<void> {
-    this.keepOutcome(project, task, await this.cleanUp(project, task, pull))
-    this.keepReleased(project, this.released(project).filter((id) => id !== task))
-  }
-
-  private async cleanUp(project: string, task: string, pull?: PullCleanup): Promise<FinishOutcome> {
-    try {
-      return await (pull === undefined ? this.deps.finish(project, task) : this.deps.finish(project, task, pull))
-    } catch (error) {
-      return { warnings: [notice('cleanup.failed', {}, { cause: noticeOf(error) })], syncError: null }
-    }
   }
 
   private requireLaunches(project: string, task?: string): void {
@@ -710,7 +552,7 @@ export class Dispatcher {
   }
 
   private async advance(): Promise<void> {
-    await this.sweep()
+    await this.cleanups.sweep()
     await this.reviews.sweep()
     await this.settleMain()
     const seen = new Set<ActiveChain>()
@@ -726,7 +568,7 @@ export class Dispatcher {
   private async step(chain: ActiveChain): Promise<void> {
     for (;;) {
       if (chain.paused) return
-      const tasks = this.tasks.get(chain.project)
+      const tasks = this.lists.tasks.get(chain.project)
       if (tasks === undefined) return
       if (chain.closing !== undefined && !(await this.finish(chain, chain.closing))) return
 
@@ -745,7 +587,7 @@ export class Dispatcher {
           continue
         }
         if (!tasks.some((open) => open.id === task)) {
-          if (this.done.get(chain.project)?.has(task)) {
+          if (this.lists.done.get(chain.project)?.has(task)) {
             chain.current = null
             chain.closing = task
             this.deps.save(this.state)
@@ -754,7 +596,7 @@ export class Dispatcher {
           this.letGo(chain)
           this.deps.save(this.state)
         } else {
-          const blockers = openBlockers([...tasks, ...(this.waiting.get(chain.project) ?? [])], task)
+          const blockers = openBlockers([...tasks, ...(this.lists.waiting.get(chain.project) ?? [])], task)
           if (blockers.length > 0 && !this.deps.busy(task)) {
             this.release(chain, 'postpone', blockers)
           } else if (await this.reviews.follow(chain, chain.current)) {
@@ -880,12 +722,12 @@ export class Dispatcher {
   }
 
   private async finish(chain: ActiveChain, task: string): Promise<boolean> {
-    if (!this.done.get(chain.project)?.has(task)) {
+    if (!this.lists.done.get(chain.project)?.has(task)) {
       delete chain.closing
       this.deps.save(this.state)
       return true
     }
-    if (this.working(task)) {
+    if (this.cleanups.working(task)) {
       if (!this.handovers.quietTooLong(task)) return false
       delete chain.closing
       const released = (this.state.released[chain.project] ??= [])
@@ -893,7 +735,7 @@ export class Dispatcher {
       this.deps.save(this.state)
       return true
     }
-    await this.closeUp(chain.project, task)
+    await this.cleanups.closeUp(chain.project, task)
     delete chain.closing
     this.deps.save(this.state)
     return true
