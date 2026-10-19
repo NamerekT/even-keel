@@ -80,6 +80,7 @@
         "recheckMain": true,
         "fixTask": false
       },
+      "remoteProfiles": {},
       "pullRequests": false,
       "fillMilestone": false,
       "changelog": "CHANGELOG.md",
@@ -104,6 +105,7 @@
         "recheckMain": true,
         "fixTask": false
       },
+      "remoteProfiles": {},
       "pullRequests": false,
       "fillMilestone": false,
       "changelog": "CHANGELOG.md",

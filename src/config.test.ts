@@ -98,7 +98,7 @@ describe('parseConfig', () => {
       trackerProjects: {},
       brief: null,
       briefs: { ABC: null },
-      settings: { ABC: { branch: 'main', prompt: null, beforeStart: [], check: [], afterGreen: [], ci: DEFAULT_CI, pullRequests: false, fillMilestone: false, changelog: 'CHANGELOG.md', provider: null, models: {}, accounts: {}, modelLabels: null } },
+      settings: { ABC: { branch: 'main', prompt: null, beforeStart: [], check: [], afterGreen: [], ci: DEFAULT_CI, remoteProfiles: {}, pullRequests: false, fillMilestone: false, changelog: 'CHANGELOG.md', provider: null, models: {}, accounts: {}, modelLabels: null } },
       context: { window: 600_000, warn: 50, danger: 80 },
       provider: 'claude',
       models: { claude: 'opus' },
@@ -209,6 +209,17 @@ describe('parseConfig', () => {
     expect(parse({ brief: false, projects: { ABC: { repo: 'C:\\abc', brief: null } } }).briefs).toEqual({ ABC: null })
   })
 
+  it('takes a project\'s remote profiles by kind, trimmed, a blank one left out (BTN-231)', () => {
+    const config = parse({ projects: { ABC: { repo: 'C:\\abc', remoteProfiles: { github: ' org ', forgejo: '' } } } })
+    expect(config.settings.ABC!.remoteProfiles).toEqual({ github: 'org' })
+  })
+
+  it('rejects remote profiles of an unknown kind or not a map', () => {
+    expect(() => parse({ projects: { ABC: { repo: 'C:\\abc', remoteProfiles: { gitlab: 'x' } } } })).toThrow(/ABC.remoteProfiles/)
+    expect(() => parse({ projects: { ABC: { repo: 'C:\\abc', remoteProfiles: ['x'] } } })).toThrow(/ABC.remoteProfiles/)
+    expect(() => parse({ projects: { ABC: { repo: 'C:\\abc', remoteProfiles: { github: 1 } } } })).toThrow(/ABC.remoteProfiles/)
+  })
+
   it('rejects a brief that is not true, false or null', () => {
     expect(() => parse({ brief: 'no', projects: { ABC: 'C:\\abc' } })).toThrow(/brief/)
     expect(() => parse({ projects: { ABC: { repo: 'C:\\abc', brief: 0 } } })).toThrow(/ABC.brief/)
@@ -233,6 +244,7 @@ describe('parseConfig', () => {
         check: ['npm test'],
         afterGreen: ['npm run build'],
         ci: DEFAULT_CI,
+        remoteProfiles: {},
         pullRequests: false,
         fillMilestone: false,
         changelog: 'CHANGELOG.md',
@@ -241,7 +253,7 @@ describe('parseConfig', () => {
         accounts: {},
         modelLabels: null,
       },
-      XYZ: { branch: 'main', prompt: null, beforeStart: [], check: [], afterGreen: [], ci: DEFAULT_CI, pullRequests: false, fillMilestone: false, changelog: 'CHANGELOG.md', provider: null, models: {}, accounts: {}, modelLabels: null },
+      XYZ: { branch: 'main', prompt: null, beforeStart: [], check: [], afterGreen: [], ci: DEFAULT_CI, remoteProfiles: {}, pullRequests: false, fillMilestone: false, changelog: 'CHANGELOG.md', provider: null, models: {}, accounts: {}, modelLabels: null },
     })
   })
 

@@ -295,6 +295,7 @@ export const noticesRu: NoticeTexts = {
   'config.ciKey': (p) => `${p.where}.${p.key} — не настройка CI, есть: ${list(p.known)}`,
   'config.ciKinds':(p) => `${p.where} должен быть списком CI, есть: ${list(p.known)}`,
   'config.ciWait': (p) => `${p.where} должен быть целым числом минут от 0 или null`,
+  'config.remoteProfiles': (p) => `${p.where} должен сопоставлять виду remote (${list(p.known)}) id профиля`,
   'config.unknownProject': (p) => `проекта ${p.key} нет`,
   'config.writeFailed': (p) => `не удалось записать ${p.file}`,
   'config.statusBoth': (p) => `${p.project}: статус «${p.status}» и активный, и терминальный`,

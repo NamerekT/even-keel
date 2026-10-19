@@ -5,7 +5,8 @@ import { ago } from './fakeSessions.js'
 
 /** The id of the fake Huly profile the fake projects run on. */
 export const FAKE_HULY_PROFILE = '3f0c2b9e-0000-4000-8000-000000000001'
-const GITHUB_PROFILE = '3f0c2b9e-0000-4000-8000-000000000002'
+/** The id of the fake GitHub profile, XYZ's choice for its github.com remote. */
+export const GITHUB_PROFILE = '3f0c2b9e-0000-4000-8000-000000000002'
 const DAY_MS = 86_400_000
 
 const KINDS: ProfileKindView[] = [

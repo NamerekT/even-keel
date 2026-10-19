@@ -577,6 +577,11 @@ export const en: Messages = {
     pullRequests: 'Pull requests instead of merging',
     pullRequestsHint:
       'A session does not merge its branch: it describes the pull request and marks its turn done. Even Keel pushes the branch, opens the pull request and moves on; the task waits out of the chain. A merge closes the task; a closed pull request skips it; reviews asking for changes, a failed CI or a conflict go back to the task\'s session.',
+    remoteProfile: (kind: string) => `${kind} profile`,
+    remoteProfileHint:
+      'Whose token the CI of the project\'s remote and its pull requests use. Automatic: GitHub takes the project\'s tracker profile when it is a GitHub one, else the default GitHub profile; Forgejo takes the default profile on the remote\'s host.',
+    remoteAuto: 'Automatic',
+    remoteGone: 'A removed profile (automatic)',
     fillMilestone: 'Give the active milestone to tasks without one',
     fillMilestoneHint:
       'A task that enters the chain without a milestone gets, in the tracker, the milestone of the current task, or the earliest one in the chain. Once: a milestone you change or clear afterwards stays as you left it.',

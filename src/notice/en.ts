@@ -316,6 +316,8 @@ export const en = {
   'config.ciKey': (p: { where: string; key: string; known: string[] }) => `config: ${p.where}.${p.key} is not a CI setting, known: ${list(p.known)}`,
   'config.ciKinds':(p: { where: string; known: string[] }) => `config: ${p.where} must be a list of CIs, known: ${list(p.known)}`,
   'config.ciWait': (p: { where: string }) => `config: ${p.where} must be a whole number of minutes, 0 or more, or null`,
+  'config.remoteProfiles': (p: { where: string; known: string[] }) =>
+    `config: ${p.where} must map a remote's kind (${list(p.known)}) to a profile's id`,
   'config.unknownProject': (p: { key: string }) => `config: there is no project ${p.key}`,
   'config.writeFailed': (p: { file: string }) => `config: could not write ${p.file}`,
   'config.statusBoth': (p: { project: string; status: string }) => `config: ${p.project}: status "${p.status}" is both active and terminal`,

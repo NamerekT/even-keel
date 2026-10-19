@@ -74,13 +74,13 @@ describe('ConfigStore', { timeout: 30_000 }, () => {
     const config = await open()
     const form = (project: string) => config.view().projects[project]!
 
-    const settings = { ...form('ABC'), branch: 'master', prompt: ' Mind Library. ', beforeStart: ['npm ci', ' '], check: ['npm test'], fillMilestone: true }
+    const settings = { ...form('ABC'), branch: 'master', prompt: ' Mind Library. ', beforeStart: ['npm ci', ' '], check: ['npm test'], fillMilestone: true, remoteProfiles: { github: 'org' } }
     config.saveProject('ABC', { ...settings, ci: { guard: true, kinds: ['github'], waitMinutes: 20, recheckMain: true, fixTask: false } }, form('ABC'))
     config.saveProject('XYZ', { ...form('XYZ'), prompt: 'Run tests.' }, form('XYZ'))
     expect(await read()).toEqual(
       stored({
         projects: [
-          abc({ branch: 'master', prompt: 'Mind Library.', commands: { beforeStart: ['npm ci'], check: ['npm test'] }, ci: { kinds: ['github'], waitMinutes: 20 }, fillMilestone: true }),
+          abc({ branch: 'master', prompt: 'Mind Library.', commands: { beforeStart: ['npm ci'], check: ['npm test'] }, ci: { kinds: ['github'], waitMinutes: 20 }, remoteProfiles: { github: 'org' }, fillMilestone: true }),
           xyz({ slot: 2, prompt: 'Run tests.' }),
         ],
       }),
@@ -92,6 +92,7 @@ describe('ConfigStore', { timeout: 30_000 }, () => {
       check: ['npm test'],
       afterGreen: [],
       ci: { guard: true, kinds: ['github'], waitMinutes: 20, recheckMain: true, fixTask: false },
+      remoteProfiles: { github: 'org' },
       pullRequests: false,
       fillMilestone: true,
       changelog: 'CHANGELOG.md',

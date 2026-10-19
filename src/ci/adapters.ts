@@ -6,7 +6,7 @@ import { defaultProfile, profileFor, type ProfileSet, type TrackerProfile } from
 import { FORGEJO_TOKEN, FORGEJO_URL, hostOf } from './forgejo-profile.js'
 import { forgejoSource } from './forgejo.js'
 import { githubActionsSource } from './github.js'
-import type { CiKind, CiSource } from './model.js'
+import type { CiKind, CiSource, RemoteProfiles } from './model.js'
 import { ciTargets, remotesOf, type CiTarget } from './remote.js'
 
 /** The variable with the token of each CI in its profile's values: a Forgejo profile's or a GitHub one's (`ciToken`). */
@@ -24,17 +24,24 @@ export interface CiToken {
 /**
  * The token of a project's CI: CI is a remote's, not the tracker's. GitHub Actions take the project's tracker profile
  * when it is a GitHub one and the default GitHub profile otherwise (BTN-200); Forgejo — the Forgejo profile on the
- * remote's host, the default one when several are (BTN-201).
+ * remote's host, the default one when several are (BTN-201). The project's `remoteProfiles` goes over both while the
+ * profile it names is of the remote's kind and, for Forgejo, on its host (BTN-231).
  */
-export function ciToken(target: Pick<CiTarget, 'kind' | 'web'>, set: ProfileSet, projectId: string | undefined, tracker: string): CiToken | null {
+export function ciToken(
+  target: Pick<CiTarget, 'kind' | 'web'>,
+  set: ProfileSet,
+  projectId: string | undefined,
+  tracker: string,
+  chosen: RemoteProfiles = {},
+): CiToken | null {
   let profile: TrackerProfile | undefined
   if (target.kind === 'forgejo') {
     const host = hostOf(target.web)
     const onHost = set.profiles.filter((each) => each.kind === 'forgejo' && host !== null && hostOf(each.values[FORGEJO_URL] ?? '') === host)
-    profile = onHost.find((each) => each.isDefault) ?? onHost[0]
+    profile = onHost.find((each) => each.id === chosen.forgejo) ?? onHost.find((each) => each.isDefault) ?? onHost[0]
   } else {
     const own = profileFor(set, projectId, tracker)
-    profile = own?.kind === 'github' ? own : defaultProfile(set, 'github')
+    profile = set.profiles.find((each) => each.kind === 'github' && each.id === chosen.github) ?? (own?.kind === 'github' ? own : defaultProfile(set, 'github'))
   }
   const token = profile?.values[CI_TOKENS[target.kind]]
   return profile !== undefined && token ? { token, profile: profile.id } : null

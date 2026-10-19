@@ -55,4 +55,26 @@ describe('ciToken', () => {
     const set: ProfileSet = { profiles: [huly, forgejo('other', true, 'https://forgejo.example.org')], links: {} }
     expect(ciToken(FORGEJO, set, ABC, 'huly')).toBeNull()
   })
+
+  it('takes the profile the project chose for the remote\'s kind over the tracker\'s and the default (BTN-231)', () => {
+    const set: ProfileSet = { profiles: [personal, org], links: { [ABC]: 'personal' } }
+    expect(ciToken(GITHUB, set, ABC, 'github', { github: 'org' })).toEqual({ token: 'org-token', profile: 'org' })
+    expect(ciToken(GITHUB, { profiles: [huly, personal, org], links: {} }, ABC, 'huly', { github: 'org' })?.profile).toBe('org')
+  })
+
+  it('takes the chosen Forgejo profile only on the remote\'s host', () => {
+    const own = forgejo('own', true, 'https://git.example.com')
+    const second = forgejo('second', false, 'https://git.example.com')
+    const elsewhere = forgejo('elsewhere', false, 'https://forgejo.example.org')
+    const set: ProfileSet = { profiles: [own, second, elsewhere], links: {} }
+    expect(ciToken(FORGEJO, set, ABC, 'huly', { forgejo: 'second' })?.profile).toBe('second')
+    expect(ciToken(FORGEJO, set, ABC, 'huly', { forgejo: 'elsewhere' })?.profile).toBe('own')
+  })
+
+  it('falls back as without a choice when the chosen profile is gone or of another kind', () => {
+    const set: ProfileSet = { profiles: [huly, personal, org], links: {} }
+    expect(ciToken(GITHUB, set, ABC, 'huly', { github: 'deleted' })?.profile).toBe('personal')
+    expect(ciToken(GITHUB, set, ABC, 'huly', { github: 'huly' })?.profile).toBe('personal')
+    expect(ciToken(GITHUB, set, ABC, 'huly', { forgejo: 'org' })?.profile).toBe('personal')
+  })
 })

@@ -1,4 +1,4 @@
-import { useEffect, useRef, type ReactNode } from 'react'
+import { Fragment, useEffect, useRef, type ReactNode } from 'react'
 import { CI_KINDS, type CiKind } from '../../../src/ci/model.js'
 import type { Notice } from '../../../src/notice/notice.js'
 import type { ConfigView, ProjectForm } from '../../../src/state.js'
@@ -38,6 +38,7 @@ import { ruleChoicesOf } from './settingsRows.js'
 import { useVocabularies } from './useVocabularies.js'
 import { ProjectRemove } from './ProjectRemove.js'
 import { ProfileLink } from './ProfileSelect.js'
+import { remoteChoices } from './remoteProfiles.js'
 import { useDraft, useTab } from './settingsStore.js'
 import { SEG_CLASS, type ChipLook } from './chipLook.js'
 import './settings.css'
@@ -65,12 +66,15 @@ export function SettingsChip({ open, look = 'tag', dirty, onToggle }: { open: bo
   )
 }
 
+const remoteKey = (kind: CiKind) => `remote.${kind}`
+const FORGES: Record<CiKind, string> = { github: 'GitHub', forgejo: 'Forgejo' }
+
 // Related fields share a group, so a save of one group never leaves another half-agreeing with it.
 const GROUPS = [
   { id: 'repo', keys: ['repo', 'branch', 'slot', 'changelog', 'color'] },
   { id: 'tracker', keys: ['tracker', 'trackerProject', 'fillMilestone', ...RULE_KEYS] },
   { id: 'sessions', keys: ['provider', ...providerKeys('models'), ...providerKeys('accounts'), 'modelLabels', 'brief', 'prompt', 'beforeStart'] },
-  { id: 'ci', keys: ['guard', 'check', 'afterGreen', 'kinds', 'wait', 'recheck', 'fixTask', 'pullRequests'] },
+  { id: 'ci', keys: ['guard', 'check', 'afterGreen', 'kinds', 'wait', 'recheck', 'fixTask', 'pullRequests', ...CI_KINDS.map(remoteKey)] },
 ] as const
 type GroupId = (typeof GROUPS)[number]['id']
 const KEYS: readonly string[] = GROUPS.flatMap((group) => group.keys)
@@ -97,6 +101,7 @@ const valuesOf = (form: ProjectForm): Values => ({
   recheck: form.ci.recheckMain,
   fixTask: form.ci.fixTask,
   pullRequests: form.pullRequests,
+  ...Object.fromEntries(CI_KINDS.map((kind) => [remoteKey(kind), form.remoteProfiles[kind] ?? ''])),
   fillMilestone: form.fillMilestone,
   changelog: form.changelog,
   provider: form.provider ?? '',
@@ -132,6 +137,7 @@ function formOf(values: Values, name: string | null): ProjectForm | undefined {
     check: linesOf(text('check')),
     afterGreen: linesOf(text('afterGreen')),
     ci: { guard: on('guard'), kinds: CI_KINDS.filter((kind) => kinds.includes(kind)), waitMinutes, recheckMain: on('recheck'), fixTask: on('fixTask') },
+    remoteProfiles: Object.fromEntries(CI_KINDS.flatMap((kind) => (text(remoteKey(kind)) === '' ? [] : [[kind, text(remoteKey(kind))]]))),
     pullRequests: on('pullRequests'),
     fillMilestone: on('fillMilestone'),
     changelog: text('changelog').trim(),
@@ -227,6 +233,20 @@ export function SettingsPanel({
       <FieldNote error={errorOf(key)} />
     </div>
   )
+  const choices = remoteChoices(state?.profiles.profiles ?? [], state?.remotes[project] ?? [])
+  // One profile on offer is no choice: the field shows only while there are two, or a choice was made.
+  const remoteChoice = (kind: CiKind) => {
+    const key = remoteKey(kind)
+    const offered = choices[kind]
+    const gone = text(key) !== '' && !offered.some((profile) => profile.id === text(key))
+    if (offered.length < 2 && text(key) === '') return null
+    const options = [
+      { value: '', label: t.settings.remoteAuto },
+      ...offered.map((profile) => ({ value: profile.id, label: profile.name })),
+      ...(gone ? [{ value: text(key), label: t.settings.remoteGone }] : []),
+    ]
+    return <Fragment key={kind}>{choice(key, t.settings.remoteProfile(FORGES[kind]), t.settings.remoteProfileHint, options)}</Fragment>
+  }
 
   const groups: Record<GroupId, () => ReactNode> = {
     repo: () => (
@@ -518,6 +538,7 @@ export function SettingsPanel({
           {check('fixTask', t.settings.fixTask, t.settings.fixTaskHint, undefined, unguarded)}
         </div>
         {check('pullRequests', t.settings.pullRequests, t.settings.pullRequestsHint, 'pullRequests')}
+        {CI_KINDS.map(remoteChoice)}
       </>
     ),
   }

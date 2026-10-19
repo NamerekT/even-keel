@@ -270,9 +270,12 @@ const trackers = new Trackers({
   refreshers,
   log: (line) => console.log(line),
 })
-/** The token of the project's CI on the remote: a GitHub profile's (BTN-200) or the Forgejo profile's on its host (BTN-201). */
+/**
+ * The token of the project's CI on the remote: a GitHub profile's (BTN-200) or the Forgejo profile's on its host
+ * (BTN-201), the one its `remoteProfiles` names first (BTN-231).
+ */
 const ciTokenOf = (project: string, target: CiTarget) =>
-  ciToken(target, profiles.current(), configStore.current.ids[project], configStore.current.trackers[project]!)
+  ciToken(target, profiles.current(), configStore.current.ids[project], configStore.current.trackers[project]!, configStore.current.settings[project]?.remoteProfiles)
 /** The remotes whose CI takes the profile's token, shown or not. */
 const ciOn = (profileId: string, hidden: boolean) =>
   ciWatches
@@ -1350,6 +1353,8 @@ function projectsChanged(before: EvenKeelConfig): void {
     void packages.projectsChanged(rename).catch((error: unknown) => console.warn(`packages: ${(error as Error).message}`))
     applyCi()
   }
+  const remoteProfiles = (config: EvenKeelConfig) => JSON.stringify(Object.entries(config.settings).map(([key, settings]) => [key, settings.remoteProfiles]))
+  if (remoteProfiles(before) !== remoteProfiles(after)) ciWatches.tokensChanged()
 }
 
 monitor.start()

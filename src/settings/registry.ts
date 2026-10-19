@@ -1,7 +1,7 @@
 import { EXECUTION_MODES, DEFAULT_PROVIDER, isProvider, PROVIDERS } from '../agent/providers.js'
 import { DEFAULT_RULES } from '../chain/rules.js'
 import { changelogPath, DEFAULT_CHANGELOG } from '../changelog/file.js'
-import { CI_KINDS } from '../ci/model.js'
+import { CI_KINDS, type CiKind, type RemoteProfiles } from '../ci/model.js'
 import type { EvenKeelConfig } from '../config.js'
 import { isLanguage, LANGUAGES } from '../language.js'
 import { fail } from '../notice/notice.js'
@@ -268,6 +268,16 @@ export const DEFINITIONS: readonly SettingDefinition[] = [
   } },
   ciSwitch('recheckMain'),
   ciSwitch('fixTask'),
+  { key: 'remoteProfiles', kind: 'json', scopes: ['project'], lands: ['settings'], default: {}, check: (value, place) => {
+    const problem = () => fail('config.remoteProfiles', { where: at(place, 'remoteProfiles'), known: [...CI_KINDS] })
+    if (typeof value !== 'object' || value === null || Array.isArray(value)) throw problem()
+    const chosen: RemoteProfiles = {}
+    for (const [kind, id] of Object.entries(value)) {
+      if (!(CI_KINDS as readonly string[]).includes(kind) || (id !== null && typeof id !== 'string')) throw problem()
+      if (typeof id === 'string' && id.trim() !== '') chosen[kind as CiKind] = id.trim()
+    }
+    return chosen
+  } },
   { key: 'pullRequests', kind: 'boolean', scopes: ['project'], lands: ['settings'], default: false, check: boolean('pullRequests') },
   { key: 'fillMilestone', kind: 'boolean', scopes: ['project'], lands: ['settings'], default: false, check: boolean('fillMilestone') },
   { key: 'changelog', kind: 'string', scopes: ['project'], lands: ['settings'], default: DEFAULT_CHANGELOG, check: (value, place) => {

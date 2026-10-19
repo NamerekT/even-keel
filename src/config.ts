@@ -7,7 +7,7 @@ import { colorsOf } from './projects/colors.js'
 import type { PoolEntry } from './account/model.js'
 import type { RunSettings } from './sessions/launch.js'
 import type { CacheTtl, CiSettings, ContextScale, ProjectSettings, StatsConfig } from './state.js'
-import { CI_KINDS } from './ci/model.js'
+import { CI_KINDS, type RemoteProfiles } from './ci/model.js'
 import { DEFAULT_CHANGELOG } from './changelog/file.js'
 import { changesOf, type FormValue } from './settings/changes.js'
 import { DEFAULT_BRANCH, DEFAULT_LANGUAGE } from './settings/defaults.js'
@@ -179,6 +179,7 @@ function settingsOf(record: ProjectRecord, values: Values, own: Values): Project
       recheckMain: values['ci.recheckMain'],
       fixTask: values['ci.fixTask'],
     } as CiSettings,
+    remoteProfiles: values.remoteProfiles as RemoteProfiles,
     pullRequests: values.pullRequests as boolean,
     fillMilestone: values.fillMilestone as boolean,
     changelog: values.changelog as string,
@@ -312,6 +313,7 @@ export function projectSettingValues(settings: ProjectSettings, written: Record<
     value('ci', 'ci.waitMinutes', ci.waitMinutes, null),
     value('ci', 'ci.recheckMain', ci.recheckMain, true),
     value('ci', 'ci.fixTask', ci.fixTask, false),
+    value('remoteProfiles', 'remoteProfiles', settings.remoteProfiles, {}),
     value('pullRequests', 'pullRequests', settings.pullRequests, false),
     value('fillMilestone', 'fillMilestone', settings.fillMilestone, false),
     value('changelog', 'changelog', settings.changelog, DEFAULT_CHANGELOG),

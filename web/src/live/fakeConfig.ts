@@ -1,6 +1,7 @@
 import { DEFAULT_RULES } from '../../../src/chain/rules.js'
 import type { ConfigView, EvenKeelState, ProjectForm, SharedForm } from '../../../src/state.js'
 import type { TrackerVocabulary } from '../../../src/tracker/source.js'
+import { GITHUB_PROFILE } from './fakeProfiles.js'
 
 export const FAKE_PROJECT_IDS: Record<string, string> = {
   ABC: '6f1c2a4e-1b3d-4c5e-8f70-9a1b2c3d4e01',
@@ -64,6 +65,7 @@ const project = (repo: string, change: Partial<ProjectForm>): ProjectForm => ({
   check: [],
   afterGreen: [],
   ci: CI_ALL,
+  remoteProfiles: {},
   pullRequests: false,
   fillMilestone: false,
   changelog: 'CHANGELOG.md',
@@ -87,7 +89,7 @@ export function fakeConfig(): ConfigView {
         afterGreen: ['npm run build', 'pwsh -File service/restart.ps1'],
         ci: { guard: true, kinds: ['github'], waitMinutes: 15, recheckMain: true, fixTask: true },
       }),
-      XYZ: project('D:/Projects/xyz', { color: 3, slot: 2, chain: { ...DEFAULT_RULES, requiredLabels: ['Auto'] }, provider: 'codex', models: { codex: 'gpt-6.1-sol' }, modelLabels: true }),
+      XYZ: project('D:/Projects/xyz', { color: 3, slot: 2, chain: { ...DEFAULT_RULES, requiredLabels: ['Auto'] }, provider: 'codex', models: { codex: 'gpt-6.1-sol' }, modelLabels: true, remoteProfiles: { github: GITHUB_PROFILE } }),
       OPS: project('D:/Projects/ops', { color: 4, beforeStart: ['npm ci'], check: ['npm run typecheck', 'npm test'], ci: { guard: false, kinds: [], waitMinutes: 0, recheckMain: false, fixTask: false } }),
     },
     trackers: [

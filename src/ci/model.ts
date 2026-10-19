@@ -4,6 +4,9 @@ export const CI_KINDS = ['forgejo', 'github'] as const
 
 export type CiKind = (typeof CI_KINDS)[number]
 
+/** The profile a project chose for its remotes of each kind, for their CI and pull requests (BTN-231); none — the default. */
+export type RemoteProfiles = Partial<Record<CiKind, string>>
+
 export type RunStatus = 'queued' | 'running' | 'success' | 'failure' | 'cancelled' | 'skipped'
 
 export interface CiStep {

@@ -111,6 +111,9 @@
         "recheckMain": false,
         "fixTask": true
       },
+      "remoteProfiles": {
+        "github": "33333333-3333-4333-8333-333333333333"
+      },
       "pullRequests": true,
       "fillMilestone": true,
       "changelog": "docs/CHANGELOG.md",
@@ -139,6 +142,7 @@
         "recheckMain": true,
         "fixTask": false
       },
+      "remoteProfiles": {},
       "pullRequests": false,
       "fillMilestone": false,
       "changelog": "CHANGELOG.md",
@@ -163,6 +167,7 @@
         "recheckMain": true,
         "fixTask": false
       },
+      "remoteProfiles": {},
       "pullRequests": false,
       "fillMilestone": false,
       "changelog": "CHANGELOG.md",

@@ -714,7 +714,7 @@ function draftOf(body: Record<string, unknown>): ProjectDraft {
 }
 
 function projectFormOf(body: Record<string, unknown>): ProjectForm {
-  const { name, prompt, beforeStart, check, afterGreen, ci, pullRequests, fillMilestone, changelog, provider, models, accounts, modelLabels, branch, repo, tracker, trackerProject, slot, color, brief, chain } = body
+  const { name, prompt, beforeStart, check, afterGreen, ci, remoteProfiles, pullRequests, fillMilestone, changelog, provider, models, accounts, modelLabels, branch, repo, tracker, trackerProject, slot, color, brief, chain } = body
   if (name !== undefined && name !== null && typeof name !== 'string') throw fail('request.required', { field: 'name' })
   if (prompt !== null && typeof prompt !== 'string') throw fail('request.required', { field: 'prompt' })
   const settings = {
@@ -723,6 +723,7 @@ function projectFormOf(body: Record<string, unknown>): ProjectForm {
     check: linesOf(check, 'check'),
     afterGreen: linesOf(afterGreen, 'afterGreen'),
     ci: ciOf(ci),
+    remoteProfiles: mapOf<string>(remoteProfiles ?? {}, 'remoteProfiles', (value) => typeof value === 'string'),
   }
   if (typeof pullRequests !== 'boolean') throw fail('request.required', { field: 'pullRequests' })
   if (typeof fillMilestone !== 'boolean') throw fail('request.required', { field: 'fillMilestone' })

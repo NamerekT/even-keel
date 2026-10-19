@@ -2,7 +2,7 @@ import type { AccountView } from './account/model.js'
 import type { ActiveChain, Leftover, ProjectOrder } from './chain/dispatcher.js'
 import type { FixEpisode, LaunchDay, TaskSession } from './chain/launches.js'
 import type { ChainRules } from './chain/rules.js'
-import type { CiKind, CiView } from './ci/model.js'
+import type { CiKind, CiView, RemoteProfiles } from './ci/model.js'
 import type { Language } from './language.js'
 import type { RateLimits } from './limits/model.js'
 import type { UsageHealth } from './limits/usage.js'
@@ -75,7 +75,7 @@ export interface TrackerUrls {
 
 /**
  * What the user sets per project and the chain reads live: `branch`, `prompt`, `commands.beforeStart`, `commands.check`,
- * `commands.afterGreen`, `ci`, `pullRequests`, `fillMilestone`, `changelog`, `provider`, `models`, `accounts` and `modelLabels` in the config.
+ * `commands.afterGreen`, `ci`, `remoteProfiles`, `pullRequests`, `fillMilestone`, `changelog`, `provider`, `models`, `accounts` and `modelLabels` in the config.
  */
 export interface ProjectSettings {
   /** The project's main branch: tasks branch off it and merge into it, the CI watches it. */
@@ -89,6 +89,8 @@ export interface ProjectSettings {
   /** Run in order in the project's checkout once a push of main is green, if the checkout is on main at that commit. */
   afterGreen: string[]
   ci: CiSettings
+  /** The profile the CI and the pull requests of the project's remotes of each kind take (BTN-231); none — the default. */
+  remoteProfiles: RemoteProfiles
   /** PR mode (BTN-205): a session does not merge its branch, Even Keel pushes it and opens a pull request. */
   pullRequests: boolean
   /** A task that enters the chain without a milestone gets the active one in the tracker. */
