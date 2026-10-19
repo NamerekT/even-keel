@@ -89,17 +89,13 @@ async function readSql(opts) {
   return Buffer.concat(chunks).toString('utf8')
 }
 
-const pad = (n) => String(n).padStart(2, '0')
+// Every value as the database prints it (the session's TimeZone, UTC on both databases): pg's own parsers make
+// `timestamp` and `date` local times, `interval` an object, `numeric[]` and json numbers floats. Booleans stay
+// true/false rather than t/f.
+const asText = { getTypeParser: (oid) => (oid === 16 ? (text) => String(text === 't') : (text) => text) }
 
 function cell(value) {
   if (value === null || value === undefined) return ''
-  if (value instanceof Date) {
-    const d = value
-    const time = `${pad(d.getUTCHours())}:${pad(d.getUTCMinutes())}`
-    return `${d.getUTCFullYear()}-${pad(d.getUTCMonth() + 1)}-${pad(d.getUTCDate())} ${time}`
-  }
-  if (Array.isArray(value)) return value.map(cell).join(',')
-  if (typeof value === 'object') return JSON.stringify(value)
   return String(value).replace(/\r?\n/g, ' ⏎ ')
 }
 
@@ -134,12 +130,7 @@ try {
 } catch {
   fail(`pg not found in ${join(root, 'node_modules')} — run npm install in the Even Keel checkout`)
 }
-pg.types.setTypeParser(1700, (text) => text)
-pg.types.setTypeParser(20, (text) => text)
-// `date` as the database prints it: pg makes it a local midnight, and `cell` prints dates in UTC.
-pg.types.setTypeParser(1082, (text) => text)
-
-const client = new pg.Client(settings(root))
+const client = new pg.Client({ ...settings(root), types: asText })
 try {
   await client.connect()
   await client.query('begin transaction read only')
