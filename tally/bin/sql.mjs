@@ -110,7 +110,7 @@ function table(result, opts) {
   if (!result.fields || result.fields.length === 0) return `${result.command ?? 'OK'} ${result.rowCount ?? ''}`.trim()
   const names = result.fields.map((field) => field.name)
   const shown = opts.rows > 0 ? result.rows.slice(0, opts.rows) : result.rows
-  const body = shown.map((row) => names.map((name) => cap(cell(row[name]), opts.width)))
+  const body = shown.map((row) => row.map((value) => cap(cell(value), opts.width)))
   const more = result.rows.length - shown.length
   const tail = more > 0 ? `\n… ${more} more rows (${result.rows.length} total, -n 0 prints all)` : `\n(${result.rows.length} rows)`
   if (opts.csv) {
@@ -141,7 +141,8 @@ const client = new pg.Client(settings(root))
 try {
   await client.connect()
   await client.query('begin transaction read only')
-  const results = [await client.query(sql)].flat()
+  // Rows as arrays: as objects, columns with one name (two `count`s) collapse into the last.
+  const results = [await client.query({ text: sql, rowMode: 'array' })].flat()
   process.stdout.write(`${results.map((result) => table(result, opts)).join('\n\n')}\n`)
 } catch (error) {
   process.exitCode = 1
