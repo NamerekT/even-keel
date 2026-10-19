@@ -145,7 +145,7 @@ function CardBody({ card, refused, onOpen, onChanged }: { card: Card; refused: N
             <section className="task-card__section">
               <h3 className="task-card__heading">{t.card.comments(card.comments.length)}</h3>
               <ol className="task-card__comments">
-                {card.comments.map((comment, index) => (
+                {[...card.comments].sort((a, b) => b.at - a.at).map((comment, index) => (
                   <li key={index} className="task-card__comment">
                     <span className="task-card__avatar" aria-hidden="true">
                       {(comment.author ?? '·').trim().charAt(0).toLocaleUpperCase()}
