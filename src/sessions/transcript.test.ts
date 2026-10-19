@@ -636,6 +636,26 @@ describe('TranscriptFold', () => {
       }
     })
 
+    it('shows neither the interrupted result nor the synthetic reply of a question answered through a resume', () => {
+      const interrupted = JSON.stringify({
+        type: 'user',
+        timestamp: at(),
+        message: {
+          role: 'user',
+          content: [{ type: 'tool_result', tool_use_id: 'toolu_AskUserQuestion', content: "[Tool call interrupted: the session ended before this call's result was recorded.]", is_error: true }],
+        },
+        toolUseResult: "[Tool call interrupted: the session ended before this call's result was recorded.]",
+      })
+      const synthetic = JSON.stringify({
+        type: 'assistant',
+        timestamp: at(),
+        message: { id: 'syn-1', model: '<synthetic>', role: 'assistant', content: [text('No response requested.')], usage: { input_tokens: 0, output_tokens: 0 } },
+      })
+      const reply = JSON.stringify({ type: 'user', timestamp: at(), origin: { kind: 'human' }, message: { role: 'user', content: '\n- "Which color?" → Blue\n' } })
+      const feed = whole([ask(), interrupted, synthetic, reply]).summary().feed
+      expect(feed.map((line) => line.kind)).toEqual(['tool', 'answer'])
+    })
+
     it('reads the answers of a question the stop lost from the prompt alone', () => {
       const reply = 'The question you asked through AskUserQuestion was lost when the session restarted:\n- "Which color?" → Blue\n  Blue — Cold'
       const line = whole([prompt(reply)]).summary().feed.at(-1)

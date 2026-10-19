@@ -303,7 +303,8 @@ export class TranscriptFold {
     for (const block of blocksOf(entry.message?.content)) {
       if (block.type !== 'tool_result' || typeof block.tool_use_id !== 'string') continue
       this.runningTools.delete(block.tool_use_id)
-      if (this.whole && block.is_error === true) {
+      // A question's error result is how a stop or a resume delivers its answer (BTN-220): the answer line tells the rest.
+      if (this.whole && block.is_error === true && block.tool_use_id !== this.openAsk?.id) {
         this.addFeed({ at: entry.timestamp ?? '', kind: 'failed', text: failureText(block.content), tool: block.tool_use_id })
       }
     }

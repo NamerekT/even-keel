@@ -8,6 +8,7 @@ import { PlusIcon, SendIcon } from '../ui/icons.js'
 import { Tipped } from '../ui/Tipped.js'
 import { askAnswers, AskPanel, NO_PICK, pickAnswer, type Pick } from './AskPanel.js'
 import { takenFiles } from './chatFiles.js'
+import { holdKey, shownAsk } from './composerHold.js'
 import { ChatMail } from './ChatMail.js'
 
 /** How long the composer stays shut after a reply went out, unless the session moves on sooner. */
@@ -36,7 +37,8 @@ interface Props {
  */
 export function ChatComposer({ project, task, session, aside, mail, onSent, handle }: Props) {
   const { send, sending, failure } = useCommand()
-  const ask = session.ask
+  const [answered, setAnswered] = useState<string | null>(null)
+  const ask = shownAsk(session.ask, answered)
   const [asked, setAsked] = useState(ask?.id ?? null)
   const [picks, setPicks] = useState<Pick[]>(() => ask?.questions.map(() => NO_PICK) ?? [])
   if ((ask?.id ?? null) !== asked) {
@@ -50,7 +52,7 @@ export function ChatComposer({ project, task, session, aside, mail, onSent, hand
     if (!sending) setFiles((now) => [...now, ...more])
   }
   useImperativeHandle(handle, () => ({ attach }))
-  const sent = useHold(`${session.sessionId}|${session.lamp}|${ask?.id ?? ''}`, SENT_HOLD_MS)
+  const sent = useHold(holdKey(session), SENT_HOLD_MS)
   // A message to a working session waits in its mailbox: the list below tells its fate, so nothing is held or echoed.
   const mailing = session.lamp === 'working' && mail?.listens === true
   const locked = mailing ? (aside ? t.session.chat.aside : null) : lockReason(session, aside)
@@ -63,6 +65,7 @@ export function ChatComposer({ project, task, session, aside, mail, onSent, hand
     const answers = ask === null ? {} : askAnswers(ask, picks)
     const body = { project, task, sessionId: session.sessionId, ask: ask?.id ?? null, answers, text, files: await Promise.all(files.map(encoded)) }
     if (!(await send('session/answer', body))) return
+    if (ask !== null) setAnswered(ask.id)
     if (!mailing) {
       sent.begin()
       onSent(sentLine(ask === null ? null : ask.id, answers, text, files))
