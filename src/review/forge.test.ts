@@ -79,6 +79,15 @@ describe('githubPulls', () => {
     const pulls = githubPulls({ owner: 'octo-org', repo: 'app', token: 'fake-token' }, 1_000, fetchImpl)
     await expect(pulls.create({ branch: 'b', base: 'main', title: 't', body: '' })).rejects.toMatchObject({ notice: { code: 'review.denied' } })
   })
+
+  it('tells a refused write by the messages of its answer, not its JSON', async () => {
+    const answer = { message: 'Validation Failed', errors: [{ resource: 'PullRequest', code: 'custom', message: 'No commits between main and abc-7/task' }], status: '422' }
+    const fetchImpl = (async () => new Response(JSON.stringify(answer), { status: 422 })) as unknown as typeof fetch
+    const pulls = githubPulls({ owner: 'octo-org', repo: 'app', token: 'fake-token' }, 1_000, fetchImpl)
+    await expect(pulls.create({ branch: 'abc-7/task', base: 'main', title: 't', body: '' })).rejects.toMatchObject({
+      notice: { code: 'ci.http', params: { status: 422 }, detail: 'Validation Failed: No commits between main and abc-7/task' },
+    })
+  })
 })
 
 describe('forgejoPulls', () => {
@@ -117,5 +126,16 @@ describe('forgejoPulls', () => {
     expect(await pulls.changes(5, all)).toEqual([
       { id: '7', author: 'jdoe', body: 'Rename it', at: '2026-10-18T11:00:00Z', comments: [{ path: 'src/a.ts', line: 3, body: 'here' }] },
     ])
+  })
+
+  it('tells a refused write by its message, and a body that is not JSON as it is', async () => {
+    const refused = (body: string) => {
+      const fetchImpl = (async () => new Response(body, { status: 409 })) as unknown as typeof fetch
+      return forgejoPulls({ web: 'https://git.example.com', owner: 'acme', repo: 'app', token: 'fake-token' }, 1_000, fetchImpl).create({ branch: 'b', base: 'main', title: 't', body: '' })
+    }
+    await expect(refused(JSON.stringify({ message: 'pull request already exists', url: 'https://git.example.com/api/swagger' }))).rejects.toMatchObject({
+      notice: { detail: 'pull request already exists' },
+    })
+    await expect(refused('Bad Gateway')).rejects.toMatchObject({ notice: { detail: 'Bad Gateway' } })
   })
 })

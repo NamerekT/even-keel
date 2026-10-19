@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest'
+import { fail } from '../notice/notice.js'
 import type { PullRequest, ReviewCheck } from '../review/model.js'
+import { PROMPTS } from './prompts.js'
 import { done, setup, task, type SetupOptions } from './dispatcher.fixture.js'
 import { emptyChainState, type ChainState } from './dispatcher.js'
 import type { ReviewDeps } from './model.js'
@@ -117,16 +119,104 @@ describe('Dispatcher in PR mode', () => {
     expect(again.relays).toHaveLength(1)
   })
 
-  it('halts the chain when the pull request cannot be opened', async () => {
+  /** The forge refuses the first opening; `tries` counts the attempts. */
+  function refusing(error: Error = new Error('GitHub: the API answered HTTP 422')) {
     const pulls = forge()
-    pulls.deps.open = async () => {
-      throw new Error('push rejected')
+    const open = pulls.deps.open
+    const tries = { count: 0 }
+    pulls.deps.open = async (project, task, session) => {
+      if (++tries.count === 1) throw error
+      return open(project, task, session)
     }
+    return { pulls, tries }
+  }
+
+  it('pauses the chain on the task when the pull request cannot be opened, the task staying current', async () => {
+    const { pulls } = refusing()
     const { dispatcher, launched } = await running({ reviews: pulls.deps })
 
     expect(launched).toEqual([])
-    expect(dispatcher.state.active[0]).toMatchObject({ paused: true, current: null, error: { code: 'review.notOpened', params: { task: 'ABC-1' } } })
+    expect(dispatcher.state.active[0]).toMatchObject({
+      paused: true,
+      current: { task: 'ABC-1', sessionId: 'old-session' },
+      error: { code: 'review.notOpened', params: { task: 'ABC-1' }, cause: { code: 'text' } },
+    })
     expect(dispatcher.state.reviews.ABC).toBeUndefined()
+  })
+
+  it('does not try a refused mark again on Resume, Skip and Unskip or Stop and Start, only a new turn', async () => {
+    const { pulls, tries } = refusing()
+    const { dispatcher, handoffs } = await running({ reviews: pulls.deps })
+
+    dispatcher.resume('ABC')
+    await dispatcher.idle()
+    dispatcher.skip('ABC', 'ABC-1')
+    dispatcher.unskip('ABC', 'ABC-1')
+    await dispatcher.idle()
+    dispatcher.stop('ABC')
+    await dispatcher.start('ABC')
+    await dispatcher.idle()
+    dispatcher.check()
+    await dispatcher.idle()
+    expect(dispatcher.state.active[0]?.current?.task).toBe('ABC-1')
+    expect(tries.count).toBe(1)
+
+    handoffs['ABC-1'] = handoff('old-session', MARK, '2026-09-26T12:10:00.000Z')
+    dispatcher.check()
+    await dispatcher.idle()
+    expect(tries.count).toBe(2)
+    expect(dispatcher.state.reviews.ABC).toMatchObject([{ task: 'ABC-1', markAt: '2026-09-26T12:10:00.000Z' }])
+  })
+
+  it('takes the chat answer to the session of the task it paused on and opens its next mark at once', async () => {
+    const { pulls, tries } = refusing()
+    const { dispatcher, relays, handoffs } = await running({ reviews: pulls.deps })
+
+    dispatcher.answer('ABC', 'ABC-1', 'old-session', null, 'Commit it and mark again.')
+    await dispatcher.idle()
+    expect(relays).toMatchObject([{ kind: 'reply', task: 'ABC-1', sessionId: 'old-session', prompt: 'Commit it and mark again.' }])
+    expect(dispatcher.state.active[0]).toMatchObject({ paused: false, error: null, current: { task: 'ABC-1' } })
+
+    handoffs['ABC-1'] = handoff('old-session', MARK, '2026-09-26T12:10:00.000Z')
+    dispatcher.check()
+    await dispatcher.idle()
+    expect(tries.count).toBe(2)
+    expect(dispatcher.state.reviews.ABC).toHaveLength(1)
+  })
+
+  it('tells the session of a branch with nothing beyond main instead of opening, and does not pause', async () => {
+    const pulls = forge()
+    pulls.deps.open = async () => {
+      throw fail('review.nothingAhead', { branch: 'abc-1/task', base: 'main' })
+    }
+    const { dispatcher, relays, log, launched } = await running({ reviews: pulls.deps })
+
+    expect(relays).toMatchObject([{ kind: 'reply', task: 'ABC-1', sessionId: 'old-session' }])
+    expect(relays[0]?.prompt).toBe(PROMPTS.ru.review.nothingAhead('main'))
+    expect(dispatcher.state.active[0]).toMatchObject({ paused: false, current: { task: 'ABC-1' } })
+    expect(dispatcher.state.reviews.ABC).toBeUndefined()
+    expect(launched).toEqual([])
+    expect(log).toContain('review: ABC-1: no pull request opened, abc-1/task has no commits beyond main; the session is told')
+
+    dispatcher.check()
+    await dispatcher.idle()
+    expect(relays).toHaveLength(1)
+  })
+
+  it('opens the mark a session left while its chain was stopped once the chain starts again', async () => {
+    const pulls = forge()
+    const context = setup({ live: { 'ABC-1': 'old-session' }, reviews: pulls.deps })
+    context.handoffs['ABC-1'] = handoff('old-session')
+    context.dispatcher.setTasks('ABC', [task('ABC-1'), task('ABC-2')])
+    await context.dispatcher.idle()
+    expect(pulls.opened).toEqual([])
+
+    await context.dispatcher.start('ABC')
+    await context.dispatcher.idle()
+    context.dispatcher.check()
+    await context.dispatcher.idle()
+    expect(pulls.opened).toMatchObject([{ task: 'ABC-1' }])
+    expect(context.launched).toEqual(['ABC/ABC-2'])
   })
 })
 
@@ -150,10 +240,11 @@ describe('Dispatcher polling pull requests', () => {
   }
 
   it('completes the task of a merged pull request and cleans up after it with the branch forced off the remote', async () => {
-    const { dispatcher, pulls, finished, pulled } = await opened(() => openCheck({ state: { state: 'merged', mergeable: null, head: 'abc1234' } }))
+    const { dispatcher, pulls, finished, pulled, log } = await opened(() => openCheck({ state: { state: 'merged', mergeable: null, head: 'abc1234' } }))
     await dispatcher.pollReviews()
 
     expect(pulls.completed).toEqual(['ABC-1'])
+    expect(log).toEqual(expect.arrayContaining([`review: ABC-1: ${URL} is merged`, 'review: ABC-1 is moved to done in the tracker']))
     expect(dispatcher.state.reviews.ABC![0]!.closed).toBe('merged')
     expect(dispatcher.released('ABC')).toContain('ABC-1')
 
@@ -161,6 +252,16 @@ describe('Dispatcher polling pull requests', () => {
     await dispatcher.idle()
     expect(finished).toContain('ABC/ABC-1')
     expect(pulled['ABC-1']).toEqual({ force: true, remote: 'origin' })
+    expect(dispatcher.state.reviews.ABC).toBeUndefined()
+  })
+
+  it('tells in the log a task done in the tracker before a poll saw its pull request merged', async () => {
+    const { dispatcher, finished, log } = await opened(() => openCheck())
+    dispatcher.setReleased('ABC', [task('ABC-1', done)])
+    await dispatcher.idle()
+
+    expect(finished).toContain('ABC/ABC-1')
+    expect(log).toContain(`review: ABC-1 is done in the tracker, its pull request ${URL} is not followed any more`)
     expect(dispatcher.state.reviews.ABC).toBeUndefined()
   })
 

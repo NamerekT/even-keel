@@ -41,13 +41,35 @@ async function request(ci: string, url: string, options: RequestOptions, timeout
   return response
 }
 
-/** A refused write says why in its body (GitHub's 422 "A pull request already exists"); a read's body is not shown. */
+/**
+ * A refused write says why in its body (GitHub's 422 "Validation Failed" with "No commits between main and …" in its
+ * `errors`); a read's body is not shown. A JSON answer is told by its messages, anything else as it is.
+ */
 async function detailOf(response: Response, method: string): Promise<{ detail?: string }> {
   if (method === 'GET') return {}
   try {
     const text = (await response.text()).trim()
-    return text === '' ? {} : { detail: text.slice(0, 500) }
+    const told = messagesOf(text) ?? text
+    return told === '' ? {} : { detail: told.slice(0, 500) }
   } catch {
     return {}
   }
+}
+
+interface ForgeRefusal {
+  message?: unknown
+  errors?: { message?: unknown }[]
+}
+
+function messagesOf(text: string): string | null {
+  let answer: ForgeRefusal
+  try {
+    answer = JSON.parse(text) as ForgeRefusal
+  } catch {
+    return null
+  }
+  if (typeof answer !== 'object' || answer === null) return null
+  const errors = Array.isArray(answer.errors) ? answer.errors.map((error) => error?.message) : []
+  const messages = [answer.message, ...errors].filter((message): message is string => typeof message === 'string' && message.trim() !== '')
+  return messages.length === 0 ? null : messages.map((message) => message.trim()).join(': ')
 }

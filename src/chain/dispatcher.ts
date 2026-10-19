@@ -61,7 +61,7 @@ export class Dispatcher {
   ) {
     this.handovers = new Handovers(state, deps, (chain, error) => this.halt(chain, error))
     this.reviews = new Reviews(state, deps, this.handovers, {
-      halt: (chain, error) => this.halt(chain, error),
+      hold: (chain, error) => this.halt(chain, error, true),
       letGo: (chain) => this.letGo(chain),
       release: (project, task) => this.remember(project, task),
       refilter: (project) => this.refilter(project),
@@ -260,7 +260,10 @@ export class Dispatcher {
     const session = this.deps.handoff(task)
     if (session === undefined) throw fail('chain.noSession', { task })
     const replaced = current.sessionId
-    this.work = this.work.then(() => this.handovers.replace(chain, current, replaced, session))
+    this.work = this.work.then(() => {
+      this.unhold(chain)
+      return this.handovers.replace(chain, current, replaced, session)
+    })
   }
 
   /**
@@ -298,9 +301,18 @@ export class Dispatcher {
   /** Invariant 1, exception 6: the user's own answer resumes the session that waits for it. */
   answer(project: string, task: string, sessionId: string, ask: string | null, prompt: string): void {
     const { chain, current, session } = this.answerable(project, task, sessionId, ask)
-    this.work = this.work.then(() =>
-      chain === null || current === null ? this.handovers.deliverLoose(project, task, session, prompt) : this.handovers.deliver(chain, current, session, prompt, ask),
-    )
+    this.work = this.work.then(() => {
+      if (chain === null || current === null) return this.handovers.deliverLoose(project, task, session, prompt)
+      this.unhold(chain)
+      return this.handovers.deliver(chain, current, session, prompt, ask)
+    })
+  }
+
+  /** A pause for the user to tell the session of a mark refused what to do ends once they do: its next mark opens at once. */
+  private unhold(chain: ActiveChain): void {
+    if (!chain.paused || chain.error?.code !== 'review.notOpened') return
+    chain.paused = false
+    chain.error = null
   }
 
   dismiss(project: string, task: string): void {
@@ -611,7 +623,7 @@ export class Dispatcher {
   private async closeUp(project: string, task: string): Promise<void> {
     const tree = (await this.main?.taskTree(project, task)) ?? null
     const outcome = await this.cleanUp(project, task, this.reviews.cleanupOf(project, task))
-    this.reviews.drop(project, task)
+    this.reviews.closedUp(project, task)
     this.keepOutcome(project, task, outcome)
     if (outcome.syncError === null) await this.main?.pushed(project, task, tree)
   }
@@ -887,8 +899,9 @@ export class Dispatcher {
     return true
   }
 
-  private halt(chain: ActiveChain, error: Notice): void {
-    this.letGo(chain)
+  /** `keep` — the current task stays current, for the user to act on it (`ReviewHost.hold`). */
+  private halt(chain: ActiveChain, error: Notice, keep = false): void {
+    if (!keep) this.letGo(chain)
     chain.paused = true
     chain.error = error
     delete chain.limitUntil

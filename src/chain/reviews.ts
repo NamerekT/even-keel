@@ -4,11 +4,13 @@ import { feedbackText, withFeedback } from '../review/feedback.js'
 import type { PullRequest, ReviewCheck } from '../review/model.js'
 import type { Handovers } from './handover.js'
 import type { ActiveChain, ChainState, CurrentTask, DispatcherDeps, PullCleanup, ReviewDeps, ReviewView } from './model.js'
-import { WARM_CACHE_MS } from './relay.js'
+import { PROMPTS } from './prompts.js'
+import { WARM_CACHE_MS, type HandoffSession } from './relay.js'
 
 /** What PR mode needs of the dispatcher that runs it. */
 export interface ReviewHost {
-  halt(chain: ActiveChain, error: Notice): void
+  /** Pauses the chain on its current task, which stays current: the chat answers its session, Skip and New session act on it. */
+  hold(chain: ActiveChain, error: Notice): void
   /** Sets the current task aside without touching its session. */
   letGo(chain: ActiveChain): void
   /** Remembers a task the chain no longer leads, for the cleanup once it is done. */
@@ -31,6 +33,12 @@ interface Polled {
 // pushes the branch, opens the pull request and takes the task out of the chain until the pull request is merged —
 // the task is then done — or closed, or gets feedback, which goes back to the task's session while it is not mid-turn.
 export class Reviews {
+  /**
+   * The `lastReplyAt` of each task's mark that did not open a pull request: neither Resume nor a restart of the chain
+   * tries it again, only a new turn of the session does. A service restart forgets it and tries the mark once more.
+   */
+  private readonly refused = new Map<string, string | null>()
+
   constructor(
     private readonly state: ChainState,
     private readonly deps: DispatcherDeps,
@@ -79,6 +87,17 @@ export class Reviews {
     return pull === undefined ? undefined : { force: true, remote: pull.remote }
   }
 
+  /**
+   * The task is done and cleaned up after. Done in the tracker before a poll saw its pull request merged — a forge's
+   * integration with the tracker closes it on the merge — it would leave no line in the log otherwise.
+   */
+  closedUp(project: string, task: string): void {
+    const pull = this.recordOf(project, task)
+    if (pull !== undefined && pull.closed === undefined) this.deps.log(`review: ${task} is done in the tracker, its pull request ${pull.url} is not followed any more`)
+    this.refused.delete(task)
+    this.drop(project, task)
+  }
+
   drop(project: string, task: string): void {
     const kept = (this.state.reviews[project] ?? []).filter((pull) => pull.task !== task)
     if (kept.length === 0) delete this.state.reviews[project]
@@ -101,7 +120,8 @@ export class Reviews {
     const session = this.deps.handoff(task)
     if (session === undefined || session.sessionId !== current.sessionId) return false
     const mark = session.pullRequest ?? null
-    if (this.review.on(project) && mark !== null && pull?.markAt !== session.lastReplyAt) {
+    const tried = pull?.markAt === session.lastReplyAt || (this.refused.has(task) && this.refused.get(task) === session.lastReplyAt)
+    if (this.review.on(project) && mark !== null && !tried) {
       await this.open(chain, current, { ...session, pullRequest: mark })
       return true
     }
@@ -111,26 +131,37 @@ export class Reviews {
     return true
   }
 
-  private async open(chain: ActiveChain, current: CurrentTask, session: Parameters<ReviewDeps['open']>[2]): Promise<void> {
+  private async open(chain: ActiveChain, current: CurrentTask, session: HandoffSession): Promise<void> {
     const { project } = chain
     const { task } = current
     const at = this.deps.now().toISOString()
+    let opened: Awaited<ReturnType<ReviewDeps['open']>>
     try {
-      const opened = await this.review!.open(project, task, session)
-      const before = this.recordOf(project, task)
-      const { number, url, branch, pushedAt, remote } = opened
-      const pull: PullRequest = { seen: [], at, ...before, task, remote, number, url, branch, pushedAt, markAt: session.lastReplyAt }
-      delete pull.feedback
-      this.drop(project, task)
-      ;(this.state.reviews[project] ??= []).push(pull)
-      this.deps.journal({ at, project, task, sessionId: current.sessionId!, reason: 'review' })
-      this.deps.log(`chain: ${project}: ${task} is out for review in ${url}`)
-      this.host.letGo(chain)
-      this.deps.save(this.state)
-      this.host.refilter(project)
+      opened = await this.review!.open(project, task, session)
     } catch (error) {
-      this.host.halt(chain, notice('review.notOpened', { task }, { cause: noticeOf(error) }))
+      this.refused.set(task, session.lastReplyAt)
+      const why = noticeOf(error)
+      if (why.code === 'review.nothingAhead') {
+        // Even Keel cannot tell work already in main from work never committed: the session says which (BTN-222).
+        // It is told as a chat answer is, by `--resume` whatever its cache: the reply belongs to its own turn.
+        this.deps.log(`review: ${task}: no pull request opened, ${englishOf(why)}; the session is told`)
+        const text = PROMPTS[this.deps.promptLanguage()].review.nothingAhead(this.deps.mainBranch(task))
+        await this.handovers.deliver(chain, current, session, text, null, 'review')
+      } else this.host.hold(chain, notice('review.notOpened', { task }, { cause: why }))
+      return
     }
+    this.refused.delete(task)
+    const before = this.recordOf(project, task)
+    const { number, url, branch, pushedAt, remote } = opened
+    const pull: PullRequest = { seen: [], at, ...before, task, remote, number, url, branch, pushedAt, markAt: session.lastReplyAt }
+    delete pull.feedback
+    this.drop(project, task)
+    ;(this.state.reviews[project] ??= []).push(pull)
+    this.deps.journal({ at, project, task, sessionId: current.sessionId!, reason: 'review' })
+    this.deps.log(`chain: ${project}: ${task} is out for review in ${url}`)
+    this.host.letGo(chain)
+    this.deps.save(this.state)
+    this.host.refilter(project)
   }
 
   /** The feedback resumes the session while its cache is warm, else a new session takes the task with it. */
@@ -210,6 +241,7 @@ export class Reviews {
   private async complete(project: string, task: string): Promise<void> {
     try {
       await this.review!.complete(project, task)
+      this.deps.log(`review: ${task} is moved to done in the tracker`)
     } catch (error) {
       this.deps.log(`review: ${task} was not moved to done in the tracker: ${englishOf(noticeOf(error))}`)
     }

@@ -36,6 +36,7 @@ export async function openPull(git: Git, workdir: string, note: string, remote: 
   if (branch === '') throw fail('review.noBranch', { path: workdir })
   const status = await git(workdir, ['status', '--porcelain', '--untracked-files=no'])
   if (status.code !== 0 || status.out.trim() !== '') throw fail('review.dirty', { path: workdir }, { detail: status.out })
+  if ((await aheadOf(git, workdir, remote, base)) === 0) throw fail('review.nothingAhead', { branch, base })
   const notePath = isAbsolute(note) ? note : join(workdir, note)
   const described = describedBy(await readFile(notePath, 'utf8').catch(() => ''))
   if (described === null) throw fail('review.noNote', { path: notePath })
@@ -45,4 +46,15 @@ export async function openPull(git: Git, workdir: string, note: string, remote: 
   const pushedAt = now().toISOString()
   const pull = (await forge.find(branch)) ?? (await forge.create({ branch, base, ...described }))
   return { ...pull, branch, pushedAt }
+}
+
+/**
+ * The commits of the folder's branch beyond the remote's base, as fresh as a fetch gets it: the local main may lag in
+ * PR mode, where merges happen on the forge. `null` — git could not count, the forge judges.
+ */
+async function aheadOf(git: Git, workdir: string, remote: string, base: string): Promise<number | null> {
+  await git(workdir, ['fetch', '--quiet', remote, base])
+  const counted = await git(workdir, ['rev-list', '--count', `refs/remotes/${remote}/${base}..HEAD`])
+  const count = Number(counted.out.trim())
+  return counted.code === 0 && counted.out.trim() !== '' && Number.isInteger(count) ? count : null
 }

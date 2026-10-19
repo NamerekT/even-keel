@@ -1,5 +1,56 @@
+import { mkdtemp, writeFile } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
-import { describedBy, pullTarget } from './open.js'
+import type { GitResult } from '../git/types.js'
+import type { Forge } from './model.js'
+import { describedBy, openPull, pullTarget } from './open.js'
+
+describe('openPull', () => {
+  const now = () => new Date('2026-10-19T12:00:00Z')
+
+  async function opening(ahead: GitResult) {
+    const dir = await mkdtemp(join(tmpdir(), 'open-pull-'))
+    await writeFile(join(dir, 'pull.md'), 'Fix the parser\n')
+    const asked: string[] = []
+    const git = async (_cwd: string, args: string[]): Promise<GitResult> => {
+      asked.push(args.join(' '))
+      if (args[0] === 'symbolic-ref') return { code: 0, out: 'abc-7/task\n' }
+      if (args[0] === 'rev-list') return ahead
+      return { code: 0, out: '' }
+    }
+    const created: string[] = []
+    const forge: Forge = {
+      kind: 'github',
+      find: async () => null,
+      create: async ({ branch }) => {
+        created.push(branch)
+        return { number: 3, url: 'https://github.com/john/abc/pull/3' }
+      },
+      state: async () => ({ state: 'open', mergeable: true, head: 'a1' }),
+      changes: async () => [],
+    }
+    const result = openPull(git, dir, 'pull.md', 'origin', forge, 'trunk', now)
+    return { result, asked, created }
+  }
+
+  it('opens nothing for a branch with no commits beyond the remote base, and does not push it', async () => {
+    const { result, asked, created } = await opening({ code: 0, out: '0\n' })
+    await expect(result).rejects.toMatchObject({ notice: { code: 'review.nothingAhead', params: { branch: 'abc-7/task', base: 'trunk' } } })
+    expect(asked).toContain('fetch --quiet origin trunk')
+    expect(asked).toContain('rev-list --count refs/remotes/origin/trunk..HEAD')
+    expect(asked.some((each) => each.startsWith('push'))).toBe(false)
+    expect(created).toEqual([])
+  })
+
+  it('pushes and opens a branch ahead of the base, and leaves the judgement to the forge when git cannot count', async () => {
+    for (const ahead of [{ code: 0, out: '2\n' }, { code: 128, out: 'fatal: bad revision' }]) {
+      const { result, created } = await opening(ahead)
+      await expect(result).resolves.toMatchObject({ number: 3, branch: 'abc-7/task' })
+      expect(created).toEqual(['abc-7/task'])
+    }
+  })
+})
 
 describe('pullTarget', () => {
   it('takes origin when its address parses', () => {

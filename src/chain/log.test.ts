@@ -13,6 +13,10 @@ describe('launchLine', () => {
     expect(launchLine(entry)).toBe('chain: ABC-1 handed over by checkpoint from the session old-session to new-session')
   })
 
+  it('names no session before an entry that has none', () => {
+    expect(launchLine({ at, project: 'ABC', task: 'ABC-1', sessionId: 'old-session', reason: 'review' })).toBe('chain: ABC-1 goes on by review in the session old-session')
+  })
+
   it('tells a release and the blockers behind a postpone', () => {
     expect(launchLine({ at, project: 'ABC', task: 'ABC-1', sessionId: 'old-session', reason: 'skip' })).toBe(
       'chain: ABC-1 released (skip), its session old-session is left as it is',
