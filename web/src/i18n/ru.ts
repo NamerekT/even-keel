@@ -343,10 +343,13 @@ export const ru = {
     add: 'Добавить проект',
     grouping: 'Группировка проектов',
     groupings: {
+      none: 'Без групп',
       remote: 'По репозиторию: клоны одного remote вместе',
       tracker: 'По трекеру',
       both: 'По репозиторию, внутри — по трекеру',
     },
+    other: 'Прочие',
+    projects: (count: number) => `${count} ${forms('проект', 'проекта', 'проектов')(count)}`,
     memes: {
       self: ['Even Keel: мемы про вайбкодеров...', ' Написано вайбкодером?!', ' Мда.'],
       peak: (day: string, count: number) => [`${day}: ${launches(count)}.`, ' Ты вообще спал?'],

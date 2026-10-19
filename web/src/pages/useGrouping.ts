@@ -3,7 +3,7 @@ import { type Grouping, parseGrouping } from './homeGroups.js'
 
 const GROUPING_KEY = 'even-keel.home.grouping'
 
-/** How Home groups its cards, remembered in the browser; by remote until chosen. */
+/** How Home groups its cards, remembered in the browser; without groups until chosen. */
 export function useGrouping(): [Grouping, (grouping: Grouping) => void] {
   const [grouping, setGrouping] = useState(readGrouping)
   const choose = (next: Grouping) => {
@@ -19,6 +19,6 @@ function readGrouping(): Grouping {
   try {
     return parseGrouping(localStorage.getItem(GROUPING_KEY))
   } catch {
-    return 'remote'
+    return parseGrouping(null)
   }
 }

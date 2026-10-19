@@ -2,12 +2,12 @@ import type { EvenKeelState, RemoteRef } from '../../../src/state.js'
 import { chainStatus, openQuestions, projectTasks } from '../state.js'
 import { emptyKind } from './ProjectCard.js'
 
-/** How Home groups the cards: by the repository their checkouts share, by tracker connection, or both (BTN-207). */
-export type Grouping = 'remote' | 'tracker' | 'both'
+/** How Home groups the cards: not at all, by the repository their checkouts share, by tracker connection, or both (BTN-207, BTN-244). */
+export type Grouping = 'none' | 'remote' | 'tracker' | 'both'
 
-export const GROUPINGS: readonly Grouping[] = ['remote', 'tracker', 'both']
+export const GROUPINGS: readonly Grouping[] = ['none', 'remote', 'tracker', 'both']
 
-export const parseGrouping = (text: string | null): Grouping => GROUPINGS.find((grouping) => grouping === text) ?? 'remote'
+export const parseGrouping = (text: string | null): Grouping => GROUPINGS.find((grouping) => grouping === text) ?? 'none'
 
 /** `working` — the chain runs, waits in the queue or on a pause, or a question is open; `quiet` — nothing to run. */
 export type Zone = 'working' | 'cards' | 'quiet'
@@ -17,7 +17,7 @@ export interface HomeSection {
   projects: string[]
 }
 
-/** A group of projects; the one without a title holds the projects left alone in theirs, after the groups. */
+/** A group of projects; the one without a title holds the projects left alone in theirs, after the groups, or all of them without grouping. */
 export interface HomeBlock {
   title: string | null
   sections: HomeSection[]
@@ -34,6 +34,7 @@ interface Group {
 }
 
 export function homeBlocks(grouping: Grouping, projects: string[], facts: GroupFacts): HomeBlock[] {
+  if (grouping === 'none') return [{ title: null, sections: [{ title: null, projects }] }]
   const groups = grouping === 'tracker' ? trackerGroups(projects, facts.trackers) : remoteGroups(projects, facts.remotes)
   const lone = projects.filter((key) => !groups.some((group) => group.projects.includes(key)))
   const blocks: HomeBlock[] = groups.map((group) => ({
@@ -101,6 +102,27 @@ export function zoned(projects: string[], zone: (key: string) => Zone): Record<Z
   const zones: Record<Zone, string[]> = { working: [], cards: [], quiet: [] }
   for (const key of projects) zones[zone(key)].push(key)
   return zones
+}
+
+/** A block as the page draws it: full cards by section, the working ones first, and the block's quiet projects in one strip. */
+export interface BlockLayout {
+  title: string | null
+  count: number
+  sections: { title: string | null; cards: string[] }[]
+  quiet: string[]
+}
+
+export function laidOut(block: HomeBlock, zone: (key: string) => Zone): BlockLayout {
+  const sections: BlockLayout['sections'] = []
+  const quiet: string[] = []
+  for (const section of block.sections) {
+    const zones = zoned(section.projects, zone)
+    const cards = [...zones.working, ...zones.cards]
+    if (cards.length > 0) sections.push({ title: section.title, cards })
+    quiet.push(...zones.quiet)
+  }
+  const count = block.sections.reduce((sum, section) => sum + section.projects.length, 0)
+  return { title: block.title, count, sections, quiet }
 }
 
 export function zoneOf(state: EvenKeelState, project: string): Zone {

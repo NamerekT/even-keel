@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { RemoteRef } from '../../../src/state.js'
-import { homeBlocks, parseGrouping, zoned } from './homeGroups.js'
+import { homeBlocks, laidOut, parseGrouping, zoned } from './homeGroups.js'
 
 const ref = (id: string): RemoteRef => ({ id: `git.example.com/${id}`, path: id })
 
@@ -68,11 +68,57 @@ describe('homeBlocks by tracker', () => {
   })
 })
 
+describe('homeBlocks without groups', () => {
+  it('puts every project into one untitled block, whatever they share', () => {
+    const remotes = { BTN: [ref('john/even-keel')], EVK: [ref('john/even-keel')] }
+    const trackers = [{ name: 'huly', title: 'Huly', projects: ['BTN', 'EVK'] }]
+    expect(homeBlocks('none', ['BTN', 'EVK', 'SOLO'], { remotes, trackers })).toEqual([
+      { title: null, sections: [{ title: null, projects: ['BTN', 'EVK', 'SOLO'] }] },
+    ])
+  })
+})
+
 describe('parseGrouping', () => {
-  it('reads a saved choice and falls back to remote', () => {
+  it('reads a saved choice and falls back to no groups', () => {
     expect(parseGrouping('both')).toBe('both')
-    expect(parseGrouping(null)).toBe('remote')
-    expect(parseGrouping('folder')).toBe('remote')
+    expect(parseGrouping('remote')).toBe('remote')
+    expect(parseGrouping(null)).toBe('none')
+    expect(parseGrouping('folder')).toBe('none')
+  })
+})
+
+describe('laidOut', () => {
+  const zones = { A: 'quiet', B: 'working', C: 'cards', D: 'quiet', E: 'quiet', F: 'cards' } as const
+  const zone = (key: string) => zones[key as keyof typeof zones]
+
+  it('keeps the cards in their sections and gathers the quiet projects of the block at its bottom', () => {
+    const block = {
+      title: 'john/app',
+      sections: [
+        { title: 'Huly', projects: ['A', 'C', 'B'] },
+        { title: 'GitHub', projects: ['D', 'F'] },
+      ],
+    }
+    expect(laidOut(block, zone)).toEqual({
+      title: 'john/app',
+      count: 5,
+      sections: [
+        { title: 'Huly', cards: ['B', 'C'] },
+        { title: 'GitHub', cards: ['F'] },
+      ],
+      quiet: ['A', 'D'],
+    })
+  })
+
+  it('drops a section left without cards', () => {
+    const block = {
+      title: 'john/app',
+      sections: [
+        { title: 'Huly', projects: ['C'] },
+        { title: 'GitHub', projects: ['D', 'E'] },
+      ],
+    }
+    expect(laidOut(block, zone).sections).toEqual([{ title: 'Huly', cards: ['C'] }])
   })
 })
 

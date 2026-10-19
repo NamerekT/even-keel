@@ -242,6 +242,18 @@ export function ServerIcon() {
   )
 }
 
+/** Home without groups: one plain grid of cards. */
+export function GridIcon() {
+  return (
+    <svg className="icon" viewBox="0 0 16 16" aria-hidden="true">
+      <rect x="2.5" y="2.5" width="4.5" height="4.5" rx="1" />
+      <rect x="9" y="2.5" width="4.5" height="4.5" rx="1" />
+      <rect x="2.5" y="9" width="4.5" height="4.5" rx="1" />
+      <rect x="9" y="9" width="4.5" height="4.5" rx="1" />
+    </svg>
+  )
+}
+
 /** Home grouped by remote: one repository above two clones of it. */
 export function ClonesIcon() {
   return (

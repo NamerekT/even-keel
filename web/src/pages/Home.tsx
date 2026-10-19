@@ -3,11 +3,11 @@ import { Link, Navigate } from 'react-router'
 import type { EvenKeelState } from '../../../src/state.js'
 import { localized, t } from '../i18n/index.js'
 import { openQuestions, projectSlots, questionPath } from '../state.js'
-import { ClonesIcon, ColumnsIcon, NestedIcon } from '../ui/icons.js'
+import { ClonesIcon, ColumnsIcon, GridIcon, NestedIcon } from '../ui/icons.js'
 import { emptyTurns, type HarborMeme, harborMemes } from '../ui/memes.js'
 import { Tipped } from '../ui/Tipped.js'
 import { Typed, Typists } from '../ui/Typed.js'
-import { GROUPINGS, type Grouping, homeBlocks, zoned, zoneOf } from './homeGroups.js'
+import { type BlockLayout, GROUPINGS, type Grouping, homeBlocks, laidOut, zoneOf } from './homeGroups.js'
 import { LaunchChart, localDate } from './LaunchChart.js'
 import { emptyKind, ProjectCard } from './ProjectCard.js'
 import { QuietRow } from './QuietRow.js'
@@ -29,12 +29,11 @@ export function Home({ state }: { state: EvenKeelState }) {
   })
   const meme = memes[Math.floor(draw * memes.length)]!
   const [grouping, setGrouping] = useGrouping()
-  const blocks = homeBlocks(grouping, state.projects, state).map((block) => ({
-    title: block.title,
-    sections: block.sections.map((section) => ({ title: section.title, zones: zoned(section.projects, (key) => zoneOf(state, key)) })),
-  }))
-  // The punchlines go by the cards' order on the page, quiet rows included.
-  const order = blocks.flatMap((block) => block.sections.flatMap(({ zones }) => [...zones.working, ...zones.cards, ...zones.quiet]))
+  const blocks = homeBlocks(grouping, state.projects, state).map((block) => laidOut(block, (key) => zoneOf(state, key)))
+  // Panels only when there is a group to set apart; a lone untitled block is the plain grid.
+  const framed = blocks.some((block) => block.title !== null)
+  // The punchlines go by the cards' order on the page, the quiet strips included.
+  const order = blocks.flatMap((block) => [...block.sections.flatMap(({ cards }) => cards), ...block.quiet])
   const turns = emptyTurns(order.map((key) => emptyKind(state, key)))
   const turnOf = new Map(order.map((key, index) => [key, turns[index]!]))
 
@@ -65,30 +64,20 @@ export function Home({ state }: { state: EvenKeelState }) {
           <p className="placeholder">{t.home.empty}</p>
         ) : (
           <div className="home__groups">
-            {blocks.map((block, index) => (
-              <section key={block.title ?? `lone-${index}`} className="home__group" aria-label={block.title ?? undefined}>
-                {block.title !== null && <h2 className="home__group-title">{block.title}</h2>}
-                {block.sections.map(({ title, zones }, at) => (
-                  <div key={title ?? `all-${at}`} className="home__section">
-                    {title !== null && <h3 className="home__section-title">{title}</h3>}
-                    {zones.working.length + zones.cards.length > 0 && (
-                      <div className="cards">
-                        {[...zones.working, ...zones.cards].map((key) => (
-                          <ProjectCard key={key} state={state} project={key} turn={turnOf.get(key)!} />
-                        ))}
-                      </div>
-                    )}
-                    {zones.quiet.length > 0 && (
-                      <div className="quiet-list">
-                        {zones.quiet.map((key) => (
-                          <QuietRow key={key} state={state} project={key} turn={turnOf.get(key)!} />
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </section>
-            ))}
+            {blocks.map((block, index) => {
+              const body = <BlockBody block={block} state={state} turnOf={turnOf} />
+              if (!framed) return <div key={`all-${index}`} className="home__flat">{body}</div>
+              const title = block.title ?? t.home.other
+              return (
+                <section key={block.title ?? `other-${index}`} className="home__group" aria-label={title}>
+                  <h2 className="home__group-title">
+                    {title}
+                    <span className="home__group-count">{t.home.projects(block.count)}</span>
+                  </h2>
+                  {body}
+                </section>
+              )
+            })}
           </div>
         )}
       </Typists>
@@ -97,7 +86,31 @@ export function Home({ state }: { state: EvenKeelState }) {
   )
 }
 
-const GROUPING_ICONS: Record<Grouping, () => ReactNode> = { remote: ClonesIcon, tracker: ColumnsIcon, both: NestedIcon }
+function BlockBody({ block, state, turnOf }: { block: BlockLayout; state: EvenKeelState; turnOf: Map<string, number> }) {
+  return (
+    <>
+      {block.sections.map(({ title, cards }, at) => (
+        <div key={title ?? `all-${at}`} className="home__section">
+          {title !== null && <h3 className="home__section-title">{title}</h3>}
+          <div className="cards">
+            {cards.map((key) => (
+              <ProjectCard key={key} state={state} project={key} turn={turnOf.get(key)!} />
+            ))}
+          </div>
+        </div>
+      ))}
+      {block.quiet.length > 0 && (
+        <div className="quiet-strip">
+          {block.quiet.map((key) => (
+            <QuietRow key={key} state={state} project={key} turn={turnOf.get(key)!} />
+          ))}
+        </div>
+      )}
+    </>
+  )
+}
+
+const GROUPING_ICONS: Record<Grouping, () => ReactNode> = { none: GridIcon, remote: ClonesIcon, tracker: ColumnsIcon, both: NestedIcon }
 
 function GroupingSwitch({ value, onChange }: { value: Grouping; onChange: (grouping: Grouping) => void }) {
   return (
