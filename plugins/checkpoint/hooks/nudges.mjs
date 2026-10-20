@@ -15,6 +15,7 @@ const positive = (value) => (Number.isFinite(value) && value > 0 ? value : null)
 
 /**
  * `answer` is what Even Keel said about the session, or null: outside a chain, or with no Even Keel at all.
+ * Its `late` and `hard` are what the session's context window allows: they only bring the thresholds down.
  * A task that has had its handoffs is held: nothing below the hard threshold, since every further handoff
  * costs a recovery that the shorter context no longer pays back.
  */
@@ -22,6 +23,7 @@ export function planOf(env, answer) {
   const plan = { ...DEFAULTS };
   for (const [key, name] of Object.entries(VARIABLES)) plan[key] = positive(Number(env[name])) ?? plan[key];
   if (answer && answer.source !== "default") plan.first = positive(answer.first) ?? plan.first;
+  for (const key of ["late", "hard"]) plan[key] = Math.min(plan[key], positive(answer?.[key]) ?? plan[key]);
   plan.handoffs = positive(answer?.handoffs) ?? 0;
   plan.held = plan.handoffs >= plan.maxHandoffs;
   if (plan.held) plan.first = Math.max(plan.first, plan.hard);

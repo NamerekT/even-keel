@@ -117,7 +117,7 @@ describe('Even Keel HTTP server', () => {
       inboxFile: async (id, name) =>
         id === '0a1b2c3d' && name === 'order 1.png' ? { type: 'image/png', size: 4, body: Readable.from([Buffer.from('PNG!')]) } : undefined,
       checkpoint: async (id) =>
-        id === '0a1b2c3d' ? { project: 'ABC', task: 'ABC-1', handoffs: 2, first: 193_000, source: 'calibrated' } : undefined,
+        id === '0a1b2c3d' ? { project: 'ABC', task: 'ABC-1', handoffs: 2, first: 193_000, source: 'calibrated', late: 212_000, hard: 237_000 } : undefined,
       mergeCheck: (id) => (id === 'chain-session' ? { commands: ['npm test'], branch: 'master' } : undefined),
       mail: (id, event) => (id !== 'chain-session' ? undefined : event === 'PostToolUse' ? `mail on ${event}` : null),
       tools: async (project) => (project === 'ABC' ? { project } : undefined),
@@ -771,7 +771,7 @@ describe('Even Keel HTTP server', () => {
 
   it('serves the checkpoint threshold of a chain session to the hook, and of the projects to the page', async () => {
     const known = await fetch(base + '/api/sessions/0a1b2c3d/checkpoint')
-    expect(await known.json()).toEqual({ project: 'ABC', task: 'ABC-1', handoffs: 2, first: 193_000, source: 'calibrated' })
+    expect(await known.json()).toEqual({ project: 'ABC', task: 'ABC-1', handoffs: 2, first: 193_000, source: 'calibrated', late: 212_000, hard: 237_000 })
     expect((await fetch(base + '/api/sessions/manual/checkpoint')).status).toBe(404)
     const page = await fetch(base + '/api/stats/checkpoints')
     expect(await page.json()).toEqual({ state: 'off', reason: 'checkpoints' })
