@@ -175,7 +175,7 @@ Two ways to reach it from elsewhere:
 
 The service starts with the system and restarts Even Keel if it fails. Stopping the service does not kill running sessions: they belong to the CLI's daemon.
 
-**Windows.** From PowerShell 7 as administrator:
+**Windows.** From PowerShell 7 as administrator: in Start, right-click "PowerShell 7" (`pwsh`) → Run as administrator. The Windows PowerShell that comes with Windows (Win+X → Terminal) refuses the script with "running scripts is disabled on this system": open `pwsh` instead of changing the execution policy.
 
 ```powershell
 .\service\install.ps1
