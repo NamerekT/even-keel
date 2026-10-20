@@ -83,7 +83,7 @@ Two of his points apply to Even Keel too, and I want to answer them honestly.
 - **account** — which subscription its sessions spend, so a side project does not eat the main one's limits;
 - **plugins and MCP servers** its sessions get;
 - **commands** run before a session, as the project's own check and after a green `main`, and whether its CI guards `main`;
-- **how a task lands** — a pull request or a direct merge into the project's own main branch;
+- **how a task lands** — a direct merge into the project's own main branch, or a pull request (experimental for now);
 - **its own lines** in the session prompt.
 
 When a session is nudged to hand over is not a guess either: once a project has enough handoffs behind it, the threshold is calibrated from that project's own history, and it can be pinned by hand.
