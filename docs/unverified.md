@@ -68,6 +68,7 @@ Every entry, ordered by how many people it reaches and how badly it hurts them i
 | 56 | [VS Code chat titles](#vs-code-chat-titles) | VS Code | a chat named differently from its tab |
 | 57 | [The first start with the PGlite state database](#the-first-start-with-the-pglite-state-database-btn-198) | an update from a build before v0.1 | the start stops on an import error |
 | 58 | [The first start with Forgejo profiles](#the-first-start-with-forgejo-profiles-btn-201) | an update from a build before v0.1 with Forgejo | the Forgejo CI disappears from the page |
+| 59 | [PR mode without a remote](#pr-mode-without-a-remote-ekr-12) | PR mode | the chain stays paused after the remote is added; press Resume |
 
 ## Platforms
 
@@ -165,6 +166,10 @@ Checked by tests and in `dev:fake` only; the one live shape seen is a `PostToolU
 ### PR mode beyond GitHub's open, close and merge (BTN-205)
 
 Run once against a real GitHub repository from the Windows service (BTN-161, 18.10.2026): Even Keel pushed the task branch, opened the pull request, saw it closed unmerged (the task skipped, the branch deleted on GitHub), opened a new one on the next run and saw it merged (the task Done). The rest was written from the API documentation and tested on recorded answer shapes only: the Forgejo client (`src/review/`) as a whole; on either forge, feedback reaching the session — reviews, comments of the conversation (BTN-223: the issue comments endpoint with `since`, GitHub's `user.type` of a bot) and failed runs of the head commit; that Forgejo refuses its author a request for changes on their own pull request is taken from its source, not tried. If a pull request does not open, the chain halts with `review.notOpened` and its cause; the count of a branch's commits beyond `<remote>/<branch>` that keeps an empty pull request from opening (BTN-222) was tested on a fake git only: if it misreads a branch with commits as one with none and the worktree is clean, the task goes to Done without a pull request and the cleanup keeps the unmerged branch with a `cleanup.branchKept` warning (`git branch -d` refuses it), so the work stays; if it cannot count, the forge's own refusal halts the chain as before; if the poll misreads an answer, the log says `review: … was not polled` each minute and the task waits out of the chain. **Workaround:** turn `pullRequests` off for the project so that no new task goes out for review, merge the waiting pull requests by hand and move their tasks to Done in the tracker: the usual cleanup takes them and drops their records.
+
+### PR mode without a remote (EKR-12)
+
+The check before a launch and on saving was tested on the dispatcher and the readiness function only, not on the running service. It assumes the remotes reread each minute show a remote added by hand, and that the page's save of `pullRequests` reads the checkout's remotes from git at once. If the reread misses a new remote or token, the chain stays paused with `review.notReady` after you added it; if the save misreads the remotes, PR mode does not turn on for a project that has a forge remote. **Workaround:** press Resume once the remote is in place, or restart the service; turn PR mode on by hand in the config (`npm run storage -- config-export`/`config-import`) if the page refuses it wrongly.
 
 ### Background commands of a stopped session on Linux and macOS (BTN-202)
 

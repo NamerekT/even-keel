@@ -124,7 +124,7 @@ export interface SessionControl {
 
 export interface SettingsControl {
   /** Writes into the config file the project's settings that differ from `base`, the values the form started from. */
-  save(project: string, form: ProjectForm, base: ProjectForm): void
+  save(project: string, form: ProjectForm, base: ProjectForm): void | Promise<void>
   /** Writes into the config file the shared settings that differ from `base`. */
   saveShared(form: SharedForm, base: SharedForm): void
   /** What the wizard's draft comes to: the repository, the config with it, the tracker's answer, Claude Code's trust. */

@@ -574,6 +574,16 @@ export class Dispatcher {
     return false
   }
 
+  /** A pause because PR mode had nowhere to go ends by itself once it has: a remote or a token added (EKR-12). */
+  private cleared(chain: ActiveChain): boolean {
+    if (chain.error?.code !== 'review.notReady' || this.deps.blocked(chain.project) !== undefined) return false
+    chain.paused = false
+    chain.error = null
+    this.deps.log(`chain: ${chain.project} goes on: PR mode has where to open pull requests`)
+    this.deps.save(this.state)
+    return true
+  }
+
   private requireLaunches(project: string, task?: string): void {
     const reason = this.deps.blocked(project, task)
     if (reason !== undefined) throw new NoticeError(reason)
@@ -604,7 +614,7 @@ export class Dispatcher {
 
   private async step(chain: ActiveChain): Promise<void> {
     for (;;) {
-      if (chain.paused) return
+      if (chain.paused && !this.cleared(chain)) return
       const tasks = this.lists.tasks.get(chain.project)
       if (tasks === undefined) return
       if (chain.closing !== undefined && !(await this.finish(chain, chain.closing))) return

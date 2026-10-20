@@ -397,6 +397,37 @@ describe('Dispatcher', () => {
     expect(launched).toEqual(['ABC/ABC-1', 'ABC/ABC-2'])
   })
 
+  it('goes on by itself once PR mode has a target again, but not after any other pause', async () => {
+    const notReady = notice('review.notReady', { project: 'ABC' }, { cause: notice('review.noRemote', { project: 'ABC' }) })
+    const options: SetupOptions = { blocked: notReady }
+    const { dispatcher, launched } = setup(options)
+    dispatcher.setTasks('ABC', [task('ABC-1')])
+    await expect(dispatcher.start('ABC')).rejects.toThrow('nowhere to open pull requests')
+
+    options.blocked = undefined
+    dispatcher.start('ABC')
+    options.blocked = notReady
+    await dispatcher.idle()
+    expect(launched).toEqual([])
+    expect(dispatcher.state.active[0]).toMatchObject({ paused: true, error: notReady })
+
+    dispatcher.check()
+    await dispatcher.idle()
+    expect(dispatcher.state.active[0]).toMatchObject({ paused: true })
+
+    options.blocked = undefined
+    dispatcher.check()
+    await dispatcher.idle()
+    expect(dispatcher.state.active[0]).toMatchObject({ paused: false, error: null })
+    expect(launched).toEqual(['ABC/ABC-1'])
+
+    pause(dispatcher, 'ABC')
+    dispatcher.state.active[0]!.error = textNotice('claude: not signed in')
+    dispatcher.check()
+    await dispatcher.idle()
+    expect(dispatcher.state.active[0]).toMatchObject({ paused: true })
+  })
+
   it('holds the next launch while the limit is used up and launches it after the reset', async () => {
     const options: { limitReset?: string | null } = { limitReset: '2026-09-26T17:00:00.000Z' }
     const { dispatcher, launched, saved } = setup(options)

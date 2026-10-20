@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { checkoutRemotes, remoteRef } from './remotes.js'
+import { checkoutRemotes, ProjectRemotes, remoteRef } from './remotes.js'
 
 describe('remoteRef', () => {
   const ref = (url: string) => remoteRef(url, 'D:\\work\\app', 'win32')
@@ -44,5 +44,20 @@ describe('checkoutRemotes', () => {
 
   it('has none when git cannot read the folder', async () => {
     expect(await checkoutRemotes(async () => ({ code: 1, out: '' }), 'D:\\gone')).toEqual([])
+  })
+})
+
+describe('ProjectRemotes', () => {
+  it('keeps the remotes of each project by name and address, and tells a remote added by hand', async () => {
+    let out = ''
+    const remotes = new ProjectRemotes(async () => ({ code: 0, out }))
+    expect(remotes.urls.ABC).toBeUndefined()
+    await remotes.apply({ ABC: 'D:\\work\\app' })
+    expect(remotes.urls.ABC).toEqual([])
+
+    out = 'remote.origin.url https://github.com/octo-org/app.git\n'
+    expect(await remotes.apply({ ABC: 'D:\\work\\app' })).toBe(true)
+    expect(remotes.urls.ABC).toEqual([{ name: 'origin', url: 'https://github.com/octo-org/app.git' }])
+    expect(await remotes.apply({ ABC: 'D:\\work\\app' })).toBe(false)
   })
 })

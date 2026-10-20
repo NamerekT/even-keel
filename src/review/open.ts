@@ -3,7 +3,7 @@ import { isAbsolute, join, relative } from 'node:path'
 import type { CiTarget, Remote } from '../ci/remote.js'
 import { parseRemote } from '../ci/remote.js'
 import type { Git } from '../git/types.js'
-import { fail } from '../notice/notice.js'
+import { fail, notice, type Notice } from '../notice/notice.js'
 import type { Forge, Opened } from './model.js'
 
 /** The remote a project's pull requests go to: `origin` if its address parses, else the first one that does (BTN-205). */
@@ -16,6 +16,19 @@ export function pullTarget(remotes: Remote[]): CiTarget | null {
   if (chosen === undefined) return null
   const { host, ...repo } = chosen.repo
   return { kind: host === 'github.com' ? 'github' : 'forgejo', remote: chosen.name, ...repo }
+}
+
+export type PullReadiness = { target: CiTarget; token: string } | { notice: Notice }
+
+/**
+ * Whether a project's PR mode has where to go: the remote its pull requests go to and the token for its forge, or why
+ * not (EKR-12). `token` — the one a profile has for the remote (`ciToken`), `null` without one.
+ */
+export function pullReadiness(project: string, remotes: Remote[], token: (target: CiTarget) => string | null): PullReadiness {
+  const target = pullTarget(remotes)
+  if (target === null) return { notice: notice('review.noRemote', { project }) }
+  const found = token(target)
+  return found === null ? { notice: notice('review.noToken', { remote: target.remote }) } : { target, token: found }
 }
 
 /** The pull request's title and body from the session's note: the first line that is not blank, then the rest. */

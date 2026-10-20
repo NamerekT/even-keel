@@ -27,6 +27,7 @@ import { launchLine } from './chain/log.js'
 import { mainCheckDeps, mergeCheck } from './chain/mainci.js'
 import { TaskPlaces } from './chain/places.js'
 import { readNote, saveSnapshot, snapshotReason } from './chain/snapshots.js'
+import { pullReadiness } from './review/open.js'
 import { reviewDeps } from './review/wiring.js'
 import { appendLaunch, loadChainState, loadQuestions, readLaunches, saveChainState, saveClosedTask, saveQuestions } from './chain/store.js'
 import { ChangelogDrafts } from './changelog/drafts.js'
@@ -35,7 +36,7 @@ import { changesOf } from './git/changes.js'
 import { commitChangelog } from './git/changelog.js'
 import { CI_TOKENS, ciSource, ciToken, projectTargets } from './ci/adapters.js'
 import { FORGEJO_PROFILE } from './ci/forgejo-profile.js'
-import type { CiTarget } from './ci/remote.js'
+import type { CiTarget, Remote } from './ci/remote.js'
 import { CiWatch } from './ci/watcher.js'
 import { CiWatches } from './ci/watches.js'
 import { ConfigStore } from './config-store.js'
@@ -53,7 +54,7 @@ import { guardHosts, guardToken } from './guard.js'
 import { readJson } from './packages/plugins.js'
 import { checkDraft } from './projects/check.js'
 import { removalBlock, type RemovalFacts } from './projects/removal.js'
-import { ProjectRemotes } from './projects/remotes.js'
+import { ProjectRemotes, remotesIn } from './projects/remotes.js'
 import { Packages } from './packages/service.js'
 import { secretCatalog } from './secrets/catalog.js'
 import { Secrets } from './secrets/service.js'
@@ -464,6 +465,18 @@ const profileBlock = (project: string): Notice | undefined => {
   const refused = profiles.refused(configStore.current.ids[project]!)
   return refused === undefined ? undefined : notice('profiles.paused', { profile: refused.name, project })
 }
+/** Whether pull requests of the project in PR mode have where to go, by the remotes given (EKR-12). */
+const pullReadinessOf = (project: string, urls: Remote[]) => pullReadiness(project, urls, (target) => ciTokenOf(project, target)?.token ?? null)
+/**
+ * PR mode with nowhere to open pull requests: no session of the project starts (EKR-12). The remotes are those
+ * reread each minute, so one added by hand lifts it without a restart; a project not read yet is not held.
+ */
+const pullBlock = (project: string): Notice | undefined => {
+  const urls = remotes.urls[project]
+  if (!pullRequestsOn(project) || urls === undefined) return undefined
+  const ready = pullReadinessOf(project, urls)
+  return 'notice' in ready ? notice('review.notReady', { project }, { cause: ready.notice }) : undefined
+}
 
 const chatTitles = new ChatTitles()
 const vscode = new VsCodeAccount({
@@ -795,7 +808,7 @@ const dispatcher = new Dispatcher(await loadChainState(db, configStore.current.i
     return { sessionId, fallback }
   },
   liveSession: (task) => sessions.find((view) => view.task === task && view.lamp !== 'finished')?.sessionId,
-  blocked: (project, task) => profileBlock(project) ?? launchBlock(account.view, choiceFor(project, task).account),
+  blocked: (project, task) => profileBlock(project) ?? pullBlock(project) ?? launchBlock(account.view, choiceFor(project, task).account),
   busy: (task) => {
     const status = agentStatus(task)
     return status === 'busy' || status === 'waiting'
@@ -1137,10 +1150,14 @@ let server = createEvenKeelServer({
     },
   },
   settings: {
-    save: (project, form, base) => {
+    save: async (project, form, base) => {
       if (configStore.current.projects[project] === undefined) throw fail('config.unknownProject', { key: project })
       const moved = form.tracker !== base.tracker || form.trackerProject !== base.trackerProject
       if (moved && launchedProjects(launches).includes(project)) throw fail('config.trackerLocked', { key: project })
+      if (form.pullRequests && !base.pullRequests) {
+        const ready = pullReadinessOf(project, await remotesIn(runGit, form.repo))
+        if ('notice' in ready) throw fail('review.cannotEnable', { project }, { cause: ready.notice })
+      }
       configStore.saveProject(project, form, base)
       console.log(`page: the settings of ${project} are written to the config`)
     },
@@ -1411,7 +1428,7 @@ setInterval(() => {
 setInterval(
   () =>
     void Promise.all([ciWatches.refresh(), remotes.apply(configStore.current.projects)]).then(([changed, moved]) => {
-      if (changed) dispatcher.check()
+      if (changed || moved) dispatcher.check()
       if (changed || moved) hub.broadcast('state', getState())
     }),
   CI_TARGETS_MS,

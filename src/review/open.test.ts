@@ -4,7 +4,8 @@ import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import type { GitResult } from '../git/types.js'
 import type { Forge } from './model.js'
-import { describedBy, openPull, pullTarget } from './open.js'
+import { notice } from '../notice/notice.js'
+import { describedBy, openPull, pullReadiness, pullTarget } from './open.js'
 
 describe('openPull', () => {
   const now = () => new Date('2026-10-19T12:00:00Z')
@@ -85,6 +86,27 @@ describe('pullTarget', () => {
   it('finds none without a remote on a forge', () => {
     expect(pullTarget([{ name: 'origin', url: 'D:/backup/app.git' }])).toBeNull()
     expect(pullTarget([])).toBeNull()
+  })
+})
+
+describe('pullReadiness', () => {
+  const remotes = [{ name: 'origin', url: 'git@github.com:acme/app.git' }]
+
+  it('gives the target and its token', () => {
+    expect(pullReadiness('ABC', remotes, () => 'secret')).toEqual({
+      target: { kind: 'github', remote: 'origin', web: 'https://github.com', owner: 'acme', repo: 'app' },
+      token: 'secret',
+    })
+  })
+
+  it('names the missing remote', () => {
+    expect(pullReadiness('ABC', [{ name: 'origin', url: 'D:/backup/app.git' }], () => 'secret')).toEqual({
+      notice: notice('review.noRemote', { project: 'ABC' }),
+    })
+  })
+
+  it('names the remote no profile has a token for', () => {
+    expect(pullReadiness('ABC', remotes, () => null)).toEqual({ notice: notice('review.noToken', { remote: 'origin' }) })
   })
 })
 

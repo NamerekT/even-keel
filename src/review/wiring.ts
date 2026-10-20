@@ -1,12 +1,13 @@
 import { ciSource } from '../ci/adapters.js'
-import { remotesOf, type CiTarget } from '../ci/remote.js'
+import type { CiTarget } from '../ci/remote.js'
 import type { ReviewDeps } from '../chain/model.js'
 import type { Git } from '../git/types.js'
-import { fail } from '../notice/notice.js'
+import { fail, NoticeError } from '../notice/notice.js'
+import { remotesIn } from '../projects/remotes.js'
 import { forgejoPulls } from './forgejo.js'
 import { githubPulls } from './github.js'
 import type { Forge } from './model.js'
-import { openPull, pullTarget } from './open.js'
+import { openPull, pullReadiness, pullTarget } from './open.js'
 
 const RUNS_POLLED = 20
 
@@ -26,11 +27,10 @@ export interface ReviewWiring {
 export function reviewDeps(wiring: ReviewWiring): ReviewDeps {
   const { git, timeoutMs } = wiring
 
-  /** The remote pull requests go to (`pullTarget`), or the one named. */
-  async function targetOf(project: string, remote?: string): Promise<CiTarget> {
-    const urls = await git(wiring.repo(project), ['config', '--get-regexp', '^remote\\..*\\.url$'])
-    const remotes = urls.code === 0 ? remotesOf(urls.out) : []
-    const target = pullTarget(remote === undefined ? remotes : remotes.filter(({ name }) => name === remote))
+  /** The remote named, while git still has it on a forge. */
+  async function targetOf(project: string, remote: string): Promise<CiTarget> {
+    const remotes = await remotesIn(git, wiring.repo(project))
+    const target = pullTarget(remotes.filter(({ name }) => name === remote))
     if (target === null) throw fail('review.noRemote', { project })
     return target
   }
@@ -49,8 +49,10 @@ export function reviewDeps(wiring: ReviewWiring): ReviewDeps {
   return {
     on: wiring.on,
     open: async (project, _task, session) => {
-      const target = await targetOf(project)
-      const forge = forgeOf(target, tokenOf(project, target))
+      const ready = pullReadiness(project, await remotesIn(git, wiring.repo(project)), (target) => wiring.token(project, target))
+      if ('notice' in ready) throw new NoticeError(ready.notice)
+      const { target } = ready
+      const forge = forgeOf(target, ready.token)
       const opened = await openPull(git, session.workdir, session.pullRequest ?? '', target.remote, forge, wiring.main(project), wiring.now)
       return opened === null ? null : { ...opened, remote: target.remote }
     },

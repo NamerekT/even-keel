@@ -1,5 +1,5 @@
 import type { FinishOutcome } from '../git/types.js'
-import { textNotice } from '../notice/notice.js'
+import { textNotice, type Notice } from '../notice/notice.js'
 import { fakeTask } from '../tracker/fixture.js'
 import type { Task, TaskStatus } from '../tracker/model.js'
 import { Dispatcher, emptyChainState, type ChainState, type LaunchEntry } from './dispatcher.js'
@@ -34,7 +34,7 @@ export interface SetupOptions {
   live?: Record<string, string>
   projects?: string[]
   parallel?: number
-  blocked?: string
+  blocked?: string | Notice
   limited?: Record<string, LimitedSession>
   account?: AccountNow
   accountAt?: (account: string, at: string) => string | null
@@ -102,7 +102,7 @@ export function setup(options: SetupOptions = {}) {
       return { sessionId: `session-${++counter}`, ...(options.fallback?.[id] !== undefined && { fallback: options.fallback[id] }) }
     },
     liveSession: (id) => live[id],
-    blocked: () => (options.blocked === undefined ? undefined : textNotice(options.blocked)),
+    blocked: () => (typeof options.blocked === 'string' ? textNotice(options.blocked) : options.blocked),
     busy: (id) => busy.has(id) || shell.has(id) || waiting.has(id),
     midTurn: (id) => (busy.has(id) || shell.has(id)) && !waiting.has(id),
     shell: (id) => shell.has(id),
