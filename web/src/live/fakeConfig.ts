@@ -49,6 +49,8 @@ export const FAKE_SHARED: SharedForm = {
   context: { window: 600_000, warn: 50, danger: 80 },
   stats: { compare: { minTasks: 5, minSessions: 10, days: 7 }, moves: {}, otherBelow: 0, checkpointTokens: null },
   updates: { check: true, notify: true },
+  ci: CI_ALL,
+  fillMilestone: false,
 }
 
 const project = (repo: string, change: Partial<ProjectForm>): ProjectForm => ({
@@ -74,6 +76,10 @@ const project = (repo: string, change: Partial<ProjectForm>): ProjectForm => ({
   models: {},
   accounts: {},
   modelLabels: null,
+  promptLanguage: 'en',
+  cacheTtl: null,
+  checkpointTokens: null,
+  own: {},
   ...change,
 })
 
@@ -81,7 +87,7 @@ export function fakeConfig(): ConfigView {
   return {
     shared: { ...FAKE_SHARED, brief: false, modelPrompts: { haiku: 'Keep answers short.' } },
     projects: {
-      ABC: project('D:/Projects/abc', { color: 1, name: 'Storefront', brief: false, prompt: 'Run npm test before merging.', beforeStart: ['npm ci'], fillMilestone: true }),
+      ABC: project('D:/Projects/abc', { color: 1, name: 'Storefront', brief: false, prompt: 'Run npm test before merging.', beforeStart: ['npm ci'], fillMilestone: true, own: { fillMilestone: true } }),
       DEMO: project('D:/Projects/demo', {
         color: 2,
         branch: 'master',
@@ -89,9 +95,14 @@ export function fakeConfig(): ConfigView {
         trackerProject: 'octo-org/demo',
         afterGreen: ['npm run build', 'pwsh -File service/restart.ps1'],
         ci: { guard: true, kinds: ['github'], waitMinutes: 15, recheckMain: true, fixTask: true },
+        promptLanguage: 'ru',
+        checkpointTokens: 180_000,
+        own: { 'ci.kinds': ['github'], 'ci.waitMinutes': 15, 'ci.fixTask': true, promptLanguage: 'ru', 'stats.checkpointTokens': 180_000 },
       }),
       XYZ: project('D:/Projects/xyz', { color: 3, slot: 2, chain: { ...DEFAULT_RULES, requiredLabels: ['Auto'] }, provider: 'codex', models: { codex: 'gpt-6.1-sol' }, modelLabels: true, remoteProfiles: { github: GITHUB_PROFILE } }),
-      OPS: project('D:/Projects/ops', { color: 4, beforeStart: ['npm ci'], check: ['npm run typecheck', 'npm test'], ci: { guard: false, kinds: [], waitMinutes: 0, recheckMain: false, fixTask: false } }),
+      OPS: project('D:/Projects/ops', { color: 4, beforeStart: ['npm ci'], check: ['npm run typecheck', 'npm test'], ci: { guard: false, kinds: [], waitMinutes: 0, recheckMain: false, fixTask: false },
+        own: { 'ci.guard': false, 'ci.kinds': [], 'ci.waitMinutes': 0, 'ci.recheckMain': false },
+      }),
     },
     trackers: [
       { name: 'huly', title: 'Huly', projectKey: null },

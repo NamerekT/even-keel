@@ -370,13 +370,15 @@ function HeadFacts({ session, scale, edits }: { session: SessionView | null; sca
   const context = session !== null && scale !== null && session.contextTokens > 0
   if (!context && branch === null && edits === null) return null
   const tip = [
-    context ? `${t.context.label}: ${t.context.of(formatTokens(session.contextTokens), formatTokens(scale.window), Math.round(contextFill(session.contextTokens, scale).percent))}` : null,
+    context
+      ? `${t.context.label}: ${t.context.of(formatTokens(session.contextTokens), formatTokens(session.contextWindow ?? scale.window), Math.round(contextFill(session.contextTokens, scale, session.contextWindow).percent))}`
+      : null,
     branch === null ? null : t.session.chat.head.branch(branch),
     edits === null ? null : t.session.chat.head.edits(edits.added, edits.removed),
   ].filter((part) => part !== null)
   return (
     <Tipped className="transcript__facts" tip={tip.map((part) => <div key={part}>{part}</div>)} focusable>
-      {context && <ContextMeter tokens={session.contextTokens} scale={scale} />}
+      {context && <ContextMeter tokens={session.contextTokens} window={session.contextWindow} scale={scale} />}
       {branch !== null && <span className="transcript__branch">{branch}</span>}
       {edits !== null && <EditSize {...edits} />}
     </Tipped>

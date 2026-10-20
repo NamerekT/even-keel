@@ -40,6 +40,13 @@ describe('default rules', () => {
     expect(admits(DEFAULT_RULES, { status: todo, labels: ['MANUAL'] })).toBe(false)
     expect(admits(DEFAULT_RULES, { status: todo, labels: ['Bug'] })).toBe(true)
   })
+
+  it('keep a manual task out with a list of their own excluded labels too', () => {
+    const own = { ...DEFAULT_RULES, excludedLabels: ['Bug'] }
+    expect(admits(own, { status: todo, labels: ['Вручную'] })).toBe(false)
+    expect(admits(own, { status: todo, labels: ['Manual'] })).toBe(false)
+    expect(admits(own, { status: todo, labels: ['Bug'] })).toBe(false)
+  })
 })
 
 describe('status names', () => {

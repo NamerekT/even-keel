@@ -241,7 +241,8 @@ export interface DispatcherDeps {
   limitResetAfter: (account: string, at: string) => string | null
   /** The project's set of packages has a problem that holds its sessions (BTN-174): not installed, no key, no answer. */
   packagesBlocked: (project: string) => boolean
-  promptLanguage: () => Language
+  /** The language of the prompts of the task's project. */
+  promptLanguage: (task: string) => Language
   /** The main branch of the task's project, which the prompts name. */
   mainBranch: (task: string) => string
   /** Whether the task's project is in PR mode, which the prompts name; absent — it is not. */

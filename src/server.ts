@@ -29,10 +29,12 @@ import {
 } from './stats/rules.js'
 import type { ChainRules } from './chain/rules.js'
 import { DEFAULT_CHANGELOG } from './changelog/file.js'
+import { DEFAULT_CI } from './settings/defaults.js'
+import { OWN_KEYS } from './settings/registry.js'
 import { CLAUDE } from './claude/name.js'
 import type { Language } from './language.js'
 import { HOOK_EVENTS, type MailEvent } from './sessions/mail.js'
-import type { CacheTtl, ChangelogOp, ChangelogView, CheckResult, CiSettings, ContextScale, ProjectCheck, ProjectDraft, ProjectForm, SharedForm, StatsConfig } from './state.js'
+import type { CacheTtl, ChangelogOp, ChangelogView, CheckResult, CiSettings, ContextScale, OwnValues, ProjectCheck, ProjectDraft, ProjectForm, SharedForm, StatsConfig } from './state.js'
 import type { CompareSettings } from './stats/rules.js'
 import { CI_KINDS, type CiKind } from './ci/model.js'
 import type { Calibration } from './stats/calibration.js'
@@ -764,11 +766,23 @@ function projectFormOf(body: Record<string, unknown>): ProjectForm {
     color: color as number | null,
     brief: briefOf(brief),
     chain: rulesOf(chain),
+    // What the project ends up with: shown by the panel, never written; `own` is what is.
+    promptLanguage: body.promptLanguage as Language,
+    cacheTtl: (body.cacheTtl ?? null) as CacheTtl | null,
+    checkpointTokens: (body.checkpointTokens ?? null) as number | null,
+    own: ownOf(body.own),
   }
 }
 
+/** A page from before the own values sends none: form and base then agree and nothing is written. */
+function ownOf(raw: unknown): OwnValues {
+  const own = mapOf<unknown>(raw ?? {}, 'own', () => true)
+  if (Object.keys(own).some((key) => !(OWN_KEYS as readonly string[]).includes(key))) throw fail('request.required', { field: 'own' })
+  return own as OwnValues
+}
+
 function sharedFormOf(body: Record<string, unknown>): SharedForm {
-  const { parallel, tracker, brief, chain, provider, models, accounts, execution, cli, modelLabels, modelPrompts, language, promptLanguage, hiddenSkills, cacheTtl, allowedHosts, context, stats, updates } = body
+  const { parallel, tracker, brief, chain, provider, models, accounts, execution, cli, modelLabels, modelPrompts, language, promptLanguage, hiddenSkills, cacheTtl, ci, fillMilestone, allowedHosts, context, stats, updates } = body
   if (language !== null && typeof language !== 'string') throw fail('request.required', { field: 'language' })
   if (cacheTtl != null && typeof cacheTtl !== 'string') throw fail('request.required', { field: 'cacheTtl' })
   return {
@@ -788,6 +802,8 @@ function sharedFormOf(body: Record<string, unknown>): SharedForm {
     hiddenSkills: linesOf(hiddenSkills, 'hiddenSkills'),
     // A page from before the switch sends none: form and base then agree and nothing is written.
     cacheTtl: (cacheTtl ?? null) as CacheTtl | null,
+    ci: ci === undefined ? DEFAULT_CI : ciOf(ci),
+    fillMilestone: fillMilestone === undefined ? false : switchOf(fillMilestone, 'fillMilestone'),
     allowedHosts: linesOf(allowedHosts, 'allowedHosts'),
     context: mapOf(context, 'context', (value) => typeof value === 'number') as unknown as ContextScale,
     stats: statsOf(stats),

@@ -1,18 +1,19 @@
 import { randomUUID } from 'node:crypto'
 import { readFileSync } from 'node:fs'
-import { sameName, type ChainRules } from './chain/rules.js'
+import { excludedOf, sameName, type ChainRules } from './chain/rules.js'
 import type { Language } from './language.js'
 import { fail } from './notice/notice.js'
 import { colorsOf } from './projects/colors.js'
 import type { PoolEntry } from './account/model.js'
 import type { RunSettings } from './sessions/launch.js'
-import type { CacheTtl, CiSettings, ContextScale, ProjectSettings, StatsConfig } from './state.js'
+import type { CacheTtl, CiSettings, ContextScale, OwnKey, OwnValues, ProjectSettings, StatsConfig } from './state.js'
 import { CI_KINDS, type RemoteProfiles } from './ci/model.js'
 import { DEFAULT_CHANGELOG } from './changelog/file.js'
 import { changesOf, type FormValue } from './settings/changes.js'
 import { DEFAULT_BRANCH, DEFAULT_LANGUAGE } from './settings/defaults.js'
 import type { TallyMode } from './stats/mode.js'
 import { fileRows, isPlainObject, writeRows } from './settings/file.js'
+import { OWN_KEYS } from './settings/registry.js'
 import { checkRows, inherit, resolve, type ProjectRecord, type Resolved, type Values } from './settings/resolve.js'
 import { ADAPTERS } from './tracker/adapters.js'
 import type { TrackerAdapter } from './tracker/source.js'
@@ -77,8 +78,11 @@ export interface EvenKeelConfig {
   promptLanguage: Language
   /** Skills chain sessions get only for `/name` while trimming is on. */
   hiddenSkills: string[]
-  /** The prompt cache TTL of chain sessions (`promptCacheTtl`); null leaves the CLI's own choice. */
+  /** The prompt cache TTL of chain sessions (`promptCacheTtl`); null leaves the CLI's own choice. A project's own goes over it. */
   cacheTtl: CacheTtl | null
+  /** The shared `ci` keys and `fillMilestone`; what each project ends up with is in `settings`. */
+  ci: CiSettings
+  fillMilestone: boolean
   /** Chains run at once; the rest wait in the queue. */
   parallel: number
   /** Even Keel's setting rows the chain's switches write (`chain/unattended`, `chain/trim`), not the forms. */
@@ -128,6 +132,7 @@ function configOf(records: ProjectRecord[], { shared, own, values }: Resolved, a
   const context = { window: shared['context.window'], warn: shared['context.warn'], danger: shared['context.danger'] } as ContextScale
   if (context.warn >= context.danger) throw fail('config.contextPercents', {})
   const language = shared.language as Language | null
+  const promptLanguage = (values: Values) => (values.promptLanguage as Language | undefined) ?? language ?? DEFAULT_LANGUAGE
   return {
     allowedHosts: shared.allowedHosts as string[],
     projects: byKey((record) => record.repo),
@@ -145,7 +150,7 @@ function configOf(records: ProjectRecord[], { shared, own, values }: Resolved, a
     trackerProjects: byKey((record, project) => trackerProjectOf(record, project.tracker as string, adapters)),
     brief: shared.brief as boolean | null,
     briefs: byKey((_, project) => project.brief as boolean | null),
-    settings: byKey(settingsOf),
+    settings: byKey((record, project, ownRows) => ({ ...settingsOf(record, project, ownRows), promptLanguage: promptLanguage(project) })),
     context,
     provider: shared.provider as string,
     models: shared.models as Record<string, string>,
@@ -161,9 +166,11 @@ function configOf(records: ProjectRecord[], { shared, own, values }: Resolved, a
       checkpointTokens: shared['stats.checkpointTokens'],
     } as StatsConfig,
     language,
-    promptLanguage: (shared.promptLanguage as Language | undefined) ?? language ?? DEFAULT_LANGUAGE,
+    promptLanguage: promptLanguage(shared),
     hiddenSkills: shared.hiddenSkills as string[],
     cacheTtl: shared.cacheTtl as CacheTtl | null,
+    ci: ciOf(shared),
+    fillMilestone: shared.fillMilestone as boolean,
     parallel: shared.parallel as number,
     unattended: shared.unattended as boolean,
     trimTools: shared.trimTools as boolean,
@@ -172,20 +179,23 @@ function configOf(records: ProjectRecord[], { shared, own, values }: Resolved, a
   }
 }
 
-function settingsOf(record: ProjectRecord, values: Values, own: Values): ProjectSettings {
+const ciOf = (values: Values): CiSettings =>
+  ({
+    guard: values['ci.guard'],
+    kinds: values['ci.kinds'],
+    waitMinutes: values['ci.waitMinutes'],
+    recheckMain: values['ci.recheckMain'],
+    fixTask: values['ci.fixTask'],
+  }) as CiSettings
+
+function settingsOf(record: ProjectRecord, values: Values, own: Values): Omit<ProjectSettings, 'promptLanguage'> {
   return {
     branch: record.branch,
     prompt: values.prompt as string | null,
     beforeStart: values['commands.beforeStart'] as string[],
     check: values['commands.check'] as string[],
     afterGreen: values['commands.afterGreen'] as string[],
-    ci: {
-      guard: values['ci.guard'],
-      kinds: values['ci.kinds'],
-      waitMinutes: values['ci.waitMinutes'],
-      recheckMain: values['ci.recheckMain'],
-      fixTask: values['ci.fixTask'],
-    } as CiSettings,
+    ci: ciOf(values),
     remoteProfiles: values.remoteProfiles as RemoteProfiles,
     pullRequests: values.pullRequests as boolean,
     fillMilestone: values.fillMilestone as boolean,
@@ -194,6 +204,9 @@ function settingsOf(record: ProjectRecord, values: Values, own: Values): Project
     models: (own.models as Record<string, string> | undefined) ?? {},
     accounts: (own.accounts as Record<string, string> | undefined) ?? {},
     modelLabels: (own.modelLabels as boolean | undefined) ?? null,
+    cacheTtl: values.cacheTtl as CacheTtl | null,
+    checkpointTokens: values['stats.checkpointTokens'] as number | null,
+    own: Object.fromEntries(OWN_KEYS.flatMap((key) => (own[key] === undefined ? [] : [[key, own[key]]]))) as OwnValues,
   }
 }
 
@@ -210,7 +223,7 @@ function checkRules(rules: ChainRules, project: string): ChainRules {
   const clash = (a: string[], b: string[]) => a.find((name) => b.some((other) => sameName(name, other)))
   const status = clash(rules.active ?? [], rules.terminal ?? [])
   if (status !== undefined) throw fail('config.statusBoth', { project, status })
-  const label = clash(rules.requiredLabels, rules.excludedLabels)
+  const label = clash(rules.requiredLabels, excludedOf(rules))
   if (label !== undefined) throw fail('config.labelBoth', { project, label })
   return rules
 }
@@ -309,20 +322,18 @@ export function projectSettingValues(settings: ProjectSettings, written: Record<
     const providers = new Set([...Object.keys(isPlainObject(written[key]) ? written[key] : {}), ...Object.keys(names)])
     return [...providers].map((provider) => ({ group: key, key, qualifier: provider, value: names[provider]?.trim() || undefined }))
   }
-  const { ci } = settings
+  const own = (key: OwnKey): FormValue => {
+    const kinds = settings.own['ci.kinds']
+    return { group: `own.${key}`, key, qualifier: '', value: key === 'ci.kinds' && kinds !== undefined ? CI_KINDS.filter((kind) => kinds.includes(kind)) : settings.own[key] }
+  }
   return [
     value('prompt', 'prompt', settings.prompt?.trim() || undefined),
     ...(['beforeStart', 'check', 'afterGreen'] as const).map((key) =>
       value(key, `commands.${key}`, settings[key].map((line) => line.trim()).filter((line) => line !== ''), []),
     ),
-    value('ci', 'ci.guard', ci.guard, true),
-    value('ci', 'ci.kinds', CI_KINDS.filter((kind) => ci.kinds.includes(kind)), [...CI_KINDS]),
-    value('ci', 'ci.waitMinutes', ci.waitMinutes, null),
-    value('ci', 'ci.recheckMain', ci.recheckMain, true),
-    value('ci', 'ci.fixTask', ci.fixTask, false),
+    ...OWN_KEYS.map(own),
     value('remoteProfiles', 'remoteProfiles', settings.remoteProfiles, {}),
     value('pullRequests', 'pullRequests', settings.pullRequests, false),
-    value('fillMilestone', 'fillMilestone', settings.fillMilestone, false),
     value('changelog', 'changelog', settings.changelog, DEFAULT_CHANGELOG),
     value('provider', 'provider', settings.provider ?? undefined),
     ...byProvider('models'),
@@ -332,14 +343,14 @@ export function projectSettingValues(settings: ProjectSettings, written: Record<
 }
 
 /**
- * The project's entry in the config file with `branch`, `prompt`, `commands`, `ci`, `fillMilestone`, `provider`, `models`,
- * `accounts` and `modelLabels` set, or removed when empty or inherited; its other keys stay, and so do the settings
- * `changed` leaves out.
+ * The project's entry in the config file with `branch`, `prompt`, `commands`, `provider`, `models`, `accounts`,
+ * `modelLabels` and the keys of `own` set, or removed when empty or inherited; its other keys stay, and so do the
+ * settings `changed` leaves out. The group of an own key is `own.<key>`.
  */
 export function withProjectSettings(
   entry: unknown,
   settings: ProjectSettings,
-  changed: (field: keyof ProjectSettings) => boolean = () => true,
+  changed: (field: keyof ProjectSettings | `own.${OwnKey}`) => boolean = () => true,
 ): Record<string, unknown> {
   const fields: Record<string, unknown> = isPlainObject(entry) ? { ...entry } : { repo: entry }
   const next = writeRows(fields, changesOf(null, projectSettingValues(settings, fields), (group) => changed(group as keyof ProjectSettings)))

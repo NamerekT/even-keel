@@ -24,6 +24,8 @@ export interface AgentEntry {
   ask?: Ask
   /** The turn ended and no process is left, yet the session goes on with the next `resume` (Codex). */
   resting?: boolean
+  /** The `--model` a live session was started with, by its job file: `opus[1m]` where the transcript says only `claude-opus-5-5`. */
+  model?: string
 }
 
 /** A live session has a process, or rests between turns without one. */
@@ -54,6 +56,14 @@ export function blockedAsk(raw: string | undefined, jobId: string): Ask | null {
   return { id: `job:${jobId}:${fnv1a(JSON.stringify(questions))}`, questions, unsaved: true }
 }
 
+/** The `--model` of the flags a job respawns with, from its `jobs/<id>/state.json`; `null` — it was started without one. */
+export function launchedModel(raw: string | undefined): string | null {
+  const flags = jobOf(raw)?.respawnFlags
+  if (!Array.isArray(flags)) return null
+  const value: unknown = flags[flags.indexOf('--model') + 1]
+  return flags.includes('--model') && typeof value === 'string' && value !== '' ? value : null
+}
+
 /** The page's type check reads this file too, so no `node:crypto` here. */
 function fnv1a(text: string): string {
   let hash = 0x811c9dc5
@@ -62,11 +72,15 @@ function fnv1a(text: string): string {
 }
 
 function blockedJob(raw: string | undefined): Record<string, unknown> | null {
+  const job = jobOf(raw)
+  return job?.tempo === 'blocked' ? job : null
+}
+
+function jobOf(raw: string | undefined): Record<string, unknown> | null {
   if (raw === undefined) return null
   try {
     const job: unknown = JSON.parse(raw)
-    if (typeof job !== 'object' || job === null) return null
-    return (job as Record<string, unknown>).tempo === 'blocked' ? (job as Record<string, unknown>) : null
+    return typeof job === 'object' && job !== null ? (job as Record<string, unknown>) : null
   } catch {
     return null
   }

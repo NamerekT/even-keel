@@ -151,7 +151,7 @@ export class Reviews {
         // The work is not committed (BTN-222). The session is told as a chat answer is, by `--resume` whatever its
         // cache: the reply belongs to its own turn.
         this.deps.log(`review: ${task}: no pull request opened, ${englishOf(why)}; the session is told`)
-        const text = PROMPTS[this.deps.promptLanguage()].review.nothingAhead(this.deps.mainBranch(task))
+        const text = PROMPTS[this.deps.promptLanguage(task)].review.nothingAhead(this.deps.mainBranch(task))
         await this.handovers.deliver(chain, current, session, text, null, 'review')
       } else this.host.hold(chain, notice('review.notOpened', { task }, { cause: why }))
       return
@@ -256,10 +256,10 @@ export class Reviews {
       } else if (outcome.kind === 'closed') {
         pull.closed = 'unmerged'
         delete pull.feedback
-        pull.closedNote = closedText(pull.url, outcome.remarks, this.deps.promptLanguage(), this.deps.mainBranch(pull.task))
+        pull.closedNote = closedText(pull.url, outcome.remarks, this.deps.promptLanguage(pull.task), this.deps.mainBranch(pull.task))
         this.deps.log(`review: ${pull.task}: ${pull.url} is closed unmerged with ${outcome.remarks.length} remark(s), the task is skipped`)
       } else {
-        const language = this.deps.promptLanguage()
+        const language = this.deps.promptLanguage(pull.task)
         const text = feedbackText(pull.url, outcome.items, language, this.deps.mainBranch(pull.task))
         pull.feedback = withFeedback(pull.feedback, text, language)
         pull.seen.push(...outcome.items.map(eventKey))

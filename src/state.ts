@@ -43,6 +43,8 @@ export interface SessionView {
   startedAt: string
   lastActivityAt: string | null
   contextTokens: number
+  /** The model's context window, from the transcript or the agent's own answer; `null` — unknown, the page uses `ContextScale.window`. */
+  contextWindow: number | null
   cache: CacheWindow | null
   tokens: TokenTotals
   stage: Stage | null
@@ -58,6 +60,8 @@ export interface SessionRecord {
   startedAt: string | null
   lastActivityAt: string | null
   contextTokens: number
+  /** As `SessionView.contextWindow`, only from the transcript. */
+  contextWindow: number | null
   tokens: TokenTotals
   stage: Stage | null
   feed: FeedLine[]
@@ -106,6 +110,29 @@ export interface ProjectSettings {
   accounts: Record<string, string>
   /** Whether the tasks' run labels are read; `null` — as the shared `modelLabels` says. */
   modelLabels: boolean | null
+  /** The language of the project's prompts and of what Even Keel writes into its tracker, the shared one filled in. */
+  promptLanguage: Language
+  /** The prompt cache TTL of the project's sessions, the shared one filled in; `null` — the CLI's own choice. */
+  cacheTtl: CacheTtl | null
+  /** The checkpoint hook's first threshold for the project, the shared one filled in; `null` — calibrated. */
+  checkpointTokens: number | null
+  /** The project's own rows of the keys Even Keel sets too (`ci.*` and the four above); a key left out — as shared. */
+  own: OwnValues
+}
+
+/** The keys a project may set for itself or leave to Even Keel's value, which the settings panel shows as "as shared". */
+export type OwnKey = keyof OwnValues
+
+export interface OwnValues {
+  'ci.guard'?: boolean
+  'ci.kinds'?: CiKind[]
+  'ci.waitMinutes'?: number | null
+  'ci.recheckMain'?: boolean
+  'ci.fixTask'?: boolean
+  fillMilestone?: boolean
+  promptLanguage?: Language
+  cacheTtl?: CacheTtl | null
+  'stats.checkpointTokens'?: number | null
 }
 
 /** Which CIs of the project the chain counts after a push of main, and how long it waits for them. */
@@ -136,7 +163,7 @@ export interface StatsConfig {
   moves: Record<string, string>
   /** A folder group costing less than this in all goes to Other on /stats. */
   otherBelow: number
-  /** The checkpoint hook's first threshold for every project; null leaves it to the calibration. */
+  /** The checkpoint hook's first threshold for every project without its own; null leaves it to the calibration. */
   checkpointTokens: number | null
 }
 
@@ -178,6 +205,9 @@ export interface SharedForm {
   promptLanguage: Language
   hiddenSkills: string[]
   cacheTtl: CacheTtl | null
+  /** What a project without its own `ci` keys or `fillMilestone` runs on. */
+  ci: CiSettings
+  fillMilestone: boolean
   allowedHosts: string[]
   context: ContextScale
   stats: StatsConfig

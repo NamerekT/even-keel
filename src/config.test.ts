@@ -11,6 +11,8 @@ import {
   withIds,
   withProjectSettings,
 } from './config.js'
+import type { CiKind } from './ci/model.js'
+import type { ProjectSettings } from './state.js'
 import { SCHEMA_VERSION } from './storage/schema.js'
 import { DEFAULT_HIDDEN_SKILLS } from './tools/settings.js'
 
@@ -98,7 +100,9 @@ describe('parseConfig', () => {
       trackerProjects: {},
       brief: null,
       briefs: { ABC: null },
-      settings: { ABC: { branch: 'main', prompt: null, beforeStart: [], check: [], afterGreen: [], ci: DEFAULT_CI, remoteProfiles: {}, pullRequests: false, fillMilestone: false, changelog: 'CHANGELOG.md', provider: null, models: {}, accounts: {}, modelLabels: null } },
+      settings: { ABC: { branch: 'main', prompt: null, beforeStart: [], check: [], afterGreen: [], ci: DEFAULT_CI, remoteProfiles: {}, pullRequests: false, fillMilestone: false, changelog: 'CHANGELOG.md', provider: null, models: {}, accounts: {}, modelLabels: null, promptLanguage: 'en', cacheTtl: null, checkpointTokens: null, own: {} } },
+      ci: DEFAULT_CI,
+      fillMilestone: false,
       context: { window: 600_000, warn: 50, danger: 80 },
       provider: 'claude',
       models: { claude: 'opus' },
@@ -254,8 +258,15 @@ describe('parseConfig', () => {
         models: {},
         accounts: {},
         modelLabels: null,
+        promptLanguage: 'en',
+        cacheTtl: null,
+        checkpointTokens: null,
+        own: {},
       },
-      XYZ: { branch: 'main', prompt: null, beforeStart: [], check: [], afterGreen: [], ci: DEFAULT_CI, remoteProfiles: {}, pullRequests: false, fillMilestone: false, changelog: 'CHANGELOG.md', provider: null, models: {}, accounts: {}, modelLabels: null },
+      XYZ: {
+        ...{ branch: 'main', prompt: null, beforeStart: [], check: [], afterGreen: [], ci: DEFAULT_CI, remoteProfiles: {}, pullRequests: false, fillMilestone: false, changelog: 'CHANGELOG.md' },
+        ...{ provider: null, models: {}, accounts: {}, modelLabels: null, promptLanguage: 'en', cacheTtl: null, checkpointTokens: null, own: {} },
+      },
     })
   })
 
@@ -595,49 +606,45 @@ describe('chain rules in the config', () => {
 })
 
 describe('withProjectSettings', () => {
+  const base: ProjectSettings = {
+    ...{ branch: 'main', prompt: null, beforeStart: [], check: [], afterGreen: [], ci: DEFAULT_CI, remoteProfiles: {}, pullRequests: false, fillMilestone: false },
+    ...{ changelog: 'CHANGELOG.md', provider: null, models: {}, accounts: {}, modelLabels: null, promptLanguage: 'en', cacheTtl: null, checkpointTokens: null, own: {} },
+  }
+
   it('writes the main branch only when it is not main', () => {
-    const settings = { branch: 'master', prompt: null, beforeStart: [], check: [], afterGreen: [], ci: DEFAULT_CI, fillMilestone: false, provider: null, models: {}, accounts: {}, modelLabels: null }
+    const settings = { ...base, branch: 'master' }
     expect(withProjectSettings('C:\\abc', settings)).toEqual({ repo: 'C:\\abc', branch: 'master' })
     expect(withProjectSettings({ repo: 'C:\\abc', branch: 'master' }, { ...settings, branch: ' main ' })).toEqual({ repo: 'C:\\abc' })
   })
 
-  it('writes the CI settings only when they differ from the default, keeping the other keys', () => {
-    const settings = { branch: 'main', prompt: null, beforeStart: [], check: [], afterGreen: [], ci: DEFAULT_CI, fillMilestone: false, provider: null, models: {}, accounts: {}, modelLabels: null }
-    expect(withProjectSettings({ repo: 'C:\\abc', ci: { kinds: ['github'] } }, settings)).toEqual({ repo: 'C:\\abc' })
-    expect(withProjectSettings('C:\\abc', { ...settings, ci: { guard: true, kinds: ['github', 'forgejo'], waitMinutes: 10, recheckMain: true, fixTask: false } })).toEqual({
+  it('writes the own values of the keys Even Keel sets too, even one equal to the default, and removes the rest', () => {
+    expect(withProjectSettings({ repo: 'C:\\abc', ci: { kinds: ['github'] }, fillMilestone: true }, base)).toEqual({ repo: 'C:\\abc' })
+    const own = { 'ci.guard': true, 'ci.kinds': ['github', 'forgejo'] as CiKind[], 'ci.waitMinutes': null, fillMilestone: false, promptLanguage: 'ru' as const, cacheTtl: null, 'stats.checkpointTokens': 180_000 }
+    expect(withProjectSettings('C:\\abc', { ...base, ci: { ...DEFAULT_CI, fixTask: true }, own })).toEqual({
       repo: 'C:\\abc',
-      ci: { waitMinutes: 10 },
-    })
-    expect(withProjectSettings('C:\\abc', { ...settings, ci: { guard: true, kinds: [], waitMinutes: null, recheckMain: false, fixTask: true } })).toEqual({
-      repo: 'C:\\abc',
-      ci: { kinds: [], recheckMain: false, fixTask: true },
+      ci: { guard: true, kinds: ['forgejo', 'github'], waitMinutes: null },
+      fillMilestone: false,
+      promptLanguage: 'ru',
+      cacheTtl: null,
+      stats: { checkpointTokens: 180_000 },
     })
   })
 
-  it('writes the guard of main only when it is off, and keeps the CI keys it covers', () => {
-    const settings = { branch: 'main', prompt: null, beforeStart: [], check: ['npm test'], afterGreen: [], ci: { ...DEFAULT_CI, guard: false, waitMinutes: 10 }, fillMilestone: false, provider: null, models: {}, accounts: {}, modelLabels: null }
-    expect(withProjectSettings('C:\\abc', settings)).toEqual({ repo: 'C:\\abc', commands: { check: ['npm test'] }, ci: { guard: false, waitMinutes: 10 } })
-    expect(withProjectSettings({ repo: 'C:\\abc', ci: { guard: false } }, { ...settings, check: [], ci: DEFAULT_CI })).toEqual({ repo: 'C:\\abc' })
-  })
-
-  it('writes the milestone switch only when it is on', () => {
-    const settings = { branch: 'main', prompt: null, beforeStart: [], check: [], afterGreen: [], ci: DEFAULT_CI, fillMilestone: true, provider: null, models: {}, accounts: {}, modelLabels: null }
-    expect(withProjectSettings('C:\\abc', settings)).toEqual({ repo: 'C:\\abc', fillMilestone: true })
-    expect(withProjectSettings({ repo: 'C:\\abc', fillMilestone: true }, { ...settings, fillMilestone: false })).toEqual({ repo: 'C:\\abc' })
+  it('writes an own key only when it changed', () => {
+    const entry = { repo: 'C:\\abc', ci: { fixTask: true } }
+    const settings = { ...base, own: { 'ci.guard': false } }
+    expect(withProjectSettings(entry, settings, (field) => field === 'own.ci.guard')).toEqual({ repo: 'C:\\abc', ci: { fixTask: true, guard: false } })
   })
 
   it('writes the run settings the project has of its own, blank names left out', () => {
-    const settings = {
-      ...{ branch: 'main', prompt: null, beforeStart: [], check: [], afterGreen: [], ci: DEFAULT_CI, fillMilestone: false },
-      ...{ provider: 'codex', models: { codex: ' gpt-5.6-luna ', claude: ' ' }, accounts: { claude: 'team-api' }, modelLabels: false },
-    }
+    const settings = { ...base, provider: 'codex', models: { codex: ' gpt-5.6-luna ', claude: ' ' }, accounts: { claude: 'team-api' }, modelLabels: false }
     expect(withProjectSettings('C:\\abc', settings)).toEqual({ repo: 'C:\\abc', provider: 'codex', models: { codex: 'gpt-5.6-luna' }, accounts: { claude: 'team-api' }, modelLabels: false })
     const inherited = { ...settings, provider: null, models: { codex: ' ' }, accounts: {}, modelLabels: null }
     expect(withProjectSettings({ repo: 'C:\\abc', provider: 'codex', models: { codex: 'x' }, accounts: { claude: 'y' }, modelLabels: true }, inherited)).toEqual({ repo: 'C:\\abc' })
   })
 
   it('writes the check commands and the commands after a green main next to the commands before start', () => {
-    const settings = { branch: 'main', prompt: null, beforeStart: ['npm ci'], check: [' npm test ', ''], afterGreen: ['npm run build '], ci: DEFAULT_CI, fillMilestone: false, provider: null, models: {}, accounts: {}, modelLabels: null }
+    const settings = { ...base, beforeStart: ['npm ci'], check: [' npm test ', ''], afterGreen: ['npm run build '] }
     expect(withProjectSettings({ repo: 'C:\\abc', commands: { check: ['old'] } }, settings)).toEqual({
       repo: 'C:\\abc',
       commands: { beforeStart: ['npm ci'], check: ['npm test'], afterGreen: ['npm run build'] },

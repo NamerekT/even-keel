@@ -555,7 +555,7 @@ function Block(props: BlockProps) {
           <span className="block__metrics">
             <span className="block__metrics-row">
               {metered.cache !== null && <CacheClock cache={metered.cache} />}
-              <ContextMeter tokens={metered.contextTokens} scale={scale} />
+              <ContextMeter tokens={metered.contextTokens} window={metered.contextWindow} scale={scale} />
             </span>
             <span className="block__metrics-row block__metrics-row--who">
               <AccountTag email={metered.account} />

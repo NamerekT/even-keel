@@ -15,6 +15,7 @@ export async function readSessionRecord(projectsDir: string, sessionId: string):
     startedAt: summary.firstActivityAt,
     lastActivityAt: summary.lastActivityAt,
     contextTokens: summary.contextTokens,
+    contextWindow: summary.contextWindow,
     tokens: summary.tokens,
     stage: summary.stage,
     feed: summary.feed,

@@ -14,6 +14,7 @@ import { AccountWatcher } from './account/watcher.js'
 import { AGENTS } from './agent/adapters.js'
 import type { Agent, SessionHandle, SessionStart } from './agent/contract.js'
 import { sessionBase } from './agent/env.js'
+import { ContextWindows } from './agent/windows.js'
 import { outdatedDaemonView, VersionWatcher } from './agent/versions.js'
 import { addMarketplace, updateMarketplace } from './claude/cli.js'
 import { CLAUDE } from './claude/name.js'
@@ -77,6 +78,7 @@ import { importForgejo, importProfiles } from './profiles/store.js'
 import { slotOccupants } from './sessions/occupants.js'
 import { locateWorktree } from './sessions/place.js'
 import type { EvenKeelState, SessionView } from './state.js'
+import { withinWindow } from './stats/checkpoint.js'
 import { StatsReader } from './stats/reader.js'
 import { Writes } from './storage/database.js'
 import { keptDatabase } from './storage/owner.js'
@@ -98,6 +100,8 @@ import { updatesView } from './updates/release.js'
 import { installed, UpdateWatcher } from './updates/watcher.js'
 
 const SESSION_POLL_MS = 3_000
+/** How often the CLI and the account's settings are looked at for a context window that may have changed. */
+const WINDOW_RECHECK_MS = 60_000
 const AGENT_TIMEOUT_MS = 30_000
 const CHANGELOG_TIMEOUT_MS = 10 * 60_000
 const LIMITS_POLL_MS = 2_000
@@ -340,7 +344,12 @@ let tally = newTally()
 /** What `tally` runs on (`tallyKey`), and the restarts in turn: the page and `.env` may change it at once. */
 let tallyRuns = tallyKey(tallyMode(), process.env)
 let tallyRestarts = Promise.resolve()
-const stats = new StatsReader(tally.reader, () => configStore.current.projects, () => configStore.current.stats)
+const stats = new StatsReader(
+  tally.reader,
+  () => configStore.current.projects,
+  () => configStore.current.stats,
+  (project) => configStore.current.settings[project]?.checkpointTokens ?? configStore.current.stats.checkpointTokens,
+)
 let ledger = loadLedger(accountFile)
 
 const saveAccounts = (next: AccountLedger) => {
@@ -551,12 +560,26 @@ const accountNow = (key = account.view.active) => {
   return { id: accountId(key, email), ready: email !== null && launchBlock(view, key) === undefined }
 }
 
+const contextWindows = new ContextWindows({
+  probe: async (key, model, task) => {
+    const home = homeOf(key)
+    return (await agentOf(home).contextWindow?.(home, model, settingsFor(task))) ?? null
+  },
+  stamp: async (key) => {
+    const home = homeOf(key)
+    return (await agentOf(home).windowStamp?.(home)) ?? ''
+  },
+  recheckMs: WINDOW_RECHECK_MS,
+  onError: (error) => console.warn(`context window: ${error instanceof Error ? error.message : String(error)}`),
+})
+
 const monitor = new SessionMonitor({
   agentOf,
   homes: () => homes.list(),
   emailOf: (key) => account.emailOf(key),
   apiKey: (key) => account.apiKey(key),
   projectKeys: () => Object.keys(configStore.current.projects),
+  contextWindow: (key, model, task) => (agentOf(homeOf(key)).contextWindow === undefined ? null : contextWindows.peek(key, model, task)),
   intervalMs: SESSION_POLL_MS,
   onAgents: (list) => {
     const before = JSON.stringify(account.view.loginBlock)
@@ -602,7 +625,7 @@ const choiceFor = (project: string | undefined, task?: string): RunChoice =>
   runChoice(task === undefined ? undefined : knownTask(task), runSettings(configStore.current, project), hasAccount)
 
 const planFor = (task: string, prompt: string, project = projectOf(task)): LaunchPlan => {
-  const full = withUnattended(prompt, dispatcher.state.unattended, promptLanguage())
+  const full = withUnattended(prompt, dispatcher.state.unattended, promptLanguage(project))
   const plan = launchPlan(knownTask(task), full, runSettings(configStore.current, project), configStore.current.modelPrompts, hasAccount)
   if (plan.warning !== null) console.warn(plan.warning)
   return plan
@@ -671,7 +694,8 @@ await changelogs.load()
 /** The account holding the Even Keel role, the one the header shows: the shared provider's entry of the shared pool. */
 const activeAccount = () => configStore.current.accounts[configStore.current.provider]!
 
-const promptLanguage = () => configStore.current.promptLanguage
+/** The project's own, else the shared one. */
+const promptLanguage = (project?: string) => (project === undefined ? undefined : configStore.current.settings[project]?.promptLanguage) ?? configStore.current.promptLanguage
 
 const trackerPlace = (project: string): TrackerPlace | null => {
   const name = configStore.current.trackers[project]!
@@ -681,15 +705,15 @@ const trackerPlace = (project: string): TrackerPlace | null => {
 
 const briefed = async (task: string, given: string, project = projectOf(task)): Promise<string> => {
   if (project === undefined) return given
-  const prompt = withTracker(given, trackerPlace(project), promptLanguage())
+  const prompt = withTracker(given, trackerPlace(project), promptLanguage(project))
   if (!briefOn(project)) return prompt
   const link = linkOf(project)
-  return link === undefined ? prompt : withBrief(prompt, await link.run(async (tracker) => tracker.brief?.(task)), promptLanguage())
+  return link === undefined ? prompt : withBrief(prompt, await link.run(async (tracker) => tracker.brief?.(task)), promptLanguage(project))
 }
 
 /** The project's own prompt, for a new session only: a resumed one already has it. */
 const withProject = (prompt: string, project: string | undefined): string =>
-  withProjectPrompt(prompt, project === undefined ? null : (configStore.current.settings[project]?.prompt ?? null), promptLanguage())
+  withProjectPrompt(prompt, project === undefined ? null : (configStore.current.settings[project]?.prompt ?? null), promptLanguage(project))
 
 /** The settings files whose `enabledPlugins` a chain session would read. */
 const pluginSettings = (repo: string) =>
@@ -704,7 +728,7 @@ const settingsFor = (task: string, project = projectOf(task)): string | undefine
         dispatcher.state.trimTools,
         configStore.current.hiddenSkills,
         homes.global.dir,
-        configStore.current.cacheTtl,
+        configStore.current.settings[project]?.cacheTtl ?? null,
       )
 
 function projectOf(task: string): string | undefined {
@@ -761,7 +785,7 @@ const dispatcher = new Dispatcher(await loadChainState(db, configStore.current.i
     const home = homeOf(choiceFor(project, task).account)
     await daemons.prepare(home)
     const place = await places.ready(project, task)
-    const started = withProject(await briefed(task, startPrompt(task, place, promptLanguage(), branchOf(project), pullRequestsOn(project)), project), project)
+    const started = withProject(await briefed(task, startPrompt(task, place, promptLanguage(project), branchOf(project), pullRequestsOn(project)), project), project)
     const { prompt, model, provider, fallback } = planFor(task, extra === undefined ? started : `${started}\n${extra}\n`, project)
     const extras = agentExtras(home, project, task)
     const sessionId = await launchIn(home, { name: task, cwd: place.path, prompt, model, settings: settingsFor(task, project), ...extras })
@@ -799,7 +823,7 @@ const dispatcher = new Dispatcher(await loadChainState(db, configStore.current.i
   limitReset: (project, task) => exhaustedReset(limits.limits(choiceFor(project, task).account)),
   limitResetAfter: (key, at) => (account.apiKey(key) ? account.creditBackAfter(key, at) : limitResetAfter(limits.limits(key), at)),
   packagesBlocked: (project) => packages.blocked(project),
-  promptLanguage,
+  promptLanguage: (task) => promptLanguage(projectOf(task)),
   mainBranch: (task) => {
     const project = projectOf(task)
     return project === undefined ? DEFAULT_BRANCH : branchOf(project)
@@ -808,7 +832,7 @@ const dispatcher = new Dispatcher(await loadChainState(db, configStore.current.i
     const project = projectOf(task)
     return project !== undefined && pullRequestsOn(project)
   },
-  resume: (task, session) => resumeWith(task, session, resumePrompt(promptLanguage())),
+  resume: (task, session) => resumeWith(task, session, resumePrompt(promptLanguage(projectOf(task)))),
   reply: (task, session, prompt) => resumeWith(task, session, prompt),
   relay: async (task, session, handoff, reason) => {
     const previous = homes.find(session.account)
@@ -831,7 +855,7 @@ const dispatcher = new Dispatcher(await loadChainState(db, configStore.current.i
     const home = homeOf(choiceFor(project).account)
     await daemons.prepare(home)
     const place = await places.ready(project, name)
-    const { prompt, model } = planFor(name, withProject(fixPrompt(report, place, promptLanguage(), branchOf(project)), project), project)
+    const { prompt, model } = planFor(name, withProject(fixPrompt(report, place, promptLanguage(project), branchOf(project)), project), project)
     const extras = agentExtras(home, project, name)
     return launchIn(home, { name, cwd: place.path, prompt, model, settings: settingsFor(name, project), ...extras })
   },
@@ -947,7 +971,7 @@ async function answerSession(
   } catch (error) {
     throw fail('answer.file', { name: reply.files.map((file) => file.name).join(', ') }, { detail: (error as Error).message }, { cause: error })
   }
-  const prompt = replyPrompt({ ...reply, files }, question, promptLanguage())
+  const prompt = replyPrompt({ ...reply, files }, question, promptLanguage(project))
   if (midTurn) {
     mailbox.post(task, sessionId, reply.text, files)
     console.log(`chain: ${task}: the user's message from the page waits in the mailbox of the session ${sessionId}${files.length > 0 ? ` with ${files.length} file(s)` : ''}`)
@@ -1220,8 +1244,9 @@ let server = createEvenKeelServer({
   checkpoint: async (sessionId) => {
     const run = handoffsOf(launches, sessionId)
     if (run === undefined) return undefined
+    const window = sessions.find((view) => view.sessionId === sessionId)?.contextWindow ?? configStore.current.context.window
     const { first, source } = await stats.checkpoint(run.project)
-    return { ...run, first, source, context: monitor.contextOf(sessionId) ?? null }
+    return { ...run, ...withinWindow({ first, source }, window), context: monitor.contextOf(sessionId) ?? null }
   },
   handoffNote: async (sessionId) => {
     if (handoffsOf(launches, sessionId) === undefined) return undefined

@@ -1,5 +1,18 @@
 import { describe, expect, it } from 'vitest'
-import { checkpointThreshold, DEFAULT_FIRST, type CheckpointMeasure } from './checkpoint.js'
+import { checkpointThreshold, DEFAULT_FIRST, withinWindow, type CheckpointMeasure } from './checkpoint.js'
+
+describe('withinWindow', () => {
+  it('lowers a default or calibrated threshold to the share of the session window, marking it so', () => {
+    expect(withinWindow({ first: DEFAULT_FIRST, source: 'default' }, 258_400)).toEqual({ first: 186_000, source: 'window' })
+    expect(withinWindow({ first: 220_000, source: 'calibrated' }, 250_000)).toEqual({ first: 180_000, source: 'window' })
+  })
+
+  it('leaves a threshold under the share, one without a window, and one pinned in the settings alone', () => {
+    expect(withinWindow({ first: 160_000, source: 'calibrated' }, 258_400)).toEqual({ first: 160_000, source: 'calibrated' })
+    expect(withinWindow({ first: DEFAULT_FIRST, source: 'default' }, null)).toEqual({ first: DEFAULT_FIRST, source: 'default' })
+    expect(withinWindow({ first: 999_999, source: 'config' }, 250_000)).toEqual({ first: 999_999, source: 'config' })
+  })
+})
 
 const measured = (over: Partial<CheckpointMeasure> = {}): CheckpointMeasure => ({
   handoffs: 163,

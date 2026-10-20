@@ -21,7 +21,7 @@ Some settings are maps whose entries override one by one: `models`, `accounts` a
 
 ## Inventory
 
-As of 2026-10-19 (schema version 9, database step 9). "Levels": G — Even Keel, P — project, T — task label. "Written
+As of 2026-10-20 (schema version 9, database step 9; BTN-187 widened levels, which needs no step). "Levels": G — Even Keel, P — project, T — task label. "Written
 by": page, hand (a file through `config-import`, `docs/storage.md`), service. Every key applies at once, without a
 restart of the service (BTN-130). The keys are those of the config's format, which the database's rows keep (BTN-199).
 
@@ -34,7 +34,7 @@ restart of the service (BTN-130). The keys are those of the config's format, whi
 | `brief` | G, P | P over G; `null` — auto: on exactly when no enabled package of the project brings its tracker's MCP server (`bringsServer`, BTN-225) | page, hand | `null` |
 | `chain.active`, `chain.terminal` | G, P | each key P over G; `null` — back to the status categories | page, hand | `null` |
 | `chain.requiredLabels` | G, P | each key P over G, the list replaced whole | page, hand | `[]` |
-| `chain.excludedLabels` | G, P | each key P over G, the list replaced whole | page, hand | `['Manual', 'Вручную']` |
+| `chain.excludedLabels` | G, P | each key P over G, the list replaced whole; `MANUAL_LABELS` are excluded on top of any list (BTN-187) | page, hand | `[]` |
 | `provider` | G, P | P over G | page, hand, service (the "Even Keel" role, `saveActive`) | `claude` |
 | `models.<provider>` | G, P | by provider, P over G | page, hand | `{ claude: 'opus' }` |
 | `accounts.<provider>` | G, P | by provider, P over G | page, hand, service (`saveActive`) | `{ claude: 'global', codex: 'codex' }` |
@@ -43,13 +43,13 @@ restart of the service (BTN-130). The keys are those of the config's format, whi
 | `modelLabels` | G, P | P over G | page, hand | false |
 | `modelPrompts.<model>` | G | — | page, hand | `{}` |
 | `language` | G | — | page, hand | `null` (the browser's) |
-| `promptLanguage` | G | — | page, hand | `language`, else `en` |
+| `promptLanguage` | G, P | P over G | page, hand | `language`, else `en` |
 | `hiddenSkills` | G | — | page, hand | `DEFAULT_HIDDEN_SKILLS` |
-| `cacheTtl` | G | — | page, hand | `null` (the CLI's) |
+| `cacheTtl` | G, P | P over G; a project's `null` is its own value (the CLI's) | page, hand | `null` (the CLI's) |
 | `allowedHosts` | G | — | page, hand | `[]` |
-| `context.window`, `.warn`, `.danger` | G | — | page, hand | 600000, 50, 80 |
+| `context.window`, `.warn`, `.danger` | G | — `window` only stands in for a session whose agent gave no window of its own (BTN-187, `docs/sessions.md`) | page, hand | 600000, 50, 80 |
 | `stats.compare.*`, `stats.moves`, `stats.otherBelow` | G | — | page, hand | `DEFAULT_COMPARE`, `{}`, 0 |
-| `stats.checkpointTokens` | G | — (pins the threshold, calibration off) | page, hand | `null` (calibrated per project) |
+| `stats.checkpointTokens` | G, P | P over G (pins the threshold, calibration off; a project's `null` calibrates it) | page, hand | `null` (calibrated per project) |
 | `tally` | G | — (`off`, `local`, `server`) | page (the stats setup and Settings → Stats, sent at once, `stats/tally`), hand, service (the mode an older install ran on, at startup) | `null` — not chosen, nothing collected (`docs/stats.md`) |
 | `updates.check`, `updates.notify` | G | — | page, hand, service (`muteUpdates`) | true, true |
 | `unattended` | G | — | page (a switch on `/settings`, sent at once, `chain/unattended`), hand | false |
@@ -60,8 +60,8 @@ restart of the service (BTN-130). The keys are those of the config's format, whi
 | `changelog` | P | — | page, hand | `CHANGELOG.md` (a path relative to the repository's root; absolute or `..` is `config.changelogPath`; BTN-209, `docs/sessions.md`) |
 | `prompt` | P | — | page, hand | `null` |
 | `commands.beforeStart`, `.check`, `.afterGreen` | P | each key on its own | page, hand | `[]` |
-| `ci.guard`, `.kinds`, `.waitMinutes`, `.recheckMain`, `.fixTask` | P | each key on its own over `DEFAULT_CI` | page, hand | `DEFAULT_CI` |
-| `fillMilestone` | P | — | page, hand | false |
+| `ci.guard`, `.kinds`, `.waitMinutes`, `.recheckMain`, `.fixTask` | G, P | each key on its own, P over G over `DEFAULT_CI`; a project's `waitMinutes: null` is its own value | page, hand | `DEFAULT_CI` |
+| `fillMilestone` | G, P | P over G | page, hand | false |
 | `pullRequests` | P | — | page, hand | false (PR mode, BTN-205, `docs/chain.md`) |
 | `remoteProfiles` | P | — | page, hand | `{}` — the GitHub and Forgejo profile ids the remotes' CI and pull requests take; a missing or unfit one is the automatic choice (BTN-231, `docs/ci.md`) |
 
@@ -76,7 +76,8 @@ schema version of a file of the format.
 | a package's `default`, `settings` | `state/packages.json` `packages.<name>` | G | the package level: projects start from it |
 | a project's `on`, `off`, `settings` | `state/packages.json` `projects.<id>` | P | over the package's, `settings` by variable |
 | the run label `<Provider> \| <model>`, bare `<Provider>` | tracker label | T | sets `provider` and `models.<provider>`, read only while `modelLabels` is on |
-| `Manual`/`Вручную` and other excluded labels | tracker label | T | matched by `chain.excludedLabels`, a G/P setting |
+| `Manual`/`Вручную` | tracker label | T | `MANUAL_LABELS`, built in: the chain skips the task whatever `chain.excludedLabels` holds |
+| other excluded labels | tracker label | T | matched by `chain.excludedLabels`, a G/P setting |
 | required labels | tracker label | T | matched by `chain.requiredLabels` |
 | `Question`/`Вопрос` | tracker label | T | `QUESTION_LABELS`: the card's mark and the prompts' wording; it changes neither the order nor the launch |
 | Tally's `evenKeelUrl`, `signs`, `classify`, `reportsSince`, `prices`, `unpriced` | `tally/tally.config.json` | — | the collector's own settings (`tally/CLAUDE.md`) |
@@ -105,18 +106,19 @@ schema version of a file of the format.
 
 ## Mismatches
 
-What sits at a level it should not, or misses one it should have. BTN-187 takes the first group.
+What sits at a level it should not, or misses one it should have. BTN-187 fixed the first group (2026-10-20); the
+entries stay as the reason for the levels.
 
-- `ci.*` is project-only: five projects that want `fixTask` set it five times. A shared level, each key over its own.
-- `promptLanguage` is shared only, though projects differ in the language of their tasks. Add the project level.
-- `stats.checkpointTokens` pins the threshold for every project while the calibration it switches off is per project;
-  and it steers sessions, though it lives under `stats`. Add the project level; move the key under `sessions.` at the
-  import into the database, where the keys are translated anyway.
-- `cacheTtl` lacks the project level, `fillMilestone` the shared one.
-- `context.window` is a property of the model, not of Even Keel: by model, with a fallback row.
-- `chain.excludedLabels` carries `Manual`/`Вручную` only as its default, and a list is replaced whole: a project, or a
-  hand-written shared list, with its own excluded labels silently runs the manual tasks. Make the manual labels
-  built-in like `QUESTION_LABELS` and the default list empty.
+- `ci.*` was project-only: five projects that want `fixTask` set it five times. Now a shared level, each key over its own.
+- `promptLanguage` was shared only, though projects differ in the language of their tasks. Now on both levels.
+- `stats.checkpointTokens` pinned the threshold for every project while the calibration it switches off is per project.
+  Now on both levels; the key stays under `stats`.
+- `cacheTtl` lacked the project level, `fillMilestone` the shared one. Both now on both levels.
+- `context.window` is a property of the model, not of Even Keel. The window now comes from the agent (`/context` of
+  Claude, the rollout of Codex, `docs/sessions.md`), and the setting is only the fallback.
+- `chain.excludedLabels` carried `Manual`/`Вручную` only as its default, and a list is replaced whole: a project, or a
+  hand-written shared list, with its own excluded labels silently ran the manual tasks. The manual labels are now
+  built in (`MANUAL_LABELS`, like `QUESTION_LABELS`) and the default list is empty.
 - `unattended` and `trimTools` were user settings kept with the chain state (`chain_flags` of the database since BTN-147,
   `state/chain.json` before), and `updates.dismissed` was state kept in the config. Each moved to its own side with the
   settings (BTN-199): the switches are Even Keel rows, the closed version is in `service_state`.
@@ -169,7 +171,8 @@ code (`mirrorDefinitions`).
   merge or default on their own — all of them do now: `chain.*`, `ci.*`, `commands.*`, `context.*`, `stats.compare.*`,
   `updates.*`. A list (`kinds`, `hiddenSkills`, the labels, a command list) is one value, replaced whole, as now.
 - **A map whose entries merge across levels gets a qualifier**: `models`, `accounts` and `execution` by provider,
-  `context.window` by model (BTN-187), a package's switch and variables by package. A map with free keys that lives at
+  a package's switch and variables by package. `context.window` got none: BTN-187 takes the window from the agent and
+  leaves the setting as the fallback. A map with free keys that lives at
   one level only (`modelPrompts`, `stats.moves`) is one `json` value.
 - **No row is inheritance; JSON `null` is a value.** `chain.active: null` (back to the categories over a shared list),
   `ci.waitMinutes: null`, `cacheTtl: null` are rows. "As shared" on the page deletes the row; nothing stores "inherit".
@@ -272,7 +275,7 @@ there is no mapping table:
 - Two labels feeding the same setting with different values — a warning in the log and the project's value, as
   `runChoice` does now.
 - Flags are not values: excluded and required labels are G/P settings that read labels, the manual labels become
-  built-in (BTN-187), the question labels only mark the card.
+  built in (`MANUAL_LABELS`, BTN-187), the question labels only mark the card.
 
 The label syntax is part of the public contract (README), so it is code, not data. If users ever want their own names
 (`Сонет` for a model), the cheap way is a G/P setting `labels.aliases` (alias → canonical label), applied before the

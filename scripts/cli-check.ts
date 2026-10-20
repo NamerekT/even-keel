@@ -1,7 +1,8 @@
 /**
  * The live check of an agent's CLI version before it becomes the checked one (BTN-253, `docs/releases.md`): one session
  * of a cheap model goes through what the chain and the page do with a session, by the same `Agent` calls — the copy of
- * the version, the sign-in, a launch, a question, the answer from the chat, the chat's feed, a checkpoint, the stop.
+ * the version, the sign-in, a launch, a question, the answer from the chat, the chat's feed, a checkpoint, the context
+ * window, the stop.
  *
  *   npm run cli-check -- claude <account> [version] [--model <model>] [--no-usage]
  *   npm run cli-check -- codex <account> [version] [--model <model>] [--no-usage]
@@ -259,6 +260,13 @@ async function check(
     if ((await agent.record(home, resumed)) === undefined) throw new Error('no record')
     if (!(await agent.transcripts(home)).includes(resumed)) throw new Error('not among the transcripts')
   })
+  // The page's context bar and the checkpoint threshold's cap read the window: Claude's from `/context`, Codex's from the rollout.
+  await step('the context window', async () => {
+    const asked = agent.contextWindow !== undefined
+    const window = asked ? await agent.contextWindow!(home, options.model) : ((await agent.record(home, resumed))?.contextWindow ?? null)
+    if (window === null) throw new Error(asked ? 'no window in the answer of /context' : 'no window in the transcript')
+    return window
+  }, (window) => `${window} tokens`)
   await step('stop', async () => {
     await agent.stop(home, handleOf(entry))
     const after = await entryOf(resumed)

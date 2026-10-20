@@ -1,13 +1,14 @@
-import type { StatusCategory, TaskStatus } from '../tracker/model.js'
+import { MANUAL_LABELS, type StatusCategory, type TaskStatus } from '../tracker/model.js'
 
 export interface ChainRules {
   active: string[] | null
   terminal: string[] | null
   requiredLabels: string[]
+  /** Kept out besides `MANUAL_LABELS`, which no list can let in (BTN-187). */
   excludedLabels: string[]
 }
 
-export const DEFAULT_RULES: ChainRules = { active: null, terminal: null, requiredLabels: [], excludedLabels: ['Manual', 'Вручную'] }
+export const DEFAULT_RULES: ChainRules = { active: null, terminal: null, requiredLabels: [], excludedLabels: [] }
 
 const ACTIVE_CATEGORIES: readonly StatusCategory[] = ['ToDo', 'Active']
 const TERMINAL_CATEGORIES: readonly StatusCategory[] = ['Won', 'Lost']
@@ -29,9 +30,12 @@ export function isDone(rules: ChainRules, status: TaskStatus): boolean {
   return status.category === 'Won' && isTerminal(rules, status)
 }
 
+/** The labels that keep a task out: the manual ones and the rules' own. */
+export const excludedOf = (rules: ChainRules) => [...MANUAL_LABELS, ...rules.excludedLabels]
+
 /** Closed, or kept out for good by an excluded label: the chain will not take it whatever happens to it. */
 export function excludes(rules: ChainRules, task: { status: TaskStatus; labels: string[] }): boolean {
-  return isTerminal(rules, task.status) || task.labels.some((label) => listed(rules.excludedLabels, label))
+  return isTerminal(rules, task.status) || task.labels.some((label) => listed(excludedOf(rules), label))
 }
 
 export function admits(rules: ChainRules, task: { status: TaskStatus; labels: string[] }): boolean {

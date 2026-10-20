@@ -72,6 +72,8 @@ export function runLabelText({ provider, model }: RunLabel): string {
 }
 
 export const QUESTION_LABELS = ['Question', 'Вопрос']
+/** A task the user runs themselves: never in the chain, whatever `chain.excludedLabels` says. */
+export const MANUAL_LABELS = ['Manual', 'Вручную']
 
 export interface StatusChange {
   id: string

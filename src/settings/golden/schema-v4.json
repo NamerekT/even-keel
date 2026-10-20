@@ -15,29 +15,20 @@
     "active": null,
     "terminal": null,
     "requiredLabels": [],
-    "excludedLabels": [
-      "Manual",
-      "Вручную"
-    ]
+    "excludedLabels": []
   },
   "rules": {
     "ABC": {
       "active": null,
       "terminal": null,
       "requiredLabels": [],
-      "excludedLabels": [
-        "Manual",
-        "Вручную"
-      ]
+      "excludedLabels": []
     },
     "XYZ": {
       "active": null,
       "terminal": null,
       "requiredLabels": [],
-      "excludedLabels": [
-        "Manual",
-        "Вручную"
-      ]
+      "excludedLabels": []
     }
   },
   "slots": {
@@ -82,7 +73,11 @@
       "provider": null,
       "models": {},
       "accounts": {},
-      "modelLabels": null
+      "modelLabels": null,
+      "cacheTtl": null,
+      "checkpointTokens": null,
+      "own": {},
+      "promptLanguage": "en"
     },
     "XYZ": {
       "branch": "master",
@@ -107,7 +102,11 @@
       "provider": null,
       "models": {},
       "accounts": {},
-      "modelLabels": null
+      "modelLabels": null,
+      "cacheTtl": null,
+      "checkpointTokens": null,
+      "own": {},
+      "promptLanguage": "en"
     }
   },
   "context": {
@@ -160,6 +159,17 @@
     "dataviz"
   ],
   "cacheTtl": null,
+  "ci": {
+    "guard": true,
+    "kinds": [
+      "forgejo",
+      "github"
+    ],
+    "waitMinutes": null,
+    "recheckMain": true,
+    "fixTask": false
+  },
+  "fillMilestone": false,
   "parallel": 1,
   "unattended": false,
   "trimTools": true,

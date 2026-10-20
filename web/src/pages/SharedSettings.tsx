@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react'
 import { CLI_SOURCES, EXECUTION_MODES } from '../../../src/agent/providers.js'
+import { CI_KINDS, type CiKind } from '../../../src/ci/model.js'
 import { LANGUAGES, type Language } from '../../../src/language.js'
 import type { CacheTtl, EvenKeelState, SharedForm } from '../../../src/state.js'
 import { offeredProviders } from '../accounts.js'
@@ -16,6 +17,7 @@ import {
   HelpTip,
   linesOf,
   marksOf,
+  minutesOf,
   ProviderGrid,
   RULE_KEYS,
   RuleFields,
@@ -23,6 +25,7 @@ import {
   rulesText,
   sameBy,
   SaveBar,
+  shown,
   unplaced,
   useFieldErrors,
   wholeOf,
@@ -41,13 +44,14 @@ const SCOPE = SHARED_SCOPE
 const EXECUTED = Object.keys(EXECUTION_MODES)
 
 const GROUPS = [
-  { id: 'chain', keys: ['parallel', 'tracker', 'brief', ...RULE_KEYS] },
+  { id: 'chain', keys: ['parallel', 'tracker', 'brief', 'fillMilestone', ...RULE_KEYS] },
   {
     id: 'models',
     keys: ['provider', ...providerKeys('models'), ...providerKeys('accounts'), ...providerKeys('execution', EXECUTED), ...providerKeys('cli'), 'modelLabels', 'modelPrompts', 'promptLanguage'],
   },
   { id: 'sessions', keys: ['hiddenSkills', 'window', 'warn', 'danger', 'checkpointTokens'] },
   { id: 'claude', keys: ['cacheTtl'] },
+  { id: 'ci', keys: ['guard', 'kinds', 'wait', 'recheck', 'fixTask'] },
   { id: 'page', keys: ['language', 'allowedHosts', 'updatesCheck', 'updatesNotify'] },
   { id: 'stats', keys: ['minTasks', 'minSessions', 'days', 'otherBelow', 'moves'] },
   // Each credential is applied on its own and never kept in a draft.
@@ -91,6 +95,12 @@ const valuesOf = (form: SharedForm): Values => ({
   moves: linesText(Object.entries(form.stats.moves).map(lineOf)),
   updatesCheck: form.updates.check,
   updatesNotify: form.updates.notify,
+  fillMilestone: form.fillMilestone,
+  guard: form.ci.guard,
+  kinds: form.ci.kinds,
+  wait: form.ci.waitMinutes === null ? '' : String(form.ci.waitMinutes),
+  recheck: form.ci.recheckMain,
+  fixTask: form.ci.fixTask,
 })
 
 const amountOf = (text: string): number | undefined => (text.trim() !== '' && Number.isFinite(Number(text)) ? Number(text) : undefined)
@@ -101,9 +111,10 @@ function formOf(values: Values): SharedForm | undefined {
   const numbers = ['parallel', 'window', 'minTasks', 'minSessions', 'days'].map((key) => wholeOf(text(key), 0))
   const [warn, danger, otherBelow] = ['warn', 'danger', 'otherBelow'].map((key) => amountOf(text(key)))
   const checkpointTokens = text('checkpointTokens').trim() === '' ? null : wholeOf(text('checkpointTokens'), 0)
+  const waitMinutes = minutesOf(text('wait'))
   const [parallel, window, minTasks, minSessions, days] = numbers
   const moves = linesOf(text('moves')).map(pairOf)
-  if (numbers.includes(undefined) || warn === undefined || danger === undefined || otherBelow === undefined || checkpointTokens === undefined) return undefined
+  if (numbers.includes(undefined) || warn === undefined || danger === undefined || otherBelow === undefined || checkpointTokens === undefined || waitMinutes === undefined) return undefined
   if (moves.some(([from, to]) => from === '' || to === '')) return undefined
   const language = text('language')
   return {
@@ -131,6 +142,14 @@ function formOf(values: Values): SharedForm | undefined {
       checkpointTokens,
     },
     updates: { check: values.updatesCheck as boolean, notify: values.updatesNotify as boolean },
+    ci: {
+      guard: values.guard as boolean,
+      kinds: CI_KINDS.filter((kind) => (values.kinds as readonly string[]).includes(kind)),
+      waitMinutes,
+      recheckMain: values.recheck as boolean,
+      fixTask: values.fixTask as boolean,
+    },
+    fillMilestone: values.fillMilestone as boolean,
   }
 }
 
@@ -206,6 +225,13 @@ export function SharedSettings({ state }: { state: EvenKeelState }) {
       <FieldNote error={errorOf(key)} />
     </div>
   )
+  const check = (key: string, label: string, hint: string, disabled = false) => (
+    <CheckField className={marks.box(key)} label={label} hint={hint} checked={draft.edit[key] as boolean} disabled={disabled} onChange={(on) => edit(key, on)}>
+      {marks.note(key)}
+    </CheckField>
+  )
+  const kinds = draft.edit.kinds as readonly CiKind[]
+  const unguarded = !(draft.edit.guard as boolean)
   const languages = LANGUAGES.map((language) => ({ value: language, label: t.shared.languages[language] }))
 
   const modesFailure = modes.failure !== null && <p className="notice notice--error">{say(modes.failure)}</p>
@@ -254,6 +280,7 @@ export function SharedSettings({ state }: { state: EvenKeelState }) {
           ],
           t.settings.briefHint,
         )}
+        {check('fillMilestone', t.settings.fillMilestone, `${t.settings.fillMilestoneHint} ${t.shared.forProjects}`)}
         <RuleFields text={text} onEdit={edit} errorOf={errorOf} marks={marks} choices={ruleChoicesOf(state.tasks, vocabularies)} />
       </>
     ),
@@ -360,6 +387,53 @@ export function SharedSettings({ state }: { state: EvenKeelState }) {
         ],
         t.shared.cacheTtlHint,
       ),
+    ci: () => (
+      <>
+        <p className="settings__hint">{t.shared.ciNote}</p>
+        {check('guard', t.settings.guard, t.settings.guardHint)}
+        <div className={unguarded ? 'settings__guarded settings__guarded--off' : 'settings__guarded'}>
+          <fieldset className={marks.box('kinds', 'settings__field settings__group')}>
+            <legend>
+              <FieldHead label={t.settings.ci} hint={t.settings.ciHint} />
+            </legend>
+            <div className="settings__checks">
+              {CI_KINDS.map((kind) => (
+                <label key={kind} className="settings__check">
+                  <input
+                    type="checkbox"
+                    checked={kinds.includes(kind)}
+                    disabled={unguarded}
+                    onChange={(event) => edit('kinds', CI_KINDS.filter((each) => (each === kind ? event.target.checked : kinds.includes(each))))}
+                  />
+                  {t.settings.ciKinds[kind]}
+                </label>
+              ))}
+            </div>
+            {marks.note('kinds', (value) => shown((value as CiKind[]).map((kind) => t.settings.ciKinds[kind])))}
+            <FieldNote error={errorOf('ci')} />
+          </fieldset>
+          <div className={marks.box('wait')}>
+            <FieldHead label={t.settings.ciWait} hint={t.settings.ciWaitHint} htmlFor={fieldId('wait')} />
+            <input
+              id={fieldId('wait')}
+              className="settings__text settings__number"
+              type="number"
+              min={0}
+              step={1}
+              inputMode="numeric"
+              value={text('wait')}
+              placeholder={t.settings.ciWaitPlaceholder}
+              disabled={unguarded}
+              aria-invalid={minutesOf(text('wait')) === undefined}
+              onChange={(event) => edit('wait', event.target.value)}
+            />
+            {marks.note('wait', (value) => ((value as string).trim() === '' ? t.settings.ciWaitPlaceholder : shown(value)))}
+          </div>
+          {check('recheck', t.settings.recheckMain, t.settings.recheckMainHint, unguarded)}
+          {check('fixTask', t.settings.fixTask, t.settings.fixTaskHint, unguarded)}
+        </div>
+      </>
+    ),
     page: () => (
       <>
         {select('language', t.shared.language, [{ value: '', label: t.shared.languageAuto }, ...languages])}

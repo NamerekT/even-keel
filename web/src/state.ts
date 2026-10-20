@@ -567,8 +567,9 @@ function fixTitle(episode: FixEpisode): string {
   return episode.end?.how === 'landed' ? t.chain.fixLanded(short(episode.red), short(episode.end.commit)) : t.chain.fixDropped(short(episode.red))
 }
 
-export function contextFill(tokens: number, scale: ContextScale): { percent: number; level: ContextLevel } {
-  const percent = Math.min(100, (tokens / scale.window) * 100)
+/** `window` is the session's own, as its agent gave it; `null` — the setting's `scale.window` stands in. */
+export function contextFill(tokens: number, scale: ContextScale, window: number | null = null): { percent: number; level: ContextLevel } {
+  const percent = Math.min(100, (tokens / (window ?? scale.window)) * 100)
   const level = percent >= scale.danger ? 'danger' : percent >= scale.warn ? 'warn' : 'ok'
   return { percent, level }
 }
