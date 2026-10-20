@@ -53,8 +53,7 @@ const GROUPS = [
     id: 'models',
     keys: ['provider', ...providerKeys('models'), ...providerKeys('accounts'), ...providerKeys('execution', EXECUTED), ...providerKeys('cli'), 'modelLabels', 'modelPrompts', 'promptLanguage'],
   },
-  { id: 'sessions', keys: ['hiddenSkills', 'window', 'warn', 'danger', 'checkpointTokens', ...SHARE_KEYS] },
-  { id: 'claude', keys: ['cacheTtl'] },
+  { id: 'sessions', keys: ['hiddenSkills', 'window', 'warn', 'danger', 'checkpointTokens', ...SHARE_KEYS, 'cacheTtl'] },
   { id: 'ci', keys: ['guard', 'kinds', 'wait', 'recheck', 'fixTask'] },
   { id: 'page', keys: ['language', 'allowedHosts', 'updatesCheck', 'updatesNotify'] },
   { id: 'stats', keys: ['minTasks', 'minSessions', 'days', 'otherBelow', 'moves'] },
@@ -391,19 +390,21 @@ export function SharedSettings({ state }: { state: EvenKeelState }) {
           </div>
           <FieldNote error={errorOf('checkpointShares')} />
         </div>
+        <fieldset className="settings__field settings__group">
+          <legend className="settings__subgroup">{t.shared.claude}</legend>
+          {select(
+            'cacheTtl',
+            t.shared.cacheTtl,
+            [
+              { value: '', label: t.shared.cacheTtlAuto },
+              { value: '5m', label: t.shared.cacheTtl5m },
+              { value: '1h', label: t.shared.cacheTtl1h },
+            ],
+            t.shared.cacheTtlHint,
+          )}
+        </fieldset>
       </>
     ),
-    claude: () =>
-      select(
-        'cacheTtl',
-        t.shared.cacheTtl,
-        [
-          { value: '', label: t.shared.cacheTtlAuto },
-          { value: '5m', label: t.shared.cacheTtl5m },
-          { value: '1h', label: t.shared.cacheTtl1h },
-        ],
-        t.shared.cacheTtlHint,
-      ),
     ci: () => (
       <>
         <p className="settings__hint">{t.shared.ciNote}</p>

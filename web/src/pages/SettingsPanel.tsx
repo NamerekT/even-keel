@@ -25,6 +25,7 @@ import {
   minutesOf,
   ProviderGrid,
   RULE_KEYS,
+  HelpTip,
   RuleFields,
   rulesOf,
   rulesText,
@@ -574,12 +575,6 @@ export function SettingsPanel({
           { value: '', label: t.settings.asShared(t.shared.languages[shared.promptLanguage]) },
           ...LANGUAGES.map((language) => ({ value: language, label: t.shared.languages[language] })),
         ])}
-        {choice('cacheTtl', t.shared.cacheTtl, t.shared.cacheTtlHint, [
-          { value: '', label: t.settings.asShared(ttlLabel(shared.cacheTtl)) },
-          { value: CLI_TTL, label: t.shared.cacheTtlAuto },
-          { value: '5m', label: t.shared.cacheTtl5m },
-          { value: '1h', label: t.shared.cacheTtl1h },
-        ])}
         <div className={marks.box(['ownCheckpoint', 'checkpointTokens'])}>
           <FieldHead label={t.shared.checkpointTokens} hint={t.shared.checkpointTokensHint} htmlFor={fieldId('checkpointTokens')} />
           {ownToggle('ownCheckpoint', { checkpointTokens: sharedCheckpoint })}
@@ -618,6 +613,15 @@ export function SettingsPanel({
           </div>
           <FieldNote error={errorOf('checkpointShares')} />
         </div>
+        <fieldset className="settings__field settings__group">
+          <legend className="settings__subgroup">{t.shared.claude}</legend>
+          {choice('cacheTtl', t.shared.cacheTtl, t.shared.cacheTtlHint, [
+            { value: '', label: t.settings.asShared(ttlLabel(shared.cacheTtl)) },
+            { value: CLI_TTL, label: t.shared.cacheTtlAuto },
+            { value: '5m', label: t.shared.cacheTtl5m },
+            { value: '1h', label: t.shared.cacheTtl1h },
+          ])}
+        </fieldset>
       </>
     ),
     ci: () => (
@@ -707,11 +711,11 @@ export function SettingsPanel({
     <aside className="panel settings" aria-label={t.settings.title}>
       <header className="panel__head settings__head">
         <GroupTabs groups={GROUPS.map(({ id }) => ({ id, title: t.settings.groups[id] }))} open={open} dirty={dirty} onOpen={setOpen} />
+        <HelpTip text={t.settings.hint} align="end" />
         <button ref={closeRef} type="button" className="panel__close" aria-label={t.session.closePanel} onClick={onClose}>
           ×
         </button>
       </header>
-      <p className="chain__hint">{t.settings.hint}</p>
       <form
         className="settings__form"
         role="tabpanel"
