@@ -1,16 +1,16 @@
 import { Link } from 'react-router'
 import type { AccountEntry, AccountView } from '../../../src/account/model.js'
-import { deviceLogin, entrySlot } from '../accounts.js'
+import { entrySlot } from '../accounts.js'
 import { say, t } from '../i18n/index.js'
 import { useCommand } from '../live/useCommand.js'
 import { accountOrder, canWork } from '../state.js'
 import { seriesStyle } from '../ui/series.js'
-import { AccountMark, AccountName, AccountNotes, LoginSteps, loginHeading, spendText, type Send, type Spend } from './accountParts.js'
+import { AccountMark, AccountName, AccountNotes, spendText, type Send, type Spend } from './accountParts.js'
 import { AccountRoles } from './AccountRoles.js'
 import { Limits, usualSpans } from './Limits.js'
 import { useNow } from './useNow.js'
 
-/** The accounts drawer: a row per account with its limits, where it works and its exceptions; adding and the details are elsewhere. */
+/** The accounts drawer: a row per account with its limits, where it works and its exceptions; adding, the details and a sign-in's steps are elsewhere. */
 export function AccountPanel({ account, spend, onClose }: { account: AccountView; spend: Spend; onClose: () => void }) {
   const { send, sending, failure } = useCommand()
   const now = useNow(60_000)
@@ -50,13 +50,6 @@ export function AccountPanel({ account, spend, onClose }: { account: AccountView
           </Link>
         </div>
       </section>
-
-      {login !== null && (
-        <section className="queue__section">
-          <h2 className="queue__heading">{loginHeading(account)}</h2>
-          <LoginSteps login={login} device={deviceLogin(account)} sending={sending} send={send} />
-        </section>
-      )}
 
       {failure !== null && <p className="notice notice--error queue__error">{say(failure)}</p>}
     </aside>

@@ -2,7 +2,7 @@ import { Link } from 'react-router'
 import type { AccountEntry, AccountView } from '../../../src/account/model.js'
 import { limitSpans } from '../../../src/limits/model.js'
 import type { EvenKeelState } from '../../../src/state.js'
-import { accountGroups, canAdd, cliMissing, deviceLogin, entrySlot, PROVIDERS, type Provider } from '../accounts.js'
+import { accountGroups, canAdd, cliMissing, entrySlot, PROVIDERS, type Provider } from '../accounts.js'
 import { say, t } from '../i18n/index.js'
 import { useCommand } from '../live/useCommand.js'
 import { AccountRoles, AccountWork } from '../layout/AccountRoles.js'
@@ -12,8 +12,6 @@ import {
   AgentIcon,
   agentLabel,
   AccountNotes,
-  LoginSteps,
-  loginHeading,
   NoteActions,
   RemoveAction,
   spendText,
@@ -43,12 +41,6 @@ export function AccountsPage({ state }: { state: EvenKeelState }) {
         <h1 className="page__title">{t.account.title}</h1>
       </header>
 
-      {login !== null && (
-        <section className="accounts-page__login">
-          <h2 className="queue__heading">{loginHeading(account)}</h2>
-          <LoginSteps login={login} device={deviceLogin(account)} sending={sending} send={send} />
-        </section>
-      )}
       {failure !== null && <p className="notice notice--error">{say(failure)}</p>}
 
       {account.accounts.length === 0 ? (

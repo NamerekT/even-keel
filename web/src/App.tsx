@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Navigate, Route, Routes, useLocation, useParams } from 'react-router'
+import { Navigate, Route, Routes, useLocation, useMatch, useParams } from 'react-router'
 import type { EvenKeelState } from '../../src/state.js'
 import { pickLanguage, say, setLanguage, t } from './i18n/index.js'
 import { ActivityBar } from './layout/ActivityBar.js'
@@ -8,6 +8,7 @@ import { ConfigBanner } from './layout/ConfigBanner.js'
 import { UnattendedBanner } from './layout/UnattendedBanner.js'
 import { Header } from './layout/Header.js'
 import { LinkBanner } from './layout/LinkBanner.js'
+import { LoginDialog } from './layout/LoginDialog.js'
 import { PackagesBanner } from './layout/PackagesBanner.js'
 import { FallbackToasts } from './layout/Fallbacks.js'
 import { UpdateToast } from './layout/Updates.js'
@@ -31,6 +32,7 @@ import { ToolsPage } from './tools/ToolsPage.js'
 export function App() {
   const { state, link, blocked } = useLive()
   const [basement, setBasement] = useState<HTMLDivElement | null>(null)
+  const addingAccount = useMatch('/accounts/add') !== null
   const language = pickLanguage(state?.language ?? null, navigator.languages)
   setLanguage(language)
 
@@ -76,6 +78,8 @@ export function App() {
         )}
       </main>
       <div className="app__basement" ref={setBasement} />
+      {/* The add page walks its own sign-in in place. */}
+      {state !== null && state.account.login !== null && !addingAccount && <LoginDialog account={state.account} />}
       <ToastStack>
         <UpdateToast />
         <FallbackToasts />
