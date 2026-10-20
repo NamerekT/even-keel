@@ -1,0 +1,1 @@
+Pull requests are not accepted for now, and this one will be closed: please open an issue with the same idea instead and link this branch if the code helps explain it. See [CONTRIBUTING.md](https://github.com/NamerekT/even-keel/blob/main/CONTRIBUTING.md).

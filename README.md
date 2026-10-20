@@ -137,7 +137,7 @@ A plugin gives sessions the tracker's MCP server and a skill for working a task.
 
 ## Development
 
-`main` is always the latest release. The next version is built on `dev`, fixes of the released one on `release/v<x.y>`; open pull requests against `dev`, or against the release branch for a fix of the released version ([docs/releases.md](docs/releases.md)).
+`main` is always the latest release. The next version is built on `dev`, fixes of the released one on `release/v<x.y>` ([docs/releases.md](docs/releases.md)). Pull requests are not accepted for now: bugs and ideas go to issues ([CONTRIBUTING.md](CONTRIBUTING.md)).
 
 ```sh
 npm test            # vitest
@@ -151,6 +151,10 @@ npm run shot -- '?chain=ask' .cards   # a dark screenshot of an element on fake 
 ## Security
 
 A vulnerability is reported privately, not as an issue: [SECURITY.md](SECURITY.md).
+
+## Support
+
+Even Keel is free. If it saves you time, [Patreon](https://www.patreon.com/Namerek) keeps it going: patrons get the write-ups of how it is built and what each change to the rules cost, measured on its own statistics.
 
 ## License
 
