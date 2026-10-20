@@ -410,6 +410,14 @@ export function projectTracker(state: EvenKeelState, project: string): { kind: s
   return { kind: view.kind, label: trackerProject === null ? view.title : `${view.title} · ${trackerProject}` }
 }
 
+/** The project's page in its tracker, where new tasks are filed, and the tracker's own name (`Huly`) for the button. */
+export function projectPage(state: EvenKeelState, project: string): { url: string; tracker: string | null } | null {
+  const url = state.trackerUrls.pages[project] ?? null
+  if (url === null) return null
+  const kind = state.trackers.find((each) => each.projects.includes(project))?.kind
+  return { url, tracker: state.config.trackers.find((each) => each.name === kind)?.title ?? null }
+}
+
 /** The palette slot of a project: its `color` setting (BTN-207); `null` — none, or not a project of the config. */
 export function projectSlot(state: Pick<EvenKeelState, 'config'>, project: string): number | null {
   return state.config.projects[project]?.color ?? null

@@ -91,6 +91,11 @@
   margin-bottom: 2px;
 }
 
+.quiet__tip-call {
+  display: block;
+  margin-top: 4px;
+}
+
 .quiet__count {
   flex: none;
   color: var(--fg-muted);

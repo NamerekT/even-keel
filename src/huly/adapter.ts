@@ -15,9 +15,18 @@ export const huly: TrackerAdapter = {
     const credentials = readHulyCredentials(env)
     if (credentials === undefined) return undefined
     const base = issueUrlBase(credentials)
+    let projectIds: ReadonlyMap<string, string> = new Map()
     return {
-      connect: async (timeoutMs) => (await import('./source.js')).connectHuly(credentials, timeoutMs),
+      connect: async (timeoutMs) => {
+        const source = await (await import('./source.js')).connectHuly(credentials, timeoutMs)
+        projectIds = source.projectIds
+        return source
+      },
       issueUrl: () => `${base}{id}`,
+      projectUrl: (project) => {
+        const id = projectIds.get(project)
+        return id === undefined ? null : `${base}${id}/issues`
+      },
     }
   },
 }

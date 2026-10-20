@@ -17,13 +17,18 @@ export const linear: TrackerAdapter = {
     const token = env[LINEAR_TOKEN]
     if (!token) return undefined
     let urlKey: string | null = null
+    let projectUrls: ReadonlyMap<string, string> = new Map()
     return {
       connect: async (timeoutMs) => {
         const source = await (await import('./source.js')).connectLinear({ token, projects }, timeoutMs)
         urlKey = source.urlKey
+        projectUrls = source.projectUrls
         return source
       },
       issueUrl: () => (urlKey === null ? null : `https://linear.app/${urlKey}/issue/{id}`),
+      // A key narrowed to a Linear project leads to that project, not to the whole team.
+      projectUrl: (key) =>
+        Object.hasOwn(projects, key) ? (projectUrls.get(key) ?? null) : urlKey === null ? null : `https://linear.app/${urlKey}/team/${encodeURIComponent(key)}/all`,
     }
   },
 }

@@ -10,6 +10,7 @@ import {
   ciWaitText,
   limitWaitText,
   openQuestions,
+  projectPage,
   projectPath,
   projectSlot,
   projectTasks,
@@ -37,6 +38,8 @@ export function ProjectCard({ state, project, turn }: { state: EvenKeelState; pr
   const slot = projectSlot(state, project)
   const tracker = projectTracker(state, project)
   const canStart = status.kind === 'idle' && order !== undefined && order.error === null && order.order.length > 0
+  const call = emptyCall(state, project)
+  const page = call === null ? null : projectPage(state, project)
   const error = order?.error ?? (status.kind === 'paused' ? status.error : null) ?? failure
 
   return (
@@ -81,7 +84,10 @@ export function ProjectCard({ state, project, turn }: { state: EvenKeelState; pr
         order === undefined ? (
           <p className="card__task card__task--empty">{t.project.notLoaded}</p>
         ) : (
-          <EmptyLine progress={{ done, total, backlog }} turn={turn} />
+          <>
+            <EmptyLine progress={{ done, total, backlog }} turn={turn} />
+            {call !== null && <p className="card__call">{call}</p>}
+          </>
         )
       ) : (
         <p className="card__task">
@@ -107,6 +113,13 @@ export function ProjectCard({ state, project, turn }: { state: EvenKeelState; pr
           <button type="button" className="button button--primary" disabled={sending} onClick={() => void send('chain/start', { project })}>
             {startsNow(state.chain) ? t.project.start : t.project.enqueue}
           </button>
+        </footer>
+      )}
+      {page !== null && (
+        <footer className="card__foot">
+          <a className="button" href={page.url} target="_blank" rel="noreferrer">
+            {t.project.openIn(page.tracker)}
+          </a>
         </footer>
       )}
     </article>
@@ -140,6 +153,12 @@ export function emptyKind(state: EvenKeelState, project: string): EmptyCard | nu
   const order = state.chain.projects[project]
   if (order === undefined || cardTask(state, project) !== null) return null
   return emptyCard(chainProgress(projectTasks(state, project), order))
+}
+
+/** What to do about a project with nothing to run: file tasks or ready them in the tracker; `null` — it has tasks, held ones too. */
+export function emptyCall(state: EvenKeelState, project: string): string | null {
+  const kind = emptyKind(state, project)
+  return kind === null || kind === 'held' ? null : t.project.emptyCall[kind]
 }
 
 /**

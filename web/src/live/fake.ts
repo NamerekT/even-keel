@@ -180,7 +180,11 @@ function fakeState(
     usage: fakeUsage(usage),
     account: fakeAccount(account, idle, FAKE_LIMITS),
     trackers: [fakeHuly(huly)],
-    trackerUrls: { default: 'https://huly.example.com/workbench/example/tracker/{id}', projects: {} },
+    trackerUrls: {
+      default: 'https://huly.example.com/workbench/example/tracker/{id}',
+      projects: {},
+      pages: Object.fromEntries(['ABC', 'DEMO', 'XYZ', 'OPS'].map((project) => [project, `https://huly.example.com/workbench/example/tracker/${project.toLowerCase()}-id/issues`])),
+    },
     ci: fakeCi(null),
     remotes: FAKE_REMOTES,
     launches: launchDays(launches, new Date(), LAUNCH_DAYS),

@@ -454,6 +454,13 @@ export const en: Messages = {
         ],
       },
     },
+    /** What to do about an empty card, under its joke; the button beside it opens the project in the tracker. */
+    emptyCall: {
+      ghost: 'Nothing to steer by yet, captain. File tasks in your tracker.',
+      finished: 'Looks like the tasks ran out, captain. File new ones in your tracker.',
+      shelved: 'Send the ones you want into the chain from your tracker, captain.',
+    },
+    openIn: (tracker: string | null) => (tracker === null ? 'Open the tracker' : `Open in ${tracker}`),
     next: 'Next',
     held: {
       skipped: 'Skipped',

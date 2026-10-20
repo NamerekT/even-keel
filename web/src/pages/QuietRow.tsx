@@ -4,13 +4,14 @@ import { t } from '../i18n/index.js'
 import { chainProgress, projectName, projectPath, projectSlot, projectTasks } from '../state.js'
 import { seriesStyle } from '../ui/series.js'
 import { Tipped } from '../ui/Tipped.js'
-import { quipOf } from './ProjectCard.js'
+import { emptyCall, quipOf } from './ProjectCard.js'
 
 /** A project with nothing to run, as one item of the strip under the cards; its name and its card's joke go into the tip. */
 export function QuietRow({ state, project, turn }: { state: EvenKeelState; project: string; turn: number }) {
   const progress = chainProgress(projectTasks(state, project), state.chain.projects[project])
   const quip = quipOf(progress, turn)
   const name = projectName(state, project)
+  const call = emptyCall(state, project)
   return (
     <Tipped
       className="quiet"
@@ -27,6 +28,7 @@ export function QuietRow({ state, project, turn }: { state: EvenKeelState; proje
               {quip.punchline !== null && <> {quip.punchline}</>}
             </>
           )}
+          {call !== null && <span className="quiet__tip-call">{call}</span>}
         </>
       }
     >

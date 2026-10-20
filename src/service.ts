@@ -1103,6 +1103,7 @@ const getState = (): EvenKeelState => ({
   trackerUrls: {
     default: trackers.setupOf(null)?.issueUrl(null) ?? null,
     projects: Object.fromEntries(Object.keys(configStore.current.projects).map((project) => [project, trackers.setupOf(project)?.issueUrl(project) ?? null])),
+    pages: Object.fromEntries(Object.keys(configStore.current.projects).map((project) => [project, trackers.setupOf(project)?.projectUrl?.(project) ?? null])),
   },
   ci: Object.fromEntries([...ciWatches.byProject.keys()].map((project) => [project, ciWatches.shown(project).map((watch) => watch.view)])),
   remotes: remotes.view,

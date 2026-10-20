@@ -49,7 +49,7 @@ function state(startedAt: string): EvenKeelState {
     usage: { state: 'ok', reason: null, since: null },
     account: { active: 'global', accounts: [], login: null, loginBlock: null, apps: [], pool: [], missing: [] },
     trackers: [],
-    trackerUrls: { default: null, projects: {} },
+    trackerUrls: { default: null, projects: {}, pages: {} },
     ci: {},
     remotes: {},
     launches: [],

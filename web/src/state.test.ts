@@ -30,6 +30,7 @@ import {
   projectSlot,
   projectSlots,
   projectTracker,
+  projectPage,
   projectOfPath,
   projectPath,
   questionPath,
@@ -96,7 +97,7 @@ function stateOf(patch: Partial<EvenKeelState>): EvenKeelState {
     usage: { state: 'ok', reason: null, since: null },
     account: { active: 'global', accounts: [], login: null, loginBlock: null, apps: [], pool: [], missing: [] },
     trackers: [{ name: 'huly', kind: 'huly', title: 'Huly', projects: ['ABC', 'XYZ'], ready: true, health: { state: 'live', lastOkAt: null, error: null }, readAt: {} }],
-    trackerUrls: { default: null, projects: {} },
+    trackerUrls: { default: null, projects: {}, pages: {} },
     ci: {},
     remotes: {},
     launches: [],
@@ -621,6 +622,26 @@ describe('projectTracker', () => {
 
   it('is null for a project no tracker reads', () => {
     expect(projectTracker(stateOf({ trackers: [] }), 'ABC')).toBeNull()
+  })
+})
+
+describe('projectPage', () => {
+  const urls = { default: null, projects: {}, pages: { ABC: 'https://huly.example.com/workbench/example/tracker/abc-id/issues', XYZ: null } }
+  const config = { shared: FAKE_SHARED, projects: {}, trackers: [{ name: 'huly', title: 'Huly', projectKey: null }], trackerLocked: [] }
+
+  it('gives the page with the name of the tracker it is in, not of the profile', () => {
+    const state = stateOf({ config, trackerUrls: urls, trackers: [{ ...stateOf({}).trackers[0]!, title: 'Huly · example' }] })
+    expect(projectPage(state, 'ABC')).toEqual({ url: urls.pages.ABC, tracker: 'Huly' })
+  })
+
+  it('is null without a page', () => {
+    const state = stateOf({ config, trackerUrls: urls })
+    expect(projectPage(state, 'XYZ')).toBeNull()
+    expect(projectPage(state, 'OPS')).toBeNull()
+  })
+
+  it('names no tracker it does not know', () => {
+    expect(projectPage(stateOf({ trackerUrls: urls }), 'ABC')).toEqual({ url: urls.pages.ABC, tracker: null })
   })
 })
 
@@ -1233,6 +1254,7 @@ describe('issueLink', () => {
   const urls = {
     default: 'https://huly.example.com/workbench/example/tracker/{id}',
     projects: { LIN: 'https://linear.example.com/issue/{id}', GH: 'https://github.com/octo-org/abc/issues/{number}', OFF: null },
+    pages: {},
   }
 
   it('fills the issue key into the address of the tracker its project uses', () => {
@@ -1249,7 +1271,7 @@ describe('issueLink', () => {
 
   it('is empty when the tracker of the project gives no address', () => {
     expect(issueLink(urls, 'OFF-3')).toBeNull()
-    expect(issueLink({ default: null, projects: {} }, 'ABC-12')).toBeNull()
+    expect(issueLink({ default: null, projects: {}, pages: {} }, 'ABC-12')).toBeNull()
   })
 
   it('is empty for a fix session of a red main, which has no task in the tracker', () => {

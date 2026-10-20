@@ -2396,6 +2396,12 @@ a.button.pull-button__link {
   color: var(--fg);
 }
 
+.card__call {
+  margin: 0;
+  color: var(--fg-muted);
+  font-size: 13px;
+}
+
 .card__task-label {
   font-size: 12px;
 }

@@ -12,6 +12,8 @@ export interface LinearSettings {
 export interface LinearSource extends TaskSource {
   /** The workspace part of the issue links: `https://linear.app/<urlKey>/issue/ENG-1`. */
   urlKey: string
+  /** The page of each Linear project a project key narrows its team to, by the key, once its tasks were read. */
+  projectUrls: ReadonlyMap<string, string>
 }
 
 interface Connection<T> {
@@ -46,7 +48,7 @@ const TEAM = `query($team: String!) {
 const TEAM_PROJECT = `query($team: String!, $project: String!) {
   team(id: $team) {
     id states(first: 100) { nodes { id name type } }
-    projects(first: 1, filter: { name: { eqIgnoreCase: $project } }) { nodes { id } }
+    projects(first: 1, filter: { name: { eqIgnoreCase: $project } }) { nodes { id url } }
   }
 }`
 
@@ -143,6 +145,8 @@ const LINEAR_PRIORITY: Readonly<Record<TaskPriority, number>> = { none: 0, urgen
 const UPLOADS = /^https:\/\/uploads\.linear\.app\//
 
 export async function connectLinear(settings: LinearSettings, timeoutMs: number, fetchImpl: typeof fetch = fetch): Promise<LinearSource> {
+  const projectUrls = new Map<string, string>()
+
   async function graphql<T>(query: string, variables: Record<string, unknown> = {}): Promise<T> {
     const response = await fetchImpl(API, {
       method: 'POST',
@@ -170,7 +174,7 @@ export async function connectLinear(settings: LinearSettings, timeoutMs: number,
 
   async function teamOf(key: string): Promise<{ id: string; states: TeamState[]; project?: string }> {
     const project = settings.projects[key]
-    type Team = { id: string; states: { nodes: TeamState[] }; projects?: { nodes: { id: string }[] } }
+    type Team = { id: string; states: { nodes: TeamState[] }; projects?: { nodes: { id: string; url: string }[] } }
     let team: Team | null
     try {
       ;({ team } = await graphql<{ team: Team | null }>(project === undefined ? TEAM : TEAM_PROJECT, project === undefined ? { team: key } : { team: key, project }))
@@ -181,6 +185,7 @@ export async function connectLinear(settings: LinearSettings, timeoutMs: number,
     if (project === undefined) return { id: team.id, states: team.states.nodes }
     const found = team.projects?.nodes[0]
     if (found === undefined) throw new Error(`linear: team ${key} has no project "${project}"`)
+    projectUrls.set(key, `${found.url}/issues`)
     return { id: team.id, states: team.states.nodes, project: found.id }
   }
 
@@ -201,6 +206,7 @@ export async function connectLinear(settings: LinearSettings, timeoutMs: number,
 
   return {
     urlKey: organization.urlKey,
+    projectUrls,
 
     async chainTasks(key, open) {
       const team = await teamOf(key)

@@ -113,7 +113,12 @@ const CLOSED_MILESTONES = [2, 3]
 const LABEL_FIELDS = { attachedTo: 1, title: 1 } as const
 const ATTACHMENT_FIELDS = { attachedTo: 1, file: 1, name: 1, type: 1, size: 1, modifiedOn: 1, createdOn: 1 } as const
 
-export async function connectHuly(credentials: HulyCredentials, timeoutMs: number): Promise<TaskSource> {
+export interface HulySource extends TaskSource {
+  /** The internal `_id` of each project read so far, by its identifier: the project's page is addressed by it. */
+  projectIds: ReadonlyMap<string, string>
+}
+
+export async function connectHuly(credentials: HulyCredentials, timeoutMs: number): Promise<HulySource> {
   const account = authOf(credentials)
   quietModelNoise()
   const client = await api.connect(credentials.url, {
@@ -187,10 +192,15 @@ export async function connectHuly(credentials: HulyCredentials, timeoutMs: numbe
     return toTasks(issues, statuses, new Map(blockers.map((doc) => [doc._id, doc.identifier])), milestones, labels)
   }
 
+  const projectIds = new Map<string, string>()
+
   return {
+    projectIds,
+
     async chainTasks(project, open) {
       const space = await client.findOne<{ _id: string }>(tracker.class.Project, { identifier: project })
       if (space === undefined) throw new Error(`huly: project ${project} not found`)
+      projectIds.set(project, space._id)
       const statuses = await findStatuses()
       const opened = statuses.filter((doc) => open(toStatus(doc))).map((doc) => doc._id)
       const openIssues = await findIssues({ space: space._id, status: { $in: opened } })

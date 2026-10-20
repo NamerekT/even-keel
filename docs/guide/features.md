@@ -4,7 +4,7 @@ The [README](../../README.md) has the short version. This is every feature in fu
 
 ## The chain
 
-Tasks enter the chain by status (by default: ready and in-progress tasks — not the backlog, not closed ones) and by labels you choose; a task labelled `Manual` or `Вручную` never enters it, it is yours to run. Order: open blockers first, then the order you set by dragging on the page, then milestone, priority, task number. A task with an open blocker waits; a task with subtasks never runs itself — its subtasks do, and on Huly Even Keel closes it once they are all closed.
+Tasks enter the chain by status (by default: ready and in-progress tasks — not the backlog, not closed ones) and by labels you choose; a task labelled `Manual` or `Вручную` never enters it, it is yours to run. Order: open blockers first, then the order you set by dragging on the page, then milestone, priority, task number. A task with an open blocker waits; a task with subtasks never runs itself — its subtasks do, and on Huly Even Keel closes it once they are all closed. A project with nothing to run says so and opens the project in its tracker, where you file or ready the next tasks.
 
 Sequential within a project, not across them: `parallel` lets that many chains on different projects run at once (one by default). Other projects wait in a queue and start as soon as a chain ends. The usage limit stays shared: every running chain takes tasks until the window is used up, then they all wait for the reset.
 

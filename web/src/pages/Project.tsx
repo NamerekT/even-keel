@@ -20,6 +20,7 @@ import {
   issueLink,
   limitWaitText,
   openQuestions,
+  projectPage,
   projectSlot,
   projectTasks,
   questionPath,
@@ -42,6 +43,7 @@ import { CI_HASH, CiChip, CiPanel, ciFocus } from './CiChip.js'
 import { Flight } from './Flight.js'
 import { IdlePanel } from './IdlePanel.js'
 import { NotFound } from './NotFound.js'
+import { emptyCall } from './ProjectCard.js'
 import { ProjectName } from './ProjectName.js'
 import { SessionPanel } from './SessionPanel.js'
 import { SETTINGS_HASH, SettingsChip, SettingsPanel, useSettingsDirty } from './SettingsPanel.js'
@@ -140,8 +142,9 @@ export function Project({ state, project: key }: { state: EvenKeelState; project
         </header>
         {order?.error && <p className="notice notice--error">{say(order.error)}</p>}
         <Leftovers state={state} project={key} />
+        <EmptyCall state={state} project={key} />
         {blocks.length === 0 ? (
-          <p className="placeholder">{order === undefined ? t.project.chainNotLoaded : t.project.chainEmpty}</p>
+          emptyCall(state, key) === null && <p className="placeholder">{order === undefined ? t.project.chainNotLoaded : t.project.chainEmpty}</p>
         ) : (
           <ChainList
             key={key}
@@ -244,6 +247,23 @@ function TrackerRead({ project, tracker }: { project: string; tracker: TrackerVi
         <span className="project__read-at">{at === undefined ? t.project.notRead : t.project.readAt(formatAgo(at, now))}</span>
       )}
     </span>
+  )
+}
+
+/** A project with nothing to run says where the tasks come from and opens the project in its tracker. */
+function EmptyCall({ state, project }: { state: EvenKeelState; project: string }) {
+  const call = emptyCall(state, project)
+  if (call === null) return null
+  const page = projectPage(state, project)
+  return (
+    <p className="project__call">
+      {call}
+      {page !== null && (
+        <a className="button button--small" href={page.url} target="_blank" rel="noreferrer">
+          {t.project.openIn(page.tracker)}
+        </a>
+      )}
+    </p>
   )
 }
 

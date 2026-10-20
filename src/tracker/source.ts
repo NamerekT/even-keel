@@ -158,6 +158,11 @@ export interface TrackerSetup {
    * missing from `even-keel.config.json` (the stats show them).
    */
   issueUrl(project: string | null): string | null
+  /**
+   * Optional. The project's own page in the tracker, where the user files tasks: the card of a project with nothing
+   * open leads there. `null` — not known (yet: an adapter may learn it on the first read of the tasks).
+   */
+  projectUrl?(project: string): string | null
 }
 
 /** A key of a project's object in `even-keel.config.json` that names the project in the tracker. */

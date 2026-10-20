@@ -35,7 +35,7 @@ const STATES = [
   { id: 's-done', name: 'Done', type: 'completed' },
   { id: 's-canceled', name: 'Canceled', type: 'canceled' },
 ]
-const team = (projects?: { id: string }[]) => ({
+const team = (projects?: { id: string; url?: string }[]) => ({
   body: { data: { team: { id: 'team-eng', states: { nodes: STATES }, ...(projects === undefined ? {} : { projects: { nodes: projects } }) } } },
 })
 const notFound = (what: string) => ({
@@ -80,11 +80,14 @@ describe('linear source', () => {
     expect(calls[3]!.variables).toMatchObject({ after: 'cursor-1' })
   })
 
-  it('narrows the team down to the project named in the config', async () => {
-    const { source, calls } = await connect([team([{ id: 'project-web' }]), { body: { data: { issues: page([]) } } }], { ENG: 'Web app' })
+  it('narrows the team down to the project named in the config and learns its page', async () => {
+    const url = 'https://linear.app/example-org/project/web-app-0123456789ab'
+    const { source, calls } = await connect([team([{ id: 'project-web', url }]), { body: { data: { issues: page([]) } } }], { ENG: 'Web app' })
+    expect(source.projectUrls.get('ENG')).toBeUndefined()
     await source.chainTasks('ENG', notTerminal)
     expect(calls[1]!.variables).toEqual({ team: 'ENG', project: 'Web app' })
     expect(calls[2]!.variables).toMatchObject({ filter: { project: { id: { eq: 'project-web' } } } })
+    expect(source.projectUrls.get('ENG')).toBe(`${url}/issues`)
   })
 
   it('fails on a project the team does not have and on a team it cannot see', async () => {

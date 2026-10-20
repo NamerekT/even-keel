@@ -76,6 +76,8 @@ export interface SessionRecord {
 export interface TrackerUrls {
   default: string | null
   projects: Record<string, string | null>
+  /** The page of each project in its tracker (`TrackerSetup.projectUrl`); `null` — none. */
+  pages: Record<string, string | null>
 }
 
 /**
