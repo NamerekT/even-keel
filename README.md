@@ -331,6 +331,8 @@ A plugin gives sessions the tracker's MCP server and a skill for working a task.
 
 ## Development
 
+`main` is always the latest release. The next version is built on `dev`, fixes of the released one on `release/v<x.y>`; open pull requests against `dev`, or against the release branch for a fix of the released version ([docs/releases.md](docs/releases.md)).
+
 ```sh
 npm test            # vitest
 npm run typecheck
