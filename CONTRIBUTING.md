@@ -11,4 +11,4 @@ What helps most:
 
 An issue is read and, if taken, copied into the project's own tracker; what is decided there is what gets built. A pull request opened anyway is closed with a pointer here — open an issue with the same idea instead, and link your branch if the code helps explain it.
 
-Forks are welcome: the MIT license lets you change Even Keel and run your own copy however you like. The README's "Extending" says where a tracker adapter or a plugin goes.
+Forks are welcome: the MIT license lets you change Even Keel and run your own copy however you like. The README's "Extending" says where a tracker adapter or a plugin goes. The name "Even Keel" stands for this repository: a fork that is published or sold goes under a name of its own and may say it is based on Even Keel. A bug seen only in a fork goes to the fork.

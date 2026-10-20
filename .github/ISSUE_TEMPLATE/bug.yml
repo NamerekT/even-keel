@@ -59,6 +59,12 @@ body:
       required: true
 
   - type: input
+    id: fork
+    attributes:
+      label: Fork
+      description: Leave empty if you run a clone of this repository with no changes of your own; otherwise the link to your fork or a word on what you changed.
+
+  - type: input
     id: cli
     attributes:
       label: Claude Code CLI version
