@@ -63,7 +63,7 @@ cp .env.example .env
 npm start
 ```
 
-Open `http://localhost:4747`. The first start opens a wizard that adds a project: the repository folder, a tracker profile and the project in that tracker. A profile is the e-mail and password of a separate Huly account, a GitHub [fine-grained token](https://github.com/settings/personal-access-tokens/new) with **Issues: Read and write**, or a Linear [personal API key](https://linear.app/settings/account/security). Open `claude` in the repository once and accept the trust prompt. Then press **Start** on the project: the chain takes its first task.
+Open `http://localhost:4747`. The first start opens a wizard that adds a project: the repository folder, a tracker profile and the project in that tracker. A profile is the e-mail and password of a separate Huly account, a GitHub [fine-grained token](https://github.com/settings/personal-access-tokens/new), or a Linear [personal API key](https://linear.app/settings/account/security); what each token needs for the tracker, the CI and pull requests is in [Token permissions](docs/guide/setup.md#token-permissions). Open `claude` in the repository once and accept the trust prompt. Then press **Start** on the project: the chain takes its first task.
 
 Want to look first? `npm run dev:fake` shows the page on fake data, with no tracker and no sessions.
 

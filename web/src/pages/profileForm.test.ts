@@ -31,6 +31,7 @@ function stored(set: string[]): ProfileView {
     projects: [],
     ci: [],
     hiddenCi: [],
+    deniedPulls: [],
   }
 }
 

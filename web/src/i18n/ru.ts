@@ -11,6 +11,8 @@ const sentence = (parts: string[]) => {
 
 /** The calls of a group in the chat by kind: files for edits and reads, calls for the rest. */
 export type ToolCounts = Record<'edit' | 'read' | 'search' | 'run' | 'other', number>
+/** What a profile's token is used for, a line of rights each in its dialog (EKR-9). */
+export type RightsUse = 'tracker' | 'ci' | 'pullRequests'
 
 const launches = counted('запуск', 'запуска', 'запусков')
 const tasks = counted('задача', 'задачи', 'задач')
@@ -962,7 +964,7 @@ export const ru = {
       HULY_TOKEN: 'Токен Huly',
       HULY_EMAIL: 'Почта для входа в Huly',
       HULY_PASSWORD: 'Пароль для входа в Huly',
-      GITHUB_TOKEN: 'Токен GitHub: задачи (Issues) и, с правом Actions: Read, CI',
+      GITHUB_TOKEN: 'Токен GitHub: задачи (Issues), CI и pull requests',
       LINEAR_TOKEN: 'Личный ключ API Linear',
       TALLY_DB_HOST: 'Свой сервер Postgres для статистики; без него — локальная база',
       TALLY_DB_PORT: 'Порт своего Postgres',
@@ -1002,12 +1004,32 @@ export const ru = {
       linear: 'Рабочее пространство Linear',
       forgejo: 'CI своего сервера Forgejo, не трекер',
     } as Record<string, string>,
-    rights: {
+    pullsRefused: 'PR отклонён',
+    deniedPulls: (remotes: string, kind: string) =>
+      kind === 'forgejo'
+        ? `Pull request не открылся (${remotes}): токену не хватило права write:repository`
+        : `Pull request не открылся (${remotes}): токену не хватило права Pull requests: Read and write`,
+    rightsIntro: {
       huly: 'Отдельная учётка с доступом к проектам: её почта и пароль или токен, если в настройках аккаунта вашего Huly есть страница API-токенов.',
-      github: 'Fine-grained токен на владельца репозиториев: Issues — Read and write; для GitHub Actions ещё Actions — Read.',
-      linear: 'Личный ключ API с правом записи.',
-      forgejo: 'Адрес сервера и токен с правами read:repository (репозитории и их Actions) и read:user (проверка входа). CI берёт профиль, чей хост совпадает с хостом remote.',
+      github: 'Fine-grained токен на владельца репозиториев.',
+      linear: 'Личный ключ API.',
+      forgejo: 'Адрес сервера и токен. CI и pull requests берут профиль, чей хост совпадает с хостом remote.',
     } as Record<string, string>,
+    rightsUse: { tracker: 'Трекер', ci: 'CI', pullRequests: 'Pull requests' },
+    rights: {
+      huly: { tracker: 'чтение и запись задач проектов' },
+      github: {
+        tracker: 'Issues — Read and write',
+        ci: 'Actions — Read',
+        pullRequests: 'Pull requests — Read and write, Contents — Read, Actions — Read',
+      },
+      linear: { tracker: 'право записи' },
+      forgejo: {
+        ci: 'read:repository (репозитории и их Actions), read:user (проверка входа)',
+        pullRequests: 'write:repository (открыть PR, читать его ревью), read:issue (комментарии в обсуждении PR), read:user',
+      },
+    } as Record<string, Partial<Record<RightsUse, string>>>,
+    pushedByGit: 'Ветку PR-режим пушит git с учётными данными учётки, под которой работает служба, а не этим токеном.',
     howTo: 'Где получить',
     signIn: 'Вход',
     alternative: { HULY_TOKEN: 'Токен', HULY_EMAIL: 'Почта и пароль' } as Record<string, string>,
@@ -1021,10 +1043,10 @@ export const ru = {
       HULY_TOKEN: 'Токен учётки Huly из её настроек — вместо почты и пароля.',
       HULY_EMAIL: 'Почта отдельной учётки Huly, которая видит проекты.',
       HULY_PASSWORD: 'Пароль этой учётки Huly.',
-      GITHUB_TOKEN: 'Токен на репозитории владельца: Issues — Read and write; для GitHub Actions ещё Actions — Read.',
+      GITHUB_TOKEN: 'Fine-grained токен на репозитории владельца с правами по назначению — они выше.',
       LINEAR_TOKEN: 'Личный ключ API Linear с правом записи.',
       FORGEJO_URL: 'Адрес сервера Forgejo, как он открывается в браузере.',
-      FORGEJO_TOKEN: 'Токен с read:repository (репозитории и их Actions) и read:user (проверка входа).',
+      FORGEJO_TOKEN: 'Токен доступа с правами по назначению — они выше.',
     } as Record<string, string>,
     examples: {
       HULY_URL: 'https://huly.example.com',

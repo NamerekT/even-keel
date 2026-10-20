@@ -2,22 +2,26 @@ import { useEffect, useId, useRef, useState, type FormEvent } from 'react'
 import { noticeOf, type Notice } from '../../../src/notice/notice.js'
 import type { CheckResult, ProfileKindView, ProfileView } from '../../../src/state.js'
 import { say, t } from '../i18n/index.js'
+import type { RightsUse } from '../i18n/ru.js'
 import { useLive } from '../live/context.js'
 import { Field } from '../tools/AddPackage.js'
 import { TrackerIcon } from '../ui/icons.js'
 import { alternativeOf, draftValues, shownFields } from './profileForm.js'
+import './profiles.css'
 
 interface DialogProps {
   kinds: ProfileKindView[]
   /** The profile to edit; none — a new one. */
   profile: ProfileView | undefined
+  /** The use the dialog is opened for, its rights stand out: pull requests from PR mode's notices (EKR-7). */
+  stress?: RightsUse
   onClose: () => void
   /** The id of the profile saved, before the dialog closes. */
   onSaved?: (id: string) => void
 }
 
 /** "Add profile" and a profile's edit: the kind's tiles first for a new one, then its fields, Check, and Save once the check passed. */
-export function ProfileDialog({ kinds, profile, onClose, onSaved }: DialogProps) {
+export function ProfileDialog({ kinds, profile, stress, onClose, onSaved }: DialogProps) {
   const dialog = useRef<HTMLDialogElement>(null)
   const [kind, setKind] = useState<string | null>(profile?.kind ?? null)
   const title = useId()
@@ -54,7 +58,7 @@ export function ProfileDialog({ kinds, profile, onClose, onSaved }: DialogProps)
         {view === undefined ? (
           <KindStep kinds={kinds} onPick={setKind} />
         ) : (
-          <FieldsStep kind={view} profile={profile} onBack={profile === undefined ? () => setKind(null) : undefined} onClose={onClose} onSaved={onSaved} />
+          <FieldsStep kind={view} profile={profile} stress={stress} onBack={profile === undefined ? () => setKind(null) : undefined} onClose={onClose} onSaved={onSaved} />
         )}
       </div>
     </dialog>
@@ -80,6 +84,7 @@ function KindStep({ kinds, onPick }: { kinds: ProfileKindView[]; onPick: (kind: 
 interface FieldsProps {
   kind: ProfileKindView
   profile: ProfileView | undefined
+  stress: RightsUse | undefined
   /** None for an edit: the kind of a stored profile stays. */
   onBack: (() => void) | undefined
   onClose: () => void
@@ -92,7 +97,33 @@ interface Checked {
   result: CheckResult
 }
 
-function FieldsStep({ kind, profile, onBack, onClose, onSaved }: FieldsProps) {
+const USES: RightsUse[] = ['tracker', 'ci', 'pullRequests']
+
+/** What the token needs, a line per use the kind has; the use the dialog was opened for stands out. */
+function Rights({ kind, stress }: { kind: ProfileKindView; stress: RightsUse | undefined }) {
+  const rights = t.profiles.rights[kind.kind] ?? {}
+  const uses = USES.filter((use) => rights[use] !== undefined)
+  return (
+    <div className="settings__hint profile-rights">
+      <p className="profile-rights__intro">
+        {t.profiles.rightsIntro[kind.kind] ?? ''}{' '}
+        <a href={kind.help} target="_blank" rel="noreferrer">
+          {t.profiles.howTo}
+        </a>
+      </p>
+      <ul className="profile-rights__list">
+        {uses.map((use) => (
+          <li key={use} className={use === stress ? 'profile-rights__use profile-rights__use--stressed' : 'profile-rights__use'}>
+            <span className="profile-rights__name">{t.profiles.rightsUse[use]}:</span> {rights[use]}
+            {use === 'pullRequests' && <span className="profile-rights__note">{t.profiles.pushedByGit}</span>}
+          </li>
+        ))}
+      </ul>
+    </div>
+  )
+}
+
+function FieldsStep({ kind, profile, stress, onBack, onClose, onSaved }: FieldsProps) {
   const { query } = useLive()
   const [alternative, setAlternative] = useState(() => alternativeOf(kind, profile))
   const [typed, setTyped] = useState<Record<string, string>>(() =>
@@ -140,12 +171,7 @@ function FieldsStep({ kind, profile, onBack, onClose, onSaved }: FieldsProps) {
   return (
     <form className="add-package__form" onSubmit={(event) => void save(event)}>
       <div className="add-package__body">
-        <p className="settings__hint">
-          {t.profiles.rights[kind.kind] ?? ''}{' '}
-          <a href={kind.help} target="_blank" rel="noreferrer">
-            {t.profiles.howTo}
-          </a>
-        </p>
+        <Rights kind={kind} stress={stress} />
         {kind.alternatives.length > 1 && (
           <fieldset className="add-package__field">
             <legend className="add-package__label add-package__legend">{t.profiles.signIn}</legend>

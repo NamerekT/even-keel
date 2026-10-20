@@ -69,3 +69,35 @@
   content: '✓ ';
   color: var(--lamp-done);
 }
+
+/* The rights of a profile's token, a line per use (EKR-9); the use the dialog was opened for stands out. */
+.profile-rights__intro {
+  margin: 0;
+}
+
+.profile-rights__list {
+  display: grid;
+  gap: 2px;
+  margin: 6px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.profile-rights__use {
+  padding: 2px 6px;
+  border-left: 2px solid var(--border);
+}
+
+.profile-rights__use--stressed {
+  border-left-color: var(--warn-fg);
+  background: var(--warn-bg);
+  color: var(--warn-fg);
+}
+
+.profile-rights__name {
+  font-weight: 600;
+}
+
+.profile-rights__note {
+  display: block;
+}

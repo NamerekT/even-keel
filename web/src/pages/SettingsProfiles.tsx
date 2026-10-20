@@ -69,6 +69,7 @@ function ProfileCard({ profile, tracker, onEdit }: { profile: ProfileView; track
         <span className="profiles__line">{profile.ci.length === 0 ? t.profiles.noCi : t.profiles.ci(remotesOf(profile.ci))}</span>
       )}
       {profile.hiddenCi.length > 0 && <span className="profiles__line">{t.profiles.hiddenCi(remotesOf(profile.hiddenCi), profile.kind)}</span>}
+      {profile.deniedPulls.length > 0 && <span className="profiles__line">{t.profiles.deniedPulls(remotesOf(profile.deniedPulls), profile.kind)}</span>}
     </>
   )
 
@@ -89,6 +90,11 @@ function ProfileCard({ profile, tracker, onEdit }: { profile: ProfileView; track
         {profile.hiddenCi.length > 0 && (
           <Tipped tip={details} focusable inline>
             <span className="tools__chip tools__chip--ask">{t.profiles.ciHidden}</span>
+          </Tipped>
+        )}
+        {profile.deniedPulls.length > 0 && (
+          <Tipped tip={details} focusable inline>
+            <span className="tools__chip tools__chip--lost">{t.profiles.pullsRefused}</span>
           </Tipped>
         )}
       </div>

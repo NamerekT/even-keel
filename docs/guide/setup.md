@@ -36,8 +36,8 @@ A project is removed at the bottom of its **Settings** → **Repository**; the p
 Even Keel reads the tasks itself, puts the title and description of the task into the session's prompt, and closes the task when its branch lands in `main`. You add a **tracker profile** on `/settings` → **Access** → **Add profile**, and nothing else: pick the tracker, fill in its fields, press **Check** — Even Keel signs in and shows whom as — then **Save**. A profile is saved only once the tracker took it; the page never shows a saved token or password again. Profiles live in Even Keel's state database on your machine, not in git.
 
 - **Huly:** the server address, the workspace, and the e-mail and password of a separate Huly account with access to the projects — create one for Even Keel. A token instead only if your Huly shows an API tokens page in the account settings: released self-hosted Huly has none, and its sign-in token comes from the e-mail and password anyway ([plugins/huly/README.md](../../plugins/huly/README.md#credentials)). The project key is the Huly project identifier (`ABC` for `ABC-12`).
-- **GitHub:** a [fine-grained token](https://github.com/settings/personal-access-tokens/new) with **Issues: Read and write** on the repositories, and **Actions: Read** if you want to see their GitHub Actions. A fine-grained token covers one owner: a personal repository and an organization's need a profile each. The profile shows when its token expires. A project names its repository: `{ "repo": "…", "tracker": "github", "github": "octo-org/abc" }`. GitHub has no backlog, so keep entry to the chain on a label: `"chain": { "requiredLabels": ["ready"] }`. Details and the mapping of statuses, blockers, sub-issues and priorities: [plugins/github/README.md](../../plugins/github/README.md).
-- **Linear:** a [personal API key](https://linear.app/settings/account/security) with write access. The project key is the team key (`ENG` for `ENG-12`); `"linear": "Web app"` narrows the team down to one Linear project: `{ "repo": "…", "tracker": "linear", "linear": "Web app" }`. Details and the mapping: [plugins/linear/README.md](../../plugins/linear/README.md).
+- **GitHub:** a [fine-grained token](https://github.com/settings/personal-access-tokens/new) on the repositories, with the rights in [Token permissions](#token-permissions). A fine-grained token covers one owner: a personal repository and an organization's need a profile each. The profile shows when its token expires. A project names its repository: `{ "repo": "…", "tracker": "github", "github": "octo-org/abc" }`. GitHub has no backlog, so keep entry to the chain on a label: `"chain": { "requiredLabels": ["ready"] }`. Details and the mapping of statuses, blockers, sub-issues and priorities: [plugins/github/README.md](../../plugins/github/README.md).
+- **Linear:** a [personal API key](https://linear.app/settings/account/security) ([Token permissions](#token-permissions)). The project key is the team key (`ENG` for `ENG-12`); `"linear": "Web app"` narrows the team down to one Linear project: `{ "repo": "…", "tracker": "linear", "linear": "Web app" }`. Details and the mapping: [plugins/linear/README.md](../../plugins/linear/README.md).
 
 On this level the session does not write to the tracker. What you do not get:
 
@@ -68,7 +68,20 @@ Git is not part of this: pushes go through your own git and its credentials (SSH
 
 ### CI and pull requests
 
-The CI is read with a profile too. GitHub Actions on a `github.com` remote takes the token of the project's GitHub profile, or of the default GitHub profile for a project on another tracker; it needs **Actions: Read**. CI on a Forgejo remote takes a **Forgejo** profile (**Add profile** → Forgejo: the server's address and an access token with read access to repositories and to the user) on the remote's host. With several GitHub or Forgejo profiles, a project can pick the one its CI and pull requests take in **Settings** → **Check and CI** (`remoteProfiles`); "Automatic" is the choice above. A CI that no profile reaches is not shown at all. A `FORGEJO_TOKEN` left in `.env` from an older install becomes a Forgejo profile on the first start, one per host of the projects' Forgejo remotes; after that it is not read.
+The CI is read with a profile too. GitHub Actions on a `github.com` remote takes the token of the project's GitHub profile, or of the default GitHub profile for a project on another tracker. CI on a Forgejo remote takes a **Forgejo** profile (**Add profile** → Forgejo: the server's address and an access token) on the remote's host. Pull requests of PR mode take the same token as the remote's CI. What each token needs is in [Token permissions](#token-permissions). With several GitHub or Forgejo profiles, a project can pick the one its CI and pull requests take in **Settings** → **Check and CI** (`remoteProfiles`); "Automatic" is the choice above. A CI that no profile reaches is not shown at all. A `FORGEJO_TOKEN` left in `.env` from an older install becomes a Forgejo profile on the first start, one per host of the projects' Forgejo remotes; after that it is not read.
+
+### Token permissions
+
+What a profile's token needs, by what it is used for. The profile dialog lists the same for the kind you pick.
+
+| Profile | Tracker | CI | Pull requests (PR mode) |
+| --- | --- | --- | --- |
+| Huly | a separate account with access to the projects: its e-mail and password, or a token | — | — |
+| GitHub, a fine-grained token for the repositories' owner | **Issues: Read and write** | **Actions: Read** | **Pull requests: Read and write**, **Contents: Read**, **Actions: Read** |
+| Linear, a personal API key | write access | — | — |
+| Forgejo, an access token | — | `read:repository` (the repositories and their Actions), `read:user` (the sign-in check) | `write:repository` (opening a pull request, reading its reviews), `read:issue` (comments in its conversation), `read:user` |
+
+PR mode pushes the task's branch with `git push`, on the git credentials of the account the service runs as (its SSH keys or credential manager), not with a profile's token: without them PR mode stops at the push. A forge that refuses to open a pull request with the token marks the profile's card **PR refused** and names the right it lacks. The Forgejo rights for pull requests follow from the API calls Even Keel makes and are not yet checked against a real server ([What has not been verified](../unverified.md)).
 
 ## The page
 

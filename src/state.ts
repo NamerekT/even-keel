@@ -567,6 +567,8 @@ export interface ProfileView {
   ci: CiRemote[]
   /** The remotes whose CI takes its token but is not shown: the token does not reach the repository or its runs. */
   hiddenCi: CiRemote[]
+  /** The remotes whose forge refused to open a pull request with its token (`review.denied`, EKR-9). */
+  deniedPulls: CiRemote[]
 }
 
 export interface ProfileField {

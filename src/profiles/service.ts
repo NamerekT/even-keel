@@ -32,6 +32,8 @@ export interface ProfilesDeps {
   ci?: (profileId: string) => CiRemote[]
   /** The remotes whose CI takes the profile's token but does not show: the token does not reach it. */
   hiddenCi?: (profileId: string) => CiRemote[]
+  /** The remotes whose forge refused to open a pull request with the profile's token (`PullRefusals`). */
+  deniedPulls?: (profileId: string) => CiRemote[]
   timeoutMs: number
   now?: () => Date
   log: (line: string) => void
@@ -86,6 +88,7 @@ export class Profiles {
         projects: this.projectsOn(profile).map(([, project]) => project.key),
         ci: this.deps.ci?.(profile.id) ?? [],
         hiddenCi: this.deps.hiddenCi?.(profile.id) ?? [],
+        deniedPulls: this.deps.deniedPulls?.(profile.id) ?? [],
       })),
       kinds: Object.entries(this.deps.kinds).map(([kind, each]) => ({
         kind,

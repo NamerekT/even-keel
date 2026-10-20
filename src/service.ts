@@ -28,6 +28,7 @@ import { mainCheckDeps, mergeCheck } from './chain/mainci.js'
 import { TaskPlaces } from './chain/places.js'
 import { readNote, saveSnapshot, snapshotReason } from './chain/snapshots.js'
 import { pullReadiness } from './review/open.js'
+import { PullRefusals } from './review/refusals.js'
 import { reviewDeps } from './review/wiring.js'
 import { appendLaunch, loadChainState, loadQuestions, readLaunches, saveChainState, saveClosedTask, saveQuestions } from './chain/store.js'
 import { ChangelogDrafts } from './changelog/drafts.js'
@@ -303,6 +304,7 @@ const ciOn = (profileId: string, hidden: boolean) =>
     .places(hidden)
     .filter(({ project, target }) => ciTokenOf(project, target)?.profile === profileId)
     .map(({ project, target }) => ({ project, remote: target.remote }))
+const pullRefusals = new PullRefusals()
 const remotes = new ProjectRemotes(runGit)
 const ciWatches = new CiWatches({
   targets: (repo) => projectTargets(runGit, repo),
@@ -450,6 +452,7 @@ const profiles: Profiles = new Profiles({
   expired: () => void daemons.expire(homes.global),
   ci: (id) => ciOn(id, false),
   hiddenCi: (id) => ciOn(id, true),
+  deniedPulls: (id) => pullRefusals.of(id, (project, target) => (pullRequestsOn(project) ? ciTokenOf(project, target) : null)),
   timeoutMs: TRACKER_CHECK_MS,
   log: (line) => console.log(line),
   onChange: (set) => {
@@ -910,6 +913,7 @@ const dispatcher = new Dispatcher(await loadChainState(db, configStore.current.i
     complete: async (project, task) => {
       await linkOf(project)?.run(async (tracker) => tracker.complete?.(task))
     },
+    refusals: pullRefusals,
     now: () => new Date(),
     timeoutMs: CI_TIMEOUT_MS,
   }),

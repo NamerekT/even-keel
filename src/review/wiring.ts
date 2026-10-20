@@ -2,12 +2,13 @@ import { ciSource } from '../ci/adapters.js'
 import type { CiTarget } from '../ci/remote.js'
 import type { ReviewDeps } from '../chain/model.js'
 import type { Git } from '../git/types.js'
-import { fail, NoticeError } from '../notice/notice.js'
+import { fail, NoticeError, noticeOf } from '../notice/notice.js'
 import { remotesIn } from '../projects/remotes.js'
 import { forgejoPulls } from './forgejo.js'
 import { githubPulls } from './github.js'
 import type { Forge } from './model.js'
 import { openPull, pullReadiness, pullTarget } from './open.js'
+import type { PullRefusals } from './refusals.js'
 
 const RUNS_POLLED = 20
 
@@ -19,6 +20,8 @@ export interface ReviewWiring {
   /** The token for the remote's forge (`ciToken`); `null` — no profile has one. */
   token: (project: string, target: CiTarget) => string | null
   complete: (project: string, task: string) => Promise<void>
+  /** Where a token the forge refused to open a pull request with is told, for the profile's card (EKR-9). */
+  refusals?: PullRefusals
   now: () => Date
   timeoutMs: number
 }
@@ -53,7 +56,14 @@ export function reviewDeps(wiring: ReviewWiring): ReviewDeps {
       if ('notice' in ready) throw new NoticeError(ready.notice)
       const { target } = ready
       const forge = forgeOf(target, ready.token)
-      const opened = await openPull(git, session.workdir, session.pullRequest ?? '', target.remote, forge, wiring.main(project), wiring.now)
+      let opened: Awaited<ReturnType<typeof openPull>>
+      try {
+        opened = await openPull(git, session.workdir, session.pullRequest ?? '', target.remote, forge, wiring.main(project), wiring.now)
+      } catch (error) {
+        if (noticeOf(error).code === 'review.denied') wiring.refusals?.note(project, target, ready.token)
+        throw error
+      }
+      wiring.refusals?.clear(project)
       return opened === null ? null : { ...opened, remote: target.remote }
     },
     check: async (project, pull) => {

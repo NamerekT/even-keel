@@ -88,6 +88,7 @@ export function fakeProfiles(mode: string | null): ProfilesView {
     projects: ['ABC', 'DEMO', 'XYZ', 'OPS'],
     ci: [],
     hiddenCi: [],
+    deniedPulls: [],
   }
   const github: ProfileView = {
     id: GITHUB_PROFILE,
@@ -101,6 +102,7 @@ export function fakeProfiles(mode: string | null): ProfilesView {
     projects: [],
     ci: [],
     hiddenCi: [{ project: 'ABC', remote: 'github' }],
+    deniedPulls: [],
   }
   const forgejo: ProfileView = {
     id: FORGEJO_PROFILE,
@@ -117,6 +119,7 @@ export function fakeProfiles(mode: string | null): ProfilesView {
       { project: 'DEMO', remote: 'origin' },
     ],
     hiddenCi: [],
+    deniedPulls: [{ project: 'DEMO', remote: 'origin' }],
   }
   const linear: ProfileView = {
     id: LINEAR_PROFILE,
@@ -130,6 +133,7 @@ export function fakeProfiles(mode: string | null): ProfilesView {
     projects: [],
     ci: [],
     hiddenCi: [],
+    deniedPulls: [],
   }
   if (mode === 'github') return { profiles: [github, forgejo], kinds: KINDS }
   return { profiles: mode === 'all' ? [huly, github, linear, forgejo] : [huly, github, forgejo], kinds: KINDS }
@@ -198,6 +202,7 @@ export function fakeSaved(state: EvenKeelState, id: string, body: Record<string,
     projects: stored?.projects ?? [],
     ci: stored?.ci ?? [],
     hiddenCi: stored?.hiddenCi ?? [],
+    deniedPulls: [],
   }
   const profiles = stored === undefined ? [...view.profiles, profile] : view.profiles.map((each) => (each.id === id ? profile : each))
   return { ...state, profiles: { ...view, profiles } }
