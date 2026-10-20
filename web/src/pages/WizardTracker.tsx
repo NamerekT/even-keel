@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import { noticeOf, type Notice } from '../../../src/notice/notice.js'
 import type { EvenKeelState, ProfileView, ProjectCheck, TrackerChoice } from '../../../src/state.js'
@@ -38,7 +38,7 @@ export function TrackerStep({ state, fields, shape, choice, check, onChange }: T
   const profile = profiles.find((each) => each.id === fields.profile)
   const title = choice?.title ?? trackerKinds.find((kind) => kind.kind === fields.tracker)?.title ?? ''
   const query = shape === 'place' ? fields.trackerProject : fields.key
-  const lookup = useProjects(profile?.id ?? null, query)
+  const lookup = useProjects(profile?.id ?? null, query, shape !== 'within')
 
   // A profile just saved from the dialog is chosen once the state has it.
   useEffect(() => {
@@ -254,20 +254,32 @@ interface Lookup {
   failure: Notice | null
 }
 
-/** The profile's projects that have the text, asked a moment after the last keystroke. */
-function useProjects(profile: string | null, text: string): Lookup {
+/**
+ * The profile's projects that have the text, asked a moment after the last keystroke.
+ * With `keepPicked`, a text that is a key of the list already shown is not asked again: a new list in the datalist
+ * makes the browser open it again under the focused field, a second or two after the user picked from it.
+ */
+function useProjects(profile: string | null, text: string, keepPicked: boolean): Lookup {
   const { query } = useLive()
   const [lookup, setLookup] = useState<Lookup>({ list: [], of: null, failure: null })
+  // The profile whose answer the list is: the reset below lands after this render's effects read the list.
+  const listed = useRef<string | null>(null)
   const wanted = text.trim()
   useEffect(() => {
+    listed.current = null
     setLookup({ list: [], of: null, failure: null })
   }, [profile])
   useEffect(() => {
     if (profile === null) return
+    if (keepPicked && wanted !== '' && listed.current === profile && lookup.list.some((each) => each.key === wanted)) return
     let live = true
     const timer = setTimeout(() => {
       query<TrackerProject[]>('profiles/projects', { id: profile, query: wanted }).then(
-        (list) => live && setLookup({ list, of: wanted, failure: null }),
+        (list) => {
+          if (!live) return
+          listed.current = profile
+          setLookup({ list, of: wanted, failure: null })
+        },
         (error: unknown) => live && setLookup({ list: [], of: wanted, failure: noticeOf(error) }),
       )
     }, LOOKUP_DELAY_MS)
@@ -275,8 +287,8 @@ function useProjects(profile: string | null, text: string): Lookup {
       live = false
       clearTimeout(timer)
     }
-    // `query` is a new function on each render; the profile and the text are what the list answers.
-  }, [profile, wanted])
+    // `query` is a new function on each render, the list only says whether to ask; the profile and the text are what the list answers.
+  }, [profile, wanted, keepPicked])
   return lookup
 }
 
