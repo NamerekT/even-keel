@@ -47,7 +47,7 @@ Behaviour written without a way to check it live (the situation never came up or
 
 - `claude agents --json` gives neither `pid` nor `status`, and `state` stays even for dead sessions. A live session is only a `sessions/<pid>.json` entry with a live `pid`.
 - A Codex session between turns has no process: live means a live pid or `resting` — check through `isLive`, never `pid` alone.
-- A pending `AskUserQuestion` is not in the transcript: the CLI writes the session's last message with the call only once it is answered, and `claude stop` loses it. Until then the question is only in `jobs/<id>/state.json` (`docs/sessions.md`).
+- A pending `AskUserQuestion` is in the transcript at once only from CLI 2.1.302: 2.1.296 wrote the message with the call only once it was answered, `claude stop` lost it, and until then the question was only in `jobs/<id>/state.json` — keep reading it from there for such CLIs (`docs/sessions.md`).
 - `claude stop`/`claude agents` from a terminal do not reach the service's daemon (Windows session 0): `stop` prints "stopped" and marks the job `stopped` while the process lives on. Stop chain sessions through Even Keel or by killing the pid.
 - The CLI creates several keys for one folder in `.claude.json` (`d:/…`, `D:/…`, `D:\…`). Compare paths only through `src/paths.ts`.
 - A session inherits its daemon's environment (frozen at the daemon's start) and puts the `settings.json` `env` read at its own start on top: a changed key reaches new sessions at once, a removed one stays until the daemon restarts, and the environment of a later `claude --bg` never reaches its session (`docs/accounts.md`).
