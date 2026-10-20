@@ -723,7 +723,7 @@ export function SettingsPanel({
       >
         {groups[open]()}
         {leftover !== null && <p className="notice notice--error">{say(leftover)}</p>}
-        {dirty(open) && <SaveBar canSave={!sending && next !== undefined} onRevert={() => revert(keysOf(open))} />}
+        <SaveBar shown={dirty(open)} canSave={!sending && next !== undefined} onRevert={() => revert(keysOf(open))} />
       </form>
     </aside>
   )

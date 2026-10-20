@@ -352,10 +352,13 @@ export function GroupTabs<T extends string>({
   )
 }
 
-/** Stuck to the bottom of the form while the open group has changes: put it back, or save it. */
-export function SaveBar({ canSave, onRevert }: { canSave: boolean; onRevert: () => void }) {
+/**
+ * Stuck to the bottom of the form while the open group has changes: put it back, or save it. Hidden, it still holds
+ * its place, so its showing up neither moves the form nor covers its last field.
+ */
+export function SaveBar({ shown, canSave, onRevert }: { shown: boolean; canSave: boolean; onRevert: () => void }) {
   return (
-    <div className="settings__bar">
+    <div className={shown ? 'settings__bar' : 'settings__bar settings__bar--idle'} aria-hidden={!shown}>
       <span className="settings__bar-text">{t.settings.unsavedGroup}</span>
       <button type="button" className="settings__icon" title={t.settings.revert} aria-label={t.settings.revert} onClick={onRevert}>
         <UndoIcon />

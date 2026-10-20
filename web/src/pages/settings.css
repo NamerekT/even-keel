@@ -830,10 +830,13 @@
   outline-offset: 1px;
 }
 
-/* Stuck to the bottom of the panel's scroll, edge to edge, while the open group has changes. */
+/*
+ * Stuck to the bottom of the panel's scroll, edge to edge, while the open group has changes. A sticky box stops at
+ * the scroll's padding, so `bottom` takes the panel's padding back: else the fields show through the strip below it.
+ */
 .settings__bar {
   position: sticky;
-  bottom: 0;
+  bottom: -16px;
   z-index: 2;
   display: flex;
   align-items: center;
@@ -844,7 +847,12 @@
   background: var(--surface);
 }
 
+.settings__bar--idle {
+  visibility: hidden;
+}
+
 .settings-page .settings__bar {
+  bottom: 0;
   margin: 0;
   padding: 12px 0;
   background: var(--bg);
