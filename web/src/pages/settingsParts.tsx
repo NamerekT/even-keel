@@ -68,7 +68,10 @@ export function unplaced(project: string | null, error: Notice | null, config: C
   return at !== null && at.project === project ? null : error
 }
 
-/** A question mark after a setting's name: pointed at or focused, it tells what the setting does. */
+/**
+ * A question mark after a setting's name: pointed at or pressed, it tells what the setting does.
+ * Out of the Tab order: Tab goes from field to field in a form, not through every question mark.
+ */
 export function HelpTip({ text, align }: { text: string; align?: TipAlign }) {
   const { shown, anchor, tip, show, hide, close } = useTip<HTMLButtonElement, HTMLSpanElement>(true, align)
   const id = useId()
@@ -77,6 +80,7 @@ export function HelpTip({ text, align }: { text: string; align?: TipAlign }) {
       ref={anchor}
       type="button"
       className="help"
+      tabIndex={-1}
       aria-label={t.settings.help}
       aria-describedby={id}
       onMouseEnter={show}
