@@ -100,6 +100,7 @@ function stateOf(patch: Partial<EvenKeelState>): EvenKeelState {
     trackerUrls: { default: null, projects: {}, pages: {} },
     ci: {},
     remotes: {},
+    pullReadiness: {},
     launches: [],
     taskSessions: {},
     fixes: {},

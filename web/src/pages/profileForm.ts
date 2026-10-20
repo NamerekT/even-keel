@@ -23,6 +23,12 @@ export function draftValues(kind: ProfileKindView, alternative: number, typed: R
   return Object.fromEntries(kind.fields.map(({ name }) => [name, shown.has(name) ? (typed[name] ?? '') : null]))
 }
 
+/** What a new profile starts with: the server's address in the kind's one host field (Forgejo's URL); a kind with none or several gets nothing. */
+export function hostValues(kind: Pick<ProfileKindView, 'hostVariables'>, host: string | undefined): Record<string, string> {
+  const [only, ...rest] = kind.hostVariables
+  return host === undefined || host === '' || only === undefined || rest.length > 0 ? {} : { [only]: host }
+}
+
 /** Whole days until `expiresAt`, rounded up; zero or less once it is past. */
 export function daysLeft(expiresAt: string, now: number): number {
   return Math.ceil((Date.parse(expiresAt) - now) / DAY_MS)

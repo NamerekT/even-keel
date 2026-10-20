@@ -169,7 +169,7 @@ Run once against a real GitHub repository from the Windows service (BTN-161, 18.
 
 ### PR mode without a remote (EKR-12)
 
-The check before a launch and on saving was tested on the dispatcher and the readiness function only, not on the running service. It assumes the remotes reread each minute show a remote added by hand, and that the page's save of `pullRequests` reads the checkout's remotes from git at once. If the reread misses a new remote or token, the chain stays paused with `review.notReady` after you added it; if the save misreads the remotes, PR mode does not turn on for a project that has a forge remote. **Workaround:** press Resume once the remote is in place, or restart the service; turn PR mode on by hand in the config (`npm run storage -- config-export`/`config-import`) if the page refuses it wrongly.
+The check before a launch and on saving was tested on the dispatcher and the readiness function only, not on the running service; the switch and **Add profile** of the settings panel (EKR-7) only on the fake state. It assumes the remotes reread each minute show a remote added by hand, and that the page's save of `pullRequests` reads the checkout's remotes from git at once. If the reread misses a new remote or token, the chain stays paused with `review.notReady` after you added it, and the switch stays off with its hint; if the save misreads the remotes, PR mode does not turn on for a project that has a forge remote. **Workaround:** press Resume once the remote is in place, or restart the service; turn PR mode on by hand in the config (`npm run storage -- config-export`/`config-import`) if the page refuses it wrongly.
 
 ### Background commands of a stopped session on Linux and macOS (BTN-202)
 

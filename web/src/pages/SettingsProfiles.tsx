@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { createPortal } from 'react-dom'
+import { useSearchParams } from 'react-router'
 import type { EvenKeelState, ProfileView } from '../../../src/state.js'
 import { say, t } from '../i18n/index.js'
 import { useCommand } from '../live/useCommand.js'
@@ -7,6 +8,7 @@ import { PlusIcon, TrackerIcon } from '../ui/icons.js'
 import { Tipped } from '../ui/Tipped.js'
 import { ProfileDialog } from './ProfileDialog.js'
 import { daysLeft } from './profileForm.js'
+import { profileAddOf, withoutProfileAdd } from './pullFix.js'
 import './accounts.css'
 import './profiles.css'
 
@@ -20,7 +22,10 @@ type Editing = { id: string | null } | null
 /** The trackers' profiles of the "Access" tab: a card each, the details on pointing, and "Add profile". */
 export function SettingsProfiles({ state }: { state: EvenKeelState }) {
   const [editing, setEditing] = useState<Editing>(null)
+  const [params, setParams] = useSearchParams()
   const { profiles, kinds } = state.profiles
+  const asked = profileAddOf(params)
+  const adding = asked !== null && kinds.some((each) => each.kind === asked.kind) ? asked : null
   return (
     <section className="secrets__group profiles">
       <div className="profiles__head">
@@ -47,6 +52,20 @@ export function SettingsProfiles({ state }: { state: EvenKeelState }) {
       )}
       {editing !== null &&
         createPortal(<ProfileDialog kinds={kinds} profile={profiles.find((each) => each.id === editing.id)} onClose={() => setEditing(null)} />, document.body)}
+      {/* Only PR mode links here so far (EKR-7): the profile is for a remote's pull requests. */}
+      {adding !== null &&
+        editing === null &&
+        createPortal(
+          <ProfileDialog
+            kinds={kinds}
+            profile={undefined}
+            fixed={adding.kind}
+            host={adding.host}
+            stress="pullRequests"
+            onClose={() => setParams(withoutProfileAdd(params), { replace: true })}
+          />,
+          document.body,
+        )}
     </section>
   )
 }

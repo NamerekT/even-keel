@@ -486,6 +486,7 @@ export const ru = {
     backlogHint: 'Открытые задачи, которые цепочка пока не берёт по статусу или ярлыкам.',
     leftover: (task: string) => `${task} закрыта, но после неё не всё прошло гладко — проверьте руками.`,
     dismiss: 'Убрал',
+    pullAddRemote: 'Добавьте remote или выключите PR-режим',
     resume: 'Снять с паузы',
     stop: 'Остановить',
     stopTip: (task: string | null) =>
@@ -788,6 +789,12 @@ export const ru = {
     pullRequests: 'Pull request вместо слияния (экспериментально)',
     pullRequestsHint:
       'Сессия не сливает ветку: она описывает pull request и отмечает конец хода. Even Keel пушит ветку, открывает pull request и идёт дальше; задача ждёт вне цепочки. Слияние закрывает задачу, закрытый pull request её пропускает, а ревью с просьбой правок, упавший CI или конфликт возвращаются сессии задачи. Экспериментально, на свой риск: вживую проверены только открытие, закрытие и слияние на GitHub; Forgejo и обратная связь сессии на настоящем репозитории не запускались.',
+    pullNoRemote: 'У репозитория нет remote на GitHub или Forgejo, где открывать pull request: добавьте его.',
+    pullUnsupported: (host: string) => `${host} не поддерживается для pull request: только GitHub и Forgejo.`,
+    pullNoToken: (forge: string, remote: string) => `Ни у одного профиля ${forge} нет токена для remote ${remote}: добавьте профиль.`,
+    pullAddProfile: 'Добавить профиль',
+    pullAddProfileTip: (forge: string, web: string) => `Откроет «Доступы» с новым профилем ${forge} для ${web}.`,
+    pullProfileIdle: 'Профиль добавляется здесь, когда у remote для pull request нет профиля с токеном.',
     remoteProfile: (kind: string) => `Профиль ${kind}`,
     remoteProfileHint:
       'Чьим токеном ходят CI remote проекта и его pull request. Автоматически: GitHub берёт профиль трекера проекта, если это профиль GitHub, иначе профиль GitHub по умолчанию; Forgejo — профиль по умолчанию на хосте remote.',

@@ -47,12 +47,11 @@ import { ProjectRemove } from './ProjectRemove.js'
 import { ProfileLink } from './ProfileSelect.js'
 import { TrackerPackageButton } from './ToolsLink.js'
 import { remoteChoices } from './remoteProfiles.js'
-import { useDraft, useTab } from './settingsStore.js'
+import { projectScope as scopeOf, useDraft, useTab } from './settingsStore.js'
 import { SEG_CLASS, type ChipLook } from './chipLook.js'
+import { AddPullProfile, PullHint } from './PullButtons.js'
+import { FORGES } from '../../../src/notice/en.js'
 import './settings.css'
-
-/** The address hash that opens the settings panel; a task id never equals it. */
-export const SETTINGS_HASH = 'settings'
 
 const CHIP_CLASS: Record<ChipLook, string> = { tag: 'tag tag--settings', tab: 'side-tab side-tab--wide', seg: SEG_CLASS }
 
@@ -75,7 +74,6 @@ export function SettingsChip({ open, look = 'tag', dirty, onToggle }: { open: bo
 }
 
 const remoteKey = (kind: CiKind) => `remote.${kind}`
-const FORGES: Record<CiKind, string> = { github: 'GitHub', forgejo: 'Forgejo' }
 
 // Related fields share a group, so a save of one group never leaves another half-agreeing with it.
 const GROUPS = [
@@ -91,7 +89,6 @@ type GroupId = (typeof GROUPS)[number]['id']
 const KEYS: readonly string[] = GROUPS.flatMap((group) => group.keys)
 const keysOf = (id: GroupId): readonly string[] => GROUPS.find((group) => group.id === id)!.keys
 const same = sameBy(['beforeStart', 'check', 'afterGreen', ...RULE_KEYS])
-const scopeOf = (project: string) => `project:${project}`
 
 const valuesOf = (form: ProjectForm): Values => ({
   repo: form.repo,
@@ -261,6 +258,8 @@ export function SettingsPanel({
   const on = (key: string) => draft.edit[key] as boolean
   const tracker = config.trackers.find((each) => each.name === text('tracker'))
   const kinds = draft.edit.kinds as readonly CiKind[]
+  // Only turning PR mode on waits for a remote and its profile (EKR-7): one already on stays free to turn off.
+  const pullReadiness = state?.pullReadiness[project] ?? null
   const offered = offeredProviders(state?.account ?? null, namedProviders(text, [config.shared.provider, text('provider')], ['models', 'accounts']))
 
   useEffect(() => closeRef.current?.focus({ preventScroll: true }), [])
@@ -712,7 +711,21 @@ export function SettingsPanel({
           {switchChoice('recheck', t.settings.recheckMain, t.settings.recheckMainHint, shared.ci.recheckMain, unguarded)}
           {switchChoice('fixTask', t.settings.fixTask, t.settings.fixTaskHint, shared.ci.fixTask, unguarded)}
         </div>
-        {check('pullRequests', t.settings.pullRequests, t.settings.pullRequestsHint, 'pullRequests')}
+        <CheckField
+          className={marks.box('pullRequests')}
+          label={t.settings.pullRequests}
+          hint={t.settings.pullRequestsHint}
+          checked={on('pullRequests')}
+          disabled={pullReadiness !== null && !on('pullRequests') && saved.pullRequests !== true}
+          onChange={(checked) => edit('pullRequests', checked)}
+        >
+          <span className="settings__beside">
+            <AddPullProfile readiness={pullReadiness} />
+            <PullHint readiness={pullReadiness} on={on('pullRequests')} />
+          </span>
+          {marks.note('pullRequests')}
+          <FieldNote error={errorOf('pullRequests')} />
+        </CheckField>
         {CI_KINDS.map(remoteChoice)}
       </>
     ),

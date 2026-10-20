@@ -1,4 +1,4 @@
-import type { GitStep } from '../../../src/notice/en.js'
+import { FORGES, type GitStep } from '../../../src/notice/en.js'
 import type { NoticeTexts } from '../../../src/notice/notice.js'
 import { plural } from './plural.js'
 
@@ -93,7 +93,7 @@ export const noticesRu: NoticeTexts = {
     `PR-режиму ${p.project} негде открывать pull request, и цепочка не запускает задачи; она пойдёт сама в течение минуты, как только это исправят, или выключите PR-режим`,
   'review.cannotEnable': (p) => `PR-режим ${p.project} не включён`,
   'review.noRemote': (p) => `у ${p.project} нет remote на GitHub или Forgejo, где открыть pull request`,
-  'review.noToken': (p) => `ни у одного профиля нет токена для remote ${p.remote}; добавьте профиль GitHub или Forgejo его хоста`,
+  'review.noToken': (p) => `ни у одного профиля нет токена для remote ${p.remote} (${p.web}); добавьте профиль ${FORGES[p.kind]} его хоста`,
   'review.unsupportedHost': (p) => `remote ${p.remote} на ${p.host} не поддерживается для pull request: только GitHub и Forgejo`,
   'review.noNote': (p) => `сессия не оставила описание pull request в ${p.path}`,
   'review.noBranch': (p) => `${p.path} не на ветке`,

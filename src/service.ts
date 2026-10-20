@@ -1107,6 +1107,14 @@ const getState = (): EvenKeelState => ({
   },
   ci: Object.fromEntries([...ciWatches.byProject.keys()].map((project) => [project, ciWatches.shown(project).map((watch) => watch.view)])),
   remotes: remotes.view,
+  pullReadiness: Object.fromEntries(
+    Object.entries(remotes.urls)
+      .filter(([project]) => configStore.current.projects[project] !== undefined)
+      .map(([project, urls]) => {
+      const ready = pullReadinessOf(project, urls)
+      return [project, 'notice' in ready ? ready.notice : null]
+    }),
+  ),
   launches: launchDays(launches, new Date(), LAUNCH_CHART_DAYS),
   taskSessions: taskSessions(launches, sessions, sessionAccount),
   fixes: fixEpisodes(launches).episodes,

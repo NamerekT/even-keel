@@ -7,7 +7,7 @@ import { remotesIn } from '../projects/remotes.js'
 import { forgejoPulls } from './forgejo.js'
 import { githubPulls } from './github.js'
 import type { Forge } from './model.js'
-import { openPull, pullReadiness, pullTarget, unsupportedHost } from './open.js'
+import { noToken, openPull, pullReadiness, pullTarget, unsupportedHost } from './open.js'
 import type { PullRefusals } from './refusals.js'
 
 const RUNS_POLLED = 20
@@ -41,7 +41,7 @@ export function reviewDeps(wiring: ReviewWiring): ReviewDeps {
 
   function tokenOf(project: string, target: CiTarget): string {
     const token = wiring.token(project, target)
-    if (token === null) throw fail('review.noToken', { remote: target.remote })
+    if (token === null) throw new NoticeError(noToken(target))
     return token
   }
 

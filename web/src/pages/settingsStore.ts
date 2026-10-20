@@ -25,6 +25,12 @@ export function useDraft(scope: string, saved: Values | undefined, same: Same): 
 /** The scope of Even Keel's own settings page. */
 export const SHARED_SCOPE = 'shared'
 
+/** The scope of a project's settings panel. */
+export const projectScope = (project: string) => `project:${project}`
+
+/** The address hash of a project page that opens its settings panel; a task id never equals it. */
+export const SETTINGS_HASH = 'settings'
+
 /** Opens a tab of a settings form before going there, e.g. from a link on another page. */
 export function openTab(scope: string, tab: string) {
   tabs.set(scope, tab)

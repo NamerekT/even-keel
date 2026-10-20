@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { ProfileKindView, ProfileView } from '../../../src/state.js'
-import { alternativeOf, daysLeft, draftValues, shownFields } from './profileForm.js'
+import { alternativeOf, daysLeft, draftValues, hostValues, shownFields } from './profileForm.js'
 
 const HULY: ProfileKindView = {
   kind: 'huly',
@@ -69,6 +69,21 @@ describe('draftValues', () => {
 
   it('sends a blank for a field not typed, so a stored secret stays', () => {
     expect(draftValues(HULY, 1, {}).HULY_PASSWORD).toBe('')
+  })
+})
+
+describe('hostValues', () => {
+  const forgejo = { hostVariables: ['FORGEJO_URL'] }
+
+  it("puts the address into the kind's one host field", () => {
+    expect(hostValues(forgejo, 'https://git.example.com')).toEqual({ FORGEJO_URL: 'https://git.example.com' })
+  })
+
+  it('fills nothing without an address, or for a kind with no single host field', () => {
+    expect(hostValues(forgejo, undefined)).toEqual({})
+    expect(hostValues(forgejo, '')).toEqual({})
+    expect(hostValues({ hostVariables: [] }, 'https://github.com')).toEqual({})
+    expect(hostValues(HULY, 'https://huly.example.com')).toEqual({})
   })
 })
 

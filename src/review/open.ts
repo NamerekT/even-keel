@@ -24,7 +24,10 @@ export function pullTarget(remotes: Remote[]): CiTarget | UnsupportedRemote | nu
 
 export const unsupportedHost = (target: UnsupportedRemote): Notice => notice('review.unsupportedHost', { remote: target.remote, host: target.host })
 
-export type PullReadiness = { target: CiTarget; token: string } | { notice: Notice }
+/** No profile has a token for the remote: its kind and address are what the page's "Add profile" opens on (EKR-7). */
+export const noToken = (target: CiTarget): Notice => notice('review.noToken', { remote: target.remote, kind: target.kind, web: target.web })
+
+export type PullReadiness ={ target: CiTarget; token: string } | { notice: Notice }
 
 /**
  * Whether a project's PR mode has where to go: the remote its pull requests go to and the token for its forge, or why
@@ -35,7 +38,7 @@ export function pullReadiness(project: string, remotes: Remote[], token: (target
   if (target === null) return { notice: notice('review.noRemote', { project }) }
   if (target.kind === null) return { notice: unsupportedHost(target) }
   const found = token(target)
-  return found === null ? { notice: notice('review.noToken', { remote: target.remote }) } : { target, token: found }
+  return found === null ? { notice: noToken(target) } : { target, token: found }
 }
 
 /** The pull request's title and body from the session's note: the first line that is not blank, then the rest. */

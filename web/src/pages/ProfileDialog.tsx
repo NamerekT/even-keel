@@ -6,7 +6,7 @@ import type { RightsUse } from '../i18n/ru.js'
 import { useLive } from '../live/context.js'
 import { Field } from '../tools/AddPackage.js'
 import { TrackerIcon } from '../ui/icons.js'
-import { alternativeOf, draftValues, shownFields } from './profileForm.js'
+import { alternativeOf, draftValues, hostValues, shownFields } from './profileForm.js'
 import './profiles.css'
 
 interface DialogProps {
@@ -15,15 +15,19 @@ interface DialogProps {
   profile: ProfileView | undefined
   /** The use the dialog is opened for, its rights stand out: pull requests from PR mode's notices (EKR-7). */
   stress?: RightsUse
+  /** The kind of a new profile, fixed: a remote's forge asks for its own (EKR-7). */
+  fixed?: string
+  /** The server's address a new profile starts with, in the kind's host field (Forgejo's URL). */
+  host?: string
   onClose: () => void
   /** The id of the profile saved, before the dialog closes. */
   onSaved?: (id: string) => void
 }
 
 /** "Add profile" and a profile's edit: the kind's tiles first for a new one, then its fields, Check, and Save once the check passed. */
-export function ProfileDialog({ kinds, profile, stress, onClose, onSaved }: DialogProps) {
+export function ProfileDialog({ kinds, profile, stress, fixed, host, onClose, onSaved }: DialogProps) {
   const dialog = useRef<HTMLDialogElement>(null)
-  const [kind, setKind] = useState<string | null>(profile?.kind ?? null)
+  const [kind, setKind] = useState<string | null>(profile?.kind ?? fixed ?? null)
   const title = useId()
   const view = kinds.find((each) => each.kind === kind)
 
@@ -58,7 +62,15 @@ export function ProfileDialog({ kinds, profile, stress, onClose, onSaved }: Dial
         {view === undefined ? (
           <KindStep kinds={kinds} onPick={setKind} />
         ) : (
-          <FieldsStep kind={view} profile={profile} stress={stress} onBack={profile === undefined ? () => setKind(null) : undefined} onClose={onClose} onSaved={onSaved} />
+          <FieldsStep
+            kind={view}
+            profile={profile}
+            stress={stress}
+            host={host}
+            onBack={profile === undefined && fixed === undefined ? () => setKind(null) : undefined}
+            onClose={onClose}
+            onSaved={onSaved}
+          />
         )}
       </div>
     </dialog>
@@ -85,6 +97,7 @@ interface FieldsProps {
   kind: ProfileKindView
   profile: ProfileView | undefined
   stress: RightsUse | undefined
+  host: string | undefined
   /** None for an edit: the kind of a stored profile stays. */
   onBack: (() => void) | undefined
   onClose: () => void
@@ -123,11 +136,13 @@ function Rights({ kind, stress }: { kind: ProfileKindView; stress: RightsUse | u
   )
 }
 
-function FieldsStep({ kind, profile, stress, onBack, onClose, onSaved }: FieldsProps) {
+function FieldsStep({ kind, profile, stress, host, onBack, onClose, onSaved }: FieldsProps) {
   const { query } = useLive()
   const [alternative, setAlternative] = useState(() => alternativeOf(kind, profile))
   const [typed, setTyped] = useState<Record<string, string>>(() =>
-    Object.fromEntries((profile?.fields ?? []).filter((field) => field.value !== null).map((field) => [field.name, field.value!])),
+    profile === undefined
+      ? hostValues(kind, host)
+      : Object.fromEntries(profile.fields.filter((field) => field.value !== null).map((field) => [field.name, field.value!])),
   )
   const [name, setName] = useState(profile?.name ?? '')
   const [checked, setChecked] = useState<Checked | null>(null)

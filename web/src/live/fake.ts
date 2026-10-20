@@ -13,7 +13,7 @@ import { deviceLogin } from '../accounts.js'
 import { accountCommand, fakeAccount, fakeUsage, FAKE_LIMITS } from './fakeAccounts.js'
 import { FAKE_FIX, fakeCi } from './fakeCi.js'
 import { fakeUpdates } from './fakeUpdates.js'
-import { FAKE_PROJECT_IDS, FAKE_REMOTES, FAKE_VOCABULARY, fakeConfig, fakeHandEdit } from './fakeConfig.js'
+import { FAKE_PROJECT_IDS, FAKE_PULL_READINESS, FAKE_REMOTES, FAKE_VOCABULARY, fakeConfig, fakeHandEdit } from './fakeConfig.js'
 import { withFix } from './fakeFix.js'
 import { fakeCompare, fakeRuleDiff, fakeRules } from './fakeRules.js'
 import { fakeSteps } from './fakeSteps.js'
@@ -187,6 +187,7 @@ function fakeState(
     },
     ci: fakeCi(null),
     remotes: FAKE_REMOTES,
+    pullReadiness: FAKE_PULL_READINESS,
     launches: launchDays(launches, new Date(), LAUNCH_DAYS),
     taskSessions: idle
       ? {}
@@ -369,8 +370,14 @@ export function createFakeSource(search: string): LiveSource {
     chain.projects['ABC'] = { ...chain.projects['ABC']!, order: [], waiting: [], error }
     chain.active = chain.active.map((each) => (each.project === 'ABC' ? { ...each, current: null, paused: true, error } : each))
   }
+  if ((params.get('chain') === 'pulls' || params.get('chain') === 'pullsRemote') && current.state !== null) {
+    const cause = params.get('chain') === 'pulls' ? FAKE_PULL_READINESS['DEMO']! : notice('review.noRemote', { project: 'ABC' })
+    const error = notice('review.notReady', { project: 'ABC' }, { cause })
+    current.state.pullReadiness = { ...current.state.pullReadiness, ABC: cause }
+    current.state.chain.active = current.state.chain.active.map((each) => (each.project === 'ABC' ? { ...each, current: null, paused: true, error } : each))
+  }
   if (params.get('chain') === 'skip' && current.state !== null) {
-    current.state.chain.skipped = { ABC: ['ABC-12'], OPS: ['OPS-2', 'OPS-3'] }
+    current.state.chain.skipped ={ ABC: ['ABC-12'], OPS: ['OPS-2', 'OPS-3'] }
     current.state.taskSessions['ABC-9'] = [
       {
         sessionId: session('ABC-9', 0).sessionId,

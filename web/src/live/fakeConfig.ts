@@ -1,4 +1,5 @@
 import { DEFAULT_RULES } from '../../../src/chain/rules.js'
+import { notice } from '../../../src/notice/notice.js'
 import type { ConfigView, EvenKeelState, ProjectForm, SharedForm } from '../../../src/state.js'
 import { DEFAULT_SHARES } from '../../../src/stats/checkpoint.js'
 import type { TrackerVocabulary } from '../../../src/tracker/source.js'
@@ -20,6 +21,14 @@ export const FAKE_REMOTES: EvenKeelState['remotes'] = {
     { id: 'github.com/octo-org/app', path: 'octo-org/app' },
   ],
   OPS: [],
+}
+
+/** No profile has a token for DEMO's Forgejo remote, so it offers "Add profile"; OPS has no remote to open pull requests on. */
+export const FAKE_PULL_READINESS: EvenKeelState['pullReadiness'] = {
+  ABC: null,
+  DEMO: notice('review.noToken', { remote: 'origin', kind: 'forgejo', web: 'https://git.example.com' }),
+  XYZ: null,
+  OPS: notice('review.noRemote', { project: 'OPS' }),
 }
 
 /** What the fake tracker names for every project: some of it no fake task carries (`?vocabulary=none|fail`). */

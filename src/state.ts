@@ -326,6 +326,11 @@ export interface EvenKeelState {
   ci: Record<string, CiView[]>
   /** The remotes of each project's checkout: Home groups the projects that share one (BTN-207). */
   remotes: Record<string, RemoteRef[]>
+  /**
+   * Whether each project's PR mode would have where to open pull requests, by the same remotes (EKR-7): `null` — it
+   * would; else `review.noRemote`, `review.unsupportedHost` or `review.noToken`. A project not read yet has no key.
+   */
+  pullReadiness: Record<string, Notice | null>
   launches: LaunchDay[]
   /** The sessions of each task by its id; a fix of a red main by the id of its episode (`fixes`). */
   taskSessions: Record<string, TaskSession[]>

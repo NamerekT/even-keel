@@ -109,8 +109,12 @@ describe('pullReadiness', () => {
     })
   })
 
-  it('names the remote no profile has a token for', () => {
-    expect(pullReadiness('ABC', remotes, () => null)).toEqual({ notice: notice('review.noToken', { remote: 'origin' }) })
+  it('names the remote no profile has a token for, with the kind and the address a new profile takes', () => {
+    expect(pullReadiness('ABC', remotes, () => null)).toEqual({ notice: notice('review.noToken', { remote: 'origin', kind: 'github', web: 'https://github.com' }) })
+    const forgejo = [{ name: 'origin', url: 'ssh://git@git.example.com:2222/acme/app.git' }]
+    expect(pullReadiness('ABC', forgejo, () => null)).toEqual({
+      notice: notice('review.noToken', { remote: 'origin', kind: 'forgejo', web: 'https://git.example.com' }),
+    })
   })
 
   it('says a remote on an unsupported host is not supported, without asking for a token', () => {

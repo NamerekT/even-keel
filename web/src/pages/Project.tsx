@@ -46,7 +46,9 @@ import { NotFound } from './NotFound.js'
 import { emptyCall } from './ProjectCard.js'
 import { ProjectName } from './ProjectName.js'
 import { SessionPanel } from './SessionPanel.js'
-import { SETTINGS_HASH, SettingsChip, SettingsPanel, useSettingsDirty } from './SettingsPanel.js'
+import { SettingsChip, SettingsPanel, useSettingsDirty } from './SettingsPanel.js'
+import { SETTINGS_HASH } from './settingsStore.js'
+import { PullFixButton } from './PullButtons.js'
 import { StatsStrip, useStrip } from './StatsStrip.js'
 import { ToolsLink } from './ToolsLink.js'
 import { useArrival } from './useArrival.js'
@@ -360,6 +362,7 @@ function ChainControls({ state, project, narrow, children }: { state: EvenKeelSt
       {status.kind === 'running' && status.ciWait !== undefined && <p className="project__wait">{ciWaitText(status.ciWait, new Date())}</p>}
       {stopsAfter && <p className="project__wait">{t.project.stopsAfter(chain?.current?.task ?? chain?.closing ?? null)}</p>}
       {error !== null && <p className="project__error">{say(error)}</p>}
+      <PullFixButton state={state} project={project} error={status.kind === 'paused' ? status.error : null} />
     </>
   )
 }

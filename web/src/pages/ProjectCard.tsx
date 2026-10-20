@@ -26,6 +26,7 @@ import { QuestionsChip } from '../ui/QuestionsChip.js'
 import { seriesStyle } from '../ui/series.js'
 import { StatusChip } from '../ui/StatusChip.js'
 import { Tipped } from '../ui/Tipped.js'
+import { PullFixButton } from './PullButtons.js'
 
 /** `turn` — which card of its empty kind this one is on the page (`emptyTurns`). */
 export function ProjectCard({ state, project, turn }: { state: EvenKeelState; project: string; turn: number }) {
@@ -107,6 +108,7 @@ export function ProjectCard({ state, project, turn }: { state: EvenKeelState; pr
       {status.kind === 'running' && status.slotWait !== undefined && <p className="card__wait">{say({ ...status.slotWait, items: [] })}</p>}
       {status.kind === 'running' && status.ciWait !== undefined && <p className="card__wait">{ciWaitText(status.ciWait, new Date())}</p>}
       {error !== null && <p className="card__error">{say(error)}</p>}
+      {status.kind === 'paused' && <PullFixButton state={state} project={project} error={status.error} />}
 
       {canStart && (
         <footer className="card__foot">

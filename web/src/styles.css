@@ -2454,9 +2454,14 @@ a.button.pull-button__link {
   margin-top: auto;
 }
 
-.card__foot .button {
+.card__foot .button,
+.card .pull-fix {
   position: relative;
   z-index: 1;
+}
+
+.card .pull-fix {
+  align-self: flex-end;
 }
 
 .chart {

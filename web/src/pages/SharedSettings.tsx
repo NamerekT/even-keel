@@ -1,4 +1,5 @@
-import { Fragment, type ReactNode } from 'react'
+import { Fragment, useEffect, type ReactNode } from 'react'
+import { useSearchParams } from 'react-router'
 import { CLI_SOURCES, EXECUTION_MODES } from '../../../src/agent/providers.js'
 import { CI_KINDS, type CiKind } from '../../../src/ci/model.js'
 import { LANGUAGES, type Language } from '../../../src/language.js'
@@ -36,7 +37,8 @@ import {
 } from './settingsParts.js'
 import { lineOf, linesText, pairOf, ruleChoicesOf, rowsOf } from './settingsRows.js'
 import { accountOptions, namedProviders, providerKeys, providerMap, providerName, providerOptions, providerValues } from './settingsRun.js'
-import { SHARED_SCOPE, useDraft, useTab } from './settingsStore.js'
+import { profileAddOf } from './pullFix.js'
+import { openTab, SHARED_SCOPE, useDraft, useTab } from './settingsStore.js'
 import { ListTable, RowsTable } from './settingsTable.js'
 import { SettingsNav } from './SettingsNav.js'
 import { SettingsSecrets } from './SettingsSecrets.js'
@@ -168,6 +170,12 @@ export function SharedSettings({ state }: { state: EvenKeelState }) {
   const [current, setDraft] = useDraft(SCOPE, saved, same)
   const draft = current!
   const [open, setOpen] = useTab<GroupId>(SCOPE, 'chain')
+  const [params] = useSearchParams()
+  const addsProfile = profileAddOf(params) !== null
+  // A link asking for a profile (PR mode, EKR-7) lands on the tab its dialog opens in.
+  useEffect(() => {
+    if (addsProfile) openTab(SCOPE, 'secrets')
+  }, [addsProfile])
   const vocabularies = useVocabularies(state.projects.flatMap((project) => state.projectIds[project] ?? []))
   const dirty = (id: GroupId) => changed(draft, keysOf(id), same).length > 0
   const outgoing = sent(draft, keysOf(open))
