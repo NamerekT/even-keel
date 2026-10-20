@@ -115,6 +115,7 @@ function withProject(state: EvenKeelState, draft: ProjectDraft): EvenKeelState {
     promptLanguage: state.config.shared.promptLanguage,
     cacheTtl: state.config.shared.cacheTtl,
     checkpointTokens: state.config.shared.stats.checkpointTokens,
+    checkpointShares: state.config.shared.stats.checkpointShares,
     own: {},
   }
   return {

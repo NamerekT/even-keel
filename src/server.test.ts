@@ -228,7 +228,8 @@ describe('Even Keel HTTP server', () => {
     const ci = { guard: false, kinds: ['github'], waitMinutes: 15, recheckMain: false, fixTask: true }
     const settings = {
       ...{ prompt: 'Run npm test.', beforeStart: ['npm ci'], check: ['npm test'], afterGreen: ['npm run build'], ci, fillMilestone: true, changelog: 'docs/CHANGELOG.md', ...form },
-      ...{ promptLanguage: 'ru', cacheTtl: '1h', checkpointTokens: 180_000, own: { 'ci.guard': false, cacheTtl: '1h' } },
+      ...{ promptLanguage: 'ru', cacheTtl: '1h', checkpointTokens: 180_000, checkpointShares: { first: 60, late: 85, hard: 95 } },
+      own: { 'ci.guard': false, cacheTtl: '1h', 'stats.checkpointShares.first': 60 },
     }
     const started = { ...settings, prompt: null, slot: 0, own: {} }
     const response = await fetch(base + '/api/project/settings', { method: 'POST', body: JSON.stringify({ project: 'ABC', ...settings, base: started }) })
@@ -308,7 +309,7 @@ describe('Even Keel HTTP server', () => {
       cacheTtl: '1h',
       allowedHosts: [],
       context: { window: 600_000, warn: 50, danger: 80 },
-      stats: { compare: { minTasks: 5, minSessions: 10, days: 7 }, moves: {}, otherBelow: 0, checkpointTokens: null },
+      stats: { compare: { minTasks: 5, minSessions: 10, days: 7 }, moves: {}, otherBelow: 0, checkpointTokens: null, checkpointShares: { first: 70, late: 85, hard: 95 } },
       updates: { check: true, notify: false },
       ci: { guard: true, kinds: ['github'], waitMinutes: 15, recheckMain: false, fixTask: true },
       fillMilestone: true,
@@ -325,6 +326,7 @@ describe('Even Keel HTTP server', () => {
       ['cli', { cli: 'checked' }],
       ['modelLabels', { modelLabels: null }],
       ['stats', { stats: { ...shared.stats, moves: [] } }],
+      ['stats', { stats: { ...shared.stats, checkpointShares: { first: '70', late: 85, hard: 95 } } }],
       ['updates', { updates: { check: 'yes', notify: true } }],
     ] as const
     for (const [field, change] of refusals) {

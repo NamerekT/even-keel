@@ -47,7 +47,7 @@ Reference for sessions: the `/stats` page, its server and rule changes. The coll
 - A session's folder is the folder of its first response (`sessions.project_dir`): a session that did `cd` stays entirely where it began. A session in `<config>/jobs/<first 8 characters of the id>/tmp/…` is a test run by another session: it takes the task and folder of its parent (`places` in `base-sql.ts`).
 - `stats.moves` (`{ "old folder": "new" }`) — folders that moved: the old one and its subfolders count under the new one, as do neighbouring worktrees like `<folder>-btn-7`; the new folder is the root of a group even if it is not in the data. Inside an Even Keel project, what moved goes under its key.
 - `stats.otherBelow` — folder groups (not Even Keel projects) cheaper than the threshold over all time are merged into "Other". 0 by default — off. Both keys apply on the fly.
-- `stats.checkpointTokens` — a number from 100000 pins the checkpoint threshold of every project, `null` (the default) leaves it to the calibration. Applies on the fly; a session's hook picks it up within an hour.
+- `stats.checkpointTokens` — a number from 100000 pins the checkpoint threshold of every project, `null` (the default) leaves it to the calibration. Applies on the fly; a session's hook picks it up within an hour. `stats.checkpointShares` caps the thresholds by shares of the session's window (`docs/sessions.md`, "Checkpoint threshold").
 
 ## URL (`web/src/stats/search.ts`)
 

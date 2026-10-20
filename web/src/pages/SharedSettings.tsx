@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react'
+import { Fragment, type ReactNode } from 'react'
 import { CLI_SOURCES, EXECUTION_MODES } from '../../../src/agent/providers.js'
 import { CI_KINDS, type CiKind } from '../../../src/ci/model.js'
 import { LANGUAGES, type Language } from '../../../src/language.js'
@@ -25,6 +25,10 @@ import {
   rulesText,
   sameBy,
   SaveBar,
+  SHARE_KEYS,
+  shareOf,
+  sharesOf,
+  sharesText,
   shown,
   unplaced,
   useFieldErrors,
@@ -49,7 +53,7 @@ const GROUPS = [
     id: 'models',
     keys: ['provider', ...providerKeys('models'), ...providerKeys('accounts'), ...providerKeys('execution', EXECUTED), ...providerKeys('cli'), 'modelLabels', 'modelPrompts', 'promptLanguage'],
   },
-  { id: 'sessions', keys: ['hiddenSkills', 'window', 'warn', 'danger', 'checkpointTokens'] },
+  { id: 'sessions', keys: ['hiddenSkills', 'window', 'warn', 'danger', 'checkpointTokens', ...SHARE_KEYS] },
   { id: 'claude', keys: ['cacheTtl'] },
   { id: 'ci', keys: ['guard', 'kinds', 'wait', 'recheck', 'fixTask'] },
   { id: 'page', keys: ['language', 'allowedHosts', 'updatesCheck', 'updatesNotify'] },
@@ -92,6 +96,7 @@ const valuesOf = (form: SharedForm): Values => ({
   days: String(form.stats.compare.days),
   otherBelow: String(form.stats.otherBelow),
   checkpointTokens: form.stats.checkpointTokens === null ? '' : String(form.stats.checkpointTokens),
+  ...sharesText(form.stats.checkpointShares),
   moves: linesText(Object.entries(form.stats.moves).map(lineOf)),
   updatesCheck: form.updates.check,
   updatesNotify: form.updates.notify,
@@ -114,7 +119,9 @@ function formOf(values: Values): SharedForm | undefined {
   const waitMinutes = minutesOf(text('wait'))
   const [parallel, window, minTasks, minSessions, days] = numbers
   const moves = linesOf(text('moves')).map(pairOf)
+  const checkpointShares = sharesOf(values)
   if (numbers.includes(undefined) || warn === undefined || danger === undefined || otherBelow === undefined || checkpointTokens === undefined || waitMinutes === undefined) return undefined
+  if (checkpointShares === undefined) return undefined
   if (moves.some(([from, to]) => from === '' || to === '')) return undefined
   const language = text('language')
   return {
@@ -140,6 +147,7 @@ function formOf(values: Values): SharedForm | undefined {
       moves: Object.fromEntries(moves),
       otherBelow,
       checkpointTokens,
+      checkpointShares,
     },
     updates: { check: values.updatesCheck as boolean, notify: values.updatesNotify as boolean },
     ci: {
@@ -373,6 +381,15 @@ export function SharedSettings({ state }: { state: EvenKeelState }) {
           />
           {marks.note('checkpointTokens', (value) => ((value as string).trim() === '' ? t.shared.checkpointTokensPlaceholder : (value as string)))}
           <FieldNote error={errorOf('checkpointTokens')} />
+        </div>
+        <div className="settings__field">
+          <FieldHead label={t.shared.checkpointShares} hint={t.shared.checkpointSharesHint} />
+          <div className="settings__row">
+            {SHARE_KEYS.map((key) => (
+              <Fragment key={key}>{number(key, t.shared[key], shareOf(text(key)) === undefined)}</Fragment>
+            ))}
+          </div>
+          <FieldNote error={errorOf('checkpointShares')} />
         </div>
       </>
     ),

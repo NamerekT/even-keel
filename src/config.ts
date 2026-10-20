@@ -6,14 +6,14 @@ import { fail } from './notice/notice.js'
 import { colorsOf } from './projects/colors.js'
 import type { PoolEntry } from './account/model.js'
 import type { RunSettings } from './sessions/launch.js'
-import type { CacheTtl, CiSettings, ContextScale, OwnKey, OwnValues, ProjectSettings, StatsConfig } from './state.js'
+import type { CacheTtl, CheckpointShares, CiSettings, ContextScale, OwnKey, OwnValues, ProjectSettings, StatsConfig } from './state.js'
 import { CI_KINDS, type RemoteProfiles } from './ci/model.js'
 import { DEFAULT_CHANGELOG } from './changelog/file.js'
 import { changesOf, type FormValue } from './settings/changes.js'
 import { DEFAULT_BRANCH, DEFAULT_LANGUAGE } from './settings/defaults.js'
 import type { TallyMode } from './stats/mode.js'
 import { fileRows, isPlainObject, writeRows } from './settings/file.js'
-import { OWN_KEYS } from './settings/registry.js'
+import { at, OWN_KEYS } from './settings/registry.js'
 import { checkRows, inherit, resolve, type ProjectRecord, type Resolved, type Values } from './settings/resolve.js'
 import { ADAPTERS } from './tracker/adapters.js'
 import type { TrackerAdapter } from './tracker/source.js'
@@ -164,6 +164,7 @@ function configOf(records: ProjectRecord[], { shared, own, values }: Resolved, a
       moves: shared['stats.moves'],
       otherBelow: shared['stats.otherBelow'],
       checkpointTokens: shared['stats.checkpointTokens'],
+      checkpointShares: sharesOf(shared, null),
     } as StatsConfig,
     language,
     promptLanguage: promptLanguage(shared),
@@ -188,6 +189,15 @@ const ciOf = (values: Values): CiSettings =>
     fixTask: values['ci.fixTask'],
   }) as CiSettings
 
+/** The checkpoint shares a level ends up with, in order, or `config.checkpointShareOrder`; `project` — its key, `null` for the shared level. */
+function sharesOf(values: Values, project: string | null): CheckpointShares {
+  const shares = { first: values['stats.checkpointShares.first'], late: values['stats.checkpointShares.late'], hard: values['stats.checkpointShares.hard'] } as CheckpointShares
+  if (shares.first >= shares.late || shares.late >= shares.hard) {
+    throw fail('config.checkpointShareOrder', { where: at({ project, qualifier: '' }, 'stats.checkpointShares'), ...shares })
+  }
+  return shares
+}
+
 function settingsOf(record: ProjectRecord, values: Values, own: Values): Omit<ProjectSettings, 'promptLanguage'> {
   return {
     branch: record.branch,
@@ -206,7 +216,8 @@ function settingsOf(record: ProjectRecord, values: Values, own: Values): Omit<Pr
     modelLabels: (own.modelLabels as boolean | undefined) ?? null,
     cacheTtl: values.cacheTtl as CacheTtl | null,
     checkpointTokens: values['stats.checkpointTokens'] as number | null,
-    own: Object.fromEntries(OWN_KEYS.flatMap((key) => (own[key] === undefined ? [] : [[key, own[key]]]))) as OwnValues,
+    checkpointShares: sharesOf(values, record.key),
+    own:Object.fromEntries(OWN_KEYS.flatMap((key) => (own[key] === undefined ? [] : [[key, own[key]]]))) as OwnValues,
   }
 }
 

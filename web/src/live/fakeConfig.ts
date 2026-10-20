@@ -1,5 +1,6 @@
 import { DEFAULT_RULES } from '../../../src/chain/rules.js'
 import type { ConfigView, EvenKeelState, ProjectForm, SharedForm } from '../../../src/state.js'
+import { DEFAULT_SHARES } from '../../../src/stats/checkpoint.js'
 import type { TrackerVocabulary } from '../../../src/tracker/source.js'
 import { GITHUB_PROFILE } from './fakeProfiles.js'
 
@@ -47,7 +48,7 @@ export const FAKE_SHARED: SharedForm = {
   cacheTtl: null,
   allowedHosts: [],
   context: { window: 600_000, warn: 50, danger: 80 },
-  stats: { compare: { minTasks: 5, minSessions: 10, days: 7 }, moves: {}, otherBelow: 0, checkpointTokens: null },
+  stats: { compare: { minTasks: 5, minSessions: 10, days: 7 }, moves: {}, otherBelow: 0, checkpointTokens: null, checkpointShares: DEFAULT_SHARES },
   updates: { check: true, notify: true },
   ci: CI_ALL,
   fillMilestone: false,
@@ -79,6 +80,7 @@ const project = (repo: string, change: Partial<ProjectForm>): ProjectForm => ({
   promptLanguage: 'en',
   cacheTtl: null,
   checkpointTokens: null,
+  checkpointShares: DEFAULT_SHARES,
   own: {},
   ...change,
 })
@@ -99,7 +101,11 @@ export function fakeConfig(): ConfigView {
         checkpointTokens: 180_000,
         own: { 'ci.kinds': ['github'], 'ci.waitMinutes': 15, 'ci.fixTask': true, promptLanguage: 'ru', 'stats.checkpointTokens': 180_000 },
       }),
-      XYZ: project('D:/Projects/xyz', { color: 3, slot: 2, chain: { ...DEFAULT_RULES, requiredLabels: ['Auto'] }, provider: 'codex', models: { codex: 'gpt-6.1-sol' }, modelLabels: true, remoteProfiles: { github: GITHUB_PROFILE } }),
+      XYZ: project('D:/Projects/xyz', {
+        ...{ color: 3, slot: 2, chain: { ...DEFAULT_RULES, requiredLabels: ['Auto'] }, provider: 'codex', models: { codex: 'gpt-6.1-sol' }, modelLabels: true, remoteProfiles: { github: GITHUB_PROFILE } },
+        checkpointShares: { first: 65, late: 80, hard: 90 },
+        own: { 'stats.checkpointShares.first': 65, 'stats.checkpointShares.late': 80, 'stats.checkpointShares.hard': 90 },
+      }),
       OPS: project('D:/Projects/ops', { color: 4, beforeStart: ['npm ci'], check: ['npm run typecheck', 'npm test'], ci: { guard: false, kinds: [], waitMinutes: 0, recheckMain: false, fixTask: false },
         own: { 'ci.guard': false, 'ci.kinds': [], 'ci.waitMinutes': 0, 'ci.recheckMain': false },
       }),

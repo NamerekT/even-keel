@@ -1,7 +1,7 @@
 import { Fragment, useId, type CSSProperties, type ReactNode } from 'react'
 import type { ChainRules } from '../../../src/chain/rules.js'
 import type { Notice } from '../../../src/notice/notice.js'
-import type { ConfigView } from '../../../src/state.js'
+import type { CheckpointShares, ConfigView } from '../../../src/state.js'
 import { say, t } from '../i18n/index.js'
 import { CheckIcon, QuestionIcon, UndoIcon } from '../ui/icons.js'
 import { useTip, type TipAlign } from '../ui/useTip.js'
@@ -39,6 +39,16 @@ export const wholeOf = (text: string, min: number): number | undefined => {
 
 /** The longest wait for CI: empty — as long as it takes; `undefined` — not a whole number of minutes. */
 export const minutesOf = (text: string): number | null | undefined => (text.trim() === '' ? null : wholeOf(text, 0))
+
+/** The draft keys of the checkpoint shares, also the keys of their labels in `t.shared`. */
+export const SHARE_KEYS = ['shareFirst', 'shareLate', 'shareHard'] as const
+/** A share of the context window, a whole percent; `undefined` — not one. The service judges the range and the order. */
+export const shareOf = (text: string) => wholeOf(text, 1)
+export const sharesText = (shares: CheckpointShares) => ({ shareFirst: String(shares.first), shareLate: String(shares.late), shareHard: String(shares.hard) })
+export const sharesOf = (values: Values): CheckpointShares | undefined => {
+  const [first, late, hard] = SHARE_KEYS.map((key) => shareOf(values[key] as string))
+  return first === undefined || late === undefined || hard === undefined ? undefined : { first, late, hard }
+}
 
 /** The error of a field of this form: the failed save first, then the file's own error, if either points at the field. */
 export function useFieldErrors(project: string | null, errors: (Notice | null)[], config: ConfigView): (field: string) => Notice | null {

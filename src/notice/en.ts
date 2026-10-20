@@ -357,6 +357,11 @@ export const en = {
   'config.otherBelow': (p: { value: string }) => `config: stats.otherBelow must be a number of dollars from 0, got ${p.value}`,
   'config.checkpointTokens': (p: { from: number; value: string }) =>
     `config: stats.checkpointTokens must be an integer number of tokens from ${p.from}, or null, got ${p.value}`,
+  'config.checkpointShare': (p: { where: string; value: string }) => `config: ${p.where} must be a whole percent of the context window, 1 to 100, got ${p.value}`,
+  'config.checkpointShareKey': (p: { where: string; key: string; known: string[] }) =>
+    `config: ${p.where}.${p.key} is not a checkpoint share, known: ${list(p.known)}`,
+  'config.checkpointShareOrder': (p: { where: string; first: number; late: number; hard: number }) =>
+    `config: ${p.where} must go first < late < hard, got ${p.first}, ${p.late}, ${p.hard}`,
   'wizard.notRepo': (p: { path: string }) => `${p.path} is not in a git repository`,
   'wizard.repoTaken': (p: { project: string }) => `this repository is already the project ${p.project}`,
   'wizard.noBranch': (p: { branch: string; branches: string[] }) => `the repository has no branch ${p.branch}, it has ${p.branches.join(', ')}`,

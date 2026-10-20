@@ -34,11 +34,11 @@ import { OWN_KEYS } from './settings/registry.js'
 import { CLAUDE } from './claude/name.js'
 import type { Language } from './language.js'
 import { HOOK_EVENTS, type MailEvent } from './sessions/mail.js'
-import type { CacheTtl, ChangelogOp, ChangelogView, CheckResult, CiSettings, ContextScale, OwnValues, ProjectCheck, ProjectDraft, ProjectForm, SharedForm, StatsConfig } from './state.js'
+import type { CacheTtl, ChangelogOp, ChangelogView, CheckpointShares, CheckResult, CiSettings, ContextScale, OwnValues, ProjectCheck, ProjectDraft, ProjectForm, SharedForm, StatsConfig } from './state.js'
 import type { CompareSettings } from './stats/rules.js'
 import { CI_KINDS, type CiKind } from './ci/model.js'
 import type { Calibration } from './stats/calibration.js'
-import type { CheckpointThreshold, SessionCheckpoint } from './stats/checkpoint.js'
+import { DEFAULT_SHARES, type CheckpointThreshold, type SessionCheckpoint } from './stats/checkpoint.js'
 import type { TallyServerDraft } from './stats/connect.js'
 import { isTallyMode, type TallyMode } from './stats/mode.js'
 import type { StatsSteps } from './stats/steps.js'
@@ -770,6 +770,7 @@ function projectFormOf(body: Record<string, unknown>): ProjectForm {
     promptLanguage: body.promptLanguage as Language,
     cacheTtl: (body.cacheTtl ?? null) as CacheTtl | null,
     checkpointTokens: (body.checkpointTokens ?? null) as number | null,
+    checkpointShares: sharesOf(body.checkpointShares),
     own: ownOf(body.own),
   }
 }
@@ -819,14 +820,22 @@ function updatesOf(raw: unknown): SharedForm['updates'] {
 }
 
 function statsOf(raw: unknown): StatsConfig {
-  const { compare, moves, otherBelow, checkpointTokens } = mapOf(raw, 'stats', () => true)
+  const { compare, moves, otherBelow, checkpointTokens, checkpointShares } = mapOf(raw, 'stats', () => true)
   if (checkpointTokens !== null && typeof checkpointTokens !== 'number') throw fail('request.required', { field: 'stats' })
   return {
     compare: mapOf(compare, 'stats', (value) => typeof value === 'number') as unknown as CompareSettings,
     moves: mapOf(moves, 'stats', (value) => typeof value === 'string'),
     otherBelow: numberOf(otherBelow, 'stats'),
     checkpointTokens,
+    checkpointShares: sharesOf(checkpointShares),
   }
+}
+
+/** A page from before the shares sends none: form and base then agree and nothing is written. */
+function sharesOf(raw: unknown): CheckpointShares {
+  if (raw === undefined) return DEFAULT_SHARES
+  const { first, late, hard } = mapOf(raw, 'stats', (value) => typeof value === 'number')
+  return { first: numberOf(first, 'stats'), late: numberOf(late, 'stats'), hard: numberOf(hard, 'stats') }
 }
 
 function rulesOf(raw: unknown): ChainRules {

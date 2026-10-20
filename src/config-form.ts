@@ -172,6 +172,7 @@ export function withSharedForm(raw: unknown, form: SharedForm, base: SharedForm)
     value('stats', 'stats.moves', form.stats.moves),
     value('stats', 'stats.otherBelow', form.stats.otherBelow),
     value('stats', 'stats.checkpointTokens', form.stats.checkpointTokens),
+    ...(['first', 'late', 'hard'] as const).map((key) => value('stats', `stats.checkpointShares.${key}`, form.stats.checkpointShares[key])),
     value('updates', 'updates.check', form.updates.check),
     value('updates', 'updates.notify', form.updates.notify),
   ]

@@ -116,7 +116,9 @@ export interface ProjectSettings {
   cacheTtl: CacheTtl | null
   /** The checkpoint hook's first threshold for the project, the shared one filled in; `null` — calibrated. */
   checkpointTokens: number | null
-  /** The project's own rows of the keys Even Keel sets too (`ci.*` and the four above); a key left out — as shared. */
+  /** The shares of the session's window the checkpoint thresholds come at, at most; each the shared one unless the project has its own. */
+  checkpointShares: CheckpointShares
+  /** The project's own rows of the keys Even Keel sets too (`ci.*` and the five above); a key left out — as shared. */
   own: OwnValues
 }
 
@@ -133,6 +135,9 @@ export interface OwnValues {
   promptLanguage?: Language
   cacheTtl?: CacheTtl | null
   'stats.checkpointTokens'?: number | null
+  'stats.checkpointShares.first'?: number
+  'stats.checkpointShares.late'?: number
+  'stats.checkpointShares.hard'?: number
 }
 
 /** Which CIs of the project the chain counts after a push of main, and how long it waits for them. */
@@ -165,6 +170,18 @@ export interface StatsConfig {
   otherBelow: number
   /** The checkpoint hook's first threshold for every project without its own; null leaves it to the calibration. */
   checkpointTokens: number | null
+  /** The shares of the session's window the checkpoint thresholds come at, for every project without its own. */
+  checkpointShares: CheckpointShares
+}
+
+/**
+ * Percents of a session's context window, `first < late < hard`: the first nudge, the late nudges and the hard
+ * threshold of a held task come at most at them (BTN-261). A threshold pinned by `checkpointTokens` ignores them.
+ */
+export interface CheckpointShares {
+  first: number
+  late: number
+  hard: number
 }
 
 /** A project's entry of the config as the settings panel edits it: the values it ends up with, the shared ones filled in. */

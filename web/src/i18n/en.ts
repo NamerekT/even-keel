@@ -732,6 +732,12 @@ export const en: Messages = {
     checkpointTokens: 'Checkpoint threshold, tokens',
     checkpointTokensHint: 'The context size, from 100,000, at which the checkpoint plugin first asks a chain session for a handoff. Empty — by the calibration on /stats.',
     checkpointTokensPlaceholder: 'by the calibration',
+    checkpointShares: 'Checkpoint thresholds, % of the window',
+    checkpointSharesHint:
+      "The most of the session's context window each nudge of the checkpoint plugin may come at, whole percents with first < late < hard: the first nudge, the later ones, the hard threshold of a held task. A share only lowers the plugin's own threshold (250,000 late and 300,000 hard, or its variables), never raises it past them. A pinned threshold in tokens ignores the shares.",
+    shareFirst: 'First',
+    shareLate: 'Late',
+    shareHard: 'Hard',
     moves: 'Moved folders',
     movesHint: 'Sessions in the old folder count under the new one.',
     movesFrom: 'Old path',

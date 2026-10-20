@@ -50,6 +50,7 @@ export function fieldOf(notice: Notice, trackerKeys: string[]): FieldError | nul
   if (head === 'chain') return { project, field: `chain.${RULES.includes(String(params.key)) ? params.key : 'active'}` }
   if (head === 'commands') return { project, field: sub === 'check' || sub === 'afterGreen' ? sub : 'beforeStart' }
   if (head === 'ci') return { project, field: 'ci' }
+  if (head === 'stats' && sub === 'checkpointShares') return { project, field: 'checkpointShares' }
   const providers = head === undefined ? undefined : BY_PROVIDER[head]
   if (providers !== undefined) return { project, field: `${head}.${sub !== undefined && providers.includes(sub) ? sub : providers[0]}` }
   if (head !== undefined && trackerKeys.includes(head)) return { project, field: 'trackerProject' }

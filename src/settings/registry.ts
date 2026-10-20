@@ -7,7 +7,8 @@ import { isLanguage, LANGUAGES } from '../language.js'
 import { fail } from '../notice/notice.js'
 import { isColor } from '../projects/colors.js'
 import { placeholderIn } from '../sessions/prompt.js'
-import type { OwnKey } from '../state.js'
+import type { CheckpointShares, OwnKey } from '../state.js'
+import { DEFAULT_SHARES } from '../stats/checkpoint.js'
 import { isTallyMode } from '../stats/mode.js'
 import { DEFAULT_HIDDEN_SKILLS } from '../tools/settings.js'
 import { DEFAULT_TRACKER } from '../tracker/adapters.js'
@@ -97,6 +98,21 @@ const compare = (key: keyof typeof COMPARE_LIMITS): SettingDefinition => ({
   check: (value) => {
     const limit = COMPARE_LIMITS[key]
     if (typeof value !== 'number' || !Number.isInteger(value) || value < 1 || value > limit) throw fail('config.compareValue', { key, limit, value: String(value) })
+    return value
+  },
+})
+
+/** A share is checked alone here; their order, on the values a project ends up with, in `parseConfig`. */
+const checkpointShare = (key: keyof CheckpointShares): SettingDefinition => ({
+  key: `stats.checkpointShares.${key}`,
+  kind: 'integer',
+  scopes: ['global', 'project'],
+  lands: ['stats', 'settings'],
+  default: DEFAULT_SHARES[key],
+  check: (value, place) => {
+    if (typeof value !== 'number' || !Number.isInteger(value) || value < 1 || value > 100) {
+      throw fail('config.checkpointShare', { where: at(place, `stats.checkpointShares.${key}`), value: json(value) })
+    }
     return value
   },
 })
@@ -246,6 +262,9 @@ export const DEFINITIONS: readonly SettingDefinition[] = [
     if (value !== null && (!Number.isInteger(value) || (value as number) < CHECKPOINT_ASK_FROM)) throw fail('config.checkpointTokens', { from: CHECKPOINT_ASK_FROM, value: json(value) })
     return value
   } },
+  checkpointShare('first'),
+  checkpointShare('late'),
+  checkpointShare('hard'),
   // `null` — not chosen yet: Tally collects nothing and creates nothing until the page's setup or the settings choose (BTN-247).
   { key: 'tally', kind: 'enum', scopes: ['global'], lands: ['tally'], default: null, check: (value) => {
     if (value !== null && !isTallyMode(value)) throw fail('tally.mode', { value: json(value) })
@@ -299,8 +318,10 @@ export const DEFINITIONS: readonly SettingDefinition[] = [
   } },
 ]
 
+export const CHECKPOINT_SHARE_KEYS = ['stats.checkpointShares.first', 'stats.checkpointShares.late', 'stats.checkpointShares.hard'] as const satisfies readonly OwnKey[]
+
 /** The keys of `ProjectSettings.own`: set at both levels, shown by the project's panel as its own or "as shared". */
-export const OWN_KEYS: readonly OwnKey[] = ['ci.guard', 'ci.kinds', 'ci.waitMinutes', 'ci.recheckMain', 'ci.fixTask', 'fillMilestone', 'promptLanguage', 'cacheTtl', 'stats.checkpointTokens']
+export const OWN_KEYS: readonly OwnKey[] = ['ci.guard', 'ci.kinds', 'ci.waitMinutes', 'ci.recheckMain', 'ci.fixTask', 'fillMilestone', 'promptLanguage', 'cacheTtl', 'stats.checkpointTokens', ...CHECKPOINT_SHARE_KEYS]
 
 /** The nested objects of the file whose parts are settings of their own. */
 export const OBJECTS: Readonly<Record<string, ObjectDefinition>> = {
@@ -308,6 +329,7 @@ export const OBJECTS: Readonly<Record<string, ObjectDefinition>> = {
   context: {},
   stats: {},
   'stats.compare': { unknown: (_, key) => fail('config.compareKey', { key }) },
+  'stats.checkpointShares': { unknown: (where, key, known) => fail('config.checkpointShareKey', { where, key, known }) },
   updates: { unknown: (_, key, known) => fail('config.updatesKey', { key, known }) },
   commands: { unknown: (where, key, known) => fail('config.commandKey', { where, key, known }) },
   ci: { unknown: (where, key, known) => fail('config.ciKey', { where, key, known }) },

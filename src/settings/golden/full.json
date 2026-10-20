@@ -127,6 +127,11 @@
       "modelLabels": false,
       "cacheTtl": "1h",
       "checkpointTokens": 150000,
+      "checkpointShares": {
+        "first": 70,
+        "late": 80,
+        "hard": 90
+      },
       "own": {
         "ci.guard": false,
         "ci.kinds": [
@@ -136,7 +141,8 @@
         "ci.waitMinutes": 5,
         "ci.recheckMain": false,
         "ci.fixTask": true,
-        "fillMilestone": true
+        "fillMilestone": true,
+        "stats.checkpointShares.late": 80
       },
       "promptLanguage": "en"
     },
@@ -166,6 +172,11 @@
       "modelLabels": null,
       "cacheTtl": "1h",
       "checkpointTokens": 150000,
+      "checkpointShares": {
+        "first": 70,
+        "late": 85,
+        "hard": 90
+      },
       "own": {},
       "promptLanguage": "en"
     },
@@ -195,6 +206,11 @@
       "modelLabels": null,
       "cacheTtl": "1h",
       "checkpointTokens": 150000,
+      "checkpointShares": {
+        "first": 70,
+        "late": 85,
+        "hard": 90
+      },
       "own": {},
       "promptLanguage": "en"
     }
@@ -234,7 +250,12 @@
       "C:\\old": "C:\\new"
     },
     "otherBelow": 2,
-    "checkpointTokens": 150000
+    "checkpointTokens": 150000,
+    "checkpointShares": {
+      "first": 70,
+      "late": 85,
+      "hard": 90
+    }
   },
   "language": "ru",
   "promptLanguage": "en",

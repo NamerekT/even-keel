@@ -13,6 +13,7 @@ import {
 } from './config.js'
 import type { CiKind } from './ci/model.js'
 import type { ProjectSettings } from './state.js'
+import { DEFAULT_SHARES as SHARES } from './stats/checkpoint.js'
 import { SCHEMA_VERSION } from './storage/schema.js'
 import { DEFAULT_HIDDEN_SKILLS } from './tools/settings.js'
 
@@ -100,7 +101,7 @@ describe('parseConfig', () => {
       trackerProjects: {},
       brief: null,
       briefs: { ABC: null },
-      settings: { ABC: { branch: 'main', prompt: null, beforeStart: [], check: [], afterGreen: [], ci: DEFAULT_CI, remoteProfiles: {}, pullRequests: false, fillMilestone: false, changelog: 'CHANGELOG.md', provider: null, models: {}, accounts: {}, modelLabels: null, promptLanguage: 'en', cacheTtl: null, checkpointTokens: null, own: {} } },
+      settings: { ABC: { branch: 'main', prompt: null, beforeStart: [], check: [], afterGreen: [], ci: DEFAULT_CI, remoteProfiles: {}, pullRequests: false, fillMilestone: false, changelog: 'CHANGELOG.md', provider: null, models: {}, accounts: {}, modelLabels: null, promptLanguage: 'en', cacheTtl: null, checkpointTokens: null, checkpointShares: SHARES, own: {} } },
       ci: DEFAULT_CI,
       fillMilestone: false,
       context: { window: 600_000, warn: 50, danger: 80 },
@@ -111,7 +112,7 @@ describe('parseConfig', () => {
       cli: { claude: 'checked', codex: 'checked' },
       modelLabels: false,
       modelPrompts: {},
-      stats: { compare: { minTasks: 5, minSessions: 10, days: 7 }, moves: {}, otherBelow: 0, checkpointTokens: null },
+      stats: { compare: { minTasks: 5, minSessions: 10, days: 7 }, moves: {}, otherBelow: 0, checkpointTokens: null, checkpointShares: SHARES },
       language: null,
       promptLanguage: 'en',
       hiddenSkills: DEFAULT_HIDDEN_SKILLS,
@@ -261,11 +262,12 @@ describe('parseConfig', () => {
         promptLanguage: 'en',
         cacheTtl: null,
         checkpointTokens: null,
+        checkpointShares: SHARES,
         own: {},
       },
       XYZ: {
         ...{ branch: 'main', prompt: null, beforeStart: [], check: [], afterGreen: [], ci: DEFAULT_CI, remoteProfiles: {}, pullRequests: false, fillMilestone: false, changelog: 'CHANGELOG.md' },
-        ...{ provider: null, models: {}, accounts: {}, modelLabels: null, promptLanguage: 'en', cacheTtl: null, checkpointTokens: null, own: {} },
+        ...{ provider: null, models: {}, accounts: {}, modelLabels: null, promptLanguage: 'en', cacheTtl: null, checkpointTokens: null, checkpointShares: SHARES, own: {} },
       },
     })
   })
@@ -531,6 +533,7 @@ describe('parseConfig', () => {
       moves: {},
       otherBelow: 0,
       checkpointTokens: null,
+      checkpointShares: SHARES,
     })
   })
 
@@ -560,6 +563,31 @@ describe('parseConfig', () => {
     expect(() => parse({ projects: {}, stats: { checkpointTokens: 99_999 } })).toThrow(/stats.checkpointTokens/)
     expect(() => parse({ projects: {}, stats: { checkpointTokens: 180_000.5 } })).toThrow(/stats.checkpointTokens/)
     expect(() => parse({ projects: {}, stats: { checkpointTokens: '180000' } })).toThrow(/stats.checkpointTokens/)
+  })
+
+  it('reads the window shares of the checkpoint thresholds, the own ones of a project over the shared ones', () => {
+    const config = parse({
+      stats: { checkpointShares: { first: 60 } },
+      projects: { ABC: 'C:\\abc', XYZ: { repo: 'C:\\xyz', stats: { checkpointShares: { late: 90, hard: 100 } } } },
+    })
+    expect(config.stats.checkpointShares).toEqual({ first: 60, late: 85, hard: 95 })
+    expect(config.settings.ABC?.checkpointShares).toEqual({ first: 60, late: 85, hard: 95 })
+    expect(config.settings.XYZ?.checkpointShares).toEqual({ first: 60, late: 90, hard: 100 })
+    expect(config.settings.XYZ?.own).toEqual({ 'stats.checkpointShares.late': 90, 'stats.checkpointShares.hard': 100 })
+  })
+
+  it('rejects a share that is not a whole percent from 1 to 100, and an unknown one', () => {
+    for (const first of [0, 101, 50.5, '50', null]) expect(() => parse({ projects: {}, stats: { checkpointShares: { first } } })).toThrow(/stats.checkpointShares.first/)
+    expect(() => parse({ projects: { ABC: { repo: 'C:\\abc', stats: { checkpointShares: { hard: 0 } } } } })).toThrow(/ABC.stats.checkpointShares.hard/)
+    expect(() => parse({ projects: {}, stats: { checkpointShares: { middle: 80 } } })).toThrow(/stats.checkpointShares.middle/)
+  })
+
+  it('rejects shares out of order once those of a project are laid over the shared ones', () => {
+    expect(() => parse({ projects: {}, stats: { checkpointShares: { first: 85 } } })).toThrow(/stats.checkpointShares.*85, 85, 95/)
+    expect(() => parse({ projects: {}, stats: { checkpointShares: { late: 96 } } })).toThrow(/stats.checkpointShares/)
+    const shared = { checkpointShares: { first: 50, late: 60 } }
+    expect(() => parse({ stats: shared, projects: { ABC: { repo: 'C:\\abc', stats: { checkpointShares: { first: 70 } } } } })).toThrow(/ABC.stats.checkpointShares/)
+    expect(parse({ stats: shared, projects: { ABC: { repo: 'C:\\abc', stats: { checkpointShares: { late: 80 } } } } }).settings.ABC?.checkpointShares).toEqual({ first: 50, late: 80, hard: 95 })
   })
 })
 
@@ -608,7 +636,7 @@ describe('chain rules in the config', () => {
 describe('withProjectSettings', () => {
   const base: ProjectSettings = {
     ...{ branch: 'main', prompt: null, beforeStart: [], check: [], afterGreen: [], ci: DEFAULT_CI, remoteProfiles: {}, pullRequests: false, fillMilestone: false },
-    ...{ changelog: 'CHANGELOG.md', provider: null, models: {}, accounts: {}, modelLabels: null, promptLanguage: 'en', cacheTtl: null, checkpointTokens: null, own: {} },
+    ...{ changelog: 'CHANGELOG.md', provider: null, models: {}, accounts: {}, modelLabels: null, promptLanguage: 'en', cacheTtl: null, checkpointTokens: null, checkpointShares: SHARES, own: {} },
   }
 
   it('writes the main branch only when it is not main', () => {
@@ -628,6 +656,12 @@ describe('withProjectSettings', () => {
       cacheTtl: null,
       stats: { checkpointTokens: 180_000 },
     })
+  })
+
+  it('writes the own checkpoint shares under stats, next to the pinned threshold', () => {
+    const own = { 'stats.checkpointTokens': 180_000, 'stats.checkpointShares.first': 60, 'stats.checkpointShares.hard': 90 }
+    expect(withProjectSettings('C:\\abc', { ...base, own })).toEqual({ repo: 'C:\\abc', stats: { checkpointTokens: 180_000, checkpointShares: { first: 60, hard: 90 } } })
+    expect(withProjectSettings({ repo: 'C:\\abc', stats: { checkpointShares: { late: 80 } } }, base)).toEqual({ repo: 'C:\\abc' })
   })
 
   it('writes an own key only when it changed', () => {

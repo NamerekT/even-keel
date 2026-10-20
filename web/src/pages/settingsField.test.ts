@@ -28,6 +28,12 @@ describe('fieldOf', () => {
     expect(fieldOf(notice('config.contextPercents', {}), keys)).toEqual({ project: null, field: 'context' })
   })
 
+  it('points a checkpoint share error at the shares of its level', () => {
+    expect(fieldOf(notice('config.checkpointShare', { where: 'stats.checkpointShares.late', value: '0' }), keys)).toEqual({ project: null, field: 'checkpointShares' })
+    const order = { where: 'ABC.stats.checkpointShares', first: 90, late: 85, hard: 95 }
+    expect(fieldOf(notice('config.checkpointShareOrder', order), keys)).toEqual({ project: 'ABC', field: 'checkpointShares' })
+  })
+
   it('leaves the errors no field shows to the banner', () => {
     expect(fieldOf(notice('config.notJson', { file: 'even-keel.config.json' }), keys)).toBeNull()
     expect(fieldOf(notice('config.projectKey', { where: 'projects[0].key', value: '"abc"' }), keys)).toBeNull()

@@ -21,7 +21,7 @@ export const FULL = {
   hiddenSkills: ['loop', ' simplify '],
   cacheTtl: '1h',
   context: { window: 1_000_000, danger: 90 },
-  stats: { compare: { days: 14 }, moves: { 'C:\\old': 'C:\\new' }, otherBelow: 2, checkpointTokens: 150_000 },
+  stats: { compare: { days: 14 }, moves: { 'C:\\old': 'C:\\new' }, otherBelow: 2, checkpointTokens: 150_000, checkpointShares: { first: 70, hard: 90 } },
   updates: { notify: false },
   projects: [
     {
@@ -46,6 +46,7 @@ export const FULL = {
       models: { claude: 'haiku' },
       accounts: { codex: 'codex-2' },
       modelLabels: false,
+      stats: { checkpointShares: { late: 80 } },
     },
     { id: '22222222-2222-4222-8222-222222222222', key: 'XYZ', repo: 'C:\\repos\\xyz', github: 'octo-org/xyz', slot: 3 },
     { id: '33333333-3333-4333-8333-333333333333', key: 'LIN', repo: 'C:\\repos\\lin', tracker: 'linear', slot: false, chain: { terminal: null } },

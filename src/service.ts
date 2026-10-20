@@ -1246,7 +1246,8 @@ let server = createEvenKeelServer({
     if (run === undefined) return undefined
     const window = sessions.find((view) => view.sessionId === sessionId)?.contextWindow ?? configStore.current.context.window
     const { first, source } = await stats.checkpoint(run.project)
-    return { ...run, ...withinWindow({ first, source }, window), context: monitor.contextOf(sessionId) ?? null }
+    const shares = configStore.current.settings[run.project]?.checkpointShares ?? configStore.current.stats.checkpointShares
+    return { ...run, ...withinWindow({ first, source }, window, shares), context: monitor.contextOf(sessionId) ?? null }
   },
   handoffNote: async (sessionId) => {
     if (handoffsOf(launches, sessionId) === undefined) return undefined

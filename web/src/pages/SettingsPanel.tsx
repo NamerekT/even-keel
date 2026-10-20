@@ -30,6 +30,10 @@ import {
   rulesText,
   sameBy,
   SaveBar,
+  SHARE_KEYS,
+  shareOf,
+  sharesOf,
+  sharesText,
   shown,
   unplaced,
   UnsavedDot,
@@ -77,7 +81,7 @@ const GROUPS = [
   { id: 'tracker', keys: ['tracker', 'trackerProject', 'fillMilestone', ...RULE_KEYS] },
   {
     id: 'sessions',
-    keys: ['provider', ...providerKeys('models'), ...providerKeys('accounts'), 'modelLabels', 'brief', 'prompt', 'beforeStart', 'promptLanguage', 'cacheTtl', 'ownCheckpoint', 'checkpointTokens'],
+    keys: ['provider', ...providerKeys('models'), ...providerKeys('accounts'), 'modelLabels', 'brief', 'prompt', 'beforeStart', 'promptLanguage', 'cacheTtl', 'ownCheckpoint', 'checkpointTokens', 'ownShares', ...SHARE_KEYS],
   },
   { id: 'ci', keys: ['guard', 'check', 'afterGreen', 'ownKinds', 'kinds', 'ownWait', 'wait', 'recheck', 'fixTask', 'pullRequests', ...CI_KINDS.map(remoteKey)] },
 ] as const
@@ -120,7 +124,11 @@ const valuesOf = (form: ProjectForm): Values => ({
   cacheTtl: form.own.cacheTtl === undefined ? '' : (form.own.cacheTtl ?? CLI_TTL),
   ownCheckpoint: form.own['stats.checkpointTokens'] !== undefined,
   checkpointTokens: form.checkpointTokens === null ? '' : String(form.checkpointTokens),
+  // The panel sets the three shares together: any of them the project's own makes all three its own.
+  ownShares: OWN_SHARES.some((key) => form.own[key] !== undefined),
+  ...sharesText(form.checkpointShares),
 })
+const OWN_SHARES = ['stats.checkpointShares.first', 'stats.checkpointShares.late', 'stats.checkpointShares.hard'] as const satisfies readonly OwnKey[]
 const switchText = (value: boolean | undefined) => (value === undefined ? '' : String(value))
 const switchOf = (text: string) => (text === '' ? undefined : text === 'true')
 /** The choice of the cache lifetime that leaves it to Claude Code, as against '' — as shared. */
@@ -135,7 +143,8 @@ function ownOf(values: Values): OwnValues | undefined {
   const on = (key: string) => values[key] as boolean
   const waitMinutes = on('ownWait') ? minutesOf(text('wait')) : null
   const checkpointTokens = on('ownCheckpoint') ? tokensOf(text('checkpointTokens')) : null
-  if (waitMinutes === undefined || checkpointTokens === undefined) return undefined
+  const shares = on('ownShares') ? sharesOf(values) : null
+  if (waitMinutes === undefined || checkpointTokens === undefined || shares === undefined) return undefined
   const kinds = values.kinds as readonly string[]
   const ttl = text('cacheTtl')
   const entries: [OwnKey, unknown][] = [
@@ -148,6 +157,9 @@ function ownOf(values: Values): OwnValues | undefined {
     ['promptLanguage', text('promptLanguage') === '' ? undefined : text('promptLanguage')],
     ['cacheTtl', ttl === '' ? undefined : ttl === CLI_TTL ? null : ttl],
     ['stats.checkpointTokens', on('ownCheckpoint') ? checkpointTokens : undefined],
+    ['stats.checkpointShares.first', shares?.first],
+    ['stats.checkpointShares.late', shares?.late],
+    ['stats.checkpointShares.hard', shares?.hard],
   ]
   return Object.fromEntries(entries.filter(([, value]) => value !== undefined)) as OwnValues
 }
@@ -196,6 +208,11 @@ function formOf(values: Values, name: string | null, shared: SharedForm): Projec
     promptLanguage: ownOr(own, 'promptLanguage', shared.promptLanguage),
     cacheTtl: ownOr(own, 'cacheTtl', shared.cacheTtl),
     checkpointTokens: ownOr(own, 'stats.checkpointTokens', shared.stats.checkpointTokens),
+    checkpointShares: {
+      first: ownOr(own, 'stats.checkpointShares.first', shared.stats.checkpointShares.first),
+      late: ownOr(own, 'stats.checkpointShares.late', shared.stats.checkpointShares.late),
+      hard: ownOr(own, 'stats.checkpointShares.hard', shared.stats.checkpointShares.hard),
+    },
     own,
   }
 }
@@ -300,14 +317,18 @@ export function SettingsPanel({
       ],
       disabled,
     )
-  // A field the project may leave to the shared settings: unticked, it shows the shared value and cannot be edited.
-  const ownToggle = (flag: string, key: string, sharedValue: Value, disabled = false) => (
+  // Fields the project may leave to the shared settings: unticked, they show the shared values and cannot be edited.
+  const ownToggle = (flag: string, sharedValues: Values, disabled = false) => (
     <label className="settings__check settings__own">
       <input
         type="checkbox"
         checked={on(flag)}
         disabled={disabled}
-        onChange={(event) => setDraft(edited(edited(draft, flag, event.target.checked), key, event.target.checked ? sharedValue : saved[key]!))}
+        onChange={(event) => {
+          const own = event.target.checked
+          const fields = Object.entries(sharedValues)
+          setDraft(fields.reduce((next, [key, value]) => edited(next, key, own ? value : saved[key]!), edited(draft, flag, own)))
+        }}
       />
       {t.settings.ownValue}
       {marks.note(flag)}
@@ -315,6 +336,7 @@ export function SettingsPanel({
   )
   const sharedWait = shared.ci.waitMinutes === null ? '' : String(shared.ci.waitMinutes)
   const sharedCheckpoint = shared.stats.checkpointTokens === null ? '' : String(shared.stats.checkpointTokens)
+  const sharedShares = sharesText(shared.stats.checkpointShares)
   const shownKinds = on('ownKinds') ? kinds : shared.ci.kinds
   const choices = remoteChoices(state?.profiles.profiles ?? [], state?.remotes[project] ?? [])
   // One profile on offer is no choice: the field shows only while there are two, or a choice was made.
@@ -560,7 +582,7 @@ export function SettingsPanel({
         ])}
         <div className={marks.box(['ownCheckpoint', 'checkpointTokens'])}>
           <FieldHead label={t.shared.checkpointTokens} hint={t.shared.checkpointTokensHint} htmlFor={fieldId('checkpointTokens')} />
-          {ownToggle('ownCheckpoint', 'checkpointTokens', sharedCheckpoint)}
+          {ownToggle('ownCheckpoint', { checkpointTokens: sharedCheckpoint })}
           <input
             id={fieldId('checkpointTokens')}
             className="settings__text settings__number"
@@ -573,6 +595,28 @@ export function SettingsPanel({
           />
           {marks.note('checkpointTokens', (value) => ((value as string).trim() === '' ? t.shared.checkpointTokensPlaceholder : (value as string)))}
           <FieldNote error={errorOf('stats.checkpointTokens')} />
+        </div>
+        <div className={marks.box('ownShares')}>
+          <FieldHead label={t.shared.checkpointShares} hint={t.shared.checkpointSharesHint} />
+          {ownToggle('ownShares', sharedShares)}
+          <div className="settings__row">
+            {SHARE_KEYS.map((key) => (
+              <div key={key} className={marks.box(key)}>
+                <FieldHead label={t.shared[key]} htmlFor={fieldId(key)} />
+                <input
+                  id={fieldId(key)}
+                  className="settings__text settings__number"
+                  inputMode="numeric"
+                  value={on('ownShares') ? text(key) : sharedShares[key]}
+                  disabled={!on('ownShares')}
+                  aria-invalid={on('ownShares') && shareOf(text(key)) === undefined}
+                  onChange={(event) => edit(key, event.target.value)}
+                />
+                {marks.note(key)}
+              </div>
+            ))}
+          </div>
+          <FieldNote error={errorOf('checkpointShares')} />
         </div>
       </>
     ),
@@ -615,7 +659,7 @@ export function SettingsPanel({
             <legend>
               <FieldHead label={t.settings.ci} hint={t.settings.ciHint} />
             </legend>
-            {ownToggle('ownKinds', 'kinds', shared.ci.kinds, unguarded)}
+            {ownToggle('ownKinds', { kinds: shared.ci.kinds }, unguarded)}
             <div className="settings__checks">
               {CI_KINDS.map((kind) => (
                 <label key={kind} className="settings__check">
@@ -634,7 +678,7 @@ export function SettingsPanel({
           </fieldset>
           <div className={marks.box(['ownWait', 'wait'])}>
             <FieldHead label={t.settings.ciWait} hint={t.settings.ciWaitHint} htmlFor={fieldId('wait')} />
-            {ownToggle('ownWait', 'wait', sharedWait, unguarded)}
+            {ownToggle('ownWait', { wait: sharedWait }, unguarded)}
             <input
               id={fieldId('wait')}
               className="settings__text settings__number"

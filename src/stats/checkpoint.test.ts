@@ -17,6 +17,13 @@ describe('withinWindow', () => {
     expect(withinWindow({ first: DEFAULT_FIRST, source: 'default' }, null)).toEqual({ first: DEFAULT_FIRST, source: 'default', late: null, hard: null })
     expect(withinWindow({ first: 999_999, source: 'config' }, 250_000)).toEqual({ first: 999_999, source: 'config', late: null, hard: null })
   })
+
+  it('takes the shares from the settings when given', () => {
+    const shares = { first: 60, late: 90, hard: 100 }
+    expect(withinWindow({ first: DEFAULT_FIRST, source: 'default' }, 250_000, shares)).toEqual({ first: 150_000, source: 'window', late: 225_000, hard: 250_000 })
+    expect(withinWindow({ first: 140_000, source: 'calibrated' }, 250_000, shares)).toEqual({ first: 140_000, source: 'calibrated', late: 225_000, hard: 250_000 })
+    expect(withinWindow({ first: 999_999, source: 'config' }, 250_000, shares)).toEqual({ first: 999_999, source: 'config', late: null, hard: null })
+  })
 })
 
 const measured = (over: Partial<CheckpointMeasure> = {}): CheckpointMeasure => ({

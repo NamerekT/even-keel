@@ -128,6 +128,11 @@
       "modelLabels": null,
       "cacheTtl": null,
       "checkpointTokens": null,
+      "checkpointShares": {
+        "first": 72,
+        "late": 85,
+        "hard": 95
+      },
       "own": {},
       "promptLanguage": "en"
     },
@@ -159,6 +164,11 @@
       "modelLabels": null,
       "cacheTtl": null,
       "checkpointTokens": null,
+      "checkpointShares": {
+        "first": 72,
+        "late": 85,
+        "hard": 95
+      },
       "own": {},
       "promptLanguage": "en"
     },
@@ -188,6 +198,11 @@
       "modelLabels": null,
       "cacheTtl": null,
       "checkpointTokens": null,
+      "checkpointShares": {
+        "first": 72,
+        "late": 85,
+        "hard": 95
+      },
       "own": {},
       "promptLanguage": "en"
     }
@@ -224,7 +239,12 @@
     },
     "moves": {},
     "otherBelow": 0,
-    "checkpointTokens": null
+    "checkpointTokens": null,
+    "checkpointShares": {
+      "first": 72,
+      "late": 85,
+      "hard": 95
+    }
   },
   "language": null,
   "promptLanguage": "en",
