@@ -122,6 +122,24 @@ describe('Probes', () => {
     server = undefined
   })
 
+  it('asks a starting server again at once, not after the 30 s of a failure', async () => {
+    let mode: 'hang' | 'ok' = 'hang'
+    server = createServer((_req, res) => {
+      if (mode === 'ok') res.writeHead(200, { 'content-type': 'application/json' }).end('{"jsonrpc":"2.0","id":0,"result":{}}')
+    })
+    await new Promise<void>((resolve) => server!.listen(0, '127.0.0.1', resolve))
+    const url = `http://127.0.0.1:${(server.address() as { port: number }).port}/mcp`
+    const probes = new Probes({ urlOf: () => url, now: () => 0, onChange: () => {}, timeoutMs: 50 })
+    probes.result('p-1', 'huly', 'i1', 'huly')
+    await new Promise((resolve) => setTimeout(resolve, 150))
+    expect(probes.result('p-1', 'huly', 'i1', 'huly')).toBeUndefined()
+    mode = 'ok'
+    await new Promise((resolve) => setTimeout(resolve, 150))
+    probes.result('p-1', 'huly', 'i1', 'huly')
+    await new Promise((resolve) => setTimeout(resolve, 150))
+    expect(probes.result('p-1', 'huly', 'i1', 'huly')).toBe(true)
+  })
+
   it('counts a server silent until its first answer as starting, and silence after an answer as a failure', async () => {
     let mode: 'hang' | 'ok' | 'fail' = 'hang'
     server = createServer((_req, res) => {

@@ -85,7 +85,7 @@ export function projectPackages(input: CheckInput): ProjectPackages {
 /**
  * `initialize` through the gateway, the way a session opens a server: a good answer holds for 5 minutes, a failed one
  * is asked again after 30 seconds. Silence before the server's first answer is a start that takes long (a cold `npx`),
- * not a failure: it stays `undefined` until the server answers or the gateway says it is gone.
+ * not a failure: it stays `undefined`, asked again at once, until the server answers or the gateway says it is gone.
  */
 export class Probes {
   private readonly results = new Map<string, { ok: boolean | undefined; at: number }>()
@@ -106,7 +106,7 @@ export class Probes {
   result(project: string, name: string, install: string, server: string): boolean | undefined {
     const key = `${name}\u0000${install}\u0000${server}`
     const known = this.results.get(key)
-    const stale = known === undefined || this.deps.now() - known.at > (known.ok === true ? PROBE_OK_MS : PROBE_FAILED_MS)
+    const stale = known === undefined || known.ok === undefined || this.deps.now() - known.at > (known.ok ? PROBE_OK_MS : PROBE_FAILED_MS)
     if (stale && !this.running.has(key)) void this.run(key, this.deps.urlOf(project, name, install, server))
     return known?.ok
   }

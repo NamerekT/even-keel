@@ -1,7 +1,7 @@
 import { spawn, type ChildProcess } from 'node:child_process'
 import { randomBytes, randomUUID } from 'node:crypto'
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http'
-import { connect, createServer as createNetServer } from 'node:net'
+import { createServer as createNetServer } from 'node:net'
 import { Readable } from 'node:stream'
 import { fail } from '../notice/notice.js'
 import { parseRoute } from './launch.js'
@@ -10,6 +10,7 @@ import type { ServerEntry } from './model.js'
 const IDLE_MS = 30 * 60_000
 const READY_TIMEOUT_MS = 60_000
 const READY_POLL_MS = 200
+const READY_TRY_MS = 1_000
 const REQUEST_TIMEOUT_MS = 10 * 60_000
 const LOCAL_HOSTS = new Set(['127.0.0.1', 'localhost'])
 const FORWARD = ['accept', 'content-type', 'mcp-session-id', 'mcp-protocol-version', 'last-event-id']
@@ -142,11 +143,16 @@ export class McpGateway {
     }
     const port = await freePort()
     const token = randomBytes(24).toString('hex')
+    const started = Date.now()
     const child = this.spawn(target, mode.env(port, token), label)
-    const entry = new SharedServer(child, port, token, () => {
+    const entry = new SharedServer(child, port, token, mode.path, () => {
       if (this.shared.get(key) === entry) this.shared.delete(key)
     })
     this.shared.set(key, entry)
+    entry.ready.then(
+      () => this.deps.log(`mcp gateway: ${label} started in ${Math.round((Date.now() - started) / 1000)} s`),
+      () => {},
+    )
     return entry.ready
   }
 
@@ -211,6 +217,7 @@ class SharedServer {
     readonly child: ChildProcess,
     readonly port: number,
     readonly token: string,
+    path: string,
     gone: () => void,
   ) {
     let exited = false
@@ -221,7 +228,7 @@ class SharedServer {
     }
     child.on('exit', end)
     child.on('error', end)
-    this.ready = waitForPort(port, () => exited).then(
+    this.ready = waitForAnswer(port, path, () => exited).then(
       () => this,
       (error: unknown) => {
         child.kill()
@@ -395,23 +402,21 @@ function freePort(): Promise<number> {
   })
 }
 
-async function waitForPort(port: number, exited: () => boolean): Promise<void> {
+/**
+ * Until the server answers HTTP at all, whatever the status: a port that accepts is not enough. huly-mcp listens
+ * before it attaches its handler, and a request that comes in between is never answered.
+ */
+async function waitForAnswer(port: number, path: string, exited: () => boolean): Promise<void> {
   const until = Date.now() + READY_TIMEOUT_MS
   while (Date.now() < until) {
-    if (exited()) throw new Error('the server exited before it listened')
-    if (await accepts(port)) return
-    await new Promise((resolve) => setTimeout(resolve, READY_POLL_MS))
+    if (exited()) throw new Error('the server exited before it answered')
+    try {
+      const response = await fetch(`http://127.0.0.1:${port}${path}`, { signal: AbortSignal.timeout(READY_TRY_MS) })
+      await response.body?.cancel()
+      return
+    } catch (error) {
+      if ((error as Error).name !== 'TimeoutError') await new Promise((resolve) => setTimeout(resolve, READY_POLL_MS))
+    }
   }
-  throw new Error(`the server did not listen on ${port} in ${READY_TIMEOUT_MS / 1000} s`)
-}
-
-function accepts(port: number): Promise<boolean> {
-  return new Promise((resolve) => {
-    const socket = connect(port, '127.0.0.1')
-    socket.once('connect', () => {
-      socket.destroy()
-      resolve(true)
-    })
-    socket.once('error', () => resolve(false))
-  })
+  throw new Error(`the server did not answer on ${port} in ${READY_TIMEOUT_MS / 1000} s`)
 }

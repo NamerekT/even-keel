@@ -1004,13 +1004,13 @@ export const en: Messages = {
     },
     problemTip: {
       notInstalled: 'Press Install: the chain waits until the package is installed.',
-      installing: 'The chain waits until the install ends.',
+      installing: 'npm downloads the package’s servers (Huly’s is about 100 MB): usually half a minute to a couple of minutes, longer on a fresh machine. The chain waits until the install ends.',
       installFailed: (error: string) => `The chain waits. ${error}`,
       noKey: 'Enter the key in Keys below: the chain waits until it is set.',
       noResponse:
-        'The server behind the gateway failed initialize, stopped answering it or exited:check its command and settings. A tracker’s server takes its credentials from the tracker profile in Settings, the package has no field for them. It is tried again every 30 seconds; the chain waits.',
+        'The server behind the gateway failed initialize, stopped answering it or exited: check its command and settings. A tracker’s server takes its credentials from the tracker profile in Settings, the package has no field for them. It is tried again every 30 seconds; the chain waits.',
       probing:
-        'The gateway is waiting for the server’s first answer to initialize: the first start through npx can take a minute. A tracker’s server takes its credentials from the tracker profile in Settings. The chain waits for the answer.',
+        'The gateway is waiting for the server’s first answer to initialize: usually a few seconds after the install, longer on a slow machine. A tracker’s server takes its credentials from the tracker profile in Settings. The chain waits for the answer.',
       noTrackerMcp: (server: string) =>
         `Brief is off, so sessions get only the task ID and need the tracker’s MCP server ${server}. Turn on the package that brings it, or set brief to auto or on in the project’s settings.`,
       unsupported: (agent: string) => `${agent} does not read Claude Code plugins: its sessions get the plugin’s MCP servers but not its skills and hooks. Does not hold the chain.`,

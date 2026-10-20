@@ -399,6 +399,9 @@ export class Packages {
     this.installing.add(name)
     this.errors.delete(name)
     this.deps.onChange()
+    const started = Date.now()
+    const seconds = () => Math.round((Date.now() - started) / 1000)
+    this.deps.log(`packages: installing ${name}`)
     try {
       let entries: Record<string, ServerEntry>
       let version: string | null = null
@@ -428,14 +431,19 @@ export class Packages {
       }
       const servers: Record<string, InstalledServer> = {}
       for (const [server, { entry, spec, npm }] of Object.entries(planned)) {
-        servers[server] = spec === null || npm === null ? { entry, npm: null } : await installPinned(entry, spec, npm, join(home, 'servers', server))
+        if (spec === null || npm === null) servers[server] = { entry, npm: null }
+        else {
+          const at = seconds()
+          servers[server] = await installPinned(entry, spec, npm, join(home, 'servers', server))
+          this.deps.log(`packages: ${name}: npm install ${spec.name}@${npm} took ${seconds() - at} s`)
+        }
       }
       const install: PackageInstall = { id, version, at: new Date().toISOString(), servers, extras }
       record.installs.push(install)
       record.settings = { ...defaultSettings(Object.fromEntries(Object.entries(servers).map(([server, each]) => [server, each.entry]))), ...record.settings }
       this.prune()
       this.save()
-      this.deps.log(`packages: ${name} ${version ?? id} installed`)
+      this.deps.log(`packages: ${name} ${version ?? id} installed in ${seconds()} s`)
       return install
     } catch (error) {
       rmSync(home, { recursive: true, force: true })

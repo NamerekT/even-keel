@@ -85,6 +85,24 @@ describe('McpGateway', () => {
     expect((await post(url, { jsonrpc: '2.0', id: 1, method: 'tools/list' })).status).toBe(400)
   })
 
+  it('holds the first request of a shared server until it answers HTTP, not only until its port accepts', async () => {
+    // huly-mcp listens before it attaches its handler: a request in between is never answered.
+    const late = `
+const server = require('node:http').createServer()
+server.listen(Number(process.env.MCP_HTTP_PORT), '127.0.0.1', () => setTimeout(() => server.on('request', (req, res) => {
+  const ok = req.headers.authorization === 'Bearer ' + process.env.MCP_AUTH_TOKEN
+  res.writeHead(ok ? 200 : 401, { 'content-type': 'application/json' }).end('{"jsonrpc":"2.0","id":0,"result":{}}')
+}), 300))
+`
+    const lines: string[] = []
+    gateway = new McpGateway({ resolve: () => ({ entry: { command: 'node', args: ['-e', late] }, npm: '@firfi/huly-mcp', env: {} }), baseEnv: () => ({ PATH: process.env.PATH }), log: (line) => lines.push(line) })
+    await gateway.listen(0)
+    const url = `${gateway.origin}${routeOf('p-1', 'huly', 'i1', 'huly')}`
+    const response = await fetch(url, { method: 'POST', headers: { 'content-type': 'application/json' }, body: '{"jsonrpc":"2.0","id":0,"method":"initialize"}', signal: AbortSignal.timeout(3000) })
+    expect(response.status).toBe(200)
+    expect(lines).toEqual([expect.stringMatching(/^mcp gateway: huly\/huly started in \d+ s$/)])
+  })
+
   it('proxies a remote server with the headers of its entry', async () => {
     let seen: Record<string, unknown> = {}
     upstream = createServer((req, res) => {
