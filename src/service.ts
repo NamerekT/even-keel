@@ -223,7 +223,10 @@ const packages: Packages = new Packages({
   ownDir: root,
   claudeConfigs,
   rules: trackerKeyRules(),
-  trackerServer: (project) => (briefOn(project) ? undefined : ADAPTERS[configStore.current.trackers[project]!]!.mcpServer),
+  tracker: (project) => {
+    const server = ADAPTERS[configStore.current.trackers[project]!]!.mcpServer
+    return server === undefined ? undefined : { server, required: !briefOn(project) }
+  },
   agentOf: (project) => homes.find(choiceFor(project).account)?.agent ?? CLAUDE,
   updateMarketplace: (marketplace) => updateMarketplace(envOf(homes.global), marketplace, PLUGIN_UPDATE_TIMEOUT_MS),
   addMarketplace: (dir) => addMarketplace(envOf(homes.global), dir, PLUGIN_UPDATE_TIMEOUT_MS),

@@ -45,6 +45,7 @@ import { ruleChoicesOf } from './settingsRows.js'
 import { useVocabularies } from './useVocabularies.js'
 import { ProjectRemove } from './ProjectRemove.js'
 import { ProfileLink } from './ProfileSelect.js'
+import { TrackerPackageButton } from './ToolsLink.js'
 import { remoteChoices } from './remoteProfiles.js'
 import { useDraft, useTab } from './settingsStore.js'
 import { SEG_CLASS, type ChipLook } from './chipLook.js'
@@ -289,18 +290,21 @@ export function SettingsPanel({
     </CheckField>
   )
 
-  const choice = (key: string, label: string, hint: string, options: { value: string; label: string }[], disabled = false) => (
+  const choice = (key: string, label: string, hint: string, options: { value: string; label: string }[], disabled = false, beside?: ReactNode) => (
     <div className={marks.box(key)}>
       <FieldHead label={label} hint={hint} htmlFor={fieldId(key)} />
-      <Select
-        id={fieldId(key)}
-        className="settings__text settings__short"
-        value={text(key)}
-        options={options}
-        invalid={errorOf(key) !== null}
-        disabled={disabled}
-        onChange={(value) => edit(key, value)}
-      />
+      <div className="settings__beside">
+        <Select
+          id={fieldId(key)}
+          className="settings__text settings__short"
+          value={text(key)}
+          options={options}
+          invalid={errorOf(key) !== null}
+          disabled={disabled}
+          onChange={(value) => edit(key, value)}
+        />
+        {beside}
+      </div>
       {marks.note(key, (value) => options.find((option) => option.value === value)?.label ?? String(value))}
       <FieldNote error={errorOf(key)} />
     </div>
@@ -539,11 +543,18 @@ export function SettingsPanel({
           { value: 'true', label: t.settings.on },
           { value: 'false', label: t.settings.off },
         ])}
-        {choice('brief', t.settings.brief, t.settings.briefHint, [
-          { value: '', label: t.settings.briefAuto },
-          { value: 'true', label: t.settings.on },
-          { value: 'false', label: t.settings.off },
-        ])}
+        {choice(
+          'brief',
+          t.settings.brief,
+          t.settings.briefHint,
+          [
+            { value: '', label: t.settings.briefAuto },
+            { value: 'true', label: t.settings.on },
+            { value: 'false', label: t.settings.off },
+          ],
+          false,
+          state !== null && <TrackerPackageButton project={project} packages={state.packages} />,
+        )}
         <div className={marks.box('prompt')}>
           <FieldHead label={t.settings.prompt} hint={t.settings.promptHint} htmlFor={fieldId('prompt')} />
           <textarea

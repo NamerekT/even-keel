@@ -631,6 +631,10 @@ export const en: Messages = {
     briefHint:
       "Even Keel puts the task's title and description into the prompt. Auto: only when no package of the project brings the tracker's MCP server — with the tracker's plugin the session reads its task itself. On or off overrides that.",
     briefAuto: 'auto',
+    briefTools: 'Go to Tools',
+    briefToolsAdd: "Add the tracker's plugin on the Tools page: sessions then read the task, its comments and relations themselves.",
+    briefToolsTurnOn: "Turn the tracker's package on for the project on the Tools page: sessions then read the task, its comments and relations themselves.",
+    briefToolsBrought: (name: string) => `Sessions read the task through the package ${name}.`,
     slot: 'Slots',
     slotHint: '0 — a worktree of its own for every task. Above zero — a pool of permanent folders: a task switches the branch in a slot, and only the difference is rebuilt.',
     color: 'Color',
@@ -878,6 +882,8 @@ export const en: Messages = {
     link: (count: number | null) =>
       count === null ? 'What sessions get' : count === 0 ? 'What sessions get: everything reaches them' : `What sessions get: ${count} ${forms('problem', 'problems')(count)}`,
     open: 'Open →',
+    trackerProblem: (server: string) => `Task description in the prompt is off and no package brings the tracker’s MCP server ${server}: the chain waits.`,
+    trackerAdvice: (server: string) => `Sessions get the task in the prompt. With the tracker’s plugin (${server}) they read the task, its comments and relations themselves.`,
     problems: 'Problems',
     problemsNone: 'Everything reaches the sessions: settings get there, MCP servers connect.',
     problem: {
@@ -998,6 +1004,11 @@ export const en: Messages = {
     marketplaceTip:
       'Chain sessions get Even Keel’s plugins without it, as packages. The button runs this command in your default Claude Code config; then install a plugin in a repository as usual (claude plugin install huly@even-keel).',
     marketplaceAdd: 'Add to Claude Code',
+    marketplaceAsk: 'Even Keel’s marketplace',
+    marketplaceQuestion: (name: string) =>
+      `Add Even Keel’s marketplace ${name} to Claude Code? Sessions you start by hand need it; chain sessions get its plugins without it.`,
+    marketplaceYes: 'Yes, add',
+    marketplaceNo: 'No',
     add: 'Add',
     addOpen: 'Add a package',
     addKind: {

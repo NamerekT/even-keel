@@ -41,8 +41,8 @@ export interface PackagesDeps {
   /** `.claude.json` files sessions read: their user scope servers seed the catalog. */
   claudeConfigs: () => string[]
   rules: KeyRules
-  /** The tracker server the project's sessions cannot do without: `brief` is off. */
-  trackerServer: (project: string) => string | undefined
+  /** The MCP server of the project's tracker; `required` — `brief` is off, so its sessions cannot do without it. */
+  tracker: (project: string) => { server: string; required: boolean } | undefined
   /** The agent of the account the project's next session runs on. */
   agentOf: (project: string) => string
   /** `claude plugin marketplace update <marketplace>` in the global configuration. */
@@ -361,7 +361,7 @@ export class Packages {
       errors: this.errors,
       keys: (server, entry) => keysOf(server, entry, this.deps.rules, this.deps.poolOf(project)),
       probe: (name, install, server) => this.probes.result(project, name, install, server),
-      trackerServer: this.deps.trackerServer(project),
+      tracker: this.deps.tracker(project),
     })
     return this.gatewayError === null ? view : { ...view, blocked: true }
   }

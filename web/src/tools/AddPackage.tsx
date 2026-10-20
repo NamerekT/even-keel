@@ -27,9 +27,20 @@ export function AddPackage({ view, projects }: { view: PackagesView; projects: s
   )
 }
 
-function AddDialog({ view, projects, onClose }: { view: PackagesView; projects: string[]; onClose: () => void }) {
+/** The plugin step on a chosen plugin and project, from a link (`/tools?add=`); while Claude Code does not know Even Keel's marketplace, it asks to add it first. */
+export function AddPlugin({ view, projects, plugin, project, onClose }: { view: PackagesView; projects: string[]; plugin: string; project: string; onClose: () => void }) {
+  return createPortal(<AddDialog view={view} projects={projects} initial={{ plugin, project }} onClose={onClose} />, document.body)
+}
+
+interface Initial {
+  plugin: string
+  project: string
+}
+
+function AddDialog({ view, projects, initial, onClose }: { view: PackagesView; projects: string[]; initial?: Initial; onClose: () => void }) {
   const dialog = useRef<HTMLDialogElement>(null)
-  const [kind, setKind] = useState<Kind | null>(null)
+  const [kind, setKind] = useState<Kind | null>(initial === undefined ? null : 'plugin')
+  const [asking, setAsking] = useState(initial !== undefined && view.marketplace?.known === false)
   const title = useId()
 
   useEffect(() => {
@@ -38,10 +49,10 @@ function AddDialog({ view, projects, onClose }: { view: PackagesView; projects: 
 
   // The pressed choice or Back leaves with its step: the focus goes to the first control of the new one.
   useEffect(() => {
-    dialog.current?.querySelector<HTMLElement>('.add-package__kinds button, .add-package__body :is(input, textarea, button):not(.help)')?.focus()
-  }, [kind])
+    dialog.current?.querySelector<HTMLElement>('.add-package__kinds button, .add-package__body :is(input, textarea, button):not(.help), .add-package__foot .button--primary')?.focus()
+  }, [kind, asking])
 
-  const steps = { view, projects, onBack: () => setKind(null), onClose }
+  const steps = { view, projects, initial, onBack: () => setKind(null), onClose }
   return (
     <dialog
       ref={dialog}
@@ -56,15 +67,21 @@ function AddDialog({ view, projects, onClose }: { view: PackagesView; projects: 
       <div className="add-package__frame">
         <header className="add-package__head">
           <h2 id={title} className="add-package__title">
-            {kind === null ? t.packages.addOpen : t.packages.addKind[kind].title}
+            {asking ? t.packages.marketplaceAsk : kind === null ? t.packages.addOpen : t.packages.addKind[kind].title}
           </h2>
           <button type="button" className="panel__close" aria-label={t.packages.close} onClick={onClose}>
             ×
           </button>
         </header>
-        {kind === null && <KindStep onPick={setKind} />}
-        {kind === 'plugin' && <PluginStep {...steps} />}
-        {kind === 'mcp' && <ServerStep {...steps} />}
+        {asking && view.marketplace !== null ? (
+          <MarketplaceStep name={view.marketplace.name} onDone={() => setAsking(false)} />
+        ) : (
+          <>
+            {kind === null && <KindStep onPick={setKind} />}
+            {kind === 'plugin' && <PluginStep {...steps} />}
+            {kind === 'mcp' && <ServerStep {...steps} />}
+          </>
+        )}
       </div>
     </dialog>
   )
@@ -85,18 +102,41 @@ function KindStep({ onPick }: { onPick: (kind: Kind) => void }) {
   )
 }
 
+/** Chain sessions get Even Keel's plugins without the marketplace; either answer goes on to the plugin. */
+function MarketplaceStep({ name, onDone }: { name: string; onDone: () => void }) {
+  const { send, sending, failure } = useCommand()
+  return (
+    <div className="add-package__form">
+      <div className="add-package__body">
+        <p className="add-package__question">{t.packages.marketplaceQuestion(name)}</p>
+        {failure !== null && <p className="notice notice--error">{say(failure)}</p>}
+      </div>
+      <footer className="add-package__foot">
+        <span className="add-package__spacer" />
+        <button type="button" className="button" onClick={onDone}>
+          {t.packages.marketplaceNo}
+        </button>
+        <button type="button" className="button button--primary" disabled={sending} onClick={() => void send('packages/marketplace', {}).then((done) => done && onDone())}>
+          {t.packages.marketplaceYes}
+        </button>
+      </footer>
+    </div>
+  )
+}
+
 interface StepProps {
   view: PackagesView
   projects: string[]
+  initial?: Initial
   onBack: () => void
   onClose: () => void
 }
 
-function PluginStep({ view, projects, onBack, onClose }: StepProps) {
+function PluginStep({ view, projects, initial, onBack, onClose }: StepProps) {
   const { send, sending, failure } = useCommand()
   const names = view.available.map((each) => `${each.plugin}@${each.marketplace}`)
-  const [picked, setPicked] = useState(names[0] ?? '')
-  const [where, setWhere] = useState('')
+  const [picked, setPicked] = useState(initial !== undefined && names.includes(initial.plugin) ? initial.plugin : (names[0] ?? ''))
+  const [where, setWhere] = useState(initial?.project ?? '')
   const found = view.available.find((each) => `${each.plugin}@${each.marketplace}` === picked)
   const submit = async (event: FormEvent) => {
     event.preventDefault()

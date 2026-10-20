@@ -1,10 +1,11 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useSearchParams } from 'react-router'
 import type { EvenKeelState } from '../../../src/state.js'
 import type { ToolsView } from '../../../src/tools/model.js'
 import { t } from '../i18n/index.js'
 import { Basement } from '../layout/Basement.js'
 import { ProjectList } from '../ui/ProjectList.js'
+import { AddPlugin } from './AddPackage.js'
 import { LastSessions } from './LastSessions.js'
 import { hiddenSkills, problemCount, problemsOf } from './matrix.js'
 import { problemCount as packageProblems } from './packageView.js'
@@ -43,13 +44,21 @@ export function ToolsPage({ state }: { state: EvenKeelState }) {
     return { project, amount: count ?? 0, label: t.tools.pickerCount(count) }
   })
 
-  const update = (change: (next: URLSearchParams) => void) => {
+  const update = (change: (next: URLSearchParams) => void, replace = false) => {
     const next = new URLSearchParams(params)
     change(next)
-    setParams(next)
+    setParams(next, { replace })
   }
   const choose = (projects: string[] | null) => update((next) => next.set('projects', (projects ?? state.projects).join(',')))
   const setOnlyDiff = (on: boolean) => update((next) => (on ? next.set('diff', '1') : next.delete('diff')))
+
+  // `add`: the plugin step of the add dialog for the first chosen project; a plugin the catalog has already only drops it.
+  const adding = params.get('add')
+  const offered = adding !== null && state.packages.available.some((each) => `${each.plugin}@${each.marketplace}` === adding)
+  const stopAdding = () => update((next) => next.delete('add'), true)
+  useEffect(() => {
+    if (adding !== null && !offered) stopAdding()
+  }, [adding, offered])
 
   return (
     <div className="page tools-page">
@@ -100,6 +109,7 @@ export function ToolsPage({ state }: { state: EvenKeelState }) {
         </div>
       </div>
       <Basement sign={t.basement.tools} ready={state.projects.every((project) => (loaded.get(project)?.state ?? 'loading') !== 'loading')} />
+      {adding !== null && offered && chosen.length > 0 && <AddPlugin view={state.packages} projects={chosen} plugin={adding} project={chosen[0]!} onClose={stopAdding} />}
     </div>
   )
 }

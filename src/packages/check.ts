@@ -27,8 +27,8 @@ export interface CheckInput {
   keys: (server: string, entry: ServerEntry) => ServerKeys
   /** Whether the server answered `initialize` through the gateway; `undefined` — not probed yet or still starting, held until it answers. */
   probe: (name: string, install: string, server: string) => boolean | undefined
-  /** The tracker's MCP server a session of a project with `brief` off cannot do without. */
-  trackerServer?: string
+  /** The tracker's MCP server; `required` — `brief` is off, so a session cannot do without it. */
+  tracker?: { server: string; required: boolean }
 }
 
 /** Whether a package the project's sessions get brings the server; `brief` left to itself is on exactly when none does. */
@@ -60,7 +60,7 @@ export function projectPackages(input: CheckInput): ProjectPackages {
         const silent: string[] = []
         let probing = false
         for (const [server, { entry }] of Object.entries(install.servers)) {
-          if (server === input.trackerServer) hasTracker = true
+          if (server === input.tracker?.server) hasTracker = true
           const keys = input.keys(server, entry)
           keys.missing.forEach((each) => missing.add(each))
           if (keys.missing.length > 0) continue
@@ -76,9 +76,10 @@ export function projectPackages(input: CheckInput): ProjectPackages {
     }
     cells[name] = { choice, enabled, settings, problems }
   }
-  const problems: PackageProblem[] = input.trackerServer !== undefined && !hasTracker ? [{ kind: 'noTrackerMcp', server: input.trackerServer }] : []
+  const tracker = input.tracker === undefined ? null : { server: input.tracker.server, brought: hasTracker }
+  const problems: PackageProblem[] = tracker !== null && input.tracker?.required === true && !hasTracker ? [{ kind: 'noTrackerMcp', server: tracker.server }] : []
   const blocked = [...problems, ...Object.values(cells).flatMap((cell) => cell.problems)].some((problem) => !NOTES.has(problem.kind))
-  return { cells, problems, blocked }
+  return { cells, problems, blocked, tracker }
 }
 
 /**

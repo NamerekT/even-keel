@@ -410,6 +410,18 @@
   text-decoration: none;
 }
 
+.tools-link__text {
+  display: flex;
+  flex: 1 1 20em;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.tools-link__advice {
+  color: var(--fg-muted);
+  font-size: 13px;
+}
+
 .tools-link a:hover {
   text-decoration: underline;
 }

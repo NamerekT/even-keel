@@ -23,7 +23,8 @@ const fetched = new Date(Date.now() - 3 * 3_600_000).toISOString()
 /**
  * `?packages=`: `blocked` — a key is missing and XYZ waits, `gateway` — the gateway cannot listen, `empty` — no
  * packages, `marketplace` — Claude Code does not know Even Keel's marketplace, `tracker` — DEMO turns the Huly plugin
- * off and lacks the tracker's server; without it everything is ready. OPS runs on Codex, so the Huly plugin is MCP only there.
+ * off and lacks the tracker's server, `noTracker` — the catalog has no Huly plugin, so every project gets the task in its
+ * prompt and the add dialog offers it; without it everything is ready. OPS runs on Codex, so the Huly plugin is MCP only there.
  */
 export function fakePackages(projects: string[], mode: string | null): PackagesView {
   const catalog: Catalog = {
@@ -40,6 +41,7 @@ export function fakePackages(projects: string[], mode: string | null): PackagesV
     marketplace: mode !== 'marketplace',
   }
   if (mode === 'empty') catalog.packages = []
+  if (mode === 'noTracker') catalog.packages = catalog.packages.filter((each) => each.name !== 'huly@even-keel')
   return viewOf(catalog, projects)
 }
 
@@ -55,6 +57,7 @@ function viewOf(catalog: Catalog, projects: string[]): PackagesView {
       packages: catalog.packages.filter((each) => each.keys.includes(name)).map((each) => each.name),
     })),
     available: [
+      { plugin: 'huly', marketplace: 'even-keel' },
       { plugin: 'linear', marketplace: 'even-keel' },
       { plugin: 'github', marketplace: 'even-keel' },
       // Long enough for the search to matter, as the official marketplaces are.
@@ -83,7 +86,7 @@ function projectOf(catalog: Catalog, project: string): PackagesView['projects'][
   }
   const problems: PackageProblem[] = cells['huly@even-keel']?.enabled === false ? [{ kind: 'noTrackerMcp', server: 'huly' }] : []
   const blocked = !catalog.gateway || problems.length > 0 || Object.values(cells).some((cell) => cell.enabled && cell.problems.some((each) => each.kind !== 'unsupported'))
-  return { cells, problems, blocked }
+  return { cells, problems, blocked, tracker: { server: 'huly', brought: cells['huly@even-keel']?.enabled === true } }
 }
 
 /** The packages' commands; `null` for another command. */
