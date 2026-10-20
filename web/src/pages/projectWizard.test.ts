@@ -10,6 +10,7 @@ import {
   shapeOf,
   suggestOfRepo,
   switchProfile,
+  trustCommand,
   typedIn,
   type WizardFields,
 } from './projectWizard.js'
@@ -21,7 +22,19 @@ const passed: ProjectCheck = {
   entry: null,
   tracker: { ok: true, missing: [], open: 3, notice: null },
   trusted: true,
+  platform: 'win32',
 }
+
+describe('trustCommand', () => {
+  it('goes to the folder with pushd on Windows, which both cmd and PowerShell 7 run', () => {
+    expect(trustCommand('D:\\Projects\\shop', 'win32')).toBe('pushd "D:\\Projects\\shop" && claude')
+  })
+
+  it('goes to the folder with cd elsewhere, escaping single quotes', () => {
+    expect(trustCommand('/home/me/shop', 'linux')).toBe("cd '/home/me/shop' && claude")
+    expect(trustCommand("/home/me/it's", 'darwin')).toBe("cd '/home/me/it'\\''s' && claude")
+  })
+})
 
 describe('draftOfFields', () => {
   it('trims the texts and gives a worktree per task as slot 0', () => {

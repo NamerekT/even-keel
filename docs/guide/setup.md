@@ -23,7 +23,7 @@ The projects and the settings live in Even Keel's database and are edited on the
 Each project needs:
 
 - a git repository with a main branch — `main` unless the project names another in `branch`; with a remote, Even Keel pushes it after every task;
-- the repository trusted by Claude Code: open `claude` in it once and accept the trust prompt, or the first launch pauses the chain and asks for it (accepting it in the repository covers the task worktrees the message names; then press **Resume**: the chain does not retry by itself).
+- the repository trusted by Claude Code (the wizard shows the command to run): open `claude` in it once and accept the trust prompt, or the first launch pauses the chain and asks for it (accepting it in the repository covers the task worktrees the message names; then press **Resume**: the chain does not retry by itself).
 
 The rule that a session commits and merges its branch into `main` when the task is done comes with the launch and handoff prompts, plugin or not (in PR mode the prompt says to end the turn for a pull request instead).
 

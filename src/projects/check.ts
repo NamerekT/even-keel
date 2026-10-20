@@ -48,7 +48,7 @@ export async function checkDraft(deps: CheckDeps, draft: ProjectDraft): Promise<
     entry === null && rules !== undefined && adapter !== undefined && repo.root !== null && repo.notice === null
       ? await checkTracker(adapter, deps, draft.key.trim(), draft.trackerProject.trim(), rules)
       : null
-  return { repo, entry, tracker, trusted: repo.root === null ? null : isTrusted(deps.claudeConfig(), repo.root, platform) }
+  return { repo, entry, tracker, trusted: repo.root === null ? null : isTrusted(deps.claudeConfig(), repo.root, platform), platform }
 }
 
 async function checkRepo(

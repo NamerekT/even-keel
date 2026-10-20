@@ -376,8 +376,9 @@ export const ru = {
     repoFound: (root: string) => `Git-репозиторий ${root}`,
     mainBranch: (branch: string) => `основная ветка: ${branch}`,
     changeBranch: 'изменить',
-    untrusted:
-      'Claude Code ещё не доверяет этой папке, и сессия остановится на диалоге доверия. Откройте claude в этой папке один раз и согласитесь, потом проверьте снова.',
+    untrusted: 'Claude Code ещё не доверяет этой папке, сессия остановится на окне доверия. Выполните команду в терминале и примите доверие.',
+    copyCommand: 'Копировать',
+    commandCopied: 'Скопировано',
     trusted: 'Claude Code доверяет папке',
     checkAgain: 'Проверить снова',
     stepTracker: 'Трекер',

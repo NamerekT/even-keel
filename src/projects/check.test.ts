@@ -77,6 +77,7 @@ describe('checkDraft', () => {
       entry: null,
       tracker: { ok: true, missing: [], open: 2, notice: null },
       trusted: true,
+      platform: 'win32',
     })
   })
 
