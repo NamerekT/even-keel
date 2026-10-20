@@ -2,7 +2,7 @@ import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, 
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
-import { catchUp, ensureIgnored, finishWorktree, parseWorktrees, prepareWorktree, requireBranch, taskPlace, type GitResult } from './worktree.js'
+import { catchUp, ensureIgnored, finishWorktree, parseWorktrees, prepareWorktree, requireBranch, requireCheckedOut, taskPlace, type GitResult } from './worktree.js'
 import { englishOf, notice } from '../notice/notice.js'
 
 const repo = join(tmpdir(), 'abc')
@@ -35,6 +35,26 @@ describe('requireBranch', () => {
     await expect(requireBranch(fakeGit().git, repo, 'ABC', 'master')).resolves.toBeUndefined()
     const { git } = fakeGit({ 'rev-parse --verify --quiet refs/heads/master': { code: 1 } })
     await expect(requireBranch(git, repo, 'ABC', 'master')).rejects.toMatchObject({ notice: notice('git.noBranch', { project: 'ABC', branch: 'master', repo }) })
+  })
+})
+
+describe('requireCheckedOut', () => {
+  const symbolicRef = 'symbolic-ref --quiet --short HEAD'
+
+  it('passes a checkout that stands on the main branch', async () => {
+    const { git } = fakeGit({ [symbolicRef]: { out: 'master\n' } })
+    await expect(requireCheckedOut(git, repo, 'ABC', 'master')).resolves.toBeUndefined()
+  })
+
+  it('names the branch the checkout stands on, or a detached head', async () => {
+    const onMain = fakeGit({ [symbolicRef]: { out: 'main' } }).git
+    await expect(requireCheckedOut(onMain, repo, 'ABC', 'master')).rejects.toMatchObject({
+      notice: notice('git.wrongBranch', { project: 'ABC', branch: 'master', current: 'main', repo }),
+    })
+    const detached = fakeGit({ [symbolicRef]: { code: 1 } }).git
+    await expect(requireCheckedOut(detached, repo, 'ABC', 'master')).rejects.toMatchObject({
+      notice: notice('git.wrongBranch', { project: 'ABC', branch: 'master', current: null, repo }),
+    })
   })
 })
 

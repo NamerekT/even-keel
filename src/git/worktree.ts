@@ -59,6 +59,13 @@ export async function requireBranch(git: Git, repo: string, project: string, bra
   if (!(await hasBranch(git, repo, branch))) throw fail('git.noBranch', { project, branch, repo })
 }
 
+/** The merge, `git sync` and the search for the merged task all work on the project's branch: the main checkout must stand on it. */
+export async function requireCheckedOut(git: Git, repo: string, project: string, branch: string): Promise<void> {
+  const head = await git(repo, ['symbolic-ref', '--quiet', '--short', 'HEAD'])
+  const current = head.code === 0 && head.out.trim() !== '' ? head.out.trim() : null
+  if (current !== branch) throw fail('git.wrongBranch', { project, branch, current, repo })
+}
+
 /**
  * `ahead` — the place is made before the launch, while the chain waits for main: a new one stays detached at main and
  * gets the task branch only at the launch, so whatever starts the task on the checkout of its branch (a tracker's git hook) does it then.

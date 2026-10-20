@@ -73,6 +73,8 @@ export const noticesRu: NoticeTexts = {
   'git.failed': (p) => `git: не удалось ${GIT_STEPS[p.step](p.subject)} ${p.repo}`,
   'git.noBranch': (p) =>
     `в ${p.repo} нет ветки ${p.branch} — главной ветки проекта ${p.project}; создайте её или укажите нужную в настройках проекта`,
+  'git.wrongBranch': (p) =>
+    `${p.repo} стоит ${p.current === null ? 'на отсоединённом HEAD' : `на ${p.current}`}, а не на ${p.branch} — главной ветке проекта ${p.project}; переключите копию на ${p.branch} или укажите нужную ветку в настройках проекта`,
 
   'sync.alias': (p) => `git sync завершился с кодом ${p.exit}`,
   'sync.notMain': (p) => `${p.repo} стоит на ${p.branch || 'отцепленном HEAD'}, а не на ${p.main} — переключите его на ${p.main}`,

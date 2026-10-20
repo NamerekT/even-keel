@@ -73,6 +73,8 @@ export const en = {
   'git.failed': (p: { step: GitStep; subject: string; repo: string }) => `git: could not ${GIT_STEPS[p.step](p.subject)} ${p.repo}`,
   'git.noBranch': (p: { project: string; branch: string; repo: string }) =>
     `git: ${p.repo} has no branch ${p.branch}, the main branch of ${p.project}; create it or name the right one in the project's settings`,
+  'git.wrongBranch': (p: { project: string; branch: string; current: string | null; repo: string }) =>
+    `git: ${p.repo} stands ${p.current === null ? 'on a detached HEAD' : `on ${p.current}`}, not on ${p.branch}, the main branch of ${p.project}; switch it to ${p.branch} or name the right branch in the project's settings`,
 
   'sync.alias': (p: { exit: number }) => `git sync exited with ${p.exit}`,
   'sync.notMain': (p: { repo: string; branch: string; main: string }) =>
