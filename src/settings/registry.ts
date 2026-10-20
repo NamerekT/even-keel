@@ -7,6 +7,7 @@ import { isLanguage, LANGUAGES } from '../language.js'
 import { fail } from '../notice/notice.js'
 import { isColor } from '../projects/colors.js'
 import { placeholderIn } from '../sessions/prompt.js'
+import type { OwnKey } from '../state.js'
 import { isTallyMode } from '../stats/mode.js'
 import { DEFAULT_HIDDEN_SKILLS } from '../tools/settings.js'
 import { DEFAULT_TRACKER } from '../tracker/adapters.js'
@@ -73,8 +74,8 @@ const providerName = (path: string) => (value: unknown, place: Place) => {
   return value.trim() === '' ? undefined : value.trim()
 }
 
-const language = (path: string) => (value: unknown) => {
-  if (!isLanguage(value)) throw fail('config.language', { where: path, value: json(value), known: [...LANGUAGES] })
+const language = (path: string) => (value: unknown, place: Place) => {
+  if (!isLanguage(value)) throw fail('config.language', { where: at(place, path), value: json(value), known: [...LANGUAGES] })
   return value
 }
 
@@ -115,7 +116,7 @@ const command = (key: 'beforeStart' | 'check' | 'afterGreen'): SettingDefinition
 const ciSwitch = (key: 'guard' | 'recheckMain' | 'fixTask'): SettingDefinition => ({
   key: `ci.${key}`,
   kind: 'boolean',
-  scopes: ['project'],
+  scopes: ['global', 'project'],
   lands: ['settings'],
   default: DEFAULT_CI[key],
   check: boolean(`ci.${key}`),
@@ -215,12 +216,12 @@ export const DEFINITIONS: readonly SettingDefinition[] = [
     return prompts
   } },
   { key: 'language', kind: 'enum', scopes: ['global'], lands: ['language', 'promptLanguage'], default: null, check: language('language') },
-  { key: 'promptLanguage', kind: 'enum', scopes: ['global'], lands: ['promptLanguage'], default: undefined, check: language('promptLanguage') },
+  { key: 'promptLanguage', kind: 'enum', scopes: ['global', 'project'], lands: ['promptLanguage', 'settings'], default: undefined, check: language('promptLanguage') },
   { key: 'hiddenSkills', kind: 'list', scopes: ['global'], lands: ['hiddenSkills'], default: DEFAULT_HIDDEN_SKILLS, check: (value) => {
     if (!Array.isArray(value) || value.some((name) => typeof name !== 'string' || name.trim() === '')) throw fail('config.hiddenSkills', {})
     return value.map((name: string) => name.trim())
   } },
-  { key: 'cacheTtl', kind: 'enum', scopes: ['global'], lands: ['cacheTtl'], default: null, check: (value) => {
+  { key: 'cacheTtl', kind: 'enum', scopes: ['global', 'project'], lands: ['cacheTtl', 'settings'], default: null, check: (value) => {
     if (value !== null && value !== '5m' && value !== '1h') throw fail('config.cacheTtl', { value: json(value) })
     return value
   } },
@@ -241,7 +242,7 @@ export const DEFINITIONS: readonly SettingDefinition[] = [
     if (typeof value !== 'number' || !Number.isFinite(value) || value < 0) throw fail('config.otherBelow', { value: json(value) })
     return value
   } },
-  { key: 'stats.checkpointTokens', kind: 'integer', scopes: ['global'], lands: ['stats'], default: null, check: (value) => {
+  { key: 'stats.checkpointTokens', kind: 'integer', scopes: ['global', 'project'], lands: ['stats', 'settings'], default: null, check: (value) => {
     if (value !== null && (!Number.isInteger(value) || (value as number) < CHECKPOINT_ASK_FROM)) throw fail('config.checkpointTokens', { from: CHECKPOINT_ASK_FROM, value: json(value) })
     return value
   } },
@@ -269,11 +270,11 @@ export const DEFINITIONS: readonly SettingDefinition[] = [
   command('check'),
   command('afterGreen'),
   ciSwitch('guard'),
-  { key: 'ci.kinds', kind: 'list', scopes: ['project'], lands: ['settings'], default: DEFAULT_CI.kinds, check: (value, place) => {
+  { key: 'ci.kinds', kind: 'list', scopes: ['global', 'project'], lands: ['settings'], default: DEFAULT_CI.kinds, check: (value, place) => {
     if (!Array.isArray(value) || value.some((kind) => !(CI_KINDS as readonly unknown[]).includes(kind))) throw fail('config.ciKinds', { where: at(place, 'ci.kinds'), known: [...CI_KINDS] })
     return CI_KINDS.filter((kind) => value.includes(kind))
   } },
-  { key: 'ci.waitMinutes', kind: 'integer', scopes: ['project'], lands: ['settings'], default: DEFAULT_CI.waitMinutes, check: (value, place) => {
+  { key: 'ci.waitMinutes', kind: 'integer', scopes: ['global', 'project'], lands: ['settings'], default: DEFAULT_CI.waitMinutes, check: (value, place) => {
     if (value !== null && !(Number.isInteger(value) && (value as number) >= 0)) throw fail('config.ciWait', { where: at(place, 'ci.waitMinutes') })
     return value
   } },
@@ -290,13 +291,16 @@ export const DEFINITIONS: readonly SettingDefinition[] = [
     return chosen
   } },
   { key: 'pullRequests', kind: 'boolean', scopes: ['project'], lands: ['settings'], default: false, check: boolean('pullRequests') },
-  { key: 'fillMilestone', kind: 'boolean', scopes: ['project'], lands: ['settings'], default: false, check: boolean('fillMilestone') },
+  { key: 'fillMilestone', kind: 'boolean', scopes: ['global', 'project'], lands: ['settings'], default: false, check: boolean('fillMilestone') },
   { key: 'changelog', kind: 'string', scopes: ['project'], lands: ['settings'], default: DEFAULT_CHANGELOG, check: (value, place) => {
     const path = typeof value === 'string' ? changelogPath(value) : null
     if (path === null) throw fail('config.changelogPath', { where: at(place, 'changelog'), value: json(value) })
     return path
   } },
 ]
+
+/** The keys of `ProjectSettings.own`: set at both levels, shown by the project's panel as its own or "as shared". */
+export const OWN_KEYS: readonly OwnKey[] = ['ci.guard', 'ci.kinds', 'ci.waitMinutes', 'ci.recheckMain', 'ci.fixTask', 'fillMilestone', 'promptLanguage', 'cacheTtl', 'stats.checkpointTokens']
 
 /** The nested objects of the file whose parts are settings of their own. */
 export const OBJECTS: Readonly<Record<string, ObjectDefinition>> = {

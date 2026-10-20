@@ -37,6 +37,9 @@ export const wholeOf = (text: string, min: number): number | undefined => {
   return text.trim() !== '' && Number.isInteger(value) && value >= min ? value : undefined
 }
 
+/** The longest wait for CI: empty — as long as it takes; `undefined` — not a whole number of minutes. */
+export const minutesOf = (text: string): number | null | undefined => (text.trim() === '' ? null : wholeOf(text, 0))
+
 /** The error of a field of this form: the failed save first, then the file's own error, if either points at the field. */
 export function useFieldErrors(project: string | null, errors: (Notice | null)[], config: ConfigView): (field: string) => Notice | null {
   const keys = config.trackers.flatMap((tracker) => (tracker.projectKey === null ? [] : [tracker.projectKey.key]))

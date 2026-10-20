@@ -83,6 +83,8 @@ export interface Feed {
 
 export interface TranscriptSummary {
   contextTokens: number
+  /** The model's context window as the transcript gives it (Codex); `null` — it does not, the agent is asked (`docs/sessions.md`). */
+  contextWindow: number | null
   cache: CacheWindow | null
   tokens: TokenTotals
   turn: Turn | null
@@ -214,6 +216,7 @@ export class TranscriptFold {
     return {
       contextTokens:
         (last?.input_tokens ?? 0) + (last?.cache_read_input_tokens ?? 0) + (last?.cache_creation_input_tokens ?? 0),
+      contextWindow: null,
       cache,
       tokens,
       turn:

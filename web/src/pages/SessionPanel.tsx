@@ -253,10 +253,10 @@ function SessionBody({ session, limit, scale, whole }: { session: SessionView; l
           <dt>{t.session.cache}</dt>
           {session.cache === null ? <dd className="panel__value">—</dd> : <CacheFact cache={session.cache} />}
         </div>
-        <div className={`panel__fact panel__fact--wide panel__fact--${contextFill(session.contextTokens, scale).level}`}>
+        <div className={`panel__fact panel__fact--wide panel__fact--${contextFill(session.contextTokens, scale, session.contextWindow).level}`}>
           <dt>{t.session.context}</dt>
           <dd>
-            <ContextMeter tokens={session.contextTokens} scale={scale} full />
+            <ContextMeter tokens={session.contextTokens} window={session.contextWindow} scale={scale} full />
           </dd>
         </div>
         <ModelFact agent={session.agent} model={session.model} />
@@ -504,7 +504,7 @@ function SessionWindow({ row, live, scale, onClose }: { row: TaskSession; live: 
               <div className="panel__fact panel__fact--wide">
                 <dt>{t.session.endContext}</dt>
                 <dd>
-                  <ContextMeter tokens={record.contextTokens} scale={scale} full />
+                  <ContextMeter tokens={record.contextTokens} window={record.contextWindow} scale={scale} full />
                 </dd>
               </div>
               <TokensFact tokens={record.tokens} />

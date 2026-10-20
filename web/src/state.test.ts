@@ -67,6 +67,7 @@ function view(task: string, lamp: SessionView['lamp'], lastActivityAt: string | 
     startedAt: '2026-01-01T09:00:00.000Z',
     lastActivityAt,
     contextTokens: 0,
+    contextWindow: null,
     cache: null,
     tokens: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
     stage: null,
@@ -1036,6 +1037,11 @@ describe('contextFill', () => {
 
   it('caps the share at a full window', () => {
     expect(contextFill(900_000, scale)).toEqual({ percent: 100, level: 'danger' })
+  })
+
+  it("measures against the session's own window when the agent gave one, the setting's otherwise", () => {
+    expect(contextFill(125_000, scale, 250_000)).toEqual({ percent: 50, level: 'warn' })
+    expect(contextFill(125_000, scale, null).percent).toBeCloseTo(20.83, 2)
   })
 })
 

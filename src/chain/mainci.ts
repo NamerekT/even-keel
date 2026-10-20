@@ -28,7 +28,7 @@ export interface MainCiDeps {
   /** The project's check commands (`commands.check`). */
   commands: (project: string) => string[]
   language: () => Language
-  promptLanguage: () => Language
+  promptLanguage: (project: string) => Language
   /** `null` — the tracker cannot create tasks. */
   create: (task: NewTask) => Promise<string | null>
   comment: (task: string, body: string) => Promise<void>
@@ -79,12 +79,12 @@ export function mainCheckDeps(deps: MainCiDeps): MainCheckDeps {
       const log = await deps.git(deps.repo(project), ['log', '--format=%h %s', ...range])
       const commits = log.code === 0 ? log.out.split(/\r?\n/).filter((line) => line.trim() !== '') : []
       const facts = { commit: push.commit, commits, green, tasks: push.tasks }
-      if ('check' in failure) return redReport({ ...facts, runs: [], check: failure.check }, deps.language(), deps.promptLanguage())
+      if ('check' in failure) return redReport({ ...facts, runs: [], check: failure.check }, deps.language(), deps.promptLanguage(project))
       const watches = counted(project) ?? []
       const runs = await Promise.all(
         failure.ci.map(({ kind, run }) => watches.find((watch) => watch.view.kind === kind)?.failed(run) ?? Promise.resolve({ kind, run, jobs: null, log: null })),
       )
-      return redReport({ ...facts, runs }, deps.language(), deps.promptLanguage())
+      return redReport({ ...facts, runs }, deps.language(), deps.promptLanguage(project))
     },
     create: (project, task) => deps.create({ project, ...task }),
     comment: deps.comment,

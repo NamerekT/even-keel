@@ -388,6 +388,8 @@ export class StatsReader {
     settings: ReaderSettings | string | Promise<ReaderSettings>,
     private readonly projects: () => Record<string, string>,
     private readonly statsConfig: () => StatsConfig,
+    /** The project's pinned checkpoint threshold, its own over the shared one; `null` — calibrated. */
+    private readonly pinnedOf: (project: string) => number | null = () => statsConfig().checkpointTokens,
   ) {
     this.setReader(settings)
   }
@@ -474,15 +476,14 @@ export class StatsReader {
   async checkpoints(): Promise<StatsAnswer<CheckpointThreshold[]>> {
     const answer = await this.checkpointMeasures()
     if (answer.state !== 'ok') return answer
-    const pinned = this.statsConfig().checkpointTokens
-    return { state: 'ok', data: this.keys.map((key) => checkpointThreshold(key, answer.data[key] ?? null, pinned)) }
+    return { state: 'ok', data: this.keys.map((key) => checkpointThreshold(key, answer.data[key] ?? null, this.pinnedOf(key))) }
   }
 
   /** For the hook, so it never fails: without statistics the project runs on the default or the pinned number. */
   async checkpoint(project: string): Promise<CheckpointThreshold> {
     const answer = await this.checkpointMeasures()
     const measure = answer.state === 'ok' ? (answer.data[project] ?? null) : null
-    return checkpointThreshold(project, measure, this.statsConfig().checkpointTokens)
+    return checkpointThreshold(project, measure, this.pinnedOf(project))
   }
 
   private checkpointMeasures(): Promise<StatsAnswer<Record<string, CheckpointMeasure>>> {

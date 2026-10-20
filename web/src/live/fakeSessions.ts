@@ -56,6 +56,7 @@ export function session(task: string, contextTokens: number, lamp: SessionView['
     startedAt: ago(42),
     lastActivityAt: ago(0),
     contextTokens,
+    contextWindow: 250_000,
     cache: fakeCache(lamp),
     tokens: { input: 18_400, output: 9_200, cacheRead: 1_240_000, cacheWrite: 96_000 },
     stage: 'edit',

@@ -152,6 +152,13 @@ describe('RolloutFold', () => {
     expect(summary.tokens).toEqual({ input: 15000, cacheRead: 24000, cacheWrite: 0, output: 120 })
   })
 
+  it('takes the context window the model runs with from the turn start and each token count', () => {
+    expect(fold([meta()]).summary().contextWindow).toBeNull()
+    expect(fold([meta(), started()]).summary().contextWindow).toBe(258400)
+    const smaller = event({ type: 'token_count', info: { last_token_usage: { input_tokens: 9000 }, model_context_window: 128000 } })
+    expect(fold([meta(), started(), smaller]).summary().contextWindow).toBe(128000)
+  })
+
   it('follows the turn from its start, with no call known to be running', () => {
     const turn = started()
     const summary = fold([started(), tokens(14000, 0, [14000, 0, 100]), turn, user('Go on.')]).summary()

@@ -122,7 +122,7 @@ export class MainFix {
     delete chain.limitUntil
     this.host.take(chain, current)
     this.deps.save(this.state)
-    const prompt = mainFixedPrompt(held.commit, held.fixed ?? null, this.deps.promptLanguage(), this.deps.mainBranch(held.task))
+    const prompt = mainFixedPrompt(held.commit, held.fixed ?? null, this.deps.promptLanguage(held.task), this.deps.mainBranch(held.task))
     const warm =
       account.id !== null &&
       account.id === this.deps.accountAt(session.account, held.at) &&

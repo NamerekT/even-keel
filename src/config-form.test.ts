@@ -18,7 +18,7 @@ describe('formsOf', () => {
       trackerProject: 'octo-org/abc',
       slot: 1,
       brief: false,
-      chain: { active: null, terminal: null, requiredLabels: ['Auto'], excludedLabels: ['Manual', 'Вручную'] },
+      chain: { active: null, terminal: null, requiredLabels: ['Auto'], excludedLabels: [] },
     })
     expect(formOf({ projects: [abc()] }, 'ABC')).toMatchObject({ name: null, tracker: 'huly', trackerProject: null, slot: 0, brief: null })
   })
@@ -43,7 +43,7 @@ describe('withProjectForm', () => {
       trackerProject: 'octo-org/abc',
       slot: 3,
       brief: false,
-      chain: { active: ['Todo', ' '], terminal: [], requiredLabels: [], excludedLabels: ['Manual', 'Вручную'] },
+      chain: { active: ['Todo', ' '], terminal: [], requiredLabels: [], excludedLabels: [] },
     }
     const next = withProjectForm(raw, 'id-abc', form, formOf(raw, 'ABC'))
     expect(next).toEqual({
@@ -66,7 +66,7 @@ describe('withProjectForm', () => {
 
   it('removes the keys that go back to what is inherited, and the project key of the tracker left', () => {
     const raw = { brief: false, projects: [abc({ tracker: 'github', github: 'octo-org/abc', brief: true, slot: 2, chain: { requiredLabels: ['Auto'] } })] }
-    const form: ProjectForm = { ...formOf(raw, 'ABC'), tracker: 'huly', trackerProject: null, brief: false, slot: 0, chain: { active: null, terminal: null, requiredLabels: [], excludedLabels: ['Manual', 'Вручную'] } }
+    const form: ProjectForm = { ...formOf(raw, 'ABC'), tracker: 'huly', trackerProject: null, brief: false, slot: 0, chain: { active: null, terminal: null, requiredLabels: [], excludedLabels: [] } }
     expect(withProjectForm(raw, 'id-abc', form, formOf(raw, 'ABC'))).toEqual({ brief: false, projects: [abc()] })
   })
 
@@ -110,6 +110,34 @@ describe('withProjectForm', () => {
     expect(withProjectForm(named, 'id-abc', { ...formOf(named, 'ABC'), name: ' ' }, formOf(named, 'ABC'))).toEqual({ projects: [abc()] })
   })
 
+  it('takes each key Even Keel sets too from the project when it has one, else from the shared value', () => {
+    const raw = {
+      ci: { waitMinutes: 15, fixTask: true, kinds: ['github'] },
+      fillMilestone: true,
+      promptLanguage: 'ru',
+      cacheTtl: '1h',
+      stats: { checkpointTokens: 220_000 },
+      projects: [abc({ ci: { waitMinutes: null, guard: false }, promptLanguage: 'en', stats: { checkpointTokens: 160_000 } }), xyz()],
+    }
+    const config = parseConfig(raw)
+    expect(config.settings.ABC).toMatchObject({
+      ci: { guard: false, kinds: ['github'], waitMinutes: null, recheckMain: true, fixTask: true },
+      fillMilestone: true,
+      promptLanguage: 'en',
+      cacheTtl: '1h',
+      checkpointTokens: 160_000,
+      own: { 'ci.guard': false, 'ci.waitMinutes': null, promptLanguage: 'en', 'stats.checkpointTokens': 160_000 },
+    })
+    expect(config.settings.XYZ).toMatchObject({ ci: { guard: true, waitMinutes: 15, fixTask: true }, promptLanguage: 'ru', checkpointTokens: 220_000, own: {} })
+  })
+
+  it('writes an own value set back to "as shared" as a removed key, leaving the other own keys', () => {
+    const raw = { ci: { waitMinutes: 15 }, projects: [abc({ ci: { waitMinutes: 5, guard: false }, cacheTtl: '5m' })] }
+    const base = formOf(raw, 'ABC')
+    const form: ProjectForm = { ...base, own: { 'ci.guard': false, cacheTtl: '5m', fillMilestone: true } }
+    expect(withProjectForm(raw, 'id-abc', form, base).projects).toEqual([abc({ ci: { guard: false }, cacheTtl: '5m', fillMilestone: true })])
+  })
+
   it('refuses a project the config does not know', () => {
     const raw = { projects: [abc()] }
     expect(() => withProjectForm(raw, 'id-xyz', formOf(raw, 'ABC'), formOf(raw, 'ABC'))).toThrow(/id-xyz/)
@@ -130,8 +158,10 @@ describe('withSharedForm', () => {
       allowedHosts: [' Box.Example.com '],
       context: { window: 1_000_000, warn: 50, danger: 80 },
       modelPrompts: { haiku: ' Be brief. ', sonnet: ' ' },
-      chain: { active: null, terminal: null, requiredLabels: ['Auto'], excludedLabels: ['Manual', 'Вручную'] },
+      chain: { active: null, terminal: null, requiredLabels: ['Auto'], excludedLabels: [] },
       stats: { ...sharedOf(raw).stats, compare: { minTasks: 5, minSessions: 10, days: 7 }, otherBelow: 2 },
+      ci: { ...sharedOf(raw).ci, kinds: ['github'], waitMinutes: 15 },
+      fillMilestone: true,
     }
     expect(withSharedForm(raw, form, sharedOf(raw))).toEqual({
       projects: [abc()],
@@ -145,6 +175,8 @@ describe('withSharedForm', () => {
       modelPrompts: { haiku: 'Be brief.' },
       chain: { requiredLabels: ['Auto'] },
       stats: { extra: 1, otherBelow: 2 },
+      ci: { kinds: ['github'], waitMinutes: 15 },
+      fillMilestone: true,
     })
   })
 
@@ -156,8 +188,8 @@ describe('withSharedForm', () => {
   it('leaves a hand edit of the file alone and writes a field changed in both over it', () => {
     const base = sharedOf({ projects: [] })
     const edited = { projects: [], model: 'opus', parallel: 2, chain: { requiredLabels: ['Auto'] } }
-    const form: SharedForm = { ...base, parallel: 3, chain: { ...base.chain, excludedLabels: [] } }
-    expect(withSharedForm(edited, form, base)).toEqual({ projects: [], model: 'opus', parallel: 3, chain: { requiredLabels: ['Auto'], excludedLabels: [] } })
+    const form: SharedForm = { ...base, parallel: 3, chain: { ...base.chain, excludedLabels: ['Later'] } }
+    expect(withSharedForm(edited, form, base)).toEqual({ projects: [], model: 'opus', parallel: 3, chain: { requiredLabels: ['Auto'], excludedLabels: ['Later'] } })
   })
 
   it('writes the update switches', () => {

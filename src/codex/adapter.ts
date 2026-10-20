@@ -61,6 +61,7 @@ export const codex: AgentAdapter = {
           startedAt: summary.firstActivityAt,
           lastActivityAt: summary.lastActivityAt,
           contextTokens: summary.contextTokens,
+          contextWindow: summary.contextWindow,
           tokens: summary.tokens,
           stage: summary.stage,
           feed: summary.feed,

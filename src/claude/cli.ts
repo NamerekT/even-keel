@@ -11,8 +11,9 @@ import { gatewayName, type OneTurn, type OneTurnAnswer, type SessionStart } from
 import { runWithInput } from '../agent/oneturn.js'
 import { fail, notice, NoticeError, type Notice } from '../notice/notice.js'
 import { samePath } from '../paths.js'
-import { blockedAsk, blockedOn, parseAgents, parseSessionRecord, withLiveRecords, type AgentEntry, type SessionRecord } from '../sessions/agents.js'
+import { blockedAsk, blockedOn, launchedModel, parseAgents, parseSessionRecord, withLiveRecords, type AgentEntry, type SessionRecord } from '../sessions/agents.js'
 import { newestExtensionBinary } from '../sessions/paths.js'
+import { contextArgs } from './context.js'
 import { daemonVersionOf } from './release.js'
 import { descendantsOf, isAlive, killLeftovers } from './tree.js'
 
@@ -94,6 +95,17 @@ export class ClaudeCli {
       windowsHide: true,
     })
     // An open stdin makes `-p` wait 3 s for input and print a warning.
+    call.child.stdin?.end()
+    try {
+      return (await call).stdout
+    } catch (error) {
+      throw new Error(callFailure(error), { cause: error })
+    }
+  }
+
+  /** `claude -p /context`: a local command, no turn; spawned directly, as Git Bash would make it a paid turn. */
+  async context(home: AccountHome, cwd: string, model: string, settings?: string): Promise<string> {
+    const call = run(this.bin(), contextArgs(model, settings), { cwd, env: this.envOf(home), timeout: this.timeoutMs, windowsHide: true })
     call.child.stdin?.end()
     try {
       return (await call).stdout
@@ -335,21 +347,23 @@ export async function liveRecords(home: AccountHome): Promise<SessionRecord[]> {
 /**
  * What only the job file of a session tells. A blocked session without a live `sessions/<pid>.json` has not begun
  * its first turn: it hangs on a startup dialog, and `claude agents` shows it only as `blocked`, like one with a question.
- * A live session that waits has its open `AskUserQuestion` there and not yet in the transcript.
+ * A live session that waits has its open `AskUserQuestion` there and not yet in the transcript, and every live one
+ * the model it was started with.
  */
 async function withJobFiles(home: AccountHome, agents: AgentEntry[]): Promise<AgentEntry[]> {
   return Promise.all(
     agents.map(async (agent) => {
       const { id } = agent
       const dialog = agent.state === 'blocked' && agent.pid === undefined
-      if (id === undefined || !(dialog || (agent.pid !== undefined && agent.status === 'waiting'))) return agent
+      if (id === undefined || !(dialog || agent.pid !== undefined)) return agent
       const job = await readFile(join(home.dir, 'jobs', id, 'state.json'), 'utf8').catch(() => undefined)
       if (dialog) {
         const needs = blockedOn(job)
         return needs === null ? agent : { ...agent, startupDialog: needs }
       }
-      const ask = blockedAsk(job, id)
-      return ask === null ? agent : { ...agent, ask }
+      const model = launchedModel(job)
+      const ask = agent.status === 'waiting' ? blockedAsk(job, id) : null
+      return { ...agent, ...(model !== null && { model }), ...(ask !== null && { ask }) }
     }),
   )
 }

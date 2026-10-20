@@ -15,6 +15,8 @@ export interface SessionMonitorOptions {
   /** An API account's session has no Remote Control and no usage window: it waits out only a key out of credit (`docs/accounts.md`). */
   apiKey: (account: string) => boolean
   projectKeys: () => string[]
+  /** Optional. The window the agent itself gives for a task's session of the account on the model; `null` — not known yet. */
+  contextWindow?: (account: string, model: string, task: string) => number | null
   intervalMs: number
   onAgents: (agents: AgentEntry[]) => void
   onChange: (views: SessionView[]) => void
@@ -63,7 +65,7 @@ export class SessionMonitor {
       const account = tracked.agent.account ?? GLOBAL_ACCOUNT
       const enabled = this.remoteEnabled.has(account) ? this.remoteEnabled.get(account)! : false
       const remote = { enabled, apiKey: this.options.apiKey(account) }
-      const view = toView(task, tracked, remote, this.options.emailOf(account), now)
+      const view = toView(task, tracked, remote, this.options.emailOf(account), now, (model) => this.options.contextWindow?.(account, model, task) ?? null)
       return view.lamp === 'finished' && this.holds.held(view.sessionId) ? { ...view, lamp: 'working' as const } : view
     })
   }
@@ -173,8 +175,10 @@ function toView(
   remoteOf: { enabled: boolean | null; apiKey: boolean },
   email: string | null,
   now: number,
+  windowOf: (model: string) => number | null,
 ): SessionView {
   const summary = transcript.summary()
+  const model = agent.model ?? summary.model
   const remote = remoteLink({
     bridge,
     transcriptUrl: summary.remoteUrl,
@@ -201,6 +205,7 @@ function toView(
     startedAt: new Date(agent.startedAt).toISOString(),
     lastActivityAt: summary.lastActivityAt,
     contextTokens: summary.contextTokens,
+    contextWindow: summary.contextWindow ?? (model === null ? null : windowOf(model)),
     cache: summary.cache,
     tokens: summary.tokens,
     stage: summary.stage,

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { blockedAsk, blockedOn, isLive, lampOf, parseAgents, parseSessionRecord, sessionsByTask, steadyJobs, turnStatus, withLiveRecords, type AgentEntry } from './agents.js'
+import { blockedAsk, blockedOn, isLive, launchedModel, lampOf, parseAgents, parseSessionRecord, sessionsByTask, steadyJobs, turnStatus, withLiveRecords, type AgentEntry } from './agents.js'
 
 const interactive: AgentEntry = {
   pid: 100,
@@ -73,6 +73,21 @@ describe('blockedOn', () => {
     expect(blockedOn(JSON.stringify({ tempo: 'blocked' }))).toBeNull()
     expect(blockedOn('not json')).toBeNull()
     expect(blockedOn(undefined)).toBeNull()
+  })
+})
+
+describe('launchedModel', () => {
+  it('reads the model a job was started with from the flags it respawns with', () => {
+    const job = { tempo: 'active', respawnFlags: ['--mcp-config', '{"mcpServers":{}}', '--strict-mcp-config', '-n', 'BTN-1', '--model', 'opus[1m]'] }
+    expect(launchedModel(JSON.stringify(job))).toBe('opus[1m]')
+  })
+
+  it('names none for a job started without a model, without flags, or a broken file', () => {
+    expect(launchedModel(JSON.stringify({ tempo: 'active', respawnFlags: ['-n', 'BTN-1'] }))).toBeNull()
+    expect(launchedModel(JSON.stringify({ tempo: 'active', respawnFlags: ['--model'] }))).toBeNull()
+    expect(launchedModel(JSON.stringify({ tempo: 'active' }))).toBeNull()
+    expect(launchedModel('not json')).toBeNull()
+    expect(launchedModel(undefined)).toBeNull()
   })
 })
 

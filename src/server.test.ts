@@ -226,11 +226,18 @@ describe('Even Keel HTTP server', () => {
 
   it('passes the settings of a project on with the values the form started from', async () => {
     const ci = { guard: false, kinds: ['github'], waitMinutes: 15, recheckMain: false, fixTask: true }
-    const settings = { prompt: 'Run npm test.', beforeStart: ['npm ci'], check: ['npm test'], afterGreen: ['npm run build'], ci, fillMilestone: true, changelog: 'docs/CHANGELOG.md', ...form }
-    const started = { ...settings, prompt: null, slot: 0 }
+    const settings = {
+      ...{ prompt: 'Run npm test.', beforeStart: ['npm ci'], check: ['npm test'], afterGreen: ['npm run build'], ci, fillMilestone: true, changelog: 'docs/CHANGELOG.md', ...form },
+      ...{ promptLanguage: 'ru', cacheTtl: '1h', checkpointTokens: 180_000, own: { 'ci.guard': false, cacheTtl: '1h' } },
+    }
+    const started = { ...settings, prompt: null, slot: 0, own: {} }
     const response = await fetch(base + '/api/project/settings', { method: 'POST', body: JSON.stringify({ project: 'ABC', ...settings, base: started }) })
     expect(response.status).toBe(200)
     expect(calls).toContainEqual(['settings', 'ABC', settings, started])
+
+    const unknown = await fetch(base + '/api/project/settings', { method: 'POST', body: JSON.stringify({ project: 'ABC', ...settings, own: { parallel: 2 }, base: started }) })
+    expect(unknown.status).toBe(400)
+    expect((await unknown.json()).notice).toMatchObject({ code: 'request.required', params: { field: 'own' } })
 
     const missing = await fetch(base + '/api/project/settings', { method: 'POST', body: JSON.stringify({ project: 'ABC', ...settings }) })
     expect(missing.status).toBe(400)
@@ -303,6 +310,8 @@ describe('Even Keel HTTP server', () => {
       context: { window: 600_000, warn: 50, danger: 80 },
       stats: { compare: { minTasks: 5, minSessions: 10, days: 7 }, moves: {}, otherBelow: 0, checkpointTokens: null },
       updates: { check: true, notify: false },
+      ci: { guard: true, kinds: ['github'], waitMinutes: 15, recheckMain: false, fixTask: true },
+      fillMilestone: true,
     }
     const started = { ...shared, parallel: 1 }
     const response = await fetch(base + '/api/settings', { method: 'POST', body: JSON.stringify({ ...shared, base: started }) })

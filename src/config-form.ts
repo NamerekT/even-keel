@@ -1,11 +1,12 @@
 import type { ChainRules } from './chain/rules.js'
+import { CI_KINDS } from './ci/model.js'
 import { DEFAULT_BRANCH, DEFAULT_LANGUAGE, isPlainObject, parseConfig, RULE_KEYS, withProjectSettings, type EvenKeelConfig } from './config.js'
 import { fail } from './notice/notice.js'
 import { changesOf, type FormValue } from './settings/changes.js'
 import { sharedRows, withRows, writeRows } from './settings/file.js'
 import { defaultOf } from './settings/registry.js'
 import { checkRows, resolve, type Values } from './settings/resolve.js'
-import type { ConfigView, ProjectDraft, ProjectForm, SharedForm, TrackerChoice } from './state.js'
+import type { ConfigView, OwnKey, ProjectDraft, ProjectForm, SharedForm, TrackerChoice } from './state.js'
 import type { TallyMode } from './stats/mode.js'
 import { ADAPTERS } from './tracker/adapters.js'
 import type { TrackerAdapter } from './tracker/source.js'
@@ -41,11 +42,11 @@ export function formsOf(config: EvenKeelConfig, adapters: Adapters = ADAPTERS): 
       },
     ]),
   )
-  const { parallel, tracker, brief, chain, provider, models, accounts, execution, cli, modelLabels, modelPrompts, language, promptLanguage, hiddenSkills, cacheTtl, allowedHosts, context, stats } = config
+  const { parallel, tracker, brief, chain, provider, models, accounts, execution, cli, modelLabels, modelPrompts, language, promptLanguage, hiddenSkills, cacheTtl, ci, fillMilestone, allowedHosts, context, stats } = config
   const updates = { check: config.updates.check, notify: config.updates.notify }
   const shared = {
     ...{ parallel, tracker, brief, chain, provider, models, accounts, execution, cli, modelLabels, modelPrompts },
-    ...{ language, promptLanguage, hiddenSkills, cacheTtl, allowedHosts, context, stats, updates },
+    ...{ language, promptLanguage, hiddenSkills, cacheTtl, ci, fillMilestone, allowedHosts, context, stats, updates },
   }
   return { projects, shared }
 }
@@ -69,7 +70,11 @@ export function withProjectForm(raw: unknown, id: string, form: ProjectForm, bas
   const index = Array.isArray(projects) ? projects.findIndex((each: unknown) => isPlainObject(each) && each.id === id) : -1
   if (index < 0) throw fail('config.unknownProject', { key: id })
   const list = projects as unknown[]
-  const changed = (field: keyof ProjectForm) => !same(base[field], form[field])
+  const changed = (field: keyof ProjectForm | `own.${OwnKey}`) => {
+    if (!field.startsWith('own.')) return !same(base[field as keyof ProjectForm], form[field as keyof ProjectForm])
+    const key = field.slice('own.'.length) as OwnKey
+    return !same(base.own[key], form.own[key])
+  }
   const shared = sharedValues(config, adapters)
   const rules = rulesOf(form.chain)
   const inherited = (key: string, own: unknown): FormValue => ({ group: key, key, qualifier: '', value: own, fallback: shared[key] })
@@ -155,6 +160,12 @@ export function withSharedForm(raw: unknown, form: SharedForm, base: SharedForm)
     { group: 'promptLanguage', key: 'promptLanguage', qualifier: '', value: form.promptLanguage, fallback: form.language ?? DEFAULT_LANGUAGE },
     value('hiddenSkills', 'hiddenSkills', names(form.hiddenSkills)),
     value('cacheTtl', 'cacheTtl', form.cacheTtl),
+    value('ci', 'ci.guard', form.ci.guard),
+    value('ci', 'ci.kinds', CI_KINDS.filter((kind) => form.ci.kinds.includes(kind))),
+    value('ci', 'ci.waitMinutes', form.ci.waitMinutes),
+    value('ci', 'ci.recheckMain', form.ci.recheckMain),
+    value('ci', 'ci.fixTask', form.ci.fixTask),
+    value('fillMilestone', 'fillMilestone', form.fillMilestone),
     value('allowedHosts', 'allowedHosts', names(form.allowedHosts).map((name) => name.toLowerCase())),
     ...(['window', 'warn', 'danger'] as const).map((key) => value('context', `context.${key}`, form.context[key])),
     ...(['minTasks', 'minSessions', 'days'] as const).map((key) => value('stats', `stats.compare.${key}`, form.stats.compare[key])),

@@ -44,8 +44,25 @@ export interface SessionCheckpoint {
   task: string
   handoffs: number
   first: number
-  source: CheckpointThreshold['source']
+  /** `window` — the project's threshold was lowered to fit the session's context window. */
+  source: CheckpointThreshold['source'] | 'window'
   context: number | null
+}
+
+/** The share of a session's context window the first nudge comes at, at most: past it the agent's own compaction may come first (BTN-187). */
+export const WINDOW_SHARE = 0.72
+
+/**
+ * The threshold of one session: a default or calibrated one over the share of its window goes down to it. One
+ * pinned in the settings stays as it is, past the window too: whoever pinned it meant it.
+ */
+export function withinWindow(
+  threshold: Pick<SessionCheckpoint, 'first' | 'source'>,
+  window: number | null,
+): Pick<SessionCheckpoint, 'first' | 'source'> {
+  if (window === null || threshold.source === 'config') return threshold
+  const cap = Math.floor((window * WINDOW_SHARE) / 1000) * 1000
+  return threshold.first > cap ? { first: cap, source: 'window' } : threshold
 }
 
 function calibrated(measure: CheckpointMeasure): number | null {

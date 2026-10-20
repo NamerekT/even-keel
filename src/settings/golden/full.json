@@ -124,7 +124,21 @@
       "accounts": {
         "codex": "codex-2"
       },
-      "modelLabels": false
+      "modelLabels": false,
+      "cacheTtl": "1h",
+      "checkpointTokens": 150000,
+      "own": {
+        "ci.guard": false,
+        "ci.kinds": [
+          "forgejo",
+          "github"
+        ],
+        "ci.waitMinutes": 5,
+        "ci.recheckMain": false,
+        "ci.fixTask": true,
+        "fillMilestone": true
+      },
+      "promptLanguage": "en"
     },
     "XYZ": {
       "branch": "main",
@@ -149,7 +163,11 @@
       "provider": null,
       "models": {},
       "accounts": {},
-      "modelLabels": null
+      "modelLabels": null,
+      "cacheTtl": "1h",
+      "checkpointTokens": 150000,
+      "own": {},
+      "promptLanguage": "en"
     },
     "LIN": {
       "branch": "main",
@@ -174,7 +192,11 @@
       "provider": null,
       "models": {},
       "accounts": {},
-      "modelLabels": null
+      "modelLabels": null,
+      "cacheTtl": "1h",
+      "checkpointTokens": 150000,
+      "own": {},
+      "promptLanguage": "en"
     }
   },
   "context": {
@@ -221,6 +243,17 @@
     "simplify"
   ],
   "cacheTtl": "1h",
+  "ci": {
+    "guard": true,
+    "kinds": [
+      "forgejo",
+      "github"
+    ],
+    "waitMinutes": null,
+    "recheckMain": true,
+    "fixTask": false
+  },
+  "fillMilestone": false,
   "parallel": 2,
   "unattended": true,
   "trimTools": false,

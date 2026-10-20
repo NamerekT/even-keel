@@ -45,6 +45,7 @@ export class RolloutFold {
   private action: FeedLine | null = null
   private stage: Stage | null = null
   private contextTokens = 0
+  private contextWindow: number | null = null
   private tokens: TokenTotals = { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 }
   private apiError: TranscriptSummary['apiError'] = null
   private lastMessage: string | null = null
@@ -87,8 +88,10 @@ export class RolloutFold {
       return
     }
     if (line.type !== 'event_msg') return
-    if (payload.type === 'task_started') this.turnStartedAt = at
-    else if (payload.type === 'token_count') this.pushTokens(record(payload.info))
+    if (payload.type === 'task_started') {
+      this.turnStartedAt = at
+      this.pushWindow(payload.model_context_window)
+    } else if (payload.type === 'token_count') this.pushTokens(record(payload.info))
     else if (payload.type === 'error') this.pushError(at, errorText(payload.message))
     else if (payload.type === 'task_complete' && record(payload.error) !== undefined) this.pushError(at, errorText(record(payload.error)?.message))
     else if (payload.type === 'item_completed') this.pushItem(at, record(payload.item))
@@ -97,6 +100,7 @@ export class RolloutFold {
   summary(): TranscriptSummary {
     return {
       contextTokens: this.contextTokens,
+      contextWindow: this.contextWindow,
       cache: null,
       tokens: { ...this.tokens },
       turn: this.turnStartedAt === null ? null : { startedAt: this.turnStartedAt, tool: null },
@@ -124,6 +128,7 @@ export class RolloutFold {
     const last = record(info?.last_token_usage)
     const total = record(info?.total_token_usage)
     if (last !== undefined) this.contextTokens = count(last.input_tokens)
+    this.pushWindow(info?.model_context_window)
     if (total === undefined) return
     const cached = count(total.cached_input_tokens)
     this.tokens = {
@@ -132,6 +137,10 @@ export class RolloutFold {
       cacheRead: cached,
       cacheWrite: count(total.cache_write_input_tokens),
     }
+  }
+
+  private pushWindow(value: unknown): void {
+    if (typeof value === 'number' && Number.isFinite(value) && value > 0) this.contextWindow = value
   }
 
   private pushError(at: string, message: unknown): void {

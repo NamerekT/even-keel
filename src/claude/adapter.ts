@@ -1,4 +1,4 @@
-import { readFile } from 'node:fs/promises'
+import { readFile, stat } from 'node:fs/promises'
 import { join } from 'node:path'
 import type { AccountHome } from '../account/homes.js'
 import type { AgentAdapter } from '../agent/contract.js'
@@ -10,6 +10,7 @@ import { transcriptIds } from '../sessions/owners.js'
 import { bridgeOfRecord, remoteAtStartup } from '../sessions/remote.js'
 import { TranscriptTail } from '../sessions/tail.js'
 import { ClaudeCli, liveRecords, resolveClaudeBinary, SESSION_MODE } from './cli.js'
+import { parseContextWindow } from './context.js'
 import { CLAUDE } from './name.js'
 import { claudeBinaryIn, fetchClaude } from './release.js'
 
@@ -56,6 +57,12 @@ export const claude: AgentAdapter = {
       installed: () => findBinary(bin(), env()),
       version: () => cli.version(env()),
       usage: async (home, at) => parseUsage(await cli.usage(home, workDir), at),
+      contextWindow: async (home, model, settings) => parseContextWindow(await cli.context(home, workDir, model, settings)),
+      windowStamp: async (home) => {
+        const binary = bin()
+        const changed = (file: string) => stat(file).then((info) => info.mtimeMs, () => null)
+        return JSON.stringify([binary, await changed(binary), await changed(join(home.dir, 'settings.json'))])
+      },
       stopDaemon: (home) => cli.stopDaemon(home),
       pinned: () => (pinned() === undefined ? null : version),
       daemonVersion: (home) => cli.daemonVersion(home),

@@ -34,7 +34,8 @@ export interface QuestionsDeps {
   sessions: () => AskingSession[]
   /** Runs `call` on the project's tracker; `undefined` — the project has no tracker connected. */
   tracker: <T>(project: string, call: (tracker: Tracker) => Promise<T>) => Promise<T> | undefined
-  language: () => Language
+  /** The language of the project's prompts, which a question in its tracker is posted in. */
+  language: (project: string) => Language
   load: () => PostedQuestion[]
   save: (posted: PostedQuestion[]) => void
   answer: (project: string, task: string, sessionId: string, ask: string, reply: TrackerReply) => Promise<void>
@@ -98,7 +99,7 @@ export class TrackerQuestions {
     const ask = session.ask!
     try {
       const comment = await this.deps.tracker(session.project, async (tracker) =>
-        tracker.comment === undefined || tracker.commentsAfter === undefined ? null : tracker.comment(session.task, questionComment(ask, this.deps.language())),
+        tracker.comment === undefined || tracker.commentsAfter === undefined ? null : tracker.comment(session.task, questionComment(ask, this.deps.language(session.project))),
       )
       if (comment == null) return
       this.store([...this.posted, { task: session.task, sessionId: session.sessionId, ask: ask.id, comment }])

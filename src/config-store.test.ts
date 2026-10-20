@@ -1,7 +1,6 @@
 import type { PGlite } from '@electric-sql/pglite'
 import { beforeEach, describe, expect, it } from 'vitest'
 import { ConfigStore } from './config-store.js'
-import { DEFAULT_CI } from './config.js'
 import { fileOf } from './settings/file.js'
 import { importConfig } from './settings/import.js'
 import { mirrorDefinitions, putSettings, readSettings } from './settings/store.js'
@@ -9,7 +8,6 @@ import { Writes } from './storage/database.js'
 import { memoryDatabase } from './storage/memory.js'
 import { SCHEMA_VERSION } from './storage/schema.js'
 
-const ci = DEFAULT_CI
 const abc = (fields: Record<string, unknown> = {}) => ({ id: 'id-abc', key: 'ABC', repo: 'C:\\abc', ...fields })
 const xyz = (fields: Record<string, unknown> = {}) => ({ id: 'id-xyz', key: 'XYZ', repo: 'C:\\xyz', ...fields })
 
@@ -74,8 +72,8 @@ describe('ConfigStore', { timeout: 30_000 }, () => {
     const config = await open()
     const form = (project: string) => config.view().projects[project]!
 
-    const settings = { ...form('ABC'), branch: 'master', prompt: ' Mind Library. ', beforeStart: ['npm ci', ' '], check: ['npm test'], fillMilestone: true, remoteProfiles: { github: 'org' } }
-    config.saveProject('ABC', { ...settings, ci: { guard: true, kinds: ['github'], waitMinutes: 20, recheckMain: true, fixTask: false } }, form('ABC'))
+    const settings = { ...form('ABC'), branch: 'master', prompt: ' Mind Library. ', beforeStart: ['npm ci', ' '], check: ['npm test'], remoteProfiles: { github: 'org' } }
+    config.saveProject('ABC', { ...settings, own: { 'ci.kinds': ['github'], 'ci.waitMinutes': 20, fillMilestone: true } }, form('ABC'))
     config.saveProject('XYZ', { ...form('XYZ'), prompt: 'Run tests.' }, form('XYZ'))
     expect(await read()).toEqual(
       stored({
@@ -100,6 +98,10 @@ describe('ConfigStore', { timeout: 30_000 }, () => {
       models: {},
       accounts: {},
       modelLabels: null,
+      promptLanguage: 'en',
+      cacheTtl: null,
+      checkpointTokens: null,
+      own: { 'ci.kinds': ['github'], 'ci.waitMinutes': 20, fillMilestone: true },
     })
   })
 
@@ -108,7 +110,7 @@ describe('ConfigStore', { timeout: 30_000 }, () => {
     const config = await open()
 
     const form = config.view().projects.ABC!
-    config.saveProject('ABC', { ...form, prompt: '', beforeStart: [], check: [], ci, fillMilestone: false }, form)
+    config.saveProject('ABC', { ...form, prompt: '', beforeStart: [], check: [], own: {} }, form)
     expect(await read()).toEqual(stored({ projects: [abc({ brief: false })] }))
   })
 

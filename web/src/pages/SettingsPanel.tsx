@@ -1,7 +1,8 @@
 import { Fragment, useEffect, useRef, type ReactNode } from 'react'
 import { CI_KINDS, type CiKind } from '../../../src/ci/model.js'
 import type { Notice } from '../../../src/notice/notice.js'
-import type { ConfigView, ProjectForm } from '../../../src/state.js'
+import type { CacheTtl, ConfigView, OwnKey, OwnValues, ProjectForm, SharedForm } from '../../../src/state.js'
+import { LANGUAGES } from '../../../src/language.js'
 import type { Task } from '../../../src/tracker/model.js'
 import { offeredProviders } from '../accounts.js'
 import { say, t } from '../i18n/index.js'
@@ -21,6 +22,7 @@ import {
   GroupTabs,
   linesOf,
   marksOf,
+  minutesOf,
   ProviderGrid,
   RULE_KEYS,
   RuleFields,
@@ -73,8 +75,11 @@ const FORGES: Record<CiKind, string> = { github: 'GitHub', forgejo: 'Forgejo' }
 const GROUPS = [
   { id: 'repo', keys: ['repo', 'branch', 'slot', 'changelog', 'color'] },
   { id: 'tracker', keys: ['tracker', 'trackerProject', 'fillMilestone', ...RULE_KEYS] },
-  { id: 'sessions', keys: ['provider', ...providerKeys('models'), ...providerKeys('accounts'), 'modelLabels', 'brief', 'prompt', 'beforeStart'] },
-  { id: 'ci', keys: ['guard', 'check', 'afterGreen', 'kinds', 'wait', 'recheck', 'fixTask', 'pullRequests', ...CI_KINDS.map(remoteKey)] },
+  {
+    id: 'sessions',
+    keys: ['provider', ...providerKeys('models'), ...providerKeys('accounts'), 'modelLabels', 'brief', 'prompt', 'beforeStart', 'promptLanguage', 'cacheTtl', 'ownCheckpoint', 'checkpointTokens'],
+  },
+  { id: 'ci', keys: ['guard', 'check', 'afterGreen', 'ownKinds', 'kinds', 'ownWait', 'wait', 'recheck', 'fixTask', 'pullRequests', ...CI_KINDS.map(remoteKey)] },
 ] as const
 type GroupId = (typeof GROUPS)[number]['id']
 const KEYS: readonly string[] = GROUPS.flatMap((group) => group.keys)
@@ -95,32 +100,69 @@ const valuesOf = (form: ProjectForm): Values => ({
   beforeStart: form.beforeStart.join('\n'),
   check: form.check.join('\n'),
   afterGreen: form.afterGreen.join('\n'),
-  guard: form.ci.guard,
+  // A switch the project may leave to the shared settings: '' — as shared, 'true' or 'false' — its own.
+  guard: switchText(form.own['ci.guard']),
+  ownKinds: form.own['ci.kinds'] !== undefined,
   kinds: form.ci.kinds,
+  ownWait: form.own['ci.waitMinutes'] !== undefined,
   wait: form.ci.waitMinutes === null ? '' : String(form.ci.waitMinutes),
-  recheck: form.ci.recheckMain,
-  fixTask: form.ci.fixTask,
+  recheck: switchText(form.own['ci.recheckMain']),
+  fixTask: switchText(form.own['ci.fixTask']),
   pullRequests: form.pullRequests,
   ...Object.fromEntries(CI_KINDS.map((kind) => [remoteKey(kind), form.remoteProfiles[kind] ?? ''])),
-  fillMilestone: form.fillMilestone,
+  fillMilestone: switchText(form.own.fillMilestone),
   changelog: form.changelog,
   provider: form.provider ?? '',
   ...providerValues('models', form.models),
   ...providerValues('accounts', form.accounts),
   modelLabels: form.modelLabels === null ? '' : String(form.modelLabels),
+  promptLanguage: form.own.promptLanguage ?? '',
+  cacheTtl: form.own.cacheTtl === undefined ? '' : (form.own.cacheTtl ?? CLI_TTL),
+  ownCheckpoint: form.own['stats.checkpointTokens'] !== undefined,
+  checkpointTokens: form.checkpointTokens === null ? '' : String(form.checkpointTokens),
 })
-/** Empty — wait as long as it takes; `undefined` — not a whole number of minutes. */
-const minutesOf = (text: string): number | null | undefined => (text.trim() === '' ? null : wholeOf(text, 0))
+const switchText = (value: boolean | undefined) => (value === undefined ? '' : String(value))
+const switchOf = (text: string) => (text === '' ? undefined : text === 'true')
+/** The choice of the cache lifetime that leaves it to Claude Code, as against '' — as shared. */
+const CLI_TTL = 'cli'
+const ttlLabel = (ttl: CacheTtl | null) => (ttl === null ? t.shared.cacheTtlAuto : ttl === '5m' ? t.shared.cacheTtl5m : t.shared.cacheTtl1h)
+/** Empty — calibrated; `undefined` — not a whole number. */
+const tokensOf = (text: string): number | null | undefined => (text.trim() === '' ? null : wholeOf(text, 0))
 
-/** What the service gets; `undefined` while a number field holds something else. The name is not the panel's: it goes as it came. */
-function formOf(values: Values, name: string | null): ProjectForm | undefined {
+/** The project's own values of the keys Even Keel sets too; `undefined` while an own number field holds something else. */
+function ownOf(values: Values): OwnValues | undefined {
   const text = (key: string) => values[key] as string
   const on = (key: string) => values[key] as boolean
-  const waitMinutes = minutesOf(text('wait'))
-  const slot = wholeOf(text('slot'), 0)
-  if (waitMinutes === undefined || slot === undefined) return undefined
-  const trackerProject = text('trackerProject').trim()
+  const waitMinutes = on('ownWait') ? minutesOf(text('wait')) : null
+  const checkpointTokens = on('ownCheckpoint') ? tokensOf(text('checkpointTokens')) : null
+  if (waitMinutes === undefined || checkpointTokens === undefined) return undefined
   const kinds = values.kinds as readonly string[]
+  const ttl = text('cacheTtl')
+  const entries: [OwnKey, unknown][] = [
+    ['ci.guard', switchOf(text('guard'))],
+    ['ci.kinds', on('ownKinds') ? CI_KINDS.filter((kind) => kinds.includes(kind)) : undefined],
+    ['ci.waitMinutes', on('ownWait') ? waitMinutes : undefined],
+    ['ci.recheckMain', switchOf(text('recheck'))],
+    ['ci.fixTask', switchOf(text('fixTask'))],
+    ['fillMilestone', switchOf(text('fillMilestone'))],
+    ['promptLanguage', text('promptLanguage') === '' ? undefined : text('promptLanguage')],
+    ['cacheTtl', ttl === '' ? undefined : ttl === CLI_TTL ? null : ttl],
+    ['stats.checkpointTokens', on('ownCheckpoint') ? checkpointTokens : undefined],
+  ]
+  return Object.fromEntries(entries.filter(([, value]) => value !== undefined)) as OwnValues
+}
+
+/** The project's own value of a key, else the shared one. */
+const ownOr = <K extends OwnKey>(own: OwnValues, key: K, shared: Exclude<OwnValues[K], undefined>) => (key in own ? (own[key] as typeof shared) : shared)
+
+/** What the service gets; `undefined` while a number field holds something else. The name is not the panel's: it goes as it came. */
+function formOf(values: Values, name: string | null, shared: SharedForm): ProjectForm | undefined {
+  const text = (key: string) => values[key] as string
+  const on = (key: string) => values[key] as boolean
+  const slot = wholeOf(text('slot'), 0)
+  const own = ownOf(values)
+  if (own === undefined || slot === undefined) return undefined
+  const trackerProject = text('trackerProject').trim()
   const labels = text('modelLabels')
   return {
     name,
@@ -136,15 +178,25 @@ function formOf(values: Values, name: string | null): ProjectForm | undefined {
     beforeStart: linesOf(text('beforeStart')),
     check: linesOf(text('check')),
     afterGreen: linesOf(text('afterGreen')),
-    ci: { guard: on('guard'), kinds: CI_KINDS.filter((kind) => kinds.includes(kind)), waitMinutes, recheckMain: on('recheck'), fixTask: on('fixTask') },
+    ci: {
+      guard: ownOr(own, 'ci.guard', shared.ci.guard),
+      kinds: ownOr(own, 'ci.kinds', shared.ci.kinds),
+      waitMinutes: ownOr(own, 'ci.waitMinutes', shared.ci.waitMinutes),
+      recheckMain: ownOr(own, 'ci.recheckMain', shared.ci.recheckMain),
+      fixTask: ownOr(own, 'ci.fixTask', shared.ci.fixTask),
+    },
     remoteProfiles: Object.fromEntries(CI_KINDS.flatMap((kind) => (text(remoteKey(kind)) === '' ? [] : [[kind, text(remoteKey(kind))]]))),
     pullRequests: on('pullRequests'),
-    fillMilestone: on('fillMilestone'),
+    fillMilestone: ownOr(own, 'fillMilestone', shared.fillMilestone),
     changelog: text('changelog').trim(),
     provider: text('provider') === '' ? null : text('provider'),
     models: providerMap('models', values),
     accounts: providerMap('accounts', values),
     modelLabels: labels === '' ? null : labels === 'true',
+    promptLanguage: ownOr(own, 'promptLanguage', shared.promptLanguage),
+    cacheTtl: ownOr(own, 'cacheTtl', shared.cacheTtl),
+    checkpointTokens: ownOr(own, 'stats.checkpointTokens', shared.stats.checkpointTokens),
+    own,
   }
 }
 
@@ -181,8 +233,9 @@ export function SettingsPanel({
   const vocabularies = useVocabularies(projectId === undefined ? [] : [projectId])
   const dirty = (id: GroupId) => changed(draft, keysOf(id), same).length > 0
   const outgoing = sent(draft, keysOf(open))
-  const next = formOf(outgoing.form, form.name)
-  const base = formOf(outgoing.base, form.name)
+  const shared = config.shared
+  const next = formOf(outgoing.form, form.name, shared)
+  const base = formOf(outgoing.base, form.name, shared)
   const locked = config.trackerLocked.includes(project)
   const errorOf = useFieldErrors(project, [failure, configError], config)
   const text = (key: string) => draft.edit[key] as string
@@ -210,7 +263,7 @@ export function SettingsPanel({
     await send('project/settings', { project, ...next, base })
   }
   const leftover = unplaced(project, failure, config)
-  const unguarded = !on('guard')
+  const unguarded = !(switchOf(text('guard')) ?? shared.ci.guard)
   const check = (key: string, label: string, hint: string, error?: string, disabled = false) => (
     <CheckField className={marks.box(key)} label={label} hint={hint} checked={on(key)} disabled={disabled} onChange={(checked) => edit(key, checked)}>
       {marks.note(key)}
@@ -218,7 +271,7 @@ export function SettingsPanel({
     </CheckField>
   )
 
-  const choice = (key: string, label: string, hint: string, options: { value: string; label: string }[]) => (
+  const choice = (key: string, label: string, hint: string, options: { value: string; label: string }[], disabled = false) => (
     <div className={marks.box(key)}>
       <FieldHead label={label} hint={hint} htmlFor={fieldId(key)} />
       <Select
@@ -227,12 +280,42 @@ export function SettingsPanel({
         value={text(key)}
         options={options}
         invalid={errorOf(key) !== null}
+        disabled={disabled}
         onChange={(value) => edit(key, value)}
       />
       {marks.note(key, (value) => options.find((option) => option.value === value)?.label ?? String(value))}
       <FieldNote error={errorOf(key)} />
     </div>
   )
+  const onOff = (value: boolean) => (value ? t.settings.on : t.settings.off)
+  const switchChoice = (key: string, label: string, hint: string, sharedValue: boolean, disabled = false) =>
+    choice(
+      key,
+      label,
+      hint,
+      [
+        { value: '', label: t.settings.asShared(onOff(sharedValue)) },
+        { value: 'true', label: t.settings.on },
+        { value: 'false', label: t.settings.off },
+      ],
+      disabled,
+    )
+  // A field the project may leave to the shared settings: unticked, it shows the shared value and cannot be edited.
+  const ownToggle = (flag: string, key: string, sharedValue: Value, disabled = false) => (
+    <label className="settings__check settings__own">
+      <input
+        type="checkbox"
+        checked={on(flag)}
+        disabled={disabled}
+        onChange={(event) => setDraft(edited(edited(draft, flag, event.target.checked), key, event.target.checked ? sharedValue : saved[key]!))}
+      />
+      {t.settings.ownValue}
+      {marks.note(flag)}
+    </label>
+  )
+  const sharedWait = shared.ci.waitMinutes === null ? '' : String(shared.ci.waitMinutes)
+  const sharedCheckpoint = shared.stats.checkpointTokens === null ? '' : String(shared.stats.checkpointTokens)
+  const shownKinds = on('ownKinds') ? kinds : shared.ci.kinds
   const choices = remoteChoices(state?.profiles.profiles ?? [], state?.remotes[project] ?? [])
   // One profile on offer is no choice: the field shows only while there are two, or a choice was made.
   const remoteChoice = (kind: CiKind) => {
@@ -371,7 +454,7 @@ export function SettingsPanel({
           )}
         </div>
         {locked && <p className="settings__hint">{t.settings.trackerLocked}</p>}
-        {check('fillMilestone', t.settings.fillMilestone, t.settings.fillMilestoneHint, 'fillMilestone')}
+        {switchChoice('fillMilestone', t.settings.fillMilestone, t.settings.fillMilestoneHint, shared.fillMilestone)}
         <RuleFields text={text} onEdit={edit} errorOf={errorOf} marks={marks} choices={ruleChoicesOf(tasks, vocabularies)} />
       </>
     ),
@@ -465,11 +548,37 @@ export function SettingsPanel({
           {marks.note('beforeStart')}
           <FieldNote error={errorOf('beforeStart')} />
         </div>
+        {choice('promptLanguage', t.shared.promptLanguage, t.settings.promptLanguageHint, [
+          { value: '', label: t.settings.asShared(t.shared.languages[shared.promptLanguage]) },
+          ...LANGUAGES.map((language) => ({ value: language, label: t.shared.languages[language] })),
+        ])}
+        {choice('cacheTtl', t.shared.cacheTtl, t.shared.cacheTtlHint, [
+          { value: '', label: t.settings.asShared(ttlLabel(shared.cacheTtl)) },
+          { value: CLI_TTL, label: t.shared.cacheTtlAuto },
+          { value: '5m', label: t.shared.cacheTtl5m },
+          { value: '1h', label: t.shared.cacheTtl1h },
+        ])}
+        <div className={marks.box(['ownCheckpoint', 'checkpointTokens'])}>
+          <FieldHead label={t.shared.checkpointTokens} hint={t.shared.checkpointTokensHint} htmlFor={fieldId('checkpointTokens')} />
+          {ownToggle('ownCheckpoint', 'checkpointTokens', sharedCheckpoint)}
+          <input
+            id={fieldId('checkpointTokens')}
+            className="settings__text settings__number"
+            inputMode="numeric"
+            value={on('ownCheckpoint') ? text('checkpointTokens') : sharedCheckpoint}
+            placeholder={t.shared.checkpointTokensPlaceholder}
+            disabled={!on('ownCheckpoint')}
+            aria-invalid={on('ownCheckpoint') && tokensOf(text('checkpointTokens')) === undefined}
+            onChange={(event) => edit('checkpointTokens', event.target.value)}
+          />
+          {marks.note('checkpointTokens', (value) => ((value as string).trim() === '' ? t.shared.checkpointTokensPlaceholder : (value as string)))}
+          <FieldNote error={errorOf('stats.checkpointTokens')} />
+        </div>
       </>
     ),
     ci: () => (
       <>
-        {check('guard', t.settings.guard, t.settings.guardHint)}
+        {switchChoice('guard', t.settings.guard, t.settings.guardHint, shared.ci.guard)}
         {/* With the guard off the values stay as they are, only greyed out: turning it back on brings them back. */}
         <div className={unguarded ? 'settings__guarded settings__guarded--off' : 'settings__guarded'}>
           <div className={marks.box('check')}>
@@ -502,14 +611,20 @@ export function SettingsPanel({
             {marks.note('afterGreen')}
             <FieldNote error={errorOf('afterGreen')} />
           </div>
-          <fieldset className={marks.box('kinds', 'settings__field settings__group')}>
+          <fieldset className={marks.box(['ownKinds', 'kinds'], 'settings__field settings__group')}>
             <legend>
               <FieldHead label={t.settings.ci} hint={t.settings.ciHint} />
             </legend>
+            {ownToggle('ownKinds', 'kinds', shared.ci.kinds, unguarded)}
             <div className="settings__checks">
               {CI_KINDS.map((kind) => (
                 <label key={kind} className="settings__check">
-                  <input type="checkbox" checked={kinds.includes(kind)} disabled={unguarded} onChange={(event) => toggle(kind, event.target.checked)} />
+                  <input
+                    type="checkbox"
+                    checked={shownKinds.includes(kind)}
+                    disabled={unguarded || !on('ownKinds')}
+                    onChange={(event) => toggle(kind, event.target.checked)}
+                  />
                   {t.settings.ciKinds[kind]}
                 </label>
               ))}
@@ -517,8 +632,9 @@ export function SettingsPanel({
             {marks.note('kinds', (value) => shown((value as CiKind[]).map((kind) => t.settings.ciKinds[kind])))}
             <FieldNote error={errorOf('ci')} />
           </fieldset>
-          <div className={marks.box('wait')}>
+          <div className={marks.box(['ownWait', 'wait'])}>
             <FieldHead label={t.settings.ciWait} hint={t.settings.ciWaitHint} htmlFor={fieldId('wait')} />
+            {ownToggle('ownWait', 'wait', sharedWait, unguarded)}
             <input
               id={fieldId('wait')}
               className="settings__text settings__number"
@@ -526,16 +642,16 @@ export function SettingsPanel({
               min={0}
               step={1}
               inputMode="numeric"
-              value={text('wait')}
+              value={on('ownWait') ? text('wait') : sharedWait}
               placeholder={t.settings.ciWaitPlaceholder}
-              disabled={unguarded}
-              aria-invalid={minutesOf(text('wait')) === undefined}
+              disabled={unguarded || !on('ownWait')}
+              aria-invalid={on('ownWait') && minutesOf(text('wait')) === undefined}
               onChange={(event) => edit('wait', event.target.value)}
             />
             {marks.note('wait', (value) => ((value as string).trim() === '' ? t.settings.ciWaitPlaceholder : shown(value)))}
           </div>
-          {check('recheck', t.settings.recheckMain, t.settings.recheckMainHint, undefined, unguarded)}
-          {check('fixTask', t.settings.fixTask, t.settings.fixTaskHint, undefined, unguarded)}
+          {switchChoice('recheck', t.settings.recheckMain, t.settings.recheckMainHint, shared.ci.recheckMain, unguarded)}
+          {switchChoice('fixTask', t.settings.fixTask, t.settings.fixTaskHint, shared.ci.fixTask, unguarded)}
         </div>
         {check('pullRequests', t.settings.pullRequests, t.settings.pullRequestsHint, 'pullRequests')}
         {CI_KINDS.map(remoteChoice)}

@@ -169,6 +169,13 @@ export interface Agent {
   image?(home: AccountHome, sessionId: string, tool: string, index: number): Promise<TranscriptImage | undefined>
   /** Optional. The account's usage limits; without it the account shows none and the chain waits a limit out by the transcript. */
   usage?(home: AccountHome, at: string): Promise<UsageAnswer>
+  /**
+   * Optional. The context window a session of the account gets on `model` with the chain's `settings`, asked of the
+   * agent itself; `null` — it did not say. Without it the window is the transcript's, else the setting's (BTN-187).
+   */
+  contextWindow?(home: AccountHome, model: string, settings?: string): Promise<number | null>
+  /** Optional, with `contextWindow`: what its answer depends on besides the model, such as the CLI and the account's settings. */
+  windowStamp?(home: AccountHome): Promise<string>
   /** Optional. Stops the account's daemon so that its sessions read the shared configuration anew. */
   stopDaemon?(home: AccountHome): Promise<void>
   /** Optional. The version sessions run on while they run on Even Keel's own copy of `checked` (BTN-250); `null` — they don't. */
