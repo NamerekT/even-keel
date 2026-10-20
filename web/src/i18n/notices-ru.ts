@@ -94,6 +94,7 @@ export const noticesRu: NoticeTexts = {
   'review.cannotEnable': (p) => `PR-режим ${p.project} не включён`,
   'review.noRemote': (p) => `у ${p.project} нет remote на GitHub или Forgejo, где открыть pull request`,
   'review.noToken': (p) => `ни у одного профиля нет токена для remote ${p.remote}; добавьте профиль GitHub или Forgejo его хоста`,
+  'review.unsupportedHost': (p) => `remote ${p.remote} на ${p.host} не поддерживается для pull request: только GitHub и Forgejo`,
   'review.noNote': (p) => `сессия не оставила описание pull request в ${p.path}`,
   'review.noBranch': (p) => `${p.path} не на ветке`,
   'review.dirty': (p) => `в ${p.path} есть незакоммиченные изменения`,

@@ -83,6 +83,10 @@ describe('pullTarget', () => {
     expect(pullTarget(remotes)).toEqual({ kind: 'github', remote: 'hub', web: 'https://github.com', owner: 'acme', repo: 'app' })
   })
 
+  it('names the host of a remote on a forge it has no adapter for', () => {
+    expect(pullTarget([{ name: 'origin', url: 'git@gitlab.com:acme/app.git' }])).toEqual({ kind: null, remote: 'origin', host: 'gitlab.com' })
+  })
+
   it('finds none without a remote on a forge', () => {
     expect(pullTarget([{ name: 'origin', url: 'D:/backup/app.git' }])).toBeNull()
     expect(pullTarget([])).toBeNull()
@@ -107,6 +111,16 @@ describe('pullReadiness', () => {
 
   it('names the remote no profile has a token for', () => {
     expect(pullReadiness('ABC', remotes, () => null)).toEqual({ notice: notice('review.noToken', { remote: 'origin' }) })
+  })
+
+  it('says a remote on an unsupported host is not supported, without asking for a token', () => {
+    let asked = false
+    const ready = pullReadiness('ABC', [{ name: 'origin', url: 'https://bitbucket.org/acme/app.git' }], () => {
+      asked = true
+      return 'secret'
+    })
+    expect(ready).toEqual({ notice: notice('review.unsupportedHost', { remote: 'origin', host: 'bitbucket.org' }) })
+    expect(asked).toBe(false)
   })
 })
 

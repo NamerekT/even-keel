@@ -7,7 +7,7 @@ import { remotesIn } from '../projects/remotes.js'
 import { forgejoPulls } from './forgejo.js'
 import { githubPulls } from './github.js'
 import type { Forge } from './model.js'
-import { openPull, pullReadiness, pullTarget } from './open.js'
+import { openPull, pullReadiness, pullTarget, unsupportedHost } from './open.js'
 import type { PullRefusals } from './refusals.js'
 
 const RUNS_POLLED = 20
@@ -35,6 +35,7 @@ export function reviewDeps(wiring: ReviewWiring): ReviewDeps {
     const remotes = await remotesIn(git, wiring.repo(project))
     const target = pullTarget(remotes.filter(({ name }) => name === remote))
     if (target === null) throw fail('review.noRemote', { project })
+    if (target.kind === null) throw new NoticeError(unsupportedHost(target))
     return target
   }
 

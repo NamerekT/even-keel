@@ -1,13 +1,16 @@
 import { readFile } from 'node:fs/promises'
 import { isAbsolute, join, relative } from 'node:path'
-import type { CiTarget, Remote } from '../ci/remote.js'
-import { parseRemote } from '../ci/remote.js'
+import type { CiTarget, Remote, UnsupportedRemote } from '../ci/remote.js'
+import { parseRemote, remoteKind } from '../ci/remote.js'
 import type { Git } from '../git/types.js'
 import { fail, notice, type Notice } from '../notice/notice.js'
 import type { Forge, Opened } from './model.js'
 
-/** The remote a project's pull requests go to: `origin` if its address parses, else the first one that does (BTN-205). */
-export function pullTarget(remotes: Remote[]): CiTarget | null {
+/**
+ * The remote a project's pull requests go to: `origin` if its address parses, else the first one that does (BTN-205);
+ * one on a forge with no adapter gives its host (EKR-8).
+ */
+export function pullTarget(remotes: Remote[]): CiTarget | UnsupportedRemote | null {
   const parsed = remotes.flatMap(({ name, url }) => {
     const repo = parseRemote(url)
     return repo === null ? [] : [{ name, repo }]
@@ -15,8 +18,11 @@ export function pullTarget(remotes: Remote[]): CiTarget | null {
   const chosen = parsed.find(({ name }) => name === 'origin') ?? parsed[0]
   if (chosen === undefined) return null
   const { host, ...repo } = chosen.repo
-  return { kind: host === 'github.com' ? 'github' : 'forgejo', remote: chosen.name, ...repo }
+  const kind = remoteKind(host)
+  return kind === null ? { kind, remote: chosen.name, host } : { kind, remote: chosen.name, ...repo }
 }
+
+export const unsupportedHost = (target: UnsupportedRemote): Notice => notice('review.unsupportedHost', { remote: target.remote, host: target.host })
 
 export type PullReadiness = { target: CiTarget; token: string } | { notice: Notice }
 
@@ -27,6 +33,7 @@ export type PullReadiness = { target: CiTarget; token: string } | { notice: Noti
 export function pullReadiness(project: string, remotes: Remote[], token: (target: CiTarget) => string | null): PullReadiness {
   const target = pullTarget(remotes)
   if (target === null) return { notice: notice('review.noRemote', { project }) }
+  if (target.kind === null) return { notice: unsupportedHost(target) }
   const found = token(target)
   return found === null ? { notice: notice('review.noToken', { remote: target.remote }) } : { target, token: found }
 }

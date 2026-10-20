@@ -57,7 +57,8 @@ The contract is two calls: `runs(limit)` — the latest runs, newest first; `job
 Read from `git config --get-regexp ^remote\..*\.url$` and the workflow folders of the project's checkout when the project appears in the config or its `repo` changes (`CiWatches.apply`, `src/ci/watches.ts`), and again every minute for every project (`CiWatches.refresh`): a remote added or a first workflow in the same checkout gets its watch, a CI gone loses it, and a watch whose remote stays keeps its state. Only a change is logged (`ci: <KEY> watches …`, or `watches no CI` when the last one went); a checkout whose remotes cannot be read on a refresh keeps its watches. A changed profile gives every watch a new source at once (`CiWatches.tokensChanged`).
 
 - A `github.com` remote with `.github/workflows` — GitHub Actions.
-- Any other host — Forgejo, if the repository has `.forgejo/workflows`, or `.github/workflows` (Forgejo falls back to it when it has none of its own).
+- A public host of a forge with no adapter (`gitlab.com`, `bitbucket.org`; `UNSUPPORTED_HOSTS` in `src/ci/remote.ts`) — no CI, and no token is asked for (EKR-8). A new adapter takes its host out of that list.
+- Any other host — Forgejo, if the repository has `.forgejo/workflows`, or `.github/workflows` (Forgejo falls back to it when it has none of its own). A server of another forge on its own domain cannot be told by its name, so it is taken for Forgejo too; the Forgejo profile's check (`forgejoAccount`) first asks `/api/v1/version` and says the server is not Forgejo or Gitea unless it answers `{ version }` in JSON (a JSON 401/403 there is a server that wants a sign-in for its API, left to the `/user` request).
 - No remote or no workflows — no CI and no badge.
 
 The token is chosen per remote (`ciToken`, `src/ci/adapters.ts`). The CI is a property of the remote, not of the tracker: a project on Huly with a `github.com` remote has GitHub Actions too (Even Keel itself).

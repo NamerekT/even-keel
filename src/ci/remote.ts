@@ -18,6 +18,27 @@ export interface CiTarget extends Omit<RemoteRepo, 'host'> {
   remote: string
 }
 
+/** A remote on a forge Even Keel has no adapter for (EKR-8): no CI is watched on it and no pull request opened. */
+export interface UnsupportedRemote {
+  kind: null
+  remote: string
+  host: string
+}
+
+/** Public forges of a kind with no adapter yet; a new adapter takes its host out of here. */
+const UNSUPPORTED_HOSTS: ReadonlySet<string> = new Set(['gitlab.com', 'bitbucket.org'])
+
+/**
+ * The kind of forge a remote's host is: `github.com` is GitHub, a known public host of another forge has none, and any
+ * other host is taken for Forgejo — a server of its own on an unknown domain cannot be told by its name; the Forgejo
+ * profile's check says when it is not one.
+ */
+export function remoteKind(host: string): CiKind | null {
+  const lower = host.toLowerCase()
+  if (lower === 'github.com') return 'github'
+  return UNSUPPORTED_HOSTS.has(lower) ? null : 'forgejo'
+}
+
 /** Which workflow folders the repository has: `.forgejo/workflows` and `.github/workflows`. */
 export interface Workflows {
   forgejo: boolean
@@ -65,14 +86,15 @@ export function remotesOf(out: string): Remote[] {
     .map((match) => ({ name: match[1]!, url: match[2]! }))
 }
 
-// GitHub runs only `.github/workflows`; any other host is taken for Forgejo, which runs `.forgejo/workflows`
-// and falls back to `.github/workflows` when it has none of its own.
+// GitHub runs only `.github/workflows`; Forgejo runs `.forgejo/workflows` and falls back to `.github/workflows` when it
+// has none of its own.
 export function ciTargets(remotes: Remote[], workflows: Workflows): CiTarget[] {
   return remotes.flatMap(({ name, url }) => {
     const parsed = parseRemote(url)
     if (parsed === null) return []
     const { host, ...repo } = parsed
-    const kind: CiKind = host === 'github.com' ? 'github' : 'forgejo'
+    const kind = remoteKind(host)
+    if (kind === null) return []
     const runs = kind === 'github' ? workflows.github : workflows.forgejo || workflows.github
     return runs ? [{ kind, remote: name, ...repo }] : []
   })

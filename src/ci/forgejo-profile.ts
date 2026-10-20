@@ -22,10 +22,13 @@ export function hostOf(url: string): string | null {
 /** Whom the token signs in as. The user is read with `read:user`, so a token without that right is refused too. */
 export async function forgejoAccount(values: Readonly<Record<string, string>>, timeoutMs: number, fetchImpl: typeof fetch = fetch): Promise<ProfileAccount> {
   const url = values[FORGEJO_URL] ?? ''
-  const response = await fetchImpl(`${forgejoBase(url)}/api/v1/user`, {
-    headers: { authorization: `token ${values[FORGEJO_TOKEN] ?? ''}`, accept: 'application/json', 'user-agent': 'even-keel' },
-    signal: AbortSignal.timeout(timeoutMs),
-  })
+  const ask = (path: string) =>
+    fetchImpl(`${forgejoBase(url)}/api/v1/${path}`, {
+      headers: { authorization: `token ${values[FORGEJO_TOKEN] ?? ''}`, accept: 'application/json', 'user-agent': 'even-keel' },
+      signal: AbortSignal.timeout(timeoutMs),
+    })
+  await assertForgejo(await ask('version'), url)
+  const response = await ask('user')
   if (response.status === 401 || response.status === 403) {
     await response.body?.cancel()
     throw new CredentialsRefused(
@@ -41,6 +44,24 @@ export async function forgejoAccount(values: Readonly<Record<string, string>>, t
 }
 
 const nameOf = (url: string): string => `Forgejo · ${hostOf(url) ?? url}`
+
+/**
+ * A remote on an unknown domain is taken for Forgejo (`remoteKind`), so the profile's check is where a GitLab or another
+ * forge is told apart (EKR-8): Forgejo and Gitea answer `/api/v1/version` with `{ version }` in JSON, and refuse a
+ * token there in JSON too — on a server that wants a sign-in for its API. That refusal and a server error are left to
+ * the user's request, which says what they are. gitlab.com redirects to its sign-in page, an HTML one.
+ */
+async function assertForgejo(response: Response, url: string): Promise<void> {
+  const json = /\bjson\b/i.test(response.headers.get('content-type') ?? '')
+  if (response.status >= 500 || (json && (response.status === 401 || response.status === 403))) {
+    await response.body?.cancel()
+    return
+  }
+  const body: unknown = response.ok && json ? await response.json().catch(() => null) : await response.body?.cancel()
+  if (typeof (body as { version?: unknown } | null)?.version !== 'string') {
+    throw new Error(`forgejo: ${hostOf(url) ?? url} is not a Forgejo or Gitea server: /api/v1/version gave no version (HTTP ${response.status})`)
+  }
+}
 
 /**
  * Forgejo as a profile's kind (BTN-201): a server's address and a token that reads its repositories and their Actions.

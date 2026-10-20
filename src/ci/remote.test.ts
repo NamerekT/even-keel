@@ -1,5 +1,15 @@
 import { describe, expect, it } from 'vitest'
-import { ciTargets, parseRemote, remotesOf } from './remote.js'
+import { ciTargets, parseRemote, remoteKind, remotesOf } from './remote.js'
+
+describe('remoteKind', () => {
+  it('knows GitHub and the public hosts it has no adapter for, and takes any other for Forgejo', () => {
+    expect(remoteKind('github.com')).toBe('github')
+    expect(remoteKind('GitHub.com')).toBe('github')
+    expect(remoteKind('gitlab.com')).toBeNull()
+    expect(remoteKind('bitbucket.org')).toBeNull()
+    expect(remoteKind('git.example.com')).toBe('forgejo')
+  })
+})
 
 describe('parseRemote', () => {
   it('reads https, scp-like and ssh urls', () => {
@@ -56,5 +66,13 @@ describe('ciTargets', () => {
   it('has no CI without workflows or remotes', () => {
     expect(ciTargets(remotes, { forgejo: false, github: false })).toEqual([])
     expect(ciTargets([], { forgejo: true, github: true })).toEqual([])
+  })
+
+  it('watches no CI on a host it has no adapter for', () => {
+    const others = [
+      { name: 'lab', url: 'git@gitlab.com:john/app.git' },
+      { name: 'bucket', url: 'https://bitbucket.org/john/app.git' },
+    ]
+    expect(ciTargets(others, { forgejo: true, github: true })).toEqual([])
   })
 })

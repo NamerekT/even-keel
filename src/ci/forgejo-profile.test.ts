@@ -6,17 +6,31 @@ const VALUES = { FORGEJO_URL: 'git.example.com/', FORGEJO_TOKEN: 'example-token'
 
 describe('forgejoAccount', () => {
   it('signs in as the token\'s user and names the profile by the host', async () => {
-    let asked = ''
+    const asked: string[] = []
     const fetch = (async (url: string, init: RequestInit) => {
-      asked = `${url} ${(init.headers as Record<string, string>).authorization}`
-      return new Response(JSON.stringify({ login: 'john-doe' }))
+      asked.push(`${url} ${(init.headers as Record<string, string>).authorization}`)
+      return Response.json(url.endsWith('/version') ? { version: '13.0.2+gitea-1.22.0' } : { login: 'john-doe' })
     }) as unknown as typeof globalThis.fetch
     expect(await forgejoAccount(VALUES, 5_000, fetch)).toEqual({ login: 'john-doe', name: 'Forgejo · git.example.com', expiresAt: null })
-    expect(asked).toBe('https://git.example.com/api/v1/user token example-token')
+    expect(asked).toEqual(['https://git.example.com/api/v1/version token example-token', 'https://git.example.com/api/v1/user token example-token'])
+  })
+
+  it('says a server that does not answer its version as Forgejo or Gitea does is not Forgejo', async () => {
+    const html = { headers: { 'content-type': 'text/html; charset=UTF-8' } }
+    const replies = [
+      Response.json({ message: '404 Not Found' }, { status: 404 }),
+      new Response('<html></html>', html),
+      new Response('<html>Just a moment...</html>', { ...html, status: 403 }),
+      Response.json({ name: 'GitLab' }),
+    ]
+    for (const reply of replies) {
+      const fetch = (async () => reply) as unknown as typeof globalThis.fetch
+      await expect(forgejoAccount(VALUES, 5_000, fetch)).rejects.toThrow('git.example.com is not a Forgejo or Gitea server')
+    }
   })
 
   it('a refused token or one without the right to read its user is a refusal, another failure is not', async () => {
-    const reply = (status: number) => (async () => new Response('{}', { status })) as unknown as typeof fetch
+    const reply = (status: number) => (async () => Response.json({}, { status })) as unknown as typeof fetch
     await expect(forgejoAccount(VALUES, 5_000, reply(401))).rejects.toBeInstanceOf(CredentialsRefused)
     await expect(forgejoAccount(VALUES, 5_000, reply(403))).rejects.toThrow('read:user')
     const failed = forgejoAccount(VALUES, 5_000, reply(502))
