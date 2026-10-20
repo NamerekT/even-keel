@@ -16,3 +16,9 @@ export interface FinishOutcome {
   warnings: Notice[]
   syncError: Notice | null
 }
+
+/** What a task's folder holds beyond the main branch: the commits of its branch, and work left out of a commit. */
+export interface Changes {
+  ahead: number
+  dirty: boolean
+}

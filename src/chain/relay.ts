@@ -93,6 +93,8 @@ export interface HandoffSession {
   checkpoint: string | null
   /** The pull request description the last response's `PULL REQUEST: <path>` line names (BTN-205); absent or `null` — none. */
   pullRequest?: string | null
+  /** The reason the last response's `NO CHANGES: <why>` line gives (EKR-10); absent or `null` — no mark. */
+  noChanges?: string | null
 }
 
 export interface LimitedSession extends HandoffSession {

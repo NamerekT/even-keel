@@ -1,6 +1,6 @@
 {
   "name": "huly",
-  "version": "0.5.5",
+  "version": "0.5.6",
   "description": "Huly for Even Keel sessions: the huly MCP server and skills to work a task, split it into subtasks and put a repository on the tracker. The session reads its task itself, so turn Even Keel's brief off for the project (\"brief\": false) — or it reads the task twice. Credentials come from the environment: HULY_URL, HULY_WORKSPACE, HULY_EMAIL and HULY_PASSWORD (or HULY_TOKEN).",
   "author": {
     "name": "Even Keel"

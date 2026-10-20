@@ -19,6 +19,7 @@ import { TaskLists } from './lists.js'
 import { MainCheck } from './maincheck.js'
 import { MainFix } from './mainfix.js'
 import { Reviews } from './reviews.js'
+import { Unchanged } from './unchanged.js'
 import type { ChainView } from './milestones.js'
 import { byNumber, chainOrder, checkOrder, nextTask, openBlockers, waitingBlockers } from './order.js'
 import { admits, excludes, isActive, isDone, isTerminal, type ChainRules } from './rules.js'
@@ -46,6 +47,7 @@ export class Dispatcher {
   private readonly fixes: MainFix | null
   private readonly handovers: Handovers
   private readonly reviews: Reviews
+  private readonly unchanged: Unchanged
   private readonly lists: TaskLists
   private readonly cleanups: Cleanups
 
@@ -62,6 +64,7 @@ export class Dispatcher {
       working: (task) => this.cleanups.working(task),
       dropUnmerged: (project, task, pull) => this.cleanups.dropUnmerged(project, task, pull),
     })
+    this.unchanged = new Unchanged(deps, this.handovers, (chain, error) => this.halt(chain, error, true))
     this.lists = new TaskLists(state, deps, this.reviews, (project) => this.currentOf(project))
     this.main =
       deps.main === undefined ? null : new MainCheck(state, deps.main, deps.now, deps.log, { save: () => deps.save(state), wake: () => this.changed() })
@@ -641,8 +644,8 @@ export class Dispatcher {
           const blockers = openBlockers([...tasks, ...(this.lists.waiting.get(chain.project) ?? [])], task)
           if (blockers.length > 0 && !this.deps.busy(task)) {
             this.release(chain, 'postpone', blockers)
-          } else if (await this.reviews.follow(chain, chain.current)) {
-            // Feedback went to the session, which leads the chain on; a released task left the task list.
+          } else if ((await this.reviews.follow(chain, chain.current)) || (await this.unchanged.follow(chain, chain.current))) {
+            // Feedback or a hint went to the session, which leads the chain on; a released or done task left the task list.
             if (chain.current !== null) return
             continue
           } else if (this.handovers.unanswered(chain.current)) {

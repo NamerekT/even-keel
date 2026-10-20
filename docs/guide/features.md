@@ -12,6 +12,8 @@ Sequential within a project, not across them: `parallel` lets that many chains o
 
 Each task gets a background session (`claude --bg`) in its own git worktree `.claude/worktrees/<key>-<number>` on a branch `<key>-<number>/task`, made from `main` (or the project's `branch`; `main` below means that branch). The session does the task and merges its branch into `main`; Even Keel sees the merge, closes the task in the tracker, stops the session, removes the worktree and the branch, and syncs `main` with the remote.
 
+A task that needs no change in the repository — done in `main` already, research, an answer — has nothing to merge. Its session ends the turn with the last line `NO CHANGES: <one line — why>`, and Even Keel checks the worktree: with no commits beyond `main` and nothing uncommitted it moves the task to Done, puts the line in a comment on it and cleans up as after a merge. With commits or uncommitted changes the session is told to merge them or drop them and mark again. In PR mode the `PULL REQUEST:` mark does the same.
+
 What a session runs on — the provider, its model and its account — is set in the config, shared and per project; Claude sessions run on Opus by default, whatever `/model` last saved in the CLI settings. With `modelLabels` on, a task's label `Claude | sonnet`, `Codex | gpt-6.1-sol` or a bare `Codex` picks it for that task; a label of a provider with no account set runs the task on the project's provider and says so in a toast.
 
 ## Codex (preview)

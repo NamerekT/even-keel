@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { mailMessage } from './mail.js'
-import { TranscriptFold } from './transcript.js'
+import { noChangesOf, TranscriptFold } from './transcript.js'
 
 const CWD = 'C:\\repos\\example-project'
 let clock = 0
@@ -552,6 +552,34 @@ describe('TranscriptFold', () => {
       const marked = fold([assistant('m1', [text('PULL REQUEST: .temp/pull-request.md')])])
       marked.push(prompt('One more thing.'))
       expect(marked.summary().pullRequest).toBeNull()
+    })
+  })
+
+  describe('no changes mark', () => {
+    const prompt = (content: string) => JSON.stringify({ type: 'user', timestamp: at(), message: { role: 'user', content } })
+
+    it('takes the reason from the last line of the last answer', () => {
+      const summary = fold([assistant('m1', [text('Checked.\n\nNO CHANGES: `hello.txt` is already in `main`\n')])]).summary()
+      expect(summary.noChanges).toBe('`hello.txt` is already in `main`')
+      expect(summary.pullRequest).toBeNull()
+      expect(summary.checkpoint).toBeNull()
+    })
+
+    it('reads a mark wrapped in markdown and one without a reason', () => {
+      expect(noChangesOf('**NO CHANGES:** research only')).toBe('research only')
+      expect(noChangesOf('**NO CHANGES: research only**')).toBe('research only')
+      expect(noChangesOf('`NO CHANGES:` research only')).toBe('research only')
+      expect(noChangesOf('`NO CHANGES: research only`')).toBe('research only')
+      expect(noChangesOf('NO CHANGES:')).toBe('')
+      expect(noChangesOf('NO CHANGES: done\nAnd a word after.')).toBeNull()
+      expect(noChangesOf('There were NO CHANGES: none')).toBeNull()
+    })
+
+    it('forgets the mark once the session calls a tool or someone writes to it', () => {
+      expect(fold([assistant('m1', [text('NO CHANGES: done already'), tool('Bash', { command: 'git status' })])]).summary().noChanges).toBeNull()
+      const marked = fold([assistant('m1', [text('NO CHANGES: done already')])])
+      marked.push(prompt('One more thing.'))
+      expect(marked.summary().noChanges).toBeNull()
     })
   })
 

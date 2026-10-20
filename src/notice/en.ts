@@ -1,4 +1,4 @@
-export type GitStep = 'excludeFile' | 'addWorktree' | 'listRemotes' | 'listWorktrees' | 'listBranches' | 'readStatus' | 'addSlot' | 'clean' | 'switch'
+export type GitStep = 'excludeFile' | 'addWorktree' | 'listRemotes' | 'listWorktrees' | 'listBranches' | 'readStatus' | 'countCommits' | 'addSlot' | 'clean' | 'switch'
 
 const list = (items: string[]) => items.join(', ')
 
@@ -9,6 +9,7 @@ const GIT_STEPS: Record<GitStep, (subject: string) => string> = {
   listWorktrees: () => 'list the worktrees of',
   listBranches: () => 'list the branches of',
   readStatus: () => 'read the status of',
+  countCommits: (main) => `count the commits beyond ${main} in`,
   addSlot: () => 'add the slot to',
   clean: () => 'clean',
   switch: (branch) => `switch to ${branch} in`,
@@ -35,6 +36,10 @@ export const en = {
   'chain.currentFirst': (p: { task: string }) => `chain: ${p.task} is running and stays first`,
   'chain.fixReportMissing': (p: { task: string }) => `chain: the report of ${p.task} is gone, so a new session cannot be told what to fix; check main and resume`,
   'chain.interrupted':(p: { task: string }) => `chain: launch of ${p.task} was interrupted by a restart; check its session, then resume`,
+  'chain.unchangedNotChecked': (p: { task: string }) =>
+    `chain: the session of ${p.task} marked it as needing no change, but its folder could not be checked (answer its session from the chat, or skip the task)`,
+  'chain.unchangedNotCompleted': (p: { task: string }) =>
+    `chain: ${p.task} needs no change and its branch has nothing to merge, but it was not moved to done in the tracker (move it there yourself and resume the chain, or skip the task)`,
   'chain.notRead': (p: { project: string }) => `chain: the tasks of ${p.project} are not read from the tracker yet; try again once it answers`,
   'chain.empty': (p: { project: string }) => `chain: ${p.project} has no task to run, not started`,
   'chain.emptyNone': () => 'it has no open tasks',

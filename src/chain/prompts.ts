@@ -25,10 +25,22 @@ export interface ReviewTexts {
   closedAfter: (main: string) => string
 }
 
+/** A task with nothing to merge, marked `NO CHANGES:` by its session out of PR mode (EKR-10). */
+export interface UnchangedTexts {
+  /** The mark came on a branch with commits beyond main: the task is not closed. */
+  ahead: (main: string) => string
+  /** The mark came with work left out of a commit: the task is not closed. */
+  dirty: (main: string) => string
+  /** The tracker comment on the task closed by the mark; `reason` — what the session wrote, `''` — nothing. */
+  comment: (reason: string) => string
+}
+
 /** `main` in the texts is the project's main branch, whatever it is called. */
 export interface PromptTexts {
   resume: string
+  /** Out of PR mode: the session merges its branch itself, or marks a task with nothing to merge. */
   cleanup: (main: string) => string
+  unchanged: UnchangedTexts
   /** In PR mode, in place of `cleanup`: the session marks its turn's end, Even Keel pushes and opens the pull request. */
   pullRequest: (main: string) => string
   review: ReviewTexts
@@ -55,7 +67,17 @@ export const PROMPTS: Record<Language, PromptTexts> = {
   ru: {
     resume: 'Лимит сброшен — продолжай с того же места.',
     cleanup: (main) =>
-      fill`- Когда задача готова и проверки проходят, закоммить работу и сам влей ветку в ${main} основного чекаута (git merge --no-edit в основной рабочей копии): слияние закрывает задачу. Worktree и ветку после этого не трогай и ${main} не пушь — уборку сделает Even Keel.`,
+      [
+        fill`- Когда задача готова и проверки проходят, закоммить работу и сам влей ветку в ${main} основного чекаута (git merge --no-edit в основной рабочей копии): слияние закрывает задачу. Worktree и ветку после этого не трогай и ${main} не пушь — уборку сделает Even Keel.`,
+        fill`- Если задача не требует правок в репозитории (уже сделана в ${main}, исследование, ответ на вопрос) — вливать нечего: убери свои изменения, чтобы git status был пуст, а в ветке не было коммитов сверх ${main}, и закончи ход последней строкой \`NO CHANGES: <одна строка — почему>\`. Even Keel закроет задачу и запишет причину комментарием к ней.`,
+      ].join('\n'),
+    unchanged: {
+      ahead: (main) =>
+        fill`Задача не закрыта: в ветке есть коммиты сверх ${main}. Если они нужны — влей ветку в ${main} основного чекаута, как обычно. Если нет — сбрось ветку на ${main}, чтобы коммитов сверх него не осталось, и снова закончи ход строкой \`NO CHANGES: <почему>\`.`,
+      dirty: (main) =>
+        fill`Задача не закрыта: в worktree есть незакоммиченные изменения. Если они нужны — закоммить их и влей ветку в ${main} основного чекаута, как обычно. Если нет — убери их, чтобы git status был пуст, и снова закончи ход строкой \`NO CHANGES: <почему>\`.`,
+      comment: (reason) => (reason === '' ? 'Задача закрыта без изменений в репозитории.' : fill`Задача закрыта без изменений в репозитории: ${reason}`),
+    },
     pullRequest: (main) =>
       [
         fill`- Режим PR: ветку в ${main} не сливай — её сольёт человек через pull request. Это правило важнее шага слияния в навыке трекера, проверка перед слиянием тоже не нужна: проверяет CI на pull request.`,
@@ -126,7 +148,17 @@ export const PROMPTS: Record<Language, PromptTexts> = {
   en: {
     resume: 'The usage limit has reset — carry on from where you stopped.',
     cleanup: (main) =>
-      fill`- When the task is done and the checks pass, commit it and merge the branch into ${main} of the main checkout yourself (git merge --no-edit in the main working copy): the merge closes the task. After that leave the worktree and the branch alone and do not push ${main} — Even Keel cleans up.`,
+      [
+        fill`- When the task is done and the checks pass, commit it and merge the branch into ${main} of the main checkout yourself (git merge --no-edit in the main working copy): the merge closes the task. After that leave the worktree and the branch alone and do not push ${main} — Even Keel cleans up.`,
+        fill`- If the task needs no change in the repository (already done in ${main}, research, an answer to a question), there is nothing to merge: remove your changes so that git status is clean and the branch has no commits beyond ${main}, and end the turn with the last line \`NO CHANGES: <one line — why>\`. Even Keel closes the task and puts the reason in a comment on it.`,
+      ].join('\n'),
+    unchanged: {
+      ahead: (main) =>
+        fill`The task is not closed: the branch has commits beyond ${main}. If they are needed, merge the branch into ${main} of the main checkout as usual. If not, reset the branch to ${main} so that no commits beyond it are left, and end the turn with the line \`NO CHANGES: <why>\` again.`,
+      dirty: (main) =>
+        fill`The task is not closed: the worktree has uncommitted changes. If they are needed, commit them and merge the branch into ${main} of the main checkout as usual. If not, remove them so that git status is clean, and end the turn with the line \`NO CHANGES: <why>\` again.`,
+      comment: (reason) => (reason === '' ? 'The task is closed with no change in the repository.' : fill`The task is closed with no change in the repository: ${reason}`),
+    },
     pullRequest: (main) =>
       [
         fill`- PR mode: do not merge the branch into ${main} — a human merges it through a pull request. This rule outranks the merge step of the tracker's skill, and the check before a merge is not needed either: the CI checks the pull request.`,

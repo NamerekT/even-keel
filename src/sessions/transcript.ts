@@ -98,6 +98,8 @@ export interface TranscriptSummary {
   checkpoint: string | null
   /** The path of the last response's `PULL REQUEST: <path>` line: PR mode's mark of a task done (BTN-205). */
   pullRequest: string | null
+  /** The reason of the last response's `NO CHANGES: <why>` line: a task done with nothing to merge (EKR-10); `''` — none given. */
+  noChanges: string | null
   /** An `AskUserQuestion` is waiting for the user's choice. */
   asking: boolean
   /** The `AskUserQuestion` waiting for the user's choice. */
@@ -119,6 +121,7 @@ const WRAP_UP_TEXT = 'Usage limit reached: Claude Code told the session to wrap 
 const REMOTE_DROPPED = 'Remote Control disconnected'
 const CHECKPOINT_LINE = /^[`*_]*CHECKPOINT:[`*_]*\s*[`*_]*([^`*\s][^`*]*?)[`*_]*$/
 const PULL_REQUEST_LINE = /^[`*_]*PULL REQUEST:[`*_]*\s*[`*_]*([^`*\s][^`*]*?)[`*_]*$/
+const NO_CHANGES_LINE = /^([`*_]*)NO CHANGES:([`*_]*)(.*)$/
 const CONTEXT_BLOCK = /^<([a-z][\w-]*)\b[^>]*>[\s\S]*<\/\1>$/
 const ASK_TOOL = 'AskUserQuestion'
 const SHELLS =new Set(['Bash', 'PowerShell'])
@@ -141,6 +144,7 @@ export class TranscriptFold {
   private lastMessage: string | null = null
   private checkpoint: string | null = null
   private pullRequest: string | null = null
+  private noChanges: string | null = null
   /** The `AskUserQuestion` call that has no result yet. */
   private openAsk: Ask | null = null
   /** An `AskUserQuestion` whose call ended without the user's answer: the next prompt answers it. */
@@ -235,6 +239,7 @@ export class TranscriptFold {
       lastMessage: this.lastMessage,
       checkpoint: this.checkpoint,
       pullRequest: this.pullRequest,
+      noChanges: this.noChanges,
       asking: this.openAsk !== null,
       ask: this.openAsk,
       firstActivityAt: this.firstActivityAt,
@@ -283,9 +288,11 @@ export class TranscriptFold {
         this.lastMessage = (block.text ?? '').trim().slice(0, MESSAGE_LIMIT)
         this.checkpoint = checkpointOf(block.text ?? '')
         this.pullRequest = pullRequestOf(block.text ?? '')
+        this.noChanges = noChangesOf(block.text ?? '')
       } else if (block.type === 'tool_use' && typeof block.name === 'string') {
         this.checkpoint = null
         this.pullRequest = null
+        this.noChanges = null
         const input = block.input ?? {}
         const line: FeedLine = { at, kind: 'tool', text: describeTool(block.name, input, entry.cwd) }
         if (this.whole && SHELLS.has(block.name) && typeof input.command === 'string') line.detail = input.command
@@ -335,6 +342,7 @@ export class TranscriptFold {
       this.wrapUp = null
       this.checkpoint = null
       this.pullRequest = null
+      this.noChanges = null
       this.turnStartedAt = entry.timestamp ?? ''
       this.runningTools.clear()
       if (entry.origin?.kind !== undefined && entry.origin.kind !== 'human') return
@@ -457,9 +465,21 @@ export function pullRequestOf(text: string): string | null {
   return lastLineMark(text, PULL_REQUEST_LINE)
 }
 
+/** The reason a response's last line `NO CHANGES: <why>` gives, without the markdown wrapped around the line. */
+export function noChangesOf(text: string): string | null {
+  const found = NO_CHANGES_LINE.exec(lastLine(text))
+  if (found === null) return null
+  const [, open = '', close = '', rest = ''] = found
+  const reason = rest.trim()
+  return open !== '' && close === '' && reason.endsWith(open) ? reason.slice(0, -open.length).trim() : reason
+}
+
 function lastLineMark(text: string, mark: RegExp): string | null {
-  const last = text.trimEnd().split('\n').pop() ?? ''
-  return mark.exec(last.trim())?.[1] ?? null
+  return mark.exec(lastLine(text))?.[1] ?? null
+}
+
+function lastLine(text: string): string {
+  return (text.trimEnd().split('\n').pop() ?? '').trim()
 }
 
 export function isPrompt(content: unknown): boolean {

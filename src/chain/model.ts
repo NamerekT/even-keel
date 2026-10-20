@@ -1,5 +1,5 @@
 import type { CiVerdict, RedRun } from '../ci/verdict.js'
-import type { FinishOutcome } from '../git/types.js'
+import type { Changes, FinishOutcome } from '../git/types.js'
 import type { Language } from '../language.js'
 import type { Notice } from '../notice/notice.js'
 import type { Task } from '../tracker/model.js'
@@ -203,6 +203,14 @@ export interface ReviewDeps {
   complete: (project: string, task: string) => Promise<void>
 }
 
+/** Out of PR mode, a task whose session marks it `NO CHANGES:` (EKR-10): nothing to merge, so no merge closes it. */
+export interface UnchangedDeps {
+  /** What the session's folder holds beyond the project's main branch. */
+  changes: (project: string, workdir: string) => Promise<Changes>
+  /** Moves the task to Done in the tracker and puts `comment` on it; one closed already is fine. */
+  complete: (project: string, task: string, comment: string) => Promise<void>
+}
+
 export interface DispatcherDeps {
   /** The projects of the config as it is now. */
   projects: () => string[]
@@ -264,6 +272,8 @@ export interface DispatcherDeps {
   main?: MainCheckDeps
   /** Without it no project is in PR mode. */
   reviews?: ReviewDeps
+  /** Without it a `NO CHANGES:` mark closes nothing. */
+  unchanged?: UnchangedDeps
 }
 
 export interface MainCheckDeps {

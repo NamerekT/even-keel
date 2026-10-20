@@ -180,6 +180,13 @@ describe('RolloutFold', () => {
     expect(marked.summary().pullRequest).toBeNull()
   })
 
+  it('finds a no changes mark on the last line of the last message, and a new prompt clears it', () => {
+    const marked = fold([agent('Checked.\nNO CHANGES: the work is already in main')])
+    expect(marked.summary().noChanges).toBe('the work is already in main')
+    marked.push(user('go on'))
+    expect(marked.summary().noChanges).toBeNull()
+  })
+
   it('reads an error event as an API error and a limit by its text', () => {
     expect(fold([event({ type: 'error', message: 'stream disconnected' })]).summary().apiError).toMatchObject({ kind: 'error', text: 'stream disconnected' })
     const limit = fold([event({ type: 'error', message: "You've hit your usage limit. Try again later." })]).summary()

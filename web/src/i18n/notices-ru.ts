@@ -12,6 +12,7 @@ const GIT_STEPS: Record<GitStep, (subject: string) => string> = {
   listWorktrees: () => 'получить список worktree в',
   listBranches: () => 'получить список веток в',
   readStatus: () => 'прочитать состояние',
+  countCommits: (main) => `посчитать коммиты сверх ${main} в`,
   addSlot: () => 'добавить слот в',
   clean: () => 'очистить',
   switch: (branch) => `переключиться на ${branch} в`,
@@ -37,6 +38,10 @@ export const noticesRu: NoticeTexts = {
   'chain.currentFirst': (p) => `${p.task} выполняется и остаётся первой`,
   'chain.fixReportMissing': (p) => `${p.task}: отчёта о поломке нет, новой сессии нечего чинить — проверьте main и снимите с паузы`,
   'chain.interrupted':(p) => `запуск ${p.task} прервал перезапуск службы — проверьте её сессию и снимите с паузы`,
+  'chain.unchangedNotChecked': (p) =>
+    `сессия ${p.task} отметила, что задача не требует изменений, но её папку не удалось проверить (ответьте сессии из чата или пропустите задачу)`,
+  'chain.unchangedNotCompleted': (p) =>
+    `задача ${p.task} не требует изменений и в её ветке нечего вливать, но в трекере она не переведена в Done (переведите её сами и продолжите цепочку или пропустите задачу)`,
   'chain.notRead': (p) => `задачи ${p.project} ещё не прочитаны из трекера — повторите, когда он ответит`,
   'chain.empty': (p) => `в цепочке ${p.project} нет задач, она не запущена`,
   'chain.emptyNone': () => 'открытых задач нет',

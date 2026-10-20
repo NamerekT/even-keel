@@ -31,6 +31,7 @@ import { reviewDeps } from './review/wiring.js'
 import { appendLaunch, loadChainState, loadQuestions, readLaunches, saveChainState, saveClosedTask, saveQuestions } from './chain/store.js'
 import { ChangelogDrafts } from './changelog/drafts.js'
 import { DEFAULT_CHANGELOG } from './changelog/file.js'
+import { changesOf } from './git/changes.js'
 import { commitChangelog } from './git/changelog.js'
 import { CI_TOKENS, ciSource, ciToken, projectTargets } from './ci/adapters.js'
 import { FORGEJO_PROFILE } from './ci/forgejo-profile.js'
@@ -895,6 +896,17 @@ const dispatcher = new Dispatcher(await loadChainState(db, configStore.current.i
     now: () => new Date(),
     timeoutMs: CI_TIMEOUT_MS,
   }),
+  unchanged: {
+    changes: (project, workdir) => changesOf(runGit, workdir, branchOf(project)),
+    complete: async (project, task, comment) => {
+      const link = linkOf(project)
+      await link?.run(async (tracker) => tracker.complete?.(task))
+      // The task is done whatever becomes of the comment.
+      await link?.run(async (tracker) => tracker.comment?.(task, comment)).catch((error: unknown) => {
+        console.warn(`chain: ${task}: the comment on the task closed with no change did not reach the tracker: ${englishOf(noticeOf(error))}`)
+      })
+    },
+  },
   main: mainCheckDeps({
     repo: (project) => configStore.current.projects[project]!,
     main: branchOf,
