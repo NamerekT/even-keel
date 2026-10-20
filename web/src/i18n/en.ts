@@ -455,6 +455,14 @@ export const en: Messages = {
       },
     },
     next: 'Next',
+    held: {
+      skipped: 'Skipped',
+      blocked: 'Blocked',
+    },
+    heldTip: {
+      skipped: "Every open task is held. This one is skipped: the chain won't take it until you restore it on the project page.",
+      blocked: "Every open task is held. This one waits on a blocker the chain won't take: skipped, or not in an active status.",
+    },
     start: 'Start',
     enqueue: 'Queue',
     chainNotLoaded: 'Tasks are not loaded yet.',

@@ -87,6 +87,11 @@ export function ProjectCard({ state, project, turn }: { state: EvenKeelState; pr
         <p className="card__task">
           <Lamp lamp={task.lamp} />
           {task.next && <span className="card__task-label">{t.project.next}</span>}
+          {task.held !== undefined && (
+            <Tipped className="card__task-label card__task-label--held" tip={t.project.heldTip[task.held]} inline focusable>
+              {t.project.held[task.held]}
+            </Tipped>
+          )}
           <span className="card__task-id">{task.id}</span>
           {task.title !== null && <TaskTitle title={task.title} />}
         </p>

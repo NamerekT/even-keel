@@ -366,7 +366,7 @@ export function createFakeSource(search: string): LiveSource {
     chain.active = chain.active.map((each) => (each.project === 'ABC' ? { ...each, current: null, paused: true, error } : each))
   }
   if (params.get('chain') === 'skip' && current.state !== null) {
-    current.state.chain.skipped = { ABC: ['ABC-12'] }
+    current.state.chain.skipped = { ABC: ['ABC-12'], OPS: ['OPS-2', 'OPS-3'] }
     current.state.taskSessions['ABC-9'] = [
       {
         sessionId: session('ABC-9', 0).sessionId,

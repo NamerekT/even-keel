@@ -885,6 +885,7 @@ input[type='radio']:disabled {
   grid-column: 2 / -1;
 }
 
+.queue__task-held,
 .queue__task-id {
   flex: none;
   color: var(--fg);

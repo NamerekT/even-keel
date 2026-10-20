@@ -81,6 +81,8 @@ export interface CardTask {
   title: string | null
   lamp: BlockLamp
   next: boolean
+  /** Every open task is held and this is the first of them: skipped, or waiting on a blocker the chain does not take. */
+  held?: 'skipped' | 'blocked'
 }
 
 /**
@@ -366,17 +368,21 @@ export function ciWaitText(wait: CiWait, now: Date): string {
   return text(wait.commit.slice(0, 7), formatMoment(wait.since, now))
 }
 
+/** The task a project shows: the current one, else the next, else the first of the chain when every open one is held. */
 export function cardTask(state: EvenKeelState, project: string): CardTask | null {
   const current = activeChain(state.chain, project)?.current?.task
   const { order = [], waiting = [] } = state.chain.projects[project] ?? {}
-  const id = current ?? nextTask(projectTasks(state, project), order, [...(state.chain.skipped[project] ?? []), ...waiting])
+  const skipped = state.chain.skipped[project] ?? []
+  const next = current ?? nextTask(projectTasks(state, project), order, [...skipped, ...waiting])
+  const id = next ?? order[0]
   if (id === undefined) return null
   const task = state.tasks.find((each) => each.id === id)
   return {
     id,
     title: isFixName(id) ? t.chain.fix : (task?.title ?? null),
     lamp: taskLamp(task, taskSession(state.sessions, id) ?? null),
-    next: current === undefined,
+    next: current === undefined && next !== undefined,
+    ...(next === undefined && { held: skipped.includes(id) ? 'skipped' : 'blocked' }),
   }
 }
 

@@ -551,6 +551,27 @@ describe('cardTask', () => {
     }
   })
 
+  it('shows the first task in order when every open one is held, naming why', () => {
+    const state = stateOf({ tasks: [task('ABC-3'), task('ABC-4')], chain: chain({ projects: orders, skipped: { ABC: ['ABC-3', 'ABC-4'] } }) })
+    expect(cardTask(state, 'ABC')).toEqual({ id: 'ABC-3', title: 'ABC-3', lamp: 'ahead', next: false, held: 'skipped' })
+  })
+
+  it('names a task held by a waiting blocker as blocked', () => {
+    const state = stateOf({
+      tasks: [task('ABC-3', 'ToDo', ['ABC-9']), task('ABC-9', 'UnStarted')],
+      chain: chain({ projects: { ABC: { order: ['ABC-3'], waiting: ['ABC-9'], backlog: [], error: null } } }),
+    })
+    expect(cardTask(state, 'ABC')).toMatchObject({ id: 'ABC-3', held: 'blocked' })
+  })
+
+  it('names a task behind a skipped one as blocked', () => {
+    const state = stateOf({
+      tasks: [task('ABC-3'), task('ABC-4', 'ToDo', ['ABC-3'])],
+      chain: chain({ projects: orders, skipped: { ABC: ['ABC-3'] } }),
+    })
+    expect(cardTask(state, 'ABC')).toMatchObject({ id: 'ABC-3', held: 'skipped' })
+  })
+
   it('has no task when the chain is empty or not built yet', () => {
     expect(cardTask(stateOf({ chain: chain({ projects: { ABC: { order: [], waiting: [], backlog: [], error:null } } }) }), 'ABC')).toBeNull()
     expect(cardTask(stateOf({}), 'ABC')).toBeNull()

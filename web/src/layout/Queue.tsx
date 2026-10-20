@@ -242,6 +242,7 @@ function TaskLine({ state, project }: { state: EvenKeelState; project: string })
   return (
     <p className="queue__task">
       <Lamp lamp={task.lamp} />
+      {task.held !== undefined && <span className="queue__task-held">{t.project.held[task.held]}</span>}
       <span className="queue__task-id">{task.id}</span>
       {task.title !== null && <span className="queue__task-title">{task.title}</span>}
     </p>
