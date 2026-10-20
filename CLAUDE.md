@@ -67,7 +67,7 @@ Behaviour written without a way to check it live (the situation never came up or
 
 Two remotes — `origin` (self-hosted Forgejo) and `github` (`github.com/NamerekT/even-keel`, an organization, private for now). `main`, `dev` and `release/*` are pushed only by `git sync` (a global alias: fetches the current branch from all remotes, merges and pushes to all) — not `git push origin <branch>`, otherwise the remotes diverge. Task branches are not pushed to a remote, except in PR mode (`pullRequests`), where Even Keel pushes a task's branch to the pull request's remote.
 
-Branches (`docs/releases.md`): `main` is the latest release and gets no commits of its own — users `git pull` it; the next version is built on `dev` (this checkout `even-keel`, Huly `BTN`), fixes of the released one on `release/v<x.y>` (clone `even-keel-github`, Huly `EKR`), carried into `dev` by hand. `v0.1.0` itself is released from `release/v0.1`; its `BTN` tasks still open are `Вручную`, done by hand in `even-keel-github`.
+Branches (`docs/releases.md`): `main` is the latest release and gets no commits of its own — users `git pull` it; the next version is built on `dev` (the main checkout `even-keel`, Huly `BTN`), fixes of the released one on `release/v<x.y>` (the clone `even-keel-github`, Huly `EKR`), carried into `dev` by hand. `v0.1.0` itself is released from `release/v0.1`; its `BTN` tasks still open are `Вручную`, done by hand in `even-keel-github`. Both folders share one auto-memory: a memory that holds only for one branch or folder names it, and one read from memory is checked against the branch you are on.
 
 ## Tasks
 

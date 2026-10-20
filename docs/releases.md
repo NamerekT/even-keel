@@ -16,6 +16,7 @@ Users install with `git clone` and update with `git pull` (README, "Updating"), 
 - Only the newest minor version gets patches: once `v0.2.0` is out, `release/v0.1` is left as it is.
 - `git sync` (the global alias) syncs the branch the checkout is on with every remote; `dev` and `release/*` are pushed only by it.
 - Two Huly projects, because Even Keel cannot yet run two projects on one tracker key (`config.projectTwice`) nor a chain of one milestone's tasks. With BTN-172 the fixes can go back into `BTN` as a milestone and `EKR` closes.
+- Both folders share one auto-memory: Even Keel keeps a store per folder (`sharedMemory`, `docs/accounts.md`), and `~/.claude-memory/D--Projects-git-repos-even-keel-github` is a junction to `even-keel`'s store, made by hand on 2026-10-20. A new release branch reuses `even-keel-github`; a further clone of the repository needs the same junction.
 
 ## Trackers
 
