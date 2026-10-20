@@ -495,6 +495,8 @@ export interface ProjectPackages {
   problems: PackageProblem[]
   /** A problem holds the chain: it waits until the problem is gone. */
   blocked: boolean
+  /** The tracker's MCP server and whether a package of the set brings it, whatever `brief` is; `null` — the tracker has none. */
+  tracker: { server: string; brought: boolean } | null
 }
 
 export interface PackageCell {

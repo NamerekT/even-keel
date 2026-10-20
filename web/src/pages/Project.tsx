@@ -160,7 +160,7 @@ export function Project({ state, project: key }: { state: EvenKeelState; project
           />
         )}
         <StatsStrip project={key} strip={strip} />
-        <ToolsLink key={`tools-${key}`} project={key} trim={state.trimTools} />
+        <ToolsLink key={`tools-${key}`} project={key} trim={state.trimTools} packages={state.packages} />
       </div>
       {column && (
         <div className={tabs && tools !== false ? 'project__side project__side--tabs' : 'project__side'}>

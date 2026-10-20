@@ -215,6 +215,14 @@
   flex: 1 1 14em;
 }
 
+/* A pick with a button to its right, on one line while it fits. */
+.settings__beside {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
 .project-remove {
   margin-top: 12px;
   padding-top: 16px;

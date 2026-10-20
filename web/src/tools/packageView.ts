@@ -78,6 +78,32 @@ export function marketplaceCommand(dir: string): string {
   return `claude plugin marketplace add "${dir}"`
 }
 
+export type TrackerPackage =
+  /** `by` — the enabled package that brings the server. */
+  | { state: 'brought'; server: string; by: string | null }
+  /** `problem` — `brief` is off, so the chain waits (`noTrackerMcp`); `plugin` — Even Keel's plugin of the tracker the add dialog offers, `null` while the catalog has it already. */
+  | { state: 'missing'; server: string; problem: boolean; plugin: string | null }
+
+/** Whether the project's sessions get the tracker's MCP server from a package; `null` — the tracker has none. */
+export function trackerPackage(view: PackagesView, project: string): TrackerPackage | null {
+  const found = view.projects[project]
+  if (found?.tracker == null) return null
+  const { server, brought } = found.tracker
+  if (brought) {
+    const by = view.packages.find((each) => each.servers.includes(server) && found.cells[each.name]?.enabled === true)
+    return { state: 'brought', server, by: by?.name ?? null }
+  }
+  const own = view.marketplace?.name
+  const plugin = view.available.some((each) => each.plugin === server && each.marketplace === own) ? `${server}@${own}` : null
+  return { state: 'missing', server, problem: found.problems.some((each) => each.kind === 'noTrackerMcp'), plugin }
+}
+
+/** The project on /tools, with the add dialog open on the plugin when there is one (`add`). */
+export function trackerAddPath(project: string, plugin: string | null): string {
+  const path = `/tools?projects=${encodeURIComponent(project)}`
+  return plugin === null ? path : `${path}&add=${encodeURIComponent(plugin)}`
+}
+
 /** The problems that reach the project's sessions: of its enabled packages and of the set as a whole. */
 export function problemCount(view: PackagesView, project: string): number {
   const found = view.projects[project]

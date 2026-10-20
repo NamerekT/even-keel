@@ -65,13 +65,24 @@ describe('projectPackages', () => {
   })
 
   it('wants the tracker server when brief is off', () => {
-    expect(projectPackages(input({ trackerServer: 'huly' })).problems).toEqual([])
+    expect(projectPackages(input({ tracker: { server: 'huly', required: true } })).problems).toEqual([])
     const own = file()
     own.projects['p-1'] = { on: [], off: ['huly@even-keel'], settings: {} }
-    const view = projectPackages(input({ file: own, trackerServer: 'huly' }))
+    const view = projectPackages(input({ file: own, tracker: { server: 'huly', required: true } }))
     expect(view.problems).toEqual([{ kind: 'noTrackerMcp', server: 'huly' }])
     expect(view.cells['huly@even-keel']).toMatchObject({ choice: 'off', enabled: false })
     expect(view.blocked).toBe(true)
+  })
+
+  it('tells whether the set brings the tracker server whatever brief is, and holds nothing without brief off', () => {
+    expect(projectPackages(input({ tracker: { server: 'huly', required: false } })).tracker).toEqual({ server: 'huly', brought: true })
+    const own = file()
+    own.projects['p-1'] = { on: [], off: ['huly@even-keel'], settings: {} }
+    const view = projectPackages(input({ file: own, tracker: { server: 'huly', required: false } }))
+    expect(view.tracker).toEqual({ server: 'huly', brought: false })
+    expect(view.problems).toEqual([])
+    expect(view.blocked).toBe(false)
+    expect(projectPackages(input()).tracker).toBeNull()
   })
 
   it('tells whether an enabled package of the project brings a server', () => {
