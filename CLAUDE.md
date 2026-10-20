@@ -67,7 +67,7 @@ Behaviour written without a way to check it live (the situation never came up or
 
 Two remotes — `origin` (self-hosted Forgejo) and `github` (`github.com/NamerekT/even-keel`, an organization, private for now). `main`, `dev` and `release/*` are pushed only by `git sync` (a global alias: fetches the current branch from all remotes, merges and pushes to all) — not `git push origin <branch>`, otherwise the remotes diverge. Task branches are not pushed to a remote, except in PR mode (`pullRequests`), where Even Keel pushes a task's branch to the pull request's remote.
 
-Branches (`docs/releases.md`): `main` is the latest release and gets no commits of its own — users `git pull` it; the next version is built on `dev` (this checkout `even-keel`, Huly `BTN`), fixes of the released one on `release/v<x.y>` (clone `even-keel-github`, Huly `EKR`), carried into `dev` by hand. Until `v0.1.0` is tagged, `main` plays `dev`'s part.
+Branches (`docs/releases.md`): `main` is the latest release and gets no commits of its own — users `git pull` it; the next version is built on `dev` (this checkout `even-keel`, Huly `BTN`), fixes of the released one on `release/v<x.y>` (clone `even-keel-github`, Huly `EKR`), carried into `dev` by hand. `v0.1.0` itself is released from `release/v0.1`; its `BTN` tasks still open are `Вручную`, done by hand in `even-keel-github`.
 
 ## Tasks
 
@@ -81,7 +81,7 @@ The rules, statuses and order of actions are in the `huly-tracker` skill; read i
 
 An exception to the skill: working with the Huly API directly is allowed here — it is the point of the project.
 
-GitHub issues of `NamerekT/even-keel` are where users report; no chain reads them. A session asked to take one copies it into `EKR` (a bug that must reach the released version) or `BTN` (the rest) with a link to the issue, and decisions come only from the Huly task, never from a comment on the issue (`docs/releases.md`, "Trackers"). Until `v0.1.0`, `even-keel-github` still runs the project `EVK` on GitHub issues: an `EVK-<number>` task is worked per the `github` plugin's skill, commit `[EVK-<number>] Message`, content in English.
+GitHub issues of `NamerekT/even-keel` are where users report; no chain reads them. A session asked to take one copies it into `EKR` (a bug that must reach the released version) or `BTN` (the rest) with a link to the issue, and decisions come only from the Huly task, never from a comment on the issue (`docs/releases.md`, "Trackers"). The old `EVK-<number>` commits are of the project that ran GitHub issues in `even-keel-github` until 2026-10-20.
 
 ## Task worktrees
 

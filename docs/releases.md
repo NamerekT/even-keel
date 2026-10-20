@@ -41,9 +41,9 @@ The release is the user's: no session bumps the version, tags or publishes. A pa
 5. A minor version also gets its branch, `git branch release/v0.2 v0.2.0` and a push of it to both remotes; then `even-keel-github` is switched to it, and so is `EKR`'s `branch`.
 6. A GitHub release from the tag. Drafts and prereleases are not offered to installed copies; a published release is, within 12 h.
 
-## Starting the branches (once, at `v0.1.0`)
+## Starting the branches (2026-10-20)
 
-`v0.1.0` is tagged on `main`, which until then plays `dev`'s part. Then `dev` and `release/v0.1` are branched from the tag and pushed to both remotes; `even-keel` switches to `dev` and `BTN`'s `branch` with it; `even-keel-github` switches to `release/v0.1`; in Even Keel the project `EVK` (GitHub issues of this repository) is removed and `EKR` added on that folder and branch.
+`dev` and `release/v0.1` were branched from `main` before `v0.1.0`, so that 0.2 could start while 0.1 is still being checked: `v0.1.0` is released from `release/v0.1` as any patch is, by step 4 above. `even-keel` went to `dev` and `BTN`'s `branch` with it; `even-keel-github` went to `release/v0.1`; in Even Keel the project `EVK` (GitHub issues of this repository) was removed and `EKR` added on that folder and branch. The `BTN` tasks of `v0.1` still open then (BTN-135, BTN-149, BTN-161, BTN-162, BTN-241) carry `Вручную` and are done by hand in `even-keel-github`; the push of the release to `main` closes them.
 
 ## Checking a CLI version
 
