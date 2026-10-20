@@ -23,7 +23,7 @@ This file holds the rules and traps needed in every session. Reference on how th
 | `docs/settings.md` | every setting and the levels it is set at (Even Keel, project, task label), what is not a setting, the settings tables for the database and how labels become values |
 | `docs/stats.md` | the `/stats` page, its routes and URLs, rule changes; the collector is in `tally/CLAUDE.md` |
 | `docs/service.md` | the service on Windows, Linux and macOS |
-| `docs/releases.md` | the branches `main`, `dev` and `release/*`, milestones as versions, a fix of the released version and its way into `dev`, a release as a fast-forward of `main` and a tag, the CLI check, Tally across clones |
+| `docs/releases.md` | the branches `main`, `dev` and `release/*` and their folders, the trackers `BTN`, `EKR` and GitHub issues, a fix and its way into `dev`, a release as a push to `main` and a tag, the switch at `v0.1.0`, the CLI check, Tally across clones |
 | `docs/unverified.md` | behaviour never checked live, linked from the README: what is assumed, what breaks if it is wrong, the workaround |
 | `docs/posts/` | drafts of posts about the project, each with a `.sql` of the Tally queries behind its numbers; the user publishes them |
 
@@ -65,23 +65,23 @@ Behaviour written without a way to check it live (the situation never came up or
 
 ## Hosting
 
-Two remotes — `origin` (self-hosted Forgejo) and `github` (`github.com/NamerekT/even-keel`, an organization, private for now). `main`, `dev` and `release/*` are pushed only by `git sync` (a global alias: fetches the current branch from all remotes, merges and pushes to all) — not `git push origin <branch>`, otherwise the remotes diverge.
+Two remotes — `origin` (self-hosted Forgejo) and `github` (`github.com/NamerekT/even-keel`, an organization, private for now). `main`, `dev` and `release/*` are pushed only by `git sync` (a global alias: fetches the current branch from all remotes, merges and pushes to all) — not `git push origin <branch>`, otherwise the remotes diverge. Task branches are not pushed to a remote, except in PR mode (`pullRequests`), where Even Keel pushes a task's branch to the pull request's remote.
 
-Branches (`docs/releases.md`): `main` is the latest release and gets no commits of its own — users `git pull` it; the next version is built on `dev` (clone `even-keel-dev`, the chain), fixes of the released one on `release/v<x.y>` (this checkout, by hand, tasks labelled `Manual`), merged into `dev` after every fix. Until `v0.1.0` is tagged, `main` plays `dev`'s part. Task branches are not pushed to a remote, except in PR mode (`pullRequests`), where Even Keel pushes a task's branch to the pull request's remote.
+Branches (`docs/releases.md`): `main` is the latest release and gets no commits of its own — users `git pull` it; the next version is built on `dev` (this checkout `even-keel`, Huly `BTN`), fixes of the released one on `release/v<x.y>` (clone `even-keel-github`, Huly `EKR`), carried into `dev` by hand. Until `v0.1.0` is tagged, `main` plays `dev`'s part.
 
 ## Tasks
 
-Work on this repository is tracked in Huly, project `BTN`.
+Work on this repository is tracked in Huly: project `BTN` for the next version, `EKR` for fixes of the released one (the same rules, with the key `EKR`/`ekr`).
 The rules, statuses and order of actions are in the `huly-tracker` skill; read it before creating a task or starting work on one.
 
 - Code is written under an active task, in its worktree. A direct request without a task is a commit to the branch of the checkout it is made in — `dev` or `release/v<x.y>`, never `main` (this overrides the global CLAUDE.md).
 - Branch: `btn-<number>/short-description`. Commit: `[BTN-<number>] Message`.
 - The content of tasks (titles, descriptions, comments) is in Russian.
-- A session brings a task to the project's branch itself: after the reviewer's approval it merges the branch (`git merge --no-edit` in the main working copy). The user gets a report of what was done, not a merge command. After the merge, a session from the chain leaves the worktree, the branch and the push alone — Even Keel does that and closes the task. A session started by hand cleans up after itself per the skill, pushes through `git sync` and, on `release/v<x.y>`, carries the fix into `dev` (`docs/releases.md`, "A fix").
+- A session brings a task to the project's branch itself: after the reviewer's approval it merges the branch (`git merge --no-edit` in the main working copy). The user gets a report of what was done, not a merge command. After the merge, a session from the chain leaves the worktree, the branch and the push alone — Even Keel does that and closes the task. A session started by hand cleans up after itself per the skill and pushes through `git sync`.
 
 An exception to the skill: working with the Huly API directly is allowed here — it is the point of the project.
 
-A live check of the GitHub adapter: Even Keel's project `EVK` runs the issues of `NamerekT/even-keel` in the clone `even-keel-github`. An `EVK-<number>` task is a GitHub issue, worked per the `github` plugin's skill, not Huly's: commit `[EVK-<number>] Message`, content in English.
+GitHub issues of `NamerekT/even-keel` are where users report; no chain reads them. A session asked to take one copies it into `EKR` (a bug that must reach the released version) or `BTN` (the rest) with a link to the issue, and decisions come only from the Huly task, never from a comment on the issue (`docs/releases.md`, "Trackers"). Until `v0.1.0`, `even-keel-github` still runs the project `EVK` on GitHub issues: an `EVK-<number>` task is worked per the `github` plugin's skill, commit `[EVK-<number>] Message`, content in English.
 
 ## Task worktrees
 
