@@ -1151,7 +1151,7 @@ export const en: Messages = {
       unanswered: (count: number) => `Left to answer: ${count}`,
       unsaved: 'Claude Code saves the message with this question only once it is answered. A reply from here resumes the session without it, with the question and your answer; a reply through Remote Control keeps it.',
       sent: 'The reply is sent — the session goes on with it.',
-      working: 'You can send once the session stops.',
+      working: 'You can send once the session stops. A message mid-turn needs the checkpoint@even-keel package in the project (Tools) and reaches the session from its next tool call.',
       mailbox: 'The session is working: the message reaches it mid-turn, at its next tool call or at the end of the turn.',
       mail: {
         waiting: 'Waits for the hook',
