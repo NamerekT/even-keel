@@ -46,23 +46,33 @@ export interface SessionCheckpoint {
   first: number
   /** `window` — the project's threshold was lowered to fit the session's context window. */
   source: CheckpointThreshold['source'] | 'window'
+  /** The hook's late and hard thresholds at most, from the session's window (BTN-259); `null` — the hook keeps its own. */
+  late: number | null
+  hard: number | null
   context: number | null
 }
 
 /** The share of a session's context window the first nudge comes at, at most: past it the agent's own compaction may come first (BTN-187). */
 export const WINDOW_SHARE = 0.72
+/** The shares the late nudges and the hard threshold of a held task come at, at most (BTN-259). */
+export const LATE_SHARE = 0.85
+export const HARD_SHARE = 0.95
+
+const shareOf = (window: number, share: number) => Math.floor((window * share) / 1000) * 1000
 
 /**
- * The threshold of one session: a default or calibrated one over the share of its window goes down to it. One
- * pinned in the settings stays as it is, past the window too: whoever pinned it meant it.
+ * The thresholds of one session: a default or calibrated one over the share of its window goes down to it, and
+ * the late and hard ones are capped by theirs. One pinned in the settings stays as it is, past the window too,
+ * with the hook's own later thresholds: whoever pinned it meant it.
  */
 export function withinWindow(
   threshold: Pick<SessionCheckpoint, 'first' | 'source'>,
   window: number | null,
-): Pick<SessionCheckpoint, 'first' | 'source'> {
-  if (window === null || threshold.source === 'config') return threshold
-  const cap = Math.floor((window * WINDOW_SHARE) / 1000) * 1000
-  return threshold.first > cap ? { first: cap, source: 'window' } : threshold
+): Pick<SessionCheckpoint, 'first' | 'source' | 'late' | 'hard'> {
+  if (window === null || threshold.source === 'config') return { ...threshold, late: null, hard: null }
+  const cap = shareOf(window, WINDOW_SHARE)
+  const first = threshold.first > cap ? { first: cap, source: 'window' as const } : threshold
+  return { ...first, late: shareOf(window, LATE_SHARE), hard: shareOf(window, HARD_SHARE) }
 }
 
 function calibrated(measure: CheckpointMeasure): number | null {

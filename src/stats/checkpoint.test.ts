@@ -3,14 +3,19 @@ import { checkpointThreshold, DEFAULT_FIRST, withinWindow, type CheckpointMeasur
 
 describe('withinWindow', () => {
   it('lowers a default or calibrated threshold to the share of the session window, marking it so', () => {
-    expect(withinWindow({ first: DEFAULT_FIRST, source: 'default' }, 258_400)).toEqual({ first: 186_000, source: 'window' })
-    expect(withinWindow({ first: 220_000, source: 'calibrated' }, 250_000)).toEqual({ first: 180_000, source: 'window' })
+    expect(withinWindow({ first: DEFAULT_FIRST, source: 'default' }, 258_400)).toMatchObject({ first: 186_000, source: 'window' })
+    expect(withinWindow({ first: 220_000, source: 'calibrated' }, 250_000)).toMatchObject({ first: 180_000, source: 'window' })
+  })
+
+  it('gives the late and hard thresholds as shares of the window, rounded down to 1k', () => {
+    expect(withinWindow({ first: DEFAULT_FIRST, source: 'default' }, 258_400)).toEqual({ first: 186_000, source: 'window', late: 219_000, hard: 245_000 })
+    expect(withinWindow({ first: 160_000, source: 'calibrated' }, 250_000)).toEqual({ first: 160_000, source: 'calibrated', late: 212_000, hard: 237_000 })
   })
 
   it('leaves a threshold under the share, one without a window, and one pinned in the settings alone', () => {
-    expect(withinWindow({ first: 160_000, source: 'calibrated' }, 258_400)).toEqual({ first: 160_000, source: 'calibrated' })
-    expect(withinWindow({ first: DEFAULT_FIRST, source: 'default' }, null)).toEqual({ first: DEFAULT_FIRST, source: 'default' })
-    expect(withinWindow({ first: 999_999, source: 'config' }, 250_000)).toEqual({ first: 999_999, source: 'config' })
+    expect(withinWindow({ first: 160_000, source: 'calibrated' }, 258_400)).toMatchObject({ first: 160_000, source: 'calibrated' })
+    expect(withinWindow({ first: DEFAULT_FIRST, source: 'default' }, null)).toEqual({ first: DEFAULT_FIRST, source: 'default', late: null, hard: null })
+    expect(withinWindow({ first: 999_999, source: 'config' }, 250_000)).toEqual({ first: 999_999, source: 'config', late: null, hard: null })
   })
 })
 

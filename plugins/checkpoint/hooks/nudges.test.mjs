@@ -38,6 +38,15 @@ describe("planOf", () => {
     expect(planOf({}, { first: 187_000, source: "calibrated", handoffs: 3 })).toMatchObject({ first: 300_000, handoffs: 3, held: true });
     expect(planOf({ CHECKPOINT_MAX_HANDOFFS: "1" }, { first: 200_000, source: "default", handoffs: 1 })).toMatchObject({ first: 300_000, held: true });
   });
+
+  it("brings the late and hard thresholds down to what the session's window allows, never up", () => {
+    const window = { first: 180_000, source: "window", late: 212_000, hard: 237_000 };
+    expect(planOf({}, { ...window, handoffs: 0 })).toMatchObject({ first: 180_000, late: 212_000, hard: 237_000 });
+    expect(planOf({}, { ...window, handoffs: 3 })).toMatchObject({ first: 237_000, held: true });
+    expect(planOf({ CHECKPOINT_LATE_TOKENS: "200000" }, { ...window, handoffs: 0 }).late).toBe(200_000);
+    expect(planOf({}, { first: 200_000, source: "default", late: 850_000, hard: 950_000, handoffs: 0 })).toMatchObject({ late: 250_000, hard: 300_000 });
+    expect(planOf({}, { first: 999_999, source: "config", late: null, hard: null, handoffs: 0 })).toMatchObject({ late: 250_000, hard: 300_000 });
+  });
 });
 
 describe("markOf", () => {
@@ -60,6 +69,13 @@ describe("markOf", () => {
   it("is silent below the hard threshold for a held task", () => {
     const plan = planOf({}, { first: 187_000, source: "calibrated", handoffs: 3 });
     expect(marksOf(plan, [250_000, 299_999, 300_000, 330_000])).toEqual([0, 0, 300_000, 325_000]);
+  });
+
+  it("keeps every nudge inside a 250k window", () => {
+    const plan = planOf({}, { first: 180_000, source: "window", late: 212_000, hard: 237_000, handoffs: 0 });
+    expect(marksOf(plan, [179_999, 180_000, 211_999, 212_000, 237_000])).toEqual([0, 180_000, 180_000, 212_000, 237_000]);
+    const held = planOf({}, { first: 180_000, source: "window", late: 212_000, hard: 237_000, handoffs: 3 });
+    expect(marksOf(held, [236_999, 237_000])).toEqual([0, 237_000]);
   });
 });
 

@@ -19,7 +19,8 @@ The first threshold is a matter of money, not of the window. A handoff is not fr
 Along with the context, Even Keel gives two more things for a session of a chain:
 
 - **the project's threshold** — calibrated from the project's own statistics once it has enough handoffs, or pinned with `stats.checkpointTokens` in Even Keel's config; the `/stats` page shows the number and where it comes from;
-- **how many handoffs the task has had** — after the third the hook stays silent until the context reaches **300k**: on tasks handed over again and again most handoffs lose money.
+- **how many handoffs the task has had** — after the third the hook stays silent until the context reaches **300k**: on tasks handed over again and again most handoffs lose money;
+- **the late and hard thresholds the session's context window allows** — 85 % and 95 % of it: on a small window the hook takes them in place of 250k and 300k, so every nudge still comes before the agent compacts the context on its own.
 
 Even Keel knows the context as of its last poll of the session, a few seconds back, so a nudge may come one tool call late. A session never waits for an answer longer than two seconds (five on `Stop`).
 
