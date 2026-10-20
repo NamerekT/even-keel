@@ -12,7 +12,7 @@ Only the latest release gets fixes.
 
 ## What counts
 
-- Reaching the page or its API past the boundary described in the README ([Reaching the page from another machine](README.md#reaching-the-page-from-another-machine)): around the `Host` and `Origin` checks, the `EVEN_KEEL_TOKEN` check or its cookie, DNS rebinding, cross-site requests from another page in the browser.
+- Reaching the page or its API past the boundary described in the guide ([Reaching the page from another machine](docs/guide/setup.md#reaching-the-page-from-another-machine)): around the `Host` and `Origin` checks, the `EVEN_KEEL_TOKEN` check or its cookie, DNS rebinding, cross-site requests from another page in the browser.
 - Starting, answering or stopping a session, or changing the config, by someone the page did not let in.
 - Leaking secrets: tracker and CI tokens from `.env`, `EVEN_KEEL_TOKEN`, API keys of accounts, the CLI's credentials — into the page, the service log, the statistics database, a tracker comment or the environment of a session.
 - Writing or reading files outside the places Even Keel means to: the chat's file upload, the routes that serve files, worktree and slot paths.
@@ -23,4 +23,4 @@ Only the latest release gets fixes.
 - What an agent does inside its session under `--permission-mode auto`: that is Claude Code's permission system and your settings and hooks. Vulnerabilities in Claude Code itself go to [Anthropic](https://code.claude.com/docs/en/legal-and-compliance#security-vulnerability-reporting); in Codex — to OpenAI.
 - Anyone who can write tasks or comments in the tracker project directs the sessions: the task text is their prompt and a comment can answer their question. Give write access to the project only to people you would let run code on the machine.
 - An attacker who already has the machine's user account, the service account or a valid token.
-- The page opened over plain HTTP from another machine: the README says the token is then visible on the way.
+- The page opened over plain HTTP from another machine: the guide says the token is then visible on the way.

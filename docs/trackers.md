@@ -1,6 +1,6 @@
 # Trackers and plugins
 
-Reference for sessions: how the tracker layer, the adapters and the Claude Code plugins are built. The working rules are in `CLAUDE.md`, the public description in `README.md`.
+Reference for sessions: how the tracker layer, the adapters and the Claude Code plugins are built. The working rules are in `CLAUDE.md`, the public description in `README.md` and `docs/guide/setup.md`.
 
 ## The `src/tracker/` layer (BTN-58)
 

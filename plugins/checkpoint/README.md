@@ -24,7 +24,7 @@ Along with the context, Even Keel gives two more things for a session of a chain
 
 Even Keel knows the context as of its last poll of the session, a few seconds back, so a nudge may come one tool call late. A session never waits for an answer longer than two seconds (five on `Stop`).
 
-Even Keel takes it from there: it stops the session and starts a new one in the same worktree with a handoff prompt that points at the note (see "Handoffs" in the [main README](../../README.md)). Outside a chain the line is just the end of a turn — start a new session yourself and give it the note.
+Even Keel takes it from there: it stops the session and starts a new one in the same worktree with a handoff prompt that points at the note (see [Handoffs](../../docs/guide/features.md#handoffs) in Even Keel's guide). Outside a chain the line is just the end of a turn — start a new session yourself and give it the note.
 
 ## The check before the merge
 

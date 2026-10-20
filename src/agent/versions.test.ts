@@ -7,8 +7,7 @@ import { cliVersionOf, outdatedDaemonView, VersionWatcher, type VersionedAgent }
 describe('the checked versions', () => {
   it('are the ones the README names under "Before you run it"', () => {
     const readme = readFileSync(new URL('../../README.md', import.meta.url), 'utf8')
-    expect(readme).toContain(`Last checked against **Claude Code ${claude.checked}**`)
-    expect(readme).toContain(`Last checked against **codex-cli ${codex.checked}**`)
+    expect(readme).toContain(`Last checked against **Claude Code ${claude.checked}** and **codex-cli ${codex.checked}**`)
   })
 })
 

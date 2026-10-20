@@ -24,12 +24,13 @@ This file holds the rules and traps needed in every session. Reference on how th
 | `docs/stats.md` | the `/stats` page, its routes and URLs, rule changes; the collector is in `tally/CLAUDE.md` |
 | `docs/service.md` | the service on Windows, Linux and macOS |
 | `docs/releases.md` | the branches `main`, `dev` and `release/*` and their folders, the trackers `BTN`, `EKR` and GitHub issues, a fix and its way into `dev`, a release as a push to `main` and a tag, the switch at `v0.1.0`, the CLI check, Tally across clones |
+| `docs/guide/` | the user guide behind the README: every feature, setup and updating, every variable and config key — public, see below |
 | `docs/unverified.md` | behaviour never checked live, linked from the README: what is assumed, what breaks if it is wrong, the workaround |
 | `docs/posts/` | drafts of posts about the project, each with a `.sql` of the Tally queries behind its numbers; the user publishes them |
 
 Behaviour written without a way to check it live (the situation never came up or cannot be created) gets an entry in `docs/unverified.md`; an entry goes once it is checked.
 
-`README.md` (in English, for those seeing the project for the first time) and `LICENSE` (MIT) are the public documentation (BTN-60). When installation, a config key, an environment variable or behaviour described there changes, the README is edited too; the CLI version in the "Before you run it" section is the latest one it was verified on.
+`README.md` (in English, for those seeing the project for the first time), the user guide `docs/guide/` and `LICENSE` (MIT) are the public documentation (BTN-60). The README stays short — the pitch, a line per feature, the quick start, the service, updating — and links to the guide: `features.md` (every feature in full), `setup.md` (the CLIs it depends on, projects, trackers and plugins, the page, the service, updating, uninstall), `reference.md` (every variable and config key). When installation, a config key, an environment variable or behaviour described there changes, the guide is edited too, and the README only when its short version stops being true; the CLI versions in the README's "Before you run it" are the latest ones it was verified on. The guide is for users: no task IDs in its text; internals stay in the other `docs/` and are only linked.
 
 **Where to write new things.** Here goes only a rule or a trap without which a session will go wrong in any task, in a line or two. How a feature is built, routes, parameters, field mappings, measurements go into the area's document in `docs/` (if none fits — a new document and a row in the table above) or into JSDoc next to the code. Do not retell what is visible from the code. Documentation in the repository is written in English; the rule that the content of Huly tasks is in Russian stays as is.
 
