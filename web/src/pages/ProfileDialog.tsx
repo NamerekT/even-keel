@@ -163,14 +163,18 @@ function FieldsStep({ kind, profile, onBack, onClose, onSaved }: FieldsProps) {
           const stored = profile?.fields.find((each) => each.name === field.name)
           const locked = hostLocked && kind.hostVariables.includes(field.name)
           return (
-            <Field key={field.name} label={t.secrets.purpose[field.name] ?? field.name} hint={locked ? t.profiles.hostLocked : field.name}>
+            <Field
+              key={field.name}
+              label={t.secrets.purpose[field.name] ?? field.name}
+              hint={locked ? t.profiles.hostLocked : t.profiles.fieldHints[field.name] ? `${t.profiles.fieldHints[field.name]} (${field.name})` : field.name}
+            >
               {(id) => (
                 <input
                   id={id}
                   className="add-package__input add-package__input--mono"
                   type={field.secret ? 'password' : 'text'}
                   value={typed[field.name] ?? ''}
-                  placeholder={field.secret && stored?.set === true ? t.profiles.kept : field.name}
+                  placeholder={field.secret && stored?.set === true ? t.profiles.kept : (t.profiles.examples[field.name] ?? '')}
                   disabled={locked}
                   autoComplete="off"
                   spellCheck={false}
