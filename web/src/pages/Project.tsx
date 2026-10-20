@@ -304,7 +304,7 @@ function ChainControls({ state, project, narrow, children }: { state: EvenKeelSt
   const first = active ? button(t.project.resume, 'resume') : button(startsNow(state.chain) ? t.project.start : t.project.enqueue, 'start')
   const chain = activeChain(state.chain, project)
   const stopsAfter = chain?.stopAfter === true
-  // A running chain stops only after its current task, whose session is never touched; a paused one runs nothing, so it stops at once.
+  // A running chain stops once its session's turn ends, the session untouched; a paused one runs nothing, so it stops at once.
   const stop =
     status.kind === 'running'
       ? button(

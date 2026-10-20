@@ -605,6 +605,13 @@ export class Dispatcher {
       const tasks = this.lists.tasks.get(chain.project)
       if (tasks === undefined) return
       if (chain.closing !== undefined && !(await this.finish(chain, chain.closing))) return
+      // Asked to stop, the chain only waits out the session's turn: no Done, handoff or relay is followed meanwhile.
+      if (chain.stopAfter) {
+        if (chain.current !== null && this.deps.midTurn(chain.current.task)) return
+        this.deps.log(`chain: ${chain.project} stopped after its session's turn, as asked`)
+        this.stop(chain.project)
+        return
+      }
 
       if (chain.current !== null) {
         const { task, sessionId } = chain.current
@@ -649,12 +656,6 @@ export class Dispatcher {
           this.deps.save(this.state)
           if (chain.paused) return
         }
-      }
-
-      if (chain.stopAfter) {
-        this.deps.log(`chain: ${chain.project} stopped after its task, as asked`)
-        this.stop(chain.project)
-        return
       }
 
       const fix = this.main?.sessionFix(chain.project)

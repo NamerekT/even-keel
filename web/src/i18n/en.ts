@@ -466,11 +466,13 @@ export const en: Messages = {
     resume: 'Resume',
     stop: 'Stop',
     stopTip: (task: string | null) =>
-      `The chain stops once ${task ?? 'the current task'} is done and cleaned up. Its session is not stopped: it works on.`,
+      `The session${task === null ? '' : ` of ${task}`} is not stopped: the chain waits until it ends its turn, then stops and takes nothing further — no next task, no new session after a checkpoint or a limit.`,
     keepGoing: 'Keep going',
-    keepGoingTip: 'The chain takes the next task as usual.',
+    keepGoingTip: 'The chain goes on as usual.',
     stopsAfter: (task: string | null) =>
-      task === null ? 'The chain stops before it takes the next task.' : `The chain stops once ${task} is done and cleaned up, before it takes the next task.`,
+      task === null
+        ? 'The chain stops before it does anything further.'
+        : `The chain stops once the session of ${task} ends its turn, and takes nothing further.`,
     off: {
       running: 'The chain is running — nothing to resume.',
       idle: 'The chain is not running — nothing to stop.',
