@@ -522,10 +522,13 @@ function Block(props: BlockProps) {
             ) : (
               block.title
             )
-          ) : (
+          ) : block.locked ? (
             <button type="button" className="block__card" draggable={false} title={t.chain.openCard} onClick={() => onCard(block.id)}>
               {block.title}
             </button>
+          ) : (
+            // Plain text: a press anywhere on the row lands on the key's link and opens the session panel, the card is in its head.
+            block.title
           ))}
       </p>
       {action !== null && <ActionScreen line={action} delay={marks.has('take') ? marks.get('take')! + FRAME_MS : 0} />}
