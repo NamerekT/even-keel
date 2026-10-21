@@ -13,13 +13,14 @@
  * (more often than once per 5 minutes it answers 429): `--no-usage` leaves it out.
  */
 import { existsSync, mkdirSync, readFileSync, rmSync } from 'node:fs'
-import { join } from 'node:path'
+import { dirname, join } from 'node:path'
 import { setTimeout as delay } from 'node:timers/promises'
 import { accountsRoot, AccountHomes, type AccountHome } from '../src/account/homes.js'
 import { AGENTS } from '../src/agent/adapters.js'
 import type { Agent, SessionHandle } from '../src/agent/contract.js'
 import { sessionBase } from '../src/agent/env.js'
 import { CLAUDE } from '../src/claude/name.js'
+import { runGit } from '../src/git/run.js'
 import { stateDirOf } from '../src/locations.js'
 import { englishOf, noticeOf } from '../src/notice/notice.js'
 import { isLive, type AgentEntry } from '../src/sessions/agents.js'
@@ -107,10 +108,31 @@ function feedLine(line: FeedLine): string {
   return `${line.kind}${line.name === undefined ? '' : ` ${line.name}`}: ${text}`
 }
 
-/** No repository of its own: the folder takes the trust of the checkout it lies in, a repository would need its own. */
-function freshFolder(dir: string): void {
+/**
+ * A linked worktree of the repository the folder lies in, as a chain task's place is: from Claude Code 2.1.306 a
+ * background session writes files only in one, and in a main checkout it is refused until it calls `EnterWorktree`.
+ * Outside a repository a plain folder: the CLI guards no writes there. Either way it takes the trust of the checkout it
+ * lies in. Returns the repository, or null for a plain folder.
+ */
+async function freshFolder(dir: string): Promise<string | null> {
+  mkdirSync(dirname(dir), { recursive: true })
+  const top = await runGit(dirname(dir), ['rev-parse', '--show-toplevel'])
+  const repo = top.code === 0 && top.out !== '' ? top.out : null
+  if (repo !== null) await dropFolder(repo, dir)
   rmSync(dir, { recursive: true, force: true })
-  mkdirSync(dir, { recursive: true })
+  if (repo === null) {
+    mkdirSync(dir, { recursive: true })
+    return null
+  }
+  const added = await runGit(repo, ['worktree', 'add', '--detach', dir])
+  if (added.code !== 0) throw new Error(`cli-check: git worktree add ${dir}: ${added.out}`)
+  return repo
+}
+
+/** The folder is the check's own scratch, so its worktree goes with whatever the session left in it. */
+async function dropFolder(repo: string, dir: string): Promise<void> {
+  await runGit(repo, ['worktree', 'remove', '--force', dir])
+  await runGit(repo, ['worktree', 'prune'])
 }
 
 async function run(options: Options): Promise<void> {
@@ -161,7 +183,7 @@ async function run(options: Options): Promise<void> {
   })
 
   const cwd = join(work, 'session')
-  freshFolder(cwd)
+  const repo = await step('the working folder', () => freshFolder(cwd), (repo) => (repo === null ? `${cwd}, no repository` : `${cwd}, a worktree of ${repo}`))
   let handle: SessionHandle | undefined
   try {
     handle = await check(agent, home, options, version, cwd, (next) => (handle = next))
@@ -171,6 +193,7 @@ async function run(options: Options): Promise<void> {
       const live = (await agent.sessions(home).catch(() => [])).filter(isLive)
       if (live.length === 0) await step('the daemon of the check stopped', () => agent.stopDaemon!(home)).catch(() => {})
     }
+    if (repo !== null) await dropFolder(repo, cwd)
   }
   if (options.usage) {
     await step('/usage', async () => {
