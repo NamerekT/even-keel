@@ -12,6 +12,10 @@ export interface LimitsWatcherOptions {
   /** How the account's usage is asked for (`Agent.usage`); `undefined` — its agent cannot tell, and it is not polled. */
   usage: (home: AccountHome) => ((at: string) => Promise<UsageAnswer>) | undefined
   usageIntervalMs: number
+  /** Whether the account's provider answers: a call made before it may renew the sign-in into the void (EKR-15). */
+  online: (home: AccountHome) => Promise<boolean>
+  /** How soon a round that skipped an account for the network comes again. */
+  offlineRetryMs: number
   notBefore: (account: string) => string | null
   accessExpired: (home: AccountHome) => boolean
   /** An API account has no usage windows: it is not polled and shows no limits. */
@@ -71,14 +75,17 @@ export class LimitsWatcher {
     }
     clearTimeout(this.usageTimer)
     this.usageRunning = true
-    void this.pollAll().finally(() => {
-      this.usageRunning = false
-      if (this.usageOff !== undefined) return
-      if (this.usageAgain) {
-        this.usageAgain = false
-        this.refresh()
-      } else this.usageTimer = setTimeout(() => this.refresh(), this.options.usageIntervalMs)
-    })
+    let skipped = false
+    void this.pollAll()
+      .then((offline) => void (skipped = offline))
+      .finally(() => {
+        this.usageRunning = false
+        if (this.usageOff !== undefined) return
+        if (this.usageAgain) {
+          this.usageAgain = false
+          this.refresh()
+        } else this.usageTimer = setTimeout(() => this.refresh(), skipped ? this.options.offlineRetryMs : this.options.usageIntervalMs)
+      })
   }
 
   private async tick(): Promise<void> {
@@ -93,15 +100,22 @@ export class LimitsWatcher {
     this.publish()
   }
 
-  private async pollAll(): Promise<void> {
+  /** True when an account was skipped because its provider did not answer. */
+  private async pollAll(): Promise<boolean> {
     const homes = this.options.homes().filter((home) => !this.options.apiKey(home.key) && this.options.usage(home) !== undefined)
     const keys = new Set(homes.map((home) => home.key))
     for (const key of this.accounts.keys()) if (!keys.has(key)) this.accounts.delete(key)
+    let skipped = false
     for (const home of homes) {
       if (this.usageOff !== undefined) break
+      if (!(await this.options.online(home))) {
+        skipped = true
+        continue
+      }
       await this.poll(home)
     }
     this.publish()
+    return skipped
   }
 
   private async poll(home: AccountHome): Promise<void> {

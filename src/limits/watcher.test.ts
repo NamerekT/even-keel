@@ -9,15 +9,21 @@ const LIMITS: UsageAnswer = {
   limits: { fiveHour: { usedPercentage: 16, resetsAt: 2_000_000_000 }, sevenDay: { usedPercentage: 36, resetsAt: 2_000_000_000 } },
 } as unknown as UsageAnswer
 
-function watcherOf(answers: (() => UsageAnswer)[]) {
+function watcherOf(answers: (() => UsageAnswer)[], online: () => boolean = () => true) {
   const errors: string[] = []
+  const asked: string[] = []
   const watcher = new LimitsWatcher({
     file: '/nonexistent/limits.json',
     intervalMs: 60_000,
     homes: () => [HOME],
     ownerOf: () => undefined,
-    usage: () => async () => answers.shift()!(),
+    usage: (home) => async () => {
+      asked.push(home.key)
+      return answers.shift()!()
+    },
     usageIntervalMs: 300_000,
+    online: async () => online(),
+    offlineRetryMs: 30_000,
     notBefore: () => null,
     accessExpired: () => false,
     apiKey: () => false,
@@ -28,7 +34,7 @@ function watcherOf(answers: (() => UsageAnswer)[]) {
     watcher.refresh()
     for (let i = 0; i < 5; i++) await new Promise((resolve) => setImmediate(resolve))
   }
-  return { watcher, errors, poll }
+  return { watcher, errors, asked, poll }
 }
 
 const failing = () => {
@@ -55,6 +61,20 @@ describe('LimitsWatcher', () => {
   it('forgets a failed call once a poll answers', async () => {
     const { watcher, poll } = watcherOf([() => LIMITS, failing, () => LIMITS, failing])
     for (let i = 0; i < 4; i++) await poll()
+    expect(watcher.usage('global').state).toBe('ok')
+  })
+
+  it('does not ask /usage while the network is down, and asks again soon after', async () => {
+    let up = false
+    const { watcher, errors, asked, poll } = watcherOf([() => LIMITS], () => up)
+    await poll()
+    expect(asked).toEqual([])
+    expect(errors).toEqual([])
+    expect(watcher.usage('global').state).toBe('waiting')
+    up = true
+    vi.advanceTimersByTime(30_000)
+    for (let i = 0; i < 5; i++) await new Promise((resolve) => setImmediate(resolve))
+    expect(asked).toEqual(['global'])
     expect(watcher.usage('global').state).toBe('ok')
   })
 })

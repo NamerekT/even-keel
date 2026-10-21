@@ -6,7 +6,7 @@ import { say, t } from '../i18n/index.js'
 import { useLive } from '../live/context.js'
 import { useCommand } from '../live/useCommand.js'
 import { projectPath } from '../state.js'
-import { draftOfFields, EMPTY_FIELDS, missingOf, readyToAdd, shapeOf, suggestOfRepo, switchProfile, typedIn, type Missing, type WizardFields } from './projectWizard.js'
+import { draftOfFields, EMPTY_FIELDS, missingOf, readyToAdd, shapeOf, suggestOfRepo, switchProfile, trustCommand, typedIn, type Missing, type WizardFields } from './projectWizard.js'
 import { FieldHead } from './settingsParts.js'
 import { Status, TrackerStep } from './WizardTracker.js'
 import './accounts.css'
@@ -70,6 +70,21 @@ export function ProjectAddPage({ state }: { state: EvenKeelState }) {
     }
     // The draft's text stands for the draft: a new object of the same fields asks nothing again.
   }, [draftText, round])
+
+  // Back from the terminal where the trust was given: ask again, once per return and not on a timer (the check reaches the tracker too).
+  const untrusted = repoCheck?.trusted === false
+  useEffect(() => {
+    if (!untrusted) return
+    const back = () => {
+      if (document.visibilityState === 'visible') setRound((count) => count + 1)
+    }
+    window.addEventListener('focus', back)
+    document.addEventListener('visibilitychange', back)
+    return () => {
+      window.removeEventListener('focus', back)
+      document.removeEventListener('visibilitychange', back)
+    }
+  }, [untrusted])
 
   // A repository found: its current branch, and what its remotes and its name suggest for the fields still blank.
   const repo = checked?.result.repo
@@ -160,7 +175,12 @@ export function ProjectAddPage({ state }: { state: EvenKeelState }) {
               />
             </div>
           )}
-          {repoCheck?.trusted === false && <p className="notice notice--warn project-add__trust">{t.wizard.untrusted}</p>}
+          {repoCheck?.trusted === false && repoCheck.repo.root !== null && (
+            <div className="notice notice--warn project-add__trust">
+              <p>{t.wizard.untrusted}</p>
+              <TrustCommand command={trustCommand(repoCheck.repo.root, repoCheck.platform)} />
+            </div>
+          )}
           {repoCheck?.trusted === true && <Status ok>{t.wizard.trusted}</Status>}
         </Step>
         <Step title={t.wizard.stepTracker}>
@@ -261,6 +281,28 @@ function missingText(missing: Exclude<Missing, 'checking'>, fields: WizardFields
   if (missing === 'place' || missing === 'project') return t.wizard.missing.field(t.settings.trackerProject(fields.tracker, title))
   if (missing === 'key') return t.wizard.missing.field(t.wizard.prefix)
   return t.wizard.missing[missing]
+}
+
+/** The command as selectable text; the copy button only where the page has the clipboard (plain HTTP from another host has none). */
+function TrustCommand({ command }: { command: string }) {
+  const [copied, setCopied] = useState(false)
+  const canCopy = typeof navigator !== 'undefined' && navigator.clipboard !== undefined
+  const copy = () => {
+    navigator.clipboard.writeText(command).then(
+      () => setCopied(true),
+      () => undefined,
+    )
+  }
+  return (
+    <div className="project-add__command">
+      <code className="settings__text--mono">{command}</code>
+      {canCopy && (
+        <button type="button" className="button" onClick={copy}>
+          {copied ? t.wizard.commandCopied : t.wizard.copyCommand}
+        </button>
+      )}
+    </div>
+  )
 }
 
 function Step({ title, children }: { title: string; children: ReactNode }) {

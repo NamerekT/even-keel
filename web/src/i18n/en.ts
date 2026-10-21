@@ -368,7 +368,9 @@ export const en: Messages = {
     repoFound: (root: string) => `Git repository ${root}`,
     mainBranch: (branch: string) => `main branch: ${branch}`,
     changeBranch: 'change',
-    untrusted: 'Claude Code does not trust this folder yet, and a session would stop on its trust dialog. Open claude in the folder once and accept, then check again.',
+    untrusted: 'Claude Code does not trust this folder yet, and a session would stop on its trust dialog. Run the command in a terminal and accept the trust.',
+    copyCommand: 'Copy',
+    commandCopied: 'Copied',
     trusted: 'Claude Code trusts the folder',
     checkAgain: 'Check again',
     stepTracker: 'Tracker',
@@ -1120,6 +1122,14 @@ export const en: Messages = {
     interrupted: 'stopped until main is fixed',
     skip: 'Skip',
     midTurn: 'mid-turn — replace and skip after it',
+    held: {
+      launching: 'Not yet: the session is still starting. Available once it is up and has finished its turn.',
+      replacing: 'Not yet: the session is being replaced. Available once the new one is up and has finished its turn.',
+      midTurn: 'Not yet: the session is mid-turn. Available once it finishes the turn.',
+      noSession: 'Not yet: the task has no live session. Available once the chain starts one.',
+      notCurrent: 'Not yet: the chain is not on this task. Available once the chain takes it and starts its session.',
+      skipped: 'The task is skipped: restore it, and the button is available once the chain takes it and starts its session.',
+    },
     start: {
       title: {
         launch: 'Starting a session',

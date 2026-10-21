@@ -11,11 +11,12 @@ import { bridgeOfRecord, remoteAtStartup } from '../sessions/remote.js'
 import { TranscriptTail } from '../sessions/tail.js'
 import { ClaudeCli, liveRecords, resolveClaudeBinary, SESSION_MODE } from './cli.js'
 import { parseContextWindow } from './context.js'
+import { sweepRefreshLeftovers } from './leftovers.js'
 import { CLAUDE } from './name.js'
 import { claudeBinaryIn, fetchClaude } from './release.js'
 
 /** The version the README's "Before you run it" names; raised after the live run of each release (`docs/releases.md`). */
-const CHECKED = '2.1.303'
+const CHECKED = '2.1.306'
 
 /** Claude Code through the `claude` CLI: `--bg` sessions, one `CLAUDE_CONFIG_DIR` per account (`docs/sessions.md`). */
 export const claude: AgentAdapter = {
@@ -51,7 +52,11 @@ export const claude: AgentAdapter = {
       feedFile: (home, sessionId) => transcriptFile(projects(home), sessionId),
       image: (home, sessionId, tool, index) => readTranscriptImage(projects(home), sessionId, tool, index),
       transcripts: (home) => transcriptIds(projects(home)),
-      authStatus: (home) => cli.authStatus(home),
+      authStatus: async (home) => {
+        const swept = await sweepRefreshLeftovers(home.dir, Date.now())
+        if (swept > 0) log(`account: removed ${swept} abandoned .oauth_refresh.lock.owner.tmp.* files in ${home.key}`)
+        return cli.authStatus(home)
+      },
       login: (home) => cli.authLogin(home),
       logout: (home) => cli.authLogout(home),
       installed: () => findBinary(bin(), env()),

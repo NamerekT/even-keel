@@ -281,6 +281,8 @@ export interface ProjectCheck {
   } | null
   /** Whether Claude Code trusts the folder; `null` — no repository to ask about. */
   trusted: boolean | null
+  /** The platform of the service's machine (`process.platform`), which the folder is on: the trust command depends on it. */
+  platform: string
 }
 
 /** The config file as the settings show it: the saved values, all applied on the fly. */

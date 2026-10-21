@@ -13,6 +13,7 @@ import { fail, notice, NoticeError, type Notice } from '../notice/notice.js'
 import { samePath } from '../paths.js'
 import { blockedAsk, blockedOn, launchedModel, parseAgents, parseSessionRecord, withLiveRecords, type AgentEntry, type SessionRecord } from '../sessions/agents.js'
 import { newestExtensionBinary } from '../sessions/paths.js'
+import { CallTimeout, FolderCalls } from './calls.js'
 import { contextArgs } from './context.js'
 import { daemonVersionOf } from './release.js'
 import { descendantsOf, isAlive, killLeftovers } from './tree.js'
@@ -57,15 +58,11 @@ export class ClaudeCli {
     private readonly bin: () => string,
     private readonly timeoutMs: number,
     private readonly envOf: (home: AccountHome) => NodeJS.ProcessEnv,
+    private readonly calls = new FolderCalls(),
   ) {}
 
   async agents(home: AccountHome): Promise<AgentEntry[]> {
-    const { stdout } = await run(this.bin(), ['agents', '--json', '--all'], {
-      env: this.envOf(home),
-      timeout: this.timeoutMs,
-      windowsHide: true,
-      maxBuffer: 16 * 1024 * 1024,
-    })
+    const { stdout } = await this.call(home, ['agents', '--json', '--all'], undefined, 16 * 1024 * 1024)
     return withJobFiles(home, withLiveRecords(parseAgents(stdout, home.key), await liveRecords(home)))
   }
 
@@ -75,12 +72,11 @@ export class ClaudeCli {
   }
 
   async authStatus(home: AccountHome): Promise<AccountStatus> {
-    const options = { env: this.envOf(home), timeout: this.timeoutMs, windowsHide: true }
-    const stdout = await run(this.bin(), ['auth', 'status', '--json'], options).then(
+    const stdout = await this.call(home, ['auth', 'status', '--json']).then(
       (result) => result.stdout,
       (error: unknown) => {
         const output = (error as { stdout?: string }).stdout ?? ''
-        if (output.trim() === '') throw error
+        if (output.trim() === '') throw new Error(`claude auth status in ${home.key}: ${callFailure(error)}`, { cause: error })
         return output
       },
     )
@@ -88,16 +84,8 @@ export class ClaudeCli {
   }
 
   async usage(home: AccountHome, cwd: string): Promise<string> {
-    const call = run(this.bin(), ['-p', '/usage', '--output-format', 'json', '--no-session-persistence'], {
-      cwd,
-      env: this.envOf(home),
-      timeout: this.timeoutMs,
-      windowsHide: true,
-    })
-    // An open stdin makes `-p` wait 3 s for input and print a warning.
-    call.child.stdin?.end()
     try {
-      return (await call).stdout
+      return (await this.call(home, ['-p', '/usage', '--output-format', 'json', '--no-session-persistence'], cwd)).stdout
     } catch (error) {
       throw new Error(callFailure(error), { cause: error })
     }
@@ -105,13 +93,16 @@ export class ClaudeCli {
 
   /** `claude -p /context`: a local command, no turn; spawned directly, as Git Bash would make it a paid turn. */
   async context(home: AccountHome, cwd: string, model: string, settings?: string): Promise<string> {
-    const call = run(this.bin(), contextArgs(model, settings), { cwd, env: this.envOf(home), timeout: this.timeoutMs, windowsHide: true })
-    call.child.stdin?.end()
     try {
-      return (await call).stdout
+      return (await this.call(home, contextArgs(model, settings), cwd)).stdout
     } catch (error) {
       throw new Error(callFailure(error), { cause: error })
     }
+  }
+
+  /** A short call that may renew the folder's sign-in: through `FolderCalls`, one at a time and never killed on a timeout. */
+  private call(home: AccountHome, args: string[], cwd?: string, maxBuffer?: number) {
+    return this.calls.run(home.dir, this.bin(), args, { cwd, env: this.envOf(home), timeoutMs: this.timeoutMs, maxBuffer })
   }
 
   async write(home: AccountHome, { cwd, prompt, model, timeoutMs }: OneTurn): Promise<OneTurnAnswer> {
@@ -370,6 +361,7 @@ async function withJobFiles(home: AccountHome, agents: AgentEntry[]): Promise<Ag
 
 /** A failed `execFile` in a line: how it ended and what the CLI printed, without the command line `message` starts with. */
 export function callFailure(error: unknown): string {
+  if (error instanceof CallTimeout) return 'timed out'
   const { code, killed } = error as { code?: unknown; killed?: boolean }
   const ended = killed === true ? 'timed out' : typeof code === 'number' ? `exit code ${code}` : undefined
   if (ended === undefined) return error instanceof Error ? error.message : String(error)
