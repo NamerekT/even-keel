@@ -2,7 +2,9 @@
 Draft of the release post (BTN-69). Not published from here: the author posts it by hand.
 
 Before posting:
-- the repository must be public: the link below points at github.com/NamerekT/even-keel;
+- the repository must be public: the link below points at github.com/NamerekT/even-keel,
+  and the images load from its `main` (assets/screens/), so they show only once a release carries them there;
+  where a site takes no image links (Show HN), upload the files from assets/screens/ or drop them;
 - re-run docs/posts/sequential-by-design.sql if the period is moved; every number below comes from it;
 - the comparison table is as of 2026-10-19 — check the rivals' READMEs again on the day;
 - "MIT licensed" in the last section follows LICENSE: change it if the license question (BTN-241) ends otherwise.
@@ -15,13 +17,25 @@ Where to post, in this order:
 4. The Claude Code Discord, the channel for projects built with it — two lines and the link.
 5. Pull requests to awesome lists: hesreallyhim/awesome-claude-code (section of orchestrators / tooling),
    and any awesome-codex list once Codex leaves preview.
+
+A ready answer to "several accounts = getting round the limits / the terms?" (keep it in line with the README's "Before you run it"):
+  No. A project runs on one account per provider, and when its limit is spent the chain waits for the reset;
+  it never switches to another account to keep going. Several accounts exist so that separate projects can
+  spend separate subscriptions — a side project does not eat the main one's window — and for API keys.
+  Sessions run through the unmodified `claude` and `codex` CLIs on accounts you sign in with yourself, under
+  Anthropic's and OpenAI's terms. OpenAI's terms rule out getting round its limits, so Even Keel refuses a
+  second Codex account on the free plan. It does not share, pool or resell access.
 -->
 
 # Ten agents at once is the wrong unit: running a backlog one task at a time on a Claude subscription
 
+**TL;DR.** Even Keel is an open-source dispatcher that runs a tracker's backlog through Claude Code one task at a time, in the order of the `blocks` links, and keeps going through usage limits, long contexts and questions while you are away. On a subscription the weekly window is the budget, and width only empties it sooner. In three weeks on my own projects the chain closed 421 of 428 tasks at a median 1.76 % of a weekly window each, and its longest run went 16.4 hours overnight.
+
 OpenAI's Symphony spec sets `max_concurrent_agents` to 10 by default. Most orchestrators for coding agents sell the same thing: width. Ten agents, ten worktrees, ten tasks at once.
 
 I went the other way. [Even Keel](https://github.com/NamerekT/even-keel) takes the open tasks of a project from the tracker (Huly, GitHub Issues or Linear), orders them by their `blocks` links and runs them through Claude Code **one at a time**: a session on the first task, and when its branch lands in `main`, cleanup and the next. It runs as a service on my own machine, on my own subscription, through the unmodified `claude` CLI.
+
+![A task goes to Done, its worktree is cleaned up and the next task's session starts](https://raw.githubusercontent.com/NamerekT/even-keel/main/assets/screens/chain.gif)
 
 This post is about why, with numbers from three weeks of running it.
 
@@ -35,11 +49,22 @@ Three more reasons, which I believed before I had numbers:
 - **The bottleneck is my attention.** Questions, reviews and merges are mine. Ten agents produce ten queues of them at once.
 - **A worktree isolates the work, not the result.** Conflicts, especially the semantic ones git doesn't see, move to merge time.
 
-So Even Keel bets on time instead of width: the agent keeps working while I'm away, and the chain survives what usually stops it — a spent usage limit (it waits for the reset and resumes the same session while its prompt cache is warm), a context that has grown too large (the session writes a handoff note and a fresh session continues in the same worktree), a question (it waits for me on a web page, in the tracker or on my phone, and only that task waits).
+So Even Keel bets on time instead of width: the agent keeps working while I'm away, and the chain survives what usually stops it:
+
+- **A spent usage limit.** It waits for the reset and resumes the same session while its prompt cache is warm.
+
+  ![The session hit the usage limit; the panel says it goes on after the reset with the cache still warm](https://raw.githubusercontent.com/NamerekT/even-keel/main/assets/screens/limit.png)
+
+- **A context that has grown too large.** The session writes a handoff note and a fresh session continues in the same worktree.
+- **A question.** It waits for me on a web page, in the tracker or on my phone, and only that task waits.
+
+  ![The page's chat with a session's question and its options](https://raw.githubusercontent.com/NamerekT/even-keel/main/assets/screens/question.png)
 
 ## The numbers
 
 Even Keel ships with a stats collector, Tally, that reads every session transcript into an embedded Postgres. That is where these numbers come from. The period is 2026-09-28 to 2026-10-18 — three full weeks. Read them with the caveats in mind: **this is one user, my own projects and my own workload**, mostly on Opus, and the dollar figures are API-equivalent prices of the tokens, not a subscription bill. Every number has a query next to it in the repository (`docs/posts/sequential-by-design.sql`).
+
+![The stats page: cost, weekly limits and spend by day per project (fake data)](https://raw.githubusercontent.com/NamerekT/even-keel/main/assets/screens/stats.png)
 
 **Throughput.** The chain ran 428 tasks; 421 of them are closed. The median task cost $4.63 in API-equivalent tokens and took 15 minutes of active agent time. It used a median of **1.76 % of a weekly window** (p90: 4.33 %) — about 57 median tasks per window. My windows did run out in most weeks. That is the point: the window is the budget, and the chain spends it on finished tasks.
 
@@ -54,9 +79,9 @@ What does make it smaller is not starting from zero. A long task that outgrows i
 
 A fresh session reads about 80k tokens of context before its first edit; a continuation about 40k. Half the entry.
 
-What this table does not compare is the CLI's own auto-compaction. The handoff threshold sat below it, so in these three weeks not one chain session was auto-compacted, and I have not measured whether a compacted session is cheaper than a handoff or keeps the thread better. So these numbers say a handoff beats starting over, not that it beats the alternative everyone already has. That experiment started the day this period ended: a week of the chain with the handoff nudges out of the way, so the CLI compacts instead. The results go into the next post. If compaction wins, the nudges at the context threshold go — which would be a funny way for this section to age. Handoffs themselves stay: compaction keeps one session going, and some tasks have to go on in a new one — after a limit outlived the cache, on another model, on another account.
+What this table does not compare is the CLI's own auto-compaction. The handoff threshold sat below it, so in these three weeks not one chain session was auto-compacted, and I have not measured whether a compacted session is cheaper than a handoff or keeps the thread better. So these numbers say a handoff beats starting over, not that it beats the alternative everyone already has. That experiment started the day this period ended: a week of the chain with the handoff nudges out of the way, so the CLI compacts instead. The results go into the next post. If compaction wins, the nudges at the context threshold go — which would be a funny way for this section to age. Handoffs themselves stay: compaction keeps one session going, and some tasks have to go on in a new one — after a limit outlived the cache, or on another model.
 
-**Waiting for me.** Of 170 hours of chain task time, **23 hours (13 %) were waiting for a human**: a question, a permission prompt, or the gap between the end of a session's turn and my next message. That gap counts even when the session had asked nothing and I simply looked later, so this is an upper bound; and it is a sum over tasks, not hours on the clock. It came in about 200 waits: 143 under five minutes, 50 of five to thirty, and three over an hour that make up a quarter of the total. 335 of 425 tasks never waited at all. Of 982 turns in chain sessions, 87 began with a message from me; the rest were started by the dispatcher, a background notification or another session.
+**Waiting for me.** Of 170 hours of chain task time, **23 hours (13 %) were waiting for a human**: a question, a permission prompt, or the gap between the end of a session's turn and my next message. That gap counts even when the session had asked nothing and I simply looked later, so this is an upper bound; and it is a sum over tasks, not hours on the clock. It came in about 200 waits: 143 under five minutes, 50 of five to thirty, and three over an hour that make up a quarter of the total. 335 tasks, nearly four in five, never waited at all. Of 982 turns in chain sessions, 87 began with a message from me; the rest were started by the dispatcher, a background notification or another session.
 
 **Going all night.** The longest stretch of uninterrupted chain work ran **16.4 hours, from 14:50 to 07:17 UTC the next morning.** In it: 12 tasks, all 12 closed; 32 handoffs at the context threshold across 9 of those tasks; one usage limit hit and waited out; three messages from me. On my workload, over this period, that is what a night looks like. It is not a claim that the problem is solved.
 
@@ -113,6 +138,8 @@ Checked against each project's own documentation as of October 2026; a dash mean
 
 Where the others are stronger: Sortie covers far more trackers and agents and has retries and budgets; Cyrus lives natively in the tracker; Gas Town does scale and a merge queue, which a sequential chain deliberately does not. A blocks-ordered chain is not unique any more either — Sortie and Cyrus both do a version of it. What I have not found elsewhere is the combination around a subscription: limits, a warm resume and a page to answer the agent from anywhere in one dispatcher, plus the statistics to see whether a change to your rules — or handoffs against compaction — made sessions cheaper or not.
 
+![A project's chain: one task done, one session working, the rest queued; the panel on the right shows the session's stage, context fill and current action](https://raw.githubusercontent.com/NamerekT/even-keel/main/assets/screens/chain.png)
+
 ## What comes next
 
 The backlog is longer than this post, and none of it is a promise. What I am most sure of:
@@ -126,6 +153,8 @@ The backlog is longer than this post, and none of it is a promise. What I am mos
 - **Further out:** several machines behind one page, a queue to review merged tasks after the fact rather than a gate before them, and a forecast of how much of the queue fits into what is left of the window tonight.
 
 ## Try it
+
+You need Node.js 24, git, the Claude Code CLI signed in with your subscription (the Codex CLI only for Codex tasks) and a Huly workspace, GitHub repositories with Issues or a Linear workspace.
 
 ```sh
 git clone https://github.com/NamerekT/even-keel && cd even-keel

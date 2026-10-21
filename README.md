@@ -11,6 +11,8 @@
 
 It runs as a service on your own machine, next to your repositories, on your own subscription, through the unmodified `claude` and `codex` CLIs. Trackers out of the box: [Huly](https://huly.io), GitHub Issues and [Linear](https://linear.app).
 
+![A project's chain: one task done, one session working, the rest queued; the panel on the right shows the session's stage, context fill and current action](assets/screens/chain.png)
+
 ## Sequential by design
 
 Most agent orchestrators sell width: ten agents in parallel, each in its own worktree. Even Keel deliberately runs the tasks of a project one after another. Why:
@@ -21,6 +23,8 @@ Most agent orchestrators sell width: ten agents in parallel, each in its own wor
 - **The subscription limit is shared.** Parallel agents spend it sooner, not on more; and each of them reads the same area of the code again.
 
 Even Keel wins in time, not in width: the agent keeps working while you are away, and the chain survives what usually stops it — the usage limit running out, a context grown too large. That steady going is what the name means. Different projects are different repositories, so their chains can run side by side.
+
+![A task goes to Done, its worktree is cleaned up and the next task's session starts](assets/screens/chain.gif)
 
 ## What it does
 
@@ -34,6 +38,10 @@ Even Keel wins in time, not in width: the agent keeps working while you are away
 - **Accounts.** Several Claude and Codex subscriptions or API keys, one per project and provider, with their limits on the page.
 - **Statistics (optional):** cost and time per task, stuck spans, before/after comparisons of changes to your rules.
 - **The page:** the chain, each session's stage, current action and context fill, task cards, changelog drafts; in English or Russian.
+
+| A question in the page's chat | A spent limit, waited out with the cache warm | Statistics |
+| --- | --- | --- |
+| ![The page's chat with a session's question and its options](assets/screens/question.png) | ![The session hit the usage limit; the panel says it goes on after the reset with the cache still warm](assets/screens/limit.png) | ![The stats page: cost, weekly limits and spend by day per project](assets/screens/stats.png) |
 
 Every feature in full: [docs/guide/features.md](docs/guide/features.md).
 
@@ -55,11 +63,10 @@ Every feature in full: [docs/guide/features.md](docs/guide/features.md).
 ## Quick start
 
 ```sh
-git clone <this repository> even-keel
+git clone https://github.com/NamerekT/even-keel.git
 cd even-keel
 npm install
 npm run build
-cp .env.example .env
 npm start
 ```
 
