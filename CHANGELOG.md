@@ -4,20 +4,21 @@ All notable changes to Even Keel are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.1.0] - 2026-10-21
 
 ### Added
 
-- **The chain.** Even Keel takes a project's open tasks from the tracker and runs one Claude Code session (`claude --bg`) at a time. When a task is done, the next one starts. The order is set by `blocks` links, then milestones (by the version in the name, then the target date), then priority and task number. Contradictions between blockers and milestones are reported as chain errors. Parent tasks never run themselves, and a task with an open blocker waits. A blocker still in the backlog shows in the chain as a locked row. If there is nothing to run, **Start** says why.
+- **The chain.** Even Keel takes a project's open tasks from the tracker and runs one Claude Code session (`claude --bg`) at a time. When a task is done, the next one starts. The order is set by `blocks` links, then milestones (by the version in the name, then the target date), then priority and task number. Contradictions between blockers and milestones are reported as chain errors. Parent tasks never run themselves, and a task with an open blocker waits. A blocker still in the backlog shows in the chain as a locked row. If there is nothing to run, **Start** says why. When a project has no tasks left, the chain says so and has a button that opens the project in the tracker.
 - Rules for which tasks enter the chain: active and terminal statuses, required labels, and excluded labels (`Manual` is always excluded). Backlog tasks stay out of the chain.
 - Drag tasks to reorder the chain on the project page, within the limits of their blockers and milestones. With `fillMilestone` on, a task that enters the chain without a milestone gets the active milestone.
 - Several chains of different projects can run at once (`parallel`). The other projects wait in a queue, which you can reorder or trim from the header.
-- **Task worktrees.** Even Keel prepares `.claude/worktrees/<key>-<number>` on the branch `<key>-<number>/task` before the launch. After Done it stops the task's sessions, removes the worktree and the branch, and syncs the main branch with every remote. It uses the `git sync` alias if there is one, otherwise its own fetch, merge and push. A project can use a pool of permanent slots instead, for repositories with heavy ignored caches. Anything it could not clean up is listed on the project page. The main branch is a project setting (`branch`, `main` by default). A session that is only running a background command does not hold up Done, and stopping a session also ends its background commands.
+- **Task worktrees.** Even Keel prepares `.claude/worktrees/<key>-<number>` on the branch `<key>-<number>/task` before the launch. After Done it stops the task's sessions, removes the worktree and the branch, and syncs the main branch with every remote. It uses the `git sync` alias if there is one, otherwise its own fetch, merge and push. A project can use a pool of permanent slots instead, for repositories with heavy ignored caches. Anything it could not clean up is listed on the project page. The main branch is a project setting (`branch`, `main` by default). A session that is only running a background command does not hold up Done, and stopping a session also ends its background commands. No session is launched while the main checkout is on a branch other than the project's.
+- Some tasks need no change in the repository, such as research or an answer. Their session ends its turn with `NO CHANGES: <why>`. If the worktree has no commits beyond the main branch and nothing uncommitted, Even Keel moves the task to Done, posts the line as a comment, cleans up and goes on with the chain.
 - **Handoffs.**
   - A session that hit the usage limit is resumed after the reset while its prompt cache is still warm. Otherwise it is replaced by a new session with a handoff prompt.
   - A session that ends its turn with `CHECKPOINT: <path>` is handed over to a fresh session the same way.
   - The checkpoint plugin asks for a checkpoint from 200k tokens of context, or from a threshold calibrated from the project's statistics, and stops asking below 300k after three handoffs. Its thresholds stay within 72, 85 and 95 % of the session's context window (`stats.checkpointShares`, for all projects and per project). The window size comes from the agent and is applied live.
-  - The **New session** button replaces a session by hand.
+  - The **New session** button replaces a session by hand. It shows for every open task. When **New session** or **Skip** is greyed out, a tip says why and when it becomes available.
   - If the service restarts in the middle of a handoff, an answer or a **New session**, it finishes the step after the restart.
 - **Skip** and **Return to chain** for a task. A task whose session filed a blocker for it is postponed until the blocker is done. **Stop** ends a running chain, and **Stop after this task** ends it once the current task is done.
 - **Unattended mode**, a switch in **Settings → Chain** for when nobody will answer. Sessions are told to ask nothing and to park a task a question holds: committed on its branch, unmerged, the question left in the task, the task moved to Backlog. When such a task is moved back to Todo, it gets a new session with a handoff that points to the answer. A session that sits 10 minutes without the task done is skipped, so one stuck session does not stop the whole run.
@@ -33,7 +34,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - **Web page**, for desktop and phone, in dark and light themes:
   - The home page has project cards and a chart of launches by day. Cards can be grouped by remote and tracker (**No groups** by default) and are sorted into zones by state. Quiet projects shrink to a strip, and each project has its own colour (`color`).
   - The project page shows the chain as a list with status lamps, milestone sections, the closed tasks folded into an archive, and a context gauge on the current task.
-  - The session panel shows the time in work, context, tokens, cache, the session's model and account, and its Remote Control link.
+  - The session panel shows the time in work, context, tokens, cache, the session's model and account, and its Remote Control link. If a session asks a question before its first reply, the panel still shows its model, taken from the launch, and the cache clock runs from the question.
   - The header shows the limits, the tracker connection and the sessions waiting for an answer.
   - Hints without buttons close as soon as the cursor leaves their icon.
 - The page and the session prompts are in English or Russian, set separately (`language`, `promptLanguage`).
@@ -42,6 +43,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
   - The shared configuration (MCP servers, folder trust, project memory) is carried over to every account folder.
   - An account can also be an Anthropic API key. It shows today's spend instead of limits, and a session whose key runs out of credit waits until the key is topped up.
   - Prompt cache lifetime setting: `cacheTtl`.
+  - Even Keel calls the CLI on an account folder one call at a time and never cuts a call off while it renews the sign-in token, so accounts stay signed in across reboots; it also clears the lock files the CLI leaves behind.
 - **Limits.** The 5-hour and weekly windows of every account are read with the CLI's `/usage` command. While a window is exhausted, the next task waits for its reset. The header shows rings for every account a project uses.
 - **Run profiles.** The provider, model and account are set for all projects and per project. With `modelLabels` on, a task label `Provider | model` (for example `Claude | sonnet`) picks them for that task. If the label names a provider with no account, the task runs on the project's provider and the page says so. A project can add its own prompt and run its own commands before each session starts.
 - **Codex (preview).** Sessions can run on the OpenAI Codex CLI (`codex exec --json` per turn):
@@ -49,11 +51,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
   - The project's MCP servers, plugin skills and hooks are passed on every turn.
   - Accounts can be several subscriptions (at most one on the free plan) or an OpenAI API key. A session whose key runs out of quota waits until the key is topped up, as with Claude. The built-in `codex` and `global` accounts show only when their folder exists, the first account added from the page becomes the shared one, and without the Codex CLI the page says so.
   - `execution.codex: bypass` turns the Codex sandbox off, which the Windows service needs.
-- **Checked CLI versions.** Chain sessions run on the Claude Code and Codex versions this release was checked on, not on whatever the installed CLI has updated itself to. Even Keel downloads them into `state/cli/` and keeps the auto-updater off for those sessions. **Settings → Models**, "CLI version", `Installed` switches a provider back to your own CLI, and a banner shows while sessions would run on an unchecked version.
+- **Checked CLI versions.** Chain sessions run on the Claude Code and Codex versions this release was checked on, not on whatever the installed CLI has updated itself to. Even Keel downloads them into `state/cli/` and keeps the auto-updater off for those sessions. **Settings → Models**, "CLI version", `Installed` switches a provider back to your own CLI, and a banner shows while sessions would run on an unchecked version. The checked versions are Claude Code 2.1.306 and codex-cli 0.163.0.
 - **Trackers.**
   - There are adapters for Huly, GitHub Issues and Linear. Each project chooses its own tracker.
-  - Even Keel puts the task's title and description into the prompt (`brief`) and closes the task when its branch is merged. Without the tracker's plugin among the project's packages, `brief` turns on by itself and the prompt carries the merge rule.
-  - Tracker connections are profiles on **Settings → Access**: saved only after a successful check, several per tracker, one default each. A Huly profile signs in with an e-mail and password by default.
+  - Even Keel puts the task's title and description into the prompt (`brief`) and closes the task when its branch is merged. Without the tracker's plugin among the project's packages, `brief` turns on by itself and the prompt carries the merge rule. A button beside **Task description in the prompt** takes you to `/tools`, where you can add the tracker's package in a couple of clicks.
+  - Tracker connections are profiles on **Settings → Access**: saved only after a successful check, several per tracker, one default each. A Huly profile signs in with an e-mail and password by default. Field hints in the profile dialog explain each field, not just name its environment variable. The dialog also lists the token permissions each use needs, and the setup guide collects them in one table.
   - Claude Code plugins `huly`, `github` and `linear` come from the `even-keel` marketplace: the tracker's MCP server and a skill for working a task. The Huly plugin also shows estimate calibration from the statistics.
 - **Packages.** Plugins and MCP servers are a set per project:
   - Each is installed at a pinned version and given to chain sessions by launch flags.
@@ -73,6 +75,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
   - A branch with nothing to merge opens no empty pull request, and the page says why.
   - When a pull request is closed without a merge, the task's next run gets the pull request's link and comments.
   - A pull request button sits in the task panel and the chat window, and **Refresh** polls pull requests too.
+  - The switch is unavailable until the project has a remote and a profile for it. An **Add profile** button sits beside the switch and in the pause banner. A remote on neither GitHub nor Forgejo is shown as an unsupported host instead of a request for a Forgejo profile.
+  - Without a remote and a profile to open pull requests with, the chain pauses before the launch and goes on by itself once one is added or the mode is turned off.
 - **Statistics (Tally).**
   - Statistics are optional: the page asks at the first start, and a switch in the settings (`tally`) turns them off or points them at the embedded database or your own Postgres.
   - A built-in collector reads session transcripts, Claude Code and Codex, into an embedded Postgres (PGlite) every five minutes. An external Postgres is optional. Codex models are priced too.
@@ -80,10 +84,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
   - The project page has a 30-day strip.
   - Optional extras: a hook that asks sessions to log why a rule changed, the agent's active time written back to Huly as a time report, and `tally/bin/sql.mjs` for read-only queries.
 - **Settings on the page.**
-  - `/settings` and each project's settings are split into tabs, with save and revert per group and "was: …" markers. A file edited under an open form is no longer overwritten.
+  - `/settings` and each project's settings are split into tabs, with save and revert per group and "was: …" markers. A file edited under an open form is no longer overwritten. **Prompt cache lifetime** is in the Claude Code group, and the introduction to a project's settings is in a hint.
   - CI, `promptLanguage`, `checkpointTokens`, `cacheTtl` and `fillMilestone` can be set for all projects and per project.
   - Settings and `.env` apply live, without a restart.
-  - The add-project wizard checks the repository, the branch, the tracker and Claude Code's trust in the folder.
+  - The add-project wizard checks the repository, the branch, the tracker and Claude Code's trust in the folder. For a folder that is not trusted yet, it gives a ready command to run in a terminal and checks again when you come back to the page.
   - A project is removed from its settings.
 - **Storage.**
   - The chain state, settings and projects are in an embedded database in `state/even-keel/`.
