@@ -86,6 +86,12 @@ export function nextTask(tasks: Task[], order: string[], holding: string[]): str
   return undefined
 }
 
+/** Whether the order puts a task the chain could start above `current`, or leaves `current` out; held tasks may stand above it. */
+export function startsAhead(tasks: Task[], order: string[], current: string, holding: string[]): boolean {
+  const at = order.indexOf(current)
+  return at < 0 || nextTask(tasks, order.slice(0, at), holding) !== undefined
+}
+
 export function openBlockers(tasks: Task[], id: string): string[] {
   const ids = new Set(tasks.map((task) => task.id))
   return tasks.find((task) => task.id === id)?.blockedBy.filter((other) => ids.has(other)) ?? []

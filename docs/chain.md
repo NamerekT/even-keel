@@ -22,7 +22,7 @@ Reference for sessions: entry into the chain, order, task worktrees, cleanup and
 
 ## Order (`src/chain/order.ts`)
 
-`blocks` blockers, then the saved order (`state/chain.json`), milestone, priority (Urgent → High → Medium → Low → none), task number. A new task is placed before the first task of its own or a lower priority, after more urgent ones (`withFresh`); the current task stays first.
+`blocks` blockers, then the saved order (`state/chain.json`), milestone, priority (Urgent → High → Medium → Low → none), task number. A new task is placed before the first task of its own or a lower priority, after more urgent ones (`withFresh`); the current task stays first, with or without a saved order, unless its blockers or milestone put a task ahead of it. A new order from the page may put above the current task only tasks the chain cannot take: skipped ones and those held by a blocker outside the chain (`startsAhead`, the logic of `nextTask`); anything else is `chain.currentFirst`.
 
 ## Task worktree (`src/git/worktree.ts`)
 

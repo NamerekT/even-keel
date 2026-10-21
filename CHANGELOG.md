@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Fixed
+
+- A task postponed on an open blocker, or skipped, no longer stands above the running task on the project page, and dragging tasks after that no longer fails with "is running and stays first". The running task is drawn first even when the chain has no order of your own yet.
+
 ### Security
 
 - `markdown-it` is 14.3.3, which parses in linear time: an older one, which the Huly client pulls in, could be held up by crafted markdown. `vite`, used only to build the page and by `dev:fake`, is 8.3.5.
