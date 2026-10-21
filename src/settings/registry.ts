@@ -1,5 +1,5 @@
 import { CLI_SOURCES, EXECUTION_MODES, DEFAULT_PROVIDER, isProvider, PROVIDERS } from '../agent/providers.js'
-import { DEFAULT_RULES } from '../chain/rules.js'
+import { DEFAULT_RULES, type ChainRules } from '../chain/rules.js'
 import { changelogPath, DEFAULT_CHANGELOG } from '../changelog/file.js'
 import { CI_KINDS, type CiKind, type RemoteProfiles } from '../ci/model.js'
 import type { EvenKeelConfig } from '../config.js'
@@ -138,7 +138,7 @@ const ciSwitch = (key: 'guard' | 'recheckMain' | 'fixTask'): SettingDefinition =
   check: boolean(`ci.${key}`),
 })
 
-const rule = (key: 'active' | 'terminal' | 'requiredLabels' | 'excludedLabels'): SettingDefinition => ({
+const rule = (key: keyof ChainRules): SettingDefinition => ({
   key: `chain.${key}`,
   kind: 'list',
   scopes: ['global', 'project'],
@@ -200,6 +200,8 @@ export const DEFINITIONS: readonly SettingDefinition[] = [
   rule('terminal'),
   rule('requiredLabels'),
   rule('excludedLabels'),
+  rule('requiredMilestones'),
+  rule('excludedMilestones'),
   { key: 'provider', kind: 'enum', scopes: ['global', 'project'], taskLabel: 'run', lands: ['provider', 'settings'], default: DEFAULT_PROVIDER, check: (value, place) => {
     const name = typeof value === 'string' ? value.trim().toLowerCase() : ''
     if (!isProvider(name)) throw fail('config.provider', { where: at(place, 'provider'), value: json(value), known: [...PROVIDERS] })
@@ -308,6 +310,11 @@ export const DEFINITIONS: readonly SettingDefinition[] = [
       if (typeof id === 'string' && id.trim() !== '') chosen[kind as CiKind] = id.trim()
     }
     return chosen
+  } },
+  // A release project (BTN-172): the key of the project its branch merges into; `null` — a main project. Checked against the other projects in `parseConfig`.
+  { key: 'mergeInto', kind: 'string', scopes: ['project'], lands: ['settings'], default: null, check: (value, place) => {
+    if (value !== null && typeof value !== 'string') throw fail('config.mergeIntoValue', { where: at(place, 'mergeInto') })
+    return value === null || value.trim() === '' ? null : value.trim()
   } },
   { key: 'pullRequests', kind: 'boolean', scopes: ['project'], lands: ['settings'], default: false, check: boolean('pullRequests') },
   { key: 'fillMilestone', kind: 'boolean', scopes: ['global', 'project'], lands: ['settings'], default: false, check: boolean('fillMilestone') },

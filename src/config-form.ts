@@ -55,8 +55,18 @@ export function trackerChoices(adapters: Readonly<Record<string, Pick<TrackerAda
   return Object.entries(adapters).map(([name, { title, projectKey }]) => ({
     name,
     title,
-    projectKey: projectKey === undefined ? null : { key: projectKey.key, example: projectKey.example, optional: projectKey.optional === true },
+    projectKey:
+      projectKey === undefined
+        ? null
+        : { key: projectKey.key, example: projectKey.example, optional: projectKey.optional === true, alias: projectKey.alias === true },
   }))
+}
+
+/** What the entry keeps of the tracker's project the form gives: nothing when blank, or when it only repeats the key it stands in for. */
+function trackerValue(adapters: Adapters, tracker: string, given: string | null, key: string): string | undefined {
+  const value = given?.trim() ?? ''
+  if (value === '' || (adapters[tracker]?.projectKey?.alias === true && value === key)) return undefined
+  return value
 }
 
 /**
@@ -100,8 +110,8 @@ export function withProjectForm(raw: unknown, id: string, form: ProjectForm, bas
     for (const { projectKey } of Object.values(adapters)) {
       if (projectKey !== undefined && projectKey.key !== own) delete entry[projectKey.key]
     }
-    const value = form.trackerProject?.trim() ?? ''
-    if (own !== undefined && value === '') delete entry[own]
+    const value = trackerValue(adapters, form.tracker, form.trackerProject, String(entry.key))
+    if (own !== undefined && value === undefined) delete entry[own]
     else if (own !== undefined) entry[own] = value
   }
   return { ...config, projects: list.map((each, at) => (at === index ? entry : each)) }
@@ -118,7 +128,8 @@ export function withNewProject(raw: unknown, draft: ProjectDraft, id: string, ad
   if (branch !== '' && branch !== DEFAULT_BRANCH) entry.branch = branch
   if (draft.tracker !== shared.tracker) entry.tracker = draft.tracker
   const own = adapters[draft.tracker]?.projectKey?.key
-  if (own !== undefined && draft.trackerProject.trim() !== '') entry[own] = draft.trackerProject.trim()
+  const value = trackerValue(adapters, draft.tracker, draft.trackerProject, entry.key as string)
+  if (own !== undefined && value !== undefined) entry[own] = value
   if (draft.slot > 0) entry.slot = draft.slot
   const next = { ...config, projects: [...(Array.isArray(config.projects) ? config.projects : []), entry] }
   // Written, so that the color stays when a project before it goes and frees a lower one.
@@ -220,5 +231,13 @@ export function withSharedAccount(raw: unknown, provider: string, key: string): 
 /** Names trimmed, blanks dropped; an empty `active` or `terminal` goes by the categories of the statuses. */
 function rulesOf(rules: ChainRules): ChainRules {
   const statuses = (list: string[] | null) => (list === null || names(list).length === 0 ? null : names(list))
-  return { active: statuses(rules.active), terminal: statuses(rules.terminal), requiredLabels: names(rules.requiredLabels), excludedLabels: names(rules.excludedLabels) }
+  return {
+    active: statuses(rules.active),
+    terminal: statuses(rules.terminal),
+    requiredLabels: names(rules.requiredLabels),
+    excludedLabels: names(rules.excludedLabels),
+    // A page open since before the milestone rules sends none.
+    requiredMilestones: names(rules.requiredMilestones ?? []),
+    excludedMilestones: names(rules.excludedMilestones ?? []),
+  }
 }

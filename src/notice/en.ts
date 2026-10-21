@@ -87,6 +87,15 @@ export const en = {
   'sync.merge': (p: { remote: string; main: string }) => `sync: ${p.remote}/${p.main} does not merge cleanly into ${p.main}, merge it by hand`,
   'sync.push': (p: { remote: string; main: string }) => `sync: could not push ${p.main} to ${p.remote}`,
 
+  'forward.busy': (p: { into: string }) => `forward: the chain of ${p.into} is working; the release branch goes in once it is quiet`,
+  'forward.notOnBranch': (p: { repo: string; branch: string; current: string }) =>
+    `forward: ${p.repo} is on ${p.current || 'a detached HEAD'}, not ${p.branch}; the release branch waits`,
+  'forward.dirty': (p: { repo: string }) => `forward: ${p.repo} has uncommitted changes; the release branch waits`,
+  'forward.fetch': (p: { from: string }) => `forward: could not fetch the branch of ${p.from}`,
+  'forward.conflict': (p: { from: string; into: string; files: string[] }) =>
+    `forward: the branch of ${p.from} conflicts with ${p.into} in ${p.files.join(', ') || 'unknown files'}; the merge is aborted and waits for a merge by hand or "Carry now"`,
+  'forward.notRelease': (p: { project: string }) => `forward: ${p.project} merges into no other project`,
+
   'ci.noToken': (p: { variable: string }) => `set ${p.variable} in the environment of Even Keel to watch this CI`,
   'ci.denied': (p: { ci: string; status: number }) => `${p.ci}: the token was refused (HTTP ${p.status}); it needs read access to the repository's actions`,
   'ci.http': (p: { ci: string; status: number }) => `${p.ci}: the API answered HTTP ${p.status}`,
@@ -349,11 +358,17 @@ export const en = {
   'config.writeFailed': (p: { file: string }) => `config: could not write ${p.file}`,
   'config.statusBoth': (p: { project: string; status: string }) => `config: ${p.project}: status "${p.status}" is both active and terminal`,
   'config.labelBoth': (p: { project: string; label: string }) => `config: ${p.project}: label "${p.label}" is both required and excluded`,
+  'config.milestoneBoth': (p: { project: string; milestone: string }) => `config: ${p.project}: milestone "${p.milestone}" is both required and excluded`,
+  'config.trackerProjectShared': (p: { project: string; other: string; trackerProject: string }) =>
+    `config: ${p.project} and ${p.other} read the tracker project ${p.trackerProject}, and a task may enter both chains: split them by milestone (chain.requiredMilestones and chain.excludedMilestones)`,
   'config.modelPrompts': () => 'config: modelPrompts must map the name of a model to a prompt',
   'config.modelPromptEmpty': (p: { model: string }) => `config: modelPrompts.${p.model} is empty`,
   'config.hiddenSkills': () => 'config: hiddenSkills must be a list of skill names',
   'config.cacheTtl': (p: { value: string }) => `config: cacheTtl ${p.value} must be "5m" or "1h", or left out`,
   'config.parallel': (p: { value: string }) => `config: parallel must be a positive integer, got ${p.value}`,
+  'config.mergeInto': (p: { project: string; into: string }) =>
+    `config: ${p.project}.mergeInto names ${p.into}, which is not another project or merges into one itself`,
+  'config.mergeIntoValue': (p: { where: string }) => `config: ${p.where} must be a project key or null`,
   'config.allowedHosts': () => 'config: allowedHosts must be a list of host names',
   'config.updatesKey': (p: { key: string; known: string[] }) => `config: updates.${p.key} is not an update setting, known: ${list(p.known)}`,
   'config.updatesDismissed': (p: { value: string }) => `config: updates.dismissed must be a version such as 0.2.0, or null, got ${p.value}`,

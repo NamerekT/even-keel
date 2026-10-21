@@ -82,7 +82,7 @@ export interface TrackerUrls {
 
 /**
  * What the user sets per project and the chain reads live: `branch`, `prompt`, `commands.beforeStart`, `commands.check`,
- * `commands.afterGreen`, `ci`, `remoteProfiles`, `pullRequests`, `fillMilestone`, `changelog`, `provider`, `models`, `accounts` and `modelLabels` in the config.
+ * `commands.afterGreen`, `ci`, `remoteProfiles`, `pullRequests`, `mergeInto`, `fillMilestone`, `changelog`, `provider`, `models`, `accounts` and `modelLabels` in the config.
  */
 export interface ProjectSettings {
   /** The project's main branch: tasks branch off it and merge into it, the CI watches it. */
@@ -100,6 +100,8 @@ export interface ProjectSettings {
   remoteProfiles: RemoteProfiles
   /** PR mode (BTN-205): a session does not merge its branch, Even Keel pushes it and opens a pull request. */
   pullRequests: boolean
+  /** A release project (BTN-172): the project whose branch its own one merges into once that project's chain is quiet; `null` — a main project. */
+  mergeInto: string | null
   /** A task that enters the chain without a milestone gets the active one in the tracker. */
   fillMilestone: boolean
   /** The changelog file, relative to the repository's root (BTN-209). */
@@ -192,7 +194,7 @@ export interface ProjectForm extends ProjectSettings {
   name: string | null
   repo: string
   tracker: string
-  /** The project's key in its tracker (`github`: `owner/name`, `linear`: a project of the team); `null` — the tracker has none, or it is optional and not set. */
+  /** The project's key in its tracker (`github`: `owner/name`, `linear`: a project of the team, `huly`: a Huly project other than the key); `null` — the tracker has none, or it is optional and not set. */
   trackerProject: string | null
   /** Slots of the pool; `0` — a worktree per task. */
   slot: number
@@ -239,7 +241,8 @@ export interface TrackerChoice {
   name: string
   /** The name on the page: `GitHub`, not `github`. */
   title: string
-  projectKey: { key: string; example: string; optional: boolean } | null
+  /** `alias` — the value names the tracker's project in place of the key (Huly), see `TrackerProjectKey.alias`. */
+  projectKey: { key: string; example: string; optional: boolean; alias: boolean } | null
 }
 
 /** A project the wizard of `/projects/add` is about to add; blank text — not given. */
@@ -285,6 +288,19 @@ export interface ProjectCheck {
   trusted: boolean | null
   /** The platform of the service's machine (`process.platform`), which the folder is on: the trust command depends on it. */
   platform: string
+}
+
+/** How a release project's branch goes into the branch of the project it merges into (`mergeInto`, BTN-172). */
+export interface ForwardView {
+  into: string
+  /** The commits of the release branch the other branch lacks; `null` — not read yet. */
+  behind: number | null
+  /** Why they wait; `null` — nothing waits. */
+  hold: Notice | null
+  /** A conflict holds them until "Carry now" or a merge by hand. */
+  held: boolean
+  /** The last carry: when, how many commits, and its push that failed. */
+  last?: { at: string; commits: number; push: Notice | null }
 }
 
 /** The config file as the settings show it: the saved values, all applied on the fly. */
@@ -361,6 +377,8 @@ export interface EvenKeelState {
   mailbox: Record<string, SessionMail>
   /** The tasks the changelog written last accounts for, by project key and milestone (BTN-209). */
   changelogs: Record<string, Record<string, string[]>>
+  /** How each release project's branch goes into the project it merges into, by the release project's key (BTN-172). */
+  forwards: Record<string, ForwardView>
 }
 
 /**

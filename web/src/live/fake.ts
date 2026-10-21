@@ -223,6 +223,7 @@ function fakeState(
     fallbacks: [],
     mailbox: {},
     changelogs: fakeWrittenChangelogs(),
+    forwards: {},
   }
 }
 

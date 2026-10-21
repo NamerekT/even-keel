@@ -70,6 +70,7 @@ function state(startedAt: string): EvenKeelState {
     fallbacks: [],
     mailbox: {},
     changelogs: {},
+    forwards: {},
   }
 }
 

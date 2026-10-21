@@ -23,6 +23,7 @@ import { CODEX } from './codex/name.js'
 import { Dispatcher, type LaunchEntry } from './chain/dispatcher.js'
 import { fallbacksSince, fixEpisodes, handoffsOf, launchDays, launchedProjects, taskSessions } from './chain/launches.js'
 import { fixName, fixTaskOf, isFixName } from './chain/fix.js'
+import { chainQuiet, ForwardMerger } from './chain/forward.js'
 import { fixPrompt, noteOf, resumePrompt, startPrompt, withBrief, withProjectPrompt, withTracker, withUnattended, type HandoffSession, type TrackerPlace } from './chain/relay.js'
 import { launchLine } from './chain/log.js'
 import { mainCheckDeps, mergeCheck } from './chain/mainci.js'
@@ -42,12 +43,12 @@ import type { CiTarget, Remote } from './ci/remote.js'
 import { CiWatch } from './ci/watcher.js'
 import { CiWatches } from './ci/watches.js'
 import { ConfigStore } from './config-store.js'
-import { DEFAULT_BRANCH, DEFAULT_CI, listenOf, mcpPortOf, poolEntries, projectsByAccount, runSettings, type EvenKeelConfig } from './config.js'
+import { DEFAULT_BRANCH, DEFAULT_CI, idPrefixOf, listenOf, mcpPortOf, poolEntries, projectsByAccount, readKeyOf, runSettings, type EvenKeelConfig } from './config.js'
 import { envTargets } from './env-file.js'
 import { EventHub } from './events.js'
 import { runGit } from './git/run.js'
 import { finishSlot, heldSlot, prepareSlot, slotPaths, type SlotUse } from './git/slot.js'
-import { fastForwardMain } from './git/sync.js'
+import { fastForwardMain, syncMain } from './git/sync.js'
 import { ensureIgnored, finishWorktree, prepareWorktree, requireBranch, requireCheckedOut, taskPlace } from './git/worktree.js'
 import { exhaustedReset, limitResetAfter } from './limits/model.js'
 import { LimitsWatcher } from './limits/watcher.js'
@@ -115,6 +116,8 @@ const NETWORK_PROBE_MS = 5_000
 const LAUNCH_CHART_DAYS = 14
 const FALLBACK_TOAST_MS = 24 * 60 * 60_000
 const ACCOUNT_POLL_MS = 60_000
+/** How often a release project's branch is looked at for commits the branch it merges into lacks (BTN-172). */
+const FORWARD_TICK_MS = 60_000
 const KEY_CHECK_MS = 60 * 60_000
 const KEY_CHECK_TIMEOUT_MS = 15_000
 const CREDIT_CHECK_MS = 5 * 60_000
@@ -288,6 +291,7 @@ const trackers = new Trackers({
       dispatcher,
       fillsMilestone: (project) => configStore.current.settings[project]?.fillMilestone ?? false,
       mainBranch: branchOf,
+      readKey: (project) => readKeyOf(configStore.current, project),
       broadcast: () => hub.broadcast('state', getState()),
       refreshers,
     }),
@@ -612,7 +616,12 @@ const monitor = new SessionMonitor({
   homes: () => homes.list(),
   emailOf: (key) => account.emailOf(key),
   apiKey: (key) => account.apiKey(key),
-  projectKeys: () => Object.keys(configStore.current.projects),
+  // The keys name the fix sessions (`<KEY>-FIX`), the prefixes the tasks of projects whose ids are the tracker's own.
+  projectKeys: () => {
+    const config = configStore.current
+    const keys = Object.keys(config.projects)
+    return [...new Set([...keys, ...keys.map((project) => idPrefixOf(config, project))])]
+  },
   contextWindow: (key, model, task) => (agentOf(homeOf(key)).contextWindow === undefined ? null : contextWindows.peek(key, model, task)),
   intervalMs: SESSION_POLL_MS,
   onAgents: (list) => {
@@ -966,6 +975,25 @@ const dispatcher = new Dispatcher(await loadChainState(db, configStore.current.i
   }),
 })
 
+const forwards = new ForwardMerger({
+  pairs: () => Object.entries(configStore.current.settings).flatMap(([from, { mergeInto: into }]) => (into === null ? [] : [{ from, into }])),
+  repo: (project) => configStore.current.projects[project]!,
+  branch: branchOf,
+  quiet: (project) => {
+    const status = (task: string) => agentStatus(task)
+    return chainQuiet(dispatcher.state.active.find((chain) => chain.project === project), (task) => status(task) === 'busy' || status(task) === 'waiting')
+  },
+  git: runGit,
+  sync: async (project) => {
+    const repo = configStore.current.projects[project]!
+    const remotes = (await runGit(repo, ['remote'])).out.split(/\s+/).filter(Boolean)
+    return remotes.length === 0 ? null : syncMain(runGit, repo, remotes, branchOf(project))
+  },
+  now: () => new Date(),
+  changed: () => hub.broadcast('state', getState()),
+  log: (message) => console.log(message),
+})
+
 /** Stops the session and resumes it with `prompt`; the page keeps it working, not finished, while it is respawned. */
 function resumeWith(task: string, session: HandoffSession, prompt: string): Promise<string> {
   return monitor.holds.during(session.sessionId, async () => {
@@ -1156,6 +1184,7 @@ const getState = (): EvenKeelState => ({
     }),
   ),
   changelogs: changelogs.writtenTasks(),
+  forwards: forwards.view(),
 })
 
 // The chain's switches are Even Keel's setting rows: the page's switches write them, and `onChange` hands them to the dispatcher.
@@ -1398,6 +1427,7 @@ let server = createEvenKeelServer({
     if (op.op === 'write') hub.broadcast('state', getState())
     return view
   },
+  carry: (project) => forwards.carry(project),
   stats,
   guard: () => ({ hosts: guardHosts(listen.host, configStore.current.allowedHosts), token, language: configStore.current.language ?? promptLanguage() }),
 })
@@ -1411,9 +1441,16 @@ async function inHomes<T>(read: (home: AccountHome) => Promise<T | undefined>): 
   return undefined
 }
 
+/**
+ * The project of a task: the one whose list has it, else one whose task ids its id carries — projects on one tracker
+ * project, or on one Linear team, share a prefix that is not their key (BTN-172).
+ */
 function configuredProject(task: string): string | undefined {
-  const project = parseTaskId(task)?.project
-  return project !== undefined && Object.hasOwn(configStore.current.projects, project) ? project : undefined
+  const listed = projectOf(task)
+  if (listed !== undefined) return listed
+  const prefix = parseTaskId(task)?.project
+  const config = configStore.current
+  return Object.keys(config.projects).find((project) => idPrefixOf(config, project) === prefix)
 }
 
 const postedQuestions = await loadQuestions(db)
@@ -1456,6 +1493,7 @@ applyCi()
 setInterval(() => {
   for (const watch of ciWatches.all()) void watch.tick()
 }, CI_TICK_MS).unref()
+setInterval(() => void forwards.tick().catch(() => {}), FORWARD_TICK_MS).unref()
 setInterval(
   () =>
     void Promise.all([ciWatches.refresh(), remotes.apply(configStore.current.projects)]).then(([changed, moved]) => {

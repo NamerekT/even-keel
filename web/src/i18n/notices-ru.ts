@@ -82,6 +82,14 @@ export const noticesRu: NoticeTexts = {
   'sync.merge': (p) => `${p.remote}/${p.main} не сливается в ${p.main} чисто — слейте вручную`,
   'sync.push': (p) => `не удалось отправить ${p.main} в ${p.remote}`,
 
+  'forward.busy': (p) => `цепочка ${p.into} работает — релизная ветка вольётся, когда она затихнет`,
+  'forward.notOnBranch': (p) => `${p.repo} стоит на ${p.current || 'отцепленном HEAD'}, а не на ${p.branch} — релизная ветка ждёт`,
+  'forward.dirty': (p) => `в ${p.repo} есть незакоммиченные правки — релизная ветка ждёт`,
+  'forward.fetch': (p) => `не удалось получить ветку ${p.from}`,
+  'forward.conflict': (p) =>
+    `ветка ${p.from} конфликтует с ${p.into} в ${p.files.join(', ') || 'неизвестных файлах'} — слияние отменено и ждёт ручного слияния или «Перенести сейчас»`,
+  'forward.notRelease': (p) => `${p.project} не вливается в другой проект`,
+
   'ci.noToken': (p) => `чтобы следить за этим CI, задайте ${p.variable} в окружении Even Keel`,
   'ci.denied': (p) => `${p.ci}: токен отклонён (HTTP ${p.status}) — ему нужно чтение actions репозитория`,
   'ci.http': (p) => `${p.ci}: API ответил HTTP ${p.status}`,
@@ -321,11 +329,16 @@ export const noticesRu: NoticeTexts = {
   'config.writeFailed': (p) => `не удалось записать ${p.file}`,
   'config.statusBoth': (p) => `${p.project}: статус «${p.status}» и активный, и терминальный`,
   'config.labelBoth': (p) => `${p.project}: ярлык «${p.label}» и обязательный, и исключающий`,
+  'config.milestoneBoth': (p) => `${p.project}: майлстоун «${p.milestone}» и обязательный, и исключающий`,
+  'config.trackerProjectShared': (p) =>
+    `${p.project} и ${p.other} читают проект трекера ${p.trackerProject}, и задача может попасть в обе цепочки: разделите их майлстоунами (обязательные и исключающие майлстоуны в правилах цепочки)`,
   'config.modelPrompts': () => 'modelPrompts должен сопоставлять имени модели промт',
   'config.modelPromptEmpty': (p) => `modelPrompts.${p.model} пуст`,
   'config.hiddenSkills': () => 'hiddenSkills должен быть списком имён навыков',
   'config.cacheTtl': (p) => `cacheTtl: ${p.value} — должно быть "5m" или "1h", либо ключа нет`,
   'config.parallel': (p) => `parallel должен быть целым числом от 1, а не ${p.value}`,
+  'config.mergeInto': (p) => `${p.project} вливается в ${p.into}, а это не другой проект или он сам вливается в проект`,
+  'config.mergeIntoValue': (p) => `${p.where} — ключ проекта или null`,
   'config.allowedHosts': () => 'allowedHosts должен быть списком имён хостов',
   'config.updatesKey': (p) => `updates.${p.key} — не настройка обновлений, есть: ${list(p.known)}`,
   'config.updatesDismissed': (p) => `updates.dismissed должен быть версией вида 0.2.0 или null, а не ${p.value}`,

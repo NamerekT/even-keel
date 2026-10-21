@@ -6,7 +6,7 @@ import { say, t } from '../i18n/index.js'
 import { useLive } from '../live/context.js'
 import { useCommand } from '../live/useCommand.js'
 import { projectPath } from '../state.js'
-import { draftOfFields, EMPTY_FIELDS, missingOf, readyToAdd, shapeOf, suggestOfRepo, switchProfile, trustCommand, typedIn, type Missing, type WizardFields } from './projectWizard.js'
+import { draftOfFields, EMPTY_FIELDS, idPrefix, keyTyped, missingOf, readyToAdd, shapeOf, suggestOfRepo, switchProfile, trustCommand, typedIn, type Missing, type WizardFields } from './projectWizard.js'
 import { FieldHead } from './settingsParts.js'
 import { Status, TrackerStep } from './WizardTracker.js'
 import './accounts.css'
@@ -188,9 +188,13 @@ export function ProjectAddPage({ state }: { state: EvenKeelState }) {
         </Step>
         <Step title={t.wizard.stepProject}>
           <div className="settings__row">
-            {shape === 'place' && (
+            {keyTyped(shape) && (
               <div className="settings__field">
-                <FieldHead label={t.wizard.prefix} hint={t.wizard.prefixHint} htmlFor="wizard-key" />
+                <FieldHead
+                  label={shape === 'place' ? t.wizard.prefix : t.wizard.ownKey}
+                  hint={shape === 'place' ? t.wizard.prefixHint : t.wizard.ownKeyHint}
+                  htmlFor="wizard-key"
+                />
                 <input
                   id="wizard-key"
                   className="settings__text settings__text--mono project-add__key"
@@ -214,8 +218,8 @@ export function ProjectAddPage({ state }: { state: EvenKeelState }) {
               />
             </div>
           </div>
-          <span className="settings__hint">{t.wizard.example(keyText, shape === 'place')}</span>
-          {shape === 'place' && check?.entry != null && fields.key.trim() !== '' && <Status>{say(check.entry)}</Status>}
+          <span className="settings__hint">{t.wizard.example(idPrefix(shape, fields) || keyText, shape === 'place')}</span>
+          {keyTyped(shape) && check?.entry != null && fields.key.trim() !== '' && <Status>{say(check.entry)}</Status>}
         </Step>
         <details className="project-add__advanced">
           <summary>

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { TaskStatus } from '../tracker/model.js'
-import { admits, DEFAULT_RULES, isActive, isDone, isTerminal, unknownStatuses, type ChainRules } from './rules.js'
+import { admits, DEFAULT_RULES, isActive, isDone, isTerminal, ownsMilestone, splitsMilestones, unknownStatuses, type ChainRules } from './rules.js'
 
 const backlog: TaskStatus = { name: 'Backlog', category: 'UnStarted' }
 const todo: TaskStatus = { name: 'Todo', category: 'ToDo' }
@@ -104,5 +104,38 @@ describe('labels', () => {
 
   it('never admit a task in a terminal status', () => {
     expect(admits(DEFAULT_RULES, { status: done, labels: [] })).toBe(false)
+  })
+})
+
+describe('milestones', () => {
+  const in_ = (label: string | null) => ({ milestone: label === null ? null : { label, targetDate: null } })
+
+  it('take a task in any milestone or none when no milestone is named', () => {
+    expect(ownsMilestone(DEFAULT_RULES, in_(null))).toBe(true)
+    expect(ownsMilestone(DEFAULT_RULES, in_('v0.2'))).toBe(true)
+  })
+
+  it('need one of the required milestones, whatever its case and spacing', () => {
+    const release = rules({ requiredMilestones: ['v0.1.1', 'v0.1.2'] })
+    expect(ownsMilestone(release, in_(null))).toBe(false)
+    expect(ownsMilestone(release, in_('v0.2'))).toBe(false)
+    expect(ownsMilestone(release, in_(' V0.1.2 '))).toBe(true)
+  })
+
+  it('leave out a task in an excluded milestone, and keep one without a milestone', () => {
+    const dev = rules({ excludedMilestones: ['v0.1.1'] })
+    expect(ownsMilestone(dev, in_('v0.1.1'))).toBe(false)
+    expect(ownsMilestone(dev, in_('v0.2'))).toBe(true)
+    expect(ownsMilestone(dev, in_(null))).toBe(true)
+  })
+
+  it('split two projects only when no milestone, nor the lack of one, is taken by both', () => {
+    const release = rules({ requiredMilestones: ['v0.1.1'] })
+    expect(splitsMilestones(release, rules({ excludedMilestones: ['V0.1.1'] }))).toBe(true)
+    expect(splitsMilestones(rules({ excludedMilestones: ['v0.1.1'] }), release)).toBe(true)
+    expect(splitsMilestones(release, rules({ requiredMilestones: ['v0.2'] }))).toBe(true)
+    expect(splitsMilestones(release, DEFAULT_RULES)).toBe(false)
+    expect(splitsMilestones(release, rules({ requiredMilestones: ['v0.2', 'v0.1.1'] }))).toBe(false)
+    expect(splitsMilestones(rules({ excludedMilestones: ['v0.1.1'] }), rules({ excludedMilestones: ['v0.2'] }))).toBe(false)
   })
 })
