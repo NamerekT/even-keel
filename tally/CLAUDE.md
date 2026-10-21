@@ -74,7 +74,7 @@ After the first load (754 files, 281 thousand rows, 56 s; a repeat run reads onl
 
 Reconciliation on 2026-10-03: an independent count from the transcripts (by `message.id` — the maximum of tokens, 5 min / 1 h from `usage.cache_creation`, prices from `tally.config.json`) matched `task_costs.cost` to the last digit for BTN-45 (one session, $2.52) and BTN-37 (a session and a subagent, two models, $1.20).
 
-Reconciliation on 2026-10-19 (BTN-252): every `*.jsonl` at any depth under the account folders and the Codex rollouts, recounted without Tally's code, for 2026-10-15..17 and 2026-10-08..10 UTC — each response present on disk matched `message_costs` in every token kind and cost (8697 responses, $446.37; 11703, $605.09), with no double count of a response's rows. A response the CLI copies into a resumed session's file stays with the session that made it. Responses of deleted account folders (`john.doe2`, `jane.doe.work`) live only in the database. The page's `history` per local day and `period` totals matched direct SQL to the cent.
+Reconciliation on 2026-10-19 (BTN-252): every `*.jsonl` at any depth under the account folders and the Codex rollouts, recounted without Tally's code, for 2026-10-15..17 and 2026-10-08..10 UTC — each response present on disk matched `message_costs` in every token kind and cost (8697 responses, $446.37; 11703, $605.09), with no double count of a response's rows. A response the CLI copies into a resumed session's file stays with the session that made it. Responses of deleted account folders live only in the database. The page's `history` per local day and `period` totals matched direct SQL to the cent.
 
 ## Limit share
 
