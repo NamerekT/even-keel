@@ -53,7 +53,7 @@ describe('Dispatcher', () => {
     dispatcher.start('ABC')
     await dispatcher.idle()
 
-    expect(dispatcher.orders()['ABC']).toEqual({ order: ['ABC-2', 'ABC-3'], waiting: ['ABC-1'], backlog: [], landing: { 'ABC-1': 'ABC-2' }, error: null })
+    expect(dispatcher.orders()['ABC']).toEqual({ order: ['ABC-3', 'ABC-2'], waiting: ['ABC-1'], backlog: [], landing: { 'ABC-1': 'ABC-2' }, error: null })
     expect(launched).toEqual(['ABC/ABC-3'])
   })
 
@@ -90,7 +90,7 @@ describe('Dispatcher', () => {
       order: ['ABC-2', 'ABC-3'],
       waiting: [],
       backlog: ['ABC-1'],
-      landing: { 'ABC-1': 'ABC-2' },
+      landing: { 'ABC-1': 'ABC-3' },
       error: null,
     })
     expect(launched).toEqual(['ABC/ABC-2'])
@@ -683,6 +683,32 @@ describe('Dispatcher', () => {
     dispatcher.reorder('ABC', ['ABC-1', 'ABC-2', 'ABC-3'])
     expect(dispatcher.orders().ABC?.order).toEqual(['ABC-1', 'ABC-2', 'ABC-3'])
   })
+
+  it('puts a task postponed on a backlog blocker below the running one and takes a new order after it', async () => {
+    const { dispatcher, launched } = setup()
+    dispatcher.setTasks('ABC', [task('ABC-1'), task('ABC-2'), task('ABC-3')])
+    dispatcher.start('ABC')
+    await dispatcher.idle()
+    dispatcher.setTasks('ABC', [task('ABC-1', todo, 'ABC-9'), task('ABC-2'), task('ABC-3'), task('ABC-9', backlog)])
+    await dispatcher.idle()
+
+    expect(launched).toEqual(['ABC/ABC-1', 'ABC/ABC-2'])
+    expect(dispatcher.orders().ABC?.order).toEqual(['ABC-2', 'ABC-1', 'ABC-3'])
+    dispatcher.reorder('ABC', ['ABC-2', 'ABC-3', 'ABC-1'])
+    expect(dispatcher.orders().ABC?.order).toEqual(['ABC-2', 'ABC-3', 'ABC-1'])
+  })
+
+  it('takes an order with only held tasks above the running one', async () => {
+    const { dispatcher } = setup()
+    dispatcher.setTasks('ABC', [task('ABC-1', todo, 'ABC-9'), task('ABC-2'), task('ABC-3'), task('ABC-9', backlog)])
+    dispatcher.start('ABC')
+    await dispatcher.idle()
+
+    dispatcher.reorder('ABC', ['ABC-1', 'ABC-2', 'ABC-3'])
+    expect(dispatcher.state.orders.ABC).toEqual(['ABC-1', 'ABC-2', 'ABC-3'])
+    expect(() => dispatcher.reorder('ABC', ['ABC-1', 'ABC-3', 'ABC-2'])).toThrow('ABC-2 is running and stays first')
+    expect(() => dispatcher.reorder('ABC', ['ABC-1', 'ABC-3'])).toThrow('ABC-2 is running and stays first')
+  })
 })
 
 describe('Dispatcher on a limit', () => {
@@ -975,7 +1001,7 @@ describe('Dispatcher with a blocker in the backlog', () => {
     await dispatcher.idle()
 
     expect(launched).toEqual(['ABC/ABC-3'])
-    expect(dispatcher.orders()['ABC']).toEqual({ order: ['ABC-2', 'ABC-3'], waiting: ['ABC-1'], backlog: [], landing: { 'ABC-1': 'ABC-2' }, error: null })
+    expect(dispatcher.orders()['ABC']).toEqual({ order: ['ABC-3', 'ABC-2'], waiting: ['ABC-1'], backlog: [], landing: { 'ABC-1': 'ABC-2' }, error: null })
   })
 
   it('shows the backlog blockers of a backlog blocker too', async () => {
@@ -1040,7 +1066,7 @@ describe('Dispatcher with a blocker in the backlog', () => {
     await dispatcher.idle()
 
     expect(launched).toEqual(['ABC/ABC-3'])
-    expect(dispatcher.orders()['ABC']).toEqual({ order: ['ABC-2', 'ABC-3'], waiting: ['ABC-1'], backlog: [], error: null })
+    expect(dispatcher.orders()['ABC']).toEqual({ order: ['ABC-3', 'ABC-2'], waiting: ['ABC-1'], backlog: [], error: null })
   })
 
   it('holds a task on an open blocker without a required label', async () => {
@@ -1062,7 +1088,7 @@ describe('Dispatcher with a blocker in the backlog', () => {
     await dispatcher.idle()
 
     expect(launched).toEqual(['ABC/ABC-2'])
-    expect(dispatcher.orders()['ABC']).toEqual({ order: ['ABC-1', 'ABC-2', 'ABC-3'], waiting: ['XYZ-1'], outside: [foreign], backlog: [], error: null })
+    expect(dispatcher.orders()['ABC']).toEqual({ order: ['ABC-2', 'ABC-1', 'ABC-3'], waiting: ['XYZ-1'], outside: [foreign], backlog: [], error: null })
   })
 
   it('frees the task once the outside blocker is closed', async () => {
@@ -1107,6 +1133,16 @@ describe('Dispatcher skipping a task', () => {
     expect(launched).toEqual(['ABC/ABC-1', 'ABC/ABC-2'])
     expect(dispatcher.state.skipped).toEqual({ ABC: ['ABC-1'] })
     expect(journal[1]).toEqual({ at: '2026-09-26T12:00:00.000Z', project: 'ABC', task: 'ABC-1', sessionId: 'session-1', reason: 'skip' })
+  })
+
+  it('puts the skipped task below the running one and takes an order with it above', async () => {
+    const { dispatcher } = await running()
+    dispatcher.skip('ABC', 'ABC-1')
+    await dispatcher.idle()
+
+    expect(dispatcher.orders().ABC?.order).toEqual(['ABC-2', 'ABC-1'])
+    dispatcher.reorder('ABC', ['ABC-1', 'ABC-2'])
+    expect(dispatcher.state.orders.ABC).toEqual(['ABC-1', 'ABC-2'])
   })
 
   it('never takes a skipped task, even the last open one', async () => {

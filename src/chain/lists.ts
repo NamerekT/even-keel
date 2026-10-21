@@ -84,8 +84,8 @@ export class TaskLists {
 
   private preferred(project: string, stored = this.state.orders[project]): string[] | undefined {
     const current = this.currentOf(project)
-    if (stored === undefined || current === undefined) return stored
-    return [current, ...stored.filter((id) => id !== current)]
+    if (current === undefined) return stored
+    return [current, ...(stored ?? []).filter((id) => id !== current)]
   }
 
   placeNew(project: string): boolean {
