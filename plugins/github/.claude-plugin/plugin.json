@@ -1,6 +1,6 @@
 {
   "name": "github",
-  "version": "0.1.6",
+  "version": "0.1.7",
   "description": "GitHub Issues for Even Keel sessions: GitHub's remote MCP server (issues and labels) and the task skill. The session reads its issue itself, so turn Even Keel's brief off for the project (\"brief\": false) — or it reads the issue twice. The token comes from the environment: GITHUB_PERSONAL_ACCESS_TOKEN.",
   "author": {
     "name": "Even Keel"

@@ -11,6 +11,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - `markdown-it` is 14.3.3, which parses in linear time: an older one, which the Huly client pulls in, could be held up by crafted markdown. `vite`, used only to build the page and by `dev:fake`, is 8.3.5.
 - An answer to a question that is a long run of digits, from a tracker comment or the page's chat, no longer holds the service up: the check for option numbers ran in exponential time on it.
 - A notice whose code is an inherited member of an object, such as `constructor`, is shown as its code instead of calling that member.
+- On GitHub, only comments by the repository's owner, organization members, collaborators and the token's own account reach a session: as an answer to a question, as the last comment in a changelog draft, and in PR mode as a review or a comment on a pull request. Anyone else's is skipped with a line in the service log. The project wizard warns that in a public repository without required labels anyone can put an issue into the chain.
 
 ## [0.1.0] - 2026-10-21
 

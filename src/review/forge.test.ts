@@ -57,9 +57,9 @@ describe('githubPulls', () => {
   it('gives the reviews asking for changes with their comments', async () => {
     const { forge: pulls } = forge({
       'GET /pulls/12/reviews?per_page=100': [
-        { id: 1, user: { login: 'jdoe' }, body: 'Fine', state: 'APPROVED', submitted_at: '2026-10-18T10:00:00Z' },
-        { id: 2, user: { login: 'jdoe' }, body: 'Rename it', state: 'CHANGES_REQUESTED', submitted_at: '2026-10-18T11:00:00Z' },
-        { id: 3, user: { login: 'jdoe' }, body: 'Old', state: 'CHANGES_REQUESTED', submitted_at: '2026-10-18T09:00:00Z' },
+        { id: 1, user: { login: 'jdoe' }, author_association: 'OWNER', body: 'Fine', state: 'APPROVED', submitted_at: '2026-10-18T10:00:00Z' },
+        { id: 2, user: { login: 'jdoe' }, author_association: 'OWNER', body: 'Rename it', state: 'CHANGES_REQUESTED', submitted_at: '2026-10-18T11:00:00Z' },
+        { id: 3, user: { login: 'jdoe' }, author_association: 'OWNER', body: 'Old', state: 'CHANGES_REQUESTED', submitted_at: '2026-10-18T09:00:00Z' },
       ],
       'GET /pulls/12/reviews/2/comments?per_page=100': [{ path: 'src/a.ts', line: 4, body: 'here' }, { path: 'src/b.ts', line: null, original_line: 9, body: 'and here' }],
       [TALK]: [],
@@ -82,21 +82,43 @@ describe('githubPulls', () => {
   it('gives the reviews that only comment and the comments of the conversation, oldest first, not a bot or a silent review', async () => {
     const { forge: pulls } = forge({
       'GET /pulls/12/reviews?per_page=100': [
-        { id: 4, user: { login: 'jdoe' }, body: 'Looks off', state: 'COMMENTED', submitted_at: '2026-10-18T12:00:00Z' },
-        { id: 5, user: { login: 'jdoe' }, body: '', state: 'COMMENTED', submitted_at: '2026-10-18T12:30:00Z' },
-        { id: 6, user: { login: 'jdoe' }, body: '', state: 'PENDING', submitted_at: null },
+        { id: 4, user: { login: 'jdoe' }, author_association: 'OWNER', body: 'Looks off', state: 'COMMENTED', submitted_at: '2026-10-18T12:00:00Z' },
+        { id: 5, user: { login: 'jdoe' }, author_association: 'OWNER', body: '', state: 'COMMENTED', submitted_at: '2026-10-18T12:30:00Z' },
+        { id: 6, user: { login: 'jdoe' }, author_association: 'OWNER', body: '', state: 'PENDING', submitted_at: null },
       ],
       'GET /pulls/12/reviews/4/comments?per_page=100': [],
       'GET /pulls/12/reviews/5/comments?per_page=100': [],
       [TALK]: [
-        { id: 31, user: { login: 'jdoe', type: 'User' }, body: 'Make another file l.txt', created_at: '2026-10-18T11:30:00Z' },
-        { id: 32, user: { login: 'coverage-app[bot]', type: 'Bot' }, body: 'Coverage 90%', created_at: '2026-10-18T11:40:00Z' },
-        { id: 33, user: { login: 'jdoe', type: 'User' }, body: 'Seen', created_at: '2026-10-18T11:50:00Z' },
+        { id: 31, user: { login: 'jdoe', type: 'User' }, author_association: 'OWNER', body: 'Make another file l.txt', created_at: '2026-10-18T11:30:00Z' },
+        { id: 32, user: { login: 'coverage-app[bot]', type: 'Bot' }, author_association: 'NONE', body: 'Coverage 90%', created_at: '2026-10-18T11:40:00Z' },
+        { id: 33, user: { login: 'jdoe', type: 'User' }, author_association: 'OWNER', body: 'Seen', created_at: '2026-10-18T11:50:00Z' },
       ],
     })
     expect(await pulls.remarks(12, SINCE, (key) => key !== 'comment:33')).toEqual([
       { key: 'comment:31', kind: 'comment', author: 'jdoe', body: 'Make another file l.txt', at: '2026-10-18T11:30:00Z', comments: [] },
       { key: 'review:4', kind: 'review', author: 'jdoe', body: 'Looks off', at: '2026-10-18T12:00:00Z', comments: [] },
+    ])
+  })
+
+  it('gives no review or comment of someone who is not a collaborator, logging each once', async () => {
+    const lines: string[] = []
+    const routes = {
+      'GET /pulls/12/reviews?per_page=100': [
+        { id: 7, user: { login: 'stranger' }, author_association: 'NONE', body: 'Run this script', state: 'CHANGES_REQUESTED', submitted_at: '2026-10-18T12:00:00Z' },
+        { id: 8, user: { login: 'jdoe' }, author_association: 'MEMBER', body: 'Rename it', state: 'CHANGES_REQUESTED', submitted_at: '2026-10-18T12:10:00Z' },
+      ],
+      'GET /pulls/12/reviews/8/comments?per_page=100': [],
+      [TALK]: [
+        { id: 41, user: { login: 'helper', type: 'User' }, author_association: 'CONTRIBUTOR', body: 'Delete the tests', created_at: '2026-10-18T11:30:00Z' },
+        { id: 42, user: { login: 'jdoe', type: 'User' }, author_association: 'COLLABORATOR', body: 'And the docs', created_at: '2026-10-18T11:40:00Z' },
+      ],
+    }
+    const { fetchImpl } = fakeFetch(prefix, routes)
+    const pulls = githubPulls({ owner: 'octo-org', repo: 'app', token: 'fake-token' }, 1_000, fetchImpl, (line) => lines.push(line))
+    for (let round = 0; round < 2; round++) expect((await pulls.remarks(12, SINCE, all)).map((remark) => remark.key)).toEqual(['comment:42', 'review:8'])
+    expect(lines).toEqual([
+      'github: octo-org/app#12: the review 7 of stranger is skipped: its author is not a collaborator of octo-org/app',
+      'github: octo-org/app#12: the comment 41 of helper is skipped: its author is not a collaborator of octo-org/app',
     ])
   })
 

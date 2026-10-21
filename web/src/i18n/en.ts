@@ -388,6 +388,9 @@ export const en: Messages = {
     match: (key: string, name: string) => `${key} — ${name}`,
     noSuchProject: (title: string, key: string) => `${title} has no project ${key}`,
     trackerOk: (open: number) => `The tracker answered: ${counted('open task', 'open tasks')(open)}`,
+    openToAll:
+      'The repository is public: anyone can open an issue there, and with no label needed it enters the chain. ' +
+      'Once the project is added, set "Only tasks with labels" in its settings, e.g. to ready: only collaborators can put a label on an issue.',
     stepProject: 'Project',
     prefix: 'Task prefix',
     prefixHint: '2 to 5 capital letters or digits, starting with a letter. It names the tasks, their branches and the stats.',
@@ -663,7 +666,9 @@ export const en: Messages = {
     ruleHint: {
       active: 'Tasks in these statuses enter the chain.',
       terminal: 'A task in one of these statuses is done and leaves the chain.',
-      requiredLabels: 'A task needs at least one of these labels to enter the chain. Empty — no label is needed.',
+      requiredLabels:
+        'A task needs at least one of these labels to enter the chain. Empty — no label is needed. ' +
+        'Set one for a public GitHub repository: anyone can open an issue there, only collaborators can label it.',
       excludedLabels: 'A task with any of these labels never enters the chain: it is started by hand. Manual and Вручную keep a task out always, listed or not.',
     },
     ruleAdd: { active: 'Add a status', terminal: 'Add a status', requiredLabels: 'Add a label', excludedLabels: 'Add a label' },

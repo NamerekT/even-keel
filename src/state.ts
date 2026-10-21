@@ -277,6 +277,8 @@ export interface ProjectCheck {
     missing: string[]
     /** Open tasks of the project in the tracker. */
     open: number | null
+    /** Anyone can open a task in the tracker's project (a public GitHub repository) and no label is needed to enter the chain. */
+    openToAll: boolean
     notice: Notice | null
   } | null
   /** Whether Claude Code trusts the folder; `null` — no repository to ask about. */

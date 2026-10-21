@@ -37,7 +37,9 @@ How GitHub maps onto the chain:
 | estimate | none |
 | task card | the issue body and comments, labels, milestone, parent, "blocked by" and "blocking"; "related" is always empty |
 
-**GitHub has no backlog**: every open issue is ready work, and without a rule the chain takes them all. Keep the entry on a label — `"chain": { "requiredLabels": ["ready"] }` — and add it to an issue once you have read it. Issues without it wait in the folded Backlog list under the chain. A blocker without the label does not count as one: label it too, or the issue it blocks runs first.
+**GitHub has no backlog**: every open issue is ready work, and without a rule the chain takes them all. Keep the entry on a label — `"chain": { "requiredLabels": ["ready"] }` — and add it to an issue once you have read it. Issues without it wait in the folded Backlog list under the chain. A blocker without the label does not count as one: label it too, or the issue it blocks runs first. In a public repository the label is what keeps outsiders' issues out of the chain: anyone can open an issue, only collaborators can label one.
+
+**Whose comments count**: anyone can comment on a public repository, so Even Keel passes on only the comments of the owner, the organization's members, the collaborators and the token's own account (GitHub's `authorAssociation`) — as an answer to a question, and in PR mode as a review or a comment. The `github:task` skill tells the session the same of the comments it reads itself.
 
 ## Sessions: the plugin
 

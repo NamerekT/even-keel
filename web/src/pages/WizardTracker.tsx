@@ -102,6 +102,11 @@ export function TrackerStep({ state, fields, shape, choice, check, onChange }: T
         <ProjectFields shape={shape} kind={fields.tracker} title={title} choice={choice} fields={fields} disabled={profile === undefined} list={lookup.list} exact={exact} onChange={onChange} />
       </div>
       <div className="project-add__slot">{status}</div>
+      {check?.tracker?.ok === true && check.tracker.openToAll && (
+        <p className="project-add__open" role="note">
+          {t.wizard.openToAll}
+        </p>
+      )}
       {adding &&
         createPortal(
           <ProfileDialog kinds={trackerKinds} profile={undefined} onClose={() => setAdding(false)} onSaved={(id) => setAdded(id)} />,

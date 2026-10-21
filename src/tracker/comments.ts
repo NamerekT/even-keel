@@ -1,7 +1,7 @@
 import type { TrackerComment } from './source.js'
 
 /** The comments that come after the one with id `after`, in the given order; `[]` when it is not among them. */
-export function commentsAfterId(comments: TrackerComment[], after: string): TrackerComment[] {
+export function commentsAfterId<T extends { id: string }>(comments: T[], after: string): T[] {
   const index = comments.findIndex((comment) => comment.id === after)
   return index < 0 ? [] : comments.slice(index + 1)
 }

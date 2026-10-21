@@ -20,7 +20,7 @@ const fields = (change: Partial<WizardFields>): WizardFields => ({ ...EMPTY_FIEL
 const passed: ProjectCheck = {
   repo: { root: 'D:/Projects/shop', current: 'main', suggested: null, notice: null },
   entry: null,
-  tracker: { ok: true, missing: [], open: 3, notice: null },
+  tracker: { ok: true, missing: [], open: 3, openToAll: false, notice: null },
   trusted: true,
   platform: 'win32',
 }
@@ -86,7 +86,7 @@ describe('readyToAdd', () => {
     expect(readyToAdd({ ...passed, repo: { ...passed.repo, notice: { code: 'wizard.repoTaken', params: { project: 'ABC' } } } })).toBe(false)
     expect(readyToAdd({ ...passed, entry: { code: 'config.projectKey', params: { where: 'projects[1].key', value: 'x' } }, tracker: null })).toBe(false)
     expect(readyToAdd({ ...passed, tracker: null })).toBe(false)
-    expect(readyToAdd({ ...passed, tracker: { ok: false, missing: ['HULY_URL'], open: null, notice: null } })).toBe(false)
+    expect(readyToAdd({ ...passed, tracker: { ok: false, missing: ['HULY_URL'], open: null, openToAll: false, notice: null } })).toBe(false)
   })
 })
 
@@ -169,7 +169,7 @@ describe('missingOf', () => {
     const repoNotice = { code: 'wizard.repoTaken', params: { project: 'ABC' } } as const
     expect(missingOf(fields({ repo: 'D:/x' }), 'key', { ...passed, repo: { ...passed.repo, notice: repoNotice } })).toBe('repoError')
     expect(missingOf(ready, 'key', { ...passed, entry: { code: 'config.projectKey', params: { where: 'k', value: 'x' } } })).toBe('entry')
-    expect(missingOf(ready, 'key', { ...passed, tracker: { ok: false, missing: [], open: null, notice: null } })).toBe('tracker')
+    expect(missingOf(ready, 'key', { ...passed, tracker: { ok: false, missing: [], open: null, openToAll: false, notice: null } })).toBe('tracker')
     expect(missingOf(ready, 'key', { ...passed, tracker: null })).toBe('checking')
     expect(missingOf(ready, 'key', passed)).toBeNull()
   })

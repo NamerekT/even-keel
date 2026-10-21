@@ -68,10 +68,13 @@ function trackerOf(name: string, mode: string | null): ProjectCheck['tracker'] {
   const title = name === 'github' ? 'GitHub' : name === 'linear' ? 'Linear' : 'Huly'
   if (mode === 'off') {
     const variables = name === 'github' ? ['GITHUB_TOKEN'] : name === 'linear' ? ['LINEAR_API_KEY'] : ['HULY_URL', 'HULY_EMAIL', 'HULY_PASSWORD', 'HULY_WORKSPACE']
-    return { ok: false, missing: variables, open: null, notice: notice('wizard.trackerOff', { tracker: title, variables }) }
+    return { ok: false, missing: variables, open: null, openToAll: false, notice: notice('wizard.trackerOff', { tracker: title, variables }) }
   }
-  if (mode === 'failed') return { ok: false, missing: [], open: null, notice: notice('wizard.trackerFailed', { tracker: title }, { detail: 'connect ETIMEDOUT 10.0.0.5:443' }) }
-  return { ok: true, missing: [], open: 7, notice: null }
+  if (mode === 'failed') {
+    return { ok: false, missing: [], open: null, openToAll: false, notice: notice('wizard.trackerFailed', { tracker: title }, { detail: 'connect ETIMEDOUT 10.0.0.5:443' }) }
+  }
+  // The fake GitHub repository is public: the wizard shows its warning.
+  return { ok: true, missing: [], open: 7, openToAll: name === 'github', notice: null }
 }
 
 /** `project/add` puts the draft in as the service would, `project/remove` refuses a project whose chain runs. */
