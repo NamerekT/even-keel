@@ -1,6 +1,23 @@
 import { describe, expect, it } from 'vitest'
 import { issue } from './fixture.js'
-import { linearPriority, linearStatus, readyState, toCard, toTrackerTask, type LinearCardIssue, type LinearRef, type TeamStateDoc } from './model.js'
+import { linearPlace, linearPriority, linearStatus, readyState, toCard, toTrackerTask, type LinearCardIssue, type LinearRef, type TeamStateDoc } from './model.js'
+
+describe('linear place', () => {
+  it('takes the key for the team, the value for a project of it', () => {
+    expect(linearPlace('ENG', undefined)).toEqual({ team: 'ENG', project: null })
+    expect(linearPlace('ENG', ' Web app ')).toEqual({ team: 'ENG', project: 'Web app' })
+  })
+
+  it('takes the team from a value that names it, so the key is free: TEAM/Project or TEAM/ for the whole team', () => {
+    expect(linearPlace('GS', 'NAM/GameStore')).toEqual({ team: 'NAM', project: 'GameStore' })
+    expect(linearPlace('GS', 'NAM/')).toEqual({ team: 'NAM', project: null })
+    expect(linearPlace('GS', 'NAM/Web / mobile')).toEqual({ team: 'NAM', project: 'Web / mobile' })
+  })
+
+  it('keeps a slash of a project name that does not start with a team key', () => {
+    expect(linearPlace('ENG', 'Web / mobile')).toEqual({ team: 'ENG', project: 'Web / mobile' })
+  })
+})
 
 describe('linear status', () => {
   it('takes the category from the type of the workflow state and keeps its name', () => {

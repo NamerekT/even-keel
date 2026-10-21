@@ -221,8 +221,8 @@ describe('Even Keel HTTP server', () => {
     expect((await response.json()).notice).toMatchObject({ code: 'request.required', params: { field: 'sessionId' } })
   })
 
-  const chain = { active: null, terminal: ['Done'], requiredLabels: [], excludedLabels: ['Manual'] }
-  const form = { name: 'Web shop', branch: 'master', repo: 'C:\\abc', tracker: 'github', trackerProject: 'octo-org/abc', slot: 2, color: 3, brief: false, chain, provider: 'codex', models: { codex: 'gpt-6.1-sol' }, accounts: {}, modelLabels: true, pullRequests: false, remoteProfiles: { forgejo: 'own' } }
+  const chain = { active: null, terminal: ['Done'], requiredLabels: [], excludedLabels: ['Manual'], requiredMilestones: [], excludedMilestones: [] }
+  const form = { name: 'Web shop', branch: 'master', repo: 'C:\\abc', tracker: 'github', trackerProject: 'octo-org/abc', slot: 2, color: 3, brief: false, chain, provider: 'codex', models: { codex: 'gpt-6.1-sol' }, accounts: {}, modelLabels: true, pullRequests: false, mergeInto: null, remoteProfiles: { forgejo: 'own' } }
 
   it('passes the settings of a project on with the values the form started from', async () => {
     const ci = { guard: false, kinds: ['github'], waitMinutes: 15, recheckMain: false, fixTask: true }

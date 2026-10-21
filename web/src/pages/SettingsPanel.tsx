@@ -77,7 +77,7 @@ const remoteKey = (kind: CiKind) => `remote.${kind}`
 
 // Related fields share a group, so a save of one group never leaves another half-agreeing with it.
 const GROUPS = [
-  { id: 'repo', keys: ['repo', 'branch', 'slot', 'changelog', 'color'] },
+  { id: 'repo', keys: ['repo', 'branch', 'mergeInto', 'slot', 'changelog', 'color'] },
   { id: 'tracker', keys: ['tracker', 'trackerProject', 'fillMilestone', ...RULE_KEYS] },
   {
     id: 'sessions',
@@ -112,6 +112,7 @@ const valuesOf = (form: ProjectForm): Values => ({
   recheck: switchText(form.own['ci.recheckMain']),
   fixTask: switchText(form.own['ci.fixTask']),
   pullRequests: form.pullRequests,
+  mergeInto: form.mergeInto ?? '',
   ...Object.fromEntries(CI_KINDS.map((kind) => [remoteKey(kind), form.remoteProfiles[kind] ?? ''])),
   fillMilestone: switchText(form.own.fillMilestone),
   changelog: form.changelog,
@@ -198,6 +199,7 @@ function formOf(values: Values, name: string | null, shared: SharedForm): Projec
     },
     remoteProfiles: Object.fromEntries(CI_KINDS.flatMap((kind) => (text(remoteKey(kind)) === '' ? [] : [[kind, text(remoteKey(kind))]]))),
     pullRequests: on('pullRequests'),
+    mergeInto: text('mergeInto') === '' ? null : text('mergeInto'),
     fillMilestone: ownOr(own, 'fillMilestone', shared.fillMilestone),
     changelog: text('changelog').trim(),
     provider: text('provider') === '' ? null : text('provider'),
@@ -343,6 +345,8 @@ export function SettingsPanel({
   const sharedShares = sharesText(shared.stats.checkpointShares)
   const shownKinds = on('ownKinds') ? kinds : shared.ci.kinds
   const choices = remoteChoices(state?.profiles.profiles ?? [], state?.remotes[project] ?? [])
+  // A release project merges into a main one, never into another release project.
+  const mainProjects = Object.entries(config.projects).flatMap(([key, each]) => (key !== project && each.mergeInto === null ? [key] : []))
   // One profile on offer is no choice: the field shows only while there are two, or a choice was made.
   const remoteChoice = (kind: CiKind) => {
     const key = remoteKey(kind)
@@ -387,6 +391,11 @@ export function SettingsPanel({
           {marks.note('branch')}
           <FieldNote error={errorOf('branch')} />
         </div>
+        {choice('mergeInto', t.settings.mergeInto, t.settings.mergeIntoHint, [
+          { value: '', label: t.settings.mergeIntoNone },
+          ...mainProjects.map((key) => ({ value: key, label: key })),
+          ...(text('mergeInto') !== '' && !mainProjects.includes(text('mergeInto')) ? [{ value: text('mergeInto'), label: text('mergeInto') }] : []),
+        ])}
         <div className={marks.box('slot')}>
           <FieldHead label={t.settings.slot} hint={t.settings.slotHint} htmlFor={fieldId('slot')} />
           <input
@@ -461,7 +470,7 @@ export function SettingsPanel({
             <div className={marks.box('trackerProject', 'settings__field settings__grow')}>
               <FieldHead
                 label={t.settings.trackerProject(tracker.name, tracker.title)}
-                hint={tracker.projectKey.optional ? t.settings.trackerProjectOptional : undefined}
+                hint={tracker.projectKey.alias ? t.settings.trackerProjectAlias : tracker.projectKey.optional ? t.settings.trackerProjectWithin : undefined}
                 htmlFor={fieldId('trackerProject')}
               />
               <input
@@ -469,7 +478,7 @@ export function SettingsPanel({
                 className="settings__text settings__text--mono"
                 spellCheck={false}
                 value={text('trackerProject')}
-                placeholder={tracker.projectKey.example}
+                placeholder={tracker.projectKey.alias ? project : tracker.projectKey.example}
                 aria-invalid={errorOf('trackerProject') !== null}
                 disabled={locked}
                 onChange={(event) => edit('trackerProject', event.target.value)}

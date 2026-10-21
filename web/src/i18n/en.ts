@@ -394,6 +394,9 @@ export const en: Messages = {
     stepProject: 'Project',
     prefix: 'Task prefix',
     prefixHint: '2 to 5 capital letters or digits, starting with a letter. It names the tasks, their branches and the stats.',
+    ownKey: 'Project key',
+    ownKeyHint:
+      "Even Keel's name of the project, 2 to 5 capital letters or digits: the tracker's project or team by default. A second project on the same tracker project or team needs a key of its own, e.g. for a release branch or another repository; its tasks keep the tracker's names.",
     example: (key: string, place: boolean) =>
       place ? `Issue #12 becomes ${key}-12, its branch ${key.toLowerCase()}-12/task.` : `Task ${key}-12 runs on the branch ${key.toLowerCase()}-12/task.`,
     name: 'Name',
@@ -483,6 +486,9 @@ export const en: Messages = {
     backlogHint: 'Open tasks the chain does not take yet because of their status or labels.',
     leftover: (task: string) => `${task} is closed, but not everything after it went through — check by hand.`,
     dismiss: 'Done',
+    forwardWaits: (count: number, into: string) => `${counted('commit', 'commits')(count)} of this project wait to go into ${into}.`,
+    forwardPushFailed: (into: string) => `The release branch went into ${into}, but its push failed; the next sync pushes it.`,
+    forwardNow: 'Carry now',
     pullAddRemote: 'Add a remote or turn PR mode off',
     resume: 'Resume',
     stop: 'Stop',
@@ -641,9 +647,17 @@ export const en: Messages = {
     repoHint: "Path to the project's main checkout.",
     branch: 'Main branch',
     branchHint: 'Tasks branch off it and merge into it, the CI checks it. The branch must exist in the repository, or the chain pauses.',
+    mergeInto: 'Merges into',
+    mergeIntoHint:
+      'A release project: its main branch goes into the main branch of the project chosen here, in that project’s folder, once its chain is quiet (stopped, empty or paused). A conflict is aborted and waits for a merge by hand or "Carry now" on this project’s page.',
+    mergeIntoNone: 'Nothing — a main project',
     tracker: 'Tracker',
     trackerProject: (kind: string, title: string) => PLACE_LABELS[kind] ?? `Project in ${title}`,
     trackerProjectOptional: "May be left empty: then all of the team's issues.",
+    trackerProjectWithin:
+      "A project of the team by name; empty — all of the team's issues. TEAM/Project, or TEAM/ for the whole team, reads a team other than the key: so two projects share one team, their tasks keeping the team's ids.",
+    trackerProjectAlias:
+      "Empty — the project's key. Another project lets two projects of Even Keel share one tracker project, each with its own milestones (chain rules).",
     trackerSoon: 'v0.2',
     trackerLocked: "The chain has started tasks of this project, so its tracker stays: task IDs from two trackers would collide and their branches, folders and stats would mix. Switching the tracker comes in v0.2.",
     brief: 'Task description in the prompt',
@@ -670,8 +684,19 @@ export const en: Messages = {
         'A task needs at least one of these labels to enter the chain. Empty — no label is needed. ' +
         'Set one for a public GitHub repository: anyone can open an issue there, only collaborators can label it.',
       excludedLabels: 'A task with any of these labels never enters the chain: it is started by hand. Manual and Вручную keep a task out always, listed or not.',
+      requiredMilestones:
+        'The project takes only tasks in one of these milestones; the rest of the tracker project is not its own at all. ' +
+        'Empty — any milestone or none. Two projects on one tracker project split it this way, a release project and a main one say.',
+      excludedMilestones: 'Tasks in these milestones are not the project\'s: it does not read, show or close them.',
     },
-    ruleAdd: { active: 'Add a status', terminal: 'Add a status', requiredLabels: 'Add a label', excludedLabels: 'Add a label' },
+    ruleAdd: {
+      active: 'Add a status',
+      terminal: 'Add a status',
+      requiredLabels: 'Add a label',
+      excludedLabels: 'Add a label',
+      requiredMilestones: 'Add a milestone',
+      excludedMilestones: 'Add a milestone',
+    },
     help: 'What it does',
     add: 'Add',
     remove: (what: string) => `Remove ${what}`,
@@ -681,12 +706,16 @@ export const en: Messages = {
       terminal: 'Closed statuses',
       requiredLabels: 'Only tasks with labels',
       excludedLabels: 'No tasks with labels',
+      requiredMilestones: 'Only tasks in milestones',
+      excludedMilestones: 'No tasks in milestones',
     },
     rulePlaceholder: {
       active: "by the tracker's status categories",
       terminal: "by the tracker's status categories",
       requiredLabels: 'any',
       excludedLabels: 'none',
+      requiredMilestones: 'any',
+      excludedMilestones: 'none',
     },
   },
   shared: {

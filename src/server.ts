@@ -219,6 +219,8 @@ export interface ServerDeps {
   tasks: TaskControl
   /** An operation on the milestone's changelog draft; its newest version (`src/changelog/drafts.ts`). */
   changelog: (project: string, milestone: string, op: ChangelogOp) => Promise<ChangelogView>
+  /** "Carry now": the release project's branch into the branch of the project it merges into (BTN-172). */
+  carry: (project: string) => Promise<void>
   stats: StatsSource
   /** Read per request: `allowedHosts` is live. */
   guard: () => GuardSettings
@@ -292,6 +294,7 @@ const QUERIES: Record<string, (deps: ServerDeps, body: Record<string, unknown>) 
   'changelog/edit': ({ changelog }, body) =>
     changelog(projectOf(body), textOf(body.milestone, 'milestone'), { op: 'edit', instruction: textOf(body.instruction, 'instruction') }),
   'changelog/write': ({ changelog }, body) => changelog(projectOf(body), textOf(body.milestone, 'milestone'), { op: 'write' }),
+  'forward/carry': ({ carry }, body) => carry(projectOf(body)),
 }
 
 const MAX_BODY_BYTES = 64 * 1024
@@ -729,7 +732,7 @@ function draftOf(body: Record<string, unknown>): ProjectDraft {
 }
 
 function projectFormOf(body: Record<string, unknown>): ProjectForm {
-  const { name, prompt, beforeStart, check, afterGreen, ci, remoteProfiles, pullRequests, fillMilestone, changelog, provider, models, accounts, modelLabels, branch, repo, tracker, trackerProject, slot, color, brief, chain } = body
+  const { name, prompt, beforeStart, check, afterGreen, ci, remoteProfiles, pullRequests, mergeInto, fillMilestone, changelog, provider, models, accounts, modelLabels, branch, repo, tracker, trackerProject, slot, color, brief, chain } = body
   if (name !== undefined && name !== null && typeof name !== 'string') throw fail('request.required', { field: 'name' })
   if (prompt !== null && typeof prompt !== 'string') throw fail('request.required', { field: 'prompt' })
   const settings = {
@@ -742,6 +745,8 @@ function projectFormOf(body: Record<string, unknown>): ProjectForm {
   }
   if (typeof pullRequests !== 'boolean') throw fail('request.required', { field: 'pullRequests' })
   if (typeof fillMilestone !== 'boolean') throw fail('request.required', { field: 'fillMilestone' })
+  // A page open since before release projects sends none.
+  if (mergeInto !== undefined && mergeInto !== null && typeof mergeInto !== 'string') throw fail('request.required', { field: 'mergeInto' })
   if (typeof changelog !== 'string') throw fail('request.required', { field: 'changelog' })
   if (provider !== null && typeof provider !== 'string') throw fail('request.required', { field: 'provider' })
   if (modelLabels !== null && typeof modelLabels !== 'boolean') throw fail('request.required', { field: 'modelLabels' })
@@ -752,6 +757,7 @@ function projectFormOf(body: Record<string, unknown>): ProjectForm {
     ...settings,
     name: name ?? null,
     pullRequests,
+    mergeInto: mergeInto?.trim() || null,
     fillMilestone,
     changelog: changelog.trim() === '' ? DEFAULT_CHANGELOG : changelog,
     provider,
@@ -839,9 +845,16 @@ function sharesOf(raw: unknown): CheckpointShares {
 }
 
 function rulesOf(raw: unknown): ChainRules {
-  const { active, terminal, requiredLabels, excludedLabels } = mapOf(raw, 'chain', () => true)
+  const { active, terminal, requiredLabels, excludedLabels, requiredMilestones, excludedMilestones } = mapOf(raw, 'chain', () => true)
   const statuses = (list: unknown) => (list === null ? null : linesOf(list, 'chain'))
-  return { active: statuses(active), terminal: statuses(terminal), requiredLabels: linesOf(requiredLabels, 'chain'), excludedLabels: linesOf(excludedLabels, 'chain') }
+  return {
+    active: statuses(active),
+    terminal: statuses(terminal),
+    requiredLabels: linesOf(requiredLabels, 'chain'),
+    excludedLabels: linesOf(excludedLabels, 'chain'),
+    requiredMilestones: linesOf(requiredMilestones ?? [], 'chain'),
+    excludedMilestones: linesOf(excludedMilestones ?? [], 'chain'),
+  }
 }
 
 function linesOf(raw: unknown, field: string): string[] {

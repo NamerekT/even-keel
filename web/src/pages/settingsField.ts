@@ -7,8 +7,8 @@ export interface FieldError {
   field: string
 }
 
-const RULES = ['active', 'terminal', 'requiredLabels', 'excludedLabels']
-const NAMED = ['branch', 'prompt', 'tracker', 'brief', 'pullRequests', 'fillMilestone', 'changelog', 'provider', 'modelLabels', 'language', 'promptLanguage', 'context', 'stats']
+const RULES = ['active', 'terminal', 'requiredLabels', 'excludedLabels', 'requiredMilestones', 'excludedMilestones']
+const NAMED = ['branch', 'prompt', 'tracker', 'brief', 'pullRequests', 'mergeInto', 'fillMilestone', 'changelog', 'provider', 'modelLabels', 'language', 'promptLanguage', 'context', 'stats']
 /** Maps by provider: an error points at the provider's own field, or the first one for a key that names no provider. */
 const BY_PROVIDER: Record<string, readonly string[]> = { models: PROVIDERS, accounts: PROVIDERS, execution: Object.keys(EXECUTION_MODES), cli: PROVIDERS }
 const PROJECT_WHERE = /^([A-Z][A-Z0-9_]{0,4})\.(.+)$/
@@ -41,6 +41,9 @@ export function fieldOf(notice: Notice, trackerKeys: string[]): FieldError | nul
   if (notice.code === 'config.trackerLocked') return { project: notice.params.key, field: 'tracker' }
   if (notice.code === 'config.statusBoth') return { project: notice.params.project, field: 'chain.terminal' }
   if (notice.code === 'config.labelBoth') return { project: notice.params.project, field: 'chain.excludedLabels' }
+  if (notice.code === 'config.milestoneBoth') return { project: notice.params.project, field: 'chain.excludedMilestones' }
+  if (notice.code === 'config.trackerProjectShared') return { project: notice.params.project, field: 'trackerProject' }
+  if (notice.code === 'config.mergeInto') return { project: notice.params.project, field: 'mergeInto' }
   if (notice.code === 'config.execution') return { project: null, field: `execution.${notice.params.provider}` }
   if (notice.code === 'config.cli') return { project: null, field: `cli.${notice.params.provider}` }
   if (typeof params.where !== 'string') return null

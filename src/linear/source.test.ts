@@ -90,6 +90,14 @@ describe('linear source', () => {
     expect(source.projectUrls.get('ENG')).toBe(`${url}/issues`)
   })
 
+  it('reads the team and the project a value names under a key of its own', async () => {
+    const url = 'https://linear.app/example-org/project/game-store-0123456789ab'
+    const { source, calls } = await connect([team([{ id: 'project-gs', url }]), { body: { data: { issues: page([]) } } }], { GS: 'NAM/GameStore' })
+    await source.chainTasks('GS', notTerminal)
+    expect(calls[1]!.variables).toEqual({ team: 'NAM', project: 'GameStore' })
+    expect(source.projectUrls.get('GS')).toBe(`${url}/issues`)
+  })
+
   it('fails on a project the team does not have and on a team it cannot see', async () => {
     const { source } = await connect([team([]), notFound('Team')], { ENG: 'Web app' })
     await expect(source.chainTasks('ENG', notTerminal)).rejects.toThrow(/ENG.*Web app/)

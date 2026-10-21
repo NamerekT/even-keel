@@ -15,20 +15,26 @@
     "active": null,
     "terminal": null,
     "requiredLabels": [],
-    "excludedLabels": []
+    "excludedLabels": [],
+    "requiredMilestones": [],
+    "excludedMilestones": []
   },
   "rules": {
     "ABC": {
       "active": null,
       "terminal": null,
       "requiredLabels": [],
-      "excludedLabels": []
+      "excludedLabels": [],
+      "requiredMilestones": [],
+      "excludedMilestones": []
     },
     "XYZ": {
       "active": null,
       "terminal": null,
       "requiredLabels": [],
-      "excludedLabels": []
+      "excludedLabels": [],
+      "requiredMilestones": [],
+      "excludedMilestones": []
     }
   },
   "slots": {
@@ -73,6 +79,7 @@
       },
       "remoteProfiles": {},
       "pullRequests": false,
+      "mergeInto": null,
       "fillMilestone": false,
       "changelog": "CHANGELOG.md",
       "provider": null,
@@ -107,6 +114,7 @@
       },
       "remoteProfiles": {},
       "pullRequests": false,
+      "mergeInto": null,
       "fillMilestone": false,
       "changelog": "CHANGELOG.md",
       "provider": null,

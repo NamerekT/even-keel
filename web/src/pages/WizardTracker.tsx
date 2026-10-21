@@ -9,7 +9,7 @@ import { PlusIcon, TrackerIcon } from '../ui/icons.js'
 import { Select } from '../ui/Select.js'
 import { ProfileDialog } from './ProfileDialog.js'
 import { daysLeft } from './profileForm.js'
-import { pickProject, switchProfile, typedIn, type TrackerShape, type WizardFields } from './projectWizard.js'
+import { keyTyped, pickProject, switchProfile, teamIn, typedIn, type TrackerShape, type WizardFields } from './projectWizard.js'
 import { FieldHead } from './settingsParts.js'
 
 const LOOKUP_DELAY_MS = 300
@@ -37,7 +37,7 @@ export function TrackerStep({ state, fields, shape, choice, check, onChange }: T
   const profiles = state.profiles.profiles.filter((profile) => trackerKinds.some((kind) => kind.kind === profile.kind))
   const profile = profiles.find((each) => each.id === fields.profile)
   const title = choice?.title ?? trackerKinds.find((kind) => kind.kind === fields.tracker)?.title ?? ''
-  const query = shape === 'place' ? fields.trackerProject : fields.key
+  const query = shape === 'place' || shape === 'alias' ? fields.trackerProject : shape === 'within' ? fields.team : fields.key
   const lookup = useProjects(profile?.id ?? null, query, shape !== 'within')
 
   // A profile just saved from the dialog is chosen once the state has it.
@@ -64,12 +64,13 @@ export function TrackerStep({ state, fields, shape, choice, check, onChange }: T
     else onChange((before) => switchProfile(before, next))
   }
 
-  const absent = shape === 'key' && lookup.of === fields.key.trim() && fields.key.trim() !== '' && exact === undefined && lookup.failure === null
+  const named = shape === 'alias' ? fields.trackerProject.trim() : fields.key.trim()
+  const absent = (shape === 'key' || shape === 'alias') && lookup.of === named && named !== '' && exact === undefined && lookup.failure === null
   const status = absent ? (
-    <Status>{t.wizard.noSuchProject(title, fields.key.trim())}</Status>
+    <Status>{t.wizard.noSuchProject(title, named)}</Status>
   ) : lookup.failure !== null ? (
     <Status>{say(lookup.failure)}</Status>
-  ) : shape !== 'place' && check?.entry != null && fields.key.trim() !== '' ? (
+  ) : !keyTyped(shape) && check?.entry != null && fields.key.trim() !== '' ? (
     <Status>{say(check.entry)}</Status>
   ) : check?.tracker?.notice != null ? (
     <Status>{say(check.tracker.notice)}</Status>
@@ -145,6 +146,21 @@ function ProjectFields({ shape, kind, title, choice, fields, disabled, list, exa
       />
     )
   }
+  if (shape === 'alias') {
+    return (
+      <TextField
+        id="wizard-tracker-project"
+        label={t.settings.trackerProject(kind, title)}
+        hint={t.wizard.projectHint(title)}
+        value={fields.trackerProject}
+        placeholder={choice?.projectKey?.example}
+        upper
+        options={list.map((each) => ({ value: each.key, label: each.name }))}
+        aside={exact === undefined ? undefined : t.wizard.match(exact.key, exact.name)}
+        onChange={(value) => onChange((before) => typedIn(before, 'trackerProject', value.toUpperCase()))}
+      />
+    )
+  }
   if (shape === 'place') {
     return (
       <TextField
@@ -160,18 +176,18 @@ function ProjectFields({ shape, kind, title, choice, fields, disabled, list, exa
     )
   }
   const teams = list.filter((each) => each.within === undefined)
-  const within = list.filter((each) => each.within !== undefined && each.key === fields.key.trim())
+  const within = list.filter((each) => each.within !== undefined && each.key === fields.team.trim())
   return (
     <>
       <TextField
         id="wizard-tracker-project"
         label={t.wizard.team}
         hint={t.wizard.teamHint(title)}
-        value={fields.key}
+        value={fields.team}
         placeholder="ENG"
         upper
         options={teams.map((each) => ({ value: each.key, label: each.name }))}
-        onChange={(value) => onChange((before) => typedIn(before, 'key', value.toUpperCase()))}
+        onChange={(value) => onChange((before) => teamIn(before, value.toUpperCase()))}
       />
       <TextField
         id="wizard-tracker-within"
@@ -245,11 +261,12 @@ function ProfileState({ profile }: { profile: ProfileView }) {
 /** The value typed in full that one of the tracker's projects has. */
 function exactOf(shape: TrackerShape, fields: WizardFields, list: TrackerProject[]): TrackerProject | undefined {
   const key = fields.key.trim()
-  if (shape === 'place') return list.find((each) => each.key === fields.trackerProject.trim())
+  if (shape === 'place' || shape === 'alias') return list.find((each) => each.key === fields.trackerProject.trim())
   if (shape === 'key') return list.find((each) => each.key === key)
+  const team = fields.team.trim()
   const project = fields.trackerProject.trim()
-  if (project !== '') return list.find((each) => each.key === key && each.within === project)
-  return list.find((each) => each.key === key && each.within === undefined)
+  if (project !== '') return list.find((each) => each.key === team && each.within === project)
+  return list.find((each) => each.key === team && each.within === undefined)
 }
 
 interface Lookup {
