@@ -2,6 +2,7 @@ import { commentsAfterId, linkedFiles } from '../tracker/comments.js'
 import { parseTaskId, type TaskStatus, type TrackerTask } from '../tracker/model.js'
 import type { TaskSource } from '../tracker/source.js'
 import { GITHUB_STATUSES, githubStatus, RepoMap, toCard, toTrackerTask, type GithubCardIssue, type GithubIssue, type IssueState, type Repo } from './model.js'
+import { Skipped, trustedAuthor } from './trust.js'
 
 export interface GithubSettings {
   token: string
@@ -29,7 +30,14 @@ const ISSUE = `id number title state stateReason
   labels(first: 50) { nodes { name } }
   milestone { number title dueOn }`
 
-const REPOSITORY_ISSUES = `query($owner: String!, $name: String!, $states: [IssueState!], $after: String) {
+const AUTHOR = 'author { login } authorAssociation'
+
+interface Authored {
+  author: { login: string } | null
+  authorAssociation: string
+}
+
+const REPOSITORY_ISSUES =`query($owner: String!, $name: String!, $states: [IssueState!], $after: String) {
   repository(owner: $owner, name: $name) {
     issues(states: $states, first: ${PAGE}, after: $after) { pageInfo { hasNextPage endCursor } nodes { ${ISSUE} } }
   }
@@ -51,7 +59,7 @@ const MILESTONE_NUMBERS = `query($owner: String!, $name: String!, $title: String
 const MILESTONE_TASKS = `query($owner: String!, $name: String!, $number: Int!, $after: String) {
   repository(owner: $owner, name: $name) {
     milestone(number: $number) {
-      issues(first: ${PAGE}, after: $after) { pageInfo { hasNextPage endCursor } nodes { ${ISSUE} comments(last: 1) { nodes { body } } } }
+      issues(first: ${PAGE}, after: $after) { pageInfo { hasNextPage endCursor } nodes { ${ISSUE} comments(last: 10) { nodes { body ${AUTHOR} } } } }
     }
   }
 }`
@@ -87,7 +95,11 @@ const CLOSE_ISSUE = `mutation($id: ID!) {
 }`
 
 const ISSUE_COMMENTS = `query($owner: String!, $name: String!, $number: Int!) {
-  repository(owner: $owner, name: $name) { issue(number: $number) { comments(last: 100) { nodes { id body } } } }
+  repository(owner: $owner, name: $name) { issue(number: $number) { comments(last: 100) { nodes { id body ${AUTHOR} } } } }
+}`
+
+const VISIBILITY = `query($owner: String!, $name: String!) {
+  repository(owner: $owner, name: $name) { isPrivate }
 }`
 
 const ADD_COMMENT = `mutation($id: ID!, $body: String!) {
@@ -135,8 +147,14 @@ const REPOSITORY_LABELS = `query($owner: String!, $name: String!, $after: String
 /** Where GitHub keeps the files dropped into a comment. */
 const UPLOADS = /^https:\/\/(github\.com\/user-attachments\/|private-user-images\.githubusercontent\.com\/)/
 
-export async function connectGithub(settings: GithubSettings, timeoutMs: number, fetchImpl: typeof fetch = fetch): Promise<TaskSource> {
+export async function connectGithub(
+  settings: GithubSettings,
+  timeoutMs: number,
+  fetchImpl: typeof fetch = fetch,
+  log: (line: string) => void = console.log,
+): Promise<TaskSource> {
   const repos = new RepoMap(settings.projects)
+  const skipped = new Skipped(log)
 
   async function graphql<T>(query: string, variables: Record<string, unknown> = {}): Promise<T> {
     const response = await fetchImpl(API, {
@@ -187,7 +205,8 @@ export async function connectGithub(settings: GithubSettings, timeoutMs: number,
     return { repo, issue }
   }
 
-  await graphql('query { viewer { login } }')
+  const { viewer } = await graphql<{ viewer: { login: string } }>('query { viewer { login } }')
+  const trusted = (comment: Authored) => trustedAuthor(comment.authorAssociation, comment.author?.login, viewer.login)
 
   return {
     async chainTasks(project, open) {
@@ -258,9 +277,21 @@ export async function connectGithub(settings: GithubSettings, timeoutMs: number,
     },
 
     async commentsAfter(id, after) {
-      const { issue } = await issueOf<{ comments: { nodes: { id: string; body: string }[] } }>(id, ISSUE_COMMENTS)
-      const comments = issue.comments.nodes.map((node) => ({ id: node.id, body: node.body, files: linkedFiles(node.body, UPLOADS) }))
-      return commentsAfterId(comments, after)
+      const { repo, issue } = await issueOf<{ comments: { nodes: ({ id: string; body: string } & Authored)[] } }>(id, ISSUE_COMMENTS)
+      const passed = commentsAfterId(issue.comments.nodes, after).filter((node) => {
+        if (trusted(node)) return true
+        const author = node.author === null ? 'a deleted account' : node.author.login
+        skipped.note(node.id, `github: ${id}: the comment ${node.id} of ${author} is skipped: its author is not a collaborator of ${repo.owner}/${repo.name}`)
+        return false
+      })
+      return passed.map((node) => ({ id: node.id, body: node.body, files: linkedFiles(node.body, UPLOADS) }))
+    },
+
+    async isPublic(project) {
+      const repo = repoOf(project)
+      const { repository } = await graphql<{ repository: { isPrivate: boolean } | null }>(VISIBILITY, { ...repo })
+      if (repository === null) throw new Error(`github: ${repo.owner}/${repo.name} not found or the token cannot see it`)
+      return !repository.isPrivate
     },
 
     // An open issue is the ready status; the priority goes on as the label `priority: <level>` when the repository has it.
@@ -336,8 +367,8 @@ export async function connectGithub(settings: GithubSettings, timeoutMs: number,
         { ...repo, number: found.number },
         (data) => (data.repository?.milestone as { issues: Connection<GithubIssue> } | null)?.issues,
         `milestone ${found.number} of ${repo.owner}/${repo.name}`,
-      )) as (GithubIssue & { comments: { nodes: { body: string }[] } })[]
-      return issues.map((issue) => ({ ...toTrackerTask(issue, repos), lastComment: issue.comments.nodes[0]?.body ?? null }))
+      )) as (GithubIssue & { comments: { nodes: ({ body: string } & Authored)[] } })[]
+      return issues.map((issue) => ({ ...toTrackerTask(issue, repos), lastComment: issue.comments.nodes.findLast(trusted)?.body ?? null }))
     },
 
     async vocabulary(project) {

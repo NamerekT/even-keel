@@ -22,7 +22,7 @@ function task(id: string, category: 'ToDo' | 'Won'): TrackerTask {
   } as unknown as TrackerTask
 }
 
-function fakeAdapter(options: { off?: boolean; fails?: string; tasks?: TrackerTask[] } = {}): TrackerAdapter & { asked: string[] } {
+function fakeAdapter(options: { off?: boolean; fails?: string; tasks?: TrackerTask[]; public?: boolean } = {}): TrackerAdapter & { asked: string[] } {
   const asked: string[] = []
   return {
     title: 'Fake',
@@ -41,6 +41,7 @@ function fakeAdapter(options: { off?: boolean; fails?: string; tasks?: TrackerTa
                   asked.push(project)
                   return { tasks: options.tasks ?? [], statuses: [] }
                 },
+                ...(options.public === undefined ? {} : { isPublic: async () => options.public }),
                 close: async () => {},
               } as unknown as TaskSource
             },
@@ -75,7 +76,7 @@ describe('checkDraft', () => {
     expect(check).toEqual({
       repo: { root: 'D:\\new', current: 'trunk', suggested: null, notice: null },
       entry: null,
-      tracker: { ok: true, missing: [], open: 2, notice: null },
+      tracker: { ok: true, missing: [], open: 2, openToAll: false, notice: null },
       trusted: true,
       platform: 'win32',
     })
@@ -126,6 +127,7 @@ describe('checkDraft', () => {
       ok: false,
       missing: ['FAKE_URL', 'FAKE_TOKEN'],
       open: null,
+      openToAll: false,
       notice: expect.objectContaining({ code: 'wizard.trackerOff', params: { tracker: 'Fake', variables: ['FAKE_URL', 'FAKE_TOKEN'] } }),
     })
   })
@@ -136,8 +138,17 @@ describe('checkDraft', () => {
       ok: false,
       missing: [],
       open: null,
+      openToAll: false,
       notice: expect.objectContaining({ code: 'wizard.trackerFailed', params: { tracker: 'Fake' }, detail: 'huly: project NEW not found' }),
     })
+  })
+
+  it('says anyone can put a task into the chain of a public tracker project that needs no label', async () => {
+    const adapter = fakeAdapter({ public: true })
+    expect((await checkDraft(deps({ adapters: { fake: adapter } }), draft)).tracker).toEqual({ ok: true, missing: [], open: 0, openToAll: true, notice: null })
+    const labelled = deps({ adapters: { fake: adapter }, raw: () => ({ chain: { requiredLabels: ['ready'] }, projects: [] }) })
+    expect((await checkDraft(labelled, draft)).tracker?.openToAll).toBe(false)
+    expect((await checkDraft(deps({ adapters: { fake: fakeAdapter({ public: false }) } }), draft)).tracker?.openToAll).toBe(false)
   })
 
   it('gives the tracker the project it names the project by', async () => {

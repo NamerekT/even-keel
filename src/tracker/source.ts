@@ -107,6 +107,11 @@ export interface TaskSource {
    * the settings offer them in the chain rules. Without it the rules offer only what the loaded tasks carry.
    */
   vocabulary?(project: string): Promise<TrackerVocabulary>
+  /**
+   * Optional. Whether anyone at all can open a task in the project (a public GitHub repository): the wizard then warns
+   * that without `chain.requiredLabels` such a task enters the chain. Without it the tracker is taken as closed.
+   */
+  isPublic?(project: string): Promise<boolean>
   /** Drops the connection. */
   close(): Promise<void>
 }
@@ -265,6 +270,7 @@ export interface Tracker {
   moveMilestone?(id: string, milestone: string | null): Promise<void>
   milestoneTasks?(project: string, milestone: string): Promise<MilestoneTask[]>
   vocabulary?(project: string): Promise<TrackerVocabulary>
+  isPublic?(project: string): Promise<boolean>
   close(): Promise<void>
 }
 
@@ -297,5 +303,6 @@ export function trackerOf(source: TaskSource): Tracker {
   }
   if (source.milestoneTasks !== undefined) tracker.milestoneTasks = (project, milestone) => source.milestoneTasks!(project, milestone)
   if (source.vocabulary !== undefined) tracker.vocabulary = (project) => source.vocabulary!(project)
+  if (source.isPublic !== undefined) tracker.isPublic = (project) => source.isPublic!(project)
   return tracker
 }
