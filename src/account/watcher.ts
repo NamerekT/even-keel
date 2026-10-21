@@ -59,6 +59,8 @@ export interface AccountWatcherOptions {
   makeShared: (agent: string, key: string) => void
   /** The agents whose CLI is not found, asked at each refresh. */
   missing: () => string[]
+  /** Whether the account's provider answers: its sign-in is not asked before, as asking may renew it into the void (EKR-15). */
+  online: (home: AccountHome) => Promise<boolean>
   sessionsKnown: () => boolean
   removing: (key: string) => boolean
   markRemoving: (key: string, on: boolean) => void
@@ -308,6 +310,7 @@ export class AccountWatcher {
 
   private async check(home: AccountHome): Promise<Known> {
     const before = this.known.find((known) => known.home.key === home.key)
+    if (!(await this.options.online(home))) return { home, status: before?.status ?? null, error: before?.error ?? null }
     try {
       return { home, status: withIdentity(await this.options.agentOf(home).authStatus(home), home.key), error: null }
     } catch (reason) {

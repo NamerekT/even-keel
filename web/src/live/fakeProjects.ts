@@ -36,16 +36,16 @@ export function fakeNoProjects(state: EvenKeelState): EvenKeelState {
 export function fakeCheck(state: EvenKeelState, draft: ProjectDraft, mode: string | null): ProjectCheck {
   const path = draft.repo.trim()
   const none = { root: null, current: null, suggested: null }
-  if (path === '') return { repo: { ...none, notice: null }, entry: null, tracker: null, trusted: null }
-  if (path.includes('nope')) return { repo: { ...none, notice: notice('wizard.notRepo', { path }, { detail: 'fatal: not a git repository' }) }, entry: null, tracker: null, trusted: null }
+  if (path === '') return { repo: { ...none, notice: null }, entry: null, tracker: null, trusted: null, platform: 'win32' }
+  if (path.includes('nope')) return { repo: { ...none, notice: notice('wizard.notRepo', { path }, { detail: 'fatal: not a git repository' }) }, entry: null, tracker: null, trusted: null, platform: 'win32' }
   const root = path.replace(/\\/g, '/').replace(/\/+$/, '')
   const current = root.includes('master') ? 'master' : 'main'
   const suggested = draft.tracker === 'github' ? `octo-org/${root.split('/').pop()}` : null
   const repo = { root, current, suggested, notice: repoNotice(state, root, draft.branch.trim()) }
   const entry = entryNotice(state, draft)
   const trusted = mode !== 'untrusted'
-  if (entry !== null || repo.notice !== null) return { repo, entry, tracker: null, trusted }
-  return { repo, entry, tracker: trackerOf(draft.tracker, mode), trusted }
+  if (entry !== null || repo.notice !== null) return { repo, entry, tracker: null, trusted, platform: 'win32' }
+  return { repo, entry, tracker: trackerOf(draft.tracker, mode), trusted, platform: 'win32' }
 }
 
 function repoNotice(state: EvenKeelState, root: string, branch: string): ProjectCheck['repo']['notice'] {

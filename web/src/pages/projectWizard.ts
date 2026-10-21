@@ -112,6 +112,12 @@ export function readyToAdd(check: ProjectCheck | null): boolean {
   return check !== null && check.repo.root !== null && check.repo.notice === null && check.entry === null && check.tracker?.ok === true
 }
 
+/** What to run in a terminal on the service's machine to open `claude` in the folder and accept its trust dialog. */
+export function trustCommand(folder: string, platform: string): string {
+  if (platform === 'win32') return `pushd "${folder}" && claude`
+  return `cd '${folder.replace(/'/g, `'\\''`)}' && claude`
+}
+
 /** Why "Add" is closed, the first reason in the order of the steps; `null` — it is open. */
 export type Missing = 'repo' | 'profile' | 'place' | 'project' | 'key' | 'checking' | 'repoError' | 'entry' | 'tracker'
 

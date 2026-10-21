@@ -110,6 +110,23 @@
   font-size: 14px;
 }
 
+.project-add__trust p {
+  margin: 0 0 8px;
+}
+
+.project-add__command {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.project-add__command code {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  user-select: all;
+}
+
 .project-add__key {
   width: 7em;
   text-transform: uppercase;

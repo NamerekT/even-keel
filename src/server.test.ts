@@ -80,7 +80,7 @@ describe('Even Keel HTTP server', () => {
         saveShared: record('shared'),
         check: async (draft) => {
           calls.push(['check', draft])
-          return { repo: { root: draft.repo, current: 'main', notice: null }, entry: null, tracker: null, trusted: true }
+          return { repo: { root: draft.repo, current: 'main', notice: null }, entry: null, tracker: null, trusted: true, platform: 'win32' }
         },
         add: record('add'),
         remove: record('removeProject'),
@@ -249,7 +249,7 @@ describe('Even Keel HTTP server', () => {
     const draft = { repo: 'D:\\new', branch: '', key: 'NEW', name: '', tracker: 'huly', trackerProject: '', profile: null, slot: 0 }
     const check = await fetch(base + '/api/project/check', { method: 'POST', body: JSON.stringify(draft) })
     expect(check.status).toBe(200)
-    expect(await check.json()).toEqual({ repo: { root: 'D:\\new', current: 'main', notice: null }, entry: null, tracker: null, trusted: true })
+    expect(await check.json()).toEqual({ repo: { root: 'D:\\new', current: 'main', notice: null }, entry: null, tracker: null, trusted: true, platform: 'win32' })
 
     expect((await fetch(base + '/api/project/add', { method: 'POST', body: JSON.stringify(draft) })).status).toBe(200)
     expect((await fetch(base + '/api/project/remove', { method: 'POST', body: JSON.stringify({ project: 'ABC' }) })).status).toBe(200)

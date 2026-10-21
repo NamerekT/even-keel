@@ -9,6 +9,7 @@ import { AccountHomes, accountsRoot, codexAccountsRoot, type AccountHome } from 
 import { checkApiKey, checkOpenAiKey } from './account/keycheck.js'
 import { accountAt, forgetAccount, loadLedger, markRemoving, nameAccount, noteAccount, saveLedger, type AccountLedger } from './account/ledger.js'
 import { accountId, launchBlock, liveSessions, loginBlock, type LoginBlock } from './account/model.js'
+import { answers, providerUrl, Reachability } from './account/network.js'
 import { VsCodeAccount, vscodeSettingsFile } from './account/vscode.js'
 import { AccountWatcher } from './account/watcher.js'
 import { AGENTS } from './agent/adapters.js'
@@ -109,6 +110,8 @@ const AGENT_TIMEOUT_MS = 30_000
 const CHANGELOG_TIMEOUT_MS = 10 * 60_000
 const LIMITS_POLL_MS = 2_000
 const USAGE_POLL_MS = 5 * 60_000
+const OFFLINE_RETRY_MS = 30_000
+const NETWORK_PROBE_MS = 5_000
 const LAUNCH_CHART_DAYS = 14
 const FALLBACK_TOAST_MS = 24 * 60 * 60_000
 const ACCOUNT_POLL_MS = 60_000
@@ -370,6 +373,14 @@ const homeOf = (key: string): AccountHome => {
   return home
 }
 
+const reach = new Reachability({
+  probe: (url) => answers(url, NETWORK_PROBE_MS),
+  ttlMs: OFFLINE_RETRY_MS,
+  now: () => Date.now(),
+  onChange: (url, up) => console.log(up ? `network: ${url} answers again` : `network: ${url} does not answer; account checks and /usage wait for it`),
+})
+const online = (home: AccountHome) => reach.up(providerUrl(home.agent))
+
 const limits = new LimitsWatcher({
   file: limitsFile,
   intervalMs: LIMITS_POLL_MS,
@@ -380,6 +391,8 @@ const limits = new LimitsWatcher({
     return usage === undefined ? undefined : (at) => usage(home, at)
   },
   usageIntervalMs: USAGE_POLL_MS,
+  online,
+  offlineRetryMs: OFFLINE_RETRY_MS,
   notBefore: (key) => ledger.accounts[key]?.since ?? null,
   accessExpired: (home) => {
     const { accessExpiresAt } = homes.times(home)
@@ -524,6 +537,7 @@ const account = new AccountWatcher({
     dispatcher.check()
   },
   missing: () => [...runtimes].flatMap(([name, agent]) => (agent.installed?.() === false ? [name] : [])),
+  online,
   sessionsKnown: () => agentsRead,
   removing: (key) => ledger.removing.includes(key),
   markRemoving: (key, on) => saveAccounts(markRemoving(ledger, key, on)),
