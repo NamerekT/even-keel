@@ -13,13 +13,16 @@ const sleeper = (ms: number) => ['-e', `const s=Date.now();setTimeout(()=>consol
 
 const span = (stdout: string): [number, number] => JSON.parse(stdout) as [number, number]
 
+// `/accounts/one` spelled another way that is still the same folder on this platform: case and `\` count only on Windows.
+const sameOne = process.platform === 'win32' ? '\\Accounts\\One' : '/accounts/./one/'
+
 describe('FolderCalls', () => {
   it('runs the calls of one folder one after another and of different folders together', async () => {
     const calls = new FolderCalls()
     const [a, b, c] = await Promise.all([
-      calls.run('D:/accounts/one', NODE, sleeper(300), { env, timeoutMs: 5_000 }),
-      calls.run('d:\\accounts\\one', NODE, sleeper(300), { env, timeoutMs: 5_000 }),
-      calls.run('D:/accounts/two', NODE, sleeper(300), { env, timeoutMs: 5_000 }),
+      calls.run('/accounts/one', NODE, sleeper(300), { env, timeoutMs: 5_000 }),
+      calls.run(sameOne, NODE, sleeper(300), { env, timeoutMs: 5_000 }),
+      calls.run('/accounts/two', NODE, sleeper(300), { env, timeoutMs: 5_000 }),
     ])
     expect(span(b.stdout)[0]).toBeGreaterThanOrEqual(span(a.stdout)[1])
     expect(span(c.stdout)[0]).toBeLessThan(span(a.stdout)[1])
