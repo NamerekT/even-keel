@@ -263,7 +263,7 @@ export function trackerAnswers(comment: string, ask: Ask): AskAnswers | null {
 }
 
 function answerOf(question: AskQuestion, text: string): string {
-  if (!/^\d+(\s*[,;]?\s*\d+)*$/.test(text)) return text
+  if (!/^\d+(?:(?:\s*[,;]\s*|\s+)\d+)*$/.test(text)) return text
   const numbers = [...new Set(text.match(/\d+/g)!.map(Number))]
   if (!question.multiSelect && numbers.length > 1) return text
   if (numbers.some((number) => number < 1 || number > question.options.length)) return text

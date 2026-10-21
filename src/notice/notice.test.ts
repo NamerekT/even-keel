@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { asNotice, englishOf, fail, notice, noticeOf, renderNotice, sameNotice, textNotice, type NoticeTexts } from './notice.js'
+import { asNotice, englishOf, fail, notice, noticeOf, renderNotice, sameNotice, textNotice, type Notice, type NoticeTexts } from './notice.js'
 import { en } from './en.js'
 
 describe('notices', () => {
@@ -44,6 +44,11 @@ describe('notices', () => {
     expect(asNotice('chain: old text')).toEqual(textNotice('chain: old text'))
     expect(asNotice({ code: 'chain.noSession', params: { task: 'A-1' } })).toEqual(notice('chain.noSession', { task: 'A-1' }))
     expect(englishOf(asNotice({ code: 'gone.code', params: {} }))).toBe('{"code":"gone.code","params":{}}')
+  })
+
+  it('renders a code that is only an inherited member of the texts as the code itself', () => {
+    expect(renderNotice({ code: 'constructor', params: {} } as Notice, en)).toBe('constructor')
+    expect(renderNotice({ code: 'toString', params: {} } as Notice, en)).toBe('toString')
   })
 
   it('compares notices by value', () => {
