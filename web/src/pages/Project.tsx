@@ -155,7 +155,6 @@ export function Project({ state, project: key }: { state: EvenKeelState; project
             scale={state.context}
             trackerUrls={state.trackerUrls}
             focus={focus === BACKLOG_HASH || focus === SETTINGS_HASH || ciAt.open ? '' : focus}
-            ci={ci !== undefined}
             ghost={arrival.ghost}
             arrival={arrival.arrival}
             incoming={arrival.incoming}
@@ -171,7 +170,7 @@ export function Project({ state, project: key }: { state: EvenKeelState; project
         <div className={tabs && tools !== false ? 'project__side project__side--tabs' : 'project__side'}>
           {tabs && tools !== false && <div className="side-tabs">{tools}</div>}
           {selected !== undefined && (
-            <SessionPanel key={selected.id} block={selected} scale={state.context} onCard={openCard} onClose={close} />
+            <SessionPanel key={selected.id} block={selected} scale={state.context} ci={ci !== undefined} onCard={openCard} onClose={close} />
           )}
           {backlogOpen && (
             <BacklogPanel

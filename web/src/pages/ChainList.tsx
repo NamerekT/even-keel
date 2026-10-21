@@ -24,7 +24,6 @@ import { ActionScreen } from './ActionScreen.js'
 import './chain.css'
 import { ChainLegend } from './ChainLegend.js'
 import { ChangelogButton } from './ChangelogDialog.js'
-import { ciHash } from './CiChip.js'
 import { Forge } from './Forge.js'
 import type { Arrival } from './useArrival.js'
 import { inOrder, reorderable, useChainDrag, type ChainDrag, type Landing } from './useChainDrag.js'
@@ -41,8 +40,6 @@ interface Props {
   scale: ContextScale
   trackerUrls: TrackerUrls
   focus: string
-  /** The project has a CI: the row of a fix that is over opens its runs. */
-  ci: boolean
   /** A backlog task shown at the place it would take in the chain. */
   ghost: Ghost | null
   arrival: Arrival | null
@@ -65,7 +62,7 @@ interface Relation {
   badge: boolean
 }
 
-export function ChainList({ project, chain, scale, trackerUrls, focus, ci, ghost: aimed, arrival, incoming, links, ready, onCard }: Props) {
+export function ChainList({ project, chain, scale, trackerUrls, focus, ghost: aimed, arrival, incoming, links, ready, onCard }: Props) {
   const { ghost, leaving } = useLingering(aimed)
   const [pages, setPages] = useState(0)
   const [revealed, setRevealed] = useState(0)
@@ -207,7 +204,6 @@ export function ChainList({ project, chain, scale, trackerUrls, focus, ci, ghost
                     waits={block.blockedBy.filter((id) => open.has(id))}
                     links={links(block.id)}
                     scale={scale}
-                    ci={ci}
                     tier={tiers.get(block.id) ?? 'near'}
                     rails={rails.get(block.id) ?? []}
                     kin={kin !== null && block.parent === kin}
@@ -398,7 +394,6 @@ interface BlockProps {
   waits: string[]
   links: TaskLinks
   scale: ContextScale
-  ci: boolean
   tier: Tier
   rails: Rail[]
   /** A sibling of the task under the cursor. */
@@ -418,7 +413,7 @@ interface BlockProps {
 }
 
 function Block(props: BlockProps) {
-  const { block, link, number, waits, links, scale, ci, tier, rails, kin, marks, focused, movable, relation, arrival, offset, onHover, onReturn, ready, onReady, onCard } =
+  const { block, link, number, waits, links, scale, tier, rails, kin, marks, focused, movable, relation, arrival, offset, onHover, onReturn, ready, onReady, onCard } =
     props
   const classes = ['block', `block--${block.lamp}`, `block--${tier}`, `block--priority-${block.priority}`]
   if (isRework(block.labels)) classes.push('block--rework')
@@ -514,20 +509,12 @@ function Block(props: BlockProps) {
       <span className="block__divider" aria-hidden="true" />
       <p className="block__title">
         {block.title !== null &&
-          (fix ? (
-            block.fix !== undefined && ci ? (
-              <Link to={{ hash: ciHash(block.id) }} className="block__card" draggable={false} title={t.chain.fixRuns}>
-                {block.title}
-              </Link>
-            ) : (
-              block.title
-            )
-          ) : block.locked ? (
+          (block.locked ? (
             <button type="button" className="block__card" draggable={false} title={t.chain.openCard} onClick={() => onCard(block.id)}>
               {block.title}
             </button>
           ) : (
-            // Plain text: a press anywhere on the row lands on the key's link and opens the session panel, the card is in its head.
+            // Plain text: a press anywhere on the row lands on the key's link and opens the session panel, the card (or a fix's CI) is in its head.
             block.title
           ))}
       </p>

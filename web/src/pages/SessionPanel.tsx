@@ -1,4 +1,5 @@
 import { lazy, Suspense, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react'
+import { Link } from 'react-router'
 import { fixTaskOf, isFixName } from '../../../src/chain/fix.js'
 import { CLAUDE } from '../../../src/claude/name.js'
 import type { TaskSession } from '../../../src/chain/launches.js'
@@ -15,10 +16,12 @@ import { cacheTone, checkpointHandoffs, contextFill, sessionElapsed, taskProject
 import { AccountTag } from '../ui/AccountTag.js'
 import { CacheClock } from '../ui/CacheClock.js'
 import { ContextMeter } from '../ui/ContextMeter.js'
+import { PipelineIcon } from '../ui/icons.js'
 import { Lamp } from '../ui/Lamp.js'
 import { PullButton } from '../ui/PullChip.js'
 import { StartCard } from '../ui/SessionStart.js'
 import { useTip } from '../ui/useTip.js'
+import { ciHash } from './CiChip.js'
 import { feedText } from './feedLine.js'
 import './facts.css'
 
@@ -32,11 +35,13 @@ const REPLACE_WAIT_MS = 90_000
 interface Props {
   block: ChainBlock
   scale: ContextScale
+  /** The project has a CI: a fix of main offers its runs. */
+  ci: boolean
   onCard: (task: string) => void
   onClose: () => void
 }
 
-export function SessionPanel({ block, scale, onCard, onClose }: Props) {
+export function SessionPanel({ block, scale, ci, onCard, onClose }: Props) {
   const closeRef = useRef<HTMLButtonElement>(null)
   const [opened, setOpened] = useState<TaskSession | null>(null)
   const remoteUrl = block.session?.remoteUrl ?? null
@@ -87,7 +92,7 @@ export function SessionPanel({ block, scale, onCard, onClose }: Props) {
           {block.interrupted && <span className="panel__flag">{t.session.interrupted}</span>}
         </p>
       )}
-      <Actions block={block} scale={scale} />
+      <Actions block={block} scale={scale} ci={ci} />
       {block.start !== null ? (
         <>
           <StartCard start={block.start} />
@@ -116,7 +121,7 @@ export function SessionPanel({ block, scale, onCard, onClose }: Props) {
   )
 }
 
-function Actions({ block, scale }: { block: ChainBlock; scale: ContextScale }) {
+function Actions({ block, scale, ci }: { block: ChainBlock; scale: ContextScale; ci: boolean }) {
   const { send, sending, failure } = useCommand()
   const { state } = useLive()
   const [chatting, setChatting] = useState(false)
@@ -139,8 +144,11 @@ function Actions({ block, scale }: { block: ChainBlock; scale: ContextScale }) {
   const starting = replacing.on || (block.current && block.start !== null)
   const waiting = !aside && talking?.lamp === 'waiting'
 
+  // The runs of the commits a fix of main went from and landed, beside its chat.
+  const runs = fix && ci && block.fix !== undefined
+
   // "Skip" on the fix of main is only for the session the chain waits on.
-  if (chatSession === null && (!block.open || fix) && block.review === undefined) return null
+  if (chatSession === null && (!block.open || fix) && block.review === undefined && !runs) return null
   return (
     <>
       <div className="panel__actions">
@@ -155,6 +163,12 @@ function Actions({ block, scale }: { block: ChainBlock; scale: ContextScale }) {
           </button>
         )}
         {block.review !== undefined && <PullButton review={block.review} />}
+        {runs && (
+          <Link to={{ hash: ciHash(block.id) }} className="button pull-button__link" title={t.chain.fixRuns}>
+            <PipelineIcon />
+            {t.ci.chip}
+          </Link>
+        )}
         {block.open && live !== null && (
           <button
             type="button"
