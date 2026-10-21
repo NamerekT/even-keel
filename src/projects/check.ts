@@ -112,7 +112,7 @@ async function checkTracker(
   place: string,
   rules: ChainRules,
 ): Promise<NonNullable<ProjectCheck['tracker']>> {
-  const failed = (notice: Notice) => ({ ok: false, missing: [], open: null, notice })
+  const failed = (notice: Notice) => ({ ok: false, missing: [], open: null, openToAll: false, notice })
   let setup
   try {
     setup = adapter.setup(deps.env, adapter.projectKey !== undefined && place !== '' ? { [key]: place } : {})
@@ -121,13 +121,17 @@ async function checkTracker(
   }
   if (setup === undefined) {
     const variables = [...adapter.variables]
-    return { ok: false, missing: variables, open: null, notice: notice('wizard.trackerOff', { tracker: adapter.title, variables }) }
+    return { ok: false, missing: variables, open: null, openToAll: false, notice: notice('wizard.trackerOff', { tracker: adapter.title, variables }) }
   }
   const connect = setup.connect
   const link = new TrackerLink({ name: adapter.title, connect: async () => trackerOf(await connect(deps.timeoutMs)), timeoutMs: deps.timeoutMs })
   try {
-    const { tasks } = await link.run((tracker) => tracker.chainTasks(key, rules))
-    return { ok: true, missing: [], open: tasks.filter((task) => isOpen(task.status)).length, notice: null }
+    const { tasks, isPublic } = await link.run(async (tracker) => ({
+      ...(await tracker.chainTasks(key, rules)),
+      isPublic: (await tracker.isPublic?.(key)) ?? false,
+    }))
+    const openToAll = isPublic && rules.requiredLabels.length === 0
+    return { ok: true, missing: [], open: tasks.filter((task) => isOpen(task.status)).length, openToAll, notice: null }
   } catch (error) {
     return failed(notice('wizard.trackerFailed', { tracker: adapter.title }, { detail: errorText(error) }))
   } finally {
