@@ -48,7 +48,7 @@ export function asNotice(value: unknown): Notice {
 }
 
 export function renderNotice(notice: Notice, texts: NoticeTexts): string {
-  const render = texts[notice.code] as ((params: unknown) => string) | undefined
+  const render = Object.hasOwn(texts, notice.code) ? (texts[notice.code] as (params: unknown) => string) : undefined
   let text = render === undefined ? notice.code : render(notice.params)
   if (notice.cause !== undefined) text = joined(text, renderNotice(notice.cause, texts))
   if (notice.items !== undefined && notice.items.length > 0) text = `${text}:\n${notice.items.map((item) => renderNotice(item, texts)).join('\n')}`
