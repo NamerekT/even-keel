@@ -179,6 +179,19 @@ describe('trackerAnswers', () => {
     expect(trackerAnswers('1 2', { ...ASK, questions: [ASK.questions[1]!] })).toEqual({ 'Which sizes?': 'S, L' })
   })
 
+  it('reads numbers apart only with a separator between them', () => {
+    const sizes: Ask = { ...ASK, questions: [ASK.questions[1]!] }
+    for (const comment of ['1,2', '1, 2', '1 2', '1;2', '1 ; 2']) expect(trackerAnswers(comment, sizes)).toEqual({ 'Which sizes?': 'S, L' })
+    for (const comment of ['12', '1,,2', '1,2x', 'a']) expect(trackerAnswers(comment, sizes)).toEqual({ 'Which sizes?': comment })
+  })
+
+  it('reads a long run of digits in linear time', () => {
+    const comment = `${'1'.repeat(100_000)}x`
+    const start = performance.now()
+    expect(trackerAnswers(comment, ONE)).toEqual({ 'Which color?': comment })
+    expect(performance.now() - start).toBeLessThan(100)
+  })
+
   it('gives up on a comment that does not match the questions', () => {
     expect(trackerAnswers('just do it', ASK)).toBeNull()
     expect(trackerAnswers('   ', ONE)).toBeNull()

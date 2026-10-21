@@ -9,6 +9,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 ### Security
 
 - `markdown-it` is 14.3.3, which parses in linear time: an older one, which the Huly client pulls in, could be held up by crafted markdown. `vite`, used only to build the page and by `dev:fake`, is 8.3.5.
+- An answer to a question that is a long run of digits, from a tracker comment or the page's chat, no longer holds the service up: the check for option numbers ran in exponential time on it.
+- A notice whose code is an inherited member of an object, such as `constructor`, is shown as its code instead of calling that member.
 
 ## [0.1.0] - 2026-10-21
 
