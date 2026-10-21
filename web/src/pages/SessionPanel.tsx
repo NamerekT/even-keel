@@ -18,6 +18,7 @@ import { ContextMeter } from '../ui/ContextMeter.js'
 import { Lamp } from '../ui/Lamp.js'
 import { PullButton } from '../ui/PullChip.js'
 import { StartCard } from '../ui/SessionStart.js'
+import { Tipped } from '../ui/Tipped.js'
 import { useTip } from '../ui/useTip.js'
 import { feedText } from './feedLine.js'
 import './facts.css'
@@ -138,6 +139,18 @@ function Actions({ block, scale }: { block: ChainBlock; scale: ContextScale }) {
   const replacing = useHold(`${block.current}|${session?.sessionId ?? ''}`, REPLACE_WAIT_MS)
   const starting = replacing.on || (block.current && block.start !== null)
   const waiting = !aside && talking?.lamp === 'waiting'
+  // Why "New session" and "Skip" cannot be pressed now and when they can, for their tips.
+  const wait =
+    replacing.on || block.start?.phase === 'handover'
+      ? t.session.held.replacing
+      : starting
+        ? t.session.held.launching
+        : midTurn
+          ? t.session.held.midTurn
+          : null
+  const restartHeld =
+    wait ??
+    (block.skipped ? t.session.held.skipped : !block.current ? t.session.held.notCurrent : live === null ? t.session.held.noSession : null)
 
   // "Skip" on the fix of main is only for the session the chain waits on.
   if (chatSession === null && (!block.open || fix) && block.review === undefined) return null
@@ -155,19 +168,18 @@ function Actions({ block, scale }: { block: ChainBlock; scale: ContextScale }) {
           </button>
         )}
         {block.review !== undefined && <PullButton review={block.review} />}
-        {block.open && live !== null && (
-          <button
-            type="button"
-            className="button"
-            disabled={sending || midTurn || starting}
-            aria-busy={replacing.on ? true : undefined}
-            title={t.session.restartTitle}
+        {block.open && (
+          <PanelButton
+            tip={t.session.restartTitle}
+            held={restartHeld}
+            sending={sending}
+            busy={replacing.on}
             onClick={async () => {
               if (await send('chain/restart', body)) replacing.begin()
             }}
           >
             {t.session.restart}
-          </button>
+          </PanelButton>
         )}
         {block.open &&
           (block.skipped ? (
@@ -181,15 +193,14 @@ function Actions({ block, scale }: { block: ChainBlock; scale: ContextScale }) {
               {t.common.restore}
             </button>
           ) : (
-            <button
-              type="button"
-              className="button"
-              disabled={sending || midTurn || starting}
-              title={fix ? t.session.skipFix : block.current ? t.session.skipCurrent : t.session.skipOther}
+            <PanelButton
+              tip={fix ? t.session.skipFix : block.current ? t.session.skipCurrent : t.session.skipOther}
+              held={wait}
+              sending={sending}
               onClick={() => void send('chain/skip', body)}
             >
               {t.session.skip}
-            </button>
+            </PanelButton>
           ))}
         {midTurn && !starting && <span className="panel__hint">{t.session.midTurn}</span>}
       </div>
@@ -377,6 +388,34 @@ function TipValue({ value, children }: { value: string; children: ReactNode }) {
         )}
       </button>
     </dd>
+  )
+}
+
+interface PanelButtonProps {
+  tip: string
+  /** Why the button cannot be pressed now and when it can; `null` — it can. */
+  held: string | null
+  sending: boolean
+  busy?: boolean
+  onClick: () => void
+  children: ReactNode
+}
+
+/** A panel action with a tip: what it does, or, greyed, why it waits — `aria-disabled` keeps the tip reachable. */
+function PanelButton({ tip, held, sending, busy = false, onClick, children }: PanelButtonProps) {
+  return (
+    <Tipped tip={held ?? tip} align="start">
+      <button
+        type="button"
+        className="button"
+        disabled={sending}
+        aria-disabled={held !== null ? true : undefined}
+        aria-busy={busy ? true : undefined}
+        onClick={held === null ? onClick : undefined}
+      >
+        {children}
+      </button>
+    </Tipped>
   )
 }
 
