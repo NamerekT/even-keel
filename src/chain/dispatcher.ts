@@ -21,7 +21,7 @@ import { MainFix } from './mainfix.js'
 import { Reviews } from './reviews.js'
 import { Unchanged } from './unchanged.js'
 import type { ChainView } from './milestones.js'
-import { byNumber, chainOrder, checkOrder, nextTask, openBlockers, waitingBlockers } from './order.js'
+import { byNumber, chainOrder, checkOrder, nextTask, openBlockers, startsAhead, waitingBlockers } from './order.js'
 import { admits, excludes, isActive, isDone, isTerminal, type ChainRules } from './rules.js'
 import type { HandoffSession } from './relay.js'
 
@@ -364,7 +364,8 @@ export class Dispatcher {
     const tasks = this.lists.tasks.get(project) ?? []
     checkOrder(tasks, order)
     const current = this.currentOf(project)
-    if (current !== undefined && tasks.some((task) => task.id === current) && order[0] !== current) {
+    const holding = [...(this.state.skipped[project] ?? []), ...this.lists.waitingIds(project)]
+    if (current !== undefined && tasks.some((task) => task.id === current) && startsAhead(tasks, order, current, holding)) {
       throw fail('chain.currentFirst', { task: current })
     }
     this.state.orders[project] = [...order]

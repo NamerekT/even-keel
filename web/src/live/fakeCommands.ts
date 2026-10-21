@@ -2,7 +2,7 @@ import { fail } from '../../../src/notice/notice.js'
 import type { ActiveChain, LaunchEntry } from '../../../src/chain/dispatcher.js'
 import { isFixName } from '../../../src/chain/fix.js'
 import { launchDays } from '../../../src/chain/launches.js'
-import { checkOrder } from '../../../src/chain/order.js'
+import { checkOrder, startsAhead } from '../../../src/chain/order.js'
 import type { Task } from '../../../src/tracker/model.js'
 import type { EvenKeelState, SessionView } from '../../../src/state.js'
 import { accountCommand } from './fakeAccounts.js'
@@ -168,8 +168,9 @@ function reorder(state: EvenKeelState, project: string, order: string[]): EvenKe
   const tasks = state.tasks.filter((task) => task.id.startsWith(`${project}-`) && order.includes(task.id))
   checkOrder(tasks, order)
   const current = chainIn(state, project)?.current?.task
-  if (current !== undefined && !isFixName(current) && order[0] !== current) throw fail('chain.currentFirst', { task: current })
   const kept = state.chain.projects[project] ?? { waiting: [], backlog: [] }
+  const holding = [...(state.chain.skipped[project] ?? []), ...kept.waiting]
+  if (current !== undefined && !isFixName(current) && startsAhead(tasks, order, current, holding)) throw fail('chain.currentFirst', { task: current })
   return { ...state, chain: { ...state.chain, projects: { ...state.chain.projects, [project]: { ...kept, order: [...order], error: null } } } }
 }
 
