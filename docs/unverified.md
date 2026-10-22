@@ -18,7 +18,7 @@ Every entry, ordered by how many people it reaches and how badly it hurts them i
 | 6 | [Plugin hooks that block](#plugin-hooks-that-block-btn-180) | Codex | a merge goes in before the project's check |
 | 7 | [Chain sessions on the checked CLI](#chain-sessions-on-the-checked-cli-btn-250) | everyone | sessions run on an unchecked CLI version |
 | 8 | [The update button on the page](#the-update-button-on-the-page-btn-163) | Windows and macOS updating from the page | the service stays stopped after an update; start it by hand |
-| 9 | [The wizard's trust check](#the-wizards-trust-check) | new users | a false warning, or a pause at the first launch |
+| 9 | [The wizard's trust check](#the-wizards-trust-check) | new users | a pause at the first launch |
 | 10 | [A chain session reaching the agent's own compaction](#a-chain-session-reaching-the-agents-own-compaction) | everyone | a session loses the task's decisions after a compaction |
 | 11 | [Chat mail in a real session](#chat-mail-in-a-real-session-btn-181) | everyone writing mid-turn | a message is delivered but ignored or not shown |
 | 12 | [Background commands of a stopped session on Linux and macOS](#background-commands-of-a-stopped-session-on-linux-and-macos-btn-202) | Linux, macOS | a worktree is left behind after Done |
@@ -63,27 +63,24 @@ Every entry, ordered by how many people it reaches and how badly it hurts them i
 | 51 | [The tasks of a milestone on GitHub and Linear](#the-tasks-of-a-milestone-on-github-and-linear-btn-142) | changelog drafts on GitHub, Linear | the draft misses tasks or takes an older comment |
 | 52 | [GitHub attachments](#github-attachments) | GitHub | the page cannot open an attached file |
 | 53 | [The expiry of a fine-grained GitHub token](#the-expiry-of-a-fine-grained-github-token) | GitHub fine-grained tokens | no expiry on the card |
-| 54 | [The changelog commit from the service](#the-changelog-commit-from-the-service-btn-209) | changelog drafts | "Write" fails; copy the section by hand |
-| 55 | [The Codex changelog turn with JSON output](#the-codex-changelog-turn-with-json-output) | changelog drafts on Codex | the draft fails, or shows 0 tokens |
-| 56 | [Pasting files copied in Explorer into the chat](#pasting-files-copied-in-explorer-into-the-chat-btn-204) | Windows | the paste attaches nothing |
-| 57 | [Switching to your own Postgres from the page](#switching-to-your-own-postgres-from-the-page-btn-247) | stats on your own Postgres | stats stay off; set the variables by hand |
-| 58 | [A reader opening the state database while the service starts](#a-reader-opening-the-state-database-while-the-service-starts) | `npm run storage` users | the service refuses to start once |
-| 59 | [OpenCode chain sessions under the service](#opencode-chain-sessions-under-the-service-btn-214) | OpenCode | sessions do not start, or a whole task runs on a wrong assumption |
-| 60 | [A spent limit on OpenCode](#a-spent-limit-on-opencode) | OpenCode on ChatGPT or Copilot | the session stops on the error instead of waiting for the reset |
-| 61 | [A hung OpenCode turn](#a-hung-opencode-turn) | OpenCode | a hang the watchdog misses stays busy, or a long build is taken for hung |
-| 62 | [OpenCode sign-in from the page](#opencode-sign-in-from-the-page) | OpenCode with ChatGPT or Copilot | no link in the window; sign in in a terminal |
-| 63 | [Plugins in a Codex folder on Linux and macOS](#plugins-in-a-codex-folder-on-linux-and-macos) | Codex on Linux, macOS | a few seconds per first turn |
-| 64 | [Edit sizes of a FileChange](#edit-sizes-of-a-filechange-btn-185) | Codex | the chat shows an edit without its size |
-| 65 | [Codex stats](#codex-stats-btn-170) | Codex | a response counted twice in `/stats` |
-| 66 | [Fast mode in statistics](#fast-mode-in-statistics) | fast mode | `/stats` understates its cost |
-| 67 | [VS Code chat titles](#vs-code-chat-titles) | VS Code | a chat named differently from its tab |
-| 68 | [The first start with the PGlite state database](#the-first-start-with-the-pglite-state-database-btn-198) | an update from a build before v0.1 | the start stops on an import error |
-| 69 | [The first start with Forgejo profiles](#the-first-start-with-forgejo-profiles-btn-201) | an update from a build before v0.1 with Forgejo | the Forgejo CI disappears from the page |
-| 70 | [PR mode without a remote](#pr-mode-without-a-remote-ekr-12) | PR mode | the chain stays paused after the remote is added; press Resume |
-| 71 | [The OpenCode database read while a turn writes](#the-opencode-database-read-while-a-turn-writes) | OpenCode | the feed or a stats run skips one poll |
-| 72 | [Shared skills in a store outside `~/.claude`](#shared-skills-in-a-store-outside-claude-btn-256) | several Claude account folders | a shared skill edit still asks; at worst the global folder's sessions miss skills |
-| 73 | [Copilot chain sessions under the service](#copilot-chain-sessions-under-the-service-btn-215) | Copilot | sessions do not start without a token |
-| 74 | [Hooks and plugins in Copilot sessions](#hooks-and-plugins-in-copilot-sessions) | Copilot | no handoff on a full context, chat messages only between turns |
+| 54 | [The Codex changelog turn with JSON output](#the-codex-changelog-turn-with-json-output) | changelog drafts on Codex | the draft fails, or shows 0 tokens |
+| 55 | [Switching to your own Postgres from the page](#switching-to-your-own-postgres-from-the-page-btn-247) | stats on your own Postgres | stats stay off; set the variables by hand |
+| 56 | [A reader opening the state database while the service starts](#a-reader-opening-the-state-database-while-the-service-starts) | `npm run storage` users | the service refuses to start once |
+| 57 | [OpenCode chain sessions under the service](#opencode-chain-sessions-under-the-service-btn-214) | OpenCode | sessions do not start, or a whole task runs on a wrong assumption |
+| 58 | [A spent limit on OpenCode](#a-spent-limit-on-opencode) | OpenCode on ChatGPT or Copilot | the session stops on the error instead of waiting for the reset |
+| 59 | [A hung OpenCode turn](#a-hung-opencode-turn) | OpenCode | a hang the watchdog misses stays busy, or a long build is taken for hung |
+| 60 | [OpenCode sign-in from the page](#opencode-sign-in-from-the-page) | OpenCode with ChatGPT or Copilot | no link in the window; sign in in a terminal |
+| 61 | [Plugins in a Codex folder on Linux and macOS](#plugins-in-a-codex-folder-on-linux-and-macos) | Codex on Linux, macOS | a few seconds per first turn |
+| 62 | [Edit sizes of a FileChange](#edit-sizes-of-a-filechange-btn-185) | Codex | the chat shows an edit without its size |
+| 63 | [Codex stats](#codex-stats-btn-170) | Codex | a response counted twice in `/stats` |
+| 64 | [Fast mode in statistics](#fast-mode-in-statistics) | fast mode | `/stats` understates its cost |
+| 65 | [The first start with the PGlite state database](#the-first-start-with-the-pglite-state-database-btn-198) | an update from a build before v0.1 | the start stops on an import error |
+| 66 | [The first start with Forgejo profiles](#the-first-start-with-forgejo-profiles-btn-201) | an update from a build before v0.1 with Forgejo | the Forgejo CI disappears from the page |
+| 67 | [PR mode without a remote](#pr-mode-without-a-remote-ekr-12) | PR mode | the chain stays paused after the remote is added; press Resume |
+| 68 | [The OpenCode database read while a turn writes](#the-opencode-database-read-while-a-turn-writes) | OpenCode | the feed or a stats run skips one poll |
+| 69 | [Shared skills in a store outside `~/.claude`](#shared-skills-in-a-store-outside-claude-btn-256) | several Claude account folders | a shared skill edit still asks; at worst the global folder's sessions miss skills |
+| 70 | [Copilot chain sessions under the service](#copilot-chain-sessions-under-the-service-btn-215) | Copilot | sessions do not start without a token |
+| 71 | [Hooks and plugins in Copilot sessions](#hooks-and-plugins-in-copilot-sessions) | Copilot | no handoff on a full context, chat messages only between turns |
 | 75 | [MCP servers in Copilot sessions](#mcp-servers-in-copilot-sessions) | Copilot with packages | a session lacks the tracker's tools |
 | 76 | [A spent Copilot budget](#a-spent-copilot-budget) | Copilot | the session waits for good; press "New session" |
 | 77 | [A Copilot turn killed mid-turn](#a-copilot-turn-killed-mid-turn) | Copilot | the resume fails; press "New session" |
@@ -130,11 +127,7 @@ Adding a project was checked on a fresh install from the Windows service (BTN-16
 
 ### The wizard's trust check
 
-It reads only the global `~/.claude.json` (where Claude Code records the trust and from where it is carried into the account folders), not the active account folder's copy, and it does not check Codex's trust at all. A folder trusted only in an account folder shows the warning although it is trusted; the warning does not hold the add. A folder that passes but is not trusted for the chain's account pauses the chain at its first launch, as before.
-
-### Pasting files copied in Explorer into the chat (BTN-204)
-
-Ctrl+V in the chat's reply box attaches whatever files the browser hands the paste (`clipboardData.items`). A pasted picture and plain text were checked with a real Ctrl+V in Playwright's Chromium, a drop of one and several files with synthetic events. Files copied in Explorer were not: the headless browser the checks run in does not read the system clipboard at all, and the installed Chrome is not used for checks (`docs/web.md`, "Screenshots"). Chromium is assumed to hand them over as files; if it does not, the paste attaches nothing. **Workaround:** drop the files on the chat window or pick them with `+`.
+It reads only the global `~/.claude.json`, not the account folders' copies, and it does not check Codex's trust at all. Seen live on 22.10.2026: `claude` started with an account folder's `CLAUDE_CONFIG_DIR` records the accepted trust dialog in that folder's `.claude.json` only, so a folder trusted that way shows the warning although the chain's account trusts it (BTN-300). The warning does not hold the add: if you trusted the folder under the account the chain runs on, add it anyway. Not seen: a folder that passes the check but is not trusted for the chain's account, pausing the chain at its first launch. **Workaround:** if it does, open `claude` once in the folder with that account's `CLAUDE_CONFIG_DIR`, accept the dialog and press Resume.
 
 ## Accounts
 
@@ -216,14 +209,6 @@ A turn that ends with a background command or a `Monitor` still running leaves t
 ### Background commands of a stopped session on Linux and macOS (BTN-202)
 
 On Windows `claude stop` was seen to leave the `bash.exe` of a `run_in_background` command alive, and Even Keel now kills the session's process tree after the stop; that was checked there. On Linux and macOS it takes the tree from `ps` the same way and sends each process `SIGTERM`, but it never ran there, and whether the CLI already ends those commands itself was not seen. If a stopped session's command lives on, it holds the worktree and the cleanup leaves it in `leftovers`. **Workaround:** kill the command by hand and press "Done" on the warning; the next cleanup removes the folder.
-
-### VS Code chat titles
-
-A chat under "Working now" is named by the last `custom-title` of its transcript, else the last `ai-title` (`src/sessions/title.ts`); that this is the title on the VS Code tab was read from transcripts, not compared with the tabs. If VS Code titles a tab otherwise, the page shows a different name than the tab, nothing else breaks (`docs/accounts.md`).
-
-### The changelog commit from the service (BTN-209)
-
-`commitChangelog` was tested on a temporary repository, not from the running service in a real main checkout. Assumed: the global git hooks (`core.hooksPath`) take a commit without a task id quietly, `core.autocrlf` does not turn the kept CRLF ends into a whole-file change, and git under the service account (Windows session 0) finds the user's identity and the repository's ownership (`safe.directory`). If one of them fails, "Write" shows `changelog.commitFailed` and the file is put back as it was. **Workaround:** "Copy", paste the section into the file and commit it by hand.
 
 ### The Codex changelog turn with JSON output
 
