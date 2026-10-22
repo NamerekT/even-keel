@@ -1,6 +1,6 @@
 import type { Dispatcher, LaunchEntry } from '../chain/dispatcher.js'
 import { ranSince } from '../chain/launches.js'
-import type { ChainRules } from '../chain/rules.js'
+import { ownsMilestone, type ChainRules } from '../chain/rules.js'
 import { MilestoneFiller } from '../chain/milestones.js'
 import { branchMerged } from '../git/merged.js'
 import { runGit } from '../git/run.js'
@@ -10,7 +10,7 @@ import { errorText, TrackerLink } from './link.js'
 import { isOpen, type Task } from './model.js'
 import { ParentCloser } from './parents.js'
 import { StatusPoller } from './poller.js'
-import { trackerOf, type TrackerSetup } from './source.js'
+import { trackerOf, type ChainTasks, type TrackerSetup } from './source.js'
 
 const TRACKER_POLL_MS = 5_000
 const TASKS_REFRESH_MS = 30_000
@@ -30,6 +30,8 @@ export interface TrackerStartDeps {
   fillsMilestone: (project: string) => boolean
   /** The project's main branch, where a merged task branch lands. */
   mainBranch: (project: string) => string
+  /** The place in the tracker the project reads (`TrackerProjectKey.placeOf`); projects with the same one read it once. */
+  readKey: (project: string) => string
   /** Sends the page a fresh state. */
   broadcast: () => void
   /** Filled here: a read of the project's tasks out of turn, for each project of the tracker. */
@@ -45,7 +47,7 @@ export interface TrackerHandle {
 
 /** Connects a tracker, polls the statuses of its projects' tasks and refreshes them, closing merged tasks and done parents. */
 export function startTracker(view: TrackerView, setup: TrackerSetup, deps: TrackerStartDeps): TrackerHandle {
-  const { repoOf, rulesOf, links, tasksByProject, launches, dispatcher, fillsMilestone, mainBranch, broadcast, refreshers } = deps
+  const { repoOf, rulesOf, links, tasksByProject, launches, dispatcher, fillsMilestone, mainBranch, readKey, broadcast, refreshers } = deps
   const { name, title, projects } = view
   let current = setup
   let stopped = false
@@ -137,9 +139,23 @@ export function startTracker(view: TrackerView, setup: TrackerSetup, deps: Track
     refreshing.set(project, next)
     return next
   }
+  const reads = new Map<string, Promise<ChainTasks>>()
+  /** The tracker's open tasks of the project; a read of the same tracker project by the same statuses under way is joined. */
+  const chainTasks = (project: string, rules: ChainRules): Promise<ChainTasks> => {
+    const key = JSON.stringify([readKey(project), rules.active, rules.terminal])
+    const running = reads.get(key)
+    if (running !== undefined) return running
+    const read = link.run((tracker) => tracker.chainTasks(project, rules)).finally(() => reads.delete(key))
+    reads.set(key, read)
+    return read
+  }
   const readProject = async (project: string): Promise<void> => {
     try {
-      const { tasks, parents, unknownStatuses } = await link.run((tracker) => tracker.chainTasks(project, rulesOf(project)))
+      const rules = rulesOf(project)
+      const read = await chainTasks(project, rules)
+      const tasks = read.tasks.filter((task) => ownsMilestone(rules, task))
+      const parents = read.parents.filter((task) => ownsMilestone(rules, task))
+      const { unknownStatuses } = read
       const unknown = unknownStatuses.join('", "')
       if (unknown !== (unknownByProject.get(project) ?? '') && unknown !== '') {
         console.warn(`config: ${view.title} has no status "${unknown}" named in the chain rules of ${project}`)

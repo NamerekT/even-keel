@@ -59,7 +59,7 @@ export async function collect(settings: DbSettings, root: string, log: Log, huly
     await db.syncPrices(config.prices)
 
     const projects = repos ?? trackedProjects(root, log)
-    const ruleScan = await ruleSources(homes.list(), projects, homedir(), log)
+    const ruleScan = await ruleSources(homes.list(), projects.map((project) => project.repo), homedir(), log)
     const ruleFiles = ruleScan.sources
     const rules = { home: homedir(), skills: skillsOf(ruleFiles) }
     const accountDirs = new Map(homes.list().map((home) => [home.key, home.dir]))
@@ -129,10 +129,10 @@ export async function collect(settings: DbSettings, root: string, log: Log, huly
 /**
  * The launch log and the handoff snapshots from Even Keel's database, through the service's port while it runs.
  * Without one — a merge reaches the collector before the service restarts and imports the old state — from the
- * `node:sqlite` file of versions 1–2, otherwise from the v0.1 files of the state folder. `repos` — the folders of the
- * projects of the database (BTN-199); `undefined` without it, when the config file still holds them.
+ * `node:sqlite` file of versions 1–2, otherwise from the v0.1 files of the state folder. `repos` — the folders and
+ * branches of the projects of the database (BTN-199); `undefined` without it, when the config file still holds them.
  */
-async function evenKeelState(stateDir: string, log: Log): Promise<{ launches: LaunchEntry[]; handoffs: HandoffSnapshot[]; repos?: string[] }> {
+async function evenKeelState(stateDir: string, log: Log): Promise<{ launches: LaunchEntry[]; handoffs: HandoffSnapshot[]; repos?: TrackedProject[] }> {
   try {
     const database = await readStateDatabase(stateDir)
     const reader = database ?? (await legacyReader(stateDir))
@@ -141,7 +141,7 @@ async function evenKeelState(stateDir: string, log: Log): Promise<{ launches: La
       return { launches: files?.launches ?? [], handoffs: files?.handoffs ?? [] }
     }
     try {
-      const repos = database === undefined ? undefined : (await reader.db.query<{ repo: string }>('select repo from projects order by position')).rows.map((row) => row.repo)
+      const repos = database === undefined ? undefined : (await reader.db.query<TrackedProject>('select repo, branch from projects order by position')).rows
       return { launches: await readLaunches(reader.db), handoffs: await readSnapshots(reader.db), repos }
     } finally {
       await reader.close()
@@ -159,10 +159,13 @@ async function legacyReader(stateDir: string): Promise<StateReader | undefined> 
   return { db, close: () => db.close() }
 }
 
-function trackedProjects(root: string, log: Log): string[] {
+type TrackedProject = { repo: string; branch: string }
+
+function trackedProjects(root: string, log: Log): TrackedProject[] {
   const file = process.env.EVEN_KEEL_CONFIG ?? join(root, 'even-keel.config.json')
   try {
-    return Object.values(loadConfig(file).projects)
+    const config = loadConfig(file)
+    return Object.entries(config.projects).map(([key, repo]) => ({ repo, branch: config.settings[key]!.branch }))
   } catch (error) {
     log(`tally: no Even Keel projects for rule files (${(error as Error).message})`)
     return []

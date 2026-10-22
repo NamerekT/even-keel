@@ -118,7 +118,8 @@ export interface HulySource extends TaskSource {
   projectIds: ReadonlyMap<string, string>
 }
 
-export async function connectHuly(credentials: HulyCredentials, timeoutMs: number): Promise<HulySource> {
+/** `projects` — the Huly project of each project key that names another one (`huly`); any other key is the Huly project itself. */
+export async function connectHuly(credentials: HulyCredentials, timeoutMs: number, projects: Readonly<Record<string, string>> = {}): Promise<HulySource> {
   const account = authOf(credentials)
   quietModelNoise()
   const client = await api.connect(credentials.url, {
@@ -193,14 +194,19 @@ export async function connectHuly(credentials: HulyCredentials, timeoutMs: numbe
   }
 
   const projectIds = new Map<string, string>()
+  async function spaceOf(project: string): Promise<{ _id: string; identifier: string }> {
+    const identifier = projects[project] ?? project
+    const space = await client.findOne<{ _id: string; identifier: string }>(tracker.class.Project, { identifier })
+    if (space === undefined) throw new Error(`huly: project ${identifier} not found`)
+    projectIds.set(identifier, space._id)
+    return space
+  }
 
   return {
     projectIds,
 
     async chainTasks(project, open) {
-      const space = await client.findOne<{ _id: string }>(tracker.class.Project, { identifier: project })
-      if (space === undefined) throw new Error(`huly: project ${project} not found`)
-      projectIds.set(project, space._id)
+      const space = await spaceOf(project)
       const statuses = await findStatuses()
       const opened = statuses.filter((doc) => open(toStatus(doc))).map((doc) => doc._id)
       const openIssues = await findIssues({ space: space._id, status: { $in: opened } })
@@ -300,8 +306,7 @@ export async function connectHuly(credentials: HulyCredentials, timeoutMs: numbe
       }))
     },
     async create(task) {
-      const space = await client.findOne<{ _id: string; identifier: string }>(tracker.class.Project, { identifier: task.project })
-      if (space === undefined) throw new Error(`huly: project ${task.project} not found`)
+      const space = await spaceOf(task.project)
       const [statuses, allowed, last, source] = await Promise.all([
         findStatuses(),
         projectStatuses(space._id),
@@ -312,7 +317,7 @@ export async function connectHuly(credentials: HulyCredentials, timeoutMs: numbe
       // The project's issue counter is taken the way Huly's own client takes it.
       const taken = (await client.updateDoc(tracker.class.Project, SPACE_OF_SPACES, space._id, { $inc: { sequence: 1 } }, true)) as { object?: { sequence?: number } }
       const number = taken.object?.sequence
-      if (number === undefined) throw new Error(`huly: project ${task.project} gave no issue number`)
+      if (number === undefined) throw new Error(`huly: project ${space.identifier} gave no issue number`)
       const id = generateId()
       const identifier = `${space.identifier}-${number}`
       const description = await client.uploadMarkup(tracker.class.Issue, id, 'description', task.description, 'markdown')
@@ -373,8 +378,7 @@ export async function connectHuly(credentials: HulyCredentials, timeoutMs: numbe
       await client.updateDoc(tracker.class.Issue, issue.space, issue._id, { milestone })
     },
     async milestoneTasks(project, milestone) {
-      const space = await client.findOne<{ _id: string }>(tracker.class.Project, { identifier: project })
-      if (space === undefined) throw new Error(`huly: project ${project} not found`)
+      const space = await spaceOf(project)
       const milestones = await client.findAll<{ _id: string }>(tracker.class.Milestone, { space: space._id, label: milestone }, { projection: { _id: 1 } })
       if (milestones.length === 0) return []
       const [issues, statuses] = await Promise.all([findIssues({ space: space._id, milestone: { $in: milestones.map((doc) => doc._id) } }), findStatuses()])
@@ -395,14 +399,14 @@ export async function connectHuly(credentials: HulyCredentials, timeoutMs: numbe
       })
     },
     async vocabulary(project) {
-      const space = await client.findOne<{ _id: string }>(tracker.class.Project, { identifier: project })
-      if (space === undefined) throw new Error(`huly: project ${project} not found`)
-      const [statuses, allowed, tags] = await Promise.all([
+      const space = await spaceOf(project)
+      const [statuses, allowed, tags, milestones] = await Promise.all([
         findStatuses(),
         projectStatuses(space._id),
         client.findAll<{ title: string }>(TAG_ELEMENT, { targetClass: tracker.class.Issue }, { projection: { title: 1 } }),
+        client.findAll<HulyMilestoneDoc>(tracker.class.Milestone, { space: space._id, status: { $nin: CLOSED_MILESTONES } }, { projection: MILESTONE_FIELDS }),
       ])
-      return vocabularyOf(statuses, allowed, tags)
+      return { ...vocabularyOf(statuses, allowed, tags), milestones: milestones.map((milestone) => milestone.label) }
     },
     close: () => client.close(),
   }

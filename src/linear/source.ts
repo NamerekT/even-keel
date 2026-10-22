@@ -1,11 +1,11 @@
 import { commentsAfterId, linkedFiles } from '../tracker/comments.js'
 import { parseTaskId, type TaskPriority, type TrackerTask } from '../tracker/model.js'
 import type { TaskSource } from '../tracker/source.js'
-import { linearStatus, readyState, toCard, toTrackerTask, type LinearCardIssue, type LinearIssue, type LinearState, type TeamStateDoc } from './model.js'
+import { linearPlace, linearStatus, readyState, toCard, toTrackerTask, type LinearCardIssue, type LinearIssue, type LinearState, type TeamStateDoc } from './model.js'
 
 export interface LinearSettings {
   token: string
-  /** The Linear project a project key narrows its team down to, by name. */
+  /** The `linear` value of each project that has one: a project of the team by name, and the team itself (`linearPlace`). */
   projects: Readonly<Record<string, string>>
 }
 
@@ -173,18 +173,18 @@ export async function connectLinear(settings: LinearSettings, timeoutMs: number,
   }
 
   async function teamOf(key: string): Promise<{ id: string; states: TeamState[]; project?: string }> {
-    const project = settings.projects[key]
+    const { team: teamKey, project } = linearPlace(key, settings.projects[key])
     type Team = { id: string; states: { nodes: TeamState[] }; projects?: { nodes: { id: string; url: string }[] } }
     let team: Team | null
     try {
-      ;({ team } = await graphql<{ team: Team | null }>(project === undefined ? TEAM : TEAM_PROJECT, project === undefined ? { team: key } : { team: key, project }))
+      ;({ team } = await graphql<{ team: Team | null }>(project === null ? TEAM : TEAM_PROJECT, project === null ? { team: teamKey } : { team: teamKey, project }))
     } catch (error) {
-      throw new Error(`linear: team ${key}: ${(error as Error).message.replace(/^linear: /, '')}`)
+      throw new Error(`linear: team ${teamKey}: ${(error as Error).message.replace(/^linear: /, '')}`)
     }
-    if (team === null) throw new Error(`linear: team ${key} not found or the key cannot see it`)
-    if (project === undefined) return { id: team.id, states: team.states.nodes }
+    if (team === null) throw new Error(`linear: team ${teamKey} not found or the key cannot see it`)
+    if (project === null) return { id: team.id, states: team.states.nodes }
     const found = team.projects?.nodes[0]
-    if (found === undefined) throw new Error(`linear: team ${key} has no project "${project}"`)
+    if (found === undefined) throw new Error(`linear: team ${teamKey} has no project "${project}"`)
     projectUrls.set(key, `${found.url}/issues`)
     return { id: team.id, states: team.states.nodes, project: found.id }
   }

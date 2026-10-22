@@ -11,11 +11,27 @@ import { withoutListed } from './settingsRows.js'
 import { providerName } from './settingsRun.js'
 import { ListTable } from './settingsTable.js'
 
-export const RULE_KEYS = ['active', 'terminal', 'requiredLabels', 'excludedLabels'] as const
+export const RULE_KEYS = ['active', 'terminal', 'requiredLabels', 'excludedLabels', 'requiredMilestones', 'excludedMilestones'] as const
 export type RuleKey = (typeof RULE_KEYS)[number]
 export type RuleTexts = Record<RuleKey, string>
-/** The list a name may not share with: a status is either in work or closed, a label either needed or excluded. */
-const OPPOSITE: Record<RuleKey, RuleKey> = { active: 'terminal', terminal: 'active', requiredLabels: 'excludedLabels', excludedLabels: 'requiredLabels' }
+/** The list a name may not share with: a status is either in work or closed, a label or a milestone either needed or excluded. */
+const OPPOSITE: Record<RuleKey, RuleKey> = {
+  active: 'terminal',
+  terminal: 'active',
+  requiredLabels: 'excludedLabels',
+  excludedLabels: 'requiredLabels',
+  requiredMilestones: 'excludedMilestones',
+  excludedMilestones: 'requiredMilestones',
+}
+/** Which of the tracker's names a rule list offers. */
+const CHOICES: Record<RuleKey, 'statuses' | 'labels' | 'milestones'> = {
+  active: 'statuses',
+  terminal: 'statuses',
+  requiredLabels: 'labels',
+  excludedLabels: 'labels',
+  requiredMilestones: 'milestones',
+  excludedMilestones: 'milestones',
+}
 
 export const linesOf = (text: string) => text.split('\n').map((line) => line.trim()).filter((line) => line !== '')
 export const rulesText = (rules: ChainRules): RuleTexts => ({
@@ -23,12 +39,21 @@ export const rulesText = (rules: ChainRules): RuleTexts => ({
   terminal: (rules.terminal ?? []).join('\n'),
   requiredLabels: rules.requiredLabels.join('\n'),
   excludedLabels: rules.excludedLabels.join('\n'),
+  requiredMilestones: rules.requiredMilestones.join('\n'),
+  excludedMilestones: rules.excludedMilestones.join('\n'),
 })
 /** An empty status list goes by the categories of the statuses, as the service stores it. */
 export const rulesOf = (texts: Readonly<Record<RuleKey, Value>>): ChainRules => {
   const lines = (key: RuleKey) => linesOf(texts[key] as string)
   const statuses = (key: RuleKey) => (lines(key).length === 0 ? null : lines(key))
-  return { active: statuses('active'), terminal: statuses('terminal'), requiredLabels: lines('requiredLabels'), excludedLabels: lines('excludedLabels') }
+  return {
+    active: statuses('active'),
+    terminal: statuses('terminal'),
+    requiredLabels: lines('requiredLabels'),
+    excludedLabels: lines('excludedLabels'),
+    requiredMilestones: lines('requiredMilestones'),
+    excludedMilestones: lines('excludedMilestones'),
+  }
 }
 
 /** A whole number from `min` on; `undefined` — not one. */
@@ -225,7 +250,7 @@ export function RuleFields({
   onEdit: (key: RuleKey, text: string) => void
   errorOf: (field: string) => Notice | null
   marks: Marks
-  choices: { statuses: readonly string[]; labels: readonly string[] }
+  choices: Record<'statuses' | 'labels' | 'milestones', readonly string[]>
 }) {
   return (
     <Section title={t.settings.rules} hint={t.settings.rulesHint}>
@@ -238,7 +263,7 @@ export function RuleFields({
               value={text(key)}
               add={t.settings.ruleAdd[key]}
               empty={t.settings.rulePlaceholder[key]}
-              suggest={withoutListed(key === 'active' || key === 'terminal' ? choices.statuses : choices.labels, text(OPPOSITE[key]))}
+              suggest={withoutListed(choices[CHOICES[key]], text(OPPOSITE[key]))}
               onChange={(value) => onEdit(key, value)}
             />
             {marks.note(key)}

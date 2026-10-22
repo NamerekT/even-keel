@@ -12,6 +12,8 @@ export interface WizardFields {
   name: string
   tracker: string
   trackerProject: string
+  /** The team a `within` tracker's project is in (Linear); the key defaults to it. */
+  team: string
   /** The chosen tracker profile's id; blank — none chosen yet. */
   profile: string
   place: 'worktree' | 'slots'
@@ -27,6 +29,7 @@ export const EMPTY_FIELDS: WizardFields = {
   name: '',
   tracker: '',
   trackerProject: '',
+  team: '',
   profile: '',
   place: 'worktree',
   slots: '2',
@@ -35,14 +38,33 @@ export const EMPTY_FIELDS: WizardFields = {
 
 /**
  * How a tracker names a project: `key` — by the project key itself (Huly: its identifier); `place` — by its own value,
- * the key is a free prefix (GitHub: `owner/name`); `within` — the key is the tracker's (a Linear team), its value
- * optionally narrows it (a project of the team).
+ * the key is a free prefix (GitHub: `owner/name`); `within` — by a team (Linear), its value optionally narrowing it to a
+ * project of the team, the key defaults to the team's and may differ (two projects of one team, BTN-73); `alias` — the
+ * tracker's project is picked, the key defaults to its own and may differ (Huly: a second project of Even Keel on a
+ * Huly project another one has).
  */
-export type TrackerShape = 'key' | 'place' | 'within'
+export type TrackerShape = 'key' | 'place' | 'within' | 'alias'
 
 export function shapeOf(choice: TrackerChoice | undefined): TrackerShape {
   if (choice?.projectKey == null) return 'key'
+  if (choice.projectKey.alias) return 'alias'
   return choice.projectKey.optional ? 'within' : 'place'
+}
+
+/** Whether the wizard shows the key as a field of its own, not only what the picked project fills. */
+export const keyTyped = (shape: TrackerShape) => shape !== 'key'
+
+/** The prefix the project's task ids will have where they are the tracker's own; blank — the key's. */
+export function idPrefix(shape: TrackerShape, fields: WizardFields): string {
+  if (shape === 'alias') return fields.trackerProject.trim()
+  return shape === 'within' ? fields.team.trim() : ''
+}
+
+/** The tracker's value of a `within` project: the team goes before a slash once the key is not the team's (`linearPlace`). */
+function withinValue(fields: WizardFields): string {
+  const team = fields.team.trim()
+  const project = fields.trackerProject.trim()
+  return team === '' || team === fields.key.trim() ? project : `${team}/${project}`
 }
 
 const KEY_LENGTH = 5
@@ -61,7 +83,7 @@ export function draftOfFields(fields: WizardFields, defaultProfile = false): Pro
     key: fields.key.trim(),
     name: fields.name.trim(),
     tracker: fields.tracker,
-    trackerProject: fields.trackerProject.trim(),
+    trackerProject: withinValue(fields),
     profile: fields.profile === '' || defaultProfile ? null : fields.profile,
     slot,
   }
@@ -82,14 +104,22 @@ function suggest(fields: WizardFields, values: Partial<Record<Suggested, string>
 /** Another profile: its kind's tracker, and the suggestions of the last kind cleared. */
 export function switchProfile(fields: WizardFields, profile: { id: string; kind: string }): WizardFields {
   if (profile.kind === fields.tracker) return { ...fields, profile: profile.id }
-  return suggest({ ...fields, profile: profile.id, tracker: profile.kind }, { key: '', name: '', trackerProject: '' })
+  return suggest({ ...fields, profile: profile.id, tracker: profile.kind, team: '' }, { key: '', name: '', trackerProject: '' })
+}
+
+/** A team typed or picked: the key follows it while it is not typed by hand. */
+export function teamIn(fields: WizardFields, team: string): WizardFields {
+  return suggest({ ...fields, team }, { key: team })
 }
 
 /** A project picked from the tracker's list fills what it names: the key, the tracker's value and the name. */
 export function pickProject(fields: WizardFields, shape: TrackerShape, project: TrackerProject): WizardFields {
   if (shape === 'key') return suggest({ ...fields, key: project.key, typed: { ...fields.typed, key: true } }, { name: project.name })
   if (shape === 'within') {
-    return suggest({ ...fields, key: project.key, trackerProject: project.within ?? '', typed: { ...fields.typed, key: true } }, { name: project.name })
+    return suggest({ ...fields, team: project.key, trackerProject: project.within ?? '' }, { key: project.key, name: project.name })
+  }
+  if (shape === 'alias') {
+    return suggest({ ...fields, trackerProject: project.key, typed: { ...fields.typed, trackerProject: true } }, { key: project.key, name: project.name })
   }
   return suggest({ ...fields, trackerProject: project.key, typed: { ...fields.typed, trackerProject: true } }, { key: keyOfFolder(project.name), name: project.name })
 }
@@ -126,7 +156,9 @@ export function missingOf(fields: WizardFields, shape: TrackerShape, check: Proj
   if (check?.repo.notice != null) return 'repoError'
   if (fields.profile === '') return 'profile'
   if (shape === 'place' && fields.trackerProject.trim() === '') return 'place'
-  if (fields.key.trim() === '') return shape === 'place' ? 'key' : 'project'
+  if (shape === 'alias' && fields.trackerProject.trim() === '') return 'project'
+  if (shape === 'within' && fields.team.trim() === '') return 'project'
+  if (fields.key.trim() === '') return keyTyped(shape) ? 'key' : 'project'
   if (check === null) return 'checking'
   if (check.entry !== null) return 'entry'
   if (check.tracker?.ok !== true) return check.tracker === null ? 'checking' : 'tracker'
