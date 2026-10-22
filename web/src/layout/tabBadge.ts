@@ -1,7 +1,7 @@
 import { useEffect } from 'react'
 import { useLive } from '../live/context.js'
 import { waitingSessions } from '../state.js'
-import { systemChecks, worstLevel, type Level } from './system.js'
+import { systemChecks, systemInput, worstLevel, type Level } from './system.js'
 
 export type Dot = 'waiting' | 'error'
 
@@ -44,12 +44,7 @@ async function loadIcon(): Promise<string | null> {
 
 export function useTabBadge(now: Date): void {
   const { state, link } = useLive()
-  const level = worstLevel(
-    systemChecks(
-      { link, trackers: state?.trackers ?? null, usage: state?.usage ?? null, configError: state?.configError ?? null },
-      now,
-    ),
-  )
+  const level = worstLevel(systemChecks(systemInput(state, link), now))
   const { dot, title } = tabBadge(level, state === null ? 0 : waitingSessions(state.sessions, state.tasks).length)
 
   useEffect(() => {

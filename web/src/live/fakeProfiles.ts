@@ -60,7 +60,7 @@ const PROJECTS: Record<string, TrackerProject[]> = {
     { key: 'OPS', name: 'Operations' },
   ],
 }
-const LINEAR_PROFILE = '3f0c2b9e-0000-4000-8000-000000000004'
+export const LINEAR_PROFILE = '3f0c2b9e-0000-4000-8000-000000000004'
 
 function fields(kind: string, values: Record<string, string>): ProfileField[] {
   return KINDS.find((each) => each.kind === kind)!.fields.map(({ name, secret }) => ({ name, secret, set: name in values, value: secret ? null : (values[name] ?? null) }))

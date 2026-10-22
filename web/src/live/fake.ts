@@ -26,7 +26,7 @@ import { fakeTools } from './fakeTools.js'
 import { fakePackages } from './fakePackages.js'
 import { fakeSecrets } from './fakeSecrets.js'
 import { fakeChangelog, fakeWrittenChangelogs } from './fakeChangelog.js'
-import { FAKE_HULY_PROFILE, fakeProfiles, fakeProfilesQuery, fakeSaved } from './fakeProfiles.js'
+import { FAKE_HULY_PROFILE, GITHUB_PROFILE, LINEAR_PROFILE, fakeProfiles, fakeProfilesQuery, fakeSaved } from './fakeProfiles.js'
 import { fakeCheck, fakeNoProjects } from './fakeProjects.js'
 import { ago, fakeFeed, FEED_STEPS, minutes, session, task, turnStartedAt } from './fakeSessions.js'
 import { closeCurrent, fakeCommand, finishCurrent, LAUNCH_DAYS, setPaused, startChain, startStages, takeNext } from './fakeCommands.js'
@@ -71,6 +71,15 @@ function fakeHuly(state: TrackerLinkState): TrackerView {
   if (state === 'off' || state === 'connecting') return { ...view, health: { state, lastOkAt: null, error: null }, readAt: {} }
   if (state === 'down') return { ...view, health: { state, lastOkAt: ago(4), error: 'huly: call timed out after 15000 ms' }, readAt: readAt(4) }
   return { ...view, health: { state, lastOkAt: ago(0), error: null }, readAt: readAt(0) }
+}
+
+/** The trackers of ABC's task feeds: GitHub has read its feed, Linear not yet. */
+function fakeFeedTrackers(): TrackerView[] {
+  const view = { ready: true, health: { state: 'live' as const, lastOkAt: ago(0), error: null } }
+  return [
+    { ...view, name: GITHUB_PROFILE, kind: 'github', title: 'GitHub · johndoe', projects: ['feed-abc-gh'], readAt: { 'feed-abc-gh': ago(1) } },
+    { ...view, name: LINEAR_PROFILE, kind: 'linear', title: 'Linear · work', projects: ['feed-abc-lin'], readAt: {} },
+  ]
 }
 
 const LAUNCH_PATTERN: Record<string, number[]> = {
@@ -180,7 +189,7 @@ function fakeState(
     limits: FAKE_LIMITS,
     usage: fakeUsage(usage),
     account: fakeAccount(account, idle, FAKE_LIMITS),
-    trackers: [fakeHuly(huly)],
+    trackers: [fakeHuly(huly), ...fakeFeedTrackers()],
     trackerUrls: {
       default: 'https://huly.example.com/workbench/example/tracker/{id}',
       projects: {},
@@ -219,6 +228,7 @@ function fakeState(
     unattended: false,
     trimTools: true,
     tally: 'local',
+    tallyHealth: { state: 'ok', lastRunAt: ago(3) },
     updates: fakeUpdates(null),
     cliVersions: [],
     fallbacks: [],

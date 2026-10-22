@@ -41,7 +41,7 @@ describe('systemChecks', () => {
 
   it('shows only the server until the first state arrives', () => {
     const checks = systemChecks({ link: 'connecting', trackers: null, usage: null, configError: null }, now)
-    expect(checks).toEqual([{ name: 'Сервер Even Keel', level: 'warn', text: 'подключение', details: [] }])
+    expect(checks).toEqual([{ key: 'server', name: 'Сервер Even Keel', level: 'warn', text: 'подключение', details: [] }])
     expect(worstLevel(checks)).toBe('warn')
   })
 
@@ -49,6 +49,8 @@ describe('systemChecks', () => {
     const down = huly({ state: 'down', lastOkAt: '2026-10-03T11:56:00Z', error: 'huly: call timed out' })
     const checks = systemChecks({ ...healthy, trackers: [down] }, now)
     expect(checks[1]).toEqual({
+      key: 'huly',
+      tracker: down,
       name: 'Huly',
       level: 'error',
       text: 'нет связи',
@@ -82,5 +84,29 @@ describe('systemChecks', () => {
     const configError = notice('config.statusBoth', { project: 'ABC', status: 'In Review' })
     const config = systemChecks({ ...healthy, configError }, now)
     expect(config[3]).toMatchObject({ level: 'error', text: 'не применена', details: ['ABC: статус «In Review» и активный, и терминальный'] })
+  })
+})
+
+describe('the Tally check', () => {
+  const tally = (input: SystemInput['tally']) => systemChecks({ ...healthy, tally: input }, now).find((check) => check.key === 'tally')
+
+  it('is left out until the state arrives', () => {
+    expect(tally(null)).toBeUndefined()
+  })
+
+  it('keeps stats not set up or turned off neutral', () => {
+    expect(tally({ mode: null, health: { state: 'off', lastRunAt: null } })).toMatchObject({ level: 'off', text: 'не настроена' })
+    expect(tally({ mode: 'off', health: { state: 'off', lastRunAt: null } })).toMatchObject({ level: 'off' })
+  })
+
+  it('is fine while waiting for the first run and after a good one', () => {
+    expect(tally({ mode: 'local', health: { state: 'waiting', lastRunAt: null } })).toMatchObject({ level: 'ok', text: 'ждёт первого прохода' })
+    expect(tally({ mode: 'server', health: { state: 'ok', lastRunAt: '2026-10-03T11:58:00Z' } })).toMatchObject({ level: 'ok', text: 'собрана 2 мин назад' })
+  })
+
+  it('warns on a failed run and fails when halted or not collecting at all', () => {
+    expect(tally({ mode: 'local', health: { state: 'failed', lastRunAt: '2026-10-03T11:58:00Z' } })).toMatchObject({ level: 'warn', details: ['Причина — в логе службы.'] })
+    expect(tally({ mode: 'local', health: { state: 'halted', lastRunAt: '2026-10-03T11:58:00Z' } })).toMatchObject({ level: 'error', text: 'остановлена до перезапуска' })
+    expect(tally({ mode: 'local', health: { state: 'off', lastRunAt: null } })).toMatchObject({ level: 'error', text: 'не собирается' })
   })
 })

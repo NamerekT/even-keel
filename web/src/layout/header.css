@@ -379,32 +379,6 @@
   background: var(--lamp-error);
 }
 
-.gear__head {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.gear__back {
-  display: inline-grid;
-  place-items: center;
-  width: 24px;
-  height: 24px;
-  padding: 0;
-  border: 0;
-  border-radius: 6px;
-  background: transparent;
-  color: var(--fg-muted);
-  font-size: 18px;
-  line-height: 1;
-  cursor: pointer;
-}
-
-.gear__back:hover {
-  background: var(--surface-muted);
-  color: var(--fg);
-}
-
 /* The narrow screen's sheet: the same blocks in one column, a line between them. */
 .menu-sheet > * + * {
   padding-top: 12px;
@@ -437,11 +411,6 @@
 
 .sheet__chevron--open {
   transform: rotate(90deg);
-}
-
-.sheet__checks.system {
-  width: auto;
-  padding: 2px 10px 8px;
 }
 
 .sheet__work {

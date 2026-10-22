@@ -1,11 +1,10 @@
-import { useState } from 'react'
 import { Link, NavLink, useLocation } from 'react-router'
 import type { Task } from '../../../src/tracker/model.js'
 import type { SessionView } from '../../../src/state.js'
 import { t } from '../i18n/index.js'
 import { useLive } from '../live/context.js'
 import { projectPath, taskProject, waitingSessions } from '../state.js'
-import { systemChecks, worstLevel, type Check } from './system.js'
+import { systemChecks, systemInput, worstLevel, type Level } from './system.js'
 import { VersionRow } from './Updates.js'
 import { usePopover } from './usePopover.js'
 
@@ -30,37 +29,32 @@ export function Waiting({ sessions, tasks }: { sessions: SessionView[]; tasks: T
   )
 }
 
-function useChecks(now: Date) {
+export function useChecks(now: Date) {
   const { state, link, retryNow } = useLive()
-  const checks = systemChecks(
-    { link, trackers: state?.trackers ?? null, usage: state?.usage ?? null, configError: state?.configError ?? null },
-    now,
-  )
+  const checks = systemChecks(systemInput(state, link), now)
   return { checks, level: worstLevel(checks), stale: link === 'stale', retryNow }
 }
 
-/** The narrow screen's sheet ends with the gear's items as rows; the status unfolds its checks in place. */
+/** The gear's status row: the worst level of the checks, a link to `/status` (BTN-66). */
+function StatusRow({ level }: { level: Level }) {
+  return (
+    <NavLink to="/status" className={`gear__item gear__item--${level}`} title={t.statusPage.open}>
+      <span>{t.status.heading}</span>
+      <span className="gear__level">
+        <span className="system__dot" aria-hidden="true" />
+        {t.status.levels[level]}
+      </span>
+    </NavLink>
+  )
+}
+
+/** The narrow screen's sheet ends with the gear's items as rows. */
 export function GearRows({ now }: { now: Date }) {
-  const { checks, level, stale, retryNow } = useChecks(now)
-  const [open, setOpen] = useState(false)
+  const { level } = useChecks(now)
 
   return (
     <nav className="sheet__rows" aria-label={t.header.settings}>
-      <button type="button" className={`gear__item gear__item--${level}`} aria-expanded={open} aria-controls="system-panel" onClick={() => setOpen(!open)}>
-        <span>{t.status.heading}</span>
-        <span className="gear__level">
-          <span className="system__dot" aria-hidden="true" />
-          {t.status.levels[level]}
-          <span className={open ? 'sheet__chevron sheet__chevron--open' : 'sheet__chevron'} aria-hidden="true">
-            ›
-          </span>
-        </span>
-      </button>
-      {open && (
-        <div id="system-panel" className="system sheet__checks" role="region" aria-label={t.status.panel}>
-          <CheckList checks={checks} stale={stale} retryNow={retryNow} />
-        </div>
-      )}
+      <StatusRow level={level} />
       <NavLink to="/settings" className="gear__item">
         {t.header.settings}
       </NavLink>
@@ -73,20 +67,15 @@ export function GearRows({ now }: { now: Date }) {
 }
 
 /**
- * The gear at the end of the wide header: a menu to the settings, the status checks and the tools.
+ * The gear at the end of the wide header: a menu to the settings, the status page and the tools.
  * Its dot shows only when a check warns or fails.
  */
 export function GearMenu({ now }: { now: Date }) {
-  const { checks, level, stale, retryNow } = useChecks(now)
+  const { level } = useChecks(now)
   const { open, setOpen, rootRef } = usePopover()
-  const [view, setView] = useState<'menu' | 'status'>('menu')
   const { pathname } = useLocation()
-  const here = pathname.startsWith('/settings') || pathname.startsWith('/tools')
+  const here = ['/settings', '/tools', '/status'].some((path) => pathname.startsWith(path))
   const label = t.header.gear(t.status.levels[level])
-  const toggle = () => {
-    setView('menu')
-    setOpen(!open)
-  }
 
   return (
     <div className="queue-menu" ref={rootRef}>
@@ -97,67 +86,24 @@ export function GearMenu({ now }: { now: Date }) {
         aria-controls="gear-panel"
         aria-label={label}
         title={label}
-        onClick={toggle}
+        onClick={() => setOpen(!open)}
       >
         <GearIcon />
         <span className="system-toggle__dot" aria-hidden="true" />
       </button>
-      {open && view === 'menu' && (
+      {open && (
         <nav id="gear-panel" className="queue gear" aria-label={t.header.settings}>
           <NavLink to="/settings" className="gear__item">
             {t.header.settings}
           </NavLink>
-          <button type="button" className={`gear__item gear__item--${level}`} onClick={() => setView('status')}>
-            <span>{t.status.heading}</span>
-            <span className="gear__level">
-              <span className="system__dot" aria-hidden="true" />
-              {t.status.levels[level]}
-            </span>
-          </button>
+          <StatusRow level={level} />
           <NavLink to="/tools" className="gear__item">
             {t.header.tools}
           </NavLink>
           <VersionRow />
         </nav>
       )}
-      {open && view === 'status' && (
-        <div id="gear-panel" className="queue system" role="dialog" aria-label={t.status.panel}>
-          <div className="gear__head">
-            <button type="button" className="gear__back" aria-label={t.header.back} title={t.header.back} onClick={() => setView('menu')}>
-              ‹
-            </button>
-            <h2 className="queue__heading">{t.status.heading}</h2>
-          </div>
-          <CheckList checks={checks} stale={stale} retryNow={retryNow} />
-        </div>
-      )}
     </div>
-  )
-}
-
-function CheckList({ checks, stale, retryNow }: { checks: Check[]; stale: boolean; retryNow: () => void }) {
-  return (
-    <>
-      <ul className="system__list">
-        {checks.map((check) => (
-          <li key={check.name} className={`system__row system__row--${check.level}`}>
-            <span className="system__dot" aria-hidden="true" />
-            <span className="system__name">{check.name}</span>
-            <span className="system__text">{check.text}</span>
-            {check.details.map((detail) => (
-              <span key={detail} className="system__detail">
-                {detail}
-              </span>
-            ))}
-          </li>
-        ))}
-      </ul>
-      {stale && (
-        <button type="button" className="button system__retry" onClick={retryNow}>
-          {t.common.retry}
-        </button>
-      )}
-    </>
   )
 }
 
