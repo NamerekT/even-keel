@@ -147,6 +147,8 @@ export const ru = {
     ciHold: (commit: string, since: string) => `Ждёт CI на main: ${commit} с ${since} — следующая задача запустится, когда он позеленеет.`,
     checkHold: (commit: string, since: string) => `Проверяет main на ${commit} с ${since} в папке следующей задачи — задача запустится, когда проверка пройдёт.`,
     afterGreenHold: (commit: string, since: string) => `Выполняет команды после зелёного main на ${commit} с ${since} — следующая задача запустится, когда они закончатся.`,
+    remoteFixHold: (commit: string, since: string, project: string) =>
+      `main общего remote красный на ${commit}; его с ${since} чинит ${project} — следующая задача запустится, когда починка позеленеет.`,
     packages: (projects: string) => `Следующая задача ${projects} ждёт: пакет из набора не готов.`,
     trackerMcp: (projects: string, server: string) =>
       `Следующая задача ${projects} ждёт: brief выключен, описание задачи не идёт в промпт, а MCP-сервер трекера ${server} не приносит ни один пакет. Включите пакет с ним или включите brief в настройках проекта.`,

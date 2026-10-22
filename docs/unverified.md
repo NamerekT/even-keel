@@ -34,7 +34,7 @@ Every entry, ordered by how many people it reaches and how badly it hurts them i
 | 22 | [A key refused after it was added](#a-key-refused-after-it-was-added) | Claude API keys | a revoked key looks fine until a session fails |
 | 23 | [A command after a green main that restarts Even Keel](#a-command-after-a-green-main-that-restarts-even-keel) | a restart in `commands.afterGreen` | the service stays stopped |
 | 24 | [When a CI run counts as stuck](#when-a-ci-run-counts-as-stuck) | CI with a slow runner queue | a run is called stuck too early |
-| 25 | [Chains of several projects on one remote](#chains-of-several-projects-on-one-remote-btn-210) | several projects on one remote | two fixes of the same red `main` |
+| 25 | [Chains of several projects on one remote](#chains-of-several-projects-on-one-remote-btn-210) | several projects on one remote | a project waits on another's fix, or two fixes of the same red `main` |
 | 26 | [A package server and a Codex server of the same name](#a-package-server-and-a-codex-server-of-the-same-name) | Codex with packages | a session gets the wrong server of a name |
 | 27 | [Sign-in from the page](#sign-in-from-the-page) | Codex | no sign-in link in the window |
 | 28 | [A crashed turn and a service restart mid-turn](#a-crashed-turn-and-a-service-restart-mid-turn) | Codex | a dead session looks busy |
@@ -383,7 +383,7 @@ Every minute the service rereads each project's remotes and workflow folders and
 
 ### Chains of several projects on one remote (BTN-210)
 
-The git side is checked on real clones of one remote (`docs/chain.md`, "Projects of one remote"): the fast-forward of `main` before a launch and the second try of a rejected sync. Not run as live chains on the service with a CI: two projects whose pushes race, a red push of one seen by the other. From the code, a red `main` holds and fixes only the project that pushed it, and another project of the remote may start a second fix of the same break once its own push carries the red commit (BTN-217). **Workaround:** put `ci.guard: false` on all projects of the remote but one: only that one judges and fixes `main`.
+The git side is checked on real clones of one remote (`docs/chain.md`, "Projects of one remote"): the fast-forward of `main` before a launch and the second try of a rejected sync. Not run as live chains on the service with a CI: two projects whose pushes race, a red push of one seen by the other. The shared fix (BTN-217) is covered by tests only: while one project fixes a red `main`, the others of the same remote and branch wait at their next launch with a line naming it, and their red pushes start no second fix. What may differ live: the group read from the checkouts' remotes (a project with no remote read yet is in no group, so it may still start a second fix), or a fix that ends in a way the code does not see and leaves the others waiting. **Workaround:** a project waiting on another's fix that is over — "Skip" on that fix session, or close its fix task; to stop sharing at all, put `ci.guard: false` on all projects of the remote but one: only that one judges and fixes `main`.
 
 ### Carrying a release project forward (BTN-172)
 

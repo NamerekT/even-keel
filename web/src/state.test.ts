@@ -24,6 +24,7 @@ import {
   chainControls,
   chainProgress,
   chainStatus,
+  ciWaitText,
   contextFill,
   fixBlockOf,
   issueLink,
@@ -458,6 +459,13 @@ describe('chainStatus', () => {
   it('tells when a running chain waits for the CI of main', () => {
     const ciWait = { commit: '0123456789abcdef', since: '2026-09-27T17:49:00.000Z' }
     expect(chainStatus(chain({ active: { ...active(), ciWait } }), 'ABC')).toEqual({ kind: 'running', limitUntil: null, ciWait })
+  })
+
+  it('names the project of the same remote that fixes its red main by the project’s label', () => {
+    const ciWait = { commit: '0123456789abcdef', since: '2026-09-27T17:49:00.000Z', by: 'p-2' }
+    const text = ciWaitText(ciWait, new Date('2026-09-27T17:55:00.000Z'), { projectLabels: { 'p-2': 'ABC (Shop)' } })
+    expect(text).toContain('0123456')
+    expect(text).toContain('чинит ABC (Shop)')
   })
 
   it('gives a queued chain its place in the queue, counting from one', () => {

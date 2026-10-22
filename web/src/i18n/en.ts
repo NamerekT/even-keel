@@ -142,6 +142,8 @@ export const en: Messages = {
     checkHold: (commit: string, since: string) => `Checking main at ${commit} since ${since} in the next task's folder — the task starts when the check passes.`,
     afterGreenHold: (commit: string, since: string) =>
       `Running the commands after the green main at ${commit} since ${since} — the next task starts when they end.`,
+    remoteFixHold: (commit: string, since: string, project: string) =>
+      `Main of the remote is red at ${commit}; ${project} has been fixing it since ${since} — the next task starts when its fix is green.`,
     packages: (projects: string) => `The next task of ${projects} waits: a package of its set is not ready.`,
     trackerMcp: (projects: string, server: string) =>
       `The next task of ${projects} waits: brief is off, so the task’s text does not go into the prompt, and no package brings the tracker’s MCP server ${server}. Turn on a package with it or turn brief on in the project’s settings.`,

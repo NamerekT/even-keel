@@ -389,7 +389,7 @@ function ChainControls({ state, project, narrow, children }: { state: EvenKeelSt
         <p className="project__wait">{limitWaitText(status.limitUntil, new Date())}</p>
       )}
       {status.kind === 'running' && status.slotWait !== undefined && <p className="project__wait">{say(status.slotWait)}</p>}
-      {status.kind === 'running' && status.ciWait !== undefined && <p className="project__wait">{ciWaitText(status.ciWait, new Date())}</p>}
+      {status.kind === 'running' && status.ciWait !== undefined && <p className="project__wait">{ciWaitText(status.ciWait, new Date(), state)}</p>}
       {stopsAfter && <p className="project__wait">{t.project.stopsAfter(chain?.current?.task ?? chain?.closing ?? null)}</p>}
       {error !== null && <p className="project__error">{say(error)}</p>}
       <PullFixButton state={state} project={project} error={status.kind === 'paused' ? status.error : null} />

@@ -47,8 +47,11 @@ export function fakeMain(wait: number | null = null) {
     /** How the run of `commands.afterGreen` on a commit ends; done when missing, a promise holds it. */
     afterRuns: {} as Record<string, AfterGreenRun | Promise<AfterGreenRun>>,
     ran: [] as string[],
+    /** The other projects of a project's remote and main branch (BTN-217); none when missing. */
+    peers: {} as Record<string, string[]>,
   }
   const deps: MainCheckDeps = {
+    peers: (project) => ci.peers[project] ?? [],
     head: async () => heads.shift() ?? null,
     verdict: () => ci.verdict,
     waitMs: () => ci.wait,

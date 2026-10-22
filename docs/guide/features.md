@@ -117,6 +117,8 @@ A badge in the project's head shows the CI of each remote — Forgejo Actions or
 
 After a task is merged and `main` is pushed, the next task waits for the CI's verdict (as long as the project allows) while its worktree is prepared. A red `main` is fixed first: Even Keel stops the session working on the current task, starts a session to fix `main` — with the failed jobs and the commits of the push in its prompt, without a task in the tracker — and, once the fix is merged, continues the stopped session with a note to merge `main` into its branch. A project can ask for a high-priority fix task in the tracker instead (`ci.fixTask`). If the fix is red too, the chain pauses instead of starting another.
 
+Several projects in separate clones of one repository, on the same main branch, share a red `main`: while one of them fixes it, the others start no new task and start no second fix of the same break; their sessions already at work go on. Once the fix is green, they all go on.
+
 ## A check without CI
 
 A project with no CI, or whose CI does not answer, can name its own check commands, such as `npm run typecheck && npm test`. A session's merge into `main` waits until they pass in the task's worktree (a hook of the [checkpoint](../../plugins/checkpoint) plugin), and a failure goes back to the session to fix. If `main` moved while the task ran, Even Keel runs the check again on `main` in the next task's worktree before that task starts; a failure there is handled like a red CI.

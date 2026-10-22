@@ -18,6 +18,8 @@ export interface MainCiWatch {
 }
 
 export interface MainCiDeps {
+  /** The other projects whose checkout has a remote in common with this one's and the same main branch. */
+  peers: (project: string) => string[]
   repo: (project: string) => string
   /** The project's main branch. */
   main: (project: string) => string
@@ -66,6 +68,8 @@ export function mainCheckDeps(deps: MainCiDeps): MainCheckDeps {
   }
 
   return {
+    // A project with the guard off neither holds nor is held by the others.
+    peers: (project) => (deps.settings(project).guard ? deps.peers(project).filter((peer) => deps.settings(peer).guard) : []),
     head: (project) => revision(deps.repo(project), `refs/heads/${deps.main(project)}`),
     verdict(project, commit, since) {
       // Right after a start the CIs are not found yet: without the wait an awaited push would pass for one without a CI.

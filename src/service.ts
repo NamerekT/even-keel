@@ -56,7 +56,7 @@ import { guardHosts, guardToken } from './guard.js'
 import { readJson } from './packages/plugins.js'
 import { checkDraft } from './projects/check.js'
 import { removalBlock, type RemovalFacts } from './projects/removal.js'
-import { ProjectRemotes, remotesIn } from './projects/remotes.js'
+import { ProjectRemotes, remotePeers, remotesIn } from './projects/remotes.js'
 import { Packages } from './packages/service.js'
 import { secretCatalog } from './secrets/catalog.js'
 import { Secrets } from './secrets/service.js'
@@ -977,6 +977,7 @@ const dispatcher = new Dispatcher(await loadChainState(db), {
     },
   },
   main: mainCheckDeps({
+    peers: (project) => remotePeers(remotes.view, branchOf, project),
     repo: (project) => configStore.current.projects[project]!,
     main: branchOf,
     git: runGit,

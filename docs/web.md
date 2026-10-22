@@ -87,6 +87,7 @@ Layout work on a fake state, without a tracker or sessions. The fake history sta
 | `?chain=ci` | the chain is waiting for the CI of a pushed main |
 | `?chain=check` | the chain is running the project's own check on a pushed main in the next task's folder |
 | `?chain=afterGreen` | the chain is waiting for the project's commands after a green main |
+| `?chain=remoteFix` | main of the remote is red and DEMO, a project of the same remote, is fixing it: ABC's next launch waits |
 | `?chain=fix` | main is red: the fix session `ABC-FIX` leads the chain, the session of ABC-5 is stopped until it is done |
 | `?chain=aside` | main is red while ABC-5 waited on a question: `ABC-FIX` leads the chain, the chat of ABC-5 opens with the reply box shut |
 | `?chain=skip` | a skipped task and a session postponed by a blocker; both OPS tasks skipped, so its card shows the held OPS-2 |
