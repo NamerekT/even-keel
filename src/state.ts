@@ -381,6 +381,11 @@ export interface EvenKeelState {
   /** The remotes of each project's checkout: Home groups the projects that share one (BTN-207). */
   remotes: Record<string, RemoteRef[]>
   /**
+   * The other projects whose checkout is of the same repository (`sameRepository`, BTN-285): what "Merges into" offers.
+   * A project not read yet has no key.
+   */
+  sameRepository: Record<string, string[]>
+  /**
    * Whether each project's PR mode would have where to open pull requests, by the same remotes (EKR-7): `null` — it
    * would; else `review.noRemote`, `review.unsupportedHost` or `review.noToken`. A project not read yet has no key.
    */

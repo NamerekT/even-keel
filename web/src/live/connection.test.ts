@@ -54,6 +54,7 @@ function state(startedAt: string): EvenKeelState {
     trackerUrls: { default: null, projects: {}, pages: {} },
     ci: {},
     remotes: {},
+    sameRepository: {},
     pullReadiness: {},
     launches: [],
     taskSessions: {},

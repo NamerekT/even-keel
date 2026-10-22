@@ -11,6 +11,8 @@ export interface ForwardPair {
 
 export interface ForwardDeps {
   pairs: () => ForwardPair[]
+  /** Whether the two projects' checkouts are of one repository (`sameRepository`); `undefined` — not read yet. */
+  sameRepository: (from: string, into: string) => boolean | undefined
   /** The project's main checkout. */
   repo: (project: string) => string
   /** The project's main branch. */
@@ -91,6 +93,9 @@ export class ForwardMerger {
     const into = view.into
     const repo = this.deps.repo(into)
     const branch = this.deps.branch(into)
+    const same = this.deps.sameRepository(from, into)
+    if (same === undefined) return
+    if (!same) return wait(view, notice('forward.foreign', { from, into }))
     const ref = `refs/even-keel/forward/${from}`
     const fetched = await git(repo, ['fetch', '--quiet', this.deps.repo(from), `+refs/heads/${this.deps.branch(from)}:${ref}`])
     if (fetched.code !== 0) return wait(view, notice('forward.fetch', { from }, { detail: fetched.out }))

@@ -70,7 +70,7 @@ restart of the service (BTN-130). The keys are those of the config's format, whi
 | `commands.beforeStart`, `.check`, `.afterGreen` | P | each key on its own | page, hand | `[]` |
 | `ci.guard`, `.kinds`, `.waitMinutes`, `.recheckMain`, `.fixTask` | G, P | each key on its own, P over G over `DEFAULT_CI`; a project's `waitMinutes: null` is its own value | page, hand | `DEFAULT_CI` |
 | `fillMilestone` | G, P | P over G | page, hand | false |
-| `mergeInto` | P | — the key of a main project, checked against the projects (`config.mergeInto`) | page, hand | `null` — a main project (BTN-172, `docs/chain.md`, "Carrying a release project forward") |
+| `mergeInto` | P | — the key of a main project, checked against the projects (`config.mergeInto`); the page's save also refuses a checkout of another repository (`config.mergeIntoForeign`, BTN-285) | page, hand | `null` — a main project (BTN-172, `docs/chain.md`, "Carrying a release project forward") |
 | `pullRequests` | P | — | page, hand | false (PR mode, BTN-205, `docs/chain.md`) |
 | `remoteProfiles` | P | — | page, hand | `{}` — the GitHub and Forgejo profile ids the remotes' CI and pull requests take; a missing or unfit one is the automatic choice (BTN-231, `docs/ci.md`) |
 

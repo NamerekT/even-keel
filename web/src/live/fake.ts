@@ -197,6 +197,7 @@ function fakeState(
     },
     ci: fakeCi(null),
     remotes: FAKE_REMOTES,
+    sameRepository: {},
     pullReadiness: FAKE_PULL_READINESS,
     launches: launchDays(launches, new Date(), LAUNCH_DAYS),
     taskSessions: idle

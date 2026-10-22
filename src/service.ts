@@ -51,6 +51,7 @@ import {
   idPrefixOf,
   listenOf,
   mcpPortOf,
+  mergeTargetOf,
   ownerOf,
   poolEntries,
   projectLabel,
@@ -76,7 +77,7 @@ import { guardHosts, guardToken } from './guard.js'
 import { readJson } from './packages/plugins.js'
 import { checkDraft } from './projects/check.js'
 import { removalBlock, type RemovalFacts } from './projects/removal.js'
-import { ProjectRemotes, remotePeers, remotesIn } from './projects/remotes.js'
+import { checkoutRemotes, ProjectRemotes, remotePeers, remotesIn, repositoryIds, sameRepository } from './projects/remotes.js'
 import { Packages } from './packages/service.js'
 import { secretCatalog } from './secrets/catalog.js'
 import { Secrets } from './secrets/service.js'
@@ -102,7 +103,7 @@ import { Profiles } from './profiles/service.js'
 import { importForgejo, importProfiles } from './profiles/store.js'
 import { slotOccupants } from './sessions/occupants.js'
 import { locateWorktree } from './sessions/place.js'
-import type { EvenKeelState, SessionView } from './state.js'
+import type { EvenKeelState, ProjectForm, SessionView } from './state.js'
 import { withinWindow } from './stats/checkpoint.js'
 import { StatsReader } from './stats/reader.js'
 import { SQLITE_VERSIONS, STEPS as DATABASE_STEPS, Writes } from './storage/database.js'
@@ -1125,8 +1126,29 @@ const dispatcher = new Dispatcher(await loadChainState(db), {
   }),
 })
 
+/** Whether the checkouts of two projects are of one repository (BTN-285); `undefined` until both are read. */
+function sameRepositoryOf(a: string, b: string): boolean | undefined {
+  const ids = remotes.repositories
+  return ids[a] === undefined || ids[b] === undefined ? undefined : sameRepository(ids[a], ids[b])
+}
+
+/**
+ * A release project merges into a project of its own repository, read from both folders now: `parseConfig` has no git,
+ * so a hand-made `config-import` is caught only by the carry, before it fetches anything.
+ */
+async function checkMergeTarget(project: string, form: ProjectForm): Promise<void> {
+  const current = configStore.current
+  const records = Object.entries(current.keys).map(([id, key]) => ({ id, key }))
+  const into = mergeTargetOf(records, project, form.mergeInto)
+  const repo = into === null ? undefined : current.projects[into]
+  if (into === null || repo === undefined || into === project) return
+  const [own, target] = await Promise.all([form.repo, repo].map(async (folder) => repositoryIds(await checkoutRemotes(runGit, folder), folder)))
+  if (!sameRepository(own!, target!)) throw fail('config.mergeIntoForeign', { project: projectLabel(current, project), into: projectLabel(current, into) })
+}
+
 const forwards = new ForwardMerger({
   pairs: () => Object.entries(configStore.current.settings).flatMap(([from, { mergeInto: into }]) => (into === null ? [] : [{ from, into }])),
+  sameRepository: sameRepositoryOf,
   repo: (project) => configStore.current.projects[project]!,
   branch: branchOf,
   label: (project) => projectLabel(configStore.current, project),
@@ -1312,6 +1334,9 @@ const getState = (): EvenKeelState => ({
   },
   ci: Object.fromEntries([...ciWatches.byProject.keys()].map((project) => [project, ciWatches.shown(project).map((watch) => watch.view)])),
   remotes: remotes.view,
+  sameRepository: Object.fromEntries(
+    Object.keys(remotes.repositories).map((project) => [project, Object.keys(remotes.repositories).filter((other) => other !== project && sameRepositoryOf(project, other))]),
+  ),
   pullReadiness: Object.fromEntries(
     Object.entries(remotes.urls)
       .filter(([project]) => configStore.current.projects[project] !== undefined)
@@ -1382,6 +1407,7 @@ let server = createEvenKeelServer({
         const ready = pullReadinessOf(project, await remotesIn(runGit, form.repo))
         if ('notice' in ready) throw fail('review.cannotEnable', { project }, { cause: ready.notice })
       }
+      if (form.mergeInto !== base.mergeInto || form.repo !== base.repo) await checkMergeTarget(project, form)
       configStore.saveProject(project, form, base)
       console.log(`page: the settings of ${project} are written to the config`)
     },

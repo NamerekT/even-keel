@@ -105,6 +105,8 @@ export const en = {
   'forward.conflict': (p: { from: string; into: string; files: string[] }) =>
     `forward: the branch of ${p.from} conflicts with ${p.into} in ${p.files.join(', ') || 'unknown files'}; the merge is aborted and waits for a merge by hand or "Carry now"`,
   'forward.notRelease': (p: { project: string }) => `forward: ${p.project} merges into no other project`,
+  'forward.foreign': (p: { from: string; into: string }) =>
+    `forward: ${p.from} and ${p.into} share no remote, and neither checkout is a clone of the other; nothing is fetched — set mergeInto to a project of the same repository`,
 
   'ci.noToken': (p: { variable: string }) => `set ${p.variable} in the environment of Even Keel to watch this CI`,
   'ci.denied': (p: { ci: string; status: number }) => `${p.ci}: the token was refused (HTTP ${p.status}); it needs read access to the repository's actions`,
@@ -400,6 +402,8 @@ export const en = {
   'config.mergeInto': (p: { project: string; into: string }) =>
     `config: ${p.project}.mergeInto names ${p.into}, which is not another project or merges into one itself`,
   'config.mergeIntoValue': (p: { where: string }) => `config: ${p.where} must be a project key or null`,
+  'config.mergeIntoForeign': (p: { project: string; into: string }) =>
+    `config: ${p.project}.mergeInto names ${p.into}, a checkout of another repository: they share no remote, and neither is a clone of the other`,
   'config.allowedHosts': () => 'config: allowedHosts must be a list of host names',
   'config.updatesKey': (p: { key: string; known: string[] }) => `config: updates.${p.key} is not an update setting, known: ${list(p.known)}`,
   'config.updatesDismissed': (p: { value: string }) => `config: updates.dismissed must be a version such as 0.2.0, or null, got ${p.value}`,

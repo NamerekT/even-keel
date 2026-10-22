@@ -99,6 +99,8 @@ export const noticesRu: NoticeTexts = {
   'forward.conflict': (p) =>
     `ветка ${p.from} конфликтует с ${p.into} в ${p.files.join(', ') || 'неизвестных файлах'} — слияние отменено и ждёт ручного слияния или «Перенести сейчас»`,
   'forward.notRelease': (p) => `${p.project} не вливается в другой проект`,
+  'forward.foreign': (p) =>
+    `у ${p.from} и ${p.into} нет общего remote, и ни одна папка не клон другой — ничего не получено; укажи в «Вливается в» проект того же репозитория`,
 
   'ci.noToken': (p) => `чтобы следить за этим CI, задайте ${p.variable} в окружении Even Keel`,
   'ci.denied': (p) => `${p.ci}: токен отклонён (HTTP ${p.status}) — ему нужно чтение actions репозитория`,
@@ -366,6 +368,8 @@ export const noticesRu: NoticeTexts = {
   'config.parallel': (p) => `parallel должен быть целым числом от 1, а не ${p.value}`,
   'config.mergeInto': (p) => `${p.project} вливается в ${p.into}, а это не другой проект или он сам вливается в проект`,
   'config.mergeIntoValue': (p) => `${p.where} — ключ проекта или null`,
+  'config.mergeIntoForeign': (p) =>
+    `${p.project} вливается в ${p.into}, а это папка другого репозитория: нет общего remote, и ни одна не клон другой`,
   'config.allowedHosts': () => 'allowedHosts должен быть списком имён хостов',
   'config.updatesKey': (p) => `updates.${p.key} — не настройка обновлений, есть: ${list(p.known)}`,
   'config.updatesDismissed': (p) => `updates.dismissed должен быть версией вида 0.2.0 или null, а не ${p.value}`,
