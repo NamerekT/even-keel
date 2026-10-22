@@ -141,8 +141,19 @@ describe('Updater', () => {
 
   it('reads a record the update process writes after this service started', async () => {
     const lines: string[] = []
-    const { updater: subject } = updater({ watchMs: 10, log: (line) => lines.push(line) })
+    let changes = 0
+    // A real stat poll takes the file as it finds it on its first round, so a write that beats that round is never
+    // reported: the test calls the listener itself.
+    let changed: (now: { mtimeMs: number }) => void = () => {}
+    const { updater: subject } = updater({
+      watch: (_file, listener) => (changed = listener),
+      onChange: () => changes++,
+      log: (line) => lines.push(line),
+    })
     await subject.start()
+    const started = changes
+    changed({ mtimeMs: 0 })
+    expect(changes).toBe(started)
     expect(subject.view()).toMatchObject({ previous: null, result: null })
     const record: UpdateRecord = {
       mode: 'update',
@@ -156,11 +167,13 @@ describe('Updater', () => {
     }
     mkdirSync(join(root, 'logs'))
     writeFileSync(join(root, 'logs', 'update.json'), JSON.stringify(record))
-    await new Promise((resolve) => setTimeout(resolve, 200))
+    changed({ mtimeMs: 1 })
+    expect(changes).toBe(started + 1)
     expect(subject.view()).toMatchObject({ previous: { version: '0.0.9', blocked: null }, result: { from: '0.0.9', to: '0.1.0', step: null } })
     expect(lines).toContain('updates: the last update from 0.0.9 to 0.1.0 went through')
     subject.seen()
-    await new Promise((resolve) => setTimeout(resolve, 100))
+    changed({ mtimeMs: 2 })
+    expect(changes).toBe(started + 2)
     expect(lines.filter((line) => line.startsWith('updates: the last update'))).toHaveLength(1)
   })
 

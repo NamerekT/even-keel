@@ -27,11 +27,16 @@ export interface UpdaterOptions {
   launch?: (plan: UpdatePlan, onError: (error: Error) => void) => void
   sleep?: (ms: number) => Promise<void>
   settleMs?: number
-  watchMs?: number
+  /** Calls `listener` when `file` changes; a missing file comes with `mtimeMs` 0. */
+  watch?: (file: string, listener: (now: { mtimeMs: number }) => void) => void
 }
 
 const SETTLE_POLL_MS = 5_000
 const WATCH_MS = 5_000
+
+function watchRecord(file: string, listener: (now: { mtimeMs: number }) => void): void {
+  watchFile(file, { interval: WATCH_MS }, listener).unref()
+}
 /** A commit or a checkout by hand changes what is offered; the update itself reads the checkout again anyway. */
 const REFRESH_MS = 10 * 60_000
 
@@ -61,10 +66,11 @@ export class Updater {
   async start(): Promise<void> {
     this.readRecord()
     // The update process writes the record after its answer step, so after this service started.
-    watchFile(this.resultFile, { interval: this.options.watchMs ?? WATCH_MS }, (now) => {
+    const watch = this.options.watch ?? watchRecord
+    watch(this.resultFile, (now) => {
       // A missing file is reported too: a launch failure kept only in memory stays.
       if (now.mtimeMs > 0 && this.readRecord()) this.options.onChange()
-    }).unref()
+    })
     this.control = await (this.options.control ?? serviceControl)()
     if (this.control === null) this.options.log('updates: no service manager runs Even Keel here, the page offers no update')
     await this.refresh()
