@@ -17,12 +17,12 @@ Every entry, ordered by how many people it reaches and how badly it hurts them i
 | 5 | [Errors and limits in the rollout](#errors-and-limits-in-the-rollout) | Codex | a limit looks like a finished turn, the task waits for you |
 | 6 | [Plugin hooks that block](#plugin-hooks-that-block-btn-180) | Codex | a merge goes in before the project's check |
 | 7 | [Chain sessions on the checked CLI](#chain-sessions-on-the-checked-cli-btn-250) | everyone | sessions run on an unchecked CLI version |
-| 8 | [The update button on the page](#the-update-button-on-the-page-btn-163) | Windows and macOS updating from the page | the service stays stopped after an update; start it by hand |
-| 9 | [The wizard's trust check](#the-wizards-trust-check) | new users | a pause at the first launch |
-| 10 | [A chain session reaching the agent's own compaction](#a-chain-session-reaching-the-agents-own-compaction) | everyone | a session loses the task's decisions after a compaction |
-| 11 | [Chat mail in a real session](#chat-mail-in-a-real-session-btn-181) | everyone writing to a session about to hand off | the handoff waits a turn longer |
-| 12 | [Background commands of a stopped session on Linux and macOS](#background-commands-of-a-stopped-session-on-linux-and-macos-btn-202) | Linux, macOS | a worktree is left behind after Done |
-| 13 | [Packages on Linux and macOS](#packages-on-linux-and-macos) | Linux, macOS with packages | the chain waits on a package that does not start |
+| 8 | [The wizard's trust check](#the-wizards-trust-check) | new users | a pause at the first launch |
+| 9 | [A chain session reaching the agent's own compaction](#a-chain-session-reaching-the-agents-own-compaction) | everyone | a session loses the task's decisions after a compaction |
+| 10 | [Chat mail in a real session](#chat-mail-in-a-real-session-btn-181) | everyone writing to a session about to hand off | the handoff waits a turn longer |
+| 11 | [Background commands of a stopped session on Linux and macOS](#background-commands-of-a-stopped-session-on-linux-and-macos-btn-202) | Linux, macOS | a worktree is left behind after Done |
+| 12 | [Packages on Linux and macOS](#packages-on-linux-and-macos) | Linux, macOS with packages | the chain waits on a package that does not start |
+| 13 | [The update button on the page](#the-update-button-on-the-page-btn-163) | macOS updating from the page | the service stays stopped after an update; start it by hand |
 | 14 | [Stopping a turn on macOS and Linux](#stopping-a-turn-on-macos-and-linux) | Codex on Linux, macOS | a stopped Codex turn goes on |
 | 15 | [PR mode beyond GitHub's open, close and merge](#pr-mode-beyond-githubs-open-close-and-merge-btn-205) | PR mode | feedback does not reach the session; a task waits out of the chain |
 | 16 | [A task back from Backlog after a question in a comment](#a-task-back-from-backlog-after-a-question-in-a-comment-btn-245) | unattended mode | the answered task waits instead of going on |
@@ -98,9 +98,11 @@ Every entry, ordered by how many people it reaches and how badly it hurts them i
 
 Checked live on Linux (BTN-272, 2026-10-22): a real Even Keel under its systemd user unit (`install.sh`, Ubuntu 26.04 in WSL), the button pressed through the page's API, updating to the latest GitHub release with the tag served by a local origin. An update whose build failed and one whose service never answered were both rolled back to the commit they started from, an update that went through offered "Revert", and the revert went through; the process outlived the stop of the unit each time, and the page showed every outcome (`docs/service.md`, "Updating from the page"). On Windows the CI's rebuilds by `service/rebuild.ps1` (2026-10-22, three times) stopped and started the real service `EvenKeel` from the update process and waited for the chains, without new dependencies.
 
-Not checked: the button on Windows, where the process is started by the service itself, runs as the service's account and must outlive the host killing node, and where `npm ci` runs with the service stopped; a rebuild with new dependencies (`npm install` with the service stopped); a launchd agent — the stop is `launchctl bootout`, which may also end processes of the agent's group despite `AbandonProcessGroup`, and then the update stops halfway with the service down; the wait for a chain in a launch before the process starts; a revert release (`### Reverted` in its notes) shown on the page, since GitHub has none yet.
+Checked live on Windows (BTN-287, 2026-10-22): the same targets in Windows Sandbox, the service `EvenKeel` installed by `install.ps1` under a local user that is not an administrator, the button pressed through the page's API. The update process the service started outlived `Stop-Service` every time, the service's own account stopped and started it (the right `install.ps1` grants), and `npm ci` ran with the service stopped without EPERM. A failed build and a service that never answered (120 s) were rolled back, an update that went through offered "Revert" and the revert went through, an update to a release with a new dependency installed it, and `rebuild.ps1` on a commit with one more dependency ran `npm install` with the service stopped and brought it back.
 
-If it is wrong: the page stays on "updating…" and the service does not come back. Start it by hand (`Start-Service EvenKeel`, `launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/local.even-keel.plist`), see `logs/update.log`, and if the checkout is on the new tag but the build failed, finish by hand: `npm ci`, `npm run build`, start.
+Not checked: a launchd agent — the stop is `launchctl bootout`, which may also end processes of the agent's group despite `AbandonProcessGroup`, and then the update stops halfway with the service down; the wait for a chain in a launch before the process starts; a revert release (`### Reverted` in its notes) shown on the page, since GitHub has none yet.
+
+If it is wrong: the page stays on "updating…" and the service does not come back. Start it by hand (`launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/local.even-keel.plist`), see `logs/update.log`, and if the checkout is on the new tag but the build failed, finish by hand: `npm ci`, `npm run build`, start.
 
 ### Plugins from a git URL marketplace
 
