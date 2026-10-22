@@ -60,6 +60,16 @@ export function englishOf(notice: Notice): string {
   return renderNotice(notice, en)
 }
 
+/**
+ * The text with every project id in it shown by the project's label (BTN-271): the service names projects by id, and a
+ * log line or a notice says the id where it names one. `labels` is the label of each project by its id.
+ */
+export function withLabels(text: string, labels: Readonly<Record<string, string>>): string {
+  let out = text
+  for (const [project, label] of Object.entries(labels)) if (out.includes(project)) out = out.replaceAll(project, label)
+  return out
+}
+
 export function sameNotice(a: Notice | null, b: Notice | null): boolean {
   return a === b || (a !== null && b !== null && JSON.stringify(a) === JSON.stringify(b))
 }

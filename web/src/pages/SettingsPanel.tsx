@@ -247,8 +247,7 @@ export function SettingsPanel({
   const [current, setDraft] = useDraft(scopeOf(project), saved, same)
   const draft = current!
   const [open, setOpen] = useTab<GroupId>(scopeOf(project), 'repo')
-  const projectId = state?.projectIds[project]
-  const vocabularies = useVocabularies(projectId === undefined ? [] : [projectId])
+  const vocabularies = useVocabularies(state?.projects.includes(project) === true ? [project] : [])
   const dirty = (id: GroupId) => changed(draft, keysOf(id), same).length > 0
   const outgoing = sent(draft, keysOf(open))
   const shared = config.shared

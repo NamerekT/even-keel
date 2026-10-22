@@ -121,8 +121,8 @@ describe('chain store', { timeout: 30_000 }, () => {
   })
 
   it('refuses a damaged record instead of silently forgetting the chain', () => {
-    expect(() => chainStateOf({ active: 5 }, {}, 'chain.json')).toThrow(/chain\.json/)
-    expect(() => chainStateOf({ active: [{ project: 'ABC' }, 5], queue: [], orders: {} }, {}, 'chain.json')).toThrow(/chain\.json/)
+    expect(() => chainStateOf({ active: 5 }, 'chain.json')).toThrow(/chain\.json/)
+    expect(() => chainStateOf({ active: [{ project: 'ABC' }, 5], queue: [], orders: {} }, 'chain.json')).toThrow(/chain\.json/)
   })
 
   it('appends launches and reads them back in order', async () => {
@@ -150,53 +150,28 @@ describe('chain store', { timeout: 30_000 }, () => {
 
   it('keeps one closed task per project and number, with the latest title and time', async () => {
     const store = await db()
-    const ids = { ABC: 'id-abc' }
-    const closed = { project: 'ABC', task: 'ABC-1', tracker: 'huly', title: 'First', url: null, closedAt: '2026-10-01T00:00:00.000Z' }
-    await saveClosedTask(store, closed, ids)
-    await saveClosedTask(store, { ...closed, task: 'ABC-2', closedAt: '2026-10-02T00:00:00.000Z' }, ids)
-    await saveClosedTask(store, { ...closed, title: 'Reopened', url: 'https://example.com/ABC-1', closedAt: '2026-10-03T00:00:00.000Z' }, ids)
-    expect(await closedTasks(store, ids)).toEqual([
+    const closed = { project: 'id-abc', task: 'ABC-1', tracker: 'huly', title: 'First', url: null, closedAt: '2026-10-01T00:00:00.000Z' }
+    await saveClosedTask(store, closed)
+    await saveClosedTask(store, { ...closed, task: 'ABC-2', closedAt: '2026-10-02T00:00:00.000Z' })
+    await saveClosedTask(store, { ...closed, title: 'Reopened', url: 'https://example.com/ABC-1', closedAt: '2026-10-03T00:00:00.000Z' })
+    expect(await closedTasks(store)).toEqual([
       { ...closed, task: 'ABC-2', closedAt: '2026-10-02T00:00:00.000Z' },
       { ...closed, title: 'Reopened', url: 'https://example.com/ABC-1', closedAt: '2026-10-03T00:00:00.000Z' },
     ])
-    expect((await closedTasks(store)).map((task) => task.project)).toEqual(['id-abc', 'id-abc'])
   })
 
-  describe('projects by id in the database', () => {
-    const ids = { ABC: 'id-abc', XYZ: 'id-xyz' }
-
-    it('saves the chain under the ids and reads it back by key', async () => {
-      const store = await db()
-      const state: ChainState = {
-        ...emptyChainState(),
-        active: [{ project: 'ABC', current: null, paused: false, error: null }],
-        queue: ['XYZ'],
-        orders: { ABC: ['ABC-1'], XYZ: [] },
-        ci: { XYZ: { green: 'abc123' } },
-      }
-      await saveChainState(store, state, ids)
-      expect((await store.query('select project_id from chains')).rows).toEqual([{ project_id: 'id-abc' }])
-      expect((await store.query('select project_id from chain_queue')).rows).toEqual([{ project_id: 'id-xyz' }])
-      expect((await loadChainState(store)).orders).toEqual({ 'id-abc': ['ABC-1'], 'id-xyz': [] })
-      expect(await loadChainState(store, ids)).toEqual(state)
-    })
-
-    it('keeps the id of a project the config no longer has', async () => {
-      const store = await db()
-      await saveChainState(store, { ...emptyChainState(), orders: { 'id-gone': ['OLD-1'] } })
-      expect((await loadChainState(store, ids)).orders).toEqual({ 'id-gone': ['OLD-1'] })
-    })
-
-    it('names projects by id in the launches', async () => {
-      const store = await db()
-      const entry = { at: 't', project: 'ABC', task: 'ABC-1', sessionId: 's1' }
-      await appendLaunch(store, entry, ids)
-      await appendLaunch(store, entry, ids)
-      expect(await readLaunches(store, ids)).toEqual([entry, entry])
-      expect(await readLaunches(store)).toEqual([
-        { ...entry, project: 'id-abc' },
-        { ...entry, project: 'id-abc' },
-      ])
-    })
+  it('keeps the chains of two projects of one key apart, each under its id (BTN-271)', async () => {
+    const store = await db()
+    const state: ChainState = {
+      ...emptyChainState(),
+      active: [{ project: 'id-abc', current: null, paused: false, error: null }],
+      queue: ['id-abc-release'],
+      orders: { 'id-abc': ['ABC-1'], 'id-abc-release': ['ABC-2'] },
+      ci: { 'id-abc-release': { green: 'abc123' } },
+    }
+    await saveChainState(store, state)
+    expect((await store.query('select project_id from chains')).rows).toEqual([{ project_id: 'id-abc' }])
+    expect((await store.query('select project_id from chain_queue')).rows).toEqual([{ project_id: 'id-abc-release' }])
+    expect(await loadChainState(store)).toEqual(state)
   })
 })

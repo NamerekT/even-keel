@@ -1,12 +1,13 @@
 import { commentsAfterId, linkedFiles } from '../tracker/comments.js'
 import { parseTaskId, type TaskStatus, type TrackerTask } from '../tracker/model.js'
-import type { TaskSource } from '../tracker/source.js'
+import type { TaskSource, TrackerPlace } from '../tracker/source.js'
 import { GITHUB_STATUSES, githubStatus, RepoMap, toCard, toTrackerTask, type GithubCardIssue, type GithubIssue, type IssueState, type Repo } from './model.js'
 import { Skipped, trustedAuthor } from './trust.js'
 
 export interface GithubSettings {
   token: string
-  projects: Readonly<Record<string, string>>
+  /** The place of each project by its id: its key and its repository, `owner/name`. */
+  projects: Readonly<Record<string, TrackerPlace>>
 }
 
 interface GraphqlError {
@@ -178,6 +179,13 @@ export async function connectGithub(
     return repo
   }
 
+  /** The repository of the tasks whose ids start with `key`. */
+  function repoOfTasks(key: string): Repo {
+    const repo = repos.repoOfKey(key)
+    if (repo === undefined) throw new Error(`github: no project with the key ${key} has a repository in even-keel.config.json`)
+    return repo
+  }
+
   async function collect<T = GithubIssue>(
     query: string,
     variables: Record<string, unknown>,
@@ -198,7 +206,7 @@ export async function connectGithub(
   async function issueOf<T>(id: string, query: string): Promise<{ repo: Repo; issue: T }> {
     const parsed = parseTaskId(id)
     if (parsed === null) throw new Error(`github: ${id} is not a task id`)
-    const repo = repoOf(parsed.project)
+    const repo = repoOfTasks(parsed.project)
     const data = await graphql<{ repository: { issue: T | null } | null }>(query, { ...repo, number: parsed.number })
     const issue = data.repository?.issue
     if (issue == null) throw new Error(`github: issue ${id} not found in ${repo.owner}/${repo.name}`)
@@ -236,7 +244,7 @@ export async function connectGithub(
       const wanted = new Map<string, { repo: Repo; numbers: Set<number> }>()
       for (const id of ids) {
         const parsed = parseTaskId(id)
-        const repo = parsed === null ? undefined : repos.repoOf(parsed.project)
+        const repo = parsed === null ? undefined : repos.repoOfKey(parsed.project)
         if (parsed === null || repo === undefined) continue
         const entry = wanted.get(parsed.project) ?? { repo, numbers: new Set<number>() }
         entry.numbers.add(parsed.number)
@@ -297,8 +305,9 @@ export async function connectGithub(
     // An open issue is the ready status; the priority goes on as the label `priority: <level>` when the repository has it.
     async create(task) {
       const repo = repoOf(task.project)
+      const key = repos.projectKey(task.project)!
       const source = task.milestoneOf === null ? null : parseTaskId(task.milestoneOf)
-      const number = source !== null && source.project === task.project ? source.number : null
+      const number = source !== null && source.project === key ? source.number : null
       const context = await graphql<{
         repository: { id: string; label: { id: string } | null; issue?: { milestone: { id: string } | null } | null } | null
       }>(CREATE_CONTEXT, { ...repo, label: `priority: ${task.priority}`, number: number ?? 0, withIssue: number !== null })
@@ -313,7 +322,7 @@ export async function connectGithub(
         ...(milestoneId === undefined ? {} : { milestoneId }),
       }
       const data = await graphql<{ createIssue: { issue: { number: number } } }>(CREATE_ISSUE, { input })
-      return `${task.project}-${data.createIssue.issue.number}`
+      return `${key}-${data.createIssue.issue.number}`
     },
 
     // A milestone belongs to a repository: a task of another project gives none.
@@ -322,7 +331,7 @@ export async function connectGithub(
       if (like === null || like.project !== parseTaskId(id)?.project) return false
       const { repository } = await graphql<{
         repository: { issue: { id: string; milestone: { id: string } | null } | null; like: { milestone: { id: string } | null } | null } | null
-      }>(ISSUE_MILESTONES, { ...repoOf(like.project), number: parseTaskId(id)!.number, like: like.number })
+      }>(ISSUE_MILESTONES, { ...repoOfTasks(like.project), number: parseTaskId(id)!.number, like: like.number })
       const issue = repository?.issue
       if (issue == null) throw new Error(`github: issue ${id} not found`)
       const milestone = repository?.like?.milestone
@@ -335,7 +344,7 @@ export async function connectGithub(
       type Choice = { id: string; title: string; dueOn: string | null }
       const parsed = parseTaskId(id)
       if (parsed === null) throw new Error(`github: ${id} is not a task id`)
-      const repo = repoOf(parsed.project)
+      const repo = repoOfTasks(parsed.project)
       const { repository } = await graphql<{
         repository: { issue: { milestone: (Choice & { closed: boolean }) | null } | null; milestones: { nodes: Choice[] } } | null
       }>(MILESTONE_CHOICES, { ...repo, number: parsed.number })

@@ -59,7 +59,7 @@ Reference for sessions: how the tracker layer, the adapters and the Claude Code 
 
 The adapter `src/huly/` through `@hcengineering/api-client` — the same client as the git hooks in `~/.githooks`.
 
-- The project key is the Huly project identifier, unless the optional `huly` names another one (BTN-172): then the key is only Even Keel's (`BTNR` with `huly: BTN`), the task ids are Huly's (`BTN-300`), and `connectHuly` looks the space up by the named identifier (`spaceOf`). The wizard picks the Huly project and offers its identifier as the key; for a second project on it the user types another key.
+- The project key is the Huly project identifier, unless the optional `huly` names another one (BTN-172): then the key is only Even Keel's (`BTNR` with `huly: BTN`), the task ids are Huly's (`BTN-300`), and `connectHuly` looks the space up by the named identifier (`spaceOf`). The wizard picks the Huly project and offers its identifier as the key; a second project on it may keep that key (BTN-271, the page tells them apart by `projectLabel`) or take its own.
 
 ## GitHub Issues (BTN-65, `src/github/`)
 

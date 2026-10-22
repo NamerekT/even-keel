@@ -21,7 +21,7 @@ import { addMarketplace, updateMarketplace } from './claude/cli.js'
 import { CLAUDE } from './claude/name.js'
 import { Dispatcher, type LaunchEntry } from './chain/dispatcher.js'
 import { fallbacksSince, fixEpisodes, handoffsOf, launchDays, launchedProjects, taskSessions } from './chain/launches.js'
-import { fixName, fixTaskOf, isFixName } from './chain/fix.js'
+import { fixNameOf, fixStem, isFixName, projectOfFix } from './chain/fix.js'
 import { chainQuiet, ForwardMerger } from './chain/forward.js'
 import { fixPrompt, noteOf, resumePrompt, startPrompt, withBrief, withProjectPrompt, withTracker, withUnattended, type HandoffSession, type TrackerPlace } from './chain/relay.js'
 import { launchLine } from './chain/log.js'
@@ -42,7 +42,7 @@ import type { CiTarget, Remote } from './ci/remote.js'
 import { CiWatch } from './ci/watcher.js'
 import { CiWatches } from './ci/watches.js'
 import { ConfigStore } from './config-store.js'
-import { DEFAULT_BRANCH, DEFAULT_CI, idPrefixOf, listenOf, mcpPortOf, poolEntries, projectsByAccount, readKeyOf, runSettings, type EvenKeelConfig } from './config.js'
+import { DEFAULT_BRANCH, DEFAULT_CI, firstByKey, idPrefixOf, listenOf, mcpPortOf, poolEntries, projectLabel, projectLabels, projectsByAccount, readKeyOf, runSettings, type EvenKeelConfig } from './config.js'
 import { envTargets } from './env-file.js'
 import { EventHub } from './events.js'
 import { runGit } from './git/run.js'
@@ -51,7 +51,7 @@ import { fastForwardMain, syncMain } from './git/sync.js'
 import { ensureIgnored, finishWorktree, prepareWorktree, requireBranch, requireCheckedOut, taskPlace } from './git/worktree.js'
 import { exhaustedReset, limitResetAfter } from './limits/model.js'
 import { LimitsWatcher } from './limits/watcher.js'
-import { englishOf, fail, notice, NoticeError, noticeOf, type Notice } from './notice/notice.js'
+import { englishOf, fail, notice, NoticeError, noticeOf, withLabels, type Notice } from './notice/notice.js'
 import { guardHosts, guardToken } from './guard.js'
 import { readJson } from './packages/plugins.js'
 import { checkDraft } from './projects/check.js'
@@ -89,7 +89,6 @@ import { keptDatabase } from './storage/owner.js'
 import { SCHEMA_VERSION } from './storage/schema.js'
 import { TALLY_SCHEMA_VERSION } from './stats/tally-schema.js'
 import { setStateValue, stateValue } from './storage/service-state.js'
-import { rekeyed } from './storage/projects.js'
 import { checkServer, serverValues } from './stats/connect.js'
 import { inferredTallyMode, tallyKey } from './stats/mode.js'
 import { TallyService } from './stats/tally.js'
@@ -159,6 +158,11 @@ const configStore = await ConfigStore.open({
     hub.broadcast('state', getState())
   },
 })
+// The service names a project by its id (BTN-271): its log shows the project's label (`projectLabel`) instead.
+for (const method of ['log', 'warn', 'error'] as const) {
+  const write = console[method].bind(console)
+  console[method] = (...args: unknown[]) => write(...args.map((arg) => (typeof arg === 'string' ? withLabels(arg, projectLabels(configStore.current)) : arg)))
+}
 /** The version whose toast the user closed: state, not a setting (BTN-199). */
 let dismissedUpdate = (await stateValue(db, 'updates.dismissed')) as string | null | undefined
 const envFile = loadEnv()
@@ -169,7 +173,7 @@ await importProfiles({
   db,
   env: process.env,
   adapters: ADAPTERS,
-  trackers: Object.fromEntries(Object.entries(configStore.current.trackers).map(([key, kind]) => [configStore.current.ids[key]!, kind])),
+  trackers: configStore.current.trackers,
   log: (line) => console.log(line),
 })
 const importedProfiles = await importForgejo({
@@ -222,9 +226,6 @@ const packages: Packages = new Packages({
   file: join(stateDir, 'packages.json'),
   cache: join(stateDir, 'packages'),
   envFile: join(root, '.env'),
-  get ids() {
-    return configStore.current.ids
-  },
   get repos() {
     return configStore.current.projects
   },
@@ -240,7 +241,7 @@ const packages: Packages = new Packages({
   updateMarketplace: (marketplace) => updateMarketplace(envOf(homes.global), marketplace, PLUGIN_UPDATE_TIMEOUT_MS),
   addMarketplace: (dir) => addMarketplace(envOf(homes.global), dir, PLUGIN_UPDATE_TIMEOUT_MS),
   baseEnv: (): NodeJS.ProcessEnv => sessionBase(process.env, packages.keyNames()),
-  poolOf: (project) => keyPool(profiles.current(), profileKindsOf, process.env, configStore.current.ids[project], configStore.current.trackers[project]!),
+  poolOf: (project) => keyPool(profiles.current(), profileKindsOf, process.env, project, configStore.current.trackers[project]!),
   port: mcpPort,
   log: (line) => console.log(line),
   onChange: () => {
@@ -280,7 +281,7 @@ const refreshers = new Map<string, () => Promise<void>>()
 let sessions: SessionView[] = []
 let agents: AgentEntry[] = []
 let agentsRead = false
-const launches: LaunchEntry[] = await readLaunches(db, configStore.current.ids)
+const launches: LaunchEntry[] = await readLaunches(db)
 const trackers = new Trackers({
   adapters: ADAPTERS,
   start: (view, setup) =>
@@ -306,7 +307,7 @@ const trackers = new Trackers({
  * (BTN-201), the one its `remoteProfiles` names first (BTN-231).
  */
 const ciTokenOf = (project: string, target: CiTarget) =>
-  ciToken(target, profiles.current(), configStore.current.ids[project], configStore.current.trackers[project]!, configStore.current.settings[project]?.remoteProfiles)
+  ciToken(target, profiles.current(), project, configStore.current.trackers[project]!, configStore.current.settings[project]?.remoteProfiles)
 /** The remotes whose CI takes the profile's token, shown or not. */
 const ciOn = (profileId: string, hidden: boolean) =>
   ciWatches
@@ -347,10 +348,11 @@ const newTally = () =>
     evenKeelUrl: () => `http://${['0.0.0.0', '::'].includes(listen.host) ? '127.0.0.1' : listen.host}:${listen.port}`,
     huly: () => {
       const set = profiles.current()
-      const { ids, trackers: kinds } = configStore.current
-      const projects = Object.entries(kinds).flatMap(([key, kind]) => {
-        const values = kind === 'huly' ? profileFor(set, ids[key], kind)?.values : undefined
-        return values === undefined ? [] : [[key, values] as const]
+      const config = configStore.current
+      // By the Huly project, which Tally knows the tasks by.
+      const projects = Object.entries(config.trackers).flatMap(([project, kind]) => {
+        const values = kind === 'huly' ? profileFor(set, project, kind)?.values : undefined
+        return values === undefined ? [] : [[idPrefixOf(config, project), values] as const]
       })
       return { projects: Object.fromEntries(projects), fallback: defaultProfile(set, 'huly')?.values ?? null }
     },
@@ -360,11 +362,15 @@ let tally = newTally()
 /** What `tally` runs on (`tallyKey`), and the restarts in turn: the page and `.env` may change it at once. */
 let tallyRuns = tallyKey(tallyMode(), process.env)
 let tallyRestarts = Promise.resolve()
+/** The project's pinned checkpoint threshold, its own over the shared one; `null` — calibrated. */
+const pinnedCheckpoint = (project: string | undefined) =>
+  (project === undefined ? undefined : configStore.current.settings[project]?.checkpointTokens) ?? configStore.current.stats.checkpointTokens
+// Tally knows a project by its key: projects that share one are one project of the stats, on the first one's repository.
 const stats = new StatsReader(
   tally.reader,
-  () => configStore.current.projects,
+  () => Object.fromEntries(Object.entries(firstByKey(configStore.current)).map(([key, project]) => [key, configStore.current.projects[project]!])),
   () => configStore.current.stats,
-  (project) => configStore.current.settings[project]?.checkpointTokens ?? configStore.current.stats.checkpointTokens,
+  (key) => pinnedCheckpoint(firstByKey(configStore.current)[key]),
 )
 let ledger = loadLedger(accountFile)
 
@@ -475,8 +481,8 @@ const profiles: Profiles = new Profiles({
   kinds: profileKindsOf,
   set: importedProfiles,
   projects: () => {
-    const { ids, trackers: kinds } = configStore.current
-    return Object.fromEntries(Object.entries(ids).map(([key, id]) => [id, { key, kind: kinds[key]! }]))
+    const { keys, trackers: kinds } = configStore.current
+    return Object.fromEntries(Object.entries(keys).map(([id, key]) => [id, { key, kind: kinds[id]! }]))
   },
   settingsFile: () => join(homes.global.dir, 'settings.json'),
   expired: () => void daemons.expire(homes.global),
@@ -498,8 +504,8 @@ const profiles: Profiles = new Profiles({
 })
 /** The tracker refused the credentials of the profile the project runs on: its chain waits (BTN-200). */
 const profileBlock = (project: string): Notice | undefined => {
-  const refused = profiles.refused(configStore.current.ids[project]!)
-  return refused === undefined ? undefined : notice('profiles.paused', { profile: refused.name, project })
+  const refused = profiles.refused(project)
+  return refused === undefined ? undefined : notice('profiles.paused', { profile: refused.name, project: projectLabel(configStore.current, project) })
 }
 /** Whether pull requests of the project in PR mode have where to go, by the remotes given (EKR-12). */
 const pullReadinessOf = (project: string, urls: Remote[]) => pullReadiness(project, urls, (target) => ciTokenOf(project, target)?.token ?? null)
@@ -629,11 +635,11 @@ const monitor = new SessionMonitor({
   homes: () => homes.list(),
   emailOf: (key) => account.emailOf(key),
   apiKey: (key) => account.apiKey(key),
-  // The keys name the fix sessions (`<KEY>-FIX`), the prefixes the tasks of projects whose ids are the tracker's own.
+  // The stems name the fix sessions (`<KEY>-FIX`), the prefixes the tasks of projects whose ids are the tracker's own.
   projectKeys: () => {
     const config = configStore.current
-    const keys = Object.keys(config.projects)
-    return [...new Set([...keys, ...keys.map((project) => idPrefixOf(config, project))])]
+    const projects = Object.keys(config.projects)
+    return [...new Set([...projects.map((project) => fixStem(config.keys, project)), ...projects.map((project) => idPrefixOf(config, project))])]
   },
   contextWindow: (key, model, task) => (agentOf(homeOf(key)).contextWindow === undefined ? null : contextWindows.peek(key, model, task)),
   intervalMs: SESSION_POLL_MS,
@@ -748,7 +754,6 @@ const changelogs = new ChangelogDrafts({
     return sha
   },
   db,
-  ids: () => configStore.current.ids,
   now: () => new Date(),
 })
 await changelogs.load()
@@ -795,7 +800,7 @@ const settingsFor = (task: string, project = projectOf(task)): string | undefine
 
 function projectOf(task: string): string | undefined {
   for (const [project, tasks] of tasksByProject) if (tasks.some((each) => each.id === task)) return project
-  const fixed = isFixName(task) ? Object.keys(configStore.current.projects).find((project) => fixName(project) === fixTaskOf(task)) : undefined
+  const fixed = isFixName(task) ? projectOfFix(configStore.current.keys, task) : undefined
   return fixed ?? dispatcher.state.active.find((chain) => chain.current?.task === task)?.project
 }
 
@@ -833,14 +838,14 @@ function archiveClosed(project: string, task: string): void {
   const tracker = configStore.current.trackers[project]!
   const title = tasksByProject.get(project)?.find((each) => each.id === task)?.title ?? ''
   const url = issueLink(trackers.setupOf(project)?.issueUrl(project) ?? null, task)
-  writes.add(`the archive of ${task}`, saveClosedTask(db, { project, task, tracker, title, url, closedAt: new Date().toISOString() }, configStore.current.ids))
+  writes.add(`the archive of ${task}`, saveClosedTask(db, { project, task, tracker, title, url, closedAt: new Date().toISOString() }))
 }
 
 function taskRun(task: string, cwd: string): SetupRun {
   return { task, cwd, shell: systemShell(() => envOf(homeOf(claudeAccount()))), log: (line) => console.log(line) }
 }
 
-const dispatcher = new Dispatcher(await loadChainState(db, configStore.current.ids), {
+const dispatcher = new Dispatcher(await loadChainState(db), {
   projects: () => Object.keys(configStore.current.projects),
   parallel: () => configStore.current.parallel,
   rules: rulesOf,
@@ -869,11 +874,11 @@ const dispatcher = new Dispatcher(await loadChainState(db, configStore.current.i
   },
   asked: (task) => liveView(task)?.ask?.id ?? null,
   save: (state) => {
-    writes.add('the chain state', saveChainState(db, state, configStore.current.ids))
+    writes.add('the chain state', saveChainState(db, state))
     hub.broadcast('state', getState())
   },
   journal: (entry) => {
-    writes.add(`the launch of ${entry.task}`, appendLaunch(db, entry, configStore.current.ids))
+    writes.add(`the launch of ${entry.task}`, appendLaunch(db, entry))
     launches.push(entry)
     console.log(launchLine(entry))
   },
@@ -991,6 +996,7 @@ const dispatcher = new Dispatcher(await loadChainState(db, configStore.current.i
     runCheck: (project, task, cwd) => runCheck(configStore.current.settings[project]?.check ?? [], taskRun(task, cwd)),
     afterGreen: (project) => configStore.current.settings[project]?.afterGreen ?? [],
     runAfterGreen: (project, cwd) => runAfterGreen(configStore.current.settings[project]?.afterGreen ?? [], taskRun(project, cwd)),
+    fixName: (project) => fixNameOf(configStore.current.keys, project),
     now: () => new Date(),
   }),
 })
@@ -999,6 +1005,7 @@ const forwards = new ForwardMerger({
   pairs: () => Object.entries(configStore.current.settings).flatMap(([from, { mergeInto: into }]) => (into === null ? [] : [{ from, into }])),
   repo: (project) => configStore.current.projects[project]!,
   branch: branchOf,
+  label: (project) => projectLabel(configStore.current, project),
   quiet: (project) => {
     const status = (task: string) => agentStatus(task)
     return chainQuiet(dispatcher.state.active.find((chain) => chain.project === project), (task) => status(task) === 'busy' || status(task) === 'waiting')
@@ -1143,7 +1150,9 @@ function removalFacts(project: string, repo: string): RemovalFacts {
 const getState = (): EvenKeelState => ({
   startedAt,
   projects: Object.keys(configStore.current.projects),
-  projectIds: configStore.current.ids,
+  projectKeys: configStore.current.keys,
+  projectLabels: projectLabels(configStore.current),
+  taskPrefixes: Object.fromEntries(Object.keys(configStore.current.keys).map((project) => [project, idPrefixOf(configStore.current, project)])),
   config: configStore.view(launchedProjects(launches)),
   chain: {
     active: dispatcher.state.active,
@@ -1153,7 +1162,7 @@ const getState = (): EvenKeelState => ({
     skipped: dispatcher.state.skipped,
     leftovers: dispatcher.state.leftovers,
   },
-  tasks: [...tasksByProject.values()].flat(),
+  tasks: [...tasksByProject].flatMap(([project, tasks]) => tasks.map((task) => ({ ...task, project }))),
   // A finished session's feed is read from its record; the one the chain waits on keeps it: delivering an answer stops it for a while.
   sessions: sessions.map((view) =>
     view.lamp === 'finished' && !dispatcher.state.active.some((chain) => chain.current?.sessionId === view.sessionId) ? { ...view, feed: [] } : view,
@@ -1164,7 +1173,9 @@ const getState = (): EvenKeelState => ({
   trackers: trackers.views(),
   trackerUrls: {
     default: trackers.setupOf(null)?.issueUrl(null) ?? null,
-    projects: Object.fromEntries(Object.keys(configStore.current.projects).map((project) => [project, trackers.setupOf(project)?.issueUrl(project) ?? null])),
+    projects: Object.fromEntries(
+      Object.keys(configStore.current.projects).map((project) => [idPrefixOf(configStore.current, project), trackers.setupOf(project)?.issueUrl(project) ?? null]),
+    ),
     pages: Object.fromEntries(Object.keys(configStore.current.projects).map((project) => [project, trackers.setupOf(project)?.projectUrl?.(project) ?? null])),
   },
   ci: Object.fromEntries([...ciWatches.byProject.keys()].map((project) => [project, ciWatches.shown(project).map((watch) => watch.view)])),
@@ -1318,10 +1329,9 @@ let server = createEvenKeelServer({
     },
     setDefault: (id) => profiles.setDefault(id),
     link: (project, profile) => {
-      const id = configStore.current.ids[project]
-      if (id === undefined) throw fail('config.unknownProject', { key: project })
-      if (launchedProjects(launches).includes(project)) throw fail('config.trackerLocked', { key: project })
-      profiles.link(id, profile)
+      if (!Object.hasOwn(configStore.current.projects, project)) throw fail('config.unknownProject', { key: project })
+      if (launchedProjects(launches).includes(project)) throw fail('config.trackerLocked', { key: projectLabel(configStore.current, project) })
+      profiles.link(project, profile)
     },
     projects: (id, query) => profiles.projects(id, query),
   },
@@ -1357,7 +1367,7 @@ let server = createEvenKeelServer({
     const run = handoffsOf(launches, sessionId)
     if (run === undefined) return undefined
     const window = sessions.find((view) => view.sessionId === sessionId)?.contextWindow ?? configStore.current.context.window
-    const { first, source } = await stats.checkpoint(run.project)
+    const { first, source } = await stats.checkpoint(configStore.current.keys[run.project] ?? run.project, pinnedCheckpoint(run.project))
     const shares = configStore.current.settings[run.project]?.checkpointShares ?? configStore.current.stats.checkpointShares
     return { ...run, ...withinWindow({ first, source }, window, shares), context: monitor.contextOf(sessionId) ?? null }
   },
@@ -1392,10 +1402,7 @@ let server = createEvenKeelServer({
     const received = view.received
     return received === null ? view : { ...view, received: { ...received, account: sessionAccount(received.sessionId, received.at) } }
   },
-  vocabulary: (id) => {
-    const project = Object.keys(configStore.current.ids).find((key) => configStore.current.ids[key] === id)
-    return project === undefined ? Promise.resolve(undefined) : vocabularies.get(project)
-  },
+  vocabulary: (id) => (Object.hasOwn(configStore.current.projects, id) ? vocabularies.get(id) : Promise.resolve(undefined)),
   tasks: {
     card: async (task) => {
       const project = configuredProject(task)
@@ -1526,30 +1533,25 @@ setInterval(
   CI_TARGETS_MS,
 ).unref()
 
-/** The config's projects changed: renamed keys carry their state, removed ones let their chain go, the rest follows the config. */
+/**
+ * The config's projects changed: removed ones let their chain go, the rest follows the config. The state names a
+ * project by its id (BTN-271), so a renamed key carries nothing.
+ */
 function projectsChanged(before: EvenKeelConfig): void {
   const after = configStore.current
-  const rename = rekeyed(before.ids, after.ids)
-  const renamed = Object.keys(before.ids).filter((key) => rename(key) !== key)
-  if (renamed.length > 0) {
-    dispatcher.rekey(rename)
-    for (const entry of launches) entry.project = rename(entry.project)
-    for (const [key, tasks] of [...tasksByProject]) {
-      tasksByProject.delete(key)
-      tasksByProject.set(rename(key), tasks)
+  for (const project of Object.keys(before.projects)) {
+    if (Object.hasOwn(after.projects, project)) {
+      if (before.keys[project] !== after.keys[project]) console.log(`config: ${before.keys[project]} is now ${projectLabel(after, project)}`)
+      continue
     }
-    console.log(`config: renamed ${renamed.map((key) => `${key} to ${rename(key)}`).join(', ')}`)
+    dispatcher.forget(project)
+    tasksByProject.delete(project)
+    console.log(`config: ${projectLabel(before, project)} is gone from the config; its chain is let go, its sessions are left as they are`)
   }
-  for (const key of Object.keys(before.projects).map(rename)) {
-    if (Object.hasOwn(after.projects, key)) continue
-    dispatcher.forget(key)
-    tasksByProject.delete(key)
-    console.log(`config: ${key} is gone from the config; its chain is let go, its sessions are left as they are`)
-  }
-  for (const key of Object.keys(after.projects)) if (!Object.hasOwn(before.projects, key) && !renamed.some((old) => rename(old) === key)) console.log(`config: ${key} joined`)
+  for (const project of Object.keys(after.projects)) if (!Object.hasOwn(before.projects, project)) console.log(`config: ${projectLabel(after, project)} joined`)
   trackers.apply(after, profiles.current())
   if (JSON.stringify(before.projects) !== JSON.stringify(after.projects)) {
-    void packages.projectsChanged(rename).catch((error: unknown) => console.warn(`packages: ${(error as Error).message}`))
+    void packages.projectsChanged().catch((error: unknown) => console.warn(`packages: ${(error as Error).message}`))
     applyCi()
   }
   const remoteProfiles = (config: EvenKeelConfig) => JSON.stringify(Object.entries(config.settings).map(([key, settings]) => [key, settings.remoteProfiles]))

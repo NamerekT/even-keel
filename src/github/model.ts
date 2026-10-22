@@ -1,5 +1,6 @@
 import type { TaskRef, TrackerCard } from '../tracker/card.js'
 import { PRIORITIES, type TaskPriority, type TaskStatus, type TrackerTask } from '../tracker/model.js'
+import type { TrackerPlace } from '../tracker/source.js'
 
 export type IssueState = 'OPEN' | 'CLOSED'
 export type IssueStateReason = 'COMPLETED' | 'NOT_PLANNED' | 'DUPLICATE' | 'REOPENED'
@@ -66,14 +67,23 @@ export function githubPriority(labels: string[]): TaskPriority {
   return levels.length === 0 ? 'none' : PRIORITIES[Math.min(...levels)]!
 }
 
+/**
+ * The repositories of the projects, by the project's id and by its key: a task id is made of the key, and projects with
+ * one key name one repository (`TrackerProjectKey.placeOf`), so two projects on a repository share their task ids.
+ */
 export class RepoMap {
   private readonly keys = new Map<string, string>()
   private readonly repos = new Map<string, Repo>()
+  private readonly byKey = new Map<string, Repo>()
+  private readonly projectKeys = new Map<string, string>()
 
-  constructor(projects: Readonly<Record<string, string>>) {
-    for (const [key, slug] of Object.entries(projects)) {
+  constructor(projects: Readonly<Record<string, TrackerPlace>>) {
+    for (const [project, { key, value: slug }] of Object.entries(projects)) {
+      if (slug === undefined) continue
       const [owner, name] = slug.split('/') as [string, string]
-      this.repos.set(key, { owner, name })
+      this.repos.set(project, { owner, name })
+      this.projectKeys.set(project, key)
+      if (!this.byKey.has(key)) this.byKey.set(key, { owner, name })
       if (!this.keys.has(slug.toLowerCase())) this.keys.set(slug.toLowerCase(), key)
     }
   }
@@ -82,8 +92,19 @@ export class RepoMap {
     return this.keys.get(slug.toLowerCase())
   }
 
+  /** The repository of the project by its id. */
   repoOf(project: string): Repo | undefined {
     return this.repos.get(project)
+  }
+
+  /** The repository of the tasks whose ids start with `key`. */
+  repoOfKey(key: string): Repo | undefined {
+    return this.byKey.get(key)
+  }
+
+  /** The key the project's task ids are made of. */
+  projectKey(project: string): string | undefined {
+    return this.projectKeys.get(project)
   }
 
   idOf(ref: IssueRef): string {

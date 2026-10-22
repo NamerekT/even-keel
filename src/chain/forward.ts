@@ -15,6 +15,8 @@ export interface ForwardDeps {
   repo: (project: string) => string
   /** The project's main branch. */
   branch: (project: string) => string
+  /** What the merge commit names the project by (`projectLabel`): the service names it by id. */
+  label: (project: string) => string
   /** Whether nothing of the project's chain may merge into its branch now (`chainQuiet`). */
   quiet: (project: string) => boolean
   git: Git
@@ -108,7 +110,7 @@ export class ForwardMerger {
     const status = await git(repo, ['status', '--porcelain', '--untracked-files=no'])
     if (status.code !== 0 || status.out.trim() !== '') return wait(view, notice('forward.dirty', { repo }, { detail: status.out }))
 
-    const merged = await git(repo, ['merge', '--no-edit', '-m', `Merge branch '${this.deps.branch(from)}' of ${from} into ${branch}`, ref])
+    const merged = await git(repo, ['merge', '--no-edit', '-m', `Merge branch '${this.deps.branch(from)}' of ${this.deps.label(from)} into ${branch}`, ref])
     if (merged.code !== 0) {
       const files = (await git(repo, ['diff', '--name-only', '--diff-filter=U'])).out.split(/\r?\n/).filter((line) => line.trim() !== '')
       await git(repo, ['merge', '--abort'])

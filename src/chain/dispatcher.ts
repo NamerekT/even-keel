@@ -1,5 +1,4 @@
 import { englishOf, fail, notice, NoticeError, noticeOf, sameNotice, type Notice } from '../notice/notice.js'
-import { renameChainProjects } from '../storage/projects.js'
 import { isOpen, type Task } from '../tracker/model.js'
 import {
   newChain,
@@ -219,17 +218,6 @@ export class Dispatcher {
     this.stop(project)
     this.dequeue(project)
     for (const map of this.byProject()) map.delete(project)
-  }
-
-  /** Project keys renamed in the config: the chain state and the tasks read follow the new keys. */
-  rekey(rename: (project: string) => string): void {
-    Object.assign(this.state, renameChainProjects(this.state as unknown as Record<string, unknown>, rename))
-    for (const map of this.byProject()) {
-      const entries = [...map.entries()]
-      map.clear()
-      for (const [project, value] of entries) (map as Map<string, unknown>).set(rename(project), value)
-    }
-    this.changed()
   }
 
   private byProject(): Map<string, unknown>[] {

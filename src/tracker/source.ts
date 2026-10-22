@@ -16,6 +16,9 @@ export interface TaskFile {
  * Huly (`src/huly/adapter.ts`) is one implementation. An adapter is registered in `src/tracker/adapters.ts`
  * and picked by name with `tracker` in `even-keel.config.json`, for all projects or per project.
  *
+ * A `project` the methods take is the Even Keel project's id; its key and its tracker project are in the `projects`
+ * the adapter's `setup` got (`TrackerPlace`): two projects may share a key (BTN-271).
+ *
  * A task the adapter returns (`TrackerTask`):
  * - `id` — `<PROJECT>-<number>`, where PROJECT is the project key from `even-keel.config.json`; Even Keel names the
  *   worktree and the branch after it and the stats attribute sessions to a task by it.
@@ -130,7 +133,7 @@ export interface TrackerVocabulary {
 }
 
 export interface NewTask {
-  /** The project key from `even-keel.config.json`. */
+  /** The project's id, as the other methods take it. */
   project: string
   title: string
   /** Markdown. */
@@ -188,8 +191,8 @@ export interface TrackerProjectKey {
    * The place in the tracker a project reads, from its key and its value, when the task ids are the tracker's own and
    * not made of the key (BTN-172, BTN-73): projects with the same place read it once and must split its tasks by
    * milestone, projects with different places may share a key-free part of the tracker (two Linear projects of one
-   * team). `ids` — the prefix of the task ids there (`NAM` of `NAM-12`). Without it the key is both, and no two projects
-   * share a place.
+   * team). `ids` — the prefix of the task ids there (`NAM` of `NAM-12`). Without it the key is both: projects with one
+   * key read one place, so they must name the same tracker project (GitHub: the ids of two repositories would clash).
    */
   placeOf?: (key: string, value: string | undefined) => { read: string; ids: string }
   /** What its value must look like. */
@@ -256,10 +259,15 @@ export interface TrackerAdapter {
   projectOfRemote?(remote: RemoteRepo): string | undefined
   /**
    * `env` — a profile's values. `undefined` — none of its variables are set and the tracker is off; throws when they are
-   * set only in part. `projects` — the value of `projectKey` by project key, for the projects on this profile that have
-   * it; empty without `projectKey`.
+   * set only in part. `projects` — the place of each project on this profile, by its id.
    */
-  setup(env: Record<string, string | undefined>, projects: Readonly<Record<string, string>>): TrackerSetup | undefined
+  setup(env: Record<string, string | undefined>, projects: Readonly<Record<string, TrackerPlace>>): TrackerSetup | undefined
+}
+
+/** A project as its tracker's adapter knows it: the key from `even-keel.config.json` and the value of `projectKey`, if any. */
+export interface TrackerPlace {
+  key: string
+  value?: string
 }
 
 export interface ChainTasks {

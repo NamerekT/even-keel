@@ -506,11 +506,14 @@ export class StatsReader {
     return { state: 'ok', data: this.keys.map((key) => checkpointThreshold(key, answer.data[key] ?? null, this.pinnedOf(key))) }
   }
 
-  /** For the hook, so it never fails: without statistics the project runs on the default or the pinned number. */
-  async checkpoint(project: string): Promise<CheckpointThreshold> {
+  /**
+   * For the hook, so it never fails: without statistics the project runs on the default or the pinned number. `project`
+   * is its key, as Tally knows it; `pinned` — the session's own project's, where projects share the key.
+   */
+  async checkpoint(project: string, pinned: number | null = this.pinnedOf(project)): Promise<CheckpointThreshold> {
     const answer = await this.checkpointMeasures()
     const measure = answer.state === 'ok' ? (answer.data[project] ?? null) : null
-    return checkpointThreshold(project, measure, this.pinnedOf(project))
+    return checkpointThreshold(project, measure, pinned)
   }
 
   private checkpointMeasures(): Promise<StatsAnswer<Record<string, CheckpointMeasure>>> {

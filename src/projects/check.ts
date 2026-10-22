@@ -36,15 +36,13 @@ export async function checkDraft(deps: CheckDeps, draft: ProjectDraft): Promise<
   const adapter = deps.adapters[draft.tracker]
   const repo = await checkRepo(deps.git, draft, raw, platform, adapter)
   const branch = draft.branch.trim() || repo.current || DEFAULT_BRANCH
-  let entry: Notice | null = keyNotice(raw, draft.key.trim(), adapter)
+  let entry: Notice | null = null
   let rules: ChainRules | undefined
-  if (entry === null) {
-    try {
-      const config = parseConfig(withNewProject(raw, { ...draft, repo: repo.root ?? draft.repo, branch }, ENTRY_ID, deps.adapters), deps.adapters)
-      rules = config.rules[draft.key.trim()]!
-    } catch (error) {
-      entry = noticeOf(error)
-    }
+  try {
+    const config = parseConfig(withNewProject(raw, { ...draft, repo: repo.root ?? draft.repo, branch }, ENTRY_ID, deps.adapters), deps.adapters)
+    rules = config.rules[ENTRY_ID]!
+  } catch (error) {
+    entry = keyNotice(noticeOf(error))
   }
   const tracker =
     entry === null && rules !== undefined && adapter !== undefined && repo.root !== null && repo.notice === null
@@ -101,16 +99,13 @@ async function suggestedOf(git: Git, root: string, adapter: TrackerAdapter | und
 }
 
 /**
- * A key another project has, said by that project's name rather than its place in the config. On a tracker whose key
- * is its own (a Linear team) it is the limit of this version: one team, one project.
+ * A key may be shared (BTN-271) but not by another tracker project where the task ids are made of it (GitHub): the
+ * config's refusal of that, said the wizard's way.
  */
-function keyNotice(raw: unknown, key: string, adapter: TrackerAdapter | undefined): Notice | null {
-  const projects = isPlainObject(raw) && Array.isArray(raw.projects) ? (raw.projects as unknown[]) : []
-  const found = projects.find((entry) => isPlainObject(entry) && entry.key === key)
-  if (!isPlainObject(found)) return null
-  const project = typeof found.name === 'string' && found.name.trim() !== '' ? found.name.trim() : key
-  if (adapter?.projectKey?.optional === true) return notice('wizard.teamTaken', { tracker: adapter.title, team: key, project })
-  return notice('wizard.keyTaken', { key, project })
+function keyNotice(refused: Notice): Notice {
+  if (refused.code !== 'config.keyElsewhere') return refused
+  const { key, other } = refused.params
+  return notice('wizard.keyTaken', { key, project: other })
 }
 
 function projectOfRepo(raw: unknown, root: string, platform: NodeJS.Platform): string | undefined {
@@ -130,7 +125,7 @@ async function checkTracker(
   const failed = (notice: Notice) => ({ ok: false, missing: [], open: null, openToAll: false, notice })
   let setup
   try {
-    setup = adapter.setup(deps.env, adapter.projectKey !== undefined && place !== '' ? { [key]: place } : {})
+    setup = adapter.setup(deps.env, { [ENTRY_ID]: { key, ...(adapter.projectKey !== undefined && place !== '' ? { value: place } : {}) } })
   } catch (error) {
     return failed(noticeOf(error))
   }
@@ -142,8 +137,8 @@ async function checkTracker(
   const link = new TrackerLink({ name: adapter.title, connect: async () => trackerOf(await connect(deps.timeoutMs)), timeoutMs: deps.timeoutMs })
   try {
     const { tasks, isPublic } = await link.run(async (tracker) => ({
-      ...(await tracker.chainTasks(key, rules)),
-      isPublic: (await tracker.isPublic?.(key)) ?? false,
+      ...(await tracker.chainTasks(ENTRY_ID, rules)),
+      isPublic: (await tracker.isPublic?.(ENTRY_ID)) ?? false,
     }))
     const openToAll = isPublic && rules.requiredLabels.length === 0
     return { ok: true, missing: [], open: tasks.filter((task) => isOpen(task.status)).length, openToAll, notice: null }

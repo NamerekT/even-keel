@@ -17,7 +17,7 @@ export function Waiting({ sessions, tasks }: { sessions: SessionView[]; tasks: T
 
   return (
     <Link
-      to={`${projectPath(state, taskProject(first.task))}#${first.task}`}
+      to={`${projectPath(taskProject(state, first.task))}#${first.task}`}
       className="waiting"
       title={t.status.waitingTitle(waiting.map((view) => view.task).join(', '))}
     >

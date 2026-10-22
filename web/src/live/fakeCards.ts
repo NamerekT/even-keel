@@ -1,8 +1,8 @@
 import { compareMilestones } from '../../../src/chain/order.js'
 import { fail } from '../../../src/notice/notice.js'
-import type { EvenKeelState } from '../../../src/state.js'
+import type { EvenKeelState, ProjectTask } from '../../../src/state.js'
 import type { CardLabel, TaskCard, TaskRef } from '../../../src/tracker/card.js'
-import type { MilestoneChoice, Task, TaskMilestone } from '../../../src/tracker/model.js'
+import type { MilestoneChoice, TaskMilestone } from '../../../src/tracker/model.js'
 
 const DESCRIPTION = `## Goal
 
@@ -106,7 +106,7 @@ export function fakeReady(state: EvenKeelState, id: string): EvenKeelState {
   if (task === undefined || task.status.category !== 'UnStarted') throw fail('task.pastBacklog', { task: id })
   const project = id.split('-')[0]!
   const order = state.chain.projects[project]
-  const tasks: Task[] = state.tasks.map((each) => (each.id === id ? { ...each, status: { name: 'Todo', category: 'ToDo' } } : each))
+  const tasks: ProjectTask[] = state.tasks.map((each) => (each.id === id ? { ...each, status: { name: 'Todo', category: 'ToDo' } } : each))
   if (order === undefined) return { ...state, tasks }
   const { [id]: before = null, ...landing } = order.landing ?? {}
   const at = before === null ? -1 : order.order.indexOf(before)

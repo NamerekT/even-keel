@@ -1,6 +1,6 @@
 import { shortCommit } from '../ci/verdict.js'
 import { englishOf, notice, noticeOf, type Notice } from '../notice/notice.js'
-import { fixName, isFixName } from './fix.js'
+import { isFixName } from './fix.js'
 import type { AfterGreenRun, ChainState, MainCheckDeps, MainCheckRun, MainFailure, MainGate, MainPush, RedReport, SessionFix } from './model.js'
 
 /** How long the chain waits for the tracker to list the fix task it has just created. */
@@ -289,7 +289,7 @@ export class MainCheck {
       return null
     }
     if (!byTask) {
-      gate.fix = { task: fixName(project), at: this.now().toISOString(), commit: push.commit, report: report.prompt }
+      gate.fix = { task: this.deps.fixName(project), at: this.now().toISOString(), commit: push.commit, report: report.prompt }
       this.log(`ci: ${project}: ${commit} is ${what}; a session without a task fixes it`)
       return null
     }

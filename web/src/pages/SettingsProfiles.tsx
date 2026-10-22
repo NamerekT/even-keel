@@ -5,6 +5,7 @@ import type { EvenKeelState, ProfileView } from '../../../src/state.js'
 import { say, t } from '../i18n/index.js'
 import { useCommand } from '../live/useCommand.js'
 import { PlusIcon, TrackerIcon } from '../ui/icons.js'
+import { useProjectLabel } from '../ui/ProjectLabel.js'
 import { Tipped } from '../ui/Tipped.js'
 import { ProfileDialog } from './ProfileDialog.js'
 import { daysLeft } from './profileForm.js'
@@ -14,7 +15,8 @@ import './profiles.css'
 
 const EXPIRY_WARN_DAYS = 14
 
-const remotesOf = (remotes: ProfileView['ci']): string => remotes.map((each) => `${each.project} · ${each.remote}`).join(', ')
+const remotesOf = (remotes: ProfileView['ci'], label: (project: string) => string): string =>
+  remotes.map((each) => `${label(each.project)} · ${each.remote}`).join(', ')
 
 /** Which dialog is up: a new profile, or the profile of that id. */
 type Editing = { id: string | null } | null
@@ -76,6 +78,7 @@ export function SettingsProfiles({ state }: { state: EvenKeelState }) {
  */
 function ProfileCard({ profile, tracker, onEdit }: { profile: ProfileView; tracker: boolean; onEdit: () => void }) {
   const { send, sending, failure } = useCommand()
+  const label = useProjectLabel()
   const { state, error } = profile.check
   const look = state === 'ok' ? 'tools__chip--on' : state === 'refused' || state === 'unreachable' ? 'tools__chip--lost' : 'tools__chip--off'
   const days = profile.expiresAt === null ? null : daysLeft(profile.expiresAt, Date.now())
@@ -85,10 +88,10 @@ function ProfileCard({ profile, tracker, onEdit }: { profile: ProfileView; track
       {tracker ? (
         <span className="profiles__line">{profile.projects.length === 0 ? t.profiles.noProjects : t.profiles.projects(profile.projects.join(', '))}</span>
       ) : (
-        <span className="profiles__line">{profile.ci.length === 0 ? t.profiles.noCi : t.profiles.ci(remotesOf(profile.ci))}</span>
+        <span className="profiles__line">{profile.ci.length === 0 ? t.profiles.noCi : t.profiles.ci(remotesOf(profile.ci, label))}</span>
       )}
-      {profile.hiddenCi.length > 0 && <span className="profiles__line">{t.profiles.hiddenCi(remotesOf(profile.hiddenCi), profile.kind)}</span>}
-      {profile.deniedPulls.length > 0 && <span className="profiles__line">{t.profiles.deniedPulls(remotesOf(profile.deniedPulls), profile.kind)}</span>}
+      {profile.hiddenCi.length > 0 && <span className="profiles__line">{t.profiles.hiddenCi(remotesOf(profile.hiddenCi, label), profile.kind)}</span>}
+      {profile.deniedPulls.length > 0 && <span className="profiles__line">{t.profiles.deniedPulls(remotesOf(profile.deniedPulls, label), profile.kind)}</span>}
     </>
   )
 

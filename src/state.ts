@@ -77,6 +77,7 @@ export interface SessionRecord {
 /** Task link templates (`TrackerSetup.issueUrl`): `{id}` — the task id, `{number}` — its number. */
 export interface TrackerUrls {
   default: string | null
+  /** By the prefix of the task ids (`idPrefixOf`): projects with one prefix are on one tracker project. */
   projects: Record<string, string | null>
   /** The page of each project in its tracker (`TrackerSetup.projectUrl`); `null` — none. */
   pages: Record<string, string | null>
@@ -192,7 +193,7 @@ export interface CheckpointShares {
 
 /** A project's entry of the config as the settings panel edits it: the values it ends up with, the shared ones filled in. */
 export interface ProjectForm extends ProjectSettings {
-  /** What the page shows next to the key; the key stays the project's id. `null` — no name. */
+  /** What the page shows next to the key. `null` — no name. */
   name: string | null
   repo: string
   tracker: string
@@ -322,11 +323,18 @@ export interface RemoteRef {
   path: string
 }
 
+export type ProjectTask = Task & { project: string }
+
 export interface EvenKeelState {
   startedAt: string
+  /** The projects by their ids, as every map of a project here names them: two projects may share a key (BTN-271). */
   projects: string[]
-  /** The id of each project by its key: the page's URL names a project by it, since the key may change. */
-  projectIds: Record<string, string>
+  /** The key of each project; an old link of the page names a project by it. */
+  projectKeys: Record<string, string>
+  /** What the page shows each project by (`projectLabel`): its key, with its name where another project has the key. */
+  projectLabels: Record<string, string>
+  /** The prefix of each project's task ids (`idPrefixOf`): its key, or its tracker project's where that is another one. */
+  taskPrefixes: Record<string, string>
   config: ConfigView
   chain: {
     active: ActiveChain[]
@@ -337,7 +345,8 @@ export interface EvenKeelState {
     skipped: Record<string, string[]>
     leftovers: Record<string, Leftover[]>
   }
-  tasks: Task[]
+  /** The tasks of every project with its project: a task of a tracker project two projects share is here for each. */
+  tasks: ProjectTask[]
   sessions: SessionView[]
   limits: RateLimits | null
   usage: UsageHealth
@@ -377,9 +386,9 @@ export interface EvenKeelState {
   fallbacks: FallbackLaunch[]
   /** The chat mailbox of each live session whose hooks ask for mail or that has messages to show, by session id (BTN-181). */
   mailbox: Record<string, SessionMail>
-  /** The tasks the changelog written last accounts for, by project key and milestone (BTN-209). */
+  /** The tasks the changelog written last accounts for, by project and milestone (BTN-209). */
   changelogs: Record<string, Record<string, string[]>>
-  /** How each release project's branch goes into the project it merges into, by the release project's key (BTN-172). */
+  /** How each release project's branch goes into the project it merges into, by the release project (BTN-172). */
   forwards: Record<string, ForwardView>
 }
 

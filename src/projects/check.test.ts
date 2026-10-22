@@ -35,10 +35,10 @@ function fakeAdapter(options: { off?: boolean; fails?: string; tasks?: TrackerTa
             issueUrl: () => null,
             connect: async () => {
               if (options.fails !== undefined) throw new Error(options.fails)
-              asked.push(...Object.entries(projects).map(([key, place]) => `${key}=${place}`))
+              asked.push(...Object.values(projects).flatMap((place) => (place.value === undefined ? [] : [`${place.key}=${place.value}`])))
               return {
                 chainTasks: async (project: string) => {
-                  asked.push(project)
+                  asked.push(projects[project]?.key ?? project)
                   return { tasks: options.tasks ?? [], statuses: [] }
                 },
                 ...(options.public === undefined ? {} : { isPublic: async () => options.public }),
@@ -121,21 +121,24 @@ describe('checkDraft', () => {
     expect(adapter.asked).toEqual([])
   })
 
-  it('names the project that has the key already, not its place in the config', async () => {
+  it('takes a key another project has (BTN-271), but not two chains on one tracker project without split milestones', async () => {
     const adapter = fakeAdapter()
-    const named = () => ({ projects: [{ id: 'id-abc', key: 'ABC', name: 'Web shop', repo: 'C:\\abc' }] })
-    const check = await checkDraft(deps({ raw: named, adapters: { fake: adapter } }), { ...draft, key: ' ABC ' })
-    expect(check.entry).toEqual(expect.objectContaining({ code: 'wizard.keyTaken', params: { key: 'ABC', project: 'Web shop' } }))
-    expect(check.tracker).toBeNull()
+    const sameTracker = () => ({ tracker: 'fake', projects: [{ id: 'id-abc', key: 'ABC', repo: 'C:\\abc' }] })
+    const check = await checkDraft(deps({ raw: sameTracker, adapters: { fake: adapter } }), { ...draft, key: ' ABC ' })
+    expect(check.entry).toEqual(expect.objectContaining({ code: 'config.trackerProjectShared' }))
     expect(adapter.asked).toEqual([])
-    const bare = await checkDraft(deps(), { ...draft, key: 'ABC' })
-    expect(bare.entry).toEqual(expect.objectContaining({ code: 'wizard.keyTaken', params: { key: 'ABC', project: 'ABC' } }))
+    const otherTracker = await checkDraft(deps(), { ...draft, key: 'ABC' })
+    expect(otherTracker.entry).toBeNull()
   })
 
-  it('says a team taken by another project is one project per team in this version', async () => {
-    const team = { ...fakeAdapter(), title: 'Linear', projectKey: { key: 'fake', optional: true, pattern: /\S/, example: 'Web app' } }
-    const check = await checkDraft(deps({ adapters: { fake: team } }), { ...draft, key: 'ABC', trackerProject: 'Mobile' })
-    expect(check.entry).toEqual(expect.objectContaining({ code: 'wizard.teamTaken', params: { tracker: 'Linear', team: 'ABC', project: 'ABC' } }))
+  it('refuses a key another project has on another repository where task ids are made of the key, naming that project', async () => {
+    const adapter = fakeAdapter()
+    adapter.projectKey = { key: 'fake', pattern: /^\w+\/\w+$/, example: 'org/name' }
+    const named = () => ({ tracker: 'fake', projects: [{ id: 'id-abc', key: 'ABC', name: 'Web shop', repo: 'C:\\abc', fake: 'org/abc' }] })
+    const check = await checkDraft(deps({ raw: named, adapters: { fake: adapter } }), { ...draft, key: 'ABC', trackerProject: 'org/new' })
+    expect(check.entry).toEqual(expect.objectContaining({ code: 'wizard.keyTaken', params: { key: 'ABC', project: 'ABC (Web shop)' } }))
+    expect(check.tracker).toBeNull()
+    expect(adapter.asked).toEqual([])
   })
 
   it('names the tracker variables when none is set', async () => {

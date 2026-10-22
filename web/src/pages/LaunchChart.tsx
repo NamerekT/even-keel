@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import type { LaunchDay } from '../../../src/chain/launches.js'
 import { localized, t } from '../i18n/index.js'
-import { ProjectLabel } from '../ui/ProjectLabel.js'
+import { ProjectLabel, useProjectLabel } from '../ui/ProjectLabel.js'
 import { seriesStyle } from '../ui/series.js'
 
 const DAY = localized((language) => new Intl.DateTimeFormat(language, { day: 'numeric', month: 'short', weekday: 'short' }))
@@ -19,6 +19,7 @@ function dayTotal(day: LaunchDay): number {
 /** `slots` — the projects of the config in its order, each with its slot (`projectSlots`). */
 export function LaunchChart({ days, slots }: { days: LaunchDay[]; slots: Record<string, number | null> }) {
   const [hovered, setHovered] = useState<number | null>(null)
+  const label = useProjectLabel()
   const shown = [...new Set([...Object.keys(slots), ...days.flatMap((day) => Object.keys(day.counts))])]
   const style = (project: string) => seriesStyle(slots[project] ?? null)
   const totals = new Map(shown.map((project) => [project, days.reduce((sum, day) => sum + (day.counts[project] ?? 0), 0)]))
@@ -90,7 +91,7 @@ export function LaunchChart({ days, slots }: { days: LaunchDay[]; slots: Record<
                       [...stack].reverse().map((project) => (
                         <span key={project} className="chart__tip-row" style={style(project)}>
                           <span className="chart__swatch" aria-hidden="true" />
-                          {project}
+                          {label(project)}
                           <span className="chart__tip-count">{day.counts[project]}</span>
                         </span>
                       ))
@@ -112,7 +113,7 @@ export function LaunchChart({ days, slots }: { days: LaunchDay[]; slots: Record<
                 <th scope="col">{t.launches.day}</th>
                 {shown.map((project) => (
                   <th key={project} scope="col">
-                    {project}
+                    {label(project)}
                   </th>
                 ))}
                 <th scope="col">{t.common.total}</th>

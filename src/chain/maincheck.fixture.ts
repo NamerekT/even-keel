@@ -2,6 +2,7 @@ import type { CiRun } from '../ci/model.js'
 import type { CiVerdict } from '../ci/verdict.js'
 import type { NewTask } from '../tracker/source.js'
 import { done, setup, task } from './dispatcher.fixture.js'
+import { fixName } from './fix.js'
 import type { AfterGreenRun, MainCheckDeps, MainCheckRun, MainFailure, MainPush } from './model.js'
 
 export const failedRun: CiRun = {
@@ -74,6 +75,7 @@ export function fakeMain(wait: number | null = null) {
       return ci.runs[commit] ?? { state: 'green' }
     },
     fixTask: () => ci.fixTask,
+    fixName,
     merged: async (_project, id) => ci.merged.has(id),
     afterGreen: () => ci.afterGreen,
     runAfterGreen: async (project, commit) => {

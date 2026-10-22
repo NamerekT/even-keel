@@ -2,18 +2,20 @@ import type { ReceivedView, SkillSource, ToolsView } from '../../../src/tools/mo
 import { formatAgo } from '../format.js'
 import { t } from '../i18n/index.js'
 import { AccountTag } from '../ui/AccountTag.js'
+import { useProjectLabel } from '../ui/ProjectLabel.js'
 import { Chip } from './SettingsMatrix.js'
 
 const SOURCES: SkillSource[] = ['claudeai', 'project', 'user', 'plugin', 'bundled']
 
 export function LastSessions({ views }: { views: ToolsView[] }) {
+  const label = useProjectLabel()
   return (
     <section className="tools__received">
       <h2 className="tools__heading">{t.tools.received}</h2>
       <div className="tools__cards">
         {views.map((view) => (
           <article key={view.project} className="tools__card">
-            {views.length > 1 && <h3 className="tools__title">{view.project}</h3>}
+            {views.length > 1 && <h3 className="tools__title">{label(view.project)}</h3>}
             {view.received === null ? <p className="tools__muted">{t.tools.noSession}</p> : <Received received={view.received} />}
           </article>
         ))}

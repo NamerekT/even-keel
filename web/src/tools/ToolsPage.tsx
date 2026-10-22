@@ -4,6 +4,7 @@ import type { EvenKeelState } from '../../../src/state.js'
 import type { ToolsView } from '../../../src/tools/model.js'
 import { t } from '../i18n/index.js'
 import { Basement } from '../layout/Basement.js'
+import { projectLabel } from '../state.js'
 import { ProjectList } from '../ui/ProjectList.js'
 import { AddPlugin } from './AddPackage.js'
 import { LastSessions } from './LastSessions.js'
@@ -34,14 +35,14 @@ export function ToolsPage({ state }: { state: EvenKeelState }) {
   for (const project of chosen) {
     const each = loaded.get(project)
     if (each === undefined || each.state === 'loading') loading = true
-    else if (each.state === 'failed') failures.push(`${project} — ${t.tools.failed}: ${each.error}`)
+    else if (each.state === 'failed') failures.push(`${projectLabel(state, project)} — ${t.tools.failed}: ${each.error}`)
     else if (each.view !== null) views.push(each.view)
   }
 
   const items = state.projects.map((project) => {
     const each = loaded.get(project)
     const count = each?.state === 'ready' && each.view !== null ? problemCount(problemsOf(each.view)) + packageProblems(state.packages, project) : null
-    return { project, amount: count ?? 0, label: t.tools.pickerCount(count) }
+    return { project, name: projectLabel(state, project), amount: count ?? 0, label: t.tools.pickerCount(count) }
   })
 
   const update = (change: (next: URLSearchParams) => void, replace = false) => {

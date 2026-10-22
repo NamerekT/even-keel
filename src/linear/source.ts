@@ -1,18 +1,18 @@
 import { commentsAfterId, linkedFiles } from '../tracker/comments.js'
 import { parseTaskId, type TaskPriority, type TrackerTask } from '../tracker/model.js'
-import type { TaskSource } from '../tracker/source.js'
+import type { TaskSource, TrackerPlace } from '../tracker/source.js'
 import { linearPlace, linearStatus, readyState, toCard, toTrackerTask, type LinearCardIssue, type LinearIssue, type LinearState, type TeamStateDoc } from './model.js'
 
 export interface LinearSettings {
   token: string
-  /** The `linear` value of each project that has one: a project of the team by name, and the team itself (`linearPlace`). */
-  projects: Readonly<Record<string, string>>
+  /** The place of each project by its id: its key and its `linear` value, a project of the team by name (`linearPlace`). */
+  projects: Readonly<Record<string, TrackerPlace>>
 }
 
 export interface LinearSource extends TaskSource {
   /** The workspace part of the issue links: `https://linear.app/<urlKey>/issue/ENG-1`. */
   urlKey: string
-  /** The page of each Linear project a project key narrows its team to, by the key, once its tasks were read. */
+  /** The page of each Linear project a project narrows its team to, by the project's id, once its tasks were read. */
   projectUrls: ReadonlyMap<string, string>
 }
 
@@ -172,8 +172,14 @@ export async function connectLinear(settings: LinearSettings, timeoutMs: number,
     return issues
   }
 
+  /** The team and the Linear project of an Even Keel project; one missing from `projects` is taken for a team key. */
+  const placeOf = (key: string) => {
+    const place = settings.projects[key]
+    return place === undefined ? linearPlace(key, undefined) : linearPlace(place.key, place.value)
+  }
+
   async function teamOf(key: string): Promise<{ id: string; states: TeamState[]; project?: string }> {
-    const { team: teamKey, project } = linearPlace(key, settings.projects[key])
+    const { team: teamKey, project } = placeOf(key)
     type Team = { id: string; states: { nodes: TeamState[] }; projects?: { nodes: { id: string; url: string }[] } }
     let team: Team | null
     try {
@@ -290,7 +296,7 @@ export async function connectLinear(settings: LinearSettings, timeoutMs: number,
     async create(task) {
       const team = await teamOf(task.project)
       const state = team.states.find((each) => each.type === 'unstarted')
-      if (state === undefined) throw new Error(`linear: team ${task.project} has no unstarted state`)
+      if (state === undefined) throw new Error(`linear: team ${placeOf(task.project).team} has no unstarted state`)
       const place =
         task.milestoneOf === null
           ? null
@@ -306,7 +312,7 @@ export async function connectLinear(settings: LinearSettings, timeoutMs: number,
         ...(place?.projectMilestone == null ? {} : { projectMilestoneId: place.projectMilestone.id }),
       }
       const { issueCreate } = await graphql<{ issueCreate: { success: boolean; issue: { identifier: string } | null } }>(CREATE_ISSUE, { input })
-      if (!issueCreate.success || issueCreate.issue === null) throw new Error(`linear: the issue in ${task.project} was not created`)
+      if (!issueCreate.success || issueCreate.issue === null) throw new Error(`linear: the issue in ${placeOf(task.project).team} was not created`)
       return issueCreate.issue.identifier
     },
 

@@ -1,13 +1,22 @@
 import { useLive } from '../live/context.js'
-import { projectName } from '../state.js'
+import { projectLabel, projectName } from '../state.js'
 
-/** A project as the page names it: its key and, when the config gives one, its name after it. */
+/** `projectLabel` over the live state, for text that names a project by its id. */
+export function useProjectLabel(): (project: string) => string {
+  const { state } = useLive()
+  return (project) => projectLabel(state, project)
+}
+
+/**
+ * A project as the page names it: its key and, when the config gives one, its name after it. Without a name, a key
+ * another project has comes with what tells the two apart (`projectLabel`).
+ */
 export function ProjectLabel({ project, nameClass = 'project-name' }: { project: string; nameClass?: string }) {
   const { state } = useLive()
   const name = state === null ? null : projectName(state, project)
   return (
     <>
-      {project}
+      {name === null ? projectLabel(state, project) : (state?.projectKeys[project] ?? project)}
       {name !== null && <span className={nameClass}>{name}</span>}
     </>
   )

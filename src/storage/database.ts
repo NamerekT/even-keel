@@ -189,6 +189,9 @@ export const STEPS: readonly string[] = [
   alter table chain_lists drop constraint chain_lists_list_check;
   alter table chain_lists add constraint chain_lists_list_check check (list in ('orders', 'skipped', 'leftovers', 'released', 'shelved', 'ci', 'reviews'));
   `,
+  `
+  alter table projects drop constraint projects_key_key;
+  `,
 ]
 
 /** The version this code reads and writes. */

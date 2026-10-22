@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Navigate, Route, Routes, useLocation, useMatch, useParams } from 'react-router'
 import type { EvenKeelState } from '../../src/state.js'
-import { pickLanguage, say, setLanguage, t } from './i18n/index.js'
+import { pickLanguage, say, setLanguage, setProjectLabels, t } from './i18n/index.js'
 import { ActivityBar } from './layout/ActivityBar.js'
 import { BasementSlot } from './layout/Basement.js'
 import { ConfigBanner } from './layout/ConfigBanner.js'
@@ -35,6 +35,7 @@ export function App() {
   const addingAccount = useMatch('/accounts/add') !== null
   const language = pickLanguage(state?.language ?? null, navigator.languages)
   setLanguage(language)
+  setProjectLabels(state?.projectLabels ?? {})
 
   if (blocked !== undefined)
     return (
@@ -95,6 +96,6 @@ export function App() {
 function ProjectRoute({ state }: { state: EvenKeelState }) {
   const location = useLocation()
   const { project, byKey } = projectOfPath(state, useParams().id ?? '')
-  if (byKey) return <Navigate replace to={{ pathname: projectPath(state, project), search: location.search, hash: location.hash }} />
+  if (byKey) return <Navigate replace to={{ pathname: projectPath(project), search: location.search, hash: location.hash }} />
   return <Project state={state} project={project} />
 }

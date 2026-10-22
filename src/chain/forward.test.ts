@@ -9,7 +9,7 @@ const release = '/home/john/even-keel-release'
 const ref = 'refs/even-keel/forward/EKR'
 const fetch = `fetch --quiet ${release} +refs/heads/release/v0.1:${ref}`
 const count = `rev-list --count refs/heads/dev..${ref}`
-const merge = `merge --no-edit -m Merge branch 'release/v0.1' of EKR into dev ${ref}`
+const merge = `merge --no-edit -m Merge branch 'release/v0.1' of EKR (release) into dev ${ref}`
 const onDev = { 'symbolic-ref --quiet --short HEAD': { out: 'dev\n' } }
 
 /** An answer given as a list is used up in order, the last one repeating. */
@@ -20,6 +20,7 @@ function setup(answers: Record<string, Partial<GitResult> | Partial<GitResult>[]
     pairs: () => state.pairs,
     repo: (project) => (project === 'BTN' ? dev : release),
     branch: (project) => (project === 'BTN' ? 'dev' : 'release/v0.1'),
+    label: (project) => `${project} (release)`,
     quiet: () => state.quiet,
     git: async (cwd, args) => {
       expect(cwd).toBe(dev)

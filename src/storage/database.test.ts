@@ -30,6 +30,8 @@ const fixture = (version: number) => readFileSync(join(root, 'test', 'fixtures',
 
 const ABC = '11111111-1111-4111-8111-111111111111'
 const XYZ = '22222222-2222-4222-8222-222222222222'
+/** A second project of the key `ABC` (BTN-271). */
+const SECOND_ABC = '66666666-6666-4666-8666-666666666666'
 
 describe('frozen samples of the database', { timeout: 120_000 }, () => {
   let stateDir: string
@@ -49,27 +51,27 @@ describe('frozen samples of the database', { timeout: 120_000 }, () => {
 
   async function readsWhole(db: Queryable) {
     expect(await databaseVersion(db)).toBe(DATABASE_VERSION)
-    const state = await loadChainState(db, { ABC, XYZ })
-    expect(state.active.map((chain) => [chain.project, chain.current?.task])).toEqual([['ABC', 'ABC-2']])
-    expect(state.queue).toEqual(['XYZ'])
-    expect(state.orders).toEqual({ ABC: ['ABC-1', 'ABC-2', 'ABC-3'], XYZ: ['XYZ-7'] })
-    expect(state.skipped).toEqual({ ABC: ['ABC-9'] })
-    expect(state.leftovers.XYZ?.[0]?.task).toBe('XYZ-1')
-    expect(state.released).toEqual({ ABC: ['ABC-1'] })
-    expect(state.ci.ABC?.afterGreen).toBe(state.ci.ABC?.green)
+    const state = await loadChainState(db)
+    expect(state.active.map((chain) => [chain.project, chain.current?.task])).toEqual([[ABC, 'ABC-2']])
+    expect(state.queue).toEqual([XYZ])
+    expect(state.orders).toEqual({ [ABC]: ['ABC-1', 'ABC-2', 'ABC-3'], [XYZ]: ['XYZ-7'] })
+    expect(state.skipped).toEqual({ [ABC]: ['ABC-9'] })
+    expect(state.leftovers[XYZ]?.[0]?.task).toBe('XYZ-1')
+    expect(state.released).toEqual({ [ABC]: ['ABC-1'] })
+    expect(state.ci[ABC]?.afterGreen).toBe(state.ci[ABC]?.green)
     expect((await loadQuestions(db)).map((question) => [question.task, question.done === true])).toEqual([['ABC-2', false]])
-    const launches = await readLaunches(db, { ABC, XYZ })
+    const launches = await readLaunches(db)
     expect(launches.filter(isLaunch).map((entry) => entry.task)).toEqual(['ABC-1', 'ABC-2', 'ABC-FIX', 'ABC-FIX'])
     expect(launches[0]?.fallback).toBe('codex')
-    expect(fixEpisodes(launches).episodes.ABC?.map((episode) => [episode.id, episode.end?.how])).toEqual([
+    expect(fixEpisodes(launches).episodes[ABC]?.map((episode) => [episode.id, episode.end?.how])).toEqual([
       ['ABC-FIX.1', 'landed'],
       ['ABC-FIX.2', 'dropped'],
     ])
     const [snapshot] = await readSnapshots(db)
     expect(snapshot).toMatchObject({ task: 'ABC-2', reason: 'relay', notePath: 'C:\\repos\\example-project\\.temp\\handoff.md' })
     expect(snapshot?.note).toContain('Done: the parser.')
-    expect(await closedTasks(db, { ABC, XYZ })).toEqual([
-      { project: 'ABC', task: 'ABC-1', tracker: 'huly', title: 'Parse the example input', url: 'https://huly.example.com/workbench/example/browse/ABC-1', closedAt: '2026-10-04T12:00:00.000Z' },
+    expect(await closedTasks(db)).toEqual([
+      { project: ABC, task: 'ABC-1', tracker: 'huly', title: 'Parse the example input', url: 'https://huly.example.com/workbench/example/browse/ABC-1', closedAt: '2026-10-04T12:00:00.000Z' },
     ])
   }
 
@@ -183,11 +185,11 @@ describe('frozen samples of the database', { timeout: 120_000 }, () => {
     try {
       await readsWhole(opened.db)
       const config = parseConfig(fileOf(await readSettings(opened.db)))
-      expect(config).toMatchObject({ parallel: 2, unattended: true, trimTools: true, projects: { ABC: 'C:\\repos\\example-project', XYZ: 'C:\\repos\\other-project' } })
-      expect(config.ids).toEqual({ ABC, XYZ })
-      expect(config.trackers).toEqual({ ABC: 'huly', XYZ: 'github' })
-      expect(config.settings.ABC?.models).toEqual({ claude: 'sonnet' })
-      expect(config.settings.XYZ?.branch).toBe('trunk')
+      expect(config).toMatchObject({ parallel: 2, unattended: true, trimTools: true, projects: { [ABC]: 'C:\\repos\\example-project', [XYZ]: 'C:\\repos\\other-project' } })
+      expect(config.keys).toEqual({ [ABC]: 'ABC', [XYZ]: 'XYZ' })
+      expect(config.trackers).toEqual({ [ABC]: 'huly', [XYZ]: 'github' })
+      expect(config.settings[ABC]?.models).toEqual({ claude: 'sonnet' })
+      expect(config.settings[XYZ]?.branch).toBe('trunk')
       expect(await stateValue(opened.db, 'updates.dismissed')).toBe('0.2.0')
       const copyDir = join(stateDir, 'copy')
       await backupDatabase(opened.db, copyDir)
@@ -273,9 +275,9 @@ describe('frozen samples of the database', { timeout: 120_000 }, () => {
     const opened = await prepare()
     try {
       await readsWhole(opened.db)
-      expect(await latestVersion(opened.db, 'ABC', 'v0.1', { ABC, XYZ })).toMatchObject({ number: 2, kind: 'edit', instruction: 'Say how it runs', written: null, spend: null })
-      expect(await writtenTasks(opened.db, { ABC, XYZ })).toEqual({ ABC: { 'v0.1': ['ABC-1', 'ABC-2'] } })
-      expect((await spentOn(opened.db, 'ABC', 'v0.1', { ABC, XYZ })).turns).toBe(0)
+      expect(await latestVersion(opened.db, ABC, 'v0.1')).toMatchObject({ number: 2, kind: 'edit', instruction: 'Say how it runs', written: null, spend: null })
+      expect(await writtenTasks(opened.db)).toEqual({ [ABC]: { 'v0.1': ['ABC-1', 'ABC-2'] } })
+      expect((await spentOn(opened.db, ABC, 'v0.1')).turns).toBe(0)
     } finally {
       await opened.close()
     }
@@ -304,8 +306,8 @@ describe('frozen samples of the database', { timeout: 120_000 }, () => {
     const opened = await prepare()
     try {
       await readsWhole(opened.db)
-      expect((await latestVersion(opened.db, 'ABC', 'v0.1', { ABC, XYZ }))?.spend).toMatchObject({ account: 'codex', cost: null })
-      expect(await spentOn(opened.db, 'ABC', 'v0.1', { ABC, XYZ })).toEqual({
+      expect((await latestVersion(opened.db, ABC, 'v0.1'))?.spend).toMatchObject({ account: 'codex', cost: null })
+      expect(await spentOn(opened.db, ABC, 'v0.1')).toEqual({
         turns: 2,
         cost: 0.12,
         unpriced: 1,
@@ -339,8 +341,8 @@ describe('frozen samples of the database', { timeout: 120_000 }, () => {
     const opened = await prepare()
     try {
       await readsWhole(opened.db)
-      const chain = await loadChainState(opened.db, { ABC, XYZ })
-      expect(chain.reviews).toEqual({ ABC: [expect.objectContaining({ task: 'ABC-3', number: 12, seen: ['review:41'], feedback: 'Rename it.' })] })
+      const chain = await loadChainState(opened.db)
+      expect(chain.reviews).toEqual({ [ABC]: [expect.objectContaining({ task: 'ABC-3', number: 12, seen: ['review:41'], feedback: 'Rename it.' })] })
       const colors = (await readSettings(opened.db)).rows.filter((row) => row.key === 'color')
       expect(colors).toEqual([
         { key: 'color', project: ABC, qualifier: '', value: 1 },
@@ -374,7 +376,7 @@ describe('frozen samples of the database', { timeout: 120_000 }, () => {
     const opened = await prepare()
     try {
       await readsWhole(opened.db)
-      expect(parseConfig(fileOf(await readSettings(opened.db))).colors).toEqual({ ABC: 3, XYZ: 2 })
+      expect(parseConfig(fileOf(await readSettings(opened.db))).colors).toEqual({ [ABC]: 3, [XYZ]: 2 })
     } finally {
       await opened.close()
     }
@@ -403,8 +405,38 @@ describe('frozen samples of the database', { timeout: 120_000 }, () => {
     const opened = await prepare()
     try {
       await readsWhole(opened.db)
-      const chain = await loadChainState(opened.db, { ABC, XYZ })
-      expect(chain.shelved).toEqual({ ABC: [{ task: 'ABC-1', sessionId: 'aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee', at: '2026-10-19T09:00:00.000Z' }] })
+      const chain = await loadChainState(opened.db)
+      expect(chain.shelved).toEqual({ [ABC]: [{ task: 'ABC-1', sessionId: 'aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee', at: '2026-10-19T09:00:00.000Z' }] })
+      await opened.db.query(`insert into projects (id, key, repo, branch, position) values ('${SECOND_ABC}', 'ABC', 'C:\\repos\\example-release', 'release/v1', 2)`)
+    } finally {
+      await opened.close()
+    }
+    expect(logs).toEqual([])
+  })
+
+  it('of version 11 has the schema step 11 makes', async () => {
+    const frozen = await PGlite.create()
+    const made = await openDatabase(undefined, STEPS.slice(0, 9))
+    try {
+      await frozen.exec(fixture(11))
+      expect(await databaseVersion(frozen)).toBe(11)
+      expect(await schemaOf(made)).toEqual(await schemaOf(frozen))
+    } finally {
+      await frozen.close()
+      await made.close()
+    }
+  })
+
+  it('of version 11 is read whole, two projects of one key with it (BTN-271)', async () => {
+    const dataDir = dataDirOf(databaseDirOf(stateDir))
+    mkdirSync(dataDir, { recursive: true })
+    const frozen = await PGlite.create({ dataDir })
+    await frozen.exec(fixture(11))
+    await frozen.close()
+    const opened = await prepare()
+    try {
+      await readsWhole(opened.db)
+      expect(parseConfig(fileOf(await readSettings(opened.db))).keys).toEqual({ [ABC]: 'ABC', [XYZ]: 'XYZ', [SECOND_ABC]: 'ABC' })
     } finally {
       await opened.close()
     }

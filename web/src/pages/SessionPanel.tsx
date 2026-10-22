@@ -128,7 +128,7 @@ function Actions({ block, scale, ci }: { block: ChainBlock; scale: ContextScale;
   const [chatting, setChatting] = useState(false)
   const fix = isFixName(block.id)
   // The row of a fix is one of its episodes; the service knows the fix by its name.
-  const body = { project: taskProject(block.id), task: fix ? fixTaskOf(block.id) : block.id }
+  const body = { project: taskProject(state, block.id), task: fix ? fixTaskOf(block.id) : block.id }
   const session = block.session
   const live = block.current ? session : null
   // A task that made way for the fix of main keeps its chat, shut until the chain takes it again.

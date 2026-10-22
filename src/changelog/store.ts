@@ -1,7 +1,6 @@
 import type { TokenTotals } from '../sessions/transcript.js'
 import type { ChangelogKind, ChangelogSpend, ChangelogSpent, ChangelogVersion } from '../state.js'
 import type { Db, Queryable } from '../storage/database.js'
-import { byMap, inverted } from '../storage/projects.js'
 
 type Row = {
   project_id: string
@@ -21,8 +20,8 @@ type Row = {
 
 const COLUMNS = 'project_id, milestone, version, kind, text, base, instruction, tasks, open_tasks, at, written_at, commit_sha, spend'
 
-const versionOf = (keyOf: (id: string) => string) => (row: Row): ChangelogVersion => ({
-  project: keyOf(row.project_id),
+const versionOf = (row: Row): ChangelogVersion => ({
+  project: row.project_id,
   milestone: row.milestone,
   number: row.version,
   kind: row.kind,
@@ -36,27 +35,23 @@ const versionOf = (keyOf: (id: string) => string) => (row: Row): ChangelogVersio
   spend: row.spend === null ? null : (JSON.parse(row.spend) as ChangelogSpend),
 })
 
-export async function latestVersion(db: Queryable, project: string, milestone: string, ids: Record<string, string> = {}): Promise<ChangelogVersion | null> {
+export async function latestVersion(db: Queryable, project: string, milestone: string): Promise<ChangelogVersion | null> {
   const { rows } = await db.query<Row>(
     `select ${COLUMNS} from changelog_versions where project_id = $1 and milestone = $2 order by version desc limit 1`,
-    [byMap(ids)(project), milestone],
+    [project, milestone],
   )
-  return rows[0] === undefined ? null : versionOf(byMap(inverted(ids)))(rows[0])
+  return rows[0] === undefined ? null : versionOf(rows[0])
 }
 
 /** Stores the next version of the milestone; its number. */
-export async function addVersion(
-  db: Db,
-  version: Omit<ChangelogVersion, 'number' | 'written'>,
-  ids: Record<string, string> = {},
-): Promise<number> {
+export async function addVersion(db: Db, version: Omit<ChangelogVersion, 'number' | 'written'>): Promise<number> {
   const { rows } = await db.query<{ version: number }>(
     `insert into changelog_versions (${COLUMNS})
      select $1, $2, coalesce(max(version), 0) + 1, $3, $4, $5, $6, $7, $8, $9, null, null, $10
        from changelog_versions where project_id = $1 and milestone = $2
      returning version`,
     [
-      byMap(ids)(version.project),
+      version.project,
       version.milestone,
       version.kind,
       version.text,
@@ -72,9 +67,9 @@ export async function addVersion(
 }
 
 /** What every turn of the milestone's versions cost together; a version kept without its spend counts for nothing. */
-export async function spentOn(db: Queryable, project: string, milestone: string, ids: Record<string, string> = {}): Promise<ChangelogSpent> {
+export async function spentOn(db: Queryable, project: string, milestone: string): Promise<ChangelogSpent> {
   const { rows } = await db.query<{ spend: string }>('select spend from changelog_versions where project_id = $1 and milestone = $2 and spend is not null', [
-    byMap(ids)(project),
+    project,
     milestone,
   ])
   const spent: ChangelogSpent = { turns: 0, cost: 0, unpriced: 0, tokens: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 } }
@@ -88,9 +83,9 @@ export async function spentOn(db: Queryable, project: string, milestone: string,
   return spent
 }
 
-export async function markWritten(db: Db, project: string, milestone: string, number: number, written: { at: string; commit: string }, ids: Record<string, string> = {}): Promise<void> {
+export async function markWritten(db: Db, project: string, milestone: string, number: number, written: { at: string; commit: string }): Promise<void> {
   await db.query('update changelog_versions set written_at = $4, commit_sha = $5 where project_id = $1 and milestone = $2 and version = $3', [
-    byMap(ids)(project),
+    project,
     milestone,
     number,
     written.at,
@@ -98,14 +93,13 @@ export async function markWritten(db: Db, project: string, milestone: string, nu
   ])
 }
 
-/** The tasks the last written version of each milestone accounts for, by project key and milestone. */
-export async function writtenTasks(db: Queryable, ids: Record<string, string> = {}): Promise<Record<string, Record<string, string[]>>> {
-  const keyOf = byMap(inverted(ids))
+/** The tasks the last written version of each milestone accounts for, by project and milestone. */
+export async function writtenTasks(db: Queryable): Promise<Record<string, Record<string, string[]>>> {
   const { rows } = await db.query<{ project_id: string; milestone: string; tasks: string }>(
     `select distinct on (project_id, milestone) project_id, milestone, tasks from changelog_versions
       where written_at is not null order by project_id, milestone, version desc`,
   )
   const result: Record<string, Record<string, string[]>> = {}
-  for (const row of rows) (result[keyOf(row.project_id)] ??= {})[row.milestone] = JSON.parse(row.tasks) as string[]
+  for (const row of rows) (result[row.project_id] ??= {})[row.milestone] = JSON.parse(row.tasks) as string[]
   return result
 }
