@@ -44,7 +44,7 @@ Every entry, ordered by how many people it reaches and how badly it hurts them i
 | 32 | [The chat's turn line on Codex and after the chain stopped](#the-chats-turn-line-while-an-answer-is-delivered-to-codex-or-after-the-chain-stopped-btn-188) | Codex, a stopped chain | the chat says "delivering" for up to three minutes |
 | 33 | [Plugins from a git URL marketplace](#plugins-from-a-git-url-marketplace) | a marketplace added by URL | sessions keep an old plugin |
 | 34 | [A tracker profile changed on the Access page](#a-tracker-profile-changed-on-the-access-page-btn-200) | anyone changing a key | the tracker stays "does not answer" until a restart |
-| 35 | ["Add to Claude Code" on /tools](#add-to-claude-code-on-tools-btn-226) | new users | the banner stays; run its command by hand |
+| 35 | ["Add to Claude Code" on /tools](#add-to-claude-code-on-tools-btn-226) | new users running the service | the banner stays; run its command by hand |
 | 36 | [Two profiles of one tracker](#two-profiles-of-one-tracker-btn-200) | two accounts of one tracker | a project reads another profile's tasks |
 | 37 | [A project's own CI profile](#a-projects-own-ci-profile-btn-231) | two forge profiles | the CI or a pull request uses the old profile |
 | 38 | [Carrying a release project forward](#carrying-a-release-project-forward-btn-172) | release projects | a fix stays out of the main branch; carry it by hand |
@@ -347,7 +347,7 @@ Checked live on 17.10.2026 (BTN-174) from a second instance in a terminal: plugi
 
 ### "Add to Claude Code" on /tools (BTN-226)
 
-The button runs `claude plugin marketplace add <checkout>` from the service in the default config; the config it was built on already knew the marketplace, so the banner never showed there and the button was seen only on the fake page. If the CLI fails from the service, the banner shows `packages.marketplaceAdd`; if it adds the marketplace to another folder than the one your terminal uses, the banner stays. **Workaround:** run the command the banner shows in your own terminal; chain sessions do not need it either way.
+The button runs `claude plugin marketplace add <checkout>` from the service in the default config. Checked on 22.10.2026 on a second instance started from a terminal with an empty default config: the command added the checkout as a `directory` marketplace to that config's `known_marketplaces.json` and the offer went away. Not from an installed service (session 0 on Windows, systemd or launchd), whose default config already knew the marketplace. If the CLI fails from the service, the banner shows `packages.marketplaceAdd`; if it adds the marketplace to another folder than the one your terminal uses, the banner stays. **Workaround:** run the command the banner shows in your own terminal; chain sessions do not need it either way.
 
 ### Packages on Linux and macOS
 
