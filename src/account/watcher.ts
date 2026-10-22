@@ -94,6 +94,7 @@ interface Running {
 
 export class AccountWatcher {
   private known: Known[] = []
+  private read = false
   private absent: string[] = []
   private current: AccountLogin | null = null
   private running: Running | undefined
@@ -153,6 +154,11 @@ export class AccountWatcher {
     return this.credit.restoredAfter(key, at, this.options.now())
   }
 
+  /** The folders have been read once since the start; before that `view` lists none of them. */
+  get ready(): boolean {
+    return this.read
+  }
+
   start(): void {
     if (this.timer !== undefined) return
     const tick = () => {
@@ -170,7 +176,9 @@ export class AccountWatcher {
     const keysChanged = await this.checkKeys(known)
     await this.checkCredit(homes)
     const absent = this.options.missing()
-    if (!keysChanged && JSON.stringify(known) === JSON.stringify(this.known) && absent.join() === this.absent.join()) return
+    const first = !this.read
+    this.read = true
+    if (!first && !keysChanged && JSON.stringify(known) === JSON.stringify(this.known) && absent.join() === this.absent.join()) return
     this.known = known
     this.absent = absent
     this.options.onChange()

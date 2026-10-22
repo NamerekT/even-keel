@@ -858,6 +858,7 @@ const dispatcher = new Dispatcher(await loadChainState(db, configStore.current.i
   limitReset: (project, task) => exhaustedReset(limits.limits(choiceFor(project, task).account)),
   limitResetAfter: (key, at) => (account.apiKey(key) ? account.creditBackAfter(key, at) : limitResetAfter(limits.limits(key), at)),
   packagesBlocked: (project) => packages.blocked(project),
+  accountsRead: () => account.ready,
   promptLanguage: (task) => promptLanguage(projectOf(task)),
   mainBranch: (task) => {
     const project = projectOf(task)

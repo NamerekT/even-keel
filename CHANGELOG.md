@@ -9,6 +9,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 ### Fixed
 
 - A task postponed on an open blocker, or skipped, no longer stands above the running task on the project page, and dragging tasks after that no longer fails with "is running and stays first". The running task is drawn first even when the chain has no order of your own yet.
+- A chain no longer pauses with "the active account folder … is gone" when the service has just started, for example after an update, and the next task is due in its first seconds. The chains now wait until the account folders have been read once.
 
 ### Security
 
