@@ -205,7 +205,8 @@ export class Handovers {
   /** The journal knows a task back from an inactive status as a `relay`: a handover for a cold cache, as after a limit. */
   private moved(chain: ActiveChain, current: CurrentTask, move: Move, sessionId: string, previous: string, at = current.starting!): void {
     const reason = move === 'returned' ? 'relay' : move
-    this.deps.journal({ at, project: chain.project, task: current.task, sessionId, reason, previous })
+    const cause = move === 'relay' ? 'limit' : move === 'returned' ? 'returned' : move === 'review' && sessionId !== previous ? 'review' : undefined
+    this.deps.journal({ at, project: chain.project, task: current.task, sessionId, reason, ...(cause === undefined ? {} : { cause }), previous })
     current.sessionId = sessionId
     current.resumedAt = at
     settle(current)

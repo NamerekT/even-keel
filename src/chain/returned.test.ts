@@ -56,7 +56,7 @@ describe('Dispatcher with a task back from an inactive status', () => {
     expect(relays[0]).toMatchObject({ kind: 'relay', task: 'ABC-1', sessionId: 'old-session', reason: 'returned' })
     expect(relays[0]?.prompt).toContain('вернул её в цепочку')
     expect(relays[0]?.prompt).toContain('The question is in the comments')
-    expect(journal).toEqual([{ at: '2026-09-26T14:00:00.000Z', project: 'ABC', task: 'ABC-1', sessionId: 'session-1', reason: 'relay', previous: 'old-session' }])
+    expect(journal).toEqual([{ at: '2026-09-26T14:00:00.000Z', project: 'ABC', task: 'ABC-1', sessionId: 'session-1', reason: 'relay', cause: 'returned', previous: 'old-session' }])
     expect(dispatcher.state.active[0]?.current).toMatchObject({ task: 'ABC-1', sessionId: 'session-1' })
     expect(dispatcher.state.shelved).toEqual({})
     expect(dispatcher.state.released).toEqual({})

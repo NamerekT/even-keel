@@ -329,7 +329,7 @@ describe('Dispatcher and the session a red main interrupts', () => {
     expect(relays[0]).toMatchObject({ kind: 'relay', task: 'ABC-2', sessionId: 'session-2', reason: 'mainFixed' })
     expect(relays[0]!.prompt).toContain('остановил Even Keel')
     expect(relays[0]!.prompt).toContain('bbbbbbb')
-    expect(journal.at(-1)).toMatchObject({ task: 'ABC-2', sessionId: 'session-4', reason: 'relay', previous: 'session-2' })
+    expect(journal.at(-1)).toMatchObject({ task: 'ABC-2', sessionId: 'session-4', reason: 'relay', cause: 'mainFixed', previous: 'session-2' })
     expect(dispatcher.state.active[0]?.current).toMatchObject({ task: 'ABC-2', sessionId: 'session-4' })
   })
 

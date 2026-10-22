@@ -469,11 +469,11 @@ function SessionList({ rows, current, onOpen }: SessionListProps) {
                 {STARTED().format(new Date(row.at))}
               </time>
               <span className="sessions__how">
-                {t.session.launches[row.how]}
+                {launchText(row)}
                 {row.resumed > 0 && t.session.resumed(row.resumed)}
                 {row.answers > 0 && t.session.answered(row.answers)}
                 {row.left !== undefined && ` · ${leftText(row.left)}`}
-                {row.replaced !== undefined && ` · ${t.session.replaced[row.replaced.how]}`}
+                {row.replaced !== undefined && ` · ${replacedText(row.replaced)}`}
               </span>
               <span className="sessions__account">
                 <AccountTag email={row.account} />
@@ -486,6 +486,14 @@ function SessionList({ rows, current, onOpen }: SessionListProps) {
       </ul>
     </section>
   )
+}
+
+function launchText(row: TaskSession): string {
+  return row.how === 'relay' ? t.session.relayed[row.cause ?? 'limit'] : t.session.launches[row.how]
+}
+
+function replacedText(replaced: NonNullable<TaskSession['replaced']>): string {
+  return replaced.how === 'relay' ? t.session.replacedRelay[replaced.cause ?? 'limit'] : t.session.replaced[replaced.how]
 }
 
 function leftText(left: NonNullable<TaskSession['left']>): string {
@@ -533,7 +541,7 @@ function SessionWindow({ row, live, scale, onClose }: { row: TaskSession; live: 
         <header className="panel__head">
           <h2 className="panel__task">
             <span className="panel__key">{row.sessionId.slice(0, 8)}</span>
-            <span className="panel__title">{t.session.launches[row.how]}</span>
+            <span className="panel__title">{launchText(row)}</span>
             <AccountTag email={account} />
           </h2>
           <button type="button" className="panel__close" aria-label={t.session.closeDialog} onClick={() => dialogRef.current?.close()}>
