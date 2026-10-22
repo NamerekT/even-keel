@@ -79,6 +79,13 @@ Every entry, ordered by how many people it reaches and how badly it hurts them i
 | 67 | [The first start with Forgejo profiles](#the-first-start-with-forgejo-profiles-btn-201) | an update from a build before v0.1 with Forgejo | the Forgejo CI disappears from the page |
 | 68 | [PR mode without a remote](#pr-mode-without-a-remote-ekr-12) | PR mode | the chain stays paused after the remote is added; press Resume |
 | 69 | [The OpenCode database read while a turn writes](#the-opencode-database-read-while-a-turn-writes) | OpenCode | the feed or a stats run skips one poll |
+| 70 | [Copilot chain sessions under the service](#copilot-chain-sessions-under-the-service-btn-215) | Copilot | sessions do not start without a token |
+| 71 | [Hooks and plugins in Copilot sessions](#hooks-and-plugins-in-copilot-sessions) | Copilot | no handoff on a full context, chat messages only between turns |
+| 72 | [MCP servers in Copilot sessions](#mcp-servers-in-copilot-sessions) | Copilot with packages | a session lacks the tracker's tools |
+| 73 | [A spent Copilot budget](#a-spent-copilot-budget) | Copilot | the session waits for good; press "New session" |
+| 74 | [A Copilot turn killed mid-turn](#a-copilot-turn-killed-mid-turn) | Copilot | the resume fails; press "New session" |
+| 75 | [Copilot installed with npm](#copilot-installed-with-npm) | Copilot from npm | the first turn fails; set `EVEN_KEEL_COPILOT_BIN` |
+| 76 | [Copilot models in the stats](#copilot-models-in-the-stats) | Copilot on Claude models | `/stats` shows no cost for them |
 
 ## Platforms
 
@@ -306,6 +313,36 @@ A turn is live while its process lives and its last event is not the end of the 
 ### The OpenCode database read while a turn writes
 
 Even Keel and Tally open `opencode.db` read-only while OpenCode writes it in WAL mode. A read during a checkpoint of the WAL may fail with "database is locked"; the feed then keeps its last state until the next poll, and a stats run logs the file as failed and reads it next time. Never seen in the checks.
+
+## Copilot
+
+### Copilot chain sessions under the service (BTN-215)
+
+Checked on Copilot CLI 1.0.98 on Windows from a terminal, on the machine's own sign-in: a launch with `--session-id`, a resume, the transcript and the Tally rows. Never run as a chain session of the Windows service, never on a folder with a token, never through a whole task (commits, a merge into the main checkout through `--add-dir`), never on Linux or macOS. The service runs in session 0, and whether your `copilot login`, kept in the Windows credential store, reaches a process there was not tried: if it does not, a folder without a token has no sign-in under the service, and its first turn fails with Copilot's error. **Workaround:** add the Copilot account with a fine-grained token instead, or run the task on another provider (a run label).
+
+### Hooks and plugins in Copilot sessions
+
+GitHub's docs say Copilot runs the hooks of the repository's `.claude/settings.json` and loads a Claude Code plugin from `--plugin-dir` with its skills and hooks; neither was seen. The checkpoint threshold, the chat mailbox and a plugin's hooks rest on it. If Copilot does not run them, a Copilot session never hands over on a full context and gets chat messages only after its turn, and a plugin's hooks do nothing. **Workaround:** keep Copilot for short tasks; send messages between turns.
+
+### MCP servers in Copilot sessions
+
+The packages' servers reach Copilot through `--additional-mcp-config`, and the project's own servers are turned off one by one with `--disable-mcp-server`, since Copilot has no strict mode; this was read from `--help`, not run. If a flag is taken otherwise, a session either lacks the tracker's tools or starts the project's own server beside the gateway's. **Workaround:** take the project's `.mcp.json` servers out while it runs on Copilot.
+
+### A spent Copilot budget
+
+What a Copilot session writes when the AI credits or premium requests run out was never seen. The fold takes a `session.error` about billing or AI credits as spent credit and a rate limit or quota as a limit (`src/copilot/transcript.ts`). Spent credit is held as a key out of credit, but nothing can tell when a GitHub token has credit again, so the session waits for good; any other wording stops it like an error. **Workaround:** after the budget is back, press "New session".
+
+### A Copilot turn killed mid-turn
+
+A turn's process killed by "New session", a stop or a crash leaves `events.jsonl` without its `assistant.turn_end`; whether `--resume` then goes on cleanly was not tried. **Workaround:** "New session", which starts a new session with a handoff.
+
+### Copilot installed with npm
+
+Even Keel looks for the `copilot.exe` winget installs, then `copilot` on the PATH. The npm package `@github/copilot` puts a `copilot.cmd` wrapper there, which a detached spawn without a shell may not start. **Workaround:** point `EVEN_KEEL_COPILOT_BIN` at the CLI's real executable.
+
+### Copilot models in the stats
+
+Copilot names Claude models with dots (`claude-sonnet-4.6`), which no price key of `tally.config.json` matches, so such calls show no cost in `/stats` and the collector logs them as unpriced; the GPT names seen were the API's own. **Workaround:** add a price key with the dotted name.
 
 ## Packages
 

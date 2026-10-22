@@ -183,6 +183,11 @@ export const en = {
   'opencode.unknownSession': (p: { session: string }) => `opencode: Even Keel did not start the session ${p.session}`,
   'opencode.stillRunning': (p: { session: string }) => `opencode: the turn of ${p.session} was killed but is still running`,
 
+  'copilot.startFailed': (p: { task: string; cwd: string }) => `copilot: could not start ${p.task} in ${p.cwd}`,
+  'copilot.resumeFailed': (p: { task: string; cwd: string }) => `copilot: could not resume ${p.task} in ${p.cwd}`,
+  'copilot.unknownSession': (p: { session: string }) => `copilot: Even Keel did not start the session ${p.session}`,
+  'copilot.stillRunning': (p: { session: string }) => `copilot: the turn of ${p.session} was killed but is still running`,
+
   'account.unknown': (p: { key: string }) => `claude: there is no account ${p.key}`,
   'account.alreadyActive': (p: { key: string }) => `claude: ${p.key} is already active`,
   'account.removing': (p: { account: string }) => `claude: ${p.account} is being removed; keep it first`,
@@ -207,6 +212,10 @@ export const en = {
   'account.codexKeyInvalid': () => 'codex: an OpenAI API key is one word of more than 20 characters, like sk-proj-…',
   'account.codexKeyRejected': () => "codex: OpenAI doesn't accept this key: it is wrong, revoked or its project is disabled",
   'account.codexKeyUnchecked': (p: { reason: string }) => `codex: could not check the key with OpenAI (${p.reason}); try again later`,
+  'account.copilotTokenInvalid': () =>
+    'copilot: Copilot CLI takes a fine-grained personal access token (github_pat_…) with the Copilot Requests permission, or an OAuth token (gho_…); a classic ghp_ one it refuses',
+  'account.copilotTokenRejected': () => "copilot: GitHub doesn't accept this token: it is wrong, expired or revoked",
+  'account.copilotTokenUnchecked': (p: { reason: string }) => `copilot: could not check the token with GitHub (${p.reason}); try again later`,
   'account.chainRunning': (p: { project: string }) => `claude: chain ${p.project} is running; stop it before switching the account`,
   'account.sessionsBusy': (p: { sessions: string[] }) =>
     `claude: sessions are in the middle of a turn (${list(p.sessions)}); switch the account once they finish`,
@@ -223,6 +232,8 @@ export const en = {
   'login.codexMissing': () => 'codex: the CLI is not found; install it with npm install -g @openai/codex or name its path in EVEN_KEEL_CODEX_BIN',
   'login.claudeMissing': () => 'claude: the CLI is not found; install it or name its path in EVEN_KEEL_CLAUDE_BIN',
   'login.opencodeMissing': () => 'opencode: the CLI is not found; install it with npm install -g opencode-ai or name its path in EVEN_KEEL_OPENCODE_BIN',
+  'login.copilotMissing': () =>
+    'copilot: the CLI is not found; install it with winget install GitHub.Copilot (or npm install -g @github/copilot) or name its path in EVEN_KEEL_COPILOT_BIN',
   'login.method': (p: { method: string; known: string[] }) => `there is no way to sign in "${p.method}" here; there are: ${list(p.known)}`,
   'login.exited': (p: { code: string }) => `claude: sign-in exited with code ${p.code}`,
   'login.setupFailed': (p: { dir: string }) => `claude: signed in, but could not set up the folder ${p.dir}`,

@@ -87,8 +87,8 @@ describe('deviceLogin', () => {
 })
 
 describe('canAdd', () => {
-  it('adds Claude, Codex and OpenCode through the CLI or a key', () => {
-    for (const provider of ['claude', 'codex', 'opencode'] as const) {
+  it('adds Claude, Codex, OpenCode and Copilot through the CLI or a key', () => {
+    for (const provider of ['claude', 'codex', 'opencode', 'copilot'] as const) {
       expect(canAdd(provider)).toBe(true)
       expect(canAdd(provider, 'cli')).toBe(true)
       expect(canAdd(provider, 'apiKey')).toBe(true)
@@ -129,7 +129,7 @@ describe('accountGroups', () => {
   const now = new Date('2026-10-10T10:00:00.000Z')
   const of = (key: string, agent: string, patch: Partial<AccountEntry> = {}) => ({ ...entry(key, `${key}@example.com`), agent, ...patch })
   const groups = (accounts: AccountEntry[], active = 'global') =>
-    accountGroups({ ...view(accounts), active, missing: ['opencode'] }, now).map((group) => [group.agent, group.entries.map((each) => each.key)])
+    accountGroups({ ...view(accounts), active, missing: ['opencode', 'copilot'] }, now).map((group) => [group.agent, group.entries.map((each) => each.key)])
 
   it('groups the accounts by provider in the providers order, the chain account first in its group', () => {
     expect(groups([of('zen', 'opencode'), of('codex', 'codex'), of('work', 'claude'), of('global', 'claude')], 'global')).toEqual([
@@ -151,13 +151,14 @@ describe('accountGroups', () => {
       'claude',
       'codex',
       'opencode',
+      'copilot',
       'gemini',
     ])
   })
 
   it('drops the empty group of a provider whose CLI is not found, and keeps one that has accounts', () => {
     const missing = (accounts: AccountEntry[]) =>
-      accountGroups({ ...view(accounts), missing: ['codex', 'opencode'] }, now).map((group) => [group.agent, group.entries.map((each) => each.key)])
+      accountGroups({ ...view(accounts), missing: ['codex', 'opencode', 'copilot'] }, now).map((group) => [group.agent, group.entries.map((each) => each.key)])
     expect(missing([of('global', 'claude')])).toEqual([['claude', ['global']]])
     expect(missing([of('global', 'claude'), of('work', 'codex')])).toEqual([
       ['claude', ['global']],
@@ -184,6 +185,6 @@ describe('offeredProviders', () => {
   })
 
   it('offers every provider until the accounts are known', () => {
-    expect(offeredProviders(null, [])).toEqual(['claude', 'codex', 'opencode'])
+    expect(offeredProviders(null, [])).toEqual(['claude', 'codex', 'opencode', 'copilot'])
   })
 })

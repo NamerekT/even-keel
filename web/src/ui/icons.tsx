@@ -191,6 +191,17 @@ export function OpenCodeIcon() {
   )
 }
 
+/** GitHub Copilot: a pilot's goggles, two lenses on a strap — not GitHub's own logo. */
+export function CopilotIcon() {
+  return (
+    <svg className="icon" viewBox="0 0 16 16" aria-hidden="true">
+      <circle cx="5" cy="8.5" r="2.75" />
+      <circle cx="11" cy="8.5" r="2.75" />
+      <path d="M7.75 8.5h0.5M1 7.5h1.25M13.75 7.5H15" />
+    </svg>
+  )
+}
+
 /** Even Keel itself: the sail and the keel of its logo, drawn in lines. */
 export function EvenKeelIcon() {
   return (

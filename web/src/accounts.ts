@@ -29,7 +29,7 @@ export function folderEmail(view: AccountView | undefined, key: string): string 
 }
 
 /** Whose account it is: the agents of `src/agent/adapters.ts` and the ones the page only names for now. */
-export const PROVIDERS = ['claude', 'codex', 'opencode'] as const
+export const PROVIDERS = ['claude', 'codex', 'opencode', 'copilot'] as const
 export type Provider = (typeof PROVIDERS)[number]
 
 /** How the account signs in: through the agent's CLI, through the Agent SDK, or with an API key. */

@@ -30,6 +30,9 @@ import {
 
 const MAX_OUTPUT_CHARS = 16 * 1024
 const SHOWN_OUTPUT_CHARS = 2 * 1024
+/** What a key refused or not checked says, by whose key it is (`keyProvider`). */
+const REJECTED = { anthropic: 'account.apiKeyRejected', openai: 'account.codexKeyRejected', github: 'account.copilotTokenRejected' } as const
+const UNCHECKED = { anthropic: 'account.apiKeyUnchecked', openai: 'account.codexKeyUnchecked', github: 'account.copilotTokenUnchecked' } as const
 
 export type AccountAgent = Pick<Agent, 'authStatus' | 'login' | 'logout'>
 
@@ -205,9 +208,9 @@ export class AccountWatcher {
   async addApiKey(name: string, key: string, agent: string): Promise<void> {
     const value = assertApiKey(key, agent)
     const verdict = await this.options.checkKey(agent, value)
-    const openAi = keyProvider(agent, value) === 'openai'
-    if (verdict.state === 'rejected') throw fail(openAi ? 'account.codexKeyRejected' : 'account.apiKeyRejected', {})
-    if (verdict.state === 'unknown') throw fail(openAi ? 'account.codexKeyUnchecked' : 'account.apiKeyUnchecked', { reason: verdict.reason })
+    const provider = keyProvider(agent, value)
+    if (verdict.state === 'rejected') throw fail(REJECTED[provider], {})
+    if (verdict.state === 'unknown') throw fail(UNCHECKED[provider], { reason: verdict.reason })
     const home = this.options.homes.addApiKey(name, value, agent)
     this.keys.note(home.key, verdict, this.options.now())
     this.options.name(home.key, name)

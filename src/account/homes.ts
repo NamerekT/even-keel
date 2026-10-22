@@ -3,6 +3,8 @@ import { homedir } from 'node:os'
 import { join } from 'node:path'
 import { CLAUDE } from '../claude/name.js'
 import { CODEX } from '../codex/name.js'
+import { tokenOf, writeToken } from '../copilot/home.js'
+import { COPILOT } from '../copilot/name.js'
 import { fail } from '../notice/notice.js'
 import { keyOf, keyVendor, writeKey } from '../opencode/home.js'
 import { OPENCODE } from '../opencode/name.js'
@@ -43,27 +45,30 @@ export class AccountHomes {
     root: string,
     codexRoot = codexAccountsRoot(env),
     openCodeRoot = openCodeAccountsRoot(env),
+    copilotRoot = copilotAccountsRoot(env),
   ) {
     this.global = { key: GLOBAL_ACCOUNT, dir: env.CLAUDE_CONFIG_DIR ?? join(homedir(), '.claude'), global: true, agent: CLAUDE }
     this.codex = { key: CODEX_ACCOUNT, dir: env.CODEX_HOME ?? join(homedir(), '.codex'), global: true, agent: CODEX }
-    this.setRoots(root, codexRoot, openCodeRoot)
+    this.setRoots(root, codexRoot, openCodeRoot, copilotRoot)
   }
 
   /** The folders under the new roots count from the next `list`: `EVEN_KEEL_ACCOUNTS_DIR` changes on the fly. */
-  setRoots(root: string, codexRoot: string, openCodeRoot: string = openCodeAccountsRoot(this.env)): void {
-    this.roots = { [CLAUDE]: root, [CODEX]: codexRoot, [OPENCODE]: openCodeRoot }
+  setRoots(root: string, codexRoot: string, openCodeRoot: string = openCodeAccountsRoot(this.env), copilotRoot: string = copilotAccountsRoot(this.env)): void {
+    this.roots = { [CLAUDE]: root, [CODEX]: codexRoot, [OPENCODE]: openCodeRoot, [COPILOT]: copilotRoot }
   }
 
   list(): AccountHome[] {
     const claude = this.folders(CLAUDE)
     const codex = this.folders(CODEX).filter((name) => !claude.includes(name))
     const openCode = this.folders(OPENCODE).filter((name) => !claude.includes(name) && !codex.includes(name))
+    const copilot = this.folders(COPILOT).filter((name) => !claude.includes(name) && !codex.includes(name) && !openCode.includes(name))
     return [
       ...(existsSync(this.global.dir) ? [this.global] : []),
       ...claude.map((name) => this.home(CLAUDE, name)),
       ...(existsSync(this.codex.dir) ? [this.codex] : []),
       ...codex.map((name) => this.home(CODEX, name)),
       ...openCode.map((name) => this.home(OPENCODE, name)),
+      ...copilot.map((name) => this.home(COPILOT, name)),
     ]
   }
 
@@ -104,11 +109,16 @@ export class AccountHomes {
    * An API account. Claude's: a folder whose `settings.json` carries the key (`mergeSettings` keeps it there) and whose
    * `.claude.json` has it approved, or the CLI asks whether to use it (BTN-136). Codex's: an `auth.json` the way
    * `codex login --with-api-key` writes it (BTN-177). OpenCode's: an `auth.json` under the provider the key is of (BTN-214).
+   * Copilot's: the GitHub token in `even-keel.json` (BTN-215).
    */
   addApiKey(name: string, key: string, agent: string = CLAUDE): AccountHome {
     const value = assertApiKey(key, agent)
-    const home = this.home(agent, folderName(name.trim() === '' ? 'api' : name, this.taken()))
+    const home = this.home(agent, folderName(name.trim() === '' ? (agent === COPILOT ? 'github' : 'api') : name, this.taken()))
     mkdirSync(home.dir, { recursive: true })
+    if (agent === COPILOT) {
+      writeToken(home.dir, value)
+      return home
+    }
     if (agent === OPENCODE) {
       writeKey(home.dir, value)
       return home
@@ -126,6 +136,7 @@ export class AccountHomes {
   /** The key in Claude's `settings.json`, Codex's or OpenCode's `auth.json`; a folder with `apiKeyHelper` has none to read. */
   apiKeyOf(home: AccountHome): string | null {
     if (home.agent === OPENCODE) return keyOf(home.dir)
+    if (home.agent === COPILOT) return tokenOf(home.dir)
     try {
       const key =
         home.agent === CODEX
@@ -181,12 +192,23 @@ export class AccountHomes {
 /** The trimmed key, or a refusal of one that is not a single word long enough to approve. */
 export function assertApiKey(key: string, agent: string = CLAUDE): string {
   const value = key.trim()
+  if (agent === COPILOT) {
+    if (!API_KEY_PATTERN.test(value) || !COPILOT_TOKEN.test(value)) throw fail('account.copilotTokenInvalid', {})
+    return value
+  }
   if (!API_KEY_PATTERN.test(value)) throw fail(agent === CODEX ? 'account.codexKeyInvalid' : 'account.apiKeyInvalid', {})
   return value
 }
 
-/** Whose key an API account of the agent holds: Codex's is OpenAI's, OpenCode's either, by its prefix. */
-export function keyProvider(agent: string, key: string): 'anthropic' | 'openai' {
+/**
+ * The tokens Copilot CLI takes: a fine-grained personal one (`github_pat_`) or an OAuth one of an app (`gho_`, `ghu_`);
+ * a classic `ghp_` is refused by the CLI.
+ */
+const COPILOT_TOKEN = /^(github_pat_|gho_|ghu_)/
+
+/** Whose key an API account of the agent holds: Codex's is OpenAI's, OpenCode's either, by its prefix, Copilot's GitHub's. */
+export function keyProvider(agent: string, key: string): 'anthropic' | 'openai' | 'github' {
+  if (agent === COPILOT) return 'github'
   if (agent === OPENCODE) return keyVendor(key)
   return agent === CODEX ? 'openai' : 'anthropic'
 }
@@ -202,4 +224,9 @@ export function codexAccountsRoot(env: NodeJS.ProcessEnv): string {
 /** OpenCode has no folder of its own to stand for an account: every one of them is under this root. */
 export function openCodeAccountsRoot(env: NodeJS.ProcessEnv): string {
   return env.EVEN_KEEL_OPENCODE_ACCOUNTS_DIR ?? join(homedir(), '.opencode-accounts')
+}
+
+/** Copilot's own `~/.copilot` is not an account here: its sign-in is the OS's, shared by every folder (BTN-215). */
+export function copilotAccountsRoot(env: NodeJS.ProcessEnv): string {
+  return env.EVEN_KEEL_COPILOT_ACCOUNTS_DIR ?? join(homedir(), '.copilot-accounts')
 }

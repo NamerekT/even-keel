@@ -22,6 +22,7 @@ import { launchMap } from './parse.js'
 import { transcriptSession } from './rule-history.js'
 import { readBackup, ruleSources, skillsOf } from './rule-scan.js'
 import { backfillRules, collectRuleHistory, importRuleHistory, refreshRuleChanges, snapshotRules } from './rule-steps.js'
+import { copilotSources, loadCopilot } from './copilot.js'
 import { loadOpenCode, openCodeSources } from './opencode.js'
 import { rolloutFiles, transcriptFiles } from './scan.js'
 import { classifySpans, refreshSigns, refreshSteps, refreshTasks, refreshTurns, reportTaskTimes } from './steps.js'
@@ -77,12 +78,14 @@ export async function collect(settings: DbSettings, root: string, log: Log, huly
     let failed = 0
     const rollouts = await rolloutFiles(homes.list())
     const openCode = openCodeSources(homes.list())
+    const copilot = await copilotSources(homes.list())
     const loads = [
       ...sources.map((source) => () => loadFile(source, stored.get(source.path), db, contextOf(source), CHUNK_BYTES)),
       ...rollouts.map((source) => () => loadRollout(source, stored.get(source.path), db, { account: source.account, launches })),
       ...openCode.map((source) => () => loadOpenCode(source, stored.get(source.path), db, { account: source.account, launches })),
+      ...copilot.map((source) => () => loadCopilot(source, stored.get(source.path), db, { account: source.account, launches })),
     ]
-    const paths = [...sources, ...rollouts, ...openCode].map((source) => source.path)
+    const paths = [...sources, ...rollouts, ...openCode, ...copilot].map((source) => source.path)
     for (const [index, load] of loads.entries()) {
       try {
         const read = await load()
@@ -118,7 +121,7 @@ export async function collect(settings: DbSettings, root: string, log: Log, huly
 
     const seconds = ((Date.now() - started) / 1000).toFixed(1)
     log(
-      `tally: ${paths.length} files (${rollouts.length} Codex, ${openCode.length} OpenCode),${files} read, ${lines} lines, ${failed} failed, ${forgotten} forgotten, ` +
+      `tally: ${paths.length} files (${rollouts.length} Codex, ${openCode.length} OpenCode, ${copilot.length} Copilot),${files} read, ${lines} lines, ${failed} failed, ${forgotten} forgotten, ` +
         `${relabeled} sessions relabeled, ${prompted} prompts, ${handoffs} handoffs, ${snapshots} limit snapshots,` +
         `${ruleFiles.length} rule files (${versions} new versions, ${history} from git, ${changes} new changes), ${imported} imported rule sets, ` +
         `${signed.sessions} sessions signed (${signed.spans} spans), ${turned} sessions split into turns, ${stepped} into steps, ${tasks} Huly tasks, ${reports} time reports, ${classified} spans classified, ${seconds} s`,

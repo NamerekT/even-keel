@@ -2,6 +2,7 @@ import { useMemo, useState, type FormEvent, type ReactNode } from 'react'
 import { launchBlock, loginBlockNotice, removeProblem, type AccountEntry, type AccountLogin, type AccountView } from '../../../src/account/model.js'
 import { CLAUDE } from '../../../src/claude/name.js'
 import { CODEX } from '../../../src/codex/name.js'
+import { COPILOT } from '../../../src/copilot/name.js'
 import type { Notice } from '../../../src/notice/notice.js'
 import { OPENCODE } from '../../../src/opencode/name.js'
 import { connectionOf, PROVIDERS, type Connection } from '../accounts.js'
@@ -11,7 +12,7 @@ import { useCommand } from '../live/useCommand.js'
 import { loginLeft } from '../state.js'
 import { loadedData, useStatsAnswer } from '../stats/common.js'
 import { formatUsd } from '../stats/format.js'
-import { BracesIcon, ClaudeIcon, CodexIcon, KeyIcon, OpenCodeIcon, TerminalIcon } from '../ui/icons.js'
+import { BracesIcon, ClaudeIcon, CodexIcon, CopilotIcon, KeyIcon, OpenCodeIcon, TerminalIcon } from '../ui/icons.js'
 import { Tipped } from '../ui/Tipped.js'
 
 export type Send = (name: string, body?: Record<string, unknown>) => Promise<boolean>
@@ -27,9 +28,13 @@ export function useSpend(account: AccountView): Spend {
   return loadedData(useStatsAnswer(wanted ? `spend|${tz}` : null, () => statsSpend(tz)))
 }
 
-/** An account whose agent gives no usage windows (OpenCode) shows this line instead of empty limit columns. */
-export function withoutLimits(entry: AccountEntry): boolean {
-  return entry.agent === OPENCODE && !entry.apiKey
+/**
+ * The line an account whose agent gives no usage windows shows instead of empty limit columns: OpenCode's without a
+ * key, and Copilot's, whose token pays in AI credits Tally does not price; `null` — it shows its limits or spend.
+ */
+export function limitsNote(entry: AccountEntry): string | null {
+  if (entry.agent === COPILOT) return t.account.copilotLimits
+  return entry.agent === OPENCODE && !entry.apiKey ? t.account.openCodeLimits : null
 }
 
 export function spendText(spend: Spend, key: string): string {
@@ -84,6 +89,7 @@ export function AccountMark({ entry, now }: { entry: AccountEntry; now: Date }) 
 
 export function AgentIcon({ agent }: { agent: string }) {
   if (agent === OPENCODE) return <OpenCodeIcon />
+  if (agent === COPILOT) return <CopilotIcon />
   return agent === CODEX ? <CodexIcon /> : agent === CLAUDE ? <ClaudeIcon /> : <span className="accounts__dot" />
 }
 
