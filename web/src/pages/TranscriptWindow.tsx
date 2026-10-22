@@ -12,6 +12,7 @@ import { useNow } from '../layout/useNow.js'
 import { useLive } from '../live/context.js'
 import { contextFill } from '../state.js'
 import { AccountTag } from '../ui/AccountTag.js'
+import { useBackdropClose } from '../ui/backdrop.js'
 import { ContextMeter } from '../ui/ContextMeter.js'
 import { PullButton } from '../ui/PullChip.js'
 import { Tipped } from '../ui/Tipped.js'
@@ -87,6 +88,7 @@ interface SentLine {
 export function TranscriptWindow({ sessionId, account, live, chat, onClose }: Props) {
   const { transcript, onTranscript, imageUrl, sentFileUrl } = useLive()
   const dialogRef = useRef<HTMLDialogElement>(null)
+  const backdrop = useBackdropClose(dialogRef, () => dialogRef.current?.close())
   const listRef = useRef<HTMLDivElement>(null)
   const closeRef = useRef<HTMLButtonElement>(null)
   const composerRef = useRef<ComposerHandle>(null)
@@ -208,10 +210,8 @@ export function TranscriptWindow({ sessionId, account, live, chat, onClose }: Pr
       onKeyDown={(event) => {
         if (event.key === 'Escape') event.stopPropagation()
       }}
-      onClick={(event) => {
-        event.stopPropagation()
-        if (event.target === dialogRef.current) dialogRef.current.close()
-      }}
+      onClick={(event) => event.stopPropagation()}
+      {...backdrop}
     >
       <div className="session-window__body" {...drop.handlers}>
         {drop.over && (

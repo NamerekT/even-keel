@@ -4,12 +4,19 @@ All notable changes to Even Keel are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.1.1] - 2026-10-22
+
+### Changed
+
+- Chain sessions run on Claude Code 2.1.308, the version this release was checked against.
+- The chat keeps a reply you have not sent yet, its text and files, for each session separately: it survives closing the chat window and reloading the page.
 
 ### Fixed
 
 - A task postponed on an open blocker, or skipped, no longer stands above the running task on the project page, and dragging tasks after that no longer fails with "is running and stays first". The running task is drawn first even when the chain has no order of your own yet.
 - A chain no longer pauses with "the active account folder … is gone" when the service has just started, for example after an update, and the next task is due in its first seconds. The chains now wait until the account folders have been read once.
+- A dialog no longer closes when you select text in it and release the mouse outside, or press outside and release inside: only a click that both starts and ends on the backdrop closes it.
+- The project wizard names the project that already uses a key instead of pointing at a config index. For Linear it says that in this version one team is one Even Keel project, and which project has the team.
 
 ### Security
 
