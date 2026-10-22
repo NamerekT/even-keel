@@ -6,6 +6,7 @@ import type { TrackerLinkState, TrackerView } from '../../../src/tracker/health.
 import type { FeedLine } from '../../../src/sessions/transcript.js'
 import type { LimitHold } from '../../../src/chain/relay.js'
 import { isLanguage } from '../../../src/language.js'
+import { OPENCODE } from '../../../src/opencode/name.js'
 import { isTallyMode, TALLY_DISABLED, TALLY_UNCHOSEN } from '../../../src/stats/mode.js'
 import type { EvenKeelState, SessionRecord, SessionView } from '../../../src/state.js'
 import type { Link, LiveSnapshot, LiveSource } from './connection.js'
@@ -449,6 +450,11 @@ export function createFakeSource(search: string): LiveSource {
     }
     current.state.sessions = current.state.sessions.map((each) => (each.task === 'ABC-5' ? wedged : each))
     current.state.chain.active = [{ ...active, current: { task: 'ABC-5', sessionId: wedged.sessionId, since: ago(6) } }]
+  }
+  if (params.get('chain') === 'hung' && current.state !== null && active) {
+    const hung: SessionView = { ...session('ABC-5', contextTokens, 'waiting'), agent: OPENCODE, waitingFor: null, hungSince: ago(35), lastActivityAt: ago(35) }
+    current.state.sessions = current.state.sessions.map((each) => (each.task === 'ABC-5' ? hung : each))
+    current.state.chain.active = [{ ...active, current: { task: 'ABC-5', sessionId: hung.sessionId, since: ago(80) } }]
   }
   if (params.get('chain') === 'fix' && current.state !== null) current.state = withFix(current.state, 'ABC', session(fixName('ABC'), 38_000), ago(6))
   if (params.get('chain') === 'aside' && current.state !== null) {

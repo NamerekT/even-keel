@@ -24,6 +24,8 @@ export interface AgentEntry {
   ask?: Ask
   /** The turn ended and no process is left, yet the session goes on with the next `resume` (Codex). */
   resting?: boolean
+  /** Since when (ms) the turn whose process lives on has written nothing: taken for hung, the session is idle (OpenCode). */
+  hungSince?: number
   /** The `--model` a live session was started with, by its job file: `opus[1m]` where the transcript says only `claude-opus-5-5`. */
   model?: string
 }

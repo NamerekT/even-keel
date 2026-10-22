@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { parseJsonc, sessionConfig, sessionOf, turnArgs, turnEnded } from './cli.js'
+import type { AgentEntry } from '../sessions/agents.js'
+import { hungEntry, parseJsonc, sessionConfig, sessionOf, turnArgs, turnEnded, TURN_HANG_MS } from './cli.js'
 
 describe('turnArgs', () => {
   it('titles a new session with its task and resumes one by its id', () => {
@@ -64,5 +65,23 @@ describe('the output of opencode run', () => {
     expect(turnEnded(`${event({ type: 'step_finish', part: { reason: 'stop' } })}\n`)).toBe(true)
     expect(turnEnded(`${event({ type: 'error', error: { name: 'APIError' } })}\n`)).toBe(true)
     expect(turnEnded(`${event({ type: 'tool_use' })}\n`)).toBe(false)
+  })
+})
+
+describe('a hung turn', () => {
+  const busy: AgentEntry = { sessionId: 'ses_abc', kind: 'opencode', cwd: '/repo', startedAt: 0, pid: 42, status: 'busy', state: 'working' }
+  const now = Date.parse('2026-10-22T12:00:00Z')
+
+  it('keeps a turn busy while it wrote something within the threshold', () => {
+    expect(hungEntry(busy, now - TURN_HANG_MS + 1, now)).toEqual(busy)
+  })
+
+  it('takes a live turn silent past the threshold for hung: idle, with its process kept to be stopped', () => {
+    expect(hungEntry(busy, now - TURN_HANG_MS, now)).toEqual({ ...busy, status: 'idle', hungSince: now - TURN_HANG_MS })
+  })
+
+  it('leaves a session alone that has no live turn', () => {
+    const resting: AgentEntry = { sessionId: 'ses_abc', kind: 'opencode', cwd: '/repo', startedAt: 0, status: 'idle', state: 'working', resting: true }
+    expect(hungEntry(resting, 0, now)).toEqual(resting)
   })
 })

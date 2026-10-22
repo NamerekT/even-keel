@@ -62,6 +62,7 @@ function view(task: string, lamp: SessionView['lamp'], lastActivityAt: string | 
     checkpoint: false,
     waitingFor: null,
     startupDialog: null,
+    hungSince: null,
     asking: false,
     ask: null,
     apiError: null,

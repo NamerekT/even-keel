@@ -35,6 +35,8 @@ export interface SessionView {
   waitingFor: string | null
   /** What the CLI dialog the session hangs on before its first turn asks for: not mid-turn, nobody in the background answers it. */
   startupDialog: string | null
+  /** Since when its live turn has written nothing and is taken for hung (`AgentEntry.hungSince`); answering or "New session" ends it. */
+  hungSince: string | null
   /** The session waits on an `AskUserQuestion` the user has not answered. */
   asking: boolean
   /** That `AskUserQuestion`, for the answer panel of the chat window: from the transcript, or from the job file while the CLI has not written it there. */
