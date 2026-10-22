@@ -78,6 +78,7 @@ describe('mapPeriod', () => {
             task: 'ABC-1',
             project: 'ABC',
             title: 'Example',
+            url: 'https://tracker.example.com/ABC-1',
             status: 'Done',
             cost: '3.2',
             limit_share: null,
@@ -121,6 +122,7 @@ describe('mapPeriod', () => {
       task: 'ABC-1',
       project: 'ABC',
       title: 'Example',
+      url: 'https://tracker.example.com/ABC-1',
       status: 'Done',
       cost: 3.2,
       limit: null,
@@ -140,7 +142,7 @@ describe('mapPeriod', () => {
       component: 'Web',
       model: 'opus',
     })
-    expect(period.tasks[1]).toMatchObject({ estimateH: null, activeS: null, waitS: null, totalS: null, done: null, component: null, model: null, compactsAuto: 0, compactsManual: 0 })
+    expect(period.tasks[1]).toMatchObject({ url: null, estimateH: null, activeS: null, waitS: null, totalS: null, done: null, component: null, model: null, compactsAuto: 0, compactsManual: 0 })
     expect(period.weeks).toEqual([{ week: '2026-09-28', reason: null, spans: 2 }])
     expect(period.stuck[0]).toMatchObject({ project: 'Example', sessionId: 'session-1', toAt: '2026-10-01T10:05:00.000Z', kinds: ['repeat'] })
   })

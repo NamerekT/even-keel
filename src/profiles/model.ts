@@ -108,6 +108,19 @@ export function keyPool(
   return Object.assign(pool, profileFor(set, projectId, kind)?.values)
 }
 
+/** The profile a project's MCP server of `server`'s tracker signs in as under `keyPool`: the one written last. */
+export function serverProfile(
+  set: ProfileSet,
+  projectId: string | undefined,
+  kind: string,
+  feeds: readonly { id: string; tracker: string }[],
+  server: string,
+): TrackerProfile | undefined {
+  if (kind === server) return profileFor(set, projectId, kind)
+  const feed = feeds.findLast((each) => each.tracker === server)
+  return feed === undefined ? defaultProfile(set, server) : profileFor(set, feed.id, server)
+}
+
 /** The kind's values that are set, in the adapter's order: a profile's credentials as `setup` takes them. */
 export function valuesOf(adapter: Pick<TrackerAdapter, 'variables'>, env: Record<string, string | undefined>): Record<string, string> {
   return Object.fromEntries(adapter.variables.flatMap((name) => (env[name] ? [[name, env[name]]] : [])))

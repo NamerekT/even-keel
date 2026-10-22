@@ -16,6 +16,12 @@ There are three levels and a default, narrowest wins: **task** → **project** �
 - **Task** — only through a tracker label. Labels are the tracker's, not Even Keel's: nothing of the task level is
   stored, it is read off `Task.labels` on every launch.
 
+Four chain rules have a level between the project and Even Keel (BTN-66): the **tracker profile** the project runs on,
+or for a task of one of its feeds, the feed's profile. `chain.active`, `chain.terminal`, `chain.requiredLabels` and
+`chain.excludedLabels` go project → profile → Even Keel, key by key; the milestone rules have no profile level. They
+are kept in the profile (`tracker_profiles.rules`, only the keys set), edited in a group per tracker profile on
+`/settings`, and stay out of `config-export` with the profiles (`docs/trackers.md`, "Profiles").
+
 Some settings are maps whose entries override one by one: `models`, `accounts` and `execution` by provider. A project's
 `models.codex` replaces only the shared `models.codex`; the shared `models.claude` still applies to it.
 
@@ -32,9 +38,9 @@ restart of the service (BTN-130). The keys are those of the config's format, whi
 | `parallel` | G | — | page, hand | 1 |
 | `tracker` | G, P | P over G | page, hand | `huly` |
 | `brief` | G, P | P over G; `null` — auto: on exactly when no enabled package of the project brings its tracker's MCP server (`bringsServer`, BTN-225) | page, hand | `null` |
-| `chain.active`, `chain.terminal` | G, P | each key P over G; `null` — back to the status categories | page, hand | `null` |
-| `chain.requiredLabels` | G, P | each key P over G, the list replaced whole | page, hand | `[]` |
-| `chain.excludedLabels` | G, P | each key P over G, the list replaced whole; `MANUAL_LABELS` are excluded on top of any list (BTN-187) | page, hand | `[]` |
+| `chain.active`, `chain.terminal` | G, profile, P | each key P over the profile's over G; `null` — back to the status categories | page, hand (not the profile's) | `null` |
+| `chain.requiredLabels` | G, profile, P | each key P over the profile's over G, the list replaced whole | page, hand (not the profile's) | `[]` |
+| `chain.excludedLabels` | G, profile, P | each key P over the profile's over G, the list replaced whole; `MANUAL_LABELS` are excluded on top of any list (BTN-187) | page, hand (not the profile's) | `[]` |
 | `chain.requiredMilestones`, `chain.excludedMilestones` | G, P | each key P over G, the list replaced whole; one milestone in both is `config.milestoneBoth`; projects on one tracker place must split it (`config.trackerProjectShared`, BTN-172, `docs/chain.md`) | page, hand | `[]` |
 | `provider` | G, P | P over G | page, hand, service (the "Even Keel" role, `saveActive`) | `claude` |
 | `models.<provider>` | G, P | by provider, P over G | page, hand | `{ claude: 'opus' }` |
@@ -69,7 +75,9 @@ restart of the service (BTN-130). The keys are those of the config's format, whi
 | `remoteProfiles` | P | — | page, hand | `{}` — the GitHub and Forgejo profile ids the remotes' CI and pull requests take; a missing or unfit one is the automatic choice (BTN-231, `docs/ci.md`) |
 
 Project record fields, not settings: `id` (written by the service for an entry without one, `withIds`), `key`, `name`,
-`repo`, the tracker's project (`github`, `huly`, `linear` by `TrackerAdapter.projectKey`): the table `projects`. `version` is the
+`repo`, the tracker's project (`github`, `huly`, `linear` by `TrackerAdapter.projectKey`): the table `projects`; the
+extra task feeds (`feeds`, BTN-66, `docs/chain.md`, "Task feeds"): a JSON column of `projects`, each feed's profile in
+`feed_profiles`. `version` is the
 schema version of a file of the format.
 
 ### Outside the settings tables
@@ -104,8 +112,8 @@ schema version of a file of the format.
   since BTN-199, a key of the config before), a package's
   catalog entry, installs and the task pins of `state/packages.json`, the account pool's sign-ins in `state/account.json`.
 - **Project record fields** — `id`, `key`, `name`, `repo`, `branch`, the tracker's project. `branch` is a fact about the
-  repository like `repo`, not a choice that could be shared; under BTN-66 `tracker` with the tracker's project becomes the
-  project's reference to a tracker connection.
+  repository like `repo`, not a choice that could be shared. A tracker connection is a tracker profile (BTN-66): the
+  project's `tracker` with the tracker's project and its profile, and each feed's, say where its tasks come from.
 
 ## Mismatches
 
