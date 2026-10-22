@@ -50,37 +50,38 @@ Every entry, ordered by how many people it reaches and how badly it hurts them i
 | 38 | [A project's own CI profile](#a-projects-own-ci-profile-btn-231) | two forge profiles | the CI or a pull request uses the old profile |
 | 39 | [Carrying a release project forward](#carrying-a-release-project-forward-btn-172) | release projects | a fix stays out of the main branch; carry it by hand |
 | 40 | [Several projects on one tracker project](#several-projects-on-one-tracker-project-btn-172-btn-73) | two projects on one Huly project or Linear team | a task in both chains, or in neither |
-| 41 | [Removing a project on the running service](#removing-a-project-on-the-running-service-btn-118) | anyone removing a project | a removal goes through while a session works |
-| 42 | [A changed EVEN_KEEL_TOKEN seen from another machine](#a-changed-even_keel_token-seen-from-another-machine-btn-130) | the page from another machine | a dead connection until a reload |
-| 43 | [A remote added to a checkout on the running service](#a-remote-added-to-a-checkout-on-the-running-service-btn-191) | CI | the CI does not appear until a restart |
-| 44 | [The context window a chain session gets](#the-context-window-a-chain-session-gets-btn-187) | everyone | the context meter and the handoff cap read a wrong window |
-| 45 | [A task closed by `NO CHANGES:`](#a-task-closed-by-no-changes-ekr-10) | everyone outside PR mode | a task with nothing to merge waits for you, as before the mark |
-| 46 | [The 1-hour cache on a key](#the-1-hour-cache-on-a-key) | Claude API keys with `cacheTtl` | more cache writes; nothing breaks |
-| 47 | [Outsiders' comments on a public GitHub repository](#outsiders-comments-on-a-public-github-repository-ekr-19) | public GitHub repositories | your own reply is skipped, or an outsider's reaches a session |
-| 48 | [Milestones on GitHub and Linear](#milestones-on-github-and-linear) | GitHub, Linear | a task's milestone is not filled |
-| 49 | [Changing a milestone from the task card on GitHub and Linear](#changing-a-milestone-from-the-task-card-on-github-and-linear) | GitHub, Linear | the card puts the old milestone back |
-| 50 | [The tasks of a milestone on GitHub and Linear](#the-tasks-of-a-milestone-on-github-and-linear-btn-142) | changelog drafts on GitHub, Linear | the draft misses tasks or takes an older comment |
-| 51 | [GitHub attachments](#github-attachments) | GitHub | the page cannot open an attached file |
-| 52 | [The expiry of a fine-grained GitHub token](#the-expiry-of-a-fine-grained-github-token) | GitHub fine-grained tokens | no expiry on the card |
-| 53 | [The changelog commit from the service](#the-changelog-commit-from-the-service-btn-209) | changelog drafts | "Write" fails; copy the section by hand |
-| 54 | [The Codex changelog turn with JSON output](#the-codex-changelog-turn-with-json-output) | changelog drafts on Codex | the draft fails, or shows 0 tokens |
-| 55 | [Pasting files copied in Explorer into the chat](#pasting-files-copied-in-explorer-into-the-chat-btn-204) | Windows | the paste attaches nothing |
-| 56 | [Switching to your own Postgres from the page](#switching-to-your-own-postgres-from-the-page-btn-247) | stats on your own Postgres | stats stay off; set the variables by hand |
-| 57 | [A reader opening the state database while the service starts](#a-reader-opening-the-state-database-while-the-service-starts) | `npm run storage` users | the service refuses to start once |
-| 58 | [OpenCode chain sessions under the service](#opencode-chain-sessions-under-the-service-btn-214) | OpenCode | sessions do not start, or a whole task runs on a wrong assumption |
-| 59 | [A spent limit on OpenCode](#a-spent-limit-on-opencode) | OpenCode on ChatGPT or Copilot | the session stops on the error instead of waiting for the reset |
-| 60 | [A hung OpenCode turn](#a-hung-opencode-turn) | OpenCode | a hang the watchdog misses stays busy, or a long build is taken for hung |
-| 61 | [OpenCode sign-in from the page](#opencode-sign-in-from-the-page) | OpenCode with ChatGPT or Copilot | no link in the window; sign in in a terminal |
-| 62 | [Plugins in a Codex folder on Linux and macOS](#plugins-in-a-codex-folder-on-linux-and-macos) | Codex on Linux, macOS | a few seconds per first turn |
-| 63 | [Edit sizes of a FileChange](#edit-sizes-of-a-filechange-btn-185) | Codex | the chat shows an edit without its size |
-| 64 | [Codex stats](#codex-stats-btn-170) | Codex | a response counted twice in `/stats` |
-| 65 | [Fast mode in statistics](#fast-mode-in-statistics) | fast mode | `/stats` understates its cost |
-| 66 | [VS Code chat titles](#vs-code-chat-titles) | VS Code | a chat named differently from its tab |
-| 67 | [The first start with the PGlite state database](#the-first-start-with-the-pglite-state-database-btn-198) | an update from a build before v0.1 | the start stops on an import error |
-| 68 | [The first start with Forgejo profiles](#the-first-start-with-forgejo-profiles-btn-201) | an update from a build before v0.1 with Forgejo | the Forgejo CI disappears from the page |
-| 69 | [PR mode without a remote](#pr-mode-without-a-remote-ekr-12) | PR mode | the chain stays paused after the remote is added; press Resume |
-| 70 | [The OpenCode database read while a turn writes](#the-opencode-database-read-while-a-turn-writes) | OpenCode | the feed or a stats run skips one poll |
-| 71 | [Shared skills in a store outside `~/.claude`](#shared-skills-in-a-store-outside-claude-btn-256) | several Claude account folders | a shared skill edit still asks; at worst the global folder's sessions miss skills |
+| 41 | [Task feeds from another tracker](#task-feeds-from-another-tracker-btn-66) | projects with a task feed | a feed's task is not closed, or its session cannot read it; stats name it wrong |
+| 42 | [Removing a project on the running service](#removing-a-project-on-the-running-service-btn-118) | anyone removing a project | a removal goes through while a session works |
+| 43 | [A changed EVEN_KEEL_TOKEN seen from another machine](#a-changed-even_keel_token-seen-from-another-machine-btn-130) | the page from another machine | a dead connection until a reload |
+| 44 | [A remote added to a checkout on the running service](#a-remote-added-to-a-checkout-on-the-running-service-btn-191) | CI | the CI does not appear until a restart |
+| 45 | [The context window a chain session gets](#the-context-window-a-chain-session-gets-btn-187) | everyone | the context meter and the handoff cap read a wrong window |
+| 46 | [A task closed by `NO CHANGES:`](#a-task-closed-by-no-changes-ekr-10) | everyone outside PR mode | a task with nothing to merge waits for you, as before the mark |
+| 47 | [The 1-hour cache on a key](#the-1-hour-cache-on-a-key) | Claude API keys with `cacheTtl` | more cache writes; nothing breaks |
+| 48 | [Outsiders' comments on a public GitHub repository](#outsiders-comments-on-a-public-github-repository-ekr-19) | public GitHub repositories | your own reply is skipped, or an outsider's reaches a session |
+| 49 | [Milestones on GitHub and Linear](#milestones-on-github-and-linear) | GitHub, Linear | a task's milestone is not filled |
+| 50 | [Changing a milestone from the task card on GitHub and Linear](#changing-a-milestone-from-the-task-card-on-github-and-linear) | GitHub, Linear | the card puts the old milestone back |
+| 51 | [The tasks of a milestone on GitHub and Linear](#the-tasks-of-a-milestone-on-github-and-linear-btn-142) | changelog drafts on GitHub, Linear | the draft misses tasks or takes an older comment |
+| 52 | [GitHub attachments](#github-attachments) | GitHub | the page cannot open an attached file |
+| 53 | [The expiry of a fine-grained GitHub token](#the-expiry-of-a-fine-grained-github-token) | GitHub fine-grained tokens | no expiry on the card |
+| 54 | [The changelog commit from the service](#the-changelog-commit-from-the-service-btn-209) | changelog drafts | "Write" fails; copy the section by hand |
+| 55 | [The Codex changelog turn with JSON output](#the-codex-changelog-turn-with-json-output) | changelog drafts on Codex | the draft fails, or shows 0 tokens |
+| 56 | [Pasting files copied in Explorer into the chat](#pasting-files-copied-in-explorer-into-the-chat-btn-204) | Windows | the paste attaches nothing |
+| 57 | [Switching to your own Postgres from the page](#switching-to-your-own-postgres-from-the-page-btn-247) | stats on your own Postgres | stats stay off; set the variables by hand |
+| 58 | [A reader opening the state database while the service starts](#a-reader-opening-the-state-database-while-the-service-starts) | `npm run storage` users | the service refuses to start once |
+| 59 | [OpenCode chain sessions under the service](#opencode-chain-sessions-under-the-service-btn-214) | OpenCode | sessions do not start, or a whole task runs on a wrong assumption |
+| 60 | [A spent limit on OpenCode](#a-spent-limit-on-opencode) | OpenCode on ChatGPT or Copilot | the session stops on the error instead of waiting for the reset |
+| 61 | [A hung OpenCode turn](#a-hung-opencode-turn) | OpenCode | a hang the watchdog misses stays busy, or a long build is taken for hung |
+| 62 | [OpenCode sign-in from the page](#opencode-sign-in-from-the-page) | OpenCode with ChatGPT or Copilot | no link in the window; sign in in a terminal |
+| 63 | [Plugins in a Codex folder on Linux and macOS](#plugins-in-a-codex-folder-on-linux-and-macos) | Codex on Linux, macOS | a few seconds per first turn |
+| 64 | [Edit sizes of a FileChange](#edit-sizes-of-a-filechange-btn-185) | Codex | the chat shows an edit without its size |
+| 65 | [Codex stats](#codex-stats-btn-170) | Codex | a response counted twice in `/stats` |
+| 66 | [Fast mode in statistics](#fast-mode-in-statistics) | fast mode | `/stats` understates its cost |
+| 67 | [VS Code chat titles](#vs-code-chat-titles) | VS Code | a chat named differently from its tab |
+| 68 | [The first start with the PGlite state database](#the-first-start-with-the-pglite-state-database-btn-198) | an update from a build before v0.1 | the start stops on an import error |
+| 69 | [The first start with Forgejo profiles](#the-first-start-with-forgejo-profiles-btn-201) | an update from a build before v0.1 with Forgejo | the Forgejo CI disappears from the page |
+| 70 | [PR mode without a remote](#pr-mode-without-a-remote-ekr-12) | PR mode | the chain stays paused after the remote is added; press Resume |
+| 71 | [The OpenCode database read while a turn writes](#the-opencode-database-read-while-a-turn-writes) | OpenCode | the feed or a stats run skips one poll |
+| 72 | [Shared skills in a store outside `~/.claude`](#shared-skills-in-a-store-outside-claude-btn-256) | several Claude account folders | a shared skill edit still asks; at worst the global folder's sessions miss skills |
 
 ## Platforms
 
@@ -344,6 +345,10 @@ Two projects on two profiles of the same tracker — each its own connection, it
 ### Several projects on one tracker project (BTN-172, BTN-73)
 
 Two Even Keel projects on one Huly project (`huly` naming it) or on one Linear team (`linear: TEAM/Project`), split by milestone, are covered by tests; never run as live chains. Assumed: one shared read gives each its own tasks, a task closed by one is not taken by the other, and a Linear `TEAM/` value reads the whole team. If a task shows up in both chains, or in neither, **workaround:** keep one Even Keel project per tracker project and leave the release's tasks `Manual`.
+
+### Task feeds from another tracker (BTN-66)
+
+A project with a task feed — a GitHub repository or a Linear team next to a Huly project, or a second Huly workspace — is covered by tests and the page's fake data; it never ran as a live chain. Assumed: each feed is read on its own profile and its tasks join the one chain, a feed's task is moved and commented on in its own tracker and closed there after the merge, its session gets the brief when no server signed in as the feed's profile is brought, the profile's chain rules apply to it, and Tally takes its title and link from the launch log while it asks Huly only for tasks launched through a Huly profile. Also never seen live: the `/status` page with more than one connection, and the Tally check's "failed" and "halted". If a feed's task is not closed, or its session cannot read it, **workaround:** close it in its tracker by hand, or set the project's `brief` to `true`; if stats name it wrong, the launch log still has its url.
 
 ### A project's own CI profile (BTN-231)
 

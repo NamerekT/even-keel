@@ -96,7 +96,7 @@ import { ChatTitles } from './sessions/title.js'
 import { TranscriptWatch } from './sessions/watch.js'
 import { configPath, loadEnv, root, stateDirOf } from './locations.js'
 import { isInside } from './paths.js'
-import { defaultProfile, keyPool, profileFor, profileKinds } from './profiles/model.js'
+import { defaultProfile, keyPool, profileFor, profileKinds, serverProfile } from './profiles/model.js'
 import { checkProfileRules, projectRules } from './profiles/rules.js'
 import { Profiles } from './profiles/service.js'
 import { importForgejo, importProfiles } from './profiles/store.js'
@@ -311,13 +311,18 @@ const packages: Packages = new Packages({
 /**
  * Whether the project's prompts carry its task: its own `brief`, else on exactly when no package brings the tracker's
  * MCP server (BTN-225). A feed's task (`reader`, BTN-66) is judged by the feed's tracker: `brief: false` speaks of the
- * project's own tracker's server only.
+ * project's own tracker's server only, and a server signed in as another profile than the feed's does not see its task.
  */
 function briefOn(project: string, reader = project): boolean {
   const own = configStore.current.briefs[project]
   if (own === true || (own === false && reader === project)) return own
-  const server = ADAPTERS[readers().trackers[reader]!]!.mcpServer
-  return server === undefined || !packages.bringsServer(project, server)
+  const tracker = readers().trackers[reader]!
+  const server = ADAPTERS[tracker]!.mcpServer
+  if (server === undefined || !packages.bringsServer(project, server)) return true
+  if (reader === project) return false
+  const { trackers, feeds } = configStore.current
+  const set = profiles.current()
+  return serverProfile(set, project, trackers[project]!, feeds[project] ?? [], tracker)?.id !== profileFor(set, reader, tracker)?.id
 }
 const runtimes = new Map<string, Agent>(
   Object.entries(AGENTS).map(([name, adapter]) => [

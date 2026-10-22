@@ -6,6 +6,12 @@ The [README](../../README.md) has the short version. This is every feature in fu
 
 Tasks enter the chain by status (by default: ready and in-progress tasks — not the backlog, not closed ones) and by labels you choose; a task labelled `Manual` or `Вручную` never enters it, it is yours to run. Order: open blockers first, then the order you set by dragging on the page, then milestone, priority, task number. A task with an open blocker waits; a task with subtasks never runs itself — its subtasks do, and on Huly Even Keel closes it once they are all closed. A project with nothing to run says so and opens the project in its tracker, where you file or ready the next tasks.
 
+The rules of which statuses are in work, which are closed and which labels a task needs or must not have are set in **Settings → Chain** for all projects, on a tracker profile for the projects on it (each tracker names its statuses differently), and on a project, the narrowest winning key by key.
+
+## Several trackers for one project
+
+A project's tasks can come from more than one tracker: its own, plus **task feeds** added in the project's settings, Tracker tab — say a private Huly project for your own work and the GitHub issues others file. Each feed is a tracker, an account (profile) on it, a place (a repository, a team) and a key; the tasks of all feeds make one chain in the one repository. A task keeps its tracker's id — Huly's and Linear's own, GitHub's `<feed key>-<number>` — so each feed's key must give ids no other project or feed gives. Blockers work only within one tracker; across them it is the order you set, then milestone, priority and number. Each feed's task is judged by its own profile's rules, closed in its own tracker, and given to its session as text unless a package brings that tracker's MCP server signed in as the feed's account. A feed whose tasks the chain has run keeps its account; removed, its recently closed tasks stay on the page for a week, and the stats keep linking them where they lived.
+
 Sequential within a project, not across them: `parallel` lets that many chains on different projects run at once (one by default). Other projects wait in a queue and start as soon as a chain ends. The usage limit stays shared: every running chain takes tasks until the window is used up, then they all wait for the reset.
 
 ## Sessions
@@ -128,6 +134,10 @@ A project with no CI, or whose CI does not answer, can name its own check comman
 ## Pull requests (experimental)
 
 With `pullRequests` on, a session does not merge its branch: Even Keel pushes it, opens a pull request on GitHub or Forgejo and takes the next task; review feedback and failed checks go back to the task's session. Use it at your own risk: only opening, closing and merging on GitHub ran live. In full — the `projects[].pullRequests` row of the [reference](reference.md#configuration).
+
+## Status
+
+The gear in the header has a dot when something is wrong and a **Status** row leading to `/status`: the service itself, the limit poll, the settings, the statistics collector, and a connection per tracker account in use — whether it answers, its last good poll, its error, and when it last read each project and task feed on it.
 
 ## Updating from the page
 

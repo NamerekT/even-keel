@@ -29,6 +29,7 @@ Even Keel wins in time, not in width: the agent keeps working while you are away
 ## What it does
 
 - **A chain per project.** Open blockers first, then the order you drag on the page, then milestone and priority. A task labelled `Manual` is yours and never enters it.
+- **Several trackers per project.** Tasks from a second tracker or account — say the GitHub issues others file next to your private Huly project — join the same chain.
 - **Release branches.** A second chain on the same tracker project takes a released version's milestone in its own clone, and its fixes are merged forward into your development branch while that chain stands.
 - **A session per task**, in its own git worktree. The session does the task and merges; Even Keel closes the task, cleans up and starts the next. A task with nothing to merge (already done, research) the session marks `NO CHANGES: <why>`, and Even Keel closes it all the same.
 - **Limits and long contexts.** A spent limit is waited out and the session resumed; a session whose context grew too large hands over to a fresh one in the same worktree.
@@ -127,7 +128,7 @@ Planned for the next release, v0.2:
 - **Codex in full.** Chain sessions that keep the Codex sandbox under the Windows service once Codex fixes it there.
 - **One executable.** A single downloaded file that runs Even Keel, installs the service and updates it, instead of a clone, Node.js and a build. Windows first, Linux if it works out; macOS keeps `service/install.sh`.
 
-Looked at, not promised: running in Docker, a cap on how much of the usage limit one task may spend, several connections to one tracker (two Huly workspaces, for example).
+Looked at, not promised: running in Docker, a cap on how much of the usage limit one task may spend.
 
 ## Extending
 
