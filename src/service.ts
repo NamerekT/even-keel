@@ -794,9 +794,11 @@ const liveView = (task: string) => sessions.find((each) => each.task === task &&
 /** Whether a message goes into the live session mid-turn without its mailbox (`AgentEntry.steers`, BTN-291). */
 const steering = (sessionId: string) => agents.some((each) => each.sessionId === sessionId && each.steers === true)
 
+/** A session just resumed is mid-turn until the daemon shows it working, which lags the resume by seconds (BTN-307). */
 const agentStatus = (task: string) => {
   const view = liveView(task)
   if (view === undefined) return undefined
+  if (monitor.holds.turning(view.sessionId, view.ask?.id ?? null)) return 'busy'
   const agent = agents.find((each) => each.sessionId === view.sessionId)
   return turnStatus(agent?.status, view.lastActivityAt, new Date(), view.lamp === 'limit', agent?.state === 'blocked')
 }
@@ -1206,7 +1208,7 @@ function resumeWith(task: string, session: HandoffSession, prompt: string): Prom
     const sessionId = await resumeIn(home, session, start)
     console.log(`sessions: ${task} resumed in ${Date.now() - started} ms (stop ${stopped - started} ms)`)
     return sessionId
-  })
+  }, liveView(task)?.ask?.id ?? null)
 }
 
 function goOnWith(home: AccountHome, task: string, session: HandoffSession, prompt: string): SessionStart {
