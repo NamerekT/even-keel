@@ -11,6 +11,7 @@ import { formatMoment } from '../format.js'
 import { localized, say, t } from '../i18n/index.js'
 import { useLive } from '../live/context.js'
 import { useCommand } from '../live/useCommand.js'
+import { useBackdropClose } from '../ui/backdrop.js'
 import '../ui/markdown.css'
 import { PriorityIcon } from '../ui/Priority.js'
 import { Select } from '../ui/Select.js'
@@ -39,6 +40,7 @@ export function TaskCard({ task, link, tracker, refused, onOpen, onClose }: Prop
   const [round, setRound] = useState(0)
   const dialog = useRef<HTMLDialogElement>(null)
   const frame = useRef<HTMLDivElement>(null)
+  const backdrop = useBackdropClose(dialog, onClose)
 
   useEffect(() => {
     if (dialog.current?.open === false) dialog.current.showModal()
@@ -68,7 +70,7 @@ export function TaskCard({ task, link, tracker, refused, onOpen, onClose }: Prop
         event.preventDefault()
         onClose()
       }}
-      onClick={(event) => event.target === dialog.current && onClose()}
+      {...backdrop}
     >
       <div ref={frame} className="task-card__frame" tabIndex={-1}>
         <header className="task-card__head">
