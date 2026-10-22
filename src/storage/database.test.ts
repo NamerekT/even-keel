@@ -470,6 +470,8 @@ describe('frozen samples of the database', { timeout: 120_000 }, () => {
       const profiles = await readProfiles(opened.db)
       expect(profiles.profiles.map((profile) => profile.rules)).toEqual([{ terminal: ['Done', 'Canceled', 'Shipped'] }, undefined, { excludedLabels: ['wontfix'] }])
       expect(profiles.feeds).toEqual({ [FEED]: '55555555-5555-4555-8555-555555555555' })
+      const config = parseConfig(fileOf(await readSettings(opened.db)))
+      expect(config.feeds).toEqual({ [ABC]: [{ id: FEED, tracker: 'github', key: 'ABCGH', place: 'octo-org/ideas' }] })
     } finally {
       await opened.close()
     }
