@@ -14,6 +14,7 @@ import {
   type Usage,
 } from './entry.js'
 import { remoteUrlOf } from './remote.js'
+import { SHARE_TOOL, shareOf, type Share } from './share.js'
 
 export type Stage = 'task' | 'recon' | 'edit' | 'test' | 'commit' | 'merge'
 /** `credit` — an API key whose organization has no credit left: the CLI's `billing_error` ("Credit balance is too low"). */
@@ -52,6 +53,8 @@ export interface FeedLine {
   answers?: { ask?: string; answers: AskAnswers }
   /** The paths of the files the user sent along with a prompt or an answer. */
   files?: string[]
+  /** The files a `SendUserFile` tool line sent the user, only in a whole transcript; the page fetches them by the call's id. */
+  share?: Share
 }
 
 export interface TokenTotals {
@@ -301,6 +304,7 @@ export class TranscriptFold {
           line.tool = block.id
           if (block.name === 'Read' && typeof input.file_path === 'string') this.readFiles.set(block.id, input.file_path.split(/[\\/]/).pop()!)
         }
+        if (this.whole && block.name === SHARE_TOOL) line.share = shareOf(input, entry.cwd ?? '')
         if (block.name === ASK_TOOL) {
           this.openAsk = { id: block.id ?? ASK_TOOL, questions: questionsOf(input) }
           this.strayAsk = null

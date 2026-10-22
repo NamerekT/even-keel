@@ -1,6 +1,4 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
-import Markdown, { type Components } from 'react-markdown'
-import remarkGfm from 'remark-gfm'
 import type { ReviewView } from '../../../src/chain/dispatcher.js'
 import type { Ask, AskAnswers } from '../../../src/sessions/ask.js'
 import type { SessionMail } from '../../../src/sessions/mail.js'
@@ -15,18 +13,19 @@ import { AccountTag } from '../ui/AccountTag.js'
 import { useBackdropClose } from '../ui/backdrop.js'
 import { ContextMeter } from '../ui/ContextMeter.js'
 import { PullButton } from '../ui/PullChip.js'
+import { SessionMarkdown } from '../ui/SessionMarkdown.js'
 import { Tipped } from '../ui/Tipped.js'
 import { AnswerCard, AskCard } from './AskPanel.js'
 import { ChatComposer, type ComposerHandle } from './ChatComposer.js'
 import { fileName } from './feedLine.js'
 import { MediaViewer } from './MediaViewer.js'
+import { ShareCard } from './ShareCard.js'
 import { Thumb, Thumbs } from './Thumbs.js'
 import { EditSize, ToolGroup } from './ToolCalls.js'
 import { editTotals, feedEntries, type EditTotal } from './toolGroups.js'
 import { transcriptMedia, type TranscriptMedia } from './transcriptMedia.js'
 import { turnPhase, type TurnFacts } from './turnPhase.js'
 import { useFileDrop } from './useFileDrop.js'
-import '../ui/markdown.css'
 import './transcript.css'
 
 const LINE_TIME = localized((language) => new Intl.DateTimeFormat(language, { hour: '2-digit', minute: '2-digit' }))
@@ -37,18 +36,6 @@ const PINNED_SLACK = 24
 /** A user's message longer than this is folded, like the task prompt a session starts with. */
 const FOLD_LINES = 8
 const FOLD_CHARS = 600
-
-const MARKDOWN: Components = {
-  a: ({ href, children }) =>
-    href !== undefined && /^(https?|mailto):/i.test(href) ? (
-      <a href={href} target="_blank" rel="noreferrer">
-        {children}
-      </a>
-    ) : (
-      <span>{children}</span>
-    ),
-  img: ({ alt }) => (alt ? <span className="markdown__image">[{alt}]</span> : null),
-}
 
 /** The current session of a chain task: the window becomes a chat that answers it. */
 export interface ChatTarget {
@@ -90,7 +77,7 @@ interface SentLine {
 
 /** The whole transcript of a session: prompts, texts uncut, tool calls with their shell commands; with `chat`, a reply box under it. */
 export function TranscriptWindow({ sessionId, account, live, chat, onClose }: Props) {
-  const { transcript, onTranscript, imageUrl, sentFileUrl } = useLive()
+  const { transcript, onTranscript, imageUrl, sentFileUrl, sharedUrl } = useLive()
   const dialogRef = useRef<HTMLDialogElement>(null)
   const backdrop = useBackdropClose(dialogRef, () => dialogRef.current?.close())
   const listRef = useRef<HTMLDivElement>(null)
@@ -108,9 +95,10 @@ export function TranscriptWindow({ sessionId, account, live, chat, onClose }: Pr
   const remoteUrl = chat?.session.remoteUrl
   const answered = new Map<string, AskAnswers>((all ?? []).flatMap((line) => (line.answers?.ask === undefined ? [] : [[line.answers.ask, line.answers.answers]])))
   const asks = new Map<string, Ask>((all ?? []).flatMap((line) => (line.ask === undefined ? [] : [[line.ask.id, line.ask]])))
+  const shared = (tool: string, index: number) => sharedUrl(sessionId, tool, index)
   const media = transcriptMedia(
     all ?? [],
-    { image: (tool, index) => imageUrl(sessionId, tool, index), file: (name) => sentFileUrl(sessionId, name) },
+    { image: (tool, index) => imageUrl(sessionId, tool, index), file: (name) => sentFileUrl(sessionId, name), shared },
     t.session.chat.picture,
   )
   // An answered question shows as the card of its answer, the one the session waits on — in the panel under the chat.
@@ -266,7 +254,7 @@ export function TranscriptWindow({ sessionId, account, live, chat, onClose }: Pr
                 ) : (
                   <li key={index} className={`transcript__entry transcript__entry--${entry.line.kind}`}>
                     <LineTime at={entry.line.at} hover={!isReply(entry.line)} />
-                    <Line line={entry.line} chat={chat} asks={asks} media={media} onOpen={setViewing} />
+                    <Line line={entry.line} chat={chat} asks={asks} media={media} onOpen={setViewing} sharedUrl={shared} />
                   </li>
                 ),
               )}
@@ -337,10 +325,12 @@ interface LineProps {
   asks: Map<string, Ask>
   media: TranscriptMedia
   onOpen: (place: number) => void
+  /** The address of file `index` the session sent the user by call `tool`. */
+  sharedUrl: (tool: string, index: number) => string
 }
 
-/** A line that is no call: a text of the session, a reply of the user, a question, an error. */
-function Line({ line, chat, asks, media, onOpen }: LineProps) {
+/** A line that is no call: a text of the session, a reply of the user, a question, files the session sent, an error. */
+function Line({ line, chat, asks, media, onOpen, sharedUrl }: LineProps) {
   if (line.ask !== undefined) return <AskCard ask={line.ask} answers={line.ask.id === chat?.session.ask?.id ? null : {}} />
   if (isReply(line)) {
     return (
@@ -352,15 +342,11 @@ function Line({ line, chat, asks, media, onOpen }: LineProps) {
       </>
     )
   }
-  if (line.kind === 'text') {
-    return (
-      <div className="markdown">
-        <Markdown remarkPlugins={[remarkGfm]} components={MARKDOWN}>
-          {line.text}
-        </Markdown>
-      </div>
-    )
+  if (line.share !== undefined && line.tool !== undefined) {
+    const tool = line.tool
+    return <ShareCard tool={tool} share={line.share} url={(index) => sharedUrl(tool, index)} media={media} onOpen={onOpen} />
   }
+  if (line.kind === 'text') return <SessionMarkdown text={line.text} />
   if (line.kind === 'image') return <Thumbs places={media.byTool.get(line.tool ?? '') ?? []} items={media.items} onOpen={onOpen} />
   return <span className="transcript__plain">{line.text}</span>
 }

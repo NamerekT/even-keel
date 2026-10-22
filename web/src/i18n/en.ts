@@ -1395,6 +1395,12 @@ export const en: Messages = {
       title: 'Chat',
       picture: 'Picture',
       openPicture: (name: string) => `Open ${name}`,
+      share: {
+        title: 'Files from the session',
+        download: (name: string) => `Download ${name}`,
+        gone: 'no longer there',
+        goneTip: 'The file is no longer there — its worktree was cleaned up — or it lies outside the session’s folders',
+      },
       waiting: 'The session waits for a reply — open the chat',
       idle: 'Open the chat with the session',
       placeholder: 'Reply to the session… Ctrl+Enter to send',
