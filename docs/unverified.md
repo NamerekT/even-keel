@@ -124,7 +124,7 @@ Anthropic sometimes resets a five-hour window or all limits of an account ahead 
 
 ### Continuing a session after a limit
 
-A limit cannot be hit on demand, so neither path the chain takes after one has run live: `--resume` while the cache is warm and a new session with a handoff when it is cold (`docs/chain.md`, exception 1). Each shares its mechanics with paths that were checked on 17.10.2026: the resume with the user's answer from the page (`cli.resume`), the handoff with a checkpoint and "New session" (`relay`). What is left unchecked is the decision itself — reading the reset time, choosing warm or cold, the moment of the step. If the chain keeps waiting after the limit has reset, or resumes a session that then fails, **workaround:** press "New session" on the task.
+The chain takes one of two paths after a limit (`docs/chain.md`, exception 1): `--resume` while the cache is warm, a new session with a handoff when it is cold. The warm path ran live on 22.10.2026: a session hit the five-hour limit with the reset 23 minutes away and was resumed 11 seconds after the reset, the same session with its context. The cold path has not run live: it shares its mechanics with the handoff checked on 17.10.2026 with a checkpoint and "New session" (`relay`), but choosing it after a limit and the moment of the step are unchecked. If the chain keeps waiting after a long limit has reset, **workaround:** press "New session" on the task.
 
 ### Fast mode in statistics
 
