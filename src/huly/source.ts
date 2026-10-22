@@ -1,6 +1,6 @@
 import { createRequire } from 'node:module'
 import type { TrackerTask } from '../tracker/model.js'
-import type { TaskSource, TrackerPlace } from '../tracker/source.js'
+import { TrackerNotFound, type TaskSource, type TrackerPlace } from '../tracker/source.js'
 import { authOf, type HulyCredentials } from './credentials.js'
 import { quietModelNoise } from './quiet.js'
 import {
@@ -151,7 +151,7 @@ export async function connectHuly(credentials: HulyCredentials, timeoutMs: numbe
 
   async function findIssue(identifier: string): Promise<FullIssue> {
     const issue = await client.findOne<FullIssue>(tracker.class.Issue, { identifier })
-    if (issue === undefined) throw new Error(`huly: issue ${identifier} not found`)
+    if (issue === undefined) throw new TrackerNotFound(`huly: issue ${identifier} not found`)
     return issue
   }
 
@@ -201,7 +201,7 @@ export async function connectHuly(credentials: HulyCredentials, timeoutMs: numbe
     const place = projects[project]
     const identifier = place === undefined ? project : (place.value ?? place.key)
     const space = await client.findOne<{ _id: string; identifier: string }>(tracker.class.Project, { identifier })
-    if (space === undefined) throw new Error(`huly: project ${identifier} not found`)
+    if (space === undefined) throw new TrackerNotFound(`huly: project ${identifier} not found`)
     projectIds.set(identifier, space._id)
     return space
   }

@@ -1,5 +1,5 @@
 import type { TrackerHealth } from './health.js'
-import type { Tracker } from './source.js'
+import { TrackerNotFound, type Tracker } from './source.js'
 
 export interface TrackerLinkOptions {
   name: string
@@ -25,9 +25,13 @@ export class TrackerLink {
     const pending = (this.source ??= this.options.connect())
     try {
       const result = await withTimeout(pending.then(call), this.options.timeoutMs, this.options.name)
-      this.report({ state: 'live', lastOkAt: (this.options.now?.() ?? new Date()).toISOString(), error: null })
+      this.answered()
       return result
     } catch (error) {
+      if (error instanceof TrackerNotFound) {
+        this.answered()
+        throw error
+      }
       this.drop(pending)
       this.report({ state: 'down', lastOkAt: this.current.lastOkAt, error: errorText(error) })
       throw error
@@ -47,6 +51,10 @@ export class TrackerLink {
     const pending = this.source
     this.source = undefined
     await pending?.then((source) => source.close()).catch(() => {})
+  }
+
+  private answered(): void {
+    this.report({ state: 'live', lastOkAt: (this.options.now?.() ?? new Date()).toISOString(), error: null })
   }
 
   private report(next: TrackerHealth): void {

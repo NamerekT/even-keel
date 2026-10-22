@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { TrackerHealth } from './health.js'
 import { errorText, TrackerLink } from './link.js'
-import type { Tracker } from './source.js'
+import { TrackerNotFound, type Tracker } from './source.js'
 
 function fakeSource(): Tracker & { closed: boolean } {
   return {
@@ -44,6 +44,20 @@ describe('TrackerLink', () => {
 
     await expect(link.run(async () => 'ok')).resolves.toBe('ok')
     expect(connect).toHaveBeenCalledTimes(2)
+  })
+
+  it('keeps the connection, live, when the tracker answers that what was asked for is not there', async () => {
+    const source = fakeSource()
+    const connect = vi.fn(async () => source)
+    const link = new TrackerLink({ name: 'huly', connect, timeoutMs: 1000 })
+    const missing = new TrackerNotFound('huly: project APP not found')
+
+    await expect(link.run(async () => Promise.reject(missing))).rejects.toBe(missing)
+    expect(source.closed).toBe(false)
+    expect(link.health).toEqual(expect.objectContaining({ state: 'live', error: null }))
+
+    await link.run(async () => 1)
+    expect(connect).toHaveBeenCalledTimes(1)
   })
 
   it('retries the connect itself after it failed', async () => {

@@ -153,7 +153,22 @@ export function startTracker(view: TrackerView, setup: TrackerSetup, deps: Track
     reads.set(key, read)
     return read
   }
+  const failures = new Map<string, string>()
+  /** A read that fails the same way on every refresh is logged once, and once more when it goes through again. */
+  const noteRead = (project: string, failure: { error: unknown } | null): void => {
+    const before = failures.get(project)
+    if (failure === null) {
+      failures.delete(project)
+      if (before !== undefined && !stopped) console.log(`${title}: ${project} reads again`)
+      return
+    }
+    const text = errorText(failure.error)
+    if (text === before) return
+    failures.set(project, text)
+    if (!stopped) console.error(`${title}: ${project}: ${text}`)
+  }
   const readProject = async (project: string): Promise<void> => {
+    let failure: { error: unknown } | null = null
     try {
       const rules = rulesOf(project)
       const read = await chainTasks(project, rules)
@@ -189,10 +204,12 @@ export function startTracker(view: TrackerView, setup: TrackerSetup, deps: Track
         console.log(`${title}: closed ${task}, all its subtasks are closed`)
       }
     } catch (error) {
-      report(error)
+      failure = { error }
+    } finally {
+      noteRead(project, failure)
     }
   }
-  const own = new Map<string, () => Promise<void>>()
+  const own =new Map<string, () => Promise<void>>()
   for (const project of projects) {
     const refresh = async () => {
       await refreshProject(project)

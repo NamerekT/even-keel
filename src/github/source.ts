@@ -1,6 +1,6 @@
 import { commentsAfterId, linkedFiles } from '../tracker/comments.js'
 import { parseTaskId, type TaskStatus, type TrackerTask } from '../tracker/model.js'
-import type { TaskSource, TrackerPlace } from '../tracker/source.js'
+import { TrackerNotFound, type TaskSource, type TrackerPlace } from '../tracker/source.js'
 import { GITHUB_STATUSES, githubStatus, RepoMap, toCard, toTrackerTask, type GithubCardIssue, type GithubIssue, type IssueState, type Repo } from './model.js'
 import { Skipped, trustedAuthor } from './trust.js'
 
@@ -196,7 +196,7 @@ export async function connectGithub(
     let after: string | null = null
     do {
       const connection = pick(await graphql(query, { ...variables, after }))
-      if (connection == null) throw new Error(`github: ${what} not found or the token cannot see it`)
+      if (connection == null) throw new TrackerNotFound(`github: ${what} not found or the token cannot see it`)
       issues.push(...connection.nodes)
       after = connection.pageInfo.hasNextPage ? connection.pageInfo.endCursor : null
     } while (after !== null)
@@ -209,7 +209,7 @@ export async function connectGithub(
     const repo = repoOfTasks(parsed.project)
     const data = await graphql<{ repository: { issue: T | null } | null }>(query, { ...repo, number: parsed.number })
     const issue = data.repository?.issue
-    if (issue == null) throw new Error(`github: issue ${id} not found in ${repo.owner}/${repo.name}`)
+    if (issue == null) throw new TrackerNotFound(`github: issue ${id} not found in ${repo.owner}/${repo.name}`)
     return { repo, issue }
   }
 
@@ -304,7 +304,7 @@ export async function connectGithub(
     async isPublic(project) {
       const repo = repoOf(project)
       const { repository } = await graphql<{ repository: { isPrivate: boolean } | null }>(VISIBILITY, { ...repo })
-      if (repository === null) throw new Error(`github: ${repo.owner}/${repo.name} not found or the token cannot see it`)
+      if (repository === null) throw new TrackerNotFound(`github: ${repo.owner}/${repo.name} not found or the token cannot see it`)
       return !repository.isPrivate
     },
 
@@ -318,7 +318,7 @@ export async function connectGithub(
         repository: { id: string; label: { id: string } | null; issue?: { milestone: { id: string } | null } | null } | null
       }>(CREATE_CONTEXT, { ...repo, label: `priority: ${task.priority}`, number: number ?? 0, withIssue: number !== null })
       const repository = context.repository
-      if (repository === null) throw new Error(`github: ${repo.owner}/${repo.name} not found or the token cannot see it`)
+      if (repository === null) throw new TrackerNotFound(`github: ${repo.owner}/${repo.name} not found or the token cannot see it`)
       const milestoneId = repository.issue?.milestone?.id
       const input = {
         repositoryId: repository.id,
@@ -339,7 +339,7 @@ export async function connectGithub(
         repository: { issue: { id: string; milestone: { id: string } | null } | null; like: { milestone: { id: string } | null } | null } | null
       }>(ISSUE_MILESTONES, { ...repoOfTasks(like.project), number: parseTaskId(id)!.number, like: like.number })
       const issue = repository?.issue
-      if (issue == null) throw new Error(`github: issue ${id} not found`)
+      if (issue == null) throw new TrackerNotFound(`github: issue ${id} not found`)
       const milestone = repository?.like?.milestone
       if (issue.milestone !== null || milestone == null) return false
       await graphql(SET_MILESTONE, { id: issue.id, milestone: milestone.id })
@@ -355,7 +355,7 @@ export async function connectGithub(
         repository: { issue: { milestone: (Choice & { closed: boolean }) | null } | null; milestones: { nodes: Choice[] } } | null
       }>(MILESTONE_CHOICES, { ...repo, number: parsed.number })
       const issue = repository?.issue
-      if (repository == null || issue == null) throw new Error(`github: issue ${id} not found in ${repo.owner}/${repo.name}`)
+      if (repository == null || issue == null) throw new TrackerNotFound(`github: issue ${id} not found in ${repo.owner}/${repo.name}`)
       const own = issue.milestone
       const choices = [...repository.milestones.nodes, ...(own?.closed ? [own] : [])]
       return {
