@@ -13,6 +13,7 @@ import type { Link, LiveSnapshot, LiveSource } from './connection.js'
 import { deviceLogin } from '../accounts.js'
 import { accountCommand, fakeAccount, fakeUsage, FAKE_LIMITS } from './fakeAccounts.js'
 import { FAKE_FIX, fakeCi } from './fakeCi.js'
+import { EVENT_MS, fakeEvent } from './fakeEvents.js'
 import { fakeUpdates } from './fakeUpdates.js'
 import { FAKE_PROJECTS, FAKE_PULL_READINESS, FAKE_REMOTES, FAKE_VOCABULARY, fakeConfig, fakeHandEdit, fakeProjectMaps } from './fakeConfig.js'
 import { withFix } from './fakeFix.js'
@@ -343,6 +344,10 @@ export function createFakeSource(search: string): LiveSource {
     current.state!.chain.active = [{ ...active, current: null, limitUntil: new Date(Date.now() + 95 * 60_000).toISOString() }]
   }
   if (params.get('chain') === 'paused' && current.state !== null) current.state = setPaused(current.state, 'ABC', true)
+  if (params.get('chain') === 'noBranch' && active) {
+    const error = notice('git.noBranch', { project: active.project, branch: 'trunk', repo: 'D:/work/abc' })
+    current.state!.chain.active = [{ ...active, current: null, paused: true, error }]
+  }
   if (params.get('chain') === 'slot' && active) {
     const dirty = notice('slot.dirty', { path: 'D:/work/abc/.claude/worktrees/even-keel' }, { detail: 'M src/app.ts\n?? src/scratch.ts' })
     const slotWait = { notice: notice('slot.waiting', { task: 'ABC-12' }, { items: [dirty] }), at: new Date().toISOString() }
@@ -513,6 +518,14 @@ export function createFakeSource(search: string): LiveSource {
       current = { ...current, state: { ...current.state!, config: fakeHandEdit(current.state!.config) } }
       notify()
     }, HAND_EDIT_MS)
+  }
+
+  const event = params.get('event')
+  if (event !== null && current.state !== null) {
+    setTimeout(() => {
+      current = { ...current, state: fakeEvent(current.state!, event) }
+      notify()
+    }, EVENT_MS)
   }
 
   if (link === 'live') {

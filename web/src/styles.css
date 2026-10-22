@@ -2409,12 +2409,14 @@ a.button.pull-button__link {
 }
 
 .card__foot .button,
-.card .pull-fix {
+.card .pull-fix,
+.card .notice-fix {
   position: relative;
   z-index: 1;
 }
 
-.card .pull-fix {
+.card .pull-fix,
+.card .notice-fix {
   align-self: flex-end;
 }
 

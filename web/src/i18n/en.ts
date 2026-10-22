@@ -129,6 +129,24 @@ export const en: Messages = {
   toast: {
     region: 'Notifications',
   },
+  events: {
+    limit: (project: string) => `${project}: the chain stopped on the usage limit`,
+    limitBody: 'Switch the account or wait for the reset.',
+    red: (project: string) => `${project}: main is red`,
+    redBody: (commit: string) => `At ${commit}; the next task waits until main is green again.`,
+    ask: (task: string) => `${task} asks a question`,
+    askBody: 'Answer it in the session’s chat window.',
+    conflict: (project: string, into: string) => `${project}: the carry into ${into} hit a conflict`,
+    conflictBody: 'Merge it by hand or press “Carry now” on the project’s page.',
+    open: 'Open',
+    close: 'Close',
+  },
+  fix: {
+    project: 'Open the project’s settings',
+    shared: 'Open the setting',
+    access: 'Open Settings → Access',
+    accounts: 'Open Accounts',
+  },
   banner: {
     config: (error: string) => `The settings are not applied, the last valid ones are in use: ${error}`,
     stale: 'The data is stale: no connection to the server, reconnecting.',
