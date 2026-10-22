@@ -122,7 +122,10 @@ export class SessionMonitor {
       const homeOf = new Map(homes.map((home) => [home.key, home]))
       const agents = steadyJobs((await Promise.all(homes.map((home) => this.agentsOf(home)))).flat(), this.jobIds)
       this.options.onAgents(agents)
-      this.holds.sweep((sessionId) => agents.some((agent) => agent.sessionId === sessionId && isLive(agent)))
+      this.holds.sweep(
+        (sessionId) => agents.some((agent) => agent.sessionId === sessionId && isLive(agent)),
+        (sessionId) => agents.some((agent) => agent.sessionId === sessionId && isLive(agent) && agent.status === 'busy'),
+      )
       for (const agent of agents) {
         const tail = this.tails.get(agent.sessionId)
         const home = homeOf.get(agent.account ?? GLOBAL_ACCOUNT)!
