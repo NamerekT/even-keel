@@ -78,6 +78,7 @@ import { TranscriptWatch } from './sessions/watch.js'
 import { configPath, loadEnv, root, stateDirOf } from './locations.js'
 import { isInside } from './paths.js'
 import { defaultProfile, keyPool, profileFor, profileKinds } from './profiles/model.js'
+import { checkProfileRules, projectRules } from './profiles/rules.js'
 import { Profiles } from './profiles/service.js'
 import { importForgejo, importProfiles } from './profiles/store.js'
 import { slotOccupants } from './sessions/occupants.js'
@@ -199,7 +200,24 @@ let { listen, token, mcpPort } = (() => {
 let listenError: Notice | null = null
 const branchOf = (project: string) => configStore.current.settings[project]?.branch ?? DEFAULT_BRANCH
 const pullRequestsOn = (project: string) => configStore.current.settings[project]?.pullRequests ?? false
-const rulesOf = (project: string) => configStore.current.rules[project]!
+/** The projects whose profile's rules clash with their own, by the text logged: logged once while it lasts. */
+const rulesClashes = new Map<string, string>()
+/**
+ * The project's rules with its tracker profile's between the shared and its own (BTN-66). A clash the profile's save did
+ * not catch (a project's own rules changed since) leaves the profile's out, with a line in the log.
+ */
+const rulesOf = (project: string) => {
+  try {
+    const rules = projectRules(configStore.current, profiles.current(), project)
+    rulesClashes.delete(project)
+    return rules
+  } catch (error) {
+    const text = englishOf(noticeOf(error))
+    if (rulesClashes.get(project) !== text) console.log(`rules: the tracker profile's rules are left out: ${text}`)
+    rulesClashes.set(project, text)
+    return configStore.current.rules[project]!
+  }
+}
 const stateDir = stateDirOf()
 mkdirSync(stateDir, { recursive: true })
 const mailbox = await Mailbox.open(db, writes, () => new Date())
@@ -490,6 +508,7 @@ const profiles: Profiles = new Profiles({
   expired: () => void daemons.expire(homes.global),
   ci: (id) => ciOn(id, false),
   hiddenCi: (id) => ciOn(id, true),
+  checkRules: (set, id, rules) => checkProfileRules(configStore.current, set, id, rules),
   deniedPulls: (id) => pullRefusals.of(id, (project, target) => (pullRequestsOn(project) ? ciTokenOf(project, target) : null)),
   timeoutMs: TRACKER_CHECK_MS,
   log: (line) => console.log(line),
@@ -1342,6 +1361,10 @@ let server = createEvenKeelServer({
       console.log(`page: the profile ${name} is removed`)
     },
     setDefault: (id) => profiles.setDefault(id),
+    setRules: (id, rules) => {
+      profiles.setRules(id, rules)
+      console.log(`page: the chain rules of the profile ${profiles.current().profiles.find((profile) => profile.id === id)?.name} are saved`)
+    },
     link: (project, profile) => {
       if (!Object.hasOwn(configStore.current.projects, project)) throw fail('config.unknownProject', { key: project })
       if (launchedProjects(launches).includes(project)) throw fail('config.trackerLocked', { key: projectLabel(configStore.current, project) })

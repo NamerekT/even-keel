@@ -206,6 +206,31 @@ describe('Profiles', { timeout: 60_000 }, () => {
     expect(() => profiles.link(ABC, 'missing')).toThrow(NoticeError)
   })
 
+  it('sets the chain rules of a profile once its projects take them, and shows them (BTN-66)', async () => {
+    const refused: string[] = []
+    const profiles = make(
+      { profiles: [profile('p1', 'abc', true)], links: {} },
+      {
+        checkRules: (_set, id, rules) => {
+          if (rules.terminal?.includes('Todo')) {
+            refused.push(id)
+            throw new Error('clash')
+          }
+        },
+      },
+    )
+    profiles.setRules('p1', { active: [' Open ', ''], terminal: ['Closed'] })
+    expect(profiles.current().profiles[0]!.rules).toEqual({ active: ['Open'], terminal: ['Closed'] })
+    expect(profiles.view().profiles[0]).toMatchObject({ rules: { active: ['Open'], terminal: ['Closed'] }, projectIds: [ABC, XYZ] })
+    expect(() => profiles.setRules('p1', { terminal: ['Todo'] })).toThrow('clash')
+    expect(refused).toEqual(['p1'])
+    profiles.setRules('p1', {})
+    expect(profiles.current().profiles[0]).toEqual(profile('p1', 'abc', true))
+    await writes.settled()
+    expect((await readProfiles(db)).profiles[0]).toEqual(profile('p1', 'abc', true))
+    expect(() => profiles.setRules('missing', {})).toThrow(NoticeError)
+  })
+
   it('a recheck marks a refused profile and the projects that run on it', async () => {
     const profiles = make({ profiles: [profile('p1', 'bad', true), profile('p2', 'abc', false)], links: { [XYZ]: 'p2' } })
     await profiles.recheck()

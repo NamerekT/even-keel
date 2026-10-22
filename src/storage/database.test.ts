@@ -24,7 +24,7 @@ import { IMPORTED_SUFFIX, prepareDatabase } from './state-files.js'
 // Frozen samples of the database. Versions 1 and 2 were `node:sqlite` files: they are imported at the first start.
 // Version 3 is the first PGlite one, version 4 adds the settings, version 5 the tracker profiles, version 6 the
 // changelog drafts, version 7 their turns' spend, version 8 the pull requests, version 9 the colors, version 10 the
-// shelved tasks: a later step must migrate each, and each step itself must still make exactly the tables of its sample.
+// shelved tasks, version 11 the keys shared by projects, version 12 the profiles' rules and the extra task feeds: a later step must migrate each, and each step itself must still make exactly the tables of its sample.
 // A schema change is a new step and a new sample next to these, never an edit of either.
 const fixture = (version: number) => readFileSync(join(root, 'test', 'fixtures', `database-v${version}`, 'even-keel.sql'), 'utf8')
 
@@ -32,6 +32,8 @@ const ABC = '11111111-1111-4111-8111-111111111111'
 const XYZ = '22222222-2222-4222-8222-222222222222'
 /** A second project of the key `ABC` (BTN-271). */
 const SECOND_ABC = '66666666-6666-4666-8666-666666666666'
+/** The extra task feed of `ABC` (BTN-66). */
+const FEED = '77777777-7777-4777-8777-777777777777'
 
 describe('frozen samples of the database', { timeout: 120_000 }, () => {
   let stateDir: string
@@ -437,6 +439,37 @@ describe('frozen samples of the database', { timeout: 120_000 }, () => {
     try {
       await readsWhole(opened.db)
       expect(parseConfig(fileOf(await readSettings(opened.db))).keys).toEqual({ [ABC]: 'ABC', [XYZ]: 'XYZ', [SECOND_ABC]: 'ABC' })
+    } finally {
+      await opened.close()
+    }
+    expect(logs).toEqual([])
+  })
+
+  it('of version 12 has the schema step 12 makes', async () => {
+    const frozen = await PGlite.create()
+    const made = await openDatabase(undefined, STEPS.slice(0, 10))
+    try {
+      await frozen.exec(fixture(12))
+      expect(await databaseVersion(frozen)).toBe(12)
+      expect(await schemaOf(made)).toEqual(await schemaOf(frozen))
+    } finally {
+      await frozen.close()
+      await made.close()
+    }
+  })
+
+  it("of version 12 is read with the profiles' rules and the feed's profile (BTN-66)", async () => {
+    const dataDir = dataDirOf(databaseDirOf(stateDir))
+    mkdirSync(dataDir, { recursive: true })
+    const frozen = await PGlite.create({ dataDir })
+    await frozen.exec(fixture(12))
+    await frozen.close()
+    const opened = await prepare()
+    try {
+      expect(await databaseVersion(opened.db)).toBe(DATABASE_VERSION)
+      const profiles = await readProfiles(opened.db)
+      expect(profiles.profiles.map((profile) => profile.rules)).toEqual([{ terminal: ['Done', 'Canceled', 'Shipped'] }, undefined, { excludedLabels: ['wontfix'] }])
+      expect(profiles.feeds).toEqual({ [FEED]: '55555555-5555-4555-8555-555555555555' })
     } finally {
       await opened.close()
     }

@@ -45,6 +45,7 @@ import { isTallyMode, type TallyMode } from './stats/mode.js'
 import type { StatsSteps } from './stats/steps.js'
 import type { TaskCard } from './tracker/card.js'
 import type { TaskFile, TrackerProject, TrackerVocabulary } from './tracker/source.js'
+import { PROFILE_RULE_KEYS, type ProfileRules } from './profiles/model.js'
 import { profileDraftOf } from './profiles/request.js'
 import type { ProfileDraft } from './profiles/service.js'
 
@@ -183,6 +184,8 @@ export interface ProfilesControl {
   save(draft: ProfileDraft & { name: string }): Promise<string>
   remove(id: string): void
   setDefault(id: string): void
+  /** The chain rules of the profile's projects (BTN-66); refused when one of them would clash. */
+  setRules(id: string, rules: ProfileRules): void
   /** `null` — the project runs on its tracker's default profile. */
   link(project: string, profile: string | null): void
   projects(id: string, query: string): Promise<TrackerProject[]>
@@ -295,6 +298,7 @@ const COMMANDS: Record<string, Command> = {
   'stats/tally': ({ tally }, body) => tally.set(tallyModeOf(body.mode), tallyDraftOf(body.server)),
   'profiles/remove': ({ profiles }, body) => profiles.remove(textOf(body.id, 'id')),
   'profiles/default': ({ profiles }, body) => profiles.setDefault(textOf(body.id, 'id')),
+  'profiles/rules': ({ profiles }, body) => profiles.setRules(textOf(body.id, 'id'), profileRulesOf(body.rules)),
   'profiles/link': ({ profiles }, body) => profiles.link(projectOf(body), body.profile === null ? null : textOf(body.profile, 'profile')),
 }
 
@@ -870,6 +874,18 @@ function rulesOf(raw: unknown): ChainRules {
     requiredMilestones: linesOf(requiredMilestones ?? [], 'chain'),
     excludedMilestones: linesOf(excludedMilestones ?? [], 'chain'),
   }
+}
+
+/** A profile's rules: only the keys sent, a status list may be `null` (by the status category). */
+function profileRulesOf(raw: unknown): ProfileRules {
+  const sent = mapOf(raw, 'rules', () => true)
+  const rules: ProfileRules = {}
+  for (const key of PROFILE_RULE_KEYS) {
+    const value = sent[key]
+    if (value === undefined) continue
+    Object.assign(rules, { [key]: value === null && (key === 'active' || key === 'terminal') ? null : linesOf(value, 'rules') })
+  }
+  return rules
 }
 
 function linesOf(raw: unknown, field: string): string[] {

@@ -106,6 +106,7 @@ describe('parseConfig', () => {
       keys: { ABC: 'ABC' },
       names: {},
       rules: { ABC: DEFAULT_RULES },
+      ownRules: { ABC: {} },
       slots: {},
       colors: { ABC: 1 },
       chain: DEFAULT_RULES,
