@@ -91,6 +91,7 @@ describe('ConfigStore', { timeout: 30_000 }, () => {
       afterGreen: [],
       ci: { guard: true, kinds: ['github'], waitMinutes: 20, recheckMain: true, fixTask: false },
       remoteProfiles: { github: 'org' },
+      mergeInto: null,
       pullRequests: false,
       fillMilestone: true,
       changelog: 'CHANGELOG.md',

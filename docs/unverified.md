@@ -46,28 +46,30 @@ Every entry, ordered by how many people it reaches and how badly it hurts them i
 | 34 | ["Add to Claude Code" on /tools](#add-to-claude-code-on-tools-btn-226) | new users | the banner stays; run its command by hand |
 | 35 | [Two profiles of one tracker](#two-profiles-of-one-tracker-btn-200) | two accounts of one tracker | a project reads another profile's tasks |
 | 36 | [A project's own CI profile](#a-projects-own-ci-profile-btn-231) | two forge profiles | the CI or a pull request uses the old profile |
-| 37 | [Removing a project on the running service](#removing-a-project-on-the-running-service-btn-118) | anyone removing a project | a removal goes through while a session works |
-| 38 | [A changed EVEN_KEEL_TOKEN seen from another machine](#a-changed-even_keel_token-seen-from-another-machine-btn-130) | the page from another machine | a dead connection until a reload |
-| 39 | [A remote added to a checkout on the running service](#a-remote-added-to-a-checkout-on-the-running-service-btn-191) | CI | the CI does not appear until a restart |
-| 40 | [The context window a chain session gets](#the-context-window-a-chain-session-gets-btn-187) | everyone | the context meter and the handoff cap read a wrong window |
-| 41 | [A task closed by `NO CHANGES:`](#a-task-closed-by-no-changes-ekr-10) | everyone outside PR mode | a task with nothing to merge waits for you, as before the mark |
-| 42 | [The 1-hour cache on a key](#the-1-hour-cache-on-a-key) | Claude API keys with `cacheTtl` | more cache writes; nothing breaks |
-| 43 | [Outsiders' comments on a public GitHub repository](#outsiders-comments-on-a-public-github-repository-ekr-19) | public GitHub repositories | your own reply is skipped, or an outsider's reaches a session |
-| 44 | [Milestones on GitHub and Linear](#milestones-on-github-and-linear) | GitHub, Linear | a task's milestone is not filled |
-| 45 | [Changing a milestone from the task card on GitHub and Linear](#changing-a-milestone-from-the-task-card-on-github-and-linear) | GitHub, Linear | the card puts the old milestone back |
-| 46 | [The tasks of a milestone on GitHub and Linear](#the-tasks-of-a-milestone-on-github-and-linear-btn-142) | changelog drafts on GitHub, Linear | the draft misses tasks or takes an older comment |
-| 47 | [GitHub attachments](#github-attachments) | GitHub | the page cannot open an attached file |
-| 48 | [The expiry of a fine-grained GitHub token](#the-expiry-of-a-fine-grained-github-token) | GitHub fine-grained tokens | no expiry on the card |
-| 49 | [The changelog commit from the service](#the-changelog-commit-from-the-service-btn-209) | changelog drafts | "Write" fails; copy the section by hand |
-| 50 | [The Codex changelog turn with JSON output](#the-codex-changelog-turn-with-json-output) | changelog drafts on Codex | the draft fails, or shows 0 tokens |
-| 51 | [Pasting files copied in Explorer into the chat](#pasting-files-copied-in-explorer-into-the-chat-btn-204) | Windows | the paste attaches nothing |
-| 52 | [Switching to your own Postgres from the page](#switching-to-your-own-postgres-from-the-page-btn-247) | stats on your own Postgres | stats stay off; set the variables by hand |
-| 53 | [A reader opening the state database while the service starts](#a-reader-opening-the-state-database-while-the-service-starts) | `npm run storage` users | the service refuses to start once |
-| 54 | [Plugins in a Codex folder on Linux and macOS](#plugins-in-a-codex-folder-on-linux-and-macos) | Codex on Linux, macOS | a few seconds per first turn |
-| 55 | [Edit sizes of a FileChange](#edit-sizes-of-a-filechange-btn-185) | Codex | the chat shows an edit without its size |
-| 56 | [Codex stats](#codex-stats-btn-170) | Codex | a response counted twice in `/stats` |
-| 57 | [Fast mode in statistics](#fast-mode-in-statistics) | fast mode | `/stats` understates its cost |
-| 58 | [VS Code chat titles](#vs-code-chat-titles) | VS Code | a chat named differently from its tab |
+| 37 | [Carrying a release project forward](#carrying-a-release-project-forward-btn-172) | release projects | a fix stays out of the main branch; carry it by hand |
+| 38 | [Several projects on one tracker project](#several-projects-on-one-tracker-project-btn-172-btn-73) | two projects on one Huly project or Linear team | a task in both chains, or in neither |
+| 39 | [Removing a project on the running service](#removing-a-project-on-the-running-service-btn-118) | anyone removing a project | a removal goes through while a session works |
+| 40 | [A changed EVEN_KEEL_TOKEN seen from another machine](#a-changed-even_keel_token-seen-from-another-machine-btn-130) | the page from another machine | a dead connection until a reload |
+| 41 | [A remote added to a checkout on the running service](#a-remote-added-to-a-checkout-on-the-running-service-btn-191) | CI | the CI does not appear until a restart |
+| 42 | [The context window a chain session gets](#the-context-window-a-chain-session-gets-btn-187) | everyone | the context meter and the handoff cap read a wrong window |
+| 43 | [A task closed by `NO CHANGES:`](#a-task-closed-by-no-changes-ekr-10) | everyone outside PR mode | a task with nothing to merge waits for you, as before the mark |
+| 44 | [The 1-hour cache on a key](#the-1-hour-cache-on-a-key) | Claude API keys with `cacheTtl` | more cache writes; nothing breaks |
+| 45 | [Outsiders' comments on a public GitHub repository](#outsiders-comments-on-a-public-github-repository-ekr-19) | public GitHub repositories | your own reply is skipped, or an outsider's reaches a session |
+| 46 | [Milestones on GitHub and Linear](#milestones-on-github-and-linear) | GitHub, Linear | a task's milestone is not filled |
+| 47 | [Changing a milestone from the task card on GitHub and Linear](#changing-a-milestone-from-the-task-card-on-github-and-linear) | GitHub, Linear | the card puts the old milestone back |
+| 48 | [The tasks of a milestone on GitHub and Linear](#the-tasks-of-a-milestone-on-github-and-linear-btn-142) | changelog drafts on GitHub, Linear | the draft misses tasks or takes an older comment |
+| 49 | [GitHub attachments](#github-attachments) | GitHub | the page cannot open an attached file |
+| 50 | [The expiry of a fine-grained GitHub token](#the-expiry-of-a-fine-grained-github-token) | GitHub fine-grained tokens | no expiry on the card |
+| 51 | [The changelog commit from the service](#the-changelog-commit-from-the-service-btn-209) | changelog drafts | "Write" fails; copy the section by hand |
+| 52 | [The Codex changelog turn with JSON output](#the-codex-changelog-turn-with-json-output) | changelog drafts on Codex | the draft fails, or shows 0 tokens |
+| 53 | [Pasting files copied in Explorer into the chat](#pasting-files-copied-in-explorer-into-the-chat-btn-204) | Windows | the paste attaches nothing |
+| 54 | [Switching to your own Postgres from the page](#switching-to-your-own-postgres-from-the-page-btn-247) | stats on your own Postgres | stats stay off; set the variables by hand |
+| 55 | [A reader opening the state database while the service starts](#a-reader-opening-the-state-database-while-the-service-starts) | `npm run storage` users | the service refuses to start once |
+| 56 | [Plugins in a Codex folder on Linux and macOS](#plugins-in-a-codex-folder-on-linux-and-macos) | Codex on Linux, macOS | a few seconds per first turn |
+| 57 | [Edit sizes of a FileChange](#edit-sizes-of-a-filechange-btn-185) | Codex | the chat shows an edit without its size |
+| 58 | [Codex stats](#codex-stats-btn-170) | Codex | a response counted twice in `/stats` |
+| 59 | [Fast mode in statistics](#fast-mode-in-statistics) | fast mode | `/stats` understates its cost |
+| 60 | [VS Code chat titles](#vs-code-chat-titles) | VS Code | a chat named differently from its tab |
 | 59 | [The first start with the PGlite state database](#the-first-start-with-the-pglite-state-database-btn-198) | an update from a build before v0.1 | the start stops on an import error |
 | 60 | [The first start with Forgejo profiles](#the-first-start-with-forgejo-profiles-btn-201) | an update from a build before v0.1 with Forgejo | the Forgejo CI disappears from the page |
 | 61 | [PR mode without a remote](#pr-mode-without-a-remote-ekr-12) | PR mode | the chain stays paused after the remote is added; press Resume |
@@ -293,6 +295,10 @@ A profile changed on `/settings` → **Access** is covered by tests, not run liv
 
 Two projects on two profiles of the same tracker — each its own connection, its own gateway keys and its own GitHub Actions token — are covered by tests; the author has one account per tracker, so it never ran live. If a project reads another profile's tasks, **workaround:** keep one profile per tracker.
 
+### Several projects on one tracker project (BTN-172, BTN-73)
+
+Two Even Keel projects on one Huly project (`huly` naming it) or on one Linear team (`linear: TEAM/Project`), split by milestone, are covered by tests; never run as live chains. Assumed: one shared read gives each its own tasks, a task closed by one is not taken by the other, and a Linear `TEAM/` value reads the whole team. If a task shows up in both chains, or in neither, **workaround:** keep one Even Keel project per tracker project and leave the release's tasks `Manual`.
+
 ### A project's own CI profile (BTN-231)
 
 That a project's chosen GitHub or Forgejo profile (`remoteProfiles`) reads its CI and opens its pull requests is covered by tests; it never ran live, the author has one profile of each. If the CI or a pull request keeps the old profile after the choice, **workaround:** set the wanted profile as the default of its kind on Access.
@@ -342,6 +348,10 @@ Every minute the service rereads each project's remotes and workflow folders and
 ### Chains of several projects on one remote (BTN-210)
 
 The git side is checked on real clones of one remote (`docs/chain.md`, "Projects of one remote"): the fast-forward of `main` before a launch and the second try of a rejected sync. Not run as live chains on the service with a CI: two projects whose pushes race, a red push of one seen by the other. From the code, a red `main` holds and fixes only the project that pushed it, and another project of the remote may start a second fix of the same break once its own push carries the red commit (BTN-217). **Workaround:** put `ci.guard: false` on all projects of the remote but one: only that one judges and fixes `main`.
+
+### Carrying a release project forward (BTN-172)
+
+The carry of a release branch into the main project's branch (`mergeInto`, `docs/chain.md`) is covered by tests with git's answers, never run on the service against real clones: the fetch from the release clone's folder, the merge commit made under the service's account (session 0 on Windows: it needs a git name and email, as the changelog commit does), the abort of a conflict and the push. If the merge fails for want of an identity, the carry is held like a conflict and the page shows git's message; if the push fails, the page says so. **Workaround:** carry by hand in the main checkout while its chain stands — `git sync`, `git merge --no-edit origin/<release branch>`, `git sync` — and the carry clears by itself once the branch has the commits.
 
 ## Stats
 

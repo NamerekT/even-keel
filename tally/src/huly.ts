@@ -11,6 +11,7 @@ export interface TaskRecord {
   priority: string | null
   estimateH: number | null
   component: string | null
+  milestone: string | null
   done: boolean | null
 }
 
@@ -23,6 +24,7 @@ interface IssueDoc {
   priority?: number
   estimation?: number
   component?: string | null
+  milestone?: string | null
 }
 
 interface StatusDoc {
@@ -31,7 +33,8 @@ interface StatusDoc {
   category?: string
 }
 
-interface ComponentDoc {
+// A component or a milestone.
+interface LabelledDoc {
   _id: string
   label: string
 }
@@ -55,7 +58,7 @@ interface PlatformClient {
 }
 
 interface TrackerModule {
-  default: { class: { Issue: string; IssueStatus: string; Component: string; TimeSpendReport: string } }
+  default: { class: { Issue: string; IssueStatus: string; Component: string; Milestone: string; TimeSpendReport: string } }
 }
 
 export interface TimeReport {
@@ -90,18 +93,20 @@ export async function fetchTasks(credentials: HulyCredentials, identifiers: stri
     const issues = await client.findAll<IssueDoc>(
       ISSUE,
       { identifier: { $in: identifiers } },
-      { projection: { identifier: 1, title: 1, status: 1, relations: 1, priority: 1, estimation: 1, component: 1 } },
+      { projection: { identifier: 1, title: 1, status: 1, relations: 1, priority: 1, estimation: 1, component: 1, milestone: 1 } },
     )
     const ids = issues.map((issue) => issue._id)
     const unknown = unknownRelations(issues)
     const componentIds = [...new Set(issues.flatMap((issue) => issue.component ?? []))]
-    const [statuses, labels, others, components] = await Promise.all([
+    const milestoneIds = [...new Set(issues.flatMap((issue) => issue.milestone ?? []))]
+    const [statuses, labels, others, components, milestones] = await Promise.all([
       client.findAll<StatusDoc>(ISSUE_STATUS, {}),
       ids.length === 0 ? [] : client.findAll<LabelDoc>(TAG_REFERENCE, { attachedTo: { $in: ids } }, { projection: { attachedTo: 1, title: 1 } }),
       unknown.length === 0 ? [] : client.findAll<IssueDoc>(ISSUE, { _id: { $in: unknown } }, { projection: { identifier: 1 } }),
-      componentIds.length === 0 ? [] : client.findAll<ComponentDoc>(tracker.class.Component, { _id: { $in: componentIds } }),
+      componentIds.length === 0 ? [] : client.findAll<LabelledDoc>(tracker.class.Component, { _id: { $in: componentIds } }),
+      milestoneIds.length === 0 ? [] : client.findAll<LabelledDoc>(tracker.class.Milestone, { _id: { $in: milestoneIds } }),
     ])
-    return taskRecords(issues, statuses, labels, new Map(others.map((doc) => [doc._id, doc.identifier])), components)
+    return taskRecords(issues, statuses, labels, new Map(others.map((doc) => [doc._id, doc.identifier])), components, milestones)
   } finally {
     await client.close()
   }
@@ -166,10 +171,12 @@ export function taskRecords(
   statuses: StatusDoc[],
   labels: LabelDoc[],
   others: ReadonlyMap<string, string>,
-  components: ComponentDoc[] = [],
+  components: LabelledDoc[] = [],
+  milestones: LabelledDoc[] = [],
 ): TaskRecord[] {
   const statusById = new Map(statuses.map((doc) => [doc._id, doc]))
   const componentById = new Map(components.map((doc) => [doc._id, doc.label]))
+  const milestoneById = new Map(milestones.map((doc) => [doc._id, doc.label]))
   const identifierById = new Map(others)
   for (const issue of issues) identifierById.set(issue._id, issue.identifier)
   const related = new Map<string, Set<string>>(issues.map((issue) => [issue._id, new Set()]))
@@ -195,6 +202,7 @@ export function taskRecords(
     priority: PRIORITIES[issue.priority ?? -1] ?? null,
     estimateH: issue.estimation !== undefined && issue.estimation > 0 ? issue.estimation : null,
     component: issue.component == null ? null : (componentById.get(issue.component) ?? null),
+    milestone: issue.milestone == null ? null : (milestoneById.get(issue.milestone) ?? null),
     done: statusById.has(issue.status) ? statusById.get(issue.status)!.category === WON : null,
   }))
 }

@@ -29,6 +29,7 @@ Even Keel wins in time, not in width: the agent keeps working while you are away
 ## What it does
 
 - **A chain per project.** Open blockers first, then the order you drag on the page, then milestone and priority. A task labelled `Manual` is yours and never enters it.
+- **Release branches.** A second chain on the same tracker project takes a released version's milestone in its own clone, and its fixes are merged forward into your development branch while that chain stands.
 - **A session per task**, in its own git worktree. The session does the task and merges; Even Keel closes the task, cleans up and starts the next. A task with nothing to merge (already done, research) the session marks `NO CHANGES: <why>`, and Even Keel closes it all the same.
 - **Limits and long contexts.** A spent limit is waited out and the session resumed; a session whose context grew too large hands over to a fresh one in the same worktree.
 - **Questions** wait for you in the page's chat, as a tracker comment or in Claude's Remote Control. You can also write to a session while it works.
