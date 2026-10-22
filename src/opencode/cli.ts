@@ -1,12 +1,14 @@
 import { execFile, spawn, type ChildProcessWithoutNullStreams } from 'node:child_process'
-import { closeSync, existsSync, openSync, readFileSync } from 'node:fs'
+import { closeSync, existsSync, openSync, readdirSync, readFileSync } from 'node:fs'
 import { readFile, rm, stat } from 'node:fs/promises'
 import { join } from 'node:path'
 import { setTimeout as delay } from 'node:timers/promises'
+import { pathToFileURL } from 'node:url'
 import { promisify } from 'node:util'
 import type { AccountHome } from '../account/homes.js'
 import type { AccountStatus } from '../account/model.js'
-import { gatewayName, type SessionStart } from '../agent/contract.js'
+import { gatewayName, type OneTurn, type OneTurnAnswer, type SessionStart } from '../agent/contract.js'
+import { runWithInput } from '../agent/oneturn.js'
 import { isAlive, killTree } from '../agent/process.js'
 import { entryOf, outputTail, type CodexSession, type TurnRegistry } from '../codex/turns.js'
 import { fail, notice, NoticeError, type Notice } from '../notice/notice.js'
@@ -70,10 +72,10 @@ export function turnArgs(start: Pick<SessionStart, 'name' | 'model'>, prompt: st
 
 /**
  * The config a chain session gets on top of the account's and the project's (`OPENCODE_CONFIG_CONTENT`): the
- * gateway's servers and none of the project's own, the skills of the project's plugin packages, and
- * `external_directory` allowed, which a merge into the main checkout from a worktree needs.
+ * gateway's servers and none of the project's own, the skills and the OpenCode plugins of the project's plugin
+ * packages, and `external_directory` allowed, which a merge into the main checkout from a worktree needs.
  */
-export function sessionConfig(start: Pick<SessionStart, 'mcp' | 'plugins'>, projectServers: string[], skillDirs: string[]): string {
+export function sessionConfig(start: Pick<SessionStart, 'mcp' | 'plugins'>, projectServers: string[], skillDirs: string[], plugins: string[] = []): string {
   const config: Record<string, unknown> = { $schema: 'https://opencode.ai/config.json', permission: { external_directory: 'allow' } }
   if (start.mcp !== undefined) {
     const own = Object.fromEntries(projectServers.map((name) => [name, { enabled: false }]))
@@ -81,7 +83,80 @@ export function sessionConfig(start: Pick<SessionStart, 'mcp' | 'plugins'>, proj
     config.mcp = { ...own, ...gateway }
   }
   if (skillDirs.length > 0) config.skills = { paths: skillDirs }
+  if (plugins.length > 0) config.plugin = plugins
   return JSON.stringify(config)
+}
+
+/**
+ * The OpenCode plugins of the project's plugin packages: the scripts in a package's `opencode/` folder, as the file
+ * URLs OpenCode's `plugin` key loads (the `checkpoint` package's hooks, BTN-274).
+ */
+export function pluginFiles(start: Pick<SessionStart, 'plugins'>): string[] {
+  return (start.plugins ?? []).flatMap((plugin) => {
+    const dir = join(plugin.dir, 'opencode')
+    let files: string[]
+    try {
+      files = readdirSync(dir)
+    } catch {
+      return []
+    }
+    return files.filter((file) => /\.m?js$/.test(file)).sort().map((file) => pathToFileURL(join(dir, file)).href)
+  })
+}
+
+/** The tools `Agent.write`'s turn may not use: it only reads, with Read, Grep and Glob. */
+const WRITE_DENIED = ['edit', 'bash', 'webfetch', 'websearch', 'task', 'todowrite', 'skill', 'external_directory']
+
+/**
+ * `Agent.write`: one read-only turn with no one to answer it (the changelog, BTN-209), the prompt on stdin. `--pure`
+ * loads no external plugin; the session it leaves in the account's database is deleted after it (`writeConfig`).
+ */
+export function writeArgs(model: string | null): string[] {
+  return ['run', '--pure', '--format', 'json', '--title', 'Even Keel', ...(model === null ? [] : ['-m', model])]
+}
+
+/** The config of `Agent.write`'s turn: every tool but reading denied, and the project's own MCP servers off. */
+export function writeConfig(projectServers: string[]): string {
+  const config: Record<string, unknown> = {
+    $schema: 'https://opencode.ai/config.json',
+    permission: Object.fromEntries(WRITE_DENIED.map((tool) => [tool, 'deny'])),
+  }
+  if (projectServers.length > 0) config.mcp = Object.fromEntries(projectServers.map((name) => [name, { enabled: false }]))
+  return JSON.stringify(config)
+}
+
+/**
+ * The text of `writeArgs`' last step and every step's tokens and cost; the events do not name the model, so it is the
+ * one asked for. Throws with the provider's words when the turn failed.
+ */
+export function parseWriteAnswer(stdout: string, model: string | null, durationMs: number): OneTurnAnswer {
+  let texts: string[] = []
+  const tokens = { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 }
+  let cost = 0
+  const count = (value: unknown) => (typeof value === 'number' ? value : 0)
+  for (const line of stdout.split('\n')) {
+    const event = parse(line)
+    const part = event?.part as Record<string, unknown> | undefined
+    if (event?.type === 'error') throw new Error(errorOf(event.error))
+    if (event?.type === 'step_start') texts = []
+    if (event?.type === 'text' && typeof part?.text === 'string' && part.text.trim() !== '') texts.push(part.text.trim())
+    if (event?.type !== 'step_finish') continue
+    const used = (part?.tokens ?? {}) as Record<string, unknown>
+    const cache = (used.cache ?? {}) as Record<string, unknown>
+    tokens.input += count(used.input)
+    tokens.output += count(used.output) + count(used.reasoning)
+    tokens.cacheRead += count(cache.read)
+    tokens.cacheWrite += count(cache.write)
+    cost += count(part?.cost)
+  }
+  if (texts.length === 0) throw new Error('the turn ended with no message')
+  return { text: texts.join('\n\n'), spend: { model, tokens, cost, durationMs } }
+}
+
+function errorOf(error: unknown): string {
+  const value = (error ?? {}) as { name?: unknown; data?: { message?: unknown } }
+  if (typeof value.data?.message === 'string' && value.data.message !== '') return value.data.message
+  return typeof value.name === 'string' ? value.name : 'the turn failed'
 }
 
 /** The MCP servers a project's own `opencode.json(c)` declares, by name. */
@@ -185,6 +260,17 @@ export class OpenCodeCli {
     )
   }
 
+  /** `writeArgs`' turn; its session leaves the account's database after it, so no transcript counts it as a chain session's. */
+  async write(home: AccountHome, { cwd, prompt, model, timeoutMs }: OneTurn): Promise<OneTurnAnswer> {
+    keepOwnInstructions(home.dir)
+    const env = { ...this.envOf(home), PWD: cwd, OPENCODE_CONFIG_CONTENT: writeConfig(projectServers(cwd)) }
+    const started = Date.now()
+    const stdout = await runWithInput(this.bin(), writeArgs(model), prompt, { cwd, env, timeoutMs })
+    const session = sessionOf(stdout)
+    if (session !== undefined) await run(this.bin(), ['session', 'delete', session], { cwd, env, timeout: this.timeoutMs, windowsHide: true }).catch(() => {})
+    return parseWriteAnswer(stdout, model, Date.now() - started)
+  }
+
   /** `opencode --version`: `1.18.25`. */
   async version(env: NodeJS.ProcessEnv): Promise<string> {
     return (await run(this.bin(), ['--version'], { env, timeout: this.timeoutMs, windowsHide: true })).stdout
@@ -233,7 +319,7 @@ export class OpenCodeCli {
    */
   private async turn(home: AccountHome, start: SessionStart, args: string[], cwd: string, failure: Notice): Promise<{ session: string; pid: number; out: string; at: number }> {
     keepOwnInstructions(home.dir)
-    const config = sessionConfig(start, projectServers(cwd), skillDirs(start))
+    const config = sessionConfig(start, projectServers(cwd), skillDirs(start), pluginFiles(start))
     const at = Date.now()
     const out = this.registry.turnFile(start.name, at)
     const fd = openSync(out, 'a')
