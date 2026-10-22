@@ -15,6 +15,7 @@ import type { RateLimits } from '../../../src/limits/model.js'
 import type { UsageHealth } from '../../../src/limits/usage.js'
 import { CLAUDE } from '../../../src/claude/name.js'
 import { CODEX } from '../../../src/codex/name.js'
+import { COPILOT } from '../../../src/copilot/name.js'
 import { OPENCODE } from '../../../src/opencode/name.js'
 
 function ago(minutes: number): string {
@@ -216,6 +217,14 @@ export function fakeAccount(mode: string | null, idle: boolean, limits: RateLimi
     const own = { ...global, projects: FAKE_PROJECTS.filter((project) => project !== 'OPS') }
     const pool = [...SHARED_POOL, { project: 'OPS', provider: OPENCODE, account: 'opencode' }]
     return { ...signedIn, accounts: [own, work, free, chatgpt], pool }
+  }
+  if (mode === 'copilot') {
+    // OPS runs on the machine's own Copilot sign-in; a second folder has a token of its own. Neither has limits.
+    const machine = fakeEntry({ key: 'copilot', global: false, agent: COPILOT, status: { ...OPENCODE_STATUS, authMethod: 'none' }, loginExpiresAt: null, projects: ['OPS'] })
+    const token = fakeEntry({ key: 'github', global: false, agent: COPILOT, status: { ...OPENCODE_STATUS, authMethod: 'api_key' }, apiKey: true, loginExpiresAt: null })
+    const own = { ...global, projects: FAKE_PROJECTS.filter((project) => project !== 'OPS') }
+    const pool = [...SHARED_POOL, { project: 'OPS', provider: COPILOT, account: 'copilot' }]
+    return { ...signedIn, accounts: [own, work, machine, token], pool }
   }
   if (mode === 'vscode-broken') {
     return { ...signedIn, apps: [{ ...vscode, account: null, dir: null, error: notice('vscode.notJson', {}) }] }

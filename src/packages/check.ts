@@ -1,5 +1,6 @@
 import { CLAUDE } from '../claude/name.js'
 import { CODEX } from '../codex/name.js'
+import { COPILOT } from '../copilot/name.js'
 import { OPENCODE } from '../opencode/name.js'
 import type { Notice } from '../notice/notice.js'
 import type { PackageCell, PackageProblem, ProjectPackages } from '../state.js'
@@ -12,8 +13,8 @@ const PROBE_TIMEOUT_MS = 30_000
 
 /** Does not hold the chain. */
 const NOTES = new Set<PackageProblem['kind']>(['unsupported'])
-/** The agents whose sessions get a plugin's skills and hooks, not only its servers. */
-const READS_PLUGINS = new Set([CLAUDE, CODEX])
+/** The agents whose sessions get a plugin's skills and hooks, not only its servers; Copilot takes the plugin's folder as Claude Code does. */
+const READS_PLUGINS = new Set([CLAUDE, CODEX, COPILOT])
 /** The agents whose sessions get a plugin's skills, but not its hooks. */
 const READS_SKILLS = new Set([OPENCODE])
 

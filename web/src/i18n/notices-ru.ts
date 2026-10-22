@@ -171,6 +171,11 @@ export const noticesRu: NoticeTexts = {
   'opencode.unknownSession': (p) => `OpenCode: сессию ${p.session} запускал не Even Keel`,
   'opencode.stillRunning': (p) => `OpenCode: ход ${p.session} убит, но ещё идёт`,
 
+  'copilot.startFailed': (p) => `Copilot: не удалось запустить ${p.task} в ${p.cwd}`,
+  'copilot.resumeFailed': (p) => `Copilot: не удалось продолжить ${p.task} в ${p.cwd}`,
+  'copilot.unknownSession': (p) => `Copilot: сессию ${p.session} запускал не Even Keel`,
+  'copilot.stillRunning': (p) => `Copilot: ход ${p.session} убит, но ещё идёт`,
+
   'account.unknown': (p) => `аккаунта ${p.key} нет`,
   'account.alreadyActive': (p) => `${p.key} уже активен`,
   'account.removing': (p) => `${p.account} удаляется — сначала отмените удаление`,
@@ -194,6 +199,10 @@ export const noticesRu: NoticeTexts = {
   'account.codexKeyInvalid': () => 'API-ключ OpenAI — одно слово длиннее 20 символов, вроде sk-proj-…',
   'account.codexKeyRejected': () => 'OpenAI не принимает этот ключ: он неверный, отозван или проект отключён',
   'account.codexKeyUnchecked': (p) => `не удалось проверить ключ у OpenAI (${p.reason}) — попробуйте позже`,
+  'account.copilotTokenInvalid': () =>
+    'Copilot CLI принимает мелкозернистый личный токен (github_pat_…) с правом Copilot Requests или OAuth-токен (gho_…); классический ghp_ он не берёт',
+  'account.copilotTokenRejected': () => 'GitHub не принимает этот токен: он неверный, истёк или отозван',
+  'account.copilotTokenUnchecked': (p) => `не удалось проверить токен у GitHub (${p.reason}) — попробуйте позже`,
   'account.chainRunning': (p) => `цепочка ${p.project} работает — остановите её перед сменой аккаунта`,
   'account.sessionsBusy': (p) => `сессии посреди хода (${list(p.sessions)}) — смените аккаунт, когда они закончат`,
   'account.homeGone': (p) => `папки аккаунта ${p.key} больше нет`,
@@ -209,6 +218,8 @@ export const noticesRu: NoticeTexts = {
   'login.codexMissing': () => 'Codex CLI не найден: установите его — npm install -g @openai/codex — или укажите путь в EVEN_KEEL_CODEX_BIN',
   'login.claudeMissing': () => 'Claude Code CLI не найден: установите его или укажите путь в EVEN_KEEL_CLAUDE_BIN',
   'login.opencodeMissing': () => 'OpenCode CLI не найден: установите его — npm install -g opencode-ai — или укажите путь в EVEN_KEEL_OPENCODE_BIN',
+  'login.copilotMissing': () =>
+    'Copilot CLI не найден: установите его — winget install GitHub.Copilot (или npm install -g @github/copilot) — или укажите путь в EVEN_KEEL_COPILOT_BIN',
   'login.method': (p) => `способа входа «${p.method}» нет, есть: ${list(p.known)}`,
   'login.exited': (p) => `вход завершился с кодом ${p.code}`,
   'login.setupFailed': (p) => `вход выполнен, но папку ${p.dir} не удалось подготовить`,

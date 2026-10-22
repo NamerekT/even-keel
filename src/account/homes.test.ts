@@ -2,7 +2,7 @@ import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync }
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
-import { AccountHomes, assertApiKey } from './homes.js'
+import { AccountHomes, assertApiKey, keyProvider } from './homes.js'
 
 const env = {
   PATH: '/bin',
@@ -192,5 +192,49 @@ describe('AccountHomes OpenCode accounts', () => {
     } finally {
       rmSync(root, { recursive: true, force: true })
     }
+  })
+})
+
+describe('AccountHomes Copilot accounts', () => {
+  const token = 'github_pat_11AAAAAAA0fake0example'
+
+  it('lists them after OpenCode and places a folder without a token under the Copilot root', () => {
+    const root = mkdtempSync(join(tmpdir(), 'even-keel-homes-'))
+    const copilotRoot = join(root, 'copilot')
+    try {
+      for (const name of ['work', 'github', '.pending-1']) mkdirSync(join(copilotRoot, name), { recursive: true })
+      const homes = new AccountHomes(
+        { ...env, CLAUDE_CONFIG_DIR: join(root, 'no-claude'), CODEX_HOME: join(root, 'no-codex') },
+        join(root, 'claude'),
+        join(root, 'codex'),
+        join(root, 'opencode'),
+        copilotRoot,
+      )
+      mkdirSync(join(root, 'opencode', 'work'), { recursive: true })
+      expect(homes.list().map((home) => `${home.agent}:${home.key}`)).toEqual(['opencode:work', 'copilot:github'])
+      const home = homes.place(homes.pending(new Date('2026-10-22T10:00:00Z'), 'copilot'), 'copilot')
+      expect(home).toMatchObject({ key: 'copilot', dir: join(copilotRoot, 'copilot'), agent: 'copilot' })
+      expect(homes.share(home)).toBe(false)
+    } finally {
+      rmSync(root, { recursive: true, force: true })
+    }
+  })
+
+  it('keeps a GitHub token in the folder as its key', () => {
+    const root = mkdtempSync(join(tmpdir(), 'even-keel-homes-'))
+    try {
+      const homes = new AccountHomes(env, join(root, 'claude'), join(root, 'codex'), join(root, 'opencode'), join(root, 'copilot'))
+      const home = homes.addApiKey('', ` ${token}\n`, 'copilot')
+      expect(home).toEqual({ key: 'github', dir: join(root, 'copilot', 'github'), global: false, agent: 'copilot' })
+      expect(homes.apiKeyOf(home)).toBe(token)
+    } finally {
+      rmSync(root, { recursive: true, force: true })
+    }
+  })
+
+  it('refuses a classic token, which the CLI does not take', () => {
+    expect(() => assertApiKey('ghp_0000000000fake0example0000', 'copilot')).toThrow(expect.objectContaining({ notice: expect.objectContaining({ code: 'account.copilotTokenInvalid' }) }))
+    expect(assertApiKey(`${token} `, 'copilot')).toBe(token)
+    expect(keyProvider('copilot', token)).toBe('github')
   })
 })

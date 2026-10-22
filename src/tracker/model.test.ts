@@ -14,7 +14,7 @@ const raw = (id: string, fields: Partial<TrackerTask> = {}): TrackerTask => {
 
 describe('toTask', () => {
   it('reads run labels: a provider whatever its case, the model after the bar as written, spaces around it trimmed', () => {
-    const tasks = [['Claude | opus'], [' CODEX '], ['codex|gpt-6.1-sol', 'Bug'], ['Claude | Sonnet 4']].map((labels, index) =>
+    const tasks = [['Claude | opus'], [' CODEX '], ['codex|gpt-6.1-sol', 'Bug'], ['Claude | Sonnet 4'], ['Copilot | gpt-6-luna']].map((labels, index) =>
       toTask(raw(`ABC-${index + 1}`, { labels })),
     )
     expect(tasks.map((task) => task.runLabels)).toEqual([
@@ -22,6 +22,7 @@ describe('toTask', () => {
       [{ provider: 'codex', model: null }],
       [{ provider: 'codex', model: 'gpt-6.1-sol' }],
       [{ provider: 'claude', model: 'Sonnet 4' }],
+      [{ provider: 'copilot', model: 'gpt-6-luna' }],
     ])
   })
 

@@ -3,10 +3,10 @@ import { readFile, stat } from 'node:fs/promises'
 import { createServer } from 'node:http'
 import { join } from 'node:path'
 import { Readable } from 'node:stream'
-import { checkCredit, checkOpenAiCredit } from './account/credit.js'
+import { checkCredit, checkOpenAiCredit, type CreditVerdict } from './account/credit.js'
 import { DaemonRefresh } from './account/daemon.js'
-import { AccountHomes, accountsRoot, codexAccountsRoot, keyProvider, openCodeAccountsRoot, type AccountHome } from './account/homes.js'
-import { checkApiKey, checkOpenAiKey } from './account/keycheck.js'
+import { AccountHomes, accountsRoot, codexAccountsRoot, copilotAccountsRoot, keyProvider, openCodeAccountsRoot, type AccountHome } from './account/homes.js'
+import { checkApiKey, checkGitHubToken, checkOpenAiKey } from './account/keycheck.js'
 import { accountAt, forgetAccount, loadLedger, markRemoving, nameAccount, noteAccount, saveLedger, type AccountLedger } from './account/ledger.js'
 import { accountId, launchBlock, liveSessions, loginBlock, type LoginBlock } from './account/model.js'
 import { answers, providerUrl, Reachability } from './account/network.js'
@@ -123,6 +123,13 @@ const FORWARD_TICK_MS = 60_000
 const KEY_CHECK_MS = 60 * 60_000
 const KEY_CHECK_TIMEOUT_MS = 15_000
 const CREDIT_CHECK_MS = 5 * 60_000
+/** The key and credit checks by whose key it is (`keyProvider`); GitHub has no way to ask about a token's AI credits. */
+const KEY_CHECKS = { anthropic: checkApiKey, openai: checkOpenAiKey, github: checkGitHubToken }
+const CREDIT_CHECKS = {
+  anthropic: checkCredit,
+  openai: checkOpenAiCredit,
+  github: async (): Promise<CreditVerdict> => ({ state: 'unknown', reason: 'GitHub does not tell the AI credits of a token' }),
+}
 const APP_POLL_MS = 5_000
 const LOGIN_TIMEOUT_MS = 10 * 60_000
 const LIMIT_CHECK_MS = 30_000
@@ -561,9 +568,9 @@ const account = new AccountWatcher({
   configPending: (key) => daemons.pending(key),
   limits: (key) => limits.limits(key),
   usage: (key) => limits.usage(key),
-  checkKey: (agent, key) => (keyProvider(agent, key) === 'openai' ? checkOpenAiKey : checkApiKey)(key, KEY_CHECK_TIMEOUT_MS),
+  checkKey: (agent, key) => KEY_CHECKS[keyProvider(agent, key)](key, KEY_CHECK_TIMEOUT_MS),
   keyCheckMs: KEY_CHECK_MS,
-  checkCredit: (agent, key) => (keyProvider(agent, key) === 'openai' ? checkOpenAiCredit : checkCredit)(key, KEY_CHECK_TIMEOUT_MS),
+  checkCredit: (agent, key) => CREDIT_CHECKS[keyProvider(agent, key)](key, KEY_CHECK_TIMEOUT_MS),
   creditCheckMs: CREDIT_CHECK_MS,
   intervalMs: ACCOUNT_POLL_MS,
   loginTimeoutMs: LOGIN_TIMEOUT_MS,
@@ -1590,7 +1597,7 @@ async function envChanged(changed: string[]): Promise<void> {
   console.log(`env: ${changed.join(', ')} changed in .env`)
   const targets = envTargets(changed)
   if (targets.accounts) {
-    homes.setRoots(accountsRoot(process.env), codexAccountsRoot(process.env), openCodeAccountsRoot(process.env))
+    homes.setRoots(accountsRoot(process.env), codexAccountsRoot(process.env), openCodeAccountsRoot(process.env), copilotAccountsRoot(process.env))
     account.refresh()
     limits.refresh()
     void owners.scan()

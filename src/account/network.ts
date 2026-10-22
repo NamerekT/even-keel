@@ -1,13 +1,16 @@
 import { CODEX } from '../codex/name.js'
+import { COPILOT } from '../copilot/name.js'
 import { OPENCODE } from '../opencode/name.js'
 
 const CLAUDE_API = 'https://api.anthropic.com'
 const OPENAI_API = 'https://api.openai.com'
 const OPENCODE_API = 'https://opencode.ai'
+const GITHUB_API = 'https://api.github.com'
 
 /** The API the agent's sign-in renews its tokens against: account calls wait until it answers (EKR-15). */
 export function providerUrl(agent: string): string {
   if (agent === OPENCODE) return OPENCODE_API
+  if (agent === COPILOT) return GITHUB_API
   return agent === CODEX ? OPENAI_API : CLAUDE_API
 }
 

@@ -4,6 +4,7 @@ import type { AccountView } from '../../../src/account/model.js'
 import { CLAUDE } from '../../../src/claude/name.js'
 import { NO_SIGN_IN, SIGN_INS } from '../../../src/agent/providers.js'
 import { CODEX } from '../../../src/codex/name.js'
+import { COPILOT } from '../../../src/copilot/name.js'
 import { OPENCODE } from '../../../src/opencode/name.js'
 import type { EvenKeelState } from '../../../src/state.js'
 import { addStep, canAdd, cliMissing, CONNECTIONS, deviceLogin, PROVIDERS, type Connection, type Provider } from '../accounts.js'
@@ -50,7 +51,7 @@ export function AccountAddPage({ state }: { state: EvenKeelState }) {
           items={CONNECTIONS.map((each) => ({
             id: each,
             title: t.account.connections[each],
-            hint: canAdd(provider, each) ? t.account.connectionHints[each] : each === 'sdk' ? t.account.sdkStub : t.account.soon,
+            hint: canAdd(provider, each) ? (provider === 'copilot' ? t.account.copilotConnectionHints : t.account.connectionHints)[each] : each === 'sdk' ? t.account.sdkStub : t.account.soon,
             ready: canAdd(provider, each),
             to: `${ADD}?provider=${provider}&connection=${each}`,
           }))}
@@ -74,7 +75,7 @@ interface Choice {
   tag?: string
 }
 
-const MISSING = { claude: 'login.claudeMissing', codex: 'login.codexMissing', opencode: 'login.opencodeMissing' } as const
+const MISSING = { claude: 'login.claudeMissing', codex: 'login.codexMissing', opencode: 'login.opencodeMissing', copilot: 'login.copilotMissing' } as const
 
 /** A provider whose CLI the service does not find is off, its hint saying where to get the CLI. */
 function providerChoice(account: AccountView, provider: Provider): Choice {
@@ -118,11 +119,17 @@ interface SignInProps {
   onCancel: () => void
 }
 
-const KEY_HINTS: Record<Provider, string> = { claude: t.account.keyHint, codex: t.account.codexKeyHint, opencode: t.account.opencodeKeyHint }
+const KEY_HINTS: Record<Provider, string> = {
+  claude: t.account.keyHint,
+  codex: t.account.codexKeyHint,
+  opencode: t.account.opencodeKeyHint,
+  copilot: t.account.copilotKeyHint,
+}
 
 function SignIn({ account, provider, connection, onDone, onCancel }: SignInProps) {
   if (connection === 'apiKey') return <ApiKeyFields agent={provider} hint={KEY_HINTS[provider]} onDone={onDone} onCancel={onCancel} />
   if (provider === 'opencode') return <OpenCodeSignIn account={account} onDone={onDone} />
+  if (provider === 'copilot') return <CopilotSignIn onDone={onDone} />
   if (provider === 'codex') {
     return (
       <>
@@ -191,6 +198,29 @@ function OpenCodeSignIn({ account, onDone }: { account: AccountView; onDone: () 
         ))}
       </div>
       <p className="queue__hint">{t.account.opencodeClaude}</p>
+      {failure !== null && <p className="notice notice--error">{say(failure)}</p>}
+    </>
+  )
+}
+
+/**
+ * A Copilot folder without a token runs on the CLI's own sign-in of the machine, which Even Keel does not drive: the
+ * folder is added at once. Another GitHub account comes as a token (`apiKey`).
+ */
+function CopilotSignIn({ onDone }: { onDone: () => void }) {
+  const { send, sending, failure } = useCommand()
+  const add = async () => {
+    if (await send('account/add', { agent: COPILOT, method: NO_SIGN_IN })) onDone()
+  }
+  return (
+    <>
+      <p className="queue__hint">{t.account.copilotHint}</p>
+      <div className="account__actions">
+        <button type="button" className="button button--primary" disabled={sending} onClick={() => void add()}>
+          {t.account.copilotAdd}
+        </button>
+      </div>
+      <p className="queue__hint">{t.account.copilotFree}</p>
       {failure !== null && <p className="notice notice--error">{say(failure)}</p>}
     </>
   )

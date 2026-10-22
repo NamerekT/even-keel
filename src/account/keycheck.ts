@@ -1,5 +1,6 @@
 const MODELS_URL = 'https://api.anthropic.com/v1/models?limit=1'
 const OPENAI_MODELS_URL = 'https://api.openai.com/v1/models'
+const GITHUB_USER_URL = 'https://api.github.com/user'
 const API_VERSION = '2023-06-01'
 
 export type KeyVerdict = { state: 'ok' } | { state: 'rejected' } | { state: 'unknown'; reason: string }
@@ -12,6 +13,14 @@ export function checkApiKey(key: string, timeoutMs: number, fetchImpl: typeof fe
 /** The same question to OpenAI for a Codex key (BTN-177). */
 export function checkOpenAiKey(key: string, timeoutMs: number, fetchImpl: typeof fetch = fetch): Promise<KeyVerdict> {
   return askModels(OPENAI_MODELS_URL, { authorization: `Bearer ${key}` }, timeoutMs, fetchImpl)
+}
+
+/**
+ * Whether GitHub takes a Copilot account's token (BTN-215): `/user` answers any valid token for free. Whether it may make
+ * Copilot requests is not asked — only a session shows that.
+ */
+export function checkGitHubToken(key: string, timeoutMs: number, fetchImpl: typeof fetch = fetch): Promise<KeyVerdict> {
+  return askModels(GITHUB_USER_URL, { authorization: `Bearer ${key}`, accept: 'application/vnd.github+json', 'user-agent': 'even-keel' }, timeoutMs, fetchImpl)
 }
 
 async function askModels(url: string, headers: Record<string, string>, timeoutMs: number, fetchImpl: typeof fetch): Promise<KeyVerdict> {
