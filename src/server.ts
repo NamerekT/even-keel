@@ -217,6 +217,8 @@ export interface ServerDeps {
   transcriptImage: (sessionId: string, tool: string, index: number) => Promise<TaskFile | undefined>
   /** A file the user sent the session, by its name; `undefined` — the transcript names no such file or it is gone. */
   inboxFile: (sessionId: string, name: string) => Promise<TaskFile | undefined>
+  /** File `index` the session sent the user by call `tool` (`SendUserFile`); `undefined` — no such file, outside its folders, or gone. */
+  sharedFile: (sessionId: string, tool: string, index: number) => Promise<TaskFile | undefined>
   /** For the checkpoint hook; `undefined` for a session the chain did not start. */
   checkpoint: (sessionId: string) => Promise<SessionCheckpoint | undefined>
   /** For the checkpoint mark hook: the turn wrote the handoff note near its end (`noteAtEnd`); `undefined` as above. */
@@ -440,12 +442,16 @@ async function route(deps: ServerDeps, request: IncomingMessage, response: Serve
     return
   }
 
-  const sessionFile = /^\/api\/sessions\/([^/]+)\/(?:images\/([^/]+)\/(\d+)|files\/([^/]+))$/.exec(path)
+  const sessionFile = /^\/api\/sessions\/([^/]+)\/(?:(images|shared)\/([^/]+)\/(\d+)|files\/([^/]+))$/.exec(path)
   if (request.method === 'GET' && sessionFile !== null) {
-    const [, id, tool, index, name] = sessionFile.map((part) => (part === undefined ? undefined : decodeURIComponent(part)))
+    const [, id, kind, tool, index, name] = sessionFile.map((part) => (part === undefined ? undefined : decodeURIComponent(part)))
     let found: TaskFile | undefined
     try {
-      found = await (tool === undefined ? deps.inboxFile(id!, name!) : deps.transcriptImage(id!, tool, Number(index)))
+      found = await (tool === undefined
+        ? deps.inboxFile(id!, name!)
+        : kind === 'shared'
+          ? deps.sharedFile(id!, tool, Number(index))
+          : deps.transcriptImage(id!, tool, Number(index)))
     } catch (error) {
       sendFailure(response, error)
       return

@@ -127,6 +127,42 @@ export function fakeSentFileUrl(name: string): string {
   return picture(800, 600, '#2a78d6', '#1baf7a', name)
 }
 
+const SHARED_AUDIT = [
+  '# Опись ошибок',
+  '',
+  '| Место | Сейчас | Станет |',
+  '| --- | --- | --- |',
+  '| `config.unknownProject` | путь конфига | название проекта и кнопка |',
+  '| `ci.noToken` | имя переменной | «Добавьте токен» и переход к ключам |',
+  '',
+  '## Сценарии',
+  '',
+  ...Array.from({ length: 20 }, (_, index) => `${index + 1}. Сценарий проверки номер ${index + 1}: открыть страницу, вызвать ошибку, прочитать текст.`),
+].join('\n')
+
+/** A share of the session: a markdown audit, a screenshot, an archive, and a file its cleaned-up worktree took with it. */
+export function fakeShare(at: (minutes: number) => string): FeedLine[] {
+  const files = ['audit.md', 'chain-dark.png', 'logs.zip', 'plan.md'].map((name) => `${ROOT}\\.temp\\${name}`)
+  return [
+    {
+      at: at(8),
+      kind: 'tool',
+      text: 'SendUserFile Опись ошибок и 20 сценариев',
+      tool: 'toolu_fake_share',
+      name: 'SendUserFile',
+      share: { caption: 'Опись ошибок и 20 сценариев — до правок', files, folder: ROOT },
+    },
+    { at: at(8), kind: 'text', text: 'Опись и 20 сценариев (файл audit.md выше) — что делаем?' },
+  ]
+}
+
+export function fakeSharedUrl(tool: string, index: number): string {
+  if (index === 0) return `data:text/markdown;charset=utf-8,${encodeURIComponent(SHARED_AUDIT)}`
+  if (index === 1) return SHOTS.toolu_fake_dark!
+  if (index === 2) return `data:application/zip;base64,UEsFBgAAAAAAAAAAAAAAAAAAAAAAAA==`
+  return `http://127.0.0.1:9/${tool}/${index}`
+}
+
 /** The tool line of the question the session waits on, at the end of the transcript; an unsaved one has none. */
 export function fakeOpenAsk(open: Ask | null): FeedLine[] {
   return open === null || open.unsaved ? [] : [{ at: new Date().toISOString(), kind: 'tool', text: `AskUserQuestion ${open.questions[0]!.question}`, ask: open }]

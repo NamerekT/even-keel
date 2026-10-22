@@ -1409,6 +1409,12 @@ export const ru = {
       title: 'Чат',
       picture: 'Картинка',
       openPicture: (name: string) => `Открыть ${name}`,
+      share: {
+        title: 'Файлы от сессии',
+        download: (name: string) => `Скачать ${name}`,
+        gone: 'файла уже нет',
+        goneTip: 'Файла уже нет — его worktree убран — или он лежит вне папок сессии',
+      },
       waiting: 'Сессия ждёт ответа — открыть чат',
       idle: 'Открыть чат с сессией',
       placeholder: 'Ответ сессии… Ctrl+Enter — отправить',

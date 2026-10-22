@@ -1,0 +1,64 @@
+.share {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  min-width: 0;
+  padding: 8px 12px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+
+.share__caption {
+  font-weight: 600;
+}
+
+.share__files {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.share__doc {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  width: 100%;
+  min-width: 0;
+}
+
+.share__file {
+  color: var(--fg);
+  text-decoration: none;
+}
+
+.share__file:hover {
+  text-decoration: underline;
+}
+
+.share__gone {
+  color: var(--fg-muted);
+}
+
+.share__body {
+  width: 100%;
+  min-width: 0;
+  padding-top: 6px;
+  border-top: 1px solid var(--border);
+}
+
+.share__body--folded {
+  max-height: 320px;
+  overflow: hidden;
+  mask-image: linear-gradient(to bottom, #000 75%, transparent);
+}
+
+.share .thumb {
+  width: 96px;
+  height: 64px;
+}

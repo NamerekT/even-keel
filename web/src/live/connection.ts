@@ -40,6 +40,8 @@ export interface LiveSource {
   imageUrl(sessionId: string, tool: string, index: number): string
   /** The address of a picture the user sent the session, by its file name. */
   sentFileUrl(sessionId: string, name: string): string
+  /** The address of file `index` the session sent the user by call `tool` (`SendUserFile`). */
+  sharedUrl(sessionId: string, tool: string, index: number): string
   tools(project: string): Promise<ToolsView | null>
   card(task: string): Promise<TaskCard | null>
   /** The statuses and labels the project's tracker names, by the project's id; `null` — it names none. */
@@ -151,6 +153,10 @@ export class LiveConnection implements LiveSource {
 
   sentFileUrl(sessionId: string, name: string): string {
     return `/api/sessions/${encodeURIComponent(sessionId)}/files/${encodeURIComponent(name)}`
+  }
+
+  sharedUrl(sessionId: string, tool: string, index: number): string {
+    return `/api/sessions/${encodeURIComponent(sessionId)}/shared/${encodeURIComponent(tool)}/${index}`
   }
 
   tools(project: string): Promise<ToolsView | null> {

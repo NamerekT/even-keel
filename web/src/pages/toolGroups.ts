@@ -109,5 +109,5 @@ export function editTotals(lines: FeedLine[]): EditTotal | null {
 }
 
 function isCall(line: FeedLine): boolean {
-  return line.kind === 'tool' && line.ask === undefined
+  return line.kind === 'tool' && line.ask === undefined && line.share === undefined
 }

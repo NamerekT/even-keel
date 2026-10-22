@@ -36,6 +36,12 @@ describe('feedEntries', () => {
     expect(entries.map((entry) => entry.kind)).toEqual(['tools', 'line', 'tools'])
   })
 
+  it('lets files the session sent the user break the group', () => {
+    const share: FeedLine = { ...call(0, 'SendUserFile', 'audit'), share: { caption: 'Audit', files: ['a.md'], folder: 'C:\\repo' } }
+    const entries = feedEntries([call(0, 'Read', 'a'), share, call(0, 'Read', 'b')])
+    expect(entries.map((entry) => entry.kind)).toEqual(['tools', 'line', 'tools'])
+  })
+
   it('puts a time mark between events more than five minutes apart', () => {
     const entries = feedEntries([text(0), call(1, 'Read', 'a'), call(9, 'Read', 'b'), text(14), text(20)])
     expect(entries.map((entry) => (entry.kind === 'gap' ? `gap ${entry.at}` : entry.kind))).toEqual([

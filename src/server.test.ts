@@ -119,6 +119,12 @@ describe('Even Keel HTTP server', () => {
       },
       inboxFile: async (id, name) =>
         id === '0a1b2c3d' && name === 'order 1.png' ? { type: 'image/png', size: 4, body: Readable.from([Buffer.from('PNG!')]) } : undefined,
+      sharedFile: async (id, tool, index) => {
+        if (id === 'bad') throw new Error('sessions: bad is not a session id')
+        return id === '0a1b2c3d' && tool === 'toolu_2' && index === 0
+          ? { type: 'text/markdown; charset=utf-8', size: 7, body: Readable.from([Buffer.from('# Audit')]) }
+          : undefined
+      },
       checkpoint: async (id) =>
         id === '0a1b2c3d' ? { project: 'ABC', task: 'ABC-1', handoffs: 2, first: 193_000, source: 'calibrated', late: 212_000, hard: 237_000 } : undefined,
       mergeCheck: (id) => (id === 'chain-session' ? { commands: ['npm test'], branch: 'master' } : undefined),
@@ -755,6 +761,16 @@ describe('Even Keel HTTP server', () => {
     expect(file.status).toBe(200)
     expect(await file.text()).toBe('PNG!')
     expect((await fetch(base + '/api/sessions/0a1b2c3d/files/other.png')).status).toBe(404)
+  })
+
+  it('serves a file the session sent the user, by its call', async () => {
+    const shared = await fetch(base + '/api/sessions/0a1b2c3d/shared/toolu_2/0')
+    expect(shared.status).toBe(200)
+    expect(shared.headers.get('content-type')).toBe('text/markdown; charset=utf-8')
+    expect(await shared.text()).toBe('# Audit')
+    expect((await fetch(base + '/api/sessions/0a1b2c3d/shared/toolu_2/1')).status).toBe(404)
+    expect((await fetch(base + '/api/sessions/0a1b2c3d/shared/toolu_1/0')).status).toBe(404)
+    expect((await fetch(base + '/api/sessions/bad/shared/toolu_2/0')).status).toBe(400)
   })
 
   it('serves the Tally history, a period and a task', async () => {

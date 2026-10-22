@@ -87,6 +87,7 @@ import { Secrets } from './secrets/service.js'
 import { createEvenKeelServer, type ChainControl } from './server.js'
 import { replyPrompt, type Reply } from './sessions/ask.js'
 import { inboxImage, saveInbox, type InboxFile } from './sessions/inbox.js'
+import { sharedFile } from './sessions/shareFile.js'
 import type { SessionMail } from './sessions/mail.js'
 import { Mailbox } from './sessions/mailbox.js'
 import { mailFor, settleMail, type MailRelay } from './sessions/mailRelay.js'
@@ -1586,6 +1587,14 @@ let server = createEvenKeelServer({
     const found = inboxImage(feed?.lines.flatMap((line) => line.files ?? []) ?? [], name)
     if (found === undefined) return undefined
     const size = await stat(found.path).then((info) => info.size, () => null)
+    return size === null ? undefined : { type: found.type, size, body: createReadStream(found.path) }
+  },
+  sharedFile: async (sessionId, tool, index) => {
+    const feed = await inHomes((home) => agentOf(home).feed(home, sessionId, 0))
+    const share = feed?.lines.find((line) => line.tool === tool && line.share !== undefined)?.share
+    const found = share === undefined ? undefined : sharedFile(share, index)
+    if (found === undefined) return undefined
+    const size = await stat(found.path).then((info) => (info.isFile() ? info.size : null), () => null)
     return size === null ? undefined : { type: found.type, size, body: createReadStream(found.path) }
   },
   checkpoint: async (sessionId) => {

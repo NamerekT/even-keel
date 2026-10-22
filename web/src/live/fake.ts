@@ -21,7 +21,7 @@ import { fakeCompare, fakeRuleDiff, fakeRules } from './fakeRules.js'
 import { fakeSteps } from './fakeSteps.js'
 import { fakeCheckpoints, fakeHistory, fakePeriod, fakeSpend, fakeTask } from './fakeStats.js'
 import { fakeCard } from './fakeCards.js'
-import { fakeCalls, fakeDeliverMail, fakeImageUrl, fakeMailbox, fakeOpenAsk, fakePastAsk, fakeSentFileUrl, fakeShots, FAKE_UNSAVED_ASK } from './fakeChat.js'
+import { fakeCalls, fakeDeliverMail, fakeImageUrl, fakeMailbox, fakeOpenAsk, fakePastAsk, fakeSentFileUrl, fakeShare, fakeSharedUrl, fakeShots, FAKE_UNSAVED_ASK } from './fakeChat.js'
 import type { Ask } from '../../../src/sessions/ask.js'
 import { fakeTools } from './fakeTools.js'
 import { fakePackages } from './fakePackages.js'
@@ -60,6 +60,7 @@ function fakeTranscript(open: Ask | null): FeedLine[] {
     ...fakeShots(at),
     { at: at(20), kind: 'prompt', text: 'А почему цикл не ловится раньше?' },
     ...fakeCalls(at),
+    ...fakeShare(at),
     ...fakeFeed(),
     ...fakeOpenAsk(open),
   ]
@@ -598,6 +599,7 @@ export function createFakeSource(search: string): LiveSource {
     onTranscript: () => () => {},
     imageUrl: (_sessionId, tool, index) => fakeImageUrl(tool, index),
     sentFileUrl: (_sessionId, name) => fakeSentFileUrl(name),
+    sharedUrl: (_sessionId, tool, index) => fakeSharedUrl(tool, index),
     tools: async (project) => {
       await answer()
       return current.state?.projects.includes(project) ? fakeTools(project, current.state.trimTools, params.get('tools')) : null

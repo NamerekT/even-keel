@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { mailMessage } from './mail.js'
+import { shareOf } from './share.js'
 import { noChangesOf, TranscriptFold } from './transcript.js'
 
 const CWD = 'C:\\repos\\example-project'
@@ -307,6 +308,17 @@ describe('TranscriptFold', () => {
       { name: 'Bash', subject: undefined, added: undefined, removed: undefined },
     ])
     expect(fold(lines).summary().feed.every((line) => line.name === undefined && line.added === undefined)).toBe(true)
+  })
+
+  it('marks a SendUserFile call with its caption and files, in a whole transcript only', () => {
+    const input = { files: ['.temp/audit.md'], caption: 'The audit', display: 'render' }
+    const lines = [assistant('m1', [tool('SendUserFile', input)])]
+    const whole = new TranscriptFold(Infinity, true)
+    for (const line of lines) whole.push(line)
+
+    expect(whole.summary().feed[0]!.share).toEqual(shareOf(input, CWD))
+    expect(whole.summary().feed[0]!.share?.caption).toBe('The audit')
+    expect(fold(lines).summary().feed[0]!.share).toBeUndefined()
   })
 
   it('adds a failed line after a tool result that is an error, in a whole transcript only', () => {
