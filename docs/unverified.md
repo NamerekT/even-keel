@@ -164,7 +164,7 @@ Responses in fast mode are recorded (`speed = fast`), but none have appeared in 
 
 ### A task closed by `NO CHANGES:` (EKR-10)
 
-A task with nothing to merge is closed by its session's last line `NO CHANGES: <why>` out of PR mode (`docs/chain.md`, "Nothing to merge"). The reading of the mark, the check of the worktree and the move to Done are covered by tests, not run with a live session and tracker: whether a session writes the mark on its own when the task turns out done already, and whether the comment lands in each tracker. If a session ends such a task without the mark, the chain waits on it as before. **Workaround:** move the task to Done in the tracker yourself, or answer the session in the chat to end its turn with the mark.
+A task with nothing to merge is closed by its session's last line `NO CHANGES: <why>` out of PR mode (`docs/chain.md`, "Nothing to merge"). Seen live on Huly (2026-10-22, Windows Sandbox): a Codex session on a task it could not do (it asks for `AskUserQuestion`, which Codex lacks) left the branch on `main` and ended its turn with the mark on its own, and the service checked the worktree and moved the task to Done. Not seen: a session writing the mark when the task turns out done already, and the comment on GitHub and Linear. If a session ends such a task without the mark, the chain waits on it as before. **Workaround:** move the task to Done in the tracker yourself, or answer the session in the chat to end its turn with the mark.
 
 ### A resume that starts a copy
 
@@ -432,7 +432,7 @@ The git side is checked on real clones of one remote (`docs/chain.md`, "Projects
 
 ### Carrying a release project forward (BTN-172)
 
-The carry of a release branch into the main project's branch (`mergeInto`, `docs/chain.md`) is covered by tests with git's answers, never run on the service against real clones: the fetch from the release clone's folder, the merge commit made under the service's account (session 0 on Windows: it needs a git name and email, as the changelog commit does), the abort of a conflict and the push. If the merge fails for want of an identity, the carry is held like a conflict and the page shows git's message; if the push fails, the page says so. **Workaround:** carry by hand in the main checkout while its chain stands — `git sync`, `git merge --no-edit origin/<release branch>`, `git sync` — and the carry clears by itself once the branch has the commits.
+The carry of a release branch into the main project's branch (`mergeInto`, `docs/chain.md`) is covered by tests with git's answers. Seen on the author's Windows service (2026-10-22): the fetch from the release clone's folder and a conflict, aborted and held with its file on the page until the merge by hand, after which the hold cleared. Not seen: a carry that goes through — the merge commit made under the service's account (session 0 on Windows: it needs a git name and email, as the changelog commit does), the abort of a conflict and the push. If the merge fails for want of an identity, the carry is held like a conflict and the page shows git's message; if the push fails, the page says so. **Workaround:** carry by hand in the main checkout while its chain stands — `git sync`, `git merge --no-edit origin/<release branch>`, `git sync` — and the carry clears by itself once the branch has the commits.
 
 ### GitHub issues taken into the tracker (BTN-262)
 
