@@ -1377,6 +1377,7 @@ export const en: Messages = {
       sent: 'The reply is sent — the session goes on with it.',
       working: 'You can send once the session stops. A message mid-turn needs the checkpoint@even-keel package in the project (Tools) and reaches the session from its next tool call.',
       mailbox: 'The session is working: the message reaches it mid-turn, at its next tool call or at the end of the turn.',
+      steers: 'The session is working: the message goes straight in, and it reads it once its current tool call ends.',
       mail: {
         waiting: 'Waits for the hook',
         delivered: (at: string, event: string) => `Delivered ${at} · ${event}`,

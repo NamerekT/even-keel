@@ -133,14 +133,16 @@ export function fakeOpenAsk(open: Ask | null): FeedLine[] {
 }
 
 /**
- * `session/answer`: the waiting session takes the reply and goes back to work; a working one whose hooks listen gets
- * the message into its mailbox, for `fakeDeliverMail` to hand over a few seconds later.
+ * `session/answer`: the waiting session takes the reply and goes back to work; a working one that steers takes the
+ * message as it is, and one whose hooks listen gets it into its mailbox, for `fakeDeliverMail` to hand over a few
+ * seconds later.
  */
 export function fakeAnswer(state: EvenKeelState, body: Record<string, unknown>): EvenKeelState {
   const task = String(body.task)
   const view = state.sessions.find((each) => each.task === task && each.sessionId === body.sessionId)
   if (view === undefined || (view.ask?.id ?? null) !== body.ask) throw fail('answer.moved', { task })
   const box = state.mailbox[view.sessionId]
+  if (view.lamp === 'working' && box?.steers === true && body.ask === null) return state
   if (view.lamp === 'working' && box?.listens === true && body.ask === null) {
     const mail = fakeMail(task, view.sessionId, Date.now(), String(body.text), 'waiting')
     return { ...state, mailbox: { ...state.mailbox, [view.sessionId]: { ...box, mail: [...box.mail, mail] } } }
@@ -170,6 +172,7 @@ export function fakeMailbox(task: string, sessionId: string, now: number): Sessi
   const minutes = (count: number) => now - count * 60_000
   return {
     listens: true,
+    steers: false,
     mail: [
       { ...fakeMail(task, sessionId, minutes(1), 'Не трогай миграции, только чтение.', 'delivered'), event: 'PostToolUse', settledAt: new Date(now).toISOString() },
       fakeMail(task, sessionId, minutes(3), 'И проверь тёмную тему на узком экране — карточки там переносятся в две строки.', 'returned'),

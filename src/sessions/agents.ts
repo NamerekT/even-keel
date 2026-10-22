@@ -26,6 +26,8 @@ export interface AgentEntry {
   resting?: boolean
   /** Since when (ms) the turn whose process lives on has written nothing: taken for hung, the session is idle (OpenCode). */
   hungSince?: number
+  /** A message goes into the live session mid-turn by `Agent.reply`, and it takes it in that turn: no mailbox needed (an SDK session). */
+  steers?: boolean
   /** The `--model` a live session was started with, by its job file: `opus[1m]` where the transcript says only `claude-opus-5-5`. */
   model?: string
 }

@@ -78,10 +78,14 @@ interface Props {
   onClose: () => void
 }
 
-/** A reply sent from this window, shown until the transcript has a prompt or an answer after the line it was sent at. */
+/**
+ * A reply sent from this window, shown until the transcript has a prompt or an answer after the line it was sent at;
+ * `steered` — it went straight into the working session, which is not respawned with it.
+ */
 interface SentLine {
   line: FeedLine
   after: number
+  steered: boolean
 }
 
 /** The whole transcript of a session: prompts, texts uncut, tool calls with their shell commands; with `chat`, a reply box under it. */
@@ -277,7 +281,7 @@ export function TranscriptWindow({ sessionId, account, live, chat, onClose }: Pr
                   working: true,
                   turn,
                   lastReplyAt: lines?.findLast(isReply)?.at ?? null,
-                  answers: [chat.answeredAt, sent.at(-1)?.line.at ?? null].filter((at) => at !== null),
+                  answers: [chat.answeredAt, sent.findLast((each) => !each.steered)?.line.at ?? null].filter((at) => at !== null),
                   delivering: chat.delivering,
                 }}
               />
@@ -290,9 +294,9 @@ export function TranscriptWindow({ sessionId, account, live, chat, onClose }: Pr
               aside={chat.aside}
               mail={chat.mail}
               handle={composerRef}
-              onSent={(line) => {
+              onSent={(line, steered) => {
                 pinned.current = true
-                setSent((now) => [...now, { line, after: lines?.length ?? 0 }])
+                setSent((now) => [...now, { line, after: lines?.length ?? 0, steered }])
               }}
             />
           </div>
