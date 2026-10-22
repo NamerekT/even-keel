@@ -291,7 +291,7 @@ export function createFakeSource(search: string): LiveSource {
   const language = params.get('lang')
   if (isLanguage(language) && current.state !== null) current.state.language = language
   if (params.has('ci') && current.state !== null) current.state.ci = fakeCi(params.get('ci'))
-  if (params.has('update') && current.state !== null) current.state.updates = fakeUpdates(params.get('update'))
+  if (current.state !== null) current.state.updates = fakeUpdates(params)
   if (params.get('cli') === 'unchecked' && current.state !== null) {
     const unchecked = (agent: string, title: string, installed: string, checked: string) => ({
       agent,

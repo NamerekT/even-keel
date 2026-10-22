@@ -1,3 +1,5 @@
+import type { PreviousView, UpdateBlock, UpdateProgress, UpdateResultView } from './model.js'
+
 /** The `updates` key of the config. */
 export interface UpdateSettings {
   /** The service asks GitHub for the latest release; off — it never goes there. */
@@ -10,8 +12,17 @@ export interface UpdateSettings {
 
 export interface Release {
   version: string
+  /** The git tag, `v0.2.0`: what the update checks out. */
+  tag: string
   /** The release's page on GitHub, or the list of releases. */
   url: string
+}
+
+/** A release with its description on GitHub: the release's section of the CHANGELOG. */
+export interface ReleaseNote extends Release {
+  body: string
+  /** What its `### Reverted` section says; `null` — the release reverts nothing. */
+  reverted: string | null
 }
 
 export interface UpdatesView {
@@ -20,6 +31,15 @@ export interface UpdatesView {
   /** A release newer than the installed version; `null` — none, or the check is off. */
   available: Release | null
   toast: boolean
+  /** Every release newer than the installed version, newest first. */
+  notes: ReleaseNote[]
+  /** Why the page offers no "Update"; `null` — it does. */
+  blocked: UpdateBlock | null
+  /** The version an update came from, for "Revert"; `null` — none. */
+  previous: PreviousView | null
+  progress: UpdateProgress | null
+  /** How the last update or revert ended, until the page closes it. */
+  result: UpdateResultView | null
 }
 
 export const DEFAULT_UPDATES: Readonly<UpdateSettings> = Object.freeze({ check: true, notify: true, dismissed: null })
@@ -60,14 +80,43 @@ function compareIdentifiers(a: string, b: string): number {
   return a < b ? -1 : a > b ? 1 : 0
 }
 
-/** The answer of `GET /repos/{repo}/releases/latest`; `null` for a draft, a prerelease or a tag that is not a version. */
-export function releaseOf(answer: unknown, repo: string): Release | null {
+/** One release of `GET /repos/{repo}/releases`; `null` for a draft, a prerelease or a tag that is not a version. */
+export function releaseOf(answer: unknown, repo: string): ReleaseNote | null {
   if (typeof answer !== 'object' || answer === null) return null
-  const { tag_name: tag, html_url: url, draft, prerelease } = answer as Record<string, unknown>
+  const { tag_name: tag, html_url: url, draft, prerelease, body } = answer as Record<string, unknown>
   if (draft === true || prerelease === true || typeof tag !== 'string') return null
   const version = versionOf(tag)
   if (version === null || version.pre.length > 0) return null
-  return { version: version.core.join('.'), url: typeof url === 'string' && url !== '' ? url : `https://github.com/${repo}/releases` }
+  const notes = typeof body === 'string' ? body.replace(/\r\n/g, '\n').trim() : ''
+  return {
+    version: version.core.join('.'),
+    tag,
+    url: typeof url === 'string' && url !== '' ? url : `https://github.com/${repo}/releases`,
+    body: notes,
+    reverted: revertedOf(notes),
+  }
+}
+
+/** The answer of `GET /repos/{repo}/releases`: its published releases, newest first. */
+export function releasesOf(answer: unknown, repo: string): ReleaseNote[] {
+  if (!Array.isArray(answer)) return []
+  const releases = answer.map((item) => releaseOf(item, repo)).filter((release) => release !== null)
+  return releases.sort((a, b) => compareVersions(b.version, a.version) ?? 0)
+}
+
+/**
+ * The text under a `### Reverted` heading of a release's notes, up to the next heading of the same or a higher level;
+ * `null` — no such heading. A heading with nothing under it still marks the release as a revert.
+ */
+export function revertedOf(notes: string): string | null {
+  const lines = notes.split(/\r?\n/)
+  const start = lines.findIndex((line) => /^###\s+Reverted\s*#*\s*$/i.test(line.trim()))
+  if (start < 0) return null
+  const end = lines.findIndex((line, at) => at > start && /^#{1,3}\s/.test(line.trim()))
+  return lines
+    .slice(start + 1, end < 0 ? undefined : end)
+    .join('\n')
+    .trim()
 }
 
 /** `owner/name` of the `repository` field of `package.json` when it is on GitHub. */
@@ -81,9 +130,15 @@ export function repositoryOf(field: unknown): string | null {
   return match === null ? null : `${match[1]}/${match[2]}`
 }
 
-/** What the page shows: the mark for a newer release, and the toast unless toasts are off or this version's was closed. */
-export function updatesView(current: string, latest: Release | null, settings: UpdateSettings): UpdatesView {
-  const order = latest === null ? null : compareVersions(latest.version, current)
-  const available = settings.check && order !== null && order > 0 ? latest : null
-  return { current, available, toast: available !== null && settings.notify && settings.dismissed !== available.version }
+export type ReleasesView = Pick<UpdatesView, 'current' | 'available' | 'toast' | 'notes'>
+
+/**
+ * What the page shows of the releases (`releases` newest first): the mark for a newer release, the toast unless toasts
+ * are off or this version's was closed, and the notes of every release newer than the installed one.
+ */
+export function updatesView(current: string, releases: readonly ReleaseNote[], settings: UpdateSettings): ReleasesView {
+  const notes = settings.check ? releases.filter((release) => (compareVersions(release.version, current) ?? 0) > 0) : []
+  const latest = notes[0]
+  const available = latest === undefined ? null : { version: latest.version, tag: latest.tag, url: latest.url }
+  return { current, available, toast: available !== null && settings.notify && settings.dismissed !== available.version, notes }
 }

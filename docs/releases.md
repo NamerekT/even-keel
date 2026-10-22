@@ -42,6 +42,8 @@ The release is the user's: no session bumps the version, tags or publishes. A pa
 5. A minor version also gets its branch, `git branch release/v0.2 v0.2.0` and a push of it to both remotes; then `even-keel-github` is switched to it, and so is `EKR`'s `branch`.
 6. A GitHub release from the tag. Drafts and prereleases are not offered to installed copies; a published release is, within 12 h.
 
+**A revert release** takes back what an earlier release broke: a new version (a patch) whose notes have a `### Reverted` section listing what it takes back, which the update window shows as a mark over the release (`revertedOf`, `docs/service.md`, "Updating from the page"). **A revert release never rolls back the storage format**: it keeps the `SCHEMA_VERSION`, the database steps (`STEPS`) and the Tally schema of the release it follows, with their migrations, and reverts only the behaviour. Copies that updated already have their state in the new format, and an older reader on it stops with only the page; the page's "Revert" is refused across a storage change for the same reason.
+
 ## Starting the branches (2026-10-20)
 
 `dev` and `release/v0.1` were branched from `main` before `v0.1.0`, so that 0.2 could start while 0.1 is still being checked: `v0.1.0` is released from `release/v0.1` as any patch is, by step 4 above. `even-keel` went to `dev` and `BTN`'s `branch` with it; `even-keel-github` went to `release/v0.1`; in Even Keel the project `EVK` (GitHub issues of this repository) was removed and `EKR` added on that folder and branch. The `BTN` tasks of `v0.1` still open then (BTN-135, BTN-149, BTN-161, BTN-162, BTN-241) carry `Вручную` and are done by hand in `even-keel-github`; the push of the release to `main` closes them.

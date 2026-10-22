@@ -86,6 +86,9 @@ describe('Even Keel HTTP server', () => {
         remove: record('removeProject'),
         dismissUpdate: record('dismiss'),
         muteUpdates: record('mute'),
+        installUpdate: async () => record('installUpdate')(),
+        revertUpdate: async () => record('revertUpdate')(),
+        closeUpdateResult: record('closeUpdateResult'),
       },
       packages: {
         install: async (name) => record('install')(name),
@@ -344,6 +347,13 @@ describe('Even Keel HTTP server', () => {
     const refused = await fetch(base + '/api/updates/dismiss', { method: 'POST', body: '{}' })
     expect(refused.status).toBe(400)
     expect((await refused.json()).notice).toMatchObject({ code: 'request.required', params: { field: 'version' } })
+  })
+
+  it('passes on the update window: update, revert and closing the result', async () => {
+    for (const command of ['install', 'revert', 'seen']) {
+      expect((await fetch(base + `/api/updates/${command}`, { method: 'POST', body: '{}' })).status).toBe(200)
+    }
+    expect(calls).toEqual(expect.arrayContaining([['installUpdate'], ['revertUpdate'], ['closeUpdateResult']]))
   })
 
   it('refuses settings without the milestone switch', async () => {

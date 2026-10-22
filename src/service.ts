@@ -85,8 +85,10 @@ import { locateWorktree } from './sessions/place.js'
 import type { EvenKeelState, SessionView } from './state.js'
 import { withinWindow } from './stats/checkpoint.js'
 import { StatsReader } from './stats/reader.js'
-import { Writes } from './storage/database.js'
+import { SQLITE_VERSIONS, STEPS as DATABASE_STEPS, Writes } from './storage/database.js'
 import { keptDatabase } from './storage/owner.js'
+import { SCHEMA_VERSION } from './storage/schema.js'
+import { TALLY_SCHEMA_VERSION } from './stats/tally-schema.js'
 import { setStateValue, stateValue } from './storage/service-state.js'
 import { rekeyed } from './storage/projects.js'
 import { checkServer, serverValues } from './stats/connect.js'
@@ -102,6 +104,7 @@ import { startTracker } from './tracker/start.js'
 import { Trackers } from './tracker/trackers.js'
 import { Vocabularies } from './tracker/vocabulary.js'
 import { updatesView } from './updates/release.js'
+import { stateUrlOf, Updater } from './updates/updater.js'
 import { installed, UpdateWatcher } from './updates/watcher.js'
 
 const SESSION_POLL_MS = 3_000
@@ -413,6 +416,17 @@ const updates = new UpdateWatcher({
   current: release.version,
   enabled: () => configStore.current.updates.check,
   intervalMs: UPDATE_POLL_MS,
+  onChange: () => hub.broadcast('state', getState()),
+  log: (line) => console.log(line),
+})
+const releasesView = () => updatesView(release.version, updates.releases, { ...configStore.current.updates, dismissed: dismissedUpdate ?? null })
+const updater = new Updater({
+  root,
+  current: release.version,
+  storage: { schema: SCHEMA_VERSION, database: SQLITE_VERSIONS + DATABASE_STEPS.length, tally: TALLY_SCHEMA_VERSION },
+  startedAt,
+  active: () => dispatcher.state.active,
+  stateUrl: () => stateUrlOf(listen.host, listen.port),
   onChange: () => hub.broadcast('state', getState()),
   log: (line) => console.log(line),
 })
@@ -1170,7 +1184,7 @@ const getState = (): EvenKeelState => ({
   unattended: dispatcher.state.unattended,
   trimTools: dispatcher.state.trimTools,
   tally: tallyMode(),
-  updates: updatesView(release.version, updates.latest, { ...configStore.current.updates, dismissed: dismissedUpdate ?? null }),
+  updates: { ...releasesView(), ...updater.view() },
   cliVersions: [...cliVersions.view(), ...daemons.outdated().map((daemon) => outdatedDaemonView(daemon, AGENTS[daemon.agent]!.title))],
   fallbacks: fallbacksSince(launches, new Date(Date.now() - FALLBACK_TOAST_MS)).map(({ at, task, project, fallback }) => ({
     at,
@@ -1257,6 +1271,9 @@ let server = createEvenKeelServer({
       hub.broadcast('state', getState())
     },
     muteUpdates: () => configStore.saveUpdates({ notify: false }),
+    installUpdate: () => updater.update(releasesView().available),
+    revertUpdate: () => updater.revert(),
+    closeUpdateResult: () => updater.seen(),
   },
   packages,
   secrets: {
@@ -1538,6 +1555,7 @@ monitor.start()
 void owners.scan()
 limits.start()
 updates.start()
+void updater.start().catch((error: unknown) => console.warn(`updates: ${(error as Error).message}`))
 cliVersions.start()
 account.start()
 vscode.start()

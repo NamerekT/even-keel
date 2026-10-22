@@ -1,3 +1,4 @@
+import type { UpdateBlock, UpdateStep } from '../../../src/updates/model.js'
 import { noticesRu } from './notices-ru.js'
 import { plural } from './plural.js'
 
@@ -72,6 +73,61 @@ export const ru = {
     toastBody: (current: string) => `Установлена ${current}. Открыть описание релиза на GitHub.`,
     mute: 'Больше не показывать',
     close: 'Закрыть',
+    open: 'Обновить…',
+    openTitle: 'Список изменений и кнопка обновления',
+    back: (version: string) => `вернуть ${version}`,
+    windowTitle: 'Обновление Even Keel',
+    installed: 'Установлена',
+    latest: 'Последний релиз',
+    upToDate: 'Установлен последний релиз.',
+    changes: 'Что изменится',
+    noNotes: 'У релиза нет описания.',
+    onGithub: 'На GitHub',
+    reverted: 'Релиз-откат',
+    revertedBody: 'Он возвращает то, что изменил один из прежних релизов:',
+    update: (version: string) => `Обновить до ${version}`,
+    updateHint:
+      'Служба дождётся, пока цепочки не будут в запуске, передаче или закрытии задачи, остановится, перейдёт на тег релиза, поставит зависимости, соберётся и запустится снова, а страница перезагрузится сама. Если новая версия не поднимется, вернётся та, что работает сейчас.',
+    blocked: {
+      service: 'Кнопки нет: Even Keel запущен не службой (npm start), и перезапустить его некому. Обновляйтесь вручную, как в README.',
+      git: 'Кнопки нет: папка Even Keel — не git-чекаут. Обновляйтесь вручную, как в README.',
+      dirty: 'Кнопки нет: в чекауте есть незакоммиченные изменения. Закоммитьте или уберите их — или обновляйтесь вручную.',
+      tag: 'Кнопки нет: чекаут не на релизном теге установленной версии — это рабочая копия разработчика или установка, которую собирает CI. Она обновляется так, как настроена.',
+      checking: 'Чекаут ещё читается…',
+    } as Record<UpdateBlock, string>,
+    previous: 'Прежняя версия',
+    revert: (version: string) => `Вернуть ${version}`,
+    revertHint: (version: string) => `Возвращает ${version} — версию, с которой обновились, — тем же способом, что и обновление.`,
+    revertStorage: (version: string) =>
+      `Кнопки нет: эта версия перевела хранилище на новый формат, и ${version} его не прочитает. Вернуться можно только из копий .bak, и всё записанное после обновления пропадёт — порядок в docs/guide/setup.md, раздел «Going back». Лучше дождаться релиза-отката.`,
+    progressSettling: (mode: 'update' | 'revert', version: string, projects: string[]) =>
+      `${mode === 'update' ? 'Обновление до' : 'Возврат на'} ${version}: ждём ${projects.join(', ')}`,
+    progressRunning: (mode: 'update' | 'revert', version: string) => `${mode === 'update' ? 'Обновление до' : 'Возврат на'} ${version}…`,
+    progressBody: 'Служба перезапускается, страница перезагрузится сама.',
+    resultDone: (mode: 'update' | 'revert', version: string) => `${mode === 'update' ? 'Обновлено до' : 'Возвращена'} ${version}`,
+    resultFailed: (mode: 'update' | 'revert', version: string) => `${mode === 'update' ? 'Обновление до' : 'Возврат на'} ${version} не удался`,
+    resultBody: (step: string, rollback: 'none' | 'done' | 'failed', from: string, rollbackStep: string) =>
+      rollback === 'done'
+        ? `Шаг «${step}». Вернулась ${from}.`
+        : rollback === 'failed'
+          ? `Шаг «${step}». Вернуть ${from} тоже не удалось, шаг «${rollbackStep}»: смотрите logs/update.log.`
+          : `Шаг «${step}».`,
+    resultDoneBody: (from: string) => `Прежняя версия — ${from}.`,
+    steps: {
+      settle: 'ожидание цепочек',
+      stop: 'остановка службы',
+      fetch: 'получение тегов',
+      checkout: 'переход на тег релиза',
+      restore: 'возврат прежнего коммита',
+      install: 'установка зависимостей',
+      build: 'сборка',
+      start: 'запуск службы',
+      answer: 'ответ службы',
+      launch: 'запуск процесса обновления',
+    } as Record<UpdateStep, string>,
+    details: 'Подробнее',
+    output: 'Вывод',
+    log: 'Весь журнал — logs/update.log в папке Even Keel.',
   },
   fallback: {
     toastTitle: (task: string) => `${task} запущена без своего ярлыка запуска`,

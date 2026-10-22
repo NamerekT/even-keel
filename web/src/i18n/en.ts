@@ -67,6 +67,61 @@ export const en: Messages = {
     toastBody: (current: string) => `Installed: ${current}. Open the release notes on GitHub.`,
     mute: "Don't show again",
     close: 'Close',
+    open: 'Update…',
+    openTitle: 'What changes, and the update button',
+    back: (version: string) => `back to ${version}`,
+    windowTitle: 'Update Even Keel',
+    installed: 'Installed',
+    latest: 'Latest release',
+    upToDate: 'The latest release is installed.',
+    changes: 'What changes',
+    noNotes: 'The release has no description.',
+    onGithub: 'On GitHub',
+    reverted: 'A revert release',
+    revertedBody: 'It brings back what an earlier release changed:',
+    update: (version: string) => `Update to ${version}`,
+    updateHint:
+      'The service waits until no chain is in a launch, a handover or a closing, stops, checks out the release tag, installs and builds it and starts again; the page reloads by itself. If the new version does not come up, the one running now comes back.',
+    blocked: {
+      service: 'No button: Even Keel does not run as a service here (npm start), so nothing would start it again. Update by hand, as in the README.',
+      git: 'No button: the folder of Even Keel is not a git checkout. Update by hand, as in the README.',
+      dirty: 'No button: the checkout has uncommitted changes. Commit or drop them, or update by hand.',
+      tag: "No button: the checkout is not on the release tag of the installed version — a developer's copy, or one a CI builds. It updates the way it was set up to.",
+      checking: 'Reading the checkout…',
+    },
+    previous: 'Previous version',
+    revert: (version: string) => `Revert to ${version}`,
+    revertHint: (version: string) => `Brings back ${version}, the version this one was updated from, the same way an update goes.`,
+    revertStorage: (version: string) =>
+      `No button: this version moved the storage to a new format, which ${version} cannot read. Going back is only from the .bak copies, and everything written since the update is lost — the steps are in docs/guide/setup.md, "Going back". Better wait for a revert release.`,
+    progressSettling: (mode: 'update' | 'revert', version: string, projects: string[]) =>
+      `${mode === 'update' ? 'Updating to' : 'Reverting to'} ${version}: waiting for ${projects.join(', ')}`,
+    progressRunning: (mode: 'update' | 'revert', version: string) => `${mode === 'update' ? 'Updating to' : 'Reverting to'} ${version}…`,
+    progressBody: 'The service restarts; the page reloads by itself.',
+    resultDone: (mode: 'update' | 'revert', version: string) => `${mode === 'update' ? 'Updated to' : 'Reverted to'} ${version}`,
+    resultFailed: (mode: 'update' | 'revert', version: string) => `The ${mode === 'update' ? 'update' : 'revert'} to ${version} failed`,
+    resultBody: (step: string, rollback: 'none' | 'done' | 'failed', from: string, rollbackStep: string) =>
+      rollback === 'done'
+        ? `At “${step}”. ${from} is back.`
+        : rollback === 'failed'
+          ? `At “${step}”. Bringing ${from} back failed too, at “${rollbackStep}”: see logs/update.log.`
+          : `At “${step}”.`,
+    resultDoneBody: (from: string) => `The previous version is ${from}.`,
+    steps: {
+      settle: 'waiting for the chains',
+      stop: 'stopping the service',
+      fetch: 'fetching the tags',
+      checkout: 'checking out the release',
+      restore: 'checking out the previous commit',
+      install: 'installing dependencies',
+      build: 'building',
+      start: 'starting the service',
+      answer: 'the service answering',
+      launch: 'starting the update process',
+    },
+    details: 'Details',
+    output: 'Output',
+    log: 'The whole log is logs/update.log in the folder of Even Keel.',
   },
   fallback: {
     toastTitle: (task: string) => `${task} ran without its run label`,

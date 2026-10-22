@@ -113,7 +113,21 @@ The service starts with the system and restarts Even Keel if it fails. Stopping 
 
 ## Updating
 
-The gear menu in the header ends with the installed version. Even Keel asks GitHub for its latest release at start and every 12 hours (a request to `api.github.com` without a token; it names only the installed version); a newer one gets a link next to the version and a notification in the corner of the page. Turn the check off on `/settings` → **Interface** or with `"updates": { "check": false }` in the config. To update:
+The gear menu in the header ends with the installed version. Even Keel asks GitHub for its latest release at start and every 12 hours (a request to `api.github.com` without a token; it names only the installed version); a newer one gets a mark next to the version and a notification in the corner of the page. Turn the check off on `/settings` → **Interface** or with `"updates": { "check": false }` in the config.
+
+**From the page.** The mark and the notification open the update window: the installed version, the notes of every newer release, and **Update to <version>**. A release marked as a revert release (its notes have a **Reverted** section) says what of an earlier release it takes back. The update:
+
+1. waits, up to 5 minutes, until no chain is starting a session, handing over or closing a task — a restart in that moment would pause the chain; the page shows which projects it waits for;
+2. stops the service, checks out the release's tag (`git fetch --tags`, `git checkout`), runs `npm ci` and `npm run build`, and starts the service again;
+3. waits up to 2 minutes for the service to answer with the new version and keep running.
+
+If any step fails, including no answer, it checks out the commit it started from, installs and builds it again and starts the service: you are back on the version you had. Either way the page reloads by itself and says how it went; **Details** shows the failed step and its output, and the whole log is `logs/update.log` (the outcome itself is in `logs/update.json`). Running sessions are not touched.
+
+The button is there only when Even Keel runs as a service and its folder is a clean git checkout on the tag of the installed version — a clone that you update with `git pull` on the main branch is one. Otherwise the window says why and you update by hand. A checkout that was on a branch stays on it (moved to the new tag), so a later `git pull` still works.
+
+After an update the window and the gear menu also offer **Revert to <previous version>**, the same process in the other direction, as long as the update did not change the format of the stored state. When it did, the older version cannot read the state any more: the window says so, and going back is the manual way below, losing what was written since. In that case it is better to wait for a revert release, which keeps the new format.
+
+**By hand:**
 
 - **run from a terminal** — stop Even Keel, then `git pull`, `npm ci`, `npm run build` and `npm start`;
 - **as a service** — `git pull`, then run its install script again: it installs the dependencies, builds the page and restarts the service.
@@ -136,7 +150,7 @@ The statistics database is versioned too: the collector brings its schema up to 
 
 ### Going back
 
-Stop Even Keel (as a service — stop the service), check out the previous version's code (`git checkout <commit>`), put the `.bak` copies back in place of the rewritten files, then start it again (as a service — run its install script). Stop it first: a running Even Keel may write over the restored files. What the newer version wrote since the update — launches, the chain's state — goes with the `.bak`. The checkout leaves git on a detached commit, so the next update starts with `git checkout main` before `git pull`.
+After an update from the page that kept the storage format, **Revert** in the update window does all of this. Otherwise, by hand: stop Even Keel (as a service — stop the service), check out the previous version's code (`git checkout <commit>`), put the `.bak` copies back in place of the rewritten files, then start it again (as a service — run its install script). Stop it first: a running Even Keel may write over the restored files. What the newer version wrote since the update — launches, the chain's state — goes with the `.bak`. The checkout leaves git on a detached commit, so the next update starts with `git checkout main` before `git pull`.
 
 To go back to a version from before the database, stop Even Keel, run `npm run storage -- export <empty folder>` and put the files it writes into `state/`, and `npm run storage -- config-export even-keel.config.json` for its config, before starting the old version.
 

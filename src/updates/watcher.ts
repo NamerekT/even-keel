@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { releaseOf, repositoryOf, type Release } from './release.js'
+import { releasesOf, repositoryOf, type ReleaseNote } from './release.js'
 
 /** The installed version and the GitHub repository of the checkout, from its `package.json`. */
 export function installed(root: string): { version: string; repo: string | null } {
@@ -21,13 +21,16 @@ export interface UpdateWatcherOptions {
 }
 
 const TIMEOUT_MS = 15_000
+/** The releases asked for: the update window shows the notes of every one newer than the installed version. */
+const PAGE = 30
 
 /**
- * Asks GitHub for the latest release at the start and once per interval, without a token: 60 requests an hour per
+ * Asks GitHub for the releases at the start and once per interval, without a token: 60 requests an hour per
  * address. A failure is one line in the log and keeps what was known; with the check off it asks nothing at all.
  */
 export class UpdateWatcher {
-  latest: Release | null = null
+  /** Published releases, newest first. */
+  releases: ReleaseNote[] = []
   private checkedAt: number | undefined
   private running = false
 
@@ -46,7 +49,7 @@ export class UpdateWatcher {
   configChanged(): void {
     if (this.options.repo === null) return
     if (!this.options.enabled()) {
-      this.set(null)
+      this.set([])
       return
     }
     if (this.checkedAt === undefined || Date.now() - this.checkedAt >= this.options.intervalMs) void this.tick()
@@ -58,8 +61,8 @@ export class UpdateWatcher {
     this.running = true
     this.checkedAt = Date.now()
     try {
-      const release = await this.ask(repo)
-      if (enabled()) this.set(release)
+      const releases = await this.ask(repo)
+      if (enabled()) this.set(releases)
     } catch (error) {
       this.options.log(`updates: could not check the releases of ${repo} on GitHub: ${error instanceof Error ? error.message : String(error)}`)
     } finally {
@@ -67,22 +70,25 @@ export class UpdateWatcher {
     }
   }
 
-  private async ask(repo: string): Promise<Release | null> {
+  private async ask(repo: string): Promise<ReleaseNote[]> {
     const { fetchImpl = fetch, current } = this.options
-    const response = await fetchImpl(`https://api.github.com/repos/${repo}/releases/latest`, {
+    const response = await fetchImpl(`https://api.github.com/repos/${repo}/releases?per_page=${PAGE}`, {
       headers: { accept: 'application/vnd.github+json', 'user-agent': `even-keel/${current}` },
       signal: AbortSignal.timeout(TIMEOUT_MS),
     })
     if (response.status === 404) throw new Error('404, no published release or the repository is private')
     if (response.status === 403 || response.status === 429) throw new Error(`${response.status}, the hourly limit of requests without a token is spent`)
     if (!response.ok) throw new Error(`HTTP ${response.status}`)
-    return releaseOf(await response.json(), repo)
+    return releasesOf(await response.json(), repo)
   }
 
-  private set(release: Release | null): void {
-    if (JSON.stringify(release) === JSON.stringify(this.latest)) return
-    this.latest = release
-    if (release !== null) this.options.log(`updates: the latest release on GitHub is ${release.version}, installed ${this.options.current}`)
+  private set(releases: ReleaseNote[]): void {
+    if (JSON.stringify(releases) === JSON.stringify(this.releases)) return
+    const latest = releases[0]
+    if (latest !== undefined && latest.version !== this.releases[0]?.version) {
+      this.options.log(`updates: the latest release on GitHub is ${latest.version}, installed ${this.options.current}`)
+    }
+    this.releases = releases
     this.options.onChange()
   }
 }

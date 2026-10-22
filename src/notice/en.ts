@@ -1,4 +1,5 @@
 import type { CiKind } from '../ci/model.js'
+import type { UpdateBlock } from '../updates/model.js'
 
 export const FORGES: Record<CiKind, string> = { github: 'GitHub', forgejo: 'Forgejo' }
 
@@ -17,6 +18,15 @@ const GIT_STEPS: Record<GitStep, (subject: string) => string> = {
   addSlot: () => 'add the slot to',
   clean: () => 'clean',
   switch: (branch) => `switch to ${branch} in`,
+}
+
+const UPDATE_BLOCKS: Record<UpdateBlock | 'storage', string> = {
+  service: 'Even Keel does not run as a service here, so nothing could restart it',
+  git: 'the folder of Even Keel is not a git checkout',
+  dirty: 'the checkout has uncommitted changes',
+  tag: 'the checkout is not on the release tag of the installed version',
+  checking: 'the checkout is still being read; try again in a moment',
+  storage: 'the previous version cannot read the storage this one migrated',
 }
 
 // The English texts of the server's messages: the log and the English page both read them.
@@ -372,6 +382,10 @@ export const en = {
   'config.allowedHosts': () => 'config: allowedHosts must be a list of host names',
   'config.updatesKey': (p: { key: string; known: string[] }) => `config: updates.${p.key} is not an update setting, known: ${list(p.known)}`,
   'config.updatesDismissed': (p: { value: string }) => `config: updates.dismissed must be a version such as 0.2.0, or null, got ${p.value}`,
+  'updates.running': () => 'updates: an update is already under way',
+  'updates.none': () => 'updates: there is no newer release to update to',
+  'updates.noPrevious': () => 'updates: there is no previous version to go back to',
+  'updates.blocked': (p: { reason: UpdateBlock | 'storage' }) => `updates: ${UPDATE_BLOCKS[p.reason]}`,
   'config.token': (p: { host: string }) =>
     `config: host ${p.host} is reachable from the network, so the page needs a token: set EVEN_KEEL_TOKEN in .env ` +
     `(16+ characters, e.g. the output of: node -e "console.log(crypto.randomBytes(24).toString('hex'))") and restart, ` +
