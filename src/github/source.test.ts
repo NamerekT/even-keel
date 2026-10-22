@@ -134,6 +134,14 @@ describe('github source', () => {
     expect(calls).toHaveLength(2)
   })
 
+  it('names the issue of a task by its repository and number, without asking GitHub', async () => {
+    const { source, calls } = await connect([])
+    expect(source.closingRef!('ABC-7')).toBe('octo-org/abc#7')
+    expect(source.closingRef!('XYZ-7')).toBeNull()
+    expect(source.closingRef!('ABC')).toBeNull()
+    expect(calls).toHaveLength(1)
+  })
+
   it('posts a comment on the issue and gives its id', async () => {
     const { source, calls } = await connect([
       { body: { data: { repository: { issue: { id: 'I_kwDOexample7', state: 'OPEN' } } } } },

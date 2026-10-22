@@ -20,6 +20,8 @@ export interface ReviewWiring {
   /** The token for the remote's forge (`ciToken`); `null` — no profile has one. */
   token: (project: string, target: CiTarget) => string | null
   complete: (project: string, task: string) => Promise<void>
+  /** The task's GitHub issue, `owner/repo#N` (`TaskSource.closingRef`); `null` — the task is not in GitHub issues. */
+  closingRef?: (project: string, task: string) => Promise<string | null>
   /** Where a token the forge refused to open a pull request with is told, for the profile's card (EKR-9). */
   refusals?: PullRefusals
   now: () => Date
@@ -52,14 +54,16 @@ export function reviewDeps(wiring: ReviewWiring): ReviewDeps {
 
   return {
     on: wiring.on,
-    open: async (project, _task, session) => {
+    open: async (project, task, session) => {
       const ready = pullReadiness(project, await remotesIn(git, wiring.repo(project)), (target) => wiring.token(project, target))
       if ('notice' in ready) throw new NoticeError(ready.notice)
       const { target } = ready
       const forge = forgeOf(target, ready.token)
+      const issue = target.kind === 'github' ? await wiring.closingRef?.(project, task) : null
+      const closes = issue == null ? undefined : { issue, repo: `${target.owner}/${target.repo}` }
       let opened: Awaited<ReturnType<typeof openPull>>
       try {
-        opened = await openPull(git, session.workdir, session.pullRequest ?? '', target.remote, forge, wiring.main(project), wiring.now)
+        opened = await openPull(git, session.workdir, session.pullRequest ?? '', target.remote, forge, wiring.main(project), wiring.now, closes)
       } catch (error) {
         if (noticeOf(error).code === 'review.denied') wiring.refusals?.note(project, target, ready.token)
         throw error

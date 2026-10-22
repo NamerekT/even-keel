@@ -1094,6 +1094,9 @@ const dispatcher = new Dispatcher(await loadChainState(db), {
     complete: async (project, task) => {
       await linkFor(project, task)?.run(async (tracker) => tracker.complete?.(task))
     },
+    // The issue is named only to show the link on GitHub: a tracker that does not answer leaves the body as it is.
+    closingRef: async (project, task) =>
+      (await linkFor(project, task)?.run(async (tracker) => tracker.closingRef?.(task) ?? null).catch(() => null)) ?? null,
     refusals: pullRefusals,
     now: () => new Date(),
     timeoutMs: CI_TIMEOUT_MS,

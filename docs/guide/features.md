@@ -141,7 +141,7 @@ A project with no CI, or whose CI does not answer, can name its own check comman
 
 ## Pull requests (experimental)
 
-With `pullRequests` on, a session does not merge its branch: Even Keel pushes it, opens a pull request on GitHub or Forgejo and takes the next task; review feedback and failed checks go back to the task's session. Use it at your own risk: only opening, closing and merging on GitHub ran live. In full — the `projects[].pullRequests` row of the [reference](reference.md#configuration).
+With `pullRequests` on, a session does not merge its branch: Even Keel pushes it, opens a pull request on GitHub or Forgejo and takes the next task; review feedback and failed checks go back to the task's session. When the tasks are GitHub issues and the pull request is on GitHub, Even Keel ends its body with `Closes owner/repo#N`, so the issue shows the pull request and GitHub closes it at the merge. Use it at your own risk: only opening, closing and merging on GitHub ran live. In full — the `projects[].pullRequests` row of the [reference](reference.md#configuration).
 
 ## Status
 
