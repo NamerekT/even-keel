@@ -18,7 +18,7 @@ Reference for sessions: the `/stats` page, its server and rule changes. The coll
 - While the service process is alive, a manual `npm run tally` refuses with the embedded database, and `tally/bin/sql.mjs` reads it through the service's port. The database survives a hard kill of the process (which is how the Windows service stops it).
 - `server` is an external Postgres from `TALLY_DB_HOST`, `TALLY_DB_PORT`, `TALLY_DB_NAME`, `TALLY_READER_PASSWORD` (and `TALLY_WRITER_PASSWORD` for the collector), and Even Keel reads it with the `tally_reader` role. The variables alone no longer pick it: the mode does.
 - `server` with a variable missing — the page and the strip say stats are off and name the variables; the database does not answer or the embedded one failed to open — they show an error, and the rest of Even Keel works.
-- The session audit (and the weekly one) is the global skill `session-audit`, its queries are `tally/bin/sql.mjs`, read-only, the `audit_*` views (`tally/CLAUDE.md`).
+- The session audit (and the weekly one, and the review of handoffs) is the skill `tally:session-audit` of the plugin `plugins/tally` (BTN-263), its queries go through the plugin's launcher to `tally/bin/sql.mjs`, read-only, over the `audit_*` views (`tally/CLAUDE.md`, "Session audit").
 
 ## The `/stats` page (BTN-44, BTN-49, `web/src/stats/`)
 
