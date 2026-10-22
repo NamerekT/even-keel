@@ -15,9 +15,10 @@ const onDev = { 'symbolic-ref --quiet --short HEAD': { out: 'dev\n' } }
 /** An answer given as a list is used up in order, the last one repeating. */
 function setup(answers: Record<string, Partial<GitResult> | Partial<GitResult>[]> = {}, options: { quiet?: boolean; push?: Notice | null } = {}) {
   const calls: string[] = []
-  const state = { quiet: options.quiet ?? true, pairs: [{ from: 'EKR', into: 'BTN' }] as ForwardPair[], changes: 0, syncs: 0 }
+  const state = { quiet: options.quiet ?? true, pairs: [{ from: 'EKR', into: 'BTN' }] as ForwardPair[], changes: 0, syncs: 0, same: true as boolean | undefined }
   const merger = new ForwardMerger({
     pairs: () => state.pairs,
+    sameRepository: () => state.same,
     repo: (project) => (project === 'BTN' ? dev : release),
     branch: (project) => (project === 'BTN' ? 'dev' : 'release/v0.1'),
     label: (project) => `${project} (release)`,
@@ -138,6 +139,17 @@ describe('ForwardMerger', () => {
     state.pairs = []
     await merger.tick()
     expect(merger.view()).toEqual({})
+  })
+
+  it('fetches nothing from a checkout of another repository, and waits for the remotes to be read', async () => {
+    const { merger, calls, state } = setup({ [count]: { out: '3\n' }, ...onDev })
+    state.same = false
+    await merger.carry('EKR')
+    expect(calls).toEqual([])
+    expect(merger.view().EKR?.hold).toEqual(notice('forward.foreign', { from: 'EKR', into: 'BTN' }))
+    state.same = undefined
+    await merger.tick()
+    expect(calls).toEqual([])
   })
 
   it('refuses carry now for a project that merges into none', async () => {

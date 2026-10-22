@@ -237,7 +237,7 @@ export function keyElsewhere(
  * The project `mergeInto` names: by its id, or by its key where no other project but the one merging has it — a release
  * project often shares its key with the project it merges into. Anything else stays as written for `checkShared`.
  */
-function mergeTargetOf(records: ProjectRecord[], self: string, into: string | null): string | null {
+export function mergeTargetOf(records: readonly Pick<ProjectRecord, 'id' | 'key'>[], self: string, into: string | null): string | null {
   if (into === null || records.some((record) => record.id === into)) return into
   const found = records.filter((record) => record.key === into && record.id !== self)
   return found.length === 1 ? found[0]!.id : into

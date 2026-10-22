@@ -72,12 +72,27 @@ export function remotePeers(view: Readonly<Record<string, RemoteRef[]>>, branchO
     .map(([other]) => other)
 }
 
+/** What makes a checkout one repository with another (BTN-285): the repositories of its remotes and its own folder. */
+export function repositoryIds(refs: readonly RemoteRef[], repo: string, platform: NodeJS.Platform = process.platform): string[] {
+  return [...refs.map((ref) => ref.id), pathKey(repo, platform)]
+}
+
+/**
+ * Whether two checkouts are of one repository, by their `repositoryIds`: a remote in common, or a remote of one at the
+ * other's folder (a clone of a local checkout). Unrelated histories would only fetch every object and refuse to merge.
+ */
+export function sameRepository(a: readonly string[], b: readonly string[]): boolean {
+  return a.some((id) => b.includes(id))
+}
+
 /** The remotes of each project's checkout, read again when the config changes and on the CI's interval. */
 export class ProjectRemotes {
   /** For the page. */
   view: Record<string, RemoteRef[]> = {}
   /** By name and address, for PR mode's check before a launch (EKR-12); a project not read yet is missing. */
   urls: Record<string, Remote[]> = {}
+  /** The `repositoryIds` of each project; a project not read yet is missing. */
+  repositories: Record<string, string[]> = {}
 
   constructor(private readonly git: Git) {}
 
@@ -88,9 +103,11 @@ export class ProjectRemotes {
     )
     const urls = Object.fromEntries(entries.map(([key, , remotes]) => [key, remotes]))
     const view = Object.fromEntries(entries.map(([key, repo, remotes]) => [key, refsOf(remotes, repo)]))
-    if (JSON.stringify([view, urls]) === JSON.stringify([this.view, this.urls])) return false
+    const repositories = Object.fromEntries(entries.map(([key, repo]) => [key, repositoryIds(view[key]!, repo)]))
+    if (JSON.stringify([view, urls, repositories]) === JSON.stringify([this.view, this.urls, this.repositories])) return false
     this.view = view
     this.urls = urls
+    this.repositories = repositories
     return true
   }
 }

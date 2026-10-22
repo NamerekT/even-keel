@@ -345,8 +345,12 @@ export function SettingsPanel({
   const sharedShares = sharesText(shared.stats.checkpointShares)
   const shownKinds = on('ownKinds') ? kinds : shared.ci.kinds
   const choices = remoteChoices(state?.profiles.profiles ?? [], state?.remotes[project] ?? [])
-  // A release project merges into a main one, never into another release project.
-  const mainProjects = Object.entries(config.projects).flatMap(([key, each]) => (key !== project && each.mergeInto === null ? [key] : []))
+  // A release project merges into a main one of its own repository, never into another release project. Until the
+  // remotes are read, every main project is offered: the save checks it.
+  const kin = state?.sameRepository[project]
+  const mainProjects = Object.entries(config.projects).flatMap(([key, each]) =>
+    key !== project && each.mergeInto === null && (kin === undefined || kin.includes(key)) ? [key] : [],
+  )
   // One profile on offer is no choice: the field shows only while there are two, or a choice was made.
   const remoteChoice = (kind: CiKind) => {
     const key = remoteKey(kind)
