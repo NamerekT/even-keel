@@ -8,7 +8,8 @@ export interface LaunchDay {
   counts: Record<string, number>
 }
 
-export function launchDays(entries: LaunchEntry[], now: Date, days: number): LaunchDay[] {
+/** `known` — whether a project is in the config; a removed one has no label, so it is counted by the prefix of its tasks. */
+export function launchDays(entries: LaunchEntry[], now: Date, days: number, known: (project: string) => boolean = () => true): LaunchDay[] {
   const result: LaunchDay[] = []
   for (let back = days - 1; back >= 0; back--) {
     result.push({ day: localDay(new Date(now.getFullYear(), now.getMonth(), now.getDate() - back)), counts: {} })
@@ -19,7 +20,9 @@ export function launchDays(entries: LaunchEntry[], now: Date, days: number): Lau
     const at = new Date(entry.at)
     if (Number.isNaN(at.getTime())) continue
     const counts = byDay.get(localDay(at))
-    if (counts !== undefined) counts[entry.project] = (counts[entry.project] ?? 0) + 1
+    if (counts === undefined) continue
+    const project = known(entry.project) ? entry.project : entry.task.replace(/-[^-]*$/, '')
+    counts[project] = (counts[project] ?? 0) + 1
   }
   return result
 }

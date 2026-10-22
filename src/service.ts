@@ -1384,7 +1384,7 @@ const getState = (): EvenKeelState => ({
       return [project, 'notice' in ready ? ready.notice : null]
     }),
   ),
-  launches: launchDays(launches, new Date(), LAUNCH_CHART_DAYS),
+  launches: launchDays(launches, new Date(), LAUNCH_CHART_DAYS, (project) => configStore.current.keys[project] !== undefined),
   taskSessions: taskSessions(launches, sessions, sessionAccount),
   fixes: fixEpisodes(launches).episodes,
   context: configStore.current.context,

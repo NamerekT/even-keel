@@ -1,10 +1,13 @@
 import type { AccountDrift, ToolScope, ToolsView } from '../../../src/tools/model.js'
 import { t } from '../i18n/index.js'
+import { useLive } from '../live/context.js'
+import { projectLabel } from '../state.js'
 import { PROBLEM_KINDS, sharedProblems, type SharedProblem } from './matrix.js'
 import { Chip, valueText } from './SettingsMatrix.js'
 
 /** A problem without project keys is in every chosen project. */
 export function Problems({ views, accounts }: { views: ToolsView[]; accounts: AccountDrift[] }) {
+  const { state } = useLive()
   const found = sharedProblems(views)
   if (found.length === 0 && accounts.length === 0) return <p className="tools__ok">{t.tools.problemsNone}</p>
 
@@ -22,7 +25,9 @@ export function Problems({ views, accounts }: { views: ToolsView[]; accounts: Ac
               {problems.map((problem) => (
                 <Chip key={`${problem.row?.kind ?? ''}:${problem.name}`} tone="lost" title={titleOf(problem)}>
                   {problem.name}
-                  {problem.projects.length < views.length && <span className="tools__where">{problem.projects.join(', ')}</span>}
+                  {problem.projects.length < views.length && (
+                    <span className="tools__where">{problem.projects.map((project) => projectLabel(state, project)).join(', ')}</span>
+                  )}
                 </Chip>
               ))}
             </div>

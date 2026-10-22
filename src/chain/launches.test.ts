@@ -52,6 +52,16 @@ describe('launchDays', () => {
     const entries = [{ at: 'garbage', project: 'ABC', task: 'ABC-1', sessionId: 's' }]
     expect(launchDays(entries, now, 1)).toEqual([{ day: '2026-01-10', counts: {} }])
   })
+
+  it('counts a removed project under the prefix of its tasks, not its id', () => {
+    const at = new Date(2026, 0, 10, 9, 0).toISOString()
+    const entries: LaunchEntry[] = [
+      { at, project: 'f00d-1', task: 'ABC-1', sessionId: 's' },
+      { at, project: 'dead-2', task: 'OLD-7', sessionId: 's' },
+      { at, project: 'dead-2', task: 'OLD-FIX', sessionId: 'f' },
+    ]
+    expect(launchDays(entries, now, 1, (project) => project === 'f00d-1')).toEqual([{ day: '2026-01-10', counts: { 'f00d-1': 1, OLD: 2 } }])
+  })
 })
 
 const entry = (at: string, task: string, sessionId: string, extra: Partial<LaunchEntry> = {}): LaunchEntry => ({
