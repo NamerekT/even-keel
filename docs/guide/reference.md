@@ -51,7 +51,7 @@ To edit them as a file, `npm run storage -- config-export <new file>` writes the
 | `projects[].branch` | `main` | the project's main branch: tasks branch off it and merge into it, the CI and the check judge it. A branch missing from the repository pauses the chain |
 | `projects[].tracker`, `.brief`, `.chain` | the shared ones | per project; a project's `chain` key replaces the shared key whole; `null` for `active` or `terminal` goes back to the status categories over a shared list |
 | `projects[].github` | — | `owner/name` of the repository, for a project on GitHub |
-| `projects[].linear` | the whole team | name of the Linear project the team is narrowed down to, for a project on Linear (the key is the team key) |
+| `projects[].linear` | the whole team | name of the Linear project the team is narrowed down to, for a project on Linear (the key is the team key, so one team is one Even Keel project for now: a team per repository) |
 | `projects[].slot` | off | `true` or a number: a pool of permanent worktrees instead of one per task |
 | `projects[].color` | the first free one | 1–8: the project's colour on the home cards, the queue, the launch chart and `/stats`; a new project gets the first one no other project has |
 | `projects[].prompt` | none | text added to the prompt of every new session of the project (first start and handoff; a resumed session already has it); empty — none |

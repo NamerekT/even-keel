@@ -22,7 +22,7 @@ Even Keel strips `LINEAR_TOKEN` from the environment of the sessions it starts, 
 }
 ```
 
-Without `linear` the chain takes the open issues of the whole team. `"tracker": "linear"` at the top level makes it the tracker of every project. One team is one Even Keel project: two repositories of the same team, told apart by Linear projects, cannot both run yet.
+Without `linear` the chain takes the open issues of the whole team. `"tracker": "linear"` at the top level makes it the tracker of every project. One team is one Even Keel project: two repositories of the same team, told apart by Linear projects, cannot both run yet — give each repository a team of its own.
 
 How Linear maps onto the chain:
 

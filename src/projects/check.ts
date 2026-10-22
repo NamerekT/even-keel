@@ -36,13 +36,15 @@ export async function checkDraft(deps: CheckDeps, draft: ProjectDraft): Promise<
   const adapter = deps.adapters[draft.tracker]
   const repo = await checkRepo(deps.git, draft, raw, platform, adapter)
   const branch = draft.branch.trim() || repo.current || DEFAULT_BRANCH
-  let entry: Notice | null = null
+  let entry: Notice | null = keyNotice(raw, draft.key.trim(), adapter)
   let rules: ChainRules | undefined
-  try {
-    const config = parseConfig(withNewProject(raw, { ...draft, repo: repo.root ?? draft.repo, branch }, ENTRY_ID, deps.adapters), deps.adapters)
-    rules = config.rules[draft.key.trim()]!
-  } catch (error) {
-    entry = noticeOf(error)
+  if (entry === null) {
+    try {
+      const config = parseConfig(withNewProject(raw, { ...draft, repo: repo.root ?? draft.repo, branch }, ENTRY_ID, deps.adapters), deps.adapters)
+      rules = config.rules[draft.key.trim()]!
+    } catch (error) {
+      entry = noticeOf(error)
+    }
   }
   const tracker =
     entry === null && rules !== undefined && adapter !== undefined && repo.root !== null && repo.notice === null
@@ -96,6 +98,19 @@ async function suggestedOf(git: Git, root: string, adapter: TrackerAdapter | und
     if (place !== undefined) return place
   }
   return null
+}
+
+/**
+ * A key another project has, said by that project's name rather than its place in the config. On a tracker whose key
+ * is its own (a Linear team) it is the limit of this version: one team, one project.
+ */
+function keyNotice(raw: unknown, key: string, adapter: TrackerAdapter | undefined): Notice | null {
+  const projects = isPlainObject(raw) && Array.isArray(raw.projects) ? (raw.projects as unknown[]) : []
+  const found = projects.find((entry) => isPlainObject(entry) && entry.key === key)
+  if (!isPlainObject(found)) return null
+  const project = typeof found.name === 'string' && found.name.trim() !== '' ? found.name.trim() : key
+  if (adapter?.projectKey?.optional === true) return notice('wizard.teamTaken', { tracker: adapter.title, team: key, project })
+  return notice('wizard.keyTaken', { key, project })
 }
 
 function projectOfRepo(raw: unknown, root: string, platform: NodeJS.Platform): string | undefined {
