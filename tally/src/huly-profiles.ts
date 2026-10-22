@@ -4,10 +4,16 @@ import type { HulyProfiles } from '../../src/stats/tally.js'
 /** The credentials that reach a task's Huly project; `undefined` — none. */
 export type HulyOf = (task: string) => HulyCredentials | undefined
 
-/** A task takes the profile of its project (the key before the last dash), else the default Huly profile (BTN-200). */
+/**
+ * A task takes the profile of its project (the key before the last dash), else the default Huly profile (BTN-200);
+ * a task of another tracker's project or feed takes none (BTN-66).
+ */
 export function hulyOfProfiles(profiles: HulyProfiles): HulyOf {
+  const elsewhere = new Set(profiles.elsewhere)
   return (task) => {
-    const values = profiles.projects[task.slice(0, task.lastIndexOf('-'))] ?? profiles.fallback
+    const prefix = task.slice(0, task.lastIndexOf('-'))
+    if (elsewhere.has(prefix) && profiles.projects[prefix] === undefined) return undefined
+    const values = profiles.projects[prefix] ?? profiles.fallback
     if (values === null) return undefined
     try {
       return readHulyCredentials(values)

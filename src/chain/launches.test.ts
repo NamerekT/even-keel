@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { LaunchEntry } from './dispatcher.js'
-import { fallbacksSince, fixEpisodes, handoffsOf, launchDays, launchedProjects, ranSince, taskSessions } from './launches.js'
+import { fallbacksSince, fixEpisodes, handoffsOf, launchDays, launchedProjects, ranSince, taskSessions, taskSources } from './launches.js'
 
 function launch(at: Date, project: string): LaunchEntry {
   return { at: at.toISOString(), project, task: `${project}-1`, sessionId: 's' }
@@ -276,6 +276,23 @@ describe('launchedProjects', () => {
   it("names the reader of each task: a feed's tasks lock the feed, not the project (BTN-66)", () => {
     const readerOf = (project: string, task: string) => (task.startsWith('ABCGH-') ? 'feed' : project)
     expect(launchedProjects([entry('ABC', 'ABCGH-1'), entry('XYZ', 'XYZ-3')], readerOf)).toEqual(['feed', 'XYZ'])
+  })
+})
+
+describe('taskSources', () => {
+  const entry = (task: string, fields: Partial<LaunchEntry> = {}): LaunchEntry => ({ at: '2026-01-10T01:00:00Z', project: 'ABC', task, sessionId: task, ...fields })
+
+  it('takes each field from the latest launch that recorded it, and skips tasks no launch recorded a source of', () => {
+    const sources = taskSources([
+      entry('ABC-1', { profile: 'p1', url: 'https://example.com/old', title: 'Old title' }),
+      entry('ABC-2'),
+      entry('ABC-1', { url: 'https://example.com/new', title: 'New title' }),
+    ])
+    expect(sources).toEqual([{ task: 'ABC-1', profile: 'p1', url: 'https://example.com/new', title: 'New title' }])
+  })
+
+  it('ignores releases and the outcomes of a fix', () => {
+    expect(taskSources([entry('ABC-1', { reason: 'skip', title: 'Skipped' }), entry('ABC-FIX', { reason: 'landed', url: 'https://example.com' })])).toEqual([])
   })
 })
 

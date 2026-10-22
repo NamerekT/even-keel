@@ -8,7 +8,7 @@ import { tallyVersion, type Queryable } from '../../src/stats/tally-schema.js'
 // before versions has no schema_version and gets schema.sql again (it is idempotent) to become version 1.
 // A step is never edited or removed once merged: a schema change is a new step.
 
-export const STEPS: readonly string[] = ['./schema.sql', './migrations/2-false-rule-deletions.sql', './migrations/3-gpt-family.sql', './migrations/4-compactions.sql', './migrations/5-milestones.sql'].map((file) => readFileSync(new URL(file, import.meta.url), 'utf8'))
+export const STEPS: readonly string[] = ['./schema.sql', './migrations/2-false-rule-deletions.sql', './migrations/3-gpt-family.sql', './migrations/4-compactions.sql', './migrations/5-milestones.sql', './migrations/6-task-sources.sql'].map((file) => readFileSync(new URL(file, import.meta.url), 'utf8'))
 
 const VERSION_TABLE = `
 create table if not exists schema_version (

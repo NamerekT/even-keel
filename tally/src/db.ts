@@ -1,4 +1,5 @@
 import pg from 'pg'
+import type { TaskSource } from '../../src/chain/launches.js'
 import type { Entry } from '../../src/sessions/entry.js'
 import type { ClassifySettings, DbSettings, Price } from './config.js'
 import type { Snapshot } from './limits.js'
@@ -370,6 +371,25 @@ export class TallyDb implements Store {
        where s.session_id = x.session_id
          and (s.launch_task is distinct from x.task or s.launch_reason is distinct from x.reason)`,
       [JSON.stringify(rows)],
+    )
+    return result.rowCount ?? 0
+  }
+
+  /**
+   * A task's profile and link from Even Keel's launch log (BTN-66), and its title while no tracker gave one: a task of
+   * another tracker than Huly is never asked. A new row is stale at once, so Huly is asked for its own tasks.
+   */
+  async syncTaskSources(sources: TaskSource[]): Promise<number> {
+    const result = await this.client.query(
+      `insert into tasks (task, title, profile_id, url, fetched_at)
+       select task, title, profile, url, 'epoch' from jsonb_to_recordset($1::jsonb) as x(task text, title text, profile text, url text)
+       on conflict (task) do update set
+         profile_id = coalesce(excluded.profile_id, tasks.profile_id), url = coalesce(excluded.url, tasks.url),
+         title = case when coalesce(tasks.title, '') = '' then excluded.title else tasks.title end
+       where tasks.profile_id is distinct from coalesce(excluded.profile_id, tasks.profile_id)
+         or tasks.url is distinct from coalesce(excluded.url, tasks.url)
+         or (coalesce(tasks.title, '') = '' and excluded.title is not null)`,
+      [JSON.stringify(sources)],
     )
     return result.rowCount ?? 0
   }
