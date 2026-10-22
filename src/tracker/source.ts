@@ -125,6 +125,8 @@ export interface MilestoneTask extends TrackerTask {
 export interface TrackerVocabulary {
   statuses: string[]
   labels: string[]
+  /** The project's open milestones, for `chain.requiredMilestones`; a tracker without milestones leaves it out. */
+  milestones?: string[]
 }
 
 export interface NewTask {
@@ -176,6 +178,20 @@ export interface TrackerProjectKey {
   key: string
   /** A project may leave it out (Linear: the key narrows a team down to one of its projects). */
   optional?: boolean
+  /**
+   * The value names the tracker's project instead of the key, which then is only Even Keel's (Huly: a second project
+   * of Even Keel on the same Huly project, its tasks split off by milestone). Implies `optional`: without it the key
+   * is the tracker's project. The wizard picks the tracker's project and offers its key.
+   */
+  alias?: boolean
+  /**
+   * The place in the tracker a project reads, from its key and its value, when the task ids are the tracker's own and
+   * not made of the key (BTN-172, BTN-73): projects with the same place read it once and must split its tasks by
+   * milestone, projects with different places may share a key-free part of the tracker (two Linear projects of one
+   * team). `ids` — the prefix of the task ids there (`NAM` of `NAM-12`). Without it the key is both, and no two projects
+   * share a place.
+   */
+  placeOf?: (key: string, value: string | undefined) => { read: string; ids: string }
   /** What its value must look like. */
   pattern: RegExp
   /** A value for the error message, e.g. `octo-org/example`. */

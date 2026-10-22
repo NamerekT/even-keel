@@ -4,9 +4,9 @@ import { taskRecords, unknownRelations } from './huly.js'
 const issues = [
   {
     _id: 'i1', identifier: 'GAME-458', title: 'Redo the menu', status: 's1', relations: [{ _id: 'i2' }, { _id: 'i9' }],
-    priority: 2, estimation: 1.5, component: 'c1',
+    priority: 2, estimation: 1.5, component: 'c1', milestone: 'm1',
   },
-  { _id: 'i2', identifier: 'GAME-426', title: 'Menu', status: 's2', priority: 0, estimation: 0, component: null },
+  { _id: 'i2', identifier: 'GAME-426', title: 'Menu', status: 's2', priority: 0, estimation: 0, component: null, milestone: null },
 ]
 const statuses = [
   { _id: 's1', name: 'In Progress', category: 'task:statusCategory:Active' },
@@ -19,17 +19,18 @@ const labels = [
 ]
 
 const components = [{ _id: 'c1', label: 'Меню' }]
+const milestones = [{ _id: 'm1', label: 'v1.0' }]
 
 describe('taskRecords', () => {
-  it('names statuses, labels, components and related issues', () => {
-    expect(taskRecords(issues, statuses, labels, new Map([['i9', 'GAME-12']]), components)).toEqual([
+  it('names statuses, labels, components, milestones and related issues', () => {
+    expect(taskRecords(issues, statuses, labels, new Map([['i9', 'GAME-12']]), components, milestones)).toEqual([
       {
         task: 'GAME-458', title: 'Redo the menu', status: 'In Progress', labels: ['Переделка', 'Opus'], related: ['GAME-426', 'GAME-12'],
-        priority: 'high', estimateH: 1.5, component: 'Меню', done: false,
+        priority: 'high', estimateH: 1.5, component: 'Меню', milestone: 'v1.0', done: false,
       },
       {
         task: 'GAME-426', title: 'Menu', status: 'Done', labels: [], related: ['GAME-458'],
-        priority: 'no-priority', estimateH: null, component: null, done: true,
+        priority: 'no-priority', estimateH: null, component: null, milestone: null, done: true,
       },
     ])
   })

@@ -1,4 +1,4 @@
-import { MANUAL_LABELS, type StatusCategory, type TaskStatus } from '../tracker/model.js'
+import { MANUAL_LABELS, type StatusCategory, type TaskMilestone, type TaskStatus } from '../tracker/model.js'
 
 export interface ChainRules {
   active: string[] | null
@@ -6,9 +6,16 @@ export interface ChainRules {
   requiredLabels: string[]
   /** Kept out besides `MANUAL_LABELS`, which no list can let in (BTN-187). */
   excludedLabels: string[]
+  /**
+   * Split the tasks of one tracker project between Even Keel projects (BTN-172): a project takes only tasks in one of the
+   * required milestones, if any are named, and never one in an excluded milestone. Unlike labels, a task left out by them
+   * is not the project's at all: it is not read, shown or closed.
+   */
+  requiredMilestones: string[]
+  excludedMilestones: string[]
 }
 
-export const DEFAULT_RULES: ChainRules = { active: null, terminal: null, requiredLabels: [], excludedLabels: [] }
+export const DEFAULT_RULES: ChainRules = { active: null, terminal: null, requiredLabels: [], excludedLabels: [], requiredMilestones: [], excludedMilestones: [] }
 
 const ACTIVE_CATEGORIES: readonly StatusCategory[] = ['ToDo', 'Active']
 const TERMINAL_CATEGORIES: readonly StatusCategory[] = ['Won', 'Lost']
@@ -41,6 +48,20 @@ export function excludes(rules: ChainRules, task: { status: TaskStatus; labels: 
 export function admits(rules: ChainRules, task: { status: TaskStatus; labels: string[] }): boolean {
   if (excludes(rules, task)) return false
   return rules.requiredLabels.length === 0 || task.labels.some((label) => listed(rules.requiredLabels, label))
+}
+
+export function ownsMilestone(rules: ChainRules, task: { milestone: TaskMilestone | null }): boolean {
+  const name = task.milestone?.label
+  if (name !== undefined && listed(rules.excludedMilestones, name)) return false
+  return rules.requiredMilestones.length === 0 || (name !== undefined && listed(rules.requiredMilestones, name))
+}
+
+/** No task, with a milestone or without one, is owned by both: two projects on one tracker project need it. */
+export function splitsMilestones(a: ChainRules, b: ChainRules): boolean {
+  const named = a.requiredMilestones.length > 0 ? a.requiredMilestones : b.requiredMilestones
+  if (named.length === 0) return false
+  const owned = (label: string) => ownsMilestone(a, { milestone: { label, targetDate: null } }) && ownsMilestone(b, { milestone: { label, targetDate: null } })
+  return !named.some(owned)
 }
 
 export function unknownStatuses(rules: ChainRules, known: string[]): string[] {

@@ -56,6 +56,21 @@ const CATEGORIES: Readonly<Record<string, StatusCategory>> = {
 
 const PRIORITIES: Readonly<Record<number, TaskPriority>> = { 1: 'urgent', 2: 'high', 3: 'medium', 4: 'low' }
 
+/** A value that names its team before a slash: `NAM/GameStore`, or `NAM/` for the whole team. */
+const TEAM_VALUE = /^([A-Z][A-Z0-9_]{0,6})\/(.*)$/
+
+/**
+ * The team and the project of the team an Even Keel project reads, from its key and its `linear` value. Without a team
+ * in the value the key is the team, as before BTN-172; with one the key is only Even Keel's, so two projects of Even Keel
+ * may read one team (BTN-73): the task ids stay the team's, `NAM-12`.
+ */
+export function linearPlace(key: string, value: string | undefined): { team: string; project: string | null } {
+  const text = value?.trim() ?? ''
+  const named = TEAM_VALUE.exec(text)
+  if (named !== null) return { team: named[1]!, project: named[2]!.trim() || null }
+  return { team: key, project: text || null }
+}
+
 export function linearStatus(state: LinearState): TaskStatus {
   return { name: state.name, category: CATEGORIES[state.type] ?? 'UnStarted' }
 }

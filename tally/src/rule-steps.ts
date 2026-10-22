@@ -72,15 +72,15 @@ export async function backfillRules(db: TallyDb, sources: Source[], context: (so
   return true
 }
 
-// Backups are few and re-read each run; git is read from the last head of each project's main.
-export async function collectRuleHistory(db: TallyDb, homes: AccountHome[], projects: string[], home: string, log: (message: string) => void): Promise<number> {
+// Backups are few and re-read each run; git is read from the last head of each project's branch.
+export async function collectRuleHistory(db: TallyDb, homes: AccountHome[], projects: { repo: string; branch: string }[], home: string, log: (message: string) => void): Promise<number> {
   const backups = await backupVersions(homes, home)
   await db.writeRules(backups)
   let versions = 0
-  for (const repo of projects) {
+  for (const { repo, branch } of projects) {
     const name = `rules_git:${repo.replaceAll('\\', '/').toLowerCase()}`
     try {
-      const { head, rows } = await gitVersions(repo, home, await db.meta(name))
+      const { head, rows } = await gitVersions(repo, branch, home, await db.meta(name))
       await db.writeRules(rows)
       await db.setMeta(name, head)
       versions += rows.ruleVersions.size

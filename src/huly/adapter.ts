@@ -11,20 +11,21 @@ export const huly: TrackerAdapter = {
   profileName: (values, account) => account?.name ?? `Huly · ${values.HULY_WORKSPACE ?? ''}`,
   account: async (values, timeoutMs) => (await import('./profile.js')).hulyAccount(values, timeoutMs),
   projects: async (values, query, timeoutMs) => (await import('./profile.js')).hulyProjects(values, query, timeoutMs),
-  setup(env) {
+  projectKey: { key: 'huly', optional: true, alias: true, pattern: /^[A-Z][A-Z0-9_]{0,4}$/, example: 'ABC', placeOf: (key, value) => ({ read: value ?? key, ids: value ?? key }) },
+  setup(env, projects) {
     const credentials = readHulyCredentials(env)
     if (credentials === undefined) return undefined
     const base = issueUrlBase(credentials)
     let projectIds: ReadonlyMap<string, string> = new Map()
     return {
       connect: async (timeoutMs) => {
-        const source = await (await import('./source.js')).connectHuly(credentials, timeoutMs)
+        const source = await (await import('./source.js')).connectHuly(credentials, timeoutMs, projects)
         projectIds = source.projectIds
         return source
       },
       issueUrl: () => `${base}{id}`,
       projectUrl: (project) => {
-        const id = projectIds.get(project)
+        const id = projectIds.get(projects[project] ?? project)
         return id === undefined ? null : `${base}${id}/issues`
       },
     }

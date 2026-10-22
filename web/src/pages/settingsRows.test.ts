@@ -31,24 +31,39 @@ describe('a moved folder', () => {
 })
 
 describe('choices for the chain rules', () => {
-  const task = (status: string, labels: string[]): Task =>
-    ({ id: 'ABC-1', title: '', status: { name: status, category: 'ToDo' }, labels, blockedBy: [], parent: null, subtasks: 0, milestone: null, priority: 'none', estimate: null, question: false, runLabels: [] }) as unknown as Task
+  const task = (status: string, labels: string[], milestone: string | null = null): Task =>
+    ({
+      id: 'ABC-1',
+      title: '',
+      status: { name: status, category: 'ToDo' },
+      labels,
+      blockedBy: [],
+      parent: null,
+      subtasks: 0,
+      milestone: milestone === null ? null : { label: milestone, targetDate: null },
+      priority: 'none',
+      estimate: null,
+      question: false,
+      runLabels: [],
+    }) as unknown as Task
 
-  it('lists the statuses and labels the tasks have, once each, sorted', () => {
-    expect(ruleChoicesOf([task('Todo', ['ui', 'Bug']), task('In Progress', ['ui']), task('Todo', [])])).toEqual({
+  it('lists the statuses, labels and milestones the tasks have, once each, sorted', () => {
+    expect(ruleChoicesOf([task('Todo', ['ui', 'Bug'], 'v2'), task('In Progress', ['ui'], 'v1.1'), task('Todo', [], 'v2')])).toEqual({
       statuses: ['In Progress', 'Todo'],
       labels: ['Bug', 'ui'],
+      milestones: ['v1.1', 'v2'],
     })
   })
 
-  it("adds the trackers' statuses and labels no task has, a name once whatever its case", () => {
+  it("adds the trackers' names no task has, a name once whatever its case", () => {
     const vocabularies = [
-      { statuses: ['Backlog', 'todo'], labels: ['UI', 'Docs'] },
+      { statuses: ['Backlog', 'todo'], labels: ['UI', 'Docs'], milestones: ['v1.1'] },
       { statuses: ['Done'], labels: ['docs', 'Research'] },
     ]
     expect(ruleChoicesOf([task('Todo', ['ui', 'Bug'])], vocabularies)).toEqual({
       statuses: ['Backlog', 'Done', 'Todo'],
       labels: ['Bug', 'Docs', 'Research', 'ui'],
+      milestones: ['v1.1'],
     })
   })
 

@@ -15,7 +15,7 @@ Users install with `git clone` and update with `git pull` (README, "Updating"), 
 - Merges go one way only: `release/v<x.y>` into `dev` ("A fix" below). `main` has no commits of its own, so nothing is ever merged out of it.
 - Only the newest minor version gets patches: once `v0.2.0` is out, `release/v0.1` is left as it is.
 - `git sync` (the global alias) syncs the branch the checkout is on with every remote; `dev` and `release/*` are pushed only by it.
-- Two Huly projects, because Even Keel cannot yet run two projects on one tracker key (`config.projectTwice`) nor a chain of one milestone's tasks. With BTN-172 the fixes can go back into `BTN` as a milestone and `EKR` closes.
+- Two Huly projects, because before BTN-172 Even Keel could run neither two projects on one tracker project nor a chain of one milestone's tasks. Now it can (`docs/chain.md`, "Several projects on one tracker project"): the fixes may go back into `BTN` as a milestone, with a release project of its own key on the `BTN` tracker project (`huly: BTN`, `requiredMilestones: ["v0.1"]`, and `excludedMilestones: ["v0.1"]` on `BTN`), and `EKR` closes. Until that switch `EKR` stays.
 - Both folders share one auto-memory: Even Keel keeps a store per folder (`sharedMemory`, `docs/accounts.md`), and `~/.claude-memory/D--Projects-git-repos-even-keel-github` is a junction to `even-keel`'s store, made by hand on 2026-10-20. A new release branch reuses `even-keel-github`; a further clone of the repository needs the same junction.
 
 ## Trackers
@@ -29,7 +29,7 @@ Users install with `git clone` and update with `git pull` (README, "Updating"), 
 ## A fix
 
 1. The chain of `EKR` works it like any task and merges it into `release/v0.1`; Even Keel closes the task and syncs the branch.
-2. The fix is carried into `dev` by hand, in `even-keel`, while the chain of `BTN` is not merging: `git sync`, `git merge --no-edit origin/release/v0.1`, `git sync`. It may wait and carry several fixes at once, but not past the next release of `dev`. A conflict is the user's to resolve; `CHANGELOG.md` is the usual one, where `dev`'s `Unreleased` meets the patch's section — both stay.
+2. The fix is carried into `dev` by Even Keel once `EKR` names `BTN` in its `mergeInto` (BTN-172, `docs/chain.md`, "Carrying a release project forward"): it merges `release/v0.1` into `dev` in `even-keel` while the chain of `BTN` stands, and syncs `dev`; the project's page has "Carry now". It may carry several fixes at once, but not past the next release of `dev`: before one, press "Carry now". A conflict holds the carry and is the user's to resolve; `CHANGELOG.md` is the usual one, where `dev`'s `Unreleased` meets the patch's section — both stay. By hand it is `git sync`, `git merge --no-edit origin/release/v0.1`, `git sync` in `even-keel`, while the chain of `BTN` is not merging. The temporary `commands.afterGreen` of `EKR` (a fast-forward of `dev`) goes once `mergeInto` is set.
 
 ## A release
 
@@ -63,5 +63,5 @@ Passed on 2026-10-21: Claude Code 2.1.306 on Windows x64 (EKR-16). Its new guard
 
 - A task's cost is by its ID, whatever folder its sessions ran in.
 - A message with a task belongs to the Even Keel project of the task key, so every clone of `BTN` counts as `BTN`; a session without a task in a clone that is not a configured project is its own folder group on `/stats`.
-- Tally keeps no milestone of a task, so spend per version is not shown.
-- The rule history from git reads `main` literally (`gitVersions` in `tally/src/rule-history.ts`), not the project's `branch`: a rule changed on `dev` shows in it only once it is released.
+- Tally keeps a Huly task's milestone (`tasks.milestone`, BTN-172), and the view `milestone_costs` sums the cost per project and milestone, so spend per version is a query; `/stats` does not show it.
+- The rule history from git reads each project's `branch` (`gitVersions` in `tally/src/rule-history.ts`): a rule changed on `dev` shows in it when it lands on `dev`. The rule files are snapshotted per folder, so one change of `CLAUDE.md` shows once per clone.

@@ -82,6 +82,49 @@ describe('task of a message', () => {
   })
 })
 
+describe('cost by milestone', () => {
+  let db: PGlite
+
+  beforeAll(async () => {
+    db = await PGlite.create()
+    await db.exec(`set timezone = 'UTC'`)
+    await migrate(pgliteDb(db))
+    await db.exec(`insert into model_prices (model, input, output, cache_read, cache_write_5m, cache_write_1h) values ('m', 1, 1, 1, 1, 1)`)
+    await db.exec(`insert into tasks (task, title, milestone, done) values
+      ('ABC-1', 'One', 'v1.0', true), ('ABC-2', 'Two', 'v1.0', false), ('ABC-3', 'Three', 'v2.0', true)`)
+    const sessions = [
+      ['s1', 'ABC-1', 1],
+      ['s2', 'ABC-1', 2],
+      ['s3', 'ABC-2', 3],
+      ['s4', 'ABC-3', 4],
+      ['s5', 'XYZ-1', 5],
+    ] as const
+    for (const [session, task, millions] of sessions) {
+      await db.query(`insert into sessions (session_id, account, launch_task) values ($1, 'a', $2)`, [session, task])
+      await db.query(
+        `insert into messages (message_id, session_id, account, model, at, input, cache_write_5m, cache_write_1h, cache_read, output)
+         values ($1, $1, 'a', 'm', '2026-10-01T10:00:00Z', $2, 0, 0, 0, 0)`,
+        [session, millions * 1_000_000],
+      )
+    }
+  }, 30_000)
+
+  afterAll(async () => {
+    await db?.close()
+  })
+
+  it('sums the tasks of each milestone of a project', async () => {
+    const { rows } = await db.query<{ project: string; milestone: string | null; tasks: number; done: number; sessions: number; cost: number }>(
+      'select project, milestone, tasks::int, done::int, sessions::int, cost::float8 from milestone_costs order by project, milestone',
+    )
+    expect(rows).toEqual([
+      { project: 'ABC', milestone: 'v1.0', tasks: 2, done: 1, sessions: 3, cost: 6 },
+      { project: 'ABC', milestone: 'v2.0', tasks: 1, done: 1, sessions: 1, cost: 4 },
+      { project: 'XYZ', milestone: null, tasks: 1, done: 0, sessions: 1, cost: 5 },
+    ])
+  })
+})
+
 type Named = [session: string, branchTask: string | null, custom: string | null, ai: string | null, prompt: string | null, launch?: string]
 
 describe('task named by the session itself', () => {

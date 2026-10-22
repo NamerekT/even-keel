@@ -5,12 +5,14 @@
   "projects": {
     "ABC": "C:\\repos\\abc",
     "XYZ": "C:\\repos\\xyz",
-    "LIN": "C:\\repos\\lin"
+    "LIN": "C:\\repos\\lin",
+    "ABCR": "C:\\repos\\abc-release"
   },
   "ids": {
     "ABC": "11111111-1111-4111-8111-111111111111",
     "XYZ": "22222222-2222-4222-8222-222222222222",
-    "LIN": "33333333-3333-4333-8333-333333333333"
+    "LIN": "33333333-3333-4333-8333-333333333333",
+    "ABCR": "44444444-4444-4444-8444-444444444444"
   },
   "names": {
     "ABC": "Web shop"
@@ -26,7 +28,11 @@
     "requiredLabels": [
       "Auto"
     ],
-    "excludedLabels": []
+    "excludedLabels": [],
+    "requiredMilestones": [],
+    "excludedMilestones": [
+      "v1.0.1"
+    ]
   },
   "rules": {
     "ABC": {
@@ -39,6 +45,10 @@
       ],
       "excludedLabels": [
         "Manual"
+      ],
+      "requiredMilestones": [],
+      "excludedMilestones": [
+        "v1.0.1"
       ]
     },
     "XYZ": {
@@ -52,7 +62,11 @@
       "requiredLabels": [
         "Auto"
       ],
-      "excludedLabels": []
+      "excludedLabels": [],
+      "requiredMilestones": [],
+      "excludedMilestones": [
+        "v1.0.1"
+      ]
     },
     "LIN": {
       "active": [
@@ -63,7 +77,28 @@
       "requiredLabels": [
         "Auto"
       ],
-      "excludedLabels": []
+      "excludedLabels": [],
+      "requiredMilestones": [],
+      "excludedMilestones": [
+        "v1.0.1"
+      ]
+    },
+    "ABCR": {
+      "active": [
+        "Todo",
+        "In Progress"
+      ],
+      "terminal": [
+        "Done"
+      ],
+      "requiredLabels": [
+        "Auto"
+      ],
+      "excludedLabels": [],
+      "requiredMilestones": [
+        "v1.0.1"
+      ],
+      "excludedMilestones": []
     }
   },
   "slots": {
@@ -73,22 +108,26 @@
   "colors": {
     "ABC": 4,
     "XYZ": 1,
-    "LIN": 2
+    "LIN": 2,
+    "ABCR": 3
   },
   "tracker": "github",
   "trackers": {
     "ABC": "huly",
     "XYZ": "github",
-    "LIN": "linear"
+    "LIN": "linear",
+    "ABCR": "huly"
   },
   "trackerProjects": {
-    "XYZ": "octo-org/xyz"
+    "XYZ": "octo-org/xyz",
+    "ABCR": "ABC"
   },
   "brief": false,
   "briefs": {
     "ABC": true,
     "XYZ": false,
-    "LIN": false
+    "LIN": false,
+    "ABCR": false
   },
   "settings": {
     "ABC": {
@@ -115,6 +154,7 @@
         "github": "33333333-3333-4333-8333-333333333333"
       },
       "pullRequests": true,
+      "mergeInto": null,
       "fillMilestone": true,
       "changelog": "docs/CHANGELOG.md",
       "provider": "claude",
@@ -164,6 +204,7 @@
       },
       "remoteProfiles": {},
       "pullRequests": false,
+      "mergeInto": null,
       "fillMilestone": false,
       "changelog": "CHANGELOG.md",
       "provider": null,
@@ -198,6 +239,42 @@
       },
       "remoteProfiles": {},
       "pullRequests": false,
+      "mergeInto": null,
+      "fillMilestone": false,
+      "changelog": "CHANGELOG.md",
+      "provider": null,
+      "models": {},
+      "accounts": {},
+      "modelLabels": null,
+      "cacheTtl": "1h",
+      "checkpointTokens": 150000,
+      "checkpointShares": {
+        "first": 70,
+        "late": 85,
+        "hard": 90
+      },
+      "own": {},
+      "promptLanguage": "en"
+    },
+    "ABCR": {
+      "branch": "release/v1.0",
+      "prompt": null,
+      "beforeStart": [],
+      "check": [],
+      "afterGreen": [],
+      "ci": {
+        "guard": true,
+        "kinds": [
+          "forgejo",
+          "github"
+        ],
+        "waitMinutes": null,
+        "recheckMain": true,
+        "fixTask": false
+      },
+      "remoteProfiles": {},
+      "pullRequests": false,
+      "mergeInto": "ABC",
       "fillMilestone": false,
       "changelog": "CHANGELOG.md",
       "provider": null,

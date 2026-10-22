@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto'
 import { readFileSync } from 'node:fs'
-import { excludedOf, sameName, type ChainRules } from './chain/rules.js'
+import { excludedOf, sameName, splitsMilestones, type ChainRules } from './chain/rules.js'
 import type { Language } from './language.js'
 import { fail } from './notice/notice.js'
 import { colorsOf } from './projects/colors.js'
@@ -94,7 +94,7 @@ export interface EvenKeelConfig {
   updates: Pick<UpdateSettings, 'check' | 'notify'>
 }
 
-export const RULE_KEYS = ['active', 'terminal', 'requiredLabels', 'excludedLabels'] as const
+export const RULE_KEYS = ['active', 'terminal', 'requiredLabels', 'excludedLabels', 'requiredMilestones', 'excludedMilestones'] as const
 /** Keys an older config had; the address now comes from `EVEN_KEEL_HOST` and `EVEN_KEEL_PORT`. */
 const IGNORED_KEYS = ['host', 'port'] as const
 const DEFAULT_HOST = '127.0.0.1'
@@ -111,7 +111,7 @@ export const trackerKeysOf = (adapters: AdapterShapes) => [
 /** The file's project records and rows, each row checked by the registry, resolved into what the service runs on. */
 export function parseConfig(raw: unknown, adapters: AdapterShapes = ADAPTERS): EvenKeelConfig {
   const { records, rows } = fileRows(raw, trackerKeysOf(adapters))
-  return configOf(records, resolve(records, checkRows(rows, records, { trackers: Object.keys(adapters) })), adapters)
+  return checkShared(configOf(records, resolve(records, checkRows(rows, records, { trackers: Object.keys(adapters) })), adapters), adapters)
 }
 
 const rulesOf = (values: Values): ChainRules => ({
@@ -119,7 +119,46 @@ const rulesOf = (values: Values): ChainRules => ({
   terminal: values['chain.terminal'] as string[] | null,
   requiredLabels: values['chain.requiredLabels'] as string[],
   excludedLabels: values['chain.excludedLabels'] as string[],
+  requiredMilestones: values['chain.requiredMilestones'] as string[],
+  excludedMilestones: values['chain.excludedMilestones'] as string[],
 })
+
+/**
+ * The place in its tracker the project reads (`TrackerProjectKey.placeOf`), its key where the adapter has no such notion.
+ * Projects with the same one read the tracker once.
+ */
+export function readKeyOf(config: Pick<EvenKeelConfig, 'trackers' | 'trackerProjects'>, project: string, adapters: AdapterShapes = ADAPTERS): string {
+  return placeOf(config, project, adapters).read
+}
+
+/** The prefix of the project's task ids: its key, or the tracker's own where tasks keep the tracker's ids (`NAM` of `NAM-12`). */
+export function idPrefixOf(config: Pick<EvenKeelConfig, 'trackers' | 'trackerProjects'>, project: string, adapters: AdapterShapes = ADAPTERS): string {
+  return placeOf(config, project, adapters).ids
+}
+
+function placeOf(config: Pick<EvenKeelConfig, 'trackers' | 'trackerProjects'>, project: string, adapters: AdapterShapes) {
+  const place = adapters[config.trackers[project] ?? '']?.projectKey?.placeOf
+  return place === undefined ? { read: project, ids: project } : place(project, config.trackerProjects[project])
+}
+
+/**
+ * Projects on one tracker project must split its tasks by milestone, or both chains would take the same task. A release
+ * project merges into another project that merges into none.
+ */
+function checkShared(config: EvenKeelConfig, adapters: AdapterShapes): EvenKeelConfig {
+  const seen = new Map<string, string[]>()
+  for (const project of Object.keys(config.projects)) {
+    const shared = `${config.trackers[project]}\u0000${readKeyOf(config, project, adapters)}`
+    const others = seen.get(shared) ?? []
+    const other = others.find((each) => !splitsMilestones(config.rules[each]!, config.rules[project]!))
+    if (other !== undefined) throw fail('config.trackerProjectShared', { project, other, trackerProject: readKeyOf(config, project, adapters) })
+    seen.set(shared, [...others, project])
+  }
+  for (const [project, { mergeInto: into }] of Object.entries(config.settings)) {
+    if (into !== null && (into === project || config.settings[into] === undefined || config.settings[into].mergeInto !== null)) throw fail('config.mergeInto', { project, into })
+  }
+  return config
+}
 
 function configOf(records: ProjectRecord[], { shared, own, values }: Resolved, adapters: AdapterShapes): EvenKeelConfig {
   const byKey = <T>(pick: (record: ProjectRecord, values: Values, own: Values) => T | undefined): Record<string, T> =>
@@ -208,6 +247,7 @@ function settingsOf(record: ProjectRecord, values: Values, own: Values): Omit<Pr
     ci: ciOf(values),
     remoteProfiles: values.remoteProfiles as RemoteProfiles,
     pullRequests: values.pullRequests as boolean,
+    mergeInto: values.mergeInto as string | null,
     fillMilestone: values.fillMilestone as boolean,
     changelog: values.changelog as string,
     provider: (own.provider as string | undefined) ?? null,
@@ -236,6 +276,8 @@ function checkRules(rules: ChainRules, project: string): ChainRules {
   if (status !== undefined) throw fail('config.statusBoth', { project, status })
   const label = clash(rules.requiredLabels, excludedOf(rules))
   if (label !== undefined) throw fail('config.labelBoth', { project, label })
+  const milestone = clash(rules.requiredMilestones, rules.excludedMilestones)
+  if (milestone !== undefined) throw fail('config.milestoneBoth', { project, milestone })
   return rules
 }
 
@@ -345,6 +387,7 @@ export function projectSettingValues(settings: ProjectSettings, written: Record<
     ...OWN_KEYS.map(own),
     value('remoteProfiles', 'remoteProfiles', settings.remoteProfiles, {}),
     value('pullRequests', 'pullRequests', settings.pullRequests, false),
+    value('mergeInto', 'mergeInto', settings.mergeInto?.trim() || undefined),
     value('changelog', 'changelog', settings.changelog, DEFAULT_CHANGELOG),
     value('provider', 'provider', settings.provider ?? undefined),
     ...byProvider('models'),

@@ -144,6 +144,7 @@ export function Project({ state, project: key }: { state: EvenKeelState; project
         </header>
         {order?.error && <p className="notice notice--error">{say(order.error)}</p>}
         <Leftovers state={state} project={key} />
+        <Forward state={state} project={key} />
         <EmptyCall state={state} project={key} />
         {blocks.length === 0 ? (
           emptyCall(state, key) === null && <p className="placeholder">{order === undefined ? t.project.chainNotLoaded : t.project.chainEmpty}</p>
@@ -265,6 +266,33 @@ function EmptyCall({ state, project }: { state: EvenKeelState; project: string }
         </a>
       )}
     </p>
+  )
+}
+
+/** A release project's commits that wait to go into the project it merges into, why, and "Carry now" (BTN-172). */
+function Forward({ state, project }: { state: EvenKeelState; project: string }) {
+  const { send, sending, failure } = useCommand()
+  const forward = state.forwards[project]
+  const push = forward?.last?.push ?? null
+  if (forward === undefined || ((forward.behind ?? 0) === 0 && push === null)) return null
+  const waiting = (forward.behind ?? 0) > 0
+
+  return (
+    <div className="leftovers">
+      <div className={forward.held ? 'notice notice--error leftovers__item' : 'notice notice--warn leftovers__item'}>
+        <div className="leftovers__text">
+          <strong>{waiting ? t.project.forwardWaits(forward.behind ?? 0, forward.into) : t.project.forwardPushFailed(forward.into)}</strong>
+          {forward.hold !== null && <p className="leftovers__line">{say(forward.hold)}</p>}
+          {!waiting && push !== null && <p className="leftovers__line">{say(push)}</p>}
+        </div>
+        {waiting && (
+          <button type="button" className="button" disabled={sending} onClick={() => void send('forward/carry', { project })}>
+            {t.project.forwardNow}
+          </button>
+        )}
+      </div>
+      {failure !== null && <p className="project__error">{say(failure)}</p>}
+    </div>
   )
 }
 

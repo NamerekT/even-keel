@@ -2,11 +2,13 @@ import { describe, expect, it } from 'vitest'
 import { DEFAULT_RULES } from './chain/rules.js'
 import {
   DEFAULT_CI,
+  idPrefixOf,
   ignoredKeys,
   listenOf,
   parseConfig,
   poolEntries,
   projectsByAccount,
+  readKeyOf,
   runSettings,
   withIds,
   withProjectSettings,
@@ -101,7 +103,7 @@ describe('parseConfig', () => {
       trackerProjects: {},
       brief: null,
       briefs: { ABC: null },
-      settings: { ABC: { branch: 'main', prompt: null, beforeStart: [], check: [], afterGreen: [], ci: DEFAULT_CI, remoteProfiles: {}, pullRequests: false, fillMilestone: false, changelog: 'CHANGELOG.md', provider: null, models: {}, accounts: {}, modelLabels: null, promptLanguage: 'en', cacheTtl: null, checkpointTokens: null, checkpointShares: SHARES, own: {} } },
+      settings: { ABC: { branch: 'main', prompt: null, beforeStart: [], check: [], afterGreen: [], ci: DEFAULT_CI, remoteProfiles: {}, pullRequests: false, mergeInto: null, fillMilestone: false, changelog: 'CHANGELOG.md', provider: null, models: {}, accounts: {}, modelLabels: null, promptLanguage: 'en', cacheTtl: null, checkpointTokens: null, checkpointShares: SHARES, own: {} } },
       ci: DEFAULT_CI,
       fillMilestone: false,
       context: { window: 600_000, warn: 50, danger: 80 },
@@ -253,6 +255,7 @@ describe('parseConfig', () => {
         ci: DEFAULT_CI,
         remoteProfiles: {},
         pullRequests: false,
+        mergeInto: null,
         fillMilestone: false,
         changelog: 'CHANGELOG.md',
         provider: null,
@@ -266,7 +269,7 @@ describe('parseConfig', () => {
         own: {},
       },
       XYZ: {
-        ...{ branch: 'main', prompt: null, beforeStart: [], check: [], afterGreen: [], ci: DEFAULT_CI, remoteProfiles: {}, pullRequests: false, fillMilestone: false, changelog: 'CHANGELOG.md' },
+        ...{ branch: 'main', prompt: null, beforeStart: [], check: [], afterGreen: [], ci: DEFAULT_CI, remoteProfiles: {}, pullRequests: false, mergeInto: null, fillMilestone: false, changelog: 'CHANGELOG.md' },
         ...{ provider: null, models: {}, accounts: {}, modelLabels: null, promptLanguage: 'en', cacheTtl: null, checkpointTokens: null, checkpointShares: SHARES, own: {} },
       },
     })
@@ -630,6 +633,61 @@ describe('chain rules in the config', () => {
 
   it('reject a label that is both required and excluded', () => {
     expect(() => parse({ chain: { requiredLabels: ['Вручную'] }, projects: { ABC: 'C:\\abc' } })).toThrow(/ABC.*Вручную/)
+  })
+
+  it('reject a milestone that is both required and excluded', () => {
+    expect(() => parse({ projects: { ABC: { repo: 'C:\\abc', chain: { requiredMilestones: ['v1'], excludedMilestones: [' V1 '] } } } })).toThrow(/ABC.*v1/)
+  })
+})
+
+describe('release projects', () => {
+  it('merge into a main project', () => {
+    const config = parse({ projects: { ABC: 'C:\\abc', ABCR: { repo: 'C:\\abc-release', mergeInto: ' ABC ' } } })
+    expect(config.settings.ABCR?.mergeInto).toBe('ABC')
+    expect(config.settings.ABC?.mergeInto).toBeNull()
+  })
+
+  it('refuse a project that is missing, itself or a release project', () => {
+    expect(() => parse({ projects: { ABCR: { repo: 'C:\\r', mergeInto: 'ABC' } } })).toThrow(/ABCR.*ABC/)
+    expect(() => parse({ projects: { ABC: { repo: 'C:\\abc', mergeInto: 'ABC' } } })).toThrow(/ABC.*ABC/)
+    expect(() => parse({ projects: { ABC: 'C:\\abc', XYZ: { repo: 'C:\\x', mergeInto: 'ABC' }, ABCR: { repo: 'C:\\r', mergeInto: 'XYZ' } } })).toThrow(/ABCR.*XYZ/)
+    expect(() => parse({ projects: { ABC: { repo: 'C:\\abc', mergeInto: 5 } } })).toThrow(/ABC\.mergeInto/)
+  })
+})
+
+describe('projects on one tracker project', () => {
+  const release = { repo: 'C:\\abc-release', huly: 'ABC', chain: { requiredMilestones: ['v1.0.1'] } }
+
+  it('read the Huly project the entry names, and their own key otherwise', () => {
+    const config = parse({ projects: { ABC: { repo: 'C:\\abc', chain: { excludedMilestones: ['v1.0.1'] } }, ABCR: release } })
+    expect(config.trackerProjects).toEqual({ ABCR: 'ABC' })
+    expect(readKeyOf(config, 'ABCR')).toBe('ABC')
+    expect(readKeyOf(config, 'ABC')).toBe('ABC')
+  })
+
+  it('let a single project read a Huly project under another key', () => {
+    expect(readKeyOf(parse({ projects: { ABC: { repo: 'C:\\abc', huly: 'XYZ' } } }), 'ABC')).toBe('XYZ')
+    expect(readKeyOf(parse({ projects: { ABC: { repo: 'C:\\abc' } } }), 'ABC')).toBe('ABC')
+  })
+
+  it('let two projects read projects of one Linear team, under their own keys and the team prefix of ids', () => {
+    const config = parse({
+      tracker: 'linear',
+      projects: { GS: { repo: 'C:\\gs', linear: 'NAM/GameStore' }, NBC: { repo: 'C:\\nbc', linear: 'NAM/Business card' }, ENG: { repo: 'C:\\eng', linear: 'Web app' } },
+    })
+    expect(['GS', 'NBC', 'ENG'].map((project) => readKeyOf(config, project))).toEqual(['NAM/GameStore', 'NAM/Business card', 'ENG/Web app'])
+    expect(['GS', 'NBC', 'ENG'].map((project) => idPrefixOf(config, project))).toEqual(['NAM', 'NAM', 'ENG'])
+    expect(() => parse({ tracker: 'linear', projects: { GS: { repo: 'C:\\gs', linear: 'NAM/' }, NAM: 'C:\\nam' } })).toThrow(/NAM.*GS/)
+  })
+
+  it('read the key on a tracker whose value cannot be shared', () => {
+    const config = parse({ tracker: 'github', projects: { ABC: { repo: 'C:\\abc', github: 'octo-org/abc' } } })
+    expect(readKeyOf(config, 'ABC')).toBe('ABC')
+  })
+
+  it('reject two projects whose milestones do not split the tasks', () => {
+    expect(() => parse({ projects: { ABC: 'C:\\abc', ABCR: release } })).toThrow(/ABCR.*ABC/)
+    expect(() => parse({ projects: { ABC: { repo: 'C:\\abc', chain: { requiredMilestones: ['v1.0.1', 'v2'] } }, ABCR: release } })).toThrow(/ABCR.*ABC/)
   })
 })
 

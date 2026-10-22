@@ -42,16 +42,20 @@ To edit them as a file, `npm run storage -- config-export <new file>` writes the
 | `chain.terminal` | done and canceled categories | status names that close a task |
 | `chain.requiredLabels` | `[]` | a task needs at least one of them; empty — no label needed |
 | `chain.excludedLabels` | `[]` | a task with one of them never enters the chain: you run it yourself; while open, it still holds the tasks it blocks. `Manual` and `Вручную` do that always, whatever the list says |
+| `chain.requiredMilestones` | `[]` | a task belongs to the project only in one of these milestones; empty — in any. A task left out is not the project's at all: not read, shown or closed by it |
+| `chain.excludedMilestones` | `[]` | a task in one of these milestones is not the project's. Two projects on one tracker project must split it with these two keys, so that no task is both's: say, a release project requires `v0.1` and the main one excludes it |
 | `version` | — | version of the file's format; `config-export` writes it, and an older file is migrated as it is imported. A file newer than the code is refused |
 | `projects` | — | an array of projects, each an object with the keys below |
-| `projects[].key` | — | the tracker's project key (a letter, then up to four letters, digits or `_`) |
+| `projects[].key` | — | the project's key in Even Keel (a letter, then up to four letters, digits or `_`); unique. On Huly it is the Huly project's identifier unless `huly` names another |
 | `projects[].id` | given by Even Keel | the project's own id, a GUID that never changes; the files of `state/` and the page's links name the project by it. An imported project without one gets one |
 | `projects[].repo` | — | path to the main checkout |
 | `projects[].name` | none | display name shown next to the key; the page edits it in the project head |
 | `projects[].branch` | `main` | the project's main branch: tasks branch off it and merge into it, the CI and the check judge it. A branch missing from the repository pauses the chain |
 | `projects[].tracker`, `.brief`, `.chain` | the shared ones | per project; a project's `chain` key replaces the shared key whole; `null` for `active` or `terminal` goes back to the status categories over a shared list |
 | `projects[].github` | — | `owner/name` of the repository, for a project on GitHub |
-| `projects[].linear` | the whole team | name of the Linear project the team is narrowed down to, for a project on Linear (the key is the team key) |
+| `projects[].huly` | the key | identifier of the Huly project the project reads, when it is not the key: a second project on the same Huly project, under a key of its own; task ids stay Huly's (`ABC-12`) |
+| `projects[].linear` | the whole team | for a project on Linear: the name of the Linear project the team is narrowed down to, and the key is the team key; or `TEAM/Project` (`TEAM/` for the whole team), and the key is only Even Keel's, so several projects can work on one team. Task ids stay the team's (`TEAM-12`) |
+| `projects[].mergeInto` | none | the key of a main project, which makes this one a release project: its branch is merged into the main project's branch when that project's chain stands (stopped, empty or paused) or on **Carry now** on the project's page, and pushed. A conflict is aborted, the main checkout stays clean, and the carry waits for you; merge by hand and it goes on. The main project must merge into none |
 | `projects[].slot` | off | `true` or a number: a pool of permanent worktrees instead of one per task |
 | `projects[].color` | the first free one | 1–8: the project's colour on the home cards, the queue, the launch chart and `/stats`; a new project gets the first one no other project has |
 | `projects[].prompt` | none | text added to the prompt of every new session of the project (first start and handoff; a resumed session already has it); empty — none |

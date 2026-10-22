@@ -26,7 +26,9 @@
     "requiredLabels": [],
     "excludedLabels": [
       "Manual"
-    ]
+    ],
+    "requiredMilestones": [],
+    "excludedMilestones": []
   },
   "rules": {
     "ABC": {
@@ -42,7 +44,9 @@
       "requiredLabels": [],
       "excludedLabels": [
         "Manual"
-      ]
+      ],
+      "requiredMilestones": [],
+      "excludedMilestones": []
     },
     "XYZ": {
       "active": [
@@ -59,7 +63,9 @@
       ],
       "excludedLabels": [
         "Manual"
-      ]
+      ],
+      "requiredMilestones": [],
+      "excludedMilestones": []
     },
     "GHB": {
       "active": [
@@ -75,7 +81,9 @@
       ],
       "excludedLabels": [
         "Manual"
-      ]
+      ],
+      "requiredMilestones": [],
+      "excludedMilestones": []
     }
   },
   "slots": {
@@ -120,6 +128,7 @@
       },
       "remoteProfiles": {},
       "pullRequests": false,
+      "mergeInto": null,
       "fillMilestone": false,
       "changelog": "CHANGELOG.md",
       "provider": null,
@@ -156,6 +165,7 @@
       },
       "remoteProfiles": {},
       "pullRequests": false,
+      "mergeInto": null,
       "fillMilestone": false,
       "changelog": "CHANGELOG.md",
       "provider": null,
@@ -190,6 +200,7 @@
       },
       "remoteProfiles": {},
       "pullRequests": false,
+      "mergeInto": null,
       "fillMilestone": false,
       "changelog": "CHANGELOG.md",
       "provider": null,
