@@ -100,7 +100,7 @@ export function fakeCi(kind: string | null): Record<string, CiView[]> {
     fixed: forgejo({ current: { run: FIX_RUN, tasks: [], jobs: [job(1, 'test', 'success', 900, 180, false)] }, history: [FIX_RUN, ...HISTORY] }),
     push: { ...finished, pushed: { commit: '5c95521730bbc58ab20052f7ff807c29a8fbeb65', at: ago(40) } },
     error: { ...finished, health: 'error', error: notice('ci.unreachable', { ci: 'Forgejo' }, { detail: 'connect ETIMEDOUT 100.64.0.1:443' }), checkedAt: ago(30) },
-    off: { ...forgejo(), health: 'off', error: notice('ci.noToken', { variable: 'FORGEJO_TOKEN' }), checkedAt: null, current: null, history: [], medianMs: null },
+    off: { ...forgejo(), health: 'off', error: notice('ci.noToken', { kind: 'forgejo' }), checkedAt: null, current: null, history: [], medianMs: null },
   }
   return { ABC: [views[kind ?? ''] ?? forgejo(), github()], DEMO: [finished] }
 }
