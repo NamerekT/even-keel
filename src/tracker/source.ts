@@ -219,6 +219,12 @@ export interface ProfileAccount {
 /** The tracker refused the credentials, as opposed to not answering: a profile with them is red and its chains wait. */
 export class CredentialsRefused extends Error {}
 
+/**
+ * The tracker answered that what it was asked for — a project, a team, an issue — is not there or not visible to the
+ * credentials: the call failed, the connection did not, and `TrackerLink` keeps it for the other projects of the profile.
+ */
+export class TrackerNotFound extends Error {}
+
 /** A project of the tracker a profile sees, for the wizard to pick from (`TrackerAdapter.projects`). */
 export interface TrackerProject {
   /** What the project's entry takes: the Huly identifier, GitHub's `owner/name`, the Linear team key. */

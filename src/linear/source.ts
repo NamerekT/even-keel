@@ -1,6 +1,6 @@
 import { commentsAfterId, linkedFiles } from '../tracker/comments.js'
 import { parseTaskId, type TaskPriority, type TrackerTask } from '../tracker/model.js'
-import type { TaskSource, TrackerPlace } from '../tracker/source.js'
+import { TrackerNotFound, type TaskSource, type TrackerPlace } from '../tracker/source.js'
 import { linearPlace, linearStatus, readyState, toCard, toTrackerTask, type LinearCardIssue, type LinearIssue, type LinearState, type TeamStateDoc } from './model.js'
 
 export interface LinearSettings {
@@ -187,7 +187,7 @@ export async function connectLinear(settings: LinearSettings, timeoutMs: number,
     } catch (error) {
       throw new Error(`linear: team ${teamKey}: ${(error as Error).message.replace(/^linear: /, '')}`)
     }
-    if (team === null) throw new Error(`linear: team ${teamKey} not found or the key cannot see it`)
+    if (team === null) throw new TrackerNotFound(`linear: team ${teamKey} not found or the key cannot see it`)
     if (project === null) return { id: team.id, states: team.states.nodes }
     const found = team.projects?.nodes[0]
     if (found === undefined) throw new Error(`linear: team ${teamKey} has no project "${project}"`)
@@ -204,7 +204,7 @@ export async function connectLinear(settings: LinearSettings, timeoutMs: number,
   async function oneIssue<T>(id: string, query: string): Promise<T> {
     const { issues } = await graphql<{ issues: { nodes: T[] } }>(query, { filter: byNumber(id) })
     const issue = issues.nodes[0]
-    if (issue === undefined) throw new Error(`linear: issue ${id} not found or the key cannot see it`)
+    if (issue === undefined) throw new TrackerNotFound(`linear: issue ${id} not found or the key cannot see it`)
     return issue
   }
 
