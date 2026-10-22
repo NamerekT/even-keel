@@ -470,6 +470,22 @@ describe('Dispatcher', () => {
     expect(launched).toEqual(['ABC/ABC-1'])
   })
 
+  it('waits for the first read of the account folders after a start instead of pausing on an account not read yet', async () => {
+    const state: ChainState = { ...emptyChainState(), active: [{ project: 'ABC', current: null, paused: false, error: null }] }
+    const options: SetupOptions = { state, accountsRead: false, blocked: 'claude: the active account folder john is gone' }
+    const { dispatcher, launched } = setup(options)
+    dispatcher.setTasks('ABC', [task('ABC-1')])
+    await dispatcher.idle()
+    expect(launched).toEqual([])
+    expect(dispatcher.state.active[0]).toEqual({ project: 'ABC', current: null, paused: false, error: null })
+
+    options.accountsRead = true
+    delete options.blocked
+    dispatcher.check()
+    await dispatcher.idle()
+    expect(launched).toEqual(['ABC/ABC-1'])
+  })
+
   it('takes over a live session of the next task even while the limit is used up', async () => {
     const { dispatcher, launched } = setup({ limitReset: '2026-09-26T17:00:00.000Z', live: { 'ABC-1': 'session-9' } })
     dispatcher.setTasks('ABC', [task('ABC-1')])
