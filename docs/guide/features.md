@@ -28,6 +28,12 @@ The shared or a project's `provider` key (the shared one is also moved by giving
 
 Run it as a chain only on short test tasks. From the Windows service the Codex sandbox does not start (a Codex bug), so on Windows it needs `execution.codex` set to `bypass`, which runs Codex sessions with no sandbox at all ([What has not been verified](../unverified.md#codex)).
 
+## OpenCode (preview)
+
+`provider` set to `opencode`, or a label such as `OpenCode | opencode/big-pickle`, runs the task's sessions on [OpenCode](https://opencode.ai): one `opencode run` per turn, the transcript and context fill read from OpenCode's own database, the project's packages passed on every turn. The model is OpenCode's `<provider>/<model>` (`opencode/big-pickle`, `anthropic/claude-sonnet-4-5`, `openai/gpt-6.1-sol`); without one, OpenCode's default. The session reads the project's `AGENTS.md`, else its `CLAUDE.md`, but not your global `~/.claude/CLAUDE.md` or skills. Like Codex, it has no question tool: a turn that ends without the task done waits for your reply in the chat window.
+
+What it does not have yet: limits (OpenCode shows none for ChatGPT or Copilot, so a spent limit stops the session), the handoff on a full context, chat messages delivered mid-turn. It was checked on the free model only and never as a chain under the service ([What has not been verified](../unverified.md#opencode)): run it on test tasks first.
+
 ## Slots
 
 For repositories with heavy ignored caches (Unity's `Library`, big `node_modules`) a project can use a pool of permanent worktrees instead of a fresh one per task, so the next task rebuilds only the difference.
@@ -74,13 +80,15 @@ Chain sessions start without claude.ai skills and plugins, and with niche bundle
 
 Plugins and MCP servers are a set per project, kept by Even Keel and given to chain sessions by flags at every launch: a pinned version installed with one button, updated with another, while a running task stays on the version it started with. MCP servers run behind a local gateway, so the keys stay in Even Keel's `.env`.
 
-Codex sessions get the same set: the MCP servers, and of a plugin its skills and hooks (not its commands and agents), installed into each Codex folder on its first turn there and kept off for your own Codex sessions. The chain does not start a task while a package of its project is not installed, lacks a key or does not answer.
+Codex sessions get the same set: the MCP servers, and of a plugin its skills and hooks (not its commands and agents), installed into each Codex folder on its first turn there and kept off for your own Codex sessions. OpenCode sessions get the MCP servers and a plugin's skills, not its hooks. The chain does not start a task while a package of its project is not installed, lacks a key or does not answer.
 
 ## Accounts
 
 Your own Claude and Codex subscriptions — a personal and a work one, say — one config folder each. At most one Codex account may be on the free plan: OpenAI's terms do not allow several free accounts to get round the limits, so Even Keel refuses a second one ([docs/accounts.md](../accounts.md#the-codex-folders-btn-168-btn-176)).
 
-The `/accounts` page lists them in a section per provider (Claude Code, Codex), as cards with their connection, limits and what runs on each now (VS Code chats by their tab titles); a section's "Add" asks for the connection (CLI or API key), then shows that kind's own sign-in; a provider whose CLI is not installed cannot be added, and the page says where to get it. Without the CLI's own folder (`~/.claude`, `~/.codex`), the first account of a provider you add is the one its sessions run on. Renew and remove accounts there, and move Even Keel's chain to an account from that account's card. The same field moves the Claude Code extension in VS Code; the Claude desktop app is not switched, but can be launched on an account folder by hand ([docs/accounts.md](../accounts.md#the-claude-desktop-app)).
+OpenCode accounts are folders of their own too, signed in with ChatGPT or GitHub Copilot (a link and a one-time code), on an Anthropic or OpenAI API key, or with no sign-in for OpenCode's free models. There is no Claude subscription for OpenCode: Anthropic allows it only in Claude Code, so Claude in OpenCode is an API key ([docs/accounts.md](../accounts.md#the-opencode-folders-btn-214)).
+
+The `/accounts` page lists them in a section per provider (Claude Code, Codex, OpenCode), as cards with their connection, limits and what runs on each now (VS Code chats by their tab titles); a section's "Add" asks for the connection (CLI or API key), then shows that kind's own sign-in; a provider whose CLI is not installed cannot be added, and the page says where to get it. Without the CLI's own folder (`~/.claude`, `~/.codex`), the first account of a provider you add is the one its sessions run on. Renew and remove accounts there, and move Even Keel's chain to an account from that account's card. The same field moves the Claude Code extension in VS Code; the Claude desktop app is not switched, but can be launched on an account folder by hand ([docs/accounts.md](../accounts.md#the-claude-desktop-app)).
 
 An account can also be an Anthropic API key, checked with Anthropic when added and then hourly: its sessions pay from the key, the page shows its spend today instead of limits (with statistics on), and it has no Remote Control and no waiting out a limit; a session whose key runs out of credit is held, the key is checked every 5 minutes, and the chain goes on once it is topped up ([docs/accounts.md](../accounts.md#api-accounts-btn-99)). A Codex account can be an OpenAI API key the same way, checked with OpenAI; a Codex session whose key runs out of money is held the same way.
 

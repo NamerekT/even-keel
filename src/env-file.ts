@@ -21,7 +21,7 @@ export interface EnvTargets {
 }
 
 const LISTEN = ['EVEN_KEEL_HOST', 'EVEN_KEEL_PORT']
-const ACCOUNTS = ['EVEN_KEEL_ACCOUNTS_DIR', 'EVEN_KEEL_CODEX_ACCOUNTS_DIR']
+const ACCOUNTS = ['EVEN_KEEL_ACCOUNTS_DIR', 'EVEN_KEEL_CODEX_ACCOUNTS_DIR', 'EVEN_KEEL_OPENCODE_ACCOUNTS_DIR']
 
 /**
  * Even Keel's `.env`, watched like the config: a change goes into the environment at once. As `process.loadEnvFile` at

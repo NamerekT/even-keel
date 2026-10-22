@@ -43,7 +43,7 @@ export class TurnRegistry {
   }
 
   async get(sessionId: string): Promise<CodexSession | undefined> {
-    if (!/^[0-9a-f-]+$/i.test(sessionId)) return undefined
+    if (!/^[\w-]+$/.test(sessionId)) return undefined
     return parseSession(await readFile(join(this.sessionsDir, `${sessionId}.json`), 'utf8').catch(() => ''))
   }
 
@@ -73,10 +73,10 @@ export function parseSession(raw: string): CodexSession | undefined {
   return { sessionId, name, cwd, account, startedAt, pid, out, ...(stopped === true ? { stopped } : {}) }
 }
 
-/** The session as the chain sees it: busy while its turn runs, resting and idle between turns. */
-export function entryOf(session: CodexSession, live: boolean): AgentEntry {
+/** The session as the chain sees it: busy while its turn runs, resting and idle between turns. OpenCode keeps its sessions the same way. */
+export function entryOf(session: CodexSession, live: boolean, kind = CODEX): AgentEntry {
   const { sessionId, name, cwd, account, startedAt } = session
-  const entry: AgentEntry = { id: sessionId, sessionId, kind: CODEX, name, cwd, account, startedAt }
+  const entry: AgentEntry = { id: sessionId, sessionId, kind, name, cwd, account, startedAt }
   if (session.stopped === true) return { ...entry, state: 'stopped' }
   if (live) return { ...entry, pid: session.pid, status: 'busy', state: 'working' }
   return { ...entry, status: 'idle', state: 'working', resting: true }

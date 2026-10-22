@@ -1,6 +1,7 @@
 import type { AccountEntry, AccountView } from '../../src/account/model.js'
 import { PROVIDERS as RUN_PROVIDERS } from '../../src/agent/providers.js'
 import { CODEX } from '../../src/codex/name.js'
+import { OPENCODE } from '../../src/opencode/name.js'
 import { accountOrder } from './state.js'
 
 const SERIES = 8
@@ -39,14 +40,16 @@ export function connectionOf(entry: AccountEntry): Connection {
   return entry.apiKey ? 'apiKey' : 'cli'
 }
 
-/** Whether the running sign-in is Codex's device-auth: the one-time code from its output goes on the sign-in page, nothing is typed here. */
+/**
+ * Whether the running sign-in is a device sign-in, Codex's or OpenCode's: the one-time code from its output goes on the
+ * sign-in page, nothing is typed here.
+ */
 export function deviceLogin({ login }: AccountView): boolean {
-  return login?.agent === CODEX
+  return login?.agent === CODEX || login?.agent === OPENCODE
 }
 
 /** Whether the page can add such an account; the rest are shown as not there yet. Without a connection — the provider at all. */
 export function canAdd(provider: Provider, connection?: Connection): boolean {
-  if (provider === 'opencode') return false
   return connection !== 'sdk'
 }
 

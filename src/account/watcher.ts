@@ -1,11 +1,11 @@
 import type { ChildProcessWithoutNullStreams } from 'node:child_process'
 import type { Agent } from '../agent/contract.js'
-import { CODEX } from '../codex/name.js'
+import { NO_SIGN_IN, SIGN_INS } from '../agent/providers.js'
 import type { RateLimits } from '../limits/model.js'
 import type { UsageHealth } from '../limits/usage.js'
 import { fail, notice, NoticeError, noticeOf, sameNotice, type Notice } from '../notice/notice.js'
 import { appSwitchProblem, type AppAccount, type AppId } from './apps.js'
-import { assertApiKey, type AccountHome, type AccountHomes } from './homes.js'
+import { assertApiKey, keyProvider, type AccountHome, type AccountHomes } from './homes.js'
 import { CreditChecks, type CreditVerdict } from './credit.js'
 import { KeyChecks, type KeyVerdict } from './keycheck.js'
 import {
@@ -184,19 +184,30 @@ export class AccountWatcher {
     this.options.onChange()
   }
 
-  /** A new account of the agent, signed in in a folder of its own. */
-  add(agent: string): void {
+  /**
+   * A new account of the agent, signed in in a folder of its own by `method` (`SIGN_INS`); `NO_SIGN_IN` places the folder
+   * at once, named after the agent.
+   */
+  add(agent: string, method?: string): void {
     this.requireIdle()
     if (this.options.missing().includes(agent)) throw new NoticeError(missingNotice(agent))
-    this.begin(this.options.homes.pending(this.options.now(), agent), true)
+    const known = SIGN_INS[agent]
+    if (known !== undefined && (method === undefined || !known.includes(method))) throw fail('login.method', { method: method ?? '', known: [...known] })
+    const pending = this.options.homes.pending(this.options.now(), agent)
+    if (method !== NO_SIGN_IN) {
+      this.begin(pending, true, method)
+      return
+    }
+    this.claimShared(this.options.homes.place(pending, agent))
+    void this.refresh().catch((error: unknown) => this.options.onError(error))
   }
 
   async addApiKey(name: string, key: string, agent: string): Promise<void> {
     const value = assertApiKey(key, agent)
     const verdict = await this.options.checkKey(agent, value)
-    const codex = agent === CODEX
-    if (verdict.state === 'rejected') throw fail(codex ? 'account.codexKeyRejected' : 'account.apiKeyRejected', {})
-    if (verdict.state === 'unknown') throw fail(codex ? 'account.codexKeyUnchecked' : 'account.apiKeyUnchecked', { reason: verdict.reason })
+    const openAi = keyProvider(agent, value) === 'openai'
+    if (verdict.state === 'rejected') throw fail(openAi ? 'account.codexKeyRejected' : 'account.apiKeyRejected', {})
+    if (verdict.state === 'unknown') throw fail(openAi ? 'account.codexKeyUnchecked' : 'account.apiKeyUnchecked', { reason: verdict.reason })
     const home = this.options.homes.addApiKey(name, value, agent)
     this.keys.note(home.key, verdict, this.options.now())
     this.options.name(home.key, name)
@@ -332,8 +343,8 @@ export class AccountWatcher {
     if (this.running !== undefined) throw fail('login.running', {})
   }
 
-  private begin(home: AccountHome, adding: boolean): void {
-    const child = this.options.agentOf(home).login(home)
+  private begin(home: AccountHome, adding: boolean, method?: string): void {
+    const child = this.options.agentOf(home).login(home, method)
     const running = { child, home, adding }
     this.running = running
     this.output = ''
@@ -388,7 +399,7 @@ export class AccountWatcher {
           this.fail(running, refused)
           return
         }
-        const home = this.options.homes.place(running.home, status.email)
+        const home = this.options.homes.place(running.home, status.email ?? running.home.agent)
         this.options.homes.share(home)
         this.claimShared(home)
       }

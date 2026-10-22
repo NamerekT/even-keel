@@ -1,4 +1,4 @@
-import { CLI_SOURCES, EXECUTION_MODES, DEFAULT_PROVIDER, isProvider, PROVIDERS } from '../agent/providers.js'
+import { CLI_SOURCES, EXECUTION_MODES, DEFAULT_PROVIDER, isProvider, PINNED_PROVIDERS, PROVIDERS } from '../agent/providers.js'
 import { DEFAULT_RULES, type ChainRules } from '../chain/rules.js'
 import { changelogPath, DEFAULT_CHANGELOG } from '../changelog/file.js'
 import { CI_KINDS, type CiKind, type RemoteProfiles } from '../ci/model.js'
@@ -216,7 +216,7 @@ export const DEFINITIONS: readonly SettingDefinition[] = [
     return value
   } },
   { key: 'cli', kind: 'enum', scopes: ['global'], qualifier: 'provider', lands: ['cli'], default: DEFAULT_CLI, check: (value, { qualifier: provider }) => {
-    if (!isProvider(provider)) throw fail('config.providerKey', { where: 'cli', key: provider, known: [...PROVIDERS] })
+    if (!PINNED_PROVIDERS.includes(provider)) throw fail('config.providerKey', { where: 'cli', key: provider, known: [...PINNED_PROVIDERS] })
     if (typeof value !== 'string' || !CLI_SOURCES.includes(value)) throw fail('config.cli', { provider, value: json(value), known: [...CLI_SOURCES] })
     return value
   } },

@@ -10,6 +10,7 @@ const env = {
   HULY_WORKSPACE: 'ws',
   HULY_EMAIL: 'john@example.com',
   HULY_PASSWORD: 'secret',
+  EVEN_KEEL_OPENCODE_ACCOUNTS_DIR: join(tmpdir(), 'even-keel-homes-no-opencode'),
 }
 
 describe('AccountHomes.addApiKey', () => {
@@ -156,6 +157,40 @@ describe('AccountHomes adding a Codex account', () => {
   })
 
   it('refuses an agent it keeps no folders for', () => {
-    expect(() => new AccountHomes(env, 'root', 'codex-root').pending(new Date(), 'opencode')).toThrow()
+    expect(() => new AccountHomes(env, 'root', 'codex-root').pending(new Date(), 'gemini')).toThrow()
+  })
+})
+
+describe('AccountHomes OpenCode accounts', () => {
+  it('lists them last, apart from the Claude and Codex keys, and places a sign-in under the OpenCode root', () => {
+    const root = mkdtempSync(join(tmpdir(), 'even-keel-homes-'))
+    const codexRoot = `${root}-codex`
+    const openCodeRoot = `${root}-opencode`
+    try {
+      mkdirSync(join(root, 'john'))
+      mkdirSync(join(codexRoot, 'work'), { recursive: true })
+      for (const name of ['john', 'work', 'zen', '.pending-1']) mkdirSync(join(openCodeRoot, name), { recursive: true })
+      const homes = new AccountHomes({ ...env, CLAUDE_CONFIG_DIR: join(root, 'no-claude'), CODEX_HOME: join(root, 'no-codex') }, root, codexRoot, openCodeRoot)
+      expect(homes.list().map((home) => `${home.agent}:${home.key}`)).toEqual(['claude:john', 'codex:work', 'opencode:zen'])
+      const home = homes.place(homes.pending(new Date('2026-10-22T10:00:00Z'), 'opencode'), null)
+      expect(home).toMatchObject({ dir: join(openCodeRoot, home.key), global: false, agent: 'opencode' })
+      expect(homes.share(home)).toBe(false)
+    } finally {
+      for (const dir of [root, codexRoot, openCodeRoot]) rmSync(dir, { recursive: true, force: true })
+    }
+  })
+
+  it("keeps an API key in OpenCode's auth.json under the provider the key is of", () => {
+    const root = mkdtempSync(join(tmpdir(), 'even-keel-homes-'))
+    try {
+      const homes = new AccountHomes(env, join(root, 'claude'), join(root, 'codex'), join(root, 'opencode'))
+      const anthropic = 'sk-ant-fake.example.com.0000'
+      const home = homes.addApiKey('Zen', anthropic, 'opencode')
+      expect(home).toEqual({ key: 'zen', dir: join(root, 'opencode', 'zen'), global: false, agent: 'opencode' })
+      expect(JSON.parse(readFileSync(join(home.dir, 'data', 'opencode', 'auth.json'), 'utf8'))).toEqual({ anthropic: { type: 'api', key: anthropic } })
+      expect(homes.apiKeyOf(home)).toBe(anthropic)
+    } finally {
+      rmSync(root, { recursive: true, force: true })
+    }
   })
 })

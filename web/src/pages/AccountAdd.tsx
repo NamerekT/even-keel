@@ -2,7 +2,9 @@ import { useEffect, useRef } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router'
 import type { AccountView } from '../../../src/account/model.js'
 import { CLAUDE } from '../../../src/claude/name.js'
+import { NO_SIGN_IN, SIGN_INS } from '../../../src/agent/providers.js'
 import { CODEX } from '../../../src/codex/name.js'
+import { OPENCODE } from '../../../src/opencode/name.js'
 import type { EvenKeelState } from '../../../src/state.js'
 import { addStep, canAdd, cliMissing, CONNECTIONS, deviceLogin, PROVIDERS, type Connection, type Provider } from '../accounts.js'
 import { say, t } from '../i18n/index.js'
@@ -72,11 +74,13 @@ interface Choice {
   tag?: string
 }
 
+const MISSING = { claude: 'login.claudeMissing', codex: 'login.codexMissing', opencode: 'login.opencodeMissing' } as const
+
 /** A provider whose CLI the service does not find is off, its hint saying where to get the CLI. */
 function providerChoice(account: AccountView, provider: Provider): Choice {
   const base = { id: provider, title: t.account.agents[provider], to: `${ADD}?provider=${provider}` }
   if (canAdd(provider) && cliMissing(account, provider)) {
-    const missing = say({ code: provider === 'codex' ? 'login.codexMissing' : 'login.claudeMissing', params: {} })
+    const missing = say({ code: MISSING[provider], params: {} })
     return { ...base, hint: missing, ready: false, tag: t.account.cliNotFound }
   }
   return { ...base, hint: t.account.providerHints[provider], ready: canAdd(provider) }
@@ -114,11 +118,11 @@ interface SignInProps {
   onCancel: () => void
 }
 
+const KEY_HINTS: Record<Provider, string> = { claude: t.account.keyHint, codex: t.account.codexKeyHint, opencode: t.account.opencodeKeyHint }
+
 function SignIn({ account, provider, connection, onDone, onCancel }: SignInProps) {
-  if (connection === 'apiKey') {
-    const agent = provider === 'codex' ? CODEX : CLAUDE
-    return <ApiKeyFields agent={agent} hint={agent === CODEX ? t.account.codexKeyHint : t.account.keyHint} onDone={onDone} onCancel={onCancel} />
-  }
+  if (connection === 'apiKey') return <ApiKeyFields agent={provider} hint={KEY_HINTS[provider]} onDone={onDone} onCancel={onCancel} />
+  if (provider === 'opencode') return <OpenCodeSignIn account={account} onDone={onDone} />
   if (provider === 'codex') {
     return (
       <>
@@ -137,16 +141,20 @@ interface CliProps {
   onDone: () => void
 }
 
-/** A sign-in through the agent's CLI: the button starts it, then the link and the code; once it ends — the list. */
-function CliSignIn({ account, hint, start, onDone }: CliProps) {
-  const { send, sending, failure } = useCommand()
-  const { login } = account
+/** Back to the list once the running sign-in has come and gone. */
+function useLoginDone(login: AccountView['login'], onDone: () => void): void {
   const seen = useRef(false)
-
   useEffect(() => {
     if (login !== null) seen.current = true
     else if (seen.current) onDone()
   }, [login, onDone])
+}
+
+/** A sign-in through the agent's CLI: the button starts it, then the link and the code; once it ends — the list. */
+function CliSignIn({ account, hint, start, onDone }: CliProps) {
+  const { send, sending, failure } = useCommand()
+  const { login } = account
+  useLoginDone(login, onDone)
 
   if (login !== null) return <LoginSteps login={login} device={deviceLogin(account)} sending={sending} send={send} />
   return (
@@ -157,6 +165,32 @@ function CliSignIn({ account, hint, start, onDone }: CliProps) {
           {t.account.login}
         </button>
       </div>
+      {failure !== null && <p className="notice notice--error">{say(failure)}</p>}
+    </>
+  )
+}
+
+/** OpenCode signs in to the provider picked here; its free models need no sign-in, so that folder is added at once. */
+function OpenCodeSignIn({ account, onDone }: { account: AccountView; onDone: () => void }) {
+  const { send, sending, failure } = useCommand()
+  const { login } = account
+  useLoginDone(login, onDone)
+
+  if (login !== null) return <LoginSteps login={login} device={deviceLogin(account)} sending={sending} send={send} />
+  const start = async (method: string) => {
+    if ((await send('account/add', { agent: OPENCODE, method })) && method === NO_SIGN_IN) onDone()
+  }
+  return (
+    <>
+      <p className="queue__hint">{t.account.opencodeHint}</p>
+      <div className="account__actions">
+        {SIGN_INS[OPENCODE]!.map((method) => (
+          <button key={method} type="button" className="button button--primary" disabled={sending} onClick={() => void start(method)}>
+            {t.account.opencodeMethods[method as keyof typeof t.account.opencodeMethods] ?? method}
+          </button>
+        ))}
+      </div>
+      <p className="queue__hint">{t.account.opencodeClaude}</p>
       {failure !== null && <p className="notice notice--error">{say(failure)}</p>}
     </>
   )

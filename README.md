@@ -5,11 +5,11 @@
   </picture>
 </h1>
 
-**Hand your backlog to [Claude Code](https://docs.claude.com/en/docs/claude-code/overview) or [Codex](https://github.com/openai/codex) and stop babysitting it.** Even Keel takes the open tasks of a project from your tracker, in the order of their `blocks` links, and works through them one at a time while you do something else. It waits out a spent usage limit, hands a long session over to a fresh one and keeps going while you are away. Only what really needs you — a question, a decision — waits for you: on its page, in the tracker or on your phone.
+**Hand your backlog to [Claude Code](https://docs.claude.com/en/docs/claude-code/overview), [Codex](https://github.com/openai/codex) or [OpenCode](https://opencode.ai) and stop babysitting it.** Even Keel takes the open tasks of a project from your tracker, in the order of their `blocks` links, and works through them one at a time while you do something else. It waits out a spent usage limit, hands a long session over to a fresh one and keeps going while you are away. Only what really needs you — a question, a decision — waits for you: on its page, in the tracker or on your phone.
 
 **And it shows what each change did.** Built-in statistics show what every task cost, where sessions got stuck and how full their context ran, and compare before and after every change to your rule files.
 
-It runs as a service on your own machine, next to your repositories, on your own subscription, through the unmodified `claude` and `codex` CLIs. Trackers out of the box: [Huly](https://huly.io), GitHub Issues and [Linear](https://linear.app).
+It runs as a service on your own machine, next to your repositories, on your own subscription, through the unmodified `claude`, `codex` and `opencode` CLIs. Trackers out of the box: [Huly](https://huly.io), GitHub Issues and [Linear](https://linear.app).
 
 ![A project's chain: one task done, one session working, the rest queued; the panel on the right shows the session's stage, context fill and current action](assets/screens/chain.png)
 
@@ -37,7 +37,7 @@ Even Keel wins in time, not in width: the agent keeps working while you are away
 - **CI.** The next task waits for the CI's verdict on `main`, and a red `main` is fixed first. No CI — your own check commands.
 - **Pull requests (experimental).** Instead of merging, Even Keel can push a task's branch and open a pull request on GitHub or Forgejo; review feedback, failed checks and conflicts go back to the task's session.
 - **Plugins and MCP servers** per project, with their keys kept behind a local gateway.
-- **Accounts.** Several Claude and Codex subscriptions or API keys, one per project and provider, with their limits on the page.
+- **Accounts.** Several Claude and Codex subscriptions or API keys, one per project and provider, with their limits on the page; OpenCode accounts on ChatGPT, GitHub Copilot, an API key or its free models.
 - **Statistics (optional):** cost and time per task, stuck spans, before/after comparisons of changes to your rules.
 - **The page:** the chain, each session's stage, current action and context fill, task cards, changelog drafts; in English or Russian.
 
@@ -50,17 +50,17 @@ Every feature in full: [docs/guide/features.md](docs/guide/features.md).
 ## Requirements
 
 - **Node.js 24** or newer ([nodejs.org](https://nodejs.org/en/download); on Linux nvm needs no `sudo`) and git with your name and email set: sessions commit and merge under them.
-- **Claude Code CLI** ([install](https://docs.claude.com/en/docs/claude-code/setup)), signed in with a Claude subscription (`claude` once in a terminal). **Codex CLI** only for projects or tasks on Codex: `npm install -g @openai/codex`, signed in with `codex login` or from the accounts page.
+- **Claude Code CLI** ([install](https://docs.claude.com/en/docs/claude-code/setup)), signed in with a Claude subscription (`claude` once in a terminal). **Codex CLI** only for projects or tasks on Codex: `npm install -g @openai/codex`, signed in with `codex login` or from the accounts page. **OpenCode** (preview) only for projects or tasks on it: `npm install -g opencode-ai`, signed in from the accounts page; checked with its free `opencode/big-pickle`.
 - **A tracker:** a Huly workspace, GitHub repositories with Issues, or a Linear workspace.
 - **Windows, Linux or macOS.** Windows is where it runs every day; Linux was checked end to end; macOS is expected to work but has not been checked. On Windows the service needs **PowerShell 7**. The MSI installers of Node and PowerShell 7 can sit on "Preparing to install…" for over 10 minutes: wait it out.
 
 ## Before you run it
 
-- **Even Keel depends on undocumented behaviour of the Claude Code and Codex CLIs**: their background sessions, transcripts, session files and the text of their commands. None of it is a public API, so chain sessions run on the version Even Keel was last checked against, which it downloads itself, not on the one your CLI has updated itself to. Last checked against **Claude Code 2.1.306** and **codex-cli 0.163.0**. A CLI update may still break a part of Even Keel until it is adapted — please open an issue when it does. What exactly it relies on and the limits of the pin: [setup](docs/guide/setup.md#the-clis-it-depends-on).
-- **Your subscription, the providers' terms.** Sessions run on the accounts you sign in with and wait out their limits: a project runs on one account per provider, and a spent limit is never got round by switching to another account ([docs/sessions.md](docs/sessions.md#run-profiles-btn-173-srcsessionslaunchts)). Claude sessions are governed by Anthropic's [Consumer Terms](https://www.anthropic.com/legal/consumer-terms) and [Usage Policy](https://www.anthropic.com/legal/aup) (the [Commercial Terms](https://www.anthropic.com/legal/commercial-terms) for Team, Enterprise and API keys). Codex sessions are governed by OpenAI's [Terms of Use](https://openai.com/policies/terms-of-use/) and [Usage Policies](https://openai.com/policies/usage-policies/) when you sign in with ChatGPT (the [Services Agreement](https://openai.com/policies/services-agreement/) for Business, Enterprise, Edu and API keys), with the [Service Terms](https://openai.com/policies/service-terms/) on top. OpenAI's terms do not allow getting round its usage limits, so Even Keel refuses a second Codex account on the free plan. Even Keel does not share, pool or resell access: use accounts that are yours.
+- **Even Keel depends on undocumented behaviour of the Claude Code and Codex CLIs**: their background sessions, transcripts, session files and the text of their commands. None of it is a public API, so chain sessions run on the version Even Keel was last checked against, which it downloads itself, not on the one your CLI has updated itself to. Last checked against **Claude Code 2.1.306** and **codex-cli 0.163.0**; OpenCode sessions run on your installed `opencode`, last checked with **OpenCode 1.18.25**. A CLI update may still break a part of Even Keel until it is adapted — please open an issue when it does. What exactly it relies on and the limits of the pin: [setup](docs/guide/setup.md#the-clis-it-depends-on).
+- **Your subscription, the providers' terms.** Sessions run on the accounts you sign in with and wait out their limits: a project runs on one account per provider, and a spent limit is never got round by switching to another account ([docs/sessions.md](docs/sessions.md#run-profiles-btn-173-srcsessionslaunchts)). Claude sessions are governed by Anthropic's [Consumer Terms](https://www.anthropic.com/legal/consumer-terms) and [Usage Policy](https://www.anthropic.com/legal/aup) (the [Commercial Terms](https://www.anthropic.com/legal/commercial-terms) for Team, Enterprise and API keys). Codex sessions are governed by OpenAI's [Terms of Use](https://openai.com/policies/terms-of-use/) and [Usage Policies](https://openai.com/policies/usage-policies/) when you sign in with ChatGPT (the [Services Agreement](https://openai.com/policies/services-agreement/) for Business, Enterprise, Edu and API keys), with the [Service Terms](https://openai.com/policies/service-terms/) on top. OpenAI's terms do not allow getting round its usage limits, so Even Keel refuses a second Codex account on the free plan. OpenCode sessions are governed by the terms of the provider you sign it in with; a Claude subscription is allowed only in Claude Code, so OpenCode reaches Claude only on an API key. Even Keel does not share, pool or resell access: use accounts that are yours.
 - **Sessions run without asking you on each tool call**: Claude sessions with `--permission-mode auto`, Codex sessions with `--approve-for-me`, or with no sandbox at all when `execution.codex` is `bypass`. Set up the permissions and hooks you want in your Claude Code and Codex settings before you start a chain.
 - **Your sign-in stays with the CLIs.** Even Keel reads only the expiry dates from Claude's `.credentials.json`, and only the e-mail and the plan from Codex's `auth.json`; tokens are never copied or sent anywhere. It also removes the lock files the CLI leaves behind in the account folders. An API key you add is sent only to its own provider, to check it.
-- **Some behaviour has never been checked live** — macOS, an early reset of Claude limits, long chains on Codex, a few tracker and CI paths. Read [What has not been verified](docs/unverified.md) before relying on any of them.
+- **Some behaviour has never been checked live** — macOS, an early reset of Claude limits, long chains on Codex, OpenCode under the service, a few tracker and CI paths. Read [What has not been verified](docs/unverified.md) before relying on any of them.
 
 ## Quick start
 
@@ -143,7 +143,7 @@ A plugin gives sessions the tracker's MCP server and a skill for working a task.
 
 - Other trackers: Jira, GitLab, YouTrack…
 - Your own classifier for the statistics, or a different model behind it.
-- Other APIs and other agents: today Even Keel runs the Claude Code and Codex CLIs and is built around their subscription limits.
+- Other APIs and other agents: today Even Keel runs the Claude Code, Codex and OpenCode CLIs and is built around the first two's subscription limits.
 
 ## Development
 
@@ -170,4 +170,4 @@ Even Keel is free. If it saves you time, [Patreon](https://www.patreon.com/Namer
 
 [MIT](LICENSE)
 
-Even Keel is an independent project, not affiliated with or endorsed by Anthropic or OpenAI. Claude and Claude Code are trademarks of Anthropic; Codex and OpenAI are trademarks of OpenAI.
+Even Keel is an independent project, not affiliated with or endorsed by Anthropic, OpenAI or the makers of OpenCode. Claude and Claude Code are trademarks of Anthropic; Codex and OpenAI are trademarks of OpenAI.

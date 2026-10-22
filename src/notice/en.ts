@@ -176,6 +176,13 @@ export const en = {
   'codex.statusUnreadable': () => 'codex: login status printed neither "Logged in" nor "Not logged in"',
   'codex.signOutFailed': (p: { account: string }) => `codex: could not sign out of ${p.account}`,
 
+  'opencode.startFailed': (p: { task: string; cwd: string }) => `opencode: could not start ${p.task} in ${p.cwd}`,
+  'opencode.resumeFailed': (p: { task: string; cwd: string }) => `opencode: could not resume ${p.task} in ${p.cwd}`,
+  'opencode.otherSession': (p: { task: string; asked: string; got: string }) =>
+    `opencode: ${p.task} was resumed as ${p.asked} but came up as the session ${p.got}`,
+  'opencode.unknownSession': (p: { session: string }) => `opencode: Even Keel did not start the session ${p.session}`,
+  'opencode.stillRunning': (p: { session: string }) => `opencode: the turn of ${p.session} was killed but is still running`,
+
   'account.unknown': (p: { key: string }) => `claude: there is no account ${p.key}`,
   'account.alreadyActive': (p: { key: string }) => `claude: ${p.key} is already active`,
   'account.removing': (p: { account: string }) => `claude: ${p.account} is being removed; keep it first`,
@@ -215,6 +222,8 @@ export const en = {
   'login.startFailed': () => 'claude: could not start the sign-in',
   'login.codexMissing': () => 'codex: the CLI is not found; install it with npm install -g @openai/codex or name its path in EVEN_KEEL_CODEX_BIN',
   'login.claudeMissing': () => 'claude: the CLI is not found; install it or name its path in EVEN_KEEL_CLAUDE_BIN',
+  'login.opencodeMissing': () => 'opencode: the CLI is not found; install it with npm install -g opencode-ai or name its path in EVEN_KEEL_OPENCODE_BIN',
+  'login.method': (p: { method: string; known: string[] }) => `there is no way to sign in "${p.method}" here; there are: ${list(p.known)}`,
   'login.exited': (p: { code: string }) => `claude: sign-in exited with code ${p.code}`,
   'login.setupFailed': (p: { dir: string }) => `claude: signed in, but could not set up the folder ${p.dir}`,
 

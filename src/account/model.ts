@@ -4,6 +4,7 @@ import type { UsageHealth } from '../limits/usage.js'
 import { fail, notice, type Notice } from '../notice/notice.js'
 import { CLAUDE } from '../claude/name.js'
 import { CODEX } from '../codex/name.js'
+import { OPENCODE } from '../opencode/name.js'
 import { isLive, type AgentEntry } from '../sessions/agents.js'
 import { APP_LABELS, type AppAccount } from './apps.js'
 
@@ -250,6 +251,7 @@ export function takesShared(pool: PoolEntry[], homes: { key: string; agent: stri
 
 /** Why no account of the agent is added: its CLI is not found, with where to get it. */
 export function missingNotice(agent: string): Notice {
+  if (agent === OPENCODE) return notice('login.opencodeMissing', {})
   return notice(agent === CODEX ? 'login.codexMissing' : 'login.claudeMissing', {})
 }
 

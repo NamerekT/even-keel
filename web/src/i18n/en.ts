@@ -299,7 +299,7 @@ export const en: Messages = {
     providerHints: {
       claude: 'Anthropic: a Claude subscription or an API key',
       codex: 'OpenAI: a ChatGPT subscription or an API key',
-      opencode: 'Not supported yet',
+      opencode: 'ChatGPT, GitHub Copilot, an Anthropic or OpenAI API key, or its own free models',
     },
     connectionHints: {
       cli: "Signing in through the agent's own CLI with a subscription: sessions spend its 5-hour and weekly limits",
@@ -313,6 +313,10 @@ export const en: Messages = {
       'Signs a new Codex account in with ChatGPT, in a folder of its own: Codex gives a link and a one-time code — open the link, sign in and enter the code there.',
     codexFree:
       "One free Codex account at most: OpenAI's terms do not allow several free accounts to get round the limits. Paid plans — as many as you need.",
+    opencodeHint:
+      'A new OpenCode account, in a folder of its own. ChatGPT and GitHub Copilot give a link and a one-time code — open the link, sign in and enter the code there. Free models need no sign-in.',
+    opencodeMethods: { chatgpt: 'ChatGPT', copilot: 'GitHub Copilot', none: 'Free models' },
+    opencodeClaude: 'No Claude subscription here: Anthropic allows it only in Claude Code. Claude through OpenCode — with an API key.',
     globalOf: (folder: string) => `global ${folder}`,
     holds: (role: string) => `${role} works on this account`,
     roles: 'Where this account works: pick an app to move it here',
@@ -371,6 +375,7 @@ export const en: Messages = {
     today: (cost: string) => `today ${cost}`,
     todayNone: 'today: no data',
     todayTitle: "Spent today on this account's key, by Tally",
+    openCodeLimits: 'no limits: OpenCode shows none',
     projectsOn: (projects: string[]) => `Projects: ${projects.join(', ')}`,
     projectsNone: 'No project runs here',
     apiKeyLost: "The key isn't accepted: remove the account and add the key again",
@@ -381,6 +386,8 @@ export const en: Messages = {
       "A new folder with the key in its settings.json. Sessions on it pay per token: no 5-hour or weekly limits, no Remote Control, and a session that runs out of money waits until the key has credit again.",
     codexKeyHint:
       "An OpenAI API key, in a new Codex folder's auth.json. Sessions on it pay per token under OpenAI's API terms, the one-free-account rule doesn't apply; a session that runs out of money stops like on any error.",
+    opencodeKeyHint:
+      "An Anthropic (sk-ant-…) or OpenAI API key, in a new OpenCode folder's auth.json: whose key it is, is told by its start. Sessions on it pay per token; name the model in the run profile, like anthropic/claude-sonnet-4-5.",
     removeKeyWhenDone: (sessions: string) => `Remove the folder with the key once its sessions finish (${sessions})?`,
     removeKeyNow: 'Remove the folder with the key?',
   },
@@ -631,7 +638,7 @@ export const en: Messages = {
     beforeStartPlaceholder: 'npm ci',
     provider: 'Provider',
     providerHint: 'What the new sessions of the project run on. With run labels on, a task labelled with another provider runs on that one.',
-    agents: { claude: 'Claude Code', codex: 'Codex' },
+    agents: { claude: 'Claude Code', codex: 'Codex', opencode: 'OpenCode' },
     asShared: (value: string) => `As shared: ${value}`,
     ownValue: 'Own for the project',
     promptLanguageHint: 'The language of the prompts Even Keel writes to the sessions of the project and of the questions it asks in its tracker.',
@@ -1075,7 +1082,7 @@ export const en: Messages = {
     notInstalled: 'not installed',
     removed: 'removed — a running task still uses it',
     extras: 'skills and hooks',
-    extrasTip: 'Besides its MCP servers the plugin brings skills, hooks, commands or agents: Claude Code sessions get them all, Codex sessions the skills and hooks.',
+    extrasTip: 'Besides its MCP servers the plugin brings skills, hooks, commands or agents: Claude Code sessions get them all, Codex sessions the skills and hooks, OpenCode sessions the skills.',
     servers: (list: string) => `MCP servers: ${list}`,
     noServers: 'No MCP servers',
     choice: { default: 'default', on: 'on', off: 'off' },
@@ -1099,6 +1106,7 @@ export const en: Messages = {
       probing: 'starting',
       noTrackerMcp: (server: string) => `no tracker MCP ${server}`,
       unsupported: (agent: string) => `${agent}: MCP only`,
+      noHooks: (agent: string) => `${agent}: no hooks`,
     },
     problemTip: {
       notInstalled: 'Press Install: the chain waits until the package is installed.',
@@ -1112,6 +1120,7 @@ export const en: Messages = {
       noTrackerMcp: (server: string) =>
         `Brief is off, so sessions get only the task ID and need the tracker’s MCP server ${server}. Turn on the package that brings it, or set brief to auto or on in the project’s settings.`,
       unsupported: (agent: string) => `${agent} does not read Claude Code plugins: its sessions get the plugin’s MCP servers but not its skills and hooks. Does not hold the chain.`,
+      noHooks: (agent: string) => `${agent} does not run Claude Code hooks: its sessions get the plugin’s MCP servers and skills but not its hooks. Does not hold the chain.`,
     },
     keys: 'Keys',
     keysTip: 'Written into the .env of Even Keel. The page sees only whether a key is set. The gateway and the trackers take a new key at once.',

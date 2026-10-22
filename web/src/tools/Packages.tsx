@@ -198,7 +198,7 @@ function problemText(problem: PackageProblem): string {
     case 'noTrackerMcp':
       return text.noTrackerMcp(problem.server)
     case 'unsupported':
-      return text.unsupported(problem.agent)
+      return problem.skills === true ? text.noHooks(problem.agent) : text.unsupported(problem.agent)
     default:
       return text[problem.kind]
   }
@@ -212,7 +212,7 @@ function problemTip(problem: PackageProblem): string {
     case 'noTrackerMcp':
       return tip.noTrackerMcp(problem.server)
     case 'unsupported':
-      return tip.unsupported(problem.agent)
+      return problem.skills === true ? tip.noHooks(problem.agent) : tip.unsupported(problem.agent)
     default:
       return tip[problem.kind]
   }

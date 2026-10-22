@@ -304,7 +304,7 @@ export const ru = {
     providerHints: {
       claude: 'Anthropic: подписка Claude или API-ключ',
       codex: 'OpenAI: подписка ChatGPT или API-ключ',
-      opencode: 'Пока не поддерживается',
+      opencode: 'ChatGPT, GitHub Copilot, API-ключ Anthropic или OpenAI либо собственные бесплатные модели',
     },
     connectionHints: {
       cli: 'Вход через CLI самого агента по подписке: сессии тратят её лимиты на 5 часов и неделю',
@@ -318,6 +318,10 @@ export const ru = {
       'Вход нового аккаунта Codex через ChatGPT в отдельную папку: Codex выдаст ссылку и одноразовый код — откройте ссылку, войдите и введите там код.',
     codexFree:
       'Бесплатный аккаунт Codex — не больше одного: условия OpenAI не разрешают несколько бесплатных аккаунтов ради лимитов. С подпиской — сколько нужно.',
+    opencodeHint:
+      'Новый аккаунт OpenCode в своей папке. ChatGPT и GitHub Copilot дают ссылку и одноразовый код — откройте ссылку, войдите и введите там код. Бесплатным моделям вход не нужен.',
+    opencodeMethods: { chatgpt: 'ChatGPT', copilot: 'GitHub Copilot', none: 'Бесплатные модели' },
+    opencodeClaude: 'Подписки Claude здесь нет: Anthropic разрешает её только в Claude Code. Claude через OpenCode — по API-ключу.',
     globalOf: (folder: string) => `глобальный ${folder}`,
     holds: (role: string) => `${role} работает на этом аккаунте`,
     roles: 'Где работает аккаунт: выберите приложение, чтобы перевести его сюда',
@@ -376,6 +380,7 @@ export const ru = {
     today: (cost: string) => `сегодня ${cost}`,
     todayNone: 'сегодня: нет данных',
     todayTitle: 'Потрачено сегодня с ключа этого аккаунта, по Tally',
+    openCodeLimits: 'лимитов нет: OpenCode их не показывает',
     projectsOn: (projects: string[]) => `Проекты: ${projects.join(', ')}`,
     projectsNone: 'Проектов здесь нет',
     apiKeyLost: 'Ключ не принят: удалите аккаунт и добавьте ключ заново',
@@ -386,6 +391,8 @@ export const ru = {
       'Новая папка с ключом в её settings.json. Сессии на ней платят за токены: лимитов на 5 часов и неделю нет, Remote Control нет, а сессия, у которой кончились деньги, ждёт, пока они снова появятся на ключе.',
     codexKeyHint:
       'API-ключ OpenAI — в auth.json новой папки Codex. Сессии на нём платят за токены по условиям API OpenAI, правило одного бесплатного аккаунта к нему не относится; сессия, у которой кончились деньги, останавливается как при любой ошибке.',
+    opencodeKeyHint:
+      'API-ключ Anthropic (sk-ant-…) или OpenAI — в auth.json новой папки OpenCode: чей это ключ, видно по его началу. Сессии на нём платят за токены; модель укажите в профиле запуска, вроде anthropic/claude-sonnet-4-5.',
     removeKeyWhenDone: (sessions: string) => `Удалить папку с ключом, когда завершатся её сессии (${sessions})?`,
     removeKeyNow: 'Удалить папку с ключом?',
   },
@@ -711,7 +718,7 @@ export const ru = {
     notInstalled: 'не установлен',
     removed: 'удалён — его ещё держит идущая задача',
     extras: 'навыки и хуки',
-    extrasTip: 'Кроме MCP-серверов плагин приносит навыки, хуки, команды или агентов: сессии Claude Code получают всё, сессии Codex — навыки и хуки.',
+    extrasTip: 'Кроме MCP-серверов плагин приносит навыки, хуки, команды или агентов: сессии Claude Code получают всё, сессии Codex — навыки и хуки, сессии OpenCode — навыки.',
     servers: (list: string) => `MCP-серверы: ${list}`,
     noServers: 'MCP-серверов нет',
     choice: { default: 'по умолчанию', on: 'вкл', off: 'выкл' },
@@ -735,6 +742,7 @@ export const ru = {
       probing: 'запускается',
       noTrackerMcp: (server: string) => `нет MCP трекера ${server}`,
       unsupported: (agent: string) => `${agent}: только MCP`,
+      noHooks: (agent: string) => `${agent}: без хуков`,
     },
     problemTip: {
       notInstalled: 'Нажмите «Установить»: цепочка ждёт, пока пакет не встанет.',
@@ -748,6 +756,7 @@ export const ru = {
       noTrackerMcp: (server: string) =>
         `brief выключен, поэтому сессии получают только номер задачи, и им нужен MCP-сервер трекера ${server}. Включите пакет, который его приносит, или поставьте brief «авто» или «вкл.» в настройках проекта.`,
       unsupported: (agent: string) => `${agent} не читает плагины Claude Code: его сессии получают MCP-серверы плагина, но не навыки и хуки. Запуск не держит.`,
+      noHooks: (agent: string) => `${agent} не запускает хуки Claude Code: его сессии получают MCP-серверы и навыки плагина, но не хуки. Запуск не держит.`,
     },
     keys: 'Ключи',
     keysTip: 'Записываются в .env самого Even Keel. Страница видит только, задан ли ключ. Шлюз и трекеры берут новый ключ сразу.',
@@ -814,7 +823,7 @@ export const ru = {
     beforeStartPlaceholder: 'npm ci',
     provider: 'Провайдер',
     providerHint: 'На чём идут новые сессии проекта. При включённых ярлыках запуска задача с ярлыком другого провайдера идёт на нём.',
-    agents: { claude: 'Claude Code', codex: 'Codex' },
+    agents: { claude: 'Claude Code', codex: 'Codex', opencode: 'OpenCode' },
     asShared: (value: string) => `Как в общих: ${value}`,
     ownValue: 'Своё у проекта',
     promptLanguageHint: 'Язык промптов, которые Even Keel пишет сессиям проекта, и вопросов, которые он задаёт в его трекере.',

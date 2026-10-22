@@ -15,6 +15,7 @@ import {
   NoteActions,
   RemoveAction,
   spendText,
+  withoutLimits,
   staleText,
   useSpend,
   type Send,
@@ -105,6 +106,8 @@ function AccountCard({ entry, view, now, spend, sending, send }: CardProps) {
         <p className="accounts__note" title={t.account.todayTitle}>
           {spendText(spend, entry.key)}
         </p>
+      ) : withoutLimits(entry) ? (
+        <p className="accounts__note">{t.account.openCodeLimits}</p>
       ) : (
         <>
           <div className="accounts__columns" aria-hidden="true">

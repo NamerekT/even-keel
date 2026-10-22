@@ -75,6 +75,10 @@ describe('deviceLogin', () => {
     expect(deviceLogin({ ...view(accounts), login: login('codex', null) })).toBe(true)
   })
 
+  it("is OpenCode's sign-in too: ChatGPT and Copilot print a device code", () => {
+    expect(deviceLogin({ ...view(accounts), login: login('opencode', null) })).toBe(true)
+  })
+
   it('is not a Claude sign-in or no sign-in at all', () => {
     expect(deviceLogin({ ...view(accounts), login: login('claude', 'global') })).toBe(false)
     expect(deviceLogin({ ...view(accounts), login: login('claude', null) })).toBe(false)
@@ -83,19 +87,18 @@ describe('deviceLogin', () => {
 })
 
 describe('canAdd', () => {
-  it('adds Claude and Codex through the CLI or a key', () => {
-    expect(canAdd('claude', 'cli')).toBe(true)
-    expect(canAdd('claude', 'apiKey')).toBe(true)
-    expect(canAdd('codex', 'cli')).toBe(true)
-    expect(canAdd('codex', 'apiKey')).toBe(true)
+  it('adds Claude, Codex and OpenCode through the CLI or a key', () => {
+    for (const provider of ['claude', 'codex', 'opencode'] as const) {
+      expect(canAdd(provider)).toBe(true)
+      expect(canAdd(provider, 'cli')).toBe(true)
+      expect(canAdd(provider, 'apiKey')).toBe(true)
+    }
   })
 
-  it('shows the Agent SDK and OpenCode as not there yet', () => {
+  it('shows the Agent SDK as not there yet', () => {
     expect(canAdd('claude', 'sdk')).toBe(false)
     expect(canAdd('codex', 'sdk')).toBe(false)
-    expect(canAdd('opencode')).toBe(false)
-    expect(canAdd('opencode', 'cli')).toBe(false)
-    expect(canAdd('claude')).toBe(true)
+    expect(canAdd('opencode', 'sdk')).toBe(false)
   })
 })
 
@@ -117,8 +120,8 @@ describe('addStep', () => {
     expect(step('connection=cli')).toEqual({ provider: null, connection: null })
   })
 
-  it('does not go past a provider that cannot be added', () => {
-    expect(step('provider=opencode&connection=cli')).toEqual({ provider: 'opencode', connection: null })
+  it('goes on to an OpenCode sign-in', () => {
+    expect(step('provider=opencode&connection=cli')).toEqual({ provider: 'opencode', connection: 'cli' })
   })
 })
 
@@ -126,12 +129,13 @@ describe('accountGroups', () => {
   const now = new Date('2026-10-10T10:00:00.000Z')
   const of = (key: string, agent: string, patch: Partial<AccountEntry> = {}) => ({ ...entry(key, `${key}@example.com`), agent, ...patch })
   const groups = (accounts: AccountEntry[], active = 'global') =>
-    accountGroups({ ...view(accounts), active }, now).map((group) => [group.agent, group.entries.map((each) => each.key)])
+    accountGroups({ ...view(accounts), active, missing: ['opencode'] }, now).map((group) => [group.agent, group.entries.map((each) => each.key)])
 
   it('groups the accounts by provider in the providers order, the chain account first in its group', () => {
-    expect(groups([of('codex', 'codex'), of('work', 'claude'), of('global', 'claude')], 'global')).toEqual([
+    expect(groups([of('zen', 'opencode'), of('codex', 'codex'), of('work', 'claude'), of('global', 'claude')], 'global')).toEqual([
       ['claude', ['global', 'work']],
       ['codex', ['codex']],
+      ['opencode', ['zen']],
     ])
   })
 
@@ -143,16 +147,17 @@ describe('accountGroups', () => {
   })
 
   it('lists an addable provider with no account as an empty group, and an agent it does not know after the rest', () => {
-    expect(groups([of('global', 'claude'), of('other', 'gemini')])).toEqual([
-      ['claude', ['global']],
-      ['codex', []],
-      ['gemini', ['other']],
+    expect(accountGroups({ ...view([of('global', 'claude'), of('other', 'gemini')]) }, now).map((group) => group.agent)).toEqual([
+      'claude',
+      'codex',
+      'opencode',
+      'gemini',
     ])
   })
 
   it('drops the empty group of a provider whose CLI is not found, and keeps one that has accounts', () => {
     const missing = (accounts: AccountEntry[]) =>
-      accountGroups({ ...view(accounts), missing: ['codex'] }, now).map((group) => [group.agent, group.entries.map((each) => each.key)])
+      accountGroups({ ...view(accounts), missing: ['codex', 'opencode'] }, now).map((group) => [group.agent, group.entries.map((each) => each.key)])
     expect(missing([of('global', 'claude')])).toEqual([['claude', ['global']]])
     expect(missing([of('global', 'claude'), of('work', 'codex')])).toEqual([
       ['claude', ['global']],
@@ -179,6 +184,6 @@ describe('offeredProviders', () => {
   })
 
   it('offers every provider until the accounts are known', () => {
-    expect(offeredProviders(null, [])).toEqual(['claude', 'codex'])
+    expect(offeredProviders(null, [])).toEqual(['claude', 'codex', 'opencode'])
   })
 })
