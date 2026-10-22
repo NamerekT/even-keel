@@ -2,8 +2,9 @@
 // Read-only SQL against the Tally database, from any folder: the server one as tally_reader, or the local one the
 // Even Keel service serves on a loopback port. The read-only transaction is the guard.
 // Usage: node <path>/sql.mjs [-n rows] [-w width] [--csv] ("<sql>" | -f file.sql | -) — no SQL argument reads stdin.
-import { readFileSync } from 'node:fs'
+import { existsSync, readFileSync } from 'node:fs'
 import { createRequire } from 'node:module'
+import { homedir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { parseEnv } from 'node:util'
@@ -43,6 +44,16 @@ function parseArgs(argv) {
 function mainCheckout() {
   const checkout = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..')
   return checkout.replace(/[\\/]\.claude[\\/]worktrees[\\/][^\\/]+$/, '')
+}
+
+// Where `.env` and `state/` are, as src/locations.ts finds them: a checkout's own folder, a package's data folder.
+function dataOf(root) {
+  if (process.env.EVEN_KEEL_DATA) return resolve(process.env.EVEN_KEEL_DATA)
+  if (existsSync(join(root, 'src', 'main.ts'))) return root
+  const home = homedir()
+  if (process.platform === 'win32') return join(process.env.LOCALAPPDATA || join(home, 'AppData', 'Local'), 'even-keel')
+  if (process.platform === 'darwin') return join(home, 'Library', 'Application Support', 'even-keel')
+  return join(process.env.XDG_DATA_HOME || join(home, '.local', 'share'), 'even-keel')
 }
 
 function settings(root) {
@@ -130,7 +141,7 @@ try {
 } catch {
   fail(`pg not found in ${join(root, 'node_modules')} — run npm install in the Even Keel checkout`)
 }
-const client = new pg.Client({ ...settings(root), types: asText })
+const client = new pg.Client({ ...settings(dataOf(root)), types: asText })
 try {
   await client.connect()
   await client.query('begin transaction read only')

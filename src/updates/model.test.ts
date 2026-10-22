@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { previousOf, recordOf, resultView, sameStorage, tagOf, updateBlock, type UpdateRecord } from './model.js'
+import { globalPrefixOf } from './prefix.js'
+import { packageBlock, previousOf, recordOf, resultView, sameStorage, tagOf, updateBlock, type UpdateRecord } from './model.js'
 
 const STORAGE = { schema: 9, database: 11, tally: 5 }
 const CLEAN = { commit: 'a1b2c3d', branch: 'main', tags: ['v0.2.0'], dirty: false }
@@ -14,6 +15,29 @@ const RECORD: UpdateRecord = {
   rollback: null,
   seen: false,
 }
+
+describe('globalPrefixOf', () => {
+  it('finds the prefix of a global install', () => {
+    expect(globalPrefixOf('C:\\Users\\john\\AppData\\Roaming\\npm\\node_modules\\even-keel', 'win32')).toBe('C:\\Users\\john\\AppData\\Roaming\\npm')
+    expect(globalPrefixOf('/usr/local/lib/node_modules/even-keel', 'linux')).toBe('/usr/local')
+    expect(globalPrefixOf('/Users/john/.nvm/versions/node/v24.1.0/lib/node_modules/even-keel', 'darwin')).toBe('/Users/john/.nvm/versions/node/v24.1.0')
+  })
+
+  it('has none for a local install or the cache of npx', () => {
+    expect(globalPrefixOf('/home/john/tools/node_modules/even-keel', 'linux')).toBeNull()
+    expect(globalPrefixOf('/home/john/.npm/_npx/1a2b3c/node_modules/even-keel', 'linux')).toBeNull()
+    expect(globalPrefixOf('C:\\Users\\john\\AppData\\Local\\npm-cache\\_npx\\1a2b3c\\node_modules\\even-keel', 'win32')).toBeNull()
+    expect(globalPrefixOf('/home/john/even-keel', 'linux')).toBeNull()
+  })
+})
+
+describe('packageBlock', () => {
+  it('needs a global install run by a service manager', () => {
+    expect(packageBlock(true, '/usr/local')).toBeNull()
+    expect(packageBlock(false, '/usr/local')).toBe('service')
+    expect(packageBlock(true, null)).toBe('global')
+  })
+})
 
 describe('updateBlock', () => {
   it('lets a clean checkout on the tag of the installed version update', () => {

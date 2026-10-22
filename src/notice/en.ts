@@ -25,6 +25,7 @@ const UPDATE_BLOCKS: Record<UpdateBlock | 'storage', string> = {
   git: 'the folder of Even Keel is not a git checkout',
   dirty: 'the checkout has uncommitted changes',
   tag: 'the checkout is not on the release tag of the installed version',
+  global: 'the npm package is not a global install (npm install --global)',
   checking: 'the checkout is still being read; try again in a moment',
   storage: 'the previous version cannot read the storage this one migrated',
 }

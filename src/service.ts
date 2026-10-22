@@ -98,7 +98,7 @@ import { noteAtEnd } from './sessions/note.js'
 import { TranscriptOwners } from './sessions/owners.js'
 import { ChatTitles } from './sessions/title.js'
 import { TranscriptWatch } from './sessions/watch.js'
-import { configPath, loadEnv, root, stateDirOf } from './locations.js'
+import { configPath, home as dataHome, loadEnv, root, source, stateDirOf } from './locations.js'
 import { isInside } from './paths.js'
 import { defaultProfile, keyPool, profileFor, profileKinds, serverProfile } from './profiles/model.js'
 import { checkProfileRules, projectRules } from './profiles/rules.js'
@@ -298,7 +298,7 @@ const claudeConfigs = () =>
 const packages: Packages = new Packages({
   file: join(stateDir, 'packages.json'),
   cache: join(stateDir, 'packages'),
-  envFile: join(root, '.env'),
+  envFile: join(dataHome, '.env'),
   get repos() {
     return configStore.current.projects
   },
@@ -441,6 +441,7 @@ const newTally = () =>
   new TallyService({
     mode: tallyMode(),
     root,
+    home: dataHome,
     stateDir,
     env: process.env,
     intervalMs: TALLY_INTERVAL_MS,
@@ -530,6 +531,9 @@ const updates = new UpdateWatcher({
 const releasesView = () => updatesView(release.version, updates.releases, { ...configStore.current.updates, dismissed: dismissedUpdate ?? null })
 const updater = new Updater({
   root,
+  home: dataHome,
+  source,
+  packageName: release.name,
   current: release.version,
   storage: { schema: SCHEMA_VERSION, database: SQLITE_VERSIONS + DATABASE_STEPS.length, tally: TALLY_SCHEMA_VERSION },
   startedAt,
@@ -567,7 +571,7 @@ const daemons = new DaemonRefresh({
 
 const secrets = new Secrets({
   catalog: secretCatalog(),
-  envFile: join(root, '.env'),
+  envFile: join(dataHome, '.env'),
   settingsFile: () => join(homes.global.dir, 'settings.json'),
   env: process.env,
   outer: (name) => envFile.isOuter(name),

@@ -1,4 +1,4 @@
-import { resolve } from 'node:path'
+import { root } from '../../src/locations.js'
 import { describeTool, flatten } from '../../src/sessions/entry.js'
 import type { MessageRow } from './parse.js'
 import { commandOf, streamsOf, type StreamEvent, type TranscriptEntry } from './stream.js'
@@ -115,7 +115,7 @@ export function parseChatResponse(body: unknown): ModelAnswer {
   }
 }
 
-const home = placeOf(resolve(import.meta.dirname, '..', '..'))
+const home = placeOf(root)
 
 export function costRows(sessionId: string, usage: ModelUsage[], account: string, at: string): MessageRow[] {
   return usage.map((item) => ({

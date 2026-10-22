@@ -2,10 +2,10 @@ import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { releasesOf, repositoryOf, type ReleaseNote } from './release.js'
 
-/** The installed version and the GitHub repository of the checkout, from its `package.json`. */
-export function installed(root: string): { version: string; repo: string | null } {
-  const { version, repository } = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8')) as { version?: unknown; repository?: unknown }
-  return { version: typeof version === 'string' ? version : '0.0.0', repo: repositoryOf(repository) }
+/** The package's name, the installed version and the GitHub repository of the checkout, from its `package.json`. */
+export function installed(root: string): { name: string; version: string; repo: string | null } {
+  const { name, version, repository } = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8')) as { name?: unknown; version?: unknown; repository?: unknown }
+  return { name: typeof name === 'string' ? name : 'even-keel', version: typeof version === 'string' ? version : '0.0.0', repo: repositoryOf(repository) }
 }
 
 export interface UpdateWatcherOptions {

@@ -4,7 +4,7 @@ Every environment variable and every setting. How to set Even Keel up is in [set
 
 ## Environment
 
-`.env` in the repository root. Even Keel watches it and applies a change without a restart: the page moves to a new address, the collector reconnects. Only the variables marked "read at startup" below need a restart.
+`.env` in the data folder: a clone's own folder, or for an install with npm `%LOCALAPPDATA%\even-keel`, `~/Library/Application Support/even-keel` or `~/.local/share/even-keel` (`$XDG_DATA_HOME/even-keel`). Even Keel watches it and applies a change without a restart: the page moves to a new address, the collector reconnects. Only the variables marked "read at startup" below need a restart.
 
 The trackers' and the CIs' credentials are not here but in the profiles (see [Trackers and plugins](setup.md#trackers-and-plugins)); a profile's change applies at once too. On the first start Even Keel turns the tracker variables it finds in `.env` (`HULY_URL`, `HULY_WORKSPACE`, `HULY_TOKEN` or `HULY_EMAIL` and `HULY_PASSWORD`; `GITHUB_TOKEN`; `LINEAR_TOKEN`) into the default profile of each tracker, once, and says so in the log; after that it no longer reads them.
 
@@ -21,12 +21,13 @@ The variables below can also be set on the page: `/settings` → **Access** has 
 | `EVEN_KEEL_OPENCODE_ACCOUNTS_DIR` | folder of the OpenCode account folders added from the page; default `~/.opencode-accounts` |
 | `EVEN_KEEL_COPILOT_BIN` | path to the `copilot` binary; default the `copilot.exe` winget installed on Windows, `copilot` elsewhere |
 | `EVEN_KEEL_COPILOT_ACCOUNTS_DIR` | folder of the GitHub Copilot account folders added from the page; default `~/.copilot-accounts` |
-| `EVEN_KEEL_CONFIG` | path to the config file of an older install, imported into the database at the first start; default `even-keel.config.json` in the root. Read at startup |
+| `EVEN_KEEL_CONFIG` | path to the config file of an older install, imported into the database at the first start; default `even-keel.config.json` in the data folder. Read at startup |
+| `EVEN_KEEL_DATA` | the data folder — `.env`, `state/`, `logs/` — instead of the clone's own folder or the platform's one of an npm install. Set in the environment of the service or the terminal, not in `.env`, which is in it |
 | `EVEN_KEEL_HOST`, `EVEN_KEEL_PORT` | where the page listens; default `127.0.0.1` and `4747`. Any other address than loopback needs `EVEN_KEEL_TOKEN` ([Reaching the page from another machine](setup.md#reaching-the-page-from-another-machine)). Changed, the page moves to the new address; if it cannot listen there, it stays on the old one and says so on the page. `host` and `port` left in an older config are not imported, the log says so once |
 | `EVEN_KEEL_MCP_PORT` | port of the local MCP gateway the chain sessions reach their packages' servers through; default `4748`, always on `127.0.0.1`. Read at startup |
 | other keys | whatever a package's MCP server reads (a `${…}` placeholder of its entry), entered on `/tools` under **Keys** or by hand |
 | `EVEN_KEEL_TOKEN` | the page's token for requests from other machines; required when `EVEN_KEEL_HOST` is not loopback, 16+ characters of `A-Z a-z 0-9 . _ ~ + / = -`, e.g. `node -e "console.log(crypto.randomBytes(24).toString('hex'))"`. Changed, open pages ask for the new one |
-| `EVEN_KEEL_STATE_DIR` | where state lives (the state database with the chain and the launch log, accounts, packages, statistics database); default `state/`. Read at startup |
+| `EVEN_KEEL_STATE_DIR` | where state lives (the state database with the chain and the launch log, accounts, packages, statistics database); default `state/` of the data folder. Read at startup |
 | `TALLY_DB_HOST`, `TALLY_DB_PORT`, `TALLY_DB_NAME`, `TALLY_WRITER_PASSWORD`, `TALLY_READER_PASSWORD` | your own Postgres for the statistics, used when `tally` is `server`: the collector writes as `tally_writer`, the page reads as `tally_reader`. Settings → Stats writes them for you after checking the connection. `tally/deploy/` has a Compose file that creates both roles |
 | `TALLY_LLM_URL`, `TALLY_LLM_KEY`, `TALLY_LLM_MODEL` | optional classifier of the stuck spans on `/stats`: an OpenAI-compatible endpoint, its key and a model it serves; without them the spans are found but not explained |
 

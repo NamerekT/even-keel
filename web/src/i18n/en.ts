@@ -79,9 +79,10 @@ export const en: Messages = {
     reverted: 'A revert release',
     revertedBody: 'It brings back what an earlier release changed:',
     update: (version: string) => `Update to ${version}`,
-    updateHint:
-      'The service waits until no chain is in a launch, a handover or a closing, stops, checks out the release tag, installs and builds it and starts again; the page reloads by itself. If the new version does not come up, the one running now comes back.',
+    updateHint: (source: 'git' | 'npm') =>
+      `The service waits until no chain is in a launch, a handover or a closing, stops, ${source === 'npm' ? 'installs the release with npm' : 'checks out the release tag, installs and builds it'} and starts again; the page reloads by itself. If the new version does not come up, the one running now comes back.`,
     blocked: {
+      global: 'No button: the npm package is not a global install, so its folder may go. Install it with npm install --global even-keel.',
       service: 'No button: Even Keel does not run as a service here (npm start), so nothing would start it again. Update by hand, as in the README.',
       git: 'No button: the folder of Even Keel is not a git checkout. Update by hand, as in the README.',
       dirty: 'No button: the checkout has uncommitted changes. Commit or drop them, or update by hand.',

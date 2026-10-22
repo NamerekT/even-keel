@@ -12,80 +12,81 @@ Every entry, ordered by how many people it reaches and how badly it hurts them i
 | ---: | --- | --- | --- |
 | 1 | [An early reset of a limit](#an-early-reset-of-a-limit) | everyone on a subscription | the chain waits hours for a reset that already came |
 | 2 | [Staying signed in after a reboot](#staying-signed-in-after-a-reboot-ekr-15) | everyone on a subscription | accounts ask to sign in again after a reboot |
-| 3 | [macOS](#macos) | macOS | the service or the CLI lookup may not work at all |
-| 4 | [Codex chains beyond short tasks](#codex-chains-beyond-short-tasks) | Codex | sessions cannot run commands, or run with no sandbox |
-| 5 | [Errors and limits in the rollout](#errors-and-limits-in-the-rollout) | Codex | a limit looks like a finished turn, the task waits for you |
-| 6 | [Plugin hooks that block](#plugin-hooks-that-block-btn-180) | Codex | a merge goes in before the project's check |
-| 7 | [Chain sessions on the checked CLI](#chain-sessions-on-the-checked-cli-btn-250) | everyone | sessions run on an unchecked CLI version |
-| 8 | [The wizard's trust check](#the-wizards-trust-check) | new users | a pause at the first launch |
-| 9 | [A chain session reaching the agent's own compaction](#a-chain-session-reaching-the-agents-own-compaction) | everyone | a session loses the task's decisions after a compaction |
-| 10 | [Chat mail in a real session](#chat-mail-in-a-real-session-btn-181) | everyone writing to a session about to hand off | the handoff waits a turn longer |
-| 11 | [Background commands of a stopped session on Linux and macOS](#background-commands-of-a-stopped-session-on-linux-and-macos-btn-202) | Linux, macOS | a worktree is left behind after Done |
-| 12 | [Packages on Linux and macOS](#packages-on-linux-and-macos) | Linux, macOS with packages | the chain waits on a package that does not start |
-| 13 | [The update button on the page](#the-update-button-on-the-page-btn-163) | macOS updating from the page | the service stays stopped after an update; start it by hand |
-| 14 | [Stopping a turn on macOS and Linux](#stopping-a-turn-on-macos-and-linux) | Codex on Linux, macOS | a stopped Codex turn goes on |
-| 15 | [PR mode beyond GitHub's open, close and merge](#pr-mode-beyond-githubs-open-close-and-merge-btn-205) | PR mode | feedback does not reach the session; a task waits out of the chain |
-| 16 | [A task back from Backlog after a question in a comment](#a-task-back-from-backlog-after-a-question-in-a-comment-btn-245) | unattended mode | the answered task waits instead of going on |
-| 17 | [A resume that starts a copy](#a-resume-that-starts-a-copy) | everyone, rarely | "Session booting" for 5 minutes after an answer |
-| 18 | [A chain session on an API account](#a-chain-session-on-an-api-account) | Claude API keys | every session fails on authentication |
-| 19 | [Sessions through the Agent SDK](#sessions-through-the-agent-sdk-btn-239) | Claude API keys, subscriptions that turn it on | over a long run a session hangs where `--bg` would not, or a resume loses its Remote Control chat |
-| 20 | [An API key out of credit](#an-api-key-out-of-credit-btn-165) | Claude API keys | the chain stops instead of waiting for a top-up, or waits forever |
-| 21 | [Codex on an OpenAI API key](#codex-on-an-openai-api-key-btn-177) | Codex API keys | a session stops on an empty key, or the chain waits forever |
-| 22 | [A key refused after it was added](#a-key-refused-after-it-was-added) | Claude API keys | a revoked key looks fine until a session fails |
-| 23 | [A command after a green main that restarts Even Keel](#a-command-after-a-green-main-that-restarts-even-keel) | a restart in `commands.afterGreen` | the service stays stopped |
-| 24 | [When a CI run counts as stuck](#when-a-ci-run-counts-as-stuck) | CI with a slow runner queue | a run is called stuck too early |
-| 25 | [Chains of several projects on one remote](#chains-of-several-projects-on-one-remote-btn-210) | several projects on one remote | a project waits on another's fix, or two fixes of the same red `main` |
-| 26 | [A package server and a Codex server of the same name](#a-package-server-and-a-codex-server-of-the-same-name) | Codex with packages | a session gets the wrong server of a name |
-| 27 | [Sign-in from the page](#sign-in-from-the-page) | Codex | no sign-in link in the window |
-| 28 | [A crashed turn and a service restart mid-turn](#a-crashed-turn-and-a-service-restart-mid-turn) | Codex | a dead session looks busy |
-| 29 | [Chain sessions in the Codex app and on the phone](#chain-sessions-in-the-codex-app-and-on-the-phone-btn-178) | Codex | two turns on one thread if you answer in the app |
-| 30 | [Chat mail at a Codex Stop](#chat-mail-at-a-codex-stop-btn-181) | Codex | a message sent at the end of a turn is lost |
-| 31 | [The handoff note of a Codex turn seen by the Stop hook](#the-handoff-note-of-a-codex-turn-seen-by-the-stop-hook) | Codex | a note without the `CHECKPOINT:` line waits for a reply |
-| 32 | [The chat's turn line on Codex and after the chain stopped](#the-chats-turn-line-while-an-answer-is-delivered-to-codex-or-after-the-chain-stopped-btn-188) | Codex, a stopped chain | the chat says "delivering" for up to three minutes |
-| 33 | [Plugins from a git URL marketplace](#plugins-from-a-git-url-marketplace) | a marketplace added by URL | sessions keep an old plugin |
-| 34 | [A tracker profile changed on the Access page](#a-tracker-profile-changed-on-the-access-page-btn-200) | anyone changing a key | the tracker stays "does not answer" until a restart |
-| 35 | ["Add to Claude Code" on /tools](#add-to-claude-code-on-tools-btn-226) | new users running the service | the banner stays; run its command by hand |
-| 36 | [Two profiles of one tracker](#two-profiles-of-one-tracker-btn-200) | two accounts of one tracker | a project reads another profile's tasks |
-| 37 | [A project's own CI profile](#a-projects-own-ci-profile-btn-231) | two forge profiles | the CI or a pull request uses the old profile |
-| 38 | [Carrying a release project forward](#carrying-a-release-project-forward-btn-172) | release projects | a fix stays out of the main branch; carry it by hand |
-| 39 | [Several projects on one tracker project](#several-projects-on-one-tracker-project-btn-172-btn-73) | two projects on one Huly project or Linear team | a task in both chains, or in neither |
-| 40 | [Task feeds from another tracker](#task-feeds-from-another-tracker-btn-66) | projects with a task feed | a feed's task is not closed, or its session cannot read it; stats name it wrong |
-| 41 | [Removing a project on the running service](#removing-a-project-on-the-running-service-btn-118) | anyone removing a project | a removal goes through while a session works |
-| 42 | [A changed EVEN_KEEL_TOKEN seen from another machine](#a-changed-even_keel_token-seen-from-another-machine-btn-130) | the page from another machine | a dead connection until a reload |
-| 43 | [A remote added to a checkout on the running service](#a-remote-added-to-a-checkout-on-the-running-service-btn-191) | CI | the CI does not appear until a restart |
-| 44 | [The context window a chain session gets](#the-context-window-a-chain-session-gets-btn-187) | everyone | the context meter and the handoff cap read a wrong window |
-| 45 | [A task closed by `NO CHANGES:`](#a-task-closed-by-no-changes-ekr-10) | everyone outside PR mode | a task with nothing to merge waits for you, as before the mark |
-| 46 | [A session waiting on you behind a monitor](#a-session-waiting-on-you-behind-a-monitor) | everyone, rarely | a session waiting for its own build shows "waiting"; a reply or unattended mode cuts the build short |
-| 47 | [The 1-hour cache on a key](#the-1-hour-cache-on-a-key) | Claude API keys with `cacheTtl` | more cache writes; nothing breaks |
-| 48 | [Outsiders' comments on a public GitHub repository](#outsiders-comments-on-a-public-github-repository-ekr-19) | PR mode on public GitHub repositories | your own review is skipped, or an outsider's reaches a session |
-| 49 | [Milestones on GitHub and Linear](#milestones-on-github-and-linear) | GitHub, Linear | a task's milestone is not filled |
-| 50 | [Changing a milestone from the task card on GitHub and Linear](#changing-a-milestone-from-the-task-card-on-github-and-linear) | GitHub, Linear | the card puts the old milestone back |
-| 51 | [The tasks of a milestone on GitHub and Linear](#the-tasks-of-a-milestone-on-github-and-linear-btn-142) | changelog drafts on GitHub, Linear | the draft misses tasks or takes an older comment |
-| 52 | [GitHub attachments](#github-attachments) | GitHub | the page cannot open an attached file |
-| 53 | [The expiry of a fine-grained GitHub token](#the-expiry-of-a-fine-grained-github-token) | GitHub fine-grained tokens | no expiry on the card |
-| 54 | [The Codex changelog turn with JSON output](#the-codex-changelog-turn-with-json-output) | changelog drafts on Codex | the draft fails, or shows 0 tokens |
-| 55 | [A reader opening the state database while the service starts](#a-reader-opening-the-state-database-while-the-service-starts) | `npm run storage` users | the service stays blocked until a restart; at worst two writers on one database |
-| 56 | [OpenCode chain sessions under the service](#opencode-chain-sessions-under-the-service-btn-214) | OpenCode | sessions do not start, or a whole task runs on a wrong assumption |
-| 57 | [A spent limit on OpenCode](#a-spent-limit-on-opencode) | OpenCode on ChatGPT or Copilot | the session stops on the error instead of waiting for the reset |
-| 58 | [A hung OpenCode turn](#a-hung-opencode-turn) | OpenCode | a hang the watchdog misses stays busy, or a long build is taken for hung |
-| 59 | [OpenCode sign-in from the page](#opencode-sign-in-from-the-page) | OpenCode with ChatGPT or Copilot | no link in the window; sign in in a terminal |
-| 60 | [Plugins in a Codex folder on Linux and macOS](#plugins-in-a-codex-folder-on-linux-and-macos) | Codex on Linux, macOS | a few seconds per first turn |
-| 61 | [Edit sizes of a FileChange](#edit-sizes-of-a-filechange-btn-185) | Codex | the chat shows an edit without its size |
-| 62 | [Codex stats](#codex-stats-btn-170) | Codex | a response counted twice in `/stats` |
-| 63 | [Fast mode in statistics](#fast-mode-in-statistics) | fast mode | `/stats` understates its cost |
-| 64 | [The first start with the PGlite state database](#the-first-start-with-the-pglite-state-database-btn-198) | an update from a build before v0.1 | the start stops on an import error |
-| 65 | [The first start with Forgejo profiles](#the-first-start-with-forgejo-profiles-btn-201) | an update from a build before v0.1 with Forgejo | the Forgejo CI disappears from the page |
-| 66 | [PR mode without a remote](#pr-mode-without-a-remote-ekr-12) | PR mode | the chain stays paused after the remote is added; press Resume |
-| 67 | [The OpenCode database read while a turn writes](#the-opencode-database-read-while-a-turn-writes) | OpenCode | the feed or a stats run skips one poll |
-| 68 | [Shared skills in a store outside `~/.claude`](#shared-skills-in-a-store-outside-claude-btn-256) | several Claude account folders | a shared skill edit still asks; at worst the global folder's sessions miss skills |
-| 69 | [Copilot chain sessions under the service](#copilot-chain-sessions-under-the-service-btn-215) | Copilot | sessions do not start without a token |
-| 70 | [Hooks and plugins in Copilot sessions](#hooks-and-plugins-in-copilot-sessions) | Copilot | no handoff on a full context, chat messages only between turns |
-| 71 | [MCP servers in Copilot sessions](#mcp-servers-in-copilot-sessions) | Copilot with packages | a session lacks the tracker's tools |
-| 72 | [A spent Copilot budget](#a-spent-copilot-budget) | Copilot | the session waits for good; press "New session" |
-| 73 | [A Copilot turn killed mid-turn](#a-copilot-turn-killed-mid-turn) | Copilot | the resume fails; press "New session" |
-| 74 | [Copilot installed with npm](#copilot-installed-with-npm) | Copilot from npm | the first turn fails; set `EVEN_KEEL_COPILOT_BIN` |
-| 75 | [Copilot models in the stats](#copilot-models-in-the-stats) | Copilot on Claude models | `/stats` shows no cost for them |
-| 76 | [GitHub issues taken into the tracker](#github-issues-taken-into-the-tracker-btn-262) | projects with `intakeLabel` | an issue is not taken in, or stays open after its release; close it by hand |
+| 3 | [Installing and updating with npm](#installing-and-updating-with-npm-btn-265) | everyone installing with npm | `npx even-keel` or the service fails; install from a clone |
+| 4 | [macOS](#macos) | macOS | the service or the CLI lookup may not work at all |
+| 5 | [Codex chains beyond short tasks](#codex-chains-beyond-short-tasks) | Codex | sessions cannot run commands, or run with no sandbox |
+| 6 | [Errors and limits in the rollout](#errors-and-limits-in-the-rollout) | Codex | a limit looks like a finished turn, the task waits for you |
+| 7 | [Plugin hooks that block](#plugin-hooks-that-block-btn-180) | Codex | a merge goes in before the project's check |
+| 8 | [Chain sessions on the checked CLI](#chain-sessions-on-the-checked-cli-btn-250) | everyone | sessions run on an unchecked CLI version |
+| 9 | [The wizard's trust check](#the-wizards-trust-check) | new users | a pause at the first launch |
+| 10 | [A chain session reaching the agent's own compaction](#a-chain-session-reaching-the-agents-own-compaction) | everyone | a session loses the task's decisions after a compaction |
+| 11 | [Chat mail in a real session](#chat-mail-in-a-real-session-btn-181) | everyone writing to a session about to hand off | the handoff waits a turn longer |
+| 12 | [Background commands of a stopped session on Linux and macOS](#background-commands-of-a-stopped-session-on-linux-and-macos-btn-202) | Linux, macOS | a worktree is left behind after Done |
+| 13 | [Packages on Linux and macOS](#packages-on-linux-and-macos) | Linux, macOS with packages | the chain waits on a package that does not start |
+| 14 | [The update button on the page](#the-update-button-on-the-page-btn-163) | macOS updating from the page | the service stays stopped after an update; start it by hand |
+| 15 | [Stopping a turn on macOS and Linux](#stopping-a-turn-on-macos-and-linux) | Codex on Linux, macOS | a stopped Codex turn goes on |
+| 16 | [PR mode beyond GitHub's open, close and merge](#pr-mode-beyond-githubs-open-close-and-merge-btn-205) | PR mode | feedback does not reach the session; a task waits out of the chain |
+| 17 | [A task back from Backlog after a question in a comment](#a-task-back-from-backlog-after-a-question-in-a-comment-btn-245) | unattended mode | the answered task waits instead of going on |
+| 18 | [A resume that starts a copy](#a-resume-that-starts-a-copy) | everyone, rarely | "Session booting" for 5 minutes after an answer |
+| 19 | [A chain session on an API account](#a-chain-session-on-an-api-account) | Claude API keys | every session fails on authentication |
+| 20 | [Sessions through the Agent SDK](#sessions-through-the-agent-sdk-btn-239) | Claude API keys, subscriptions that turn it on | over a long run a session hangs where `--bg` would not, or a resume loses its Remote Control chat |
+| 21 | [An API key out of credit](#an-api-key-out-of-credit-btn-165) | Claude API keys | the chain stops instead of waiting for a top-up, or waits forever |
+| 22 | [Codex on an OpenAI API key](#codex-on-an-openai-api-key-btn-177) | Codex API keys | a session stops on an empty key, or the chain waits forever |
+| 23 | [A key refused after it was added](#a-key-refused-after-it-was-added) | Claude API keys | a revoked key looks fine until a session fails |
+| 24 | [A command after a green main that restarts Even Keel](#a-command-after-a-green-main-that-restarts-even-keel) | a restart in `commands.afterGreen` | the service stays stopped |
+| 25 | [When a CI run counts as stuck](#when-a-ci-run-counts-as-stuck) | CI with a slow runner queue | a run is called stuck too early |
+| 26 | [Chains of several projects on one remote](#chains-of-several-projects-on-one-remote-btn-210) | several projects on one remote | a project waits on another's fix, or two fixes of the same red `main` |
+| 27 | [A package server and a Codex server of the same name](#a-package-server-and-a-codex-server-of-the-same-name) | Codex with packages | a session gets the wrong server of a name |
+| 28 | [Sign-in from the page](#sign-in-from-the-page) | Codex | no sign-in link in the window |
+| 29 | [A crashed turn and a service restart mid-turn](#a-crashed-turn-and-a-service-restart-mid-turn) | Codex | a dead session looks busy |
+| 30 | [Chain sessions in the Codex app and on the phone](#chain-sessions-in-the-codex-app-and-on-the-phone-btn-178) | Codex | two turns on one thread if you answer in the app |
+| 31 | [Chat mail at a Codex Stop](#chat-mail-at-a-codex-stop-btn-181) | Codex | a message sent at the end of a turn is lost |
+| 32 | [The handoff note of a Codex turn seen by the Stop hook](#the-handoff-note-of-a-codex-turn-seen-by-the-stop-hook) | Codex | a note without the `CHECKPOINT:` line waits for a reply |
+| 33 | [The chat's turn line on Codex and after the chain stopped](#the-chats-turn-line-while-an-answer-is-delivered-to-codex-or-after-the-chain-stopped-btn-188) | Codex, a stopped chain | the chat says "delivering" for up to three minutes |
+| 34 | [Plugins from a git URL marketplace](#plugins-from-a-git-url-marketplace) | a marketplace added by URL | sessions keep an old plugin |
+| 35 | [A tracker profile changed on the Access page](#a-tracker-profile-changed-on-the-access-page-btn-200) | anyone changing a key | the tracker stays "does not answer" until a restart |
+| 36 | ["Add to Claude Code" on /tools](#add-to-claude-code-on-tools-btn-226) | new users running the service | the banner stays; run its command by hand |
+| 37 | [Two profiles of one tracker](#two-profiles-of-one-tracker-btn-200) | two accounts of one tracker | a project reads another profile's tasks |
+| 38 | [A project's own CI profile](#a-projects-own-ci-profile-btn-231) | two forge profiles | the CI or a pull request uses the old profile |
+| 39 | [Carrying a release project forward](#carrying-a-release-project-forward-btn-172) | release projects | a fix stays out of the main branch; carry it by hand |
+| 40 | [Several projects on one tracker project](#several-projects-on-one-tracker-project-btn-172-btn-73) | two projects on one Huly project or Linear team | a task in both chains, or in neither |
+| 41 | [Task feeds from another tracker](#task-feeds-from-another-tracker-btn-66) | projects with a task feed | a feed's task is not closed, or its session cannot read it; stats name it wrong |
+| 42 | [Removing a project on the running service](#removing-a-project-on-the-running-service-btn-118) | anyone removing a project | a removal goes through while a session works |
+| 43 | [A changed EVEN_KEEL_TOKEN seen from another machine](#a-changed-even_keel_token-seen-from-another-machine-btn-130) | the page from another machine | a dead connection until a reload |
+| 44 | [A remote added to a checkout on the running service](#a-remote-added-to-a-checkout-on-the-running-service-btn-191) | CI | the CI does not appear until a restart |
+| 45 | [The context window a chain session gets](#the-context-window-a-chain-session-gets-btn-187) | everyone | the context meter and the handoff cap read a wrong window |
+| 46 | [A task closed by `NO CHANGES:`](#a-task-closed-by-no-changes-ekr-10) | everyone outside PR mode | a task with nothing to merge waits for you, as before the mark |
+| 47 | [A session waiting on you behind a monitor](#a-session-waiting-on-you-behind-a-monitor) | everyone, rarely | a session waiting for its own build shows "waiting"; a reply or unattended mode cuts the build short |
+| 48 | [The 1-hour cache on a key](#the-1-hour-cache-on-a-key) | Claude API keys with `cacheTtl` | more cache writes; nothing breaks |
+| 49 | [Outsiders' comments on a public GitHub repository](#outsiders-comments-on-a-public-github-repository-ekr-19) | PR mode on public GitHub repositories | your own review is skipped, or an outsider's reaches a session |
+| 50 | [Milestones on GitHub and Linear](#milestones-on-github-and-linear) | GitHub, Linear | a task's milestone is not filled |
+| 51 | [Changing a milestone from the task card on GitHub and Linear](#changing-a-milestone-from-the-task-card-on-github-and-linear) | GitHub, Linear | the card puts the old milestone back |
+| 52 | [The tasks of a milestone on GitHub and Linear](#the-tasks-of-a-milestone-on-github-and-linear-btn-142) | changelog drafts on GitHub, Linear | the draft misses tasks or takes an older comment |
+| 53 | [GitHub attachments](#github-attachments) | GitHub | the page cannot open an attached file |
+| 54 | [The expiry of a fine-grained GitHub token](#the-expiry-of-a-fine-grained-github-token) | GitHub fine-grained tokens | no expiry on the card |
+| 55 | [The Codex changelog turn with JSON output](#the-codex-changelog-turn-with-json-output) | changelog drafts on Codex | the draft fails, or shows 0 tokens |
+| 56 | [A reader opening the state database while the service starts](#a-reader-opening-the-state-database-while-the-service-starts) | `npm run storage` users | the service stays blocked until a restart; at worst two writers on one database |
+| 57 | [OpenCode chain sessions under the service](#opencode-chain-sessions-under-the-service-btn-214) | OpenCode | sessions do not start, or a whole task runs on a wrong assumption |
+| 58 | [A spent limit on OpenCode](#a-spent-limit-on-opencode) | OpenCode on ChatGPT or Copilot | the session stops on the error instead of waiting for the reset |
+| 59 | [A hung OpenCode turn](#a-hung-opencode-turn) | OpenCode | a hang the watchdog misses stays busy, or a long build is taken for hung |
+| 60 | [OpenCode sign-in from the page](#opencode-sign-in-from-the-page) | OpenCode with ChatGPT or Copilot | no link in the window; sign in in a terminal |
+| 61 | [Plugins in a Codex folder on Linux and macOS](#plugins-in-a-codex-folder-on-linux-and-macos) | Codex on Linux, macOS | a few seconds per first turn |
+| 62 | [Edit sizes of a FileChange](#edit-sizes-of-a-filechange-btn-185) | Codex | the chat shows an edit without its size |
+| 63 | [Codex stats](#codex-stats-btn-170) | Codex | a response counted twice in `/stats` |
+| 64 | [Fast mode in statistics](#fast-mode-in-statistics) | fast mode | `/stats` understates its cost |
+| 65 | [The first start with the PGlite state database](#the-first-start-with-the-pglite-state-database-btn-198) | an update from a build before v0.1 | the start stops on an import error |
+| 66 | [The first start with Forgejo profiles](#the-first-start-with-forgejo-profiles-btn-201) | an update from a build before v0.1 with Forgejo | the Forgejo CI disappears from the page |
+| 67 | [PR mode without a remote](#pr-mode-without-a-remote-ekr-12) | PR mode | the chain stays paused after the remote is added; press Resume |
+| 68 | [The OpenCode database read while a turn writes](#the-opencode-database-read-while-a-turn-writes) | OpenCode | the feed or a stats run skips one poll |
+| 69 | [Shared skills in a store outside `~/.claude`](#shared-skills-in-a-store-outside-claude-btn-256) | several Claude account folders | a shared skill edit still asks; at worst the global folder's sessions miss skills |
+| 70 | [Copilot chain sessions under the service](#copilot-chain-sessions-under-the-service-btn-215) | Copilot | sessions do not start without a token |
+| 71 | [Hooks and plugins in Copilot sessions](#hooks-and-plugins-in-copilot-sessions) | Copilot | no handoff on a full context, chat messages only between turns |
+| 72 | [MCP servers in Copilot sessions](#mcp-servers-in-copilot-sessions) | Copilot with packages | a session lacks the tracker's tools |
+| 73 | [A spent Copilot budget](#a-spent-copilot-budget) | Copilot | the session waits for good; press "New session" |
+| 74 | [A Copilot turn killed mid-turn](#a-copilot-turn-killed-mid-turn) | Copilot | the resume fails; press "New session" |
+| 75 | [Copilot installed with npm](#copilot-installed-with-npm) | Copilot from npm | the first turn fails; set `EVEN_KEEL_COPILOT_BIN` |
+| 76 | [Copilot models in the stats](#copilot-models-in-the-stats) | Copilot on Claude models | `/stats` shows no cost for them |
+| 77 | [GitHub issues taken into the tracker](#github-issues-taken-into-the-tracker-btn-262) | projects with `intakeLabel` | an issue is not taken in, or stays open after its release; close it by hand |
 
 ## Platforms
 
@@ -104,6 +105,14 @@ Checked live on Windows (BTN-287, 2026-10-22): the same targets in Windows Sandb
 Not checked: a launchd agent — the stop is `launchctl bootout`, which may also end processes of the agent's group despite `AbandonProcessGroup`, and then the update stops halfway with the service down; the wait for a chain in a launch before the process starts; a revert release (`### Reverted` in its notes) shown on the page, since GitHub has none yet.
 
 If it is wrong: the page stays on "updating…" and the service does not come back. Start it by hand (`launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/local.even-keel.plist`), see `logs/update.log`, and if the checkout is on the new tag but the build failed, finish by hand: `npm ci`, `npm run build`, start.
+
+### Installing and updating with npm (BTN-265)
+
+Checked live on Windows (2026-10-22), before the first publish: `npm pack` of the package (about 1 MB, `dist/src`, `dist/tally`, `dist/web`, the service scripts), its global install into a separate prefix, `even-keel --help` with the data folder, Even Keel run in the foreground from `dist` with its state in the data folder (the page's API answered, the Tally worker from `dist/tally/src` collected), and `even-keel update` to a missing version: npm failed and the service of a clone stayed untouched.
+
+Not checked: `npx even-keel` from the registry (the package was not published yet) and its global install; `install.ps1` and `install.sh` run from a package — the Windows host in `<data folder>\service` with the data folder as its third argument, the systemd unit and the launchd agent with `EVEN_KEEL_DATA`; the update button on an npm install, its `npm install --global` with the service stopped and the rollback to the old version; `even-keel update` with a service installed; `.github/workflows/publish.yml` with trusted publishing; `tally/bin/sql.mjs` finding the data folder of an npm install.
+
+If it is wrong: `npx even-keel` fails or the service does not start. Install from a clone (the README's quick start, the second way), or install the package by hand — `npm install --global even-keel@<version>`, then `even-keel` in a terminal; a failed update is put back by `npm install --global even-keel@<old version>`. The service's log is in `logs/` of the data folder (`even-keel --help` names it).
 
 ### Plugins from a git URL marketplace
 

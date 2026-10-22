@@ -25,9 +25,10 @@ Darwin)
     echo "Agent $label is not installed."
     exit 0
   fi
+  log=$(sed -n 's:.*<string>\(.*even-keel\.log\)</string>.*:\1:p' "$plist" | head -n 1)
   launchctl bootout "gui/$(id -u)/$label" 2>/dev/null || true
   rm -f "$plist"
-  echo "Agent $label removed. Logs are kept in $root/logs."
+  echo "Agent $label removed. The log is kept: ${log:-$root/logs/even-keel.log}."
   ;;
 *)
   echo "uninstall: $(uname -s) is not supported here; on Windows use service/uninstall.ps1" >&2

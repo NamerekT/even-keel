@@ -1,17 +1,30 @@
 import { compareVersions } from './release.js'
 
+/** `git` — a checkout with its sources, run by tsx; `npm` — the package npm installed, only its build (BTN-265). */
+export type InstallSource = 'git' | 'npm'
+
 /**
  * Why the page offers no "Update": the service is not run by a service manager (`npm start`), the folder is no git
  * checkout, it has uncommitted changes, HEAD is not the release tag of the installed version (a developer's copy, one
- * a CI builds after every push), or the checkout is not read yet.
+ * a CI builds after every push), the npm package is not a global install, or the checkout is not read yet.
  */
-export type UpdateBlock = 'service' | 'git' | 'dirty' | 'tag' | 'checking'
+export type UpdateBlock = 'service' | 'git' | 'dirty' | 'tag' | 'global' | 'checking'
+
+/** An installation from npm (BTN-265): the update installs the release's version of the package into the same prefix. */
+export interface NpmPackage {
+  name: string
+  /** `--prefix` of the global install the package is in. */
+  prefix: string
+}
 
 /** `rebuild` — `service/rebuild.ps1` after a green push: the checkout is already where it should be. */
 export type UpdateMode = 'update' | 'revert' | 'rebuild'
 
 export const UPDATE_STEPS = ['settle', 'stop', 'fetch', 'checkout', 'restore', 'install', 'build', 'start', 'answer', 'launch'] as const
-/** `launch` — the service could not start the update process at all; `restore` — the rollback's checkout. */
+/**
+ * `launch` — the service could not start the update process at all; `restore` — the rollback's checkout, or for an npm
+ * package the install of the version that ran before; `install` of a package installs the release's version.
+ */
 export type UpdateStep = (typeof UPDATE_STEPS)[number]
 
 /** What the previous version must read for "Revert" to be safe: the config and `state/`, the state database, Tally. */
@@ -91,6 +104,12 @@ export function updateBlock(service: boolean, checkout: Checkout | null | undefi
   if (!service) return 'service'
   if (checkout.dirty) return 'dirty'
   return tagOf(checkout, current) === null ? 'tag' : null
+}
+
+/** A package needs no checkout: npm brings any published version back. */
+export function packageBlock(service: boolean, prefix: string | null): UpdateBlock | null {
+  if (prefix === null) return 'global'
+  return service ? null : 'service'
 }
 
 export function sameStorage(a: StorageVersions | null, b: StorageVersions): boolean {

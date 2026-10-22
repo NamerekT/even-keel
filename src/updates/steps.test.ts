@@ -15,6 +15,12 @@ describe('stepsOf', () => {
     expect(stepsOf({ mode: 'rebuild', install: 'install' })).toEqual(['settle', 'stop', 'install', 'build', 'start', 'answer'])
     expect(stepsOf({ mode: 'rebuild', install: null })).toEqual(['build', 'settle', 'stop', 'start', 'answer'])
   })
+
+  it('installs a package of npm with the service stopped, with nothing to fetch or build', () => {
+    const npm = { name: 'even-keel', prefix: '/usr/local' }
+    expect(stepsOf({ mode: 'update', install: 'ci', package: npm })).toEqual(['stop', 'install', 'start', 'answer'])
+    expect(stepsOf({ mode: 'revert', install: 'ci', package: npm })).toEqual(['stop', 'install', 'start', 'answer'])
+  })
 })
 
 describe('rollbackOf', () => {
@@ -27,6 +33,12 @@ describe('rollbackOf', () => {
     const back = ['stop', 'restore', 'install', 'build', 'start', 'answer']
     for (const step of ['checkout', 'install', 'build', 'start', 'answer'] as const) expect(rollbackOf('update', step)).toEqual(back)
     expect(rollbackOf('revert', 'build')).toEqual(back)
+  })
+
+  it('brings back the version of a package that ran before', () => {
+    expect(rollbackOf('update', 'stop', true)).toEqual(['start', 'answer'])
+    expect(rollbackOf('update', 'install', true)).toEqual(['stop', 'restore', 'start', 'answer'])
+    expect(rollbackOf('revert', 'answer', true)).toEqual(['stop', 'restore', 'start', 'answer'])
   })
 
   it('leaves a rebuild with the service started, as the script did', () => {

@@ -167,7 +167,7 @@ function UpdateDialog({ updates }: { updates: UpdatesView }) {
   const { send, sending, failure } = useCommand()
   const dialog = useRef<HTMLDialogElement>(null)
   const title = useId()
-  const { current, available, notes, blocked, previous, progress, result } = updates
+  const { current, available, notes, source, blocked, previous, progress, result } = updates
   const busy = sending || progress !== null
 
   useEffect(() => {
@@ -216,7 +216,7 @@ function UpdateDialog({ updates }: { updates: UpdatesView }) {
               ))}
             </section>
           )}
-          {available !== null && <p className="update-window__muted">{blocked === null ? t.updates.updateHint : t.updates.blocked[blocked]}</p>}
+          {available !== null && <p className="update-window__muted">{blocked === null ? t.updates.updateHint(source) : t.updates.blocked[blocked]}</p>}
           {previous !== null && (
             <section className="update-window__previous">
               <h3>

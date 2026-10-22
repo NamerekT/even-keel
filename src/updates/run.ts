@@ -1,5 +1,5 @@
 // The update process. `node run.js <plan.json>` — an update or a revert the service planned and started detached;
-// `node dist/updates/run.js rebuild --root <dir> --state <url> --service <name> [--wait <s>]` — `service/rebuild.ps1`
+// `node dist/src/updates/run.js rebuild --root <dir> --state <url> --service <name> [--wait <s>]` — `service/rebuild.ps1`
 // after a green push, in the foreground: it copies itself out of the checkout first and runs the copy.
 import { spawnSync } from 'node:child_process'
 import { existsSync, readFileSync, rmSync } from 'node:fs'
@@ -30,6 +30,7 @@ async function rebuildPlan(args: string[]): Promise<UpdatePlan> {
     mode: 'rebuild',
     install: dependenciesChanged(root) ? 'install' : null,
     root,
+    home: root,
     target: null,
     from: { version, commit: checkout.commit, branch: checkout.branch, tag: null, storage: null },
     service: process.platform === 'win32' ? windowsControl(service) : systemdControl(service),
