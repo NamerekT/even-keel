@@ -38,7 +38,7 @@ Behaviour written without a way to check it live (the situation never came up or
 
 - Node.js 24 + TypeScript, tests — vitest. The interface is React + Vite in `web/`, built into `dist/web`; the client takes state types from `src/state.ts` — only types there, no `node:*`.
 - The tracker is reached only through the `src/tracker/` layer: the chain, the order, the rules and the page know the neutral model and the adapter contract, not Huly. The repository has the Huly (`src/huly/`), GitHub (`src/github/`) and Linear (`src/linear/`) adapters.
-- Sessions are the `claude --bg` CLI, with a configuration folder per account (`CLAUDE_CONFIG_DIR`). The agent is reached only through the `src/agent/` layer (`Agent`, `AGENTS`); Claude Code is the adapter in `src/claude/` (`docs/sessions.md`).
+- Sessions are the `claude --bg` CLI or, per account folder, the same CLI through the Agent SDK, with a configuration folder per account (`CLAUDE_CONFIG_DIR`). The agent is reached only through the `src/agent/` layer (`Agent`, `AGENTS`); Claude Code is the adapter in `src/claude/` (`docs/sessions.md`).
 - Stats are Tally (`tally/`); the collector and the embedded database run inside the service.
 - The settings and projects are in the state database (BTN-199; `even-keel.config.json` is only imported once, a hand edit is `npm run storage -- config-export`/`config-import`). The service applies them and `.env` on the fly, every key (BTN-130): a restart is only for a new version and a few start-only variables (`docs/service.md`). A new setting must apply live too. The address is `EVEN_KEEL_HOST`/`EVEN_KEEL_PORT`, not the config.
 - A project's main branch is its `branch` key (`main` by default): never write a literal `main` into git calls or session prompts.
@@ -46,6 +46,7 @@ Behaviour written without a way to check it live (the situation never came up or
 ## Traps
 
 - `claude agents --json` gives neither `pid` nor `status`, and `state` stays even for dead sessions. A live session is only a `sessions/<pid>.json` entry with a live `pid`.
+- A Claude session of kind `sdk` (BTN-239) is no daemon job: its CLI sits in an executor of Even Keel's, live while the executor's pipe answers, and a reply goes into it without a stop. The `--bg` traps below do not apply to it; route a session by `SdkSessions.knows`, never by the account's current transport (`docs/sessions.md`).
 - A Codex session between turns has no process: live means a live pid or `resting` — check through `isLive`, never `pid` alone.
 - A pending `AskUserQuestion` is in the transcript at once only from CLI 2.1.302: 2.1.296 wrote the message with the call only once it was answered, `claude stop` lost it, and until then the question was only in `jobs/<id>/state.json` — keep reading it from there for such CLIs (`docs/sessions.md`).
 - `claude stop`/`claude agents` from a terminal do not reach the service's daemon (Windows session 0): `stop` prints "stopped" and marks the job `stopped` while the process lives on. Stop chain sessions through Even Keel or by killing the pid.

@@ -188,6 +188,7 @@ export const noticesRu: NoticeTexts = {
   'account.extraFree': (p) =>
     `второй бесплатный аккаунт Codex рядом с ${p.account}: условия OpenAI не разрешают несколько бесплатных аккаунтов ради лимитов — сессии здесь не запускаются, пока план не платный`,
   'account.notRemoving': (p) => `${p.key} не удаляется`,
+  'account.noTransport': (p) => `${p.key}: его агент запускает сессии только одним способом`,
   'account.apiKeyInvalid': () => 'API-ключ — одно слово длиннее 20 символов, вроде sk-ant-api03-…',
   'account.apiKeyRejected': () => 'Anthropic не принимает этот ключ: он неверный, отозван или организация отключена',
   'account.apiKeyUnchecked': (p) => `не удалось проверить ключ у Anthropic (${p.reason}) — попробуйте позже`,

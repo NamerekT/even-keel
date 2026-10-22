@@ -42,6 +42,11 @@ export interface AgentOptions {
   log: (line: string) => void
   /** The CLI the agent runs changed: its own copy finished downloading. */
   onCliChange: () => void
+  /**
+   * Optional. Read at each launch: how the account's new sessions run, for an agent that has more than one way (Claude:
+   * `sdk` or `bg`, BTN-239); `null` — the agent's default for the account.
+   */
+  transport?: (home: AccountHome) => string | null
 }
 
 /** What a session is started or resumed with. */
@@ -141,6 +146,11 @@ export interface Agent {
    * a limit, delivers the user's answer and goes on after a checkpoint this way; a handoff is a `launch` in the same place.
    */
   resume(home: AccountHome, session: SessionHandle, start: SessionStart): Promise<string>
+  /**
+   * Optional. Goes on in a live session with `start.prompt` without stopping it: the answer to its pending question, or
+   * its next message. `null` — it cannot, and the caller stops the session and resumes it.
+   */
+  reply?(home: AccountHome, session: SessionHandle, start: SessionStart): Promise<string | null>
   /** Stops a session, mid-turn too, and waits until it is gone; a session already gone is left alone. */
   stop(home: AccountHome, session: SessionHandle): Promise<void>
   /** The account's sessions the agent knows, live and finished, each with `account` set to the folder's key. */

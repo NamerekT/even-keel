@@ -17,6 +17,7 @@ import {
   spendText,
   withoutLimits,
   staleText,
+  TransportAction,
   useSpend,
   type Send,
   type Spend,
@@ -128,6 +129,7 @@ function AccountCard({ entry, view, now, spend, sending, send }: CardProps) {
       <AccountNotes entry={entry} view={view} now={now} sending={sending} send={send} bare />
       <div className="account-card-item__foot">
         <RemoveAction entry={entry} view={view} sending={sending} send={send} />
+        <TransportAction entry={entry} sending={sending} send={send} />
         <NoteActions entry={entry} view={view} now={now} sending={sending} send={send} />
         <AccountRoles entry={entry} view={view} sending={sending} send={send} />
       </div>
