@@ -1,6 +1,6 @@
 import { createRequire } from 'node:module'
 import type { TrackerTask } from '../tracker/model.js'
-import type { TaskSource } from '../tracker/source.js'
+import type { TaskSource, TrackerPlace } from '../tracker/source.js'
 import { authOf, type HulyCredentials } from './credentials.js'
 import { quietModelNoise } from './quiet.js'
 import {
@@ -118,8 +118,11 @@ export interface HulySource extends TaskSource {
   projectIds: ReadonlyMap<string, string>
 }
 
-/** `projects` — the Huly project of each project key that names another one (`huly`); any other key is the Huly project itself. */
-export async function connectHuly(credentials: HulyCredentials, timeoutMs: number, projects: Readonly<Record<string, string>> = {}): Promise<HulySource> {
+/**
+ * `projects` — the place of each project by its id: its `huly` value names its Huly project, else its key does. A
+ * project missing from it is taken for a Huly project's identifier.
+ */
+export async function connectHuly(credentials: HulyCredentials, timeoutMs: number, projects: Readonly<Record<string, TrackerPlace>> = {}): Promise<HulySource> {
   const account = authOf(credentials)
   quietModelNoise()
   const client = await api.connect(credentials.url, {
@@ -195,7 +198,8 @@ export async function connectHuly(credentials: HulyCredentials, timeoutMs: numbe
 
   const projectIds = new Map<string, string>()
   async function spaceOf(project: string): Promise<{ _id: string; identifier: string }> {
-    const identifier = projects[project] ?? project
+    const place = projects[project]
+    const identifier = place === undefined ? project : (place.value ?? place.key)
     const space = await client.findOne<{ _id: string; identifier: string }>(tracker.class.Project, { identifier })
     if (space === undefined) throw new Error(`huly: project ${identifier} not found`)
     projectIds.set(identifier, space._id)

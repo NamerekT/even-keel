@@ -69,6 +69,19 @@ describe('Dispatcher', () => {
     expect(launched).toEqual(['ABC/ABC-1', 'ABC/ABC-2'])
   })
 
+  it("judges a feed's tasks by its own rules in one chain with the project's (BTN-66)", async () => {
+    const { dispatcher, launched } = setup({ rules: { ABCGH: { ...DEFAULT_RULES, active: ['open'], terminal: ['closed'] } } })
+    const open = { name: 'open', category: 'UnStarted' } as const
+    const closed = { name: 'closed', category: 'UnStarted' } as const
+    dispatcher.setTasks('ABC', [task('ABC-1', backlog), task('ABC-2', todo, 'ABCGH-4'), task('ABCGH-3', open), task('ABCGH-4', closed)])
+    dispatcher.start('ABC')
+    await dispatcher.idle()
+
+    expect(dispatcher.orders()['ABC']?.order).toEqual(['ABC-2', 'ABCGH-3'])
+    expect(dispatcher.orders()['ABC']?.waiting).toEqual([])
+    expect(launched).toEqual(['ABC/ABC-2'])
+  })
+
   it('applies changed rules with the next task list', async () => {
     const rules = { ABC: DEFAULT_RULES }
     const { dispatcher } = setup({ rules })

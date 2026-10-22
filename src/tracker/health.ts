@@ -17,7 +17,7 @@ export interface TrackerView {
   /** The connected adapter can move a backlog task to `ToDo`. */
   ready: boolean
   health: TrackerHealth
-  /** When each project's tasks were last read in full, by project key; a project not read yet has none. */
+  /** When each reader's tasks were last read in full, by its id (a project's, or a feed's); one not read yet has none. */
   readAt: Record<string, string>
 }
 

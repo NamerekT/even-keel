@@ -36,10 +36,12 @@ export const linear: TrackerAdapter = {
         return source
       },
       issueUrl: () => (urlKey === null ? null : `https://linear.app/${urlKey}/issue/{id}`),
-      // A key narrowed to a Linear project leads to that project, not to the whole team.
-      projectUrl: (key) => {
-        const { team, project } = linearPlace(key, projects[key])
-        if (project !== null) return projectUrls.get(key) ?? null
+      // A project narrowed to a Linear project leads to that project, not to the whole team.
+      projectUrl: (id) => {
+        const place = projects[id]
+        if (place === undefined) return null
+        const { team, project } = linearPlace(place.key, place.value)
+        if (project !== null) return projectUrls.get(id) ?? null
         return urlKey === null ? null : `https://linear.app/${urlKey}/team/${encodeURIComponent(team)}/all`
       },
     }

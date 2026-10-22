@@ -38,7 +38,7 @@ Behaviour written without a way to check it live (the situation never came up or
 
 - Node.js 24 + TypeScript, tests — vitest. The interface is React + Vite in `web/`, built into `dist/web`; the client takes state types from `src/state.ts` — only types there, no `node:*`.
 - The tracker is reached only through the `src/tracker/` layer: the chain, the order, the rules and the page know the neutral model and the adapter contract, not Huly. The repository has the Huly (`src/huly/`), GitHub (`src/github/`) and Linear (`src/linear/`) adapters.
-- Sessions are the `claude --bg` CLI, with a configuration folder per account (`CLAUDE_CONFIG_DIR`). The agent is reached only through the `src/agent/` layer (`Agent`, `AGENTS`); Claude Code is the adapter in `src/claude/` (`docs/sessions.md`).
+- Sessions are the `claude --bg` CLI or, per account folder, the same CLI through the Agent SDK, with a configuration folder per account (`CLAUDE_CONFIG_DIR`). The agent is reached only through the `src/agent/` layer (`Agent`, `AGENTS`); Claude Code is the adapter in `src/claude/` (`docs/sessions.md`).
 - Stats are Tally (`tally/`); the collector and the embedded database run inside the service.
 - The settings and projects are in the state database (BTN-199; `even-keel.config.json` is only imported once, a hand edit is `npm run storage -- config-export`/`config-import`). The service applies them and `.env` on the fly, every key (BTN-130): a restart is only for a new version and a few start-only variables (`docs/service.md`). A new setting must apply live too. The address is `EVEN_KEEL_HOST`/`EVEN_KEEL_PORT`, not the config.
 - A project's main branch is its `branch` key (`main` by default): never write a literal `main` into git calls or session prompts.
@@ -46,6 +46,7 @@ Behaviour written without a way to check it live (the situation never came up or
 ## Traps
 
 - `claude agents --json` gives neither `pid` nor `status`, and `state` stays even for dead sessions. A live session is only a `sessions/<pid>.json` entry with a live `pid`.
+- A Claude session of kind `sdk` (BTN-239) is no daemon job: its CLI sits in an executor of Even Keel's, live while the executor's pipe answers, and a reply goes into it without a stop. The `--bg` traps below do not apply to it; route a session by `SdkSessions.knows`, never by the account's current transport (`docs/sessions.md`).
 - A Codex session between turns has no process: live means a live pid or `resting` — check through `isLive`, never `pid` alone.
 - A pending `AskUserQuestion` is in the transcript at once only from CLI 2.1.302: 2.1.296 wrote the message with the call only once it was answered, `claude stop` lost it, and until then the question was only in `jobs/<id>/state.json` — keep reading it from there for such CLIs (`docs/sessions.md`).
 - `claude stop`/`claude agents` from a terminal do not reach the service's daemon (Windows session 0): `stop` prints "stopped" and marks the job `stopped` while the process lives on. Stop chain sessions through Even Keel or by killing the pid.
@@ -59,7 +60,7 @@ Behaviour written without a way to check it live (the situation never came up or
 - A session in a worktree does not read the main checkout's `.claude/settings.local.json`: whatever chain sessions need from it goes only through `--settings` (`src/tools/panel.ts`).
 - A session prompt is assembled through `fill`: an empty value is an error and a chain pause, not a blank space.
 - A server message for the page is a code, not text: a new code goes into `src/notice/en.ts` and `web/src/i18n/notices-ru.ts` (the type checks that they are equal). The service log is in English.
-- A project key is not its id: the files of `state/` and the page's URLs name a project by its GUID (`projects[].id`, `config.ids`), the running service, the tracker and branches by its key; `src/chain/store.ts` translates.
+- A project key is not its id and not unique (BTN-271): the service, the state database and the page's URLs name a project by its GUID (`projects[].id`; `config.keys` gives the key); the key only makes task ids, branches and the default tracker place. A text a person reads names a project through `projectLabel`/`withLabels`, never by a bare key or id.
 - A change of a file format in the config or `state/` is a new `SCHEMA_VERSION`, a migration step in `src/storage/migrations.ts` and a new frozen sample in `test/fixtures/` — never an edit of an old step or sample. A change of the state database is a new step in `STEPS` (`src/storage/database.ts`) and a new `test/fixtures/database-v<N>/` — never an edit of a merged step.
 - The chain state, the questions, the launch log and the handoff snapshots are in the PGlite folder `state/even-keel/`, not in files (`docs/storage.md`): the `*.imported` files next to it are not read. One process owns the folder (`owner.json`); anything else reads it through `readStateDatabase`, never by opening `pgdata/` while the service runs.
 - The service serves the built `dist/web`: after a code change — `npm run build` and a service restart, otherwise the page is stale or 503.

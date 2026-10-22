@@ -1,6 +1,7 @@
 import { readFile, stat } from 'node:fs/promises'
 import { join } from 'node:path'
 import type { AccountHome } from '../account/homes.js'
+import type { Transport } from '../account/transport.js'
 import type { AgentAdapter } from '../agent/contract.js'
 import { PIN_RETRY_MS, PinnedCli } from '../agent/pinned.js'
 import { parseUsage } from '../limits/usage.js'
@@ -14,15 +15,21 @@ import { parseContextWindow } from './context.js'
 import { sweepRefreshLeftovers } from './leftovers.js'
 import { CLAUDE } from './name.js'
 import { claudeBinaryIn, fetchClaude } from './release.js'
+import { SdkSessions } from './sdk/host.js'
+import { SDK_KIND } from './sdk/registry.js'
+import { fetchSdk, sdkModuleIn, sdkVersionOf } from './sdk/release.js'
 
 /** The version the README's "Before you run it" names; raised after the live run of each release (`docs/releases.md`). */
-const CHECKED = '2.1.306'
+const CHECKED = '2.1.308'
+/** Even Keel's folder of SDK sessions in `state/` and of the SDK's copies in `state/cli/`. */
+const CLAUDE_SDK = 'claude-sdk'
+const SDK_TRANSPORT: Transport = 'sdk'
 
 /** Claude Code through the `claude` CLI: `--bg` sessions, one `CLAUDE_CONFIG_DIR` per account (`docs/sessions.md`). */
 export const claude: AgentAdapter = {
   title: 'Claude Code',
   checked: CHECKED,
-  setup({ env, timeoutMs, workDir, checkedCli, version = CHECKED, log, onCliChange }) {
+  setup({ env, timeoutMs, workDir, checkedCli, version = CHECKED, log, onCliChange, transport }) {
     const copy = new PinnedCli({
       dir: join(workDir, 'cli', CLAUDE),
       version,
@@ -37,15 +44,48 @@ export const claude: AgentAdapter = {
     const bin = () => resolveClaudeBinary(env(), pinned())
     const cli = new ClaudeCli(bin, timeoutMs, envOf)
     const projects = (home: AccountHome) => join(home.dir, 'projects')
+    const remoteAt = async (home: AccountHome) => remoteAtStartup(await readText(join(home.dir, 'settings.json')))
+    const sdkVersion = sdkVersionOf(version)
+    const sdkCopy =
+      sdkVersion === null
+        ? undefined
+        : new PinnedCli({
+            dir: join(workDir, 'cli', CLAUDE_SDK),
+            version: sdkVersion,
+            binary: sdkModuleIn,
+            fetch: (into) => fetchSdk(sdkVersion, into),
+            log,
+            onReady: onCliChange,
+            retryMs: PIN_RETRY_MS,
+          })
+    const sdk = new SdkSessions({ dir: join(workDir, CLAUDE_SDK), module: () => sdkCopy?.path(), bin, envOf, remote: remoteAt, log })
+    /** The SDK talks the protocol of its own CLI version, so a session goes through it only on Even Keel's copy of that version. */
+    const viaSdk = (home: AccountHome) => {
+      if ((transport?.(home) ?? null) !== SDK_TRANSPORT || pinned() === undefined) return false
+      if (sdk.ready()) return true
+      log(`sessions: the SDK ${sdkVersion ?? '(none for this CLI)'} is not downloaded yet, ${home.key} starts on --bg`)
+      return false
+    }
     return {
       mode: SESSION_MODE,
       env: envOf,
-      launch: async (home, { name, cwd, prompt, model, settings, mcp, plugins }) =>
-        (await cli.launch(home, name, cwd, prompt, model, { settings, mcp, plugins })).sessionId,
-      resume: async (home, { agentId, sessionId }, { name, cwd, prompt, model, settings, mcp, plugins }) =>
-        (await cli.resume(home, agentId, sessionId, name, cwd, prompt, model, { settings, mcp, plugins })).sessionId,
-      stop: (home, { agentId, sessionId }) => cli.stop(home, agentId, sessionId),
-      sessions: (home) => cli.agents(home),
+      launch: async (home, start) => {
+        if (viaSdk(home)) return sdk.launch(home, start)
+        const { name, cwd, prompt, model, settings, mcp, plugins } = start
+        return (await cli.launch(home, name, cwd, prompt, model, { settings, mcp, plugins })).sessionId
+      },
+      resume: async (home, { agentId, sessionId }, start) => {
+        if (await sdk.knows(sessionId)) return sdk.resume(home, sessionId, start)
+        const { name, cwd, prompt, model, settings, mcp, plugins } = start
+        return (await cli.resume(home, agentId, sessionId, name, cwd, prompt, model, { settings, mcp, plugins })).sessionId
+      },
+      reply: async (home, { sessionId }, start) => ((await sdk.knows(sessionId)) ? sdk.reply(home, sessionId, start.prompt) : null),
+      stop: async (home, { agentId, sessionId }) => ((await sdk.knows(sessionId)) ? sdk.stop(sessionId) : cli.stop(home, agentId, sessionId)),
+      sessions: async (home) => {
+        const [viaSdkNow, viaBg] = await Promise.all([sdk.sessions(home), cli.agents(home)])
+        const known = new Set(viaSdkNow.map((agent) => agent.sessionId))
+        return [...viaSdkNow, ...viaBg.filter((agent) => !known.has(agent.sessionId))]
+      },
       tail: (home, agent) => new TranscriptTail(projects(home), agent),
       record: (home, sessionId) => readSessionRecord(projects(home), sessionId),
       feed: (home, sessionId, after) => readTranscript(projects(home), sessionId, after),
@@ -74,9 +114,11 @@ export const claude: AgentAdapter = {
       write: (home, turn) => cli.write(home, turn),
       liveRecords,
       remote: {
-        enabled: async (home) => remoteAtStartup(await readText(join(home.dir, 'settings.json'))),
-        bridge: async (home, agent) =>
-          agent.pid === undefined ? null : bridgeOfRecord(await readText(join(home.dir, 'sessions', `${agent.pid}.json`)), agent.sessionId),
+        enabled: remoteAt,
+        bridge: async (home, agent) => {
+          if (agent.kind === SDK_KIND) return sdk.bridge(agent.sessionId)
+          return agent.pid === undefined ? null : bridgeOfRecord(await readText(join(home.dir, 'sessions', `${agent.pid}.json`)), agent.sessionId)
+        },
       },
     }
   },

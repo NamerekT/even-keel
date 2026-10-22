@@ -22,6 +22,8 @@ export interface ProjectRecord {
   branch: string
   /** The raw values of the trackers' project keys the entry has (`github`, `linear`), checked once the tracker is known. */
   trackerProjects: Record<string, unknown>
+  /** The raw extra task feeds of the project (BTN-66), checked once the trackers are known; none — it has none. */
+  feeds?: Record<string, unknown>[]
 }
 
 /** Values by setting key; a qualified key's value is a map by qualifier. */

@@ -69,7 +69,7 @@ describe('TrackerQuestions', () => {
     }
     const questions = new TrackerQuestions({
       sessions: () => sessions,
-      tracker: (_project, call) => call(tracker),
+      tracker: (_project, _task, call) => call(tracker),
       language: () => 'en',
       load: () => store.at(-1) ?? [],
       save: (list) => store.push(list),

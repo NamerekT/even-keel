@@ -4,6 +4,7 @@ import { formatAgo } from '../format.js'
 import { say, t } from '../i18n/index.js'
 import { useCommand } from '../live/useCommand.js'
 import { HelpTip } from '../pages/settingsParts.js'
+import { useProjectLabel } from '../ui/ProjectLabel.js'
 import { Tipped } from '../ui/Tipped.js'
 import { AddPackage } from './AddPackage.js'
 import { ImportOffers, Keys, MarketplaceOffer } from './PackagesParts.js'
@@ -58,8 +59,9 @@ export function Packages({ view, projects }: { view: PackagesView; projects: str
 }
 
 function ProjectHead({ project, view }: { project: string; view: PackagesView }) {
+  const label = useProjectLabel()
   const found = view.projects[project]
-  if (found?.blocked !== true) return <th scope="col">{project}</th>
+  if (found?.blocked !== true) return <th scope="col">{label(project)}</th>
   const reasons = [
     ...found.problems.map(problemText),
     ...Object.entries(found.cells).flatMap(([name, cell]) => (cell.enabled ? cell.problems.filter((each) => each.kind !== 'unsupported').map((each) => `${name}: ${problemText(each)}`) : [])),
@@ -67,7 +69,7 @@ function ProjectHead({ project, view }: { project: string; view: PackagesView })
   ]
   return (
     <th scope="col">
-      {project}
+      {label(project)}
       <Tipped className="packages__waits" tip={t.packages.waitsTip(reasons.join('; '))} focusable inline>
         {t.packages.waits}
       </Tipped>
@@ -153,6 +155,7 @@ function checkTip(pkg: PackageView): string {
 
 function ChoiceCell({ pkg, project, cell }: { pkg: PackageView; project: string; cell: PackageCell }) {
   const { send, sending, failure } = useCommand()
+  const label = useProjectLabel()
   const choose = (value: string) => void send('packages/project', { project, name: pkg.name, choice: value === 'default' ? null : value })
 
   return (
@@ -161,7 +164,7 @@ function ChoiceCell({ pkg, project, cell }: { pkg: PackageView; project: string;
         className={cell.enabled ? 'packages__choice packages__choice--on' : 'packages__choice'}
         value={cell.choice ?? 'default'}
         disabled={sending}
-        aria-label={t.packages.choiceLabel(pkg.name, project)}
+        aria-label={t.packages.choiceLabel(pkg.name, label(project))}
         onChange={(event) => choose(event.target.value)}
       >
         <option value="default">{t.packages.inherited(pkg.default)}</option>
@@ -220,6 +223,7 @@ function problemTip(problem: PackageProblem): string {
 
 function PackageDetails({ pkg, view, projects }: { pkg: PackageView; view: PackagesView; projects: string[] }) {
   const { send, sending, failure } = useCommand()
+  const label = useProjectLabel()
   const keys = Object.keys(pkg.settings)
 
   return (
@@ -248,7 +252,7 @@ function PackageDetails({ pkg, view, projects }: { pkg: PackageView; view: Packa
                     <th scope="col">{t.packages.settingsBase}</th>
                     {projects.map((project) => (
                       <th key={project} scope="col">
-                        {project}
+                        {label(project)}
                       </th>
                     ))}
                   </tr>
@@ -301,6 +305,7 @@ interface SettingFieldProps {
 /** Sent on Enter or when it loses the focus; an empty field goes back to the value it inherits. */
 function SettingField({ name, settingKey, project, value, placeholder }: SettingFieldProps) {
   const { send, sending, failure } = useCommand()
+  const label = useProjectLabel()
   const [draft, setDraft] = useState(value)
   const [base, setBase] = useState(value)
   if (base !== value) {
@@ -320,7 +325,7 @@ function SettingField({ name, settingKey, project, value, placeholder }: Setting
         value={draft}
         placeholder={placeholder}
         disabled={sending}
-        aria-label={project === undefined ? `${settingKey} — ${t.packages.settingsBase}` : `${settingKey} — ${project}`}
+        aria-label={project === undefined ? `${settingKey} — ${t.packages.settingsBase}` : `${settingKey} — ${label(project)}`}
         aria-invalid={failure !== null}
         spellCheck={false}
         autoComplete="off"

@@ -88,6 +88,8 @@ export function upgradeStorage(options: UpgradeOptions): void {
   // log gains the optional `fallback` of a launch (BTN-173).
   // v8 → v9: a new file, `state/packages.json` (BTN-174), which the service seeds when it is missing; the others are
   // restamped, `account.json` too.
+  // v9 → v10: every file is restamped, for the optional `transport` of an account in `account.json` and the SDK
+  // sessions of `state/claude-sdk/` (BTN-239).
   for (const stored of [chain, questions, packages]) {
     if (stored !== undefined && stored.version >= 2 && stored.version < SCHEMA_VERSION) rewrite(stored, jsonText(restamped(stored)))
   }

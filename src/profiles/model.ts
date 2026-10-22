@@ -1,4 +1,14 @@
+import type { ChainRules } from '../chain/rules.js'
 import type { TrackerAdapter } from '../tracker/source.js'
+
+/**
+ * The chain rules a tracker profile may set (BTN-66): its statuses and labels, which differ from tracker to tracker. The
+ * milestone rules split one tracker project between Even Keel projects and stay with them.
+ */
+export const PROFILE_RULE_KEYS = ['active', 'terminal', 'requiredLabels', 'excludedLabels'] as const
+export type ProfileRuleKey = (typeof PROFILE_RULE_KEYS)[number]
+/** Only the keys the profile sets. */
+export type ProfileRules = Partial<Pick<ChainRules, ProfileRuleKey>>
 
 /**
  * A tracker profile (BTN-200): one set of credentials of one tracker. A project runs on one profile of its tracker; two
@@ -18,6 +28,8 @@ export interface TrackerProfile {
   login: string | null
   /** When the credentials expire, as the tracker said at the last check; `null` — it did not say. */
   expiresAt: string | null
+  /** The chain rules of its projects, between the shared ones and a project's own; none — it sets none. */
+  rules?: ProfileRules
 }
 
 export interface ProfileSet {
@@ -25,6 +37,8 @@ export interface ProfileSet {
   profiles: TrackerProfile[]
   /** The profile each project chose, by project id; a project without one runs on its tracker's default profile. */
   links: Record<string, string>
+  /** The same for a project's extra task feed, by feed id (BTN-66); none — no feed chose one. */
+  feeds?: Record<string, string>
 }
 
 export type Adapters = Readonly<Record<string, TrackerAdapter>>
@@ -61,9 +75,13 @@ export function profileKinds(trackers: Adapters, cis: ProfileKinds = {}): Profil
   return { ...Object.fromEntries(own), ...cis }
 }
 
-/** The profile a project runs on: the one it chose while that is of the project's tracker, else the tracker's default. */
+/**
+ * The profile a project, or a project's extra feed, runs on: the one it chose while that is of its tracker, else the
+ * tracker's default.
+ */
 export function profileFor(set: ProfileSet, projectId: string | undefined, kind: string): TrackerProfile | undefined {
-  const linked = projectId === undefined ? undefined : set.profiles.find((profile) => profile.id === set.links[projectId])
+  const chosen = projectId === undefined ? undefined : (set.links[projectId] ?? set.feeds?.[projectId])
+  const linked = chosen === undefined ? undefined : set.profiles.find((profile) => profile.id === chosen)
   return linked?.kind === kind ? linked : defaultProfile(set, kind)
 }
 
@@ -72,7 +90,8 @@ export const defaultProfile = (set: ProfileSet, kind: string): TrackerProfile | 
 
 /**
  * The keys a project's MCP servers take (BTN-200): the environment without any kind's variables, then each kind's
- * default profile, then the profile the project runs on — its tracker server signs in as that one.
+ * default profile, then the profiles the project's feeds run on (BTN-66), then the profile the project runs on — its
+ * tracker server signs in as that one, and a feed's tracker of another kind as the feed's.
  */
 export function keyPool(
   set: ProfileSet,
@@ -80,11 +99,26 @@ export function keyPool(
   env: NodeJS.ProcessEnv,
   projectId: string | undefined,
   kind: string,
+  feeds: readonly { id: string; tracker: string }[] = [],
 ): NodeJS.ProcessEnv {
   const pool: NodeJS.ProcessEnv = { ...env }
   for (const each of Object.values(kinds)) for (const name of each.variables) delete pool[name]
   for (const profile of set.profiles) if (profile.isDefault) Object.assign(pool, profile.values)
+  for (const feed of feeds) Object.assign(pool, profileFor(set, feed.id, feed.tracker)?.values)
   return Object.assign(pool, profileFor(set, projectId, kind)?.values)
+}
+
+/** The profile a project's MCP server of `server`'s tracker signs in as under `keyPool`: the one written last. */
+export function serverProfile(
+  set: ProfileSet,
+  projectId: string | undefined,
+  kind: string,
+  feeds: readonly { id: string; tracker: string }[],
+  server: string,
+): TrackerProfile | undefined {
+  if (kind === server) return profileFor(set, projectId, kind)
+  const feed = feeds.findLast((each) => each.tracker === server)
+  return feed === undefined ? defaultProfile(set, server) : profileFor(set, feed.id, server)
 }
 
 /** The kind's values that are set, in the adapter's order: a profile's credentials as `setup` takes them. */

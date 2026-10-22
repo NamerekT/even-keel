@@ -5,6 +5,8 @@ import './projects.css'
 
 export interface ProjectItem {
   project: string
+  /** What the item shows, when `project` is an id. */
+  name?: string
   /** Length of the bar under the name, against the largest. */
   amount: number
   label: string
@@ -29,7 +31,7 @@ export function ProjectList({
   const chosen = (project: string) => selected === null || selected.includes(project)
   const max = Math.max(0, ...items.map((each) => each.amount))
   const needle = query.trim().toLowerCase()
-  const shown = needle === '' ? items : items.filter((each) => each.project.toLowerCase().includes(needle))
+  const shown = needle === '' ? items : items.filter((each) => (each.name ?? each.project).toLowerCase().includes(needle))
   const count = selected === null ? items.length : selected.length
 
   const toggle = (project: string) => {
@@ -56,12 +58,12 @@ export function ProjectList({
           <p className="placeholder projects__empty">{empty}</p>
         ) : (
           <ul className="projects__list">
-            {shown.map(({ project, amount, label }) => (
+            {shown.map(({ project, name = project, amount, label }) => (
               <li key={project} className={chosen(project) ? 'projects__item' : 'projects__item projects__item--off'} style={seriesStyle(colors?.get(project) ?? null)}>
-                <input type="checkbox" checked={chosen(project)} onChange={() => toggle(project)} aria-label={t.stats.projects.include(project)} />
+                <input type="checkbox" checked={chosen(project)} onChange={() => toggle(project)} aria-label={t.stats.projects.include(name)} />
                 {colors !== undefined && <span className="chart__swatch" aria-hidden="true" />}
                 <button type="button" className="projects__name" title={t.stats.projects.only} onClick={() => onChange([project])}>
-                  {project}
+                  {name}
                 </button>
                 <span className="projects__cost">{label}</span>
                 <span className="projects__bar" aria-hidden="true">

@@ -1,6 +1,7 @@
 import type { CSSProperties, ReactNode } from 'react'
 import type { SettingKind, SettingRow, ToolScope, ToolsView } from '../../../src/tools/model.js'
 import { t } from '../i18n/index.js'
+import { useProjectLabel } from '../ui/ProjectLabel.js'
 import { HIDDEN, filterRows, scopeMarks, settingMatrix, tone, usedScopes, type Tone } from './matrix.js'
 
 type Section = 'claude' | 'plugin' | 'skill' | 'permission'
@@ -54,6 +55,7 @@ interface SectionProps {
 }
 
 function MatrixSection({ title, shown, total, projects, chip, children }: SectionProps) {
+  const label = useProjectLabel()
   return (
     <details className="tools__section" open>
       <summary className="tools__summary">
@@ -69,7 +71,7 @@ function MatrixSection({ title, shown, total, projects, chip, children }: Sectio
                 <th />
                 {projects.map((project) => (
                   <th key={project} scope="col">
-                    {project}
+                    {label(project)}
                   </th>
                 ))}
               </tr>

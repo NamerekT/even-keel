@@ -2,10 +2,12 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router'
 import { say, t } from '../i18n/index.js'
 import { useCommand } from '../live/useCommand.js'
+import { useProjectLabel } from '../ui/ProjectLabel.js'
 
 /** "Remove project" behind a confirmation; the service refuses while the chain, a session or a kept folder still holds it. */
 export function ProjectRemove({ project }: { project: string }) {
   const [confirming, setConfirming] = useState(false)
+  const label = useProjectLabel()
   const { send, sending, failure } = useCommand()
   const navigate = useNavigate()
 
@@ -20,7 +22,7 @@ export function ProjectRemove({ project }: { project: string }) {
       <div className="account__actions">
         {confirming ? (
           <>
-            <span className="accounts__confirm">{t.wizard.removeQuestion(project)}</span>
+            <span className="accounts__confirm">{t.wizard.removeQuestion(label(project))}</span>
             <button type="button" className="button button--small button--danger" disabled={sending} onClick={() => void remove()}>
               {t.common.remove}
             </button>

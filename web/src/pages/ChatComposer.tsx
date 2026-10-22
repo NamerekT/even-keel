@@ -1,4 +1,4 @@
-import { useImperativeHandle, useState, type Ref } from 'react'
+import { useEffect, useImperativeHandle, useRef, useState, type Ref } from 'react'
 import type { SessionMail } from '../../../src/sessions/mail.js'
 import type { FeedLine } from '../../../src/sessions/transcript.js'
 import type { SessionView } from '../../../src/state.js'
@@ -7,12 +7,15 @@ import { useCommand, useHold } from '../live/useCommand.js'
 import { PlusIcon, SendIcon } from '../ui/icons.js'
 import { Tipped } from '../ui/Tipped.js'
 import { askAnswers, AskPanel, NO_PICK, pickAnswer, type Pick } from './AskPanel.js'
+import { isBlank, readDraft, writeDraft, type Draft } from './chatDraft.js'
 import { takenFiles } from './chatFiles.js'
 import { holdKey, shownAsk } from './composerHold.js'
 import { ChatMail } from './ChatMail.js'
 
 /** How long the composer stays shut after a reply went out, unless the session moves on sooner. */
 const SENT_HOLD_MS = 90_000
+/** How long after the last change the draft is written: a file kept on every keystroke would be copied each time. */
+const DRAFT_SAVE_MS = 400
 
 /** What the chat window hands the composer: files dropped anywhere on it. */
 export interface ComposerHandle {
@@ -24,15 +27,17 @@ interface Props {
   task: string
   session: SessionView
   aside: boolean
-  /** The session's mailbox; `listens` — its hooks take a message mid-turn. */
+  /** The session's mailbox; `listens` — it takes a message mid-turn, `steers` — straight in, not by the mailbox. */
   mail: SessionMail | undefined
-  onSent: (line: FeedLine) => void
+  /** `steered` — the message went straight into the working session. */
+  onSent: (line: FeedLine, steered: boolean) => void
   handle?: Ref<ComposerHandle>
 }
 
 /**
  * The bottom of the chat window: the options of the open question or a free reply, with files. A reply can be typed
- * at any time and is sent while the session waits, or mid-turn into its mailbox when its hooks listen; the draft
+ * at any time and is sent while the session waits, or mid-turn straight in when it steers and into its mailbox when
+ * its hooks listen; the draft
  * outlives a new question.
  */
 export function ChatComposer({ project, task, session, aside, mail, onSent, handle }: Props) {
@@ -47,15 +52,22 @@ export function ChatComposer({ project, task, session, aside, mail, onSent, hand
   }
   const [text, setText] = useState('')
   const [files, setFiles] = useState<File[]>([])
+  useChatDraft(session.sessionId, { text, files }, (draft) => {
+    setText(draft.text)
+    setFiles(draft.files)
+  })
   // Files come in the same states as through the "+" button: any time but while a reply is being sent.
   const attach = (more: File[]) => {
     if (!sending) setFiles((now) => [...now, ...more])
   }
   useImperativeHandle(handle, () => ({ attach }))
   const sent = useHold(holdKey(session), SENT_HOLD_MS)
-  // A message to a working session waits in its mailbox: the list below tells its fate, so nothing is held or echoed.
-  const mailing = session.lamp === 'working' && mail?.listens === true
-  const locked = mailing ? (aside ? t.session.chat.aside : null) : lockReason(session, aside)
+  // A message to a working session goes straight in when it steers, echoed but not held; otherwise it waits in the
+  // mailbox, whose list below tells its fate, so nothing is held or echoed.
+  const midTurn = session.lamp === 'working' && mail?.listens === true
+  const steering = midTurn && mail.steers
+  const mailing = midTurn && !steering
+  const locked = midTurn ? (aside ? t.session.chat.aside : null) : lockReason(session, aside)
   const disabled = locked !== null || sending || sent.on
   const left = ask === null ? 0 : ask.questions.filter((question, index) => pickAnswer(question, picks[index] ?? NO_PICK) === '').length
   // A question may be skipped: any answer, words or file is a reply.
@@ -65,10 +77,12 @@ export function ChatComposer({ project, task, session, aside, mail, onSent, hand
     const answers = ask === null ? {} : askAnswers(ask, picks)
     const body = { project, task, sessionId: session.sessionId, ask: ask?.id ?? null, answers, text, files: await Promise.all(files.map(encoded)) }
     if (!(await send('session/answer', body))) return
+    // Also when the window was closed while the reply went out: its last save kept the reply as a draft.
+    void writeDraft(session.sessionId, { text: '', files: [] })
     if (ask !== null) setAnswered(ask.id)
     if (!mailing) {
-      sent.begin()
-      onSent(sentLine(ask === null ? null : ask.id, answers, text, files))
+      if (!steering) sent.begin()
+      onSent(sentLine(ask === null ? null : ask.id, answers, text, files), steering)
     }
     setText('')
     setFiles([])
@@ -151,11 +165,39 @@ export function ChatComposer({ project, task, session, aside, mail, onSent, hand
         <p className="notice notice--error">{say(failure)}</p>
       ) : (
         <p className="chat__hint">
-          {sent.on ? t.session.chat.sent : (locked ?? (left > 0 ? t.session.chat.unanswered(left) : mailing ? t.session.chat.mailbox : ''))}
+          {sent.on ? t.session.chat.sent : (locked ?? (left > 0 ? t.session.chat.unanswered(left) : mailing ? t.session.chat.mailbox : steering ? t.session.chat.steers : ''))}
         </p>
       )}
     </form>
   )
+}
+
+/**
+ * Keeps the unsent text and files of each session's chat across closing the window and reloading the page: read once
+ * the composer opens, written a moment after each change and when it closes.
+ */
+function useChatDraft(sessionId: string, draft: Draft, restore: (draft: Draft) => void) {
+  const read = useRef(false)
+  const latest = useRef(draft)
+  latest.current = draft
+  useEffect(() => {
+    let alive = true
+    void readDraft(sessionId).then((found) => {
+      if (!alive) return
+      // What was typed before the read finished wins over the stored draft.
+      if (found !== null && isBlank(latest.current)) restore(found)
+      read.current = true
+    })
+    return () => {
+      alive = false
+      if (read.current) void writeDraft(sessionId, latest.current)
+    }
+  }, [sessionId])
+  useEffect(() => {
+    if (!read.current) return
+    const timer = setTimeout(() => void writeDraft(sessionId, latest.current), DRAFT_SAVE_MS)
+    return () => clearTimeout(timer)
+  }, [sessionId, draft.text, draft.files])
 }
 
 function lockReason(session: SessionView, aside: boolean): string | null {

@@ -4,8 +4,7 @@
 // going; before AskUserQuestion it turns the question down, so that the question does not hang next to an
 // unread message. Subagents are left alone: the message waits for the main thread.
 import { readFileSync } from "node:fs";
-
-const BASE = (process.env.EVEN_KEEL_URL || "http://127.0.0.1:4747").replace(/\/+$/, "");
+import { mailOf } from "./evenkeel.mjs";
 
 function readInput() {
   try {
@@ -13,19 +12,6 @@ function readInput() {
   } catch {
     return null;
   }
-}
-
-/** The text of what waited for the session, or null: nothing waits, or Even Keel did not start it. */
-async function mailOf(sessionId, event) {
-  const response = await fetch(`${BASE}/api/sessions/${encodeURIComponent(sessionId)}/mail`, {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify({ event }),
-    signal: AbortSignal.timeout(event === "Stop" ? 5000 : 2000),
-  });
-  if (!response.ok) return null;
-  const message = (await response.json())?.message;
-  return typeof message === "string" && message !== "" ? message : null;
 }
 
 function outputOf(hookEvent, event, message) {

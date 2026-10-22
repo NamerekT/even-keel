@@ -1,23 +1,20 @@
 import { asNotice, type Notice } from '../notice/notice.js'
 import { insertList, inTransaction, type Db, type Queryable } from '../storage/database.js'
-import { byMap, inverted, isRecord, renameChainProjects } from '../storage/projects.js'
+import { isRecord } from '../storage/projects.js'
 import type { PostedQuestion } from '../tracker/questions.js'
 import { emptyChainState, type ActiveChain, type ChainState, type CurrentTask, type LaunchEntry, type Leftover } from './dispatcher.js'
 
-/**
- * The database names a project by its id, the running service by its key: `ids` is the id of each key from the config.
- * An id the config does not have — a removed project — stays as it is.
- */
-export async function loadChainState(db: Queryable, ids: Record<string, string> = {}): Promise<ChainState> {
-  return chainStateOf(await readChainRecord(db), ids, 'the chain state')
+/** The database names a project by its id, as the running service does (BTN-271). */
+export async function loadChainState(db: Queryable): Promise<ChainState> {
+  return chainStateOf(await readChainRecord(db), 'the chain state')
 }
 
 /**
- * The chain state of a stored record — the database's, or a `state/chain.json` of v0.1 being imported — with the
- * projects renamed from their ids by `ids`. `where` names the record in the error of a damaged one.
+ * The chain state of a stored record — the database's, or a `state/chain.json` of v0.1 being imported. `where` names
+ * the record in the error of a damaged one.
  */
-export function chainStateOf(parsed: unknown, ids: Record<string, string>, where: string): ChainState {
-  const { version: _, ...stored } = isRecord(parsed) ? renameChainProjects(parsed, byMap(inverted(ids))) : {}
+export function chainStateOf(parsed: unknown, where: string): ChainState {
+  const { version: _, ...stored } = isRecord(parsed) ? parsed : {}
   const state = stored as Omit<Partial<ChainState>, 'active'> & { active?: unknown }
   const chains = activeOf(state.active)
   const valid = chains !== undefined && Array.isArray(state.queue) && typeof state.orders === 'object' && state.orders !== null
@@ -71,8 +68,8 @@ function leftoversOf(stored: Record<string, unknown[]> | undefined): Record<stri
 }
 
 /** Starts its write at the call: see `Writes`. */
-export function saveChainState(db: Db, state: ChainState, ids: Record<string, string> = {}): Promise<void> {
-  return writeChainRecord(db, renameChainProjects(state as unknown as Record<string, unknown>, byMap(ids)) as unknown as ChainState)
+export function saveChainState(db: Db, state: ChainState): Promise<void> {
+  return writeChainRecord(db, state)
 }
 
 const LISTS = ['orders', 'skipped', 'leftovers', 'released', 'shelved', 'ci', 'reviews'] as const
@@ -109,11 +106,11 @@ export function writeChainRecord(db: Db, state: ChainState): Promise<void> {
   })
 }
 
-export async function appendLaunch(db: Db, entry: LaunchEntry, ids: Record<string, string> = {}): Promise<void> {
+export async function appendLaunch(db: Db, entry: LaunchEntry): Promise<void> {
   const { at, project, task, sessionId, reason, ...extra } = entry
   await db.query('insert into launches (at, project_id, task, session_id, reason, extra) values ($1, $2, $3, $4, $5, $6)', [
     at,
-    byMap(ids)(project),
+    project,
     task,
     sessionId,
     reason ?? null,
@@ -121,9 +118,7 @@ export async function appendLaunch(db: Db, entry: LaunchEntry, ids: Record<strin
   ])
 }
 
-/** Without `ids` the entries name projects as the database does — by id; Tally reads them so. */
-export async function readLaunches(db: Queryable, ids?: Record<string, string>): Promise<LaunchEntry[]> {
-  const keyOf = ids === undefined ? (project: string) => project : byMap(inverted(ids))
+export async function readLaunches(db: Queryable): Promise<LaunchEntry[]> {
   const { rows } = await db.query<{
     at: string
     project_id: string
@@ -134,7 +129,7 @@ export async function readLaunches(db: Queryable, ids?: Record<string, string>):
   }>('select at, project_id, task, session_id, reason, extra from launches order by id')
   return rows.map((row) => ({
     at: row.at,
-    project: keyOf(row.project_id),
+    project: row.project_id,
     task: row.task,
     sessionId: row.session_id,
     ...(row.reason === null ? {} : { reason: row.reason as LaunchEntry['reason'] }),
@@ -173,19 +168,23 @@ export interface ClosedTask {
   title: string
   url: string | null
   closedAt: string
+  /** The tracker profile the task was read through (BTN-66); `null` — none, or archived before profiles were kept. */
+  profile: string | null
+  /** The name of the status the tracker last gave; `null` — archived before statuses were kept. */
+  status: string | null
 }
 
 /** A task closed again after a reopen keeps the latest title and time. */
-export async function saveClosedTask(db: Db, closed: ClosedTask, ids: Record<string, string> = {}): Promise<void> {
+export async function saveClosedTask(db: Db, closed: ClosedTask): Promise<void> {
   await db.query(
-    `insert into closed_tasks (project_id, task, tracker, title, url, closed_at) values ($1, $2, $3, $4, $5, $6)
-     on conflict (project_id, task) do update set tracker = excluded.tracker, title = excluded.title, url = excluded.url, closed_at = excluded.closed_at`,
-    [byMap(ids)(closed.project), closed.task, closed.tracker, closed.title, closed.url, closed.closedAt],
+    `insert into closed_tasks (project_id, task, tracker, title, url, closed_at, profile_id, status) values ($1, $2, $3, $4, $5, $6, $7, $8)
+     on conflict (project_id, task) do update set tracker = excluded.tracker, title = excluded.title, url = excluded.url, closed_at = excluded.closed_at,
+       profile_id = excluded.profile_id, status = excluded.status`,
+    [closed.project, closed.task, closed.tracker, closed.title, closed.url, closed.closedAt, closed.profile, closed.status],
   )
 }
 
-export async function closedTasks(db: Queryable, ids: Record<string, string> = {}): Promise<ClosedTask[]> {
-  const keyOf = byMap(inverted(ids))
+export async function closedTasks(db: Queryable): Promise<ClosedTask[]> {
   const { rows } = await db.query<{
     project_id: string
     task: string
@@ -193,6 +192,17 @@ export async function closedTasks(db: Queryable, ids: Record<string, string> = {
     title: string
     url: string | null
     closed_at: string
-  }>('select project_id, task, tracker, title, url, closed_at from closed_tasks order by closed_at, project_id, task')
-  return rows.map((row) => ({ project: keyOf(row.project_id), task: row.task, tracker: row.tracker, title: row.title, url: row.url, closedAt: row.closed_at }))
+    profile_id: string | null
+    status: string | null
+  }>('select project_id, task, tracker, title, url, closed_at, profile_id, status from closed_tasks order by closed_at, project_id, task')
+  return rows.map((row) => ({
+    project: row.project_id,
+    task: row.task,
+    tracker: row.tracker,
+    title: row.title,
+    url: row.url,
+    closedAt: row.closed_at,
+    profile: row.profile_id,
+    status: row.status,
+  }))
 }

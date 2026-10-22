@@ -11,6 +11,7 @@ import { say, t } from '../i18n/index.js'
 import { accountName } from '../layout/accountParts.js'
 import { useLive } from '../live/context.js'
 import { formatUsd, modelVersionLabel } from '../stats/format.js'
+import { useBackdropClose } from '../ui/backdrop.js'
 import { ChangelogIcon } from '../ui/icons.js'
 import { Tipped } from '../ui/Tipped.js'
 import '../tools/addPackage.css'
@@ -56,6 +57,7 @@ interface DialogProps {
 function ChangelogDialog({ project, milestone, onClose }: DialogProps) {
   const { query, state } = useLive()
   const dialog = useRef<HTMLDialogElement>(null)
+  const backdrop = useBackdropClose(dialog, onClose)
   const title = useId()
   const [view, setView] = useState<ChangelogView | null>(null)
   const [failure, setFailure] = useState<Notice | null>(null)
@@ -123,7 +125,7 @@ function ChangelogDialog({ project, milestone, onClose }: DialogProps) {
         event.preventDefault()
         onClose()
       }}
-      onClick={(event) => event.target === dialog.current && onClose()}
+      {...backdrop}
     >
       <div className="add-package__frame">
         <header className="add-package__head">

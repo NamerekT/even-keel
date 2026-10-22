@@ -3,8 +3,7 @@ import type { ActiveChain, LaunchEntry } from '../../../src/chain/dispatcher.js'
 import { isFixName } from '../../../src/chain/fix.js'
 import { launchDays } from '../../../src/chain/launches.js'
 import { checkOrder, startsAhead } from '../../../src/chain/order.js'
-import type { Task } from '../../../src/tracker/model.js'
-import type { EvenKeelState, SessionView } from '../../../src/state.js'
+import type { EvenKeelState, ProjectTask, SessionView } from '../../../src/state.js'
 import { accountCommand } from './fakeAccounts.js'
 import { fakeUpdatesCommand } from './fakeUpdates.js'
 import { fakeSettingsCommand } from './fakeConfig.js'
@@ -109,8 +108,8 @@ export function takeNext(state: EvenKeelState, project: string): EvenKeelState {
 }
 
 /** A task that shows up in the chain with each close, so the page has an entry to mark. */
-function freshTask(state: EvenKeelState, project: string): Task {
-  const count = state.tasks.filter((each) => each.id.startsWith(`${project}-`)).length
+function freshTask(state: EvenKeelState, project: string): ProjectTask {
+  const count = state.tasks.filter((each) => each.project === project).length
   const number = 100 + count
   const milestone = state.tasks.find((each) => each.id === state.chain.projects[project]?.order[1])?.milestone?.label ?? null
   return task(`${project}-${number}`, FRESH_TITLES[count % FRESH_TITLES.length]!, 'Todo', 'ToDo', [], milestone, { estimate: minutes(20) })

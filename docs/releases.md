@@ -61,6 +61,8 @@ Passed on 2026-10-19: Claude Code 2.1.303 and codex-cli 0.163.0 on Windows x64. 
 
 Passed on 2026-10-21: Claude Code 2.1.306 on Windows x64 (EKR-16). Its new guard (`worktree.bgIsolation`, `CLAUDE_BG_ISOLATION`) refuses a background session's file tools — not Bash — in a main checkout unless the session's folder or the file is in a linked worktree; every chain session runs in one (a task worktree, a slot, the fix's place), so by the binary's code a session's `git merge` in the main checkout and its conflict edits there pass. A live NBC-105 session on 2.1.306 edited its task worktree without a refusal. Even Keel finds a moved transcript anyway: it looks for `<session>.jsonl` in every project folder.
 
+Passed on 2026-10-22: Claude Code 2.1.308 on Windows x64, for 0.1.1; codex-cli was still 0.163.0.
+
 ## Tally across clones
 
 - A task's cost is by its ID, whatever folder its sessions ran in.

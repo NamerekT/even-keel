@@ -539,55 +539,9 @@ input[type='radio']:disabled {
   color: var(--fg);
 }
 
-.system {
-  width: min(340px, calc(100% - 2 * var(--gutter)));
-  gap: 10px;
-}
-
-.system__list {
-  display: flex;
-  flex-direction: column;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.system__row {
-  display: grid;
-  grid-template-columns: 8px auto 1fr;
-  align-items: baseline;
-  gap: 2px 10px;
-  padding: 8px 0;
-  font-size: 13px;
-}
-
-.system__row + .system__row {
-  border-top: 1px solid var(--border);
-}
-
 .system__dot {
+  flex: none;
   align-self: center;
-}
-
-.system__name {
-  font-weight: 600;
-}
-
-.system__text {
-  color: var(--fg-muted);
-  text-align: right;
-}
-
-.system__row--warn .system__text,
-.system__row--error .system__text {
-  color: var(--fg);
-}
-
-.system__detail {
-  grid-column: 2 / -1;
-  color: var(--fg-muted);
-  font-size: 12px;
-  overflow-wrap: anywhere;
 }
 
 .system__retry {

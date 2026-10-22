@@ -37,9 +37,10 @@ export interface ActiveChain {
   slotWait?: { notice: Notice; at: string }
   /**
    * The next launch waits for the CI's verdict on this push of main; `local` — for the project's own check of it,
-   * `after` — for the project's `commands.afterGreen` on it.
+   * `after` — for the project's `commands.afterGreen` on it; `by` — for the fix of the red commit by another project
+   * of the same remote (BTN-217), since that fix began.
    */
-  ciWait?: { commit: string; since: string; local?: true; after?: true }
+  ciWait?: { commit: string; since: string; local?: true; after?: true; by?: string }
   closing?: string
   /** The task whose working session a red main stopped (BTN-115); it goes on once the fix is judged. */
   interrupted?: Interrupted
@@ -145,6 +146,13 @@ export interface LaunchEntry {
   commit?: string
   /** The provider of the task's run label the pool had no account for: the session started on the project's (schema v8). */
   fallback?: string
+  /**
+   * Where the task was read from at the launch (BTN-66): the tracker profile, the task's link and its title — Tally and
+   * the archive know a task of a feed or of a profile gone since by them. Set by the service, where it knows them.
+   */
+  profile?: string
+  url?: string
+  title?: string
 }
 
 /** A session the chain started: its id, and the provider of a run label it could not honour (`LaunchEntry.fallback`). */
@@ -216,7 +224,8 @@ export interface DispatcherDeps {
   projects: () => string[]
   /** How many chains run at once; the rest wait in the queue. */
   parallel: () => number
-  rules: (project: string) => ChainRules
+  /** The project's chain rules; with a task, the rules of the feed it comes from (BTN-66), whose tracker has statuses of its own. */
+  rules: (project: string, task?: string) => ChainRules
   /**
    * Starts a new session of the task; `fallback` — its run label named a provider without an account in the pool.
    * `extra` goes at the end of the prompt: the feedback on the task's pull request, or its pull request closed unmerged.
@@ -282,6 +291,8 @@ export interface DispatcherDeps {
 }
 
 export interface MainCheckDeps {
+  /** The other projects guarding the same main of the same remote (BTN-217): a red main of one is red for all. */
+  peers: (project: string) => string[]
   /** The commit main is at in the project's checkout; `null` — unknown. */
   head: (project: string) => Promise<string | null>
   /** What the project's counted CIs say of a commit pushed at `since`. */
@@ -303,6 +314,8 @@ export interface MainCheckDeps {
   checkMain: (project: string, task: string, commit: string) => Promise<MainCheckRun>
   /** `ci.fixTask`: a red main becomes a task in the tracker rather than a session without one. */
   fixTask: (project: string) => boolean
+  /** The name the project's fix session runs under: `ABC-FIX`. */
+  fixName: (project: string) => string
   /** Whether the branch of the task, or of the fix session, is in main with commits of its own. */
   merged: (project: string, task: string) => Promise<boolean>
   /** Whether the project has `commands.afterGreen` (BTN-156). */

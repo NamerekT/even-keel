@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { formsOf, trackerChoices, withNewProject, withoutProject, withProjectForm, withRunAccount, withSharedAccount, withSharedForm, withUpdates, withChainSwitches, withTally } from './config-form.js'
+import { formsOf, trackerChoices, withFeed, withNewProject, withoutFeed, withoutProject, withProjectForm, withRunAccount, withSharedAccount, withSharedForm, withUpdates, withChainSwitches, withTally } from './config-form.js'
 import { parseConfig } from './config.js'
 import type { ProjectDraft, ProjectForm, SharedForm } from './state.js'
 
@@ -11,7 +11,7 @@ const xyz = (fields: Record<string, unknown> = {}) => ({ id: 'id-xyz', key: 'XYZ
 describe('formsOf', () => {
   it('fills a project in with what it inherits', () => {
     const raw = { tracker: 'github', brief: false, chain: { requiredLabels: ['Auto'] }, projects: [abc({ github: 'octo-org/abc', slot: true })] }
-    expect(formOf(raw, 'ABC')).toMatchObject({
+    expect(formOf(raw, 'id-abc')).toMatchObject({
       repo: 'C:\\abc',
       branch: 'main',
       tracker: 'github',
@@ -20,7 +20,7 @@ describe('formsOf', () => {
       brief: false,
       chain: { active: null, terminal: null, requiredLabels: ['Auto'], excludedLabels: [] },
     })
-    expect(formOf({ projects: [abc()] }, 'ABC')).toMatchObject({ name: null, tracker: 'huly', trackerProject: null, slot: 0, brief: null })
+    expect(formOf({ projects: [abc()] }, 'id-abc')).toMatchObject({ name: null, tracker: 'huly', trackerProject: null, slot: 0, brief: null })
   })
 
   it('names the project key of each tracker', () => {
@@ -36,7 +36,7 @@ describe('withProjectForm', () => {
   it('writes only what differs from what the project inherits, into the entry with the id', () => {
     const raw = { tracker: 'huly', projects: [abc(), xyz()], custom: 1 }
     const form: ProjectForm = {
-      ...formOf(raw, 'ABC'),
+      ...formOf(raw, 'id-abc'),
       repo: ' D:\\abc ',
       branch: 'master',
       tracker: 'github',
@@ -45,7 +45,7 @@ describe('withProjectForm', () => {
       brief: false,
       chain: { active: ['Todo', ' '], terminal: [], requiredLabels: [], excludedLabels: [] },
     }
-    const next = withProjectForm(raw, 'id-abc', form, formOf(raw, 'ABC'))
+    const next = withProjectForm(raw, 'id-abc', form, formOf(raw, 'id-abc'))
     expect(next).toEqual({
       tracker: 'huly',
       projects: [
@@ -54,32 +54,32 @@ describe('withProjectForm', () => {
       ],
       custom: 1,
     })
-    expect(parseConfig(next).slots.ABC).toBe(3)
+    expect(parseConfig(next).slots['id-abc']).toBe(3)
   })
 
   it('keeps keys the form leaves as they were, even when they repeat the shared value', () => {
     const entry = abc({ tracker: 'huly', slot: true, chain: { excludedLabels: ['Manual', 'Вручную'] } })
     const raw = { projects: [entry] }
-    const form = { ...formOf(raw, 'ABC'), prompt: 'Hi.' }
-    expect(withProjectForm(raw, 'id-abc', form, formOf(raw, 'ABC'))).toEqual({ projects: [{ ...entry, prompt: 'Hi.' }] })
+    const form = { ...formOf(raw, 'id-abc'), prompt: 'Hi.' }
+    expect(withProjectForm(raw, 'id-abc', form, formOf(raw, 'id-abc'))).toEqual({ projects: [{ ...entry, prompt: 'Hi.' }] })
   })
 
   it('removes the keys that go back to what is inherited, and the project key of the tracker left', () => {
     const raw = { brief: false, projects: [abc({ tracker: 'github', github: 'octo-org/abc', brief: true, slot: 2, chain: { requiredLabels: ['Auto'] } })] }
-    const form: ProjectForm = { ...formOf(raw, 'ABC'), tracker: 'huly', trackerProject: null, brief: false, slot: 0, chain: { active: null, terminal: null, requiredLabels: [], excludedLabels: [] } }
-    expect(withProjectForm(raw, 'id-abc', form, formOf(raw, 'ABC'))).toEqual({ brief: false, projects: [abc()] })
+    const form: ProjectForm = { ...formOf(raw, 'id-abc'), tracker: 'huly', trackerProject: null, brief: false, slot: 0, chain: { active: null, terminal: null, requiredLabels: [], excludedLabels: [] } }
+    expect(withProjectForm(raw, 'id-abc', form, formOf(raw, 'id-abc'))).toEqual({ brief: false, projects: [abc()] })
   })
 
   it('writes null for statuses by category over a shared list', () => {
     const raw = { chain: { terminal: ['Done'] }, projects: [abc()] }
-    const form = { ...formOf(raw, 'ABC'), chain: { ...formOf(raw, 'ABC').chain, terminal: [] } }
-    const next = withProjectForm(raw, 'id-abc', form, formOf(raw, 'ABC'))
+    const form = { ...formOf(raw, 'id-abc'), chain: { ...formOf(raw, 'id-abc').chain, terminal: [] } }
+    const next = withProjectForm(raw, 'id-abc', form, formOf(raw, 'id-abc'))
     expect(next.projects).toEqual([abc({ chain: { terminal: null } })])
-    expect(parseConfig(next).rules.ABC?.terminal).toBeNull()
+    expect(parseConfig(next).rules['id-abc']?.terminal).toBeNull()
   })
 
   it('leaves a hand edit of the file alone where the form kept the value it started from', () => {
-    const base = formOf({ projects: [abc()] }, 'ABC')
+    const base = formOf({ projects: [abc()] }, 'id-abc')
     const entry = abc({ prompt: 'Hand.', slot: 2, branch: 'trunk', ci: { waitMinutes: 5 }, commands: { check: ['npm test'] } })
     const form: ProjectForm = { ...base, beforeStart: ['npm ci'], brief: false }
     expect(withProjectForm({ projects: [entry] }, 'id-abc', form, base)).toEqual({
@@ -89,25 +89,25 @@ describe('withProjectForm', () => {
 
   it('shows the color a project ends up with and writes a changed one as its own', () => {
     const raw = { projects: [abc(), xyz({ color: 1 })] }
-    expect(formOf(raw, 'ABC').color).toBe(2)
-    expect(formOf({ projects: Array.from({ length: 9 }, (_, index) => abc({ id: `id-${index}`, key: `P${index}` })) }, 'P8').color).toBeNull()
-    const next = withProjectForm(raw, 'id-abc', { ...formOf(raw, 'ABC'), color: 5 }, formOf(raw, 'ABC'))
+    expect(formOf(raw, 'id-abc').color).toBe(2)
+    expect(formOf({ projects: Array.from({ length: 9 }, (_, index) => abc({ id: `id-${index}`, key: `P${index}` })) }, 'id-8').color).toBeNull()
+    const next = withProjectForm(raw, 'id-abc', { ...formOf(raw, 'id-abc'), color: 5 }, formOf(raw, 'id-abc'))
     expect(next.projects).toEqual([abc({ color: 5 }), xyz({ color: 1 })])
-    expect(withProjectForm(raw, 'id-abc', { ...formOf(raw, 'ABC'), prompt: 'Hi.' }, formOf(raw, 'ABC')).projects).toEqual([abc({ prompt: 'Hi.' }), xyz({ color: 1 })])
+    expect(withProjectForm(raw, 'id-abc', { ...formOf(raw, 'id-abc'), prompt: 'Hi.' }, formOf(raw, 'id-abc')).projects).toEqual([abc({ prompt: 'Hi.' }), xyz({ color: 1 })])
   })
 
   it('writes a field changed both in the form and in the file over the file', () => {
-    const base = formOf({ projects: [abc()] }, 'ABC')
+    const base = formOf({ projects: [abc()] }, 'id-abc')
     const form: ProjectForm = { ...base, prompt: 'Mine.', slot: 4 }
     expect(withProjectForm({ projects: [abc({ prompt: 'Hand.', slot: 2 })] }, 'id-abc', form, base)).toEqual({ projects: [abc({ prompt: 'Mine.', slot: 4 })] })
   })
 
   it('writes the name of a project trimmed, and removes it when emptied', () => {
     const raw = { projects: [abc()] }
-    const named = withProjectForm(raw, 'id-abc', { ...formOf(raw, 'ABC'), name: '  Web shop ' }, formOf(raw, 'ABC'))
+    const named = withProjectForm(raw, 'id-abc', { ...formOf(raw, 'id-abc'), name: '  Web shop ' }, formOf(raw, 'id-abc'))
     expect(named).toEqual({ projects: [abc({ name: 'Web shop' })] })
-    expect(formOf(named, 'ABC').name).toBe('Web shop')
-    expect(withProjectForm(named, 'id-abc', { ...formOf(named, 'ABC'), name: ' ' }, formOf(named, 'ABC'))).toEqual({ projects: [abc()] })
+    expect(formOf(named, 'id-abc').name).toBe('Web shop')
+    expect(withProjectForm(named, 'id-abc', { ...formOf(named, 'id-abc'), name: ' ' }, formOf(named, 'id-abc'))).toEqual({ projects: [abc()] })
   })
 
   it('takes each key Even Keel sets too from the project when it has one, else from the shared value', () => {
@@ -120,7 +120,7 @@ describe('withProjectForm', () => {
       projects: [abc({ ci: { waitMinutes: null, guard: false }, promptLanguage: 'en', stats: { checkpointTokens: 160_000 } }), xyz()],
     }
     const config = parseConfig(raw)
-    expect(config.settings.ABC).toMatchObject({
+    expect(config.settings['id-abc']).toMatchObject({
       ci: { guard: false, kinds: ['github'], waitMinutes: null, recheckMain: true, fixTask: true },
       fillMilestone: true,
       promptLanguage: 'en',
@@ -128,19 +128,19 @@ describe('withProjectForm', () => {
       checkpointTokens: 160_000,
       own: { 'ci.guard': false, 'ci.waitMinutes': null, promptLanguage: 'en', 'stats.checkpointTokens': 160_000 },
     })
-    expect(config.settings.XYZ).toMatchObject({ ci: { guard: true, waitMinutes: 15, fixTask: true }, promptLanguage: 'ru', checkpointTokens: 220_000, own: {} })
+    expect(config.settings['id-xyz']).toMatchObject({ ci: { guard: true, waitMinutes: 15, fixTask: true }, promptLanguage: 'ru', checkpointTokens: 220_000, own: {} })
   })
 
   it('writes an own value set back to "as shared" as a removed key, leaving the other own keys', () => {
     const raw = { ci: { waitMinutes: 15 }, projects: [abc({ ci: { waitMinutes: 5, guard: false }, cacheTtl: '5m' })] }
-    const base = formOf(raw, 'ABC')
+    const base = formOf(raw, 'id-abc')
     const form: ProjectForm = { ...base, own: { 'ci.guard': false, cacheTtl: '5m', fillMilestone: true } }
     expect(withProjectForm(raw, 'id-abc', form, base).projects).toEqual([abc({ ci: { guard: false }, cacheTtl: '5m', fillMilestone: true })])
   })
 
   it('refuses a project the config does not know', () => {
     const raw = { projects: [abc()] }
-    expect(() => withProjectForm(raw, 'id-xyz', formOf(raw, 'ABC'), formOf(raw, 'ABC'))).toThrow(/id-xyz/)
+    expect(() => withProjectForm(raw, 'id-xyz', formOf(raw, 'id-abc'), formOf(raw, 'id-abc'))).toThrow(/id-xyz/)
   })
 })
 
@@ -231,7 +231,7 @@ describe('withNewProject', () => {
     const raw = { projects: [abc()], custom: 1 }
     const next = withNewProject(raw, draft, 'id-new')
     expect(next).toEqual({ projects: [abc(), { id: 'id-new', key: 'NEW', repo: 'D:\\new', color: 2 }], custom: 1 })
-    expect(parseConfig(next).projects).toEqual({ ABC: 'C:\\abc', NEW: 'D:\\new' })
+    expect(parseConfig(next).projects).toEqual({ 'id-abc': 'C:\\abc', 'id-new': 'D:\\new' })
   })
 
   it('gives the new project the first color no project has', () => {
@@ -261,6 +261,27 @@ describe('withoutProject', () => {
 
   it('refuses an id the file does not have', () => {
     expect(() => withoutProject({ projects: [abc()] }, 'id-xyz')).toThrow(expect.objectContaining({ notice: expect.objectContaining({ code: 'config.unknownProject' }) }))
+  })
+})
+
+describe('withFeed and withoutFeed (BTN-66)', () => {
+  const feed = { id: 'feed-1', tracker: 'github', key: 'ABCGH', place: ' octo-org/ideas ' }
+
+  it("appends the feed to the project's entry, its place under its tracker's project key", () => {
+    const next = withFeed({ projects: [abc(), xyz()] }, 'id-abc', feed)
+    expect(next.projects).toEqual([abc({ feeds: [{ id: 'feed-1', tracker: 'github', key: 'ABCGH', github: 'octo-org/ideas' }] }), xyz()])
+    expect(parseConfig(next).feeds).toEqual({ 'id-abc': [{ id: 'feed-1', tracker: 'github', key: 'ABCGH', place: 'octo-org/ideas' }] })
+  })
+
+  it('writes no place that only repeats the key it stands in for', () => {
+    const next = withFeed({ projects: [abc({ tracker: 'github', github: 'octo-org/abc' })] }, 'id-abc', { id: 'feed-1', tracker: 'huly', key: 'HUL', place: 'HUL' })
+    expect(next.projects).toEqual([abc({ tracker: 'github', github: 'octo-org/abc', feeds: [{ id: 'feed-1', tracker: 'huly', key: 'HUL' }] })])
+  })
+
+  it('drops the feed with the id and the list once it is empty', () => {
+    const raw = { projects: [abc({ feeds: [{ id: 'feed-1', tracker: 'github', key: 'ABCGH', github: 'octo-org/ideas' }] })] }
+    expect(withoutFeed(raw, 'id-abc', 'feed-1')).toEqual({ projects: [abc()] })
+    expect(() => withoutFeed(raw, 'id-abc', 'feed-2')).toThrow(expect.objectContaining({ notice: expect.objectContaining({ code: 'config.unknownFeed' }) }))
   })
 })
 

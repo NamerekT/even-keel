@@ -40,7 +40,7 @@ export function TaskTable({ tasks, trackerUrls, fold }: { tasks: StatsTaskRow[];
         return (
           <td key={column} className="tasks__wide">
             <span className="tasks__task">
-              <TaskKey id={row.task} trackerUrls={trackerUrls} />
+              <TaskKey id={row.task} trackerUrls={trackerUrls} url={row.url} />
               {row.title !== null && row.title !== '' && (
                 <span className="tasks__title" title={row.title}>
                   {row.title}

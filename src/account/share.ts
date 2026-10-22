@@ -6,6 +6,7 @@ import {
   readdirSync,
   readFileSync,
   readlinkSync,
+  renameSync,
   rmdirSync,
   type Stats,
   symlinkSync,
@@ -57,6 +58,11 @@ export function memoryStore(globalDir: string): string {
   return join(dirname(globalDir), '.claude-memory')
 }
 
+/** Shared skills live next to the global folder for the same reason as memory: `~/.claude/skills/<name>` links to it. */
+export function skillStore(globalDir: string): string {
+  return join(dirname(globalDir), '.claude-skills')
+}
+
 /** The repository's folder in the memory store; chain sessions also get it as `autoMemoryDirectory`. */
 export function sharedMemory(globalDir: string, repo: string): string {
   return join(memoryStore(globalDir), projectDirName(repo))
@@ -100,8 +106,15 @@ export function shareConfig(global: SharedSources, dir: string, warn: (message: 
 
   for (const file of COPIED_FILES) changed = copyIfChanged(join(global.dir, file), join(dir, file)) || changed
   for (const name of LINKED_DIRS) changed = link(join(global.dir, name), join(dir, name)) || changed
+  const skills = skillStore(global.dir)
   for (const name of entries(join(global.dir, 'skills'))) {
-    if (!OWN_SKILLS.has(name)) changed = link(join(global.dir, 'skills', name), join(dir, 'skills', name)) || changed
+    if (OWN_SKILLS.has(name)) continue
+    const own = join(global.dir, 'skills', name)
+    const stored = join(skills, name)
+    changed = absorbSkill(own, stored, warn) || changed
+    const path = join(dir, 'skills', name)
+    const target = linksTo(own, stored) ? stored : own
+    if (!linksElsewhere(path, [own, stored])) changed = link(target, path) || changed
   }
   const store = memoryStore(global.dir)
   const projects = new Set([...entries(join(global.dir, 'projects')), ...entries(join(dir, 'projects'))])
@@ -120,17 +133,39 @@ function absorbMemory(shared: string, own: string, warn: (message: string) => vo
   const stat = lstatSync(own)
   if (stat.isSymbolicLink() || !stat.isDirectory()) return false
   mkdirSync(shared, { recursive: true })
-  return moveInto(own, shared, warn)
+  return moveInto(own, shared, warn, 'memory')
 }
 
-function moveInto(from: string, to: string, warn: (message: string) => void): boolean {
+/**
+ * Moves a global skill kept as a real folder into the store and leaves a link in its place; one already linked
+ * (to the store or elsewhere) stays. A folder the store already has is merged as memory is; a locked one waits for the next launch.
+ */
+function absorbSkill(own: string, stored: string, warn: (message: string) => void): boolean {
+  const stat = lstatOf(own)
+  if (stat === undefined || stat.isSymbolicLink() || !stat.isDirectory()) return false
+  try {
+    if (!existsSync(stored)) {
+      mkdirSync(dirname(stored), { recursive: true })
+      renameSync(own, stored)
+      symlinkSync(stored, own, linkType(process.platform))
+      return true
+    }
+    const moved = moveInto(own, stored, warn, 'skills')
+    return link(stored, own) || moved
+  } catch (error) {
+    warn(`skills: ${own} was not moved to ${stored} (${error instanceof Error ? error.message : String(error)}); left in place`)
+    return false
+  }
+}
+
+function moveInto(from: string, to: string, warn: (message: string) => void, what: string): boolean {
   let changed = false
   for (const entry of readdirSync(from, { withFileTypes: true })) {
     const source = join(from, entry.name)
     const target = join(to, entry.name)
     if (entry.isDirectory()) {
       mkdirSync(target, { recursive: true })
-      changed = moveInto(source, target, warn) || changed
+      changed = moveInto(source, target, warn, what) || changed
       if (readdirSync(source).length === 0) rmdirSync(source)
     } else if (!existsSync(target)) {
       copyFileSync(source, target)
@@ -140,7 +175,7 @@ function moveInto(from: string, to: string, warn: (message: string) => void): bo
       unlinkSync(source)
       changed = true
     } else {
-      warn(`memory: ${source} differs from ${target}; left in place, merge by hand`)
+      warn(`${what}: ${source} differs from ${target}; left in place, merge by hand`)
     }
   }
   return changed
@@ -208,6 +243,16 @@ function lstatOf(path: string): Stats | undefined {
   } catch {
     return undefined
   }
+}
+
+function linksTo(path: string, target: string): boolean {
+  return lstatOf(path)?.isSymbolicLink() === true && samePath(linkTarget(path), target)
+}
+
+/** A live link to a folder other than the given ones: a skill the user pointed somewhere on purpose. */
+function linksElsewhere(path: string, targets: string[]): boolean {
+  if (lstatOf(path)?.isSymbolicLink() !== true || !existsSync(path)) return false
+  return !targets.some((target) => samePath(linkTarget(path), target))
 }
 
 /** A junction's target comes back as `\\?\C:\…\` on Windows. */

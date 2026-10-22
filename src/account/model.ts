@@ -8,6 +8,7 @@ import { COPILOT } from '../copilot/name.js'
 import { OPENCODE } from '../opencode/name.js'
 import { isLive, type AgentEntry } from '../sessions/agents.js'
 import { APP_LABELS, type AppAccount } from './apps.js'
+import type { Transport } from './transport.js'
 
 export const GLOBAL_ACCOUNT = 'global'
 /** The key of Codex's own account folder, `CODEX_HOME` or `~/.codex` (`AccountHomes`). */
@@ -47,6 +48,8 @@ export interface AccountEntry {
   removing: boolean
   configPending: boolean
   apiKey: boolean
+  /** How its new Claude sessions run (`transportOf`); absent for an agent with one way only. */
+  transport?: Transport
   limits: RateLimits | null
   usage: UsageHealth
 }

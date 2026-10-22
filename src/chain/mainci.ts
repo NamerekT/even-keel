@@ -18,6 +18,8 @@ export interface MainCiWatch {
 }
 
 export interface MainCiDeps {
+  /** The other projects whose checkout has a remote in common with this one's and the same main branch. */
+  peers: (project: string) => string[]
   repo: (project: string) => string
   /** The project's main branch. */
   main: (project: string) => string
@@ -41,6 +43,8 @@ export interface MainCiDeps {
   afterGreen: (project: string) => string[]
   /** Runs them in a folder; `null` — all passed. */
   runAfterGreen: (project: string, cwd: string) => Promise<CheckFailure | null>
+  /** The name the project's fix session runs under (`fixNameOf`). */
+  fixName: (project: string) => string
   now: () => Date
 }
 
@@ -64,6 +68,8 @@ export function mainCheckDeps(deps: MainCiDeps): MainCheckDeps {
   }
 
   return {
+    // A project with the guard off neither holds nor is held by the others.
+    peers: (project) => (deps.settings(project).guard ? deps.peers(project).filter((peer) => deps.settings(peer).guard) : []),
     head: (project) => revision(deps.repo(project), `refs/heads/${deps.main(project)}`),
     verdict(project, commit, since) {
       // Right after a start the CIs are not found yet: without the wait an awaited push would pass for one without a CI.
@@ -111,6 +117,7 @@ export function mainCheckDeps(deps: MainCiDeps): MainCheckDeps {
       return failure === null ? { state: 'green' } : { state: 'red', failure }
     },
     fixTask: (project) => deps.settings(project).fixTask,
+    fixName: deps.fixName,
     merged: (project, task) => branchMerged(deps.git, deps.repo(project), task, deps.main(project)),
     afterGreen: (project) => deps.settings(project).guard && deps.afterGreen(project).length > 0,
     // The only place the dispatcher touches the project's own checkout, so only when it stands on main at the green commit.

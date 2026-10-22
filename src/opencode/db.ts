@@ -6,7 +6,8 @@ import type { MessageRow, PartRow } from './transcript.js'
 /**
  * Reads of an account's `opencode.db` (SQLite in WAL mode, written by every OpenCode process of the account): each read
  * opens the file read-only and closes it at once, so Even Keel never holds it. A tool's output and metadata are left
- * in the file: the feed needs neither, and they make most of a part's size.
+ * in the file: the feed needs neither, and they make most of a part's size. Only the chat's message the `checkpoint`
+ * package's plugin kept in the metadata, `evenKeel.mail`, is read.
  */
 export interface SessionRows {
   messages: MessageRow[]
@@ -22,7 +23,10 @@ export interface SessionInfo {
   createdAt: number
 }
 
-const PART_DATA = `json_remove(data, '$.state.output', '$.state.metadata', '$.state.attachments')`
+const MAIL = `json_extract(data, '$.state.metadata.evenKeel.mail')`
+const STRIPPED = `json_remove(data, '$.state.output', '$.state.metadata', '$.state.attachments')`
+const PART_DATA = `case when ${MAIL} is null then ${STRIPPED}
+  else json_set(${STRIPPED}, '$.state.metadata', json_object('evenKeel', json_object('mail', ${MAIL}))) end`
 
 export async function sessionRows(dir: string, sessionId: string): Promise<SessionRows | undefined> {
   return withDatabase(dir, (db) => {

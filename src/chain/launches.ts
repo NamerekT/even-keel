@@ -1,6 +1,6 @@
 import type { SessionView } from '../state.js'
 import type { LaunchEntry, ReleaseReason } from './dispatcher.js'
-import { fixEpisodeId, fixName, fixTaskOf, isFixName, liveFixId } from './fix.js'
+import { fixEpisodeId, fixTaskOf, isFixName, liveFixId } from './fix.js'
 import type { FixOutcome } from './model.js'
 
 export interface LaunchDay {
@@ -73,7 +73,7 @@ export function fixEpisodes(entries: LaunchEntry[]): { episodes: Record<string, 
     let open = list.at(-1)
     if (open?.end !== null) open = undefined
     const start = () => {
-      const episode: FixEpisode = { id: fixEpisodeId(entry.project, list.length + 1), red: entry.commit ?? null, at: entry.at, end: null }
+      const episode: FixEpisode = { id: fixEpisodeId(fixTaskOf(entry.task), list.length + 1), red: entry.commit ?? null, at: entry.at, end: null }
       list.push(episode)
       return episode
     }
@@ -131,8 +131,8 @@ export function taskSessions(
   }
   for (const view of live) {
     const fix = isFixName(view.task) ? fixTaskOf(view.task) : null
-    const project = fix === null ? '' : fix.slice(0, -fixName('').length)
-    const rows = rowsOf(fix === null ? view.task : liveFixId(project, fixes.episodes[project] ?? []))
+    const project = fix === null ? undefined : entries.findLast((entry) => fixTaskOf(entry.task) === fix)?.project
+    const rows = rowsOf(fix === null ? view.task : liveFixId(fix, (project === undefined ? undefined : fixes.episodes[project]) ?? []))
     if (!rows.has(view.sessionId)) rows.set(view.sessionId, { sessionId: view.sessionId, at: view.startedAt, how: 'manual', resumed: 0, answers: 0 })
   }
   for (const entry of releases) {
@@ -179,9 +179,12 @@ export function ranSince(entries: LaunchEntry[], project: string, since: Date): 
   return [...ran]
 }
 
-/** The projects the chain has started a task of, each once: their tracker is fixed until a switch can keep the tasks apart (BTN-66). */
-export function launchedProjects(entries: LaunchEntry[]): string[] {
-  return [...new Set(entries.filter((entry) => !isRelease(entry) && !isFixName(entry.task)).map((entry) => entry.project))]
+/**
+ * The readers the chain has started a task of, each once: their tracker and profile are fixed, since the ids of their tasks
+ * would no longer reach their records. `readerOf` gives the project, or its feed by the task's prefix (BTN-66).
+ */
+export function launchedProjects(entries: LaunchEntry[], readerOf: (project: string, task: string) => string = (project) => project): string[] {
+  return [...new Set(entries.filter((entry) => !isRelease(entry) && !isFixName(entry.task)).map((entry) => readerOf(entry.project, entry.task)))]
 }
 
 /** The launches since `since` whose run label named a provider without an account in the pool, newest first: the page's toast. */
@@ -189,6 +192,24 @@ export function fallbacksSince(entries: LaunchEntry[], since: Date): (LaunchEntr
   return entries
     .filter((entry): entry is LaunchEntry & { fallback: string } => entry.fallback !== undefined && Date.parse(entry.at) >= since.getTime())
     .reverse()
+}
+
+export interface TaskSource {
+  task: string
+  profile: string | null
+  url: string | null
+  title: string | null
+}
+
+/** Where each task was read from, by the latest launch that recorded it, field by field (BTN-66): Tally's `tasks`. */
+export function taskSources(entries: LaunchEntry[]): TaskSource[] {
+  const sources = new Map<string, TaskSource>()
+  for (const entry of entries) {
+    if (!isLaunch(entry) || (entry.profile === undefined && entry.url === undefined && entry.title === undefined)) continue
+    const known = sources.get(entry.task) ?? { task: entry.task, profile: null, url: null, title: null }
+    sources.set(entry.task, { task: entry.task, profile: entry.profile ?? known.profile, url: entry.url ?? known.url, title: entry.title ?? known.title })
+  }
+  return [...sources.values()]
 }
 
 /** An entry of a session the chain started or continued: not a release, not the outcome of a fix. */

@@ -13,6 +13,7 @@ interface ProjectRow {
   repo: string
   branch: string
   tracker_projects: string
+  feeds: string
 }
 
 interface ValueRow {
@@ -63,7 +64,10 @@ export async function readSettings(db: Queryable): Promise<FileContents> {
   )
   const { projects, values } = rows[0]!.settings
   return {
-    records: projects.map(({ id, key, name, repo, branch, tracker_projects }) => ({ id, key, name, repo, branch, trackerProjects: JSON.parse(tracker_projects) })),
+    records: projects.map(({ id, key, name, repo, branch, tracker_projects, feeds }) => {
+      const list = JSON.parse(feeds) as Record<string, unknown>[]
+      return { id, key, name, repo, branch, trackerProjects: JSON.parse(tracker_projects), ...(list.length === 0 ? {} : { feeds: list }) }
+    }),
     rows: values.map(({ key, project_id, qualifier, value }) => ({ key, project: project_id, qualifier, value: JSON.parse(value) })),
   }
 }
@@ -78,7 +82,7 @@ export async function saveSettings(db: Queryable, { records, rows }: FileContent
   const projects = records.map((record, position) => ({ ...projectRow(record), position }))
   await db.query(
     `with new_projects as (
-       select * from json_to_recordset($1::json) as p(id text, key text, name text, repo text, branch text, tracker_projects text, position integer)
+       select * from json_to_recordset($1::json) as p(id text, key text, name text, repo text, branch text, tracker_projects text, feeds text, position integer)
      ),
      new_values as (
        select * from json_to_recordset($2::json) as v(key text, project_id text, qualifier text, value text)
@@ -93,10 +97,10 @@ export async function saveSettings(db: Queryable, { records, rows }: FileContent
        delete from projects p where p.id not in (select id from new_projects)
      ),
      put_projects as (
-       insert into projects (id, key, name, repo, branch, tracker_projects, position)
-       select id, key, name, repo, branch, tracker_projects, position from new_projects
+       insert into projects (id, key, name, repo, branch, tracker_projects, feeds, position)
+       select id, key, name, repo, branch, tracker_projects, feeds, position from new_projects
        on conflict (id) do update set key = excluded.key, name = excluded.name, repo = excluded.repo, branch = excluded.branch,
-         tracker_projects = excluded.tracker_projects, position = excluded.position
+         tracker_projects = excluded.tracker_projects, feeds = excluded.feeds, position = excluded.position
      ),
      put_values as (
        insert into setting_values (key, project_id, qualifier, value, updated_at, updated_by)
@@ -121,13 +125,14 @@ export async function putSettings(db: Queryable, rows: SettingRow[], by: Writer,
   )
 }
 
-const projectRow = ({ id, key, name, repo, branch, trackerProjects }: ProjectRecord): ProjectRow => ({
+const projectRow = ({ id, key, name, repo, branch, trackerProjects, feeds = [] }: ProjectRecord): ProjectRow => ({
   id,
   key,
   name,
   repo,
   branch,
   tracker_projects: JSON.stringify(trackerProjects),
+  feeds: JSON.stringify(feeds),
 })
 
 const valueRow = ({ key, project, qualifier, value }: SettingRow): ValueRow => ({ key, project_id: project, qualifier, value: JSON.stringify(value) })

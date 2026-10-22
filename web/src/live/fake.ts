@@ -6,6 +6,7 @@ import type { TrackerLinkState, TrackerView } from '../../../src/tracker/health.
 import type { FeedLine } from '../../../src/sessions/transcript.js'
 import type { LimitHold } from '../../../src/chain/relay.js'
 import { isLanguage } from '../../../src/language.js'
+import { OPENCODE } from '../../../src/opencode/name.js'
 import { isTallyMode, TALLY_DISABLED, TALLY_UNCHOSEN } from '../../../src/stats/mode.js'
 import type { EvenKeelState, SessionRecord, SessionView } from '../../../src/state.js'
 import type { Link, LiveSnapshot, LiveSource } from './connection.js'
@@ -13,7 +14,7 @@ import { deviceLogin } from '../accounts.js'
 import { accountCommand, fakeAccount, fakeUsage, FAKE_LIMITS } from './fakeAccounts.js'
 import { FAKE_FIX, fakeCi } from './fakeCi.js'
 import { fakeUpdates } from './fakeUpdates.js'
-import { FAKE_PROJECT_IDS, FAKE_PULL_READINESS, FAKE_REMOTES, FAKE_VOCABULARY, fakeConfig, fakeHandEdit } from './fakeConfig.js'
+import { FAKE_PROJECTS, FAKE_PULL_READINESS, FAKE_REMOTES, FAKE_VOCABULARY, fakeConfig, fakeHandEdit, fakeProjectMaps } from './fakeConfig.js'
 import { withFix } from './fakeFix.js'
 import { fakeCompare, fakeRuleDiff, fakeRules } from './fakeRules.js'
 import { fakeSteps } from './fakeSteps.js'
@@ -25,7 +26,7 @@ import { fakeTools } from './fakeTools.js'
 import { fakePackages } from './fakePackages.js'
 import { fakeSecrets } from './fakeSecrets.js'
 import { fakeChangelog, fakeWrittenChangelogs } from './fakeChangelog.js'
-import { FAKE_HULY_PROFILE, fakeProfiles, fakeProfilesQuery, fakeSaved } from './fakeProfiles.js'
+import { FAKE_HULY_PROFILE, GITHUB_PROFILE, LINEAR_PROFILE, fakeProfiles, fakeProfilesQuery, fakeSaved } from './fakeProfiles.js'
 import { fakeCheck, fakeNoProjects } from './fakeProjects.js'
 import { ago, fakeFeed, FEED_STEPS, minutes, session, task, turnStartedAt } from './fakeSessions.js'
 import { closeCurrent, fakeCommand, finishCurrent, LAUNCH_DAYS, setPaused, startChain, startStages, takeNext } from './fakeCommands.js'
@@ -70,6 +71,15 @@ function fakeHuly(state: TrackerLinkState): TrackerView {
   if (state === 'off' || state === 'connecting') return { ...view, health: { state, lastOkAt: null, error: null }, readAt: {} }
   if (state === 'down') return { ...view, health: { state, lastOkAt: ago(4), error: 'huly: call timed out after 15000 ms' }, readAt: readAt(4) }
   return { ...view, health: { state, lastOkAt: ago(0), error: null }, readAt: readAt(0) }
+}
+
+/** The trackers of ABC's task feeds: GitHub has read its feed, Linear not yet. */
+function fakeFeedTrackers(): TrackerView[] {
+  const view = { ready: true, health: { state: 'live' as const, lastOkAt: ago(0), error: null } }
+  return [
+    { ...view, name: GITHUB_PROFILE, kind: 'github', title: 'GitHub · johndoe', projects: ['feed-abc-gh'], readAt: { 'feed-abc-gh': ago(1) } },
+    { ...view, name: LINEAR_PROFILE, kind: 'linear', title: 'Linear · work', projects: ['feed-abc-lin'], readAt: {} },
+  ]
 }
 
 const LAUNCH_PATTERN: Record<string, number[]> = {
@@ -127,8 +137,8 @@ function fakeState(
   ]
   return {
     startedAt: ago(180),
-    projects: ['ABC', 'DEMO', 'XYZ', 'OPS'],
-    projectIds: FAKE_PROJECT_IDS,
+    projects: FAKE_PROJECTS,
+    ...fakeProjectMaps(),
     config: fakeConfig(),
     chain: {
       active: idle
@@ -179,7 +189,7 @@ function fakeState(
     limits: FAKE_LIMITS,
     usage: fakeUsage(usage),
     account: fakeAccount(account, idle, FAKE_LIMITS),
-    trackers: [fakeHuly(huly)],
+    trackers: [fakeHuly(huly), ...fakeFeedTrackers()],
     trackerUrls: {
       default: 'https://huly.example.com/workbench/example/tracker/{id}',
       projects: {},
@@ -187,6 +197,7 @@ function fakeState(
     },
     ci: fakeCi(null),
     remotes: FAKE_REMOTES,
+    sameRepository: {},
     pullReadiness: FAKE_PULL_READINESS,
     launches: launchDays(launches, new Date(), LAUNCH_DAYS),
     taskSessions: idle
@@ -218,6 +229,7 @@ function fakeState(
     unattended: false,
     trimTools: true,
     tally: 'local',
+    tallyHealth: { state: 'ok', lastRunAt: ago(3) },
     updates: fakeUpdates(null),
     cliVersions: [],
     fallbacks: [],
@@ -336,8 +348,10 @@ export function createFakeSource(search: string): LiveSource {
     const slotWait = { notice: notice('slot.waiting', { task: 'ABC-12' }, { items: [dirty] }), at: new Date().toISOString() }
     current.state!.chain.active = [{ ...active, current: null, slotWait }]
   }
-  if ((params.get('chain') === 'ci' || params.get('chain') === 'check' || params.get('chain') === 'afterGreen') && active) {
-    const local = params.get('chain') === 'check' ? { local: true as const } : params.get('chain') === 'afterGreen' ? { after: true as const } : {}
+  const waits = { ci: {}, check: { local: true as const }, afterGreen: { after: true as const }, remoteFix: { by: 'DEMO' } }
+  const wait = params.get('chain') ?? ''
+  if (Object.hasOwn(waits, wait) && active) {
+    const local = waits[wait as keyof typeof waits]
     const ciWait = { commit: '9f77142a5c0e3d1b7e6f4a2c8d9b0e1f2a3b4c5d', since: new Date(Date.now() - 4 * 60_000).toISOString(), ...local }
     current.state!.chain.active = [{ ...active, current: null, ciWait }]
   }
@@ -427,11 +441,12 @@ export function createFakeSource(search: string): LiveSource {
     current.state.sessions = current.state.sessions.map((each) => (each.task === 'ABC-5' ? asking : each))
     current.state.chain.active = [{ ...active, current: { task: 'ABC-5', sessionId: asking.sessionId, since: ago(42) } }]
   }
-  if (params.get('chain') === 'mail' && current.state !== null && active) {
+  if ((params.get('chain') === 'mail' || params.get('chain') === 'steer') && current.state !== null && active) {
     const working = session('ABC-5', contextTokens)
     current.state.sessions = current.state.sessions.map((each) => (each.task === 'ABC-5' ? working : each))
     current.state.chain.active = [{ ...active, current: { task: 'ABC-5', sessionId: working.sessionId, since: ago(42) } }]
-    current.state.mailbox = { [working.sessionId]: fakeMailbox('ABC-5', working.sessionId, Date.now()) }
+    const box = params.get('chain') === 'mail' ? fakeMailbox('ABC-5', working.sessionId, Date.now()) : { listens: true, steers: true, mail: [] }
+    current.state.mailbox = { [working.sessionId]: box }
   }
   if (params.get('chain') === 'dialog' && current.state !== null && active) {
     const wedged: SessionView = {
@@ -449,6 +464,11 @@ export function createFakeSource(search: string): LiveSource {
     }
     current.state.sessions = current.state.sessions.map((each) => (each.task === 'ABC-5' ? wedged : each))
     current.state.chain.active = [{ ...active, current: { task: 'ABC-5', sessionId: wedged.sessionId, since: ago(6) } }]
+  }
+  if (params.get('chain') === 'hung' && current.state !== null && active) {
+    const hung: SessionView = { ...session('ABC-5', contextTokens, 'waiting'), agent: OPENCODE, waitingFor: null, hungSince: ago(35), lastActivityAt: ago(35) }
+    current.state.sessions = current.state.sessions.map((each) => (each.task === 'ABC-5' ? hung : each))
+    current.state.chain.active = [{ ...active, current: { task: 'ABC-5', sessionId: hung.sessionId, since: ago(80) } }]
   }
   if (params.get('chain') === 'fix' && current.state !== null) current.state = withFix(current.state, 'ABC', session(fixName('ABC'), 38_000), ago(6))
   if (params.get('chain') === 'aside' && current.state !== null) {
@@ -577,7 +597,7 @@ export function createFakeSource(search: string): LiveSource {
       await answer()
       const mode = params.get('vocabulary')
       if (mode === 'fail') throw new Error('huly: not connected')
-      return mode === 'none' || !Object.values(FAKE_PROJECT_IDS).includes(projectId) ? null : FAKE_VOCABULARY
+      return mode === 'none' || !FAKE_PROJECTS.includes(projectId) ? null : FAKE_VOCABULARY
     },
     checkProject: async (draft) => {
       await answer()

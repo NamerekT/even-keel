@@ -1,0 +1,32 @@
+import { describe, expect, it } from 'vitest'
+import { replyPrompt, type Ask } from '../../sessions/ask.js'
+import { replyMove } from './host.js'
+
+const ask: Ask = {
+  id: 'toolu_01',
+  questions: [
+    { question: 'Which colour?', header: 'Colour', multiSelect: false, options: [{ label: 'Red', description: '' }, { label: 'Blue', description: '' }] },
+    { question: 'Which animal?', header: 'Animal', multiSelect: false, options: [{ label: 'Cat', description: '' }, { label: 'Dog', description: '' }] },
+  ],
+}
+const prompt = (answers: Record<string, string>, text = '', files: string[] = []) => replyPrompt({ from: 'page', answers, text, files }, ask, 'en')
+
+describe('replyMove', () => {
+  it('answers the pending call with the answers alone', () => {
+    expect(replyMove(prompt({ 'Which colour?': 'Red', 'Which animal?': 'Dog' }), ask)).toEqual({
+      kind: 'answer',
+      answers: { 'Which colour?': 'Red', 'Which animal?': 'Dog' },
+    })
+  })
+
+  it('refuses the call with the whole reply when the user wrote words or sent files of their own', () => {
+    const worded = prompt({ 'Which colour?': 'Red' }, 'Ask me about the animal later.')
+    expect(replyMove(worded, ask)).toEqual({ kind: 'deny', message: worded.trim() })
+    const filed = prompt({}, '', ['C:\\repos\\example-project\\.temp\\inbox\\shot.png'])
+    expect(replyMove(filed, ask)).toEqual({ kind: 'deny', message: filed.trim() })
+  })
+
+  it('sends the reply as the next message to a session that waits on no call', () => {
+    expect(replyMove('Go on with the task.', null)).toEqual({ kind: 'message' })
+  })
+})

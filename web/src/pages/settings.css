@@ -215,6 +215,29 @@
   flex: 1 1 14em;
 }
 
+/* The project's task feeds (BTN-66): a line per feed, then the fields of a new one. */
+.feeds__row {
+  padding: 6px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.feeds__line {
+  align-items: center;
+}
+
+.feeds__place {
+  flex: 1 1 12em;
+  color: var(--fg-muted);
+}
+
+.feeds__add {
+  margin-top: 8px;
+}
+
+.feeds__submit {
+  align-self: flex-end;
+}
+
 /* A pick with a button to its right, on one line while it fits. */
 .settings__beside {
   display: flex;

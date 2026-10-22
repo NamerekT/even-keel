@@ -5,11 +5,17 @@ import { DEFAULT_SHARES } from '../../../src/stats/checkpoint.js'
 import type { TrackerVocabulary } from '../../../src/tracker/source.js'
 import { GITHUB_PROFILE } from './fakeProfiles.js'
 
-export const FAKE_PROJECT_IDS: Record<string, string> = {
-  ABC: '6f1c2a4e-1b3d-4c5e-8f70-9a1b2c3d4e01',
-  DEMO: '6f1c2a4e-1b3d-4c5e-8f70-9a1b2c3d4e02',
-  XYZ: '6f1c2a4e-1b3d-4c5e-8f70-9a1b2c3d4e03',
-  OPS: '6f1c2a4e-1b3d-4c5e-8f70-9a1b2c3d4e04',
+/** The fake projects; the id of each is its key, so the fakes need no map between them. */
+export const FAKE_PROJECTS = ['ABC', 'DEMO', 'XYZ', 'OPS']
+
+/** The state's maps by the key of each project (`keys`): a key two projects share is shown with the name, as the service does. */
+export function fakeProjectMaps(
+  keys: Record<string, string> = Object.fromEntries(FAKE_PROJECTS.map((project) => [project, project])),
+  names: Record<string, string | null> = {},
+): Pick<EvenKeelState, 'projectKeys' | 'projectLabels' | 'taskPrefixes'> {
+  const shared = (project: string) => Object.keys(keys).some((other) => other !== project && keys[other] === keys[project])
+  const labels = Object.fromEntries(Object.entries(keys).map(([project, key]) => [project, shared(project) ? `${key} (${names[project] ?? project})` : key]))
+  return { projectKeys: keys, projectLabels: labels, taskPrefixes: keys }
 }
 
 /** ABC and XYZ are clones of one repository, so Home shows them as a group; OPS has no remote. */
@@ -125,7 +131,13 @@ export function fakeConfig(): ConfigView {
       { name: 'github', title: 'GitHub', projectKey: { key: 'github', example: 'octo-org/example', optional: false, alias: false } },
       { name: 'linear', title: 'Linear', projectKey: { key: 'linear', example: 'Web app', optional: true, alias: false } },
     ],
-    trackerLocked: ['ABC', 'DEMO'],
+    feeds: {
+      ABC: [
+        { id: 'feed-abc-gh', tracker: 'github', key: 'ABCGH', place: 'octo-org/storefront-ideas' },
+        { id: 'feed-abc-lin', tracker: 'linear', key: 'WEB', place: 'Web app' },
+      ],
+    },
+    trackerLocked: ['ABC', 'DEMO', 'feed-abc-gh'],
   }
 }
 

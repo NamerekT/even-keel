@@ -120,8 +120,9 @@ export function Segmented<T extends string>({
   )
 }
 
-export function TaskKey({ id, trackerUrls }: { id: string; trackerUrls: TrackerUrls }) {
-  const link = issueLink(trackerUrls, id)
+/** `url` — the link the launch log recorded, over the tracker's template. */
+export function TaskKey({ id, trackerUrls, url = null }: { id: string; trackerUrls: TrackerUrls; url?: string | null }) {
+  const link = url ?? issueLink(trackerUrls, id)
   return link === null ? (
     <span className="stats__key">{id}</span>
   ) : (

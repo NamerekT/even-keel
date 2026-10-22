@@ -1,17 +1,17 @@
 {
   "allowedHosts": [],
   "projects": {
-    "ABC": "C:\\repos\\example-project",
-    "XYZ": "C:\\repos\\other-project",
-    "GHB": "C:\\repos\\github-project"
+    "00000000-0000-4000-8000-000000000001": "C:\\repos\\example-project",
+    "00000000-0000-4000-8000-000000000002": "C:\\repos\\other-project",
+    "00000000-0000-4000-8000-000000000003": "C:\\repos\\github-project"
   },
-  "ids": {
-    "ABC": "00000000-0000-4000-8000-000000000001",
-    "XYZ": "00000000-0000-4000-8000-000000000002",
-    "GHB": "00000000-0000-4000-8000-000000000003"
+  "keys": {
+    "00000000-0000-4000-8000-000000000001": "ABC",
+    "00000000-0000-4000-8000-000000000002": "XYZ",
+    "00000000-0000-4000-8000-000000000003": "GHB"
   },
   "names": {
-    "XYZ": "Other project"
+    "00000000-0000-4000-8000-000000000002": "Other project"
   },
   "chain": {
     "active": [
@@ -31,7 +31,7 @@
     "excludedMilestones": []
   },
   "rules": {
-    "ABC": {
+    "00000000-0000-4000-8000-000000000001": {
       "active": [
         "Todo",
         "In Progress",
@@ -48,7 +48,7 @@
       "requiredMilestones": [],
       "excludedMilestones": []
     },
-    "XYZ": {
+    "00000000-0000-4000-8000-000000000002": {
       "active": [
         "Todo",
         "In Progress",
@@ -67,7 +67,7 @@
       "requiredMilestones": [],
       "excludedMilestones": []
     },
-    "GHB": {
+    "00000000-0000-4000-8000-000000000003": {
       "active": [
         "Open"
       ],
@@ -86,31 +86,53 @@
       "excludedMilestones": []
     }
   },
+  "ownRules": {
+    "00000000-0000-4000-8000-000000000001": {},
+    "00000000-0000-4000-8000-000000000002": {
+      "requiredLabels": [
+        "Auto"
+      ]
+    },
+    "00000000-0000-4000-8000-000000000003": {
+      "active": [
+        "Open"
+      ],
+      "terminal": [
+        "Completed",
+        "Not planned",
+        "Duplicate"
+      ],
+      "requiredLabels": [
+        "ready"
+      ]
+    }
+  },
   "slots": {
-    "XYZ": 1
+    "00000000-0000-4000-8000-000000000002": 1
   },
   "colors": {
-    "ABC": 1,
-    "XYZ": 2,
-    "GHB": 3
+    "00000000-0000-4000-8000-000000000001": 1,
+    "00000000-0000-4000-8000-000000000002": 2,
+    "00000000-0000-4000-8000-000000000003": 3
   },
   "tracker": "huly",
   "trackers": {
-    "ABC": "huly",
-    "XYZ": "huly",
-    "GHB": "github"
+    "00000000-0000-4000-8000-000000000001": "huly",
+    "00000000-0000-4000-8000-000000000002": "huly",
+    "00000000-0000-4000-8000-000000000003": "github"
   },
   "trackerProjects": {
-    "GHB": "octo-org/github-project"
+    "00000000-0000-4000-8000-000000000003": "octo-org/github-project"
   },
+  "feeds": {},
   "brief": null,
   "briefs": {
-    "ABC": null,
-    "XYZ": false,
-    "GHB": null
+    "00000000-0000-4000-8000-000000000001": null,
+    "00000000-0000-4000-8000-000000000002": false,
+    "00000000-0000-4000-8000-000000000003": null
   },
   "settings": {
-    "ABC": {
+    "00000000-0000-4000-8000-000000000001": {
       "branch": "main",
       "prompt": null,
       "beforeStart": [],
@@ -145,7 +167,7 @@
       "own": {},
       "promptLanguage": "en"
     },
-    "XYZ": {
+    "00000000-0000-4000-8000-000000000002": {
       "branch": "master",
       "prompt": "Run npm test before merging.",
       "beforeStart": [
@@ -182,7 +204,7 @@
       "own": {},
       "promptLanguage": "en"
     },
-    "GHB": {
+    "00000000-0000-4000-8000-000000000003": {
       "branch": "main",
       "prompt": null,
       "beforeStart": [],

@@ -70,7 +70,7 @@ A project can name the profile itself (BTN-231): `remoteProfiles: { github?: <pr
 
 With no profile for it, or when the token does not reach the repository's runs (`ci.denied`, HTTP 404), the CI of that remote is not shown at all, with no error (`CiWatch.hidden`, both CIs): the page and the main check take only `CiWatches.shown(project)`. On Access a profile's card lists the CIs it serves (`ProfileView.ci`) and says in its tip which ones it does not reach (`ProfileView.hiddenCi`).
 
-Projects in separate clones of one remote (BTN-210) each get their own watches of the same repository, polled apart, and each judges `main` only by its own pushes: a red run of another project's push shows on the CI panel but neither holds nor fixes this one (`docs/chain.md`, "Projects of one remote"; the shared verdict is BTN-217).
+Projects in separate clones of one remote (BTN-210) each get their own watches of the same repository, polled apart (one watch per remote is BTN-289), and each waits for the verdict on its own pushes. The fix is shared (BTN-217): while one project of the remote and main branch fixes a red `main`, the others' launches wait and their red pushes start no second fix (`docs/chain.md`, "Projects of one remote").
 
 ## A push of Markdown only (this repository's workflows)
 

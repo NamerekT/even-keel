@@ -11,7 +11,7 @@ import type { Lamp } from './sessions/agents.js'
 import type { Ask } from './sessions/ask.js'
 import type { SessionMail } from './sessions/mail.js'
 import type { SecretPlace, SecretReaders } from './secrets/catalog.js'
-import type { TallyMode } from './stats/mode.js'
+import type { TallyHealth, TallyMode } from './stats/mode.js'
 import type { CompareSettings } from './stats/rules.js'
 import type { RemoteOff } from './sessions/remote.js'
 import type { CacheWindow, FeedLine, Stage, TokenTotals } from './sessions/transcript.js'
@@ -35,6 +35,8 @@ export interface SessionView {
   waitingFor: string | null
   /** What the CLI dialog the session hangs on before its first turn asks for: not mid-turn, nobody in the background answers it. */
   startupDialog: string | null
+  /** Since when its live turn has written nothing and is taken for hung (`AgentEntry.hungSince`); answering or "New session" ends it. */
+  hungSince: string | null
   /** The session waits on an `AskUserQuestion` the user has not answered. */
   asking: boolean
   /** That `AskUserQuestion`, for the answer panel of the chat window: from the transcript, or from the job file while the CLI has not written it there. */
@@ -75,6 +77,7 @@ export interface SessionRecord {
 /** Task link templates (`TrackerSetup.issueUrl`): `{id}` — the task id, `{number}` — its number. */
 export interface TrackerUrls {
   default: string | null
+  /** By the prefix of the task ids (`idPrefixOf`): projects with one prefix are on one tracker project. */
   projects: Record<string, string | null>
   /** The page of each project in its tracker (`TrackerSetup.projectUrl`); `null` — none. */
   pages: Record<string, string | null>
@@ -190,7 +193,7 @@ export interface CheckpointShares {
 
 /** A project's entry of the config as the settings panel edits it: the values it ends up with, the shared ones filled in. */
 export interface ProjectForm extends ProjectSettings {
-  /** What the page shows next to the key; the key stays the project's id. `null` — no name. */
+  /** What the page shows next to the key. `null` — no name. */
   name: string | null
   repo: string
   tracker: string
@@ -308,8 +311,31 @@ export interface ConfigView {
   shared: SharedForm
   projects: Record<string, ProjectForm>
   trackers: TrackerChoice[]
-  /** Projects the chain has started a task of: the page does not switch their tracker or tracker project until BTN-66. */
+  /** The projects' extra task feeds (BTN-66), by project; a project without any is left out. */
+  feeds: Record<string, FeedView[]>
+  /**
+   * Projects and feeds the chain has started a task of: their tracker, tracker project and profile stay, since the ids of
+   * their tasks would no longer reach their records. Another tracker's tasks come in as a feed.
+   */
   trackerLocked: string[]
+}
+
+/** An extra task feed of a project (BTN-66): its own tracker, a key for the ids where the tracker has none, a place in it. */
+export interface FeedView {
+  id: string
+  tracker: string
+  key: string
+  /** By the tracker's project key; none where the key names it. */
+  place?: string
+}
+
+/** A feed the page adds: a new id is given by the service. */
+export interface FeedDraft {
+  tracker: string
+  key: string
+  place: string | null
+  /** The profile it reads on; `null` — its tracker's default. */
+  profile: string | null
 }
 
 /** A repository a checkout's remote points at. */
@@ -320,11 +346,18 @@ export interface RemoteRef {
   path: string
 }
 
+export type ProjectTask = Task & { project: string }
+
 export interface EvenKeelState {
   startedAt: string
+  /** The projects by their ids, as every map of a project here names them: two projects may share a key (BTN-271). */
   projects: string[]
-  /** The id of each project by its key: the page's URL names a project by it, since the key may change. */
-  projectIds: Record<string, string>
+  /** The key of each project; an old link of the page names a project by it. */
+  projectKeys: Record<string, string>
+  /** What the page shows each project by (`projectLabel`): its key, with its name where another project has the key. */
+  projectLabels: Record<string, string>
+  /** The prefix of each project's task ids (`idPrefixOf`): its key, or its tracker project's where that is another one. */
+  taskPrefixes: Record<string, string>
   config: ConfigView
   chain: {
     active: ActiveChain[]
@@ -335,7 +368,8 @@ export interface EvenKeelState {
     skipped: Record<string, string[]>
     leftovers: Record<string, Leftover[]>
   }
-  tasks: Task[]
+  /** The tasks of every project with its project: a task of a tracker project two projects share is here for each. */
+  tasks: ProjectTask[]
   sessions: SessionView[]
   limits: RateLimits | null
   usage: UsageHealth
@@ -346,6 +380,11 @@ export interface EvenKeelState {
   ci: Record<string, CiView[]>
   /** The remotes of each project's checkout: Home groups the projects that share one (BTN-207). */
   remotes: Record<string, RemoteRef[]>
+  /**
+   * The other projects whose checkout is of the same repository (`sameRepository`, BTN-285): what "Merges into" offers.
+   * A project not read yet has no key.
+   */
+  sameRepository: Record<string, string[]>
   /**
    * Whether each project's PR mode would have where to open pull requests, by the same remotes (EKR-7): `null` — it
    * would; else `review.noRemote`, `review.unsupportedHost` or `review.noToken`. A project not read yet has no key.
@@ -368,6 +407,8 @@ export interface EvenKeelState {
   trimTools: boolean
   /** Where Tally writes (BTN-247); `null` — not chosen yet: the page offers the stats setup before anything else. */
   tally: TallyMode | null
+  /** The collector's last run, for `/status` (BTN-66). */
+  tallyHealth: TallyHealth
   updates: UpdatesView
   /** The installed CLIs whose version is not the one Even Keel was last checked against (BTN-249): a banner each until closed. */
   cliVersions: CliVersionView[]
@@ -375,9 +416,9 @@ export interface EvenKeelState {
   fallbacks: FallbackLaunch[]
   /** The chat mailbox of each live session whose hooks ask for mail or that has messages to show, by session id (BTN-181). */
   mailbox: Record<string, SessionMail>
-  /** The tasks the changelog written last accounts for, by project key and milestone (BTN-209). */
+  /** The tasks the changelog written last accounts for, by project and milestone (BTN-209). */
   changelogs: Record<string, Record<string, string[]>>
-  /** How each release project's branch goes into the project it merges into, by the release project's key (BTN-172). */
+  /** How each release project's branch goes into the project it merges into, by the release project (BTN-172). */
   forwards: Record<string, ForwardView>
 }
 
@@ -601,6 +642,10 @@ export interface ProfileView {
   hiddenCi: CiRemote[]
   /** The remotes whose forge refused to open a pull request with its token (`review.denied`, EKR-9). */
   deniedPulls: CiRemote[]
+  /** A tracker's: the chain rules it sets for its projects (BTN-66), only the keys set. */
+  rules: Partial<Pick<ChainRules, 'active' | 'terminal' | 'requiredLabels' | 'excludedLabels'>>
+  /** A tracker's: the ids of the projects that run on it or have a feed on it, for the rules' suggestions. */
+  projectIds: string[]
 }
 
 export interface ProfileField {

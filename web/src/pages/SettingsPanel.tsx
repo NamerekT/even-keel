@@ -45,6 +45,7 @@ import { ruleChoicesOf } from './settingsRows.js'
 import { useVocabularies } from './useVocabularies.js'
 import { ProjectRemove } from './ProjectRemove.js'
 import { ProfileLink } from './ProfileSelect.js'
+import { FeedList } from './FeedList.js'
 import { TrackerPackageButton } from './ToolsLink.js'
 import { remoteChoices } from './remoteProfiles.js'
 import { projectScope as scopeOf, useDraft, useTab } from './settingsStore.js'
@@ -247,8 +248,7 @@ export function SettingsPanel({
   const [current, setDraft] = useDraft(scopeOf(project), saved, same)
   const draft = current!
   const [open, setOpen] = useTab<GroupId>(scopeOf(project), 'repo')
-  const projectId = state?.projectIds[project]
-  const vocabularies = useVocabularies(projectId === undefined ? [] : [projectId])
+  const vocabularies = useVocabularies(state?.projects.includes(project) === true ? [project] : [])
   const dirty = (id: GroupId) => changed(draft, keysOf(id), same).length > 0
   const outgoing = sent(draft, keysOf(open))
   const shared = config.shared
@@ -345,8 +345,12 @@ export function SettingsPanel({
   const sharedShares = sharesText(shared.stats.checkpointShares)
   const shownKinds = on('ownKinds') ? kinds : shared.ci.kinds
   const choices = remoteChoices(state?.profiles.profiles ?? [], state?.remotes[project] ?? [])
-  // A release project merges into a main one, never into another release project.
-  const mainProjects = Object.entries(config.projects).flatMap(([key, each]) => (key !== project && each.mergeInto === null ? [key] : []))
+  // A release project merges into a main one of its own repository, never into another release project. Until the
+  // remotes are read, every main project is offered: the save checks it.
+  const kin = state?.sameRepository[project]
+  const mainProjects = Object.entries(config.projects).flatMap(([key, each]) =>
+    key !== project && each.mergeInto === null && (kin === undefined || kin.includes(key)) ? [key] : [],
+  )
   // One profile on offer is no choice: the field shows only while there are two, or a choice was made.
   const remoteChoice = (kind: CiKind) => {
     const key = remoteKey(kind)
@@ -489,6 +493,7 @@ export function SettingsPanel({
           )}
         </div>
         {locked && <p className="settings__hint">{t.settings.trackerLocked}</p>}
+        {state !== null && <FeedList state={state} project={project} />}
         {switchChoice('fillMilestone', t.settings.fillMilestone, t.settings.fillMilestoneHint, shared.fillMilestone)}
         <RuleFields text={text} onEdit={edit} errorOf={errorOf} marks={marks} choices={ruleChoicesOf(tasks, vocabularies)} />
       </>

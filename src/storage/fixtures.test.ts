@@ -4,6 +4,7 @@ import { join, relative } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
 import { loadLedger } from '../account/ledger.js'
 import { fixEpisodes, isLaunch } from '../chain/launches.js'
+import { parseSdkSession } from '../claude/sdk/registry.js'
 import { loadChainState, loadQuestions, readLaunches } from '../chain/store.js'
 import { parseSession } from '../codex/turns.js'
 import { parseConfig } from '../config.js'
@@ -32,12 +33,12 @@ describe(`frozen samples of schema v${SCHEMA_VERSION}`, { timeout: 60_000 }, () 
 
   it('reads the config', () => {
     const config = parseConfig(json('even-keel.config.json'))
-    expect(config.ids).toEqual({ ABC, XYZ })
-    expect(config.projects).toEqual({ ABC: 'C:\\repos\\example-project', XYZ: 'C:\\repos\\other-project' })
-    expect(config.slots).toEqual({ XYZ: 2 })
-    expect(config.settings.ABC?.afterGreen).toEqual(['npm run build', 'pwsh -File service/restart.ps1'])
-    expect(config.settings.ABC).toMatchObject({ provider: null, models: {}, accounts: {}, modelLabels: null })
-    expect(config.settings.XYZ).toMatchObject({ provider: 'codex', models: { codex: 'gpt-5.6-luna' }, accounts: { claude: 'global' }, modelLabels: false })
+    expect(config.keys).toEqual({ [ABC]: 'ABC', [XYZ]: 'XYZ' })
+    expect(config.projects).toEqual({ [ABC]: 'C:\\repos\\example-project', [XYZ]: 'C:\\repos\\other-project' })
+    expect(config.slots).toEqual({ [XYZ]: 2 })
+    expect(config.settings[ABC]?.afterGreen).toEqual(['npm run build', 'pwsh -File service/restart.ps1'])
+    expect(config.settings[ABC]).toMatchObject({ provider: null, models: {}, accounts: {}, modelLabels: null })
+    expect(config.settings[XYZ]).toMatchObject({ provider: 'codex', models: { codex: 'gpt-5.6-luna' }, accounts: { claude: 'global' }, modelLabels: false })
     expect(config).toMatchObject({
       provider: 'claude',
       models: { claude: 'sonnet' },
@@ -59,50 +60,56 @@ describe(`frozen samples of schema v${SCHEMA_VERSION}`, { timeout: 60_000 }, () 
     return prepareDatabase({ stateDir: join(dir, 'state'), log: () => {} })
   }
 
-  it('reads the chain naming projects by their keys', async () => {
+  it('reads the chain naming projects by their ids', async () => {
     const { db, close } = await imported()
-    const state = await loadChainState(db, { ABC, XYZ })
+    const state = await loadChainState(db)
     await close()
-    expect(state.active.map((chain) => [chain.project, chain.current?.task])).toEqual([['ABC', 'ABC-2']])
-    expect(state.queue).toEqual(['XYZ'])
-    expect(state.orders).toEqual({ ABC: ['ABC-1', 'ABC-2', 'ABC-3'], XYZ: ['XYZ-7'] })
-    expect(Object.keys(state.skipped)).toEqual(['ABC'])
-    expect(state.leftovers.XYZ?.[0]?.task).toBe('XYZ-1')
-    expect(state.released).toEqual({ ABC: ['ABC-1'] })
-    expect(Object.keys(state.ci)).toEqual(['ABC'])
-    expect(state.ci.ABC?.afterGreen).toBe(state.ci.ABC?.green)
+    expect(state.active.map((chain) => [chain.project, chain.current?.task])).toEqual([[ABC, 'ABC-2']])
+    expect(state.queue).toEqual([XYZ])
+    expect(state.orders).toEqual({ [ABC]: ['ABC-1', 'ABC-2', 'ABC-3'], [XYZ]: ['XYZ-7'] })
+    expect(Object.keys(state.skipped)).toEqual([ABC])
+    expect(state.leftovers[XYZ]?.[0]?.task).toBe('XYZ-1')
+    expect(state.released).toEqual({ [ABC]: ['ABC-1'] })
+    expect(Object.keys(state.ci)).toEqual([ABC])
+    expect(state.ci[ABC]?.afterGreen).toBe(state.ci[ABC]?.green)
   })
 
   it('reads the questions, the launches and the accounts', async () => {
     const { db, close } = await imported()
     expect((await loadQuestions(db)).map((question) => question.task)).toEqual(['ABC-2'])
-    const launches = await readLaunches(db, { ABC, XYZ })
+    const launches = await readLaunches(db)
     expect(launches.filter(isLaunch).map((entry) => [entry.project, entry.task])).toEqual([
-      ['ABC', 'ABC-1'],
-      ['ABC', 'ABC-2'],
-      ['ABC', 'ABC-FIX'],
-      ['ABC', 'ABC-FIX'],
+      [ABC, 'ABC-1'],
+      [ABC, 'ABC-2'],
+      [ABC, 'ABC-FIX'],
+      [ABC, 'ABC-FIX'],
     ])
     expect(launches[0]?.fallback).toBe('codex')
-    expect(fixEpisodes(launches).episodes.ABC?.map((episode) => [episode.id, episode.red?.slice(0, 7), episode.end?.how, episode.end?.commit?.slice(0, 7)])).toEqual([
+    expect(fixEpisodes(launches).episodes[ABC]?.map((episode) => [episode.id, episode.red?.slice(0, 7), episode.end?.how, episode.end?.commit?.slice(0, 7)])).toEqual([
       ['ABC-FIX.1', 'c6b3956', 'landed', '15945fe'],
       ['ABC-FIX.2', 'd00d000', 'dropped', undefined],
     ])
-    expect(new Set((await readLaunches(db)).map((entry) => entry.project))).toEqual(new Set([ABC]))
     await close()
     const ledger = loadLedger(sample('state/account.json'))
     expect(ledger.accounts.global?.email).toBe('john.doe@example.com')
     expect(ledger.accounts['team-api']?.name).toBe('Team API')
+    expect(ledger.accounts.global?.transport).toBe('sdk')
+    expect(ledger.accounts['team-api']?.transport).toBeUndefined()
   })
 
-  it('reads the packages naming projects by their keys', () => {
-    const file = loadPackages(sample('state/packages.json'), { ABC, XYZ })!
+  it('reads the record of an SDK session', () => {
+    const session = parseSdkSession(readFileSync(sample('state/claude-sdk/sessions/00000000-0000-4000-8000-0000000000d1.json'), 'utf8'))
+    expect(session).toMatchObject({ sessionId: '00000000-0000-4000-8000-0000000000d1', name: 'ABC-3', account: 'team-api', executor: 5100, cli: 5101, bridge: 'cse_01EXAMPLE' })
+  })
+
+  it('reads the packages naming projects by their ids', () => {
+    const file = loadPackages(sample('state/packages.json'))!
     expect(Object.keys(file.packages)).toEqual(['huly@even-keel', 'github'])
     expect(file.packages['huly@even-keel']?.installs.map((install) => install.version)).toEqual(['0.4.1', '0.4.2'])
-    expect(enabledPackages(file, 'ABC')).toEqual(['huly@even-keel'])
-    expect(enabledPackages(file, 'XYZ')).toEqual(['huly@even-keel', 'github'])
-    expect(settingsOf(file, 'XYZ', 'huly@even-keel')).toEqual({ TOOLSETS: 'issues' })
-    expect(installsFor(file, 'ABC', 'ABC-2')).toEqual({ 'huly@even-keel': 'a1b2c3' })
+    expect(enabledPackages(file, ABC)).toEqual(['huly@even-keel'])
+    expect(enabledPackages(file, XYZ)).toEqual(['huly@even-keel', 'github'])
+    expect(settingsOf(file, XYZ, 'huly@even-keel')).toEqual({ TOOLSETS: 'issues' })
+    expect(installsFor(file, ABC, 'ABC-2')).toEqual({ 'huly@even-keel': 'a1b2c3' })
   })
 
   it('is current: the migration writes nothing', () => {
@@ -118,7 +125,7 @@ describe(`frozen samples of schema v${SCHEMA_VERSION}`, { timeout: 60_000 }, () 
   it('matches the example config of the repository', () => {
     const example = JSON.parse(readFileSync(join(root, 'even-keel.config.example.json'), 'utf8'))
     expect(example.version).toBe(SCHEMA_VERSION)
-    expect(Object.keys(parseConfig(example).ids)).toEqual(['ABC', 'XYZ', 'GHB'])
+    expect(Object.values(parseConfig(example).keys)).toEqual(['ABC', 'XYZ', 'GHB'])
   })
 })
 

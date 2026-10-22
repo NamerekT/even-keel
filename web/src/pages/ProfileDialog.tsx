@@ -5,6 +5,7 @@ import { say, t } from '../i18n/index.js'
 import type { RightsUse } from '../i18n/ru.js'
 import { useLive } from '../live/context.js'
 import { Field } from '../tools/AddPackage.js'
+import { useBackdropClose } from '../ui/backdrop.js'
 import { TrackerIcon } from '../ui/icons.js'
 import { alternativeOf, draftValues, hostValues, shownFields } from './profileForm.js'
 import './profiles.css'
@@ -27,6 +28,7 @@ interface DialogProps {
 /** "Add profile" and a profile's edit: the kind's tiles first for a new one, then its fields, Check, and Save once the check passed. */
 export function ProfileDialog({ kinds, profile, stress, fixed, host, onClose, onSaved }: DialogProps) {
   const dialog = useRef<HTMLDialogElement>(null)
+  const backdrop = useBackdropClose(dialog, onClose)
   const [kind, setKind] = useState<string | null>(profile?.kind ?? fixed ?? null)
   const title = useId()
   const view = kinds.find((each) => each.kind === kind)
@@ -48,7 +50,7 @@ export function ProfileDialog({ kinds, profile, stress, fixed, host, onClose, on
         event.preventDefault()
         onClose()
       }}
-      onClick={(event) => event.target === dialog.current && onClose()}
+      {...backdrop}
     >
       <div className="add-package__frame">
         <header className="add-package__head">

@@ -24,6 +24,10 @@ export interface AgentEntry {
   ask?: Ask
   /** The turn ended and no process is left, yet the session goes on with the next `resume` (Codex). */
   resting?: boolean
+  /** Since when (ms) the turn whose process lives on has written nothing: taken for hung, the session is idle (OpenCode). */
+  hungSince?: number
+  /** A message goes into the live session mid-turn by `Agent.reply`, and it takes it in that turn: no mailbox needed (an SDK session). */
+  steers?: boolean
   /** The `--model` a live session was started with, by its job file: `opus[1m]` where the transcript says only `claude-opus-5-5`. */
   model?: string
 }
@@ -170,15 +174,18 @@ const SHELL_HANG_MS = 60 * 60_000
  * The status the chain goes by. A session in `shell` waits for its own background command (a long build or test run)
  * and counts as busy; after an hour without a line in its transcript the command is taken for hung and the session for idle.
  * A turn that ended on a limit has nothing to continue with when the command ends, so such a session is idle at once.
+ * A turn the CLI marked `blocked` ended on the user (a `Monitor` watching for a button they are to press): it waits.
  */
 export function turnStatus(
   status: AgentStatus | undefined,
   lastActivityAt: string | null,
   now: Date,
   limit = false,
+  blocked = false,
 ): AgentStatus | undefined {
   if (status !== 'shell') return status
   if (limit) return 'idle'
+  if (blocked) return 'waiting'
   if (lastActivityAt === null) return 'busy'
   return now.getTime() - Date.parse(lastActivityAt) >= SHELL_HANG_MS ? 'idle' : 'busy'
 }
@@ -241,13 +248,14 @@ const LAUNCH_GRACE_MS = 5 * 60_000
  * `claude agents` keeps `state: working` for a job whose process died long ago: past its launch, a job with no live
  * `sessions/<pid>.json` (no `pid`) is finished unless it hangs on a startup dialog. `state: done` is the CLI's guess
  * that the job did its work: a turn that ends on a question in plain text gets it too, and the process lives on for a reply.
+ * `state: blocked` over `shell` is a turn that ended on the user while its monitor still runs: it waits, not works.
  */
 export function lampOf(agent: AgentEntry | undefined, apiError: ApiErrorKind | null, now = Date.now()): Lamp {
   if (agent === undefined || agent.state === 'stopped' || (agent.state === 'done' && !isLive(agent))) return 'finished'
   if (agent.state === 'failed') return 'error'
   if (!isLive(agent) && agent.state !== 'blocked' && now - agent.startedAt > LAUNCH_GRACE_MS) return 'finished'
   const error = apiError === 'credit' ? 'limit' : apiError
-  if (agent.status === 'busy' || (agent.status === 'shell' && error !== 'limit')) return 'working'
+  if (agent.status === 'busy' || (agent.status === 'shell' && agent.state !== 'blocked' && error !== 'limit')) return 'working'
   if (error !== null) return error
   if (agent.status === 'waiting' || agent.state === 'blocked') return 'waiting'
   if (agent.status === 'idle') return 'waiting'

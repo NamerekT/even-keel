@@ -5,7 +5,7 @@ import { CONFIG_FILE, DEFAULT_BRANCH } from './defaults.js'
 import { at, DEFINITIONS, OBJECTS, type Scope } from './registry.js'
 import type { ProjectRecord, SettingRow } from './resolve.js'
 
-const PROJECT_KEY = /^[A-Z][A-Z0-9_]{0,4}$/
+export const PROJECT_KEY = /^[A-Z][A-Z0-9_]{0,4}$/
 // What `git check-ref-format --branch` refuses, short of the rarest cases.
 export const BRANCH = /^(?!-)(?!.*\.\.)(?!.*@\{)(?!.*\/\/)(?!.*\/\.)(?!\.)[^\s~^:?*[\\\x00-\x1f\x7f]+(?<![/.])(?<!\.lock)$/
 
@@ -49,8 +49,8 @@ export function fileOf({ records, rows }: FileContents): Record<string, unknown>
       target,
       rows.filter((row) => row.project === project).map(({ key, qualifier, value }) => ({ op: 'set', key, project, qualifier, value })),
     )
-  const projects = records.map(({ id, key, name, repo, branch, trackerProjects }) =>
-    level(id, { id, key, ...(name === null ? {} : { name }), repo, ...(branch === DEFAULT_BRANCH ? {} : { branch }), ...trackerProjects }),
+  const projects = records.map(({ id, key, name, repo, branch, trackerProjects, feeds }) =>
+    level(id, { id, key, ...(name === null ? {} : { name }), repo, ...(branch === DEFAULT_BRANCH ? {} : { branch }), ...trackerProjects, ...(feeds === undefined ? {} : { feeds }) }),
   )
   return { ...level(null, { version: SCHEMA_VERSION }), projects }
 }
@@ -71,15 +71,30 @@ function recordOf(fields: unknown, place: string, placeOf: Record<string, string
   const { id, key, repo, name, branch } = fields
   if (typeof key !== 'string' || !PROJECT_KEY.test(key)) throw fail('config.projectKey', { where: `${place}.key`, value: String(JSON.stringify(key)) })
   if (typeof id !== 'string' || id.trim() === '') throw fail('config.projectId', { where: `${place}.id` })
-  for (const [field, value] of [['key', key], ['id', id]] as const) {
-    const first = placeOf[`${field}:${value}`]
-    if (first !== undefined) throw fail('config.projectTwice', { field, value: JSON.stringify(value), first, second: place })
-    placeOf[`${field}:${value}`] = place
-  }
+  // Two projects may share a key (BTN-271): only the id names one.
+  const first = placeOf[id]
+  if (first !== undefined) throw fail('config.projectTwice', { field: 'id', value: JSON.stringify(id), first, second: place })
+  placeOf[id] = place
   if (typeof repo !== 'string' || repo === '') throw fail('config.repoEmpty', { key })
   if (name !== undefined && typeof name !== 'string') throw fail('config.projectName', { where: `${key}.name` })
   const trackerProjects = Object.fromEntries(trackerKeys.flatMap((field) => (fields[field] === undefined ? [] : [[field, fields[field]]])))
-  return { id, key, name: typeof name === 'string' && name.trim() !== '' ? name.trim() : null, repo, branch: parseBranch(branch, `${key}.branch`), trackerProjects }
+  const feeds = feedsOf(fields.feeds, `${key}.feeds`)
+  return {
+    id,
+    key,
+    name: typeof name === 'string' && name.trim() !== '' ? name.trim() : null,
+    repo,
+    branch: parseBranch(branch, `${key}.branch`),
+    trackerProjects,
+    ...(feeds.length === 0 ? {} : { feeds }),
+  }
+}
+
+/** The shape of a project's `feeds`: a list of objects; their fields are checked with the trackers (`configOf`). */
+function feedsOf(raw: unknown, where: string): Record<string, unknown>[] {
+  if (raw === undefined) return []
+  if (!Array.isArray(raw) || !raw.every(isPlainObject)) throw fail('config.feeds', { where })
+  return raw
 }
 
 function parseBranch(raw: unknown, where: string): string {

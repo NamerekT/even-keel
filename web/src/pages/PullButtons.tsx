@@ -45,7 +45,7 @@ export function PullFixButton({ state, project, error }: { state: EvenKeelState;
       ? () => navigate(profileAddPath(fix.kind, fix.web))
       : () => {
           openTab(projectScope(project), 'ci')
-          navigate({ pathname: projectPath(state, project), hash: SETTINGS_HASH })
+          navigate({ pathname: projectPath(project), hash: SETTINGS_HASH })
         }
   return (
     <button type="button" className="button button--small pull-fix" onClick={go}>

@@ -99,6 +99,8 @@ export const noticesRu: NoticeTexts = {
   'forward.conflict': (p) =>
     `ветка ${p.from} конфликтует с ${p.into} в ${p.files.join(', ') || 'неизвестных файлах'} — слияние отменено и ждёт ручного слияния или «Перенести сейчас»`,
   'forward.notRelease': (p) => `${p.project} не вливается в другой проект`,
+  'forward.foreign': (p) =>
+    `у ${p.from} и ${p.into} нет общего remote, и ни одна папка не клон другой — ничего не получено; укажи в «Вливается в» проект того же репозитория`,
 
   'ci.noToken': (p) => `чтобы следить за этим CI, задайте ${p.variable} в окружении Even Keel`,
   'ci.denied': (p) => `${p.ci}: токен отклонён (HTTP ${p.status}) — ему нужно чтение actions репозитория`,
@@ -193,6 +195,7 @@ export const noticesRu: NoticeTexts = {
   'account.extraFree': (p) =>
     `второй бесплатный аккаунт Codex рядом с ${p.account}: условия OpenAI не разрешают несколько бесплатных аккаунтов ради лимитов — сессии здесь не запускаются, пока план не платный`,
   'account.notRemoving': (p) => `${p.key} не удаляется`,
+  'account.noTransport': (p) => `${p.key}: его агент запускает сессии только одним способом`,
   'account.apiKeyInvalid': () => 'API-ключ — одно слово длиннее 20 символов, вроде sk-ant-api03-…',
   'account.apiKeyRejected': () => 'Anthropic не принимает этот ключ: он неверный, отозван или организация отключена',
   'account.apiKeyUnchecked': (p) => `не удалось проверить ключ у Anthropic (${p.reason}) — попробуйте позже`,
@@ -347,7 +350,12 @@ export const noticesRu: NoticeTexts = {
   'config.providerName': (p) => `${p.where} должен быть текстом`,
   'config.execution': (p) => `execution.${p.provider}: режима ${p.value} нет, есть: ${list(p.known)}`,
   'config.cli': (p) => `cli.${p.provider}: варианта ${p.value} нет, есть: ${list(p.known)}`,
-  'config.trackerLocked': (p) => `цепочка уже запускала задачи ${p.key}, поэтому трекер со страницы не меняется — это будет в v0.2`,
+  'config.trackerLocked': (p) => `цепочка уже запускала задачи ${p.key}, поэтому трекер и профиль остаются; задачи другого трекера добавляются источником задач`,
+  'config.feeds': (p) => `${p.where} должен быть списком источников задач, у каждого — id, трекер и ключ`,
+  'config.feedField': (p) => `у ${p.where} не хватает поля ${p.field}`,
+  'config.feedPrefix': (p) => `источник задач ${p.project} даёт ID задач ${p.prefix}-…, как и ${p.other}: дайте источнику другой ключ`,
+  'config.feedPlace': (p) => `источник задач ${p.project} читает то же место трекера, что и ${p.other}, и задача попала бы в цепочку дважды`,
+  'config.feedLocked': (p) => `цепочка уже запускала задачи источника ${p.key} проекта ${p.project}, поэтому он не меняется: уберите его и добавьте другой`,
   'config.commandKey': (p) => `${p.where}.${p.key} — не вид команд, есть: ${list(p.known)}`,
   'config.commandList': (p) => `${p.where} должен быть списком команд`,
   'config.ciKey': (p) => `${p.where}.${p.key} — не настройка CI, есть: ${list(p.known)}`,
@@ -355,12 +363,15 @@ export const noticesRu: NoticeTexts = {
   'config.ciWait': (p) => `${p.where} должен быть целым числом минут от 0 или null`,
   'config.remoteProfiles': (p) => `${p.where} должен сопоставлять виду remote (${list(p.known)}) id профиля`,
   'config.unknownProject': (p) => `проекта ${p.key} нет`,
+  'config.unknownFeed': () => 'у проекта нет такого источника задач',
   'config.writeFailed': (p) => `не удалось записать ${p.file}`,
   'config.statusBoth': (p) => `${p.project}: статус «${p.status}» и активный, и терминальный`,
   'config.labelBoth': (p) => `${p.project}: ярлык «${p.label}» и обязательный, и исключающий`,
   'config.milestoneBoth': (p) => `${p.project}: майлстоун «${p.milestone}» и обязательный, и исключающий`,
   'config.trackerProjectShared': (p) =>
     `${p.project} и ${p.other} читают проект трекера ${p.trackerProject}, и задача может попасть в обе цепочки: разделите их майлстоунами (обязательные и исключающие майлстоуны в правилах цепочки)`,
+  'config.keyElsewhere': (p) =>
+    `у ${p.project} и ${p.other} один ключ ${p.key} на разных репозиториях (${p.project} — на ${p.trackerProject}), и ID задач у них совпадут: дайте одному из них другой ключ`,
   'config.modelPrompts': () => 'modelPrompts должен сопоставлять имени модели промт',
   'config.modelPromptEmpty': (p) => `modelPrompts.${p.model} пуст`,
   'config.hiddenSkills': () => 'hiddenSkills должен быть списком имён навыков',
@@ -368,6 +379,8 @@ export const noticesRu: NoticeTexts = {
   'config.parallel': (p) => `parallel должен быть целым числом от 1, а не ${p.value}`,
   'config.mergeInto': (p) => `${p.project} вливается в ${p.into}, а это не другой проект или он сам вливается в проект`,
   'config.mergeIntoValue': (p) => `${p.where} — ключ проекта или null`,
+  'config.mergeIntoForeign': (p) =>
+    `${p.project} вливается в ${p.into}, а это папка другого репозитория: нет общего remote, и ни одна не клон другой`,
   'config.allowedHosts': () => 'allowedHosts должен быть списком имён хостов',
   'config.updatesKey': (p) => `updates.${p.key} — не настройка обновлений, есть: ${list(p.known)}`,
   'config.updatesDismissed': (p) => `updates.dismissed должен быть версией вида 0.2.0 или null, а не ${p.value}`,
@@ -392,6 +405,7 @@ export const noticesRu: NoticeTexts = {
   'config.checkpointShareOrder': (p) => `${p.where}: нужно first < late < hard, а не ${p.first}, ${p.late}, ${p.hard}`,
   'wizard.notRepo': (p) => `${p.path} — не папка git-репозитория`,
   'wizard.repoTaken': (p) => `этот репозиторий уже подключён как проект ${p.project}`,
+  'wizard.keyTaken': (p) => `ключ ${p.key} уже у проекта ${p.project} на другом репозитории, и ID задач у них совпадут — выберите другой`,
   'wizard.noBranch': (p) => `в репозитории нет ветки ${p.branch}, есть ${p.branches.join(', ')}`,
   'wizard.noCommits': () => 'в репозитории ещё нет коммитов — сделайте первый',
   'wizard.trackerOff': (p) => `нет профиля ${p.tracker} с ${list(p.variables)}: добавьте его пунктом «Добавить профиль» в списке «Профиль»`,
