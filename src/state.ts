@@ -546,8 +546,11 @@ export type PackageProblem =
   /** A server's first probe has not answered yet. */
   | { kind: 'probing' }
   | { kind: 'noTrackerMcp'; server: string }
-  /** The project's agent does not read Claude Code plugins: their skills and hooks stay out. Does not hold the chain. */
-  | { kind: 'unsupported'; agent: string }
+  /**
+   * The project's agent does not read Claude Code plugins: their hooks stay out, and their skills too unless `skills`
+   * (OpenCode takes the skills folders). Does not hold the chain.
+   */
+  | { kind: 'unsupported'; agent: string; skills?: boolean }
 
 export interface SecretsView {
   variables: SecretView[]

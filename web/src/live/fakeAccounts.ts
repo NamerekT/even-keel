@@ -15,6 +15,7 @@ import type { RateLimits } from '../../../src/limits/model.js'
 import type { UsageHealth } from '../../../src/limits/usage.js'
 import { CLAUDE } from '../../../src/claude/name.js'
 import { CODEX } from '../../../src/codex/name.js'
+import { OPENCODE } from '../../../src/opencode/name.js'
 
 function ago(minutes: number): string {
   return new Date(Date.now() - minutes * 60_000).toISOString()
@@ -81,6 +82,8 @@ function apiEntry(key: string, patch: Partial<AccountEntry> = {}): AccountEntry 
     ...patch,
   })
 }
+
+const OPENCODE_STATUS = { loggedIn: true, authMethod: 'none', email: null, orgName: null, subscriptionType: null }
 
 function codexEntry(key: string, email: string, plan: string, patch: Partial<AccountEntry> = {}): AccountEntry {
   return fakeEntry({
@@ -205,6 +208,14 @@ export function fakeAccount(mode: string | null, idle: boolean, limits: RateLimi
     const own = { ...global, projects: FAKE_PROJECTS.filter((project) => project !== 'OPS') }
     const pool = [...SHARED_POOL, { project: 'OPS', provider: CODEX, account: 'jane.roe-2' }]
     return { ...signedIn, accounts: [own, work, apiEntry('ci-key', { name: 'CI key' }), codex, paid, extra], pool }
+  }
+  if (mode === 'opencode') {
+    // OPS runs on OpenCode's free models; a second folder signs in with ChatGPT. Neither has limits.
+    const free = fakeEntry({ key: 'opencode', global: false, agent: OPENCODE, status: { ...OPENCODE_STATUS, authMethod: 'none' }, loginExpiresAt: null, projects: ['OPS'] })
+    const chatgpt = fakeEntry({ key: 'opencode-2', global: false, agent: OPENCODE, status: { ...OPENCODE_STATUS, authMethod: 'oauth', subscriptionType: 'openai' }, loginExpiresAt: null })
+    const own = { ...global, projects: FAKE_PROJECTS.filter((project) => project !== 'OPS') }
+    const pool = [...SHARED_POOL, { project: 'OPS', provider: OPENCODE, account: 'opencode' }]
+    return { ...signedIn, accounts: [own, work, free, chatgpt], pool }
   }
   if (mode === 'vscode-broken') {
     return { ...signedIn, apps: [{ ...vscode, account: null, dir: null, error: notice('vscode.notJson', {}) }] }

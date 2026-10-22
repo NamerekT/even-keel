@@ -18,6 +18,7 @@ const ENTRYPOINTS: Record<string, string> = {
   codex: 'Codex',
   'codex-exec': 'Codex CLI',
   'codex-desktop': 'Codex Desktop',
+  opencode: 'OpenCode',
 }
 
 const GROUPED = localized((language) => new Intl.NumberFormat(language, { maximumFractionDigits: 0 }))

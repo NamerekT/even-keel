@@ -7,6 +7,7 @@ import { promisify } from 'node:util'
 import type { AccountHome } from '../account/homes.js'
 import type { AccountStatus } from '../account/model.js'
 import type { OneTurnAnswer, SessionStart } from '../agent/contract.js'
+import { isAlive, killTree } from '../agent/process.js'
 import { fail, notice, NoticeError, type Notice } from '../notice/notice.js'
 import type { AgentEntry } from '../sessions/agents.js'
 import { mcpArgs } from './mcp.js'
@@ -265,31 +266,7 @@ export class CodexCli {
   }
 }
 
-async function killTree(pid: number): Promise<void> {
-  try {
-    if (process.platform === 'win32') await run('taskkill', ['/PID', String(pid), '/T', '/F'], { windowsHide: true })
-    else process.kill(-pid, 'SIGTERM')
-  } catch {
-    if (process.platform !== 'win32') {
-      try {
-        process.kill(pid, 'SIGTERM')
-      } catch {
-        // already gone
-      }
-    }
-  }
-}
-
-function isAlive(pid: number): boolean {
-  try {
-    process.kill(pid, 0)
-    return true
-  } catch (error) {
-    return (error as NodeJS.ErrnoException).code === 'EPERM'
-  }
-}
-
-function outputOf(error: unknown): string {
+export function outputOf(error: unknown): string {
   const { stdout, stderr } = error as { stdout?: string; stderr?: string }
   return [stderr, stdout].map((text) => text?.trim()).filter(Boolean).join(' / ')
 }

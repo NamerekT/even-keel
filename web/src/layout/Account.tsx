@@ -5,7 +5,7 @@ import { say, t } from '../i18n/index.js'
 import { useCommand } from '../live/useCommand.js'
 import { accountOrder, canWork } from '../state.js'
 import { seriesStyle } from '../ui/series.js'
-import { AccountMark, AccountName, AccountNotes, spendText, type Send, type Spend } from './accountParts.js'
+import { AccountMark, AccountName, AccountNotes, spendText, withoutLimits, type Send, type Spend } from './accountParts.js'
 import { AccountRoles } from './AccountRoles.js'
 import { Limits, usualSpans } from './Limits.js'
 import { useNow } from './useNow.js'
@@ -76,6 +76,8 @@ function AccountItem({ entry, view, now, spend, sending, send }: ItemProps) {
         <p className="accounts__note accounts__spend" title={t.account.todayTitle}>
           {spendText(spend, entry.key)}
         </p>
+      ) : withoutLimits(entry) ? (
+        <p className="accounts__note">{t.account.openCodeLimits}</p>
       ) : (
         <Limits limits={entry.limits} now={now} bare named={!usualSpans(entry.limits)} />
       )}

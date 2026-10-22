@@ -157,8 +157,11 @@ export interface Agent {
   transcripts(home: AccountHome): Promise<string[]>
 
   authStatus(home: AccountHome): Promise<AccountStatus>
-  /** Starts the sign-in; the page shows its output and passes the code the user types to its stdin. */
-  login(home: AccountHome): ChildProcessWithoutNullStreams
+  /**
+   * Starts the sign-in; the page shows its output and passes the code the user types to its stdin. `method` — which of
+   * the agent's ways to sign in, for an agent that has several (OpenCode: `chatgpt`, `copilot`).
+   */
+  login(home: AccountHome, method?: string): ChildProcessWithoutNullStreams
   logout(home: AccountHome): Promise<void>
   /** Optional. Whether the agent's CLI is found; without it, it is taken as there. */
   installed?(): boolean

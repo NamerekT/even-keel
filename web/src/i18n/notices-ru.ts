@@ -165,6 +165,12 @@ export const noticesRu: NoticeTexts = {
   'codex.statusUnreadable': () => 'Codex: login status не сказал ни «Logged in», ни «Not logged in»',
   'codex.signOutFailed': (p) => `Codex: не удалось выйти из ${p.account}`,
 
+  'opencode.startFailed': (p) => `OpenCode: не удалось запустить ${p.task} в ${p.cwd}`,
+  'opencode.resumeFailed': (p) => `OpenCode: не удалось продолжить ${p.task} в ${p.cwd}`,
+  'opencode.otherSession': (p) => `OpenCode: ${p.task} продолжали как ${p.asked}, а поднялась сессия ${p.got}`,
+  'opencode.unknownSession': (p) => `OpenCode: сессию ${p.session} запускал не Even Keel`,
+  'opencode.stillRunning': (p) => `OpenCode: ход ${p.session} убит, но ещё идёт`,
+
   'account.unknown': (p) => `аккаунта ${p.key} нет`,
   'account.alreadyActive': (p) => `${p.key} уже активен`,
   'account.removing': (p) => `${p.account} удаляется — сначала отмените удаление`,
@@ -202,6 +208,8 @@ export const noticesRu: NoticeTexts = {
   'login.startFailed': () => 'не удалось начать вход',
   'login.codexMissing': () => 'Codex CLI не найден: установите его — npm install -g @openai/codex — или укажите путь в EVEN_KEEL_CODEX_BIN',
   'login.claudeMissing': () => 'Claude Code CLI не найден: установите его или укажите путь в EVEN_KEEL_CLAUDE_BIN',
+  'login.opencodeMissing': () => 'OpenCode CLI не найден: установите его — npm install -g opencode-ai — или укажите путь в EVEN_KEEL_OPENCODE_BIN',
+  'login.method': (p) => `способа входа «${p.method}» нет, есть: ${list(p.known)}`,
   'login.exited': (p) => `вход завершился с кодом ${p.code}`,
   'login.setupFailed': (p) => `вход выполнен, но папку ${p.dir} не удалось подготовить`,
 

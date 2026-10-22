@@ -102,6 +102,12 @@ describe('projectPackages', () => {
     expect(view.blocked).toBe(false)
   })
 
+  it("notes for OpenCode that only the plugin's hooks stay out", () => {
+    const view = projectPackages(input({ agent: 'opencode' }))
+    expect(view.cells['huly@even-keel']!.problems).toEqual([{ kind: 'unsupported', agent: 'opencode', skills: true }])
+    expect(view.blocked).toBe(false)
+  })
+
   it('has no note for Codex, which reads the plugins too', () => {
     expect(projectPackages(input({ agent: 'codex' })).cells['huly@even-keel']!.problems).toEqual([])
   })

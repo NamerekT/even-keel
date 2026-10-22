@@ -3,6 +3,7 @@ import { launchBlock, loginBlockNotice, removeProblem, type AccountEntry, type A
 import { CLAUDE } from '../../../src/claude/name.js'
 import { CODEX } from '../../../src/codex/name.js'
 import type { Notice } from '../../../src/notice/notice.js'
+import { OPENCODE } from '../../../src/opencode/name.js'
 import { connectionOf, PROVIDERS, type Connection } from '../accounts.js'
 import { say, t } from '../i18n/index.js'
 import { useLive } from '../live/context.js'
@@ -10,7 +11,7 @@ import { useCommand } from '../live/useCommand.js'
 import { loginLeft } from '../state.js'
 import { loadedData, useStatsAnswer } from '../stats/common.js'
 import { formatUsd } from '../stats/format.js'
-import { BracesIcon, ClaudeIcon, CodexIcon, KeyIcon, TerminalIcon } from '../ui/icons.js'
+import { BracesIcon, ClaudeIcon, CodexIcon, KeyIcon, OpenCodeIcon, TerminalIcon } from '../ui/icons.js'
 import { Tipped } from '../ui/Tipped.js'
 
 export type Send = (name: string, body?: Record<string, unknown>) => Promise<boolean>
@@ -24,6 +25,11 @@ export function useSpend(account: AccountView): Spend {
   const tz = useMemo(() => Intl.DateTimeFormat().resolvedOptions().timeZone, [])
   const wanted = account.accounts.some((entry) => entry.apiKey)
   return loadedData(useStatsAnswer(wanted ? `spend|${tz}` : null, () => statsSpend(tz)))
+}
+
+/** An account whose agent gives no usage windows (OpenCode) shows this line instead of empty limit columns. */
+export function withoutLimits(entry: AccountEntry): boolean {
+  return entry.agent === OPENCODE && !entry.apiKey
 }
 
 export function spendText(spend: Spend, key: string): string {
@@ -77,6 +83,7 @@ export function AccountMark({ entry, now }: { entry: AccountEntry; now: Date }) 
 }
 
 export function AgentIcon({ agent }: { agent: string }) {
+  if (agent === OPENCODE) return <OpenCodeIcon />
   return agent === CODEX ? <CodexIcon /> : agent === CLAUDE ? <ClaudeIcon /> : <span className="accounts__dot" />
 }
 

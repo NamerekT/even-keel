@@ -1,4 +1,4 @@
-import { EXECUTION_MODES, PROVIDERS } from '../../../src/agent/providers.js'
+import { EXECUTION_MODES, PINNED_PROVIDERS, PROVIDERS } from '../../../src/agent/providers.js'
 import type { Notice } from '../../../src/notice/notice.js'
 
 /** The field of the settings a config error points at: of a project's panel, or of the shared page when `project` is null. */
@@ -10,7 +10,7 @@ export interface FieldError {
 const RULES = ['active', 'terminal', 'requiredLabels', 'excludedLabels', 'requiredMilestones', 'excludedMilestones']
 const NAMED = ['branch', 'prompt', 'tracker', 'brief', 'pullRequests', 'mergeInto', 'fillMilestone', 'changelog', 'provider', 'modelLabels', 'language', 'promptLanguage', 'context', 'stats']
 /** Maps by provider: an error points at the provider's own field, or the first one for a key that names no provider. */
-const BY_PROVIDER: Record<string, readonly string[]> = { models: PROVIDERS, accounts: PROVIDERS, execution: Object.keys(EXECUTION_MODES), cli: PROVIDERS }
+const BY_PROVIDER: Record<string, readonly string[]> = { models: PROVIDERS, accounts: PROVIDERS, execution: Object.keys(EXECUTION_MODES), cli: PINNED_PROVIDERS }
 const PROJECT_WHERE = /^([A-Z][A-Z0-9_]{0,4})\.(.+)$/
 
 const SHARED: Partial<Record<Notice['code'], string>> = {

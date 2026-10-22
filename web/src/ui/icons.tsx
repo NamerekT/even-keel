@@ -181,6 +181,16 @@ export function CodexIcon() {
   )
 }
 
+/** OpenCode: a square left open on one side, with a cursor in it — not the project's own logo. */
+export function OpenCodeIcon() {
+  return (
+    <svg className="icon" viewBox="0 0 16 16" aria-hidden="true">
+      <path d="M13.25 5.75v-3H2.75v10.5h10.5v-3" />
+      <path d="M5.5 8h4.5" />
+    </svg>
+  )
+}
+
 /** Even Keel itself: the sail and the keel of its logo, drawn in lines. */
 export function EvenKeelIcon() {
   return (

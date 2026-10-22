@@ -66,14 +66,19 @@ Every entry, ordered by how many people it reaches and how badly it hurts them i
 | 54 | [Pasting files copied in Explorer into the chat](#pasting-files-copied-in-explorer-into-the-chat-btn-204) | Windows | the paste attaches nothing |
 | 55 | [Switching to your own Postgres from the page](#switching-to-your-own-postgres-from-the-page-btn-247) | stats on your own Postgres | stats stay off; set the variables by hand |
 | 56 | [A reader opening the state database while the service starts](#a-reader-opening-the-state-database-while-the-service-starts) | `npm run storage` users | the service refuses to start once |
-| 57 | [Plugins in a Codex folder on Linux and macOS](#plugins-in-a-codex-folder-on-linux-and-macos) | Codex on Linux, macOS | a few seconds per first turn |
-| 58 | [Edit sizes of a FileChange](#edit-sizes-of-a-filechange-btn-185) | Codex | the chat shows an edit without its size |
-| 59 | [Codex stats](#codex-stats-btn-170) | Codex | a response counted twice in `/stats` |
-| 60 | [Fast mode in statistics](#fast-mode-in-statistics) | fast mode | `/stats` understates its cost |
-| 61 | [VS Code chat titles](#vs-code-chat-titles) | VS Code | a chat named differently from its tab |
-| 62 | [The first start with the PGlite state database](#the-first-start-with-the-pglite-state-database-btn-198) | an update from a build before v0.1 | the start stops on an import error |
-| 63 | [The first start with Forgejo profiles](#the-first-start-with-forgejo-profiles-btn-201) | an update from a build before v0.1 with Forgejo | the Forgejo CI disappears from the page |
-| 64 | [PR mode without a remote](#pr-mode-without-a-remote-ekr-12) | PR mode | the chain stays paused after the remote is added; press Resume |
+| 57 | [OpenCode chain sessions under the service](#opencode-chain-sessions-under-the-service-btn-214) | OpenCode | sessions do not start, or a whole task runs on a wrong assumption |
+| 58 | [A spent limit on OpenCode](#a-spent-limit-on-opencode) | OpenCode on ChatGPT or Copilot | the session stops on the error instead of waiting for the reset |
+| 59 | [A hung OpenCode turn](#a-hung-opencode-turn) | OpenCode | a session looks busy for good; press "New session" |
+| 60 | [OpenCode sign-in from the page](#opencode-sign-in-from-the-page) | OpenCode with ChatGPT or Copilot | no link in the window; sign in in a terminal |
+| 61 | [Plugins in a Codex folder on Linux and macOS](#plugins-in-a-codex-folder-on-linux-and-macos) | Codex on Linux, macOS | a few seconds per first turn |
+| 62 | [Edit sizes of a FileChange](#edit-sizes-of-a-filechange-btn-185) | Codex | the chat shows an edit without its size |
+| 63 | [Codex stats](#codex-stats-btn-170) | Codex | a response counted twice in `/stats` |
+| 64 | [Fast mode in statistics](#fast-mode-in-statistics) | fast mode | `/stats` understates its cost |
+| 65 | [VS Code chat titles](#vs-code-chat-titles) | VS Code | a chat named differently from its tab |
+| 66 | [The first start with the PGlite state database](#the-first-start-with-the-pglite-state-database-btn-198) | an update from a build before v0.1 | the start stops on an import error |
+| 67 | [The first start with Forgejo profiles](#the-first-start-with-forgejo-profiles-btn-201) | an update from a build before v0.1 with Forgejo | the Forgejo CI disappears from the page |
+| 68 | [PR mode without a remote](#pr-mode-without-a-remote-ekr-12) | PR mode | the chain stays paused after the remote is added; press Resume |
+| 69 | [The OpenCode database read while a turn writes](#the-opencode-database-read-while-a-turn-writes) | OpenCode | the feed or a stats run skips one poll |
 
 ## Platforms
 
@@ -279,6 +284,28 @@ Seen live on 18.10.2026: messages sent during a command reach a Codex session th
 ### Plugins in a Codex folder on Linux and macOS
 
 The install and the check that a plugin is already in a folder (`<CODEX_HOME>/plugins/cache/<marketplace>/<plugin>`) were run only on Windows. If the path differs, every first turn of a service run installs the plugin again, which costs a few seconds and changes nothing else.
+
+## OpenCode
+
+### OpenCode chain sessions under the service (BTN-214)
+
+Checked on OpenCode 1.18.25 on Windows, the free `opencode/big-pickle`, by a script that drove the adapter from a terminal: a launch, a reply that starts with `-`, the transcript and the Tally rows; the session read the project's `CLAUDE.md`. Never run as a chain session of the Windows service (session 0) or on Linux and macOS, never on a ChatGPT, Copilot or API-key account, never through a whole task — commits, a merge into the main checkout (`external_directory` is allowed for it), packages' MCP servers through the gateway, plugin skills in `skills.paths`. If OpenCode needs something session 0 lacks, as Codex's sandbox does, the session fails on its first turn with OpenCode's output in the error. **Workaround:** run the task on another provider (a run label) and open an issue with the output.
+
+### A spent limit on OpenCode
+
+OpenCode shows no usage windows for ChatGPT or Copilot, so an OpenCode account has no limit bars and no reset time to wait for. What a spent limit looks like in OpenCode's database was never seen: the fold takes a message's `error` as the API error, a text with `usage limit`, `rate limit`, `quota` or `too many requests` as a limit (`LIMIT_TEXT` in `src/opencode/transcript.ts`). If it is worded otherwise, the session stops like on any error; if OpenCode retries by itself, it hangs (below); how the chain holds a limit with no reset time on OpenCode was not tried. **Workaround:** wait for the reset and press "New session".
+
+### A hung OpenCode turn
+
+A turn is live while its process lives and its last event is not the end of the turn. OpenCode retrying a refused request for long, or a tool that never returns, keeps the session busy with no watchdog to end it, and invariant 1 keeps the dispatcher off it. **Workaround:** "New session" on the task, or kill the turn's `opencode` process.
+
+### OpenCode sign-in from the page
+
+`opencode providers login` with ChatGPT's headless method and with Copilot was run in a terminal, not through the page: the window shows the CLI output unfolded and looks for a link in it, as for Codex. Copilot first asks between GitHub.com and Enterprise, and Even Keel answers with Enter after 3 seconds; if the question comes later or changes, the sign-in waits for good. **Workaround:** cancel it and sign in in a terminal with the folder's four `XDG_*_HOME` variables pointing into it (`docs/accounts.md`).
+
+### The OpenCode database read while a turn writes
+
+Even Keel and Tally open `opencode.db` read-only while OpenCode writes it in WAL mode. A read during a checkpoint of the WAL may fail with "database is locked"; the feed then keeps its last state until the next poll, and a stats run logs the file as failed and reads it next time. Never seen in the checks.
 
 ## Packages
 

@@ -1,5 +1,6 @@
 import { CLAUDE } from '../claude/name.js'
 import { CODEX } from '../codex/name.js'
+import { OPENCODE } from '../opencode/name.js'
 import type { Notice } from '../notice/notice.js'
 import type { PackageCell, PackageProblem, ProjectPackages } from '../state.js'
 import type { ServerKeys } from './keys.js'
@@ -13,6 +14,8 @@ const PROBE_TIMEOUT_MS = 30_000
 const NOTES = new Set<PackageProblem['kind']>(['unsupported'])
 /** The agents whose sessions get a plugin's skills and hooks, not only its servers. */
 const READS_PLUGINS = new Set([CLAUDE, CODEX])
+/** The agents whose sessions get a plugin's skills, but not its hooks. */
+const READS_SKILLS = new Set([OPENCODE])
 
 export interface CheckInput {
   file: PackagesFile
@@ -71,7 +74,9 @@ export function projectPackages(input: CheckInput): ProjectPackages {
         if (missing.size > 0) problems.push({ kind: 'noKey', variables: [...missing] })
         if (silent.length > 0) problems.push({ kind: 'noResponse', servers: silent })
         if (probing) problems.push({ kind: 'probing' })
-        if (install.extras && record.kind === 'plugin' && !READS_PLUGINS.has(input.agent)) problems.push({ kind: 'unsupported', agent: input.agent })
+        if (install.extras && record.kind === 'plugin' && !READS_PLUGINS.has(input.agent)) {
+          problems.push(READS_SKILLS.has(input.agent) ? { kind: 'unsupported', agent: input.agent, skills: true } : { kind: 'unsupported', agent: input.agent })
+        }
       }
     }
     cells[name] = { choice, enabled, settings, problems }
