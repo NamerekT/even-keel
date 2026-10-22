@@ -19,6 +19,13 @@ describe('hulyOfProfiles', () => {
     expect(hulyOf('ABC-1')).toMatchObject({ workspace: 'work' })
   })
 
+  it('gives a task the Huly profile its launch was read through, over its project and its prefix', () => {
+    const hulyOf = hulyOfProfiles({ projects: { ABC: work }, fallback: work, elsewhere: ['WEB'], byId: { p2: home } }, new Map([['ABC-1', 'p2'], ['WEB-3', 'p2'], ['ABC-2', 'gone']]))
+    expect(hulyOf('ABC-1')).toMatchObject({ workspace: 'home' })
+    expect(hulyOf('WEB-3')).toMatchObject({ workspace: 'home' })
+    expect(hulyOf('ABC-2')).toMatchObject({ workspace: 'work' })
+  })
+
   it('gives nothing without a profile, or with one Huly would not take', () => {
     expect(hulyOfProfiles({ projects: {}, fallback: null })('ABC-1')).toBeUndefined()
     expect(hulyOfProfiles({ projects: { ABC: { HULY_URL: 'https://huly.example.com' } }, fallback: null })('ABC-1')).toBeUndefined()

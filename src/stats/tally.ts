@@ -25,6 +25,8 @@ export interface HulyProfiles {
   fallback: Record<string, string> | null
   /** The task id prefixes of projects and feeds on another tracker (BTN-66): Huly is not asked for them, nor the fallback. */
   elsewhere?: string[]
+  /** Every Huly profile by its id: a task launched through one is asked with it, whatever its project runs on now. */
+  byId?: Record<string, Record<string, string>>
 }
 
 export interface TallyOptions {
