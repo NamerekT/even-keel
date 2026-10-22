@@ -1,4 +1,4 @@
-import { useImperativeHandle, useState, type Ref } from 'react'
+import { useEffect, useImperativeHandle, useRef, useState, type Ref } from 'react'
 import type { SessionMail } from '../../../src/sessions/mail.js'
 import type { FeedLine } from '../../../src/sessions/transcript.js'
 import type { SessionView } from '../../../src/state.js'
@@ -7,12 +7,15 @@ import { useCommand, useHold } from '../live/useCommand.js'
 import { PlusIcon, SendIcon } from '../ui/icons.js'
 import { Tipped } from '../ui/Tipped.js'
 import { askAnswers, AskPanel, NO_PICK, pickAnswer, type Pick } from './AskPanel.js'
+import { isBlank, readDraft, writeDraft, type Draft } from './chatDraft.js'
 import { takenFiles } from './chatFiles.js'
 import { holdKey, shownAsk } from './composerHold.js'
 import { ChatMail } from './ChatMail.js'
 
 /** How long the composer stays shut after a reply went out, unless the session moves on sooner. */
 const SENT_HOLD_MS = 90_000
+/** How long after the last change the draft is written: a file kept on every keystroke would be copied each time. */
+const DRAFT_SAVE_MS = 400
 
 /** What the chat window hands the composer: files dropped anywhere on it. */
 export interface ComposerHandle {
@@ -47,6 +50,10 @@ export function ChatComposer({ project, task, session, aside, mail, onSent, hand
   }
   const [text, setText] = useState('')
   const [files, setFiles] = useState<File[]>([])
+  useChatDraft(session.sessionId, { text, files }, (draft) => {
+    setText(draft.text)
+    setFiles(draft.files)
+  })
   // Files come in the same states as through the "+" button: any time but while a reply is being sent.
   const attach = (more: File[]) => {
     if (!sending) setFiles((now) => [...now, ...more])
@@ -65,6 +72,8 @@ export function ChatComposer({ project, task, session, aside, mail, onSent, hand
     const answers = ask === null ? {} : askAnswers(ask, picks)
     const body = { project, task, sessionId: session.sessionId, ask: ask?.id ?? null, answers, text, files: await Promise.all(files.map(encoded)) }
     if (!(await send('session/answer', body))) return
+    // Also when the window was closed while the reply went out: its last save kept the reply as a draft.
+    void writeDraft(session.sessionId, { text: '', files: [] })
     if (ask !== null) setAnswered(ask.id)
     if (!mailing) {
       sent.begin()
@@ -156,6 +165,34 @@ export function ChatComposer({ project, task, session, aside, mail, onSent, hand
       )}
     </form>
   )
+}
+
+/**
+ * Keeps the unsent text and files of each session's chat across closing the window and reloading the page: read once
+ * the composer opens, written a moment after each change and when it closes.
+ */
+function useChatDraft(sessionId: string, draft: Draft, restore: (draft: Draft) => void) {
+  const read = useRef(false)
+  const latest = useRef(draft)
+  latest.current = draft
+  useEffect(() => {
+    let alive = true
+    void readDraft(sessionId).then((found) => {
+      if (!alive) return
+      // What was typed before the read finished wins over the stored draft.
+      if (found !== null && isBlank(latest.current)) restore(found)
+      read.current = true
+    })
+    return () => {
+      alive = false
+      if (read.current) void writeDraft(sessionId, latest.current)
+    }
+  }, [sessionId])
+  useEffect(() => {
+    if (!read.current) return
+    const timer = setTimeout(() => void writeDraft(sessionId, latest.current), DRAFT_SAVE_MS)
+    return () => clearTimeout(timer)
+  }, [sessionId, draft.text, draft.files])
 }
 
 function lockReason(session: SessionView, aside: boolean): string | null {

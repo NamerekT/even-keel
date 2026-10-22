@@ -4,6 +4,7 @@ import type { PackagesView } from '../../../src/state.js'
 import { say, t } from '../i18n/index.js'
 import { useCommand } from '../live/useCommand.js'
 import { HelpTip } from '../pages/settingsParts.js'
+import { useBackdropClose } from '../ui/backdrop.js'
 import { PlugIcon, PlusIcon, ServerIcon } from '../ui/icons.js'
 import { useProjectLabel } from '../ui/ProjectLabel.js'
 import { Select } from '../ui/Select.js'
@@ -40,6 +41,7 @@ interface Initial {
 
 function AddDialog({ view, projects, initial, onClose }: { view: PackagesView; projects: string[]; initial?: Initial; onClose: () => void }) {
   const dialog = useRef<HTMLDialogElement>(null)
+  const backdrop = useBackdropClose(dialog, onClose)
   const [kind, setKind] = useState<Kind | null>(initial === undefined ? null : 'plugin')
   const [asking, setAsking] = useState(initial !== undefined && view.marketplace?.known === false)
   const title = useId()
@@ -63,7 +65,7 @@ function AddDialog({ view, projects, initial, onClose }: { view: PackagesView; p
         event.preventDefault()
         onClose()
       }}
-      onClick={(event) => event.target === dialog.current && onClose()}
+      {...backdrop}
     >
       <div className="add-package__frame">
         <header className="add-package__head">
