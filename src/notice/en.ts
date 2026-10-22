@@ -365,7 +365,15 @@ export const en = {
   'config.cli': (p: { provider: string; value: string; known: string[] }) =>
     `config: cli.${p.provider}: there is no choice ${p.value}, known: ${list(p.known)}`,
   'config.trackerLocked': (p: { key: string }) =>
-    `config: the chain has started tasks of ${p.key}, so its tracker is not switched from the page; that comes in v0.2`,
+    `config: the chain has started tasks of ${p.key}, so its tracker and profile stay; tasks of another tracker come in through a task feed`,
+  'config.feeds': (p: { where: string }) => `config: ${p.where} must be a list of task feeds, each an object with its id, tracker and key`,
+  'config.feedField': (p: { where: string; field: string }) => `config: ${p.where} needs its ${p.field}`,
+  'config.feedPrefix': (p: { project: string; prefix: string; other: string }) =>
+    `config: a task feed of ${p.project} gives task ids ${p.prefix}-…, which ${p.other} gives too: give the feed another key`,
+  'config.feedPlace': (p: { project: string; other: string }) =>
+    `config: a task feed of ${p.project} reads the place in its tracker that ${p.other} reads, and a task would enter the chain twice`,
+  'config.feedLocked': (p: { project: string; key: string }) =>
+    `config: the chain has started tasks of the feed ${p.key} of ${p.project}, so it stays as it is; remove it and add another`,
   'config.commandKey': (p: { where: string; key: string; known: string[] }) =>
     `config: ${p.where}.${p.key} is not a kind of commands, known: ${list(p.known)}`,
   'config.commandList': (p: { where: string }) => `config: ${p.where} must be a list of commands`,

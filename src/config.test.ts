@@ -5,10 +5,14 @@ import {
   idPrefixOf,
   ignoredKeys,
   listenOf,
+  ownerOf,
   parseConfig,
   poolEntries,
   projectLabels,
   projectsByAccount,
+  readerIds,
+  readerOf,
+  readersOf,
   readKeyOf,
   runSettings,
   withIds,
@@ -113,6 +117,7 @@ describe('parseConfig', () => {
       tracker: 'huly',
       trackers: { ABC: 'huly' },
       trackerProjects: {},
+      feeds: {},
       brief: null,
       briefs: { ABC: null },
       settings: { ABC: { branch: 'main', prompt: null, beforeStart: [], check: [], afterGreen: [], ci: DEFAULT_CI, remoteProfiles: {}, pullRequests: false, mergeInto: null, fillMilestone: false, changelog: 'CHANGELOG.md', provider: null, models: {}, accounts: {}, modelLabels: null, promptLanguage: 'en', cacheTtl: null, checkpointTokens: null, checkpointShares: SHARES, own: {} } },
@@ -212,6 +217,46 @@ describe('parseConfig', () => {
     })
     expect(config.trackerProjects).toEqual({ ABC: 'Web app' })
     expect(() => parse({ tracker: 'linear', projects: { ABC: { repo: 'C:\\abc', linear: ' ' } } })).toThrow(/ABC\.linear/)
+  })
+
+  it('takes the extra task feeds of a project, checked by their trackers (BTN-66)', () => {
+    const feed = { id: 'feed-1', tracker: 'github', key: 'ABCGH', github: ' octo-org/ideas ' }
+    const config = parse({ projects: { ABC: { repo: 'C:\\abc', feeds: [feed] }, XYZ: 'C:\\xyz' } })
+    expect(config.feeds).toEqual({ ABC: [{ id: 'feed-1', tracker: 'github', key: 'ABCGH', place: 'octo-org/ideas' }] })
+    const readers = readersOf(config)
+    expect(readers.projects['feed-1']).toBe('C:\\abc')
+    expect(ownerOf(readers, 'feed-1')).toBe('ABC')
+    expect(ownerOf(readers, 'XYZ')).toBe('XYZ')
+    expect(idPrefixOf(readers, 'feed-1')).toBe('ABCGH')
+    expect(readerIds(config, 'ABC')).toEqual(['ABC', 'feed-1'])
+    expect(readerOf(config, 'ABC', 'ABCGH-4')).toBe('feed-1')
+    expect(readerOf(config, 'ABC', 'ABC-4')).toBe('ABC')
+    expect(readerOf(config, 'XYZ', 'XYZ-4')).toBe('XYZ')
+  })
+
+  it('rejects a feed that is not an object, lacks its id or names an unknown tracker, a bad key or a bad place', () => {
+    const feedOf = (feed: unknown) => () => parse({ projects: { ABC: { repo: 'C:\\abc', feeds: [feed] } } })
+    expect(() => parse({ projects: { ABC: { repo: 'C:\\abc', feeds: {} } } })).toThrow(/ABC\.feeds/)
+    expect(feedOf('x')).toThrow(/ABC\.feeds/)
+    expect(feedOf({ tracker: 'github', key: 'ABCGH', github: 'octo-org/ideas' })).toThrow(/ABC\.feeds\[0\].*id/)
+    expect(feedOf({ id: 'ABC', tracker: 'github', key: 'ABCGH', github: 'octo-org/ideas' })).toThrow(/ABC\.feeds\[0\]/)
+    expect(feedOf({ id: 'f', tracker: 'jira', key: 'ABCGH' })).toThrow(/ABC\.feeds\[0\]\.tracker/)
+    expect(feedOf({ id: 'f', tracker: 'github', key: 'abc', github: 'octo-org/ideas' })).toThrow(/ABC\.feeds\[0\]\.key/)
+    expect(feedOf({ id: 'f', tracker: 'github', key: 'ABCGH', github: 'ideas' })).toThrow(/ABC\.feeds\[0\]\.github/)
+  })
+
+  it('rejects a feed whose task ids or place another project or feed has', () => {
+    const projects = (feed: Record<string, unknown>) => ({ projects: { ABC: { repo: 'C:\\abc', feeds: [{ id: 'f', ...feed }] }, XYZ: 'C:\\xyz' } })
+    expect(() => parse(projects({ tracker: 'github', key: 'XYZ', github: 'octo-org/ideas' }))).toThrow(/XYZ/)
+    expect(() => parse(projects({ tracker: 'huly', key: 'ABCH', huly: 'XYZ' }))).toThrow(/XYZ/)
+    expect(() =>
+      parse({
+        projects: {
+          ABC: { repo: 'C:\\abc', feeds: [{ id: 'f', tracker: 'github', key: 'ABCGH', github: 'octo-org/ideas' }] },
+          XYZ: { repo: 'C:\\xyz', feeds: [{ id: 'g', tracker: 'github', key: 'XYZGH', github: 'octo-org/ideas' }] },
+        },
+      }),
+    ).toThrow(/ABC · ABCGH|XYZ · XYZGH/)
   })
 
   it('puts the task text into prompts unless brief is off, shared or per project', () => {
