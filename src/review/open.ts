@@ -50,13 +50,39 @@ export function describedBy(note: string): { title: string; body: string } | nul
   return { title, body: lines.slice(first + 1).join('\n').trim() }
 }
 
+const CLOSING = '(?:close[sd]?|fix(?:e[sd])?|resolve[sd]?)\\s*:?\\s+'
+const escaped = (text: string) => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+
+/**
+ * The body ending with `Closes <issue>` (BTN-295), `owner/repo#N`, unless the session closes that issue there itself:
+ * by the same name, by its address or, in the pull request's own repository `repo`, by `#N`.
+ */
+export function closingBody(body: string, issue: string, repo: string): string {
+  const hash = issue.lastIndexOf('#')
+  const slug = issue.slice(0, hash)
+  const number = issue.slice(hash + 1)
+  const names = [escaped(slug) + '#', `https?://github\\.com/${escaped(slug)}/issues/`]
+  if (slug.toLowerCase() === repo.toLowerCase()) names.push('(?<![\\w/])#')
+  if (new RegExp(`\\b${CLOSING}(?:${names.join('|')})${number}(?!\\d)`, 'i').test(body)) return body
+  return body === '' ? `Closes ${issue}` : `${body}\n\nCloses ${issue}`
+}
+
 /**
  * Pushes the branch the session's folder is on and opens its pull request, or finds the one already open: a session
  * that fixed what the review asked marks again, and its branch goes to the same pull request. `null` — the branch has
  * nothing beyond the base and its worktree is clean: the task changed nothing in the repository, nothing is pushed
- * (BTN-222).
+ * (BTN-222). `closes` — the task's GitHub issue and the pull request's repository, both `owner/repo`, for `closingBody`.
  */
-export async function openPull(git: Git, workdir: string, note: string, remote: string, forge: Forge, base: string, now: () => Date): Promise<Opened | null> {
+export async function openPull(
+  git: Git,
+  workdir: string,
+  note: string,
+  remote: string,
+  forge: Forge,
+  base: string,
+  now: () => Date,
+  closes?: { issue: string; repo: string },
+): Promise<Opened | null> {
   const branch = (await git(workdir, ['symbolic-ref', '--quiet', '--short', 'HEAD'])).out.trim()
   if (branch === '') throw fail('review.noBranch', { path: workdir })
   const notePath = isAbsolute(note) ? note : join(workdir, note)
@@ -72,7 +98,8 @@ export async function openPull(git: Git, workdir: string, note: string, remote: 
   const pushed = await git(workdir, ['push', '--set-upstream', remote, `${branch}:refs/heads/${branch}`])
   if (pushed.code !== 0) throw fail('review.pushFailed', { branch, remote }, { detail: pushed.out })
   const pushedAt = now().toISOString()
-  const pull = (await forge.find(branch)) ?? (await forge.create({ branch, base, ...described }))
+  const body = closes === undefined ? described.body : closingBody(described.body, closes.issue, closes.repo)
+  const pull = (await forge.find(branch)) ?? (await forge.create({ branch, base, title: described.title, body }))
   return { ...pull, branch, pushedAt }
 }
 

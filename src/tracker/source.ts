@@ -52,6 +52,11 @@ export interface TaskSource {
    */
   complete?(id: string): Promise<boolean>
   /**
+   * Optional. How a GitHub pull request names the task's issue to close it on merge, `owner/repo#N`; `null` — not a task
+   * of this tracker. In PR mode Even Keel ends the body of the task's pull request on GitHub with `Closes <it>` (BTN-295).
+   */
+  closingRef?(id: string): string | null
+  /**
    * Optional. The direct subtasks of a task, whatever their status. With it and `complete` Even Keel closes
    * a parent task once all its subtasks are closed (`src/tracker/parents.ts`).
    */
@@ -282,6 +287,7 @@ export interface Tracker {
   tasks(ids: string[]): Promise<Task[]>
   brief?(id: string): Promise<TaskBrief>
   complete?(id: string): Promise<boolean>
+  closingRef?(id: string): string | null
   children?(id: string): Promise<Task[]>
   card?(id: string): Promise<TrackerCard>
   file?(id: string, file: string): Promise<TaskFile | null>
@@ -313,6 +319,7 @@ export function trackerOf(source: TaskSource): Tracker {
   }
   if (source.brief !== undefined) tracker.brief = (id) => source.brief!(id)
   if (source.complete !== undefined) tracker.complete = (id) => source.complete!(id)
+  if (source.closingRef !== undefined) tracker.closingRef = (id) => source.closingRef!(id)
   if (source.children !== undefined) tracker.children = async (id) => (await source.children!(id)).map(toTask)
   if (source.card !== undefined) tracker.card = (id) => source.card!(id)
   if (source.file !== undefined) tracker.file = (id, file) => source.file!(id, file)

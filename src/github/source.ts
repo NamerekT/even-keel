@@ -278,6 +278,12 @@ export async function connectGithub(
       return true
     },
 
+    closingRef(id) {
+      const parsed = parseTaskId(id)
+      const repo = parsed === null ? undefined : repos.repoOfKey(parsed.project)
+      return repo === undefined ? null : `${repo.owner}/${repo.name}#${parsed!.number}`
+    },
+
     async comment(id, body) {
       const { issue } = await issueOf<{ id: string }>(id, ISSUE_STATE)
       const data = await graphql<{ addComment: { commentEdge: { node: { id: string } } } }>(ADD_COMMENT, { id: issue.id, body })

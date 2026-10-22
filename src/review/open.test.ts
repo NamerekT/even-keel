@@ -5,15 +5,15 @@ import { describe, expect, it } from 'vitest'
 import type { GitResult } from '../git/types.js'
 import type { Forge } from './model.js'
 import { notice } from '../notice/notice.js'
-import { describedBy, openPull, pullReadiness, pullTarget } from './open.js'
+import { closingBody, describedBy, openPull, pullReadiness, pullTarget } from './open.js'
 
 describe('openPull', () => {
   const now = () => new Date('2026-10-19T12:00:00Z')
 
   /** `status` — what `git status` lists; `note` — whether the session wrote the pull request's note. */
-  async function opening(ahead: GitResult, status = '', note = true) {
+  async function opening(ahead: GitResult, status = '', note = true, closes?: { issue: string; repo: string }) {
     const dir = await mkdtemp(join(tmpdir(), 'open-pull-'))
-    if (note) await writeFile(join(dir, 'pull.md'), 'Fix the parser\n')
+    if (note) await writeFile(join(dir, 'pull.md'), 'Fix the parser\n\nQuotes kept.\n')
     const asked: string[] = []
     const git = async (_cwd: string, args: string[]): Promise<GitResult> => {
       asked.push(args.join(' '))
@@ -23,18 +23,20 @@ describe('openPull', () => {
       return { code: 0, out: '' }
     }
     const created: string[] = []
+    const bodies: string[] = []
     const forge: Forge = {
       kind: 'github',
       find: async () => null,
-      create: async ({ branch }) => {
+      create: async ({ branch, body }) => {
         created.push(branch)
+        bodies.push(body)
         return { number: 3, url: 'https://github.com/john/abc/pull/3' }
       },
       state: async () => ({ state: 'open', mergeable: true, head: 'a1' }),
       changes: async () => [],
     }
-    const result = openPull(git, dir, 'pull.md', 'origin', forge, 'trunk', now)
-    return { result, asked, created }
+    const result = openPull(git, dir, 'pull.md', 'origin', forge, 'trunk', now, closes)
+    return { result, asked, created, bodies }
   }
 
   it('opens nothing for a branch with no commits beyond the remote base and a clean worktree, note or not, and pushes nothing', async () => {
@@ -63,6 +65,15 @@ describe('openPull', () => {
       await expect(result).resolves.toMatchObject({ number: 3, branch: 'abc-7/task' })
       expect(created).toEqual(['abc-7/task'])
     }
+  })
+
+  it('opens the pull request with the session’s body, and a closing line for the issue when there is one', async () => {
+    const plain = await opening({ code: 0, out: '1\n' })
+    await plain.result
+    expect(plain.bodies).toEqual(['Quotes kept.'])
+    const closing = await opening({ code: 0, out: '1\n' }, '', true, { issue: 'john/abc#7', repo: 'john/abc' })
+    await closing.result
+    expect(closing.bodies).toEqual(['Quotes kept.\n\nCloses john/abc#7'])
   })
 })
 
@@ -142,5 +153,25 @@ describe('describedBy', () => {
 
   it('gives nothing for an empty note', () => {
     expect(describedBy(' \n\n')).toBeNull()
+  })
+})
+
+describe('closingBody', () => {
+  it('adds a closing line for the issue at the end of the body', () => {
+    expect(closingBody('The parser now keeps quotes.', 'octo-org/abc#7', 'octo-org/abc')).toBe('The parser now keeps quotes.\n\nCloses octo-org/abc#7')
+    expect(closingBody('', 'octo-org/tasks#7', 'octo-org/abc')).toBe('Closes octo-org/tasks#7')
+  })
+
+  it('adds nothing when the body already closes the issue, by its full name, its address or its number in the same repository', () => {
+    for (const body of ['Fixes octo-org/ABC#7.', 'resolved: https://github.com/octo-org/abc/issues/7', 'Quotes kept.\n\nCloses #7']) {
+      expect(closingBody(body, 'octo-org/abc#7', 'octo-org/abc')).toBe(body)
+    }
+  })
+
+  it('adds the line when the body only mentions the issue or closes another one', () => {
+    for (const body of ['See octo-org/abc#7', 'Closes octo-org/abc#70', 'Closes #7']) {
+      expect(closingBody(body, 'octo-org/tasks#7', 'octo-org/abc')).toBe(`${body}\n\nCloses octo-org/tasks#7`)
+    }
+    expect(closingBody('See #7', 'octo-org/abc#7', 'octo-org/abc')).toBe('See #7\n\nCloses octo-org/abc#7')
   })
 })
