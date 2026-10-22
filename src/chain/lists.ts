@@ -68,9 +68,9 @@ export class TaskLists {
   whyEmpty(project: string, tasks: Task[]): Notice {
     const skipped = this.state.skipped[project] ?? []
     if (tasks.length > 0) return tasks.every((task) => skipped.includes(task.id)) ? notice('chain.emptySkipped', {}) : notice('chain.emptyBlocked', {})
-    const rules = this.deps.rules(project)
     const backlog = this.backlog.get(project) ?? []
-    if (backlog.some((task) => isActive(rules, task.status))) return notice('chain.emptyLabels', { labels: rules.requiredLabels })
+    const active = backlog.find((task) => isActive(this.deps.rules(project, task.id), task.status))
+    if (active !== undefined) return notice('chain.emptyLabels', { labels: this.deps.rules(project, active.id).requiredLabels })
     return backlog.length > 0 ? notice('chain.emptyStatus', {}) : notice('chain.emptyNone', {})
   }
 
@@ -116,14 +116,13 @@ export class TaskLists {
 
   /** Called only once the chain's own order builds, so a refusal is the task's doing. */
   private landing(project: string): Pick<Required<ProjectOrder>, 'landing' | 'refused'> {
-    const rules = this.deps.rules(project)
     const chain = this.tasks.get(project) ?? []
     const outside = this.outside.get(project) ?? []
     const blockers = (this.waiting.get(project) ?? []).filter((task) => !outside.some((each) => each.id === task.id))
     const landing: Record<string, string | null> = {}
     const refused: Record<string, Notice> = {}
     for (const task of [...(this.backlog.get(project) ?? []), ...blockers]) {
-      if (!admits(rules, task)) continue
+      if (!admits(this.deps.rules(project, task.id), task)) continue
       const tasks = [...chain, task]
       try {
         const order = chainOrder(tasks, this.preferred(project, this.placed(project, tasks) ?? this.state.orders[project]))

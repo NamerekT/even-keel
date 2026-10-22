@@ -55,6 +55,7 @@ export interface SetupOptions {
   unattended?: boolean
   located?: Partial<HandoffSession>
   finish?: (task: string) => FinishOutcome
+  /** By project, or by the id prefix of a feed's tasks. */
   rules?: Record<string, ChainRules>
   main?: MainCheckDeps
   reviews?: ReviewDeps
@@ -94,7 +95,7 @@ export function setup(options: SetupOptions = {}) {
   const dispatcher = new Dispatcher(state, {
     projects: () => options.projects ?? ['ABC', 'XYZ', 'DEF'],
     parallel: () => capacity.parallel,
-    rules: (project) => options.rules?.[project] ?? DEFAULT_RULES,
+    rules: (project, task) => (task === undefined ? undefined : options.rules?.[task.slice(0, task.lastIndexOf('-'))]) ?? options.rules?.[project] ?? DEFAULT_RULES,
     launch: async (project, id, extra) => {
       tried.push(`${project}/${id}`)
       if (extra !== undefined) extras[id] = extra

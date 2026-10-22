@@ -59,6 +59,23 @@ describe('rules of a tracker profile (BTN-66)', () => {
     expect(() => checkProfileRules(config, set, 'huly-a', { active: ['Ready'], terminal: ['Done'] })).not.toThrow()
   })
 
+  it("are the feed's profile's for the tasks of a project's feed, and a change is checked against it too", () => {
+    const fed = parseConfig({
+      chain: { active: ['Todo'] },
+      projects: [{ id: 'abc', key: 'ABC', repo: 'C:\\abc', feeds: [{ id: 'feed', tracker: 'github', key: 'ABCGH', github: 'octo-org/ideas' }] }],
+    })
+    const feed = fed.feeds.abc![0]!
+    const set: ProfileSet = {
+      profiles: [profile('huly-a', 'huly', { terminal: ['Shipped'] }), profile('github-a', 'github', { active: ['open'] }), { ...profile('github-b', 'github', { active: ['ready'] }), isDefault: false }],
+      links: {},
+      feeds: { feed: 'github-b' },
+    }
+    expect(projectRules(fed, set, 'abc').terminal).toEqual(['Shipped'])
+    expect(projectRules(fed, set, 'abc', feed).active).toEqual(['ready'])
+    expect(() => checkProfileRules(fed, set, 'github-b', { terminal: ['Todo'] })).toThrow(/ABC · ABCGH/)
+    expect(() => checkProfileRules(fed, set, 'github-a', { terminal: ['Todo'] })).not.toThrow()
+  })
+
   it('keep only the keys set, trimmed, without blanks and repeats', () => {
     expect(cleanRules({ active: [' Todo ', '', 'Todo'], terminal: null, requiredLabels: undefined })).toEqual({ active: ['Todo'], terminal: null })
   })

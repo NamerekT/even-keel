@@ -168,14 +168,19 @@ export interface ClosedTask {
   title: string
   url: string | null
   closedAt: string
+  /** The tracker profile the task was read through (BTN-66); `null` — none, or archived before profiles were kept. */
+  profile: string | null
+  /** The name of the status the tracker last gave; `null` — archived before statuses were kept. */
+  status: string | null
 }
 
 /** A task closed again after a reopen keeps the latest title and time. */
 export async function saveClosedTask(db: Db, closed: ClosedTask): Promise<void> {
   await db.query(
-    `insert into closed_tasks (project_id, task, tracker, title, url, closed_at) values ($1, $2, $3, $4, $5, $6)
-     on conflict (project_id, task) do update set tracker = excluded.tracker, title = excluded.title, url = excluded.url, closed_at = excluded.closed_at`,
-    [closed.project, closed.task, closed.tracker, closed.title, closed.url, closed.closedAt],
+    `insert into closed_tasks (project_id, task, tracker, title, url, closed_at, profile_id, status) values ($1, $2, $3, $4, $5, $6, $7, $8)
+     on conflict (project_id, task) do update set tracker = excluded.tracker, title = excluded.title, url = excluded.url, closed_at = excluded.closed_at,
+       profile_id = excluded.profile_id, status = excluded.status`,
+    [closed.project, closed.task, closed.tracker, closed.title, closed.url, closed.closedAt, closed.profile, closed.status],
   )
 }
 
@@ -187,6 +192,17 @@ export async function closedTasks(db: Queryable): Promise<ClosedTask[]> {
     title: string
     url: string | null
     closed_at: string
-  }>('select project_id, task, tracker, title, url, closed_at from closed_tasks order by closed_at, project_id, task')
-  return rows.map((row) => ({ project: row.project_id, task: row.task, tracker: row.tracker, title: row.title, url: row.url, closedAt: row.closed_at }))
+    profile_id: string | null
+    status: string | null
+  }>('select project_id, task, tracker, title, url, closed_at, profile_id, status from closed_tasks order by closed_at, project_id, task')
+  return rows.map((row) => ({
+    project: row.project_id,
+    task: row.task,
+    tracker: row.tracker,
+    title: row.title,
+    url: row.url,
+    closedAt: row.closed_at,
+    profile: row.profile_id,
+    status: row.status,
+  }))
 }

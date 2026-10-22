@@ -73,7 +73,14 @@ describe('frozen samples of the database', { timeout: 120_000 }, () => {
     expect(snapshot).toMatchObject({ task: 'ABC-2', reason: 'relay', notePath: 'C:\\repos\\example-project\\.temp\\handoff.md' })
     expect(snapshot?.note).toContain('Done: the parser.')
     expect(await closedTasks(db)).toEqual([
-      { project: ABC, task: 'ABC-1', tracker: 'huly', title: 'Parse the example input', url: 'https://huly.example.com/workbench/example/browse/ABC-1', closedAt: '2026-10-04T12:00:00.000Z' },
+      expect.objectContaining({
+        project: ABC,
+        task: 'ABC-1',
+        tracker: 'huly',
+        title: 'Parse the example input',
+        url: 'https://huly.example.com/workbench/example/browse/ABC-1',
+        closedAt: '2026-10-04T12:00:00.000Z',
+      }),
     ])
   }
 

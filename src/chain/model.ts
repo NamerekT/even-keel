@@ -146,6 +146,13 @@ export interface LaunchEntry {
   commit?: string
   /** The provider of the task's run label the pool had no account for: the session started on the project's (schema v8). */
   fallback?: string
+  /**
+   * Where the task was read from at the launch (BTN-66): the tracker profile, the task's link and its title — Tally and
+   * the archive know a task of a feed or of a profile gone since by them. Set by the service, where it knows them.
+   */
+  profile?: string
+  url?: string
+  title?: string
 }
 
 /** A session the chain started: its id, and the provider of a run label it could not honour (`LaunchEntry.fallback`). */
@@ -217,7 +224,8 @@ export interface DispatcherDeps {
   projects: () => string[]
   /** How many chains run at once; the rest wait in the queue. */
   parallel: () => number
-  rules: (project: string) => ChainRules
+  /** The project's chain rules; with a task, the rules of the feed it comes from (BTN-66), whose tracker has statuses of its own. */
+  rules: (project: string, task?: string) => ChainRules
   /**
    * Starts a new session of the task; `fallback` — its run label named a provider without an account in the pool.
    * `extra` goes at the end of the prompt: the feedback on the task's pull request, or its pull request closed unmerged.

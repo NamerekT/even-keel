@@ -53,6 +53,12 @@ describe('keyPool', () => {
     expect(keyPool(set, ADAPTERS, env, 'xyz', 'huly')).toMatchObject({ GITHUB_TOKEN: 'personal-token', HULY_TOKEN: 'h' })
     expect(keyPool(set, ADAPTERS, env, 'xyz', 'huly').HULY_EMAIL).toBeUndefined()
   })
+
+  it("gives a feed's tracker of another kind the feed's profile, the project's own kind staying the project's (BTN-66)", () => {
+    const fed = { ...set, feeds: { 'feed-gh': 'org' } }
+    expect(keyPool(fed, ADAPTERS, env, 'xyz', 'huly', [{ id: 'feed-gh', tracker: 'github' }])).toMatchObject({ GITHUB_TOKEN: 'org-token', HULY_TOKEN: 'h' })
+    expect(keyPool(fed, ADAPTERS, env, 'xyz', 'github', [{ id: 'feed-gh', tracker: 'github' }]).GITHUB_TOKEN).toBe('personal-token')
+  })
 })
 
 describe('sameAccount', () => {

@@ -159,7 +159,7 @@ describe('state database', { timeout: 120_000 }, () => {
     const owner = await prepare()
     const copy = join(dir, 'backup')
     try {
-      await saveClosedTask(owner.db, { project: 'id-abc', task: 'ABC-1', tracker: 'huly', title: 'Done', url: null, closedAt: 't' })
+      await saveClosedTask(owner.db, { project: 'id-abc', task: 'ABC-1', tracker: 'huly', title: 'Done', url: null, closedAt: 't', profile: null, status: null })
       const reader = (await readStateDatabase(stateDir))!
       try {
         expect(reader.db).not.toBeInstanceOf(PGlite)

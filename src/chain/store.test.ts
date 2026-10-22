@@ -150,13 +150,14 @@ describe('chain store', { timeout: 30_000 }, () => {
 
   it('keeps one closed task per project and number, with the latest title and time', async () => {
     const store = await db()
-    const closed = { project: 'id-abc', task: 'ABC-1', tracker: 'huly', title: 'First', url: null, closedAt: '2026-10-01T00:00:00.000Z' }
+    const closed = { project: 'id-abc', task: 'ABC-1', tracker: 'huly', title: 'First', url: null, closedAt: '2026-10-01T00:00:00.000Z', profile: null, status: 'Done' }
     await saveClosedTask(store, closed)
     await saveClosedTask(store, { ...closed, task: 'ABC-2', closedAt: '2026-10-02T00:00:00.000Z' })
-    await saveClosedTask(store, { ...closed, title: 'Reopened', url: 'https://example.com/ABC-1', closedAt: '2026-10-03T00:00:00.000Z' })
+    const reopened = { title: 'Reopened', url: 'https://example.com/ABC-1', closedAt: '2026-10-03T00:00:00.000Z', profile: 'profile-1', status: 'Shipped' }
+    await saveClosedTask(store, { ...closed, ...reopened })
     expect(await closedTasks(store)).toEqual([
       { ...closed, task: 'ABC-2', closedAt: '2026-10-02T00:00:00.000Z' },
-      { ...closed, title: 'Reopened', url: 'https://example.com/ABC-1', closedAt: '2026-10-03T00:00:00.000Z' },
+      { ...closed, ...reopened },
     ])
   })
 

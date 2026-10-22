@@ -1,5 +1,4 @@
-import type { Dispatcher, LaunchEntry } from '../chain/dispatcher.js'
-import { ranSince } from '../chain/launches.js'
+import type { Dispatcher } from '../chain/dispatcher.js'
 import { ownsMilestone, type ChainRules } from '../chain/rules.js'
 import { MilestoneFiller } from '../chain/milestones.js'
 import { branchMerged } from '../git/merged.js'
@@ -15,16 +14,21 @@ import { trackerOf, type ChainTasks, type TrackerSetup } from './source.js'
 const TRACKER_POLL_MS = 5_000
 const TASKS_REFRESH_MS = 30_000
 /** How long a task the chain ran stays on the page once closed, whatever its milestone. */
-const RAN_SHOWN_MS = 7 * 24 * 60 * 60_000
+export const RAN_SHOWN_MS = 7 * 24 * 60 * 60_000
 const TRACKER_TIMEOUT_MS = 15_000
 
+/**
+ * What a tracker reads is a reader (BTN-66): a project or one of its feeds, each of its own id. The deps take a reader
+ * where they say `project`; `tasksByProject` and `dispatcher` join the readers of a project (`ReaderTasks`).
+ */
 export interface TrackerStartDeps {
   /** Path to the main checkout of the project. */
   repoOf: (project: string) => string
   rulesOf: (project: string) => ChainRules
   links: Map<string, TrackerLink>
-  tasksByProject: Map<string, Task[]>
-  launches: LaunchEntry[]
+  tasksByProject: { get(project: string): Task[] | undefined; has(project: string): boolean; set(project: string, tasks: Task[]): void }
+  /** The tasks of the reader the chain started since then, closed ones included. */
+  ranSince: (project: string, since: Date) => string[]
   dispatcher: Pick<Dispatcher, 'setTasks' | 'setOutside' | 'released' | 'setReleased' | 'held' | 'view'>
   /** The project's `fillMilestone` setting. */
   fillsMilestone: (project: string) => boolean
@@ -47,7 +51,7 @@ export interface TrackerHandle {
 
 /** Connects a tracker, polls the statuses of its projects' tasks and refreshes them, closing merged tasks and done parents. */
 export function startTracker(view: TrackerView, setup: TrackerSetup, deps: TrackerStartDeps): TrackerHandle {
-  const { repoOf, rulesOf, links, tasksByProject, launches, dispatcher, fillsMilestone, mainBranch, readKey, broadcast, refreshers } = deps
+  const { repoOf, rulesOf, links, tasksByProject, ranSince, dispatcher, fillsMilestone, mainBranch, readKey, broadcast, refreshers } = deps
   const { name, title, projects } = view
   let current = setup
   let stopped = false
@@ -164,7 +168,7 @@ export function startTracker(view: TrackerView, setup: TrackerSetup, deps: Track
       const listed = new Set([...tasks, ...parents].map((task) => task.id))
       const missing = [...new Set(tasks.filter((task) => isOpen(task.status)).flatMap((task) => task.blockedBy))].filter((id) => !listed.has(id))
       const others = missing.length === 0 ? [] : await link.run((tracker) => tracker.tasks(missing))
-      const unlisted = ranSince(launches, project, new Date(Date.now() - RAN_SHOWN_MS)).filter((id) => !listed.has(id))
+      const unlisted = ranSince(project, new Date(Date.now() - RAN_SHOWN_MS)).filter((id) => !listed.has(id))
       const ran = unlisted.length === 0 ? [] : (await link.run((tracker) => tracker.tasks(unlisted))).filter((task) => !isOpen(task.status))
       const shown = [...tasks, ...ran]
       if (stopped) return
