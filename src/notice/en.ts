@@ -106,9 +106,9 @@ export const en = {
     `forward: the branch of ${p.from} conflicts with ${p.into} in ${p.files.join(', ') || 'unknown files'}; the merge is aborted and waits for a merge by hand or "Carry now"`,
   'forward.notRelease': (p: { project: string }) => `forward: ${p.project} merges into no other project`,
   'forward.foreign': (p: { from: string; into: string }) =>
-    `forward: ${p.from} and ${p.into} share no remote, and neither checkout is a clone of the other; nothing is fetched — set mergeInto to a project of the same repository`,
+    `forward: ${p.from} and ${p.into} share no remote, and neither checkout is a clone of the other; nothing is fetched — in "Merges into" of ${p.from} pick a project of the same repository`,
 
-  'ci.noToken': (p: { variable: string }) => `set ${p.variable} in the environment of Even Keel to watch this CI`,
+  'ci.noToken': (p: { kind: CiKind }) => `no profile has a token for this CI: add a ${FORGES[p.kind]} profile in Settings → Access`,
   'ci.denied': (p: { ci: string; status: number }) => `${p.ci}: the token was refused (HTTP ${p.status}); it needs read access to the repository's actions`,
   'ci.http': (p: { ci: string; status: number }) => `${p.ci}: the API answered HTTP ${p.status}`,
   'ci.unreachable': (p: { ci: string }) => `${p.ci}: the API did not answer`,
@@ -164,9 +164,9 @@ export const en = {
   'claude.stillRunning': (p: { agent: string }) => `claude: ${p.agent} was told to stop but is still running`,
   'claude.signOutFailed': (p: { account: string }) => `claude: could not sign out of ${p.account}`,
   'claude.daemonStopFailed': (p: { account: string }) => `claude: could not stop the daemon of ${p.account}`,
-  'claude.statusNotJson': () => 'claude: auth status is not JSON',
-  'claude.statusNotObject': () => 'claude: auth status is not an object',
-  'claude.statusNoFlag': () => 'claude: auth status has no loggedIn flag',
+  'claude.statusNotJson': () => 'claude: the CLI answered the sign-in check in an unexpected form (auth status is not JSON)',
+  'claude.statusNotObject': () => 'claude: the CLI answered the sign-in check in an unexpected form (auth status is not an object)',
+  'claude.statusNoFlag': () => 'claude: the CLI answered the sign-in check in an unexpected form (auth status has no loggedIn flag)',
 
   'codex.startFailed': (p: { task: string; cwd: string }) => `codex: could not start ${p.task} in ${p.cwd}`,
   'codex.resumeFailed': (p: { task: string; cwd: string }) => `codex: could not resume ${p.task} in ${p.cwd}`,
@@ -175,7 +175,7 @@ export const en = {
     `codex: ${p.task} was resumed as ${p.asked} but came up as the new thread ${p.got}`,
   'codex.unknownSession': (p: { session: string }) => `codex: Even Keel did not start the session ${p.session}`,
   'codex.stillRunning': (p: { session: string }) => `codex: the turn of ${p.session} was killed but is still running`,
-  'codex.statusUnreadable': () => 'codex: login status printed neither "Logged in" nor "Not logged in"',
+  'codex.statusUnreadable': () => 'codex: the CLI answered the sign-in check in an unexpected form (login status printed neither "Logged in" nor "Not logged in")',
   'codex.signOutFailed': (p: { account: string }) => `codex: could not sign out of ${p.account}`,
 
   'opencode.startFailed': (p: { task: string; cwd: string }) => `opencode: could not start ${p.task} in ${p.cwd}`,
@@ -196,9 +196,9 @@ export const en = {
   'account.needsLogin': (p: { account: string }) => `claude: ${p.account} needs a login first`,
   'account.globalKept': () => 'claude: the global account lives in ~/.claude and is not removed from here',
   'account.activeKept': () => 'claude: the active account cannot be removed; switch to another one first',
-  'account.sharedPool': () => 'claude: the shared settings name this account in their pool; pick another one there first',
+  'account.sharedPool': () => 'claude: the shared settings pick this account as their account on Claude Code; pick another one there first',
   'account.projectPool': (p: { projects: string[] }) =>
-    `claude: the settings of projects ${list(p.projects)} name this account in their pool; pick another one there first`,
+    `claude: the settings of projects ${list(p.projects)} pick this account as their account on Claude Code; pick another one there first`,
   'account.signInRunning': () => 'claude: a sign-in into this account is running',
   'account.usedByApp': (p: { app: string }) => `claude: ${p.app} uses this account; switch it to another one first`,
   'account.codexApp': () => 'codex: the apps run on Claude Code; a Codex account is not given to one',
@@ -225,8 +225,8 @@ export const en = {
   'account.homeGone': (p: { key: string }) => `claude: the account folder ${p.key} is gone`,
   'account.activeGone': (p: { key: string }) => `claude: the active account folder ${p.key} is gone; switch to another account, then resume`,
   'account.signingIn': () => 'claude: sign-in is in progress; resume once it is done',
-  'account.signedOut': () => 'claude: not signed in; sign in from the account menu, then resume',
-  'account.loginExpired': (p: { account: string }) => `claude: the login of ${p.account} has run out; renew it from the account menu, then resume`,
+  'account.signedOut': () => 'claude: not signed in; sign in on the Accounts page, then resume',
+  'account.loginExpired': (p: { account: string }) => `claude: the login of ${p.account} has run out; renew it on the Accounts page, then resume`,
 
   'login.none': () => 'claude: no sign-in is running',
   'login.running': () => 'claude: a sign-in is already running',
@@ -261,7 +261,7 @@ export const en = {
   'usage.callFailed': () => 'the call failed',
   'usage.noRollout': () => 'no Codex session of this account has reported its limits yet',
 
-  'prompt.empty': (p: { before: string; value: string }) => `prompt: nothing to put after "${p.before}" (got ${p.value})`,
+  'prompt.empty': (p: { before: string; value: string }) => `prompt: the session prompt has nothing to put after "${p.before}" (got ${p.value}); check the task in the tracker and the project's settings, then resume`,
 
   'request.tooLarge': () => 'request body is too large',
   'request.notJson': () => 'request body is not JSON',
@@ -332,7 +332,7 @@ export const en = {
   'packages.keyName': (p: { name: string }) => `packages: ${p.name} is not a variable name`,
   'packages.keyValue': (p: { name: string }) => `packages: the value of ${p.name} may hold neither a line break nor a single quote`,
   'packages.unknownKey': (p: { name: string }) => `packages: no package or tracker reads ${p.name}`,
-  'packages.port': (p: { port: number }) => `packages: the MCP gateway cannot listen on 127.0.0.1:${p.port}; set another EVEN_KEEL_MCP_PORT`,
+  'packages.port': (p: { port: number }) => `packages: the MCP gateway cannot listen on 127.0.0.1:${p.port}, another program holds the port; set another EVEN_KEEL_MCP_PORT in Even Keel's .env`,
   'secrets.unknown': (p: { name: string }) => `secrets: ${p.name} is not a credential the page sets`,
   'secrets.empty': (p: { name: string }) => `secrets: the value of ${p.name} is empty; removing a variable is its own action`,
   'secrets.outer': (p: { name: string }) => `secrets: ${p.name} comes from the service's environment, not .env; change it there`,
@@ -449,6 +449,12 @@ export const en = {
     `the key ${p.key} is already the project ${p.project} on another repository, and the task ids of both would be the same: pick another one`,
   'wizard.noBranch': (p: { branch: string; branches: string[] }) => `the repository has no branch ${p.branch}, it has ${p.branches.join(', ')}`,
   'wizard.noCommits': () => 'the repository has no commits yet: make the first one',
+  'wizard.keyShape': (p: { value: string }) => `the key is a capital Latin letter, then up to 4 capitals, digits or _, not "${p.value}"`,
+  'wizard.branchName': (p: { value: string }) => `"${p.value}" is not a branch name`,
+  'wizard.trackerPlace': (p: { example: string }) => `name the project in the tracker like ${p.example}`,
+  'wizard.trackerShared': (p: { project: string }) =>
+    `${p.project} already takes the tasks of this tracker project, and each task would enter both chains. Two projects on one tracker project split it by milestones, and this form has no milestone fields: pick another tracker project`,
+  'wizard.entryFailed': () => 'the project cannot be added with these values',
   'wizard.trackerOff': (p: { tracker: string; variables: string[] }) =>
     `no ${p.tracker} profile with ${list(p.variables)}: add one with "Add profile" in the Profile list`,
   'wizard.trackerFailed': (p: { tracker: string }) => `${p.tracker} did not give the project's tasks`,

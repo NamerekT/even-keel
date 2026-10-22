@@ -2,7 +2,7 @@ import { Fragment, useId, type CSSProperties, type ReactNode } from 'react'
 import type { ChainRules } from '../../../src/chain/rules.js'
 import type { Notice } from '../../../src/notice/notice.js'
 import type { CheckpointShares, ConfigView } from '../../../src/state.js'
-import { say, t } from '../i18n/index.js'
+import { sayAtField, t } from '../i18n/index.js'
 import { CheckIcon, QuestionIcon, UndoIcon } from '../ui/icons.js'
 import { useTip, type TipAlign } from '../ui/useTip.js'
 import type { Draft, Same, Value, Values } from './settingsDraft.js'
@@ -184,7 +184,7 @@ export const fieldId = (key: string) => `setting-${key.replace(/\W/g, '-')}`
 export function FieldNote({ error }: { error: Notice | null }) {
   return error === null ? null : (
     <span className="settings__error" role="alert">
-      {say(error)}
+      {sayAtField(error)}
     </span>
   )
 }

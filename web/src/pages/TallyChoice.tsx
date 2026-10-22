@@ -101,6 +101,9 @@ export function TallyServerFields({ state, onDone, onCancel }: ServerProps) {
     () => Object.fromEntries(FIELDS.map((field) => [field, isPassword(field) ? '' : (valueOf(state, VARIABLES[field])?.value ?? '')])) as Record<Field, string>,
   )
 
+  // The port falls back to 5432 and a blank password keeps the one in `.env`; anything else empty is refused (`tally.incomplete`).
+  const incomplete = FIELDS.some((field) => field !== 'port' && server[field].trim() === '' && !(isPassword(field) && valueOf(state, VARIABLES[field])?.set))
+
   const submit = async (event: FormEvent) => {
     event.preventDefault()
     if (await send('stats/tally', { mode: 'server', server })) onDone()
@@ -124,7 +127,7 @@ export function TallyServerFields({ state, onDone, onCancel }: ServerProps) {
         </label>
       ))}
       <div className="account__actions tally-server__actions">
-        <button type="submit" className="button button--primary" disabled={sending}>
+        <button type="submit" className="button button--primary" disabled={sending || incomplete}>
           {sending ? t.tally.checking : t.tally.save}
         </button>
         {onCancel !== undefined && (
