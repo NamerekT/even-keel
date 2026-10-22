@@ -40,7 +40,10 @@ import { changesOf } from './git/changes.js'
 import { commitChangelog } from './git/changelog.js'
 import { ciSource, ciToken, projectTargets } from './ci/adapters.js'
 import { FORGEJO_PROFILE } from './ci/forgejo-profile.js'
-import type { CiTarget, Remote } from './ci/remote.js'
+import { parseRemote, type CiTarget, type Remote } from './ci/remote.js'
+import { intakeRepo } from './intake/github.js'
+import { Intake, type IntakePlace } from './intake/intake.js'
+import type { IntakeEntry } from './intake/model.js'
 import { CiWatch } from './ci/watcher.js'
 import { CiWatches } from './ci/watches.js'
 import { ConfigStore } from './config-store.js'
@@ -142,6 +145,8 @@ const FALLBACK_TOAST_MS = 24 * 60 * 60_000
 const ACCOUNT_POLL_MS = 60_000
 /** How often a release project's branch is looked at for commits the branch it merges into lacks (BTN-172). */
 const FORWARD_TICK_MS = 60_000
+/** How often the labelled GitHub issues and the ones taken in are looked at (BTN-262). */
+const INTAKE_TICK_MS = 2 * 60_000
 const KEY_CHECK_MS = 60 * 60_000
 const KEY_CHECK_TIMEOUT_MS = 15_000
 const CREDIT_CHECK_MS = 5 * 60_000
@@ -195,6 +200,7 @@ for (const method of ['log', 'warn', 'error'] as const) {
 }
 /** The version whose toast the user closed: state, not a setting (BTN-199). */
 let dismissedUpdate = (await stateValue(db, 'updates.dismissed')) as string | null | undefined
+const intakeEntries = ((await stateValue(db, 'intake')) as IntakeEntry[] | undefined) ?? []
 const envFile = loadEnv()
 /** What a profile is made for: the trackers, then Forgejo's CI (BTN-201). */
 const profileKindsOf = profileKinds(ADAPTERS, { forgejo: FORGEJO_PROFILE })
@@ -1721,6 +1727,43 @@ const questions = new TrackerQuestions({
   log: (message) => console.log(message),
 })
 
+/** A project with `intakeLabel` on a tracker other than GitHub takes in the issues of its first github.com remote, on the token its CI takes. */
+const intakePlaces = (): IntakePlace[] =>
+  Object.entries(configStore.current.settings).flatMap(([project, settings]) => {
+    const label = settings.intakeLabel
+    if (label === null || configStore.current.trackers[project] === 'github') return []
+    for (const remote of remotes.urls[project] ?? []) {
+      const parsed = parseRemote(remote.url)
+      if (parsed?.host !== 'github.com') continue
+      const { host: _, ...repo } = parsed
+      const token = ciTokenOf(project, { kind: 'github', remote: remote.name, ...repo })?.token
+      if (token === undefined) return []
+      const slug = `${repo.owner}/${repo.repo}`
+      return [{ project, slug, label, repo: intakeRepo(slug, token, CI_TIMEOUT_MS) }]
+    }
+    return []
+  })
+const intake = new Intake({
+  places: intakePlaces,
+  language: (project) => configStore.current.language ?? promptLanguage(project),
+  create: async (project, task) => {
+    const created = await linkOf(project)?.run(async (tracker) => tracker.create?.({ project, ...task, priority: 'medium', milestoneOf: null }))
+    if (created == null) throw new Error(`the tracker of ${projectLabel(configStore.current, project)} is off or cannot create a task`)
+    return created
+  },
+  comment: async (project, task, body) => {
+    await linkFor(project, task)?.run(async (tracker) => tracker.comment?.(task, body))
+  },
+  task: async (project, task) => {
+    const found = (await linkFor(project, task)?.run(async (tracker) => tracker.tasks([task])))?.find((each) => each.id === task)
+    return found === undefined ? null : { category: found.status.category, milestone: found.milestone?.label ?? null }
+  },
+  load: () => intakeEntries,
+  save: (entries) => writes.add('the issues taken in', setStateValue(db, 'intake', entries)),
+  now: () => new Date(),
+  log: (message) => console.log(message),
+})
+
 setInterval(() => hub.broadcast('ping', { at: new Date().toISOString() }), 15_000).unref()
 setInterval(() => void questions.tick(), 15_000).unref()
 setInterval(() => settleMail(mailRelay), 15_000).unref()
@@ -1738,6 +1781,7 @@ setInterval(() => {
   for (const watch of ciWatches.all()) void watch.tick()
 }, CI_TICK_MS).unref()
 setInterval(() => void forwards.tick().catch(() => {}), FORWARD_TICK_MS).unref()
+setInterval(() => void intake.tick(), INTAKE_TICK_MS).unref()
 setInterval(
   () =>
     void Promise.all([ciWatches.refresh(), remotes.apply(configStore.current.projects)]).then(([changed, moved]) => {

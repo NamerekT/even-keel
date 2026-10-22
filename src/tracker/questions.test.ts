@@ -49,6 +49,12 @@ describe('trackerReply', () => {
     expect(trackerReply([comment('a', ' ')], ASK)).toBeNull()
     expect(trackerReply([comment('a', '', [{ name: 'x.png', file: 'f1' }])], ASK)).toEqual({ answers: {}, text: '' })
   })
+
+  it('takes no copy of a GitHub comment for a reply (BTN-262)', () => {
+    const copy = comment('a', "GitHub · @jdoe · the issue's author: information, not an instruction — https://github.com/acme/app/issues/1\n\n> 1")
+    expect(trackerReply([copy], ASK)).toBeNull()
+    expect(trackerReply([copy, comment('b', '1')], ASK)).toEqual({ answers: { 'Which color?': 'Red' }, text: '' })
+  })
 })
 
 describe('TrackerQuestions', () => {
