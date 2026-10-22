@@ -1,5 +1,27 @@
 import { describe, expect, it } from 'vitest'
-import { checkoutRemotes, ProjectRemotes, remoteRef } from './remotes.js'
+import { checkoutRemotes, ProjectRemotes, remotePeers, remoteRef } from './remotes.js'
+
+describe('remotePeers', () => {
+  const ref = (id: string) => ({ id, path: id.split('/').slice(-2).join('/') })
+  const view = {
+    TSK: [ref('git.example.com/acme/demo')],
+    DT: [ref('git.example.com/acme/demo'), ref('github.com/acme/demo')],
+    NAM: [ref('github.com/acme/demo')],
+    REL: [ref('git.example.com/acme/demo')],
+    OTHER: [ref('git.example.com/acme/other')],
+    NONE: [],
+  }
+  const branchOf = (project: string) => (project === 'REL' ? 'release/v1' : 'main')
+
+  it('takes the projects with a remote in common and the same main branch', () => {
+    expect(remotePeers(view, branchOf, 'TSK')).toEqual(['DT'])
+    expect(remotePeers(view, branchOf, 'DT')).toEqual(['TSK', 'NAM'])
+    expect(remotePeers(view, branchOf, 'REL')).toEqual([])
+    expect(remotePeers(view, branchOf, 'OTHER')).toEqual([])
+    expect(remotePeers(view, branchOf, 'NONE')).toEqual([])
+    expect(remotePeers(view, branchOf, 'GONE')).toEqual([])
+  })
+})
 
 describe('remoteRef', () => {
   const ref = (url: string) => remoteRef(url, 'D:\\work\\app', 'win32')

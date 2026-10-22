@@ -106,7 +106,7 @@ export function ProjectCard({ state, project, turn }: { state: EvenKeelState; pr
 
       {status.kind === 'running' && status.limitUntil !== null && <p className="card__wait">{limitWaitText(status.limitUntil, new Date())}</p>}
       {status.kind === 'running' && status.slotWait !== undefined && <p className="card__wait">{say({ ...status.slotWait, items: [] })}</p>}
-      {status.kind === 'running' && status.ciWait !== undefined && <p className="card__wait">{ciWaitText(status.ciWait, new Date())}</p>}
+      {status.kind === 'running' && status.ciWait !== undefined && <p className="card__wait">{ciWaitText(status.ciWait, new Date(), state)}</p>}
       {error !== null && <p className="card__error">{say(error)}</p>}
       {status.kind === 'paused' && <PullFixButton state={state} project={project} error={status.error} />}
 

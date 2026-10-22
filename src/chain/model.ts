@@ -37,9 +37,10 @@ export interface ActiveChain {
   slotWait?: { notice: Notice; at: string }
   /**
    * The next launch waits for the CI's verdict on this push of main; `local` — for the project's own check of it,
-   * `after` — for the project's `commands.afterGreen` on it.
+   * `after` — for the project's `commands.afterGreen` on it; `by` — for the fix of the red commit by another project
+   * of the same remote (BTN-217), since that fix began.
    */
-  ciWait?: { commit: string; since: string; local?: true; after?: true }
+  ciWait?: { commit: string; since: string; local?: true; after?: true; by?: string }
   closing?: string
   /** The task whose working session a red main stopped (BTN-115); it goes on once the fix is judged. */
   interrupted?: Interrupted
@@ -282,6 +283,8 @@ export interface DispatcherDeps {
 }
 
 export interface MainCheckDeps {
+  /** The other projects guarding the same main of the same remote (BTN-217): a red main of one is red for all. */
+  peers: (project: string) => string[]
   /** The commit main is at in the project's checkout; `null` — unknown. */
   head: (project: string) => Promise<string | null>
   /** What the project's counted CIs say of a commit pushed at `since`. */

@@ -56,6 +56,7 @@ function setup(settings: CiSettings, views: CiView[] | null, heads: Record<strin
   const watches: MainCiWatch[] | null =
     views?.map((each) => ({ view: each, failed: async (failed) => ({ kind: each.kind, run: failed, jobs: [], log: 'FAIL' }) })) ?? null
   const deps = mainCheckDeps({
+    peers: () => ['XYZ'],
     repo: () => 'D:/repos/abc',
     main: () => main,
     git,
@@ -106,6 +107,11 @@ describe('mainCheckDeps', () => {
   it('waits for the verdict until the service has found the project CIs, so a push is not taken for one without a CI', () => {
     expect(setup(all(['forgejo']), null).deps.verdict('ABC', 'c2', '2026-10-12T10:00:00Z')).toEqual({ state: 'pending' })
     expect(setup(unguarded(['forgejo']), null).deps.verdict('ABC', 'c2', '2026-10-12T10:00:00Z')).toEqual({ state: 'none' })
+  })
+
+  it('has no projects of one remote with the guard of main off', () => {
+    expect(setup(all([]), []).deps.peers('ABC')).toEqual(['XYZ'])
+    expect(setup(unguarded([]), []).deps.peers('ABC')).toEqual([])
   })
 
   it('turns the wait into milliseconds, null staying as long as it takes', () => {

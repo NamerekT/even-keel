@@ -59,6 +59,19 @@ function refsOf(remotes: Remote[], repo: string): RemoteRef[] {
   return [...refs.values()]
 }
 
+/**
+ * The other projects that push the same main branch to the same repository (BTN-217): a remote in common, however each
+ * checkout names it, and the same `branch`. A release clone on its own branch of the same remote is not one of them.
+ */
+export function remotePeers(view: Readonly<Record<string, RemoteRef[]>>, branchOf: (project: string) => string, project: string): string[] {
+  const own = new Set((view[project] ?? []).map((ref) => ref.id))
+  if (own.size === 0) return []
+  const branch = branchOf(project)
+  return Object.entries(view)
+    .filter(([other, refs]) => other !== project && branchOf(other) === branch && refs.some((ref) => own.has(ref.id)))
+    .map(([other]) => other)
+}
+
 /** The remotes of each project's checkout, read again when the config changes and on the CI's interval. */
 export class ProjectRemotes {
   /** For the page. */

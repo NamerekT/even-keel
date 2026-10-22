@@ -539,10 +539,14 @@ export class Dispatcher {
    */
   private heldByMain(chain: ActiveChain, task: string, listed: string[], ahead = true): boolean {
     const after = this.main?.afterGreenRun(chain.project)
-    const hold = this.main?.holds(chain.project, listed) ?? null
+    const hold = this.main?.holds(chain.project, listed, this.lists.listedOpen) ?? null
     const wait: ActiveChain['ciWait'] =
-      after !== undefined ? { ...after, after: true } : hold === null || hold === 'fix' ? undefined : { commit: hold.commit, since: hold.at }
-    if (chain.ciWait?.commit !== wait?.commit || chain.ciWait?.after !== wait?.after) {
+      after !== undefined
+        ? { ...after, after: true }
+        : hold === null || hold === 'fix'
+          ? undefined
+          : { commit: hold.commit, since: hold.at, ...('by' in hold ? { by: hold.by } : {}) }
+    if (chain.ciWait?.commit !== wait?.commit || chain.ciWait?.after !== wait?.after || chain.ciWait?.by !== wait?.by) {
       if (wait === undefined) delete chain.ciWait
       else chain.ciWait = wait
       this.deps.save(this.state)
