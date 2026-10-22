@@ -142,7 +142,7 @@ On Windows a running Even Keel holds files in `node_modules`: `npm ci` next to i
 
 ### Plugins
 
-The plugins come with the code. Chain sessions run the version of a package installed on `/tools`: its row shows the newer version the marketplace has and an **Update** button, or **Check** when it knows of none (for a git URL marketplace both run `claude plugin marketplace update` first). Even Keel's own plugins are read from this folder, so after an update their rows offer the new version at once. For sessions you start by hand, a marketplace added from the local path of this folder is read from the folder, so they get the new plugins by themselves; one added from a git URL keeps its own copy: `claude plugin marketplace update even-keel`, then `claude plugin update huly@even-keel` (or `github@…`, `linear@…`, `checkpoint@…`) in each project repository that installed it.
+The plugins come with the code. Chain sessions run the version of a package installed on `/tools`: its row shows the newer version the marketplace has and an **Update** button, or **Check** when it knows of none (for a git URL marketplace both run `claude plugin marketplace update` first). Even Keel's own plugins are read from this folder, so after an update their rows offer the new version at once. For sessions you start by hand, a marketplace added from the local path of this folder is read from the folder, so they get the new plugins by themselves; one added from a git URL keeps its own copy: `claude plugin marketplace update even-keel`, then `claude plugin update huly@even-keel` (or `github@…`, `linear@…`, `checkpoint@…`, `tally@…`) in each project repository that installed it.
 
 ### Stored state
 

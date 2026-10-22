@@ -129,6 +129,8 @@ A comparison is easier to judge when you know why a rule changed: add the hook `
 }
 ```
 
+The page shows the numbers; the `tally` plugin draws conclusions from them. Its `tally:session-audit` skill answers "tasks got more expensive — why?" or "what changed after I edited CLAUDE.md?" from any project: it compares the period since your last rule edit (or the one you name) with the span before it — task cost and time, context per request, entry context, sessions per task, stuck spans, estimates — always cut by model, lists the rule edits, models and outlier tasks between them, digs into the tasks that show the cause and into handoffs and context compactions (what the next session re-read, what the ramp-up cost), and ends with proposals, each with the metric it should move. It only reads the database and changes no rule by itself. Install it in Claude Code with `claude plugin install tally@even-keel` once the marketplace is added ([setup](setup.md#with-the-plugin)); it finds Even Keel through the running service, or `EVEN_KEEL_HOME` set to the checkout ([plugins/tally](../../plugins/tally/README.md)). Estimates, statuses and components come from Huly: with another tracker the audit skips what needs them. Money is at API prices (`prices` in `tally/tally.config.json`), a ruler for comparing, not your subscription's bill.
+
 ## CI
 
 A badge in the project's head shows the CI of each remote — Forgejo Actions or GitHub Actions, found from `git remote` and the workflow folders: whether the API answers and a runner takes the runs, the current run with its tasks, jobs and steps against the usual length, and the recent runs. The API is polled only while a run is unfinished or after a push.

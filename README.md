@@ -39,7 +39,7 @@ Even Keel wins in time, not in width: the agent keeps working while you are away
 - **Pull requests (experimental).** Instead of merging, Even Keel can push a task's branch and open a pull request on GitHub or Forgejo; review feedback, failed checks and conflicts go back to the task's session.
 - **Plugins and MCP servers** per project, with their keys kept behind a local gateway.
 - **Accounts.** Several Claude and Codex subscriptions or API keys, one per project and provider, with their limits on the page; OpenCode accounts on ChatGPT, GitHub Copilot, an API key or its free models; GitHub Copilot CLI accounts on your sign-in or a token each. Claude sessions on an API key run through the Agent SDK and outlive a restart of the service with their questions open; a subscription can switch to it too.
-- **Statistics (optional):** cost and time per task, stuck spans, before/after comparisons of changes to your rules.
+- **Statistics (optional):** cost and time per task, stuck spans, before/after comparisons of changes to your rules, and a session audit skill that reads them and proposes what to change.
 - **The page:** the chain, each session's stage, current action and context fill, task cards, changelog drafts; in English or Russian.
 
 | A question in the page's chat | A spent limit, waited out with the cache warm | Statistics |
