@@ -285,7 +285,11 @@ function Forward({ state, project }: { state: EvenKeelState; project: string }) 
     <div className="leftovers">
       <div className={forward.held ? 'notice notice--error leftovers__item' : 'notice notice--warn leftovers__item'}>
         <div className="leftovers__text">
-          <strong>{waiting ? t.project.forwardWaits(forward.behind ?? 0, forward.into) : t.project.forwardPushFailed(forward.into)}</strong>
+          <strong>
+            {waiting
+              ? t.project.forwardWaits(forward.behind ?? 0, projectLabel(state, forward.into))
+              : t.project.forwardPushFailed(projectLabel(state, forward.into))}
+          </strong>
           {forward.hold !== null && <p className="leftovers__line">{say(forward.hold)}</p>}
           <NoticeFixButton project={project} notice={forward.hold} />
           {!waiting && push !== null && <p className="leftovers__line">{say(push)}</p>}

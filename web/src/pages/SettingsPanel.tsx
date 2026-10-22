@@ -8,7 +8,7 @@ import { offeredProviders } from '../accounts.js'
 import { say, t } from '../i18n/index.js'
 import { useLive } from '../live/context.js'
 import { useCommand } from '../live/useCommand.js'
-import { PROJECT_SLOTS } from '../state.js'
+import { PROJECT_SLOTS, projectLabel } from '../state.js'
 import { SlidersIcon } from '../ui/icons.js'
 import { Select } from '../ui/Select.js'
 import { seriesStyle } from '../ui/series.js'
@@ -399,8 +399,10 @@ export function SettingsPanel({
         </div>
         {choice('mergeInto', t.settings.mergeInto, t.settings.mergeIntoHint, [
           { value: '', label: t.settings.mergeIntoNone },
-          ...mainProjects.map((key) => ({ value: key, label: key })),
-          ...(text('mergeInto') !== '' && !mainProjects.includes(text('mergeInto')) ? [{ value: text('mergeInto'), label: text('mergeInto') }] : []),
+          ...mainProjects.map((key) => ({ value: key, label: projectLabel(state, key) })),
+          ...(text('mergeInto') !== '' && !mainProjects.includes(text('mergeInto'))
+            ? [{ value: text('mergeInto'), label: projectLabel(state, text('mergeInto')) }]
+            : []),
         ])}
         <div className={marks.box('slot')}>
           <FieldHead label={t.settings.slot} hint={t.settings.slotHint} htmlFor={fieldId('slot')} />
@@ -484,7 +486,7 @@ export function SettingsPanel({
                 className="settings__text settings__text--mono"
                 spellCheck={false}
                 value={text('trackerProject')}
-                placeholder={tracker.projectKey.alias ? project : tracker.projectKey.example}
+                placeholder={tracker.projectKey.alias ? (state?.projectKeys[project] ?? '') : tracker.projectKey.example}
                 aria-invalid={errorOf('trackerProject') !== null}
                 disabled={locked}
                 onChange={(event) => edit('trackerProject', event.target.value)}

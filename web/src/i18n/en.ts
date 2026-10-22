@@ -613,7 +613,8 @@ export const en: Messages = {
     backlogHint: 'Open tasks the chain does not take yet because of their status or labels.',
     leftover: (task: string) => `${task} is closed, but not everything after it went through — check by hand.`,
     dismiss: 'Done',
-    forwardWaits: (count: number, into: string) => `${counted('commit', 'commits')(count)} of this project wait to go into ${into}.`,
+    forwardWaits: (count: number, into: string) =>
+      `${counted('commit', 'commits')(count)} of this project ${count === 1 ? 'waits' : 'wait'} to go into ${into}.`,
     forwardPushFailed: (into: string) => `The release branch went into ${into}, but its push failed; the next sync pushes it.`,
     forwardNow: 'Carry now',
     pullAddRemote: 'Add a remote or turn PR mode off',
@@ -1320,9 +1321,9 @@ export const en: Messages = {
         answer: 'Session thinking',
       },
       text: {
-        launch: 'Preparing the working copy and starting Claude Code.',
+        launch: 'Preparing the working copy and starting the agent.',
         handover: 'The old session stops, the new one starts with a handoff.',
-        boot: 'Claude Code is coming up: settings, plugins, MCP servers.',
+        boot: 'The agent is coming up: settings, plugins, MCP servers.',
         answer: 'The session is up and working on its first answer.',
       },
       steps: ['Prepare', 'Boot', 'First answer'],
