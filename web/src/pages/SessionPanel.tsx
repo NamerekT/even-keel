@@ -17,6 +17,7 @@ import { AccountTag } from '../ui/AccountTag.js'
 import { CacheClock } from '../ui/CacheClock.js'
 import { ContextMeter } from '../ui/ContextMeter.js'
 import { PipelineIcon } from '../ui/icons.js'
+import { useBackdropClose } from '../ui/backdrop.js'
 import { Lamp } from '../ui/Lamp.js'
 import { PullButton } from '../ui/PullChip.js'
 import { StartCard } from '../ui/SessionStart.js'
@@ -494,6 +495,7 @@ function leftText(left: NonNullable<TaskSession['left']>): string {
 function SessionWindow({ row, live, scale, onClose }: { row: TaskSession; live: boolean; scale: ContextScale; onClose: () => void }) {
   const { session } = useLive()
   const dialogRef = useRef<HTMLDialogElement>(null)
+  const backdrop = useBackdropClose(dialogRef, () => dialogRef.current?.close())
   const [record, setRecord] = useState<SessionRecord | null | undefined>(undefined)
   const [error, setError] = useState<string | null>(null)
 
@@ -525,9 +527,7 @@ function SessionWindow({ row, live, scale, onClose }: { row: TaskSession; live: 
       onKeyDown={(event) => {
         if (event.key === 'Escape') event.stopPropagation()
       }}
-      onClick={(event) => {
-        if (event.target === dialogRef.current) dialogRef.current.close()
-      }}
+      {...backdrop}
     >
       <div className="session-window__body">
         <header className="panel__head">

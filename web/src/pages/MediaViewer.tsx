@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type PointerEvent } from 'react'
 import { t } from '../i18n/index.js'
+import { useBackdropClose } from '../ui/backdrop.js'
 
 export interface Media {
   kind: 'image' | 'video'
@@ -21,6 +22,7 @@ export function MediaViewer({ items, index, onIndex, onClose }: Props) {
   const dialog = useRef<HTMLDialogElement>(null)
   const closer = useRef<HTMLButtonElement>(null)
   const swipe = useRef<number | null>(null)
+  const backdrop = useBackdropClose(dialog, onClose, (target) => target.classList.contains('viewer__stage'))
   const [zoomed, setZoomed] = useState(false)
   const item = items[index]!
   const prev = index > 0 ? index - 1 : null
@@ -62,10 +64,7 @@ export function MediaViewer({ items, index, onIndex, onClose }: Props) {
         if (event.key === 'ArrowLeft') go(prev)
         else if (event.key === 'ArrowRight') go(next)
       }}
-      onClick={(event) => {
-        const target = event.target as HTMLElement
-        if (target === dialog.current || target.classList.contains('viewer__stage')) onClose()
-      }}
+      {...backdrop}
     >
       <button ref={closer} type="button" className="viewer__close" aria-label={t.card.viewer.close} title={t.card.viewer.close} onClick={onClose}>
         ×
