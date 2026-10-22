@@ -80,11 +80,9 @@ export function TrackerStep({ state, fields, shape, choice, check, onChange }: T
 
   return (
     <>
-      <div className="settings__row project-add__profile-row">
-        <div className="settings__field">
-          <FieldHead label={t.wizard.profile} hint={t.wizard.profileHint} htmlFor="wizard-profile" />
-          <Select id="wizard-profile" className="settings__text project-add__profile" value={fields.profile} options={options} onChange={pick} />
-        </div>
+      <div className="settings__field">
+        <FieldHead label={t.wizard.profile} hint={t.wizard.profileHint} htmlFor="wizard-profile" />
+        <Select id="wizard-profile" className="settings__text project-add__profile" value={fields.profile} options={options} onChange={pick} />
         <span className="project-add__profile-state">
           {profiles.length === 0 ? (
             <button type="button" className="button button--small" aria-haspopup="dialog" onClick={() => setAdding(true)}>
@@ -130,7 +128,7 @@ interface ProjectFieldsProps {
 }
 
 function ProjectFields({ shape, kind, title, choice, fields, disabled, list, exact, onChange }: ProjectFieldsProps) {
-  if (disabled) return <TextField id="wizard-tracker-project" label={t.wizard.trackerField} value="" disabled grow onChange={() => {}} />
+  if (disabled) return <TextField id="wizard-tracker-project" label={t.wizard.trackerField} value="" disabled onChange={() => {}} />
   if (shape === 'key') {
     return (
       <TextField
@@ -169,7 +167,6 @@ function ProjectFields({ shape, kind, title, choice, fields, disabled, list, exa
         hint={t.wizard.repoPlaceHint}
         value={fields.trackerProject}
         placeholder={choice?.projectKey?.example}
-        grow
         options={list.map((each) => ({ value: each.key, label: each.name }))}
         onChange={(value) => onChange((before) => typedIn(before, 'trackerProject', value))}
       />
@@ -195,7 +192,6 @@ function ProjectFields({ shape, kind, title, choice, fields, disabled, list, exa
         hint={t.settings.trackerProjectOptional}
         value={fields.trackerProject}
         placeholder={choice?.projectKey?.example}
-        grow
         options={within.map((each) => ({ value: each.within!, label: each.name }))}
         onChange={(value) => onChange((before) => typedIn(before, 'trackerProject', value))}
       />
@@ -210,7 +206,6 @@ interface TextFieldProps {
   value: string
   placeholder?: string
   upper?: boolean
-  grow?: boolean
   disabled?: boolean
   /** The suggestions of the browser's own list. */
   options?: { value: string; label: string }[]
@@ -219,14 +214,14 @@ interface TextFieldProps {
   onChange: (value: string) => void
 }
 
-function TextField({ id, label, hint, value, placeholder, upper = false, grow = false, disabled = false, options = [], aside, onChange }: TextFieldProps) {
+function TextField({ id, label, hint, value, placeholder, upper = false, disabled = false, options = [], aside, onChange }: TextFieldProps) {
   return (
-    <div className={grow ? 'settings__field settings__grow' : 'settings__field'}>
+    <div className="settings__field">
       <FieldHead label={label} hint={hint} htmlFor={id} />
       <span className="project-add__input-row">
         <input
           id={id}
-          className={`settings__text settings__text--mono${upper ? ' project-add__key' : ''}`}
+          className={`settings__text settings__text--mono project-add__wide${upper ? ' project-add__upper' : ''}`}
           spellCheck={false}
           autoComplete="off"
           list={options.length > 0 ? `${id}-list` : undefined}
