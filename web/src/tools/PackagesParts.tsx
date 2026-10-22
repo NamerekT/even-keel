@@ -3,6 +3,7 @@ import type { KeyView, PackagesView } from '../../../src/state.js'
 import { say, t } from '../i18n/index.js'
 import { useCommand } from '../live/useCommand.js'
 import { HelpTip } from '../pages/settingsParts.js'
+import { useProjectLabel } from '../ui/ProjectLabel.js'
 import { Tipped } from '../ui/Tipped.js'
 import { importOffers, marketplaceCommand, type Dismissed } from './packageView.js'
 
@@ -21,6 +22,7 @@ function readDismissed(): Dismissed {
 export function ImportOffers({ view, projects }: { view: PackagesView; projects: string[] }) {
   const { send, sending, failure } = useCommand()
   const [dismissed, setDismissed] = useState(readDismissed)
+  const label = useProjectLabel()
   const offers = importOffers(view, projects, dismissed)
   if (offers.length === 0) return null
 
@@ -34,7 +36,7 @@ export function ImportOffers({ view, projects }: { view: PackagesView; projects:
     <div className="packages__offers">
       {offers.map(({ project, servers }) => (
         <div key={project} className="packages__offer">
-          <span>{t.packages.import(project, servers.join(', '))}</span>
+          <span>{t.packages.import(label(project), servers.join(', '))}</span>
           <HelpTip text={t.packages.importTip} />
           <button type="button" className="button button--small button--primary" disabled={sending} onClick={() => void send('packages/import', { project })}>
             {t.packages.importAdd}

@@ -6,7 +6,7 @@ import { changesOf, type FormValue } from './settings/changes.js'
 import { sharedRows, withRows, writeRows } from './settings/file.js'
 import { defaultOf } from './settings/registry.js'
 import { checkRows, resolve, type Values } from './settings/resolve.js'
-import type { ConfigView, OwnKey, ProjectDraft, ProjectForm, SharedForm, TrackerChoice } from './state.js'
+import type { ConfigView, FeedView, OwnKey, ProjectDraft, ProjectForm, SharedForm, TrackerChoice } from './state.js'
 import type { TallyMode } from './stats/mode.js'
 import { ADAPTERS } from './tracker/adapters.js'
 import type { TrackerAdapter } from './tracker/source.js'
@@ -27,18 +27,18 @@ function sharedValues(raw: unknown, adapters: Adapters): Values {
 /** The forms of the settings: what the config ends up with, per project and shared. */
 export function formsOf(config: EvenKeelConfig, adapters: Adapters = ADAPTERS): Pick<ConfigView, 'shared' | 'projects'> {
   const projects = Object.fromEntries(
-    Object.entries(config.projects).map(([key, repo]): [string, ProjectForm] => [
-      key,
+    Object.entries(config.projects).map(([id, repo]): [string, ProjectForm] => [
+      id,
       {
-        ...config.settings[key]!,
-        name: config.names[key] ?? null,
+        ...config.settings[id]!,
+        name: config.names[id] ?? null,
         repo,
-        tracker: config.trackers[key]!,
-        trackerProject: adapters[config.trackers[key]!]?.projectKey === undefined ? null : (config.trackerProjects[key] ?? null),
-        slot: config.slots[key] ?? 0,
-        color: config.colors[key] ?? null,
-        brief: config.briefs[key]!,
-        chain: config.rules[key]!,
+        tracker: config.trackers[id]!,
+        trackerProject: adapters[config.trackers[id]!]?.projectKey === undefined ? null : (config.trackerProjects[id] ?? null),
+        slot: config.slots[id] ?? 0,
+        color: config.colors[id] ?? null,
+        brief: config.briefs[id]!,
+        chain: config.rules[id]!,
       },
     ]),
   )
@@ -133,7 +133,7 @@ export function withNewProject(raw: unknown, draft: ProjectDraft, id: string, ad
   if (draft.slot > 0) entry.slot = draft.slot
   const next = { ...config, projects: [...(Array.isArray(config.projects) ? config.projects : []), entry] }
   // Written, so that the color stays when a project before it goes and frees a lower one.
-  const color = parseConfig(next, adapters).colors[entry.key as string]
+  const color = parseConfig(next, adapters).colors[id]
   if (color !== undefined) entry.color = color
   return next
 }
@@ -145,6 +145,37 @@ export function withoutProject(raw: unknown, id: string): Record<string, unknown
   const kept = projects.filter((entry) => !(isPlainObject(entry) && entry.id === id))
   if (kept.length === projects.length) throw fail('config.unknownProject', { key: id })
   return { ...config, projects: kept }
+}
+
+/** The project's entry and the raw config with it replaced by what `edit` makes of it. */
+function withEntry(raw: unknown, id: string, edit: (entry: Record<string, unknown>) => Record<string, unknown>): Record<string, unknown> {
+  const config = isPlainObject(raw) ? raw : {}
+  const projects = Array.isArray(config.projects) ? (config.projects as unknown[]) : []
+  const index = projects.findIndex((entry) => isPlainObject(entry) && entry.id === id)
+  if (index < 0) throw fail('config.unknownProject', { key: id })
+  return { ...config, projects: projects.map((entry, at) => (at === index ? edit(entry as Record<string, unknown>) : entry)) }
+}
+
+/** The raw config with the extra task feed appended to the project's entry (BTN-66); the feed is checked as the config parses. */
+export function withFeed(raw: unknown, id: string, feed: Omit<FeedView, 'place'> & { place: string | null }, adapters: Adapters = ADAPTERS): Record<string, unknown> {
+  return withEntry(raw, id, (entry) => {
+    const own = adapters[feed.tracker]?.projectKey?.key
+    const key = feed.key.trim()
+    const value = trackerValue(adapters, feed.tracker, feed.place, key)
+    const added = { id: feed.id, tracker: feed.tracker, key, ...(own === undefined || value === undefined ? {} : { [own]: value }) }
+    return { ...entry, feeds: [...(Array.isArray(entry.feeds) ? entry.feeds : []), added] }
+  })
+}
+
+/** The raw config without the project's feed of the id; a project left without feeds loses the key. */
+export function withoutFeed(raw: unknown, id: string, feedId: string): Record<string, unknown> {
+  return withEntry(raw, id, (entry) => {
+    const feeds = Array.isArray(entry.feeds) ? (entry.feeds as unknown[]) : []
+    const kept = feeds.filter((feed) => !(isPlainObject(feed) && feed.id === feedId))
+    if (kept.length === feeds.length) throw fail('config.unknownFeed', {})
+    const { feeds: _, ...rest } = entry
+    return kept.length === 0 ? rest : { ...rest, feeds: kept }
+  })
 }
 
 /** The raw config with the shared keys set from the form, by the same rule as `withProjectForm`, against the defaults. */

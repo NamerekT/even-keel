@@ -27,8 +27,10 @@ export interface Mail {
 
 /** What the page shows of a session's mailbox. */
 export interface SessionMail {
-  /** The session's hooks ask for mail: a message sent mid-turn reaches it. */
+  /** A message sent mid-turn reaches it: its hooks ask for mail, or it `steers`. */
   listens: boolean
+  /** A message sent mid-turn goes straight into the live session (`AgentEntry.steers`), not into the mailbox (BTN-291). */
+  steers: boolean
   mail: Mail[]
 }
 

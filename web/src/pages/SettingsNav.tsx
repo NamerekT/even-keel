@@ -1,6 +1,7 @@
 import { useRef } from 'react'
 import { t } from '../i18n/index.js'
 import { useNarrow } from '../layout/useNarrow.js'
+import { useBackdropClose } from '../ui/backdrop.js'
 import { MenuIcon } from '../ui/icons.js'
 import { UnsavedDot } from './settingsParts.js'
 
@@ -15,6 +16,7 @@ interface Props<T extends string> {
 export function SettingsNav<T extends string>({ groups, open, dirty, onOpen }: Props<T>) {
   const narrow = useNarrow()
   const drawer = useRef<HTMLDialogElement>(null)
+  const backdrop = useBackdropClose(drawer, () => drawer.current?.close())
   const current = groups.find((group) => group.id === open)!
 
   const list = (
@@ -56,7 +58,7 @@ export function SettingsNav<T extends string>({ groups, open, dirty, onOpen }: P
         ref={drawer}
         className="settings-drawer"
         aria-label={t.settings.groupsLabel}
-        onClick={(event) => event.target === drawer.current && drawer.current.close()}
+        {...backdrop}
       >
         <nav className="settings-drawer__body" aria-label={t.settings.groupsLabel}>
           <div className="settings-drawer__head">

@@ -200,6 +200,7 @@ function toView(
     checkpoint: summary.checkpoint !== null,
     waitingFor: present && agent.status === 'waiting' ? (agent.waitingFor ?? null) : null,
     startupDialog: present ? (agent.startupDialog ?? null) : null,
+    hungSince: present && agent.hungSince !== undefined ? new Date(agent.hungSince).toISOString() : null,
     asking: ask !== null,
     ask,
     apiError: summary.apiError?.text ?? null,

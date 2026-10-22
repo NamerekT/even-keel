@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto'
 import { readFileSync } from 'node:fs'
+import { shortId } from './chain/fix.js'
 import { excludedOf, sameName, splitsMilestones, type ChainRules } from './chain/rules.js'
 import type { Language } from './language.js'
 import { fail } from './notice/notice.js'
@@ -12,7 +13,7 @@ import { DEFAULT_CHANGELOG } from './changelog/file.js'
 import { changesOf, type FormValue } from './settings/changes.js'
 import { DEFAULT_BRANCH, DEFAULT_LANGUAGE } from './settings/defaults.js'
 import type { TallyMode } from './stats/mode.js'
-import { fileRows, isPlainObject, writeRows } from './settings/file.js'
+import { fileRows, isPlainObject, PROJECT_KEY, writeRows } from './settings/file.js'
 import { at, OWN_KEYS } from './settings/registry.js'
 import { checkRows, inherit, resolve, type ProjectRecord, type Resolved, type Values } from './settings/resolve.js'
 import { ADAPTERS } from './tracker/adapters.js'
@@ -36,24 +37,27 @@ export interface EvenKeelConfig {
   /** Names besides loopback and `EVEN_KEEL_HOST` the page may be reached by — a proxy's name, say. */
   allowedHosts: string[]
   /**
-   * The repository of each project by its key, in the order of the file. Inside the running service a project goes by its
-   * key; the key may change across restarts, so what outlives the process — the files of `state/`, the page's URL — names
-   * it by its id.
+   * The repository of each project by its id, in the order of the file. Every map of a project here and in the service
+   * names it by its id (a GUID that never changes, BTN-271): two projects may share a key.
    */
   projects: Record<string, string>
-  /** The id of each project by its key: a GUID that never changes. */
-  ids: Record<string, string>
+  /** The key of each project: what the page and the log show it by, and its tracker project unless one is named. */
+  keys: Record<string, string>
   /** The names projects are shown by, only those that have one. */
   names: Record<string, string>
   /** The shared rules, defaults filled in; a project's own keys go over them into `rules`. */
   chain: ChainRules
   rules: Record<string, ChainRules>
+  /** The rule keys each project sets itself; a tracker profile's rules go between the shared and these (`projectRules`). */
+  ownRules: Record<string, Partial<ChainRules>>
   slots: Record<string, number>
   /** The palette slot of each project (`colorsOf`): its own `color` or a free one; a project past the free ones has none. */
   colors: Record<string, number>
   tracker: string
   trackers: Record<string, string>
   trackerProjects: Record<string, string>
+  /** The extra task feeds of each project that has any (BTN-66), in the order of its entry. */
+  feeds: Record<string, Feed[]>
   /** The shared `brief`; `briefs` — what each project ends up with. `null` — left to the project's packages (`briefOn`). */
   brief: boolean | null
   briefs: Record<string, boolean | null>
@@ -94,6 +98,20 @@ export interface EvenKeelConfig {
   updates: Pick<UpdateSettings, 'check' | 'notify'>
 }
 
+/**
+ * An extra task feed of a project (BTN-66): a place of a tracker, maybe another tracker than the project's, whose tasks
+ * join the project's chain. Its tasks keep their tracker's ids — on GitHub `<key>-<number>` — and a task finds its feed
+ * by the prefix of its id, so no project or other feed gives that prefix (`feedPrefix`).
+ */
+export interface Feed {
+  /** A GUID: the tracker layer reads the feed as a project of this id. */
+  id: string
+  tracker: string
+  key: string
+  /** The place in its tracker by the tracker's project key (`github`, `linear`); none where the key names it. */
+  place?: string
+}
+
 export const RULE_KEYS = ['active', 'terminal', 'requiredLabels', 'excludedLabels', 'requiredMilestones', 'excludedMilestones'] as const
 /** Keys an older config had; the address now comes from `EVEN_KEEL_HOST` and `EVEN_KEEL_PORT`. */
 const IGNORED_KEYS = ['host', 'port'] as const
@@ -123,22 +141,55 @@ const rulesOf = (values: Values): ChainRules => ({
   excludedMilestones: values['chain.excludedMilestones'] as string[],
 })
 
+/** The rule keys the project's own rows set: a tracker profile's rules do not go over them. */
+const ownRulesOf = (own: Values): Partial<ChainRules> =>
+  Object.fromEntries(RULE_KEYS.flatMap((key) => (own[`chain.${key}`] === undefined ? [] : [[key, own[`chain.${key}`]]])))
+
 /**
  * The place in its tracker the project reads (`TrackerProjectKey.placeOf`), its key where the adapter has no such notion.
  * Projects with the same one read the tracker once.
  */
-export function readKeyOf(config: Pick<EvenKeelConfig, 'trackers' | 'trackerProjects'>, project: string, adapters: AdapterShapes = ADAPTERS): string {
+export function readKeyOf(config: Pick<EvenKeelConfig, 'keys' | 'trackers' | 'trackerProjects'>, project: string, adapters: AdapterShapes = ADAPTERS): string {
   return placeOf(config, project, adapters).read
 }
 
 /** The prefix of the project's task ids: its key, or the tracker's own where tasks keep the tracker's ids (`NAM` of `NAM-12`). */
-export function idPrefixOf(config: Pick<EvenKeelConfig, 'trackers' | 'trackerProjects'>, project: string, adapters: AdapterShapes = ADAPTERS): string {
+export function idPrefixOf(config: Pick<EvenKeelConfig, 'keys' | 'trackers' | 'trackerProjects'>, project: string, adapters: AdapterShapes = ADAPTERS): string {
   return placeOf(config, project, adapters).ids
 }
 
-function placeOf(config: Pick<EvenKeelConfig, 'trackers' | 'trackerProjects'>, project: string, adapters: AdapterShapes) {
+function placeOf(config: Pick<EvenKeelConfig, 'keys' | 'trackers' | 'trackerProjects'>, project: string, adapters: AdapterShapes) {
+  const key = config.keys[project] ?? project
   const place = adapters[config.trackers[project] ?? '']?.projectKey?.placeOf
-  return place === undefined ? { read: project, ids: project } : place(project, config.trackerProjects[project])
+  return place === undefined ? { read: key, ids: key } : place(key, config.trackerProjects[project])
+}
+
+/**
+ * What the log and the messages name a project by: its key, and where another project has the same key, the first of
+ * its name, its branch and the start of its id that no such project shares.
+ */
+export function projectLabel(config: Pick<EvenKeelConfig, 'keys' | 'names' | 'settings'>, project: string): string {
+  const key = config.keys[project]
+  if (key === undefined) return project
+  const others = Object.keys(config.keys).filter((other) => other !== project && config.keys[other] === key)
+  if (others.length === 0) return key
+  const apart = (pick: (each: string) => string | undefined) => {
+    const mine = pick(project)
+    return mine !== undefined && others.every((other) => pick(other) !== mine) ? mine : undefined
+  }
+  return `${key} (${apart((each) => config.names[each]) ?? apart((each) => config.settings[each]?.branch) ?? shortId(project)})`
+}
+
+/** The first project of each key, in the order of the file: Tally and the stats know a project by its key. */
+export function firstByKey(config: Pick<EvenKeelConfig, 'keys'>): Record<string, string> {
+  const found: Record<string, string> = {}
+  for (const [project, key] of Object.entries(config.keys)) found[key] ??= project
+  return found
+}
+
+/** `projectLabel` of every project. */
+export function projectLabels(config: Pick<EvenKeelConfig, 'keys' | 'names' | 'settings'>): Record<string, string> {
+  return Object.fromEntries(Object.keys(config.keys).map((project) => [project, projectLabel(config, project)]))
 }
 
 /**
@@ -146,26 +197,58 @@ function placeOf(config: Pick<EvenKeelConfig, 'trackers' | 'trackerProjects'>, p
  * project merges into another project that merges into none.
  */
 function checkShared(config: EvenKeelConfig, adapters: AdapterShapes): EvenKeelConfig {
+  const label = (project: string) => projectLabel(config, project)
   const seen = new Map<string, string[]>()
   for (const project of Object.keys(config.projects)) {
     const shared = `${config.trackers[project]}\u0000${readKeyOf(config, project, adapters)}`
     const others = seen.get(shared) ?? []
+    const elsewhere = keyElsewhere(config, project, others, adapters)
+    if (elsewhere !== undefined) {
+      throw fail('config.keyElsewhere', { key: config.keys[project]!, project: label(project), other: label(elsewhere), trackerProject: config.trackerProjects[project] ?? '' })
+    }
     const other = others.find((each) => !splitsMilestones(config.rules[each]!, config.rules[project]!))
-    if (other !== undefined) throw fail('config.trackerProjectShared', { project, other, trackerProject: readKeyOf(config, project, adapters) })
+    if (other !== undefined) throw fail('config.trackerProjectShared', { project: label(project), other: label(other), trackerProject: readKeyOf(config, project, adapters) })
     seen.set(shared, [...others, project])
   }
   for (const [project, { mergeInto: into }] of Object.entries(config.settings)) {
-    if (into !== null && (into === project || config.settings[into] === undefined || config.settings[into].mergeInto !== null)) throw fail('config.mergeInto', { project, into })
+    if (into !== null && (into === project || config.settings[into] === undefined || config.settings[into].mergeInto !== null)) {
+      throw fail('config.mergeInto', { project: label(project), into: config.keys[into] === undefined ? into : label(into) })
+    }
   }
+  checkFeeds(config, adapters)
   return config
 }
 
+/**
+ * Another project of the same place with the key but another tracker project: on a tracker whose task ids are made of
+ * the key (no `placeOf`, GitHub) the ids of its two repositories would clash.
+ */
+export function keyElsewhere(
+  config: Pick<EvenKeelConfig, 'trackers' | 'trackerProjects'>,
+  project: string,
+  others: readonly string[],
+  adapters: AdapterShapes = ADAPTERS,
+): string | undefined {
+  if (adapters[config.trackers[project] ?? '']?.projectKey?.placeOf !== undefined) return undefined
+  return others.find((other) => config.trackerProjects[other] !== config.trackerProjects[project])
+}
+
+/**
+ * The project `mergeInto` names: by its id, or by its key where no other project but the one merging has it — a release
+ * project often shares its key with the project it merges into. Anything else stays as written for `checkShared`.
+ */
+export function mergeTargetOf(records: readonly Pick<ProjectRecord, 'id' | 'key'>[], self: string, into: string | null): string | null {
+  if (into === null || records.some((record) => record.id === into)) return into
+  const found = records.filter((record) => record.key === into && record.id !== self)
+  return found.length === 1 ? found[0]!.id : into
+}
+
 function configOf(records: ProjectRecord[], { shared, own, values }: Resolved, adapters: AdapterShapes): EvenKeelConfig {
-  const byKey = <T>(pick: (record: ProjectRecord, values: Values, own: Values) => T | undefined): Record<string, T> =>
+  const byId = <T>(pick: (record: ProjectRecord, values: Values, own: Values) => T | undefined): Record<string, T> =>
     Object.fromEntries(
       records.flatMap((record) => {
         const value = pick(record, values[record.id]!, own[record.id]!)
-        return value === undefined ? [] : [[record.key, value]]
+        return value === undefined ? [] : [[record.id, value]]
       }),
     )
   const context = { window: shared['context.window'], warn: shared['context.warn'], danger: shared['context.danger'] } as ContextScale
@@ -174,22 +257,28 @@ function configOf(records: ProjectRecord[], { shared, own, values }: Resolved, a
   const promptLanguage = (values: Values) => (values.promptLanguage as Language | undefined) ?? language ?? DEFAULT_LANGUAGE
   return {
     allowedHosts: shared.allowedHosts as string[],
-    projects: byKey((record) => record.repo),
-    ids: byKey((record) => record.id),
-    names: byKey((record) => record.name ?? undefined),
+    projects: byId((record) => record.repo),
+    keys: byId((record) => record.key),
+    names: byId((record) => record.name ?? undefined),
     chain: rulesOf(shared),
-    rules: byKey((record, project) => checkRules(rulesOf(project), record.key)),
-    slots: byKey((_, { slot }) => (slot === true ? 1 : typeof slot === 'number' ? slot : undefined)),
+    rules: byId((record, project) => checkRules(rulesOf(project), record.key)),
+    ownRules: byId((_, __, ownRows) => ownRulesOf(ownRows)),
+    slots: byId((_, { slot }) => (slot === true ? 1 : typeof slot === 'number' ? slot : undefined)),
     colors: colorsOf(
-      records.map((record) => record.key),
-      byKey((_, { color }) => color as number | undefined),
+      records.map((record) => record.id),
+      byId((_, { color }) => color as number | undefined),
     ),
     tracker: shared.tracker as string,
-    trackers: byKey((_, project) => project.tracker as string),
-    trackerProjects: byKey((record, project) => trackerProjectOf(record, project.tracker as string, adapters)),
-    brief: shared.brief as boolean | null,
-    briefs: byKey((_, project) => project.brief as boolean | null),
-    settings: byKey((record, project, ownRows) => ({ ...settingsOf(record, project, ownRows), promptLanguage: promptLanguage(project) })),
+    trackers: byId((_, project) => project.tracker as string),
+    trackerProjects: byId((record, project) => trackerProjectOf(record, project.tracker as string, adapters)),
+    feeds: feedsOf(records, adapters),
+    brief:shared.brief as boolean | null,
+    briefs: byId((_, project) => project.brief as boolean | null),
+    settings: byId((record, project, ownRows) => ({
+      ...settingsOf(record, project, ownRows),
+      mergeInto: mergeTargetOf(records, record.id, project.mergeInto as string | null),
+      promptLanguage: promptLanguage(project),
+    })),
     context,
     provider: shared.provider as string,
     models: shared.models as Record<string, string>,
@@ -262,15 +351,115 @@ function settingsOf(record: ProjectRecord, values: Values, own: Values): Omit<Pr
 }
 
 function trackerProjectOf(record: ProjectRecord, tracker: string, adapters: AdapterShapes): string | undefined {
+  return placeOfEntry(record.trackerProjects, tracker, record.key, adapters)
+}
+
+/** The tracker's project key of an entry (a project's, a feed's), checked; `undefined` where the tracker has none or it is optional and not given. */
+function placeOfEntry(fields: Record<string, unknown>, tracker: string, where: string, adapters: AdapterShapes): string | undefined {
   const projectKey = adapters[tracker]?.projectKey
   if (projectKey === undefined) return undefined
-  const raw = record.trackerProjects[projectKey.key]
+  const raw = fields[projectKey.key]
   if (projectKey.optional && raw === undefined) return undefined
-  if (typeof raw !== 'string' || !projectKey.pattern.test(raw.trim())) throw fail('config.trackerProject', { where: `${record.key}.${projectKey.key}`, example: projectKey.example })
+  if (typeof raw !== 'string' || !projectKey.pattern.test(raw.trim())) throw fail('config.trackerProject', { where: `${where}.${projectKey.key}`, example: projectKey.example })
   return raw.trim()
 }
 
-function checkRules(rules: ChainRules, project: string): ChainRules {
+/** Each project's feeds, checked by their trackers; a project without any is left out. A feed's id is unique among projects and feeds. */
+function feedsOf(records: ProjectRecord[], adapters: AdapterShapes): Record<string, Feed[]> {
+  const ids = new Map(records.map((record) => [record.id, record.key]))
+  const feedOf = (raw: Record<string, unknown>, where: string): Feed => {
+    const { id, tracker, key } = raw
+    if (typeof id !== 'string' || id.trim() === '') throw fail('config.feedField', { where, field: 'id' })
+    const first = ids.get(id)
+    if (first !== undefined) throw fail('config.projectTwice', { field: 'id', value: JSON.stringify(id), first, second: where })
+    ids.set(id, where)
+    if (typeof tracker !== 'string') throw fail('config.trackerName', { where: `${where}.tracker` })
+    if (adapters[tracker] === undefined) throw fail('config.trackerUnknown', { where: `${where}.tracker`, name: tracker, known: Object.keys(adapters) })
+    if (typeof key !== 'string' || !PROJECT_KEY.test(key)) throw fail('config.projectKey', { where: `${where}.key`, value: String(JSON.stringify(key)) })
+    const place = placeOfEntry(raw, tracker, where, adapters)
+    return { id, tracker, key, ...(place === undefined ? {} : { place }) }
+  }
+  return Object.fromEntries(
+    records.flatMap((record) => (record.feeds === undefined ? [] : [[record.id, record.feeds.map((raw, index) => feedOf(raw, `${record.key}.feeds[${index}]`))]])),
+  )
+}
+
+/** What the tracker layer reads (BTN-66): every project, and every feed as a project of its own id on its owner's repository. */
+export interface Readers extends Pick<EvenKeelConfig, 'projects' | 'keys' | 'tracker' | 'trackers' | 'trackerProjects'> {
+  /** The project of each feed, by the feed's id. */
+  owners: Record<string, string>
+}
+
+const readersCache = new WeakMap<object, Readers>()
+
+/** `Readers` of the config, made once per config object. */
+export function readersOf(config: Pick<EvenKeelConfig, 'projects' | 'keys' | 'tracker' | 'trackers' | 'trackerProjects' | 'feeds'>): Readers {
+  const cached = readersCache.get(config)
+  if (cached !== undefined) return cached
+  const readers: Readers = {
+    projects: { ...config.projects },
+    keys: { ...config.keys },
+    tracker: config.tracker,
+    trackers: { ...config.trackers },
+    trackerProjects: { ...config.trackerProjects },
+    owners: {},
+  }
+  for (const [project, feeds] of Object.entries(config.feeds)) {
+    for (const feed of feeds) {
+      readers.owners[feed.id] = project
+      readers.projects[feed.id] = config.projects[project]!
+      readers.keys[feed.id] = feed.key
+      readers.trackers[feed.id] = feed.tracker
+      if (feed.place !== undefined) readers.trackerProjects[feed.id] = feed.place
+    }
+  }
+  readersCache.set(config, readers)
+  return readers
+}
+
+/** The project a reader serves: a feed's owner, a project itself. */
+export const ownerOf = (readers: Pick<Readers, 'owners'>, reader: string): string => readers.owners[reader] ?? reader
+
+/** The project and its feeds, in order: whose lists make its chain's. */
+export const readerIds = (config: Pick<EvenKeelConfig, 'feeds'>, project: string): string[] => [project, ...(config.feeds[project] ?? []).map((feed) => feed.id)]
+
+/** The reader of a task of the project: the feed whose ids its id carries, else the project itself. */
+export function readerOf(config: Pick<EvenKeelConfig, 'projects' | 'keys' | 'tracker' | 'trackers' | 'trackerProjects' | 'feeds'>, project: string, task: string, adapters: AdapterShapes = ADAPTERS): string {
+  const feeds = config.feeds[project]
+  if (feeds === undefined) return project
+  const prefix = task.slice(0, task.lastIndexOf('-'))
+  const readers = readersOf(config)
+  return feeds.find((feed) => idPrefixOf(readers, feed.id, adapters) === prefix)?.id ?? project
+}
+
+/**
+ * A feed's ids and its place are its own: no project or other feed gives its prefix — a task finds its feed by it — or
+ * reads its place, or a task would enter the chain twice.
+ */
+function checkFeeds(config: EvenKeelConfig, adapters: AdapterShapes): void {
+  const readers = readersOf(config)
+  const label = (reader: string) => (readers.owners[reader] === undefined ? projectLabel(config, reader) : `${projectLabel(config, readers.owners[reader])} · ${readers.keys[reader]}`)
+  const all = Object.keys(readers.projects)
+  // A tracker without `placeOf` (GitHub) reads by the key: its place is the repository the key names.
+  const place = (reader: string) => {
+    const tracker = readers.trackers[reader]!
+    const where = adapters[tracker]?.projectKey?.placeOf === undefined ? (readers.trackerProjects[reader] ?? readers.keys[reader]) : readKeyOf(readers, reader, adapters)
+    return `${tracker}\u0000${where}`
+  }
+  for (const [project, feeds] of Object.entries(config.feeds)) {
+    for (const feed of feeds) {
+      const prefix = idPrefixOf(readers, feed.id, adapters)
+      const others = all.filter((other) => other !== feed.id)
+      const same = others.find((other) => idPrefixOf(readers, other, adapters) === prefix)
+      if (same !== undefined) throw fail('config.feedPrefix', { project: projectLabel(config, project), prefix, other: label(same) })
+      const twice = others.find((other) => place(other) === place(feed.id))
+      if (twice !== undefined) throw fail('config.feedPlace', { project: projectLabel(config, project), other: label(twice) })
+    }
+  }
+}
+
+/** The rules, or the first name they put on both sides; `project` — what the message names the project by. */
+export function checkRules(rules: ChainRules, project: string): ChainRules {
   const clash = (a: string[], b: string[]) => a.find((name) => b.some((other) => sameName(name, other)))
   const status = clash(rules.active ?? [], rules.terminal ?? [])
   if (status !== undefined) throw fail('config.statusBoth', { project, status })

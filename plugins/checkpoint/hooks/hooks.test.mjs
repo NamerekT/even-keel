@@ -147,3 +147,60 @@ describe.each(Object.entries(agents))("hooks on %s input", (_agent, input) => {
     expect(posted.get(`/api/sessions/${session}/mail`)).toHaveLength(before);
   });
 });
+
+// OpenCode's plugin as OpenCode calls it, in its own process: `tool.execute.after` with the call and its mutable output.
+describe("the OpenCode plugin", () => {
+  let after;
+  let saved;
+  beforeAll(async () => {
+    saved = process.env.EVEN_KEEL_URL;
+    process.env.EVEN_KEEL_URL = url;
+    const { server } = await import("../opencode/checkpoint.mjs");
+    after = (await server({}))["tool.execute.after"];
+  });
+  afterAll(() => {
+    if (saved === undefined) delete process.env.EVEN_KEEL_URL;
+    else process.env.EVEN_KEEL_URL = saved;
+  });
+
+  /** What OpenCode 1.18.25 passes for a shell call, as seen live. */
+  const call = async (session) => {
+    const output = { title: "echo hello", output: "hello\n", metadata: { output: "hello\n", exit: 0, truncated: false } };
+    await after({ tool: "bash", sessionID: session, callID: "call_1", args: { command: "echo hello" } }, output);
+    return output;
+  };
+
+  it("puts the nudge after the tool's output once the context passes the threshold, once per mark", async () => {
+    const session = sessionOf();
+    answers.set(`/api/sessions/${session}/checkpoint`, checkpoint(120_000));
+    expect((await call(session)).output).toBe("hello\n");
+    answers.set(`/api/sessions/${session}/checkpoint`, checkpoint(205_000));
+    const nudged = await call(session);
+    expect(nudged.output).toMatch(/^hello\n\n\n<system-reminder>\nContext is now ~205k tokens[\s\S]*\n<\/system-reminder>$/);
+    expect(nudged.metadata.evenKeel).toBeUndefined();
+    expect((await call(session)).output).toBe("hello\n");
+  });
+
+  it("delivers the chat's message after the output and keeps it in the call's metadata", async () => {
+    const session = sessionOf();
+    const mail = `/api/sessions/${session}/mail`;
+    answers.set(mail, { message: "Use the other parser." });
+    const delivered = await call(session);
+    expect(delivered.output).toBe("hello\n\n\n<system-reminder>\nUse the other parser.\n</system-reminder>");
+    expect(delivered.metadata).toEqual({ output: "hello\n", exit: 0, truncated: false, evenKeel: { mail: "Use the other parser." } });
+    expect(posted.get(mail)).toEqual([{ event: "PostToolUse" }]);
+  });
+
+  it("leaves the call alone for a session Even Keel did not start, when nothing waits, and without Even Keel", async () => {
+    const session = sessionOf();
+    expect(await call(session)).toEqual({ title: "echo hello", output: "hello\n", metadata: { output: "hello\n", exit: 0, truncated: false } });
+    answers.set(`/api/sessions/${session}/mail`, { message: null });
+    expect((await call(session)).output).toBe("hello\n");
+    process.env.EVEN_KEEL_URL = "http://127.0.0.1:9";
+    try {
+      expect((await call(session)).output).toBe("hello\n");
+    } finally {
+      process.env.EVEN_KEEL_URL = url;
+    }
+  });
+});

@@ -1,5 +1,5 @@
 import { isLanguage, type Language } from '../../../src/language.js'
-import { renderNotice, type Notice } from '../../../src/notice/notice.js'
+import { renderNotice, withLabels, type Notice } from '../../../src/notice/notice.js'
 import { en } from './en.js'
 import { ru, type Messages } from './ru.js'
 
@@ -16,9 +16,16 @@ export function setLanguage(next: Language): void {
   if (typeof document !== 'undefined') document.documentElement.lang = next
 }
 
+let labels: Readonly<Record<string, string>> = {}
+
+// What a server message shows a project by: the service names it by id (BTN-271).
+export function setProjectLabels(next: Readonly<Record<string, string>>): void {
+  labels = next
+}
+
 // A server message in the page's language.
 export function say(notice: Notice): string {
-  return renderNotice(notice, t.notice)
+  return withLabels(renderNotice(notice, t.notice), labels)
 }
 
 // The configured language wins; otherwise the first browser language the page knows, English if none.

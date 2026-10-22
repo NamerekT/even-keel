@@ -38,7 +38,7 @@ describe('the settings in the database', { timeout: 30_000 }, () => {
     await prepare()
     expect((await config()).parallel).toBe(2)
     expect((await config()).updates).toEqual({ check: true, notify: false })
-    expect((await config()).projects).toEqual({ ABC: 'C:\\abc' })
+    expect((await config()).projects).toEqual({ 'id-abc': 'C:\\abc' })
     expect(await stateValue(db, 'updates.dismissed')).toBe('0.2.0')
     expect(existsSync(file)).toBe(false)
     expect(JSON.parse(readFileSync(`${file}${IMPORTED_SUFFIX}`, 'utf8')).parallel).toBe(2)
@@ -97,7 +97,7 @@ describe('the settings in the database', { timeout: 30_000 }, () => {
     await prepare()
     await importConfig(db, { parallel: 3, unattended: true, projects: [abc, { id: 'id-xyz', key: 'XYZ', repo: 'C:\\xyz', prompt: 'Hi.' }] })
     await importConfig(db, { projects: [abc] })
-    expect(await config()).toMatchObject({ parallel: 1, unattended: false, projects: { ABC: 'C:\\abc' } })
+    expect(await config()).toMatchObject({ parallel: 1, unattended: false, projects: { 'id-abc': 'C:\\abc' } })
     expect((await db.query('select * from setting_values')).rows).toEqual([])
   })
 

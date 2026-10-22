@@ -66,6 +66,7 @@ export const opencode: AgentAdapter = {
       logout: (home) => cli.logout(home),
       installed: () => findBinary(bin(), env()),
       version: () => cli.version(env()),
+      write: (home, turn) => cli.write(home, turn),
       contextWindow: async (home, model) => windowOf(await readFile(join(home.dir, 'cache', 'opencode', 'models.json'), 'utf8').catch(() => ''), model),
     }
   },

@@ -3,6 +3,7 @@ import { createServer, type IncomingMessage, type Server, type ServerResponse } 
 import { extname, join, normalize, sep } from 'node:path'
 import { Readable } from 'node:stream'
 import { pipeline } from 'node:stream/promises'
+import { isTransport, type Transport } from './account/transport.js'
 import { formatEvent, type EventHub } from './events.js'
 import { guard, tokenForm, type GuardSettings } from './guard.js'
 import { englishOf, fail, noticeOf, type Notice, type NoticeCode } from './notice/notice.js'
@@ -34,7 +35,7 @@ import { OWN_KEYS } from './settings/registry.js'
 import { CLAUDE } from './claude/name.js'
 import type { Language } from './language.js'
 import { HOOK_EVENTS, type MailEvent } from './sessions/mail.js'
-import type { CacheTtl, ChangelogOp, ChangelogView, CheckpointShares, CheckResult, CiSettings, ContextScale, OwnValues, ProjectCheck, ProjectDraft, ProjectForm, SharedForm, StatsConfig } from './state.js'
+import type { CacheTtl, ChangelogOp, ChangelogView, CheckpointShares, CheckResult, CiSettings, ContextScale, FeedDraft, OwnValues, ProjectCheck, ProjectDraft, ProjectForm, SharedForm, StatsConfig } from './state.js'
 import type { CompareSettings } from './stats/rules.js'
 import { CI_KINDS, type CiKind } from './ci/model.js'
 import type { Calibration } from './stats/calibration.js'
@@ -44,6 +45,7 @@ import { isTallyMode, type TallyMode } from './stats/mode.js'
 import type { StatsSteps } from './stats/steps.js'
 import type { TaskCard } from './tracker/card.js'
 import type { TaskFile, TrackerProject, TrackerVocabulary } from './tracker/source.js'
+import { PROFILE_RULE_KEYS, type ProfileRules } from './profiles/model.js'
 import { profileDraftOf } from './profiles/request.js'
 import type { ProfileDraft } from './profiles/service.js'
 
@@ -90,6 +92,8 @@ export interface AccountControl {
   switchApp(app: string, account: string): Promise<void>
   remove(account: string): Promise<void>
   keep(account: string): void
+  /** How the account's new Claude sessions run; `null` — by the default of its kind (`transportOf`). */
+  setTransport(account: string, transport: Transport | null): void
   code(code: string): void
   cancel(): void
 }
@@ -134,6 +138,12 @@ export interface SettingsControl {
   add(draft: ProjectDraft): void
   /** Drops the project from the config; refuses while its chain, sessions or places still hold it. */
   remove(project: string): void
+  /** Adds an extra task feed to the project (BTN-66); refuses one the config would not parse. */
+  addFeed(project: string, draft: FeedDraft): void
+  /** Drops the project's feed; the archive keeps the closed tasks it gave. */
+  removeFeed(project: string, feed: string): void
+  /** `null` — the feed reads on its tracker's default profile; refused once the chain has started its tasks. */
+  linkFeed(project: string, feed: string, profile: string | null): void
   /** The toast's "Close": no toast for this version, a later one shows it again. */
   dismissUpdate(version: string): void
   /** The toast's "Don't show again": no toasts about new versions until the switch on /settings. */
@@ -180,6 +190,8 @@ export interface ProfilesControl {
   save(draft: ProfileDraft & { name: string }): Promise<string>
   remove(id: string): void
   setDefault(id: string): void
+  /** The chain rules of the profile's projects (BTN-66); refused when one of them would clash. */
+  setRules(id: string, rules: ProfileRules): void
   /** `null` — the project runs on its tracker's default profile. */
   link(project: string, profile: string | null): void
   projects(id: string, query: string): Promise<TrackerProject[]>
@@ -257,6 +269,10 @@ const COMMANDS: Record<string, Command> = {
   'project/settings': ({ settings }, body) => settings.save(projectOf(body), projectFormOf(body), projectFormOf(baseOf(body))),
   'project/add': ({ settings }, body) => settings.add(draftOf(body)),
   'project/remove': ({ settings }, body) => settings.remove(projectOf(body)),
+  'project/feed/add': ({ settings }, body) => settings.addFeed(projectOf(body), feedDraftOf(body)),
+  'project/feed/remove': ({ settings }, body) => settings.removeFeed(projectOf(body), textOf(body.feed, 'feed')),
+  'project/feed/profile': ({ settings }, body) =>
+    settings.linkFeed(projectOf(body), textOf(body.feed, 'feed'), body.profile === null ? null : textOf(body.profile, 'profile')),
   settings: ({ settings }, body) => settings.saveShared(sharedFormOf(body), sharedFormOf(baseOf(body))),
   'updates/dismiss': ({ settings }, body) => settings.dismissUpdate(textOf(body.version, 'version')),
   'updates/mute': ({ settings }) => settings.muteUpdates(),
@@ -272,6 +288,7 @@ const COMMANDS: Record<string, Command> = {
   'account/app': ({ account }, body) => account.switchApp(appOf(body), accountOf(body)),
   'account/remove': ({ account }, body) => account.remove(accountOf(body)),
   'account/keep': ({ account }, body) => account.keep(accountOf(body)),
+  'account/transport': ({ account }, body) => account.setTransport(accountOf(body), transportOfBody(body)),
   'account/code': ({ account }, body) => account.code(codeOf(body)),
   'account/cancel': ({ account }) => account.cancel(),
   'packages/install': ({ packages }, body) => packages.install(nameOf(body)),
@@ -291,6 +308,7 @@ const COMMANDS: Record<string, Command> = {
   'stats/tally': ({ tally }, body) => tally.set(tallyModeOf(body.mode), tallyDraftOf(body.server)),
   'profiles/remove': ({ profiles }, body) => profiles.remove(textOf(body.id, 'id')),
   'profiles/default': ({ profiles }, body) => profiles.setDefault(textOf(body.id, 'id')),
+  'profiles/rules': ({ profiles }, body) => profiles.setRules(textOf(body.id, 'id'), profileRulesOf(body.rules)),
   'profiles/link': ({ profiles }, body) => profiles.link(projectOf(body), body.profile === null ? null : textOf(body.profile, 'profile')),
 }
 
@@ -742,6 +760,11 @@ function draftOf(body: Record<string, unknown>): ProjectDraft {
   return { repo: text('repo'), branch: text('branch'), key: text('key'), name: text('name'), tracker: text('tracker'), trackerProject: text('trackerProject'), profile, slot: slot as number }
 }
 
+function feedDraftOf(body: Record<string, unknown>): FeedDraft {
+  const optional = (field: 'place' | 'profile') => (body[field] === undefined || body[field] === null ? null : textOf(body[field], field))
+  return { tracker: textOf(body.tracker, 'tracker'), key: textOf(body.key, 'key'), place: optional('place'), profile: optional('profile') }
+}
+
 function projectFormOf(body: Record<string, unknown>): ProjectForm {
   const { name, prompt, beforeStart, check, afterGreen, ci, remoteProfiles, pullRequests, mergeInto, fillMilestone, changelog, provider, models, accounts, modelLabels, branch, repo, tracker, trackerProject, slot, color, brief, chain } = body
   if (name !== undefined && name !== null && typeof name !== 'string') throw fail('request.required', { field: 'name' })
@@ -868,6 +891,18 @@ function rulesOf(raw: unknown): ChainRules {
   }
 }
 
+/** A profile's rules: only the keys sent, a status list may be `null` (by the status category). */
+function profileRulesOf(raw: unknown): ProfileRules {
+  const sent = mapOf(raw, 'rules', () => true)
+  const rules: ProfileRules = {}
+  for (const key of PROFILE_RULE_KEYS) {
+    const value = sent[key]
+    if (value === undefined) continue
+    Object.assign(rules, { [key]: value === null && (key === 'active' || key === 'terminal') ? null : linesOf(value, 'rules') })
+  }
+  return rules
+}
+
 function linesOf(raw: unknown, field: string): string[] {
   if (!Array.isArray(raw) || !raw.every((line) => typeof line === 'string')) throw fail('request.required', { field })
   return raw
@@ -908,6 +943,12 @@ function ciOf(raw: unknown): CiSettings {
 function accountOf(body: Record<string, unknown>): string {
   if (typeof body.account !== 'string' || body.account === '') throw fail('request.required', { field: 'account' })
   return body.account
+}
+
+function transportOfBody(body: Record<string, unknown>): Transport | null {
+  if (body.transport === null) return null
+  if (!isTransport(body.transport)) throw fail('request.required', { field: 'transport' })
+  return body.transport
 }
 
 function appOf(body: Record<string, unknown>): string {

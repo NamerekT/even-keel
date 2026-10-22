@@ -1,7 +1,7 @@
 import { fakeTask as trackerTask } from '../../../src/tracker/fixture.js'
 import type { StatusCategory, Task } from '../../../src/tracker/model.js'
 import type { FeedLine } from '../../../src/sessions/transcript.js'
-import type { SessionView } from '../../../src/state.js'
+import type { ProjectTask, SessionView } from '../../../src/state.js'
 import { FAKE_ASK } from './fakeChat.js'
 
 export function task(
@@ -12,8 +12,8 @@ export function task(
   blockedBy: string[] = [],
   milestone: string | null = null,
   extra: Partial<Task> = {},
-): Task {
-  return trackerTask(id, {
+): ProjectTask {
+  const made = trackerTask(id, {
     title,
     status: { name, category },
     blockedBy,
@@ -21,6 +21,8 @@ export function task(
     priority: 'medium',
     ...extra,
   })
+  // The fake projects' ids are their keys.
+  return { ...made, project: id.replace(/-\d+$/, '') }
 }
 
 export const minutes = (count: number) => count / 60
@@ -50,6 +52,7 @@ export function session(task: string, contextTokens: number, lamp: SessionView['
     checkpoint: false,
     waitingFor: lamp === 'waiting' && task !== 'ABC-5' ? 'permission' : null,
     startupDialog: null,
+    hungSince: null,
     asking: lamp === 'waiting' && task === 'ABC-5',
     ask: lamp === 'waiting' && task === 'ABC-5' ? FAKE_ASK : null,
     apiError: null,

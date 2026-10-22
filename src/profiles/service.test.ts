@@ -206,6 +206,44 @@ describe('Profiles', { timeout: 60_000 }, () => {
     expect(() => profiles.link(ABC, 'missing')).toThrow(NoticeError)
   })
 
+  it("links a feed apart from the projects, and a feed on a profile keeps it from going (BTN-66)", async () => {
+    const FEED = 'feed-1'
+    const profiles = make(
+      { profiles: [profile('p1', 'abc', true), profile('p2', 'org', false)], links: {} },
+      { projects: () => ({ [ABC]: { key: 'ABC', kind: 'fake' }, [FEED]: { key: 'ABCF', kind: 'fake' } }) },
+    )
+    profiles.link(FEED, 'p2', true)
+    expect(profiles.current()).toMatchObject({ links: {}, feeds: { [FEED]: 'p2' } })
+    expect(() => profiles.remove('p2')).toThrow(NoticeError)
+    profiles.link(FEED, null, true)
+    expect(profiles.current().feeds).toEqual({})
+  })
+
+  it('sets the chain rules of a profile once its projects take them, and shows them (BTN-66)', async () => {
+    const refused: string[] = []
+    const profiles = make(
+      { profiles: [profile('p1', 'abc', true)], links: {} },
+      {
+        checkRules: (_set, id, rules) => {
+          if (rules.terminal?.includes('Todo')) {
+            refused.push(id)
+            throw new Error('clash')
+          }
+        },
+      },
+    )
+    profiles.setRules('p1', { active: [' Open ', ''], terminal: ['Closed'] })
+    expect(profiles.current().profiles[0]!.rules).toEqual({ active: ['Open'], terminal: ['Closed'] })
+    expect(profiles.view().profiles[0]).toMatchObject({ rules: { active: ['Open'], terminal: ['Closed'] }, projectIds: [ABC, XYZ] })
+    expect(() => profiles.setRules('p1', { terminal: ['Todo'] })).toThrow('clash')
+    expect(refused).toEqual(['p1'])
+    profiles.setRules('p1', {})
+    expect(profiles.current().profiles[0]).toEqual(profile('p1', 'abc', true))
+    await writes.settled()
+    expect((await readProfiles(db)).profiles[0]).toEqual(profile('p1', 'abc', true))
+    expect(() => profiles.setRules('missing', {})).toThrow(NoticeError)
+  })
+
   it('a recheck marks a refused profile and the projects that run on it', async () => {
     const profiles = make({ profiles: [profile('p1', 'bad', true), profile('p2', 'abc', false)], links: { [XYZ]: 'p2' } })
     await profiles.recheck()

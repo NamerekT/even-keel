@@ -2,6 +2,7 @@ import type { CiRun } from '../ci/model.js'
 import type { CiVerdict } from '../ci/verdict.js'
 import type { NewTask } from '../tracker/source.js'
 import { done, setup, task } from './dispatcher.fixture.js'
+import { fixName } from './fix.js'
 import type { AfterGreenRun, MainCheckDeps, MainCheckRun, MainFailure, MainPush } from './model.js'
 
 export const failedRun: CiRun = {
@@ -46,8 +47,11 @@ export function fakeMain(wait: number | null = null) {
     /** How the run of `commands.afterGreen` on a commit ends; done when missing, a promise holds it. */
     afterRuns: {} as Record<string, AfterGreenRun | Promise<AfterGreenRun>>,
     ran: [] as string[],
+    /** The other projects of a project's remote and main branch (BTN-217); none when missing. */
+    peers: {} as Record<string, string[]>,
   }
   const deps: MainCheckDeps = {
+    peers: (project) => ci.peers[project] ?? [],
     head: async () => heads.shift() ?? null,
     verdict: () => ci.verdict,
     waitMs: () => ci.wait,
@@ -74,6 +78,7 @@ export function fakeMain(wait: number | null = null) {
       return ci.runs[commit] ?? { state: 'green' }
     },
     fixTask: () => ci.fixTask,
+    fixName,
     merged: async (_project, id) => ci.merged.has(id),
     afterGreen: () => ci.afterGreen,
     runAfterGreen: async (project, commit) => {

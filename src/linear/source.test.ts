@@ -45,8 +45,10 @@ const notFound = (what: string) => ({
 
 const notTerminal = (status: TaskStatus) => status.category !== 'Won' && status.category !== 'Lost'
 
-async function connect(replies: Reply[], projects: Record<string, string> = {}) {
+/** `values` — the `linear` value of each project by its key; each project's id is its key here. */
+async function connect(replies: Reply[], values: Record<string, string> = {}) {
   const fake = fakeFetch([ORGANIZATION, ...replies])
+  const projects = Object.fromEntries(Object.entries(values).map(([key, value]) => [key, { key, value }]))
   const source = await connectLinear({ token: 'lin_api_example', projects }, 5_000, fake.fetch)
   return { source, ...fake }
 }

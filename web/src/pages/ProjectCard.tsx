@@ -47,7 +47,7 @@ export function ProjectCard({ state, project, turn }: { state: EvenKeelState; pr
     <article className={`card card--${status.kind}`} style={seriesStyle(slot)}>
       <header className="card__head">
         <span className="card__swatch" aria-hidden="true" />
-        <Link to={projectPath(state, project)} className="card__key">
+        <Link to={projectPath(project)} className="card__key">
           <ProjectLabel project={project} nameClass="card__name" />
         </Link>
         {(status.kind === 'paused' || status.kind === 'queued') && <StatusChip status={status} />}
@@ -106,7 +106,7 @@ export function ProjectCard({ state, project, turn }: { state: EvenKeelState; pr
 
       {status.kind === 'running' && status.limitUntil !== null && <p className="card__wait">{limitWaitText(status.limitUntil, new Date())}</p>}
       {status.kind === 'running' && status.slotWait !== undefined && <p className="card__wait">{say({ ...status.slotWait, items: [] })}</p>}
-      {status.kind === 'running' && status.ciWait !== undefined && <p className="card__wait">{ciWaitText(status.ciWait, new Date())}</p>}
+      {status.kind === 'running' && status.ciWait !== undefined && <p className="card__wait">{ciWaitText(status.ciWait, new Date(), state)}</p>}
       {error !== null && <p className="card__error">{say(error)}</p>}
       {status.kind === 'paused' && <PullFixButton state={state} project={project} error={status.error} />}
 

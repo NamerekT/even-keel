@@ -1,6 +1,6 @@
 import { shortCommit } from '../ci/verdict.js'
 import { englishOf, notice, noticeOf, type Notice } from '../notice/notice.js'
-import { fixName, isFixName } from './fix.js'
+import { isFixName } from './fix.js'
 import type { AfterGreenRun, ChainState, MainCheckDeps, MainCheckRun, MainFailure, MainGate, MainPush, RedReport, SessionFix } from './model.js'
 
 /** How long the chain waits for the tracker to list the fix task it has just created. */
@@ -13,11 +13,24 @@ export interface MainStop {
 
 type IsOpen = (project: string, task: string) => boolean
 
+/** The fix of the remote's red main another project (`by`) is doing; `at` — when it began. */
+export interface PeerFix {
+  by: string
+  task: string
+  commit: string
+  at: string
+}
+
+/** The tasks of the project's pushes still awaiting a verdict. */
+const pushedTasks = (gate: MainGate): string[] => [...(gate.check?.tasks ?? []), ...(gate.local?.tasks ?? [])]
+
 // The CI after a push of main (BTN-103): the next launch waits for its verdict, a red main becomes one fix task,
 // and a red push of that fix stops the chain instead of filing another. Without a CI to judge it, the project's
 // own check does (BTN-104): before the merge on the task's branch, and on main in the next task's place if main moved.
 // With `ci.fixTask` off (BTN-115) the fix is a session without a task, which the dispatcher starts (`MainFix`).
 // A green main runs the project's `commands.afterGreen` in its checkout (BTN-156), one run at a time per project.
+// Projects of one remote and main branch (BTN-217) share the fix: while one fixes a red main, the others' launches wait
+// and their red pushes start no second fix.
 export class MainCheck {
   private readonly prepared = new Map<string, string>()
   /** The run of `commands.afterGreen` going on, by project, and the green push due after it. */
@@ -76,8 +89,15 @@ export class MainCheck {
     this.log(`ci: ${project}: main is at ${shortCommit(commit)} after ${push.tasks.join(', ')}; waiting for the CI`)
   }
 
-  /** The push the next launch of the project waits on; `fix` — the tracker has yet to list the fix task. */
-  holds(project: string, listed: string[]): MainPush | 'fix' | null {
+  /**
+   * The push the next launch of the project waits on; `fix` — the tracker has yet to list the fix task; a `PeerFix` —
+   * another project of the remote is fixing its red main.
+   */
+  holds(project: string, listed: string[], open: IsOpen): MainPush | 'fix' | PeerFix | null {
+    return this.ownHold(project, listed) ?? this.peerFix(project, open) ?? null
+  }
+
+  private ownHold(project: string, listed: string[]): MainPush | 'fix' | null {
     const gate = this.state.ci[project]
     if (gate === undefined) return null
     const now = this.now().getTime()
@@ -86,9 +106,24 @@ export class MainCheck {
       if (wait === null || now - Date.parse(gate.check.at) < wait) return gate.check
     }
     const fix = gate.fix
-    const pushed = [...(gate.check?.tasks ?? []), ...(gate.local?.tasks ?? [])]
-    const awaited = fix !== undefined && !isFixName(fix.task) && !listed.includes(fix.task) && !pushed.includes(fix.task)
+    const awaited = fix !== undefined && !isFixName(fix.task) && !listed.includes(fix.task) && !pushedTasks(gate).includes(fix.task)
     return awaited && now - Date.parse(fix.at) < FIX_LISTED_MS ? 'fix' : null
+  }
+
+  /**
+   * The fix of a red main another project of the same remote is doing (BTN-217): a session about to start or at work,
+   * a fix task still open, or a push of either still awaiting its verdict. A fix task gone from the tracker with no push
+   * of it holds nobody.
+   */
+  private peerFix(project: string, open: IsOpen): PeerFix | undefined {
+    for (const peer of this.deps.peers(project)) {
+      const gate = this.state.ci[peer]
+      const fix = gate?.fix
+      if (gate === undefined || fix === undefined) continue
+      const live = fix.report !== undefined || pushedTasks(gate).includes(fix.task) || open(peer, fix.task)
+      if (live) return { by: peer, task: fix.task, commit: fix.commit, at: fix.at }
+    }
+    return undefined
   }
 
   /** The fix a session without a task does or is about to do; gone once its branch has landed. */
@@ -105,8 +140,7 @@ export class MainCheck {
     const gate = this.state.ci[project]
     const fix = gate?.fix
     if (gate === undefined) return null
-    const pushed = [...(gate.check?.tasks ?? []), ...(gate.local?.tasks ?? [])]
-    if (fix !== undefined && pushed.includes(fix.task)) delete fix.report
+    if (fix !== undefined && pushedTasks(gate).includes(fix.task)) delete fix.report
     else delete gate.fix
     return gate.check?.commit ?? gate.local?.commit ?? gate.green ?? null
   }
@@ -271,6 +305,12 @@ export class MainCheck {
       this.log(`ci: ${project}: ${commit} is ${what}; the session ${fix.task} is already fixing main`)
       return null
     }
+    // One fix per red main of a remote: a push carrying the commit another project already fixes waits for that fix.
+    const peer = this.peerFix(project, open)
+    if (peer !== undefined) {
+      this.log(`ci: ${project}: ${commit} is ${what}; ${peer.task} of ${peer.by} is already fixing main of the remote`)
+      return null
+    }
     const byTask = this.deps.fixTask(project)
     let report: RedReport
     try {
@@ -289,7 +329,7 @@ export class MainCheck {
       return null
     }
     if (!byTask) {
-      gate.fix = { task: fixName(project), at: this.now().toISOString(), commit: push.commit, report: report.prompt }
+      gate.fix = { task: this.deps.fixName(project), at: this.now().toISOString(), commit: push.commit, report: report.prompt }
       this.log(`ci: ${project}: ${commit} is ${what}; a session without a task fixes it`)
       return null
     }

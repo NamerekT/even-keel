@@ -37,6 +37,7 @@ import {
 } from './settingsParts.js'
 import { lineOf, linesText, pairOf, ruleChoicesOf, rowsOf } from './settingsRows.js'
 import { accountOptions, namedProviders, providerKeys, providerMap, providerName, providerOptions, providerValues } from './settingsRun.js'
+import { profileGroup, ProfileRules } from './ProfileRules.js'
 import { profileAddOf } from './pullFix.js'
 import { openTab, SHARED_SCOPE, useDraft, useTab } from './settingsStore.js'
 import { ListTable, RowsTable } from './settingsTable.js'
@@ -169,14 +170,18 @@ export function SharedSettings({ state }: { state: EvenKeelState }) {
   const saved = valuesOf(config.shared)
   const [current, setDraft] = useDraft(SCOPE, saved, same)
   const draft = current!
-  const [open, setOpen] = useTab<GroupId>(SCOPE, 'chain')
+  const [tab, setOpen] = useTab<string>(SCOPE, 'chain')
+  // A tracker profile's rules are a group of their own below Access (BTN-66), one per profile.
+  const ruled = state.profiles.profiles.filter((profile) => state.profiles.kinds.some((kind) => kind.kind === profile.kind && kind.tracker))
+  const ruledOpen = ruled.find((profile) => profileGroup(profile.id) === tab)
+  const open: GroupId = GROUPS.some((group) => group.id === tab) ? (tab as GroupId) : ruledOpen === undefined ? 'chain' : 'secrets'
   const [params] = useSearchParams()
   const addsProfile = profileAddOf(params) !== null
   // A link asking for a profile (PR mode, EKR-7) lands on the tab its dialog opens in.
   useEffect(() => {
     if (addsProfile) openTab(SCOPE, 'secrets')
   }, [addsProfile])
-  const vocabularies = useVocabularies(state.projects.flatMap((project) => state.projectIds[project] ?? []))
+  const vocabularies = useVocabularies(state.projects)
   const dirty = (id: GroupId) => changed(draft, keysOf(id), same).length > 0
   const outgoing = sent(draft, keysOf(open))
   const next = formOf(outgoing.form)
@@ -558,8 +563,15 @@ export function SharedSettings({ state }: { state: EvenKeelState }) {
         </h1>
       </header>
       <div className="settings-page__body">
-        <SettingsNav groups={GROUPS.map(({ id }) => ({ id, title: titleOf(id) }))} open={open} dirty={dirty} onOpen={setOpen} />
-        {open === 'secrets' || open === 'stats' ? (
+        <SettingsNav
+          groups={[...GROUPS.map(({ id }): { id: string; title: string } => ({ id, title: titleOf(id) })), ...ruled.map((profile) => ({ id: profileGroup(profile.id), title: t.profiles.rulesOf(profile.name) }))]}
+          open={ruledOpen === undefined ? open : tab}
+          dirty={(id) => GROUPS.some((group) => group.id === id) && dirty(id as GroupId)}
+          onOpen={setOpen}
+        />
+        {ruledOpen !== undefined ? (
+          <ProfileRules key={ruledOpen.id} state={state} profile={ruledOpen} />
+        ) : open === 'secrets' || open === 'stats' ? (
           // Every row is a form of its own, so the tab is not one; Tally's place is applied on its own, ahead of the draft.
           <section key={open} className="settings__form settings-page__form" aria-labelledby="settings-group">
             <h2 id="settings-group" className="settings-page__group">

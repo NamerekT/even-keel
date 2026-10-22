@@ -17,6 +17,7 @@ import { AccountTag } from '../ui/AccountTag.js'
 import { CacheClock } from '../ui/CacheClock.js'
 import { ContextMeter } from '../ui/ContextMeter.js'
 import { PipelineIcon } from '../ui/icons.js'
+import { useBackdropClose } from '../ui/backdrop.js'
 import { Lamp } from '../ui/Lamp.js'
 import { PullButton } from '../ui/PullChip.js'
 import { StartCard } from '../ui/SessionStart.js'
@@ -128,7 +129,7 @@ function Actions({ block, scale, ci }: { block: ChainBlock; scale: ContextScale;
   const [chatting, setChatting] = useState(false)
   const fix = isFixName(block.id)
   // The row of a fix is one of its episodes; the service knows the fix by its name.
-  const body = { project: taskProject(block.id), task: fix ? fixTaskOf(block.id) : block.id }
+  const body = { project: taskProject(state, block.id), task: fix ? fixTaskOf(block.id) : block.id }
   const session = block.session
   const live = block.current ? session : null
   // A task that made way for the fix of main keeps its chat, shut until the chain takes it again.
@@ -256,7 +257,13 @@ function SessionBody({ session, limit, scale, whole }: { session: SessionView; l
   const waits = session.waitingFor !== null && !session.asking
   const note =
     session.apiError ??
-    (waits ? t.session.waits(session.waitingFor!) : session.startupDialog !== null ? t.session.startupDialog(session.startupDialog) : null)
+    (waits
+      ? t.session.waits(session.waitingFor!)
+      : session.startupDialog !== null
+        ? t.session.startupDialog(session.startupDialog)
+        : session.hungSince !== null
+          ? t.session.hung(formatMoment(session.hungSince, now))
+          : null)
 
   return (
     <>
@@ -488,6 +495,7 @@ function leftText(left: NonNullable<TaskSession['left']>): string {
 function SessionWindow({ row, live, scale, onClose }: { row: TaskSession; live: boolean; scale: ContextScale; onClose: () => void }) {
   const { session } = useLive()
   const dialogRef = useRef<HTMLDialogElement>(null)
+  const backdrop = useBackdropClose(dialogRef, () => dialogRef.current?.close())
   const [record, setRecord] = useState<SessionRecord | null | undefined>(undefined)
   const [error, setError] = useState<string | null>(null)
 
@@ -519,9 +527,7 @@ function SessionWindow({ row, live, scale, onClose }: { row: TaskSession; live: 
       onKeyDown={(event) => {
         if (event.key === 'Escape') event.stopPropagation()
       }}
-      onClick={(event) => {
-        if (event.target === dialogRef.current) dialogRef.current.close()
-      }}
+      {...backdrop}
     >
       <div className="session-window__body">
         <header className="panel__head">

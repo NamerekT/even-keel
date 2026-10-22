@@ -2,7 +2,7 @@
 
 A hook that keeps long sessions cheap. Every turn re-reads the whole context, so a session that goes through a loop of checks (test runs, debugging, screenshots) or the wrap-up (docs, review, merge) with a big context pays for it again and again. A fresh session that starts from a short note costs a fraction of that.
 
-The hooks work in Even Keel's chain sessions of Claude Code and Codex: they read no transcript and ask Even Keel, which reads both agents' (`EVEN_KEEL_URL`, by default `http://127.0.0.1:4747`). A session Even Keel did not start, or no Even Keel at all, and they stay silent.
+The hooks work in Even Keel's chain sessions of Claude Code and Codex, and of OpenCode through a plugin of its own (see [OpenCode](#opencode)): they read no transcript and ask Even Keel, which reads every agent's (`EVEN_KEEL_URL`, by default `http://127.0.0.1:4747`). A session Even Keel did not start, or no Even Keel at all, and they stay silent.
 
 After every tool call the hook asks Even Keel for the size of the main thread's context. When it passes **200k tokens**, again every **50k** after that and every **25k** past **250k**, the hook tells the session how big the context is and asks it to make a checkpoint: write `.temp/handoff.md` at the root of the working tree (what is done, what is left, hypotheses, what was ruled out, the files that matter, the exact next command) and end its turn with the line
 
@@ -40,9 +40,15 @@ A message the user writes from Even Keel's chat window to a session in the middl
 
 Each message comes inside `<even-keel-message id="N">…</even-keel-message>`, so the chat shows it as the user's message. The hook says nothing in a subagent (the message waits for the main thread), for a session Even Keel did not start, or when Even Keel does not answer within two seconds (five on `Stop`). Even Keel counts a session as listening only once its hook has asked: a session of an older version of the plugin is answered only between turns.
 
+## OpenCode
+
+OpenCode runs no hook commands: its hooks are JS plugins loaded into its own process. Even Keel loads every script of this plugin's `opencode/` folder into a chain session's config, and `opencode/checkpoint.mjs` does after each tool call what `context-checkpoint.mjs` and `mailbox.mjs` do on `PostToolUse` (both ask Even Keel through `hooks/evenkeel.mjs`). OpenCode has no way into the context in the middle of a turn but the tool's result, so the nudge and the chat's messages come after the tool's output, each in a `<system-reminder>` block; a delivered message is also kept in the call's metadata, where Even Keel's chat finds it (a tool that prints the mark from a file fakes no message). A subagent runs in a session of its own, which Even Keel does not know, so it is left alone.
+
+What OpenCode does not get: the stop guard (a turn that wrote the note but ends without the `CHECKPOINT:` line waits for a reply, as without the plugin), the merge check, and a message at the stop or in place of a question (`run` has no question tool) — a message the plugin missed goes by a resume once the turn ends, as for any session.
+
 ## Install
 
-As a package of the project's set on Even Keel's `/tools` page: chain sessions of both agents get it from there (`docs/packages.md`). Installed into Claude Code by hand, it does nothing outside a chain.
+As a package of the project's set on Even Keel's `/tools` page: chain sessions of every agent get it from there (`docs/packages.md`). Installed into Claude Code by hand, it does nothing outside a chain.
 
 Keep `.temp/` in the project's `.gitignore`, or the note ends up in a commit.
 

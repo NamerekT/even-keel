@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs'
 import { writeAtomic } from '../storage/atomic.js'
 import { refuseNewer, SCHEMA_VERSION, versionOf } from '../storage/schema.js'
 import { GLOBAL_ACCOUNT } from './model.js'
+import { isTransport, type Transport } from './transport.js'
 
 export interface AccountRecord {
   email: string | null
@@ -9,6 +10,8 @@ export interface AccountRecord {
   previous: string | null
   /** The name the user gave the account; the page shows it instead of the folder key (schema v4). */
   name?: string
+  /** How the user chose the account's Claude sessions to run (schema v10); without it, by `transportOf`. */
+  transport?: Transport
 }
 
 /** The accounts seen in each folder; the active one is the config's `accounts.claude` since schema v8. */
@@ -32,6 +35,13 @@ export function nameAccount(ledger: AccountLedger, key: string, name: string): A
   const { name: _old, ...record } = ledger.accounts[key] ?? { email: null, since: null, previous: null }
   const named = name.trim() === '' ? record : { ...record, name: name.trim() }
   return { ...ledger, accounts: { ...ledger.accounts, [key]: named } }
+}
+
+/** `null` — back to the default of the account's kind. */
+export function chooseTransport(ledger: AccountLedger, key: string, transport: Transport | null): AccountLedger {
+  const { transport: _old, ...record } = ledger.accounts[key] ?? { email: null, since: null, previous: null }
+  const chosen = transport === null ? record : { ...record, transport }
+  return { ...ledger, accounts: { ...ledger.accounts, [key]: chosen } }
 }
 
 export function accountAt(ledger: AccountLedger, key: string, at: string): string | null {
@@ -80,7 +90,7 @@ export function saveLedger(file: string, ledger: AccountLedger): void {
 function recordOf(raw: Record<string, unknown>): AccountRecord {
   const text = (value: unknown) => (typeof value === 'string' ? value : null)
   const record: AccountRecord = { email: text(raw.email), since: text(raw.since), previous: text(raw.previous) }
-  return typeof raw.name === 'string' ? { ...record, name: raw.name } : record
+  return { ...record, ...(typeof raw.name === 'string' && { name: raw.name }), ...(isTransport(raw.transport) && { transport: raw.transport }) }
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

@@ -1,9 +1,8 @@
-import type { Task } from '../../src/tracker/model.js'
-import type { EvenKeelState } from '../../src/state.js'
+import type { EvenKeelState, ProjectTask } from '../../src/state.js'
 import { projectTasks } from './state.js'
 
 /** The done tasks of the project's milestone that `accounted` lacks — what "add" gives the agent. */
-export function unaccounted(tasks: Task[], project: string, milestone: string, accounted: readonly string[]): string[] {
+export function unaccounted(tasks: ProjectTask[], project: string, milestone: string, accounted: readonly string[]): string[] {
   const known = new Set(accounted)
   return projectTasks({ tasks }, project)
     .filter((task) => task.milestone?.label === milestone && task.status.category === 'Won' && !known.has(task.id))

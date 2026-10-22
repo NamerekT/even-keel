@@ -105,6 +105,8 @@ export const en = {
   'forward.conflict': (p: { from: string; into: string; files: string[] }) =>
     `forward: the branch of ${p.from} conflicts with ${p.into} in ${p.files.join(', ') || 'unknown files'}; the merge is aborted and waits for a merge by hand or "Carry now"`,
   'forward.notRelease': (p: { project: string }) => `forward: ${p.project} merges into no other project`,
+  'forward.foreign': (p: { from: string; into: string }) =>
+    `forward: ${p.from} and ${p.into} share no remote, and neither checkout is a clone of the other; nothing is fetched — set mergeInto to a project of the same repository`,
 
   'ci.noToken': (p: { variable: string }) => `set ${p.variable} in the environment of Even Keel to watch this CI`,
   'ci.denied': (p: { ci: string; status: number }) => `${p.ci}: the token was refused (HTTP ${p.status}); it needs read access to the repository's actions`,
@@ -206,6 +208,7 @@ export const en = {
   'account.extraFree': (p: { account: string }) =>
     `codex: a second free Codex account next to ${p.account}; OpenAI's terms do not allow several free accounts to get round the limits, so sessions do not start here until it is on a paid plan`,
   'account.notRemoving': (p: { key: string }) => `claude: ${p.key} is not being removed`,
+  'account.noTransport': (p: { key: string }) => `${p.key}: its agent runs sessions one way only`,
   'account.apiKeyInvalid': () => 'claude: an API key is one word of more than 20 characters, like sk-ant-api03-…',
   'account.apiKeyRejected': () => "claude: Anthropic doesn't accept this key: it is wrong, revoked or its organization is disabled",
   'account.apiKeyUnchecked': (p: { reason: string }) => `claude: could not check the key with Anthropic (${p.reason}); try again later`,
@@ -375,7 +378,15 @@ export const en = {
   'config.cli': (p: { provider: string; value: string; known: string[] }) =>
     `config: cli.${p.provider}: there is no choice ${p.value}, known: ${list(p.known)}`,
   'config.trackerLocked': (p: { key: string }) =>
-    `config: the chain has started tasks of ${p.key}, so its tracker is not switched from the page; that comes in v0.2`,
+    `config: the chain has started tasks of ${p.key}, so its tracker and profile stay; tasks of another tracker come in through a task feed`,
+  'config.feeds': (p: { where: string }) => `config: ${p.where} must be a list of task feeds, each an object with its id, tracker and key`,
+  'config.feedField': (p: { where: string; field: string }) => `config: ${p.where} needs its ${p.field}`,
+  'config.feedPrefix': (p: { project: string; prefix: string; other: string }) =>
+    `config: a task feed of ${p.project} gives task ids ${p.prefix}-…, which ${p.other} gives too: give the feed another key`,
+  'config.feedPlace': (p: { project: string; other: string }) =>
+    `config: a task feed of ${p.project} reads the place in its tracker that ${p.other} reads, and a task would enter the chain twice`,
+  'config.feedLocked': (p: { project: string; key: string }) =>
+    `config: the chain has started tasks of the feed ${p.key} of ${p.project}, so it stays as it is; remove it and add another`,
   'config.commandKey': (p: { where: string; key: string; known: string[] }) =>
     `config: ${p.where}.${p.key} is not a kind of commands, known: ${list(p.known)}`,
   'config.commandList': (p: { where: string }) => `config: ${p.where} must be a list of commands`,
@@ -385,12 +396,15 @@ export const en = {
   'config.remoteProfiles': (p: { where: string; known: string[] }) =>
     `config: ${p.where} must map a remote's kind (${list(p.known)}) to a profile's id`,
   'config.unknownProject': (p: { key: string }) => `config: there is no project ${p.key}`,
+  'config.unknownFeed': () => 'config: the project has no such task feed',
   'config.writeFailed': (p: { file: string }) => `config: could not write ${p.file}`,
   'config.statusBoth': (p: { project: string; status: string }) => `config: ${p.project}: status "${p.status}" is both active and terminal`,
   'config.labelBoth': (p: { project: string; label: string }) => `config: ${p.project}: label "${p.label}" is both required and excluded`,
   'config.milestoneBoth': (p: { project: string; milestone: string }) => `config: ${p.project}: milestone "${p.milestone}" is both required and excluded`,
   'config.trackerProjectShared': (p: { project: string; other: string; trackerProject: string }) =>
     `config: ${p.project} and ${p.other} read the tracker project ${p.trackerProject}, and a task may enter both chains: split them by milestone (chain.requiredMilestones and chain.excludedMilestones)`,
+  'config.keyElsewhere': (p: { key: string; project: string; other: string; trackerProject: string }) =>
+    `config: ${p.project} and ${p.other} have the key ${p.key} on different repositories (${p.project} on ${p.trackerProject}), and the task ids of both would be the same: give one of them another key`,
   'config.modelPrompts': () => 'config: modelPrompts must map the name of a model to a prompt',
   'config.modelPromptEmpty': (p: { model: string }) => `config: modelPrompts.${p.model} is empty`,
   'config.hiddenSkills': () => 'config: hiddenSkills must be a list of skill names',
@@ -399,6 +413,8 @@ export const en = {
   'config.mergeInto': (p: { project: string; into: string }) =>
     `config: ${p.project}.mergeInto names ${p.into}, which is not another project or merges into one itself`,
   'config.mergeIntoValue': (p: { where: string }) => `config: ${p.where} must be a project key or null`,
+  'config.mergeIntoForeign': (p: { project: string; into: string }) =>
+    `config: ${p.project}.mergeInto names ${p.into}, a checkout of another repository: they share no remote, and neither is a clone of the other`,
   'config.allowedHosts': () => 'config: allowedHosts must be a list of host names',
   'config.updatesKey': (p: { key: string; known: string[] }) => `config: updates.${p.key} is not an update setting, known: ${list(p.known)}`,
   'config.updatesDismissed': (p: { value: string }) => `config: updates.dismissed must be a version such as 0.2.0, or null, got ${p.value}`,
@@ -429,6 +445,8 @@ export const en = {
     `config: ${p.where} must go first < late < hard, got ${p.first}, ${p.late}, ${p.hard}`,
   'wizard.notRepo': (p: { path: string }) => `${p.path} is not in a git repository`,
   'wizard.repoTaken': (p: { project: string }) => `this repository is already the project ${p.project}`,
+  'wizard.keyTaken': (p: { key: string; project: string }) =>
+    `the key ${p.key} is already the project ${p.project} on another repository, and the task ids of both would be the same: pick another one`,
   'wizard.noBranch': (p: { branch: string; branches: string[] }) => `the repository has no branch ${p.branch}, it has ${p.branches.join(', ')}`,
   'wizard.noCommits': () => 'the repository has no commits yet: make the first one',
   'wizard.trackerOff': (p: { tracker: string; variables: string[] }) =>

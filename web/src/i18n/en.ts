@@ -57,7 +57,6 @@ export const en: Messages = {
     settings: 'Settings',
     menu: 'Menu',
     gear: (level: string) => `Settings and status: ${level}`,
-    back: 'Back',
   },
   updates: {
     version: (version: string) => `Even Keel ${version}`,
@@ -142,6 +141,8 @@ export const en: Messages = {
     checkHold: (commit: string, since: string) => `Checking main at ${commit} since ${since} in the next task's folder — the task starts when the check passes.`,
     afterGreenHold: (commit: string, since: string) =>
       `Running the commands after the green main at ${commit} since ${since} — the next task starts when they end.`,
+    remoteFixHold: (commit: string, since: string, project: string) =>
+      `Main of the remote is red at ${commit}; ${project} has been fixing it since ${since} — the next task starts when its fix is green.`,
     packages: (projects: string) => `The next task of ${projects} waits: a package of its set is not ready.`,
     trackerMcp: (projects: string, server: string) =>
       `The next task of ${projects} waits: brief is off, so the task’s text does not go into the prompt, and no package brings the tracker’s MCP server ${server}. Turn on a package with it or turn brief on in the project’s settings.`,
@@ -168,7 +169,6 @@ export const en: Messages = {
     waitingTitle: (tasks: string) => `Waiting for a reply: ${tasks}`,
     waiting: 'waiting',
     waitingTail: ' for a reply',
-    panel: 'System status',
     heading: 'Status',
     trim: 'Trim the tools',
     trimHint:
@@ -194,6 +194,31 @@ export const en: Messages = {
     config: 'Configuration',
     configOk: 'applied',
     configBroken: 'not applied',
+    tally: 'Stats (Tally)',
+    tallyUnchosen: 'not set up',
+    tallyWaiting: 'waiting for the first run',
+    tallyOk: (ago: string) => `collected ${ago}`,
+    tallyFailed: (ago: string) => `the last run failed ${ago}`,
+    tallyHalted: 'stopped until a restart',
+    tallyIdle: 'not collecting',
+    tallyLog: 'The reason is in the service log.',
+  },
+  statusPage: {
+    title: 'Status',
+    hint: 'What Even Keel depends on: its server, the limit poll, the configuration, the stats, and each tracker connection — one per tracker profile in use.',
+    checks: 'Checks',
+    connections: 'Connections',
+    noConnections: 'No tracker connection: no project is set up yet.',
+    link: 'Connection',
+    lastOk: 'Last successful poll',
+    never: 'never',
+    error: 'Error',
+    projects: 'Projects',
+    project: 'Project',
+    readAt: 'Tasks read',
+    notRead: 'not yet',
+    feedOf: (key: string, project: string) => `${key} — a task feed of ${project}`,
+    open: 'Open the status page',
   },
   queue: {
     title: 'Chain queue',
@@ -373,6 +398,10 @@ export const en: Messages = {
     removeWhenDone: (sessions: string) => `Sign out and remove the folder once its sessions finish (${sessions})?`,
     removeNow: 'Sign out and remove the folder?',
     keep: "Don't remove",
+    transport: { sdk: 'Agent SDK', bg: 'CLI --bg' },
+    transportNow: (name: string) => `Sessions run through ${name}. Press to switch: the change applies to new sessions.`,
+    transportTerms:
+      "Anthropic asks products built on the Agent SDK to sign in with an API key, not a claude.ai subscription: on a subscription account it is your own call.",
     waitingLink: 'Waiting for the sign-in link…',
     openLogin: 'Open the sign-in page',
     code: 'Code from the sign-in page',
@@ -735,7 +764,17 @@ export const en: Messages = {
     trackerProjectAlias:
       "Empty — the project's key. Another project lets two projects of Even Keel share one tracker project, each with its own milestones (chain rules).",
     trackerSoon: 'v0.2',
-    trackerLocked: "The chain has started tasks of this project, so its tracker stays: task IDs from two trackers would collide and their branches, folders and stats would mix. Switching the tracker comes in v0.2.",
+    trackerLocked:
+      "The chain has started tasks of this project, so its tracker and profile stay: the IDs of its tasks would no longer reach their branches, folders and stats. Another tracker's tasks join the chain as a task feed below.",
+    feeds: 'Task feeds',
+    feedsHint:
+      "Places in other trackers or profiles whose tasks join this project's chain, in the same repository. Each is read by its own profile and chain rules (the profile's, then the project's own). There are no blocks across trackers.",
+    feedsNone: 'None: the chain takes only the tasks of the tracker above.',
+    feedKey: 'Key',
+    feedKeyHint: 'Task IDs of a GitHub feed are KEY-<number>; Huly and Linear keep their own. The prefix must be unique among projects and feeds.',
+    feedAdd: 'Add a feed',
+    feedRemoveQuestion: (key: string) => `Remove the feed ${key}? Its closed tasks stay on the page for 7 days.`,
+    feedLocked: 'The chain has started tasks of this feed: its profile stays. Remove it and add another to change it.',
     brief: 'Task description in the prompt',
     briefHint:
       "Even Keel puts the task's title and description into the prompt. Auto: only when no package of the project brings the tracker's MCP server — with the tracker's plugin the session reads its task itself. On or off overrides that.",
@@ -943,6 +982,11 @@ export const en: Messages = {
         : `GitHub Actions not shown (${remotes}): the token does not reach the repository's Actions, it needs Actions: Read`,
     kindHint: { huly: 'An own Huly server or the cloud', github: 'Issues and Actions on github.com', linear: 'A Linear workspace', forgejo: 'The CI of an own Forgejo server, no tracker' },
     pullsRefused: 'PR refused',
+    rulesOf: (name) => `Rules: ${name}`,
+    rulesFor: (keys) => `Projects on this profile: ${keys}.`,
+    rulesNoProjects: 'No project runs on this profile yet.',
+    rulesHint:
+      "The rules of the projects on this profile: every tracker names its statuses and labels its own way. An empty list sets nothing, and the shared rules stay. A rule a project sets itself goes over the profile's. Milestone rules are set only in the shared settings and per project.",
     deniedPulls: (remotes, kind) =>
       kind === 'forgejo'
         ? `A pull request was not opened (${remotes}): the token lacks write:repository`
@@ -1096,7 +1140,7 @@ export const en: Messages = {
     notInstalled: 'not installed',
     removed: 'removed — a running task still uses it',
     extras: 'skills and hooks',
-    extrasTip: 'Besides its MCP servers the plugin brings skills, hooks, commands or agents: Claude Code sessions get them all, Codex and GitHub Copilot sessions the skills and hooks, OpenCode sessions the skills.',
+    extrasTip: 'Besides its MCP servers the plugin brings skills, hooks, commands or agents: Claude Code sessions get them all, Codex and GitHub Copilot sessions the skills and hooks, OpenCode sessions the skills and the OpenCode plugins of its `opencode/` folder.',
     servers: (list: string) => `MCP servers: ${list}`,
     noServers: 'No MCP servers',
     choice: { default: 'default', on: 'on', off: 'off' },
@@ -1134,7 +1178,7 @@ export const en: Messages = {
       noTrackerMcp: (server: string) =>
         `Brief is off, so sessions get only the task ID and need the tracker’s MCP server ${server}. Turn on the package that brings it, or set brief to auto or on in the project’s settings.`,
       unsupported: (agent: string) => `${agent} does not read Claude Code plugins: its sessions get the plugin’s MCP servers but not its skills and hooks. Does not hold the chain.`,
-      noHooks: (agent: string) => `${agent} does not run Claude Code hooks: its sessions get the plugin’s MCP servers and skills but not its hooks. Does not hold the chain.`,
+      noHooks: (agent: string) => `${agent} does not run Claude Code hooks: its sessions get the plugin’s MCP servers and skills but not its hooks, only the OpenCode plugins it brings in its \`opencode/\` folder. Does not hold the chain.`,
     },
     keys: 'Keys',
     keysTip: 'Written into the .env of Even Keel. The page sees only whether a key is set. The gateway and the trackers take a new key at once.',
@@ -1261,6 +1305,8 @@ export const en: Messages = {
     waits: (what: string) => `Waiting for ${what}`,
     startupDialog: (what: string) =>
       `The session hangs on a Claude Code dialog before its first turn, and nobody answers it in the background: ${what}. Remove the cause and press "New session".`,
+    hung: (since: string) =>
+      `The turn has written nothing since ${since} while its process lives on: it is taken for hung. Write to the session or press "New session" — either stops the turn first.`,
     session: 'Session',
     time: 'Time',
     cache: 'Cache',
@@ -1345,6 +1391,7 @@ export const en: Messages = {
       sent: 'The reply is sent — the session goes on with it.',
       working: 'You can send once the session stops. A message mid-turn needs the checkpoint@even-keel package in the project (Tools) and reaches the session from its next tool call.',
       mailbox: 'The session is working: the message reaches it mid-turn, at its next tool call or at the end of the turn.',
+      steers: 'The session is working: the message goes straight in, and it reads it once its current tool call ends.',
       mail: {
         waiting: 'Waits for the hook',
         delivered: (at: string, event: string) => `Delivered ${at} · ${event}`,

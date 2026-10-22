@@ -1,0 +1,127 @@
+/* `/status` (BTN-66): the settings page's two columns, the checks and connections at the left with their dots. */
+.status-page .settings-page__body {
+  grid-template-columns: 300px minmax(0, 1fr);
+}
+
+.status-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.status-nav__title {
+  margin: 0 0 6px 12px;
+  color: var(--fg-muted);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.status-nav__empty {
+  margin: 0 12px;
+  color: var(--fg-muted);
+  font-size: 13px;
+}
+
+.status-nav__item .settings-nav__title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.status-nav__text {
+  flex: none;
+  max-width: 45%;
+  overflow: hidden;
+  color: var(--fg-muted);
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.status-detail {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.status-detail__head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.status-detail__text {
+  margin: 0;
+  font-size: 15px;
+}
+
+.status-detail__note {
+  margin: 0;
+  color: var(--fg-muted);
+  font-size: 13px;
+  overflow-wrap: anywhere;
+}
+
+.status-facts {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  gap: 8px 24px;
+  margin: 0;
+  font-size: 14px;
+}
+
+.status-facts dt {
+  color: var(--fg-muted);
+}
+
+.status-facts dd {
+  margin: 0;
+}
+
+.status-facts__error {
+  font-family: var(--mono);
+  font-size: 13px;
+  overflow-wrap: anywhere;
+}
+
+.status-projects {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+.status-projects caption {
+  padding-bottom: 6px;
+  color: var(--fg-muted);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-align: left;
+  text-transform: uppercase;
+}
+
+.status-projects th {
+  padding: 6px 0;
+  border-bottom: 1px solid var(--border);
+  color: var(--fg-muted);
+  font-weight: 400;
+  text-align: left;
+}
+
+.status-projects td {
+  padding: 8px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.status-projects__when {
+  color: var(--fg-muted);
+  white-space: nowrap;
+}
+
+@media (max-width: 760px) {
+  .status-page .settings-page__body {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

@@ -1,5 +1,4 @@
 import { englishOf, fail, notice, NoticeError, noticeOf, sameNotice, type Notice } from '../notice/notice.js'
-import { renameChainProjects } from '../storage/projects.js'
 import { isOpen, type Task } from '../tracker/model.js'
 import {
   newChain,
@@ -85,18 +84,18 @@ export class Dispatcher {
 
   setTasks(project: string, tasks: Task[]): void {
     this.lists.listed.set(project, tasks)
-    const rules = this.deps.rules(project)
-    const admitted = tasks.filter((task) => admits(rules, task))
-    const chain = admitted.filter((task) => this.enters(project, task, rules))
+    const rules = (task: Task) => this.deps.rules(project, task.id)
+    const admitted = tasks.filter((task) => admits(rules(task), task))
+    const chain = admitted.filter((task) => this.enters(project, task, rules(task)))
     const outside = (this.lists.outside.get(project) ?? []).filter((task) => isOpen(task.status))
-    const waiting = waitingBlockers(chain, [...tasks, ...outside].filter((task) => !isTerminal(rules, task.status) && !chain.includes(task)))
+    const waiting = waitingBlockers(chain, [...tasks, ...outside].filter((task) => !isTerminal(rules(task), task.status) && !chain.includes(task)))
     const backlog = tasks.filter(
-      (task) => !excludes(rules, task) && !chain.includes(task) && !waiting.includes(task) && !this.reviews.holds(project, task.id),
+      (task) => !excludes(rules(task), task) && !chain.includes(task) && !waiting.includes(task) && !this.reviews.holds(project, task.id),
     )
     this.lists.tasks.set(project, chain)
     this.lists.waiting.set(project, waiting)
     this.lists.backlog.set(project, backlog.sort((a, b) => byNumber(a.id, b.id)))
-    this.lists.done.set(project, new Set(tasks.filter((task) => isDone(rules, task.status)).map((task) => task.id)))
+    this.lists.done.set(project, new Set(tasks.filter((task) => isDone(rules(task), task.status)).map((task) => task.id)))
     const placed = this.lists.placeNew(project)
     if (this.forgetClosed(project) || placed) this.deps.save(this.state)
     this.kick()
@@ -118,13 +117,13 @@ export class Dispatcher {
   }
 
   setReleased(project: string, tasks: Task[]): void {
-    const rules = this.deps.rules(project)
+    const rules = (id: string) => this.deps.rules(project, id)
     const statuses = new Map(tasks.map((task) => [task.id, task.status]))
     const kept = this.released(project).filter((id) => {
       const status = statuses.get(id)
-      return status !== undefined && (isDone(rules, status) || !isTerminal(rules, status))
+      return status !== undefined && (isDone(rules(id), status) || !isTerminal(rules(id), status))
     })
-    this.cleanups.done.set(project, new Set(kept.filter((id) => isDone(rules, statuses.get(id)!))))
+    this.cleanups.done.set(project, new Set(kept.filter((id) => isDone(rules(id), statuses.get(id)!))))
     if (kept.length !== this.released(project).length) {
       this.cleanups.keepReleased(project, kept)
       this.deps.save(this.state)
@@ -221,17 +220,6 @@ export class Dispatcher {
     for (const map of this.byProject()) map.delete(project)
   }
 
-  /** Project keys renamed in the config: the chain state and the tasks read follow the new keys. */
-  rekey(rename: (project: string) => string): void {
-    Object.assign(this.state, renameChainProjects(this.state as unknown as Record<string, unknown>, rename))
-    for (const map of this.byProject()) {
-      const entries = [...map.entries()]
-      map.clear()
-      for (const [project, value] of entries) (map as Map<string, unknown>).set(rename(project), value)
-    }
-    this.changed()
-  }
-
   private byProject(): Map<string, unknown>[] {
     return [...this.lists.maps(), this.cleanups.done]
   }
@@ -276,15 +264,16 @@ export class Dispatcher {
   /**
    * Throws unless the user may answer the session now: it is the current one of the task — of its chain or, once
    * the chain stopped, the one that lives on — waits rather than works, and still waits on the question `ask`
-   * (`null` — on none, the turn ended in plain text). With `mailbox` — the session's hooks take mail — a plain
-   * message to a working session passes as `midTurn`: it goes into the mailbox, nothing is launched (BTN-181).
+   * (`null` — on none, the turn ended in plain text). With `takes` — the session takes a message mid-turn, by its
+   * mailbox (BTN-181) or straight in (BTN-291) — a plain message to a working session passes as `midTurn`: nothing is
+   * launched.
    */
   answerable(
     project: string,
     task: string,
     sessionId: string,
     ask: string | null,
-    mailbox = false,
+    takes = false,
   ): { chain: ActiveChain | null; current: CurrentTask | null; session: HandoffSession; midTurn: boolean } {
     this.requireProject(project)
     const chain = this.chainOf(project) ?? null
@@ -296,7 +285,7 @@ export class Dispatcher {
       throw fail('answer.moved', { task })
     }
     if (this.deps.midTurn(task)) {
-      if (!mailbox || ask !== null) throw fail('answer.busy', { task })
+      if (!takes || ask !== null) throw fail('answer.busy', { task })
       return { chain, current, session, midTurn: true }
     }
     this.requireLaunches(project, task)
@@ -551,10 +540,14 @@ export class Dispatcher {
    */
   private heldByMain(chain: ActiveChain, task: string, listed: string[], ahead = true): boolean {
     const after = this.main?.afterGreenRun(chain.project)
-    const hold = this.main?.holds(chain.project, listed) ?? null
+    const hold = this.main?.holds(chain.project, listed, this.lists.listedOpen) ?? null
     const wait: ActiveChain['ciWait'] =
-      after !== undefined ? { ...after, after: true } : hold === null || hold === 'fix' ? undefined : { commit: hold.commit, since: hold.at }
-    if (chain.ciWait?.commit !== wait?.commit || chain.ciWait?.after !== wait?.after) {
+      after !== undefined
+        ? { ...after, after: true }
+        : hold === null || hold === 'fix'
+          ? undefined
+          : { commit: hold.commit, since: hold.at, ...('by' in hold ? { by: hold.by } : {}) }
+    if (chain.ciWait?.commit !== wait?.commit || chain.ciWait?.after !== wait?.after || chain.ciWait?.by !== wait?.by) {
       if (wait === undefined) delete chain.ciWait
       else chain.ciWait = wait
       this.deps.save(this.state)

@@ -5,7 +5,7 @@ import { setLanguage } from './i18n/index.js'
 import { FAKE_SHARED, fakeConfig } from './live/fakeConfig.js'
 import type { StatusCategory, Task } from '../../src/tracker/model.js'
 import type { AccountEntry, AccountLogin, AccountView } from '../../src/account/model.js'
-import type { EvenKeelState, SessionView } from '../../src/state.js'
+import type { EvenKeelState, ProjectTask, SessionView } from '../../src/state.js'
 import type { ActiveChain, CurrentTask, ProjectOrder } from '../../src/chain/dispatcher.js'
 import type { TaskSession } from '../../src/chain/launches.js'
 import {
@@ -24,6 +24,7 @@ import {
   chainControls,
   chainProgress,
   chainStatus,
+  ciWaitText,
   contextFill,
   fixBlockOf,
   issueLink,
@@ -42,6 +43,7 @@ import {
   cacheFreshness,
   cacheTone,
   taskLinks,
+  taskPrefix,
   taskProject,
   tokenTotal,
   usageNotice,
@@ -62,6 +64,7 @@ function view(task: string, lamp: SessionView['lamp'], lastActivityAt: string | 
     checkpoint: false,
     waitingFor: null,
     startupDialog: null,
+    hungSince: null,
     asking: false,
     ask: null,
     apiError: null,
@@ -80,16 +83,19 @@ function view(task: string, lamp: SessionView['lamp'], lastActivityAt: string | 
   }
 }
 
-function task(id: string, category: StatusCategory = 'Active', blockedBy: string[] = []): Task {
-  return fakeTask(id, { status: { name: category, category }, blockedBy })
+/** A task of the project its prefix names: each project's id is its key here, except where a case is about the two. */
+function task(id: string, category: StatusCategory = 'Active', blockedBy: string[] = []): ProjectTask {
+  return { project: taskPrefix(id), ...fakeTask(id, { status: { name: category, category }, blockedBy }) }
 }
 
 function stateOf(patch: Partial<EvenKeelState>): EvenKeelState {
   return {
     startedAt: '2026-01-01T08:00:00.000Z',
     projects: ['ABC', 'XYZ'],
-    projectIds: { ABC: 'id-abc', XYZ: 'id-xyz' },
-    config: { shared: FAKE_SHARED, projects: {}, trackers: [], trackerLocked: [] },
+    projectKeys: { ABC: 'ABC', XYZ: 'XYZ' },
+    projectLabels: { ABC: 'ABC', XYZ: 'XYZ' },
+    taskPrefixes: { ABC: 'ABC', XYZ: 'XYZ' },
+    config: { shared: FAKE_SHARED, projects: {}, trackers: [], feeds: {}, trackerLocked: [] },
     chain: { active: [], parallel: 1, queue: [], projects: {}, skipped: {}, leftovers: {} },
     tasks: [],
     sessions: [],
@@ -100,6 +106,7 @@ function stateOf(patch: Partial<EvenKeelState>): EvenKeelState {
     trackerUrls: { default: null, projects: {}, pages: {} },
     ci: {},
     remotes: {},
+    sameRepository: {},
     pullReadiness: {},
     launches: [],
     taskSessions: {},
@@ -113,6 +120,7 @@ function stateOf(patch: Partial<EvenKeelState>): EvenKeelState {
     unattended: false,
     trimTools: true,
     tally: 'local',
+    tallyHealth: { state: 'waiting', lastRunAt: null },
     updates: { current: '0.1.0', available: null, toast: false, notes: [], blocked: null, previous: null, progress: null, result: null },
     cliVersions: [],
     fallbacks: [],
@@ -178,13 +186,24 @@ describe('waitingSessions', () => {
 })
 
 describe('taskProject', () => {
-  it('takes the project key off a task id', () => {
-    expect(taskProject('ABC-12')).toBe('ABC')
-    expect(taskProject('MY_KEY2-3')).toBe('MY_KEY2')
+  it('takes the prefix off a task id or the name of a fix session without a state', () => {
+    expect(taskPrefix('ABC-12')).toBe('ABC')
+    expect(taskProject(null, 'MY_KEY2-3')).toBe('MY_KEY2')
+    expect(taskProject(null, 'ABC-FIX')).toBe('ABC')
   })
 
-  it('takes the project key off the name of a fix session', () => {
-    expect(taskProject('ABC-FIX')).toBe('ABC')
+  it('finds the project of two that share a key: by the task it lists, by the fix name, else the first of the prefix (BTN-271)', () => {
+    const state = stateOf({
+      projects: ['id-a', 'id-b'],
+      projectKeys: { 'id-a': 'ABC', 'id-b': 'ABC' },
+      taskPrefixes: { 'id-a': 'ABC', 'id-b': 'ABC' },
+      tasks: [{ ...task('ABC-7'), project: 'id-b' }],
+    })
+    expect(taskProject(state, 'ABC-7')).toBe('id-b')
+    expect(taskProject(state, 'ABC-8')).toBe('id-a')
+    expect(taskProject(state, 'ABC-FIX')).toBe('id-a')
+    expect(taskProject(state, 'ABC_IDB-FIX')).toBe('id-b')
+    expect(taskProject(state, 'NOPE-1')).toBe('NOPE')
   })
 })
 
@@ -202,22 +221,20 @@ describe('openQuestions', () => {
 })
 
 describe('project paths', () => {
-  it('name a project by its id, a project without one by its key', () => {
-    const state = stateOf({ projectIds: { ABC: 'id-abc' } })
-    expect(projectPath(state, 'ABC')).toBe('/p/id-abc')
-    expect(projectPath(state, 'XYZ')).toBe('/p/XYZ')
+  it('name a project by its id', () => {
+    expect(projectPath('id-abc')).toBe('/p/id-abc')
   })
 
-  it('read the project from its id and from the key of an older link', () => {
-    const state = stateOf({})
-    expect(projectOfPath(state, 'id-xyz')).toEqual({ project: 'XYZ', byKey: false })
-    expect(projectOfPath(state, 'ABC')).toEqual({ project: 'ABC', byKey: true })
+  it('read the project from its id and from the key of an older link, the first project of the key', () => {
+    const state = stateOf({ projects: ['id-a', 'id-b', 'id-x'], projectKeys: { 'id-a': 'ABC', 'id-b': 'ABC', 'id-x': 'XYZ' } })
+    expect(projectOfPath(state, 'id-b')).toEqual({ project: 'id-b', byKey: false })
+    expect(projectOfPath(state, 'ABC')).toEqual({ project: 'id-a', byKey: true })
     expect(projectOfPath(state, 'nothing')).toEqual({ project: 'nothing', byKey: false })
   })
 })
 
 describe('questionPath', () => {
-  const question = (id: string, category: StatusCategory = 'ToDo'): Task => ({ ...task(id, category), question: true })
+  const question = (id: string, category: StatusCategory = 'ToDo'): ProjectTask => ({ ...task(id, category), question: true })
   const order = (ids: string[], waiting: string[] = []) => ({ order: ids, waiting, backlog: [], error: null })
 
   it('leads to the session of the only open question', () => {
@@ -226,7 +243,7 @@ describe('questionPath', () => {
       sessions: [view('ABC-2', 'waiting', null)],
       chain: chain({ projects: { ABC: order(['ABC-1', 'ABC-2']) } }),
     })
-    expect(questionPath(state, ['ABC', 'XYZ'])).toBe('/p/id-abc#ABC-2')
+    expect(questionPath(state, ['ABC', 'XYZ'])).toBe('/p/ABC#ABC-2')
   })
 
   it('takes the first question in chain order, across projects in page order', () => {
@@ -235,9 +252,9 @@ describe('questionPath', () => {
       sessions: [view('ABC-2', 'waiting', null), view('ABC-3', 'working', null), view('XYZ-1', 'waiting', null)],
       chain: chain({ projects: { ABC: order(['ABC-3', 'ABC-2']), XYZ: order(['XYZ-1']) } }),
     })
-    expect(questionPath(state, ['ABC', 'XYZ'])).toBe('/p/id-abc#ABC-3')
-    expect(questionPath(state, ['XYZ', 'ABC'])).toBe('/p/id-xyz#XYZ-1')
-    expect(questionPath(state, ['XYZ'])).toBe('/p/id-xyz#XYZ-1')
+    expect(questionPath(state, ['ABC', 'XYZ'])).toBe('/p/ABC#ABC-3')
+    expect(questionPath(state, ['XYZ', 'ABC'])).toBe('/p/XYZ#XYZ-1')
+    expect(questionPath(state, ['XYZ'])).toBe('/p/XYZ#XYZ-1')
   })
 
   it('leads to the project page while no question has a session: ahead in the chain, held back or in the backlog', () => {
@@ -246,7 +263,7 @@ describe('questionPath', () => {
       sessions: [view('ABC-2', 'finished', null)],
       chain: chain({ projects: { ABC: { ...order(['ABC-1'], ['ABC-2']), backlog: ['ABC-3'] } } }),
     })
-    expect(questionPath(state, ['ABC'])).toBe('/p/id-abc')
+    expect(questionPath(state, ['ABC'])).toBe('/p/ABC')
   })
 
   it('passes a question without a session for a later one that has it', () => {
@@ -255,7 +272,7 @@ describe('questionPath', () => {
       sessions: [view('XYZ-2', 'waiting', null)],
       chain: chain({ projects: { ABC: order(['ABC-1']), XYZ: order(['XYZ-1', 'XYZ-2']) } }),
     })
-    expect(questionPath(state, ['ABC', 'XYZ'])).toBe('/p/id-xyz#XYZ-2')
+    expect(questionPath(state, ['ABC', 'XYZ'])).toBe('/p/XYZ#XYZ-2')
   })
 
   it('counts a question whose session is only starting', () => {
@@ -266,7 +283,7 @@ describe('questionPath', () => {
         projects: { ABC: order(['ABC-1']) },
       }),
     })
-    expect(questionPath(state, ['ABC'])).toBe('/p/id-abc#ABC-1')
+    expect(questionPath(state, ['ABC'])).toBe('/p/ABC#ABC-1')
   })
 
   it('is null without open questions, whatever sessions the closed ones left', () => {
@@ -446,6 +463,13 @@ describe('chainStatus', () => {
     expect(chainStatus(chain({ active: { ...active(), ciWait } }), 'ABC')).toEqual({ kind: 'running', limitUntil: null, ciWait })
   })
 
+  it('names the project of the same remote that fixes its red main by the project’s label', () => {
+    const ciWait = { commit: '0123456789abcdef', since: '2026-09-27T17:49:00.000Z', by: 'p-2' }
+    const text = ciWaitText(ciWait, new Date('2026-09-27T17:55:00.000Z'), { projectLabels: { 'p-2': 'ABC (Shop)' } })
+    expect(text).toContain('0123456')
+    expect(text).toContain('чинит ABC (Shop)')
+  })
+
   it('gives a queued chain its place in the queue, counting from one', () => {
     expect(chainStatus(chain({ active: active(), queue: ['DEMO', 'XYZ'] }), 'XYZ')).toEqual({ kind: 'queued', position: 2 })
   })
@@ -618,7 +642,7 @@ describe('projectTracker', () => {
 
   it('adds the tracker project when there is one', () => {
     const projects = { XYZ: { trackerProject: 'example/repo' } as EvenKeelState['config']['projects'][string] }
-    const state = stateOf({ config: { shared: FAKE_SHARED, projects, trackers: [], trackerLocked: [] }, trackers: [github] })
+    const state = stateOf({ config: { shared: FAKE_SHARED, projects, trackers: [], feeds: {}, trackerLocked: [] }, trackers: [github] })
     expect(projectTracker(state, 'XYZ')).toEqual({ kind: 'github', label: 'GitHub · work · example/repo' })
   })
 
@@ -629,7 +653,7 @@ describe('projectTracker', () => {
 
 describe('projectPage', () => {
   const urls = { default: null, projects: {}, pages: { ABC: 'https://huly.example.com/workbench/example/tracker/abc-id/issues', XYZ: null } }
-  const config = { shared: FAKE_SHARED, projects: {}, trackers: [{ name: 'huly', title: 'Huly', projectKey: null }], trackerLocked: [] }
+  const config = { shared: FAKE_SHARED, projects: {}, trackers: [{ name: 'huly', title: 'Huly', projectKey: null }], feeds: {}, trackerLocked: [] }
 
   it('gives the page with the name of the tracker it is in, not of the profile', () => {
     const state = stateOf({ config, trackerUrls: urls, trackers: [{ ...stateOf({}).trackers[0]!, title: 'Huly · example' }] })
@@ -923,7 +947,7 @@ describe('chainBlocks', () => {
   })
 
   it('carries the milestone label and what an open task must follow, blockers and earlier milestones alike', () => {
-    const planned = (id: string, category: StatusCategory, label: string, blockedBy: string[] = []): Task => ({
+    const planned = (id: string, category: StatusCategory, label: string, blockedBy: string[] = []): ProjectTask => ({
       ...task(id, category, blockedBy),
       milestone: { label, targetDate: 0 },
     })
@@ -1014,7 +1038,7 @@ describe('chainBlocks', () => {
 
   it('carries the title, status name and category, and keeps a task Huly has not delivered yet', () => {
     const state = stateOf({
-      tasks: [fakeTask('ABC-1', { title: 'First', status: { name: 'In Progress', category: 'Active' } })],
+      tasks: [{ project: 'ABC', ...fakeTask('ABC-1', { title: 'First', status: { name: 'In Progress', category: 'Active' } }) }],
       chain: chain({ projects: { ABC: { order: ['ABC-1', 'ABC-2'], waiting: [], backlog: [], error:null } } }),
     })
     expect(chainBlocks(state, 'ABC').map(({ id, title, status, stage }) => ({ id, title, status, stage }))).toEqual([

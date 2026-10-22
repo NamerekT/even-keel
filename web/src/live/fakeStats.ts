@@ -228,6 +228,7 @@ export function fakePeriod(mode: string | null, query: PeriodQuery): StatsAnswer
         project,
         title: TITLES[(index + project.length) % TITLES.length]!,
         status: index === 0 ? 'In Progress' : 'Done',
+        url: null,
         cost: (cost / count) * (0.3 + next() * 1.4),
         limit: (cost / count) * 0.11,
         sessions,

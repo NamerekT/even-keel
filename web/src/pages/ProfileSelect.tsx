@@ -36,7 +36,7 @@ export function ProfileLink({ id, state, project }: { id: string; state: EvenKee
   const kind = state.config.projects[project]?.tracker
   const own = state.profiles.profiles.filter((profile) => profile.kind === kind)
   if (own.length === 0) return null
-  const current = own.find((profile) => profile.projects.includes(project))
+  const current = own.find((profile) => profile.projectIds.includes(project))
   const locked = state.config.trackerLocked.includes(project)
   const pick = (value: string) => {
     const profile = own.find((each) => each.id === value)

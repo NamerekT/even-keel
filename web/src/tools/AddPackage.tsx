@@ -4,7 +4,9 @@ import type { PackagesView } from '../../../src/state.js'
 import { say, t } from '../i18n/index.js'
 import { useCommand } from '../live/useCommand.js'
 import { HelpTip } from '../pages/settingsParts.js'
+import { useBackdropClose } from '../ui/backdrop.js'
 import { PlugIcon, PlusIcon, ServerIcon } from '../ui/icons.js'
+import { useProjectLabel } from '../ui/ProjectLabel.js'
 import { Select } from '../ui/Select.js'
 import { serverEntry, serverPairs, type Transport } from './packageView.js'
 import './addPackage.css'
@@ -39,6 +41,7 @@ interface Initial {
 
 function AddDialog({ view, projects, initial, onClose }: { view: PackagesView; projects: string[]; initial?: Initial; onClose: () => void }) {
   const dialog = useRef<HTMLDialogElement>(null)
+  const backdrop = useBackdropClose(dialog, onClose)
   const [kind, setKind] = useState<Kind | null>(initial === undefined ? null : 'plugin')
   const [asking, setAsking] = useState(initial !== undefined && view.marketplace?.known === false)
   const title = useId()
@@ -62,7 +65,7 @@ function AddDialog({ view, projects, initial, onClose }: { view: PackagesView; p
         event.preventDefault()
         onClose()
       }}
-      onClick={(event) => event.target === dialog.current && onClose()}
+      {...backdrop}
     >
       <div className="add-package__frame">
         <header className="add-package__head">
@@ -242,7 +245,8 @@ function ServerStep({ projects, onBack, onClose }: StepProps) {
 }
 
 function WhereField({ projects, value, onChange }: { projects: string[]; value: string; onChange: (value: string) => void }) {
-  const options = [{ value: '', label: t.packages.whereAll }, ...projects.map((project) => ({ value: project, label: t.packages.whereOne(project) }))]
+  const name = useProjectLabel()
+  const options = [{ value: '', label: t.packages.whereAll }, ...projects.map((project) => ({ value: project, label: t.packages.whereOne(name(project)) }))]
   return (
     <Field label={t.packages.where} hint={t.packages.whereHint}>
       {(id) => <Select id={id} className="add-package__input" value={value} options={options} onChange={onChange} />}

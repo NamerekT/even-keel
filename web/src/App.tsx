@@ -1,7 +1,7 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Navigate, Route, Routes, useLocation, useMatch, useParams } from 'react-router'
 import type { EvenKeelState } from '../../src/state.js'
-import { pickLanguage, say, setLanguage, t } from './i18n/index.js'
+import { pickLanguage, say, setLanguage, setProjectLabels, t } from './i18n/index.js'
 import { ActivityBar } from './layout/ActivityBar.js'
 import { BasementSlot } from './layout/Basement.js'
 import { ConfigBanner } from './layout/ConfigBanner.js'
@@ -19,12 +19,14 @@ import { useLive } from './live/context.js'
 import { projectOfPath, projectPath } from './state.js'
 import { AccountAddPage } from './pages/AccountAdd.js'
 import { AccountsPage } from './pages/Accounts.js'
+import { knownSessions, pruneDrafts } from './pages/chatDraft.js'
 import { Home } from './pages/Home.js'
 import { NotFound } from './pages/NotFound.js'
 import { Project } from './pages/Project.js'
 import { ProjectAddPage } from './pages/ProjectAdd.js'
 import { SharedSettings } from './pages/SharedSettings.js'
 import { StatsSetupPage } from './pages/StatsSetup.js'
+import { StatusPage } from './pages/StatusPage.js'
 import { STATS_SETUP } from './pages/TallyChoice.js'
 import { StatsPage } from './stats/StatsPage.js'
 import { ToolsPage } from './tools/ToolsPage.js'
@@ -35,6 +37,13 @@ export function App() {
   const addingAccount = useMatch('/accounts/add') !== null
   const language = pickLanguage(state?.language ?? null, navigator.languages)
   setLanguage(language)
+  setProjectLabels(state?.projectLabels ?? {})
+  const pruned = useRef(false)
+  useEffect(() => {
+    if (state === null || pruned.current) return
+    pruned.current = true
+    void pruneDrafts(knownSessions(state))
+  }, [state])
 
   if (blocked !== undefined)
     return (
@@ -70,6 +79,7 @@ export function App() {
               <Route path={STATS_SETUP} element={<StatsSetupPage state={state} />} />
               <Route path="/tools" element={<ToolsPage state={state} />} />
               <Route path="/settings" element={<SharedSettings state={state} />} />
+              <Route path="/status" element={<StatusPage state={state} />} />
               <Route path="/accounts" element={<AccountsPage state={state} />} />
               <Route path="/accounts/add" element={<AccountAddPage state={state} />} />
               <Route path="*" element={<NotFound />} />
@@ -95,6 +105,6 @@ export function App() {
 function ProjectRoute({ state }: { state: EvenKeelState }) {
   const location = useLocation()
   const { project, byKey } = projectOfPath(state, useParams().id ?? '')
-  if (byKey) return <Navigate replace to={{ pathname: projectPath(state, project), search: location.search, hash: location.hash }} />
+  if (byKey) return <Navigate replace to={{ pathname: projectPath(project), search: location.search, hash: location.hash }} />
   return <Project state={state} project={project} />
 }

@@ -40,9 +40,9 @@ export async function checkDraft(deps: CheckDeps, draft: ProjectDraft): Promise<
   let rules: ChainRules | undefined
   try {
     const config = parseConfig(withNewProject(raw, { ...draft, repo: repo.root ?? draft.repo, branch }, ENTRY_ID, deps.adapters), deps.adapters)
-    rules = config.rules[draft.key.trim()]!
+    rules = config.rules[ENTRY_ID]!
   } catch (error) {
-    entry = noticeOf(error)
+    entry = keyNotice(noticeOf(error))
   }
   const tracker =
     entry === null && rules !== undefined && adapter !== undefined && repo.root !== null && repo.notice === null
@@ -98,6 +98,16 @@ async function suggestedOf(git: Git, root: string, adapter: TrackerAdapter | und
   return null
 }
 
+/**
+ * A key may be shared (BTN-271) but not by another tracker project where the task ids are made of it (GitHub): the
+ * config's refusal of that, said the wizard's way.
+ */
+function keyNotice(refused: Notice): Notice {
+  if (refused.code !== 'config.keyElsewhere') return refused
+  const { key, other } = refused.params
+  return notice('wizard.keyTaken', { key, project: other })
+}
+
 function projectOfRepo(raw: unknown, root: string, platform: NodeJS.Platform): string | undefined {
   const projects = isPlainObject(raw) && Array.isArray(raw.projects) ? (raw.projects as unknown[]) : []
   const found = projects.find((entry) => isPlainObject(entry) && typeof entry.repo === 'string' && samePath(entry.repo, root, platform))
@@ -115,7 +125,7 @@ async function checkTracker(
   const failed = (notice: Notice) => ({ ok: false, missing: [], open: null, openToAll: false, notice })
   let setup
   try {
-    setup = adapter.setup(deps.env, adapter.projectKey !== undefined && place !== '' ? { [key]: place } : {})
+    setup = adapter.setup(deps.env, { [ENTRY_ID]: { key, ...(adapter.projectKey !== undefined && place !== '' ? { value: place } : {}) } })
   } catch (error) {
     return failed(noticeOf(error))
   }
@@ -127,8 +137,8 @@ async function checkTracker(
   const link = new TrackerLink({ name: adapter.title, connect: async () => trackerOf(await connect(deps.timeoutMs)), timeoutMs: deps.timeoutMs })
   try {
     const { tasks, isPublic } = await link.run(async (tracker) => ({
-      ...(await tracker.chainTasks(key, rules)),
-      isPublic: (await tracker.isPublic?.(key)) ?? false,
+      ...(await tracker.chainTasks(ENTRY_ID, rules)),
+      isPublic: (await tracker.isPublic?.(ENTRY_ID)) ?? false,
     }))
     const openToAll = isPublic && rules.requiredLabels.length === 0
     return { ok: true, missing: [], open: tasks.filter((task) => isOpen(task.status)).length, openToAll, notice: null }

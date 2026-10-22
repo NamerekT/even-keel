@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { ADAPTERS } from '../tracker/adapters.js'
-import { keyPool, profileFor, sameAccount, type ProfileSet, type TrackerProfile } from './model.js'
+import { keyPool, profileFor, sameAccount, serverProfile, type ProfileSet, type TrackerProfile } from './model.js'
 
 const profile = (id: string, kind: string, isDefault: boolean, values: Record<string, string> = {}, login: string | null = null): TrackerProfile => ({
   id,
@@ -52,6 +52,34 @@ describe('keyPool', () => {
   it('gives a project of another tracker the default profiles', () => {
     expect(keyPool(set, ADAPTERS, env, 'xyz', 'huly')).toMatchObject({ GITHUB_TOKEN: 'personal-token', HULY_TOKEN: 'h' })
     expect(keyPool(set, ADAPTERS, env, 'xyz', 'huly').HULY_EMAIL).toBeUndefined()
+  })
+
+  it("gives a feed's tracker of another kind the feed's profile, the project's own kind staying the project's (BTN-66)", () => {
+    const fed = { ...set, feeds: { 'feed-gh': 'org' } }
+    expect(keyPool(fed, ADAPTERS, env, 'xyz', 'huly', [{ id: 'feed-gh', tracker: 'github' }])).toMatchObject({ GITHUB_TOKEN: 'org-token', HULY_TOKEN: 'h' })
+    expect(keyPool(fed, ADAPTERS, env, 'xyz', 'github', [{ id: 'feed-gh', tracker: 'github' }]).GITHUB_TOKEN).toBe('personal-token')
+  })
+})
+
+describe('serverProfile', () => {
+  const set: ProfileSet = {
+    profiles: [profile('personal', 'github', true), profile('org', 'github', false), profile('work', 'huly', true)],
+    links: { abc: 'org' },
+    feeds: { 'feed-a': 'personal', 'feed-b': 'org' },
+  }
+
+  it("signs a server of the project's tracker in as the project's profile, whatever its feeds of that kind run on", () => {
+    expect(serverProfile(set, 'abc', 'github', [{ id: 'feed-a', tracker: 'github' }], 'github')?.id).toBe('org')
+  })
+
+  it("signs a server of another tracker in as the last feed's of that kind, as keyPool does, else as the default", () => {
+    const feeds = [
+      { id: 'feed-b', tracker: 'github' },
+      { id: 'feed-a', tracker: 'github' },
+    ]
+    expect(serverProfile(set, 'xyz', 'huly', feeds, 'github')?.id).toBe('personal')
+    expect(serverProfile(set, 'xyz', 'huly', feeds.slice(0, 1), 'github')?.id).toBe('org')
+    expect(serverProfile(set, 'xyz', 'huly', [], 'github')?.id).toBe('personal')
   })
 })
 

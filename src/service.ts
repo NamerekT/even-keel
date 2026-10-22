@@ -7,7 +7,8 @@ import { checkCredit, checkOpenAiCredit, type CreditVerdict } from './account/cr
 import { DaemonRefresh } from './account/daemon.js'
 import { AccountHomes, accountsRoot, codexAccountsRoot, copilotAccountsRoot, keyProvider, openCodeAccountsRoot, type AccountHome } from './account/homes.js'
 import { checkApiKey, checkGitHubToken, checkOpenAiKey } from './account/keycheck.js'
-import { accountAt, forgetAccount, loadLedger, markRemoving, nameAccount, noteAccount, saveLedger, type AccountLedger } from './account/ledger.js'
+import { accountAt, chooseTransport, forgetAccount, loadLedger, markRemoving, nameAccount, noteAccount, saveLedger, type AccountLedger } from './account/ledger.js'
+import { transportOf } from './account/transport.js'
 import { accountId, launchBlock, liveSessions, loginBlock, type LoginBlock } from './account/model.js'
 import { answers, providerUrl, Reachability } from './account/network.js'
 import { VsCodeAccount, vscodeSettingsFile } from './account/vscode.js'
@@ -20,8 +21,8 @@ import { outdatedDaemonView, VersionWatcher } from './agent/versions.js'
 import { addMarketplace, updateMarketplace } from './claude/cli.js'
 import { CLAUDE } from './claude/name.js'
 import { Dispatcher, type LaunchEntry } from './chain/dispatcher.js'
-import { fallbacksSince, fixEpisodes, handoffsOf, launchDays, launchedProjects, taskSessions } from './chain/launches.js'
-import { fixName, fixTaskOf, isFixName } from './chain/fix.js'
+import { fallbacksSince, fixEpisodes, handoffsOf, launchDays, launchedProjects, ranSince, taskSessions } from './chain/launches.js'
+import { fixNameOf, fixStem, isFixName, projectOfFix } from './chain/fix.js'
 import { chainQuiet, ForwardMerger } from './chain/forward.js'
 import { fixPrompt, noteOf, resumePrompt, startPrompt, withBrief, withProjectPrompt, withTracker, withUnattended, type HandoffSession, type TrackerPlace } from './chain/relay.js'
 import { launchLine } from './chain/log.js'
@@ -31,7 +32,8 @@ import { readNote, saveSnapshot, snapshotReason } from './chain/snapshots.js'
 import { pullReadiness } from './review/open.js'
 import { PullRefusals } from './review/refusals.js'
 import { reviewDeps } from './review/wiring.js'
-import { appendLaunch, loadChainState, loadQuestions, readLaunches, saveChainState, saveClosedTask, saveQuestions } from './chain/store.js'
+import { archivedShown } from './chain/archive.js'
+import { appendLaunch, closedTasks, loadChainState, loadQuestions, readLaunches, saveChainState, saveClosedTask, saveQuestions, type ClosedTask } from './chain/store.js'
 import { ChangelogDrafts } from './changelog/drafts.js'
 import { DEFAULT_CHANGELOG } from './changelog/file.js'
 import { changesOf } from './git/changes.js'
@@ -42,7 +44,26 @@ import type { CiTarget, Remote } from './ci/remote.js'
 import { CiWatch } from './ci/watcher.js'
 import { CiWatches } from './ci/watches.js'
 import { ConfigStore } from './config-store.js'
-import { DEFAULT_BRANCH, DEFAULT_CI, idPrefixOf, listenOf, mcpPortOf, poolEntries, projectsByAccount, readKeyOf, runSettings, type EvenKeelConfig } from './config.js'
+import {
+  DEFAULT_BRANCH,
+  DEFAULT_CI,
+  firstByKey,
+  idPrefixOf,
+  listenOf,
+  mcpPortOf,
+  mergeTargetOf,
+  ownerOf,
+  poolEntries,
+  projectLabel,
+  projectLabels,
+  projectsByAccount,
+  readerIds,
+  readerOf,
+  readersOf,
+  readKeyOf,
+  runSettings,
+  type EvenKeelConfig,
+} from './config.js'
 import { envTargets } from './env-file.js'
 import { EventHub } from './events.js'
 import { runGit } from './git/run.js'
@@ -51,12 +72,12 @@ import { fastForwardMain, syncMain } from './git/sync.js'
 import { ensureIgnored, finishWorktree, prepareWorktree, requireBranch, requireCheckedOut, taskPlace } from './git/worktree.js'
 import { exhaustedReset, limitResetAfter } from './limits/model.js'
 import { LimitsWatcher } from './limits/watcher.js'
-import { englishOf, fail, notice, NoticeError, noticeOf, type Notice } from './notice/notice.js'
+import { englishOf, fail, notice, NoticeError, noticeOf, withLabels, type Notice } from './notice/notice.js'
 import { guardHosts, guardToken } from './guard.js'
 import { readJson } from './packages/plugins.js'
 import { checkDraft } from './projects/check.js'
 import { removalBlock, type RemovalFacts } from './projects/removal.js'
-import { ProjectRemotes, remotesIn } from './projects/remotes.js'
+import { checkoutRemotes, ProjectRemotes, remotePeers, remotesIn, repositoryIds, sameRepository } from './projects/remotes.js'
 import { Packages } from './packages/service.js'
 import { secretCatalog } from './secrets/catalog.js'
 import { Secrets } from './secrets/service.js'
@@ -76,12 +97,13 @@ import { ChatTitles } from './sessions/title.js'
 import { TranscriptWatch } from './sessions/watch.js'
 import { configPath, loadEnv, root, stateDirOf } from './locations.js'
 import { isInside } from './paths.js'
-import { defaultProfile, keyPool, profileFor, profileKinds } from './profiles/model.js'
+import { defaultProfile, keyPool, profileFor, profileKinds, serverProfile } from './profiles/model.js'
+import { checkProfileRules, projectRules } from './profiles/rules.js'
 import { Profiles } from './profiles/service.js'
 import { importForgejo, importProfiles } from './profiles/store.js'
 import { slotOccupants } from './sessions/occupants.js'
 import { locateWorktree } from './sessions/place.js'
-import type { EvenKeelState, SessionView } from './state.js'
+import type { EvenKeelState, ProjectForm, SessionView } from './state.js'
 import { withinWindow } from './stats/checkpoint.js'
 import { StatsReader } from './stats/reader.js'
 import { SQLITE_VERSIONS, STEPS as DATABASE_STEPS, Writes } from './storage/database.js'
@@ -89,7 +111,6 @@ import { keptDatabase } from './storage/owner.js'
 import { SCHEMA_VERSION } from './storage/schema.js'
 import { TALLY_SCHEMA_VERSION } from './stats/tally-schema.js'
 import { setStateValue, stateValue } from './storage/service-state.js'
-import { rekeyed } from './storage/projects.js'
 import { checkServer, serverValues } from './stats/connect.js'
 import { inferredTallyMode, tallyKey } from './stats/mode.js'
 import { TallyService } from './stats/tally.js'
@@ -99,7 +120,8 @@ import { cardOf } from './tracker/card.js'
 import type { TrackerLink } from './tracker/link.js'
 import { issueLink, parseTaskId, runLabelText, type Task } from './tracker/model.js'
 import { TrackerQuestions, type AskingSession } from './tracker/questions.js'
-import { startTracker } from './tracker/start.js'
+import { ReaderTasks } from './tracker/readers.js'
+import { RAN_SHOWN_MS, startTracker } from './tracker/start.js'
 import { Trackers } from './tracker/trackers.js'
 import { Vocabularies } from './tracker/vocabulary.js'
 import { updatesView } from './updates/release.js'
@@ -166,6 +188,11 @@ const configStore = await ConfigStore.open({
     hub.broadcast('state', getState())
   },
 })
+// The service names a project by its id (BTN-271): its log shows the project's label (`projectLabel`) instead.
+for (const method of ['log', 'warn', 'error'] as const) {
+  const write = console[method].bind(console)
+  console[method] = (...args: unknown[]) => write(...args.map((arg) => (typeof arg === 'string' ? withLabels(arg, projectLabels(configStore.current)) : arg)))
+}
 /** The version whose toast the user closed: state, not a setting (BTN-199). */
 let dismissedUpdate = (await stateValue(db, 'updates.dismissed')) as string | null | undefined
 const envFile = loadEnv()
@@ -176,7 +203,7 @@ await importProfiles({
   db,
   env: process.env,
   adapters: ADAPTERS,
-  trackers: Object.fromEntries(Object.entries(configStore.current.trackers).map(([key, kind]) => [configStore.current.ids[key]!, kind])),
+  trackers: configStore.current.trackers,
   log: (line) => console.log(line),
 })
 const importedProfiles = await importForgejo({
@@ -201,17 +228,54 @@ let { listen, token, mcpPort } = (() => {
 let listenError: Notice | null = null
 const branchOf = (project: string) => configStore.current.settings[project]?.branch ?? DEFAULT_BRANCH
 const pullRequestsOn = (project: string) => configStore.current.settings[project]?.pullRequests ?? false
-const rulesOf = (project: string) => configStore.current.rules[project]!
+/** What the trackers read (BTN-66): every project, and every feed as a reader of its own id. */
+const readers = () => readersOf(configStore.current)
+/** The project a reader serves. */
+const ownerOfReader = (reader: string) => ownerOf(readers(), reader)
+/** The reader of a project's task: the feed whose ids the task's id carries, else the project. */
+const readerFor = (project: string, task: string) => readerOf(configStore.current, project, task)
+const feedOf = (reader: string) => configStore.current.feeds[ownerOfReader(reader)]?.find((feed) => feed.id === reader)
+/** The projects and feeds whose tracker and profile stay: the chain has started a task of theirs. */
+const lockedReaders = () => launchedProjects(launches, readerFor)
+/** The readers whose profile's rules clash with their project's own, by the text logged: logged once while it lasts. */
+const rulesClashes = new Map<string, string>()
+/**
+ * The reader's rules with its tracker profile's between the shared and its project's own (BTN-66). A clash the
+ * profile's save did not catch (a project's own rules changed since) leaves the profile's out, with a line in the log.
+ */
+const readerRules = (reader: string) => {
+  const project = ownerOfReader(reader)
+  try {
+    const rules = projectRules(configStore.current, profiles.current(), project, feedOf(reader))
+    rulesClashes.delete(reader)
+    return rules
+  } catch (error) {
+    const text = englishOf(noticeOf(error))
+    if (rulesClashes.get(reader) !== text) console.log(`rules: the tracker profile's rules are left out: ${text}`)
+    rulesClashes.set(reader, text)
+    return configStore.current.rules[project]!
+  }
+}
+/** The project's rules; with a task, those of the feed it comes from. */
+const rulesOf = (project: string, task?: string) => readerRules(task === undefined ? project : readerFor(project, task))
 const stateDir = stateDirOf()
 mkdirSync(stateDir, { recursive: true })
 const mailbox = await Mailbox.open(db, writes, () => new Date())
 const limitsFile = join(stateDir, 'rate-limits.json')
 const accountFile = join(stateDir, 'account.json')
 const links = new Map<string, TrackerLink>()
-/** The link of the project's tracker; `undefined` while that tracker is off. */
-const linkOf = (project: string): TrackerLink | undefined => {
-  const key = trackers.keyOf(project)
+/** The link of the reader's tracker — a project's, a feed's; `undefined` while that tracker is off. */
+const linkOf = (reader: string): TrackerLink | undefined => {
+  const key = trackers.keyOf(reader)
   return key === undefined ? undefined : links.get(key)
+}
+/** The link of the tracker a project's task is in. */
+const linkFor = (project: string, task: string) => linkOf(readerFor(project, task))
+/** Reads the project's tasks anew from every tracker it reads; `false` — none reads it. */
+const refreshProject = async (project: string): Promise<boolean> => {
+  const found = readerIds(configStore.current, project).flatMap((reader) => refreshers.get(reader) ?? [])
+  await Promise.all(found.map((refresh) => refresh()))
+  return found.length > 0
 }
 const vocabularies = new Vocabularies(async (project) => linkOf(project)?.run(async (tracker) => tracker.vocabulary?.(project)))
 const hub = new EventHub()
@@ -229,9 +293,6 @@ const packages: Packages = new Packages({
   file: join(stateDir, 'packages.json'),
   cache: join(stateDir, 'packages'),
   envFile: join(root, '.env'),
-  get ids() {
-    return configStore.current.ids
-  },
   get repos() {
     return configStore.current.projects
   },
@@ -247,7 +308,7 @@ const packages: Packages = new Packages({
   updateMarketplace: (marketplace) => updateMarketplace(envOf(homes.global), marketplace, PLUGIN_UPDATE_TIMEOUT_MS),
   addMarketplace: (dir) => addMarketplace(envOf(homes.global), dir, PLUGIN_UPDATE_TIMEOUT_MS),
   baseEnv: (): NodeJS.ProcessEnv => sessionBase(process.env, packages.keyNames()),
-  poolOf: (project) => keyPool(profiles.current(), profileKindsOf, process.env, configStore.current.ids[project], configStore.current.trackers[project]!),
+  poolOf: (project) => keyPool(profiles.current(), profileKindsOf, process.env, project, configStore.current.trackers[project]!, configStore.current.feeds[project]),
   port: mcpPort,
   log: (line) => console.log(line),
   onChange: () => {
@@ -255,12 +316,21 @@ const packages: Packages = new Packages({
     hub.broadcast('state', getState())
   },
 })
-/** Whether the project's prompts carry its task: its own `brief`, else on exactly when no package brings the tracker's MCP server (BTN-225). */
-function briefOn(project: string): boolean {
+/**
+ * Whether the project's prompts carry its task: its own `brief`, else on exactly when no package brings the tracker's
+ * MCP server (BTN-225). A feed's task (`reader`, BTN-66) is judged by the feed's tracker: `brief: false` speaks of the
+ * project's own tracker's server only, and a server signed in as another profile than the feed's does not see its task.
+ */
+function briefOn(project: string, reader = project): boolean {
   const own = configStore.current.briefs[project]
-  if (typeof own === 'boolean') return own
-  const server = ADAPTERS[configStore.current.trackers[project]!]!.mcpServer
-  return server === undefined || !packages.bringsServer(project, server)
+  if (own === true || (own === false && reader === project)) return own
+  const tracker = readers().trackers[reader]!
+  const server = ADAPTERS[tracker]!.mcpServer
+  if (server === undefined || !packages.bringsServer(project, server)) return true
+  if (reader === project) return false
+  const { trackers, feeds } = configStore.current
+  const set = profiles.current()
+  return serverProfile(set, project, trackers[project]!, feeds[project] ?? [], tracker)?.id !== profileFor(set, reader, tracker)?.id
 }
 const runtimes = new Map<string, Agent>(
   Object.entries(AGENTS).map(([name, adapter]) => [
@@ -272,6 +342,7 @@ const runtimes = new Map<string, Agent>(
       checkedCli: () => configStore.current.cli[name] !== 'system',
       log: (line) => console.log(line),
       onCliChange: () => void cliVersions.check(),
+      transport: (home): string | null => transportOf(home.agent, ledger.accounts[home.key]?.transport, account.apiKey(home.key)),
     }),
   ]),
 )
@@ -287,24 +358,42 @@ const refreshers = new Map<string, () => Promise<void>>()
 let sessions: SessionView[] = []
 let agents: AgentEntry[] = []
 let agentsRead = false
-const launches: LaunchEntry[] = await readLaunches(db, configStore.current.ids)
+const launches: LaunchEntry[] = await readLaunches(db)
+/** The tasks the chain ran and saw closed, in memory as the database keeps them. */
+const archive: ClosedTask[] = await closedTasks(db)
+/** The trackers read by reader; the chain and the page get each project's readers as one (BTN-66). */
+const readerTasks = new ReaderTasks({
+  owner: ownerOfReader,
+  readers: (project) => readerIds(configStore.current, project),
+  belongs: (reader, task) => readerFor(ownerOfReader(reader), task) === reader,
+  tasksByProject,
+  get dispatcher() {
+    return dispatcher
+  },
+})
 const trackers = new Trackers({
   adapters: ADAPTERS,
   start: (view, setup) =>
     startTracker(view, setup, {
-      repoOf: (project) => configStore.current.projects[project]!,
-      rulesOf,
+      repoOf: (reader) => configStore.current.projects[ownerOfReader(reader)]!,
+      rulesOf: readerRules,
       links,
-      tasksByProject,
-      launches,
-      dispatcher,
-      fillsMilestone: (project) => configStore.current.settings[project]?.fillMilestone ?? false,
-      mainBranch: branchOf,
-      readKey: (project) => readKeyOf(configStore.current, project),
+      tasksByProject: readerTasks,
+      // A task launched through another profile is not this one's to ask for: the archive shows it (BTN-66).
+      ranSince: (reader, since) => {
+        const project = ownerOfReader(reader)
+        const profile = profileFor(profiles.current(), reader, readers().trackers[reader]!)?.id
+        const own = launches.filter((entry) => entry.profile === undefined || entry.profile === profile)
+        return ranSince(own, project, since).filter((task) => readerFor(project, task) === reader)
+      },
+      dispatcher: readerTasks,
+      fillsMilestone: (reader) => configStore.current.settings[ownerOfReader(reader)]?.fillMilestone ?? false,
+      mainBranch: (reader) => branchOf(ownerOfReader(reader)),
+      readKey: (reader) => readKeyOf(readers(), reader),
       broadcast: () => hub.broadcast('state', getState()),
       refreshers,
     }),
-  tasksByProject,
+  tasksByProject: readerTasks,
   refreshers,
   log: (line) => console.log(line),
 })
@@ -313,7 +402,7 @@ const trackers = new Trackers({
  * (BTN-201), the one its `remoteProfiles` names first (BTN-231).
  */
 const ciTokenOf = (project: string, target: CiTarget) =>
-  ciToken(target, profiles.current(), configStore.current.ids[project], configStore.current.trackers[project]!, configStore.current.settings[project]?.remoteProfiles)
+  ciToken(target, profiles.current(), project, configStore.current.trackers[project]!, configStore.current.settings[project]?.remoteProfiles)
 /** The remotes whose CI takes the profile's token, shown or not. */
 const ciOn = (profileId: string, hidden: boolean) =>
   ciWatches
@@ -354,24 +443,32 @@ const newTally = () =>
     evenKeelUrl: () => `http://${['0.0.0.0', '::'].includes(listen.host) ? '127.0.0.1' : listen.host}:${listen.port}`,
     huly: () => {
       const set = profiles.current()
-      const { ids, trackers: kinds } = configStore.current
-      const projects = Object.entries(kinds).flatMap(([key, kind]) => {
-        const values = kind === 'huly' ? profileFor(set, ids[key], kind)?.values : undefined
-        return values === undefined ? [] : [[key, values] as const]
+      const config = readers()
+      // By the Huly project, which Tally knows the tasks by; a feed is a reader of its own (BTN-66).
+      const projects = Object.entries(config.trackers).flatMap(([project, kind]) => {
+        const values = kind === 'huly' ? profileFor(set, project, kind)?.values : undefined
+        return values === undefined ? [] : [[idPrefixOf(config, project), values] as const]
       })
-      return { projects: Object.fromEntries(projects), fallback: defaultProfile(set, 'huly')?.values ?? null }
+      const elsewhere = Object.entries(config.trackers).flatMap(([project, kind]) => (kind === 'huly' ? [] : [idPrefixOf(config, project)]))
+      const byId = Object.fromEntries(set.profiles.filter((profile) => profile.kind === 'huly').map((profile) => [profile.id, profile.values]))
+      return { projects: Object.fromEntries(projects), fallback: defaultProfile(set, 'huly')?.values ?? null, elsewhere, byId }
     },
     log: (message) => console.log(message),
+    changed: () => hub.broadcast('state', getState()),
   })
 let tally = newTally()
 /** What `tally` runs on (`tallyKey`), and the restarts in turn: the page and `.env` may change it at once. */
 let tallyRuns = tallyKey(tallyMode(), process.env)
 let tallyRestarts = Promise.resolve()
+/** The project's pinned checkpoint threshold, its own over the shared one; `null` — calibrated. */
+const pinnedCheckpoint = (project: string | undefined) =>
+  (project === undefined ? undefined : configStore.current.settings[project]?.checkpointTokens) ?? configStore.current.stats.checkpointTokens
+// Tally knows a project by its key: projects that share one are one project of the stats, on the first one's repository.
 const stats = new StatsReader(
   tally.reader,
-  () => configStore.current.projects,
+  () => Object.fromEntries(Object.entries(firstByKey(configStore.current)).map(([key, project]) => [key, configStore.current.projects[project]!])),
   () => configStore.current.stats,
-  (project) => configStore.current.settings[project]?.checkpointTokens ?? configStore.current.stats.checkpointTokens,
+  (key) => pinnedCheckpoint(firstByKey(configStore.current)[key]),
 )
 let ledger = loadLedger(accountFile)
 
@@ -481,19 +578,21 @@ const profiles: Profiles = new Profiles({
   writes,
   kinds: profileKindsOf,
   set: importedProfiles,
+  // Feeds too (BTN-66): a profile a feed reads on is in use, and its kind is checked like a project's.
   projects: () => {
-    const { ids, trackers: kinds } = configStore.current
-    return Object.fromEntries(Object.entries(ids).map(([key, id]) => [id, { key, kind: kinds[key]! }]))
+    const { keys, trackers: kinds } = readers()
+    return Object.fromEntries(Object.entries(keys).map(([id, key]) => [id, { key, kind: kinds[id]! }]))
   },
   settingsFile: () => join(homes.global.dir, 'settings.json'),
   expired: () => void daemons.expire(homes.global),
   ci: (id) => ciOn(id, false),
   hiddenCi: (id) => ciOn(id, true),
+  checkRules: (set, id, rules) => checkProfileRules(configStore.current, set, id, rules),
   deniedPulls: (id) => pullRefusals.of(id, (project, target) => (pullRequestsOn(project) ? ciTokenOf(project, target) : null)),
   timeoutMs: TRACKER_CHECK_MS,
   log: (line) => console.log(line),
   onChange: (set) => {
-    trackers.apply(configStore.current, set)
+    trackers.apply(readers(), set)
     ciWatches.tokensChanged()
     dispatcher.check()
     hub.broadcast('state', getState())
@@ -505,8 +604,8 @@ const profiles: Profiles = new Profiles({
 })
 /** The tracker refused the credentials of the profile the project runs on: its chain waits (BTN-200). */
 const profileBlock = (project: string): Notice | undefined => {
-  const refused = profiles.refused(configStore.current.ids[project]!)
-  return refused === undefined ? undefined : notice('profiles.paused', { profile: refused.name, project })
+  const refused = profiles.refused(project)
+  return refused === undefined ? undefined : notice('profiles.paused', { profile: refused.name, project: projectLabel(configStore.current, project) })
 }
 /** Whether pull requests of the project in PR mode have where to go, by the remotes given (EKR-12). */
 const pullReadinessOf = (project: string, urls: Remote[]) => pullReadiness(project, urls, (target) => ciTokenOf(project, target)?.token ?? null)
@@ -551,7 +650,12 @@ const account = new AccountWatcher({
   forget: (key) => saveAccounts(forgetAccount(ledger, key)),
   nameOf: (key) => ledger.accounts[key]?.name ?? null,
   name: (key, name) => saveAccounts(nameAccount(ledger, key, name)),
-  loginBlock: (): LoginBlock | null => loginBlock(dispatcher.state.active, agents, activeAccount()),
+  transportOf: (home, apiKey) => transportOf(home.agent, ledger.accounts[home.key]?.transport, apiKey),
+  chooseTransport: (key, transport) => {
+    saveAccounts(chooseTransport(ledger, key, transport))
+    console.log(`account: ${key} starts its sessions on ${transportOf(CLAUDE, transport ?? undefined, account.apiKey(key))}${transport === null ? ' by default' : ''}`)
+  },
+  loginBlock:(): LoginBlock | null => loginBlock(dispatcher.state.active, agents, activeAccount()),
   sessionsIn: (key) => liveSessions(agents, key),
   projectsOn: (key) => projectsByAccount(configStore.current, Object.keys(configStore.current.projects))[key] ?? [],
   pool: () => poolEntries(configStore.current, Object.keys(configStore.current.projects)),
@@ -636,11 +740,11 @@ const monitor = new SessionMonitor({
   homes: () => homes.list(),
   emailOf: (key) => account.emailOf(key),
   apiKey: (key) => account.apiKey(key),
-  // The keys name the fix sessions (`<KEY>-FIX`), the prefixes the tasks of projects whose ids are the tracker's own.
+  // The stems name the fix sessions (`<KEY>-FIX`), the prefixes the tasks of projects whose ids are the tracker's own.
   projectKeys: () => {
     const config = configStore.current
-    const keys = Object.keys(config.projects)
-    return [...new Set([...keys, ...keys.map((project) => idPrefixOf(config, project))])]
+    const projects = Object.keys(config.projects)
+    return [...new Set([...projects.map((project) => fixStem(config.keys, project)), ...projects.map((project) => idPrefixOf(config, project))])]
   },
   contextWindow: (key, model, task) => (agentOf(homeOf(key)).contextWindow === undefined ? null : contextWindows.peek(key, model, task)),
   intervalMs: SESSION_POLL_MS,
@@ -668,15 +772,24 @@ function logStartupDialogs(views: SessionView[]): void {
     wedgedSessions.add(view.sessionId)
     console.warn(`sessions: ${view.task} hangs on a Claude Code dialog before its first turn: ${view.startupDialog} (session ${view.sessionId}, ${view.cwd})`)
   }
+  for (const view of views) {
+    const key = `${view.sessionId}@${view.hungSince}`
+    if (view.hungSince === null || wedgedSessions.has(key)) continue
+    wedgedSessions.add(key)
+    console.warn(`sessions: the turn of ${view.task} has written nothing since ${view.hungSince} and is taken for hung (session ${view.sessionId})`)
+  }
 }
 
 const liveView = (task: string) => sessions.find((each) => each.task === task && each.lamp !== 'finished')
 
+/** Whether a message goes into the live session mid-turn without its mailbox (`AgentEntry.steers`, BTN-291). */
+const steering = (sessionId: string) => agents.some((each) => each.sessionId === sessionId && each.steers === true)
+
 const agentStatus = (task: string) => {
   const view = liveView(task)
   if (view === undefined) return undefined
-  const status = agents.find((agent) => agent.sessionId === view.sessionId)?.status
-  return turnStatus(status, view.lastActivityAt, new Date(), view.lamp === 'limit')
+  const agent = agents.find((each) => each.sessionId === view.sessionId)
+  return turnStatus(agent?.status, view.lastActivityAt, new Date(), view.lamp === 'limit', agent?.state === 'blocked')
 }
 
 const knownTask = (task: string) => [...tasksByProject.values()].flat().find((each) => each.id === task)
@@ -749,7 +862,6 @@ const changelogs = new ChangelogDrafts({
     return sha
   },
   db,
-  ids: () => configStore.current.ids,
   now: () => new Date(),
 })
 await changelogs.load()
@@ -760,17 +872,20 @@ const activeAccount = () => configStore.current.accounts[configStore.current.pro
 /** The project's own, else the shared one. */
 const promptLanguage = (project?: string) => (project === undefined ? undefined : configStore.current.settings[project]?.promptLanguage) ?? configStore.current.promptLanguage
 
-const trackerPlace = (project: string): TrackerPlace | null => {
-  const name = configStore.current.trackers[project]!
-  const place = configStore.current.trackerProjects[project]
+/** Where in its tracker a reader's tasks are — a project's, a feed's. */
+const trackerPlace = (reader: string): TrackerPlace | null => {
+  const all = readers()
+  const name = all.trackers[reader]!
+  const place = all.trackerProjects[reader]
   return place === undefined ? null : { title: ADAPTERS[name]!.title, project: place }
 }
 
 const briefed = async (task: string, given: string, project = projectOf(task)): Promise<string> => {
   if (project === undefined) return given
-  const prompt = withTracker(given, trackerPlace(project), promptLanguage(project))
-  if (!briefOn(project)) return prompt
-  const link = linkOf(project)
+  const reader = readerFor(project, task)
+  const prompt = withTracker(given, trackerPlace(reader), promptLanguage(project))
+  if (!briefOn(project, reader)) return prompt
+  const link = linkOf(reader)
   return link === undefined ? prompt : withBrief(prompt, await link.run(async (tracker) => tracker.brief?.(task)), promptLanguage(project))
 }
 
@@ -796,7 +911,7 @@ const settingsFor = (task: string, project = projectOf(task)): string | undefine
 
 function projectOf(task: string): string | undefined {
   for (const [project, tasks] of tasksByProject) if (tasks.some((each) => each.id === task)) return project
-  const fixed = isFixName(task) ? Object.keys(configStore.current.projects).find((project) => fixName(project) === fixTaskOf(task)) : undefined
+  const fixed = isFixName(task) ? projectOfFix(configStore.current.keys, task) : undefined
   return fixed ?? dispatcher.state.active.find((chain) => chain.current?.task === task)?.project
 }
 
@@ -831,17 +946,39 @@ const places = new TaskPlaces({
 
 /** Keeps a done task the chain ran in the database's archive, by what its tracker last said of it. */
 function archiveClosed(project: string, task: string): void {
-  const tracker = configStore.current.trackers[project]!
-  const title = tasksByProject.get(project)?.find((each) => each.id === task)?.title ?? ''
-  const url = issueLink(trackers.setupOf(project)?.issueUrl(project) ?? null, task)
-  writes.add(`the archive of ${task}`, saveClosedTask(db, { project, task, tracker, title, url, closedAt: new Date().toISOString() }, configStore.current.ids))
+  const { tracker, profile, url } = taskSource(project, task)
+  const known = tasksByProject.get(project)?.find((each) => each.id === task)
+  const closed = { project, task, tracker, title: known?.title ?? '', url, closedAt: new Date().toISOString(), profile, status: known?.status.name ?? null }
+  writes.add(`the archive of ${task}`, saveClosedTask(db, closed))
+  const at = archive.findIndex((each) => each.project === project && each.task === task)
+  if (at >= 0) archive.splice(at, 1)
+  archive.push(closed)
+}
+
+/** The launch with where its task is read from (BTN-66); a fix session has no tracker task. */
+function withSource(entry: LaunchEntry): LaunchEntry {
+  if (isFixName(entry.task) || configStore.current.projects[entry.project] === undefined) return entry
+  const { profile, url } = taskSource(entry.project, entry.task)
+  const title = tasksByProject.get(entry.project)?.find((each) => each.id === entry.task)?.title
+  return { ...entry, ...(profile === null ? {} : { profile }), ...(url === null ? {} : { url }), ...(title === undefined ? {} : { title }) }
+}
+
+/** Where a project's task is read from (BTN-66): its tracker, the profile it runs on and its link. */
+function taskSource(project: string, task: string): { tracker: string; profile: string | null; url: string | null } {
+  const reader = readerFor(project, task)
+  const tracker = readers().trackers[reader]!
+  return {
+    tracker,
+    profile: profileFor(profiles.current(), reader, tracker)?.id ?? null,
+    url: issueLink(trackers.setupOf(reader)?.issueUrl(reader) ?? null, task),
+  }
 }
 
 function taskRun(task: string, cwd: string): SetupRun {
   return { task, cwd, shell: systemShell(() => envOf(homeOf(claudeAccount()))), log: (line) => console.log(line) }
 }
 
-const dispatcher = new Dispatcher(await loadChainState(db, configStore.current.ids), {
+const dispatcher = new Dispatcher(await loadChainState(db), {
   projects: () => Object.keys(configStore.current.projects),
   parallel: () => configStore.current.parallel,
   rules: rulesOf,
@@ -870,11 +1007,12 @@ const dispatcher = new Dispatcher(await loadChainState(db, configStore.current.i
   },
   asked: (task) => liveView(task)?.ask?.id ?? null,
   save: (state) => {
-    writes.add('the chain state', saveChainState(db, state, configStore.current.ids))
+    writes.add('the chain state', saveChainState(db, state))
     hub.broadcast('state', getState())
   },
-  journal: (entry) => {
-    writes.add(`the launch of ${entry.task}`, appendLaunch(db, entry, configStore.current.ids))
+  journal: (launched) => {
+    const entry = withSource(launched)
+    writes.add(`the launch of ${entry.task}`, appendLaunch(db, entry))
     launches.push(entry)
     console.log(launchLine(entry))
   },
@@ -946,7 +1084,7 @@ const dispatcher = new Dispatcher(await loadChainState(db, configStore.current.i
     if (outcome.syncError !== null) console.error(`git: sync of ${project} after ${task} failed: ${englishOf(outcome.syncError)}`)
     return outcome
   },
-  refresh: async (project) => refreshers.get(project)?.(),
+  refresh: async (project) => void (await refreshProject(project)),
   log: (message) => console.log(message),
   reviews: reviewDeps({
     git: runGit,
@@ -955,7 +1093,7 @@ const dispatcher = new Dispatcher(await loadChainState(db, configStore.current.i
     on: pullRequestsOn,
     token: (project, target) => ciTokenOf(project, target)?.token ?? null,
     complete: async (project, task) => {
-      await linkOf(project)?.run(async (tracker) => tracker.complete?.(task))
+      await linkFor(project, task)?.run(async (tracker) => tracker.complete?.(task))
     },
     refusals: pullRefusals,
     now: () => new Date(),
@@ -964,7 +1102,7 @@ const dispatcher = new Dispatcher(await loadChainState(db, configStore.current.i
   unchanged: {
     changes: (project, workdir) => changesOf(runGit, workdir, branchOf(project)),
     complete: async (project, task, comment) => {
-      const link = linkOf(project)
+      const link = linkFor(project, task)
       await link?.run(async (tracker) => tracker.complete?.(task))
       // The task is done whatever becomes of the comment.
       await link?.run(async (tracker) => tracker.comment?.(task, comment)).catch((error: unknown) => {
@@ -973,6 +1111,7 @@ const dispatcher = new Dispatcher(await loadChainState(db, configStore.current.i
     },
   },
   main: mainCheckDeps({
+    peers: (project) => remotePeers(remotes.view, branchOf, project),
     repo: (project) => configStore.current.projects[project]!,
     main: branchOf,
     git: runGit,
@@ -984,7 +1123,7 @@ const dispatcher = new Dispatcher(await loadChainState(db, configStore.current.i
     create: async (task) => (await linkOf(task.project)?.run(async (tracker) => tracker.create?.(task))) ?? null,
     comment: async (task, body) => {
       const project = configuredProject(task)
-      const link = project === undefined ? undefined : linkOf(project)
+      const link = project === undefined ? undefined : linkFor(project, task)
       await link?.run(async (tracker) => tracker.comment?.(task, body))
     },
     prepare: (project, task) => places.prepare(project, task),
@@ -992,14 +1131,37 @@ const dispatcher = new Dispatcher(await loadChainState(db, configStore.current.i
     runCheck: (project, task, cwd) => runCheck(configStore.current.settings[project]?.check ?? [], taskRun(task, cwd)),
     afterGreen: (project) => configStore.current.settings[project]?.afterGreen ?? [],
     runAfterGreen: (project, cwd) => runAfterGreen(configStore.current.settings[project]?.afterGreen ?? [], taskRun(project, cwd)),
+    fixName: (project) => fixNameOf(configStore.current.keys, project),
     now: () => new Date(),
   }),
 })
 
+/** Whether the checkouts of two projects are of one repository (BTN-285); `undefined` until both are read. */
+function sameRepositoryOf(a: string, b: string): boolean | undefined {
+  const ids = remotes.repositories
+  return ids[a] === undefined || ids[b] === undefined ? undefined : sameRepository(ids[a], ids[b])
+}
+
+/**
+ * A release project merges into a project of its own repository, read from both folders now: `parseConfig` has no git,
+ * so a hand-made `config-import` is caught only by the carry, before it fetches anything.
+ */
+async function checkMergeTarget(project: string, form: ProjectForm): Promise<void> {
+  const current = configStore.current
+  const records = Object.entries(current.keys).map(([id, key]) => ({ id, key }))
+  const into = mergeTargetOf(records, project, form.mergeInto)
+  const repo = into === null ? undefined : current.projects[into]
+  if (into === null || repo === undefined || into === project) return
+  const [own, target] = await Promise.all([form.repo, repo].map(async (folder) => repositoryIds(await checkoutRemotes(runGit, folder), folder)))
+  if (!sameRepository(own!, target!)) throw fail('config.mergeIntoForeign', { project: projectLabel(current, project), into: projectLabel(current, into) })
+}
+
 const forwards = new ForwardMerger({
   pairs: () => Object.entries(configStore.current.settings).flatMap(([from, { mergeInto: into }]) => (into === null ? [] : [{ from, into }])),
+  sameRepository: sameRepositoryOf,
   repo: (project) => configStore.current.projects[project]!,
   branch: branchOf,
+  label: (project) => projectLabel(configStore.current, project),
   quiet: (project) => {
     const status = (task: string) => agentStatus(task)
     return chainQuiet(dispatcher.state.active.find((chain) => chain.project === project), (task) => status(task) === 'busy' || status(task) === 'waiting')
@@ -1015,20 +1177,36 @@ const forwards = new ForwardMerger({
   log: (message) => console.log(message),
 })
 
-/** Stops the session and resumes it with `prompt`; the page keeps it working, not finished, while it is respawned. */
+/**
+ * Goes on in the live session with `prompt` where its agent can (an SDK session, BTN-239); otherwise stops the session
+ * and resumes it, and the page keeps it working, not finished, while it is respawned.
+ */
 function resumeWith(task: string, session: HandoffSession, prompt: string): Promise<string> {
   return monitor.holds.during(session.sessionId, async () => {
     const home = homeOf(session.account)
+    const start = goOnWith(home, task, session, prompt)
+    const went = await agentOf(home).reply?.(home, session, start)
+    if (went != null) return went
     const started = Date.now()
     await stopIn(home, session)
     const stopped = Date.now()
     await daemons.prepare(home)
-    const plan = planFor(task, prompt)
-    const extras = agentExtras(home, projectOf(task), task)
-    const sessionId = await resumeIn(home, session, { name: task, cwd: session.cwd, prompt: plan.prompt, model: plan.model, settings: settingsFor(task), ...extras })
+    const sessionId = await resumeIn(home, session, start)
     console.log(`sessions: ${task} resumed in ${Date.now() - started} ms (stop ${stopped - started} ms)`)
     return sessionId
   })
+}
+
+function goOnWith(home: AccountHome, task: string, session: HandoffSession, prompt: string): SessionStart {
+  const plan = planFor(task, prompt)
+  const extras = agentExtras(home, projectOf(task), task)
+  return { name: task, cwd: session.cwd, prompt: plan.prompt, model: plan.model, settings: settingsFor(task), ...extras }
+}
+
+/** Puts a chat message into a working session that steers (BTN-291); `false` — it is not live here after all. */
+async function steer(task: string, session: HandoffSession, prompt: string): Promise<boolean> {
+  const home = homeOf(session.account)
+  return (await agentOf(home).reply?.(home, session, goOnWith(home, task, session, prompt))) != null
 }
 
 const mailRelay: MailRelay = {
@@ -1050,7 +1228,8 @@ const mailRelay: MailRelay = {
 
 /**
  * Saves the files into the task's folder and resumes the waiting session with the reply (invariant 1, exception 6);
- * a page message to a working session whose hooks take mail goes into its mailbox instead (BTN-181).
+ * a page message to a working session goes straight in when it steers (BTN-291), else into its mailbox when its hooks
+ * take mail (BTN-181).
  */
 async function answerSession(
   project: string,
@@ -1059,7 +1238,8 @@ async function answerSession(
   ask: string | null,
   reply: Omit<Reply, 'files'> & { files: InboxFile[] },
 ): Promise<void> {
-  const { session, midTurn } = dispatcher.answerable(project, task, sessionId, ask, reply.from === 'page' && mailbox.listens(sessionId))
+  const takes = reply.from === 'page' && (steering(sessionId) || mailbox.listens(sessionId))
+  const { session, midTurn } = dispatcher.answerable(project, task, sessionId, ask, takes)
   const question = ask === null ? null : (liveView(task)?.ask ?? null)
   let files: string[]
   try {
@@ -1069,6 +1249,11 @@ async function answerSession(
   }
   const prompt = replyPrompt({ ...reply, files }, question, promptLanguage(project))
   if (midTurn) {
+    if (steering(sessionId) && (await steer(task, session, prompt))) {
+      console.log(`chain: ${task}: the user's message from the page went into the working session ${sessionId}${files.length > 0 ? ` with ${files.length} file(s)` : ''}`)
+      return
+    }
+    if (!mailbox.listens(sessionId)) throw fail('answer.busy', { task })
     mailbox.post(task, sessionId, reply.text, files)
     console.log(`chain: ${task}: the user's message from the page waits in the mailbox of the session ${sessionId}${files.length > 0 ? ` with ${files.length} file(s)` : ''}`)
     hub.broadcast('state', getState())
@@ -1144,8 +1329,10 @@ function removalFacts(project: string, repo: string): RemovalFacts {
 const getState = (): EvenKeelState => ({
   startedAt,
   projects: Object.keys(configStore.current.projects),
-  projectIds: configStore.current.ids,
-  config: configStore.view(launchedProjects(launches)),
+  projectKeys: configStore.current.keys,
+  projectLabels: projectLabels(configStore.current),
+  taskPrefixes: Object.fromEntries(Object.keys(configStore.current.keys).map((project) => [project, idPrefixOf(configStore.current, project)])),
+  config: configStore.view(lockedReaders()),
   chain: {
     active: dispatcher.state.active,
     parallel: configStore.current.parallel,
@@ -1154,7 +1341,11 @@ const getState = (): EvenKeelState => ({
     skipped: dispatcher.state.skipped,
     leftovers: dispatcher.state.leftovers,
   },
-  tasks: [...tasksByProject.values()].flat(),
+  tasks: Object.keys(configStore.current.projects).flatMap((project) => {
+    const listed = tasksByProject.get(project) ?? []
+    const archived = archivedShown(archive, project, listed, new Date(Date.now() - RAN_SHOWN_MS))
+    return [...listed, ...archived].map((task) => ({ ...task, project }))
+  }),
   // A finished session's feed is read from its record; the one the chain waits on keeps it: delivering an answer stops it for a while.
   sessions: sessions.map((view) =>
     view.lamp === 'finished' && !dispatcher.state.active.some((chain) => chain.current?.sessionId === view.sessionId) ? { ...view, feed: [] } : view,
@@ -1165,11 +1356,14 @@ const getState = (): EvenKeelState => ({
   trackers: trackers.views(),
   trackerUrls: {
     default: trackers.setupOf(null)?.issueUrl(null) ?? null,
-    projects: Object.fromEntries(Object.keys(configStore.current.projects).map((project) => [project, trackers.setupOf(project)?.issueUrl(project) ?? null])),
+    projects: Object.fromEntries(Object.keys(readers().projects).map((reader) => [idPrefixOf(readers(), reader), trackers.setupOf(reader)?.issueUrl(reader) ?? null])),
     pages: Object.fromEntries(Object.keys(configStore.current.projects).map((project) => [project, trackers.setupOf(project)?.projectUrl?.(project) ?? null])),
   },
   ci: Object.fromEntries([...ciWatches.byProject.keys()].map((project) => [project, ciWatches.shown(project).map((watch) => watch.view)])),
   remotes: remotes.view,
+  sameRepository: Object.fromEntries(
+    Object.keys(remotes.repositories).map((project) => [project, Object.keys(remotes.repositories).filter((other) => other !== project && sameRepositoryOf(project, other))]),
+  ),
   pullReadiness: Object.fromEntries(
     Object.entries(remotes.urls)
       .filter(([project]) => configStore.current.projects[project] !== undefined)
@@ -1190,6 +1384,7 @@ const getState = (): EvenKeelState => ({
   unattended: dispatcher.state.unattended,
   trimTools: dispatcher.state.trimTools,
   tally: tallyMode(),
+  tallyHealth: tally.health(),
   updates: { ...releasesView(), ...updater.view() },
   cliVersions: [...cliVersions.view(), ...daemons.outdated().map((daemon) => outdatedDaemonView(daemon, AGENTS[daemon.agent]!.title))],
   fallbacks: fallbacksSince(launches, new Date(Date.now() - FALLBACK_TOAST_MS)).map(({ at, task, project, fallback }) => ({
@@ -1200,8 +1395,9 @@ const getState = (): EvenKeelState => ({
   mailbox: Object.fromEntries(
     sessions.flatMap((view): [string, SessionMail][] => {
       const mail = mailbox.of(view.sessionId)
-      const listens = mailbox.listens(view.sessionId)
-      return listens || mail.length > 0 ? [[view.sessionId, { listens, mail }]] : []
+      const steers = steering(view.sessionId)
+      const listens = steers || mailbox.listens(view.sessionId)
+      return listens || mail.length > 0 ? [[view.sessionId, { listens, steers, mail }]] : []
     }),
   ),
   changelogs: changelogs.writtenTasks(),
@@ -1234,11 +1430,12 @@ let server = createEvenKeelServer({
     save: async (project, form, base) => {
       if (configStore.current.projects[project] === undefined) throw fail('config.unknownProject', { key: project })
       const moved = form.tracker !== base.tracker || form.trackerProject !== base.trackerProject
-      if (moved && launchedProjects(launches).includes(project)) throw fail('config.trackerLocked', { key: project })
+      if (moved && lockedReaders().includes(project)) throw fail('config.trackerLocked', { key: projectLabel(configStore.current, project) })
       if (form.pullRequests && !base.pullRequests) {
         const ready = pullReadinessOf(project, await remotesIn(runGit, form.repo))
         if ('notice' in ready) throw fail('review.cannotEnable', { project }, { cause: ready.notice })
       }
+      if (form.mergeInto !== base.mergeInto || form.repo !== base.repo) await checkMergeTarget(project, form)
       configStore.saveProject(project, form, base)
       console.log(`page: the settings of ${project} are written to the config`)
     },
@@ -1270,6 +1467,26 @@ let server = createEvenKeelServer({
       if (blocked !== null) throw new NoticeError(blocked)
       configStore.removeProject(project)
       console.log(`page: the project ${project} is removed from the config; its repository, worktrees and branches are left as they are`)
+    },
+    addFeed: (project, { profile, ...draft }) => {
+      const chosen = profile === null ? undefined : profiles.current().profiles.find((each) => each.id === profile)
+      if (profile !== null && chosen === undefined) throw fail('profiles.unknown', {})
+      if (chosen !== undefined && chosen.kind !== draft.tracker) throw fail('profiles.otherTracker', { profile: chosen.name, project: draft.key.trim() })
+      const id = configStore.addFeed(project, draft)
+      if (chosen !== undefined) profiles.link(id, chosen.id, true)
+      console.log(`page: the task feed ${draft.key.trim()} is added to ${projectLabel(configStore.current, project)}`)
+    },
+    removeFeed: (project, feed) => {
+      const key = configStore.current.feeds[project]?.find((each) => each.id === feed)?.key
+      configStore.removeFeed(project, feed)
+      profiles.link(feed, null, true)
+      console.log(`page: the task feed ${key} is removed from ${projectLabel(configStore.current, project)}`)
+    },
+    linkFeed: (project, feed, profile) => {
+      const found = configStore.current.feeds[project]?.find((each) => each.id === feed)
+      if (found === undefined) throw fail('config.unknownFeed', {})
+      if (lockedReaders().includes(feed)) throw fail('config.feedLocked', { project: projectLabel(configStore.current, project), key: found.key })
+      profiles.link(feed, profile, true)
     },
     dismissUpdate: (version) => {
       dismissedUpdate = version
@@ -1318,11 +1535,14 @@ let server = createEvenKeelServer({
       console.log(`page: the profile ${name} is removed`)
     },
     setDefault: (id) => profiles.setDefault(id),
+    setRules: (id, rules) => {
+      profiles.setRules(id, rules)
+      console.log(`page: the chain rules of the profile ${profiles.current().profiles.find((profile) => profile.id === id)?.name} are saved`)
+    },
     link: (project, profile) => {
-      const id = configStore.current.ids[project]
-      if (id === undefined) throw fail('config.unknownProject', { key: project })
-      if (launchedProjects(launches).includes(project)) throw fail('config.trackerLocked', { key: project })
-      profiles.link(id, profile)
+      if (!Object.hasOwn(configStore.current.projects, project)) throw fail('config.unknownProject', { key: project })
+      if (lockedReaders().includes(project)) throw fail('config.trackerLocked', { key: projectLabel(configStore.current, project) })
+      profiles.link(project, profile)
     },
     projects: (id, query) => profiles.projects(id, query),
   },
@@ -1358,7 +1578,7 @@ let server = createEvenKeelServer({
     const run = handoffsOf(launches, sessionId)
     if (run === undefined) return undefined
     const window = sessions.find((view) => view.sessionId === sessionId)?.contextWindow ?? configStore.current.context.window
-    const { first, source } = await stats.checkpoint(run.project)
+    const { first, source } = await stats.checkpoint(configStore.current.keys[run.project] ?? run.project, pinnedCheckpoint(run.project))
     const shares = configStore.current.settings[run.project]?.checkpointShares ?? configStore.current.stats.checkpointShares
     return { ...run, ...withinWindow({ first, source }, window, shares), context: monitor.contextOf(sessionId) ?? null }
   },
@@ -1393,56 +1613,53 @@ let server = createEvenKeelServer({
     const received = view.received
     return received === null ? view : { ...view, received: { ...received, account: sessionAccount(received.sessionId, received.at) } }
   },
-  vocabulary: (id) => {
-    const project = Object.keys(configStore.current.ids).find((key) => configStore.current.ids[key] === id)
-    return project === undefined ? Promise.resolve(undefined) : vocabularies.get(project)
-  },
+  vocabulary: (id) => (Object.hasOwn(readers().projects, id) ? vocabularies.get(id) : Promise.resolve(undefined)),
   tasks: {
     card: async (task) => {
       const project = configuredProject(task)
-      const link = project === undefined ? undefined : linkOf(project)
+      const link = project === undefined ? undefined : linkFor(project, task)
       if (link === undefined) return undefined
       return link.run(async (tracker) => {
         if (tracker.card === undefined) return undefined
         const [card, milestones] = await Promise.all([tracker.card(task), tracker.milestones?.(task) ?? null])
-        return cardOf(card, rulesOf(project!), tracker.ready !== undefined, milestones)
+        return cardOf(card, rulesOf(project!, task), tracker.ready !== undefined, milestones)
       })
     },
     file: async (task, file) => {
       const project = configuredProject(task)
-      const link = project === undefined ? undefined : linkOf(project)
+      const link = project === undefined ? undefined : linkFor(project, task)
       if (link === undefined) return undefined
       return link.run(async (tracker) => (await tracker.file?.(task, file)) ?? undefined)
     },
     ready: async (task) => {
       const project = configuredProject(task)
-      const link = project === undefined ? undefined : linkOf(project)
+      const link = project === undefined ? undefined : linkFor(project, task)
       if (link === undefined) throw fail('task.noTracker', { task })
       const status = await link.run(async (tracker) => tracker.ready?.(task))
       if (status === undefined) throw fail('task.cannotReady', { task })
       if (status === null) throw fail('task.pastBacklog', { task })
-      const tasks = tasksByProject.get(project!)
+      const reader = readerFor(project!, task)
+      const tasks = readerTasks.get(reader)
       if (tasks?.some((each) => each.id === task)) {
         const updated = tasks.map((each) => (each.id === task ? { ...each, status } : each))
-        tasksByProject.set(project!, updated)
-        dispatcher.setTasks(project!, updated)
+        readerTasks.set(reader, updated)
+        readerTasks.setTasks(reader, updated)
       }
       hub.broadcast('state', getState())
     },
     // The milestone moves the task in the chain's order: the project is read anew rather than patched.
     moveMilestone: async (task, milestone) => {
       const project = configuredProject(task)
-      const link = project === undefined ? undefined : linkOf(project)
+      const link = project === undefined ? undefined : linkFor(project, task)
       if (link === undefined) throw fail('task.noTracker', { task })
       const moved = await link.run(async (tracker) => (tracker.moveMilestone === undefined ? false : (await tracker.moveMilestone(task, milestone), true)))
       if (!moved) throw fail('task.cannotMoveMilestone', { task })
-      await refreshers.get(project!)?.()
+      await refreshers.get(readerFor(project!, task))?.()
     },
     refresh: async (project) => {
-      const refresh = refreshers.get(project)
-      if (refresh === undefined) throw fail('tracker.noProject', { project })
       // The page's refresh asks the forges too: otherwise a pull request is seen only by the minute's poll.
-      await Promise.all([refresh(), dispatcher.pollReviews(project)])
+      const [read] = await Promise.all([refreshProject(project), dispatcher.pollReviews(project)])
+      if (!read) throw fail('tracker.noProject', { project })
     },
   },
   changelog: async (project, milestone, op) => {
@@ -1467,14 +1684,15 @@ async function inHomes<T>(read: (home: AccountHome) => Promise<T | undefined>): 
 
 /**
  * The project of a task: the one whose list has it, else one whose task ids its id carries — projects on one tracker
- * project, or on one Linear team, share a prefix that is not their key (BTN-172).
+ * project, or on one Linear team, share a prefix that is not their key (BTN-172); a feed's ids name its project (BTN-66).
  */
 function configuredProject(task: string): string | undefined {
   const listed = projectOf(task)
   if (listed !== undefined) return listed
   const prefix = parseTaskId(task)?.project
-  const config = configStore.current
-  return Object.keys(config.projects).find((project) => idPrefixOf(config, project) === prefix)
+  const all = readers()
+  const reader = Object.keys(all.projects).find((each) => idPrefixOf(all, each) === prefix)
+  return reader === undefined ? undefined : ownerOf(all, reader)
 }
 
 const postedQuestions = await loadQuestions(db)
@@ -1493,7 +1711,7 @@ const questions = new TrackerQuestions({
     })
     return [...current, ...aside]
   },
-  tracker: (project, call) => linkOf(project)?.run(call),
+  tracker: (project, task, call) => linkFor(project, task)?.run(call),
   language: () => configStore.current.language ?? promptLanguage(),
   load: () => postedQuestions,
   save: (posted) => writes.add('the posted questions', saveQuestions(db, posted)),
@@ -1527,30 +1745,25 @@ setInterval(
   CI_TARGETS_MS,
 ).unref()
 
-/** The config's projects changed: renamed keys carry their state, removed ones let their chain go, the rest follows the config. */
+/**
+ * The config's projects changed: removed ones let their chain go, the rest follows the config. The state names a
+ * project by its id (BTN-271), so a renamed key carries nothing.
+ */
 function projectsChanged(before: EvenKeelConfig): void {
   const after = configStore.current
-  const rename = rekeyed(before.ids, after.ids)
-  const renamed = Object.keys(before.ids).filter((key) => rename(key) !== key)
-  if (renamed.length > 0) {
-    dispatcher.rekey(rename)
-    for (const entry of launches) entry.project = rename(entry.project)
-    for (const [key, tasks] of [...tasksByProject]) {
-      tasksByProject.delete(key)
-      tasksByProject.set(rename(key), tasks)
+  for (const project of Object.keys(before.projects)) {
+    if (Object.hasOwn(after.projects, project)) {
+      if (before.keys[project] !== after.keys[project]) console.log(`config: ${before.keys[project]} is now ${projectLabel(after, project)}`)
+      continue
     }
-    console.log(`config: renamed ${renamed.map((key) => `${key} to ${rename(key)}`).join(', ')}`)
+    dispatcher.forget(project)
+    tasksByProject.delete(project)
+    console.log(`config: ${projectLabel(before, project)} is gone from the config; its chain is let go, its sessions are left as they are`)
   }
-  for (const key of Object.keys(before.projects).map(rename)) {
-    if (Object.hasOwn(after.projects, key)) continue
-    dispatcher.forget(key)
-    tasksByProject.delete(key)
-    console.log(`config: ${key} is gone from the config; its chain is let go, its sessions are left as they are`)
-  }
-  for (const key of Object.keys(after.projects)) if (!Object.hasOwn(before.projects, key) && !renamed.some((old) => rename(old) === key)) console.log(`config: ${key} joined`)
-  trackers.apply(after, profiles.current())
+  for (const project of Object.keys(after.projects)) if (!Object.hasOwn(before.projects, project)) console.log(`config: ${projectLabel(after, project)} joined`)
+  trackers.apply(readersOf(after), profiles.current())
   if (JSON.stringify(before.projects) !== JSON.stringify(after.projects)) {
-    void packages.projectsChanged(rename).catch((error: unknown) => console.warn(`packages: ${(error as Error).message}`))
+    void packages.projectsChanged().catch((error: unknown) => console.warn(`packages: ${(error as Error).message}`))
     applyCi()
   }
   const remoteProfiles = (config: EvenKeelConfig) => JSON.stringify(Object.entries(config.settings).map(([key, settings]) => [key, settings.remoteProfiles]))
@@ -1589,7 +1802,7 @@ server.listen(listen.port, listen.host, () => {
   console.log(`even-keel listening on http://${listen.host}:${listen.port}`)
 })
 
-trackers.apply(configStore.current, profiles.current())
+trackers.apply(readers(), profiles.current())
 profiles.start()
 
 /** `.env` changed: whoever reads the changed variables takes them now (`docs/service.md`). */

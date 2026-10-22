@@ -1,6 +1,6 @@
 import { join } from 'node:path'
 import { Worker } from 'node:worker_threads'
-import { TALLY_DISABLED, TALLY_UNCHOSEN, type TallyMode } from './mode.js'
+import { TALLY_DISABLED, TALLY_UNCHOSEN, type TallyHealth, type TallyMode } from './mode.js'
 import { readerSettings, type ReaderSettings } from './model.js'
 import { HALTED } from './tally-schema.js'
 
@@ -23,6 +23,10 @@ export interface HulyProfiles {
   projects: Record<string, Record<string, string>>
   /** The default Huly profile, for a task of a project the config no longer has; `null` — none. */
   fallback: Record<string, string> | null
+  /** The task id prefixes of projects and feeds on another tracker (BTN-66): Huly is not asked for them, nor the fallback. */
+  elsewhere?: string[]
+  /** Every Huly profile by its id: a task launched through one is asked with it, whatever its project runs on now. */
+  byId?: Record<string, Record<string, string>>
 }
 
 export interface TallyOptions {
@@ -38,6 +42,8 @@ export interface TallyOptions {
   /** Read at each pass: the profiles change on the fly. */
   huly: () => HulyProfiles
   log: (message: string) => void
+  /** Each run's end and a failed open of the embedded database: `health()` changed. */
+  changed?: () => void
 }
 
 const HOST_CLOSE_MS = 10_000
@@ -50,6 +56,8 @@ export class TallyService {
   private running: Worker | null = null
   private timer: NodeJS.Timeout | null = null
   private stopped = false
+  private collecting = false
+  private last: { at: string; code: number } | null = null
 
   constructor(private readonly options: TallyOptions) {
     const { mode } = options
@@ -58,7 +66,11 @@ export class TallyService {
       return
     }
     this.local = this.openHost()
-    this.local.catch((error: unknown) => options.log(`tally: the local database did not open: ${(error as Error).message}`))
+    this.local.catch((error: unknown) => {
+      options.log(`tally: the local database did not open: ${(error as Error).message}`)
+      this.collecting = false
+      options.changed?.()
+    })
     this.reader = this.local
   }
 
@@ -72,7 +84,16 @@ export class TallyService {
       log('tally: TALLY_DB_HOST, TALLY_DB_NAME or TALLY_WRITER_PASSWORD is not set, the service does not collect')
       return
     }
+    this.collecting = true
     this.schedule(this.options.firstDelayMs)
+  }
+
+  health(): TallyHealth {
+    const lastRunAt = this.last?.at ?? null
+    if (this.last?.code === HALTED) return { state: 'halted', lastRunAt }
+    if (!this.collecting) return { state: 'off', lastRunAt }
+    if (this.last === null) return { state: 'waiting', lastRunAt }
+    return { state: this.last.code === 0 ? 'ok' : 'failed', lastRunAt }
   }
 
   async stop(): Promise<void> {
@@ -132,15 +153,17 @@ export class TallyService {
       env: { ...process.env, EVEN_KEEL_URL: env.EVEN_KEEL_URL ?? evenKeelUrl() },
     })
     this.running = run
-    let halted = false
-    run.on('message', (code: number) => {
-      halted = code === HALTED
+    let code = 1
+    run.on('message', (exit: number) => {
+      code = exit
       void run.terminate()
     })
     run.on('error', (error) => log(`tally: ${error.stack ?? error.message}`))
     run.on('exit', () => {
       this.running = null
-      if (!halted) this.schedule(Math.max(0, this.options.intervalMs - (Date.now() - started)))
+      this.last = { at: new Date().toISOString(), code }
+      this.options.changed?.()
+      if (code !== HALTED) this.schedule(Math.max(0, this.options.intervalMs - (Date.now() - started)))
     })
   }
 }

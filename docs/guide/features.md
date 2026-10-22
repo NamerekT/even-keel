@@ -6,6 +6,12 @@ The [README](../../README.md) has the short version. This is every feature in fu
 
 Tasks enter the chain by status (by default: ready and in-progress tasks — not the backlog, not closed ones) and by labels you choose; a task labelled `Manual` or `Вручную` never enters it, it is yours to run. Order: open blockers first, then the order you set by dragging on the page, then milestone, priority, task number. A task with an open blocker waits; a task with subtasks never runs itself — its subtasks do, and on Huly Even Keel closes it once they are all closed. A project with nothing to run says so and opens the project in its tracker, where you file or ready the next tasks.
 
+The rules of which statuses are in work, which are closed and which labels a task needs or must not have are set in **Settings → Chain** for all projects, on a tracker profile for the projects on it (each tracker names its statuses differently), and on a project, the narrowest winning key by key.
+
+## Several trackers for one project
+
+A project's tasks can come from more than one tracker: its own, plus **task feeds** added in the project's settings, Tracker tab — say a private Huly project for your own work and the GitHub issues others file. Each feed is a tracker, an account (profile) on it, a place (a repository, a team) and a key; the tasks of all feeds make one chain in the one repository. A task keeps its tracker's id — Huly's and Linear's own, GitHub's `<feed key>-<number>` — so each feed's key must give ids no other project or feed gives. Blockers work only within one tracker; across them it is the order you set, then milestone, priority and number. Each feed's task is judged by its own profile's rules, closed in its own tracker, and given to its session as text unless a package brings that tracker's MCP server signed in as the feed's account. A feed whose tasks the chain has run keeps its account; removed, its recently closed tasks stay on the page for a week, and the stats keep linking them where they lived.
+
 Sequential within a project, not across them: `parallel` lets that many chains on different projects run at once (one by default). Other projects wait in a queue and start as soon as a chain ends. The usage limit stays shared: every running chain takes tasks until the window is used up, then they all wait for the reset.
 
 ## Sessions
@@ -18,9 +24,9 @@ What a session runs on — the provider, its model and its account — is set in
 
 ## Release branches
 
-Fixes of a released version can run in a chain of their own while the next version goes on in another. Clone the repository a second time, check out the release branch there and add it as a project with its own key on the same tracker project (`huly` names it; on Linear, `TEAM/Project`). The two split the tracker's tasks by milestone: the release project requires the release's milestone (`chain.requiredMilestones`), the main one excludes it (`chain.excludedMilestones`), and Even Keel refuses a pair that would both take one task. They read the tracker once between them.
+Fixes of a released version can run in a chain of their own while the next version goes on in another. Clone the repository a second time, check out the release branch there and add it as a project on the same tracker project, with the same key or one of its own (`huly` then names the tracker project; on Linear, `TEAM/Project`). Two projects of one key are told apart on the page by their name in brackets, `ABC (Release)`. The two split the tracker's tasks by milestone: the release project requires the release's milestone (`chain.requiredMilestones`), the main one excludes it (`chain.excludedMilestones`), and Even Keel refuses a pair that would both take one task. They read the tracker once between them.
 
-With `mergeInto` naming the main project, the release project is carried forward: Even Keel merges its branch into the main project's branch in the main project's checkout and pushes it, in batches, whenever the main chain stands — stopped, empty or paused — so a fix never lands in the middle of a task's merge. **Carry now** on the release project's page does it at once. A conflict is aborted and the carry waits: resolve it by merging by hand, or press **Carry now** to try again. Nothing is ever merged into `main` of a released version; that moves by your release.
+With `mergeInto` naming the main project, the release project is carried forward: Even Keel merges its branch into the main project's branch in the main project's checkout and pushes it, in batches, whenever the main chain stands — stopped, empty or paused — so a fix never lands in the middle of a task's merge. **Carry now** on the release project's page does it at once. A conflict is aborted and the carry waits: resolve it by merging by hand, or press **Carry now** to try again. Nothing is ever merged into `main` of a released version; that moves by your release. The main project must be of the same repository — the two checkouts share a remote, or one is a clone of the other's folder: the settings offer only such projects, and a carry between two other repositories fetches nothing and says so.
 
 ## Codex (preview)
 
@@ -30,9 +36,9 @@ Run it as a chain only on short test tasks. From the Windows service the Codex s
 
 ## OpenCode (preview)
 
-`provider` set to `opencode`, or a label such as `OpenCode | opencode/big-pickle`, runs the task's sessions on [OpenCode](https://opencode.ai): one `opencode run` per turn, the transcript and context fill read from OpenCode's own database, the project's packages passed on every turn. The model is OpenCode's `<provider>/<model>` (`opencode/big-pickle`, `anthropic/claude-sonnet-4-5`, `openai/gpt-6.1-sol`); without one, OpenCode's default. The session reads the project's `AGENTS.md`, else its `CLAUDE.md`, but not your global `~/.claude/CLAUDE.md` or skills. Like Codex, it has no question tool: a turn that ends without the task done waits for your reply in the chat window.
+`provider` set to `opencode`, or a label such as `OpenCode | opencode/big-pickle`, runs the task's sessions on [OpenCode](https://opencode.ai): one `opencode run` per turn, the transcript and context fill read from OpenCode's own database, the project's packages passed on every turn. The model is OpenCode's `<provider>/<model>` (`opencode/big-pickle`, `anthropic/claude-sonnet-4-5`, `openai/gpt-6.1-sol`); without one, OpenCode's default. The session reads the project's `AGENTS.md`, else its `CLAUDE.md`, but not your global `~/.claude/CLAUDE.md` or skills. Like Codex, it has no question tool: a turn that ends without the task done waits for your reply in the chat window. A turn that has written nothing for 30 minutes while its process lives on is taken for hung: the session shows as waiting with a note, and a message to it or "New session" stops the turn first; nothing stops it on its own.
 
-What it does not have yet: limits (OpenCode shows none for ChatGPT or Copilot, so a spent limit stops the session), the handoff on a full context, chat messages delivered mid-turn. It was checked on the free model only and never as a chain under the service ([What has not been verified](../unverified.md#opencode)): run it on test tasks first.
+The [checkpoint](../../plugins/checkpoint) plugin reaches it through an OpenCode plugin of its own: the handoff on a full context and chat messages delivered mid-turn, after the session's next tool call. What it does not have yet: limits (OpenCode shows none for ChatGPT or Copilot, so a spent limit stops the session), the check before the merge. It was checked on the free model only and never as a chain under the service ([What has not been verified](../unverified.md#opencode)): run it on test tasks first.
 
 ## GitHub Copilot (preview)
 
@@ -52,9 +58,9 @@ The same handoff happens when a session ends its turn with a `CHECKPOINT: <path 
 
 ## Chat with the session
 
-The **Chat** button of the current session opens its whole transcript with a reply box: the session's questions one at a time as a card with radio buttons or checkboxes, free text and files — picked with `+`, pasted with Ctrl+V (a screenshot straight from the clipboard) or dropped on the window — which land in the task's `.temp/inbox/`. Pictures the session read and the ones you sent show as thumbnails that open full-window, with a pager through all of them. The button turns amber while the session waits for you. Even Keel stops the session and resumes it with your answer.
+The **Chat** button of the current session opens its whole transcript with a reply box: the session's questions one at a time as a card with radio buttons or checkboxes, free text and files — picked with `+`, pasted with Ctrl+V (a screenshot straight from the clipboard) or dropped on the window — which land in the task's `.temp/inbox/`. Pictures the session read and the ones you sent show as thumbnails that open full-window, with a pager through all of them. The button turns amber while the session waits for you. Even Keel stops the session and resumes it with your answer. An unsent reply — its text and files — stays with each session's chat in your browser: close the window or reload the page and it is still there, until you send it.
 
-You can also write to a session while it works ("not there", "mind X too"): a hook of the [checkpoint](../../plugins/checkpoint) plugin hands the message over at its next tool call or at the end of the turn, without stopping it, and the chat shows whether it waits, was delivered, or came back because the session asked a question meanwhile.
+You can also write to a session while it works ("not there", "mind X too"): a hook of the [checkpoint](../../plugins/checkpoint) plugin hands the message over at its next tool call or at the end of the turn, without stopping it, and the chat shows whether it waits, was delivered, or came back because the session asked a question meanwhile. A Claude session on the Agent SDK transport needs no plugin for it: the message goes straight in and the session reads it once its current tool call ends.
 
 A question with options is also posted to the tracker as a numbered comment; reply with `2`, `1, 3` or text. Remote Control still works for Claude sessions: the page links each one's Remote Control ([setup](setup.md#answering-from-the-phone)).
 
@@ -86,7 +92,7 @@ Chain sessions start without claude.ai skills and plugins, and with niche bundle
 
 Plugins and MCP servers are a set per project, kept by Even Keel and given to chain sessions by flags at every launch: a pinned version installed with one button, updated with another, while a running task stays on the version it started with. MCP servers run behind a local gateway, so the keys stay in Even Keel's `.env`.
 
-Codex sessions get the same set: the MCP servers, and of a plugin its skills and hooks (not its commands and agents), installed into each Codex folder on its first turn there and kept off for your own Codex sessions. OpenCode sessions get the MCP servers and a plugin's skills, not its hooks. The chain does not start a task while a package of its project is not installed, lacks a key or does not answer.
+Codex sessions get the same set: the MCP servers, and of a plugin its skills and hooks (not its commands and agents), installed into each Codex folder on its first turn there and kept off for your own Codex sessions. OpenCode sessions get the MCP servers and a plugin's skills, not its hooks, unless the plugin brings OpenCode plugins of its own in an `opencode/` folder, as the checkpoint plugin does. The chain does not start a task while a package of its project is not installed, lacks a key or does not answer.
 
 ## Accounts
 
@@ -99,6 +105,8 @@ GitHub Copilot accounts are folders too. One runs on the GitHub sign-in already 
 The `/accounts` page lists them in a section per provider (Claude Code, Codex, OpenCode, GitHub Copilot), as cards with their connection, limits and what runs on each now (VS Code chats by their tab titles); a section's "Add" asks for the connection (CLI or API key), then shows that kind's own sign-in; a provider whose CLI is not installed cannot be added, and the page says where to get it. Without the CLI's own folder (`~/.claude`, `~/.codex`), the first account of a provider you add is the one its sessions run on. Renew and remove accounts there, and move Even Keel's chain to an account from that account's card. The same field moves the Claude Code extension in VS Code; the Claude desktop app is not switched, but can be launched on an account folder by hand ([docs/accounts.md](../accounts.md#the-claude-desktop-app)).
 
 An account can also be an Anthropic API key, checked with Anthropic when added and then hourly: its sessions pay from the key, the page shows its spend today instead of limits (with statistics on), and it has no Remote Control and no waiting out a limit; a session whose key runs out of credit is held, the key is checked every 5 minutes, and the chain goes on once it is topped up ([docs/accounts.md](../accounts.md#api-accounts-btn-99)). A Codex account can be an OpenAI API key the same way, checked with OpenAI; a Codex session whose key runs out of money is held the same way.
+
+A Claude account runs its sessions one of two ways, switched on its card: `CLI --bg`, the CLI's own background sessions, or `Agent SDK`, where Even Keel holds each session's CLI in a small process of its own. Through the SDK a session outlives a restart of the service with its question still open, and an answer or a chat message goes straight into the running session instead of stopping and resuming it. An API-key account uses the SDK unless you switch it; a subscription uses `--bg`. Anthropic asks products built on the Agent SDK to sign in with an API key rather than a claude.ai subscription, so turning it on for a subscription is your call. The SDK needs the checked CLI (Settings → Models, "CLI version"); it is downloaded with the first session that wants it, and that session still starts on `--bg`. A switch applies to new sessions, running ones keep their way ([docs/sessions.md](../sessions.md#the-agent-sdk-transport-btn-239-srcclaudesdk)).
 
 ## Limits
 
@@ -125,6 +133,8 @@ A badge in the project's head shows the CI of each remote — Forgejo Actions or
 
 After a task is merged and `main` is pushed, the next task waits for the CI's verdict (as long as the project allows) while its worktree is prepared. A red `main` is fixed first: Even Keel stops the session working on the current task, starts a session to fix `main` — with the failed jobs and the commits of the push in its prompt, without a task in the tracker — and, once the fix is merged, continues the stopped session with a note to merge `main` into its branch. A project can ask for a high-priority fix task in the tracker instead (`ci.fixTask`). If the fix is red too, the chain pauses instead of starting another.
 
+Several projects in separate clones of one repository, on the same main branch, share a red `main`: while one of them fixes it, the others start no new task and start no second fix of the same break; their sessions already at work go on. Once the fix is green, they all go on.
+
 ## A check without CI
 
 A project with no CI, or whose CI does not answer, can name its own check commands, such as `npm run typecheck && npm test`. A session's merge into `main` waits until they pass in the task's worktree (a hook of the [checkpoint](../../plugins/checkpoint) plugin), and a failure goes back to the session to fix. If `main` moved while the task ran, Even Keel runs the check again on `main` in the next task's worktree before that task starts; a failure there is handled like a red CI.
@@ -132,6 +142,10 @@ A project with no CI, or whose CI does not answer, can name its own check comman
 ## Pull requests (experimental)
 
 With `pullRequests` on, a session does not merge its branch: Even Keel pushes it, opens a pull request on GitHub or Forgejo and takes the next task; review feedback and failed checks go back to the task's session. Use it at your own risk: only opening, closing and merging on GitHub ran live. In full — the `projects[].pullRequests` row of the [reference](reference.md#configuration).
+
+## Status
+
+The gear in the header has a dot when something is wrong and a **Status** row leading to `/status`: the service itself, the limit poll, the settings, the statistics collector, and a connection per tracker account in use — whether it answers, its last good poll, its error, and when it last read each project and task feed on it.
 
 ## Updating from the page
 

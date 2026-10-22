@@ -1,6 +1,6 @@
 import type { AccountEntry, AccountLogin, AccountView } from '../../src/account/model.js'
 import type { ActiveChain, CurrentTask, ProjectOrder, ReviewView } from '../../src/chain/dispatcher.js'
-import { fixName, isFixName, liveFixId } from '../../src/chain/fix.js'
+import { fixNameOf, fixTaskOf, isFixName, liveFixId, projectOfFix } from '../../src/chain/fix.js'
 import type { FixEpisode, TaskSession } from '../../src/chain/launches.js'
 import { chainOrder, nextTask, precedence, withWaiting } from '../../src/chain/order.js'
 import type { LimitHold } from '../../src/chain/relay.js'
@@ -10,7 +10,7 @@ import type { Lamp } from '../../src/sessions/agents.js'
 import type { CacheTtl, CacheWindow, TokenTotals } from '../../src/sessions/transcript.js'
 import type { UsageHealth } from '../../src/limits/usage.js'
 import type { Notice } from '../../src/notice/notice.js'
-import type { EvenKeelState, ContextScale, SessionView, TrackerUrls } from '../../src/state.js'
+import type { EvenKeelState, ContextScale, ProjectTask, SessionView, TrackerUrls } from '../../src/state.js'
 import { formatMoment } from './format.js'
 import { say, t } from './i18n/index.js'
 
@@ -153,8 +153,8 @@ export const PROJECT_SLOTS = PROJECT_COLORS
 
 const byNumber = (a: string, b: string) => a.localeCompare(b, 'en', { numeric: true })
 
-export function projectTasks(state: Pick<EvenKeelState, 'tasks'>, project: string): Task[] {
-  return state.tasks.filter((task) => task.id.startsWith(`${project}-`))
+export function projectTasks(state: Pick<EvenKeelState, 'tasks'>, project: string): ProjectTask[] {
+  return state.tasks.filter((task) => task.project === project)
 }
 
 export function waitingSessions(sessions: SessionView[], tasks: Task[]): SessionView[] {
@@ -173,8 +173,22 @@ export function checkpointHandoffs(rows: TaskSession[]): number {
   return rows.filter((row) => row.how === 'checkpoint').length
 }
 
-export function taskProject(task: string): string {
+/** The prefix of a task id or fix name: `ABC` of `ABC-12`. */
+export function taskPrefix(task: string): string {
   return task.replace(/-(\d+|FIX)$/, '')
+}
+
+/**
+ * The project of a task or of a fix episode, by id (BTN-271): the one its fix name is of, the one listing the task,
+ * else the first with its prefix; the prefix itself when no project has it.
+ */
+export function taskProject(state: Pick<EvenKeelState, 'tasks' | 'projectKeys' | 'taskPrefixes'> | null, task: string): string {
+  if (state === null) return taskPrefix(fixTaskOf(task))
+  if (isFixName(task)) return projectOfFix(state.projectKeys, task) ?? taskPrefix(fixTaskOf(task))
+  const listed = state.tasks.find((each) => each.id === task)?.project
+  if (listed !== undefined) return listed
+  const prefix = taskPrefix(task)
+  return Object.keys(state.taskPrefixes).find((project) => state.taskPrefixes[project] === prefix) ?? prefix
 }
 
 export function chainProgress(tasks: Task[], order: ProjectOrder | undefined): { done: number; total: number; backlog: number } {
@@ -286,8 +300,8 @@ export function questionPath(state: EvenKeelState, projects: string[]): string |
     const questions = new Set(projectTasks(state, project).filter((task) => task.question && isOpen(task.status)).map((task) => task.id))
     if (questions.size === 0) continue
     const block = chainBlocks(state, project).find((each) => questions.has(each.id) && hasSession(each))
-    if (block !== undefined) return `${projectPath(state, project)}#${block.id}`
-    page ??= projectPath(state, project)
+    if (block !== undefined) return `${projectPath(project)}#${block.id}`
+    page ??= projectPath(project)
   }
   return page
 }
@@ -363,7 +377,8 @@ export function limitWaitText(until: string, now: Date): string {
   return t.banner.limitHold(formatMoment(until, now))
 }
 
-export function ciWaitText(wait: CiWait, now: Date): string {
+export function ciWaitText(wait: CiWait, now: Date, state: Pick<EvenKeelState, 'projectLabels'> | null): string {
+  if (wait.by !== undefined) return t.banner.remoteFixHold(wait.commit.slice(0, 7), formatMoment(wait.since, now), projectLabel(state, wait.by))
   const text = wait.after === true ? t.banner.afterGreenHold : wait.local === true ? t.banner.checkHold : t.banner.ciHold
   return text(wait.commit.slice(0, 7), formatMoment(wait.since, now))
 }
@@ -387,15 +402,23 @@ export function cardTask(state: EvenKeelState, project: string): CardTask | null
 }
 
 /** The project's page: by its id, which outlives a change of the key. */
-export function projectPath(state: Pick<EvenKeelState, 'projectIds'> | null, project: string): string {
-  return `/p/${encodeURIComponent(state?.projectIds[project] ?? project)}`
+export function projectPath(project: string): string {
+  return `/p/${encodeURIComponent(project)}`
 }
 
-/** The project a page address names: by its id, or by its key in a link from before ids (`byKey`, to be redirected). */
-export function projectOfPath(state: EvenKeelState, param: string): { project: string; byKey: boolean } {
-  const byId = Object.entries(state.projectIds).find(([, id]) => id === param)?.[0]
-  if (byId !== undefined) return { project: byId, byKey: false }
-  return { project: param, byKey: state.projects.includes(param) && state.projectIds[param] !== undefined }
+/**
+ * The project a page address names: by its id, or by its key in a link from before ids (`byKey`, to be redirected) —
+ * the first project of the key.
+ */
+export function projectOfPath(state: Pick<EvenKeelState, 'projects' | 'projectKeys'>, param: string): { project: string; byKey: boolean } {
+  if (state.projects.includes(param)) return { project: param, byKey: false }
+  const byKey = state.projects.find((project) => state.projectKeys[project] === param)
+  return byKey === undefined ? { project: param, byKey: false } : { project: byKey, byKey: true }
+}
+
+/** What the page shows a project by (`projectLabel`): its key, with its name where another project has the key. */
+export function projectLabel(state: Pick<EvenKeelState, 'projectLabels'> | null, project: string): string {
+  return state?.projectLabels[project] ?? project
 }
 
 export function projectName(state: EvenKeelState, project: string): string | null {
@@ -463,7 +486,7 @@ export function chainBlocks(state: EvenKeelState, project: string, now = new Dat
   const hold = active?.current?.limit
   const pending = hold !== undefined && hold.acted === null ? hold : null
   const skipped = new Set(state.chain.skipped[project] ?? [])
-  const fix = fixName(project)
+  const fix = fixNameOf(state.projectKeys, project)
   const next = current === fix && !broken && active?.interrupted === undefined ? nextTask(tasks, order.order, [...skipped, ...order.waiting]) : undefined
   const episodes = state.fixes[project] ?? []
   const ended = new Map(episodes.flatMap((episode) => (episode.end === null ? [] : [[episode.id, episode]])))
@@ -527,7 +550,7 @@ export function chainBlocks(state: EvenKeelState, project: string, now = new Dat
   // The fix session of a red main is not a tracker task: it leads the chain as a block of its own, ahead of the open tasks.
   const at = blocks.findIndex((block) => block.open || block.locked)
   const ahead = at < 0 ? blocks.length : at
-  const id = liveFixId(project, episodes)
+  const id = liveFixId(fix, episodes)
   const fixSessions = state.taskSessions[id] ?? []
   const fixBlock: ChainBlock = {
     ...fixRow(id, t.chain.fix, taskLamp(undefined, fixSession), blocks[ahead]?.milestone ?? null, fixSession, fixSessions),
@@ -622,9 +645,9 @@ export function tokenTotal(tokens: TokenTotals): number {
 
 export function issueLink(urls: TrackerUrls, task: string): string | null {
   if (isFixName(task)) return null
-  const project = taskProject(task)
-  const template = Object.hasOwn(urls.projects, project) ? urls.projects[project]! : urls.default
-  return template === null ? null : template.replaceAll('{id}', task).replaceAll('{number}', task.slice(project.length + 1))
+  const prefix = taskPrefix(task)
+  const template = Object.hasOwn(urls.projects, prefix) ? urls.projects[prefix]! : urls.default
+  return template === null ? null : template.replaceAll('{id}', task).replaceAll('{number}', task.slice(prefix.length + 1))
 }
 
 function taskSession(sessions: SessionView[], task: string): SessionView | undefined {
