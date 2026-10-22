@@ -24,6 +24,8 @@ function updater(extra: Partial<UpdaterOptions> & { chains?: ActiveChain[][] } =
   let round = 0
   const options: UpdaterOptions = {
     root,
+    home: root,
+    source: 'git',
     current: '0.1.0',
     storage: STORAGE,
     startedAt: '2026-10-22T09:00:00.000Z',
@@ -62,7 +64,39 @@ describe('Updater', () => {
     const { updater: subject } = updater()
     expect(subject.view().blocked).toBe('checking')
     await subject.start()
-    expect(subject.view()).toEqual({ blocked: null, previous: null, progress: null, result: null })
+    expect(subject.view()).toEqual({ source: 'git', blocked: null, previous: null, progress: null, result: null })
+  })
+
+  it('updates a global npm package into its prefix, keeping the record in the data folder', async () => {
+    const data = join(root, 'data')
+    const prefix = join(root, 'npm')
+    const { updater: subject, plans } = updater({
+      root: join(prefix, 'node_modules', 'even-keel'),
+      home: data,
+      source: 'npm',
+      platform: 'win32',
+      packageName: 'even-keel',
+      checkout: async () => {
+        throw new Error('a package has no checkout')
+      },
+    })
+    await subject.start()
+    expect(subject.view()).toMatchObject({ source: 'npm', blocked: null })
+    await subject.update(RELEASE)
+    await settled()
+    expect(plans[0]).toMatchObject({
+      package: { name: 'even-keel', prefix },
+      home: data,
+      from: { version: '0.1.0', commit: '', branch: null, tag: 'v0.1.0' },
+      log: join(data, 'logs', 'update.log'),
+      result: join(data, 'logs', 'update.json'),
+    })
+  })
+
+  it('offers no update to a package outside a global install', async () => {
+    const { updater: subject } = updater({ root: join(root, 'tools', 'node_modules', 'even-keel', '_npx'), source: 'npm', platform: 'linux' })
+    await subject.start()
+    expect(subject.view().blocked).toBe('global')
   })
 
   it('names why it offers none', async () => {

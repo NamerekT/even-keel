@@ -11,7 +11,8 @@ import { fileURLToPath } from 'node:url'
 import type { ExecutorHello } from './executor.js'
 import type { SdkSpawnedProcess, SdkSpawnOptions } from './types.js'
 
-const EXECUTOR = fileURLToPath(new URL('./executor.ts', import.meta.url))
+// Node strips the types of the source; the npm package has only the compiled one.
+const EXECUTOR = fileURLToPath(new URL(import.meta.url.endsWith('.ts') ? './executor.ts' : './executor.js', import.meta.url))
 const LISTEN_TIMEOUT_MS = 10_000
 const LISTEN_POLL_MS = 100
 const PROBE_TIMEOUT_MS = 2_000

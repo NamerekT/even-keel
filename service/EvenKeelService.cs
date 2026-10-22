@@ -14,30 +14,34 @@ public sealed class EvenKeelService : ServiceBase
 
     readonly string root;
     readonly string node;
+    // The data folder of an npm install, passed on as EVEN_KEEL_DATA; null for a checkout, which keeps its data.
+    readonly string data;
     readonly string logFile;
     readonly object logGate = new object();
     readonly ManualResetEvent stopRequested = new ManualResetEvent(false);
     Thread supervisor;
     Process child;
 
-    EvenKeelService(string root, string node)
+    EvenKeelService(string root, string node, string data)
     {
         this.root = root;
         this.node = node;
-        logFile = Path.Combine(root, "logs", "even-keel.log");
+        this.data = data;
+        logFile = Path.Combine(data ?? root, "logs", "even-keel.log");
         ServiceName = "EvenKeel";
         CanShutdown = true;
     }
 
     public static int Main(string[] args)
     {
-        bool console = args.Length == 3 && args[2] == "--console";
-        if (args.Length != 2 && !console)
+        bool console = args.Length > 0 && args[args.Length - 1] == "--console";
+        int count = console ? args.Length - 1 : args.Length;
+        if (count != 2 && count != 3)
         {
-            Console.Error.WriteLine("usage: EvenKeelService.exe <even-keel-root> <node.exe> [--console]");
+            Console.Error.WriteLine("usage: EvenKeelService.exe <even-keel-root> <node.exe> [<data folder>] [--console]");
             return 2;
         }
-        var service = new EvenKeelService(Path.GetFullPath(args[0]), args[1]);
+        var service = new EvenKeelService(Path.GetFullPath(args[0]), args[1], count == 3 ? Path.GetFullPath(args[2]) : null);
         if (!console)
         {
             Run(service);
@@ -106,7 +110,9 @@ public sealed class EvenKeelService : ServiceBase
 
     int RunNode()
     {
-        var info = new ProcessStartInfo(node, "--import tsx src/main.ts")
+        // A checkout runs its sources; the npm package has only the compiled code.
+        string script = File.Exists(Path.Combine(root, "src", "main.ts")) ? "--import tsx src/main.ts" : "dist/src/main.js";
+        var info = new ProcessStartInfo(node, script)
         {
             WorkingDirectory = root,
             UseShellExecute = false,
@@ -116,6 +122,7 @@ public sealed class EvenKeelService : ServiceBase
             StandardOutputEncoding = Encoding.UTF8,
             StandardErrorEncoding = Encoding.UTF8,
         };
+        if (data != null) info.EnvironmentVariables["EVEN_KEEL_DATA"] = data;
         try
         {
             using (var process = new Process { StartInfo = info })

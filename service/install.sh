@@ -3,6 +3,8 @@
 # Run it as the user whose Claude accounts the sessions use, not through sudo. Run it again after
 # updating the code: it rebuilds the page and restarts the service.
 # PATH and the node binary are taken from this shell: sessions get the same PATH as your terminal.
+# The npm package comes built and keeps its data and logs in EVEN_KEEL_DATA, otherwise the platform's data
+# folder, since npm replaces the package's folder at every update; a checkout keeps them in itself.
 set -eu
 
 name=even-keel
@@ -14,13 +16,38 @@ node=$(command -v node) || {
 }
 
 cd "$root"
-npm install --no-audit --no-fund
-npm run build
-mkdir -p "$root/logs"
+if [ -f "$root/src/main.ts" ]; then
+  data=
+  logs="$root/logs"
+  npm install --no-audit --no-fund
+  npm run build
+else
+  case "$(uname -s)" in
+  Darwin) data="${EVEN_KEEL_DATA:-$HOME/Library/Application Support/even-keel}" ;;
+  *) data="${EVEN_KEEL_DATA:-${XDG_DATA_HOME:-$HOME/.local/share}/even-keel}" ;;
+  esac
+  logs="$data/logs"
+fi
+mkdir -p "$logs"
 
 # systemd expands % specifiers in unit files.
 unit_value() { printf '%s' "$1" | sed 's/%/%%/g'; }
 xml_value() { printf '%s' "$1" | sed -e 's/&/\&amp;/g' -e 's/</\&lt;/g' -e 's/>/\&gt;/g'; }
+
+if [ -z "$data" ]; then
+  exec_args='--import tsx src/main.ts'
+  unit_data=
+  plist_args='    <string>--import</string>
+    <string>tsx</string>
+    <string>src/main.ts</string>'
+  plist_data=
+else
+  exec_args=dist/src/main.js
+  unit_data="Environment=\"EVEN_KEEL_DATA=$(unit_value "$data")\""
+  plist_args='    <string>dist/src/main.js</string>'
+  plist_data="    <key>EVEN_KEEL_DATA</key>
+    <string>$(xml_value "$data")</string>"
+fi
 
 case "$(uname -s)" in
 Linux)
@@ -34,8 +61,9 @@ After=network-online.target
 
 [Service]
 WorkingDirectory=$(unit_value "$root")
-ExecStart="$(unit_value "$node")" --import tsx src/main.ts
+ExecStart="$(unit_value "$node")" $exec_args
 Environment="PATH=$(unit_value "$PATH")"
+$unit_data
 Restart=always
 RestartSec=10
 KillMode=process
@@ -54,7 +82,7 @@ EOF
 Darwin)
   agents="$HOME/Library/LaunchAgents"
   plist="$agents/$label.plist"
-  log="$root/logs/even-keel.log"
+  log="$logs/even-keel.log"
   mkdir -p "$agents"
   # AbandonProcessGroup: stopping the agent leaves the claude daemon and its background sessions running.
   cat >"$plist" <<EOF
@@ -67,9 +95,7 @@ Darwin)
   <key>ProgramArguments</key>
   <array>
     <string>$(xml_value "$node")</string>
-    <string>--import</string>
-    <string>tsx</string>
-    <string>src/main.ts</string>
+$plist_args
   </array>
   <key>WorkingDirectory</key>
   <string>$(xml_value "$root")</string>
@@ -77,6 +103,7 @@ Darwin)
   <dict>
     <key>PATH</key>
     <string>$(xml_value "$PATH")</string>
+$plist_data
   </dict>
   <key>RunAtLoad</key>
   <true/>

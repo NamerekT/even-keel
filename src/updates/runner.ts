@@ -7,12 +7,14 @@ import { busyChains } from './settle.js'
 import { runSteps, StepError, type StepPlan } from './steps.js'
 
 /**
- * What the service hands the update process (`plan.json`). The process is the compiled `dist/updates/` copied out of
- * the checkout, so the checkout, `npm ci` and the build never touch the code running them; it imports only `node:*`
+ * What the service hands the update process (`plan.json`). The process is the compiled `dist/src/updates/` copied out
+ * of the checkout, so the checkout, `npm ci` and the build never touch the code running them; it imports only `node:*`
  * and its own folder.
  */
 export interface UpdatePlan extends StepPlan {
   root: string
+  /** The data folder (`logs/` is in it): the working folder for a package, whose own folder npm replaces. */
+  home: string
   /** The release checked out; `null` for a rebuild. */
   target: { version: string; tag: string } | null
   from: UpdateRecord['from']
@@ -67,8 +69,9 @@ class Runner {
       case 'checkout':
         return this.run(this.checkout(plan.target!.tag))
       case 'restore':
-        return this.run(this.checkout(plan.from.commit))
+        return this.run(plan.package === undefined ? this.checkout(plan.from.commit) : this.installPackage(plan.from.version))
       case 'install':
+        if (plan.package !== undefined) return this.run(this.installPackage(plan.target!.version))
         return this.run(npm(plan.install === 'install' ? 'install' : 'ci', '--no-audit', '--no-fund'))
       case 'build':
         return this.run(npm('run', 'build'))
@@ -85,12 +88,19 @@ class Runner {
     return branch === null ? ['git', 'checkout', '--detach', to] : ['git', 'checkout', '-B', branch, to]
   }
 
+  /** The version into the prefix the package is in, so the service's path to it stays. */
+  private installPackage(version: string): string[] {
+    const { name, prefix } = this.plan.package!
+    return npm('install', '--global', '--prefix', prefix, `${name}@${version}`, '--no-audit', '--no-fund')
+  }
+
   private run(argv: string[]): Promise<void> {
     const [command, ...args] = argv
     this.log(`$ ${argv.join(' ')}`)
     return new Promise((resolve, reject) => {
       let output = ''
-      const child = spawn(command!, args, { cwd: this.plan.root, windowsHide: true, shell: process.platform === 'win32' && command === 'npm' })
+      const cwd = workingDir(this.plan)
+      const child = spawn(command!, args, { cwd, windowsHide: true, shell: process.platform === 'win32' && command === 'npm' })
       const take = (chunk: Buffer) => {
         const text = chunk.toString()
         appendFileSync(this.plan.log, text)
@@ -159,8 +169,13 @@ class Runner {
   }
 }
 
+/** A checkout's commands run in it; a package's folder is replaced by npm, which a process inside it would hold on Windows. */
+export function workingDir(plan: Pick<UpdatePlan, 'root' | 'home' | 'package'>): string {
+  return plan.package === undefined ? plan.root : plan.home
+}
+
 /** npm through the node running this process: the service's PATH may lack it; a shell only for the `npm.cmd` fallback. */
-function npm(...args: string[]): string[] {
+export function npm(...args: string[]): string[] {
   const base = dirname(process.execPath)
   const cli = [join(base, 'node_modules', 'npm', 'bin', 'npm-cli.js'), join(base, '..', 'lib', 'node_modules', 'npm', 'bin', 'npm-cli.js')].find((path) => existsSync(path))
   return cli === undefined ? ['npm', ...args] : [process.execPath, cli, ...args]

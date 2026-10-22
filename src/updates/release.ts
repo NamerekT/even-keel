@@ -1,4 +1,4 @@
-import type { PreviousView, UpdateBlock, UpdateProgress, UpdateResultView } from './model.js'
+import type { InstallSource, PreviousView, UpdateBlock, UpdateProgress, UpdateResultView } from './model.js'
 
 /** The `updates` key of the config. */
 export interface UpdateSettings {
@@ -33,6 +33,8 @@ export interface UpdatesView {
   toast: boolean
   /** Every release newer than the installed version, newest first. */
   notes: ReleaseNote[]
+  /** How Even Keel was installed: the page tells how an update goes by it. */
+  source: InstallSource
   /** Why the page offers no "Update"; `null` — it does. */
   blocked: UpdateBlock | null
   /** The version an update came from, for "Revert"; `null` — none. */

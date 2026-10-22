@@ -1,7 +1,7 @@
 {
   "name": "even-keel",
   "version": "0.1.1",
-  "private": true,
+  "description": "Runs Claude Code sessions over a tracker's tasks one after another, in the order of their blocks relations",
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -11,12 +11,35 @@
   "engines": {
     "node": ">=24"
   },
+  "bin": {
+    "even-keel": "dist/src/cli.js"
+  },
+  "files": [
+    "dist/src",
+    "dist/tally",
+    "dist/web",
+    "!dist/**/*.fixture.js",
+    "!dist/**/fixture.js",
+    "plugins",
+    "!plugins/**/*.test.mjs",
+    "statusline",
+    "service/EvenKeelService.cs",
+    "service/install.*",
+    "service/uninstall.*",
+    "tally/bin",
+    "tally/tally.config.json",
+    ".claude-plugin",
+    ".env.example",
+    "even-keel.config.example.json",
+    "CHANGELOG.md"
+  ],
   "scripts": {
     "start": "tsx src/main.ts",
     "dev": "tsx watch src/main.ts",
     "dev:web": "vite --config web/vite.config.ts",
     "dev:fake": "vite --config web/vite.config.ts --mode fake",
-    "build": "tsc -p tsconfig.json && tsc -p web/tsconfig.json && vite build --config web/vite.config.ts",
+    "build": "tsc -p tsconfig.json && tsx scripts/copy-assets.ts && tsc -p web/tsconfig.json && vite build --config web/vite.config.ts",
+    "prepack": "node -e \"require('node:fs').rmSync('dist',{recursive:true,force:true})\" && npm run build",
     "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p web/tsconfig.json && tsc -p tally/tsconfig.json",
     "test": "vitest run",
     "tally": "tsx tally/src/main.ts",

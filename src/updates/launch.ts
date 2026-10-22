@@ -2,14 +2,15 @@ import { spawn } from 'node:child_process'
 import { cpSync, existsSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import type { UpdatePlan } from './runner.js'
+import { workingDir, type UpdatePlan } from './runner.js'
 
 /** Marks a copy of the update process, so `run.js` knows it runs outside the checkout. */
 export const COPY_MARK = '.even-keel-update'
 
 /**
- * Copies the compiled update process (`dist/updates/`) into a new folder of the OS's temp: the checkout, `npm ci` and the
- * build then never touch the code running them. ESM needs its `package.json` there too.
+ * Copies the compiled update process (`dist/src/updates/`) into a new folder of the OS's temp: the checkout, `npm ci`
+ * and the build, or npm replacing the package, then never touch the code running them. ESM needs its `package.json`
+ * there too.
  */
 export function copyRunner(compiled: string): string {
   if (!existsSync(join(compiled, 'run.js'))) throw new Error(`${join(compiled, 'run.js')} is missing: run npm run build`)
@@ -26,11 +27,11 @@ export function copyRunner(compiled: string): string {
  * on Linux and macOS.
  */
 export function launchRunner(plan: UpdatePlan, onError: (error: Error) => void): void {
-  const folder = copyRunner(join(plan.root, 'dist', 'updates'))
+  const folder = copyRunner(join(plan.root, 'dist', 'src', 'updates'))
   try {
     const file = join(folder, 'plan.json')
     writeFileSync(file, JSON.stringify(plan, null, 2))
-    const child = spawn(process.execPath, [join(folder, 'run.js'), file], { cwd: plan.root, detached: true, stdio: 'ignore', windowsHide: true })
+    const child = spawn(process.execPath, [join(folder, 'run.js'), file], { cwd: workingDir(plan), detached: true, stdio: 'ignore', windowsHide: true })
     child.on('error', onError)
     child.unref()
   } catch (error) {

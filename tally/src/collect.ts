@@ -35,10 +35,11 @@ const EVEN_KEEL_TIMEOUT_MS = 5_000
 export type Log = (message: string) => void
 
 // One collector run: the exit code is 1 when a file failed to load, everything else is written anyway.
-export async function collect(settings: DbSettings, root: string, log: Log, huly: HulyProfiles): Promise<number> {
+// `root` — Even Keel's code, `home` — its data (the same folder in a checkout, BTN-265).
+export async function collect(settings: DbSettings, root: string, home: string, log: Log, huly: HulyProfiles): Promise<number> {
   const started = Date.now()
   const config = parseConfig(JSON.parse(readFileSync(process.env.TALLY_CONFIG ?? join(root, 'tally', 'tally.config.json'), 'utf8')))
-  const stateDir = process.env.EVEN_KEEL_STATE_DIR ?? join(root, 'state')
+  const stateDir = process.env.EVEN_KEEL_STATE_DIR ?? join(home, 'state')
   const homes = new AccountHomes(process.env, accountsRoot(process.env))
   const { launches: journal, handoffs: saved, repos } = await evenKeelState(stateDir, log)
   const launches = launchMap(journal)
@@ -64,7 +65,7 @@ export async function collect(settings: DbSettings, root: string, log: Log, huly
     if (migrated !== null) log(migrated)
     await db.syncPrices(config.prices)
 
-    const projects = repos ?? trackedProjects(root, log)
+    const projects = repos ?? trackedProjects(home, log)
     const ruleScan = await ruleSources(homes.list(), projects.map((project) => project.repo), homedir(), log)
     const ruleFiles = ruleScan.sources
     const rules = { home: homedir(), skills: skillsOf(ruleFiles) }
@@ -172,8 +173,8 @@ async function legacyReader(stateDir: string): Promise<StateReader | undefined> 
 
 type TrackedProject = { repo: string; branch: string }
 
-function trackedProjects(root: string, log: Log): TrackedProject[] {
-  const file = process.env.EVEN_KEEL_CONFIG ?? join(root, 'even-keel.config.json')
+function trackedProjects(home: string, log: Log): TrackedProject[] {
+  const file = process.env.EVEN_KEEL_CONFIG ?? join(home, 'even-keel.config.json')
   try {
     const config = loadConfig(file)
     return Object.entries(config.projects).map(([key, repo]) => ({ repo, branch: config.settings[key]!.branch }))

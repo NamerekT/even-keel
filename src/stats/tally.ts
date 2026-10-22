@@ -12,7 +12,10 @@ export type HostMessage = { type: 'ready'; settings: ReaderSettings } | { type: 
 
 // settings null — the server database from the environment, as the writer role.
 export interface CollectRun {
+  /** The code of Even Keel: `tally/tally.config.json`. */
   root: string
+  /** Its data: `state/` and the config of an install from before BTN-199 (BTN-265). */
+  home: string
   settings: ReaderSettings | null
   huly: HulyProfiles
 }
@@ -33,6 +36,7 @@ export interface TallyOptions {
   /** `off` and `null` (not chosen) neither collect nor open a database (BTN-247). */
   mode: TallyMode | null
   root: string
+  home: string
   stateDir: string
   env: Record<string, string | undefined>
   intervalMs: number
@@ -47,7 +51,8 @@ export interface TallyOptions {
 }
 
 const HOST_CLOSE_MS = 10_000
-const workerFile = (name: string) => new URL(`../../tally/src/${name}.ts`, import.meta.url)
+// The sources under tsx, the compiled `dist/tally/src/` from the build (the npm package).
+const workerFile = (name: string) => new URL(`../../tally/src/${name}${import.meta.url.endsWith('.ts') ? '.ts' : '.js'}`, import.meta.url)
 
 export class TallyService {
   readonly reader: ReaderSettings | string | Promise<ReaderSettings>
@@ -147,9 +152,9 @@ export class TallyService {
         return
       }
     }
-    const { root, env, evenKeelUrl, huly, log } = this.options
+    const { root, home, env, evenKeelUrl, huly, log } = this.options
     const run = new Worker(workerFile('collect-worker'), {
-      workerData: { root, settings, huly: huly() } satisfies CollectRun,
+      workerData: { root, home, settings, huly: huly() } satisfies CollectRun,
       env: { ...process.env, EVEN_KEEL_URL: env.EVEN_KEEL_URL ?? evenKeelUrl() },
     })
     this.running = run

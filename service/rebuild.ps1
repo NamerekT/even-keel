@@ -30,7 +30,7 @@ try {
         return
     }
     Invoke-Native npx tsc -p tsconfig.json
-    Invoke-Native node dist/updates/run.js rebuild --root $root --state $State --service $Name --wait $WaitSeconds
+    Invoke-Native node dist/src/updates/run.js rebuild --root $root --state $State --service $Name --wait $WaitSeconds
     Write-Host "Built $Commit and restarted $Name"
 } finally {
     Pop-Location

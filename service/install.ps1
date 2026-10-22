@@ -3,17 +3,25 @@
 # Builds the service host and registers the Even Keel service under a user account.
 # The account password is never asked here: set it on the service's Log On tab in services.msc,
 # which also grants the account the "Log on as a service" right.
+# A checkout is built in place and keeps its data; the npm package comes built, and its data, logs and the host
+# live in -Data (EVEN_KEEL_DATA, otherwise %LOCALAPPDATA%\even-keel), since npm replaces the package's folder.
 param(
     [string]$Account = "$env:USERDOMAIN\$env:USERNAME",
-    [string]$Name = 'EvenKeel'
+    [string]$Name = 'EvenKeel',
+    [string]$Data
 )
 $ErrorActionPreference = 'Stop'
 
 $root = Split-Path $PSScriptRoot -Parent
+$package = -not (Test-Path (Join-Path $root 'src\main.ts'))
+if ($package -and -not $Data) {
+    $Data = if ($env:EVEN_KEEL_DATA) { $env:EVEN_KEEL_DATA } else { Join-Path $env:LOCALAPPDATA 'even-keel' }
+}
 $node = (Get-Command node.exe).Source
 $csc = Join-Path $env:WINDIR 'Microsoft.NET\Framework64\v4.0.30319\csc.exe'
-$bin = Join-Path $PSScriptRoot 'bin'
+$bin = if ($package) { Join-Path $Data 'service' } else { Join-Path $PSScriptRoot 'bin' }
 $exe = Join-Path $bin 'EvenKeelService.exe'
+$log = Join-Path ($package ? $Data : $root) 'logs\even-keel.log'
 
 function Invoke-Sc {
     & sc.exe @args | Out-Null
@@ -36,14 +44,16 @@ if ($existing -and $existing.Status -ne 'Stopped') {
     Stop-Service -Name $Name
 }
 
-Push-Location $root
-try {
-    npm install --no-audit --no-fund
-    if ($LASTEXITCODE -ne 0) { throw "npm install failed with code $LASTEXITCODE" }
-    npm run build
-    if ($LASTEXITCODE -ne 0) { throw "npm run build failed with code $LASTEXITCODE" }
-} finally {
-    Pop-Location
+if (-not $package) {
+    Push-Location $root
+    try {
+        npm install --no-audit --no-fund
+        if ($LASTEXITCODE -ne 0) { throw "npm install failed with code $LASTEXITCODE" }
+        npm run build
+        if ($LASTEXITCODE -ne 0) { throw "npm run build failed with code $LASTEXITCODE" }
+    } finally {
+        Pop-Location
+    }
 }
 
 New-Item -ItemType Directory -Force $bin | Out-Null
@@ -51,11 +61,12 @@ New-Item -ItemType Directory -Force $bin | Out-Null
 if ($LASTEXITCODE -ne 0) { throw "csc failed with code $LASTEXITCODE" }
 
 $command = "`"$exe`" `"$root`" `"$node`""
+if ($package) { $command += " `"$Data`"" }
 if ($existing) {
     Invoke-Sc config $Name binPath= $command
     Grant-Control
     Start-Service -Name $Name
-    Write-Host "Service $Name updated and started. Log: $root\logs\even-keel.log"
+    Write-Host "Service $Name updated and started. Log: $log"
     return
 }
 
@@ -73,5 +84,5 @@ try {
 
 Write-Host "Service $Name is registered to run as $Account."
 Write-Host "Finish in services.msc: $Name -> Properties -> Log On -> enter the password of $Account -> OK, then Start."
-Write-Host "Log: $root\logs\even-keel.log"
+Write-Host "Log: $log"
 Start-Process services.msc

@@ -1,5 +1,5 @@
-import { dirname, join, resolve } from 'node:path'
-import { fileURLToPath } from 'node:url'
+import { join } from 'node:path'
+import { home, root } from '../../src/locations.js'
 import { collect } from './collect.js'
 import { dbSettings } from './config.js'
 import { openLocalTally, tallyDir } from './local.js'
@@ -8,9 +8,8 @@ import { openLocalTally, tallyDir } from './local.js'
 
 const EXIT_GRACE_MS = 10_000
 
-const root = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..')
 try {
-  process.loadEnvFile(join(root, '.env'))
+  process.loadEnvFile(join(home, '.env'))
 } catch (error) {
   if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error
 }
@@ -21,10 +20,10 @@ const huly = { projects: {}, fallback: process.env as Record<string, string> }
 
 async function run(): Promise<number> {
   const server = dbSettings(process.env)
-  if (server !== null) return collect(server, root, log, huly)
-  const local = await openLocalTally(tallyDir(process.env.EVEN_KEEL_STATE_DIR ?? join(root, 'state')), log)
+  if (server !== null) return collect(server, root, home, log, huly)
+  const local = await openLocalTally(tallyDir(process.env.EVEN_KEEL_STATE_DIR ?? join(home, 'state')), log)
   try {
-    return await collect(local.settings, root, log, huly)
+    return await collect(local.settings, root, home, log, huly)
   } finally {
     await local.close()
   }

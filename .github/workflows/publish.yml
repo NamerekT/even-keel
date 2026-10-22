@@ -1,0 +1,45 @@
+name: Publish
+
+# A release tag publishes the npm package of the same version (docs/releases.md, "Publishing to npm"). npm trusts this
+# workflow by OIDC (a trusted publisher of the package on npmjs.com: NamerekT/even-keel, publish.yml), so there is
+# no token anywhere. The build runs in `prepack`.
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          registry-url: https://registry.npmjs.org
+
+      # Trusted publishing needs npm 11.5.1 or later.
+      - run: npm install --global npm@^11.5.1
+
+      - name: The tag names the version of package.json
+        run: |
+          version=$(node -p "require('./package.json').version")
+          if [ "v$version" != "$GITHUB_REF_NAME" ]; then
+            echo "the tag $GITHUB_REF_NAME is not v$version of package.json" >&2
+            exit 1
+          fi
+
+      - run: npm ci
+
+      - name: npm publish
+        run: |
+          case "$GITHUB_REF_NAME" in
+          *-*) npm publish --tag next ;;
+          *) npm publish ;;
+          esac

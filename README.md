@@ -66,6 +66,14 @@ Every feature in full: [docs/guide/features.md](docs/guide/features.md).
 ## Quick start
 
 ```sh
+npx even-keel
+```
+
+This installs Even Keel globally with npm and sets it up as a service ([below](#as-a-service)). On Windows, run it from PowerShell 7 as administrator, then enter your password in `services.msc` → EvenKeel → Properties → Log On and start the service. To run it in a terminal instead: `npm install --global even-keel`, then `even-keel`. Its data — `.env`, the state and the logs — lives in `%LOCALAPPDATA%\even-keel`, `~/.local/share/even-keel` or `~/Library/Application Support/even-keel`.
+
+From a clone, which keeps its data in its own folder:
+
+```sh
 git clone https://github.com/NamerekT/even-keel.git
 cd even-keel
 npm install
@@ -75,7 +83,7 @@ npm start
 
 Open `http://localhost:4747`. The first start opens a wizard that adds a project: the repository folder, a tracker profile and the project in that tracker. A profile is the e-mail and password of a separate Huly account, a GitHub [fine-grained token](https://github.com/settings/personal-access-tokens/new), or a Linear [personal API key](https://linear.app/settings/account/security); what each token needs for the tracker, the CI and pull requests is in [Token permissions](docs/guide/setup.md#token-permissions). Open `claude` in the repository once and accept the trust prompt. Then press **Start** on the project: the chain takes its first task.
 
-Want to look first? `npm run dev:fake` shows the page on fake data, with no tracker and no sessions.
+Want to look first? `npm run dev:fake` in a clone shows the page on fake data, with no tracker and no sessions.
 
 To let sessions read the task themselves, file blockers and leave comments, add the tracker's plugin on `/tools` → **Add a package** (`huly@even-keel`, `github@even-keel` or `linear@even-keel`). Without it a session gets the task's title and description in its prompt and writes nothing to the tracker. Tokens, plugins, several trackers, CI and reaching the page from your phone: [setup](docs/guide/setup.md).
 
@@ -90,15 +98,17 @@ The service starts with the system and restarts Even Keel if it fails. Stopping 
 **Windows.** From PowerShell 7 as administrator: in Start, right-click "PowerShell 7" (`pwsh`) → Run as administrator. The Windows PowerShell that comes with Windows (Win+X → Terminal) refuses the script with "running scripts is disabled on this system": open `pwsh` instead of changing the execution policy.
 
 ```powershell
-.\service\install.ps1
+even-keel install          # installed with npm
+.\service\install.ps1      # a clone
 ```
 
-The script never asks for your password: enter it in `services.msc` → EvenKeel → Properties → Log On, then start the service. Log: `logs\even-keel.log`.
+The script never asks for your password: enter it in `services.msc` → EvenKeel → Properties → Log On, then start the service. Log: `logs\even-keel.log` in the data folder (a clone: in its own folder).
 
 **Linux and macOS.** As your own user, not with `sudo`:
 
 ```sh
-service/install.sh
+even-keel install          # installed with npm
+service/install.sh         # a clone
 ```
 
 On Linux it is a systemd user unit (`journalctl --user -u even-keel`); to keep it running after you log out, `loginctl enable-linger $USER`. On macOS it is a launchd agent, logging to `logs/even-keel.log`. More: [setup](docs/guide/setup.md#as-a-service).
@@ -107,15 +117,16 @@ On Linux it is a systemd user unit (`journalctl --user -u even-keel`); to keep i
 
 The gear menu in the header shows the installed version and tells you when a newer release is out.
 
-- **From the page** (as a service, on a clean clone) — the update window lists what changes; **Update** waits for the chains to settle, checks out the release, builds it and restarts the service, and goes back to the version you had if anything fails. **Revert** takes you back to the previous version the same way, unless the update changed the stored state's format.
-- **As a service, by hand** — `git pull`, then run the install script again.
-- **From a terminal** — stop Even Keel, then `git pull`, `npm ci`, `npm run build` and `npm start`.
+- **From the page** (as a service, installed with npm or on a clean clone) — the update window lists what changes; **Update** waits for the chains to settle, installs the release (with npm, or a checkout and a build in a clone) and restarts the service, and goes back to the version you had if anything fails. **Revert** takes you back to the previous version the same way, unless the update changed the stored state's format.
+- **Installed with npm, by hand** — `even-keel update` (stops the service, installs the latest release, starts it), or `npm install --global even-keel@<version>` with Even Keel stopped.
+- **A clone as a service, by hand** — `git pull`, then run the install script again.
+- **A clone from a terminal** — stop Even Keel, then `git pull`, `npm ci`, `npm run build` and `npm start`.
 
 Running sessions survive the update. Plugins, stored state and going back to an older version: [setup](docs/guide/setup.md#updating).
 
 ## Uninstall
 
-`service\uninstall.ps1` or `service/uninstall.sh` removes the service and nothing else; then delete the Even Keel folder. What stays in your repositories and your Claude Code config: [setup](docs/guide/setup.md#uninstall).
+`even-keel uninstall` (a clone: `service\uninstall.ps1` or `service/uninstall.sh`) removes the service and nothing else; then `npm uninstall --global even-keel` and delete the data folder, or delete the clone. What stays in your repositories and your Claude Code config: [setup](docs/guide/setup.md#uninstall).
 
 ## Configuration
 
@@ -126,7 +137,7 @@ The settings live in Even Keel's database and are edited on the page: a project'
 Planned for the next release, v0.2:
 
 - **Codex in full.** Chain sessions that keep the Codex sandbox under the Windows service once Codex fixes it there.
-- **One executable.** A single downloaded file that runs Even Keel, installs the service and updates it, instead of a clone, Node.js and a build. Windows first, Linux if it works out; macOS keeps `service/install.sh`.
+- **One executable.** A single downloaded file that runs Even Keel, installs the service and updates it, instead of Node.js and npm. Windows first, Linux if it works out; macOS keeps the npm package.
 
 Looked at, not promised: running in Docker, a cap on how much of the usage limit one task may spend.
 

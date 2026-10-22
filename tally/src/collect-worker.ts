@@ -5,13 +5,13 @@ import { dbSettings } from './config.js'
 
 // One collector run on its own thread: parsing transcripts would stall the service's event loop.
 
-const { settings, root, huly } = workerData as CollectRun
+const { settings, root, home, huly } = workerData as CollectRun
 const log = (message: string) => console.log(`${new Date().toISOString()} ${message}`)
 
 const run = async () => {
   const server = settings ?? dbSettings(process.env)
   if (server === null) throw new Error('no database: neither a local one nor TALLY_DB_HOST')
-  return collect(server, root, log, huly)
+  return collect(server, root, home, log, huly)
 }
 const code = await run().catch((error: unknown) => {
   log(`tally: ${error instanceof Error ? (error.stack ?? error.message) : String(error)}`)

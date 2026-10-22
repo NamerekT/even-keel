@@ -5,13 +5,31 @@ import { fail } from '../notice/notice.js'
 import { readCheckout } from './checkout.js'
 import { serviceControl, type ServiceControl } from './control.js'
 import { launchRunner } from './launch.js'
-import { previousOf, recordOf, resultView, tagOf, updateBlock, type Checkout, type StorageVersions, type UpdateProgress, type UpdateRecord } from './model.js'
+import {
+  packageBlock,
+  previousOf,
+  recordOf,
+  resultView,
+  tagOf,
+  updateBlock,
+  type Checkout,
+  type InstallSource,
+  type NpmPackage,
+  type StorageVersions,
+  type UpdateProgress,
+  type UpdateRecord,
+} from './model.js'
+import { globalPrefixOf } from './prefix.js'
 import type { Release, UpdatesView } from './release.js'
 import { ANSWER_MS, LOG_FILE, RESULT_FILE, SETTLE_MS, STEADY_MS, writeRecord, type UpdatePlan } from './runner.js'
 import { busyChains } from './settle.js'
 
 export interface UpdaterOptions {
   root: string
+  /** The data folder: `logs/update.json` and `logs/update.log` are there. */
+  home: string
+  /** A package of npm is updated by `npm install --global`, not by moving a checkout (BTN-265). */
+  source: InstallSource
   /** The installed version. */
   current: string
   storage: StorageVersions
@@ -24,6 +42,9 @@ export interface UpdaterOptions {
   log: (line: string) => void
   control?: () => Promise<ServiceControl | null>
   checkout?: (root: string) => Promise<Checkout | null>
+  /** `name` of `package.json`, for a package of npm. */
+  packageName?: string
+  platform?: NodeJS.Platform
   launch?: (plan: UpdatePlan, onError: (error: Error) => void) => void
   sleep?: (ms: number) => Promise<void>
   settleMs?: number
@@ -60,7 +81,15 @@ export class Updater {
   constructor(private readonly options: UpdaterOptions) {}
 
   private get resultFile(): string {
-    return join(this.options.root, RESULT_FILE)
+    return join(this.options.home, RESULT_FILE)
+  }
+
+  /** The package and its global prefix; `undefined` — a checkout, `null` — a package outside a global install. */
+  private get npmPackage(): NpmPackage | null | undefined {
+    const { source, root, packageName } = this.options
+    if (source !== 'npm') return undefined
+    const prefix = globalPrefixOf(root, this.options.platform ?? process.platform)
+    return prefix === null ? null : { name: packageName ?? 'even-keel', prefix }
   }
 
   async start(): Promise<void> {
@@ -97,16 +126,19 @@ export class Updater {
 
   /** Reads the checkout again: its changes and tags decide whether "Update" is offered. */
   async refresh(): Promise<void> {
-    const checkout = await (this.options.checkout ?? readCheckout)(this.options.root)
+    const checkout = this.options.source === 'npm' ? null : await (this.options.checkout ?? readCheckout)(this.options.root)
     if (JSON.stringify(checkout) === JSON.stringify(this.checkout)) return
     this.checkout = checkout
     this.options.onChange()
   }
 
-  view(): Pick<UpdatesView, 'blocked' | 'previous' | 'progress' | 'result'> {
-    const { current, storage } = this.options
-    const blocked = this.control === undefined ? 'checking' : updateBlock(this.control !== null, this.checkout, current)
+  view(): Pick<UpdatesView, 'source' | 'blocked' | 'previous' | 'progress' | 'result'> {
+    const { current, storage, source } = this.options
+    const npm = this.npmPackage
+    const blocked =
+      this.control === undefined ? 'checking' : npm === undefined ? updateBlock(this.control !== null, this.checkout, current) : packageBlock(this.control !== null, npm?.prefix ?? null)
     return {
+      source,
       blocked,
       previous: previousOf(this.record, current, storage, blocked),
       progress: this.progress,
@@ -142,7 +174,7 @@ export class Updater {
     await this.refresh()
     const { blocked } = this.view()
     if (blocked !== null) throw fail('updates.blocked', { reason: blocked })
-    const checkout = this.checkout!
+    const checkout = this.checkout ?? null
     const control = this.control!
     this.progress = { mode, target: version, phase: 'settling', waiting: busyChains(this.options.active()) }
     this.options.log(`updates: ${mode} to ${version} asked from the page`)
@@ -150,7 +182,8 @@ export class Updater {
     void this.settleAndLaunch({ mode, version, tag, checkout, control })
   }
 
-  private async settleAndLaunch(target: { mode: 'update' | 'revert'; version: string; tag: string; checkout: Checkout; control: ServiceControl }): Promise<void> {
+  /** `checkout` — `null` for a package of npm. */
+  private async settleAndLaunch(target: { mode: 'update' | 'revert'; version: string; tag: string; checkout: Checkout | null; control: ServiceControl }): Promise<void> {
     const { options } = this
     const sleep = options.sleep ?? ((ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms)))
     const deadline = Date.now() + (options.settleMs ?? SETTLE_MS)
@@ -165,19 +198,28 @@ export class Updater {
     if (this.progress === null) return
     if (this.progress.waiting.length > 0) options.log(`updates: ${this.progress.waiting.join(', ')} did not settle, updating anyway`)
     const { mode, version, tag, checkout, control } = target
+    const { current, storage } = options
+    const npm = this.npmPackage ?? undefined
+    // A package has no commit: npm brings back the version, its tag only marks a release "Revert" can go to.
+    const from =
+      checkout === null
+        ? { version: current, commit: '', branch: null, tag: `v${current}`, storage }
+        : { version: current, commit: checkout.commit, branch: checkout.branch, tag: tagOf(checkout, current), storage }
     const plan: UpdatePlan = {
       mode,
       install: 'ci',
+      ...(npm === undefined ? {} : { package: npm }),
       root: options.root,
+      home: options.home,
       target: { version, tag },
-      from: { version: options.current, commit: checkout.commit, branch: checkout.branch, tag: tagOf(checkout, options.current), storage: options.storage },
+      from,
       service: { stop: control.stop, start: control.start },
       state: options.stateUrl(),
       startedAt: options.startedAt,
       settleMs: 0,
       answerMs: ANSWER_MS,
       steadyMs: STEADY_MS,
-      log: join(options.root, LOG_FILE),
+      log: join(options.home, LOG_FILE),
       result: this.resultFile,
     }
     this.progress = { ...this.progress, phase: 'running', waiting: [] }

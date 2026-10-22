@@ -4,7 +4,7 @@ How a version of Even Keel is made and released, and how the released one is fix
 
 ## Branches
 
-Users install with `git clone` and update with `git pull` (README, "Updating"), so whatever lands on `main` reaches them before any tag. Hence three kinds of branch, in two folders:
+Users of a clone update with `git pull` (README, "Updating"), so whatever lands on `main` reaches them before any tag; the npm package reaches its users only at a release ("Publishing to npm" below). Hence three kinds of branch, in two folders:
 
 | Branch | Holds | Folder and Even Keel project | Moves by |
 | --- | --- | --- | --- |
@@ -24,7 +24,7 @@ Users install with `git clone` and update with `git pull` (README, "Updating"), 
 - `EKR` — fixes of the released version, its milestone named by that version (`v0.1`), so the changelog of the chain's milestone head is the patch's section.
 - A bug of the released version that must reach its users before the next minor is an `EKR` task; one that can wait is a `BTN` task in the next milestone.
 - Urgency is the priority: an `Urgent` fix is released as a patch at once, the others wait for the next patch.
-- GitHub issues are where users report. No chain reads them: the user picks the ones worth doing and puts a label on, and Even Keel takes each into `EKR` or `BTN` with a link back, by the label each of the two projects names in its `intakeLabel` (`docs/trackers.md`, "Taking GitHub issues in"), so the work and its decisions stay in Huly and a stranger's comment steers nothing. The issue gets one line when its task is done, the version that ships it, and is closed by Even Keel when that release is published (step 6 below). A session asked to take an issue by hand copies it the same way.
+- GitHub issues are where users report. No chain reads them: the user picks the ones worth doing and puts a label on, and Even Keel takes each into `EKR` or `BTN` with a link back, by the label each of the two projects names in its `intakeLabel` (`docs/trackers.md`, "Taking GitHub issues in"), so the work and its decisions stay in Huly and a stranger's comment steers nothing. The issue gets one line when its task is done, the version that ships it, and is closed by Even Keel when that release is published (step 7 below). A session asked to take an issue by hand copies it the same way.
 
 ## A fix
 
@@ -39,8 +39,15 @@ The release is the user's: no session bumps the version, tags or publishes. A pa
 2. The CLI check ("Checking a CLI version" below) passes on the newest Claude Code and Codex, and both checked CLI versions are raised to the ones it passed on: `checked` of the Claude Code adapter (`src/claude/adapter.ts`) and of the Codex one (`src/codex/adapter.ts`), and the "Last checked against" line of the README's "Before you run it" — a test keeps them equal. The page warns about any other installed version (BTN-249, `docs/web.md`).
 3. `version` in `package.json` is set to the release (`0.1.0`) on the source: the service shows it in the gear menu and compares it with the latest release (`docs/web.md`, "Updates"). In `CHANGELOG.md` the `Unreleased` section becomes `## [0.1.0] - <date>`. The section is written from the milestone's head in the chain (BTN-209, `docs/web.md`) — `EKR`'s for a patch, `BTN`'s for a minor version: the agent drafts it from the done tasks, the user edits it in words or in the file, "Write" commits it to the project's branch, and "Add N" works in the tasks closed since. Once the tag exists the section is frozen: tasks closed after it go into a new section above, headed as the next patch (`## [0.1.1]`), never into the released one.
 4. In the source's folder, without leaving its branch: `git sync`, `git tag v0.1.1`, then for each remote `git push <remote> <source>:main v0.1.1`. A remote takes it only as a fast-forward of its `main`; a refusal means `main` got a commit of its own: stop and find it before the other remote. The global `pre-push` hook names the tasks of the pushed range as merged; they are closed already.
-5. A minor version also gets its branch, `git branch release/v0.2 v0.2.0` and a push of it to both remotes; then `even-keel-github` is switched to it, and so is `EKR`'s `branch`.
-6. A GitHub release from the tag. Drafts and prereleases are not offered to installed copies; a published release is, within 12 h.
+5. The tag's push to `github` publishes the npm package of that version ("Publishing to npm" below): check that the workflow `Publish` went through and that `npm view even-keel version` names the release.
+6. A minor version also gets its branch, `git branch release/v0.2 v0.2.0` and a push of it to both remotes; then `even-keel-github` is switched to it, and so is `EKR`'s `branch`.
+7. A GitHub release from the tag. Drafts and prereleases are not offered to installed copies; a published release is, within 12 h.
+
+## Publishing to npm
+
+The npm package `even-keel` is the second way to install (`npx even-keel`, `docs/service.md`, "An npm install"); its version is the release's, `0.2.0` for `v0.2.0`. `.github/workflows/publish.yml` publishes it on the push of a `v*` tag to GitHub: it refuses a tag that is not `v` + `version` of `package.json`, builds in `prepack` (an empty `dist/` first, so nothing stale is shipped) and publishes; a tag with a `-` (`v0.2.0-rc.1`) goes under the dist-tag `next`, so `npx even-keel` and `even-keel update` stay on the release. What the package holds is the `files` of `package.json`: the compiled `dist/src`, `dist/tally` (with Tally's `.sql`, copied by `scripts/copy-assets.ts`) and `dist/web`, the plugins, the status line, the service scripts, `tally/bin` and the examples; `npm pack --dry-run` lists it.
+
+There is no npm token: npm trusts the workflow by OIDC. Once, on npmjs.com, the package's Settings → Trusted publishing names the GitHub repository `NamerekT/even-keel` and the workflow `publish.yml`; publishing needs npm 11.5.1 or later, which the workflow installs. The name was held before by placeholder versions `0.0.1` and `0.0.2`. A failed publish is repeated by re-running the workflow on the same tag; a published version cannot be replaced, only followed by a patch.
 
 **A revert release** takes back what an earlier release broke: a new version (a patch) whose notes have a `### Reverted` section listing what it takes back, which the update window shows as a mark over the release (`revertedOf`, `docs/service.md`, "Updating from the page"). **A revert release never rolls back the storage format**: it keeps the `SCHEMA_VERSION`, the database steps (`STEPS`) and the Tally schema of the release it follows, with their migrations, and reverts only the behaviour. Copies that updated already have their state in the new format, and an older reader on it stops with only the page; the page's "Revert" is refused across a storage change for the same reason.
 
