@@ -730,6 +730,13 @@
   line-height: 14px;
 }
 
+@supports (text-box: trim-both ex alphabetic) {
+  .settings__row-note .tag {
+    padding-top: calc((18px - 1ex) / 2);
+    text-box: trim-both ex alphabetic;
+  }
+}
+
 .settings__row-note .settings__mark {
   flex: 1;
   min-width: 0;

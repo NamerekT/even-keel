@@ -57,14 +57,10 @@
 }
 
 .project-add__profile {
-  width: 20em;
+  width: 280px;
 }
 
-/* The profile's state sits level with the list, whatever it says. */
-.project-add__profile-row {
-  align-items: flex-end;
-}
-
+/* The profile's state sits under the list, a line tall whatever it says. */
 .project-add__profile-state {
   display: inline-flex;
   align-items: center;
@@ -134,6 +130,16 @@
   min-width: 0;
   overflow-wrap: anywhere;
   user-select: all;
+}
+
+/* The tracker step's fields share the profile list's width, whatever the kind asks for. */
+.project-add__wide {
+  width: 280px;
+  max-width: 100%;
+}
+
+.project-add__upper {
+  text-transform: uppercase;
 }
 
 .project-add__key {

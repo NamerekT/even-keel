@@ -2232,11 +2232,11 @@ a.button.pull-button__link {
   color: var(--fg-muted);
 }
 
-/* Segoe UI sits lowercase 2px below a line box's middle; a label is lowercase, so its box is its x-height. */
-@supports (text-box: trim-both ex alphabetic) {
+/* Segoe UI sits text 2px below a line box's middle; a label is mixed case ("Claude | sonnet"), so its box is its cap height. */
+@supports (text-box: trim-both cap alphabetic) {
   .tag {
-    padding-block: calc((18px - 1ex) / 2);
-    text-box: trim-both ex alphabetic;
+    padding-block: calc((18px - 1cap) / 2);
+    text-box: trim-both cap alphabetic;
   }
 }
 
