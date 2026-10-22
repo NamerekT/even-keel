@@ -56,7 +56,6 @@ function setup(options: { runs?: CiRun[]; source?: false; jobs?: CiJob[]; log?: 
   const watch = new CiWatch({
     target: options.target ?? TARGET,
     source: options.source === false ? null : source,
-    variable: 'FORGEJO_TOKEN',
     git,
     repo: 'D:/repos/app',
     ...(options.main === undefined ? {} : { main: () => options.main! }),
@@ -167,7 +166,7 @@ describe('CiWatch', () => {
   it('is off without a token and never asks', async () => {
     const t = setup({ source: false })
     await t.watch.tick()
-    expect(t.watch.view).toMatchObject({ health: 'off', error: { code: 'ci.noToken', params: { variable: 'FORGEJO_TOKEN' } } })
+    expect(t.watch.view).toMatchObject({ health: 'off', error: { code: 'ci.noToken', params: { kind: 'forgejo' } } })
   })
 
   it('asks at once when a token appears, and goes off again when it is removed', async () => {

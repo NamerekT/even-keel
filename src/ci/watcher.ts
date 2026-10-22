@@ -15,9 +15,8 @@ const TASK_COMMITS = 50
 
 export interface CiWatchDeps {
   target: CiTarget
-  /** `null` — no token in the environment. */
+  /** `null` — no profile has a token for it. */
   source: CiSource | null
-  variable: string
   git: Git
   repo: string
   /** The project's main branch, read at each look; `main` without it. */
@@ -46,7 +45,7 @@ export class CiWatch {
       remote,
       url: `${web}/${owner}/${repo}/actions`,
       health: deps.source === null ? 'off' : 'ok',
-      error: deps.source === null ? notice('ci.noToken', { variable: deps.variable }) : null,
+      error: deps.source === null ? notice('ci.noToken', { kind }) : null,
       checkedAt: null,
       current: null,
       history: [],
@@ -71,7 +70,7 @@ export class CiWatch {
     this.polledAt = -Infinity
     this.view.checkedAt = null
     this.view.health = source === null ? 'off' : 'ok'
-    this.view.error = source === null ? notice('ci.noToken', { variable: this.deps.variable }) : null
+    this.view.error = source === null ? notice('ci.noToken', { kind: this.deps.target.kind }) : null
     this.deps.onChange()
   }
 

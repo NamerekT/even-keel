@@ -6,7 +6,7 @@ import { say, t } from '../i18n/index.js'
 import { useLive } from '../live/context.js'
 import { useCommand } from '../live/useCommand.js'
 import { projectPath } from '../state.js'
-import { draftOfFields, EMPTY_FIELDS, idPrefix, keyTyped, missingOf, readyToAdd, shapeOf, suggestOfRepo, switchProfile, trustCommand, typedIn, type Missing, type WizardFields } from './projectWizard.js'
+import { draftOfFields, EMPTY_FIELDS, idPrefix, keyOfTyped, keyTyped, missingOf, readyToAdd, shapeOf, suggestOfRepo, switchProfile, trustCommand, typedIn, type Missing, type TrackerShape, type WizardFields } from './projectWizard.js'
 import { FieldHead } from './settingsParts.js'
 import { Status, TrackerStep } from './WizardTracker.js'
 import './accounts.css'
@@ -164,7 +164,17 @@ export function ProjectAddPage({ state }: { state: EvenKeelState }) {
                 )}
               </Status>
             )}
-            {repoCheck?.repo.notice != null && <Status>{say(repoCheck.repo.notice)}</Status>}
+            {repoCheck?.repo.notice != null && (
+              <Status>
+                {say(repoCheck.repo.notice)}
+                {repoCheck.repo.notice.code === 'wizard.repoTaken' && (
+                  <>
+                    {' '}
+                    <Link to={projectPath(repoCheck.repo.notice.params.project)}>{t.wizard.openProject}</Link>
+                  </>
+                )}
+              </Status>
+            )}
           </div>
           {branchShown && (
             <div className="settings__field">
@@ -207,7 +217,7 @@ export function ProjectAddPage({ state }: { state: EvenKeelState }) {
                   value={fields.key}
                   placeholder="ABC"
                   aria-invalid={check?.entry != null}
-                  onChange={(event) => setFields((before) => typedIn(before, 'key', event.target.value.toUpperCase()))}
+                  onChange={(event) => setFields((before) => typedIn(before, 'key', keyOfTyped(event.target.value)))}
                 />
               </div>
             )}
@@ -222,7 +232,7 @@ export function ProjectAddPage({ state }: { state: EvenKeelState }) {
               />
             </div>
           </div>
-          <span className="settings__hint">{t.wizard.example(idPrefix(shape, fields) || keyText, shape === 'place')}</span>
+          <span className="settings__hint">{t.wizard.example(idPrefix(shape, fields) || keyText, shape === 'place', keptIds(shape, fields))}</span>
           {keyTyped(shape) && check?.entry != null && fields.key.trim() !== '' && <Status>{say(check.entry)}</Status>}
         </Step>
         <details className="project-add__advanced">
@@ -273,6 +283,13 @@ export function ProjectAddPage({ state }: { state: EvenKeelState }) {
       </form>
     </div>
   )
+}
+
+/** The key typed where the task ids stay the tracker's, when it is not their prefix: the example says it does not change them. */
+function keptIds(shape: TrackerShape, fields: WizardFields): string | null {
+  const key = fields.key.trim()
+  const prefix = idPrefix(shape, fields)
+  return prefix === '' || key === '' || key === prefix ? null : key
 }
 
 /** The only tracker profile is chosen at once; with several the user picks. */

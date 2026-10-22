@@ -1,6 +1,8 @@
 import { isLanguage, type Language } from '../../../src/language.js'
 import { renderNotice, withLabels, type Notice } from '../../../src/notice/notice.js'
 import { en } from './en.js'
+import { fieldsEn, type FieldTexts } from './fields-en.js'
+import { fieldsRu } from './fields-ru.js'
 import { ru, type Messages } from './ru.js'
 
 export type { Messages }
@@ -26,6 +28,15 @@ export function setProjectLabels(next: Readonly<Record<string, string>>): void {
 // A server message in the page's language.
 export function say(notice: Notice): string {
   return withLabels(renderNotice(notice, t.notice), labels)
+}
+
+const FIELDS: Record<Language, FieldTexts> = { en: fieldsEn, ru: fieldsRu }
+
+// A refused setting as its field says it: by the value, without the path of the config the server's text names (BTN-297).
+export function sayAtField(notice: Notice): string {
+  const texts = FIELDS[language] as Partial<Record<Notice['code'], (params: unknown) => string>>
+  const render = texts[notice.code]
+  return render === undefined ? say(notice) : withLabels(render(notice.params), labels)
 }
 
 // The configured language wins; otherwise the first browser language the page knows, English if none.

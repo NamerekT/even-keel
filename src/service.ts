@@ -38,7 +38,7 @@ import { ChangelogDrafts } from './changelog/drafts.js'
 import { DEFAULT_CHANGELOG } from './changelog/file.js'
 import { changesOf } from './git/changes.js'
 import { commitChangelog } from './git/changelog.js'
-import { CI_TOKENS, ciSource, ciToken, projectTargets } from './ci/adapters.js'
+import { ciSource, ciToken, projectTargets } from './ci/adapters.js'
 import { FORGEJO_PROFILE } from './ci/forgejo-profile.js'
 import type { CiTarget, Remote } from './ci/remote.js'
 import { CiWatch } from './ci/watcher.js'
@@ -417,7 +417,6 @@ const ciWatches = new CiWatches({
     new CiWatch({
       target,
       source: ciSource(target, ciTokenOf(project, target)?.token ?? null, CI_TIMEOUT_MS),
-      variable: CI_TOKENS[target.kind],
       git: runGit,
       repo,
       main: () => branchOf(project),

@@ -176,6 +176,15 @@ export function keyOfFolder(path: string): string {
   return key.slice(0, KEY_LENGTH)
 }
 
+/** The key as typed, kept to what a key may hold (`PROJECT_KEY`): capital Latin letters, digits and _, a letter first. */
+export function keyOfTyped(text: string): string {
+  return text
+    .toUpperCase()
+    .replace(/[^A-Z0-9_]/g, '')
+    .replace(/^[^A-Z]+/, '')
+    .slice(0, KEY_LENGTH)
+}
+
 function lastPart(path: string): string {
   return path.split(/[\\/]/).filter((part) => part !== '').pop() ?? ''
 }

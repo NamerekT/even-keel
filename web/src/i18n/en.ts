@@ -478,6 +478,7 @@ export const en: Messages = {
     commandCopied: 'Copied',
     trusted: 'Claude Code trusts the folder',
     checkAgain: 'Check again',
+    openProject: 'Open the project',
     stepTracker: 'Tracker',
     profile: 'Profile',
     profileHint: 'The access to the tracker Even Keel reads the tasks with. Profiles are also in Settings → Access.',
@@ -498,12 +499,14 @@ export const en: Messages = {
       'Once the project is added, set "Only tasks with labels" in its settings, e.g. to ready: only collaborators can put a label on an issue.',
     stepProject: 'Project',
     prefix: 'Task prefix',
-    prefixHint: '2 to 5 capital letters or digits, starting with a letter. It names the tasks, their branches and the stats.',
+    prefixHint: 'A capital Latin letter, then up to 4 capitals, digits or _. It names the tasks, their branches and the stats.',
     ownKey: 'Project key',
     ownKeyHint:
-      "Even Keel's name of the project, 2 to 5 capital letters or digits: the tracker's project or team by default. A second project on the same tracker project or team needs a key of its own, e.g. for a release branch or another repository; its tasks keep the tracker's names.",
-    example: (key: string, place: boolean) =>
-      place ? `Issue #12 becomes ${key}-12, its branch ${key.toLowerCase()}-12/task.` : `Task ${key}-12 runs on the branch ${key.toLowerCase()}-12/task.`,
+      "Even Keel's name of the project, a capital Latin letter, then up to 4 capitals, digits or _: the tracker's project or team by default. A second project on the same tracker project or team needs a key of its own, e.g. for a release branch or another repository; its tasks keep the tracker's names.",
+    example: (key: string, place: boolean, ownKey: string | null) =>
+      place
+        ? `Issue #12 becomes ${key}-12, its branch ${key.toLowerCase()}-12/task.`
+        : `Task ${key}-12 runs on the branch ${key.toLowerCase()}-12/task${ownKey === null ? '.' : `: the tasks keep the tracker's ids, the key ${ownKey} does not change them.`}`,
     name: 'Name',
     nameHint: "Shown on the page; filled in from the tracker's project, can be changed.",
     namePlaceholder: 'Storefront',
