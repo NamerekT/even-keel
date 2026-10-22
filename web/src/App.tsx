@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Navigate, Route, Routes, useLocation, useMatch, useParams } from 'react-router'
 import type { EvenKeelState } from '../../src/state.js'
 import { pickLanguage, say, setLanguage, t } from './i18n/index.js'
@@ -19,6 +19,7 @@ import { useLive } from './live/context.js'
 import { projectOfPath, projectPath } from './state.js'
 import { AccountAddPage } from './pages/AccountAdd.js'
 import { AccountsPage } from './pages/Accounts.js'
+import { knownSessions, pruneDrafts } from './pages/chatDraft.js'
 import { Home } from './pages/Home.js'
 import { NotFound } from './pages/NotFound.js'
 import { Project } from './pages/Project.js'
@@ -35,6 +36,12 @@ export function App() {
   const addingAccount = useMatch('/accounts/add') !== null
   const language = pickLanguage(state?.language ?? null, navigator.languages)
   setLanguage(language)
+  const pruned = useRef(false)
+  useEffect(() => {
+    if (state === null || pruned.current) return
+    pruned.current = true
+    void pruneDrafts(knownSessions(state))
+  }, [state])
 
   if (blocked !== undefined)
     return (
