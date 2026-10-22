@@ -205,6 +205,31 @@ function KeepButton({ entry, sending, send }: Pick<NotesProps, 'entry' | 'sendin
   )
 }
 
+/** How a Claude account runs its sessions, switched on press; a subscription account carries Anthropic's rule on the Agent SDK in the tip. */
+export function TransportAction({ entry, sending, send }: Pick<NotesProps, 'entry' | 'sending' | 'send'>) {
+  const { transport } = entry
+  if (transport === undefined || entry.removing) return null
+  const name = t.account.transport[transport]
+  const tip = (
+    <>
+      <p>{t.account.transportNow(name)}</p>
+      {!entry.apiKey && <p>{t.account.transportTerms}</p>}
+    </>
+  )
+  return (
+    <Tipped className="account__actions" tip={tip} align="start">
+      <button
+        type="button"
+        className="button button--small"
+        disabled={sending}
+        onClick={() => void send('account/transport', { account: entry.key, transport: transport === 'sdk' ? 'bg' : 'sdk' })}
+      >
+        {name}
+      </button>
+    </Tipped>
+  )
+}
+
 function staleNote(reason: Notice | null): string {
   return reason === null ? t.account.staleExpired : t.account.staleBusy
 }

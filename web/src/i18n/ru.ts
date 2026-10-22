@@ -369,6 +369,10 @@ export const ru = {
     removeWhenDone: (sessions: string) => `Выйти и удалить папку, когда завершатся её сессии (${sessions})?`,
     removeNow: 'Выйти и удалить папку?',
     keep: 'Не удалять',
+    transport: { sdk: 'Agent SDK', bg: 'CLI --bg' },
+    transportNow: (name: string) => `Сессии идут через ${name}. Нажмите, чтобы переключить: смена действует на новые сессии.`,
+    transportTerms:
+      'Anthropic просит продукты на Agent SDK входить по ключу API, а не по подписке claude.ai: на аккаунте с подпиской решение за вами.',
     waitingLink: 'Жду ссылку для входа…',
     openLogin: 'Открыть страницу входа',
     code: 'Код со страницы входа',

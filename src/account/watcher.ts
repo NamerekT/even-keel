@@ -8,6 +8,7 @@ import { appSwitchProblem, type AppAccount, type AppId } from './apps.js'
 import { assertApiKey, keyProvider, type AccountHome, type AccountHomes } from './homes.js'
 import { CreditChecks, type CreditVerdict } from './credit.js'
 import { KeyChecks, type KeyVerdict } from './keycheck.js'
+import type { Transport } from './transport.js'
 import {
   cleanOutput,
   isApiKey,
@@ -50,6 +51,9 @@ export interface AccountWatcherOptions {
   forget: (key: string) => void
   nameOf: (key: string) => string | null
   name: (key: string, name: string) => void
+  /** How the account's new sessions run, by the agent, the user's choice and whether it signs in with a key. */
+  transportOf: (home: AccountHome, apiKey: boolean) => Transport | null
+  chooseTransport: (key: string, transport: Transport | null) => void
   loginBlock: () => LoginBlock | null
   sessionsIn: (key: string) => string[]
   /** The projects whose sessions run in the folder, by the pool. */
@@ -112,6 +116,7 @@ export class AccountWatcher {
     const now = this.options.now()
     const accounts = this.known.map(({ home, status, error }): AccountEntry => {
       const times = this.options.homes.times(home)
+      const transport = this.options.transportOf(home, isApiKey(status))
       return {
         key: home.key,
         name: this.options.nameOf(home.key),
@@ -126,6 +131,7 @@ export class AccountWatcher {
         removing: this.options.removing(home.key),
         configPending: this.options.configPending(home.key),
         apiKey: isApiKey(status),
+        ...(transport !== null && { transport }),
         limits: this.options.limits(home.key),
         usage: this.options.usage(home.key),
       }
@@ -255,6 +261,15 @@ export class AccountWatcher {
   keep(key: string): void {
     if (!this.options.removing(key)) throw fail('account.notRemoving', { key })
     this.options.markRemoving(key, false)
+    this.options.onChange()
+  }
+
+  /** Takes effect at the account's next launch: a running session keeps the way it started. */
+  setTransport(key: string, transport: Transport | null): void {
+    const home = this.options.homes.find(key)
+    if (home === undefined) throw fail('account.unknown', { key })
+    if (this.options.transportOf(home, false) === null) throw fail('account.noTransport', { key })
+    this.options.chooseTransport(key, transport)
     this.options.onChange()
   }
 

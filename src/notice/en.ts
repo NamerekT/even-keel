@@ -201,6 +201,7 @@ export const en = {
   'account.extraFree': (p: { account: string }) =>
     `codex: a second free Codex account next to ${p.account}; OpenAI's terms do not allow several free accounts to get round the limits, so sessions do not start here until it is on a paid plan`,
   'account.notRemoving': (p: { key: string }) => `claude: ${p.key} is not being removed`,
+  'account.noTransport': (p: { key: string }) => `${p.key}: its agent runs sessions one way only`,
   'account.apiKeyInvalid': () => 'claude: an API key is one word of more than 20 characters, like sk-ant-api03-…',
   'account.apiKeyRejected': () => "claude: Anthropic doesn't accept this key: it is wrong, revoked or its organization is disabled",
   'account.apiKeyUnchecked': (p: { reason: string }) => `claude: could not check the key with Anthropic (${p.reason}); try again later`,

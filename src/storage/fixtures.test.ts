@@ -4,6 +4,7 @@ import { join, relative } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
 import { loadLedger } from '../account/ledger.js'
 import { fixEpisodes, isLaunch } from '../chain/launches.js'
+import { parseSdkSession } from '../claude/sdk/registry.js'
 import { loadChainState, loadQuestions, readLaunches } from '../chain/store.js'
 import { parseSession } from '../codex/turns.js'
 import { parseConfig } from '../config.js'
@@ -92,6 +93,13 @@ describe(`frozen samples of schema v${SCHEMA_VERSION}`, { timeout: 60_000 }, () 
     const ledger = loadLedger(sample('state/account.json'))
     expect(ledger.accounts.global?.email).toBe('john.doe@example.com')
     expect(ledger.accounts['team-api']?.name).toBe('Team API')
+    expect(ledger.accounts.global?.transport).toBe('sdk')
+    expect(ledger.accounts['team-api']?.transport).toBeUndefined()
+  })
+
+  it('reads the record of an SDK session', () => {
+    const session = parseSdkSession(readFileSync(sample('state/claude-sdk/sessions/00000000-0000-4000-8000-0000000000d1.json'), 'utf8'))
+    expect(session).toMatchObject({ sessionId: '00000000-0000-4000-8000-0000000000d1', name: 'ABC-3', account: 'team-api', executor: 5100, cli: 5101, bridge: 'cse_01EXAMPLE' })
   })
 
   it('reads the packages naming projects by their ids', () => {

@@ -3,6 +3,7 @@ import { createServer, type IncomingMessage, type Server, type ServerResponse } 
 import { extname, join, normalize, sep } from 'node:path'
 import { Readable } from 'node:stream'
 import { pipeline } from 'node:stream/promises'
+import { isTransport, type Transport } from './account/transport.js'
 import { formatEvent, type EventHub } from './events.js'
 import { guard, tokenForm, type GuardSettings } from './guard.js'
 import { englishOf, fail, noticeOf, type Notice, type NoticeCode } from './notice/notice.js'
@@ -90,6 +91,8 @@ export interface AccountControl {
   switchApp(app: string, account: string): Promise<void>
   remove(account: string): Promise<void>
   keep(account: string): void
+  /** How the account's new Claude sessions run; `null` — by the default of its kind (`transportOf`). */
+  setTransport(account: string, transport: Transport | null): void
   code(code: string): void
   cancel(): void
 }
@@ -272,6 +275,7 @@ const COMMANDS: Record<string, Command> = {
   'account/app': ({ account }, body) => account.switchApp(appOf(body), accountOf(body)),
   'account/remove': ({ account }, body) => account.remove(accountOf(body)),
   'account/keep': ({ account }, body) => account.keep(accountOf(body)),
+  'account/transport': ({ account }, body) => account.setTransport(accountOf(body), transportOfBody(body)),
   'account/code': ({ account }, body) => account.code(codeOf(body)),
   'account/cancel': ({ account }) => account.cancel(),
   'packages/install': ({ packages }, body) => packages.install(nameOf(body)),
@@ -908,6 +912,12 @@ function ciOf(raw: unknown): CiSettings {
 function accountOf(body: Record<string, unknown>): string {
   if (typeof body.account !== 'string' || body.account === '') throw fail('request.required', { field: 'account' })
   return body.account
+}
+
+function transportOfBody(body: Record<string, unknown>): Transport | null {
+  if (body.transport === null) return null
+  if (!isTransport(body.transport)) throw fail('request.required', { field: 'transport' })
+  return body.transport
 }
 
 function appOf(body: Record<string, unknown>): string {

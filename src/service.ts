@@ -7,7 +7,8 @@ import { checkCredit, checkOpenAiCredit } from './account/credit.js'
 import { DaemonRefresh } from './account/daemon.js'
 import { AccountHomes, accountsRoot, codexAccountsRoot, keyProvider, openCodeAccountsRoot, type AccountHome } from './account/homes.js'
 import { checkApiKey, checkOpenAiKey } from './account/keycheck.js'
-import { accountAt, forgetAccount, loadLedger, markRemoving, nameAccount, noteAccount, saveLedger, type AccountLedger } from './account/ledger.js'
+import { accountAt, chooseTransport, forgetAccount, loadLedger, markRemoving, nameAccount, noteAccount, saveLedger, type AccountLedger } from './account/ledger.js'
+import { transportOf } from './account/transport.js'
 import { accountId, launchBlock, liveSessions, loginBlock, type LoginBlock } from './account/model.js'
 import { answers, providerUrl, Reachability } from './account/network.js'
 import { VsCodeAccount, vscodeSettingsFile } from './account/vscode.js'
@@ -266,6 +267,7 @@ const runtimes = new Map<string, Agent>(
       checkedCli: () => configStore.current.cli[name] !== 'system',
       log: (line) => console.log(line),
       onCliChange: () => void cliVersions.check(),
+      transport: (home): string | null => transportOf(home.agent, ledger.accounts[home.key]?.transport, account.apiKey(home.key)),
     }),
   ]),
 )
@@ -550,7 +552,12 @@ const account = new AccountWatcher({
   forget: (key) => saveAccounts(forgetAccount(ledger, key)),
   nameOf: (key) => ledger.accounts[key]?.name ?? null,
   name: (key, name) => saveAccounts(nameAccount(ledger, key, name)),
-  loginBlock: (): LoginBlock | null => loginBlock(dispatcher.state.active, agents, activeAccount()),
+  transportOf: (home, apiKey) => transportOf(home.agent, ledger.accounts[home.key]?.transport, apiKey),
+  chooseTransport: (key, transport) => {
+    saveAccounts(chooseTransport(ledger, key, transport))
+    console.log(`account: ${key} starts its sessions on ${transportOf(CLAUDE, transport ?? undefined, account.apiKey(key))}${transport === null ? ' by default' : ''}`)
+  },
+  loginBlock:(): LoginBlock | null => loginBlock(dispatcher.state.active, agents, activeAccount()),
   sessionsIn: (key) => liveSessions(agents, key),
   projectsOn: (key) => projectsByAccount(configStore.current, Object.keys(configStore.current.projects))[key] ?? [],
   pool: () => poolEntries(configStore.current, Object.keys(configStore.current.projects)),
@@ -1022,17 +1029,23 @@ const forwards = new ForwardMerger({
   log: (message) => console.log(message),
 })
 
-/** Stops the session and resumes it with `prompt`; the page keeps it working, not finished, while it is respawned. */
+/**
+ * Goes on in the live session with `prompt` where its agent can (an SDK session, BTN-239); otherwise stops the session
+ * and resumes it, and the page keeps it working, not finished, while it is respawned.
+ */
 function resumeWith(task: string, session: HandoffSession, prompt: string): Promise<string> {
   return monitor.holds.during(session.sessionId, async () => {
     const home = homeOf(session.account)
+    const plan = planFor(task, prompt)
+    const extras = agentExtras(home, projectOf(task), task)
+    const start = { name: task, cwd: session.cwd, prompt: plan.prompt, model: plan.model, settings: settingsFor(task), ...extras }
+    const went = await agentOf(home).reply?.(home, session, start)
+    if (went != null) return went
     const started = Date.now()
     await stopIn(home, session)
     const stopped = Date.now()
     await daemons.prepare(home)
-    const plan = planFor(task, prompt)
-    const extras = agentExtras(home, projectOf(task), task)
-    const sessionId = await resumeIn(home, session, { name: task, cwd: session.cwd, prompt: plan.prompt, model: plan.model, settings: settingsFor(task), ...extras })
+    const sessionId = await resumeIn(home, session, start)
     console.log(`sessions: ${task} resumed in ${Date.now() - started} ms (stop ${stopped - started} ms)`)
     return sessionId
   })

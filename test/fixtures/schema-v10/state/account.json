@@ -1,0 +1,8 @@
+{
+  "version": 10,
+  "accounts": {
+    "global": { "email": "john.doe@example.com", "since": "2026-10-01T00:00:00.000Z", "previous": null, "transport": "sdk" },
+    "team-api": { "email": "team-api", "since": "2026-10-02T00:00:00.000Z", "previous": null, "name": "Team API" }
+  },
+  "removing": []
+}

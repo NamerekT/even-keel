@@ -364,6 +364,10 @@ export const en: Messages = {
     removeWhenDone: (sessions: string) => `Sign out and remove the folder once its sessions finish (${sessions})?`,
     removeNow: 'Sign out and remove the folder?',
     keep: "Don't remove",
+    transport: { sdk: 'Agent SDK', bg: 'CLI --bg' },
+    transportNow: (name: string) => `Sessions run through ${name}. Press to switch: the change applies to new sessions.`,
+    transportTerms:
+      "Anthropic asks products built on the Agent SDK to sign in with an API key, not a claude.ai subscription: on a subscription account it is your own call.",
     waitingLink: 'Waiting for the sign-in link…',
     openLogin: 'Open the sign-in page',
     code: 'Code from the sign-in page',
