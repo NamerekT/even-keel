@@ -86,6 +86,7 @@ const project = (repo: string, change: Partial<ProjectForm>): ProjectForm => ({
   ci: CI_ALL,
   remoteProfiles: {},
   pullRequests: false,
+  intakeLabel: null,
   mergeInto: null,
   fillMilestone: false,
   changelog: 'CHANGELOG.md',
