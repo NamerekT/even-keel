@@ -846,6 +846,7 @@ describe('Dispatcher on a limit', () => {
       task: 'ABC-1',
       sessionId: 'session-2',
       reason: 'relay',
+      cause: 'limit',
       previous: 'session-1',
     })
 

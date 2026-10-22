@@ -1,7 +1,7 @@
 import type { SessionView } from '../state.js'
 import type { LaunchEntry, ReleaseReason } from './dispatcher.js'
 import { fixEpisodeId, fixName, fixTaskOf, isFixName, liveFixId } from './fix.js'
-import type { FixOutcome } from './model.js'
+import type { FixOutcome, RelayCause } from './model.js'
 
 export interface LaunchDay {
   day: string
@@ -28,13 +28,15 @@ export interface TaskSession {
   sessionId: string
   at: string
   how: 'launch' | 'relay' | HandOver | 'manual'
+  /** Why a `relay` session started; absent in an older journal, which only knew the limit. */
+  cause?: RelayCause
   resumed: number
   /** The user's answers that resumed it. */
   answers: number
   /** When the service began delivering the last of them. */
   answeredAt?: string
   left?: { at: string; reason: ReleaseReason; blockers: string[] }
-  replaced?: { at: string; how: HandOver }
+  replaced?: { at: string; how: HandOver | 'relay'; cause?: RelayCause }
   /** The e-mail of the account the session ran on; `null` when it is not known. */
   account?: string | null
 }
@@ -122,11 +124,13 @@ export function taskSessions(
       }
       continue
     }
-    const how = entry.reason === 'relay' || entry.reason === 'restart' || entry.reason === 'checkpoint' ? entry.reason : 'launch'
-    rows.set(entry.sessionId, { sessionId: entry.sessionId, at: entry.at, how, resumed: 0, answers: 0 })
-    if ((how === 'restart' || how === 'checkpoint') && entry.previous !== undefined) {
+    const relayed = entry.reason === 'relay' || (entry.reason === 'review' && entry.cause !== undefined)
+    const how = relayed ? 'relay' : entry.reason === 'restart' || entry.reason === 'checkpoint' ? entry.reason : 'launch'
+    const cause = relayed ? entry.cause : undefined
+    rows.set(entry.sessionId, { sessionId: entry.sessionId, at: entry.at, how, ...(cause === undefined ? {} : { cause }), resumed: 0, answers: 0 })
+    if ((how === 'restart' || how === 'checkpoint' || how === 'relay') && entry.previous !== undefined) {
       const old = rows.get(entry.previous)
-      if (old !== undefined) old.replaced = { at: entry.at, how }
+      if (old !== undefined) old.replaced = { at: entry.at, how, ...(cause === undefined ? {} : { cause }) }
     }
   }
   for (const view of live) {

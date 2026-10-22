@@ -132,6 +132,9 @@ export type ReleaseReason = 'postpone' | 'skip'
 /** How the fix of a red main ended (BTN-153): its branch landed in main, or the user gave it up and main stayed as it was. */
 export type FixOutcome = 'landed' | 'dropped'
 
+/** Why a new session with a handoff followed a cold cache; a launch without one in the journal is a `limit`. */
+export type RelayCause = 'limit' | 'mainFixed' | 'review' | 'returned'
+
 export interface LaunchEntry {
   at: string
   project: string
@@ -139,6 +142,8 @@ export interface LaunchEntry {
   sessionId: string
   /** `review` — a pull request opened on the session's mark, or its feedback delivered to the task's session. */
   reason?: RelayAction | ReleaseReason | FixOutcome | 'restart' | 'checkpoint' | 'answer' | 'review'
+  /** What made the new session of a `relay` (or of a `review` handover): kept in `extra`, `reason` stays for Tally. */
+  cause?: RelayCause
   previous?: string
   blockers?: string[]
   /** The commit of main the entry of a fix is about: red at its launch, the one main went out at when it landed. */
