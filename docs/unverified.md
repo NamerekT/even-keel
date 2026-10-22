@@ -52,7 +52,7 @@ Every entry, ordered by how many people it reaches and how badly it hurts them i
 | 40 | [The context window a chain session gets](#the-context-window-a-chain-session-gets-btn-187) | everyone | the context meter and the handoff cap read a wrong window |
 | 41 | [A task closed by `NO CHANGES:`](#a-task-closed-by-no-changes-ekr-10) | everyone outside PR mode | a task with nothing to merge waits for you, as before the mark |
 | 42 | [The 1-hour cache on a key](#the-1-hour-cache-on-a-key) | Claude API keys with `cacheTtl` | more cache writes; nothing breaks |
-| 43 | [Outsiders' comments on a public GitHub repository](#outsiders-comments-on-a-public-github-repository-ekr-19) | public GitHub repositories | your own reply is skipped, or an outsider's reaches a session |
+| 43 | [Outsiders' comments on a public GitHub repository](#outsiders-comments-on-a-public-github-repository-ekr-19) | PR mode on public GitHub repositories | your own review is skipped, or an outsider's reaches a session |
 | 44 | [Milestones on GitHub and Linear](#milestones-on-github-and-linear) | GitHub, Linear | a task's milestone is not filled |
 | 45 | [Changing a milestone from the task card on GitHub and Linear](#changing-a-milestone-from-the-task-card-on-github-and-linear) | GitHub, Linear | the card puts the old milestone back |
 | 46 | [The tasks of a milestone on GitHub and Linear](#the-tasks-of-a-milestone-on-github-and-linear-btn-142) | changelog drafts on GitHub, Linear | the draft misses tasks or takes an older comment |
@@ -307,7 +307,7 @@ Downloading a file attached to an issue or comment with the token has not been t
 
 ### Outsiders' comments on a public GitHub repository (EKR-19)
 
-Only comments and pull request reviews by the repository's owner, the members of its organization, its collaborators and the token's own account reach a session, by GitHub's `authorAssociation`; the wizard warns about a public repository without required labels. This is covered by tests with GitHub's documented answers, never run live with a second, outside account. If GitHub names you otherwise than `OWNER`, `MEMBER` or `COLLABORATOR` (a pull request review by a token of another account, say), your reply is skipped and the service log says `is skipped: its author is not a collaborator`; the session keeps waiting. **Workaround:** answer from the page's chat, or add the account as a collaborator.
+Only comments and pull request reviews by the repository's owner, the members of its organization, its collaborators and the token's own account reach a session, by GitHub's `authorAssociation`; the wizard warns about a public repository without required labels. Answers to a question in an issue ran live on 22.10.2026 on a public repository: an outside account's reply (`NONE`) was skipped with its line in the service log and the session kept waiting, the owner's reply reached it. PR mode was not: a review or a pull request comment by an outsider is covered by tests with GitHub's documented REST answers only. If GitHub names you otherwise than `OWNER`, `MEMBER` or `COLLABORATOR` there (a review by a token of another account, say), your feedback is skipped and the service log says `is skipped: its author is not a collaborator`. **Workaround:** answer from the page's chat, or add the account as a collaborator.
 
 ### Milestones on GitHub and Linear
 
