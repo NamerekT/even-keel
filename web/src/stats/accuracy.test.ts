@@ -8,6 +8,7 @@ function task(id: string, fields: Partial<StatsTaskRow>): StatsTaskRow {
     project: id.split('-')[0]!,
     title: null,
     status: 'Done',
+    url: null,
     cost: 1,
     limit: null,
     sessions: 1,

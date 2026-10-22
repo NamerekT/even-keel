@@ -23,6 +23,8 @@ export interface HulyProfiles {
   projects: Record<string, Record<string, string>>
   /** The default Huly profile, for a task of a project the config no longer has; `null` — none. */
   fallback: Record<string, string> | null
+  /** The task id prefixes of projects and feeds on another tracker (BTN-66): Huly is not asked for them, nor the fallback. */
+  elsewhere?: string[]
 }
 
 export interface TallyOptions {

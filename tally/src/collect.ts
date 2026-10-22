@@ -2,6 +2,7 @@ import { existsSync, readFileSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { AccountHomes, accountsRoot } from '../../src/account/homes.js'
+import { taskSources } from '../../src/chain/launches.js'
 import type { LaunchEntry } from '../../src/chain/model.js'
 import { readSnapshots, type HandoffSnapshot } from '../../src/chain/snapshots.js'
 import { readLaunches } from '../../src/chain/store.js'
@@ -95,6 +96,7 @@ export async function collect(settings: DbSettings, root: string, log: Log, huly
     }
     const forgotten = paths.length > 0 ? await db.forgetFilesExcept(paths) : 0
     const relabeled = await db.syncLaunches(launches)
+    await db.syncTaskSources(taskSources(journal))
     await db.fillSessionFolders()
     if ((await db.meta('efforts')) === null) {
       log(`tally: ${await db.fillEfforts()} older messages given their effort level`)

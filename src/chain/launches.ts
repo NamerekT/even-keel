@@ -194,6 +194,24 @@ export function fallbacksSince(entries: LaunchEntry[], since: Date): (LaunchEntr
     .reverse()
 }
 
+export interface TaskSource {
+  task: string
+  profile: string | null
+  url: string | null
+  title: string | null
+}
+
+/** Where each task was read from, by the latest launch that recorded it, field by field (BTN-66): Tally's `tasks`. */
+export function taskSources(entries: LaunchEntry[]): TaskSource[] {
+  const sources = new Map<string, TaskSource>()
+  for (const entry of entries) {
+    if (!isLaunch(entry) || (entry.profile === undefined && entry.url === undefined && entry.title === undefined)) continue
+    const known = sources.get(entry.task) ?? { task: entry.task, profile: null, url: null, title: null }
+    sources.set(entry.task, { task: entry.task, profile: entry.profile ?? known.profile, url: entry.url ?? known.url, title: entry.title ?? known.title })
+  }
+  return [...sources.values()]
+}
+
 /** An entry of a session the chain started or continued: not a release, not the outcome of a fix. */
 export function isLaunch(entry: LaunchEntry): boolean {
   return !isRelease(entry) && !isOutcome(entry)

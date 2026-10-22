@@ -430,13 +430,14 @@ const newTally = () =>
     evenKeelUrl: () => `http://${['0.0.0.0', '::'].includes(listen.host) ? '127.0.0.1' : listen.host}:${listen.port}`,
     huly: () => {
       const set = profiles.current()
-      const config = configStore.current
-      // By the Huly project, which Tally knows the tasks by.
+      const config = readers()
+      // By the Huly project, which Tally knows the tasks by; a feed is a reader of its own (BTN-66).
       const projects = Object.entries(config.trackers).flatMap(([project, kind]) => {
         const values = kind === 'huly' ? profileFor(set, project, kind)?.values : undefined
         return values === undefined ? [] : [[idPrefixOf(config, project), values] as const]
       })
-      return { projects: Object.fromEntries(projects), fallback: defaultProfile(set, 'huly')?.values ?? null }
+      const elsewhere = Object.entries(config.trackers).flatMap(([project, kind]) => (kind === 'huly' ? [] : [idPrefixOf(config, project)]))
+      return { projects: Object.fromEntries(projects), fallback: defaultProfile(set, 'huly')?.values ?? null, elsewhere }
     },
     log: (message) => console.log(message),
   })

@@ -59,6 +59,8 @@ export interface StatsTaskRow {
   project: string
   title: string | null
   status: string | null
+  /** The task's link as the launch log recorded it (BTN-66); `null` — the page builds it from the tracker's template. */
+  url: string | null
   cost: number
   limit: number | null
   sessions: number

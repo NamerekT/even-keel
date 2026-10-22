@@ -12,6 +12,13 @@ describe('hulyOfProfiles', () => {
     expect(hulyOf('OLD-1')).toMatchObject({ workspace: 'work' })
   })
 
+  it("gives nothing to a task of another tracker's project or feed, not even the default profile", () => {
+    const hulyOf = hulyOfProfiles({ projects: { ABC: work }, fallback: work, elsewhere: ['ABCGH', 'WEB'] })
+    expect(hulyOf('ABCGH-4')).toBeUndefined()
+    expect(hulyOf('WEB-7')).toBeUndefined()
+    expect(hulyOf('ABC-1')).toMatchObject({ workspace: 'work' })
+  })
+
   it('gives nothing without a profile, or with one Huly would not take', () => {
     expect(hulyOfProfiles({ projects: {}, fallback: null })('ABC-1')).toBeUndefined()
     expect(hulyOfProfiles({ projects: { ABC: { HULY_URL: 'https://huly.example.com' } }, fallback: null })('ABC-1')).toBeUndefined()

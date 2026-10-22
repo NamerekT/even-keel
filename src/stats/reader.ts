@@ -136,7 +136,7 @@ const TASKS = `${PERIOD}, cur as (
   where k.agent_id is null and k.at >= bounds.lo and k.at < bounds.hi
   group by t.task
 )
-select c.task, min(c.project) as project, t.title, t.status, coalesce(sum(c.cost), 0) as cost, sum(sv.share) as limit_share,
+select c.task, min(c.project) as project, t.title, t.status, t.url, coalesce(sum(c.cost), 0) as cost, sum(sv.share) as limit_share,
   count(distinct c.session_id) as sessions,
   count(distinct c.session_id) filter (where c.launch_reason = 'relay') as relays,
   count(distinct c.session_id) filter (where c.launch_reason = 'checkpoint') as checkpoints,
@@ -153,7 +153,7 @@ left join tasks t on t.task = c.task
 left join task_times tt on tt.task = c.task
 left join stuck st on st.task = c.task
 left join compacted cp on cp.task = c.task
-group by c.task, t.title, t.status, t.labels, t.estimate_h, t.done, t.component, tt.active_s, tt.wait_s, tt.total_s
+group by c.task, t.title, t.status, t.url, t.labels, t.estimate_h, t.done, t.component, tt.active_s, tt.wait_s, tt.total_s
 order by cost desc, c.task`
 
 const PICKED = `${PERIOD}, sess as (
@@ -352,6 +352,7 @@ export function mapPeriod(query: PeriodQuery, rows: PeriodRows, at: Date): Stats
       project: String(row.project),
       title: text(row.title),
       status: text(row.status),
+      url: text(row.url),
       cost: number(row.cost),
       limit: maybe(row.limit_share),
       sessions: number(row.sessions),
