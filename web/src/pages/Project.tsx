@@ -49,6 +49,7 @@ import { ProjectName } from './ProjectName.js'
 import { SessionPanel } from './SessionPanel.js'
 import { SettingsChip, SettingsPanel, useSettingsDirty } from './SettingsPanel.js'
 import { SETTINGS_HASH } from './settingsStore.js'
+import { NoticeFixButton } from './FixButtons.js'
 import { PullFixButton } from './PullButtons.js'
 import { StatsStrip, useStrip } from './StatsStrip.js'
 import { ToolsLink } from './ToolsLink.js'
@@ -286,6 +287,7 @@ function Forward({ state, project }: { state: EvenKeelState; project: string }) 
         <div className="leftovers__text">
           <strong>{waiting ? t.project.forwardWaits(forward.behind ?? 0, forward.into) : t.project.forwardPushFailed(forward.into)}</strong>
           {forward.hold !== null && <p className="leftovers__line">{say(forward.hold)}</p>}
+          <NoticeFixButton project={project} notice={forward.hold} />
           {!waiting && push !== null && <p className="leftovers__line">{say(push)}</p>}
         </div>
         {waiting && (
@@ -392,6 +394,7 @@ function ChainControls({ state, project, narrow, children }: { state: EvenKeelSt
       {status.kind === 'running' && status.ciWait !== undefined && <p className="project__wait">{ciWaitText(status.ciWait, new Date(), state)}</p>}
       {stopsAfter && <p className="project__wait">{t.project.stopsAfter(chain?.current?.task ?? chain?.closing ?? null)}</p>}
       {error !== null && <p className="project__error">{say(error)}</p>}
+      <NoticeFixButton project={project} notice={error} />
       <PullFixButton state={state} project={project} error={status.kind === 'paused' ? status.error : null} />
     </>
   )

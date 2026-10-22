@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { GitResult } from '../git/types.js'
+import { englishOf } from '../notice/notice.js'
 import type { ProjectDraft } from '../state.js'
 import type { TaskSource, TrackerAdapter } from '../tracker/source.js'
 import type { TrackerTask } from '../tracker/model.js'
@@ -110,22 +111,30 @@ describe('checkDraft', () => {
 
   it('refuses a repository another project already has', async () => {
     const check = await checkDraft(deps({ raw: () => ({ projects: [{ id: 'id-abc', key: 'ABC', repo: 'd:\\NEW' }] }) }), draft)
-    expect(check.repo.notice).toEqual(expect.objectContaining({ code: 'wizard.repoTaken', params: { project: 'ABC' } }))
+    expect(check.repo.notice).toEqual(expect.objectContaining({ code: 'wizard.repoTaken', params: { project: 'id-abc' } }))
   })
 
   it('gives what parseConfig says of the config with the draft, and asks no tracker then', async () => {
     const adapter = fakeAdapter()
     const check = await checkDraft(deps({ adapters: { fake: adapter } }), { ...draft, key: 'a b' })
-    expect(check.entry).toEqual(expect.objectContaining({ code: 'config.projectKey' }))
+    expect(check.entry).toEqual(expect.objectContaining({ code: 'wizard.keyShape', params: { value: 'a b' } }))
     expect(check.tracker).toBeNull()
     expect(adapter.asked).toEqual([])
+  })
+
+  it("says the config's refusals in the form's words, without a path of the config (BTN-297)", async () => {
+    const key = await checkDraft(deps(), { ...draft, key: 'NAMЫ' })
+    expect(key.entry).toEqual(expect.objectContaining({ code: 'wizard.keyShape', params: { value: 'NAMЫ' } }))
+    const shared = await checkDraft(deps({ raw: () => ({ tracker: 'fake', projects: [{ id: 'id-abc', key: 'ABC', repo: 'C:\\abc' }] }) }), { ...draft, key: 'ABC' })
+    expect(shared.entry).toEqual(expect.objectContaining({ code: 'wizard.trackerShared', params: { project: 'ABC (main)' } }))
+    for (const check of [key, shared]) expect(englishOf(check.entry!)).not.toMatch(/projects\[|wizard-check|\.key\b|config|chain\./)
   })
 
   it('takes a key another project has (BTN-271), but not two chains on one tracker project without split milestones', async () => {
     const adapter = fakeAdapter()
     const sameTracker = () => ({ tracker: 'fake', projects: [{ id: 'id-abc', key: 'ABC', repo: 'C:\\abc' }] })
     const check = await checkDraft(deps({ raw: sameTracker, adapters: { fake: adapter } }), { ...draft, key: ' ABC ' })
-    expect(check.entry).toEqual(expect.objectContaining({ code: 'config.trackerProjectShared' }))
+    expect(check.entry).toEqual(expect.objectContaining({ code: 'wizard.trackerShared' }))
     expect(adapter.asked).toEqual([])
     const otherTracker = await checkDraft(deps(), { ...draft, key: 'ABC' })
     expect(otherTracker.entry).toBeNull()

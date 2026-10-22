@@ -102,7 +102,7 @@ export const noticesRu: NoticeTexts = {
   'forward.foreign': (p) =>
     `у ${p.from} и ${p.into} нет общего remote, и ни одна папка не клон другой — ничего не получено; укажи в «Вливается в» проект того же репозитория`,
 
-  'ci.noToken': (p) => `чтобы следить за этим CI, задайте ${p.variable} в окружении Even Keel`,
+  'ci.noToken': (p) => `ни у одного профиля нет токена для этого CI: добавьте профиль ${FORGES[p.kind]} в «Настройки → Доступы»`,
   'ci.denied': (p) => `${p.ci}: токен отклонён (HTTP ${p.status}) — ему нужно чтение actions репозитория`,
   'ci.http': (p) => `${p.ci}: API ответил HTTP ${p.status}`,
   'ci.unreachable': (p) => `${p.ci}: API не отвечает`,
@@ -154,9 +154,9 @@ export const noticesRu: NoticeTexts = {
   'claude.stillRunning': (p) => `${p.agent} попросили остановиться, но она ещё работает`,
   'claude.signOutFailed': (p) => `не удалось выйти из ${p.account}`,
   'claude.daemonStopFailed': (p) => `не удалось остановить демон ${p.account}`,
-  'claude.statusNotJson': () => 'ответ auth status — не JSON',
-  'claude.statusNotObject': () => 'ответ auth status — не объект',
-  'claude.statusNoFlag': () => 'в ответе auth status нет признака loggedIn',
+  'claude.statusNotJson': () => 'CLI ответил на проверку входа не так, как ждали (auth status — не JSON)',
+  'claude.statusNotObject': () => 'CLI ответил на проверку входа не так, как ждали (auth status — не объект)',
+  'claude.statusNoFlag': () => 'CLI ответил на проверку входа не так, как ждали (в auth status нет признака loggedIn)',
 
   'codex.startFailed': (p) => `Codex: не удалось запустить ${p.task} в ${p.cwd}`,
   'codex.resumeFailed': (p) => `Codex: не удалось продолжить ${p.task} в ${p.cwd}`,
@@ -164,7 +164,7 @@ export const noticesRu: NoticeTexts = {
   'codex.otherThread': (p) => `Codex: ${p.task} продолжали как ${p.asked}, а поднялся новый поток ${p.got}`,
   'codex.unknownSession': (p) => `Codex: сессию ${p.session} запускал не Even Keel`,
   'codex.stillRunning': (p) => `Codex: ход ${p.session} убит, но ещё идёт`,
-  'codex.statusUnreadable': () => 'Codex: login status не сказал ни «Logged in», ни «Not logged in»',
+  'codex.statusUnreadable': () => 'Codex: CLI ответил на проверку входа не так, как ждали (login status не сказал ни «Logged in», ни «Not logged in»)',
   'codex.signOutFailed': (p) => `Codex: не удалось выйти из ${p.account}`,
 
   'opencode.startFailed': (p) => `OpenCode: не удалось запустить ${p.task} в ${p.cwd}`,
@@ -184,8 +184,8 @@ export const noticesRu: NoticeTexts = {
   'account.needsLogin': (p) => `в ${p.account} сначала нужно войти`,
   'account.globalKept': () => 'глобальный аккаунт живёт в ~/.claude и отсюда не удаляется',
   'account.activeKept': () => 'активный аккаунт не удалить — сначала переключитесь на другой',
-  'account.sharedPool': () => 'этот аккаунт выбран в общих настройках — сначала выберите там другой',
-  'account.projectPool': (p) => `этот аккаунт выбран в настройках проектов ${list(p.projects)} — сначала выберите там другой`,
+  'account.sharedPool': () => 'этот аккаунт выбран аккаунтом Claude Code в общих настройках — сначала выберите там другой',
+  'account.projectPool': (p) => `этот аккаунт выбран аккаунтом Claude Code в настройках проектов ${list(p.projects)} — сначала выберите там другой`,
   'account.signInRunning': () => 'в этот аккаунт идёт вход',
   'account.usedByApp': (p) => `этот аккаунт использует ${p.app} — сначала переключите его на другой`,
   'account.codexApp': () => 'приложения работают на Claude Code — аккаунт Codex им не отдать',
@@ -211,8 +211,8 @@ export const noticesRu: NoticeTexts = {
   'account.homeGone': (p) => `папки аккаунта ${p.key} больше нет`,
   'account.activeGone': (p) => `папки активного аккаунта ${p.key} больше нет — переключитесь на другой аккаунт и снимите с паузы`,
   'account.signingIn': () => 'идёт вход — снимите с паузы, когда он закончится',
-  'account.signedOut': () => 'вход не выполнен — войдите из меню аккаунта и снимите с паузы',
-  'account.loginExpired': (p) => `вход в ${p.account} истёк — продлите его в меню аккаунта и снимите с паузы`,
+  'account.signedOut': () => 'вход не выполнен — войдите на странице «Аккаунты» и снимите с паузы',
+  'account.loginExpired': (p) => `вход в ${p.account} истёк — продлите его на странице «Аккаунты» и снимите с паузы`,
 
   'login.none': () => 'вход не идёт',
   'login.running': () => 'вход уже идёт',
@@ -246,7 +246,8 @@ export const noticesRu: NoticeTexts = {
   'usage.callFailed': () => 'вызов не удался',
   'usage.noRollout': () => 'ни одна сессия Codex этого аккаунта ещё не сообщила лимиты',
 
-  'prompt.empty': (p) => `промт: нечего подставить после «${p.before}» (пришло ${p.value})`,
+  'prompt.empty': (p) =>
+    `промт: в промт сессии нечего подставить после «${p.before}» (пришло ${p.value}) — проверьте задачу в трекере и настройки проекта и снимите с паузы`,
 
   'request.tooLarge': () => 'тело запроса слишком большое',
   'request.notJson': () => 'тело запроса — не JSON',
@@ -312,7 +313,7 @@ export const noticesRu: NoticeTexts = {
   'packages.keyName': (p) => `${p.name} — не имя переменной`,
   'packages.keyValue': (p) => `в значении ${p.name} не может быть переноса строки или одинарной кавычки`,
   'packages.unknownKey': (p) => `${p.name} не читает ни один пакет или трекер`,
-  'packages.port': (p) => `шлюз MCP не может слушать 127.0.0.1:${p.port} — задайте другой EVEN_KEEL_MCP_PORT`,
+  'packages.port': (p) => `шлюз MCP не может слушать 127.0.0.1:${p.port}, порт занят другой программой — задайте другой EVEN_KEEL_MCP_PORT в .env Even Keel`,
   'secrets.unknown': (p) => `${p.name} — не из тех доступов, что задаются на странице`,
   'secrets.empty': (p) => `значение ${p.name} пустое; удаление переменной — отдельное действие`,
   'secrets.outer': (p) => `${p.name} задана в окружении службы, а не в .env — меняйте её там`,
@@ -408,6 +409,12 @@ export const noticesRu: NoticeTexts = {
   'wizard.keyTaken': (p) => `ключ ${p.key} уже у проекта ${p.project} на другом репозитории, и ID задач у них совпадут — выберите другой`,
   'wizard.noBranch': (p) => `в репозитории нет ветки ${p.branch}, есть ${p.branches.join(', ')}`,
   'wizard.noCommits': () => 'в репозитории ещё нет коммитов — сделайте первый',
+  'wizard.keyShape': (p) => `ключ — латинская заглавная буква и до 4 заглавных, цифр или _, а не «${p.value}»`,
+  'wizard.branchName': (p) => `«${p.value}» — не имя ветки`,
+  'wizard.trackerPlace': (p) => `назовите проект в трекере так: ${p.example}`,
+  'wizard.trackerShared': (p) =>
+    `${p.project} уже берёт задачи этого проекта трекера, и каждая задача попала бы в обе цепи. Два проекта на одном проекте трекера делят его вехами, а полей вех в этой форме нет — выберите другой проект трекера`,
+  'wizard.entryFailed': () => 'с такими значениями проект не добавить',
   'wizard.trackerOff': (p) => `нет профиля ${p.tracker} с ${list(p.variables)}: добавьте его пунктом «Добавить профиль» в списке «Профиль»`,
   'wizard.trackerFailed': (p) => `${p.tracker} не отдал задачи проекта`,
   'project.removeBlocked': (p) => `${p.project} не удалён, он ещё занят`,

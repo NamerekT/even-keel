@@ -4,6 +4,7 @@ import {
   draftOfFields,
   EMPTY_FIELDS,
   keyOfFolder,
+  keyOfTyped,
   missingOf,
   pickProject,
   readyToAdd,
@@ -214,5 +215,27 @@ describe('keyOfFolder', () => {
   it('gives nothing for a folder without letters', () => {
     expect(keyOfFolder('/srv/2048')).toBe('')
     expect(keyOfFolder('')).toBe('')
+  })
+})
+
+describe('keyOfTyped', () => {
+  it('makes letters capital', () => {
+    expect(keyOfTyped('nam')).toBe('NAM')
+  })
+
+  it('drops what a key cannot hold, Cyrillic included', () => {
+    expect(keyOfTyped('NAMЫ')).toBe('NAM')
+    expect(keyOfTyped('ыNAM')).toBe('NAM')
+    expect(keyOfTyped('a-b c')).toBe('ABC')
+    expect(keyOfTyped('X_1')).toBe('X_1')
+  })
+
+  it('starts with a letter', () => {
+    expect(keyOfTyped('1AB')).toBe('AB')
+    expect(keyOfTyped('_9')).toBe('')
+  })
+
+  it('keeps at most five characters', () => {
+    expect(keyOfTyped('abcdefg')).toBe('ABCDE')
   })
 })

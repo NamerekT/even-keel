@@ -83,8 +83,8 @@ describe('verdictOf', () => {
   })
 
   it('does not wait for a CI without a token or whose API fails', () => {
-    const off = view([], { health: 'off', error: notice('ci.noToken', { variable: 'FORGEJO_TOKEN' }) })
-    expect(verdictOf([off], 'B', PUSHED, SOON)).toEqual({ state: 'unavailable', reasons: [notice('ci.noToken', { variable: 'FORGEJO_TOKEN' })] })
+    const off = view([], { health: 'off', error: notice('ci.noToken', { kind: 'forgejo' }) })
+    expect(verdictOf([off], 'B', PUSHED, SOON)).toEqual({ state: 'unavailable', reasons: [notice('ci.noToken', { kind: 'forgejo' })] })
   })
 
   it('finds the run of the commit in the current run as well', () => {

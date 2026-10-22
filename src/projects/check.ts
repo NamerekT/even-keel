@@ -99,19 +99,40 @@ async function suggestedOf(git: Git, root: string, adapter: TrackerAdapter | und
 }
 
 /**
- * A key may be shared (BTN-271) but not by another tracker project where the task ids are made of it (GitHub): the
- * config's refusal of that, said the wizard's way.
+ * The config's refusal of the draft said the wizard's way, by the form's fields and without a path of the config
+ * (BTN-297). A key may be shared (BTN-271) but not by another tracker project where the task ids are made of it (GitHub).
  */
 function keyNotice(refused: Notice): Notice {
-  if (refused.code !== 'config.keyElsewhere') return refused
-  const { key, other } = refused.params
-  return notice('wizard.keyTaken', { key, project: other })
+  switch (refused.code) {
+    case 'config.keyElsewhere':
+      return notice('wizard.keyTaken', { key: refused.params.key, project: refused.params.other })
+    case 'config.projectKey':
+      return notice('wizard.keyShape', { value: unquoted(refused.params.value) })
+    case 'config.branch':
+      return notice('wizard.branchName', { value: unquoted(refused.params.value) })
+    case 'config.trackerProject':
+      return notice('wizard.trackerPlace', { example: refused.params.example })
+    case 'config.trackerProjectShared':
+      return notice('wizard.trackerShared', { project: refused.params.other })
+    default:
+      return notice('wizard.entryFailed', {})
+  }
+}
+
+/** A value the config quoted as JSON, as it was typed. */
+function unquoted(value: string): string {
+  try {
+    const parsed: unknown = JSON.parse(value)
+    return typeof parsed === 'string' ? parsed : value
+  } catch {
+    return value
+  }
 }
 
 function projectOfRepo(raw: unknown, root: string, platform: NodeJS.Platform): string | undefined {
   const projects = isPlainObject(raw) && Array.isArray(raw.projects) ? (raw.projects as unknown[]) : []
   const found = projects.find((entry) => isPlainObject(entry) && typeof entry.repo === 'string' && samePath(entry.repo, root, platform))
-  return isPlainObject(found) ? String(found.key) : undefined
+  return isPlainObject(found) ? String(found.id) : undefined
 }
 
 /** Reads the project's tasks once, through its own connection, which is closed after. */
