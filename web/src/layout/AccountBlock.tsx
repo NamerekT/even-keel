@@ -4,7 +4,8 @@ import { limitSpans, type LimitWindow, type RateLimits } from '../../../src/limi
 import { entrySlot } from '../accounts.js'
 import { formatAgo, formatMoment, formatSpan } from '../format.js'
 import { t } from '../i18n/index.js'
-import { accountBadge, entryBadge, headerAccounts, loginLeft } from '../state.js'
+import { useLive } from '../live/context.js'
+import { accountBadge, entryBadge, headerAccounts, loginLeft, projectLabel } from '../state.js'
 import { AccountPanel } from './Account.js'
 import { spendText, useSpend, type Spend } from './accountParts.js'
 import { seriesStyle } from '../ui/series.js'
@@ -228,8 +229,11 @@ interface BodyProps {
 }
 
 function CardBody({ entry, limits, now, spend }: BodyProps) {
+  const { state } = useLive()
   const projects = entry !== undefined && (
-    <p className="account-card__projects">{entry.projects.length === 0 ? t.account.projectsNone : t.account.projectsOn(entry.projects)}</p>
+    <p className="account-card__projects">
+      {entry.projects.length === 0 ? t.account.projectsNone : t.account.projectsOn(entry.projects.map((project) => projectLabel(state, project)))}
+    </p>
   )
   if (entry?.apiKey === true) {
     return (
