@@ -37,7 +37,7 @@ Every entry, ordered by how many people it reaches and how badly it hurts them i
 | 25 | [When a CI run counts as stuck](#when-a-ci-run-counts-as-stuck) | CI with a slow runner queue | a run is called stuck too early |
 | 26 | [Chains of several projects on one remote](#chains-of-several-projects-on-one-remote-btn-210) | several projects on one remote | a project waits on another's fix, or two fixes of the same red `main` |
 | 27 | [A package server and a Codex server of the same name](#a-package-server-and-a-codex-server-of-the-same-name) | Codex with packages | a session gets the wrong server of a name |
-| 28 | [Sign-in from the page](#sign-in-from-the-page) | Codex | no sign-in link in the window |
+| 28 | [Sign-in from the page](#sign-in-from-the-page) | Codex accounts added from the page | a second free account is added and only held afterwards |
 | 29 | [A crashed turn and a service restart mid-turn](#a-crashed-turn-and-a-service-restart-mid-turn) | Codex | a dead session looks busy |
 | 30 | [Chain sessions in the Codex app and on the phone](#chain-sessions-in-the-codex-app-and-on-the-phone-btn-178) | Codex | two turns on one thread if you answer in the app |
 | 31 | [Chat mail at a Codex Stop](#chat-mail-at-a-codex-stop-btn-181) | Codex | a message sent at the end of a turn is lost |
@@ -258,7 +258,7 @@ A Codex chain session called the Linear server of its package through the gatewa
 
 ### Sign-in from the page
 
-`codex login --device-auth` runs through the panel's sign-in flow, whose reading of the link was written for Claude's output; the one-time code is not parsed out, the window only shows the CLI output unfolded (`deviceLogin`), and the fake mode's output is a guess at Codex's wording. If the window shows no link, sign in with `codex login` in a terminal with the same `CODEX_HOME` (`docs/accounts.md`). Adding an account into a new folder under `~/.codex-accounts` (BTN-176) was checked only in the fake mode and in tests: that `codex login --device-auth` signs in a folder Even Keel made empty, and that the plan of a fresh sign-in is already in its `id_token` when the second free account is judged. If the plan is missing then, a second free account is added and only held afterwards, with the warning on its card.
+`codex login --device-auth` runs through the panel's sign-in flow, whose reading of the link was written for Claude's output. Checked live from the Windows service (BTN-284, 2026-10-22, Windows Sandbox): signing the built-in `codex` account in from the page showed the link, the link worked and the account signed in. The one-time code is not parsed out: it is only in the CLI output, which the window shows unfolded (`deviceLogin`). If a later Codex words its output otherwise and the window shows no link, sign in with `codex login` in a terminal with the same `CODEX_HOME` (`docs/accounts.md`). Adding an account into a new folder under `~/.codex-accounts` (BTN-176) was checked only in the fake mode and in tests: that `codex login --device-auth` signs in a folder Even Keel made empty, and that the plan of a fresh sign-in is already in its `id_token` when the second free account is judged. If the plan is missing then, a second free account is added and only held afterwards, with the warning on its card.
 
 ### Codex on an OpenAI API key (BTN-177)
 
@@ -266,7 +266,9 @@ Checked with a fake key only: `codex login --with-api-key` writes the `auth.json
 
 ### A crashed turn and a service restart mid-turn
 
-Liveness is the pid of the last turn: a pid reused by another process after a crash would keep the session busy. A service restart mid-turn was checked with a parent process killed hard, not with the real service.
+Liveness is the pid of the last turn: a pid reused by another process after a crash would keep the session busy.
+
+A service restart mid-turn was checked live with the real service on Windows (BTN-284, 2026-10-22, Windows Sandbox, the service `EvenKeel` under a local user that is not an administrator): an update restarted the service while a chain session's Codex turn ran. `codex.exe` outlived its dead parent, the new service showed the session working, and once the turn ended it showed it waiting; an answer from the page's chat resumed the thread in about a second, the session merged its branch and Even Keel closed the task.
 
 ### Stopping a turn on macOS and Linux
 
