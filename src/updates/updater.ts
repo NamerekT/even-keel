@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs'
+import { readFileSync, watchFile } from 'node:fs'
 import { join } from 'node:path'
 import type { ActiveChain } from '../chain/model.js'
 import { fail } from '../notice/notice.js'
@@ -27,9 +27,11 @@ export interface UpdaterOptions {
   launch?: (plan: UpdatePlan, onError: (error: Error) => void) => void
   sleep?: (ms: number) => Promise<void>
   settleMs?: number
+  watchMs?: number
 }
 
 const SETTLE_POLL_MS = 5_000
+const WATCH_MS = 5_000
 /** A commit or a checkout by hand changes what is offered; the update itself reads the checkout again anyway. */
 const REFRESH_MS = 10 * 60_000
 
@@ -57,20 +59,34 @@ export class Updater {
   }
 
   async start(): Promise<void> {
-    try {
-      this.record = recordOf(JSON.parse(readFileSync(this.resultFile, 'utf8')))
-    } catch {
-      this.record = null
-    }
-    if (this.record !== null && this.record.mode !== 'rebuild') {
-      const { mode, from, to, failed, rollback } = this.record
-      const how = failed === null ? 'went through' : `failed at ${failed.step}${rollback === null ? '' : rollback.failed === null ? ', rolled back' : `, the rollback failed at ${rollback.failed.step}`}`
-      this.options.log(`updates: the last ${mode} from ${from.version}${to === null ? '' : ` to ${to.version}`} ${how}`)
-    }
+    this.readRecord()
+    // The update process writes the record after its answer step, so after this service started.
+    watchFile(this.resultFile, { interval: this.options.watchMs ?? WATCH_MS }, (now) => {
+      // A missing file is reported too: a launch failure kept only in memory stays.
+      if (now.mtimeMs > 0 && this.readRecord()) this.options.onChange()
+    }).unref()
     this.control = await (this.options.control ?? serviceControl)()
     if (this.control === null) this.options.log('updates: no service manager runs Even Keel here, the page offers no update')
     await this.refresh()
     setInterval(() => void this.refresh(), REFRESH_MS).unref()
+  }
+
+  /** Reads `logs/update.json`; `true` — the record changed. Its own `seen` write comes back here unchanged. */
+  private readRecord(): boolean {
+    let record: UpdateRecord | null
+    try {
+      record = recordOf(JSON.parse(readFileSync(this.resultFile, 'utf8')))
+    } catch {
+      record = null
+    }
+    if (JSON.stringify(record) === JSON.stringify(this.record)) return false
+    this.record = record
+    if (record !== null && record.mode !== 'rebuild') {
+      const { mode, from, to, failed, rollback } = record
+      const how = failed === null ? 'went through' : `failed at ${failed.step}${rollback === null ? '' : rollback.failed === null ? ', rolled back' : `, the rollback failed at ${rollback.failed.step}`}`
+      this.options.log(`updates: the last ${mode} from ${from.version}${to === null ? '' : ` to ${to.version}`} ${how}`)
+    }
+    return true
   }
 
   /** Reads the checkout again: its changes and tags decide whether "Update" is offered. */
