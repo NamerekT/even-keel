@@ -1,6 +1,6 @@
 import { execFile, spawn, type ChildProcessWithoutNullStreams } from 'node:child_process'
 import { closeSync, existsSync, openSync, readFileSync } from 'node:fs'
-import { readFile, rm } from 'node:fs/promises'
+import { readFile, rm, stat } from 'node:fs/promises'
 import { join } from 'node:path'
 import { setTimeout as delay } from 'node:timers/promises'
 import { promisify } from 'node:util'
@@ -12,7 +12,7 @@ import { entryOf, outputTail, type CodexSession, type TurnRegistry } from '../co
 import { fail, notice, NoticeError, type Notice } from '../notice/notice.js'
 import { samePath } from '../paths.js'
 import type { AgentEntry } from '../sessions/agents.js'
-import { sessionList } from './db.js'
+import { sessionList, sessionStamp } from './db.js'
 import { keepOwnInstructions, parseAuth, readAuth } from './home.js'
 import { OPENCODE } from './name.js'
 
@@ -22,6 +22,8 @@ const run = promisify(execFile)
 const APPEAR_TIMEOUT_MS = 120_000
 const POLL_MS = 500
 const STOP_TIMEOUT_MS = 30_000
+/** How long a live turn may write nothing before it is taken for hung (`hungEntry`): a long build or test run fits in. */
+export const TURN_HANG_MS = 30 * 60_000
 /** Copilot's sign-in asks GitHub.com or Enterprise first; Enter takes GitHub.com. */
 const SELECT_DELAY_MS = 3_000
 
@@ -155,6 +157,8 @@ export class OpenCodeCli {
     const session = await this.registry.get(sessionId)
     if (session === undefined) throw fail('opencode.unknownSession', { session: sessionId })
     const { name, cwd } = session
+    // Only a hung turn is still live here: two processes must not write one session.
+    await this.endTurn(session)
     const turn = await this.turn(home, start, turnArgs(start, start.prompt, sessionId), cwd, notice('opencode.resumeFailed', { task: name, cwd }))
     if (turn.session !== sessionId) throw fail('opencode.otherSession', { task: name, asked: sessionId, got: turn.session })
     const { stopped: _, ...kept } = session
@@ -165,20 +169,20 @@ export class OpenCodeCli {
   async stop(sessionId: string): Promise<void> {
     const session = await this.registry.get(sessionId)
     if (session === undefined || session.stopped === true) return
-    if (await this.turnLive(session)) {
-      await killTree(session.pid)
-      const deadline = Date.now() + STOP_TIMEOUT_MS
-      while (isAlive(session.pid)) {
-        if (Date.now() > deadline) throw fail('opencode.stillRunning', { session: sessionId })
-        await delay(POLL_MS)
-      }
-    }
+    await this.endTurn(session)
     this.registry.save({ ...session, stopped: true })
   }
 
   async sessions(home: AccountHome): Promise<AgentEntry[]> {
     const sessions = await this.registry.list(home.key)
-    return Promise.all(sessions.map(async (session) => entryOf(session, session.stopped !== true && (await this.turnLive(session)), OPENCODE)))
+    return Promise.all(
+      sessions.map(async (session) => {
+        const live = session.stopped !== true && (await this.turnLive(session))
+        const entry = entryOf(session, live, OPENCODE)
+        const changed = live ? await lastChange(home, session) : undefined
+        return changed === undefined ? entry : hungEntry(entry, changed, Date.now())
+      }),
+    )
   }
 
   /** `opencode --version`: `1.18.25`. */
@@ -210,6 +214,16 @@ export class OpenCodeCli {
 
   private async turnLive(session: CodexSession): Promise<boolean> {
     return isAlive(session.pid) && !turnEnded(await outputTail(session.out))
+  }
+
+  private async endTurn(session: CodexSession): Promise<void> {
+    if (!(await this.turnLive(session))) return
+    await killTree(session.pid)
+    const deadline = Date.now() + STOP_TIMEOUT_MS
+    while (isAlive(session.pid)) {
+      if (Date.now() > deadline) throw fail('opencode.stillRunning', { session: session.sessionId })
+      await delay(POLL_MS)
+    }
   }
 
   /**
@@ -259,6 +273,26 @@ export class OpenCodeCli {
     const found = (await sessionList(home.dir)).find((session) => session.title === title && session.createdAt >= since && samePath(session.directory, cwd))
     return found?.id
   }
+}
+
+/**
+ * A live turn that has written nothing for `TURN_HANG_MS` — no row of its session in `opencode.db` changed and no event
+ * came out — is taken for hung (a request OpenCode retries for good, a tool that never returns): the session is idle,
+ * so the user may answer it or press "New session", and keeps its `pid`, so either ends the turn first. Nothing stops
+ * it on its own (invariant 1).
+ */
+export function hungEntry(entry: AgentEntry, lastChange: number, now: number): AgentEntry {
+  if (entry.status !== 'busy' || now - lastChange < TURN_HANG_MS) return entry
+  return { ...entry, status: 'idle', hungSince: lastChange }
+}
+
+/**
+ * The last sign of a turn's life: a row of its session changed, or an event written into its output; `undefined` when
+ * the database could not be read this time (a WAL checkpoint), so one failed read does not take the turn for hung.
+ */
+async function lastChange(home: AccountHome, session: CodexSession): Promise<number | undefined> {
+  const [rows, out] = await Promise.all([sessionStamp(home.dir, session.sessionId), stat(session.out).catch(() => undefined)])
+  return rows === undefined ? undefined : Math.max(rows, out?.mtimeMs ?? 0)
 }
 
 function skillDirs(start: Pick<SessionStart, 'plugins'>): string[] {

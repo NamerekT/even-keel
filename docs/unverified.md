@@ -68,7 +68,7 @@ Every entry, ordered by how many people it reaches and how badly it hurts them i
 | 56 | [A reader opening the state database while the service starts](#a-reader-opening-the-state-database-while-the-service-starts) | `npm run storage` users | the service refuses to start once |
 | 57 | [OpenCode chain sessions under the service](#opencode-chain-sessions-under-the-service-btn-214) | OpenCode | sessions do not start, or a whole task runs on a wrong assumption |
 | 58 | [A spent limit on OpenCode](#a-spent-limit-on-opencode) | OpenCode on ChatGPT or Copilot | the session stops on the error instead of waiting for the reset |
-| 59 | [A hung OpenCode turn](#a-hung-opencode-turn) | OpenCode | a session looks busy for good; press "New session" |
+| 59 | [A hung OpenCode turn](#a-hung-opencode-turn) | OpenCode | a hang the watchdog misses stays busy, or a long build is taken for hung |
 | 60 | [OpenCode sign-in from the page](#opencode-sign-in-from-the-page) | OpenCode with ChatGPT or Copilot | no link in the window; sign in in a terminal |
 | 61 | [Plugins in a Codex folder on Linux and macOS](#plugins-in-a-codex-folder-on-linux-and-macos) | Codex on Linux, macOS | a few seconds per first turn |
 | 62 | [Edit sizes of a FileChange](#edit-sizes-of-a-filechange-btn-185) | Codex | the chat shows an edit without its size |
@@ -299,7 +299,7 @@ OpenCode shows no usage windows for ChatGPT or Copilot, so an OpenCode account h
 
 ### A hung OpenCode turn
 
-A turn is live while its process lives and its last event is not the end of the turn. OpenCode retrying a refused request for long, or a tool that never returns, keeps the session busy with no watchdog to end it, and invariant 1 keeps the dispatcher off it. **Workaround:** "New session" on the task, or kill the turn's `opencode` process.
+A live turn that has changed no row of its session and written no event for 30 minutes is taken for hung: the session shows as idle with a note, and writing to it or "New session" kills the turn first (`docs/sessions.md`). Built from the database's shape and never seen with a real hang: whether OpenCode retrying a refused request touches the rows meanwhile (then the watchdog never fires), and whether a tool that runs longer than 30 minutes, a long build or test run, really writes nothing (then a working turn is taken for hung, and in unattended mode the chain stops waiting for it 10 minutes later). **Workaround:** for a hang the watchdog misses, kill the turn's `opencode` process and press "New session"; a long build that is not hung goes on regardless — nothing stops it, unless someone writes to the session or presses "New session".
 
 ### OpenCode sign-in from the page
 

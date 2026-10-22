@@ -1247,6 +1247,8 @@ export const en: Messages = {
     waits: (what: string) => `Waiting for ${what}`,
     startupDialog: (what: string) =>
       `The session hangs on a Claude Code dialog before its first turn, and nobody answers it in the background: ${what}. Remove the cause and press "New session".`,
+    hung: (since: string) =>
+      `The turn has written nothing since ${since} while its process lives on: it is taken for hung. Write to the session or press "New session" — either stops the turn first.`,
     session: 'Session',
     time: 'Time',
     cache: 'Cache',

@@ -256,7 +256,13 @@ function SessionBody({ session, limit, scale, whole }: { session: SessionView; l
   const waits = session.waitingFor !== null && !session.asking
   const note =
     session.apiError ??
-    (waits ? t.session.waits(session.waitingFor!) : session.startupDialog !== null ? t.session.startupDialog(session.startupDialog) : null)
+    (waits
+      ? t.session.waits(session.waitingFor!)
+      : session.startupDialog !== null
+        ? t.session.startupDialog(session.startupDialog)
+        : session.hungSince !== null
+          ? t.session.hung(formatMoment(session.hungSince, now))
+          : null)
 
   return (
     <>

@@ -50,6 +50,7 @@ export function session(task: string, contextTokens: number, lamp: SessionView['
     checkpoint: false,
     waitingFor: lamp === 'waiting' && task !== 'ABC-5' ? 'permission' : null,
     startupDialog: null,
+    hungSince: null,
     asking: lamp === 'waiting' && task === 'ABC-5',
     ask: lamp === 'waiting' && task === 'ABC-5' ? FAKE_ASK : null,
     apiError: null,

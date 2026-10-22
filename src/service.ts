@@ -661,6 +661,12 @@ function logStartupDialogs(views: SessionView[]): void {
     wedgedSessions.add(view.sessionId)
     console.warn(`sessions: ${view.task} hangs on a Claude Code dialog before its first turn: ${view.startupDialog} (session ${view.sessionId}, ${view.cwd})`)
   }
+  for (const view of views) {
+    const key = `${view.sessionId}@${view.hungSince}`
+    if (view.hungSince === null || wedgedSessions.has(key)) continue
+    wedgedSessions.add(key)
+    console.warn(`sessions: the turn of ${view.task} has written nothing since ${view.hungSince} and is taken for hung (session ${view.sessionId})`)
+  }
 }
 
 const liveView = (task: string) => sessions.find((each) => each.task === task && each.lamp !== 'finished')

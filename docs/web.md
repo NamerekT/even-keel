@@ -98,6 +98,7 @@ Layout work on a fake state, without a tracker or sessions. The fake history sta
 | `?chain=handover` | as `close`, but in two pushes: Done first, the next task and the new one a second later, mid-motion |
 | `?chain=checkpoint` | two checkpoint handoffs on the current task |
 | `?chain=dialog` | the current session hangs on a startup dialog before its first turn |
+| `?chain=hung` | the current session is OpenCode's, its turn written nothing for 35 minutes and taken for hung |
 | `?chain=ask` | ABC-5 is current and waits on an `AskUserQuestion` of two questions with Other and a preview; its feed has an answered one with the user's words and a file; "Send" answers in the fake |
 | `?chain=unsaved` | the same question as the job file gives it, the transcript not having the call yet: single choices, no previews, the line about the lost message |
 | `?chain=mail` | the working session of ABC-5 listens for mail: its chat is open mid-turn and lists a message just delivered (it fades 3 s after the page opens), one that came back with "As the answer" and "Dismiss", and one waiting for the hook; a new one is delivered 4 s after "Send" |
