@@ -32,8 +32,8 @@ export interface TrackerReply {
 
 export interface QuestionsDeps {
   sessions: () => AskingSession[]
-  /** Runs `call` on the project's tracker; `undefined` — the project has no tracker connected. */
-  tracker: <T>(project: string, call: (tracker: Tracker) => Promise<T>) => Promise<T> | undefined
+  /** Runs `call` on the tracker of the project's task (its feed's, BTN-66); `undefined` — that tracker is not connected. */
+  tracker: <T>(project: string, task: string, call: (tracker: Tracker) => Promise<T>) => Promise<T> | undefined
   /** The language of the project's prompts, which a question in its tracker is posted in. */
   language: (project: string) => Language
   load: () => PostedQuestion[]
@@ -98,7 +98,7 @@ export class TrackerQuestions {
   private async post(session: AskingSession): Promise<void> {
     const ask = session.ask!
     try {
-      const comment = await this.deps.tracker(session.project, async (tracker) =>
+      const comment = await this.deps.tracker(session.project, session.task, async (tracker) =>
         tracker.comment === undefined || tracker.commentsAfter === undefined ? null : tracker.comment(session.task, questionComment(ask, this.deps.language(session.project))),
       )
       if (comment == null) return
@@ -113,7 +113,7 @@ export class TrackerQuestions {
     let reply: TrackerReply | null
     try {
       reply =
-        (await this.deps.tracker(session.project, async (tracker) => {
+        (await this.deps.tracker(session.project, question.task, async (tracker) => {
           const comments = (await tracker.commentsAfter?.(question.task, question.comment)) ?? []
           const read = trackerReply(comments, session.ask!)
           if (read === null) return null

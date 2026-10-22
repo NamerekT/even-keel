@@ -84,18 +84,18 @@ export class Dispatcher {
 
   setTasks(project: string, tasks: Task[]): void {
     this.lists.listed.set(project, tasks)
-    const rules = this.deps.rules(project)
-    const admitted = tasks.filter((task) => admits(rules, task))
-    const chain = admitted.filter((task) => this.enters(project, task, rules))
+    const rules = (task: Task) => this.deps.rules(project, task.id)
+    const admitted = tasks.filter((task) => admits(rules(task), task))
+    const chain = admitted.filter((task) => this.enters(project, task, rules(task)))
     const outside = (this.lists.outside.get(project) ?? []).filter((task) => isOpen(task.status))
-    const waiting = waitingBlockers(chain, [...tasks, ...outside].filter((task) => !isTerminal(rules, task.status) && !chain.includes(task)))
+    const waiting = waitingBlockers(chain, [...tasks, ...outside].filter((task) => !isTerminal(rules(task), task.status) && !chain.includes(task)))
     const backlog = tasks.filter(
-      (task) => !excludes(rules, task) && !chain.includes(task) && !waiting.includes(task) && !this.reviews.holds(project, task.id),
+      (task) => !excludes(rules(task), task) && !chain.includes(task) && !waiting.includes(task) && !this.reviews.holds(project, task.id),
     )
     this.lists.tasks.set(project, chain)
     this.lists.waiting.set(project, waiting)
     this.lists.backlog.set(project, backlog.sort((a, b) => byNumber(a.id, b.id)))
-    this.lists.done.set(project, new Set(tasks.filter((task) => isDone(rules, task.status)).map((task) => task.id)))
+    this.lists.done.set(project, new Set(tasks.filter((task) => isDone(rules(task), task.status)).map((task) => task.id)))
     const placed = this.lists.placeNew(project)
     if (this.forgetClosed(project) || placed) this.deps.save(this.state)
     this.kick()
@@ -117,13 +117,13 @@ export class Dispatcher {
   }
 
   setReleased(project: string, tasks: Task[]): void {
-    const rules = this.deps.rules(project)
+    const rules = (id: string) => this.deps.rules(project, id)
     const statuses = new Map(tasks.map((task) => [task.id, task.status]))
     const kept = this.released(project).filter((id) => {
       const status = statuses.get(id)
-      return status !== undefined && (isDone(rules, status) || !isTerminal(rules, status))
+      return status !== undefined && (isDone(rules(id), status) || !isTerminal(rules(id), status))
     })
-    this.cleanups.done.set(project, new Set(kept.filter((id) => isDone(rules, statuses.get(id)!))))
+    this.cleanups.done.set(project, new Set(kept.filter((id) => isDone(rules(id), statuses.get(id)!))))
     if (kept.length !== this.released(project).length) {
       this.cleanups.keepReleased(project, kept)
       this.deps.save(this.state)

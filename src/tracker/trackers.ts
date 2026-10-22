@@ -47,7 +47,8 @@ export interface TrackersDeps {
   adapters: Readonly<Record<string, TrackerAdapter>>
   /** `startTracker` with the rest of its deps bound. */
   start: (view: TrackerView, setup: TrackerSetup) => TrackerHandle
-  tasksByProject: Map<string, unknown>
+  /** By reader: a project or one of its feeds (BTN-66). */
+  tasksByProject: { delete(project: string): void }
   refreshers: Map<string, () => Promise<void>>
   log: (line: string) => void
 }
