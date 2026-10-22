@@ -646,8 +646,8 @@ const liveView = (task: string) => sessions.find((each) => each.task === task &&
 const agentStatus = (task: string) => {
   const view = liveView(task)
   if (view === undefined) return undefined
-  const status = agents.find((agent) => agent.sessionId === view.sessionId)?.status
-  return turnStatus(status, view.lastActivityAt, new Date(), view.lamp === 'limit')
+  const agent = agents.find((each) => each.sessionId === view.sessionId)
+  return turnStatus(agent?.status, view.lastActivityAt, new Date(), view.lamp === 'limit', agent?.state === 'blocked')
 }
 
 const knownTask = (task: string) => [...tasksByProject.values()].flat().find((each) => each.id === task)
