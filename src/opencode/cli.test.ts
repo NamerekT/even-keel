@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest'
 import type { AgentEntry } from '../sessions/agents.js'
-import { hungEntry, parseJsonc, sessionConfig, sessionOf, turnArgs, turnEnded, TURN_HANG_MS } from './cli.js'
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
+import { pathToFileURL } from 'node:url'
+import { hungEntry, parseJsonc, parseWriteAnswer, pluginFiles, sessionConfig, sessionOf, turnArgs, turnEnded, TURN_HANG_MS, writeArgs, writeConfig } from './cli.js'
 
 describe('turnArgs', () => {
   it('titles a new session with its task and resumes one by its id', () => {
@@ -40,6 +44,72 @@ describe('sessionConfig', () => {
     const config = JSON.parse(sessionConfig({}, ['local-db'], ['/packages/huly/skills']))
     expect(config.mcp).toBeUndefined()
     expect(config.skills).toEqual({ paths: ['/packages/huly/skills'] })
+    expect(config.plugin).toBeUndefined()
+  })
+
+  it("loads the plugin packages' OpenCode plugins", () => {
+    const config = JSON.parse(sessionConfig({}, [], [], ['file:///packages/checkpoint/opencode/checkpoint.mjs']))
+    expect(config.plugin).toEqual(['file:///packages/checkpoint/opencode/checkpoint.mjs'])
+  })
+})
+
+describe('pluginFiles', () => {
+  it("takes the scripts of a package's opencode folder as file URLs, and nothing of a package without one", () => {
+    const root = mkdtempSync(join(tmpdir(), 'ek-opencode-'))
+    try {
+      const checkpoint = join(root, 'checkpoint')
+      mkdirSync(join(checkpoint, 'opencode'), { recursive: true })
+      for (const file of ['checkpoint.mjs', 'notes.md', 'old.js']) writeFileSync(join(checkpoint, 'opencode', file), '')
+      mkdirSync(join(root, 'huly'))
+      const plugin = (dir: string, name: string) => ({ dir, name, marketplace: `ek-${name}`, marketplaceFile: '', servers: [] })
+      expect(pluginFiles({ plugins: [plugin(checkpoint, 'checkpoint'), plugin(join(root, 'huly'), 'huly')] })).toEqual([
+        pathToFileURL(join(checkpoint, 'opencode', 'checkpoint.mjs')).href,
+        pathToFileURL(join(checkpoint, 'opencode', 'old.js')).href,
+      ])
+      expect(pluginFiles({})).toEqual([])
+    } finally {
+      rmSync(root, { recursive: true, force: true })
+    }
+  })
+})
+
+describe('a turn of its own', () => {
+  const event = (value: Record<string, unknown>) => JSON.stringify({ timestamp: 1, sessionID: 'ses_abc', ...value })
+  const finish = (tokens: Record<string, unknown>, cost: number) => event({ type: 'step_finish', part: { type: 'step-finish', reason: 'stop', tokens, cost } })
+
+  it('runs with no external plugin, the prompt on stdin and the model when one is asked for', () => {
+    expect(writeArgs(null)).toEqual(['run', '--pure', '--format', 'json', '--title', 'Even Keel'])
+    expect(writeArgs('openai/gpt-6.1-sol')).toEqual(['run', '--pure', '--format', 'json', '--title', 'Even Keel', '-m', 'openai/gpt-6.1-sol'])
+  })
+
+  it("only reads: every other tool is denied, and the project's own servers are off", () => {
+    const config = JSON.parse(writeConfig(['local-db']))
+    for (const tool of ['edit', 'bash', 'webfetch', 'websearch', 'task', 'todowrite', 'skill', 'external_directory']) expect(config.permission[tool]).toBe('deny')
+    expect(config.mcp).toEqual({ 'local-db': { enabled: false } })
+  })
+
+  it("answers with the last step's text and every step's tokens and cost", () => {
+    const stdout = [
+      event({ type: 'step_start' }),
+      event({ type: 'text', part: { type: 'text', text: 'Let me look.' } }),
+      event({ type: 'tool_use', part: { type: 'tool', tool: 'read' } }),
+      event({ type: 'step_finish', part: { type: 'step-finish', reason: 'tool-calls', tokens: { input: 100, output: 10, reasoning: 5, cache: { read: 1000, write: 50 } }, cost: 0.01 } }),
+      event({ type: 'step_start' }),
+      event({ type: 'text', part: { type: 'text', text: '## Changes\n' } }),
+      event({ type: 'text', part: { type: 'text', text: '- one\n' } }),
+      finish({ input: 20, output: 30, reasoning: 0, cache: { read: 1200, write: 0 } }, 0.02),
+    ].join('\n')
+    const answer = parseWriteAnswer(stdout, 'opencode/big-pickle', 1500)
+    expect(answer.text).toBe('## Changes\n\n- one')
+    const { cost, ...spend } = answer.spend
+    expect(spend).toEqual({ model: 'opencode/big-pickle', tokens: { input: 120, output: 45, cacheRead: 2200, cacheWrite: 50 }, durationMs: 1500 })
+    expect(cost).toBeCloseTo(0.03)
+  })
+
+  it("throws with the provider's words on an error, and when the turn said nothing", () => {
+    const failed = event({ type: 'error', error: { name: 'APIError', data: { message: 'Rate limit exceeded' } } })
+    expect(() => parseWriteAnswer(failed, null, 0)).toThrow('Rate limit exceeded')
+    expect(() => parseWriteAnswer(finish({ input: 1 }, 0), null, 0)).toThrow('the turn ended with no message')
   })
 })
 

@@ -216,6 +216,10 @@ class SessionFold {
     else if (part.tool.endsWith('get_issue')) this.advanceStage('task')
     if (this.whole) Object.assign(line, callFacts(name, input, sizeOf(part.tool, record(state.input) ?? {})), typeof part.callID === 'string' ? { tool: part.callID } : {})
     this.addAction(line)
+    // The checkpoint package's plugin keeps what it put after the output in the call's metadata, which no tool writes;
+    // the output itself is never read, so a tool that prints the mark from a file fakes no message.
+    const mail = record(record(state.metadata)?.evenKeel)?.mail
+    if (typeof mail === 'string') this.pushMail(at, mail)
     if (last && (state.status === 'running' || state.status === 'pending')) this.turnTool = line.text
     if (this.whole && state.status === 'error') {
       this.addFeed({ at, kind: 'failed', text: failureText(typeof state.error === 'string' ? state.error : ''), ...(typeof part.callID === 'string' ? { tool: part.callID } : {}) })

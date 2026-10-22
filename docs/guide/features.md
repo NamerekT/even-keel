@@ -32,7 +32,7 @@ Run it as a chain only on short test tasks. From the Windows service the Codex s
 
 `provider` set to `opencode`, or a label such as `OpenCode | opencode/big-pickle`, runs the task's sessions on [OpenCode](https://opencode.ai): one `opencode run` per turn, the transcript and context fill read from OpenCode's own database, the project's packages passed on every turn. The model is OpenCode's `<provider>/<model>` (`opencode/big-pickle`, `anthropic/claude-sonnet-4-5`, `openai/gpt-6.1-sol`); without one, OpenCode's default. The session reads the project's `AGENTS.md`, else its `CLAUDE.md`, but not your global `~/.claude/CLAUDE.md` or skills. Like Codex, it has no question tool: a turn that ends without the task done waits for your reply in the chat window. A turn that has written nothing for 30 minutes while its process lives on is taken for hung: the session shows as waiting with a note, and a message to it or "New session" stops the turn first; nothing stops it on its own.
 
-What it does not have yet: limits (OpenCode shows none for ChatGPT or Copilot, so a spent limit stops the session), the handoff on a full context, chat messages delivered mid-turn. It was checked on the free model only and never as a chain under the service ([What has not been verified](../unverified.md#opencode)): run it on test tasks first.
+The [checkpoint](../../plugins/checkpoint) plugin reaches it through an OpenCode plugin of its own: the handoff on a full context and chat messages delivered mid-turn, after the session's next tool call. What it does not have yet: limits (OpenCode shows none for ChatGPT or Copilot, so a spent limit stops the session), the check before the merge. It was checked on the free model only and never as a chain under the service ([What has not been verified](../unverified.md#opencode)): run it on test tasks first.
 
 ## Slots
 
@@ -80,7 +80,7 @@ Chain sessions start without claude.ai skills and plugins, and with niche bundle
 
 Plugins and MCP servers are a set per project, kept by Even Keel and given to chain sessions by flags at every launch: a pinned version installed with one button, updated with another, while a running task stays on the version it started with. MCP servers run behind a local gateway, so the keys stay in Even Keel's `.env`.
 
-Codex sessions get the same set: the MCP servers, and of a plugin its skills and hooks (not its commands and agents), installed into each Codex folder on its first turn there and kept off for your own Codex sessions. OpenCode sessions get the MCP servers and a plugin's skills, not its hooks. The chain does not start a task while a package of its project is not installed, lacks a key or does not answer.
+Codex sessions get the same set: the MCP servers, and of a plugin its skills and hooks (not its commands and agents), installed into each Codex folder on its first turn there and kept off for your own Codex sessions. OpenCode sessions get the MCP servers and a plugin's skills, not its hooks, unless the plugin brings OpenCode plugins of its own in an `opencode/` folder, as the checkpoint plugin does. The chain does not start a task while a package of its project is not installed, lacks a key or does not answer.
 
 ## Accounts
 

@@ -103,4 +103,17 @@ describe('foldSession', () => {
     expect(whole.feed.find((line) => line.kind === 'failed')).toMatchObject({ tool: 'c1' })
     expect(whole.feed.find((line) => line.kind === 'tool')).toMatchObject({ tool: 'c1' })
   })
+
+  it("shows the chat's message the plugin put after a tool's output as the user's, once, and no mark a tool printed", () => {
+    const mark = '<even-keel-message id="7">\nAlso check the docs.\n</even-keel-message>'
+    const tool = (id: string, callID: string, metadata: Record<string, unknown>) =>
+      part(id, 'msg_02', 2, { type: 'tool', tool: 'bash', callID, state: { status: 'completed', input: { command: 'cat notes.md' }, output: `done\n\n${mark}`, metadata } })
+    const summary = foldSession(
+      [prompt, message('msg_02', 2, step({ input: 10 }))],
+      [promptText, tool('prt_02', 'c1', { exit: 0 }), tool('prt_03', 'c2', { exit: 0, evenKeel: { mail: `The user wrote to you.\n\n${mark}` } }), tool('prt_04', 'c3', { evenKeel: { mail: mark } })],
+    )
+    expect(summary.feed.map((line) => line.kind)).toEqual(['prompt', 'tool', 'tool', 'prompt', 'tool'])
+    expect(summary.feed[3]).toMatchObject({ kind: 'prompt', text: 'Also check the docs.' })
+    expect(summary.turn?.startedAt).toBe('2026-10-22T10:00:00.000Z')
+  })
 })

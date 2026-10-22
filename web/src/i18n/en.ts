@@ -1082,7 +1082,7 @@ export const en: Messages = {
     notInstalled: 'not installed',
     removed: 'removed — a running task still uses it',
     extras: 'skills and hooks',
-    extrasTip: 'Besides its MCP servers the plugin brings skills, hooks, commands or agents: Claude Code sessions get them all, Codex sessions the skills and hooks, OpenCode sessions the skills.',
+    extrasTip: 'Besides its MCP servers the plugin brings skills, hooks, commands or agents: Claude Code sessions get them all, Codex sessions the skills and hooks, OpenCode sessions the skills and the OpenCode plugins of its `opencode/` folder.',
     servers: (list: string) => `MCP servers: ${list}`,
     noServers: 'No MCP servers',
     choice: { default: 'default', on: 'on', off: 'off' },
@@ -1120,7 +1120,7 @@ export const en: Messages = {
       noTrackerMcp: (server: string) =>
         `Brief is off, so sessions get only the task ID and need the tracker’s MCP server ${server}. Turn on the package that brings it, or set brief to auto or on in the project’s settings.`,
       unsupported: (agent: string) => `${agent} does not read Claude Code plugins: its sessions get the plugin’s MCP servers but not its skills and hooks. Does not hold the chain.`,
-      noHooks: (agent: string) => `${agent} does not run Claude Code hooks: its sessions get the plugin’s MCP servers and skills but not its hooks. Does not hold the chain.`,
+      noHooks: (agent: string) => `${agent} does not run Claude Code hooks: its sessions get the plugin’s MCP servers and skills but not its hooks, only the OpenCode plugins it brings in its \`opencode/\` folder. Does not hold the chain.`,
     },
     keys: 'Keys',
     keysTip: 'Written into the .env of Even Keel. The page sees only whether a key is set. The gateway and the trackers take a new key at once.',
