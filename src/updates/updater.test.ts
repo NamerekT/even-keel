@@ -139,6 +139,31 @@ describe('Updater', () => {
     expect(plans[0]).toMatchObject({ mode: 'revert', target: { version: '0.0.9', tag: 'v0.0.9' }, from: { version: '0.1.0', tag: 'v0.1.0' } })
   })
 
+  it('reads a record the update process writes after this service started', async () => {
+    const lines: string[] = []
+    const { updater: subject } = updater({ watchMs: 10, log: (line) => lines.push(line) })
+    await subject.start()
+    expect(subject.view()).toMatchObject({ previous: null, result: null })
+    const record: UpdateRecord = {
+      mode: 'update',
+      from: { version: '0.0.9', commit: 'f00ba47', branch: 'main', tag: 'v0.0.9', storage: STORAGE },
+      to: { version: '0.1.0', tag: 'v0.1.0' },
+      startedAt: '2026-10-22T08:00:00.000Z',
+      finishedAt: '2026-10-22T08:03:00.000Z',
+      failed: null,
+      rollback: null,
+      seen: false,
+    }
+    mkdirSync(join(root, 'logs'))
+    writeFileSync(join(root, 'logs', 'update.json'), JSON.stringify(record))
+    await new Promise((resolve) => setTimeout(resolve, 200))
+    expect(subject.view()).toMatchObject({ previous: { version: '0.0.9', blocked: null }, result: { from: '0.0.9', to: '0.1.0', step: null } })
+    expect(lines).toContain('updates: the last update from 0.0.9 to 0.1.0 went through')
+    subject.seen()
+    await new Promise((resolve) => setTimeout(resolve, 100))
+    expect(lines.filter((line) => line.startsWith('updates: the last update'))).toHaveLength(1)
+  })
+
   it('refuses a revert across a storage change', async () => {
     const record = {
       mode: 'update',
