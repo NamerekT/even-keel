@@ -20,7 +20,7 @@ Every entry, ordered by how many people it reaches and how badly it hurts them i
 | 8 | [The update button on the page](#the-update-button-on-the-page-btn-163) | Windows and macOS updating from the page | the service stays stopped after an update; start it by hand |
 | 9 | [The wizard's trust check](#the-wizards-trust-check) | new users | a pause at the first launch |
 | 10 | [A chain session reaching the agent's own compaction](#a-chain-session-reaching-the-agents-own-compaction) | everyone | a session loses the task's decisions after a compaction |
-| 11 | [Chat mail in a real session](#chat-mail-in-a-real-session-btn-181) | everyone writing at a turn's end or into a question | a message is delivered but not shown in the feed |
+| 11 | [Chat mail in a real session](#chat-mail-in-a-real-session-btn-181) | everyone writing to a session about to hand off | the handoff waits a turn longer |
 | 12 | [Background commands of a stopped session on Linux and macOS](#background-commands-of-a-stopped-session-on-linux-and-macos-btn-202) | Linux, macOS | a worktree is left behind after Done |
 | 13 | [Packages on Linux and macOS](#packages-on-linux-and-macos) | Linux, macOS with packages | the chain waits on a package that does not start |
 | 14 | [Stopping a turn on macOS and Linux](#stopping-a-turn-on-macos-and-linux) | Codex on Linux, macOS | a stopped Codex turn goes on |
@@ -184,12 +184,9 @@ Seen live on a Claude chain session (BTN-189, CLI 2.1.302): a text answer and an
 
 ### Chat mail in a real session (BTN-181)
 
-Seen live on 22.10.2026 (TSK-24, Haiku, `--bg`): a message sent while a 90-second Bash call ran showed as waiting for the hook all that time, went in at that call's `PostToolUse` as an attachment `hook_additional_context` (`docs/sessions.md`, "Chat mailbox"), and the model acted on the correction in its next step; the feed showed it as the user's bubble after the call. The chain's real deliveries since 18.10 went in at `PostToolUse` and `PreToolUse` of ordinary tools. Not seen:
+Seen live on 22.10.2026 on Haiku `--bg` sessions (TSK-24, TSK-27): a message waited for the hook through a 90-second Bash call and went in at its `PostToolUse`; one sent while the closing text streamed went in at `Stop`, and one sent before a question went in at that `AskUserQuestion`'s `PreToolUse`, the question not going out. Each time the model acted on the message at once and the feed showed it as the user's bubble (the shapes are in `docs/sessions.md`, "Chat mailbox"). Not seen: the mailbox's `Stop` block and `checkpoint-mark`'s in one turn. A turn that ends on `CHECKPOINT:` with mail waiting goes on, and its last line may no longer be the mark, so the handoff waits for the next turn's mark.
 
-- the transcript shape of a `Stop` hook's `decision: block` reason — the feed assumes a user prompt, possibly `isMeta` — and of the `permissionDecision: deny` result of an `AskUserQuestion` — assumed an error `tool_result` of that call carrying the reason. If either differs, the message is delivered but not shown in the feed as the user's bubble; the chat's list still says "delivered";
-- the mailbox's `Stop` block and `checkpoint-mark`'s in one turn: a turn that ends on `CHECKPOINT:` with mail waiting goes on, and its last line may no longer be the mark, so the handoff waits for the next turn's mark.
-
-**Workaround:** if mail is not acted on or not shown, send the message after the turn ends; it then goes by resume, as before.
+**Workaround:** if the handoff does not come, the session writes the mark again at the end of its next turn; or press "New session".
 
 ### PR mode beyond GitHub's open, close and merge (BTN-205)
 
