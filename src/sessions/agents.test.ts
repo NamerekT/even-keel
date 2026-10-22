@@ -224,6 +224,11 @@ describe('turnStatus', () => {
     expect(turnStatus('busy', '2026-09-26T11:59:00.000Z', now, true)).toBe('busy')
   })
 
+  it('takes a session whose turn ended blocked on the user for waiting, though its monitor still runs', () => {
+    expect(turnStatus('shell', '2026-09-26T11:59:00.000Z', now, false, true)).toBe('waiting')
+    expect(turnStatus('busy', '2026-09-26T11:59:00.000Z', now, false, true)).toBe('busy')
+  })
+
   it('leaves the other statuses as they are', () => {
     expect(turnStatus('busy', '2026-09-26T08:00:00.000Z', now)).toBe('busy')
     expect(turnStatus('waiting', null, now)).toBe('waiting')
@@ -255,6 +260,12 @@ describe('lampOf', () => {
   it('is working while a background command of an ended turn runs', () => {
     expect(lampOf({ ...background, status: 'shell' }, null)).toBe('working')
     expect(lampOf({ ...background, status: 'shell' }, 'error')).toBe('working')
+  })
+
+  it('waits when the ended turn is blocked on the user, though a background command or monitor still runs', () => {
+    expect(lampOf({ ...background, status: 'shell', state: 'blocked' }, null)).toBe('waiting')
+    expect(lampOf({ ...background, status: 'shell', state: 'blocked' }, 'limit')).toBe('limit')
+    expect(lampOf({ ...background, status: 'busy', state: 'blocked' }, null)).toBe('working')
   })
 
   it('shows the limit a turn ended on even while its background command still runs', () => {
