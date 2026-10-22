@@ -456,7 +456,7 @@ export const en = {
   'wizard.branchName': (p: { value: string }) => `"${p.value}" is not a branch name`,
   'wizard.trackerPlace': (p: { example: string }) => `name the project in the tracker like ${p.example}`,
   'wizard.trackerShared': (p: { project: string }) =>
-    `${p.project} already takes the tasks of this tracker project, and each task would enter both chains. Two projects on one tracker project split it by milestones, and this form has no milestone fields: pick another tracker project`,
+    `${p.project} already takes the tasks of this tracker project, and each task would enter both chains: name the milestones this project takes in "Only tasks in milestones" below, and ${p.project} gives them up. Or pick another tracker project`,
   'wizard.entryFailed': () => 'the project cannot be added with these values',
   'wizard.trackerOff': (p: { tracker: string; variables: string[] }) =>
     `no ${p.tracker} profile with ${list(p.variables)}: add one with "Add profile" in the Profile list`,

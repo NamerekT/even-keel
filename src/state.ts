@@ -263,6 +263,11 @@ export interface ProjectDraft {
   profile: string | null
   /** Slots of the pool; `0` — a worktree per task. */
   slot: number
+  /**
+   * The only milestones the project takes (`chain.requiredMilestones`): a second project on one tracker project splits
+   * it by them, and the projects already on it give them up (BTN-306).
+   */
+  milestones: string[]
 }
 
 /** What the wizard's check found for a draft; a step that could not be checked yet is `null`. */
@@ -278,6 +283,8 @@ export interface ProjectCheck {
   }
   /** What `parseConfig` says of the config with the draft added; `null` — it parses. */
   entry: Notice | null
+  /** The projects (`projectLabel`) on the draft's tracker project whose chains give up the draft's milestones once it is added. */
+  yields: string[]
   /** Asked once the entry parses. */
   tracker: {
     ok: boolean

@@ -6,7 +6,7 @@ import type { TaskSource, TrackerAdapter } from '../tracker/source.js'
 import type { TrackerTask } from '../tracker/model.js'
 import { checkDraft, isTrusted, type CheckDeps } from './check.js'
 
-const draft: ProjectDraft = { repo: 'D:\\new\\src', branch: '', key: 'NEW', name: '', tracker: 'fake', trackerProject: '', profile: null, slot: 0 }
+const draft: ProjectDraft = { repo: 'D:\\new\\src', branch: '', key: 'NEW', name: '', tracker: 'fake', trackerProject: '', profile: null, slot: 0, milestones: [] }
 
 function task(id: string, category: 'ToDo' | 'Won'): TrackerTask {
   return {
@@ -77,6 +77,7 @@ describe('checkDraft', () => {
     expect(check).toEqual({
       repo: { root: 'D:\\new', current: 'trunk', suggested: null, notice: null },
       entry: null,
+      yields: [],
       tracker: { ok: true, missing: [], open: 2, openToAll: false, notice: null },
       trusted: true,
       platform: 'win32',
@@ -138,6 +139,16 @@ describe('checkDraft', () => {
     expect(adapter.asked).toEqual([])
     const otherTracker = await checkDraft(deps(), { ...draft, key: 'ABC' })
     expect(otherTracker.entry).toBeNull()
+    expect(otherTracker.yields).toEqual([])
+  })
+
+  it("passes a second project on one tracker project once it names its milestones, and says who gives them up (BTN-306)", async () => {
+    const adapter = fakeAdapter()
+    const sameTracker = () => ({ tracker: 'fake', projects: [{ id: 'id-abc', key: 'ABC', repo: 'C:\\abc' }] })
+    const check = await checkDraft(deps({ raw: sameTracker, adapters: { fake: adapter } }), { ...draft, key: 'ABC', milestones: ['v1.0.1'] })
+    expect(check.entry).toBeNull()
+    expect(check.yields).toEqual(['ABC (main)'])
+    expect(check.tracker?.ok).toBe(true)
   })
 
   it('refuses a key another project has on another repository where task ids are made of the key, naming that project', async () => {

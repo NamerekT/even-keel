@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { formsOf, trackerChoices, withFeed, withNewProject, withoutFeed, withoutProject, withProjectForm, withRunAccount, withSharedAccount, withSharedForm, withUpdates, withChainSwitches, withTally } from './config-form.js'
+import { formsOf, trackerChoices, withFeed, withNewProject, withoutFeed, withoutProject, withProjectForm, withRunAccount, withSharedAccount, withSharedForm, withUpdates, withChainSwitches, withTally, yieldedMilestones } from './config-form.js'
 import { parseConfig } from './config.js'
 import type { ProjectDraft, ProjectForm, SharedForm } from './state.js'
 
@@ -225,7 +225,7 @@ describe('withTally', () => {
 })
 
 describe('withNewProject', () => {
-  const draft: ProjectDraft = { repo: ' D:\\new ', branch: 'main', key: 'NEW', name: '', tracker: 'huly', trackerProject: '', profile: null, slot: 0 }
+  const draft: ProjectDraft = { repo: ' D:\\new ', branch: 'main', key: 'NEW', name: '', tracker: 'huly', trackerProject: '', profile: null, slot: 0, milestones: [] }
 
   it('appends an entry with only what differs from what the project would inherit', () => {
     const raw = { projects: [abc()], custom: 1 }
@@ -251,6 +251,23 @@ describe('withNewProject', () => {
 
   it('starts the list of projects in a config that has none', () => {
     expect(withNewProject({}, draft, 'id-new')).toEqual({ projects: [{ id: 'id-new', key: 'NEW', repo: 'D:\\new', color: 1 }] })
+  })
+
+  it("splits a shared tracker project by the draft's milestones: they leave the projects on it (BTN-306)", () => {
+    const release = { ...draft, key: 'ABC', milestones: [' v1.0.1 ', ''] }
+    const raw = { projects: [abc({ chain: { excludedMilestones: ['v0.9'] } }), xyz()] }
+    const next = withNewProject(raw, release, 'id-new')
+    expect(next.projects).toEqual([abc({ chain: { excludedMilestones: ['v0.9', 'v1.0.1'] } }), xyz(), expect.objectContaining({ key: 'ABC', chain: { requiredMilestones: ['v1.0.1'] } })])
+    expect(parseConfig(next).rules['id-new']?.requiredMilestones).toEqual(['v1.0.1'])
+    expect(yieldedMilestones(raw, release, 'id-new')).toEqual({ 'id-abc': { excludedMilestones: ['v0.9', 'v1.0.1'] } })
+  })
+
+  it('takes the milestones out of the required ones of a project that names its own, and leaves one that splits already', () => {
+    const release = { ...draft, key: 'ABC', milestones: ['V1.0.1'] }
+    expect(yieldedMilestones({ projects: [abc({ chain: { requiredMilestones: ['v2', 'v1.0.1'] } })] }, release, 'id-new')).toEqual({ 'id-abc': { requiredMilestones: ['v2'] } })
+    expect(yieldedMilestones({ projects: [abc({ chain: { requiredMilestones: ['v2'] } })] }, release, 'id-new')).toEqual({})
+    expect(yieldedMilestones({ projects: [abc({ chain: { excludedMilestones: ['v1.0.1'] } })] }, release, 'id-new')).toEqual({})
+    expect(yieldedMilestones({ projects: [abc()] }, { ...release, milestones: [] }, 'id-new')).toEqual({})
   })
 })
 

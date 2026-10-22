@@ -757,7 +757,11 @@ function draftOf(body: Record<string, unknown>): ProjectDraft {
   if (!Number.isInteger(slot) || (slot as number) < 0) throw fail('request.required', { field: 'slot' })
   const text = (field: keyof ProjectDraft) => textOf(body[field], field)
   const profile = body.profile === undefined || body.profile === null ? null : text('profile')
-  return { repo: text('repo'), branch: text('branch'), key: text('key'), name: text('name'), tracker: text('tracker'), trackerProject: text('trackerProject'), profile, slot: slot as number }
+  // A page open since before the milestones field sends none.
+  const milestones = body.milestones ?? []
+  if (!Array.isArray(milestones) || milestones.some((name) => typeof name !== 'string')) throw fail('request.required', { field: 'milestones' })
+  const fields = { repo: text('repo'), branch: text('branch'), key: text('key'), name: text('name'), tracker: text('tracker'), trackerProject: text('trackerProject') }
+  return { ...fields, profile, slot: slot as number, milestones: milestones as string[] }
 }
 
 function feedDraftOf(body: Record<string, unknown>): FeedDraft {

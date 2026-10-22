@@ -18,6 +18,8 @@ export interface WizardFields {
   profile: string
   place: 'worktree' | 'slots'
   slots: string
+  /** The only milestones the project takes, one per line: how it splits a tracker project another project has (BTN-306). */
+  milestones: string
   /** The fields typed by hand: a suggestion no longer overwrites them. */
   typed: Record<Suggested, boolean>
 }
@@ -33,6 +35,7 @@ export const EMPTY_FIELDS: WizardFields = {
   profile: '',
   place: 'worktree',
   slots: '2',
+  milestones: '',
   typed: { key: false, name: false, trackerProject: false },
 }
 
@@ -86,6 +89,10 @@ export function draftOfFields(fields: WizardFields, defaultProfile = false): Pro
     trackerProject: withinValue(fields),
     profile: fields.profile === '' || defaultProfile ? null : fields.profile,
     slot,
+    milestones: fields.milestones
+      .split('\n')
+      .map((line) => line.trim())
+      .filter((line) => line !== ''),
   }
 }
 

@@ -38,16 +38,32 @@ export function fakeNoProjects(state: EvenKeelState): EvenKeelState {
 export function fakeCheck(state: EvenKeelState, draft: ProjectDraft, mode: string | null): ProjectCheck {
   const path = draft.repo.trim()
   const none = { root: null, current: null, suggested: null }
-  if (path === '') return { repo: { ...none, notice: null }, entry: null, tracker: null, trusted: null, platform: 'win32' }
-  if (path.includes('nope')) return { repo: { ...none, notice: notice('wizard.notRepo', { path }, { detail: 'fatal: not a git repository' }) }, entry: null, tracker: null, trusted: null, platform: 'win32' }
+  if (path === '') return { repo: { ...none, notice: null }, entry: null, yields: [], tracker: null, trusted: null, platform: 'win32' }
+  if (path.includes('nope')) {
+    return { repo: { ...none, notice: notice('wizard.notRepo', { path }, { detail: 'fatal: not a git repository' }) }, entry: null, yields: [], tracker: null, trusted: null, platform: 'win32' }
+  }
   const root = path.replace(/\\/g, '/').replace(/\/+$/, '')
   const current = root.includes('master') ? 'master' : 'main'
   const suggested = draft.tracker === 'github' ? `octo-org/${root.split('/').pop()}` : null
   const repo = { root, current, suggested, notice: repoNotice(state, root, draft.branch.trim()) }
-  const entry = entryNotice(state, draft)
+  const shared = sharedWith(state, draft)
+  const entry = entryNotice(state, draft) ?? (shared.length > 0 && draft.milestones.length === 0 ? notice('wizard.trackerShared', { project: shared[0]! }) : null)
+  const yields = entry === null && draft.milestones.length > 0 ? shared : []
   const trusted = mode !== 'untrusted'
-  if (entry !== null || repo.notice !== null) return { repo, entry, tracker: null, trusted, platform: 'win32' }
-  return { repo, entry, tracker: trackerOf(draft.tracker, mode), trusted, platform: 'win32' }
+  if (entry !== null || repo.notice !== null) return { repo, entry, yields, tracker: null, trusted, platform: 'win32' }
+  return { repo, entry, yields, tracker: trackerOf(draft.tracker, mode), trusted, platform: 'win32' }
+}
+
+/** The labels of the Huly projects that read the draft's Huly project: its own value, or its key. */
+function sharedWith(state: EvenKeelState, draft: ProjectDraft): string[] {
+  if (draft.tracker !== 'huly') return []
+  const place = draft.trackerProject.trim() || draft.key.trim()
+  return state.projects
+    .filter((project) => {
+      const form = state.config.projects[project]
+      return form?.tracker === 'huly' && (form.trackerProject ?? state.projectKeys[project]) === place
+    })
+    .map((project) => state.projectLabels[project] ?? project)
 }
 
 function repoNotice(state: EvenKeelState, root: string, branch: string): ProjectCheck['repo']['notice'] {
@@ -135,7 +151,7 @@ function withProject(state: EvenKeelState, draft: ProjectDraft): EvenKeelState {
     slot: draft.slot,
     color: colorsOf([...state.projects, id], ownColors(state.config.projects))[id] ?? null,
     brief: state.config.shared.brief,
-    chain: DEFAULT_RULES,
+    chain: { ...DEFAULT_RULES, requiredMilestones: draft.milestones },
     prompt: null,
     beforeStart: [],
     check: [],

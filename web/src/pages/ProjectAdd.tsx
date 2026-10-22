@@ -8,6 +8,8 @@ import { useCommand } from '../live/useCommand.js'
 import { projectPath } from '../state.js'
 import { draftOfFields, EMPTY_FIELDS, idPrefix, keyOfTyped, keyTyped, missingOf, readyToAdd, shapeOf, suggestOfRepo, switchProfile, trustCommand, typedIn, type Missing, type TrackerShape, type WizardFields } from './projectWizard.js'
 import { FieldHead } from './settingsParts.js'
+import { ruleChoicesOf } from './settingsRows.js'
+import { ListTable } from './settingsTable.js'
 import { Status, TrackerStep } from './WizardTracker.js'
 import './accounts.css'
 import './settings.css'
@@ -36,6 +38,7 @@ export function ProjectAddPage({ state }: { state: EvenKeelState }) {
   const [round, setRound] = useState(0)
   const [added, setAdded] = useState<{ key: string; before: string[] } | null>(null)
   const [branchOpen, setBranchOpen] = useState(false)
+  const [milestonesOpen, setMilestonesOpen] = useState(false)
   const choice = state.config.trackers.find((each) => each.name === fields.tracker)
   const shape = shapeOf(choice)
   const profile = state.profiles.profiles.find((each) => each.id === fields.profile)
@@ -100,6 +103,12 @@ export function ProjectAddPage({ state }: { state: EvenKeelState }) {
   useEffect(() => {
     if (noBranch) setBranchOpen(true)
   }, [noBranch])
+
+  // A tracker project another project has opens the milestones, and they stay open while they are typed (BTN-306).
+  const trackerShared = check?.entry?.code === 'wizard.trackerShared'
+  useEffect(() => {
+    if (trackerShared) setMilestonesOpen(true)
+  }, [trackerShared])
 
   useEffect(() => {
     if (added === null) return
@@ -234,6 +243,20 @@ export function ProjectAddPage({ state }: { state: EvenKeelState }) {
           </div>
           <span className="settings__hint">{t.wizard.example(idPrefix(shape, fields) || keyText, shape === 'place', keptIds(shape, fields))}</span>
           {keyTyped(shape) && check?.entry != null && fields.key.trim() !== '' && <Status>{say(check.entry)}</Status>}
+          {(milestonesOpen || trackerShared || fields.milestones.trim() !== '') && (
+            <div className="settings__field">
+              <FieldHead label={t.settings.rule.requiredMilestones} hint={t.wizard.milestonesHint} />
+              <ListTable
+                label={t.settings.rule.requiredMilestones}
+                value={fields.milestones}
+                add={t.settings.ruleAdd.requiredMilestones}
+                empty={t.settings.rulePlaceholder.requiredMilestones}
+                suggest={ruleChoicesOf(state.tasks).milestones}
+                onChange={(milestones) => set({ milestones })}
+              />
+              {check !== null && check.yields.length > 0 && <Status ok>{t.wizard.yields(check.yields.join(', '))}</Status>}
+            </div>
+          )}
         </Step>
         <details className="project-add__advanced">
           <summary>
