@@ -24,7 +24,7 @@ Users install with `git clone` and update with `git pull` (README, "Updating"), 
 - `EKR` — fixes of the released version, its milestone named by that version (`v0.1`), so the changelog of the chain's milestone head is the patch's section.
 - A bug of the released version that must reach its users before the next minor is an `EKR` task; one that can wait is a `BTN` task in the next milestone.
 - Urgency is the priority: an `Urgent` fix is released as a patch at once, the others wait for the next patch.
-- GitHub issues are where users report. No chain reads them: the user picks the ones worth doing and has a session copy each into `EKR` or `BTN` with a link back, so the work and its decisions stay in Huly and a stranger's comment steers nothing. Doing that by Even Keel is BTN-262.
+- GitHub issues are where users report. No chain reads them: the user picks the ones worth doing and puts a label on, and Even Keel takes each into `EKR` or `BTN` with a link back, by the label each of the two projects names in its `intakeLabel` (`docs/trackers.md`, "Taking GitHub issues in"), so the work and its decisions stay in Huly and a stranger's comment steers nothing. The issue gets one line when its task is done, the version that ships it, and is closed by Even Keel when that release is published (step 6 below). A session asked to take an issue by hand copies it the same way.
 
 ## A fix
 

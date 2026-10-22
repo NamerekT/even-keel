@@ -93,6 +93,7 @@ describe('ConfigStore', { timeout: 30_000 }, () => {
       remoteProfiles: { github: 'org' },
       mergeInto: null,
       pullRequests: false,
+      intakeLabel: null,
       fillMilestone: true,
       changelog: 'CHANGELOG.md',
       provider: null,

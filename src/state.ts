@@ -85,7 +85,7 @@ export interface TrackerUrls {
 
 /**
  * What the user sets per project and the chain reads live: `branch`, `prompt`, `commands.beforeStart`, `commands.check`,
- * `commands.afterGreen`, `ci`, `remoteProfiles`, `pullRequests`, `mergeInto`, `fillMilestone`, `changelog`, `provider`, `models`, `accounts` and `modelLabels` in the config.
+ * `commands.afterGreen`, `ci`, `remoteProfiles`, `pullRequests`, `intakeLabel`, `mergeInto`, `fillMilestone`, `changelog`, `provider`, `models`, `accounts` and `modelLabels` in the config.
  */
 export interface ProjectSettings {
   /** The project's main branch: tasks branch off it and merge into it, the CI watches it. */
@@ -103,6 +103,8 @@ export interface ProjectSettings {
   remoteProfiles: RemoteProfiles
   /** PR mode (BTN-205): a session does not merge its branch, Even Keel pushes it and opens a pull request. */
   pullRequests: boolean
+  /** The label of the project's GitHub remote whose issues become tasks of its tracker (BTN-262); `null` — none are taken in. */
+  intakeLabel: string | null
   /** A release project (BTN-172): the project whose branch its own one merges into once that project's chain is quiet; `null` — a main project. */
   mergeInto: string | null
   /** A task that enters the chain without a milestone gets the active one in the tracker. */

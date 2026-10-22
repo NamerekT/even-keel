@@ -143,6 +143,7 @@ function withProject(state: EvenKeelState, draft: ProjectDraft): EvenKeelState {
     ci: state.config.shared.ci,
     remoteProfiles: {},
     pullRequests: false,
+    intakeLabel: null,
     mergeInto: null,
     fillMilestone: state.config.shared.fillMilestone,
     changelog: 'CHANGELOG.md',

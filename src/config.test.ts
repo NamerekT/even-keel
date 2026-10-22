@@ -120,7 +120,7 @@ describe('parseConfig', () => {
       feeds: {},
       brief: null,
       briefs: { ABC: null },
-      settings: { ABC: { branch: 'main', prompt: null, beforeStart: [], check: [], afterGreen: [], ci: DEFAULT_CI, remoteProfiles: {}, pullRequests: false, mergeInto: null, fillMilestone: false, changelog: 'CHANGELOG.md', provider: null, models: {}, accounts: {}, modelLabels: null, promptLanguage: 'en', cacheTtl: null, checkpointTokens: null, checkpointShares: SHARES, own: {} } },
+      settings: { ABC: { branch: 'main', prompt: null, beforeStart: [], check: [], afterGreen: [], ci: DEFAULT_CI, remoteProfiles: {}, pullRequests: false, intakeLabel: null, mergeInto: null, fillMilestone: false, changelog: 'CHANGELOG.md', provider: null, models: {}, accounts: {}, modelLabels: null, promptLanguage: 'en', cacheTtl: null, checkpointTokens: null, checkpointShares: SHARES, own: {} } },
       ci: DEFAULT_CI,
       fillMilestone: false,
       context: { window: 600_000, warn: 50, danger: 80 },
@@ -312,6 +312,7 @@ describe('parseConfig', () => {
         ci: DEFAULT_CI,
         remoteProfiles: {},
         pullRequests: false,
+        intakeLabel: null,
         mergeInto: null,
         fillMilestone: false,
         changelog: 'CHANGELOG.md',
@@ -326,7 +327,7 @@ describe('parseConfig', () => {
         own: {},
       },
       XYZ: {
-        ...{ branch: 'main', prompt: null, beforeStart: [], check: [], afterGreen: [], ci: DEFAULT_CI, remoteProfiles: {}, pullRequests: false, mergeInto: null, fillMilestone: false, changelog: 'CHANGELOG.md' },
+        ...{ branch: 'main', prompt: null, beforeStart: [], check: [], afterGreen: [], ci: DEFAULT_CI, remoteProfiles: {}, pullRequests: false, intakeLabel: null, mergeInto: null, fillMilestone: false, changelog: 'CHANGELOG.md' },
         ...{ provider: null, models: {}, accounts: {}, modelLabels: null, promptLanguage: 'en', cacheTtl: null, checkpointTokens: null, checkpointShares: SHARES, own: {} },
       },
     })

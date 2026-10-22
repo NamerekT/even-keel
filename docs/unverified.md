@@ -85,6 +85,7 @@ Every entry, ordered by how many people it reaches and how badly it hurts them i
 | 73 | [A Copilot turn killed mid-turn](#a-copilot-turn-killed-mid-turn) | Copilot | the resume fails; press "New session" |
 | 74 | [Copilot installed with npm](#copilot-installed-with-npm) | Copilot from npm | the first turn fails; set `EVEN_KEEL_COPILOT_BIN` |
 | 75 | [Copilot models in the stats](#copilot-models-in-the-stats) | Copilot on Claude models | `/stats` shows no cost for them |
+| 76 | [GitHub issues taken into the tracker](#github-issues-taken-into-the-tracker-btn-262) | projects with `intakeLabel` | an issue is not taken in, or stays open after its release; close it by hand |
 
 ## Platforms
 
@@ -421,3 +422,7 @@ The git side is checked on real clones of one remote (`docs/chain.md`, "Projects
 ### Carrying a release project forward (BTN-172)
 
 The carry of a release branch into the main project's branch (`mergeInto`, `docs/chain.md`) is covered by tests with git's answers, never run on the service against real clones: the fetch from the release clone's folder, the merge commit made under the service's account (session 0 on Windows: it needs a git name and email, as the changelog commit does), the abort of a conflict and the push. If the merge fails for want of an identity, the carry is held like a conflict and the page shows git's message; if the push fails, the page says so. **Workaround:** carry by hand in the main checkout while its chain stands — `git sync`, `git merge --no-edit origin/<release branch>`, `git sync` — and the carry clears by itself once the branch has the commits.
+
+### GitHub issues taken into the tracker (BTN-262)
+
+The intake (`docs/trackers.md`, "Taking GitHub issues in") is covered by tests with a fake repository only, never run against GitHub. Assumed from GitHub's documentation: the REST answers of the labelled issues, their comments with `author_association`, the matching tag refs and the releases by tag; that a fine-grained token with Issues: Read and write may comment and close; that comment ids grow with time, so the last one looked at marks where the next look starts. Assumed of the trackers: that a task created by `create` is found by `tasks` at once, and that a Huly comment written by Even Keel reads back with its first line as written, which keeps a copy from answering a session's question. If they are wrong, an issue is not taken in (a line `intake: …` in the service log says why), a comment is copied twice or not at all, or an issue stays open after its release. **Workaround:** take the issue into the tracker by hand and close it on GitHub by hand; clearing the project's label stops the intake without losing what it follows.

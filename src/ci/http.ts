@@ -1,7 +1,10 @@
 import { fail } from '../notice/notice.js'
 
-export async function getJson<T>(ci: string, url: string, authorization: string, timeoutMs: number, fetchImpl: typeof fetch): Promise<T> {
-  return (await (await request(ci, url, { authorization, accept: 'application/json' }, timeoutMs, fetchImpl)).json()) as T
+/** What a refused token is told it needs: the CI's runs, pull requests, issues (BTN-262). */
+export type Denied = 'ci.denied' | 'review.denied' | 'intake.denied'
+
+export async function getJson<T>(ci: string, url: string, authorization: string, timeoutMs: number, fetchImpl: typeof fetch, denied: Denied = 'ci.denied'): Promise<T> {
+  return (await (await request(ci, url, { authorization, accept: 'application/json', denied }, timeoutMs, fetchImpl)).json()) as T
 }
 
 /** Redirects are followed: GitHub answers a job log with one to a signed address. */
@@ -10,8 +13,17 @@ export async function getText(ci: string, url: string, authorization: string, ti
 }
 
 /** A write: opening a pull request (BTN-205). A refused token is `review.denied` — it needs to write pull requests, not only to read. */
-export async function sendJson<T>(ci: string, url: string, authorization: string, body: unknown, timeoutMs: number, fetchImpl: typeof fetch): Promise<T> {
-  const options = { authorization, accept: 'application/json', method: 'POST', body: JSON.stringify(body), denied: 'review.denied' as const }
+export async function sendJson<T>(
+  ci: string,
+  url: string,
+  authorization: string,
+  body: unknown,
+  timeoutMs: number,
+  fetchImpl: typeof fetch,
+  method: 'POST' | 'PATCH' = 'POST',
+  denied: Denied = 'review.denied',
+): Promise<T> {
+  const options = { authorization, accept: 'application/json', method, body: JSON.stringify(body), denied }
   return (await (await request(ci, url, options, timeoutMs, fetchImpl)).json()) as T
 }
 
@@ -20,7 +32,7 @@ interface RequestOptions {
   accept: string
   method?: string
   body?: string
-  denied?: 'ci.denied' | 'review.denied'
+  denied?: Denied
 }
 
 async function request(ci: string, url: string, options: RequestOptions, timeoutMs: number, fetchImpl: typeof fetch): Promise<Response> {
