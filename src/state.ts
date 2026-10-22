@@ -311,8 +311,31 @@ export interface ConfigView {
   shared: SharedForm
   projects: Record<string, ProjectForm>
   trackers: TrackerChoice[]
-  /** Projects the chain has started a task of: the page does not switch their tracker or tracker project until BTN-66. */
+  /** The projects' extra task feeds (BTN-66), by project; a project without any is left out. */
+  feeds: Record<string, FeedView[]>
+  /**
+   * Projects and feeds the chain has started a task of: their tracker, tracker project and profile stay, since the ids of
+   * their tasks would no longer reach their records. Another tracker's tasks come in as a feed.
+   */
   trackerLocked: string[]
+}
+
+/** An extra task feed of a project (BTN-66): its own tracker, a key for the ids where the tracker has none, a place in it. */
+export interface FeedView {
+  id: string
+  tracker: string
+  key: string
+  /** By the tracker's project key; none where the key names it. */
+  place?: string
+}
+
+/** A feed the page adds: a new id is given by the service. */
+export interface FeedDraft {
+  tracker: string
+  key: string
+  place: string | null
+  /** The profile it reads on; `null` — its tracker's default. */
+  profile: string | null
 }
 
 /** A repository a checkout's remote points at. */

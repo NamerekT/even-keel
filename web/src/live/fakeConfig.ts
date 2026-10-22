@@ -131,7 +131,13 @@ export function fakeConfig(): ConfigView {
       { name: 'github', title: 'GitHub', projectKey: { key: 'github', example: 'octo-org/example', optional: false, alias: false } },
       { name: 'linear', title: 'Linear', projectKey: { key: 'linear', example: 'Web app', optional: true, alias: false } },
     ],
-    trackerLocked: ['ABC', 'DEMO'],
+    feeds: {
+      ABC: [
+        { id: 'feed-abc-gh', tracker: 'github', key: 'ABCGH', place: 'octo-org/storefront-ideas' },
+        { id: 'feed-abc-lin', tracker: 'linear', key: 'WEB', place: 'Web app' },
+      ],
+    },
+    trackerLocked: ['ABC', 'DEMO', 'feed-abc-gh'],
   }
 }
 

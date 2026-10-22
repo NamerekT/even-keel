@@ -350,6 +350,7 @@ export const noticesRu: NoticeTexts = {
   'config.ciWait': (p) => `${p.where} должен быть целым числом минут от 0 или null`,
   'config.remoteProfiles': (p) => `${p.where} должен сопоставлять виду remote (${list(p.known)}) id профиля`,
   'config.unknownProject': (p) => `проекта ${p.key} нет`,
+  'config.unknownFeed': () => 'у проекта нет такого источника задач',
   'config.writeFailed': (p) => `не удалось записать ${p.file}`,
   'config.statusBoth': (p) => `${p.project}: статус «${p.status}» и активный, и терминальный`,
   'config.labelBoth': (p) => `${p.project}: ярлык «${p.label}» и обязательный, и исключающий`,

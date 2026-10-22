@@ -35,7 +35,7 @@ import { OWN_KEYS } from './settings/registry.js'
 import { CLAUDE } from './claude/name.js'
 import type { Language } from './language.js'
 import { HOOK_EVENTS, type MailEvent } from './sessions/mail.js'
-import type { CacheTtl, ChangelogOp, ChangelogView, CheckpointShares, CheckResult, CiSettings, ContextScale, OwnValues, ProjectCheck, ProjectDraft, ProjectForm, SharedForm, StatsConfig } from './state.js'
+import type { CacheTtl, ChangelogOp, ChangelogView, CheckpointShares, CheckResult, CiSettings, ContextScale, FeedDraft, OwnValues, ProjectCheck, ProjectDraft, ProjectForm, SharedForm, StatsConfig } from './state.js'
 import type { CompareSettings } from './stats/rules.js'
 import { CI_KINDS, type CiKind } from './ci/model.js'
 import type { Calibration } from './stats/calibration.js'
@@ -138,6 +138,12 @@ export interface SettingsControl {
   add(draft: ProjectDraft): void
   /** Drops the project from the config; refuses while its chain, sessions or places still hold it. */
   remove(project: string): void
+  /** Adds an extra task feed to the project (BTN-66); refuses one the config would not parse. */
+  addFeed(project: string, draft: FeedDraft): void
+  /** Drops the project's feed; the archive keeps the closed tasks it gave. */
+  removeFeed(project: string, feed: string): void
+  /** `null` — the feed reads on its tracker's default profile; refused once the chain has started its tasks. */
+  linkFeed(project: string, feed: string, profile: string | null): void
   /** The toast's "Close": no toast for this version, a later one shows it again. */
   dismissUpdate(version: string): void
   /** The toast's "Don't show again": no toasts about new versions until the switch on /settings. */
@@ -263,6 +269,10 @@ const COMMANDS: Record<string, Command> = {
   'project/settings': ({ settings }, body) => settings.save(projectOf(body), projectFormOf(body), projectFormOf(baseOf(body))),
   'project/add': ({ settings }, body) => settings.add(draftOf(body)),
   'project/remove': ({ settings }, body) => settings.remove(projectOf(body)),
+  'project/feed/add': ({ settings }, body) => settings.addFeed(projectOf(body), feedDraftOf(body)),
+  'project/feed/remove': ({ settings }, body) => settings.removeFeed(projectOf(body), textOf(body.feed, 'feed')),
+  'project/feed/profile': ({ settings }, body) =>
+    settings.linkFeed(projectOf(body), textOf(body.feed, 'feed'), body.profile === null ? null : textOf(body.profile, 'profile')),
   settings: ({ settings }, body) => settings.saveShared(sharedFormOf(body), sharedFormOf(baseOf(body))),
   'updates/dismiss': ({ settings }, body) => settings.dismissUpdate(textOf(body.version, 'version')),
   'updates/mute': ({ settings }) => settings.muteUpdates(),
@@ -748,6 +758,11 @@ function draftOf(body: Record<string, unknown>): ProjectDraft {
   const text = (field: keyof ProjectDraft) => textOf(body[field], field)
   const profile = body.profile === undefined || body.profile === null ? null : text('profile')
   return { repo: text('repo'), branch: text('branch'), key: text('key'), name: text('name'), tracker: text('tracker'), trackerProject: text('trackerProject'), profile, slot: slot as number }
+}
+
+function feedDraftOf(body: Record<string, unknown>): FeedDraft {
+  const optional = (field: 'place' | 'profile') => (body[field] === undefined || body[field] === null ? null : textOf(body[field], field))
+  return { tracker: textOf(body.tracker, 'tracker'), key: textOf(body.key, 'key'), place: optional('place'), profile: optional('profile') }
 }
 
 function projectFormOf(body: Record<string, unknown>): ProjectForm {

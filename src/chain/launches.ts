@@ -179,9 +179,12 @@ export function ranSince(entries: LaunchEntry[], project: string, since: Date): 
   return [...ran]
 }
 
-/** The projects the chain has started a task of, each once: their tracker is fixed until a switch can keep the tasks apart (BTN-66). */
-export function launchedProjects(entries: LaunchEntry[]): string[] {
-  return [...new Set(entries.filter((entry) => !isRelease(entry) && !isFixName(entry.task)).map((entry) => entry.project))]
+/**
+ * The readers the chain has started a task of, each once: their tracker and profile are fixed, since the ids of their tasks
+ * would no longer reach their records. `readerOf` gives the project, or its feed by the task's prefix (BTN-66).
+ */
+export function launchedProjects(entries: LaunchEntry[], readerOf: (project: string, task: string) => string = (project) => project): string[] {
+  return [...new Set(entries.filter((entry) => !isRelease(entry) && !isFixName(entry.task)).map((entry) => readerOf(entry.project, entry.task)))]
 }
 
 /** The launches since `since` whose run label named a provider without an account in the pool, newest first: the page's toast. */

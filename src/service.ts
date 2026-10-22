@@ -227,6 +227,8 @@ const ownerOfReader = (reader: string) => ownerOf(readers(), reader)
 /** The reader of a project's task: the feed whose ids the task's id carries, else the project. */
 const readerFor = (project: string, task: string) => readerOf(configStore.current, project, task)
 const feedOf = (reader: string) => configStore.current.feeds[ownerOfReader(reader)]?.find((feed) => feed.id === reader)
+/** The projects and feeds whose tracker and profile stay: the chain has started a task of theirs. */
+const lockedReaders = () => launchedProjects(launches, readerFor)
 /** The readers whose profile's rules clash with their project's own, by the text logged: logged once while it lasts. */
 const rulesClashes = new Map<string, string>()
 /**
@@ -560,8 +562,9 @@ const profiles: Profiles = new Profiles({
   writes,
   kinds: profileKindsOf,
   set: importedProfiles,
+  // Feeds too (BTN-66): a profile a feed reads on is in use, and its kind is checked like a project's.
   projects: () => {
-    const { keys, trackers: kinds } = configStore.current
+    const { keys, trackers: kinds } = readers()
     return Object.fromEntries(Object.entries(keys).map(([id, key]) => [id, { key, kind: kinds[id]! }]))
   },
   settingsFile: () => join(homes.global.dir, 'settings.json'),
@@ -1272,7 +1275,7 @@ const getState = (): EvenKeelState => ({
   projectKeys: configStore.current.keys,
   projectLabels: projectLabels(configStore.current),
   taskPrefixes: Object.fromEntries(Object.keys(configStore.current.keys).map((project) => [project, idPrefixOf(configStore.current, project)])),
-  config: configStore.view(launchedProjects(launches)),
+  config: configStore.view(lockedReaders()),
   chain: {
     active: dispatcher.state.active,
     parallel: configStore.current.parallel,
@@ -1365,7 +1368,7 @@ let server = createEvenKeelServer({
     save: async (project, form, base) => {
       if (configStore.current.projects[project] === undefined) throw fail('config.unknownProject', { key: project })
       const moved = form.tracker !== base.tracker || form.trackerProject !== base.trackerProject
-      if (moved && launchedProjects(launches).includes(project)) throw fail('config.trackerLocked', { key: project })
+      if (moved && lockedReaders().includes(project)) throw fail('config.trackerLocked', { key: projectLabel(configStore.current, project) })
       if (form.pullRequests && !base.pullRequests) {
         const ready = pullReadinessOf(project, await remotesIn(runGit, form.repo))
         if ('notice' in ready) throw fail('review.cannotEnable', { project }, { cause: ready.notice })
@@ -1401,6 +1404,26 @@ let server = createEvenKeelServer({
       if (blocked !== null) throw new NoticeError(blocked)
       configStore.removeProject(project)
       console.log(`page: the project ${project} is removed from the config; its repository, worktrees and branches are left as they are`)
+    },
+    addFeed: (project, { profile, ...draft }) => {
+      const chosen = profile === null ? undefined : profiles.current().profiles.find((each) => each.id === profile)
+      if (profile !== null && chosen === undefined) throw fail('profiles.unknown', {})
+      if (chosen !== undefined && chosen.kind !== draft.tracker) throw fail('profiles.otherTracker', { profile: chosen.name, project: draft.key.trim() })
+      const id = configStore.addFeed(project, draft)
+      if (chosen !== undefined) profiles.link(id, chosen.id, true)
+      console.log(`page: the task feed ${draft.key.trim()} is added to ${projectLabel(configStore.current, project)}`)
+    },
+    removeFeed: (project, feed) => {
+      const key = configStore.current.feeds[project]?.find((each) => each.id === feed)?.key
+      configStore.removeFeed(project, feed)
+      profiles.link(feed, null, true)
+      console.log(`page: the task feed ${key} is removed from ${projectLabel(configStore.current, project)}`)
+    },
+    linkFeed: (project, feed, profile) => {
+      const found = configStore.current.feeds[project]?.find((each) => each.id === feed)
+      if (found === undefined) throw fail('config.unknownFeed', {})
+      if (lockedReaders().includes(feed)) throw fail('config.feedLocked', { project: projectLabel(configStore.current, project), key: found.key })
+      profiles.link(feed, profile, true)
     },
     dismissUpdate: (version) => {
       dismissedUpdate = version
@@ -1455,7 +1478,7 @@ let server = createEvenKeelServer({
     },
     link: (project, profile) => {
       if (!Object.hasOwn(configStore.current.projects, project)) throw fail('config.unknownProject', { key: project })
-      if (launchedProjects(launches).includes(project)) throw fail('config.trackerLocked', { key: projectLabel(configStore.current, project) })
+      if (lockedReaders().includes(project)) throw fail('config.trackerLocked', { key: projectLabel(configStore.current, project) })
       profiles.link(project, profile)
     },
     projects: (id, query) => profiles.projects(id, query),
@@ -1527,7 +1550,7 @@ let server = createEvenKeelServer({
     const received = view.received
     return received === null ? view : { ...view, received: { ...received, account: sessionAccount(received.sessionId, received.at) } }
   },
-  vocabulary: (id) => (Object.hasOwn(configStore.current.projects, id) ? vocabularies.get(id) : Promise.resolve(undefined)),
+  vocabulary: (id) => (Object.hasOwn(readers().projects, id) ? vocabularies.get(id) : Promise.resolve(undefined)),
   tasks: {
     card: async (task) => {
       const project = configuredProject(task)

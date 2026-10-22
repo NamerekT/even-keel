@@ -1,11 +1,11 @@
 import { randomUUID } from 'node:crypto'
-import { formsOf, trackerChoices, withChainSwitches, withNewProject, withoutProject, withProjectForm, withRunAccount, withSharedAccount, withSharedForm, withTally, withUpdates } from './config-form.js'
+import { formsOf, trackerChoices, withChainSwitches, withFeed, withNewProject, withoutFeed, withoutProject, withProjectForm, withRunAccount, withSharedAccount, withSharedForm, withTally, withUpdates } from './config-form.js'
 import { parseConfig, trackerKeysOf, type EvenKeelConfig } from './config.js'
 import { englishOf, fail, noticeOf, type Notice } from './notice/notice.js'
 import { fileOf, fileRows, type FileContents } from './settings/file.js'
 import { readSettings, saveSettings, settingsText } from './settings/store.js'
 import type { Queryable, Writes } from './storage/database.js'
-import type { ConfigView, ProjectDraft, ProjectForm, SharedForm } from './state.js'
+import type { ConfigView, FeedDraft, ProjectDraft, ProjectForm, SharedForm } from './state.js'
 import type { TallyMode } from './stats/mode.js'
 import { ADAPTERS } from './tracker/adapters.js'
 import type { UpdateSettings } from './updates/release.js'
@@ -97,7 +97,19 @@ export class ConfigStore {
   }
 
   view(trackerLocked: string[] = []): ConfigView {
-    return { ...formsOf(this.current), trackers: trackerChoices(), trackerLocked }
+    return { ...formsOf(this.current), trackers: trackerChoices(), feeds: this.current.feeds, trackerLocked }
+  }
+
+  /** Adds the feed to the project with a new id, by the same rule as `saveProject`; returns the id. */
+  addFeed(project: string, draft: Omit<FeedDraft, 'profile'>): string {
+    const id = randomUUID()
+    this.write(withFeed(this.raw(), this.idOf(project), { id, ...draft }))
+    return id
+  }
+
+  /** Drops the project's feed, by the same rule as `saveProject`. */
+  removeFeed(project: string, feed: string): void {
+    this.write(withoutFeed(this.raw(), this.idOf(project), feed))
   }
 
   /** Writes the project's settings, only if the whole config still parses, and applies them at once. */
