@@ -10,6 +10,7 @@ import { say, t } from '../i18n/index.js'
 import { useNow } from '../layout/useNow.js'
 import { issueLink } from '../state.js'
 import { SEG_CLASS, type ChipLook } from './chipLook.js'
+import { NoticeFixButton } from './FixButtons.js'
 import './ci.css'
 
 const SHORT_SHA = 7
@@ -107,6 +108,7 @@ function CiSection({ view, now, urls, fixes }: { view: CiView; now: Date; urls: 
         {view.checkedAt !== null && ` · ${t.ci.checked(formatAgo(view.checkedAt, now))}`}
       </p>
       {view.error !== null && <p className={`notice ${view.health === 'off' ? 'notice--warn' : 'notice--error'} ci__notice`}>{say(view.error)}</p>}
+      <NoticeFixButton project={null} notice={view.error} />
       {stuck !== null && (
         <p className="notice notice--warn ci__notice">
           {queued ? t.ci.stuckRun(formatAgoSpan(stuck, now)) : t.ci.stuckPush(short(view.pushed!.commit), formatAgoSpan(stuck, now))}

@@ -135,6 +135,24 @@ export const ru = {
   toast: {
     region: 'Уведомления',
   },
+  events: {
+    limit: (project: string) => `${project}: цепь встала на лимите`,
+    limitBody: 'Переключите аккаунт или дождитесь сброса.',
+    red: (project: string) => `${project}: main покраснел`,
+    redBody: (commit: string) => `На ${commit}; следующая задача ждёт, пока main снова не станет зелёным.`,
+    ask: (task: string) => `${task} задаёт вопрос`,
+    askBody: 'Ответьте в окне чата сессии.',
+    conflict: (project: string, into: string) => `${project}: перенос в ${into} упёрся в конфликт`,
+    conflictBody: 'Слейте вручную или нажмите «Перенести сейчас» на странице проекта.',
+    open: 'Открыть',
+    close: 'Закрыть',
+  },
+  fix: {
+    project: 'Открыть настройки проекта',
+    shared: 'Открыть настройку',
+    access: 'Открыть Настройки → Доступы',
+    accounts: 'Открыть Аккаунты',
+  },
   banner: {
     config: (error: string) => `Настройки не применены, работают последние исправные: ${error}`,
     stale: 'Данные устарели: нет связи с сервером, переподключаюсь.',

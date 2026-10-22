@@ -1,6 +1,8 @@
 import { afterEach, describe, expect, it } from 'vitest'
 import { en } from './en.js'
+import { en as serverEn } from '../../../src/notice/en.js'
 import { asNotice, notice } from '../../../src/notice/notice.js'
+import { noticesRu } from './notices-ru.js'
 import { fieldsEn } from './fields-en.js'
 import { fieldsRu } from './fields-ru.js'
 import { language, localized, pickLanguage, say, sayAtField, setLanguage, t } from './index.js'
@@ -78,6 +80,14 @@ describe('sayAtField', () => {
 
   it('names no path of the config in any text at a field', () => {
     for (const texts of [fieldsEn, fieldsRu]) for (const render of Object.values(texts)) expect(String(render)).not.toMatch(/\bwhere\b|projects\[/)
+  })
+
+  it('names no path or key of the config in the texts of "Add a project"', () => {
+    const leaves = (value: unknown): unknown[] => (typeof value === 'object' && value !== null ? Object.values(value).flatMap(leaves) : [value])
+    const server = [...Object.entries(serverEn), ...Object.entries(noticesRu)].filter(([code]) => code.startsWith('wizard.')).map(([, render]) => render)
+    // The parameters of a text (`p.key`) are values, not paths.
+    for (const text of [...server, ...leaves(en.wizard), ...leaves(ru.wizard)])
+      expect(String(text).replace(/\bp\.\w+/g, '')).not.toMatch(/\bwhere\b|projects\[|\.key\b|\bchain\.\w|trackerProject|mergeInto/)
   })
 
   it('says what has no text at a field as the server does', () => {
