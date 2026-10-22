@@ -39,7 +39,7 @@ Every entry, ordered by how many people it reaches and how badly it hurts them i
 | 27 | [A package server and a Codex server of the same name](#a-package-server-and-a-codex-server-of-the-same-name) | Codex with packages | a session gets the wrong server of a name |
 | 28 | [Sign-in from the page](#sign-in-from-the-page) | Codex accounts added from the page | a second free account is added and only held afterwards |
 | 29 | [A crashed turn and a service restart mid-turn](#a-crashed-turn-and-a-service-restart-mid-turn) | Codex | a dead session looks busy |
-| 30 | [Chain sessions in the Codex app and on the phone](#chain-sessions-in-the-codex-app-and-on-the-phone-btn-178) | Codex | two turns on one thread if you answer in the app |
+| 30 | [Chain sessions in the Codex app and on the phone](#chain-sessions-in-the-codex-app-and-on-the-phone-btn-178) | Codex | two turns on one thread if you answer on the phone |
 | 31 | [Chat mail at a Codex Stop](#chat-mail-at-a-codex-stop-btn-181) | Codex | a message sent at the end of a turn is lost |
 | 32 | [The handoff note of a Codex turn seen by the Stop hook](#the-handoff-note-of-a-codex-turn-seen-by-the-stop-hook) | Codex | a note without the `CHECKPOINT:` line waits for a reply |
 | 33 | [The chat's turn line on Codex and after the chain stopped](#the-chats-turn-line-while-an-answer-is-delivered-to-codex-or-after-the-chain-stopped-btn-188) | Codex, a stopped chain | the chat says "delivering" for up to three minutes |
@@ -48,7 +48,7 @@ Every entry, ordered by how many people it reaches and how badly it hurts them i
 | 36 | ["Add to Claude Code" on /tools](#add-to-claude-code-on-tools-btn-226) | new users running the service | the banner stays; run its command by hand |
 | 37 | [Two profiles of one tracker](#two-profiles-of-one-tracker-btn-200) | two accounts of one tracker | a project reads another profile's tasks |
 | 38 | [A project's own CI profile](#a-projects-own-ci-profile-btn-231) | two forge profiles | the CI or a pull request uses the old profile |
-| 39 | [Carrying a release project forward](#carrying-a-release-project-forward-btn-172) | release projects | a fix stays out of the main branch; carry it by hand |
+| 39 | [Carrying a release project forward](#carrying-a-release-project-forward-btn-172) | release projects | a carry whose push fails; push by hand |
 | 40 | [Several projects on one tracker project](#several-projects-on-one-tracker-project-btn-172-btn-73) | two projects on one Huly project or Linear team | a task in both chains, or in neither |
 | 41 | [Task feeds from another tracker](#task-feeds-from-another-tracker-btn-66) | projects with a task feed | a feed's task is not closed, or its session cannot read it; stats name it wrong |
 | 42 | [Removing a project on the running service](#removing-a-project-on-the-running-service-btn-118) | anyone removing a project | a removal goes through while a session works |
@@ -248,7 +248,7 @@ From the service's Windows session 0 the Codex sandbox does not start, so a chai
 
 ### Chain sessions in the Codex app and on the phone (BTN-178)
 
-That the Codex desktop app and the ChatGPT app on the phone do not list the chain's threads is read from the app-server protocol (`thread/list` without `sourceKinds` leaves `exec` threads out), not seen in either app. If an app lists them after all and the user writes there, that turn runs in the app's own app-server and appends to the same rollout: the page shows it in the feed, but Even Keel may `resume` the thread at the same time, and two turns on one thread is untested. **Workaround:** answer Codex sessions only from the page's chat or the tracker (`docs/sessions.md`).
+That the Codex desktop app and the ChatGPT app on the phone do not list the chain's threads is read from the app-server protocol (`thread/list` without `sourceKinds` leaves `exec` threads out). Seen in the Windows desktop app (2026-10-23): `~/.codex/state_5.sqlite` holds 36 `exec` threads, the chain's TSK-20 among them, and the app lists none; the Coldbloom chain tasks it does list are its imports of Claude Code transcripts from `~/.claude/projects`, copies that never write back. Not seen on the phone. If an app lists them after all and the user writes there, that turn runs in the app's own app-server and appends to the same rollout: the page shows it in the feed, but Even Keel may `resume` the thread at the same time, and two turns on one thread is untested. **Workaround:** answer Codex sessions only from the page's chat or the tracker (`docs/sessions.md`).
 
 ### Errors and limits in the rollout
 
@@ -434,7 +434,7 @@ The git side is checked on real clones of one remote (`docs/chain.md`, "Projects
 
 ### Carrying a release project forward (BTN-172)
 
-The carry of a release branch into the main project's branch (`mergeInto`, `docs/chain.md`) is covered by tests with git's answers. Seen on the author's Windows service (2026-10-22): the fetch from the release clone's folder and a conflict, aborted and held with its file on the page until the merge by hand, after which the hold cleared. Not seen: a carry that goes through — the merge commit made under the service's account (session 0 on Windows: it needs a git name and email, as the changelog commit does), the abort of a conflict and the push. If the merge fails for want of an identity, the carry is held like a conflict and the page shows git's message; if the push fails, the page says so. **Workaround:** carry by hand in the main checkout while its chain stands — `git sync`, `git merge --no-edit origin/<release branch>`, `git sync` — and the carry clears by itself once the branch has the commits.
+The carry of a release branch into the main project's branch (`mergeInto`, `docs/chain.md`) is covered by tests with git's answers. Seen on the author's Windows service (2026-10-22): the fetch from the release clone's folder and a conflict, aborted and held with its file on the page until the merge by hand, after which the hold cleared. Seen in Windows Sandbox (2026-10-23) from a service in session 0 under its own account: a carry as a fast-forward and one as a merge commit, both pushed to the remote; with the account lacking a git name and email the merge failed, was aborted and held with git's message on the page, and "Carry now" went through once the account had them. That hold reads as a conflict "in unknown files" though nothing conflicts (BTN-314). Not seen: a push that fails — the page should say so. **Workaround:** carry by hand in the main checkout while its chain stands — `git sync`, `git merge --no-edit origin/<release branch>`, `git sync` — and the carry clears by itself once the branch has the commits.
 
 ### GitHub issues taken into the tracker (BTN-262)
 
