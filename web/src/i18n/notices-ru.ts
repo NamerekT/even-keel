@@ -1,5 +1,6 @@
 import { FORGES, type GitStep } from '../../../src/notice/en.js'
 import type { NoticeTexts } from '../../../src/notice/notice.js'
+import type { UpdateBlock } from '../../../src/updates/model.js'
 import { plural } from './plural.js'
 
 const list = (items: string[]) => items.join(', ')
@@ -16,6 +17,15 @@ const GIT_STEPS: Record<GitStep, (subject: string) => string> = {
   addSlot: () => 'добавить слот в',
   clean: () => 'очистить',
   switch: (branch) => `переключиться на ${branch} в`,
+}
+
+const UPDATE_BLOCKS: Record<UpdateBlock | 'storage', string> = {
+  service: 'Even Keel запущен не службой, перезапустить его некому',
+  git: 'папка Even Keel — не git-чекаут',
+  dirty: 'в чекауте есть незакоммиченные изменения',
+  tag: 'чекаут не на релизном теге установленной версии',
+  checking: 'чекаут ещё читается, попробуйте через минуту',
+  storage: 'прежняя версия не прочитает хранилище, которое эта уже перевела на новый формат',
 }
 
 // The server's messages in Russian; the keys and values come from src/notice/en.ts.
@@ -342,6 +352,10 @@ export const noticesRu: NoticeTexts = {
   'config.allowedHosts': () => 'allowedHosts должен быть списком имён хостов',
   'config.updatesKey': (p) => `updates.${p.key} — не настройка обновлений, есть: ${list(p.known)}`,
   'config.updatesDismissed': (p) => `updates.dismissed должен быть версией вида 0.2.0 или null, а не ${p.value}`,
+  'updates.running': () => 'обновление уже идёт',
+  'updates.none': () => 'нет релиза новее установленного',
+  'updates.noPrevious': () => 'нет прежней версии, на которую можно вернуться',
+  'updates.blocked': (p) => UPDATE_BLOCKS[p.reason],
   'config.token': (p) =>
     `host ${p.host} виден из сети, поэтому странице нужен токен: задайте EVEN_KEEL_TOKEN в .env (от 16 символов) и перезапустите службу, ` +
     'или поставьте host 127.0.0.1',

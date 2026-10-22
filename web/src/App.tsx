@@ -11,7 +11,7 @@ import { LinkBanner } from './layout/LinkBanner.js'
 import { LoginDialog } from './layout/LoginDialog.js'
 import { PackagesBanner } from './layout/PackagesBanner.js'
 import { FallbackToasts } from './layout/Fallbacks.js'
-import { UpdateToast } from './layout/Updates.js'
+import { UpdateProgressToast, UpdateResultToast, UpdateToast, UpdateWindow } from './layout/Updates.js'
 import { UsageBanner } from './layout/UsageBanner.js'
 import { CliVersionBanner } from './layout/CliVersionBanner.js'
 import { ToastStack } from './ui/Toast.js'
@@ -80,7 +80,10 @@ export function App() {
       <div className="app__basement" ref={setBasement} />
       {/* The add page walks its own sign-in in place. */}
       {state !== null && state.account.login !== null && !addingAccount && <LoginDialog account={state.account} />}
+      <UpdateWindow />
       <ToastStack>
+        <UpdateProgressToast />
+        <UpdateResultToast />
         <UpdateToast />
         <FallbackToasts />
       </ToastStack>

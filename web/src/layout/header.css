@@ -326,8 +326,21 @@
 }
 
 .gear__update {
+  padding: 0;
+  border: 0;
+  background: none;
   color: var(--accent);
+  font: inherit;
   text-decoration: none;
+  cursor: pointer;
+}
+
+.gear__update--back {
+  color: var(--fg-muted);
+}
+
+.gear__update--back::before {
+  display: none;
 }
 
 .gear__update::before {

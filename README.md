@@ -106,7 +106,8 @@ On Linux it is a systemd user unit (`journalctl --user -u even-keel`); to keep i
 
 The gear menu in the header shows the installed version and tells you when a newer release is out.
 
-- **As a service** — `git pull`, then run the install script again.
+- **From the page** (as a service, on a clean clone) — the update window lists what changes; **Update** waits for the chains to settle, checks out the release, builds it and restarts the service, and goes back to the version you had if anything fails. **Revert** takes you back to the previous version the same way, unless the update changed the stored state's format.
+- **As a service, by hand** — `git pull`, then run the install script again.
 - **From a terminal** — stop Even Keel, then `git pull`, `npm ci`, `npm run build` and `npm start`.
 
 Running sessions survive the update. Plugins, stored state and going back to an older version: [setup](docs/guide/setup.md#updating).

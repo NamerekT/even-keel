@@ -88,7 +88,7 @@ To edit them as a file, `npm run storage -- config-export <new file>` writes the
 | `promptLanguage` | `language`, then `en` | language of the prompts Even Keel sends to sessions |
 | `hiddenSkills` | `update-config`, `loop`, `schedule`, `init` and a few more | bundled skills that trimmed chain sessions get only through `/name` |
 | `cacheTtl` | `null` | prompt cache lifetime of chain sessions, `"5m"` or `"1h"`; `null` leaves it to Claude Code (1 hour on a subscription, 5 minutes on an API key). A 1-hour cache write costs more but survives longer waits |
-| `updates.check` | `true` | ask GitHub for the latest Even Keel release at start and every 12 hours, without a token; `false` — never go there ([Updating](setup.md#updating)) |
+| `updates.check` | `true` | ask GitHub for the Even Keel releases at start and every 12 hours, without a token; `false` — never go there, and the update window has nothing to offer ([Updating](setup.md#updating)) |
 | `updates.notify` | `true` | a newer release gets a notification in the corner of the page; `false` — only the mark next to the version in the gear menu |
 | `unattended` | `false` | [unattended mode](features.md#unattended-mode), the switch in **Settings → Chain** |
 | `trimTools` | `true` | the **Trim the tools** switch in **Settings → Sessions**: chain sessions get no claude.ai skills and plugins, and the `hiddenSkills` only through `/name` |

@@ -117,6 +117,10 @@ A project with no CI, or whose CI does not answer, can name its own check comman
 
 With `pullRequests` on, a session does not merge its branch: Even Keel pushes it, opens a pull request on GitHub or Forgejo and takes the next task; review feedback and failed checks go back to the task's session. Use it at your own risk: only opening, closing and merging on GitHub ran live. In full — the `projects[].pullRequests` row of the [reference](reference.md#configuration).
 
+## Updating from the page
+
+A newer release gets a mark next to the version in the gear menu and a notification. Both open the update window: the notes of every release since yours, a mark on a release that takes back part of an earlier one, and **Update**. Even Keel waits for the chains to settle, checks out the release, builds it and restarts the service; if the new version does not come up, the old one comes back, and the page says what failed. After an update, **Revert** goes back to the previous version the same way, unless the update changed the format of the stored state. The button needs Even Keel running as a service from a clean clone; otherwise the window says why and you update by hand. In full — [Updating](setup.md#updating).
+
 ## Languages
 
 The page is in English or Russian; the prompts Even Keel sends to sessions can be in either, separately.

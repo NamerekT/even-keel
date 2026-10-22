@@ -1,0 +1,120 @@
+/* The update window; its frame, head and foot are the add-package dialog's. */
+
+.update-window {
+  width: min(680px, calc(100vw - 32px));
+}
+
+.update-window__versions {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 4px 16px;
+  margin: 0;
+  font-size: 14px;
+}
+
+.update-window__versions dt {
+  color: var(--fg-muted);
+}
+
+.update-window__versions dd {
+  margin: 0;
+  font-family: var(--mono);
+}
+
+.update-window__muted {
+  margin: 0;
+  color: var(--fg-muted);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.update-window__notes {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.update-window__note {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+}
+
+.update-window__note-head {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+}
+
+.update-window__note-head h3,
+.update-window__previous h3 {
+  flex: 1;
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.update-window__note-head a {
+  color: var(--accent);
+  font-size: 13px;
+  text-decoration: none;
+}
+
+.update-window__note-head a:hover {
+  text-decoration: underline;
+}
+
+.update-window__markdown {
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.update-window__reverted {
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.update-window__reverted .update-window__markdown {
+  margin-top: 6px;
+  font-size: 13px;
+}
+
+.update-window__previous {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+}
+
+.update-window__result {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.update-window__result--ok {
+  border: 1px solid var(--border);
+}
+
+.update-window__result summary {
+  cursor: pointer;
+}
+
+.update-window__output {
+  max-height: 240px;
+  margin: 6px 0 0;
+  padding: 8px 10px;
+  overflow: auto;
+  border-radius: var(--radius);
+  background: var(--surface-muted);
+  color: var(--fg);
+  font-family: var(--mono);
+  font-size: 12px;
+  white-space: pre-wrap;
+  word-break: break-word;
+}

@@ -137,6 +137,12 @@ export interface SettingsControl {
   dismissUpdate(version: string): void
   /** The toast's "Don't show again": no toasts about new versions until the switch on /settings. */
   muteUpdates(): void
+  /** The update window's "Update" to the latest release (BTN-163): waits for the chains, then the update process takes over. */
+  installUpdate(): Promise<void>
+  /** Its "Revert" to the version the last update came from. */
+  revertUpdate(): Promise<void>
+  /** "Close" on how the last update or revert ended. */
+  closeUpdateResult(): void
 }
 
 /** The page's commands on packages (`src/packages/service.ts`); a project is named by its key. */
@@ -253,6 +259,9 @@ const COMMANDS: Record<string, Command> = {
   settings: ({ settings }, body) => settings.saveShared(sharedFormOf(body), sharedFormOf(baseOf(body))),
   'updates/dismiss': ({ settings }, body) => settings.dismissUpdate(textOf(body.version, 'version')),
   'updates/mute': ({ settings }) => settings.muteUpdates(),
+  'updates/install': ({ settings }) => settings.installUpdate(),
+  'updates/revert': ({ settings }) => settings.revertUpdate(),
+  'updates/seen': ({ settings }) => settings.closeUpdateResult(),
   'account/add': ({ account }, body) => account.add(body.agent === undefined ? CLAUDE : textOf(body.agent, 'agent')),
   'account/api': ({ account }, body) =>
     account.addApiKey(typeof body.name === 'string' ? body.name : '', textOf(body.key, 'key'), body.agent === undefined ? CLAUDE : textOf(body.agent, 'agent')),
