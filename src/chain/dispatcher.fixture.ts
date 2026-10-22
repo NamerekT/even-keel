@@ -44,6 +44,8 @@ export interface SetupOptions {
   limitResetAfter?: (account: string, at: string) => string | null
   /** Projects whose set of packages has a problem that holds the chain. */
   packagesBlocked?: Set<string>
+  /** Whether the service has read its account folders since its start; absent — it has. */
+  accountsRead?: boolean
   busy?: Set<string>
   waiting?: Set<string>
   /** Sessions whose turn has ended while their own background command runs: busy and mid-turn to the chain. */
@@ -118,6 +120,7 @@ export function setup(options: SetupOptions = {}) {
     limitReset: () => options.limitReset ?? null,
     limitResetAfter: options.limitResetAfter ?? (() => options.limitReset ?? null),
     packagesBlocked: (project) => options.packagesBlocked?.has(project) ?? false,
+    accountsRead: () => options.accountsRead ?? true,
     promptLanguage: () => 'ru',
     mainBranch: () => 'main',
     resume: async (_task, session) => {

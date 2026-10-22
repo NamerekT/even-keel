@@ -249,6 +249,11 @@ export interface DispatcherDeps {
   limitResetAfter: (account: string, at: string) => string | null
   /** The project's set of packages has a problem that holds its sessions (BTN-174): not installed, no key, no answer. */
   packagesBlocked: (project: string) => boolean
+  /**
+   * The service has read its account folders once since its start. Until then every folder looks gone, so the chains
+   * do nothing rather than pause on it; the first read checks them again.
+   */
+  accountsRead: () => boolean
   /** The language of the prompts of the task's project. */
   promptLanguage: (task: string) => Language
   /** The main branch of the task's project, which the prompts name. */
