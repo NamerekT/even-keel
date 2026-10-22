@@ -18,8 +18,6 @@ export interface ChangelogDeps {
   /** Writes the file by `change` and commits it to the main branch (`commitChangelog`); the sha, `null` — unchanged. */
   commit(project: string, path: string, message: string, change: (text: string | null) => string): Promise<string | null>
   db: Db
-  /** The project ids by key (`config.ids`). */
-  ids(): Record<string, string>
   now(): Date
 }
 
@@ -39,10 +37,10 @@ export class ChangelogDrafts {
 
   /** Reads the tasks of the written versions, for `writtenTasks`. */
   async load(): Promise<void> {
-    this.written = await writtenTasks(this.deps.db, this.deps.ids())
+    this.written = await writtenTasks(this.deps.db)
   }
 
-  /** The tasks the last written version of each milestone accounts for, by project key and milestone. */
+  /** The tasks the last written version of each milestone accounts for, by project and milestone. */
   writtenTasks(): Record<string, Record<string, string[]>> {
     return this.written
   }
@@ -58,8 +56,7 @@ export class ChangelogDrafts {
 
   private async step(project: string, milestone: string, op: ChangelogOp): Promise<ChangelogView> {
     const { db } = this.deps
-    const ids = this.deps.ids()
-    const latest = await latestVersion(db, project, milestone, ids)
+    const latest = await latestVersion(db, project, milestone)
     const [file, tags] = await Promise.all([this.deps.file(project), this.deps.tags(project)])
     const plan = changelogPlan(file.text, milestone, tags)
     const view = async (version: ChangelogVersion): Promise<ChangelogView> => ({
@@ -68,7 +65,7 @@ export class ChangelogDrafts {
       file: file.path,
       released: plan.tag,
       version,
-      spent: await spentOn(db, project, milestone, ids),
+      spent: await spentOn(db, project, milestone),
     })
     if (op.op === 'open' && latest !== null) return view(latest)
     if (op.op === 'open' || op.op === 'again') return view(await this.fresh(project, milestone, plan, file.path, tags, op.op === 'open' ? 'draft' : 'again'))
@@ -118,7 +115,7 @@ export class ChangelogDrafts {
 
   private async store(project: string, milestone: string, fields: Omit<ChangelogVersion, 'project' | 'milestone' | 'number' | 'at' | 'written'>): Promise<ChangelogVersion> {
     const version = { project, milestone, ...fields, at: this.deps.now().toISOString() }
-    const number = await addVersion(this.deps.db, version, this.deps.ids())
+    const number = await addVersion(this.deps.db, version)
     return { ...version, number, written: null }
   }
 
@@ -127,7 +124,7 @@ export class ChangelogDrafts {
     // The file is read again under the commit: the user may have changed it while the dialog was open.
     const sha = await this.deps.commit(project, file, `Changelog of ${milestone}`, (text) => withSection(text, changelogPlan(text, milestone, tags), latest.text))
     const written = { at: this.deps.now().toISOString(), commit: sha ?? '' }
-    await markWritten(this.deps.db, project, milestone, latest.number, written, this.deps.ids())
+    await markWritten(this.deps.db, project, milestone, latest.number, written)
     ;(this.written[project] ??= {})[milestone] = latest.tasks
     return { ...latest, written }
   }

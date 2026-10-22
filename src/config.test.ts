@@ -7,6 +7,7 @@ import {
   listenOf,
   parseConfig,
   poolEntries,
+  projectLabels,
   projectsByAccount,
   readKeyOf,
   runSettings,
@@ -19,12 +20,15 @@ import { DEFAULT_SHARES as SHARES } from './stats/checkpoint.js'
 import { SCHEMA_VERSION } from './storage/schema.js'
 import { DEFAULT_HIDDEN_SKILLS } from './tools/settings.js'
 
-/** Most cases here are about one field of a project, so they write `projects` keyed by the project key, each id `id-<KEY>`. */
+/**
+ * Most cases here are about one field of a project, so they write `projects` keyed by the project key, each id the
+ * same as its key: the maps of the config, by id, read as they would by key.
+ */
 const parse = (raw: Record<string, unknown>, adapters?: Parameters<typeof parseConfig>[1]) => {
   const { projects } = raw
   const listed =
     typeof projects === 'object' && projects !== null && !Array.isArray(projects)
-      ? Object.entries(projects).map(([key, entry]) => ({ id: `id-${key}`, key, ...(typeof entry === 'object' ? entry : { repo: entry }) }))
+      ? Object.entries(projects).map(([key, entry]) => ({ id: key, key, ...(typeof entry === 'object' ? entry : { repo: entry }) }))
       : projects
   return parseConfig({ ...raw, projects: listed }, adapters)
 }
@@ -37,10 +41,10 @@ describe('projects in the config', () => {
         { id: 'a7f0', key: 'ABC', repo: 'C:\\abc' },
       ],
     })
-    expect(Object.keys(config.projects)).toEqual(['XYZ', 'ABC'])
-    expect(config.projects).toEqual({ XYZ: 'C:\\xyz', ABC: 'C:\\abc' })
-    expect(config.ids).toEqual({ XYZ: 'b3c1', ABC: 'a7f0' })
-    expect(config.names).toEqual({ XYZ: 'Other' })
+    expect(Object.keys(config.projects)).toEqual(['b3c1', 'a7f0'])
+    expect(config.projects).toEqual({ b3c1: 'C:\\xyz', a7f0: 'C:\\abc' })
+    expect(config.keys).toEqual({ b3c1: 'XYZ', a7f0: 'ABC' })
+    expect(config.names).toEqual({ b3c1: 'Other' })
   })
 
   it('reject a map of projects, an entry that is not an object, and one without a key or with a malformed one', () => {
@@ -55,10 +59,17 @@ describe('projects in the config', () => {
     expect(() => parseConfig({ projects: [{ id: ' ', key: 'ABC', repo: 'C:\\abc' }] })).toThrow(/projects\[0\]\.id/)
   })
 
-  it('reject two entries with one id or one key, naming both places', () => {
+  it('reject two entries with one id, naming both places, but take two with one key (BTN-271)', () => {
     const twice = (a: object, b: object) => () => parseConfig({ projects: [{ repo: 'C:\\a', ...a }, { repo: 'C:\\b', ...b }] })
     expect(twice({ id: 'a', key: 'ABC' }, { id: 'a', key: 'XYZ' })).toThrow(/projects\[0\].*projects\[1\]/)
-    expect(twice({ id: 'a', key: 'ABC' }, { id: 'b', key: 'ABC' })).toThrow(/ABC.*projects\[0\].*projects\[1\]/)
+    const config = parseConfig({
+      projects: [
+        { id: 'a', key: 'ABC', repo: 'C:\\a', chain: { excludedMilestones: ['v1.0.1'] } },
+        { id: 'b', key: 'ABC', repo: 'C:\\b', mergeInto: 'ABC', chain: { requiredMilestones: ['v1.0.1'] } },
+      ],
+    })
+    expect(config.keys).toEqual({ a: 'ABC', b: 'ABC' })
+    expect(config.settings.b?.mergeInto).toBe('a')
   })
 
   it('reject a schema version newer than this code knows', () => {
@@ -92,7 +103,7 @@ describe('parseConfig', () => {
     expect(config).toEqual({
       allowedHosts: [],
       projects: { ABC: 'C:\\repos\\abc' },
-      ids: { ABC: 'id-ABC' },
+      keys: { ABC: 'ABC' },
       names: {},
       rules: { ABC: DEFAULT_RULES },
       slots: {},
@@ -688,6 +699,29 @@ describe('projects on one tracker project', () => {
   it('reject two projects whose milestones do not split the tasks', () => {
     expect(() => parse({ projects: { ABC: 'C:\\abc', ABCR: release } })).toThrow(/ABCR.*ABC/)
     expect(() => parse({ projects: { ABC: { repo: 'C:\\abc', chain: { requiredMilestones: ['v1.0.1', 'v2'] } }, ABCR: release } })).toThrow(/ABCR.*ABC/)
+  })
+})
+
+describe('projects of one key (BTN-271)', () => {
+  const main = { id: 'f00d-1', key: 'ABC', repo: 'C:\\abc', chain: { excludedMilestones: ['v1.0.1'] } }
+  const release = { id: 'beef-2', key: 'ABC', repo: 'C:\\abc-release', branch: 'release/v1', chain: { requiredMilestones: ['v1.0.1'] } }
+
+  it('read the tracker project of their key, and are told apart by name, then branch, then the start of the id', () => {
+    const config = parseConfig({ projects: [main, release] })
+    expect([readKeyOf(config, 'f00d-1'), readKeyOf(config, 'beef-2')]).toEqual(['ABC', 'ABC'])
+    expect(projectLabels(config)).toEqual({ 'f00d-1': 'ABC (main)', 'beef-2': 'ABC (release/v1)' })
+    const named = parseConfig({ projects: [{ ...main, name: 'Next' }, { ...release, branch: 'main', name: 'Next' }] })
+    expect(projectLabels(named)).toEqual({ 'f00d-1': 'ABC (F00D)', 'beef-2': 'ABC (BEEF)' })
+    const alone = parseConfig({ projects: [main, { ...release, key: 'XYZ' }] })
+    expect(projectLabels(alone)).toEqual({ 'f00d-1': 'ABC', 'beef-2': 'XYZ' })
+  })
+
+  it('may share a GitHub repository, but not hold two: the ids of their tasks would clash', () => {
+    const github = (repo: string) => ({ tracker: 'github', github: repo })
+    expect(() => parseConfig({ projects: [{ ...main, ...github('octo-org/abc') }, { ...release, ...github('octo-org/abc') }] })).not.toThrow()
+    expect(() => parseConfig({ projects: [{ ...main, ...github('octo-org/abc') }, { ...release, ...github('octo-org/other') }] })).toThrow(
+      expect.objectContaining({ notice: expect.objectContaining({ code: 'config.keyElsewhere' }) }),
+    )
   })
 })
 

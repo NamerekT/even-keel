@@ -5,7 +5,7 @@ import { setLanguage } from './i18n/index.js'
 import { FAKE_SHARED, fakeConfig } from './live/fakeConfig.js'
 import type { StatusCategory, Task } from '../../src/tracker/model.js'
 import type { AccountEntry, AccountLogin, AccountView } from '../../src/account/model.js'
-import type { EvenKeelState, SessionView } from '../../src/state.js'
+import type { EvenKeelState, ProjectTask, SessionView } from '../../src/state.js'
 import type { ActiveChain, CurrentTask, ProjectOrder } from '../../src/chain/dispatcher.js'
 import type { TaskSession } from '../../src/chain/launches.js'
 import {
@@ -42,6 +42,7 @@ import {
   cacheFreshness,
   cacheTone,
   taskLinks,
+  taskPrefix,
   taskProject,
   tokenTotal,
   usageNotice,
@@ -81,15 +82,18 @@ function view(task: string, lamp: SessionView['lamp'], lastActivityAt: string | 
   }
 }
 
-function task(id: string, category: StatusCategory = 'Active', blockedBy: string[] = []): Task {
-  return fakeTask(id, { status: { name: category, category }, blockedBy })
+/** A task of the project its prefix names: each project's id is its key here, except where a case is about the two. */
+function task(id: string, category: StatusCategory = 'Active', blockedBy: string[] = []): ProjectTask {
+  return { project: taskPrefix(id), ...fakeTask(id, { status: { name: category, category }, blockedBy }) }
 }
 
 function stateOf(patch: Partial<EvenKeelState>): EvenKeelState {
   return {
     startedAt: '2026-01-01T08:00:00.000Z',
     projects: ['ABC', 'XYZ'],
-    projectIds: { ABC: 'id-abc', XYZ: 'id-xyz' },
+    projectKeys: { ABC: 'ABC', XYZ: 'XYZ' },
+    projectLabels: { ABC: 'ABC', XYZ: 'XYZ' },
+    taskPrefixes: { ABC: 'ABC', XYZ: 'XYZ' },
     config: { shared: FAKE_SHARED, projects: {}, trackers: [], trackerLocked: [] },
     chain: { active: [], parallel: 1, queue: [], projects: {}, skipped: {}, leftovers: {} },
     tasks: [],
@@ -179,13 +183,24 @@ describe('waitingSessions', () => {
 })
 
 describe('taskProject', () => {
-  it('takes the project key off a task id', () => {
-    expect(taskProject('ABC-12')).toBe('ABC')
-    expect(taskProject('MY_KEY2-3')).toBe('MY_KEY2')
+  it('takes the prefix off a task id or the name of a fix session without a state', () => {
+    expect(taskPrefix('ABC-12')).toBe('ABC')
+    expect(taskProject(null, 'MY_KEY2-3')).toBe('MY_KEY2')
+    expect(taskProject(null, 'ABC-FIX')).toBe('ABC')
   })
 
-  it('takes the project key off the name of a fix session', () => {
-    expect(taskProject('ABC-FIX')).toBe('ABC')
+  it('finds the project of two that share a key: by the task it lists, by the fix name, else the first of the prefix (BTN-271)', () => {
+    const state = stateOf({
+      projects: ['id-a', 'id-b'],
+      projectKeys: { 'id-a': 'ABC', 'id-b': 'ABC' },
+      taskPrefixes: { 'id-a': 'ABC', 'id-b': 'ABC' },
+      tasks: [{ ...task('ABC-7'), project: 'id-b' }],
+    })
+    expect(taskProject(state, 'ABC-7')).toBe('id-b')
+    expect(taskProject(state, 'ABC-8')).toBe('id-a')
+    expect(taskProject(state, 'ABC-FIX')).toBe('id-a')
+    expect(taskProject(state, 'ABC_IDB-FIX')).toBe('id-b')
+    expect(taskProject(state, 'NOPE-1')).toBe('NOPE')
   })
 })
 
@@ -203,22 +218,20 @@ describe('openQuestions', () => {
 })
 
 describe('project paths', () => {
-  it('name a project by its id, a project without one by its key', () => {
-    const state = stateOf({ projectIds: { ABC: 'id-abc' } })
-    expect(projectPath(state, 'ABC')).toBe('/p/id-abc')
-    expect(projectPath(state, 'XYZ')).toBe('/p/XYZ')
+  it('name a project by its id', () => {
+    expect(projectPath('id-abc')).toBe('/p/id-abc')
   })
 
-  it('read the project from its id and from the key of an older link', () => {
-    const state = stateOf({})
-    expect(projectOfPath(state, 'id-xyz')).toEqual({ project: 'XYZ', byKey: false })
-    expect(projectOfPath(state, 'ABC')).toEqual({ project: 'ABC', byKey: true })
+  it('read the project from its id and from the key of an older link, the first project of the key', () => {
+    const state = stateOf({ projects: ['id-a', 'id-b', 'id-x'], projectKeys: { 'id-a': 'ABC', 'id-b': 'ABC', 'id-x': 'XYZ' } })
+    expect(projectOfPath(state, 'id-b')).toEqual({ project: 'id-b', byKey: false })
+    expect(projectOfPath(state, 'ABC')).toEqual({ project: 'id-a', byKey: true })
     expect(projectOfPath(state, 'nothing')).toEqual({ project: 'nothing', byKey: false })
   })
 })
 
 describe('questionPath', () => {
-  const question = (id: string, category: StatusCategory = 'ToDo'): Task => ({ ...task(id, category), question: true })
+  const question = (id: string, category: StatusCategory = 'ToDo'): ProjectTask => ({ ...task(id, category), question: true })
   const order = (ids: string[], waiting: string[] = []) => ({ order: ids, waiting, backlog: [], error: null })
 
   it('leads to the session of the only open question', () => {
@@ -227,7 +240,7 @@ describe('questionPath', () => {
       sessions: [view('ABC-2', 'waiting', null)],
       chain: chain({ projects: { ABC: order(['ABC-1', 'ABC-2']) } }),
     })
-    expect(questionPath(state, ['ABC', 'XYZ'])).toBe('/p/id-abc#ABC-2')
+    expect(questionPath(state, ['ABC', 'XYZ'])).toBe('/p/ABC#ABC-2')
   })
 
   it('takes the first question in chain order, across projects in page order', () => {
@@ -236,9 +249,9 @@ describe('questionPath', () => {
       sessions: [view('ABC-2', 'waiting', null), view('ABC-3', 'working', null), view('XYZ-1', 'waiting', null)],
       chain: chain({ projects: { ABC: order(['ABC-3', 'ABC-2']), XYZ: order(['XYZ-1']) } }),
     })
-    expect(questionPath(state, ['ABC', 'XYZ'])).toBe('/p/id-abc#ABC-3')
-    expect(questionPath(state, ['XYZ', 'ABC'])).toBe('/p/id-xyz#XYZ-1')
-    expect(questionPath(state, ['XYZ'])).toBe('/p/id-xyz#XYZ-1')
+    expect(questionPath(state, ['ABC', 'XYZ'])).toBe('/p/ABC#ABC-3')
+    expect(questionPath(state, ['XYZ', 'ABC'])).toBe('/p/XYZ#XYZ-1')
+    expect(questionPath(state, ['XYZ'])).toBe('/p/XYZ#XYZ-1')
   })
 
   it('leads to the project page while no question has a session: ahead in the chain, held back or in the backlog', () => {
@@ -247,7 +260,7 @@ describe('questionPath', () => {
       sessions: [view('ABC-2', 'finished', null)],
       chain: chain({ projects: { ABC: { ...order(['ABC-1'], ['ABC-2']), backlog: ['ABC-3'] } } }),
     })
-    expect(questionPath(state, ['ABC'])).toBe('/p/id-abc')
+    expect(questionPath(state, ['ABC'])).toBe('/p/ABC')
   })
 
   it('passes a question without a session for a later one that has it', () => {
@@ -256,7 +269,7 @@ describe('questionPath', () => {
       sessions: [view('XYZ-2', 'waiting', null)],
       chain: chain({ projects: { ABC: order(['ABC-1']), XYZ: order(['XYZ-1', 'XYZ-2']) } }),
     })
-    expect(questionPath(state, ['ABC', 'XYZ'])).toBe('/p/id-xyz#XYZ-2')
+    expect(questionPath(state, ['ABC', 'XYZ'])).toBe('/p/XYZ#XYZ-2')
   })
 
   it('counts a question whose session is only starting', () => {
@@ -267,7 +280,7 @@ describe('questionPath', () => {
         projects: { ABC: order(['ABC-1']) },
       }),
     })
-    expect(questionPath(state, ['ABC'])).toBe('/p/id-abc#ABC-1')
+    expect(questionPath(state, ['ABC'])).toBe('/p/ABC#ABC-1')
   })
 
   it('is null without open questions, whatever sessions the closed ones left', () => {
@@ -924,7 +937,7 @@ describe('chainBlocks', () => {
   })
 
   it('carries the milestone label and what an open task must follow, blockers and earlier milestones alike', () => {
-    const planned = (id: string, category: StatusCategory, label: string, blockedBy: string[] = []): Task => ({
+    const planned = (id: string, category: StatusCategory, label: string, blockedBy: string[] = []): ProjectTask => ({
       ...task(id, category, blockedBy),
       milestone: { label, targetDate: 0 },
     })
@@ -1015,7 +1028,7 @@ describe('chainBlocks', () => {
 
   it('carries the title, status name and category, and keeps a task Huly has not delivered yet', () => {
     const state = stateOf({
-      tasks: [fakeTask('ABC-1', { title: 'First', status: { name: 'In Progress', category: 'Active' } })],
+      tasks: [{ project: 'ABC', ...fakeTask('ABC-1', { title: 'First', status: { name: 'In Progress', category: 'Active' } }) }],
       chain: chain({ projects: { ABC: { order: ['ABC-1', 'ABC-2'], waiting: [], backlog: [], error:null } } }),
     })
     expect(chainBlocks(state, 'ABC').map(({ id, title, status, stage }) => ({ id, title, status, stage }))).toEqual([

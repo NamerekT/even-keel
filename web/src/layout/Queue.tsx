@@ -3,7 +3,7 @@ import { Link } from 'react-router'
 import type { EvenKeelState } from '../../../src/state.js'
 import { say, t } from '../i18n/index.js'
 import { useCommand } from '../live/useCommand.js'
-import { cardTask, chainStatus, projectName, projectPath, projectSlot } from '../state.js'
+import { cardTask, chainStatus, projectLabel, projectName, projectPath, projectSlot } from '../state.js'
 import { dragShift, dropIndex, moveItem } from '../ui/drag.js'
 import { QueueIcon } from '../ui/icons.js'
 import { Lamp } from '../ui/Lamp.js'
@@ -192,7 +192,7 @@ function QueueList({ state, queue, disabled, onMove, onRemove }: ListProps) {
               type="button"
               className="queue__handle"
               data-handle={project}
-              aria-label={t.queue.move(project)}
+              aria-label={t.queue.move(projectLabel(state, project))}
               disabled={queue.length < 2}
               onPointerDown={grab(index)}
               onPointerMove={follow}
@@ -208,7 +208,7 @@ function QueueList({ state, queue, disabled, onMove, onRemove }: ListProps) {
             <button
               type="button"
               className="queue__remove"
-              aria-label={t.queue.remove(project)}
+              aria-label={t.queue.remove(projectLabel(state, project))}
               title={t.queue.removeTitle}
               disabled={disabled}
               onClick={() => onRemove(project)}
@@ -230,7 +230,7 @@ function listClass(dragging: boolean, landing: boolean): string {
 
 function ProjectLink({ state, project }: { state: EvenKeelState; project: string }) {
   return (
-    <Link to={projectPath(state, project)} className="queue__key">
+    <Link to={projectPath(project)} className="queue__key">
       <ProjectLabel project={project} nameClass="queue__name" />
     </Link>
   )

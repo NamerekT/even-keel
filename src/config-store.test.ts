@@ -47,8 +47,8 @@ describe('ConfigStore', { timeout: 30_000 }, () => {
     await seed({ chain: { requiredLabels: ['Auto'] }, projects: [abc(), xyz()] })
     await config.look()
     expect(config.error).toBeNull()
-    expect(config.current.rules.ABC?.requiredLabels).toEqual(['Auto'])
-    expect(config.current.projects).toEqual({ ABC: 'C:\\abc', XYZ: 'C:\\xyz' })
+    expect(config.current.rules['id-abc']?.requiredLabels).toEqual(['Auto'])
+    expect(config.current.projects).toEqual({ 'id-abc': 'C:\\abc', 'id-xyz': 'C:\\xyz' })
     expect(changes).toBe(2)
 
     await config.look()
@@ -72,9 +72,9 @@ describe('ConfigStore', { timeout: 30_000 }, () => {
     const config = await open()
     const form = (project: string) => config.view().projects[project]!
 
-    const settings = { ...form('ABC'), branch: 'master', prompt: ' Mind Library. ', beforeStart: ['npm ci', ' '], check: ['npm test'], remoteProfiles: { github: 'org' } }
-    config.saveProject('ABC', { ...settings, own: { 'ci.kinds': ['github'], 'ci.waitMinutes': 20, fillMilestone: true } }, form('ABC'))
-    config.saveProject('XYZ', { ...form('XYZ'), prompt: 'Run tests.' }, form('XYZ'))
+    const settings = { ...form('id-abc'), branch: 'master', prompt: ' Mind Library. ', beforeStart: ['npm ci', ' '], check: ['npm test'], remoteProfiles: { github: 'org' } }
+    config.saveProject('id-abc', { ...settings, own: { 'ci.kinds': ['github'], 'ci.waitMinutes': 20, fillMilestone: true } }, form('id-abc'))
+    config.saveProject('id-xyz', { ...form('id-xyz'), prompt: 'Run tests.' }, form('id-xyz'))
     expect(await read()).toEqual(
       stored({
         projects: [
@@ -83,7 +83,7 @@ describe('ConfigStore', { timeout: 30_000 }, () => {
         ],
       }),
     )
-    expect(config.current.settings.ABC).toEqual({
+    expect(config.current.settings['id-abc']).toEqual({
       branch: 'master',
       prompt: 'Mind Library.',
       beforeStart: ['npm ci'],
@@ -111,18 +111,18 @@ describe('ConfigStore', { timeout: 30_000 }, () => {
     await seed({ projects: [abc({ brief: false, prompt: 'Old.', commands: { beforeStart: ['npm ci'], check: ['npm test'] }, ci: { waitMinutes: 5 } })] })
     const config = await open()
 
-    const form = config.view().projects.ABC!
-    config.saveProject('ABC', { ...form, prompt: '', beforeStart: [], check: [], own: {} }, form)
+    const form = config.view().projects['id-abc']!
+    config.saveProject('id-abc', { ...form, prompt: '', beforeStart: [], check: [], own: {} }, form)
     expect(await read()).toEqual(stored({ projects: [abc({ brief: false })] }))
   })
 
   it('refuses a project it does not know, and settings that would not parse, writing nothing', async () => {
     await seed({ projects: [abc()] })
     const config = await open()
-    const form = config.view().projects.ABC!
+    const form = config.view().projects['id-abc']!
 
     expect(() => config.saveProject('XYZ', { ...form, prompt: 'Hi.' }, form)).toThrow(/XYZ/)
-    expect(() => config.saveProject('ABC', { ...form, tracker: 'github' }, form)).toThrow(expect.objectContaining({ notice: expect.objectContaining({ code: 'config.trackerProject' }) }))
+    expect(() => config.saveProject('id-abc', { ...form, tracker: 'github' }, form)).toThrow(expect.objectContaining({ notice: expect.objectContaining({ code: 'config.trackerProject' }) }))
     expect(await read()).toEqual(stored({ projects: [abc()] }))
     expect(changes).toBe(0)
   })
@@ -139,16 +139,17 @@ describe('ConfigStore', { timeout: 30_000 }, () => {
 
     const id = config.addProject({ repo: 'D:\\new', branch: 'main', key: 'NEW', name: '', tracker: 'huly', trackerProject: '', profile: null, slot: 1 })
     expect(await read()).toEqual(stored({ projects: [abc(), { id, key: 'NEW', repo: 'D:\\new', slot: 1, color: 2 }] }))
-    expect(config.current.ids.NEW).toBe(id)
-    expect(config.current.slots.NEW).toBe(1)
+    expect(config.current.keys[id]).toBe('NEW')
+    expect(config.current.slots[id]).toBe(1)
   })
 
   it('refuses a project the config would not parse and writes nothing', async () => {
     await seed({ projects: [abc()] })
     const config = await open()
 
+    // The key may repeat (BTN-271), but two chains on one Huly project need their milestones split.
     expect(() => config.addProject({ repo: 'D:\\new', branch: 'main', key: 'ABC', name: '', tracker: 'huly', trackerProject: '', profile: null, slot: 0 })).toThrow(
-      expect.objectContaining({ notice: expect.objectContaining({ code: 'config.projectTwice' }) }),
+      expect.objectContaining({ notice: expect.objectContaining({ code: 'config.trackerProjectShared' }) }),
     )
     expect(await read()).toEqual(stored({ projects: [abc()] }))
   })
@@ -157,11 +158,11 @@ describe('ConfigStore', { timeout: 30_000 }, () => {
     await seed({ projects: [abc({ prompt: 'Old.' }), xyz()] })
     const config = await open()
 
-    config.removeProject('ABC')
+    config.removeProject('id-abc')
     expect(await read()).toEqual(stored({ projects: [xyz()] }))
     expect((await db.query('select * from setting_values where project_id is not null')).rows).toEqual([])
-    expect(config.current.projects).toEqual({ XYZ: 'C:\\xyz' })
-    expect(() => config.removeProject('ABC')).toThrow(expect.objectContaining({ notice: expect.objectContaining({ code: 'config.unknownProject' }) }))
+    expect(config.current.projects).toEqual({ 'id-xyz': 'C:\\xyz' })
+    expect(() => config.removeProject('id-abc')).toThrow(expect.objectContaining({ notice: expect.objectContaining({ code: 'config.unknownProject' }) }))
   })
 
   it('writes the shared settings and applies them at once, the tracker too', async () => {
@@ -171,7 +172,7 @@ describe('ConfigStore', { timeout: 30_000 }, () => {
     config.saveShared({ ...config.view().shared, parallel: 2, tracker: 'linear' }, config.view().shared)
     expect(await read()).toEqual(stored({ parallel: 2, tracker: 'linear', projects: [abc()] }))
     expect(config.current.parallel).toBe(2)
-    expect(config.view()).toMatchObject({ shared: { tracker: 'linear' }, projects: { ABC: { tracker: 'linear' } } })
+    expect(config.view()).toMatchObject({ shared: { tracker: 'linear' }, projects: { 'id-abc': { tracker: 'linear' } } })
   })
 
   it('writes the chain switches only when they change', async () => {

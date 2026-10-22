@@ -148,9 +148,8 @@ export class ConfigStore {
   }
 
   private idOf(project: string): string {
-    const id = this.current.ids[project]
-    if (id === undefined) throw fail('config.unknownProject', { key: project })
-    return id
+    if (this.current.projects[project] === undefined) throw fail('config.unknownProject', { key: project })
+    return project
   }
 
   private write(next: Record<string, unknown>): void {

@@ -71,11 +71,10 @@ function recordOf(fields: unknown, place: string, placeOf: Record<string, string
   const { id, key, repo, name, branch } = fields
   if (typeof key !== 'string' || !PROJECT_KEY.test(key)) throw fail('config.projectKey', { where: `${place}.key`, value: String(JSON.stringify(key)) })
   if (typeof id !== 'string' || id.trim() === '') throw fail('config.projectId', { where: `${place}.id` })
-  for (const [field, value] of [['key', key], ['id', id]] as const) {
-    const first = placeOf[`${field}:${value}`]
-    if (first !== undefined) throw fail('config.projectTwice', { field, value: JSON.stringify(value), first, second: place })
-    placeOf[`${field}:${value}`] = place
-  }
+  // Two projects may share a key (BTN-271): only the id names one.
+  const first = placeOf[id]
+  if (first !== undefined) throw fail('config.projectTwice', { field: 'id', value: JSON.stringify(id), first, second: place })
+  placeOf[id] = place
   if (typeof repo !== 'string' || repo === '') throw fail('config.repoEmpty', { key })
   if (name !== undefined && typeof name !== 'string') throw fail('config.projectName', { where: `${key}.name` })
   const trackerProjects = Object.fromEntries(trackerKeys.flatMap((field) => (fields[field] === undefined ? [] : [[field, fields[field]]])))

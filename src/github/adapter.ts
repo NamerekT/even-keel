@@ -19,8 +19,14 @@ export const github: TrackerAdapter = {
     if (!token) return undefined
     return {
       connect: async (timeoutMs) => (await import('./source.js')).connectGithub({ token, projects }, timeoutMs),
-      issueUrl: (project) => (project !== null && Object.hasOwn(projects, project) ? `https://github.com/${projects[project]}/issues/{number}` : null),
-      projectUrl: (project) => (Object.hasOwn(projects, project) ? `https://github.com/${projects[project]}/issues` : null),
+      issueUrl: (project) => {
+        const slug = project === null || !Object.hasOwn(projects, project) ? undefined : projects[project]!.value
+        return slug === undefined ? null : `https://github.com/${slug}/issues/{number}`
+      },
+      projectUrl: (project) => {
+        const slug = Object.hasOwn(projects, project) ? projects[project]!.value : undefined
+        return slug === undefined ? null : `https://github.com/${slug}/issues`
+      },
     }
   },
 }

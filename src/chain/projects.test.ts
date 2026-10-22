@@ -19,17 +19,4 @@ describe('Dispatcher and the projects of the config', () => {
     expect(stopped).toEqual([])
     expect(dispatcher.orders()['ABC']).toBeUndefined()
   })
-
-  it('carries the chain over to a renamed project key', async () => {
-    const { dispatcher } = setup()
-    dispatcher.setTasks('ABC', [task('ABC-1'), task('ABC-2')])
-    dispatcher.start('ABC')
-    await dispatcher.idle()
-    dispatcher.skip('ABC', 'ABC-2')
-
-    dispatcher.rekey((project) => (project === 'ABC' ? 'NEW' : project))
-    expect(dispatcher.state.active.map((chain) => chain.project)).toEqual(['NEW'])
-    expect(dispatcher.state.skipped).toEqual({ NEW: ['ABC-2'] })
-    expect(dispatcher.orders()['NEW']).toBeDefined()
-  })
 })

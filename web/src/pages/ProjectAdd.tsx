@@ -34,7 +34,7 @@ export function ProjectAddPage({ state }: { state: EvenKeelState }) {
   const [checkFailure, setCheckFailure] = useState<Notice | null>(null)
   const [checking, setChecking] = useState(false)
   const [round, setRound] = useState(0)
-  const [added, setAdded] = useState<string | null>(null)
+  const [added, setAdded] = useState<{ key: string; before: string[] } | null>(null)
   const [branchOpen, setBranchOpen] = useState(false)
   const choice = state.config.trackers.find((each) => each.name === fields.tracker)
   const shape = shapeOf(choice)
@@ -102,12 +102,16 @@ export function ProjectAddPage({ state }: { state: EvenKeelState }) {
   }, [noBranch])
 
   useEffect(() => {
-    if (added !== null && state.projectIds[added] !== undefined) void navigate(projectPath(state, added))
+    if (added === null) return
+    // The new project is the one of the key that was not there before: another project may have the key (BTN-271).
+    const project = state.projects.find((each) => !added.before.includes(each) && state.projectKeys[each] === added.key)
+    if (project !== undefined) void navigate(projectPath(project))
   }, [added, state, navigate])
 
   const add = async () => {
     if (draft === undefined || !readyToAdd(check)) return
-    if (await send('project/add', { ...draft })) setAdded(draft.key)
+    const before = state.projects
+    if (await send('project/add', { ...draft })) setAdded({ key: draft.key.trim(), before })
   }
 
   const ready = readyToAdd(check)

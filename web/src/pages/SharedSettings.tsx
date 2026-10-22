@@ -176,7 +176,7 @@ export function SharedSettings({ state }: { state: EvenKeelState }) {
   useEffect(() => {
     if (addsProfile) openTab(SCOPE, 'secrets')
   }, [addsProfile])
-  const vocabularies = useVocabularies(state.projects.flatMap((project) => state.projectIds[project] ?? []))
+  const vocabularies = useVocabularies(state.projects)
   const dirty = (id: GroupId) => changed(draft, keysOf(id), same).length > 0
   const outgoing = sent(draft, keysOf(open))
   const next = formOf(outgoing.form)

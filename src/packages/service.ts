@@ -5,7 +5,6 @@ import { promisify } from 'node:util'
 import type { SessionStart } from '../agent/contract.js'
 import { fail, notice, noticeOf, type Notice } from '../notice/notice.js'
 import type { KeyView, PackagesView, PackageView, ProjectPackages } from '../state.js'
-import { byMap, inverted } from '../storage/projects.js'
 import { bringsServer, Probes, projectPackages } from './check.js'
 import { McpGateway, type GatewayTarget } from './gateway.js'
 import { applySettings, defaultSettings, keysOf, substitute, upsertEnv, type KeyRules } from './keys.js'
@@ -30,9 +29,7 @@ export interface PackagesDeps {
   cache: string
   /** Even Keel's own `.env`: the pool of keys. */
   envFile: string
-  /** The id of each project key. */
-  ids: Record<string, string>
-  /** The repository of each project key. */
+  /** The repository of each project, by id. */
   repos: Record<string, string>
   /** The global configuration folder: its marketplaces and installed plugins, its `settings.json`. */
   globalDir: string
@@ -51,7 +48,7 @@ export interface PackagesDeps {
   addMarketplace: (dir: string) => Promise<void>
   /** The environment of a server process before its own variables. */
   baseEnv: () => NodeJS.ProcessEnv
-  /** The keys the project's servers take, its tracker profile's among them (`keyPool`); by project key. */
+  /** The keys the project's servers take, its tracker profile's among them (`keyPool`); by project id. */
   poolOf: (project: string) => NodeJS.ProcessEnv
   port: number
   log: (line: string) => void
@@ -74,12 +71,12 @@ export class Packages {
   private offers: { at: number; byName: Map<string, Offer> } | undefined
 
   constructor(private readonly deps: PackagesDeps) {
-    const loaded = loadPackages(deps.file, deps.ids)
+    const loaded = loadPackages(deps.file)
     this.file = loaded ?? this.seed()
-    if (loaded === undefined) savePackages(deps.file, this.file, deps.ids)
+    if (loaded === undefined) savePackages(deps.file, this.file)
     this.gateway = new McpGateway({ resolve: (route) => this.target(route), baseEnv: deps.baseEnv, log: deps.log })
     this.probes = new Probes({
-      urlOf: (project, name, install, server) => `${this.gateway.origin}${routeOf(this.idOf(project), name, install, server)}`,
+      urlOf: (project, name, install, server) => `${this.gateway.origin}${routeOf(project, name, install, server)}`,
       now: () => Date.now(),
       onChange: deps.onChange,
     })
@@ -102,16 +99,9 @@ export class Packages {
     return this.gateway.close()
   }
 
-  /** The projects of the config changed: renamed keys carry their sets and pins, the repositories are read for servers anew. */
-  async projectsChanged(rename: (project: string) => string): Promise<void> {
-    const renamed = <T>(records: Record<string, T>) => Object.fromEntries(Object.entries(records).map(([project, value]) => [rename(project), value]))
-    this.file = { ...this.file, projects: renamed(this.file.projects), pins: renamed(this.file.pins) }
-    this.save()
+  /** The projects of the config changed: the repositories are read for servers anew. */
+  async projectsChanged(): Promise<void> {
     await this.readImports()
-  }
-
-  private projectOf(id: string): string {
-    return byMap(inverted(this.deps.ids))(id)
   }
 
   view(): PackagesView {
@@ -196,7 +186,7 @@ export class Packages {
 
   /** What a session of the task gets; the first one pins the task to the installs it starts on. */
   startOf(project: string, task: string): Pick<SessionStart, 'mcp' | 'plugins'> {
-    const places = { gateway: this.gateway.origin, cache: this.deps.cache, projectId: this.idOf(project) }
+    const places = { gateway: this.gateway.origin, cache: this.deps.cache, projectId: project }
     const found = sessionPackages(this.file, project, task, places)
     if (this.file.pins[project]?.[task] === undefined && Object.keys(found.installs).length > 0) {
       ;(this.file.pins[project] ??= {})[task] = found.installs
@@ -381,7 +371,7 @@ export class Packages {
 
   /** The install the route names, with the project's settings and the pool's keys in its entry. */
   private target(route: { project: string; name: string; install: string; server: string }): GatewayTarget | null {
-    const project = this.projectOf(route.project)
+    const project = route.project
     const record = this.file.packages[route.name]
     const server = record?.installs.find((each) => each.id === route.install)?.servers[route.server]
     if (server === undefined) return null
@@ -507,12 +497,8 @@ export class Packages {
     if (project !== undefined && this.deps.repos[project] === undefined) throw fail('chain.unknownProject', { project })
   }
 
-  private idOf(project: string): string {
-    return this.deps.ids[project] ?? project
-  }
-
   private save(): void {
-    savePackages(this.deps.file, this.file, this.deps.ids)
+    savePackages(this.deps.file, this.file)
     this.deps.onChange()
   }
 }

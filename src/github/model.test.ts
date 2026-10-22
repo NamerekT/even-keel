@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { githubPriority, githubStatus, RepoMap, toCard, toTrackerTask, type CardRef, type GithubCardIssue, type GithubIssue } from './model.js'
 import { issue } from './fixture.js'
 
-const repos = new RepoMap({ ABC: 'octo-org/abc', XYZ: 'Octo-Org/xyz' })
+const repos = new RepoMap({ 'id-abc': { key: 'ABC', value: 'octo-org/abc' }, 'id-xyz': { key: 'XYZ', value: 'Octo-Org/xyz' } })
 
 describe('github status', () => {
   it('maps an open issue to ToDo and a closed one by its reason', () => {
@@ -41,7 +41,9 @@ describe('github repositories', () => {
     expect(repos.keyOf('octo-org/xyz')).toBe('XYZ')
     expect(repos.keyOf('OCTO-ORG/ABC')).toBe('ABC')
     expect(repos.keyOf('someone/else')).toBeUndefined()
-    expect(repos.repoOf('ABC')).toEqual({ owner: 'octo-org', name: 'abc' })
+    expect(repos.repoOf('id-abc')).toEqual({ owner: 'octo-org', name: 'abc' })
+    expect(repos.repoOfKey('ABC')).toEqual({ owner: 'octo-org', name: 'abc' })
+    expect(repos.projectKey('id-abc')).toBe('ABC')
     expect(repos.repoOf('NOPE')).toBeUndefined()
   })
 })

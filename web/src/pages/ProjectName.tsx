@@ -2,15 +2,17 @@ import { useRef, useState } from 'react'
 import type { ProjectForm } from '../../../src/state.js'
 import { say, t } from '../i18n/index.js'
 import { useCommand } from '../live/useCommand.js'
+import { useProjectLabel } from '../ui/ProjectLabel.js'
 
 const NAME_LENGTH = 80
 
 /**
  * The project's name after its key in the head. A click turns it into a field: Enter or leaving it saves, Esc gives up,
- * empty removes the name. The key stays the project's id; the save writes `name` alone, as the settings panel writes its fields.
+ * empty removes the name. The save writes `name` alone, as the settings panel writes its fields.
  */
 export function ProjectName({ project, form }: { project: string; form: ProjectForm }) {
   const { send, sending, failure } = useCommand()
+  const label = useProjectLabel()
   const [text, setText] = useState<string | null>(null)
   // The name on its way to the file: shown instead of the saved one until the save is answered.
   const [saving, setSaving] = useState<string | null | undefined>(undefined)
@@ -39,7 +41,7 @@ export function ProjectName({ project, form }: { project: string; form: ProjectF
         <button
           type="button"
           className={name === null ? 'project__name project__name--empty' : 'project__name'}
-          title={t.project.rename(project)}
+          title={t.project.rename(label(project))}
           disabled={sending}
           onClick={start}
         >

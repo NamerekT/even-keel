@@ -2,6 +2,7 @@ import { fail, notice, NoticeError } from '../../../src/notice/notice.js'
 import type { EvenKeelState, ProjectCheck, ProjectDraft, ProjectForm } from '../../../src/state.js'
 import { DEFAULT_RULES } from '../../../src/chain/rules.js'
 import { colorsOf } from '../../../src/projects/colors.js'
+import { fakeProjectMaps } from './fakeConfig.js'
 
 const ownColors = (forms: Record<string, ProjectForm>): Record<string, number> =>
   Object.fromEntries(Object.entries(forms).flatMap(([key, form]) => (form.color === null ? [] : [[key, form.color]])))
@@ -14,7 +15,7 @@ export function fakeNoProjects(state: EvenKeelState): EvenKeelState {
   return {
     ...state,
     projects: [],
-    projectIds: {},
+    ...fakeProjectMaps({}),
     config: { ...state.config, projects: {}, trackerLocked: [] },
     chain: { ...state.chain, active: [], queue: [], projects: {}, skipped: {}, leftovers: {} },
     tasks: [],
@@ -59,11 +60,14 @@ function entryNotice(state: EvenKeelState, draft: ProjectDraft): ProjectCheck['e
   const key = draft.key.trim()
   const where = `projects[${state.projects.length}]`
   if (!KEY.test(key)) return notice('config.projectKey', { where: `${where}.key`, value: key })
-  const taken = state.config.projects[key]
-  if (taken === undefined) return null
-  const project = taken.name ?? key
-  if (draft.tracker === 'linear') return notice('wizard.teamTaken', { tracker: 'Linear', team: key, project })
-  return notice('wizard.keyTaken', { key, project })
+  // Projects may share a key (BTN-271), but not on GitHub with another repository: the task ids of both would be the same.
+  if (draft.tracker !== 'github') return null
+  const repo = draft.trackerProject.trim() || null
+  const other = state.projects.find((project) => {
+    const form = state.config.projects[project]
+    return state.projectKeys[project] === key && form?.tracker === 'github' && form.trackerProject !== repo
+  })
+  return other === undefined ? null : notice('wizard.keyTaken', { key, project: state.projectLabels[other] ?? other })
 }
 
 function trackerOf(name: string, mode: string | null): ProjectCheck['tracker'] {
@@ -83,18 +87,23 @@ function trackerOf(name: string, mode: string | null): ProjectCheck['tracker'] {
 export function fakeProjectCommand(state: EvenKeelState, name: string, body: Record<string, unknown>): EvenKeelState | null {
   if (name === 'project/add') return withProject(state, body as unknown as ProjectDraft)
   if (name !== 'project/remove') return null
-  const key = String(body.project)
-  if (!state.projects.includes(key)) throw fail('config.unknownProject', { key })
-  if (state.chain.active.some((chain) => chain.project === key) || state.chain.queue.includes(key)) {
-    throw new NoticeError(notice('project.removeBlocked', { project: key }, { items: [notice('project.removeChain', {})] }))
+  const id = String(body.project)
+  if (!state.projects.includes(id)) throw fail('config.unknownProject', { key: id })
+  if (state.chain.active.some((chain) => chain.project === id) || state.chain.queue.includes(id)) {
+    throw new NoticeError(notice('project.removeBlocked', { project: id }, { items: [notice('project.removeChain', {})] }))
   }
-  const { [key]: _form, ...projects } = state.config.projects
-  const { [key]: _id, ...projectIds } = state.projectIds
-  return { ...state, projects: state.projects.filter((each) => each !== key), projectIds, config: { ...state.config, projects } }
+  const { [id]: _form, ...projects } = state.config.projects
+  const { [id]: _key, ...keys } = state.projectKeys
+  return { ...state, projects: state.projects.filter((each) => each !== id), ...mapsOf(keys, projects), config: { ...state.config, projects } }
 }
+
+const mapsOf = (keys: Record<string, string>, forms: Record<string, ProjectForm>) =>
+  fakeProjectMaps(keys, Object.fromEntries(Object.entries(forms).map(([project, form]) => [project, form.name ?? form.branch])))
 
 function withProject(state: EvenKeelState, draft: ProjectDraft): EvenKeelState {
   const key = draft.key.trim()
+  // A fake project's id is its key, but for one whose key another project has.
+  const id = state.projects.includes(key) ? crypto.randomUUID() : key
   const form: ProjectForm = {
     name: draft.name.trim() || null,
     repo: draft.repo.trim().replace(/\\/g, '/'),
@@ -102,7 +111,7 @@ function withProject(state: EvenKeelState, draft: ProjectDraft): EvenKeelState {
     tracker: draft.tracker,
     trackerProject: draft.trackerProject.trim() || null,
     slot: draft.slot,
-    color: colorsOf([...state.projects, key], ownColors(state.config.projects))[key] ?? null,
+    color: colorsOf([...state.projects, id], ownColors(state.config.projects))[id] ?? null,
     brief: state.config.shared.brief,
     chain: DEFAULT_RULES,
     prompt: null,
@@ -125,11 +134,12 @@ function withProject(state: EvenKeelState, draft: ProjectDraft): EvenKeelState {
     checkpointShares: state.config.shared.stats.checkpointShares,
     own: {},
   }
+  const projects = { ...state.config.projects, [id]: form }
   return {
     ...state,
-    projects: [...state.projects, key],
-    projectIds: { ...state.projectIds, [key]: crypto.randomUUID() },
-    config: { ...state.config, projects: { ...state.config.projects, [key]: form } },
-    chain: { ...state.chain, projects: { ...state.chain.projects, [key]: { order: [], waiting: [], backlog: [], error: null } } },
+    projects: [...state.projects, id],
+    ...mapsOf({ ...state.projectKeys, [id]: key }, projects),
+    config: { ...state.config, projects },
+    chain: { ...state.chain, projects: { ...state.chain.projects, [id]: { order: [], waiting: [], backlog: [], error: null } } },
   }
 }

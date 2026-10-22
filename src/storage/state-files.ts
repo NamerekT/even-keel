@@ -119,7 +119,7 @@ export function readStateFiles(stateDir: string, log: (line: string) => void = (
   if (chain !== undefined) {
     refuseNewer(chainFile, versionOf(chain))
     try {
-      chainStateOf(chain, {}, chainFile)
+      chainStateOf(chain, chainFile)
     } catch (error) {
       throw fail('storage.damaged', { file: chainFile }, {}, { cause: error })
     }
@@ -134,7 +134,7 @@ export function readStateFiles(stateDir: string, log: (line: string) => void = (
 
 async function writeState(db: Db, files: StateFiles): Promise<void> {
   if (files.chain !== undefined) {
-    const state = chainStateOf(files.chain, {}, STATE_FILES.chain)
+    const state = chainStateOf(files.chain, STATE_FILES.chain)
     await writeChainRecord(db, state)
     // The chain's switches are Even Keel's setting rows since BTN-199.
     await mirrorDefinitions(db)

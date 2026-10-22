@@ -350,6 +350,8 @@ export const noticesRu: NoticeTexts = {
   'config.milestoneBoth': (p) => `${p.project}: майлстоун «${p.milestone}» и обязательный, и исключающий`,
   'config.trackerProjectShared': (p) =>
     `${p.project} и ${p.other} читают проект трекера ${p.trackerProject}, и задача может попасть в обе цепочки: разделите их майлстоунами (обязательные и исключающие майлстоуны в правилах цепочки)`,
+  'config.keyElsewhere': (p) =>
+    `у ${p.project} и ${p.other} один ключ ${p.key} на разных репозиториях (${p.project} — на ${p.trackerProject}), и ID задач у них совпадут: дайте одному из них другой ключ`,
   'config.modelPrompts': () => 'modelPrompts должен сопоставлять имени модели промт',
   'config.modelPromptEmpty': (p) => `modelPrompts.${p.model} пуст`,
   'config.hiddenSkills': () => 'hiddenSkills должен быть списком имён навыков',
@@ -381,9 +383,7 @@ export const noticesRu: NoticeTexts = {
   'config.checkpointShareOrder': (p) => `${p.where}: нужно first < late < hard, а не ${p.first}, ${p.late}, ${p.hard}`,
   'wizard.notRepo': (p) => `${p.path} — не папка git-репозитория`,
   'wizard.repoTaken': (p) => `этот репозиторий уже подключён как проект ${p.project}`,
-  'wizard.keyTaken': (p) => `ключ ${p.key} уже занят проектом ${p.project} — выберите другой`,
-  'wizard.teamTaken': (p) =>
-    `команда ${p.tracker} ${p.team} уже подключена как проект ${p.project}, а в этой версии одна команда ${p.tracker} — это один проект Even Keel: заведите для этого репозитория отдельную команду в ${p.tracker}`,
+  'wizard.keyTaken': (p) => `ключ ${p.key} уже у проекта ${p.project} на другом репозитории, и ID задач у них совпадут — выберите другой`,
   'wizard.noBranch': (p) => `в репозитории нет ветки ${p.branch}, есть ${p.branches.join(', ')}`,
   'wizard.noCommits': () => 'в репозитории ещё нет коммитов — сделайте первый',
   'wizard.trackerOff': (p) => `нет профиля ${p.tracker} с ${list(p.variables)}: добавьте его пунктом «Добавить профиль» в списке «Профиль»`,

@@ -1,5 +1,6 @@
 import type { CSSProperties } from 'react'
 import { t } from '../i18n/index.js'
+import { useProjectLabel } from '../ui/ProjectLabel.js'
 
 /** The matrix sections the skeleton imitates and how many rows each gets. */
 const SHAPE: [keyof typeof t.tools.section, number][] = [
@@ -12,6 +13,7 @@ const SHAPE: [keyof typeof t.tools.section, number][] = [
 const NAME_WIDTHS = [62, 44, 78, 52, 36, 70]
 
 export function ToolsLoading({ projects, ready }: { projects: string[]; ready: (project: string) => boolean }) {
+  const label = useProjectLabel()
   let row = 0
   return (
     <div className="tools-loading" role="status" aria-label={t.tools.loading}>
@@ -28,7 +30,7 @@ export function ToolsLoading({ projects, ready }: { projects: string[]; ready: (
                 <th />
                 {projects.map((project) => (
                   <th key={project} className={ready(project) ? 'tools-loading__project tools-loading__project--ready' : 'tools-loading__project'}>
-                    {project}
+                    {label(project)}
                   </th>
                 ))}
               </tr>

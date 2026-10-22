@@ -27,18 +27,18 @@ function sharedValues(raw: unknown, adapters: Adapters): Values {
 /** The forms of the settings: what the config ends up with, per project and shared. */
 export function formsOf(config: EvenKeelConfig, adapters: Adapters = ADAPTERS): Pick<ConfigView, 'shared' | 'projects'> {
   const projects = Object.fromEntries(
-    Object.entries(config.projects).map(([key, repo]): [string, ProjectForm] => [
-      key,
+    Object.entries(config.projects).map(([id, repo]): [string, ProjectForm] => [
+      id,
       {
-        ...config.settings[key]!,
-        name: config.names[key] ?? null,
+        ...config.settings[id]!,
+        name: config.names[id] ?? null,
         repo,
-        tracker: config.trackers[key]!,
-        trackerProject: adapters[config.trackers[key]!]?.projectKey === undefined ? null : (config.trackerProjects[key] ?? null),
-        slot: config.slots[key] ?? 0,
-        color: config.colors[key] ?? null,
-        brief: config.briefs[key]!,
-        chain: config.rules[key]!,
+        tracker: config.trackers[id]!,
+        trackerProject: adapters[config.trackers[id]!]?.projectKey === undefined ? null : (config.trackerProjects[id] ?? null),
+        slot: config.slots[id] ?? 0,
+        color: config.colors[id] ?? null,
+        brief: config.briefs[id]!,
+        chain: config.rules[id]!,
       },
     ]),
   )
@@ -133,7 +133,7 @@ export function withNewProject(raw: unknown, draft: ProjectDraft, id: string, ad
   if (draft.slot > 0) entry.slot = draft.slot
   const next = { ...config, projects: [...(Array.isArray(config.projects) ? config.projects : []), entry] }
   // Written, so that the color stays when a project before it goes and frees a lower one.
-  const color = parseConfig(next, adapters).colors[entry.key as string]
+  const color = parseConfig(next, adapters).colors[id]
   if (color !== undefined) entry.color = color
   return next
 }

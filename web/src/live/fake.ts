@@ -14,7 +14,7 @@ import { deviceLogin } from '../accounts.js'
 import { accountCommand, fakeAccount, fakeUsage, FAKE_LIMITS } from './fakeAccounts.js'
 import { FAKE_FIX, fakeCi } from './fakeCi.js'
 import { fakeUpdates } from './fakeUpdates.js'
-import { FAKE_PROJECT_IDS, FAKE_PULL_READINESS, FAKE_REMOTES, FAKE_VOCABULARY, fakeConfig, fakeHandEdit } from './fakeConfig.js'
+import { FAKE_PROJECTS, FAKE_PULL_READINESS, FAKE_REMOTES, FAKE_VOCABULARY, fakeConfig, fakeHandEdit, fakeProjectMaps } from './fakeConfig.js'
 import { withFix } from './fakeFix.js'
 import { fakeCompare, fakeRuleDiff, fakeRules } from './fakeRules.js'
 import { fakeSteps } from './fakeSteps.js'
@@ -128,8 +128,8 @@ function fakeState(
   ]
   return {
     startedAt: ago(180),
-    projects: ['ABC', 'DEMO', 'XYZ', 'OPS'],
-    projectIds: FAKE_PROJECT_IDS,
+    projects: FAKE_PROJECTS,
+    ...fakeProjectMaps(),
     config: fakeConfig(),
     chain: {
       active: idle
@@ -583,7 +583,7 @@ export function createFakeSource(search: string): LiveSource {
       await answer()
       const mode = params.get('vocabulary')
       if (mode === 'fail') throw new Error('huly: not connected')
-      return mode === 'none' || !Object.values(FAKE_PROJECT_IDS).includes(projectId) ? null : FAKE_VOCABULARY
+      return mode === 'none' || !FAKE_PROJECTS.includes(projectId) ? null : FAKE_VOCABULARY
     },
     checkProject: async (draft) => {
       await answer()

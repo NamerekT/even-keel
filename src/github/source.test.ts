@@ -29,7 +29,8 @@ const page = (nodes: unknown[], endCursor: string | null = null) => ({
 const by = (login: string | null, authorAssociation: string) => ({ author: login === null ? null : { login }, authorAssociation })
 const notFound =(path: string[]) => ({ type: 'NOT_FOUND', path, message: 'Could not resolve to an Issue with the number of 99.' })
 
-const PROJECTS = { ABC: 'octo-org/abc' }
+/** The project's id is its key here: the cases are about the repository, not about telling projects apart. */
+const PROJECTS = { ABC: { key: 'ABC', value: 'octo-org/abc' } }
 const notTerminal = (status: TaskStatus) => status.category !== 'Won' && status.category !== 'Lost'
 
 async function connect(replies: Reply[]) {

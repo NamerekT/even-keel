@@ -1,15 +1,15 @@
 {
   "allowedHosts": [],
   "projects": {
-    "ABC": "C:\\repos\\example-project",
-    "XYZ": "C:\\repos\\other-project"
+    "11111111-1111-4111-8111-111111111111": "C:\\repos\\example-project",
+    "22222222-2222-4222-8222-222222222222": "C:\\repos\\other-project"
   },
-  "ids": {
-    "ABC": "11111111-1111-4111-8111-111111111111",
-    "XYZ": "22222222-2222-4222-8222-222222222222"
+  "keys": {
+    "11111111-1111-4111-8111-111111111111": "ABC",
+    "22222222-2222-4222-8222-222222222222": "XYZ"
   },
   "names": {
-    "XYZ": "Other project"
+    "22222222-2222-4222-8222-222222222222": "Other project"
   },
   "chain": {
     "active": null,
@@ -20,7 +20,7 @@
     "excludedMilestones": []
   },
   "rules": {
-    "ABC": {
+    "11111111-1111-4111-8111-111111111111": {
       "active": null,
       "terminal": null,
       "requiredLabels": [],
@@ -28,7 +28,7 @@
       "requiredMilestones": [],
       "excludedMilestones": []
     },
-    "XYZ": {
+    "22222222-2222-4222-8222-222222222222": {
       "active": null,
       "terminal": null,
       "requiredLabels": [],
@@ -38,25 +38,25 @@
     }
   },
   "slots": {
-    "XYZ": 2
+    "22222222-2222-4222-8222-222222222222": 2
   },
   "colors": {
-    "ABC": 1,
-    "XYZ": 2
+    "11111111-1111-4111-8111-111111111111": 1,
+    "22222222-2222-4222-8222-222222222222": 2
   },
   "tracker": "huly",
   "trackers": {
-    "ABC": "huly",
-    "XYZ": "huly"
+    "11111111-1111-4111-8111-111111111111": "huly",
+    "22222222-2222-4222-8222-222222222222": "huly"
   },
   "trackerProjects": {},
   "brief": null,
   "briefs": {
-    "ABC": null,
-    "XYZ": null
+    "11111111-1111-4111-8111-111111111111": null,
+    "22222222-2222-4222-8222-222222222222": null
   },
   "settings": {
-    "ABC": {
+    "11111111-1111-4111-8111-111111111111": {
       "branch": "main",
       "prompt": null,
       "beforeStart": [],
@@ -96,7 +96,7 @@
       "own": {},
       "promptLanguage": "en"
     },
-    "XYZ": {
+    "22222222-2222-4222-8222-222222222222": {
       "branch": "master",
       "prompt": null,
       "beforeStart": [],

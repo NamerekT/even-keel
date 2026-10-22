@@ -20,6 +20,7 @@ import {
   issueLink,
   limitWaitText,
   openQuestions,
+  projectLabel,
   projectPage,
   projectSlot,
   projectTasks,
@@ -83,7 +84,9 @@ export function Project({ state, project: key }: { state: EvenKeelState; project
     if (focus !== '') document.getElementById(focus)?.scrollIntoView({ block: 'nearest' })
   }, [focus])
   const arrival = useArrival(state, key, blocks, close)
-  const strip = useStrip(key, projectSlot(state, key))
+  // The stats know a project by its key (Tally), not by its id.
+  const statsKey = state.projectKeys[key] ?? key
+  const strip = useStrip(statsKey, projectSlot(state, key))
   const wide = useWide()
   const narrow = useNarrow()
   const settings = state.config.projects[key]
@@ -133,7 +136,7 @@ export function Project({ state, project: key }: { state: EvenKeelState; project
     <section className={side ? 'project project--panel' : 'project'}>
       <div className="page">
         <header className="project__head">
-          <h1 className="page__title project__title">{key}</h1>
+          <h1 className="page__title project__title">{settings?.name == null ? projectLabel(state, key) : (state.projectKeys[key] ?? key)}</h1>
           {settings !== undefined && <ProjectName project={key} form={settings} />}
           <QuestionsChip count={openQuestions(projectTasks(state, key))} to={question?.includes('#') ? question : null} />
           {tracker !== undefined && <TrackerRead project={key} tracker={tracker} />}
@@ -164,7 +167,7 @@ export function Project({ state, project: key }: { state: EvenKeelState; project
             onCard={openCard}
           />
         )}
-        <StatsStrip project={key} strip={strip} />
+        <StatsStrip project={statsKey} strip={strip} />
         <ToolsLink key={`tools-${key}`} project={key} trim={state.trimTools} packages={state.packages} />
       </div>
       {column && (
@@ -188,7 +191,7 @@ export function Project({ state, project: key }: { state: EvenKeelState; project
               onSettled={arrival.settle}
             />
           )}
-          {settingsOpen && <SettingsPanel key={`settings-${key}`} project={key} form={settings} config={state.config} configError={state.configError} tasks={state.tasks.filter((task) => taskProject(task.id) === key)} onClose={close} />}
+          {settingsOpen && <SettingsPanel key={`settings-${key}`} project={key} form={settings} config={state.config} configError={state.configError} tasks={projectTasks(state, key)} onClose={close} />}
           {ciOpen && <CiPanel views={ci} urls={state.trackerUrls} fixes={state.fixes[key] ?? []} fix={ciAt.fix} onClose={close} />}
           {!side && (
             <IdlePanel
@@ -213,8 +216,8 @@ export function Project({ state, project: key }: { state: EvenKeelState; project
           <TaskCard
             task={opened}
             link={issueLink(state.trackerUrls, opened)}
-            tracker={state.trackers.find((view) => view.projects.includes(taskProject(opened)))?.title ?? null}
-            refused={state.chain.projects[taskProject(opened)]?.refused?.[opened] ?? null}
+            tracker={state.trackers.find((view) => view.projects.includes(taskProject(state, opened)))?.title ?? null}
+            refused={state.chain.projects[taskProject(state, opened)]?.refused?.[opened] ?? null}
             onOpen={openCard}
             onClose={closeCard}
           />

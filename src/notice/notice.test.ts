@@ -1,6 +1,15 @@
 import { describe, expect, it } from 'vitest'
-import { asNotice, englishOf, fail, notice, noticeOf, renderNotice, sameNotice, textNotice, type Notice, type NoticeTexts } from './notice.js'
+import { asNotice, englishOf, fail, notice, noticeOf, renderNotice, sameNotice, textNotice, withLabels, type Notice, type NoticeTexts } from './notice.js'
 import { en } from './en.js'
+
+describe('withLabels', () => {
+  it('shows every project id in a text by its label, and leaves the rest as it is (BTN-271)', () => {
+    const labels = { '11111111-1111-4111-8111-111111111111': 'ABC (main)', '22222222-2222-4222-8222-222222222222': 'ABC (release/v1)' }
+    const text = 'forward: 22222222-2222-4222-8222-222222222222 carried 2 commit(s) into main of 11111111-1111-4111-8111-111111111111'
+    expect(withLabels(text, labels)).toBe('forward: ABC (release/v1) carried 2 commit(s) into main of ABC (main)')
+    expect(withLabels('chain: XYZ ended', labels)).toBe('chain: XYZ ended')
+  })
+})
 
 describe('notices', () => {
   it('renders the English text from the code and its values', () => {

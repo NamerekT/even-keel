@@ -303,6 +303,8 @@ export interface MainCheckDeps {
   checkMain: (project: string, task: string, commit: string) => Promise<MainCheckRun>
   /** `ci.fixTask`: a red main becomes a task in the tracker rather than a session without one. */
   fixTask: (project: string) => boolean
+  /** The name the project's fix session runs under: `ABC-FIX`. */
+  fixName: (project: string) => string
   /** Whether the branch of the task, or of the fix session, is in main with commits of its own. */
   merged: (project: string, task: string) => Promise<boolean>
   /** Whether the project has `commands.afterGreen` (BTN-156). */

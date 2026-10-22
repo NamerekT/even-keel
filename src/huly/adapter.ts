@@ -25,7 +25,8 @@ export const huly: TrackerAdapter = {
       },
       issueUrl: () => `${base}{id}`,
       projectUrl: (project) => {
-        const id = projectIds.get(projects[project] ?? project)
+        const place = projects[project]
+        const id = place === undefined ? undefined : projectIds.get(place.value ?? place.key)
         return id === undefined ? null : `${base}${id}/issues`
       },
     }

@@ -1,6 +1,6 @@
 import type { SessionView } from '../state.js'
 import type { LaunchEntry, ReleaseReason } from './dispatcher.js'
-import { fixEpisodeId, fixName, fixTaskOf, isFixName, liveFixId } from './fix.js'
+import { fixEpisodeId, fixTaskOf, isFixName, liveFixId } from './fix.js'
 import type { FixOutcome } from './model.js'
 
 export interface LaunchDay {
@@ -73,7 +73,7 @@ export function fixEpisodes(entries: LaunchEntry[]): { episodes: Record<string, 
     let open = list.at(-1)
     if (open?.end !== null) open = undefined
     const start = () => {
-      const episode: FixEpisode = { id: fixEpisodeId(entry.project, list.length + 1), red: entry.commit ?? null, at: entry.at, end: null }
+      const episode: FixEpisode = { id: fixEpisodeId(fixTaskOf(entry.task), list.length + 1), red: entry.commit ?? null, at: entry.at, end: null }
       list.push(episode)
       return episode
     }
@@ -131,8 +131,8 @@ export function taskSessions(
   }
   for (const view of live) {
     const fix = isFixName(view.task) ? fixTaskOf(view.task) : null
-    const project = fix === null ? '' : fix.slice(0, -fixName('').length)
-    const rows = rowsOf(fix === null ? view.task : liveFixId(project, fixes.episodes[project] ?? []))
+    const project = fix === null ? undefined : entries.findLast((entry) => fixTaskOf(entry.task) === fix)?.project
+    const rows = rowsOf(fix === null ? view.task : liveFixId(fix, (project === undefined ? undefined : fixes.episodes[project]) ?? []))
     if (!rows.has(view.sessionId)) rows.set(view.sessionId, { sessionId: view.sessionId, at: view.startedAt, how: 'manual', resumed: 0, answers: 0 })
   }
   for (const entry of releases) {

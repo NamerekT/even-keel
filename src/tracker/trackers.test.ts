@@ -33,11 +33,10 @@ const github: TrackerAdapter = {
     env.GITHUB_TOKEN === undefined ? undefined : { ...setupOf(env.GITHUB_TOKEN), issueUrl: (project) => (project === null ? `https://${env.GITHUB_TOKEN}` : (projects[project] ?? null)) },
 }
 
-const IDS = { ABC: 'id-abc', XYZ: 'id-xyz' }
-
+/** Each project's id is its key here, except where a case is about the two. */
 const config = (more: Partial<TrackerConfig> = {}): TrackerConfig => ({
   projects: { ABC: 'D:/abc', XYZ: 'D:/xyz' },
-  ids: IDS,
+  keys: { ABC: 'ABC', XYZ: 'XYZ' },
   tracker: 'huly',
   trackers: { ABC: 'huly', XYZ: 'huly' },
   trackerProjects: {},
@@ -83,14 +82,26 @@ describe('trackerPlans', () => {
   it('gives each profile its projects, sorted, and their names in it; the default profile of the default tracker is there without projects', () => {
     const set: ProfileSet = { profiles: [profile('work', 'huly', {}), profile('octo', 'github', {})], links: {} }
     const plans = trackerPlans(config({ trackers: { XYZ: 'github', ABC: 'github' }, trackerProjects: { XYZ: 'octo/xyz', ABC: 'octo/abc' } }), set)
-    expect(plans.get('work')).toMatchObject({ kind: 'huly', projects: [], names: {} })
-    expect(plans.get('octo')).toMatchObject({ kind: 'github', projects: ['ABC', 'XYZ'], names: { ABC: 'octo/abc', XYZ: 'octo/xyz' } })
+    expect(plans.get('work')).toMatchObject({ kind: 'huly', projects: [], places: {} })
+    expect(plans.get('octo')).toMatchObject({
+      kind: 'github',
+      projects: ['ABC', 'XYZ'],
+      places: { ABC: { key: 'ABC', value: 'octo/abc' }, XYZ: { key: 'XYZ', value: 'octo/xyz' } },
+    })
+  })
+
+  it('gives the adapter the key of each project by its id: two projects may share one (BTN-271)', () => {
+    const plans = trackerPlans(
+      config({ projects: { 'id-a': 'D:/a', 'id-b': 'D:/b' }, keys: { 'id-a': 'ABC', 'id-b': 'ABC' }, trackers: { 'id-a': 'huly', 'id-b': 'huly' }, trackerProjects: { 'id-b': 'XYZ' } }),
+      hulyOnly({}),
+    )
+    expect(plans.get('work')?.places).toEqual({ 'id-a': { key: 'ABC' }, 'id-b': { key: 'ABC', value: 'XYZ' } })
   })
 
   it('puts projects whose tracker has no profile under one key of the tracker', () => {
     const plans = trackerPlans(config({ trackers: { ABC: 'github', XYZ: 'huly' } }), hulyOnly({}))
     expect([...plans.keys()]).toEqual(['work', 'none:github'])
-    expect(plans.get('none:github')).toEqual({ kind: 'github', profile: undefined, projects: ['ABC'], names: {} })
+    expect(plans.get('none:github')).toEqual({ kind: 'github', profile: undefined, projects: ['ABC'], places: { ABC: { key: 'ABC' } } })
   })
 })
 
@@ -108,7 +119,7 @@ describe('Trackers', () => {
     const { trackers, started } = context()
     const set: ProfileSet = {
       profiles: [profile('personal', 'github', { GITHUB_TOKEN: 'g1' }), profile('org', 'github', { GITHUB_TOKEN: 'g2' }, false), profile('work', 'huly', {})],
-      links: { [IDS.XYZ]: 'org' },
+      links: { XYZ: 'org' },
     }
     trackers.apply(config({ trackers: { ABC: 'github', XYZ: 'github' } }), set)
     expect(started.map((each) => [each.view.name, each.view.projects, each.setup.issueUrl(null)])).toEqual([

@@ -47,7 +47,7 @@ export function ProjectCard({ state, project, turn }: { state: EvenKeelState; pr
     <article className={`card card--${status.kind}`} style={seriesStyle(slot)}>
       <header className="card__head">
         <span className="card__swatch" aria-hidden="true" />
-        <Link to={projectPath(state, project)} className="card__key">
+        <Link to={projectPath(project)} className="card__key">
           <ProjectLabel project={project} nameClass="card__name" />
         </Link>
         {(status.kind === 'paused' || status.kind === 'queued') && <StatusChip status={status} />}

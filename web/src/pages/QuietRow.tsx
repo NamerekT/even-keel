@@ -1,7 +1,7 @@
 import { Link } from 'react-router'
 import type { EvenKeelState } from '../../../src/state.js'
 import { t } from '../i18n/index.js'
-import { chainProgress, projectName, projectPath, projectSlot, projectTasks } from '../state.js'
+import { chainProgress, projectLabel, projectName, projectPath, projectSlot, projectTasks } from '../state.js'
 import { seriesStyle } from '../ui/series.js'
 import { Tipped } from '../ui/Tipped.js'
 import { emptyCall, quipOf } from './ProjectCard.js'
@@ -32,9 +32,9 @@ export function QuietRow({ state, project, turn }: { state: EvenKeelState; proje
         </>
       }
     >
-      <Link to={projectPath(state, project)} className="quiet__row" style={seriesStyle(projectSlot(state, project))}>
+      <Link to={projectPath(project)} className="quiet__row" style={seriesStyle(projectSlot(state, project))}>
         <span className="card__swatch" aria-hidden="true" />
-        <span className="quiet__key">{project}</span>
+        <span className="quiet__key">{projectLabel(state, project)}</span>
         <span className="quiet__count" aria-label={t.project.done}>
           <strong>{progress.done}</strong> / {progress.total}
         </span>
