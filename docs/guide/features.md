@@ -16,6 +16,12 @@ A task that needs no change in the repository — done in `main` already, resear
 
 What a session runs on — the provider, its model and its account — is set in the config, shared and per project; Claude sessions run on Opus by default, whatever `/model` last saved in the CLI settings. With `modelLabels` on, a task's label `Claude | sonnet`, `Codex | gpt-6.1-sol` or a bare `Codex` picks it for that task; a label of a provider with no account set runs the task on the project's provider and says so in a toast.
 
+## Release branches
+
+Fixes of a released version can run in a chain of their own while the next version goes on in another. Clone the repository a second time, check out the release branch there and add it as a project with its own key on the same tracker project (`huly` names it; on Linear, `TEAM/Project`). The two split the tracker's tasks by milestone: the release project requires the release's milestone (`chain.requiredMilestones`), the main one excludes it (`chain.excludedMilestones`), and Even Keel refuses a pair that would both take one task. They read the tracker once between them.
+
+With `mergeInto` naming the main project, the release project is carried forward: Even Keel merges its branch into the main project's branch in the main project's checkout and pushes it, in batches, whenever the main chain stands — stopped, empty or paused — so a fix never lands in the middle of a task's merge. **Carry now** on the release project's page does it at once. A conflict is aborted and the carry waits: resolve it by merging by hand, or press **Carry now** to try again. Nothing is ever merged into `main` of a released version; that moves by your release.
+
 ## Codex (preview)
 
 The shared or a project's `provider` key (the shared one is also moved by giving the Even Keel role to the Codex account on the accounts page), or a `Codex` label on a task, runs the task's sessions on the OpenAI Codex CLI instead: one `codex exec --json` per turn, the transcript, context fill and limits (5-hour and weekly, or the free plan's 30-day one) read from Codex's own session files, the project's packages passed on every turn. Codex has no question tool, so a turn that ends without the task done waits for your reply in the chat window.

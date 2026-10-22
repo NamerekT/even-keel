@@ -609,13 +609,13 @@ export class TallyDb implements Store {
     const found = new Set(records.map((record) => record.task))
     const missing = asked
       .filter((task) => !found.has(task))
-      .map((task) => ({ task, title: null, status: null, labels: [], related: [], priority: null, estimateH: null, component: null, done: null }))
+      .map((task) => ({ task, title: null, status: null, labels: [], related: [], priority: null, estimateH: null, component: null, milestone: null, done: null }))
     await this.upsert(
-      `insert into tasks (task, title, status, labels, related, priority, estimate_h, component, done, fetched_at)
+      `insert into tasks (task, title, status, labels, related, priority, estimate_h, component, milestone, done, fetched_at)
        select task, title, status, array(select jsonb_array_elements_text(labels)), array(select jsonb_array_elements_text(related)),
-         priority, estimate_h, component, done, now()
+         priority, estimate_h, component, milestone, done, now()
        from jsonb_to_recordset($1::jsonb) as x(
-         task text, title text, status text, labels jsonb, related jsonb, priority text, estimate_h numeric, component text, done boolean)
+         task text, title text, status text, labels jsonb, related jsonb, priority text, estimate_h numeric, component text, milestone text, done boolean)
        on conflict (task) do update set
          title = coalesce(excluded.title, tasks.title), status = coalesce(excluded.status, tasks.status),
          labels = case when excluded.title is null then tasks.labels else excluded.labels end,
@@ -623,6 +623,7 @@ export class TallyDb implements Store {
          priority = case when excluded.title is null then tasks.priority else excluded.priority end,
          estimate_h = case when excluded.title is null then tasks.estimate_h else excluded.estimate_h end,
          component = case when excluded.title is null then tasks.component else excluded.component end,
+         milestone = case when excluded.title is null then tasks.milestone else excluded.milestone end,
          done = case when excluded.title is null then tasks.done else excluded.done end,
          fetched_at = excluded.fetched_at`,
       [...records, ...missing],

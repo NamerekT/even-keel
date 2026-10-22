@@ -72,13 +72,14 @@ export async function backupVersions(homes: AccountHome[], home: string): Promis
   return rows
 }
 
-// Rule file versions on the project's main since the last read head (first parent only: a merge lands at its own time).
-export async function gitVersions(repo: string, home: string, known: string | null): Promise<{ head: string; rows: RuleRows }> {
+// Rule file versions on the project's branch since the last read head (first parent only: a merge lands at its own time).
+export async function gitVersions(repo: string, branch: string, home: string, known: string | null): Promise<{ head: string; rows: RuleRows }> {
   const git = async (args: string[]) => (await run('git', ['-C', repo, ...args], { maxBuffer: 64 * 1024 * 1024 })).stdout
-  const head = (await git(['rev-parse', 'main'])).trim()
+  const ref = `refs/heads/${branch}`
+  const head = (await git(['rev-parse', '--verify', ref])).trim()
   const rows = emptyRuleRows()
   if (head === known) return { head, rows }
-  const range = known === null ? 'main' : `${known}..main`
+  const range = known === null ? ref : `${known}..${ref}`
   const log = await git(['log', '--first-parent', '--diff-merges=first-parent', '--no-renames', '--name-status', '--format=%x00%H %cI', range, '--', ...PROJECT_SPECS])
   for (const commit of parseGitLog(log)) {
     for (const change of commit.files) {
