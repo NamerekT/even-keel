@@ -1272,15 +1272,25 @@ export const en: Messages = {
   session: {
     launches: {
       launch: 'Chain launch',
-      relay: 'New after the limit',
       restart: 'Restart',
       checkpoint: 'From a checkpoint',
       manual: 'Started by hand',
     },
+    relayed: {
+      limit: 'New after the limit',
+      mainFixed: 'New after main was fixed',
+      review: 'New after the pull request feedback',
+      returned: 'New after the task came back',
+    },
     replaced: {
-      relay: 'hit the usage limit',
       restart: 'replaced by hand',
       checkpoint: 'set a checkpoint',
+    },
+    replacedRelay: {
+      limit: 'hit the usage limit',
+      mainFixed: 'replaced after main was fixed',
+      review: 'replaced after the pull request feedback',
+      returned: 'replaced after the task came back',
     },
     remote: {
       starting: 'Remote Control is starting — the link comes in a couple of seconds.',

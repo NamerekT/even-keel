@@ -86,10 +86,42 @@ describe('taskSessions', () => {
     expect(list).toEqual({
       'ABC-1': [
         { sessionId: 's3', at: '2026-09-27T17:20:00.000Z', how: 'relay', resumed: 0, answers: 0 },
-        { sessionId: 's1', at: '2026-09-27T10:00:00.000Z', how: 'launch', resumed: 0, answers: 0 },
+        { sessionId: 's1', at: '2026-09-27T10:00:00.000Z', how: 'launch', resumed: 0, answers: 0, replaced: { at: '2026-09-27T17:20:00.000Z', how: 'relay' } },
       ],
       'ABC-2': [{ sessionId: 's2', at: '2026-09-27T11:00:00.000Z', how: 'launch', resumed: 0, answers: 0 }],
     })
+  })
+
+  it('carries the cause of a new session with a handoff to its row and to the row it replaced', () => {
+    const list = taskSessions(
+      [
+        entry('2026-09-27T10:00:00.000Z', 'ABC-1', 's1'),
+        entry('2026-09-27T11:00:00.000Z', 'ABC-1', 's2', { reason: 'relay', cause: 'returned', previous: 's1' }),
+        entry('2026-09-27T12:00:00.000Z', 'ABC-1', 's3', { reason: 'review', cause: 'review', previous: 's2' }),
+        entry('2026-09-27T13:00:00.000Z', 'ABC-1', 's4', { reason: 'relay', cause: 'mainFixed', previous: 's3' }),
+      ],
+      [],
+    )['ABC-1']!
+    expect(list.map((row) => [row.sessionId, row.how, row.cause, row.replaced?.cause])).toEqual([
+      ['s4', 'relay', 'mainFixed', undefined],
+      ['s3', 'relay', 'review', 'mainFixed'],
+      ['s2', 'relay', 'returned', 'review'],
+      ['s1', 'launch', undefined, 'returned'],
+    ])
+  })
+
+  it('leaves the cause of an older relay entry unset and a review of the same session a plain launch', () => {
+    const list = taskSessions(
+      [
+        entry('2026-09-27T10:00:00.000Z', 'ABC-1', 's1', { reason: 'review' }),
+        entry('2026-09-27T11:00:00.000Z', 'ABC-1', 's2', { reason: 'relay', previous: 's1' }),
+      ],
+      [],
+    )['ABC-1']!
+    expect(list.map((row) => [row.sessionId, row.how, row.cause])).toEqual([
+      ['s2', 'relay', undefined],
+      ['s1', 'launch', undefined],
+    ])
   })
 
   it('counts a warm resume on the session it continued instead of listing it twice', () => {

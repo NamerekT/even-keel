@@ -1286,15 +1286,25 @@ export const ru = {
   session: {
     launches: {
       launch: 'Запуск цепочкой',
-      relay: 'Новая после лимита',
       restart: 'Перезапуск',
       checkpoint: 'По контрольной точке',
       manual: 'Запущена вручную',
     },
+    relayed: {
+      limit: 'Новая после лимита',
+      mainFixed: 'Новая после починки main',
+      review: 'Новая после отзыва на pull request',
+      returned: 'Новая после возврата задачи',
+    },
     replaced: {
-      relay: 'упёрлась в лимит',
       restart: 'заменена вручную',
       checkpoint: 'поставила контрольную точку',
+    },
+    replacedRelay: {
+      limit: 'упёрлась в лимит',
+      mainFixed: 'заменена после починки main',
+      review: 'заменена после отзыва на pull request',
+      returned: 'заменена после возврата задачи',
     },
     remote: {
       starting: 'Remote Control поднимается — ссылка будет через пару секунд.',

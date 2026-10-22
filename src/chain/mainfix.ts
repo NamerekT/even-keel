@@ -130,7 +130,7 @@ export class MainFix {
       now.getTime() - Date.parse(session.lastReplyAt) < WARM_CACHE_MS
     try {
       const sessionId = warm ? await this.deps.reply(held.task, session, prompt) : await this.host.handOver(held.task, session, 'mainFixed', prompt)
-      this.deps.journal({ at, project, task: held.task, sessionId, reason: warm ? 'resume' : 'relay', previous: session.sessionId })
+      this.deps.journal({ at, project, task: held.task, sessionId, reason: warm ? 'resume' : 'relay', ...(warm ? {} : { cause: 'mainFixed' as const }), previous: session.sessionId })
       current.sessionId = sessionId
       current.resumedAt = at
       delete current.starting
