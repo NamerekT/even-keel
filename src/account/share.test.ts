@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { samePath } from '../paths.js'
-import { linkType, mergeSettings, shareConfig, sharedMemory, shareProjects } from './share.js'
+import { linkType, mergeSettings, shareConfig, sharedMemory, shareProjects, skillStore } from './share.js'
 
 describe('sharedMemory', () => {
   it('is the folder of the repository in the memory store next to the global folder, the one both folders link to', () => {
@@ -156,6 +156,94 @@ describe('shareConfig project memory', () => {
     share()
     expect(readFileSync(join(stored(), 'sub', 'x.md'), 'utf8')).toBe('X')
     expect(linksTo(memory(folder), stored())).toBe(true)
+  })
+})
+
+describe('shareConfig skills', () => {
+  let root: string
+  let global: { dir: string; config: string }
+  let folder: string
+  const warnings: string[] = []
+  const skill = (dir: string, name = 'review') => join(dir, 'skills', name)
+  const stored = (name = 'review') => join(root, '.claude-skills', name)
+  const linksTo = (path: string, target: string) => lstatSync(path).isSymbolicLink() && samePath(realpathSync(path), realpathSync(target))
+  const share = () => shareConfig(global, folder, (message) => warnings.push(message))
+
+  beforeEach(() => {
+    warnings.length = 0
+    root = mkdtempSync(join(tmpdir(), 'even-keel-share-'))
+    global = { dir: join(root, 'global'), config: join(root, '.claude.json') }
+    folder = join(root, 'account')
+    mkdirSync(skill(global.dir), { recursive: true })
+    writeFileSync(join(skill(global.dir), 'SKILL.md'), '# Review')
+  })
+
+  afterEach(() => rmSync(root, { recursive: true, force: true }))
+
+  it('is a folder next to the global one', () => {
+    expect(skillStore('C:/Users/john/.claude')).toBe(join('C:/Users/john', '.claude-skills'))
+  })
+
+  it('moves a global skill into the store and links both the global and the account folder to it', () => {
+    expect(share()).toBe(true)
+    expect(readFileSync(join(stored(), 'SKILL.md'), 'utf8')).toBe('# Review')
+    expect(linksTo(skill(global.dir), stored())).toBe(true)
+    expect(linksTo(skill(folder), stored())).toBe(true)
+    expect(readlinkSync(skill(folder))).not.toContain('global')
+  })
+
+  it('reports a change on the move and none on a repeat', () => {
+    expect(share()).toBe(true)
+    expect(share()).toBe(false)
+  })
+
+  it('points an account link into the global folder at the store instead', () => {
+    mkdirSync(join(folder, 'skills'), { recursive: true })
+    symlinkSync(skill(global.dir), skill(folder), linkType(process.platform))
+    expect(share()).toBe(true)
+    expect(linksTo(skill(folder), stored())).toBe(true)
+    expect(readFileSync(join(skill(folder), 'SKILL.md'), 'utf8')).toBe('# Review')
+  })
+
+  it('leaves the folders of the CLI itself in place', () => {
+    mkdirSync(skill(global.dir, 'synced'), { recursive: true })
+    mkdirSync(skill(global.dir, '.trash'), { recursive: true })
+    share()
+    expect(lstatSync(skill(global.dir, 'synced')).isSymbolicLink()).toBe(false)
+    expect(lstatSync(skill(global.dir, '.trash')).isSymbolicLink()).toBe(false)
+    expect(() => lstatSync(stored('synced'))).toThrow()
+  })
+
+  it('leaves a global skill that links elsewhere where it points, and the account links to it as before', () => {
+    const elsewhere = join(root, 'repo', 'skills', 'strata')
+    mkdirSync(elsewhere, { recursive: true })
+    symlinkSync(elsewhere, skill(global.dir, 'strata'), linkType(process.platform))
+    share()
+    expect(linksTo(skill(global.dir, 'strata'), elsewhere)).toBe(true)
+    expect(() => lstatSync(stored('strata'))).toThrow()
+    expect(linksTo(skill(folder, 'strata'), elsewhere)).toBe(true)
+  })
+
+  it('leaves an account skill that links elsewhere alone', () => {
+    const elsewhere = join(root, 'repo', 'skills', 'review')
+    mkdirSync(elsewhere, { recursive: true })
+    mkdirSync(join(folder, 'skills'), { recursive: true })
+    symlinkSync(elsewhere, skill(folder), linkType(process.platform))
+    share()
+    expect(linksTo(skill(folder), elsewhere)).toBe(true)
+  })
+
+  it('merges into a store folder that already has the skill and warns about files that differ', () => {
+    mkdirSync(stored(), { recursive: true })
+    writeFileSync(join(stored(), 'SKILL.md'), '# Review, stored')
+    writeFileSync(join(skill(global.dir), 'notes.md'), 'N')
+    share()
+    expect(readFileSync(join(stored(), 'notes.md'), 'utf8')).toBe('N')
+    expect(readFileSync(join(stored(), 'SKILL.md'), 'utf8')).toBe('# Review, stored')
+    expect(lstatSync(skill(global.dir)).isSymbolicLink()).toBe(false)
+    expect(warnings).toHaveLength(1)
+    expect(warnings[0]).toContain('SKILL.md')
+    expect(linksTo(skill(folder), skill(global.dir))).toBe(true)
   })
 })
 
