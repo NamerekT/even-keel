@@ -521,7 +521,7 @@ export const en: Messages = {
     prefixHint: 'A capital Latin letter, then up to 4 capitals, digits or _. It names the tasks, their branches and the stats.',
     ownKey: 'Project key',
     ownKeyHint:
-      "Even Keel's name of the project, a capital Latin letter, then up to 4 capitals, digits or _: the tracker's project or team by default. A second project on the same tracker project or team needs a key of its own, e.g. for a release branch or another repository; its tasks keep the tracker's names.",
+      "Even Keel's name of the project, a capital Latin letter, then up to 4 capitals, digits or _: the tracker's project or team by default. A second project on the same tracker project or team needs a key of its own, e.g. for a release branch or another repository; its tasks keep the tracker's names. Two projects on one tracker project split its tasks by milestone.",
     example: (key: string, place: boolean, ownKey: string | null) =>
       place
         ? `Issue #12 becomes ${key}-12, its branch ${key.toLowerCase()}-12/task.`
@@ -529,6 +529,9 @@ export const en: Messages = {
     name: 'Name',
     nameHint: "Shown on the page; filled in from the tracker's project, can be changed.",
     namePlaceholder: 'Storefront',
+    milestonesHint:
+      'This project takes only the tasks of these milestones, so that no task enters two chains. The projects already on this tracker project give them up.',
+    yields: (projects: string) => `The tasks of these milestones leave ${projects}: they go into its "No tasks in milestones".`,
     advanced: "Advanced: tasks' folders",
     stepPlace: "Tasks' folders",
     placeNow: (slots: number) => (slots === 0 ? 'a worktree per task' : `a pool of ${slots} slots`),

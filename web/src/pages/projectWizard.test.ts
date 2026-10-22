@@ -21,6 +21,7 @@ const fields = (change: Partial<WizardFields>): WizardFields => ({ ...EMPTY_FIEL
 const passed: ProjectCheck = {
   repo: { root: 'D:/Projects/shop', current: 'main', suggested: null, notice: null },
   entry: null,
+  yields: [],
   tracker: { ok: true, missing: [], open: 3, openToAll: false, notice: null },
   trusted: true,
   platform: 'win32',
@@ -48,7 +49,12 @@ describe('draftOfFields', () => {
       trackerProject: 'org/shop',
       profile: null,
       slot: 0,
+      milestones: [],
     })
+  })
+
+  it('gives the milestones one per line, blanks dropped (BTN-306)', () => {
+    expect(draftOfFields(fields({ milestones: ' v1.0.1 \n\n v1.0.2' }))?.milestones).toEqual(['v1.0.1', 'v1.0.2'])
   })
 
   it("gives the chosen profile, and none for the kind's default one: the project follows the default then", () => {

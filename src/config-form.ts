@@ -1,6 +1,6 @@
-import type { ChainRules } from './chain/rules.js'
+import { DEFAULT_RULES, sameName, splitsMilestones, type ChainRules } from './chain/rules.js'
 import { CI_KINDS } from './ci/model.js'
-import { DEFAULT_BRANCH, DEFAULT_LANGUAGE, isPlainObject, parseConfig, RULE_KEYS, withProjectSettings, type EvenKeelConfig } from './config.js'
+import { DEFAULT_BRANCH, DEFAULT_LANGUAGE, isPlainObject, parseConfig, readKeyOf, RULE_KEYS, withProjectSettings, type EvenKeelConfig } from './config.js'
 import { fail } from './notice/notice.js'
 import { changesOf, type FormValue } from './settings/changes.js'
 import { sharedRows, withRows, writeRows } from './settings/file.js'
@@ -131,11 +131,52 @@ export function withNewProject(raw: unknown, draft: ProjectDraft, id: string, ad
   const value = trackerValue(adapters, draft.tracker, draft.trackerProject, entry.key as string)
   if (own !== undefined && value !== undefined) entry[own] = value
   if (draft.slot > 0) entry.slot = draft.slot
-  const next = { ...config, projects: [...(Array.isArray(config.projects) ? config.projects : []), entry] }
+  const milestones = names(draft.milestones)
+  if (milestones.length > 0) entry.chain = { requiredMilestones: milestones }
+  const yielded = yieldedMilestones(config, draft, id, adapters)
+  const before = (Array.isArray(config.projects) ? (config.projects as unknown[]) : []).map((each) => {
+    const rules = isPlainObject(each) ? yielded[String(each.id)] : undefined
+    if (!isPlainObject(each) || rules === undefined) return each
+    return { ...each, chain: { ...(isPlainObject(each.chain) ? each.chain : {}), ...rules } }
+  })
+  const next = { ...config, projects: [...before, entry] }
   // Written, so that the color stays when a project before it goes and frees a lower one.
   const color = parseConfig(next, adapters).colors[id]
   if (color !== undefined) entry.color = color
   return next
+}
+
+type MilestoneRules = Partial<Pick<ChainRules, 'requiredMilestones' | 'excludedMilestones'>>
+
+/**
+ * What the projects on the draft's tracker project give up so that both split its tasks (BTN-306): by project, its
+ * milestone rules with the draft's milestones taken out of its required ones, or, when it requires none, added to its
+ * excluded ones. A project that splits with the draft already gives up nothing; one left requiring none is not changed,
+ * and the config still refuses the pair.
+ */
+export function yieldedMilestones(raw: unknown, draft: ProjectDraft, id: string, adapters: Adapters = ADAPTERS): Record<string, MilestoneRules> {
+  const milestones = names(draft.milestones)
+  if (milestones.length === 0) return {}
+  const config = parseConfig(raw, adapters)
+  const key = draft.key.trim()
+  const value = trackerValue(adapters, draft.tracker, draft.trackerProject, key)
+  const placed = {
+    keys: { ...config.keys, [id]: key },
+    trackers: { ...config.trackers, [id]: draft.tracker },
+    trackerProjects: { ...config.trackerProjects, ...(value === undefined ? {} : { [id]: value }) },
+  }
+  const place = readKeyOf(placed, id, adapters)
+  const own: ChainRules = { ...DEFAULT_RULES, requiredMilestones: milestones }
+  const without = (list: string[], gone: string[]) => list.filter((name) => !gone.some((each) => sameName(each, name)))
+  const yielded: Record<string, MilestoneRules> = {}
+  for (const project of Object.keys(config.projects)) {
+    const rules = config.rules[project]!
+    if (config.trackers[project] !== draft.tracker || readKeyOf(placed, project, adapters) !== place || splitsMilestones(rules, own)) continue
+    const kept = without(rules.requiredMilestones, milestones)
+    if (rules.requiredMilestones.length === 0) yielded[project] = { excludedMilestones: [...rules.excludedMilestones, ...without(milestones, rules.excludedMilestones)] }
+    else if (kept.length > 0) yielded[project] = { requiredMilestones: kept }
+  }
+  return yielded
 }
 
 /** The raw config without the entry of the project with the id; the rest stays as written. */

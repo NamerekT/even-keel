@@ -138,7 +138,7 @@ describe('ConfigStore', { timeout: 30_000 }, () => {
     await seed({ projects: [abc()] })
     const config = await open()
 
-    const id = config.addProject({ repo: 'D:\\new', branch: 'main', key: 'NEW', name: '', tracker: 'huly', trackerProject: '', profile: null, slot: 1 })
+    const id = config.addProject({ repo: 'D:\\new', branch: 'main', key: 'NEW', name: '', tracker: 'huly', trackerProject: '', profile: null, slot: 1, milestones: [] })
     expect(await read()).toEqual(stored({ projects: [abc(), { id, key: 'NEW', repo: 'D:\\new', slot: 1, color: 2 }] }))
     expect(config.current.keys[id]).toBe('NEW')
     expect(config.current.slots[id]).toBe(1)
@@ -149,7 +149,7 @@ describe('ConfigStore', { timeout: 30_000 }, () => {
     const config = await open()
 
     // The key may repeat (BTN-271), but two chains on one Huly project need their milestones split.
-    expect(() => config.addProject({ repo: 'D:\\new', branch: 'main', key: 'ABC', name: '', tracker: 'huly', trackerProject: '', profile: null, slot: 0 })).toThrow(
+    expect(() => config.addProject({ repo: 'D:\\new', branch: 'main', key: 'ABC', name: '', tracker: 'huly', trackerProject: '', profile: null, slot: 0, milestones: [] })).toThrow(
       expect.objectContaining({ notice: expect.objectContaining({ code: 'config.trackerProjectShared' }) }),
     )
     expect(await read()).toEqual(stored({ projects: [abc()] }))

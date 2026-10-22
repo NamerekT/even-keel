@@ -256,13 +256,14 @@ describe('Even Keel HTTP server', () => {
 
     expect((await fetch(base + '/api/project/add', { method: 'POST', body: JSON.stringify(draft) })).status).toBe(200)
     expect((await fetch(base + '/api/project/remove', { method: 'POST', body: JSON.stringify({ project: 'ABC' }) })).status).toBe(200)
+    // A page open since before the milestones field sends none.
     expect(calls).toEqual([
-      ['check', draft],
-      ['add', draft],
+      ['check', { ...draft, milestones: [] }],
+      ['add', { ...draft, milestones: [] }],
       ['removeProject', 'ABC'],
     ])
 
-    for (const [field, change] of [['slot', { slot: -1 }], ['key', { key: 5 }], ['branch', { branch: undefined }]] as const) {
+    for (const [field, change] of [['slot', { slot: -1 }], ['key', { key: 5 }], ['branch', { branch: undefined }], ['milestones', { milestones: ['v1', 2] }]] as const) {
       const response = await fetch(base + '/api/project/check', { method: 'POST', body: JSON.stringify({ ...draft, ...change }) })
       expect(response.status).toBe(400)
       expect((await response.json()).notice).toMatchObject({ code: 'request.required', params: { field } })

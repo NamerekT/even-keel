@@ -1,7 +1,7 @@
 import type { ChainRules } from '../chain/rules.js'
 import { parseRemote, remotesOf } from '../ci/remote.js'
-import { withNewProject } from '../config-form.js'
-import { DEFAULT_BRANCH, isPlainObject, parseConfig } from '../config.js'
+import { withNewProject, yieldedMilestones } from '../config-form.js'
+import { DEFAULT_BRANCH, isPlainObject, parseConfig, projectLabels } from '../config.js'
 import type { Git } from '../git/types.js'
 import { notice, noticeOf, type Notice } from '../notice/notice.js'
 import { pathsOf, samePath } from '../paths.js'
@@ -38,9 +38,13 @@ export async function checkDraft(deps: CheckDeps, draft: ProjectDraft): Promise<
   const branch = draft.branch.trim() || repo.current || DEFAULT_BRANCH
   let entry: Notice | null = null
   let rules: ChainRules | undefined
+  let yields: string[] = []
   try {
-    const config = parseConfig(withNewProject(raw, { ...draft, repo: repo.root ?? draft.repo, branch }, ENTRY_ID, deps.adapters), deps.adapters)
+    const placed = { ...draft, repo: repo.root ?? draft.repo, branch }
+    const config = parseConfig(withNewProject(raw, placed, ENTRY_ID, deps.adapters), deps.adapters)
     rules = config.rules[ENTRY_ID]!
+    const labels = projectLabels(config)
+    yields = Object.keys(yieldedMilestones(raw, placed, ENTRY_ID, deps.adapters)).map((project) => labels[project]!)
   } catch (error) {
     entry = keyNotice(noticeOf(error))
   }
@@ -48,7 +52,7 @@ export async function checkDraft(deps: CheckDeps, draft: ProjectDraft): Promise<
     entry === null && rules !== undefined && adapter !== undefined && repo.root !== null && repo.notice === null
       ? await checkTracker(adapter, deps, draft.key.trim(), draft.trackerProject.trim(), rules)
       : null
-  return { repo, entry, tracker, trusted: repo.root === null ? null : isTrusted(deps.claudeConfig(), repo.root, platform), platform }
+  return { repo, entry, yields, tracker, trusted: repo.root === null ? null : isTrusted(deps.claudeConfig(), repo.root, platform), platform }
 }
 
 async function checkRepo(
