@@ -72,6 +72,7 @@ restart of the service (BTN-130). The keys are those of the config's format, whi
 | `fillMilestone` | G, P | P over G | page, hand | false |
 | `mergeInto` | P | — the key of a main project, checked against the projects (`config.mergeInto`); the page's save also refuses a checkout of another repository (`config.mergeIntoForeign`, BTN-285) | page, hand | `null` — a main project (BTN-172, `docs/chain.md`, "Carrying a release project forward") |
 | `pullRequests` | P | — | page, hand | false (PR mode, BTN-205, `docs/chain.md`) |
+| `intakeLabel` | P | — | page (the Tracker tab, not for a GitHub tracker), hand | `null` — no GitHub issues are taken in (BTN-262, `docs/trackers.md`, "Taking GitHub issues in") |
 | `remoteProfiles` | P | — | page, hand | `{}` — the GitHub and Forgejo profile ids the remotes' CI and pull requests take; a missing or unfit one is the automatic choice (BTN-231, `docs/ci.md`) |
 
 Project record fields, not settings: `id` (written by the service for an entry without one, `withIds`), `key`, `name`,

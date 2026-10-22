@@ -317,6 +317,11 @@ export const DEFINITIONS: readonly SettingDefinition[] = [
     return value === null || value.trim() === '' ? null : value.trim()
   } },
   { key: 'pullRequests', kind: 'boolean', scopes: ['project'], lands: ['settings'], default: false, check: boolean('pullRequests') },
+  // The GitHub label whose issues the project takes into its tracker (BTN-262); `null` — none.
+  { key: 'intakeLabel', kind: 'string', scopes: ['project'], lands: ['settings'], default: null, check: (value, place) => {
+    if (value !== null && typeof value !== 'string') throw fail('config.intakeLabel', { where: at(place, 'intakeLabel') })
+    return value === null || value.trim() === '' ? null : value.trim()
+  } },
   { key: 'fillMilestone', kind: 'boolean', scopes: ['global', 'project'], lands: ['settings'], default: false, check: boolean('fillMilestone') },
   { key: 'changelog', kind: 'string', scopes: ['project'], lands: ['settings'], default: DEFAULT_CHANGELOG, check: (value, place) => {
     const path = typeof value === 'string' ? changelogPath(value) : null

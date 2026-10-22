@@ -1,3 +1,4 @@
+import { isCopy } from '../intake/model.js'
 import type { Language } from '../language.js'
 import { englishOf, noticeOf } from '../notice/notice.js'
 import { questionComment, trackerAnswers, type Ask, type AskAnswers } from '../sessions/ask.js'
@@ -59,8 +60,12 @@ export function questionPlan(sessions: AskingSession[], posted: PostedQuestion[]
   return { post, read, keep }
 }
 
-/** The reply that comments after the question make: the first one answers the question, the rest go along as text. */
-export function trackerReply(comments: TrackerComment[], ask: Ask): Omit<TrackerReply, 'files'> | null {
+/**
+ * The reply that comments after the question make: the first one answers the question, the rest go along as text.
+ * The intake's copies of GitHub comments are not the user's (BTN-262): an outsider must not answer a session.
+ */
+export function trackerReply(all: TrackerComment[], ask: Ask): Omit<TrackerReply, 'files'> | null {
+  const comments = all.filter((comment) => !isCopy(comment.body))
   const bodies = comments.map((comment) => comment.body.trim()).filter((body) => body !== '')
   const answers = bodies.length === 0 ? null : trackerAnswers(bodies[0]!, ask)
   if (answers !== null) return { answers, text: bodies.slice(1).join('\n\n') }

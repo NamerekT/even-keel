@@ -107,6 +107,7 @@ export const noticesRu: NoticeTexts = {
   'ci.http': (p) => `${p.ci}: API ответил HTTP ${p.status}`,
   'ci.unreachable': (p) => `${p.ci}: API не отвечает`,
   'review.denied': (p) => `${p.ci}: токен отклонён (HTTP ${p.status}) — ему нужна запись pull request репозитория`,
+  'intake.denied': (p) => `${p.ci}: токен отклонён (HTTP ${p.status}) — ему нужны чтение и запись issue репозитория`,
   'review.notOpened': (p) => `pull request задачи ${p.task} не открыт (ответьте её сессии в чате или пропустите задачу)`,
   'review.notCompleted': (p) => `у задачи ${p.task} нечего открывать как pull request, но в трекере она не переведена в Done (переведите её сами и продолжите цепочку или пропустите задачу)`,
   'review.notReady': (p) =>
@@ -380,6 +381,7 @@ export const noticesRu: NoticeTexts = {
   'config.parallel': (p) => `parallel должен быть целым числом от 1, а не ${p.value}`,
   'config.mergeInto': (p) => `${p.project} вливается в ${p.into}, а это не другой проект или он сам вливается в проект`,
   'config.mergeIntoValue': (p) => `${p.where} — ключ проекта или null`,
+  'config.intakeLabel': (p) => `${p.where} — имя метки GitHub или null`,
   'config.mergeIntoForeign': (p) =>
     `${p.project} вливается в ${p.into}, а это папка другого репозитория: нет общего remote, и ни одна не клон другой`,
   'config.allowedHosts': () => 'allowedHosts должен быть списком имён хостов',

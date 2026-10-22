@@ -79,7 +79,7 @@ const remoteKey = (kind: CiKind) => `remote.${kind}`
 // Related fields share a group, so a save of one group never leaves another half-agreeing with it.
 const GROUPS = [
   { id: 'repo', keys: ['repo', 'branch', 'mergeInto', 'slot', 'changelog', 'color'] },
-  { id: 'tracker', keys: ['tracker', 'trackerProject', 'fillMilestone', ...RULE_KEYS] },
+  { id: 'tracker', keys: ['tracker', 'trackerProject', 'fillMilestone', 'intakeLabel', ...RULE_KEYS] },
   {
     id: 'sessions',
     keys: ['provider', ...providerKeys('models'), ...providerKeys('accounts'), 'modelLabels', 'brief', 'prompt', 'beforeStart', 'promptLanguage', 'cacheTtl', 'ownCheckpoint', 'checkpointTokens', 'ownShares', ...SHARE_KEYS],
@@ -113,6 +113,7 @@ const valuesOf = (form: ProjectForm): Values => ({
   recheck: switchText(form.own['ci.recheckMain']),
   fixTask: switchText(form.own['ci.fixTask']),
   pullRequests: form.pullRequests,
+  intakeLabel: form.intakeLabel ?? '',
   mergeInto: form.mergeInto ?? '',
   ...Object.fromEntries(CI_KINDS.map((kind) => [remoteKey(kind), form.remoteProfiles[kind] ?? ''])),
   fillMilestone: switchText(form.own.fillMilestone),
@@ -200,6 +201,7 @@ function formOf(values: Values, name: string | null, shared: SharedForm): Projec
     },
     remoteProfiles: Object.fromEntries(CI_KINDS.flatMap((kind) => (text(remoteKey(kind)) === '' ? [] : [[kind, text(remoteKey(kind))]]))),
     pullRequests: on('pullRequests'),
+    intakeLabel: text('intakeLabel').trim() === '' ? null : text('intakeLabel').trim(),
     mergeInto: text('mergeInto') === '' ? null : text('mergeInto'),
     fillMilestone: ownOr(own, 'fillMilestone', shared.fillMilestone),
     changelog: text('changelog').trim(),
@@ -495,6 +497,22 @@ export function SettingsPanel({
         {locked && <p className="settings__hint">{t.settings.trackerLocked}</p>}
         {state !== null && <FeedList state={state} project={project} />}
         {switchChoice('fillMilestone', t.settings.fillMilestone, t.settings.fillMilestoneHint, shared.fillMilestone)}
+        {text('tracker') !== 'github' && (
+          <div className={marks.box('intakeLabel')}>
+            <FieldHead label={t.settings.intakeLabel} hint={t.settings.intakeLabelHint} htmlFor={fieldId('intakeLabel')} />
+            <input
+              id={fieldId('intakeLabel')}
+              className="settings__text settings__text--mono"
+              spellCheck={false}
+              value={text('intakeLabel')}
+              placeholder={t.settings.intakeLabelNone}
+              aria-invalid={errorOf('intakeLabel') !== null}
+              onChange={(event) => edit('intakeLabel', event.target.value)}
+            />
+            {marks.note('intakeLabel')}
+            <FieldNote error={errorOf('intakeLabel')} />
+          </div>
+        )}
         <RuleFields text={text} onEdit={edit} errorOf={errorOf} marks={marks} choices={ruleChoicesOf(tasks, vocabularies)} />
       </>
     ),
