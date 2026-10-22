@@ -27,15 +27,17 @@ interface Props {
   task: string
   session: SessionView
   aside: boolean
-  /** The session's mailbox; `listens` — its hooks take a message mid-turn. */
+  /** The session's mailbox; `listens` — it takes a message mid-turn, `steers` — straight in, not by the mailbox. */
   mail: SessionMail | undefined
-  onSent: (line: FeedLine) => void
+  /** `steered` — the message went straight into the working session. */
+  onSent: (line: FeedLine, steered: boolean) => void
   handle?: Ref<ComposerHandle>
 }
 
 /**
  * The bottom of the chat window: the options of the open question or a free reply, with files. A reply can be typed
- * at any time and is sent while the session waits, or mid-turn into its mailbox when its hooks listen; the draft
+ * at any time and is sent while the session waits, or mid-turn straight in when it steers and into its mailbox when
+ * its hooks listen; the draft
  * outlives a new question.
  */
 export function ChatComposer({ project, task, session, aside, mail, onSent, handle }: Props) {
@@ -60,9 +62,12 @@ export function ChatComposer({ project, task, session, aside, mail, onSent, hand
   }
   useImperativeHandle(handle, () => ({ attach }))
   const sent = useHold(holdKey(session), SENT_HOLD_MS)
-  // A message to a working session waits in its mailbox: the list below tells its fate, so nothing is held or echoed.
-  const mailing = session.lamp === 'working' && mail?.listens === true
-  const locked = mailing ? (aside ? t.session.chat.aside : null) : lockReason(session, aside)
+  // A message to a working session goes straight in when it steers, echoed but not held; otherwise it waits in the
+  // mailbox, whose list below tells its fate, so nothing is held or echoed.
+  const midTurn = session.lamp === 'working' && mail?.listens === true
+  const steering = midTurn && mail.steers
+  const mailing = midTurn && !steering
+  const locked = midTurn ? (aside ? t.session.chat.aside : null) : lockReason(session, aside)
   const disabled = locked !== null || sending || sent.on
   const left = ask === null ? 0 : ask.questions.filter((question, index) => pickAnswer(question, picks[index] ?? NO_PICK) === '').length
   // A question may be skipped: any answer, words or file is a reply.
@@ -76,8 +81,8 @@ export function ChatComposer({ project, task, session, aside, mail, onSent, hand
     void writeDraft(session.sessionId, { text: '', files: [] })
     if (ask !== null) setAnswered(ask.id)
     if (!mailing) {
-      sent.begin()
-      onSent(sentLine(ask === null ? null : ask.id, answers, text, files))
+      if (!steering) sent.begin()
+      onSent(sentLine(ask === null ? null : ask.id, answers, text, files), steering)
     }
     setText('')
     setFiles([])
@@ -160,7 +165,7 @@ export function ChatComposer({ project, task, session, aside, mail, onSent, hand
         <p className="notice notice--error">{say(failure)}</p>
       ) : (
         <p className="chat__hint">
-          {sent.on ? t.session.chat.sent : (locked ?? (left > 0 ? t.session.chat.unanswered(left) : mailing ? t.session.chat.mailbox : ''))}
+          {sent.on ? t.session.chat.sent : (locked ?? (left > 0 ? t.session.chat.unanswered(left) : mailing ? t.session.chat.mailbox : steering ? t.session.chat.steers : ''))}
         </p>
       )}
     </form>

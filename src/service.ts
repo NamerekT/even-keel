@@ -775,6 +775,9 @@ function logStartupDialogs(views: SessionView[]): void {
 
 const liveView = (task: string) => sessions.find((each) => each.task === task && each.lamp !== 'finished')
 
+/** Whether a message goes into the live session mid-turn without its mailbox (`AgentEntry.steers`, BTN-291). */
+const steering = (sessionId: string) => agents.some((each) => each.sessionId === sessionId && each.steers === true)
+
 const agentStatus = (task: string) => {
   const view = liveView(task)
   if (view === undefined) return undefined
@@ -1174,9 +1177,7 @@ const forwards = new ForwardMerger({
 function resumeWith(task: string, session: HandoffSession, prompt: string): Promise<string> {
   return monitor.holds.during(session.sessionId, async () => {
     const home = homeOf(session.account)
-    const plan = planFor(task, prompt)
-    const extras = agentExtras(home, projectOf(task), task)
-    const start = { name: task, cwd: session.cwd, prompt: plan.prompt, model: plan.model, settings: settingsFor(task), ...extras }
+    const start = goOnWith(home, task, session, prompt)
     const went = await agentOf(home).reply?.(home, session, start)
     if (went != null) return went
     const started = Date.now()
@@ -1187,6 +1188,18 @@ function resumeWith(task: string, session: HandoffSession, prompt: string): Prom
     console.log(`sessions: ${task} resumed in ${Date.now() - started} ms (stop ${stopped - started} ms)`)
     return sessionId
   })
+}
+
+function goOnWith(home: AccountHome, task: string, session: HandoffSession, prompt: string): SessionStart {
+  const plan = planFor(task, prompt)
+  const extras = agentExtras(home, projectOf(task), task)
+  return { name: task, cwd: session.cwd, prompt: plan.prompt, model: plan.model, settings: settingsFor(task), ...extras }
+}
+
+/** Puts a chat message into a working session that steers (BTN-291); `false` — it is not live here after all. */
+async function steer(task: string, session: HandoffSession, prompt: string): Promise<boolean> {
+  const home = homeOf(session.account)
+  return (await agentOf(home).reply?.(home, session, goOnWith(home, task, session, prompt))) != null
 }
 
 const mailRelay: MailRelay = {
@@ -1208,7 +1221,8 @@ const mailRelay: MailRelay = {
 
 /**
  * Saves the files into the task's folder and resumes the waiting session with the reply (invariant 1, exception 6);
- * a page message to a working session whose hooks take mail goes into its mailbox instead (BTN-181).
+ * a page message to a working session goes straight in when it steers (BTN-291), else into its mailbox when its hooks
+ * take mail (BTN-181).
  */
 async function answerSession(
   project: string,
@@ -1217,7 +1231,8 @@ async function answerSession(
   ask: string | null,
   reply: Omit<Reply, 'files'> & { files: InboxFile[] },
 ): Promise<void> {
-  const { session, midTurn } = dispatcher.answerable(project, task, sessionId, ask, reply.from === 'page' && mailbox.listens(sessionId))
+  const takes = reply.from === 'page' && (steering(sessionId) || mailbox.listens(sessionId))
+  const { session, midTurn } = dispatcher.answerable(project, task, sessionId, ask, takes)
   const question = ask === null ? null : (liveView(task)?.ask ?? null)
   let files: string[]
   try {
@@ -1227,6 +1242,11 @@ async function answerSession(
   }
   const prompt = replyPrompt({ ...reply, files }, question, promptLanguage(project))
   if (midTurn) {
+    if (steering(sessionId) && (await steer(task, session, prompt))) {
+      console.log(`chain: ${task}: the user's message from the page went into the working session ${sessionId}${files.length > 0 ? ` with ${files.length} file(s)` : ''}`)
+      return
+    }
+    if (!mailbox.listens(sessionId)) throw fail('answer.busy', { task })
     mailbox.post(task, sessionId, reply.text, files)
     console.log(`chain: ${task}: the user's message from the page waits in the mailbox of the session ${sessionId}${files.length > 0 ? ` with ${files.length} file(s)` : ''}`)
     hub.broadcast('state', getState())
@@ -1368,8 +1388,9 @@ const getState = (): EvenKeelState => ({
   mailbox: Object.fromEntries(
     sessions.flatMap((view): [string, SessionMail][] => {
       const mail = mailbox.of(view.sessionId)
-      const listens = mailbox.listens(view.sessionId)
-      return listens || mail.length > 0 ? [[view.sessionId, { listens, mail }]] : []
+      const steers = steering(view.sessionId)
+      const listens = steers || mailbox.listens(view.sessionId)
+      return listens || mail.length > 0 ? [[view.sessionId, { listens, steers, mail }]] : []
     }),
   ),
   changelogs: changelogs.writtenTasks(),

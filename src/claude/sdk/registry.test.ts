@@ -53,4 +53,10 @@ describe('sdkEntryOf', () => {
     expect(done.pid).toBeUndefined()
     expect(sdkEntryOf({ ...session, stopped: true }, true, null)).toMatchObject({ state: 'stopped' })
   })
+
+  it('takes a message mid-turn while its executor lives, and not once it is over', () => {
+    expect(sdkEntryOf(session, true, { status: 'busy', ask: null }).steers).toBe(true)
+    expect(sdkEntryOf(session, false, null).steers).toBeUndefined()
+    expect(sdkEntryOf({ ...session, stopped: true }, true, null).steers).toBeUndefined()
+  })
 })

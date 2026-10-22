@@ -441,11 +441,12 @@ export function createFakeSource(search: string): LiveSource {
     current.state.sessions = current.state.sessions.map((each) => (each.task === 'ABC-5' ? asking : each))
     current.state.chain.active = [{ ...active, current: { task: 'ABC-5', sessionId: asking.sessionId, since: ago(42) } }]
   }
-  if (params.get('chain') === 'mail' && current.state !== null && active) {
+  if ((params.get('chain') === 'mail' || params.get('chain') === 'steer') && current.state !== null && active) {
     const working = session('ABC-5', contextTokens)
     current.state.sessions = current.state.sessions.map((each) => (each.task === 'ABC-5' ? working : each))
     current.state.chain.active = [{ ...active, current: { task: 'ABC-5', sessionId: working.sessionId, since: ago(42) } }]
-    current.state.mailbox = { [working.sessionId]: fakeMailbox('ABC-5', working.sessionId, Date.now()) }
+    const box = params.get('chain') === 'mail' ? fakeMailbox('ABC-5', working.sessionId, Date.now()) : { listens: true, steers: true, mail: [] }
+    current.state.mailbox = { [working.sessionId]: box }
   }
   if (params.get('chain') === 'dialog' && current.state !== null && active) {
     const wedged: SessionView = {

@@ -264,15 +264,16 @@ export class Dispatcher {
   /**
    * Throws unless the user may answer the session now: it is the current one of the task — of its chain or, once
    * the chain stopped, the one that lives on — waits rather than works, and still waits on the question `ask`
-   * (`null` — on none, the turn ended in plain text). With `mailbox` — the session's hooks take mail — a plain
-   * message to a working session passes as `midTurn`: it goes into the mailbox, nothing is launched (BTN-181).
+   * (`null` — on none, the turn ended in plain text). With `takes` — the session takes a message mid-turn, by its
+   * mailbox (BTN-181) or straight in (BTN-291) — a plain message to a working session passes as `midTurn`: nothing is
+   * launched.
    */
   answerable(
     project: string,
     task: string,
     sessionId: string,
     ask: string | null,
-    mailbox = false,
+    takes = false,
   ): { chain: ActiveChain | null; current: CurrentTask | null; session: HandoffSession; midTurn: boolean } {
     this.requireProject(project)
     const chain = this.chainOf(project) ?? null
@@ -284,7 +285,7 @@ export class Dispatcher {
       throw fail('answer.moved', { task })
     }
     if (this.deps.midTurn(task)) {
-      if (!mailbox || ask !== null) throw fail('answer.busy', { task })
+      if (!takes || ask !== null) throw fail('answer.busy', { task })
       return { chain, current, session, midTurn: true }
     }
     this.requireLaunches(project, task)

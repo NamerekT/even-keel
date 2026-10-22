@@ -107,5 +107,5 @@ export function sdkEntryOf(session: SdkSession, alive: boolean, turn: SdkTurn | 
   if (!alive) return { ...entry, state: 'done' }
   const pid = session.cli ?? session.executor
   const status = turn?.status ?? 'busy'
-  return { ...entry, pid, status, state: status === 'waiting' ? 'blocked' : 'working', ...(turn?.ask != null && { ask: turn.ask }) }
+  return { ...entry, pid, status, state: status === 'waiting' ? 'blocked' : 'working', steers: true, ...(turn?.ask != null && { ask: turn.ask }) }
 }
