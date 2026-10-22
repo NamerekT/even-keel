@@ -59,9 +59,11 @@ function entryNotice(state: EvenKeelState, draft: ProjectDraft): ProjectCheck['e
   const key = draft.key.trim()
   const where = `projects[${state.projects.length}]`
   if (!KEY.test(key)) return notice('config.projectKey', { where: `${where}.key`, value: key })
-  const first = state.projects.indexOf(key)
-  if (first !== -1) return notice('config.projectTwice', { field: 'key', value: key, first: `projects[${first}]`, second: where })
-  return null
+  const taken = state.config.projects[key]
+  if (taken === undefined) return null
+  const project = taken.name ?? key
+  if (draft.tracker === 'linear') return notice('wizard.teamTaken', { tracker: 'Linear', team: key, project })
+  return notice('wizard.keyTaken', { key, project })
 }
 
 function trackerOf(name: string, mode: string | null): ProjectCheck['tracker'] {
