@@ -11,7 +11,7 @@ import type { Lamp } from './sessions/agents.js'
 import type { Ask } from './sessions/ask.js'
 import type { SessionMail } from './sessions/mail.js'
 import type { SecretPlace, SecretReaders } from './secrets/catalog.js'
-import type { TallyMode } from './stats/mode.js'
+import type { TallyHealth, TallyMode } from './stats/mode.js'
 import type { CompareSettings } from './stats/rules.js'
 import type { RemoteOff } from './sessions/remote.js'
 import type { CacheWindow, FeedLine, Stage, TokenTotals } from './sessions/transcript.js'
@@ -402,6 +402,8 @@ export interface EvenKeelState {
   trimTools: boolean
   /** Where Tally writes (BTN-247); `null` — not chosen yet: the page offers the stats setup before anything else. */
   tally: TallyMode | null
+  /** The collector's last run, for `/status` (BTN-66). */
+  tallyHealth: TallyHealth
   updates: UpdatesView
   /** The installed CLIs whose version is not the one Even Keel was last checked against (BTN-249): a banner each until closed. */
   cliVersions: CliVersionView[]

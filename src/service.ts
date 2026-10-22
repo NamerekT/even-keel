@@ -441,6 +441,7 @@ const newTally = () =>
       return { projects: Object.fromEntries(projects), fallback: defaultProfile(set, 'huly')?.values ?? null, elsewhere, byId }
     },
     log: (message) => console.log(message),
+    changed: () => hub.broadcast('state', getState()),
   })
 let tally = newTally()
 /** What `tally` runs on (`tallyKey`), and the restarts in turn: the page and `.env` may change it at once. */
@@ -1326,6 +1327,7 @@ const getState = (): EvenKeelState => ({
   unattended: dispatcher.state.unattended,
   trimTools: dispatcher.state.trimTools,
   tally: tallyMode(),
+  tallyHealth: tally.health(),
   updates: { ...releasesView(), ...updater.view() },
   cliVersions: [...cliVersions.view(), ...daemons.outdated().map((daemon) => outdatedDaemonView(daemon, AGENTS[daemon.agent]!.title))],
   fallbacks: fallbacksSince(launches, new Date(Date.now() - FALLBACK_TOAST_MS)).map(({ at, task, project, fallback }) => ({

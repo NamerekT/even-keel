@@ -5,16 +5,14 @@ import { accountBadge } from '../state.js'
 import { AccountSheet } from './AccountBlock.js'
 import { QueueMenu } from './Queue.js'
 import { GearRows, Waiting } from './Status.js'
-import { systemChecks, worstLevel, type Level } from './system.js'
+import { systemChecks, systemInput, worstLevel, type Level } from './system.js'
 import { usePopover } from './usePopover.js'
 
 /** The narrow screen's burger: one column of the wide header's blocks — stats, the work, the account with its limits, the gear's items. */
 export function MobileMenu({ now }: { now: Date }) {
   const { state, link } = useLive()
   const { open, setOpen, rootRef } = usePopover()
-  const system = worstLevel(
-    systemChecks({ link, trackers: state?.trackers ?? null, usage: state?.usage ?? null, configError: state?.configError ?? null }, now),
-  )
+  const system = worstLevel(systemChecks(systemInput(state, link), now))
   const level = state === null ? system : withAccount(system, accountBadge(state.account).kind)
 
   return (
