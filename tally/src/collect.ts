@@ -15,7 +15,8 @@ import { readStateFiles } from '../../src/storage/state-files.js'
 import { parseConfig, unpricedToLog, type DbSettings } from './config.js'
 import { TallyDb } from './db.js'
 import { refreshHandoffs } from './handoffs.js'
-import type { HulyOf } from './huly-profiles.js'
+import type { HulyProfiles } from '../../src/stats/tally.js'
+import { hulyOfProfiles } from './huly-profiles.js'
 import { snapshotsOfFile, snapshotsOfState, type Snapshot } from './limits.js'
 import { loadFile, loadRollout, type Source } from './load.js'
 import { deniedLine, migratedLine } from './migrations.js'
@@ -33,13 +34,15 @@ const EVEN_KEEL_TIMEOUT_MS = 5_000
 export type Log = (message: string) => void
 
 // One collector run: the exit code is 1 when a file failed to load, everything else is written anyway.
-export async function collect(settings: DbSettings, root: string, log: Log, hulyOf: HulyOf): Promise<number> {
+export async function collect(settings: DbSettings, root: string, log: Log, huly: HulyProfiles): Promise<number> {
   const started = Date.now()
   const config = parseConfig(JSON.parse(readFileSync(process.env.TALLY_CONFIG ?? join(root, 'tally', 'tally.config.json'), 'utf8')))
   const stateDir = process.env.EVEN_KEEL_STATE_DIR ?? join(root, 'state')
   const homes = new AccountHomes(process.env, accountsRoot(process.env))
   const { launches: journal, handoffs: saved, repos } = await evenKeelState(stateDir, log)
   const launches = launchMap(journal)
+  const taskHomes = taskSources(journal)
+  const hulyOf = hulyOfProfiles(huly, new Map(taskHomes.flatMap((home) => (home.profile === null ? [] : [[home.task, home.profile] as const]))))
 
   const db = await TallyDb.connect(settings)
   try {
@@ -96,7 +99,7 @@ export async function collect(settings: DbSettings, root: string, log: Log, huly
     }
     const forgotten = paths.length > 0 ? await db.forgetFilesExcept(paths) : 0
     const relabeled = await db.syncLaunches(launches)
-    await db.syncTaskSources(taskSources(journal))
+    await db.syncTaskSources(taskHomes)
     await db.fillSessionFolders()
     if ((await db.meta('efforts')) === null) {
       log(`tally: ${await db.fillEfforts()} older messages given their effort level`)

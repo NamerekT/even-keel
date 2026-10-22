@@ -437,7 +437,8 @@ const newTally = () =>
         return values === undefined ? [] : [[idPrefixOf(config, project), values] as const]
       })
       const elsewhere = Object.entries(config.trackers).flatMap(([project, kind]) => (kind === 'huly' ? [] : [idPrefixOf(config, project)]))
-      return { projects: Object.fromEntries(projects), fallback: defaultProfile(set, 'huly')?.values ?? null, elsewhere }
+      const byId = Object.fromEntries(set.profiles.filter((profile) => profile.kind === 'huly').map((profile) => [profile.id, profile.values]))
+      return { projects: Object.fromEntries(projects), fallback: defaultProfile(set, 'huly')?.values ?? null, elsewhere, byId }
     },
     log: (message) => console.log(message),
   })
