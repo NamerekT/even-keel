@@ -418,6 +418,9 @@ export const en = {
     `config: ${p.where} must go first < late < hard, got ${p.first}, ${p.late}, ${p.hard}`,
   'wizard.notRepo': (p: { path: string }) => `${p.path} is not in a git repository`,
   'wizard.repoTaken': (p: { project: string }) => `this repository is already the project ${p.project}`,
+  'wizard.keyTaken': (p: { key: string; project: string }) => `the key ${p.key} is already the project ${p.project}: pick another one`,
+  'wizard.teamTaken': (p: { tracker: string; team: string; project: string }) =>
+    `the ${p.tracker} team ${p.team} is already the project ${p.project}, and in this version one ${p.tracker} team is one Even Keel project: give this repository a team of its own in ${p.tracker}`,
   'wizard.noBranch': (p: { branch: string; branches: string[] }) => `the repository has no branch ${p.branch}, it has ${p.branches.join(', ')}`,
   'wizard.noCommits': () => 'the repository has no commits yet: make the first one',
   'wizard.trackerOff': (p: { tracker: string; variables: string[] }) =>

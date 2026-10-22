@@ -115,10 +115,27 @@ describe('checkDraft', () => {
 
   it('gives what parseConfig says of the config with the draft, and asks no tracker then', async () => {
     const adapter = fakeAdapter()
-    const check = await checkDraft(deps({ adapters: { fake: adapter } }), { ...draft, key: 'ABC' })
-    expect(check.entry).toEqual(expect.objectContaining({ code: 'config.projectTwice' }))
+    const check = await checkDraft(deps({ adapters: { fake: adapter } }), { ...draft, key: 'a b' })
+    expect(check.entry).toEqual(expect.objectContaining({ code: 'config.projectKey' }))
     expect(check.tracker).toBeNull()
     expect(adapter.asked).toEqual([])
+  })
+
+  it('names the project that has the key already, not its place in the config', async () => {
+    const adapter = fakeAdapter()
+    const named = () => ({ projects: [{ id: 'id-abc', key: 'ABC', name: 'Web shop', repo: 'C:\\abc' }] })
+    const check = await checkDraft(deps({ raw: named, adapters: { fake: adapter } }), { ...draft, key: ' ABC ' })
+    expect(check.entry).toEqual(expect.objectContaining({ code: 'wizard.keyTaken', params: { key: 'ABC', project: 'Web shop' } }))
+    expect(check.tracker).toBeNull()
+    expect(adapter.asked).toEqual([])
+    const bare = await checkDraft(deps(), { ...draft, key: 'ABC' })
+    expect(bare.entry).toEqual(expect.objectContaining({ code: 'wizard.keyTaken', params: { key: 'ABC', project: 'ABC' } }))
+  })
+
+  it('says a team taken by another project is one project per team in this version', async () => {
+    const team = { ...fakeAdapter(), title: 'Linear', projectKey: { key: 'fake', optional: true, pattern: /\S/, example: 'Web app' } }
+    const check = await checkDraft(deps({ adapters: { fake: team } }), { ...draft, key: 'ABC', trackerProject: 'Mobile' })
+    expect(check.entry).toEqual(expect.objectContaining({ code: 'wizard.teamTaken', params: { tracker: 'Linear', team: 'ABC', project: 'ABC' } }))
   })
 
   it('names the tracker variables when none is set', async () => {
