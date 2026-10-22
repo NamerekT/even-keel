@@ -172,9 +172,10 @@ export class Profiles {
     this.replace({ ...this.set, profiles }, profile.kind)
   }
 
-  /** The project runs on the profile; `null` — on its tracker's default. */
-  link(projectId: string, profileId: string | null): void {
-    const links = { ...this.set.links }
+  /** The project, or with `feed` a project's feed (BTN-66), runs on the profile; `null` — on its tracker's default. */
+  link(projectId: string, profileId: string | null, feed = false): void {
+    const before = (feed ? this.set.feeds : this.set.links) ?? {}
+    const links = { ...before }
     if (profileId === null) delete links[projectId]
     else {
       const profile = this.profile(profileId)
@@ -183,8 +184,8 @@ export class Profiles {
       if (project !== undefined && project.kind !== profile.kind) throw fail('profiles.otherTracker', { profile: profile.name, project: project.key })
       links[projectId] = profileId
     }
-    if (links[projectId] === this.set.links[projectId]) return
-    this.replace({ ...this.set, links }, null)
+    if (links[projectId] === before[projectId]) return
+    this.replace(feed ? { ...this.set, feeds: links } : { ...this.set, links }, null)
   }
 
   /** The values a new project of `kind` would run on: the profile chosen while it is of that tracker, else the kind's default. */

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { formsOf, trackerChoices, withNewProject, withoutProject, withProjectForm, withRunAccount, withSharedAccount, withSharedForm, withUpdates, withChainSwitches, withTally } from './config-form.js'
+import { formsOf, trackerChoices, withFeed, withNewProject, withoutFeed, withoutProject, withProjectForm, withRunAccount, withSharedAccount, withSharedForm, withUpdates, withChainSwitches, withTally } from './config-form.js'
 import { parseConfig } from './config.js'
 import type { ProjectDraft, ProjectForm, SharedForm } from './state.js'
 
@@ -261,6 +261,27 @@ describe('withoutProject', () => {
 
   it('refuses an id the file does not have', () => {
     expect(() => withoutProject({ projects: [abc()] }, 'id-xyz')).toThrow(expect.objectContaining({ notice: expect.objectContaining({ code: 'config.unknownProject' }) }))
+  })
+})
+
+describe('withFeed and withoutFeed (BTN-66)', () => {
+  const feed = { id: 'feed-1', tracker: 'github', key: 'ABCGH', place: ' octo-org/ideas ' }
+
+  it("appends the feed to the project's entry, its place under its tracker's project key", () => {
+    const next = withFeed({ projects: [abc(), xyz()] }, 'id-abc', feed)
+    expect(next.projects).toEqual([abc({ feeds: [{ id: 'feed-1', tracker: 'github', key: 'ABCGH', github: 'octo-org/ideas' }] }), xyz()])
+    expect(parseConfig(next).feeds).toEqual({ 'id-abc': [{ id: 'feed-1', tracker: 'github', key: 'ABCGH', place: 'octo-org/ideas' }] })
+  })
+
+  it('writes no place that only repeats the key it stands in for', () => {
+    const next = withFeed({ projects: [abc({ tracker: 'github', github: 'octo-org/abc' })] }, 'id-abc', { id: 'feed-1', tracker: 'huly', key: 'HUL', place: 'HUL' })
+    expect(next.projects).toEqual([abc({ tracker: 'github', github: 'octo-org/abc', feeds: [{ id: 'feed-1', tracker: 'huly', key: 'HUL' }] })])
+  })
+
+  it('drops the feed with the id and the list once it is empty', () => {
+    const raw = { projects: [abc({ feeds: [{ id: 'feed-1', tracker: 'github', key: 'ABCGH', github: 'octo-org/ideas' }] })] }
+    expect(withoutFeed(raw, 'id-abc', 'feed-1')).toEqual({ projects: [abc()] })
+    expect(() => withoutFeed(raw, 'id-abc', 'feed-2')).toThrow(expect.objectContaining({ notice: expect.objectContaining({ code: 'config.unknownFeed' }) }))
   })
 })
 

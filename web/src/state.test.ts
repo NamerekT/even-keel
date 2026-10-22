@@ -95,7 +95,7 @@ function stateOf(patch: Partial<EvenKeelState>): EvenKeelState {
     projectKeys: { ABC: 'ABC', XYZ: 'XYZ' },
     projectLabels: { ABC: 'ABC', XYZ: 'XYZ' },
     taskPrefixes: { ABC: 'ABC', XYZ: 'XYZ' },
-    config: { shared: FAKE_SHARED, projects: {}, trackers: [], trackerLocked: [] },
+    config: { shared: FAKE_SHARED, projects: {}, trackers: [], feeds: {}, trackerLocked: [] },
     chain: { active: [], parallel: 1, queue: [], projects: {}, skipped: {}, leftovers: {} },
     tasks: [],
     sessions: [],
@@ -640,7 +640,7 @@ describe('projectTracker', () => {
 
   it('adds the tracker project when there is one', () => {
     const projects = { XYZ: { trackerProject: 'example/repo' } as EvenKeelState['config']['projects'][string] }
-    const state = stateOf({ config: { shared: FAKE_SHARED, projects, trackers: [], trackerLocked: [] }, trackers: [github] })
+    const state = stateOf({ config: { shared: FAKE_SHARED, projects, trackers: [], feeds: {}, trackerLocked: [] }, trackers: [github] })
     expect(projectTracker(state, 'XYZ')).toEqual({ kind: 'github', label: 'GitHub · work · example/repo' })
   })
 
@@ -651,7 +651,7 @@ describe('projectTracker', () => {
 
 describe('projectPage', () => {
   const urls = { default: null, projects: {}, pages: { ABC: 'https://huly.example.com/workbench/example/tracker/abc-id/issues', XYZ: null } }
-  const config = { shared: FAKE_SHARED, projects: {}, trackers: [{ name: 'huly', title: 'Huly', projectKey: null }], trackerLocked: [] }
+  const config = { shared: FAKE_SHARED, projects: {}, trackers: [{ name: 'huly', title: 'Huly', projectKey: null }], feeds: {}, trackerLocked: [] }
 
   it('gives the page with the name of the tracker it is in, not of the profile', () => {
     const state = stateOf({ config, trackerUrls: urls, trackers: [{ ...stateOf({}).trackers[0]!, title: 'Huly · example' }] })

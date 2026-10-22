@@ -1,5 +1,5 @@
 import { fail, notice, NoticeError } from '../../../src/notice/notice.js'
-import type { EvenKeelState, ProjectCheck, ProjectDraft, ProjectForm } from '../../../src/state.js'
+import type { EvenKeelState, FeedView, ProjectCheck, ProjectDraft, ProjectForm } from '../../../src/state.js'
 import { DEFAULT_RULES } from '../../../src/chain/rules.js'
 import { colorsOf } from '../../../src/projects/colors.js'
 import { fakeProjectMaps } from './fakeConfig.js'
@@ -16,7 +16,7 @@ export function fakeNoProjects(state: EvenKeelState): EvenKeelState {
     ...state,
     projects: [],
     ...fakeProjectMaps({}),
-    config: { ...state.config, projects: {}, trackerLocked: [] },
+    config: { ...state.config, projects: {}, feeds: {}, trackerLocked: [] },
     chain: { ...state.chain, active: [], queue: [], projects: {}, skipped: {}, leftovers: {} },
     tasks: [],
     sessions: [],
@@ -86,6 +86,7 @@ function trackerOf(name: string, mode: string | null): ProjectCheck['tracker'] {
 /** `project/add` puts the draft in as the service would, `project/remove` refuses a project whose chain runs. */
 export function fakeProjectCommand(state: EvenKeelState, name: string, body: Record<string, unknown>): EvenKeelState | null {
   if (name === 'project/add') return withProject(state, body as unknown as ProjectDraft)
+  if (name === 'project/feed/add' || name === 'project/feed/remove') return withFeeds(state, name, body)
   if (name !== 'project/remove') return null
   const id = String(body.project)
   if (!state.projects.includes(id)) throw fail('config.unknownProject', { key: id })
@@ -95,6 +96,26 @@ export function fakeProjectCommand(state: EvenKeelState, name: string, body: Rec
   const { [id]: _form, ...projects } = state.config.projects
   const { [id]: _key, ...keys } = state.projectKeys
   return { ...state, projects: state.projects.filter((each) => each !== id), ...mapsOf(keys, projects), config: { ...state.config, projects } }
+}
+
+/** `project/feed/add` refuses a key that is no project key or that a project or feed already gives; a locked feed can still go. */
+function withFeeds(state: EvenKeelState, name: string, body: Record<string, unknown>): EvenKeelState {
+  const project = String(body.project)
+  const feeds = state.config.feeds[project] ?? []
+  const next = (list: FeedView[]): EvenKeelState => {
+    const { [project]: _, ...rest } = state.config.feeds
+    return { ...state, config: { ...state.config, feeds: list.length === 0 ? rest : { ...rest, [project]: list } } }
+  }
+  if (name === 'project/feed/remove') {
+    if (!feeds.some((feed) => feed.id === body.feed)) throw fail('config.unknownFeed', {})
+    return next(feeds.filter((feed) => feed.id !== body.feed))
+  }
+  const key = String(body.key).trim()
+  if (!KEY.test(key)) throw fail('config.projectKey', { where: `${state.projectKeys[project] ?? project}.feeds[${feeds.length}].key`, value: key })
+  const taken = [...Object.values(state.projectKeys), ...Object.values(state.config.feeds).flat().map((feed) => feed.key)]
+  if (taken.includes(key)) throw fail('config.feedPrefix', { project: state.projectLabels[project] ?? project, prefix: key, other: key })
+  const place = typeof body.place === 'string' && body.place.trim() !== '' ? body.place.trim() : undefined
+  return next([...feeds, { id: crypto.randomUUID(), tracker: String(body.tracker), key, ...(place === undefined ? {} : { place }) }])
 }
 
 const mapsOf = (keys: Record<string, string>, forms: Record<string, ProjectForm>) =>

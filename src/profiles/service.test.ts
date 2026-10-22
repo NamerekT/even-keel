@@ -206,6 +206,19 @@ describe('Profiles', { timeout: 60_000 }, () => {
     expect(() => profiles.link(ABC, 'missing')).toThrow(NoticeError)
   })
 
+  it("links a feed apart from the projects, and a feed on a profile keeps it from going (BTN-66)", async () => {
+    const FEED = 'feed-1'
+    const profiles = make(
+      { profiles: [profile('p1', 'abc', true), profile('p2', 'org', false)], links: {} },
+      { projects: () => ({ [ABC]: { key: 'ABC', kind: 'fake' }, [FEED]: { key: 'ABCF', kind: 'fake' } }) },
+    )
+    profiles.link(FEED, 'p2', true)
+    expect(profiles.current()).toMatchObject({ links: {}, feeds: { [FEED]: 'p2' } })
+    expect(() => profiles.remove('p2')).toThrow(NoticeError)
+    profiles.link(FEED, null, true)
+    expect(profiles.current().feeds).toEqual({})
+  })
+
   it('sets the chain rules of a profile once its projects take them, and shows them (BTN-66)', async () => {
     const refused: string[] = []
     const profiles = make(

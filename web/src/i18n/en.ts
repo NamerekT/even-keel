@@ -727,7 +727,17 @@ export const en: Messages = {
     trackerProjectAlias:
       "Empty — the project's key. Another project lets two projects of Even Keel share one tracker project, each with its own milestones (chain rules).",
     trackerSoon: 'v0.2',
-    trackerLocked: "The chain has started tasks of this project, so its tracker stays: task IDs from two trackers would collide and their branches, folders and stats would mix. Switching the tracker comes in v0.2.",
+    trackerLocked:
+      "The chain has started tasks of this project, so its tracker and profile stay: the IDs of its tasks would no longer reach their branches, folders and stats. Another tracker's tasks join the chain as a task feed below.",
+    feeds: 'Task feeds',
+    feedsHint:
+      "Places in other trackers or profiles whose tasks join this project's chain, in the same repository. Each is read by its own profile and chain rules (the profile's, then the project's own). There are no blocks across trackers.",
+    feedsNone: 'None: the chain takes only the tasks of the tracker above.',
+    feedKey: 'Key',
+    feedKeyHint: 'Task IDs of a GitHub feed are KEY-<number>; Huly and Linear keep their own. The prefix must be unique among projects and feeds.',
+    feedAdd: 'Add a feed',
+    feedRemoveQuestion: (key: string) => `Remove the feed ${key}? Its closed tasks stay on the page for 7 days.`,
+    feedLocked: 'The chain has started tasks of this feed: its profile stays. Remove it and add another to change it.',
     brief: 'Task description in the prompt',
     briefHint:
       "Even Keel puts the task's title and description into the prompt. Auto: only when no package of the project brings the tracker's MCP server — with the tracker's plugin the session reads its task itself. On or off overrides that.",

@@ -383,6 +383,7 @@ export const en = {
   'config.remoteProfiles': (p: { where: string; known: string[] }) =>
     `config: ${p.where} must map a remote's kind (${list(p.known)}) to a profile's id`,
   'config.unknownProject': (p: { key: string }) => `config: there is no project ${p.key}`,
+  'config.unknownFeed': () => 'config: the project has no such task feed',
   'config.writeFailed': (p: { file: string }) => `config: could not write ${p.file}`,
   'config.statusBoth': (p: { project: string; status: string }) => `config: ${p.project}: status "${p.status}" is both active and terminal`,
   'config.labelBoth': (p: { project: string; label: string }) => `config: ${p.project}: label "${p.label}" is both required and excluded`,

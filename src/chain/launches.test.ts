@@ -272,6 +272,11 @@ describe('launchedProjects', () => {
   it('does not count releases or the fix session of main, which start no task of the tracker', () => {
     expect(launchedProjects([entry('ABC', 'ABC-1', 'skip'), entry('XYZ', 'XYZ-FIX'), entry('OPS', 'OPS-1', 'postpone')])).toEqual([])
   })
+
+  it("names the reader of each task: a feed's tasks lock the feed, not the project (BTN-66)", () => {
+    const readerOf = (project: string, task: string) => (task.startsWith('ABCGH-') ? 'feed' : project)
+    expect(launchedProjects([entry('ABC', 'ABCGH-1'), entry('XYZ', 'XYZ-3')], readerOf)).toEqual(['feed', 'XYZ'])
+  })
 })
 
 describe('fallbacksSince', () => {

@@ -101,12 +101,12 @@ export function fakeProfiles(mode: string | null): ProfilesView {
     login: 'johndoe',
     expiresAt: new Date(Date.now() + 5 * DAY_MS).toISOString(),
     check: { state: 'ok', error: null, at: ago(3) },
-    projects: [],
+    projects: ['ABCGH'],
     ci: [],
     hiddenCi: [{ project: 'ABC', remote: 'github' }],
     deniedPulls: [],
     rules: {},
-    projectIds: [],
+    projectIds: ['feed-abc-gh'],
   }
   const forgejo: ProfileView = {
     id: FORGEJO_PROFILE,
@@ -136,19 +136,19 @@ export function fakeProfiles(mode: string | null): ProfilesView {
     login: 'John Doe',
     expiresAt: null,
     check: { state: 'ok', error: null, at: ago(3) },
-    projects: [],
+    projects: ['WEB'],
     ci: [],
     hiddenCi: [],
     deniedPulls: [],
     rules: {},
-    projectIds: [],
+    projectIds: ['feed-abc-lin'],
   }
   if (mode === 'github') return { profiles: [github, forgejo], kinds: KINDS }
   return { profiles: mode === 'all' ? [huly, github, linear, forgejo] : [huly, github, forgejo], kinds: KINDS }
 }
 
 export function fakeProfilesCommand(state: EvenKeelState, name: string, body: Record<string, unknown>): EvenKeelState | null {
-  if (!name.startsWith('profiles/')) return null
+  if (!name.startsWith('profiles/') && name !== 'project/feed/profile') return null
   const view = state.profiles
   const id = String(body.id ?? body.profile)
   const profile = view.profiles.find((each) => each.id === id)
@@ -165,11 +165,15 @@ export function fakeProfilesCommand(state: EvenKeelState, name: string, body: Re
     if (rules.terminal?.some((status) => status.toLowerCase() === 'todo')) throw fail('config.statusBoth', { project: 'ABC', status: 'Todo' })
     return { ...state, profiles: { ...view, profiles: view.profiles.map((each) => (each.id === id ? { ...each, rules } : each)) } }
   }
-  if (name === 'profiles/link') {
-    const project = String(body.project)
+  if (name === 'profiles/link' || name === 'project/feed/profile') {
+    const project = String(name === 'profiles/link' ? body.project : body.feed)
+    const key = name === 'profiles/link' ? project : (Object.values(state.config.feeds).flat().find((feed) => feed.id === project)?.key ?? project)
+    const kind = name === 'profiles/link' ? state.config.projects[project]?.tracker : Object.values(state.config.feeds).flat().find((feed) => feed.id === project)?.tracker
+    const on = (each: ProfileView) => (body.profile === null ? each.kind === kind && each.isDefault : each.id === body.profile)
     const profiles = view.profiles.map((each) => ({
       ...each,
-      projects: each.id === body.profile ? [...each.projects.filter((key) => key !== project), project] : each.projects.filter((key) => key !== project),
+      projects: on(each) ? [...each.projects.filter((other) => other !== key), key] : each.projects.filter((other) => other !== key),
+      projectIds: on(each) ? [...each.projectIds.filter((other) => other !== project), project] : each.projectIds.filter((other) => other !== project),
     }))
     return { ...state, profiles: { ...view, profiles } }
   }

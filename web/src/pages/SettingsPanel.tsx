@@ -45,6 +45,7 @@ import { ruleChoicesOf } from './settingsRows.js'
 import { useVocabularies } from './useVocabularies.js'
 import { ProjectRemove } from './ProjectRemove.js'
 import { ProfileLink } from './ProfileSelect.js'
+import { FeedList } from './FeedList.js'
 import { TrackerPackageButton } from './ToolsLink.js'
 import { remoteChoices } from './remoteProfiles.js'
 import { projectScope as scopeOf, useDraft, useTab } from './settingsStore.js'
@@ -488,6 +489,7 @@ export function SettingsPanel({
           )}
         </div>
         {locked && <p className="settings__hint">{t.settings.trackerLocked}</p>}
+        {state !== null && <FeedList state={state} project={project} />}
         {switchChoice('fillMilestone', t.settings.fillMilestone, t.settings.fillMilestoneHint, shared.fillMilestone)}
         <RuleFields text={text} onEdit={edit} errorOf={errorOf} marks={marks} choices={ruleChoicesOf(tasks, vocabularies)} />
       </>
