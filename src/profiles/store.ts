@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto'
 import { FORGEJO_PROFILE, FORGEJO_TOKEN, FORGEJO_URL, hostOf } from '../ci/forgejo-profile.js'
 import { inTransaction, type Db, type Queryable } from '../storage/database.js'
 import { setStateValue, stateValue } from '../storage/service-state.js'
-import { profilesOfEnv, type Adapters, type ProfileSet, type TrackerProfile } from './model.js'
+import { profilesOfEnv, type Adapters, type ProfileRules, type ProfileSet, type TrackerProfile } from './model.js'
 
 interface ProfileRow {
   id: string
@@ -12,28 +12,35 @@ interface ProfileRow {
   is_default: boolean
   login: string | null
   expires_at: string | null
+  rules: string
 }
 
-/** The profiles in their order and each project's profile, in one statement. */
+/** The profiles in their order and each project's and feed's profile, in one statement. */
 export async function readProfiles(db: Queryable): Promise<ProfileSet> {
-  const { rows } = await db.query<{ set: { profiles: ProfileRow[]; links: { id: string; profile_id: string }[] } }>(
+  const { rows } = await db.query<{ set: { profiles: ProfileRow[]; links: { id: string; profile_id: string }[]; feeds: { feed_id: string; profile_id: string }[] } }>(
     `select json_build_object(
        'profiles', (select coalesce(json_agg(p order by p.position), '[]'::json) from tracker_profiles p),
-       'links', (select coalesce(json_agg(json_build_object('id', id, 'profile_id', profile_id)), '[]'::json) from projects where profile_id is not null)
+       'links', (select coalesce(json_agg(json_build_object('id', id, 'profile_id', profile_id)), '[]'::json) from projects where profile_id is not null),
+       'feeds', (select coalesce(json_agg(f), '[]'::json) from feed_profiles f)
      ) as set`,
   )
-  const { profiles, links } = rows[0]!.set
+  const { profiles, links, feeds } = rows[0]!.set
   return {
-    profiles: profiles.map((row) => ({
-      id: row.id,
-      kind: row.kind,
-      name: row.name,
-      values: JSON.parse(row.credentials) as Record<string, string>,
-      isDefault: row.is_default,
-      login: row.login,
-      expiresAt: row.expires_at,
-    })),
+    profiles: profiles.map((row) => {
+      const rules = JSON.parse(row.rules) as ProfileRules
+      return {
+        id: row.id,
+        kind: row.kind,
+        name: row.name,
+        values: JSON.parse(row.credentials) as Record<string, string>,
+        isDefault: row.is_default,
+        login: row.login,
+        expiresAt: row.expires_at,
+        ...(Object.keys(rules).length === 0 ? {} : { rules }),
+      }
+    }),
     links: Object.fromEntries(links.map((link) => [link.id, link.profile_id])),
+    ...(feeds.length === 0 ? {} : { feeds: Object.fromEntries(feeds.map((feed) => [feed.feed_id, feed.profile_id])) }),
   }
 }
 
@@ -42,7 +49,7 @@ export async function readProfiles(db: Queryable): Promise<ProfileSet> {
  * goes, a project it does not name runs on its tracker's default. A project the set names but the database does not
  * have yet is left for the next save. Starts its write at the call: see `Writes`.
  */
-export function saveProfiles(db: Db, { profiles, links }: ProfileSet, now: Date = new Date()): Promise<void> {
+export function saveProfiles(db: Db, { profiles, links, feeds = {} }: ProfileSet, now: Date = new Date()): Promise<void> {
   const rows = profiles.map((profile, position) => ({
     id: profile.id,
     kind: profile.kind,
@@ -53,16 +60,20 @@ export function saveProfiles(db: Db, { profiles, links }: ProfileSet, now: Date 
     expires_at: profile.expiresAt,
     position,
     created_at: now.toISOString(),
+    rules: JSON.stringify(profile.rules ?? {}),
   }))
   return inTransaction(db, async (tx) => {
     await tx.query('update projects set profile_id = ($1::json ->> id) where profile_id is distinct from ($1::json ->> id)', [JSON.stringify(links)])
+    await tx.query('delete from feed_profiles')
+    await tx.query('insert into feed_profiles select key, value from json_each_text($1::json)', [JSON.stringify(feeds)])
     await tx.query('delete from tracker_profiles where id not in (select json_array_elements_text($1::json))', [JSON.stringify(rows.map((row) => row.id))])
     // The default of a kind is unique row by row: clear them all before the new ones are written.
     await tx.query('update tracker_profiles set is_default = false where is_default')
     await tx.query(
       `insert into tracker_profiles select * from json_populate_recordset(null::tracker_profiles, $1)
        on conflict (id) do update set kind = excluded.kind, name = excluded.name, credentials = excluded.credentials,
-         is_default = excluded.is_default, login = excluded.login, expires_at = excluded.expires_at, position = excluded.position`,
+         is_default = excluded.is_default, login = excluded.login, expires_at = excluded.expires_at, position = excluded.position,
+         rules = excluded.rules`,
       [JSON.stringify(rows)],
     )
   })

@@ -72,6 +72,24 @@ describe('profile store', { timeout: 60_000 }, () => {
     expect(await readProfiles(db)).toEqual(next)
   })
 
+  it("keeps each profile's chain rules and each extra feed's profile (BTN-66)", async () => {
+    const set = {
+      profiles: [{ ...profile('a', 'github', true), rules: { active: ['open'], excludedLabels: ['wontfix'] } }, profile('c', 'huly', true, HULY_ENV)],
+      links: { [XYZ]: 'a' },
+      feeds: { 'feed-1': 'a' },
+    }
+    await saveProfiles(db, set)
+    expect(await readProfiles(db)).toEqual(set)
+    const next = { ...set, profiles: [profile('a', 'github', true), set.profiles[1]!], feeds: {} }
+    await saveProfiles(db, next)
+    expect(await readProfiles(db)).toEqual({ profiles: next.profiles, links: next.links })
+  })
+
+  it('refuses to drop a profile a feed still runs on', async () => {
+    await saveProfiles(db, { profiles: [profile('a', 'github', true)], links: {}, feeds: { 'feed-1': 'a' } })
+    await expect(db.transaction((tx) => tx.query("delete from tracker_profiles where id = 'a'"))).rejects.toThrow(/foreign key/)
+  })
+
   describe('importForgejo', () => {
     const forgejoFrom = (env: Record<string, string | undefined>, webs: string[]) =>
       importForgejo({ db, env, webs: async () => webs, log: (line) => logs.push(line) })

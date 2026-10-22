@@ -612,6 +612,10 @@ export interface ProfileView {
   hiddenCi: CiRemote[]
   /** The remotes whose forge refused to open a pull request with its token (`review.denied`, EKR-9). */
   deniedPulls: CiRemote[]
+  /** A tracker's: the chain rules it sets for its projects (BTN-66), only the keys set. */
+  rules: Partial<Pick<ChainRules, 'active' | 'terminal' | 'requiredLabels' | 'excludedLabels'>>
+  /** A tracker's: the ids of the projects that run on it or have a feed on it, for the rules' suggestions. */
+  projectIds: string[]
 }
 
 export interface ProfileField {

@@ -89,6 +89,8 @@ export function fakeProfiles(mode: string | null): ProfilesView {
     ci: [],
     hiddenCi: [],
     deniedPulls: [],
+    rules: { terminal: ['Done', 'Canceled'] },
+    projectIds: ['ABC', 'DEMO', 'XYZ', 'OPS'],
   }
   const github: ProfileView = {
     id: GITHUB_PROFILE,
@@ -103,6 +105,8 @@ export function fakeProfiles(mode: string | null): ProfilesView {
     ci: [],
     hiddenCi: [{ project: 'ABC', remote: 'github' }],
     deniedPulls: [],
+    rules: {},
+    projectIds: [],
   }
   const forgejo: ProfileView = {
     id: FORGEJO_PROFILE,
@@ -120,6 +124,8 @@ export function fakeProfiles(mode: string | null): ProfilesView {
     ],
     hiddenCi: [],
     deniedPulls: [{ project: 'DEMO', remote: 'origin' }],
+    rules: {},
+    projectIds: [],
   }
   const linear: ProfileView = {
     id: LINEAR_PROFILE,
@@ -134,6 +140,8 @@ export function fakeProfiles(mode: string | null): ProfilesView {
     ci: [],
     hiddenCi: [],
     deniedPulls: [],
+    rules: {},
+    projectIds: [],
   }
   if (mode === 'github') return { profiles: [github, forgejo], kinds: KINDS }
   return { profiles: mode === 'all' ? [huly, github, linear, forgejo] : [huly, github, forgejo], kinds: KINDS }
@@ -151,6 +159,11 @@ export function fakeProfilesCommand(state: EvenKeelState, name: string, body: Re
   if (name === 'profiles/default' && profile !== undefined) {
     const profiles = view.profiles.map((each) => (each.kind === profile.kind ? { ...each, isDefault: each.id === id } : each))
     return { ...state, profiles: { ...view, profiles } }
+  }
+  if (name === 'profiles/rules' && profile !== undefined) {
+    const rules = body.rules as ProfileView['rules']
+    if (rules.terminal?.some((status) => status.toLowerCase() === 'todo')) throw fail('config.statusBoth', { project: 'ABC', status: 'Todo' })
+    return { ...state, profiles: { ...view, profiles: view.profiles.map((each) => (each.id === id ? { ...each, rules } : each)) } }
   }
   if (name === 'profiles/link') {
     const project = String(body.project)
@@ -203,6 +216,8 @@ export function fakeSaved(state: EvenKeelState, id: string, body: Record<string,
     ci: stored?.ci ?? [],
     hiddenCi: stored?.hiddenCi ?? [],
     deniedPulls: [],
+    rules: stored?.rules ?? {},
+    projectIds: stored?.projectIds ?? [],
   }
   const profiles = stored === undefined ? [...view.profiles, profile] : view.profiles.map((each) => (each.id === id ? profile : each))
   return { ...state, profiles: { ...view, profiles } }

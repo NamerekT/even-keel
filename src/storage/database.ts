@@ -24,7 +24,8 @@ export interface Queryable {
  * as it is. Step 3 is the tables of the SQLite versions in Postgres; step 4 the project records and the settings
  * (BTN-199), `unattended` and `trimTools` moving from `chain_flags` into Even Keel's setting rows; step 5 the tracker
  * profiles and each project's profile (BTN-200); step 6 the versions of the milestones' changelog drafts (BTN-209); step 7 what each version's turn cost; step 8 the chain's list of pull requests, `reviews` (BTN-205); step 9 gives each project the color its position had,
- * a `color` row (BTN-207). A foreign key between tables is deferred, so that a copy inserts the
+ * a `color` row (BTN-207); step 12 the profiles' chain rules, the projects' extra task feeds and each feed's profile,
+ * and the profile and status of an archived task (BTN-66). A foreign key between tables is deferred, so that a copy inserts the
  * tables in any order (`insertRows`).
  */
 export const STEPS: readonly string[] = [
@@ -191,6 +192,16 @@ export const STEPS: readonly string[] = [
   `,
   `
   alter table projects drop constraint projects_key_key;
+  `,
+  `
+  alter table tracker_profiles add column rules text not null default '{}';
+  alter table projects add column feeds text not null default '[]';
+  create table feed_profiles (
+    feed_id    text primary key,
+    profile_id text not null references tracker_profiles (id) deferrable initially deferred
+  );
+  alter table closed_tasks add column profile_id text;
+  alter table closed_tasks add column status text;
   `,
 ]
 

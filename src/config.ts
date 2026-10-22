@@ -48,6 +48,8 @@ export interface EvenKeelConfig {
   /** The shared rules, defaults filled in; a project's own keys go over them into `rules`. */
   chain: ChainRules
   rules: Record<string, ChainRules>
+  /** The rule keys each project sets itself; a tracker profile's rules go between the shared and these (`projectRules`). */
+  ownRules: Record<string, Partial<ChainRules>>
   slots: Record<string, number>
   /** The palette slot of each project (`colorsOf`): its own `color` or a free one; a project past the free ones has none. */
   colors: Record<string, number>
@@ -122,6 +124,10 @@ const rulesOf = (values: Values): ChainRules => ({
   requiredMilestones: values['chain.requiredMilestones'] as string[],
   excludedMilestones: values['chain.excludedMilestones'] as string[],
 })
+
+/** The rule keys the project's own rows set: a tracker profile's rules do not go over them. */
+const ownRulesOf = (own: Values): Partial<ChainRules> =>
+  Object.fromEntries(RULE_KEYS.flatMap((key) => (own[`chain.${key}`] === undefined ? [] : [[key, own[`chain.${key}`]]])))
 
 /**
  * The place in its tracker the project reads (`TrackerProjectKey.placeOf`), its key where the adapter has no such notion.
@@ -239,6 +245,7 @@ function configOf(records: ProjectRecord[], { shared, own, values }: Resolved, a
     names: byId((record) => record.name ?? undefined),
     chain: rulesOf(shared),
     rules: byId((record, project) => checkRules(rulesOf(project), record.key)),
+    ownRules: byId((_, __, ownRows) => ownRulesOf(ownRows)),
     slots: byId((_, { slot }) => (slot === true ? 1 : typeof slot === 'number' ? slot : undefined)),
     colors: colorsOf(
       records.map((record) => record.id),
@@ -334,7 +341,8 @@ function trackerProjectOf(record: ProjectRecord, tracker: string, adapters: Adap
   return raw.trim()
 }
 
-function checkRules(rules: ChainRules, project: string): ChainRules {
+/** The rules, or the first name they put on both sides; `project` — what the message names the project by. */
+export function checkRules(rules: ChainRules, project: string): ChainRules {
   const clash = (a: string[], b: string[]) => a.find((name) => b.some((other) => sameName(name, other)))
   const status = clash(rules.active ?? [], rules.terminal ?? [])
   if (status !== undefined) throw fail('config.statusBoth', { project, status })

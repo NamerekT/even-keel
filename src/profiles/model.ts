@@ -1,4 +1,14 @@
+import type { ChainRules } from '../chain/rules.js'
 import type { TrackerAdapter } from '../tracker/source.js'
+
+/**
+ * The chain rules a tracker profile may set (BTN-66): its statuses and labels, which differ from tracker to tracker. The
+ * milestone rules split one tracker project between Even Keel projects and stay with them.
+ */
+export const PROFILE_RULE_KEYS = ['active', 'terminal', 'requiredLabels', 'excludedLabels'] as const
+export type ProfileRuleKey = (typeof PROFILE_RULE_KEYS)[number]
+/** Only the keys the profile sets. */
+export type ProfileRules = Partial<Pick<ChainRules, ProfileRuleKey>>
 
 /**
  * A tracker profile (BTN-200): one set of credentials of one tracker. A project runs on one profile of its tracker; two
@@ -18,6 +28,8 @@ export interface TrackerProfile {
   login: string | null
   /** When the credentials expire, as the tracker said at the last check; `null` — it did not say. */
   expiresAt: string | null
+  /** The chain rules of its projects, between the shared ones and a project's own; none — it sets none. */
+  rules?: ProfileRules
 }
 
 export interface ProfileSet {
@@ -25,6 +37,8 @@ export interface ProfileSet {
   profiles: TrackerProfile[]
   /** The profile each project chose, by project id; a project without one runs on its tracker's default profile. */
   links: Record<string, string>
+  /** The same for a project's extra task feed, by feed id (BTN-66); none — no feed chose one. */
+  feeds?: Record<string, string>
 }
 
 export type Adapters = Readonly<Record<string, TrackerAdapter>>
@@ -61,9 +75,13 @@ export function profileKinds(trackers: Adapters, cis: ProfileKinds = {}): Profil
   return { ...Object.fromEntries(own), ...cis }
 }
 
-/** The profile a project runs on: the one it chose while that is of the project's tracker, else the tracker's default. */
+/**
+ * The profile a project, or a project's extra feed, runs on: the one it chose while that is of its tracker, else the
+ * tracker's default.
+ */
 export function profileFor(set: ProfileSet, projectId: string | undefined, kind: string): TrackerProfile | undefined {
-  const linked = projectId === undefined ? undefined : set.profiles.find((profile) => profile.id === set.links[projectId])
+  const chosen = projectId === undefined ? undefined : (set.links[projectId] ?? set.feeds?.[projectId])
+  const linked = chosen === undefined ? undefined : set.profiles.find((profile) => profile.id === chosen)
   return linked?.kind === kind ? linked : defaultProfile(set, kind)
 }
 

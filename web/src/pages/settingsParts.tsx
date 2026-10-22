@@ -245,17 +245,22 @@ export function RuleFields({
   errorOf,
   marks,
   choices,
+  keys = RULE_KEYS,
+  hint = t.settings.rulesHint,
 }: {
   text: (key: RuleKey) => string
   onEdit: (key: RuleKey, text: string) => void
   errorOf: (field: string) => Notice | null
   marks: Marks
   choices: Record<'statuses' | 'labels' | 'milestones', readonly string[]>
+  /** The rules shown: a tracker profile sets only its statuses and labels. */
+  keys?: readonly RuleKey[]
+  hint?: string
 }) {
   return (
-    <Section title={t.settings.rules} hint={t.settings.rulesHint}>
+    <Section title={t.settings.rules} hint={hint}>
       <div className="settings__rules">
-        {RULE_KEYS.map((key) => (
+        {keys.map((key) => (
           <div key={key} className={marks.box(key)}>
             <FieldHead label={t.settings.rule[key]} hint={t.settings.ruleHint[key]} />
             <ListTable

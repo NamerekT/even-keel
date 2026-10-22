@@ -1124,6 +1124,11 @@ export const ru = {
       forgejo: 'CI своего сервера Forgejo, не трекер',
     } as Record<string, string>,
     pullsRefused: 'PR отклонён',
+    rulesOf: (name: string) => `Правила: ${name}`,
+    rulesFor: (keys: string) => `Проекты на этом профиле: ${keys}.`,
+    rulesNoProjects: 'Ни один проект пока не работает на этом профиле.',
+    rulesHint:
+      'Правила проектов на этом профиле: статусы и метки у каждого трекера свои. Пустой список профиль не задаёт — действуют общие правила. Правило, заданное у самого проекта, сильнее правила профиля. Правила вех задаются только в общих настройках и у проекта.',
     deniedPulls: (remotes: string, kind: string) =>
       kind === 'forgejo'
         ? `Pull request не открылся (${remotes}): токену не хватило права write:repository`

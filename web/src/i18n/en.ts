@@ -935,6 +935,11 @@ export const en: Messages = {
         : `GitHub Actions not shown (${remotes}): the token does not reach the repository's Actions, it needs Actions: Read`,
     kindHint: { huly: 'An own Huly server or the cloud', github: 'Issues and Actions on github.com', linear: 'A Linear workspace', forgejo: 'The CI of an own Forgejo server, no tracker' },
     pullsRefused: 'PR refused',
+    rulesOf: (name) => `Rules: ${name}`,
+    rulesFor: (keys) => `Projects on this profile: ${keys}.`,
+    rulesNoProjects: 'No project runs on this profile yet.',
+    rulesHint:
+      "The rules of the projects on this profile: every tracker names its statuses and labels its own way. An empty list sets nothing, and the shared rules stay. A rule a project sets itself goes over the profile's. Milestone rules are set only in the shared settings and per project.",
     deniedPulls: (remotes, kind) =>
       kind === 'forgejo'
         ? `A pull request was not opened (${remotes}): the token lacks write:repository`

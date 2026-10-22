@@ -6,7 +6,8 @@ import { isSecret } from '../secrets/catalog.js'
 import type { CheckResult, CiRemote, ProfileCheck, ProfilesView } from '../state.js'
 import type { Db, Writes } from '../storage/database.js'
 import { CredentialsRefused, type ProfileAccount, type TrackerProject } from '../tracker/source.js'
-import { defaultProfile, profileFor, sameAccount, valuesOf, type ProfileKind, type ProfileKinds, type ProfileSet, type TrackerProfile } from './model.js'
+import { defaultProfile, profileFor, sameAccount, valuesOf, type ProfileKind, type ProfileKinds, type ProfileRules, type ProfileSet, type TrackerProfile } from './model.js'
+import { cleanRules } from './rules.js'
 import { saveProfiles } from './store.js'
 
 /** How often every profile is checked again: a revoked token turns its profile red and pauses its chains. */
@@ -32,6 +33,8 @@ export interface ProfilesDeps {
   ci?: (profileId: string) => CiRemote[]
   /** The remotes whose CI takes the profile's token but does not show: the token does not reach it. */
   hiddenCi?: (profileId: string) => CiRemote[]
+  /** Throws the clash the profile's new rules would make with a project on it (`checkProfileRules`). */
+  checkRules?: (set: ProfileSet, id: string, rules: ProfileRules) => void
   /** The remotes whose forge refused to open a pull request with the profile's token (`PullRefusals`). */
   deniedPulls?: (profileId: string) => CiRemote[]
   timeoutMs: number
@@ -89,6 +92,8 @@ export class Profiles {
         ci: this.deps.ci?.(profile.id) ?? [],
         hiddenCi: this.deps.hiddenCi?.(profile.id) ?? [],
         deniedPulls: this.deps.deniedPulls?.(profile.id) ?? [],
+        rules: profile.rules ?? {},
+        projectIds: this.projectsOn(profile).map(([id]) => id),
       })),
       kinds: Object.entries(this.deps.kinds).map(([kind, each]) => ({
         kind,
@@ -143,8 +148,20 @@ export class Profiles {
     const next = profile.isDefault ? profiles.find((each) => each.kind === profile.kind) : undefined
     if (next !== undefined) profiles = profiles.map((each) => (each === next ? { ...each, isDefault: true } : each))
     const links = Object.fromEntries(Object.entries(this.set.links).filter(([, profileId]) => profileId !== id))
+    const feeds = Object.fromEntries(Object.entries(this.set.feeds ?? {}).filter(([, profileId]) => profileId !== id))
     this.checks.delete(id)
-    this.replace({ profiles, links }, profile.isDefault ? profile.kind : null)
+    this.replace({ profiles, links, feeds }, profile.isDefault ? profile.kind : null)
+  }
+
+  /** The profile's chain rules (BTN-66), once no project on it would put a name on both sides: only the keys set. */
+  setRules(id: string, rules: ProfileRules): void {
+    const profile = this.profile(id)
+    if (profile === undefined) throw fail('profiles.unknown', {})
+    const clean = cleanRules(rules)
+    this.deps.checkRules?.(this.set, id, clean)
+    const { rules: _, ...rest } = profile
+    const updated: TrackerProfile = Object.keys(clean).length === 0 ? rest : { ...rest, rules: clean }
+    this.replace({ ...this.set, profiles: this.set.profiles.map((each) => (each.id === id ? updated : each)) }, null)
   }
 
   setDefault(id: string): void {
