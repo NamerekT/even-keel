@@ -88,6 +88,7 @@ Every entry, ordered by how many people it reaches and how badly it hurts them i
 | 76 | [GitHub issues taken into the tracker](#github-issues-taken-into-the-tracker-btn-262) | projects with `intakeLabel` | an issue is not taken in, or stays open after its release; close it by hand |
 | 77 | [A tool approval in an SDK session](#a-tool-approval-in-an-sdk-session-btn-303) | Agent SDK sessions out of unattended mode | an allowed call fails, or the chain waits on an approval after unattended mode goes on |
 | 78 | [A permission dialog answered from the page](#a-permission-dialog-answered-from-the-page-btn-269) | Claude `--bg` sessions that stop on a permission dialog | the session keeps waiting after the answer; answer through Remote Control |
+| 79 | [The OpenCode model check](#the-opencode-model-check-btn-336) | OpenCode on ChatGPT, Copilot or an API key | a model that works is refused at launch; leave the model field empty |
 
 ## Platforms
 
@@ -318,6 +319,10 @@ Checked on OpenCode 1.18.25 on Windows, the free `opencode/big-pickle`, by a scr
 ### A spent limit on OpenCode
 
 OpenCode shows no usage windows for ChatGPT or Copilot, so an OpenCode account has no limit bars and no reset time to wait for. What a spent limit looks like in OpenCode's database was never seen: the fold takes a message's `error` as the API error, a text with `usage limit`, `rate limit`, `quota` or `too many requests` as a limit (`LIMIT_TEXT` in `src/opencode/transcript.ts`). If it is worded otherwise, the session stops like on any error; if OpenCode retries by itself, it hangs (below); how the chain holds a limit with no reset time on OpenCode was not tried. **Workaround:** wait for the reset and press "New session".
+
+### The OpenCode model check (BTN-336)
+
+A launch or a resume on an OpenCode model that `opencode models` of the account does not list is refused: the chain pauses with `chain.unknownModel` (`docs/sessions.md`, "Model lists"). Checked from a terminal on OpenCode 1.18.25 on Windows with a free OpenCode Zen account (nine models listed, a made-up one refused), never by the chain of the service and never on a ChatGPT, Copilot or API-key account: if `opencode models` there omits a model the account can run (one set by `opencode.json`, a provider that lists lazily), the task is refused although its session would work. **Workaround:** leave the model field empty so the session runs on OpenCode's default, and open an issue with the output of `opencode models`.
 
 ### A hung OpenCode turn
 

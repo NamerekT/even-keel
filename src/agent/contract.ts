@@ -84,6 +84,13 @@ export interface SessionStart {
   plugins?: SessionPlugin[]
 }
 
+/** `Agent.models`' answer. */
+export interface ModelList {
+  models: string[]
+  /** Whether the agent runs on nothing else; a list of aliases leaves full model ids out, so it is not. */
+  complete: boolean
+}
+
 /** A turn of its own (`Agent.write`): it keeps no session, gets no MCP server or skill, and its tools only read. */
 export interface OneTurn {
   cwd: string
@@ -201,6 +208,11 @@ export interface Agent {
    * agent itself; `null` — it did not say. Without it the window is the transcript's, else the setting's (BTN-187).
    */
   contextWindow?(home: AccountHome, model: string, settings?: string): Promise<number | null>
+  /**
+   * Optional. The models a session of the account may run on, as `SessionStart.model` takes them: the page offers them
+   * in the model fields, and a model outside a `complete` list is refused before a launch (BTN-336).
+   */
+  models?(home: AccountHome): Promise<ModelList>
   /** Optional, with `contextWindow`: what its answer depends on besides the model, such as the CLI and the account's settings. */
   windowStamp?(home: AccountHome): Promise<string>
   /** Optional. Stops the account's daemon so that its sessions read the shared configuration anew. */

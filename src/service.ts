@@ -17,6 +17,7 @@ import { AccountWatcher } from './account/watcher.js'
 import { AGENTS } from './agent/adapters.js'
 import type { Agent, SessionHandle, SessionStart } from './agent/contract.js'
 import { sessionBase } from './agent/env.js'
+import { ModelCatalog } from './agent/models.js'
 import { ContextWindows } from './agent/windows.js'
 import { outdatedDaemonView, VersionWatcher } from './agent/versions.js'
 import { addMarketplace, updateMarketplace } from './claude/cli.js'
@@ -368,8 +369,26 @@ const runtimes = new Map<string, Agent>(
 /** The agent of an account folder: every session of the folder runs on it. */
 const agentOf = (home: AccountHome): Agent => runtimes.get(home.agent)!
 const envOf = (home: AccountHome) => agentOf(home).env(home)
-const launchIn = (home: AccountHome, start: SessionStart) => agentOf(home).launch(home, start)
-const resumeIn = (home: AccountHome, session: SessionHandle, start: SessionStart) => agentOf(home).resume(home, session, start)
+const models = new ModelCatalog({
+  list: async (home) => (await agentOf(home).models?.(home)) ?? null,
+  title: (home) => AGENTS[home.agent]!.title,
+  name: (home) => account.view.accounts.find((entry) => entry.key === home.key)?.name ?? home.key,
+  now: () => Date.now(),
+  log: (line) => console.warn(line),
+})
+/** A model the account does not have is refused here, before the agent starts a turn that dies on it (BTN-336). */
+const requireModel = async (home: AccountHome, start: SessionStart) => {
+  const refusal = await models.refusal(home, start.name, start.model)
+  if (refusal !== undefined) throw new NoticeError(refusal)
+}
+const launchIn = async (home: AccountHome, start: SessionStart) => {
+  await requireModel(home, start)
+  return agentOf(home).launch(home, start)
+}
+const resumeIn = async (home: AccountHome, session: SessionHandle, start: SessionStart) => {
+  await requireModel(home, start)
+  return agentOf(home).resume(home, session, start)
+}
 const stopIn = (home: AccountHome, session: SessionHandle) => agentOf(home).stop(home, session)
 const startedAt = new Date().toISOString()
 const tasksByProject = new Map<string, Task[]>()
@@ -1697,6 +1716,10 @@ let server = createEvenKeelServer({
     return received === null ? view : { ...view, received: { ...received, account: sessionAccount(received.sessionId, received.at) } }
   },
   vocabulary: (id) => (Object.hasOwn(readers().projects, id) ? vocabularies.get(id) : Promise.resolve(undefined)),
+  models: async (key) => {
+    const home = homes.find(key)
+    return home === undefined ? null : models.of(home)
+  },
   tasks: {
     card: async (task) => {
       const project = configuredProject(task)

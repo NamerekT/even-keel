@@ -134,6 +134,7 @@ describe('Even Keel HTTP server', () => {
         if (id === 'down') throw new Error('github: HTTP 502')
         return id === '0b1c2d3e' ? { statuses: [{ name: 'Open', category: 'ToDo' }], labels: ['bug'] } : undefined
       },
+      models: async (key) => (key === 'opencode' ? { models: ['opencode/big-pickle'], complete: true } : null),
       tasks: {
         card: async (task) => {
           if (task === 'ABC-9') throw new Error('huly: issue ABC-9 not found')

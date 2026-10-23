@@ -2,7 +2,7 @@ import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
-import { entryOf, parseSession, threadOf, TurnRegistry, turnEnded, type CodexSession } from './turns.js'
+import { entryOf, parseSession, threadOf, TurnRegistry, turnEnded, turnsOf, type CodexSession } from './turns.js'
 
 const THREAD = '01a14a18-1d1a-7861-b272-a7d4df8a9b5c'
 
@@ -94,5 +94,12 @@ describe('TurnRegistry', () => {
     expect(await registry.get(THREAD)).toEqual(session)
     expect(await registry.get('missing')).toBeUndefined()
     expect(registry.turnFile('ABC-1', 5)).toBe(join(dir, 'turns', 'ABC-1-5.jsonl'))
+  })
+})
+
+describe('turnsOf', () => {
+  it("gives the session's own turns since it started, oldest first", () => {
+    const names = ['ABC-1-30.jsonl', 'ABC-12-20.jsonl', 'ABC-1-5.jsonl', 'ABC-1-10.jsonl', 'ABC-1-FIX-11.jsonl', 'ABC-1-12.txt']
+    expect(turnsOf(names, { name: 'ABC-1', startedAt: 10 })).toEqual(['ABC-1-10.jsonl', 'ABC-1-30.jsonl'])
   })
 })

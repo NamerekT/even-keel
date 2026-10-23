@@ -56,6 +56,16 @@ export function turnArgs(start: Pick<SessionStart, 'model' | 'bypassSandbox' | '
 }
 
 /**
+ * The models of the app-server's `model/list` answer (`{ data: [{ model, hidden }] }`) as `-m` takes them, the hidden
+ * ones left out. Not a complete list: an API key reaches models it does not name.
+ */
+export function listedModels(answer: unknown): string[] {
+  const data = (answer as { data?: unknown } | null)?.data
+  if (!Array.isArray(data)) return []
+  return data.flatMap((entry: { model?: unknown; hidden?: unknown }) => (typeof entry?.model === 'string' && entry.hidden !== true ? [entry.model] : []))
+}
+
+/**
  * `Agent.write`: one read-only turn with no one to answer it (the changelog, BTN-209). `--json` prints its events, for
  * the tokens of `turn.completed`.
  */

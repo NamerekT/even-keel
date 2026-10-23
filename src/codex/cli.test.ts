@@ -1,5 +1,20 @@
 import { describe, expect, it } from 'vitest'
-import { parseLoginStatus, parseWriteAnswer, turnArgs, writeArgs } from './cli.js'
+import { listedModels, parseLoginStatus, parseWriteAnswer, turnArgs, writeArgs } from './cli.js'
+
+describe('listedModels', () => {
+  it("takes the models of the app-server's list, the hidden ones left out", () => {
+    const answer = {
+      data: [
+        { id: 'gpt-reserve', model: 'gpt-reserve', hidden: true },
+        { id: 'gpt-6-luna', model: 'gpt-6-luna', hidden: false, isDefault: true },
+        { id: 'gpt-5.6-terra', model: 'gpt-5.6-terra', hidden: false },
+      ],
+      nextCursor: null,
+    }
+    expect(listedModels(answer)).toEqual(['gpt-6-luna', 'gpt-5.6-terra'])
+    expect(listedModels(null)).toEqual([])
+  })
+})
 
 describe('writeArgs', () => {
   it('asks for one read-only turn that keeps no rollout, prints its events and reads the prompt from stdin', () => {

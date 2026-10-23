@@ -78,6 +78,28 @@ describe('foldSession', () => {
     expect(other.apiError).toMatchObject({ kind: 'error', text: 'UnknownError' })
   })
 
+  it('shows an error a turn ended on in its place, and once when a step holds it too', () => {
+    const unknown = { name: 'UnknownError', data: { message: 'Unexpected server error. Check server logs for details.' } }
+    const again = message('msg_03', 10, { role: 'user' })
+    const summary = foldSession([prompt, again], [promptText, part('prt_03', 'msg_03', 10, { type: 'text', text: 'try again' })], 30, false, [
+      { at: T0 + 2000, error: unknown },
+    ])
+    expect(summary.feed.map((line) => [line.kind, line.text])).toEqual([
+      ['prompt', 'DEMO-1'],
+      ['error', 'Unexpected server error. Check server logs for details.'],
+      ['prompt', 'try again'],
+    ])
+    expect(summary.apiError).toBeNull()
+
+    const failed = foldSession([prompt], [promptText], 30, false, [{ at: T0 + 2000, error: unknown }])
+    expect(failed.apiError).toMatchObject({ kind: 'error', text: 'Unexpected server error. Check server logs for details.' })
+    expect(failed.lastActivityAt).toBe('2026-10-22T10:00:02.000Z')
+
+    const limit = { name: 'APIError', data: { message: 'Rate limit reached' } }
+    const both = foldSession([prompt, message('msg_02', 2, step({ input: 10 }, { error: limit }))], [promptText], 30, false, [{ at: T0 + 3000, error: limit }])
+    expect(both.feed.filter((line) => line.kind === 'error')).toHaveLength(1)
+  })
+
   it('skips the synthetic texts OpenCode adds and rows it cannot parse', () => {
     const summary = foldSession(
       [prompt, { id: 'msg_bad', at: T0 + 1000, data: '{' }, message('msg_02', 2, step({ input: 10 }))],

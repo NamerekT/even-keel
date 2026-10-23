@@ -41,6 +41,8 @@ import {
 } from './settingsParts.js'
 import { ruleChoicesOf } from './settingsRows.js'
 import { useVocabularies } from './useVocabularies.js'
+import { ModelOffers } from './ModelOffers.js'
+import { useModels } from './useModels.js'
 import { ProjectRemove } from './ProjectRemove.js'
 import { CLI_TTL, formOf, profileOf, remoteKey, switchOf, tokensOf, valuesOf } from './projectForm.js'
 import { ProjectTracker } from './ProjectTracker.js'
@@ -138,6 +140,9 @@ export function SettingsPanel({
   // Only turning PR mode on waits for a remote and its profile (EKR-7): one already on stays free to turn off.
   const pullReadiness = state?.pullReadiness[project] ?? null
   const offered = offeredProviders(state?.account ?? null, namedProviders(text, [config.shared.provider, text('provider')], ['models', 'accounts']))
+  // The model is offered from the account its row runs on: the project's own, else the shared one.
+  const rowAccount = (provider: string) => text(`accounts.${provider}`) || (config.shared.accounts[provider] ?? '')
+  const modelOffers = useModels(offered.map(rowAccount))
 
   useEffect(() => closeRef.current?.focus({ preventScroll: true }), [])
 
@@ -451,6 +456,7 @@ export function SettingsPanel({
                 </div>
               )
             }
+            const offers = modelOffers[rowAccount(provider)] ?? []
             return (
               <div className={marks.box(key)}>
                 <input
@@ -461,8 +467,10 @@ export function SettingsPanel({
                   value={text(key)}
                   placeholder={t.settings.asShared(config.shared.models[provider] ?? t.settings.cliDefault)}
                   aria-invalid={errorOf(key) !== null}
+                  list={offers.length === 0 ? undefined : `${fieldId(key)}-models`}
                   onChange={(event) => edit(key, event.target.value)}
                 />
+                <ModelOffers id={`${fieldId(key)}-models`} models={offers} />
                 {marks.note(key)}
                 <FieldNote error={errorOf(key)} />
               </div>

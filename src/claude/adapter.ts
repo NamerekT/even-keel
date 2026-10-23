@@ -25,6 +25,8 @@ const CHECKED = '2.1.308'
 /** Even Keel's folder of SDK sessions in `state/` and of the SDK's copies in `state/cli/`. */
 const CLAUDE_SDK = 'claude-sdk'
 const SDK_TRANSPORT: Transport = 'sdk'
+/** What the page offers in the model field: `--model` takes these aliases and any full model id, which is typed in. */
+const MODEL_ALIASES = ['opus', 'sonnet', 'haiku', 'opusplan', 'sonnet[1m]'] as const
 
 /** Claude Code through the `claude` CLI: `--bg` sessions, one `CLAUDE_CONFIG_DIR` per account (`docs/sessions.md`). */
 export const claude: AgentAdapter = {
@@ -113,6 +115,7 @@ export const claude: AgentAdapter = {
       installed: () => findBinary(bin(), env()),
       version: () => cli.version(env()),
       usage: async (home, at) => parseUsage(await cli.usage(home, workDir), at),
+      models: async () => ({ models: [...MODEL_ALIASES], complete: false }),
       contextWindow: async (home, model, settings) => parseContextWindow(await cli.context(home, workDir, model, settings)),
       windowStamp: async (home) => {
         const binary = bin()

@@ -7,7 +7,8 @@ import { runWithInput } from '../agent/oneturn.js'
 import { PIN_RETRY_MS, PinnedCli } from '../agent/pinned.js'
 import { notice } from '../notice/notice.js'
 import { findBinary } from '../paths.js'
-import { CodexCli, parseWriteAnswer, resolveCodexBinary, SESSION_MODE, writeArgs } from './cli.js'
+import { appServer } from './appserver.js'
+import { CodexCli, listedModels, parseWriteAnswer, resolveCodexBinary, SESSION_MODE, writeArgs } from './cli.js'
 import { CODEX } from './name.js'
 import { CodexPlugins } from './plugins.js'
 import { codexBinaryIn, codexTarget, fetchCodex } from './release.js'
@@ -93,6 +94,10 @@ export const codex: AgentAdapter = {
         const started = Date.now()
         const stdout = await runWithInput(bin(), writeArgs(model), prompt, { cwd, env: envOf(home), timeoutMs })
         return parseWriteAnswer(stdout, model, Date.now() - started)
+      },
+      models: async (home) => {
+        const [answer] = await appServer(bin(), [], workDir, envOf(home), [['model/list', {}]])
+        return { models: listedModels(answer), complete: false }
       },
     }
   },

@@ -41,8 +41,10 @@ import { knownStatuses, originsAt } from './ruleRows.js'
 import { MilestoneFields, RuleForm, ruleText } from './RuleForm.js'
 import { lineOf, linesText, pairOf, ruleChoicesOf, rowsOf } from './settingsRows.js'
 import { accountOptions, namedProviders, providerKeys, providerMap, providerName, providerOptions, providerValues } from './settingsRun.js'
+import { ModelOffers } from './ModelOffers.js'
 import { profileGroup, ProfileRules } from './ProfileRules.js'
 import { profileAddOf } from './pullFix.js'
+import { useModels } from './useModels.js'
 import { openTab, SHARED_SCOPE, useDraft, useTab } from './settingsStore.js'
 import { ListTable, RowsTable } from './settingsTable.js'
 import { SettingsNav } from './SettingsNav.js'
@@ -196,6 +198,7 @@ export function SharedSettings({ state }: { state: EvenKeelState }) {
   const leftover = unplaced(null, failure, config)
   const text = (key: string) => draft.edit[key] as string
   const offered = offeredProviders(state.account, namedProviders(text, [text('provider')], ['models']))
+  const modelOffers = useModels(offered.map((provider) => text(`accounts.${provider}`)))
   const titleOf = (id: GroupId) => t.shared[id]
   const hintOf: Partial<Record<GroupId, string>> = { ci: t.shared.ciNote, secrets: t.secrets.hint }
   const groupTitle = (id: GroupId) => (
@@ -235,8 +238,8 @@ export function SharedSettings({ state }: { state: EvenKeelState }) {
       <FieldNote error={errorOf(key)} />
     </div>
   )
-  // A model and a pick in a cell of the provider table: its column names it.
-  const model = (key: string, label: string) => (
+  // A model and a pick in a cell of the provider table: its column names it. The model is typed freely, the account's list only offered.
+  const model = (key: string, label: string, offers: readonly string[]) => (
     <div className={marks.box(key)}>
       <input
         id={fieldId(key)}
@@ -246,8 +249,10 @@ export function SharedSettings({ state }: { state: EvenKeelState }) {
         value={text(key)}
         placeholder={t.settings.cliDefault}
         aria-invalid={errorOf(key) !== null}
+        list={offers.length === 0 ? undefined : `${fieldId(key)}-models`}
         onChange={(event) => edit(key, event.target.value)}
       />
+      <ModelOffers id={`${fieldId(key)}-models`} models={offers} />
       {marks.note(key, (value) => ((value as string).trim() === '' ? t.settings.cliDefault : (value as string)))}
       <FieldNote error={errorOf(key)} />
     </div>
@@ -360,7 +365,7 @@ export function SharedSettings({ state }: { state: EvenKeelState }) {
           providers={offered}
           cell={(column, provider) => {
             const name = providerName(provider)
-            if (column === 'models') return model(`models.${provider}`, t.settings.modelOf(name))
+            if (column === 'models') return model(`models.${provider}`, t.settings.modelOf(name), modelOffers[text(`accounts.${provider}`)] ?? [])
             if (column === 'accounts') return pick(`accounts.${provider}`, t.settings.accountOf(name), accountOptions(state.account, provider, text(`accounts.${provider}`)))
             if (column === 'cli')
               return pick(
