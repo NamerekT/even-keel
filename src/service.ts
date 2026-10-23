@@ -1205,6 +1205,11 @@ const works = new TaskWorks({
     worksOf(runGit, configStore.current.projects[project]!, branchOf(project), (tasksByProject.get(project) ?? []).map((task) => task.id)),
   ttlMs: WORK_TTL_MS,
   now: () => Date.now(),
+  activity: (task) => {
+    const times = sessions.filter((each) => each.task === task && each.lastActivityAt !== null).map((each) => Date.parse(each.lastActivityAt!))
+    return times.length === 0 ? null : Math.max(...times)
+  },
+  busy: (task) => agentStatus(task) === 'busy',
   onChange: () => hub.broadcast('state', getState()),
   log: (line) => console.warn(line),
 })
