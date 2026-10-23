@@ -1501,7 +1501,7 @@ let server = createEvenKeelServer({
         if ('notice' in ready) throw fail('review.cannotEnable', { project }, { cause: ready.notice })
       }
       if (form.mergeInto !== base.mergeInto || form.repo !== base.repo) await checkMergeTarget(project, form)
-      configStore.saveProject(project, form, base)
+      configStore.saveProject(project, form, base, profileFor(profiles.current(), project, configStore.current.trackers[project]!)?.rules)
       console.log(`page: the settings of ${project} are written to the config`)
     },
     saveShared: (form, base) => {

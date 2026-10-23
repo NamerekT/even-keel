@@ -20,7 +20,10 @@ Four chain rules have a level between the project and Even Keel (BTN-66): the **
 or for a task of one of its feeds, the feed's profile. `chain.active`, `chain.terminal`, `chain.requiredLabels` and
 `chain.excludedLabels` go project → profile → Even Keel, key by key; the milestone rules have no profile level. They
 are kept in the profile (`tracker_profiles.rules`, only the keys set), edited in a group per tracker profile on
-`/settings`, and stay out of `config-export` with the profiles (`docs/trackers.md`, "Profiles").
+`/settings`, and stay out of `config-export` with the profiles (`docs/trackers.md`, "Profiles"). A project's save
+writes a rule key only where its value differs from what the project inherits — the profile's over the shared one
+(BTN-334, `withProjectForm`): a value equal to the profile's stays inherited, so a later change of the profile reaches
+the project. The page edits the rules by status and by label, one form on the three levels (`docs/web.md`).
 
 Some settings are maps whose entries override one by one: `models`, `accounts` and `execution` by provider. A project's
 `models.codex` replaces only the shared `models.codex`; the shared `models.claude` still applies to it.

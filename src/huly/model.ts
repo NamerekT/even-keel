@@ -154,7 +154,7 @@ export function todoStatus(statuses: HulyStatusDoc[], allowed: string[] | null):
 export function vocabularyOf(statuses: HulyStatusDoc[], allowed: string[] | null, tags: { title: string }[]): TrackerVocabulary {
   const byId = new Map(statuses.map((doc) => [doc._id, doc]))
   const named = allowed === null ? statuses : allowed.flatMap((id) => byId.get(id) ?? [])
-  return { statuses: named.map((doc) => doc.name), labels: [...new Set(tags.map((tag) => tag.title))] }
+  return { statuses: named.map(toStatus), labels: [...new Set(tags.map((tag) => tag.title))] }
 }
 
 /** Huly keeps the priority as an index: 0 none, 1 urgent, 2 high, 3 medium, 4 low. */

@@ -317,16 +317,21 @@ describe('cardLinks', () => {
 })
 
 describe('vocabularyOf', () => {
-  it('names the statuses of the project type in its order and the workspace labels once each', () => {
+  it('names the statuses of the project type in its order with their categories and the workspace labels once each', () => {
     const allowed = ['tracker:status:Todo', 'tracker:status:Backlog', 'custom-review', 'tracker:status:Done']
     expect(vocabularyOf(statuses, allowed, [{ title: 'UI' }, { title: 'Bug' }, { title: 'UI' }])).toEqual({
-      statuses: ['Todo', 'Backlog', 'In Review', 'Done'],
+      statuses: [
+        { name: 'Todo', category: 'ToDo' },
+        { name: 'Backlog', category: 'UnStarted' },
+        { name: 'In Review', category: 'Active' },
+        { name: 'Done', category: 'Won' },
+      ],
       labels: ['UI', 'Bug'],
     })
   })
 
   it('names every status when the project type is unknown', () => {
-    expect(vocabularyOf(statuses, null, []).statuses).toEqual(statuses.map((doc) => doc.name))
+    expect(vocabularyOf(statuses, null, []).statuses.map((status) => status.name)).toEqual(statuses.map((doc) => doc.name))
   })
 })
 

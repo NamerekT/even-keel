@@ -299,7 +299,12 @@ describe('github source', () => {
       { body: { data: { repository: { labels: page([{ name: 'Question' }]) } } } },
     ])
     expect(await source.vocabulary!('ABC')).toEqual({
-      statuses: ['Open', 'Completed', 'Not planned', 'Duplicate'],
+      statuses: [
+        { name: 'Open', category: 'ToDo' },
+        { name: 'Completed', category: 'Won' },
+        { name: 'Not planned', category: 'Lost' },
+        { name: 'Duplicate', category: 'Lost' },
+      ],
       labels: ['bug', 'priority: high', 'Question'],
     })
     expect(calls[1]!.variables).toMatchObject({ owner: 'octo-org', name: 'abc', after: null })

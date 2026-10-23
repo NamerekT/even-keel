@@ -1,0 +1,113 @@
+/* The chain rules by what they are about (BTN-334): a row a status or a label, where it comes from at the end. */
+.rule-table {
+  width: 100%;
+  margin-top: 4px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  border-spacing: 0;
+  /* The panel breaks words anywhere; here a word breaks only when it alone is wider than its column. */
+  overflow-wrap: break-word;
+}
+
+.rule-table th,
+.rule-table td {
+  padding: 4px 10px;
+  border-bottom: 1px solid var(--border);
+  text-align: left;
+  vertical-align: middle;
+}
+
+.rule-table > :last-child > tr:last-child > * {
+  border-bottom: 0;
+}
+
+.rule-table thead th {
+  background: var(--surface-muted);
+  color: var(--fg-muted);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+/* No fixed widths: in the project's narrow panel the heads, the names and the origins wrap between words. */
+.rule-table .rule-table__name {
+  font-weight: 400;
+}
+
+.rule-table .rule-table__pick {
+  padding-inline: 4px;
+  text-align: center;
+}
+
+/* The reset stays by the origin it puts back; only a long profile name wraps. */
+.rule-table .rule-table__origin {
+  min-width: 5em;
+}
+
+.rule-table__origin-line {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.rule-table .rows__new td,
+.rule-table td:has(> .select) {
+  padding: 0;
+}
+
+.rule-table__from {
+  color: var(--fg-muted);
+  font-size: 12px;
+}
+
+.rule-table__fixed {
+  color: var(--fg-muted);
+}
+
+.rule-table__select {
+  min-width: 7.5em;
+}
+
+/* Sized by its placeholder, the new label's field would hold the table wider than the project's panel. */
+.rule-table .rows__new .rows__input:not(.select) {
+  field-sizing: fixed;
+  min-width: 6em;
+}
+
+/* An inherited row: muted, but whole and still editable — an edit makes the list the level's own. */
+/* The cells themselves keep full opacity: a translucent cell shows its background through and the row turns patchy. */
+.rule-table__inherited > :not(.rule-table__origin) {
+  color: var(--fg-muted);
+}
+
+.rule-table__inherited input,
+.rule-table__inherited .select {
+  opacity: 0.62;
+}
+
+.rule-table__reset {
+  display: inline-grid;
+  place-items: center;
+  width: 24px;
+  flex: none;
+  height: 24px;
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--fg-muted);
+  vertical-align: middle;
+  cursor: pointer;
+}
+
+.rule-table__reset:hover {
+  background: var(--surface-muted);
+  color: var(--fg);
+}
+
+.rule-take {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 16px;
+  margin-top: 8px;
+}

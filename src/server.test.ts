@@ -132,7 +132,7 @@ describe('Even Keel HTTP server', () => {
       tools: async (project) => (project === 'ABC' ? { project } : undefined),
       vocabulary: async (id) => {
         if (id === 'down') throw new Error('github: HTTP 502')
-        return id === '0b1c2d3e' ? { statuses: ['Open'], labels: ['bug'] } : undefined
+        return id === '0b1c2d3e' ? { statuses: [{ name: 'Open', category: 'ToDo' }], labels: ['bug'] } : undefined
       },
       tasks: {
         card: async (task) => {
@@ -239,6 +239,7 @@ describe('Even Keel HTTP server', () => {
       ...{ prompt: 'Run npm test.', beforeStart: ['npm ci'], check: ['npm test'], afterGreen: ['npm run build'], ci, fillMilestone: true, changelog: 'docs/CHANGELOG.md', ...form },
       ...{ promptLanguage: 'ru', cacheTtl: '1h', checkpointTokens: 180_000, checkpointShares: { first: 60, late: 85, hard: 95 } },
       own: { 'ci.guard': false, cacheTtl: '1h', 'stats.checkpointShares.first': 60 },
+      ownRules: [],
     }
     const started = { ...settings, prompt: null, slot: 0, own: {} }
     const response = await fetch(base + '/api/project/settings', { method: 'POST', body: JSON.stringify({ project: 'ABC', ...settings, base: started }) })
@@ -534,7 +535,7 @@ describe('Even Keel HTTP server', () => {
   it("serves the tracker's statuses and labels of a project by its id, 404 when the tracker gives none", async () => {
     const response = await fetch(base + '/api/projects/0b1c2d3e/vocabulary')
     expect(response.status).toBe(200)
-    expect(await response.json()).toEqual({ statuses: ['Open'], labels: ['bug'] })
+    expect(await response.json()).toEqual({ statuses: [{ name: 'Open', category: 'ToDo' }], labels: ['bug'] })
     expect((await fetch(base + '/api/projects/QQQ/vocabulary')).status).toBe(404)
     const failed = await fetch(base + '/api/projects/down/vocabulary')
     expect(failed.status).toBe(400)

@@ -7,31 +7,11 @@ import { CheckIcon, QuestionIcon, UndoIcon } from '../ui/icons.js'
 import { useTip, type TipAlign } from '../ui/useTip.js'
 import type { Draft, Same, Value, Values } from './settingsDraft.js'
 import { fieldOf } from './settingsField.js'
-import { withoutListed } from './settingsRows.js'
 import { providerName } from './settingsRun.js'
-import { ListTable } from './settingsTable.js'
 
 export const RULE_KEYS = ['active', 'terminal', 'requiredLabels', 'excludedLabels', 'requiredMilestones', 'excludedMilestones'] as const
 export type RuleKey = (typeof RULE_KEYS)[number]
 export type RuleTexts = Record<RuleKey, string>
-/** The list a name may not share with: a status is either in work or closed, a label or a milestone either needed or excluded. */
-const OPPOSITE: Record<RuleKey, RuleKey> = {
-  active: 'terminal',
-  terminal: 'active',
-  requiredLabels: 'excludedLabels',
-  excludedLabels: 'requiredLabels',
-  requiredMilestones: 'excludedMilestones',
-  excludedMilestones: 'requiredMilestones',
-}
-/** Which of the tracker's names a rule list offers. */
-const CHOICES: Record<RuleKey, 'statuses' | 'labels' | 'milestones'> = {
-  active: 'statuses',
-  terminal: 'statuses',
-  requiredLabels: 'labels',
-  excludedLabels: 'labels',
-  requiredMilestones: 'milestones',
-  excludedMilestones: 'milestones',
-}
 
 export const linesOf = (text: string) => text.split('\n').map((line) => line.trim()).filter((line) => line !== '')
 export const rulesText = (rules: ChainRules): RuleTexts => ({
@@ -235,48 +215,6 @@ export function Section({ title, hint, children }: { title: string; hint?: strin
       </legend>
       {children}
     </fieldset>
-  )
-}
-
-/** The rules are fields of the draft under their own names; `choices` are offered as one types a status or a label. */
-export function RuleFields({
-  text,
-  onEdit,
-  errorOf,
-  marks,
-  choices,
-  keys = RULE_KEYS,
-  hint = t.settings.rulesHint,
-}: {
-  text: (key: RuleKey) => string
-  onEdit: (key: RuleKey, text: string) => void
-  errorOf: (field: string) => Notice | null
-  marks: Marks
-  choices: Record<'statuses' | 'labels' | 'milestones', readonly string[]>
-  /** The rules shown: a tracker profile sets only its statuses and labels. */
-  keys?: readonly RuleKey[]
-  hint?: string
-}) {
-  return (
-    <Section title={t.settings.rules} hint={hint}>
-      <div className="settings__rules">
-        {keys.map((key) => (
-          <div key={key} className={marks.box(key)}>
-            <FieldHead label={t.settings.rule[key]} hint={t.settings.ruleHint[key]} />
-            <ListTable
-              label={t.settings.rule[key]}
-              value={text(key)}
-              add={t.settings.ruleAdd[key]}
-              empty={t.settings.rulePlaceholder[key]}
-              suggest={withoutListed(choices[CHOICES[key]], text(OPPOSITE[key]))}
-              onChange={(value) => onEdit(key, value)}
-            />
-            {marks.note(key)}
-            <FieldNote error={errorOf(`chain.${key}`)} />
-          </div>
-        ))}
-      </div>
-    </Section>
   )
 }
 
