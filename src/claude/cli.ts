@@ -15,7 +15,7 @@ import { blockedAsk, blockedOn, launchedModel, parseAgents, parseSessionRecord, 
 import { newestExtensionBinary } from '../sessions/paths.js'
 import { CallTimeout, FolderCalls } from './calls.js'
 import { contextArgs } from './context.js'
-import { daemonVersionOf } from './release.js'
+import { daemonVersionOf, noDaemonIn } from './release.js'
 import { descendantsOf, isAlive, killLeftovers } from './tree.js'
 
 const run = promisify(execFile)
@@ -176,8 +176,14 @@ export class ClaudeCli {
 
   /** `claude daemon status`: the version of the folder's daemon, `null` — none runs. */
   async daemonVersion(home: AccountHome): Promise<string | null> {
-    const { stdout } = await run(this.bin(), ['daemon', 'status'], { env: this.envOf(home), timeout: this.timeoutMs, windowsHide: true })
-    return daemonVersionOf(stdout)
+    try {
+      const { stdout } = await run(this.bin(), ['daemon', 'status'], { env: this.envOf(home), timeout: this.timeoutMs, windowsHide: true })
+      return daemonVersionOf(stdout)
+    } catch (error) {
+      const { stdout } = error as { stdout?: unknown }
+      if (typeof stdout === 'string' && noDaemonIn(stdout)) return null
+      throw fail('claude.daemonStatusFailed', { account: home.key }, { detail: callFailure(error) }, { cause: error })
+    }
   }
 
   async stopDaemon(home: AccountHome): Promise<void> {

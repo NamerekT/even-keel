@@ -37,6 +37,11 @@ export function daemonVersionOf(status: string): string | null {
   return /^version:\s*(\S+)/m.exec(status)?.[1] ?? null
 }
 
+/** `claude daemon status` says no daemon runs: 2.1.308 opens its stdout with "not running" and exits with code 1. */
+export function noDaemonIn(status: string): boolean {
+  return /^\s*(?:daemon:\s*)?not running\s*?(?:\n|$)/.test(status)
+}
+
 /** The binary's name in the version's folder. */
 export function claudeBinaryIn(folder: string): string {
   return join(folder, process.platform === 'win32' ? 'claude.exe' : 'claude')

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { claudePlatform, daemonVersionOf, manifestEntry } from './release.js'
+import { claudePlatform, daemonVersionOf, manifestEntry, noDaemonIn } from './release.js'
 
 describe('claudePlatform', () => {
   it('names the build of the manifest for the machine', () => {
@@ -43,5 +43,20 @@ describe('daemonVersionOf', () => {
   it('has none when no daemon runs', () => {
     expect(daemonVersionOf('daemon: not running\n')).toBeNull()
     expect(daemonVersionOf('')).toBeNull()
+  })
+})
+
+describe('noDaemonIn', () => {
+  it('reads "not running" the CLI prints with exit code 1', () => {
+    const status = 'not running\n\nbg sessions:\n  sock dir:     \\\\.\\pipe\\cc-daemon-*\n  roster.json:  absent\n'
+    expect(noDaemonIn(status)).toBe(true)
+    expect(noDaemonIn(status.replace(/\n/g, '\r\n'))).toBe(true)
+    expect(noDaemonIn('daemon: not running\n')).toBe(true)
+  })
+
+  it('takes nothing else for "no daemon"', () => {
+    expect(noDaemonIn('')).toBe(false)
+    expect(noDaemonIn('error: could not read roster.json\n')).toBe(false)
+    expect(noDaemonIn('pid:     28500\nversion: 2.1.303\nbg sessions:\n  worker x: not running\n')).toBe(false)
   })
 })

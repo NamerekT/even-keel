@@ -163,6 +163,26 @@ describe('CiWatch', () => {
     expect(t.watch.view).toMatchObject({ health: 'ok', error: null })
   })
 
+  it('logs an error once per change: when it appears and when the CI answers again', async () => {
+    const t = setup()
+    const missing = fail('ci.http', { ci: 'Forgejo', status: 404 })
+    t.fail(missing)
+    await t.watch.tick()
+    t.advance(ERROR_RETRY_MS)
+    await t.watch.tick()
+    expect(t.calls.runs).toBe(2)
+    expect(t.logs).toEqual(['ci: origin of D:/repos/app: Forgejo: the API answered HTTP 404'])
+
+    t.fail(null)
+    t.advance(ERROR_RETRY_MS)
+    await t.watch.tick()
+    t.fail(missing)
+    t.advance(ERROR_RETRY_MS)
+    t.push('sha9')
+    await t.watch.tick()
+    expect(t.logs.slice(1)).toEqual(['ci: origin of D:/repos/app answers again', 'ci: origin of D:/repos/app: Forgejo: the API answered HTTP 404'])
+  })
+
   it('is off without a token and never asks', async () => {
     const t = setup({ source: false })
     await t.watch.tick()

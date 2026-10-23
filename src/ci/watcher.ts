@@ -143,6 +143,7 @@ export class CiWatch {
       if (pushed !== null && runs.some((each) => each.commit === pushed.commit || Date.parse(each.createdAt) >= Date.parse(pushed.at))) {
         this.view.pushed = null
       }
+      if (this.view.health === 'error') this.deps.log(`ci: ${this.deps.target.remote} of ${this.deps.repo} answers again`)
       this.view.health = 'ok'
       this.view.error = null
     } catch (error) {
