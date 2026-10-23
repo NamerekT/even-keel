@@ -1,4 +1,4 @@
-import type { PackageProblem, PackagesView, PackageView } from '../../../src/state.js'
+import type { PackageProblem, PackagesView, PackageView, ProjectPackages } from '../../../src/state.js'
 
 export type Transport = 'http' | 'stdio'
 
@@ -39,12 +39,14 @@ const PASSING = new Set<PackageProblem['kind']>(['installing', 'probing'])
 
 /** The projects the banner names: held by their packages, not only for a moment. */
 export function blockedProjects(view: PackagesView, projects: string[]): string[] {
-  return projects.filter((project) => {
-    const found = view.projects[project]
-    if (found?.blocked !== true) return false
-    const problems = [...found.problems, ...Object.values(found.cells).flatMap((cell) => (cell.enabled ? cell.problems : []))].filter((each) => each.kind !== 'unsupported')
-    return problems.length === 0 || problems.some((each) => !PASSING.has(each.kind))
-  })
+  return projects.filter((project) => heldLong(view.projects[project]))
+}
+
+/** The project's chain waits on something that does not pass by itself. */
+export function heldLong(found: ProjectPackages | undefined): boolean {
+  if (found?.blocked !== true) return false
+  const problems = [...found.problems, ...Object.values(found.cells).flatMap((cell) => (cell.enabled ? cell.problems : []))].filter((each) => each.kind !== 'unsupported')
+  return problems.length === 0 || problems.some((each) => !PASSING.has(each.kind))
 }
 
 /**

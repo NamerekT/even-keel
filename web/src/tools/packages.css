@@ -73,14 +73,14 @@
   width: 30%;
 }
 
+.packages__head {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
 .packages__waits {
-  margin-left: 6px;
-  padding: 0 6px;
-  border-radius: 6px;
-  background: var(--warn-bg);
-  color: var(--warn-fg);
-  font-family: var(--font);
-  font-weight: 600;
+  display: flex;
   cursor: help;
 }
 

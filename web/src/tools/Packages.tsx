@@ -8,7 +8,7 @@ import { useProjectLabel } from '../ui/ProjectLabel.js'
 import { Tipped } from '../ui/Tipped.js'
 import { AddPackage } from './AddPackage.js'
 import { ImportOffers, Keys, MarketplaceOffer } from './PackagesParts.js'
-import { shownPackages } from './packageView.js'
+import { heldLong, shownPackages } from './packageView.js'
 import './packages.css'
 
 /** The catalog against the chosen projects: what each one's sessions get, its problems, and the buttons to change it. */
@@ -58,10 +58,11 @@ export function Packages({ view, projects }: { view: PackagesView; projects: str
   )
 }
 
+/** A red lamp only when the chain waits on you: a server still starting spins on its cell and passes by itself. */
 function ProjectHead({ project, view }: { project: string; view: PackagesView }) {
   const label = useProjectLabel()
   const found = view.projects[project]
-  if (found?.blocked !== true) return <th scope="col">{label(project)}</th>
+  if (found === undefined || !heldLong(found)) return <th scope="col">{label(project)}</th>
   const reasons = [
     ...found.problems.map(problemText),
     ...Object.entries(found.cells).flatMap(([name, cell]) => (cell.enabled ? cell.problems.filter((each) => each.kind !== 'unsupported').map((each) => `${name}: ${problemText(each)}`) : [])),
@@ -69,10 +70,12 @@ function ProjectHead({ project, view }: { project: string; view: PackagesView })
   ]
   return (
     <th scope="col">
-      {label(project)}
-      <Tipped className="packages__waits" tip={t.packages.waitsTip(reasons.join('; '))} focusable inline>
-        {t.packages.waits}
-      </Tipped>
+      <span className="packages__head">
+        <Tipped className="packages__waits" tip={t.packages.waitsTip(reasons.join('; '))} focusable inline>
+          <span className="lamp lamp--error" role="img" aria-label={t.packages.waits} />
+        </Tipped>
+        {label(project)}
+      </span>
     </th>
   )
 }
