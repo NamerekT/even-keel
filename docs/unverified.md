@@ -87,6 +87,7 @@ Every entry, ordered by how many people it reaches and how badly it hurts them i
 | 75 | [Copilot models in the stats](#copilot-models-in-the-stats) | Copilot on Claude models | `/stats` shows no cost for them |
 | 76 | [GitHub issues taken into the tracker](#github-issues-taken-into-the-tracker-btn-262) | projects with `intakeLabel` | an issue is not taken in, or stays open after its release; close it by hand |
 | 77 | [A tool approval in an SDK session](#a-tool-approval-in-an-sdk-session-btn-303) | Agent SDK sessions out of unattended mode | an allowed call fails, or the chain waits on an approval after unattended mode goes on |
+| 78 | [A permission dialog answered from the page](#a-permission-dialog-answered-from-the-page-btn-269) | Claude `--bg` sessions that stop on a permission dialog | the session keeps waiting after the answer; answer through Remote Control |
 
 ## Platforms
 
@@ -179,6 +180,10 @@ Run live from the service on Windows (CLI 2.1.308, SDK 0.3.308, Haiku, 2026-10-2
 ### A tool approval in an SDK session (BTN-303)
 
 Out of unattended mode, a tool call the CLI puts to `canUseTool` waits as a question with "Allow" and "Deny", and an answer allows it with its own input or refuses it (`docs/sessions.md`). Covered by tests only: no live session has asked for an approval yet. Assumed: that the CLI in `auto` mode asks for one at all and only for calls its classifier leaves to a human; that `allow` with the unchanged input runs the call; that an approval already waiting is refused within a poll once unattended mode goes on. If the CLI never asks, nothing changes against before; if an allowed call does not run, the session gets an error for it and goes on without it; if a waiting one is not refused, the chain stands on it. **Workaround:** answer "Deny" from the page, or "New session" on the task.
+
+### A permission dialog answered from the page (BTN-269)
+
+A `--bg` session waiting on a permission dialog has the call as its question while the `checkpoint` plugin's `PermissionRequest` hook holds it, and the answer goes to the hook, not by a resume (`docs/sessions.md`, "Permission dialogs"). Seen live on CLI 2.1.308 with a hook of the same protocol written by hand: the hook runs beside the open dialog, its `allow` and `deny` are taken there without a stop, and a decision from elsewhere leaves it running. Not run: the whole path through the service — a chain session, its question on the page, the answer from the chat or a tracker comment; an answer through Remote Control while the hook waits (assumed to leave the hook running too, so the service closes the call once the session stops waiting); a hook held for the full 29 minutes against its 1800 s `timeout`; a dialog the `auto` classifier opens rather than an `ask` rule; Codex taking the hook for its own approvals (it skips them by `turn_id`). If the answer does not reach the dialog, the session keeps waiting and the page shows the question as answered; if a closed call lingers, the page shows a question the session no longer has. **Workaround:** answer the dialog through Remote Control; "New session" on the task.
 
 ### The 1-hour cache on a key
 

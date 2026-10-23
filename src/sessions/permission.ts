@@ -1,9 +1,11 @@
-import type { Language } from '../../language.js'
-import { chosenLabels, replyParts, type Ask } from '../../sessions/ask.js'
+import type { Language } from '../language.js'
+import { chosenLabels, replyParts, type Ask } from './ask.js'
 
 /** How much of a call's input the question shows. */
 const PREVIEW_CHARS = 2000
 const DENIED = 'The user denied this call: do without it.'
+/** The answer to a tool the CLI wants approved while the chain runs unattended: nobody is at the page (`permissionMode` decides the rest). */
+export const NO_APPROVAL = 'Nobody approves tool calls in this session: do without this call, or ask the user with AskUserQuestion.'
 
 const TEXTS: Record<Language, { question: (tool: string) => string; header: string; allow: string; deny: string; denyHint: string }> = {
   en: {

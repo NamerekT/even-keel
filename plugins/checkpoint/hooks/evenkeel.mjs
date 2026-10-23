@@ -45,6 +45,23 @@ export async function checkpointNote(sessionId, env = process.env) {
   return mark > last ? nudge(answer.context, last, plan) : null;
 }
 
+/**
+ * The user's decision on a tool call the session waits to have approved: `{ behavior: "allow" }` or
+ * `{ behavior: "deny", message }`; undefined — not yet; null — Even Keel did not start the session, or the dialog
+ * the hook started at `since` (ms) was answered elsewhere.
+ */
+export async function decisionOf(sessionId, tool, input, since) {
+  const response = await fetch(`${base()}/api/sessions/${encodeURIComponent(sessionId)}/permission`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ tool, input, since }),
+    signal: AbortSignal.timeout(2000),
+  });
+  if (response.status === 404) return null;
+  if (!response.ok) return undefined;
+  return (await response.json())?.decision ?? undefined;
+}
+
 /** The text of what waited for the session, now delivered on `event`, or null: nothing waits, or Even Keel did not start it. */
 export async function mailOf(sessionId, event) {
   const response = await fetch(`${base()}/api/sessions/${encodeURIComponent(sessionId)}/mail`, {

@@ -4,6 +4,7 @@ import type { Agent, SessionTail } from '../agent/contract.js'
 import { warmCacheMs, type HandoffSession, type LimitedSession } from '../chain/relay.js'
 import type { SessionView } from '../state.js'
 import { isLive, lampOf, sessionsByTask, steadyJobs, type AgentEntry, type JobIds } from './agents.js'
+import type { Ask } from './ask.js'
 import { ResumeHolds } from './holds.js'
 import { remoteLink } from './remote.js'
 
@@ -17,6 +18,8 @@ export interface SessionMonitorOptions {
   projectKeys: () => string[]
   /** Optional. The window the agent itself gives for a task's session of the account on the model; `null` — not known yet. */
   contextWindow?: (account: string, model: string, task: string) => number | null
+  /** Optional. The tool call a waiting session's permission hook holds, as a question (BTN-269). */
+  approval?: (sessionId: string) => Ask | null
   intervalMs: number
   onAgents: (agents: AgentEntry[]) => void
   onChange: (views: SessionView[]) => void
@@ -67,7 +70,9 @@ export class SessionMonitor {
       const account = tracked.agent.account ?? GLOBAL_ACCOUNT
       const enabled = this.remoteEnabled.has(account) ? this.remoteEnabled.get(account)! : false
       const remote = { enabled, apiKey: this.options.apiKey(account) }
-      const view = toView(task, tracked, remote, this.options.emailOf(account), now, (model) => this.options.contextWindow?.(account, model, task) ?? null)
+      const windowOf = (model: string) => this.options.contextWindow?.(account, model, task) ?? null
+      const approval = tracked.present && tracked.agent.status === 'waiting' ? (this.options.approval?.(tracked.agent.sessionId) ?? null) : null
+      const view = toView(task, tracked, remote, this.options.emailOf(account), now, windowOf, approval)
       return view.lamp === 'finished' && this.holds.held(view.sessionId) ? { ...view, lamp: 'working' as const } : view
     })
   }
@@ -190,6 +195,7 @@ function toView(
   email: string | null,
   now: number,
   windowOf: (model: string) => number | null,
+  approval: Ask | null,
 ): SessionView {
   const summary = transcript.summary()
   const model = agent.model ?? summary.model
@@ -201,7 +207,7 @@ function toView(
     startedAt: agent.startedAt,
     now,
   })
-  const ask = present ? (summary.ask ?? agent.ask ?? null) : null
+  const ask = present ? (approval ?? summary.ask ?? agent.ask ?? null) : null
   return {
     task,
     sessionId: agent.sessionId,
