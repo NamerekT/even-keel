@@ -3,12 +3,23 @@ import { formatTokens } from '../format.js'
 import { t } from '../i18n/index.js'
 import { contextFill } from '../state.js'
 
+interface ContextMeterProps {
+  tokens: number
+  window: number | null
+  scale: ContextScale
+  full?: boolean
+  /** Only the percent, for the chain's row: the tokens are in its tip. */
+  brief?: boolean
+}
+
 /** `window` is the session's own context window; `null` — the setting's stands in. */
-export function ContextMeter({ tokens, window, scale, full = false }: { tokens: number; window: number | null; scale: ContextScale; full?: boolean }) {
+export function ContextMeter({ tokens, window, scale, full = false, brief = false }: ContextMeterProps) {
   const { percent, level } = contextFill(tokens, scale, window)
   const value = full
     ? t.context.of(formatTokens(tokens), formatTokens(window ?? scale.window), Math.round(percent))
-    : `${Math.round(percent)}% · ${formatTokens(tokens)}`
+    : brief
+      ? `${Math.round(percent)}%`
+      : `${Math.round(percent)}% · ${formatTokens(tokens)}`
 
   return (
     <div className={`context-meter context-meter--${level}`}>

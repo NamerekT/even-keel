@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { AccountEntry, AccountView } from '../../src/account/model.js'
-import { accountGroups, accountSlot, addStep, canAdd, cliMissing, connectionOf, deviceLogin, entrySlot, folderEmail, offeredProviders } from './accounts.js'
+import { accountGroups, accountSlot, addStep, canAdd, cliMissing, connectionOf, deviceLogin, entrySlot, folderEmail, foreignAccount, offeredProviders } from './accounts.js'
 
 const entry = (key: string, email: string | null): AccountEntry => ({
   key,
@@ -38,6 +38,23 @@ describe('accountSlot', () => {
   it('wraps around the eight series colours', () => {
     const many = view(Array.from({ length: 10 }, (_, index) => entry(`k${index}`, `u${index}@example.com`)))
     expect(accountSlot(many, 'u8@example.com')).toBe(1)
+  })
+})
+
+describe('foreignAccount', () => {
+  const own = { ...entry('work', 'jane@example.com'), projects: ['p-1'] }
+  const accounts = view([own, entry('global', 'john@example.com')])
+
+  it('is not the account the project runs on', () => {
+    expect(foreignAccount(accounts, 'p-1', 'jane@example.com')).toBe(false)
+    expect(foreignAccount(accounts, 'p-1', 'john@example.com')).toBe(true)
+    expect(foreignAccount(accounts, 'p-2', 'jane@example.com')).toBe(true)
+  })
+
+  it('takes an e-mail no folder has now for a foreign one, and an unknown one for none', () => {
+    expect(foreignAccount(accounts, 'p-1', 'richard@example.com')).toBe(true)
+    expect(foreignAccount(undefined, 'p-1', 'jane@example.com')).toBe(true)
+    expect(foreignAccount(accounts, 'p-1', null)).toBe(false)
   })
 })
 

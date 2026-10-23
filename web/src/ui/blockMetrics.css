@@ -1,0 +1,86 @@
+/* One line of the chain's row; a later chip of the row goes on its end. */
+.block__metrics {
+  position: relative;
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 24px;
+  padding: 2px 8px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface-muted);
+}
+
+.block__metrics > .tipped {
+  display: flex;
+  align-items: center;
+}
+
+.block__metrics .context-meter {
+  width: 84px;
+  gap: 6px;
+}
+
+.block__metrics .context-meter__track {
+  background: var(--border);
+}
+
+.block__metrics .context-meter__value {
+  min-width: 3ch;
+  text-align: right;
+}
+
+.cache-ring {
+  flex: none;
+  fill: none;
+  stroke-width: 2.2;
+  --cache-ring: var(--lamp-done);
+}
+
+.cache-ring--warn {
+  --cache-ring: var(--lamp-waiting);
+}
+
+.cache-ring--cold {
+  --cache-ring: var(--fg-muted);
+}
+
+.cache-ring__track {
+  stroke: var(--border);
+}
+
+.cache-ring--cold .cache-ring__track {
+  stroke: var(--fg-muted);
+  stroke-dasharray: 2 2;
+}
+
+.cache-ring__left {
+  stroke: var(--cache-ring);
+  stroke-linecap: round;
+  transform: rotate(-90deg);
+  transform-origin: center;
+}
+
+.block__account {
+  display: inline-grid;
+  place-items: center;
+  width: 16px;
+  height: 16px;
+  border: 1px solid color-mix(in srgb, var(--series) 60%, transparent);
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--series) 24%, transparent);
+  color: var(--fg);
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.block__resets {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  color: var(--fg-muted);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}

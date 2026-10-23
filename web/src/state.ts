@@ -173,6 +173,27 @@ export function checkpointHandoffs(rows: TaskSession[]): number {
   return rows.filter((row) => row.how === 'checkpoint').length
 }
 
+/** How many times a task's context started over: `limit` and `relay` — new sessions after the limit and for the other causes. */
+export interface ContextResets {
+  checkpoint: number
+  limit: number
+  relay: number
+  restart: number
+  compactions: number
+  total: number
+}
+
+export function contextResets(rows: TaskSession[]): ContextResets {
+  const resets = { checkpoint: 0, limit: 0, relay: 0, restart: 0, compactions: 0, total: 0 }
+  for (const row of rows) {
+    if (row.how === 'checkpoint' || row.how === 'restart') resets[row.how]++
+    else if (row.how === 'relay') resets[(row.cause ?? 'limit') === 'limit' ? 'limit' : 'relay']++
+    resets.compactions += row.compactions ?? 0
+  }
+  resets.total = resets.checkpoint + resets.limit + resets.relay + resets.restart + resets.compactions
+  return resets
+}
+
 /** The prefix of a task id or fix name: `ABC` of `ABC-12`. */
 export function taskPrefix(task: string): string {
   return task.replace(/-(\d+|FIX)$/, '')
@@ -631,6 +652,11 @@ export function cacheFreshness(cache: CacheWindow, now: Date): { left: number; l
   const left = Math.max(0, Date.parse(cache.until) - now.getTime())
   const level = left === 0 ? 'cold' : left < CACHE_TTL_MS[cache.ttl] / 5 ? 'warn' : 'ok'
   return { left, level }
+}
+
+/** The part of the cache lifetime left, 1 to 0: the ring of the chain's row. */
+export function cacheShare(cache: CacheWindow, now: Date): number {
+  return Math.min(1, cacheFreshness(cache, now).left / CACHE_TTL_MS[cache.ttl])
 }
 
 /** How loud the panel draws the cache: quiet until it is about to run out, and for a finished session always. */

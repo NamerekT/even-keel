@@ -47,6 +47,7 @@ export class RolloutFold {
   private stage: Stage | null = null
   private contextTokens = 0
   private contextWindow: number | null = null
+  private compactions = 0
   private tokens: TokenTotals = { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 }
   private apiError: TranscriptSummary['apiError'] = null
   private lastMessage: string | null = null
@@ -83,6 +84,11 @@ export class RolloutFold {
       if (typeof payload.model === 'string' && payload.model !== '') this.model = payload.model
       return
     }
+    // A compaction writes its summary as a line of its own, the history to resume from; the event that announces it may follow.
+    if (line.type === 'compacted') {
+      this.compactions++
+      return
+    }
     const at = line.timestamp ?? ''
     // A hook's `additionalContext` reaches the rollout only as a developer message, with no event of its own.
     if (line.type === 'response_item' && payload.type === 'message' && payload.role === 'developer') {
@@ -103,6 +109,7 @@ export class RolloutFold {
     return {
       contextTokens: this.contextTokens,
       contextWindow: this.contextWindow,
+      compactions: this.compactions,
       cache: null,
       tokens: { ...this.tokens },
       turn: this.turnStartedAt === null ? null : { startedAt: this.turnStartedAt, tool: null },

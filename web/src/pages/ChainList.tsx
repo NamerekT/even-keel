@@ -5,12 +5,10 @@ import { withWaiting } from '../../../src/chain/order.js'
 import type { ContextScale, TrackerUrls } from '../../../src/state.js'
 import { say, t } from '../i18n/index.js'
 import { useCommand } from '../live/useCommand.js'
-import { blockMetered, checkpointHandoffs, issueLink, type ChainBlock, type Ghost, type ReadyButton, type TaskLinks } from '../state.js'
-import { AccountTag } from '../ui/AccountTag.js'
+import { blockMetered, issueLink, type ChainBlock, type Ghost, type ReadyButton, type TaskLinks } from '../state.js'
 import { ARCHIVE_PAGE, archiveView } from '../ui/archive.js'
-import { CacheClock } from '../ui/CacheClock.js'
-import { ContextMeter } from '../ui/ContextMeter.js'
-import { HandoffIcon, IntoChainIcon } from '../ui/icons.js'
+import { BlockMetrics } from '../ui/BlockMetrics.js'
+import { IntoChainIcon } from '../ui/icons.js'
 import { Lamp } from '../ui/Lamp.js'
 import { landingIndex, revealElement } from '../ui/landing.js'
 import { Links } from '../ui/Links.js'
@@ -198,6 +196,7 @@ export function ChainList({ project, chain, scale, trackerUrls, focus, ghost: ai
                 ) : (
                   <Block
                     key={block.id}
+                    project={project}
                     block={block}
                     link={block.locked ? issueLink(trackerUrls, block.id) : null}
                     number={numbers.get(block.id)}
@@ -388,6 +387,7 @@ function Divider({ name, count, hidden = false, bump, toggle, action }: DividerP
 }
 
 interface BlockProps {
+  project: string
   block: ChainBlock
   link: string | null
   number: number | undefined
@@ -413,7 +413,7 @@ interface BlockProps {
 }
 
 function Block(props: BlockProps) {
-  const { block, link, number, waits, links, scale, tier, rails, kin, marks, focused, movable, relation, arrival, offset, onHover, onReturn, ready, onReady, onCard } =
+  const { project, block, link, number, waits, links, scale, tier, rails, kin, marks, focused, movable, relation, arrival, offset, onHover, onReturn, ready, onReady, onCard } =
     props
   const classes = ['block', `block--${block.lamp}`, `block--${tier}`, `block--priority-${block.priority}`]
   if (isRework(block.labels)) classes.push('block--rework')
@@ -437,7 +437,6 @@ function Block(props: BlockProps) {
   const share = tier === 'past' ? null : estimateShare(block.estimate)
   const status = shownStatus(block)
   const fix = isFixName(block.id)
-  const handoffs = checkpointHandoffs(block.sessions)
   const style = {
     ...Object.fromEntries([...marks].map(([mark, beat]) => [`--beat-${mark}`, `${beat}ms`])),
     ...(share !== null && { '--estimate': share.toFixed(2) }),
@@ -541,26 +540,7 @@ function Block(props: BlockProps) {
         {badge === 'dependent' && <span className="tag">{t.chain.dependent}</span>}
         {block.start !== null && <StartPill start={block.start} />}
         {status !== null && metered === null && block.start === null && <span className="block__status">{status}</span>}
-        {metered !== null && (
-          <span className="block__metrics">
-            <span className="block__metrics-row">
-              {metered.cache !== null && <CacheClock cache={metered.cache} />}
-              <ContextMeter tokens={metered.contextTokens} window={metered.contextWindow} scale={scale} />
-            </span>
-            <span className="block__metrics-row block__metrics-row--who">
-              <AccountTag email={metered.account} />
-              <span
-                className={handoffs > 0 ? 'block__handoffs' : 'block__handoffs block__handoffs--none'}
-                role="img"
-                aria-label={t.chain.handoffs(handoffs)}
-                title={t.chain.handoffsTitle}
-              >
-                <HandoffIcon />
-                {handoffs}
-              </span>
-            </span>
-          </span>
-        )}
+        {metered !== null && <BlockMetrics project={project} session={metered} sessions={block.sessions} scale={scale} />}
         {block.skipped && (
           <button type="button" className="button block__return" disabled={onReturn === undefined} onClick={onReturn}>
             {t.common.restore}

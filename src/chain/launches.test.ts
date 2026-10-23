@@ -159,6 +159,19 @@ describe('taskSessions', () => {
     ])
   })
 
+  it('counts the compactions of each session whose transcript has any', () => {
+    const list = taskSessions(
+      [entry('2026-09-27T10:00:00.000Z', 'ABC-1', 's1'), entry('2026-09-27T11:00:00.000Z', 'ABC-1', 's2', { reason: 'checkpoint', previous: 's1' })],
+      [],
+      undefined,
+      (sessionId) => (sessionId === 's1' ? 2 : 0),
+    )
+    expect(list['ABC-1']?.map((row) => [row.sessionId, row.compactions])).toEqual([
+      ['s2', undefined],
+      ['s1', 2],
+    ])
+  })
+
   it('adds a session started by hand that the journal does not know', () => {
     const list = taskSessions([entry('2026-09-27T10:00:00.000Z', 'ABC-1', 's1')], [
       { task: 'ABC-1', sessionId: 's9', startedAt: '2026-09-27T12:00:00.000Z' },

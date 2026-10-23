@@ -40,6 +40,8 @@ export interface TaskSession {
   answeredAt?: string
   left?: { at: string; reason: ReleaseReason; blockers: string[] }
   replaced?: { at: string; how: HandOver | 'relay'; cause?: RelayCause }
+  /** How many times its context was compacted, from its transcript while the service tails it; absent — none seen. */
+  compactions?: number
   /** The e-mail of the account the session ran on; `null` when it is not known. */
   account?: string | null
 }
@@ -101,6 +103,7 @@ export function taskSessions(
   entries: LaunchEntry[],
   live: Pick<SessionView, 'task' | 'sessionId' | 'startedAt'>[],
   accountOf?: (sessionId: string, at: string) => string | null,
+  compactionsOf?: (sessionId: string) => number,
 ): Record<string, TaskSession[]> {
   const byTask = new Map<string, Map<string, TaskSession>>()
   const rowsOf = (task: string) => {
@@ -149,6 +152,12 @@ export function taskSessions(
   const result: Record<string, TaskSession[]> = {}
   for (const [task, rows] of byTask) {
     if (accountOf !== undefined) for (const row of rows.values()) row.account = accountOf(row.sessionId, row.at)
+    if (compactionsOf !== undefined) {
+      for (const row of rows.values()) {
+        const compactions = compactionsOf(row.sessionId)
+        if (compactions > 0) row.compactions = compactions
+      }
+    }
     result[task] = [...rows.values()].sort((a, b) => Date.parse(b.at) - Date.parse(a.at))
   }
   return result

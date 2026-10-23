@@ -118,6 +118,7 @@ class SessionFold {
     return {
       contextTokens: this.contextTokens,
       contextWindow: null,
+      compactions: 0,
       cache: null,
       tokens: { ...this.tokens },
       turn: this.turnStartedAt === null ? null : { startedAt: this.turnStartedAt, tool: this.turnTool },

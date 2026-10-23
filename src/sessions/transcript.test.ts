@@ -121,6 +121,21 @@ describe('TranscriptFold', () => {
     expect(summary.tokens.input).toBe(10)
   })
 
+  it('counts the compactions by their boundaries, not those of a subagent', () => {
+    const boundary = (sidechain = false) =>
+      JSON.stringify({
+        type: 'system',
+        subtype: 'compact_boundary',
+        isSidechain: sidechain,
+        timestamp: at(),
+        content: 'Conversation compacted',
+        compactMetadata: { trigger: 'auto', preTokens: 180000, postTokens: 12000 },
+      })
+    expect(fold([assistant('m1', [text('first')])]).summary().compactions).toBe(0)
+    const summary = fold([assistant('m1', [text('first')]), boundary(), assistant('m2', [text('second')]), boundary(true), boundary()]).summary()
+    expect(summary.compactions).toBe(2)
+  })
+
   it('keeps the prompt cache an hour from the request of the last answer when it was written with the hour lifetime', () => {
     const lines = [
       assistant('m1', [text('first')], { write1h: 4000 }),

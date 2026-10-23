@@ -128,6 +128,7 @@ export class CopilotFold {
     return {
       contextTokens: this.contextTokens,
       contextWindow: this.contextWindow,
+      compactions: 0,
       cache: null,
       tokens: { ...this.tokens },
       turn: this.turnStartedAt === null ? null : { startedAt: this.turnStartedAt, tool: [...this.running.values()].at(-1) ?? null },

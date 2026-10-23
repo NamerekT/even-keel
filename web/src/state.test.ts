@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { notice, textNotice, type Notice } from '../../src/notice/notice.js'
 import { fakeTask } from '../../src/tracker/fixture.js'
-import { setLanguage } from './i18n/index.js'
+import { setLanguage, t } from './i18n/index.js'
 import { FAKE_SHARED, fakeConfig } from './live/fakeConfig.js'
 import type { StatusCategory, Task } from '../../src/tracker/model.js'
 import type { AccountEntry, AccountLogin, AccountView } from '../../src/account/model.js'
@@ -41,7 +41,9 @@ import {
   sessionStart,
   startsNow,
   cacheFreshness,
+  cacheShare,
   cacheTone,
+  contextResets,
   taskLinks,
   taskPrefix,
   taskProject,
@@ -1250,6 +1252,16 @@ describe('cacheFreshness', () => {
   })
 })
 
+describe('cacheShare', () => {
+  const now = new Date('2026-01-01T10:30:00.000Z')
+
+  it('is the part of the lifetime left, from full to none', () => {
+    expect(cacheShare({ ttl: '1h', until: '2026-01-01T11:00:00.000Z' }, now)).toBe(0.5)
+    expect(cacheShare({ ttl: '5m', until: '2026-01-01T10:40:00.000Z' }, now)).toBe(1)
+    expect(cacheShare({ ttl: '5m', until: '2026-01-01T09:00:00.000Z' }, now)).toBe(0)
+  })
+})
+
 describe('cacheTone', () => {
   const now = new Date('2026-01-01T10:30:00.000Z')
 
@@ -1273,6 +1285,35 @@ describe('cacheTone', () => {
 describe('tokenTotal', () => {
   it('adds input, output and both cache directions', () => {
     expect(tokenTotal({ input: 10, output: 20, cacheRead: 300, cacheWrite: 4_000 })).toBe(4_330)
+  })
+})
+
+describe('contextResets', () => {
+  const row = (how: TaskSession['how'], extra: Partial<TaskSession> = {}): TaskSession => ({ sessionId: `s-${how}`, at: '2026-10-01T10:00:00.000Z', how, resumed: 0, answers: 0, ...extra })
+
+  it('counts every new session with a handoff by its kind and every compaction', () => {
+    const resets = contextResets([
+      row('checkpoint'),
+      row('checkpoint', { compactions: 2 }),
+      row('relay'),
+      row('relay', { cause: 'limit' }),
+      row('relay', { cause: 'review' }),
+      row('restart'),
+      row('launch', { compactions: 1 }),
+      row('manual'),
+    ])
+    expect(resets).toEqual({ checkpoint: 2, limit: 2, relay: 1, restart: 1, compactions: 3, total: 9 })
+  })
+
+  it('words the breakdown by the kinds there are, the compactions apart', () => {
+    expect(t.chain.resetsOf(contextResets([row('checkpoint'), row('checkpoint'), row('relay', { compactions: 1 })]))).toBe(
+      '2 по контрольной точке, 1 после лимита; компакций: 1',
+    )
+    expect(t.chain.resetsOf(contextResets([row('launch', { compactions: 2 })]))).toBe('компакций: 2')
+  })
+
+  it('is all zero for a task whose only session started fresh', () => {
+    expect(contextResets([row('launch')])).toEqual({ checkpoint: 0, limit: 0, relay: 0, restart: 0, compactions: 0, total: 0 })
   })
 })
 
