@@ -11,6 +11,7 @@ import { useCommand } from '../live/useCommand.js'
 import {
   activeChain,
   backlogTasks,
+  backlogWork,
   canReady,
   chainBlocks,
   fixBlockOf,
@@ -99,6 +100,7 @@ export function Project({ state, project: key }: { state: EvenKeelState; project
   const flight = arrival.flight
   const selected = blocks.find((block) => block.id === focus && !block.locked)
   const backlog = backlogTasks(state, key)
+  const backlogWorks = backlogWork(state, key)
   const backlogOpen = focus === BACKLOG_HASH && backlog.length > 0
   const settingsOpen = focus === SETTINGS_HASH && settings !== undefined
   const ci = state.ci[key]
@@ -114,7 +116,13 @@ export function Project({ state, project: key }: { state: EvenKeelState; project
   const tools = (ci !== undefined || backlog.length > 0 || settings !== undefined) && (
     <>
       {ci !== undefined && <CiChip views={ci} open={ciOpen} look={look} onToggle={toggle(CI_HASH, ciOpen)} />}
-      <BacklogChip count={backlog.length} open={backlogOpen} look={look} onToggle={toggle(BACKLOG_HASH, backlogOpen)} />
+      <BacklogChip
+        count={backlog.length}
+        open={backlogOpen}
+        look={look}
+        work={Object.keys(backlogWorks).length > 0}
+        onToggle={toggle(BACKLOG_HASH, backlogOpen)}
+      />
       {settings !== undefined && <SettingsChip open={settingsOpen} look={look} dirty={settingsDirty} onToggle={toggle(SETTINGS_HASH, settingsOpen)} />}
     </>
   )
@@ -185,6 +193,7 @@ export function Project({ state, project: key }: { state: EvenKeelState; project
           {backlogOpen && (
             <BacklogPanel
               tasks={backlog}
+              works={backlogWorks}
               trackerUrls={state.trackerUrls}
               canReady={canReady(state, key)}
               refused={order?.refused ?? {}}
@@ -224,6 +233,7 @@ export function Project({ state, project: key }: { state: EvenKeelState; project
             link={issueLink(state.trackerUrls, opened)}
             tracker={state.trackers.find((view) => view.projects.includes(taskProject(state, opened)))?.title ?? null}
             refused={state.chain.projects[taskProject(state, opened)]?.refused?.[opened] ?? null}
+            work={state.works[taskProject(state, opened)]?.[opened] ?? null}
             onOpen={openCard}
             onClose={closeCard}
           />

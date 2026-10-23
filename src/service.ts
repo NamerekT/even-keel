@@ -37,6 +37,7 @@ import { appendLaunch, closedTasks, loadChainState, loadQuestions, readLaunches,
 import { ChangelogDrafts } from './changelog/drafts.js'
 import { DEFAULT_CHANGELOG } from './changelog/file.js'
 import { changesOf } from './git/changes.js'
+import { TaskWorks, worksOf } from './git/work.js'
 import { commitChangelog } from './git/changelog.js'
 import { ciSource, ciToken, projectTargets } from './ci/adapters.js'
 import { FORGEJO_PROFILE } from './ci/forgejo-profile.js'
@@ -146,6 +147,9 @@ const FALLBACK_TOAST_MS = 24 * 60 * 60_000
 const ACCOUNT_POLL_MS = 60_000
 /** How often a release project's branch is looked at for commits the branch it merges into lacks (BTN-172). */
 const FORWARD_TICK_MS = 60_000
+/** A project's task folders are read at most once per `WORK_TTL_MS`; the tick only lets a project read just now wait less. */
+const WORK_TICK_MS = 15_000
+const WORK_TTL_MS = 60_000
 /** How often the labelled GitHub issues and the ones taken in are looked at (BTN-262). */
 const INTAKE_TICK_MS = 2 * 60_000
 const KEY_CHECK_MS = 60 * 60_000
@@ -1173,6 +1177,15 @@ async function checkMergeTarget(project: string, form: ProjectForm): Promise<voi
   if (!sameRepository(own!, target!)) throw fail('config.mergeIntoForeign', { project: projectLabel(current, project), into: projectLabel(current, into) })
 }
 
+const works = new TaskWorks({
+  read: (project) =>
+    worksOf(runGit, configStore.current.projects[project]!, branchOf(project), (tasksByProject.get(project) ?? []).map((task) => task.id)),
+  ttlMs: WORK_TTL_MS,
+  now: () => Date.now(),
+  onChange: () => hub.broadcast('state', getState()),
+  log: (line) => console.warn(line),
+})
+
 const forwards = new ForwardMerger({
   pairs: () => Object.entries(configStore.current.settings).flatMap(([from, { mergeInto: into }]) => (into === null ? [] : [{ from, into }])),
   sameRepository: sameRepositoryOf,
@@ -1392,6 +1405,7 @@ const getState = (): EvenKeelState => ({
   launches: launchDays(launches, new Date(), LAUNCH_CHART_DAYS, (project) => configStore.current.keys[project] !== undefined),
   taskSessions: taskSessions(launches, sessions, sessionAccount, (sessionId) => monitor.compactionsOf(sessionId)),
   fixes: fixEpisodes(launches).episodes,
+  works: works.view(),
   context: configStore.current.context,
   configError: configStore.error ?? listenError,
   packages: packages.view(),
@@ -1799,6 +1813,13 @@ setInterval(() => {
 }, CI_TICK_MS).unref()
 setInterval(() => void forwards.tick().catch(() => {}), FORWARD_TICK_MS).unref()
 setInterval(() => void intake.tick(), INTAKE_TICK_MS).unref()
+const pollWorks = () => {
+  const projects = Object.keys(configStore.current.projects)
+  works.keep(projects)
+  for (const project of projects) if (tasksByProject.has(project)) void works.poll(project)
+}
+pollWorks()
+setInterval(pollWorks, WORK_TICK_MS).unref()
 setInterval(
   () =>
     void Promise.all([ciWatches.refresh(), remotes.apply(configStore.current.projects)]).then(([changed, moved]) => {

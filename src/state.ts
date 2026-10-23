@@ -357,6 +357,16 @@ export interface RemoteRef {
 
 export type ProjectTask = Task & { project: string }
 
+/** Work in a task's worktree or slot that no commit of the project's main branch holds (BTN-298). */
+export interface TaskWork {
+  path: string
+  branch: string
+  /** The files left out of a commit; those git ignores (`.temp/`) are not counted. */
+  files: number
+  /** The commits of the branch the main branch does not have. */
+  ahead: number
+}
+
 export interface EvenKeelState {
   startedAt: string
   /** The projects by their ids, as every map of a project here names them: two projects may share a key (BTN-271). */
@@ -404,6 +414,8 @@ export interface EvenKeelState {
   taskSessions: Record<string, TaskSession[]>
   /** The fixes of each project's red main, oldest first (BTN-153). */
   fixes: Record<string, FixEpisode[]>
+  /** The work left in each project's task folders, by project and task; a task with nothing there has no key (BTN-298). */
+  works: Record<string, Record<string, TaskWork>>
   context: ContextScale
   configError: Notice | null
   packages: PackagesView

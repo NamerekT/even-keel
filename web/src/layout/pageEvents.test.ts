@@ -3,7 +3,7 @@ import { notice } from '../../../src/notice/notice.js'
 import type { CiView } from '../../../src/ci/model.js'
 import { freshEvents, pageEvents, type EventsInput } from './pageEvents.js'
 
-const none: EventsInput = { chain: { active: [] }, ci: {}, fixes: {}, sessions: [], tasks: [], forwards: {} }
+const none: EventsInput = { chain: { active: [], projects: {} }, ci: {}, fixes: {}, sessions: [], tasks: [], forwards: {}, works: {} }
 const chain = (fields: object) => ({ project: 'p1', current: null, paused: false, error: null, ...fields })
 const view = (status: 'failure' | 'success'): CiView =>
   ({
@@ -18,9 +18,9 @@ describe('pageEvents', () => {
   })
 
   it('sees a chain that waits for the limit or paused on it', () => {
-    const waits = pageEvents({ ...none, chain: { active: [chain({ limitUntil: '2026-10-22T20:00:00Z' })] } })
+    const waits = pageEvents({ ...none, chain: { ...none.chain, active: [chain({ limitUntil: '2026-10-22T20:00:00Z' })] } })
     expect(waits).toEqual([{ key: 'limit|p1|2026-10-22T20:00:00Z', kind: 'limit', project: 'p1', until: '2026-10-22T20:00:00Z' }])
-    const paused = pageEvents({ ...none, chain: { active: [chain({ paused: true, error: notice('chain.limitSpent', { until: '20:00' }) })] } })
+    const paused = pageEvents({ ...none, chain: { ...none.chain, active: [chain({ paused: true, error: notice('chain.limitSpent', { until: '20:00' }) })] } })
     expect(paused.map((each) => each.kind)).toEqual(['limit'])
   })
 
@@ -29,7 +29,7 @@ describe('pageEvents', () => {
     expect(pageEvents({ ...none, ci: { p1: [view('failure')] } })).toEqual([red])
     expect(pageEvents({ ...none, ci: { p1: [view('success')] } })).toEqual([])
     const check = notice('check.fixNotStarted', { commit: 'abc1234' })
-    expect(pageEvents({ ...none, chain: { active: [chain({ paused: true, error: check })] } })).toEqual([red])
+    expect(pageEvents({ ...none, chain: { ...none.chain, active: [chain({ paused: true, error: check })] } })).toEqual([red])
     const fix = { id: 'ABC-FIX.1', red: 'abc1234def', at: '2026-10-22T19:00:00Z', end: null }
     expect(pageEvents({ ...none, ci: { p1: [view('failure')] }, fixes: { p1: [fix] } })).toEqual([red])
     expect(pageEvents({ ...none, fixes: { p1: [{ ...fix, end: { at: '2026-10-22T19:30:00Z', how: 'landed', commit: null } }] } })).toEqual([])
@@ -44,6 +44,23 @@ describe('pageEvents', () => {
     const hold = notice('forward.conflict', { from: 'p1', into: 'p2', files: ['a.ts'] })
     const input = { ...none, forwards: { p1: { into: 'p2', behind: 2, hold, held: true } } }
     expect(pageEvents(input)).toEqual([{ key: 'conflict|p1|p2', kind: 'conflict', project: 'p1', into: 'p2' }])
+  })
+
+  it('sees work left in the folder of a task out of the chain, but not of one in it or with a pull request', () => {
+    const work = (files: number, ahead: number) => ({ path: 'D:/work/abc/.claude/worktrees/abc-1', branch: 'abc-1/task', files, ahead })
+    const order = { order: ['ABC-2'], waiting: ['ABC-3'], backlog: ['ABC-1'], error: null }
+    const input = (works: EventsInput['works'], extra: object = {}) =>
+      ({ ...none, chain: { active: [], projects: { p1: { ...order, ...extra } } }, works }) as EventsInput
+    expect(pageEvents(input({ p1: { 'ABC-1': work(49, 0) } }))).toEqual([
+      { key: 'work|p1|ABC-1', kind: 'work', project: 'p1', task: 'ABC-1', path: work(0, 0).path, files: 49, ahead: 0, backlog: true },
+    ])
+    expect(pageEvents(input({ p1: { 'ABC-9': work(0, 2) } }))).toEqual([
+      { key: 'work|p1|ABC-9', kind: 'work', project: 'p1', task: 'ABC-9', path: work(0, 0).path, files: 0, ahead: 2, backlog: false },
+    ])
+    expect(pageEvents(input({ p1: { 'ABC-2': work(1, 0), 'ABC-3': work(1, 0) } }))).toEqual([])
+    const reviews = [{ task: 'ABC-9', number: 7, url: 'https://example.com/pull/7', feedback: false }]
+    expect(pageEvents(input({ p1: { 'ABC-9': work(0, 2) } }, { reviews }))).toEqual([])
+    expect(pageEvents(input({ p1: { 'ABC-1': work(1, 0) } }, { error: notice('chain.unknownProject', { project: 'p1' }) }))).toEqual([])
   })
 })
 

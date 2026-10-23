@@ -4,6 +4,7 @@ import rehypeRaw from 'rehype-raw'
 import rehypeSanitize from 'rehype-sanitize'
 import remarkGfm from 'remark-gfm'
 import { noticeOf, type Notice } from '../../../src/notice/notice.js'
+import type { TaskWork } from '../../../src/state.js'
 import { isTaskId } from '../../../src/stats/model.js'
 import type { CardLabel, TaskCard as Card, TaskRef } from '../../../src/tracker/card.js'
 import type { MilestonePick as MilestonePickView, TaskStatus } from '../../../src/tracker/model.js'
@@ -15,6 +16,7 @@ import { useBackdropClose } from '../ui/backdrop.js'
 import '../ui/markdown.css'
 import { PriorityIcon } from '../ui/Priority.js'
 import { Select } from '../ui/Select.js'
+import { workLines } from '../ui/WorkChip.js'
 import { Attachments } from './Attachments.js'
 import './card.css'
 
@@ -29,11 +31,13 @@ interface Props {
   tracker: string | null
   /** Why the task cannot be moved to Todo: the chain would lose its order. */
   refused: Notice | null
+  /** Work in the task's folder that main does not hold (BTN-298). */
+  work: TaskWork | null
   onOpen: (task: string) => void
   onClose: () => void
 }
 
-export function TaskCard({ task, link, tracker, refused, onOpen, onClose }: Props) {
+export function TaskCard({ task, link, tracker, refused, work, onOpen, onClose }: Props) {
   const { card: load } = useLive()
   const [card, setCard] = useState<Card | null | undefined>(undefined)
   const [error, setError] = useState<Notice | null>(null)
@@ -90,7 +94,7 @@ export function TaskCard({ task, link, tracker, refused, onOpen, onClose }: Prop
           {error !== null && <p className="notice notice--error">{say(error)}</p>}
           {card === undefined && error === null && <Loading />}
           {card === null && <p className="placeholder task-card__empty">{t.card.none}</p>}
-          {card != null && <CardBody card={card} refused={refused} onOpen={onOpen} onChanged={() => setRound((n) => n + 1)} />}
+          {card != null && <CardBody card={card} refused={refused} work={work} onOpen={onOpen} onChanged={() => setRound((n) => n + 1)} />}
         </div>
       </div>
     </dialog>
@@ -108,7 +112,15 @@ function Loading() {
   )
 }
 
-function CardBody({ card, refused, onOpen, onChanged }: { card: Card; refused: Notice | null; onOpen: (task: string) => void; onChanged: () => void }) {
+interface BodyProps {
+  card: Card
+  refused: Notice | null
+  work: TaskWork | null
+  onOpen: (task: string) => void
+  onChanged: () => void
+}
+
+function CardBody({ card, refused, work, onOpen, onChanged }: BodyProps) {
   const { send, sending, failure } = useCommand()
   const markdown = useMarkdown(onOpen)
   const loud = card.labels.filter((label) => LOUD.has(label.role))
@@ -120,8 +132,19 @@ function CardBody({ card, refused, onOpen, onChanged }: { card: Card; refused: N
       <h2 className="task-card__title">{card.title}</h2>
       <div className="task-card__layout">
         <div className="task-card__main">
-          {(loud.length > 0 || card.requires.length > 0) && (
+          {(loud.length > 0 || card.requires.length > 0 || work !== null) && (
             <div className="task-card__callouts">
+              {work !== null && (
+                <div className="task-card__callout task-card__callout--work">
+                  <strong>{t.card.work}</strong>
+                  {workLines(work).map((line) => (
+                    <span key={line} className="task-card__work-line">
+                      {line}
+                    </span>
+                  ))}
+                  <span className="task-card__work-fix">{t.chain.work.fix}</span>
+                </div>
+              )}
               {loud.map((label) => (
                 <p key={label.name} className={`task-card__callout task-card__callout--${label.role}`}>
                   <strong>{label.name}</strong>

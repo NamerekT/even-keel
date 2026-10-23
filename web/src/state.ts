@@ -10,7 +10,7 @@ import type { Lamp } from '../../src/sessions/agents.js'
 import type { CacheTtl, CacheWindow, TokenTotals } from '../../src/sessions/transcript.js'
 import type { UsageHealth } from '../../src/limits/usage.js'
 import type { Notice } from '../../src/notice/notice.js'
-import type { EvenKeelState, ContextScale, ProjectTask, SessionView, TrackerUrls } from '../../src/state.js'
+import type { EvenKeelState, ContextScale, ProjectTask, SessionView, TaskWork, TrackerUrls } from '../../src/state.js'
 import { formatMoment } from './format.js'
 import { say, t } from './i18n/index.js'
 
@@ -132,6 +132,8 @@ export interface ChainBlock {
   fix?: FixEpisode
   /** The task is out of the chain, waiting on its pull request. */
   review?: ReviewView
+  /** Work in the task's folder that is in no commit of main, while no session of the task is at work on it (BTN-298). */
+  work?: TaskWork
 }
 
 /**
@@ -222,6 +224,18 @@ export function chainProgress(tasks: Task[], order: ProjectOrder | undefined): {
 export function backlogTasks(state: EvenKeelState, project: string): Task[] {
   const byId = new Map(projectTasks(state, project).map((task) => [task.id, task]))
   return (state.chain.projects[project]?.backlog ?? []).flatMap((id) => byId.get(id) ?? [])
+}
+
+/** The work left in the folders of the project's backlog tasks, by task. */
+export function backlogWork(state: EvenKeelState, project: string): Record<string, TaskWork> {
+  const works = state.works[project] ?? {}
+  return Object.fromEntries((state.chain.projects[project]?.backlog ?? []).flatMap((id) => (works[id] === undefined ? [] : [[id, works[id]]])))
+}
+
+/** A session mid-turn is at work on what its folder holds; a task's commits are its pull request's to show. */
+function shownWork(work: TaskWork | undefined, session: SessionView | null, review: boolean): { work: TaskWork } | undefined {
+  if (work === undefined || session?.lamp === 'working' || (review && work.files === 0)) return undefined
+  return { work }
 }
 
 export interface LinkedTask {
@@ -558,6 +572,7 @@ export function chainBlocks(state: EvenKeelState, project: string, now = new Dat
       ...(id === next && session !== null && session.lamp !== 'finished' && { aside: true as const }),
       ...(active === undefined && session !== null && session.lamp !== 'finished' && { loose: true as const }),
       ...(reviews.has(id) && { review: reviews.get(id)! }),
+      ...shownWork(state.works[project]?.[id], session, reviews.has(id)),
     }
   })
   for (let index = blocks.length - 2; index >= 0; index--) {

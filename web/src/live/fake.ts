@@ -222,6 +222,14 @@ function fakeState(
             { id: 'ABC-FIX.2', red: FAKE_FIX.red, at: ago(700), end: { at: ago(680), how: 'landed', commit: FAKE_FIX.landed } },
           ],
         },
+    works: idle
+      ? {}
+      : {
+          ABC: {
+            'ABC-9': { path: 'D:/work/abc/.claude/worktrees/abc-9', branch: 'abc-9/task', files: 0, ahead: 3 },
+            'ABC-19': { path: 'D:/work/abc/.claude/worktrees/abc-19', branch: 'abc-19/task', files: 49, ahead: 0 },
+          },
+        },
     context: { window: 600_000, warn: 50, danger: 80 },
     configError: null,
     packages: fakePackages(['ABC', 'DEMO', 'XYZ', 'OPS'], null),

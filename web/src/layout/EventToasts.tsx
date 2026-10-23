@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router'
 import type { EvenKeelState } from '../../../src/state.js'
 import { t } from '../i18n/index.js'
 import { useLive } from '../live/context.js'
+import { BACKLOG_HASH } from '../pages/BacklogPanel.js'
 import { CI_HASH } from '../pages/CiChip.js'
 import { projectPath } from '../state.js'
 import { ProjectLinks } from '../ui/ProjectLinks.js'
@@ -65,11 +66,19 @@ function textOf(event: PageEvent): { title: string; body: string } {
   if (event.kind === 'limit') return { title: t.events.limit(event.project), body: t.events.limitBody }
   if (event.kind === 'red') return { title: t.events.red(event.project), body: t.events.redBody(event.commit) }
   if (event.kind === 'ask') return { title: t.events.ask(event.task), body: t.events.askBody }
+  if (event.kind === 'work') {
+    return { title: event.files > 0 ? t.events.uncommitted(event.task) : t.events.unmerged(event.task), body: t.events.workBody(event.path) }
+  }
   return { title: t.events.conflict(event.project, event.into), body: t.events.conflictBody }
 }
 
-function placeOf(event: PageEvent, state: EvenKeelState): { pathname: string; hash?: string } {
+/** A task's work opens the backlog it is in, or else the task's card. */
+function placeOf(event: PageEvent, state: EvenKeelState): { pathname: string; search?: string; hash?: string } {
   if (event.kind === 'ask') return event.project === null ? { pathname: '/' } : { pathname: projectPath(event.project), hash: event.task }
+  if (event.kind === 'work') {
+    const pathname = projectPath(event.project)
+    return event.backlog ? { pathname, hash: BACKLOG_HASH } : { pathname, search: `?task=${encodeURIComponent(event.task)}` }
+  }
   if (event.kind === 'red' && state.ci[event.project] !== undefined) return { pathname: projectPath(event.project), hash: CI_HASH }
   return { pathname: projectPath(event.project) }
 }

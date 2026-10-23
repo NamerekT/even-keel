@@ -267,6 +267,23 @@ html:has(.task-card[open]) {
   font-weight: 650;
 }
 
+/* Work main does not hold: what lies where, a line each, then the two ways out. */
+.task-card__callout--work {
+  flex-direction: column;
+  border-left-color: var(--lamp-error);
+  background: var(--error-bg);
+  color: var(--error-fg);
+}
+
+.task-card__work-line {
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+
+.task-card__work-fix {
+  margin-top: 4px;
+}
+
 /* Description */
 
 .task-card__markdown {

@@ -8,5 +8,5 @@ import { must } from './worktree.js'
 export async function changesOf(git: Git, workdir: string, main: string): Promise<Changes> {
   const counted = await must(git, workdir, ['rev-list', '--count', `${main}..HEAD`], 'countCommits', main)
   const status = await must(git, workdir, ['status', '--porcelain', '--untracked-files=all'], 'readStatus')
-  return { ahead: Number(counted.out), dirty: status.out !== '' }
+  return { ahead: Number(counted.out), files: status.out.split('\n').filter((line) => line.trim() !== '').length }
 }

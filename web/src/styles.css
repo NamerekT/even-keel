@@ -2190,6 +2190,31 @@ a.button.pull-button__link {
   color: var(--warn-fg);
 }
 
+/* Work no commit of main holds: red, not the question's amber — it is work that can be lost. Above the row's stretched link, for its tip. */
+.chip--work {
+  position: relative;
+  z-index: 1;
+  border-color: var(--lamp-error);
+  background: transparent;
+  color: var(--error-fg);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* A crowded row squeezes its other parts, never the chip. */
+.work-tip {
+  flex: none;
+}
+
+/* The backlog tab's mark that one of its tasks has such work. */
+.work-dot {
+  flex: none;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--lamp-error);
+}
+
 .chip--questions {
   position: relative;
   z-index: 1;

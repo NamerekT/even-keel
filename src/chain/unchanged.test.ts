@@ -29,7 +29,7 @@ const runningState = (): ChainState => ({
   active: [{ project: 'ABC', current: { task: 'ABC-1', sessionId: 'old-session', since: '2026-09-26T11:00:00.000Z' }, paused: false, error: null }],
 })
 
-function tracker(changes: () => Changes = () => ({ ahead: 0, dirty: false })) {
+function tracker(changes: () => Changes = () => ({ ahead: 0, files: 0 })) {
   const looked: string[] = []
   const completed: { task: string; comment: string }[] = []
   const deps: UnchangedDeps = {
@@ -77,7 +77,7 @@ describe('Dispatcher on a task marked NO CHANGES', () => {
   })
 
   it('tells the session of a branch with commits beyond main, once, and does not pause', async () => {
-    const marks = tracker(() => ({ ahead: 2, dirty: false }))
+    const marks = tracker(() => ({ ahead: 2, files: 0 }))
     const { dispatcher, relays, launched, log } = await running(marks.deps)
 
     expect(relays).toMatchObject([{ kind: 'reply', task: 'ABC-1', sessionId: 'old-session', prompt: PROMPTS.ru.unchanged.ahead('main') }])
@@ -92,7 +92,7 @@ describe('Dispatcher on a task marked NO CHANGES', () => {
   })
 
   it('tells the session of work left out of a commit', async () => {
-    const marks = tracker(() => ({ ahead: 0, dirty: true }))
+    const marks = tracker(() => ({ ahead: 0, files: 4 }))
     const { relays } = await running(marks.deps)
     expect(relays).toMatchObject([{ kind: 'reply', task: 'ABC-1', prompt: PROMPTS.ru.unchanged.dirty('main') }])
     expect(marks.completed).toEqual([])

@@ -15,6 +15,7 @@ import {
   headerAccounts,
   limitedUntil,
   backlogTasks,
+  backlogWork,
   blockMetered,
   canReady,
   loginLeft,
@@ -113,6 +114,7 @@ function stateOf(patch: Partial<EvenKeelState>): EvenKeelState {
     launches: [],
     taskSessions: {},
     fixes: {},
+    works: {},
     context: { window: 600_000, warn: 50, danger: 80 },
     configError: null,
     packages: { gateway: null, packages: [], projects: {}, keys: [], available: [], marketplace: null, imports: {} },
@@ -334,6 +336,39 @@ describe('backlogTasks', () => {
 
   it('is empty before the chain is loaded', () => {
     expect(backlogTasks(stateOf({ tasks: [task('ABC-1', 'UnStarted')] }), 'ABC')).toEqual([])
+  })
+})
+
+describe('the work left in a task folder', () => {
+  const work = (files: number, ahead: number) => ({ path: 'D:/work/abc/.claude/worktrees/abc-2', branch: 'abc-2/task', files, ahead })
+  const order = { ABC: { order: ['ABC-2', 'ABC-3'], waiting: [], backlog: ['ABC-4'], error: null } }
+  const tasks = [task('ABC-2', 'Active'), task('ABC-3', 'ToDo'), task('ABC-4', 'UnStarted')]
+
+  it('marks a chain row unless the task session is mid-turn: then the work is its own', () => {
+    const works = { ABC: { 'ABC-2': work(49, 0), 'ABC-3': work(0, 3) } }
+    const blocks = chainBlocks(stateOf({ tasks, works, chain: chain({ projects: order }) }), 'ABC')
+    expect(blocks.map((block) => block.work)).toEqual([work(49, 0), work(0, 3)])
+
+    const busy = stateOf({ tasks, works, sessions: [view('ABC-2', 'working', null)], chain: chain({ projects: order }) })
+    expect(chainBlocks(busy, 'ABC').map((block) => block.work)).toEqual([undefined, work(0, 3)])
+
+    const asking = stateOf({ tasks, works, sessions: [view('ABC-2', 'waiting', null)], chain: chain({ projects: order }) })
+    expect(chainBlocks(asking, 'ABC')[0]?.work).toEqual(work(49, 0))
+  })
+
+  it('leaves the commits of a task with a pull request to its pull request', () => {
+    const review = { task: 'ABC-2', number: 7, url: 'https://example.com/pull/7', feedback: false }
+    const reviewed = { ABC: { ...order.ABC, reviews: [review] } }
+    const blocks = (works: EvenKeelState['works']) => chainBlocks(stateOf({ tasks, works, chain: chain({ projects: reviewed }) }), 'ABC')
+    expect(blocks({ ABC: { 'ABC-2': work(0, 3) } })[0]?.work).toBeUndefined()
+    expect(blocks({ ABC: { 'ABC-2': work(2, 3) } })[0]?.work).toEqual(work(2, 3))
+  })
+
+  it('tells whether the backlog holds any', () => {
+    const state = (works: EvenKeelState['works']) => stateOf({ tasks, works, chain: chain({ projects: order }) })
+    expect(backlogWork(state({ ABC: { 'ABC-4': work(1, 0) } }), 'ABC')).toEqual({ 'ABC-4': work(1, 0) })
+    expect(backlogWork(state({ ABC: { 'ABC-2': work(1, 0) } }), 'ABC')).toEqual({})
+    expect(backlogWork(state({}), 'ABC')).toEqual({})
   })
 })
 
