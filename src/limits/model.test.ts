@@ -201,6 +201,12 @@ describe('limitResetAfter', () => {
     expect(limitResetAfter({ ...monthly, month: null }, HIT)).toBeNull()
   })
 
+  it('goes on at once when a counted monthly allowance polled after the limit still has some left', () => {
+    const allowance = { fiveHour: null, sevenDay: null, month: { ...window(60, '2026-11-01T00:00:00.000Z'), left: 120 }, updatedAt: '2026-10-16T00:00:00.000Z', source: 'api' as const }
+    expect(limitResetAfter(allowance, HIT)).toBe('2026-10-16T00:00:00.000Z')
+    expect(limitResetAfter({ ...allowance, month: { ...window(100, '2026-11-01T00:00:00.000Z'), left: 0 } }, HIT)).toBe('2026-11-01T00:00:00.000Z')
+  })
+
   it('does not take a statusline snapshot without the five-hour window for a reset', () => {
     expect(limitResetAfter(limits(null, '2026-10-16T00:22:00.400Z', 'statusline'), HIT)).toBeNull()
   })

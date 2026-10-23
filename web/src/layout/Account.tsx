@@ -7,7 +7,7 @@ import { useCommand } from '../live/useCommand.js'
 import { canWork } from '../state.js'
 import { seriesStyle } from '../ui/series.js'
 import { Tipped } from '../ui/Tipped.js'
-import { AccountMark, AccountName, AccountNotes, limitsNote, spendText, staleText, type Send, type Spend } from './accountParts.js'
+import { AccountMark, AccountName, AccountNotes, limitsNote, sharedLimitText, spendsByKey, spendText, staleText, type Send, type Spend } from './accountParts.js'
 import { AccountRoles } from './AccountRoles.js'
 import { FULL_PERCENT, Limits, spanNames, WARM_PERCENT } from './Limits.js'
 import { useNow } from './useNow.js'
@@ -94,6 +94,7 @@ function AccountItem({ entry, view, now, spend, sending, send, full }: ItemProps
         <AccountRoles entry={entry} view={view} sending={sending} send={send} compact />
       </div>
       {full && <Usage entry={entry} now={now} spend={spend} />}
+      {full && sharedLimitText(entry, view.accounts) !== null && <p className="accounts__note">{sharedLimitText(entry, view.accounts)}</p>}
       <AccountNotes entry={entry} view={view} now={now} sending={sending} send={send} quiet />
     </li>
   )
@@ -106,7 +107,7 @@ function noLimitsWhy(entry: AccountEntry): string {
 
 /** An account at work: its windows, its spend from a key, or one grey line with why there is nothing. */
 function Usage({ entry, now, spend }: Pick<ItemProps, 'entry' | 'now' | 'spend'>) {
-  if (entry.apiKey && limitsNote(entry) === null) {
+  if (spendsByKey(entry)) {
     return (
       <p className="accounts__note" title={t.account.todayTitle}>
         {spendText(spend, entry.key)}
@@ -125,7 +126,7 @@ function Usage({ entry, now, spend }: Pick<ItemProps, 'entry' | 'now' | 'spend'>
 
 /** What is left of an account's tightest window as one number, its spend from a key, or a dash with why in the tip. */
 function Free({ entry, now, spend }: Pick<ItemProps, 'entry' | 'now' | 'spend'>) {
-  if (entry.apiKey && limitsNote(entry) === null) {
+  if (spendsByKey(entry)) {
     return (
       <span className="accounts__free" title={t.account.todayTitle}>
         {spendText(spend, entry.key)}

@@ -252,6 +252,14 @@ export const noticesRu: NoticeTexts = {
   'usage.noWeek': () => 'нет читаемой строки «Current week (all models)»',
   'usage.callFailed': () => 'вызов не удался',
   'usage.noRollout': () => 'ни одна сессия Codex этого аккаунта ещё не сообщила лимиты',
+  'usage.chatGptExpired': () => 'токен входа ChatGPT истёк, OpenCode обновит его в следующей сессии',
+  'usage.chatGptUnread': () => 'в ответе ChatGPT о лимитах нет читаемых окон',
+  'usage.openCodeNone': () => 'нет входа через ChatGPT или Copilot: у бесплатных моделей OpenCode и API-ключей нет лимитов, которые можно прочитать',
+  'usage.copilotMachine': () => 'Copilot на входе машины держит токен в хранилище ОС, его Even Keel не читает; чтобы видеть запас, добавьте аккаунт с токеном',
+  'usage.copilotUnlimited': () => 'у плана Copilot нет месячного лимита',
+  'usage.copilotUnread': () => 'в ответе GitHub о Copilot нет читаемого запаса',
+  'usage.copilotSignIn': () => 'GitHub не принял вход Copilot, войдите заново',
+  'usage.planRead': () => 'токен не может читать расход Copilot: дайте ему право «Plan» (чтение) в настройках токена на GitHub',
 
   'prompt.empty': (p) =>
     `промт: в промт сессии нечего подставить после «${p.before}» (пришло ${p.value}) — проверьте задачу в трекере и настройки проекта и снимите с паузы`,

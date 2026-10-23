@@ -4,6 +4,7 @@ import { TRANSPORTS, type Transport } from '../../../src/account/transport.js'
 import { CLAUDE } from '../../../src/claude/name.js'
 import { CODEX } from '../../../src/codex/name.js'
 import { COPILOT } from '../../../src/copilot/name.js'
+import { limitSpans } from '../../../src/limits/model.js'
 import type { Notice } from '../../../src/notice/notice.js'
 import { OPENCODE } from '../../../src/opencode/name.js'
 import { accountName, agentLabel } from '../accountName.js'
@@ -27,17 +28,36 @@ export type Spend = Record<string, number> | null
 export function useSpend(account: AccountView): Spend {
   const { statsSpend } = useLive()
   const tz = useMemo(() => Intl.DateTimeFormat().resolvedOptions().timeZone, [])
-  const wanted = account.accounts.some((entry) => entry.apiKey)
+  const wanted = account.accounts.some(spendsByKey)
   return loadedData(useStatsAnswer(wanted ? `spend|${tz}` : null, () => statsSpend(tz)))
 }
 
 /**
- * The line an account whose agent gives no usage windows shows instead of empty limit columns: OpenCode's without a
- * key, and Copilot's, whose token pays in AI credits Tally does not price; `null` — it shows its limits or spend.
+ * A key account that shows today's spend for its limits. Copilot's token reads its monthly allowance instead and pays in
+ * AI credits Tally does not price.
+ */
+export function spendsByKey(entry: AccountEntry): boolean {
+  return entry.apiKey && entry.agent !== COPILOT
+}
+
+/**
+ * The line an OpenCode or Copilot account shows instead of empty limit rows while its provider gave it no window — a
+ * sign-in with none (OpenCode Zen, the machine's Copilot) or no answer yet — with why; `null` — it shows its windows
+ * or spend (BTN-341).
  */
 export function limitsNote(entry: AccountEntry): string | null {
-  if (entry.agent === COPILOT) return t.account.copilotLimits
-  return entry.agent === OPENCODE && !entry.apiKey ? t.account.openCodeLimits : null
+  if ((entry.agent !== OPENCODE && entry.agent !== COPILOT) || spendsByKey(entry)) return null
+  const limits = entry.limits
+  if (limitSpans(limits).some((span) => (limits?.[span] ?? null) !== null)) return null
+  return entry.usage.reason === null ? t.account.noLimits : `${t.account.noLimits} — ${say(entry.usage.reason)}`
+}
+
+/** The other accounts on the same subscription, whose limits are this one's too (`RateLimits.pool`); null — none. */
+export function sharedLimitText(entry: AccountEntry, accounts: AccountEntry[]): string | null {
+  const pool = entry.limits?.pool
+  if (pool === undefined) return null
+  const others = accounts.filter((each) => each.key !== entry.key && each.limits?.pool === pool)
+  return others.length === 0 ? null : t.account.sharedLimit(others.map((each) => accountName(each, accounts)))
 }
 
 export function spendText(spend: Spend, key: string): string {
@@ -91,7 +111,7 @@ export function AgentIcon({ agent }: { agent: string }) {
 
 /** Why an account without limits has none, as one sentence; null when it has them or pays from a key. */
 export function staleText(entry: AccountEntry): string | null {
-  if (entry.apiKey || entry.limits !== null || entry.usage.state !== 'stale') return null
+  if (spendsByKey(entry) || entry.limits !== null || entry.usage.state !== 'stale') return null
   return `${t.account.noLimits}${staleNote(entry.usage.reason)}`
 }
 
