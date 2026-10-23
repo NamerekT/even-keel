@@ -73,25 +73,30 @@
 }
 
 .ci-card {
-  gap: 16px;
+  gap: 12px;
 }
 
 .ci {
   display: flex;
   flex-direction: column;
   gap: 8px;
+  padding: 10px 12px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg);
   font-size: 13px;
-}
-
-.ci + .ci {
-  padding-top: 14px;
-  border-top: 1px solid var(--border);
 }
 
 .ci__head {
   display: flex;
   align-items: center;
   gap: 8px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border);
+}
+
+.ci__lamp {
+  display: inline-flex;
 }
 
 .ci__name {
@@ -109,7 +114,6 @@
   font-size: 12px;
 }
 
-.ci__health,
 .ci__hint,
 .ci__meta {
   margin: 0;
@@ -129,13 +133,108 @@
   gap: 6px;
 }
 
-.ci__heading {
-  margin: 6px 0 0;
+.ci__fold {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.ci__summary,
+.ci__job-summary {
+  list-style: none;
+  cursor: pointer;
+}
+
+.ci__summary::-webkit-details-marker,
+.ci__job-summary::-webkit-details-marker {
+  display: none;
+}
+
+.ci__summary {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: fit-content;
   color: var(--fg-muted);
   font-size: 11px;
   font-weight: 600;
   letter-spacing: 0.04em;
   text-transform: uppercase;
+}
+
+.ci__summary:hover {
+  color: var(--fg);
+}
+
+.ci__summary:focus-visible,
+.ci__job-summary:focus-visible,
+.ci__more:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+.ci__chevron {
+  display: inline-block;
+  width: 8px;
+  font-size: 13px;
+  line-height: 1;
+  text-align: center;
+  transition: transform var(--motion-fast);
+}
+
+details[open] > summary > .ci__chevron {
+  transform: rotate(90deg);
+}
+
+.ci__dots {
+  display: inline-flex;
+  gap: 3px;
+  margin-left: 4px;
+}
+
+.ci__dots .ci-status-dot {
+  width: 6px;
+  height: 6px;
+}
+
+.ci__fold[open] > .ci__summary .ci__dots {
+  display: none;
+}
+
+.ci__job-summary {
+  display: grid;
+  grid-template-columns: 8px minmax(0, 1fr);
+  align-items: center;
+  gap: 6px;
+}
+
+.ci__job-summary .ci__chevron {
+  color: var(--fg-muted);
+}
+
+.ci__job-summary:hover .ci__line-name {
+  text-decoration: underline;
+}
+
+/* Under the job's dot, past the chevron. */
+.ci__job-summary + .ci__steps {
+  margin-left: 17px;
+}
+
+.ci__more {
+  align-self: flex-start;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--accent);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.ci__more:hover {
+  text-decoration: underline;
 }
 
 .ci__run {
