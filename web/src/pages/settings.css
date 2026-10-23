@@ -215,7 +215,14 @@
   flex: 1 1 14em;
 }
 
-/* The project's task feeds (BTN-66): a line per feed, then the fields of a new one. */
+/* The project's task feeds (BTN-66): the heading with "Add a feed" at its right, a line per feed, then the fields of a new one. */
+.feeds__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
 .feeds__row {
   padding: 6px 0;
   border-bottom: 1px solid var(--border);
