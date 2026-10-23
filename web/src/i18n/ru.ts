@@ -307,8 +307,6 @@ export const ru = {
     stuckRun: (span: string) => `Прогон стоит в очереди ${span}: раннер его не берёт`,
     stuckPush: (commit: string, span: string) => `Пуш ${commit} уже ${span} без прогона: CI его не подхватил`,
     pushed: (commit: string) => `Пуш ${commit}: ждём прогон`,
-    current: 'Текущий прогон',
-    last: 'Последний прогон',
     running: (elapsed: string) => `идёт ${elapsed}`,
     usual: (median: string) => `обычно ${median}`,
     took: (duration: string) => `шёл ${duration}`,
@@ -319,6 +317,7 @@ export const ru = {
     noJobs: 'Задач прогона пока нет',
     stepsOnPage: 'Шаги — на странице прогона',
     history: 'История',
+    showAll: (count: number) => `Показать все ${count}`,
     noRuns: 'Прогонов ещё не было',
     status: {
       queued: 'в очереди',

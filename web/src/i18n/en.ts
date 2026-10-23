@@ -302,8 +302,6 @@ export const en: Messages = {
     stuckRun: (span: string) => `The run has been queued for ${span}: no runner takes it`,
     stuckPush: (commit: string, span: string) => `The push ${commit} has had no run for ${span}: the CI did not pick it up`,
     pushed: (commit: string) => `Push ${commit}: waiting for a run`,
-    current: 'Current run',
-    last: 'Last run',
     running: (elapsed: string) => `running ${elapsed}`,
     usual: (median: string) => `usually ${median}`,
     took: (duration: string) => `took ${duration}`,
@@ -314,6 +312,7 @@ export const en: Messages = {
     noJobs: 'No jobs yet',
     stepsOnPage: 'Steps are on the run page',
     history: 'History',
+    showAll: (count: number) => `Show all ${count}`,
     noRuns: 'No runs yet',
     status: {
       queued: 'queued',
