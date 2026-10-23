@@ -11,6 +11,7 @@ import type { CacheTtl, CacheWindow, TokenTotals } from '../../src/sessions/tran
 import type { UsageHealth } from '../../src/limits/usage.js'
 import type { Notice } from '../../src/notice/notice.js'
 import type { EvenKeelState, ContextScale, ProjectTask, SessionView, TaskWork, TrackerUrls } from '../../src/state.js'
+import { accountName } from './accountName.js'
 import { formatMoment } from './format.js'
 import { say, t } from './i18n/index.js'
 
@@ -22,17 +23,18 @@ export interface AccountBadge {
 /** The header's badge of the active account: a sign-in shows on it only when it is into that folder, not a new account's. */
 export function accountBadge(view: AccountView): AccountBadge {
   const active = view.accounts.find((entry) => entry.key === view.active)
-  return active === undefined ? { kind: 'unknown', label: 'Claude' } : entryBadge(active, view.login)
+  return active === undefined ? { kind: 'unknown', label: 'Claude' } : entryBadge(active, view.login, view.accounts)
 }
 
-/** The badge of one account: only a sign-in into this very folder shows on it. */
-export function entryBadge(entry: AccountEntry, login: AccountLogin | null): AccountBadge {
+/** The badge of one account: only a sign-in into this very folder shows on it; its name is `accountName`'s, an e-mail's local part only. */
+export function entryBadge(entry: AccountEntry, login: AccountLogin | null, accounts: AccountEntry[] = [entry]): AccountBadge {
   if (login !== null && login.target === entry.key) {
     return login.error === null ? { kind: 'login', label: t.account.loggingIn } : { kind: 'out', label: t.account.loginFailed }
   }
-  if (entry.status == null) return { kind: 'unknown', label: 'Claude' }
+  const name = accountName(entry, accounts)
+  if (entry.status == null) return { kind: 'unknown', label: name }
   if (entry.needsLogin) return { kind: 'out', label: t.account.needsLogin }
-  return { kind: 'in', label: entry.name ?? entry.status.email?.split('@')[0] ?? 'Claude' }
+  return { kind: 'in', label: entry.name === null && name === entry.status.email ? name.split('@')[0]! : name }
 }
 
 /** The accounts the header shows: the one holding the Even Keel role, then every other one a project runs on. */

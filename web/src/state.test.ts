@@ -1473,7 +1473,19 @@ describe('accountBadge', () => {
 
   it('shows the mailbox name of the active account', () => {
     expect(accountBadge(view({ status: account(true, 'john.doe@example.com') }))).toEqual({ kind: 'in', label: 'john.doe' })
-    expect(accountBadge(view({ status: account(true) }))).toEqual({ kind: 'in', label: 'Claude' })
+    expect(accountBadge(view({ status: account(true) }))).toEqual({ kind: 'in', label: 'Claude Code' })
+  })
+
+  it('names an account without an e-mail after its provider, not Claude (BTN-335)', () => {
+    const free = { ...account(true), authMethod: 'none' }
+    expect(accountBadge({ ...view({ agent: 'opencode', key: 'opencode', global: false, status: free }), active: 'opencode' })).toEqual({
+      kind: 'in',
+      label: 'OpenCode Zen',
+    })
+    const opencode = entry({ key: 'opencode', global: false, agent: 'opencode', status: free })
+    expect(entryBadge(opencode, null)).toEqual({ kind: 'in', label: 'OpenCode Zen' })
+    expect(entryBadge(opencode, null, [opencode, { ...opencode, key: 'opencode-2' }])).toEqual({ kind: 'in', label: 'OpenCode Zen' })
+    expect(entryBadge({ ...opencode, key: 'opencode-2' }, null, [opencode, { ...opencode, key: 'opencode-2' }])).toEqual({ kind: 'in', label: 'OpenCode Zen 2' })
   })
 
   it('shows the name the user gave the active account', () => {
@@ -1491,7 +1503,7 @@ describe('accountBadge', () => {
       kind: 'out',
       label: 'Вход не удался',
     })
-    expect(accountBadge(view({ error: textNotice('claude: auth status timed out') }))).toEqual({ kind: 'unknown', label: 'Claude' })
+    expect(accountBadge(view({ error: textNotice('claude: auth status timed out') }))).toEqual({ kind: 'unknown', label: 'Claude Code' })
     expect(accountBadge({ ...view({}), active: 'gone' })).toEqual({ kind: 'unknown', label: 'Claude' })
   })
 

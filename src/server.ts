@@ -96,6 +96,8 @@ export interface AccountControl {
   keep(account: string): void
   /** How the account's new Claude sessions run; `null` — by the default of its kind (`transportOf`). */
   setTransport(account: string, transport: Transport | null): void
+  /** The name the page shows for the account; blank — its default. */
+  rename(account: string, name: string): void
   code(code: string): void
   cancel(): void
 }
@@ -305,6 +307,7 @@ const COMMANDS: Record<string, Command> = {
   'account/remove': ({ account }, body) => account.remove(accountOf(body)),
   'account/keep': ({ account }, body) => account.keep(accountOf(body)),
   'account/transport': ({ account }, body) => account.setTransport(accountOf(body), transportOfBody(body)),
+  'account/name': ({ account }, body) => account.rename(accountOf(body), typeof body.name === 'string' ? body.name : ''),
   'account/code': ({ account }, body) => account.code(codeOf(body)),
   'account/cancel': ({ account }) => account.cancel(),
   'packages/install': ({ packages }, body) => packages.install(nameOf(body)),

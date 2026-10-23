@@ -2,6 +2,7 @@ import { Link } from 'react-router'
 import type { AccountEntry, AccountView } from '../../../src/account/model.js'
 import { limitSpans } from '../../../src/limits/model.js'
 import type { EvenKeelState } from '../../../src/state.js'
+import { agentLabel } from '../accountName.js'
 import { accountGroups, canAdd, cliMissing, entrySlot, PROVIDERS, type Provider } from '../accounts.js'
 import { say, t } from '../i18n/index.js'
 import { useCommand } from '../live/useCommand.js'
@@ -10,7 +11,6 @@ import {
   AccountMark,
   AccountName,
   AgentIcon,
-  agentLabel,
   AccountNotes,
   NoteActions,
   RemoveAction,
@@ -100,7 +100,7 @@ function AccountCard({ entry, view, now, spend, sending, send }: CardProps) {
     <li className={`account-card-item${canWork(entry, now) ? '' : ' accounts__item--off'}`} style={seriesStyle(entrySlot(view, entry))}>
       <div className="accounts__head">
         <AccountMark entry={entry} now={now} />
-        <AccountName entry={entry} />
+        <AccountName entry={entry} accounts={view.accounts} send={send} sending={sending} />
         {entry.status?.subscriptionType != null && <span className="tag">{entry.status.subscriptionType}</span>}
       </div>
       {limitsNote(entry) !== null ? (

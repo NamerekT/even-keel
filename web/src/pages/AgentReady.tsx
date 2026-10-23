@@ -2,7 +2,7 @@ import { Link } from 'react-router'
 import type { EvenKeelState } from '../../../src/state.js'
 import { addPath, PROVIDERS, readinessOf } from '../accounts.js'
 import { say, t } from '../i18n/index.js'
-import { accountName } from '../layout/accountParts.js'
+import { accountName } from '../accountName.js'
 import { useCommand } from '../live/useCommand.js'
 import { CLI_MISSING } from './AccountAdd.js'
 import { providerName } from './settingsRun.js'
@@ -28,7 +28,7 @@ export function AgentReady({ state, provider, back }: { state: EvenKeelState; pr
         )}
       </Status>
     )
-  const name = accountName(ready.entry)
+  const name = accountName(ready.entry, state.account.accounts)
   if (ready.state === 'signIn')
     return (
       <>

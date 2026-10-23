@@ -381,7 +381,7 @@ export const ru = {
       'Новый аккаунт OpenCode в своей папке. ChatGPT и GitHub Copilot дают ссылку и одноразовый код — откройте ссылку, войдите и введите там код. Бесплатным моделям вход не нужен.',
     opencodeMethods: { chatgpt: 'ChatGPT', copilot: 'GitHub Copilot', none: 'Бесплатные модели' },
     opencodeClaude: 'Подписки Claude здесь нет: Anthropic разрешает её только в Claude Code. Claude через OpenCode — по API-ключу.',
-    globalOf: (folder: string) => `глобальный ${folder}`,
+    rename: (name: string) => `Переименовать ${name}: меняется только имя на странице, папка остаётся`,
     holds: (role: string) => `${role} работает на этом аккаунте`,
     roles: 'Где работает аккаунт: выберите приложение, чтобы перевести его сюда',
     rolesNone: 'Не используется',

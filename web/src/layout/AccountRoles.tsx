@@ -7,7 +7,8 @@ import { say, t } from '../i18n/index.js'
 import { ChevronIcon, EditorIcon, EvenKeelIcon } from '../ui/icons.js'
 import { place } from '../ui/Select.js'
 import { Tipped } from '../ui/Tipped.js'
-import { accountName, agentLabel, type Send } from './accountParts.js'
+import { accountName, agentLabel } from '../accountName.js'
+import type { Send } from './accountParts.js'
 import './roles.css'
 
 const APP_ICONS: Record<AppId, () => ReactNode> = { vscode: EditorIcon }
@@ -170,7 +171,7 @@ function rolesOf(entry: AccountEntry, view: AccountView, send: Send): Role[] {
       active !== undefined && active.agent !== entry.agent
         ? t.account.providerHere(agentLabel(entry.agent))
         : running && active !== undefined
-          ? t.account.chainsStay(accountName(active))
+          ? t.account.chainsStay(accountName(active, view.accounts))
           : t.account.nextHere,
     pick: () => send('account/switch', { account: entry.key }),
   }

@@ -14,6 +14,7 @@ import { SlidersIcon } from '../ui/icons.js'
 import { Select } from '../ui/Select.js'
 import { seriesStyle } from '../ui/series.js'
 import { changed, edited, reverted, sent, type Value, type Values } from './settingsDraft.js'
+import { folderLabel } from '../accountName.js'
 import { accountOptions, namedProviders, providerKeys, providerName, providerOptions } from './settingsRun.js'
 import {
   CheckField,
@@ -437,7 +438,7 @@ export function SettingsPanel({
             const key = `${column}.${provider}`
             if (column === 'accounts') {
               const options = [
-                { value: '', label: t.settings.asShared(config.shared.accounts[provider] ?? '—') },
+                { value: '', label: t.settings.asShared(config.shared.accounts[provider] === undefined ? '—' : folderLabel(state?.account, config.shared.accounts[provider])) },
                 ...(state === null ? [] : accountOptions(state.account, provider, text(key))),
               ]
               return (

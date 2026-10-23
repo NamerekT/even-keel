@@ -76,6 +76,38 @@
   background: var(--surface);
 }
 
+/* The card's name renames on a click, as the project's name does: a frame only on pointing or focus. */
+.accounts__rename,
+.accounts__name-input {
+  margin: -3px 0 -3px -6px;
+  padding: 2px 5px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  font: inherit;
+  font-weight: 600;
+  line-height: inherit;
+}
+
+.accounts__rename {
+  background: none;
+  color: inherit;
+  text-align: left;
+  cursor: text;
+}
+
+.accounts__rename:hover,
+.accounts__rename:focus-visible {
+  border-color: var(--border);
+}
+
+.accounts__name-input {
+  flex: 1;
+  min-width: 0;
+  border-color: var(--accent);
+  background: var(--bg);
+  color: var(--fg);
+}
+
 /* What the card changes stays in one row at its bottom, level across a row of cards: Remove, Renew, then the roles field. */
 /* Never wraps: a second row would lift the buttons above their neighbours' in the row of cards. */
 .account-card-item__foot {
