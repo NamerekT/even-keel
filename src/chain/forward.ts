@@ -42,8 +42,8 @@ export function chainQuiet(chain: ActiveChain | undefined, busy: (task: string) 
 
 /**
  * Carries the branch of each release project into the branch of the project it merges into (BTN-172), in that
- * project's main checkout: by `merge --no-edit` once its chain is quiet, or at once on "Carry now". A conflict is
- * aborted, so the checkout stays clean and the chain goes on, and holds the carry until "Carry now" or until the branch
+ * project's main checkout: by `merge --no-edit` once its chain is quiet, or at once on "Carry now". A failed merge
+ * (a conflict, or git refusing with no conflicted file, BTN-314) is aborted, so the checkout stays clean and the chain goes on, and holds the carry until "Carry now" or until the branch
  * has the commits by a merge by hand. The hold lives in memory: after a restart the carry is tried once more.
  */
 export class ForwardMerger {
@@ -119,9 +119,10 @@ export class ForwardMerger {
     if (merged.code !== 0) {
       const files = (await git(repo, ['diff', '--name-only', '--diff-filter=U'])).out.split(/\r?\n/).filter((line) => line.trim() !== '')
       await git(repo, ['merge', '--abort'])
-      const conflict = notice('forward.conflict', { from, into, files }, { detail: merged.out })
-      this.deps.log(englishOf(conflict))
-      Object.assign(view, { hold: conflict, held: true })
+      const hold =
+        files.length > 0 ? notice('forward.conflict', { from, into, files }, { detail: merged.out }) : notice('forward.failed', { from, into }, { detail: merged.out })
+      this.deps.log(files.length > 0 ? englishOf(hold) : `${englishOf(hold)}: ${merged.out.trim()}`)
+      Object.assign(view, { hold, held: true })
       return
     }
     const push = await this.deps.sync(into)
