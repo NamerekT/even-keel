@@ -336,27 +336,6 @@ export function SettingsPanel({
     ),
     tracker: () => (
       <>
-        <div className="settings__row">
-          <div className={marks.box('tracker')}>
-            <FieldHead
-              label={t.settings.tracker}
-              hint={locked ? t.settings.trackerLocked : undefined}
-              htmlFor={fieldId('tracker')}
-              soon={locked ? t.settings.trackerSoon : undefined}
-            />
-            <Select
-              id={fieldId('tracker')}
-              className="settings__text settings__short"
-              value={text('tracker')}
-              options={config.trackers.map((each) => ({ value: each.name, label: each.title }))}
-              invalid={errorOf('tracker') !== null}
-              disabled={locked}
-              onChange={(value) => edit('tracker', value)}
-            />
-            {marks.note('tracker')}
-            <FieldNote error={errorOf('tracker')} />
-          </div>
-        </div>
         {state !== null && (
           <ProjectTracker
             state={state}
@@ -364,6 +343,12 @@ export function SettingsPanel({
             tracker={text('tracker')}
             trackerProject={text('trackerProject')}
             locked={locked}
+            trackerNote={
+              <>
+                {marks.note('tracker')}
+                <FieldNote error={errorOf('tracker')} />
+              </>
+            }
             box={marks.box('trackerProject')}
             note={
               <>
@@ -372,7 +357,15 @@ export function SettingsPanel({
               </>
             }
             invalid={errorOf('trackerProject') !== null}
-            onEdit={(value) => edit('trackerProject', value)}
+            onEdit={(tracker, value) =>
+              setDraft(
+                tracker === text('tracker')
+                  ? edited(draft, 'trackerProject', value)
+                  : tracker === saved.tracker
+                    ? reverted(draft, saved, ['tracker', 'trackerProject'])
+                    : edited(edited(draft, 'tracker', tracker), 'trackerProject', ''),
+              )
+            }
           />
         )}
         <MilestoneFields
@@ -393,7 +386,7 @@ export function SettingsPanel({
             <FieldHead label={t.settings.intakeLabel} hint={t.settings.intakeLabelHint} htmlFor={fieldId('intakeLabel')} />
             <input
               id={fieldId('intakeLabel')}
-              className="settings__text settings__text--mono"
+              className="settings__text settings__text--mono tracker-fields__wide"
               spellCheck={false}
               value={text('intakeLabel')}
               placeholder={t.settings.intakeLabelNone}

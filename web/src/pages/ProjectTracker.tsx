@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import type { EvenKeelState, ProfileView } from '../../../src/state.js'
 import { t } from '../i18n/index.js'
 import { useCommand } from '../live/useCommand.js'
@@ -28,43 +28,70 @@ interface ProjectTrackerProps {
   trackerProject: string
   /** The chain has run a task of the project: neither the profile nor the tracker project change (BTN-66). */
   locked: boolean
-  onEdit: (trackerProject: string) => void
+  /** The draft's tracker and tracker project: a profile of another tracker changes both. */
+  onEdit: (tracker: string, trackerProject: string) => void
+  /** Under the profile: the draft's marks of the tracker. */
+  trackerNote: ReactNode
   box: string
   note: ReactNode
   invalid: boolean
 }
 
 /**
- * The tracker block of a project's settings, the wizard's own: the profile applies at once, the tracker project goes
- * into the draft. A tracker changed in the draft keeps the profile until it is saved: a profile is linked only to its
- * project's saved tracker, so until then the field shows the default one the new tracker would run on.
+ * The tracker block of a project's settings, the wizard's own: there is no tracker field, the profile's kind is the
+ * tracker. A profile of the saved tracker applies at once, the tracker project goes into the draft. A profile of
+ * another tracker puts that tracker into the draft and waits for the save: a profile is linked only to its project's
+ * saved tracker.
  */
-export function ProjectTracker({ state, project, tracker, trackerProject, locked, onEdit, box, note, invalid }: ProjectTrackerProps) {
+export function ProjectTracker({ state, project, tracker, trackerProject, locked, onEdit, trackerNote, box, note, invalid }: ProjectTrackerProps) {
   const { send, sending, failure } = useCommand()
-  const own = state.profiles.profiles.filter((profile) => profile.kind === tracker)
-  const fields = trackedFields(state, state.projectKeys[project] ?? '', tracker, linkedProfile(own, project), trackerProject)
+  const [waiting, setWaiting] = useState<string | null>(null)
+  const kinds = state.profiles.kinds.filter((kind) => kind.tracker)
+  const offered = state.profiles.profiles.filter((profile) => kinds.some((kind) => kind.kind === profile.kind))
+  const own = offered.filter((profile) => profile.kind === tracker)
+  const saved = state.config.projects[project]?.tracker
+  const shown = own.find((each) => each.id === waiting) ?? (tracker === saved ? linkedProfile(own, project) : own.find((each) => each.isDefault))
+  const fields = trackedFields(state, state.projectKeys[project] ?? '', tracker, shown, trackerProject)
+
+  // The tracker saved: the profile chosen for it is linked now.
+  useEffect(() => {
+    if (waiting === null || tracker !== saved) return
+    setWaiting(null)
+    const profile = own.find((each) => each.id === waiting)
+    if (profile !== undefined) void send('profiles/link', { project, profile: profile.isDefault ? null : profile.id })
+  }, [waiting, tracker, saved])
+
   const change = (edit: (before: WizardFields) => WizardFields) => {
     const next = edit(fields)
     if (next.profile !== fields.profile) {
-      const profile = own.find((each) => each.id === next.profile)
-      void send('profiles/link', { project, profile: profile === undefined || profile.isDefault ? null : profile.id })
+      const profile = offered.find((each) => each.id === next.profile)
+      if (profile !== undefined && profile.kind !== saved) setWaiting(profile.id)
+      else {
+        setWaiting(null)
+        void send('profiles/link', { project, profile: profile === undefined || profile.isDefault ? null : profile.id })
+      }
     }
     const value = placeOf(next)
-    if (value !== placeOf(fields)) onEdit(value)
+    if (next.tracker !== fields.tracker || value !== placeOf(fields)) onEdit(next.tracker, value)
   }
   return (
     <TrackerFields
       ids={(field) => fieldId(field === 'project' ? 'trackerProject' : field === 'team' ? 'trackerTeam' : 'profile')}
       state={state}
       fields={fields}
-      profiles={own}
-      kinds={state.profiles.kinds.filter((kind) => kind.kind === tracker)}
-      profileHint={t.profiles.fieldHint}
+      profiles={offered}
+      kinds={kinds}
+      profileHint={locked ? `${t.profiles.fieldHint} ${t.settings.trackerLocked}` : t.profiles.fieldHint}
       keyFixed
-      profileLocked={locked || sending || tracker !== state.config.projects[project]?.tracker}
+      profileLocked={locked || sending}
       projectLocked={locked}
       soon={locked ? t.settings.trackerSoon : undefined}
-      profileNote={<FieldNote error={failure} />}
+      profileNote={
+        <>
+          {trackerNote}
+          <FieldNote error={failure} />
+        </>
+      }
       projectBox={box}
       projectNote={note}
       projectInvalid={invalid}
