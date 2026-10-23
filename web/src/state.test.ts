@@ -1438,7 +1438,7 @@ describe('accountBadge', () => {
     pool: [],
     missing: [],
   })
-  const login = { agent: 'claude', target: 'global', startedAt: '2026-09-27T10:00:00Z', urls: [], output: '', error: null, codeSent: false }
+  const login = { agent: 'claude', target: 'global', startedAt: '2026-09-27T10:00:00Z', urls: [], deviceCode: null, output: '', error: null, codeSent: false }
 
   it('shows the mailbox name of the active account', () => {
     expect(accountBadge(view({ status: account(true, 'john.doe@example.com') }))).toEqual({ kind: 'in', label: 'john.doe' })

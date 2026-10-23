@@ -1,6 +1,7 @@
 import {
   folderName,
   loginBlockNotice,
+  loginCode,
   removeProblem,
   switchProblem,
   type AccountEntry,
@@ -42,17 +43,34 @@ const FAKE_LOGIN: AccountLogin = {
   target: null,
   startedAt: ago(1),
   urls: ['https://claude.example.com/oauth/authorize?code=true&state=example'],
+  deviceCode: null,
   output: "Browser didn't open? Use the url below to sign in:\n\nhttps://claude.example.com/oauth/authorize?code=true&state=example",
   error: null,
   codeSent: false,
 }
 
+const FAKE_DEVICE_OUTPUT =
+  'Follow these steps to sign in with ChatGPT using device code authorization:\n\n1. Open this link in your browser and sign in to your account\n   https://auth.openai.example.com/codex/device\n\n2. Enter this one-time code (expires in 15 minutes)\n   ABCD-1234\n\nContinue only if you started this login in Codex. If a website or another person gave you this code, cancel.\n'
+
 const FAKE_DEVICE_LOGIN: AccountLogin = {
   ...FAKE_LOGIN,
   agent: 'codex',
   urls: ['https://auth.openai.example.com/codex/device'],
-  output: 'Follow these steps to sign in with ChatGPT using device code authorization:\n\n1. Open this link in your browser and sign in\n   https://auth.openai.example.com/codex/device\n\n2. Enter this one-time code\n   ABCD-1234',
+  deviceCode: loginCode(FAKE_DEVICE_OUTPUT),
+  output: FAKE_DEVICE_OUTPUT.trim(),
 }
+
+const FAKE_OPENCODE_OUTPUT = '┌  Add credential\n│\n●  Go to: https://github.example.com/login/device\n│\n●  Enter code: WDJB-MJHT\n│\n◒  Waiting for authorization...\n'
+
+const FAKE_OPENCODE_LOGIN: AccountLogin = {
+  ...FAKE_DEVICE_LOGIN,
+  agent: 'opencode',
+  urls: ['https://github.example.com/login/device'],
+  deviceCode: loginCode(FAKE_OPENCODE_OUTPUT),
+  output: FAKE_OPENCODE_OUTPUT.trim(),
+}
+
+const FAKE_LOGINS: Record<string, AccountLogin> = { [CODEX]: FAKE_DEVICE_LOGIN, [OPENCODE]: FAKE_OPENCODE_LOGIN }
 
 export function fakeUsage(mode: string | null): UsageHealth {
   if (mode === 'unread') return { state: 'unread', reason: notice('usage.noWeek', {}), since: ago(12) }
@@ -245,7 +263,7 @@ export function accountCommand(account: AccountView, name: string, body: Record<
     if (name === 'account/renew' && key === account.active && account.loginBlock !== null) throw new NoticeError(loginBlockNotice(account.loginBlock))
     const target = name === 'account/add' ? null : key
     const agent = name === 'account/add' ? String(body.agent ?? CLAUDE) : (account.accounts.find((entry) => entry.key === key)?.agent ?? CLAUDE)
-    return { ...account, login: { ...(agent === CODEX ? FAKE_DEVICE_LOGIN : FAKE_LOGIN), agent, target, startedAt: ago(0) } }
+    return { ...account, login: { ...(FAKE_LOGINS[agent] ?? FAKE_LOGIN), agent, target, startedAt: ago(0) } }
   }
   if (name === 'account/api') {
     const value = String(body.key).trim()

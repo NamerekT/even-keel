@@ -1090,6 +1090,39 @@ input[type='radio']:disabled {
   gap: 8px;
 }
 
+.account__device {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.account__device .queue__hint {
+  margin: 0;
+}
+
+.account__device-label {
+  color: var(--fg-muted);
+  font-size: 12px;
+}
+
+.account__device-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.account__device-code {
+  padding: 6px 12px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface-muted);
+  font-family: var(--mono);
+  font-size: 24px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  user-select: all;
+}
+
 .account__key {
   display: flex;
   flex-direction: column;
