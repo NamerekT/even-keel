@@ -22,8 +22,14 @@ describe('tiersOf', () => {
 })
 
 describe('showsAction', () => {
-  it('shows the lead session until it has finished', () => {
-    expect(showsAction('lead', 'waiting')).toBe(true)
+  it('shows the lead session while it works or is held by an error or a limit', () => {
+    expect(showsAction('lead', 'working')).toBe(true)
+    expect(showsAction('lead', 'error')).toBe(true)
+    expect(showsAction('lead', 'limit')).toBe(true)
+  })
+
+  it('folds the lead to one line once its session waits for a reply or has finished', () => {
+    expect(showsAction('lead', 'waiting')).toBe(false)
     expect(showsAction('lead', 'finished')).toBe(false)
     expect(showsAction('lead', null)).toBe(false)
   })
