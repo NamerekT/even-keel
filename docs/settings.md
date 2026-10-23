@@ -252,7 +252,7 @@ database ─────────── readSettings ──┘               
 
 ## Credentials (BTN-131)
 
-The "Access" tab of `/settings` (`web/src/pages/SettingsSecrets.tsx`) starts with the trackers' profiles (cards and the
+The "Access" tab of `/settings` (`web/src/pages/SettingsSecrets.tsx`) starts with the trackers' profiles (rows and the
 "Add profile" dialog, BTN-200, `docs/trackers.md`; Forgejo's for the CI among them, BTN-201), then a row per `.env` variable with its own field and its own
 "Apply"; nothing of it goes into the drafts of the other groups, and an empty field is not a removal ("Remove" is).
 

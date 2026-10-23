@@ -11,46 +11,114 @@
   gap: 4px;
 }
 
-/* The top stripe says the state: a refused profile pauses the chains on it. */
-.profile-card {
-  --series: var(--border);
+/* A list of rows in one frame: colour only on what needs a look, the lamp says the state. */
+.profile-rows {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
 }
 
-.profile-card--ok {
-  --series: var(--lamp-done);
-}
-
-.profile-card--refused,
-.profile-card--unreachable {
-  --series: var(--lamp-error);
-}
-
-.profile-card__head {
+.profile-row {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 8px;
+  gap: 6px 12px;
+  padding: 10px 14px;
+}
+
+.profile-row + .profile-row {
+  border-top: 1px solid var(--border);
+}
+
+.profile-row__head {
+  display: flex;
+  flex: 1 1 260px;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 10px;
   min-width: 0;
 }
 
-.profile-card__icon {
+.profile-row__head > .lamp {
+  width: 8px;
+  height: 8px;
+}
+
+.profile-row__icon {
   display: inline-flex;
   flex: none;
   color: var(--fg-muted);
 }
 
-.profile-card__icon .icon {
-  width: 18px;
-  height: 18px;
+.profile-row__icon .icon {
+  width: 16px;
+  height: 16px;
 }
 
-.profile-card__name {
+.profile-row__name {
   overflow: hidden;
+  min-width: 0;
   font-weight: 600;
-  text-decoration: underline dotted;
-  text-underline-offset: 3px;
   text-overflow: ellipsis;
   white-space: nowrap;
-  cursor: help;
+}
+
+.profile-row__quiet,
+.profile-row__state {
+  color: var(--fg-muted);
+  font-size: 13px;
+}
+
+.profile-row__state--refused,
+.profile-row__state--unreachable {
+  color: var(--error-fg);
+}
+
+.profile-row__actions {
+  display: flex;
+  gap: 2px;
+  margin-left: auto;
+}
+
+.profile-row__action {
+  font: inherit;
+  font-size: 13px;
+  padding: 3px 8px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--fg-muted);
+  cursor: pointer;
+  transition:
+    background-color var(--motion-fast),
+    color var(--motion-fast);
+}
+
+.profile-row__action:hover {
+  background: color-mix(in srgb, var(--fg) 8%, transparent);
+  color: var(--fg);
+}
+
+.profile-row__action--remove:hover {
+  background: color-mix(in srgb, var(--lamp-error) 14%, transparent);
+  color: var(--lamp-error);
+}
+
+.profile-row__action:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.profile-row__action:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.profile-row > .profiles__error {
+  flex-basis: 100%;
 }
 
 .profiles__line {

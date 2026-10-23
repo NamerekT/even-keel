@@ -11,7 +11,6 @@ import { ProfileDialog } from './ProfileDialog.js'
 import { HelpTip } from './settingsParts.js'
 import { daysLeft } from './profileForm.js'
 import { profileAddOf, withoutProfileAdd } from './pullFix.js'
-import './accounts.css'
 import './profiles.css'
 
 const EXPIRY_WARN_DAYS = 14
@@ -22,7 +21,7 @@ const remotesOf = (remotes: ProfileView['ci'], label: (project: string) => strin
 /** Which dialog is up: a new profile, or the profile of that id. */
 type Editing = { id: string | null } | null
 
-/** The trackers' profiles of the "Access" tab: a card each, the details on pointing, and "Add profile". */
+/** The trackers' profiles of the "Access" tab: a row each, the details on pointing, and "Add profile". */
 export function SettingsProfiles({ state }: { state: EvenKeelState }) {
   const [editing, setEditing] = useState<Editing>(null)
   const [params, setParams] = useSearchParams()
@@ -44,9 +43,9 @@ export function SettingsProfiles({ state }: { state: EvenKeelState }) {
       {profiles.length === 0 ? (
         <p className="notice notice--warn">{t.profiles.none}</p>
       ) : (
-        <ul className="account-cards">
+        <ul className="profile-rows">
           {profiles.map((profile) => (
-            <ProfileCard
+            <ProfileRow
               key={profile.id}
               profile={profile}
               tracker={kinds.find((each) => each.kind === profile.kind)?.tracker ?? true}
@@ -75,15 +74,23 @@ export function SettingsProfiles({ state }: { state: EvenKeelState }) {
   )
 }
 
+const LAMPS: Record<ProfileView['check']['state'], string> = {
+  ok: 'lamp--done',
+  refused: 'lamp--error',
+  unreachable: 'lamp--error',
+  checking: 'lamp--working',
+  unchecked: '',
+}
+
 /**
- * What needs a look stays in sight (the state, the expiry, a refusal); whom it signs in as and its projects open on
- * pointing — a CI's profile (`tracker` off) names the remotes whose CI takes it instead.
+ * A row, quiet while all is well: a lamp, the name and whether it is the default. Colour only on what needs a look —
+ * a refusal, a near expiry, hidden CI, a refused pull request. Whom it signs in as and its projects open on pointing at
+ * the name — a CI's profile (`tracker` off) names the remotes whose CI takes it instead.
  */
-function ProfileCard({ profile, tracker, onEdit }: { profile: ProfileView; tracker: boolean; onEdit: () => void }) {
+function ProfileRow({ profile, tracker, onEdit }: { profile: ProfileView; tracker: boolean; onEdit: () => void }) {
   const { send, sending, failure } = useCommand()
   const label = useProjectLabel()
   const { state, error } = profile.check
-  const look = state === 'ok' ? 'tools__chip--on' : state === 'refused' || state === 'unreachable' ? 'tools__chip--lost' : 'tools__chip--off'
   const days = profile.expiresAt === null ? null : daysLeft(profile.expiresAt, Date.now())
   const details = (
     <>
@@ -99,19 +106,23 @@ function ProfileCard({ profile, tracker, onEdit }: { profile: ProfileView; track
   )
 
   return (
-    <li className={`account-card-item profile-card profile-card--${state}`}>
-      <div className="profile-card__head">
-        <span className="profile-card__icon">
+    <li className="profile-row">
+      <div className="profile-row__head">
+        <span className={`lamp ${LAMPS[state]}`} role="img" aria-label={t.profiles.states[state]} />
+        <span className="profile-row__icon">
           <TrackerIcon kind={profile.kind} />
         </span>
-        <Tipped className="profile-card__name" tip={details} align="start" focusable>
+        <Tipped className="profile-row__name" tip={details} align="start" focusable>
           {profile.name}
         </Tipped>
-      </div>
-      <div className="secrets__state">
-        <span className={`tools__chip ${look}`}>{t.profiles.states[state]}</span>
-        {profile.isDefault && <span className="tools__chip tools__chip--hidden">{t.profiles.isDefault}</span>}
-        {days !== null && <span className={`tools__chip ${days <= EXPIRY_WARN_DAYS ? 'tools__chip--lost' : 'tools__chip--off'}`}>{t.profiles.expires(days)}</span>}
+        {profile.isDefault && <span className="profile-row__quiet">{t.profiles.isDefault}</span>}
+        {state !== 'ok' && <span className={`profile-row__state profile-row__state--${state}`}>{t.profiles.states[state]}</span>}
+        {days !== null &&
+          (days <= EXPIRY_WARN_DAYS ? (
+            <span className="tools__chip tools__chip--lost">{t.profiles.expires(days)}</span>
+          ) : (
+            <span className="profile-row__quiet">{t.profiles.expires(days)}</span>
+          ))}
         {profile.hiddenCi.length > 0 && (
           <Tipped tip={details} focusable inline>
             <span className="tools__chip tools__chip--ask">{t.profiles.ciHidden}</span>
@@ -123,21 +134,26 @@ function ProfileCard({ profile, tracker, onEdit }: { profile: ProfileView; track
           </Tipped>
         )}
       </div>
-      {error !== null && state !== 'ok' && <p className="notice notice--error profiles__error">{say(error)}</p>}
-      {failure !== null && <p className="notice notice--error profiles__error">{say(failure)}</p>}
-      <div className="account-card-item__foot">
-        <button type="button" className="button button--small" aria-haspopup="dialog" disabled={sending} onClick={onEdit}>
+      <div className="profile-row__actions">
+        <button type="button" className="profile-row__action" aria-haspopup="dialog" disabled={sending} onClick={onEdit}>
           {t.profiles.edit}
         </button>
         {!profile.isDefault && (
-          <button type="button" className="button button--small" disabled={sending} onClick={() => void send('profiles/default', { id: profile.id })}>
+          <button type="button" className="profile-row__action" disabled={sending} onClick={() => void send('profiles/default', { id: profile.id })}>
             {t.profiles.makeDefault}
           </button>
         )}
-        <button type="button" className="button button--small" disabled={sending} onClick={() => void send('profiles/remove', { id: profile.id })}>
+        <button
+          type="button"
+          className="profile-row__action profile-row__action--remove"
+          disabled={sending}
+          onClick={() => void send('profiles/remove', { id: profile.id })}
+        >
           {t.profiles.remove}
         </button>
       </div>
+      {error !== null && state !== 'ok' && <p className="notice notice--error profiles__error">{say(error)}</p>}
+      {failure !== null && <p className="notice notice--error profiles__error">{say(failure)}</p>}
     </li>
   )
 }
