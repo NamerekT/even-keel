@@ -419,6 +419,9 @@ export const en: Messages = {
     keep: "Don't remove",
     transport: { sdk: 'Agent SDK', bg: 'CLI --bg' },
     transportNow: (name: string) => `Sessions run through ${name}. Press to switch: the change applies to new sessions.`,
+    transportPick: 'How sessions run',
+    transportChoice:
+      "Agent SDK: a session outlives a restart of the service with its question open, and an answer or a chat message goes straight into it. CLI --bg: the CLI's own background sessions. You can switch it later on the account card; the change applies to new sessions.",
     transportTerms:
       "Anthropic asks products built on the Agent SDK to sign in with an API key, not a claude.ai subscription: on a subscription account it is your own call.",
     waitingLink: 'Waiting for the sign-in link…',

@@ -211,7 +211,8 @@ export class AccountWatcher {
     void this.refresh().catch((error: unknown) => this.options.onError(error))
   }
 
-  async addApiKey(name: string, key: string, agent: string): Promise<void> {
+  /** `transport` — how a Claude account's sessions run, chosen with the key; ignored for another agent's. */
+  async addApiKey(name: string, key: string, agent: string, transport?: Transport): Promise<void> {
     const value = assertApiKey(key, agent)
     const verdict = await this.options.checkKey(agent, value)
     const provider = keyProvider(agent, value)
@@ -220,6 +221,7 @@ export class AccountWatcher {
     const home = this.options.homes.addApiKey(name, value, agent)
     this.keys.note(home.key, verdict, this.options.now())
     this.options.name(home.key, name)
+    if (transport !== undefined && this.options.transportOf(home, true) !== null) this.options.chooseTransport(home.key, transport)
     this.claimShared(home)
     await this.refresh()
   }

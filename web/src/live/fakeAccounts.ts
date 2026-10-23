@@ -255,7 +255,7 @@ export function accountCommand(account: AccountView, name: string, body: Record<
     if (value.includes('offline')) throw fail(codex ? 'account.codexKeyUnchecked' : 'account.apiKeyUnchecked', { reason: 'fetch failed' })
     const name = String(body.name ?? '').trim()
     const key = folderName(name || 'api', account.accounts.map((entry) => entry.key))
-    const entry = apiEntry(key, { name: name || null, ...(codex ? { agent: CODEX } : {}) })
+    const entry = apiEntry(key, { name: name || null, ...(codex ? { agent: CODEX } : body.transport === 'bg' ? { transport: 'bg' as const } : {}) })
     return { ...account, accounts: [...account.accounts, entry] }
   }
   if (name === 'account/switch') {

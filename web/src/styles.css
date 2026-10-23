@@ -1101,6 +1101,10 @@ input[type='radio']:disabled {
   margin: 0;
 }
 
+.account__key .segmented {
+  align-self: flex-start;
+}
+
 .account__input {
   flex: 1;
   min-width: 0;

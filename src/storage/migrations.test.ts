@@ -152,8 +152,9 @@ describe('upgradeStorage', () => {
   // mark in the chain's `ci`), v5 → v6 (a project's agent, Codex sessions) and v6 → v7 (the bypass of the Codex sandbox)
   // only add optional fields, so each step only stamps the files. v7 → v8 (BTN-173) moves the run settings of the config
   // into maps by provider — the samples of v6 and v7 have them, see below — and the active account out of `account.json`.
-  // v8 → v9 (BTN-174) adds the new file `state/packages.json` and stamps the others.
-  describe.each([2, 3, 4, 5, 6, 7, 8])('v%i to the current version', (from) => {
+  // v8 → v9 (BTN-174) adds the new file `state/packages.json` and stamps the others. v9 → v10 (BTN-239) stamps them for
+  // an account's optional `transport`; v10 → v11 (BTN-302) writes `bg` to each account without one.
+  describe.each([2, 3, 4, 5, 6, 7, 8, 9, 10])('v%i to the current version', (from) => {
     const sample = join(root, 'test', 'fixtures', `schema-v${from}`)
     const names = ['even-keel.config.json', 'state/chain.json', 'state/questions.json', 'state/launches.jsonl', 'state/account.json']
 
@@ -165,7 +166,10 @@ describe('upgradeStorage', () => {
         const { version, ...rest } = json(join(dir, name))
         expect(version).toBe(SCHEMA_VERSION)
         const { version: _, ...old } = JSON.parse(readFileSync(join(sample, name), 'utf8'))
-        if (name === 'state/account.json') delete old.active
+        if (name === 'state/account.json') {
+          delete old.active
+          for (const record of Object.values<Record<string, unknown>>(old.accounts)) record.transport ??= 'bg'
+        }
         if (name !== 'even-keel.config.json' || from < 6) expect(rest).toEqual(old)
       }
       const lines = text(state('launches.jsonl')).split('\n')
@@ -211,6 +215,30 @@ describe('upgradeStorage', () => {
       put(state('account.json'), { version: 7, active: 'global', accounts: {}, removing: [] })
       upgrade()
       expect(json(configFile)).toEqual({ version: SCHEMA_VERSION, projects: [{ id: 'id-abc', key: 'ABC', repo: 'C:\\abc' }] })
+    })
+  })
+
+  describe('v10 to v11', () => {
+    const accounts = {
+      global: { email: 'john.doe@example.com', since: null, previous: null, transport: 'sdk' },
+      'team-api': { email: 'team-api', since: null, previous: null, name: 'Team API' },
+      codex: { email: 'jane.doe@example.com', since: null, previous: null },
+    }
+
+    it('writes --bg to each account without a chosen transport, keeps a choice and leaves the Codex folder alone', () => {
+      put(state('account.json'), { version: 10, accounts, removing: [] })
+      upgrade()
+      expect(json(state('account.json'))).toEqual({
+        version: SCHEMA_VERSION,
+        accounts: { ...accounts, 'team-api': { ...accounts['team-api'], transport: 'bg' } },
+        removing: [],
+      })
+    })
+
+    it('writes it to the accounts of an account file older than v8 too', () => {
+      put(state('account.json'), { version: 7, active: 'global', accounts: { global: accounts['team-api'] }, removing: [] })
+      upgrade()
+      expect(json(state('account.json')).accounts).toEqual({ global: { ...accounts['team-api'], transport: 'bg' } })
     })
   })
 
