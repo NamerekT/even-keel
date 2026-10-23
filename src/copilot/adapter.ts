@@ -3,9 +3,11 @@ import { join } from 'node:path'
 import type { AccountHome } from '../account/homes.js'
 import type { AgentAdapter } from '../agent/contract.js'
 import { TurnRegistry } from '../codex/turns.js'
+import { askCopilotToken } from '../limits/copilot.js'
+import { notice } from '../notice/notice.js'
 import { findBinary } from '../paths.js'
 import { CopilotCli, resolveCopilotBinary, SESSION_MODE } from './cli.js'
-import { copilotEnv, eventsFile } from './home.js'
+import { copilotEnv, eventsFile, tokenOf } from './home.js'
 import { COPILOT } from './name.js'
 import { CopilotTail } from './tail.js'
 import { foldEvents } from './transcript.js'
@@ -17,8 +19,8 @@ const CHECKED = '1.0.98'
 /**
  * GitHub Copilot CLI through `copilot -p … --output-format json`: a turn is a detached process, as Codex's is; a session
  * lives between turns in Even Keel's registry and the account folder's `session-state/<id>/events.jsonl`
- * (`docs/sessions.md`). The account is a `COPILOT_HOME` with a GitHub token, or none for the CLI's own sign-in. There is
- * no limit to read and no copy of its own: sessions run on the installed CLI.
+ * (`docs/sessions.md`). The account is a `COPILOT_HOME` with a GitHub token, or none for the CLI's own sign-in. Only a
+ * token's monthly allowance can be read (`askCopilotToken`); there is no copy of its own: sessions run on the installed CLI.
  */
 export const copilot: AgentAdapter = {
   title: 'GitHub Copilot',
@@ -68,6 +70,12 @@ export const copilot: AgentAdapter = {
       logout: (home) => cli.logout(home),
       installed: () => findBinary(bin(), env()),
       version: () => cli.version(env()),
+      keyUsage: true,
+      usage: async (home, at) => {
+        const token = tokenOf(home.dir)
+        if (token === null) return { kind: 'missing', reason: notice('usage.copilotMachine', {}) }
+        return askCopilotToken(token, at, timeoutMs)
+      },
     }
   },
 }

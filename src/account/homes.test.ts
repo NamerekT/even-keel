@@ -11,6 +11,7 @@ const env = {
   HULY_EMAIL: 'john@example.com',
   HULY_PASSWORD: 'secret',
   EVEN_KEEL_OPENCODE_ACCOUNTS_DIR: join(tmpdir(), 'even-keel-homes-no-opencode'),
+  EVEN_KEEL_COPILOT_ACCOUNTS_DIR: join(tmpdir(), 'even-keel-homes-no-copilot'),
 }
 
 describe('AccountHomes.addApiKey', () => {

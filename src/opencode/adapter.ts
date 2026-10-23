@@ -6,10 +6,11 @@ import { TurnRegistry } from '../codex/turns.js'
 import { findBinary } from '../paths.js'
 import { OpenCodeCli, resolveOpenCodeBinary, SESSION_MODE } from './cli.js'
 import { sessionList, sessionRows } from './db.js'
-import { openCodeEnv } from './home.js'
+import { openCodeEnv, readAuth } from './home.js'
 import { OPENCODE } from './name.js'
 import { OpenCodeTail } from './tail.js'
 import { foldSession } from './transcript.js'
+import { openCodeUsage } from './usage.js'
 
 const HISTORY_FEED = 5_000
 /** The version the README's "Before you run it" names; raised after the live run of each release (`docs/releases.md`). */
@@ -18,7 +19,8 @@ const CHECKED = '1.18.25'
 /**
  * OpenCode through `opencode run --format json`: a turn is a detached process, as Codex's is; a session lives between
  * turns in Even Keel's registry and the account's `opencode.db` (`docs/sessions.md`). The account is a folder of the
- * four XDG folders. There is no limit to read and no copy of its own: sessions run on the installed CLI.
+ * four XDG folders. Its limits are its sign-in's, asked of ChatGPT or GitHub (`openCodeUsage`); there is no copy of its
+ * own: sessions run on the installed CLI.
  */
 export const opencode: AgentAdapter = {
   title: 'OpenCode',
@@ -61,6 +63,7 @@ export const opencode: AgentAdapter = {
         return { lines: summary.feed.slice(after), turn: summary.turn }
       },
       transcripts: async (home) => (await sessionList(home.dir)).map((session) => session.id),
+      usage: (home, at) => openCodeUsage(readAuth(home.dir), at, timeoutMs),
       authStatus: (home) => cli.authStatus(home),
       login: (home, method) => cli.login(home, method),
       logout: (home) => cli.logout(home),

@@ -249,6 +249,10 @@ describe('tightestWindow', () => {
     expect(tightestWindow(limits({ month: window(12) }))).toEqual({ span: 'month', free: 88, window: window(12) })
   })
 
+  it('skips a window that only counts what was spent', () => {
+    expect(tightestWindow(limits({ month: { ...window(0), used: 52 } }))).toBeNull()
+  })
+
   it('keeps the share within 0–100', () => {
     expect(tightestWindow(limits({ fiveHour: window(130) }))?.free).toBe(0)
     expect(tightestWindow(limits({ fiveHour: window(-5) }))?.free).toBe(100)

@@ -147,7 +147,7 @@ export class LimitsWatcher {
       const detail = (error instanceof Error ? error.message : String(error)).trim().slice(0, 200)
       // A lone failure is usually the network: what was known stays until the next poll fails too.
       if (++account.failures < 2) {
-        this.options.onError(new Error(`claude -p /usage in ${home.key} failed, retrying at the next poll: ${detail}`))
+        this.options.onError(new Error(`the usage poll of ${home.key} failed, retrying at the next poll: ${detail}`))
         return
       }
       answer = { kind: 'unknown', reason: notice('usage.callFailed', {}, { detail }) }
@@ -166,7 +166,7 @@ export class LimitsWatcher {
         return
       }
       if (account.health.state !== 'unread' || !sameNotice(account.health.reason, answer.reason)) {
-        this.options.onError(new Error(`claude -p /usage in ${home.key} answered without readable limits: ${englishOf(answer.reason)}`))
+        this.options.onError(new Error(`the usage poll of ${home.key} answered without readable limits: ${englishOf(answer.reason)}`))
       }
       setHealth(account, 'unread', answer.reason, at)
     } else {
