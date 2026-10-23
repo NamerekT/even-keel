@@ -86,7 +86,7 @@ export interface AccountControl {
   /** `method` — the agent's way to sign in, for an agent with several (`Agent.login`). */
   add(agent: string, method?: string): void
   /** An account of the agent paying from a key: Anthropic's for Claude, OpenAI's for Codex, either for OpenCode. */
-  addApiKey(name: string, key: string, agent: string): Promise<void>
+  addApiKey(name: string, key: string, agent: string, transport?: Transport): Promise<void>
   renew(account: string): void
   switchTo(account: string): void
   switchApp(app: string, account: string): Promise<void>
@@ -284,7 +284,12 @@ const COMMANDS: Record<string, Command> = {
   'account/add': ({ account }, body) =>
     account.add(body.agent === undefined ? CLAUDE : textOf(body.agent, 'agent'), body.method === undefined ? undefined : textOf(body.method, 'method')),
   'account/api': ({ account }, body) =>
-    account.addApiKey(typeof body.name === 'string' ? body.name : '', textOf(body.key, 'key'), body.agent === undefined ? CLAUDE : textOf(body.agent, 'agent')),
+    account.addApiKey(
+      typeof body.name === 'string' ? body.name : '',
+      textOf(body.key, 'key'),
+      body.agent === undefined ? CLAUDE : textOf(body.agent, 'agent'),
+      body.transport === undefined ? undefined : (transportOfBody(body) ?? undefined),
+    ),
   'account/renew': ({ account }, body) => account.renew(accountOf(body)),
   'account/switch': ({ account }, body) => account.switchTo(accountOf(body)),
   'account/app': ({ account }, body) => account.switchApp(appOf(body), accountOf(body)),

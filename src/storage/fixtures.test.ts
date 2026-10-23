@@ -94,7 +94,8 @@ describe(`frozen samples of schema v${SCHEMA_VERSION}`, { timeout: 60_000 }, () 
     expect(ledger.accounts.global?.email).toBe('john.doe@example.com')
     expect(ledger.accounts['team-api']?.name).toBe('Team API')
     expect(ledger.accounts.global?.transport).toBe('sdk')
-    expect(ledger.accounts['team-api']?.transport).toBeUndefined()
+    expect(ledger.accounts['team-api']?.transport).toBe('bg')
+    expect(ledger.accounts['work-api']?.transport).toBeUndefined()
   })
 
   it('reads the record of an SDK session', () => {

@@ -1,7 +1,8 @@
 import { randomUUID } from 'node:crypto'
 import { copyFileSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { GLOBAL_ACCOUNT } from '../account/model.js'
+import { CODEX_ACCOUNT, GLOBAL_ACCOUNT } from '../account/model.js'
+import { isTransport } from '../account/transport.js'
 import { parseConfig, withIds } from '../config.js'
 import { fail } from '../notice/notice.js'
 import { writeAtomic } from './atomic.js'
@@ -71,7 +72,7 @@ export function upgradeStorage(options: UpgradeOptions): void {
   if (questions !== undefined && questions.version < 2) rewrite(questions, jsonText({ version: SCHEMA_VERSION, questions: Array.isArray(questions.value) ? questions.value : [] }))
   if (account !== undefined && account.version < 8) {
     const { active: _moved, ...rest } = asRecord(account)
-    rewrite(account, jsonText(stamped(rest)))
+    rewrite(account, jsonText(stamped(bgChosen(rest))))
   }
   if (launches !== undefined && launches.version < 2) {
     const rename = idOf(launches.file)
@@ -90,10 +91,13 @@ export function upgradeStorage(options: UpgradeOptions): void {
   // restamped, `account.json` too.
   // v9 → v10: every file is restamped, for the optional `transport` of an account in `account.json` and the SDK
   // sessions of `state/claude-sdk/` (BTN-239).
+  // v10 → v11: `account.json` by `bgChosen`, the others restamped (BTN-302).
   for (const stored of [chain, questions, packages]) {
     if (stored !== undefined && stored.version >= 2 && stored.version < SCHEMA_VERSION) rewrite(stored, jsonText(restamped(stored)))
   }
-  if (account !== undefined && account.version >= 8 && account.version < SCHEMA_VERSION) rewrite(account, jsonText(restamped(account)))
+  if (account !== undefined && account.version >= 8 && account.version < SCHEMA_VERSION) {
+    rewrite(account, jsonText(account.version < 11 ? stamped(bgChosen(asRecord(account))) : restamped(account)))
+  }
   if (launches !== undefined && launches.version >= 2 && launches.version < SCHEMA_VERSION) {
     rewrite(launches, launches.text.replace(/^[^\n]*\n?/, `${JSON.stringify({ version: SCHEMA_VERSION })}\n`))
   }
@@ -169,6 +173,20 @@ function configV8(raw: unknown, active: string): unknown {
     ...merged('accounts', active === GLOBAL_ACCOUNT ? {} : { claude: active }),
     ...merged('execution', bypass ? { codex: 'bypass' } : {}),
   }
+}
+
+/**
+ * v10 → v11: each account without a chosen transport gets `--bg`, so an API key that ran on `--bg` before the SDK came
+ * stays there after the update instead of moving by `transportOf`'s default; a subscription's default is `--bg`
+ * anyway. The file does not say an account's agent: only Codex's own folder is known to be no Claude one, and
+ * `transportOf` ignores the field for any other agent's folder.
+ */
+function bgChosen(raw: Record<string, unknown>): Record<string, unknown> {
+  if (!isRecord(raw.accounts)) return raw
+  const accounts = Object.fromEntries(
+    Object.entries(raw.accounts).map(([key, record]) => [key, key === CODEX_ACCOUNT || !isRecord(record) || isTransport(record.transport) ? record : { ...record, transport: 'bg' }]),
+  )
+  return { ...raw, accounts }
 }
 
 function idsOf(raw: unknown): Record<string, string> {
