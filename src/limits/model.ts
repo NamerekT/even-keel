@@ -9,7 +9,51 @@ export interface RateLimits {
   /** The 30-day window of Codex's free plan: absent for a plan without one, `null` when it has one with no data. */
   month?: LimitWindow | null
   updatedAt: string
-  source: 'usage' | 'statusline'
+  /** `sdk` — a `rate_limit_event` of a Claude session run through the SDK (`limitsOfRateLimitInfo`). */
+  source: 'usage' | 'statusline' | 'sdk'
+}
+
+/** The windows a session reported: one it did not name stays as it was known. */
+export type SessionLimits = Partial<Pick<RateLimits, 'fiveHour' | 'sevenDay'>>
+
+const SESSION_WINDOWS = { five_hour: 'fiveHour', seven_day: 'sevenDay' } as const
+
+/**
+ * The account's windows out of a `rate_limit_event`'s `rate_limit_info`, sent by the CLI at each response: the
+ * utilization is a share, the reset is in seconds. `unifiedWindows` (CLI 2.1.308, not in `sdk.d.ts`) holds both windows;
+ * without it only the documented `rateLimitType` window is read, and a refused one without utilization is spent.
+ * The models' and the overage windows are not shown.
+ */
+export function limitsOfRateLimitInfo(raw: unknown): SessionLimits | undefined {
+  if (!isRecord(raw)) return undefined
+  const limits: SessionLimits = {}
+  if (isRecord(raw.unifiedWindows)) {
+    for (const [type, span] of Object.entries(SESSION_WINDOWS)) {
+      const window = sessionWindow(raw.unifiedWindows[type])
+      if (window !== undefined) limits[span] = window
+    }
+  }
+  const span = SESSION_WINDOWS[raw.rateLimitType as keyof typeof SESSION_WINDOWS]
+  if (span !== undefined) {
+    const utilization = raw.utilization ?? (raw.status === 'rejected' ? 1 : undefined)
+    const window = sessionWindow({ utilization, resetsAt: raw.resetsAt })
+    if (window !== undefined) limits[span] = window
+  }
+  return Object.keys(limits).length === 0 ? undefined : limits
+}
+
+export function withSessionLimits(known: RateLimits | undefined, reported: SessionLimits, at: string): RateLimits {
+  return {
+    fiveHour: reported.fiveHour ?? known?.fiveHour ?? null,
+    sevenDay: reported.sevenDay ?? known?.sevenDay ?? null,
+    updatedAt: at,
+    source: 'sdk',
+  }
+}
+
+function sessionWindow(raw: unknown): LimitWindow | undefined {
+  if (!isRecord(raw) || !isFiniteNumber(raw.utilization) || !isFiniteNumber(raw.resetsAt)) return undefined
+  return { usedPercentage: Math.round(raw.utilization * 1000) / 10, resetsAt: new Date(raw.resetsAt * 1000).toISOString() }
 }
 
 export type LimitSpan = 'fiveHour' | 'sevenDay' | 'month'

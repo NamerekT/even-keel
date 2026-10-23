@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { currentLimits, exhaustedReset, limitResetAfter, limitsFileDir, limitSpans, newestLimits, parseLimitsFile } from './model.js'
+import { currentLimits, exhaustedReset, limitResetAfter, limitsFileDir, limitsOfRateLimitInfo, limitSpans, newestLimits, parseLimitsFile, withSessionLimits } from './model.js'
 
 const RECEIVED_AT = '2026-01-01T12:00:00.000Z'
 const FIVE_HOUR_RESET = Date.UTC(2026, 0, 1, 15, 0, 0) / 1000
@@ -203,5 +203,68 @@ describe('limitResetAfter', () => {
 
   it('does not take a statusline snapshot without the five-hour window for a reset', () => {
     expect(limitResetAfter(limits(null, '2026-10-16T00:22:00.400Z', 'statusline'), HIT)).toBeNull()
+  })
+})
+
+describe('limitsOfRateLimitInfo', () => {
+  // CLI 2.1.308 through SDK 0.3.308, seen live: `unifiedWindows` is not in `sdk.d.ts`.
+  const live = {
+    status: 'allowed_warning',
+    resetsAt: 1793286000,
+    rateLimitType: 'seven_day',
+    utilization: 0.45,
+    overageStatus: 'rejected',
+    isUsingOverage: false,
+    unifiedWindows: { five_hour: { utilization: 0.6, resetsAt: 1792753800 }, seven_day: { utilization: 0.45, resetsAt: 1793286000 } },
+  }
+
+  it('reads both windows a session reports, the utilization as a share', () => {
+    expect(limitsOfRateLimitInfo(live)).toEqual({
+      fiveHour: { usedPercentage: 60, resetsAt: '2026-10-23T11:10:00.000Z' },
+      sevenDay: { usedPercentage: 45, resetsAt: '2026-10-29T15:00:00.000Z' },
+    })
+  })
+
+  it('falls back to the one window the documented fields name', () => {
+    const { unifiedWindows: _, ...documented } = live
+    expect(limitsOfRateLimitInfo(documented)).toEqual({ sevenDay: { usedPercentage: 45, resetsAt: '2026-10-29T15:00:00.000Z' } })
+  })
+
+  it('takes a refused window without utilization for a spent one', () => {
+    expect(limitsOfRateLimitInfo({ status: 'rejected', rateLimitType: 'five_hour', resetsAt: 1792753800 })).toEqual({
+      fiveHour: { usedPercentage: 100, resetsAt: '2026-10-23T11:10:00.000Z' },
+    })
+  })
+
+  it('reads nothing from a model window, an overage or a malformed event', () => {
+    expect(limitsOfRateLimitInfo({ status: 'allowed_warning', rateLimitType: 'seven_day_opus', utilization: 0.8, resetsAt: 1793286000 })).toBeUndefined()
+    expect(limitsOfRateLimitInfo({ status: 'allowed', rateLimitType: 'overage' })).toBeUndefined()
+    expect(limitsOfRateLimitInfo({ status: 'allowed' })).toBeUndefined()
+    expect(limitsOfRateLimitInfo({ status: 'allowed', unifiedWindows: { five_hour: { utilization: 'high', resetsAt: 1792753800 } } })).toBeUndefined()
+    expect(limitsOfRateLimitInfo(null)).toBeUndefined()
+  })
+})
+
+describe('withSessionLimits', () => {
+  const polled = {
+    fiveHour: { usedPercentage: 20, resetsAt: '2026-01-01T15:00:00.000Z' },
+    sevenDay: { usedPercentage: 30, resetsAt: '2026-01-05T09:30:00.000Z' },
+    updatedAt: RECEIVED_AT,
+    source: 'usage' as const,
+  }
+
+  it('puts the reported windows over what was known and keeps the rest', () => {
+    const fiveHour = { usedPercentage: 25, resetsAt: '2026-01-01T15:00:00.000Z' }
+    expect(withSessionLimits(polled, { fiveHour }, '2026-01-01T12:03:00.000Z')).toEqual({
+      fiveHour,
+      sevenDay: polled.sevenDay,
+      updatedAt: '2026-01-01T12:03:00.000Z',
+      source: 'sdk',
+    })
+  })
+
+  it('leaves a window it knows nothing of empty', () => {
+    const sevenDay = { usedPercentage: 31, resetsAt: '2026-01-05T09:30:00.000Z' }
+    expect(withSessionLimits(undefined, { sevenDay }, RECEIVED_AT)).toEqual({ fiveHour: null, sevenDay, updatedAt: RECEIVED_AT, source: 'sdk' })
   })
 })

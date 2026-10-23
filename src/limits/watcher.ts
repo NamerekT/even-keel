@@ -1,6 +1,6 @@
 import { readFile } from 'node:fs/promises'
 import type { AccountHome } from '../account/homes.js'
-import { currentLimits, limitsFileDir, newestLimits, parseLimitsFile, type RateLimits } from './model.js'
+import { currentLimits, limitsFileDir, newestLimits, parseLimitsFile, withSessionLimits, type RateLimits, type SessionLimits } from './model.js'
 import { englishOf, notice, sameNotice, type Notice } from '../notice/notice.js'
 import type { UsageAnswer, UsageHealth } from './usage.js'
 
@@ -29,6 +29,8 @@ export interface LimitsWatcherOptions {
 interface AccountLimits {
   received: RateLimits | undefined
   polled: RateLimits | undefined
+  /** From the `rate_limit_event`s of the account's SDK sessions. */
+  streamed: RateLimits | undefined
   health: UsageHealth
   /** Failed calls in a row. */
   failures: number
@@ -51,8 +53,14 @@ export class LimitsWatcher {
 
   limits(account: string): RateLimits | null {
     if (this.options.apiKey(account)) return null
-    const known = this.accounts.get(account)
-    return currentLimits(newestLimits(known?.received, known?.polled), new Date(), this.options.notBefore(account))
+    return currentLimits(newestOf(this.accounts.get(account)), new Date(), this.options.notBefore(account))
+  }
+
+  /** The windows a session of the account reported between the polls, over the newest of what was known. */
+  report(account: string, reported: SessionLimits, at = new Date().toISOString()): void {
+    const known = this.of(account)
+    known.streamed = withSessionLimits(newestOf(known), reported, at)
+    this.publish()
   }
 
   usage(account: string): UsageHealth {
@@ -170,7 +178,7 @@ export class LimitsWatcher {
   private of(key: string): AccountLimits {
     let known = this.accounts.get(key)
     if (known === undefined) {
-      known = { received: undefined, polled: undefined, health: WAITING, failures: 0 }
+      known = { received: undefined, polled: undefined, streamed: undefined, health: WAITING, failures: 0 }
       this.accounts.set(key, known)
     }
     return known
@@ -187,4 +195,8 @@ export class LimitsWatcher {
 function setHealth(account: AccountLimits, state: UsageHealth['state'], reason: Notice | null, at: string): void {
   if (account.health.state === state && sameNotice(account.health.reason, reason)) return
   account.health = { state, reason, since: at }
+}
+
+function newestOf(known: AccountLimits | undefined): RateLimits | undefined {
+  return newestLimits(newestLimits(known?.received, known?.polled), known?.streamed)
 }

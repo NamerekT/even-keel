@@ -30,7 +30,7 @@ const SDK_TRANSPORT: Transport = 'sdk'
 export const claude: AgentAdapter = {
   title: 'Claude Code',
   checked: CHECKED,
-  setup({ env, timeoutMs, workDir, checkedCli, version = CHECKED, log, onCliChange, transport, unattended, language }) {
+  setup({ env, timeoutMs, workDir, checkedCli, version = CHECKED, log, onCliChange, transport, unattended, language, onLimits }) {
     const copy = new PinnedCli({
       dir: join(workDir, 'cli', CLAUDE),
       version,
@@ -67,6 +67,7 @@ export const claude: AgentAdapter = {
       remote: remoteAt,
       unattended: () => unattended?.() ?? true,
       language: () => language?.() ?? DEFAULT_LANGUAGE,
+      onLimits,
       log,
     })
     /** The SDK talks the protocol of its own CLI version, so a session goes through it only on Even Keel's copy of that version. */

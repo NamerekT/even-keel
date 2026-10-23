@@ -5,6 +5,7 @@ import type { AccountHome } from '../../account/homes.js'
 import { gatewayName, type SessionStart } from '../../agent/contract.js'
 import { isAlive, killTree } from '../../agent/process.js'
 import type { Language } from '../../language.js'
+import { limitsOfRateLimitInfo, type SessionLimits } from '../../limits/model.js'
 import { fail, notice, NoticeError } from '../../notice/notice.js'
 import type { AgentEntry } from '../../sessions/agents.js'
 import { questionsOf, replyParts, type Ask, type AskAnswers } from '../../sessions/ask.js'
@@ -36,6 +37,8 @@ export interface SdkHostOptions {
   unattended: () => boolean
   /** The language a tool approval is asked in. */
   language: () => Language
+  /** A session of the account reported its limits windows. */
+  onLimits?: (account: string, limits: SessionLimits) => void
   log: (line: string) => void
 }
 
@@ -304,6 +307,11 @@ export class SdkSessions {
   private async pump(session: SdkSession, connection: Connection): Promise<void> {
     try {
       for await (const message of connection.query) {
+        if (message.type === 'rate_limit_event') {
+          const limits = limitsOfRateLimitInfo(message.rate_limit_info)
+          if (limits !== undefined) this.options.onLimits?.(session.account, limits)
+          continue
+        }
         if (connection.asks.size > 0) continue
         if (message.type === 'assistant') connection.turn = { status: 'busy', ask: null }
         else if (message.type === 'result') connection.turn = { status: 'idle', ask: null }

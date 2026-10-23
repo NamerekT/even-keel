@@ -118,7 +118,7 @@ A Claude account runs its sessions one of two ways, switched on its card: `CLI -
 
 ## Limits
 
-The 5-hour and weekly windows of every account, read with the CLI's own `/usage` command (no quota spent). Even Keel stays inside them: while a window is exhausted the next task waits for its reset.
+The 5-hour and weekly windows of every account, read with the CLI's own `/usage` command (no quota spent) every 5 minutes; between those reads a session running through the Agent SDK keeps them fresh with the limits the CLI reports at each response. Even Keel stays inside them: while a window is exhausted the next task waits for its reset.
 
 ## Statistics (optional)
 
