@@ -34,6 +34,7 @@ import { DEFAULT_CI } from './settings/defaults.js'
 import { OWN_KEYS } from './settings/registry.js'
 import { CLAUDE } from './claude/name.js'
 import type { Language } from './language.js'
+import type { ApprovalDecision } from './sessions/approvals.js'
 import { HOOK_EVENTS, type MailEvent } from './sessions/mail.js'
 import type { CacheTtl, ChangelogOp, ChangelogView, CheckpointShares, CheckResult, CiSettings, ContextScale, FeedDraft, OwnValues, ProjectCheck, ProjectDraft, ProjectForm, SharedForm, StatsConfig } from './state.js'
 import type { CompareSettings } from './stats/rules.js'
@@ -233,6 +234,11 @@ export interface ServerDeps {
    * `null` — none wait; `undefined` for a session the chain did not start (BTN-181).
    */
   mail: (sessionId: string, event: MailEvent) => string | null | undefined
+  /**
+   * For the permission hook started at `since` (ms): the user's decision on the tool call the session waits to have
+   * approved; `null` — not yet; `undefined` for a session the chain did not start, or a call whose dialog is gone (BTN-269).
+   */
+  permission: (sessionId: string, tool: string, input: Record<string, unknown>, since: number) => ApprovalDecision | null | undefined
   /** `undefined` for a project the config does not know. */
   tools: (project: string) => Promise<unknown>
   /** By the project's id; `undefined` when the config does not know it or its tracker is off or names nothing. */
@@ -606,6 +612,24 @@ async function route(deps: ServerDeps, request: IncomingMessage, response: Serve
     }
     if (message === undefined) response.writeHead(404).end()
     else sendJson(response, 200, { message })
+    return
+  }
+
+  const permission = /^\/api\/sessions\/([^/]+)\/permission$/.exec(path)
+  if (request.method === 'POST' && permission !== null) {
+    let decision: ApprovalDecision | null | undefined
+    try {
+      const body = await readJsonBody(request, MAX_BODY_BYTES)
+      const { input, since } = body
+      if (typeof input !== 'object' || input === null || Array.isArray(input)) throw fail('request.required', { field: 'input' })
+      if (typeof since !== 'number') throw fail('request.required', { field: 'since' })
+      decision = deps.permission(decodeURIComponent(permission[1]!), textOf(body.tool, 'tool'), input as Record<string, unknown>, since)
+    } catch (error) {
+      sendFailure(response, error)
+      return
+    }
+    if (decision === undefined) response.writeHead(404).end()
+    else sendJson(response, 200, { decision })
     return
   }
 

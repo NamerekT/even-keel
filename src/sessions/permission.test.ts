@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { replyPrompt } from '../../sessions/ask.js'
+import { replyPrompt } from './ask.js'
 import { permissionAsk, permissionMove } from './permission.js'
 
 const ask = permissionAsk('toolu_07', 'Bash', { command: 'npm publish', description: 'Publish the package' }, 'en')

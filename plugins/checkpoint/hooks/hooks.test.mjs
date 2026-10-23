@@ -32,9 +32,9 @@ beforeAll(async () => {
 
 afterAll(() => server.close());
 
-function run(script, input) {
+function run(script, input, evenKeel = url) {
   return new Promise((resolve) => {
-    const child = spawn(process.execPath, [join(HOOKS, script)], { env: { ...process.env, EVEN_KEEL_URL: url } });
+    const child = spawn(process.execPath, [join(HOOKS, script)], { env: { ...process.env, EVEN_KEEL_URL: evenKeel } });
     let stdout = "";
     child.stdout.on("data", (chunk) => (stdout += chunk));
     child.on("close", (code) => resolve({ code, stdout }));
@@ -145,6 +145,32 @@ describe.each(Object.entries(agents))("hooks on %s input", (_agent, input) => {
     const before = posted.get(`/api/sessions/${session}/mail`).length;
     expect(await run("mailbox.mjs", { ...toolUse(session), agent_id: "agent-1" })).toEqual({ code: 0, stdout: "" });
     expect(posted.get(`/api/sessions/${session}/mail`)).toHaveLength(before);
+  });
+});
+
+describe("the permission hook", () => {
+  const request = (session, extra) => agents.claude(session, "PermissionRequest", { tool_name: "Bash", tool_input: { command: "npm publish" }, ...extra });
+
+  it("asks Even Keel every second until the user decides, and hands the decision to the CLI", async () => {
+    const session = sessionOf();
+    const permission = `/api/sessions/${session}/permission`;
+    answers.set(permission, { decision: null });
+    const hook = run("permission.mjs", request(session));
+    await new Promise((resolve) => setTimeout(resolve, 1500));
+    answers.set(permission, { decision: { behavior: "deny", message: "Publish from CI." } });
+    expect(JSON.parse((await hook).stdout)).toEqual({
+      hookSpecificOutput: { hookEventName: "PermissionRequest", decision: { behavior: "deny", message: "Publish from CI." } },
+    });
+    expect(posted.get(permission).length).toBeGreaterThanOrEqual(2);
+    expect(posted.get(permission)[0]).toEqual({ tool: "Bash", input: { command: "npm publish" }, since: expect.any(Number) });
+  });
+
+  it("leaves the dialog alone for a session Even Keel did not start, for Codex and without Even Keel", async () => {
+    const session = sessionOf();
+    expect(await run("permission.mjs", request(session))).toEqual({ code: 0, stdout: "" });
+    answers.set(`/api/sessions/${session}/permission`, { decision: { behavior: "allow" } });
+    expect(await run("permission.mjs", request(session, { turn_id: "turn-1" }))).toEqual({ code: 0, stdout: "" });
+    expect(await run("permission.mjs", request(session), "http://127.0.0.1:9")).toEqual({ code: 0, stdout: "" });
   });
 });
 

@@ -39,6 +39,18 @@
         ]
       }
     ],
+    "PermissionRequest": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/permission.mjs\"",
+            "timeout": 1800
+          }
+        ]
+      }
+    ],
     "Stop": [
       {
         "hooks": [

@@ -8,9 +8,9 @@ import type { Language } from '../../language.js'
 import { fail, notice, NoticeError } from '../../notice/notice.js'
 import type { AgentEntry } from '../../sessions/agents.js'
 import { questionsOf, replyParts, type Ask, type AskAnswers } from '../../sessions/ask.js'
+import { NO_APPROVAL, permissionAsk, permissionMove } from '../../sessions/permission.js'
 import { SESSION_MODE } from '../cli.js'
 import type { ExecutorHello } from './executor.js'
-import { permissionAsk, permissionMove } from './permission.js'
 import { ExecutorProcess, newPipe, probe, startExecutor, type ExecutorRequest } from './pipe.js'
 import { sdkEntryOf, SdkRegistry, type SdkSession, type SdkTurn } from './registry.js'
 import type { SdkModule, SdkOptions, SdkPermission, SdkQuery, SdkUserMessage } from './types.js'
@@ -21,8 +21,6 @@ const REMOTE_TIMEOUT_MS = 15_000
 const EXIT_TIMEOUT_MS = 30_000
 const EXIT_POLL_MS = 100
 const ASK_TOOL = 'AskUserQuestion'
-/** The answer to any other tool the CLI wants approved while the chain runs unattended: nobody is at the page (`permissionMode` decides the rest). */
-const NO_APPROVAL = 'Nobody approves tool calls in this session: do without this call, or ask the user with AskUserQuestion.'
 
 export interface SdkHostOptions {
   /** `state/claude-sdk`: the registry and the executors' logs. */

@@ -86,7 +86,8 @@ import { Packages } from './packages/service.js'
 import { secretCatalog } from './secrets/catalog.js'
 import { Secrets } from './secrets/service.js'
 import { createEvenKeelServer, type ChainControl } from './server.js'
-import { replyPrompt, type Reply } from './sessions/ask.js'
+import { Approvals } from './sessions/approvals.js'
+import { replyParts, replyPrompt, type Reply } from './sessions/ask.js'
 import { inboxImage, saveInbox, type InboxFile } from './sessions/inbox.js'
 import { sharedFile } from './sessions/shareFile.js'
 import type { SessionMail } from './sessions/mail.js'
@@ -343,6 +344,7 @@ function briefOn(project: string, reader = project): boolean {
   const set = profiles.current()
   return serverProfile(set, project, trackers[project]!, feeds[project] ?? [], tracker)?.id !== profileFor(set, reader, tracker)?.id
 }
+const approvals = new Approvals({ language: () => configStore.current.language ?? promptLanguage(), unattended: () => configStore.current.unattended })
 const runtimes = new Map<string, Agent>(
   Object.entries(AGENTS).map(([name, adapter]) => [
     name,
@@ -763,11 +765,13 @@ const monitor = new SessionMonitor({
     return [...new Set([...projects.map((project) => fixStem(config.keys, project)), ...projects.map((project) => idPrefixOf(config, project))])]
   },
   contextWindow: (key, model, task) => (agentOf(homeOf(key)).contextWindow === undefined ? null : contextWindows.peek(key, model, task)),
+  approval: (sessionId) => approvals.ask(sessionId),
   intervalMs: SESSION_POLL_MS,
   onAgents: (list) => {
     const before = JSON.stringify(account.view.loginBlock)
     agents = list
     agentsRead = true
+    approvals.settle(new Set(list.filter((agent) => agent.status === 'waiting').map((agent) => agent.sessionId)))
     if (JSON.stringify(account.view.loginBlock) !== before) hub.broadcast('state', getState())
   },
   onChange: (views) => {
@@ -1212,11 +1216,13 @@ const forwards = new ForwardMerger({
 })
 
 /**
- * Goes on in the live session with `prompt` where its agent can (an SDK session, BTN-239); otherwise stops the session
- * and resumes it, and the page keeps it working, not finished, while it is respawned.
+ * Settles the tool call the session's permission hook holds (BTN-269); otherwise goes on in the live session with
+ * `prompt` where its agent can (an SDK session, BTN-239); otherwise stops the session and resumes it, and the page
+ * keeps it working, not finished, while it is respawned.
  */
 function resumeWith(task: string, session: HandoffSession, prompt: string): Promise<string> {
   return monitor.holds.during(session.sessionId, async () => {
+    if (approved(task, session, prompt)) return session.sessionId
     const home = homeOf(session.account)
     const start = goOnWith(home, task, session, prompt)
     const went = await agentOf(home).reply?.(home, session, start)
@@ -1229,6 +1235,19 @@ function resumeWith(task: string, session: HandoffSession, prompt: string): Prom
     console.log(`sessions: ${task} resumed in ${Date.now() - started} ms (stop ${stopped - started} ms)`)
     return sessionId
   }, liveView(task)?.ask?.id ?? null)
+}
+
+/** The words that came with an allowed call wait in the session's mailbox: it goes on with its turn at once. */
+function approved(task: string, session: HandoffSession, prompt: string): boolean {
+  const ask = approvals.ask(session.sessionId)
+  const move = ask === null ? null : approvals.answer(session.sessionId, prompt)
+  if (move === null) return false
+  if (move.kind === 'allow' && move.message !== null) {
+    const { text, files } = replyParts(prompt, ask)
+    mailbox.post(task, session.sessionId, text, files)
+  }
+  console.log(`sessions: ${task}: the user ${move.kind === 'allow' ? 'allowed' : 'denied'} the call the session ${session.sessionId} waited to have approved`)
+  return true
 }
 
 function goOnWith(home: AccountHome, task: string, session: HandoffSession, prompt: string): SessionStart {
@@ -1631,6 +1650,7 @@ let server = createEvenKeelServer({
     return feed !== undefined && noteAtEnd(feed.lines)
   },
   mail: (sessionId, event) => (handoffsOf(launches, sessionId) === undefined ? undefined : mailFor(mailRelay, sessionId, event)),
+  permission: (sessionId, tool, input, since) => (handoffsOf(launches, sessionId) === undefined ? undefined : approvals.poll(sessionId, tool, input, since)),
   mergeCheck: (sessionId) => {
     const run = handoffsOf(launches, sessionId)
     if (run === undefined) return undefined
