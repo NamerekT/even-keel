@@ -13,6 +13,7 @@ import { useCommand } from '../live/useCommand.js'
 import { loginLeft } from '../state.js'
 import { loadedData, Segmented, useStatsAnswer } from '../stats/common.js'
 import { formatUsd } from '../stats/format.js'
+import { ConfirmDialog } from '../ui/ConfirmDialog.js'
 import { BracesIcon, ClaudeIcon, CodexIcon, CopilotIcon, KeyIcon, OpenCodeIcon, TerminalIcon } from '../ui/icons.js'
 import { Tipped } from '../ui/Tipped.js'
 
@@ -269,29 +270,22 @@ export function RemoveAction({ entry, view, sending, send }: RemoveProps) {
       </Tipped>
     )
   }
-  if (!confirming) {
-    return (
-      <div className="account__actions">
-        <button type="button" className="button button--small" disabled={sending} onClick={() => setConfirming(true)}>
-          {t.common.remove}
-        </button>
-      </div>
-    )
-  }
   return (
     <div className="account__actions">
-      <span className="accounts__confirm">{removeQuestion(entry)}</span>
-      <button
-        type="button"
-        className="button button--small button--danger"
-        disabled={sending}
-        onClick={() => void send('account/remove', { account: entry.key }).then(() => setConfirming(false))}
-      >
+      <button type="button" className="button button--small" disabled={sending} onClick={() => setConfirming(true)}>
         {t.common.remove}
       </button>
-      <button type="button" className="button button--small" disabled={sending} onClick={() => setConfirming(false)}>
-        {t.common.cancel}
-      </button>
+      {confirming && (
+        <ConfirmDialog
+          title={accountName(entry)}
+          question={removeQuestion(entry)}
+          confirm={t.common.remove}
+          cancel={t.account.keep}
+          busy={sending}
+          onConfirm={() => void send('account/remove', { account: entry.key }).then(() => setConfirming(false))}
+          onClose={() => setConfirming(false)}
+        />
+      )}
     </div>
   )
 }
