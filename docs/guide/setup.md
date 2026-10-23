@@ -87,7 +87,7 @@ What a profile's token needs, by what it is used for. The profile dialog lists t
 | Linear, a personal API key | write access | — | — |
 | Forgejo, an access token | — | `read:repository` (the repositories and their Actions), `read:user` (the sign-in check) | `write:repository` (opening a pull request, reading its reviews), `read:issue` (comments in its conversation), `read:user` |
 
-PR mode pushes the task's branch with `git push`, on the git credentials of the account the service runs as (its SSH keys or credential manager), not with a profile's token: without them PR mode stops at the push. A forge that refuses to open a pull request with the token marks the profile's card **PR refused** and names the right it lacks. The Forgejo rights for pull requests follow from the API calls Even Keel makes and are not yet checked against a real server ([What has not been verified](../unverified.md)).
+PR mode pushes the task's branch with `git push`, on the git credentials of the account the service runs as (its SSH keys or credential manager), not with a profile's token: without them PR mode stops at the push. A forge that refuses to open a pull request with the token marks the profile's row **PR refused** and names the right it lacks. The Forgejo rights for pull requests follow from the API calls Even Keel makes and are not yet checked against a real server ([What has not been verified](../unverified.md)).
 
 ## The page
 
