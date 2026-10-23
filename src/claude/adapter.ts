@@ -16,7 +16,7 @@ import { CLAUDE } from './name.js'
 import { claudeBinaryIn, fetchClaude } from './release.js'
 
 /** The version the README's "Before you run it" names; raised after the live run of each release (`docs/releases.md`). */
-const CHECKED = '2.1.308'
+const CHECKED = '2.1.310'
 
 /** Claude Code through the `claude` CLI: `--bg` sessions, one `CLAUDE_CONFIG_DIR` per account (`docs/sessions.md`). */
 export const claude: AgentAdapter = {

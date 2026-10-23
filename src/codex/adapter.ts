@@ -19,7 +19,7 @@ const HISTORY_FEED = 5_000
 /** How many of the newest rollouts are searched for the account's limits. */
 const LIMIT_ROLLOUTS = 20
 /** The version the README's "Before you run it" names; raised after the live run of each release (`docs/releases.md`). */
-const CHECKED = '0.163.0'
+const CHECKED = '0.164.0'
 
 /**
  * Codex CLI through `codex exec --json`: a turn is a detached process, a session lives between turns in Even Keel's

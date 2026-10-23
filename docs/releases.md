@@ -61,6 +61,8 @@ Passed on 2026-10-21: Claude Code 2.1.306 on Windows x64 (EKR-16). Its new guard
 
 Passed on 2026-10-22: Claude Code 2.1.308 on Windows x64, for 0.1.1; codex-cli was still 0.163.0.
 
+Passed on 2026-10-23: Claude Code 2.1.310 (a `next` build, ahead of `latest` 2.1.309; its SDK 0.3.310 is on npm under `next` too) and codex-cli 0.164.0 on Windows x64.
+
 ## Tally across clones
 
 - A task's cost is by its ID, whatever folder its sessions ran in.
