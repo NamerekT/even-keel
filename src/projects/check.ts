@@ -19,8 +19,11 @@ export interface CheckDeps {
   adapters: Readonly<Record<string, TrackerAdapter>>
   /** The values of the tracker profile the draft would run on. */
   env: Record<string, string | undefined>
-  /** The global `.claude.json`, whose trust the account folders get; `undefined` — none. */
-  claudeConfig: () => unknown
+  /**
+   * The `.claude.json` files whose trust the draft's sessions get: the global one and that of the account folder its
+   * chain runs on, where `claude` started with that folder records the dialog (BTN-300); `undefined` — a file that is none.
+   */
+  claudeConfigs: () => unknown[]
   timeoutMs: number
   platform?: NodeJS.Platform
   /** The user the service runs as. */
@@ -57,7 +60,8 @@ export async function checkDraft(deps: CheckDeps, draft: ProjectDraft): Promise<
       ? await checkTracker(adapter, deps, draft.key.trim(), draft.trackerProject.trim(), rules)
       : null
   const provider = draft.provider ?? (isPlainObject(raw) && typeof raw.provider === 'string' ? raw.provider : DEFAULT_PROVIDER)
-  const trusted = repo.root === null || provider !== CLAUDE ? null : isTrusted(deps.claudeConfig(), repo.root, platform)
+  const root = repo.root
+  const trusted = root === null || provider !== CLAUDE ? null : deps.claudeConfigs().some((config) => isTrusted(config, root, platform))
   return { repo, entry, yields, tracker, trusted, platform, user: deps.user }
 }
 

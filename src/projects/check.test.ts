@@ -64,7 +64,7 @@ function deps(fields: Partial<CheckDeps> = {}, answers: Record<string, GitResult
     raw: () => ({ projects: [{ id: 'id-abc', key: 'ABC', repo: 'C:\\abc' }] }),
     adapters: { fake: fakeAdapter({ tasks: [task('NEW-1', 'ToDo'), task('NEW-2', 'ToDo'), task('NEW-3', 'Won')] }) },
     env: {},
-    claudeConfig: () => ({ projects: { 'd:/new': { hasTrustDialogAccepted: true } } }),
+    claudeConfigs: () => [{ projects: { 'd:/new': { hasTrustDialogAccepted: true } } }],
     timeoutMs: 1000,
     platform: 'win32',
     user: 'svc',
@@ -87,10 +87,17 @@ describe('checkDraft', () => {
   })
 
   it("asks Claude Code's trust only of a project that runs on Claude (BTN-310)", async () => {
-    const untrusted = { claudeConfig: () => ({}) }
+    const untrusted = { claudeConfigs: () => [{}] }
     expect((await checkDraft(deps(untrusted), { ...draft, provider: 'codex' })).trusted).toBeNull()
     expect((await checkDraft(deps({ ...untrusted, raw: () => ({ provider: 'codex', projects: [] }) }), draft)).trusted).toBeNull()
     expect((await checkDraft(deps({ ...untrusted, raw: () => ({ provider: 'codex', projects: [] }) }), { ...draft, provider: 'claude' })).trusted).toBe(false)
+  })
+
+  it("takes the trust of the chain's account folder as well as the global one (BTN-300)", async () => {
+    const account = { projects: { 'D:/new': { hasTrustDialogAccepted: true } } }
+    expect((await checkDraft(deps({ claudeConfigs: () => [undefined, account] }), draft)).trusted).toBe(true)
+    expect((await checkDraft(deps({ claudeConfigs: () => [{}, undefined] }), draft)).trusted).toBe(false)
+    expect((await checkDraft(deps({ claudeConfigs: () => [] }), draft)).trusted).toBe(false)
   })
 
   it('says a folder is not a git repository and checks nothing that needs one', async () => {
