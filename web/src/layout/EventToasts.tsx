@@ -4,7 +4,8 @@ import type { EvenKeelState } from '../../../src/state.js'
 import { t } from '../i18n/index.js'
 import { useLive } from '../live/context.js'
 import { CI_HASH } from '../pages/CiChip.js'
-import { projectLabel, projectPath } from '../state.js'
+import { projectPath } from '../state.js'
+import { ProjectLinks } from '../ui/ProjectLinks.js'
 import { Toast } from '../ui/Toast.js'
 import { freshEvents, pageEvents, type PageEvent } from './pageEvents.js'
 
@@ -34,13 +35,13 @@ export function EventToasts() {
   return (
     <>
       {shown.map((event) => {
-        const { title, body } = textOf(event, state)
+        const { title, body } = textOf(event)
         return (
           <Toast
             key={event.key}
             source="Even Keel"
             icon="/favicon.svg"
-            title={title}
+            title={<ProjectLinks text={title} />}
             body={body}
             actions={[
               {
@@ -59,12 +60,12 @@ export function EventToasts() {
   )
 }
 
-function textOf(event: PageEvent, state: EvenKeelState): { title: string; body: string } {
-  const name = (project: string) => projectLabel(state, project)
-  if (event.kind === 'limit') return { title: t.events.limit(name(event.project)), body: t.events.limitBody }
-  if (event.kind === 'red') return { title: t.events.red(name(event.project)), body: t.events.redBody(event.commit) }
+/** The title names its projects by their ids, shown through `ProjectLinks`. */
+function textOf(event: PageEvent): { title: string; body: string } {
+  if (event.kind === 'limit') return { title: t.events.limit(event.project), body: t.events.limitBody }
+  if (event.kind === 'red') return { title: t.events.red(event.project), body: t.events.redBody(event.commit) }
   if (event.kind === 'ask') return { title: t.events.ask(event.task), body: t.events.askBody }
-  return { title: t.events.conflict(name(event.project), name(event.into)), body: t.events.conflictBody }
+  return { title: t.events.conflict(event.project, event.into), body: t.events.conflictBody }
 }
 
 function placeOf(event: PageEvent, state: EvenKeelState): { pathname: string; hash?: string } {

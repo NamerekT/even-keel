@@ -1,7 +1,7 @@
 import { useLayoutEffect, useRef, useState } from 'react'
 import { Link } from 'react-router'
 import type { EvenKeelState } from '../../../src/state.js'
-import { say, t } from '../i18n/index.js'
+import { t } from '../i18n/index.js'
 import { useCommand } from '../live/useCommand.js'
 import {
   cardTask,
@@ -22,6 +22,7 @@ import { StackIcon, TrackerIcon } from '../ui/icons.js'
 import { Lamp } from '../ui/Lamp.js'
 import { type EmptyCard, emptyCard, punchline } from '../ui/memes.js'
 import { ProjectLabel } from '../ui/ProjectLabel.js'
+import { ProjectLinks, Said } from '../ui/ProjectLinks.js'
 import { QuestionsChip } from '../ui/QuestionsChip.js'
 import { seriesStyle } from '../ui/series.js'
 import { StatusChip } from '../ui/StatusChip.js'
@@ -106,9 +107,21 @@ export function ProjectCard({ state, project, turn }: { state: EvenKeelState; pr
       )}
 
       {status.kind === 'running' && status.limitUntil !== null && <p className="card__wait">{limitWaitText(status.limitUntil, new Date())}</p>}
-      {status.kind === 'running' && status.slotWait !== undefined && <p className="card__wait">{say({ ...status.slotWait, items: [] })}</p>}
-      {status.kind === 'running' && status.ciWait !== undefined && <p className="card__wait">{ciWaitText(status.ciWait, new Date(), state)}</p>}
-      {error !== null && <p className="card__error">{say(error)}</p>}
+      {status.kind === 'running' && status.slotWait !== undefined && (
+        <p className="card__wait">
+          <Said notice={{ ...status.slotWait, items: [] }} />
+        </p>
+      )}
+      {status.kind === 'running' && status.ciWait !== undefined && (
+        <p className="card__wait">
+          <ProjectLinks text={ciWaitText(status.ciWait, new Date())} />
+        </p>
+      )}
+      {error !== null && (
+        <p className="card__error">
+          <Said notice={error} />
+        </p>
+      )}
       <NoticeFixButton project={project} notice={error} />
       {status.kind === 'paused' && <PullFixButton state={state} project={project} error={status.error} />}
 

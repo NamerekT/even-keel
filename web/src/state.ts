@@ -377,8 +377,9 @@ export function limitWaitText(until: string, now: Date): string {
   return t.banner.limitHold(formatMoment(until, now))
 }
 
-export function ciWaitText(wait: CiWait, now: Date, state: Pick<EvenKeelState, 'projectLabels'> | null): string {
-  if (wait.by !== undefined) return t.banner.remoteFixHold(wait.commit.slice(0, 7), formatMoment(wait.since, now), projectLabel(state, wait.by))
+/** The project fixing a red main of the same remote is named by its id: the page shows it through `ProjectLinks`. */
+export function ciWaitText(wait: CiWait, now: Date): string {
+  if (wait.by !== undefined) return t.banner.remoteFixHold(wait.commit.slice(0, 7), formatMoment(wait.since, now), wait.by)
   const text = wait.after === true ? t.banner.afterGreenHold : wait.local === true ? t.banner.checkHold : t.banner.ciHold
   return text(wait.commit.slice(0, 7), formatMoment(wait.since, now))
 }

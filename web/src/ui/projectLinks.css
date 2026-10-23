@@ -1,0 +1,16 @@
+/*
+ * A project named in a message: the message's own colour, underlined, so a warning stays a warning. It stands above
+ * a card's stretched link (`.card__key::after`), or a click on it opens the card's own project.
+ */
+.project-link {
+  position: relative;
+  z-index: 1;
+  color: inherit;
+  text-decoration: underline;
+  text-decoration-color: color-mix(in srgb, currentColor 45%, transparent);
+  text-underline-offset: 2px;
+}
+
+.project-link:hover {
+  text-decoration-color: currentColor;
+}

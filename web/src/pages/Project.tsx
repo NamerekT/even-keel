@@ -34,6 +34,7 @@ import {
 } from '../state.js'
 import { focusAfterClose, focusOnEntry } from '../ui/focus.js'
 import { RefreshIcon } from '../ui/icons.js'
+import { ProjectLinks, Said } from '../ui/ProjectLinks.js'
 import { QuestionsChip } from '../ui/QuestionsChip.js'
 import { StatusChip } from '../ui/StatusChip.js'
 import { Tipped } from '../ui/Tipped.js'
@@ -146,7 +147,11 @@ export function Project({ state, project: key }: { state: EvenKeelState; project
             {look === 'tag' && tools}
           </ChainControls>
         </header>
-        {order?.error && <p className="notice notice--error">{say(order.error)}</p>}
+        {order?.error && (
+          <p className="notice notice--error">
+            <Said notice={order.error} />
+          </p>
+        )}
         <Leftovers state={state} project={key} />
         <Forward state={state} project={key} />
         <EmptyCall state={state} project={key} />
@@ -286,13 +291,19 @@ function Forward({ state, project }: { state: EvenKeelState; project: string }) 
       <div className={forward.held ? 'notice notice--error leftovers__item' : 'notice notice--warn leftovers__item'}>
         <div className="leftovers__text">
           <strong>
-            {waiting
-              ? t.project.forwardWaits(forward.behind ?? 0, projectLabel(state, forward.into))
-              : t.project.forwardPushFailed(projectLabel(state, forward.into))}
+            <ProjectLinks text={waiting ? t.project.forwardWaits(forward.behind ?? 0, forward.into) : t.project.forwardPushFailed(forward.into)} />
           </strong>
-          {forward.hold !== null && <p className="leftovers__line">{say(forward.hold)}</p>}
+          {forward.hold !== null && (
+            <p className="leftovers__line">
+              <Said notice={forward.hold} />
+            </p>
+          )}
           <NoticeFixButton project={project} notice={forward.hold} />
-          {!waiting && push !== null && <p className="leftovers__line">{say(push)}</p>}
+          {!waiting && push !== null && (
+            <p className="leftovers__line">
+              <Said notice={push} />
+            </p>
+          )}
         </div>
         {waiting && (
           <button type="button" className="button" disabled={sending} onClick={() => void send('forward/carry', { project })}>
@@ -321,7 +332,7 @@ function Leftovers({ state, project }: { state: EvenKeelState; project: string }
               .filter((each) => each.task === task)
               .map((each, index) => (
                 <p key={index} className="leftovers__line">
-                  {say(each.notice)}
+                  <Said notice={each.notice} />
                 </p>
               ))}
           </div>
@@ -394,10 +405,22 @@ function ChainControls({ state, project, narrow, children }: { state: EvenKeelSt
       {status.kind === 'running' && status.limitUntil !== null && (
         <p className="project__wait">{limitWaitText(status.limitUntil, new Date())}</p>
       )}
-      {status.kind === 'running' && status.slotWait !== undefined && <p className="project__wait">{say(status.slotWait)}</p>}
-      {status.kind === 'running' && status.ciWait !== undefined && <p className="project__wait">{ciWaitText(status.ciWait, new Date(), state)}</p>}
+      {status.kind === 'running' && status.slotWait !== undefined && (
+        <p className="project__wait">
+          <Said notice={status.slotWait} />
+        </p>
+      )}
+      {status.kind === 'running' && status.ciWait !== undefined && (
+        <p className="project__wait">
+          <ProjectLinks text={ciWaitText(status.ciWait, new Date())} />
+        </p>
+      )}
       {stopsAfter && <p className="project__wait">{t.project.stopsAfter(chain?.current?.task ?? chain?.closing ?? null)}</p>}
-      {error !== null && <p className="project__error">{say(error)}</p>}
+      {error !== null && (
+        <p className="project__error">
+          <Said notice={error} />
+        </p>
+      )}
       <NoticeFixButton project={project} notice={error} />
       <PullFixButton state={state} project={project} error={status.kind === 'paused' ? status.error : null} />
     </>

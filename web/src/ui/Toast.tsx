@@ -18,9 +18,9 @@ export function ToastStack({ children }: { children: ReactNode }) {
 
 /**
  * A notification in the manner of Windows: who it is from, a title and a line under it, buttons below. With `href`
- * the body is a link that opens in a new tab.
+ * the body is a link that opens in a new tab, so the title must hold no link then.
  */
-export function Toast({ source, icon, title, body, href, actions }: { source: string; icon?: string; title: string; body: string; href?: string; actions: ToastAction[] }) {
+export function Toast({ source, icon, title, body, href, actions }: { source: string; icon?: string; title: ReactNode; body: string; href?: string; actions: ToastAction[] }) {
   const content = (
     <>
       <span className="toast__source">
