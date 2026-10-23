@@ -13,7 +13,8 @@ Even Keel watches the CI of each project and shows it on the page (BTN-102). Aft
 | `forgejo.ts`, `github.ts` | the two adapters |
 | `http.ts` | `getJson` and its notices `ci.denied`, `ci.http`, `ci.unreachable` |
 | `adapters.ts` | `CI_TOKENS`, `ciVariables` (kept out of the sessions' environment by `sessionBase`), `ciSource`, `projectTargets` |
-| `watcher.ts` | `CiWatch`, one per CI of a repository |
+| `watcher.ts` | `CiWatch`, one per CI of a project's checkout |
+| `shared.ts` | `SharedSources`: one poll of a CI's API per repository and token, shared by the watches of every clone |
 | `verdict.ts` | `verdictOf`: what the CIs say about a pushed commit — green, red, pending or unavailable |
 | `report.ts` | `redReport`: the fix session's prompt, the fix task's title, description and comment in en/ru; `logTail` |
 
@@ -70,7 +71,7 @@ A project can name the profile itself (BTN-231): `remoteProfiles: { github?: <pr
 
 With no profile for it, or when the token does not reach the repository's runs (`ci.denied`, HTTP 404), the CI of that remote is not shown at all, with no error (`CiWatch.hidden`, both CIs): the page and the main check take only `CiWatches.shown(project)`. On Access a profile's row lists the CIs it serves (`ProfileView.ci`) and says in its tip which ones it does not reach (`ProfileView.hiddenCi`).
 
-Projects in separate clones of one remote (BTN-210) each get their own watches of the same repository, polled apart (one watch per remote is BTN-289), and each waits for the verdict on its own pushes. The fix is shared (BTN-217): while one project of the remote and main branch fixes a red `main`, the others' launches wait and their red pushes start no second fix (`docs/chain.md`, "Projects of one remote").
+Projects in separate clones of one remote (BTN-210) each get their own watches of the same repository, and each waits for the verdict on its own pushes: a watch reads the pushes and the tasks of a run in its own clone. The API is asked once for all of them (BTN-289, `SharedSources` in `src/ci/shared.ts`): their sources share the answer of the runs and of a run's jobs for `FRESH_MS` (10 s, below `POLL_MS`), a failure too, keyed by forge, host, owner, repository and token — not by the remote's name or the main branch, the runs are the repository's. Projects whose tokens differ (another profile in `remoteProfiles`) poll apart, since the token decides whether the CI is seen at all; a log is not shared. The fix is shared (BTN-217): while one project of the remote and main branch fixes a red `main`, the others' launches wait and their red pushes start no second fix (`docs/chain.md`, "Projects of one remote").
 
 ## A push of Markdown only (this repository's workflows)
 

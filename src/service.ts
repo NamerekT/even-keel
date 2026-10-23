@@ -46,6 +46,7 @@ import { parseRemote, type CiTarget, type Remote } from './ci/remote.js'
 import { intakeRepo } from './intake/github.js'
 import { Intake, type IntakePlace } from './intake/intake.js'
 import type { IntakeEntry } from './intake/model.js'
+import { SharedSources } from './ci/shared.js'
 import { CiWatch } from './ci/watcher.js'
 import { CiWatches } from './ci/watches.js'
 import { ConfigStore } from './config-store.js'
@@ -428,12 +429,14 @@ const ciOn = (profileId: string, hidden: boolean) =>
     .map(({ project, target }) => ({ project, remote: target.remote }))
 const pullRefusals = new PullRefusals()
 const remotes = new ProjectRemotes(runGit)
+const ciSources = new SharedSources((target, token) => ciSource(target, token, CI_TIMEOUT_MS))
+const watchSource = (project: string, target: CiTarget) => ciSources.of(target, ciTokenOf(project, target)?.token ?? null)
 const ciWatches = new CiWatches({
   targets: (repo) => projectTargets(runGit, repo),
   watch: (project, repo, target) =>
     new CiWatch({
       target,
-      source: ciSource(target, ciTokenOf(project, target)?.token ?? null, CI_TIMEOUT_MS),
+      source: watchSource(project, target),
       git: runGit,
       repo,
       main: () => branchOf(project),
@@ -443,7 +446,7 @@ const ciWatches = new CiWatches({
         dispatcher.check()
       },
     }),
-  source: (project, target) => ciSource(target, ciTokenOf(project, target)?.token ?? null, CI_TIMEOUT_MS),
+  source: watchSource,
   log: (message) => console.log(message),
 })
 /** The setting; an installation from before it that has not chosen keeps what Tally already ran on (BTN-247). */
