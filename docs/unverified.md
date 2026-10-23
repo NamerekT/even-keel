@@ -50,7 +50,7 @@ Every entry, ordered by how many people it reaches and how badly it hurts them i
 | 38 | [A project's own CI profile](#a-projects-own-ci-profile-btn-231) | two forge profiles | the CI or a pull request uses the old profile |
 | 39 | [Carrying a release project forward](#carrying-a-release-project-forward-btn-172) | release projects | a carry whose push fails; push by hand |
 | 40 | [Several projects on one tracker project](#several-projects-on-one-tracker-project-btn-172-btn-73) | two projects on one Huly project or Linear team | a task in both chains, or in neither |
-| 41 | [Task feeds from another tracker](#task-feeds-from-another-tracker-btn-66) | projects with a task feed | a feed's task is not closed, or its session cannot read it; stats name it wrong |
+| 41 | [Task feeds from another tracker](#task-feeds-from-another-tracker-btn-66) | task feeds from a second Huly workspace or in PR mode | a feed's session cannot read its task, or its pull request is not closed in the feed's tracker |
 | 42 | [Removing a project on the running service](#removing-a-project-on-the-running-service-btn-118) | anyone removing a project | a removal goes through while a session works |
 | 43 | [A changed EVEN_KEEL_TOKEN seen from another machine](#a-changed-even_keel_token-seen-from-another-machine-btn-130) | the page from another machine | a dead connection until a reload |
 | 44 | [The context window a chain session gets](#the-context-window-a-chain-session-gets-btn-187) | everyone | the context meter and the handoff cap read a wrong window |
@@ -58,7 +58,7 @@ Every entry, ordered by how many people it reaches and how badly it hurts them i
 | 46 | [A session waiting on you behind a monitor](#a-session-waiting-on-you-behind-a-monitor) | everyone, rarely | a session waiting for its own build shows "waiting"; a reply or unattended mode cuts the build short |
 | 47 | [The 1-hour cache on a key](#the-1-hour-cache-on-a-key) | Claude API keys with `cacheTtl` | more cache writes; nothing breaks |
 | 48 | [Outsiders' comments on a public GitHub repository](#outsiders-comments-on-a-public-github-repository-ekr-19) | PR mode on public GitHub repositories | your own review is skipped, or an outsider's reaches a session |
-| 49 | [Milestones on GitHub and Linear](#milestones-on-github-and-linear) | GitHub, Linear | a task's milestone is not filled |
+| 49 | [Milestones on Linear](#milestones-on-linear) | Linear | a task's milestone is not filled |
 | 50 | [Changing a milestone from the task card on GitHub and Linear](#changing-a-milestone-from-the-task-card-on-github-and-linear) | GitHub, Linear | the card puts the old milestone back |
 | 51 | [The tasks of a milestone on GitHub and Linear](#the-tasks-of-a-milestone-on-github-and-linear-btn-142) | changelog drafts on GitHub, Linear | the draft misses tasks or takes an older comment |
 | 52 | [GitHub attachments](#github-attachments) | GitHub | the page cannot open an attached file |
@@ -389,7 +389,9 @@ Two Even Keel projects on one Huly project (`huly` naming it) or on one Linear t
 
 ### Task feeds from another tracker (BTN-66)
 
-A project with a task feed — a GitHub repository or a Linear team next to a Huly project, or a second Huly workspace — is covered by tests and the page's fake data; it never ran as a live chain. Assumed: each feed is read on its own profile and its tasks join the one chain, a feed's task is moved and commented on in its own tracker and closed there after the merge, its session gets the brief when no server signed in as the feed's profile is brought, the profile's chain rules apply to it, and Tally takes its title and link from the launch log while it asks Huly only for tasks launched through a Huly profile. Also never seen live: the `/status` page with more than one connection, and the Tally check's "failed" and "halted". If a feed's task is not closed, or its session cannot read it, **workaround:** close it in its tracker by hand, or set the project's `brief` to `true`; if stats name it wrong, the launch log still has its url.
+A GitHub feed of a Huly project ran as a live chain (BTN-326, 2026-10-23): the feed was read on its own profile, that profile's required and excluded labels sorted its issues while the Huly tasks kept the project's rules, its task and a Huly one ran in one chain by priority, its session got the brief with the `Tracker: GitHub, project <owner>/<repo>` line, it was closed in GitHub after the merge, `fillMilestone` filled a feed issue's milestone from another feed issue, the `/status` page showed three connections with the feed under its tracker, and Tally named it by its own id with its title and link (its status and "done" stay empty: Tally reads them from Huly only).
+
+Not seen live: a feed on a second Huly workspace (whether a session reads it through the brief when no server signed in as its profile is brought), PR mode and a question in a tracker comment for a feed's task (both go to the feed's tracker by code), run labels on a feed's task, and the Tally check's "failed" and "halted". If a feed's session cannot read its task, **workaround:** set the project's `brief` to `true`; if its pull request or question lands in the wrong tracker, close the task in its tracker by hand.
 
 ### A project's own CI profile (BTN-231)
 
@@ -407,9 +409,9 @@ Downloading a file attached to an issue or comment with the token has not been t
 
 Only comments and pull request reviews by the repository's owner, the members of its organization, its collaborators and the token's own account reach a session, by GitHub's `authorAssociation`; the wizard warns about a public repository without required labels. Answers to a question in an issue ran live on 22.10.2026 on a public repository: an outside account's reply (`NONE`) was skipped with its line in the service log and the session kept waiting, the owner's reply reached it. PR mode was not: a review or a pull request comment by an outsider is covered by tests with GitHub's documented REST answers only. If GitHub names you otherwise than `OWNER`, `MEMBER` or `COLLABORATOR` there (a review by a token of another account, say), your feedback is skipped and the service log says `is skipped: its author is not a collaborator`. **Workaround:** answer from the page's chat, or add the account as a collaborator.
 
-### Milestones on GitHub and Linear
+### Milestones on Linear
 
-Filling the milestone of a task that entered the chain without one (`fillMilestone`) was checked only on Huly (`docs/trackers.md`).
+Filling the milestone of a task that entered the chain without one (`fillMilestone`) was checked on Huly and, in a task feed, on GitHub (BTN-326, 2026-10-23); never on Linear, where an issue without a project is assumed to get the project together with the milestone (`docs/trackers.md`).
 
 ### Changing a milestone from the task card on GitHub and Linear
 
