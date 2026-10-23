@@ -796,7 +796,9 @@ function draftOf(body: Record<string, unknown>): ProjectDraft {
   const milestones = body.milestones ?? []
   if (!Array.isArray(milestones) || milestones.some((name) => typeof name !== 'string')) throw fail('request.required', { field: 'milestones' })
   const fields = { repo: text('repo'), branch: text('branch'), key: text('key'), name: text('name'), tracker: text('tracker'), trackerProject: text('trackerProject') }
-  return { ...fields, profile, slot: slot as number, milestones: milestones as string[] }
+  // A page open since before the agent field sends none: the shared provider.
+  const provider = body.provider === undefined || body.provider === null ? null : text('provider')
+  return { ...fields, profile, slot: slot as number, milestones: milestones as string[], provider }
 }
 
 function feedDraftOf(body: Record<string, unknown>): FeedDraft {

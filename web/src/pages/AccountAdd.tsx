@@ -7,14 +7,13 @@ import { CODEX } from '../../../src/codex/name.js'
 import { COPILOT } from '../../../src/copilot/name.js'
 import { OPENCODE } from '../../../src/opencode/name.js'
 import type { EvenKeelState } from '../../../src/state.js'
-import { addStep, canAdd, cliMissing, CONNECTIONS, deviceLogin, PROVIDERS, type Connection, type Provider } from '../accounts.js'
+import { addBack, addPath, addStep, canAdd, cliMissing, CONNECTIONS, deviceLogin, PROVIDERS, type Connection, type Provider } from '../accounts.js'
 import { say, t } from '../i18n/index.js'
 import { useCommand } from '../live/useCommand.js'
 import { ApiKeyFields, LoginSteps } from '../layout/accountParts.js'
 import './accounts.css'
 
 const LIST = '/accounts'
-const ADD = '/accounts/add'
 
 /** Adding an account: the provider, then how it signs in, then that way's own sign-in; done, it goes back to the list. */
 export function AccountAddPage({ state }: { state: EvenKeelState }) {
@@ -24,8 +23,10 @@ export function AccountAddPage({ state }: { state: EvenKeelState }) {
   const { provider } = step
   const open = provider !== null && canAdd(provider) && !cliMissing(state.account, provider)
   const connection = open ? step.connection : null
-  const toList = () => void navigate(LIST)
-  const back = connection !== null ? `${ADD}?provider=${provider}` : provider !== null ? ADD : LIST
+  // Opened from the setup or the project wizard, it goes back there instead of the list (BTN-310).
+  const returnTo = addBack(search)
+  const toList = () => void navigate(returnTo ?? LIST)
+  const back = connection !== null ? addPath(returnTo, provider!) : provider !== null ? addPath(returnTo) : (returnTo ?? LIST)
 
   return (
     <div className="page accounts-page">
@@ -45,7 +46,7 @@ export function AccountAddPage({ state }: { state: EvenKeelState }) {
         <li aria-current={connection !== null ? 'step' : undefined}>{t.account.stepSignIn}</li>
       </ol>
       {!open ? (
-        <Choices items={PROVIDERS.map((each) => providerChoice(state.account, each))} />
+        <Choices items={PROVIDERS.map((each) => providerChoice(state.account, each, returnTo))} />
       ) : connection === null ? (
         <Choices
           items={CONNECTIONS.map((each) => ({
@@ -53,7 +54,7 @@ export function AccountAddPage({ state }: { state: EvenKeelState }) {
             title: t.account.connections[each],
             hint: canAdd(provider, each) ? (provider === 'copilot' ? t.account.copilotConnectionHints : t.account.connectionHints)[each] : each === 'sdk' ? t.account.sdkStub : t.account.soon,
             ready: canAdd(provider, each),
-            to: `${ADD}?provider=${provider}&connection=${each}`,
+            to: addPath(returnTo, provider, each),
           }))}
         />
       ) : (
@@ -75,13 +76,14 @@ interface Choice {
   tag?: string
 }
 
-const MISSING = { claude: 'login.claudeMissing', codex: 'login.codexMissing', opencode: 'login.opencodeMissing', copilot: 'login.copilotMissing' } as const
+/** What the page says of a provider whose CLI is not found: where to get it. */
+export const CLI_MISSING = { claude: 'login.claudeMissing', codex: 'login.codexMissing', opencode: 'login.opencodeMissing', copilot: 'login.copilotMissing' } as const
 
 /** A provider whose CLI the service does not find is off, its hint saying where to get the CLI. */
-function providerChoice(account: AccountView, provider: Provider): Choice {
-  const base = { id: provider, title: t.account.agents[provider], to: `${ADD}?provider=${provider}` }
+function providerChoice(account: AccountView, provider: Provider, back: string | null): Choice {
+  const base = { id: provider, title: t.account.agents[provider], to: addPath(back, provider) }
   if (canAdd(provider) && cliMissing(account, provider)) {
-    const missing = say({ code: MISSING[provider], params: {} })
+    const missing = say({ code: CLI_MISSING[provider], params: {} })
     return { ...base, hint: missing, ready: false, tag: t.account.cliNotFound }
   }
   return { ...base, hint: t.account.providerHints[provider], ready: canAdd(provider) }

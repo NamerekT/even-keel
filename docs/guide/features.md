@@ -124,7 +124,7 @@ The 5-hour and weekly windows of every account, read with the CLI's own `/usage`
 
 A built-in collector (Tally) reads the session transcripts every five minutes into an embedded Postgres ([PGlite](https://pglite.dev)) or your own: spend by day and project, cost and time per task, where sessions got stuck, slow commands, estimates against actual time, and before/after comparisons of changes to your rule files. All of it on the `/stats` page.
 
-On the first start the page asks whether you want it — no stats, the local database or your own Postgres — and nothing is collected until you choose; the copy takes about a third of the transcripts' size. Switch it on or off any time in Settings → Stats: it applies at once, and turning it off deletes no data. Without stats the checkpoint threshold stays at 200k tokens.
+The last step of the first start's setup asks whether you want it — no stats, the local database or your own Postgres — and nothing is collected until you choose; the copy takes about a third of the transcripts' size. Switch it on or off any time in Settings → Stats: it applies at once, and turning it off deletes no data. Without stats the checkpoint threshold stays at 200k tokens.
 
 A comparison is easier to judge when you know why a rule changed: add the hook `tally/bin/rule-hook.mjs` to `~/.claude/settings.json` and a session that edits a `CLAUDE.md`, skill, hook, agent or settings file is asked to log the reason in `<state>/rule-history.jsonl` (`ruleHistory` in `tally/tally.config.json`), which `/stats` attaches to the change:
 
@@ -161,7 +161,7 @@ What waits for you also gets a notification in the corner while the page is open
 
 ## Updating from the page
 
-A newer release gets a mark next to the version in the gear menu and a notification. Both open the update window: the notes of every release since yours, a mark on a release that takes back part of an earlier one, and **Update**. Even Keel waits for the chains to settle, checks out the release, builds it and restarts the service; if the new version does not come up, the old one comes back, and the page says what failed. After an update, **Revert** goes back to the previous version the same way, unless the update changed the format of the stored state. The button needs Even Keel running as a service from a clean clone; otherwise the window says why and you update by hand. In full — [Updating](setup.md#updating).
+A newer release gets a mark next to the version in the gear menu and a notification. Both open the update window: the notes of every release since yours, a mark on a release that takes back part of an earlier one, and **Update**. Even Keel waits for the chains to settle, checks out the release, builds it and restarts the service; if the new version does not come up, the old one comes back, and the page says what failed. After an update, **Revert** goes back to the previous version the same way, unless the update changed the format of the stored state. The button needs Even Keel running as a service from a clean clone; otherwise the window says why and you update by hand. Even Keel asks GitHub for releases only once you allow it: the first start's setup asks, and **Settings** → **Interface** changes it. In full — [Updating](setup.md#updating).
 
 ## Languages
 

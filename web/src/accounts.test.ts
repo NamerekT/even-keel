@@ -1,6 +1,21 @@
 import { describe, expect, it } from 'vitest'
 import type { AccountEntry, AccountView } from '../../src/account/model.js'
-import { accountGroups, accountSlot, addStep, canAdd, cliMissing, connectionOf, deviceLogin, entrySlot, folderEmail, foreignAccount, offeredProviders } from './accounts.js'
+import {
+  accountGroups,
+  accountSlot,
+  addBack,
+  addPath,
+  addStep,
+  canAdd,
+  cliMissing,
+  connectionOf,
+  deviceLogin,
+  entrySlot,
+  folderEmail,
+  foreignAccount,
+  offeredProviders,
+  readinessOf,
+} from './accounts.js'
 
 const entry = (key: string, email: string | null): AccountEntry => ({
   key,
@@ -131,6 +146,17 @@ describe('addStep', () => {
     expect(step('provider=claude&connection=apiKey')).toEqual({ provider: 'claude', connection: 'apiKey' })
   })
 
+  it('keeps the page to return to through its steps, only one of this page (BTN-310)', () => {
+    const search = (text: string) => new URLSearchParams(text)
+    expect(addBack(search('provider=codex&back=%2Fsetup%3Fstep%3Dagent'))).toBe('/setup?step=agent')
+    expect(addBack(search('back=https%3A%2F%2Fexample.com'))).toBeNull()
+    expect(addBack(search('back=%2F%2Fexample.com'))).toBeNull()
+    expect(addBack(search(''))).toBeNull()
+    expect(addPath('/projects/add', 'codex')).toBe('/accounts/add?provider=codex&back=%2Fprojects%2Fadd')
+    expect(addPath(null, 'claude', 'apiKey')).toBe('/accounts/add?provider=claude&connection=apiKey')
+    expect(addPath(null)).toBe('/accounts/add')
+  })
+
   it('drops what it does not know, and a connection without a provider', () => {
     expect(step('provider=gemini&connection=cli')).toEqual({ provider: null, connection: null })
     expect(step('provider=claude&connection=token')).toEqual({ provider: 'claude', connection: null })
@@ -203,5 +229,24 @@ describe('offeredProviders', () => {
 
   it('offers every provider until the accounts are known', () => {
     expect(offeredProviders(null, [])).toEqual(['claude', 'codex', 'opencode', 'copilot'])
+  })
+})
+
+describe('readinessOf', () => {
+  const codex = { ...entry('codex', 'john@example.com'), agent: 'codex' }
+
+  it("is ready on the pool entry's folder of the provider while it is signed in (BTN-310)", () => {
+    expect(readinessOf(view([entry('global', 'jane@example.com'), codex]), 'codex', 'codex')).toEqual({ state: 'ready', entry: codex })
+  })
+
+  it('asks for a sign-in of a folder that needs one, and for an account where the entry names none of the provider', () => {
+    const expired = { ...codex, needsLogin: true }
+    expect(readinessOf(view([expired]), 'codex', 'codex')).toEqual({ state: 'signIn', entry: expired })
+    expect(readinessOf(view([entry('global', 'jane@example.com')]), 'codex', 'global')).toEqual({ state: 'noAccount' })
+    expect(readinessOf(view([]), 'opencode', '')).toEqual({ state: 'noAccount' })
+  })
+
+  it('says first that the CLI is not found', () => {
+    expect(readinessOf({ ...view([codex]), missing: ['codex'] }, 'codex', 'codex')).toEqual({ state: 'cliMissing' })
   })
 })

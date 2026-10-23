@@ -1,4 +1,6 @@
+import { DEFAULT_PROVIDER } from '../agent/providers.js'
 import type { ChainRules } from '../chain/rules.js'
+import { CLAUDE } from '../claude/name.js'
 import { parseRemote, remotesOf } from '../ci/remote.js'
 import { withNewProject, yieldedMilestones } from '../config-form.js'
 import { DEFAULT_BRANCH, isPlainObject, parseConfig, projectLabels } from '../config.js'
@@ -21,13 +23,15 @@ export interface CheckDeps {
   claudeConfig: () => unknown
   timeoutMs: number
   platform?: NodeJS.Platform
+  /** The user the service runs as. */
+  user: string
 }
 
 const ENTRY_ID = 'wizard-check'
 
 /**
  * What the wizard's draft would come to: the repository and its branch, the config with the draft added, the tracker's
- * answer for the project and Claude Code's trust in the folder. Each step that needs an earlier one is left `null`
+ * answer for the project and Claude Code's trust in the folder, for a project on Claude only. Each step that needs an earlier one is left `null`
  * until that one passes.
  */
 export async function checkDraft(deps: CheckDeps, draft: ProjectDraft): Promise<ProjectCheck> {
@@ -52,7 +56,9 @@ export async function checkDraft(deps: CheckDeps, draft: ProjectDraft): Promise<
     entry === null && rules !== undefined && adapter !== undefined && repo.root !== null && repo.notice === null
       ? await checkTracker(adapter, deps, draft.key.trim(), draft.trackerProject.trim(), rules)
       : null
-  return { repo, entry, yields, tracker, trusted: repo.root === null ? null : isTrusted(deps.claudeConfig(), repo.root, platform), platform }
+  const provider = draft.provider ?? (isPlainObject(raw) && typeof raw.provider === 'string' ? raw.provider : DEFAULT_PROVIDER)
+  const trusted = repo.root === null || provider !== CLAUDE ? null : isTrusted(deps.claudeConfig(), repo.root, platform)
+  return { repo, entry, yields, tracker, trusted, platform, user: deps.user }
 }
 
 async function checkRepo(
