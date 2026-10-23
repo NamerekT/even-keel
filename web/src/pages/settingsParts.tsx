@@ -3,7 +3,7 @@ import type { ChainRules } from '../../../src/chain/rules.js'
 import type { Notice } from '../../../src/notice/notice.js'
 import type { CheckpointShares, ConfigView } from '../../../src/state.js'
 import { sayAtField, t } from '../i18n/index.js'
-import { CheckIcon, QuestionIcon, UndoIcon } from '../ui/icons.js'
+import { CheckIcon, InheritIcon, QuestionIcon, UndoIcon } from '../ui/icons.js'
 import { useTip, type TipAlign } from '../ui/useTip.js'
 import type { Draft, Same, Value, Values } from './settingsDraft.js'
 import { fieldOf } from './settingsField.js'
@@ -108,9 +108,43 @@ export function HelpTip({ text, align }: { text: string; align?: TipAlign }) {
   )
 }
 
+/** Whether a project's field holds the shared value or its own, and how the own one goes back to the shared. */
+export interface Inheritance {
+  own: boolean
+  /** The shared value as the field shows it. */
+  shared: string
+  onReset: () => void
+  disabled?: boolean
+}
+
+/**
+ * The one mark of inheritance (BTN-337): a chip "shared" while the field shows the shared value, "own" once the
+ * project has its own, a press putting the shared one back. An edit of the field is what makes it own. Not the
+ * "was … ↺" of an unsaved change: that one undoes the draft, this one changes it.
+ */
+export function Inherit({ own, shared, onReset, disabled = false }: Inheritance) {
+  return own ? (
+    <button
+      type="button"
+      className="inherit inherit--own"
+      title={t.settings.toShared(shared)}
+      aria-label={t.settings.toShared(shared)}
+      disabled={disabled}
+      onClick={onReset}
+    >
+      <InheritIcon />
+      {t.settings.ownChip}
+    </button>
+  ) : (
+    <span className="inherit" title={t.settings.sharedTip}>
+      {t.settings.sharedChip}
+    </span>
+  )
+}
+
 /** A setting's name and its help. `htmlFor` ties the name to its control. */
 /** `soon` — a badge for a field that is fixed for now: the version that will let it change. */
-export function FieldHead({ label, hint, htmlFor, soon }: { label: string; hint?: string; htmlFor?: string; soon?: string }) {
+export function FieldHead({ label, hint, htmlFor, soon, inherit }: { label: string; hint?: string; htmlFor?: string; soon?: string; inherit?: Inheritance }) {
   return (
     <span className="settings__head-row">
       {htmlFor === undefined ? (
@@ -122,17 +156,60 @@ export function FieldHead({ label, hint, htmlFor, soon }: { label: string; hint?
       )}
       {hint !== undefined && <HelpTip text={hint} />}
       {soon !== undefined && <span className="settings__soon">{soon}</span>}
+      {inherit !== undefined && <Inherit {...inherit} />}
     </span>
   )
 }
 
-/** A switch with its help; `children` go under it — the marks of a change and the error. */
-export function CheckField({
+/**
+ * A short setting on one line: its name at the left, its control at the right edge, one width for every control;
+ * `children` go under both — the marks of a change and the error.
+ */
+export function Row({
+  className,
+  label,
+  hint,
+  htmlFor,
+  inherit,
+  control,
+  children,
+}: {
+  className: string
+  label: string
+  hint?: string
+  htmlFor?: string
+  inherit?: Inheritance
+  control: ReactNode
+  children?: ReactNode
+}) {
+  return (
+    <div className={`${className} settings__line`}>
+      <div className="settings__line-main">
+        <FieldHead label={label} hint={hint} htmlFor={htmlFor} inherit={inherit} />
+        <div className="settings__control">{control}</div>
+      </div>
+      {children}
+    </div>
+  )
+}
+
+/** On or off: a switch, never a pick of two. */
+export function Switch({ id, checked, disabled = false, label, onChange }: { id?: string; checked: boolean; disabled?: boolean; label?: string; onChange: (checked: boolean) => void }) {
+  return (
+    <button id={id} type="button" role="switch" className="switch" aria-checked={checked} aria-label={label} disabled={disabled} onClick={() => onChange(!checked)}>
+      <span className="switch__knob" />
+    </button>
+  )
+}
+
+/** An on/off setting as a row with a switch at its right. */
+export function SwitchField({
   className,
   label,
   hint,
   checked,
   disabled = false,
+  inherit,
   onChange,
   children,
 }: {
@@ -141,20 +218,15 @@ export function CheckField({
   hint: string
   checked: boolean
   disabled?: boolean
+  inherit?: Inheritance
   onChange: (checked: boolean) => void
   children?: ReactNode
 }) {
+  const id = useId()
   return (
-    <div className={className}>
-      <span className="settings__head-row">
-        <label className="settings__check">
-          <input type="checkbox" checked={checked} disabled={disabled} onChange={(event) => onChange(event.target.checked)} />
-          {label}
-        </label>
-        <HelpTip text={hint} />
-      </span>
+    <Row className={className} label={label} hint={hint} htmlFor={id} inherit={inherit} control={<Switch id={id} checked={checked} disabled={disabled} onChange={onChange} />}>
       {children}
-    </div>
+    </Row>
   )
 }
 
@@ -206,15 +278,20 @@ export function ProviderGrid({
   )
 }
 
-export function Section({ title, hint, children }: { title: string; hint?: string; children: ReactNode }) {
+/** A card of related fields with its title; `aside` — at the title's right; `danger` — what cannot be undone, framed red. */
+export function Section({ title, hint, aside, danger = false, children }: { title: string; hint?: string; aside?: ReactNode; danger?: boolean; children: ReactNode }) {
+  const id = useId()
   return (
-    <fieldset className="settings__section">
-      <legend className="settings__heading">
-        {title}
+    <section className={danger ? 'settings__section settings__section--danger' : 'settings__section'} aria-labelledby={id}>
+      <div className="settings__heading">
+        <h3 id={id} className="settings__heading-title">
+          {title}
+        </h3>
         {hint !== undefined && <HelpTip text={hint} />}
-      </legend>
+        {aside !== undefined && <span className="settings__heading-aside">{aside}</span>}
+      </div>
       {children}
-    </fieldset>
+    </section>
   )
 }
 
@@ -277,11 +354,13 @@ export function GroupTabs<T extends string>({
   open,
   dirty,
   onOpen,
+  label = t.settings.groupsLabel,
 }: {
-  groups: readonly { id: T; title: string }[]
+  groups: readonly { id: T; title: ReactNode }[]
   open: T
   dirty: (id: T) => boolean
   onOpen: (id: T) => void
+  label?: string
 }) {
   const step = (by: number) => {
     const at = groups.findIndex((group) => group.id === open)
@@ -293,7 +372,7 @@ export function GroupTabs<T extends string>({
     <div
       className="settings-tabs"
       role="tablist"
-      aria-label={t.settings.groupsLabel}
+      aria-label={label}
       onKeyDown={(event) => {
         if (event.key === 'ArrowRight' || event.key === 'ArrowLeft') {
           event.preventDefault()

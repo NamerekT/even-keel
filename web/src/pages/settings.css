@@ -29,17 +29,24 @@
   gap: 8px;
 }
 
+/* The form is a column of section cards; its width decides whether a row's control fits beside its name. */
 .settings__form {
+  --control-width: 16em;
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 24px;
+  container-type: inline-size;
+}
+
+.panel.settings .settings__form {
+  --control-width: 11.5em;
 }
 
 /* The fields the guard of main covers; greyed out while it is off. */
 .settings__guarded {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 12px;
   transition: opacity var(--motion-fast);
 }
 
@@ -100,13 +107,11 @@
   border: 0;
 }
 
+/* Floated, the legend is an ordinary line inside the fieldset, not a gap in the divider above it. */
 .settings__group legend {
+  float: left;
+  width: 100%;
   padding: 0;
-}
-
-.settings__subgroup {
-  margin-bottom: 8px;
-  font-weight: 600;
 }
 
 .settings__checks {
@@ -215,14 +220,7 @@
   flex: 1 1 14em;
 }
 
-/* The project's task feeds (BTN-66): the heading with "Add a feed" at its right, a line per feed, then the fields of a new one. */
-.feeds__head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-}
-
+/* The project's task feeds (BTN-66): a line per feed, then the fields of a new one. */
 .feeds__row {
   padding: 6px 0;
   border-bottom: 1px solid var(--border);
@@ -251,12 +249,6 @@
   flex-wrap: wrap;
   align-items: center;
   gap: 8px;
-}
-
-.project-remove {
-  margin-top: 12px;
-  padding-top: 16px;
-  border-top: 1px solid var(--border);
 }
 
 /* The service lists every reason the project is still held, one per line. */
@@ -322,26 +314,194 @@
   }
 }
 
+/* A section: a card a tone lighter than the page; its padding leaves room for the stripe of a changed field. */
 .settings__section {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 12px;
   margin: 0;
-  padding: 0;
-  border: 0;
+  padding: 14px 16px 16px;
+  border: 1px solid color-mix(in srgb, var(--fg) 7%, transparent);
+  border-radius: var(--radius);
+  background: color-mix(in srgb, var(--fg) 3.5%, transparent);
+}
+
+.settings__section--danger {
+  border-color: color-mix(in srgb, var(--lamp-error) 55%, transparent);
+  background: color-mix(in srgb, var(--lamp-error) 5%, transparent);
 }
 
 .settings__heading {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 24px;
+}
+
+.settings__heading-title {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.settings__section--danger .settings__heading-title {
+  color: var(--lamp-error);
+}
+
+.settings__heading-aside {
+  margin-left: auto;
+}
+
+/* Fields of a section are parted by thin lines; a block under a switch counts its own fields. */
+.settings__section > :not(.settings__heading) + .settings__field,
+.settings__section > :not(.settings__heading) + .settings__guarded,
+.settings__guarded > .settings__field + .settings__field {
+  padding-top: 12px;
+  border-top: 1px solid color-mix(in srgb, var(--fg) 8%, transparent);
+}
+
+/* A row: the name at the left, the control at the right, every control one width so the right edges line up. */
+.settings__line-main {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) var(--control-width);
+  align-items: center;
+  gap: 4px 16px;
+}
+
+/* A switch needs no more than its own width: the name keeps the rest. */
+.settings__line-main:has(> .settings__control > .switch) {
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
+.settings__control {
+  display: flex;
+  justify-content: flex-end;
+  min-width: 0;
+}
+
+.settings__control > .settings__text {
   width: 100%;
-  margin-top: 8px;
-  margin-bottom: 4px;
-  padding: 0 0 6px;
-  border-bottom: 1px solid var(--border);
+  min-width: 0;
+  margin-top: 0;
+}
+
+/* Too narrow for both: the control goes under its name. */
+@container (max-width: 340px) {
+  .settings__line-main {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .settings__control {
+    justify-content: flex-start;
+  }
+}
+
+/* Buttons that belong to the row above, at the controls' right edge. */
+.settings__line-extra {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 8px;
+}
+
+.switch {
+  position: relative;
+  flex: none;
+  width: 36px;
+  height: 20px;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface-muted);
+  cursor: pointer;
+  transition:
+    background-color var(--motion-fast),
+    border-color var(--motion-fast);
+}
+
+.switch__knob {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--fg-muted);
+  transition:
+    transform var(--motion-fast),
+    background-color var(--motion-fast);
+}
+
+.switch[aria-checked='true'] {
+  border-color: var(--accent);
+  background: var(--accent);
+}
+
+.switch[aria-checked='true'] .switch__knob {
+  background: #fff;
+  transform: translateX(16px);
+}
+
+.switch:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.switch:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* Where a value comes from: "shared" while it is inherited; an own one is a button back to the shared value. */
+.inherit {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: 4px;
+  height: 20px;
+  padding: 0 7px;
+  border: 1px dashed color-mix(in srgb, var(--fg-muted) 55%, transparent);
+  border-radius: 10px;
+  background: transparent;
   color: var(--fg-muted);
-  font-size: 12px;
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
+  font: 11.5px/1 var(--font);
+  white-space: nowrap;
+}
+
+.inherit--own {
+  border: 1px solid color-mix(in srgb, var(--accent) 45%, var(--border));
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
+  color: var(--fg);
+  cursor: pointer;
+  transition:
+    background-color var(--motion-fast),
+    border-color var(--motion-fast);
+}
+
+.inherit--own .icon {
+  width: 12px;
+  height: 12px;
+}
+
+.inherit--own:hover {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 18%, transparent);
+}
+
+.inherit--own:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.inherit--own:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.settings__field > .inherit {
+  align-self: flex-start;
+  margin-top: 2px;
 }
 
 /* A setting's name, its question mark and the restart mark in one line, as tall without the question mark as with it. */
@@ -353,10 +513,23 @@
   min-height: 24px;
 }
 
-.settings__heading {
-  display: flex;
-  align-items: center;
-  gap: 4px;
+/* The question mark stays pale until its row is pointed at. */
+@media (hover: hover) {
+  .settings__field .help,
+  .settings__heading .help,
+  .provider-grid .help {
+    opacity: 0.35;
+    transition:
+      opacity var(--motion-fast),
+      color var(--motion-fast);
+  }
+
+  .settings__field:hover .help,
+  .settings__heading:hover .help,
+  .provider-grid__head:hover .help,
+  .help:focus-visible {
+    opacity: 1;
+  }
 }
 
 .help {
@@ -441,6 +614,7 @@
 }
 
 .settings-page__form {
+  max-width: 820px;
   animation: fade-in var(--motion-appear) ease-out;
 }
 
@@ -818,9 +992,23 @@
 
 /* A changed field: a stripe at its left, out in the margin so the field itself does not move. */
 .settings__field--changed {
-  margin-left: -12px;
-  padding-left: 10px;
-  border-left: 2px solid var(--accent);
+  position: relative;
+}
+
+.settings__field--changed::before {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: -12px;
+  width: 2px;
+  border-radius: 1px;
+  background: var(--accent);
+  content: '';
+}
+
+.settings__section > :not(.settings__heading) + .settings__field--changed::before,
+.settings__guarded > .settings__field + .settings__field--changed::before {
+  top: 12px;
 }
 
 .settings__mark {

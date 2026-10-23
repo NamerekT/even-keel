@@ -116,6 +116,17 @@ export function UndoIcon() {
   )
 }
 
+/** Back to the value of the level above: an arrow climbing to a bar. */
+export function InheritIcon() {
+  return (
+    <svg className="icon" viewBox="0 0 16 16" aria-hidden="true">
+      <path d="M3 2.5h10" />
+      <path d="m5 8 3-3 3 3" />
+      <path d="M8 5v8.5" />
+    </svg>
+  )
+}
+
 /** Read anew: a circular arrow. */
 export function RefreshIcon() {
   return (

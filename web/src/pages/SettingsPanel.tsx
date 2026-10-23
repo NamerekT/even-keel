@@ -17,24 +17,28 @@ import { changed, edited, reverted, sent, type Value, type Values } from './sett
 import { folderLabel } from '../accountName.js'
 import { accountOptions, namedProviders, providerKeys, providerName, providerOptions } from './settingsRun.js'
 import {
-  CheckField,
   FieldHead,
   fieldId,
   FieldNote,
   GroupTabs,
+  Inherit,
+  type Inheritance,
   marksOf,
   minutesOf,
   ProviderGrid,
+  Row,
   RULE_KEYS,
   HelpTip,
   type RuleKey,
   rulesOf,
   sameBy,
   SaveBar,
+  Section,
   SHARE_KEYS,
   shareOf,
   sharesText,
   shown,
+  SwitchField,
   unplaced,
   UnsavedDot,
   useFieldErrors,
@@ -94,6 +98,9 @@ const keysOf = (id: GroupId): readonly string[] => GROUPS.find((group) => group.
 const same = sameBy(['beforeStart', 'check', 'afterGreen', ...RULE_KEYS])
 
 const ttlLabel = (ttl: CacheTtl | null) => (ttl === null ? t.shared.cacheTtlAuto : ttl === '5m' ? t.shared.cacheTtl5m : t.shared.cacheTtl1h)
+const onOff = (value: boolean) => (value ? t.settings.on : t.settings.off)
+type Option = { value: string; label: string }
+const labelOf = (options: readonly Option[]) => (value: Value) => options.find((option) => option.value === value)?.label ?? String(value)
 
 /** Whether a group of the project's settings holds changes nobody saved yet: the Settings tab shows it even with the panel closed. */
 export function useSettingsDirty(project: string, form: ProjectForm | undefined): boolean {
@@ -137,7 +144,6 @@ export function SettingsPanel({
   const errorOf = useFieldErrors(project, [failure, configError], config)
   const text = (key: string) => draft.edit[key] as string
   const on = (key: string) => draft.edit[key] as boolean
-  const kinds = draft.edit.kinds as readonly CiKind[]
   // Only turning PR mode on waits for a remote and its profile (EKR-7): one already on stays free to turn off.
   const pullReadiness = state?.pullReadiness[project] ?? null
   const offered = offeredProviders(state?.account ?? null, namedProviders(text, [config.shared.provider, text('provider')], ['models', 'accounts']))
@@ -163,73 +169,110 @@ export function SettingsPanel({
   const ruleChoices = ruleChoicesOf(tasks, vocabularies)
   const revert = (keys: readonly string[]) => setDraft(reverted(draft, saved, keys))
   const marks = marksOf(draft, saved, same, revert)
-  const toggle = (kind: CiKind, checked: boolean) => edit('kinds', CI_KINDS.filter((each) => (each === kind ? checked : kinds.includes(each))))
   const save = async () => {
     if (next === undefined || base === undefined) return
     await send('project/settings', { project, ...next, base })
   }
   const leftover = unplaced(project, failure, config)
   const unguarded = !(switchOf(text('guard')) ?? shared.ci.guard)
-  const check = (key: string, label: string, hint: string, error?: string, disabled = false) => (
-    <CheckField className={marks.box(key)} label={label} hint={hint} checked={on(key)} disabled={disabled} onChange={(checked) => edit(key, checked)}>
-      {marks.note(key)}
-      {error !== undefined && <FieldNote error={errorOf(error)} />}
-    </CheckField>
-  )
 
-  const choice = (key: string, label: string, hint: string, options: { value: string; label: string }[], disabled = false, beside?: ReactNode) => (
-    <div className={marks.box(key)}>
-      <FieldHead label={label} hint={hint} htmlFor={fieldId(key)} />
-      <div className="settings__beside">
+  // A key whose '' is "as shared": the field shows the shared value under a chip until an edit makes it the project's own.
+  const inheritOf = (key: string, sharedLabel: string, disabled = false): Inheritance => ({ own: text(key) !== '', shared: sharedLabel, disabled, onReset: () => edit(key, '') })
+  const notes = (key: string, show?: (value: Value) => string) => (
+    <>
+      {marks.note(key, show)}
+      <FieldNote error={errorOf(key)} />
+    </>
+  )
+  const pick = (key: string, label: string, hint: string, options: Option[], inherit?: { value: string; label: string }) => (
+    <Row
+      className={marks.box(key)}
+      label={label}
+      hint={hint}
+      htmlFor={fieldId(key)}
+      inherit={inherit === undefined ? undefined : inheritOf(key, inherit.label)}
+      control={
         <Select
           id={fieldId(key)}
-          className="settings__text settings__short"
-          value={text(key)}
+          className="settings__text"
+          value={inherit === undefined || text(key) !== '' ? text(key) : inherit.value}
           options={options}
           invalid={errorOf(key) !== null}
-          disabled={disabled}
           onChange={(value) => edit(key, value)}
         />
-        {beside}
-      </div>
-      {marks.note(key, (value) => options.find((option) => option.value === value)?.label ?? String(value))}
-      <FieldNote error={errorOf(key)} />
+      }
+    >
+      {notes(key, (value) => (inherit !== undefined && value === '' ? t.settings.asShared(inherit.label) : labelOf(options)(value)))}
+    </Row>
+  )
+  const inheritedSwitch = (key: string, label: string, hint: string, sharedValue: boolean, disabled = false) => (
+    <SwitchField
+      className={marks.box(key)}
+      label={label}
+      hint={hint}
+      checked={switchOf(text(key)) ?? sharedValue}
+      disabled={disabled}
+      inherit={inheritOf(key, onOff(sharedValue), disabled)}
+      onChange={(checked) => edit(key, String(checked))}
+    >
+      {notes(key, (value) => (value === '' ? t.settings.asShared(onOff(sharedValue)) : onOff(value === 'true')))}
+    </SwitchField>
+  )
+  const input = (key: string, label: string, hint: string, placeholder?: string, mono = true) => (
+    <Row
+      className={marks.box(key)}
+      label={label}
+      hint={hint}
+      htmlFor={fieldId(key)}
+      control={
+        <input
+          id={fieldId(key)}
+          className={mono ? 'settings__text settings__text--mono' : 'settings__text'}
+          spellCheck={false}
+          value={text(key)}
+          placeholder={placeholder}
+          aria-invalid={errorOf(key) !== null}
+          onChange={(event) => edit(key, event.target.value)}
+        />
+      }
+    >
+      {notes(key)}
+    </Row>
+  )
+  const lines = (key: string, label: string, hint: string, placeholder: string, rows: number, mono = true, disabled = false) => (
+    <div className={marks.box(key)}>
+      <FieldHead label={label} hint={hint} htmlFor={fieldId(key)} />
+      <textarea
+        id={fieldId(key)}
+        className={mono ? 'settings__text settings__text--mono' : 'settings__text'}
+        rows={rows}
+        spellCheck={!mono}
+        value={text(key)}
+        placeholder={placeholder}
+        disabled={disabled}
+        onChange={(event) => edit(key, event.target.value)}
+      />
+      {notes(key)}
     </div>
   )
-  const onOff = (value: boolean) => (value ? t.settings.on : t.settings.off)
-  const switchChoice = (key: string, label: string, hint: string, sharedValue: boolean, disabled = false) =>
-    choice(
-      key,
-      label,
-      hint,
-      [
-        { value: '', label: t.settings.asShared(onOff(sharedValue)) },
-        { value: 'true', label: t.settings.on },
-        { value: 'false', label: t.settings.off },
-      ],
-      disabled,
-    )
-  // Fields the project may leave to the shared settings: unticked, they show the shared values and cannot be edited.
-  const ownToggle = (flag: string, sharedValues: Values, disabled = false) => (
-    <label className="settings__check settings__own">
-      <input
-        type="checkbox"
-        checked={on(flag)}
-        disabled={disabled}
-        onChange={(event) => {
-          const own = event.target.checked
-          const fields = Object.entries(sharedValues)
-          setDraft(fields.reduce((next, [key, value]) => edited(next, key, own ? value : saved[key]!), edited(draft, flag, own)))
-        }}
-      />
-      {t.settings.ownValue}
-      {marks.note(flag)}
-    </label>
-  )
+
+  // Fields kept own by a flag: they show the shared values until an edit turns the flag on with the shared values as the start.
+  const ownEdit = (flag: string, sharedValues: Values) => (key: string, value: Value) => {
+    const own = on(flag) ? draft : Object.entries(sharedValues).reduce((each, [field, shared]) => edited(each, field, shared), edited(draft, flag, true))
+    setDraft(edited(own, key, value))
+  }
+  const ownInherit = (flag: string, sharedValues: Values, sharedLabel: string, disabled = false): Inheritance => ({
+    own: on(flag),
+    shared: sharedLabel,
+    disabled,
+    onReset: () => setDraft(Object.keys(sharedValues).reduce((each, field) => edited(each, field, saved[field]!), edited(draft, flag, false))),
+  })
+  const flagNote = (flag: string) => marks.note(flag, (value) => (value === true ? t.settings.ownChip : t.settings.sharedChip))
   const sharedWait = shared.ci.waitMinutes === null ? '' : String(shared.ci.waitMinutes)
   const sharedCheckpoint = shared.stats.checkpointTokens === null ? '' : String(shared.stats.checkpointTokens)
   const sharedShares = sharesText(shared.stats.checkpointShares)
-  const shownKinds = on('ownKinds') ? kinds : shared.ci.kinds
+  const kinds = on('ownKinds') ? (draft.edit.kinds as readonly CiKind[]) : shared.ci.kinds
+  const kindsText = (value: Value) => shown((value as CiKind[]).map((kind) => t.settings.ciKinds[kind]))
   const choices = remoteChoices(state?.profiles.profiles ?? [], state?.remotes[project] ?? [])
   // A release project merges into a main one of its own repository, never into another release project. Until the
   // remotes are read, every main project is offered: the save checks it.
@@ -248,161 +291,120 @@ export function SettingsPanel({
       ...offered.map((profile) => ({ value: profile.id, label: profile.name })),
       ...(gone ? [{ value: text(key), label: t.settings.remoteGone }] : []),
     ]
-    return <Fragment key={kind}>{choice(key, t.settings.remoteProfile(FORGES[kind]), t.settings.remoteProfileHint, options)}</Fragment>
+    return <Fragment key={kind}>{pick(key, t.settings.remoteProfile(FORGES[kind]), t.settings.remoteProfileHint, options)}</Fragment>
   }
+  const number = (key: string, value: string, invalid: boolean, onChange: (value: string) => void, extra: { placeholder?: string; disabled?: boolean; label?: string } = {}) => (
+    <input
+      id={fieldId(key)}
+      className="settings__text settings__number"
+      inputMode="numeric"
+      aria-label={extra.label}
+      value={value}
+      placeholder={extra.placeholder}
+      disabled={extra.disabled}
+      aria-invalid={invalid}
+      onChange={(event) => onChange(event.target.value)}
+    />
+  )
 
   const groups: Record<GroupId, () => ReactNode> = {
     repo: () => (
       <>
-        <div className={marks.box('repo')}>
-          <FieldHead label={t.settings.repo} hint={t.settings.repoHint} htmlFor={fieldId('repo')} />
-          <input
-            id={fieldId('repo')}
-            className="settings__text settings__text--mono"
-            spellCheck={false}
-            value={text('repo')}
-            aria-invalid={errorOf('repo') !== null}
-            onChange={(event) => edit('repo', event.target.value)}
-          />
-          {marks.note('repo')}
-          <FieldNote error={errorOf('repo')} />
-        </div>
-        <div className={marks.box('branch')}>
-          <FieldHead label={t.settings.branch} hint={t.settings.branchHint} htmlFor={fieldId('branch')} />
-          <input
-            id={fieldId('branch')}
-            className="settings__text settings__text--mono settings__short"
-            spellCheck={false}
-            value={text('branch')}
-            placeholder="main"
-            aria-invalid={errorOf('branch') !== null}
-            onChange={(event) => edit('branch', event.target.value)}
-          />
-          {marks.note('branch')}
-          <FieldNote error={errorOf('branch')} />
-        </div>
-        {choice('mergeInto', t.settings.mergeInto, t.settings.mergeIntoHint, [
-          { value: '', label: t.settings.mergeIntoNone },
-          ...mainProjects.map((key) => ({ value: key, label: projectLabel(state, key) })),
-          ...(text('mergeInto') !== '' && !mainProjects.includes(text('mergeInto'))
-            ? [{ value: text('mergeInto'), label: projectLabel(state, text('mergeInto')) }]
-            : []),
-        ])}
-        <div className={marks.box('slot')}>
-          <FieldHead label={t.settings.slot} hint={t.settings.slotHint} htmlFor={fieldId('slot')} />
-          <input
-            id={fieldId('slot')}
-            className="settings__text settings__number"
-            type="number"
-            min={0}
-            step={1}
-            inputMode="numeric"
-            value={text('slot')}
-            aria-invalid={wholeOf(text('slot'), 0) === undefined || errorOf('slot') !== null}
-            onChange={(event) => edit('slot', event.target.value)}
-          />
-          {marks.note('slot')}
-          <FieldNote error={errorOf('slot')} />
-        </div>
-        <div className={marks.box('changelog')}>
-          <FieldHead label={t.settings.changelog} hint={t.settings.changelogHint} htmlFor={fieldId('changelog')} />
-          <input
-            id={fieldId('changelog')}
-            className="settings__text settings__text--mono"
-            spellCheck={false}
-            value={text('changelog')}
-            placeholder="CHANGELOG.md"
-            aria-invalid={errorOf('changelog') !== null}
-            onChange={(event) => edit('changelog', event.target.value)}
-          />
-          {marks.note('changelog')}
-          <FieldNote error={errorOf('changelog')} />
-        </div>
-        <div className={marks.box('color')}>
-          <FieldHead label={t.settings.color} hint={t.settings.colorHint} />
-          <div className="settings__colors" role="radiogroup" aria-label={t.settings.color}>
-            {Array.from({ length: PROJECT_SLOTS }, (_, index) => String(index + 1)).map((color) => (
-              <button
-                key={color}
-                type="button"
-                role="radio"
-                aria-checked={text('color') === color}
-                aria-label={t.settings.colorSlot(Number(color))}
-                className={text('color') === color ? 'settings__color settings__color--on' : 'settings__color'}
-                style={seriesStyle(Number(color))}
-                onClick={() => edit('color', color)}
-              />
-            ))}
+        <Section title={t.settings.sections.repository}>
+          <div className={marks.box('repo')}>
+            <FieldHead label={t.settings.repo} hint={t.settings.repoHint} htmlFor={fieldId('repo')} />
+            <input
+              id={fieldId('repo')}
+              className="settings__text settings__text--mono"
+              spellCheck={false}
+              value={text('repo')}
+              aria-invalid={errorOf('repo') !== null}
+              onChange={(event) => edit('repo', event.target.value)}
+            />
+            {notes('repo')}
           </div>
-          {marks.note('color')}
-          <FieldNote error={errorOf('color')} />
-        </div>
+          {input('branch', t.settings.branch, t.settings.branchHint, 'main')}
+          {input('changelog', t.settings.changelog, t.settings.changelogHint, 'CHANGELOG.md')}
+          <Row
+            className={marks.box('slot')}
+            label={t.settings.slot}
+            hint={t.settings.slotHint}
+            htmlFor={fieldId('slot')}
+            control={number('slot', text('slot'), wholeOf(text('slot'), 0) === undefined || errorOf('slot') !== null, (value) => edit('slot', value))}
+          >
+            {notes('slot')}
+          </Row>
+          {pick('mergeInto', t.settings.mergeInto, t.settings.mergeIntoHint, [
+            { value: '', label: t.settings.mergeIntoNone },
+            ...mainProjects.map((key) => ({ value: key, label: projectLabel(state, key) })),
+            ...(text('mergeInto') !== '' && !mainProjects.includes(text('mergeInto'))
+              ? [{ value: text('mergeInto'), label: projectLabel(state, text('mergeInto')) }]
+              : []),
+          ])}
+          <div className={marks.box('color')}>
+            <FieldHead label={t.settings.color} hint={t.settings.colorHint} />
+            <div className="settings__colors" role="radiogroup" aria-label={t.settings.color}>
+              {Array.from({ length: PROJECT_SLOTS }, (_, index) => String(index + 1)).map((color) => (
+                <button
+                  key={color}
+                  type="button"
+                  role="radio"
+                  aria-checked={text('color') === color}
+                  aria-label={t.settings.colorSlot(Number(color))}
+                  className={text('color') === color ? 'settings__color settings__color--on' : 'settings__color'}
+                  style={seriesStyle(Number(color))}
+                  onClick={() => edit('color', color)}
+                />
+              ))}
+            </div>
+            {notes('color')}
+          </div>
+        </Section>
         <ProjectRemove project={project} />
       </>
     ),
     tracker: () => (
       <>
-        {state !== null && (
-          <ProjectTracker
-            state={state}
-            project={project}
-            tracker={text('tracker')}
-            trackerProject={text('trackerProject')}
-            locked={locked}
-            trackerNote={
-              <>
-                {marks.note('tracker')}
-                <FieldNote error={errorOf('tracker')} />
-              </>
-            }
-            box={marks.box('trackerProject')}
-            note={
-              <>
-                {marks.note('trackerProject')}
-                <FieldNote error={errorOf('trackerProject')} />
-              </>
-            }
-            invalid={errorOf('trackerProject') !== null}
-            onEdit={(tracker, value) =>
-              setDraft(
-                tracker === text('tracker')
-                  ? edited(draft, 'trackerProject', value)
-                  : tracker === saved.tracker
-                    ? reverted(draft, saved, ['tracker', 'trackerProject'])
-                    : edited(edited(draft, 'tracker', tracker), 'trackerProject', ''),
-              )
-            }
-          />
-        )}
-        <MilestoneFields
-          level="project"
-          rules={chain}
-          inherited={inherited}
-          origins={origins}
-          milestones={ruleChoices.milestones}
-          text={text}
-          onEdit={editAll}
-          errorOf={errorOf}
-          marks={marks}
-        />
-        {state !== null && <FeedList state={state} project={project} />}
-        {switchChoice('fillMilestone', t.settings.fillMilestone, t.settings.fillMilestoneHint, shared.fillMilestone)}
-        {text('tracker') !== 'github' && (
-          <div className={marks.box('intakeLabel')}>
-            <FieldHead label={t.settings.intakeLabel} hint={t.settings.intakeLabelHint} htmlFor={fieldId('intakeLabel')} />
-            <input
-              id={fieldId('intakeLabel')}
-              className="settings__text settings__text--mono tracker-fields__wide"
-              spellCheck={false}
-              value={text('intakeLabel')}
-              placeholder={t.settings.intakeLabelNone}
-              aria-invalid={errorOf('intakeLabel') !== null}
-              onChange={(event) => edit('intakeLabel', event.target.value)}
+        <Section title={t.settings.sections.tracker}>
+          {state !== null && (
+            <ProjectTracker
+              state={state}
+              project={project}
+              tracker={text('tracker')}
+              trackerProject={text('trackerProject')}
+              locked={locked}
+              trackerNote={notes('tracker')}
+              box={marks.box('trackerProject')}
+              note={notes('trackerProject')}
+              invalid={errorOf('trackerProject') !== null}
+              onEdit={(tracker, value) =>
+                setDraft(
+                  tracker === text('tracker')
+                    ? edited(draft, 'trackerProject', value)
+                    : tracker === saved.tracker
+                      ? reverted(draft, saved, ['tracker', 'trackerProject'])
+                      : edited(edited(draft, 'tracker', tracker), 'trackerProject', ''),
+                )
+              }
             />
-            {marks.note('intakeLabel')}
-            <FieldNote error={errorOf('intakeLabel')} />
-          </div>
-        )}
+          )}
+          {text('tracker') !== 'github' && input('intakeLabel', t.settings.intakeLabel, t.settings.intakeLabelHint, t.settings.intakeLabelNone)}
+          {inheritedSwitch('fillMilestone', t.settings.fillMilestone, t.settings.fillMilestoneHint, shared.fillMilestone)}
+        </Section>
+        {state !== null && <FeedList state={state} project={project} />}
+        <Section title={t.settings.milestones} hint={t.settings.milestonesHint}>
+          <MilestoneFields
+            level="project"
+            rules={chain}
+            inherited={inherited}
+            origins={origins}
+            milestones={ruleChoices.milestones}
+            text={text}
+            onEdit={editAll}
+            errorOf={errorOf}
+            marks={marks}
+          />
+        </Section>
         <RuleForm
           level="project"
           rules={chain}
@@ -415,7 +417,7 @@ export function SettingsPanel({
             chain,
           )}
           labels={ruleChoices.labels}
-          modelLabels={text('modelLabels') === '' ? shared.modelLabels : text('modelLabels') === 'true'}
+          modelLabels={switchOf(text('modelLabels')) ?? shared.modelLabels}
           onEdit={(changes) => editAll(changes.map(([key, value]) => [key, ruleText(value)]))}
           errorOf={errorOf}
           marks={marks}
@@ -424,250 +426,207 @@ export function SettingsPanel({
     ),
     sessions: () => (
       <>
-        {choice('provider', t.settings.provider, t.settings.providerHint, [
-          { value: '', label: t.settings.asShared(providerName(config.shared.provider)) },
-          ...providerOptions(offered),
-        ])}
-        <ProviderGrid
-          columns={[
-            { key: 'models', label: t.settings.model, hint: t.settings.modelHint },
-            { key: 'accounts', label: t.settings.account, hint: t.settings.accountHint },
-          ]}
-          providers={offered}
-          cell={(column, provider) => {
-            const key = `${column}.${provider}`
-            if (column === 'accounts') {
-              const options = [
-                { value: '', label: t.settings.asShared(config.shared.accounts[provider] === undefined ? '—' : folderLabel(state?.account, config.shared.accounts[provider])) },
-                ...(state === null ? [] : accountOptions(state.account, provider, text(key))),
-              ]
+        <Section title={t.settings.sections.agent}>
+          {pick('provider', t.settings.provider, t.settings.providerHint, providerOptions(offered), { value: shared.provider, label: providerName(shared.provider) })}
+          <ProviderGrid
+            columns={[
+              { key: 'models', label: t.settings.model, hint: t.settings.modelHint },
+              { key: 'accounts', label: t.settings.account, hint: t.settings.accountHint },
+            ]}
+            providers={offered}
+            cell={(column, provider) => {
+              const key = `${column}.${provider}`
+              if (column === 'accounts') {
+                const sharedAccount = shared.accounts[provider]
+                const sharedLabel = sharedAccount === undefined ? '—' : folderLabel(state?.account, sharedAccount)
+                const options = [
+                  ...(sharedAccount === undefined ? [{ value: '', label: '—' }] : []),
+                  ...(state === null ? [] : accountOptions(state.account, provider, text(key) || (sharedAccount ?? ''))),
+                ]
+                return (
+                  <div className={marks.box(key)}>
+                    <Select
+                      id={fieldId(key)}
+                      className="settings__text"
+                      label={t.settings.accountOf(providerName(provider))}
+                      value={text(key) || (sharedAccount ?? '')}
+                      options={options}
+                      invalid={errorOf(key) !== null}
+                      onChange={(value) => edit(key, value)}
+                    />
+                    <Inherit {...inheritOf(key, sharedLabel)} />
+                    {notes(key, (value) => (value === '' ? t.settings.asShared(sharedLabel) : labelOf(options)(value)))}
+                  </div>
+                )
+              }
+              const offers = modelOffers[rowAccount(provider)] ?? []
+              const sharedModel = shared.models[provider] ?? t.settings.cliDefault
               return (
                 <div className={marks.box(key)}>
-                  <Select
+                  <input
                     id={fieldId(key)}
-                    className="settings__text"
-                    label={t.settings.accountOf(providerName(provider))}
+                    className="settings__text settings__text--mono"
+                    aria-label={t.settings.modelOf(providerName(provider))}
+                    spellCheck={false}
                     value={text(key)}
-                    options={options}
-                    invalid={errorOf(key) !== null}
-                    onChange={(value) => edit(key, value)}
+                    placeholder={sharedModel}
+                    aria-invalid={errorOf(key) !== null}
+                    list={offers.length === 0 ? undefined : `${fieldId(key)}-models`}
+                    onChange={(event) => edit(key, event.target.value)}
                   />
-                  {marks.note(key, (value) => options.find((option) => option.value === value)?.label ?? String(value))}
-                  <FieldNote error={errorOf(key)} />
+                  <ModelOffers id={`${fieldId(key)}-models`} models={offers} />
+                  <Inherit {...inheritOf(key, sharedModel)} />
+                  {notes(key, (value) => (value === '' ? t.settings.asShared(sharedModel) : String(value)))}
                 </div>
               )
-            }
-            const offers = modelOffers[rowAccount(provider)] ?? []
-            return (
-              <div className={marks.box(key)}>
-                <input
-                  id={fieldId(key)}
-                  className="settings__text settings__text--mono"
-                  aria-label={t.settings.modelOf(providerName(provider))}
-                  spellCheck={false}
-                  value={text(key)}
-                  placeholder={t.settings.asShared(config.shared.models[provider] ?? t.settings.cliDefault)}
-                  aria-invalid={errorOf(key) !== null}
-                  list={offers.length === 0 ? undefined : `${fieldId(key)}-models`}
-                  onChange={(event) => edit(key, event.target.value)}
-                />
-                <ModelOffers id={`${fieldId(key)}-models`} models={offers} />
-                {marks.note(key)}
-                <FieldNote error={errorOf(key)} />
-              </div>
-            )
-          }}
-        />
-        {choice('modelLabels', t.settings.modelLabels, t.settings.modelLabelsHint, [
-          { value: '', label: t.settings.asShared(config.shared.modelLabels ? t.settings.on : t.settings.off) },
-          { value: 'true', label: t.settings.on },
-          { value: 'false', label: t.settings.off },
-        ])}
-        {choice(
-          'brief',
-          t.settings.brief,
-          t.settings.briefHint,
-          [
+            }}
+          />
+          {inheritedSwitch('modelLabels', t.settings.modelLabels, t.settings.modelLabelsHint, shared.modelLabels)}
+        </Section>
+        <Section title={t.settings.sections.prompt}>
+          {pick('brief', t.settings.brief, t.settings.briefHint, [
             { value: '', label: t.settings.briefAuto },
             { value: 'true', label: t.settings.on },
             { value: 'false', label: t.settings.off },
-          ],
-          false,
-          state !== null && <TrackerPackageButton project={project} packages={state.packages} />,
-        )}
-        <div className={marks.box('prompt')}>
-          <FieldHead label={t.settings.prompt} hint={t.settings.promptHint} htmlFor={fieldId('prompt')} />
-          <textarea
-            id={fieldId('prompt')}
-            className="settings__text"
-            rows={5}
-            value={text('prompt')}
-            placeholder={t.settings.promptPlaceholder}
-            onChange={(event) => edit('prompt', event.target.value)}
-          />
-          {marks.note('prompt')}
-          <FieldNote error={errorOf('prompt')} />
-        </div>
-        <div className={marks.box('beforeStart')}>
-          <FieldHead label={t.settings.beforeStart} hint={t.settings.beforeStartHint} htmlFor={fieldId('beforeStart')} />
-          <textarea
-            id={fieldId('beforeStart')}
-            className="settings__text settings__text--mono"
-            rows={4}
-            spellCheck={false}
-            value={text('beforeStart')}
-            placeholder={t.settings.beforeStartPlaceholder}
-            onChange={(event) => edit('beforeStart', event.target.value)}
-          />
-          {marks.note('beforeStart')}
-          <FieldNote error={errorOf('beforeStart')} />
-        </div>
-        {choice('promptLanguage', t.shared.promptLanguage, t.settings.promptLanguageHint, [
-          { value: '', label: t.settings.asShared(t.shared.languages[shared.promptLanguage]) },
-          ...LANGUAGES.map((language) => ({ value: language, label: t.shared.languages[language] })),
-        ])}
-        <div className={marks.box(['ownCheckpoint', 'checkpointTokens'])}>
-          <FieldHead label={t.shared.checkpointTokens} hint={t.shared.checkpointTokensHint} htmlFor={fieldId('checkpointTokens')} />
-          {ownToggle('ownCheckpoint', { checkpointTokens: sharedCheckpoint })}
-          <input
-            id={fieldId('checkpointTokens')}
-            className="settings__text settings__number"
-            inputMode="numeric"
-            value={on('ownCheckpoint') ? text('checkpointTokens') : sharedCheckpoint}
-            placeholder={t.shared.checkpointTokensPlaceholder}
-            disabled={!on('ownCheckpoint')}
-            aria-invalid={on('ownCheckpoint') && tokensOf(text('checkpointTokens')) === undefined}
-            onChange={(event) => edit('checkpointTokens', event.target.value)}
-          />
-          {marks.note('checkpointTokens', (value) => ((value as string).trim() === '' ? t.shared.checkpointTokensPlaceholder : (value as string)))}
-          <FieldNote error={errorOf('stats.checkpointTokens')} />
-        </div>
-        <div className={marks.box('ownShares')}>
-          <FieldHead label={t.shared.checkpointShares} hint={t.shared.checkpointSharesHint} />
-          {ownToggle('ownShares', sharedShares)}
-          <div className="settings__row">
-            {SHARE_KEYS.map((key) => (
-              <div key={key} className={marks.box(key)}>
-                <FieldHead label={t.shared[key]} htmlFor={fieldId(key)} />
-                <input
-                  id={fieldId(key)}
-                  className="settings__text settings__number"
-                  inputMode="numeric"
-                  value={on('ownShares') ? text(key) : sharedShares[key]}
-                  disabled={!on('ownShares')}
-                  aria-invalid={on('ownShares') && shareOf(text(key)) === undefined}
-                  onChange={(event) => edit(key, event.target.value)}
-                />
-                {marks.note(key)}
-              </div>
-            ))}
-          </div>
-          <FieldNote error={errorOf('checkpointShares')} />
-        </div>
-        <fieldset className="settings__field settings__group">
-          <legend className="settings__subgroup">{t.shared.claude}</legend>
-          {choice('cacheTtl', t.shared.cacheTtl, t.shared.cacheTtlHint, [
-            { value: '', label: t.settings.asShared(ttlLabel(shared.cacheTtl)) },
-            { value: CLI_TTL, label: t.shared.cacheTtlAuto },
-            { value: '5m', label: t.shared.cacheTtl5m },
-            { value: '1h', label: t.shared.cacheTtl1h },
           ])}
-        </fieldset>
+          {state !== null && (
+            <div className="settings__line-extra">
+              <TrackerPackageButton project={project} packages={state.packages} />
+            </div>
+          )}
+          {lines('prompt', t.settings.prompt, t.settings.promptHint, t.settings.promptPlaceholder, 5, false)}
+          {lines('beforeStart', t.settings.beforeStart, t.settings.beforeStartHint, t.settings.beforeStartPlaceholder, 4)}
+          {pick(
+            'promptLanguage',
+            t.shared.promptLanguage,
+            t.settings.promptLanguageHint,
+            LANGUAGES.map((language) => ({ value: language, label: t.shared.languages[language] })),
+            { value: shared.promptLanguage, label: t.shared.languages[shared.promptLanguage] },
+          )}
+        </Section>
+        <Section title={t.settings.sections.context}>
+          <Row
+            className={marks.box(['ownCheckpoint', 'checkpointTokens'])}
+            label={t.shared.checkpointTokens}
+            hint={t.shared.checkpointTokensHint}
+            htmlFor={fieldId('checkpointTokens')}
+            inherit={ownInherit('ownCheckpoint', { checkpointTokens: sharedCheckpoint }, sharedCheckpoint || t.shared.checkpointTokensPlaceholder)}
+            control={number(
+              'checkpointTokens',
+              on('ownCheckpoint') ? text('checkpointTokens') : sharedCheckpoint,
+              on('ownCheckpoint') && tokensOf(text('checkpointTokens')) === undefined,
+              (value) => ownEdit('ownCheckpoint', { checkpointTokens: sharedCheckpoint })('checkpointTokens', value),
+              { placeholder: t.shared.checkpointTokensPlaceholder },
+            )}
+          >
+            {flagNote('ownCheckpoint')}
+            {marks.note('checkpointTokens', (value) => ((value as string).trim() === '' ? t.shared.checkpointTokensPlaceholder : (value as string)))}
+            <FieldNote error={errorOf('stats.checkpointTokens')} />
+          </Row>
+          <div className={marks.box('ownShares')}>
+            <FieldHead
+              label={t.shared.checkpointShares}
+              hint={t.shared.checkpointSharesHint}
+              inherit={ownInherit('ownShares', sharedShares, SHARE_KEYS.map((key) => sharedShares[key]).join(' / '))}
+            />
+            <div className="settings__row">
+              {SHARE_KEYS.map((key) => (
+                <div key={key} className={marks.box(key)}>
+                  <FieldHead label={t.shared[key]} htmlFor={fieldId(key)} />
+                  {number(key, on('ownShares') ? text(key) : sharedShares[key], on('ownShares') && shareOf(text(key)) === undefined, (value) => ownEdit('ownShares', sharedShares)(key, value))}
+                  {marks.note(key)}
+                </div>
+              ))}
+            </div>
+            {flagNote('ownShares')}
+            <FieldNote error={errorOf('checkpointShares')} />
+          </div>
+          {pick(
+            'cacheTtl',
+            t.shared.cacheTtl,
+            t.shared.cacheTtlHint,
+            [
+              { value: CLI_TTL, label: t.shared.cacheTtlAuto },
+              { value: '5m', label: t.shared.cacheTtl5m },
+              { value: '1h', label: t.shared.cacheTtl1h },
+            ],
+            { value: shared.cacheTtl ?? CLI_TTL, label: ttlLabel(shared.cacheTtl) },
+          )}
+        </Section>
       </>
     ),
     ci: () => (
       <>
-        {switchChoice('guard', t.settings.guard, t.settings.guardHint, shared.ci.guard)}
-        {/* With the guard off the values stay as they are, only greyed out: turning it back on brings them back. */}
-        <div className={unguarded ? 'settings__guarded settings__guarded--off' : 'settings__guarded'}>
-          <div className={marks.box('check')}>
-            <FieldHead label={t.settings.check} hint={t.settings.checkHint} htmlFor={fieldId('check')} />
-            <textarea
-              id={fieldId('check')}
-              className="settings__text settings__text--mono"
-              rows={3}
-              spellCheck={false}
-              value={text('check')}
-              placeholder={t.settings.checkPlaceholder}
-              disabled={unguarded}
-              onChange={(event) => edit('check', event.target.value)}
-            />
-            {marks.note('check')}
-            <FieldNote error={errorOf('check')} />
+        <Section title={t.settings.sections.guard}>
+          {inheritedSwitch('guard', t.settings.guard, t.settings.guardHint, shared.ci.guard)}
+          {/* With the guard off the values stay as they are, only greyed out: turning it back on brings them back. */}
+          <div className={unguarded ? 'settings__guarded settings__guarded--off' : 'settings__guarded'}>
+            {lines('check', t.settings.check, t.settings.checkHint, t.settings.checkPlaceholder, 3, true, unguarded)}
+            {lines('afterGreen', t.settings.afterGreen, t.settings.afterGreenHint, t.settings.afterGreenPlaceholder, 3, true, unguarded)}
+            <fieldset className={marks.box(['ownKinds', 'kinds'], 'settings__field settings__group')}>
+              <legend>
+                <FieldHead label={t.settings.ci} hint={t.settings.ciHint} inherit={ownInherit('ownKinds', { kinds: shared.ci.kinds }, kindsText(shared.ci.kinds), unguarded)} />
+              </legend>
+              <div className="settings__checks">
+                {CI_KINDS.map((kind) => (
+                  <label key={kind} className="settings__check">
+                    <input
+                      type="checkbox"
+                      checked={kinds.includes(kind)}
+                      disabled={unguarded}
+                      onChange={(event) =>
+                        ownEdit('ownKinds', { kinds: shared.ci.kinds })(
+                          'kinds',
+                          CI_KINDS.filter((each) => (each === kind ? event.target.checked : kinds.includes(each))),
+                        )
+                      }
+                    />
+                    {t.settings.ciKinds[kind]}
+                  </label>
+                ))}
+              </div>
+              {flagNote('ownKinds')}
+              {marks.note('kinds', kindsText)}
+              <FieldNote error={errorOf('ci')} />
+            </fieldset>
+            <Row
+              className={marks.box(['ownWait', 'wait'])}
+              label={t.settings.ciWait}
+              hint={t.settings.ciWaitHint}
+              htmlFor={fieldId('wait')}
+              inherit={ownInherit('ownWait', { wait: sharedWait }, sharedWait || t.settings.ciWaitPlaceholder, unguarded)}
+              control={number(
+                'wait',
+                on('ownWait') ? text('wait') : sharedWait,
+                on('ownWait') && minutesOf(text('wait')) === undefined,
+                (value) => ownEdit('ownWait', { wait: sharedWait })('wait', value),
+                { placeholder: t.settings.ciWaitPlaceholder, disabled: unguarded },
+              )}
+            >
+              {flagNote('ownWait')}
+              {marks.note('wait', (value) => ((value as string).trim() === '' ? t.settings.ciWaitPlaceholder : shown(value)))}
+            </Row>
+            {inheritedSwitch('recheck', t.settings.recheckMain, t.settings.recheckMainHint, shared.ci.recheckMain, unguarded)}
+            {inheritedSwitch('fixTask', t.settings.fixTask, t.settings.fixTaskHint, shared.ci.fixTask, unguarded)}
           </div>
-          <div className={marks.box('afterGreen')}>
-            <FieldHead label={t.settings.afterGreen} hint={t.settings.afterGreenHint} htmlFor={fieldId('afterGreen')} />
-            <textarea
-              id={fieldId('afterGreen')}
-              className="settings__text settings__text--mono"
-              rows={3}
-              spellCheck={false}
-              value={text('afterGreen')}
-              placeholder={t.settings.afterGreenPlaceholder}
-              disabled={unguarded}
-              onChange={(event) => edit('afterGreen', event.target.value)}
-            />
-            {marks.note('afterGreen')}
-            <FieldNote error={errorOf('afterGreen')} />
-          </div>
-          <fieldset className={marks.box(['ownKinds', 'kinds'], 'settings__field settings__group')}>
-            <legend>
-              <FieldHead label={t.settings.ci} hint={t.settings.ciHint} />
-            </legend>
-            {ownToggle('ownKinds', { kinds: shared.ci.kinds }, unguarded)}
-            <div className="settings__checks">
-              {CI_KINDS.map((kind) => (
-                <label key={kind} className="settings__check">
-                  <input
-                    type="checkbox"
-                    checked={shownKinds.includes(kind)}
-                    disabled={unguarded || !on('ownKinds')}
-                    onChange={(event) => toggle(kind, event.target.checked)}
-                  />
-                  {t.settings.ciKinds[kind]}
-                </label>
-              ))}
-            </div>
-            {marks.note('kinds', (value) => shown((value as CiKind[]).map((kind) => t.settings.ciKinds[kind])))}
-            <FieldNote error={errorOf('ci')} />
-          </fieldset>
-          <div className={marks.box(['ownWait', 'wait'])}>
-            <FieldHead label={t.settings.ciWait} hint={t.settings.ciWaitHint} htmlFor={fieldId('wait')} />
-            {ownToggle('ownWait', { wait: sharedWait }, unguarded)}
-            <input
-              id={fieldId('wait')}
-              className="settings__text settings__number"
-              type="number"
-              min={0}
-              step={1}
-              inputMode="numeric"
-              value={on('ownWait') ? text('wait') : sharedWait}
-              placeholder={t.settings.ciWaitPlaceholder}
-              disabled={unguarded || !on('ownWait')}
-              aria-invalid={on('ownWait') && minutesOf(text('wait')) === undefined}
-              onChange={(event) => edit('wait', event.target.value)}
-            />
-            {marks.note('wait', (value) => ((value as string).trim() === '' ? t.settings.ciWaitPlaceholder : shown(value)))}
-          </div>
-          {switchChoice('recheck', t.settings.recheckMain, t.settings.recheckMainHint, shared.ci.recheckMain, unguarded)}
-          {switchChoice('fixTask', t.settings.fixTask, t.settings.fixTaskHint, shared.ci.fixTask, unguarded)}
-        </div>
-        <CheckField
-          className={marks.box('pullRequests')}
-          label={t.settings.pullRequests}
-          hint={t.settings.pullRequestsHint}
-          checked={on('pullRequests')}
-          disabled={pullReadiness !== null && !on('pullRequests') && saved.pullRequests !== true}
-          onChange={(checked) => edit('pullRequests', checked)}
-        >
-          <span className="settings__beside">
-            <AddPullProfile readiness={pullReadiness} />
+        </Section>
+        <Section title={t.settings.sections.pulls}>
+          <SwitchField
+            className={marks.box('pullRequests')}
+            label={t.settings.pullRequests}
+            hint={t.settings.pullRequestsHint}
+            checked={on('pullRequests')}
+            disabled={pullReadiness !== null && !on('pullRequests') && saved.pullRequests !== true}
+            onChange={(checked) => edit('pullRequests', checked)}
+          >
+            {notes('pullRequests')}
+          </SwitchField>
+          <div className="settings__line-extra">
             <PullHint readiness={pullReadiness} on={on('pullRequests')} />
-          </span>
-          {marks.note('pullRequests')}
-          <FieldNote error={errorOf('pullRequests')} />
-        </CheckField>
-        {CI_KINDS.map(remoteChoice)}
+            <AddPullProfile readiness={pullReadiness} />
+          </div>
+          {CI_KINDS.map(remoteChoice)}
+        </Section>
       </>
     ),
   }

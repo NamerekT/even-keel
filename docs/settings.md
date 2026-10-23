@@ -190,7 +190,7 @@ code (`mirrorDefinitions`).
   leaves the setting as the fallback. A map with free keys that lives at
   one level only (`modelPrompts`, `stats.moves`) is one `json` value.
 - **No row is inheritance; JSON `null` is a value.** `chain.active: null` (back to the categories over a shared list),
-  `ci.waitMinutes: null`, `cacheTtl: null` are rows. "As shared" on the page deletes the row; nothing stores "inherit".
+  `ci.waitMinutes: null`, `cacheTtl: null` are rows. Going back to the shared value on the page (the "own" chip) deletes the row; nothing stores "inherit".
 - **Packages**: `packages.enabled` (qualifier: the package) with the catalog's `default` as its Even Keel value and a
   project's `on`/`off` as its project rows; `packages.setting` (qualifier `<package>/<variable>`) with the package's
   values as Even Keel rows and a project's differing ones as project rows. The catalog, installs and pins stay state.
