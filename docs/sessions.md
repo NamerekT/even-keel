@@ -172,7 +172,7 @@ Assembled strictly: a value in the launch and handoff prompt goes through `fill`
 - Polling continues only if the answer says outright `num_turns: 0` and `total_cost_usd: 0`, otherwise it is switched off until restart. An unreadable answer or switched-off polling is shown by the page as a banner (`UsageBanner`). A call that fails (an exit code, a timeout) goes to the banner only when the next poll fails too: a lone one is usually the network, and it is only logged. The call closes its stdin, otherwise `-p` waits 3 s for input and prints a warning that used to be the only "reason" the banner showed.
 - While a window is used up, the next task is not started: the chain waits for the reset (`limitUntil`) and continues by itself.
 - A limit on a running session whose text gives no reset time (the `wrap_up` warning) takes it from these limits once they are newer than the limit (`docs/chain.md`, exception 1).
-- An API account (`docs/accounts.md`) has no windows: `/usage` is not polled for it (in its folder it answers free with no window lines), and exception 1 does not apply to its sessions.
+- An API account (`docs/accounts.md`) has no windows: `/usage` is not polled for it (in its folder it answers free with no window lines), and exception 1 does not apply to its sessions. Which accounts are API ones is known only once the account folders are read, so the first poll after a start waits for that (`LimitsWatcher.deferred`).
 
 ## Prompt cache lifetime (BTN-99)
 
