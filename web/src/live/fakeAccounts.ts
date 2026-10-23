@@ -312,6 +312,10 @@ export function accountCommand(account: AccountView, name: string, body: Record<
     const transport = body.transport === 'sdk' ? 'sdk' : 'bg'
     return { ...account, accounts: account.accounts.map((entry) => (entry.key === key && entry.transport !== undefined ? { ...entry, transport } : entry)) }
   }
+  if (name === 'account/name') {
+    const given = String(body.name ?? '').trim()
+    return { ...account, accounts: account.accounts.map((entry) => (entry.key === key ? { ...entry, name: given === '' ? null : given } : entry)) }
+  }
   if (name === 'account/cancel') return { ...account, login: null }
   if (name === 'account/code') {
     const { login } = account

@@ -86,10 +86,10 @@ describe('entrySlot', () => {
 })
 
 describe('folderEmail', () => {
-  it('names a folder by its e-mail, else by its key', () => {
+  it('names a folder by its e-mail, else by its name, and one no longer listed by its key', () => {
     const accounts = view([entry('work', 'jane@example.com'), entry('spare', null)])
     expect(folderEmail(accounts, 'work')).toBe('jane@example.com')
-    expect(folderEmail(accounts, 'spare')).toBe('spare')
+    expect(folderEmail(accounts, 'spare')).toBe('Claude Code')
     expect(folderEmail(accounts, 'gone')).toBe('gone')
   })
 })

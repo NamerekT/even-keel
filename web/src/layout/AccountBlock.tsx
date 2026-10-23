@@ -1,6 +1,7 @@
 import type { CSSProperties } from 'react'
 import type { AccountEntry, AccountView } from '../../../src/account/model.js'
 import { limitSpans, type LimitWindow, type RateLimits } from '../../../src/limits/model.js'
+import { accountName } from '../accountName.js'
 import { entrySlot } from '../accounts.js'
 import { formatAgo, formatMoment, formatSpan } from '../format.js'
 import { t } from '../i18n/index.js'
@@ -97,7 +98,7 @@ function OtherRings({ account }: { account: AccountView }) {
             key={entry.key}
             className={`account-block__mini${window === null ? ' limit--empty' : heatOf(percent)}`}
             style={seriesStyle(entrySlot(account, entry))}
-            aria-label={`${entryBadge(entry, account.login).label}${window === null ? '' : ` ${percent}%`}`}
+            aria-label={`${entryBadge(entry, account.login, account.accounts).label}${window === null ? '' : ` ${percent}%`}`}
           >
             <Ring percent={percent} />
           </span>
@@ -162,7 +163,7 @@ export function AccountSheet({ account, limits, now }: BlockProps) {
     <div className="account-card account-card--sheet" ref={rootRef} style={activeStyle(account)}>
       <div className={`account-card__part account-toggle--${badge.kind}`}>
         <button type="button" className="account-card__head account-card__open" aria-expanded={open} aria-controls="account-panel" onClick={() => setOpen(!open)}>
-          <CardHead entry={active} label={badge.label} />
+          <CardHead entry={active} label={badge.label} accounts={account.accounts} />
           <span className="sheet__chevron" aria-hidden="true">
             ›
           </span>
@@ -186,7 +187,7 @@ function AccountCard({ account, limits, now, spend }: CardProps) {
     <div id="account-card" className="account-card" role="tooltip">
       <div className={`account-card__part account-toggle--${badge.kind}`}>
         <div className="account-card__head">
-          <CardHead entry={active} label={badge.label} />
+          <CardHead entry={active} label={badge.label} accounts={account.accounts} />
         </div>
         <CardBody entry={active} limits={limits} now={now} spend={spend} />
       </div>
@@ -198,11 +199,11 @@ function AccountCard({ account, limits, now, spend }: CardProps) {
 /** A part of the card for each account past the active one, in its own colour. */
 function OtherParts({ account, now, spend }: { account: AccountView; now: Date; spend: Spend }) {
   return others(account).map((entry) => {
-    const badge = entryBadge(entry, account.login)
+    const badge = entryBadge(entry, account.login, account.accounts)
     return (
       <div key={entry.key} className={`account-card__part account-toggle--${badge.kind}`} style={seriesStyle(entrySlot(account, entry))}>
         <div className="account-card__head">
-          <CardHead entry={entry} label={badge.label} />
+          <CardHead entry={entry} label={badge.label} accounts={account.accounts} />
         </div>
         <CardBody entry={entry} limits={entry.limits} now={now} spend={spend} />
       </div>
@@ -210,12 +211,12 @@ function OtherParts({ account, now, spend }: { account: AccountView; now: Date; 
   })
 }
 
-function CardHead({ entry, label }: { entry: AccountEntry | undefined; label: string }) {
+function CardHead({ entry, label, accounts }: { entry: AccountEntry | undefined; label: string; accounts: AccountEntry[] }) {
   const plan = entry?.apiKey === true ? t.account.apiKey : (entry?.status?.subscriptionType ?? null)
   return (
     <>
       <span className="queue-toggle__dot" aria-hidden="true" />
-      <span className="account-card__name">{entry?.name ?? entry?.status?.email ?? label}</span>
+      <span className="account-card__name">{entry === undefined ? label : accountName(entry, accounts)}</span>
       {plan !== null && <span className="tag account-card__plan">{plan}</span>}
     </>
   )

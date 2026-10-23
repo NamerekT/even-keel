@@ -376,7 +376,7 @@ export const en: Messages = {
       'A new OpenCode account, in a folder of its own. ChatGPT and GitHub Copilot give a link and a one-time code — open the link, sign in and enter the code there. Free models need no sign-in.',
     opencodeMethods: { chatgpt: 'ChatGPT', copilot: 'GitHub Copilot', none: 'Free models' },
     opencodeClaude: 'No Claude subscription here: Anthropic allows it only in Claude Code. Claude through OpenCode — with an API key.',
-    globalOf: (folder: string) => `global ${folder}`,
+    rename: (name: string) => `Rename ${name}: only the name the page shows, the folder stays`,
     holds: (role: string) => `${role} works on this account`,
     roles: 'Where this account works: pick an app to move it here',
     rolesNone: 'Not in use',

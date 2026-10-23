@@ -270,6 +270,13 @@ export class AccountWatcher {
     this.options.onChange()
   }
 
+  /** Only the name the page shows: the folder and its key stay as they are; a blank name goes back to the default. */
+  rename(key: string, name: string): void {
+    if (this.options.homes.find(key) === undefined) throw fail('account.unknown', { key })
+    this.options.name(key, name)
+    this.options.onChange()
+  }
+
   /** Takes effect at the account's next launch: a running session keeps the way it started. */
   setTransport(key: string, transport: Transport | null): void {
     const home = this.options.homes.find(key)

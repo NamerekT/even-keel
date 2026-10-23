@@ -89,7 +89,7 @@ function AccountItem({ entry, view, now, spend, sending, send, full }: ItemProps
     <li className={`accounts__item${canWork(entry, now) ? '' : ' accounts__item--off'}`} style={seriesStyle(entrySlot(view, entry))}>
       <div className="accounts__head">
         <AccountMark entry={entry} now={now} dot />
-        <AccountName entry={entry} whole />
+        <AccountName entry={entry} accounts={view.accounts} whole />
         {!full && <Free entry={entry} now={now} spend={spend} />}
         <AccountRoles entry={entry} view={view} sending={sending} send={send} compact />
       </div>

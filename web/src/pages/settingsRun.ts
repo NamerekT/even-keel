@@ -1,5 +1,6 @@
 import type { AccountView } from '../../../src/account/model.js'
 import { PROVIDERS } from '../../../src/agent/providers.js'
+import { accountName } from '../accountName.js'
 import { t } from '../i18n/index.js'
 import type { Values } from './settingsDraft.js'
 
@@ -32,8 +33,10 @@ export const namedProviders = (text: (key: string) => string, values: string[], 
   ...PROVIDERS.filter((provider) => maps.some((map) => text(`${map}.${provider}`).trim() !== '')),
 ]
 
-/** The account folders of the provider, by the name the user gave them; a key no longer listed stays choosable. */
+/** The account folders of the provider, by the name the page shows them by; a key no longer listed stays choosable. */
 export function accountOptions(view: AccountView, provider: string, current: string): { value: string; label: string }[] {
-  const own = view.accounts.filter((account) => account.agent === provider).map((account) => ({ value: account.key, label: account.name ?? account.key }))
+  const own = view.accounts
+    .filter((account) => account.agent === provider)
+    .map((account) => ({ value: account.key, label: accountName(account, view.accounts) }))
   return current === '' || own.some((option) => option.value === current) ? own : [...own, { value: current, label: current }]
 }

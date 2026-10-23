@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type FormEvent, type MouseEvent, type ReactNode } from 'react'
+import { useEffect, useMemo, useRef, useState, type FormEvent, type MouseEvent, type ReactNode } from 'react'
 import { launchBlock, loginBlockNotice, removeProblem, type AccountEntry, type AccountLogin, type AccountView } from '../../../src/account/model.js'
 import { TRANSPORTS, type Transport } from '../../../src/account/transport.js'
 import { CLAUDE } from '../../../src/claude/name.js'
@@ -6,7 +6,8 @@ import { CODEX } from '../../../src/codex/name.js'
 import { COPILOT } from '../../../src/copilot/name.js'
 import type { Notice } from '../../../src/notice/notice.js'
 import { OPENCODE } from '../../../src/opencode/name.js'
-import { connectionOf, PROVIDERS, type Connection } from '../accounts.js'
+import { accountName, agentLabel } from '../accountName.js'
+import { connectionOf, type Connection } from '../accounts.js'
 import { say, t } from '../i18n/index.js'
 import { useLive } from '../live/context.js'
 import { useCommand } from '../live/useCommand.js'
@@ -44,18 +45,8 @@ export function spendText(spend: Spend, key: string): string {
   return t.account.today(formatUsd(spend[key] ?? 0))
 }
 
-export function accountName(entry: AccountEntry): string {
-  return entry.name ?? entry.status?.email ?? (entry.global ? t.account.globalOf(globalFolder(entry.agent)) : entry.key)
-}
-
 export function globalFolder(agent: string): string {
   return agent === CODEX ? '~/.codex' : '~/.claude'
-}
-
-/** The agent of an account as the page names it; one the page does not know yet by its registry name. */
-export function agentLabel(agent: string): string {
-  const provider = PROVIDERS.find((each) => each === agent)
-  return provider === undefined ? agent : t.account.agents[provider]
 }
 
 const CONNECTION_ICONS: Record<Connection, () => ReactNode> = { cli: TerminalIcon, sdk: BracesIcon, apiKey: KeyIcon }
@@ -104,15 +95,83 @@ export function staleText(entry: AccountEntry): string | null {
   return `${t.account.noLimits}${staleNote(entry.usage.reason)}`
 }
 
-/** The name with the e-mail's domain dimmed, so that a column of accounts reads by the part that differs; `whole` — in one weight. */
-export function AccountName({ entry, whole = false }: { entry: AccountEntry; whole?: boolean }) {
-  const name = accountName(entry)
+interface NameProps {
+  entry: AccountEntry
+  /** Every account of the view, so that two folders without a name or an e-mail are numbered apart. */
+  accounts: AccountEntry[]
+  /** In one weight, without the e-mail's domain dimmed. */
+  whole?: boolean
+  /** The card's way: a click turns the name into a field that renames the account (`account/name`). */
+  send?: Send
+  sending?: boolean
+}
+
+const NAME_LENGTH = 80
+
+/**
+ * The name with the e-mail's domain dimmed, so that a column of accounts reads by the part that differs. Renamed, as
+ * the project's name: Enter or leaving the field saves, Esc gives up, empty goes back to the default name. Only the
+ * name in `state/account.json` changes, never the folder.
+ */
+export function AccountName({ entry, accounts, whole = false, send, sending = false }: NameProps) {
+  const [text, setText] = useState<string | null>(null)
+  // Esc and Enter end the edit before the field's blur does; the blur then has nothing left to save.
+  const editing = useRef(false)
+  const name = accountName(entry, accounts)
   const at = entry.name === null && !whole ? name.lastIndexOf('@') : -1
-  return (
-    <span className="accounts__email" title={name}>
+  const shown = (
+    <>
       {at > 0 ? name.slice(0, at) : name}
       {at > 0 && <span className="accounts__domain">{name.slice(at)}</span>}
-    </span>
+    </>
+  )
+  if (send === undefined) {
+    return (
+      <span className="accounts__email" title={name}>
+        {shown}
+      </span>
+    )
+  }
+  const finish = (save: boolean) => {
+    if (!editing.current) return
+    editing.current = false
+    const next = text?.trim() ?? ''
+    setText(null)
+    if (save && next !== (entry.name ?? '')) void send('account/name', { account: entry.key, name: next })
+  }
+  if (text === null) {
+    return (
+      <button
+        type="button"
+        className="accounts__email accounts__rename"
+        title={t.account.rename(name)}
+        disabled={sending}
+        onClick={() => {
+          editing.current = true
+          setText(entry.name ?? '')
+        }}
+      >
+        {shown}
+      </button>
+    )
+  }
+  return (
+    <input
+      className="accounts__name-input"
+      aria-label={t.account.keyName}
+      placeholder={accountName({ ...entry, name: null }, accounts)}
+      maxLength={NAME_LENGTH}
+      autoFocus
+      value={text}
+      onChange={(event) => setText(event.target.value)}
+      onBlur={() => finish(true)}
+      onKeyDown={(event) => {
+        if (event.key !== 'Enter' && event.key !== 'Escape') return
+        event.preventDefault()
+        event.stopPropagation()
+        finish(event.key === 'Enter')
+      }}
+    />
   )
 }
 
@@ -277,7 +336,7 @@ export function RemoveAction({ entry, view, sending, send }: RemoveProps) {
       </button>
       {confirming && (
         <ConfirmDialog
-          title={accountName(entry)}
+          title={accountName(entry, view.accounts)}
           question={removeQuestion(entry)}
           confirm={t.common.remove}
           cancel={t.account.keep}
@@ -300,7 +359,7 @@ export function loginHeading({ login, accounts }: AccountView): string {
   if (login === null) return t.account.add
   if (login.target === null) return t.account.loginNew
   const target = accounts.find((entry) => entry.key === login.target)
-  return t.account.loginTo(target === undefined ? login.target : accountName(target))
+  return t.account.loginTo(target === undefined ? login.target : accountName(target, accounts))
 }
 
 interface StepsProps {

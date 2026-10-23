@@ -8,7 +8,7 @@ import type { ChangelogSpend, ChangelogSpent, ChangelogView } from '../../../src
 import { sinceWritten, unaccounted } from '../changelog.js'
 import { formatElapsed, formatMoment, formatTokens } from '../format.js'
 import { say, t } from '../i18n/index.js'
-import { accountName } from '../layout/accountParts.js'
+import { accountName } from '../accountName.js'
 import { useLive } from '../live/context.js'
 import { formatUsd, modelVersionLabel } from '../stats/format.js'
 import { useBackdropClose } from '../ui/backdrop.js'
@@ -231,7 +231,7 @@ function Spend({ spend, spent, accounts }: { spend: ChangelogSpend | null; spent
       {spend !== null && (
         <>
           <span className="tip__head">
-            {[entry === undefined ? spend.account : accountName(entry), spend.model === null ? '' : modelVersionLabel(spend.model), formatElapsed(spend.durationMs)]
+            {[entry === undefined ? spend.account : accountName(entry, accounts), spend.model === null ? '' : modelVersionLabel(spend.model), formatElapsed(spend.durationMs)]
               .filter((part) => part !== '')
               .join(' · ')}
           </span>

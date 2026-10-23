@@ -8,7 +8,7 @@ import type { CacheWindow, FeedLine, TokenTotals } from '../../../src/sessions/t
 import type { ContextScale, SessionRecord, SessionView } from '../../../src/state.js'
 import { formatClock, formatMoment, formatTokens } from '../format.js'
 import { localized, say, t } from '../i18n/index.js'
-import { agentLabel } from '../layout/accountParts.js'
+import { agentLabel } from '../accountName.js'
 import { useNow } from '../layout/useNow.js'
 import { useLive } from '../live/context.js'
 import { useCommand, useHold } from '../live/useCommand.js'
