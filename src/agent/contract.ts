@@ -204,6 +204,11 @@ export interface Agent {
   /** Optional. The account's usage limits; without it the account shows none and the chain waits a limit out by the transcript. */
   usage?(home: AccountHome, at: string): Promise<UsageAnswer>
   /**
+   * Optional. `usage` answers for an account signed in by a key too (Copilot's token reads its monthly allowance), and a
+   * credit stop of such an account waits for its reset; without it a key account is not polled and shows its spend.
+   */
+  keyUsage?: boolean
+  /**
    * Optional. The context window a session of the account gets on `model` with the chain's `settings`, asked of the
    * agent itself; `null` — it did not say. Without it the window is the transcript's, else the setting's (BTN-187).
    */

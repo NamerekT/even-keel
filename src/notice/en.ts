@@ -267,6 +267,14 @@ export const en = {
   'usage.noWeek': () => 'no readable "Current week (all models)" line',
   'usage.callFailed': () => 'the call failed',
   'usage.noRollout': () => 'no Codex session of this account has reported its limits yet',
+  'usage.chatGptExpired': () => "the ChatGPT sign-in's access token expired; OpenCode renews it at its next session",
+  'usage.chatGptUnread': () => "ChatGPT's usage answer has no readable limit windows",
+  'usage.openCodeNone': () => "no ChatGPT or Copilot sign-in: OpenCode's free models and API keys have no limits to read",
+  'usage.copilotMachine': () => "Copilot on the machine's sign-in keeps its token in the OS credential store, which Even Keel does not read; add the account with a token to see its allowance",
+  'usage.copilotUnlimited': () => 'the Copilot plan has no monthly limit',
+  'usage.copilotUnread': () => "GitHub's Copilot answer has no readable allowance",
+  'usage.copilotSignIn': () => 'GitHub refused the Copilot sign-in; sign in again',
+  'usage.planRead': () => 'the token may not read its Copilot usage: give it the "Plan" permission (read) in GitHub\'s settings of the token',
 
   'prompt.empty': (p: { before: string; value: string }) => `prompt: the session prompt has nothing to put after "${p.before}" (got ${p.value}); check the task in the tracker and the project's settings, then resume`,
 

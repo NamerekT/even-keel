@@ -81,7 +81,7 @@ Every entry, ordered by how many people it reaches and how badly it hurts them i
 | 69 | [Copilot chain sessions under the service](#copilot-chain-sessions-under-the-service-btn-215) | Copilot | sessions do not start without a token |
 | 70 | [Hooks and plugins in Copilot sessions](#hooks-and-plugins-in-copilot-sessions) | Copilot | no handoff on a full context, chat messages only between turns |
 | 71 | [MCP servers in Copilot sessions](#mcp-servers-in-copilot-sessions) | Copilot with packages | a session lacks the tracker's tools |
-| 72 | [A spent Copilot budget](#a-spent-copilot-budget) | Copilot | the session waits for good; press "New session" |
+| 72 | [A spent Copilot budget](#a-spent-copilot-budget) | Copilot | the session stops on the error, or waits for good on the machine's sign-in; press "New session" |
 | 73 | [A Copilot turn killed mid-turn](#a-copilot-turn-killed-mid-turn) | Copilot | the resume fails; press "New session" |
 | 74 | [Copilot installed with npm](#copilot-installed-with-npm) | Copilot from npm | the first turn fails; set `EVEN_KEEL_COPILOT_BIN` |
 | 75 | [Copilot models in the stats](#copilot-models-in-the-stats) | Copilot on Claude models | `/stats` shows no cost for them |
@@ -89,6 +89,8 @@ Every entry, ordered by how many people it reaches and how badly it hurts them i
 | 77 | [A tool approval in an SDK session](#a-tool-approval-in-an-sdk-session-btn-303) | Agent SDK sessions out of unattended mode | an allowed call fails, or the chain waits on an approval after unattended mode goes on |
 | 78 | [A permission dialog answered from the page](#a-permission-dialog-answered-from-the-page-btn-269) | Claude `--bg` sessions that stop on a permission dialog | the session keeps waiting after the answer; answer through Remote Control |
 | 79 | [The OpenCode model check](#the-opencode-model-check-btn-336) | OpenCode on ChatGPT, Copilot or an API key | a model that works is refused at launch; leave the model field empty |
+| 80 | [OpenCode's ChatGPT and Copilot limits](#opencodes-chatgpt-and-copilot-limits-btn-341) | OpenCode on ChatGPT or Copilot | the card has no bars and a limit waits with no reset time, as before |
+| 81 | [A Copilot token's monthly allowance](#a-copilot-tokens-monthly-allowance-btn-341) | Copilot with a token | the card counts nothing, or only what was spent |
 
 ## Platforms
 
@@ -318,7 +320,13 @@ Checked on OpenCode 1.18.25 on Windows, the free `opencode/big-pickle`, by a scr
 
 ### A spent limit on OpenCode
 
-OpenCode shows no usage windows for ChatGPT or Copilot, so an OpenCode account has no limit bars and no reset time to wait for. What a spent limit looks like in OpenCode's database was never seen: the fold takes a message's `error` as the API error, a text with `usage limit`, `rate limit`, `quota` or `too many requests` as a limit (`LIMIT_TEXT` in `src/opencode/transcript.ts`). If it is worded otherwise, the session stops like on any error; if OpenCode retries by itself, it hangs (below); how the chain holds a limit with no reset time on OpenCode was not tried. **Workaround:** wait for the reset and press "New session".
+An OpenCode account signed in to ChatGPT or Copilot has its windows read from the provider (BTN-341, the entry below), so a limit waits for their reset; one on OpenCode Zen or an API key has none and no reset time to wait for. What a spent limit looks like in OpenCode's database was never seen: the fold takes a message's `error` as the API error, a text with `usage limit`, `rate limit`, `quota` or `too many requests` as a limit (`LIMIT_TEXT` in `src/opencode/transcript.ts`). If it is worded otherwise, the session stops like on any error; if OpenCode retries by itself, it hangs (below); how the chain holds a limit on OpenCode was not tried. **Workaround:** wait for the reset and press "New session".
+
+### OpenCode's ChatGPT and Copilot limits (BTN-341)
+
+An OpenCode folder signed in to ChatGPT is asked `chatgpt.com/backend-api/wham/usage` with the `openai` token of its `auth.json`, the endpoint Codex's own `/status` reads; one signed in to Copilot is asked `api.github.com/copilot_internal/user` with the `github-copilot` token, the one GitHub's editors read (`docs/sessions.md`, "Limits of OpenCode and Copilot"). Both are internal endpoints and their shapes are taken from what others have published: the live check could not read a folder's tokens, and the only OpenCode folder on the machine was on Zen. If the ChatGPT answer has no windows or names them otherwise, the card says the answer was not read; if Copilot's has no `quota_snapshots` or free-plan counts, it says the same, and the chain waits on a limit as before, with no reset time. Two cards on one ChatGPT account are told apart by its account id from the token; if OpenCode stores none and the token carries no claim, no "one limit with…" line shows. **Workaround:** none needed for the chain; the card's numbers are on the provider's site.
+
+Copilot Free's chat allowance (`limited_user_quotas`, `monthly_quotas`) and the switch of paid plans to AI credits in June 2026 were not seen in an answer: a plan whose allowance moved elsewhere shows "no data".
 
 ### The OpenCode model check (BTN-336)
 
@@ -352,7 +360,11 @@ The packages' servers reach Copilot through `--additional-mcp-config`, and the p
 
 ### A spent Copilot budget
 
-What a Copilot session writes when the AI credits or premium requests run out was never seen. The fold takes a `session.error` about billing or AI credits as spent credit and a rate limit or quota as a limit (`src/copilot/transcript.ts`). Spent credit is held as a key out of credit, but nothing can tell when a GitHub token has credit again, so the session waits for good; any other wording stops it like an error. **Workaround:** after the budget is back, press "New session".
+What a Copilot session writes when the AI credits or premium requests run out was never seen. The fold takes a `session.error` about billing or AI credits as spent credit and a rate limit or quota as a limit (`src/copilot/transcript.ts`). A folder with a token has its monthly allowance read (BTN-341, below), and either kind waits for its reset on the 1st; a folder on the machine's sign-in has nothing read, and its session waits for good. Any other wording stops it like an error. **Workaround:** after the budget is back, press "New session".
+
+### A Copilot token's monthly allowance (BTN-341)
+
+A Copilot folder with a token is asked `copilot_internal/user` first, then the billing API's `premium_request/usage` of the token's user, which needs the token's "Plan" read permission (`docs/sessions.md`, "Limits of OpenCode and Copilot"). Checked live only on the machine's sign-in, which has nothing read by design; never with a fine-grained token, nor with the AI credits of June 2026. If `copilot_internal/user` refuses a fine-grained token, the billing API is the only source, and it tells what was spent, not what is left: the card counts the requests used and the chain only learns the reset date. If the billing API answers in AI credits under another product name, the card shows 0 used. **Workaround:** none needed for the chain; the allowance is on GitHub's billing page.
 
 ### A Copilot turn killed mid-turn
 

@@ -160,7 +160,10 @@ const INTAKE_TICK_MS = 2 * 60_000
 const KEY_CHECK_MS = 60 * 60_000
 const KEY_CHECK_TIMEOUT_MS = 15_000
 const CREDIT_CHECK_MS = 5 * 60_000
-/** The key and credit checks by whose key it is (`keyProvider`); GitHub has no way to ask about a token's AI credits. */
+/**
+ * The key and credit checks by whose key it is (`keyProvider`). GitHub has no way to ask about a token's AI credits: a
+ * Copilot account waits out spent credit by its monthly allowance instead (`Agent.keyUsage`, BTN-341).
+ */
 const KEY_CHECKS = { anthropic: checkApiKey, openai: checkOpenAiKey, github: checkGitHubToken }
 const CREDIT_CHECKS = {
   anthropic: checkCredit,
@@ -530,6 +533,11 @@ const reach = new Reachability({
   onChange: (url, up) => console.log(up ? `network: ${url} answers again` : `network: ${url} does not answer; account checks and /usage wait for it`),
 })
 const online = (home: AccountHome) => reach.up(providerUrl(home.agent))
+/** A key account polled for its limits like a subscription (`Agent.keyUsage`: Copilot's token, BTN-341). */
+const spendsByKey = (key: string): boolean => {
+  const home = homes.find(key)
+  return account.apiKey(key) && (home === undefined || agentOf(home).keyUsage !== true)
+}
 
 const limits = new LimitsWatcher({
   file: limitsFile,
@@ -549,7 +557,7 @@ const limits = new LimitsWatcher({
     return accessExpiresAt !== null && accessExpiresAt <= Date.now()
   },
   ready: (): boolean => account.ready,
-  apiKey: (key): boolean => account.apiKey(key),
+  apiKey: spendsByKey,
   onChange: () => hub.broadcast('state', getState()),
   onError: (error) => console.error(`limits:${error instanceof Error ? error.message : String(error)}`),
 })
@@ -784,6 +792,7 @@ const monitor = new SessionMonitor({
   homes: () => homes.list(),
   emailOf: (key) => account.emailOf(key),
   apiKey: (key) => account.apiKey(key),
+  keyLimits: (key) => account.apiKey(key) && !spendsByKey(key),
   // The stems name the fix sessions (`<KEY>-FIX`), the prefixes the tasks of projects whose ids are the tracker's own.
   projectKeys: () => {
     const config = configStore.current
@@ -1080,7 +1089,7 @@ const dispatcher = new Dispatcher(await loadChainState(db), {
   account: (project, task) => accountNow(choiceFor(project, task).account),
   accountAt: (key, at) => accountId(key, accountAt(ledger, key, at)),
   limitReset: (project, task) => exhaustedReset(limits.limits(choiceFor(project, task).account)),
-  limitResetAfter: (key, at) => (account.apiKey(key) ? account.creditBackAfter(key, at) : limitResetAfter(limits.limits(key), at)),
+  limitResetAfter: (key, at) => (spendsByKey(key) ? account.creditBackAfter(key, at) : limitResetAfter(limits.limits(key), at)),
   packagesBlocked: (project) => packages.blocked(project),
   accountsRead: () => account.ready,
   promptLanguage: (task) => promptLanguage(projectOf(task)),

@@ -15,6 +15,8 @@ export interface SessionMonitorOptions {
   emailOf: (account: string) => string | null
   /** An API account's session has no Remote Control and no usage window: it waits out only a key out of credit (`docs/accounts.md`). */
   apiKey: (account: string) => boolean
+  /** Optional. A key account with a usage window (Copilot's token, BTN-341): it waits out a spent quota as well as spent credit. */
+  keyLimits?: (account: string) => boolean
   projectKeys: () => string[]
   /** Optional. The window the agent itself gives for a task's session of the account on the model; `null` — not known yet. */
   contextWindow?: (account: string, model: string, task: string) => number | null
@@ -112,9 +114,11 @@ export class SessionMonitor {
     const tracked = this.tracked.get(task)
     const session = this.handoff(task)
     if (tracked === undefined || session === undefined || !tracked.present) return undefined
-    const apiKey = this.options.apiKey(tracked.agent.account ?? GLOBAL_ACCOUNT)
+    const account = tracked.agent.account ?? GLOBAL_ACCOUNT
+    const apiKey = this.options.apiKey(account)
+    const waited = apiKey ? (this.options.keyLimits?.(account) === true ? ['credit', 'limit'] : ['credit']) : ['limit']
     const { apiError, cache } = tracked.transcript.summary()
-    if (apiError?.kind !== (apiKey ? 'credit' : 'limit') || lampOf(tracked.agent, apiError.kind) !== 'limit') return undefined
+    if (apiError === null || !waited.includes(apiError.kind) || lampOf(tracked.agent, apiError.kind) !== 'limit') return undefined
     const limited = { ...session, limit: { at: apiError.at, text: apiError.text } }
     return apiKey ? { ...limited, warmMs: warmCacheMs(cache?.ttl ?? null) } : limited
   }

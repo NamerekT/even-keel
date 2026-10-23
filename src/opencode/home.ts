@@ -77,7 +77,7 @@ export function readAuth(dir: string): string | undefined {
   }
 }
 
-function credentials(text: string | undefined): Record<string, Record<string, unknown>> {
+export function credentials(text: string | undefined): Record<string, Record<string, unknown>> {
   try {
     const value: unknown = JSON.parse(text ?? '')
     if (typeof value !== 'object' || value === null || Array.isArray(value)) return {}

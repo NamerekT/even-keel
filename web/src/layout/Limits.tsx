@@ -17,6 +17,12 @@ export function usualSpans(limits: RateLimits | null | undefined): boolean {
   return limitSpans(limits).join() === 'fiveHour,sevenDay'
 }
 
+/** A window's number: what is left of a counted allowance, what was spent of one of unknown size, else the share used. */
+export function windowValue(window: LimitWindow, percent: number): string {
+  if (window.left !== undefined) return t.limits.left(window.left)
+  return window.used !== undefined ? t.limits.used(window.used) : `${percent}%`
+}
+
 interface LimitsProps {
   limits: RateLimits | null
   now: Date
@@ -67,7 +73,7 @@ function Meter({ label, title, source, window, now, bare, named }: MeterProps) {
     <div className={`meter${heat}`} title={t.limits.reset(title, resetIn, source)}>
       <span className="meter__top">
         {named && <span className="meter__label">{label}</span>}
-        <span className="meter__value">{percent}%</span>
+        <span className="meter__value">{windowValue(window, percent)}</span>
         <span className="meter__reset">↻ {resetIn}</span>
       </span>
       <span
