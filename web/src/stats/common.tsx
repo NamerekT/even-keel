@@ -6,7 +6,7 @@ import type { StatsAnswer } from '../../../src/stats/model.js'
 import { t } from '../i18n/index.js'
 import { activity } from '../live/activity.js'
 import { openTab, SHARED_SCOPE } from '../pages/settingsStore.js'
-import { STATS_SETUP } from '../pages/TallyChoice.js'
+import { stepPath } from '../pages/setupSteps.js'
 import { issueLink } from '../state.js'
 
 const REFRESH_MS = 5 * 60_000
@@ -85,7 +85,7 @@ function OffNotice({ reason }: { reason: string }) {
   if (reason === TALLY_UNCHOSEN)
     return (
       <p className="notice">
-        {t.stats.unchosen} <Link to={STATS_SETUP}>{t.stats.unchosenLink}</Link>
+        {t.stats.unchosen} <Link to={stepPath('stats')}>{t.stats.unchosenLink}</Link>
       </p>
     )
   return <p className="notice notice--warn">{t.stats.off(reason)}</p>

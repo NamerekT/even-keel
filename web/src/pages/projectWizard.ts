@@ -20,6 +20,8 @@ export interface WizardFields {
   slots: string
   /** The only milestones the project takes, one per line: how it splits a tracker project another project has (BTN-306). */
   milestones: string
+  /** The agent the project runs on (BTN-310); blank — the shared provider. */
+  provider: string
   /** The fields typed by hand: a suggestion no longer overwrites them. */
   typed: Record<Suggested, boolean>
 }
@@ -36,6 +38,7 @@ export const EMPTY_FIELDS: WizardFields = {
   place: 'worktree',
   slots: '2',
   milestones: '',
+  provider: '',
   typed: { key: false, name: false, trackerProject: false },
 }
 
@@ -93,6 +96,7 @@ export function draftOfFields(fields: WizardFields, defaultProfile = false): Pro
       .split('\n')
       .map((line) => line.trim())
       .filter((line) => line !== ''),
+    provider: fields.provider === '' ? null : fields.provider,
   }
 }
 
@@ -152,8 +156,20 @@ export function readyToAdd(check: ProjectCheck | null): boolean {
 /** What to run in a terminal on the service's machine to open `claude` in the folder and accept its trust dialog. */
 export function trustCommand(folder: string, platform: string): string {
   if (platform === 'win32') return `pushd "${folder}" && claude`
-  return `cd '${folder.replace(/'/g, `'\\''`)}' && claude`
+  return `cd ${quoted(folder)} && claude`
 }
+
+/**
+ * The same as the service's user from a terminal of another one (BTN-310): the trust lands in the profile of whoever
+ * runs `claude`. Windows' `runas` takes the command as one quoted argument, so the folder goes unquoted to `cd /d`,
+ * which takes spaces as they are; `sudo` keeps the folder, `-H` gives the user's own home.
+ */
+export function trustCommandAs(folder: string, platform: string, user: string): string {
+  if (platform === 'win32') return `runas /user:${user} "cmd /k cd /d ${folder} && claude"`
+  return `cd ${quoted(folder)} && sudo -u ${quoted(user)} -H claude`
+}
+
+const quoted = (text: string) => `'${text.replace(/'/g, `'\\''`)}'`
 
 /** Why "Add" is closed, the first reason in the order of the steps; `null` — it is open. */
 export type Missing = 'repo' | 'profile' | 'place' | 'project' | 'key' | 'checking' | 'repoError' | 'entry' | 'tracker'

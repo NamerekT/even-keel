@@ -225,7 +225,14 @@ describe('withTally', () => {
 })
 
 describe('withNewProject', () => {
-  const draft: ProjectDraft = { repo: ' D:\\new ', branch: 'main', key: 'NEW', name: '', tracker: 'huly', trackerProject: '', profile: null, slot: 0, milestones: [] }
+  const draft: ProjectDraft = { repo: ' D:\\new ', branch: 'main', key: 'NEW', name: '', tracker: 'huly', trackerProject: '', profile: null, slot: 0, milestones: [], provider: null }
+
+  it("writes the draft's agent only when it is not the shared one (BTN-310)", () => {
+    expect((withNewProject({ projects: [] }, { ...draft, provider: 'codex' }, 'id-new').projects as Record<string, unknown>[])[0]).toMatchObject({ provider: 'codex' })
+    expect((withNewProject({ provider: 'codex', projects: [] }, { ...draft, provider: 'codex' }, 'id-new').projects as Record<string, unknown>[])[0]).not.toHaveProperty('provider')
+    expect((withNewProject({ projects: [] }, { ...draft, provider: 'claude' }, 'id-new').projects as Record<string, unknown>[])[0]).not.toHaveProperty('provider')
+    expect(parseConfig(withNewProject({ projects: [] }, { ...draft, provider: 'codex' }, 'id-new')).settings['id-new']?.provider).toBe('codex')
+  })
 
   it('appends an entry with only what differs from what the project would inherit', () => {
     const raw = { projects: [abc()], custom: 1 }
