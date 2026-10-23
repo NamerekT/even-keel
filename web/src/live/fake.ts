@@ -195,7 +195,11 @@ function fakeState(
     trackerUrls: {
       default: 'https://huly.example.com/workbench/example/tracker/{id}',
       projects: {},
-      pages: Object.fromEntries(['ABC', 'DEMO', 'XYZ', 'OPS'].map((project) => [project, `https://huly.example.com/workbench/example/tracker/${project.toLowerCase()}-id/issues`])),
+      pages: {
+        ...Object.fromEntries(['ABC', 'DEMO', 'XYZ', 'OPS'].map((project) => [project, `https://huly.example.com/workbench/example/tracker/${project.toLowerCase()}-id/issues`])),
+        'feed-abc-gh': 'https://github.com/octo-org/storefront-ideas/issues',
+        'feed-abc-lin': 'https://linear.app/example/team/WEB/all',
+      },
     },
     ci: fakeCi(null),
     remotes: FAKE_REMOTES,

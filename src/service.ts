@@ -1421,7 +1421,7 @@ const getState = (): EvenKeelState => ({
   trackerUrls: {
     default: trackers.setupOf(null)?.issueUrl(null) ?? null,
     projects: Object.fromEntries(Object.keys(readers().projects).map((reader) => [idPrefixOf(readers(), reader), trackers.setupOf(reader)?.issueUrl(reader) ?? null])),
-    pages: Object.fromEntries(Object.keys(configStore.current.projects).map((project) => [project, trackers.setupOf(project)?.projectUrl?.(project) ?? null])),
+    pages: Object.fromEntries(Object.keys(readers().projects).map((reader) => [reader, trackers.setupOf(reader)?.projectUrl?.(reader) ?? null])),
   },
   ci: Object.fromEntries([...ciWatches.byProject.keys()].map((project) => [project, ciWatches.shown(project).map((watch) => watch.view)])),
   remotes: remotes.view,
