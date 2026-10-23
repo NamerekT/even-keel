@@ -389,7 +389,7 @@ export async function connectGithub(
     async vocabulary(project) {
       const repo = repoOf(project)
       const labels = await collect<{ name: string }>(REPOSITORY_LABELS, { ...repo }, (data) => data.repository?.labels as Connection<{ name: string }>, `${repo.owner}/${repo.name}`)
-      return { statuses: GITHUB_STATUSES.map((status) => status.name), labels: labels.map((label) => label.name) }
+      return { statuses: [...GITHUB_STATUSES], labels: labels.map((label) => label.name) }
     },
 
     // A file of a comment is its upload link; the token goes only to GitHub's own upload hosts.

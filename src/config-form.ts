@@ -39,6 +39,7 @@ export function formsOf(config: EvenKeelConfig, adapters: Adapters = ADAPTERS): 
         color: config.colors[id] ?? null,
         brief: config.briefs[id]!,
         chain: config.rules[id]!,
+        ownRules: Object.keys(config.ownRules[id] ?? {}) as (keyof ChainRules)[],
       },
     ]),
   )
@@ -72,9 +73,17 @@ function trackerValue(adapters: Adapters, tracker: string, given: string | null,
 /**
  * The raw config with the project's entry set from the form. `base` is what the form started from: a value the form left
  * as it was keeps its key as written, even if the file changed since; a changed one is written only where it differs
- * from what the project would inherit, otherwise its key goes.
+ * from what the project would inherit, otherwise its key goes. `profile` — the rules of the tracker profile the project
+ * runs on, which a rule key inherits before the shared one.
  */
-export function withProjectForm(raw: unknown, id: string, form: ProjectForm, base: ProjectForm, adapters: Adapters = ADAPTERS): Record<string, unknown> {
+export function withProjectForm(
+  raw: unknown,
+  id: string,
+  form: ProjectForm,
+  base: ProjectForm,
+  profile: Partial<ChainRules> = {},
+  adapters: Adapters = ADAPTERS,
+): Record<string, unknown> {
   const config = isPlainObject(raw) ? raw : {}
   const { projects } = config
   const index = Array.isArray(projects) ? projects.findIndex((each: unknown) => isPlainObject(each) && each.id === id) : -1
@@ -87,11 +96,11 @@ export function withProjectForm(raw: unknown, id: string, form: ProjectForm, bas
   }
   const shared = sharedValues(config, adapters)
   const rules = rulesOf(form.chain)
-  const inherited = (key: string, own: unknown): FormValue => ({ group: key, key, qualifier: '', value: own, fallback: shared[key] })
+  const inherited = (key: string, own: unknown, fallback = shared[key]): FormValue => ({ group: key, key, qualifier: '', value: own, fallback })
   const values = [
     inherited('tracker', form.tracker),
     inherited('brief', form.brief),
-    ...RULE_KEYS.map((rule) => inherited(`chain.${rule}`, rules[rule])),
+    ...RULE_KEYS.map((rule) => inherited(`chain.${rule}`, rules[rule], profile[rule] !== undefined ? profile[rule] : shared[`chain.${rule}`])),
     { group: 'slot', key: 'slot', qualifier: '', value: form.slot === 0 ? undefined : form.slot },
     { group: 'color', key: 'color', qualifier: '', value: form.color ?? undefined },
   ]

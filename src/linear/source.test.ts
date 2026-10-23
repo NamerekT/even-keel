@@ -298,7 +298,13 @@ describe('linear source', () => {
       { body: { data: { issueLabels: page([{ name: 'Question', isGroup: false }, { name: 'Bug', isGroup: false }]) } } },
     ])
     expect(await source.vocabulary!('ENG')).toEqual({
-      statuses: ['Backlog', 'Todo', 'In Progress', 'Done', 'Canceled'],
+      statuses: [
+        { name: 'Backlog', category: 'UnStarted' },
+        { name: 'Todo', category: 'ToDo' },
+        { name: 'In Progress', category: 'Active' },
+        { name: 'Done', category: 'Won' },
+        { name: 'Canceled', category: 'Lost' },
+      ],
       labels: ['Bug', 'Question'],
     })
     expect(calls[2]!.variables).toEqual({ team: 'team-eng', after: null })

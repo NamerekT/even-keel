@@ -337,12 +337,6 @@
   text-transform: uppercase;
 }
 
-.settings__rules {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(22em, 100%), 1fr));
-  gap: 16px;
-}
-
 /* A setting's name, its question mark and the restart mark in one line, as tall without the question mark as with it. */
 .settings__head-row {
   display: flex;

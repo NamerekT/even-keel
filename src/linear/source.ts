@@ -370,7 +370,7 @@ export async function connectLinear(settings: LinearSettings, timeoutMs: number,
         for (const label of issueLabels.nodes) if (!label.isGroup) labels.add(label.name)
         after = issueLabels.pageInfo.hasNextPage ? issueLabels.pageInfo.endCursor : null
       } while (after !== null)
-      return { statuses: team.states.map((state) => state.name), labels: [...labels] }
+      return { statuses: team.states.map(linearStatus), labels: [...labels] }
     },
 
     // A file of a comment is its upload link; the key goes only to Linear's upload host.

@@ -155,6 +155,7 @@ function withProject(state: EvenKeelState, draft: ProjectDraft): EvenKeelState {
     color: colorsOf([...state.projects, id], ownColors(state.config.projects))[id] ?? null,
     brief: state.config.shared.brief,
     chain: { ...DEFAULT_RULES, requiredMilestones: draft.milestones },
+    ownRules: draft.milestones.length > 0 ? ['requiredMilestones'] : [],
     prompt: null,
     beforeStart: [],
     check: [],

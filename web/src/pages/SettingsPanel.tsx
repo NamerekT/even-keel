@@ -1,7 +1,8 @@
 import { Fragment, useEffect, useRef, type ReactNode } from 'react'
 import { CI_KINDS, type CiKind } from '../../../src/ci/model.js'
 import type { Notice } from '../../../src/notice/notice.js'
-import type { CacheTtl, ConfigView, OwnKey, OwnValues, ProjectForm, SharedForm } from '../../../src/state.js'
+import type { ChainRules } from '../../../src/chain/rules.js'
+import type { CacheTtl, ConfigView, EvenKeelState, OwnKey, OwnValues, ProjectForm, SharedForm } from '../../../src/state.js'
 import { LANGUAGES } from '../../../src/language.js'
 import type { Task } from '../../../src/tracker/model.js'
 import { offeredProviders } from '../accounts.js'
@@ -26,7 +27,7 @@ import {
   ProviderGrid,
   RULE_KEYS,
   HelpTip,
-  RuleFields,
+  type RuleKey,
   rulesOf,
   rulesText,
   sameBy,
@@ -44,7 +45,9 @@ import {
 import { ruleChoicesOf } from './settingsRows.js'
 import { useVocabularies } from './useVocabularies.js'
 import { ProjectRemove } from './ProjectRemove.js'
-import { ProjectTracker } from './ProjectTracker.js'
+import { linkedProfile, ProjectTracker } from './ProjectTracker.js'
+import { effectiveRules, knownStatuses, ruleOrigins } from './ruleRows.js'
+import { MilestoneFields, RuleForm, ruleText } from './RuleForm.js'
 import { FeedList } from './FeedList.js'
 import { TrackerPackageButton } from './ToolsLink.js'
 import { remoteChoices } from './remoteProfiles.js'
@@ -91,7 +94,12 @@ const KEYS: readonly string[] = GROUPS.flatMap((group) => group.keys)
 const keysOf = (id: GroupId): readonly string[] => GROUPS.find((group) => group.id === id)!.keys
 const same = sameBy(['beforeStart', 'check', 'afterGreen', ...RULE_KEYS])
 
-const valuesOf = (form: ProjectForm): Values => ({
+/** The rules of the tracker profile the project runs on: between the shared ones and the project's own (BTN-334). */
+const profileOf = (state: EvenKeelState | null, project: string, tracker: string) =>
+  state === null ? undefined : linkedProfile(state.profiles.profiles.filter((profile) => profile.kind === tracker), project)
+
+/** `form.chain` holds no profile: a key the project leaves unset shows the profile's value, the one in force. */
+const valuesOf = (form: ProjectForm, profileRules: Partial<ChainRules>): Values => ({
   repo: form.repo,
   branch: form.branch,
   tracker: form.tracker,
@@ -99,7 +107,7 @@ const valuesOf = (form: ProjectForm): Values => ({
   slot: String(form.slot),
   color: form.color === null ? '' : String(form.color),
   brief: form.brief === null ? '' : String(form.brief),
-  ...rulesText(form.chain),
+  ...rulesText(effectiveRules(form.chain, form.ownRules, profileRules)),
   prompt: form.prompt ?? '',
   beforeStart: form.beforeStart.join('\n'),
   check: form.check.join('\n'),
@@ -188,6 +196,7 @@ function formOf(values: Values, name: string | null, shared: SharedForm): Projec
     color: text('color') === '' ? null : Number(text('color')),
     brief: text('brief') === '' ? null : text('brief') === 'true',
     chain: rulesOf(values as Record<(typeof RULE_KEYS)[number], Value>),
+    ownRules: [],
     prompt: text('prompt').trim(),
     beforeStart: linesOf(text('beforeStart')),
     check: linesOf(text('check')),
@@ -223,7 +232,8 @@ function formOf(values: Values, name: string | null, shared: SharedForm): Projec
 
 /** Whether a group of the project's settings holds changes nobody saved yet: the Settings tab shows it even with the panel closed. */
 export function useSettingsDirty(project: string, form: ProjectForm | undefined): boolean {
-  const [draft] = useDraft(scopeOf(project), form === undefined ? undefined : valuesOf(form), same)
+  const { state } = useLive()
+  const [draft] = useDraft(scopeOf(project), form === undefined ? undefined : valuesOf(form, profileOf(state, project, form.tracker)?.rules ?? {}), same)
   return draft !== undefined && changed(draft, KEYS, same).length > 0
 }
 
@@ -246,7 +256,9 @@ export function SettingsPanel({
   const closeRef = useRef<HTMLButtonElement>(null)
   const { send, sending, failure } = useCommand()
   const { state } = useLive()
-  const saved = valuesOf(form)
+  const profile = profileOf(state, project, form.tracker)
+  const profileRules: Partial<ChainRules> = profile?.rules ?? {}
+  const saved = valuesOf(form, profileRules)
   const [current, setDraft] = useDraft(scopeOf(project), saved, same)
   const draft = current!
   const [open, setOpen] = useTab<GroupId>(scopeOf(project), 'repo')
@@ -276,6 +288,11 @@ export function SettingsPanel({
   }, [onClose])
 
   const edit = (key: string, value: Value) => setDraft(edited(draft, key, value))
+  const editAll = (changes: [string, Value][]) => setDraft(changes.reduce((each, [key, value]) => edited(each, key, value), draft))
+  const chain = rulesOf(draft.edit as Record<RuleKey, Value>)
+  const inherited = effectiveRules(shared.chain, [], profileRules)
+  const origins = ruleOrigins(chain, inherited, profileRules)
+  const ruleChoices = ruleChoicesOf(tasks, vocabularies)
   const revert = (keys: readonly string[]) => setDraft(reverted(draft, saved, keys))
   const marks = marksOf(draft, saved, same, revert)
   const toggle = (kind: CiKind, checked: boolean) => edit('kinds', CI_KINDS.filter((each) => (each === kind ? checked : kinds.includes(each))))
@@ -496,6 +513,17 @@ export function SettingsPanel({
             onEdit={(value) => edit('trackerProject', value)}
           />
         )}
+        <MilestoneFields
+          level="project"
+          rules={chain}
+          inherited={inherited}
+          origins={origins}
+          milestones={ruleChoices.milestones}
+          text={text}
+          onEdit={editAll}
+          errorOf={errorOf}
+          marks={marks}
+        />
         {state !== null && <FeedList state={state} project={project} />}
         {switchChoice('fillMilestone', t.settings.fillMilestone, t.settings.fillMilestoneHint, shared.fillMilestone)}
         {text('tracker') !== 'github' && (
@@ -514,7 +542,23 @@ export function SettingsPanel({
             <FieldNote error={errorOf('intakeLabel')} />
           </div>
         )}
-        <RuleFields text={text} onEdit={edit} errorOf={errorOf} marks={marks} choices={ruleChoicesOf(tasks, vocabularies)} />
+        <RuleForm
+          level="project"
+          rules={chain}
+          inherited={inherited}
+          origins={origins}
+          profileName={profile?.name ?? null}
+          statuses={knownStatuses(
+            vocabularies.map((each) => each.statuses),
+            tasks.map((task) => task.status),
+            chain,
+          )}
+          labels={ruleChoices.labels}
+          modelLabels={text('modelLabels') === '' ? shared.modelLabels : text('modelLabels') === 'true'}
+          onEdit={(changes) => editAll(changes.map(([key, value]) => [key, ruleText(value)]))}
+          errorOf={errorOf}
+          marks={marks}
+        />
       </>
     ),
     sessions: () => (

@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto'
+import type { ChainRules } from './chain/rules.js'
 import { formsOf, trackerChoices, withChainSwitches, withFeed, withNewProject, withoutFeed, withoutProject, withProjectForm, withRunAccount, withSharedAccount, withSharedForm, withTally, withUpdates } from './config-form.js'
 import { parseConfig, trackerKeysOf, type EvenKeelConfig } from './config.js'
 import { englishOf, fail, noticeOf, type Notice } from './notice/notice.js'
@@ -112,9 +113,9 @@ export class ConfigStore {
     this.write(withoutFeed(this.raw(), this.idOf(project), feed))
   }
 
-  /** Writes the project's settings, only if the whole config still parses, and applies them at once. */
-  saveProject(project: string, form: ProjectForm, base: ProjectForm): void {
-    this.write(withProjectForm(this.raw(), this.idOf(project), form, base))
+  /** Writes the project's settings, only if the whole config still parses, and applies them at once; `profile` as in `withProjectForm`. */
+  saveProject(project: string, form: ProjectForm, base: ProjectForm, profile: Partial<ChainRules> = {}): void {
+    this.write(withProjectForm(this.raw(), this.idOf(project), form, base, profile))
   }
 
   /** Writes the shared settings, by the same rule as `saveProject`. */
