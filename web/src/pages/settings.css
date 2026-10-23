@@ -430,6 +430,9 @@
 }
 
 .settings-page__group {
+  display: flex;
+  align-items: center;
+  gap: 6px;
   margin: 0;
   padding-bottom: 10px;
   border-bottom: 1px solid var(--border);

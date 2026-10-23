@@ -191,6 +191,13 @@ export function SharedSettings({ state }: { state: EvenKeelState }) {
   const text = (key: string) => draft.edit[key] as string
   const offered = offeredProviders(state.account, namedProviders(text, [text('provider')], ['models']))
   const titleOf = (id: GroupId) => t.shared[id]
+  const hintOf: Partial<Record<GroupId, string>> = { ci: t.shared.ciNote, secrets: t.secrets.hint }
+  const groupTitle = (id: GroupId) => (
+    <h2 id="settings-group" className="settings-page__group">
+      {titleOf(id)}
+      {hintOf[id] !== undefined && <HelpTip text={hintOf[id]} align="start" />}
+    </h2>
+  )
 
   const edit = (key: string, value: Value) => setDraft(edited(draft, key, value))
   const revert = (keys: readonly string[]) => setDraft(reverted(draft, saved, keys))
@@ -420,7 +427,6 @@ export function SharedSettings({ state }: { state: EvenKeelState }) {
     ),
     ci: () => (
       <>
-        <p className="settings__hint">{t.shared.ciNote}</p>
         {check('guard', t.settings.guard, t.settings.guardHint)}
         <div className={unguarded ? 'settings__guarded settings__guarded--off' : 'settings__guarded'}>
           <fieldset className={marks.box('kinds', 'settings__field settings__group')}>
@@ -543,11 +549,7 @@ export function SharedSettings({ state }: { state: EvenKeelState }) {
         void save()
       }}
     >
-      {titled && (
-        <h2 id="settings-group" className="settings-page__group">
-          {titleOf(open)}
-        </h2>
-      )}
+      {titled && groupTitle(open)}
       {groups[open]()}
       {leftover !== null && <p className="notice notice--error">{say(leftover)}</p>}
       <SaveBar shown={dirty(open)} canSave={!sending && next !== undefined} onRevert={() => revert(keysOf(open))} />
@@ -574,9 +576,7 @@ export function SharedSettings({ state }: { state: EvenKeelState }) {
         ) : open === 'secrets' || open === 'stats' ? (
           // Every row is a form of its own, so the tab is not one; Tally's place is applied on its own, ahead of the draft.
           <section key={open} className="settings__form settings-page__form" aria-labelledby="settings-group">
-            <h2 id="settings-group" className="settings-page__group">
-              {titleOf(open)}
-            </h2>
+            {groupTitle(open)}
             {open === 'secrets' ? groups[open]() : (
               <>
                 <TallySettings state={state} />

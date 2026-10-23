@@ -5,8 +5,10 @@
   gap: 12px;
 }
 
-.profiles .settings__hint {
-  margin: 0;
+.profiles__head .secrets__title {
+  display: flex;
+  align-items: center;
+  gap: 4px;
 }
 
 /* The top stripe says the state: a refused profile pauses the chains on it. */

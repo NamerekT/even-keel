@@ -459,7 +459,12 @@ export function SettingsPanel({
       <>
         <div className="settings__row">
           <div className={marks.box('tracker')}>
-            <FieldHead label={t.settings.tracker} htmlFor={fieldId('tracker')} soon={locked ? t.settings.trackerSoon : undefined} />
+            <FieldHead
+              label={t.settings.tracker}
+              hint={locked ? t.settings.trackerLocked : undefined}
+              htmlFor={fieldId('tracker')}
+              soon={locked ? t.settings.trackerSoon : undefined}
+            />
             <Select
               id={fieldId('tracker')}
               className="settings__text settings__short"
@@ -491,7 +496,6 @@ export function SettingsPanel({
             onEdit={(value) => edit('trackerProject', value)}
           />
         )}
-        {locked && <p className="settings__hint">{t.settings.trackerLocked}</p>}
         {state !== null && <FeedList state={state} project={project} />}
         {switchChoice('fillMilestone', t.settings.fillMilestone, t.settings.fillMilestoneHint, shared.fillMilestone)}
         {text('tracker') !== 'github' && (

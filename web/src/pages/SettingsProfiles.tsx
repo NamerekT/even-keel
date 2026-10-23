@@ -8,6 +8,7 @@ import { PlusIcon, TrackerIcon } from '../ui/icons.js'
 import { useProjectLabel } from '../ui/ProjectLabel.js'
 import { Tipped } from '../ui/Tipped.js'
 import { ProfileDialog } from './ProfileDialog.js'
+import { HelpTip } from './settingsParts.js'
 import { daysLeft } from './profileForm.js'
 import { profileAddOf, withoutProfileAdd } from './pullFix.js'
 import './accounts.css'
@@ -31,13 +32,15 @@ export function SettingsProfiles({ state }: { state: EvenKeelState }) {
   return (
     <section className="secrets__group profiles">
       <div className="profiles__head">
-        <h3 className="secrets__title">{t.profiles.title}</h3>
+        <h3 className="secrets__title">
+          {t.profiles.title}
+          <HelpTip text={t.profiles.hint} align="start" />
+        </h3>
         <button type="button" className="button button--small" aria-haspopup="dialog" onClick={() => setEditing({ id: null })}>
           <PlusIcon />
           {t.profiles.add}
         </button>
       </div>
-      <p className="settings__hint">{t.profiles.hint}</p>
       {profiles.length === 0 ? (
         <p className="notice notice--warn">{t.profiles.none}</p>
       ) : (

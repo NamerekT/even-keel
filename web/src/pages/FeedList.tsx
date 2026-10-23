@@ -65,14 +65,13 @@ function FeedRow({ state, project, feed }: { state: EvenKeelState; project: stri
         fields={fields}
         profiles={own}
         kinds={state.profiles.kinds.filter((kind) => kind.kind === feed.tracker)}
-        profileHint={t.profiles.fieldHint}
+        profileHint={locked ? `${t.profiles.fieldHint} ${t.settings.feedLocked}` : t.profiles.fieldHint}
         keyFixed
         profileLocked={locked || sending}
         projectLocked
         soon={locked ? t.settings.trackerSoon : undefined}
         onChange={change}
       />
-      {locked && <p className="settings__hint">{t.settings.feedLocked}</p>}
       {failure !== null && <p className="notice notice--error">{say(failure)}</p>}
     </div>
   )
