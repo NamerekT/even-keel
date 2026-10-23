@@ -84,6 +84,8 @@ You ask for changes in words and see them highlighted, with what each turn cost 
 
 A session that asks a question or fails is left alone: you answer it or move the task in the tracker yourself. Even Keel never writes into a session that stopped on its own — only your own answer goes in, and only while the session waits for it. You can skip a task, and a session that files a blocker for its task gets the task postponed until the blocker is done.
 
+Work that sits in a task's folder but not in the main branch — files never committed, or commits never merged — is marked wherever the task shows: a red chip on its chain or backlog row with the path, the branch and what to do on hover, a red dot on the **Backlog** tab, and a callout on its card. So a task parked in the backlog with a finished change is not forgotten: answer it and move it back to Todo, and a new session picks the work up, or commit and merge it yourself. The mark follows the folder within about a minute.
+
 ## Unattended mode
 
 For when nobody will answer — a switch in **Settings → Chain** (the gear in the header). Sessions are told to ask nothing, to do everything a question does not hold, and to park a task held by one: committed on its branch, unmerged, the question left in the task, the task moved to Backlog. A session that sits 10 minutes without the task done is skipped, and the session of a done task that stays busy for 10 quiet minutes is no longer waited for, so one stuck session does not stop the whole run.
@@ -153,7 +155,7 @@ With `pullRequests` on, a session does not merge its branch: Even Keel pushes it
 
 The gear in the header has a dot when something is wrong and a **Status** row leading to `/status`: the service itself, the limit poll, the settings, the statistics collector, and a connection per tracker account in use — whether it answers, its last good poll, its error, and when it last read each project and task feed on it.
 
-What waits for you also gets a notification in the corner while the page is open — a chain stopped on the usage limit, a red main, a session's question, a release carry that hit a conflict — with **Open** to the project. An error on a card says what to do, and where a setting, an access profile or an account fixes it, a button under it opens that place.
+What waits for you also gets a notification in the corner while the page is open — a chain stopped on the usage limit, a red main, a session's question, a release carry that hit a conflict, a task that left the chain with its work not committed or not merged — with **Open** to the project. An error on a card says what to do, and where a setting, an access profile or an account fixes it, a button under it opens that place.
 
 ## Updating from the page
 

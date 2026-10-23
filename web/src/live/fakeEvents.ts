@@ -4,7 +4,7 @@ import type { EvenKeelState } from '../../../src/state.js'
 /** `?event=` comes this long after the first state, so the page sees it come and shows its toast (`EventToasts`). */
 export const EVENT_MS = 2_000
 
-/** The state after the event `?event=limit|red|ask|conflict` names; the first chain, CI, session and project get it. */
+/** The state after the event `?event=limit|red|ask|conflict|work` names; the first chain, CI, session and project get it. */
 export function fakeEvent(state: EvenKeelState, event: string): EvenKeelState {
   const [first, second] = state.projects
   if (event === 'limit') {
@@ -29,6 +29,12 @@ export function fakeEvent(state: EvenKeelState, event: string): EvenKeelState {
   if (event === 'conflict' && first !== undefined && second !== undefined) {
     const hold = notice('forward.conflict', { from: first, into: second, files: ['src/app.ts'] })
     return { ...state, forwards: { ...state.forwards, [first]: { into: second, behind: 2, hold, held: true } } }
+  }
+  if (event === 'work' && first !== undefined) {
+    const task = state.chain.projects[first]?.backlog.find((id) => state.works[first]?.[id] === undefined)
+    if (task === undefined) return state
+    const work = { path: `D:/work/${first.toLowerCase()}/.claude/worktrees/${task.toLowerCase()}`, branch: `${task.toLowerCase()}/task`, files: 12, ahead: 0 }
+    return { ...state, works: { ...state.works, [first]: { ...state.works[first], [task]: work } } }
   }
   return state
 }

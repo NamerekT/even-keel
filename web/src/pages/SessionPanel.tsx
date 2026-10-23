@@ -23,6 +23,7 @@ import { PullButton } from '../ui/PullChip.js'
 import { StartCard } from '../ui/SessionStart.js'
 import { Tipped } from '../ui/Tipped.js'
 import { useTip } from '../ui/useTip.js'
+import { WorkChip } from '../ui/WorkChip.js'
 import { ciHash } from './CiChip.js'
 import { feedText } from './feedLine.js'
 import './facts.css'
@@ -87,11 +88,12 @@ export function SessionPanel({ block, scale, ci, onCard, onClose }: Props) {
           ×
         </button>
       </header>
-      {(block.status !== null || block.skipped || block.interrupted) && (
+      {(block.status !== null || block.skipped || block.interrupted || block.work !== undefined) && (
         <p className="panel__status">
           {block.status}
           {block.skipped && <span className="panel__flag">{t.session.skipped}</span>}
           {block.interrupted && <span className="panel__flag">{t.session.interrupted}</span>}
+          {block.work !== undefined && <WorkChip work={block.work} />}
         </p>
       )}
       <Actions block={block} scale={scale} ci={ci} />

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type SyntheticEvent } from 'react'
-import type { TrackerUrls } from '../../../src/state.js'
+import type { TaskWork, TrackerUrls } from '../../../src/state.js'
 import type { Notice } from '../../../src/notice/notice.js'
 import type { Task } from '../../../src/tracker/model.js'
 import { say, t } from '../i18n/index.js'
@@ -8,6 +8,7 @@ import { issueLink, type TaskLinks } from '../state.js'
 import { FlagIcon, IntoChainIcon, StackIcon } from '../ui/icons.js'
 import { Links } from '../ui/Links.js'
 import { PriorityIcon } from '../ui/Priority.js'
+import { WorkChip } from '../ui/WorkChip.js'
 import { SEG_CLASS, type ChipLook } from './chipLook.js'
 import './backlog.css'
 
@@ -20,7 +21,16 @@ const LEAVE_MS = 480
 /** A tag in the head row, a tab on the side column's card, or a segment showing only the count. */
 const BACKLOG_CLASS: Record<ChipLook, string> = { tag: 'tag tag--backlog', tab: 'side-tab side-tab--wide', seg: SEG_CLASS }
 
-export function BacklogChip({ count, open, look = 'tag', onToggle }: { count: number; open: boolean; look?: ChipLook; onToggle: () => void }) {
+interface ChipProps {
+  count: number
+  open: boolean
+  look?: ChipLook
+  /** One of the backlog's tasks has work in its folder that main does not (BTN-298): a red dot. */
+  work?: boolean
+  onToggle: () => void
+}
+
+export function BacklogChip({ count, open, look = 'tag', work = false, onToggle }: ChipProps) {
   if (count === 0) return null
   const seg = look === 'seg'
   return (
@@ -29,17 +39,20 @@ export function BacklogChip({ count, open, look = 'tag', onToggle }: { count: nu
       className={BACKLOG_CLASS[look]}
       aria-expanded={open}
       aria-label={seg ? t.project.backlog(count) : undefined}
-      title={t.project.backlogHint}
+      title={work ? `${t.project.backlogHint}\n${t.chain.work.backlog}` : t.project.backlogHint}
       onClick={onToggle}
     >
       <StackIcon />
       {seg ? count : t.project.backlog(count)}
+      {work && <span className="work-dot" role="img" aria-label={t.chain.work.backlog} />}
     </button>
   )
 }
 
 interface Props {
   tasks: Task[]
+  /** The work left in the tasks' folders, by task. */
+  works: Record<string, TaskWork>
   trackerUrls: TrackerUrls
   /** The project's tracker can move a backlog task to Todo. */
   canReady: boolean
@@ -57,7 +70,7 @@ interface Props {
   onSettled: (task: string) => void
 }
 
-export function BacklogPanel({ tasks, trackerUrls, canReady, refused, links, onCard, onClose, onPoint, leaving, onMove, onSettled }: Props) {
+export function BacklogPanel({ tasks, works, trackerUrls, canReady, refused, links, onCard, onClose, onPoint, leaving, onMove, onSettled }: Props) {
   const closeRef = useRef<HTMLButtonElement>(null)
   const { send, sending, failure } = useCommand()
   const point = useRef(onPoint)
@@ -150,6 +163,7 @@ export function BacklogPanel({ tasks, trackerUrls, canReady, refused, links, onC
                   <FlagIcon />
                   <span className="backlog__milestone-name">{task.milestone?.label ?? t.chain.noMilestone}</span>
                 </span>
+                {works[task.id] !== undefined && <WorkChip work={works[task.id]!} />}
                 <Links links={links(task.id)} onCard={onCard} />
               </div>
               <button type="button" className="backlog__name" title={t.chain.openCard} onClick={() => onCard(task.id)}>

@@ -1,16 +1,20 @@
 import type { EvenKeelState } from '../../../src/state.js'
 
-export type EventsInput = Pick<EvenKeelState, 'ci' | 'fixes' | 'sessions' | 'tasks' | 'forwards'> & { chain: Pick<EvenKeelState['chain'], 'active'> }
+export type EventsInput = Pick<EvenKeelState, 'ci' | 'fixes' | 'sessions' | 'tasks' | 'forwards' | 'works'> & {
+  chain: Pick<EvenKeelState['chain'], 'active' | 'projects'>
+}
 
 /**
  * Something on the page that waits for a person, worth a toast when it comes: a chain held by the usage limit, a red
- * main, a session that asks, a carry of a release held by a conflict. `key` tells one occurrence from the next.
+ * main, a session that asks, a carry of a release held by a conflict, work left in the folder of a task out of the
+ * chain. `key` tells one occurrence from the next.
  */
 export type PageEvent =
   | { key: string; kind: 'limit'; project: string; until?: string }
   | { key: string; kind: 'red'; project: string; commit: string }
   | { key: string; kind: 'ask'; project: string | null; task: string }
   | { key: string; kind: 'conflict'; project: string; into: string }
+  | { key: string; kind: 'work'; project: string; task: string; path: string; files: number; ahead: number; backlog: boolean }
 
 const short = (commit: string) => commit.slice(0, 7)
 
@@ -40,6 +44,16 @@ export function pageEvents(state: EventsInput): PageEvent[] {
   }
   for (const [project, forward] of Object.entries(state.forwards)) {
     if (forward.hold?.code === 'forward.conflict') events.push({ key: `conflict|${project}|${forward.into}`, kind: 'conflict', project, into: forward.into })
+  }
+  for (const [project, works] of Object.entries(state.works)) {
+    const order = state.chain.projects[project]
+    if (order === undefined || order.error !== null) continue
+    const chained = new Set([...order.order, ...order.waiting])
+    const pulls = new Set((order.reviews ?? []).map((review) => review.task))
+    for (const [task, { path, files, ahead }] of Object.entries(works)) {
+      if (chained.has(task) || (pulls.has(task) && files === 0)) continue
+      events.push({ key: `work|${project}|${task}`, kind: 'work', project, task, path, files, ahead, backlog: order.backlog.includes(task) })
+    }
   }
   return events
 }

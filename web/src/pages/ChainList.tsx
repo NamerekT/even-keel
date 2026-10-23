@@ -16,6 +16,7 @@ import { estimateShare, isRework, railsOf, showsAction, tiersOf, type Rail, type
 import { milestoneView, type Section } from '../ui/milestones.js'
 import { placeLeaving, type Mark } from '../ui/motion.js'
 import { PullChip } from '../ui/PullChip.js'
+import { WorkChip } from '../ui/WorkChip.js'
 import { relatives, type Point } from '../ui/reorder.js'
 import { StartPill } from '../ui/SessionStart.js'
 import { ActionScreen } from './ActionScreen.js'
@@ -536,6 +537,7 @@ function Block(props: BlockProps) {
             {t.chain.question}
           </span>
         )}
+        {block.work !== undefined && <WorkChip work={block.work} />}
         {badge === 'blocker' && <span className="tag">{t.chain.blocker}</span>}
         {badge === 'dependent' && <span className="tag">{t.chain.dependent}</span>}
         {block.start !== null && <StartPill start={block.start} />}

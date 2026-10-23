@@ -40,7 +40,7 @@ export class Unchanged {
       this.hold(chain, notice('chain.unchangedNotChecked', { task }, { cause: noticeOf(error) }))
       return true
     }
-    if (changes.ahead > 0 || changes.dirty) {
+    if (changes.ahead > 0 || changes.files > 0) {
       // Told as a chat answer is, by `--resume` whatever its cache: the reply belongs to the session's own turn.
       const what = changes.ahead > 0 ? `${changes.ahead} commit(s) beyond ${main}` : 'uncommitted changes'
       this.deps.log(`chain: ${task} is marked as needing no change, but its branch has ${what}; the session is told`)
