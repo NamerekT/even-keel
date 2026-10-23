@@ -38,9 +38,10 @@ export function fakeNoProjects(state: EvenKeelState): EvenKeelState {
 export function fakeCheck(state: EvenKeelState, draft: ProjectDraft, mode: string | null): ProjectCheck {
   const path = draft.repo.trim()
   const none = { root: null, current: null, suggested: null }
-  if (path === '') return { repo: { ...none, notice: null }, entry: null, yields: [], tracker: null, trusted: null, platform: 'win32' }
+  const host = { platform: 'win32', user: 'EvenKeelSvc' }
+  if (path === '') return { repo: { ...none, notice: null }, entry: null, yields: [], tracker: null, trusted: null, ...host }
   if (path.includes('nope')) {
-    return { repo: { ...none, notice: notice('wizard.notRepo', { path }, { detail: 'fatal: not a git repository' }) }, entry: null, yields: [], tracker: null, trusted: null, platform: 'win32' }
+    return { repo: { ...none, notice: notice('wizard.notRepo', { path }, { detail: 'fatal: not a git repository' }) }, entry: null, yields: [], tracker: null, trusted: null, ...host }
   }
   const root = path.replace(/\\/g, '/').replace(/\/+$/, '')
   const current = root.includes('master') ? 'master' : 'main'
@@ -49,9 +50,11 @@ export function fakeCheck(state: EvenKeelState, draft: ProjectDraft, mode: strin
   const shared = sharedWith(state, draft)
   const entry = entryNotice(state, draft) ?? (shared.length > 0 && draft.milestones.length === 0 ? notice('wizard.trackerShared', { project: shared[0]! }) : null)
   const yields = entry === null && draft.milestones.length > 0 ? shared : []
-  const trusted = mode !== 'untrusted'
-  if (entry !== null || repo.notice !== null) return { repo, entry, yields, tracker: null, trusted, platform: 'win32' }
-  return { repo, entry, yields, tracker: trackerOf(draft.tracker, mode), trusted, platform: 'win32' }
+  // Only a Claude project is asked about the folder's trust (BTN-310).
+  const claude = (draft.provider ?? state.config.shared.provider) === 'claude'
+  const trusted = claude ? mode !== 'untrusted' : null
+  if (entry !== null || repo.notice !== null) return { repo, entry, yields, tracker: null, trusted, ...host }
+  return { repo, entry, yields, tracker: trackerOf(draft.tracker, mode), trusted, ...host }
 }
 
 /** The labels of the Huly projects that read the draft's Huly project: its own value, or its key. */

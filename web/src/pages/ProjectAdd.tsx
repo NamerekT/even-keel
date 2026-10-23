@@ -6,9 +6,29 @@ import { say, t } from '../i18n/index.js'
 import { useLive } from '../live/context.js'
 import { useCommand } from '../live/useCommand.js'
 import { projectPath } from '../state.js'
-import { draftOfFields, EMPTY_FIELDS, idPrefix, keyOfTyped, keyTyped, missingOf, readyToAdd, shapeOf, suggestOfRepo, switchProfile, trustCommand, typedIn, type Missing, type TrackerShape, type WizardFields } from './projectWizard.js'
+import { Select } from '../ui/Select.js'
+import { AgentReady } from './AgentReady.js'
+import {
+  draftOfFields,
+  EMPTY_FIELDS,
+  idPrefix,
+  keyOfTyped,
+  keyTyped,
+  missingOf,
+  readyToAdd,
+  shapeOf,
+  suggestOfRepo,
+  switchProfile,
+  trustCommand,
+  trustCommandAs,
+  typedIn,
+  type Missing,
+  type TrackerShape,
+  type WizardFields,
+} from './projectWizard.js'
 import { FieldHead } from './settingsParts.js'
 import { ruleChoicesOf } from './settingsRows.js'
+import { providerOptions } from './settingsRun.js'
 import { ListTable } from './settingsTable.js'
 import { Status, TrackerStep } from './WizardTracker.js'
 import './accounts.css'
@@ -16,6 +36,10 @@ import './settings.css'
 import './projectAdd.css'
 
 const CHECK_DELAY_MS = 600
+const WIZARD = '/projects/add'
+
+/** The fields typed, kept while the page leaves for an account and comes back (BTN-310); a project added clears them. */
+let kept: WizardFields | null = null
 
 interface Checked {
   draft: ProjectDraft
@@ -31,7 +55,7 @@ export function ProjectAddPage({ state }: { state: EvenKeelState }) {
   const { checkProject } = useLive()
   const navigate = useNavigate()
   const { send, sending, failure } = useCommand()
-  const [fields, setFields] = useState<WizardFields>(() => firstFields(state))
+  const [fields, setFields] = useState<WizardFields>(() => kept ?? firstFields(state))
   const [checked, setChecked] = useState<Checked | null>(null)
   const [checkFailure, setCheckFailure] = useState<Notice | null>(null)
   const [checking, setChecking] = useState(false)
@@ -52,6 +76,12 @@ export function ProjectAddPage({ state }: { state: EvenKeelState }) {
       ? checked.result
       : null
   const set = (change: Partial<WizardFields>) => setFields((before) => ({ ...before, ...change }))
+  const shared = state.config.shared.provider
+  const agent = fields.provider || shared
+
+  useEffect(() => {
+    kept = fields
+  }, [fields])
 
   useEffect(() => {
     if (draft === undefined || draft.repo === '') return
@@ -120,7 +150,9 @@ export function ProjectAddPage({ state }: { state: EvenKeelState }) {
   const add = async () => {
     if (draft === undefined || !readyToAdd(check)) return
     const before = state.projects
-    if (await send('project/add', { ...draft })) setAdded({ key: draft.key.trim(), before })
+    if (!(await send('project/add', { ...draft }))) return
+    kept = null
+    setAdded({ key: draft.key.trim(), before })
   }
 
   const ready = readyToAdd(check)
@@ -146,6 +178,19 @@ export function ProjectAddPage({ state }: { state: EvenKeelState }) {
           void add()
         }}
       >
+        <Step title={t.wizard.stepAgent}>
+          <div className="settings__field">
+            <FieldHead label={t.wizard.agent} hint={t.wizard.agentHint} htmlFor="wizard-agent" />
+            <Select
+              id="wizard-agent"
+              className="settings__text settings__short"
+              value={agent}
+              options={providerOptions().map((option) => (option.value === shared ? { ...option, label: t.wizard.sharedAgent(option.label) } : option))}
+              onChange={(value) => set({ provider: value === shared ? '' : value })}
+            />
+          </div>
+          <AgentReady state={state} provider={agent} back={WIZARD} />
+        </Step>
         <Step title={t.wizard.stepRepo}>
           <div className="settings__field">
             <FieldHead label={t.wizard.path} hint={t.wizard.repoHint} htmlFor="wizard-repo" />
@@ -202,6 +247,8 @@ export function ProjectAddPage({ state }: { state: EvenKeelState }) {
             <div className="notice notice--warn project-add__trust">
               <p>{t.wizard.untrusted}</p>
               <TrustCommand command={trustCommand(repoCheck.repo.root, repoCheck.platform)} />
+              <p>{t.wizard.trustUser(repoCheck.user)}</p>
+              <TrustCommand command={trustCommandAs(repoCheck.repo.root, repoCheck.platform, repoCheck.user)} />
             </div>
           )}
           {repoCheck?.trusted === true && <Status ok>{t.wizard.trusted}</Status>}

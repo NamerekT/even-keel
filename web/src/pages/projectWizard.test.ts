@@ -12,6 +12,7 @@ import {
   suggestOfRepo,
   switchProfile,
   trustCommand,
+  trustCommandAs,
   typedIn,
   type WizardFields,
 } from './projectWizard.js'
@@ -25,6 +26,7 @@ const passed: ProjectCheck = {
   tracker: { ok: true, missing: [], open: 3, openToAll: false, notice: null },
   trusted: true,
   platform: 'win32',
+  user: 'svc',
 }
 
 describe('trustCommand', () => {
@@ -35,6 +37,16 @@ describe('trustCommand', () => {
   it('goes to the folder with cd elsewhere, escaping single quotes', () => {
     expect(trustCommand('/home/me/shop', 'linux')).toBe("cd '/home/me/shop' && claude")
     expect(trustCommand("/home/me/it's", 'darwin')).toBe("cd '/home/me/it'\\''s' && claude")
+  })
+})
+
+describe('trustCommandAs', () => {
+  it("opens claude as the service's user from another user's terminal, with runas on Windows (BTN-310)", () => {
+    expect(trustCommandAs('D:\\My Projects\\shop', 'win32', 'svc')).toBe('runas /user:svc "cmd /k cd /d D:\\My Projects\\shop && claude"')
+  })
+
+  it('with sudo elsewhere, which keeps the folder, and the home of the user', () => {
+    expect(trustCommandAs('/home/me/shop', 'linux', 'even-keel')).toBe("cd '/home/me/shop' && sudo -u 'even-keel' -H claude")
   })
 })
 
@@ -50,7 +62,13 @@ describe('draftOfFields', () => {
       profile: null,
       slot: 0,
       milestones: [],
+      provider: null,
     })
+  })
+
+  it('gives the agent picked, and none for the shared one (BTN-310)', () => {
+    expect(draftOfFields(fields({ provider: 'codex' }))?.provider).toBe('codex')
+    expect(draftOfFields(fields({ provider: '' }))?.provider).toBeNull()
   })
 
   it('gives the milestones one per line, blanks dropped (BTN-306)', () => {

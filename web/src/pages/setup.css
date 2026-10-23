@@ -1,0 +1,46 @@
+/* The first run's setup (BTN-310): one step at a time, its fields one under another. */
+.setup__body {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  max-width: 1100px;
+}
+
+.setup__body > .queue__hint,
+.setup__body > .settings__hint {
+  margin: 0;
+}
+
+.setup__cards {
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  max-width: 1100px;
+}
+
+.setup__subtitle {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.setup__profiles {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.setup__profiles li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.setup__profile-name {
+  font-weight: 600;
+}
+
+.setup__actions {
+  margin-top: 4px;
+}

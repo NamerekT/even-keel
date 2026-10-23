@@ -3,55 +3,49 @@ import type { EvenKeelState } from '../../../src/state.js'
 import type { TallyMode } from '../../../src/stats/mode.js'
 import { say, t } from '../i18n/index.js'
 import { useCommand } from '../live/useCommand.js'
-import { STATS_SETUP, TallyModes, TallyServerFields } from './TallyChoice.js'
+import { STATS_SERVER, stepPath } from './setupSteps.js'
+import { TallyModes, TallyServerFields } from './TallyChoice.js'
 
 /**
- * The question about stats before the first project: what Tally gives and costs, then where it writes. No stats and the
- * local database are set at once; the user's own Postgres takes a second step with its connection.
+ * The setup's last question, about stats: what Tally gives and costs, then where it writes. No stats and the local
+ * database are set at once; the user's own Postgres takes a second part with its connection. Either ends the first run.
  */
-export function StatsSetupPage({ state }: { state: EvenKeelState }) {
+export function StatsStep({ state, onDone }: { state: EvenKeelState; onDone: () => void }) {
   const [search] = useSearchParams()
   const navigate = useNavigate()
   const { send, sending, failure } = useCommand()
-  const server = search.get('step') === 'server'
-  const home = () => void navigate('/', { replace: true })
+  const server = search.get('db') === 'server'
 
   const pick = async (mode: TallyMode) => {
-    if (mode === 'server') return void navigate(`${STATS_SETUP}?step=server`)
-    if (await send('stats/tally', { mode })) home()
+    if (mode === 'server') return void navigate(STATS_SERVER)
+    if (await send('stats/tally', { mode })) onDone()
   }
 
+  if (server)
+    return (
+      <section key="server" className="add-window tally-step">
+        <h2 className="setup__subtitle">
+          {t.tally.stepConnection}: {t.tally.modes.server}
+        </h2>
+        <p className="queue__hint">{t.tally.modeHints.server}</p>
+        <TallyServerFields state={state} onDone={onDone} onCancel={() => void navigate(stepPath('stats'))} />
+      </section>
+    )
   return (
-    <div className="page accounts-page stats-setup">
-      <header className="accounts-page__head">
-        <h1 className="page__title">{t.tally.title}</h1>
-      </header>
-      <ol className="add-steps">
-        <li aria-current={!server ? 'step' : undefined}>{server ? `${t.tally.stepStats}: ${t.tally.modes.server}` : t.tally.stepStats}</li>
-        <li aria-current={server ? 'step' : undefined}>{t.tally.stepConnection}</li>
-      </ol>
-      {server ? (
-        <section key="server" className="add-window tally-step">
-          <p className="queue__hint">{t.tally.modeHints.server}</p>
-          <TallyServerFields state={state} onDone={home} onCancel={() => void navigate(STATS_SETUP)} />
-        </section>
-      ) : (
-        <div key="stats" className="tally-step stats-setup__intro">
-          <div className="stats-setup__about">
-            <img className="stats-setup__preview" src="/stats-preview.png" alt={t.tally.preview} width={1200} height={640} />
-            <div className="stats-setup__text">
-              <p className="stats-setup__lead">{t.tally.lead}</p>
-              <ul className="stats-setup__facts">
-                {t.tally.facts.map((fact) => (
-                  <li key={fact}>{fact}</li>
-                ))}
-              </ul>
-            </div>
-          </div>
-          <TallyModes chosen={null} current={state.tally} disabled={sending} onPick={(mode) => void pick(mode)} />
-          {failure !== null && <p className="notice notice--error">{say(failure)}</p>}
+    <div key="stats" className="tally-step stats-setup__intro">
+      <div className="stats-setup__about">
+        <img className="stats-setup__preview" src="/stats-preview.png" alt={t.tally.preview} width={1200} height={640} />
+        <div className="stats-setup__text">
+          <p className="stats-setup__lead">{t.tally.lead}</p>
+          <ul className="stats-setup__facts">
+            {t.tally.facts.map((fact) => (
+              <li key={fact}>{fact}</li>
+            ))}
+          </ul>
         </div>
-      )}
+      </div>
+      <TallyModes chosen={null} current={state.tally} disabled={sending} onPick={(mode) => void pick(mode)} />
+      {failure !== null && <p className="notice notice--error">{say(failure)}</p>}
     </div>
   )
 }

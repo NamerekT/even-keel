@@ -131,6 +131,7 @@ export function withNewProject(raw: unknown, draft: ProjectDraft, id: string, ad
   const value = trackerValue(adapters, draft.tracker, draft.trackerProject, entry.key as string)
   if (own !== undefined && value !== undefined) entry[own] = value
   if (draft.slot > 0) entry.slot = draft.slot
+  if (draft.provider !== null && draft.provider !== shared.provider) entry.provider = draft.provider
   const milestones = names(draft.milestones)
   if (milestones.length > 0) entry.chain = { requiredMilestones: milestones }
   const yielded = yieldedMilestones(config, draft, id, adapters)

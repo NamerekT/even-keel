@@ -1,6 +1,7 @@
 import { createReadStream, existsSync, mkdirSync } from 'node:fs'
 import { readFile, stat } from 'node:fs/promises'
 import { createServer } from 'node:http'
+import { userInfo } from 'node:os'
 import { join } from 'node:path'
 import { Readable } from 'node:stream'
 import { checkCredit, checkOpenAiCredit, type CreditVerdict } from './account/credit.js'
@@ -133,6 +134,7 @@ import { Vocabularies } from './tracker/vocabulary.js'
 import { updatesView } from './updates/release.js'
 import { stateUrlOf, Updater } from './updates/updater.js'
 import { installed, UpdateWatcher } from './updates/watcher.js'
+import { firstRun } from './setup.js'
 
 const SESSION_POLL_MS = 3_000
 /** How often the CLI and the account's settings are looked at for a context window that may have changed. */
@@ -533,7 +535,7 @@ const release = installed(root)
 const updates = new UpdateWatcher({
   repo: release.repo,
   current: release.version,
-  enabled: () => configStore.current.updates.check,
+  enabled: () => configStore.current.updates.check && !firstRun(tallyMode(), Object.keys(configStore.current.projects).length),
   intervalMs: UPDATE_POLL_MS,
   onChange: () => hub.broadcast('state', getState()),
   log: (line) => console.log(line),
@@ -1507,6 +1509,7 @@ let server = createEvenKeelServer({
           env: profiles.valuesFor(draft.profile, draft.tracker),
           claudeConfig: () => readJson(homes.configFile(homes.global)),
           timeoutMs: TRACKER_CHECK_MS,
+          user: userInfo().username,
         },
         draft,
       ),
