@@ -1,3 +1,4 @@
+import type { SessionReach } from '../packages/model.js'
 import type { SettingKind, SettingRow, ToolScope } from './model.js'
 
 type Json = Record<string, unknown>
@@ -24,6 +25,7 @@ const SYNC_KEYS = ['syncClaudeAiSkills', 'syncClaudeAiPlugins']
 const KIND_ORDER: SettingKind[] = ['sync', 'mode', 'plugin', 'skill', 'permission']
 const SESSION_SCOPES: ToolScope[] = ['chain', 'project', 'user']
 const BEHAVIORS = ['allow', 'deny', 'ask']
+const MCP_RULE = /^mcp__(.+?)(?:__|$)/
 
 /**
  * Settings a chain session gets with `--settings`: claude.ai skills and plugins off, the hidden skills only for `/name`.
@@ -71,6 +73,20 @@ export function settingRows(sources: SettingSources): SettingRow[] {
 
   for (const row of rows.values()) row.session = SESSION_SCOPES.map((scope) => row.values[scope]).find((value) => value !== undefined) ?? null
   return [...rows.values()].sort((a, b) => KIND_ORDER.indexOf(a.kind) - KIND_ORDER.indexOf(b.kind) || a.name.localeCompare(b.name))
+}
+
+/**
+ * A plugin or MCP permission only `settings.local.json` sets, for a package the project's sessions do not get: they
+ * have plugins and MCP only as packages, so it is not theirs to miss. A plugin's server `plugin_<plugin>_<server>` goes
+ * by its plugin.
+ */
+export function forPackageOff(row: SettingRow, reach: SessionReach): boolean {
+  if (row.session !== null) return false
+  if (row.kind === 'plugin') return !reach.plugins.includes(row.name)
+  const server = row.kind === 'permission' ? MCP_RULE.exec(row.name)?.[1] : undefined
+  if (server === undefined) return false
+  const plugins = reach.plugins.map((key) => `plugin_${key.split('@')[0]}_`)
+  return !reach.servers.includes(server) && !plugins.some((prefix) => server.startsWith(prefix))
 }
 
 /** Key names only: values may hold secrets (`env`). */

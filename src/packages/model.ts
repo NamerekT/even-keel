@@ -51,6 +51,12 @@ export interface PackagesFile {
   pins: Record<string, Record<string, Record<string, string>>>
 }
 
+/** What the project's sessions get from its packages: the plugins as `enabledPlugins` names them, the servers as tools do. */
+export interface SessionReach {
+  plugins: string[]
+  servers: string[]
+}
+
 export function emptyPackages(): PackagesFile {
   return { packages: {}, projects: {}, pins: {} }
 }

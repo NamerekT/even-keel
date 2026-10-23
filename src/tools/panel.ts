@@ -3,12 +3,13 @@ import { join } from 'node:path'
 import { createInterface } from 'node:readline'
 import { sharedMemory } from '../account/share.js'
 import { CLAUDE } from '../claude/name.js'
+import type { SessionReach } from '../packages/model.js'
 import { samePath } from '../paths.js'
 import type { CacheTtl } from '../state.js'
 import { projectDirName } from '../sessions/paths.js'
 import type { ReceivedTools, ToolsView } from './model.js'
 import { latestStarted, readReceived, skillSource } from './received.js'
-import { accountDrift, settingRows, trimSettings } from './settings.js'
+import { accountDrift, forPackageOff, settingRows, trimSettings } from './settings.js'
 
 type Json = Record<string, unknown>
 
@@ -23,14 +24,19 @@ export interface ToolsPlaces {
   globalDir: string
   /** `.claude.json` files whose MCP servers and project entries sessions read. */
   configs: string[]
-  /** Account folders other than the global one; only Claude's are compared with the global `settings.json`. */
-  accounts: { key: string; dir: string; agent: string }[]
+  /**
+   * Account folders other than the global one; only Claude's a project runs on (`used`) are compared with the global
+   * `settings.json`: the copy goes on top of an account's folder before its launch, so an idle one is merely stale.
+   */
+  accounts: { key: string; dir: string; agent: string; used: boolean }[]
   /** Every config folder: transcripts are looked for in all of them. */
   homes: string[]
   trim: boolean
   hidden: string[]
   /** `--permission-mode` of chain sessions. */
   mode: string
+  /** What the project's packages bring: a local-only setting of any other plugin or server is left out. */
+  reach: SessionReach
 }
 
 /**
@@ -68,7 +74,7 @@ export async function readToolsView(project: string, places: ToolsPlaces): Promi
   })
 
   const accounts = places.accounts
-    .filter(({ agent }) => agent === CLAUDE)
+    .filter(({ agent, used }) => agent === CLAUDE && used)
     .map(({ key, dir }) => ({ account: key, keys: accountDrift(user ?? {}, readJson(join(dir, 'settings.json')) ?? {}) }))
     .filter((drift) => drift.keys.length > 0)
 
@@ -79,7 +85,9 @@ export async function readToolsView(project: string, places: ToolsPlaces): Promi
     project,
     repo,
     trim: places.trim,
-    settings: settingRows({ user, project: shared, local, chain, chainMode: places.mode, localAllowed: [...new Set(localAllowed)] }),
+    settings: settingRows({ user, project: shared, local, chain, chainMode: places.mode, localAllowed: [...new Set(localAllowed)] }).filter(
+      (row) => !forPackageOff(row, places.reach),
+    ),
     accounts,
     received: received === undefined ? null : { ...received, skills: received.skills.map((name) => ({ name, source: skillSource(name, known) })) },
   }

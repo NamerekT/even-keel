@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { accountDrift, settingRows, trimSettings } from './settings.js'
+import type { SettingKind, SettingRow } from './model.js'
+import { accountDrift, forPackageOff, settingRows, trimSettings } from './settings.js'
 
 describe('trimSettings', () => {
   it('turns claude.ai sync off and hides the listed skills', () => {
@@ -56,6 +57,31 @@ describe('settingRows', () => {
       { kind: 'permission', name: 'mcp__huly__add_issue_label', values: { local: 'allow' }, session: null },
       { kind: 'permission', name: 'WebFetch', values: { local: 'allow' }, session: null },
     ])
+  })
+})
+
+describe('forPackageOff', () => {
+  const reach = { plugins: ['huly@even-keel'], servers: ['plugin_huly_huly', 'github'] }
+  const local = (kind: SettingKind, name: string): SettingRow => ({ kind, name, values: { local: 'allow' }, session: null })
+
+  it('takes a local-only plugin or MCP permission of a package the sessions do not get', () => {
+    expect(forPackageOff(local('plugin', 'design@knowledge-work-plugins'), reach)).toBe(true)
+    expect(forPackageOff(local('permission', 'mcp__strata__strata_brief'), reach)).toBe(true)
+    expect(forPackageOff(local('permission', 'mcp__strata'), reach)).toBe(true)
+    expect(forPackageOff(local('permission', 'mcp__plugin_design_figma__export'), reach)).toBe(true)
+  })
+
+  it('keeps one of a package the sessions get: by the plugin, by the server', () => {
+    expect(forPackageOff(local('plugin', 'huly@even-keel'), reach)).toBe(false)
+    expect(forPackageOff(local('permission', 'mcp__github__get_issue'), reach)).toBe(false)
+    expect(forPackageOff(local('permission', 'mcp__plugin_huly_huly__get_issue'), reach)).toBe(false)
+    expect(forPackageOff(local('permission', 'mcp__plugin_huly_other__list'), reach)).toBe(false)
+  })
+
+  it('keeps what no package brings and what reaches the session', () => {
+    expect(forPackageOff(local('permission', 'WebFetch'), reach)).toBe(false)
+    expect(forPackageOff(local('skill', 'dataviz'), reach)).toBe(false)
+    expect(forPackageOff({ kind: 'plugin', name: 'design@knowledge-work-plugins', values: { user: 'on' }, session: 'on' }, reach)).toBe(false)
   })
 })
 

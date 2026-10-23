@@ -1669,15 +1669,17 @@ let server = createEvenKeelServer({
     const repo = configStore.current.projects[project]
     if (repo === undefined) return undefined
     const list = homes.list()
+    const used = projectsByAccount(configStore.current, Object.keys(configStore.current.projects))
     const view = await readToolsView(project, {
       repo,
       globalDir: homes.global.dir,
       configs: claudeConfigs(),
-      accounts: list.filter((home) => !home.global).map(({ key, dir, agent }) => ({ key, dir, agent })),
+      accounts: list.filter((home) => !home.global).map(({ key, dir, agent }) => ({ key, dir, agent, used: used[key] !== undefined })),
       homes: list.map((home) => home.dir),
       trim: dispatcher.state.trimTools,
       hidden: configStore.current.hiddenSkills,
       mode: agentOf(homes.find(claudeAccount()) ?? homes.global).mode,
+      reach: packages.reach(project),
     })
     const received = view.received
     return received === null ? view : { ...view, received: { ...received, account: sessionAccount(received.sessionId, received.at) } }
