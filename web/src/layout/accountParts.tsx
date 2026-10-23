@@ -63,9 +63,10 @@ const COPIED_MS = 2000
 /**
  * Whose account it is and how it signs in, as two icons before the name: the agent's in the account's colour, so two
  * folders of one e-mail (Claude and Codex) or of look-alike names still read apart. Pointed at, it names both and
- * gives the account's quiet details: the sign-in left, the folder, a configuration still on its way.
+ * gives the account's quiet details: the sign-in left, the folder, a configuration still on its way. `dot` — the drawer's
+ * way: the colour as a dot before a plain agent icon, the connection only in the tip.
  */
-export function AccountMark({ entry, now }: { entry: AccountEntry; now: Date }) {
+export function AccountMark({ entry, now, dot = false }: { entry: AccountEntry; now: Date; dot?: boolean }) {
   const connection = connectionOf(entry)
   const Connected = CONNECTION_ICONS[connection]
   const left = loginLeft(entry.loginExpiresAt, now)
@@ -80,11 +81,12 @@ export function AccountMark({ entry, now }: { entry: AccountEntry; now: Date }) 
     </>
   )
   return (
-    <Tipped className="account-mark" tip={tip} align="start" focusable>
+    <Tipped className={dot ? 'account-mark account-mark--dot' : 'account-mark'} tip={tip} align="start" focusable>
+      {dot && <span className="accounts__dot" />}
       <span className="account-mark__agent">
         <AgentIcon agent={entry.agent} />
       </span>
-      <Connected />
+      {!dot && <Connected />}
     </Tipped>
   )
 }
@@ -101,10 +103,10 @@ export function staleText(entry: AccountEntry): string | null {
   return `${t.account.noLimits}${staleNote(entry.usage.reason)}`
 }
 
-/** The name with the e-mail's domain dimmed, so that a column of accounts reads by the part that differs. */
-export function AccountName({ entry }: { entry: AccountEntry }) {
+/** The name with the e-mail's domain dimmed, so that a column of accounts reads by the part that differs; `whole` — in one weight. */
+export function AccountName({ entry, whole = false }: { entry: AccountEntry; whole?: boolean }) {
   const name = accountName(entry)
-  const at = entry.name === null ? name.lastIndexOf('@') : -1
+  const at = entry.name === null && !whole ? name.lastIndexOf('@') : -1
   return (
     <span className="accounts__email" title={name}>
       {at > 0 ? name.slice(0, at) : name}
@@ -124,18 +126,21 @@ interface NotesProps {
    * on its way to the mark's tip, a failed check is one short line with the error on pointing.
    */
   bare?: boolean
+  /** The drawer's way: as `bare`, but the actions stay next to their lines. */
+  quiet?: boolean
 }
 
 /** The exceptions of an account, each with its action: sign-in needed or ending, removal pending, configuration pending, a failed check. */
-export function AccountNotes({ entry, view, now, sending, send, bare = false }: NotesProps) {
+export function AccountNotes({ entry, view, now, sending, send, bare = false, quiet = false }: NotesProps) {
   const left = loginLeft(entry.loginExpiresAt, now)
   const actions = (button: ReactNode) => (bare ? null : button)
+  const brief = bare || quiet
   const stale = staleText(entry)
   const held = launchBlock(view, entry.key)
 
   return (
     <>
-      {!bare && stale !== null && <p className="accounts__note">{stale}</p>}
+      {!brief && stale !== null && <p className="accounts__note">{stale}</p>}
       {held?.code === 'account.extraFree' && <p className="accounts__note accounts__note--warn">{say(held)}</p>}
       {entry.apiKey && entry.needsLogin && <p className="accounts__note accounts__note--warn">{t.account.apiKeyLost}</p>}
       {!entry.apiKey && (left.renew || entry.needsLogin) && (
@@ -153,9 +158,9 @@ export function AccountNotes({ entry, view, now, sending, send, bare = false }: 
           {actions(<KeepButton entry={entry} sending={sending} send={send} />)}
         </div>
       )}
-      {!bare && entry.configPending && <p className="accounts__note">{t.account.configPending}</p>}
+      {!brief && entry.configPending && <p className="accounts__note">{t.account.configPending}</p>}
       {entry.error !== null &&
-        (bare ? (
+        (brief ? (
           <Tipped className="accounts__note accounts__note--tipped" tip={say(entry.error)} align="start" focusable>
             {t.account.checkFailedShort}
           </Tipped>
@@ -167,7 +172,7 @@ export function AccountNotes({ entry, view, now, sending, send, bare = false }: 
 }
 
 /** The buttons `AccountNotes` leaves out when `bare`: renew the sign-in, keep a folder being removed. */
-export function NoteActions({ entry, view, now, sending, send }: Omit<NotesProps, 'bare'>) {
+export function NoteActions({ entry, view, now, sending, send }: Omit<NotesProps, 'bare' | 'quiet'>) {
   const left = loginLeft(entry.loginExpiresAt, now)
   return (
     <>
