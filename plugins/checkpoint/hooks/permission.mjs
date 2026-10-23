@@ -7,6 +7,8 @@ import { setTimeout as delay } from "node:timers/promises";
 import { decisionOf } from "./evenkeel.mjs";
 
 const POLL_MS = 1000;
+/** Its dialog is the question itself: the page shows and answers it as one, not as a call to approve. */
+const ASK_TOOL = "AskUserQuestion";
 /** A minute under the hook's timeout in hooks.json, so that the hook ends on its own. */
 const DEADLINE_MS = 29 * 60_000;
 
@@ -24,7 +26,7 @@ function readInput() {
  */
 async function main() {
   const input = readInput();
-  if (!input?.session_id || input.turn_id || input.hook_event_name !== "PermissionRequest" || !input.tool_name) return;
+  if (!input?.session_id || input.turn_id || input.hook_event_name !== "PermissionRequest" || !input.tool_name || input.tool_name === ASK_TOOL) return;
   const since = Date.now();
   let heard = false;
   while (Date.now() < since + DEADLINE_MS) {
