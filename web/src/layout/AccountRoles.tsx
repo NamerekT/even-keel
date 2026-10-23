@@ -28,13 +28,15 @@ interface RolesProps {
   view: AccountView
   sending: boolean
   send: Send
+  /** The drawer's way: the chips without a frame, nothing for an account without roles, and the list behind a "Here" button. */
+  compact?: boolean
 }
 
 /**
  * Where an account works, as one button: the apps on it as chips. Its list offers the apps that are elsewhere, and
  * picking one moves it here, off the account it was on; an app that cannot move says why in its line.
  */
-export function AccountRoles({ entry, view, sending, send }: RolesProps) {
+export function AccountRoles({ entry, view, sending, send, compact = false }: RolesProps) {
   const [open, setOpen] = useState(false)
   const root = useRef<HTMLDivElement>(null)
   const button = useRef<HTMLButtonElement>(null)
@@ -68,16 +70,21 @@ export function AccountRoles({ entry, view, sending, send }: RolesProps) {
   if (roles.length === 0) return null
   const chips =
     held.length === 0 ? (
-      <span className="roles__none">{t.account.rolesNone}</span>
+      compact ? null : (
+        <span className="roles__none">{t.account.rolesNone}</span>
+      )
     ) : (
       held.map((role) => (
-        <Tipped key={role.label} className="roles__chip" tip={t.account.holds(role.label)} align="start" inline off={open} focusable={offers.length === 0}>
+        <Tipped key={role.label} className="roles__chip" tip={t.account.holds(role.label)} align="start" inline off={open} focusable={compact || offers.length === 0}>
           <role.icon />
         </Tipped>
       ))
     )
   const heldText = held.length === 0 ? t.account.rolesNone : held.map((role) => role.label).join(', ')
-  if (offers.length === 0) return <div className="roles roles--fixed">{chips}</div>
+  if (offers.length === 0) {
+    if (compact) return held.length === 0 ? null : <div className="roles roles--bare">{chips}</div>
+    return <div className="roles roles--fixed">{chips}</div>
+  }
 
   const onKeyDown = (event: KeyboardEvent<HTMLUListElement>) => {
     if (event.key === 'Escape') {
@@ -98,18 +105,19 @@ export function AccountRoles({ entry, view, sending, send }: RolesProps) {
   }
 
   return (
-    <div className="roles" ref={root}>
+    <div className={compact ? 'roles roles--bare' : 'roles'} ref={root}>
+      {compact && chips}
       <button
         ref={button}
         type="button"
-        className="roles__field"
+        className={compact ? 'roles__move' : 'roles__field'}
         aria-haspopup="menu"
         aria-expanded={open}
-        aria-label={`${t.account.roles}. ${heldText}`}
+        aria-label={compact ? t.account.moveHereFull : `${t.account.roles}. ${heldText}`}
         disabled={sending}
         onClick={() => setOpen(!open)}
       >
-        {chips}
+        {compact ? t.account.moveHere : chips}
         <ChevronIcon />
       </button>
       <ul ref={menu} popover="manual" role="menu" className="roles__menu" onKeyDown={onKeyDown}>
