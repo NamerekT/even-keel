@@ -192,6 +192,37 @@
   cursor: help;
 }
 
+.packages__select {
+  position: relative;
+  display: inline-flex;
+  max-width: 100%;
+}
+
+.packages__select .tipped.packages__probing {
+  position: absolute;
+  top: -5px;
+  left: -5px;
+  display: flex;
+  padding: 1px;
+  border-radius: 50%;
+  background: var(--surface);
+}
+
+.packages__spinner {
+  width: 9px;
+  height: 9px;
+  border: 2px solid var(--lamp-working);
+  border-right-color: transparent;
+  border-radius: 50%;
+  animation: spin var(--motion-spin) linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .packages__spinner {
+    animation-duration: 3s;
+  }
+}
+
 .packages__details > td {
   padding: 0 10px 10px 22px;
 }

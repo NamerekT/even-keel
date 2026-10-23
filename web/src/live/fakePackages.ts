@@ -15,6 +15,8 @@ interface Catalog {
   gateway: boolean
   /** Claude Code knows Even Keel's marketplace. */
   marketplace: boolean
+  /** The servers have not answered since the service started. */
+  probing: boolean
 }
 
 const base = { installed: true, latest: null, fetched: null, installing: false, error: null, note: null, removed: false }
@@ -24,7 +26,7 @@ const fetched = new Date(Date.now() - 3 * 3_600_000).toISOString()
  * `?packages=`: `blocked` — a key is missing and XYZ waits, `gateway` — the gateway cannot listen, `empty` — no
  * packages, `marketplace` — Claude Code does not know Even Keel's marketplace, `tracker` — DEMO turns the Huly plugin
  * off and lacks the tracker's server, `noTracker` — the catalog has no Huly plugin, so every project gets the task in its
- * prompt and the add dialog offers it; without it everything is ready. OPS runs on Codex, so the Huly plugin is MCP only there.
+ * prompt and the add dialog offers it, `probing` — no server has answered since the service started; without it everything is ready. OPS runs on Codex, so the Huly plugin is MCP only there.
  */
 export function fakePackages(projects: string[], mode: string | null): PackagesView {
   const catalog: Catalog = {
@@ -39,6 +41,7 @@ export function fakePackages(projects: string[], mode: string | null): PackagesV
     imports: { DEMO: ['sentry', 'db'] },
     gateway: mode !== 'gateway',
     marketplace: mode !== 'marketplace',
+    probing: mode === 'probing',
   }
   if (mode === 'empty') catalog.packages = []
   if (mode === 'noTracker') catalog.packages = catalog.packages.filter((each) => each.name !== 'huly@even-keel')
@@ -81,6 +84,7 @@ function projectOf(catalog: Catalog, project: string): PackagesView['projects'][
     else if (!each.installed) problems.push({ kind: 'notInstalled' })
     const missing = each.keys.filter((key) => !catalog.keys[key])
     if (missing.length > 0) problems.push({ kind: 'noKey', variables: missing })
+    else if (catalog.probing && each.installed) problems.push({ kind: 'probing' })
     if (each.extras && project === 'OPS') problems.push({ kind: 'unsupported', agent: 'Codex' })
     cells[each.name] = { choice, enabled, settings: { ...each.settings, ...catalog.own[project]?.[each.name] }, problems }
   }
