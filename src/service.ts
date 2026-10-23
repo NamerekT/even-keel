@@ -78,6 +78,7 @@ import { finishSlot, heldSlot, prepareSlot, slotPaths, type SlotUse } from './gi
 import { fastForwardMain, syncMain } from './git/sync.js'
 import { ensureIgnored, finishWorktree, prepareWorktree, requireBranch, requireCheckedOut, taskPlace } from './git/worktree.js'
 import { exhaustedReset, limitResetAfter } from './limits/model.js'
+import { LimitRetries, noKnownLimit } from './limits/retry.js'
 import { LimitsWatcher } from './limits/watcher.js'
 import { englishOf, fail, notice, NoticeError, noticeOf, withLabels, type Notice } from './notice/notice.js'
 import { guardHosts, guardToken } from './guard.js'
@@ -538,6 +539,13 @@ const spendsByKey = (key: string): boolean => {
   const home = homes.find(key)
   return account.apiKey(key) && (home === undefined || agentOf(home).keyUsage !== true)
 }
+const limitRetries = new LimitRetries()
+/** When the chain tries an account again after a limit it hit at `at`: a key's credit back, a window's reset, a growing retry. */
+const retryAfterLimit = (key: string, at: string): string | null => {
+  if (spendsByKey(key)) return account.creditBackAfter(key, at)
+  if (noKnownLimit(limits.limits(key), limits.usage(key))) return limitRetries.retryAfter(key, at)
+  return limitResetAfter(limits.limits(key), at)
+}
 
 const limits = new LimitsWatcher({
   file: limitsFile,
@@ -724,6 +732,7 @@ const account = new AccountWatcher({
   configPending: (key) => daemons.pending(key),
   limits: (key) => limits.limits(key),
   usage: (key) => limits.usage(key),
+  lastLimit: (key) => limitRetries.lastAt(key),
   checkKey: (agent, key) => KEY_CHECKS[keyProvider(agent, key)](key, KEY_CHECK_TIMEOUT_MS),
   keyCheckMs: KEY_CHECK_MS,
   checkCredit: (agent, key) => CREDIT_CHECKS[keyProvider(agent, key)](key, KEY_CHECK_TIMEOUT_MS),
@@ -1092,7 +1101,7 @@ const dispatcher = new Dispatcher(await loadChainState(db), {
   account: (project, task) => accountNow(choiceFor(project, task).account),
   accountAt: (key, at) => accountId(key, accountAt(ledger, key, at)),
   limitReset: (project, task) => exhaustedReset(limits.limits(choiceFor(project, task).account)),
-  limitResetAfter: (key, at) => (spendsByKey(key) ? account.creditBackAfter(key, at) : limitResetAfter(limits.limits(key), at)),
+  limitResetAfter: retryAfterLimit,
   packagesBlocked: (project) => packages.blocked(project),
   accountsRead: () => account.ready,
   promptLanguage: (task) => promptLanguage(projectOf(task)),

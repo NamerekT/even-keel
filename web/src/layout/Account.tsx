@@ -7,7 +7,7 @@ import { useCommand } from '../live/useCommand.js'
 import { canWork } from '../state.js'
 import { seriesStyle } from '../ui/series.js'
 import { Tipped } from '../ui/Tipped.js'
-import { AccountMark, AccountName, AccountNotes, limitsNote, sharedLimitText, spendsByKey, spendText, staleText, type Send, type Spend } from './accountParts.js'
+import { AccountMark, AccountName, AccountNotes, limitsNote, sharedLimitText, spendsByKey, spendText, staleText, UnknownLimit, type Send, type Spend, type Tokens } from './accountParts.js'
 import { AccountRoles } from './AccountRoles.js'
 import { FULL_PERCENT, Limits, spanNames, WARM_PERCENT } from './Limits.js'
 import { useNow } from './useNow.js'
@@ -16,13 +16,13 @@ import { useNow } from './useNow.js'
  * The accounts drawer: first the accounts at work in full — limits, roles, exceptions — then the rest a line each with
  * what is left of its tightest window and "Here" to move a role onto it; adding, the details and a sign-in's steps are elsewhere.
  */
-export function AccountPanel({ account, spend, onClose }: { account: AccountView; spend: Spend; onClose: () => void }) {
+export function AccountPanel({ account, spend, tokens, onClose }: { account: AccountView; spend: Spend; tokens: Tokens; onClose: () => void }) {
   const { send, sending, failure } = useCommand()
   const now = useNow(60_000)
   const { login } = account
   const { working, rest } = panelSections(account, now)
   const item = (entry: AccountEntry, full: boolean) => (
-    <AccountItem key={entry.key} entry={entry} view={account} now={now} spend={spend} sending={sending} send={send} full={full} />
+    <AccountItem key={entry.key} entry={entry} view={account} now={now} spend={spend} tokens={tokens} sending={sending} send={send} full={full} />
   )
 
   return (
@@ -78,13 +78,14 @@ interface ItemProps {
   view: AccountView
   now: Date
   spend: Spend
+  tokens: Tokens
   sending: boolean
   send: Send
   /** An account at work: its limits on a line of their own; the rest give one number in the head. */
   full: boolean
 }
 
-function AccountItem({ entry, view, now, spend, sending, send, full }: ItemProps) {
+function AccountItem({ entry, view, now, spend, tokens, sending, send, full }: ItemProps) {
   return (
     <li className={`accounts__item${canWork(entry, now) ? '' : ' accounts__item--off'}`} style={seriesStyle(entrySlot(view, entry))}>
       <div className="accounts__head">
@@ -93,7 +94,7 @@ function AccountItem({ entry, view, now, spend, sending, send, full }: ItemProps
         {!full && <Free entry={entry} now={now} spend={spend} />}
         <AccountRoles entry={entry} view={view} sending={sending} send={send} compact />
       </div>
-      {full && <Usage entry={entry} now={now} spend={spend} />}
+      {full && <Usage entry={entry} now={now} spend={spend} tokens={tokens} />}
       {full && sharedLimitText(entry, view.accounts) !== null && <p className="accounts__note">{sharedLimitText(entry, view.accounts)}</p>}
       <AccountNotes entry={entry} view={view} now={now} sending={sending} send={send} quiet />
     </li>
@@ -105,8 +106,8 @@ function noLimitsWhy(entry: AccountEntry): string {
   return limitsNote(entry) ?? staleText(entry) ?? t.account.noLimits
 }
 
-/** An account at work: its windows, its spend from a key, or one grey line with why there is nothing. */
-function Usage({ entry, now, spend }: Pick<ItemProps, 'entry' | 'now' | 'spend'>) {
+/** An account at work: its windows, its spend from a key, what is known of a limit nothing tells, or one grey line with why there is nothing. */
+function Usage({ entry, now, spend, tokens }: Pick<ItemProps, 'entry' | 'now' | 'spend' | 'tokens'>) {
   if (spendsByKey(entry)) {
     return (
       <p className="accounts__note" title={t.account.todayTitle}>
@@ -114,7 +115,8 @@ function Usage({ entry, now, spend }: Pick<ItemProps, 'entry' | 'now' | 'spend'>
       </p>
     )
   }
-  if (limitsNote(entry) !== null || tightestWindow(entry.limits) === null) {
+  if (limitsNote(entry) !== null) return <UnknownLimit entry={entry} tokens={tokens} now={now} className="accounts__note" why="tip" />
+  if (tightestWindow(entry.limits) === null) {
     return (
       <Tipped className="accounts__note accounts__none" tip={noLimitsWhy(entry)} align="start" focusable>
         {t.limits.noData}

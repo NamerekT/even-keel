@@ -165,6 +165,7 @@ describe('Even Keel HTTP server', () => {
         calibration: async (project, task) => ({ state: 'off', reason: `calibration ${project} ${task ?? 'none'}` }),
         checkpoints: async () => ({ state: 'off', reason: 'checkpoints' }),
         spend: async (tz) => ({ state: 'off', reason: `spend ${tz}` }),
+        tokens: async (tz) => ({ state: 'off', reason: `tokens ${tz}` }),
         rules: async (query) => ({ state: 'off', reason: `rules ${query.projects?.join('+')} ${query.kinds?.join('+')}` }),
         ruleDiff: async (ids) => ({ state: 'off', reason: `diff ${ids.length}` }),
         compare: async (query) => ({ state: 'off', reason: `compare ${query.before} ${query.after} ${query.days}` }),
@@ -794,6 +795,12 @@ describe('Even Keel HTTP server', () => {
     const spend = await fetch(base + '/api/stats/spend?tz=Europe/Berlin')
     expect(await spend.json()).toEqual({ state: 'off', reason: 'spend Europe/Berlin' })
     expect((await fetch(base + '/api/stats/spend?tz=x%27;drop')).status).toBe(400)
+  })
+
+  it('serves the tokens per account of today and of 30 days in the page\'s time zone', async () => {
+    const tokens = await fetch(base + '/api/stats/tokens?tz=Europe/Berlin')
+    expect(await tokens.json()).toEqual({ state: 'off', reason: 'tokens Europe/Berlin' })
+    expect((await fetch(base + '/api/stats/tokens?tz=x%27;drop')).status).toBe(400)
   })
 
   it('serves the estimate calibration of any project key, for a task or for a new one', async () => {

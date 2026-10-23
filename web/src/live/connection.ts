@@ -1,7 +1,7 @@
 import type { Notice } from '../../../src/notice/notice.js'
 import type { Feed } from '../../../src/sessions/transcript.js'
 import type { EvenKeelState, ProjectCheck, ProjectDraft, SessionRecord } from '../../../src/state.js'
-import type { PeriodQuery, StatsAnswer, StatsFilter, StatsHistory, StatsPeriod, StatsTaskDetail } from '../../../src/stats/model.js'
+import type { AccountTokens, PeriodQuery, StatsAnswer, StatsFilter, StatsHistory, StatsPeriod, StatsTaskDetail } from '../../../src/stats/model.js'
 import type { CompareQuery, RuleDiffFile, RulesQuery, StatsCompare, StatsRules } from '../../../src/stats/rules.js'
 import type { CheckpointThreshold } from '../../../src/stats/checkpoint.js'
 import type { StatsSteps } from '../../../src/stats/steps.js'
@@ -55,6 +55,7 @@ export interface LiveSource {
   statsSteps(query: PeriodQuery): Promise<StatsAnswer<StatsSteps>>
   statsCheckpoints(): Promise<StatsAnswer<CheckpointThreshold[]>>
   statsSpend(tz: string): Promise<StatsAnswer<Record<string, number>>>
+  statsTokens(tz: string): Promise<StatsAnswer<Record<string, AccountTokens>>>
   statsTask(task: string): Promise<StatsAnswer<StatsTaskDetail>>
   statsRules(query: RulesQuery): Promise<StatsAnswer<StatsRules>>
   statsRuleDiff(changes: string[]): Promise<StatsAnswer<RuleDiffFile[]>>
@@ -197,6 +198,10 @@ export class LiveConnection implements LiveSource {
 
   statsSpend(tz: string): Promise<StatsAnswer<Record<string, number>>> {
     return this.deps.fetchStats('spend', new URLSearchParams({ tz }))
+  }
+
+  statsTokens(tz: string): Promise<StatsAnswer<Record<string, AccountTokens>>> {
+    return this.deps.fetchStats('tokens', new URLSearchParams({ tz }))
   }
 
   statsTask(task: string): Promise<StatsAnswer<StatsTaskDetail>> {

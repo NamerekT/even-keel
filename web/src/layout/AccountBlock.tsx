@@ -8,7 +8,7 @@ import { t } from '../i18n/index.js'
 import { useLive } from '../live/context.js'
 import { accountBadge, entryBadge, headerAccounts, loginLeft, projectLabel } from '../state.js'
 import { AccountPanel } from './Account.js'
-import { limitsNote, sharedLimitText, spendsByKey, spendText, useSpend, type Spend } from './accountParts.js'
+import { limitsNote, sharedLimitText, spendsByKey, spendText, UnknownLimit, useSpend, useTokens, type Spend, type Tokens } from './accountParts.js'
 import { seriesStyle } from '../ui/series.js'
 import { FULL_PERCENT, spanNames, WARM_PERCENT, windowValue } from './Limits.js'
 import { usePopover } from './usePopover.js'
@@ -31,6 +31,7 @@ export function AccountBlock({ account, limits, now }: BlockProps) {
   const { open, setOpen, rootRef } = usePopover()
   const badge = accountBadge(account)
   const spend = useSpend(account)
+  const tokens = useTokens(account)
   const active = account.accounts.find((entry) => entry.key === account.active)
 
   return (
@@ -53,8 +54,8 @@ export function AccountBlock({ account, limits, now }: BlockProps) {
         </span>
         <OtherRings account={account} />
       </button>
-      {!open && <AccountCard account={account} limits={limits} now={now} spend={spend} />}
-      {open && <AccountPanel account={account} spend={spend} onClose={() => setOpen(false)} />}
+      {!open && <AccountCard account={account} limits={limits} now={now} spend={spend} tokens={tokens} />}
+      {open && <AccountPanel account={account} spend={spend} tokens={tokens} onClose={() => setOpen(false)} />}
     </div>
   )
 }
@@ -165,6 +166,7 @@ export function AccountSheet({ account, limits, now }: BlockProps) {
   const { open, setOpen, rootRef } = usePopover()
   const badge = accountBadge(account)
   const spend = useSpend(account)
+  const tokens = useTokens(account)
   const active = account.accounts.find((entry) => entry.key === account.active)
 
   return (
@@ -176,19 +178,20 @@ export function AccountSheet({ account, limits, now }: BlockProps) {
             ›
           </span>
         </button>
-        <CardBody entry={active} limits={limits} now={now} spend={spend} />
+        <CardBody entry={active} limits={limits} now={now} spend={spend} tokens={tokens} />
       </div>
-      <OtherParts account={account} now={now} spend={spend} />
-      {open && <AccountPanel account={account} spend={spend} onClose={() => setOpen(false)} />}
+      <OtherParts account={account} now={now} spend={spend} tokens={tokens} />
+      {open && <AccountPanel account={account} spend={spend} tokens={tokens} onClose={() => setOpen(false)} />}
     </div>
   )
 }
 
 interface CardProps extends BlockProps {
   spend: Spend
+  tokens: Tokens
 }
 
-function AccountCard({ account, limits, now, spend }: CardProps) {
+function AccountCard({ account, limits, now, spend, tokens }: CardProps) {
   const badge = accountBadge(account)
   const active = account.accounts.find((entry) => entry.key === account.active)
   return (
@@ -197,15 +200,15 @@ function AccountCard({ account, limits, now, spend }: CardProps) {
         <div className="account-card__head">
           <CardHead entry={active} label={badge.label} accounts={account.accounts} />
         </div>
-        <CardBody entry={active} limits={limits} now={now} spend={spend} />
+        <CardBody entry={active} limits={limits} now={now} spend={spend} tokens={tokens} />
       </div>
-      <OtherParts account={account} now={now} spend={spend} />
+      <OtherParts account={account} now={now} spend={spend} tokens={tokens} />
     </div>
   )
 }
 
 /** A part of the card for each account past the active one, in its own colour. */
-function OtherParts({ account, now, spend }: { account: AccountView; now: Date; spend: Spend }) {
+function OtherParts({ account, now, spend, tokens }: { account: AccountView; now: Date; spend: Spend; tokens: Tokens }) {
   return others(account).map((entry) => {
     const badge = entryBadge(entry, account.login, account.accounts)
     return (
@@ -213,7 +216,7 @@ function OtherParts({ account, now, spend }: { account: AccountView; now: Date; 
         <div className="account-card__head">
           <CardHead entry={entry} label={badge.label} accounts={account.accounts} />
         </div>
-        <CardBody entry={entry} limits={entry.limits} now={now} spend={spend} />
+        <CardBody entry={entry} limits={entry.limits} now={now} spend={spend} tokens={tokens} />
       </div>
     )
   })
@@ -235,9 +238,10 @@ interface BodyProps {
   limits: RateLimits | null
   now: Date
   spend: Spend
+  tokens: Tokens
 }
 
-function CardBody({ entry, limits, now, spend }: BodyProps) {
+function CardBody({ entry, limits, now, spend, tokens }: BodyProps) {
   const { state } = useLive()
   const projects = entry !== undefined && (
     <p className="account-card__projects">
@@ -254,16 +258,16 @@ function CardBody({ entry, limits, now, spend }: BodyProps) {
       </>
     )
   }
-  // OpenCode and Copilot without a window from their provider: one line with why, not empty rows (BTN-341).
-  const note = entry === undefined ? null : limitsNote(entry)
+  // OpenCode and Copilot without a window from their provider: why and what is known, not empty rows (BTN-341, BTN-342).
+  const unknown = entry !== undefined && limitsNote(entry) !== null
   const shared = entry === undefined ? null : sharedLimitText(entry, state?.account.accounts ?? [])
   return (
     <>
       {projects}
-      {note === null ? (
-        limitSpans(limits).map((span) => <CardWindow key={span} label={spanNames(span).label} window={limits?.[span] ?? null} now={now} />)
+      {unknown ? (
+        <UnknownLimit entry={entry} tokens={tokens} now={now} className="account-card__note" why="plain" />
       ) : (
-        <p className="account-card__note">{note}</p>
+        limitSpans(limits).map((span) => <CardWindow key={span} label={spanNames(span).label} window={limits?.[span] ?? null} now={now} />)
       )}
       {shared !== null && <p className="account-card__note">{shared}</p>}
       <div className="account-card__foot">

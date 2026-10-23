@@ -39,7 +39,8 @@ const TEXT_LIMIT = 500
 const MESSAGE_LIMIT = 6000
 const SHELL = 'Shell'
 const LIMIT_TEXT = /usage limit|rate limit|quota|too many requests/i
-const CREDIT_TEXT = /insufficient_quota|exceeded your current quota|credit balance/i
+const LIMIT_TYPE = /FreeUsageLimitError/
+const CREDIT_TEXT =/insufficient_quota|exceeded your current quota|credit balance/i
 const STAGE_RANK: Record<Stage, number> = { task: 0, recon: 1, edit: 2, test: 3, commit: 4, merge: 5 }
 
 /** OpenCode's own tools as Claude Code names them, with the input keys the feed reads. */
@@ -124,7 +125,7 @@ class SessionFold {
     this.turnTool = null
     for (const part of parts) this.pushPart(part, last)
     const error = record(message.error)
-    if (error !== undefined) this.pushError(at, errorText(error))
+    if (error !== undefined) this.pushError(at, error)
   }
 
   summary(): TranscriptSummary {
@@ -243,12 +244,13 @@ class SessionFold {
   pushTurnError({ at, error }: TurnError): void {
     const when = iso(at)
     this.touch(when)
-    this.pushError(when, errorText(error))
+    this.pushError(when, error)
   }
 
-  private pushError(at: string, text: string): void {
-    const brief = flatten(text, TEXT_LIMIT)
-    this.apiError = { kind: CREDIT_TEXT.test(brief) ? 'credit' : LIMIT_TEXT.test(brief) ? 'limit' : 'error', text: brief, at }
+  private pushError(at: string, error: Json): void {
+    const brief = flatten(errorText(error), TEXT_LIMIT)
+    const kind = CREDIT_TEXT.test(brief) ? 'credit' : LIMIT_TEXT.test(brief) || limitError(error) ? 'limit' : 'error'
+    this.apiError = { kind, text: brief, at }
     this.addFeed({ at, kind: 'error', text: brief })
   }
 
@@ -304,6 +306,11 @@ function sizeOf(tool: string, input: Json): EditSize | undefined {
 }
 
 /** An API error of a step: `{ name, data: { message } }`; the message is often the provider's JSON answer as a string. */
+/** A 429, or OpenCode Zen's spent free allowance (`FreeUsageLimitError`) named anywhere in the answer, worded as it may be. */
+function limitError(error: Json): boolean {
+  return record(error.data)?.statusCode === 429 || LIMIT_TYPE.test(JSON.stringify(error))
+}
+
 function errorText(error: Json): string {
   const message = record(error.data)?.message
   const text = typeof message === 'string' && message !== '' ? message : typeof error.name === 'string' ? error.name : 'error'

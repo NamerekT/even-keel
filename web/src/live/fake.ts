@@ -19,7 +19,7 @@ import { FAKE_PROJECTS, FAKE_PULL_READINESS, FAKE_REMOTES, FAKE_VOCABULARY, fake
 import { withFix } from './fakeFix.js'
 import { fakeCompare, fakeRuleDiff, fakeRules } from './fakeRules.js'
 import { fakeSteps } from './fakeSteps.js'
-import { fakeCheckpoints, fakeHistory, fakePeriod, fakeSpend, fakeTask } from './fakeStats.js'
+import { fakeCheckpoints, fakeHistory, fakePeriod, fakeSpend, fakeTask, fakeTokens } from './fakeStats.js'
 import { fakeCard } from './fakeCards.js'
 import { fakeCalls, fakeDeliverMail, fakeImageUrl, fakeMailbox, fakeOpenAsk, fakePastAsk, fakeSentFileUrl, fakeShare, fakeSharedUrl, fakeShots, FAKE_UNSAVED_ASK } from './fakeChat.js'
 import type { Ask } from '../../../src/sessions/ask.js'
@@ -669,6 +669,10 @@ export function createFakeSource(search: string): LiveSource {
     statsSpend: async () => {
       await answer()
       return fakeSpend(statsMode())
+    },
+    statsTokens: async () => {
+      await answer()
+      return fakeTokens(statsMode())
     },
     statsTask: async (task) => {
       await answer()

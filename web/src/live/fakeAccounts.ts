@@ -255,7 +255,16 @@ export function fakeAccount(mode: string | null, idle: boolean, limits: RateLimi
     // OPS runs on OpenCode's free models, which have no limits; a second folder signs in with the ChatGPT account the
     // Codex folder is on, and shows their one limit.
     const none = stale(notice('usage.openCodeNone', {}))
-    const free = fakeEntry({ key: 'opencode', global: false, agent: OPENCODE, status: { ...OPENCODE_STATUS, authMethod: 'none' }, loginExpiresAt: null, projects: ['OPS'], usage: none })
+    const free = fakeEntry({
+      key: 'opencode',
+      global: false,
+      agent: OPENCODE,
+      status: { ...OPENCODE_STATUS, authMethod: 'none' },
+      loginExpiresAt: null,
+      projects: ['OPS'],
+      usage: none,
+      lastLimitAt: ago(95),
+    })
     const shared = { ...limits, source: 'api' as const, pool: 'chatgpt:acc-1' }
     const chatgpt = fakeEntry({
       key: 'opencode-2',

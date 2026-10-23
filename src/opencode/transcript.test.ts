@@ -78,6 +78,17 @@ describe('foldSession', () => {
     expect(other.apiError).toMatchObject({ kind: 'error', text: 'UnknownError' })
   })
 
+  it("takes OpenCode Zen's 429 for a limit by its status or its error type, whatever the message says", () => {
+    const zen = JSON.stringify({ type: 'error', error: { type: 'FreeUsageLimitError', message: 'Try again later.' } })
+    const typed = foldSession([prompt, message('msg_02', 2, step({ input: 10 }, { error: { name: 'APIError', data: { message: zen } } }))], [promptText])
+    expect(typed.apiError).toMatchObject({ kind: 'limit', text: 'Try again later.' })
+    const status = { name: 'APIError', data: { message: 'Something went wrong.', statusCode: 429 } }
+    const coded = foldSession([prompt], [promptText], 30, false, [{ at: T0 + 2000, error: status }])
+    expect(coded.apiError).toMatchObject({ kind: 'limit', text: 'Something went wrong.' })
+    const quota = { name: 'APIError', data: { message: 'You exceeded your current quota.', statusCode: 429 } }
+    expect(foldSession([prompt], [promptText], 30, false, [{ at: T0 + 2000, error: quota }]).apiError).toMatchObject({ kind: 'credit' })
+  })
+
   it('shows an error a turn ended on in its place, and once when a step holds it too', () => {
     const unknown = { name: 'UnknownError', data: { message: 'Unexpected server error. Check server logs for details.' } }
     const again = message('msg_03', 10, { role: 'user' })

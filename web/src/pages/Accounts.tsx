@@ -20,9 +20,12 @@ import {
   limitsNote,
   staleText,
   TransportAction,
+  UnknownLimit,
   useSpend,
+  useTokens,
   type Send,
   type Spend,
+  type Tokens,
 } from '../layout/accountParts.js'
 import { Limits, spanNames } from '../layout/Limits.js'
 import { useNow } from '../layout/useNow.js'
@@ -36,6 +39,7 @@ export function AccountsPage({ state }: { state: EvenKeelState }) {
   const { account } = state
   const { send, sending, failure } = useCommand()
   const spend = useSpend(account)
+  const tokens = useTokens(account)
   const now = useNow(60_000)
   const { login } = account
 
@@ -69,7 +73,7 @@ export function AccountsPage({ state }: { state: EvenKeelState }) {
             ) : (
               <ul className="account-cards">
                 {entries.map((entry) => (
-                  <AccountCard key={entry.key} entry={entry} view={account} now={now} spend={spend} sending={sending} send={send} />
+                  <AccountCard key={entry.key} entry={entry} view={account} now={now} spend={spend} tokens={tokens} sending={sending} send={send} />
                 ))}
               </ul>
             )}
@@ -89,12 +93,13 @@ interface CardProps {
   view: AccountView
   now: Date
   spend: Spend
+  tokens: Tokens
   sending: boolean
   send: Send
 }
 
 /** What needs a look or an action stays in sight; the quiet details and the reasons open on pointing. */
-function AccountCard({ entry, view, now, spend, sending, send }: CardProps) {
+function AccountCard({ entry, view, now, spend, tokens, sending, send }: CardProps) {
   const stale = staleText(entry)
   const limits = <Limits limits={entry.limits} now={now} bare />
 
@@ -106,7 +111,7 @@ function AccountCard({ entry, view, now, spend, sending, send }: CardProps) {
         {entry.status?.subscriptionType != null && <span className="tag">{entry.status.subscriptionType}</span>}
       </div>
       {limitsNote(entry) !== null ? (
-        <p className="accounts__note">{limitsNote(entry)}</p>
+        <UnknownLimit entry={entry} tokens={tokens} now={now} className="accounts__note" why="line" />
       ) : spendsByKey(entry) ? (
         <p className="accounts__note" title={t.account.todayTitle}>
           {spendText(spend, entry.key)}
