@@ -7,9 +7,6 @@ import { FieldHead } from './settingsParts.js'
 import './accounts.css'
 import './tally.css'
 
-/** The stats setup before the first project (BTN-247). */
-export const STATS_SETUP = '/setup/stats'
-
 interface ModesProps {
   /** The card shown pressed: the one picked, or else the one in force. */
   chosen: TallyMode | null

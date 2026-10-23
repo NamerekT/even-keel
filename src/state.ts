@@ -268,6 +268,8 @@ export interface ProjectDraft {
    * it by them, and the projects already on it give them up (BTN-306).
    */
   milestones: string[]
+  /** The agent the project's sessions run on (BTN-310); `null` — the shared provider. */
+  provider: string | null
 }
 
 /** What the wizard's check found for a draft; a step that could not be checked yet is `null`. */
@@ -296,10 +298,12 @@ export interface ProjectCheck {
     openToAll: boolean
     notice: Notice | null
   } | null
-  /** Whether Claude Code trusts the folder; `null` — no repository to ask about. */
+  /** Whether Claude Code trusts the folder; `null` — no repository to ask about, or the project does not run on Claude. */
   trusted: boolean | null
   /** The platform of the service's machine (`process.platform`), which the folder is on: the trust command depends on it. */
   platform: string
+  /** The user the service runs as: the trust is given in a terminal of theirs, or it lands in another profile (BTN-310). */
+  user: string
 }
 
 /** How a release project's branch goes into the branch of the project it merges into (`mergeInto`, BTN-172). */

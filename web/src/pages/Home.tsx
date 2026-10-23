@@ -11,7 +11,8 @@ import { type BlockLayout, GROUPINGS, type Grouping, homeBlocks, laidOut, zoneOf
 import { LaunchChart, localDate } from './LaunchChart.js'
 import { emptyKind, ProjectCard } from './ProjectCard.js'
 import { QuietRow } from './QuietRow.js'
-import { STATS_SETUP } from './TallyChoice.js'
+import { firstRun } from '../../../src/setup.js'
+import { SETUP, stepPath } from './setupSteps.js'
 import { useGrouping } from './useGrouping.js'
 import './home.css'
 
@@ -39,8 +40,10 @@ export function Home({ state }: { state: EvenKeelState }) {
   const turnOf = new Map(order.map((key, index) => [key, turns[index]!]))
 
   // A config that does not parse has its projects unknown, not none: the banner speaks, the wizard waits.
-  // The stats are asked about first: until then nothing is collected (BTN-247).
-  if (state.tally === null && state.configError === null) return <Navigate to={STATS_SETUP} replace />
+  // The first run walks the setup (BTN-310); the stats alone are asked about once there are projects: until then
+  // nothing is collected (BTN-247).
+  if (state.tally === null && state.configError === null)
+    return <Navigate to={firstRun(state.tally, state.projects.length) ? SETUP : stepPath('stats')} replace />
   if (state.projects.length === 0 && state.configError === null) return <Navigate to={ADD_PROJECT} replace />
 
   return (

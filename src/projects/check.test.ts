@@ -6,7 +6,7 @@ import type { TaskSource, TrackerAdapter } from '../tracker/source.js'
 import type { TrackerTask } from '../tracker/model.js'
 import { checkDraft, isTrusted, type CheckDeps } from './check.js'
 
-const draft: ProjectDraft = { repo: 'D:\\new\\src', branch: '', key: 'NEW', name: '', tracker: 'fake', trackerProject: '', profile: null, slot: 0, milestones: [] }
+const draft: ProjectDraft = { repo: 'D:\\new\\src', branch: '', key: 'NEW', name: '', tracker: 'fake', trackerProject: '', profile: null, slot: 0, milestones: [], provider: null }
 
 function task(id: string, category: 'ToDo' | 'Won'): TrackerTask {
   return {
@@ -67,6 +67,7 @@ function deps(fields: Partial<CheckDeps> = {}, answers: Record<string, GitResult
     claudeConfig: () => ({ projects: { 'd:/new': { hasTrustDialogAccepted: true } } }),
     timeoutMs: 1000,
     platform: 'win32',
+    user: 'svc',
     ...fields,
   }
 }
@@ -81,7 +82,15 @@ describe('checkDraft', () => {
       tracker: { ok: true, missing: [], open: 2, openToAll: false, notice: null },
       trusted: true,
       platform: 'win32',
+      user: 'svc',
     })
+  })
+
+  it("asks Claude Code's trust only of a project that runs on Claude (BTN-310)", async () => {
+    const untrusted = { claudeConfig: () => ({}) }
+    expect((await checkDraft(deps(untrusted), { ...draft, provider: 'codex' })).trusted).toBeNull()
+    expect((await checkDraft(deps({ ...untrusted, raw: () => ({ provider: 'codex', projects: [] }) }), draft)).trusted).toBeNull()
+    expect((await checkDraft(deps({ ...untrusted, raw: () => ({ provider: 'codex', projects: [] }) }), { ...draft, provider: 'claude' })).trusted).toBe(false)
   })
 
   it('says a folder is not a git repository and checks nothing that needs one', async () => {

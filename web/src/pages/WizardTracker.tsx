@@ -244,7 +244,7 @@ function TextField({ id, label, hint, value, placeholder, upper = false, disable
 }
 
 /** Whom the profile signs in as, or why it does not. */
-function ProfileState({ profile }: { profile: ProfileView }) {
+export function ProfileState({ profile }: { profile: ProfileView }) {
   const { state, error } = profile.check
   const expired = profile.expiresAt !== null && daysLeft(profile.expiresAt, Date.now()) <= 0
   if (expired) return <Status>{t.profiles.expires(0)}</Status>

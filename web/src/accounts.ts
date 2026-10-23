@@ -98,6 +98,34 @@ export interface AddStep {
   connection: Connection | null
 }
 
+const ADD = '/accounts/add'
+
+/** The page the add page returns to once done, a path of this page only (BTN-310); `null` — the accounts list. */
+export function addBack(search: URLSearchParams): string | null {
+  const back = search.get('back')
+  return back !== null && back.startsWith('/') && !back.startsWith('//') ? back : null
+}
+
+/** The add page at a step, keeping the page it returns to. */
+export function addPath(back: string | null, provider?: Provider, connection?: Connection): string {
+  const search = new URLSearchParams()
+  if (provider !== undefined) search.set('provider', provider)
+  if (connection !== undefined) search.set('connection', connection)
+  if (back !== null) search.set('back', back)
+  const text = search.toString()
+  return text === '' ? ADD : `${ADD}?${text}`
+}
+
+/** How ready a provider is to run sessions on the account folder its pool entry names (BTN-310). */
+export type Readiness = { state: 'cliMissing' } | { state: 'noAccount' } | { state: 'signIn' | 'ready'; entry: AccountEntry }
+
+export function readinessOf(view: AccountView, provider: string, key: string): Readiness {
+  if (view.missing.includes(provider)) return { state: 'cliMissing' }
+  const entry = view.accounts.find((each) => each.key === key && each.agent === provider)
+  if (entry === undefined) return { state: 'noAccount' }
+  return { state: entry.needsLogin ? 'signIn' : 'ready', entry }
+}
+
 /** The step of the add page from its URL, so the browser's Back goes a step back: a provider, then a connection. */
 export function addStep(search: URLSearchParams): AddStep {
   const provider = PROVIDERS.find((each) => each === search.get('provider')) ?? null

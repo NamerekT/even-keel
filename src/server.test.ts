@@ -262,10 +262,10 @@ describe('Even Keel HTTP server', () => {
 
     expect((await fetch(base + '/api/project/add', { method: 'POST', body: JSON.stringify(draft) })).status).toBe(200)
     expect((await fetch(base + '/api/project/remove', { method: 'POST', body: JSON.stringify({ project: 'ABC' }) })).status).toBe(200)
-    // A page open since before the milestones field sends none.
+    // A page open since before the milestones and the agent fields sends neither.
     expect(calls).toEqual([
-      ['check', { ...draft, milestones: [] }],
-      ['add', { ...draft, milestones: [] }],
+      ['check', { ...draft, milestones: [], provider: null }],
+      ['add', { ...draft, milestones: [], provider: null }],
       ['removeProject', 'ABC'],
     ])
 
