@@ -822,7 +822,7 @@ export const en: Messages = {
     feeds: 'Task feeds',
     feedsHint:
       "Places in other trackers or profiles whose tasks join this project's chain, in the same repository. Each is read by its own profile and chain rules (the profile's, then the project's own). There are no blocks across trackers.",
-    feedsNone: 'None: the chain takes only the tasks of the tracker above.',
+    feedsNone: (tracker: string) => `None: the chain takes tasks only from ${tracker}, as set above. A feed adds the tasks of another tracker or profile.`,
     feedKey: 'Key',
     feedKeyHint: 'Task IDs of a GitHub feed are KEY-<number>; Huly and Linear keep their own. The prefix must be unique among projects and feeds.',
     feedAdd: 'Add a feed',
