@@ -14,11 +14,10 @@
   color: var(--lamp-done);
 }
 
-/* The profile's state sits under the list, a line tall whatever it says. */
-.tracker-fields__profile-state {
-  display: inline-flex;
-  align-items: center;
-  min-height: 32px;
+/* The project's fields stay on the profile's row while their inputs fit; the name found beside one wraps under it. */
+.tracker-fields__row > :not(:first-child) {
+  flex: 1 1 240px;
+  min-width: 0;
 }
 
 .tracker-fields__input-row {
@@ -34,14 +33,19 @@
   white-space: nowrap;
 }
 
-/* The tracker's answer has a line of its own even while empty: a new answer does not move the fields below. */
+/* The profile's state and the tracker's answer share a line, kept while empty: a new answer does not move the fields below. */
 .tracker-fields__slot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 16px;
   min-height: 1lh;
+  margin-top: 4px;
 }
 
 /* The profile list and the fields share one width, whatever the kind asks for. */
 .tracker-fields__wide {
-  width: 280px;
+  width: 240px;
   max-width: 100%;
 }
 
