@@ -844,19 +844,8 @@ export const en: Messages = {
     changelog: 'Changelog file',
     changelogHint: 'Relative to the repository root, e.g. docs/CHANGELOG.md. The milestone draft is written into it with a commit to the main branch.',
     rules: 'Chain rules',
-    rulesHint: "Which tasks the chain takes. An empty list of statuses goes by the tracker's status categories: in work are ToDo and Active, closed are Won and Lost.",
-    ruleHint: {
-      active: 'Tasks in these statuses enter the chain.',
-      terminal: 'A task in one of these statuses is done and leaves the chain.',
-      requiredLabels:
-        'A task needs at least one of these labels to enter the chain. Empty — no label is needed. ' +
-        'Set one for a public GitHub repository: anyone can open an issue there, only collaborators can label it.',
-      excludedLabels: 'A task with any of these labels never enters the chain: it is started by hand. Manual and Вручную keep a task out always, listed or not.',
-      requiredMilestones:
-        'The project takes only tasks in one of these milestones; the rest of the tracker project is not its own at all. ' +
-        'Empty — any milestone or none. Two projects on one tracker project split it this way, a release project and a main one say.',
-      excludedMilestones: 'Tasks in these milestones are not the project\'s: it does not read, show or close them.',
-    },
+    rulesHint:
+      'Which tasks the chain takes: where each status puts a task and what each label does. A level keeps each list whole: moving one status or changing one label makes the whole list this level’s own, and "From" shows where each row comes from.',
     ruleAdd: {
       active: 'Add a status',
       terminal: 'Add a status',
@@ -885,6 +874,34 @@ export const en: Messages = {
       requiredMilestones: 'any',
       excludedMilestones: 'none',
     },
+    ruleStatuses: 'Statuses',
+    ruleStatusesHint:
+      'Where each status puts a task. Unset, a status goes by its category in the tracker: ToDo and Active are in the chain, Won and Lost are closed, the rest are out of it.',
+    ruleNoStatuses: 'The tracker has named no status yet: they show once it answers or a task carries one.',
+    ruleStatus: 'Status',
+    place: { in: 'In the chain', out: 'Out of it', closed: 'Closed' },
+    ruleFrom: 'From',
+    origin: { category: 'by category', builtin: 'built in', shared: 'shared', project: 'project' },
+    originProfile: (name: string) => `profile ${name}`,
+    ruleReset: (what: string) => `Reset ${what}`,
+    ruleLabels: 'Labels',
+    ruleLabelsHint:
+      "What a label does to a task. Required: a task needs one of the required labels to enter the chain. Don't take: a task with it never enters. " +
+      'Set a required label for a public GitHub repository: anyone can open an issue there, only collaborators can label it. The built-in labels are Even Keel’s own and do not change here.',
+    ruleLabel: 'Label',
+    ruleRule: 'Rule',
+    labelRule: { required: 'Required', excluded: "Don't take", manual: "Don't take", question: 'Only a mark', run: 'Picks the model' },
+    labelAdd: 'A label from the tracker…',
+    labelTakeTitle: 'Which tasks enter',
+    labelTake: { any: 'Take any', required: 'Only with a required label' },
+    labelTakeHint: 'Set by the labels: while the list has a required label, only tasks with one of them enter. "Take any" drops the required labels.',
+    milestones: 'Project tasks',
+    milestonesHint:
+      "Which tasks of the tracker project are this project's. A task left out is not the project's at all: it is not read, shown or closed. " +
+      'Two projects on one tracker project split it this way, a release project and a main one say.',
+    milestoneMode: { all: 'All', only: 'Only milestones', except: 'All except' },
+    milestonesBut: 'and not these:',
+    milestonesEmpty: "No milestone yet: every task is the project's",
   },
   shared: {
     title: 'Shared settings',
@@ -1039,7 +1056,7 @@ export const en: Messages = {
     rulesFor: (keys) => `Projects on this profile: ${keys}.`,
     rulesNoProjects: 'No project runs on this profile yet.',
     rulesHint:
-      "The rules of the projects on this profile: every tracker names its statuses and labels its own way. An empty list sets nothing, and the shared rules stay. A rule a project sets itself goes over the profile's. Milestone rules are set only in the shared settings and per project.",
+      "The rules of the projects on this profile: every tracker names its statuses and labels its own way. A list the profile does not change stays the shared one; a list one row of it changes is the profile's whole, and a project's own goes over it. The project's milestones are set on its Tracker tab and in the shared settings.",
     deniedPulls: (remotes, kind) =>
       kind === 'forgejo'
         ? `A pull request was not opened (${remotes}): the token lacks write:repository`

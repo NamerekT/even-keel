@@ -207,7 +207,10 @@ export interface ProjectForm extends ProjectSettings {
   color: number | null
   /** `null` — on exactly when no package of the project brings its tracker's MCP server. */
   brief: boolean | null
+  /** The project's own over the shared ones; the keys of its tracker profile's rules it does not set itself are not in it. */
   chain: ChainRules
+  /** The rule keys the project sets itself: the profile's rules go over the rest (BTN-334). */
+  ownRules: (keyof ChainRules)[]
 }
 
 /** The shared keys of the config as the settings page edits them, defaults filled in. */

@@ -131,7 +131,8 @@ export interface MilestoneTask extends TrackerTask {
 }
 
 export interface TrackerVocabulary {
-  statuses: string[]
+  /** With their categories: the settings show what each status does by default (BTN-334). */
+  statuses: TaskStatus[]
   labels: string[]
   /** The project's open milestones, for `chain.requiredMilestones`; a tracker without milestones leaves it out. */
   milestones?: string[]

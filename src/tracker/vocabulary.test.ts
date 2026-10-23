@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import type { TrackerVocabulary } from './source.js'
 import { Vocabularies } from './vocabulary.js'
 
-const VOCABULARY: TrackerVocabulary = { statuses: ['Open'], labels: ['bug'] }
+const VOCABULARY: TrackerVocabulary = { statuses: [{ name: 'Open', category: 'ToDo' }], labels: ['bug'] }
 
 function setup(answers: (TrackerVocabulary | undefined | Error)[]) {
   let now = 0
@@ -27,7 +27,7 @@ describe('Vocabularies', () => {
     pass(999)
     expect(await cache.get('ABC')).toEqual(VOCABULARY)
     pass(1)
-    expect(await cache.get('ABC')).toEqual({ statuses: ['Open'], labels: ['ui'] })
+    expect(await cache.get('ABC')).toEqual({ ...VOCABULARY, labels: ['ui'] })
     expect(reads).toEqual(['ABC', 'ABC'])
   })
 

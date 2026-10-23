@@ -1,6 +1,7 @@
 import { Fragment, useEffect, type ReactNode } from 'react'
 import { useSearchParams } from 'react-router'
 import { CLI_SOURCES, EXECUTION_MODES } from '../../../src/agent/providers.js'
+import { DEFAULT_RULES } from '../../../src/chain/rules.js'
 import { CI_KINDS, type CiKind } from '../../../src/ci/model.js'
 import { LANGUAGES, type Language } from '../../../src/language.js'
 import type { CacheTtl, EvenKeelState, SharedForm } from '../../../src/state.js'
@@ -21,11 +22,11 @@ import {
   minutesOf,
   ProviderGrid,
   RULE_KEYS,
-  RuleFields,
   rulesOf,
   rulesText,
   sameBy,
   SaveBar,
+  Section,
   SHARE_KEYS,
   shareOf,
   sharesOf,
@@ -34,7 +35,10 @@ import {
   unplaced,
   useFieldErrors,
   wholeOf,
+  type RuleKey,
 } from './settingsParts.js'
+import { knownStatuses, originsAt } from './ruleRows.js'
+import { MilestoneFields, RuleForm, ruleText } from './RuleForm.js'
 import { lineOf, linesText, pairOf, ruleChoicesOf, rowsOf } from './settingsRows.js'
 import { accountOptions, namedProviders, providerKeys, providerMap, providerName, providerOptions, providerValues } from './settingsRun.js'
 import { profileGroup, ProfileRules } from './ProfileRules.js'
@@ -182,6 +186,8 @@ export function SharedSettings({ state }: { state: EvenKeelState }) {
     if (addsProfile) openTab(SCOPE, 'secrets')
   }, [addsProfile])
   const vocabularies = useVocabularies(state.projects)
+  const chain = rulesOf(draft.edit as Record<RuleKey, Value>)
+  const choices = ruleChoicesOf(state.tasks, vocabularies)
   const dirty = (id: GroupId) => changed(draft, keysOf(id), same).length > 0
   const outgoing = sent(draft, keysOf(open))
   const next = formOf(outgoing.form)
@@ -200,6 +206,7 @@ export function SharedSettings({ state }: { state: EvenKeelState }) {
   )
 
   const edit = (key: string, value: Value) => setDraft(edited(draft, key, value))
+  const editAll = (changes: [string, Value][]) => setDraft(changes.reduce((each, [key, value]) => edited(each, key, value), draft))
   const revert = (keys: readonly string[]) => setDraft(reverted(draft, saved, keys))
   const marks = marksOf(draft, saved, same, revert)
   const save = async () => {
@@ -308,7 +315,36 @@ export function SharedSettings({ state }: { state: EvenKeelState }) {
           t.settings.briefHint,
         )}
         {check('fillMilestone', t.settings.fillMilestone, `${t.settings.fillMilestoneHint} ${t.shared.forProjects}`)}
-        <RuleFields text={text} onEdit={edit} errorOf={errorOf} marks={marks} choices={ruleChoicesOf(state.tasks, vocabularies)} />
+        <RuleForm
+          level="shared"
+          rules={chain}
+          inherited={DEFAULT_RULES}
+          origins={originsAt('shared')}
+          profileName={null}
+          statuses={knownStatuses(
+            vocabularies.map((each) => each.statuses),
+            state.tasks.map((task) => task.status),
+            chain,
+          )}
+          labels={choices.labels}
+          modelLabels={draft.edit.modelLabels as boolean}
+          onEdit={(changes) => editAll(changes.map(([key, value]) => [key, ruleText(value)]))}
+          errorOf={errorOf}
+          marks={marks}
+        />
+        <Section title={t.settings.milestones} hint={t.settings.milestonesHint}>
+          <MilestoneFields
+            level="shared"
+            rules={chain}
+            inherited={DEFAULT_RULES}
+            origins={originsAt('shared')}
+            milestones={choices.milestones}
+            text={text}
+            onEdit={editAll}
+            errorOf={errorOf}
+            marks={marks}
+          />
+        </Section>
       </>
     ),
     models: () => (
