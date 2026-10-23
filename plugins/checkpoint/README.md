@@ -48,7 +48,11 @@ A Claude Code session can stop on a permission dialog even in `auto` mode: an `a
 
 OpenCode runs no hook commands: its hooks are JS plugins loaded into its own process. Even Keel loads every script of this plugin's `opencode/` folder into a chain session's config, and `opencode/checkpoint.mjs` does after each tool call what `context-checkpoint.mjs` and `mailbox.mjs` do on `PostToolUse` (both ask Even Keel through `hooks/evenkeel.mjs`). OpenCode has no way into the context in the middle of a turn but the tool's result, so the nudge and the chat's messages come after the tool's output, each in a `<system-reminder>` block; a delivered message is also kept in the call's metadata, where Even Keel's chat finds it (a tool that prints the mark from a file fakes no message). A subagent runs in a session of its own, which Even Keel does not know, so it is left alone.
 
-What OpenCode does not get: the stop guard (a turn that wrote the note but ends without the `CHECKPOINT:` line waits for a reply, as without the plugin), the merge check, and a message at the stop or in place of a question (`run` has no question tool) — a message the plugin missed goes by a resume once the turn ends, as for any session.
+The merge check runs on `tool.execute.before` of the `bash` tool, with the same rules as the hook (`mergeRefusal` in `hooks/merges.mjs`), the worktree being the session's folder: the commands run asynchronously, so OpenCode's process is not blocked while they run, and a failed one throws, which keeps the call from running and gives the session the same text as its error.
+
+`opencode run` has no stop that a plugin can block: the turn ends on the session's first idle, and a prompt sent from inside a hook hung the turn. So the stop guard works the other way round: once the session has written `.temp/handoff.md` (`write`, `edit`), for the next three tool calls each text part that completes (`experimental.text.complete`) is checked as the `Stop` hook checks the last message — no mark on its last line and Even Keel's `/note` says yes — and gets the line `CHECKPOINT: .temp/handoff.md` added at its end. The session is not asked anything; the transcript Even Keel reads ends with the line. A text followed by more tool calls in the same step gets the line too, which does no harm: Even Keel reads only the turn's last message.
+
+What OpenCode does not get: a message at the stop or in place of a question (`run` has no question tool) — a message the plugin missed goes by a resume once the turn ends, as for any session.
 
 ## Install
 
