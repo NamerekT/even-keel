@@ -44,7 +44,7 @@ import {
 import { ruleChoicesOf } from './settingsRows.js'
 import { useVocabularies } from './useVocabularies.js'
 import { ProjectRemove } from './ProjectRemove.js'
-import { ProfileLink } from './ProfileSelect.js'
+import { ProjectTracker } from './ProjectTracker.js'
 import { FeedList } from './FeedList.js'
 import { TrackerPackageButton } from './ToolsLink.js'
 import { remoteChoices } from './remoteProfiles.js'
@@ -260,7 +260,6 @@ export function SettingsPanel({
   const errorOf = useFieldErrors(project, [failure, configError], config)
   const text = (key: string) => draft.edit[key] as string
   const on = (key: string) => draft.edit[key] as boolean
-  const tracker = config.trackers.find((each) => each.name === text('tracker'))
   const kinds = draft.edit.kinds as readonly CiKind[]
   // Only turning PR mode on waits for a remote and its profile (EKR-7): one already on stays free to turn off.
   const pullReadiness = state?.pullReadiness[project] ?? null
@@ -473,29 +472,25 @@ export function SettingsPanel({
             {marks.note('tracker')}
             <FieldNote error={errorOf('tracker')} />
           </div>
-          {state !== null && <ProfileLink id={fieldId('profile')} state={state} project={project} />}
-          {tracker?.projectKey != null && (
-            <div className={marks.box('trackerProject', 'settings__field settings__grow')}>
-              <FieldHead
-                label={t.settings.trackerProject(tracker.name, tracker.title)}
-                hint={tracker.projectKey.alias ? t.settings.trackerProjectAlias : tracker.projectKey.optional ? t.settings.trackerProjectWithin : undefined}
-                htmlFor={fieldId('trackerProject')}
-              />
-              <input
-                id={fieldId('trackerProject')}
-                className="settings__text settings__text--mono"
-                spellCheck={false}
-                value={text('trackerProject')}
-                placeholder={tracker.projectKey.alias ? (state?.projectKeys[project] ?? '') : tracker.projectKey.example}
-                aria-invalid={errorOf('trackerProject') !== null}
-                disabled={locked}
-                onChange={(event) => edit('trackerProject', event.target.value)}
-              />
-              {marks.note('trackerProject')}
-              <FieldNote error={errorOf('trackerProject')} />
-            </div>
-          )}
         </div>
+        {state !== null && (
+          <ProjectTracker
+            state={state}
+            project={project}
+            tracker={text('tracker')}
+            trackerProject={text('trackerProject')}
+            locked={locked}
+            box={marks.box('trackerProject')}
+            note={
+              <>
+                {marks.note('trackerProject')}
+                <FieldNote error={errorOf('trackerProject')} />
+              </>
+            }
+            invalid={errorOf('trackerProject') !== null}
+            onEdit={(value) => edit('trackerProject', value)}
+          />
+        )}
         {locked && <p className="settings__hint">{t.settings.trackerLocked}</p>}
         {state !== null && <FeedList state={state} project={project} />}
         {switchChoice('fillMilestone', t.settings.fillMilestone, t.settings.fillMilestoneHint, shared.fillMilestone)}

@@ -66,11 +66,23 @@ export function idPrefix(shape: TrackerShape, fields: WizardFields): string {
   return shape === 'within' ? fields.team.trim() : ''
 }
 
-/** The tracker's value of a `within` project: the team goes before a slash once the key is not the team's (`linearPlace`). */
-function withinValue(fields: WizardFields): string {
+/**
+ * The tracker's value the fields name: on a `within` tracker the team goes before a slash once the key is not the
+ * team's (`linearPlace`); on the others the team is blank, so it is the tracker project as typed, spaces and all.
+ */
+export function placeOf(fields: Pick<WizardFields, 'key' | 'team' | 'trackerProject'>): string {
   const team = fields.team.trim()
-  const project = fields.trackerProject.trim()
-  return team === '' || team === fields.key.trim() ? project : `${team}/${project}`
+  return team === '' || team === fields.key.trim() ? fields.trackerProject : `${team}/${fields.trackerProject}`
+}
+
+/** A team before the slash, as `linearPlace` reads it. */
+const TEAM_VALUE = /^([A-Z][A-Z0-9_]{0,6})\/(.*)$/
+
+/** A saved tracker value back in the fields `placeOf` makes it of; the team blank while it is the key's. */
+export function placeFields(shape: TrackerShape, key: string, value: string): Pick<WizardFields, 'team' | 'trackerProject'> {
+  const named = shape === 'within' ? TEAM_VALUE.exec(value.trim()) : null
+  if (named === null || named[1] === key) return { team: '', trackerProject: named?.[2] ?? value }
+  return { team: named[1]!, trackerProject: named[2]! }
 }
 
 const KEY_LENGTH = 5
@@ -89,7 +101,7 @@ export function draftOfFields(fields: WizardFields, defaultProfile = false): Pro
     key: fields.key.trim(),
     name: fields.name.trim(),
     tracker: fields.tracker,
-    trackerProject: withinValue(fields),
+    trackerProject: placeOf({ ...fields, trackerProject: fields.trackerProject.trim() }),
     profile: fields.profile === '' || defaultProfile ? null : fields.profile,
     slot,
     milestones: fields.milestones

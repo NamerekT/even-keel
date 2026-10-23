@@ -2,8 +2,10 @@ import { useState } from 'react'
 import type { EvenKeelState, FeedView } from '../../../src/state.js'
 import { say, t } from '../i18n/index.js'
 import { useCommand } from '../live/useCommand.js'
-import { Select } from '../ui/Select.js'
+import { linkedProfile, trackedFields } from './ProjectTracker.js'
+import { EMPTY_FIELDS, keyTyped, placeOf, shapeOf, typedIn, type WizardFields } from './projectWizard.js'
 import { FieldHead, fieldId, FieldNote } from './settingsParts.js'
+import { TrackerFields } from './TrackerFields.js'
 
 /**
  * The project's extra task feeds (BTN-66): places of other trackers or profiles whose tasks join its chain. Added and
@@ -20,36 +22,25 @@ export function FeedList({ state, project }: { state: EvenKeelState; project: st
   )
 }
 
+/** A feed: its key and tracker, then the tracker block with its place fixed, only the profile changing. */
 function FeedRow({ state, project, feed }: { state: EvenKeelState; project: string; feed: FeedView }) {
   const [confirming, setConfirming] = useState(false)
   const { send, sending, failure } = useCommand()
   const title = state.config.trackers.find((each) => each.name === feed.tracker)?.title ?? feed.tracker
   const own = state.profiles.profiles.filter((profile) => profile.kind === feed.tracker)
-  const current = own.find((profile) => profile.projectIds.includes(feed.id)) ?? own.find((profile) => profile.isDefault)
+  const fields = trackedFields(state, feed.key, feed.tracker, linkedProfile(own, feed.id), feed.place ?? '')
   const locked = state.config.trackerLocked.includes(feed.id)
-  const pick = (value: string) => {
-    const profile = own.find((each) => each.id === value)
+  const change = (edit: (before: WizardFields) => WizardFields) => {
+    const next = edit(fields)
+    if (next.profile === fields.profile) return
+    const profile = own.find((each) => each.id === next.profile)
     void send('project/feed/profile', { project, feed: feed.id, profile: profile === undefined || profile.isDefault ? null : profile.id })
   }
   return (
     <div className="feeds__row">
       <div className="settings__row feeds__line">
         <span className="tag">{feed.key}</span>
-        <span className="feeds__place">
-          {title}
-          {feed.place !== undefined && <span className="settings__text--mono"> · {feed.place}</span>}
-        </span>
-        {own.length > 0 && (
-          <Select
-            id={fieldId(`feed.${feed.id}`)}
-            className="settings__text settings__short"
-            label={t.profiles.field}
-            value={current?.id ?? ''}
-            options={own.map((profile) => ({ value: profile.id, label: profile.isDefault ? t.profiles.byDefault(profile.name) : profile.name }))}
-            disabled={locked || sending}
-            onChange={pick}
-          />
-        )}
+        <span className="feeds__place">{title}</span>
         <div className="account__actions">
           {confirming ? (
             <>
@@ -68,86 +59,70 @@ function FeedRow({ state, project, feed }: { state: EvenKeelState; project: stri
           )}
         </div>
       </div>
+      <TrackerFields
+        ids={(field) => fieldId(`feed.${feed.id}.${field}`)}
+        state={state}
+        fields={fields}
+        profiles={own}
+        kinds={state.profiles.kinds.filter((kind) => kind.kind === feed.tracker)}
+        profileHint={t.profiles.fieldHint}
+        keyFixed
+        profileLocked={locked || sending}
+        projectLocked
+        soon={locked ? t.settings.trackerSoon : undefined}
+        onChange={change}
+      />
       {locked && <p className="settings__hint">{t.settings.feedLocked}</p>}
       {failure !== null && <p className="notice notice--error">{say(failure)}</p>}
     </div>
   )
 }
 
+/** A new feed, filled as the wizard fills a project: the profile picks the tracker, its projects are suggested. */
 function FeedAdd({ state, project }: { state: EvenKeelState; project: string }) {
-  const [tracker, setTracker] = useState(state.config.trackers[0]?.name ?? '')
-  const [profile, setProfile] = useState('')
-  const [place, setPlace] = useState('')
-  const [key, setKey] = useState('')
+  const [fields, setFields] = useState<WizardFields>(EMPTY_FIELDS)
   const { send, sending, failure } = useCommand()
-  const choice = state.config.trackers.find((each) => each.name === tracker)
-  const own = state.profiles.profiles.filter((each) => each.kind === tracker)
-  const fallback = own.find((each) => each.isDefault)
-  const id = (field: string) => fieldId(`feedAdd.${field}`)
+  const kinds = state.profiles.kinds.filter((kind) => kind.tracker)
+  const profiles = state.profiles.profiles.filter((profile) => kinds.some((kind) => kind.kind === profile.kind))
+  const profile = profiles.find((each) => each.id === fields.profile)
+  const shape = shapeOf(state.config.trackers.find((each) => each.name === fields.tracker))
+  const key = fieldId('feedAdd.key')
   const add = async () => {
-    const sent = { project, tracker, key, place: choice?.projectKey == null || place.trim() === '' ? null : place, profile: profile === '' ? null : profile }
+    const place = placeOf({ ...fields, trackerProject: fields.trackerProject.trim() })
+    const sent = { project, tracker: fields.tracker, key: fields.key.trim(), place: place === '' ? null : place, profile: profile === undefined || profile.isDefault ? null : profile.id }
     if (!(await send('project/feed/add', sent))) return
-    setPlace('')
-    setKey('')
+    setFields({ ...EMPTY_FIELDS, tracker: fields.tracker, profile: fields.profile })
   }
   return (
-    <div className="settings__row feeds__add">
-      <div className="settings__field">
-        <FieldHead label={t.settings.tracker} htmlFor={id('tracker')} />
-        <Select
-          id={id('tracker')}
-          className="settings__text settings__short"
-          value={tracker}
-          options={state.config.trackers.map((each) => ({ value: each.name, label: each.title }))}
-          onChange={(value) => {
-            setTracker(value)
-            setProfile('')
-          }}
-        />
-      </div>
-      {own.length > 0 && (
-        <div className="settings__field">
-          <FieldHead label={t.profiles.field} htmlFor={id('profile')} />
-          <Select
-            id={id('profile')}
-            className="settings__text settings__short"
-            value={profile}
-            options={[
-              ...(fallback === undefined ? [] : [{ value: '', label: t.profiles.byDefault(fallback.name) }]),
-              ...own.filter((each) => !each.isDefault).map((each) => ({ value: each.id, label: each.name })),
-            ]}
-            onChange={setProfile}
-          />
+    <div className="settings__field feeds__add">
+      <TrackerFields
+        ids={(field) => fieldId(`feedAdd.${field}`)}
+        state={state}
+        fields={fields}
+        profiles={profiles}
+        kinds={kinds}
+        profileHint={t.wizard.profileHint}
+        onChange={setFields}
+      />
+      <div className="settings__row">
+        {keyTyped(shape) && (
+          <div className="settings__field">
+            <FieldHead label={t.settings.feedKey} hint={t.settings.feedKeyHint} htmlFor={key} />
+            <input
+              id={key}
+              className="settings__text settings__text--mono settings__short"
+              spellCheck={false}
+              value={fields.key}
+              placeholder="ABCGH"
+              onChange={(event) => setFields((before) => typedIn(before, 'key', event.target.value.toUpperCase()))}
+            />
+          </div>
+        )}
+        <div className="settings__field feeds__submit">
+          <button type="button" className="button button--small" disabled={sending || profile === undefined || fields.key.trim() === ''} onClick={() => void add()}>
+            {t.settings.feedAdd}
+          </button>
         </div>
-      )}
-      {choice?.projectKey != null && (
-        <div className="settings__field settings__grow">
-          <FieldHead label={t.settings.trackerProject(choice.name, choice.title)} htmlFor={id('place')} />
-          <input
-            id={id('place')}
-            className="settings__text settings__text--mono"
-            spellCheck={false}
-            value={place}
-            placeholder={choice.projectKey.example}
-            onChange={(event) => setPlace(event.target.value)}
-          />
-        </div>
-      )}
-      <div className="settings__field">
-        <FieldHead label={t.settings.feedKey} hint={t.settings.feedKeyHint} htmlFor={id('key')} />
-        <input
-          id={id('key')}
-          className="settings__text settings__text--mono settings__short"
-          spellCheck={false}
-          value={key}
-          placeholder="ABCGH"
-          onChange={(event) => setKey(event.target.value.toUpperCase())}
-        />
-      </div>
-      <div className="settings__field feeds__submit">
-        <button type="button" className="button button--small" disabled={sending || key.trim() === ''} onClick={() => void add()}>
-          {t.settings.feedAdd}
-        </button>
       </div>
       <FieldNote error={failure} />
     </div>
