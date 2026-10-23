@@ -157,23 +157,33 @@ function ChoiceCell({ pkg, project, cell }: { pkg: PackageView; project: string;
   const { send, sending, failure } = useCommand()
   const label = useProjectLabel()
   const choose = (value: string) => void send('packages/project', { project, name: pkg.name, choice: value === 'default' ? null : value })
+  // A server still starting passes in seconds after every service start: a spinner on the select, not a chip.
+  const probing = cell.enabled && cell.problems.some((each) => each.kind === 'probing')
+  const problems = cell.enabled ? cell.problems.filter((each) => each.kind !== 'probing') : []
 
   return (
     <span className="packages__cell">
-      <select
-        className={cell.enabled ? 'packages__choice packages__choice--on' : 'packages__choice'}
-        value={cell.choice ?? 'default'}
-        disabled={sending}
-        aria-label={t.packages.choiceLabel(pkg.name, label(project))}
-        onChange={(event) => choose(event.target.value)}
-      >
-        <option value="default">{t.packages.inherited(pkg.default)}</option>
-        <option value="on">{t.packages.choice.on}</option>
-        <option value="off">{t.packages.choice.off}</option>
-      </select>
-      {cell.enabled && cell.problems.length > 0 && (
+      <span className="packages__select">
+        <select
+          className={cell.enabled ? 'packages__choice packages__choice--on' : 'packages__choice'}
+          value={cell.choice ?? 'default'}
+          disabled={sending}
+          aria-label={t.packages.choiceLabel(pkg.name, label(project))}
+          onChange={(event) => choose(event.target.value)}
+        >
+          <option value="default">{t.packages.inherited(pkg.default)}</option>
+          <option value="on">{t.packages.choice.on}</option>
+          <option value="off">{t.packages.choice.off}</option>
+        </select>
+        {probing && (
+          <Tipped className="packages__probing" tip={problemTip({ kind: 'probing' })} focusable inline>
+            <span className="packages__spinner" role="img" aria-label={t.packages.problem.probing} />
+          </Tipped>
+        )}
+      </span>
+      {problems.length > 0 && (
         <span className="tools__chips">
-          {cell.problems.map((problem) => (
+          {problems.map((problem) => (
             <ProblemChip key={problem.kind} problem={problem} />
           ))}
         </span>
