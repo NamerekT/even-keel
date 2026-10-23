@@ -33,7 +33,7 @@ Even Keel's state is one PGlite database, the folder `state/even-keel/` (`EVEN_K
 
 - The chain state is written whole on every save (`writeChainRecord`: delete and insert in one transaction), as the file was; the launch log is appended to. Its switches `unattended` and `trimTools` are Even Keel's setting rows since step 4: `loadChainState` reads them from `setting_values`, the page writes them through the settings (`ConfigStore.saveChainSwitches`).
 - The settings are written whole in one statement (`saveSettings`: data-modifying CTEs, so a write through the port is whole too); a row whose value did not change keeps its `updated_at`.
-- `closed_tasks` is filled by the chain's `finish` (`archiveClosed` in `src/service.ts`) for every task but a fix of main, with the title, profile and status the tracker last gave. The page shows a project's archived tasks closed in the last 7 days that its trackers no longer give — a feed or a profile gone, a task deleted — as closed by that status (`archivedShown`, `src/chain/archive.ts`, BTN-66).
+- `closed_tasks` is filled by the chain's `finish` (`archiveClosed` in `src/service.ts`) for every task but a fix of main, with the title, profile and status the tracker last gave. The page shows a project's archived tasks closed in the last 7 days that its trackers no longer give — a feed or a profile gone, a task deleted — as closed by that status (`archivedShown`, `src/chain/archive.ts`, BTN-66). Tally reads it with the launch log and takes from it the status and the done mark of tasks of other trackers than Huly (BTN-330, `tally/CLAUDE.md`).
 
 ## Schema steps
 

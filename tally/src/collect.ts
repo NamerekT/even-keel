@@ -5,13 +5,14 @@ import { AccountHomes, accountsRoot } from '../../src/account/homes.js'
 import { taskSources } from '../../src/chain/launches.js'
 import type { LaunchEntry } from '../../src/chain/model.js'
 import { readSnapshots, type HandoffSnapshot } from '../../src/chain/snapshots.js'
-import { readLaunches } from '../../src/chain/store.js'
+import { closedTasks, readLaunches, type ClosedTask } from '../../src/chain/store.js'
 import { loadConfig } from '../../src/config.js'
 import { HALTED } from '../../src/stats/tally-schema.js'
 import { sqliteInMemory } from '../../src/storage/copy.js'
 import { SQLITE_FILE } from '../../src/storage/database.js'
 import { readStateDatabase, type StateReader } from '../../src/storage/owner.js'
 import { readStateFiles } from '../../src/storage/state-files.js'
+import { closedStates } from './closed-tasks.js'
 import { parseConfig, unpricedToLog, type DbSettings } from './config.js'
 import { TallyDb } from './db.js'
 import { refreshHandoffs } from './handoffs.js'
@@ -41,7 +42,7 @@ export async function collect(settings: DbSettings, root: string, home: string, 
   const config = parseConfig(JSON.parse(readFileSync(process.env.TALLY_CONFIG ?? join(root, 'tally', 'tally.config.json'), 'utf8')))
   const stateDir = process.env.EVEN_KEEL_STATE_DIR ?? join(home, 'state')
   const homes = new AccountHomes(process.env, accountsRoot(process.env))
-  const { launches: journal, handoffs: saved, repos } = await evenKeelState(stateDir, log)
+  const { launches: journal, handoffs: saved, repos, closed } = await evenKeelState(stateDir, log)
   const launches = launchMap(journal)
   const taskHomes = taskSources(journal)
   const hulyOf = hulyOfProfiles(huly, new Map(taskHomes.flatMap((home) => (home.profile === null ? [] : [[home.task, home.profile] as const]))))
@@ -104,6 +105,7 @@ export async function collect(settings: DbSettings, root: string, home: string, 
     const forgotten = paths.length > 0 ? await db.forgetFilesExcept(paths) : 0
     const relabeled = await db.syncLaunches(launches)
     await db.syncTaskSources(taskHomes)
+    await db.syncClosedTasks(closedStates(closed, journal))
     await db.fillSessionFolders()
     if ((await db.meta('efforts')) === null) {
       log(`tally: ${await db.fillEfforts()} older messages given their effort level`)
@@ -143,26 +145,30 @@ export async function collect(settings: DbSettings, root: string, home: string, 
  * Without one — a merge reaches the collector before the service restarts and imports the old state — from the
  * `node:sqlite` file of versions 1–2, otherwise from the v0.1 files of the state folder. `repos` — the folders and
  * branches of the projects of the database (BTN-199); `undefined` without it, when the config file still holds them.
+ * `closed` — the archive of closed tasks (BTN-330), only in the database.
  */
-async function evenKeelState(stateDir: string, log: Log): Promise<{ launches: LaunchEntry[]; handoffs: HandoffSnapshot[]; repos?: TrackedProject[] }> {
+async function evenKeelState(stateDir: string, log: Log): Promise<EvenKeelState> {
   try {
     const database = await readStateDatabase(stateDir)
     const reader = database ?? (await legacyReader(stateDir))
     if (reader === undefined) {
       const files = readStateFiles(stateDir)
-      return { launches: files?.launches ?? [], handoffs: files?.handoffs ?? [] }
+      return { launches: files?.launches ?? [], handoffs: files?.handoffs ?? [], closed: [] }
     }
     try {
       const repos = database === undefined ? undefined : (await reader.db.query<TrackedProject>('select repo, branch from projects order by position')).rows
-      return { launches: await readLaunches(reader.db), handoffs: await readSnapshots(reader.db), repos }
+      const closed = database === undefined ? [] : await closedTasks(reader.db)
+      return { launches: await readLaunches(reader.db), handoffs: await readSnapshots(reader.db), repos, closed }
     } finally {
       await reader.close()
     }
   } catch (error) {
     log(`tally: Even Keel's launch log is not read (${(error as Error).message})`)
-    return { launches: [], handoffs: [] }
+    return { launches: [], handoffs: [], closed: [] }
   }
 }
+
+type EvenKeelState = { launches: LaunchEntry[]; handoffs: HandoffSnapshot[]; repos?: TrackedProject[]; closed: ClosedTask[] }
 
 async function legacyReader(stateDir: string): Promise<StateReader | undefined> {
   const file = join(stateDir, SQLITE_FILE)

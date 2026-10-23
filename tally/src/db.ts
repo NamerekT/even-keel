@@ -1,6 +1,7 @@
 import pg from 'pg'
 import type { TaskSource } from '../../src/chain/launches.js'
 import type { Entry } from '../../src/sessions/entry.js'
+import type { ClosedState } from './closed-tasks.js'
 import type { ClassifySettings, DbSettings, Price } from './config.js'
 import type { Snapshot } from './limits.js'
 import type { FileState, Store } from './load.js'
@@ -65,6 +66,15 @@ export interface StoredChange extends RuleChange {
   added: number
   removed: number
 }
+
+// $1 — `ClosedState[]`: a done task keeps its status when the archive has none, an open one drops it (BTN-330).
+export const CLOSED_TASK_STATES = `
+insert into tasks (task, status, done, fetched_at)
+select x.task, x.status, x.done, 'epoch' from jsonb_to_recordset($1::jsonb) as x(task text, status text, done boolean)
+on conflict (task) do update set
+  status = case when excluded.done then coalesce(excluded.status, tasks.status) end, done = excluded.done
+where tasks.done is distinct from excluded.done
+  or tasks.status is distinct from case when excluded.done then coalesce(excluded.status, tasks.status) end`
 
 export const SESSION_FOLDERS = `
 update sessions s set project_dir = (
@@ -391,6 +401,12 @@ export class TallyDb implements Store {
          or (coalesce(tasks.title, '') = '' and excluded.title is not null)`,
       [JSON.stringify(sources)],
     )
+    return result.rowCount ?? 0
+  }
+
+  /** The status and the done mark of tasks of other trackers than Huly, from Even Keel's archive (`closedStates`). */
+  async syncClosedTasks(states: ClosedState[]): Promise<number> {
+    const result = await this.client.query(CLOSED_TASK_STATES, [JSON.stringify(states)])
     return result.rowCount ?? 0
   }
 
