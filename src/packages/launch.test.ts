@@ -1,7 +1,7 @@
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { emptyPackages, type PackageInstall, type PackageRecord } from './model.js'
-import { installMarketplace, otherPlugins, parseRoute, routeOf, sessionPackages } from './launch.js'
+import { installMarketplace, otherPlugins, parseRoute, routeOf, sessionPackages, sessionReach } from './launch.js'
 
 const install = (id: string, servers: string[], extras = true): PackageInstall => ({
   id,
@@ -69,6 +69,18 @@ describe('sessionPackages', () => {
     const file = catalog()
     file.pins.ABC = { 'ABC-1': { 'huly@even-keel': 'zzz' } }
     expect(sessionPackages(file, 'ABC', 'ABC-1', places).mcp).toEqual([])
+  })
+})
+
+describe('sessionReach', () => {
+  it('names the plugins and the gateway servers of the packages the project has on', () => {
+    expect(sessionReach(catalog(), 'ABC')).toEqual({ plugins: ['huly@even-keel', 'pending@even-keel'], servers: ['plugin_huly_huly', 'strata'] })
+  })
+
+  it('leaves out a package the project turned off', () => {
+    const file = catalog()
+    file.projects.XYZ = { on: [], off: ['strata'], settings: {} }
+    expect(sessionReach(file, 'XYZ')).toEqual({ plugins: ['pending@even-keel'], servers: [] })
   })
 })
 

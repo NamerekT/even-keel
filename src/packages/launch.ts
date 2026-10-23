@@ -1,7 +1,7 @@
 import { existsSync, mkdirSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
-import type { SessionMcp, SessionPlugin } from '../agent/contract.js'
-import { installsFor, type PackagesFile } from './model.js'
+import { gatewayName, type SessionMcp, type SessionPlugin } from '../agent/contract.js'
+import { current, enabledPackages, installsFor, pluginKey, type PackagesFile, type SessionReach } from './model.js'
 
 const ROUTE = /^\/mcp\/([^/]+)\/([^/]+)@([^/@]+)\/([^/]+)$/
 
@@ -89,6 +89,16 @@ export function sessionPackages(file: PackagesFile, project: string, task: strin
     }
   }
   return { mcp, plugins, installs }
+}
+
+export function sessionReach(file: PackagesFile, project: string): SessionReach {
+  const reach: SessionReach = { plugins: [], servers: [] }
+  for (const name of enabledPackages(file, project)) {
+    const record = file.packages[name]!
+    if (record.plugin !== undefined) reach.plugins.push(pluginKey(record.plugin.name, record.plugin.marketplace))
+    for (const server of Object.keys(current(record)?.servers ?? {})) reach.servers.push(gatewayName({ name: server, plugin: record.plugin?.name ?? null, url: '' }))
+  }
+  return reach
 }
 
 /**

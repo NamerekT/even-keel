@@ -8,8 +8,8 @@ import type { KeyView, PackagesView, PackageView, ProjectPackages } from '../sta
 import { bringsServer, Probes, projectPackages } from './check.js'
 import { McpGateway, type GatewayTarget } from './gateway.js'
 import { applySettings, defaultSettings, keysOf, substitute, upsertEnv, type KeyRules } from './keys.js'
-import { ensureMarketplace, otherPlugins, pluginDir, routeOf, sessionPackages } from './launch.js'
-import { current, enabledPackages, pluginKey, settingsOf, unpinned, type InstalledServer, type PackageInstall, type PackagesFile, type ServerEntry } from './model.js'
+import { ensureMarketplace, otherPlugins, pluginDir, routeOf, sessionPackages, sessionReach } from './launch.js'
+import { current, enabledPackages, pluginKey, settingsOf, unpinned, type InstalledServer, type PackageInstall, type PackagesFile, type ServerEntry, type SessionReach } from './model.js'
 import { installPinned, parseNpx, resolveVersion } from './npm.js'
 import { availablePlugins, FETCHED, hasExtras, knowsMarketplace, locatePlugin, ownMarketplace, pluginOffer, pluginServers, pluginVersion, readJson, seedPackages, serversIn } from './plugins.js'
 import { loadPackages, savePackages } from './store.js'
@@ -208,6 +208,11 @@ export class Packages {
       return plugin === undefined ? [] : [pluginKey(plugin.name, plugin.marketplace)]
     })
     return otherPlugins(settings, set)
+  }
+
+  /** The plugins and servers the project's sessions get from its set now. */
+  reach(project: string): SessionReach {
+    return sessionReach(this.file, project)
   }
 
   /** The task is done: its pins go, and with them the installs nothing holds any more. */

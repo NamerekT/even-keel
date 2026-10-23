@@ -1,6 +1,9 @@
 import type { ReceivedView, SettingRow, ToolsView } from '../../../src/tools/model.js'
+import { forPackageOff } from '../../../src/tools/settings.js'
 
 const HIDDEN = 'user-invocable-only'
+/** The packages the fake projects have on: the design plugin and `strata` set only in `local` are left out, as the service does. */
+const REACH = { plugins: ['huly@even-keel', 'playwright@claude-plugins-official'], servers: ['plugin_huly_huly', 'plugin_playwright_playwright'] }
 
 /**
  * `mode`: `bloated` — a session that got claude.ai skills, accounts that drift; `empty` — no session yet.
@@ -24,7 +27,9 @@ export function fakeTools(project: string, trim: boolean, mode: string | null): 
     row('permission', 'Bash(git *)', { user: 'allow', project: 'allow' }),
     row('permission', 'Bash(npm test *)', odd ? { project: 'allow' } : {}),
     row('permission', 'mcp__plugin_huly_huly__add_issue_label', { local: 'allow' }),
-  ].filter((each) => Object.keys(each.values).length > 0)
+    row('plugin', 'design@knowledge-work-plugins', { local: 'on' }),
+    row('permission', 'mcp__strata__strata_search', { local: 'allow' }),
+  ].filter((each) => Object.keys(each.values).length > 0 && !forPackageOff(each, REACH))
 
   return {
     project,
