@@ -903,30 +903,137 @@ input[type='radio']:disabled {
   font-size: 12px;
 }
 
-/* A flat band per account, edge to edge: a rule in its colour on the left and a tint of it fading to the right. */
+/* The drawer's two parts, "At work" and "Others", under quiet heads; the second names the column of numbers on the right. */
+.accounts__part {
+  display: flex;
+  align-items: baseline;
+  margin: 0;
+  padding: 10px 0 2px;
+  color: var(--fg-muted);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.accounts__part:first-child {
+  padding-top: 0;
+}
+
+/* Over the numbers, which stand left of the hidden "Here" button. */
+.accounts__part-free {
+  margin-left: auto;
+  margin-right: calc(var(--move-width) + 6px);
+  font-weight: 400;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+/* One plain row per account: no band, no tint — its colour is the dot before the name. */
 .accounts__item {
-  --rule: var(--series);
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  margin: 0 -16px;
-  padding: 12px 16px 14px;
+  gap: 6px;
+  padding: 8px 0;
   border-top: 1px solid var(--border);
-  background: linear-gradient(90deg, color-mix(in srgb, var(--rule) 13%, transparent), transparent 75%);
-  box-shadow: inset 3px 0 0 var(--rule);
-  transition: background-color var(--motion-fast) ease, box-shadow var(--motion-fast) ease;
 }
 
-.accounts__item:last-child {
-  border-bottom: 1px solid var(--border);
+.accounts__item:first-child {
+  border-top: 0;
 }
 
-.accounts__item--off {
-  --rule: color-mix(in srgb, var(--series) 40%, transparent);
+.accounts__item--off .accounts__dot {
+  opacity: 0.4;
 }
 
-.accounts__item .accounts__email {
-  font-size: 15px;
+.accounts__free {
+  flex: none;
+  color: var(--fg);
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.accounts__free--warm {
+  color: var(--warn-fg);
+}
+
+.accounts__free--full {
+  color: var(--lamp-error);
+}
+
+.accounts__none {
+  align-self: flex-start;
+  color: var(--fg-muted);
+  text-decoration: underline dotted;
+  text-underline-offset: 3px;
+}
+
+.accounts__free.accounts__none {
+  align-self: auto;
+  text-decoration: none;
+}
+
+/* Moving a role here is offered only on the row pointed at or in focus, so a column of idle accounts reads as names and numbers. */
+.roles--bare {
+  flex: none;
+  align-items: center;
+  gap: 4px;
+}
+
+.accounts,
+.accounts__part {
+  --move-width: 64px;
+}
+
+.roles__move {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  min-width: var(--move-width);
+  padding: 1px 4px 1px 8px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--fg);
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity var(--motion-fast) ease, border-color var(--motion-fast) ease;
+}
+
+.accounts__item:hover .roles__move,
+.accounts__item:focus-within .roles__move,
+.roles__move[aria-expanded='true'] {
+  opacity: 1;
+}
+
+.roles__move:enabled:hover,
+.roles__move[aria-expanded='true'] {
+  border-color: var(--accent);
+}
+
+.roles__move:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.roles__move:disabled {
+  cursor: default;
+}
+
+.roles__move .icon {
+  width: 14px;
+  height: 14px;
+  color: var(--fg-muted);
+}
+
+@media (hover: none) {
+  .roles__move {
+    opacity: 1;
+  }
 }
 
 .accounts__dot {
@@ -955,8 +1062,13 @@ input[type='radio']:disabled {
   stroke-width: 1.9;
 }
 
-.account-mark > .icon {
+.account-mark > .icon,
+.account-mark--dot .account-mark__agent {
   color: var(--fg-muted);
+}
+
+.account-mark--dot {
+  gap: 6px;
 }
 
 .account-tag {

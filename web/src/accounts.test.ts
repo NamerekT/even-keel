@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { AccountEntry, AccountView } from '../../src/account/model.js'
+import type { RateLimits } from '../../src/limits/model.js'
 import {
   accountGroups,
   accountSlot,
@@ -14,7 +15,9 @@ import {
   folderEmail,
   foreignAccount,
   offeredProviders,
+  panelSections,
   readinessOf,
+  tightestWindow,
 } from './accounts.js'
 
 const entry = (key: string, email: string | null): AccountEntry => ({
@@ -207,6 +210,53 @@ describe('accountGroups', () => {
       ['claude', ['global']],
       ['codex', ['work']],
     ])
+  })
+})
+
+describe('panelSections', () => {
+  const now = new Date('2026-10-10T10:00:00.000Z')
+  const of = (key: string, agent: string, patch: Partial<AccountEntry> = {}) => ({ ...entry(key, `${key}@example.com`), agent, ...patch })
+  const sections = (target: AccountView) => {
+    const { working, rest } = panelSections(target, now)
+    return { working: working.map((each) => each.key), rest: rest.map((each) => each.key) }
+  }
+
+  it('puts the accounts holding a role, running a project or a session first, by provider like the page', () => {
+    const app = { app: 'vscode' as const, account: 'editor', dir: null, error: null, sessions: [] }
+    expect(
+      sections({
+        ...view([of('spare', 'codex'), of('pool', 'codex', { projects: ['project-1'] }), of('editor', 'claude'), of('term', 'claude', { sessions: ['doe'] }), of('global', 'claude'), of('idle', 'claude')]),
+        apps: [app],
+      }),
+    ).toEqual({ working: ['global', 'editor', 'term', 'pool'], rest: ['idle', 'spare'] })
+  })
+
+  it('leaves the rest empty when every account works', () => {
+    expect(sections(view([of('global', 'claude')]))).toEqual({ working: ['global'], rest: [] })
+  })
+})
+
+describe('tightestWindow', () => {
+  const window = (usedPercentage: number) => ({ usedPercentage, resetsAt: '2026-10-10T12:00:00.000Z' })
+  const limits = (patch: Partial<RateLimits>): RateLimits => ({ fiveHour: null, sevenDay: null, updatedAt: '2026-10-10T10:00:00.000Z', source: 'usage', ...patch })
+
+  it('gives the window with the least left and how much is left of it', () => {
+    expect(tightestWindow(limits({ fiveHour: window(37), sevenDay: window(64) }))).toEqual({ span: 'sevenDay', free: 36, window: window(64) })
+    expect(tightestWindow(limits({ fiveHour: window(90.4), sevenDay: window(64) }))).toEqual({ span: 'fiveHour', free: 10, window: window(90.4) })
+  })
+
+  it("reads a monthly plan's month window", () => {
+    expect(tightestWindow(limits({ month: window(12) }))).toEqual({ span: 'month', free: 88, window: window(12) })
+  })
+
+  it('keeps the share within 0–100', () => {
+    expect(tightestWindow(limits({ fiveHour: window(130) }))?.free).toBe(0)
+    expect(tightestWindow(limits({ fiveHour: window(-5) }))?.free).toBe(100)
+  })
+
+  it('has none without a window with data', () => {
+    expect(tightestWindow(null)).toBeNull()
+    expect(tightestWindow(limits({}))).toBeNull()
   })
 })
 
