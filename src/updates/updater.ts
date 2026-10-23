@@ -6,6 +6,7 @@ import { readCheckout } from './checkout.js'
 import { serviceControl, type ServiceControl } from './control.js'
 import { launchRunner } from './launch.js'
 import {
+  leftRunning,
   packageBlock,
   previousOf,
   recordOf,
@@ -112,6 +113,12 @@ export class Updater {
     try {
       record = recordOf(JSON.parse(readFileSync(this.resultFile, 'utf8')))
     } catch {
+      record = null
+    }
+    const { current } = this.options
+    if (record !== null && !leftRunning(record, current)) {
+      const { mode, from, to } = record
+      this.options.log(`updates: the last ${mode} from ${from.version}${to === null ? '' : ` to ${to.version}`} left another version than ${current} running, it was updated by other means; its result is not shown`)
       record = null
     }
     if (JSON.stringify(record) === JSON.stringify(this.record)) return false

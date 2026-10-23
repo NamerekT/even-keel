@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { globalPrefixOf } from './prefix.js'
-import { packageBlock, previousOf, recordOf, resultView, sameStorage, tagOf, updateBlock, type UpdateRecord } from './model.js'
+import { leftRunning, packageBlock, previousOf, recordOf, resultView, sameStorage, tagOf, updateBlock, type UpdateRecord } from './model.js'
 
 const STORAGE = { schema: 9, database: 11, tally: 5 }
 const CLEAN = { commit: 'a1b2c3d', branch: 'main', tags: ['v0.2.0'], dirty: false }
@@ -139,5 +139,34 @@ describe('resultView', () => {
     expect(resultView(failed)).toMatchObject({ step: 'build', output: 'error TS2304', rollback: 'done', rollbackStep: null })
     const broken = { ...failed, rollback: { failed: { step: 'install' as const, output: 'EPERM' } } }
     expect(resultView(broken)).toMatchObject({ rollback: 'failed', rollbackStep: 'install', output: 'error TS2304\n\nEPERM' })
+  })
+})
+
+describe('leftRunning', () => {
+  it('holds a record only on the version it left running', () => {
+    expect(leftRunning(RECORD, '0.2.0')).toBe(true)
+    expect(leftRunning(RECORD, '0.1.0')).toBe(false)
+    const revert = { ...RECORD, mode: 'revert' as const, from: { ...RECORD.from, version: '0.2.0' }, to: { version: '0.1.0', tag: 'v0.1.0' } }
+    expect(leftRunning(revert, '0.1.0')).toBe(true)
+    expect(leftRunning(revert, '0.2.0')).toBe(false)
+  })
+
+  it('takes a failed run as one that left the version it came from', () => {
+    const rolledBack = { ...RECORD, failed: { step: 'build' as const, output: '' }, rollback: { failed: null } }
+    expect(leftRunning(rolledBack, '0.1.0')).toBe(true)
+    expect(leftRunning(rolledBack, '0.2.0')).toBe(false)
+    const early = { ...RECORD, failed: { step: 'stop' as const, output: '' } }
+    expect(leftRunning(early, '0.1.0')).toBe(true)
+  })
+
+  it('keeps a failed rollback on either version and drops it on a third', () => {
+    const broken = { ...RECORD, failed: { step: 'build' as const, output: '' }, rollback: { failed: { step: 'install' as const, output: '' } } }
+    expect(leftRunning(broken, '0.1.0')).toBe(true)
+    expect(leftRunning(broken, '0.2.0')).toBe(true)
+    expect(leftRunning(broken, '0.3.0')).toBe(false)
+  })
+
+  it('keeps a rebuild whatever runs', () => {
+    expect(leftRunning({ ...RECORD, mode: 'rebuild', to: null }, '0.3.0')).toBe(true)
   })
 })
