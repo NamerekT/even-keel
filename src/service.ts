@@ -1514,7 +1514,8 @@ let server = createEvenKeelServer({
           raw: () => configStore.raw(),
           adapters: ADAPTERS,
           env: profiles.valuesFor(draft.profile, draft.tracker),
-          claudeConfig: () => readJson(homes.configFile(homes.global)),
+          // A new project has no accounts of its own: its chain runs on the shared Claude account.
+          claudeConfigs: () => claudeConfigs().map(readJson),
           timeoutMs: TRACKER_CHECK_MS,
           user: userInfo().username,
         },
