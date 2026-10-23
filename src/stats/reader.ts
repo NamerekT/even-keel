@@ -1,5 +1,6 @@
 import pg from 'pg'
 import type {
+  AccountTokens,
   LimitCoverage,
   PeriodQuery,
   ReaderSettings,
@@ -48,6 +49,16 @@ const SPEND = `
 select account, coalesce(sum(cost), 0) as cost
 from message_costs
 where at >= (now() at time zone $1::text)::date::timestamp at time zone $1::text
+group by account`
+
+// $1 time zone: the tokens since local midnight and over the last 30 days, per account folder key.
+const TOKENS = `
+select account,
+  coalesce(sum(input + cache_write_5m + cache_write_1h + cache_read + output)
+    filter (where at >= (now() at time zone $1::text)::date::timestamp at time zone $1::text), 0) as day,
+  coalesce(sum(input + cache_write_5m + cache_write_1h + cache_read + output), 0) as month
+from messages
+where at >= now() - interval '30 days'
 group by account`
 
 // $1 time zone, $2 account or null.
@@ -541,6 +552,14 @@ export class StatsReader {
     return this.cached(`spend|${tz}`, async (pool) => {
       const { rows } = await pool.query<Row>(SPEND, [tz])
       return Object.fromEntries(rows.map((row) => [String(row.account), number(row.cost)]))
+    })
+  }
+
+  /** The tokens by account folder key of today and of 30 days, for the accounts whose limit nothing tells (BTN-342). */
+  tokens(tz: string): Promise<StatsAnswer<Record<string, AccountTokens>>> {
+    return this.cached(`tokens|${tz}`, async (pool) => {
+      const { rows } = await pool.query<Row>(TOKENS, [tz])
+      return Object.fromEntries(rows.map((row) => [String(row.account), { day: number(row.day), month: number(row.month) }]))
     })
   }
 

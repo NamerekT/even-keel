@@ -7,8 +7,10 @@ import { COPILOT } from '../../../src/copilot/name.js'
 import { limitSpans } from '../../../src/limits/model.js'
 import type { Notice } from '../../../src/notice/notice.js'
 import { OPENCODE } from '../../../src/opencode/name.js'
+import type { AccountTokens } from '../../../src/stats/model.js'
 import { accountName, agentLabel } from '../accountName.js'
 import { connectionOf, type Connection } from '../accounts.js'
+import { formatAgo, formatTokens } from '../format.js'
 import { say, t } from '../i18n/index.js'
 import { useLive } from '../live/context.js'
 import { useCommand } from '../live/useCommand.js'
@@ -30,6 +32,49 @@ export function useSpend(account: AccountView): Spend {
   const tz = useMemo(() => Intl.DateTimeFormat().resolvedOptions().timeZone, [])
   const wanted = account.accounts.some(spendsByKey)
   return loadedData(useStatsAnswer(wanted ? `spend|${tz}` : null, () => statsSpend(tz)))
+}
+
+/** The tokens of today and of 30 days by account folder key; null while Tally has not answered. */
+export type Tokens = Record<string, AccountTokens> | null
+
+/** The tokens from Tally, read only while there is an account whose limit nothing tells to show them for (BTN-342). */
+export function useTokens(account: AccountView): Tokens {
+  const { statsTokens } = useLive()
+  const tz = useMemo(() => Intl.DateTimeFormat().resolvedOptions().timeZone, [])
+  const wanted = account.accounts.some((entry) => limitsNote(entry) !== null)
+  return loadedData(useStatsAnswer(wanted ? `tokens|${tz}` : null, () => statsTokens(tz)))
+}
+
+/**
+ * What an account whose limit nothing tells shows instead of windows (BTN-342): why there are none, the tokens it carried
+ * by Tally, and when it last hit its limit, so one that keeps hitting it shows even with no ceiling known. `why`: `line`
+ * — on a line of its own; `tip` — the drawer's way, in the tip of the tokens; `plain` — on a line, inside a card that is
+ * itself a tip, so no tip of its own.
+ */
+export function UnknownLimit({ entry, tokens, now, className, why }: { entry: AccountEntry; tokens: Tokens; now: Date; className: string; why: 'line' | 'tip' | 'plain' }) {
+  const counted = tokens === null ? null : (tokens[entry.key] ?? { day: 0, month: 0 })
+  const text = counted === null ? t.account.tokensNone : t.account.tokens(formatTokens(counted.day), formatTokens(counted.month))
+  const tip = why === 'tip' ? (
+    <>
+      <span>{limitsNote(entry)}</span>
+      <span className="tip__muted">{t.account.tokensTitle}</span>
+    </>
+  ) : (
+    t.account.tokensTitle
+  )
+  return (
+    <>
+      {why !== 'tip' && <p className={className}>{limitsNote(entry)}</p>}
+      {why === 'plain' ? (
+        <p className={className}>{text}</p>
+      ) : (
+        <Tipped className={why === 'tip' ? `${className} accounts__none` : className} tip={tip} align="start" focusable>
+          {text}
+        </Tipped>
+      )}
+      {entry.lastLimitAt != null && <p className={className}>{t.account.lastLimit(formatAgo(entry.lastLimitAt, now))}</p>}
+    </>
+  )
 }
 
 /**

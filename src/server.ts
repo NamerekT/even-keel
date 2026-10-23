@@ -12,6 +12,7 @@ import {
   isTaskId,
   parsePeriodQuery,
   parseStatsFilter,
+  type AccountTokens,
   type PeriodQuery,
   type StatsAnswer,
   type StatsFilter,
@@ -62,6 +63,7 @@ export interface StatsSource {
   calibration(project: string, task: string | null): Promise<StatsAnswer<Calibration>>
   checkpoints(): Promise<StatsAnswer<CheckpointThreshold[]>>
   spend(tz: string): Promise<StatsAnswer<Record<string, number>>>
+  tokens(tz: string): Promise<StatsAnswer<Record<string, AccountTokens>>>
   rules(query: RulesQuery): Promise<StatsAnswer<StatsRules>>
   ruleDiff(ids: string[]): Promise<StatsAnswer<RuleDiffFile[]>>
   compare(query: CompareQuery): Promise<StatsAnswer<StatsCompare>>
@@ -566,7 +568,7 @@ async function route(deps: ServerDeps, request: IncomingMessage, response: Serve
     return
   }
 
-  const stats = /^\/api\/stats\/(history|period|steps|checkpoints|spend|rules|rules\/diff|rules\/compare|task\/([^/]+))$/.exec(path)
+  const stats = /^\/api\/stats\/(history|period|steps|checkpoints|spend|tokens|rules|rules\/diff|rules\/compare|task\/([^/]+))$/.exec(path)
   if (request.method === 'GET' && stats !== null) {
     let read: () => Promise<StatsAnswer<unknown>>
     try {
@@ -584,6 +586,9 @@ async function route(deps: ServerDeps, request: IncomingMessage, response: Serve
       } else if (stats[1] === 'spend') {
         const { tz } = parseStatsFilter(url.searchParams)
         read = () => deps.stats.spend(tz)
+      } else if (stats[1] === 'tokens') {
+        const { tz } = parseStatsFilter(url.searchParams)
+        read = () => deps.stats.tokens(tz)
       } else if (stats[1] === 'rules') {
         const query = parseRulesQuery(url.searchParams)
         read = () => deps.stats.rules(query)

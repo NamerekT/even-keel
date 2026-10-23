@@ -142,6 +142,12 @@ export interface StatsTaskDetail {
   compactions: StatsCompaction[]
 }
 
+/** The tokens of an account folder's messages, cache included: since local midnight and over the last 30 days. */
+export interface AccountTokens {
+  day: number
+  month: number
+}
+
 // newer — the database is at a schema version this code does not know (BTN-133). The reason of off is `disabled`,
 // `unchosen` (`src/stats/mode.ts`) or the `.env` variables the user's own Postgres lacks.
 export type StatsAnswer<T> =

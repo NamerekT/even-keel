@@ -52,6 +52,8 @@ export interface AccountEntry {
   transport?: Transport
   limits: RateLimits | null
   usage: UsageHealth
+  /** When an account whose limit nothing tells last hit it, by the chain's sessions since the start (BTN-342). */
+  lastLimitAt?: string | null
 }
 
 export interface AccountLogin {

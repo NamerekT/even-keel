@@ -75,6 +75,8 @@ export interface AccountWatcherOptions {
   configPending: (key: string) => boolean
   limits: (key: string) => RateLimits | null
   usage: (key: string) => UsageHealth
+  /** Optional. When an account whose limit nothing tells last hit it (`LimitRetries`). */
+  lastLimit?: (key: string) => string | null
   /** Whether the agent's provider takes the key. */
   checkKey: (agent: string, key: string) => Promise<KeyVerdict>
   keyCheckMs: number
@@ -138,6 +140,7 @@ export class AccountWatcher {
         ...(transport !== null && { transport }),
         limits: this.options.limits(home.key),
         usage: this.options.usage(home.key),
+        lastLimitAt: this.options.lastLimit?.(home.key) ?? null,
       }
     })
     return {
