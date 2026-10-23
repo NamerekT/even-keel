@@ -850,6 +850,8 @@ function projectFormOf(body: Record<string, unknown>): ProjectForm {
     color: color as number | null,
     brief: briefOf(brief),
     chain: rulesOf(chain),
+    // The page's reading of `chain`, never written: the writer compares each key with what the project inherits.
+    ownRules: [],
     // What the project ends up with: shown by the panel, never written; `own` is what is.
     promptLanguage: body.promptLanguage as Language,
     cacheTtl: (body.cacheTtl ?? null) as CacheTtl | null,

@@ -1,8 +1,11 @@
+import type { ChainRules } from '../../../src/chain/rules.js'
 import type { EvenKeelState, ProfileView } from '../../../src/state.js'
 import { say, t } from '../i18n/index.js'
 import { useCommand } from '../live/useCommand.js'
+import { knownStatuses, type RuleLevel } from './ruleRows.js'
+import { RuleForm, ruleText } from './RuleForm.js'
 import { changed, edited, reverted, type Values } from './settingsDraft.js'
-import { linesOf, marksOf, RuleFields, sameBy, SaveBar } from './settingsParts.js'
+import { linesOf, marksOf, sameBy, SaveBar } from './settingsParts.js'
 import { ruleChoicesOf } from './settingsRows.js'
 import { useDraft } from './settingsStore.js'
 import { useVocabularies } from './useVocabularies.js'
@@ -36,6 +39,10 @@ export function ProfileRules({ state, profile }: { state: EvenKeelState; profile
   const marks = marksOf(draft, saved, same, revert)
   const tasks = state.tasks.filter((task) => profile.projectIds.includes(task.project))
   const dirty = changed(draft, PROFILE_RULE_KEYS, same).length > 0
+  const shared = state.config.shared.chain
+  const own = rulesOf(draft.edit)
+  const rules: ChainRules = { ...shared, ...own }
+  const origins = Object.fromEntries(Object.keys(shared).map((key) => [key, key in own ? 'profile' : 'shared'])) as Record<keyof ChainRules, RuleLevel>
 
   return (
     <form
@@ -50,14 +57,24 @@ export function ProfileRules({ state, profile }: { state: EvenKeelState; profile
         {t.profiles.rulesOf(profile.name)}
       </h2>
       <p className="settings__hint">{profile.projectIds.length === 0 ? t.profiles.rulesNoProjects : t.profiles.rulesFor(profile.projects.join(', '))}</p>
-      <RuleFields
-        keys={PROFILE_RULE_KEYS}
+      <RuleForm
+        level="profile"
         hint={t.profiles.rulesHint}
-        text={(key) => draft.edit[key] as string}
-        onEdit={(key, text) => setDraft(edited(draft, key, text))}
+        rules={rules}
+        inherited={shared}
+        origins={origins}
+        profileName={profile.name}
+        statuses={knownStatuses(
+          vocabularies.map((each) => each.statuses),
+          tasks.map((task) => task.status),
+          rules,
+        )}
+        labels={ruleChoicesOf(tasks, vocabularies).labels}
+        modelLabels={state.config.shared.modelLabels}
+        // The profile leaves a key unset where it would only repeat the shared one.
+        onEdit={(changes) => setDraft(changes.reduce((each, [key, value]) => edited(each, key, ruleText(value)), draft))}
         errorOf={() => null}
         marks={marks}
-        choices={ruleChoicesOf(tasks, vocabularies)}
       />
       {failure !== null && <p className="notice notice--error">{say(failure)}</p>}
       <SaveBar shown={dirty} canSave={!sending} onRevert={() => revert(PROFILE_RULE_KEYS)} />

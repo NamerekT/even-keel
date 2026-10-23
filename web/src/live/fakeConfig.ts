@@ -39,8 +39,17 @@ export const FAKE_PULL_READINESS: EvenKeelState['pullReadiness'] = {
 
 /** What the fake tracker names for every project: some of it no fake task carries (`?vocabulary=none|fail`). */
 export const FAKE_VOCABULARY: TrackerVocabulary = {
-  statuses: ['Backlog', 'Todo', 'In Progress', 'In Review', 'Done', 'Canceled', 'Blocked'],
+  statuses: [
+    { name: 'Backlog', category: 'UnStarted' },
+    { name: 'Todo', category: 'ToDo' },
+    { name: 'In Progress', category: 'Active' },
+    { name: 'In Review', category: 'Active' },
+    { name: 'Done', category: 'Won' },
+    { name: 'Canceled', category: 'Lost' },
+    { name: 'Blocked', category: 'Active' },
+  ],
   labels: ['Bug', 'Feature', 'Docs', 'Manual', 'Question', 'Research', 'UI'],
+  milestones: ['v1.0', 'v1.1', 'v2.0'],
 }
 
 const CI_ALL: ProjectForm['ci'] = { guard: true, kinds: ['forgejo', 'github'], waitMinutes: null, recheckMain: true, fixTask: false }
@@ -79,6 +88,7 @@ const project = (repo: string, change: Partial<ProjectForm>): ProjectForm => ({
   color: null,
   brief: null,
   chain: DEFAULT_RULES,
+  ownRules: [],
   prompt: null,
   beforeStart: [],
   check: [],
@@ -119,7 +129,7 @@ export function fakeConfig(): ConfigView {
         own: { 'ci.kinds': ['github'], 'ci.waitMinutes': 15, 'ci.fixTask': true, promptLanguage: 'ru', 'stats.checkpointTokens': 180_000 },
       }),
       XYZ: project('D:/Projects/xyz', {
-        ...{ color: 3, slot: 2, chain: { ...DEFAULT_RULES, requiredLabels: ['Auto'] }, provider: 'codex', models: { codex: 'gpt-6.1-sol' }, modelLabels: true, remoteProfiles: { github: GITHUB_PROFILE } },
+        ...{ color: 3, slot: 2, chain: { ...DEFAULT_RULES, requiredLabels: ['Auto'] }, ownRules: ['requiredLabels'], provider: 'codex', models: { codex: 'gpt-6.1-sol' }, modelLabels: true, remoteProfiles: { github: GITHUB_PROFILE } },
         checkpointShares: { first: 65, late: 80, hard: 90 },
         own: { 'stats.checkpointShares.first': 65, 'stats.checkpointShares.late': 80, 'stats.checkpointShares.hard': 90 },
       }),

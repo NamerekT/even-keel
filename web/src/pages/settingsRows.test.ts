@@ -47,9 +47,8 @@ describe('choices for the chain rules', () => {
       runLabels: [],
     }) as unknown as Task
 
-  it('lists the statuses, labels and milestones the tasks have, once each, sorted', () => {
+  it('lists the labels and milestones the tasks have, once each, sorted', () => {
     expect(ruleChoicesOf([task('Todo', ['ui', 'Bug'], 'v2'), task('In Progress', ['ui'], 'v1.1'), task('Todo', [], 'v2')])).toEqual({
-      statuses: ['In Progress', 'Todo'],
       labels: ['Bug', 'ui'],
       milestones: ['v1.1', 'v2'],
     })
@@ -57,11 +56,10 @@ describe('choices for the chain rules', () => {
 
   it("adds the trackers' names no task has, a name once whatever its case", () => {
     const vocabularies = [
-      { statuses: ['Backlog', 'todo'], labels: ['UI', 'Docs'], milestones: ['v1.1'] },
-      { statuses: ['Done'], labels: ['docs', 'Research'] },
+      { statuses: [], labels: ['UI', 'Docs'], milestones: ['v1.1'] },
+      { statuses: [], labels: ['docs', 'Research'] },
     ]
     expect(ruleChoicesOf([task('Todo', ['ui', 'Bug'])], vocabularies)).toEqual({
-      statuses: ['Backlog', 'Done', 'Todo'],
       labels: ['Bug', 'Docs', 'Research', 'ui'],
       milestones: ['v1.1'],
     })

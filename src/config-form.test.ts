@@ -78,6 +78,20 @@ describe('withProjectForm', () => {
     expect(parseConfig(next).rules['id-abc']?.terminal).toBeNull()
   })
 
+  it('names the rule keys the project sets itself', () => {
+    expect(formOf({ chain: { requiredLabels: ['Auto'] }, projects: [abc({ chain: { terminal: ['Done'] } })] }, 'id-abc').ownRules).toEqual(['terminal'])
+  })
+
+  it('compares a changed rule with what the project inherits from its profile', () => {
+    const raw = { chain: { active: ['Todo'] }, projects: [abc()] }
+    const base = { ...formOf(raw, 'id-abc'), chain: { ...formOf(raw, 'id-abc').chain, active: ['Ready'] } }
+    const shared = { ...base, chain: { ...base.chain, active: ['Todo'] } }
+    expect(withProjectForm(raw, 'id-abc', shared, base, { active: ['Ready'] }).projects).toEqual([abc({ chain: { active: ['Todo'] } })])
+    const own = { projects: [abc({ chain: { active: ['Mine'] } })] }
+    const back = { ...formOf(own, 'id-abc'), chain: { ...formOf(own, 'id-abc').chain, active: ['Ready'] } }
+    expect(withProjectForm(own, 'id-abc', back, formOf(own, 'id-abc'), { active: ['Ready'] }).projects).toEqual([abc()])
+  })
+
   it('leaves a hand edit of the file alone where the form kept the value it started from', () => {
     const base = formOf({ projects: [abc()] }, 'id-abc')
     const entry = abc({ prompt: 'Hand.', slot: 2, branch: 'trunk', ci: { waitMinutes: 5 }, commands: { check: ['npm test'] } })
