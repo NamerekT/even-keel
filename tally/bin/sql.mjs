@@ -56,7 +56,7 @@ function dataOf(root) {
   return join(process.env.XDG_DATA_HOME || join(home, '.local', 'share'), 'even-keel')
 }
 
-function settings(root) {
+async function settings(root) {
   let file = {}
   try {
     file = parseEnv(readFileSync(join(root, '.env'), 'utf8'))
@@ -79,16 +79,24 @@ function settings(root) {
   }
 }
 
-// Without TALLY_DB_HOST the database is PGlite, and only the Even Keel service serves it (tally/src/local.ts).
-function localSettings(stateDir) {
+// Without TALLY_DB_HOST the database is PGlite, and only the Even Keel service serves it (tally/src/local.ts). Its
+// owner.json has no port while the service is still opening the database: the port is waited for.
+async function localSettings(stateDir) {
   const file = join(stateDir, 'tally', 'owner.json')
-  let owner
-  try {
-    owner = JSON.parse(readFileSync(file, 'utf8'))
-  } catch {
-    fail(`no ${file}: the local Tally database is served by the Even Keel service, and it is not running`)
+  const deadline = Date.now() + 30_000
+  for (;;) {
+    let owner
+    try {
+      owner = JSON.parse(readFileSync(file, 'utf8'))
+    } catch {
+      fail(`no ${file}: the local Tally database is served by the Even Keel service, and it is not running`)
+    }
+    if (Number.isInteger(owner?.port)) {
+      return { host: '127.0.0.1', port: owner.port, database: 'postgres', user: 'postgres', password: '', connectionTimeoutMillis: 10_000 }
+    }
+    if (Date.now() > deadline) fail(`${file} has no port after 30 s: the Even Keel service is still opening the local Tally database, or died opening it`)
+    await new Promise((done) => setTimeout(done, 100))
   }
-  return { host: '127.0.0.1', port: owner.port, database: 'postgres', user: 'postgres', password: '', connectionTimeoutMillis: 10_000 }
 }
 
 async function readSql(opts) {
@@ -141,7 +149,7 @@ try {
 } catch {
   fail(`pg not found in ${join(root, 'node_modules')} — run npm install in the Even Keel checkout`)
 }
-const client = new pg.Client({ ...settings(dataOf(root)), types: asText })
+const client = new pg.Client({ ...(await settings(dataOf(root))), types: asText })
 try {
   await client.connect()
   await client.query('begin transaction read only')
