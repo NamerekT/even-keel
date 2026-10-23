@@ -198,4 +198,41 @@ describe('state database', { timeout: 120_000 }, () => {
     expect(await readOwner(dbDir())).toBeNull()
     await opened(async (db) => expect(await databaseVersion(db)).toBe(DATABASE_VERSION))
   })
+
+  it('is owned by one of two opens started together, the other refused', async () => {
+    await (await prepare()).close()
+    const [first, second] = await Promise.allSettled([openStateDatabase(dbDir()), openStateDatabase(dbDir())])
+    const owners = [first, second].filter((result) => result.status === 'fulfilled')
+    try {
+      expect(owners).toHaveLength(1)
+      expect([first, second].find((result) => result.status === 'rejected')?.reason).toMatchObject({ message: expect.stringMatching(/holds the database/) })
+    } finally {
+      for (const owner of owners) await owner.value.close()
+    }
+    expect(existsSync(join(dbDir(), 'owner.json'))).toBe(false)
+  })
+
+  it('makes a reader started with the owner wait for its port and connect to it', async () => {
+    await (await prepare()).close()
+    const [owner, reader] = await Promise.all([openStateDatabase(dbDir()), readStateDatabase(stateDir)])
+    try {
+      expect(reader!.db).not.toBeInstanceOf(PGlite)
+      expect(await databaseVersion(reader!.db)).toBe(DATABASE_VERSION)
+    } finally {
+      await reader!.close()
+      await owner.close()
+    }
+  })
+
+  it('takes over a claim left by a process that died while opening', async () => {
+    await (await prepare()).close()
+    writeFileSync(join(dbDir(), 'owner.json'), JSON.stringify({ pid: process.pid, since: 0 }))
+    await opened(async (db) => expect(await databaseVersion(db)).toBe(DATABASE_VERSION), openStateDatabase(dbDir()))
+  })
+
+  it('gives the claim back when the open fails', async () => {
+    await (await prepare()).close()
+    await expect(openStateDatabase(dbDir(), [...STEPS, 'not sql'])).rejects.toThrow()
+    expect(existsSync(join(dbDir(), 'owner.json'))).toBe(false)
+  })
 })
