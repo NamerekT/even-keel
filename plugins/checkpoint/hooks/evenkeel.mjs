@@ -1,5 +1,6 @@
 // What the hooks ask Even Keel about a session, shared by the hook commands of Claude Code and Codex and by
-// OpenCode's plugin (../opencode/checkpoint.mjs): the checkpoint nudge due now, and the chat's waiting messages.
+// OpenCode's plugin (../opencode/checkpoint.mjs): the checkpoint nudge due now, the chat's waiting messages, the
+// check before a merge and whether the turn wrote the handoff note at its end.
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -60,6 +61,24 @@ export async function decisionOf(sessionId, tool, input, since) {
   if (response.status === 404) return null;
   if (!response.ok) return undefined;
   return (await response.json())?.decision ?? undefined;
+}
+
+/**
+ * The project's check before the session merges its task branch, and the project's main branch (`main` when Even Keel
+ * does not name one). No commands — Even Keel did not start this session, the project has none, or a CI will judge main.
+ */
+export async function checkOf(sessionId) {
+  const response = await fetch(`${base()}/api/sessions/${encodeURIComponent(sessionId)}/check`, { signal: AbortSignal.timeout(2000) });
+  if (!response.ok) return { commands: [], main: "main" };
+  const body = await response.json();
+  const commands = Array.isArray(body?.commands) ? body.commands.filter((command) => typeof command === "string" && command.trim() !== "") : [];
+  return { commands, main: typeof body?.branch === "string" && body.branch !== "" ? body.branch : "main" };
+}
+
+/** Whether the session's turn wrote `.temp/handoff.md` among its last tool calls; Even Keel reads the transcript of any agent. */
+export async function noteAtEnd(sessionId) {
+  const response = await fetch(`${base()}/api/sessions/${encodeURIComponent(sessionId)}/note`, { signal: AbortSignal.timeout(5000) });
+  return response.ok && (await response.json())?.note === true;
 }
 
 /** The text of what waited for the session, now delivered on `event`, or null: nothing waits, or Even Keel did not start it. */

@@ -1,6 +1,6 @@
-import { spawn } from "node:child_process";
+import { execFileSync, spawn } from "node:child_process";
 import { randomUUID } from "node:crypto";
-import { rmSync } from "node:fs";
+import { mkdtempSync, rmSync } from "node:fs";
 import { createServer } from "node:http";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
@@ -174,19 +174,29 @@ describe("the permission hook", () => {
   });
 });
 
-// OpenCode's plugin as OpenCode calls it, in its own process: `tool.execute.after` with the call and its mutable output.
+// OpenCode's plugin as OpenCode calls it, in its own process: the hooks with the call and their mutable output, the
+// session's folder (a task's worktree) given once when the plugin is made.
 describe("the OpenCode plugin", () => {
+  let before;
   let after;
+  let complete;
   let saved;
+  let repo;
   beforeAll(async () => {
     saved = process.env.EVEN_KEEL_URL;
     process.env.EVEN_KEEL_URL = url;
+    repo = mkdtempSync(join(tmpdir(), "merge-check-"));
+    execFileSync("git", ["init", "-q", "-b", "abc-12/task"], { cwd: repo });
     const { server } = await import("../opencode/checkpoint.mjs");
-    after = (await server({}))["tool.execute.after"];
+    const hooks = await server({ directory: repo });
+    before = hooks["tool.execute.before"];
+    after = hooks["tool.execute.after"];
+    complete = hooks["experimental.text.complete"];
   });
   afterAll(() => {
     if (saved === undefined) delete process.env.EVEN_KEEL_URL;
     else process.env.EVEN_KEEL_URL = saved;
+    rmSync(repo, { recursive: true, force: true });
   });
 
   /** What OpenCode 1.18.25 passes for a shell call, as seen live. */
@@ -225,6 +235,73 @@ describe("the OpenCode plugin", () => {
     process.env.EVEN_KEEL_URL = "http://127.0.0.1:9";
     try {
       expect((await call(session)).output).toBe("hello\n");
+    } finally {
+      process.env.EVEN_KEEL_URL = url;
+    }
+  });
+
+  const shell = (session, command) => before({ tool: "bash", sessionID: session, callID: "call_2" }, { args: { command, description: "Merge" } });
+  const merge = 'git -C "D:/repos/app" merge --no-edit abc-12/task';
+
+  it("runs the project's check before a shell call that merges the task branch and throws its refusal", async () => {
+    const session = sessionOf();
+    answers.set(`/api/sessions/${session}/check`, { commands: [`node -e "console.log('red'); process.exit(4)"`], branch: "main" });
+    await expect(shell(session, merge)).rejects.toThrow(/exited with code 4[\s\S]*red/);
+    await expect(shell(session, "git merge main")).resolves.toBeUndefined();
+    answers.set(`/api/sessions/${session}/check`, { commands: ['node -e "process.exit(0)"'], branch: "main" });
+    await expect(shell(session, merge)).resolves.toBeUndefined();
+  });
+
+  it("lets the merge go for a session Even Keel did not start, without Even Keel, and for other tools", async () => {
+    const session = sessionOf();
+    await expect(shell(session, merge)).resolves.toBeUndefined();
+    answers.set(`/api/sessions/${session}/check`, { commands: ['node -e "process.exit(1)"'], branch: "main" });
+    await expect(before({ tool: "read", sessionID: session, callID: "call_3" }, { args: { filePath: merge } })).resolves.toBeUndefined();
+    process.env.EVEN_KEEL_URL = "http://127.0.0.1:9";
+    try {
+      await expect(shell(session, merge)).resolves.toBeUndefined();
+    } finally {
+      process.env.EVEN_KEEL_URL = url;
+    }
+  });
+
+  /** A text part as `experimental.text.complete` gets it; the result is the text the transcript keeps. */
+  const text = async (session, value) => {
+    const output = { text: value };
+    await complete({ sessionID: session, messageID: "msg_1", partID: "prt_1" }, output);
+    return output.text;
+  };
+  const write = (session, filePath) => {
+    const output = { title: filePath, output: "Wrote file successfully.", metadata: {} };
+    return after({ tool: "write", sessionID: session, callID: "call_4", args: { filePath, content: "# Handoff" } }, output);
+  };
+
+  it("ends a turn's text with the CHECKPOINT line once the session wrote the note and Even Keel sees it at the end", async () => {
+    const session = sessionOf();
+    answers.set(`/api/sessions/${session}/note`, { note: true });
+    await write(session, "D:\\repos\\app\\.claude\\worktrees\\abc-12\\.temp\\handoff.md");
+    expect(await text(session, "The note is ready.\n")).toBe("The note is ready.\n\nCHECKPOINT: .temp/handoff.md");
+    expect(await text(session, "Ready.\n\nCHECKPOINT: .temp/handoff.md")).toBe("Ready.\n\nCHECKPOINT: .temp/handoff.md");
+    answers.set(`/api/sessions/${session}/note`, { note: false });
+    expect(await text(session, "Ready.")).toBe("Ready.");
+  });
+
+  it("leaves the text alone without the note, three calls after it, and without Even Keel", async () => {
+    const session = sessionOf();
+    answers.set(`/api/sessions/${session}/note`, { note: true });
+    expect(await text(session, "Done.")).toBe("Done.");
+    await write(session, "D:/repos/app/.temp/notes.md");
+    expect(await text(session, "Done.")).toBe("Done.");
+    await write(session, "D:/repos/app/.temp/handoff.md");
+    await call(session);
+    await call(session);
+    expect(await text(session, "Done.")).toBe("Done.\n\nCHECKPOINT: .temp/handoff.md");
+    await call(session);
+    expect(await text(session, "Done.")).toBe("Done.");
+    await write(session, "D:/repos/app/.temp/handoff.md");
+    process.env.EVEN_KEEL_URL = "http://127.0.0.1:9";
+    try {
+      expect(await text(session, "Done.")).toBe("Done.");
     } finally {
       process.env.EVEN_KEEL_URL = url;
     }

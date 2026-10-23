@@ -3,15 +3,8 @@
 // with a report instead of the CHECKPOINT line is sent back to add the line. Whether the
 // turn wrote the note comes from Even Keel, which reads the transcript of either agent.
 import { readFileSync } from "node:fs";
+import { noteAtEnd } from "./evenkeel.mjs";
 import { hasMark } from "./handoff.mjs";
-
-const BASE = (process.env.EVEN_KEEL_URL || "http://127.0.0.1:4747").replace(/\/+$/, "");
-
-async function noteAtEnd(sessionId) {
-  const url = `${BASE}/api/sessions/${encodeURIComponent(sessionId)}/note`;
-  const response = await fetch(url, { signal: AbortSignal.timeout(5000) });
-  return response.ok && (await response.json())?.note === true;
-}
 
 async function main() {
   const input = JSON.parse(readFileSync(0, "utf8"));
